@@ -109,7 +109,7 @@ export function wireOpening() {
     later(16750, () => showFinale(FINALE));
   });
   joke.addEventListener("click", () => {
-    if (round) { reset(); return; }
+    if (round) { reset(); (reduced.matches ? better : run).focus({ preventScroll: true }); return; }
     round++; finale.hidden = true; root.dataset.phase = "running";
     EXTRA.forEach((agent, i) => {
       const spawn = () => {

@@ -27,6 +27,7 @@ export async function buildWebsite(output = path.join(packageRoot, "dist"), opti
     target: "es2022",
     jsx: "automatic",
     minify: true,
+    sourcemap: process.env.WEBSITE_SOURCE_MAPS === "1",
     metafile: true,
     define: { "process.env.NODE_ENV": '"production"' },
     loader: { ".glb": "binary", ".png": "file", ".webp": "file" },

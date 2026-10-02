@@ -1,0 +1,198 @@
+{
+  "method": "Direct readCodeSurvey on git-archived source snapshots using the live projectTree; cross-checked exactly against codeSurveyReader({checkout: current}) on the worktree.",
+  "beforeCommit": "1b8fbb2b68fb694bf6a37c4179de97a0734637ab",
+  "sourceCommit": "88fc0e6c8ffb559aaeb050a79d442a7342310c88",
+  "afterCoverage": "Passing website-numbered Chromium journeys, then pnpm survey:coverage website",
+  "residueIncrement": "increment_4085c846d72b",
+  "before": {
+    "at": "2026-10-02T17:37:50.963Z",
+    "total": 67810,
+    "unclaimed": 5218,
+    "websiteTotal": 1504,
+    "websiteUnclaimed": 803,
+    "websiteFiles": [
+      {
+        "path": "src/build.ts",
+        "lines": 49,
+        "capability": "capability_edbdd439d9b4"
+      },
+      {
+        "path": "src/escape-html.ts",
+        "lines": 3,
+        "capability": "capability_edbdd439d9b4"
+      },
+      {
+        "path": "src/forest-data.ts",
+        "lines": 18,
+        "capability": "capability_88dfe8ee2706"
+      },
+      {
+        "path": "src/forest-scene.tsx",
+        "lines": 259
+      },
+      {
+        "path": "src/forest.ts",
+        "lines": 61
+      },
+      {
+        "path": "src/main.ts",
+        "lines": 24
+      },
+      {
+        "path": "src/opening-copy.ts",
+        "lines": 142,
+        "capability": "capability_edbdd439d9b4"
+      },
+      {
+        "path": "src/opening-markup.ts",
+        "lines": 15,
+        "capability": "capability_edbdd439d9b4"
+      },
+      {
+        "path": "src/opening.ts",
+        "lines": 154
+      },
+      {
+        "path": "src/publish-source.ts",
+        "lines": 42,
+        "capability": "capability_d3ee9737837e"
+      },
+      {
+        "path": "src/publish.ts",
+        "lines": 148,
+        "capability": "capability_d3ee9737837e"
+      },
+      {
+        "path": "src/refresh-forest.ts",
+        "lines": 30,
+        "capability": "capability_88dfe8ee2706"
+      },
+      {
+        "path": "src/tour-copy.ts",
+        "lines": 157
+      },
+      {
+        "path": "src/tour-reading.ts",
+        "lines": 51,
+        "capability": "capability_18562ff0841c"
+      },
+      {
+        "path": "src/tour-snapshot.ts",
+        "lines": 80,
+        "capability": "capability_88dfe8ee2706"
+      },
+      {
+        "path": "src/tour-ui.ts",
+        "lines": 148
+      },
+      {
+        "path": "src/tour.ts",
+        "lines": 54,
+        "capability": "capability_18562ff0841c"
+      },
+      {
+        "path": "src/waitlist.ts",
+        "lines": 69,
+        "capability": "capability_d2ee418285e3"
+      }
+    ]
+  },
+  "after": {
+    "at": "2026-10-02T17:39:59.533Z",
+    "total": 67811,
+    "unclaimed": 4445,
+    "websiteTotal": 1505,
+    "websiteUnclaimed": 30,
+    "websiteFiles": [
+      {
+        "path": "src/build.ts",
+        "lines": 50,
+        "capability": "capability_edbdd439d9b4"
+      },
+      {
+        "path": "src/escape-html.ts",
+        "lines": 3,
+        "capability": "capability_edbdd439d9b4"
+      },
+      {
+        "path": "src/forest-data.ts",
+        "lines": 18,
+        "capability": "capability_88dfe8ee2706"
+      },
+      {
+        "path": "src/forest-scene.tsx",
+        "lines": 259,
+        "capability": "capability_18562ff0841c"
+      },
+      {
+        "path": "src/forest.ts",
+        "lines": 61,
+        "capability": "capability_18562ff0841c"
+      },
+      {
+        "path": "src/main.ts",
+        "lines": 24,
+        "capability": "capability_18562ff0841c"
+      },
+      {
+        "path": "src/opening-copy.ts",
+        "lines": 142,
+        "capability": "capability_edbdd439d9b4"
+      },
+      {
+        "path": "src/opening-markup.ts",
+        "lines": 15,
+        "capability": "capability_edbdd439d9b4"
+      },
+      {
+        "path": "src/opening.ts",
+        "lines": 154,
+        "capability": "capability_edbdd439d9b4"
+      },
+      {
+        "path": "src/publish-source.ts",
+        "lines": 42,
+        "capability": "capability_d3ee9737837e"
+      },
+      {
+        "path": "src/publish.ts",
+        "lines": 148,
+        "capability": "capability_d3ee9737837e"
+      },
+      {
+        "path": "src/refresh-forest.ts",
+        "lines": 30
+      },
+      {
+        "path": "src/tour-copy.ts",
+        "lines": 157,
+        "capability": "capability_18562ff0841c"
+      },
+      {
+        "path": "src/tour-reading.ts",
+        "lines": 51,
+        "capability": "capability_18562ff0841c"
+      },
+      {
+        "path": "src/tour-snapshot.ts",
+        "lines": 80,
+        "capability": "capability_88dfe8ee2706"
+      },
+      {
+        "path": "src/tour-ui.ts",
+        "lines": 148,
+        "capability": "capability_18562ff0841c"
+      },
+      {
+        "path": "src/tour.ts",
+        "lines": 54,
+        "capability": "capability_18562ff0841c"
+      },
+      {
+        "path": "src/waitlist.ts",
+        "lines": 69,
+        "capability": "capability_d2ee418285e3"
+      }
+    ]
+  }
+}

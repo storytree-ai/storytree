@@ -49,8 +49,9 @@ test("4.9 the tree is a graph of fixed-size cards: each capability above what it
 
 test("4.9, 4.11 five independent capabilities fit the story panel at readable full size", () => {
   const layout = layoutTree({ ...panel, capabilities: ["a", "b", "c", "d", "e"].map(line), arrows: [] });
-  const frame = { width: 530, height: 440 };
-  assert.equal(fitted(layout, frame).scale, 1, "fitting the whole tree must not halve the labels and health words");
+  for (const frame of [{ width: 530, height: 440 }, { width: 438, height: 350 }]) {
+    assert.equal(fitted(layout, frame).scale, 1, "fitting the whole tree must not halve the labels and health words");
+  }
   assert.equal(layout.cards.length, 5);
   for (const card of layout.cards) {
     assert.deepEqual([card.width, card.height], [CARD.width, CARD.height]);

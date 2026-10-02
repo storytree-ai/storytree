@@ -7,8 +7,8 @@ import { withCapture } from '../../../../../../apps/desktop/src/capture/index.ts
 import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const seed = JSON.parse(readFileSync(path.join(out, 'seed.json'), 'utf8'));
-const census = JSON.parse(readFileSync(path.join(out, 'measurements.json'), 'utf8'));
+const seed = JSON.parse(readFileSync(path.join(here, 'seed.json'), 'utf8'));
+const census = JSON.parse(readFileSync(path.join(here, 'measurements.json'), 'utf8'));
 await withCapture({ folder: here, dist: path.join(here, 'dist') }, async ({ browser, origin, out, settle }) => {
 
 async function measure(page) {

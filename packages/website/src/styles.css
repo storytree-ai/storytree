@@ -1,3 +1,6 @@
+@import "./tour.css";
+@import "./freeplay.css";
+
 :root {
   color-scheme: dark;
   font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -58,9 +61,6 @@ h1 em { font-style: normal; color: var(--green); }
 .forest-canvas { visibility: hidden; }
 #website-forest[data-forest-state="live"] .forest-canvas { visibility: visible; }
 #website-forest[data-forest-state="live"] .forest-still { visibility: hidden; }
-/* R3F sets inline pointer-events:auto on its inner wrapper. Keep the whole drawing passive
-   so wheel/touch scroll the page; the sibling buttons turn the map. */
-.forest-drawing, .forest-drawing * { pointer-events: none !important; }
 .forest-controls { position: absolute; bottom: 4px; inset-inline: 0; display: flex; justify-content: center; gap: 8px; }
 .forest-controls button { min-width: 44px; min-height: 44px; border: 1px solid var(--line); border-radius: 3px; padding: 8px 12px; background: var(--ink); color: var(--muted); font-size: 12px; cursor: pointer; }
 .forest-controls button:hover { color: var(--green); border-color: var(--green); }

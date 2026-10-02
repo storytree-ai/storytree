@@ -109,10 +109,13 @@ export function mountSessionsList(container: HTMLElement, options: {
   onSelect?(session: string | undefined): void;
   /** The page's one live reading, which the list hears; without it the list reads for itself. */
   reading?: PageReading;
+  /** A saved recording's time; omitted by live hosts, which use the wall clock. */
+  now?(): Date;
 }) {
   const host = document.createElement("div");
   container.append(host);
   const root = createRoot(host);
+  const now = options.now ?? (() => new Date());
   let tree: AnnotatedTree | undefined;
   let arcs: readonly ArcView[] | undefined;
   let log: readonly Line[] | LogReading = [];
@@ -179,7 +182,7 @@ export function mountSessionsList(container: HTMLElement, options: {
       // A reading that fails leaves the bars as they were; the next ask tries again.
     }).finally(() => {
       asking = false;
-      if (!stopped) refresh(new Date(), false);
+      if (!stopped) refresh(now(), false);
     });
   };
   const refresh = (now: Date, ask = true): void => {
@@ -208,13 +211,13 @@ export function mountSessionsList(container: HTMLElement, options: {
       arcs = nextArcs;
       // The page reading holds the log once for every surface, folded and thinned to what they read (ADR-0836 D4).
       log = page.held();
-      refresh(new Date());
+      refresh(now());
     },
-    onClock(now) { refresh(new Date(now)); },
+    onClock(at) { refresh(options.now?.() ?? new Date(at)); },
     onError() { if (!stopped) draw("Sessions could not be refreshed. Retrying…"); },
   });
   return {
-    showDetails(next: ReadonlyMap<string, SessionDetails>) { details = next; refresh(new Date()); },
+    showDetails(next: ReadonlyMap<string, SessionDetails>) { details = next; refresh(now()); },
     /** Highlight a session's row from its wisp, or none. */
     hover(session: string | undefined) { highlighted = session; draw(); },
     /** Mark the session the knowledge core has selected, or none. */

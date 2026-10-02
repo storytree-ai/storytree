@@ -33,21 +33,45 @@
           </div>
         </div>
       </section>
-      <section class="forest-section shell" aria-labelledby="forest-title">
-        <div class="section-caption">
+      <section id="chapter2" class="tour-section shell" aria-labelledby="forest-title">
+        <div class="tour-heading">
           <h2 id="forest-title">A project, taking shape.</h2>
-          <p>storytree’s project map</p>
-          <button id="opening-replay" type="button" hidden>Replay chapter 1</button>
+          <div><p>storytree’s own project</p><button id="opening-replay" type="button" hidden>Replay chapter 1</button></div>
         </div>
-        <div id="website-forest" data-forest-state="still" aria-label="Storytree’s project map">
-          <picture class="forest-still">
-            <source media="(max-width: 600px)" srcset="/forest-phone.png">
-            <img src="/forest-desktop.png" width="458" height="458" loading="lazy" alt="A saved map of storytree’s project: pale story islands and their connections on a dark globe.">
-          </picture>
+        <nav id="tour-navigation" class="tour-navigation" aria-label="Choose an explainer" hidden></nav>
+        <div class="tour-stage">
+          <div id="website-forest" data-forest-state="still" aria-label="Storytree’s project map">
+            <picture class="forest-still">
+              <source media="(max-width: 600px)" srcset="/forest-phone.png">
+              <img src="/forest-desktop.png" width="458" height="458" loading="lazy" alt="A saved map of storytree’s project: pale story islands and their connections on a dark globe.">
+            </picture>
+          </div>
+          <article class="tour-copy" aria-labelledby="tour-title">
+            <p id="tour-kicker" class="eyebrow">Chapter 2 · Why storytree</p>
+            <h3 id="tour-title">Your attention is the scarce part.</h3>
+            <div id="tour-lines" class="tour-lines"><p>Your coding agent builds the software. Storytree shows your project’s plan and the health your agents report.</p><p>Each island is a story. Its capabilities describe the work within it.</p></div>
+            <p id="tour-progress" class="tour-progress">Saved project · 2 October 2026</p>
+            <aside id="tour-why" class="tour-why" aria-labelledby="tour-why-title" hidden>
+              <h4 id="tour-why-title" tabindex="-1">Why it exists</h4>
+              <p>The tour waits while you read. These decisions explain the thinking behind this view.</p>
+              <ol id="tour-why-body"></ol>
+              <button id="tour-why-close" type="button">Back to the tour</button>
+            </aside>
+          </article>
         </div>
-        <div class="forest-key">
-          <p>Each island is a story. Its capabilities describe the work within it.</p>
+        <div id="tour-freeplay" class="tour-freeplay" hidden></div>
+        <section id="tour-comparisons" class="tour-comparisons" aria-label="Sourced comparisons" hidden></section>
+        <div id="tour-controls" class="tour-controls" role="group" aria-label="Tour controls" hidden>
+          <button id="tour-pause" type="button" aria-pressed="false">Pause</button>
+          <label class="tour-speed" for="tour-speed">Speed <select id="tour-speed"><option value="0.75">0.75×</option><option value="1" selected>1×</option><option value="1.5">1.5×</option></select></label>
+          <button id="tour-next" class="tour-next" type="button">Next <span aria-hidden="true">→</span></button>
+          <button id="tour-replay" type="button">Replay tour</button>
+          <button id="tour-everything" type="button" aria-pressed="false">Show everything</button>
+          <button id="tour-depth" type="button" aria-expanded="false" aria-controls="tour-why">Why it exists</button>
+          <button id="tour-skip" type="button">Skip to free play</button>
         </div>
+        <div class="tour-foot"><p>Saved project · 2 October 2026<br>Explore the real drawing and a dated recording of the work.</p><a id="tour-hatch" class="tour-hatch" href="#waitlist" hidden>Your own project <span aria-hidden="true">↗</span></a></div>
+        <p id="tour-live" class="tour-sr" role="status" aria-live="polite" aria-atomic="true"></p>
       </section>
       <div class="paper">
         <section class="explanation shell" aria-labelledby="explanation-title">

@@ -14,31 +14,30 @@ function hasWebGL(): boolean {
 
 async function activate(host: HTMLElement) {
   performance.mark("forest-activate");
-  if (!hasWebGL()) return;
-  host.dataset.forestState = "loading";
+  const webgl = hasWebGL();
+  host.dataset.forestState = webgl ? "loading" : "still";
   const layer = document.createElement("div");
   layer.className = "forest-canvas";
   host.append(layer);
   let finished = false;
-  let dispose: (() => void) | undefined;
   const fallback = () => {
     finished = true;
     clearTimeout(timeout);
     host.dataset.forestState = "still";
-    // React can report an error during commit; unmount after that commit has finished.
-    queueMicrotask(() => { dispose?.(); layer.remove(); });
+    // The app's text surfaces stay mounted even when the globe cannot draw.
   };
   const timeout = window.setTimeout(fallback, 15_000);
   performance.mark("forest-request");
   try {
     const { mountForest } = await import("./forest-scene.js");
     if (finished) return;
-    dispose = mountForest(layer, () => {
+    mountForest(layer, () => {
       if (finished) return;
       clearTimeout(timeout);
       host.dataset.forestState = "live";
       performance.mark("forest-ready");
-    }, fallback);
+    }, fallback, webgl);
+    if (!webgl) { clearTimeout(timeout); finished = true; }
   } catch {
     fallback();
   }

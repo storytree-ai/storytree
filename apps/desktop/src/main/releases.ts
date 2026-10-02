@@ -1,10 +1,10 @@
 /** Installed-app updates; development slots keep their own follow-main updater. */
-import { appendFileSync, existsSync } from "node:fs";
+import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { format } from "node:util";
 
 import { app } from "electron";
-import { ReleaseUpdater, type ReleaseOptions } from "@storytree/app";
+import { ReleaseUpdater, releaseChannel, type ReleaseOptions } from "@storytree/app";
 
 /**
  * Whether this is the app the installer put here. The installer writes a marker; unpacked
@@ -20,7 +20,7 @@ export function installedApp(): boolean {
 export function followReleases(options: ReleaseOptions, home: string): ReleaseUpdater | undefined {
   if (!installedApp()) return undefined;
 
-  const updater = new ReleaseUpdater({ ...options, home });
+  const updater = new ReleaseUpdater({ ...options, home, releaseChannel: () => releaseChannel(home, readFileSync(path.join(process.resourcesPath, "storytree-installed"), "utf8")) });
   const log = (...parts: unknown[]): void => {
     const message = format(...parts);
     console.log(`releases: ${message}`);

@@ -57,7 +57,7 @@ if (process.argv[2] === "source") {
   if (newerThanPublished(version)) {
     const tag = `v${version}`;
     const dir = "apps/desktop/release";
-    const delivery = ["install-storytree.ps1", "install-storytree.txt", "storytree-delivery.json"];
+    const delivery = ["install-storytree.ps1", "install-storytree.txt", "install-storytree-development.txt", "storytree-delivery.json"];
     const files = readdirSync(dir).filter((name) => delivery.includes(name) || /\.(exe|blockmap|yml)$/.test(name) && name !== "builder-debug.yml" && name !== "builder-effective-config.yaml");
     if (!files.includes("latest.yml") || !files.includes(`storytree-0.3-${version}-setup.exe`)) throw new Error("Missing release feed or installer");
     if (delivery.some((name) => !files.includes(name))) throw new Error("Missing one-command delivery assets");
@@ -87,6 +87,8 @@ function notes(command, sha) {
     "",
     "It installs the app and opens it; Help → First-run guide in the app connects your agent.",
     "",
-    `Windows x64 and arm64 installer, built from verified merged main ${sha}. The installed app follows this release feed automatically.`,
+    `Windows x64 and arm64 installer, built from verified merged main ${sha}. First-user delivery follows only the owner's stable pin; it is unavailable until the first pin.`,
+    "",
+    "Development installations follow every published build. To install development explicitly, use the command in install-storytree-development.txt. Existing installations retain their channel.",
   ].join("\n");
 }

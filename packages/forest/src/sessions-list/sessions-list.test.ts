@@ -133,6 +133,20 @@ test("7.7 the knowledge core's roster is exactly the listed rows, each with its 
   ]);
 });
 
+test("7.19 the core's roster marks undrawn every idle row and every row past the five most recently seen of the rest; every row stays listed", () => {
+  const at = (minutes: number) => new Date(now.getTime() - minutes * 60_000).toISOString();
+  const working = (session: string, minutes: number): Partial<Line> & NewLine => ({ session, harness: "claude-code", source: "hook", kind: "prompt-submitted", at: at(minutes) });
+  const lines = log(
+    { ...working("idle", 200) }, { session: "idle", harness: "claude-code", source: "hook", kind: "turn-ended", at: at(180) },
+    ...["s1", "s2", "s3", "s4", "s5", "s6"].map((session, index) => working(session, 10 - index)));
+  const rows = sessionRows(tree, lines, [], now, new Map(), undefined, 24 * 60 * 60_000);
+  const roster = sessionRoster(rows);
+  assert.deepEqual(roster.map(entry => entry.session).sort(), ["idle", "s1", "s2", "s3", "s4", "s5", "s6"], "every listed row is in the roster, to select and colour");
+  assert.deepEqual(roster.filter(entry => entry.undrawn !== true).map(entry => entry.session).sort(), ["s2", "s3", "s4", "s5", "s6"],
+    "the five most recently seen active sessions are drawn");
+  assert.deepEqual(roster.filter(entry => entry.undrawn === true).map(entry => entry.session).sort(), ["idle", "s1"], "the idle one, and the sixth");
+});
+
 test("7.7 clicking a row selects its session, a child's row its parent, and clicking the selected row again goes back to every session", () => {
   const lines = log(claimed("cap-one", "Build signup"),
     { ...parent, kind: "subagent-started", subagent: "child", task: "Finish signup" },

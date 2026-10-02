@@ -10,8 +10,8 @@ import { sessionColour } from "../agent-claims/agent-claims.js";
 import type { SessionRow } from "../sessions-list/sessions-list.js";
 
 const row: SessionRow = { id: "parent", label: "Build <signup>", agent: "Codex", state: "waiting",
-  idle: false, totalTokens: 120_000, stories: ["signup"], worktrees: [], running: [], description: [], children: [
-    { id: "child", label: "Read the library", agent: "Subagent", state: "observed", idle: false,
+  idle: false, lastSeenAt: "2026-09-28T12:00:00Z", totalTokens: 120_000, stories: ["signup"], worktrees: [], running: [], description: [], children: [
+    { id: "child", label: "Read the library", agent: "Subagent", state: "observed", idle: false, lastSeenAt: "2026-09-28T12:00:00Z",
       totalTokens: undefined, stories: [], worktrees: [], running: [], description: [], children: [] },
   ] };
 

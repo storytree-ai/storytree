@@ -13,6 +13,13 @@ export interface RosterEntry {
   label: string;
   colour: string;
   members: readonly string[];
+  /** Listed, but neither read nor drawn while none is selected (owner, 2026-10-03): idle, or past the most recently active few. Selected, it is drawn as any session is. */
+  undrawn?: true;
+}
+
+/** The roster the globe draws: with none selected, only the entries not marked undrawn; with one selected, the whole roster, for its colour. */
+export function drawnRoster(roster: readonly RosterEntry[], session: string | undefined): readonly RosterEntry[] {
+  return session === undefined ? roster.filter(({ undrawn }) => undrawn !== true) : roster;
 }
 
 export interface Card {

@@ -1,0 +1,2309 @@
+[
+  {
+    "route": "home",
+    "viewport": 320,
+    "document": 320,
+    "header": [
+      {
+        "text": "storytree.",
+        "rects": [
+          {
+            "x": 20,
+            "y": -1253,
+            "width": 206.40625,
+            "height": 68,
+            "top": -1253,
+            "right": 226.40625,
+            "bottom": -1185,
+            "left": 20
+          },
+          {
+            "x": 226.40625,
+            "y": -1253,
+            "width": 11.5,
+            "height": 68,
+            "top": -1253,
+            "right": 237.90625,
+            "bottom": -1185,
+            "left": 226.40625
+          },
+          {
+            "x": 226.40625,
+            "y": -1253,
+            "width": 11.5,
+            "height": 68,
+            "top": -1253,
+            "right": 237.90625,
+            "bottom": -1185,
+            "left": 226.40625
+          }
+        ]
+      },
+      {
+        "text": "Join the waitlist",
+        "rects": [
+          {
+            "x": 20,
+            "y": -1167.5,
+            "width": 171.34375,
+            "height": 33,
+            "top": -1167.5,
+            "right": 191.34375,
+            "bottom": -1134.5,
+            "left": 20
+          }
+        ]
+      },
+      {
+        "text": "GitHub ↗",
+        "rects": [
+          {
+            "x": 20,
+            "y": -1100.5,
+            "width": 79.71875,
+            "height": 33,
+            "top": -1100.5,
+            "right": 99.71875,
+            "bottom": -1067.5,
+            "left": 20
+          },
+          {
+            "x": 106.90625,
+            "y": -1100.5,
+            "width": 20,
+            "height": 33,
+            "top": -1100.5,
+            "right": 126.90625,
+            "bottom": -1067.5,
+            "left": 106.90625
+          },
+          {
+            "x": 106.90625,
+            "y": -1100.5,
+            "width": 20,
+            "height": 33,
+            "top": -1100.5,
+            "right": 126.90625,
+            "bottom": -1067.5,
+            "left": 106.90625
+          }
+        ]
+      }
+    ],
+    "headings": [
+      {
+        "text": "Software youcan watch grow.",
+        "rects": [
+          {
+            "x": 20,
+            "y": -926.40625,
+            "width": 270.484375,
+            "height": 115,
+            "top": -926.40625,
+            "right": 290.484375,
+            "bottom": -811.40625,
+            "left": 20
+          },
+          {
+            "x": 20,
+            "y": -834.859375,
+            "width": 190.859375,
+            "height": 115,
+            "top": -834.859375,
+            "right": 210.859375,
+            "bottom": -719.859375,
+            "left": 20
+          },
+          {
+            "x": 210.859375,
+            "y": -834.859375,
+            "width": 0,
+            "height": 115,
+            "top": -834.859375,
+            "right": 210.859375,
+            "bottom": -719.859375,
+            "left": 210.859375
+          },
+          {
+            "x": 20,
+            "y": -743.3125,
+            "width": 125,
+            "height": 115,
+            "top": -743.3125,
+            "right": 145,
+            "bottom": -628.3125,
+            "left": 20
+          },
+          {
+            "x": 20,
+            "y": -651.765625,
+            "width": 211.765625,
+            "height": 115,
+            "top": -651.765625,
+            "right": 231.765625,
+            "bottom": -536.765625,
+            "left": 20
+          },
+          {
+            "x": 20,
+            "y": -560.21875,
+            "width": 195.0625,
+            "height": 115,
+            "top": -560.21875,
+            "right": 215.0625,
+            "bottom": -445.21875,
+            "left": 20
+          },
+          {
+            "x": 20,
+            "y": -560.21875,
+            "width": 195.0625,
+            "height": 115,
+            "top": -560.21875,
+            "right": 215.0625,
+            "bottom": -445.21875,
+            "left": 20
+          }
+        ]
+      },
+      {
+        "text": "Join thewaitlist.",
+        "rects": [
+          {
+            "x": 20,
+            "y": 3344.546875,
+            "width": 236.578125,
+            "height": 101,
+            "top": 3344.546875,
+            "right": 256.578125,
+            "bottom": 3445.546875,
+            "left": 20
+          },
+          {
+            "x": 256.578125,
+            "y": 3344.546875,
+            "width": 0,
+            "height": 101,
+            "top": 3344.546875,
+            "right": 256.578125,
+            "bottom": 3445.546875,
+            "left": 256.578125
+          },
+          {
+            "x": 20,
+            "y": 3428.15625,
+            "width": 235.703125,
+            "height": 101,
+            "top": 3428.15625,
+            "right": 255.703125,
+            "bottom": 3529.15625,
+            "left": 20
+          }
+        ]
+      },
+      {
+        "text": "Your email",
+        "rects": [
+          {
+            "x": 20,
+            "y": 3776.765625,
+            "width": 160.53125,
+            "height": 41,
+            "top": 3776.765625,
+            "right": 180.53125,
+            "bottom": 3817.765625,
+            "left": 20
+          }
+        ]
+      },
+      {
+        "text": "Your computer (optional)",
+        "rects": [
+          {
+            "x": 20,
+            "y": 3927.765625,
+            "width": 223.453125,
+            "height": 41,
+            "top": 3927.765625,
+            "right": 243.453125,
+            "bottom": 3968.765625,
+            "left": 20
+          },
+          {
+            "x": 20,
+            "y": 3979.765625,
+            "width": 116.515625,
+            "height": 36,
+            "top": 3979.765625,
+            "right": 136.515625,
+            "bottom": 4015.765625,
+            "left": 20
+          },
+          {
+            "x": 20,
+            "y": 3979.765625,
+            "width": 116.515625,
+            "height": 36,
+            "top": 3979.765625,
+            "right": 136.515625,
+            "bottom": 4015.765625,
+            "left": 20
+          }
+        ]
+      },
+      {
+        "text": "Windows",
+        "rects": [
+          {
+            "x": 34,
+            "y": 4053.765625,
+            "width": 16,
+            "height": 16,
+            "top": 4053.765625,
+            "right": 50,
+            "bottom": 4069.765625,
+            "left": 34
+          },
+          {
+            "x": 59,
+            "y": 4042.765625,
+            "width": 119.59375,
+            "height": 38,
+            "top": 4042.765625,
+            "right": 178.59375,
+            "bottom": 4080.765625,
+            "left": 59
+          }
+        ]
+      },
+      {
+        "text": "Mac",
+        "rects": [
+          {
+            "x": 34,
+            "y": 4125.765625,
+            "width": 16,
+            "height": 16,
+            "top": 4125.765625,
+            "right": 50,
+            "bottom": 4141.765625,
+            "left": 34
+          },
+          {
+            "x": 59,
+            "y": 4114.765625,
+            "width": 54.546875,
+            "height": 38,
+            "top": 4114.765625,
+            "right": 113.546875,
+            "bottom": 4152.765625,
+            "left": 59
+          }
+        ]
+      },
+      {
+        "text": "Linux",
+        "rects": [
+          {
+            "x": 149.546875,
+            "y": 4125.765625,
+            "width": 16,
+            "height": 16,
+            "top": 4125.765625,
+            "right": 165.546875,
+            "bottom": 4141.765625,
+            "left": 149.546875
+          },
+          {
+            "x": 174.546875,
+            "y": 4114.765625,
+            "width": 71.328125,
+            "height": 38,
+            "top": 4114.765625,
+            "right": 245.875,
+            "bottom": 4152.765625,
+            "left": 174.546875
+          }
+        ]
+      },
+      {
+        "text": "Your coding agent (optional)",
+        "rects": [
+          {
+            "x": 20,
+            "y": 4193.765625,
+            "width": 273.125,
+            "height": 41,
+            "top": 4193.765625,
+            "right": 293.125,
+            "bottom": 4234.765625,
+            "left": 20
+          },
+          {
+            "x": 20,
+            "y": 4245.765625,
+            "width": 116.515625,
+            "height": 36,
+            "top": 4245.765625,
+            "right": 136.515625,
+            "bottom": 4281.765625,
+            "left": 20
+          },
+          {
+            "x": 20,
+            "y": 4245.765625,
+            "width": 116.515625,
+            "height": 36,
+            "top": 4245.765625,
+            "right": 136.515625,
+            "bottom": 4281.765625,
+            "left": 20
+          }
+        ]
+      },
+      {
+        "text": "Claude Code",
+        "rects": [
+          {
+            "x": 34,
+            "y": 4319.765625,
+            "width": 16,
+            "height": 16,
+            "top": 4319.765625,
+            "right": 50,
+            "bottom": 4335.765625,
+            "left": 34
+          },
+          {
+            "x": 59,
+            "y": 4308.765625,
+            "width": 165.875,
+            "height": 38,
+            "top": 4308.765625,
+            "right": 224.875,
+            "bottom": 4346.765625,
+            "left": 59
+          }
+        ]
+      },
+      {
+        "text": "Codex",
+        "rects": [
+          {
+            "x": 34,
+            "y": 4391.765625,
+            "width": 16,
+            "height": 16,
+            "top": 4391.765625,
+            "right": 50,
+            "bottom": 4407.765625,
+            "left": 34
+          },
+          {
+            "x": 59,
+            "y": 4380.765625,
+            "width": 81.90625,
+            "height": 38,
+            "top": 4380.765625,
+            "right": 140.90625,
+            "bottom": 4418.765625,
+            "left": 59
+          }
+        ]
+      },
+      {
+        "text": "Other",
+        "rects": [
+          {
+            "x": 176.90625,
+            "y": 4391.765625,
+            "width": 16,
+            "height": 16,
+            "top": 4391.765625,
+            "right": 192.90625,
+            "bottom": 4407.765625,
+            "left": 176.90625
+          },
+          {
+            "x": 201.90625,
+            "y": 4380.765625,
+            "width": 76.640625,
+            "height": 38,
+            "top": 4380.765625,
+            "right": 278.546875,
+            "bottom": 4418.765625,
+            "left": 201.90625
+          }
+        ]
+      },
+      {
+        "text": "We'll email you once, when your invitation is ready, and for nothing else. Only Mick sees this, and he deletes it whenever you ask.",
+        "rects": [
+          {
+            "x": 20,
+            "y": 4461.765625,
+            "width": 211.03125,
+            "height": 41,
+            "top": 4461.765625,
+            "right": 231.03125,
+            "bottom": 4502.765625,
+            "left": 20
+          },
+          {
+            "x": 20,
+            "y": 4514.265625,
+            "width": 233.625,
+            "height": 41,
+            "top": 4514.265625,
+            "right": 253.625,
+            "bottom": 4555.265625,
+            "left": 20
+          },
+          {
+            "x": 20,
+            "y": 4566.765625,
+            "width": 256.03125,
+            "height": 41,
+            "top": 4566.765625,
+            "right": 276.03125,
+            "bottom": 4607.765625,
+            "left": 20
+          },
+          {
+            "x": 20,
+            "y": 4619.265625,
+            "width": 221.078125,
+            "height": 41,
+            "top": 4619.265625,
+            "right": 241.078125,
+            "bottom": 4660.265625,
+            "left": 20
+          },
+          {
+            "x": 20,
+            "y": 4671.765625,
+            "width": 209.984375,
+            "height": 41,
+            "top": 4671.765625,
+            "right": 229.984375,
+            "bottom": 4712.765625,
+            "left": 20
+          },
+          {
+            "x": 20,
+            "y": 4724.265625,
+            "width": 234.78125,
+            "height": 41,
+            "top": 4724.265625,
+            "right": 254.78125,
+            "bottom": 4765.265625,
+            "left": 20
+          },
+          {
+            "x": 20,
+            "y": 4776.765625,
+            "width": 274.78125,
+            "height": 41,
+            "top": 4776.765625,
+            "right": 294.78125,
+            "bottom": 4817.765625,
+            "left": 20
+          },
+          {
+            "x": 20,
+            "y": 4829.265625,
+            "width": 115.0625,
+            "height": 41,
+            "top": 4829.265625,
+            "right": 135.0625,
+            "bottom": 4870.265625,
+            "left": 20
+          }
+        ]
+      },
+      {
+        "text": "I use AI and agents to assist, and so if you share your email with me my agents may read it.",
+        "rects": [
+          {
+            "x": 20,
+            "y": 4892.765625,
+            "width": 266.140625,
+            "height": 36,
+            "top": 4892.765625,
+            "right": 286.140625,
+            "bottom": 4928.765625,
+            "left": 20
+          },
+          {
+            "x": 20,
+            "y": 4938.265625,
+            "width": 237.59375,
+            "height": 36,
+            "top": 4938.265625,
+            "right": 257.59375,
+            "bottom": 4974.265625,
+            "left": 20
+          },
+          {
+            "x": 20,
+            "y": 4983.765625,
+            "width": 263.640625,
+            "height": 36,
+            "top": 4983.765625,
+            "right": 283.640625,
+            "bottom": 5019.765625,
+            "left": 20
+          },
+          {
+            "x": 20,
+            "y": 5029.265625,
+            "width": 232.140625,
+            "height": 36,
+            "top": 5029.265625,
+            "right": 252.140625,
+            "bottom": 5065.265625,
+            "left": 20
+          },
+          {
+            "x": 20,
+            "y": 5074.765625,
+            "width": 85.28125,
+            "height": 36,
+            "top": 5074.765625,
+            "right": 105.28125,
+            "bottom": 5110.765625,
+            "left": 20
+          }
+        ]
+      },
+      {
+        "text": "How we keep this\n              We keep your email and any answers about your computer and coding agent to send your one invitation. Mick and the AI agents he works with can read them.\n              They are stored by here.now, this site’s host, until storytree opens to everyone or you ask to be removed, whichever comes first.\n              To have your details deleted, message Mick on LinkedIn.",
+        "rects": [
+          {
+            "x": 20,
+            "y": 5292.265625,
+            "width": 280,
+            "height": 70.796875,
+            "top": 5292.265625,
+            "right": 300,
+            "bottom": 5363.0625,
+            "left": 20
+          },
+          {
+            "x": 47.546875,
+            "y": 5309.265625,
+            "width": 228.15625,
+            "height": 36,
+            "top": 5309.265625,
+            "right": 275.703125,
+            "bottom": 5345.265625,
+            "left": 47.546875
+          }
+        ]
+      }
+    ],
+    "form": {
+      "control": {
+        "x": 20,
+        "y": 5141.265625,
+        "width": 280,
+        "height": 104,
+        "top": 5141.265625,
+        "right": 300,
+        "bottom": 5245.265625,
+        "left": 20
+      },
+      "text": [
+        {
+          "x": 40,
+          "y": 5155.265625,
+          "width": 107.921875,
+          "height": 38,
+          "top": 5155.265625,
+          "right": 147.921875,
+          "bottom": 5193.265625,
+          "left": 40
+        },
+        {
+          "x": 40,
+          "y": 5193.265625,
+          "width": 104.734375,
+          "height": 38,
+          "top": 5193.265625,
+          "right": 144.734375,
+          "bottom": 5231.265625,
+          "left": 40
+        },
+        {
+          "x": 257,
+          "y": 5174.265625,
+          "width": 23,
+          "height": 38,
+          "top": 5174.265625,
+          "right": 280,
+          "bottom": 5212.265625,
+          "left": 257
+        },
+        {
+          "x": 257,
+          "y": 5174.265625,
+          "width": 23,
+          "height": 38,
+          "top": 5174.265625,
+          "right": 280,
+          "bottom": 5212.265625,
+          "left": 257
+        }
+      ],
+      "panel": {
+        "x": 10,
+        "y": 3763.765625,
+        "width": 300,
+        "height": 1525.5,
+        "top": 3763.765625,
+        "right": 310,
+        "bottom": 5289.265625,
+        "left": 10
+      }
+    },
+    "issues": []
+  },
+  {
+    "route": "404",
+    "viewport": 320,
+    "document": 320,
+    "header": [
+      {
+        "text": "storytree.",
+        "rects": [
+          {
+            "x": 20,
+            "y": 16,
+            "width": 206.40625,
+            "height": 68,
+            "top": 16,
+            "right": 226.40625,
+            "bottom": 84,
+            "left": 20
+          },
+          {
+            "x": 226.40625,
+            "y": 16,
+            "width": 11.5,
+            "height": 68,
+            "top": 16,
+            "right": 237.90625,
+            "bottom": 84,
+            "left": 226.40625
+          },
+          {
+            "x": 226.40625,
+            "y": 16,
+            "width": 11.5,
+            "height": 68,
+            "top": 16,
+            "right": 237.90625,
+            "bottom": 84,
+            "left": 226.40625
+          }
+        ]
+      },
+      {
+        "text": "Home",
+        "rects": [
+          {
+            "x": 20,
+            "y": 101.5,
+            "width": 68.28125,
+            "height": 33,
+            "top": 101.5,
+            "right": 88.28125,
+            "bottom": 134.5,
+            "left": 20
+          }
+        ]
+      },
+      {
+        "text": "GitHub ↗",
+        "rects": [
+          {
+            "x": 111.28125,
+            "y": 101.5,
+            "width": 79.71875,
+            "height": 33,
+            "top": 101.5,
+            "right": 191,
+            "bottom": 134.5,
+            "left": 111.28125
+          },
+          {
+            "x": 198.1875,
+            "y": 101.5,
+            "width": 20,
+            "height": 33,
+            "top": 101.5,
+            "right": 218.1875,
+            "bottom": 134.5,
+            "left": 198.1875
+          },
+          {
+            "x": 198.1875,
+            "y": 101.5,
+            "width": 20,
+            "height": 33,
+            "top": 101.5,
+            "right": 218.1875,
+            "bottom": 134.5,
+            "left": 198.1875
+          }
+        ]
+      }
+    ],
+    "headings": [
+      {
+        "text": "This path hasn’t grown yet.",
+        "rects": [
+          {
+            "x": 20,
+            "y": 265,
+            "width": 161.578125,
+            "height": 131,
+            "top": 265,
+            "right": 181.578125,
+            "bottom": 396,
+            "left": 20
+          },
+          {
+            "x": 20,
+            "y": 369.625,
+            "width": 185,
+            "height": 131,
+            "top": 369.625,
+            "right": 205,
+            "bottom": 500.625,
+            "left": 20
+          },
+          {
+            "x": 20,
+            "y": 474.25,
+            "width": 236.171875,
+            "height": 131,
+            "top": 474.25,
+            "right": 256.171875,
+            "bottom": 605.25,
+            "left": 20
+          },
+          {
+            "x": 20,
+            "y": 578.875,
+            "width": 260.359375,
+            "height": 131,
+            "top": 578.875,
+            "right": 280.359375,
+            "bottom": 709.875,
+            "left": 20
+          },
+          {
+            "x": 20,
+            "y": 683.5,
+            "width": 141.609375,
+            "height": 131,
+            "top": 683.5,
+            "right": 161.609375,
+            "bottom": 814.5,
+            "left": 20
+          }
+        ]
+      }
+    ],
+    "issues": []
+  },
+  {
+    "route": "home",
+    "viewport": 390,
+    "document": 390,
+    "header": [
+      {
+        "text": "storytree.",
+        "rects": [
+          {
+            "x": 20,
+            "y": -1114,
+            "width": 206.40625,
+            "height": 68,
+            "top": -1114,
+            "right": 226.40625,
+            "bottom": -1046,
+            "left": 20
+          },
+          {
+            "x": 226.40625,
+            "y": -1114,
+            "width": 11.5,
+            "height": 68,
+            "top": -1114,
+            "right": 237.90625,
+            "bottom": -1046,
+            "left": 226.40625
+          },
+          {
+            "x": 226.40625,
+            "y": -1114,
+            "width": 11.5,
+            "height": 68,
+            "top": -1114,
+            "right": 237.90625,
+            "bottom": -1046,
+            "left": 226.40625
+          }
+        ]
+      },
+      {
+        "text": "Join the waitlist",
+        "rects": [
+          {
+            "x": 20,
+            "y": -1028.5,
+            "width": 171.34375,
+            "height": 33,
+            "top": -1028.5,
+            "right": 191.34375,
+            "bottom": -995.5,
+            "left": 20
+          }
+        ]
+      },
+      {
+        "text": "GitHub ↗",
+        "rects": [
+          {
+            "x": 214.34375,
+            "y": -1028.5,
+            "width": 79.71875,
+            "height": 33,
+            "top": -1028.5,
+            "right": 294.0625,
+            "bottom": -995.5,
+            "left": 214.34375
+          },
+          {
+            "x": 301.25,
+            "y": -1028.5,
+            "width": 20,
+            "height": 33,
+            "top": -1028.5,
+            "right": 321.25,
+            "bottom": -995.5,
+            "left": 301.25
+          },
+          {
+            "x": 301.25,
+            "y": -1028.5,
+            "width": 20,
+            "height": 33,
+            "top": -1028.5,
+            "right": 321.25,
+            "bottom": -995.5,
+            "left": 301.25
+          }
+        ]
+      }
+    ],
+    "headings": [
+      {
+        "text": "Software youcan watch grow.",
+        "rects": [
+          {
+            "x": 20,
+            "y": -855.40625,
+            "width": 338.265625,
+            "height": 125,
+            "top": -855.40625,
+            "right": 358.265625,
+            "bottom": -730.40625,
+            "left": 20
+          },
+          {
+            "x": 20,
+            "y": -755.9375,
+            "width": 142.53125,
+            "height": 125,
+            "top": -755.9375,
+            "right": 162.53125,
+            "bottom": -630.9375,
+            "left": 20
+          },
+          {
+            "x": 162.53125,
+            "y": -755.9375,
+            "width": 0,
+            "height": 125,
+            "top": -755.9375,
+            "right": 162.53125,
+            "bottom": -630.9375,
+            "left": 162.53125
+          },
+          {
+            "x": 20,
+            "y": -656.46875,
+            "width": 135.78125,
+            "height": 125,
+            "top": -656.46875,
+            "right": 155.78125,
+            "bottom": -531.46875,
+            "left": 20
+          },
+          {
+            "x": 20,
+            "y": -557,
+            "width": 230.046875,
+            "height": 125,
+            "top": -557,
+            "right": 250.046875,
+            "bottom": -432,
+            "left": 20
+          },
+          {
+            "x": 20,
+            "y": -457.53125,
+            "width": 211.890625,
+            "height": 125,
+            "top": -457.53125,
+            "right": 231.890625,
+            "bottom": -332.53125,
+            "left": 20
+          },
+          {
+            "x": 20,
+            "y": -457.53125,
+            "width": 211.890625,
+            "height": 125,
+            "top": -457.53125,
+            "right": 231.890625,
+            "bottom": -332.53125,
+            "left": 20
+          }
+        ]
+      },
+      {
+        "text": "Join thewaitlist.",
+        "rects": [
+          {
+            "x": 20,
+            "y": 2820.140625,
+            "width": 236.578125,
+            "height": 101,
+            "top": 2820.140625,
+            "right": 256.578125,
+            "bottom": 2921.140625,
+            "left": 20
+          },
+          {
+            "x": 256.578125,
+            "y": 2820.140625,
+            "width": 0,
+            "height": 101,
+            "top": 2820.140625,
+            "right": 256.578125,
+            "bottom": 2921.140625,
+            "left": 256.578125
+          },
+          {
+            "x": 20,
+            "y": 2903.75,
+            "width": 235.703125,
+            "height": 101,
+            "top": 2903.75,
+            "right": 255.703125,
+            "bottom": 3004.75,
+            "left": 20
+          }
+        ]
+      },
+      {
+        "text": "Your email",
+        "rects": [
+          {
+            "x": 20,
+            "y": 3201.359375,
+            "width": 160.53125,
+            "height": 41,
+            "top": 3201.359375,
+            "right": 180.53125,
+            "bottom": 3242.359375,
+            "left": 20
+          }
+        ]
+      },
+      {
+        "text": "Your computer (optional)",
+        "rects": [
+          {
+            "x": 20,
+            "y": 3352.359375,
+            "width": 231.25,
+            "height": 41,
+            "top": 3352.359375,
+            "right": 251.25,
+            "bottom": 3393.359375,
+            "left": 20
+          },
+          {
+            "x": 251.25,
+            "y": 3356.359375,
+            "width": 116.515625,
+            "height": 36,
+            "top": 3356.359375,
+            "right": 367.765625,
+            "bottom": 3392.359375,
+            "left": 251.25
+          },
+          {
+            "x": 251.25,
+            "y": 3356.359375,
+            "width": 116.515625,
+            "height": 36,
+            "top": 3356.359375,
+            "right": 367.765625,
+            "bottom": 3392.359375,
+            "left": 251.25
+          }
+        ]
+      },
+      {
+        "text": "Windows",
+        "rects": [
+          {
+            "x": 34,
+            "y": 3430.359375,
+            "width": 16,
+            "height": 16,
+            "top": 3430.359375,
+            "right": 50,
+            "bottom": 3446.359375,
+            "left": 34
+          },
+          {
+            "x": 59,
+            "y": 3419.359375,
+            "width": 119.59375,
+            "height": 38,
+            "top": 3419.359375,
+            "right": 178.59375,
+            "bottom": 3457.359375,
+            "left": 59
+          }
+        ]
+      },
+      {
+        "text": "Mac",
+        "rects": [
+          {
+            "x": 214.59375,
+            "y": 3430.359375,
+            "width": 16,
+            "height": 16,
+            "top": 3430.359375,
+            "right": 230.59375,
+            "bottom": 3446.359375,
+            "left": 214.59375
+          },
+          {
+            "x": 239.59375,
+            "y": 3419.359375,
+            "width": 54.546875,
+            "height": 38,
+            "top": 3419.359375,
+            "right": 294.140625,
+            "bottom": 3457.359375,
+            "left": 239.59375
+          }
+        ]
+      },
+      {
+        "text": "Linux",
+        "rects": [
+          {
+            "x": 34,
+            "y": 3502.359375,
+            "width": 16,
+            "height": 16,
+            "top": 3502.359375,
+            "right": 50,
+            "bottom": 3518.359375,
+            "left": 34
+          },
+          {
+            "x": 59,
+            "y": 3491.359375,
+            "width": 71.328125,
+            "height": 38,
+            "top": 3491.359375,
+            "right": 130.328125,
+            "bottom": 3529.359375,
+            "left": 59
+          }
+        ]
+      },
+      {
+        "text": "Your coding agent (optional)",
+        "rects": [
+          {
+            "x": 20,
+            "y": 3570.359375,
+            "width": 273.125,
+            "height": 41,
+            "top": 3570.359375,
+            "right": 293.125,
+            "bottom": 3611.359375,
+            "left": 20
+          },
+          {
+            "x": 20,
+            "y": 3622.359375,
+            "width": 116.515625,
+            "height": 36,
+            "top": 3622.359375,
+            "right": 136.515625,
+            "bottom": 3658.359375,
+            "left": 20
+          },
+          {
+            "x": 20,
+            "y": 3622.359375,
+            "width": 116.515625,
+            "height": 36,
+            "top": 3622.359375,
+            "right": 136.515625,
+            "bottom": 3658.359375,
+            "left": 20
+          }
+        ]
+      },
+      {
+        "text": "Claude Code",
+        "rects": [
+          {
+            "x": 34,
+            "y": 3696.359375,
+            "width": 16,
+            "height": 16,
+            "top": 3696.359375,
+            "right": 50,
+            "bottom": 3712.359375,
+            "left": 34
+          },
+          {
+            "x": 59,
+            "y": 3685.359375,
+            "width": 165.875,
+            "height": 38,
+            "top": 3685.359375,
+            "right": 224.875,
+            "bottom": 3723.359375,
+            "left": 59
+          }
+        ]
+      },
+      {
+        "text": "Codex",
+        "rects": [
+          {
+            "x": 34,
+            "y": 3768.359375,
+            "width": 16,
+            "height": 16,
+            "top": 3768.359375,
+            "right": 50,
+            "bottom": 3784.359375,
+            "left": 34
+          },
+          {
+            "x": 59,
+            "y": 3757.359375,
+            "width": 81.90625,
+            "height": 38,
+            "top": 3757.359375,
+            "right": 140.90625,
+            "bottom": 3795.359375,
+            "left": 59
+          }
+        ]
+      },
+      {
+        "text": "Other",
+        "rects": [
+          {
+            "x": 176.90625,
+            "y": 3768.359375,
+            "width": 16,
+            "height": 16,
+            "top": 3768.359375,
+            "right": 192.90625,
+            "bottom": 3784.359375,
+            "left": 176.90625
+          },
+          {
+            "x": 201.90625,
+            "y": 3757.359375,
+            "width": 76.640625,
+            "height": 38,
+            "top": 3757.359375,
+            "right": 278.546875,
+            "bottom": 3795.359375,
+            "left": 201.90625
+          }
+        ]
+      },
+      {
+        "text": "We'll email you once, when your invitation is ready, and for nothing else. Only Mick sees this, and he deletes it whenever you ask.",
+        "rects": [
+          {
+            "x": 20,
+            "y": 3838.359375,
+            "width": 294.875,
+            "height": 41,
+            "top": 3838.359375,
+            "right": 314.875,
+            "bottom": 3879.359375,
+            "left": 20
+          },
+          {
+            "x": 20,
+            "y": 3890.859375,
+            "width": 319.65625,
+            "height": 41,
+            "top": 3890.859375,
+            "right": 339.65625,
+            "bottom": 3931.859375,
+            "left": 20
+          },
+          {
+            "x": 20,
+            "y": 3943.359375,
+            "width": 315,
+            "height": 41,
+            "top": 3943.359375,
+            "right": 335,
+            "bottom": 3984.359375,
+            "left": 20
+          },
+          {
+            "x": 20,
+            "y": 3995.859375,
+            "width": 347.671875,
+            "height": 41,
+            "top": 3995.859375,
+            "right": 367.671875,
+            "bottom": 4036.859375,
+            "left": 20
+          },
+          {
+            "x": 20,
+            "y": 4048.359375,
+            "width": 233.40625,
+            "height": 41,
+            "top": 4048.359375,
+            "right": 253.40625,
+            "bottom": 4089.359375,
+            "left": 20
+          },
+          {
+            "x": 20,
+            "y": 4100.859375,
+            "width": 261.3125,
+            "height": 41,
+            "top": 4100.859375,
+            "right": 281.3125,
+            "bottom": 4141.859375,
+            "left": 20
+          }
+        ]
+      },
+      {
+        "text": "I use AI and agents to assist, and so if you share your email with me my agents may read it.",
+        "rects": [
+          {
+            "x": 20,
+            "y": 4164.359375,
+            "width": 347.921875,
+            "height": 36,
+            "top": 4164.359375,
+            "right": 367.921875,
+            "bottom": 4200.359375,
+            "left": 20
+          },
+          {
+            "x": 20,
+            "y": 4209.859375,
+            "width": 293.125,
+            "height": 36,
+            "top": 4209.859375,
+            "right": 313.125,
+            "bottom": 4245.859375,
+            "left": 20
+          },
+          {
+            "x": 20,
+            "y": 4255.359375,
+            "width": 306.3125,
+            "height": 36,
+            "top": 4255.359375,
+            "right": 326.3125,
+            "bottom": 4291.359375,
+            "left": 20
+          },
+          {
+            "x": 20,
+            "y": 4300.859375,
+            "width": 144.203125,
+            "height": 36,
+            "top": 4300.859375,
+            "right": 164.203125,
+            "bottom": 4336.859375,
+            "left": 20
+          }
+        ]
+      },
+      {
+        "text": "How we keep this\n              We keep your email and any answers about your computer and coding agent to send your one invitation. Mick and the AI agents he works with can read them.\n              They are stored by here.now, this site’s host, until storytree opens to everyone or you ask to be removed, whichever comes first.\n              To have your details deleted, message Mick on LinkedIn.",
+        "rects": [
+          {
+            "x": 20,
+            "y": 4480.359375,
+            "width": 350,
+            "height": 70.796875,
+            "top": 4480.359375,
+            "right": 370,
+            "bottom": 4551.15625,
+            "left": 20
+          },
+          {
+            "x": 47.546875,
+            "y": 4497.359375,
+            "width": 228.15625,
+            "height": 36,
+            "top": 4497.359375,
+            "right": 275.703125,
+            "bottom": 4533.359375,
+            "left": 47.546875
+          }
+        ]
+      }
+    ],
+    "form": {
+      "control": {
+        "x": 20,
+        "y": 4367.359375,
+        "width": 327.921875,
+        "height": 66,
+        "top": 4367.359375,
+        "right": 347.921875,
+        "bottom": 4433.359375,
+        "left": 20
+      },
+      "text": [
+        {
+          "x": 40,
+          "y": 4381.359375,
+          "width": 219.921875,
+          "height": 38,
+          "top": 4381.359375,
+          "right": 259.921875,
+          "bottom": 4419.359375,
+          "left": 40
+        },
+        {
+          "x": 304.921875,
+          "y": 4381.359375,
+          "width": 23,
+          "height": 38,
+          "top": 4381.359375,
+          "right": 327.921875,
+          "bottom": 4419.359375,
+          "left": 304.921875
+        },
+        {
+          "x": 304.921875,
+          "y": 4381.359375,
+          "width": 23,
+          "height": 38,
+          "top": 4381.359375,
+          "right": 327.921875,
+          "bottom": 4419.359375,
+          "left": 304.921875
+        }
+      ],
+      "panel": {
+        "x": 10,
+        "y": 3188.359375,
+        "width": 370,
+        "height": 1289,
+        "top": 3188.359375,
+        "right": 380,
+        "bottom": 4477.359375,
+        "left": 10
+      }
+    },
+    "issues": []
+  },
+  {
+    "route": "404",
+    "viewport": 390,
+    "document": 390,
+    "header": [
+      {
+        "text": "storytree.",
+        "rects": [
+          {
+            "x": 20,
+            "y": 16,
+            "width": 206.40625,
+            "height": 68,
+            "top": 16,
+            "right": 226.40625,
+            "bottom": 84,
+            "left": 20
+          },
+          {
+            "x": 226.40625,
+            "y": 16,
+            "width": 11.5,
+            "height": 68,
+            "top": 16,
+            "right": 237.90625,
+            "bottom": 84,
+            "left": 226.40625
+          },
+          {
+            "x": 226.40625,
+            "y": 16,
+            "width": 11.5,
+            "height": 68,
+            "top": 16,
+            "right": 237.90625,
+            "bottom": 84,
+            "left": 226.40625
+          }
+        ]
+      },
+      {
+        "text": "Home",
+        "rects": [
+          {
+            "x": 20,
+            "y": 101.5,
+            "width": 68.28125,
+            "height": 33,
+            "top": 101.5,
+            "right": 88.28125,
+            "bottom": 134.5,
+            "left": 20
+          }
+        ]
+      },
+      {
+        "text": "GitHub ↗",
+        "rects": [
+          {
+            "x": 111.28125,
+            "y": 101.5,
+            "width": 79.71875,
+            "height": 33,
+            "top": 101.5,
+            "right": 191,
+            "bottom": 134.5,
+            "left": 111.28125
+          },
+          {
+            "x": 198.1875,
+            "y": 101.5,
+            "width": 20,
+            "height": 33,
+            "top": 101.5,
+            "right": 218.1875,
+            "bottom": 134.5,
+            "left": 198.1875
+          },
+          {
+            "x": 198.1875,
+            "y": 101.5,
+            "width": 20,
+            "height": 33,
+            "top": 101.5,
+            "right": 218.1875,
+            "bottom": 134.5,
+            "left": 198.1875
+          }
+        ]
+      }
+    ],
+    "headings": [
+      {
+        "text": "This path hasn’t grown yet.",
+        "rects": [
+          {
+            "x": 20,
+            "y": 265,
+            "width": 161.578125,
+            "height": 131,
+            "top": 265,
+            "right": 181.578125,
+            "bottom": 396,
+            "left": 20
+          },
+          {
+            "x": 20,
+            "y": 369.625,
+            "width": 185,
+            "height": 131,
+            "top": 369.625,
+            "right": 205,
+            "bottom": 500.625,
+            "left": 20
+          },
+          {
+            "x": 20,
+            "y": 474.25,
+            "width": 236.171875,
+            "height": 131,
+            "top": 474.25,
+            "right": 256.171875,
+            "bottom": 605.25,
+            "left": 20
+          },
+          {
+            "x": 20,
+            "y": 578.875,
+            "width": 260.359375,
+            "height": 131,
+            "top": 578.875,
+            "right": 280.359375,
+            "bottom": 709.875,
+            "left": 20
+          },
+          {
+            "x": 20,
+            "y": 683.5,
+            "width": 141.609375,
+            "height": 131,
+            "top": 683.5,
+            "right": 161.609375,
+            "bottom": 814.5,
+            "left": 20
+          }
+        ]
+      }
+    ],
+    "issues": []
+  },
+  {
+    "route": "home",
+    "viewport": 1280,
+    "document": 1280,
+    "header": [
+      {
+        "text": "storytree.",
+        "rects": [
+          {
+            "x": 50,
+            "y": -884,
+            "width": 231.171875,
+            "height": 76,
+            "top": -884,
+            "right": 281.171875,
+            "bottom": -808,
+            "left": 50
+          },
+          {
+            "x": 281.171875,
+            "y": -884,
+            "width": 12.890625,
+            "height": 76,
+            "top": -884,
+            "right": 294.0625,
+            "bottom": -808,
+            "left": 281.171875
+          },
+          {
+            "x": 281.171875,
+            "y": -884,
+            "width": 12.890625,
+            "height": 76,
+            "top": -884,
+            "right": 294.0625,
+            "bottom": -808,
+            "left": 281.171875
+          }
+        ]
+      },
+      {
+        "text": "Join the waitlist",
+        "rects": [
+          {
+            "x": 871.703125,
+            "y": -865,
+            "width": 199.90625,
+            "height": 38,
+            "top": -865,
+            "right": 1071.609375,
+            "bottom": -827,
+            "left": 871.703125
+          }
+        ]
+      },
+      {
+        "text": "GitHub ↗",
+        "rects": [
+          {
+            "x": 1105.609375,
+            "y": -865,
+            "width": 93,
+            "height": 38,
+            "top": -865,
+            "right": 1198.609375,
+            "bottom": -827,
+            "left": 1105.609375
+          },
+          {
+            "x": 1207,
+            "y": -865,
+            "width": 23,
+            "height": 38,
+            "top": -865,
+            "right": 1230,
+            "bottom": -827,
+            "left": 1207
+          },
+          {
+            "x": 1207,
+            "y": -865,
+            "width": 23,
+            "height": 38,
+            "top": -865,
+            "right": 1230,
+            "bottom": -827,
+            "left": 1207
+          }
+        ]
+      }
+    ],
+    "headings": [
+      {
+        "text": "Software youcan watch grow.",
+        "rects": [
+          {
+            "x": 50,
+            "y": -678.8125,
+            "width": 1066.75,
+            "height": 269,
+            "top": -678.8125,
+            "right": 1116.75,
+            "bottom": -409.8125,
+            "left": 50
+          },
+          {
+            "x": 1116.75,
+            "y": -678.8125,
+            "width": 0,
+            "height": 269,
+            "top": -678.8125,
+            "right": 1116.75,
+            "bottom": -409.8125,
+            "left": 1116.75
+          },
+          {
+            "x": 50,
+            "y": -473.8125,
+            "width": 821.359375,
+            "height": 269,
+            "top": -473.8125,
+            "right": 871.359375,
+            "bottom": -204.8125,
+            "left": 50
+          },
+          {
+            "x": 50,
+            "y": -268.8125,
+            "width": 452.765625,
+            "height": 269,
+            "top": -268.8125,
+            "right": 502.765625,
+            "bottom": 0.1875,
+            "left": 50
+          },
+          {
+            "x": 50,
+            "y": -268.8125,
+            "width": 452.765625,
+            "height": 269,
+            "top": -268.8125,
+            "right": 502.765625,
+            "bottom": 0.1875,
+            "left": 50
+          }
+        ]
+      },
+      {
+        "text": "Join thewaitlist.",
+        "rects": [
+          {
+            "x": 50,
+            "y": 2185.53125,
+            "width": 294.625,
+            "height": 126,
+            "top": 2185.53125,
+            "right": 344.625,
+            "bottom": 2311.53125,
+            "left": 50
+          },
+          {
+            "x": 344.625,
+            "y": 2185.53125,
+            "width": 0,
+            "height": 126,
+            "top": 2185.53125,
+            "right": 344.625,
+            "bottom": 2311.53125,
+            "left": 344.625
+          },
+          {
+            "x": 50,
+            "y": 2289.65625,
+            "width": 293.53125,
+            "height": 126,
+            "top": 2289.65625,
+            "right": 343.53125,
+            "bottom": 2415.65625,
+            "left": 50
+          }
+        ]
+      },
+      {
+        "text": "Your email",
+        "rects": [
+          {
+            "x": 653.796875,
+            "y": 2144.34375,
+            "width": 160.53125,
+            "height": 41,
+            "top": 2144.34375,
+            "right": 814.328125,
+            "bottom": 2185.34375,
+            "left": 653.796875
+          }
+        ]
+      },
+      {
+        "text": "Your computer (optional)",
+        "rects": [
+          {
+            "x": 653.796875,
+            "y": 2295.34375,
+            "width": 231.25,
+            "height": 41,
+            "top": 2295.34375,
+            "right": 885.046875,
+            "bottom": 2336.34375,
+            "left": 653.796875
+          },
+          {
+            "x": 885.046875,
+            "y": 2299.34375,
+            "width": 116.515625,
+            "height": 36,
+            "top": 2299.34375,
+            "right": 1001.5625,
+            "bottom": 2335.34375,
+            "left": 885.046875
+          },
+          {
+            "x": 885.046875,
+            "y": 2299.34375,
+            "width": 116.515625,
+            "height": 36,
+            "top": 2299.34375,
+            "right": 1001.5625,
+            "bottom": 2335.34375,
+            "left": 885.046875
+          }
+        ]
+      },
+      {
+        "text": "Windows",
+        "rects": [
+          {
+            "x": 667.796875,
+            "y": 2373.34375,
+            "width": 16,
+            "height": 16,
+            "top": 2373.34375,
+            "right": 683.796875,
+            "bottom": 2389.34375,
+            "left": 667.796875
+          },
+          {
+            "x": 692.796875,
+            "y": 2362.34375,
+            "width": 119.59375,
+            "height": 38,
+            "top": 2362.34375,
+            "right": 812.390625,
+            "bottom": 2400.34375,
+            "left": 692.796875
+          }
+        ]
+      },
+      {
+        "text": "Mac",
+        "rects": [
+          {
+            "x": 848.390625,
+            "y": 2373.34375,
+            "width": 16,
+            "height": 16,
+            "top": 2373.34375,
+            "right": 864.390625,
+            "bottom": 2389.34375,
+            "left": 848.390625
+          },
+          {
+            "x": 873.390625,
+            "y": 2362.34375,
+            "width": 54.546875,
+            "height": 38,
+            "top": 2362.34375,
+            "right": 927.9375,
+            "bottom": 2400.34375,
+            "left": 873.390625
+          }
+        ]
+      },
+      {
+        "text": "Linux",
+        "rects": [
+          {
+            "x": 963.9375,
+            "y": 2373.34375,
+            "width": 16,
+            "height": 16,
+            "top": 2373.34375,
+            "right": 979.9375,
+            "bottom": 2389.34375,
+            "left": 963.9375
+          },
+          {
+            "x": 988.9375,
+            "y": 2362.34375,
+            "width": 71.328125,
+            "height": 38,
+            "top": 2362.34375,
+            "right": 1060.265625,
+            "bottom": 2400.34375,
+            "left": 988.9375
+          }
+        ]
+      },
+      {
+        "text": "Your coding agent (optional)",
+        "rects": [
+          {
+            "x": 653.796875,
+            "y": 2441.34375,
+            "width": 280.921875,
+            "height": 41,
+            "top": 2441.34375,
+            "right": 934.71875,
+            "bottom": 2482.34375,
+            "left": 653.796875
+          },
+          {
+            "x": 934.71875,
+            "y": 2445.34375,
+            "width": 116.515625,
+            "height": 36,
+            "top": 2445.34375,
+            "right": 1051.234375,
+            "bottom": 2481.34375,
+            "left": 934.71875
+          },
+          {
+            "x": 934.71875,
+            "y": 2445.34375,
+            "width": 116.515625,
+            "height": 36,
+            "top": 2445.34375,
+            "right": 1051.234375,
+            "bottom": 2481.34375,
+            "left": 934.71875
+          }
+        ]
+      },
+      {
+        "text": "Claude Code",
+        "rects": [
+          {
+            "x": 667.796875,
+            "y": 2519.34375,
+            "width": 16,
+            "height": 16,
+            "top": 2519.34375,
+            "right": 683.796875,
+            "bottom": 2535.34375,
+            "left": 667.796875
+          },
+          {
+            "x": 692.796875,
+            "y": 2508.34375,
+            "width": 165.875,
+            "height": 38,
+            "top": 2508.34375,
+            "right": 858.671875,
+            "bottom": 2546.34375,
+            "left": 692.796875
+          }
+        ]
+      },
+      {
+        "text": "Codex",
+        "rects": [
+          {
+            "x": 894.671875,
+            "y": 2519.34375,
+            "width": 16,
+            "height": 16,
+            "top": 2519.34375,
+            "right": 910.671875,
+            "bottom": 2535.34375,
+            "left": 894.671875
+          },
+          {
+            "x": 919.671875,
+            "y": 2508.34375,
+            "width": 81.90625,
+            "height": 38,
+            "top": 2508.34375,
+            "right": 1001.578125,
+            "bottom": 2546.34375,
+            "left": 919.671875
+          }
+        ]
+      },
+      {
+        "text": "Other",
+        "rects": [
+          {
+            "x": 1037.578125,
+            "y": 2519.34375,
+            "width": 16,
+            "height": 16,
+            "top": 2519.34375,
+            "right": 1053.578125,
+            "bottom": 2535.34375,
+            "left": 1037.578125
+          },
+          {
+            "x": 1062.578125,
+            "y": 2508.34375,
+            "width": 76.640625,
+            "height": 38,
+            "top": 2508.34375,
+            "right": 1139.21875,
+            "bottom": 2546.34375,
+            "left": 1062.578125
+          }
+        ]
+      },
+      {
+        "text": "We'll email you once, when your invitation is ready, and for nothing else. Only Mick sees this, and he deletes it whenever you ask.",
+        "rects": [
+          {
+            "x": 653.796875,
+            "y": 2589.34375,
+            "width": 452.4375,
+            "height": 41,
+            "top": 2589.34375,
+            "right": 1106.234375,
+            "bottom": 2630.34375,
+            "left": 653.796875
+          },
+          {
+            "x": 653.796875,
+            "y": 2641.84375,
+            "width": 556.6875,
+            "height": 41,
+            "top": 2641.84375,
+            "right": 1210.484375,
+            "bottom": 2682.84375,
+            "left": 653.796875
+          },
+          {
+            "x": 653.796875,
+            "y": 2694.34375,
+            "width": 517.09375,
+            "height": 41,
+            "top": 2694.34375,
+            "right": 1170.890625,
+            "bottom": 2735.34375,
+            "left": 653.796875
+          },
+          {
+            "x": 653.796875,
+            "y": 2746.84375,
+            "width": 261.3125,
+            "height": 41,
+            "top": 2746.84375,
+            "right": 915.109375,
+            "bottom": 2787.84375,
+            "left": 653.796875
+          }
+        ]
+      },
+      {
+        "text": "I use AI and agents to assist, and so if you share your email with me my agents may read it.",
+        "rects": [
+          {
+            "x": 653.796875,
+            "y": 2810.34375,
+            "width": 510.5,
+            "height": 36,
+            "top": 2810.34375,
+            "right": 1164.296875,
+            "bottom": 2846.34375,
+            "left": 653.796875
+          },
+          {
+            "x": 653.796875,
+            "y": 2855.84375,
+            "width": 564.75,
+            "height": 36,
+            "top": 2855.84375,
+            "right": 1218.546875,
+            "bottom": 2891.84375,
+            "left": 653.796875
+          },
+          {
+            "x": 653.796875,
+            "y": 2901.34375,
+            "width": 23.0625,
+            "height": 36,
+            "top": 2901.34375,
+            "right": 676.859375,
+            "bottom": 2937.34375,
+            "left": 653.796875
+          }
+        ]
+      },
+      {
+        "text": "How we keep this\n              We keep your email and any answers about your computer and coding agent to send your one invitation. Mick and the AI agents he works with can read them.\n              They are stored by here.now, this site’s host, until storytree opens to everyone or you ask to be removed, whichever comes first.\n              To have your details deleted, message Mick on LinkedIn.",
+        "rects": [
+          {
+            "x": 653.796875,
+            "y": 3083.84375,
+            "width": 576.203125,
+            "height": 70.796875,
+            "top": 3083.84375,
+            "right": 1230,
+            "bottom": 3154.640625,
+            "left": 653.796875
+          },
+          {
+            "x": 681.34375,
+            "y": 3100.84375,
+            "width": 228.15625,
+            "height": 36,
+            "top": 3100.84375,
+            "right": 909.5,
+            "bottom": 3136.84375,
+            "left": 681.34375
+          }
+        ]
+      }
+    ],
+    "form": {
+      "control": {
+        "x": 653.796875,
+        "y": 2967.84375,
+        "width": 354.625,
+        "height": 69,
+        "top": 2967.84375,
+        "right": 1008.421875,
+        "bottom": 3036.84375,
+        "left": 653.796875
+      },
+      "text": [
+        {
+          "x": 676.796875,
+          "y": 2981.84375,
+          "width": 235.625,
+          "height": 41,
+          "top": 2981.84375,
+          "right": 912.421875,
+          "bottom": 3022.84375,
+          "left": 676.796875
+        },
+        {
+          "x": 960.421875,
+          "y": 2981.84375,
+          "width": 25,
+          "height": 41,
+          "top": 2981.84375,
+          "right": 985.421875,
+          "bottom": 3022.84375,
+          "left": 960.421875
+        },
+        {
+          "x": 960.421875,
+          "y": 2981.84375,
+          "width": 25,
+          "height": 41,
+          "top": 2981.84375,
+          "right": 985.421875,
+          "bottom": 3022.84375,
+          "left": 960.421875
+        }
+      ],
+      "panel": {
+        "x": 643.796875,
+        "y": 2131.34375,
+        "width": 596.203125,
+        "height": 949.5,
+        "top": 2131.34375,
+        "right": 1240,
+        "bottom": 3080.84375,
+        "left": 643.796875
+      }
+    },
+    "issues": []
+  },
+  {
+    "route": "404",
+    "viewport": 1280,
+    "document": 1280,
+    "header": [
+      {
+        "text": "storytree.",
+        "rects": [
+          {
+            "x": 50,
+            "y": 16,
+            "width": 231.171875,
+            "height": 76,
+            "top": 16,
+            "right": 281.171875,
+            "bottom": 92,
+            "left": 50
+          },
+          {
+            "x": 281.171875,
+            "y": 16,
+            "width": 12.890625,
+            "height": 76,
+            "top": 16,
+            "right": 294.0625,
+            "bottom": 92,
+            "left": 281.171875
+          },
+          {
+            "x": 281.171875,
+            "y": 16,
+            "width": 12.890625,
+            "height": 76,
+            "top": 16,
+            "right": 294.0625,
+            "bottom": 92,
+            "left": 281.171875
+          }
+        ]
+      },
+      {
+        "text": "Home",
+        "rects": [
+          {
+            "x": 991.9375,
+            "y": 35,
+            "width": 79.671875,
+            "height": 38,
+            "top": 35,
+            "right": 1071.609375,
+            "bottom": 73,
+            "left": 991.9375
+          }
+        ]
+      },
+      {
+        "text": "GitHub ↗",
+        "rects": [
+          {
+            "x": 1105.609375,
+            "y": 35,
+            "width": 93,
+            "height": 38,
+            "top": 35,
+            "right": 1198.609375,
+            "bottom": 73,
+            "left": 1105.609375
+          },
+          {
+            "x": 1207,
+            "y": 35,
+            "width": 23,
+            "height": 38,
+            "top": 35,
+            "right": 1230,
+            "bottom": 73,
+            "left": 1207
+          },
+          {
+            "x": 1207,
+            "y": 35,
+            "width": 23,
+            "height": 38,
+            "top": 35,
+            "right": 1230,
+            "bottom": 73,
+            "left": 1207
+          }
+        ]
+      }
+    ],
+    "headings": [
+      {
+        "text": "This path hasn’t grown yet.",
+        "rects": [
+          {
+            "x": 50,
+            "y": 244.1875,
+            "width": 663.171875,
+            "height": 240,
+            "top": 244.1875,
+            "right": 713.171875,
+            "bottom": 484.1875,
+            "left": 50
+          },
+          {
+            "x": 50,
+            "y": 427.21875,
+            "width": 427.6875,
+            "height": 240,
+            "top": 427.21875,
+            "right": 477.6875,
+            "bottom": 667.21875,
+            "left": 50
+          },
+          {
+            "x": 50,
+            "y": 610.25,
+            "width": 763.84375,
+            "height": 240,
+            "top": 610.25,
+            "right": 813.84375,
+            "bottom": 850.25,
+            "left": 50
+          }
+        ]
+      }
+    ],
+    "issues": []
+  }
+]

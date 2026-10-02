@@ -1,5 +1,5 @@
 import { AGENTS, BANNER, FINALE } from "./opening-copy.js";
-import { escapeHtml } from "./install-command.js";
+import { escapeHtml } from "./escape-html.js";
 
 export function openingMarkup() {
   const windows = AGENTS.map((agent, i) => `<article class="opening-window opening-agent" data-agent="${i}" style="--x:${(i * 7 % 4) * 23 + 2}%;--y:${Math.floor(i / 4) * 27 + 4}%;--color:${["#5bb5a2", "#a48be0", "#e0a458", "#6aa7e8"][i % 4]}"><header>${agent.n}<span>waiting on you</span></header><div class="opening-lines">${agent.l.map(line => `<p>${escapeHtml(line)}</p>`).join("")}<p class="opening-demand">${escapeHtml(agent.d)}</p></div></article>`).join("");

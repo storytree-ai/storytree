@@ -2,7 +2,6 @@ import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
-import { escapeHtml, installCommand } from "./install-command.js";
 import { openingMarkup } from "./opening-markup.js";
 
 const packageRoot = fileURLToPath(new URL("..", import.meta.url));
@@ -11,12 +10,10 @@ const packageRoot = fileURLToPath(new URL("..", import.meta.url));
  * One static folder: no server runtime and no connection to the project's library. It names the merge
  * it was built from (CI's WEBSITE_SHA) in a meta tag and /version.txt; a local build says it is one.
  */
-export async function buildWebsite(output = path.join(packageRoot, "dist"), options: { readme?: string; commit?: string | undefined } = {}) {
+export async function buildWebsite(output = path.join(packageRoot, "dist"), options: { commit?: string | undefined } = {}) {
   const commit = "commit" in options ? options.commit : process.env.WEBSITE_SHA;
   if (commit && !/^[a-f0-9]{40}$/.test(commit)) throw new Error("The website's commit must be a full Git commit hash.");
   const version = commit || "unpublished local build";
-  const readme = options.readme ?? await readFile(path.join(packageRoot, "../../README.md"), "utf8");
-  const command = installCommand(readme);
   await rm(output, { recursive: true, force: true });
   await mkdir(output, { recursive: true });
   const result = await build({
@@ -36,9 +33,7 @@ export async function buildWebsite(output = path.join(packageRoot, "dist"), opti
     logLevel: "silent",
   });
   const template = await readFile(path.join(packageRoot, "src/index.html"), "utf8");
-  if (template.split("<!-- INSTALL_COMMAND -->").length !== 2) throw new Error("The home page needs one install-command slot.");
-  const home = template.replace("<!-- INSTALL_COMMAND -->", escapeHtml(command))
-    .replace("<!-- OPENING -->", openingMarkup())
+  const home = template.replace("<!-- OPENING -->", openingMarkup())
     .replace("</head>", `  <meta name="storytree-commit" content="${version}">\n  </head>`);
   await writeFile(path.join(output, "index.html"), home);
   await writeFile(path.join(output, "version.txt"), `${version}\n`);

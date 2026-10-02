@@ -12,6 +12,7 @@ const token = "test-secret-token";
 const files = new Map([
   ["index.html", Buffer.from("<main>storytree</main>")],
   ["404.html", Buffer.from('<a href="/">Home</a>')],
+  [".herenow/data.json", Buffer.from('{"collections":{"waitlist":{"fields":{"email":{"type":"email","required":true}},"access":{"insert":"public","read":"owner","update":"owner","delete":"owner"}}}}')],
   ["assets/styles.css", Buffer.from("body { color: green; }")],
   ["assets/nested/tree.png", Buffer.from([137, 80, 78, 71, 0, 255, 128])],
 ]);
@@ -51,7 +52,7 @@ test("4.1 · publishing replaces the fixed site from its full static manifest an
   const directory = await buildFolder(t);
   const logs: string[] = [];
   const requests: string[] = [];
-  const pending = ["index.html", "assets/nested/tree.png"];
+  const pending = ["index.html", "assets/nested/tree.png", ".herenow/data.json"];
   const skipped = ["404.html", "assets/styles.css"];
   const fetch: typeof globalThis.fetch = async (input, init) => {
     const url = String(input);
@@ -67,7 +68,7 @@ test("4.1 · publishing replaces the fixed site from its full static manifest an
       assert.deepEqual(manifest.sort((a: { path: string }, b: { path: string }) => a.path.localeCompare(b.path)), [...files].map(([name, bytes]) => ({
         path: name,
         size: bytes.length,
-        contentType: name.endsWith(".png") ? "image/png" : name.endsWith(".css") ? "text/css; charset=utf-8" : "text/html; charset=utf-8",
+        contentType: name.endsWith(".json") ? "application/json; charset=utf-8" : name.endsWith(".png") ? "image/png" : name.endsWith(".css") ? "text/css; charset=utf-8" : "text/html; charset=utf-8",
         hash: createHash("sha256").update(bytes).digest("hex"),
       })).sort((a, b) => a.path.localeCompare(b.path)));
       return Response.json({ upload: { versionId: "version-1", skipped, finalizeUrl: `${api}/finalize`, uploads: pending.map((name) => ({
@@ -80,7 +81,7 @@ test("4.1 · publishing replaces the fixed site from its full static manifest an
       assert.equal(headers.get("content-type"), "application/json");
       assert.equal(headers.get("x-herenow-client"), "codex/storytree-ci");
       assert.deepEqual(JSON.parse(String(init.body)), { versionId: "version-1" });
-      assert.equal(requests.length, 4, "Finalize follows both required uploads");
+      assert.equal(requests.length, 5, "Finalize follows every required upload including the hidden data manifest");
       assert.doesNotMatch(logs.join("\n"), /published|live/i);
       return Response.json(live);
     }
@@ -95,7 +96,7 @@ test("4.1 · publishing replaces the fixed site from its full static manifest an
     return new Response(null, { status: 200 });
   };
   await publishWebsite({ directory, token: ` ${token} `, fetch, log: (message) => logs.push(message) });
-  assert.equal(requests.length, 4);
+  assert.equal(requests.length, 5);
   assert.equal(requests[0], api);
   assert.equal(requests.at(-1), `${api}/finalize`);
   assert.ok(logs.some((message) => /published|live/i.test(message) && message.includes(site)));
@@ -104,7 +105,7 @@ test("4.1 · publishing replaces the fixed site from its full static manifest an
 
 test("4.1 · a failed or malformed publishing step cannot report success or proceed to the next step", async (t) => {
   const directory = await buildFolder(t);
-  const staged = { upload: { versionId: "version-1", skipped: ["404.html", "assets/styles.css", "assets/nested/tree.png"], finalizeUrl: `${api}/finalize`, uploads: [
+  const staged = { upload: { versionId: "version-1", skipped: ["404.html", "assets/styles.css", "assets/nested/tree.png", ".herenow/data.json"], finalizeUrl: `${api}/finalize`, uploads: [
     { path: "index.html", method: "PUT", url: "https://storage.example/index.html?signed=private", headers: {} },
   ] } };
   const cases = [
@@ -145,4 +146,17 @@ test("4.1 · incomplete builds and linked files cannot replace the live website"
     } }), /build|symlink|symbolic link|404\.html/i);
     assert.equal(requests, 0);
   });
+});
+
+// 4.5: here.now can finalize a live page while declining its Site Data manifest.
+test("4.5 · manifest warnings fail loudly without reporting the waitlist published", async (t) => {
+  const directory = await buildFolder(t);
+  for (const warnings of [["Invalid .herenow/data.json"], [{ code: "site_data_invalid", message: "invalid manifest" }], "unreadable warning"]) {
+    const logs: string[] = [];
+    await assert.rejects(publishWebsite({ directory, token, log: message => logs.push(message), fetch: async input => {
+      if (String(input) === api) return Response.json({ upload: { versionId: "version-1", uploads: [], skipped: [...files.keys()] } });
+      return Response.json({ ...live, warnings });
+    } }), /finalize.*manifest warning/i);
+    assert.doesNotMatch(logs.join("\n"), /published/i);
+  }
 });

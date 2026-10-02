@@ -175,6 +175,10 @@ export async function verifyTour(browser, url, output) {
     await live.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await live.mouse.down(); await live.mouse.move(box.x + box.width * .7, box.y + box.height * .65, { steps: 8 }); await live.mouse.up();
     await live.waitForFunction(before => JSON.stringify([...document.querySelectorAll(".planet-nameplate")].map(node => ({ name: node.textContent, x: node.getBoundingClientRect().x, y: node.getBoundingClientRect().y }))) !== JSON.stringify(before), before);
+    const exit = await live.locator("#tour-hatch").boundingBox();
+    assert.ok(exit && exit.x + exit.width >= width - 24 && exit.x + exit.width <= width && exit.y + exit.height >= 976 && exit.y + exit.height <= 1000,
+      "2.6 · the waitlist hatch remains bottom-right while turning the real globe");
+    await live.screenshot({ path: path.join(output, `${width}-exit.png`) });
     await live.locator("#chapter2").screenshot({ path: path.join(output, `${width}-freeplay.png`) });
     assert.equal(await live.evaluate(() => document.documentElement.scrollWidth), width);
     assert.deepEqual(liveErrors, []); await live.close();

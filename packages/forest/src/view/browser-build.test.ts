@@ -1,6 +1,9 @@
-import { test } from "node:test";
+import { after, test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { build } from "esbuild";
+import { build, stop } from "esbuild";
+
+// Finish the service while Node is still running hooks, before its exit teardown.
+after(stop);
 
 // Regression: the merge watcher reached the browser through the claims barrel in September 2026,
 // preventing the forest page (and its claim markers) from loading at all.

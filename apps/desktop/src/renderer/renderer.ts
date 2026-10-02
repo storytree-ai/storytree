@@ -37,7 +37,7 @@ const appMenu = mountAppMenu(element("app-menu-host"), {
   chooseProject: async (name) => { await window.storytree.chooseProject(name); },
   onChosen: () => following?.refresh(),
   // A surface switched or set in the Surfaces menu shows at once: the project is drawn again.
-  onSurfacesChanged: () => { if (current !== undefined && showing !== undefined) void redraw(current); },
+  onSurfacesChanged: () => {},
   onError: (error) => {
     showMessage("error", "The project could not be selected", messageOf(error));
     void following?.refresh(true);

@@ -154,6 +154,14 @@ export async function verifyTour(browser, url, output) {
   assert.ok(await page.locator(".arc-lane").count() > 0);
   const arcList = await page.locator(".arc-lanes").boundingBox();
   assert.ok(arcList && arcList.height >= 100, "2.6 · phone free play keeps the arc choices readable above their briefing");
+  const collidingArcCounts = await page.locator(".arc-track").evaluateAll(tracks => tracks.filter(track => {
+    const count = track.querySelector(".arc-count")?.getBoundingClientRect();
+    return count && [...track.querySelectorAll(".arc-bar")].some(bar => {
+      const box = bar.getBoundingClientRect();
+      return Math.min(box.right, count.right) > Math.max(box.left, count.left) && Math.min(box.bottom, count.bottom) > Math.max(box.top, count.top);
+    });
+  }).length);
+  assert.equal(collidingArcCounts, 0, "2.6 · recorded arc bars do not obscure their counts on a phone");
   await page.locator(".arc-lane").last().click();
   assert.ok(await page.locator(".arc-briefing").isVisible());
   await page.locator("#tour-hatch").click();

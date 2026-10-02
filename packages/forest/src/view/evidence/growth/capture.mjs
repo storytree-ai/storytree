@@ -7,14 +7,12 @@
 // Run under `tsx capture.mjs` from packages/forest, and under flock /tmp/storytree-heavy.lock, after `node build.mjs`.
 // Measures what can be counted before anyone looks and writes measurements.json.
 import assert from 'node:assert/strict';
-import { createServer } from 'node:http';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { withCapture } from '../../../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
 import { fileURLToPath } from 'node:url';
 import { placeOnPackedGlobe, PLANET_RADIUS } from '@storytree/forest';
 
-const { chromium } = await import(process.env.PLANET_PLAYWRIGHT
-  ?? '/home/mickh/code/Storytree/node_modules/.pnpm/playwright-core@1.60.0/node_modules/playwright-core/index.mjs');
 const here = path.dirname(fileURLToPath(import.meta.url));
 const seed = JSON.parse(readFileSync(path.join(here, '../knowledge-under-islands/seed.json'), 'utf8'));
 const survey = JSON.parse(readFileSync(path.join(here, '../file-circles/survey.json'), 'utf8'));
@@ -28,15 +26,7 @@ const scenarios = {
   grown: scaled(5),
 };
 const places = new Map(seed.tree.stories.map((story, i) => [story.id, i + 1]));
-const server = createServer((req, res) => {
-  const name = new URL(req.url, 'http://localhost').pathname.slice(1);
-  if (name === 'favicon.ico') { res.writeHead(204).end(); return; }
-  if (!['index.html', 'renderer.js', 'renderer.js.map', 'styles.css', 'arc-surface.css', 'app-setup.css', 'forest.css'].includes(name)) { res.writeHead(404).end(); return; }
-  res.setHeader('Content-Type', name.endsWith('.js') ? 'text/javascript' : name.endsWith('.css') ? 'text/css' : name.endsWith('.map') ? 'application/json' : 'text/html');
-  res.end(readFileSync(path.join(here, 'dist', name)));
-});
-await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-const settle = page => page.evaluate(async () => { for (let i = 0; i < 12; i++) { window.__globe.invalidate(); await new Promise(requestAnimationFrame); } });
+await withCapture({ folder: here, dist: path.join(here, 'dist') }, async ({ browser, origin, out, settle }) => {
 
 /** Per island: its drawn land, how far its coast reaches, and where its plate stands (a direction, in the globe's own frame); and the globe's radius. */
 const measure = page => page.evaluate(() => {
@@ -71,11 +61,6 @@ const measure = page => page.evaluate(() => {
   return { radius: shell.geometry.parameters.radius, coreReach: core, corePoints: points, zoom: window.__globe.camera.zoom, islands };
 });
 
-let browser;
-try {
-  browser = await chromium.launch({
-    executablePath: process.env.PLANET_CHROMIUM ?? '/home/mickh/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell',
-    headless: true, args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-dev-shm-usage'] });
   const results = { seed: seed.stats, scenarios: {} };
   for (const [name, code] of Object.entries(scenarios)) {
     const page = await browser.newPage({ viewport: { width: 1440, height: 960 }, deviceScaleFactor: 1, colorScheme: 'dark' });
@@ -95,7 +80,7 @@ try {
         codeSurvey: async () => copy(survey),
       };
     }, { data: seed, survey: code });
-    await page.goto(`http://127.0.0.1:${server.address().port}/index.html`, { timeout: 180000, waitUntil: 'domcontentloaded' });
+    await page.goto(`${origin}/index.html`, { timeout: 180000, waitUntil: 'domcontentloaded' });
     await page.waitForFunction(ids => {
       const state = window.__globe;
       if (document.body.dataset.state !== 'ready' || !state || !window.__nav) return false;
@@ -123,15 +108,12 @@ try {
     measured.seaBetweenReaches = tightest;
     measured.errors = errors;
     results.scenarios[name] = measured;
-    await page.screenshot({ path: path.join(here, `${name}.png`), timeout: 180000 });
+    await page.screenshot({ path: path.join(out, `${name}.png`), timeout: 180000 });
     assert.deepEqual(errors, []);
     await page.close();
   }
   results.browser = await browser.version();
-  writeFileSync(path.join(here, 'measurements.json'), JSON.stringify(results, null, 2) + '\n');
+  writeFileSync(path.join(out, 'measurements.json'), JSON.stringify(results, null, 2) + '\n');
   const line = ([name, s]) => [name, `radius ${s.radius.toFixed(1)}`, `sea ${s.seaBetweenReaches.toFixed(1)}`, s.islands.map(i => `${i.story.slice(-4)}:${i.area.toFixed(0)}/${(i.nudgeGround).toFixed(1)}`).join(' ')].join(' | ');
   console.log(Object.entries(results.scenarios).map(line).join('\n'));
-} finally {
-  await browser?.close();
-  await new Promise(resolve => server.close(resolve));
-}
+});

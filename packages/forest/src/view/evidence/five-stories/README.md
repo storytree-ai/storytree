@@ -37,6 +37,13 @@ built from a throwaway worktree; **after** is this branch.
 
 ## Rerun
 
-`node build.mjs <before checkout> before`, `node build.mjs <this checkout> after`, then
-`flock /tmp/storytree-heavy.lock node capture.mjs before|after`. The row and chain seeds are made in
+`node --import tsx build.mjs <before checkout> before`, `node --import tsx build.mjs <this checkout> after`, then
+`flock /tmp/storytree-heavy.lock node --import tsx capture.mjs before|after`. The row and chain seeds are made in
 `capture.mjs`; storytree's is ../code-rows/seed.json.gz and survey.json.
+
+The scripts now provide seeds and views to the shared desktop capture runner.
+Browser launch, bridge installation, the asset server, settling, output and cleanup
+live in `apps/desktop/src/capture`. The default output is the matching folder below
+`/tmp/storytree-captures`; append `--retake` to the capture command to replace these
+committed pictures deliberately. Use `CAPTURE_CHROMIUM` or `CAPTURE_PLAYWRIGHT` for
+an explicit browser override; no machine-specific home path is needed.

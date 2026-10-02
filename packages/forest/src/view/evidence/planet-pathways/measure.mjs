@@ -4,10 +4,12 @@ import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
+import { captureOutput } from '../../../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Vector3 } from 'three';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+const out = captureOutput(here);
 const root = path.resolve(here, '../../../../../..');
 const require = createRequire(path.join(root, 'apps/desktop/package.json'));
 const { forestScene, storyNodes, placeOnPackedGlobe, PLANET_RADIUS, PLANET_CAPACITY } =
@@ -151,7 +153,7 @@ const result = {
   coastGaps, maximumChainJoinGap, dropped, duplicateChains,
   docks: plan.docks.map(dock => ({ story: dock.story, local: dock.local, point: dock.point.toArray(), links: dock.links })),
 };
-writeFileSync(path.join(here, 'measurements.json'), JSON.stringify(result, null, 2) + '\n');
+writeFileSync(path.join(out, 'measurements.json'), JSON.stringify(result, null, 2) + '\n');
 console.log(JSON.stringify({ radius: result.radius, capacity: result.capacity, seed: result.seed,
   chainCount: result.chainCount, withinWidths, crossWidths, dropped, duplicateChains,
   gaps: { minimum: coastGaps.minimum, median: coastGaps.median, maximum: coastGaps.maximum } }));

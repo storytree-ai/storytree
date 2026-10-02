@@ -1,38 +1,15 @@
 // Raw headless Chromium evidence of the actual seeded desktop page.
 // Run in the foreground under flock /tmp/storytree-heavy.lock.
 import assert from 'node:assert/strict';
-import { createServer } from 'node:http';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { withCapture } from '../../../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
 import { fileURLToPath } from 'node:url';
 
-const { chromium } = await import(process.env.PLANET_PLAYWRIGHT
-  ?? '/home/mickh/code/Storytree/node_modules/.pnpm/playwright-core@1.60.0/node_modules/playwright-core/index.mjs');
 const here = path.dirname(fileURLToPath(import.meta.url));
-const out = here;
-const seed = JSON.parse(readFileSync(path.join(out, 'seed.json'), 'utf8'));
-const census = JSON.parse(readFileSync(path.join(out, 'measurements.json'), 'utf8'));
-const server = createServer((req, res) => {
-  const [variant, name] = new URL(req.url, 'http://localhost').pathname.slice(1).split('/');
-  if (variant === 'favicon.ico') { res.writeHead(204).end(); return; }
-  if (!['baseline', 'production'].includes(variant) || !['index.html', 'renderer.js', 'renderer.js.map', 'styles.css', 'arc-surface.css'].includes(name)) {
-    console.error(`Capture asset not found: ${name}`);
-    res.writeHead(404).end(); return;
-  }
-  res.setHeader('Content-Type', name.endsWith('.js') ? 'text/javascript' : name.endsWith('.css')
-    ? 'text/css' : name.endsWith('.map') ? 'application/json' : 'text/html');
-  res.end(readFileSync(path.join(here, 'dist', variant, name)));
-});
-await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-
-async function settle(page) {
-  await page.evaluate(async () => {
-    for (let i = 0; i < 12; i++) {
-      window.__globe.invalidate();
-      await new Promise(requestAnimationFrame);
-    }
-  });
-}
+const seed = JSON.parse(readFileSync(path.join(here, 'seed.json'), 'utf8'));
+const census = JSON.parse(readFileSync(path.join(here, 'measurements.json'), 'utf8'));
+await withCapture({ folder: here, dist: path.join(here, 'dist') }, async ({ browser, origin, out, settle }) => {
 
 async function measure(page) {
   return page.evaluate(() => {
@@ -148,7 +125,7 @@ async function openPage(browser, variant, data) {
       frontCovers: async (_, id) => copy(data.covers[id] ?? []), relatedNotes: async () => [],
     };
   }, data);
-  await page.goto(`http://127.0.0.1:${server.address().port}/${variant}/index.html`, { timeout: 180000, waitUntil: 'domcontentloaded' });
+  await page.goto(`${origin}/${variant}/index.html`, { timeout: 180000, waitUntil: 'domcontentloaded' });
   await page.waitForFunction(ids => {
     const state = window.__globe;
     if (document.body.dataset.state !== 'ready' || !state || !window.__nav) return false;
@@ -255,15 +232,7 @@ async function interactions(browser) {
   writeFileSync(path.join(out, 'interactions.json'), JSON.stringify(evidence, null, 2) + '\n');
 }
 
-let browser;
-try {
-  browser = await chromium.launch({
-    executablePath: process.env.PLANET_CHROMIUM
-      ?? '/home/mickh/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell',
-    headless: true,
-    args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-dev-shm-usage'],
-  });
-  const requested = process.argv.slice(2);
+  const requested = process.argv.slice(2).filter(arg => arg !== '--retake');
   const cases = ['baseline', 'production'].flatMap(variant => ['front', 'quarter-turn'].map(view => ({ variant, view, name: `${variant}-${view}` })));
   for (const { variant, view, name } of cases.filter(({ name }) => !requested.length || requested.includes(name))) {
     console.log(`Rendering ${name}`);
@@ -320,7 +289,4 @@ try {
     await page.close();
   }
   if (!requested.length || requested.includes('interactions')) await interactions(browser);
-} finally {
-  await browser?.close();
-  await new Promise(resolve => server.close(resolve));
-}
+});

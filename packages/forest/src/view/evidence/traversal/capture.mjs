@@ -4,21 +4,17 @@
 // replay's finished picture is what is drawn. Measures what can be counted before anyone looks, writes
 // measurements.json. Run under flock /tmp/storytree-heavy.lock after `node build.mjs`.
 import assert from 'node:assert/strict';
-import { createServer } from 'node:http';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { captureOutput, fakeBridge } from '../../../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
+import { fakeBridge, withCapture } from '../../../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
 
-const { chromium } = await import(process.env.PLANET_PLAYWRIGHT
-  ?? '/home/mickh/code/Storytree/node_modules/.pnpm/playwright-core@1.60.0/node_modules/playwright-core/index.mjs');
 const here = path.dirname(fileURLToPath(import.meta.url));
-const out = captureOutput(here); // pictures and measurements: a scratch folder unless run with --retake
 const seed = JSON.parse(readFileSync(path.join(here, '../knowledge-under-islands/seed.json'), 'utf8'));
 const survey = JSON.parse(readFileSync(path.join(here, 'survey.json'), 'utf8'));
 
 const AGENT_LINK = 'story_05e45963ca9f', KNOWLEDGE_CORE = 'story_4c04d95d52a8', FOREST = 'story_be32e99ed54f';
-const CHECKOUT = '/home/mickh/code/storytree03/.claude/worktrees/increment-d02249eaf5a4-c92d67';
+const CHECKOUT = path.resolve(here, '../../../../../..');
 const CLAIMS_NOTE = 'decision_88f95657e45b', HOOKS_NOTE = 'decision_98e3f55d636d';
 const LOOK_INSIDE_CAPABILITY = 'capability_83d80a307e18';
 const session = 'builder';
@@ -65,16 +61,7 @@ const expected = [
   [`file:packages/${F}/src/view/file-circles.ts`, `file:packages/${A}/src/context/window.ts`, 'dotted', 'hop', false],
 ];
 
-const server = createServer((req, res) => {
-  const name = new URL(req.url, 'http://localhost').pathname.slice(1);
-  if (name === 'favicon.ico') { res.writeHead(204).end(); return; }
-  if (!['index.html', 'renderer.js', 'renderer.js.map', 'styles.css', 'arc-surface.css', 'app-setup.css', 'forest.css'].includes(name)) { res.writeHead(404).end(); return; }
-  res.setHeader('Content-Type', name.endsWith('.js') ? 'text/javascript' : name.endsWith('.css') ? 'text/css' : name.endsWith('.map') ? 'application/json' : 'text/html');
-  res.end(readFileSync(path.join(here, 'dist', name)));
-});
-await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-
-const settle = page => page.evaluate(async () => { for (let i = 0; i < 12; i++) { window.__globe.invalidate(); await new Promise(requestAnimationFrame); } });
+await withCapture({ folder: here, dist: path.join(here, 'dist') }, async ({ browser, origin, out, settle }) => {
 
 /** What the scene draws of the traversal: the steps' lines, the lit circles and territories, the rings, and how high each line runs above the surface, all counted. */
 const measure = page => page.evaluate(() => {
@@ -109,11 +96,6 @@ const measure = page => page.evaluate(() => {
   return { zoom: camera.zoom, shellRadius: surface, trails: trails.sort((a, b) => a.seq - b.seq), circles, rings, territories, allCircles };
 });
 
-let browser;
-try {
-  browser = await chromium.launch({
-    executablePath: process.env.PLANET_CHROMIUM ?? '/home/mickh/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell',
-    headless: true, args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-dev-shm-usage'] });
   const page = await browser.newPage({ viewport: { width: 1440, height: 960 }, deviceScaleFactor: 1, colorScheme: 'dark', reducedMotion: 'reduce' });
   const errors = [], warnings = [];
   page.on('pageerror', error => errors.push(String(error)));
@@ -137,7 +119,7 @@ try {
       windowReading: async (_, id) => { window.__asked.push(id); return copy(reading); },
     };
   }, { data: seed, survey, reading });
-  await page.goto(`http://127.0.0.1:${server.address().port}/index.html`, { timeout: 180000, waitUntil: 'domcontentloaded' });
+  await page.goto(`${origin}/index.html`, { timeout: 180000, waitUntil: 'domcontentloaded' });
   await page.waitForFunction(ids => {
     const state = window.__globe;
     if (document.body.dataset.state !== 'ready' || !state || !window.__nav) return false;
@@ -207,7 +189,4 @@ try {
   writeFileSync(path.join(out, 'measurements.json'), JSON.stringify(results, null, 2) + '\n');
   assert.deepEqual(errors, []);
   console.log(JSON.stringify({ browser: results.browser, trails: results.front.trails.length, circles: results.front.circles.length, rings: results.front.rings.length, territories: results.front.territories, errors }));
-} finally {
-  await browser?.close();
-  await new Promise(resolve => server.close(resolve));
-}
+});

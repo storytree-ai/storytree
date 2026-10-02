@@ -2,7 +2,7 @@
 // `pnpm desktop:smoke` Electron window, driven over CDP: #210's capture
 // (../captree-inpanel/electron-capture.mjs) with the shots changed. No pixel editing. Run under the
 // heavy lock with a throwaway restored STORYTREE_HOME and a temporary X display:
-//   DISPLAY=:137 STORYTREE_EMBEDDER=off flock /tmp/storytree-heavy.lock node packages/forest/evidence/cardwords/electron-capture.mjs
+//   DISPLAY=:137 STORYTREE_EMBEDDER=off flock /tmp/storytree-heavy.lock node --import tsx packages/forest/evidence/cardwords/electron-capture.mjs
 // CARDWORDS_SHOTS=words takes the four-words shots, on a home seeded with ./seed-words.mjs.
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
@@ -11,9 +11,11 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const { chromium } = await import(process.env.STORYTREE_PLAYWRIGHT ?? '/home/mickh/code/Storytree/node_modules/.pnpm/playwright-core@1.60.0/node_modules/playwright-core/index.mjs');
-const output = path.dirname(fileURLToPath(import.meta.url));
-const root = path.resolve(output, '../../../..');
+import { captureOutput, loadPlaywright, settle } from '../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
+const { chromium } = await loadPlaywright();
+const here = path.dirname(fileURLToPath(import.meta.url));
+const output = captureOutput(here);
+const root = path.resolve(here, '../../../..');
 assert.ok(process.env.STORYTREE_HOME, 'a throwaway restored STORYTREE_HOME is required');
 assert.ok(process.env.DISPLAY, 'a temporary X display is required');
 const STORY = process.env.CAPTREE_STORY ?? 'story_f9fb5136c28f'; // The command line
@@ -83,7 +85,7 @@ try {
     document.querySelector('[data-close-arcs]')?.click();
     document.activeElement?.blur();
   });
-  const frame = () => page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  const frame = () => settle(page, 2);
   await frame();
 
   // Select the story by clicking its island where its name floats, turning the globe until it faces us.

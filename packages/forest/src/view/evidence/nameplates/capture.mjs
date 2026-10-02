@@ -3,28 +3,19 @@
 // `node capture.mjs <label>` (after: this branch; before: origin/main). Measures, for every plate on show,
 // whether it hangs below its island's land and under it; writes measurements-<label>.json.
 import assert from 'node:assert/strict';
-import { createServer } from 'node:http';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { withCapture } from '../../../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
 import { fileURLToPath } from 'node:url';
 import { gunzipSync } from 'node:zlib';
 
-const { chromium } = await import(process.env.PLANET_PLAYWRIGHT
-  ?? '/home/mickh/code/Storytree/node_modules/.pnpm/playwright-core@1.60.0/node_modules/playwright-core/index.mjs');
 const here = path.dirname(fileURLToPath(import.meta.url));
 const rows = path.join(here, '../rows');
-const label = process.argv[2] ?? 'after';
+const label = process.argv.slice(2).find(arg => arg !== '--retake') ?? 'after';
 const dist = path.join(rows, 'dist', label);
 const seed = JSON.parse(gunzipSync(readFileSync(path.join(rows, 'seed.json.gz'))).toString('utf8'));
 const survey = JSON.parse(readFileSync(path.join(rows, 'survey.json'), 'utf8'));
-const server = createServer((req, res) => {
-  const name = new URL(req.url, 'http://localhost').pathname.slice(1);
-  if (!['index.html', 'renderer.js', 'styles.css', 'arc-surface.css', 'app-setup.css', 'forest.css'].includes(name)) { res.writeHead(404).end(); return; }
-  res.setHeader('Content-Type', name.endsWith('.js') ? 'text/javascript' : name.endsWith('.css') ? 'text/css' : 'text/html');
-  res.end(readFileSync(path.join(dist, name)));
-});
-await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-const settle = page => page.evaluate(async () => { for (let i = 0; i < 12; i++) { window.__globe.invalidate(); await new Promise(requestAnimationFrame); } });
+await withCapture({ folder: here, dist }, async ({ browser, origin, out, settle }) => {
 
 /** Each story plate on show: below every point of its island's drawn land on screen, and under it (its middle within the land's width). */
 const platesAgainstLand = page => page.evaluate(() => {
@@ -50,11 +41,6 @@ const platesAgainstLand = page => page.evaluate(() => {
   });
 });
 
-let browser;
-try {
-  browser = await chromium.launch({
-    executablePath: process.env.PLANET_CHROMIUM ?? '/home/mickh/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell',
-    headless: true, args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-dev-shm-usage'] });
   const page = await browser.newPage({ viewport: { width: 1440, height: 960 }, deviceScaleFactor: 1, colorScheme: 'dark' });
   const errors = [];
   page.on('pageerror', error => errors.push(String(error)));
@@ -77,7 +63,7 @@ try {
     };
     window.storytree = new Proxy(known, { get: (t, m) => m === 'then' ? undefined : (t[m] ?? (async () => undefined)) });
   }, { data: seed, survey });
-  await page.goto(`http://127.0.0.1:${server.address().port}/index.html`, { timeout: 180000, waitUntil: 'domcontentloaded' });
+  await page.goto(`${origin}/index.html`, { timeout: 180000, waitUntil: 'domcontentloaded' });
   await page.waitForFunction(ids => {
     const state = window.__globe;
     if (document.body.dataset.state !== 'ready' || !state || !window.__nav) return false;
@@ -89,7 +75,7 @@ try {
   await settle(page);
   const results = { label, errors };
   results.opening = await platesAgainstLand(page);
-  await page.screenshot({ path: path.join(here, `${label}-opening.png`), timeout: 180000 });
+  await page.screenshot({ path: path.join(out, `${label}-opening.png`), timeout: 180000 });
 
   const box = await page.locator('canvas').first().boundingBox();
   const centre = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
@@ -102,7 +88,7 @@ try {
   await page.mouse.move(2, 2);
   await settle(page);
   results.afterDrags = await platesAgainstLand(page);
-  await page.screenshot({ path: path.join(here, `${label}-after-drags.png`), timeout: 180000 });
+  await page.screenshot({ path: path.join(out, `${label}-after-drags.png`), timeout: 180000 });
 
   // Bring the land left of the middle, clear of the story panel that selecting opens.
   await page.mouse.move(centre.x + 120, centre.y);
@@ -134,11 +120,8 @@ try {
     capabilityPlates: [...document.querySelectorAll('.planet-nameplate.capability')].filter(p => p.getBoundingClientRect().width > 0).map(p => p.textContent),
     dimmedOthers: [...document.querySelectorAll('.forest-label[data-story-id]')].filter(p => p.dataset.storyId !== id && +getComputedStyle(p).opacity < 1).length,
   }), target.id);
-  await page.screenshot({ path: path.join(here, `${label}-selected.png`), timeout: 180000 });
+  await page.screenshot({ path: path.join(out, `${label}-selected.png`), timeout: 180000 });
   for (const at of ['opening', 'afterDrags']) results[`${at}Summary`] = `${results[at].filter(p => p.below && p.under).length} of ${results[at].length} plates on show hang below and under their island`;
-  writeFileSync(path.join(here, `measurements-${label}.json`), JSON.stringify(results, null, 2) + '\n');
+  writeFileSync(path.join(out, `measurements-${label}.json`), JSON.stringify(results, null, 2) + '\n');
   console.log(JSON.stringify({ opening: results.openingSummary, afterDrags: results.afterDragsSummary, selected: results.selected, errors }, null, 1));
-} finally {
-  await browser?.close();
-  server.close();
-}
+});

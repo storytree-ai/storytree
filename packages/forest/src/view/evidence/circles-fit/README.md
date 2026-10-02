@@ -36,8 +36,8 @@ tsx survey.mjs
 git -C <repo> worktree add --detach /tmp/circles-before origin/main && (cd /tmp/circles-before && pnpm install)
 flock /tmp/storytree-heavy.lock node build.mjs /tmp/circles-before before
 flock /tmp/storytree-heavy.lock node build.mjs <this checkout> after
-flock /tmp/storytree-heavy.lock node capture.mjs before
-flock /tmp/storytree-heavy.lock node capture.mjs after
+flock /tmp/storytree-heavy.lock node --import tsx capture.mjs before
+flock /tmp/storytree-heavy.lock node --import tsx capture.mjs after
 ```
 
 Builds go to the ignored `dist/before/` and `dist/after/`. Each capture writes its three pictures and

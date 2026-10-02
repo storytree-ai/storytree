@@ -39,8 +39,15 @@ get the same stand-in bridge, seed, survey, viewport and turns; nothing is hand-
 tsx seed.mts                       # optional: a fresh snapshot (reads the library, writes nothing to it)
 tsx survey.mjs
 git -C <repo> worktree add --detach /tmp/rows-before origin/main && (cd /tmp/rows-before && pnpm install)
-node build.mjs /tmp/rows-before before
-node build.mjs <this checkout> after
-flock /tmp/storytree-heavy.lock node capture.mjs before
-flock /tmp/storytree-heavy.lock node capture.mjs after
+node --import tsx build.mjs /tmp/rows-before before
+node --import tsx build.mjs <this checkout> after
+flock /tmp/storytree-heavy.lock node --import tsx capture.mjs before
+flock /tmp/storytree-heavy.lock node --import tsx capture.mjs after
 ```
+
+The scripts now provide seeds and views to the shared desktop capture runner.
+Browser launch, bridge installation, the asset server, settling, output and cleanup
+live in `apps/desktop/src/capture`. The default output is the matching folder below
+`/tmp/storytree-captures`; append `--retake` to the capture command to replace these
+committed pictures deliberately. Use `CAPTURE_CHROMIUM` or `CAPTURE_PLAYWRIGHT` for
+an explicit browser override; no machine-specific home path is needed.

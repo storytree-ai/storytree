@@ -2,14 +2,12 @@
 // The real desktop page, built by ../bottom-panel/build.mjs; all activity is synthetic. Desktop width only.
 // PLANET_PLAYWRIGHT and PLANET_CHROMIUM point at playwright-core and a headless Chromium on the capturing machine.
 import assert from 'node:assert/strict';
-import { createServer } from 'node:http';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-import { captureOutput, fakeBridge } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
+import { fileURLToPath } from 'node:url';
+import { fakeBridge, withCapture } from '../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const out = captureOutput(here); // pictures and measurements: a scratch folder unless run with --retake
 const dist = path.join(here, '../bottom-panel/dist/production');
 const seed = JSON.parse(readFileSync(path.join(here, '../../src/view/evidence/library-dots-clickable/seed.json'), 'utf8'));
 const forest = seed.tree.stories.find(story => story.title === 'The forest');
@@ -49,19 +47,8 @@ for (const [session, minutes, folder] of [['fp-idle-1', 42, 'tidy-hooks'], ['fp-
 seed.lines = { lines, cursor: lines.length };
 seed.tree.arcs = [];
 
-const { chromium } = await import(pathToFileURL(process.env.PLANET_PLAYWRIGHT).href);
-const server = createServer((req, res) => {
-  const name = new URL(req.url, 'http://localhost').pathname.slice(1);
-  if (!['index.html', 'renderer.js', 'styles.css', 'arc-surface.css', 'app-setup.css', 'forest.css'].includes(name)) { res.writeHead(404).end(); return; }
-  res.setHeader('Content-Type', name.endsWith('.js') ? 'text/javascript' : name.endsWith('.css') ? 'text/css' : 'text/html');
-  res.end(readFileSync(path.join(dist, name)));
-});
-await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+await withCapture({ folder: here, dist }, async ({ browser, origin, out, settle }) => {
 const measures = {};
-let browser;
-try {
-  browser = await chromium.launch({ executablePath: process.env.PLANET_CHROMIUM, headless: true,
-    args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-dev-shm-usage'] });
   for (const [name, width, height] of [['desktop', 1440, 960]]) {
     const context = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 2, colorScheme: 'dark' });
     const page = await context.newPage();
@@ -92,7 +79,7 @@ try {
           : { session, at: new Date().toISOString(), absent: "no hook has named this session's transcript" },
       };
     }, seed);
-    const url = `http://127.0.0.1:${server.address().port}/index.html`;
+    const url = `${origin}/index.html`;
     const list = page.getByRole('complementary', { name: 'Running sessions', exact: true });
     const ready = async () => {
       await page.goto(url, { waitUntil: 'domcontentloaded' });
@@ -158,7 +145,4 @@ try {
   }
   writeFileSync(path.join(out, 'measures.json'), JSON.stringify(measures, null, 2) + '\n');
   console.log(JSON.stringify(measures));
-} finally {
-  await browser?.close();
-  server.close();
-}
+});

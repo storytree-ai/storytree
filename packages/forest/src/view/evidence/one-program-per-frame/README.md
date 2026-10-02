@@ -27,3 +27,7 @@ Library view had no program re-derivation before (no land drawn) and its render 
 **Pictures.** `before.png` and `after.png` are the same still forest scene (glass, islands, coasts, pathway halos, a
 session's selection ring and coast tint, the core's trails), rendered by each build: pixel-identical (difference
 bounding box empty). The laptop's scene has many more islands and territories, so its count per frame is larger.
+
+The shared runner owns the server and browser lifetime, without adding settling frames
+to the timed probe. Output prefixes (and `PROFILE`, when set) supply a filename inside
+the temporary `storytree-captures/` folder; `--retake` writes into this evidence directory.

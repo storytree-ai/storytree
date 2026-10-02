@@ -22,20 +22,26 @@ export interface LaunchPlan {
 const THIS_MACHINE: Machine = { env: process.env, platform: process.platform };
 
 /** How `machine` launches a capture's Chromium: headless, software GL, a named Chromium only when named. */
-export function launchPlan({ env, platform }: Machine = THIS_MACHINE): LaunchPlan {
-  const playwright = env.CAPTURE_PLAYWRIGHT;
+export function launchPlan({ env, platform }: Machine = THIS_MACHINE, { softwareGL = true }: { softwareGL?: boolean } = {}): LaunchPlan {
+  const playwright = env.CAPTURE_PLAYWRIGHT ?? env.PLANET_PLAYWRIGHT ?? env.STORYTREE_PLAYWRIGHT;
+  const executablePath = env.CAPTURE_CHROMIUM ?? env.PLANET_CHROMIUM;
   const module = playwright === undefined ? "playwright-core" : playwright.startsWith("file:") ? playwright : pathToFileURL(playwright, { windows: platform === "win32" }).href;
   const options: LaunchOptions = {
     headless: true,
-    args: ["--no-sandbox", "--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--disable-dev-shm-usage"],
-    ...(env.CAPTURE_CHROMIUM === undefined ? {} : { executablePath: env.CAPTURE_CHROMIUM }),
+    args: ["--no-sandbox", "--disable-dev-shm-usage", ...(softwareGL ? ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"] : [])],
+    ...(executablePath === undefined ? {} : { executablePath }),
   };
   return { module, options };
 }
 
 /** A capture's Chromium, launched as launchPlan says for `machine`. */
-export async function launch(machine: Machine = THIS_MACHINE): Promise<Browser> {
-  const { module, options } = launchPlan(machine);
-  const { chromium } = (await import(module)) as typeof import("playwright-core");
+export async function launch(machine: Machine = THIS_MACHINE, graphics: { softwareGL?: boolean } = {}): Promise<Browser> {
+  const { options } = launchPlan(machine, graphics);
+  const { chromium } = await loadPlaywright(machine);
   return chromium.launch(options);
+}
+
+/** Also used by Electron captures that connect over CDP instead of launching Chromium. */
+export async function loadPlaywright(machine: Machine = THIS_MACHINE): Promise<typeof import("playwright-core")> {
+  return import(launchPlan(machine).module) as Promise<typeof import("playwright-core")>;
 }

@@ -5,10 +5,10 @@ at 88°, just short of it). The eye no longer orbits: it only zooms. The opening
 marker's click are the same spin and tilt, so nothing rolls the globe and north points straight up the
 screen after any sequence of moves.
 
-Captured on the actual desktop page (`node build.mjs`, then `node capture.mjs dist after`), with the
+Captured on the actual desktop page (`node build.mjs`, then `node --import tsx capture.mjs dist after`), with the
 knowledge-under-islands seed and the file-circles survey, 1440 × 960, headless Chromium on SwiftShader.
 The before pictures are origin/main bundled the same way (`CAPTURE_ROOT=<main checkout> CAPTURE_DIST=dist-before
-node build.mjs`, then `node capture.mjs dist-before before`). The drags are real pointer drags from the
+node build.mjs`, then `node --import tsx capture.mjs dist-before before`). The drags are real pointer drags from the
 canvas's middle: 90 px right; 70 px down; 140 px left and 50 up; 70 right and 40 down; then 700 up.
 
 North's bearing on screen, in degrees clockwise from straight up (`*-measurements.json`):

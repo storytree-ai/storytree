@@ -22,3 +22,7 @@ every poll; `HOVER=1` sweeps the pointer over an island and reads the tooltips. 
 - A claim coming and going: longest frame 360 ms before, 98 ms after (a claim re-cuts only its own island).
 - `island-change-before.png` / `island-change-after.png`: the same scene after 40 such changes, pixel-identical,
   as are the idle and claim-change scenes. Hover still names the file under the pointer.
+
+The shared runner owns the server and browser lifetime, without adding settling frames
+to the timed probe. Output prefixes (and `PROFILE`, when set) supply a filename inside
+the temporary `storytree-captures/` folder; `--retake` writes into this evidence directory.

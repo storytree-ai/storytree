@@ -54,10 +54,10 @@ links into 1 · Front door, which ten capabilities build on, run long. The look 
 export STORYTREE_HOME=$(mktemp -d)
 node --import tsx scripts/restore-library.mjs ~/storytree-lanes/snapshots/2026-09-28T13-42-19-911Z.json --project storytree
 DISPLAY=:137 STORYTREE_EMBEDDER=off flock /tmp/storytree-heavy.lock \
-  node packages/forest/evidence/captree/electron-capture.mjs          # panel, tree, panned
+  node --import tsx packages/forest/evidence/captree/electron-capture.mjs          # panel, tree, panned
 node --import tsx packages/forest/evidence/captree/seed-activity.mjs <snapshot.json>   # a COPY of the home
 DISPLAY=:137 STORYTREE_EMBEDDER=off CAPTREE_SHOTS=mixed flock /tmp/storytree-heavy.lock \
-  node packages/forest/evidence/captree/electron-capture.mjs
+  node --import tsx packages/forest/evidence/captree/electron-capture.mjs
 ```
 
 On Mint this used the gear lane's extracted Xvfb (`/tmp/gear-xvfb/root`) on a private display,
@@ -69,3 +69,7 @@ desktop declares Windows binaries only.
 - [red.txt](red.txt): 4.9 (no layout yet) and 4.10 (no status strip) fail; 4.6–4.8 still pass.
 - [green.txt](green.txt): the same tests pass.
 - [Library patch and supervisor checklist](library-update/README.md).
+
+The shared capture kit resolves Playwright from this checkout. Pictures and measurements
+go to the machine’s temporary `storytree-captures/` folder by default; add `--retake`
+to replace the committed evidence in this directory.

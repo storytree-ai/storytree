@@ -2,12 +2,13 @@
 // The actual desktop page over the library-dots-clickable seed with one session reading notes (its glow animates).
 // Counts, over a run of frames, how often three.js re-derives a shader program (getProgram -> getParameters, which
 // calls material.customProgramCacheKey every time), by material; then CPU-profiles the page for SECONDS.
-import { createServer } from 'node:http';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-const [dist, outPrefix, mode = 'library', secondsArg = '20'] = process.argv.slice(2);
-const ROOT = process.env.ROOT ?? '/home/mickh/code/storytree03';
-const { chromium } = await import(`${ROOT}/node_modules/.pnpm/node_modules/playwright-core/index.mjs`);
+import { fileURLToPath } from 'node:url';
+import { withCapture } from '../../../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
+const here = path.dirname(fileURLToPath(import.meta.url));
+const [dist, outPrefix, mode = 'library', secondsArg = '20'] = process.argv.slice(2).filter(arg => arg !== '--retake');
+const ROOT = process.env.ROOT ?? path.resolve(here, '../../../../../..');
 const survey = JSON.parse(readFileSync(path.join(ROOT, 'packages/forest/src/view/evidence/session-tints/survey.json'), 'utf8'));
 const seed = JSON.parse(readFileSync(path.join(ROOT, 'packages/forest/src/view/evidence/library-dots-clickable/seed.json'), 'utf8'));
 const forest = seed.tree.stories.find(item => item.title === 'The forest');
@@ -23,15 +24,8 @@ for (const [s, session] of ['builder', 'reviewer'].entries()) {
 seed.lines = { lines, cursor: lines.length };
 const opens = Object.fromEntries(['builder', 'reviewer'].map((session, s) => [session, covers.slice(s * 6, s * 6 + 6).map((id, i) => ({ kind: 'note', id, call: `c${i}`, tool: 'mcp__storytree__open', resident: true }))]));
 seed.tree.arcs = [];
-const server = createServer((req, res) => {
-  const name = new URL(req.url, 'http://localhost').pathname.slice(1);
-  try { res.setHeader('Content-Type', name.endsWith('.js') ? 'text/javascript' : name.endsWith('.css') ? 'text/css' : 'text/html'); res.end(readFileSync(path.join(dist, name))); }
-  catch { res.writeHead(404).end(); }
-});
-await new Promise(r => server.listen(0, '127.0.0.1', r));
-const browser = await chromium.launch({ executablePath: '/home/mickh/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell',
-  headless: true, args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-dev-shm-usage'] });
-try {
+await withCapture({ folder: here, dist }, async ({ browser, origin, out }) => {
+  const outputPrefix = path.join(out, path.basename(outPrefix ?? 'capture'));
   const page = await browser.newPage({ viewport: { width: 1440, height: 960 }, deviceScaleFactor: 1, colorScheme: 'dark', reducedMotion: process.env.STILL ? 'reduce' : 'no-preference' });
   const errors = [];
   page.on('pageerror', e => errors.push(String(e))); page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
@@ -54,7 +48,7 @@ try {
     };
     window.storytree = new Proxy(known, { get: (t, m) => m === 'then' ? undefined : (t[m] ?? (window.__unknown.add(String(m)), async () => undefined)) });
   }, { seed, now: NOW, survey, opens });
-  await page.goto(`http://127.0.0.1:${server.address().port}/index.html`, { timeout: 180000, waitUntil: 'domcontentloaded' });
+  await page.goto(`${origin}/index.html`, { timeout: 180000, waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => document.body.dataset.state === 'ready' && window.__globe, undefined, { timeout: 120000 });
   for (const name of ['Close help', 'Close app menu']) { const b = page.getByRole('button', { name, exact: true }); if (await b.isVisible().catch(() => false)) await b.click(); }
   await page.evaluate(() => { for (const m of document.querySelectorAll('[popover]')) if (m.matches(':popover-open')) m.hidePopover(); });
@@ -66,10 +60,10 @@ try {
     await page.waitForFunction(() => { let n = 0; window.__globe.scene.traverse(o => { if (o.userData?.lit) n++; }); return n > 0; }, undefined, { timeout: 60000 });
     await page.waitForTimeout(3000);
     const png = await page.evaluate(() => { const { gl, scene, camera } = window.__globe; gl.render(scene, camera); return gl.domElement.toDataURL('image/png').split(',')[1]; });
-    writeFileSync(`${outPrefix}-${mode}-still.png`, Buffer.from(png, 'base64'));
-    console.log('still written'); await browser.close(); server.close(); process.exit(0);
+    writeFileSync(`${outputPrefix}-${mode}-still.png`, Buffer.from(png, 'base64'));
+    console.log('still written'); return;
   }
-  await page.screenshot({ path: `${outPrefix}-${mode}.png` });
+  await page.screenshot({ path: `${outputPrefix}-${mode}.png` });
   const counts = await page.evaluate(async () => {
     const { scene, gl } = window.__globe;
     const calls = new Map(), owners = new Map();
@@ -109,7 +103,7 @@ try {
   const share = k => +(((self.get(k) ?? 0) / total)).toFixed(3);
   const result = { mode, ...counts, renders: render.n, renderMsPerFrame: +(render.ms / render.n).toFixed(2), profileSeconds: +(total / 1e6).toFixed(1), idleShare: share('(idle)'), getParametersShare: share('getParameters'), getProgramShare: share('getProgram'),
     topSelf: [...self].sort((a, b) => b[1] - a[1]).slice(0, 10).map(([k, t]) => `${(t / total * 100).toFixed(1)}% ${k}`), errors, unknown: await page.evaluate(() => [...window.__unknown]) };
-  writeFileSync(`${outPrefix}-${mode}.json`, JSON.stringify(result, null, 2));
+  writeFileSync(`${outputPrefix}-${mode}.json`, JSON.stringify(result, null, 2));
   console.log(JSON.stringify(result, null, 2));
-  await page.screenshot({ path: `${outPrefix}-${mode}-end.png` });
-} finally { await browser.close(); server.close(); }
+  await page.screenshot({ path: `${outputPrefix}-${mode}-end.png` });
+});

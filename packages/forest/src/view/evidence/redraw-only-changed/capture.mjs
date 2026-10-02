@@ -2,32 +2,26 @@
 // into DIST), the knowledge-under-islands seed, and a stand-in bridge whose log grows by one line every read, so
 // every 2 s poll carries news but nothing drawn changes. Records Long Animation Frames for SECONDS and a screenshot.
 // Usage: node idle.mjs <dist> <out-prefix> [seconds]
-import { createServer } from 'node:http';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-const [dist, outPrefix, secondsArg] = process.argv.slice(2);
+import { fileURLToPath } from 'node:url';
+import { withCapture } from '../../../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
+const here = path.dirname(fileURLToPath(import.meta.url));
+const [dist, outPrefix, secondsArg] = process.argv.slice(2).filter(arg => arg !== '--retake');
 const SECONDS = Number(secondsArg ?? 40);
 // MODE: idle (nothing on show changes), island (one island's title changes every poll), wisps (a claim comes and goes every poll).
 const MODE = process.env.MODE ?? 'idle';
-const { chromium } = await import('/home/mickh/code/storytree03/node_modules/.pnpm/node_modules/playwright-core/index.mjs');
 const ev = process.env.EVIDENCE ?? path.resolve(dist, '..', '..');
 const seed = JSON.parse(readFileSync(path.join(ev, 'knowledge-under-islands/seed.json'), 'utf8'));
 const survey = JSON.parse(readFileSync(path.join(ev, 'session-tints/survey.json'), 'utf8'));
-const server = createServer((req, res) => {
-  const name = new URL(req.url, 'http://localhost').pathname.slice(1);
-  try { res.setHeader('Content-Type', name.endsWith('.js') ? 'text/javascript' : name.endsWith('.css') ? 'text/css' : 'text/html'); res.end(readFileSync(path.join(dist, name))); }
-  catch { res.writeHead(404).end(); }
-});
-await new Promise(r => server.listen(0, '127.0.0.1', r));
+await withCapture({ folder: here, dist }, async ({ browser, origin, out }) => {
+  const outputPrefix = path.join(out, path.basename(outPrefix ?? 'capture'));
 const NOW = Date.parse('2026-10-01T12:00:00.000Z');
 const A = '3b229329-6239-408a-a88c-2669d839ca45';
 const base = [
   { kind: 'session-started', source: 'hook' }, { kind: 'prompt-submitted', source: 'hook' },
   { kind: 'claimed', source: 'tool', capability: 'capability_4da153322012', reason: 'tool call arguments' },
 ].map((l, i) => ({ ...l, session: A, harness: 'claude-code', project: 'storytree', seq: i + 1, at: new Date(NOW - 60_000 * (10 - i)).toISOString() }));
-const browser = await chromium.launch({ executablePath: '/home/mickh/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell',
-  headless: true, args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-dev-shm-usage'] });
-try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 960 }, deviceScaleFactor: 1, colorScheme: 'dark' });
   const errors = [];
   page.on('pageerror', e => errors.push(String(e))); page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
@@ -70,12 +64,12 @@ try {
     window.__unknown = new Set();
     window.storytree = new Proxy(known, { get: (t, m) => m === 'then' ? undefined : (t[m] ?? (async () => { window.__unknown.add(String(m)); return undefined; })) });
   }, { data: seed, survey, base, now: NOW, A, mode: MODE });
-  await page.goto(`http://127.0.0.1:${server.address().port}/index.html`, { timeout: 180000, waitUntil: 'domcontentloaded' });
+  await page.goto(`${origin}/index.html`, { timeout: 180000, waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => document.body.dataset.state === 'ready' && window.__globe, undefined, { timeout: 120000 }).catch(async e => { console.error(await page.evaluate(() => document.body.dataset.state + ' | ' + document.body.innerText.slice(0, 500)), errors); throw e; });
   await page.waitForFunction(() => { let f = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('file:')) f++; }); return f > 0; }, undefined, { timeout: 60000 });
   await page.evaluate(() => { for (const m of document.querySelectorAll('[popover]')) if (m.matches(':popover-open')) m.hidePopover(); });
   await page.waitForTimeout(5000);
-  await page.screenshot({ path: `${outPrefix}-front.png` });
+  await page.screenshot({ path: `${outputPrefix}-front.png` });
   const cdp = process.env.PROFILE ? await page.context().newCDPSession(page) : undefined;
   if (cdp) { await cdp.send('Profiler.enable'); await cdp.send('Profiler.setSamplingInterval', { interval: 500 }); await cdp.send('Profiler.start'); }
   const result = await page.evaluate(async seconds => {
@@ -103,9 +97,9 @@ try {
     for (const [id, t] of dt) { const seen = new Set(); for (let at = id; at !== undefined; at = parent.get(at)) { const f = byId.get(at).callFrame; const k = `${f.functionName || '(anon)'} ${f.url.split('/').pop()}:${f.lineNumber}`; if (!seen.has(k)) { seen.add(k); incl.set(k, (incl.get(k) ?? 0) + t); } }
       const f = byId.get(id).callFrame; const k = `${f.functionName || '(anon)'} ${f.url.split('/').pop()}:${f.lineNumber}`; self.set(k, (self.get(k) ?? 0) + t); }
     const top = m => [...m].sort((a, b) => b[1] - a[1]).slice(0, 45).map(([k, t]) => `${(t / 1000).toFixed(0).padStart(7)} ms  ${k}`).join('\n');
-    writeFileSync(process.env.PROFILE, `INCLUSIVE\n${top(incl)}\n\nSELF\n${top(self)}\n`);
+    writeFileSync(path.join(out, path.basename(process.env.PROFILE)), `INCLUSIVE\n${top(incl)}\n\nSELF\n${top(self)}\n`);
   }
-  await page.screenshot({ path: `${outPrefix}-after-polls.png` });
+  await page.screenshot({ path: `${outputPrefix}-after-polls.png` });
   if (process.env.HOVER) {
     let shown = 0, tried = 0;
     for (let x = 640; x <= 820 && shown < 3; x += 6) for (let y = 460; y <= 600 && shown < 3; y += 6) {
@@ -118,6 +112,6 @@ try {
     result.hoverTried = tried;
   }
   result.errors = errors; result.unknownCalls = await page.evaluate(() => [...window.__unknown]);
-  writeFileSync(`${outPrefix}.json`, JSON.stringify(result, null, 2));
+  writeFileSync(`${outputPrefix}.json`, JSON.stringify(result, null, 2));
   console.log(JSON.stringify(result));
-} finally { await browser.close(); server.close(); }
+});

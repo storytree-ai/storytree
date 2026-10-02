@@ -1,6 +1,6 @@
 # The drill-down card says why a capability is not green, and who moves it (forest 4.12, ADR-0825 D1/D2)
 
-Seeded, repeatable captures: `node packages/forest/evidence/why-card/capture.mjs` bundles the fixed
+Seeded, repeatable captures: `node --import tsx packages/forest/evidence/why-card/capture.mjs` bundles the fixed
 tree in `entry.ts` (no randomness, no clock) through the real `drillDown` view model and the real
 `renderStoryPanel`, with the desktop page's real `styles.css`, in headless Chromium at fixed
 viewports (1280 x 800 desktop, 390 x 844 narrow). Measured values are in `measurements.json`.
@@ -32,3 +32,7 @@ Principles designed against:
 
 Not in these pictures: the tree's cards themselves are unchanged (the fixture's tree is wider than the
 panel's frame, so it opens cropped here; the app fits it on open, ADR-0744).
+
+The shared capture kit resolves Playwright from this checkout. Pictures and measurements
+go to the machine’s temporary `storytree-captures/` folder by default; add `--retake`
+to replace the committed evidence in this directory.

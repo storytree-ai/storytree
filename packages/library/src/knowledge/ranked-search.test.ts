@@ -164,7 +164,7 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(again.embedded, ["plans"], "a new process reads the kept vectors");
   });
 
-  contract("14.5", "rankAll ranks the plan's stories, capabilities and contracts by their own wording, with the artifacts", async (_, { knowledge, records }) => {
+  contract("14.8", "rankAll ranks the plan's stories, capabilities and contracts by their own wording, with the artifacts", async (_, { knowledge, records }) => {
     const story = await records.create("story", { title: "Library", description: "The library keeps the plan." });
     const capability = await records.create("capability", { title: "Outbox", story: story.id, proposed: true });
     const mailer = await records.create("contract", { title: "The mailer needs a verified sender domain", capability: capability.id });
@@ -215,7 +215,7 @@ for (const backend of [memory, postgres]) {
     }
   });
 
-  test(`14.6 [${backend.label}] with no embedding model, rankAll's word matches include a contract holding the words`, async () => {
+  test(`14.9 [${backend.label}] with no embedding model, rankAll's word matches include a contract holding the words`, async () => {
     const opened = await backend.open(async () => {
       throw new Error("the embedding model is switched off");
     });

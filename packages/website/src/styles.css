@@ -23,7 +23,7 @@ a:hover { text-decoration-thickness: 2px; }
 a:focus-visible, button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px solid #bdd6a6; outline-offset: 6px; }
 .paper a:focus-visible, .paper button:focus-visible, .paper input:focus-visible, .paper summary:focus-visible { outline-color: #375535; }
 [hidden] { display: none !important; }
-p { margin: 0; }
+body:not(.immersive-home) p, .immersive-home :is(.tour-copy, #opening) p { margin: 0; }
 .shell { width: min(1180px, calc(100% - 96px)); margin-inline: auto; }
 .skip-link { position: absolute; z-index: 10; left: 24px; top: -100px; background: var(--paper); color: var(--ink); padding: 16px 24px; }
 .skip-link:focus { top: 16px; }
@@ -61,22 +61,19 @@ h1 em { font-style: normal; color: var(--green); }
 .forest-canvas { visibility: hidden; }
 #website-forest[data-forest-state="live"] .forest-canvas { visibility: visible; }
 #website-forest[data-forest-state="live"] .forest-still { visibility: hidden; }
-.forest-controls { position: absolute; bottom: 4px; inset-inline: 0; display: flex; justify-content: center; gap: 8px; }
-.forest-controls button { min-width: 44px; min-height: 44px; border: 1px solid var(--line); border-radius: 3px; padding: 8px 12px; background: var(--ink); color: var(--muted); font-size: 12px; cursor: pointer; }
-.forest-controls button:hover { color: var(--green); border-color: var(--green); }
 .forest-key { border-top: 1px solid var(--line); padding-top: 19px; display: flex; justify-content: space-between; gap: 24px; font-size: 12px; line-height: 1.7; color: var(--muted); }
 .forest-key p:first-child { color: #d4ddd0; }
 .paper { background: var(--paper); color: var(--ink); color-scheme: light; }
 .paper .eyebrow { color: #456040; }
 .explanation, .waitlist { display: grid; grid-template-columns: 1fr 1.1fr; gap: 80px; padding-block: 91px; }
-h2 { font-size: clamp(36px, 3.6vw, 48px); font-weight: 500; line-height: 1.13; letter-spacing: -.045em; overflow-wrap: anywhere; }
+body:not(.immersive-home) h2 { font-size: clamp(36px, 3.6vw, 48px); font-weight: 500; line-height: 1.13; letter-spacing: -.045em; overflow-wrap: anywhere; }
 .section-intro h2 { margin: 20px 0 0; }
 .explanation-rows { list-style: none; padding: 0; margin: 0; }
 .explanation-rows li { display: flex; gap: 25px; padding-block: 26px; border-top: 1px solid #babeb1; }
 .explanation-rows li:first-child { padding-top: 5px; border-top: 0; }
 .explanation-rows li:last-child { padding-bottom: 0; }
 .row-number { flex-shrink: 0; font-size: 11px; line-height: 2; font-variant-numeric: tabular-nums; color: #52654c; }
-h3 { margin: 0 0 10px; font-size: 18px; font-weight: 600; letter-spacing: -.02em; line-height: 1.4; }
+body:not(.immersive-home) h3 { margin: 0 0 10px; font-size: 18px; font-weight: 600; letter-spacing: -.02em; line-height: 1.4; }
 .explanation-rows p { font-size: 15px; line-height: 1.75; color: #465048; }
 .waitlist { border-top: 1px solid #babeb1; }
 .waitlist-summary { margin-top: 25px; color: #465048; line-height: 1.7; font-size: 16px; }
@@ -146,11 +143,11 @@ h3 { margin: 0 0 10px; font-size: 18px; font-weight: 600; letter-spacing: -.02em
   .forest-section { padding-bottom: 30px; }
   .explanation, .waitlist { display: block; padding-block: 52px; }
   .eyebrow { font-size: 10px; }
-  h2 { font-size: 37px; }
+  body:not(.immersive-home) h2 { font-size: 37px; }
   .section-intro h2 { margin-top: 15px; }
   .explanation-rows { margin-top: 35px; }
   .explanation-rows li { gap: 20px; padding-block: 24px; }
-  h3 { font-size: 17px; }
+  body:not(.immersive-home) h3 { font-size: 17px; }
   .explanation-rows p { font-size: 14px; }
   .waitlist-summary { font-size: 15px; margin-top: 20px; }
   .waitlist-detail { margin-top: 29px; }
@@ -215,3 +212,5 @@ h3 { margin: 0 0 10px; font-size: 18px; font-weight: 600; letter-spacing: -.02em
   .opening-actions .button { width: 100%; }
   .opening-footnote { font-size: 10px; }
 }
+
+.waitlist h1 { font-size:clamp(48px,6vw,82px); margin-top:20px; }

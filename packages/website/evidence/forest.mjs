@@ -2,7 +2,7 @@ import path from "node:path";
 
 // Website contracts 2.1–2.3, shared with the verified acceptance visitor.
 export async function verifyForest(browser, url, out, step, picture) {
-  // 2.3, 2.1: the text and waitlist form come first; then the live scene draws the saved plan's islands.
+  // 2.3, 2.1: the text and waitlist entry come first; then the live scene draws the saved plan's islands.
   const live = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   await live.addInitScript(() => localStorage.setItem("storytree-opening-seen", "yes"));
   let release;
@@ -10,12 +10,17 @@ export async function verifyForest(browser, url, out, step, picture) {
   let requested = false;
   await live.route(/forest-scene-[^/]*\.js$/, async (route) => { requested = true; await held; await route.continue(); });
   await live.goto(url, { waitUntil: "load" });
-  await step("2.3", "before the 3D scene's code arrives, the heading and the waitlist form work before the scene arrives", async () => {
-    const ready = (await live.locator("h1").isVisible()) && (await live.locator("#waitlist-form").isVisible());
-    await live.locator('#waitlist-email').fill('invalid');
-    await live.locator('#waitlist-submit').click();
-    const invalid = await live.locator('#waitlist-form').getAttribute('data-waitlist-state') === 'invalid';
-    return [ready && invalid, `scene code requested yet: ${requested}; form validation available ${invalid}`];
+  await step("2.3", "before the 3D scene's code arrives, the explanation and waitlist entry are available", async () => {
+    const ready = (await live.locator("#tour-title").isVisible()) && (await live.locator("#tour-hatch").isVisible());
+    const href = await live.locator('#tour-hatch').getAttribute('href');
+    const form = await browser.newPage();
+    try {
+      await form.goto(new URL(href, url).href);
+      await form.locator('#waitlist-email').fill('invalid');
+      await form.locator('#waitlist-submit').click();
+      const invalid = await form.locator('#waitlist-form').getAttribute('data-waitlist-state') === 'invalid';
+      return [ready && invalid, `scene code requested yet: ${requested}; separate form validation available ${invalid}`];
+    } finally { await form.close(); }
   });
   release();
   await live.locator("#website-forest").scrollIntoViewIfNeeded();
@@ -64,8 +69,10 @@ export async function verifyForest(browser, url, out, step, picture) {
     await step("2.2", `when ${how}, the visitor sees the forest's still and the page stays usable`, async () => {
       const state = await page.locator("#website-forest").getAttribute("data-forest-state");
       const still = await page.locator("#website-forest .forest-still img").evaluate((img) => img.complete && img.naturalWidth > 0 && img.getBoundingClientRect().height > 0);
-      const usable = (await page.locator("#waitlist-email").isVisible()) && (await page.locator("#waitlist-submit").isVisible());
       await picture(page.locator("#website-forest"), `forest-still-${how.startsWith("WebGL") ? "no-webgl" : "scene-fails"}.png`);
+      await page.locator("#tour-hatch").click();
+      await page.locator("#waitlist-email").waitFor({ state: "visible" });
+      const usable = (await page.locator("#waitlist-email").isVisible()) && (await page.locator("#waitlist-submit").isVisible());
       return [state === "still" && still && usable, `state ${state}, still shown ${still}, waitlist usable ${usable}`];
     });
     await page.close();

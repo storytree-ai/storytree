@@ -19,6 +19,7 @@ export async function buildWebsite(output = path.join(packageRoot, "dist"), opti
   const result = await build({
     absWorkingDir: packageRoot,
     entryPoints: { main: "src/main.ts", forest: "src/forest.ts", styles: "src/styles.css" },
+    entryNames: "[name]-[hash]",
     outdir: path.join(output, "assets"),
     bundle: true,
     splitting: true,
@@ -33,12 +34,23 @@ export async function buildWebsite(output = path.join(packageRoot, "dist"), opti
     loader: { ".glb": "binary", ".png": "file", ".webp": "file" },
     logLevel: "silent",
   });
-  const template = await readFile(path.join(packageRoot, "src/index.html"), "utf8");
-  const home = template.replace("<!-- OPENING -->", openingMarkup())
-    .replace("</head>", `  <meta name="storytree-commit" content="${version}">\n  </head>`);
-  await writeFile(path.join(output, "index.html"), home);
+  // HTML and assets can be cached independently by the host. Each document must name
+  // the exact bundle it was built with, including on the waitlist and not-found pages.
+  const entries = new Map(Object.entries(result.metafile.outputs)
+    .filter(([, asset]) => asset.entryPoint)
+    .map(([name, asset]) => [path.basename(asset.entryPoint!, path.extname(asset.entryPoint!)), `/assets/${path.basename(name)}`]));
+  for (const page of ["index.html", "waitlist.html", "404.html"]) {
+    const template = await readFile(path.join(packageRoot, "src", page), "utf8");
+    const html = template.replace("<!-- OPENING -->", openingMarkup())
+      .replace(/\/assets\/(main|forest|styles)\.(?:js|css)/g, (_, name: string) => {
+        const entry = entries.get(name);
+        if (!entry) throw new Error(`Missing website entry: ${name}`);
+        return entry;
+      })
+      .replace("</head>", `  <meta name="storytree-commit" content="${version}">\n  </head>`);
+    await writeFile(path.join(output, page), html);
+  }
   await writeFile(path.join(output, "version.txt"), `${version}\n`);
-  await cp(path.join(packageRoot, "src/404.html"), path.join(output, "404.html"));
   try {
     await cp(path.join(packageRoot, "public"), output, { recursive: true });
   } catch (error) {

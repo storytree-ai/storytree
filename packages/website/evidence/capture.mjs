@@ -6,7 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
 import { verifyOpening } from "./opening.mjs";
-import { verifyTour, verifyTourCamera } from "./tour.mjs";
+import { verifyTour, verifyTourCamera, verifyImmersive, verifyRecordingFreeplay } from "./tour.mjs";
 import { verifyForest } from "./forest.mjs";
 import { withBrowserCoverage } from "./browser-coverage.mjs";
 
@@ -44,6 +44,9 @@ let browser;
 try {
   browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
   const url = `http://127.0.0.1:${server.address().port}/`;
+  if (process.argv.includes("--verify-recording")) await verifyRecordingFreeplay(browser, url, output);
+  else if (process.argv.includes("--verify-immersive")) await verifyImmersive(browser, url, output);
+  else {
   if (process.argv.includes("--verify-forest")) {
     const checks = [];
     const forestBrowser = await chromium.launch({ headless: true, args: ["--no-sandbox", "--enable-unsafe-swiftshader", "--use-angle=swiftshader"] });
@@ -66,7 +69,7 @@ try {
   }
   if (process.argv.includes("--verify-camera")) await verifyTourCamera(browser, url);
   if (process.argv.includes("--verify-tour")) {
-    const proof = { contracts: ["2.4", "2.5", "2.6"], observed: "not-observed", build: (await readFile(path.join(dist, "version.txt"), "utf8")).trim() };
+    const proof = { contracts: ["2.4", "2.5", "2.6"], observed: "not-observed", source: "Locally built unpublished working tree", baseCommit: (await readFile(path.join(dist, "version.txt"), "utf8")).trim() };
     try { await journey("website 2.4 guided tour and dated free play", measured => verifyTour(measured, url, output)); proof.observed = "pass"; }
     catch (error) { proof.observed = "fail"; proof.detail = error.message; throw error; }
     finally { await writeFile(path.join(output, "tour-observations.json"), JSON.stringify(proof, null, 2) + "\n"); }
@@ -97,7 +100,7 @@ try {
   if (verifyHome) {
     const noScript = await browser.newPage({ javaScriptEnabled: false, viewport: { width: 390, height: 844 } });
     await noScript.addInitScript(() => localStorage.setItem("storytree-opening-seen", "yes"));
-    await noScript.goto(url);
+    await noScript.goto(url + "waitlist.html");
     assert.equal(await noScript.locator('#waitlist-form').isVisible(), false);
     assert.ok(await noScript.locator('#waitlist noscript a[href="https://www.linkedin.com/in/mick-hua-353353a/"]').isVisible());
     for (const href of ["https://github.com/storytree-ai/storytree", "https://github.com/storytree-ai/storytree/blob/main/LICENSE", "https://www.linkedin.com/in/mick-hua-353353a/"]) {
@@ -113,10 +116,10 @@ try {
     // Contract 1.7: injected text enlargement, not native browser zoom.
     const enlarged = [];
     const problems = [];
-    for (const width of [320, 390, 1280]) for (const route of ["home", "404"]) {
+    for (const width of [320, 390, 1280]) for (const route of ["waitlist", "404"]) {
       const page = await browser.newPage({ viewport: { width, height: 900 } });
       await page.addInitScript(() => localStorage.setItem("storytree-opening-seen", "yes"));
-      await page.goto(url + (route === "404" ? "missing-page" : ""));
+      await page.goto(url + (route === "404" ? "missing-page" : "waitlist.html"));
       await page.evaluate(() => {
         const sizes = [...document.querySelectorAll("body, body *")].map(element => [element, parseFloat(getComputedStyle(element).fontSize)]);
         for (const [element, size] of sizes) element.style.setProperty("font-size", `${size * 2}px`, "important");
@@ -149,25 +152,22 @@ try {
       const prefix = `${route}-text200-${width}`;
       await page.locator(".site-header").screenshot({ path: path.join(output, `${prefix}-header.png`) });
       await page.locator("h1").screenshot({ path: path.join(output, `${prefix}-heading.png`) });
-      if (route === "home") {
+      if (route === "waitlist") {
         await page.locator("#waitlist-title").screenshot({ path: path.join(output, `${prefix}-waitlist.png`) });
         await page.locator("#waitlist-form").screenshot({ path: path.join(output, `${prefix}-form.png`) });
       }
       if (measured.issues.length === 0) {
-        const nav = page.locator(".site-header nav a").first();
+        const nav = route === "waitlist" ? page.locator("#waitlist-submit") : page.locator(".site-header nav a").first();
         await nav.focus();
         await page.keyboard.press("Enter");
-        await page.waitForURL(route === "home" ? url + "#waitlist" : url);
-        if (route === "home") {
-          assert.equal(new URL(page.url()).hash, "#waitlist");
+        if (route === "waitlist") {
           await page.locator('#waitlist-email').fill('invalid');
           await page.locator('#waitlist-submit').click();
           assert.equal(await page.locator('#waitlist-email').evaluate(input => input.validity.valid), false);
-          await page.locator('#waitlist-disclosure summary').focus();
-          await page.keyboard.press('Enter');
+          await page.locator('#waitlist-disclosure summary').focus(); await page.keyboard.press('Enter');
           assert.equal(await page.locator('#waitlist-disclosure').getAttribute('open'), '');
-        }
-        await page.locator(".site-header .wordmark").click();
+        } else await page.waitForURL(url);
+        if (route === "waitlist") await page.locator(".site-header .wordmark").click();
         await page.waitForURL(url);
       }
       await page.close();
@@ -181,17 +181,17 @@ try {
     await page.addInitScript(() => localStorage.setItem("storytree-opening-seen", "yes"));
     const errors = [];
     page.on("pageerror", error => errors.push(error.message));
-    await page.goto(url, { waitUntil: "networkidle" });
+    await page.goto(url + "waitlist.html", { waitUntil: "networkidle" });
     const measured = await page.evaluate(() => ({
       viewport: innerWidth,
       document: document.documentElement.scrollWidth,
       headings: document.querySelectorAll("h1").length,
-      mount: document.querySelector("#website-forest").getBoundingClientRect().toJSON(),
+      mount: document.querySelector("#website-forest")?.getBoundingClientRect().toJSON() ?? null,
       waitlist: document.querySelector('#waitlist').getBoundingClientRect().toJSON(),
       form: document.querySelector('#waitlist-form').getBoundingClientRect().toJSON(),
       emailFont: getComputedStyle(document.querySelector('#waitlist-email')).fontSize,
       primaryInputs: document.querySelectorAll('#waitlist-form input').length,
-      bodyFont: getComputedStyle(document.querySelector(".lede")).fontSize,
+      bodyFont: getComputedStyle(document.querySelector(".waitlist-summary")).fontSize,
       assets: performance.getEntriesByType("resource").map(entry => ({ name: new URL(entry.name).pathname, bytes: entry.encodedBodySize })),
     }));
     assert.equal(measured.document, measured.viewport, "No horizontal page overflow");
@@ -232,6 +232,7 @@ try {
   }
   await writeFile(path.join(output, "measurements.json"), JSON.stringify(measures, null, 2) + "\n");
   console.log(JSON.stringify(measures));
+  }
 } finally {
   await browser?.close();
   await new Promise(resolve => server.close(resolve));

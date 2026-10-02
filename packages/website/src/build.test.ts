@@ -37,20 +37,30 @@ test("1.1 · a static build serves its home page and every local asset without a
     if (!asset || /^(?:https?:|mailto:)/.test(asset)) continue;
     assert.ok((await stat(path.join(output, asset === "/" ? "index.html" : asset.replace(/^\//, "")))).isFile(), asset);
   }
-  assert.ok((await stat(path.join(output, "assets/forest.js"))).size > 0);
+  const forest = html.match(/src="(\/assets\/forest-[^"/]+\.js)"/)?.[1];
+  assert.ok(forest, "The scene entry must have a content-versioned URL so a returning visitor cannot reuse an older entry");
+  assert.ok((await stat(path.join(output, forest))).size > 0);
 });
 
-test("1.3 · the built home page offers the waitlist and a no-JavaScript way to join, with repository, license and contact links", async (t) => {
+test("1.3 · the built home links to a separate waitlist with a no-JavaScript route and source links", async (t) => {
   const output = await mkdtemp(path.join(tmpdir(), "website-home-"));
   t.after(() => rm(output, { recursive: true, force: true }));
   await buildWebsite(output);
   const html = await readFile(path.join(output, "index.html"), "utf8");
-  assert.match(html, /id="waitlist"/);
-  assert.match(html, /href="#waitlist"/);
-  assert.match(html, /<noscript>[\s\S]*linkedin\.com[\s\S]*<\/noscript>/);
-  assert.match(html, /href="https:\/\/github.com\/storytree-ai\/storytree\/blob\/main\/LICENSE"/);
-  assert.match(html, /href="https:\/\/www.linkedin.com\/in\/mick-hua-353353a\/"/);
-  assert.match(html, /href="https:\/\/github.com\/storytree-ai\/storytree"/);
+  assert.match(html, /href="\/waitlist.html"/);
+  const waitlist = await readFile(path.join(output, "waitlist.html"), "utf8");
+  assert.match(waitlist, /id="waitlist-form"/);
+  assert.match(waitlist, /<noscript>[\s\S]*linkedin\.com[\s\S]*<\/noscript>/);
+  assert.match(waitlist, /href="https:\/\/github.com\/storytree-ai\/storytree\/blob\/main\/LICENSE"/);
+  assert.match(waitlist, /href="https:\/\/www.linkedin.com\/in\/mick-hua-353353a\/"/);
+  assert.match(waitlist, /href="https:\/\/github.com\/storytree-ai\/storytree"/);
+  assert.match(waitlist, /href="\/"/);
+  for (const page of [html, waitlist, await readFile(path.join(output, "404.html"), "utf8")]) {
+    for (const [, asset] of page.matchAll(/(?:src|href)="(\/assets\/[^"#]+)"/g)) {
+      assert.match(asset!, /-[A-Z0-9]+\.(?:js|css)$/);
+      assert.ok((await stat(path.join(output, asset!))).isFile(), asset);
+    }
+  }
 });
 
 test("1.4 · the static not-found page provides a route home", async (t) => {

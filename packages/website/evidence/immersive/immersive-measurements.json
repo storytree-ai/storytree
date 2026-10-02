@@ -1,0 +1,68 @@
+{
+  "source": "Locally built unpublished working tree",
+  "viewports": [
+    {
+      "width": 1440,
+      "chapter": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 1000
+      },
+      "globe": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 1000
+      },
+      "panel": {
+        "x": 948,
+        "y": 60,
+        "width": 480,
+        "height": 880
+      }
+    },
+    {
+      "width": 390,
+      "chapter": {
+        "x": 0,
+        "y": 0,
+        "width": 390,
+        "height": 844
+      },
+      "globe": {
+        "x": 0,
+        "y": 0,
+        "width": 390,
+        "height": 844
+      },
+      "panel": {
+        "x": 12,
+        "y": 110,
+        "width": 366,
+        "height": 672
+      }
+    },
+    {
+      "width": 320,
+      "chapter": {
+        "x": 0,
+        "y": 0,
+        "width": 320,
+        "height": 844
+      },
+      "globe": {
+        "x": 0,
+        "y": 0,
+        "width": 320,
+        "height": 844
+      },
+      "panel": {
+        "x": 12,
+        "y": 110,
+        "width": 296,
+        "height": 672
+      }
+    }
+  ]
+}

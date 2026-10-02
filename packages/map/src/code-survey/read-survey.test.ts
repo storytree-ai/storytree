@@ -103,6 +103,8 @@ test("8.11 a caller may survey its current worktree while the forest default sti
     const currentSurvey = await codeSurveyReader({ checkout: "current" }).read(worktree, tree);
     assert.equal(defaultSurvey["story-shop"]?.files[0]?.lines, 1);
     assert.equal(currentSurvey["story-shop"]?.files[0]?.lines, 2);
+    const nested = await codeSurveyReader({ checkout: "current" }).read(path.join(worktree, "packages/shop/src"), tree);
+    assert.equal(nested["story-shop"]?.files[0]?.lines, 2);
   } finally {
     await rm(folder, { recursive: true, force: true });
   }

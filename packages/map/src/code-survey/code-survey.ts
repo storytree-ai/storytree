@@ -8,6 +8,8 @@
  *   reaches what it takes from there. A file belongs to the capability whose numbered tests reach it
  *   nearest (fewest ordinary imports away), then most; a tie goes to the lower number. So a test's own
  *   subject stays its own, and a file reached only through others goes to the capability nearest it.
+ * - A package-prefixed title proves that package's numbered contracts (ADR-0845). A foreign prefix
+ *   never assigns the importing package's code to a same-numbered local capability.
  * - Where no import leads, because a test runs the code in a process it starts, the package's coverage
  *   map (ADR-0838 D3, written by the dev loop's `pnpm survey:coverage`) says which numbered tests
  *   executed it. Executed ranks after a direct import and before a further one: a file a test imports
@@ -37,7 +39,7 @@ export type FileImport = { readonly from: string; readonly to: string };
 export type SurveyedTest = {
   readonly kind: "test";
   readonly path: string;
-  readonly titles: readonly { readonly number: string; readonly title: string }[];
+  readonly titles: readonly { readonly number: string; readonly title: string; readonly package?: string }[];
   readonly imports: readonly FileImport[];
 };
 
@@ -71,7 +73,7 @@ const TEST_SUPPORT = /(?:^|\/)testing\//;
 const isTestCode = (path: string): boolean => TEST_FILE.test(path) || TEST_SUPPORT.test(path);
 const CODE_FILE = /\.[cm]?[jt]sx?$/;
 const DECLARATION = /\.d\.[cm]?ts$/;
-const NUMBERED_TEST = /\b(?:test|it|describe)\s*\(\s*["'`](\d+)\.\d+\b/g;
+const NUMBERED_TITLE = /^(?:([a-z][a-z0-9-]*)\s+)?(\d+)\.\d+\b/;
 /** `import … from "./x.js"`, `export … from "./x.js"`, `import "./x.js"` and `import("./x.js")`: kind, names, specifier. */
 const RELATIVE_IMPORT = /\b(import|export)\s+(type\s+)?([^;'"`]*?)\s*\bfrom\s*["'](\.{1,2}\/[^"']+)["']|\bimport\s*\(?\s*["'](\.{1,2}\/[^"']+)["']/g;
 
@@ -83,6 +85,51 @@ const numberOf = (title: string): number | undefined => {
   const match = /^\s*(\d+)\s*·/.exec(title);
   return match === null ? undefined : Number(match[1]);
 };
+
+/** First-argument title strings, including helpers and local constants, without reading comments or quoted examples as calls. */
+function calledTitles(text: string): readonly string[] {
+  const strings: { at: number; quote: string; value: string }[] = [];
+  const code = text.replace(/\/\/[^\r\n]*|\/\*[\s\S]*?\*\/|(["'`])(?:\\.|(?!\1)[^\\])*\1/g, (token: string, quote: string | undefined, at: number) => {
+    if (quote !== undefined) strings.push({ at, quote, value: token.slice(1, -1) });
+    return token.replace(/[^\r\n]/g, " ");
+  });
+  const constants = new Map<string, string>();
+  for (const { at, value } of strings) {
+    const name = /\bconst\s+([A-Za-z_$][\w$]*)\s*=\s*$/.exec(code.slice(0, at))?.[1];
+    if (name !== undefined) constants.set(name, value);
+  }
+  const titles: { at: number; title: string }[] = [];
+  for (const { at, quote, value } of strings) {
+    if (!/[\w$.]\s*\(\s*$/.test(code.slice(0, at))) continue;
+    const template = quote === "`" ? /^\$\{\s*([A-Za-z_$][\w$]*)\s*\}([\s\S]*)$/.exec(value) : null;
+    const prefix = template === null ? undefined : constants.get(template[1]!);
+    const title = template === null ? value : prefix === undefined ? undefined : prefix + template[2];
+    if (title !== undefined) titles.push({ at, title });
+  }
+  for (const call of code.matchAll(/[\w$.]\s*\(\s*([A-Za-z_$][\w$]*)\s*[,)]/g)) {
+    const title = constants.get(call[1]!);
+    if (title !== undefined) titles.push({ at: call.index, title });
+  }
+  return titles.sort((a, b) => a.at - b.at).map(({ title }) => title);
+}
+
+/** ADR-0845 proof identities: an optional package, then the leading contract list used by own-health. */
+function proofTitles(titles: readonly string[]): SurveyedTest["titles"] {
+  return titles.flatMap(title => {
+    const lead = /^(?:([a-z][a-z0-9-]*)\s+)?(\d+\.\d+(?:–\d+\.\d+)?(?:(?:\s*[,/]\s*|\s+and\s+)\d+\.\d+(?:–\d+\.\d+)?)*):?(?=\s|$)/.exec(title!);
+    if (!lead) return [];
+    const numbers = new Set<string>();
+    for (const [, first, last] of lead[2]!.matchAll(/(\d+\.\d+)(?:–(\d+\.\d+))?/g)) {
+      numbers.add(first!);
+      if (last === undefined) continue;
+      const [capability, start] = first!.split(".");
+      const [endCapability, end] = last.split(".");
+      if (capability !== endCapability || !Number.isSafeInteger(Number(start)) || !Number.isSafeInteger(Number(end)) || Number(end) < Number(start)) return [];
+      for (let number = Number(start) + 1; number <= Number(end); number++) numbers.add(`${capability}.${number}`);
+    }
+    return [...numbers].map(number => ({ number, title: title!, ...(lead[1] === undefined ? {} : { package: lead[1] }) }));
+  });
+}
 
 const linesOf = (text: string): number => text.split("\n").filter((line) => line.trim() !== "").length;
 
@@ -168,11 +215,12 @@ function reached(test: SourceFile, byPath: ReadonlyMap<string, SourceFile>, path
   return new Map([...[...taken].map(([path, { depth }]) => [path, depth] as const), ...typed]);
 }
 
-/** Survey one story's package: every source file with its lines and owner, and the imports between them. */
-export function surveyStory(tree: readonly SourceFile[], capabilities: readonly SurveyCapability[], coverage: CoverageMap = {}): StorySurvey {
+/** Survey one story's package: source files, ownership and imports. `ownPackage` also accepts its own prefixed proofs. */
+export function surveyStory(tree: readonly SourceFile[], capabilities: readonly SurveyCapability[], coverage: CoverageMap = {}, ownPackage?: string): StorySurvey {
   const code = tree.filter((file) => CODE_FILE.test(file.path) && !DECLARATION.test(file.path));
   const paths = new Set(code.map((file) => file.path));
   const byPath = new Map(code.map((file) => [file.path, file]));
+  const calls = new Map(code.filter((file) => isTestCode(file.path)).map((file) => [file.path, calledTitles(file.text)]));
   const byNumber = new Map(capabilities.flatMap((capability) => {
     const number = numberOf(capability.title);
     return number === undefined ? [] : [[number, capability.id] as const];
@@ -182,7 +230,12 @@ export function surveyStory(tree: readonly SourceFile[], capabilities: readonly 
   const reach = new Map<string, Map<number, { depth: number; count: number }>>();
   for (const test of code.filter((file) => TEST_FILE.test(file.path))) {
     const counts = new Map<number, number>();
-    for (const [, number] of test.text.matchAll(NUMBERED_TEST)) if (byNumber.has(Number(number))) counts.set(Number(number), (counts.get(Number(number)) ?? 0) + 1);
+    for (const title of calls.get(test.path) ?? []) {
+      const named = NUMBERED_TITLE.exec(title);
+      if (named === null || (named[1] !== undefined && named[1] !== ownPackage)) continue;
+      const number = Number(named[2]);
+      if (byNumber.has(number)) counts.set(number, (counts.get(number) ?? 0) + 1);
+    }
     if (counts.size === 0) continue;
     for (const [path, depth] of reached(test, byPath, paths)) {
       const tally = reach.get(path) ?? new Map<number, { depth: number; count: number }>();
@@ -217,8 +270,7 @@ export function surveyStory(tree: readonly SourceFile[], capabilities: readonly 
   const tests = code.filter((file) => isTestCode(file.path)).map((file): SurveyedTest => ({
     kind: "test",
     path: file.path,
-    titles: [...file.text.matchAll(/\b(?:test|it|describe)\s*\(\s*(["'`])((\d+\.\d+)\b(?:\\.|(?!\1)[^\\])*)\1/g)]
-      .map(([, , title, number]) => ({ number: number!, title: title! })),
+    titles: proofTitles(calls.get(file.path) ?? []),
     imports: edgesOf(file, paths).map((edge) => ({ from: file.path, to: edge.to })),
   }));
   return { files, imports, tests };

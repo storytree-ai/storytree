@@ -48,6 +48,7 @@ const TOOLS = [
   "correct_note",
   "correct_question",
   "edit_plan",
+  "focus",
   "health_worklist",
   "land",
   "list_all_runs",
@@ -113,6 +114,46 @@ async function withProject(body: (world: World) => Promise<void>): Promise<void>
     }
   });
 }
+
+test("map 3.5: focus serves the current project with counts, dry_run, show and a complete-or-refused ceiling", async () => {
+  await withProject(async ({ folder, library }) => {
+    const story = await library.addStory({ title: "The app" });
+    const cap = await library.addCapability({ story: story.id, title: "2 · Projects" });
+    const promise = await library.addContract({ capability: cap.id, title: "2.5 · An empty project shows its next step" });
+    const src = path.join(folder, "packages/app/src");
+    mkdirSync(src, { recursive: true });
+    writeFileSync(path.join(src, "view.ts"), "export const view = 1;\n");
+    writeFileSync(path.join(src, "view.test.ts"), 'import { view } from "./view.js"; test("2.5 empty view", () => view);');
+    await withAgent(folder, codex("map-reader"), async (agent) => {
+      const select = "file:packages/app/src/view.ts";
+      const counts = await agent.call("focus", { select, up: 1 });
+      assert.equal(counts.isError, false, counts.text);
+      assert.equal(counts.data.mode, "counts");
+      assert.equal(counts.data.rowCount, 4);
+      assert.equal(counts.data.rows, undefined);
+      const dry = await agent.call("focus", { select, up: 1, mode: "dry_run" });
+      const shown = await agent.call("focus", { select, up: 1, mode: "show" });
+      assert.equal(dry.isError, false, dry.text);
+      assert.equal(shown.isError, false, shown.text);
+      assert.equal(dry.data.rows, undefined);
+      assert.equal(dry.data.estimatedTokens, shown.data.estimatedTokens);
+      assert.deepEqual(counts.data.counts, shown.data.counts);
+      const rows = shown.data.rows as { id: string }[];
+      assert.ok(rows.some(row => row.id === cap.id));
+      assert.ok(rows.some(row => row.id === promise.id));
+      const filtered = await agent.call("focus", { select: `cap:${cap.id}`, down: 1, kind: ["promise"], mode: "show" });
+      assert.deepEqual((filtered.data.rows as { id: string }[]).map(row => row.id), [promise.id]);
+      for (const args of [{ select, up: -1 }, { select, mode: "invalid" }, {}]) assert.equal((await agent.call("focus", args)).isError, true);
+      await Promise.all(Array.from({ length: 201 }, (_, index) => library.addContract({ capability: cap.id, title: `2.${index + 6} · Promise ${index}` })));
+      const refused = await agent.call("focus", { select: `cap:${cap.id}`, down: 1, mode: "show" });
+      assert.equal(refused.isError, true);
+      assert.equal(refused.data.refused, true);
+      assert.equal(refused.data.rows, undefined);
+      assert.ok((refused.data.rowCount as number) > 200);
+      assert.ok(refused.data.counts);
+    });
+  });
+});
 
 test("6.20 cancelling an MCP edit queued for the write lock leaves the record and history unchanged", async () => {
   await withProject(async ({ folder, project, library }) => {
@@ -521,6 +562,7 @@ test('6.4 a bad call gets a readable refusal rather than a crash, and with story
         ["plan_contract", { capability: "capability_000000000000", title: "Rejects a bad email" }],
         ["edit_plan", { id: "story_000000000000", title: "Renamed" }],
         ["show_plan", {}],
+        ["focus", { select: "story:Example" }],
         ["health_worklist", {}],
         ["claim", { capability: "capability_000000000000", reason: "building it" }],
         ["release", { capability: "capability_000000000000" }],

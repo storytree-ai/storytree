@@ -151,6 +151,7 @@ export function codeSurveyReader({ readFile: readText = (file: string) => readFi
         sources.map((file) => ({ ...file, path: inCheckout(file.path) })),
         story.capabilities,
         Object.fromEntries(Object.entries(coverage).map(([file, counts]) => [inCheckout(file), counts])),
+        storyPackage,
       );
       const relativeImport = ({ from, to }: { from: string; to: string }) => ({ from: inPackage(from), to: inPackage(to) });
       const fresh: StorySurvey = {

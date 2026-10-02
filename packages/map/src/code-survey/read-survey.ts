@@ -6,8 +6,9 @@
  *   for the project's code. A caller may explicitly choose its current checkout for the map (ADR-0864).
  * - A story's package is the one named after its title ("The agent link" is packages/agent-link),
  *   but for a story whose package was named otherwise; a story with no such package has no code yet.
- * - A story's package.json says which other stories' packages it depends on, through any dependency
- *   field: the code's edges between stories, which place the islands in rows (ADR-0840 D2).
+ * - A story's package manifests say which other stories' packages it depends on, through any dependency
+ *   field: the code's edges between stories, which place the islands in rows (ADR-0840 D2). The app
+ *   story includes both its package and desktop manifests, as plan-edges does.
  * - A package's coverage map (survey-coverage.json beside its src, ADR-0838 D3) is read with its files,
  *   and again only when it changed.
  * - Surveying again reads only what changed (ADR-0836 D2): a file whose size and modified time are as
@@ -129,12 +130,16 @@ export function codeSurveyReader({ readFile: readText = (file: string) => readFi
       // The desktop is the app story's frame, just as plan-edges maps it (ADR-0864 D4).
       if (storyPackage === "app") sources.push(...await filesUnder(root, path.join(checkout, "apps", "desktop", "src"), seen));
       if (sources.length === 0) return [];
-      const manifest = await fileAt(root, path.join(root, "package.json"), seen);
+      const manifestPaths = [path.join(root, "package.json"), ...(storyPackage === "app" ? [path.join(checkout, "apps", "desktop", "package.json")] : [])];
+      const manifests = await Promise.all(manifestPaths.map((file) => fileAt(root, file, seen)));
       const map = await fileAt(root, path.join(root, COVERAGE_MAP), seen);
       const files = map === undefined ? sources : [...sources, map];
       const capabilities = JSON.stringify(story.capabilities.map(({ id, title }) => [id, title]));
       const last = surveyed.get(story.id);
-      const read = manifest === undefined ? undefined : manifestFrom(manifest.text);
+      const read = manifests.flatMap((file) => {
+        const manifest = file === undefined ? undefined : manifestFrom(file.text);
+        return manifest === undefined ? [] : [manifest];
+      });
       if (last !== undefined && last.capabilities === capabilities && last.files.length === files.length && last.files.every((file, at) => file === files[at])) return [[story.id, last.survey, read] as const];
       // Survey in repository coordinates so imports crossing the app/desktop seam can return to
       // packages/app; publish the package-relative paths the forest and map already consume.
@@ -157,10 +162,10 @@ export function codeSurveyReader({ readFile: readText = (file: string) => readFi
       return [[story.id, fresh, read] as const];
     }));
     // Each story's package dependencies on other stories' packages, by package name.
-    const storyOf = new Map(surveys.flat().flatMap(([id, , read]) => (read === undefined ? [] : [[read.name, id] as const])));
+    const storyOf = new Map(surveys.flat().flatMap(([id, , read]) => read.map(({ name }) => [name, id] as const)));
     const withEdges = surveys.flat().map(([id, base, read]) => {
-      if (read === undefined) return [id, base] as const;
-      const dependsOn = read.deps.flatMap((dep) => { const other = storyOf.get(dep); return other === undefined || other === id ? [] : [other]; });
+      if (read.length === 0) return [id, base] as const;
+      const dependsOn = [...new Set(read.flatMap(({ deps }) => deps).flatMap((dep) => { const other = storyOf.get(dep); return other === undefined || other === id ? [] : [other]; }))];
       const last = edged.get(id);
       if (last !== undefined && last.base === base && JSON.stringify(last.survey.dependsOn) === JSON.stringify(dependsOn)) return [id, last.survey] as const;
       const survey = { ...base, dependsOn };

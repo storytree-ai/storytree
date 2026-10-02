@@ -19,7 +19,7 @@ import path from "node:path";
 import type { DecisionView, Library } from "@storytree/library";
 
 import { Refusal } from "../answer.js";
-import type { Args } from "../args.js";
+import { commaSeparatedIds, type Args } from "../args.js";
 import type { Family, Verb } from "../door.js";
 import { person } from "../writer.js";
 
@@ -34,7 +34,7 @@ function adr(number: number | undefined): string {
 
 function listFrom(args: Args, name: string): string[] | undefined {
   const value = args.text(name);
-  return value === undefined ? undefined : value.split(",").map((one) => one.trim()).filter((one) => one !== "");
+  return value === undefined ? undefined : commaSeparatedIds(value, name);
 }
 
 async function viewOf(library: Library, name: string): Promise<DecisionView> {

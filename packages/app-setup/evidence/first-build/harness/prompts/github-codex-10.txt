@@ -1,0 +1,3 @@
+Carry on with the next backend part: comments. I independently graded the committed article build on Mint: all four official API files passed, 64 requests, and all three supplemental tests passed. Keep earlier coverage green. I approve creating and merging this part's private-repository pull request after its required checks pass, and deleting the merged branch.
+
+One correction to the eventual fullstack test-data recipe: the official null-fields test expects two authors on the displayed first page. Creating twelve Alice articles followed by twelve Bob articles leaves that newest-first page with Bob only. Please record a recipe that puts both authors on page one, such as interleaving their articles. Keep the official tests unchanged.

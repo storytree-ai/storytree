@@ -239,7 +239,11 @@ async function waitingOn(library: Library, found: Found): Promise<Waiting[]> {
 
 /** Who holds what right now, read under the project's lock, by the database's clock. */
 async function heldNow(log: LockedLog, context: ClaimContext): Promise<Map<string, Claim>> {
-  const [lines, commands, lastSeen, now] = [await log.lines(CLAIM_KINDS), await log.lines(COMMAND_KINDS), await log.lastSeen(), (await log.now()).getTime()];
+  // One scan while writers wait; keep each reading's kinds (including its machine history) unchanged.
+  const history = await log.lines([...CLAIM_KINDS, ...COMMAND_KINDS]);
+  const lines = history.filter((line) => CLAIM_KINDS.some((kind) => kind === line.kind));
+  const commands = history.filter((line) => COMMAND_KINDS.some((kind) => kind === line.kind));
+  const [lastSeen, now] = [await log.lastSeen(), (await log.now()).getTime()];
   return held(lines, lastSeen, runningIn(commands, now), now, context.quietMs ?? idleAfterMs(), context.restarted ?? thisRestart());
 }
 

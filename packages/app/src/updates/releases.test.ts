@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -56,6 +56,58 @@ test("4.4 a downloaded release waits for a quiet moment, says it is pending, and
   assert.equal(feed.downloads, 1);
 });
 
+test("4.12 a named run holds an automatic release install until released, without holding the download", async (t) => {
+  const feed = await fixture(t);
+  feed.version = "0.3.2";
+  const launches: Launch[] = [];
+  const updater = feed.updater(async target => { launches.push(target); }, async () => true);
+  await mkdir(feed.holds);
+  const hold = path.join(feed.holds, "trial.json");
+  await writeFile(hold, JSON.stringify({ run: "Codex trial", startedAt: Date.now(), expiresAt: Date.now() + 60_000 }));
+  assert.equal(await updater.check(), "waiting");
+  assert.deepEqual(launches, []);
+  assert.equal(feed.downloads, 1);
+  assert.match(updater.request("status").reason!, /Codex trial/);
+  await rm(hold);
+  assert.equal(await updater.check(), "restarting");
+  assert.equal(launches.length, 1);
+  assert.equal(feed.downloads, 1);
+});
+
+test("4.12 each overlapping run keeps its hold; expired or malformed holds cannot disable updates indefinitely", async (t) => {
+  const feed = await fixture(t);
+  feed.version = "0.3.2";
+  const updater = feed.updater(async () => {}, async () => true);
+  await mkdir(feed.holds);
+  const now = Date.now();
+  for (const run of ["first", "second"]) {
+    await writeFile(path.join(feed.holds, `${run}.json`), JSON.stringify({ run, startedAt: now, expiresAt: now + 60_000 }));
+  }
+  assert.equal(await updater.check(), "waiting");
+  await rm(path.join(feed.holds, "first.json"));
+  assert.equal(await updater.check(), "waiting");
+  await writeFile(path.join(feed.holds, "second.json"), JSON.stringify({ run: "second", startedAt: now - 60_000, expiresAt: now - 1 }));
+  await writeFile(path.join(feed.holds, "broken.json"), "{");
+  await writeFile(path.join(feed.holds, "unbounded.json"), JSON.stringify({ run: "unbounded", startedAt: now, expiresAt: now + 7 * 60 * 60_000 }));
+  assert.equal(await updater.check(), "restarting");
+});
+
+test("4.12 an explicit install overrides a run hold but still waits for a seed", async (t) => {
+  const feed = await fixture(t);
+  feed.version = "0.3.2";
+  let writing = true;
+  let launches = 0;
+  const updater = feed.updater(async () => { launches++; }, async () => !writing);
+  await mkdir(feed.holds);
+  await writeFile(path.join(feed.holds, "trial.json"), JSON.stringify({ run: "trial", startedAt: Date.now(), expiresAt: Date.now() + 60_000 }));
+  updater.request("install");
+  assert.equal(await updater.check(), "waiting");
+  assert.equal(launches, 0);
+  writing = false;
+  assert.equal(await updater.check(), "restarting");
+  assert.equal(launches, 1);
+});
+
 test("4.5 a failed feed or corrupt download leaves the app running and can be retried; equal and older releases never restart it", async (t) => {
   const feed = await fixture(t);
   const launches: Launch[] = [];
@@ -106,8 +158,9 @@ async function fixture(t: test.TestContext) {
   const config = path.join(dir, "app-update.yml");
   await writeFile(config, JSON.stringify({ provider: "generic", url: `http://127.0.0.1:${address.port}`, updaterCacheDirName: "updates" }));
   return Object.assign(state, {
+    holds: path.join(dir, "update-holds"),
     updater(restart: (target: Launch, showing: boolean) => Promise<void>, canRestart: () => Promise<boolean>, quiet = async () => true) {
-      const updater = new ReleaseUpdater({ restart, canRestart, quiet }, {
+      const updater = new ReleaseUpdater({ restart, canRestart, quiet, home: dir }, {
         version: "0.3.1", name: "storytree-test", isPackaged: true,
         appUpdateConfigPath: config, userDataPath: dir, baseCachePath: dir,
         whenReady: async () => {}, relaunch: () => assert.fail("separate relaunch"),

@@ -8,6 +8,9 @@
     "typecheck": "tsc -p ."
   },
   "dependencies": {
+    "@storytree/arc-surface": "workspace:*",
+    "@storytree/forest": "workspace:*",
+    "@storytree/knowledge-core": "workspace:*",
     "@storytree/forest-world": "workspace:*",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
@@ -20,7 +23,6 @@
     "playwright-core": "1.60.0",
     "tsx": "^4.23.15",
     "typescript": "~7.0.2",
-    "@types/react-dom": "^19.1.6",
-    "@storytree/forest": "workspace:*"
+    "@types/react-dom": "^19.1.6"
   }
 }

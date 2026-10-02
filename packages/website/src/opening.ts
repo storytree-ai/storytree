@@ -58,9 +58,11 @@ export function wireOpening() {
     enabled = false; sound.textContent = "Sound off"; sound.setAttribute("aria-pressed", "false");
     if (audio) { void audio.close().catch(() => {}); audio = undefined; }
     replay.hidden = false;
+    window.dispatchEvent(new CustomEvent("storytree-opening", { detail: { active: false } }));
     if (move) {
-      globe.scrollIntoView({ block: "center", behavior: "instant" });
-      globe.tabIndex = -1; globe.focus({ preventScroll: true });
+      const destination = document.getElementById("chapter2") ?? globe;
+      destination.scrollIntoView({ block: "start", behavior: "instant" });
+      destination.tabIndex = -1; destination.focus({ preventScroll: true });
     }
     // Reveal without transforming a canvas ancestor: the renderer measures its host.
     if (bloom && !reduced.matches) globe.animate([{ clipPath: "circle(0% at 50% 50%)", opacity: 0 }, { clipPath: "circle(75% at 50% 50%)", opacity: 1 }], { duration: 900, easing: "cubic-bezier(.2,.7,.2,1)" });
@@ -78,6 +80,7 @@ export function wireOpening() {
   const reset = () => {
     root.getAnimations({ subtree: true }).forEach(animation => animation.cancel());
     stop(); root.hidden = false; root.dataset.phase = reduced.matches ? "peak" : "ready";
+    window.dispatchEvent(new CustomEvent("storytree-opening", { detail: { active: true } }));
     agents.innerHTML = initialAgents; round = 0; count = 1; waiting = 0;
     run.hidden = reduced.matches; run.disabled = false;
     if (reduced.matches) { count = 12; waiting = 12; showFinale(FINALE, true); }

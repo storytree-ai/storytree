@@ -1,0 +1,78 @@
+@import "@storytree/forest/view/styles.css";
+@import "@storytree/arc-surface/view/styles.css";
+
+.tour-freeplay { --text:#e3e9e8; --surface:#142029; --line:#35474e; --muted:#b5c5c9; --row-hover:#20343e; --code-bg:#101d24; margin:1.4rem 0; color:var(--text); min-width:0; }
+.tour-freeplay [hidden] { display:none !important; }
+.tour-recorded-label { color:#95bbac; font: .73rem/1.5 var(--font-mono, monospace); letter-spacing:.04em; margin:0 0 1rem; }
+.tour-recording-note { color:#a9babc; font-size:.8rem; margin:.7rem 1rem; }
+.tour-recording-controls { margin:1rem 0 .65rem; display:flex; flex-wrap:wrap; align-items:center; gap:.5rem 1rem; }
+.tour-recording-controls p { margin:0; font-size:.8rem; line-height:1.5; color:#b1c7cc; }
+.tour-recording-controls p:last-child { flex-basis:100%; }
+.tour-recording-controls button { color:#e3e9e8; background:#192c35; border:1px solid #547077; border-radius:.4rem; padding:.55rem .8rem; min-height:44px; font:inherit; font-size:.8rem; }
+.tour-record-browser,.tour-knowledge { border:1px solid #35474e; background:#121e26; border-radius:1rem; padding:1rem; margin:.8rem 0; }
+.tour-freeplay label { display:block; font-size:.8rem; color:#b1c7cc; margin:.6rem 0 .3rem; }
+.tour-freeplay select,.tour-freeplay input { box-sizing:border-box; max-width:100%; width:100%; color:#e3e9e8; background:#192c35; border:1px solid #547077; border-radius:.4rem; padding:.55rem; font:inherit; font-size:.9rem; }
+.tour-freeplay button { cursor:pointer; }
+.tour-freeplay :focus-visible { outline:2px solid #99d7b8; outline-offset:3px; }
+.tour-freeplay .sessions-list { position:relative; max-height:22rem; border:1px solid #35474e; border-radius:1rem; background:#142029; }
+.tour-freeplay .tour-arcs { margin-top:.8rem; }
+.tour-freeplay .arc-handle { position:relative; height:auto; min-height:48px; border-radius:.6rem .6rem 0 0; }
+.tour-freeplay .arc-overlay { position:relative; inset:auto; height:26rem; max-height:60dvh; border:1px solid #35474e; border-radius:.6rem; }
+.tour-freeplay .arc-panes { min-width:0; }
+.tour-freeplay .arc-briefing,.tour-freeplay .arc-lanes { min-width:0; }
+.tour-freeplay .arc-title { color:#e3e9e8; }
+.tour-freeplay .arc-state-claimed { color:#a8d6ba; }
+.tour-freeplay .arc-state-waiting,.tour-freeplay .arc-state-blocked,.tour-freeplay .arc-state-queued { color:#e7c77d; }
+.tour-story-panel { margin-top:1.2rem; font-size:.9rem; }
+.tour-story-panel .panel-head,.core-card header,.tree-space-head { display:flex; align-items:center; gap:1rem; }
+.tour-story-panel .panel-head h2,.core-card h3,.tree-space h2 { flex:1; margin:.2rem 0; font-size:1.15rem; }
+.tour-freeplay .panel-close,.tree-space-close,.tree-space-fit { background:#243a43; color:#e3e9e8; border:1px solid #547077; border-radius:.4rem; font:inherit; padding:.2rem .6rem; }
+.tour-story-panel .panel-sentences { line-height:1.65; }
+.panel-tree { position:relative; border:1px solid #3d555e; border-radius:.6rem; margin:1rem 0; overflow:hidden; }
+.panel-tree-frame { height:20rem; touch-action:none; overflow:hidden; cursor:grab; }
+.panel-tree-surface,.tree-space-surface { transform-origin:0 0; width:max-content; }
+.panel-tree-pop-out { position:absolute; right:.5rem; top:.5rem; background:#20343e; color:#d5e7e5; border:1px solid #547077; padding:.35rem; border-radius:.3rem; }
+.panel-tree-pop-out svg { fill:none; stroke:currentColor; stroke-width:1.5; }
+.panel-diagram,.tree-space-diagram { display:block; font-family:system-ui,sans-serif; }
+.panel-diagram .arrow,.tree-space-diagram .arrow { fill:none; stroke:#90aca7; stroke-width:1.4; }
+.panel-diagram marker path,.tree-space-diagram marker path { fill:#90aca7; }
+.panel-diagram .card-bg,.tree-space-diagram .card-bg { fill:#20323b; stroke:#64857d; stroke-width:1; }
+.tour-freeplay .box { --card-status:#74858b; }
+.tour-freeplay .box.status-healthy { --card-status:#4c8c70; }
+.tour-freeplay .box.status-unhealthy { --card-status:#a65c5c; }
+.tour-freeplay .box.status-untested { --card-status:#a38341; }
+.tour-freeplay .card-strip { fill:var(--card-status); }
+.tour-freeplay .card-status { font-size:11px; }
+.tour-freeplay .card-title { font-size:12px; text-anchor:middle; }
+.tour-freeplay .card-story { font-size:10px; text-anchor:middle; fill:#adc3c6; }
+.tour-freeplay .card-mark { font-size:10px; }
+.tour-freeplay .elsewhere { opacity:.6; }
+.panel-diagram text,.tree-space-diagram text { fill:#e1eae8; }
+.panel-diagram .selected,.tree-space-diagram .selected { filter:drop-shadow(0 0 3px #b6e7d2); }
+.panel-diagram [role=button],.tree-space-diagram [role=button] { cursor:pointer; }
+.panel-state,.panel-badge { border:1px solid #547077; border-radius:.3rem; padding:.15rem .35rem; font-size:.75rem; font-weight:400; }
+.panel-health { display:flex; flex-wrap:wrap; gap:.4rem; align-items:center; }
+.panel-contracts { list-style:none; padding:0; }
+.panel-contracts > li { border-top:1px solid #35474e; padding:.8rem 0; }
+.panel-contracts .panel-health { margin-top:.5rem; }
+.panel-last-seen,.panel-trail,.panel-muted { color:#a9babc; font-size:.8rem; }
+.panel-detail h3 { font-size:1rem; }
+.panel-why { border-left:3px solid #d4b36b; padding-left:.7rem; }
+.tree-space { position:fixed; z-index:100; inset:5dvh 5vw; background:#142029; border:1px solid #547077; padding:1rem; border-radius:1rem; }
+.tree-space-frame { height:calc(90dvh - 6rem); overflow:hidden; touch-action:none; }
+.tree-space-legend { display:none; }
+.tree-space-hint { position:absolute; bottom:0; left:1rem; font-size:.75rem; color:#b1c7cc; }
+.core-card { margin-top:1rem; border-top:1px solid #35474e; padding-top:.8rem; }
+.core-card-kind { color:#95bbac; font: .75rem monospace; }
+.core-card-text { white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.65; max-height:28rem; overflow:auto; }
+.forest-drawing .planet-nameplate { color:#eceae3; background:#142029bd; font:500 13px/1.2 system-ui,sans-serif; padding:.2rem .5rem; }
+@media(max-width:600px) {
+  .tour-freeplay .arc-panes { grid-template-columns:minmax(0,1fr); overflow:auto; }
+  .tour-freeplay .arc-lanes { max-height:12rem; flex-shrink:0; }
+  .tour-freeplay .arc-briefing { overflow:visible; }
+  .tour-freeplay .arc-body { overflow:auto; }
+  .tour-record-browser,.tour-knowledge { padding:.8rem; }
+  .tree-space { inset:2dvh 2vw; padding:.6rem; }
+  .tree-space-head { flex-wrap:wrap; gap:.4rem; }
+  .tree-space-frame { height:calc(96dvh - 7rem); }
+}

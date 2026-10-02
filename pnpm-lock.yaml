@@ -580,9 +580,18 @@ importers:
       '@react-three/fiber':
         specifier: ^9.6.1
         version: 9.8.1(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(three@0.185.1)
+      '@storytree/arc-surface':
+        specifier: workspace:*
+        version: link:../arc-surface
+      '@storytree/forest':
+        specifier: workspace:*
+        version: link:../forest
       '@storytree/forest-world':
         specifier: workspace:*
         version: link:../forest-world
+      '@storytree/knowledge-core':
+        specifier: workspace:*
+        version: link:../knowledge-core
       react:
         specifier: ^19.1.1
         version: 19.3.0
@@ -590,9 +599,6 @@ importers:
         specifier: ^19.1.1
         version: 19.3.0(react@19.3.0)
     devDependencies:
-      '@storytree/forest':
-        specifier: workspace:*
-        version: link:../forest
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6

@@ -6,6 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
 import { verifyOpening } from "./opening.mjs";
+import { verifyTour, verifyTourCamera } from "./tour.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const output = path.join(here, process.argv[2] ?? "scaffold");
@@ -39,6 +40,13 @@ let browser;
 try {
   browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
   const url = `http://127.0.0.1:${server.address().port}/`;
+  if (process.argv.includes("--verify-camera")) await verifyTourCamera(browser, url);
+  if (process.argv.includes("--verify-tour")) {
+    const proof = { contracts: ["2.4", "2.5", "2.6"], observed: "not-observed", build: (await readFile(path.join(dist, "version.txt"), "utf8")).trim() };
+    try { await verifyTour(browser, url, output); proof.observed = "pass"; }
+    catch (error) { proof.observed = "fail"; proof.detail = error.message; throw error; }
+    finally { await writeFile(path.join(output, "tour-observations.json"), JSON.stringify(proof, null, 2) + "\n"); }
+  }
   if (verifyOpeningRequested) {
     const check = {
       contract: "1.8",

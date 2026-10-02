@@ -161,7 +161,7 @@ function Territories({ story, land, coast, claimed, radius, spot, lighting, surf
     return () => onStops(story, undefined);
   }, [drawn, land.package, story, spot.x, spot.y, spot.z, radius, onStops]);
   useEffect(() => {
-    lightFileCircles(drawn.circles, surfaces.sessionTints ? lighting.files : new Map(), lighting.colour, land.package ?? "");
+    lightFileCircles(drawn.circles, surfaces.sessionTints ? lighting.files : new Map(), lighting.colour, land.package ?? "", lighting.colours);
     lightTerritories(drawn.group, surfaces.sessionTints ? lighting.capabilities : new Map(), lighting.colour);
     presentTerritories(drawn.group, surfaces.territories);
     drawn.circles.visible = surfaces.fileCircles;

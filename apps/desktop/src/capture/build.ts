@@ -17,7 +17,7 @@ export async function buildCapture({ dist, root = path.resolve(import.meta.dirna
       plugins: [{ name: "capture-observations", setup(builder) {
         builder.onLoad({ filter: /planet-view\.tsx$/ }, args => {
           const source = readFileSync(args.path, "utf8");
-          const needle = "const { camera, gl, scene, size } = useThree();";
+          const needle = "const { camera, gl, scene, size, invalidate } = useThree();";
           if (!source.includes(needle)) throw new Error(`Capture observation hook moved: ${needle}`);
           return { contents: source.replace(needle, `${needle} globalThis.__nav = { rotation, onRotate };`), loader: "tsx", resolveDir: path.dirname(args.path) };
         });

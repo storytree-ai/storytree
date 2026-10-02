@@ -68,7 +68,10 @@ export interface TraversalStep {
 }
 
 /** How an opened file or capability stands in a selected session's window: read in it now, or compacted out since. */
-export type CodeState = "in-window" | "faded";
+export type WindowState = "in-window" | "faded";
+
+/** How an opened file stands on the land: in a selected session's window, or, with none selected, read by a listed session since it started, with no fade (ADR-0738 D1). */
+export type CodeState = WindowState | "read";
 
 /**
  * The code's surface as the forest lays it on the globe (ADR-0804 D5), handed to the core so its traversal
@@ -97,6 +100,12 @@ export function codeKey(path: string): string | undefined {
 /** A file's stop in a traversal: its key, told apart from every note's id. */
 export const fileStop = (key: string): string => `file:${key}`;
 
+/** What a step from one stop to the next crosses (ADR-0804 D5): a hop between two files, a dive between a file and a note, nothing between two notes. */
+function crossing(from: string, to: string): "hop" | "dive" | undefined {
+  const [a, b] = [from.startsWith("file:"), to.startsWith("file:")];
+  return a && b ? "hop" : a || b ? "dive" : undefined;
+}
+
 /** The window's colour (ADR-0746 D1): a warm white no session wears, since sessions take their colours from the whole hue wheel. */
 export const IN_VIEW = "#f4ecd8";
 
@@ -111,7 +120,7 @@ export interface WindowView {
   /** Files whose opened read is in the window now, in the order opened, by the path the call named. */
   files: string[];
   /** The surveyed files and territories the session opened, by their keys: lit on the land, in the window or compacted out. */
-  code: { files: Map<string, CodeState>; capabilities: Map<string, CodeState> };
+  code: { files: Map<string, WindowState>; capabilities: Map<string, WindowState> };
   /** One step per move between opened notes, in reading order; a step taken again draws once. */
   steps: TraversalStep[];
   /** Why there is no window to show, when there is none. */
@@ -131,7 +140,7 @@ export function windowView(window: SessionWindow, present: ReadonlySet<string>, 
   const stops: string[] = [];
   const imported = new Set((places?.imports ?? []).flatMap(({ from, to }) => [`${from}>${to}`, `${to}>${from}`]));
   // A read is in the window if any open of it is: read again since a compaction, it is in the window now.
-  const stateOf = (open: { resident: boolean }, before: CodeState | undefined): CodeState => open.resident || before === "in-window" ? "in-window" : "faded";
+  const stateOf = (open: { resident: boolean }, before: WindowState | undefined): WindowState => open.resident || before === "in-window" ? "in-window" : "faded";
   for (const open of window.opens) {
     if (open.kind === "file") {
       if (open.resident && !view.files.includes(open.id)) view.files.push(open.id);
@@ -261,6 +270,8 @@ export interface Trail {
   mover: string;
   /** A selected session's traversal step (ADR-0756): solid or dotted, and whether it fades; a reading path's curve has none. */
   step?: Pick<TraversalStep, "edge" | "faded" | "kind">;
+  /** What a reading path's step crosses when it reaches a file with no session selected (ADR-0804 D5); none between two notes. */
+  kind?: "hop" | "dive";
 }
 
 /**
@@ -284,7 +295,8 @@ export function trails(reads: ReadRecord, roster: readonly RosterEntry[], sessio
       const { to, seq } = jump;
       const from = jump.from ?? (replay.agent.startsWith("subagent:") ? spawnedFrom(replay.agent, seq) : undefined);
       if (from === undefined || from === to || drawn.has(`${listed} ${from} ${to}`)) continue;
-      drawn.set(`${listed} ${from} ${to}`, { from, to, colour, seq, mover: `${member} ${replay.agent}` });
+      const kind = crossing(from, to);
+      drawn.set(`${listed} ${from} ${to}`, { from, to, colour, seq, mover: `${member} ${replay.agent}`, ...(kind === undefined ? {} : { kind }) });
     }
   }
   return [...drawn.values()].sort((a, b) => a.seq - b.seq);
@@ -311,7 +323,11 @@ export function agentPaths(reads: ReadRecord, roster: readonly RosterEntry[], se
     const note = replay.lit.filter(({ read }) => read === "whole").at(-1)?.note;
     if (!replay.known || note === undefined) return [];
     const mover = `${member} ${replay.agent}`;
-    const steps = replay.jumps.flatMap(({ from, to, seq }) => from === undefined || from === to ? [] : [{ from, to, colour, seq, mover }]);
+    const steps = replay.jumps.flatMap(({ from, to, seq }): Trail[] => {
+      if (from === undefined || from === to) return [];
+      const kind = crossing(from, to);
+      return [{ from, to, colour, seq, mover, ...(kind === undefined ? {} : { kind }) }];
+    });
     return [{ mover, colour, note, steps }];
   });
 }
@@ -498,27 +514,66 @@ function titleOf(knowledge: Knowledge, id: string): string {
 
 /**
  * Every listed session's window as the no-selection view reads it (ADR-0754 D1): the notes it
- * opened, in reading order, as one known agent's full reads, each a step from the note before.
- * Files and glimpses are not drawn here, and a compacted read still lights, since this view shows a
- * session's reads since it started with no fade (ADR-0738 D1). A session with no window has none,
- * so its log's reads stand in. `stamps` give each open its place in time (see stampOpens); an
- * unstamped open is history.
+ * opened, in reading order, as one known agent's full reads, each a step from the stop before. With
+ * the code's `places`, each surveyed file it opened is a stop too, on its circle (ADR-0804 D5), which
+ * lights on the land rather than in the core; without them files are stepped over. Glimpses are not
+ * drawn here, and a compacted read still lights, since this view shows a session's reads since it
+ * started with no fade (ADR-0738 D1). A session with no window has none, so its log's reads stand
+ * in. `stamps` give each open its place in time (see stampOpens); an unstamped open is history.
  */
 export function windowReplays(windows: ReadonlyMap<string, SessionWindow>, present: ReadonlySet<string>,
-  stamps: ReadonlyMap<string, readonly number[]> = new Map()): Map<string, AgentReplay> {
+  stamps: ReadonlyMap<string, readonly number[]> = new Map(), places?: CodePlaces): Map<string, AgentReplay> {
   const replays = new Map<string, AgentReplay>();
   for (const [session, window] of windows) {
     if ("absent" in window) continue;
     const replay: AgentReplay = { agent: "orchestrator", label: "orchestrator", known: true, lit: [], jumps: [] };
     window.opens.forEach((open, index) => {
-      if (open.kind !== "note" || !present.has(open.id)) return;
       const seq = stamps.get(session)?.[index] ?? 0;
+      const key = open.kind === "file" ? surveyed(open.id, places) : undefined;
+      if (key !== undefined) {
+        replay.jumps.push({ from: replay.jumps.at(-1)?.to, to: fileStop(key), move: "jump", seq, at: window.at });
+        return;
+      }
+      if (open.kind !== "note" || !present.has(open.id)) return;
       replay.lit.push({ note: open.id, read: "whole", seq, at: window.at });
       replay.jumps.push({ from: replay.jumps.at(-1)?.to, to: open.id, move: "jump", seq, at: window.at });
     });
     replays.set(session, replay);
   }
   return replays;
+}
+
+/** The surveyed file a path names, when the code's places have its circle. */
+function surveyed(path: string, places: CodePlaces | undefined): string | undefined {
+  const key = places === undefined ? undefined : codeKey(path);
+  return key !== undefined && places!.files.has(key) ? key : undefined;
+}
+
+/**
+ * The files every listed session's window has opened, as the no-selection view lights them on the land
+ * (ADR-0804 D5, ADR-0738 D1): each read since the session started, with no fade, in the colour of the
+ * session that read it latest by `stamps`, a later open winning a tie.
+ */
+export function rosterCode(windows: ReadonlyMap<string, SessionWindow>, roster: readonly RosterEntry[], places: CodePlaces,
+  stamps: ReadonlyMap<string, readonly number[]> = new Map()): { files: Map<string, CodeState>; colours: Map<string, string> } {
+  const latest = new Map<string, { colour: string; seq: number }>();
+  for (const { colour, members } of roster) {
+    for (const member of members) {
+      const window = windows.get(member);
+      if (window === undefined || "absent" in window) continue;
+      window.opens.forEach((open, index) => {
+        const key = open.kind === "file" ? surveyed(open.id, places) : undefined;
+        if (key === undefined) return;
+        const seq = stamps.get(member)?.[index] ?? 0;
+        const seen = latest.get(key);
+        if (seen === undefined || seq >= seen.seq) latest.set(key, { colour, seq });
+      });
+    }
+  }
+  return {
+    files: new Map([...latest.keys()].map((key) => [key, "read" as const])),
+    colours: new Map([...latest].map(([key, { colour }]) => [key, colour])),
+  };
 }
 
 /**

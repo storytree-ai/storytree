@@ -51,7 +51,7 @@ export function circleStops(marks: Group, pkg: string, plate: { position: Vector
 }
 
 /** A lit circle's fill: the session's colour over the pale circle, full while the read is in the window, lighter and fainter once compacted out (as a note's dot is, ADR-0756). */
-const LIT_OPACITY = { "in-window": 0.9, faded: 0.6 } as const;
+const LIT_OPACITY = { "in-window": 0.9, faded: 0.6, read: 0.9 } as const;
 const RING_INNER = 1.18;
 const RING_OUTER = 1.42;
 
@@ -64,12 +64,13 @@ const traversalMark = (mark: Mesh, name: string): Mesh => {
 };
 
 /**
- * Lights the circles the selected session opened (ADR-0804 D5), `lit` keyed as `circleStops` keys them, in the
- * session's `colour`: a fill over the circle, and for a read in the window the in-view ring around it; a
- * compacted read is lighter with no ring. What lighting adds is laid over the circle, never swapped into it,
- * so calling it again with less lit lets the rest go and the circle itself is as it was.
+ * Lights the circles the sessions opened (ADR-0804 D5), `lit` keyed as `circleStops` keys them, in `colour`, or
+ * a circle's own in `colours`: a fill over the circle, and for a read in the selected window the in-view ring
+ * around it; a compacted read is lighter with no ring, and a read with none selected is full with no ring. What
+ * lighting adds is laid over the circle, never swapped into it, so calling it again with less lit lets the rest
+ * go and the circle itself is as it was.
  */
-export function lightFileCircles(marks: Group, lit: ReadonlyMap<string, CodeState>, colour: string, pkg: string): void {
+export function lightFileCircles(marks: Group, lit: ReadonlyMap<string, CodeState>, colour: string, pkg: string, colours?: ReadonlyMap<string, string>): void {
   for (const mark of marks.children) {
     const path = mark.userData.file;
     if (typeof path !== "string" || !(mark instanceof Mesh)) continue;
@@ -80,13 +81,14 @@ export function lightFileCircles(marks: Group, lit: ReadonlyMap<string, CodeStat
       (old.material as MeshBasicMaterial).dispose();
       if (old.geometry !== mark.geometry) old.geometry.dispose();
     }
-    const state = lit.get(codePathKey(pkg, path));
+    const key = codePathKey(pkg, path);
+    const state = lit.get(key);
     if (state === undefined) {
       delete mark.userData.window;
       continue;
     }
     mark.userData.window = state;
-    const wear = new Color(colour);
+    const wear = new Color(colours?.get(key) ?? colour);
     if (state === "faded") wear.lerp(new Color("#ffffff"), 0.55);
     // Children of the circle, so they lie as flat as it does and grow with it.
     const fill = traversalMark(new Mesh(mark.geometry, new MeshBasicMaterial({ color: wear, transparent: true, opacity: LIT_OPACITY[state], side: DoubleSide, forceSinglePass: true, depthWrite: false })), `file-lit:${path}`);

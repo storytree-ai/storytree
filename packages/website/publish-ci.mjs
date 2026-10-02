@@ -44,9 +44,9 @@ async function source() {
   const { workflow_run: run } = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, "utf8"));
   if (!run || run.conclusion !== "success" || run.head_repository?.full_name !== REPOSITORY) return undefined;
   let sha = publicationSource(run);
-  if (run.event === "pull_request") {
-    // The run's PR list can be empty after merge. Match its tested head through the API.
-    // Auto-merge may finish just after the final CI job ends; allow that short delay.
+  if (run.event === "pull_request" || run.event === "merge_group") {
+    // Both PR and queue runs can have an empty PR list. Resolve their tested commit through the API.
+    // Queue CI can finish before the commit reaches main; wait for the PR to confirm the exact merge.
     for (let attempt = 0; attempt < 12 && !sha; attempt++) {
       const candidates = api(`commits/${run.head_sha}/pulls`);
       for (const candidate of candidates) {
@@ -57,6 +57,7 @@ async function source() {
     }
   }
   if (!sha) return undefined;
+  git("fetch", "--quiet", "origin", "main");
   const base = publicationBase(sha, await liveVersion(), commit => ancestor(commit, sha));
   if (!websiteChanged(changed(base, sha))) {
     console.log(`Skipping website publication: no website build inputs changed from ${base} to this merge.`);

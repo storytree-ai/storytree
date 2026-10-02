@@ -13,7 +13,7 @@ test("4.3 · successful CI selects the merged commit, including CI's direct merg
   assert.equal(publicationSource({ ...run, event: "push", head_branch: "main" }), head);
 });
 
-test("4.3 · failed, unmerged, superseded, foreign and queue runs cannot publish", () => {
+test("4.3 · failed, unmerged, superseded, foreign and unmatched queue runs cannot publish", () => {
   assert.equal(publicationSource({ ...run, conclusion: "failure" }, pr), undefined);
   assert.equal(publicationSource(run), undefined);
   assert.equal(publicationSource(run, { ...pr, merged: false }), undefined);
@@ -43,4 +43,22 @@ test("4.3 · a merge is compared with the commit the live site carries, so a web
   for (const unreadable of [undefined, "Not found", "unpublished local build", "d".repeat(40)]) {
     assert.equal(publicationBase(merged, unreadable, isAncestor), `${merged}^1`, String(unreadable));
   }
+});
+
+// Chapter 1: PR CI finished before the merge queue landed, then main CI was cancelled.
+// Successful queue CI 36962398897 tested this exact commit; PR #503 later confirmed its merge.
+test("4.3 · a successful queue run publishes once its exact tested commit is confirmed merged into main", () => {
+  const queueSha = "124d21fb8dbdbafc5d443aff8773222092f13a9c";
+  const queue = { ...run, event: "merge_group", head_sha: queueSha,
+    head_branch: "gh-readonly-queue/main/pr-503-4558b679060cd175c220a9b07416a1b55c13a88b" };
+  const mergedPr = { ...pr, merge_commit_sha: queueSha,
+    head: { ...pr.head, sha: "01277aa9e9c3da9485c37c2672fe1be6ccaaee26" } };
+  assert.equal(publicationSource(queue), undefined, "queue CI may finish before merge");
+  assert.equal(publicationSource(queue, { ...mergedPr, merged: false }), undefined);
+  assert.equal(publicationSource(queue, mergedPr), queueSha);
+  assert.equal(publicationSource(queue, { ...mergedPr, merge_commit_sha: merged }), undefined);
+  assert.equal(publicationSource(queue, { ...mergedPr, base: { ref: "release" } }), undefined);
+  assert.equal(publicationSource(queue, { ...mergedPr, head: { ...pr.head, repo: { full_name: "someone/fork" } } }), undefined);
+  assert.equal(publicationSource({ ...queue, conclusion: "failure" }, mergedPr), undefined);
+  assert.equal(publicationSource({ ...queue, head_repository: { full_name: "someone/fork" } }, mergedPr), undefined);
 });

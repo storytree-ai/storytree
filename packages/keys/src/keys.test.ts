@@ -1,13 +1,14 @@
 /** Keys 1.1–1.4: the owner-only file, its lock, the resolution order and `!command` entries (ADR-0843). */
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
+import { closeSync, mkdtempSync, openSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 
 import { authFile, removeKey, resolveKey, saveKey } from "./index.js";
+import { withLock } from "./keys.js";
 
 function scratch(t: { after(fn: () => void): void }): string {
   const dir = mkdtempSync(path.join(tmpdir(), "storytree-keys-"));
@@ -58,6 +59,26 @@ test("keys 1.2: two writers at once lose nothing", async (t) => {
   for (const prefix of ["a", "b", "c", "d"]) {
     for (let i = 0; i < count; i++) assert.equal(resolveKey(`${prefix}-${i}`, { home, env: {} }), `value-${prefix}-${i}`);
   }
+});
+
+test("keys 1.2: a writer refused the lock by Windows's EPERM, as when the lock is being removed, waits and takes it", (t) => {
+  const lock = path.join(path.dirname(scratch(t)), "auth.json.lock");
+  let opens = 0;
+  const open = (file: string) => {
+    if (opens++ === 0) throw Object.assign(new Error(`EPERM: operation not permitted, open '${file}'`), { code: "EPERM" });
+    closeSync(openSync(file, "wx"));
+  };
+  let wrote = false;
+  withLock(lock, () => (wrote = true), { open });
+  assert.equal(wrote, true);
+});
+
+test("keys 1.2: a lock that is always refused with EPERM fails at the deadline, not forever", (t) => {
+  const lock = path.join(path.dirname(scratch(t)), "auth.json.lock");
+  const open = (file: string) => {
+    throw Object.assign(new Error(`EPERM: operation not permitted, open '${file}'`), { code: "EPERM" });
+  };
+  assert.throws(() => withLock(lock, () => {}, { open, waitMs: 50 }), /locked by another storytree process/);
 });
 
 test("keys 1.3: an explicit value beats the saved entry, which beats the environment variable", (t) => {

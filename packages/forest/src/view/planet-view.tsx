@@ -13,7 +13,7 @@ import { circleStops, fileCircleMarks, lightFileCircles } from "./file-circles.j
 import { lightTerritories, territoryLand } from "./territory-land.js";
 import { fileCircles, territories } from "../territories/territories.js";
 import { NameplateCrowd, Nameplates, Overlay, SelectionRing } from "./island-overlays.js";
-import { dragTurn, focusRotation, hiddenMarkers, oncePerFrame, pickGlobe, planetLayout, pointedFile, type ForestMode } from "./planet-navigation.js";
+import { dragTurn, focusRotation, globeHover, hiddenMarkers, isGlobeDrag, oncePerFrame, pickGlobe, planetLayout, type ForestMode } from "./planet-navigation.js";
 import { claimsOn } from "./planet-update.js";
 
 export function PlanetView({ core, scene, places, wisps, selected, highlighted, highlightedSession, onPick, onNote, onWispHover, mode = "forest", framing, library = true }: {
@@ -205,12 +205,9 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPick, onNot
     const clearHover = (): void => { cleared++; setHover(undefined); element.style.cursor = ""; };
     const hoverAt = oncePerFrame(({ event, at }: { event: PointerEvent; at: number }): void => {
       if (stopped || at !== cleared || down !== undefined) return;
-      const hit = pick(event);
-      element.style.cursor = hit === undefined ? "" : "pointer";
-      const file = hit?.kind === "note" ? undefined : pointedFile(scene, camera, element.getBoundingClientRect(), { x: event.clientX, y: event.clientY });
-      const title = hit?.kind === "note" ? scene.getObjectByName(`knowledge-point:${hit.id}`)?.userData.title as string | undefined
-        : file === undefined ? undefined : `${file.file} · ${file.lines} lines · ${file.capability === undefined ? "Unclaimed" : scene.getObjectByName(`territory:${file.capability}`)?.userData.title ?? file.capability}`;
       const box = element.getBoundingClientRect();
+      const { cursor, title } = globeHover(scene, camera, box, { x: event.clientX, y: event.clientY }, mode);
+      element.style.cursor = cursor;
       setHover(title === undefined ? undefined : { title, x: Math.max(8, Math.min(box.width - 220, event.clientX - box.left + 12)), y: event.clientY - box.top + 14 });
     });
     // A drag redraws the globe once a frame, at the latest turn.
@@ -224,7 +221,7 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPick, onNot
     const onMove = (event: PointerEvent): void => {
       if (down !== undefined) {
         if (event.pointerId !== down.id) return;
-        down.dragged ||= Math.hypot(event.clientX - down.x, event.clientY - down.y) >= 5;
+        down.dragged ||= isGlobeDrag(down, { x: event.clientX, y: event.clientY });
         turn.current = dragTurn(turn.current, { x: event.clientX - down.last.x, y: event.clientY - down.last.y }, element.clientHeight || 1);
         dragTo(turn.current);
         down.last = { x: event.clientX, y: event.clientY };
@@ -236,7 +233,7 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPick, onNot
     const onUp = (event: PointerEvent): void => {
       const from = down;
       down = undefined;
-      if (from === undefined || from.id !== event.pointerId || from.dragged || Math.hypot(event.clientX - from.x, event.clientY - from.y) >= 5) return;
+      if (from === undefined || from.id !== event.pointerId || from.dragged || isGlobeDrag(from, { x: event.clientX, y: event.clientY })) return;
       clearHover();
       const hit = pick(event);
       if (hit?.kind === "note") onNote(hit.id);

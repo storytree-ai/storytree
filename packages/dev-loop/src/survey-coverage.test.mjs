@@ -2,7 +2,7 @@
 // small package in a temporary folder whose numbered test runs its code only in processes it starts.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -50,7 +50,10 @@ test("6.5 a coverage run records, for each source file, the numbered tests of ea
 });
 
 test("6.5 measured browser bundle inputs survive Node regeneration, scoped to passing proofs in their own story", async () => {
-  const work = mkdtempSync(path.join(tmpdir(), "survey-browser-"));
+  const temp = mkdtempSync(path.join(tmpdir(), "survey-browser-"));
+  const work = path.join(temp, "linked");
+  mkdirSync(path.join(temp, "actual"));
+  symlinkSync(path.join(temp, "actual"), work, "junction");
   const pkg = path.join(work, "keys");
   try {
     for (const dir of ["keys/src", "keys/dist", "foreign/src", "coverage"]) mkdirSync(path.join(work, dir), { recursive: true });
@@ -63,7 +66,7 @@ test("6.5 measured browser bundle inputs survive Node regeneration, scoped to pa
     const coverageDir = path.join(work, "coverage");
     assert.equal(execFileSync(process.execPath, ["--enable-source-maps", bundlePath], { env: { ...process.env, NODE_V8_COVERAGE: coverageDir }, encoding: "utf8" }).trim(), "43");
     const records = readdirSync(coverageDir).map(file => JSON.parse(readFileSync(path.join(coverageDir, file), "utf8")));
-    const measured = records.flatMap(record => record.result).find(script => script.url === pathToFileURL(bundlePath).href);
+    const measured = records.flatMap(record => record.result).find(script => script.url === pathToFileURL(realpathSync(bundlePath)).href);
     assert.ok(measured.functions.find(fn => fn.functionName === "clicked").ranges[0].count > 0);
     assert.equal(measured.functions.find(fn => fn.functionName === "idle").ranges[0].count, 0);
     const scripts = [{ bundlePath, source, sourceMap, functions: measured.functions }];
@@ -86,6 +89,6 @@ test("6.5 measured browser bundle inputs survive Node regeneration, scoped to pa
     assert.throws(() => recordBrowserCoverage({ pkgDir: pkg, proof, passed: true, scripts: [{ ...scripts[0], sourceMap: undefined }] }), /source map/);
     assert.deepEqual(await coverageOf({ root: pkg, pkgDir: pkg, env: process.env }), { "src/node.mjs": { 5: 1 } });
   } finally {
-    rmSync(work, { recursive: true, force: true });
+    rmSync(temp, { recursive: true, force: true });
   }
 });

@@ -96,3 +96,22 @@ test("an unnumbered case", () => view);` },
   assert.deepEqual(surveyed.files, [{ path: "src/view.ts", lines: 1, capability: "projects" }]);
   assert.deepEqual(surveyed.imports, []);
 });
+
+test("8.10 prefixed proof retains its package and contract list without assigning a foreign capability locally", () => {
+  const surveyed = surveyStory([
+    { path: "src/foreign.ts", text: "export const foreign = true;" },
+    { path: "src/local.ts", text: "export const local = true;" },
+    { path: "src/self.ts", text: "export const self = true;" },
+    { path: "src/foreign.test.ts", text: 'import { foreign } from "./foreign.js";\ntest("map 3.5/3.6 and 4.1: the dependent front door proves map", () => foreign);' },
+    { path: "src/local.test.ts", text: 'import { local } from "./local.js";\ntest("3.5, 3.6 local proof", () => local);' },
+    { path: "src/self.test.ts", text: 'import { self } from "./self.js";\ntest("agent-link 3.5–3.6: own prefix is also accepted", () => self);' },
+  ], [{ id: "local-capability", title: "3 · Local capability" }], {}, "agent-link");
+  const foreign = surveyed.tests?.find(file => file.path === "src/foreign.test.ts");
+  assert.deepEqual(foreign?.titles, ["3.5", "3.6", "4.1"].map(number => ({ package: "map", number, title: "map 3.5/3.6 and 4.1: the dependent front door proves map" })));
+  assert.deepEqual(foreign?.imports, [{ from: "src/foreign.test.ts", to: "src/foreign.ts" }]);
+  assert.deepEqual(surveyed.tests?.find(file => file.path === "src/local.test.ts")?.titles, ["3.5", "3.6"].map(number => ({ number, title: "3.5, 3.6 local proof" })));
+  assert.deepEqual(surveyed.tests?.find(file => file.path === "src/self.test.ts")?.titles, ["3.5", "3.6"].map(number => ({ package: "agent-link", number, title: "agent-link 3.5–3.6: own prefix is also accepted" })));
+  assert.equal(surveyed.files.find(file => file.path === "src/foreign.ts")?.capability, undefined);
+  assert.equal(surveyed.files.find(file => file.path === "src/local.ts")?.capability, "local-capability");
+  assert.equal(surveyed.files.find(file => file.path === "src/self.ts")?.capability, "local-capability");
+});

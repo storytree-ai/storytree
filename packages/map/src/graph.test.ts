@@ -96,3 +96,23 @@ test("3.3 show returns every row or refuses with counts above the ceiling, never
   assert.equal(refused.rowCount, complete.rowCount);
   assert.deepEqual(refused.counts, complete.counts);
 });
+
+test("1.1 a dependent's prefixed proof joins the named package's promise and preserves its identity", () => {
+  const proof = { package: "map", number: "3.5", title: "map 3.5: the focus tool returns the map's answer" };
+  const unknown = { package: "missing", number: "3.5", title: "missing 3.5: no local fallback" };
+  const mapPromise = { id: "map-proof", title: "3.5 · Counts through the front door", health: { ...health, verified: { state: "failing" } } };
+  const localPromise = { id: "local-proof", title: "3.5 · A different local promise", health };
+  const plan = { arcs: [], stories: [
+    { id: "map-story", title: "The map", health, capabilities: [{ ...projects, id: "map-counts", title: "3 · Counts", dependsOn: [], contracts: [mapPromise] }] },
+    { id: "link-story", title: "The agent link", health, capabilities: [{ ...projects, id: "local-tools", title: "3 · Local tools", dependsOn: [], contracts: [localPromise] }] },
+  ] } as unknown as AnnotatedTree;
+  const built = buildGraph(plan, { "link-story": { files: [{ path: "src/tool.ts", lines: 1 }], imports: [], tests: [
+    { kind: "test", path: "src/foreign.test.ts", titles: [proof, unknown], imports: [{ from: "src/foreign.test.ts", to: "src/tool.ts" }] },
+    { kind: "test", path: "src/local.test.ts", titles: [{ number: "3.5", title: "3.5 local proof" }], imports: [] },
+  ] } });
+  const foreignId = "test:packages/agent-link/src/foreign.test.ts";
+  assert.deepEqual(built.edges.filter(edge => edge.from === foreignId && edge.kind === "tests").map(edge => edge.to), ["map-proof"]);
+  assert.equal(built.nodes.find(node => node.id === foreignId)?.health, "failing");
+  assert.deepEqual(built.nodes.find(node => node.id === foreignId)?.testTitles, [proof, unknown]);
+  assert.ok(built.edges.some(edge => edge.from === "test:packages/agent-link/src/local.test.ts" && edge.to === "local-proof" && edge.kind === "tests"));
+});

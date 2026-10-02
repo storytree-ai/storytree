@@ -8,14 +8,16 @@ import { fileURLToPath } from "node:url";
 
 import { summary } from "./desktop-lag.mjs";
 
-test("8.2 desktop analysis preserves the measured CPU intervals and their function attribution", () => {
+test("8.2 pnpm lag:desktop analysis preserves the measured CPU intervals and their function attribution", () => {
   const out = mkdtempSync(path.join(tmpdir(), "lag-profile-"));
   try {
     copyFileSync(new URL("../evidence/lag-allocation/runtime.cpuprofile", import.meta.url), path.join(out, "renderer.cpuprofile"));
     // Only the CPU profile is measured. This envelope supplies the other required analysis fields.
     writeFileSync(path.join(out, "result.json"), JSON.stringify({ state: "CPU-only fixture: desktop metrics unmeasured", readyMs: 0, marks: [], ipc: [], ev: [], clicks: [], loaf: [], lag: [], mem: {} }));
     const report = summary(out);
-    const cli = execFileSync(process.execPath, [fileURLToPath(new URL("./desktop-lag.mjs", import.meta.url)), "--analyze", out], { encoding: "utf8" });
+    const cli = execFileSync(process.execPath, [process.env.npm_execpath, "--silent", "run", "lag:desktop", "--analyze", out], {
+      cwd: fileURLToPath(new URL("../../..", import.meta.url)), encoding: "utf8", timeout: 30_000,
+    });
     assert.equal(cli.trimEnd(), report);
     // The frozen runtime capture has 122322 us total, 13916 us self and 100798 us inclusive.
     assert.match(report, /CPU profile: 122 ms\n/);

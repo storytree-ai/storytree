@@ -8,7 +8,7 @@
  */
 import { followProjects, type ProjectSelection } from "@storytree/app/projects";
 import { surfaceOn, surfaceSetting } from "@storytree/app/surfaces";
-import { mountAppMenu } from "@storytree/app/view";
+import { mountAppMenu, renderNoProjects } from "@storytree/app/view";
 import { mountAddProject, mountDeleteProject, mountRemoveProject, mountSetupHelp } from "@storytree/app-setup/view";
 import { joinedReads, keptWorkStates, pageKeptReading, pageReading, type LiveReading, type PageReading } from "@storytree/arc-surface";
 import { mountArcSurface, type ArcSurface } from "@storytree/arc-surface/view";
@@ -19,7 +19,6 @@ import type { StorytreeBridge } from "../bridge.js";
 import { createKnowledgeCore } from "@storytree/knowledge-core/view";
 
 import { attachPanZoom, openForestView, mountLibraryPanel, renderStoryPanel, mountSessionsList, mountTreeSpace, type ForestView, type GlobeOpening, type PanZoom, type TreeOpening, type TreeSpace } from "@storytree/forest/view";
-import { renderNoProjects } from "../view/view.js";
 
 declare global {
   interface Window {
@@ -37,7 +36,7 @@ const appMenu = mountAppMenu(element("app-menu-host"), {
   chooseProject: async (name) => { await window.storytree.chooseProject(name); },
   onChosen: () => following?.refresh(),
   // A surface switched or set in the Surfaces menu shows at once: the project is drawn again.
-  onSurfacesChanged: () => {},
+  onSurfacesChanged: () => { if (current !== undefined && showing !== undefined) void redraw(current); },
   onError: (error) => {
     showMessage("error", "The project could not be selected", messageOf(error));
     void following?.refresh(true);

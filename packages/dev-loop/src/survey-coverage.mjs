@@ -54,6 +54,8 @@ function fullPath(url, from) {
   return path.resolve(from, url);
 }
 
+const realFile = file => existsSync(file) ? realpathSync(file) : file;
+
 /** The full paths of the files whose functions ran, each with how many of its functions ran, read from a NODE_V8_COVERAGE folder. */
 export function executedFiles(coverageDir) {
   const records = [];
@@ -75,12 +77,17 @@ function executedRecords(records) {
   const add = (file, fn) => ran.set(file, (ran.get(file) ?? new Set()).add(fn));
   for (const record of records) {
     const maps = record["source-map-cache"] ?? {};
+    // V8 and Node's cache may use different spellings of a Windows short path or a junction.
+    const byFile = new Map(Object.entries(maps).flatMap(([url, cached]) => {
+      const file = fullPath(url, process.cwd());
+      return file === undefined ? [] : [[realFile(file), cached]];
+    }));
     for (const script of record.result ?? []) {
       const file = fullPath(script.url, process.cwd());
       if (file === undefined) continue;
       const functions = script.functions.filter((fn) => fn.ranges[0].count > 0 && !(fn.ranges[0].startOffset === 0 && fn.functionName === ""));
       if (functions.length === 0) continue;
-      const cached = maps[script.url];
+      const cached = maps[script.url] ?? byFile.get(realFile(file));
       if (cached?.data === undefined || cached.lineLengths === undefined) {
         for (const fn of functions) add(file, fn.ranges[0].startOffset);
         continue;
@@ -125,7 +132,7 @@ function sourceRoots(pkgDir) {
 
 function addExecution(tally, pkgDir, executed, counts) {
   for (const [file, functions] of executed) {
-    const relative = path.relative(pkgDir, existsSync(file) ? realpathSync(file) : file).split(path.sep).join("/");
+    const relative = path.relative(pkgDir, realFile(file)).split(path.sep).join("/");
     if (!sourceRoots(pkgDir).some(root => relative.startsWith(root)) || TEST_FILE.test(relative) || !CODE_FILE.test(relative)) continue;
     const counted = tally.get(relative) ?? new Map();
     for (const [number, count] of counts) counted.set(number, (counted.get(number) ?? 0) + count * functions);

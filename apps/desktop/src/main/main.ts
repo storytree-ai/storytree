@@ -57,6 +57,7 @@ import {
   TRAY_MENU,
   mainUpdates,
   whenToInstall,
+  installChoice,
   type Launch,
   type PageReads,
 } from "@storytree/app";
@@ -246,6 +247,10 @@ async function run(): Promise<void> {
   const signingIn = signIn({ installed: !args.smoke && installedApp(), file: path.join(home.dir, "sign-in.json"), loginItems: { set: (item) => app.setLoginItemSettings(item) } });
   ipcMain.handle(CHANNELS.readSignIn, () => signingIn.read());
   ipcMain.handle(CHANNELS.setSignIn, (_event, on: unknown) => signingIn.set(on));
+  // When a downloaded release may install itself (updates 4.13): meaningful only where releases install.
+  const installing = installChoice({ available: !args.smoke && installedApp(), file: path.join(home.dir, "install-choice.json") });
+  ipcMain.handle(CHANNELS.readInstallChoice, () => installing.read());
+  ipcMain.handle(CHANNELS.setInstallChoice, (_event, choice: unknown) => installing.set(choice));
   console.log(`storytree 0.3: ${build}`);
   windowQuery = { ...(problem === undefined ? {} : { problem }) };
   if (args.smoke) await smoke(openWindow(windowQuery), project);
@@ -265,10 +270,11 @@ async function run(): Promise<void> {
       // Installing stops the app and its database for a minute or two: not under a user or an agent.
       quiet: async () => {
         const now = Date.now();
+        const clock = new Date(now);
         const showing = BrowserWindow.getAllWindows().some(window => window.isVisible() && !window.isMinimized());
         const agent = storytree === undefined ? undefined : await agentActiveAt(storytree);
         return whenToInstall({
-          now, launchedAt,
+          now, launchedAt, choice: installing.read().choice, minuteOfDay: clock.getHours() * 60 + clock.getMinutes(),
           ...(showing ? { windowActiveAt: now - powerMonitor.getSystemIdleTime() * 1000 } : {}),
           ...(agent === undefined ? {} : { agentActiveAt: agent }),
         }) === "now";

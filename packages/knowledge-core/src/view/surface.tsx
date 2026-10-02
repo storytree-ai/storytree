@@ -11,7 +11,7 @@ import type { Line, SessionWindow } from "@storytree/agent-link";
 import type { Change } from "@storytree/library";
 
 import { knowledge, storedEdges } from "../ghosts/ghosts.js";
-import { ORCHESTRATOR, lighting, noteCard, rosterCode, trails as readingPaths, agentPaths, stampOpens, traversalTrails, windowReplays, windowView, fileStop, type CodePlaces, type CodeState, type WindowState, type Point, type RosterEntry } from "../look-inside/look-inside.js";
+import { ORCHESTRATOR, drawnRoster, lighting, noteCard, rosterCode, trails as readingPaths, agentPaths, stampOpens, traversalTrails, windowReplays, windowView, fileStop, type CodePlaces, type CodeState, type WindowState, type Point, type RosterEntry } from "../look-inside/look-inside.js";
 import { ReadRecord } from "../reads/reads.js";
 import { underShelves } from "../shelves/shelves.js";
 import { globePoints } from "../shelves/positions.js";
@@ -87,7 +87,8 @@ export function createKnowledgeCore(project: string, { reads: host }: { reads?: 
   let rosterOut = false;
   /** The selected session whose window is being read, so a slow read is not asked again over itself. */
   let windowOut: string | undefined;
-  const listedMembers = (): Set<string> => new Set(state.roster.flatMap(({ members }) => members));
+  /** The members drawn with none selected: an undrawn entry's window is not read. */
+  const listedMembers = (): Set<string> => new Set(drawnRoster(state.roster, undefined).flatMap(({ members }) => members));
   /**
    * Read every listed session's window while none is selected (ADR-0754 D1), in one ask, or, with
    * `only`, those not read yet. A session that has left the list meanwhile is dropped; a failed read keeps the last.
@@ -130,7 +131,7 @@ export function createKnowledgeCore(project: string, { reads: host }: { reads?: 
     reads,
     pin: pinned => store.set({ pinned }),
     showRoster(roster) {
-      const members = new Set(roster.flatMap(({ members: listed }) => listed));
+      const members = new Set(drawnRoster(roster, undefined).flatMap(({ members: listed }) => listed));
       const kept = <T,>(map: ReadonlyMap<string, T>) => new Map([...map].filter(([member]) => members.has(member)));
       store.set({ roster, windows: kept(state.windows), stamps: kept(state.stamps) });
       readRosterWindows(true);
@@ -209,13 +210,15 @@ export function KnowledgeGlobePoints({ core, spots, radius, places }: {
   // With none selected, every listed session is drawn from its window, or its log's reads when it has none (ADR-0754 D1),
   // its file reads stops on the land as a selected session's are (ADR-0804 D5).
   const windowed = useMemo(() => windowReplays(state.windows, new Set(known.notes.keys()), state.stamps, places), [state.windows, state.stamps, known, places]);
-  const lit = useMemo(() => lighting(store.reads, state.roster, state.session, new Set(known.notes.keys()), windowed),
+  // With none selected, only the sessions the roster does not mark undrawn are drawn: the most recently active few (owner, 2026-10-03).
+  const drawn = useMemo(() => drawnRoster(state.roster, state.session), [state.roster, state.session]);
+  const lit = useMemo(() => lighting(store.reads, drawn, state.session, new Set(known.notes.keys()), windowed),
     // The record is kept in place, so its version stands in for its reads.
-    [store.reads, state.version, state.roster, state.session, known, windowed]);
-  const paths = useMemo(() => readingPaths(store.reads, state.roster, state.session, new Set(known.notes.keys()), windowed),
-    [store.reads, state.version, state.roster, state.session, known, windowed]);
-  const replays = useMemo(() => agentPaths(store.reads, state.roster, state.session, new Set(known.notes.keys()), windowed),
-    [store.reads, state.version, state.roster, state.session, known, windowed]);
+    [store.reads, state.version, drawn, state.session, known, windowed]);
+  const paths = useMemo(() => readingPaths(store.reads, drawn, state.session, new Set(known.notes.keys()), windowed),
+    [store.reads, state.version, drawn, state.session, known, windowed]);
+  const replays = useMemo(() => agentPaths(store.reads, drawn, state.session, new Set(known.notes.keys()), windowed),
+    [store.reads, state.version, drawn, state.session, known, windowed]);
   const joined = useMemo(() => storedEdges(known), [known]);
   const colour = colourOf(state.roster, state.session) ?? ORCHESTRATOR;
   // Only a selected session's window is drawn, never every running session's at once (ADR-0746 D1).
@@ -253,7 +256,7 @@ export function useCodeLighting(core: KnowledgeCore, places: CodePlaces | undefi
   const colour = colourOf(state.roster, state.session) ?? ORCHESTRATOR;
   return useMemo(() => {
     if (places === undefined) return { files: NOTHING_LIT, capabilities: NOTHING_LIT, colour };
-    if (state.session === undefined) return { ...rosterCode(state.windows, state.roster, places, state.stamps), capabilities: NOTHING_LIT, colour };
+    if (state.session === undefined) return { ...rosterCode(state.windows, drawnRoster(state.roster, undefined), places, state.stamps), capabilities: NOTHING_LIT, colour };
     if (state.window === undefined) return { files: NOTHING_LIT, capabilities: NOTHING_LIT, colour };
     const { code } = windowView(state.window, new Set(), () => false, places);
     return { ...code, colour };

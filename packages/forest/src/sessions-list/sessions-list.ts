@@ -48,6 +48,8 @@ export interface SessionRow {
    * waiting for you (a turn ended within the idle-after time). By its state alone; who is listed at all is the agent link's reading.
    */
   idle: boolean;
+  /** When its session's lines were last seen; a subagent's, when it was started. */
+  lastSeenAt: string;
   totalTokens: number | undefined;
   /** What those tokens are made of, when the reading could tell. */
   composition?: ContextGroups | undefined;
@@ -105,7 +107,7 @@ export function sessionRows(tree: AnnotatedTree, log: readonly Line[] | LogReadi
     rows.set(session.session, { id: session.session, label,
       description: [session.title === label ? undefined : session.title, objective || undefined, session.status].filter((said): said is string => said !== undefined),
       agent: session.label, state: session.state,
-      idle: session.state !== "working" && !(session.state === "waiting" && now.getTime() - Date.parse(session.lastSeenAt) <= quiet),
+      idle: session.state !== "working" && !(session.state === "waiting" && now.getTime() - Date.parse(session.lastSeenAt) <= quiet), lastSeenAt: session.lastSeenAt,
       totalTokens: contextTotal(detail), composition: detail?.composition, guidance: detail?.guidance,
       stories: [...new Set([...held].flatMap(id => storyOf.has(id) ? [storyOf.get(id)!] : []))], worktrees: worktreeRows(session),
       running: session.running.map(({ command, since }) => ({ words: commandWords(command), command, ranMs: Math.max(0, now.getTime() - Date.parse(since)) })), children: [] });
@@ -115,7 +117,7 @@ export function sessionRows(tree: AnnotatedTree, log: readonly Line[] | LogReadi
     if (line.kind !== "subagent-started" || ended.has(line.subagent) || !rows.has(line.session)) continue;
     if (!parents.has(line.subagent)) parents.set(line.subagent, details.get(line.subagent)?.parentSession ?? line.session);
     if (!rows.has(line.subagent)) rows.set(line.subagent, { id: line.subagent, label: line.task ?? line.type ?? "Subagent",
-      agent: line.type ?? "Subagent", state: "observed", idle: false,
+      agent: line.type ?? "Subagent", state: "observed", idle: false, lastSeenAt: line.at,
       totalTokens: contextTotal(details.get(line.subagent)), composition: details.get(line.subagent)?.composition, stories: [], worktrees: [], running: [], description: [], children: [] });
   }
   // Bad/missing relationship metadata must never lose a session or recurse forever.
@@ -201,10 +203,19 @@ function fitted(label: string): string {
   return label.length > LABEL_LIMIT ? `${label.slice(0, LABEL_LIMIT - 1)}…` : label;
 }
 
-/** The knowledge core's roster (ADR-0738 D2): each listed row, in its own colour, with every child session under it. */
+/** How many sessions the core draws at once with none selected (owner, 2026-10-03: "show a max of 5 sessions (ordered by latest ones)"). */
+const DRAWN_SESSIONS = 5;
+
+/**
+ * The knowledge core's roster (ADR-0738 D2): each listed row, in its own colour, with every child session under it.
+ * With none selected the core draws only the five most recently seen rows that are not idle; the rest are marked
+ * undrawn, still listed so a click selects one in its colour (owner, 2026-10-03).
+ */
 export function sessionRoster(rows: readonly SessionRow[]): RosterEntry[] {
   const members = (row: SessionRow): string[] => [row.id, ...row.children.flatMap(members)];
-  return rows.map(row => ({ session: row.id, label: row.label, colour: sessionColour(row.id), members: members(row) }));
+  const latest = (row: SessionRow): number => Math.max(Date.parse(row.lastSeenAt), ...row.children.map(latest));
+  const drawn = new Set(rows.filter(row => !row.idle).sort((a, b) => latest(b) - latest(a)).slice(0, DRAWN_SESSIONS).map(row => row.id));
+  return rows.map(row => ({ session: row.id, label: row.label, colour: sessionColour(row.id), members: members(row), ...(drawn.has(row.id) ? {} : { undrawn: true as const }) }));
 }
 
 /** The selection a click on a row leaves (ADR-0738 D5): its top-level session, a child's row its parent's, or none when that one was selected. */

@@ -1,0 +1,160 @@
+{
+  "listed": [
+    "builder",
+    "traversal-a",
+    "reviewer",
+    "lane-north",
+    "curator",
+    "scout",
+    "lane-south"
+  ],
+  "drawn": [
+    "builder",
+    "traversal-a",
+    "reviewer",
+    "lane-north",
+    "curator"
+  ],
+  "undrawn": [
+    "scout",
+    "lane-south"
+  ],
+  "colours": {
+    "builder": "hsl(194, 80%, 68%)",
+    "traversal-a": "hsl(270, 80%, 68%)",
+    "reviewer": "hsl(175, 80%, 68%)",
+    "lane-north": "hsl(349, 80%, 68%)",
+    "curator": "hsl(15, 80%, 68%)",
+    "scout": "hsl(307, 80%, 68%)",
+    "lane-south": "hsl(219, 80%, 68%)"
+  },
+  "hex": {
+    "builder": "6cd0ef",
+    "traversal-a": "ad6cef",
+    "reviewer": "6cefe4",
+    "lane-north": "ef6c84",
+    "curator": "ef8d6c",
+    "scout": "ef6cdf",
+    "lane-south": "6c9aef"
+  },
+  "askedBeforeSelection": [
+    "builder",
+    "traversal-a",
+    "reviewer",
+    "lane-north",
+    "curator"
+  ],
+  "noneSelected": {
+    "notes": {
+      "decision_03fd07d9014b": "hsl(194, 80%, 68%)",
+      "decision_5a18094c3bc8": "hsl(15, 80%, 68%)",
+      "decision_728785ea6f01": "hsl(194, 80%, 68%)",
+      "decision_7f67a324a35f": "hsl(349, 80%, 68%)",
+      "decision_88f95657e45b": "hsl(175, 80%, 68%)",
+      "decision_98e3f55d636d": "hsl(270, 80%, 68%)",
+      "decision_9c5546e0993f": "hsl(270, 80%, 68%)",
+      "decision_ae92aa6309fd": "hsl(15, 80%, 68%)",
+      "decision_b9ed4ced4ad5": "hsl(175, 80%, 68%)",
+      "decision_fa952bcf7f82": "hsl(349, 80%, 68%)"
+    },
+    "litCircles": {
+      "src/sessions-list/sessions-list.ts": "ef6c84",
+      "src/view/file-circles.ts": "ad6cef",
+      "src/look-inside/look-inside.ts": "6cd0ef",
+      "src/shelves/shelves.ts": "ef8d6c",
+      "src/view/surface.tsx": "6cefe4"
+    },
+    "trails": [
+      {
+        "from": "decision_728785ea6f01",
+        "to": "file:packages/knowledge-core/src/look-inside/look-inside.ts",
+        "kind": "dive",
+        "colour": "hsl(194, 80%, 68%)"
+      },
+      {
+        "from": "file:packages/knowledge-core/src/look-inside/look-inside.ts",
+        "to": "decision_03fd07d9014b",
+        "kind": "dive",
+        "colour": "hsl(194, 80%, 68%)"
+      },
+      {
+        "from": "decision_98e3f55d636d",
+        "to": "file:packages/forest/src/view/file-circles.ts",
+        "kind": "dive",
+        "colour": "hsl(270, 80%, 68%)"
+      },
+      {
+        "from": "file:packages/forest/src/view/file-circles.ts",
+        "to": "decision_9c5546e0993f",
+        "kind": "dive",
+        "colour": "hsl(270, 80%, 68%)"
+      },
+      {
+        "from": "decision_88f95657e45b",
+        "to": "file:packages/knowledge-core/src/view/surface.tsx",
+        "kind": "dive",
+        "colour": "hsl(175, 80%, 68%)"
+      },
+      {
+        "from": "file:packages/knowledge-core/src/view/surface.tsx",
+        "to": "decision_b9ed4ced4ad5",
+        "kind": "dive",
+        "colour": "hsl(175, 80%, 68%)"
+      },
+      {
+        "from": "decision_7f67a324a35f",
+        "to": "file:packages/forest/src/sessions-list/sessions-list.ts",
+        "kind": "dive",
+        "colour": "hsl(349, 80%, 68%)"
+      },
+      {
+        "from": "file:packages/forest/src/sessions-list/sessions-list.ts",
+        "to": "decision_fa952bcf7f82",
+        "kind": "dive",
+        "colour": "hsl(349, 80%, 68%)"
+      },
+      {
+        "from": "decision_5a18094c3bc8",
+        "to": "file:packages/knowledge-core/src/shelves/shelves.ts",
+        "kind": "dive",
+        "colour": "hsl(15, 80%, 68%)"
+      },
+      {
+        "from": "file:packages/knowledge-core/src/shelves/shelves.ts",
+        "to": "decision_ae92aa6309fd",
+        "kind": "dive",
+        "colour": "hsl(15, 80%, 68%)"
+      }
+    ]
+  },
+  "oldestSelected": {
+    "session": "scout",
+    "notes": {
+      "decision_e9b30966b459": {
+        "window": "in-window",
+        "colour": "hsl(307, 80%, 68%)"
+      },
+      "decision_ea96c9945768": {
+        "window": "in-window",
+        "colour": "hsl(307, 80%, 68%)"
+      }
+    },
+    "litCircles": {
+      "src/view/planet-view.tsx": "ef6cdf"
+    },
+    "trails": [
+      {
+        "from": "decision_e9b30966b459",
+        "to": "file:packages/forest/src/view/planet-view.tsx",
+        "kind": "dive",
+        "colour": "hsl(307, 80%, 68%)"
+      },
+      {
+        "from": "file:packages/forest/src/view/planet-view.tsx",
+        "to": "decision_ea96c9945768",
+        "kind": "dive",
+        "colour": "hsl(307, 80%, 68%)"
+      }
+    ]
+  }
+}

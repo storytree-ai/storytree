@@ -4,6 +4,7 @@ import { test } from "node:test";
 
 import type { SessionWindow } from "@storytree/agent-link";
 
+import { drawnRoster } from "../look-inside/look-inside.js";
 import { createKnowledgeCore } from "./surface.js";
 
 test("4.16 selecting a session asks the host for its window; one answered after the selection moved on is dropped, and going back to every session shows none", async () => {
@@ -57,6 +58,27 @@ test("4.18 with none selected, showing the listed sessions asks the host once fo
     core.showRoster([b, c]);
     assert.deepEqual(asked.at(-1), ["app", "c"], "a newly listed session is asked for, not those already read");
     assert.deepEqual(windowsOf(), ["b"], "a session that left the list is no longer drawn");
+  } finally {
+    core.dispose();
+  }
+});
+
+test("4.22 with none selected, a roster entry marked undrawn is neither read nor drawn; selected, it is drawn in its own colour", async () => {
+  const asked: string[][] = [];
+  const reading = (session: string): SessionWindow => ({ session, at: "-", inView: [], opens: [], glimpses: [], compactions: 0 });
+  const core = createKnowledgeCore("app", { reads: {
+    windowReading: async (_project, session) => { asked.push(["one", session]); return reading(session); },
+    windowReadings: async (project, sessions) => { asked.push([project, ...sessions]); return sessions.map(reading); },
+  } });
+  const a = { session: "a", label: "A", colour: "hsl(1, 80%, 68%)", members: ["a", "a-child"] };
+  const b = { session: "b", label: "B", colour: "hsl(2, 80%, 68%)", members: ["b"], undrawn: true as const };
+  try {
+    core.showRoster([a, b]);
+    assert.deepEqual(asked, [["app", "a", "a-child"]], "the undrawn session's window is not read");
+    assert.deepEqual(drawnRoster([a, b], undefined), [a], "nor drawn");
+    core.select("b");
+    assert.deepEqual(asked.at(-1), ["one", "b"], "selected, its window is read");
+    assert.deepEqual(drawnRoster([a, b], "b"), [a, b], "and it keeps its colour");
   } finally {
     core.dispose();
   }

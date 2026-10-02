@@ -480,6 +480,43 @@ test("8.21 a Codex session that set its project up during the session, while Cod
   });
 });
 
+test("8.22 a session that sets its project up finishes the setup in that answer: the starter roles and a new session to verify its hooks, or Codex's trust step, never a second check_setup in this session (regression: Codex's approval review refused the second check, 2026-10-01)", async () => {
+  const [claudes, codexes, waiting] = [uniqueProjectName(), uniqueProjectName(), uniqueProjectName()];
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const setup = { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome } };
+    const setUp = async (name: string, agentFor: typeof claudeCode) => {
+      const folder = path.join(dir, name);
+      mkdirSync(folder);
+      let answer: { isError: boolean; text: string; data: Record<string, unknown> } | undefined;
+      await withAgent(folder, agentFor(`agent-${name}`, setup), async (agent) => {
+        answer = await agent.call("set_up_project", { name });
+      });
+      return answer!;
+    };
+    try {
+      registerHooks(home.homes, HOOK);
+      // Codex has storytree's hooks but none has run: the user has not trusted them yet.
+      const untrusted = await setUp(waiting, codex);
+      assert.equal(untrusted.isError, false, untrusted.text);
+      assert.deepEqual(untrusted.data.fixes, ["codex-approval"]);
+      assert.match(untrusted.text, /type \/hooks/);
+
+      noteCodexHookRan({ storytreeHome: home.storytreeHome, codexHome: home.homes.codex });
+      for (const [name, agentFor] of [[claudes, claudeCode], [codexes, codex]] as const) {
+        const answer = await setUp(name, agentFor);
+        assert.equal(answer.isError, false, answer.text);
+        assert.deepEqual(answer.data.starterRoles, ["orchestrator", "librarian"]);
+        assert.deepEqual(answer.data.fixes, ["new-session"], "no edit or command test, which only a session started in the project could complete");
+        assert.match(answer.text, /new session/);
+        assert.doesNotMatch(answer.text, /type \/hooks/);
+      }
+    } finally {
+      await dropTestProjects([claudes, codexes, waiting]);
+    }
+  });
+});
+
 /** A port nothing on 127.0.0.1 listens on just now. */
 function freePort(): Promise<number> {
   return new Promise((resolve, reject) => {

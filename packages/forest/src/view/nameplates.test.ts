@@ -6,7 +6,7 @@ import { turnToIsland } from "@storytree/forest";
 import { plateTransform } from "@storytree/forest-world/planet";
 import { territories, type Point } from "../territories/territories.js";
 import { dragTurn, focusRotation } from "./planet-navigation.js";
-import { capabilityPlates, crowdedOut, facesEye, facing, screenOnPlate, storyPlate } from "./nameplates.js";
+import { capabilityPlates, facesEye, facing, MAX_DROP, PLATE_STEP_GAP, screenOnPlate, settlePlates, storyPlate } from "./nameplates.js";
 
 const coast = [[{ x: 30, z: 0 }, { x: 12, z: 26 }, { x: -28, z: 14 }, { x: -22, z: -22 }, { x: 6, z: -31 }]];
 
@@ -56,14 +56,20 @@ test("selecting a story shows one capability nameplate per territory, each insid
   }
 });
 
-test("no two story nameplates overlap on screen: where two would, the one whose island faces the eye less gives way", () => {
+test("no two story nameplates overlap on screen: where two would, the one whose island faces the eye less steps down below the other, and only one that would step too far is hidden", () => {
   const box = (left: number, top: number) => ({ left, top, right: left + 120, bottom: top + 20 });
   // As storytree's own globe shows them: The local database's plate over Process ledger's, both islands near the rim.
-  const hidden = crowdedOut([
+  const { drops, hidden } = settlePlates([
     { story: "local database", box: box(388, 785), facing: facing(new Quaternion().setFromEuler(new Euler(0.25, 0, 0)), new Quaternion()) },
     { story: "process ledger", box: box(410, 798), facing: facing(new Quaternion().setFromEuler(new Euler(0.9, 0, 0)), new Quaternion()) },
     { story: "library", box: box(545, 833), facing: 0.8 },
   ]);
-  assert.deepEqual([...hidden], ["local database"], "the more edge-on gives way; a plate clear of the others stays");
-  assert.deepEqual([...crowdedOut([{ story: "a", box: box(0, 0), facing: 0.2 }, { story: "b", box: box(10, 5), facing: 0.9 }], "a")], ["b"], "the selected story's plate never gives way");
+  assert.deepEqual([...hidden], [], "nothing is hidden");
+  assert.deepEqual([...drops], [["local database", 798 + 20 + PLATE_STEP_GAP - 785]], "the more edge-on steps just below the other; a plate clear of the others stays");
+  const chosen = settlePlates([{ story: "a", box: box(0, 0), facing: 0.2 }, { story: "b", box: box(10, 5), facing: 0.9 }], "a");
+  assert.deepEqual([...chosen.drops.keys()], ["b"], "the selected story's plate never steps");
+  // A crowd stacked deeper than MAX_DROP: the plate that would have to step past it is hidden.
+  const crowd = Array.from({ length: Math.ceil(MAX_DROP / 20) + 2 }, (_, i) => ({ story: `s${i}`, box: box(0, 0), facing: 1 - i / 100 }));
+  const settled = settlePlates(crowd);
+  assert.ok(settled.hidden.size > 0 && [...settled.drops.values()].every(drop => drop <= MAX_DROP), "past the furthest step, a plate hides");
 });

@@ -39,10 +39,21 @@ export function turnToIsland(spot: GlobeDirection): GlobeTurn {
   return { yaw: horizontal === 0 ? 0 : -Math.atan2(spot.x, spot.z), pitch: Math.atan2(spot.y, horizontal) };
 }
 
-/** Face the first failing island in input order, else the first story; an empty globe stays neutral. */
+/**
+ * Face the first failing island in input order; with none failing, the islands' middle (the mean of their
+ * directions), so a chain of rows opens centred rather than from its bottom story, or the first story where
+ * the islands ring the globe and have no middle. An empty globe stays neutral.
+ */
 export function openingTurn(islands: readonly FacingIsland[]): GlobeTurn {
-  const chosen = islands.find(isFailing) ?? islands[0];
-  return chosen === undefined ? { yaw: 0, pitch: 0 } : turnToIsland(chosen.spot);
+  const failing = islands.find(isFailing);
+  if (failing !== undefined) return turnToIsland(failing.spot);
+  if (islands.length === 0) return { yaw: 0, pitch: 0 };
+  const middle = islands.reduce((sum, { spot }) => {
+    const length = Math.hypot(spot.x, spot.y, spot.z);
+    return { x: sum.x + spot.x / length, y: sum.y + spot.y / length, z: sum.z + spot.z / length };
+  }, { x: 0, y: 0, z: 0 });
+  // Islands spread all round have a middle near the globe's centre, which points nowhere in particular.
+  return turnToIsland(Math.hypot(middle.x, middle.y, middle.z) > 0.25 * islands.length ? middle : islands[0]!.spot);
 }
 
 /**

@@ -48,7 +48,7 @@ function opening(chain: boolean, width = 1440, height = 840): ShownPlate[] {
   // The globe is turned by the eye before its own turn, so north stays up whatever the eye's elevation: an unturned eye sees the same.
   const eye = new Quaternion();
   const rotation = focusRotation(openingTurn(layout.islands), eye);
-  const zoom = Math.min(width, height) / (2 * layout.radius * globeFraming("whole"));
+  const zoom = Math.min(width, height) / (2 * layout.radius * globeFraming("whole-planet"));
   const surface = onIslandSurface(layout.radius, 2);
   return scene.islands.map(island => {
     const { position, quaternion } = plateTransform(layout.spots.get(island.story)!, layout.radius);

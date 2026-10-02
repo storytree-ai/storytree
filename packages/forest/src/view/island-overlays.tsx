@@ -6,7 +6,7 @@ import { DoubleSide, Quaternion, type Group } from "three";
 import type { Island } from "@storytree/forest";
 import { globeOccluder, onIslandSurface } from "@storytree/forest-world/planet";
 import { territories, type Coast } from "../territories/territories.js";
-import { capabilityPlates, crowdedOut, facing, screenOnPlate, storyPlate } from "./nameplates.js";
+import { capabilityPlates, facing, screenOnPlate, settlePlates, STORY_PLATE_WIDTH, storyPlate } from "./nameplates.js";
 import { GROUND_PER_WORLD_UNIT, islandReach, type Descriptor3D } from "@storytree/forest-world";
 
 /** Keep an overlay's host stable when Canvas disconnects its events during project switching. */
@@ -55,7 +55,7 @@ export function Nameplates({ island, coast, radius, selected, dimmed = false }: 
   return <>
     <group ref={anchor}>
       <Overlay occlude={occluder} zIndexRange={[20, 10]} style={{ pointerEvents: "none" }}>
-        <div ref={label} className={`forest-label planet-nameplate${chosen ? " selected" : ""}`} data-story-id={island.story} style={{ opacity }}>{island.title}</div>
+        <div ref={label} className={`forest-label planet-nameplate${chosen ? " selected" : ""}`} data-story-id={island.story} style={{ opacity, maxWidth: STORY_PLATE_WIDTH }}>{island.title}</div>
       </Overlay>
     </group>
     {plates.map(plate => <Overlay key={plate.capability} occlude={occluder} position={surface(plate).toArray()} center zIndexRange={[25, 21]} style={{ pointerEvents: "none" }}>
@@ -64,7 +64,7 @@ export function Nameplates({ island, coast, radius, selected, dimmed = false }: 
   </>;
 }
 
-/** Every frame, hides the story nameplates that would overlap another on screen (crowdedOut), and shows them again once clear. */
+/** Every frame, steps down the story nameplates that would overlap another on screen (settlePlates), hiding only one that would step too far. */
 export function NameplateCrowd({ selected }: { selected: string | undefined }) {
   const gl = useThree(state => state.gl);
   useFrame(() => {
@@ -75,10 +75,18 @@ export function NameplateCrowd({ selected }: { selected: string | undefined }) {
       const box = label.getBoundingClientRect();
       // Turned away, or hidden behind the sphere: not on screen to crowd another.
       if (label.style.visibility === "hidden" || box.width === 0) return [];
-      return [{ story: label.dataset.storyId!, box, facing: Number(label.dataset.facing ?? 0) }];
+      // Where it hangs, without the step it took last frame.
+      const drop = Number(label.dataset.drop ?? 0);
+      return [{ story: label.dataset.storyId!, box: { left: box.left, right: box.right, top: box.top - drop, bottom: box.bottom - drop }, facing: Number(label.dataset.facing ?? 0) }];
     });
-    const hidden = crowdedOut(shown, selected);
-    for (const label of labels) label.classList.toggle("crowded", hidden.has(label.dataset.storyId!));
+    const { drops, hidden } = settlePlates(shown, selected);
+    for (const label of labels) {
+      const story = label.dataset.storyId!, drop = drops.get(story) ?? 0;
+      label.classList.toggle("crowded", hidden.has(story));
+      if (Number(label.dataset.drop ?? 0) === drop) continue;
+      label.dataset.drop = String(drop);
+      label.style.setProperty("--drop", `${drop}px`);
+    }
   });
   return null;
 }

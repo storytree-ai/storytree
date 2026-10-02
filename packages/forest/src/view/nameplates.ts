@@ -26,31 +26,39 @@ export function facesEye(plate: Quaternion, eye: Quaternion): boolean {
   return facing(plate, eye) > 0;
 }
 
-/** A story nameplate as the screen shows it: its box in pixels, and how squarely its island faces the eye. */
+/** A story nameplate as the screen shows it: its box in pixels where it hangs, before any step down, and how squarely its island faces the eye. */
 export interface ShownPlate { story: string; box: { left: number; top: number; right: number; bottom: number }; facing: number }
 
+/** How wide a story's nameplate may grow, in pixels, before its title wraps: neighbours in a row of small islands then clear each other a slot apart. */
+export const STORY_PLATE_WIDTH = 112;
+
+/** The space left between a plate and the one it steps below, in pixels. */
+export const PLATE_STEP_GAP = 3;
+
+/** The furthest a plate steps down the screen to clear the others, in pixels; past it, it is hidden. */
+export const MAX_DROP = 140;
+
 /**
- * The story nameplates to hide so that no two overlap on screen. Islands near the rim crowd together as the
- * globe foreshortens them, so where two plates would overlap, the one whose island faces the eye less gives way;
- * the `selected` story's plate never does.
+ * How the story nameplates on screen settle so that no two overlap. Taken one at a time, the selected story's
+ * first and then the more squarely faced, each plate stays where it hangs if it clears the plates already
+ * settled, or else steps down the screen just below the ones it would overlap, by the least drop that clears
+ * them all. Only a plate that would have to step further than MAX_DROP is hidden, as where many islands crowd
+ * at the rim; the selected story's plate never steps or hides. Boxes are measured before any drop, so a drop
+ * never feeds back on itself.
  */
-export function crowdedOut(plates: readonly ShownPlate[], selected?: string): Set<string> {
-  const order = [...plates].sort((a, b) => Number(b.story === selected) - Number(a.story === selected) || b.facing - a.facing);
-  const kept: ShownPlate[] = [], hidden = new Set<string>();
-  for (const plate of order) {
-    const { box } = plate;
-    if (kept.some(({ box: other }) => box.left < other.right && other.left < box.right && box.top < other.bottom && other.top < box.bottom)) hidden.add(plate.story);
-    else kept.push(plate);
-  }
-  return hidden;
-}
-
-/** How wide a story's nameplate may grow, in pixels, before its title wraps. */
-export const STORY_PLATE_WIDTH = Infinity;
-
-/** How the story nameplates on screen settle: how far each steps down the screen, and which are hidden. */
 export function settlePlates(plates: readonly ShownPlate[], selected?: string): { drops: Map<string, number>; hidden: Set<string> } {
-  return { drops: new Map(), hidden: crowdedOut(plates, selected) };
+  const order = [...plates].sort((a, b) => Number(b.story === selected) - Number(a.story === selected) || b.facing - a.facing);
+  const settled: ShownPlate["box"][] = [], drops = new Map<string, number>(), hidden = new Set<string>();
+  const overlaps = (box: ShownPlate["box"], other: ShownPlate["box"]) => box.left < other.right && other.left < box.right && box.top < other.bottom && other.top < box.bottom;
+  for (const { story, box } of order) {
+    const steps = [0, ...settled.map(other => other.bottom + PLATE_STEP_GAP - box.top)]
+      .filter(drop => drop >= 0 && (drop === 0 || story !== selected) && drop <= MAX_DROP).sort((a, b) => a - b);
+    const drop = steps.find(drop => !settled.some(other => overlaps({ ...box, top: box.top + drop, bottom: box.bottom + drop }, other)));
+    if (drop === undefined) { hidden.add(story); continue; }
+    if (drop > 0) drops.set(story, drop);
+    settled.push({ ...box, top: box.top + drop, bottom: box.bottom + drop });
+  }
+  return { drops, hidden };
 }
 
 /**

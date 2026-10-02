@@ -27,6 +27,16 @@ test("1.1 joins the plan, imports and numbered tests, preserving declared and in
   assert.equal(built.nodes.filter(n => n.kind === "test").length, 1);
 });
 
+test("1.1 story traversal retains unclaimed files and tests without numbered titles", () => {
+  const built = buildGraph(tree, { app: {
+    files: [{ path: "src/unclaimed.ts", lines: 1 }], imports: [],
+    tests: [{ kind: "test", path: "src/unnumbered.test.ts", titles: [], imports: [] }],
+  } });
+  const answer = focus(built, { select: "story:The app", down: 1, kind: ["file", "test"], mode: "show" });
+  assert.deepEqual(answer.rows?.map(row => row.id).sort(), ["file:packages/app/src/unclaimed.ts", "test:packages/app/src/unnumbered.test.ts"]);
+  assert.ok(answer.rows?.every(row => row.depth === 1 && row.health === "untested"));
+});
+
 test("2.1 both code files and capabilities return dependencies up and dependents down, bounded by depth", () => {
   const built = graph();
   const up = focus(built, { select: "cap:projects", up: 1, mode: "show" });

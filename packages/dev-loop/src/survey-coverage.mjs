@@ -27,7 +27,7 @@ import { runUnit } from "./unit-run.mjs";
 
 const TEST_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$/;
 const CODE_FILE = /\.[cm]?[jt]sx?$/;
-const NUMBERED_TEST = /\b(?:test|it|describe)\s*\(\s*["'`](\d+)\.\d+\b/g;
+const NUMBERED_TEST = /\b(?:test|it|describe)\s*\(\s*["'`](?:([a-z][a-z0-9-]*)\s+)?(\d+)\.\d+\b/g;
 const SKIPPED = new Set(["node_modules", "dist", "out", "evidence"]);
 export const MAP_FILE = "survey-coverage.json";
 
@@ -101,11 +101,14 @@ export function executedFiles(coverageDir) {
 export async function coverageOf({ root, pkgDir: given, env, log = () => {} }) {
   // Coverage names files by their real path (macOS's temporary folder is a link to /private/var).
   const pkgDir = realpathSync(given);
+  const ownPackage = path.basename(pkgDir);
   const src = path.join(pkgDir, "src");
   const tally = new Map();
   for (const testFile of codeFiles(src).filter((file) => TEST_FILE.test(file)).sort()) {
     const counts = new Map();
-    for (const [, number] of readFileSync(testFile, "utf8").matchAll(NUMBERED_TEST)) counts.set(number, (counts.get(number) ?? 0) + 1);
+    for (const [, prefix, number] of readFileSync(testFile, "utf8").matchAll(NUMBERED_TEST)) {
+      if (prefix === undefined || prefix === ownPackage) counts.set(number, (counts.get(number) ?? 0) + 1);
+    }
     if (counts.size === 0) continue;
     const coverageDir = mkdtempSync(path.join(tmpdir(), "survey-coverage-"));
     try {

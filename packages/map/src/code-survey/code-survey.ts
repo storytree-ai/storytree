@@ -73,7 +73,7 @@ const TEST_SUPPORT = /(?:^|\/)testing\//;
 const isTestCode = (path: string): boolean => TEST_FILE.test(path) || TEST_SUPPORT.test(path);
 const CODE_FILE = /\.[cm]?[jt]sx?$/;
 const DECLARATION = /\.d\.[cm]?ts$/;
-const NUMBERED_TEST = /\b(?:test|it|describe)\s*\(\s*["'`](?:([a-z][a-z0-9-]*)\s+)?(\d+)\.\d+\b/g;
+const NUMBERED_TITLE = /^(?:([a-z][a-z0-9-]*)\s+)?(\d+)\.\d+\b/;
 /** `import … from "./x.js"`, `export … from "./x.js"`, `import "./x.js"` and `import("./x.js")`: kind, names, specifier. */
 const RELATIVE_IMPORT = /\b(import|export)\s+(type\s+)?([^;'"`]*?)\s*\bfrom\s*["'](\.{1,2}\/[^"']+)["']|\bimport\s*\(?\s*["'](\.{1,2}\/[^"']+)["']/g;
 
@@ -86,9 +86,36 @@ const numberOf = (title: string): number | undefined => {
   return match === null ? undefined : Number(match[1]);
 };
 
+/** First-argument title strings, including helpers and local constants, without reading comments or quoted examples as calls. */
+function calledTitles(text: string): readonly string[] {
+  const strings: { at: number; quote: string; value: string }[] = [];
+  const code = text.replace(/\/\/[^\r\n]*|\/\*[\s\S]*?\*\/|(["'`])(?:\\.|(?!\1)[^\\])*\1/g, (token: string, quote: string | undefined, at: number) => {
+    if (quote !== undefined) strings.push({ at, quote, value: token.slice(1, -1) });
+    return token.replace(/[^\r\n]/g, " ");
+  });
+  const constants = new Map<string, string>();
+  for (const { at, value } of strings) {
+    const name = /\bconst\s+([A-Za-z_$][\w$]*)\s*=\s*$/.exec(code.slice(0, at))?.[1];
+    if (name !== undefined) constants.set(name, value);
+  }
+  const titles: { at: number; title: string }[] = [];
+  for (const { at, quote, value } of strings) {
+    if (!/[\w$.]\s*\(\s*$/.test(code.slice(0, at))) continue;
+    const template = quote === "`" ? /^\$\{\s*([A-Za-z_$][\w$]*)\s*\}([\s\S]*)$/.exec(value) : null;
+    const prefix = template === null ? undefined : constants.get(template[1]!);
+    const title = template === null ? value : prefix === undefined ? undefined : prefix + template[2];
+    if (title !== undefined) titles.push({ at, title });
+  }
+  for (const call of code.matchAll(/[\w$.]\s*\(\s*([A-Za-z_$][\w$]*)\s*[,)]/g)) {
+    const title = constants.get(call[1]!);
+    if (title !== undefined) titles.push({ at: call.index, title });
+  }
+  return titles.sort((a, b) => a.at - b.at).map(({ title }) => title);
+}
+
 /** ADR-0845 proof identities: an optional package, then the leading contract list used by own-health. */
-function proofTitles(text: string): SurveyedTest["titles"] {
-  return [...text.matchAll(/\b(?:test|it|describe)\s*\(\s*(["'`])((?:\\.|(?!\1)[^\\])*)\1/g)].flatMap(([, , title]) => {
+function proofTitles(titles: readonly string[]): SurveyedTest["titles"] {
+  return titles.flatMap(title => {
     const lead = /^(?:([a-z][a-z0-9-]*)\s+)?(\d+\.\d+(?:–\d+\.\d+)?(?:(?:\s*[,/]\s*|\s+and\s+)\d+\.\d+(?:–\d+\.\d+)?)*):?(?=\s|$)/.exec(title!);
     if (!lead) return [];
     const numbers = new Set<string>();
@@ -193,6 +220,7 @@ export function surveyStory(tree: readonly SourceFile[], capabilities: readonly 
   const code = tree.filter((file) => CODE_FILE.test(file.path) && !DECLARATION.test(file.path));
   const paths = new Set(code.map((file) => file.path));
   const byPath = new Map(code.map((file) => [file.path, file]));
+  const calls = new Map(code.filter((file) => isTestCode(file.path)).map((file) => [file.path, calledTitles(file.text)]));
   const byNumber = new Map(capabilities.flatMap((capability) => {
     const number = numberOf(capability.title);
     return number === undefined ? [] : [[number, capability.id] as const];
@@ -202,9 +230,11 @@ export function surveyStory(tree: readonly SourceFile[], capabilities: readonly 
   const reach = new Map<string, Map<number, { depth: number; count: number }>>();
   for (const test of code.filter((file) => TEST_FILE.test(file.path))) {
     const counts = new Map<number, number>();
-    for (const [, prefix, number] of test.text.matchAll(NUMBERED_TEST)) {
-      if (prefix !== undefined && prefix !== ownPackage) continue;
-      if (byNumber.has(Number(number))) counts.set(Number(number), (counts.get(Number(number)) ?? 0) + 1);
+    for (const title of calls.get(test.path) ?? []) {
+      const named = NUMBERED_TITLE.exec(title);
+      if (named === null || (named[1] !== undefined && named[1] !== ownPackage)) continue;
+      const number = Number(named[2]);
+      if (byNumber.has(number)) counts.set(number, (counts.get(number) ?? 0) + 1);
     }
     if (counts.size === 0) continue;
     for (const [path, depth] of reached(test, byPath, paths)) {
@@ -240,7 +270,7 @@ export function surveyStory(tree: readonly SourceFile[], capabilities: readonly 
   const tests = code.filter((file) => isTestCode(file.path)).map((file): SurveyedTest => ({
     kind: "test",
     path: file.path,
-    titles: proofTitles(file.text),
+    titles: proofTitles(calls.get(file.path) ?? []),
     imports: edgesOf(file, paths).map((edge) => ({ from: file.path, to: edge.to })),
   }));
   return { files, imports, tests };

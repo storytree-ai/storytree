@@ -22,6 +22,7 @@
  *   their titles and imports, never counted. They remain as tagged tests in the survey (ADR-0864).
  * Capability records gain no file list: ownership is derived here, each time.
  */
+import { parse } from "@babel/parser";
 
 /** A file of a story's package: its path from the package root, and its text. */
 export type SourceFile = { readonly path: string; readonly text: string };
@@ -162,8 +163,60 @@ function namesOf(clause: string): Edge["names"] {
   });
 }
 
+/** Parse each unchanged source once; the ownership walk can visit it from many tests. */
+const importSyntax = new WeakMap<SourceFile, readonly RegExpExecArray[]>();
+
+/** Keep the parseable prefix while a file is being edited; never fall back to raw-text edges. */
+function syntaxOf(file: SourceFile): ReturnType<typeof parse> | undefined {
+  let text = file.text;
+  for (;;) {
+    try {
+      return parse(text, {
+        sourceType: "unambiguous", errorRecovery: true, allowUndeclaredExports: true,
+        createImportExpressions: true, attachComment: false,
+        plugins: ["decorators-legacy", ...(/\.[cm]?tsx?$/.test(file.path) ? ["typescript" as const] : []), ...(/\.[jt]sx$/.test(file.path) ? ["jsx" as const] : [])],
+      });
+    } catch (error) {
+      if (!(error instanceof SyntaxError)) throw error;
+      const at = (error as SyntaxError & { pos?: number }).pos ?? text.length;
+      const end = Math.max(text.lastIndexOf("\n", at - 1), text.lastIndexOf(";", at - 1));
+      if (end < 0) return undefined;
+      text = text.slice(0, end);
+    }
+  }
+}
+
+/** Only syntax nodes can start an edge. Strings, comments, regexes and template text cannot. */
+function importsOf(file: SourceFile): readonly RegExpExecArray[] {
+  const cached = importSyntax.get(file);
+  if (cached !== undefined) return cached;
+  const syntax = syntaxOf(file);
+  const starts: number[] = [];
+  const visit = (value: unknown): void => {
+    if (Array.isArray(value)) { value.forEach(visit); return; }
+    if (value === null || typeof value !== "object" || !("type" in value)) return;
+    const node = value as { type: string; start?: number; source?: unknown };
+    if (node.start !== undefined && (node.type === "ImportDeclaration" || node.type === "ImportExpression" || node.type === "TSImportType"
+      || ((node.type === "ExportNamedDeclaration" || node.type === "ExportAllDeclaration") && node.source))) starts.push(node.start);
+    Object.values(value).forEach(visit);
+  };
+  visit(syntax?.program);
+  let text = file.text;
+  for (const comment of [...syntax?.comments ?? []].reverse()) {
+    text = text.slice(0, comment.start) + text.slice(comment.start, comment.end).replace(/[^\r\n]/g, " ") + text.slice(comment.end);
+  }
+  const pattern = new RegExp(RELATIVE_IMPORT.source, "y");
+  const imports = starts.sort((a, b) => a - b).flatMap(at => {
+    pattern.lastIndex = at;
+    const match = pattern.exec(text);
+    return match === null ? [] : [match];
+  });
+  importSyntax.set(file, imports);
+  return imports;
+}
+
 function edgesOf(file: SourceFile, paths: ReadonlySet<string>): Edge[] {
-  return [...file.text.matchAll(RELATIVE_IMPORT)].flatMap((match): Edge[] => {
+  return importsOf(file).flatMap((match): Edge[] => {
     const to = resolve(file.path, match[4] ?? match[5]!, paths);
     if (to === undefined) return [];
     return [{ to, reexport: match[1] === "export", typeOnly: match[2] !== undefined, names: match[5] !== undefined ? "all" : namesOf(match[3] ?? "") }];

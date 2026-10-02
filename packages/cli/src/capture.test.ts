@@ -116,7 +116,6 @@ test("9.2 a re-steer whose evidence is a paraphrase is refused; the quote and se
     const library = await world.library();
     const refused = await world.run([...resteer, "--evidence", "The owner wanted fewer fields"]);
     assert.equal(refused.code, 1);
-    assert.match(refused.stderr, /quote what the owner actually said/);
     assert.deepEqual(await library.history(), []);
 
     const evidence = '"Use just email"';

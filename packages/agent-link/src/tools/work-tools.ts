@@ -229,13 +229,13 @@ export function registerWorkTools(define: Define): void {
 
   define(
     "record_resteer",
-    "Record a re-steer: the owner redirected what you were doing. Quote their own words as the evidence; your own account of it goes in self_report. Say whether it was a defect or a matter of taste, and who judged that: the owner, or you. A defect needs its failure mode (no-mast-home when none fits).",
+    "Record a re-steer: the user (the project's owner) redirected what you were doing. Put their own words inside double quotation marks as the evidence; your own account of it goes in self_report. Say whether it was a defect or a matter of taste, and who judged that: the owner, or you. A defect needs its failure mode (no-mast-home when none fits).",
     z.object({
       title: z.string().min(1).describe("A short name for it"),
       description: z.string().min(1).describe("One line on what it is"),
       doing: z.string().min(1).describe("What you were doing"),
       redirect: z.string().min(1).describe("What the owner redirected you to"),
-      evidence: z.string().min(1).describe("His own words, quoted"),
+      evidence: z.string().min(1).describe('Their own words, inside double quotation marks: "…"'),
       self_report: z.string().min(1).optional().describe("Your own account of it"),
       disposition: z.enum(["defect", "taste"]).describe("defect: something went wrong; taste: a preference"),
       judged_by: z.enum(["owner", "agent"]).describe("Who judged it a defect or taste: owner only when the owner said so"),

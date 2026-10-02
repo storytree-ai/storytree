@@ -62,6 +62,7 @@ test("4.1 working changes reach reverse importers, owners, promises and dependen
   assert.ok(!shallow.rows!.some(row => row.id === "importer"));
   const upstream = await focusProject(repo.library, repo.folder, { ...options, up: 1 });
   assert.ok(!upstream.rows!.some(row => row.id === "file:packages/shop/src/importer.ts"));
+  assert.ok(upstream.rows!.some(row => row.id === "shop"), "explicit up follows ordinary dependency edges, including the containing story");
   assert.match(await mapCommand(repo.library, repo.folder, options), /untracked.*unresolved|unresolved.*untracked/);
 });
 

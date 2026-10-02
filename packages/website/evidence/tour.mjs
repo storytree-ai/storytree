@@ -109,6 +109,11 @@ export async function verifyTour(browser, url, output) {
   await page.locator("#tour-replay").click(); await page.locator("#tour-depth").click(); await page.locator("#tour-skip").click();
   assert.equal(await page.locator("#chapter2").getAttribute("data-tour-mode"), "freeplay");
   assert.equal(await page.locator("#website-forest").getAttribute("data-forest-state"), "still");
+  const hatch = await page.locator("#tour-hatch").boundingBox();
+  assert.ok(hatch && hatch.x >= 0 && hatch.x + hatch.width <= 390 && hatch.y >= 0 && hatch.y + hatch.height <= 844,
+    "2.6 · the free-play waitlist exit is reachable in the viewport without scrolling past the saved surfaces");
+  assert.ok(hatch.x + hatch.width >= 366 && hatch.y + hatch.height >= 820,
+    "2.6 · the free-play exit stays in the bottom-right corner");
   await page.locator("#chapter2").screenshot({ path: path.join(output, "390-no-webgl.png") });
   await page.locator(".session-row[data-session-id='01a0fa93-ea61-7542-9574-6c752c763f16']").waitFor({ timeout: 5000 });
   assert.ok(await page.locator(".session-row").count() > 0, "Saved sessions use the recording clock, even in 2030");

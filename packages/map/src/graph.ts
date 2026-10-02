@@ -1,6 +1,6 @@
 /** Capability 1 · Joined graph: dependencies point from the dependent to its prerequisite. */
 import type { AnnotatedTree, NodeHealth } from "@storytree/library";
-import { packageOf } from "./code-survey/code-survey.js";
+import { packageOf, type SurveyedTest } from "./code-survey/code-survey.js";
 import type { ProjectSurvey } from "./code-survey/read-survey.js";
 
 export type NodeKind = "story" | "capability" | "promise" | "file" | "test";
@@ -13,6 +13,8 @@ export interface MapNode {
   readonly story: string;
   readonly number?: string;
   readonly path?: string;
+  /** Proof identities retain their package qualifier when a dependent tests another story. */
+  readonly testTitles?: SurveyedTest["titles"];
 }
 export interface MapEdge {
   readonly from: string;
@@ -46,6 +48,10 @@ export function buildGraph(tree: AnnotatedTree, survey: ProjectSurvey): ProjectG
   const nodes = new Map<string, MapNode>();
   const edges = new Map<string, MapEdge>();
   const healthSource = tree.unverified ? "reported" : "verified";
+  const promisesByPackage = new Map(tree.stories.map(story => [packageOf(story.title), new Map(story.capabilities.flatMap(cap => cap.contracts.flatMap(contract => {
+    const number = /^\s*(\d+\.\d+)\b/.exec(contract.title)?.[1];
+    return number === undefined ? [] : [[number, contract] as const];
+  })))]));
   const add = (node: MapNode): void => { nodes.set(node.id, node); };
   const edge = (from: string, to: string, kind: MapEdge["kind"], provenance: MapEdge["provenance"]): void => {
     const value = { from, to, kind, provenance };
@@ -68,13 +74,10 @@ export function buildGraph(tree: AnnotatedTree, survey: ProjectSurvey): ProjectG
   for (const story of tree.stories) {
     const read = survey[story.id];
     if (!read) continue;
-    const pathname = (file: string): string => normalizePath(`packages/${packageOf(story.title)}/${file}`);
+    const ownPackage = packageOf(story.title);
+    const pathname = (file: string): string => normalizePath(`packages/${ownPackage}/${file}`);
     const fileId = (file: string): string => `${read.tests?.some(test => test.path === file) ? "test" : "file"}:${pathname(file)}`;
     const caps = new Map(story.capabilities.map(cap => [cap.id, cap]));
-    const promises = new Map(story.capabilities.flatMap(cap => cap.contracts.flatMap(contract => {
-      const number = /^\s*(\d+\.\d+)\b/.exec(contract.title)?.[1];
-      return number === undefined ? [] : [[number, contract] as const];
-    })));
     for (const file of read.files) {
       const cap = file.capability === undefined ? undefined : caps.get(file.capability);
       add({ id: fileId(file.path), kind: "file", title: pathname(file.path), path: pathname(file.path), story: story.id, health: healthOf(cap?.health, healthSource) });
@@ -86,10 +89,10 @@ export function buildGraph(tree: AnnotatedTree, survey: ProjectSurvey): ProjectG
       }
     }
     for (const file of read.tests ?? []) {
-      const contracts = file.titles.flatMap(title => { const contract = promises.get(title.number); return contract ? [contract] : []; });
+      const contracts = file.titles.flatMap(title => { const contract = promisesByPackage.get(title.package ?? ownPackage)?.get(title.number); return contract ? [contract] : []; });
       const states = contracts.map(contract => healthOf(contract.health, healthSource));
       const health = states.includes("failing") ? "failing" : states.length > 0 && states.every(state => state === "healthy") ? "healthy" : "untested";
-      add({ id: fileId(file.path), kind: "test", title: pathname(file.path), path: pathname(file.path), story: story.id, health });
+      add({ id: fileId(file.path), kind: "test", title: pathname(file.path), path: pathname(file.path), story: story.id, health, testTitles: file.titles });
       edge(fileId(file.path), story.id, "belongs-to", "inferred");
       for (const contract of contracts) edge(fileId(file.path), contract.id, "tests", "inferred");
       for (const imported of file.imports) {

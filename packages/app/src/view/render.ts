@@ -26,6 +26,18 @@ export function renderAppMenu(): string {
   </div>`;
 }
 
+/** The page when the library has no projects at all: how a user starts their first project. */
+export function renderNoProjects(): string {
+  return [
+    `<div class="empty">`,
+    `<h1>No projects yet</h1>`,
+    `<p>This app shows the projects in storytree 0.3's local library, and it has none yet.</p>`,
+    `<p>Add a folder as a project from the gear menu: Projects → Add project…, or run <code>storytree doctor --set-up &lt;name&gt;</code> in the folder.</p>`,
+    `<p>Your project will appear here automatically.</p>`,
+    `</div>`,
+  ].join("\n");
+}
+
 /** Every project, with the one on show selected. Values and visible names are both escaped. */
 export function renderSwitcher(projects: readonly string[], current: string | undefined): string {
   const options = projects

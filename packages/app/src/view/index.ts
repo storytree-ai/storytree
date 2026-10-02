@@ -8,6 +8,8 @@ import { switchProject } from "./switch.js";
 import { mountSignIn, mountUpdates, type SignInBridge } from "./updates.js";
 import type { UpdateAction, UpdateState } from "../updates/main-updates.js";
 
+export { renderNoProjects } from "./render.js";
+
 /** The app owns the bars' top edge and overlay frame; each story mounts its own content. */
 export function mountAppMenu(host: HTMLElement, options: {
   background: HTMLElement;

@@ -67,9 +67,9 @@
 .core-card-text { white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.65; max-height:28rem; overflow:auto; }
 .forest-drawing .planet-nameplate { color:#eceae3; background:#142029bd; font:500 13px/1.2 system-ui,sans-serif; padding:.2rem .5rem; }
 @media(max-width:600px) {
-  .tour-freeplay .arc-panes { grid-template-columns:minmax(0,1fr); overflow:auto; }
-  .tour-freeplay .arc-lanes { max-height:12rem; flex-shrink:0; }
-  .tour-freeplay .arc-briefing { overflow:visible; }
+  .tour-freeplay .arc-panes { grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(0,1fr) minmax(0,1fr); overflow:hidden; }
+  .tour-freeplay .arc-lanes { border-right:0; border-bottom:1px solid #35474e; }
+  .tour-freeplay .arc-briefing { overflow:auto; }
   .tour-freeplay .arc-body { overflow:auto; }
   .tour-record-browser,.tour-knowledge { padding:.8rem; }
   .tree-space { inset:2dvh 2vw; padding:.6rem; }

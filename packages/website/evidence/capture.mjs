@@ -6,6 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
 import { installCommand } from "../src/install-command.ts";
+import { verifyOpening } from "./opening.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const output = path.join(here, process.argv[2] ?? "scaffold");
@@ -32,6 +33,7 @@ try {
   browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
   await mkdir(output, { recursive: true });
   const url = `http://127.0.0.1:${server.address().port}/`;
+  if (process.argv.includes("--verify-opening")) await verifyOpening(browser, url, output);
   if (verifyHome) {
     const expected = installCommand(await readFile(path.resolve(here, "../../../README.md"), "utf8"));
     const noScript = await browser.newPage({ javaScriptEnabled: false, viewport: { width: 390, height: 844 } });
@@ -52,8 +54,8 @@ try {
     await copy.locator("#copy-command").click();
     await copy.waitForFunction(() => document.querySelector("#copy-command").dataset.copyState === "copied");
     assert.equal(await copy.evaluate(() => navigator.clipboard.readText()), expected);
-    await copy.evaluate(() => Object.defineProperty(navigator, "clipboard", {
-      configurable: true, value: { writeText: async () => { throw new Error("Clipboard denied for this proof"); } },
+    await copy.evaluate(() => Object.defineProperty(navigator.clipboard, "writeText", {
+      configurable: true, value: async () => { throw new Error("Clipboard denied for this proof"); },
     }));
     await copy.locator("#copy-command").click();
     await copy.waitForFunction(() => document.querySelector("#copy-command").dataset.copyState === "failed");
@@ -64,10 +66,10 @@ try {
       for (const outcome of ["copied", "failed", "tab-away"]) {
         await copy.evaluate(() => {
           window.copyWrites = 0;
-          Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: () => {
+          Object.defineProperty(navigator.clipboard, "writeText", { configurable: true, value: () => {
             window.copyWrites++;
             return new Promise((resolve, reject) => { window.finishCopy = resolve; window.denyCopy = reject; });
-          } } });
+          } });
         });
         await copy.locator("#copy-command").focus();
         await copy.keyboard.press("Enter");

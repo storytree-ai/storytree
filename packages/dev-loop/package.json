@@ -10,5 +10,8 @@
     "pg": "^8.23.0",
     "playwright-core": "1.60.0",
     "tsx": "^4.23.15"
+  },
+  "exports": {
+    "./browser-coverage": "./src/browser-coverage.mjs"
   }
 }

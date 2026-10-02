@@ -1,0 +1,66 @@
+{
+  "capturedAt": "2026-10-02T12:17:34.504Z",
+  "browser": "148.0.7778.96",
+  "answer": 42,
+  "scripts": [
+    {
+      "url": "allocation-bundle.js",
+      "scriptId": "11",
+      "source": "function clicked() { return 42; }\nfunction idle() { return 0; }\nwindow.answer = clicked();\n//# sourceURL=allocation-bundle.js",
+      "functions": [
+        {
+          "functionName": "",
+          "isBlockCoverage": true,
+          "ranges": [
+            {
+              "startOffset": 0,
+              "endOffset": 125,
+              "count": 1
+            }
+          ]
+        },
+        {
+          "functionName": "clicked",
+          "isBlockCoverage": true,
+          "ranges": [
+            {
+              "startOffset": 0,
+              "endOffset": 33,
+              "count": 1
+            }
+          ]
+        },
+        {
+          "functionName": "idle",
+          "isBlockCoverage": false,
+          "ranges": [
+            {
+              "startOffset": 34,
+              "endOffset": 63,
+              "count": 0
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "sourceMap": {
+    "version": 3,
+    "sources": [
+      "../src/clicked.ts",
+      "../src/idle.ts"
+    ],
+    "names": [],
+    "mappings": "AAAA;ACAA"
+  },
+  "measured": {
+    "src/clicked.ts": {
+      "6": 1
+    }
+  },
+  "regenerated": {
+    "src/clicked.ts": {
+      "6": 1
+    }
+  }
+}

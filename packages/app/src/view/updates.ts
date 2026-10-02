@@ -52,7 +52,7 @@ export function updateText(state: UpdateState): readonly [string, string] {
     case "checking": return ["Checking for updates…", "Looking for the latest build."];
     case "up-to-date": return ["Up to date", `Running ${state.runningBuild}.`];
     case "building": return ["Building update…", `${state.nextBuild ?? "The new build"} will restart the app when ready.`];
-    case "pending": return ["Update ready to install", `storytree ${state.nextBuild ?? "update"} is downloaded. It installs once no one has used the window, and no agent has worked, for ten minutes. Restart now to install it: the app is back in a minute or two.`];
+    case "pending": return ["Update ready to install", `storytree ${state.nextBuild ?? "update"} is downloaded. ${state.reason ?? "It installs once no one has used the window, and no agent has worked, for ten minutes."} Restart now to install it: the app is back in a minute or two.`];
     case "ready": return ["Update ready", `${state.nextBuild ?? "The new build"} will restart after the library finishes writing.`];
     case "restarting": return ["Restarting…", `Opening ${state.nextBuild ?? "the new build"}.`];
     case "failed": return ["Couldn’t update", `${state.reason ?? "The check failed."} The running app is unchanged. Try again.`];

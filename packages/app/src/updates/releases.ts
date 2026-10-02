@@ -3,6 +3,7 @@ import { NsisUpdater } from "electron-updater";
 
 import type { Launch } from "../lifecycle/background.js";
 import type { UpdateState } from "./main-updates.js";
+import { heldUpdateRuns } from "./update-holds.js";
 
 export interface ReleaseOptions {
   /** The same database-stop/relaunch handoff the development updater uses. */
@@ -11,6 +12,8 @@ export interface ReleaseOptions {
   readonly canRestart: () => Promise<boolean>;
   /** Whether now is a quiet moment to install (whenToInstall); the user's say-so skips it, never a seed. */
   readonly quiet: () => Promise<boolean>;
+  /** This installed app's storytree home, where a named acceptance run can hold automatic updates. */
+  readonly home?: string;
 }
 
 type Check = "current" | "waiting" | "restarting" | "stopped";
@@ -84,6 +87,13 @@ export class ReleaseUpdater extends NsisUpdater {
     if (this.stopped) return "stopped";
     const ready = await this.options.canRestart() && (this.asked || await this.options.quiet());
     if (this.stopped) return "stopped";
+    const holds = this.asked || this.options.home === undefined ? [] : heldUpdateRuns(this.options.home);
+    if (holds.length > 0) {
+      const reason = `Automatic updates are held for: ${holds.join(", ")}. They resume when the runs finish or their holds expire.`;
+      this.set("pending", { reason });
+      this._logger.info(reason);
+      return "waiting";
+    }
     if (!ready) { this.set("pending"); return "waiting"; }
     this.set("restarting");
     if (!this.install(true, true)) throw new Error("The downloaded release could not be installed");

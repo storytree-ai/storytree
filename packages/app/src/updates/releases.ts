@@ -4,6 +4,7 @@ import { NsisUpdater } from "electron-updater";
 import type { Launch } from "../lifecycle/background.js";
 import type { UpdateState } from "./main-updates.js";
 import { heldUpdateRuns } from "./update-holds.js";
+import { STABLE_FEED, type ReleaseChannel } from "./release-channel.js";
 
 export interface ReleaseOptions {
   /** The same database-stop/relaunch handoff the development updater uses. */
@@ -14,6 +15,8 @@ export interface ReleaseOptions {
   readonly quiet: () => Promise<boolean>;
   /** This installed app's storytree home, where a named acceptance run can hold automatic updates. */
   readonly home?: string;
+  /** Read on the first check so an unreadable channel fails the check, never app startup. */
+  readonly releaseChannel?: () => ReleaseChannel;
 }
 
 type Check = "current" | "waiting" | "restarting" | "stopped";
@@ -33,6 +36,7 @@ export class ReleaseUpdater extends NsisUpdater {
   private asked = false;
   private next: string | undefined;
   private state: UpdateState;
+  private selectedChannel: ReleaseChannel | undefined;
 
   constructor(private readonly options: ReleaseOptions, app?: ConstructorParameters<typeof NsisUpdater>[1]) {
     super(undefined, app);
@@ -73,6 +77,12 @@ export class ReleaseUpdater extends NsisUpdater {
   private async checkOnce(): Promise<Check> {
     if (this.stopped) return "stopped";
     if (this.restarting !== undefined) return "restarting";
+    if (this.selectedChannel === undefined && this.options.releaseChannel !== undefined) {
+      const channel = this.options.releaseChannel();
+      if (channel === "stable") this.setFeedURL({ provider: "generic", url: STABLE_FEED });
+      this.selectedChannel = channel;
+      this._logger.info(`Following the ${channel} release channel`);
+    }
     if (!this.downloaded) {
       const result = await this.checkForUpdates();
       if (this.stopped) return "stopped";

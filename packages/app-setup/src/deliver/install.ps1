@@ -1,6 +1,48 @@
 # Windows PowerShell 5.1 and PowerShell 7. No Node/npm or checkout prerequisite.
-param([switch]$LibraryOnly)
+param([switch]$LibraryOnly, [ValidateSet('stable', 'development')][string]$Channel)
 $ErrorActionPreference = 'Stop'
+
+function Initialize-StorytreeChannel([string]$HomeDir, [string]$InstallDir, [string]$Requested) {
+  $file = Join-Path $HomeDir 'release-channel.json'
+  $existing = $null
+  if (Test-Path -LiteralPath $file) {
+    try {
+      $saved = Get-Content -LiteralPath $file -Raw | ConvertFrom-Json
+      if ($saved.schema -ne 1 -or $saved.channel -cnotin @('stable', 'development')) { throw 'invalid schema or channel' }
+      $existing = [string]$saved.channel
+    } catch { throw "The saved release channel could not be read: $($_.Exception.Message). Keep $file for diagnosis; delivery will not replace it." }
+  } else {
+    $markerFile = Join-Path $InstallDir 'resources/storytree-installed'
+    if (Test-Path -LiteralPath $markerFile) {
+      $marker = (Get-Content -LiteralPath $markerFile -Raw).Trim()
+      if ($marker -ceq 'nsis') { $existing = 'development' }
+      elseif ($marker -ceq 'nsis-stable') { $existing = 'stable' }
+      else { throw 'The installed app has an unknown release channel marker. Check it before retrying delivery.' }
+    }
+  }
+  if ($Requested -and $Requested -cnotin @('stable', 'development')) { throw 'Choose a valid release channel: stable or development.' }
+  if ($existing -and $Requested -and $existing -cne $Requested) { throw "This installation already uses $existing. Delivery cannot change its release channel to $Requested." }
+  $selected = if ($existing) { $existing } elseif ($Requested) { $Requested } else { 'stable' }
+  if (-not (Test-Path -LiteralPath $file)) {
+    New-Item -ItemType Directory -Path $HomeDir -Force | Out-Null
+    # The installer may launch the app itself: persist the choice before even starting NSIS.
+    $bytes = [Text.Encoding]::UTF8.GetBytes((@{ schema = 1; channel = $selected } | ConvertTo-Json -Compress))
+    $stream = [IO.File]::Open($file, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
+    try { $stream.Write($bytes, 0, $bytes.Length) } finally { $stream.Dispose() }
+  }
+  return $selected
+}
+
+function Get-StorytreeRelease([string]$SelectedChannel, [scriptblock]$Fetch) {
+  $api = 'https://api.github.com/repos/storytree-ai/storytree/releases'
+  if ($SelectedChannel -ceq 'development') { return (& $Fetch "$api/latest") }
+  if ($SelectedChannel -cne 'stable') { throw 'Unknown release channel.' }
+  $pin = & $Fetch 'https://raw.githubusercontent.com/storytree-ai/storytree/release-channel-stable/latest.yml'
+  if ($pin.schema -ne 1 -or $pin.channel -cne 'stable' -or $pin.version -cnotmatch '^0\.3\.(0|[1-9]\d*)$') { throw 'The stable release pin is invalid. No development release was selected; retry after the stable pin is repaired.' }
+  $release = & $Fetch "$api/tags/v$($pin.version)"
+  if ($release.tag_name -cne "v$($pin.version)") { throw 'The stable release does not match its pin.' }
+  return $release
+}
 
 function Get-StorytreeArchitecture([string]$ProcessArchitecture, [string]$NativeArchitecture) {
   $native = if ($NativeArchitecture) { $NativeArchitecture } else { $ProcessArchitecture }
@@ -91,10 +133,11 @@ function Get-StorytreeAsset($Release, [string]$Name) {
   return $url
 }
 
-function Select-StorytreeInstaller($Release, $Manifest, [string]$Architecture) {
+function Select-StorytreeInstaller($Release, $Manifest, [string]$Architecture, [string]$SelectedChannel = 'development') {
   if ($Release.draft -or $Release.prerelease -or $Release.tag_name -notmatch '^v\d+\.\d+\.\d+$') { throw 'release is not a stable storytree version' }
   $version = $Release.tag_name.Substring(1)
   if ($Manifest.schema -ne 1 -or $Manifest.version -cne $version -or $Architecture -notin $Manifest.architectures) { throw 'release manifest version or architecture does not match' }
+  if ($SelectedChannel -ceq 'stable' -and $Manifest.channelSchema -ne 1) { throw 'The pinned installer cannot preserve the stable release channel. Pin a channel-aware build before installing.' }
   $name = "storytree-0.3-$version-setup.exe"
   if ($Manifest.installer.name -cne $name -or $Manifest.installer.sha256 -notmatch '^[a-fA-F0-9]{64}$') { throw 'release manifest has no valid installer checksum' }
   return @{ url = (Get-StorytreeAsset $Release $name); sha256 = $Manifest.installer.sha256; name = $name }
@@ -105,7 +148,7 @@ function Assert-StorytreeDownload([string]$File, [string]$Expected) {
 }
 
 $StorytreeStages = @{
-  download = 'Finding the latest storytree release.'
+  download = 'Finding the storytree release for this installation channel.'
   install = 'Installing the app silently. This may take a few minutes; a timer shows it is still working.'
   verify = 'Checking the installed app and its bundled tools.'
   finish = 'Opening the app and starting its database.'
@@ -177,6 +220,7 @@ try {
     if ($record.schema -ne 1 -or -not [IO.Path]::IsPathRooted($record.installDir)) { throw 'Invalid delivery record. Keep it for diagnosis and check the installed app before retrying.' }
     $installDir = $record.installDir
   }
+  $selectedChannel = Initialize-StorytreeChannel $storytreeHome $installDir $Channel
   # Expand environment variables without rewriting their original registry text.
   $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
   $machinePath = [Environment]::GetEnvironmentVariable('Path', 'Machine')
@@ -204,10 +248,10 @@ try {
       param($Arch)
       [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
       $headers = @{ 'User-Agent' = 'storytree-delivery'; 'Accept' = 'application/vnd.github+json' }
-      $release = Invoke-RestMethod 'https://api.github.com/repos/storytree-ai/storytree/releases/latest' -Headers $headers
+      $release = Get-StorytreeRelease $selectedChannel { param($Url) Invoke-RestMethod $Url -Headers $headers }
       $manifestUrl = Get-StorytreeAsset $release 'storytree-delivery.json'
       $manifest = Invoke-RestMethod $manifestUrl
-      $asset = Select-StorytreeInstaller $release $manifest $Arch
+      $asset = Select-StorytreeInstaller $release $manifest $Arch $selectedChannel
       $script:downloadDir = Join-Path ([IO.Path]::GetTempPath()) ('storytree-delivery-' + [Guid]::NewGuid().ToString('N'))
       New-Item -ItemType Directory -Path $script:downloadDir | Out-Null
       $file = Join-Path $script:downloadDir $asset.name

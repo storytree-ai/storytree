@@ -1,7 +1,21 @@
 ; Only installed apps follow releases. An unpacked build can carry app-update.yml too.
+; Capture the old marker before electron-builder removes the prior installation.
+!macro customInit
+  Var /GLOBAL storytreeReleaseMarker
+  StrCpy $storytreeReleaseMarker "nsis-stable"
+  ${if} ${FileExists} "$INSTDIR\resources\storytree-installed"
+    FileOpen $0 "$INSTDIR\resources\storytree-installed" r
+    FileRead $0 $1
+    FileClose $0
+    ${if} $1 == "nsis"
+      StrCpy $storytreeReleaseMarker "nsis"
+    ${endIf}
+  ${endIf}
+!macroend
+
 !macro customInstall
   FileOpen $0 "$INSTDIR\resources\storytree-installed" w
-  FileWrite $0 "nsis"
+  FileWrite $0 $storytreeReleaseMarker
   FileClose $0
 !macroend
 

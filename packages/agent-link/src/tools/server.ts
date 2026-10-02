@@ -50,6 +50,7 @@ import { registerContextTools } from "./context-tools.js";
 import { Connections } from "./connections.js";
 import { registerNoteTools } from "./note-tools.js";
 import { registerPlanTools } from "./plan-tools.js";
+import { registerMapTools } from "./map-tools.js";
 import { registerSetupTools } from "./setup-tools.js";
 import { registerWorkTools } from "./work-tools.js";
 import { OWN_TOOLS, registerOwnTools } from "./own-tools.js";
@@ -192,6 +193,7 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
     callerOf,
   });
   registerPlanTools(define);
+  registerMapTools(define);
   registerOwnTools({
     server,
     ...(options.dataDir === undefined ? {} : { home: path.join(path.dirname(options.dataDir), 'own') }),

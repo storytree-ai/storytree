@@ -17,6 +17,7 @@
     "@modelcontextprotocol/server": "^2.1.0",
     "@storytree/library": "workspace:*",
     "@storytree/librarian": "workspace:^",
+    "@storytree/map": "workspace:*",
     "pg": "^8.23.0",
     "zod": "^4.6.5",
     "@storytree/processes": "workspace:*"

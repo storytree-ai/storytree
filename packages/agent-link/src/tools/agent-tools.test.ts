@@ -562,6 +562,7 @@ test('6.4 a bad call gets a readable refusal rather than a crash, and with story
         ["plan_contract", { capability: "capability_000000000000", title: "Rejects a bad email" }],
         ["edit_plan", { id: "story_000000000000", title: "Renamed" }],
         ["show_plan", {}],
+        ["focus", { select: "story:Example" }],
         ["health_worklist", {}],
         ["claim", { capability: "capability_000000000000", reason: "building it" }],
         ["release", { capability: "capability_000000000000" }],

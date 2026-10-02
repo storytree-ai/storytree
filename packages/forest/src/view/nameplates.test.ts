@@ -76,3 +76,20 @@ test("no two story nameplates overlap on screen: where two would, one steps down
   const settled = settlePlates(crowd);
   assert.ok(settled.hidden.size > 0 && [...settled.drops.values()].every(drop => drop <= MAX_DROP), "past the furthest step, a plate hides");
 });
+
+test("3.4 / 7.17: near-side names clear the Sessions strip and each other as the strip changes", () => {
+  const library = { story: "library", box: { left: 660, right: 760, top: 897, bottom: 916 }, facing: 0.7 };
+  const neighbour = { story: "neighbour", box: { left: 650, right: 750, top: 860, bottom: 879 }, facing: 0.8 };
+  for (const top of [886, 923, 620]) {
+    const strip = { left: 0, right: 1440, top, bottom: 960 };
+    const plates = [library, neighbour];
+    const { drops, hidden } = settlePlates(plates, "library", strip);
+    assert.equal(hidden.size, 0, "strip clearance keeps both names readable, including the selected name");
+    const boxes = plates.map(({ story, box }) => ({ top: box.top + (drops.get(story) ?? 0), bottom: box.bottom + (drops.get(story) ?? 0) }));
+    assert.ok(boxes.every(box => box.bottom <= top - PLATE_STEP_GAP), "the whole name clears the strip");
+    assert.ok(boxes[0]!.bottom <= boxes[1]!.top || boxes[1]!.bottom <= boxes[0]!.top, "lifting names does not stack them on each other");
+  }
+  assert.equal(settlePlates([library], undefined, { left: 0, right: 600, top: 886, bottom: 960 }).drops.size, 0,
+    "a strip narrowed beside a story panel does not lift a name outside its width");
+  assert.equal(settlePlates([library]).drops.size, 0, "removing the strip restores the name's natural position");
+});

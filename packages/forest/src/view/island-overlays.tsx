@@ -1,7 +1,7 @@
 /** The globe's nameplates and selection rings, drawn on each island's plate. */
 import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
-import { useMemo, useRef, useState, type ComponentProps } from "react";
+import { useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
 import { DoubleSide, Quaternion, type Group } from "three";
 import type { Island } from "@storytree/forest";
 import { globeOccluder, onIslandSurface } from "@storytree/forest-world/planet";
@@ -64,9 +64,39 @@ export function Nameplates({ island, coast, radius, selected, dimmed = false }: 
   </>;
 }
 
-/** Every frame, steps down the story nameplates that would overlap another on screen (settlePlates), hiding only one that would step too far. */
+/** Settle the story names against each other and the Sessions strip whenever the globe draws. */
 export function NameplateCrowd({ selected }: { selected: string | undefined }) {
   const gl = useThree(state => state.gl);
+  const invalidate = useThree(state => state.invalidate);
+  const strip = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    const globe = gl.domElement.closest("[data-view='globe']");
+    const surface = globe?.parentElement;
+    if (surface == null) return;
+    const resize = new ResizeObserver(() => invalidate());
+    const refresh = () => {
+      const next = surface.querySelector<HTMLElement>(":scope > .sessions-list, :scope > * > .sessions-list");
+      if (next !== strip.current) {
+        resize.disconnect();
+        strip.current = next;
+        if (next !== null) resize.observe(next);
+      }
+      // The strip's sibling host is appended first; React mounts its aside afterwards.
+      mounted.disconnect();
+      mounted.observe(surface, { childList: true });
+      for (const child of surface.children) {
+        if (child !== globe) mounted.observe(child, { childList: true });
+      }
+      invalidate();
+    };
+    const mounted = new MutationObserver(refresh);
+    refresh();
+    return () => {
+      mounted.disconnect();
+      resize.disconnect();
+      strip.current = null;
+    };
+  }, [gl, invalidate]);
   useFrame(() => {
     const host = gl.domElement.parentElement;
     if (host === null) return;
@@ -79,7 +109,8 @@ export function NameplateCrowd({ selected }: { selected: string | undefined }) {
       const drop = Number(label.dataset.drop ?? 0);
       return [{ story: label.dataset.storyId!, box: { left: box.left, right: box.right, top: box.top - drop, bottom: box.bottom - drop }, facing: Number(label.dataset.facing ?? 0) }];
     });
-    const { drops, hidden } = settlePlates(shown, selected);
+    const stripBox = strip.current?.getBoundingClientRect();
+    const { drops, hidden } = settlePlates(shown, selected, stripBox && stripBox.width > 0 && stripBox.height > 0 ? stripBox : undefined);
     for (const label of labels) {
       const story = label.dataset.storyId!, drop = drops.get(story) ?? 0;
       label.classList.toggle("crowded", hidden.has(story));

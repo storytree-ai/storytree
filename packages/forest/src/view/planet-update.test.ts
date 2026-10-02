@@ -14,14 +14,14 @@ const tree = (title: string): AnnotatedTree => ({ arcs: [], stories: [
 ] });
 const places = () => new Map([["a", 1], ["b", 2]]);
 
-test("a live update whose scene and places draw the same as those on show is not drawn again", () => {
+test("3.2 a live update whose scene and places draw the same as those on show is not drawn again", () => {
   const shown = forestScene(tree("A"), [], workStates([]));
   assert.equal(nextScene({ scene: shown, places: places() }, forestScene(tree("A"), [], workStates([])), places()), undefined);
   assert.notEqual(nextScene({ scene: shown, places: places() }, forestScene(tree("A"), [], workStates([])), new Map([["a", 1], ["b", 3]])), undefined,
     "a moved place is drawn");
 });
 
-test("a live update that changed one island keeps the other island's objects, so only the changed plate re-derives", () => {
+test("3.2 a live update that changed one island keeps the other island's objects, so only the changed plate re-derives", () => {
   const shown = forestScene(tree("A"), [], workStates([]));
   const next = nextScene({ scene: shown, places: places() }, forestScene(tree("A renamed"), [], workStates([])), places());
   assert.ok(next !== undefined);

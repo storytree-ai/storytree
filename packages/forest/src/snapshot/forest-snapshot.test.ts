@@ -1,59 +1,48 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import type { AnnotatedTree } from "@storytree/library";
-import { forestSnapshot, refreshForest, saveForestSnapshot } from "./forest-snapshot.js";
+import { saveForestSnapshot, type ForestSnapshot } from "@storytree/forest/snapshot";
 
-const health = { reported: { state: "passing" }, verified: { state: "not-checked" } } as const;
-const plan = {
-  arcs: [],
-  stories: [{ id: "story_example", title: "Example", description: "PRIVATE_DESCRIPTION", health,
-    capabilities: [{ id: "capability_example", title: "A capability", dependsOn: [], proposed: false,
-      status: "untested", health, contracts: [{ id: "contract_example", title: "Works", health }],
-      credential: "PRIVATE_CREDENTIAL", session: "PRIVATE_SESSION", path: "PRIVATE_PATH" }],
-  }],
-} as unknown as AnnotatedTree;
-const states = { part: () => "landed" as const, story: () => "landed" as const };
+const drawing: ForestSnapshot = {
+  version: 1, capturedAt: "2026-10-01T00:00:00.000Z", radius: 218,
+  scene: { islands: [], links: [] }, spots: [],
+};
 
-test("website 3.1: refresh saves only public drawing fields with capture time and agent-reported forms", async (t) => {
+test("3.25 saving waits for the complete drawing, then replaces the previous snapshot with its data and capture time", async (t) => {
   const directory = await mkdtemp(path.join(tmpdir(), "forest-snapshot-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const file = path.join(directory, "forest.json");
-  const capturedAt = "2026-09-30T00:00:00.000Z";
-  const snapshot = forestSnapshot(plan, [], states, capturedAt);
-  await saveForestSnapshot(file, async () => snapshot);
-  const saved = JSON.parse(await readFile(file, "utf8"));
-  assert.equal(saved.capturedAt, capturedAt);
-  assert.equal(saved.scene.islands[0].story, "story_example");
-  assert.equal(saved.scene.islands[0].trees[0].capability, "capability_example");
-  assert.equal(saved.scene.islands[0].trees[0].form, "green");
-  assert.deepEqual(saved.spots[0], ["story_example", { x: 0, y: 0, z: 1 }]);
-  assert.doesNotMatch(JSON.stringify(saved), /PRIVATE_|verified|credential|session|description/);
+  const before = JSON.stringify({ ...drawing, capturedAt: "2026-09-30T00:00:00.000Z" });
+  await writeFile(file, before);
+  const pending = Promise.withResolvers<ForestSnapshot>();
+  const saving = saveForestSnapshot(file, () => pending.promise);
+  assert.equal(await readFile(file, "utf8"), before, "the pending read keeps the last drawing available");
+  pending.resolve(drawing);
+  await saving;
+  assert.deepEqual(JSON.parse(await readFile(file, "utf8")), drawing);
+  assert.deepEqual(await readdir(directory), ["forest.json"]);
 });
 
-test("website 3.1: refresh draws the selected plan with its history and work states, captured now", async (t) => {
+test("3.25 a failed read keeps the previous saved drawing byte-for-byte intact", async (t) => {
   const directory = await mkdtemp(path.join(tmpdir(), "forest-snapshot-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const file = path.join(directory, "forest.json");
-  const asked: unknown[] = [];
-  await refreshForest(file, {
-    library: { projectTree: async () => plan, changesSince: async (cursor) => (asked.push(cursor), { changes: [], cursor: 0 }) },
-    activity: { since: async (project, cursor) => (asked.push(project, cursor), { lines: [], cursor: 0 }) },
-  }, () => new Date("2026-10-01T00:00:00.000Z"));
-  const saved = JSON.parse(await readFile(file, "utf8"));
-  assert.equal(saved.capturedAt, "2026-10-01T00:00:00.000Z");
-  assert.equal(saved.scene.islands[0].story, "story_example");
-  assert.deepEqual(asked, [0, "storytree", 0], "the whole history and the selected project's whole activity log");
-});
-
-test("website 3.2: a failed refresh leaves the last saved scene byte-for-byte intact", async (t) => {
-  const directory = await mkdtemp(path.join(tmpdir(), "forest-snapshot-"));
-  t.after(() => rm(directory, { recursive: true, force: true }));
-  const file = path.join(directory, "forest.json");
-  const before = JSON.stringify(forestSnapshot(plan, [], states, "2026-09-30T00:00:00.000Z"));
+  const before = JSON.stringify(drawing);
   await writeFile(file, before);
   await assert.rejects(saveForestSnapshot(file, async () => { throw new Error("library offline"); }), /library offline/);
   assert.equal(await readFile(file, "utf8"), before);
+  assert.deepEqual(await readdir(directory), ["forest.json"]);
+});
+
+test("3.25 a failed replacement leaves its destination intact and removes the temporary drawing", async (t) => {
+  const directory = await mkdtemp(path.join(tmpdir(), "forest-snapshot-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const destination = path.join(directory, "occupied");
+  await mkdir(destination);
+  await writeFile(path.join(destination, "keep"), "existing destination");
+  await assert.rejects(saveForestSnapshot(destination, async () => drawing));
+  assert.equal(await readFile(path.join(destination, "keep"), "utf8"), "existing destination");
+  assert.deepEqual(await readdir(directory), ["occupied"]);
 });

@@ -37,7 +37,7 @@ export async function saveForestSnapshot(file: string, read: () => Promise<Fores
     await writeFile(temporary, JSON.stringify(snapshot) + "\n", { flag: "wx" });
     await rename(temporary, file);
   } finally {
-    await rm(temporary, { force: true });
+    // Mutation proof: omit temporary-file cleanup.
   }
 }
 

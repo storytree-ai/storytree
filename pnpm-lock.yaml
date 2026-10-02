@@ -391,6 +391,12 @@ importers:
       '@types/three':
         specifier: ^0.185.0
         version: 0.185.4
+      esbuild:
+        specifier: ^0.28.2
+        version: 0.28.2
+      playwright-core:
+        specifier: 1.60.0
+        version: 1.60.0
       tsx:
         specifier: ^4.23.15
         version: 4.23.15

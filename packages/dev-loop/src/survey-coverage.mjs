@@ -118,7 +118,7 @@ function sorted(tally) {
 
 function addExecution(tally, pkgDir, executed, counts) {
   for (const [file, functions] of executed) {
-    const relative = path.relative(pkgDir, file).split(path.sep).join("/");
+    const relative = path.relative(pkgDir, existsSync(file) ? realpathSync(file) : file).split(path.sep).join("/");
     if (!relative.startsWith("src/") || TEST_FILE.test(relative) || !CODE_FILE.test(relative)) continue;
     const counted = tally.get(relative) ?? new Map();
     for (const [number, count] of counts) counted.set(number, (counted.get(number) ?? 0) + count * functions);

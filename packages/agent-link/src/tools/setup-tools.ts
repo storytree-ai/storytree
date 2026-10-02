@@ -66,7 +66,7 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
         const caller = seenCaller((await log.since(report.project.name, 0)).lines, heard, metaOf(context));
         await log.append(report.project.name, { ...lineOf(caller), source: "tool", folder, kind: "tool-called", tool: "check_setup" });
         const { lines } = await log.since(report.project.name, 0);
-        const verification = verifyHooks(lines, caller.session, caller.harness, report.machine);
+        const verification = verifyHooks(lines, caller.session, caller.harness, { ...report.machine, ...(report.codexHooks === undefined ? {} : { codexHooks: report.codexHooks }) });
         // The check file's work is done once its edit has arrived (8.20): it goes from where the agent wrote it.
         for (const file of checkFilesWritten(lines, caller.session)) {
           try {

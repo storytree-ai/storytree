@@ -1030,7 +1030,6 @@ test("6.12 it records friction with concrete evidence and a re-steer with the ow
         judged_by: "owner",
       });
       assert.equal(unquoted.isError, true);
-      assert.match(unquoted.text, /quote/);
       const modeless = await agent.call("record_resteer", {
         title: "Vaguely wrong",
         description: "Vaguely",

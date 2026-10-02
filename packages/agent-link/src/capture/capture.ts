@@ -9,7 +9,7 @@
  * - Evidence must be concrete (0.2's ADR-0168 D3): a path, a pull request or issue number, a
  *   commit, a command and its output, an error, or a quoted excerpt. Vague prose is refused. The
  *   check is deliberately dumb about truth: it only refuses what cannot be a citation.
- * - A re-steer's evidence is the owner's own words, quoted: a paraphrase is the agent's account,
+ * - A re-steer's evidence is the user's (the owner's) own words inside double quotation marks: a paraphrase is the agent's account,
  *   which goes in `selfReport`, apart (0.2's ADR-0513 D4). "Judged by the owner" is the owner's call, never
  *   an inference of the agent's.
  * - Capture never classifies: friction is filed without a route, which is decided later by someone
@@ -114,8 +114,9 @@ function requireConcreteEvidence(evidence: string): void {
 /** File a re-steer, if its evidence quotes the owner. */
 export async function recordResteer(library: Library, resteer: NewResteer, options?: WriteOptions): Promise<SchemaRecord<"resteer">> {
   if (!QUOTED.test(resteer.evidence)) {
+    // The check is only for quotation marks, so the refusal names them: the exact words alone, unmarked, do not pass.
     throw new CaptureError(
-      `a re-steer's evidence is the owner's own words: quote what the owner actually said. A paraphrase is your account of those words, which goes in the self-report. You gave: ${resteer.evidence}`,
+      `a re-steer's evidence is the user's own words inside double quotation marks: put what they said between them, as in "Can you add it now?". A paraphrase is your account of those words, which goes in the self-report. You gave: ${resteer.evidence}`,
     );
   }
   // Its failure mode is checked against the library's own list of modes, inside the write.

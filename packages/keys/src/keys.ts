@@ -148,11 +148,18 @@ function update(options: StoreOptions, change: (entries: Entries) => Entries): v
 const STALE_MS = 10_000;
 const WAIT_MS = 15_000;
 
-function withLock(lock: string, body: () => void): void {
+export interface LockOptions {
+  /** Takes the lock, failing as the file system does when it cannot; by default an exclusive create. */
+  readonly open?: (lock: string) => void;
+  /** How long to wait for the lock before giving up. */
+  readonly waitMs?: number;
+}
+
+export function withLock(lock: string, body: () => void, { open = openLock, waitMs = WAIT_MS }: LockOptions = {}): void {
   const started = Date.now();
   for (;;) {
     try {
-      closeSync(openSync(lock, "wx"));
+      open(lock);
       break;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
@@ -160,7 +167,7 @@ function withLock(lock: string, body: () => void): void {
         rmSync(lock, { force: true });
         continue;
       }
-      if (Date.now() - started > WAIT_MS) throw new Error(`The keys file is locked by another storytree process (${lock}): try again, or delete the lock if nothing is running.`);
+      if (Date.now() - started > waitMs) throw new Error(`The keys file is locked by another storytree process (${lock}): try again, or delete the lock if nothing is running.`);
       pause(10 + Math.random() * 20);
     }
   }
@@ -169,6 +176,10 @@ function withLock(lock: string, body: () => void): void {
   } finally {
     rmSync(lock, { force: true });
   }
+}
+
+function openLock(lock: string): void {
+  closeSync(openSync(lock, "wx"));
 }
 
 function stale(lock: string): boolean {

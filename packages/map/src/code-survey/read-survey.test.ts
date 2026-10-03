@@ -15,6 +15,22 @@ import { codeSurveyReader } from "./read-survey.js";
 
 const tree = { arcs: [], stories: [{ id: "story-shop", title: "Shop", capabilities: [{ id: "cap-claims", title: "3 · Claims" }] }] } as unknown as AnnotatedTree;
 
+test("8.1 a numbered test reaches its own package's public subpath through package.json exports", async () => {
+  const folder = await mkdtemp(path.join(tmpdir(), "code-survey-self-"));
+  try {
+    const root = path.join(folder, "packages", "shop");
+    await mkdir(path.join(root, "src"), { recursive: true });
+    await writeFile(path.join(root, "package.json"), JSON.stringify({ name: "@x/shop", exports: { "./claim": "./src/claim.ts" } }));
+    await writeFile(path.join(root, "src/claim.ts"), "export const claim = () => 1;\n");
+    await writeFile(path.join(root, "src/claim.test.ts"), 'import { claim } from "@x/shop/claim";\ntest("3.1 a claim holds", () => claim());\n');
+    const survey = await codeSurveyReader().read(folder, tree);
+    assert.deepEqual(survey["story-shop"]?.files, [{ path: "src/claim.ts", lines: 1, capability: "cap-claims" }]);
+    assert.deepEqual(survey["story-shop"]?.tests?.[0]?.imports, [{ from: "src/claim.test.ts", to: "src/claim.ts" }]);
+  } finally {
+    await rm(folder, { recursive: true, force: true });
+  }
+});
+
 test("8.5 a second survey with no file changed reads no file again, and a changed file is read again", async () => {
   const folder = await mkdtemp(path.join(tmpdir(), "code-survey-"));
   try {

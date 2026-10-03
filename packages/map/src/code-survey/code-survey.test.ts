@@ -231,3 +231,19 @@ test("8.10 helper calls, constant titles and template prefixes retain proof whil
   assert.equal(surveyed.files.find(file => file.path === "src/foreign.ts")?.capability, undefined);
   assert.equal(surveyed.files.find(file => file.path === "src/local.ts")?.capability, "local-capability");
 });
+
+test("8.12 a CommonJS require of a relative file or the package's own exported subpath is an ordinary import, so a CommonJS package's files fall in the capabilities whose tests reach them", () => {
+  const commonjs = [
+    { path: "src/core/index.js", text: "const send = () => 1;\nmodule.exports = { send };\n" },
+    { path: "src/auth/index.js", text: "const { send } = require('../core');\nconst { wire } = require(\"./sign-in.js\");\nmodule.exports = { send, wire };\n" },
+    { path: "src/auth/sign-in.js", text: "exports.wire = () => 2;\n" },
+    { path: "src/auth/auth.test.js", text: "const { test } = require('node:test');\nconst auth = require('./index.js');\ntest('2.1 sign-in page shows the form', () => auth);\n" },
+    { path: "src/core/core.test.js", text: "const { test } = require('node:test');\nconst core = require('@x/shop/core');\n// require('../auth/sign-in.js') in a comment is no import\nconst text = \"require('../auth/index.js')\";\ntest('1.1 unknown addresses answer 404', () => core);\n" },
+  ];
+  const survey = surveyStory(commonjs, [{ id: "cap-core", title: "1 · Web basics" }, { id: "cap-auth", title: "2 · Signing in" }], {}, "shop",
+    [{ root: "", name: "@x/shop", exports: { "./core": "./src/core/index.js" } }]);
+  assert.deepEqual(survey.files.map(({ path, capability }) => [path, capability]), [
+    ["src/core/index.js", "cap-core"], ["src/auth/index.js", "cap-auth"], ["src/auth/sign-in.js", "cap-auth"],
+  ]);
+  assert.deepEqual(survey.imports, [{ from: "src/auth/index.js", to: "src/core/index.js" }, { from: "src/auth/index.js", to: "src/auth/sign-in.js" }]);
+});

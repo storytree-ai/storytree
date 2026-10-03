@@ -1,0 +1,46 @@
+{
+  "viewport": [
+    1440,
+    900
+  ],
+  "renderer": "SwiftShader",
+  "ready": {
+    "frames": 148,
+    "elapsedMs": 2583.2,
+    "fps": 57.293279653143394,
+    "p95FrameMs": 16.700000000000273
+  },
+  "playing": {
+    "frames": 1221,
+    "elapsedMs": 22299.100000000002,
+    "fps": 54.755573094878265,
+    "p95FrameMs": 16.700000000000728
+  },
+  "swarm": {
+    "frames": 839,
+    "elapsedMs": 13982.699999999999,
+    "fps": 60.002717643945736,
+    "p95FrameMs": 16.700000000000728
+  },
+  "quiet": {
+    "frames": 363,
+    "elapsedMs": 7999.700000000001,
+    "fps": 45.37670162631098,
+    "p95FrameMs": 16.799999999999272
+  },
+  "finaleMs": 22002.5,
+  "parkedAfterRunMs": 14001.90000000596,
+  "activatedAfterRunMs": 14014.09999999404,
+  "beforeRun": {
+    "activations": 0,
+    "sceneRequested": false
+  },
+  "activationCount": 1,
+  "sceneRequested": true,
+  "mountedLayers": 1,
+  "forestState": "live",
+  "globeDraws": 0,
+  "handoverToFirstDrawMs": 108.59999999403954,
+  "loadMs": 2199.300000011921,
+  "activationsAfterHandover": 1
+}

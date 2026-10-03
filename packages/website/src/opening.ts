@@ -199,6 +199,7 @@ export function wireOpening() {
     lines(lead).replaceChildren(); append(lead, `~/shop $ ${OPENING_PROMPT}`, { kind: "is-cmd" });
     status(lead, "thinking"); powerOn(lead);
     THINK.forEach((line, i) => later(200 + i * 260, () => append(lead, line.replace("{P}", OPENING_PROMPT), { stream: true })));
+    let parked = 0;
     AGENTS.forEach((agent, i) => {
       const window = agents.querySelector<HTMLElement>(`[data-agent="${i}"]`)!;
       const spawn = 1800 + i * 900;
@@ -207,7 +208,10 @@ export function wireOpening() {
       later(spawn, () => { window.hidden = false; powerOn(window); status(window, "running"); count++; counter(); age(); sfx.blip(); });
       agent.l.forEach((line, j) => later(spawn + 500 + j * 650, () => append(window, line, { stream: true })));
       later(spawn + 3200, () => park(window, agent.d));
+      parked = spawn + 3200; // the last helper spawns last
     });
+    // Every helper now waits on the visitor and nothing streams until the finale: the page may do heavy work.
+    later(parked, () => window.dispatchEvent(new Event("storytree-opening-quiet")));
     later(15000, () => park(lead, "awaiting instructions"));
     later(16750, () => showFinale(FINALE));
   });

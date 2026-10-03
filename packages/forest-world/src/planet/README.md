@@ -8,7 +8,9 @@ Each island is centred before `forestDescriptors` builds it; its clipped coast t
 flat, pale, see-through surface with a coast band (`island-surface.ts`, ADR-0804 D1), bent onto the
 globe's sphere under a rigid tangent group. There is no ground colouring, no pines or plants, and so
 no kit to parse and no sun to calibrate. There is one orthographic canvas. Plates own and dispose
-their surface geometry. Drag orbits the camera; wheel/pinch zooms. Rendering runs on demand. The
+their surface geometry. Drag orbits the camera; wheel/pinch zooms. Rendering runs on demand, and only
+while some of the canvas is on screen (6.10, `paint-while-seen.ts`): off screen the frameloop stops,
+keeping the scene, camera and clock, so a host can mount the globe below the fold for free. The
 `kitBytes` prop is gone.
 
 `plateChildren(island, descriptors)` puts the page's names, selection and claim

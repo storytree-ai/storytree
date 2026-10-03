@@ -1,0 +1,13 @@
+{
+  "story": "The website",
+  "commit": "4afadaf63c4dd805afcc6bab786e867d1e83e00f",
+  "evidence": "packages/website/evidence/warm-globe/journeys",
+  "note": "Locally built website served from packages/website/dist",
+  "checks": [
+    {
+      "contract": "1.8",
+      "name": "Chapter 1 playback, exits, sound, storage and static fallbacks",
+      "observed": "pass"
+    }
+  ]
+}

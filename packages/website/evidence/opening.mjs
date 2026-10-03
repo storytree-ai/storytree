@@ -7,37 +7,57 @@ const run = page => page.getByRole("button", { name: "Run", exact: true });
 const better = page => page.getByRole("button", { name: "show me the better way" });
 const peak = ["AGENTS: 12 ▲", "WAITING ON YOU: 12", "ANSWERED: 00"];
 
-// Contract 2.3: measure real page frames with the globe below the fold, then prove its handover.
+// Contracts 2.3 and 2.10: measure real page frames with the globe below the fold, then prove its handover.
 // The caller launches SwiftShader explicitly; no virtual clock or hidden chapter changes the load.
 export async function verifyOpeningFrames(browser, url, output) {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   await page.addInitScript(() => {
-    window.openingFrames = { ready: [], playing: [] };
+    // Playing is Run to the finale: the swarm until every helper waits on the visitor, then the quiet before the finale.
+    window.openingFrames = { ready: [], playing: [], swarm: [], quiet: [] };
     window.globeDraws = 0;
     for (const kind of [WebGLRenderingContext, WebGL2RenderingContext]) {
       for (const method of ["drawArrays", "drawElements", "drawArraysInstanced", "drawElementsInstanced"]) {
         const draw = kind.prototype[method];
         if (!draw) continue;
         kind.prototype[method] = function (...args) {
-          if (this.canvas.closest("#website-forest")) window.globeDraws++;
+          if (this.canvas.closest("#website-forest")) {
+            window.globeDraws++;
+            if (window.handoverAt !== undefined) window.firstDrawAfterHandover ??= performance.now();
+          }
           return draw.apply(this, args);
         };
       }
     }
+    // When chapter 1 hands the screen to chapter 2: from here the globe should draw at once.
+    window.addEventListener("storytree-opening", event => { if (!event.detail.active && window.runAt) window.handoverAt ??= performance.now(); });
     let last;
     const frame = now => {
-      if (last !== undefined) window.openingFrames[window.runAt ? "playing" : "ready"].push(now - last);
+      if (last !== undefined) {
+        window.openingFrames[window.runAt ? "playing" : "ready"].push(now - last);
+        if (window.runAt && !window.finaleAt) window.openingFrames[window.parkedAt ? "quiet" : "swarm"].push(now - last);
+      }
       last = now;
       requestAnimationFrame(frame);
     };
     requestAnimationFrame(frame);
     document.addEventListener("click", event => {
-      if (event.target.id === "opening-run") { window.runAt = performance.now(); last = undefined; }
+      if (event.target.id !== "opening-run") return;
+      window.runAt = performance.now(); last = undefined;
+      window.beforeRun = {
+        activations: performance.getEntriesByName("forest-activate").length,
+        sceneRequested: performance.getEntriesByType("resource").some(entry => /forest-scene-[^/]*\.js$/.test(entry.name)),
+      };
     }, true);
     document.addEventListener("DOMContentLoaded", () => {
       new MutationObserver(() => {
         if (window.runAt && !document.getElementById("opening-better").hidden && !window.finaleAt) window.finaleAt = performance.now();
       }).observe(document.getElementById("opening-better"), { attributes: true, attributeFilter: ["hidden"] });
+      const agents = document.getElementById("opening-agents");
+      new MutationObserver(() => {
+        if (!window.runAt || window.parkedAt) return;
+        const helpers = [...agents.querySelectorAll(".opening-agent")];
+        if (helpers.length && helpers.every(helper => !helper.hidden && helper.classList.contains("is-parked"))) window.parkedAt = performance.now();
+      }).observe(agents, { subtree: true, attributes: true, attributeFilter: ["class", "hidden"] });
     });
   });
   try {
@@ -52,10 +72,15 @@ export async function verifyOpeningFrames(browser, url, output) {
         const elapsedMs = values.reduce((a, b) => a + b, 0);
         return { frames: values.length, elapsedMs, fps: values.length * 1000 / elapsedMs, p95FrameMs: sorted[Math.floor(sorted.length * .95)] };
       };
+      const activated = performance.getEntriesByName("forest-activate").at(0)?.startTime;
       return {
         viewport: [innerWidth, innerHeight], renderer: "SwiftShader",
         ready: summarize(window.openingFrames.ready), playing: summarize(window.openingFrames.playing),
+        swarm: summarize(window.openingFrames.swarm), quiet: summarize(window.openingFrames.quiet),
         finaleMs: window.finaleAt - window.runAt,
+        parkedAfterRunMs: window.parkedAt - window.runAt,
+        activatedAfterRunMs: activated === undefined ? null : activated - window.runAt,
+        beforeRun: window.beforeRun,
         activationCount: performance.getEntriesByName("forest-activate").length,
         sceneRequested: performance.getEntriesByType("resource").some(entry => /forest-scene-[^/]*\.js$/.test(entry.name)),
         mountedLayers: document.querySelectorAll("#website-forest .forest-canvas").length,
@@ -65,14 +90,22 @@ export async function verifyOpeningFrames(browser, url, output) {
     });
     await writeFile(path.join(output, "opening-frames.json"), JSON.stringify(measured, null, 2) + "\n");
     console.log(JSON.stringify(measured));
-    assert.equal(measured.activationCount, 0, "website 2.3: Chapter 1, including Run, never activates the off-screen globe");
-    assert.equal(measured.sceneRequested, false, "website 2.3: Chapter 1 does not request the 3D scene");
-    assert.equal(measured.mountedLayers, 0, "website 2.3: no globe mounts below Chapter 1");
-    assert.equal(measured.globeDraws, 0, "website 2.3: no globe draws below Chapter 1");
+    assert.deepEqual(measured.beforeRun, { activations: 0, sceneRequested: false }, "website 2.3: nothing about the globe starts or is requested before Run");
+    assert.equal(measured.activationCount, 1, "website 2.10: Run starts the globe while Chapter 1 plays");
+    assert.ok(measured.activatedAfterRunMs >= measured.parkedAfterRunMs, "website 2.10: the globe starts only once every helper waits on the visitor, so its setup stalls none of the swarm");
+    assert.equal(measured.mountedLayers, 1, "website 2.10: one globe is mounted below Chapter 1");
+    assert.equal(measured.forestState, "live", "website 2.10: the globe is live before the turn");
+    assert.equal(measured.globeDraws, 0, "website 2.10: the globe draws nothing while Chapter 1 plays");
     await better(page).click();
-    await page.waitForFunction(() => document.querySelector("#website-forest").dataset.forestState === "live", null, { timeout: 30000 });
-    measured.handoverLoadMs = await page.evaluate(() => performance.getEntriesByName("forest-ready").at(-1).startTime - performance.getEntriesByName("forest-activate").at(-1).startTime);
+    await page.waitForFunction(() => window.firstDrawAfterHandover !== undefined && document.querySelector("#website-forest").dataset.forestState === "live", null, { timeout: 30000 });
+    Object.assign(measured, await page.evaluate(() => ({
+      handoverToFirstDrawMs: window.firstDrawAfterHandover - window.handoverAt,
+      loadMs: performance.getEntriesByName("forest-ready").at(-1).startTime - performance.getEntriesByName("forest-activate").at(-1).startTime,
+      activationsAfterHandover: performance.getEntriesByName("forest-activate").length,
+    })));
     await writeFile(path.join(output, "opening-frames.json"), JSON.stringify(measured, null, 2) + "\n");
+    console.log(JSON.stringify({ handoverToFirstDrawMs: measured.handoverToFirstDrawMs, loadMs: measured.loadMs }));
+    assert.equal(measured.activationsAfterHandover, 1, "website 2.10: the turn lands on the globe Run started, with no second load");
     await page.waitForTimeout(3000); // Let the first camera flight arrive before its picture.
     await page.screenshot({ path: path.join(output, "handover-1440.png") });
     await page.getByRole("button", { name: "Replay chapter 1" }).click();
@@ -83,7 +116,7 @@ export async function verifyOpeningFrames(browser, url, output) {
     await page.reload();
     await page.waitForFunction(() => document.querySelector("#website-forest").dataset.forestState === "live", null, { timeout: 30000 });
   } finally { await page.close(); }
-  // Without IntersectionObserver the same Chapter 1 boundary still applies.
+  // Without IntersectionObserver the globe cannot tell it is off screen, so even Run leaves it until the handover.
   const fallback = await browser.newPage({ viewport: { width: 390, height: 844 } });
   let release;
   const held = new Promise(resolve => { release = resolve; });
@@ -93,9 +126,9 @@ export async function verifyOpeningFrames(browser, url, output) {
     await fallback.addInitScript(() => { delete window.IntersectionObserver; });
     await fallback.route(/forest-scene-[^/]*\.js$/, async route => { requested(); await held; await route.continue(); });
     await fallback.goto(url);
-    await run(fallback).waitFor();
+    await run(fallback).click();
     await fallback.waitForTimeout(1500);
-    assert.equal(await fallback.locator("#website-forest .forest-canvas").count(), 0);
+    assert.equal(await fallback.locator("#website-forest .forest-canvas").count(), 0, "website 2.10: without IntersectionObserver, Run does not start a globe that could not pause");
     await fallback.getByRole("button", { name: "skip intro" }).click();
     await request;
     await fallback.getByRole("button", { name: "Replay chapter 1" }).click();
@@ -107,7 +140,7 @@ export async function verifyOpeningFrames(browser, url, output) {
     await fallback.waitForTimeout(3000);
     await fallback.screenshot({ path: path.join(output, "handover-390.png") });
   } finally { release(); await fallback.close(); }
-  console.log("PASS contract 2.3: no Chapter 1 globe, handover, replay, scroll, return and no-observer fallback");
+  console.log("PASS contracts 2.3 and 2.10: nothing before Run, a warm globe drawing nothing in Chapter 1, live handover, replay, scroll, return and no-observer fallback");
 }
 
 // ADR-0879 D6: nothing may overflow sideways and no window may cover the HUD row, at any size or zoom.

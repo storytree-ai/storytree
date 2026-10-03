@@ -1,0 +1,13 @@
+{
+  "story": "The website",
+  "commit": "4afadaf63c4dd805afcc6bab786e867d1e83e00f",
+  "evidence": "packages/website/evidence/warm-globe/after",
+  "note": "Locally built website served from packages/website/dist, SwiftShader",
+  "checks": [
+    {
+      "contract": "2.10",
+      "name": "After Run the turn lands on a live globe that drew nothing in chapter 1",
+      "observed": "pass"
+    }
+  ]
+}

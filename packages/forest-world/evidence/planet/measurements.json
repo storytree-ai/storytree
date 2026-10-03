@@ -1,0 +1,158 @@
+{
+  "capturedAt": "2026-10-03T07:19:16.187Z",
+  "browser": "148.0.7778.96",
+  "renderer": "SwiftShader",
+  "viewport": [
+    960,
+    720
+  ],
+  "framesWhileMountedBelowTheFold": 0,
+  "framesWhileScrolledAway": 0,
+  "scrolledAwayMs": 2016,
+  "framesWhileTouchingTheFold": 0,
+  "touchingMs": 1516,
+  "framesWithoutIntersectionObserverBelowTheFold": 113,
+  "clockAcrossThePause": {
+    "clockSeconds": 2.236199999988079,
+    "pageSeconds": 2.2367999999523165
+  },
+  "phases": {
+    "mounted": {
+      "created": true,
+      "draws": 0,
+      "frameloop": "never",
+      "clock": 0,
+      "at": 2248.2000000476837,
+      "camera": {
+        "zoom": 1.1662260923651064,
+        "position": [
+          0,
+          667.9907543997489,
+          560.5107956466624
+        ]
+      },
+      "plates": 4,
+      "top": 1080
+    },
+    "shown": {
+      "created": true,
+      "draws": 12,
+      "frameloop": "demand",
+      "clock": 0.24070000004768372,
+      "at": 2498.7000000476837,
+      "camera": {
+        "zoom": 1.1662260923651064,
+        "position": [
+          0,
+          667.9907543997489,
+          560.5107956466624
+        ]
+      },
+      "plates": 4,
+      "top": 60
+    },
+    "away": {
+      "created": true,
+      "draws": 13,
+      "frameloop": "never",
+      "clock": 0.7560000000596047,
+      "at": 3014.2000000476837,
+      "camera": {
+        "zoom": 1.1662260923651064,
+        "position": [
+          0,
+          667.9907543997489,
+          560.5107956466624
+        ]
+      },
+      "plates": 4,
+      "top": 1080
+    },
+    "stillAway": {
+      "created": true,
+      "draws": 13,
+      "frameloop": "never",
+      "clock": 2.7723000000119207,
+      "at": 5030.5,
+      "camera": {
+        "zoom": 1.1662260923651064,
+        "position": [
+          0,
+          667.9907543997489,
+          560.5107956466624
+        ]
+      },
+      "plates": 4,
+      "top": 1080
+    },
+    "back": {
+      "created": true,
+      "draws": 18,
+      "frameloop": "demand",
+      "clock": 2.9922000000476836,
+      "at": 5251,
+      "camera": {
+        "zoom": 1.1662260923651064,
+        "position": [
+          0,
+          667.9907543997489,
+          560.5107956466624
+        ]
+      },
+      "plates": 4,
+      "top": 60
+    },
+    "edge": {
+      "created": true,
+      "draws": 310,
+      "frameloop": "never",
+      "clock": 16.70120000004767,
+      "at": 18960.5,
+      "camera": {
+        "zoom": 1.1662260923651064,
+        "position": [
+          0,
+          667.9907543997489,
+          560.5107956466624
+        ]
+      },
+      "plates": 4,
+      "top": 720
+    },
+    "edgeLater": {
+      "created": true,
+      "draws": 310,
+      "frameloop": "never",
+      "clock": 18.216900000095354,
+      "at": 20476.200000047684,
+      "camera": {
+        "zoom": 1.1662260923651064,
+        "position": [
+          0,
+          667.9907543997489,
+          560.5107956466624
+        ]
+      },
+      "plates": 4,
+      "top": 720
+    },
+    "blind": {
+      "created": true,
+      "draws": 113,
+      "frameloop": "demand",
+      "clock": 1.9898000000119191,
+      "at": 2503.5,
+      "camera": {
+        "zoom": 1.1662260923651064,
+        "position": [
+          0,
+          667.9907543997489,
+          560.5107956466624
+        ]
+      },
+      "plates": 4,
+      "top": 1080
+    }
+  },
+  "errors": []
+}

@@ -32,24 +32,36 @@ async function chapter2(viewport, firstVisit = false) {
   return page;
 }
 const step = (page, index) => page.locator(`#tour-pips [data-go="${index}"]`).click();
+const shot = (page, tag, name) => page.screenshot({ path: path.join(here, `${tag}-${name}.png`) });
+const at = (index, wait, name) => async (page, tag) => { await step(page, index); await page.waitForTimeout(wait); await shot(page, tag, name); };
 const shots = {
-  async opening(page, tag) { await page.waitForTimeout(3500); await page.screenshot({ path: path.join(here, `${tag}-1-opening.png`) }); },
-  async principles(page, tag) { await step(page, 1); await page.waitForTimeout(9000); await page.screenshot({ path: path.join(here, `${tag}-2-principles.png`) }); },
-  async story(page, tag) { await step(page, 2); await page.waitForTimeout(6500); await page.screenshot({ path: path.join(here, `${tag}-3-story.png`) }); },
-  async roads(page, tag) { await step(page, 4); await page.waitForTimeout(6000); await page.screenshot({ path: path.join(here, `${tag}-4-roads.png`) }); },
-  async health(page, tag) { await step(page, 9); await page.waitForTimeout(3500); await page.locator("#tour-depth").click(); await page.waitForTimeout(800); await page.screenshot({ path: path.join(here, `${tag}-5-health-depth.png`) }); },
-  async compare(page, tag) { await step(page, 10); await page.waitForTimeout(15000); await page.screenshot({ path: path.join(here, `${tag}-6-compare.png`) }); },
-  async knowledge(page, tag) { await step(page, 11); await page.waitForTimeout(9000); await page.screenshot({ path: path.join(here, `${tag}-7-knowledge.png`) }); },
-  async sessions(page, tag) { await step(page, 16); await page.waitForTimeout(9000); await page.screenshot({ path: path.join(here, `${tag}-8-sessions.png`) }); },
+  async opening(page, tag) { await page.waitForTimeout(3500); await shot(page, tag, "1-opening"); },
+  principles: at(1, 9000, "2-principles"),
+  async grow(page, tag) { await step(page, 2); await page.waitForTimeout(3500); await shot(page, tag, "3a-grow-empty"); await page.waitForTimeout(10000); await shot(page, tag, "3b-grow-stories"); },
+  story: at(3, 6500, "4-story"),
+  roads: at(4, 6000, "5-roads"),
+  contracts: at(7, 9000, "6-contracts"),
+  conduitHealth: at(8, 13000, "7-conduit-health"),
+  compare: at(9, 15000, "8-compare"),
+  claim: at(10, 9000, "9-claim"),
+  landing: at(11, 14000, "10-landing"),
+  close: at(12, 9000, "11-close"),
+  arcsPlan: at(14, 13000, "12-arcs-plan"),
+  arcsGrow: at(15, 9000, "13-arcs-grow"),
+  arcsLanded: at(16, 13000, "14-arcs-landed"),
+  ret: at(18, 6000, "15-return"),
+  async health(page, tag) { await step(page, 20); await page.waitForTimeout(3500); await page.locator("#tour-depth").click(); await page.waitForTimeout(800); await shot(page, tag, "16-health-depth"); },
+  questions: at(21, 9000, "17-questions"),
+  knowledge: at(22, 9000, "18-knowledge"),
+  reads: at(25, 9000, "19-reads"),
   async exploring(page, tag) {
-    await step(page, 2); await page.waitForTimeout(3000);
+    await step(page, 3); await page.waitForTimeout(3000);
     const box = await page.locator("#website-forest canvas").boundingBox();
     await page.mouse.move(box.x + box.width * .6, box.y + box.height * .5); await page.mouse.down();
     await page.mouse.move(box.x + box.width * .75, box.y + box.height * .55, { steps: 8 }); await page.mouse.up();
-    await page.waitForTimeout(600); await page.screenshot({ path: path.join(here, `${tag}-9-exploring.png`) });
+    await page.waitForTimeout(600); await shot(page, tag, "20-exploring");
   },
-  async questions(page, tag) { await step(page, 21); await page.waitForTimeout(9000); await page.screenshot({ path: path.join(here, `${tag}-10-questions.png`) }); },
-  async everything(page, tag) { await step(page, 23); await page.waitForTimeout(7000); await page.screenshot({ path: path.join(here, `${tag}-11-everything.png`) }); },
+  everything: at(27, 7000, "21-everything"),
   async handoff(page, tag) {
     // A first-time visitor: chapter 1 to its finale, then the turn into chapter 2's first view.
     await page.goto(url); await page.locator("#opening-run").click();
@@ -59,7 +71,7 @@ const shots = {
     await page.waitForTimeout(1600); await page.screenshot({ path: path.join(here, `${tag}-0b-turn.png`) });
     await page.waitForTimeout(1800); await page.screenshot({ path: path.join(here, `${tag}-0c-arrival.png`) });
   },
-  async freeplay(page, tag) { await page.locator("#tour-skip").click(); await page.waitForTimeout(2500); await page.screenshot({ path: path.join(here, `${tag}-12-freeplay.png`) }); },
+  async freeplay(page, tag) { await page.locator("#tour-skip").click(); await page.waitForTimeout(2500); await shot(page, tag, "22-freeplay"); },
 };
 try {
   for (const [tag, viewport] of [["1440", { width: 1440, height: 900 }], ["390", { width: 390, height: 844 }]]) {

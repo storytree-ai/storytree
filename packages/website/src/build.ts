@@ -3,8 +3,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 import { openingMarkup } from "./opening-markup.js";
-import { fill, tourCounts } from "./tour-counts.js";
-import type { TourSnapshot } from "./forest-data.js";
+import { fill, growthCounts, tourCounts } from "./tour-counts.js";
+import type { GrowthSnapshot, TourSnapshot } from "./forest-data.js";
 
 const packageRoot = fileURLToPath(new URL("..", import.meta.url));
 
@@ -42,7 +42,8 @@ export async function buildWebsite(output = path.join(packageRoot, "dist"), opti
     .filter(([, asset]) => asset.entryPoint)
     .map(([name, asset]) => [path.basename(asset.entryPoint!, path.extname(asset.entryPoint!)), `/assets/${path.basename(name)}`]));
   // The tour's numbers come from the saved reading the page draws, so the words never outrun the data.
-  const counts = tourCounts(JSON.parse(await readFile(path.join(packageRoot, "src", "forest-snapshot.json"), "utf8")) as TourSnapshot);
+  const counts = { ...tourCounts(JSON.parse(await readFile(path.join(packageRoot, "src", "forest-snapshot.json"), "utf8")) as TourSnapshot),
+    ...growthCounts(JSON.parse(await readFile(path.join(packageRoot, "src", "conduit-snapshot.json"), "utf8")) as GrowthSnapshot) };
   const countsScript = `<script type="application/json" id="tour-counts">${JSON.stringify(counts).replaceAll("<", "\\u003c")}</script>`;
   for (const page of ["index.html", "waitlist.html", "404.html"]) {
     const template = fill(await readFile(path.join(packageRoot, "src", page), "utf8"), counts);

@@ -1,4 +1,4 @@
-import type { TourSnapshot } from "./forest-data.js";
+import type { GrowthSnapshot, TourSnapshot } from "./forest-data.js";
 
 const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const day = (at: Date) => `${at.getUTCDate()} ${months[at.getUTCMonth()]} ${at.getUTCFullYear()}`;
@@ -25,6 +25,12 @@ export function tourCounts(snapshot: Pick<TourSnapshot, "capturedAt" | "tree" | 
     recording: `${day(from)}, ${time(from)} to ${time(to)} UTC`,
     saved: day(new Date(snapshot.capturedAt)),
   };
+}
+
+/** Conduit's growth's own dates, for the words shown over its globe. */
+export function growthCounts(growth: Pick<GrowthSnapshot, "window">): Record<string, string> {
+  const from = new Date(growth.window.from), to = new Date(growth.window.to);
+  return { conduitRecording: `${day(from)}, ${time(from)} to ${day(to)}, ${time(to)} UTC` };
 }
 
 /** Fill each {name} the counts know; an unknown name stays as written, so a gap shows instead of a guess. */

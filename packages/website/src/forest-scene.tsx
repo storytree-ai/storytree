@@ -8,15 +8,21 @@ import { mountArcSurface } from "@storytree/arc-surface/view";
 import { knowledge } from "@storytree/knowledge-core";
 import { createKnowledgeCore, KnowledgeNoteCard, type KnowledgeCore } from "@storytree/knowledge-core/view";
 import saved from "./forest-snapshot.json" with { type: "json" };
-import type { TourSnapshot } from "./forest-data.js";
-import type { Hold, Tag, TourDetail, TourStep } from "./tour.js";
+import grown from "./conduit-snapshot.json" with { type: "json" };
+import type { GrowthSnapshot, TourSnapshot } from "./forest-data.js";
+import { globeOf, type Hold, type Tag, type TourDetail, type TourStep } from "./tour.js";
 import { savedReading } from "./tour-reading.js";
 
 const snapshot = saved as unknown as TourSnapshot;
 const places = new Map(snapshot.places.map(place => [place.id, place.place]));
+/** Conduit's saved growth (ADR-0879 D7): each stage drawn within its full plan, so islands keep their spots as it grows. */
+const conduit = grown as unknown as GrowthSnapshot;
+const conduitPlaces = new Map(conduit.places.map(place => [place.id, place.place]));
+const stages = new Map(conduit.stages.map(stage => [stage.id, stage]));
+type GlobeMap = "storytree" | "conduit";
 const notes = [...knowledge(snapshot.changes).notes.values()];
 const complete: GlobeSurfaces = { sea: true, grounds: true, roads: true, nameplates: true, territories: "health", fileCircles: true, knowledgeCore: true, sessionTints: true };
-const overview: GlobeTarget = { kind: "story", story: "story_deee4230348c" };
+const overviews: Record<GlobeMap, GlobeTarget> = { storytree: { kind: "story", story: "story_deee4230348c" }, conduit: { kind: "core" } };
 /** The globe at rest fills most of the short side (ADR-0877 D2). */
 const restingFraming = 1.1;
 type Recording = ReturnType<typeof savedReading>;
@@ -32,7 +38,8 @@ const reader = (() => {
   return [...reads].sort((a, b) => b[1] - a[1])[0]?.[0];
 })();
 /** Overview steps drift round the islands in their places' order, one leg at a time. */
-const driftOrder = [...snapshot.places].sort((a, b) => a.place - b.place).map(place => place.id);
+const order = (nodes: readonly { id: string; place: number }[]) => [...nodes].sort((a, b) => a.place - b.place).map(place => place.id);
+const driftOrders: Record<GlobeMap, string[]> = { storytree: order(snapshot.places), conduit: order(conduit.places) };
 
 /** A lost graphics context leaves the saved picture and the readable app surfaces available. */
 class GlobeBoundary extends Component<{ children: ReactNode; failed(): void }, { failed: boolean }> {
@@ -139,10 +146,14 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   const [browserOpen, setBrowserOpen] = useState(false);
   const [width, setWidth] = useState(window.innerWidth);
   const [arrived, setArrived] = useState(false);
+  // The globe on show lags the step's while the camera pulls back to swap one project's globe for the other.
+  const [shownMap, setShownMap] = useState<GlobeMap>("storytree");
+  const shownMapNow = useRef<GlobeMap>("storytree");
+  shownMapNow.current = shownMap;
   useEffect(() => { const resize = () => setWidth(window.innerWidth); window.addEventListener("resize", resize); return () => window.removeEventListener("resize", resize); }, []);
   const [progress, setProgress] = useState(recording.progress);
   const [openingActive, setOpeningActive] = useState(() => document.getElementById("opening")?.hidden === false);
-  const camera = useRef<{ target?: GlobeTarget; framing: number; entered: boolean; flight: number[]; drift: number[] }>({ framing: restingFraming, entered: false, flight: [], drift: [] });
+  const camera = useRef<{ target?: GlobeTarget; framing: number; entered: boolean; flight: number[]; drift: number[]; missed?: boolean }>({ framing: restingFraming, entered: false, flight: [], drift: [] });
   const previous = useRef<TourDetail | undefined>(undefined);
   const latest = useRef<TourDetail | undefined>(undefined);
   latest.current = tour;
@@ -162,6 +173,8 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
     return shown;
   }, [step, state?.lines, free, everything]);
   const sideOffset = offsetFor(touring && !everything ? step : undefined, width);
+  const globe = step && state ? globeOf(step, state) : { map: "storytree" as const };
+  const stage = shownMap === "conduit" ? stages.get(globe.map === "conduit" ? globe.stage : "complete") ?? stages.get("complete")! : undefined;
 
   // Touching the globe hands it to the visitor: the tour waits, and says so (ADR-0879 D3).
   const explore = useCallback(() => { if (touring) { controls?.cancel(); clearFlight(); clearDrift(); hold("exploring"); } }, [touring, controls]);
@@ -193,7 +206,7 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   useEffect(() => {
     if (!tour) return;
     const before = recordingAt.current;
-    const inSessions = !free && step?.explainer === "sessions";
+    const inSessions = !free && step?.panel === "sessions";
     const wasInSessions = before?.inSessions === true && before.generation === state!.generation;
     recordingAt.current = { inSessions, generation: state!.generation };
     if (inSessions && !wasInSessions) replay();
@@ -239,7 +252,7 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
     // A phone has no room for the app’s story panel beside the card: the step says it in words instead.
     if (requestedPanel === "story" && window.innerWidth > 600) { setStory(ownerOf(step!.target)); setCapability(step!.target?.kind === "capability" ? step!.target.capability : undefined); }
     else { setStory(undefined); setCapability(undefined); }
-    if (step?.id === "sessions-reads" && reader) core.select(reader);
+    if (step?.id === "knowledge-reads" && reader) core.select(reader);
   };
   useEffect(openStepSurfaces, [step?.id, state?.generation, free, everything]);
   // Resuming after exploring closes what the visitor opened and puts the step's own surfaces back.
@@ -254,13 +267,17 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
     if (!tour || !controls || free || !step || openingActive) return;
     const before = previous.current;
     previous.current = tour;
-    if (exploringNow || everything) { clearDrift(); return; }
+    if (exploringNow || everything) { clearDrift(); if (everything && shownMapNow.current !== "storytree") setShownMap("storytree"); return; }
     const moved = !before || before.state.index !== state!.index || before.state.generation !== state!.generation || before.state.freePlay
       || before.state.holds.includes("exploring") || before.state.holds.includes("everything") || !camera.current.entered;
+    const map = globe.map, overview = overviews[map], driftOrder = driftOrders[map];
     const target = step.target ?? overview, framing = step.framing ?? restingFraming;
     const speed = state!.speed, still = reduced();
     const go = (stop: { target: GlobeTarget; framing: number; duration: number }) => {
-      if (!controls.stop({ ...stop, sideOffset }) && stop.target.kind !== "story") controls.stop({ ...stop, target: overview, sideOffset });
+      const reached = controls.stop({ ...stop, sideOffset });
+      // A Conduit island not grown yet at this stage: the camera waits where it is, and flies in once it appears.
+      if (stop.target === target) camera.current.missed = !reached;
+      if (!reached && stop.target.kind !== "story") controls.stop({ ...stop, target: overview, sideOffset });
     };
     const after = (timers: number[], ms: number, run: () => void) => { timers.push(window.setTimeout(run, ms)); };
     const drift = (from: number) => {
@@ -282,8 +299,18 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
     camera.current.entered = true;
     const from = { ...camera.current };
     let arrive = 0;
-    if (still) go({ target, framing, duration: 0 });
-    else if (first) {
+    const switching = map !== shownMapNow.current;
+    if (switching && (still || first)) setShownMap(map);
+    if (still) after(camera.current.flight, switching ? 60 : 0, () => go({ target, framing, duration: 0 }));
+    else if (switching && !first) {
+      // One project's globe for the other (ADR-0879 D7): pull back until the globe is small, swap it there, and dive into the new one.
+      const wide = Math.max(from.framing, framing, 1) * 2.4;
+      go({ target: from.target ?? overviews[shownMapNow.current], framing: wide, duration: 900 / speed });
+      after(camera.current.flight, 900 / speed, () => setShownMap(map));
+      after(camera.current.flight, 960 / speed, () => go({ target: overview, framing: wide, duration: 0 }));
+      after(camera.current.flight, 1020 / speed, () => go({ target, framing, duration: 1500 / speed }));
+      arrive = 2520 / speed;
+    } else if (first) {
       // Chapter 2's first view grows in from far away, out of the point chapter 1 ends on.
       // The far pose lands first (one beat), so the flight in starts from it rather than from a stale zoom.
       go({ target, framing: framing * 7, duration: 0 });
@@ -297,15 +324,28 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
     } else go({ target, framing, duration: arrive = 1800 / speed });
     after(camera.current.flight, arrive, () => { setArrived(true); if (latest.current?.running) drift(next()); });
     camera.current.target = target; camera.current.framing = framing;
-  }, [controls, tour, sideOffset, openingActive]);
+  }, [controls, tour, sideOffset, openingActive, globe.map]);
+  // A stage that grows the step's island lets the camera fly in to it.
+  useEffect(() => {
+    if (!controls || !step?.target || !camera.current.missed || exploringNow || everything) return;
+    const frame = requestAnimationFrame(() => {
+      if (camera.current.missed && controls.stop({ target: step.target!, framing: step.framing ?? restingFraming, duration: reduced() ? 0 : 1600 / (state?.speed ?? 1), sideOffset })) camera.current.missed = false;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [stage?.id]);
+  // Free play is storytree's own globe.
+  useEffect(() => { if (free && shownMap !== "storytree") setShownMap("storytree"); }, [free, shownMap]);
   useEffect(() => () => { clearFlight(); clearDrift(); }, []);
 
   const shownNotes = notes.filter(item => String(item.fields.title ?? "").toLowerCase().includes(query.toLowerCase()));
   const selected = story ?? (touring && !everything ? step?.select : undefined);
+  const onStorytree = shownMap === "storytree";
   return <>
     {webgl && <GlobeBoundary failed={failed}>
-      <div className="forest-drawing" role="group" aria-label="Storytree’s saved project globe" onPointerDown={explore} onWheel={explore}>
-        <PlanetView core={core} scene={snapshot.scene} places={places} wisps={wisps} selected={selected}
+      <div className="forest-drawing" role="group" aria-label={onStorytree ? "Storytree’s saved project globe" : `Conduit’s saved globe, as it stood ${stage!.at.slice(0, 16).replace("T", " ")} UTC`}
+        data-globe={shownMap} data-stage={stage?.id} data-islands={(stage?.scene ?? snapshot.scene).islands.length} onPointerDown={explore} onWheel={explore}>
+        <PlanetView core={core} scene={stage?.scene ?? snapshot.scene} places={onStorytree ? places : conduitPlaces} frame={onStorytree ? undefined : conduit.scene}
+          wisps={stage?.wisps ?? wisps} selected={selected}
           highlighted={highlight.stories} highlightedSession={highlight.session} onPick={pickStory} onNote={pickNote}
           onWispHover={() => {}} onControls={onControls} surfaces={surfaces} framing={restingFraming} sideOffset={offsetFor(undefined, width)} mode={mode} />
       </div>
@@ -340,7 +380,7 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
           {shownNotes.length === 0 && <p>No saved notes match that search.</p>}
         </div>
       </div>
-      {story && <StoryDetails story={story} capability={capability} choose={pickCapability} close={closeStory} />}
+      {story && onStorytree && snapshot.tree.stories.some(item => item.id === story) && <StoryDetails story={story} capability={capability} choose={pickCapability} close={closeStory} />}
       {note && <div className="story-panel" onKeyDown={event => { if (event.key === "Escape") { event.preventDefault(); closeNote(); } }}><KnowledgeNoteCard core={core} onClose={closeNote} /></div>}
       <div className="tour-session-surface" hidden={!free && requestedPanel !== "sessions"}>
         <Sessions recording={recording} core={core} onWisps={setWisps} onHighlight={onHighlight} onPick={explore} />

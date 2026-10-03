@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { createTour, groups, readingTime, settle, type TourStep } from "./tour.js";
+import { createTour, globeOf, groups, readingTime, settle, type TourStep } from "./tour.js";
 
 const step = (id: string, explainer: TourStep["explainer"], lines = ["One two three four five six seven eight nine ten"]): TourStep => ({
   id, title: id, explainer, lines, decisions: [], surfaces: {},
@@ -86,4 +86,22 @@ test("2.8 · the pips group steps by explainer, the current one fills as it play
   assert.equal(tour.state.lines, 1);
   assert.equal(tour.progress(), 0);
   tour.tick(whole(steps[2]!)); assert.equal(tour.state.index, 3);
+});
+
+test("2.9 · Conduit's globe grows a stage at a time as a step's lines arrive; everything shown and free play return to storytree's", () => {
+  const growing: TourStep[] = [step("opening", "opening"),
+    { ...step("grow", "stories", ["Storytree breaks up your codebase into stories.", "Two", "Three"]), map: "conduit", stage: "empty", lineStages: { 3: "stories" } },
+    step("scale", "scale")];
+  const tour = createTour(growing);
+  assert.deepEqual(globeOf(growing[tour.state.index]!, tour.state), { map: "storytree" });
+  tour.next();
+  assert.deepEqual(globeOf(growing[1]!, tour.state), { map: "conduit", stage: "empty" });
+  tour.tick(readingTime("Storytree breaks up your codebase into stories.") + readingTime("Two"));
+  assert.deepEqual(globeOf(growing[1]!, tour.state), { map: "conduit", stage: "stories" });
+  tour.hold("everything");
+  assert.deepEqual(globeOf(growing[1]!, tour.state), { map: "storytree" });
+  tour.release("everything"); tour.next();
+  assert.deepEqual(globeOf(growing[2]!, tour.state), { map: "storytree" });
+  tour.skip();
+  assert.deepEqual(globeOf(growing[1]!, tour.state), { map: "storytree" });
 });

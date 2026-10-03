@@ -1,7 +1,8 @@
 import type { GlobeSurfaces, GlobeTarget } from "@storytree/forest/view";
 
 export type Explainer = "stories" | "capabilities" | "knowledge" | "sessions" | "arcs";
-export type Group = "opening" | Explainer | "ending";
+/** "scale" is the return to storytree's own globe for what Conduit cannot show (ADR-0879 D7). */
+export type Group = "opening" | Explainer | "scale" | "ending";
 /** Why the tour is waiting: the visitor's pause, a step's depth being read, every surface shown, or the globe being explored. */
 export type Hold = "paused" | "reading" | "everything" | "exploring";
 export type Decision = { number: number; title: string };
@@ -19,6 +20,10 @@ export type TourStep = {
   surfaces: Partial<GlobeSurfaces>;
   /** From the given line (1-based) on, these surfaces replace the step's own. */
   lineSurfaces?: Record<number, Partial<GlobeSurfaces>>;
+  /** The globe a step shows: storytree's own (the default), or Conduit's at one of its saved growth stages (ADR-0879 D7). */
+  map?: "conduit"; stage?: string;
+  /** From the given line (1-based) on, Conduit's globe shows this later stage: it grows as the step is read. */
+  lineStages?: Record<number, string>;
   target?: GlobeTarget; framing?: number; drift?: boolean;
   /** A story selected so its dependency lanes draw on. */
   select?: string;
@@ -96,4 +101,12 @@ export function createTour(steps: readonly TourStep[]) {
     setSpeed(speed: .75 | 1 | 1.5) { return update({ speed }); },
   };
   return tour;
+}
+
+/** The globe on show for `step` in `state` (ADR-0879 D7): Conduit's at the stage its arrived lines have reached, else storytree's. */
+export function globeOf(step: TourStep, state: TourState): { map: "storytree" } | { map: "conduit"; stage: string } {
+  if (step.map !== "conduit" || state.freePlay || state.holds.includes("everything")) return { map: "storytree" };
+  let stage = step.stage ?? "complete";
+  for (const [from, next] of Object.entries(step.lineStages ?? {})) if (state.lines >= Number(from)) stage = next;
+  return { map: "conduit", stage };
 }

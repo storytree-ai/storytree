@@ -61,3 +61,15 @@ test("1.7 a change on one island keeps every unmoved island's spot as it was, so
   const same = planetLayout(forestScene(tree, [], workStates([])), places, before);
   assert.equal(same.spots, before.spots, "nothing moved: the same spots");
 });
+
+test("3.28 a plan still growing, framed by its full plan, keeps every island where the full plan puts it and the full plan's radius", () => {
+  const full = forestScene(tree, [], workStates([]));
+  // Three of the eight stories, the last of them alone in the row above: the frame still holds two rows.
+  const growing = forestScene({ ...tree, stories: tree.stories.filter((_, i) => i < 2 || i === 7) }, [], workStates([]));
+  const whole = planetLayout(full, places);
+  const framed = planetLayout(growing, places, undefined, full);
+  assert.equal(framed.radius, whole.radius);
+  assert.deepEqual([...framed.spots.keys()], [ids[0], ids[1], ids[7]], "only the growing plan's islands are drawn");
+  for (const [story, spot] of framed.spots) assert.deepEqual(spot, whole.spots.get(story), `${story} sits where the full plan puts it`);
+  assert.notDeepEqual(planetLayout(growing, places).spots.get(ids[0]!), whole.spots.get(ids[0]!), "unframed, the growing plan would sit elsewhere");
+});

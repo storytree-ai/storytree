@@ -24,7 +24,7 @@ export async function verifyTourCamera(browser, url) {
     await page.goto(url);
     await page.waitForFunction(() => document.querySelector("#website-forest").dataset.forestState === "live");
     await page.waitForTimeout(3500);
-    await page.locator('#tour-pips [data-go="6"]').click();
+    await goToStep(page, "scale-territories");
     await page.waitForTimeout(3000);
     await page.locator("#tour-play").click();
     const destination = await positions();
@@ -42,9 +42,24 @@ export async function verifyTourCamera(browser, url) {
     await page.locator("#tour-play").click();
     const resumed = await positions();
     if (distance(destination, resumed) > 5) failures.push(`Play left the camera ${Math.round(distance(destination, resumed))} pixels from the step's view`);
-    if (await stepOf(page) !== "capabilities-territories") failures.push(`Play restarted or moved the step: ${await stepOf(page)}`);
+    if (await stepOf(page) !== "scale-territories") failures.push(`Play restarted or moved the step: ${await stepOf(page)}`);
+    // 2.9: after the opening, Conduit's globe grows a stage at a time as the lines arrive; the steps at scale and free play are storytree's.
+    const globe = () => page.locator(".forest-drawing").evaluate(node => ({ map: node.dataset.globe, stage: node.dataset.stage, islands: Number(node.dataset.islands) }));
+    if (await page.locator("#tour-play").getAttribute("aria-label") === "Play the tour") await page.locator("#tour-play").click();
+    await goToStep(page, "stories-grow");
+    await page.waitForTimeout(1600);
+    const empty = await globe();
+    if (empty.map !== "conduit" || empty.islands !== 0) failures.push(`Conduit's globe opens empty: ${JSON.stringify(empty)}`);
+    await page.waitForTimeout(13000);
+    const five = await globe();
+    if (five.stage !== "stories" || five.islands !== 5) failures.push(`Its five stories appear as the step is read: ${JSON.stringify(five)}`);
+    await goToStep(page, "arcs-grow"); await page.waitForTimeout(2000);
+    if ((await globe()).islands !== 12) failures.push(`The backend arc grows it to twelve islands: ${JSON.stringify(await globe())}`);
+    await goToStep(page, "scale-files"); await page.waitForTimeout(2500);
+    if ((await globe()).map !== "storytree") failures.push("The steps at scale return to storytree's globe");
     assert.deepEqual(failures, []);
   } finally { await page.close(); }
+  console.log("PASS contract 2.9: Conduit's globe grows as the tour reads it, then storytree's returns");
   console.log("PASS contracts 2.4 and 2.7: exploring holds the tour and says so; Play flies back to the step's view");
 }
 
@@ -64,19 +79,19 @@ export async function verifyTour(browser, url, output) {
   const pips = await page.locator("#tour-pips [data-go]").count();
   assert.ok(pips >= 20, `one pip per step (${pips})`);
   assert.deepEqual(await page.locator("#tour-pips .tb-group").evaluateAll(groups => groups.map(group => group.dataset.group)),
-    ["opening", "stories", "capabilities", "knowledge", "sessions", "arcs", "ending"]);
-  await page.locator('#tour-pips [data-go="2"]').click();
+    ["opening", "stories", "capabilities", "sessions", "arcs", "scale", "knowledge", "ending"]);
+  await page.locator('#tour-pips [data-go="3"]').click();
   assert.equal(await stepOf(page), "stories-island");
-  assert.equal(await page.locator('#tour-pips [data-go="2"]').getAttribute("aria-current"), "step");
+  assert.equal(await page.locator('#tour-pips [data-go="3"]').getAttribute("aria-current"), "step");
   // 2.4: the lines arrive at a readable pace; pause holds them; a faster speed brings the next sooner.
   assert.equal(await shown(), 1);
   await page.locator("#tour-play").click();
   assert.equal(await holds(page), "Paused");
   await page.clock.runFor(15000); assert.equal(await stepOf(page), "stories-island", "Pause holds the step");
   await page.locator("#tour-play").click();
-  // A waiting step shows all its lines, so the pace is timed on a fresh step: its first line (13 words) reads for 5 s at 1×.
+  // A waiting step shows all its lines, so the pace is timed on a fresh step: its first line (9 words) reads for 3.5 s at 1×.
   await page.locator("#tour-speed-cycle").click(); assert.equal(await page.locator("#tour-speed-cycle").textContent(), "1.5×");
-  await goToStep(page, "stories-globe"); assert.equal(await shown(), 1);
+  await goToStep(page, "stories-roads"); assert.equal(await shown(), 1);
   await page.clock.runFor(3500); assert.equal(await shown(), 2, "1.5× brings the next line in two thirds of the time");
   await goToStep(page, "stories-island");
   // 2.4, 2.7: depth holds the tour, says why, and Escape returns to the button; play continues the same step.
@@ -94,7 +109,7 @@ export async function verifyTour(browser, url, output) {
   assert.equal(await page.locator("#tour-everything").getAttribute("aria-checked"), "false");
   assert.equal(await stepOf(page), "stories-island", "Play continues the step it stopped in");
   await page.locator("#tour-next").focus(); await page.keyboard.press("Enter");
-  assert.equal(await stepOf(page), "stories-globe");
+  assert.equal(await stepOf(page), "stories-roads");
   // 2.5: every explainer reaches its dated, sourced comparison.
   for (const subject of ["stories", "capabilities", "knowledge", "sessions", "arcs"]) {
     await goToStep(page, `${subject}-compare`);
@@ -106,7 +121,7 @@ export async function verifyTour(browser, url, output) {
     await page.locator("#tour-depth").click();
   }
   // The recording plays with the tour's clock and holds with it.
-  await goToStep(page, "sessions-recording");
+  await goToStep(page, "knowledge-reads");
   const recordingIndex = async () => Number(await page.locator(".tour-recording-progress").getAttribute("data-recording-index"));
   await page.clock.runFor(3500);
   assert.ok(await recordingIndex() > 0 && await recordingIndex() < 287, "The dated recording replays");
@@ -157,7 +172,8 @@ export async function verifyImmersive(browser, url, output) {
       assert.ok(target.x >= 0 && target.x + target.width <= width && target.y + target.height <= height, `${selector} remains inside the viewport at ${width}px`);
     }
     const hatch = await page.locator("#tour-hatch").boundingBox();
-    for (const selector of ["#tour-next", "#tour-skip", "#tour-replay", "#tour-everything"]) {
+    const pipCount = await page.locator("#tour-pips [data-go]").count();
+    for (const selector of ["#tour-next", "#tour-skip", "#tour-replay", "#tour-everything", ...Array.from({ length: pipCount }, (_, index) => `#tour-pips [data-go="${index}"]`)]) {
       const target = await page.locator(selector).boundingBox();
       const overlap = Math.max(0, Math.min(hatch.x + hatch.width, target.x + target.width) - Math.max(hatch.x, target.x)) * Math.max(0, Math.min(hatch.y + hatch.height, target.y + target.height) - Math.max(hatch.y, target.y));
       assert.equal(overlap, 0, `The waitlist hatch never covers ${selector} at ${width}px`);
@@ -211,13 +227,13 @@ export async function verifyRecordingFreeplay(browser, url, output) {
   });
   await page.clock.install({ time: new Date("2030-01-01T00:00:00Z") });
   await page.goto(url); await page.locator("#tour-play").waitFor();
-  await goToStep(page, "sessions-recording");
+  await goToStep(page, "knowledge-reads");
   const at = async () => Number(await page.locator(".tour-recording-progress").getAttribute("data-recording-index"));
   await page.clock.runFor(2000); const slow = await at();
   await page.locator("#tour-speed-cycle").click();
   await page.clock.runFor(2000); assert.ok(await at() - slow >= 2, "1.5× plays the recording faster");
   await page.screenshot({ path: path.join(output, "recording-390.png") });
-  for (const step of ["stories-compare", "arcs-plan"]) {
+  for (const step of ["stories-compare", "scale-questions"]) {
     await goToStep(page, step);
     await page.locator("#tour-depth").click();
     await page.locator(".tour-back").scrollIntoViewIfNeeded();

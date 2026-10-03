@@ -1,6 +1,6 @@
 // The shop's globe coloured by its CI, stage by stage (increment_a0e1efc68913): pictures of chosen saved stages, the
 // last stage as exported before CI health for contrast, a strip of them, and a clip of the whole growth playing.
-// node packages/website/evidence/shop-health/capture.mjs <the snapshot exported before CI health> [<scratch dir>]
+// node packages/website/evidence/shop-health/capture.mjs <the same growth exported without --ci> [<scratch dir>]
 import { createServer } from 'node:http';
 import { mkdirSync, readFileSync, renameSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -11,16 +11,16 @@ import { chromium } from 'playwright-core';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const [beforeFile, scratch = path.join(tmpdir(), 'shop-health-capture')] = process.argv.slice(2);
-if (!beforeFile) throw new Error('Name the shop snapshot as exported before CI health.');
+if (!beforeFile) throw new Error('Name the shop growth as exported without --ci.');
 mkdirSync(scratch, { recursive: true });
 const forestCss = readFileSync(path.join(here, '../../../forest/src/view/styles.css'), 'utf8');
 const VIEW = { width: 1440, height: 900 };
 const SHOTS = [
-  { file: 'shop-pr2.png', query: 'stage=pr2', caption: 'after PR 2: no CI run on story packages yet, every part untested' },
-  { file: 'shop-pr3.png', query: 'stage=pr3', caption: 'after PR 3: the first CI run on story packages, 7 parts healthy' },
-  { file: 'shop-pr7.png', query: 'stage=pr7', caption: 'after PR 7: 11 parts, all healthy by CI' },
-  { file: 'shop-complete.png', query: 'stage=complete', caption: 'complete: 16 parts healthy, 63 contracts verified passing' },
-  { file: 'shop-complete-before.png', query: 'stage=complete&before=1', caption: 'complete, as exported before CI health: every part untested' },
+  { file: 'shop-pr2.png', query: 'stage=pr2', caption: 'after PR 2: no code in story packages yet, so no land' },
+  { file: 'shop-pr3.png', query: 'stage=pr3', caption: 'after PR 3: the first CI run on story packages colours its parts healthy' },
+  { file: 'shop-pr7.png', query: 'stage=pr7', caption: 'after PR 7: every part with code healthy by CI' },
+  { file: 'shop-complete.png', query: 'stage=complete', caption: 'complete: 63 contracts verified passing by the shop\'s CI' },
+  { file: 'shop-complete-before.png', query: 'stage=complete&before=1', caption: 'complete, the same growth without CI health: every part untested' },
 ];
 let browser, server;
 try {

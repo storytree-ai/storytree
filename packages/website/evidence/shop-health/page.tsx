@@ -1,6 +1,6 @@
 // The shop's saved growth coloured by its own CI (ADR-0902), drawn by the shipped globe.
 // ?stage=<id> draws that saved stage within the full plan's frame; ?play=1 plays the whole growth (&seconds=<length>).
-// ?before=1 draws from the growth as it was exported before CI health (the file the capture passes in as `before`).
+// ?before=1 draws the same growth exported without CI health (the file the capture passes in as `before-snapshot`).
 import { createRoot } from 'react-dom/client';
 import { growthPlan, crossingLength, type PlanetSpot } from '@storytree/forest-world/planet';
 import { createKnowledgeCore } from '@storytree/knowledge-core/view';

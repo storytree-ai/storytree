@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-10-03T16:45:05.993Z",
+  "capturedAt": "2026-10-03T17:12:53.466Z",
   "browser": "148.0.7778.96",
   "renderer": "SwiftShader",
   "viewport": {
@@ -16,7 +16,11 @@
           "visiblePlates": 0,
           "plates": 12,
           "visibleNotes": 0,
-          "notes": 0
+          "notes": 0,
+          "visibleTerritories": 0,
+          "territories": 0,
+          "visibleFiles": 0,
+          "files": 0
         },
         {
           "at": 1.2,
@@ -24,7 +28,11 @@
           "visiblePlates": 0,
           "plates": 12,
           "visibleNotes": 0,
-          "notes": 0
+          "notes": 0,
+          "visibleTerritories": 0,
+          "territories": 0,
+          "visibleFiles": 0,
+          "files": 0
         },
         {
           "at": 2.4,
@@ -32,7 +40,11 @@
           "visiblePlates": 1,
           "plates": 12,
           "visibleNotes": 0,
-          "notes": 0
+          "notes": 0,
+          "visibleTerritories": 0,
+          "territories": 0,
+          "visibleFiles": 0,
+          "files": 0
         },
         {
           "at": 3.9,
@@ -40,7 +52,11 @@
           "visiblePlates": 4,
           "plates": 12,
           "visibleNotes": 0,
-          "notes": 0
+          "notes": 0,
+          "visibleTerritories": 0,
+          "territories": 0,
+          "visibleFiles": 0,
+          "files": 0
         },
         {
           "at": 5.7,
@@ -48,7 +64,11 @@
           "visiblePlates": 5,
           "plates": 12,
           "visibleNotes": 0,
-          "notes": 0
+          "notes": 0,
+          "visibleTerritories": 0,
+          "territories": 0,
+          "visibleFiles": 0,
+          "files": 0
         },
         {
           "at": 7.5,
@@ -56,7 +76,11 @@
           "visiblePlates": 6,
           "plates": 12,
           "visibleNotes": 0,
-          "notes": 0
+          "notes": 0,
+          "visibleTerritories": 0,
+          "territories": 0,
+          "visibleFiles": 0,
+          "files": 0
         },
         {
           "at": 9.6,
@@ -64,7 +88,11 @@
           "visiblePlates": 6,
           "plates": 12,
           "visibleNotes": 0,
-          "notes": 0
+          "notes": 0,
+          "visibleTerritories": 0,
+          "territories": 0,
+          "visibleFiles": 0,
+          "files": 0
         },
         {
           "at": 12,
@@ -72,7 +100,11 @@
           "visiblePlates": 12,
           "plates": 12,
           "visibleNotes": 0,
-          "notes": 0
+          "notes": 0,
+          "visibleTerritories": 0,
+          "territories": 0,
+          "visibleFiles": 0,
+          "files": 0
         },
         {
           "at": 15,
@@ -80,7 +112,11 @@
           "visiblePlates": 12,
           "plates": 12,
           "visibleNotes": 0,
-          "notes": 0
+          "notes": 0,
+          "visibleTerritories": 0,
+          "territories": 0,
+          "visibleFiles": 0,
+          "files": 0
         }
       ],
       "plan": {
@@ -118,25 +154,27 @@
         "files": 0
       },
       "play": {
-        "framesDrawn": 799,
-        "meanFps": 53.32,
-        "p95FrameMs": 22.4,
+        "framesDrawn": 803,
+        "meanFps": 53.6,
+        "p95FrameMs": 21.3,
         "visiblePlatesAtEnd": 12,
         "plates": 12,
         "visibleNotesAtEnd": 0,
         "notes": 0
       },
       "baseline": {
-        "framesDrawn": 783,
-        "meanFps": 47.49,
-        "p95FrameMs": 26.7
+        "framesDrawn": 794,
+        "meanFps": 48.09,
+        "p95FrameMs": 23.8
       },
       "reducedMotion": {
         "visiblePlatesAt300ms": 12,
         "plates": 12,
         "visibleNotesAt300ms": 0,
         "notes": 0,
-        "drawsIn1sAfter": 0
+        "drawsIn1sAfter": 0,
+        "visibleTerritoriesAt300ms": 0,
+        "visibleFilesAt300ms": 0
       }
     },
     "storytree": {
@@ -147,7 +185,11 @@
           "visiblePlates": 0,
           "plates": 15,
           "visibleNotes": 0,
-          "notes": 771
+          "notes": 771,
+          "visibleTerritories": 0,
+          "territories": 0,
+          "visibleFiles": 0,
+          "files": 0
         },
         {
           "at": 1.2,
@@ -155,7 +197,11 @@
           "visiblePlates": 1,
           "plates": 15,
           "visibleNotes": 0,
-          "notes": 771
+          "notes": 771,
+          "visibleTerritories": 0,
+          "territories": 6,
+          "visibleFiles": 38,
+          "files": 38
         },
         {
           "at": 2.4,
@@ -163,7 +209,11 @@
           "visiblePlates": 2,
           "plates": 15,
           "visibleNotes": 10,
-          "notes": 771
+          "notes": 771,
+          "visibleTerritories": 5,
+          "territories": 15,
+          "visibleFiles": 127,
+          "files": 127
         },
         {
           "at": 3.9,
@@ -171,7 +221,11 @@
           "visiblePlates": 4,
           "plates": 15,
           "visibleNotes": 13,
-          "notes": 771
+          "notes": 771,
+          "visibleTerritories": 15,
+          "territories": 25,
+          "visibleFiles": 193,
+          "files": 193
         },
         {
           "at": 5.7,
@@ -179,7 +233,11 @@
           "visiblePlates": 7,
           "plates": 15,
           "visibleNotes": 69,
-          "notes": 771
+          "notes": 771,
+          "visibleTerritories": 25,
+          "territories": 47,
+          "visibleFiles": 228,
+          "files": 255
         },
         {
           "at": 7.5,
@@ -187,7 +245,11 @@
           "visiblePlates": 8,
           "plates": 15,
           "visibleNotes": 639,
-          "notes": 771
+          "notes": 771,
+          "visibleTerritories": 41,
+          "territories": 49,
+          "visibleFiles": 267,
+          "files": 267
         },
         {
           "at": 9.6,
@@ -195,7 +257,11 @@
           "visiblePlates": 11,
           "plates": 15,
           "visibleNotes": 707,
-          "notes": 771
+          "notes": 771,
+          "visibleTerritories": 54,
+          "territories": 62,
+          "visibleFiles": 308,
+          "files": 321
         },
         {
           "at": 12,
@@ -203,7 +269,11 @@
           "visiblePlates": 13,
           "plates": 15,
           "visibleNotes": 715,
-          "notes": 771
+          "notes": 771,
+          "visibleTerritories": 61,
+          "territories": 69,
+          "visibleFiles": 401,
+          "files": 401
         },
         {
           "at": 15,
@@ -211,7 +281,11 @@
           "visiblePlates": 15,
           "plates": 15,
           "visibleNotes": 771,
-          "notes": 771
+          "notes": 771,
+          "visibleTerritories": 76,
+          "territories": 76,
+          "visibleFiles": 429,
+          "files": 429
         }
       ],
       "plan": {
@@ -289,25 +363,27 @@
         "files": 428
       },
       "play": {
-        "framesDrawn": 535,
-        "meanFps": 35.67,
-        "p95FrameMs": 52.8,
+        "framesDrawn": 462,
+        "meanFps": 30.84,
+        "p95FrameMs": 69.9,
         "visiblePlatesAtEnd": 15,
         "plates": 15,
         "visibleNotesAtEnd": 771,
         "notes": 771
       },
       "baseline": {
-        "framesDrawn": 316,
-        "meanFps": 19.17,
-        "p95FrameMs": 99.4
+        "framesDrawn": 274,
+        "meanFps": 16.52,
+        "p95FrameMs": 116.7
       },
       "reducedMotion": {
         "visiblePlatesAt300ms": 15,
         "plates": 15,
         "visibleNotesAt300ms": 771,
         "notes": 771,
-        "drawsIn1sAfter": 0
+        "drawsIn1sAfter": 0,
+        "visibleTerritoriesAt300ms": 76,
+        "visibleFilesAt300ms": 429
       }
     }
   },

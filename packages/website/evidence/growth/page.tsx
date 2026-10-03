@@ -3,15 +3,15 @@
 // its knowledge core growing with it.
 // ?map=conduit|storytree  &seconds=<length>  &at=<seconds> fixes a moment; absent, it plays on the canvas's clock.
 import { createRoot } from 'react-dom/client';
-import { useFrame, useThree } from '@react-three/fiber';
-import { PlanetWorldCanvas, growthPlan, crossingLength, usePlanetGrowth, SHIPPED_ELEVATION_DEG, type PlanetSpot } from '@storytree/forest-world/planet';
-import { createKnowledgeCore, KnowledgeGlobePoints } from '@storytree/knowledge-core/view';
+import { PlanetWorldCanvas, growthPlan, crossingLength, SHIPPED_ELEVATION_DEG, type PlanetSpot } from '@storytree/forest-world/planet';
+import { createKnowledgeCore } from '@storytree/knowledge-core/view';
+import { PlanetView } from '@storytree/forest/view';
 import { buildPlanetPathways } from '@storytree/forest-world/geometry';
 import conduit from '../../src/conduit-snapshot.json' with { type: 'json' };
 import storytree from '../../src/forest-snapshot.json' with { type: 'json' };
 
 type Change = { recordId: string; action: string; record: { createdAt: string } };
-type Snapshot = { radius: number; scene: any; spots: [string, PlanetSpot][]; capturedAt: string; project: string;
+type Snapshot = { radius: number; scene: any; spots: [string, PlanetSpot][]; capturedAt: string; project: string; places: { id: string; place: number }[];
   stages?: { id: string; at: string; scene: any }[]; changes?: Change[] };
 const query = new URLSearchParams(location.search);
 const map = query.get('map') === 'storytree' ? 'storytree' : 'conduit';
@@ -43,9 +43,8 @@ function datedStages({ scene, changes = [], capturedAt }: Snapshot) {
 }
 
 // storytree's knowledge core, from the library history the reading saved; each note shows from its recorded date.
-const core = saved.changes === undefined ? undefined : createKnowledgeCore(saved.project);
-core?.take(saved.changes as any, []);
-function GrowingCore() { return <KnowledgeGlobePoints core={core!} spots={spots} radius={saved.radius} growth={usePlanetGrowth()} />; }
+const core = createKnowledgeCore(saved.project);
+core.take((saved.changes ?? []) as any, []);
 const at = query.get('at');
 // Turn the islands' middle toward the eye: the shortest turn from one unit direction to another.
 const sum = [...spots.values()].reduce((m, s) => { const l = Math.hypot(s.x, s.y, s.z); return [m[0]! + s.x / l, m[1]! + s.y / l, m[2]! + s.z / l]; }, [0, 0, 0]);
@@ -58,8 +57,11 @@ const rotation = q.map(c => c / Math.hypot(...q)) as [number, number, number, nu
 let draws = 0;
 const intervals: number[] = [];
 let last = 0;
+// ?baseline=1: the same globe with no growth, redrawn every frame, for the frame rate to be read against.
+const baseline = query.get('baseline') === '1';
 (globalThis as any).__storytreeCaptureGlobe = (get: () => any) => {
   const { gl } = get();
+  if (baseline) { const redraw = () => { get().invalidate(); requestAnimationFrame(redraw); }; redraw(); }
   const render = gl.render.bind(gl);
   gl.render = (...args: any[]) => { draws++; const now = performance.now(); if (last) intervals.push(now - last); last = now; return render(...args); };
   (window as any).growthProof = {
@@ -69,16 +71,23 @@ let last = 0;
       const plates = scene.getObjectByName('globe').children.filter((c: any) => c.name.startsWith('planet:') && c.name !== 'planet:shell');
       const notes: any[] = [];
       scene.getObjectByName('knowledge-points')?.children.forEach((c: any) => { if (c.name.startsWith('knowledge-point:')) notes.push(c); });
+      // Territories and file circles count once mounted on their island, and as filled in once they show (forest 3.30).
+      const parts: any[] = [], files: any[] = [];
+      scene.traverse((o: any) => { if (o.name.startsWith('territory:') && typeof o.userData.capability === 'string') parts.push(o); else if (o.name.startsWith('file:')) files.push(o); });
       return { draws, clock: clock.getElapsedTime(), visiblePlates: plates.filter((p: any) => p.visible).length, plates: plates.length,
-        visibleNotes: notes.filter(n => n.visible).length, notes: notes.length };
+        visibleNotes: notes.filter(n => n.visible).length, notes: notes.length,
+        visibleTerritories: parts.filter(t => t.visible).length, territories: parts.length,
+        visibleFiles: files.filter(f => f.visible && f.scale.x > 0.01).length, files: files.length };
     },
     frames: () => intervals.splice(0),
   };
 };
-// ?baseline=1: the same globe with no growth, redrawn every frame, for the frame rate to be read against.
-const baseline = query.get('baseline') === '1';
-function Redraw() { const invalidate = useThree(state => state.invalidate); useFrame(() => invalidate()); return null; }
-createRoot(document.getElementById('globe')!).render(
-  <PlanetWorldCanvas scene={saved.scene} spots={spots} radius={saved.radius} rotation={rotation}
-    growth={baseline ? undefined : { plan, at: at === null ? undefined : Number(at) }} inside={core && <GrowingCore />}>{baseline && <Redraw />}</PlanetWorldCanvas>,
+const growth = baseline ? undefined : { plan, at: at === null ? undefined : Number(at) };
+// storytree's saved reading has code states: it grows in The forest's own globe, its territories and file circles filling in
+// behind each island and its core's notes appearing (forest 3.30). Conduit's has neither, and grows in the bare engine.
+const places = new Map((saved.places ?? []).map(p => [p.id, p.place]));
+const none = () => {};
+createRoot(document.getElementById('globe')!).render(map === 'storytree'
+  ? <PlanetView core={core} scene={saved.scene} places={places} wisps={[]} selected={undefined} onPick={none} onNote={none} onWispHover={none} growth={growth} />
+  : <PlanetWorldCanvas scene={saved.scene} spots={spots} radius={saved.radius} rotation={rotation} growth={growth} />,
 );

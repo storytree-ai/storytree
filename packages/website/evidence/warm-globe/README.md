@@ -55,12 +55,13 @@ A main-thread CPU profile of B at Run (Mint box, source-mapped build): `hasWebGL
 All run on the Mint box against the final build of commit `4afadaf6` (the observations name it); each
 exited 0.
 
-- `--verify-opening-frames` (2.3, 2.10; `after/opening-frames.json`): nothing started or requested
-  before Run; the globe started 14,014 ms after Run, 12 ms after the last helper parked; live at the
-  finale with 0 globe draw calls in chapter 1; its first draw 60 ms after the handover, with no second
-  load; Replay releases it, a scroll past chapter 1 remounts one globe, a return visit reaches it live,
-  and without IntersectionObserver Run starts nothing and a scene arriving after Replay cannot mount.
-  Swarm 60.0 fps; quiet stretch 49.1 fps.
+- `--verify-opening-frames` (2.3, 2.10; `after/opening-frames.json` and
+  `after/opening-frames-observations.json`, the record for `pnpm record:acceptance`): nothing started or
+  requested before Run; the globe started 14,014 ms after Run, 12 ms after the last helper parked; live
+  at the finale with 0 globe draw calls in chapter 1; its first draw 109 ms after the handover (60 ms
+  in an earlier run), with no second load; Replay releases it, a scroll past chapter 1 remounts one
+  globe, a return visit reaches it live, and without IntersectionObserver Run starts nothing and a scene
+  arriving after Replay cannot mount. Swarm 60.0 fps (p95 16.7 ms); quiet stretch 45.4 fps.
 - `--verify-opening` (1.8): playback, joke, keyboard restart, exits, opt-in sound, denied storage, no
   script and reduced motion. Finale 22,339 ms after Run; the turn's line at 447 ms, point at 696 ms,
   handover at 1,149 ms.

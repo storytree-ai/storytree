@@ -45,7 +45,18 @@ let browser;
 try {
   browser = await chromium.launch({ headless: true, args: ["--no-sandbox", ...(verifyOpeningFramesRequested ? ["--enable-unsafe-swiftshader", "--use-angle=swiftshader"] : [])] });
   const url = `http://127.0.0.1:${server.address().port}/`;
-  if (verifyOpeningFramesRequested) await verifyOpeningFrames(browser, url, output);
+  if (verifyOpeningFramesRequested) {
+    const check = { contract: "2.10", name: "After Run the turn lands on a live globe that drew nothing in chapter 1", observed: "not-observed" };
+    try { await verifyOpeningFrames(browser, url, output); check.observed = "pass"; }
+    catch (error) { check.observed = "fail"; check.detail = error.message; throw error; }
+    finally {
+      await writeFile(path.join(output, "opening-frames-observations.json"), JSON.stringify({
+        story: "The website", commit: (await readFile(path.join(dist, "version.txt"), "utf8")).trim(),
+        evidence: path.relative(path.resolve(here, "../../.."), output).split(path.sep).join("/"),
+        note: "Locally built website served from packages/website/dist, SwiftShader", checks: [check],
+      }, null, 2) + "\n");
+    }
+  }
   else if (process.argv.includes("--verify-recording")) await verifyRecordingFreeplay(browser, url, output);
   else if (process.argv.includes("--verify-immersive")) await verifyImmersive(browser, url, output);
   else {

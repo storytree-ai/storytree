@@ -8,6 +8,7 @@ import { LANE_COLOUR } from "@storytree/forest-world/geometry";
 import { globeOccluder, onIslandSurface } from "@storytree/forest-world/planet";
 import { territories, type Coast } from "../territories/territories.js";
 import { capabilityPlates, facing, screenOnPlate, settlePlates, STORY_PLATE_WIDTH, storyPlate } from "./nameplates.js";
+import { islandProgress } from "./island-progress.js";
 import { GROUND_PER_WORLD_UNIT, islandReach, type Descriptor3D } from "@storytree/forest-world";
 
 /** Keep an overlay's host stable when Canvas disconnects its events during project switching. */
@@ -53,10 +54,17 @@ export function Nameplates({ island, coast, radius, selected, dimmed = false }: 
   const chosen = island.story === selected;
   const plates = useMemo(() => chosen && island.land !== undefined ? capabilityPlates(territories(island.land.territories, coast)) : [], [chosen, island.land, coast]);
   const opacity = dimmed ? 0.24 : selected !== undefined && !chosen ? 0.5 : 1;
+  const progress = islandProgress(island);
   return <>
     <group ref={anchor}>
       <Overlay occlude={occluder} zIndexRange={[20, 10]} style={{ pointerEvents: "none" }}>
-        <div ref={label} className={`forest-label planet-nameplate${chosen ? " selected" : ""}`} data-story-id={island.story} style={{ opacity, maxWidth: STORY_PLATE_WIDTH }}>{island.title}</div>
+        <div ref={label} className={`forest-label planet-nameplate${chosen ? " selected" : ""}${progress !== undefined ? " with-progress" : ""}`} data-story-id={island.story} style={{ opacity, maxWidth: progress === undefined ? STORY_PLATE_WIDTH : STORY_PLATE_WIDTH + 64 }}>
+          <span className="planet-nameplate-title">{island.title}</span>
+          {progress !== undefined && <span className="planet-progress">
+            {progress.landed} / {progress.total} landed
+            <span className="planet-progress-meter" aria-hidden="true"><span style={{ width: `${progress.landed / progress.total * 100}%` }} /></span>
+          </span>}
+        </div>
       </Overlay>
     </group>
     {plates.map(plate => <Overlay key={plate.capability} occlude={occluder} position={surface(plate).toArray()} center zIndexRange={[25, 21]} style={{ pointerEvents: "none" }}>

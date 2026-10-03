@@ -1,0 +1,12 @@
+{
+  "contracts": [
+    "2.4",
+    "2.5",
+    "2.6",
+    "2.7",
+    "2.8"
+  ],
+  "observed": "pass",
+  "source": "Locally built unpublished working tree",
+  "baseCommit": "5f910f950b3ae7e3d5d8b30af99cfebbea34cc55"
+}

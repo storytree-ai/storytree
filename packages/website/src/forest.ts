@@ -12,7 +12,7 @@ function hasWebGL(): boolean {
   }
 }
 
-async function activate(host: HTMLElement) {
+function activate(host: HTMLElement): () => void {
   performance.mark("forest-activate");
   const webgl = hasWebGL();
   host.dataset.forestState = webgl ? "loading" : "still";
@@ -20,7 +20,9 @@ async function activate(host: HTMLElement) {
   layer.className = "forest-canvas";
   host.append(layer);
   let finished = false;
+  let unmount: (() => void) | undefined;
   const fallback = () => {
+    if (finished) return;
     finished = true;
     clearTimeout(timeout);
     host.dataset.forestState = "still";
@@ -28,38 +30,58 @@ async function activate(host: HTMLElement) {
   };
   const timeout = window.setTimeout(fallback, 15_000);
   performance.mark("forest-request");
-  try {
-    const { mountForest } = await import("./forest-scene.js");
+  void import("./forest-scene.js").then(({ mountForest }) => {
     if (finished) return;
-    mountForest(layer, () => {
+    unmount = mountForest(layer, () => {
       if (finished) return;
       clearTimeout(timeout);
       host.dataset.forestState = "live";
       performance.mark("forest-ready");
     }, fallback, webgl);
     if (!webgl) { clearTimeout(timeout); finished = true; }
-  } catch {
-    fallback();
-  }
+  }).catch(fallback);
+  return () => {
+    finished = true;
+    clearTimeout(timeout);
+    unmount?.();
+    layer.remove();
+    host.dataset.forestState = "still";
+  };
 }
 
 function observe(host: HTMLElement) {
   let scheduled = false;
+  let generation = 0;
+  let stop: (() => void) | undefined;
+  const opening = document.getElementById("opening");
+  const openingVisible = () => opening && !opening.hidden && opening.getBoundingClientRect().bottom > 0;
   const schedule = () => {
-    if (scheduled) return;
+    if (scheduled || openingVisible()) return;
     scheduled = true;
-    if (typeof window.requestIdleCallback === "function") window.requestIdleCallback(() => void activate(host), { timeout: 1000 });
-    else setTimeout(() => void activate(host), 0);
+    const requested = generation;
+    const start = () => {
+      if (requested !== generation) return;
+      stop = activate(host);
+    };
+    if (typeof window.requestIdleCallback === "function") window.requestIdleCallback(start, { timeout: 1000 });
+    else setTimeout(start, 0);
   };
-  // A visitor who presses Run in chapter 1 will meet the globe about twenty seconds later: start it now, so the turn lands on it live.
-  document.addEventListener("click", event => { if (event.target instanceof Element && event.target.closest("#opening-run")) schedule(); });
-  if (!("IntersectionObserver" in window)) { schedule(); return; }
-  const observer = new IntersectionObserver(entries => {
-    if (!entries.some(entry => entry.isIntersecting)) return;
-    observer.disconnect();
-    schedule();
+  // Run belongs to the terminal. Even a globe touching the fold must wait for the handover.
+  window.addEventListener("storytree-opening", event => {
+    if ((event as CustomEvent<{ active: boolean }>).detail.active) {
+      generation++;
+      scheduled = false;
+      stop?.(); stop = undefined;
+    } else schedule();
   });
-  observer.observe(host);
+  const check = () => {
+    const box = host.getBoundingClientRect();
+    if (box.top < innerHeight && box.bottom > 0) schedule();
+  };
+  window.addEventListener("scroll", check, { passive: true });
+  window.addEventListener("resize", check);
+  if ("IntersectionObserver" in window) new IntersectionObserver(check).observe(host);
+  check();
 }
 
 if (host) {

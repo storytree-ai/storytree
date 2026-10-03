@@ -22,7 +22,8 @@ export function wireTour() {
   let counts: Record<string, string> = {};
   try { counts = JSON.parse(document.getElementById("tour-counts")?.textContent ?? "{}") as Record<string, string>; } catch { /* The words keep their placeholders. */ }
   const text = (value: string) => fill(value, counts);
-  const tour = createTour(steps);
+  // The globe sets up behind the pain beat; the time-lapse waits until it is live, or has fallen back to its still (2.10).
+  const tour = createTour(steps, { ready: () => document.getElementById("website-forest")?.dataset.forestState !== "loading" });
   const card = get("tour-card"), kicker = get("tour-kicker"), heading = get("tour-title"), lines = get("tour-lines"), chips = get("tour-chips");
   const depthToggle = get<HTMLButtonElement>("tour-depth"), depth = get("tour-why");
   const play = get<HTMLButtonElement>("tour-play"), icon = play.querySelector("path")!;
@@ -184,12 +185,15 @@ export function wireTour() {
   window.addEventListener("storytree-opening", event => {
     openingActive = (event as CustomEvent<{ active: boolean }>).detail.active;
     clock = performance.now();
-    // Arriving from chapter 1, the globe lands before the first words do.
-    if (!openingActive && tour.state.index === 0 && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (openingActive) return;
+    // Once Act 2's first words have painted, the globe may set up behind them (2.10).
+    const spoken = () => requestAnimationFrame(() => requestAnimationFrame(() => window.dispatchEvent(new Event("storytree-arrived"))));
+    // Arriving from Act 1, a dark beat after the turn before the first words.
+    if (tour.state.index === 0 && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
       arriving = clock + 1500;
       root.dataset.arriving = "true";
-      setTimeout(() => { delete root.dataset.arriving; }, 1500);
-    }
+      setTimeout(() => { delete root.dataset.arriving; spoken(); }, 1500);
+    } else spoken();
   });
   document.addEventListener("visibilitychange", () => { clock = performance.now(); });
   if ("IntersectionObserver" in window) {

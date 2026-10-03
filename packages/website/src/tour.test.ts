@@ -133,3 +133,22 @@ test("2.11 · the arrival holds the shop's globe at a point under the pain, grow
   tour.hold("everything");
   assert.deepEqual(globe(), { map: "storytree" });
 });
+
+test("2.10 · the time-lapse waits for its globe to be set up, then plays from its first frame", () => {
+  const arrival: TourStep[] = [
+    { ...step("pain", "opening", ["One"]), map: "shop", growth: "seed" },
+    { ...step("grow", "opening", ["Two"]), map: "shop", growth: { seconds: 12 } },
+  ];
+  let ready = false;
+  const tour = createTour(arrival, { ready: () => ready });
+  tour.tick(10_000);
+  assert.equal(tour.state.index, 0, "the pain beat waits for the globe it hides");
+  tour.tick(10_000);
+  assert.equal(tour.state.index, 0);
+  ready = true;
+  tour.tick(whole(arrival[0]!));
+  assert.equal(tour.state.index, 1);
+  assert.equal(tour.elapsed(), 0, "the growth starts from its first frame");
+  tour.tick(3000);
+  assert.deepEqual(globeOf(arrival[1]!, tour.state, tour.elapsed()), { map: "shop", at: 3 });
+});

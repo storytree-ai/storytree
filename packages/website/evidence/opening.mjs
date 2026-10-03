@@ -23,6 +23,7 @@ export async function verifyOpeningFrames(browser, url, output) {
           if (this.canvas.closest("#website-forest")) {
             window.globeDraws++;
             if (window.handoverAt !== undefined) window.firstDrawAfterHandover ??= performance.now();
+            if (window.growAt !== undefined) window.firstGrowthDraw ??= performance.now();
           }
           return draw.apply(this, args);
         };
@@ -30,11 +31,22 @@ export async function verifyOpeningFrames(browser, url, output) {
     }
     // When chapter 1 hands the screen to chapter 2: from here the globe should draw at once.
     window.addEventListener("storytree-opening", event => { if (!event.detail.active && window.runAt) window.handoverAt ??= performance.now(); });
+    // Act 2's arrival: the pain beat the globe sets up behind, then the time-lapse's first drawn frame.
+    window.painFrames = [];
+    window.addEventListener("storytree-tour", event => {
+      if (event.detail.step.id === "grow" && window.handoverAt !== undefined) window.growAt ??= performance.now();
+    });
     let last;
     const frame = now => {
       if (last !== undefined) {
         window.openingFrames[window.runAt ? "playing" : "ready"].push(now - last);
         if (window.runAt && !window.finaleAt) window.openingFrames[window.parkedAt ? "quiet" : "swarm"].push(now - last);
+        if (window.handoverAt !== undefined && window.growAt === undefined) {
+          window.painFrames.push(now - last);
+          // Where each long frame fell, from the hand-over: its start and end.
+          if (now - last > 100) (window.painStalls ??= []).push([Math.round(last - window.handoverAt), Math.round(now - window.handoverAt)]);
+          if (window.firstPainLine === undefined && document.querySelector("#chapter2 .tour-line.on")?.checkVisibility({ opacityProperty: true })) window.firstPainLine = Math.round(now - window.handoverAt);
+        }
       }
       last = now;
       requestAnimationFrame(frame);
@@ -91,21 +103,30 @@ export async function verifyOpeningFrames(browser, url, output) {
     await writeFile(path.join(output, "opening-frames.json"), JSON.stringify(measured, null, 2) + "\n");
     console.log(JSON.stringify(measured));
     assert.deepEqual(measured.beforeRun, { activations: 0, sceneRequested: false }, "website 2.3: nothing about the globe starts or is requested before Run");
-    assert.equal(measured.activationCount, 1, "website 2.10: Run starts the globe while Chapter 1 plays");
-    assert.ok(measured.activatedAfterRunMs >= measured.parkedAfterRunMs, "website 2.10: the globe starts only once every helper waits on the visitor, so its setup stalls none of the swarm");
-    assert.equal(measured.mountedLayers, 1, "website 2.10: one globe is mounted below Chapter 1");
-    assert.equal(measured.forestState, "live", "website 2.10: the globe is live before the turn");
-    assert.equal(measured.globeDraws, 0, "website 2.10: the globe draws nothing while Chapter 1 plays");
+    assert.equal(measured.activationCount, 0, "website 2.10: Act 1 starts nothing of the globe");
+    assert.equal(measured.sceneRequested, false, "website 2.10: nor requests its scene");
+    assert.equal(measured.mountedLayers, 0, "website 2.10: no globe is mounted while Act 1 plays");
+    assert.equal(measured.globeDraws, 0, "website 2.10: the globe draws nothing while Act 1 plays");
     await better(page).click();
-    await page.waitForFunction(() => window.firstDrawAfterHandover !== undefined && document.querySelector("#website-forest").dataset.forestState === "live", null, { timeout: 30000 });
-    Object.assign(measured, await page.evaluate(() => ({
-      handoverToFirstDrawMs: window.firstDrawAfterHandover - window.handoverAt,
-      loadMs: performance.getEntriesByName("forest-ready").at(-1).startTime - performance.getEntriesByName("forest-activate").at(-1).startTime,
-      activationsAfterHandover: performance.getEntriesByName("forest-activate").length,
-    })));
+    await page.waitForFunction(() => window.firstGrowthDraw !== undefined, null, { timeout: 60000 });
+    Object.assign(measured, await page.evaluate(() => {
+      const activated = performance.getEntriesByName("forest-activate").at(-1).startTime, ready = performance.getEntriesByName("forest-ready").at(-1).startTime;
+      const sorted = [...window.painFrames].sort((a, b) => b - a);
+      return {
+        handoverToActivateMs: activated - window.handoverAt, loadMs: ready - activated, handoverToLiveMs: ready - window.handoverAt,
+        painBeatMs: window.growAt - window.handoverAt, liveBeforeGrowth: ready < window.growAt,
+        painStallsMs: window.painStalls ?? [], firstPainLineMs: window.firstPainLine,
+        painLongestFramesMs: sorted.slice(0, 3), painToFirstGrowthFrameMs: window.firstGrowthDraw - window.handoverAt,
+        growToFirstGrowthFrameMs: window.firstGrowthDraw - window.growAt,
+        activationsAfterHandover: performance.getEntriesByName("forest-activate").length,
+      };
+    }));
     await writeFile(path.join(output, "opening-frames.json"), JSON.stringify(measured, null, 2) + "\n");
-    console.log(JSON.stringify({ handoverToFirstDrawMs: measured.handoverToFirstDrawMs, loadMs: measured.loadMs }));
-    assert.equal(measured.activationsAfterHandover, 1, "website 2.10: the turn lands on the globe Run started, with no second load");
+    console.log(JSON.stringify({ handoverToLiveMs: measured.handoverToLiveMs, painBeatMs: measured.painBeatMs, painLongestFramesMs: measured.painLongestFramesMs, painStallsMs: measured.painStallsMs, firstPainLineMs: measured.firstPainLineMs, painToFirstGrowthFrameMs: measured.painToFirstGrowthFrameMs }));
+    assert.equal(measured.activationsAfterHandover, 1, "website 2.10: the hand-over starts one globe");
+    assert.ok(measured.liveBeforeGrowth, "website 2.10: the globe is set up behind the pain beat, before the time-lapse starts");
+    const before = measured.painStallsMs.filter(([start]) => start >= 0 && start < measured.firstPainLineMs);
+    assert.deepEqual(before, [], `website 2.10: the globe's setup stalls only behind the pain words, never the dark beat before them (first words at ${measured.firstPainLineMs} ms)`);
     await page.waitForTimeout(3000); // Let the first camera flight arrive before its picture.
     await page.screenshot({ path: path.join(output, "handover-1440.png") });
     await page.getByRole("button", { name: "Replay chapter 1" }).click();
@@ -140,7 +161,7 @@ export async function verifyOpeningFrames(browser, url, output) {
     await fallback.waitForTimeout(3000);
     await fallback.screenshot({ path: path.join(output, "handover-390.png") });
   } finally { release(); await fallback.close(); }
-  console.log("PASS contracts 2.3 and 2.10: nothing before Run, a warm globe drawing nothing in Chapter 1, live handover, replay, scroll, return and no-observer fallback");
+  console.log("PASS contracts 2.3 and 2.10: nothing before Run, nothing of the globe in Act 1, set up behind the pain beat before the time-lapse, replay, scroll, return and no-observer fallback");
 }
 
 // ADR-0879 D6: nothing may overflow sideways and no window may cover the HUD row, at any size or zoom.

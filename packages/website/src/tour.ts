@@ -63,7 +63,8 @@ export function groups(steps: readonly TourStep[]): { explainer: Group; steps: n
   return out;
 }
 
-export function createTour(steps: readonly TourStep[]) {
+/** `ready` says whether the globe a growth plays on is set up: until it is, the time-lapse and the step before it wait (2.10). */
+export function createTour(steps: readonly TourStep[], { ready = () => true }: { ready?: () => boolean } = {}) {
   if (!steps.length) throw new Error("A tour needs at least one step.");
   let state: TourState = { index: 0, generation: 0, lines: 1, speed: 1, holds: [], freePlay: false };
   let elapsed = 0;
@@ -84,9 +85,14 @@ export function createTour(steps: readonly TourStep[]) {
     elapsed() { return elapsed; },
     tick(milliseconds: number) {
       if (!tour.running || !Number.isFinite(milliseconds) || milliseconds <= 0) return state;
-      elapsed += milliseconds * state.speed;
       const step = steps[state.index]!;
-      if (elapsed >= duration(step) - 1e-6) return tour.next();
+      const grows = (index: number) => typeof steps[index]?.growth === "object";
+      if (grows(state.index) && !ready()) return state;
+      elapsed += milliseconds * state.speed;
+      if (elapsed >= duration(step) - 1e-6) {
+        if (!grows(state.index + 1) || ready()) return tour.next();
+        elapsed = duration(step) - 1e-6;
+      }
       const lines = Math.max(state.lines, shown(step, elapsed));
       return lines === state.lines ? state : update({ lines });
     },

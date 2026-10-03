@@ -85,6 +85,11 @@ Claim, and open the knowledge you need.
 - To start work in its own workspace, call \`make_workspace\` before claiming it. Claude Code gets a claimed worktree and instructions to enter it. For Codex, it checks availability and returns ref and name: call the desktop app’s create_worktree with those exact arguments, then \`attach_workspace\` with the returned folder, ref, name and your reason. Use that directory explicitly; creation does not change your cwd. If the app returns a folder with a registration error, attach it; do not create another. The app owns the folder, including after a refusal.
 - \`open\` the capability to see its shelf: the decisions that are its way into the project's knowledge, as spines. Start at the shelf, open what matches your task, and stop when you can act. \`search_notes\` finds the artifacts closest in meaning to a question.
 
+Code the map can draw.
+- storytree draws a story's code on its island from the story's own package, packages/<story>/src, where <story> is the story's title in lower case with hyphens, without a leading "The" ("Shopping cart" is packages/shopping-cart). It reads JavaScript and TypeScript files (.js, .mjs, .jsx, .ts, .tsx and the like). A package.json dependency on another story's package draws the road between the two stories.
+- Start each test's title with the number of the contract it proves ("2.3 the cart keeps its items after a reload"): the files that test reaches are drawn inside that capability.
+- Lay a new project's code out this way. In an existing project, ask the user before moving code.
+
 Red, then green, then landed.
 - Write a contract's test first, run it, see it fail, and \`report\` it red.
 - Make it pass, and \`report\` it green.

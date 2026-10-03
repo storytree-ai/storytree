@@ -4,7 +4,8 @@ import { Html, OrbitControls } from '@react-three/drei';
 import type { OrthographicCamera } from 'three';
 import type { ForestScene, Island } from '../scene.js';
 import { planetPathwayDrawing, type PlanetPathwayPlate } from './pathways.js';
-import { Pathways } from './PlanetTrailRibbons.js';
+import { Pathways, SelectionLanes } from './PlanetTrailRibbons.js';
+import type { LitLink } from './lanes.js';
 import type { Descriptor3D } from '../world-to-3d.js';
 import { EXACT_COLOUR_CANVAS_PROPS } from '../exact-colour.js';
 import { SHIPPED_ELEVATION_DEG } from '../camera-framing.js';
@@ -48,7 +49,11 @@ export interface PlanetWorldCanvasProps {
   sideOffset?: number | undefined;
   /** False keeps the eye where it is, zooming only, for a host that turns the globe itself. */
   orbit?: boolean;
+  /** The selection's lit links, drawn as lanes over their roads; none by default. */
+  lanes?: readonly LitLink[];
 }
+
+const NO_LANES: readonly LitLink[] = [];
 
 const Plate = memo(function Plate({ island, spot, radius, plate, visible, grounds, children }: {
   island: Island; spot: PlanetSpot; radius: number; plate: PlanetPathwayPlate;
@@ -93,7 +98,7 @@ const CAPTURE_SEAM = '__storytreeCaptureGlobe';
 
 /** The globe: one Canvas, the see-through sea, and each story's island as a flat surface with a coast
  * (ADR-0804 D1). Nothing on it is lit, so there is no sun to calibrate. */
-export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1], plateChildren, children, surface = true, surfaces, inside, framing = 1.18, sideOffset = 0, orbit = true }: PlanetWorldCanvasProps) {
+export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1], plateChildren, children, surface = true, surfaces, inside, framing = 1.18, sideOffset = 0, orbit = true, lanes = NO_LANES }: PlanetWorldCanvasProps) {
   const drawing = useMemo(() => planetPathwayDrawing(scene, spots, radius), [scene, spots, radius]);
   const pathways = drawing.plan;
   const elevation = SHIPPED_ELEVATION_DEG * Math.PI / 180;
@@ -114,7 +119,7 @@ export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1
         return <Plate key={island.story} island={island} spot={spot} radius={radius} plate={pathways.plates.get(island.story)!}
           visible={surface} grounds={surfaces?.grounds !== false} children={plateChildren} />;
       })}
-      <group name="globe-roads" visible={surface && surfaces?.roads !== false}><Pathways plan={pathways} /></group>
+      <group name="globe-roads" visible={surface && surfaces?.roads !== false}><Pathways plan={pathways} /><SelectionLanes plan={pathways} lit={lanes} /></group>
       {inside}
     </group>
     <OrbitControls makeDefault enablePan={false} enableRotate={orbit} minZoom={0.1} maxZoom={30} />

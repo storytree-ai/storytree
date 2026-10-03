@@ -1,0 +1,383 @@
+{
+  "browser": "148.0.7778.96",
+  "viewport": {
+    "width": 1440,
+    "height": 960
+  },
+  "selectedStory": "story_a5cb185cf501",
+  "selectedTitle": "The agent link",
+  "expectedFromSeed": {
+    "upstream": 1,
+    "downstream": 11,
+    "upstreamLinks": [
+      "capability_1dbca9b95636->capability_3a6c57bbfcb1"
+    ],
+    "downstreamLinks": [
+      "capability_008bbda618f4->capability_1dbca9b95636",
+      "capability_2b7803e1c0a1->capability_c3ba48740533",
+      "capability_7a758195c881->capability_04dcb8fe5009",
+      "capability_91a4f6cf1b45->capability_db9b40f7f91e",
+      "capability_c345b5ddd136->capability_04dcb8fe5009",
+      "capability_c345b5ddd136->capability_db9b40f7f91e",
+      "capability_c7ebf8c14744->capability_b745ed8384c3",
+      "capability_c7ebf8c14744->capability_db9b40f7f91e",
+      "capability_ccb8fa5b3191->capability_db9b40f7f91e",
+      "capability_eed71dc36e3f->capability_b745ed8384c3",
+      "capability_ff89cf89baf8->capability_965c55baee5e"
+    ],
+    "storiesInvolved": [
+      "story_a5cb185cf501",
+      "story_c5ba2d362c9b",
+      "story_f7add26cf3ce",
+      "story_9a3887a81814",
+      "story_0aa30d0bcac0"
+    ]
+  },
+  "unselected": {
+    "groupPresent": true,
+    "lanes": []
+  },
+  "click": {
+    "x": 678.53596943,
+    "y": 646.8197109514913,
+    "facing": 0.9400269076135503
+  },
+  "selected": {
+    "groupPresent": true,
+    "lanes": [
+      {
+        "name": "lane:up:capability_1dbca9b95636->capability_3a6c57bbfcb1",
+        "dir": "up",
+        "from": "capability_1dbca9b95636",
+        "to": "capability_3a6c57bbfcb1",
+        "colour": "#0d8fb0",
+        "vertices": 1922,
+        "indexCount": 5760,
+        "drawStart": 0,
+        "drawCount": 5760,
+        "visible": true,
+        "renderOrder": 2,
+        "length": 272.8090930240476,
+        "seconds": 0.604681821706746,
+        "firstVertexToDependencyIsland": 18.33553486664729,
+        "firstVertexToBuildingIsland": 177.6779052569724,
+        "lastVertexToDependencyIsland": 183.23833926707462,
+        "lastVertexToBuildingIsland": 24.19418877372504,
+        "drawsFromDependencyEnd": true
+      },
+      {
+        "name": "lane:down:capability_7a758195c881->capability_04dcb8fe5009",
+        "dir": "down",
+        "from": "capability_7a758195c881",
+        "to": "capability_04dcb8fe5009",
+        "colour": "#6a5fee",
+        "vertices": 654,
+        "indexCount": 1956,
+        "drawStart": 0,
+        "drawCount": 1956,
+        "visible": true,
+        "renderOrder": 2,
+        "length": 161.83043172213158,
+        "seconds": 0.4197173862035526,
+        "firstVertexToDependencyIsland": 10.760006808623286,
+        "firstVertexToBuildingIsland": 150.31654878118636,
+        "lastVertexToDependencyIsland": 141.05910620745703,
+        "lastVertexToBuildingIsland": 21.15028402386179,
+        "drawsFromDependencyEnd": true
+      },
+      {
+        "name": "lane:down:capability_c345b5ddd136->capability_04dcb8fe5009",
+        "dir": "down",
+        "from": "capability_c345b5ddd136",
+        "to": "capability_04dcb8fe5009",
+        "colour": "#6a5fee",
+        "vertices": 838,
+        "indexCount": 2508,
+        "drawStart": 0,
+        "drawCount": 2508,
+        "visible": true,
+        "renderOrder": 2,
+        "length": 189.38209241661446,
+        "seconds": 0.4656368206943574,
+        "firstVertexToDependencyIsland": 10.760006808623286,
+        "firstVertexToBuildingIsland": 159.43554764659385,
+        "lastVertexToDependencyIsland": 167.10766460865787,
+        "lastVertexToBuildingIsland": 4.278615160094351,
+        "drawsFromDependencyEnd": true
+      },
+      {
+        "name": "lane:down:capability_c345b5ddd136->capability_db9b40f7f91e",
+        "dir": "down",
+        "from": "capability_c345b5ddd136",
+        "to": "capability_db9b40f7f91e",
+        "colour": "#6a5fee",
+        "vertices": 950,
+        "indexCount": 2844,
+        "drawStart": 0,
+        "drawCount": 2844,
+        "visible": true,
+        "renderOrder": 2,
+        "length": 203.08486776420432,
+        "seconds": 0.48847477960700714,
+        "firstVertexToDependencyIsland": 19.50908709205859,
+        "firstVertexToBuildingIsland": 170.7610603373645,
+        "lastVertexToDependencyIsland": 167.10766460865787,
+        "lastVertexToBuildingIsland": 4.278615160094351,
+        "drawsFromDependencyEnd": true
+      },
+      {
+        "name": "lane:down:capability_c7ebf8c14744->capability_b745ed8384c3",
+        "dir": "down",
+        "from": "capability_c7ebf8c14744",
+        "to": "capability_b745ed8384c3",
+        "colour": "#6a5fee",
+        "vertices": 1142,
+        "indexCount": 3420,
+        "drawStart": 0,
+        "drawCount": 3420,
+        "visible": true,
+        "renderOrder": 2,
+        "length": 222.76750253750282,
+        "seconds": 0.5212791708958381,
+        "firstVertexToDependencyIsland": 16.163398210597204,
+        "firstVertexToBuildingIsland": 182.93836059877881,
+        "lastVertexToDependencyIsland": 153.60460326758633,
+        "lastVertexToBuildingIsland": 19.406161307700703,
+        "drawsFromDependencyEnd": true
+      },
+      {
+        "name": "lane:down:capability_c7ebf8c14744->capability_db9b40f7f91e",
+        "dir": "down",
+        "from": "capability_c7ebf8c14744",
+        "to": "capability_db9b40f7f91e",
+        "colour": "#6a5fee",
+        "vertices": 950,
+        "indexCount": 2844,
+        "drawStart": 0,
+        "drawCount": 2844,
+        "visible": true,
+        "renderOrder": 2,
+        "length": 201.9226364151068,
+        "seconds": 0.4865377273585113,
+        "firstVertexToDependencyIsland": 19.50908709205859,
+        "firstVertexToBuildingIsland": 170.7610603373645,
+        "lastVertexToDependencyIsland": 153.60460326758633,
+        "lastVertexToBuildingIsland": 19.406161307700703,
+        "drawsFromDependencyEnd": true
+      },
+      {
+        "name": "lane:down:capability_2b7803e1c0a1->capability_c3ba48740533",
+        "dir": "down",
+        "from": "capability_2b7803e1c0a1",
+        "to": "capability_c3ba48740533",
+        "colour": "#6a5fee",
+        "vertices": 1630,
+        "indexCount": 4884,
+        "drawStart": 0,
+        "drawCount": 4884,
+        "visible": true,
+        "renderOrder": 2,
+        "length": 315.44565032070636,
+        "seconds": 0.6757427505345106,
+        "firstVertexToDependencyIsland": 16.01326634760897,
+        "firstVertexToBuildingIsland": 220.1236280041555,
+        "lastVertexToDependencyIsland": 203.87200813870464,
+        "lastVertexToBuildingIsland": 8.347955724456396,
+        "drawsFromDependencyEnd": true
+      },
+      {
+        "name": "lane:down:capability_eed71dc36e3f->capability_b745ed8384c3",
+        "dir": "down",
+        "from": "capability_eed71dc36e3f",
+        "to": "capability_b745ed8384c3",
+        "colour": "#6a5fee",
+        "vertices": 1982,
+        "indexCount": 5940,
+        "drawStart": 0,
+        "drawCount": 5940,
+        "visible": true,
+        "renderOrder": 2,
+        "length": 351.72831597579915,
+        "seconds": 0.7362138599596653,
+        "firstVertexToDependencyIsland": 16.163398210597204,
+        "firstVertexToBuildingIsland": 215.19090618473348,
+        "lastVertexToDependencyIsland": 221.63540765187852,
+        "lastVertexToBuildingIsland": 13.30511099846177,
+        "drawsFromDependencyEnd": true
+      },
+      {
+        "name": "lane:down:capability_91a4f6cf1b45->capability_db9b40f7f91e",
+        "dir": "down",
+        "from": "capability_91a4f6cf1b45",
+        "to": "capability_db9b40f7f91e",
+        "colour": "#6a5fee",
+        "vertices": 1086,
+        "indexCount": 3252,
+        "drawStart": 0,
+        "drawCount": 3252,
+        "visible": true,
+        "renderOrder": 2,
+        "length": 258.5227451689604,
+        "seconds": 0.5808712419482673,
+        "firstVertexToDependencyIsland": 19.50908709205859,
+        "firstVertexToBuildingIsland": 197.2318725625893,
+        "lastVertexToDependencyIsland": 188.44512018980544,
+        "lastVertexToBuildingIsland": 28.673459280679538,
+        "drawsFromDependencyEnd": true
+      },
+      {
+        "name": "lane:down:capability_ff89cf89baf8->capability_965c55baee5e",
+        "dir": "down",
+        "from": "capability_ff89cf89baf8",
+        "to": "capability_965c55baee5e",
+        "colour": "#6a5fee",
+        "vertices": 2062,
+        "indexCount": 6180,
+        "drawStart": 0,
+        "drawCount": 6180,
+        "visible": true,
+        "renderOrder": 2,
+        "length": 358.65607558790447,
+        "seconds": 0.7477601259798408,
+        "firstVertexToDependencyIsland": 37.18512447859027,
+        "firstVertexToBuildingIsland": 241.64047236077846,
+        "lastVertexToDependencyIsland": 217.32126964467344,
+        "lastVertexToBuildingIsland": 36.81006252282172,
+        "drawsFromDependencyEnd": true
+      },
+      {
+        "name": "lane:down:capability_008bbda618f4->capability_1dbca9b95636",
+        "dir": "down",
+        "from": "capability_008bbda618f4",
+        "to": "capability_1dbca9b95636",
+        "colour": "#6a5fee",
+        "vertices": 1454,
+        "indexCount": 4356,
+        "drawStart": 0,
+        "drawCount": 4356,
+        "visible": true,
+        "renderOrder": 2,
+        "length": 294.3262483229772,
+        "seconds": 0.640543747204962,
+        "firstVertexToDependencyIsland": 24.585633652010582,
+        "firstVertexToBuildingIsland": 191.04260742959292,
+        "lastVertexToDependencyIsland": 230.89294498693593,
+        "lastVertexToBuildingIsland": 37.34772689011228,
+        "drawsFromDependencyEnd": true
+      },
+      {
+        "name": "lane:down:capability_ccb8fa5b3191->capability_db9b40f7f91e",
+        "dir": "down",
+        "from": "capability_ccb8fa5b3191",
+        "to": "capability_db9b40f7f91e",
+        "colour": "#6a5fee",
+        "vertices": 1982,
+        "indexCount": 5940,
+        "drawStart": 0,
+        "drawCount": 5940,
+        "visible": true,
+        "renderOrder": 2,
+        "length": 352.23477059538715,
+        "seconds": 0.737057950992312,
+        "firstVertexToDependencyIsland": 19.50908709205859,
+        "firstVertexToBuildingIsland": 197.2318725625893,
+        "lastVertexToDependencyIsland": 233.4559853692271,
+        "lastVertexToBuildingIsland": 31.969956987465526,
+        "drawsFromDependencyEnd": true
+      }
+    ],
+    "selectedClass": "forest-label planet-nameplate selected"
+  },
+  "seaClick": {
+    "x": 200,
+    "y": 480
+  },
+  "deselected": {
+    "groupPresent": true,
+    "lanes": [],
+    "stillSelectedLabel": false
+  },
+  "midDraw": {
+    "attempts": [
+      {
+        "attempt": 1,
+        "beforeScreenshotMs": 142,
+        "afterScreenshotMs": 917,
+        "partialLanesAfter": 0
+      },
+      {
+        "attempt": 2,
+        "beforeScreenshotMs": 96,
+        "afterScreenshotMs": 655,
+        "partialLanesAfter": 6
+      }
+    ],
+    "kept": 2,
+    "beforeScreenshot": {
+      "sinceClickMs": 95.69999998807907,
+      "fractions": {
+        "lane:up:capability_1dbca9b95636->capability_3a6c57bbfcb1": 0.181,
+        "lane:down:capability_7a758195c881->capability_04dcb8fe5009": 0.255,
+        "lane:down:capability_c345b5ddd136->capability_04dcb8fe5009": 0.232,
+        "lane:down:capability_c345b5ddd136->capability_db9b40f7f91e": 0.222,
+        "lane:down:capability_c7ebf8c14744->capability_b745ed8384c3": 0.209,
+        "lane:down:capability_c7ebf8c14744->capability_db9b40f7f91e": 0.222,
+        "lane:down:capability_2b7803e1c0a1->capability_c3ba48740533": 0.163,
+        "lane:down:capability_eed71dc36e3f->capability_b745ed8384c3": 0.152,
+        "lane:down:capability_91a4f6cf1b45->capability_db9b40f7f91e": 0.188,
+        "lane:down:capability_ff89cf89baf8->capability_965c55baee5e": 0.149,
+        "lane:down:capability_008bbda618f4->capability_1dbca9b95636": 0.172,
+        "lane:down:capability_ccb8fa5b3191->capability_db9b40f7f91e": 0.151
+      }
+    },
+    "afterScreenshot": {
+      "sinceClickMs": 655.3999999761581,
+      "fractions": {
+        "lane:up:capability_1dbca9b95636->capability_3a6c57bbfcb1": 0.999,
+        "lane:down:capability_7a758195c881->capability_04dcb8fe5009": 1,
+        "lane:down:capability_c345b5ddd136->capability_04dcb8fe5009": 1,
+        "lane:down:capability_c345b5ddd136->capability_db9b40f7f91e": 1,
+        "lane:down:capability_c7ebf8c14744->capability_b745ed8384c3": 1,
+        "lane:down:capability_c7ebf8c14744->capability_db9b40f7f91e": 1,
+        "lane:down:capability_2b7803e1c0a1->capability_c3ba48740533": 0.994,
+        "lane:down:capability_eed71dc36e3f->capability_b745ed8384c3": 0.984,
+        "lane:down:capability_91a4f6cf1b45->capability_db9b40f7f91e": 1,
+        "lane:down:capability_ff89cf89baf8->capability_965c55baee5e": 0.982,
+        "lane:down:capability_008bbda618f4->capability_1dbca9b95636": 0.997,
+        "lane:down:capability_ccb8fa5b3191->capability_db9b40f7f91e": 0.984
+      }
+    },
+    "partialLanes": 6
+  },
+  "libraryMode": {
+    "groupPresent": true,
+    "lanes": [],
+    "mode": "library"
+  },
+  "errors": [],
+  "warnings": [
+    "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead."
+  ],
+  "summary": {
+    "lanesWhenUnselected": 0,
+    "lanesWhenSelected": 12,
+    "upLanes": 1,
+    "downLanes": 11,
+    "expectedUpLinks": 1,
+    "expectedDownLinks": 11,
+    "colours": {
+      "up": [
+        "#0d8fb0"
+      ],
+      "down": [
+        "#6a5fee"
+      ]
+    },
+    "everyLaneFullyDrawnAtFinalFrame": true,
+    "everyLaneDrawsFromDependencyEnd": true,
+    "lanesWhenDeselected": 0,
+    "lanesInLibraryMode": 0,
+    "midDrawKeptAttempt": 2,
+    "pageErrors": 0
+  }
+}

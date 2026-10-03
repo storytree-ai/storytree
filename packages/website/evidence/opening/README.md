@@ -12,7 +12,7 @@ node packages/website/evidence/capture.mjs opening --verify-opening
 pnpm record:acceptance packages/website/evidence/opening/opening-observations.json
 ```
 
-The real Chromium run starts with one touch on Run and reaches the finale at 22 seconds. It checks twelve waiting agents, the three extra agents from the joke exit, silence before sound is enabled, the turn without a URL change, return visits and Replay, Escape, skip, scrolling, denied localStorage, and static no-script/reduced-motion visits. The original red run timed out looking for Run on the old page (commit 276d4de0).
+The real Chromium run starts with one touch on Run and, on 0.2's escalating clock (ADR-0888), offers the finale's choice about 41 seconds later; it checks the first helper opens after about 4 s of thinking and the gaps shrink from about 4 s to about 1 s. It checks twelve waiting agents, the three extra agents from the joke exit, silence before sound is enabled, the turn without a URL change, return visits and Replay, Escape, skip, scrolling, denied localStorage, and static no-script/reduced-motion visits. The original red run timed out looking for Run on the old page (commit 276d4de0).
 
 The acceptance recording comes from that same journey: all its assertions passing produces a pass;
 an assertion or browser step throwing produces a failure with its error and still exits nonzero. The

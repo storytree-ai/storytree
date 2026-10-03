@@ -37,6 +37,17 @@ const freeze = (page, phase, times) => page.evaluate(target => new Promise(resol
 }), phase).then(() => setTimes(page, times));
 const resume = page => page.evaluate(() => document.getAnimations().forEach(animation => animation.play()));
 
+// Seconds after Run: the thinking, the first helpers far apart, the pile-up, every helper waiting, the finale.
+const PACE = [2, 5, 9, 13, 17, 21, 25, 29, 32, 35];
+const MID = 21;
+const strip = async (frames, file) => {
+  const page = await browser.newPage({ viewport: { width: 1840, height: 520 } });
+  await page.setContent(`<body style="margin:0;padding:10px;background:#111;display:grid;grid-template-columns:repeat(5,360px);gap:10px;font:14px monospace;color:#9f9">${frames.map(frame =>
+    `<figure style="margin:0"><img style="width:360px;display:block" src="data:image/png;base64,${frame.png}"><figcaption>${frame.at} s after Run</figcaption></figure>`).join("")}</body>`);
+  await page.screenshot({ path: file, fullPage: true });
+  await page.close();
+};
+
 const sizes = [
   { name: "1440", width: 1440, height: 900 },
   { name: "390", width: 390, height: 844 },
@@ -53,9 +64,16 @@ for (const size of sizes.filter(size => !only || size.name === only)) {
   await page.waitForTimeout(400);
   await shot("1-first-screen");
   await run.click();
-  await page.waitForTimeout(10000);
-  await shot("2-mid-swarm");
-  await page.getByRole("button", { name: "show me the better way" }).waitFor({ timeout: 25000 });
+  // The pace (ADR-0888 1.2-1.3): frames at fixed times after Run, put side by side on one strip.
+  const ranAt = Date.now();
+  const frames = [];
+  for (const at of PACE) {
+    await page.waitForTimeout(Math.max(0, at * 1000 - (Date.now() - ranAt)));
+    if (at === MID) await shot("2-mid-swarm");
+    if (size.name === "1440") frames.push({ at, png: (await page.screenshot()).toString("base64") });
+  }
+  if (frames.length) await strip(frames, path.join(output, `${size.name}-pace-strip.png`));
+  await page.getByRole("button", { name: "show me where to look" }).waitFor({ timeout: 50000 });
   await page.waitForTimeout(1800);
   await shot("3-peak-finale");
   await page.evaluate(() => document.getElementById("opening-better").click());

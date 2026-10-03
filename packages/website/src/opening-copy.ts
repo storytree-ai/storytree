@@ -1,4 +1,5 @@
-// Copy from the owner’s playable proposal; the scene itself is implemented here.
+// Chapter 1's words, all in this one file (ADR-0888): the owner writes the final copy and replaces these.
+// Everything marked DRAFT is the agent's wording, standing in until he does.
 export const BANNER = [
   "swarm 0.9.7-nightly · multi-agent dev shell",
   "workspace ~/shop · agents idle: 1 · memory: fresh",
@@ -11,25 +12,9 @@ export const THINK = [
   "▸ split into 11 jobs. plan reviewed and approved by: me",
   "+ ▸ confidence: high. spawning helpers"
 ];
+// The first helpers open slowly enough to read whole, so they carry the jokes a vibe coder and an engineer
+// both recognise; the insider ones (CI, force-push) go into the fast pile-up (ADR-0888 1.2-1.3).
 export const AGENTS = [
-  {
-    "n": "login-agent",
-    "l": [
-      "new session. no memory of yesterday. reading the login code from scratch",
-      "found 3 login systems. no idea which one is real",
-      "safest move: writing a 4th"
-    ],
-    "d": "which of the 4 login systems is the real one? [1-4]"
-  },
-  {
-    "n": "catalog-agent",
-    "l": [
-      "editing products.ts",
-      "! cart-agent changed products.ts under me. merging by vibes",
-      "renamed price to cost in 214 files. some were just words"
-    ],
-    "d": "someone else is editing this file. overwrite? (y/n)"
-  },
   {
     "n": "test-agent",
     "l": [
@@ -40,12 +25,30 @@ export const AGENTS = [
     "d": "delete 3 more to stay green? (y/n)"
   },
   {
-    "n": "db-agent",
+    "n": "status-agent",
     "l": [
-      "designing the database",
-      "two good options. both fine. cannot pick"
+      "progress: definitely. specifics: unclear",
+      "estimated 5 minutes. 58 minutes so far. estimate unchanged",
+      "+ done ✓ (by a definition of done I invented just now)"
     ],
-    "d": "Postgres or SQLite? (y/n)"
+    "d": "is the shop finished? (I genuinely don't know)"
+  },
+  {
+    "n": "login-agent",
+    "l": [
+      "new session. no memory of yesterday. reading the login code from scratch",
+      "found 3 login systems. no idea which one is real",
+      "safest move: writing a 4th"
+    ],
+    "d": "which of the 4 login systems is the real one? [1-4]"
+  },
+  {
+    "n": "docs-agent",
+    "l": [
+      "! memory 97% full. dropping older decisions to make room",
+      "…done. wait. what are we building?"
+    ],
+    "d": "forget the plan or forget the code? [1/2]"
   },
   {
     "n": "checkout-agent",
@@ -57,14 +60,6 @@ export const AGENTS = [
     "d": "ship checkout without a card form? (y/n)"
   },
   {
-    "n": "docs-agent",
-    "l": [
-      "! memory 97% full. dropping older decisions to make room",
-      "…done. wait. what are we building?"
-    ],
-    "d": "forget the plan or forget the code? [1/2]"
-  },
-  {
     "n": "style-agent",
     "l": [
       "team rule from an hour ago: no new colours",
@@ -72,6 +67,23 @@ export const AGENTS = [
       "+ dark mode shipped. light mode is now also dark"
     ],
     "d": "which of the 6 blues is the brand blue? [1-6]"
+  },
+  {
+    "n": "catalog-agent",
+    "l": [
+      "editing products.ts",
+      "! cart-agent changed products.ts under me. merging by vibes",
+      "renamed price to cost in 214 files. some were just words"
+    ],
+    "d": "someone else is editing this file. overwrite? (y/n)"
+  },
+  {
+    "n": "db-agent",
+    "l": [
+      "designing the database",
+      "two good options. both fine. cannot pick"
+    ],
+    "d": "Postgres or SQLite? (y/n)"
   },
   {
     "n": "review-agent",
@@ -83,14 +95,6 @@ export const AGENTS = [
     "d": "merge without a human looking? (y/n)"
   },
   {
-    "n": "deploy-agent",
-    "l": [
-      "CI is red. re-running until it isn't (attempt 7)",
-      "! connection string points at production. assuming it's staging"
-    ],
-    "d": "force-push to main? [y/N]"
-  },
-  {
     "n": "refactor-agent",
     "l": [
       "small tidy-up while I'm here: 118 files touched",
@@ -99,13 +103,12 @@ export const AGENTS = [
     "d": "PR is +2,038 −14. review it today? (y/n)"
   },
   {
-    "n": "status-agent",
+    "n": "deploy-agent",
     "l": [
-      "progress: definitely. specifics: unclear",
-      "estimated 5 minutes. 58 minutes so far. estimate unchanged",
-      "+ done ✓ (by a definition of done I invented just now)"
+      "CI is red. re-running until it isn't (attempt 7)",
+      "! connection string points at production. assuming it's staging"
     ],
-    "d": "is the shop finished? (I genuinely don't know)"
+    "d": "force-push to main? [y/N]"
   }
 ];
 export const EXTRA = [
@@ -125,13 +128,13 @@ export const EXTRA = [
     "d": "which of the 9 dashboards is real? [1-9]"
   }
 ];
+// DRAFT (ADR-0888 1.4): the finale lands on attention, the visitor's problem, not the agents' faults.
 export const FINALE = [
   "status: {N} agents · {N} questions waiting on you · 0 answered",
   "! average time to answer: ∞ (still counting)",
-  "I'm still waiting on you…",
-  "honestly? none of us knows what the others did.",
-  "there's no plan we share, and we forget everything between sessions.",
-  "+ I know a better way. It feels like playing a game.",
+  "honestly? I can't tell you which of these needs you.",
+  "so you read every line, or you trust every line.",
+  "+ I know a better way: a map that shows you where to look.",
   "want me to show you?"
 ];
 export const FINALE_AGAIN = [
@@ -140,3 +143,7 @@ export const FINALE_AGAIN = [
   "+ the better way is one click away.",
   "want me to show you?"
 ];
+// DRAFT (ADR-0888 1.5): the main exit, as a button and as the no-script link.
+export const EXIT = "show me where to look";
+// DRAFT: the line under the first screen.
+export const FOOTNOTE = "a short scene about building with agents · about 30 seconds · scroll to skip";

@@ -1,9 +1,10 @@
 import type { GlobePoint } from "../shelves/positions.js";
+import { noteMoments, noteShown } from "../shelves/growing.js";
 import type { RecordEnvelope } from "@storytree/library";
 import { Billboard } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AdditiveBlending, Color, type InterleavedBufferAttribute } from "three";
+import { AdditiveBlending, Color, type Group, type InterleavedBufferAttribute } from "three";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
@@ -28,8 +29,11 @@ const lighter = (colour: string): string => `#${new Color(colour).lerp(new Color
 const reducedMotion = (): boolean => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 const trailKey = (trail: Trail) => `${trail.colour} ${trail.from} ${trail.to}`;
 
+/** A replay the core grows with (world 7): its clock, and where a recorded date falls on it. The globe's growth reader is one. */
+export interface CoreGrowth { now(): number; moment(date: string): number }
+
 /** Mesh raycasts stay disabled: the globe picks these small dots in screen space. */
-export function GlobePoints({ points, radius, notes, lit = new Map(), trails = [], paths = [], window, replay = false, stops }: {
+export function GlobePoints({ points, radius, notes, lit = new Map(), trails = [], paths = [], window, replay = false, stops, growth: grows }: {
   points: readonly GlobePoint[]; radius: number; notes: ReadonlyMap<string, RecordEnvelope>;
   /** Notes a running session read, in its latest reader's colour, with every session that read it (ADR-0738, ADR-0754 D2). */
   lit?: ReadonlyMap<string, Lighting>;
@@ -43,9 +47,30 @@ export function GlobePoints({ points, radius, notes, lit = new Map(), trails = [
   replay?: boolean;
   /** Where else a step can start or end (ADR-0804 D5): each file circle's stop on the land, outside the core, by its stop id. */
   stops?: ReadonlyMap<string, Point> | undefined;
+  /** A replay to grow with (capability 1.9): each note appears under its home once the replay reaches its recorded date. */
+  growth?: CoreGrowth | undefined;
 }) {
   const at = useMemo(() => new Map<string, Point>([...points.map((point): [string, Point] => [point.id, point.at]), ...(stops ?? [])]), [points, stops]);
   const invalidate = useThree(state => state.invalidate);
+  const group = useRef<Group>(null);
+  const moments = useMemo(() => grows === undefined ? undefined : noteMoments(points, notes, date => grows.moment(date)), [grows, points, notes]);
+  const grownAt = useRef(Number.NaN);
+  useEffect(() => { grownAt.current = Number.NaN; }, [moments]);
+  useFrame(() => {
+    const now = grows?.now();
+    if (moments === undefined || now === undefined || group.current === null || now === grownAt.current) return;
+    grownAt.current = now;
+    let growing = false;
+    for (const dot of group.current.children) {
+      if (!dot.name.startsWith("knowledge-point:")) continue;
+      const shown = noteShown(moments.get(dot.userData.id as string), now);
+      dot.visible = shown > 0;
+      dot.scale.setScalar(Math.max(shown, 0.001));
+      growing ||= shown < 1;
+    }
+    // The globe asks for frames while it grows; a note still fading in after it is done asks for its own.
+    if (growing) invalidate();
+  });
   // One replay for the session, never one per agent: a single clock walks every trail in seq order (ADR-0797 D1).
   const replaying = replay && !reducedMotion();
   const clock = useRef(performance.now());
@@ -104,7 +129,7 @@ export function GlobePoints({ points, radius, notes, lit = new Map(), trails = [
     const timer = setTimeout(() => arrive(tick => tick + 1), next - performance.now() + 16);
     return () => clearTimeout(timer);
   });
-  return <group name="knowledge-points">
+  return <group name="knowledge-points" ref={group}>
     {trails.map(trail => {
       const from = at.get(trail.from), to = at.get(trail.to);
       return from === undefined || to === undefined ? null

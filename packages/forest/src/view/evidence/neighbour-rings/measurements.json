@@ -1,0 +1,222 @@
+{
+  "browser": "148.0.7778.96",
+  "viewport": {
+    "width": 1440,
+    "height": 960
+  },
+  "selectedStory": "story_a5cb185cf501",
+  "selectedTitle": "The agent link",
+  "expectedFromSeed": {
+    "story_c5ba2d362c9b (The library)": "up",
+    "story_9a3887a81814 (The app)": "down",
+    "story_0aa30d0bcac0 (The arc surface)": "down",
+    "story_f7add26cf3ce (The command line)": "down"
+  },
+  "unselected": {
+    "rings": [],
+    "selectedRings": []
+  },
+  "pulse": {
+    "attempts": [
+      {
+        "attempt": 1,
+        "beforeScreenshotMs": 291,
+        "afterScreenshotMs": 2686,
+        "ringsStillSettlingAfter": 0
+      },
+      {
+        "attempt": 2,
+        "beforeScreenshotMs": 158,
+        "afterScreenshotMs": 820,
+        "ringsStillSettlingAfter": 0
+      },
+      {
+        "attempt": 3,
+        "beforeScreenshotMs": 117,
+        "afterScreenshotMs": 777,
+        "ringsStillSettlingAfter": 4
+      }
+    ],
+    "kept": 3,
+    "beforeScreenshot": {
+      "sinceClickMs": 116.5,
+      "rings": [
+        {
+          "story": "story_9a3887a81814",
+          "relation": "down",
+          "opacity": 0.519,
+          "width": 4.2
+        },
+        {
+          "story": "story_0aa30d0bcac0",
+          "relation": "down",
+          "opacity": 0.517,
+          "width": 4.2
+        },
+        {
+          "story": "story_f7add26cf3ce",
+          "relation": "down",
+          "opacity": 0.515,
+          "width": 4.2
+        },
+        {
+          "story": "story_c5ba2d362c9b",
+          "relation": "up",
+          "opacity": 0.511,
+          "width": 4.25
+        }
+      ]
+    },
+    "afterScreenshot": {
+      "sinceClickMs": 776.8000000119209,
+      "rings": [
+        {
+          "story": "story_9a3887a81814",
+          "relation": "down",
+          "opacity": 0.9,
+          "width": 1.5
+        },
+        {
+          "story": "story_0aa30d0bcac0",
+          "relation": "down",
+          "opacity": 0.9,
+          "width": 1.5
+        },
+        {
+          "story": "story_f7add26cf3ce",
+          "relation": "down",
+          "opacity": 0.9,
+          "width": 1.5
+        },
+        {
+          "story": "story_c5ba2d362c9b",
+          "relation": "up",
+          "opacity": 0.9,
+          "width": 1.5
+        }
+      ]
+    }
+  },
+  "click": {
+    "x": 678.53596943,
+    "y": 646.8197109514913,
+    "facing": 0.9400269076135502
+  },
+  "selected": {
+    "rings": [
+      {
+        "name": "neighbour-ring:down:story_9a3887a81814",
+        "story": "story_9a3887a81814",
+        "colour": "#6a5fee",
+        "opacity": 0.9,
+        "innerRadius": 32.300277573970845,
+        "outerRadius": 33.800277573970845,
+        "width": 1.5,
+        "renderOrder": 5,
+        "visible": true,
+        "depthTest": true,
+        "depthWrite": true,
+        "localY": 0.4,
+        "relation": "down",
+        "ringStory": "story_9a3887a81814"
+      },
+      {
+        "name": "neighbour-ring:down:story_0aa30d0bcac0",
+        "story": "story_0aa30d0bcac0",
+        "colour": "#6a5fee",
+        "opacity": 0.9,
+        "innerRadius": 32.2993280483879,
+        "outerRadius": 33.7993280483879,
+        "width": 1.5,
+        "renderOrder": 5,
+        "visible": true,
+        "depthTest": true,
+        "depthWrite": true,
+        "localY": 0.4,
+        "relation": "down",
+        "ringStory": "story_0aa30d0bcac0"
+      },
+      {
+        "name": "neighbour-ring:down:story_f7add26cf3ce",
+        "story": "story_f7add26cf3ce",
+        "colour": "#6a5fee",
+        "opacity": 0.9,
+        "innerRadius": 51.28242028972253,
+        "outerRadius": 52.78242028972253,
+        "width": 1.5,
+        "renderOrder": 5,
+        "visible": true,
+        "depthTest": true,
+        "depthWrite": true,
+        "localY": 0.4,
+        "relation": "down",
+        "ringStory": "story_f7add26cf3ce"
+      },
+      {
+        "name": "neighbour-ring:up:story_c5ba2d362c9b",
+        "story": "story_c5ba2d362c9b",
+        "colour": "#0d8fb0",
+        "opacity": 0.9,
+        "innerRadius": 51.29092310286709,
+        "outerRadius": 52.79092310286709,
+        "width": 1.5,
+        "renderOrder": 5,
+        "visible": true,
+        "depthTest": true,
+        "depthWrite": true,
+        "localY": 0.4,
+        "relation": "up",
+        "ringStory": "story_c5ba2d362c9b"
+      }
+    ],
+    "selectedRings": [
+      {
+        "name": "",
+        "story": "story_a5cb185cf501",
+        "colour": "#ffd75e",
+        "opacity": 0.9,
+        "innerRadius": 51.267971224640846,
+        "outerRadius": 53.267971224640846,
+        "width": 2,
+        "renderOrder": 5,
+        "visible": true,
+        "depthTest": true,
+        "depthWrite": true,
+        "localY": 0.4
+      }
+    ]
+  },
+  "deselected": {
+    "rings": [],
+    "selectedRings": []
+  },
+  "summary": {
+    "neighbourRingsUnselected": 0,
+    "neighbourRingsSelected": 4,
+    "up": 1,
+    "down": 3,
+    "ringedStoriesEqualSeedNeighbours": true,
+    "colours": {
+      "up": [
+        "#0d8fb0"
+      ],
+      "down": [
+        "#6a5fee"
+      ]
+    },
+    "settledOpacity": [
+      0.9
+    ],
+    "settledWidth": [
+      1.5
+    ],
+    "selectedIslandRings": 1,
+    "neighbourRingsDeselected": 0,
+    "pulseKeptAttempt": 3,
+    "pageErrors": 0
+  },
+  "errors": [],
+  "warnings": [
+    "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead."
+  ]
+}

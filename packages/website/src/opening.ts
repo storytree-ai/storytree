@@ -110,7 +110,8 @@ export function wireOpening() {
     waiting++; counter(); sfx.bell(element);
   };
 
-  // The grain: four pre-rendered noise frames drawn at half size, stopped while chapter 1 is hidden or off screen.
+  // The grain: four pre-rendered noise frames drawn at half size, stopped while chapter 1 is hidden or off screen, and
+  // through the turn: a canvas drawn every frame under the turn's full-screen effects held each frame for seconds (1.9).
   const grain = root.querySelector<HTMLCanvasElement>(".opening-grain")!;
   const grainContext = grain.getContext("2d");
   let frames: HTMLCanvasElement[] | undefined;
@@ -139,7 +140,7 @@ export function wireOpening() {
     grainContext.drawImage(frames[grainIndex]!, 0, 0, grain.width, grain.height);
   };
   const syncGrain = () => {
-    const wanted = Boolean(grainContext) && !reduced.matches && !root.hidden && onScreen && !document.hidden;
+    const wanted = Boolean(grainContext) && !reduced.matches && !root.hidden && onScreen && !document.hidden && root.dataset.phase !== "turn";
     if (wanted && !grainHandle) { sizeGrain(); frames ??= noiseFrames(); grainHandle = requestAnimationFrame(paintGrain); }
     if (!wanted && grainHandle) { cancelAnimationFrame(grainHandle); grainHandle = 0; grainContext?.clearRect(0, 0, grain.width, grain.height); }
   };
@@ -247,7 +248,7 @@ export function wireOpening() {
   better.addEventListener("click", async () => {
     if (reduced.matches) { leave(); return; }
     if (root.dataset.phase === "turn") return;
-    stop(); root.dataset.phase = "turn";
+    stop(); root.dataset.phase = "turn"; syncGrain();
     const id = ++turnId;
     root.scrollIntoView({ block: "start", behavior: "instant" });
     const open = [...root.querySelectorAll<HTMLElement>(".opening-window")].filter(window => !window.hidden);

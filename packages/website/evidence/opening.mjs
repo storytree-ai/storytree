@@ -34,13 +34,14 @@ export async function verifyOpeningFrames(browser, url, output) {
     // Act 2's arrival: the pain beat the globe sets up behind, then the time-lapse's first drawn frame.
     window.painFrames = [];
     window.addEventListener("storytree-tour", event => {
-      if (event.detail.step.id === "grow" && window.handoverAt !== undefined) window.growAt ??= performance.now();
+      if (event.detail.step.id === "grow" && window.handoverAt !== undefined && window.growAt === undefined) { window.growAt = performance.now(); window.globesShownAtGrow = [...window.globesShown]; }
     });
     let last;
     const frame = now => {
       if (last !== undefined) {
         window.openingFrames[window.runAt ? "playing" : "ready"].push(now - last);
         if (window.runAt && !window.finaleAt) window.openingFrames[window.parkedAt ? "quiet" : "swarm"].push(now - last);
+        if (window.exitAt !== undefined && window.handoverAt === undefined) window.exitFrames.push(now - last);
         if (window.handoverAt !== undefined && window.growAt === undefined) {
           window.painFrames.push(now - last);
           // Where each long frame fell, from the hand-over: its start and end.
@@ -53,6 +54,7 @@ export async function verifyOpeningFrames(browser, url, output) {
     };
     requestAnimationFrame(frame);
     document.addEventListener("click", event => {
+      if (event.target.closest?.("#opening-better")) { window.exitAt ??= performance.now(); window.exitFrames = []; }
       if (event.target.id !== "opening-run") return;
       window.runAt = performance.now(); last = undefined;
       window.beforeRun = {
@@ -61,6 +63,12 @@ export async function verifyOpeningFrames(browser, url, output) {
       };
     }, true);
     document.addEventListener("DOMContentLoaded", () => {
+      // Every globe the drawing shows, in order, from its first mount.
+      window.globesShown = [];
+      new MutationObserver(() => {
+        const drawing = document.querySelector("#website-forest .forest-drawing");
+        if (drawing && drawing.dataset.globe !== window.globesShown.at(-1)) window.globesShown.push(drawing.dataset.globe);
+      }).observe(document.getElementById("website-forest"), { subtree: true, childList: true, attributes: true, attributeFilter: ["data-globe"] });
       new MutationObserver(() => {
         if (window.runAt && !document.getElementById("opening-better").hidden && !window.finaleAt) window.finaleAt = performance.now();
       }).observe(document.getElementById("opening-better"), { attributes: true, attributeFilter: ["hidden"] });
@@ -116,6 +124,7 @@ export async function verifyOpeningFrames(browser, url, output) {
         handoverToActivateMs: activated - window.handoverAt, loadMs: ready - activated, handoverToLiveMs: ready - window.handoverAt,
         painBeatMs: window.growAt - window.handoverAt, liveBeforeGrowth: ready < window.growAt,
         painStallsMs: window.painStalls ?? [], firstPainLineMs: window.firstPainLine,
+        exitToHandoverMs: window.handoverAt - window.exitAt, globesBeforeGrowth: window.globesShownAtGrow ?? window.globesShown, turnLongestFrameMs: Math.max(...window.exitFrames, 0),
         painLongestFramesMs: sorted.slice(0, 3), painToFirstGrowthFrameMs: window.firstGrowthDraw - window.handoverAt,
         growToFirstGrowthFrameMs: window.firstGrowthDraw - window.growAt,
         activationsAfterHandover: performance.getEntriesByName("forest-activate").length,
@@ -123,6 +132,11 @@ export async function verifyOpeningFrames(browser, url, output) {
     }));
     await writeFile(path.join(output, "opening-frames.json"), JSON.stringify(measured, null, 2) + "\n");
     console.log(JSON.stringify({ handoverToLiveMs: measured.handoverToLiveMs, painBeatMs: measured.painBeatMs, painLongestFramesMs: measured.painLongestFramesMs, painStallsMs: measured.painStallsMs, firstPainLineMs: measured.firstPainLineMs, painToFirstGrowthFrameMs: measured.painToFirstGrowthFrameMs }));
+    console.log(JSON.stringify({ exitToHandoverMs: measured.exitToHandoverMs, turnLongestFrameMs: measured.turnLongestFrameMs }));
+    // The turn is about 1.1 s of animation; a loaded machine may stretch it, never freeze it.
+    assert.ok(measured.exitToHandoverMs < 2000, `website 1.9: the turn hands over in about the time it is drawn to take (${Math.round(measured.exitToHandoverMs)} ms)`);
+    assert.ok(measured.painStallsMs.every(([start, end]) => start >= 0 || end - start < 1000), `website 1.9: the turn draws frames throughout (${JSON.stringify(measured.painStallsMs)})`);
+    assert.deepEqual(measured.globesBeforeGrowth, ["shop"], "website 2.10: under the pain the drawing shows only the shop's seed, never another globe");
     assert.equal(measured.activationsAfterHandover, 1, "website 2.10: the hand-over starts one globe");
     assert.ok(measured.liveBeforeGrowth, "website 2.10: the globe is set up behind the pain beat, before the time-lapse starts");
     const before = measured.painStallsMs.filter(([start]) => start >= 0 && start < measured.firstPainLineMs);
@@ -161,7 +175,7 @@ export async function verifyOpeningFrames(browser, url, output) {
     await fallback.waitForTimeout(3000);
     await fallback.screenshot({ path: path.join(output, "handover-390.png") });
   } finally { release(); await fallback.close(); }
-  console.log("PASS contracts 2.3 and 2.10: nothing before Run, nothing of the globe in Act 1, set up behind the pain beat before the time-lapse, replay, scroll, return and no-observer fallback");
+  console.log("PASS contracts 1.9, 2.3 and 2.10: a turn that keeps its frames, nothing before Run, nothing of the globe in Act 1, set up behind the pain beat before the time-lapse, replay, scroll, return and no-observer fallback");
 }
 
 // ADR-0879 D6: nothing may overflow sideways and no window may cover the HUD row, at any size or zoom.

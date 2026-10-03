@@ -108,11 +108,20 @@ const runs = {
     });
     await still.goto(url); await still.locator("#tour-play").waitFor();
     assert.equal(await stepOf(still), "pain");
-    assert.equal(await still.locator(".forest-still").evaluate(node => getComputedStyle(node).visibility), "hidden", "no WebGL: storytree's still never stands in for the shop");
+    assert.equal(await still.locator(".forest-still img").evaluate(node => node.checkVisibility({ visibilityProperty: true })), false, "no WebGL: storytree's still never stands in for the shop");
     await go(still, "fixes"); await pause(still); await still.waitForTimeout(300);
     await still.screenshot({ path: path.join(here, "390-no-webgl-4-fixes.png") });
     await still.close();
-    observed.push("2.11 reduced motion and no WebGL keep the arrival dark under the pain: pass");
+    // While the globe is still loading, storytree's saved still never stands in for the shop either.
+    const loading = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+    loading.on("pageerror", error => errors.push(error.message));
+    await loading.addInitScript(() => localStorage.setItem("storytree-opening-seen", "yes"));
+    await loading.route(/forest-scene-[^/]*\.js$/, () => {});
+    await loading.goto(url); await loading.locator("#tour-play").waitFor();
+    await loading.waitForFunction(() => document.querySelector("#website-forest").dataset.forestState === "loading");
+    assert.equal(await loading.locator(".forest-still img").evaluate(node => node.checkVisibility({ visibilityProperty: true })), false, "loading: no still of storytree's globe under the pain");
+    await loading.close();
+    observed.push("2.11 reduced motion, no WebGL and a loading globe keep the arrival dark under the pain: pass");
   },
   // A first-time visitor: Act 1 to its finale, out through its exit, onto the pain and the growth from its point of light.
   async handoff() {

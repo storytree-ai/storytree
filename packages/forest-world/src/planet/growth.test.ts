@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { ForestScene, Island } from '../scene.js';
-import { buildPlanetPathways, growthPlan, growthProgress, plateGrowth, roadSegmentWindows, segmentDrawRange, type GrowthWindow } from '../geometry.js';
+import { buildPlanetPathways, growthMoment, growthPlan, growthProgress, plateGrowth, roadSegmentWindows, segmentDrawRange, type GrowthWindow } from '../geometry.js';
 
 const R = 218;
 const island = (story: string, capabilities: string[], files: string[] = []): Island => ({
@@ -125,4 +125,29 @@ test('7.4 the globe given a growth hides what has not risen, draws roads on from
   // At its end every island is whole and every road fully drawn.
   const plan = growthPlan(stages, { fromPoint: true, seconds: 12 });
   for (const w of [plan.globe!, ...plan.islands.values(), ...plan.roads.values()]) assert.equal(growthProgress(w, plan.seconds, false), 1);
+});
+
+test('7.5 a recorded date falls in the replay where it fell between the dated stages, so dates keep their order', () => {
+  const dated = [
+    { id: 'stories', at: '2026-10-01T10:00:00.000Z', scene: stages[0]!.scene },
+    { id: 'same', at: '2026-10-01T11:00:00.000Z', scene: stages[1]!.scene },
+    { id: 'linked', at: '2026-10-01T12:00:00.000Z', scene: stages[2]!.scene },
+  ];
+  const plan = growthPlan(dated, { fromPoint: true, seconds: 15, until: '2026-10-01T14:00:00.000Z' });
+  const [stories, linked] = plan.stages;
+  assert.deepEqual(plan.stages.map(s => s.at), [dated[0]!.at, dated[2]!.at], 'each stage keeps the date it was recorded');
+  assert.ok(Math.abs(growthMoment(plan, dated[0]!.at) - stories!.start) < 1e-9);
+  assert.ok(Math.abs(growthMoment(plan, dated[2]!.at) - linked!.start) < 1e-9);
+  // Between two stages, in proportion; a stage that added nothing (11:00) moves nothing.
+  assert.ok(Math.abs(growthMoment(plan, '2026-10-01T10:30:00.000Z') - (stories!.start + (linked!.start - stories!.start) / 4)) < 1e-9);
+  // After the last stage, toward the recording's end, reached as the growth ends; outside the recording, held at its edges.
+  assert.ok(Math.abs(growthMoment(plan, '2026-10-01T13:00:00.000Z') - (linked!.start + plan.seconds) / 2) < 1e-9);
+  assert.equal(growthMoment(plan, '2026-10-01T14:00:00.000Z'), plan.seconds);
+  assert.equal(growthMoment(plan, '2026-10-02T00:00:00.000Z'), plan.seconds);
+  assert.equal(growthMoment(plan, '2026-09-30T00:00:00.000Z'), stories!.start);
+  const dates = ['2026-10-01T09:00:00.000Z', '2026-10-01T10:10:00.000Z', '2026-10-01T11:59:00.000Z', '2026-10-01T12:01:00.000Z', '2026-10-01T15:00:00.000Z'];
+  const moments = dates.map(d => growthMoment(plan, d));
+  assert.ok(moments.every((m, i) => i === 0 || m >= moments[i - 1]!), 'a later date is never earlier in the replay');
+  // A recording with no dates places every date at its first stage.
+  assert.equal(growthMoment(growthPlan(stages), '2026-10-01T13:00:00.000Z'), 0);
 });

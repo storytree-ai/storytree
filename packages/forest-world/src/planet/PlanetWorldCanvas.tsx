@@ -23,7 +23,7 @@ export { applyPlanetFraming, applyPlanetSideOffset } from './camera.js';
 /** The eye's height above the globe's equator, in degrees: a host turns what it shows toward it. */
 export { SHIPPED_ELEVATION_DEG } from '../camera-framing.js';
 export { usePlanetGrowth, type GrowthReader, type PlanetGrowth } from './PlanetGrowth.js';
-export { crossingLength, growthPlan, type GrowthOptions, type GrowthPlan, type GrowthStage } from './growth.js';
+export { crossingLength, growthMoment, growthPlan, type GrowthOptions, type GrowthPlan, type GrowthStage } from './growth.js';
 
 /** Exterior surfaces owned by the engine. The host owns the marks placed on each island. */
 export interface PlanetSurfaceVisibility {

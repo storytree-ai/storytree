@@ -1,22 +1,51 @@
 // The globe's growth (world 7), replayed in the shipped engine from the website's own recordings:
-// Conduit's saved growth stage by stage, or storytree's saved reading grown from one point.
+// Conduit's saved growth stage by stage, or storytree's saved reading grown from one point by its own dated history,
+// its knowledge core growing with it.
 // ?map=conduit|storytree  &seconds=<length>  &at=<seconds> fixes a moment; absent, it plays on the canvas's clock.
 import { createRoot } from 'react-dom/client';
 import { useFrame, useThree } from '@react-three/fiber';
-import { PlanetWorldCanvas, growthPlan, crossingLength, SHIPPED_ELEVATION_DEG, type PlanetSpot } from '@storytree/forest-world/planet';
+import { PlanetWorldCanvas, growthPlan, crossingLength, usePlanetGrowth, SHIPPED_ELEVATION_DEG, type PlanetSpot } from '@storytree/forest-world/planet';
+import { createKnowledgeCore, KnowledgeGlobePoints } from '@storytree/knowledge-core/view';
 import { buildPlanetPathways } from '@storytree/forest-world/geometry';
 import conduit from '../../src/conduit-snapshot.json' with { type: 'json' };
 import storytree from '../../src/forest-snapshot.json' with { type: 'json' };
 
-type Snapshot = { radius: number; scene: any; spots: [string, PlanetSpot][]; stages?: { id: string; scene: any }[] };
+type Change = { recordId: string; action: string; record: { createdAt: string } };
+type Snapshot = { radius: number; scene: any; spots: [string, PlanetSpot][]; capturedAt: string; project: string;
+  stages?: { id: string; at: string; scene: any }[]; changes?: Change[] };
 const query = new URLSearchParams(location.search);
 const map = query.get('map') === 'storytree' ? 'storytree' : 'conduit';
 const saved = (map === 'conduit' ? conduit : storytree) as unknown as Snapshot;
 const spots = new Map(saved.spots);
 const pathways = buildPlanetPathways(saved.scene, spots, saved.radius);
-// Conduit's recorded stages; storytree's one saved reading, grown by its dependencies alone.
-const stages = saved.stages?.map(({ id, scene }) => ({ id, scene })) ?? [{ id: 'saved', scene: saved.scene }];
-const plan = growthPlan(stages, { fromPoint: true, seconds: Number(query.get('seconds') ?? 15), roadLength: link => crossingLength(pathways, link) });
+// Conduit's recorded stages; storytree's saved reading, staged by when its library recorded each story and capability.
+const stages = saved.stages?.map(({ id, at, scene }) => ({ id, at, scene })) ?? datedStages(saved);
+const plan = growthPlan(stages, { fromPoint: true, seconds: Number(query.get('seconds') ?? 15), roadLength: link => crossingLength(pathways, link),
+  until: saved.stages?.at(-1)?.at ?? saved.capturedAt });
+
+/** The saved plan as it stood when each story was recorded (stories recorded in the same minute together), then whole
+ * as saved: an island once its story was created, a capability once it was, a link once both its ends were. Nothing else. */
+function datedStages({ scene, changes = [], capturedAt }: Snapshot) {
+  const created = new Map(changes.filter(c => c.action === 'created').map(c => [c.recordId, c.record.createdAt]));
+  const born = (id: string | undefined) => (id === undefined ? undefined : created.get(id)) ?? '';
+  const minutes = new Map<string, string>();
+  for (const island of scene.islands) {
+    const at = born(island.story), minute = at.slice(0, 16);
+    if (at > (minutes.get(minute) ?? '')) minutes.set(minute, at);
+  }
+  const state = (at: string) => {
+    const islands = scene.islands.filter((i: any) => born(i.story) <= at)
+      .map((i: any) => ({ ...i, trees: i.trees.filter((t: any) => born(t.capability) <= at) }));
+    const present = new Set(islands.flatMap((i: any) => i.trees.map((t: any) => t.capability)));
+    return { islands, links: (scene.links ?? []).filter((l: any) => present.has(l.from) && present.has(l.to)) };
+  };
+  return [...[...minutes.values()].sort().map(at => ({ id: at, at, scene: state(at) })), { id: 'saved', at: capturedAt, scene }];
+}
+
+// storytree's knowledge core, from the library history the reading saved; each note shows from its recorded date.
+const core = saved.changes === undefined ? undefined : createKnowledgeCore(saved.project);
+core?.take(saved.changes as any, []);
+function GrowingCore() { return <KnowledgeGlobePoints core={core!} spots={spots} radius={saved.radius} growth={usePlanetGrowth()} />; }
 const at = query.get('at');
 // Turn the islands' middle toward the eye: the shortest turn from one unit direction to another.
 const sum = [...spots.values()].reduce((m, s) => { const l = Math.hypot(s.x, s.y, s.z); return [m[0]! + s.x / l, m[1]! + s.y / l, m[2]! + s.z / l]; }, [0, 0, 0]);
@@ -38,7 +67,10 @@ let last = 0;
     snapshot: () => {
       const { scene, clock } = get();
       const plates = scene.getObjectByName('globe').children.filter((c: any) => c.name.startsWith('planet:') && c.name !== 'planet:shell');
-      return { draws, clock: clock.getElapsedTime(), visiblePlates: plates.filter((p: any) => p.visible).length, plates: plates.length };
+      const notes: any[] = [];
+      scene.getObjectByName('knowledge-points')?.children.forEach((c: any) => { if (c.name.startsWith('knowledge-point:')) notes.push(c); });
+      return { draws, clock: clock.getElapsedTime(), visiblePlates: plates.filter((p: any) => p.visible).length, plates: plates.length,
+        visibleNotes: notes.filter(n => n.visible).length, notes: notes.length };
     },
     frames: () => intervals.splice(0),
   };
@@ -48,5 +80,5 @@ const baseline = query.get('baseline') === '1';
 function Redraw() { const invalidate = useThree(state => state.invalidate); useFrame(() => invalidate()); return null; }
 createRoot(document.getElementById('globe')!).render(
   <PlanetWorldCanvas scene={saved.scene} spots={spots} radius={saved.radius} rotation={rotation}
-    growth={baseline ? undefined : { plan, at: at === null ? undefined : Number(at) }}>{baseline && <Redraw />}</PlanetWorldCanvas>,
+    growth={baseline ? undefined : { plan, at: at === null ? undefined : Number(at) }} inside={core && <GrowingCore />}>{baseline && <Redraw />}</PlanetWorldCanvas>,
 );

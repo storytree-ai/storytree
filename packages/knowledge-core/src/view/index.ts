@@ -2,3 +2,4 @@
 // It needs React and a browser; the package's main entry stays plain logic.
 export { createKnowledgeCore, KnowledgeGlobePoints, KnowledgeNoteCard, useCodeLighting } from "./surface.js";
 export type { CodeLighting, CoreReads, KnowledgeCore } from "./surface.js";
+export type { CoreGrowth } from "./globe-points.js";

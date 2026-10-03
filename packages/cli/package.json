@@ -17,6 +17,7 @@
     "@storytree/app": "workspace:*",
     "@storytree/app-setup": "workspace:*",
     "@storytree/arc-surface": "workspace:*",
+    "@storytree/ci-health": "workspace:*",
     "@storytree/forest": "workspace:*",
     "@storytree/journey-events": "workspace:*",
     "@storytree/keys": "workspace:*",

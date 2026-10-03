@@ -230,6 +230,25 @@ importers:
         specifier: ~7.0.2
         version: 7.0.2
 
+  packages/ci-health:
+    dependencies:
+      '@storytree/library':
+        specifier: workspace:*
+        version: link:../library
+      '@storytree/map':
+        specifier: workspace:*
+        version: link:../map
+    devDependencies:
+      '@types/node':
+        specifier: ^24.13.6
+        version: 24.13.6
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+      typescript:
+        specifier: ~7.0.2
+        version: 7.0.2
+
   packages/cli:
     dependencies:
       '@storytree/agent-link':
@@ -244,6 +263,9 @@ importers:
       '@storytree/arc-surface':
         specifier: workspace:*
         version: link:../arc-surface
+      '@storytree/ci-health':
+        specifier: workspace:*
+        version: link:../ci-health
       '@storytree/forest':
         specifier: workspace:*
         version: link:../forest

@@ -1,10 +1,114 @@
 import assert from "node:assert/strict";
 import path from "node:path";
+import { writeFile } from "node:fs/promises";
 
 const counter = page => page.evaluate(() => [...document.querySelectorAll("#opening-count span")].map(span => span.textContent));
 const run = page => page.getByRole("button", { name: "Run", exact: true });
 const better = page => page.getByRole("button", { name: "show me the better way" });
 const peak = ["AGENTS: 12 ▲", "WAITING ON YOU: 12", "ANSWERED: 00"];
+
+// Contract 2.3: measure real page frames with the globe below the fold, then prove its handover.
+// The caller launches SwiftShader explicitly; no virtual clock or hidden chapter changes the load.
+export async function verifyOpeningFrames(browser, url, output) {
+  const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  await page.addInitScript(() => {
+    window.openingFrames = { ready: [], playing: [] };
+    window.globeDraws = 0;
+    for (const kind of [WebGLRenderingContext, WebGL2RenderingContext]) {
+      for (const method of ["drawArrays", "drawElements", "drawArraysInstanced", "drawElementsInstanced"]) {
+        const draw = kind.prototype[method];
+        if (!draw) continue;
+        kind.prototype[method] = function (...args) {
+          if (this.canvas.closest("#website-forest")) window.globeDraws++;
+          return draw.apply(this, args);
+        };
+      }
+    }
+    let last;
+    const frame = now => {
+      if (last !== undefined) window.openingFrames[window.runAt ? "playing" : "ready"].push(now - last);
+      last = now;
+      requestAnimationFrame(frame);
+    };
+    requestAnimationFrame(frame);
+    document.addEventListener("click", event => {
+      if (event.target.id === "opening-run") { window.runAt = performance.now(); last = undefined; }
+    }, true);
+    document.addEventListener("DOMContentLoaded", () => {
+      new MutationObserver(() => {
+        if (window.runAt && !document.getElementById("opening-better").hidden && !window.finaleAt) window.finaleAt = performance.now();
+      }).observe(document.getElementById("opening-better"), { attributes: true, attributeFilter: ["hidden"] });
+    });
+  });
+  try {
+    await page.goto(url);
+    await run(page).waitFor();
+    await page.waitForTimeout(2500);
+    await run(page).click();
+    await better(page).waitFor({ timeout: 45000 });
+    const measured = await page.evaluate(() => {
+      const summarize = values => {
+        const sorted = [...values].sort((a, b) => a - b);
+        const elapsedMs = values.reduce((a, b) => a + b, 0);
+        return { frames: values.length, elapsedMs, fps: values.length * 1000 / elapsedMs, p95FrameMs: sorted[Math.floor(sorted.length * .95)] };
+      };
+      return {
+        viewport: [innerWidth, innerHeight], renderer: "SwiftShader",
+        ready: summarize(window.openingFrames.ready), playing: summarize(window.openingFrames.playing),
+        finaleMs: window.finaleAt - window.runAt,
+        activationCount: performance.getEntriesByName("forest-activate").length,
+        sceneRequested: performance.getEntriesByType("resource").some(entry => /forest-scene-[^/]*\.js$/.test(entry.name)),
+        mountedLayers: document.querySelectorAll("#website-forest .forest-canvas").length,
+        forestState: document.querySelector("#website-forest").dataset.forestState,
+        globeDraws: window.globeDraws,
+      };
+    });
+    await writeFile(path.join(output, "opening-frames.json"), JSON.stringify(measured, null, 2) + "\n");
+    console.log(JSON.stringify(measured));
+    assert.equal(measured.activationCount, 0, "website 2.3: Chapter 1, including Run, never activates the off-screen globe");
+    assert.equal(measured.sceneRequested, false, "website 2.3: Chapter 1 does not request the 3D scene");
+    assert.equal(measured.mountedLayers, 0, "website 2.3: no globe mounts below Chapter 1");
+    assert.equal(measured.globeDraws, 0, "website 2.3: no globe draws below Chapter 1");
+    await better(page).click();
+    await page.waitForFunction(() => document.querySelector("#website-forest").dataset.forestState === "live", null, { timeout: 30000 });
+    measured.handoverLoadMs = await page.evaluate(() => performance.getEntriesByName("forest-ready").at(-1).startTime - performance.getEntriesByName("forest-activate").at(-1).startTime);
+    await writeFile(path.join(output, "opening-frames.json"), JSON.stringify(measured, null, 2) + "\n");
+    await page.waitForTimeout(3000); // Let the first camera flight arrive before its picture.
+    await page.screenshot({ path: path.join(output, "handover-1440.png") });
+    await page.getByRole("button", { name: "Replay chapter 1" }).click();
+    assert.equal(await page.locator("#website-forest .forest-canvas").count(), 0, "website 2.3: replay releases the globe while Chapter 1 is visible");
+    await page.evaluate(() => scrollTo(0, document.querySelector("#opening").offsetHeight + 40));
+    await page.waitForFunction(() => document.querySelector("#website-forest").dataset.forestState === "live", null, { timeout: 30000 });
+    assert.equal(await page.locator("#website-forest .forest-canvas").count(), 1, "website 2.3: scroll remounts one globe");
+    await page.reload();
+    await page.waitForFunction(() => document.querySelector("#website-forest").dataset.forestState === "live", null, { timeout: 30000 });
+  } finally { await page.close(); }
+  // Without IntersectionObserver the same Chapter 1 boundary still applies.
+  const fallback = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  let release;
+  const held = new Promise(resolve => { release = resolve; });
+  let requested;
+  const request = new Promise(resolve => { requested = resolve; });
+  try {
+    await fallback.addInitScript(() => { delete window.IntersectionObserver; });
+    await fallback.route(/forest-scene-[^/]*\.js$/, async route => { requested(); await held; await route.continue(); });
+    await fallback.goto(url);
+    await run(fallback).waitFor();
+    await fallback.waitForTimeout(1500);
+    assert.equal(await fallback.locator("#website-forest .forest-canvas").count(), 0);
+    await fallback.getByRole("button", { name: "skip intro" }).click();
+    await request;
+    await fallback.getByRole("button", { name: "Replay chapter 1" }).click();
+    release();
+    await fallback.waitForTimeout(1500);
+    assert.equal(await fallback.locator("#website-forest .forest-canvas").count(), 0, "website 2.3: a scene arriving after Replay cannot mount");
+    await fallback.getByRole("button", { name: "skip intro" }).click();
+    await fallback.waitForFunction(() => document.querySelector("#website-forest").dataset.forestState === "live", null, { timeout: 30000 });
+    await fallback.waitForTimeout(3000);
+    await fallback.screenshot({ path: path.join(output, "handover-390.png") });
+  } finally { release(); await fallback.close(); }
+  console.log("PASS contract 2.3: no Chapter 1 globe, handover, replay, scroll, return and no-observer fallback");
+}
 
 // ADR-0879 D6: nothing may overflow sideways and no window may cover the HUD row, at any size or zoom.
 async function assertFits(page, label) {

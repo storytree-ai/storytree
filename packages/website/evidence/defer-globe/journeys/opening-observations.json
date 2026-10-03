@@ -1,0 +1,13 @@
+{
+  "story": "The website",
+  "commit": "5f910f950b3ae7e3d5d8b30af99cfebbea34cc55",
+  "evidence": "packages/website/evidence/defer-globe/journeys",
+  "note": "Locally built website served from packages/website/dist",
+  "checks": [
+    {
+      "contract": "1.8",
+      "name": "Chapter 1 playback, exits, sound, storage and static fallbacks",
+      "observed": "pass"
+    }
+  ]
+}

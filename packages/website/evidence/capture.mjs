@@ -5,7 +5,7 @@ import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
-import { verifyOpening } from "./opening.mjs";
+import { verifyOpening, verifyOpeningFrames } from "./opening.mjs";
 import { verifyTour, verifyTourCamera, verifyImmersive, verifyRecordingFreeplay } from "./tour.mjs";
 import { verifyForest } from "./forest.mjs";
 import { withBrowserCoverage } from "./browser-coverage.mjs";
@@ -14,6 +14,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const output = path.resolve(here, process.argv[2] ?? "scaffold");
 const dist = path.resolve(here, "../dist");
 const verifyOpeningRequested = process.argv.includes("--verify-opening");
+const verifyOpeningFramesRequested = process.argv.includes("--verify-opening-frames");
 const verifyEnlarged = process.argv.includes("--verify-enlarged");
 const verifyControls = process.argv.includes("--verify-controls") || verifyEnlarged;
 const verifyHome = process.argv.includes("--verify-home") || verifyControls;
@@ -42,9 +43,10 @@ const server = createServer(async (req, res) => {
 await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
 let browser;
 try {
-  browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
+  browser = await chromium.launch({ headless: true, args: ["--no-sandbox", ...(verifyOpeningFramesRequested ? ["--enable-unsafe-swiftshader", "--use-angle=swiftshader"] : [])] });
   const url = `http://127.0.0.1:${server.address().port}/`;
-  if (process.argv.includes("--verify-recording")) await verifyRecordingFreeplay(browser, url, output);
+  if (verifyOpeningFramesRequested) await verifyOpeningFrames(browser, url, output);
+  else if (process.argv.includes("--verify-recording")) await verifyRecordingFreeplay(browser, url, output);
   else if (process.argv.includes("--verify-immersive")) await verifyImmersive(browser, url, output);
   else {
   if (process.argv.includes("--verify-forest")) {

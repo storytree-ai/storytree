@@ -12,6 +12,7 @@ import { SHIPPED_ELEVATION_DEG } from '../camera-framing.js';
 import { createPlanetSurface, plateTransform, type PlanetSpot } from './planet.js';
 import { disposeIslandSurface, islandSurface } from './island-surface.js';
 import { applyPlanetFraming, applyPlanetSideOffset } from './camera.js';
+import { paintWhileSeen, startingFrameloop, viewportWatch, type ViewportWatch } from './paint-while-seen.js';
 
 export type { PlanetSpot } from './planet.js';
 export { globeOccluder, plateTransform, PLATE_CLEARANCE } from './planet.js';
@@ -92,6 +93,14 @@ function Framing({ radius, framing, sideOffset }: { radius: number; framing: num
   return null;
 }
 
+/** World 6.10: the globe draws only while some of its canvas is on screen, however busy its animations are. */
+function PaintWhileSeen({ watch }: { watch: ViewportWatch | undefined }) {
+  const get = useThree(state => state.get);
+  const canvas = useThree(state => state.gl.domElement);
+  useEffect(() => paintWhileSeen(get, canvas, watch), [get, canvas, watch]);
+  return null;
+}
+
 /** The one dev-only seam an evidence capture observes the globe through: a capture build sets this global
  * before the page runs and is handed the canvas's live state getter. Nothing in the product sets it. */
 const CAPTURE_SEAM = '__storytreeCaptureGlobe';
@@ -107,8 +116,10 @@ export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1
     camera.lookAt(0, 0, 0);
     (globalThis as { [CAPTURE_SEAM]?: (state: () => RootState) => void })[CAPTURE_SEAM]?.(get);
   }, []);
-  return <Canvas orthographic {...EXACT_COLOUR_CANVAS_PROPS} frameloop="demand"
+  const watch = useMemo(viewportWatch, []);
+  return <Canvas orthographic {...EXACT_COLOUR_CANVAS_PROPS} frameloop={startingFrameloop(watch)}
     camera={{ position, near: 0.1, far: radius * 10 }} onCreated={onCreated}>
+    <PaintWhileSeen watch={watch} />
     <color attach="background" args={['#101418']} />
     <Framing radius={radius} framing={framing} sideOffset={sideOffset} />
     <group name="globe" quaternion={rotation}>

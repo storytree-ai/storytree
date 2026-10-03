@@ -1,0 +1,144 @@
+model: claude-opus-5-5 | mcp: storytree=connected,claude.ai Claude Docs=connected,claude.ai Google Drive=connected,claude.ai Gmail=connected,claude.ai Google Calendar=connected
+calls: 120
+  - ToolSearch
+  - st:check_setup {}
+  - Write C:\Users\mickh\shop\.storytree-check
+  - PowerShell echo storytree-check
+  - st:search_notes {"query":"orchestrator role","limit":3}
+  - st:search_notes {"query":"librarian role","limit":3}
+  - st:show_plan {}
+  - ToolSearch
+  - st:check_setup {}
+  - st:open {"id":"agent_d97940a3ce57"}
+  - st:open {"id":"agent_9a5f274a583c"}
+  - st:search_notes {"query":"package layout question: one package per story or per feature","limit":5}
+  - PowerShell git ls-files; Get-Content package.json; Get-ChildItem packages -Directory | % { "--- $($_.Name)"; Ge
+  - st:open {"id":"arc_64256e5c52ba"}
+  - Read C:\Users\mickh\shop\packages\auth\index.js
+  - ToolSearch
+  - PowerShell Get-ChildItem C:\Users\mickh -Directory | Select-Object -Expand Name; Get-ChildItem C:\Users\mickh -
+  - ToolSearch
+  - WebFetch
+  - WebFetch
+  - PowerShell gh api "repos/saucelabs/sample-app-web/git/trees/main?recursive=1" --jq '.tree[].path' | Select-Stri
+  - PowerShell foreach ($f in 'specs/login.spec.ts','page-objects/LoginPage.ts','page-objects/BasePage.ts','helpers
+  - Grep
+  - st:search_notes {"query":"should code move into one package per story so the map can draw it","limit":5}
+  - PowerShell Get-ChildItem "C:\Program Files*\Google\Chrome\Application\chrome.exe","C:\Program Files*\Microsoft\
+  - Grep
+  - PowerShell Get-Content C:\Users\mickh\.claude\projects\C--Users-mickh-shop\d3ce874b-dfe1-4959-844a-3c1a9e35179a
+  - st:settle_question {"question":"question_2625d5a07f3b","answer":"Go with A: seeing the code on the map matters more to me than one package per feature. One pac
+  - Read C:\Users\mickh\shop\shop-requirements.md
+  - PowerShell cd C:\Users\mickh; git clone --depth 1 --filter=blob:none --sparse https://github.com/saucelabs/samp
+  - Write C:\Users\mickh\swaglabs-e2e\test\e2e\test\configs\wdio.local.edge.conf.ts
+  - PowerShell cd C:\Users\mickh\swaglabs-e2e\test\e2e; npm install --no-audit --no-fund --save-dev=false @wdio/cli
+  - PowerShell cd packages; Select-String -Path */*.js -Pattern "require\(" | % { "$($_.Path.Replace((Get-Location)
+  - PowerShell cd C:\Users\mickh\shop; Get-Content packages/server/server.test.js -TotalCount 40; Select-String -Pa
+  - st:park_increment {"arc":"arc_64256e5c52ba","title":"Lay code out by story","objective":"Move the code into one npm package per story (packages/<story>/src/<f
+  - st:park_increment {"arc":"arc_64256e5c52ba","title":"Sign-in errors without a page reload","objective":"Swag Labs' \"should not be able to login with a locked
+  - st:claim {"increment":"increment_42ca457534f0","reason":"Move code into one package per story"}
+  - st:claim {"capability":"capability_825530ef6bbe","reason":"Move code into one package per story"}
+  - st:claim {"capability":"capability_e777039099a5","reason":"Move code into one package per story"}
+  - st:claim {"capability":"capability_13dcd8a31660","reason":"Move code into one package per story"}
+  - st:claim {"capability":"capability_69549d30bb2e","reason":"Move code into one package per story"}
+  - st:claim {"capability":"capability_fb14443959b7","reason":"Move code into one package per story"}
+  - st:claim {"capability":"capability_ad475ccdac69","reason":"Move code into one package per story"}
+  - st:claim {"capability":"capability_1c4d86d9ea7e","reason":"Move code into one package per story"}
+  - st:name_session {"title":"Story packages; fix flaky locked sign-in"}
+  - PowerShell git checkout -b story-packages; $s1='packages/sign-in-and-see-the-products/src'; $s2='packages/brows
+  - PowerShell @' const fs = require('fs'), path = require('path'); const stories = { 'sign-in-and-see-the-produc
+  - Write C:\Users\mickh\shop\packages\sign-in-and-see-the-products\package.json
+  - Write C:\Users\mickh\shop\packages\browse-products-and-pick-them\package.json
+  - Edit C:\Users\mickh\shop\package.json
+  - Edit C:\Users\mickh\shop\shop-requirements.md
+  - PowerShell npm install --no-audit --no-fund | Select -Last 3; Get-ChildItem node_modules/@shop | Select Name, L
+  - PowerShell npm test | Select -Last 12
+  - st:focus {"select":"story:Sign in and see the products","down":1,"up":1}
+  - st:focus {"select":"story:Browse products and pick them","down":1,"up":1}
+  - st:edit_plan {"id":"capability_825530ef6bbe","title":"1 ┬À Web basics (src/core)"}
+  - st:edit_plan {"id":"capability_e777039099a5","title":"2 ┬À Signing in and out (src/auth)"}
+  - st:edit_plan {"id":"capability_13dcd8a31660","title":"3 ┬À Products list (src/catalog)"}
+  - st:edit_plan {"id":"capability_69549d30bb2e","title":"4 ┬À The shop server (src/server)"}
+  - st:edit_plan {"id":"capability_fb14443959b7","title":"1 ┬À Product page (src/product-page)"}
+  - st:edit_plan {"id":"capability_ad475ccdac69","title":"2 ┬À Sorting products (src/sorting)"}
+  - st:edit_plan {"id":"capability_1c4d86d9ea7e","title":"3 ┬À Cart buttons and badge (src/cart-state)"}
+  - st:edit_plan {"id":"capability_ec71848569ac","title":"1 ┬À Cart page (src/cart)"}
+  - st:edit_plan {"id":"capability_53c4975401df","title":"2 ┬À Header and side menu (src/menu)"}
+  - st:edit_plan {"id":"capability_3828677395ed","title":"1 ┬À Checkout pages (src/checkout)"}
+  - st:open {"id":"decision_cd3c67407f50"}
+  - PowerShell git add -A; git status --short | Select -First 40; git commit -q -m @' Lay the code out by story: on
+  - ToolSearch
+  - PowerShell gh pr create --base main --head story-packages --title "Lay the code out by story" --body @' The own
+  - st:correct_note {"id":"decision_cd3c67407f50","text":"Each feature (a folder under a story package's src/) exports its own routes; the server feature just l
+  - st:write_note {"kind":"decision","title":"One package per story, features as folders","text":"Code lives in one npm workspace package per story, packages/
+  - PowerShell gh pr checks 3 --watch --interval 10 | Select -Last 3
+  - PowerShell gh pr merge 3 --merge --delete-branch | Select -Last 2; git checkout -q main; git pull -q; git log -
+  - st:close_increment {"increment":"increment_42ca457534f0","disposition":"landed","pr":"#3"}
+  - st:land {"capability":"capability_825530ef6bbe"}
+  - st:land {"capability":"capability_13dcd8a31660"}
+  - st:land {"capability":"capability_69549d30bb2e"}
+  - st:land {"capability":"capability_fb14443959b7"}
+  - st:land {"capability":"capability_ad475ccdac69"}
+  - st:land {"capability":"capability_1c4d86d9ea7e"}
+  - st:claim {"increment":"increment_2d39868c0ce3","reason":"Fix flaky locked-user sign-in test"}
+  - PowerShell $env:PORT='3000'; Start-Process -FilePath node -ArgumentList 'packages/sign-in-and-see-the-products/
+  - PowerShell cd C:\Users\mickh\swaglabs-e2e\test\e2e; $r = 1..8 | % { $out = npx wdio test/configs/wdio.local.edg
+  - PowerShell Get-Content $env:TEMP\wdio-run1.txt | Select -Last 40
+  - PowerShell cd C:\Users\mickh\swaglabs-e2e\test\e2e; npm install --no-audit --no-fund --ignore-scripts 2>$null |
+  - PowerShell cd C:\Users\mickh\swaglabs-e2e\test\e2e; $out = npx wdio test/configs/wdio.local.edge.conf.ts 2>&1 |
+  - PowerShell cd C:\Users\mickh\swaglabs-e2e\test\e2e; 1..10 | % { $out = npx wdio test/configs/wdio.local.edge.co
+  - PowerShell Get-Content $env:TEMP\wdio-fail-4.txt | Select-String -Pattern 'Ô£û|locked|Error|at .*spec|callFunct
+  - Read C:\Users\mickh\shop\packages\sign-in-and-see-the-products\src\core\index.js
+  - Read C:\Users\mickh\shop\packages\browse-products-and-pick-them\src\cart-state\cart.js
+  - Read C:\Users\mickh\shop\packages\sign-in-and-see-the-products\src\auth\auth.test.js
+  - Read C:\Users\mickh\shop\packages\sign-in-and-see-the-products\src\core\testing.js
+  - Read C:\Users\mickh\shop\packages\browse-products-and-pick-them\src\cart-state\index.js
+  - ToolSearch
+  - st:plan_contract {"capability":"capability_e777039099a5","title":"Sign-in errors show in place, without a reload","description":"With scripts on, clicking Lo
+  - Edit C:\Users\mickh\shop\packages\sign-in-and-see-the-products\src\core\testing.js
+  - Edit C:\Users\mickh\shop\packages\sign-in-and-see-the-products\src\auth\auth.test.js
+  - Edit C:\Users\mickh\shop\packages\sign-in-and-see-the-products\src\auth\auth.test.js
+  - Write C:\Users\mickh\shop\packages\sign-in-and-see-the-products\src\auth\sign-in.js
+  - PowerShell node --test --test-name-pattern="2\.7" packages/sign-in-and-see-the-products/src/auth/auth.test.js |
+  - st:report {"contract":"contract_cddf166f235e","result":"red","note":"Fails at the first check: the sign-in page loads no sign-in script. Swag Labs' lo
+  - Write C:\Users\mickh\shop\packages\sign-in-and-see-the-products\src\auth\sign-in.js
+  - Edit C:\Users\mickh\shop\packages\sign-in-and-see-the-products\src\auth\index.js
+  - Edit C:\Users\mickh\shop\packages\sign-in-and-see-the-products\src\auth\index.js
+  - Edit C:\Users\mickh\shop\packages\sign-in-and-see-the-products\src\auth\index.js
+  - PowerShell npm test | Select-String '^not ok|^# (tests|pass|fail)'
+  - PowerShell Stop-Process -Id (Get-Content $env:TEMP\shop-pid.txt) -ErrorAction SilentlyContinue; $env:PORT='3000
+  - PowerShell cd C:\Users\mickh\swaglabs-e2e\test\e2e; npx wdio test/configs/wdio.local.edge.conf.ts --spec test/s
+  - PowerShell Stop-Process -Id (Get-Content $env:TEMP\shop-pid.txt) -ErrorAction SilentlyContinue; git checkout -q
+  - Write C:\Users\mickh\AppData\Local\Temp\commit-msg.txt
+  - PowerShell git commit -q -F $env:TEMP\commit-msg.txt; git log --oneline -1; git push 2>&1 | Select -Last 1; Set
+  - st:report {"contract":"contract_cddf166f235e","result":"green","note":"npm test 18/18. Swag Labs login.spec.ts in headless Edge: 20 of 20 runs pass wi
+  - PowerShell gh pr checks 4 --watch --interval 10 | Select -Last 1
+  - PowerShell gh pr merge 4 --merge --delete-branch | Out-Null; git checkout -q main; git pull -q; git log --oneli
+  - st:land {"capability":"capability_e777039099a5"}
+  - st:close_increment {"increment":"increment_2d39868c0ce3","disposition":"landed","pr":"#4"}
+  - st:write_note {"kind":"decision","title":"Answer in-page actions in the same page","text":"Swag Labs is a single-page app: its tests click and then read t
+  - st:record_friction {"title":"Own tests can't see Swag Labs' timing flakes","description":"The shop's node --test suite checks HTML over fetch, so it passed whi
+  - st:read_context {}
+  - st:close_out {"safe":true,"why":"PRs #3 and #4 merged after CI passed, main clean and pulled, shop server stopped"}
+RESULT success turns 121 ms 1323392 cost 2.5857990000000006 
+I've done both: the code is now laid out one package per story, and the flaky locked-user test is fixed. Both pull requests passed CI and are merged.
+
+**1. One package per story (PR #3)**
+- `packages/sign-in-and-see-the-products/src/` holds `core`, `auth`, `catalog` and `server`.
+- `packages/browse-products-and-pick-them/src/` holds `product-page`, `sorting` and `cart-state`.
+- Each story's `package.json` lists the other story's package. The two stories use each other: the Products page shows the sort menu and cart buttons, and the product page reads the products list. So the map draws a road both ways.
+- storytree now shows 6 files on the first story's island and 5 on the second's.
+- No behaviour changed and all 17 tests passed after the move. I also changed the "one package per feature" line in `shop-requirements.md` to say one package per story, so it matches your choice.
+
+**2. The flaky locked-user test (PR #4)**
+- **Why it failed:** Swag Labs' test clicks Login and reads the error message straight away. saucedemo.com checks the details inside the page, so the error is already there. Our shop sent the form to the server and loaded a new page, so the test sometimes grabbed the error while the page was being replaced.
+- **Reproduced:** I ran Swag Labs' own `login.spec.ts` in headless Edge, and 2 of 10 runs failed with your exact error.
+- **Fix:** a small sign-in script now asks the server when Login is clicked and shows the error on the same page before the click finishes. A successful sign-in goes to Products as before. With scripts turned off, the old form still works.
+- **Results:**
+  - One new test, so `npm test` now has 18 passing.
+  - `login.spec.ts` passed 20 of 20 runs.
+  - The product list and product page specs still pass. The one failure is "should be able to open the cart summary page", which needs the Cart page from part 3.
+
+To run Swag Labs' tests I set up a copy of them in `C:\Users\mickh\swaglabs-e2e`, outside the repo, with an Edge config I added. You can delete that folder, or keep it for checking later parts.
+
+When saucedemo.com shows an answer inside the page, our shop now has to as well. I've noted that for the checkout errors in part 4.

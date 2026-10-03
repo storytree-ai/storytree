@@ -13,7 +13,7 @@ import { findProject, notAProjectYet, setUpProject, starterRolesIn, suggestProje
 import { checkFilesWritten, codexHooksState, FIX_SENTENCES, HOOK_TESTS, openStorytree, runSetupCheck, verifyHooks, type Fix, type SetupOptions } from "../setup/index.js";
 import { isUnreachable, NOT_RUNNING_ANSWER, refusalOf, result } from "./answers.js";
 import type { Connections } from "./connections.js";
-import { lineOf, metaOf, seenCaller, type Caller } from "./server.js";
+import { lineOf, metaOf, seenCaller, type Caller, type JourneyMilestones } from "./server.js";
 import { quoted } from "./text.js";
 
 export interface SetupToolContext {
@@ -22,9 +22,10 @@ export interface SetupToolContext {
   readonly setup: Omit<SetupOptions, "folder">;
   readonly connections: Connections;
   readonly callerOf: (context: ServerContext) => Caller;
+  readonly journey?: JourneyMilestones;
 }
 
-export function registerSetupTools({ server, folder, setup, connections, callerOf }: SetupToolContext): void {
+export function registerSetupTools({ server, folder, setup, connections, callerOf, journey }: SetupToolContext): void {
   server.registerTool(
     "check_setup",
     {
@@ -74,6 +75,7 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
           }
         }
         if (verification.verified) {
+          try { journey?.hooksVerified?.(); } catch { /* Observation cannot change a setup answer. */ }
           said.push("The connection is verified: storytree has received this session's start, a storytree tool call, a file edit and a command from its hooks.");
         } else {
           said.push(`Not verified yet: storytree has not received this session's ${verification.missing.join(", ")} from its hooks.`);
@@ -114,6 +116,9 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
           folder, project: name, storytree: await connections.server(running.library), join: join === true,
           ...(setup.storytreeHome === undefined ? {} : { storytreeHome: setup.storytreeHome }),
         });
+        if (join !== true) {
+          try { journey?.projectCreated?.(); } catch { /* Observation cannot change a setup answer. */ }
+        }
         const { library, log } = await connections.reach(running.library, name);
         await log.append(name, { ...lineOf(caller), source: "tool", folder, kind: "tool-called", tool: "set_up_project" });
         // The setup finishes here, with no second check_setup in this session (8.22): that check could verify none

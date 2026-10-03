@@ -133,6 +133,7 @@ const doctor: Verb = {
           await setUpProject({ folder: context.cwd, project, storytree, join: join !== undefined }).catch((error: unknown) => {
             throw error instanceof ProjectFolderError ? new Refusal(error.message) : error;
           });
+          if (join === undefined) await context.journey?.().then((journey) => journey.projectCreated()).catch(() => {});
           said.push(join === undefined ? `This folder is set up as storytree project "${project}" now.` : `This folder is storytree project "${project}"'s checkout on this machine now.`);
         } else {
           said.push(`This folder is not a storytree project. Nothing was set up: storytree sets a folder up only when you tell it to.`);

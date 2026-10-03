@@ -13,6 +13,7 @@ import { mountAddProject, mountDeleteProject, mountRemoveProject, mountSetupHelp
 import { joinedReads, keptWorkStates, pageKeptReading, pageReading, type LiveReading, type PageReading } from "@storytree/arc-surface";
 import { mountArcSurface, type ArcSurface } from "@storytree/arc-surface/view";
 import { drillDown, forestDrawn, forestReading, forestScene, keptTree, selectedCapability, storyNodes, type ForestDrawn } from "@storytree/forest";
+import { mountJourneyConsent, mountJourneySettings } from "@storytree/journey-events/view";
 import type { AnnotatedTree } from "@storytree/library";
 
 import type { StorytreeBridge } from "../bridge.js";
@@ -41,12 +42,16 @@ const appMenu = mountAppMenu(element("app-menu-host"), {
     showMessage("error", "The project could not be selected", messageOf(error));
     void following?.refresh(true);
   },
+  mountJourney: (host) => mountJourneySettings(host, window.storytree),
   mountHelp: (host, returnFocus, onOpen) => mountSetupHelp(host, window.storytree, { returnFocus, embedded: true, onOpen }),
   mountAddProject: (host, onAdded) => mountAddProject(host, window.storytree, { onAdded }),
   mountRemoveProject: (host, current, onRemoved) => mountRemoveProject(host, window.storytree, { current, onRemoved }),
   mountDeleteProject: (host, onDeleted) => mountDeleteProject(host, window.storytree, { onDeleted }),
 });
-window.addEventListener("beforeunload", () => appMenu.stop());
+const consentHost = document.createElement("div");
+document.body.append(consentHost);
+const consent = mountJourneyConsent(consentHost, window.storytree);
+window.addEventListener("beforeunload", () => { appMenu.stop(); consent.stop(); consentHost.remove(); });
 
 /** The project on show's forest and live reading, stopped when another project is shown. */
 let showing: { page: PageReading | undefined; reading: LiveReading | undefined; view: ForestView | undefined; arcs: ArcSurface | undefined; sessions: ReturnType<typeof mountSessionsList> | undefined; card: (() => void) | undefined; tree: TreeSpace | undefined } | undefined;

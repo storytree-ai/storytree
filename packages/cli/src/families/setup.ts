@@ -21,7 +21,9 @@ export const setupConnectionVerbs: readonly Verb[] = [
       if (args.words.length || !args.names.length || args.names.some((name) => !["claude", "codex"].includes(name) || args.text(name) !== "true")) {
         throw new Refusal("Choose --claude, --codex or both. usage: storytree setup connect [--claude] [--codex]", { code: 2 });
       }
-      return installed(["connect", ...(args.has("claude") ? ["claude-code"] : []), ...(args.has("codex") ? ["codex"] : [])], context);
+      const answer = installed(["connect", ...(args.has("claude") ? ["claude-code"] : []), ...(args.has("codex") ? ["codex"] : [])], context);
+      await context.journey?.().then((journey) => journey.agentConnected()).catch(() => {});
+      return answer;
     },
   },
   {

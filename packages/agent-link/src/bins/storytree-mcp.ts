@@ -16,6 +16,7 @@ import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
 
 import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
+import { createJourneyRuntime, journeyVersion } from "@storytree/journey-events/runtime";
 
 import { builtFromMain, runSetupCheck, type HookCommand } from "../setup/index.js";
 import { createAgentTools } from "../tools/index.js";
@@ -28,13 +29,16 @@ const hook: HookCommand | undefined = existsSync(script)
   : await builtFromMain({ checkout }).catch(() => undefined);
 // The `storytree` command goes on the user's own path, beside the hooks (ADR-0643 D1, 8).
 const command = { path: process.env.PATH ?? process.env.Path ?? "", home: homedir() };
-const tools = createAgentTools({ folder, env: process.env, setup: hook === undefined ? {} : { hook, command } });
+declare const STORYTREE_RELEASE: string | undefined;
+const journey = createJourneyRuntime({ appVersion: journeyVersion(typeof STORYTREE_RELEASE === "string" ? STORYTREE_RELEASE : undefined) });
+const tools = createAgentTools({ folder, env: process.env, setup: hook === undefined ? {} : { hook, command }, journey });
+journey.start();
 
 let stopping = false;
 function stop(): void {
   if (stopping) return;
   stopping = true;
-  void tools.close().finally(() => process.exit(0));
+  void Promise.allSettled([tools.close(), journey.finish()]).finally(() => process.exit(0));
 }
 process.stdin.on("close", stop);
 for (const signal of ["SIGINT", "SIGTERM"] as const) process.on(signal, stop);

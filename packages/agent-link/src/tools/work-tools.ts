@@ -64,6 +64,7 @@ export function registerWorkTools(define: Define): void {
       const done = await call.library.closeIncrement(increment, defined({ disposition: meant, pr: pull, note: why }), call.writer);
       if (done === null) return noIncrement(increment);
       await closed(claimContext(call), increment, meant);
+      try { call.journey?.incrementClosed?.(done.fields.outcome?.disposition); } catch { /* Observation cannot fail a completed close. */ }
       const view = await call.library.arcView(done.fields.arc);
       const arc = view?.state === "closed" ? ` Its arc ${await arcName(call.library, done.fields.arc)} now reads closed: that was its last open increment.` : "";
       return { text: `Closed ${quoted(done.fields.title)} (${increment}), ${meant}.${arc}`, data: { id: increment } };

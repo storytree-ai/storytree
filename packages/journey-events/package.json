@@ -1,0 +1,24 @@
+{
+  "name": "@storytree/journey-events",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./view": "./src/view.ts",
+    "./bridge": "./src/bridge.ts",
+    "./runtime": "./src/runtime.ts",
+    "./deletion": "./src/deletion.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "posthog-node": "5.55.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.6",
+    "happy-dom": "catalog:",
+    "tsx": "^4.23.15",
+    "typescript": "~7.0.2"
+  }
+}

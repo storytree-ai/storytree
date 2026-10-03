@@ -31,10 +31,15 @@ test("2.7 clicking the mounted menu sections switches their content and preserve
   } });
   const updates: string[] = [];
   const help: string[] = [];
+  const sharing: string[] = [];
   const menu = mountAppMenu(host as unknown as HTMLElement, {
     background: background as unknown as HTMLElement,
     async chooseProject() { throw new Error("not switching projects in this test"); },
     onChosen() {}, onError(error) { throw error; }, onSurfacesChanged() {},
+    mountJourney(target) {
+      target.textContent = "The journey story mounts here";
+      return { open() { sharing.push("open"); }, close() { sharing.push("close"); }, stop() { sharing.push("stop"); } };
+    },
     mountHelp(target) {
       target.textContent = "The Help story mounts here";
       return { open() { help.push("open"); }, close() { help.push("close"); }, stop() { help.push("stop"); } };
@@ -68,7 +73,11 @@ test("2.7 clicking the mounted menu sections switches their content and preserve
   await section("sessions");
   assert.equal(host.querySelectorAll('#app-sessions form[data-setting]').length, 3);
   assert.match(host.querySelector("[data-delegations]")!.textContent, /The owner chooses the design/);
+  await section("sharing");
+  assert.equal(host.querySelector("[data-app-journey]")?.textContent, "The journey story mounts here");
+  assert.deepEqual(sharing, ["open"]);
   await section("library");
+  assert.deepEqual(sharing, ["open", "close"]);
   assert.equal(host.querySelectorAll('#app-library form[data-setting="library"]').length, 1);
   assert.equal(host.querySelector("#settings-panel-sessions")?.hasAttribute("hidden"), true);
   await section("help");
@@ -86,4 +95,5 @@ test("2.7 clicking the mounted menu sections switches their content and preserve
   assert.equal(host.children.length, 0);
   assert.equal(window.document.adoptedStyleSheets.length, 0);
   assert.equal(help.at(-1), "stop");
+  assert.equal(sharing.at(-1), "stop");
 });

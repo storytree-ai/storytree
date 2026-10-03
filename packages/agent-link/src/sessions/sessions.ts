@@ -19,6 +19,9 @@
  *   as done once it has ended or been quiet past the leave-after time, until it is archived there;
  *   any other session leaves then. The quiet time counts from its last line or from when its work
  *   resolved, whichever is later.
+ * - Work on main (ADR-0906): a session with uncommitted changes it edited on the main line, or an
+ *   increment it claimed there, stays listed, flagged as worked outside a workspace, or, before
+ *   its repository's first commit, labelled as setting up git.
  * - It is flagged "hooks not running" (`hooksRunning: false`) until a line from one of its hooks
  *   arrives: a session seen only through its tool calls is not an agent doing nothing.
  */
@@ -30,8 +33,8 @@ export { closeOut } from "./close-out.js";
 export { nameRefusal, nameSession, SESSION_NAME_LIMIT } from "./name.js";
 export type { CloseOutContext, CloseOutOptions } from "./close-out.js";
 
-export { COMMAND_KINDS, commandRunning, isQuiet, labelOf, LEAVE_MS, LONGEST_COMMAND_MS, QUIET_MS, turnState } from "../readings.js";
-export type { CloseOut, Listing, RunningCommand, Session, SessionApp, SessionOptions, SessionState } from "../readings.js";
+export { COMMAND_KINDS, commandRunning, isQuiet, labelOf, LEAVE_MS, LONGEST_COMMAND_MS, ON_MAIN_LABELS, QUIET_MS, turnState } from "../readings.js";
+export type { CloseOut, Listing, OnMain, RunningCommand, Session, SessionApp, SessionOptions, SessionState } from "../readings.js";
 
 /** Read sessions with the current per-user idle-after and leave-after durations, unless the caller supplies them. */
 export function sessionsFrom(lines: readonly Line[], options: SessionOptions = {}): Session[] {

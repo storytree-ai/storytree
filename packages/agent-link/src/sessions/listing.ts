@@ -1,12 +1,12 @@
 /**
  * Capability 4 · Sessions, the listing (contract 4.13): the running-sessions list as the command
- * line shows it, one block per session, or as JSON. By default the sessions the list shows (listed
- * and done); with `all`, the hidden ones too. Given a `look`, it first asks whether each branch has
+ * line shows it, one block per session, its work on main flagged (ADR-0906), or as JSON. By default
+ * the sessions the list shows (listed and done); with `all`, the hidden ones too. Given a `look`, it first asks whether each branch has
  * merged, as the board does for claims, so the list never waits on a hook to have recorded a merge.
  */
 import type { ActivityLog } from "../activity/index.js";
 import type { MergeContext } from "../claims/merges.js";
-import type { Session, SessionOptions } from "../readings.js";
+import { ON_MAIN_LABELS, type Session, type SessionOptions } from "../readings.js";
 import { resolveBranches, type BranchWatch } from "./branch-states.js";
 import { readSessions } from "./sessions.js";
 
@@ -40,6 +40,7 @@ function block(session: Session): string {
   const resolved = session.branches.filter((branch) => !session.openWork.includes(branch));
   if (session.openWork.length > 0) lines.push(`  open work: ${session.openWork.join(", ")}`);
   if (resolved.length > 0) lines.push(`  resolved: ${resolved.join(", ")}`);
+  if (session.onMain !== undefined) lines.push(`  ${ON_MAIN_LABELS[session.onMain]}`);
   const closeOut = session.closeOut;
   if (closeOut !== undefined) {
     lines.push(`  closed out ${closeOut.at}: ${closeOut.safe ? "safe" : "not safe"} (${closeOut.why}), ${closeOut.verified ? "verified" : "not verified"}`);

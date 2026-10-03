@@ -73,6 +73,19 @@ export type SessionApp = "claude-desktop" | "codex";
 /** Branches that are a project's main line, never a session's own work. */
 const MAIN_BRANCHES = new Set(["main", "master"]);
 
+/**
+ * Work a session did on the main line rather than in a workspace, which keeps it listed (ADR-0906):
+ * outside a workspace (uncommitted changes it edited on main, or an increment it claimed there), or,
+ * in a repository with no commit yet, its first commit pending, which is no warning.
+ */
+export type OnMain = "outside-workspace" | "first-commit-pending";
+
+/** How the sessions list words each kind of work on main. */
+export const ON_MAIN_LABELS: Readonly<Record<OnMain, string>> = {
+  "outside-workspace": "worked on main, outside a workspace",
+  "first-commit-pending": "setting up git, first commit pending",
+};
+
 /** A command a session started and has not seen finish: its text, and when it started. */
 export interface RunningCommand {
   command: string;
@@ -124,6 +137,8 @@ export interface Session {
   status?: string;
   /** Its close-out, while it stands (ADR-0758). */
   closeOut?: CloseOut;
+  /** Its unfinished work on the main line, when it has some (ADR-0906): a flag on its row, which keeps it listed. */
+  onMain?: OnMain;
   /** Whether the running-sessions list shows it. */
   listing: Listing;
 }
@@ -162,8 +177,8 @@ export function labelOf(harness: string | undefined): string {
   return harness === undefined ? "an unnamed harness" : (LABELS[harness] ?? harness);
 }
 
-/** The kinds of line whose writer only looked at others' work: a claim's merge, a branch's state, what an app keeps. */
-const ABOUT_OTHERS: ReadonlySet<Line["kind"]> = new Set(["merged", "branch-state", "session-archived", "session-unarchived", "session-described"]);
+/** The kinds of line whose writer only looked at others' work: a claim's merge, a branch's or a folder's state, what an app keeps. */
+const ABOUT_OTHERS: ReadonlySet<Line["kind"]> = new Set(["merged", "branch-state", "main-state", "session-archived", "session-unarchived", "session-described"]);
 
 /** The sessions `lines` show, in the order they started, each judged at `options.now`. */
 export function sessionsFrom(lines: readonly Line[], options: SessionOptions = {}): Session[] {
@@ -406,6 +421,30 @@ interface SessionFold {
   closedOut?: { line: Line & { kind: "closed-out" }; reopened: boolean };
   name?: string;
   lastTurnEnded?: { seq: number; background: number };
+  /** Each folder it edited files in, or claimed an increment in, on the main line, by machine and folder (ADR-0906). */
+  onMain: Map<string, MainFolder>;
+}
+
+/** A folder a session worked in on the main line: on which machine, and whether it edited files inside it there. */
+interface MainFolder {
+  folder: string;
+  machine?: string;
+  edited: boolean;
+}
+
+/** What the latest `main-state` line said of a folder on a machine. */
+type MainState = { dirty: boolean; unborn?: true | undefined; at: string };
+
+/** A folder on a machine, as `main-state` lines and a session's work on main are matched by. */
+function placeKey(machine: string | undefined, folder: string): string {
+  return `${machine ?? ""}\u0000${folder}`;
+}
+
+/** Whether `file`, as a hook named it, lies inside `folder`: a relative name always does. */
+export function inside(file: string, folder: string): boolean {
+  if (!/^([\\/]|[A-Za-z]:)/.test(file)) return true;
+  const norm = (one: string) => one.replaceAll("\\", "/").replace(/\/+$/, "");
+  return norm(file).startsWith(`${norm(folder)}/`);
 }
 
 /** What a branch's state lines have said of it last: open or not, and its open pull request once a look has read it. */
@@ -417,7 +456,9 @@ type BranchState = { open: boolean; at: string; pr?: number | undefined; draft?:
  * the fold it came from.
  */
 export interface LogFoldSnapshot {
-  sessions: (Omit<SessionFold, "worktrees" | "branches" | "placed" | "running" | "finished"> & {
+  sessions: (Omit<SessionFold, "worktrees" | "branches" | "placed" | "running" | "finished" | "onMain"> & {
+    /** Absent in a snapshot kept before ADR-0906. */
+    onMain?: [string, MainFolder][];
     worktrees: string[];
     branches: string[];
     placed: [string, { folder?: string; branch: string }][];
@@ -426,6 +467,8 @@ export interface LogFoldSnapshot {
   })[];
   lastSeen: [string, string][];
   branchStates: [string, BranchState][];
+  /** Absent in a snapshot kept before ADR-0906. */
+  mainStates?: [string, MainState][];
   appRecords: [string, Line & { kind: "session-archived" | "session-unarchived" }][];
   appWords: [string, Line & { kind: "session-described" }][];
   holders: [string, Omit<Claim, "holder">][];
@@ -444,6 +487,7 @@ export class LogFold {
   /** When each session, about others' work or its own, last wrote. */
   #lastSeen = new Map<string, string>();
   #branchStates = new Map<string, BranchState>();
+  #mainStates = new Map<string, MainState>();
   #appRecords = new Map<string, Line & { kind: "session-archived" | "session-unarchived" }>();
   #appWords = new Map<string, Line & { kind: "session-described" }>();
   #holders = new Map<string, Omit<Claim, "holder">>();
@@ -452,9 +496,10 @@ export class LogFold {
   /** A fold that goes on from `snapshot`, as the fold it was taken from would. */
   static fromSnapshot(snapshot: LogFoldSnapshot): LogFold {
     const fold = new LogFold();
-    for (const { worktrees, branches, placed, running, finished, closedOut, ...own } of snapshot.sessions) {
+    for (const { worktrees, branches, placed, running, finished, closedOut, onMain, ...own } of snapshot.sessions) {
       fold.#sessions.set(own.session, {
         ...own,
+        onMain: new Map((onMain ?? []).map(([key, one]) => [key, { ...one }])),
         worktrees: new Set(worktrees),
         branches: new Set(branches),
         placed: new Map(placed),
@@ -465,6 +510,7 @@ export class LogFold {
     }
     fold.#lastSeen = new Map(snapshot.lastSeen);
     fold.#branchStates = new Map(snapshot.branchStates);
+    fold.#mainStates = new Map(snapshot.mainStates ?? []);
     fold.#appRecords = new Map(snapshot.appRecords);
     fold.#appWords = new Map(snapshot.appWords);
     fold.#holders = new Map(snapshot.holders);
@@ -475,8 +521,9 @@ export class LogFold {
   /** What it has folded so far, as plain data to keep (LogFoldSnapshot). */
   snapshot(): LogFoldSnapshot {
     return {
-      sessions: [...this.#sessions.values()].map(({ worktrees, branches, placed, running, finished, closedOut, ...own }) => ({
+      sessions: [...this.#sessions.values()].map(({ worktrees, branches, placed, running, finished, closedOut, onMain, ...own }) => ({
         ...own,
+        onMain: [...onMain].map(([key, one]) => [key, { ...one }]),
         worktrees: [...worktrees],
         branches: [...branches],
         placed: [...placed],
@@ -486,6 +533,7 @@ export class LogFold {
       })),
       lastSeen: [...this.#lastSeen],
       branchStates: [...this.#branchStates],
+      mainStates: [...this.#mainStates],
       appRecords: [...this.#appRecords],
       appWords: [...this.#appWords],
       holders: [...this.#holders],
@@ -501,6 +549,7 @@ export class LogFold {
       if (!ABOUT_OTHERS.has(line.kind)) this.#own(line);
       if (line.kind === "branch-state") this.#branchStates.set(line.of, line);
       else if (line.kind === "merged") this.#branchStates.set(line.branch, { open: false, at: line.at });
+      else if (line.kind === "main-state") this.#mainStates.set(placeKey(line.machine, line.of), { dirty: line.dirty, unborn: line.unborn, at: line.at });
       else if (line.kind === "session-archived" || line.kind === "session-unarchived") this.#appRecords.set(line.of, line);
       else if (line.kind === "session-described") this.#appWords.set(line.of, line);
       holding(this.#holders, line);
@@ -511,7 +560,7 @@ export class LogFold {
     let own = this.#sessions.get(line.session);
     if (own === undefined) {
       own = { session: line.session, firstAt: line.at, latest: line, worktrees: new Set(), hooksRunning: false, branches: new Set(), placed: new Map(),
-        prompted: false, inTurn: false, running: new Map(), finished: new Set() };
+        prompted: false, inTurn: false, running: new Map(), finished: new Set(), onMain: new Map() };
       this.#sessions.set(line.session, own);
     }
     own.latest = { kind: line.kind, at: line.at };
@@ -527,6 +576,16 @@ export class LogFold {
       own.branches.add(line.branch);
       const key = `${own.folder ?? ""}\u0000${line.branch}`;
       if (!own.placed.has(key)) own.placed.set(key, { ...(own.folder === undefined ? {} : { folder: own.folder }), branch: line.branch });
+    }
+    // Its work on the main line (ADR-0906): files edited inside its folder, or an increment claimed there.
+    const folder = line.folder;
+    if (line.branch !== undefined && MAIN_BRANCHES.has(line.branch) && folder !== undefined) {
+      const edited = line.kind === "file-edited" && line.files.some((file) => inside(file, folder));
+      if (edited || (line.kind === "claimed" && line.increment !== undefined)) {
+        const key = placeKey(line.machine, folder);
+        const was = own.onMain.get(key);
+        own.onMain.set(key, { folder, ...(line.machine === undefined ? {} : { machine: line.machine }), edited: edited || was?.edited === true });
+      }
     }
     // Its turns (turnState), and its commands (commandsRunning).
     if (line.kind === "prompt-submitted") own.prompted = own.inTurn = true;
@@ -568,12 +627,15 @@ export class LogFold {
       const branchesByFolder = [...own.placed.values()].map((placed): BranchInFolder => ({ ...placed, ...this.#branchState(placed.branch) }));
       const record = this.#appRecords.get(session);
       const archived = record?.kind === "session-archived";
-      const settledSince = Math.max(Date.parse(latest.at), ...branches.map((branch) => Date.parse(this.#branchStates.get(branch)?.at ?? latest.at)));
+      const mainStates = [...own.onMain].map(([key, one]) => ({ ...one, state: this.#mainStates.get(key) }));
+      const onMain = this.#onMain(own, mainStates);
+      const settledSince = Math.max(Date.parse(latest.at), ...branches.map((branch) => Date.parse(this.#branchStates.get(branch)?.at ?? latest.at)),
+        ...mainStates.flatMap(({ edited, state }) => (edited && state !== undefined ? [Date.parse(state.at)] : [])));
       const settled = state === "ended" || now - settledSince > leaveMs;
-      const closeOut = this.#closeOut(own, openWork);
+      const closeOut = this.#closeOut(own, openWork, onMain);
       // A verified close-out leaves at once; one that needs you stays, whatever else says (ADR-0758 D3).
       const listing: Listing = closeOut !== undefined ? (closeOut.verified ? "hidden" : "listed")
-        : openWork.length > 0 ? "listed"
+        : openWork.length > 0 || onMain !== undefined ? "listed"
         : record !== undefined ? (archived ? "hidden" : settled ? "done" : "listed")
         : settled ? "hidden" : "listed";
       const words = this.#appWords.get(session);
@@ -597,6 +659,7 @@ export class LogFold {
         ...(own.name === undefined ? {} : { name: own.name }),
         ...(words?.status === undefined ? {} : { status: words.status }),
         ...(closeOut === undefined ? {} : { closeOut }),
+        ...(onMain === undefined ? {} : { onMain }),
         listing,
       };
     });
@@ -627,8 +690,21 @@ export class LogFold {
     return { open: true, pr: { number: state.pr, draft: state.draft === true, ...(state.checks === undefined ? {} : { checks: state.checks }), queued: state.queued === true } };
   }
 
-  /** A session's standing close-out, by what its lines said and its branches still open. */
-  #closeOut(own: SessionFold, openWork: readonly string[]): CloseOut | undefined {
+  /**
+   * A session's unfinished work on the main line (ADR-0906): uncommitted changes in a folder it edited
+   * files in on main, as the latest look on that machine found them, or an increment it holds that was
+   * claimed on main. In a repository with no commit yet, its first commit is pending instead.
+   */
+  #onMain(own: SessionFold, folders: readonly (MainFolder & { state: MainState | undefined })[]): OnMain | undefined {
+    const dirty = folders.filter(({ edited, state }) => edited && state?.dirty === true);
+    const claimed = [...this.#holders.values()].some((holder) => holder.session === own.session && holder.increment !== undefined
+      && holder.branch !== undefined && MAIN_BRANCHES.has(holder.branch));
+    if (dirty.length === 0 && !claimed) return undefined;
+    return [...dirty, ...(claimed ? folders : [])].some(({ state }) => state?.unborn === true) ? "first-commit-pending" : "outside-workspace";
+  }
+
+  /** A session's standing close-out, by what its lines said, its branches still open and its work on main. */
+  #closeOut(own: SessionFold, openWork: readonly string[], onMain: OnMain | undefined): CloseOut | undefined {
     if (own.closedOut === undefined || own.closedOut.reopened) return undefined;
     const { line } = own.closedOut;
     const said = { safe: line.safe, why: line.why, at: line.at };
@@ -636,6 +712,7 @@ export class LogFold {
     const turn = own.lastTurnEnded;
     const disagreements = [
       ...(openWork.length === 0 ? [] : [`${openWork.join(", ")} ${openWork.length === 1 ? "is" : "are"} unmerged`]),
+      ...(onMain === undefined ? [] : [ON_MAIN_LABELS[onMain]]),
       ...(line.running === undefined ? ["its own runs could not be counted"]
         : line.running === 0 ? [] : [`${line.running} run${line.running === 1 ? "" : "s"} of its own still ${line.running === 1 ? "runs" : "run"}`]),
       ...(turn !== undefined && turn.seq > line.seq && turn.background > 0 ? ["a background task still runs"] : []),

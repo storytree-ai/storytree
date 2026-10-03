@@ -27,6 +27,8 @@ export async function verifyOpening(browser, url, output) {
   page.on("pageerror", error => errors.push(error.message));
   await page.addInitScript(() => {
     window.audioStarts = 0;
+    // Page time, not the harness round trips, measures how long Run takes to reach the finale.
+    document.addEventListener("click", event => { if (event.target.id === "opening-run") window.runAt = performance.now(); }, true);
     const start = OscillatorNode.prototype.start;
     OscillatorNode.prototype.start = function (...args) { window.audioStarts++; return start.apply(this, args); };
     // Streamed lines arrive in several chunks: count how many times each line's text changed.
@@ -54,11 +56,11 @@ export async function verifyOpening(browser, url, output) {
   assert.ok(await page.locator("#opening .opening-wordmark").isVisible(), "The first screen still says storytree");
   assert.equal(await page.locator("#opening a:visible").count(), 0, "No website chrome: the first screen has no links");
   await page.screenshot({ path: path.join(output, "1440-ready.png") });
-  const started = Date.now();
   await run(page).tap();
   assert.deepEqual(await counter(page), ["AGENTS: 01", "WAITING ON YOU: 00", "ANSWERED: 00"], "One agent is singular: two digits, no arrow");
   await better(page).waitFor({ timeout: 25000 });
-  assert.ok(Date.now() - started < 25000, "One tap reaches the finale in about 22 seconds");
+  const elapsed = await page.evaluate(() => performance.now() - window.runAt);
+  assert.ok(elapsed >= 21500 && elapsed < 25000, `One tap reaches the finale in about 22 seconds (took ${Math.round(elapsed)} ms)`);
   assert.deepEqual(await counter(page), peak);
   assert.ok(await page.evaluate(() => window.maxLineChanges) >= 2, "Lines stream in chunks, not whole");
   assert.equal(await page.evaluate(() => window.audioStarts), 0, "Silent until explicitly enabled");
@@ -73,7 +75,7 @@ export async function verifyOpening(browser, url, output) {
   await page.getByRole("button", { name: "sound off" }).click();
   assert.equal(await page.getByRole("button", { name: "sound on" }).getAttribute("aria-pressed"), "true");
   await page.getByRole("button", { name: "i'll keep babysitting" }).click();
-  await page.waitForFunction(() => document.querySelector("#opening-count span").textContent === "AGENTS: 15 ▲");
+  await page.waitForFunction(() => document.querySelectorAll("#opening-count span")[1].textContent === "WAITING ON YOU: 15");
   assert.deepEqual(await counter(page), ["AGENTS: 15 ▲", "WAITING ON YOU: 15", "ANSWERED: 00"]);
   await better(page).waitFor();
   assert.ok(await page.evaluate(() => window.audioStarts) > 0);
@@ -85,12 +87,12 @@ export async function verifyOpening(browser, url, output) {
   // ADR-0879 D6: the turn is a CRT switching off: windows, then a line, then a point, inside ~1.4 seconds.
   const turn = await page.evaluate(() => new Promise(resolve => {
     const root = document.querySelector("#opening"); const seen = []; const t0 = performance.now();
-    const sample = () => {
+    new MutationObserver(() => {
       const phase = root.dataset.crt;
       if (phase && seen.at(-1)?.[0] !== phase) seen.push([phase, Math.round(performance.now() - t0)]);
-      if (root.hidden) resolve({ seen, total: performance.now() - t0 }); else requestAnimationFrame(sample);
-    };
-    document.getElementById("opening-better").click(); sample();
+      if (root.hidden) resolve({ seen, total: performance.now() - t0 });
+    }).observe(root, { attributes: true, attributeFilter: ["data-crt", "hidden"] });
+    document.getElementById("opening-better").click();
   }));
   assert.deepEqual(turn.seen.map(step => step[0]), ["line", "point"], "The screen collapses to a line, then to a point");
   assert.ok(turn.total < 1500, `The turn takes under 1.5 seconds (took ${Math.round(turn.total)} ms)`);

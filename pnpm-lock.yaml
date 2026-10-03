@@ -404,6 +404,28 @@ importers:
         specifier: ~7.0.2
         version: 7.0.2
 
+  packages/identity:
+    dependencies:
+      jose:
+        specifier: 6.2.12
+        version: 6.2.12
+      pg:
+        specifier: ^8.23.0
+        version: 8.23.0
+    devDependencies:
+      '@types/node':
+        specifier: ^24.13.6
+        version: 24.13.6
+      '@types/pg':
+        specifier: ^8.23.1
+        version: 8.23.1
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+      typescript:
+        specifier: ~7.0.2
+        version: 7.0.2
+
   packages/keys:
     devDependencies:
       '@types/node':

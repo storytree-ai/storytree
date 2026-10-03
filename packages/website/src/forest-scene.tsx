@@ -2,25 +2,37 @@ import { Component, useCallback, useEffect, useMemo, useRef, useState, type Reac
 import { createPortal } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { drillDown, type SessionWisp } from "@storytree/forest";
-import { PlanetView, mountSessionsList, renderStoryPanel, attachPanZoom, mountTreeSpace, type CameraStop, type GlobeControls, type GlobeSurfaces } from "@storytree/forest/view";
+import { PlanetView, mountSessionsList, renderStoryPanel, attachPanZoom, mountTreeSpace, type GlobeControls, type GlobeSurfaces, type GlobeTarget } from "@storytree/forest/view";
 import { workStates } from "@storytree/arc-surface";
 import { mountArcSurface } from "@storytree/arc-surface/view";
 import { knowledge } from "@storytree/knowledge-core";
 import { createKnowledgeCore, KnowledgeNoteCard, type KnowledgeCore } from "@storytree/knowledge-core/view";
 import saved from "./forest-snapshot.json" with { type: "json" };
 import type { TourSnapshot } from "./forest-data.js";
-import type { TourState, TourStep } from "./tour.js";
+import type { Hold, Tag, TourDetail, TourStep } from "./tour.js";
 import { savedReading } from "./tour-reading.js";
 
 const snapshot = saved as unknown as TourSnapshot;
 const places = new Map(snapshot.places.map(place => [place.id, place.place]));
 const notes = [...knowledge(snapshot.changes).notes.values()];
 const complete: GlobeSurfaces = { sea: true, grounds: true, roads: true, nameplates: true, territories: "health", fileCircles: true, knowledgeCore: true, sessionTints: true };
-type Tour = { step: TourStep; state: TourState };
+const overview: GlobeTarget = { kind: "story", story: "story_deee4230348c" };
+/** The globe at rest fills most of the short side (ADR-0877 D2). */
+const restingFraming = 1.1;
 type Recording = ReturnType<typeof savedReading>;
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
-const interact = () => window.dispatchEvent(new Event("storytree-tour-interact"));
-const playback = (detail: { paused?: boolean; speed?: .75 | 1 | 1.5 }) => window.dispatchEvent(new CustomEvent("storytree-tour-playback", { detail }));
+const hold = (reason: Hold, held = true) => window.dispatchEvent(new CustomEvent("storytree-tour-hold", { detail: { reason, held } }));
+const sameTarget = (a: GlobeTarget | undefined, b: GlobeTarget | undefined) => JSON.stringify(a) === JSON.stringify(b);
+const ownerOf = (target: GlobeTarget | undefined) => target?.kind === "story" ? target.story : target?.kind === "capability"
+  ? snapshot.tree.stories.find(owner => owner.capabilities.some(item => item.id === target.capability))?.id : undefined;
+/** The session that read most in the recording: the sessions explainer follows its path. */
+const reader = (() => {
+  const reads = new Map<string, number>();
+  for (const line of snapshot.recording.lines as readonly { kind: string; session?: string }[]) if (line.kind === "note-read" && line.session) reads.set(line.session, (reads.get(line.session) ?? 0) + 1);
+  return [...reads].sort((a, b) => b[1] - a[1])[0]?.[0];
+})();
+/** Overview steps drift round the islands in their places' order, one leg at a time. */
+const driftOrder = [...snapshot.places].sort((a, b) => a.place - b.place).map(place => place.id);
 
 /** A lost graphics context leaves the saved picture and the readable app surfaces available. */
 class GlobeBoundary extends Component<{ children: ReactNode; failed(): void }, { failed: boolean }> {
@@ -49,15 +61,15 @@ function StoryDetails({ story, capability, choose, close }: { story: string; cap
   return <div ref={ref} className="story-panel tour-story-panel" data-story-id={story} />;
 }
 
-function Sessions({ recording, core, onWisps, onHighlight }: { recording: Recording; core: KnowledgeCore; onWisps(wisps: readonly SessionWisp[]): void; onHighlight(stories: readonly string[] | undefined, session?: string): void }) {
+function Sessions({ recording, core, onWisps, onHighlight, onPick }: { recording: Recording; core: KnowledgeCore; onWisps(wisps: readonly SessionWisp[]): void; onHighlight(stories: readonly string[] | undefined, session?: string): void; onPick(): void }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const list = mountSessionsList(ref.current!, { project: snapshot.project, reads: recording.reads,
       reading: recording.reading, now: recording.now, onWisps, onHighlight,
-      onRoster: roster => core.showRoster(roster), onSelect: session => { interact(); core.select(session); } });
+      onRoster: roster => core.showRoster(roster), onSelect: session => { onPick(); core.select(session); } });
     const stop = core.onSelect(session => list.select(session));
     return () => { stop(); list.stop(); };
-  }, [recording, core, onWisps, onHighlight]);
+  }, [recording, core, onWisps, onHighlight, onPick]);
   return <div ref={ref} className="tour-sessions" />;
 }
 
@@ -72,9 +84,50 @@ function Arcs({ recording, open }: { recording: Recording; open: boolean }) {
   return <div ref={ref} className="tour-arcs" />;
 }
 
+/** Rings on the things a step talks about, placed on the drawing every frame once the camera has arrived. */
+function Tags({ tags, controls, arrived }: { tags: readonly Tag[]; controls: GlobeControls | undefined; arrived: boolean }) {
+  const host = document.getElementById("tour-tags");
+  const refs = useRef<(HTMLDivElement | null)[]>([]);
+  useEffect(() => {
+    if (!controls || !host || !tags.length) return;
+    let frame = 0;
+    const place = () => {
+      const canvas = document.querySelector("#website-forest canvas")?.getBoundingClientRect(), stage = host.getBoundingClientRect();
+      tags.forEach((tag, index) => {
+        const node = refs.current[index];
+        if (!node) return;
+        const at = canvas ? controls.position(tag.target) : undefined;
+        if (!at || !canvas || !at.visible || !arrived) { node.classList.add("away"); return; }
+        const x = at.x + canvas.left - stage.left, y = at.y + canvas.top - stage.top;
+        node.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
+        // The name sits on whichever side has room for it.
+        const label = (node.lastElementChild as HTMLElement | null)?.offsetWidth ?? 0;
+        node.classList.toggle("to-left", x + 24 + label > stage.width - 8 && x - 24 - label >= 8);
+        node.classList.remove("away");
+      });
+      frame = requestAnimationFrame(place);
+    };
+    frame = requestAnimationFrame(place);
+    return () => cancelAnimationFrame(frame);
+  }, [tags, controls, host, arrived]);
+  if (!host) return null;
+  return createPortal(<>{tags.map((tag, index) => <div key={index} ref={node => { refs.current[index] = node; }} className="tour-tag away">
+    <span className="tour-tag-ring" /><span className="tour-tag-text">{tag.text}</span>
+  </div>)}</>, host);
+}
+
+/** Where the globe's middle sits: in the room the card (left) and any side panel (right) leave it. */
+function offsetFor(step: TourStep | undefined, width: number) {
+  if (!step || width <= 600) return 0;
+  const opening = step.kind === "beats" || step.kind === "principles";
+  const cardRight = opening ? Math.min(64, width * .04) + Math.min(560, width * .46) : 24 + Math.min(400, width * .36);
+  const panel = step.panel === "story" ? Math.min(480, width - 24) + 12 : 0;
+  return Math.round(Math.min(width * .2, (cardRight - panel) / 2));
+}
+
 type ForestHost = { ready(): void; failed(): void; webgl: boolean };
 function Forest({ core, recording, replay, finishRecording, ready, failed, webgl }: ForestHost & { core: KnowledgeCore; recording: Recording; replay(): void; finishRecording(): void }) {
-  const [tour, setTour] = useState<Tour>();
+  const [tour, setTour] = useState<TourDetail>();
   const [controls, setControls] = useState<GlobeControls>();
   const [wisps, setWisps] = useState<readonly SessionWisp[]>([]);
   const [highlight, setHighlight] = useState<{ stories: readonly string[] | undefined; session: string | undefined }>({ stories: undefined, session: undefined });
@@ -84,25 +137,42 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   const [mode, setMode] = useState<"forest" | "library">("forest");
   const [query, setQuery] = useState("");
   const [browserOpen, setBrowserOpen] = useState(false);
-  const [viewportWidth, setViewportWidth] = useState(window.innerWidth);
-  useEffect(() => { const resize = () => setViewportWidth(window.innerWidth); window.addEventListener("resize", resize); return () => window.removeEventListener("resize", resize); }, []);
-  const [manual, setManual] = useState(false);
-  const [userStop, setUserStop] = useState<CameraStop>();
+  const [width, setWidth] = useState(window.innerWidth);
+  const [arrived, setArrived] = useState(false);
+  useEffect(() => { const resize = () => setWidth(window.innerWidth); window.addEventListener("resize", resize); return () => window.removeEventListener("resize", resize); }, []);
   const [progress, setProgress] = useState(recording.progress);
-  const previousStep = useRef<string | undefined>(undefined);
-  const previousGeneration = useRef<number | undefined>(undefined);
+  const [openingActive, setOpeningActive] = useState(() => document.getElementById("opening")?.hidden === false);
+  const camera = useRef<{ target?: GlobeTarget; framing: number; entered: boolean; flight: number[]; drift: number[] }>({ framing: restingFraming, entered: false, flight: [], drift: [] });
+  const previous = useRef<TourDetail | undefined>(undefined);
+  const latest = useRef<TourDetail | undefined>(undefined);
+  latest.current = tour;
+  const recordingAt = useRef<{ inSessions: boolean; generation: number } | undefined>(undefined);
+  const wasExploring = useRef(false);
   const panelHost = document.querySelector<HTMLElement>("#chapter2");
-  const free = tour?.state.freePlay === true;
-  const requestedPanel = tour?.step.panel;
-  const surfaces = tour?.state.everything || free ? complete : tour?.step.surfaces ?? complete;
-  const sideOffset = !free && viewportWidth > 900 ? Math.round(viewportWidth * .13) : 0;
-  const stopMotion = useCallback(() => { controls?.cancel(); setManual(true); interact(); }, [controls]);
+  const step = tour?.step;
+  const state = tour?.state;
+  const free = state?.freePlay === true;
+  const everything = state?.holds.includes("everything") === true;
+  const touring = !!tour && !free;
+  const requestedPanel = touring && !everything ? step?.panel : undefined;
+  const surfaces = useMemo((): Partial<GlobeSurfaces> => {
+    if (!step || free || everything) return complete;
+    let shown = step.surfaces;
+    for (const [from, next] of Object.entries(step.lineSurfaces ?? {})) if ((state?.lines ?? 1) >= Number(from)) shown = next;
+    return shown;
+  }, [step, state?.lines, free, everything]);
+  const sideOffset = offsetFor(touring && !everything ? step : undefined, width);
+
+  // Touching the globe hands it to the visitor: the tour waits, and says so (ADR-0879 D3).
+  const explore = useCallback(() => { if (touring) { controls?.cancel(); clearFlight(); clearDrift(); hold("exploring"); } }, [touring, controls]);
+  const clearFlight = () => { camera.current.flight.forEach(clearTimeout); camera.current.flight = []; };
+  const clearDrift = () => { camera.current.drift.forEach(clearTimeout); camera.current.drift = []; };
   const pickStory = useCallback((id: string | undefined, picked?: string) => {
-    interact(); setStory(id); setCapability(picked); setNote(undefined); core.pin(undefined);
-  }, [core]);
-  const pickCapability = useCallback((id: string) => { interact(); setCapability(id); }, []);
+    explore(); setStory(id); setCapability(picked); setNote(undefined); core.pin(undefined);
+  }, [core, explore]);
+  const pickCapability = useCallback((id: string) => { explore(); setCapability(id); }, [explore]);
   const closeStory = useCallback(() => { setStory(undefined); setCapability(undefined); }, []);
-  const pickNote = useCallback((id: string) => { interact(); setNote(id); setStory(undefined); core.pin(id); }, [core]);
+  const pickNote = useCallback((id: string) => { explore(); setNote(id); setStory(undefined); core.pin(id); }, [core, explore]);
   const closeNote = useCallback(() => { setNote(undefined); core.pin(undefined); }, [core]);
   useEffect(() => {
     const escape = (event: KeyboardEvent) => { if (event.key !== "Escape" || event.defaultPrevented) return; if (note) closeNote(); else if (story) closeStory(); else setBrowserOpen(false); };
@@ -113,134 +183,173 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   const onHighlight = useCallback((stories: readonly string[] | undefined, session?: string) => setHighlight({ stories, session }), []);
   const onControls = useCallback((next: GlobeControls | undefined) => setControls(next), []);
   useEffect(() => {
-    const hear = (event: Event) => setTour((event as CustomEvent<Tour>).detail);
+    const hear = (event: Event) => setTour((event as CustomEvent<TourDetail>).detail);
     window.addEventListener("storytree-tour", hear);
     window.dispatchEvent(new Event("storytree-tour-request"));
     return () => window.removeEventListener("storytree-tour", hear);
   }, []);
+
+  // The recording plays through the sessions explainer and rests at its end everywhere else.
   useEffect(() => {
-    const step = tour?.step.id;
-    if (!step) return;
-    if (!tour.state.freePlay && step === "sessions-recording") replay();
-    else if (tour.state.freePlay || previousStep.current === "sessions-recording" || previousGeneration.current !== tour.state.generation) finishRecording();
-    previousStep.current = step;
-    previousGeneration.current = tour.state.generation;
-  }, [tour?.state.index, tour?.state.generation, tour?.state.freePlay, replay, finishRecording]);
+    if (!tour) return;
+    const before = recordingAt.current;
+    const inSessions = !free && step?.explainer === "sessions";
+    const wasInSessions = before?.inSessions === true && before.generation === state!.generation;
+    recordingAt.current = { inSessions, generation: state!.generation };
+    if (inSessions && !wasInSessions) replay();
+    else if (!inSessions && before && (before.inSessions || before.generation !== state!.generation)) finishRecording();
+  }, [step?.id, state?.generation, free]);
+  useEffect(() => {
+    const opening = (event: Event) => {
+      const active = (event as CustomEvent<{ active: boolean }>).detail.active;
+      // The first view waits for chapter 1 to hand over, so it grows in where the visitor is looking.
+      if (active) camera.current.entered = false;
+      setOpeningActive(active);
+    };
+    window.addEventListener("storytree-opening", opening);
+    return () => window.removeEventListener("storytree-opening", opening);
+  }, []);
   useEffect(() => {
     let clock = performance.now();
     let index = recording.progress().index;
     setProgress(recording.progress());
-    if (tour?.state.paused || tour?.state.why || tour?.state.everything || index === recording.progress().total) return;
+    if (!tour?.running || index === recording.progress().total) return;
     let frame: number;
     const tick = (now: number) => {
       const delta = Math.min(now - clock, 1000);
       clock = now;
-      const next = recording.advance(delta, { paused: document.hidden, speed: tour?.state.speed ?? 1 });
+      const next = recording.advance(delta, { paused: document.hidden, speed: state?.speed ?? 1 });
       if (next.index !== index) { index = next.index; setProgress(next); }
       if (index < next.total) frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [recording, tour?.state.paused, tour?.state.why, tour?.state.everything, tour?.state.speed]);
+  }, [recording, tour?.running, state?.speed]);
   useEffect(() => {
     if (!controls) return;
     const frame = requestAnimationFrame(() => requestAnimationFrame(ready));
     return () => cancelAnimationFrame(frame);
   }, [controls, ready]);
-  useEffect(() => {
-    if (!tour) return;
-    setManual(false);
-    setUserStop(undefined);
-    setMode(tour.step.panel === "knowledge" && !tour.state.everything && !tour.state.freePlay ? "library" : "forest");
-    if (!tour.state.freePlay) { setStory(undefined); setCapability(undefined); setNote(undefined); core.pin(undefined); }
-    if (!tour.state.freePlay && tour.step.panel === "stories") {
-      const target = tour.step.target;
-      const owning = target?.kind === "story" ? target.story : target?.kind === "capability"
-        ? snapshot.tree.stories.find(owner => owner.capabilities.some(item => item.id === target.capability))?.id : undefined;
-      setStory(owning ?? snapshot.tree.stories[0]?.id);
-      setCapability(target?.kind === "capability" ? target.capability : undefined);
-    }
-  }, [tour?.state.index, tour?.state.generation, tour?.state.freePlay, tour?.state.everything]);
-  useEffect(() => {
-    if (!tour || !controls) return;
-    controls.cancel();
-    if (tour.state.freePlay || manual || tour.state.paused || tour.state.why || tour.state.everything) return;
-    // Every active transition retakes the target, including resuming an interrupted stop.
-    if (tour.step.target) controls.stop({ target: tour.step.target, framing: Math.min(tour.step.framing ?? 1.18, 1.18), sideOffset, duration: reduced() ? 0 : 700 });
-    if (tour.state.index !== 0 || reduced()) return;
-    let island = 0;
-    const turn = () => {
-      const place = snapshot.places[island++ % snapshot.places.length];
-      if (place) controls.stop({ target: { kind: "story", story: place.id }, framing: 1.18, sideOffset, duration: 20_000 });
-    };
-    turn();
-    const timer = setInterval(turn, 20_000);
-    return () => { clearInterval(timer); controls.cancel(); };
-  }, [controls, tour?.state.index, tour?.state.generation, tour?.state.paused, tour?.state.why, tour?.state.everything, tour?.state.freePlay, manual, sideOffset]);
-  // A user's turn starts after pausing has cancelled the tour's previous camera movement.
-  useEffect(() => { if (userStop) controls?.stop(userStop); }, [controls, userStop]);
-  const inspectStory = (id: string) => {
-    stopMotion(); pickStory(id);
-    setUserStop({ target: { kind: "story", story: id }, framing: 1.1, duration: reduced() ? 0 : 700 });
+
+  // Each step opens what it talks about (ADR-0852 D3).
+  const openStepSurfaces = () => {
+    if (!tour || free) return;
+    setMode(requestedPanel === "knowledge" ? "library" : "forest");
+    setNote(undefined); core.pin(undefined); setBrowserOpen(false);
+    // A phone has no room for the app’s story panel beside the card: the step says it in words instead.
+    if (requestedPanel === "story" && window.innerWidth > 600) { setStory(ownerOf(step!.target)); setCapability(step!.target?.kind === "capability" ? step!.target.capability : undefined); }
+    else { setStory(undefined); setCapability(undefined); }
+    if (step?.id === "sessions-reads" && reader) core.select(reader);
   };
+  useEffect(openStepSurfaces, [step?.id, state?.generation, free, everything]);
+  // Resuming after exploring closes what the visitor opened and puts the step's own surfaces back.
+  const exploringNow = state?.holds.includes("exploring") === true;
+  useEffect(() => {
+    if (wasExploring.current && !exploringNow) openStepSurfaces();
+    wasExploring.current = exploringNow;
+  }, [exploringNow]);
+
+  // The camera flies; it never snaps (ADR-0879 D5). A far move pulls back first, then dives in.
+  useEffect(() => {
+    if (!tour || !controls || free || !step || openingActive) return;
+    const before = previous.current;
+    previous.current = tour;
+    if (exploringNow || everything) { clearDrift(); return; }
+    const moved = !before || before.state.index !== state!.index || before.state.generation !== state!.generation || before.state.freePlay
+      || before.state.holds.includes("exploring") || before.state.holds.includes("everything") || !camera.current.entered;
+    const target = step.target ?? overview, framing = step.framing ?? restingFraming;
+    const speed = state!.speed, still = reduced();
+    const go = (stop: { target: GlobeTarget; framing: number; duration: number }) => {
+      if (!controls.stop({ ...stop, sideOffset }) && stop.target.kind !== "story") controls.stop({ ...stop, target: overview, sideOffset });
+    };
+    const after = (timers: number[], ms: number, run: () => void) => { timers.push(window.setTimeout(run, ms)); };
+    const drift = (from: number) => {
+      if (!step.drift || still) return;
+      const story = driftOrder[from % driftOrder.length]!;
+      go({ target: { kind: "story", story }, framing, duration: 18_000 / speed });
+      after(camera.current.drift, 18_000 / speed, () => drift(from + 1));
+    };
+    const next = () => driftOrder.indexOf(ownerOf(target) ?? "") + 1;
+    if (!moved) {
+      // The same step: waiting freezes the drift; playing again returns to the step's view and drifts on. Flights finish.
+      if (!tour.running) clearDrift();
+      else if (before && !before.running && step.drift) { clearDrift(); go({ target, framing, duration: 1400 / speed }); after(camera.current.drift, 1400 / speed, () => drift(next())); }
+      return;
+    }
+    clearFlight(); clearDrift();
+    setArrived(false);
+    const first = !camera.current.entered;
+    camera.current.entered = true;
+    const from = { ...camera.current };
+    let arrive = 0;
+    if (still) go({ target, framing, duration: 0 });
+    else if (first) {
+      // Chapter 2's first view grows in from far away, out of the point chapter 1 ends on.
+      // The far pose lands first (one beat), so the flight in starts from it rather than from a stale zoom.
+      go({ target, framing: framing * 7, duration: 0 });
+      after(camera.current.flight, 60, () => go({ target, framing, duration: 2600 }));
+      arrive = 2660;
+    } else if (!sameTarget(from.target, target) && Math.min(from.framing, framing) < .8) {
+      const wide = Math.max(from.framing, framing, 1) * 1.08;
+      go({ target, framing: wide, duration: 1000 / speed });
+      after(camera.current.flight, 1000 / speed, () => go({ target, framing, duration: 1150 / speed }));
+      arrive = 2150 / speed;
+    } else go({ target, framing, duration: arrive = 1800 / speed });
+    after(camera.current.flight, arrive, () => { setArrived(true); if (latest.current?.running) drift(next()); });
+    camera.current.target = target; camera.current.framing = framing;
+  }, [controls, tour, sideOffset, openingActive]);
+  useEffect(() => () => { clearFlight(); clearDrift(); }, []);
+
   const shownNotes = notes.filter(item => String(item.fields.title ?? "").toLowerCase().includes(query.toLowerCase()));
+  const selected = story ?? (touring && !everything ? step?.select : undefined);
   return <>
     {webgl && <GlobeBoundary failed={failed}>
-      <div className="forest-drawing" role="group" aria-label="Storytree’s saved project globe" onPointerDown={stopMotion} onWheel={stopMotion}>
-        <PlanetView core={core} scene={snapshot.scene} places={places} wisps={wisps} selected={story}
+      <div className="forest-drawing" role="group" aria-label="Storytree’s saved project globe" onPointerDown={explore} onWheel={explore}>
+        <PlanetView core={core} scene={snapshot.scene} places={places} wisps={wisps} selected={selected}
           highlighted={highlight.stories} highlightedSession={highlight.session} onPick={pickStory} onNote={pickNote}
-          onWispHover={() => {}} onControls={onControls} surfaces={surfaces} framing={free || tour?.state.everything ? 1.18 : Math.min(tour?.step.framing ?? 1.18, 1.18)} sideOffset={sideOffset} mode={mode} />
+          onWispHover={() => {}} onControls={onControls} surfaces={surfaces} framing={restingFraming} sideOffset={offsetFor(undefined, width)} mode={mode} />
       </div>
     </GlobeBoundary>}
+    {touring && !everything && step?.tags && <Tags tags={step.tags} controls={controls} arrived={arrived} />}
     {panelHost && createPortal(<>
       <div className="forest-views" role="group" aria-label="Project view" hidden={!free}>
-        <button type="button" aria-pressed={mode === "forest"} onClick={() => { stopMotion(); setMode("forest"); }}>Forest</button>
-        <button type="button" aria-pressed={mode === "library"} onClick={() => { stopMotion(); setMode("library"); }}>Library</button>
+        <button type="button" aria-pressed={mode === "forest"} onClick={() => setMode("forest")}>Forest</button>
+        <button type="button" aria-pressed={mode === "library"} onClick={() => setMode("library")}>Library</button>
       </div>
-      <button className="tour-browse-toggle" type="button" aria-label="Explore saved project" aria-expanded={browserOpen} onClick={() => setBrowserOpen(value => !value)}>Explore</button>
-      <div className="tour-record-browser" hidden={!browserOpen}>
+      <button className="tour-browse-toggle" type="button" aria-label="Find a story or note in the saved project" aria-expanded={browserOpen} hidden={!free} onClick={() => setBrowserOpen(value => !value)}>Find</button>
+      <div className="tour-record-browser" hidden={!browserOpen || !free}>
         <header><h2>Saved project</h2><button type="button" aria-label="Close project browser" onClick={() => setBrowserOpen(false)}>×</button></header>
-        <p className="tour-recorded-label">2 October 2026 · read only</p>
-
-        <label htmlFor="tour-story-choice">Explore a story</label>
-        <select id="tour-story-choice" value={story ?? ""} onChange={event => { inspectStory(event.target.value); setBrowserOpen(false); }}>
+        <p className="tour-recorded-label">Saved {snapshot.capturedAt.slice(0, 10)} · read only</p>
+        <label htmlFor="tour-story-choice">Open a story</label>
+        <select id="tour-story-choice" value={story ?? ""} onChange={event => { pickStory(event.target.value); controls?.stop({ target: { kind: "story", story: event.target.value }, framing: .6, duration: reduced() ? 0 : 1400 }); setBrowserOpen(false); }}>
           <option value="" disabled>Choose an island…</option>
           {snapshot.tree.stories.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}
         </select>
-
-      <div className="tour-knowledge" onKeyDown={event => {
-        if (event.key !== "Escape" || !note) return;
-        event.preventDefault(); event.stopPropagation(); closeNote();
-        document.getElementById("tour-note-choice")?.focus();
-      }}>
-        <label htmlFor="tour-note-search">Find a recorded library note</label>
-        <input id="tour-note-search" type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Search decisions and guidance" />
-        <label htmlFor="tour-note-choice">Library note</label>
-        <select id="tour-note-choice" value={note ?? ""} onChange={event => { pickNote(event.target.value); setBrowserOpen(false); }}>
-          <option value="" disabled>Choose a note…</option>
-          {shownNotes.map(item => <option key={item.id} value={item.id}>{String(item.fields.title ?? item.id)}</option>)}
-        </select>
-        {shownNotes.length === 0 && <p>No saved notes match that search.</p>}
-
-      </div>
+        <div className="tour-knowledge" onKeyDown={event => {
+          if (event.key !== "Escape" || !note) return;
+          event.preventDefault(); event.stopPropagation(); closeNote();
+          document.getElementById("tour-note-choice")?.focus();
+        }}>
+          <label htmlFor="tour-note-search">Find a note in the library</label>
+          <input id="tour-note-search" type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Search decisions and guidance" />
+          <label htmlFor="tour-note-choice">Library note</label>
+          <select id="tour-note-choice" value={note ?? ""} onChange={event => { pickNote(event.target.value); setBrowserOpen(false); }}>
+            <option value="" disabled>Choose a note…</option>
+            {shownNotes.map(item => <option key={item.id} value={item.id}>{String(item.fields.title ?? item.id)}</option>)}
+          </select>
+          {shownNotes.length === 0 && <p>No saved notes match that search.</p>}
+        </div>
       </div>
       {story && <StoryDetails story={story} capability={capability} choose={pickCapability} close={closeStory} />}
-      {note && <div className="story-panel" onKeyDown={event => { if (event.key === "Escape") { event.preventDefault(); closeNote(); setBrowserOpen(true); requestAnimationFrame(() => document.getElementById("tour-note-choice")?.focus()); } }}><KnowledgeNoteCard core={core} onClose={closeNote} /></div>}
+      {note && <div className="story-panel" onKeyDown={event => { if (event.key === "Escape") { event.preventDefault(); closeNote(); } }}><KnowledgeNoteCard core={core} onClose={closeNote} /></div>}
       <div className="tour-session-surface" hidden={!free && requestedPanel !== "sessions"}>
-        <Sessions recording={recording} core={core} onWisps={setWisps} onHighlight={onHighlight} />
-        <details className="tour-recording-controls"><summary>Recording · {progress.index} / {progress.total}</summary>
-          <p id="recording-progress" data-recording-index={progress.index} data-recording-total={progress.total}>Saved activity 00:00–04:15 UTC · <time dateTime={progress.at}>{progress.at.slice(11, 19)} UTC</time></p>
-          <button id="recording-replay" type="button" onClick={() => { replay(); playback({ paused: false }); }}>Replay recording</button>
-          <div className="recording-playback">
-            <button id="recording-pause" type="button" aria-pressed={tour?.state.paused ?? false} onClick={() => playback({ paused: !tour?.state.paused })}>{tour?.state.paused ? "Resume recording" : "Pause recording"}</button>
-            <label htmlFor="recording-speed">Speed <select id="recording-speed" value={tour?.state.speed ?? 1} onChange={event => playback({ speed: Number(event.target.value) as .75 | 1 | 1.5 })}><option value="0.75">0.75×</option><option value="1">1×</option><option value="1.5">1.5×</option></select></label>
-          </div>
-          <button id="recording-end" type="button" onClick={finishRecording}>End of recording</button>
-          <p>One saved event per second at 1×. Context totals and transcript windows were not captured.</p>
-        </details>
+        <Sessions recording={recording} core={core} onWisps={setWisps} onHighlight={onHighlight} onPick={explore} />
+        <p className="tour-recording-progress" data-recording-index={progress.index} data-recording-total={progress.total}>
+          Recording · <time dateTime={progress.at}>{progress.at.slice(11, 16)} UTC</time> · {progress.index} of {progress.total} events
+        </p>
       </div>
       <div className="tour-arc-surface" hidden={!free && requestedPanel !== "arcs"}>
-        <Arcs recording={recording} open={requestedPanel === "arcs" && !free} />
+        <Arcs recording={recording} open={requestedPanel === "arcs"} />
       </div>
     </>, panelHost)}
   </>;

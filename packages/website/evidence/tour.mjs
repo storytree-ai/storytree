@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import { writeFile } from "node:fs/promises";
-async function replay(page) { await page.locator(".tour-options summary").click(); await page.locator("#tour-replay").click(); await page.locator(".tour-options summary").click(); }
-async function goToStep(page, id) { for (let i = 0; i < 50; i++) { if (await page.locator("#chapter2").getAttribute("data-tour-step") === id) return; await page.locator("#tour-next").click(); } throw new Error(`Tour never reached ${id}`); }
+const stepOf = page => page.locator("#chapter2").getAttribute("data-tour-step");
+const holds = page => page.locator("#tour-held").evaluate(node => node.hidden ? "" : node.textContent);
+async function goToStep(page, id) { await page.locator(`#tour-pips [data-step="${id}"]`).click(); assert.equal(await stepOf(page), id); }
 
-
+// Contracts 2.4 and 2.7 with the live globe: exploring holds the tour and says so; play flies back to the step's view.
 export async function verifyTourCamera(browser, url) {
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "no-preference" });
   await page.addInitScript(() => localStorage.setItem("storytree-opening-seen", "yes"));
@@ -14,133 +15,166 @@ export async function verifyTourCamera(browser, url) {
       id: node.dataset.storyId, x: Math.round(node.getBoundingClientRect().x - canvas.x), y: Math.round(node.getBoundingClientRect().y - canvas.y),
     }));
   });
+  const distance = (from, to) => from.reduce((sum, target) => {
+    const actual = to.find(item => item.id === target.id);
+    return sum + (actual ? Math.hypot(target.x - actual.x, target.y - actual.y) : 1000);
+  }, 0) / Math.max(1, from.length);
   const failures = [];
   try {
     await page.goto(url);
     await page.waitForFunction(() => document.querySelector("#website-forest").dataset.forestState === "live");
-    await goToStep(page, "capabilities-territories");
-    await page.waitForTimeout(1800);
+    await page.waitForTimeout(3500);
+    await page.locator('#tour-pips [data-go="6"]').click();
+    await page.waitForTimeout(3000);
+    await page.locator("#tour-play").click();
     const destination = await positions();
-    await replay(page); await goToStep(page, "stories-islands");
-    await page.waitForTimeout(1800);
-    await goToStep(page, "capabilities-territories");
-    await page.waitForTimeout(40);
-    await page.locator("#tour-pause").click();
-    await page.waitForTimeout(900);
-    await page.locator("#tour-pause").click();
-    await page.waitForTimeout(1800);
-    const resumed = await positions();
-    const distance = destination.reduce((sum, target) => {
-      const actual = resumed.find(item => item.id === target.id);
-      return sum + (actual ? Math.hypot(target.x - actual.x, target.y - actual.y) : 1000);
-    }, 0) / destination.length;
-    if (distance > 5) failures.push(`Resume left the guided camera ${Math.round(distance)} pixels from its destination`);
     const canvas = await page.locator("#website-forest canvas").boundingBox();
-    await page.mouse.move(canvas.x + canvas.width / 2, canvas.y + canvas.height / 2);
-    await page.mouse.down(); await page.mouse.move(canvas.x + canvas.width * .75, canvas.y + canvas.height * .65, { steps: 8 }); await page.mouse.up();
-    await page.waitForTimeout(150);
+    await page.locator("#tour-play").click();
+    await page.mouse.move(canvas.x + canvas.width * .6, canvas.y + canvas.height / 2);
+    await page.mouse.down(); await page.mouse.move(canvas.x + canvas.width * .8, canvas.y + canvas.height * .65, { steps: 8 }); await page.mouse.up();
+    await page.waitForTimeout(300);
+    if (!/explore/i.test(await holds(page))) failures.push(`Exploring the globe should hold the tour and say so; the bar said "${await holds(page)}"`);
+    if (await page.locator("#tour-play").getAttribute("aria-label") !== "Play the tour") failures.push("A held tour offers Play");
     const dragged = await positions();
-    await replay(page);
-    await page.waitForTimeout(1000);
-    if (JSON.stringify(await positions()) === JSON.stringify(dragged)) failures.push("Replay on the first step did not restore the guided camera after a drag");
+    if (distance(destination, dragged) < 20) failures.push("The drag did not move the globe");
+    await page.locator("#tour-play").click();
+    await page.waitForTimeout(2600);
+    await page.locator("#tour-play").click();
+    const resumed = await positions();
+    if (distance(destination, resumed) > 5) failures.push(`Play left the camera ${Math.round(distance(destination, resumed))} pixels from the step's view`);
+    if (await stepOf(page) !== "capabilities-territories") failures.push(`Play restarted or moved the step: ${await stepOf(page)}`);
     assert.deepEqual(failures, []);
   } finally { await page.close(); }
-  console.log("PASS contract 2.4: Resume completes an interrupted camera move; Replay restores guidance after dragging");
+  console.log("PASS contracts 2.4 and 2.7: exploring holds the tour and says so; Play flies back to the step's view");
 }
 
-// Contracts 2.4–2.6 through the built page and the app's actual saved-reading surfaces.
+// Contracts 2.4–2.8 through the built page and the app's saved-reading surfaces, without WebGL, on a phone.
 export async function verifyTour(browser, url, output) {
-  const page = await browser.newPage({ viewport:{ width:390, height:844 }, reducedMotion:"reduce" });
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
   const errors = []; page.on("pageerror", error => errors.push(error.message));
   await page.addInitScript(() => {
     localStorage.setItem("storytree-opening-seen", "yes");
     const original = HTMLCanvasElement.prototype.getContext;
-    HTMLCanvasElement.prototype.getContext = function(kind,...args) { return kind.startsWith("webgl") ? null : original.call(this,kind,...args); };
+    HTMLCanvasElement.prototype.getContext = function (kind, ...args) { return kind.startsWith("webgl") ? null : original.call(this, kind, ...args); };
   });
-  await page.clock.install({ time:new Date("2030-01-01T00:00:00Z") });
-  await page.goto(url); await page.locator("#tour-pause").waitFor();
-  const lineCount = () => page.locator("#tour-lines p:visible").count();
-  await page.locator("#tour-pause").click(); const first = await lineCount();
-  await page.clock.runFor(15000); assert.equal(await lineCount(),first,"Pause holds tour words");
-  await page.locator("#tour-speed").selectOption("1.5"); await page.locator("#tour-pause").click();
-  await page.clock.runFor(7000); assert.ok(await lineCount() > first,"Speed advances narration");
+  await page.clock.install({ time: new Date("2030-01-01T00:00:00Z") });
+  await page.goto(url); await page.locator("#tour-play").waitFor();
+  const shown = () => page.locator("#tour-lines .tour-line.on").count();
+  // 2.8: one pip per step, grouped by explainer; a pip jumps to its step.
+  const pips = await page.locator("#tour-pips [data-go]").count();
+  assert.ok(pips >= 20, `one pip per step (${pips})`);
+  assert.deepEqual(await page.locator("#tour-pips .tb-group").evaluateAll(groups => groups.map(group => group.dataset.group)),
+    ["opening", "stories", "capabilities", "knowledge", "sessions", "arcs", "ending"]);
+  await page.locator('#tour-pips [data-go="2"]').click();
+  assert.equal(await stepOf(page), "stories-island");
+  assert.equal(await page.locator('#tour-pips [data-go="2"]').getAttribute("aria-current"), "step");
+  // 2.4: the lines arrive at a readable pace; pause holds them; a faster speed brings the next sooner.
+  assert.equal(await shown(), 1);
+  await page.locator("#tour-play").click();
+  assert.equal(await holds(page), "Paused");
+  await page.clock.runFor(15000); assert.equal(await stepOf(page), "stories-island", "Pause holds the step");
+  await page.locator("#tour-play").click();
+  // A waiting step shows all its lines, so the pace is timed on a fresh step: its first line (13 words) reads for 5 s at 1×.
+  await page.locator("#tour-speed-cycle").click(); assert.equal(await page.locator("#tour-speed-cycle").textContent(), "1.5×");
+  await goToStep(page, "stories-globe"); assert.equal(await shown(), 1);
+  await page.clock.runFor(3500); assert.equal(await shown(), 2, "1.5× brings the next line in two thirds of the time");
+  await goToStep(page, "stories-island");
+  // 2.4, 2.7: depth holds the tour, says why, and Escape returns to the button; play continues the same step.
   await page.locator("#tour-depth").click();
-  const held = await page.locator("#chapter2").getAttribute("data-tour-step");
-  await page.clock.runFor(30000); assert.equal(await page.locator("#chapter2").getAttribute("data-tour-step"),held);
-  assert.equal(await page.evaluate(() => document.activeElement.id),"tour-why-title");
-  await page.keyboard.press("Escape"); assert.equal(await page.evaluate(() => document.activeElement.id),"tour-depth");
-  await page.locator(".tour-options summary").click(); await page.locator("#tour-everything").click(); await page.locator(".tour-options summary").click();
-  await page.clock.runFor(30000); assert.equal(await page.locator("#chapter2").getAttribute("data-tour-step"),held);
+  assert.equal(await holds(page), "Waiting while you read");
+  assert.equal(await page.evaluate(() => document.activeElement?.tagName), "H3");
+  await page.clock.runFor(30000); assert.equal(await stepOf(page), "stories-island");
+  await page.keyboard.press("Escape"); assert.equal(await page.evaluate(() => document.activeElement?.id), "tour-depth");
+  await page.locator("#tour-everything").click();
+  assert.equal(await holds(page), "Showing everything");
+  await page.clock.runFor(30000); assert.equal(await stepOf(page), "stories-island");
+  await page.locator("#tour-depth").click();
+  await page.locator("#tour-play").click();
+  assert.equal(await holds(page), "", "Play clears every hold");
+  assert.equal(await page.locator("#tour-everything").getAttribute("aria-checked"), "false");
+  assert.equal(await stepOf(page), "stories-island", "Play continues the step it stopped in");
   await page.locator("#tour-next").focus(); await page.keyboard.press("Enter");
-  assert.notEqual(await page.locator("#chapter2").getAttribute("data-tour-step"),held);
-  await replay(page);
-  for (const subject of ["stories","capabilities","knowledge","sessions","arcs"]) {
-    await goToStep(page,`${subject}-comparison`);
-    if (await page.locator("#tour-pause").getAttribute("aria-pressed") === "true") await page.locator("#tour-pause").click();
-    await page.clock.runFor(6000);
-    assert.ok(await page.locator("#tour-comparisons").isVisible(),`${subject} keeps sourced comparisons`);
-    const links = await page.locator("#tour-comparisons a").evaluateAll(nodes => nodes.map(node => node.href));
-    assert.ok(links.length >= 2 && links.every(href => href.startsWith("https://")));
-    await page.locator("#tour-pause").click();
+  assert.equal(await stepOf(page), "stories-globe");
+  // 2.5: every explainer reaches its dated, sourced comparison.
+  for (const subject of ["stories", "capabilities", "knowledge", "sessions", "arcs"]) {
+    await goToStep(page, `${subject}-compare`);
+    await page.locator("#tour-play").click(); await page.locator("#tour-play").click();
+    const links = await page.locator("#tour-lines a.source").evaluateAll(nodes => nodes.map(node => node.href));
+    assert.ok(links.length >= 2 && links.every(href => href.startsWith("https://")), `${subject} keeps sourced comparisons`);
+    await page.locator("#tour-depth").click();
+    assert.match(await page.locator("#tour-why").textContent(), /Checked against each tool's own documentation on \d+ \w+ \d{4}/);
+    await page.locator("#tour-depth").click();
   }
-  await replay(page); await goToStep(page,"sessions-recording");
-  await page.locator(".tour-recording-controls summary").click();
-  if (await page.locator("#tour-pause").getAttribute("aria-pressed") === "true") await page.locator("#tour-pause").click();
-  await page.locator("#recording-replay").click(); await page.clock.runFor(3500);
-  const recordingIndex = async () => Number(await page.locator("#recording-progress").getAttribute("data-recording-index"));
-  assert.ok(await recordingIndex() > 0 && await recordingIndex() < 287);
-  await page.locator("#tour-pause").click(); const stopped = await recordingIndex();
-  await page.clock.runFor(5000); assert.equal(await recordingIndex(),stopped,"Pause freezes the dated recording");
-  await page.locator("#recording-end").click(); assert.equal(await recordingIndex(),287);
-  await page.locator(".tour-recording-controls summary").click();
+  // The recording plays with the tour's clock and holds with it.
+  await goToStep(page, "sessions-recording");
+  const recordingIndex = async () => Number(await page.locator(".tour-recording-progress").getAttribute("data-recording-index"));
+  await page.clock.runFor(3500);
+  assert.ok(await recordingIndex() > 0 && await recordingIndex() < 287, "The dated recording replays");
+  await page.locator("#tour-play").click(); const stopped = await recordingIndex();
+  await page.clock.runFor(5000); assert.equal(await recordingIndex(), stopped, "Pause freezes the dated recording");
+  await page.locator("#tour-play").click();
+  // 2.6: skipping opens dated, read-only free play; the app's surfaces work without WebGL.
   await page.locator("#tour-skip").click();
-  assert.equal(await page.locator("#website-forest").getAttribute("data-forest-state"),"still");
-  await page.getByRole("button",{name:"Explore saved project",exact:true}).click();
+  assert.equal(await page.locator("#chapter2").getAttribute("data-tour-mode"), "freeplay");
+  assert.match(await page.locator("#tour-label").textContent(), /saved \d+ \w+ \d{4} · read only/);
+  assert.equal(await page.locator("#website-forest").getAttribute("data-forest-state"), "still");
+  await page.getByRole("button", { name: "Find a story or note in the saved project", exact: true }).click();
   await page.locator("#tour-story-choice").selectOption("story_deee4230348c");
   await page.locator(".panel-tree [data-capability-id]").first().focus(); await page.keyboard.press("Enter");
   await page.locator(".panel-detail").waitFor();
   await page.locator(".panel-close").click();
-  await page.getByRole("button",{name:"Explore saved project",exact:true}).click();
-  await page.locator("#tour-note-choice").selectOption({index:1});
+  await page.getByRole("button", { name: "Find a story or note in the saved project", exact: true }).click();
+  await page.locator("#tour-note-choice").selectOption({ index: 1 });
   await page.locator(".core-card").waitFor(); await page.locator(".core-card button").focus(); await page.keyboard.press("Escape");
-  assert.equal(await page.locator(".core-card").count(),0); assert.equal(await page.evaluate(() => document.activeElement.id),"tour-note-choice");
-  await page.getByRole("button",{name:"Close project browser",exact:true}).click();
+  assert.equal(await page.locator(".core-card").count(), 0);
   await page.locator("[data-open-arcs]").click(); await page.locator(".arc-lane").last().click();
   assert.ok(await page.locator(".arc-briefing").isVisible()); await page.locator("[data-close-arcs]").click();
-  assert.ok(await page.locator(".session-row").count() > 0,"Saved sessions remain available without WebGL");
-  await page.screenshot({path:path.join(output,"390-no-webgl.png")});
-  await page.locator("#tour-hatch").click(); assert.equal(new URL(page.url()).pathname,"/waitlist.html");
-  assert.deepEqual(errors,[]); await page.close();
-  console.log("PASS contracts2.4–2.6: narration, holds, continuous sourced tour, keyboard and no-WebGL exploration");
+  assert.ok(await page.locator(".session-row").count() > 0, "Saved sessions remain available without WebGL");
+  await page.screenshot({ path: path.join(output, "390-no-webgl.png") });
+  await page.locator("#tour-hatch").click(); assert.equal(new URL(page.url()).pathname, "/waitlist.html");
+  assert.deepEqual(errors, []); await page.close();
+  console.log("PASS contracts 2.4–2.8: readable pace, holds that say why, play in place, grouped pips, sourced comparisons, dated free play without WebGL");
 }
 
-// Website 2.6 and 5.4: an immersive chapter and the desktop surfaces share one viewport.
+// Website 2.6, 1.6 and 5.4: the chapter fills the viewport, its controls are reachable and tappable, free play is the desktop's.
 export async function verifyImmersive(browser, url, output) {
   const measurements = [];
   for (const width of [1440, 390, 320]) {
-    const page = await browser.newPage({ viewport: { width, height: width < 600 ? 844 : 1000 }, reducedMotion: "reduce" });
+    const height = width < 600 ? 844 : 1000;
+    const page = await browser.newPage({ viewport: { width, height }, reducedMotion: "reduce" });
     await page.addInitScript(() => localStorage.setItem("storytree-opening-seen", "yes"));
     await page.goto(url);
-    await page.locator("#tour-pause").waitFor();
-    await page.locator("#tour-pause").click();
+    await page.locator("#tour-play").waitFor();
+    await page.locator("#tour-play").click();
     assert.equal(await page.locator("[data-explainer]").count(), 0, "No chapter category buttons");
     assert.equal(await page.locator(".forest-controls").count(), 0, "The globe uses desktop direct manipulation");
     assert.equal(await page.locator("#waitlist, .explanation").count(), 0, "The chapter contains neither the waitlist form nor the removed explanation");
-    for (const selector of ["#tour-pause", "#tour-next", "#tour-depth", "#tour-skip", "#tour-hatch"]) {
-      const target = await page.locator(selector).boundingBox(); assert.ok(target.height >= 44, `${selector} keeps a 44px touch target`); assert.ok(target.x >= 0 && target.x + target.width <= width, `${selector} remains inside the viewport`);
+    const bar = await page.locator("#tour-bar").boundingBox();
+    assert.ok(bar.y + bar.height <= height + 1 && bar.y >= height * .7, "The tour bar sits along the bottom of the viewport");
+    for (const selector of ["#tour-play", "#tour-next", "#tour-skip", "#tour-replay", "#tour-everything", "#tour-hatch", ...(width < 600 ? ["#tour-speed-cycle"] : [])]) {
+      const target = await page.locator(selector).boundingBox();
+      if (width < 600) assert.ok(target.height >= 44, `${selector} keeps a 44px touch target at ${width}px`);
+      assert.ok(target.x >= 0 && target.x + target.width <= width && target.y + target.height <= height, `${selector} remains inside the viewport at ${width}px`);
+    }
+    const hatch = await page.locator("#tour-hatch").boundingBox();
+    for (const selector of ["#tour-next", "#tour-skip", "#tour-replay", "#tour-everything"]) {
+      const target = await page.locator(selector).boundingBox();
+      const overlap = Math.max(0, Math.min(hatch.x + hatch.width, target.x + target.width) - Math.max(hatch.x, target.x)) * Math.max(0, Math.min(hatch.y + hatch.height, target.y + target.height) - Math.max(hatch.y, target.y));
+      assert.equal(overlap, 0, `The waitlist hatch never covers ${selector} at ${width}px`);
     }
     const chapter = await page.locator("#chapter2").boundingBox();
     const globe = await page.locator("#website-forest").boundingBox();
-    assert.ok(globe.width >= width * .95 && globe.height >= (width < 600 ? 844 : 1000) * .95, "The globe occupies the viewport");
-    await page.screenshot({path:path.join(output,`tour-${width}.png`)});
+    assert.ok(globe.width >= width * .95 && globe.height >= height * .95, "The globe occupies the viewport");
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, "No sideways scroll");
+    await page.screenshot({ path: path.join(output, `tour-${width}.png`) });
     await page.locator("#tour-skip").click();
     await page.locator(".forest-views").waitFor();
     assert.equal(await page.locator("#chapter2").getAttribute("data-tour-mode"), "freeplay");
-    assert.equal(await page.locator(".tour-copy").isVisible(), false, "Free play clears the guide text");
+    assert.equal(await page.locator(".tour-card").isVisible(), false, "Free play clears the guide card");
     await page.getByRole("button", { name: "Library", exact: true }).click();
     assert.equal(await page.getByRole("button", { name: "Library", exact: true }).getAttribute("aria-pressed"), "true");
     await page.getByRole("button", { name: "Forest", exact: true }).click();
-    await page.getByRole("button", { name: "Explore saved project", exact: true }).click();
+    await page.getByRole("button", { name: "Find a story or note in the saved project", exact: true }).click();
     await page.locator("#tour-story-choice").selectOption({ index: 1 });
     await page.locator(".story-panel .panel-head").waitFor();
     if (width > 900) {
@@ -151,51 +185,47 @@ export async function verifyImmersive(browser, url, output) {
       await page.locator(".tree-space-close").click();
     }
     const panel = await page.locator(".story-panel").boundingBox();
-    assert.ok(panel.x + panel.width <= width && panel.y + panel.height <= (width < 600 ? 844 : 1000), "The story panel is inside the viewport");
-    await page.screenshot({path:path.join(output,`story-${width}.png`)});
+    assert.ok(panel.x + panel.width <= width && panel.y + panel.height <= height, "The story panel is inside the viewport");
+    await page.screenshot({ path: path.join(output, `story-${width}.png`) });
     await page.locator(".panel-close").click();
     assert.equal(await page.locator(".story-panel").count(), 0, "Close returns to unobscured free play");
-    measurements.push({ width, chapter, globe, panel });
+    measurements.push({ width, chapter, globe, bar, panel });
     await page.screenshot({ path: path.join(output, `immersive-${width}.png`) });
     await page.locator("#tour-hatch").click();
     assert.equal(new URL(page.url()).pathname, "/waitlist.html");
     await page.locator("#waitlist-form").waitFor();
-    await page.screenshot({path:path.join(output,`waitlist-${width}.png`),fullPage:true});
+    await page.screenshot({ path: path.join(output, `waitlist-${width}.png`), fullPage: true });
     await page.close();
   }
-  await writeFile(path.join(output,"immersive-measurements.json"), JSON.stringify({ source:"Locally built unpublished working tree", viewports:measurements },null,2)+"\n");
+  await writeFile(path.join(output, "immersive-measurements.json"), JSON.stringify({ source: "Locally built unpublished working tree", viewports: measurements }, null, 2) + "\n");
   console.log(JSON.stringify(measurements));
 }
 
+// The recording follows the tour's speed, and a step's depth stays readable above the app's drawers.
 export async function verifyRecordingFreeplay(browser, url, output) {
-  const page = await browser.newPage({viewport:{width:390,height:844},reducedMotion:"reduce"});
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
   await page.addInitScript(() => {
-    localStorage.setItem("storytree-opening-seen","yes");
+    localStorage.setItem("storytree-opening-seen", "yes");
     const original = HTMLCanvasElement.prototype.getContext;
-    HTMLCanvasElement.prototype.getContext = function(kind,...args) { return kind.startsWith("webgl") ? null : original.call(this,kind,...args); };
+    HTMLCanvasElement.prototype.getContext = function (kind, ...args) { return kind.startsWith("webgl") ? null : original.call(this, kind, ...args); };
   });
-  await page.clock.install({time:new Date("2030-01-01T00:00:00Z")});
-  await page.goto(url); await page.locator("#tour-skip").click();
-  await page.getByRole("button",{name:"Library",exact:true}).click();
-  await page.locator(".tour-recording-controls summary").click();
-  await page.locator("#recording-replay").click(); await page.clock.runFor(2500);
-  const at = async () => Number(await page.locator("#recording-progress").getAttribute("data-recording-index"));
-  assert.ok(await at() > 0,"Free-play Replay starts after interacting with the project");
-  await page.locator("#recording-pause").click(); const stopped=await at();
-  await page.clock.runFor(2500); assert.equal(await at(),stopped,"The recording drawer can pause playback");
-  await page.locator("#recording-speed").selectOption("1.5"); await page.locator("#recording-pause").click();
-  await page.clock.runFor(2200); assert.ok(await at() >= stopped+3,"The recording drawer resumes at its chosen speed");
-  await page.locator("#recording-pause").click();
-  await page.screenshot({path:path.join(output,"recording-390.png")});
-  await page.locator(".tour-recording-controls summary").click();
-  await replay(page);
-  for (const step of ["stories-comparison","arcs-intent"]) {
-    await goToStep(page,step);
-    if (step.endsWith("comparison")) await page.clock.runFor(6000);
+  await page.clock.install({ time: new Date("2030-01-01T00:00:00Z") });
+  await page.goto(url); await page.locator("#tour-play").waitFor();
+  await goToStep(page, "sessions-recording");
+  const at = async () => Number(await page.locator(".tour-recording-progress").getAttribute("data-recording-index"));
+  await page.clock.runFor(2000); const slow = await at();
+  await page.locator("#tour-speed-cycle").click();
+  await page.clock.runFor(2000); assert.ok(await at() - slow >= 2, "1.5× plays the recording faster");
+  await page.screenshot({ path: path.join(output, "recording-390.png") });
+  for (const step of ["stories-compare", "arcs-plan"]) {
+    await goToStep(page, step);
     await page.locator("#tour-depth").click();
-    assert.equal(await page.locator("#tour-why-close").evaluate(button => { const box=button.getBoundingClientRect();return document.elementFromPoint(box.x+box.width/2,box.y+box.height/2)===button; }),true,"Why remains above comparison and arc overlays");
-    await page.locator("#tour-why-close").click();
+    await page.locator(".tour-back").scrollIntoViewIfNeeded();
+    assert.equal(await page.locator(".tour-back").evaluate(button => { const box = button.getBoundingClientRect(); return document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2) === button; }), true, "A step's depth stays above comparisons and the arc drawer");
+    await page.locator(".tour-back").click();
   }
+  await page.locator("#tour-skip").click();
+  assert.equal(await at(), Number(await page.locator(".tour-recording-progress").getAttribute("data-recording-total")), "Free play shows the recording's end");
   await page.close();
-  console.log("PASS: free-play recording replay/resume/pause/speed and readable Why overlays");
+  console.log("PASS: the recording follows the tour's speed and holds; depth stays readable above the app's drawers");
 }

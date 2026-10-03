@@ -3,42 +3,34 @@
 
 /* Only website placement lives here. The desktop owns the panels and diagram vocabulary. */
 #chapter2 .tour-freeplay,.tour-session-surface,.tour-arc-surface,.tour-sessions,.tour-arcs { display:contents; }
-#chapter2 .forest-views { top:60px; }
-#chapter2 .tour-browse-toggle { position:absolute; top:61px; left:192px; z-index:8; min-height:44px; padding:8px 12px; border:1px solid #485159; border-radius:8px; color:#eee; background:#101418; font:13px/1.5 system-ui; cursor:pointer; }
-#chapter2[data-tour-mode="tour"] .tour-browse-toggle { left:auto; right:20px; top:20px; }
-#chapter2 .tour-record-browser { position:absolute; z-index:20; top:110px; left:12px; width:min(360px,calc(100% - 24px)); max-height:calc(100% - 180px); overflow:auto; padding:18px; border:1px solid var(--line,#485159); border-radius:10px; background:var(--surface,#1e2125); color:var(--text,#e7e8ea); box-shadow:0 8px 30px #0006; }
+#chapter2 .forest-views { top:66px; left:24px; }
+#chapter2 .tour-browse-toggle { position:absolute; top:67px; left:200px; z-index:8; min-height:40px; padding:8px 12px; border:1px solid #485159; border-radius:8px; color:#eee; background:#101418; font:13px/1.5 system-ui, sans-serif; cursor:pointer; }
+#chapter2 .tour-record-browser { position:absolute; z-index:20; top:116px; left:12px; width:min(360px,calc(100% - 24px)); max-height:calc(100% - 196px); overflow:auto; padding:18px; border:1px solid var(--line,#485159); border-radius:10px; background:var(--surface,#1e2125); color:var(--text,#e7e8ea); box-shadow:0 8px 30px #0006; }
 .tour-record-browser header { display:flex; align-items:center; justify-content:space-between; }
 .tour-record-browser h2 { margin:0; font-size:18px; letter-spacing:0; }
 .tour-record-browser header button { background:none; border:0; color:inherit; font-size:24px; cursor:pointer; }
 .tour-recorded-label { font-size:11px; color:var(--muted); margin:8px 0 18px; }
 .tour-record-browser label { display:block; font-size:12px; margin:14px 0 5px; color:var(--muted); }
 .tour-record-browser input,.tour-record-browser select { width:100%; min-height:44px; font:14px/1.5 system-ui; padding:6px; border:1px solid var(--line,#485159); border-radius:5px; background:var(--bg,#17191c); color:var(--text,#e7e8ea); }
-#chapter2 .story-panel { top:60px; bottom:60px; }
-#chapter2 .sessions-list { bottom:55px; max-height:31%; }
+/* Panels stop above the tour bar. */
+#chapter2 .story-panel { top:66px; bottom:calc(var(--bar-h) + 12px); }
+#chapter2 .sessions-list { bottom:var(--bar-h); max-height:31%; }
 #chapter2:has(.story-panel) .sessions-list { right:calc(min(30rem,100% - 1.5rem) + 1.5rem); }
 #chapter2 .arc-handle { position:absolute; top:0; height:48px; }
-#chapter2 .arc-overlay { position:absolute; top:48px; z-index:60; }
+#chapter2 .arc-overlay { position:absolute; top:48px; z-index:60; bottom:var(--bar-h); }
 #chapter2 .arc-overlay .arc-handle { top:-48px; }
-#chapter2 .tour-recording-controls { position:absolute; z-index:75; bottom:18px; left:230px; font:10px/1.5 system-ui; color:#a7b5ac; }
-.tour-recording-controls summary { cursor:pointer; }
-#chapter2 .tour-recording-controls[open] { width:300px; padding:15px; background:#1e2125; border:1px solid #485159; border-radius:8px; }
-.tour-recording-controls button { font:12px/1.5 system-ui; padding:6px; margin:8px 3px 8px 0; background:#262a2f; color:#ddd; border:1px solid #485159; border-radius:5px; cursor:pointer; }
+/* While the tour talks, the sessions list sits to the right of the card, above the bar. */
+#chapter2[data-tour-mode="tour"] .sessions-list { left:calc(24px + min(400px, 36vw) + 16px); right:16px; bottom:calc(var(--bar-h) + 14px); max-height:42%; z-index:4; border:1px solid #3d4748; border-radius:12px; }
+#chapter2 .tour-recording-progress { position:absolute; z-index:6; top:52px; right:24px; margin:0; color:#f2967b; font:600 11px/1.5 system-ui, sans-serif; letter-spacing:.06em; text-transform:uppercase; font-variant-numeric:tabular-nums; }
+#chapter2[data-tour-mode="freeplay"] .tour-recording-progress { display:none; }
 @media(max-width:600px) {
- #chapter2 .forest-views { top:60px; }
- #chapter2 .story-panel { top:110px; bottom:62px; width:calc(100% - 24px); }
+ #chapter2 .forest-views { top:60px; left:14px; }
+ #chapter2 .tour-browse-toggle { top:61px; left:180px; }
+ #chapter2 .story-panel { top:110px; bottom:calc(var(--bar-h) + 8px); width:calc(100% - 24px); }
  #chapter2:has(.story-panel) .sessions-list { right:0; visibility:hidden; }
  #chapter2 .sessions-list .session-legend { display:none; }
  #chapter2 .sessions-list { max-height:24%; }
- #chapter2 .tour-recording-controls { bottom:130px; left:12px; }
  #chapter2 .arc-panes { grid-template-columns:minmax(0,1fr); grid-template-rows:1fr 1fr; }
+ #chapter2[data-tour-mode="tour"] .sessions-list { left:10px; right:10px; top:84px; bottom:auto; max-height:30%; }
+ #chapter2 .tour-recording-progress { top:auto; bottom:calc(var(--bar-h) + 8px); right:12px; }
 }
-
-#chapter2[data-tour-mode="tour"] .sessions-list { left:48%; right:20px; bottom:150px; max-height:40%; z-index:3; }
-@media(max-width:600px) { #chapter2[data-tour-mode="tour"] .sessions-list { left:0; right:0; top:110px; bottom:auto; max-height:30%; } }
-
-@media(max-width:600px) { #chapter2:has(.story-panel) .tour-recording-controls { display:none; } }
-
-.recording-playback { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-.recording-playback label { display:flex; align-items:center; gap:6px; }
-#chapter2 .tour-recording-controls button,#chapter2 .tour-recording-controls select { min-height:44px; }
-.recording-playback select { font:12px/1.5 system-ui; padding:6px; border:1px solid #485159; border-radius:5px; background:#262a2f; color:#ddd; }

@@ -44,10 +44,15 @@ async function activate(host: HTMLElement) {
 }
 
 function observe(host: HTMLElement) {
+  let scheduled = false;
   const schedule = () => {
+    if (scheduled) return;
+    scheduled = true;
     if (typeof window.requestIdleCallback === "function") window.requestIdleCallback(() => void activate(host), { timeout: 1000 });
     else setTimeout(() => void activate(host), 0);
   };
+  // A visitor who presses Run in chapter 1 will meet the globe about twenty seconds later: start it now, so the turn lands on it live.
+  document.addEventListener("click", event => { if (event.target instanceof Element && event.target.closest("#opening-run")) schedule(); });
   if (!("IntersectionObserver" in window)) { schedule(); return; }
   const observer = new IntersectionObserver(entries => {
     if (!entries.some(entry => entry.isIntersecting)) return;

@@ -9,6 +9,8 @@ official Swag Labs suite run on Mint against a clone of the merged commit (`grad
 | 1 sign in (fresh; set up the project) | 589 s, $2.11; app 0.3.611 before and after | 4 stories (one per part), 10 capabilities, 9 contracts for part 1, 1 arc, increments; 14 decisions; 3 frictions | Node `http` server, sign in, users, session cookie, Products; 9 own tests (node --test, HTTP level); private repo `HuaMick/shop`, CI on pull requests, PR #1 merged | **4/4** part 1 |
 | 2 browsing (fresh) | 568 s, $2.28; app 0.3.614 | from the plan; part 2's 3 capabilities; asked the user (a storytree question) before moving code into story packages | product page, sorting, cart buttons and badge (PR #2); test titles numbered; 17 own tests | 9/10: part 1's locked-user sign-in flaky (3 of 5) |
 | 2 follow-up (same session) | 1,326 s, $2.59 | settled the user's answer; a fix increment | moved the code into one package per story (PR #3); reproduced the flaky test with Swag Labs' own suite in headless Edge (2 of 10), fixed it by showing sign-in errors in place (PR #4); 18 own tests | **10/10** parts 1-2 |
+| 3 cart and menu (fresh) | 554 s, $2.37; app 0.3.614 | from the plan; part 3's 2 capabilities | Cart page, side menu (All Items, About, Logout, Reset App State); its tests run the browser scripts against the HTML the server sends; PR #5 | **17/17** parts 1-3, first time |
+| 4 checkout (fresh) | 571 s, $2.55; app 0.3.614 | from the plan; its own package for checkout | three checkout pages, errors in place, 8% tax; ran Swag Labs' suite itself in Edge (all 9 runnable specs); closed its wave 1 arc; 29 own tests; PR #6 | **26/26**, the suite's ceiling |
 
 ## Session 1 notes
 
@@ -43,3 +45,14 @@ official Swag Labs suite run on Mint against a clone of the merged commit (`grad
   the repository), reproduced it, fixed it, and ran the spec 20 times green.
 - Its friction report about the empty islands was refused: the project's daily friction cap (3) was already used
   by session 1. It recorded the same content in its question instead.
+
+## Sessions 3 and 4 notes
+
+- Both parts were green at their first grade, with every earlier part kept: 17/17 after part 3, **26/26 after part 4**,
+  the ceiling the live saucedemo.com reaches. Wave 1 is complete in four sessions plus one follow-up turn.
+- After session 4 the globe draws all four stories with land and file dots, joined by roads from their package
+  dependencies (`shots/s4-after.png`). The land stays neutral: nothing verifies a user's tests (question_da91783103b9).
+- The library at the end of wave 1 (`library-s4`, kept privately): 4 stories, 10 capabilities, 29 contracts,
+  21 decisions, 1 process (how to run Swag Labs' suite in Edge on this laptop, written by session 4 for the next),
+  2 questions (both the layout question, settled), 3 frictions; 1,080 activity lines.
+- Session 3 hit the project's daily friction cap again and said so in its answer.

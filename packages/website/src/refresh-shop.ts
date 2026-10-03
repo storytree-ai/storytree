@@ -1,0 +1,43 @@
+// From the checkout root, with the shop's code as a git repository (a bare mirror will do) and its library either
+// reachable (read only) or as a saved record (packages/app-setup/evidence/shop/harness/record-library.sh writes one):
+// node --import tsx packages/website/src/refresh-shop.ts --repository <shop git dir> (--record <file> | --library <postgres url>) [--output <file>]
+// The shop: the store the test laptop's Claude Code built with storytree (packages/app-setup/evidence/shop).
+import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+import { parseArgs } from "node:util";
+import type { Line } from "@storytree/agent-link";
+import type { AnnotatedTree, Change } from "@storytree/library";
+import { refreshGrowthSnapshot } from "./conduit-growth.js";
+import { codeAt, landings, shopStages } from "./shop-growth.js";
+
+const project = "shop";
+const { values } = parseArgs({ options: { repository: { type: "string" }, record: { type: "string" }, library: { type: "string" }, output: { type: "string" } } });
+if (!values.repository || !values.record === !values.library) throw new Error("Give --repository <shop git dir>, and one of --record <saved library record> or --library <postgres url>.");
+
+/** The library's own recorded history of the shop: its plan, every dated change and its activity lines. */
+async function history(): Promise<{ capturedAt: string; tree: AnnotatedTree; changes: Change[]; lines: Line[] }> {
+  if (values.record) {
+    const saved = JSON.parse(await readFile(values.record, "utf8"));
+    if (saved.project !== project) throw new Error(`The record is of ${saved.project}, not ${project}.`);
+    return saved;
+  }
+  const { openNamedProject, openActivityLog } = await import("@storytree/agent-link");
+  const { connect } = await import("@storytree/library");
+  const server = await connect({ url: values.library! });
+  try {
+    const library = await openNamedProject(server, project);
+    const activity = await openActivityLog(server);
+    try {
+      const [tree, changes, log] = await Promise.all([library.projectTree(), library.changesSince(0), activity.since(project, 0)]);
+      return { capturedAt: new Date().toISOString(), tree, changes: [...changes.changes], lines: [...log.lines] };
+    } finally { await activity.close(); }
+  } finally { await server.close(); }
+}
+
+const recorded = await history();
+const merges = await landings(values.repository);
+const { window, stages } = shopStages(recorded.changes, recorded.lines, merges);
+await refreshGrowthSnapshot(values.output ?? fileURLToPath(new URL("./shop-snapshot.json", import.meta.url)), async () => ({
+  project, capturedAt: recorded.capturedAt, window, tree: recorded.tree, changes: recorded.changes, lines: recorded.lines, stages, surveyAt: codeAt(values.repository!),
+}));
+console.log(`Saved the shop's growth: ${stages.length} stages from ${window.from} to ${window.to}, each with its code as it stood then.`);

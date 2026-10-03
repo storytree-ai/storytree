@@ -3,6 +3,7 @@
 import type { Line } from "@storytree/agent-link";
 import { workStates } from "@storytree/arc-surface";
 import { forestScene, growPlanet, sessionColour, storyNodes, type SessionWisp } from "@storytree/forest";
+import type { ProjectSurvey } from "@storytree/forest/code-survey";
 import { saveForestSnapshot } from "@storytree/forest/snapshot";
 import { islandCoastReach } from "@storytree/forest-world/geometry";
 import type { AnnotatedCapability, AnnotatedStory, AnnotatedTree, Change, HealthState } from "@storytree/library";
@@ -19,6 +20,8 @@ export interface GrowthReading {
   lines: readonly Line[];
   /** The moments the tour grows through, each named and dated. */
   stages: readonly { id: string; at: string }[];
+  /** The code's survey as it stood at `at`, for `plan`'s stories; without it, no stage draws land. */
+  surveyAt?(at: string, plan: AnnotatedTree): Promise<ProjectSurvey>;
 }
 
 type Fields = Record<string, unknown>;
@@ -104,16 +107,19 @@ export async function refreshGrowthSnapshot(file: string, read: () => Promise<Gr
     if (!Number.isFinite(from) || !Number.isFinite(to) || from >= to || !Number.isFinite(time(capturedAt))) throw new Error("The growth's recording window and capture time must be valid dates, with from before to.");
     if (input.stages.some(stage => !(time(stage.at) >= from && time(stage.at) < to))) throw new Error("Every growth stage must fall inside the recording's window.");
     const own = lines.filter(line => line.project === project);
-    const scene = forestScene(tree, changes, workStates(own));
-    const places = storyNodes(tree, changes);
+    const surveyAt = input.surveyAt ?? (async () => ({}));
+    const survey = await surveyAt(window.to, tree);
+    const scene = forestScene(tree, changes, workStates(own), survey);
+    const places = storyNodes(tree, changes, survey);
     const grown = growPlanet(places.map(({ id, place }) => ({ story: id, place, reach: islandCoastReach(scene.islands.find(island => island.story === id)!) })));
-    const stages = input.stages.map(({ id, at }) => {
+    const stages = [];
+    for (const { id, at } of input.stages) {
       const plan = planAt(tree, changes, at);
       const before = own.filter(line => time(line.at) <= time(at));
       const capabilities = plan.stories.flatMap(story => story.capabilities);
-      return { id, at, scene: forestScene(plan, changes.filter(change => time(change.record.updatedAt) <= time(at)), workStates(before)),
-        wisps: wispsAt(plan, before, at), counts: { stories: plan.stories.length, capabilities: capabilities.length, contracts: capabilities.reduce((sum, item) => sum + item.contracts.length, 0) } };
-    });
+      stages.push({ id, at, scene: forestScene(plan, changes.filter(change => time(change.record.updatedAt) <= time(at)), workStates(before), await surveyAt(at, plan)),
+        wisps: wispsAt(plan, before, at), counts: { stories: plan.stories.length, capabilities: capabilities.length, contracts: capabilities.reduce((sum, item) => sum + item.contracts.length, 0) } });
+    }
     const snapshot = { version: 1, capturedAt, radius: grown.radius, scene, spots: [...grown.spots], project, window, places,
       titles: Object.fromEntries(tree.stories.map(story => [story.id, story.title])), stages };
     return scrub(snapshot, []) as GrowthSnapshot;

@@ -6,11 +6,13 @@
  * One reading of the library's projectTree, whose health is already rolled up by the library, and
  * one of the agent link's claims. A story is named by its id or its title.
  *
+ * `storytree health ci` reads the project's CI test results into its verified health (the CI health story, ADR-0902).
  * `storytree health worklist` prints the oldest three capabilities on the library's health
  * worklist (ADR-0825 D4), for the librarian pass to route.
  */
 import type { Claim } from "@storytree/agent-link";
 import { NOT_VERIFIED, wordAndWhy, type NodeHealth } from "@storytree/library";
+import { ghApi, gitIn, readProjectCi } from "@storytree/ci-health";
 
 import { Refusal } from "../answer.js";
 import type { Family, Verb } from "../door.js";
@@ -82,8 +84,23 @@ const worklist: Verb = {
   },
 };
 
+const ci: Verb = {
+  name: "ci",
+  usage: "health ci",
+  summary: "read this project's CI test results (its newest push run on GitHub) into its verified health",
+  async act(_args, context) {
+    const read = await readProjectCi({ library: await context.library(), git: gitIn(context.cwd), github: ghApi() });
+    if (!read.written) return { text: read.why };
+    return {
+      text: `Read ${read.tests} test results from ${read.run} (commit ${read.commit.slice(0, 12)}): ${read.passing} contracts verified passing, ${read.failing} failing, ${read.notChecked} not checked by a skip` +
+        `${read.unmatched === 0 ? "." : `; ${read.unmatched} results named no contract of one story.`}`,
+      next: [{ command: "storytree tree", why: "see each contract's verified health beside the agent's report" }],
+    };
+  },
+};
+
 export const health: Family = {
   name: "health",
-  summary: "the health worklist: what is not healthy, oldest first",
-  verbs: [worklist],
+  summary: "the health worklist, and reading a project's CI into its verified health",
+  verbs: [worklist, ci],
 };

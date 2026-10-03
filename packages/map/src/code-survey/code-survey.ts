@@ -27,6 +27,9 @@ import { parse } from "@babel/parser";
 /** A file of a story's package: its path from the package root, and its text. */
 export type SourceFile = { readonly path: string; readonly text: string };
 
+/** A package's literal exports, in the same coordinates as its source files. */
+export type SurveyPackage = { readonly root: string; readonly name: string; readonly exports: Readonly<Record<string, string>> };
+
 /** A capability as the survey needs it: its id and its numbered title ("3 · Claims"). */
 export type SurveyCapability = { readonly id: string; readonly title: string };
 
@@ -75,8 +78,8 @@ const isTestCode = (path: string): boolean => TEST_FILE.test(path) || TEST_SUPPO
 const CODE_FILE = /\.[cm]?[jt]sx?$/;
 const DECLARATION = /\.d\.[cm]?ts$/;
 const NUMBERED_TITLE = /^(?:([a-z][a-z0-9-]*)\s+)?(\d+)\.\d+\b/;
-/** `import … from "./x.js"`, `export … from "./x.js"`, `import "./x.js"` and `import("./x.js")`: kind, names, specifier. */
-const RELATIVE_IMPORT = /\b(import|export)\s+(type\s+)?([^;'"`]*?)\s*\bfrom\s*["'](\.{1,2}\/[^"']+)["']|\bimport\s*\(?\s*["'](\.{1,2}\/[^"']+)["']/g;
+/** Static imports, re-exports and literal dynamic imports: kind, names, specifier. */
+const IMPORT = /\b(import|export)\s+(type\s+)?([^;'"`]*?)\s*\bfrom\s*["']([^"']+)["']|\bimport\s*\(?\s*["']([^"']+)["']/g;
 
 /** Where a reach by types alone ranks: after every reach by a value or by running (ADR-0838 D4). */
 const BY_TYPES = 1000;
@@ -147,7 +150,15 @@ const linesOf = (text: string): number => text.split("\n").filter((line) => line
 type Edge = { readonly to: string; readonly reexport: boolean; readonly typeOnly: boolean; readonly names: readonly (readonly [name: string, as: string])[] | "all" };
 
 /** Resolve a relative specifier against the importing file, to a file the package holds. */
-function resolve(from: string, specifier: string, paths: ReadonlySet<string>): string | undefined {
+function resolve(from: string, specifier: string, paths: ReadonlySet<string>, packages: readonly SurveyPackage[]): string | undefined {
+  if (!/^\.{1,2}\//.test(specifier)) {
+    const own = packages.find(pkg => from.startsWith(pkg.root));
+    if (own === undefined) return undefined;
+    const subpath = specifier === own.name ? "." : specifier.startsWith(own.name + "/") ? "." + specifier.slice(own.name.length) : undefined;
+    const target = subpath === undefined ? undefined : own.exports[subpath];
+    if (target === undefined) return undefined;
+    return resolve(own.root + "package.json", target, paths, []);
+  }
   const parts = from.split("/").slice(0, -1);
   for (const part of specifier.split("/")) {
     if (part === ".." && parts.length > 0 && parts.at(-1) !== "..") parts.pop();
@@ -211,7 +222,7 @@ function importsOf(file: SourceFile): readonly RegExpExecArray[] {
   for (const comment of [...syntax?.comments ?? []].reverse()) {
     text = text.slice(0, comment.start) + text.slice(comment.start, comment.end).replace(/[^\r\n]/g, " ") + text.slice(comment.end);
   }
-  const pattern = new RegExp(RELATIVE_IMPORT.source, "y");
+  const pattern = new RegExp(IMPORT.source, "y");
   const imports = starts.sort((a, b) => a - b).flatMap(at => {
     pattern.lastIndex = at;
     const match = pattern.exec(text);
@@ -221,9 +232,9 @@ function importsOf(file: SourceFile): readonly RegExpExecArray[] {
   return imports;
 }
 
-function edgesOf(file: SourceFile, paths: ReadonlySet<string>): Edge[] {
+function edgesOf(file: SourceFile, paths: ReadonlySet<string>, packages: readonly SurveyPackage[]): Edge[] {
   return importsOf(file).flatMap((match): Edge[] => {
-    const to = resolve(file.path, match[4] ?? match[5]!, paths);
+    const to = resolve(file.path, match[4] ?? match[5]!, paths, packages);
     if (to === undefined) return [];
     return [{ to, reexport: match[1] === "export", typeOnly: match[2] !== undefined, names: match[5] !== undefined ? "all" : namesOf(match[3] ?? "") }];
   });
@@ -234,12 +245,12 @@ function edgesOf(file: SourceFile, paths: ReadonlySet<string>): Edge[] {
  * the file the names it takes come from (as near as the file re-exporting them), and every file those
  * import in turn through any number of ordinary imports (one further for each).
  */
-function reached(test: SourceFile, byPath: ReadonlyMap<string, SourceFile>, paths: ReadonlySet<string>): Map<string, number> {
+function reached(test: SourceFile, byPath: ReadonlyMap<string, SourceFile>, paths: ReadonlySet<string>, packages: readonly SurveyPackage[]): Map<string, number> {
   type Step = { readonly path: string; readonly wanted: readonly string[] | "all"; readonly depth: number };
   /** Each reached file: how near, and the names re-exports were followed for ("all" once every name was). */
   const taken = new Map<string, { readonly depth: number; names: Set<string> | "all" }>();
   // Nearest first: a re-export keeps its depth (to the front), an ordinary import is one further (to the back).
-  const queue: Step[] = edgesOf(test, paths).filter((edge) => !edge.typeOnly && !edge.reexport).map((edge) => ({ path: edge.to, wanted: edge.names === "all" ? "all" : edge.names.map(([name]) => name), depth: 0 }));
+  const queue: Step[] = edgesOf(test, paths, packages).filter((edge) => !edge.typeOnly && !edge.reexport).map((edge) => ({ path: edge.to, wanted: edge.names === "all" ? "all" : edge.names.map(([name]) => name), depth: 0 }));
   for (let step = queue.shift(); step !== undefined; step = queue.shift()) {
     const file = byPath.get(step.path);
     if (file === undefined || TEST_FILE.test(step.path)) continue;
@@ -249,7 +260,7 @@ function reached(test: SourceFile, byPath: ReadonlyMap<string, SourceFile>, path
     if (before !== undefined && fresh !== "all" && fresh.length === 0) continue;
     if (before === undefined) taken.set(step.path, { depth: step.depth, names: fresh === "all" ? "all" : new Set(fresh) });
     else before.names = fresh === "all" ? "all" : new Set([...before.names, ...fresh]);
-    for (const edge of edgesOf(file, paths)) {
+    for (const edge of edgesOf(file, paths, packages)) {
       if (edge.typeOnly) continue;
       // A file that runs runs its own imports, once; a re-export carries only the names asked of it.
       if (!edge.reexport) {
@@ -265,7 +276,7 @@ function reached(test: SourceFile, byPath: ReadonlyMap<string, SourceFile>, path
   const frontier: [string, number][] = [[test.path, 0], ...[...taken].map(([path, { depth }]) => [path, depth] as [string, number])];
   for (let next = frontier.shift(); next !== undefined; next = frontier.shift()) {
     const [path, depth] = next;
-    for (const edge of edgesOf(byPath.get(path)!, paths)) {
+    for (const edge of edgesOf(byPath.get(path)!, paths, packages)) {
       if (taken.has(edge.to) || typed.has(edge.to) || TEST_FILE.test(edge.to)) continue;
       typed.set(edge.to, BY_TYPES + depth);
       frontier.push([edge.to, depth + 1]);
@@ -275,7 +286,7 @@ function reached(test: SourceFile, byPath: ReadonlyMap<string, SourceFile>, path
 }
 
 /** Survey one story's package: source files, ownership and imports. `ownPackage` also accepts its own prefixed proofs. */
-export function surveyStory(tree: readonly SourceFile[], capabilities: readonly SurveyCapability[], coverage: CoverageMap = {}, ownPackage?: string): StorySurvey {
+export function surveyStory(tree: readonly SourceFile[], capabilities: readonly SurveyCapability[], coverage: CoverageMap = {}, ownPackage?: string, packages: readonly SurveyPackage[] = []): StorySurvey {
   const code = tree.filter((file) => CODE_FILE.test(file.path) && !DECLARATION.test(file.path));
   const paths = new Set(code.map((file) => file.path));
   const byPath = new Map(code.map((file) => [file.path, file]));
@@ -296,7 +307,7 @@ export function surveyStory(tree: readonly SourceFile[], capabilities: readonly 
       if (byNumber.has(number)) counts.set(number, (counts.get(number) ?? 0) + 1);
     }
     if (counts.size === 0) continue;
-    for (const [path, depth] of reached(test, byPath, paths)) {
+    for (const [path, depth] of reached(test, byPath, paths, packages)) {
       const tally = reach.get(path) ?? new Map<number, { depth: number; count: number }>();
       for (const [number, count] of counts) {
         const was = tally.get(number);
@@ -325,12 +336,12 @@ export function surveyStory(tree: readonly SourceFile[], capabilities: readonly 
     const capability = tally.length > 0 ? byNumber.get(tally[0]![0]) : undefined;
     return capability === undefined ? { path: file.path, lines: linesOf(file.text) } : { path: file.path, lines: linesOf(file.text), capability };
   });
-  const imports = sources.flatMap((file) => edgesOf(file, paths).filter((edge) => !isTestCode(edge.to)).map((edge) => ({ from: file.path, to: edge.to })));
+  const imports = sources.flatMap((file) => edgesOf(file, paths, packages).filter((edge) => !isTestCode(edge.to)).map((edge) => ({ from: file.path, to: edge.to })));
   const tests = code.filter((file) => isTestCode(file.path)).map((file): SurveyedTest => ({
     kind: "test",
     path: file.path,
     titles: proofTitles(calls.get(file.path) ?? []),
-    imports: edgesOf(file, paths).map((edge) => ({ from: file.path, to: edge.to })),
+    imports: edgesOf(file, paths, packages).map((edge) => ({ from: file.path, to: edge.to })),
   }));
   return { files, imports, tests };
 }

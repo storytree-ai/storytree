@@ -22,7 +22,7 @@ import { promisify } from "node:util";
 
 import type { AnnotatedTree } from "@storytree/library";
 
-import { packageOf, surveyStory, type CoverageMap, type SourceFile, type StorySurvey } from "./code-survey.js";
+import { packageOf, surveyStory, type CoverageMap, type SourceFile, type StorySurvey, type SurveyPackage } from "./code-survey.js";
 
 /** Each story's survey, by story id; a story with no package is absent. */
 export type ProjectSurvey = Readonly<Record<string, StorySurvey>>;
@@ -33,7 +33,7 @@ const SKIPPED = new Set(["node_modules", "dist", "out", "evidence"]);
 const DEPENDENCY_FIELDS = ["dependencies", "devDependencies", "optionalDependencies", "peerDependencies"] as const;
 
 /** A package.json's name and the packages it depends on through any field; undefined when it cannot be read. */
-function manifestFrom(text: string): { name: string; deps: string[] } | undefined {
+function manifestFrom(text: string): { name: string; deps: string[]; exports: SurveyPackage["exports"] } | undefined {
   try {
     const parsed = JSON.parse(text) as Record<string, unknown>;
     if (typeof parsed.name !== "string") return undefined;
@@ -41,7 +41,12 @@ function manifestFrom(text: string): { name: string; deps: string[] } | undefine
       const named = parsed[field];
       return typeof named === "object" && named !== null ? Object.keys(named) : [];
     });
-    return { name: parsed.name, deps: [...new Set(deps)] };
+    const exports = typeof parsed.exports === "string" ? { ".": parsed.exports } : parsed.exports;
+    const literal = typeof exports === "object" && exports !== null ? Object.entries(exports).filter(([key, target]) =>
+      (key === "." || key.startsWith("./")) && !key.includes("*") && typeof target === "string" && target.startsWith("./")
+      && !target.includes("*") && !target.split("/").slice(1).some(part => part === ".." || part === "node_modules"),
+    ) as [string, string][] : [];
+    return { name: parsed.name, deps: [...new Set(deps)], exports: Object.fromEntries(literal) };
   } catch {
     return undefined;
   }
@@ -89,7 +94,7 @@ export function codeSurveyReader({ readFile: readText = (file: string) => readFi
 } = {}): CodeSurveyReader {
   const checkouts = new Map<string, Promise<string>>();
   const kept = new Map<string, Kept>();
-  const surveyed = new Map<string, { readonly files: readonly SourceFile[]; readonly capabilities: string; readonly survey: StorySurvey }>();
+  const surveyed = new Map<string, { readonly files: readonly SourceFile[]; readonly capabilities: string; readonly packages: string; readonly survey: StorySurvey }>();
   const running = new Map<string, Promise<ProjectSurvey>>();
   const edged = new Map<string, { readonly base: StorySurvey; readonly survey: StorySurvey }>();
 
@@ -138,9 +143,10 @@ export function codeSurveyReader({ readFile: readText = (file: string) => readFi
       const last = surveyed.get(story.id);
       const read = manifests.flatMap((file) => {
         const manifest = file === undefined ? undefined : manifestFrom(file.text);
-        return manifest === undefined ? [] : [manifest];
+        return manifest === undefined ? [] : [{ ...manifest, root: path.posix.dirname(path.posix.normalize(`packages/${storyPackage}/${file!.path}`)) + "/" }];
       });
-      if (last !== undefined && last.capabilities === capabilities && last.files.length === files.length && last.files.every((file, at) => file === files[at])) return [[story.id, last.survey, read] as const];
+      const packages = JSON.stringify(read.filter(pkg => Object.keys(pkg.exports).length > 0).map(({ root, name, exports }) => ({ root, name, exports })));
+      if (last !== undefined && last.capabilities === capabilities && last.packages === packages && last.files.length === files.length && last.files.every((file, at) => file === files[at])) return [[story.id, last.survey, read] as const];
       // Survey in repository coordinates so imports crossing the app/desktop seam can return to
       // packages/app; publish the package-relative paths the forest and map already consume.
       const base = `packages/${storyPackage}`;
@@ -152,6 +158,7 @@ export function codeSurveyReader({ readFile: readText = (file: string) => readFi
         story.capabilities,
         Object.fromEntries(Object.entries(coverage).map(([file, counts]) => [inCheckout(file), counts])),
         storyPackage,
+        read,
       );
       const relativeImport = ({ from, to }: { from: string; to: string }) => ({ from: inPackage(from), to: inPackage(to) });
       const fresh: StorySurvey = {
@@ -159,7 +166,7 @@ export function codeSurveyReader({ readFile: readText = (file: string) => readFi
         imports: measured.imports.map(relativeImport),
         tests: (measured.tests ?? []).map((file) => ({ ...file, path: inPackage(file.path), imports: file.imports.map(relativeImport) })),
       };
-      surveyed.set(story.id, { files, capabilities, survey: fresh });
+      surveyed.set(story.id, { files, capabilities, packages, survey: fresh });
       return [[story.id, fresh, read] as const];
     }));
     // Each story's package dependencies on other stories' packages, by package name.

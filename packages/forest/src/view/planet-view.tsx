@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Group, Quaternion, Vector3 } from "three";
 import { claimTints, coastArcs, openingTurn, selectionLanes, selectionNeighbours, type ClaimTint, type CoastArc, type EdgeMarker, type FacingIsland, type ForestScene, type GlobeTurn, type Island, type SessionWisp } from "@storytree/forest";
 import type { Descriptor3D } from "@storytree/forest-world";
-import { islandNormal, onIslandSurface, PlanetWorldCanvas, plateTransform } from "@storytree/forest-world/planet";
+import { islandNormal, onIslandSurface, PlanetWorldCanvas, plateTransform, usePlanetGrowth, type PlanetGrowth } from "@storytree/forest-world/planet";
 import { codePathKey, type CodePlaces } from "@storytree/knowledge-core";
 import { KnowledgeGlobePoints, useCodeLighting, type CodeLighting, type KnowledgeCore } from "@storytree/knowledge-core/view";
 import { SessionIslandEmphasis } from "./session-emphasis.js";
@@ -16,7 +16,7 @@ import { NameplateCrowd, Nameplates, NeighbourRing, Overlay, SelectionRing } fro
 import { dragTurn, focusRotation, globeHover, hiddenMarkers, isGlobeDrag, oncePerFrame, pickGlobe, planetLayout, type ForestMode } from "./planet-navigation.js";
 import { claimsOn } from "./planet-update.js";
 import { createGlobeGuide, type GlobeControls, type GlobePose } from "./globe-guide.js";
-import { presentTerritories, type GlobeSurfaces } from "./globe-surfaces.js";
+import { growLand, presentTerritories, type GlobeSurfaces } from "./globe-surfaces.js";
 
 export type PlanetViewProps = {
   /** Receives the app-owned controls while the globe is mounted. */
@@ -32,6 +32,8 @@ export type PlanetViewProps = {
   framing?: number | undefined;
   /** The full plan a plan still growing is drawn within: each island keeps the spot it has there (3.28). */
   frame?: ForestScene | undefined;
+  /** A recorded growth to replay (world 7): islands rise, their territories and file circles fill in behind them (3.30), and the core's notes appear. */
+  growth?: PlanetGrowth | undefined;
   core: KnowledgeCore;
   scene: ForestScene;
   places: ReadonlyMap<string, number>;
@@ -46,7 +48,7 @@ export type PlanetViewProps = {
   onWispHover: (session: string | undefined) => void;
 };
 
-export function PlanetView({ core, scene, places, wisps, selected, highlighted, highlightedSession, onPick, onNote, onWispHover, mode = "forest", framing, sideOffset, surfaces, onControls, library = true, frame }: PlanetViewProps) {
+export function PlanetView({ core, scene, places, wisps, selected, highlighted, highlightedSession, onPick, onNote, onWispHover, mode = "forest", framing, sideOffset, surfaces, onControls, library = true, frame, growth }: PlanetViewProps) {
   const shownSurfaces = useMemo((): GlobeSurfaces => ({
     sea: true, grounds: true, roads: true, nameplates: true, territories: "health", fileCircles: true, knowledgeCore: true, sessionTints: true,
     ...surfaces,
@@ -116,13 +118,19 @@ export function PlanetView({ core, scene, places, wisps, selected, highlighted, 
   }, [wisps, claimed, selected, neighbours, highlighted, layout.spots, layout.radius, lighting, reportStops, shownSurfaces, mode]);
   return <PlanetWorldCanvas scene={layout.scene} spots={layout.spots} radius={layout.radius}
     surface surfaces={shownSurfaces} framing={cameraFraming} sideOffset={cameraOffset} orbit={false}
-    inside={<group name="globe-core" visible={library && shownSurfaces.knowledgeCore}><KnowledgeGlobePoints core={core} spots={layout.spots} radius={layout.radius} places={codePlaces} /></group>}
-    rotation={rotation.toArray()} plateChildren={overlays} lanes={lanes}>
+    inside={<group name="globe-core" visible={library && shownSurfaces.knowledgeCore}><GrowingCore core={core} spots={layout.spots} radius={layout.radius} places={codePlaces} growing={growth !== undefined} /></group>}
+    rotation={rotation.toArray()} plateChildren={overlays} lanes={lanes} growth={growth}>
     <Navigation islands={layout.islands} radius={layout.radius} titles={new Map(scene.islands.map(i => [i.story, i.title]))}
       rotation={rotation} onRotate={setRotation} onPose={setPose} onControls={onControls} onPick={onPick} onNote={onNote} mode={mode}
       showFailures={shownSurfaces.grounds || shownSurfaces.territories !== false || shownSurfaces.fileCircles || shownSurfaces.nameplates || shownSurfaces.roads} />
     <NameplateCrowd selected={selected} />
   </PlanetWorldCanvas>;
+}
+
+/** The core inside the globe, its notes appearing with a growth when there is one (knowledge core 1.9). */
+function GrowingCore({ growing, ...props }: Omit<Parameters<typeof KnowledgeGlobePoints>[0], "growth"> & { growing: boolean }) {
+  const growth = usePlanetGrowth();
+  return <KnowledgeGlobePoints {...props} growth={growing ? growth : undefined} />;
 }
 
 /** `value`, or the one kept before while `keyOf` reads both the same: a reading equal to the last keeps its identity. */
@@ -177,6 +185,14 @@ function Territories({ story, land, coast, claimed, radius, spot, lighting, surf
     for (const object of drawn.group.children) if (object.userData.claim) object.visible = surfaces.sessionTints;
     invalidate();
   }, [drawn, lighting, land.package, surfaces, invalidate]);
+  // 3.30: on a growing globe the land fills in behind its island; once whole it is left alone until the growth or the land changes.
+  const growth = usePlanetGrowth();
+  const whole = useRef(false);
+  useEffect(() => { whole.current = false; }, [growth, drawn, surfaces]);
+  useFrame(() => {
+    if (whole.current) return;
+    whole.current = growLand(drawn.group, drawn.circles, { capability: id => growth.capability(id), file: path => growth.file(story, path) });
+  });
   useEffect(() => () => drawn.root.traverse((object) => {
     const mark = object as { geometry?: { dispose(): void }; material?: { dispose(): void } };
     mark.geometry?.dispose();

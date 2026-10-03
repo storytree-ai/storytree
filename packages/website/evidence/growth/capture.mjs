@@ -11,6 +11,8 @@ import { chromium } from 'playwright-core';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const out = path.join(here, 'out');
+// The forest's own styles, for the nameplates PlanetView draws.
+const forestCss = readFileSync(path.join(here, '../../../forest/src/view/styles.css'), 'utf8');
 mkdirSync(out, { recursive: true });
 const SECONDS = 15;
 const VIEW = { width: 1440, height: 900 };
@@ -18,7 +20,7 @@ let browser, server;
 try {
   await build({
     entryPoints: [path.join(here, 'page.tsx')], outfile: path.join(out, 'bundle.js'),
-    bundle: true, format: 'iife', platform: 'browser', jsx: 'automatic', loader: { '.json': 'json' },
+    bundle: true, format: 'iife', platform: 'browser', jsx: 'automatic', loader: { '.json': 'json', '.glb': 'binary', '.png': 'file', '.webp': 'file' },
     define: { 'process.env.NODE_ENV': '"production"' },
   });
   server = createServer((req, res) => {
@@ -26,7 +28,7 @@ try {
     if (file === '/bundle.js') { res.setHeader('Content-Type', 'text/javascript'); res.end(readFileSync(path.join(out, 'bundle.js'))); return; }
     if (file.endsWith('.png')) { res.setHeader('Content-Type', 'image/png'); res.end(readFileSync(path.join(here, path.basename(file)))); return; }
     res.setHeader('Content-Type', 'text/html');
-    res.end('<!doctype html><style>html,body{margin:0;background:#101418}#globe{width:100vw;height:100vh}</style><div id="globe"></div><script src="/bundle.js"></script>');
+    res.end(`<!doctype html><style>${forestCss}</style><style>html,body{margin:0;background:#101418}#globe{width:100vw;height:100vh}</style><div id="globe"></div><script src="/bundle.js"></script>`);
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const url = `http://127.0.0.1:${server.address().port}`;
@@ -54,7 +56,8 @@ try {
       record.plan ??= await page.evaluate(() => window.growthProof.plan);
       const file = `${map}-${String(i).padStart(2, '0')}.png`;
       await page.screenshot({ path: path.join(here, file) });
-      record.frames.push({ at, file, visiblePlates: seen.visiblePlates, plates: seen.plates, visibleNotes: seen.visibleNotes, notes: seen.notes });
+      record.frames.push({ at, file, visiblePlates: seen.visiblePlates, plates: seen.plates, visibleNotes: seen.visibleNotes, notes: seen.notes,
+        visibleTerritories: seen.visibleTerritories, territories: seen.territories, visibleFiles: seen.visibleFiles, files: seen.files });
       await context.close();
     }
     const visible = record.frames.map(f => f.visiblePlates);
@@ -66,11 +69,20 @@ try {
     assert.equal(notes[0], 0, `${map}: no note shows while the globe is still a point`);
     assert.ok(notes.every((n, i) => i === 0 || n >= notes[i - 1]), `${map}: notes only ever appear`);
     assert.equal(notes.at(-1), record.frames.at(-1).notes, `${map}: every note shows by the end`);
+    // Territories and file circles fill in behind their islands, where the reading has code: none at first, only ever more, all by the end.
+    for (const kind of ['visibleTerritories', 'visibleFiles']) {
+      const shown = record.frames.map(f => f[kind]);
+      assert.equal(shown[0], 0, `${map}: no ${kind} while the globe is a point`);
+      assert.ok(shown.every((n, i) => i === 0 || n >= shown[i - 1]), `${map}: ${kind} only ever fill in`);
+      const total = record.frames.at(-1)[kind === 'visibleFiles' ? 'files' : 'territories'];
+      assert.equal(shown.at(-1), total, `${map}: every one of ${kind} filled in by the end`);
+      assert.equal(total > 0, map === 'storytree', `${map}: only storytree's reading has code to fill in`);
+    }
     // The strip, laid out by the browser.
     const strip = await browser.newPage({ viewport: { width: 1800, height: 420 }, deviceScaleFactor: 1 });
     await strip.goto(`${url}/blank`);
     await strip.setContent(`<body style="margin:0;background:#101418;font:14px sans-serif;color:#d8dde3;display:flex;flex-wrap:wrap;gap:4px;padding:4px">${
-      record.frames.map(f => `<figure style="margin:0;width:352px"><img src="${url}/${f.file}" style="width:352px;display:block"><figcaption>${f.at}s · ${f.visiblePlates}/${f.plates} islands${f.notes ? ` · ${f.visibleNotes}/${f.notes} notes` : ''}</figcaption></figure>`).join('')}</body>`);
+      record.frames.map(f => `<figure style="margin:0;width:352px"><img src="${url}/${f.file}" style="width:352px;display:block"><figcaption>${f.at}s · ${f.visiblePlates}/${f.plates} islands${f.notes ? ` · ${f.visibleNotes}/${f.notes} notes` : ''}${f.visibleFiles ? ` · ${f.visibleTerritories} territories · ${f.visibleFiles} files` : ''}</figcaption></figure>`).join('')}</body>`);
     await strip.waitForLoadState('networkidle');
     await strip.screenshot({ path: path.join(here, `${map}-strip.png`), fullPage: true });
     await strip.close();
@@ -115,6 +127,10 @@ try {
       drawsIn1sAfter: later.draws - at0.draws };
     assert.equal(at0.visiblePlates, at0.plates, `${map}: reduced motion shows every island at once`);
     assert.equal(at0.visibleNotes, at0.notes, `${map}: reduced motion shows every note at once`);
+    record.reducedMotion.visibleTerritoriesAt300ms = at0.visibleTerritories;
+    record.reducedMotion.visibleFilesAt300ms = at0.visibleFiles;
+    assert.equal(at0.visibleTerritories, record.frames.at(-1).visibleTerritories, `${map}: reduced motion shows every territory at once`);
+    assert.equal(at0.visibleFiles, record.frames.at(-1).visibleFiles, `${map}: reduced motion shows every file circle at once`);
   }
   result.errors = errors;
   writeFileSync(path.join(here, 'measurements.json'), JSON.stringify(result, null, 2) + '\n');

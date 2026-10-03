@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { Mesh, MeshBasicMaterial, Vector3 } from "three";
-import { presentTerritories, restoreTerritoryPresentation } from "./globe-surfaces.js";
+import { growLand, presentTerritories, restoreTerritoryPresentation } from "./globe-surfaces.js";
+import { fileCircleMarks } from "./file-circles.js";
 import { territoryLand } from "./territory-land.js";
 
 test("3.22 territories switch between health, plain boundaries and hidden without changing claims or geometry", () => {
@@ -30,4 +31,33 @@ test("3.22 territories switch between health, plain boundaries and hidden withou
   territory.material = material; // Emphasis cleanup restores its original.
   restoreTerritoryPresentation(land);
   assert.equal(material.opacity, 0, "cleanup cannot restore a stale health fill over a plain view");
+});
+
+test("3.30 on a growing globe each territory fills in and each file circle swells as the growth schedules them, ending as drawn without one", () => {
+  const land = territoryLand({ territories: [{ capability: "pay", status: "healthy" }, { capability: "ship", status: "unhealthy" }],
+    cells: [{ territory: 0, polygon: [{ x: 0, z: 0 }, { x: 2, z: 0 }, { x: 2, z: 2 }] }, { territory: 1, polygon: [{ x: 0, z: 0 }, { x: -2, z: 0 }, { x: -2, z: 2 }] }],
+    borders: [] }, p => new Vector3(p.x, 0, p.z));
+  const circles = fileCircleMarks([{ path: "src/pay.ts", lines: 40, x: 1, z: 1, radius: 0.5, capability: "pay" }],
+    p => new Vector3(p.x, 0, p.z), () => new Vector3(0, 1, 0));
+  const [pay, ship] = ["pay", "ship"].map(c => land.getObjectByName(`territory:${c}`) as Mesh);
+  const circle = circles.getObjectByName("file:src/pay.ts")!;
+  const full = [pay, ship].map(t => (t!.material as MeshBasicMaterial).opacity);
+  presentTerritories(land, "health");
+  const at = (progress: Record<string, number>) => growLand(land, circles, { capability: c => progress[c] ?? 1, file: path => progress[path] ?? 1 });
+  at({ pay: 0, ship: 0, "src/pay.ts": 0 });
+  assert.ok(!pay!.visible && !ship!.visible && !circle.visible, "nothing before its window");
+  at({ pay: 0.5, ship: 0, "src/pay.ts": 0.5 });
+  assert.ok(pay!.visible && !ship!.visible, "each capability on its own window");
+  assert.equal((pay!.material as MeshBasicMaterial).opacity, full[0]! * 0.5);
+  assert.ok(circle.visible); assert.equal(circle.scale.x, 0.25, "a circle swells from its middle");
+  // The territory switches hold while it grows: plain has no fill, hidden stays hidden.
+  presentTerritories(land, "plain");
+  assert.equal((pay!.material as MeshBasicMaterial).opacity, 0);
+  presentTerritories(land, false);
+  at({ pay: 0.8 });
+  assert.ok(!pay!.visible, "a hidden territory does not grow back into view");
+  presentTerritories(land, "health");
+  at({});
+  assert.deepEqual([pay, ship].map(t => [t!.visible, (t!.material as MeshBasicMaterial).opacity]), [[true, full[0]], [true, full[1]]], "whole, as drawn without growth");
+  assert.ok(circle.visible); assert.equal(circle.scale.x, 0.5);
 });

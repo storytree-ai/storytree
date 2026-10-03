@@ -54,18 +54,23 @@ try {
       record.plan ??= await page.evaluate(() => window.growthProof.plan);
       const file = `${map}-${String(i).padStart(2, '0')}.png`;
       await page.screenshot({ path: path.join(here, file) });
-      record.frames.push({ at, file, visiblePlates: seen.visiblePlates, plates: seen.plates });
+      record.frames.push({ at, file, visiblePlates: seen.visiblePlates, plates: seen.plates, visibleNotes: seen.visibleNotes, notes: seen.notes });
       await context.close();
     }
     const visible = record.frames.map(f => f.visiblePlates);
     assert.equal(visible[0], 0, `${map}: nothing has risen while the globe is still a point`);
     assert.ok(visible.every((n, i) => i === 0 || n >= visible[i - 1]), `${map}: islands only ever rise`);
     assert.equal(visible.at(-1), record.frames.at(-1).plates, `${map}: every island has risen by the end`);
+    // The knowledge core grows with it, where the recording has notes: none at first, only ever more, all by the end.
+    const notes = record.frames.map(f => f.visibleNotes);
+    assert.equal(notes[0], 0, `${map}: no note shows while the globe is still a point`);
+    assert.ok(notes.every((n, i) => i === 0 || n >= notes[i - 1]), `${map}: notes only ever appear`);
+    assert.equal(notes.at(-1), record.frames.at(-1).notes, `${map}: every note shows by the end`);
     // The strip, laid out by the browser.
     const strip = await browser.newPage({ viewport: { width: 1800, height: 420 }, deviceScaleFactor: 1 });
     await strip.goto(`${url}/blank`);
     await strip.setContent(`<body style="margin:0;background:#101418;font:14px sans-serif;color:#d8dde3;display:flex;flex-wrap:wrap;gap:4px;padding:4px">${
-      record.frames.map(f => `<figure style="margin:0;width:352px"><img src="${url}/${f.file}" style="width:352px;display:block"><figcaption>${f.at}s · ${f.visiblePlates}/${f.plates} islands</figcaption></figure>`).join('')}</body>`);
+      record.frames.map(f => `<figure style="margin:0;width:352px"><img src="${url}/${f.file}" style="width:352px;display:block"><figcaption>${f.at}s · ${f.visiblePlates}/${f.plates} islands${f.notes ? ` · ${f.visibleNotes}/${f.notes} notes` : ''}</figcaption></figure>`).join('')}</body>`);
     await strip.waitForLoadState('networkidle');
     await strip.screenshot({ path: path.join(here, `${map}-strip.png`), fullPage: true });
     await strip.close();
@@ -85,8 +90,10 @@ try {
     const sorted = [...intervals].sort((a, b) => a - b);
     const playing = intervals.length;
     record.play = { framesDrawn: playing, meanFps: +(1000 / (intervals.reduce((s, x) => s + x, 0) / playing)).toFixed(2),
-      p95FrameMs: +sorted[Math.floor(sorted.length * 0.95)].toFixed(1), visiblePlatesAtEnd: end.visiblePlates, plates: end.plates };
+      p95FrameMs: +sorted[Math.floor(sorted.length * 0.95)].toFixed(1), visiblePlatesAtEnd: end.visiblePlates, plates: end.plates,
+      visibleNotesAtEnd: end.visibleNotes, notes: end.notes };
     assert.equal(end.visiblePlates, end.plates, `${map}: played through, every island has risen`);
+    assert.equal(end.visibleNotes, end.notes, `${map}: played through, every note shows`);
     // The same globe, no growth, redrawn every frame for as long: what the growth's frame rate is read against.
     const still = await open(`map=${map}&baseline=1`);
     await still.page.evaluate(() => window.growthProof.frames());
@@ -104,14 +111,16 @@ try {
     await reduced.page.waitForTimeout(1000);
     const later = await snap(reduced.page);
     await reduced.context.close();
-    record.reducedMotion = { visiblePlatesAt300ms: at0.visiblePlates, plates: at0.plates, drawsIn1sAfter: later.draws - at0.draws };
+    record.reducedMotion = { visiblePlatesAt300ms: at0.visiblePlates, plates: at0.plates, visibleNotesAt300ms: at0.visibleNotes, notes: at0.notes,
+      drawsIn1sAfter: later.draws - at0.draws };
     assert.equal(at0.visiblePlates, at0.plates, `${map}: reduced motion shows every island at once`);
+    assert.equal(at0.visibleNotes, at0.notes, `${map}: reduced motion shows every note at once`);
   }
   result.errors = errors;
   writeFileSync(path.join(here, 'measurements.json'), JSON.stringify(result, null, 2) + '\n');
   console.log(JSON.stringify(result, null, 2));
   assert.deepEqual(errors, [], 'the renderer has no errors');
-  console.log('PASS world 7: growth replayed from the recordings, islands only rise, all risen by the end; reduced motion shows the end at once');
+  console.log('PASS world 7: growth replayed from the recordings, islands only rise and notes only appear, all there by the end; reduced motion shows the end at once');
 } finally {
   await browser?.close();
   await new Promise(resolve => server ? server.close(resolve) : resolve());

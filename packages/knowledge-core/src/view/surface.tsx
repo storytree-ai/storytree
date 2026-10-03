@@ -15,7 +15,7 @@ import { ORCHESTRATOR, drawnRoster, lighting, noteCard, rosterCode, trails as re
 import { ReadRecord } from "../reads/reads.js";
 import { underShelves } from "../shelves/shelves.js";
 import { globePoints } from "../shelves/positions.js";
-import { GlobePoints } from "./globe-points.js";
+import { GlobePoints, type CoreGrowth } from "./globe-points.js";
 import { NoteCard } from "./drawing.js";
 
 /** How often the selected session's window, or every listed session's with none selected, is read again, as often as the sessions list's bars. */
@@ -198,8 +198,10 @@ export function KnowledgeNoteCard({ core, onClose }: { core: KnowledgeCore; onCl
 }
 
 /** Knowledge under the globe's islands, without story text, ghosts or replay: faint, or lit by the running sessions' reads (ADR-0738), with a selected session's window (ADR-0746 D1). */
-export function KnowledgeGlobePoints({ core, spots, radius, places }: {
+export function KnowledgeGlobePoints({ core, spots, radius, places, growth }: {
   core: KnowledgeCore; spots: ReadonlyMap<string, Point>; radius: number;
+  /** A replay to grow with (capability 1.9): the globe's growth reader, read inside the globe. */
+  growth?: CoreGrowth | undefined;
   /** The code's surface, as the forest lays it on the globe (ADR-0804 D5): a selected session's file opens are stops on it, and a step to or from one crosses it. */
   places?: CodePlaces;
 }) {
@@ -232,7 +234,7 @@ export function KnowledgeGlobePoints({ core, spots, radius, places }: {
   // A selected session replays as one head over its drawn steps instead of a glow per agent (ADR-0797); with none selected every agent glows (ADR-0742 D3).
   const glows = state.session === undefined ? replays : [];
   // A new selection starts its own history, so lines already taken when it opens do not grow (ADR-0742 D4).
-  return <GlobePoints key={state.session ?? ""} points={points} radius={radius} notes={known.notes} lit={lit} trails={drawnPaths} paths={glows} window={window} replay={state.session !== undefined} stops={stops} />;
+  return <GlobePoints key={state.session ?? ""} points={points} radius={radius} notes={known.notes} lit={lit} trails={drawnPaths} paths={glows} window={window} replay={state.session !== undefined} stops={stops} growth={growth} />;
 }
 
 /** The land the sessions' windows have opened (ADR-0804 D5), for the forest to light: the files and capabilities opened, and the colour each wears. */

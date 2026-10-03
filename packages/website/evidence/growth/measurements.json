@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-10-03T14:38:23.580Z",
+  "capturedAt": "2026-10-03T16:45:05.993Z",
   "browser": "148.0.7778.96",
   "renderer": "SwiftShader",
   "viewport": {
@@ -14,55 +14,73 @@
           "at": 0.4,
           "file": "conduit-00.png",
           "visiblePlates": 0,
-          "plates": 12
+          "plates": 12,
+          "visibleNotes": 0,
+          "notes": 0
         },
         {
           "at": 1.2,
           "file": "conduit-01.png",
           "visiblePlates": 0,
-          "plates": 12
+          "plates": 12,
+          "visibleNotes": 0,
+          "notes": 0
         },
         {
           "at": 2.4,
           "file": "conduit-02.png",
           "visiblePlates": 1,
-          "plates": 12
+          "plates": 12,
+          "visibleNotes": 0,
+          "notes": 0
         },
         {
           "at": 3.9,
           "file": "conduit-03.png",
           "visiblePlates": 4,
-          "plates": 12
+          "plates": 12,
+          "visibleNotes": 0,
+          "notes": 0
         },
         {
           "at": 5.7,
           "file": "conduit-04.png",
           "visiblePlates": 5,
-          "plates": 12
+          "plates": 12,
+          "visibleNotes": 0,
+          "notes": 0
         },
         {
           "at": 7.5,
           "file": "conduit-05.png",
           "visiblePlates": 6,
-          "plates": 12
+          "plates": 12,
+          "visibleNotes": 0,
+          "notes": 0
         },
         {
           "at": 9.6,
           "file": "conduit-06.png",
           "visiblePlates": 6,
-          "plates": 12
+          "plates": 12,
+          "visibleNotes": 0,
+          "notes": 0
         },
         {
           "at": 12,
           "file": "conduit-07.png",
           "visiblePlates": 12,
-          "plates": 12
+          "plates": 12,
+          "visibleNotes": 0,
+          "notes": 0
         },
         {
           "at": 15,
           "file": "conduit-08.png",
           "visiblePlates": 12,
-          "plates": 12
+          "plates": 12,
+          "visibleNotes": 0,
+          "notes": 0
         }
       ],
       "plan": {
@@ -70,23 +88,28 @@
         "stages": [
           {
             "id": "stories",
-            "start": 1.9802104063989552
+            "start": 1.9802104063989552,
+            "at": "2026-10-01T21:16:50.000Z"
           },
           {
             "id": "planned",
-            "start": 5.709606671783654
+            "start": 5.709606671783654,
+            "at": "2026-10-01T21:18:38.000Z"
           },
           {
             "id": "ci",
-            "start": 7.458792530769397
+            "start": 7.458792530769397,
+            "at": "2026-10-02T08:11:40.000Z"
           },
           {
             "id": "backend-planned",
-            "start": 9.818543265061486
+            "start": 9.818543265061486,
+            "at": "2026-10-02T09:58:00.000Z"
           },
           {
             "id": "backend1-building",
-            "start": 14.53795090517358
+            "start": 14.53795090517358,
+            "at": "2026-10-02T10:20:00.000Z"
           }
         ],
         "islands": 12,
@@ -95,20 +118,24 @@
         "files": 0
       },
       "play": {
-        "framesDrawn": 775,
-        "meanFps": 51.76,
-        "p95FrameMs": 23.5,
+        "framesDrawn": 799,
+        "meanFps": 53.32,
+        "p95FrameMs": 22.4,
         "visiblePlatesAtEnd": 12,
-        "plates": 12
+        "plates": 12,
+        "visibleNotesAtEnd": 0,
+        "notes": 0
       },
       "baseline": {
-        "framesDrawn": 774,
-        "meanFps": 46.93,
+        "framesDrawn": 783,
+        "meanFps": 47.49,
         "p95FrameMs": 26.7
       },
       "reducedMotion": {
         "visiblePlatesAt300ms": 12,
         "plates": 12,
+        "visibleNotesAt300ms": 0,
+        "notes": 0,
         "drawsIn1sAfter": 0
       }
     },
@@ -118,63 +145,142 @@
           "at": 0.4,
           "file": "storytree-00.png",
           "visiblePlates": 0,
-          "plates": 15
+          "plates": 15,
+          "visibleNotes": 0,
+          "notes": 771
         },
         {
           "at": 1.2,
           "file": "storytree-01.png",
-          "visiblePlates": 0,
-          "plates": 15
+          "visiblePlates": 1,
+          "plates": 15,
+          "visibleNotes": 0,
+          "notes": 771
         },
         {
           "at": 2.4,
           "file": "storytree-02.png",
-          "visiblePlates": 0,
-          "plates": 15
+          "visiblePlates": 2,
+          "plates": 15,
+          "visibleNotes": 10,
+          "notes": 771
         },
         {
           "at": 3.9,
           "file": "storytree-03.png",
-          "visiblePlates": 3,
-          "plates": 15
+          "visiblePlates": 4,
+          "plates": 15,
+          "visibleNotes": 13,
+          "notes": 771
         },
         {
           "at": 5.7,
           "file": "storytree-04.png",
-          "visiblePlates": 6,
-          "plates": 15
+          "visiblePlates": 7,
+          "plates": 15,
+          "visibleNotes": 69,
+          "notes": 771
         },
         {
           "at": 7.5,
           "file": "storytree-05.png",
           "visiblePlates": 8,
-          "plates": 15
+          "plates": 15,
+          "visibleNotes": 639,
+          "notes": 771
         },
         {
           "at": 9.6,
           "file": "storytree-06.png",
           "visiblePlates": 11,
-          "plates": 15
+          "plates": 15,
+          "visibleNotes": 707,
+          "notes": 771
         },
         {
           "at": 12,
           "file": "storytree-07.png",
           "visiblePlates": 13,
-          "plates": 15
+          "plates": 15,
+          "visibleNotes": 715,
+          "notes": 771
         },
         {
           "at": 15,
           "file": "storytree-08.png",
           "visiblePlates": 15,
-          "plates": 15
+          "plates": 15,
+          "visibleNotes": 771,
+          "notes": 771
         }
       ],
       "plan": {
         "seconds": 15,
         "stages": [
           {
+            "id": "2026-09-25T20:40:47.697Z",
+            "start": 0.7992413462774699,
+            "at": "2026-09-25T20:40:47.697Z"
+          },
+          {
+            "id": "2026-09-26T07:06:32.078Z",
+            "start": 1.7516706172581216,
+            "at": "2026-09-26T07:06:32.078Z"
+          },
+          {
+            "id": "2026-09-26T15:13:23.157Z",
+            "start": 3.0171360821974487,
+            "at": "2026-09-26T15:13:23.157Z"
+          },
+          {
+            "id": "2026-09-27T02:54:54.110Z",
+            "start": 4.2826015471367755,
+            "at": "2026-09-27T02:54:54.110Z"
+          },
+          {
+            "id": "2026-09-27T02:55:31.207Z",
+            "start": 5.3082946081928615,
+            "at": "2026-09-27T02:55:31.207Z"
+          },
+          {
+            "id": "2026-09-27T04:36:00.418Z",
+            "start": 6.49474000669725,
+            "at": "2026-09-27T04:36:00.418Z"
+          },
+          {
+            "id": "2026-09-27T21:54:03.748Z",
+            "start": 7.600357202381083,
+            "at": "2026-09-27T21:54:03.748Z"
+          },
+          {
+            "id": "2026-09-27T23:04:24.287Z",
+            "start": 8.552786473361735,
+            "at": "2026-09-27T23:04:24.287Z"
+          },
+          {
+            "id": "2026-09-30T11:56:04.414Z",
+            "start": 9.578479534417822,
+            "at": "2026-09-30T11:56:04.414Z"
+          },
+          {
+            "id": "2026-09-30T12:15:51.889Z",
+            "start": 10.604172595473909,
+            "at": "2026-09-30T12:15:51.889Z"
+          },
+          {
+            "id": "2026-09-30T12:16:07.036Z",
+            "start": 12.355843212732033,
+            "at": "2026-09-30T12:16:07.036Z"
+          },
+          {
+            "id": "2026-10-01T15:13:54.405Z",
+            "start": 13.308272483712686,
+            "at": "2026-10-01T15:13:54.405Z"
+          },
+          {
             "id": "saved",
-            "start": 2.6709281269666945
+            "start": 14.493813814024268,
+            "at": "2026-10-02T05:26:36.338Z"
           }
         ],
         "islands": 15,
@@ -183,20 +289,24 @@
         "files": 428
       },
       "play": {
-        "framesDrawn": 722,
-        "meanFps": 48.14,
-        "p95FrameMs": 26.6,
+        "framesDrawn": 535,
+        "meanFps": 35.67,
+        "p95FrameMs": 52.8,
         "visiblePlatesAtEnd": 15,
-        "plates": 15
+        "plates": 15,
+        "visibleNotesAtEnd": 771,
+        "notes": 771
       },
       "baseline": {
-        "framesDrawn": 628,
-        "meanFps": 38.09,
-        "p95FrameMs": 32.8
+        "framesDrawn": 316,
+        "meanFps": 19.17,
+        "p95FrameMs": 99.4
       },
       "reducedMotion": {
         "visiblePlatesAt300ms": 15,
         "plates": 15,
+        "visibleNotesAt300ms": 771,
+        "notes": 771,
         "drawsIn1sAfter": 0
       }
     }

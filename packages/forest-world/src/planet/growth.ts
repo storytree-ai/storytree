@@ -7,8 +7,8 @@ import type { PlanetPathways } from './pathways.js';
 /** When something grows, in seconds from the growth's start. */
 export interface GrowthWindow { start: number; seconds: number }
 
-/** One recorded plan state; stages run in the order given. */
-export interface GrowthStage { id?: string; scene: ForestScene }
+/** One recorded plan state, and when it was recorded; stages run in the order given. */
+export interface GrowthStage { id?: string; at?: string; scene: ForestScene }
 
 export interface GrowthOptions {
   /** The whole growth's length; the plan is scaled by one factor to it. Absent, it keeps its natural pace. */
@@ -17,6 +17,8 @@ export interface GrowthOptions {
   fromPoint?: boolean;
   /** A road's drawn length in ground units, `from->to`; absent, a typical road's. */
   roadLength?: (link: string) => number;
+  /** When the recording ends: a date after the last stage's falls toward it, reached as the growth ends. */
+  until?: string;
 }
 
 export interface GrowthPlan {
@@ -28,8 +30,10 @@ export interface GrowthPlan {
   capabilities: Map<string, GrowthWindow>;
   /** Keyed by story and path, joined by a newline. */
   files: Map<string, GrowthWindow>;
-  /** The stages that added something, and when each began. */
-  stages: { id: string; start: number }[];
+  /** The stages that added something, when each began, and when each was recorded. */
+  stages: { id: string; start: number; at?: string }[];
+  /** When the recording ends, if it says. */
+  until?: string;
 }
 
 // 0.2's arrival pacing, in its seconds.
@@ -99,12 +103,13 @@ export function growthPlan(stages: readonly GrowthStage[], options: GrowthOption
       files.forEach(key => put(plan.files, key, { start: rising ? from : at + FILL_DELAY, seconds: RISE }));
     }
     if (windows.length === 0) return;
-    plan.stages.push({ id: stage.id ?? String(index), start: at });
+    plan.stages.push({ id: stage.id ?? String(index), start: at, ...(stage.at === undefined ? {} : { at: stage.at }) });
     at = Math.max(...windows.map(end)) + STAGE_GAP;
   });
   const natural = Math.max(plan.globe ? end(plan.globe) : 0, ...[...plan.islands.values(), ...plan.roads.values(),
     ...plan.capabilities.values(), ...plan.files.values()].map(end));
   plan.seconds = natural;
+  if (options.until !== undefined) plan.until = options.until;
   if (options.seconds !== undefined && natural > 0) scale(plan, options.seconds / natural);
   return plan;
 }
@@ -116,6 +121,22 @@ function scale(plan: GrowthPlan, k: number) {
   for (const map of [plan.islands, plan.roads, plan.capabilities, plan.files]) map.forEach(each);
   for (const stage of plan.stages) stage.start *= k;
   plan.seconds *= k;
+}
+
+/** Where a recorded date falls in the replay (world 7.5): between the two dated stages around it, in proportion,
+ * then toward the recording's end; held at the first stage before them, and at the end after it. Something dated
+ * (a note, a claim) shows up beside the plan states recorded around it, and a later date is never earlier. */
+export function growthMoment(plan: GrowthPlan, date: string): number {
+  const knots = plan.stages.flatMap(s => s.at === undefined ? [] : [{ t: Date.parse(s.at), start: s.start }]);
+  if (plan.until !== undefined && knots.length > 0) knots.push({ t: Date.parse(plan.until), start: plan.seconds });
+  const t = Date.parse(date);
+  if (knots.length === 0) return plan.stages[0]?.start ?? 0;
+  if (t <= knots[0]!.t) return knots[0]!.start;
+  for (let i = 1; i < knots.length; i++) {
+    const [a, b] = [knots[i - 1]!, knots[i]!];
+    if (t <= b.t) return b.t > a.t ? a.start + (b.start - a.start) * (t - a.t) / (b.t - a.t) : b.start;
+  }
+  return knots.at(-1)!.start;
 }
 
 /** How grown something is at `t`: an ease-out that never passes whole; whole at once under reduced motion, or when unscheduled. */

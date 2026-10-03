@@ -11,4 +11,5 @@ export { agentPaths, codeKey, codePathKey, curvePoint, fileStop, hopPoint, IN_VI
 export type { Card, TraversalStep, LegendEntry, Point, RosterEntry, Trail, Lighting, AgentPath, WindowView, CodePlaces, CodeState } from "./look-inside/look-inside.js";
 export { globePoints, LOOSE_BALL_RADIUS, LOOSE_MIN_SEPARATION } from "./shelves/positions.js";
 export { isStoryText } from "./shelves/story-text.js";
+export { noteMoments, noteShown } from "./shelves/growing.js";
 export type { GlobePoint } from "./shelves/positions.js";

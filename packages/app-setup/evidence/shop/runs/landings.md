@@ -12,3 +12,4 @@ One row per landing of the shop build: session, pull request, merge commit and t
 | 4 | #6 | 2026-10-03T18:05:49Z | b7bc8219 | part 4 (wave 1 complete) | **26/26**, the suite's ceiling |
 | 5 | #7 | 2026-10-03T18:28:02Z | f84b9bc0 | part 5 (wave 2 begins: 5 new stories planned) | official **26/26**; ours **7/7** (part 5) |
 | 6 | #8 | 2026-10-03T18:49:24Z | 733d7b0f | part 6 | official **26/26**; ours **13/13** (parts 5-6) |
+| 7 | #9 | 2026-10-03T19:53Z | 9f3f7144 | part 7 (first turn cut by a network outage; resumed) | official **26/26**; ours **18/18** (parts 5-7) |

@@ -58,4 +58,7 @@ needs no separate cut to Conduit; cost is measured at export (Conduit's 21 stage
 - **0.3.606's installed app died at startup** (PR #572's journey runtime called `sourceVersion`, which threw in
   the CommonJS desktop bundle): no window, no database, no further updates. Fixed on PR #576
   (increment_07c48d77ff4e); the missing CI launch check is parked as increment_118f74f678ef.
-  Evidence: `runs/app-hang-after-update.txt`.
+  Evidence: `runs/app-hang-after-update.txt`. The laptop's dead app could not update itself, so the supervisor
+  reinstalled 0.3.611 (the first release with the fix) by hand, silently, on 2026-10-04 01:43 AEST: the app
+  opened its window ("conduit-codex · storytree 0.3 · version 0.3.611") and its database within 45 seconds
+  (`runs/state-0-before.txt`).

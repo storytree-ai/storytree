@@ -1,6 +1,25 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 
+const counter = page => page.evaluate(() => [...document.querySelectorAll("#opening-count span")].map(span => span.textContent));
+const run = page => page.getByRole("button", { name: "Run", exact: true });
+const better = page => page.getByRole("button", { name: "show me the better way" });
+const peak = ["AGENTS: 12 ▲", "WAITING ON YOU: 12", "ANSWERED: 00"];
+
+// ADR-0879 D6: nothing may overflow sideways and no window may cover the HUD row, at any size or zoom.
+async function assertFits(page, label) {
+  const result = await page.evaluate(() => {
+    const hud = document.querySelector(".opening-hud").getBoundingClientRect();
+    const covering = [...document.querySelectorAll("#opening .opening-window")]
+      .filter(window => !window.hidden && getComputedStyle(window).display !== "none")
+      .filter(window => window.getBoundingClientRect().top < hud.bottom - 1)
+      .map(window => window.id || window.dataset.agent);
+    return { scrollWidth: document.documentElement.scrollWidth, innerWidth, covering };
+  });
+  assert.ok(result.scrollWidth <= result.innerWidth, `${label}: no horizontal scroll (${result.scrollWidth} > ${result.innerWidth})`);
+  assert.deepEqual(result.covering, [], `${label}: no window covers the HUD row`);
+}
+
 // Contract 1.8: exercise the built page, including its real timers and storage.
 export async function verifyOpening(browser, url, output) {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, hasTouch: true });
@@ -10,47 +29,86 @@ export async function verifyOpening(browser, url, output) {
     window.audioStarts = 0;
     const start = OscillatorNode.prototype.start;
     OscillatorNode.prototype.start = function (...args) { window.audioStarts++; return start.apply(this, args); };
+    // Streamed lines arrive in several chunks: count how many times each line's text changed.
+    window.maxLineChanges = 0;
+    document.addEventListener("DOMContentLoaded", () => {
+      const lengths = new WeakMap(); const changes = new WeakMap();
+      const note = p => {
+        const length = p.textContent.length;
+        if (lengths.has(p) && lengths.get(p) !== length) { const n = (changes.get(p) ?? 0) + 1; changes.set(p, n); window.maxLineChanges = Math.max(window.maxLineChanges, n); }
+        lengths.set(p, length);
+      };
+      new MutationObserver(records => {
+        for (const record of records) {
+          record.addedNodes.forEach(node => { if (node.nodeName === "P") note(node); });
+          const element = record.target.nodeType === 3 ? record.target.parentElement : record.target;
+          const p = element?.closest?.("#opening .opening-lines p");
+          if (p) note(p);
+        }
+      }).observe(document.getElementById("opening"), { subtree: true, childList: true, characterData: true });
+    });
   });
   await page.goto(url);
-  await page.getByRole("button", { name: "Run", exact: true }).waitFor({ timeout: 2500 });
+  await run(page).waitFor({ timeout: 2500 });
+  assert.equal(await page.locator("#opening-count").isVisible(), false, "The counter appears only after Run");
+  assert.ok(await page.locator("#opening .opening-wordmark").isVisible(), "The first screen still says storytree");
+  assert.equal(await page.locator("#opening a:visible").count(), 0, "No website chrome: the first screen has no links");
   await page.screenshot({ path: path.join(output, "1440-ready.png") });
   const started = Date.now();
-  await page.getByRole("button", { name: "Run", exact: true }).tap();
-  await page.getByRole("button", { name: "Show me the better way" }).waitFor({ timeout: 25000 });
+  await run(page).tap();
+  assert.deepEqual(await counter(page), ["AGENTS: 01", "WAITING ON YOU: 00", "ANSWERED: 00"], "One agent is singular: two digits, no arrow");
+  await better(page).waitFor({ timeout: 25000 });
   assert.ok(Date.now() - started < 25000, "One tap reaches the finale in about 22 seconds");
-  assert.equal(await page.locator("#opening-count").textContent(), "12 agents · 12 waiting on you · 0 answered");
+  assert.deepEqual(await counter(page), peak);
+  assert.ok(await page.evaluate(() => window.maxLineChanges) >= 2, "Lines stream in chunks, not whole");
   assert.equal(await page.evaluate(() => window.audioStarts), 0, "Silent until explicitly enabled");
+  await assertFits(page, "1440 peak");
   await page.screenshot({ path: path.join(output, "1440-peak.png") });
+  for (const [width, height, name] of [[1280, 720, "1280"], [390, 844, "390"], [320, 640, "320"], [640, 450, "1280-at-200pct"], [195, 422, "390-at-200pct"]]) {
+    await page.setViewportSize({ width, height });
+    await assertFits(page, `${name} peak`);
+    if (name === "390") await page.screenshot({ path: path.join(output, "390-peak.png") });
+  }
   await page.setViewportSize({ width: 390, height: 844 });
-  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth), 390);
-  await page.screenshot({ path: path.join(output, "390-peak.png") });
-  await page.getByRole("button", { name: "Sound off" }).click();
-  await page.getByRole("button", { name: "I'll keep babysitting" }).click();
-  await page.waitForFunction(() => document.querySelector("#opening-count").textContent === "15 agents · 15 waiting on you · 0 answered");
-  await page.getByRole("button", { name: "Show me the better way" }).waitFor();
+  await page.getByRole("button", { name: "sound off" }).click();
+  assert.equal(await page.getByRole("button", { name: "sound on" }).getAttribute("aria-pressed"), "true");
+  await page.getByRole("button", { name: "i'll keep babysitting" }).click();
+  await page.waitForFunction(() => document.querySelector("#opening-count span").textContent === "AGENTS: 15 ▲");
+  assert.deepEqual(await counter(page), ["AGENTS: 15 ▲", "WAITING ON YOU: 15", "ANSWERED: 00"]);
+  await better(page).waitFor();
   assert.ok(await page.evaluate(() => window.audioStarts) > 0);
-  await page.getByRole("button", { name: "Restart chapter 1" }).focus();
+  await page.getByRole("button", { name: "restart chapter 1" }).focus();
   await page.keyboard.press("Enter");
   assert.equal(await page.evaluate(() => document.activeElement.id), "opening-run", "website 1.8: restarting returns keyboard focus to Run");
   await page.keyboard.press("Enter");
-  await page.getByRole("button", { name: "Show me the better way" }).waitFor({ timeout: 25000 });
-  await page.getByRole("button", { name: "Show me the better way" }).click();
-  await page.waitForFunction(() => document.querySelector("#opening").hidden);
+  await better(page).waitFor({ timeout: 25000 });
+  // ADR-0879 D6: the turn is a CRT switching off: windows, then a line, then a point, inside ~1.4 seconds.
+  const turn = await page.evaluate(() => new Promise(resolve => {
+    const root = document.querySelector("#opening"); const seen = []; const t0 = performance.now();
+    const sample = () => {
+      const phase = root.dataset.crt;
+      if (phase && seen.at(-1)?.[0] !== phase) seen.push([phase, Math.round(performance.now() - t0)]);
+      if (root.hidden) resolve({ seen, total: performance.now() - t0 }); else requestAnimationFrame(sample);
+    };
+    document.getElementById("opening-better").click(); sample();
+  }));
+  assert.deepEqual(turn.seen.map(step => step[0]), ["line", "point"], "The screen collapses to a line, then to a point");
+  assert.ok(turn.total < 1500, `The turn takes under 1.5 seconds (took ${Math.round(turn.total)} ms)`);
   assert.equal(page.url(), url, "The turn does not navigate or change the hash");
   assert.ok(await page.locator("#website-forest").evaluate(el => el.getBoundingClientRect().top < innerHeight));
   await page.reload();
   await page.waitForFunction(() => document.querySelector("#opening").hidden);
   await page.getByRole("button", { name: "Replay chapter 1" }).click();
   assert.equal(await page.evaluate(() => document.activeElement.id), "opening-run", "Replay returns keyboard focus to the scene");
-  await page.getByRole("button", { name: "Run", exact: true }).click();
+  await run(page).click();
   await page.keyboard.press("Escape");
   await page.waitForFunction(() => document.querySelector("#opening").hidden);
   await page.getByRole("button", { name: "Replay chapter 1" }).click();
-  await page.getByRole("button", { name: "Skip to the globe" }).click();
+  await page.getByRole("button", { name: "skip intro" }).click();
   await page.waitForFunction(() => document.querySelector("#opening").hidden);
   await page.getByRole("button", { name: "Replay chapter 1" }).click();
-  await page.getByRole("button", { name: "Run", exact: true }).click();
-  await page.locator("#website-forest").scrollIntoViewIfNeeded();
+  await run(page).click();
+  await page.evaluate(() => scrollTo(0, document.querySelector("#opening").offsetHeight + 40));
   await page.waitForFunction(() => document.querySelector("#opening").hidden);
   assert.deepEqual(errors, []);
   await page.close();
@@ -58,29 +116,34 @@ export async function verifyOpening(browser, url, output) {
   for (const options of [{ javaScriptEnabled: false }, { reducedMotion: "reduce" }]) {
     const still = await browser.newPage({ ...options, viewport: { width: 390, height: 844 } });
     await still.goto(url);
-    assert.ok(await still.getByText("12 agents · 12 waiting on you · 0 answered", { exact: true }).isVisible());
+    assert.deepEqual(await counter(still), peak);
+    assert.ok(await still.locator("#opening-count").isVisible());
     assert.ok(await still.getByText("want me to show you?", { exact: true }).isVisible());
-    assert.equal(await still.getByRole("button", { name: "Run", exact: true }).isVisible(), false);
+    assert.equal(await run(still).isVisible(), false);
     await still.screenshot({ path: path.join(output, options.javaScriptEnabled === false ? "390-no-script.png" : "390-reduced-motion.png") });
     if (options.reducedMotion) {
       assert.equal(await still.evaluate(() => document.querySelector("#opening").getAnimations({ subtree: true }).length), 0);
       await still.clock.install();
       await still.emulateMedia({ reducedMotion: "no-preference" });
-      await still.getByRole("button", { name: "Run", exact: true }).click();
+      await run(still).click();
       await still.clock.fastForward(16750);
       await still.clock.fastForward(5250);
-      await still.getByRole("button", { name: "Show me the better way" }).click();
+      await better(still).click();
       await still.emulateMedia({ reducedMotion: "reduce" });
       await still.waitForFunction(() => document.querySelector("#opening").dataset.phase === "peak");
       assert.equal(await still.evaluate(() => document.querySelector("#opening").getAnimations({ subtree: true }).length), 0, "Changing motion preference cancels the collapse");
       assert.equal(await still.locator("#opening-finale").evaluate(el => getComputedStyle(el).opacity), "1");
+      // Reduced motion: the turn hands over at once, with no animation on the globe.
+      await better(still).click();
+      assert.equal(await still.evaluate(() => document.querySelector("#opening").hidden), true, "Reduced motion goes straight to chapter 2");
+      assert.equal(await still.evaluate(() => document.getElementById("website-forest").getAnimations().length), 0);
     }
     await still.close();
   }
   const denied = await browser.newPage();
   await denied.addInitScript(() => Object.defineProperty(window, "localStorage", { get() { throw new Error("Storage denied"); } }));
   await denied.goto(url);
-  await denied.getByRole("button", { name: "Skip to the globe" }).click();
+  await denied.getByRole("button", { name: "skip intro" }).click();
   await denied.waitForFunction(() => document.querySelector("#opening").hidden);
   await denied.close();
   console.log("PASS contract 1.8: playback, joke, turn, exits, sound, storage, static fallbacks");

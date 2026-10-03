@@ -1,0 +1,3 @@
+The Swag Labs copy works, thanks! Now I want a proper shop, with more than Swag Labs has. My next list is in shop-requirements-2.md in this folder; everything in the first list still has to keep working.
+
+Plan what's new first, then build only part 5 today: letting people sign up for an account.

@@ -31,6 +31,39 @@ test("8.1 a numbered test reaches its own package's public subpath through packa
   }
 });
 
+test("8.5 changes to a package's exports refresh self reach without rereading its source", async () => {
+  const folder = await mkdtemp(path.join(tmpdir(), "code-survey-self-cache-"));
+  try {
+    const root = path.join(folder, "packages", "shop");
+    await mkdir(path.join(root, "src"), { recursive: true });
+    const manifest = path.join(root, "package.json");
+    await writeFile(path.join(root, "src/claim.ts"), "export const claim = () => 1;\n");
+    await writeFile(path.join(root, "src/claim.test.ts"), 'import { claim } from "@x/shop/claim";\ntest("3.1 a claim holds", () => claim());\n');
+    const read: string[] = [];
+    const reader = codeSurveyReader({ readFile: file => (read.push(file), readFile(file, "utf8")) });
+    await reader.read(folder, tree);
+    for (const [text, reached] of [
+      [JSON.stringify({ name: "@x/shop", exports: { "./claim": "./src/claim.ts" } }), true],
+      [JSON.stringify({ name: "@x/shop-other", exports: { "./claim": "./src/claim.ts" } }), false],
+      [JSON.stringify({ name: "@x/shop", exports: { "./claim": "./src/claim.ts" } }), true],
+      [JSON.stringify({ name: "@x/shop", exports: { "./claim": "./../shop/src/claim.ts" } }), false],
+      [JSON.stringify({ name: "@x/shop", exports: { "./claim": "./src/claim.ts" } }), true],
+      ['{"name":', false],
+    ] as const) {
+      await writeFile(manifest, text);
+      read.length = 0;
+      const survey = await reader.read(folder, tree);
+      assert.deepEqual(read, [manifest]);
+      assert.equal(survey["story-shop"]?.files[0]?.capability, reached ? "cap-claims" : undefined, text);
+      read.length = 0;
+      assert.equal((await reader.read(folder, tree))["story-shop"], survey["story-shop"]);
+      assert.deepEqual(read, []);
+    }
+  } finally {
+    await rm(folder, { recursive: true, force: true });
+  }
+});
+
 test("8.5 a second survey with no file changed reads no file again, and a changed file is read again", async () => {
   const folder = await mkdtemp(path.join(tmpdir(), "code-survey-"));
   try {

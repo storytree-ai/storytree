@@ -117,6 +117,26 @@ test("8.7 a file numbered tests reach only through type imports belongs to the c
   assert.equal(owner("src/merges/merge.ts"), "cap-merges");
 });
 
+test("8.1 self exports retain relative import, re-export, type and measured allocation ranking without reaching other packages", () => {
+  const aliases = tree.map(file => ({ ...file, text: file.text
+    .replaceAll('"./merges/merge.js"', '"@x/shop/merge"')
+    .replaceAll('"./claims/claim.js"', '"@x/shop/claim"')
+    .replaceAll('"../index.js"', '"@x/shop"')
+    .replaceAll('"./tools/lazy.js"', '"@x/shop/lazy"')
+    .replaceAll('"./shapes.js"', '"@x/shop/shapes"')
+    .replaceAll('"./typed.js"', '"@x/shop/typed"'),
+  }));
+  aliases.push({ path: "src/external.test.ts", text: 'import "@x/foreign/claim"; import "@x/shop/src/claims/refuse.ts"; import "src/bins/run.ts"; test("5.9 external", () => {});' });
+  const exports = { ".": "./src/index.ts", "./merge": "./src/merges/merge.ts", "./claim": "./src/claims/claim.ts", "./lazy": "./src/tools/lazy.ts", "./shapes": "./src/claims/shapes.ts", "./typed": "./src/claims/typed.ts" };
+  const coverage = { "src/bins/run.ts": { "5": 2, "3": 1 }, "src/merges/merge.ts": { "3": 9 }, "src/tools/helper.ts": { "5": 1 } };
+  const actual = surveyStory(aliases, capabilities, coverage, "shop", [{ root: "", name: "@x/shop", exports }]);
+  const expected = surveyStory(tree, capabilities, coverage, "shop");
+  assert.deepEqual(actual.files, expected.files);
+  assert.deepEqual(actual.imports, expected.imports);
+  assert.deepEqual(actual.tests?.slice(0, -1), expected.tests);
+  assert.deepEqual(actual.tests?.at(-1)?.imports, []);
+});
+
 
 test("8.10 test files keep their numbered titles and imports, tagged as tests without entering source counts", () => {
   const surveyed = surveyStory([

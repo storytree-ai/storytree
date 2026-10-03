@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { BufferGeometry, DoubleSide, Float32BufferAttribute, type Vector3 } from 'three';
 import type { PlanetPathways } from './pathways.js';
+import { growthProgress, segmentDrawRange, type GrowthWindow } from './growth.js';
+import { usePlanetGrowth } from './PlanetGrowth.js';
 import { laneDrawSeconds, laneProgress, laneRoutes, type LitLink } from './lanes.js';
 
 /** Physical-width strips follow the shell and ease onto the real shore, with no supporting land. */
@@ -28,10 +30,24 @@ function ribbon(route: { points: Vector3[]; width: number }, halo = false, lift 
 // Neither the road nor its light can occlude a name, claim marker or island selection ray.
 const ignoreRay = () => {};
 
-export function Pathways({ plan }: { plan: PlanetPathways }) {
+/** The roads between islands; under a growth (world 7.4) each segment draws on from the end its road enters. */
+export function Pathways({ plan, reveal }: { plan: PlanetPathways; reveal?: ReadonlyMap<string, GrowthWindow & { fromEnd: boolean }> | undefined }) {
   const meshes = useMemo(() => plan.segments.filter(segment => segment.island === undefined)
     .map(route => ({ route, geometry: ribbon(route), halo: ribbon(route, true) })), [plan]);
   useEffect(() => () => meshes.forEach(mesh => { mesh.geometry.dispose(); mesh.halo.dispose(); }), [meshes]);
+  const growth = usePlanetGrowth();
+  useFrame(() => {
+    if (reveal === undefined) return;
+    const now = growth.now();
+    for (const { route, geometry, halo } of meshes) {
+      const window = reveal.get(route.id);
+      // A segment no road schedules keeps painting whole.
+      const drawn = window === undefined ? 1 : growthProgress(window, now, false);
+      const range = segmentDrawRange((geometry.index?.count ?? 0) / 6, drawn, window?.fromEnd ?? false);
+      geometry.setDrawRange(range.start, range.count);
+      halo.setDrawRange(range.start, range.count);
+    }
+  });
   return <group name="pathways:cross-island" userData={{
     links: plan.edges.map(edge => ({ from: edge.from, to: edge.to })),
     segmentCount: plan.segments.length,

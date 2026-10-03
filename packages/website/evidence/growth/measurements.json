@@ -1,0 +1,205 @@
+{
+  "capturedAt": "2026-10-03T14:38:23.580Z",
+  "browser": "148.0.7778.96",
+  "renderer": "SwiftShader",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "seconds": 15,
+  "maps": {
+    "conduit": {
+      "frames": [
+        {
+          "at": 0.4,
+          "file": "conduit-00.png",
+          "visiblePlates": 0,
+          "plates": 12
+        },
+        {
+          "at": 1.2,
+          "file": "conduit-01.png",
+          "visiblePlates": 0,
+          "plates": 12
+        },
+        {
+          "at": 2.4,
+          "file": "conduit-02.png",
+          "visiblePlates": 1,
+          "plates": 12
+        },
+        {
+          "at": 3.9,
+          "file": "conduit-03.png",
+          "visiblePlates": 4,
+          "plates": 12
+        },
+        {
+          "at": 5.7,
+          "file": "conduit-04.png",
+          "visiblePlates": 5,
+          "plates": 12
+        },
+        {
+          "at": 7.5,
+          "file": "conduit-05.png",
+          "visiblePlates": 6,
+          "plates": 12
+        },
+        {
+          "at": 9.6,
+          "file": "conduit-06.png",
+          "visiblePlates": 6,
+          "plates": 12
+        },
+        {
+          "at": 12,
+          "file": "conduit-07.png",
+          "visiblePlates": 12,
+          "plates": 12
+        },
+        {
+          "at": 15,
+          "file": "conduit-08.png",
+          "visiblePlates": 12,
+          "plates": 12
+        }
+      ],
+      "plan": {
+        "seconds": 15.000000000000002,
+        "stages": [
+          {
+            "id": "stories",
+            "start": 1.9802104063989552
+          },
+          {
+            "id": "planned",
+            "start": 5.709606671783654
+          },
+          {
+            "id": "ci",
+            "start": 7.458792530769397
+          },
+          {
+            "id": "backend-planned",
+            "start": 9.818543265061486
+          },
+          {
+            "id": "backend1-building",
+            "start": 14.53795090517358
+          }
+        ],
+        "islands": 12,
+        "roads": 45,
+        "capabilities": 13,
+        "files": 0
+      },
+      "play": {
+        "framesDrawn": 775,
+        "meanFps": 51.76,
+        "p95FrameMs": 23.5,
+        "visiblePlatesAtEnd": 12,
+        "plates": 12
+      },
+      "baseline": {
+        "framesDrawn": 774,
+        "meanFps": 46.93,
+        "p95FrameMs": 26.7
+      },
+      "reducedMotion": {
+        "visiblePlatesAt300ms": 12,
+        "plates": 12,
+        "drawsIn1sAfter": 0
+      }
+    },
+    "storytree": {
+      "frames": [
+        {
+          "at": 0.4,
+          "file": "storytree-00.png",
+          "visiblePlates": 0,
+          "plates": 15
+        },
+        {
+          "at": 1.2,
+          "file": "storytree-01.png",
+          "visiblePlates": 0,
+          "plates": 15
+        },
+        {
+          "at": 2.4,
+          "file": "storytree-02.png",
+          "visiblePlates": 0,
+          "plates": 15
+        },
+        {
+          "at": 3.9,
+          "file": "storytree-03.png",
+          "visiblePlates": 3,
+          "plates": 15
+        },
+        {
+          "at": 5.7,
+          "file": "storytree-04.png",
+          "visiblePlates": 6,
+          "plates": 15
+        },
+        {
+          "at": 7.5,
+          "file": "storytree-05.png",
+          "visiblePlates": 8,
+          "plates": 15
+        },
+        {
+          "at": 9.6,
+          "file": "storytree-06.png",
+          "visiblePlates": 11,
+          "plates": 15
+        },
+        {
+          "at": 12,
+          "file": "storytree-07.png",
+          "visiblePlates": 13,
+          "plates": 15
+        },
+        {
+          "at": 15,
+          "file": "storytree-08.png",
+          "visiblePlates": 15,
+          "plates": 15
+        }
+      ],
+      "plan": {
+        "seconds": 15,
+        "stages": [
+          {
+            "id": "saved",
+            "start": 2.6709281269666945
+          }
+        ],
+        "islands": 15,
+        "roads": 133,
+        "capabilities": 93,
+        "files": 428
+      },
+      "play": {
+        "framesDrawn": 722,
+        "meanFps": 48.14,
+        "p95FrameMs": 26.6,
+        "visiblePlatesAtEnd": 15,
+        "plates": 15
+      },
+      "baseline": {
+        "framesDrawn": 628,
+        "meanFps": 38.09,
+        "p95FrameMs": 32.8
+      },
+      "reducedMotion": {
+        "visiblePlatesAt300ms": 15,
+        "plates": 15,
+        "drawsIn1sAfter": 0
+      }
+    }
+  },
+  "errors": []
+}

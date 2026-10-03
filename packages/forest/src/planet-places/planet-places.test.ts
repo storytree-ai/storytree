@@ -1,8 +1,12 @@
 /** Story nodes on the globe in rows by dependency depth (ADR-0646 and ADR-0804 D7 as superseded by the rows decision). */
 import assert from "node:assert/strict";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { test } from "node:test";
 
 import type { AnnotatedTree } from "@storytree/library";
+import { readCodeSurvey } from "../code-survey/read-survey.js";
 
 import { growPlanet, SEA_GAP } from "./island-growth.js";
 import { PLANET_RADIUS, type PlanetPoint } from "./planet-places.js";
@@ -48,11 +52,21 @@ test("1.5 adding a dependency moves an island up a row", () => {
   assert.ok(near(latitude(after.get("b")!), latitude(after.get("c")!)), "in the row above, with c");
 });
 
-test("1.9 where the code survey names stories' package dependencies, rows are by those, not by the plan's; without them the plan's roll-up stands", () => {
+test("1.9 where the code survey names stories' package dependencies, rows are by those, not by the plan's; without them the plan's roll-up stands", async (t) => {
   // The plan says c depends on a; the code says b depends on c and a on nothing, and c on nothing.
   const tree = project({ a: [], b: [], c: ["a"] });
-  const files = { files: [], imports: [] };
-  const spots = new Map(growPlanet(storyNodes(tree, [], { a: { ...files, dependsOn: [] }, b: { ...files, dependsOn: ["c"] }, c: { ...files, dependsOn: [] } })
+  const folder = await mkdtemp(path.join(tmpdir(), "forest-rows-"));
+  t.after(() => rm(folder, { recursive: true, force: true }));
+  for (const id of ["a", "b", "c"]) {
+    const root = path.join(folder, "packages", id);
+    await mkdir(path.join(root, "src"), { recursive: true });
+    await writeFile(path.join(root, "src", "index.ts"), "export const value = 1;\n");
+    await writeFile(path.join(root, "package.json"), JSON.stringify({
+      name: `@example/${id}`, dependencies: id === "b" ? { "@example/c": "*" } : {},
+    }));
+  }
+  const survey = await readCodeSurvey(folder, tree);
+  const spots = new Map(growPlanet(storyNodes(tree, [], survey)
     .map(({ id, place }) => ({ story: id, place, reach: REACH }))).spots);
   const at = (id: string) => latitude(spots.get(id)!);
   assert.ok(at("b") > at("c"), "b's package depends on c's: b is north of c");

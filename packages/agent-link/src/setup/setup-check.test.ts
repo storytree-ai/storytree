@@ -23,6 +23,7 @@ import { buildBins } from "../bins/build.js";
 import { noteCodexHookRan } from "../hooks/index.js";
 import type { Line } from "../activity/index.js";
 import { locateStorytree, MARKER_FILE } from "../routing/index.js";
+import { habitsCard } from "../instructions/index.js";
 import { claudeCode, codex, withAgent } from "../testing/agent.js";
 import { withTempDir } from "../testing/folders.js";
 import { dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
@@ -484,6 +485,25 @@ test("8.21 a Codex session that set its project up during the session, while Cod
       });
     } finally {
       await dropTestProjects([project]);
+    }
+  });
+});
+
+test("7.7 set_up_project's answer and check_setup's in a project carry the whole habits card, so an agent whose harness keeps only the start of the server's instructions still gets all of it (regression: Claude Code kept 2,048 characters in the shop's first session, 2026-10-04)", async () => {
+  const name = uniqueProjectName();
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const folder = path.join(dir, name);
+    mkdirSync(folder);
+    try {
+      await withAgent(folder, claudeCode(`claude-${name}`, { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome } }), async (agent) => {
+        const setUp = await agent.call("set_up_project", { name });
+        assert.ok(setUp.text.includes(habitsCard()), "set_up_project's answer lacks the card");
+        const checked = await agent.call("check_setup");
+        assert.ok(checked.text.includes(habitsCard()), "check_setup's answer lacks the card");
+      });
+    } finally {
+      await dropTestProjects([name]);
     }
   });
 });

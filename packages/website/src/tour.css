@@ -54,10 +54,10 @@
 html:has(> body.immersive-home) { scroll-padding-top:0; }
 
 /* The opening speaks in large type over the busy globe, one thought at a time. */
-#chapter2:is([data-tour-kind="beats"], [data-tour-kind="principles"]) .tour-depth { align-self:flex-start; min-height:32px; padding:4px 0; border:0; color:var(--dim); font-size:13px; text-decoration:underline; text-underline-offset:4px; }
-#chapter2:is([data-tour-kind="beats"], [data-tour-kind="principles"]) .tour-depth:hover { color:#dfe6de; }
-#chapter2:is([data-tour-kind="beats"], [data-tour-kind="principles"])[data-tour-mode="tour"] .tour-stage::before { content:""; position:absolute; z-index:4; inset:0 auto 0 0; width:min(820px, 70%); background:linear-gradient(90deg, #101418f2 48%, #10141800); pointer-events:none; }
-#chapter2:is([data-tour-kind="beats"], [data-tour-kind="principles"])[data-tour-mode="tour"] .tour-card { top:84px; bottom:calc(var(--bar-h) + 18px); left:clamp(24px, 4vw, 64px); width:min(560px, 46vw); max-height:none; display:flex; flex-direction:column; justify-content:center; padding:0; border:0; background:none; box-shadow:none; }
+#chapter2:is([data-tour-kind="beats"], [data-tour-kind="statement"], [data-tour-kind="fixes"]) .tour-depth { align-self:flex-start; min-height:32px; padding:4px 0; border:0; color:var(--dim); font-size:13px; text-decoration:underline; text-underline-offset:4px; }
+#chapter2:is([data-tour-kind="beats"], [data-tour-kind="statement"], [data-tour-kind="fixes"]) .tour-depth:hover { color:#dfe6de; }
+#chapter2:is([data-tour-kind="beats"], [data-tour-kind="statement"], [data-tour-kind="fixes"])[data-tour-mode="tour"] .tour-stage::before { content:""; position:absolute; z-index:4; inset:0 auto 0 0; width:min(820px, 70%); background:linear-gradient(90deg, #101418f2 48%, #10141800); pointer-events:none; }
+#chapter2:is([data-tour-kind="beats"], [data-tour-kind="statement"], [data-tour-kind="fixes"])[data-tour-mode="tour"] .tour-card { top:84px; bottom:calc(var(--bar-h) + 18px); left:clamp(24px, 4vw, 64px); width:min(560px, 46vw); max-height:none; display:flex; flex-direction:column; justify-content:center; padding:0; border:0; background:none; box-shadow:none; }
 #chapter2[data-tour-kind="beats"] .tour-title { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
 #chapter2[data-tour-kind="beats"] .tour-lines { display:block; margin:0 0 18px; }
 #chapter2[data-tour-kind="beats"] .tour-line { display:none; padding:0; color:#f0f0e7; font-size:clamp(25px, 2.6vw, 38px); font-weight:500; line-height:1.18; letter-spacing:-.035em; text-wrap:balance; }
@@ -65,14 +65,53 @@ html:has(> body.immersive-home) { scroll-padding-top:0; }
 #chapter2[data-tour-kind="beats"] .tour-line.on { display:block; animation:tour-beat-in .8s ease both; }
 #chapter2[data-tour-kind="beats"] .tour-line.coda { margin-top:.45em; color:var(--green); }
 @keyframes tour-beat-in { from { opacity:0; transform:translateY(8px); } }
-#chapter2[data-tour-kind="principles"] .tour-title { font-size:clamp(25px, 2.4vw, 34px); margin-bottom:16px; }
-#chapter2[data-tour-kind="principles"] .tour-lines { gap:9px; }
-#chapter2[data-tour-kind="principles"] .tour-line { display:grid; grid-template-columns:28px minmax(0,1fr); gap:2px 12px; padding:10px 14px 11px; border:1px solid var(--edge); border-left:3px solid var(--green); border-radius:0 10px 10px 0; background:#161c20e6; transform:translateX(-8px); }
-#chapter2[data-tour-kind="principles"] .tour-line.on { transform:none; }
-#chapter2[data-tour-kind="principles"] .tour-line::before { display:none; }
-#chapter2[data-tour-kind="principles"] .tour-line .n { grid-row:span 2; display:grid; place-items:center; width:28px; height:28px; border-radius:50%; background:#bdd6a624; color:var(--green); font:700 13px system-ui, sans-serif; }
-#chapter2[data-tour-kind="principles"] .tour-line b { color:#f0f0e7; font-size:17px; font-weight:650; line-height:1.3; letter-spacing:-.01em; }
-#chapter2[data-tour-kind="principles"] .tour-line .note { color:var(--soft); font-size:14.5px; line-height:1.4; }
+/* Act 2 arrives (ADR-0889): the pain in words on the dark screen chapter 1 leaves, before any globe or name. */
+#chapter2[data-tour-step="pain"][data-tour-mode="tour"] :is(.tour-heading h1, .tour-note) { opacity:0; }
+#chapter2 :is(.tour-heading h1, .tour-note) { transition:opacity 1.2s ease; }
+/* Without a growing drawing (no WebGL), the still is storytree's own globe, not the shop's: the arrival stays dark. */
+#chapter2[data-globe-map="shop"][data-tour-mode="tour"] #website-forest[data-forest-state="still"] .forest-still,
+#chapter2[data-globe-map="shop"][data-tour-mode="tour"]:has(#website-forest[data-forest-state="still"]) .tour-note { visibility:hidden; }
+
+/* The value statement, alone on its slide: the headline and its subhead, nothing else. */
+#chapter2[data-tour-kind="statement"] .tour-kicker { visibility:hidden; }
+#chapter2[data-tour-kind="statement"] .tour-title { margin:0 0 .5em; color:#f0f0e7; font-size:clamp(30px, 3.3vw, 50px); font-weight:600; line-height:1.1; letter-spacing:-.04em; text-wrap:balance; animation:tour-beat-in .9s ease both; }
+#chapter2[data-tour-kind="statement"] .tour-lines { display:block; margin:0; }
+#chapter2[data-tour-kind="statement"] .tour-line { padding:0; color:var(--soft); font-size:clamp(19px, 1.7vw, 25px); line-height:1.35; letter-spacing:-.015em; text-wrap:balance; animation:tour-beat-in .9s ease .5s both; }
+#chapter2[data-tour-kind="statement"] .tour-line::before { display:none; }
+
+/* The three fixes: each pain overcome, its fix beside it. Two looks for the owner to choose between (data-fixes-look). */
+#chapter2[data-tour-kind="fixes"] { --pain:#ef8a7f; --fix:#9fdc8c; }
+#chapter2[data-tour-kind="fixes"] .tour-title { margin:0 0 18px; color:var(--dim); font:650 12px/1.5 system-ui, sans-serif; letter-spacing:.13em; text-transform:uppercase; }
+#chapter2[data-tour-kind="fixes"] .tour-lines { display:grid; gap:16px; margin:0 0 18px; }
+#chapter2[data-tour-kind="fixes"] .tour-line { padding:0; opacity:0; }
+#chapter2[data-tour-kind="fixes"] .tour-line.on { opacity:1; }
+#chapter2[data-tour-kind="fixes"] .tour-line::before { display:none; }
+#chapter2[data-tour-kind="fixes"] .pain, #chapter2[data-tour-kind="fixes"] .fix { text-wrap:balance; }
+/* Look 1, "beside": the pain in red, then an arrow draws and the fix arrives in green beside it, the pain settling back. */
+#chapter2[data-fixes-look="beside"][data-tour-kind="fixes"] .tour-card { width:min(760px, 60vw); }
+#chapter2[data-fixes-look="beside"][data-tour-kind="fixes"] .tour-line { display:grid; grid-template-columns:minmax(0,1fr) 40px minmax(0,1.1fr); align-items:center; }
+#chapter2[data-fixes-look="beside"] .pain { padding:10px 14px; border-radius:10px; background:#ef8a7f14; border:1px solid #ef8a7f40; color:var(--pain); font-size:clamp(15px, 1.25vw, 18px); line-height:1.3; }
+#chapter2[data-fixes-look="beside"] .turn { justify-self:center; width:22px; height:2px; background:var(--fix); position:relative; transform-origin:left; }
+#chapter2[data-fixes-look="beside"] .turn::after { content:""; position:absolute; right:-1px; top:-4px; border:5px solid transparent; border-left:7px solid var(--fix); border-right:0; }
+#chapter2[data-fixes-look="beside"] .fix { padding:10px 14px; border-radius:10px; background:#9fdc8c1c; border:1px solid #9fdc8c66; color:#e8f6e2; font-size:clamp(16px, 1.35vw, 20px); font-weight:600; line-height:1.3; }
+#chapter2[data-fixes-look="beside"] .tour-line.on .pain { animation:fix-pain-settle 1.6s ease both; }
+#chapter2[data-fixes-look="beside"] .tour-line.on .turn { animation:fix-draw .4s ease .8s both; }
+#chapter2[data-fixes-look="beside"] .tour-line.on .fix { animation:fix-arrive .6s ease 1.05s both; }
+@keyframes fix-pain-settle { 0%, 45% { opacity:1; transform:none; } 100% { opacity:.62; } }
+@keyframes fix-draw { from { transform:scaleX(0); } }
+@keyframes fix-arrive { from { opacity:0; transform:translateX(-10px); } }
+/* Look 2, "resolve": the pain is said in red, then it gives way: it shrinks to a small red caption and the fix rises in green where it stood. */
+#chapter2[data-fixes-look="resolve"][data-tour-kind="fixes"] .tour-lines { gap:20px; }
+#chapter2[data-fixes-look="resolve"][data-tour-kind="fixes"] .tour-line { display:grid; gap:2px; padding-left:16px; border-left:3px solid var(--fix); }
+#chapter2[data-fixes-look="resolve"] .turn { display:none; }
+#chapter2[data-fixes-look="resolve"] .pain { color:var(--pain); font-size:13.5px; line-height:1.35; letter-spacing:.01em; }
+#chapter2[data-fixes-look="resolve"] .fix { color:#f0f0e7; font-size:clamp(21px, 2vw, 29px); font-weight:600; line-height:1.15; letter-spacing:-.03em; }
+#chapter2[data-fixes-look="resolve"] .tour-line.on { animation:resolve-edge 1.9s ease both; }
+#chapter2[data-fixes-look="resolve"] .tour-line.on .pain { animation:resolve-pain 1.9s ease both; }
+#chapter2[data-fixes-look="resolve"] .tour-line.on .fix { animation:resolve-fix 1.9s ease both; }
+@keyframes resolve-edge { 0%, 50% { border-left-color:var(--pain); } 100% { border-left-color:var(--fix); } }
+@keyframes resolve-pain { 0% { font-size:clamp(21px, 2vw, 29px); opacity:0; } 12%, 50% { font-size:clamp(21px, 2vw, 29px); opacity:1; } 100% { font-size:13.5px; opacity:.85; } }
+@keyframes resolve-fix { 0%, 55% { opacity:0; transform:translateY(8px); max-height:0; } 100% { opacity:1; transform:none; max-height:3em; } }
 
 /* Pointers: a ring on the thing a step talks about, with its name beside it. */
 #chapter2 .tour-tags { position:absolute; inset:0; z-index:3; pointer-events:none; }
@@ -146,15 +185,18 @@ html:has(> body.immersive-home) { scroll-padding-top:0; }
   #chapter2 .tour-note { top:58px; left:14px; right:auto; max-width:none; text-align:left; font-size:10.5px; }
   #chapter2[data-tour-mode="tour"] .forest-drawing, #chapter2[data-tour-mode="tour"] .forest-still { top:72px; bottom:52%; }
   #chapter2[data-tour-mode="tour"] .forest-still { inset:72px 10% 52%; }
-  #chapter2 .tour-card, #chapter2:is([data-tour-kind="beats"], [data-tour-kind="principles"])[data-tour-mode="tour"] .tour-card { left:10px; right:10px; top:calc(48% + 4px); bottom:calc(var(--bar-h) + 54px); width:auto; max-height:none; padding:14px 15px 12px; justify-content:flex-start; }
-  #chapter2:is([data-tour-kind="beats"], [data-tour-kind="principles"])[data-tour-mode="tour"] .tour-card { padding:4px 6px; }
-  #chapter2:is([data-tour-kind="beats"], [data-tour-kind="principles"])[data-tour-mode="tour"] .tour-stage::before { inset:auto 0 0 0; width:auto; height:60%; background:linear-gradient(0deg, #101418f5 72%, #10141800); }
+  #chapter2 .tour-card, #chapter2:is([data-tour-kind="beats"], [data-tour-kind="statement"], [data-tour-kind="fixes"])[data-tour-mode="tour"] .tour-card { left:10px; right:10px; top:calc(48% + 4px); bottom:calc(var(--bar-h) + 54px); width:auto; max-height:none; padding:14px 15px 12px; justify-content:flex-start; }
+  #chapter2:is([data-tour-kind="beats"], [data-tour-kind="statement"], [data-tour-kind="fixes"])[data-tour-mode="tour"] .tour-card { padding:4px 6px; }
+  #chapter2:is([data-tour-kind="beats"], [data-tour-kind="statement"], [data-tour-kind="fixes"])[data-tour-mode="tour"] .tour-stage::before { inset:auto 0 0 0; width:auto; height:60%; background:linear-gradient(0deg, #101418f5 72%, #10141800); }
   #chapter2[data-tour-kind="beats"] .tour-line { font-size:22px; }
-  #chapter2[data-tour-kind="principles"] .tour-title { font-size:22px; margin-bottom:10px; }
-  #chapter2[data-tour-kind="principles"] .tour-lines { gap:6px; }
-  #chapter2[data-tour-kind="principles"] .tour-line { padding:7px 10px 8px; }
-  #chapter2[data-tour-kind="principles"] .tour-line b { font-size:14.5px; }
-  #chapter2[data-tour-kind="principles"] .tour-line .note { font-size:13px; }
+  #chapter2[data-tour-kind="statement"] .tour-title { font-size:26px; }
+  #chapter2[data-tour-kind="statement"] .tour-line { font-size:17px; }
+  #chapter2[data-tour-kind="fixes"] .tour-title { margin-bottom:10px; }
+  #chapter2[data-tour-kind="fixes"] .tour-lines { gap:10px; }
+  #chapter2[data-fixes-look="beside"][data-tour-kind="fixes"] .tour-line { grid-template-columns:minmax(0,1fr) 26px minmax(0,1.1fr); }
+  #chapter2[data-fixes-look="beside"] :is(.pain, .fix) { padding:7px 9px; font-size:13.5px; }
+  #chapter2[data-fixes-look="resolve"] .fix { font-size:18px; }
+  #chapter2[data-fixes-look="resolve"] .pain { font-size:12px; }
   #chapter2 .tour-title { font-size:21px; }
   #chapter2 .tour-line { font-size:15px; }
   #chapter2 .tour-bar { gap:6px; padding:8px 10px; align-content:flex-start; }
@@ -183,4 +225,7 @@ html:has(> body.immersive-home) { scroll-padding-top:0; }
 @media (prefers-reduced-motion:reduce) {
   #chapter2 .tour-card.is-in, #chapter2 .tour-line, #chapter2 .tour-tag-ring, #chapter2 .tb-play[data-state="waiting"], #chapter2 .chip-recording::before { animation:none !important; transition:none !important; }
   #chapter2[data-tour-kind="beats"] .tour-line.on { animation:none; }
+  #chapter2 :is(.tour-title, .pain, .turn, .fix) { animation:none !important; }
+  /* Reduced motion draws the shop's globe whole at once, so under the pain it is not drawn at all. */
+  #chapter2[data-tour-step="pain"][data-tour-mode="tour"] #website-forest { opacity:0; }
 }

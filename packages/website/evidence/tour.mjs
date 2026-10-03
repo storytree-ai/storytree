@@ -25,7 +25,9 @@ export async function verifyTourCamera(browser, url) {
     await page.waitForFunction(() => document.querySelector("#website-forest").dataset.forestState === "live");
     await page.waitForTimeout(3500);
     await goToStep(page, "scale-territories");
-    await page.waitForTimeout(3000);
+    // Arriving from the shop's globe swaps globes first, which takes longer on a loaded machine.
+    await page.waitForFunction(() => document.querySelector(".forest-drawing")?.dataset.globe === "storytree" && document.querySelector(".forest-drawing")?.dataset.arrived === "true", null, { timeout: 30_000 });
+    await page.waitForTimeout(500);
     await page.locator("#tour-play").click();
     const destination = await positions();
     const canvas = await page.locator("#website-forest canvas").boundingBox();
@@ -80,9 +82,8 @@ export async function verifyTour(browser, url, output) {
   assert.ok(pips >= 20, `one pip per step (${pips})`);
   assert.deepEqual(await page.locator("#tour-pips .tb-group").evaluateAll(groups => groups.map(group => group.dataset.group)),
     ["opening", "stories", "capabilities", "sessions", "arcs", "scale", "knowledge", "ending"]);
-  await page.locator('#tour-pips [data-go="3"]').click();
-  assert.equal(await stepOf(page), "stories-island");
-  assert.equal(await page.locator('#tour-pips [data-go="3"]').getAttribute("aria-current"), "step");
+  await goToStep(page, "stories-island");
+  assert.equal(await page.locator('#tour-pips [data-step="stories-island"]').getAttribute("aria-current"), "step");
   // 2.4: the lines arrive at a readable pace; pause holds them; a faster speed brings the next sooner.
   assert.equal(await shown(), 1);
   await page.locator("#tour-play").click();

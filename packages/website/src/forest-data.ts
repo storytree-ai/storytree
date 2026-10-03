@@ -26,4 +26,6 @@ export interface GrowthSnapshot extends ForestSnapshot {
   places: StoryNode[];
   titles: Record<string, string>;
   stages: { id: string; at: string; scene: ForestSnapshot["scene"]; wisps: SessionWisp[]; counts: { stories: number; capabilities: number; contracts: number } }[];
+  /** The dated notes its knowledge core grows from; a growth saved before they were kept has none. */
+  changes?: Change[];
 }

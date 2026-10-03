@@ -81,3 +81,23 @@ test("3.4 · a stage outside the recording's window, or credential-like text, re
   secret.tree.stories[0]!.title = "password=hunter2";
   await assert.rejects(refreshGrowthSnapshot(file, async () => secret), /credential/i);
 });
+
+test("3.6 · a saved growth keeps the project's notes as dated changes with only their public fields, so its replay grows the core", async context => {
+  const directory = await mkdtemp(path.join(tmpdir(), "conduit-growth-"));
+  context.after(() => rm(directory, { recursive: true, force: true }));
+  const file = path.join(directory, "growth.json");
+  const noted = reading();
+  const note = (type: string, id: string, fields: object) => ({ seq: 100 + noted.changes.length, recordId: id, type, action: "created",
+    record: { id, type, version: 1, fields, createdAt: t(3), updatedAt: t(3) } });
+  noted.changes = [...noted.changes,
+    note("decision", "decision_a", { title: "Sign in by cookie", number: 1, status: "accepted", frontCoverOf: "story_a", text: "Seen at C:\\Users\\alice\\conduit" }),
+    note("friction", "friction_a", { title: "A private grumble" }),
+  ] as GrowthReading["changes"];
+  await refreshGrowthSnapshot(file, async () => noted);
+  const saved = JSON.parse(await readFile(file, "utf8"));
+  const decision = saved.changes.find((change: { recordId: string }) => change.recordId === "decision_a");
+  assert.deepEqual(decision.record.fields, { title: "Sign in by cookie", number: 1, status: "accepted", frontCoverOf: "story_a" });
+  assert.equal(decision.record.createdAt, t(3));
+  assert.ok(saved.changes.some((change: { type: string }) => change.type === "story"), "the stories and capabilities the notes hang on");
+  assert.equal(saved.changes.some((change: { type: string }) => change.type === "friction" || change.type === "health"), false);
+});

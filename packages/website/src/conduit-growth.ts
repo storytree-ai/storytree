@@ -8,7 +8,7 @@ import { saveForestSnapshot } from "@storytree/forest/snapshot";
 import { islandCoastReach } from "@storytree/forest-world/geometry";
 import type { AnnotatedCapability, AnnotatedStory, AnnotatedTree, Change, HealthState } from "@storytree/library";
 import type { GrowthSnapshot } from "./forest-data.js";
-import { scrub } from "./tour-snapshot.js";
+import { publicNotes, scrub } from "./tour-snapshot.js";
 
 export interface GrowthReading {
   project: string;
@@ -98,7 +98,7 @@ function wispsAt(plan: AnnotatedTree, lines: readonly Line[], at: string): Sessi
   });
 }
 
-/** Save Conduit's growth: the full plan's scene and places, and each stage's scene and live claims, scrubbed as storytree's own reading is. */
+/** Save a growth: the full plan's scene and places, each stage's scene and live claims, and the dated notes its core grows from, scrubbed as storytree's own reading is. */
 export async function refreshGrowthSnapshot(file: string, read: () => Promise<GrowthReading>): Promise<void> {
   await saveForestSnapshot(file, async () => {
     const input = await read();
@@ -121,7 +121,7 @@ export async function refreshGrowthSnapshot(file: string, read: () => Promise<Gr
         wisps: wispsAt(plan, before, at), counts: { stories: plan.stories.length, capabilities: capabilities.length, contracts: capabilities.reduce((sum, item) => sum + item.contracts.length, 0) } });
     }
     const snapshot = { version: 1, capturedAt, radius: grown.radius, scene, spots: [...grown.spots], project, window, places,
-      titles: Object.fromEntries(tree.stories.map(story => [story.id, story.title])), stages };
+      titles: Object.fromEntries(tree.stories.map(story => [story.id, story.title])), stages, changes: publicNotes(changes) };
     return scrub(snapshot, []) as GrowthSnapshot;
   });
 }

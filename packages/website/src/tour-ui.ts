@@ -62,8 +62,9 @@ export function wireTour() {
     const kind = step.kind ?? "lines";
     lines.replaceChildren(...step.lines.map((line, index) => {
       const item = element("li", "", kind === "beats" && index === step.lines.length - 1 ? "tour-line coda" : "tour-line");
-      if (kind === "principles") {
-        item.append(element("span", String(index + 1), "n"), element("b", text(line)), element("span", text(step.notes?.[index] ?? ""), "note"));
+      if (kind === "fixes") {
+        // A pain overcome, with its fix beside it (ADR-0889 2.4).
+        item.append(element("span", text(step.notes?.[index] ?? ""), "pain"), element("span", "", "turn"), element("span", text(line), "fix"));
       } else {
         item.append(element("span", text(line), "said"));
         const source = step.sources?.[index];
@@ -78,6 +79,9 @@ export function wireTour() {
   };
   const drawDepth = (step: TourStep) => {
     const title = element("h3", step.kind === "compare" ? "Where these come from" : "Why it exists");
+    const back = element("button", "Back to the tour", "tour-back");
+    back.type = "button";
+    back.addEventListener("click", () => render(tour.release("reading")));
     title.tabIndex = -1;
     const list = element("ul", "", "tour-decisions");
     list.append(...step.decisions.map(decision => {
@@ -85,10 +89,8 @@ export function wireTour() {
       item.append(element("span", `ADR-${String(decision.number).padStart(4, "0")}`, "number"), ` ${decision.title}`);
       return item;
     }));
-    const back = element("button", "Back to the tour", "tour-back");
-    back.type = "button";
-    back.addEventListener("click", () => render(tour.release("reading")));
-    depth.replaceChildren(title, element("p", text(step.why ?? "")), element("p", "The decisions behind it, from storytree's own decision log:", "tour-decisions-intro"), list, back);
+    depth.replaceChildren(title, element("p", text(step.why ?? "")),
+      ...(step.decisions.length ? [element("p", "The decisions behind it, from storytree's own decision log:", "tour-decisions-intro"), list] : []), back);
   };
 
   const render = (state = tour.state) => {
@@ -98,17 +100,19 @@ export function wireTour() {
     root.dataset.tourMode = state.freePlay ? "freeplay" : "tour";
     root.dataset.tourStep = step.id;
     root.dataset.tourKind = step.kind ?? "lines";
+    const globe = globeOf(step, state, tour.elapsed());
+    root.dataset.globeMap = globe.map;
     root.dataset.tourRunning = String(running);
     if (changedStep) {
       const at = where(state.index);
-      kicker.textContent = state.freePlay ? "Chapter 2 · Your turn" : step.explainer === "opening" || step.explainer === "ending" ? `Chapter 2 · ${at.title}` : `${at.title} · ${at.at} of ${at.of}`;
+      kicker.textContent = state.freePlay ? "Act 2 · Your turn" : step.explainer === "opening" || step.explainer === "ending" ? `Act 2 · ${at.title}` : `${at.title} · ${at.at} of ${at.of}`;
       heading.textContent = state.freePlay ? "Your turn." : text(step.title);
       if (state.freePlay) {
         lines.replaceChildren(...["Explore storytree's own project: open an island, the arcs or the library.", "It's a saved reading, so nothing you do changes the project."].map(line => element("li", line, "tour-line on")));
       } else drawLines(step);
       chips.replaceChildren(...(state.freePlay ? [] : step.chips ?? []).map(chip => element("span", chip.text, `chip chip-${chip.kind}`)));
       depthToggle.hidden = state.freePlay || !step.why;
-      depthToggle.textContent = step.kind === "compare" ? "Sources and decisions" : `Why it exists · ${step.decisions.length} ${step.decisions.length === 1 ? "decision" : "decisions"}`;
+      depthToggle.textContent = step.kind === "compare" ? "Sources and decisions" : step.decisions.length ? `Why it exists · ${step.decisions.length} ${step.decisions.length === 1 ? "decision" : "decisions"}` : "Why it exists";
       card.classList.remove("is-in"); void card.offsetWidth; card.classList.add("is-in");
       label.textContent = state.freePlay ? text("Free play · storytree’s own project, saved {saved} · read only") : `${at.title} · ${at.at} of ${at.of}`;
       pipButtons.forEach((button, index) => {
@@ -119,7 +123,8 @@ export function wireTour() {
       live.textContent = state.freePlay ? "Free play. Explore storytree's own project." : `${heading.textContent} Step ${state.index + 1} of ${steps.length}.`;
     }
     // The note names whose globe is on show: Conduit's growth is a replay of its own library (ADR-0879 D7).
-    note.textContent = globeOf(step, state).map === "conduit" ? text("Conduit · replayed from its own library, {conduitRecording}")
+    note.textContent = globe.map === "conduit" ? text("Conduit · replayed from its own library, {conduitRecording}")
+      : globe.map === "shop" ? "An online shop agents built with storytree · replayed from its own records, 3 October 2026"
       : step.chips?.some(chip => chip.kind === "recording") && !state.freePlay ? text("Recording · storytree's activity, {recording}") : text("storytree's own project · saved {saved} · read only");
     // A step's lines arrive one at a time; a waiting step shows them all (the engine says how many).
     const shown = state.freePlay ? lines.children.length : state.lines;
@@ -145,7 +150,7 @@ export function wireTour() {
     label.hidden = !held.hidden;
     everything.setAttribute("aria-checked", String(state.holds.includes("everything")));
     previous = { ...state };
-    window.dispatchEvent(new CustomEvent("storytree-tour", { detail: { step, state, running } }));
+    window.dispatchEvent(new CustomEvent("storytree-tour", { detail: { step, state, running, elapsed: tour.elapsed() } }));
   };
 
   play.addEventListener("click", () => render(tour.state.freePlay ? tour.replay() : tour.togglePlay()));
@@ -204,6 +209,9 @@ export function wireTour() {
       if (after !== before) render(after);
       const current = pipButtons[tour.state.index];
       if (current && !tour.state.freePlay) current.style.setProperty("--fill", tour.progress().toFixed(3));
+      // A step that replays a growth tells the drawing where it is, every frame (ADR-0889 2.2).
+      const growing = globeOf(steps[tour.state.index]!, tour.state, tour.elapsed());
+      if (tour.running && typeof steps[tour.state.index]!.growth === "object" && growing.map === "shop" && growing.at !== undefined) window.dispatchEvent(new CustomEvent("storytree-tour-growth", { detail: { at: growing.at, index: tour.state.index, generation: tour.state.generation } }));
     }
     requestAnimationFrame(frame);
   };

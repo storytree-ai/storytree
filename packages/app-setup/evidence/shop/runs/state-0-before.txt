@@ -1,0 +1,73 @@
+date: 2026-10-04T01:45:40.7171865+10:00
+--- commands on a fresh PATH
+claude     C:\Users\mickh\.local\bin\claude.exe
+codex      C:\Users\mickh\AppData\Local\Microsoft\WinGet\Links\codex.exe
+storytree  C:\Users\mickh\.storytree\0.3\bin\storytree.exe
+--- user PATH entries naming storytree
+C:\Users\mickh\.storytree\0.3\bin
+--- storytree install
+installed: 0.3.611.0
+install folder: True
+Apps & features entry: 1
+start menu shortcut: True
+desktop shortcut: False
+--- storytree home
+~\.storytree: True
+  backups
+  bin
+  electron
+  models
+  pgdata
+  queued-lines
+  update-holds
+  app.json
+  codex-hooks-ran
+  delivery.json
+  journey-events.sqlite
+  journey-events.sqlite-shm
+  journey-events.sqlite-wal
+  machine.json
+  pgdata.log
+  pgdata.owner.json
+  pgdata.tools.log
+  project-choice.json
+  release-channel.json
+  releases.log
+  removed-projects.json
+updater cache: True
+--- processes
+
+   Id ProcessName   SessionId
+   -- -----------   ---------
+ 1896 postgres              2
+ 4668 postgres              2
+ 7468 postgres              2
+ 7568 postgres              2
+ 8260 postgres              2
+ 8724 postgres              2
+15168 postgres              2
+15880 postgres              2
+15952 postgres              2
+17272 postgres              2
+17736 postgres              2
+19416 postgres              2
+ 5024 storytree-0.3         2
+16016 storytree-0.3         2
+19140 storytree-0.3         2
+19280 storytree-0.3         2
+
+
+
+--- Claude Code
+claude.json mcpServers: storytree
+settings.json lines naming storytree: 20
+settings.json keys: autoUpdatesChannel, theme, hooks, statusLine
+--- Codex
+~\.codex: True
+config.toml lines naming storytree: 3
+hooks.json: True
+AGENTS.md storytree section: True
+--- project folders
+C:\Users\mickh\shop :
+  shop-requirements.md
+--- scheduled tasks named st-*

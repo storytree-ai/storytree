@@ -1,5 +1,7 @@
 # Chapter 1
 
+Since ADR-0879 D6 chapter 1 is storytree 0.2's green-phosphor terminal, and the pictures in this folder (`1440-ready`, `1440-peak`, `390-peak`, `390-no-script`, `390-reduced-motion`) show that look. The full set of pictures, with what each answers, is in [`../terminal/`](../terminal/README.md).
+
 Contract 1.8 (`contract_e8338e596fd2`), ADR-0857 D1. The owner's proposal supplies the chatter and finale copy. The website owns the implementation; no mock runtime or drawing code was copied.
 
 Reproduce from the repository root:

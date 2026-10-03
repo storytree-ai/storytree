@@ -162,55 +162,137 @@ body:not(.immersive-home) h3 { margin: 0 0 10px; font-size: 18px; font-weight: 6
   *, *::before, *::after { scroll-behavior: auto !important; }
 }
 
-/* Chapter one stays in the document: the visitor can always scroll past it. */
-#opening { min-height: 100svh; padding: 24px 32px 18px; background: radial-gradient(ellipse at 50% 55%, #172225 0%, #0b1013 68%); border-bottom: 1px solid var(--line); }
-.opening-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
-.opening-toolbar > div { display: flex; gap: 12px; }
-.opening-toolbar button, #opening-joke, #opening-replay { min-height: 44px; border: 1px solid #465354; background: #10181b; color: #c2cdca; border-radius: 4px; padding: 9px 14px; cursor: pointer; font-size: 12px; }
-#opening-count { margin-top: 20px; min-height: 24px; text-align: center; color: #e0a458; font: 12px/2 ui-monospace, monospace; }
-.opening-stage { position: relative; min-height: 610px; height: calc(100svh - 170px); max-height: 900px; isolation: isolate; }
-.opening-window { position: absolute; margin: 0; color: #c2cfca; background: #121b20; border: 1px solid #46575b; border-radius: 8px; box-shadow: 0 12px 50px #0008; overflow: hidden; font: 12px/1.7 ui-monospace, "Cascadia Code", monospace; }
-.opening-window > header { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; padding: 10px 14px; background: #1e2b30; border-bottom: 1px solid #38484e; color: #e6e9e2; font-size: 11px; }
-.opening-window > header::before { content: "●"; color: var(--color, #bdd6a6); }
-.opening-window > header span { margin-left: auto; color: #e0a458; font-size: 10px; }
-.opening-lines { padding: 16px; overflow-wrap: anywhere; }
-.opening-lines p + p { margin-top: 6px; }
-.opening-demand { border-top: 1px solid #705836; color: #f1bd79; padding-top: 8px; }
-.opening-warning { color: #efac82; }
-.opening-good { color: #bdd6a6; }
-#opening-lead { width: min(620px, 90%); left: 50%; top: 25%; transform: translateX(-50%); z-index: 2; }
-.opening-prompt { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; border-top: 1px solid #38484e; padding: 18px; color: #f0f0e7; font-size: 15px; }
-#opening-run { min-width: 80px; min-height: 44px; padding: 10px 20px; border: 0; border-radius: 4px; background: #bdd6a6; color: #101418; cursor: pointer; font-weight: 650; }
-.opening-agent { left: var(--x); top: var(--y); width: 30%; min-height: 160px; z-index: 3; }
-.opening-agent .opening-lines { max-height: 230px; overflow: hidden; }
-#opening-finale { width: min(660px, 92%); left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 5; border-color: #92ab83; box-shadow: 0 0 0 8px #10141866, 0 18px 90px #000c; }
-#opening-finale .opening-lines { font-size: 14px; padding: 22px; }
-.opening-actions { padding: 0 22px 22px; display: flex; align-items: center; flex-wrap: wrap; gap: 14px; }
-.opening-actions .button { gap: 20px; border: 0; cursor: pointer; font: 600 14px/1.5 ui-sans-serif, system-ui, sans-serif; }
-#opening-joke { border-color: transparent; background: transparent; text-decoration: underline; text-underline-offset: 4px; }
-.opening-footnote { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; color: #a2b1b1; font-size: 11px; line-height: 1.6; }
-#opening[data-phase="ready"] #opening-count { color: #9caaa9; }
-#opening[data-phase="running"] #opening-lead { left: 8%; top: 5%; transform: none; width: 42%; }
-#opening[data-phase="running"] .opening-prompt, #opening[data-phase="peak"] .opening-prompt { display: none; }
-#opening[data-phase="peak"] #opening-agents, #opening[data-phase="peak"] #opening-lead { opacity: .4; }
-@media (max-width: 600px) {
-  #opening { padding: 16px 14px; }
-  .opening-toolbar { flex-wrap: wrap; gap: 12px; }
-  .opening-toolbar .eyebrow { font-size: 9px; }
-  .opening-toolbar > div { width: 100%; justify-content: space-between; }
-  #opening-count { font-size: 10px; margin-top: 12px; }
-  .opening-stage { height: calc(100svh - 220px); min-height: 550px; }
-  .opening-agent { width: 62%; left: calc(var(--x) * .5); font-size: 10px; }
-  .opening-agent > header { padding: 7px; font-size: 10px; }
-  .opening-agent .opening-lines { padding: 10px; max-height: 160px; }
-  #opening-lead { width: 96%; top: 18%; font-size: 11px; }
-  .opening-prompt { font-size: 13px; padding: 14px; }
-  #opening[data-phase="running"] #opening-lead { width: 90%; left: 2%; }
-  #opening-finale { width: 98%; }
-  #opening-finale .opening-lines { font-size: 12px; padding: 16px; }
-  .opening-actions { padding: 0 16px 16px; gap: 4px; }
-  .opening-actions .button { width: 100%; }
-  .opening-footnote { font-size: 10px; }
+/* Chapter one (ADR-0879 D6): storytree 0.2's green-phosphor CRT, filling the first screen. It stays in the
+   document, so the visitor can always scroll past it. Monospace throughout, no website chrome. */
+#opening {
+  --term: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, monospace;
+  position: relative; overflow: hidden; display: flex; flex-direction: column;
+  height: max(100svh, 600px); background: #020403; color: #9fe8b4; font-family: var(--term);
+}
+#opening button { font-family: var(--term); }
+#opening :is(a, button):focus-visible { outline: 2px solid #d8ffe4; outline-offset: 3px; }
+.opening-screen {
+  position: relative; flex: 1; display: flex; flex-direction: column; min-height: 0;
+  background: radial-gradient(120% 90% at 50% 30%, #0b1410 0%, #060a08 55%, #030504 100%);
+}
+
+/* the HUD row: wordmark, arcade counter, the two keys */
+.opening-hud { position: relative; z-index: 48; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 10px 14px; font: 600 11.5px/1 var(--term); letter-spacing: .1em; }
+.opening-wordmark { color: #d8ffe4; font-size: 15px; letter-spacing: .04em; text-shadow: 0 0 9px rgba(90, 255, 140, .5); }
+.opening-caret, .term-cursor { animation: opening-blink 1.05s steps(1) infinite; }
+.opening-caret { color: #8affa8; margin-left: 2px; }
+@keyframes opening-blink { 50% { opacity: 0; } }
+#opening #opening-count { display: flex; flex-wrap: wrap; gap: 2px 26px; margin: 0 auto; font-size: 13px; line-height: 1.4; color: #baffcf; }
+#opening-count span { display: inline-block; transform-origin: left center; text-shadow: 0 0 9px rgba(90, 255, 140, .55); }
+#opening-count .opening-waiting { color: #ffc46b; text-shadow: 0 0 9px rgba(255, 180, 80, .45); }
+#opening-count .opening-answered { color: #6fa585; text-shadow: none; }
+#opening-count .tick { animation: opening-pulse .5s ease-out; }
+/* A long counter grows only a little, so its pulse never covers the counter beside it. */
+@keyframes opening-pulse { 0% { transform: scale(1.12); filter: brightness(2.2); } 45% { transform: scale(.97); } 100% { transform: scale(1); filter: brightness(1); } }
+.opening-keys { display: flex; flex-wrap: wrap; gap: 10px; margin-left: auto; }
+.opening-keys button { min-height: 38px; padding: 0 13px; border: 1px solid rgba(126, 255, 165, .4); border-radius: 4px; background: rgba(6, 14, 9, .72); color: #d8ffe4; font: 600 11.5px/1 var(--term); letter-spacing: .1em; text-transform: lowercase; cursor: pointer; }
+.opening-keys button:hover { background: rgba(126, 255, 165, .14); color: #fff; }
+#opening-sound { color: #9fe8b4; border-color: rgba(126, 255, 165, .28); }
+#opening-sound[aria-pressed="false"] { color: #5c8a70; text-decoration: line-through; }
+
+/* the stage: a jittered grid of windows, 4 columns wide, 3 on a tablet */
+.opening-stage { --cols: 4; --rows: 3; position: relative; flex: 1; min-height: 440px; margin: 4px 14px 0; isolation: isolate; }
+.opening-window {
+  --ph: #8affa8; --ph-soft: #b8ffcb; --ph-dim: #4e8d63;
+  position: absolute; z-index: 10; display: flex; flex-direction: column; overflow: hidden; margin: 0;
+  background: rgba(7, 16, 11, .93); border: 1px solid rgba(126, 255, 165, .26); border-radius: 6px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .6), 0 14px 34px rgba(0, 0, 0, .55), 0 0 22px rgba(80, 255, 140, .07);
+  color: var(--ph); font: 12px/1.5 var(--term);
+}
+.opening-window.ph-amber { --ph: #ffc46b; --ph-soft: #ffe0a8; --ph-dim: #a67c3e; border-color: rgba(255, 196, 107, .28); box-shadow: 0 0 0 1px rgba(0, 0, 0, .6), 0 14px 34px rgba(0, 0, 0, .55), 0 0 22px rgba(255, 180, 80, .07); }
+.opening-window.is-new { animation: opening-power-on .34s cubic-bezier(.22, 1.5, .36, 1) both; }
+@keyframes opening-power-on { 0% { scale: 1 .05; filter: brightness(3); opacity: 0; } 40% { scale: 1.03 .55; filter: brightness(1.9); opacity: 1; } 100% { scale: 1 1; filter: brightness(1); } }
+.opening-window > header { flex: none; display: flex; align-items: center; gap: 8px; padding: 5px 9px; background: rgba(10, 24, 16, .9); border-bottom: 1px solid rgba(126, 255, 165, .14); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--ph-dim); }
+.term-dots { font-size: 7px; letter-spacing: 2px; color: rgba(126, 255, 165, .4); }
+.term-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ph-soft); font-weight: 600; }
+.term-status { margin-left: auto; white-space: nowrap; }
+.opening-window.is-parked .term-status { color: var(--ph); animation: opening-status-blink 1.4s steps(1) infinite; }
+@keyframes opening-status-blink { 50% { opacity: .25; } }
+.opening-lines { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden; padding: 8px 10px 9px; text-shadow: 0 0 7px rgba(120, 255, 160, .28); }
+.opening-lines p { color: var(--ph); white-space: pre-wrap; overflow-wrap: anywhere; }
+.opening-lines .is-banner { color: var(--ph-dim); }
+.opening-lines .is-cmd { color: #eafff0; font-weight: 600; }
+.opening-lines .is-warn { color: #ff9d76; }
+.opening-lines .is-ok { color: var(--ph-soft); }
+.opening-lines .is-spawn { color: #eafff0; font-weight: 700; }
+.opening-lines .opening-demand { align-self: flex-start; max-width: 100%; margin-top: 5px; padding: 1px 7px; border-radius: 2px; background: var(--ph); color: #071009; font-weight: 700; text-shadow: none; }
+
+/* windows on the grid: slot 0 is the lead agent (centred until Run), the rest are its helpers */
+.opening-agent, #opening:not([data-phase="ready"]) #opening-lead {
+  left: calc(var(--c, 0) * 100% / var(--cols) + var(--jx, 0px)); top: calc(var(--r, 0) * 100% / var(--rows) + var(--jy, 0px));
+  width: calc(100% / var(--cols) - 16px); max-height: calc(100% / var(--rows) - 14px);
+}
+.opening-agent { --c: var(--c4); --r: var(--r4); }
+#opening[data-phase="ready"] #opening-lead { left: 50%; top: 40%; translate: -50% -50%; width: min(640px, 100%); }
+#opening-lead { z-index: 11; }
+#opening-lead .opening-lines { font-size: 13px; }
+.opening-prompt { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 8px; padding: 4px 10px 12px; font-size: 13px; line-height: 1.5; text-shadow: 0 0 7px rgba(120, 255, 160, .28); }
+#opening:not([data-phase="ready"]) .opening-prompt { display: none; }
+.term-ps1 { color: var(--ph-dim); }
+.term-cmd { color: #eafff0; font-weight: 600; }
+.term-cursor { color: var(--ph); }
+#opening-run {
+  margin-left: auto; min-height: 38px; padding: 0 18px; border: 0; border-radius: 3px; background: var(--ph); color: #071009; cursor: pointer;
+  font: 600 12px/1 var(--term); letter-spacing: .1em; text-transform: uppercase; animation: opening-glow 2.2s ease-in-out infinite;
+}
+#opening-run:hover { filter: brightness(1.15); }
+@keyframes opening-glow { 0%, 100% { box-shadow: 0 0 6px rgba(138, 255, 168, .35); } 50% { box-shadow: 0 0 18px 3px rgba(138, 255, 168, .7); } }
+
+/* the peak: the screen dims and the lead agent's honest report drops in */
+.opening-dimmer { position: absolute; inset: 0; z-index: 45; background: rgba(2, 4, 3, .55); opacity: 0; transition: opacity 1.6s ease; pointer-events: none; }
+#opening[data-phase="peak"] .opening-dimmer { opacity: 1; }
+#opening-finale { left: 50%; top: 50%; translate: -50% -50%; z-index: 46; width: min(640px, 100%); max-height: min(78%, 560px); }
+#opening-finale .opening-lines { min-height: 190px; justify-content: flex-start; padding: 12px 14px; font-size: 13px; line-height: 1.55; overflow-y: auto; }
+.opening-actions { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; min-height: 66px; padding: 12px 14px 14px; border-top: 1px solid rgba(126, 255, 165, .14); }
+.opening-actions button:not([hidden]) { animation: opening-actions-in .7s ease both; }
+@keyframes opening-actions-in { from { opacity: 0; translate: 0 7px; } to { opacity: 1; translate: 0 0; } }
+.opening-key-primary { display: inline-flex; align-items: center; min-height: 40px; padding: 0 14px; border: 0; border-radius: 4px; background: var(--ph); color: #071009; font: 600 12px/1 var(--term); letter-spacing: .05em; text-decoration: none; cursor: pointer; }
+.opening-key-primary:hover { filter: brightness(1.15); }
+#opening-joke { min-height: 40px; padding: 0 14px; border: 1px solid rgba(126, 255, 165, .22); border-radius: 4px; background: transparent; color: #6fa585; font: 600 12px/1 var(--term); letter-spacing: .05em; cursor: pointer; }
+#opening-joke:hover { color: #9fe8b4; background: rgba(126, 255, 165, .08); }
+.opening-footnote { position: relative; z-index: 48; padding: 8px 14px 12px; color: #4e8d63; font-size: 12px; line-height: 1.5; }
+
+/* the glass: scanlines and a vignette, a flicker, grain, and the line and point the tube collapses to */
+.opening-grain { position: absolute; inset: 0; z-index: 59; width: 100%; height: 100%; pointer-events: none; }
+.opening-scan {
+  position: absolute; inset: 0; z-index: 60; pointer-events: none; animation: opening-flicker 7s steps(60) infinite;
+  background: repeating-linear-gradient(0deg, rgba(4, 10, 6, .28) 0px, rgba(4, 10, 6, .28) 1px, transparent 1px, transparent 3px), radial-gradient(ellipse 115% 90% at 50% 42%, transparent 55%, rgba(0, 0, 0, .5) 100%);
+}
+@keyframes opening-flicker { 0%, 91%, 94%, 96%, 100% { opacity: 1; } 92% { opacity: .86; } 97% { opacity: .93; } }
+.opening-crt-line { position: absolute; z-index: 70; left: 0; right: 0; top: 50%; height: 3px; margin-top: -1px; opacity: 0; background: #eafff0; box-shadow: 0 0 12px 3px rgba(138, 255, 168, .85), 0 0 40px 8px rgba(80, 255, 140, .45); pointer-events: none; }
+.opening-crt-dot { position: absolute; z-index: 70; left: 50%; top: 50%; width: 10px; height: 10px; border-radius: 50%; opacity: 0; background: #fff; transform: translate(-50%, -50%); box-shadow: 0 0 18px 8px rgba(138, 255, 168, .9), 0 0 60px 20px rgba(80, 255, 140, .5); pointer-events: none; }
+
+@media (max-width: 1259px) {
+  .opening-stage { --cols: 3; --rows: 4; }
+  .opening-agent { --c: var(--c3); --r: var(--r3); }
+}
+/* A phone or a zoomed-in window: the helpers pile up like notifications, newest on top, older dimmer. */
+@media (max-width: 760px) {
+  .opening-hud { padding: 8px 10px; gap: 8px 10px; }
+  #opening #opening-count { order: 3; flex-basis: 100%; margin: 0; font-size: 12px; gap: 2px 12px; }
+  .opening-keys { gap: 8px; }
+  .opening-keys button { padding: 0 10px; }
+  .opening-stage { display: flex; flex-direction: column; gap: 6px; margin: 4px 10px 0; min-height: 380px; overflow: hidden; }
+  .opening-window { position: relative; flex: none; left: auto; top: auto; width: auto; max-height: none; }
+  #opening-agents { display: contents; }
+  #opening[data-phase] #opening-lead { order: -100; left: auto; top: auto; width: auto; max-height: none; translate: none; }
+  #opening[data-phase="ready"] #opening-lead { margin-top: 8svh; }
+  #opening:not([data-phase="ready"]) #opening-lead .opening-lines { max-height: calc(4 * 1.5em + 17px); }
+  .opening-agent { order: calc(var(--i) * -1); opacity: max(.4, calc(1 - var(--age, 0) * .1)); }
+  .opening-agent .opening-lines p:not(:last-child) { display: none; }
+  #opening-finale { position: absolute; left: 0; right: 0; top: auto; bottom: 0; translate: none; width: auto; max-height: 100%; border-radius: 10px 10px 0 0; }
+  #opening-finale .opening-lines { min-height: 0; }
+  .opening-prompt { font-size: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .opening-caret, .term-cursor, .opening-scan, #opening-run, .opening-window.is-parked .term-status, #opening-count .tick, .opening-actions button:not([hidden]) { animation: none; }
+  .opening-dimmer { transition: none; }
+  .opening-grain { display: none; }
 }
 
 .waitlist h1 { font-size:clamp(48px,6vw,82px); margin-top:20px; }

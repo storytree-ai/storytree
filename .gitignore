@@ -14,5 +14,6 @@ apps/desktop/smoke*.png
 # `pnpm library:export`: the library printed as read-only story and decision files
 library-export/
 
-# Session worktrees (storytree workspace); never part of a commit.
+# Session worktrees (storytree workspace, and Codex lanes'); never part of a commit.
 .claude/worktrees/
+.worktrees/

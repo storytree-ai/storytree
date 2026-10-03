@@ -231,3 +231,41 @@ test("4.21 the look never stalls its process: while git takes its time asking or
     await log.close();
   }
 });
+
+test("4.27 the same look reads, on this machine, each folder a session edited files in on the main line: whether its main holds uncommitted changes and whether its repository has no commit yet, written as a main-state line only when that changes", async () => {
+  const log = await openActivityLog(testServerUrl());
+  const project = uniqueProjectName();
+  try {
+    await withTempDir(async (dir) => {
+      // Conduit's start: git init -b main, its first files staged, no commit yet.
+      const repo = path.join(dir, "conduit");
+      git(dir, "init", "-q", "-b", "main", repo);
+      writeFileSync(path.join(repo, "ci.yml"), "on: push\n");
+      git(repo, "add", "ci.yml");
+      const builder = { session: "builder", harness: "codex", source: "hook", folder: repo, branch: "main", machine: "here" } as const;
+      await log.append(project, { ...builder, kind: "file-edited", files: [path.join(repo, "ci.yml")] });
+      // Work on main on another machine is that machine's to look at.
+      await log.append(project, { ...builder, session: "laptop", machine: "elsewhere", folder: "C:\\conduit", kind: "file-edited", files: ["C:\\conduit\\a.ts"] });
+
+      const watcher = { log, project, folder: repo, session: "observer", harness: "claude-code", source: "hook" } as const;
+      const watch = { allMergedPulls: async () => new Map(), allOpenPulls: async () => new Map(), everyMs: 0, machine: "here" };
+      const states = (lines: readonly Line[]) => lines.flatMap((line) => (line.kind === "main-state" ? [[line.of, line.dirty, line.unborn, line.session]] : []));
+
+      assert.deepEqual(states(await resolveBranches(watcher, watch)), [[repo, true, true, "observer"]]);
+      assert.deepEqual(await resolveBranches(watcher, watch), [], "nothing changed, nothing written");
+
+      git(repo, "commit", "-q", "-m", "first");
+      assert.deepEqual(states(await resolveBranches(watcher, watch)), [[repo, false, undefined, "observer"]]);
+
+      writeFileSync(path.join(repo, "more.ts"), "x\n");
+      assert.deepEqual(await resolveBranches(watcher, watch), [], "a folder found clean is looked at again only once someone works there again");
+      await log.append(project, { ...builder, kind: "file-edited", files: ["more.ts"] });
+      assert.deepEqual(states(await resolveBranches(watcher, watch)), [[repo, true, undefined, "observer"]], "an untracked file is uncommitted work too");
+
+      git(repo, "switch", "-q", "-c", "claude/fix");
+      assert.deepEqual(states(await resolveBranches(watcher, watch)), [[repo, false, undefined, "observer"]], "off the main line, the folder holds no work on main");
+    });
+  } finally {
+    await log.close();
+  }
+});

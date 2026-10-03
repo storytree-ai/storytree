@@ -126,6 +126,13 @@ export const NEW_LINE = z.discriminatedUnion("kind", [
   z.object({ ...common, kind: z.literal("branch-state"), of: z.string().min(1), open: z.boolean(), how: z.enum(["merged", "not-ahead", "deleted", "ahead"]), pr: z.number().int().positive().optional(),
     draft: z.literal(true).optional(), checks: z.enum(["pending", "passing", "failing"]).optional(), queued: z.literal(true).optional() }).strict(),
   /**
+   * What a folder (`of`) on the main line holds, as a look on the machine the line names found it
+   * (ADR-0906): whether its working tree has uncommitted changes, and whether its repository has no
+   * commit yet (`unborn`, written only when true). Written by whichever session looked, never on the
+   * sessions that worked there, and only when it changes; the latest line for a folder on a machine is its state.
+   */
+  z.object({ ...common, kind: z.literal("main-state"), of: z.string().min(1), dirty: z.boolean(), unborn: z.literal(true).optional() }).strict(),
+  /**
    * A session (`of`) the Claude or Codex app keeps in its own record, archived there, or not (on
    * first sight, or un-archived) (ADR-0754 D4). Read from the app's files on the machine it runs on
    * and written by whichever session read them, never on the session it is about.

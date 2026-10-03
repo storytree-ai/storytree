@@ -60,3 +60,20 @@ test("4.13 the sessions listing asks GitHub about merges itself, so a merge no h
     await log.close();
   }
 });
+
+test("4.13 the sessions listing shows a session's work on main as its flag (4.26): the warning outside a workspace, the neutral label before a first commit", async () => {
+  const log = await openActivityLog(testServerUrl());
+  try {
+    const project = uniqueProjectName();
+    const conduit = { session: "builder", harness: "codex", source: "hook", folder: "/home/u/conduit", branch: "main", machine: "mint" } as const;
+    await log.append(project, { ...conduit, kind: "file-edited", files: ["ci.yml"] });
+    await log.append(project, { ...conduit, session: "observer", kind: "main-state", of: "/home/u/conduit", dirty: true, unborn: true });
+    const last = await log.append(project, { ...conduit, kind: "session-ended", reason: "other" });
+    const now = new Date(Date.parse(last.at) + 1_000);
+    assert.match(await sessionsListing(log, project, { now }), /builder[^]*setting up git, first commit pending/);
+    await log.append(project, { ...conduit, session: "observer", kind: "main-state", of: "/home/u/conduit", dirty: true });
+    assert.match(await sessionsListing(log, project, { now }), /builder[^]*worked on main, outside a workspace/);
+  } finally {
+    await log.close();
+  }
+});

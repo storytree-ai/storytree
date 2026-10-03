@@ -6,7 +6,7 @@ import path from "node:path";
 import { test } from "node:test";
 
 import type { AnnotatedTree } from "@storytree/library";
-import { readCodeSurvey } from "@storytree/forest/code-survey";
+import { readCodeSurvey } from "../code-survey/read-survey.js";
 
 import { growPlanet, SEA_GAP } from "./island-growth.js";
 import { PLANET_RADIUS, type PlanetPoint } from "./planet-places.js";

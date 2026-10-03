@@ -13,7 +13,7 @@ export interface OnShow {
  */
 export function nextScene(shown: OnShow, scene: ForestScene, places: ReadonlyMap<string, number>): ForestScene | undefined {
   const previous = new Map(shown.scene.islands.map(island => [island.story, island]));
-  const islands = scene.islands; // Mutation proof: discard unchanged island reuse.
+  const islands = scene.islands.map(island => previous.get(island.story)?.key === island.key ? previous.get(island.story)! : island);
   const same = islands.length === shown.scene.islands.length && islands.every((island, index) => island === shown.scene.islands[index])
     && JSON.stringify(scene.links ?? []) === JSON.stringify(shown.scene.links ?? [])
     && places.size === shown.places.size && [...places].every(([story, place]) => shown.places.get(story) === place);

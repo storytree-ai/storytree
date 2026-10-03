@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promis
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { saveForestSnapshot, type ForestSnapshot } from "@storytree/forest/snapshot";
+import { saveForestSnapshot, type ForestSnapshot } from "./forest-snapshot.js";
 
 const drawing: ForestSnapshot = {
   version: 1, capturedAt: "2026-10-01T00:00:00.000Z", radius: 218,
@@ -16,10 +16,11 @@ test("3.25 saving waits for the complete drawing, then replaces the previous sna
   const file = path.join(directory, "forest.json");
   const before = JSON.stringify({ ...drawing, capturedAt: "2026-09-30T00:00:00.000Z" });
   await writeFile(file, before);
-  const pending = Promise.withResolvers<ForestSnapshot>();
-  const saving = saveForestSnapshot(file, () => pending.promise);
+  let complete!: (snapshot: ForestSnapshot) => void;
+  const pending = new Promise<ForestSnapshot>(resolve => { complete = resolve; });
+  const saving = saveForestSnapshot(file, () => pending);
   assert.equal(await readFile(file, "utf8"), before, "the pending read keeps the last drawing available");
-  pending.resolve(drawing);
+  complete(drawing);
   await saving;
   assert.deepEqual(JSON.parse(await readFile(file, "utf8")), drawing);
   assert.deepEqual(await readdir(directory), ["forest.json"]);

@@ -115,6 +115,16 @@ test("7.13 a row named with its machine shows it beside the label; a row without
   assert.equal(html.match(/class="session-machine"[^>]*>mint<\/span>/g)?.length, 1, html);
 });
 
+test("7.20 a row flagged for work on main wears a label beside its name: a warning, on main, outside a workspace; a neutral first commit while it is pending; the reading's words on hover; an unflagged row none (ADR-0906)", () => {
+  const html = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, children: [], onMain: "outside-workspace" },
+    { ...row, id: "fresh", children: [], onMain: "first-commit-pending" }, { ...row, id: "plain", children: [] }], onHighlight() {} }));
+  assert.deepEqual(html.match(/<span class="session-on-main"[^>]*>[^<]*<\/span>/g), [
+    '<span class="session-on-main" data-tone="warning" title="worked on main, outside a workspace">on main</span>',
+    '<span class="session-on-main" data-tone="neutral" title="setting up git, first commit pending">first commit</span>',
+  ], html);
+  assert.match(html, /aria-label="Build &lt;signup&gt; · Codex · worked on main, outside a workspace"/, "a screen reader hears the warning with the row");
+});
+
 test("7.9 the list prints no prose about a session: a row with a close-out why shows none of it, and the header count names no such need", () => {
   const html = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, children: [], needsYouWhy: "says safe, but fix-login is unmerged" } as SessionRow], onHighlight() {} }));
   assert.match(html, /Build &lt;signup&gt;/);

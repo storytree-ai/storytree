@@ -1,5 +1,5 @@
 /** The forest's running sessions, read from the agent link; no transcript or liveness reader here. */
-import { logReading, QUIET_MS, type Line, type LogReading, type PullState, type Session, type SessionState } from "@storytree/agent-link/readings";
+import { logReading, QUIET_MS, type Line, type LogReading, type OnMain, type PullState, type Session, type SessionState } from "@storytree/agent-link/readings";
 import type { AnnotatedTree, ArcView } from "@storytree/library";
 import type { SessionWindow } from "@storytree/agent-link";
 import type { RosterEntry } from "@storytree/knowledge-core";
@@ -64,6 +64,8 @@ export interface SessionRow {
   description: string[];
   /** The machine it runs on, named only when the listed sessions span more than one (7.13). */
   machine?: string;
+  /** Work it did on main rather than in a workspace, as the agent link flags it (4.26, ADR-0906); none when it did none. */
+  onMain?: OnMain;
   children: SessionRow[];
 }
 
@@ -110,7 +112,8 @@ export function sessionRows(tree: AnnotatedTree, log: readonly Line[] | LogReadi
       idle: session.state !== "working" && !(session.state === "waiting" && now.getTime() - Date.parse(session.lastSeenAt) <= quiet), lastSeenAt: session.lastSeenAt,
       totalTokens: contextTotal(detail), composition: detail?.composition, guidance: detail?.guidance,
       stories: [...new Set([...held].flatMap(id => storyOf.has(id) ? [storyOf.get(id)!] : []))], worktrees: worktreeRows(session),
-      running: session.running.map(({ command, since }) => ({ words: commandWords(command), command, ranMs: Math.max(0, now.getTime() - Date.parse(since)) })), children: [] });
+      running: session.running.map(({ command, since }) => ({ words: commandWords(command), command, ranMs: Math.max(0, now.getTime() - Date.parse(since)) })),
+      ...(session.onMain === undefined ? {} : { onMain: session.onMain }), children: [] });
   }
   // The activity API explicitly names parent and child; a task or matching folder never implies one.
   for (const line of [...lines].sort((a, b) => a.seq - b.seq)) {

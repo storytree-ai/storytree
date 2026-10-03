@@ -1,0 +1,3 @@
+Go with A: seeing the code on the map matters more to me than one package per feature. One package per story is fine, with the features as folders inside it, and each story's package.json listing the other stories' packages it uses.
+
+Also, I ran Swag Labs' own tests against part 2. Everything for parts 1 and 2 passes except one, and it fails only some of the time: "should not be able to login with a locked user" (login.spec.ts) failed 3 of 5 runs, with "WebDriver Bidi command "script.callFunction" failed with error: invalid argument - Invalid input in "arguments"/0" while reading the error message. The real saucedemo.com passes it every time. Can you fix that too?

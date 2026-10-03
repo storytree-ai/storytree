@@ -1,0 +1,174 @@
+(node:2388864) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Execution of 9 workers started at 2026-10-03T14:34:40.093Z
+
+2026-10-03T14:34:40.209Z WARN @wdio/xvfb: xvfb-run not found. Skipping automatic installation. To enable auto-install, set 'xvfbAutoInstall: true' in your WDIO config.
+2026-10-03T14:34:40.209Z WARN @wdio/xvfb: Hint: you can also install it manually via your distro's package manager (e.g., 'sudo apt-get install xvfb', 'sudo dnf install xorg-x11-server-Xvfb').
+2026-10-03T14:34:40.209Z WARN @wdio/xvfb: xvfb-run not available; continuing without virtual display
+2026-10-03T14:34:40.219Z WARN @wdio/xvfb: xvfb-run not found. Skipping automatic installation. To enable auto-install, set 'xvfbAutoInstall: true' in your WDIO config.
+2026-10-03T14:34:40.219Z WARN @wdio/xvfb: Hint: you can also install it manually via your distro's package manager (e.g., 'sudo apt-get install xvfb', 'sudo dnf install xorg-x11-server-Xvfb').
+2026-10-03T14:34:40.219Z WARN @wdio/xvfb: xvfb-run not available; continuing without virtual display
+2026-10-03T14:34:40.227Z WARN @wdio/xvfb: xvfb-run not found. Skipping automatic installation. To enable auto-install, set 'xvfbAutoInstall: true' in your WDIO config.
+2026-10-03T14:34:40.227Z WARN @wdio/xvfb: Hint: you can also install it manually via your distro's package manager (e.g., 'sudo apt-get install xvfb', 'sudo dnf install xorg-x11-server-Xvfb').
+2026-10-03T14:34:40.227Z WARN @wdio/xvfb: xvfb-run not available; continuing without virtual display
+2026-10-03T14:34:40.236Z WARN @wdio/xvfb: xvfb-run not found. Skipping automatic installation. To enable auto-install, set 'xvfbAutoInstall: true' in your WDIO config.
+2026-10-03T14:34:40.236Z WARN @wdio/xvfb: Hint: you can also install it manually via your distro's package manager (e.g., 'sudo apt-get install xvfb', 'sudo dnf install xorg-x11-server-Xvfb').
+2026-10-03T14:34:40.236Z WARN @wdio/xvfb: xvfb-run not available; continuing without virtual display
+2026-10-03T14:34:40.245Z WARN @wdio/xvfb: xvfb-run not found. Skipping automatic installation. To enable auto-install, set 'xvfbAutoInstall: true' in your WDIO config.
+2026-10-03T14:34:40.245Z WARN @wdio/xvfb: Hint: you can also install it manually via your distro's package manager (e.g., 'sudo apt-get install xvfb', 'sudo dnf install xorg-x11-server-Xvfb').
+2026-10-03T14:34:40.245Z WARN @wdio/xvfb: xvfb-run not available; continuing without virtual display
+2026-10-03T14:34:40.254Z WARN @wdio/xvfb: xvfb-run not found. Skipping automatic installation. To enable auto-install, set 'xvfbAutoInstall: true' in your WDIO config.
+2026-10-03T14:34:40.254Z WARN @wdio/xvfb: Hint: you can also install it manually via your distro's package manager (e.g., 'sudo apt-get install xvfb', 'sudo dnf install xorg-x11-server-Xvfb').
+2026-10-03T14:34:40.254Z WARN @wdio/xvfb: xvfb-run not available; continuing without virtual display
+2026-10-03T14:34:40.263Z WARN @wdio/xvfb: xvfb-run not found. Skipping automatic installation. To enable auto-install, set 'xvfbAutoInstall: true' in your WDIO config.
+2026-10-03T14:34:40.263Z WARN @wdio/xvfb: Hint: you can also install it manually via your distro's package manager (e.g., 'sudo apt-get install xvfb', 'sudo dnf install xorg-x11-server-Xvfb').
+2026-10-03T14:34:40.263Z WARN @wdio/xvfb: xvfb-run not available; continuing without virtual display
+2026-10-03T14:34:40.274Z WARN @wdio/xvfb: xvfb-run not found. Skipping automatic installation. To enable auto-install, set 'xvfbAutoInstall: true' in your WDIO config.
+2026-10-03T14:34:40.274Z WARN @wdio/xvfb: Hint: you can also install it manually via your distro's package manager (e.g., 'sudo apt-get install xvfb', 'sudo dnf install xorg-x11-server-Xvfb').
+2026-10-03T14:34:40.274Z WARN @wdio/xvfb: xvfb-run not available; continuing without virtual display
+2026-10-03T14:34:40.287Z WARN @wdio/xvfb: xvfb-run not found. Skipping automatic installation. To enable auto-install, set 'xvfbAutoInstall: true' in your WDIO config.
+2026-10-03T14:34:40.287Z WARN @wdio/xvfb: Hint: you can also install it manually via your distro's package manager (e.g., 'sudo apt-get install xvfb', 'sudo dnf install xorg-x11-server-Xvfb').
+2026-10-03T14:34:40.287Z WARN @wdio/xvfb: xvfb-run not available; continuing without virtual display
+[0-6] (node:2388959) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+[0-6] (Use `node --trace-deprecation ...` to show where the warning was created)
+[0-7] (node:2388951) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+[0-7] (Use `node --trace-deprecation ...` to show where the warning was created)
+[0-5] (node:2388967) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+[0-5] (Use `node --trace-deprecation ...` to show where the warning was created)
+[0-4] (node:2388977) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+[0-4] (Use `node --trace-deprecation ...` to show where the warning was created)
+[0-2] (node:2388995) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+[0-2] (Use `node --trace-deprecation ...` to show where the warning was created)
+[0-8] (node:2389022) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+[0-8] (Use `node --trace-deprecation ...` to show where the warning was created)
+[0-1] (node:2389004) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+[0-1] (Use `node --trace-deprecation ...` to show where the warning was created)
+[0-3] (node:2388986) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+[0-3] (Use `node --trace-deprecation ...` to show where the warning was created)
+[0-7] RUNNING in chrome - file:///test/specs/swag.item.details.spec.ts
+[0-6] RUNNING in chrome - file:///test/specs/menu.spec.ts
+[0-5] RUNNING in chrome - file:///test/specs/login.spec.ts
+[0-0] (node:2389013) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+[0-0] (Use `node --trace-deprecation ...` to show where the warning was created)
+[0-2] RUNNING in chrome - file:///test/specs/checkout.personal.info.spec.ts
+[0-4] RUNNING in chrome - file:///test/specs/demo.spec.ts
+[0-1] RUNNING in chrome - file:///test/specs/checkout.complete.spec.ts
+[0-8] RUNNING in chrome - file:///test/specs/swag.items.list.spec.ts
+[0-3] RUNNING in chrome - file:///test/specs/checkout.summary.spec.ts
+[0-0] RUNNING in chrome - file:///test/specs/cart.summary.spec.ts
+[0-8] 2026-10-03T14:34:45.299Z WARN webdriverio: Failed to execute browser.browsingContextLocateNodes({ ... }) due to Error: WebDriver Bidi command "browsingContext.locateNodes" failed with error: unknown error - Cannot find context with specified id, falling back to regular WebDriver Classic command
+[0-1] PASSED in chrome - file:///test/specs/checkout.complete.spec.ts
+[0-0] 2026-10-03T14:34:46.370Z WARN webdriverio: Failed to execute browser.browsingContextLocateNodes({ ... }) due to Error: WebDriver Bidi command "browsingContext.locateNodes" failed with error: unknown error - Cannot find context with specified id, falling back to regular WebDriver Classic command
+[0-5] PASSED in chrome - file:///test/specs/login.spec.ts
+[0-3] PASSED in chrome - file:///test/specs/checkout.summary.spec.ts
+[0-2] PASSED in chrome - file:///test/specs/checkout.personal.info.spec.ts
+[0-4] PASSED in chrome - file:///test/specs/demo.spec.ts
+[0-0] PASSED in chrome - file:///test/specs/cart.summary.spec.ts
+[0-7] PASSED in chrome - file:///test/specs/swag.item.details.spec.ts
+[0-8] PASSED in chrome - file:///test/specs/swag.items.list.spec.ts
+[0-6] PASSED in chrome - file:///test/specs/menu.spec.ts
+
+ "spec" Reporter:
+------------------------------------------------------------------
+[chrome 151.0.7922.173 linux #0-1] Running: chrome (v151.0.7922.173) on linux
+[chrome 151.0.7922.173 linux #0-1] Session ID: e14ec8b05f04a35be661cb7ef1c3856d
+[chrome 151.0.7922.173 linux #0-1]
+[chrome 151.0.7922.173 linux #0-1] » test/specs/checkout.complete.spec.ts
+[chrome 151.0.7922.173 linux #0-1] Checkout - Complete
+[chrome 151.0.7922.173 linux #0-1]    ✓ should be able to test loading of login page
+[chrome 151.0.7922.173 linux #0-1]
+[chrome 151.0.7922.173 linux #0-1] 1 passing (1.2s)
+------------------------------------------------------------------
+[chrome 151.0.7922.173 linux #0-5] Running: chrome (v151.0.7922.173) on linux
+[chrome 151.0.7922.173 linux #0-5] Session ID: 90483ab8c823ab75b74a0d55beb40d2c
+[chrome 151.0.7922.173 linux #0-5]
+[chrome 151.0.7922.173 linux #0-5] » test/specs/login.spec.ts
+[chrome 151.0.7922.173 linux #0-5] LoginPage
+[chrome 151.0.7922.173 linux #0-5]    ✓ should be able to test loading of login page
+[chrome 151.0.7922.173 linux #0-5]    ✓ should be able to login with a standard user
+[chrome 151.0.7922.173 linux #0-5]    ✓ should not be able to login with a locked user
+[chrome 151.0.7922.173 linux #0-5]
+[chrome 151.0.7922.173 linux #0-5] 3 passing (2.4s)
+------------------------------------------------------------------
+[chrome 151.0.7922.173 linux #0-3] Running: chrome (v151.0.7922.173) on linux
+[chrome 151.0.7922.173 linux #0-3] Session ID: 4366c0dec24e9a41ac56ca2e1ae8f82a
+[chrome 151.0.7922.173 linux #0-3]
+[chrome 151.0.7922.173 linux #0-3] » test/specs/checkout.summary.spec.ts
+[chrome 151.0.7922.173 linux #0-3] Checkout - Summary
+[chrome 151.0.7922.173 linux #0-3]    ✓ should validate that we can continue shopping
+[chrome 151.0.7922.173 linux #0-3]    ✓ should validate that we can cancel checkout and go to the inventory page
+[chrome 151.0.7922.173 linux #0-3]    ✓ should validate that we have 1 product in our checkout overview
+[chrome 151.0.7922.173 linux #0-3]
+[chrome 151.0.7922.173 linux #0-3] 3 passing (2.1s)
+------------------------------------------------------------------
+[chrome 151.0.7922.173 linux #0-2] Running: chrome (v151.0.7922.173) on linux
+[chrome 151.0.7922.173 linux #0-2] Session ID: 112e76053aaafd5b809a6ea8ce5edc47
+[chrome 151.0.7922.173 linux #0-2]
+[chrome 151.0.7922.173 linux #0-2] » test/specs/checkout.personal.info.spec.ts
+[chrome 151.0.7922.173 linux #0-2] Checkout - Personal info
+[chrome 151.0.7922.173 linux #0-2]    ✓ should validate we get an error if we don not provide all personal information
+[chrome 151.0.7922.173 linux #0-2]    ✓ should validate that we can cancel the first checkout
+[chrome 151.0.7922.173 linux #0-2]    ✓ should be able to continue the checkout
+[chrome 151.0.7922.173 linux #0-2]
+[chrome 151.0.7922.173 linux #0-2] 3 passing (2.4s)
+------------------------------------------------------------------
+[chrome 151.0.7922.173 linux #0-4] Running: chrome (v151.0.7922.173) on linux
+[chrome 151.0.7922.173 linux #0-4] Session ID: e0114538b9a84d4cd3e043828b211d9f
+[chrome 151.0.7922.173 linux #0-4]
+[chrome 151.0.7922.173 linux #0-4] » test/specs/demo.spec.ts
+[chrome 151.0.7922.173 linux #0-4] Full checkout workflow (demo)
+[chrome 151.0.7922.173 linux #0-4]    ✓ should be able to log in, add a product to the cart, and complete checkout
+[chrome 151.0.7922.173 linux #0-4]
+[chrome 151.0.7922.173 linux #0-4] 1 passing (3.3s)
+------------------------------------------------------------------
+[chrome 151.0.7922.173 linux #0-0] Running: chrome (v151.0.7922.173) on linux
+[chrome 151.0.7922.173 linux #0-0] Session ID: d5e4195653439b00dc9b479614674d16
+[chrome 151.0.7922.173 linux #0-0]
+[chrome 151.0.7922.173 linux #0-0] » test/specs/cart.summary.spec.ts
+[chrome 151.0.7922.173 linux #0-0] Cart Summary page
+[chrome 151.0.7922.173 linux #0-0]    ✓ should validate that we can continue shopping
+[chrome 151.0.7922.173 linux #0-0]    ✓ should validate that we can go from the cart to the checkout page
+[chrome 151.0.7922.173 linux #0-0]    ✓ should validate that a product can be removed from the cart
+[chrome 151.0.7922.173 linux #0-0]
+[chrome 151.0.7922.173 linux #0-0] 3 passing (3.1s)
+------------------------------------------------------------------
+[chrome 151.0.7922.173 linux #0-7] Running: chrome (v151.0.7922.173) on linux
+[chrome 151.0.7922.173 linux #0-7] Session ID: 1823816ee76ab37863028323d1523d11
+[chrome 151.0.7922.173 linux #0-7]
+[chrome 151.0.7922.173 linux #0-7] » test/specs/swag.item.details.spec.ts
+[chrome 151.0.7922.173 linux #0-7] Swag Item Details
+[chrome 151.0.7922.173 linux #0-7]    ✓ should validate that we can go back from the details to the inventory page
+[chrome 151.0.7922.173 linux #0-7]    ✓ should validate that a product can be added to a cart
+[chrome 151.0.7922.173 linux #0-7]    ✓ should validate that a product can be removed from the cart
+[chrome 151.0.7922.173 linux #0-7]
+[chrome 151.0.7922.173 linux #0-7] 3 passing (5s)
+------------------------------------------------------------------
+[chrome 151.0.7922.173 linux #0-8] Running: chrome (v151.0.7922.173) on linux
+[chrome 151.0.7922.173 linux #0-8] Session ID: 9d485b044c1e045e3f6d5a7ec4a007e8
+[chrome 151.0.7922.173 linux #0-8]
+[chrome 151.0.7922.173 linux #0-8] » test/specs/swag.items.list.spec.ts
+[chrome 151.0.7922.173 linux #0-8] Swag items list
+[chrome 151.0.7922.173 linux #0-8]    ✓ should validate that all products are present
+[chrome 151.0.7922.173 linux #0-8]    ✓ should validate that the details of a product can be opened
+[chrome 151.0.7922.173 linux #0-8]    ✓ should validate that a product can be added to the cart
+[chrome 151.0.7922.173 linux #0-8]    ✓ should validate that a product can be removed from the cart
+[chrome 151.0.7922.173 linux #0-8]    ✓ should be able to open the cart summary page
+[chrome 151.0.7922.173 linux #0-8]
+[chrome 151.0.7922.173 linux #0-8] 5 passing (4.7s)
+------------------------------------------------------------------
+[chrome 151.0.7922.173 linux #0-6] Running: chrome (v151.0.7922.173) on linux
+[chrome 151.0.7922.173 linux #0-6] Session ID: 037bb04b38ce2218c1027c7e5e5a3b1f
+[chrome 151.0.7922.173 linux #0-6]
+[chrome 151.0.7922.173 linux #0-6] » test/specs/menu.spec.ts
+[chrome 151.0.7922.173 linux #0-6] Menu
+[chrome 151.0.7922.173 linux #0-6]    ✓ should be able to the swag items overview page
+[chrome 151.0.7922.173 linux #0-6]    ✓ should be able to open the about page
+[chrome 151.0.7922.173 linux #0-6]    ✓ should be able to log out
+[chrome 151.0.7922.173 linux #0-6]    ✓ should be able to clear the cart
+[chrome 151.0.7922.173 linux #0-6]
+[chrome 151.0.7922.173 linux #0-6] 4 passing (9.8s)
+
+
+Spec Files:	 9 passed, 9 total (100% completed) in 00:00:14  
+

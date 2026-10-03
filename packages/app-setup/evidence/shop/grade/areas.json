@@ -1,0 +1,15 @@
+{
+  "suite": "saucelabs/sample-app-web@e0948dd03f0042ad24f5e9ca324657f13193c19f test/e2e, run with its own wdio.local.chrome.conf.ts (which excludes the two Sauce Visual specs)",
+  "ceiling": "26/26 against https://www.saucedemo.com, 2026-10-04 (runs/sauce-reference.txt)",
+  "parts": {
+    "login.spec.ts": { "*": 1 },
+    "swag.items.list.spec.ts": { "*": 2, "should validate that all products are present": 1, "should be able to open the cart summary page": 3 },
+    "swag.item.details.spec.ts": { "*": 2 },
+    "cart.summary.spec.ts": { "*": 3, "should validate that we can go from the cart to the checkout page": 4 },
+    "menu.spec.ts": { "*": 3 },
+    "checkout.personal.info.spec.ts": { "*": 4 },
+    "checkout.summary.spec.ts": { "*": 4 },
+    "checkout.complete.spec.ts": { "*": 4 },
+    "demo.spec.ts": { "*": 4 }
+  }
+}

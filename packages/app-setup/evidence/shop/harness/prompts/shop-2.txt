@@ -1,0 +1,1 @@
+Let's carry on with the shop. Next, part 2 in shop-requirements.md: the product page, sorting, and adding things to the cart.

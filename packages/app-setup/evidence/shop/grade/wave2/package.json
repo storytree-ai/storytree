@@ -1,0 +1,7 @@
+{
+  "name": "shop-wave2-acceptance",
+  "private": true,
+  "description": "The shop's wave 2 acceptance suite: written by the supervising session from shop-requirements-2.md alone, before wave 2's first session, and never edited to fit the build.",
+  "scripts": { "test": "playwright test" },
+  "devDependencies": { "@playwright/test": "1.56.1" }
+}

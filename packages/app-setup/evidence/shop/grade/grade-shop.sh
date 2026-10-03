@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Grades one commit of the shop (the laptop agent's private GitHub repository) off the laptop, with Swag Labs'
-# official suite, unmodified. Usage: grade-shop.sh <ref> <part> <out-prefix>
+# official suite, unmodified (and, from part 5, wave 2's own frozen suite). Usage: grade-shop.sh <ref> <part> <out-prefix>
 #   ref: a commit or branch of the shop repository; part: the part being graded (earlier parts are regressions)
 # Needs setup-sauce.sh run once. Never edits the build: it clones a copy, installs and starts it as a user would.
 set -uo pipefail
@@ -21,6 +21,12 @@ for i in $(seq 1 60); do curl -s -o /dev/null "http://localhost:$port/" && break
 curl -s -o /dev/null -w "server answered %{http_code} on / \n" "http://localhost:$port/" >> "$out.meta.txt"
 (cd "$grade/sauce/test/e2e" && timeout 900 npx wdio test/configs/wdio.local.chrome.conf.ts --baseUrl "http://localhost:$port" > "$out.wdio.txt" 2>&1)
 echo "wdio exit $?" >> "$out.meta.txt"
+if [ "$part" -ge 5 ]; then
+  # Wave 2: our own frozen suite (wave2/README.md), copied beside the grade folder so it installs outside the repository.
+  rm -rf "$grade/wave2" && cp -r "$here/wave2" "$grade/wave2" && rm -rf "$grade/wave2/node_modules"
+  (cd "$grade/wave2" && npm ci --no-audit --no-fund > /dev/null 2>&1 && SHOP_URL="http://localhost:$port" timeout 900 npx playwright test > "$out.wave2.txt" 2>&1; echo "wave2 exit $?" >> "$out.meta.txt"; cp results.json "$out.wave2.json" 2>/dev/null)
+fi
 pkill -P "$(cat "$grade/server.pid")" 2>/dev/null; kill "$(cat "$grade/server.pid")" 2>/dev/null
 fuser -k "$port/tcp" >/dev/null 2>&1 || true
 node "$here/summarize.mjs" "$out.wdio.txt" "$part" | tee "$out.txt"
+if [ "$part" -ge 5 ]; then node "$here/summarize-wave2.mjs" "$out.wave2.json" "$part" | tee -a "$out.txt"; fi

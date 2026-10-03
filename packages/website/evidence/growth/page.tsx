@@ -3,7 +3,7 @@
 // its knowledge core growing with it.
 // ?map=conduit|storytree  &seconds=<length>  &at=<seconds> fixes a moment; absent, it plays on the canvas's clock.
 import { createRoot } from 'react-dom/client';
-import { PlanetWorldCanvas, growthPlan, crossingLength, SHIPPED_ELEVATION_DEG, type PlanetSpot } from '@storytree/forest-world/planet';
+import { growthPlan, crossingLength, type PlanetSpot } from '@storytree/forest-world/planet';
 import { createKnowledgeCore } from '@storytree/knowledge-core/view';
 import { PlanetView } from '@storytree/forest/view';
 import { buildPlanetPathways } from '@storytree/forest-world/geometry';
@@ -12,14 +12,16 @@ import storytree from '../../src/forest-snapshot.json' with { type: 'json' };
 
 type Change = { recordId: string; action: string; record: { createdAt: string } };
 type Snapshot = { radius: number; scene: any; spots: [string, PlanetSpot][]; capturedAt: string; project: string; places: { id: string; place: number }[];
-  stages?: { id: string; at: string; scene: any }[]; changes?: Change[] };
+  stages?: { id: string; at: string; scene: any; wisps?: any[] }[]; changes?: Change[] };
 const query = new URLSearchParams(location.search);
 const map = query.get('map') === 'storytree' ? 'storytree' : 'conduit';
 const saved = (map === 'conduit' ? conduit : storytree) as unknown as Snapshot;
 const spots = new Map(saved.spots);
 const pathways = buildPlanetPathways(saved.scene, spots, saved.radius);
 // Conduit's recorded stages; storytree's saved reading, staged by when its library recorded each story and capability.
-const stages = saved.stages?.map(({ id, at, scene }) => ({ id, at, scene })) ?? datedStages(saved);
+// A Conduit stage whose recorded sessions changed holds a beat, so each claim and landing is seen (world 7.6).
+const sessionsOf = (i: number) => JSON.stringify(saved.stages?.[i]?.wisps?.map(w => [w.session, w.story]) ?? []);
+const stages = saved.stages?.map(({ id, at, scene }, i) => ({ id, at, scene, ...(sessionsOf(i) !== sessionsOf(i - 1) ? { hold: 1 } : {}) })) ?? datedStages(saved);
 const plan = growthPlan(stages, { fromPoint: true, seconds: Number(query.get('seconds') ?? 15), roadLength: link => crossingLength(pathways, link),
   until: saved.stages?.at(-1)?.at ?? saved.capturedAt });
 
@@ -46,13 +48,6 @@ function datedStages({ scene, changes = [], capturedAt }: Snapshot) {
 const core = createKnowledgeCore(saved.project);
 core.take((saved.changes ?? []) as any, []);
 const at = query.get('at');
-// Turn the islands' middle toward the eye: the shortest turn from one unit direction to another.
-const sum = [...spots.values()].reduce((m, s) => { const l = Math.hypot(s.x, s.y, s.z); return [m[0]! + s.x / l, m[1]! + s.y / l, m[2]! + s.z / l]; }, [0, 0, 0]);
-const u = sum.map(c => c / Math.hypot(...sum));
-const elevation = SHIPPED_ELEVATION_DEG * Math.PI / 180;
-const v = [0, Math.sin(elevation), Math.cos(elevation)];
-const q = [u[1]! * v[2]! - u[2]! * v[1]!, u[2]! * v[0]! - u[0]! * v[2]!, u[0]! * v[1]! - u[1]! * v[0]!, 1 + u[0]! * v[0]! + u[1]! * v[1]! + u[2]! * v[2]!];
-const rotation = q.map(c => c / Math.hypot(...q)) as [number, number, number, number];
 
 let draws = 0;
 const intervals: number[] = [];
@@ -77,17 +72,32 @@ const baseline = query.get('baseline') === '1';
       return { draws, clock: clock.getElapsedTime(), visiblePlates: plates.filter((p: any) => p.visible).length, plates: plates.length,
         visibleNotes: notes.filter(n => n.visible).length, notes: notes.length,
         visibleTerritories: parts.filter(t => t.visible).length, territories: parts.length,
-        visibleFiles: files.filter(f => f.visible && f.scale.x > 0.01).length, files: files.length };
+        visibleFiles: files.filter(f => f.visible && f.scale.x > 0.01).length, files: files.length,
+        // A session over an island: its coast tint, on a plate that shows (forest 5.7).
+        sessions: tints(scene) };
     },
     frames: () => intervals.splice(0),
   };
 };
+/** Each session tint drawn on a showing plate, as `session@story`. */
+function tints(scene: any): string[] {
+  const shown: string[] = [];
+  scene.traverse((o: any) => {
+    if (!o.name.startsWith('coast-tint:')) return;
+    let plate = o, visible = true;
+    for (; plate && !plate.name?.startsWith('planet:'); plate = plate.parent) visible &&= plate.visible;
+    if (visible && plate?.visible) shown.push(`${o.name.slice('coast-tint:'.length)}@${plate.name.slice('planet:'.length)}`);
+  });
+  return shown.sort();
+}
 const growth = baseline ? undefined : { plan, at: at === null ? undefined : Number(at) };
-// storytree's saved reading has code states: it grows in The forest's own globe, its territories and file circles filling in
-// behind each island and its core's notes appearing (forest 3.30). Conduit's has neither, and grows in the bare engine.
+// Both grow in The forest's own globe: storytree's reading with its territories and file circles filling in behind each island
+// and its core's notes appearing (forest 3.30, knowledge core 1.9); Conduit's recording with the sessions it recorded passing
+// over the islands they held (forest 5.7), within its full plan as the tour draws it.
 const places = new Map((saved.places ?? []).map(p => [p.id, p.place]));
+const sessions = saved.stages?.map(({ at, wisps }) => ({ at, wisps: wisps ?? [] }));
 const none = () => {};
-createRoot(document.getElementById('globe')!).render(map === 'storytree'
-  ? <PlanetView core={core} scene={saved.scene} places={places} wisps={[]} selected={undefined} onPick={none} onNote={none} onWispHover={none} growth={growth} />
-  : <PlanetWorldCanvas scene={saved.scene} spots={spots} radius={saved.radius} rotation={rotation} growth={growth} />,
+createRoot(document.getElementById('globe')!).render(
+  <PlanetView core={core} scene={saved.scene} places={places} frame={map === 'conduit' ? saved.scene : undefined} wisps={[]} selected={undefined}
+    onPick={none} onNote={none} onWispHover={none} growth={growth} recordedSessions={growth && sessions} />,
 );

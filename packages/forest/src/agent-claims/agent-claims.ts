@@ -43,6 +43,16 @@ export function sessionWisps(rows: readonly SessionRow[], log: readonly Line[] |
     phase: (hashOf(row.id) >>> 8) % 360, faded: quiet.has(row.id), capabilities: held(row.id) })));
 }
 
+/**
+ * The sessions a growth replay shows at `now` (5.7): those recorded with the latest stage the replay has reached
+ * (`at`, in the replay's seconds, in recorded order; of two at one moment the later recorded), none before the first.
+ */
+export function replayWisps(stages: readonly { at: number; wisps: readonly SessionWisp[] }[], now: number): readonly SessionWisp[] {
+  let shown: readonly SessionWisp[] = [];
+  for (const stage of stages) if (stage.at <= now) shown = stage.wisps;
+  return shown;
+}
+
 /** One session's share of an island's coast: from and to as fractions of the way round. */
 export interface CoastArc {
   session: string;

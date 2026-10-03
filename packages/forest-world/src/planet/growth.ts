@@ -7,8 +7,9 @@ import type { PlanetPathways } from './pathways.js';
 /** When something grows, in seconds from the growth's start. */
 export interface GrowthWindow { start: number; seconds: number }
 
-/** One recorded plan state, and when it was recorded; stages run in the order given. */
-export interface GrowthStage { id?: string; at?: string; scene: ForestScene }
+/** One recorded plan state, and when it was recorded; stages run in the order given. `hold` keeps the replay on it for
+ * that many seconds at its natural pace, even when it adds nothing, for what it carries beyond the plan (world 7.6). */
+export interface GrowthStage { id?: string; at?: string; scene: ForestScene; hold?: number }
 
 export interface GrowthOptions {
   /** The whole growth's length; the plan is scaled by one factor to it. Absent, it keeps its natural pace. */
@@ -55,6 +56,8 @@ export function growthPlan(stages: readonly GrowthStage[], options: GrowthOption
   const roadSeconds = (link: string) => laneDrawSeconds(options.roadLength?.(link) ?? TYPICAL_ROAD);
   const end = (w: GrowthWindow) => w.start + w.seconds;
   let at = 0;
+  // The end of the latest hold, which counts toward the growth's length as a window does.
+  let heldTo = 0;
   if (options.fromPoint) { plan.globe = { start: 0, seconds: GLOBE_SWELL }; at = GLOBE_SWELL; }
   stages.forEach((stage, index) => {
     const { islands } = stage.scene;
@@ -102,11 +105,13 @@ export function growthPlan(stages: readonly GrowthStage[], options: GrowthOption
       const files = (island.land?.files ?? []).map(f => fileKey(island.story, f.path)).filter(key => !plan.files.has(key));
       files.forEach(key => put(plan.files, key, { start: rising ? from : at + FILL_DELAY, seconds: RISE }));
     }
-    if (windows.length === 0) return;
+    const hold = stage.hold ?? 0;
+    if (windows.length === 0 && hold <= 0) return;
     plan.stages.push({ id: stage.id ?? String(index), start: at, ...(stage.at === undefined ? {} : { at: stage.at }) });
-    at = Math.max(...windows.map(end)) + STAGE_GAP;
+    heldTo = at + hold;
+    at = Math.max(heldTo, ...windows.map(end)) + STAGE_GAP;
   });
-  const natural = Math.max(plan.globe ? end(plan.globe) : 0, ...[...plan.islands.values(), ...plan.roads.values(),
+  const natural = Math.max(heldTo, plan.globe ? end(plan.globe) : 0, ...[...plan.islands.values(), ...plan.roads.values(),
     ...plan.capabilities.values(), ...plan.files.values()].map(end));
   plan.seconds = natural;
   if (options.until !== undefined) plan.until = options.until;

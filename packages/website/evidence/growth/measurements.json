@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-10-03T17:12:53.466Z",
+  "capturedAt": "2026-10-03T17:37:47.936Z",
   "browser": "148.0.7778.96",
   "renderer": "SwiftShader",
   "viewport": {
@@ -20,35 +20,12 @@
           "visibleTerritories": 0,
           "territories": 0,
           "visibleFiles": 0,
-          "files": 0
+          "files": 0,
+          "sessions": []
         },
         {
           "at": 1.2,
           "file": "conduit-01.png",
-          "visiblePlates": 0,
-          "plates": 12,
-          "visibleNotes": 0,
-          "notes": 0,
-          "visibleTerritories": 0,
-          "territories": 0,
-          "visibleFiles": 0,
-          "files": 0
-        },
-        {
-          "at": 2.4,
-          "file": "conduit-02.png",
-          "visiblePlates": 1,
-          "plates": 12,
-          "visibleNotes": 0,
-          "notes": 0,
-          "visibleTerritories": 0,
-          "territories": 0,
-          "visibleFiles": 0,
-          "files": 0
-        },
-        {
-          "at": 3.9,
-          "file": "conduit-03.png",
           "visiblePlates": 4,
           "plates": 12,
           "visibleNotes": 0,
@@ -56,7 +33,38 @@
           "visibleTerritories": 0,
           "territories": 0,
           "visibleFiles": 0,
-          "files": 0
+          "files": 0,
+          "sessions": []
+        },
+        {
+          "at": 2.4,
+          "file": "conduit-02.png",
+          "visiblePlates": 5,
+          "plates": 12,
+          "visibleNotes": 0,
+          "notes": 0,
+          "visibleTerritories": 0,
+          "territories": 0,
+          "visibleFiles": 0,
+          "files": 0,
+          "sessions": [
+            "01a0f951-2e43-74e2-b150-644eb4aeeac5@story_a4dbabc54188"
+          ]
+        },
+        {
+          "at": 3.9,
+          "file": "conduit-03.png",
+          "visiblePlates": 5,
+          "plates": 12,
+          "visibleNotes": 0,
+          "notes": 0,
+          "visibleTerritories": 0,
+          "territories": 0,
+          "visibleFiles": 0,
+          "files": 0,
+          "sessions": [
+            "01a0f971-1c22-7343-81c8-5d745302e08d@story_b6f530c5966b"
+          ]
         },
         {
           "at": 5.7,
@@ -68,31 +76,38 @@
           "visibleTerritories": 0,
           "territories": 0,
           "visibleFiles": 0,
-          "files": 0
+          "files": 0,
+          "sessions": []
         },
         {
           "at": 7.5,
           "file": "conduit-05.png",
-          "visiblePlates": 6,
+          "visiblePlates": 5,
           "plates": 12,
           "visibleNotes": 0,
           "notes": 0,
           "visibleTerritories": 0,
           "territories": 0,
           "visibleFiles": 0,
-          "files": 0
+          "files": 0,
+          "sessions": [
+            "01a0f9d1-a29d-7cf3-8872-3c71ccd2b871@story_9d37f9381e3f",
+            "01a0f9d1-a29d-7cf3-8872-3c71ccd2b871@story_a4dbabc54188",
+            "01a0f9d1-a29d-7cf3-8872-3c71ccd2b871@story_acab0558201e"
+          ]
         },
         {
           "at": 9.6,
           "file": "conduit-06.png",
-          "visiblePlates": 6,
+          "visiblePlates": 9,
           "plates": 12,
           "visibleNotes": 0,
           "notes": 0,
           "visibleTerritories": 0,
           "territories": 0,
           "visibleFiles": 0,
-          "files": 0
+          "files": 0,
+          "sessions": []
         },
         {
           "at": 12,
@@ -104,7 +119,11 @@
           "visibleTerritories": 0,
           "territories": 0,
           "visibleFiles": 0,
-          "files": 0
+          "files": 0,
+          "sessions": [
+            "01a0fc32-ebbd-7552-a678-d1dd048f950a@story_0f2877a9d736",
+            "01a0fc32-ebbd-7552-a678-d1dd048f950a@story_607f121daf0b"
+          ]
         },
         {
           "at": 15,
@@ -116,36 +135,112 @@
           "visibleTerritories": 0,
           "territories": 0,
           "visibleFiles": 0,
-          "files": 0
+          "files": 0,
+          "sessions": []
         }
       ],
       "plan": {
-        "seconds": 15.000000000000002,
+        "seconds": 15,
         "stages": [
           {
             "id": "stories",
-            "start": 1.9802104063989552,
+            "start": 0.6141260634262281,
             "at": "2026-10-01T21:16:50.000Z"
           },
           {
             "id": "planned",
-            "start": 5.709606671783654,
+            "start": 1.7707301495456242,
             "at": "2026-10-01T21:18:38.000Z"
           },
           {
+            "id": "part1-building",
+            "start": 2.313208172238792,
+            "at": "2026-10-01T21:25:00.000Z"
+          },
+          {
+            "id": "part1",
+            "start": 2.978511407617206,
+            "at": "2026-10-01T21:32:30.000Z"
+          },
+          {
+            "id": "part2-building",
+            "start": 3.6438146429956197,
+            "at": "2026-10-01T21:55:00.000Z"
+          },
+          {
+            "id": "part2",
+            "start": 4.309117878374034,
+            "at": "2026-10-01T21:57:20.000Z"
+          },
+          {
+            "id": "part3-building",
+            "start": 4.974421113752448,
+            "at": "2026-10-01T22:15:00.000Z"
+          },
+          {
+            "id": "part3",
+            "start": 5.639724349130862,
+            "at": "2026-10-01T22:21:10.000Z"
+          },
+          {
+            "id": "part4-building",
+            "start": 6.3050275845092765,
+            "at": "2026-10-01T23:00:00.000Z"
+          },
+          {
+            "id": "part5-building",
+            "start": 6.97033081988769,
+            "at": "2026-10-01T23:50:00.000Z"
+          },
+          {
+            "id": "frontend",
+            "start": 7.635634055266104,
+            "at": "2026-10-02T00:31:10.000Z"
+          },
+          {
             "id": "ci",
-            "start": 7.458792530769397,
+            "start": 8.300937290644518,
             "at": "2026-10-02T08:11:40.000Z"
           },
           {
             "id": "backend-planned",
-            "start": 9.818543265061486,
+            "start": 9.032770849560775,
             "at": "2026-10-02T09:58:00.000Z"
           },
           {
             "id": "backend1-building",
-            "start": 14.53795090517358,
+            "start": 10.49640886820766,
             "at": "2026-10-02T10:20:00.000Z"
+          },
+          {
+            "id": "backend1",
+            "start": 11.161712103586073,
+            "at": "2026-10-02T10:33:10.000Z"
+          },
+          {
+            "id": "backend2-building",
+            "start": 11.827015338964488,
+            "at": "2026-10-02T10:50:00.000Z"
+          },
+          {
+            "id": "backend3-building",
+            "start": 12.492318574342901,
+            "at": "2026-10-02T11:20:00.000Z"
+          },
+          {
+            "id": "backend4-building",
+            "start": 13.157621809721315,
+            "at": "2026-10-02T11:45:00.000Z"
+          },
+          {
+            "id": "backend5-building",
+            "start": 13.82292504509973,
+            "at": "2026-10-02T12:15:00.000Z"
+          },
+          {
+            "id": "complete",
+            "start": 14.488228280478143,
+            "at": "2026-10-02T12:38:50.000Z"
           }
         ],
         "islands": 12,
@@ -154,18 +249,18 @@
         "files": 0
       },
       "play": {
-        "framesDrawn": 803,
-        "meanFps": 53.6,
-        "p95FrameMs": 21.3,
+        "framesDrawn": 672,
+        "meanFps": 44.89,
+        "p95FrameMs": 35.4,
         "visiblePlatesAtEnd": 12,
         "plates": 12,
         "visibleNotesAtEnd": 0,
         "notes": 0
       },
       "baseline": {
-        "framesDrawn": 794,
-        "meanFps": 48.09,
-        "p95FrameMs": 23.8
+        "framesDrawn": 712,
+        "meanFps": 43.12,
+        "p95FrameMs": 31.8
       },
       "reducedMotion": {
         "visiblePlatesAt300ms": 12,
@@ -189,7 +284,8 @@
           "visibleTerritories": 0,
           "territories": 0,
           "visibleFiles": 0,
-          "files": 0
+          "files": 0,
+          "sessions": []
         },
         {
           "at": 1.2,
@@ -201,7 +297,8 @@
           "visibleTerritories": 0,
           "territories": 6,
           "visibleFiles": 38,
-          "files": 38
+          "files": 38,
+          "sessions": []
         },
         {
           "at": 2.4,
@@ -213,7 +310,8 @@
           "visibleTerritories": 5,
           "territories": 15,
           "visibleFiles": 127,
-          "files": 127
+          "files": 127,
+          "sessions": []
         },
         {
           "at": 3.9,
@@ -225,7 +323,8 @@
           "visibleTerritories": 15,
           "territories": 25,
           "visibleFiles": 193,
-          "files": 193
+          "files": 193,
+          "sessions": []
         },
         {
           "at": 5.7,
@@ -237,7 +336,8 @@
           "visibleTerritories": 25,
           "territories": 47,
           "visibleFiles": 228,
-          "files": 255
+          "files": 255,
+          "sessions": []
         },
         {
           "at": 7.5,
@@ -249,7 +349,8 @@
           "visibleTerritories": 41,
           "territories": 49,
           "visibleFiles": 267,
-          "files": 267
+          "files": 267,
+          "sessions": []
         },
         {
           "at": 9.6,
@@ -261,7 +362,8 @@
           "visibleTerritories": 54,
           "territories": 62,
           "visibleFiles": 308,
-          "files": 321
+          "files": 321,
+          "sessions": []
         },
         {
           "at": 12,
@@ -273,7 +375,8 @@
           "visibleTerritories": 61,
           "territories": 69,
           "visibleFiles": 401,
-          "files": 401
+          "files": 401,
+          "sessions": []
         },
         {
           "at": 15,
@@ -285,7 +388,8 @@
           "visibleTerritories": 76,
           "territories": 76,
           "visibleFiles": 429,
-          "files": 429
+          "files": 429,
+          "sessions": []
         }
       ],
       "plan": {
@@ -363,18 +467,18 @@
         "files": 428
       },
       "play": {
-        "framesDrawn": 462,
-        "meanFps": 30.84,
-        "p95FrameMs": 69.9,
+        "framesDrawn": 332,
+        "meanFps": 22.06,
+        "p95FrameMs": 131.3,
         "visiblePlatesAtEnd": 15,
         "plates": 15,
         "visibleNotesAtEnd": 771,
         "notes": 771
       },
       "baseline": {
-        "framesDrawn": 274,
-        "meanFps": 16.52,
-        "p95FrameMs": 116.7
+        "framesDrawn": 229,
+        "meanFps": 13.87,
+        "p95FrameMs": 149.3
       },
       "reducedMotion": {
         "visiblePlatesAt300ms": 15,

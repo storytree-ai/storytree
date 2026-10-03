@@ -34,6 +34,7 @@ export function wireTour() {
   let visible = false;
   let openingActive = !document.getElementById("opening")?.hidden;
   let clock = performance.now();
+  let arriving = 0;
 
   // The pips: one per step, grouped by explainer, every one a jump (ADR-0879 D2).
   pips.replaceChildren(...grouped.map(group => {
@@ -177,6 +178,12 @@ export function wireTour() {
   window.addEventListener("storytree-opening", event => {
     openingActive = (event as CustomEvent<{ active: boolean }>).detail.active;
     clock = performance.now();
+    // Arriving from chapter 1, the globe lands before the first words do.
+    if (!openingActive && tour.state.index === 0 && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      arriving = clock + 1500;
+      root.dataset.arriving = "true";
+      setTimeout(() => { delete root.dataset.arriving; }, 1500);
+    }
   });
   document.addEventListener("visibilitychange", () => { clock = performance.now(); });
   if ("IntersectionObserver" in window) {
@@ -190,7 +197,7 @@ export function wireTour() {
   const frame = (now: number) => {
     const delta = Math.min(now - clock, 1000);
     clock = now;
-    if (visible && !openingActive && !document.hidden) {
+    if (visible && !openingActive && !document.hidden && now >= arriving) {
       const before = tour.state;
       const after = tour.tick(delta);
       if (after !== before) render(after);

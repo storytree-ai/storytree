@@ -36,8 +36,9 @@ export function globeFraming(choice: GlobeOpening): number {
  * The globe's layout (ADR-0804 D7): each island at its permanent place, nudged only as far as its coast needs
  * room, and the globe's radius, which grows when nudging cannot make room. Every drawing takes `radius` from here.
  */
-export function planetLayout(scene: ForestScene, places: ReadonlyMap<string, number>, before?: { spots: ReadonlyMap<string, FacingIsland["spot"]> }) {
-  const grown = growPlanet(scene.islands.map(island => {
+export function planetLayout(scene: ForestScene, places: ReadonlyMap<string, number>, before?: { spots: ReadonlyMap<string, FacingIsland["spot"]> }, frame?: ForestScene) {
+  // A plan still growing, framed by its full plan, keeps every island where the full plan puts it (3.28).
+  const grown = growPlanet((frame ?? scene).islands.map(island => {
     const place = places.get(island.story);
     if (place === undefined) throw new Error(`No permanent place for ${island.title}`);
     return { story: island.story, place, reach: islandCoastReach(island) };

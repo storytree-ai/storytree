@@ -1,4 +1,4 @@
-import { createTour, groups, type Hold, type TourState, type TourStep } from "./tour.js";
+import { createTour, globeOf, groups, type Hold, type TourState, type TourStep } from "./tour.js";
 import { groupTitles, steps } from "./tour-copy.js";
 import { fill } from "./tour-counts.js";
 
@@ -110,8 +110,6 @@ export function wireTour() {
       depthToggle.hidden = state.freePlay || !step.why;
       depthToggle.textContent = step.kind === "compare" ? "Sources and decisions" : `Why it exists · ${step.decisions.length} ${step.decisions.length === 1 ? "decision" : "decisions"}`;
       card.classList.remove("is-in"); void card.offsetWidth; card.classList.add("is-in");
-      note.textContent = step.chips?.some(chip => chip.kind === "recording") && !state.freePlay
-        ? text("Recording · storytree's activity, {recording}") : text("storytree's own project · saved {saved} · read only");
       label.textContent = state.freePlay ? text("Free play · storytree’s own project, saved {saved} · read only") : `${at.title} · ${at.at} of ${at.of}`;
       pipButtons.forEach((button, index) => {
         button.classList.toggle("done", state.freePlay || index < state.index);
@@ -120,6 +118,9 @@ export function wireTour() {
       });
       live.textContent = state.freePlay ? "Free play. Explore storytree's own project." : `${heading.textContent} Step ${state.index + 1} of ${steps.length}.`;
     }
+    // The note names whose globe is on show: Conduit's growth is a replay of its own library (ADR-0879 D7).
+    note.textContent = globeOf(step, state).map === "conduit" ? text("Conduit · replayed from its own library, {conduitRecording}")
+      : step.chips?.some(chip => chip.kind === "recording") && !state.freePlay ? text("Recording · storytree's activity, {recording}") : text("storytree's own project · saved {saved} · read only");
     // A step's lines arrive one at a time; a waiting step shows them all (the engine says how many).
     const shown = state.freePlay ? lines.children.length : state.lines;
     [...lines.children].forEach((line, index) => {

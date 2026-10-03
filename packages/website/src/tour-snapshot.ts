@@ -31,7 +31,7 @@ const pick = (value: object, keys: readonly string[]): Record<string, unknown> =
 const credential = /-----BEGIN (?:[A-Z ]+ )?PRIVATE KEY-----|\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|sk-(?:proj-|ant-)?[A-Za-z0-9_-]{20,}|AIza[A-Za-z0-9_-]{30,}|AKIA[A-Z0-9]{16}|ya29\.[A-Za-z0-9_-]+)|\bBearer\s+[A-Za-z0-9._~-]{16,}|[a-z][a-z0-9+.-]*:\/\/[^\s/:]+:[^\s/@]+@|\b(?:api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|secret|password|private[_-]?key)\b["']?\s*[:=]\s*["']?[^\s"',;]+/i;
 
 /** Apply to every retained value, including prose and nested records. */
-function scrub(value: unknown, cloudIds: readonly string[]): unknown {
+export function scrub(value: unknown, cloudIds: readonly string[]): unknown {
   if (typeof value === "string") {
     if (credential.test(value)) throw new Error("Snapshot refused: credential-like content in a retained value; saved file kept.");
     let text = value

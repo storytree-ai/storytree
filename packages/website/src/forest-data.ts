@@ -1,7 +1,7 @@
 // Type-only: browsers never import refresh/database code.
 import type { Line } from "@storytree/agent-link";
 import type { AnnotatedTree, ArcView, Change, Holds } from "@storytree/library";
-import type { StoryNode } from "@storytree/forest";
+import type { SessionWisp, StoryNode } from "@storytree/forest";
 import type { ForestSnapshot } from "@storytree/forest/snapshot";
 export type { ForestSnapshot };
 
@@ -17,4 +17,13 @@ export interface TourSnapshot extends ForestSnapshot {
   holds: Holds;
   // Private optional fields and merged.branch are removed for publication.
   recording: { window: { from: string; to: string }; lines: PublicActivity[] };
+}
+
+/** A project's saved growth (ADR-0879 D7): its full plan's drawing, and each recorded stage's, dated. */
+export interface GrowthSnapshot extends ForestSnapshot {
+  project: string;
+  window: { from: string; to: string };
+  places: StoryNode[];
+  titles: Record<string, string>;
+  stages: { id: string; at: string; scene: ForestSnapshot["scene"]; wisps: SessionWisp[]; counts: { stories: number; capabilities: number; contracts: number } }[];
 }

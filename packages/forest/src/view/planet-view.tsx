@@ -30,6 +30,8 @@ export type PlanetViewProps = {
   library?: boolean;
   /** How many radii half the short side spans as it opens (`globeFraming`). */
   framing?: number | undefined;
+  /** The full plan a plan still growing is drawn within: each island keeps the spot it has there (3.28). */
+  frame?: ForestScene | undefined;
   core: KnowledgeCore;
   scene: ForestScene;
   places: ReadonlyMap<string, number>;
@@ -44,7 +46,7 @@ export type PlanetViewProps = {
   onWispHover: (session: string | undefined) => void;
 };
 
-export function PlanetView({ core, scene, places, wisps, selected, highlighted, highlightedSession, onPick, onNote, onWispHover, mode = "forest", framing, sideOffset, surfaces, onControls, library = true }: PlanetViewProps) {
+export function PlanetView({ core, scene, places, wisps, selected, highlighted, highlightedSession, onPick, onNote, onWispHover, mode = "forest", framing, sideOffset, surfaces, onControls, library = true, frame }: PlanetViewProps) {
   const shownSurfaces = useMemo((): GlobeSurfaces => ({
     sea: true, grounds: true, roads: true, nameplates: true, territories: "health", fileCircles: true, knowledgeCore: true, sessionTints: true,
     ...surfaces,
@@ -68,7 +70,7 @@ export function PlanetView({ core, scene, places, wisps, selected, highlighted, 
   const setPose = useCallback((pose: GlobePose) => { setFraming(pose.framing); setOffset(pose.sideOffset); }, []);
   // A live update that moved no island keeps the spots on show, so only a changed island's plate draws again (ADR-0836 D1).
   const shown = useRef<ReturnType<typeof planetLayout>>(undefined);
-  const layout = useMemo(() => planetLayout(scene, places, shown.current), [scene, places]);
+  const layout = useMemo(() => planetLayout(scene, places, shown.current, frame), [scene, places, frame]);
   shown.current = layout;
   const [rotation, setRotation] = useState(() => new Quaternion());
   // ADR-0804 D9, narrowed by ADR-0825 D3: a running session tints its islands' coasts and outlines its claimed territories; no wisps.

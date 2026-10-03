@@ -162,9 +162,10 @@ html:has(> body.immersive-home) { scroll-padding-top:0; }
   #chapter2 .tb-speed-cycle { display:inline-flex; min-width:46px; font-variant-numeric:tabular-nums; }
   #chapter2 .tb-where { order:5; flex:1 1 100%; padding-right:150px; }
   #chapter2 #tour-everything { margin-left:auto; }
-  #chapter2 .tb-pips { flex:1 1 auto; gap:5px; }
+  /* The pips keep clear of the waitlist hatch beside them. */
+  #chapter2 .tb-pips { flex:1 1 auto; gap:5px; margin-right:157px; }
   #chapter2 .tb-group { flex:var(--n, 1) 1 0; }
-  #chapter2 .tb-pip { flex:1 1 0; width:auto; min-width:6px; }
+  #chapter2 .tb-pip { flex:1 1 0; width:auto; min-width:5px; }
   #chapter2 .tb-held { display:none; }
   #chapter2 .tb-btn { padding:6px 9px; }
   #chapter2 .tb-speed button { min-width:40px; }
@@ -175,6 +176,8 @@ html:has(> body.immersive-home) { scroll-padding-top:0; }
   #chapter2 .tour-bar { gap:6px 4px; padding-inline:8px; }
   #chapter2 .tb-btn { padding-inline:7px; }
   #chapter2 .tb-speed-cycle { min-width:40px; }
+  #chapter2 .tb-pips { gap:3px; margin-right:157px; }
+  #chapter2 .tb-pip { min-width:3px; }
   #chapter2 .tb-switch { gap:5px; padding:4px 8px 4px 5px; }
 }
 @media (prefers-reduced-motion:reduce) {

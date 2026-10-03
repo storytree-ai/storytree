@@ -55,8 +55,8 @@ function observe(host: HTMLElement) {
   let stop: (() => void) | undefined;
   const opening = document.getElementById("opening");
   const openingVisible = () => opening && !opening.hidden && opening.getBoundingClientRect().bottom > 0;
-  const schedule = () => {
-    if (scheduled || openingVisible()) return;
+  const schedule = (early = false) => {
+    if (scheduled || (!early && openingVisible())) return;
     scheduled = true;
     const requested = generation;
     const start = () => {
@@ -66,7 +66,14 @@ function observe(host: HTMLElement) {
     if (typeof window.requestIdleCallback === "function") window.requestIdleCallback(start, { timeout: 1000 });
     else setTimeout(start, 0);
   };
-  // Run belongs to the terminal. Even a globe touching the fold must wait for the handover.
+  // Run belongs to the terminal: a globe merely touching the fold waits for the handover. But a visitor who presses Run
+  // meets the globe about twenty seconds later, so it starts now, below the fold, where it draws nothing (world 6.10),
+  // and the turn lands on it live. Without IntersectionObserver it could not tell it is off screen, so there it waits.
+  if ("IntersectionObserver" in window) {
+    document.addEventListener("click", event => { if (event.target instanceof Element && event.target.closest("#opening-run")) schedule(true); });
+    // A visitor quick enough to press Run before this listener existed still has it started.
+    if (opening?.dataset.phase === "running") schedule(true);
+  }
   window.addEventListener("storytree-opening", event => {
     if ((event as CustomEvent<{ active: boolean }>).detail.active) {
       generation++;

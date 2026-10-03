@@ -1,86 +1,158 @@
 {
  "src/agent-claims/agent-claims.ts": {
-  "5": 69,
-  "7": 42
+  "3": 4,
+  "5": 86,
+  "7": 52
  },
  "src/capability-tree/capability-tree.ts": {
-  "1": 24,
+  "1": 28,
   "2": 28,
-  "3": 151,
-  "4": 63,
-  "5": 43
+  "3": 197,
+  "4": 77,
+  "5": 49,
+  "7": 7
  },
  "src/drill-down/drill-down.ts": {
-  "4": 207
+  "4": 248
  },
  "src/drill-down/tree-layout.ts": {
-  "4": 72
+  "4": 240
  },
  "src/never-hidden/never-hidden.ts": {
-  "3": 78,
-  "5": 6
+  "1": 5,
+  "3": 109,
+  "5": 6,
+  "7": 6
  },
  "src/planet-places/island-growth.ts": {
-  "1": 99,
-  "3": 127,
-  "5": 12
+  "1": 335,
+  "3": 516,
+  "4": 1,
+  "5": 39,
+  "7": 29
  },
  "src/planet-places/planet-places.ts": {
-  "1": 9,
-  "3": 19,
-  "5": 2
+  "1": 44,
+  "3": 81,
+  "4": 1,
+  "5": 6,
+  "7": 3
  },
  "src/render/forest-scene.ts": {
-  "1": 66,
-  "3": 527,
-  "5": 37
+  "1": 69,
+  "3": 691,
+  "4": 19,
+  "5": 37,
+  "7": 19
+ },
+ "src/render/selection-lanes.ts": {
+  "3": 24,
+  "7": 4
  },
  "src/sessions-list/sessions-list.ts": {
-  "5": 93,
-  "7": 373
+  "5": 111,
+  "7": 553
+ },
+ "src/snapshot/forest-snapshot.ts": {
+  "3": 3
  },
  "src/story-nodes/story-nodes.ts": {
-  "1": 46,
-  "3": 126,
-  "5": 10
+  "1": 272,
+  "3": 642,
+  "4": 27,
+  "5": 39,
+  "7": 27
  },
  "src/territories/territories.ts": {
   "1": 24,
-  "3": 792,
-  "5": 8
+  "3": 983,
+  "4": 78,
+  "5": 8,
+  "7": 89
  },
  "src/view/file-circles.ts": {
-  "3": 40,
-  "5": 4
+  "3": 57,
+  "5": 4,
+  "7": 3
+ },
+ "src/view/forest-view.tsx": {
+  "3": 15,
+  "7": 8
+ },
+ "src/view/globe-guide.ts": {
+  "3": 48,
+  "5": 1,
+  "7": 3
  },
  "src/view/globe-picking.ts": {
-  "3": 14,
+  "3": 21,
   "5": 1
  },
+ "src/view/globe-surfaces.ts": {
+  "3": 12,
+  "7": 4
+ },
+ "src/view/index.ts": {
+  "3": 1,
+  "4": 1,
+  "7": 1
+ },
+ "src/view/island-overlays.tsx": {
+  "3": 30,
+  "7": 20
+ },
+ "src/view/island-progress.ts": {
+  "3": 9,
+  "7": 3
+ },
+ "src/view/nameplates.ts": {
+  "1": 23,
+  "3": 63,
+  "7": 23
+ },
  "src/view/pan-zoom.ts": {
-  "4": 10
+  "4": 30
  },
  "src/view/panel-selection.ts": {
-  "3": 8
+  "3": 14,
+  "7": 2
  },
  "src/view/planet-navigation.ts": {
-  "1": 18,
-  "3": 172,
-  "5": 16
+  "1": 25,
+  "3": 305,
+  "5": 19,
+  "7": 11
+ },
+ "src/view/planet-update.ts": {
+  "3": 25,
+  "7": 5
+ },
+ "src/view/planet-view.tsx": {
+  "3": 59,
+  "7": 53
+ },
+ "src/view/session-emphasis.tsx": {
+  "3": 5,
+  "7": 9
  },
  "src/view/session-tints.ts": {
-  "3": 70,
-  "5": 28
+  "3": 99,
+  "5": 28,
+  "7": 8
  },
  "src/view/sessions-list.tsx": {
   "5": 40,
   "7": 440
  },
  "src/view/story-panel.ts": {
-  "4": 175
+  "4": 212
  },
  "src/view/territory-land.ts": {
-  "3": 570,
-  "5": 132
+  "3": 854,
+  "5": 132,
+  "7": 61
+ },
+ "src/view/tree-space.ts": {
+  "4": 8
  }
 }

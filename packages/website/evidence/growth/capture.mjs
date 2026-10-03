@@ -57,7 +57,7 @@ try {
       const file = `${map}-${String(i).padStart(2, '0')}.png`;
       await page.screenshot({ path: path.join(here, file) });
       record.frames.push({ at, file, visiblePlates: seen.visiblePlates, plates: seen.plates, visibleNotes: seen.visibleNotes, notes: seen.notes,
-        visibleTerritories: seen.visibleTerritories, territories: seen.territories, visibleFiles: seen.visibleFiles, files: seen.files });
+        visibleTerritories: seen.visibleTerritories, territories: seen.territories, visibleFiles: seen.visibleFiles, files: seen.files, sessions: seen.sessions });
       await context.close();
     }
     const visible = record.frames.map(f => f.visiblePlates);
@@ -78,11 +78,17 @@ try {
       assert.equal(shown.at(-1), total, `${map}: every one of ${kind} filled in by the end`);
       assert.equal(total > 0, map === 'storytree', `${map}: only storytree's reading has code to fill in`);
     }
+    // Sessions pass over the islands where the recording carries them (Conduit's does): some moment shows one, and the end
+    // shows what the recording ends with, nobody.
+    if (map === 'conduit') {
+      assert.ok(record.frames.some(f => f.sessions.length > 0), `${map}: a recorded session passes over an island`);
+      assert.deepEqual(record.frames.at(-1).sessions, [], `${map}: the recording ends with nobody on the islands`);
+    }
     // The strip, laid out by the browser.
     const strip = await browser.newPage({ viewport: { width: 1800, height: 420 }, deviceScaleFactor: 1 });
     await strip.goto(`${url}/blank`);
     await strip.setContent(`<body style="margin:0;background:#101418;font:14px sans-serif;color:#d8dde3;display:flex;flex-wrap:wrap;gap:4px;padding:4px">${
-      record.frames.map(f => `<figure style="margin:0;width:352px"><img src="${url}/${f.file}" style="width:352px;display:block"><figcaption>${f.at}s · ${f.visiblePlates}/${f.plates} islands${f.notes ? ` · ${f.visibleNotes}/${f.notes} notes` : ''}${f.visibleFiles ? ` · ${f.visibleTerritories} territories · ${f.visibleFiles} files` : ''}</figcaption></figure>`).join('')}</body>`);
+      record.frames.map(f => `<figure style="margin:0;width:352px"><img src="${url}/${f.file}" style="width:352px;display:block"><figcaption>${f.at}s · ${f.visiblePlates}/${f.plates} islands${f.notes ? ` · ${f.visibleNotes}/${f.notes} notes` : ''}${f.visibleFiles ? ` · ${f.visibleTerritories} territories · ${f.visibleFiles} files` : ''}${f.sessions.length ? ` · ${f.sessions.length} session${f.sessions.length > 1 ? 's' : ''} on islands` : ''}</figcaption></figure>`).join('')}</body>`);
     await strip.waitForLoadState('networkidle');
     await strip.screenshot({ path: path.join(here, `${map}-strip.png`), fullPage: true });
     await strip.close();

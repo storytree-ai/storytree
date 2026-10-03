@@ -2,7 +2,7 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Group, Quaternion, Vector3 } from "three";
-import { claimTints, coastArcs, openingTurn, selectionLanes, selectionNeighbours, type ClaimTint, type CoastArc, type EdgeMarker, type FacingIsland, type ForestScene, type GlobeTurn, type Island, type SessionWisp } from "@storytree/forest";
+import { claimTints, coastArcs, openingTurn, replayWisps, selectionLanes, selectionNeighbours, type ClaimTint, type CoastArc, type EdgeMarker, type FacingIsland, type ForestScene, type GlobeTurn, type Island, type SessionWisp } from "@storytree/forest";
 import type { Descriptor3D } from "@storytree/forest-world";
 import { islandNormal, onIslandSurface, PlanetWorldCanvas, plateTransform, usePlanetGrowth, type PlanetGrowth } from "@storytree/forest-world/planet";
 import { codePathKey, type CodePlaces } from "@storytree/knowledge-core";
@@ -34,6 +34,8 @@ export type PlanetViewProps = {
   frame?: ForestScene | undefined;
   /** A recorded growth to replay (world 7): islands rise, their territories and file circles fill in behind them (3.30), and the core's notes appear. */
   growth?: PlanetGrowth | undefined;
+  /** With a growth, the sessions recorded with each dated stage: they pass over the islands they held as the replay reaches them (5.7), in place of `wisps`. */
+  recordedSessions?: readonly { at: string; wisps: readonly SessionWisp[] }[] | undefined;
   core: KnowledgeCore;
   scene: ForestScene;
   places: ReadonlyMap<string, number>;
@@ -48,7 +50,7 @@ export type PlanetViewProps = {
   onWispHover: (session: string | undefined) => void;
 };
 
-export function PlanetView({ core, scene, places, wisps, selected, highlighted, highlightedSession, onPick, onNote, onWispHover, mode = "forest", framing, sideOffset, surfaces, onControls, library = true, frame, growth }: PlanetViewProps) {
+export function PlanetView({ core, scene, places, wisps: live, selected, highlighted, highlightedSession, onPick, onNote, onWispHover, mode = "forest", framing, sideOffset, surfaces, onControls, library = true, frame, growth, recordedSessions }: PlanetViewProps) {
   const shownSurfaces = useMemo((): GlobeSurfaces => ({
     sea: true, grounds: true, roads: true, nameplates: true, territories: "health", fileCircles: true, knowledgeCore: true, sessionTints: true,
     ...surfaces,
@@ -75,6 +77,9 @@ export function PlanetView({ core, scene, places, wisps, selected, highlighted, 
   const layout = useMemo(() => planetLayout(scene, places, shown.current, frame), [scene, places, frame]);
   shown.current = layout;
   const [rotation, setRotation] = useState(() => new Quaternion());
+  // 5.7: replaying a growth with its recorded sessions, the wisps are the replay's, swapped as it passes each stage.
+  const [replayed, setReplayed] = useState<readonly SessionWisp[]>();
+  const wisps = growth !== undefined && recordedSessions !== undefined ? replayed ?? [] : live;
   // ADR-0804 D9, narrowed by ADR-0825 D3: a running session tints its islands' coasts and outlines its claimed territories; no wisps.
   const claimed = useMemo(() => claimTints(wisps), [wisps]);
   // Each island reports where its file circles lie on the globe once it has drawn them (only the drawing knows its coast); the core's traversal hops between them (ADR-0804 D5).
@@ -124,7 +129,20 @@ export function PlanetView({ core, scene, places, wisps, selected, highlighted, 
       rotation={rotation} onRotate={setRotation} onPose={setPose} onControls={onControls} onPick={onPick} onNote={onNote} mode={mode}
       showFailures={shownSurfaces.grounds || shownSurfaces.territories !== false || shownSurfaces.fileCircles || shownSurfaces.nameplates || shownSurfaces.roads} />
     <NameplateCrowd selected={selected} />
+    {growth !== undefined && recordedSessions !== undefined && <ReplaySessions recorded={recordedSessions} onWisps={setReplayed} />}
   </PlanetWorldCanvas>;
+}
+
+/** Hands the host the sessions the replay shows now (5.7), only when the replay passes a stage. */
+function ReplaySessions({ recorded, onWisps }: { recorded: readonly { at: string; wisps: readonly SessionWisp[] }[]; onWisps: (wisps: readonly SessionWisp[]) => void }) {
+  const growth = usePlanetGrowth();
+  const stages = useMemo(() => recorded.map(({ at, wisps }) => ({ at: growth.moment(at), wisps })), [recorded, growth]);
+  const shown = useRef<readonly SessionWisp[]>(undefined);
+  useFrame(() => {
+    const now = replayWisps(stages, growth.now());
+    if (now !== shown.current) { shown.current = now; onWisps(now); }
+  });
+  return null;
 }
 
 /** The core inside the globe, its notes appearing with a growth when there is one (knowledge core 1.9). */

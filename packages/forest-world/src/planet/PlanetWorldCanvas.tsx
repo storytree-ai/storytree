@@ -164,9 +164,10 @@ export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1
       <group name="globe-roads" visible={surface && surfaces?.roads !== false}><Pathways plan={pathways} reveal={reveal} /><SelectionLanes plan={pathways} lit={lanes} /></group>
       {inside}
     </group>
-    </GrowthProvider>
     <OrbitControls makeDefault enablePan={false} enableRotate={orbit} minZoom={0.1} maxZoom={30} />
+    {/* The host's children read the growth too (usePlanetGrowth), as the plates and the inside do. */}
     {children}
+    </GrowthProvider>
     {surface && surfaces?.roads !== false && drawing.issue && <Html fullscreen zIndexRange={[45, 45]} style={{ pointerEvents: 'none' }}>
       <div role="alert" title={drawing.issue} style={{ position: 'absolute', right: 16, bottom: 16,
         maxWidth: 320, padding: '10px 14px', borderRadius: 6, background: '#352b20', color: '#ffe1ac' }}>

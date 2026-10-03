@@ -151,3 +151,22 @@ test('7.5 a recorded date falls in the replay where it fell between the dated st
   // A recording with no dates places every date at its first stage.
   assert.equal(growthMoment(growthPlan(stages), '2026-10-01T13:00:00.000Z'), 0);
 });
+
+test('7.6 a stage that holds a beat for what it carries beyond the plan takes that beat, even when it adds nothing', () => {
+  const dated = [
+    { id: 'stories', at: '2026-10-01T10:00:00.000Z', scene: stages[0]!.scene },
+    { id: 'claimed', at: '2026-10-01T10:05:00.000Z', scene: stages[1]!.scene, hold: 1 },
+    { id: 'quiet', at: '2026-10-01T10:06:00.000Z', scene: stages[1]!.scene },
+    { id: 'linked', at: '2026-10-01T20:00:00.000Z', scene: stages[2]!.scene },
+  ];
+  const plan = growthPlan(dated);
+  assert.deepEqual(plan.stages.map(s => s.id), ['stories', 'claimed', 'linked'], 'a held stage stays; one that adds and holds nothing does not');
+  const [stories, claimed, linked] = plan.stages;
+  assert.ok(claimed!.start >= Math.max(...[...plan.islands.values()].filter(w => w.start < claimed!.start).map(end)) - 1e-9, 'it waits for the stage before');
+  assert.ok(linked!.start - claimed!.start >= 1, 'it holds its beat');
+  assert.ok(Math.abs(growthMoment(plan, dated[1]!.at) - claimed!.start) < 1e-9, 'what it carries falls at its own start');
+  assert.ok(stories!.start < claimed!.start);
+  const unheld = growthPlan(dated.map(({ hold, ...stage }) => stage));
+  assert.deepEqual(unheld.stages.map(s => s.id), ['stories', 'linked'], 'without its hold it takes no time');
+  assert.ok(plan.seconds - unheld.seconds >= 1, 'the hold adds its beat');
+});

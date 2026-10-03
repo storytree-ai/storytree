@@ -13,7 +13,7 @@ import type { AnnotatedStory, AnnotatedTree } from "@storytree/library";
 
 import { grove } from "../capability-tree/capability-tree.js";
 import { sessionRows } from "../sessions-list/sessions-list.js";
-import { sessionColour, sessionWisps } from "./agent-claims.js";
+import { replayWisps, sessionColour, sessionWisps, type SessionWisp } from "./agent-claims.js";
 
 const START = Date.UTC(2026, 8, 27, 12);
 const MINUTE = 60_000;
@@ -89,4 +89,25 @@ test("5.5 a session keeps one colour, never green or the needs-you amber; folded
     .add(3, { kind: "claimed", session: "C", harness: "claude-code", source: "tool", capability: "invoice", reason: "billing" })
     .add(3, { kind: "file-edited", session: "D", harness: "codex", source: "hook", files: ["a.ts"] });
   assert.deepEqual(wisps(log, 4).map(({ session }) => session), ["A", "A"], "the parent orbits for its folded child; D has no row");
+});
+
+test("5.7 replaying a growth, the sessions recorded with the latest stage reached tint the islands they held, none before the first", () => {
+  const wisp = (session: string, story: string): SessionWisp => ({ session, story, colour: sessionColour(session), phase: 0, faded: false, capabilities: [] });
+  // Recorded: nobody, then A on the shop, then A and B, then A landed and B still on the till, then nobody.
+  const stages = [
+    { at: 1, wisps: [] },
+    { at: 2, wisps: [wisp("A", "shop")] },
+    { at: 4, wisps: [wisp("A", "shop"), wisp("B", "till")] },
+    { at: 4, wisps: [wisp("B", "till")] },
+    { at: 7, wisps: [] },
+  ];
+  const at = (now: number) => replayWisps(stages, now).map(w => `${w.session}@${w.story}`);
+  assert.deepEqual(at(0), [], "nothing before the recording's first stage");
+  assert.deepEqual(at(1.5), []);
+  assert.deepEqual(at(2), ["A@shop"]);
+  assert.deepEqual(at(3.9), ["A@shop"]);
+  assert.deepEqual(at(4), ["B@till"], "two stages at one moment: the later recorded wins");
+  assert.deepEqual(at(6), ["B@till"]);
+  assert.deepEqual(at(Infinity), [], "the end shows what the recording ends with");
+  assert.deepEqual(replayWisps([], 3), []);
 });

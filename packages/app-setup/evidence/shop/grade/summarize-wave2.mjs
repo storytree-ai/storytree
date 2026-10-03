@@ -9,7 +9,7 @@ const results = [];
 const walk = (suite) => {
   for (const spec of suite.specs ?? []) {
     const status = spec.tests?.[0]?.results?.at(-1)?.status ?? "skipped";
-    results.push({ title: spec.title, part: Number(/^(\d+)\./.exec(spec.title)?.[1]), state: status === "passed" ? "pass" : status === "skipped" ? "skip" : "fail", error: spec.tests?.[0]?.results?.at(-1)?.error?.message?.split("\n")[0] });
+    results.push({ title: spec.title, part: Number(/^(\d+)\./.exec(spec.title)?.[1]), state: status === "passed" ? "pass" : status === "skipped" ? "skip" : "fail", error: spec.tests?.[0]?.results?.at(-1)?.error?.message?.replace(/\x1b\[[0-9;]*m/g, "").split("\n")[0] });
   }
   for (const child of suite.suites ?? []) walk(child);
 };

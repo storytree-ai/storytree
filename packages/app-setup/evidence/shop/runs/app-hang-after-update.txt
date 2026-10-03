@@ -1,0 +1,30 @@
+# The laptop's app after the 0.3.606 silent update (captured 2026-10-04 ~00:45 AEST; increment_07c48d77ff4e)
+
+## Processes and windows (desktop session)
+21192 False [Chrome_WidgetWin_0] 
+21192 False [Base_PowerMessageWindow] 
+21192 False [IME] Default IME
+
+
+ProcessId       : 21192
+ParentProcessId : 20560
+CommandLine     : "C:\Users\mickh\AppData\Local\Programs\storytree-0.3\storytree-0.3.exe" --updated
+
+ProcessId       : 19148
+ParentProcessId : 21192
+CommandLine     : "C:\Users\mickh\AppData\Local\Programs\storytree-0.3\storytree-0.3.exe" --type=gpu-process --user-data-dir="C:\Users\mickh\.storytree\0.3\electron" 
+
+ProcessId       : 4388
+ParentProcessId : 21192
+CommandLine     : "C:\Users\mickh\AppData\Local\Programs\storytree-0.3\storytree-0.3.exe" --type=utility --utility-sub-type=network.mojom.NetworkService --lang=en-GB --service-sandbox-type=none --user-data-dir="C:\Users\mickh\.storytree\0.3\electron" 
+
+
+
+
+## releases.log tail
+2026-10-03T09:19:02.492Z download range: bytes=371763811-371857120
+2026-10-03T09:19:02.884Z New version 0.3.606 has been downloaded to C:\Users\mickh\AppData\Local\@storytreedesktop-updater\pending\storytree-0.3-0.3.606-setup.exe
+2026-10-03T09:19:02.972Z Install: isSilent: true, isForceRunAfter: true
+## pgdata.log tail
+2026-10-03 19:19:03.201 AEST [8864] LOG:  checkpoint complete: wrote 0 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.001 s, sync=0.001 s, total=0.014 s; sync files=0, longest=0.000 s, average=0.000 s; distance=0 kB, estimate=0 kB; lsn=0/63ED548, redo lsn=0/63ED548
+2026-10-03 19:19:03.219 AEST [19252] LOG:  database system is shut down

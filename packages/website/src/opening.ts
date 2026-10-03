@@ -1,5 +1,6 @@
 import { AGENTS, BANNER, EXTRA, FINALE, FINALE_AGAIN, THINK } from "./opening-copy.js";
 import { createOpeningAudio } from "./opening-audio.js";
+import type { OpeningClock } from "./opening-clock.js";
 import { OPENING_PROMPT, lineClass, lineText } from "./opening-lines.js";
 import { OPENING_SEED, mulberry32 } from "./opening-seed.js";
 
@@ -16,6 +17,7 @@ export function wireOpening() {
   const root = document.querySelector<HTMLElement>("#opening");
   const globe = document.querySelector<HTMLElement>("#website-forest");
   if (!root || !globe) return;
+  const clock = JSON.parse(root.dataset.clock!) as OpeningClock;
   const get = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
   const run = get<HTMLButtonElement>("opening-run");
   const sound = get<HTMLButtonElement>("opening-sound");
@@ -198,22 +200,20 @@ export function wireOpening() {
     count = 1; waiting = 0; countEl.hidden = false; counter();
     lines(lead).replaceChildren(); append(lead, `~/shop $ ${OPENING_PROMPT}`, { kind: "is-cmd" });
     status(lead, "thinking"); powerOn(lead);
-    THINK.forEach((line, i) => later(200 + i * 260, () => append(lead, line.replace("{P}", OPENING_PROMPT), { stream: true })));
-    let parked = 0;
+    THINK.forEach((line, i) => later(clock.think[i]!, () => append(lead, line.replace("{P}", OPENING_PROMPT), { stream: true })));
     AGENTS.forEach((agent, i) => {
       const window = agents.querySelector<HTMLElement>(`[data-agent="${i}"]`)!;
-      const spawn = 1800 + i * 900;
-      const parent = i < 2 ? lead : agents.querySelector<HTMLElement>(`[data-agent="${Math.floor((i - 2) / 2)}"]`)!;
-      later(spawn - 200, () => append(parent, `⇒ spawning helper: ${agent.n}`, { kind: "is-spawn" }));
+      const { spawn, announce, parent, lines: at, park: parkAt } = clock.helpers[i]!;
+      const from = parent < 0 ? lead : agents.querySelector<HTMLElement>(`[data-agent="${parent}"]`)!;
+      later(announce, () => append(from, `⇒ spawning helper: ${agent.n}`, { kind: "is-spawn" }));
       later(spawn, () => { window.hidden = false; powerOn(window); status(window, "running"); count++; counter(); age(); sfx.blip(); });
-      agent.l.forEach((line, j) => later(spawn + 500 + j * 650, () => append(window, line, { stream: true })));
-      later(spawn + 3200, () => park(window, agent.d));
-      parked = spawn + 3200; // the last helper spawns last
+      agent.l.forEach((line, j) => later(at[j]!, () => append(window, line, { stream: true })));
+      later(parkAt, () => park(window, agent.d));
     });
     // Every helper now waits on the visitor and nothing streams until the finale: the page may do heavy work.
-    later(parked, () => window.dispatchEvent(new Event("storytree-opening-quiet")));
-    later(15000, () => park(lead, "awaiting instructions"));
-    later(16750, () => showFinale(FINALE));
+    later(clock.quiet, () => window.dispatchEvent(new Event("storytree-opening-quiet")));
+    later(clock.lead, () => park(lead, "awaiting instructions"));
+    later(clock.finale, () => showFinale(FINALE));
   });
   const extraWindow = (agent: (typeof EXTRA)[number], i: number) => {
     const [c4, r4, c3, r3] = EXTRA_SLOTS[i]!;

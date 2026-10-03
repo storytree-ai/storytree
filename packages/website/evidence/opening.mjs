@@ -4,7 +4,7 @@ import { writeFile } from "node:fs/promises";
 
 const counter = page => page.evaluate(() => [...document.querySelectorAll("#opening-count span")].map(span => span.textContent));
 const run = page => page.getByRole("button", { name: "Run", exact: true });
-const better = page => page.getByRole("button", { name: "show me the better way" });
+const better = page => page.getByRole("button", { name: "show me where to look" });
 const peak = ["AGENTS: 12 ▲", "WAITING ON YOU: 12", "ANSWERED: 00"];
 
 // Contracts 2.3 and 2.10: measure real page frames with the globe below the fold, then prove its handover.
@@ -166,6 +166,11 @@ export async function verifyOpening(browser, url, output) {
     window.audioStarts = 0;
     // Page time, not the harness round trips, measures how long Run takes to reach the finale.
     document.addEventListener("click", event => { if (event.target.id === "opening-run") window.runAt = performance.now(); }, true);
+    // When each helper's window opens, in page time after Run: the pace of the swarm.
+    window.spawns = [];
+    document.addEventListener("DOMContentLoaded", () => new MutationObserver(records => {
+      for (const record of records) if (window.runAt && !record.target.hidden && record.oldValue !== null) window.spawns.push(performance.now() - window.runAt);
+    }).observe(document.getElementById("opening-agents"), { subtree: true, attributes: true, attributeFilter: ["hidden"], attributeOldValue: true }));
     const start = OscillatorNode.prototype.start;
     OscillatorNode.prototype.start = function (...args) { window.audioStarts++; return start.apply(this, args); };
     // Streamed lines arrive in several chunks: count how many times each line's text changed.
@@ -195,9 +200,18 @@ export async function verifyOpening(browser, url, output) {
   await page.screenshot({ path: path.join(output, "1440-ready.png") });
   await run(page).tap();
   assert.deepEqual(await counter(page), ["AGENTS: 01", "WAITING ON YOU: 00", "ANSWERED: 00"], "One agent is singular: two digits, no arrow");
-  await better(page).waitFor({ timeout: 25000 });
+  await better(page).waitFor({ timeout: 50000 });
   const elapsed = await page.evaluate(() => performance.now() - window.runAt);
-  assert.ok(elapsed >= 21500 && elapsed < 25000, `One tap reaches the finale in about 22 seconds (took ${Math.round(elapsed)} ms)`);
+  // ADR-0888 1.2-1.3: 0.2's escalating clock. About 4 s of thinking, the first helpers far apart so their
+  // lines read whole, then a frantic pile-up; the last helper parks at about 33 s.
+  const spawns = await page.evaluate(() => window.spawns);
+  const gaps = spawns.slice(1).map((at, i) => at - spawns[i]);
+  console.log(`spawns: ${spawns.map(at => (at / 1000).toFixed(1)).join(", ")} s; finale actions at ${(elapsed / 1000).toFixed(1)} s`);
+  assert.equal(spawns.length, 11, "Eleven helpers open");
+  assert.ok(spawns[0] >= 3500 && spawns[0] < 4800, `The lead agent thinks for about 4 seconds before the first helper (${Math.round(spawns[0])} ms)`);
+  assert.ok(gaps[0] >= 3500, `The first helpers open about 4 seconds apart (${Math.round(gaps[0])} ms)`);
+  assert.ok(gaps.at(-1) < 1600, `The last helpers pile up about a second apart (${Math.round(gaps.at(-1))} ms)`);
+  assert.ok(elapsed >= 36000 && elapsed < 46000, `One tap reaches the finale's choice in about 40 seconds (took ${Math.round(elapsed)} ms)`);
   assert.deepEqual(await counter(page), peak);
   assert.ok(await page.evaluate(() => window.maxLineChanges) >= 2, "Lines stream in chunks, not whole");
   assert.equal(await page.evaluate(() => window.audioStarts), 0, "Silent until explicitly enabled");
@@ -220,7 +234,7 @@ export async function verifyOpening(browser, url, output) {
   await page.keyboard.press("Enter");
   assert.equal(await page.evaluate(() => document.activeElement.id), "opening-run", "website 1.8: restarting returns keyboard focus to Run");
   await page.keyboard.press("Enter");
-  await better(page).waitFor({ timeout: 25000 });
+  await better(page).waitFor({ timeout: 50000 });
   // ADR-0879 D6: the turn is a CRT switching off: windows, then a line, then a point, inside ~1.4 seconds.
   const turn = await page.evaluate(() => new Promise(resolve => {
     const root = document.querySelector("#opening"); const seen = []; const t0 = performance.now();
@@ -266,8 +280,7 @@ export async function verifyOpening(browser, url, output) {
       await still.clock.install();
       await still.emulateMedia({ reducedMotion: "no-preference" });
       await run(still).click();
-      await still.clock.fastForward(16750);
-      await still.clock.fastForward(5250);
+      await still.clock.fastForward(46000);
       await better(still).click();
       await still.emulateMedia({ reducedMotion: "reduce" });
       await still.waitForFunction(() => document.querySelector("#opening").dataset.phase === "peak");

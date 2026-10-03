@@ -15,8 +15,9 @@
     <a class="skip-link" href="#main">Skip to content</a>
     <!-- OPENING -->
     <main id="main">
-      <section id="chapter2" class="tour-section forest-workspace" data-theme="dark" aria-labelledby="forest-title">
+      <section id="chapter2" class="tour-section forest-workspace" data-theme="dark" data-tour-kind="beats" aria-labelledby="forest-title">
         <div class="tour-heading"><h1 id="forest-title">storytree<span aria-hidden="true">.</span></h1><button id="opening-replay" type="button" hidden>Replay chapter 1</button></div>
+        <p id="tour-note" class="tour-note">storytree’s own project · saved {saved} · read only</p>
         <div class="tour-stage">
           <div id="website-forest" data-forest-state="still" aria-label="Storytree’s project map">
             <picture class="forest-still">
@@ -24,34 +25,34 @@
               <img src="/forest-desktop.png" width="458" height="458" loading="lazy" alt="A saved map of storytree’s project: pale story islands and their connections on a dark globe.">
             </picture>
           </div>
-          <article class="tour-copy" aria-labelledby="tour-title">
-            <p id="tour-kicker" class="eyebrow">Chapter 2 · Why storytree</p>
-            <h3 id="tour-title">Your attention is the scarce part.</h3>
-            <div id="tour-lines" class="tour-lines"><p>Your coding agent builds the software. Storytree shows your project’s plan and the health your agents report.</p><p>Each island is a story. Its capabilities describe the work within it.</p></div>
-            <p id="tour-progress" class="tour-progress">Saved project · 2 October 2026</p>
-
+          <div id="tour-tags" class="tour-tags" aria-hidden="true"></div>
+          <article id="tour-card" class="tour-card is-in" aria-labelledby="tour-title">
+            <p id="tour-kicker" class="tour-kicker">Chapter 2 · Why storytree</p>
+            <h2 id="tour-title" class="tour-title">Why storytree</h2>
+            <ul id="tour-lines" class="tour-lines">
+              <li class="tour-line on"><span class="said">Your attention is the scarcest resource in AI-driven development, and coding agents spend it on noise.</span></li>
+              <li class="tour-line on"><span class="said">Storytree shows your project as a globe you can read: the plan, the code, its health, what it knows and the agents at work.</span></li>
+            </ul>
+            <div id="tour-chips" class="tour-chips"></div>
+            <button id="tour-depth" class="tour-depth" type="button" aria-expanded="false" aria-controls="tour-why" hidden>Why it exists</button>
+            <div id="tour-why" class="tour-why" hidden></div>
           </article>
         </div>
         <div id="tour-freeplay" class="tour-freeplay" hidden></div>
-        <section id="tour-comparisons" class="tour-comparisons" aria-label="Sourced comparisons" hidden></section>
-        <div id="tour-controls" class="tour-controls" role="group" aria-label="Tour controls" hidden>
-          <button id="tour-pause" type="button" aria-pressed="false">Pause</button>
-          <label class="tour-speed" for="tour-speed">Speed <select id="tour-speed"><option value="0.75">0.75×</option><option value="1" selected>1×</option><option value="1.5">1.5×</option></select></label>
-          <button id="tour-next" class="tour-next" type="button">Next <span aria-hidden="true">→</span></button>
-          <button id="tour-depth" type="button" aria-expanded="false" aria-controls="tour-why">Why it exists</button>
-          <button id="tour-skip" type="button">Free play ↗</button>
-          <details class="tour-options"><summary aria-label="More tour options">···</summary><div><button id="tour-replay" type="button">Replay tour</button><button id="tour-everything" type="button" aria-pressed="false">Show everything</button></div></details>
+        <div id="tour-bar" class="tour-bar" role="group" aria-label="Tour controls" hidden>
+          <button id="tour-play" class="tb-btn tb-play" type="button" aria-label="Pause the tour"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 3h3v10H4zM9 3h3v10H9z" fill="currentColor"/></svg></button>
+          <div class="tb-speed" role="group" aria-label="Tour speed"><button type="button" data-speed="0.75" aria-pressed="false">0.75×</button><button type="button" data-speed="1" aria-pressed="true">1×</button><button type="button" data-speed="1.5" aria-pressed="false">1.5×</button></div>
+          <button id="tour-speed-cycle" class="tb-btn tb-speed-cycle" type="button" aria-label="Tour speed 1×, change it">1×</button>
+          <div class="tb-where"><ol id="tour-pips" class="tb-pips" aria-label="Tour steps"></ol><span id="tour-label" class="tb-label"></span><span id="tour-held" class="tb-held" hidden></span></div>
+          <button id="tour-next" class="tb-btn" type="button">Next <span aria-hidden="true">→</span></button>
+          <button id="tour-skip" class="tb-btn" type="button" aria-label="Skip to free play"><span class="lbl-long">Skip to free play</span><svg class="lbl-short" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3l6 5-6 5zM8 3l6 5-6 5z" fill="currentColor"/></svg></button>
+          <button id="tour-replay" class="tb-btn" type="button" aria-label="Replay the tour"><span class="lbl-long">Replay</span><svg class="lbl-short" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8a4.5 4.5 0 1 0 1.4-3.3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3 2v3.6h3.6" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button>
+          <button id="tour-everything" class="tb-switch" type="button" role="switch" aria-checked="false" aria-label="Show everything"><span class="trk" aria-hidden="true"></span><span class="lbl-long">Show everything</span><span class="lbl-short">All</span></button>
         </div>
-            <aside id="tour-why" class="tour-why" aria-labelledby="tour-why-title" hidden>
-              <h4 id="tour-why-title" tabindex="-1">Why it exists</h4>
-              <p>The tour waits while you read. These decisions explain the thinking behind this view.</p>
-              <ol id="tour-why-body"></ol>
-              <button id="tour-why-close" type="button">Back to the tour</button>
-            </aside>
-        <p class="tour-foot">Saved 2 October 2026 · read only</p>
-        <a id="tour-hatch" class="tour-hatch" href="/waitlist.html">Join the waitlist <span aria-hidden="true">↗</span></a>
+        <a id="tour-hatch" class="tour-hatch" href="/waitlist.html">Join the waitlist <span aria-hidden="true">→</span></a>
         <p id="tour-live" class="tour-sr" role="status" aria-live="polite" aria-atomic="true"></p>
       </section>
     </main>
+    <!-- COUNTS -->
   </body>
 </html>

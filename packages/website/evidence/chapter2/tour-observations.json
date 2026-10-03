@@ -2,8 +2,11 @@
   "contracts": [
     "2.4",
     "2.5",
-    "2.6"
+    "2.6",
+    "2.7",
+    "2.8"
   ],
   "observed": "pass",
-  "build": "03826903796f29387598d79a71bd574906568461"
+  "source": "Locally built unpublished working tree",
+  "baseCommit": "unpublished local build"
 }

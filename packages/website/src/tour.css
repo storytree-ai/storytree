@@ -1,66 +1,183 @@
-/* Chapter two is a viewport, with the guide layered over the real project. */
-#chapter2 { position:relative; isolation:isolate; width:100%; height:100dvh; min-height:620px; overflow:hidden; margin:0; padding:0; background:#101418; }
-#chapter2 .tour-heading { position:absolute; z-index:8; top:20px; left:24px; display:flex; align-items:center; gap:18px; }
+/* Chapter two is a viewport: the real globe, one card that says what it shows, and the mock's tour bar (ADR-0879). */
+#chapter2 { --bar-h:58px; --card-ink:rgba(15,20,23,.93); --edge:#2c363a; --soft:#c3cbc1; --dim:#8d9893; --amber:#e8b46a;
+  position:relative; isolation:isolate; width:100%; height:100dvh; min-height:620px; overflow:hidden; margin:0; padding:0; background:#101418; }
+#chapter2 .tour-heading { position:absolute; z-index:8; top:18px; left:24px; display:flex; align-items:center; gap:14px; }
 #chapter2 .tour-heading h1 { margin:0; font-size:24px; letter-spacing:-.05em; line-height:1.2; font-weight:600; }
 #chapter2 .tour-heading h1 span { color:var(--green); }
-#chapter2 .tour-heading button { padding:6px 10px; min-height:44px; background:transparent; border:0; color:#a5b1ad; font:11px/1.5 system-ui; }
+#chapter2 .tour-heading button { min-height:44px; padding:6px 10px; background:transparent; border:0; color:#a5b1ad; font:12px/1.5 system-ui, sans-serif; cursor:pointer; }
+#chapter2 .tour-heading button:hover { color:#e1e8e1; }
+#chapter2 .tour-note { position:absolute; z-index:8; top:30px; right:24px; max-width:44%; margin:0; color:var(--dim); font:11.5px/1.4 system-ui, sans-serif; text-align:right; }
 #chapter2 .tour-stage { position:absolute; inset:0; }
 #chapter2 #website-forest { isolation:isolate; z-index:0; position:absolute; inset:0; width:100%; height:100%; min-height:0; }
-#chapter2 .forest-still,#chapter2 .forest-canvas,#chapter2 .forest-drawing { position:absolute; inset:0; }
-#chapter2 .forest-still { inset:8% 15%; }
+#chapter2 .forest-still, #chapter2 .forest-canvas, #chapter2 .forest-drawing { position:absolute; inset:0; }
+#chapter2 .forest-still { inset:8% 10% calc(var(--bar-h) + 6%) 34%; }
 #chapter2 .forest-still::after { display:none; }
-#chapter2 .tour-copy { position:absolute; z-index:4; left:4vw; bottom:150px; width:min(420px,36vw); padding:26px; border-radius:12px; background:linear-gradient(120deg,#101418f5,#101418ce); }
-#chapter2 .tour-copy h3 { font-size:clamp(27px,3vw,43px); line-height:1.12; letter-spacing:-.04em; font-weight:500; margin:12px 0 20px; }
-#chapter2 .tour-lines p { color:#c5ceca; font-size:16px; line-height:1.6; margin-top:10px; text-wrap:pretty; animation:tour-line-in .35s ease-out both; }
-#chapter2 .tour-progress { color:#9ca9a4; font-size:10px; margin-top:18px; font-variant-numeric:tabular-nums; letter-spacing:.05em; }
-#chapter2 .tour-controls { position:absolute; z-index:70; bottom:66px; left:50%; transform:translateX(-50%); display:flex; align-items:center; gap:4px; max-width:calc(100% - 24px); padding:5px 9px; background:#172024ed; border:1px solid #3c4948; border-radius:999px; box-shadow:0 8px 30px #0005; }
-#chapter2 .tour-controls button,#chapter2 .tour-controls select,#chapter2 .tour-controls summary { min-height:44px; padding:7px 12px; border:0; border-radius:30px; background:transparent; color:#d9e1da; font:12px/1.5 system-ui; white-space:nowrap; cursor:pointer; }
-#chapter2 .tour-controls .tour-next { background:#bdd6a6; color:#101418; font-weight:600; }
-#chapter2 .tour-speed { display:flex; align-items:center; gap:1px; font-size:0; }
-#chapter2 .tour-controls select { width:62px; padding:7px 3px; font:12px/1.5 system-ui; }
-#chapter2 .tour-options { position:relative; }
-#chapter2 .tour-options summary { list-style:none; font-weight:bold; }
-#chapter2 .tour-options > div { position:absolute; bottom:48px; right:0; width:170px; display:flex; flex-direction:column; padding:8px; border:1px solid #485159; border-radius:10px; background:#171f22; }
-#chapter2 .tour-options button { text-align:left; }
-#chapter2 .tour-why { position:fixed; z-index:80; top:12%; left:50%; transform:translateX(-50%); width:min(520px,calc(100vw - 32px)); max-height:74dvh; overflow:auto; padding:25px; border:1px solid #55694e; border-radius:12px; background:#18221ff8; box-shadow:0 15px 80px #000b; }
-.tour-why h4 { margin:0 0 9px; font-size:18px; }
-.tour-why p { font-size:13px; line-height:1.6; color:#c2cec5; }
-.tour-why ol { list-style:none; padding:0; margin:22px 0; }
-.tour-why li + li { border-top:1px solid #3c5045; padding-top:16px; margin-top:16px; }
-.tour-decision-number { font-size:10px !important; color:#bdd6a6 !important; }
-.tour-why button { padding:10px 14px; border:1px solid #55694e; border-radius:6px; background:#26382c; color:#e2eadd; cursor:pointer; }
-#chapter2 .tour-comparisons { position:absolute; z-index:6; right:20px; top:90px; width:min(470px,38vw); max-height:calc(100% - 220px); overflow:auto; padding:20px; background:#152024f5; border:1px solid #45524c; border-radius:10px; }
-.tour-comparisons table { width:100%; border-collapse:collapse; margin:15px 0; }
-.tour-comparisons caption { font-size:18px; text-align:left; margin-bottom:12px; }
-.tour-comparisons th,.tour-comparisons td { vertical-align:top; text-align:left; font-size:12px; line-height:1.5; padding:10px 5px; border-bottom:1px solid #3b4844; }
-.tour-source-note { font-size:11px; line-height:1.5; color:#abb9ad; }
-#chapter2 .tour-foot { position:absolute; bottom:16px; left:22px; z-index:9; color:#a7b5ac; font:10px/1.6 system-ui; }
-#chapter2 .tour-hatch { position:absolute; bottom:12px; right:16px; z-index:12; display:flex; gap:20px; align-items:center; min-height:44px; padding:9px 14px; color:#d3e3c4; background:#1d2b24ef; border:1px solid #455b43; border-radius:7px; text-decoration:none; font:12px/1.5 system-ui; }
-#chapter2 :is(button,select,summary,a,input,[tabindex]):focus-visible { outline:2px solid #bdd6a6; outline-offset:3px; }
-#chapter2[data-tour-mode="freeplay"] .tour-copy,#chapter2[data-tour-mode="freeplay"] .tour-heading { display:none; }
-#chapter2[data-tour-mode="freeplay"] .tour-controls { bottom:10px; left:50%; padding:0; border:0; box-shadow:none; background:transparent; }
-#chapter2[data-tour-mode="freeplay"] .tour-controls > :not(.tour-options) { display:none; }
-.tour-sr { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
-@keyframes tour-line-in { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }
-@media(max-width:600px) {
- #chapter2 { min-height:620px; }
- #chapter2[data-tour-mode="tour"] .forest-drawing { top:60px; bottom:48%; }
- #chapter2[data-tour-mode="tour"] .forest-still { top:60px; bottom:48%; }
- #chapter2 .tour-heading { top:14px; left:16px; gap:10px; }
- #chapter2 .tour-heading h1 { font-size:21px; }
- #chapter2 .tour-copy { left:12px; right:12px; bottom:130px; width:auto; padding:18px; max-height:40%; overflow:auto; }
- #chapter2 .tour-copy h3 { font-size:27px; margin:8px 0 12px; }
- #chapter2 .tour-lines p { font-size:14px; }
- #chapter2 .tour-controls { gap:0; padding:5px; bottom:63px; width:max-content; }
- #chapter2 .tour-controls button,#chapter2 .tour-controls summary { padding:7px 8px; font-size:11px; }
- #chapter2 .tour-controls select { width:52px; font-size:11px; }
- #chapter2 .tour-foot { left:12px; bottom:20px; max-width:150px; font-size:9px; }
- #chapter2 .tour-hatch { right:10px; gap:8px; font-size:11px; }
- #chapter2 .tour-comparisons { width:calc(100% - 24px); max-height:42%; top:80px; right:12px; }
-}
-@media(prefers-reduced-motion:reduce) { .tour-lines p { animation:none !important; } }
 
-@media(max-width:360px) {
- #chapter2 .tour-controls button,#chapter2 .tour-controls summary { padding-inline:5px; font-size:10px; }
- #chapter2 .tour-controls select { width:44px; font-size:10px; }
+/* The card: what this step shows, a line at a time, and its depth on demand. */
+#chapter2 .tour-card { position:absolute; z-index:65; left:24px; bottom:calc(var(--bar-h) + 18px); width:min(400px, 36vw); max-height:calc(100% - var(--bar-h) - 104px);
+  overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:#3a4549 transparent;
+  padding:18px 20px 16px; border:1px solid var(--edge); border-radius:14px; background:var(--card-ink); box-shadow:0 20px 44px -22px #000e; }
+#chapter2 .tour-card.is-in { animation:tour-card-in .45s cubic-bezier(.2,1,.3,1) both; }
+#chapter2[data-arriving] .tour-card { opacity:0; }
+#chapter2 .tour-card { transition:opacity .6s ease; }
+@keyframes tour-card-in { from { opacity:0; transform:translateY(8px); } }
+#chapter2 .tour-kicker { margin:0 0 6px; color:var(--green); font:650 11px/1.5 system-ui, sans-serif; letter-spacing:.13em; text-transform:uppercase; }
+#chapter2 .tour-title { margin:0 0 12px; font-size:clamp(22px, 1.9vw, 27px); font-weight:500; line-height:1.14; letter-spacing:-.035em; text-wrap:balance; }
+#chapter2 .tour-title:focus { outline:none; }
+#chapter2 .tour-lines { display:grid; gap:8px; margin:0 0 12px; padding:0; list-style:none; }
+#chapter2 .tour-line { position:relative; padding-left:16px; color:var(--soft); font-size:15.5px; line-height:1.48; text-wrap:pretty; opacity:0; transform:translateY(5px); transition:opacity .55s ease, transform .55s ease; }
+#chapter2 .tour-line::before { content:""; position:absolute; left:1px; top:.62em; width:6px; height:6px; border-radius:50%; background:var(--green); opacity:.75; }
+#chapter2 .tour-line.on { opacity:1; transform:none; }
+#chapter2 .tour-line .source { color:#a9c895; font-size:12.5px; white-space:nowrap; text-underline-offset:3px; }
+#chapter2 .tour-chips { display:flex; flex-wrap:wrap; gap:6px; margin:0 0 12px; }
+#chapter2 .tour-chips:empty { display:none; }
+#chapter2 .chip { display:inline-flex; align-items:baseline; gap:6px; padding:3px 10px; border-radius:999px; font:600 12.5px/1.45 system-ui, sans-serif; }
+#chapter2 .chip-principle { background:#bdd6a61f; color:var(--green); }
+#chapter2 .chip-partial { background:#e8b46a24; color:var(--amber); }
+#chapter2 .chip-recording { background:#f2967b21; color:#f2967b; }
+#chapter2 .chip-recording::before { content:""; align-self:center; width:7px; height:7px; border-radius:50%; background:#f2967b; animation:tour-blink 1.4s steps(1) infinite; }
+@keyframes tour-blink { 50% { opacity:.2; } }
+#chapter2 .tour-depth { min-height:38px; padding:7px 13px; border:1px solid var(--edge); border-radius:8px; background:transparent; color:#dfe6de; font:14px/1.4 system-ui, sans-serif; cursor:pointer; }
+#chapter2 .tour-depth:hover { border-color:var(--dim); }
+#chapter2 .tour-depth[aria-expanded="true"] { border-color:var(--green); color:var(--green); }
+#chapter2 .tour-why { margin-top:14px; padding-top:12px; border-top:1px solid var(--edge); }
+#chapter2 .tour-why h3 { margin:0 0 6px; color:var(--dim); font:650 11px/1.5 system-ui, sans-serif; letter-spacing:.13em; text-transform:uppercase; }
+#chapter2 .tour-why h3:focus { outline:none; }
+#chapter2 .tour-why p { margin:0 0 12px; color:var(--soft); font-size:14.5px; line-height:1.55; }
+#chapter2 .tour-why .tour-decisions-intro { margin-bottom:8px; color:var(--dim); font-size:12.5px; }
+#chapter2 .tour-decisions { display:grid; gap:7px; margin:0 0 12px; padding:0; list-style:none; }
+#chapter2 .tour-decisions li { padding:9px 11px; border:1px solid var(--edge); border-radius:9px; background:#0f1316; color:#e8ebe0; font-size:13.5px; font-weight:600; line-height:1.4; }
+#chapter2 .tour-decisions .number { color:var(--green); font:600 12px ui-monospace, "Cascadia Mono", Consolas, monospace; }
+#chapter2 .tour-back { min-height:38px; padding:7px 14px; border:0; border-radius:8px; background:var(--green); color:#0f1316; font:600 14px/1.4 system-ui, sans-serif; cursor:pointer; }
+
+/* Chapter 2 fills the screen exactly when chapter 1 hands over to it: no leftover scroll padding. */
+html:has(> body.immersive-home) { scroll-padding-top:0; }
+
+/* The opening speaks in large type over the busy globe, one thought at a time. */
+#chapter2:is([data-tour-kind="beats"], [data-tour-kind="principles"]) .tour-depth { align-self:flex-start; min-height:32px; padding:4px 0; border:0; color:var(--dim); font-size:13px; text-decoration:underline; text-underline-offset:4px; }
+#chapter2:is([data-tour-kind="beats"], [data-tour-kind="principles"]) .tour-depth:hover { color:#dfe6de; }
+#chapter2:is([data-tour-kind="beats"], [data-tour-kind="principles"])[data-tour-mode="tour"] .tour-stage::before { content:""; position:absolute; z-index:4; inset:0 auto 0 0; width:min(820px, 70%); background:linear-gradient(90deg, #101418f2 48%, #10141800); pointer-events:none; }
+#chapter2:is([data-tour-kind="beats"], [data-tour-kind="principles"])[data-tour-mode="tour"] .tour-card { top:84px; bottom:calc(var(--bar-h) + 18px); left:clamp(24px, 4vw, 64px); width:min(560px, 46vw); max-height:none; display:flex; flex-direction:column; justify-content:center; padding:0; border:0; background:none; box-shadow:none; }
+#chapter2[data-tour-kind="beats"] .tour-title { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+#chapter2[data-tour-kind="beats"] .tour-lines { display:block; margin:0 0 18px; }
+#chapter2[data-tour-kind="beats"] .tour-line { display:none; padding:0; color:#f0f0e7; font-size:clamp(25px, 2.6vw, 38px); font-weight:500; line-height:1.18; letter-spacing:-.035em; text-wrap:balance; }
+#chapter2[data-tour-kind="beats"] .tour-line::before { display:none; }
+#chapter2[data-tour-kind="beats"] .tour-line.on { display:block; animation:tour-beat-in .8s ease both; }
+#chapter2[data-tour-kind="beats"] .tour-line.coda { margin-top:.45em; color:var(--green); }
+@keyframes tour-beat-in { from { opacity:0; transform:translateY(8px); } }
+#chapter2[data-tour-kind="principles"] .tour-title { font-size:clamp(25px, 2.4vw, 34px); margin-bottom:16px; }
+#chapter2[data-tour-kind="principles"] .tour-lines { gap:9px; }
+#chapter2[data-tour-kind="principles"] .tour-line { display:grid; grid-template-columns:28px minmax(0,1fr); gap:2px 12px; padding:10px 14px 11px; border:1px solid var(--edge); border-left:3px solid var(--green); border-radius:0 10px 10px 0; background:#161c20e6; transform:translateX(-8px); }
+#chapter2[data-tour-kind="principles"] .tour-line.on { transform:none; }
+#chapter2[data-tour-kind="principles"] .tour-line::before { display:none; }
+#chapter2[data-tour-kind="principles"] .tour-line .n { grid-row:span 2; display:grid; place-items:center; width:28px; height:28px; border-radius:50%; background:#bdd6a624; color:var(--green); font:700 13px system-ui, sans-serif; }
+#chapter2[data-tour-kind="principles"] .tour-line b { color:#f0f0e7; font-size:17px; font-weight:650; line-height:1.3; letter-spacing:-.01em; }
+#chapter2[data-tour-kind="principles"] .tour-line .note { color:var(--soft); font-size:14.5px; line-height:1.4; }
+
+/* Pointers: a ring on the thing a step talks about, with its name beside it. */
+#chapter2 .tour-tags { position:absolute; inset:0; z-index:3; pointer-events:none; }
+#chapter2 .tour-tag { position:absolute; left:0; top:0; width:0; height:0; transition:opacity .3s ease; }
+#chapter2 .tour-tag.away { opacity:0; }
+#chapter2 .tour-tag-ring { position:absolute; left:-17px; top:-17px; width:34px; height:34px; border:2px solid var(--green); border-radius:50%; box-shadow:0 0 0 4px #bdd6a629; animation:tour-ring 2s ease-out infinite; }
+@keyframes tour-ring { 0% { transform:scale(.7); opacity:1; } 70%, 100% { transform:scale(1.15); opacity:.75; } }
+#chapter2 .tour-tag-text { position:absolute; left:24px; top:-13px; padding:3px 9px; border-radius:7px; background:#f5f5ee; color:#141a17; font:650 12.5px/1.45 system-ui, sans-serif; white-space:nowrap; box-shadow:0 8px 20px -10px #000e; }
+#chapter2 .tour-tag.to-left .tour-tag-text { left:auto; right:24px; }
+
+/* The bar, always there: play, speed, where you are, Next, free play, replay, show everything (ADR-0879 D2). */
+#chapter2 .tour-bar { position:absolute; z-index:70; left:0; right:0; bottom:0; min-height:var(--bar-h); display:flex; flex-wrap:wrap; align-items:center; gap:8px 10px; padding:9px 210px 9px 16px; border-top:1px solid var(--edge); background:#0c1013f2; font:13px/1.4 system-ui, sans-serif; }
+#chapter2 .tb-btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:40px; padding:6px 12px; border:1px solid var(--edge); border-radius:8px; background:transparent; color:#e8ebe0; font:inherit; white-space:nowrap; cursor:pointer; }
+#chapter2 .tb-btn:hover { border-color:var(--dim); }
+#chapter2 .tb-btn svg { width:14px; height:14px; flex:none; }
+#chapter2 .tb-play { width:42px; padding:0; }
+#chapter2 .tb-play[data-state="waiting"] { border-color:var(--green); color:var(--green); box-shadow:0 0 0 0 #bdd6a666; animation:tour-call 2.2s ease-out infinite; }
+@keyframes tour-call { 0% { box-shadow:0 0 0 0 #bdd6a666; } 70%, 100% { box-shadow:0 0 0 8px #bdd6a600; } }
+#chapter2 .tb-speed { display:inline-flex; padding:2px; border:1px solid var(--edge); border-radius:8px; }
+#chapter2 .tb-speed button { min-width:46px; min-height:34px; padding:3px 8px; border:0; border-radius:6px; background:transparent; color:var(--dim); font:12.5px/1 system-ui, sans-serif; font-variant-numeric:tabular-nums; cursor:pointer; }
+#chapter2 .tb-speed button[aria-pressed="true"] { background:#1c2428; color:#e8ebe0; box-shadow:inset 0 0 0 1px #46525a; }
+#chapter2 .tb-where { display:flex; align-items:center; gap:12px; min-width:0; flex:1 1 300px; }
+#chapter2 .tb-pips { display:flex; flex:none; gap:8px; margin:0; padding:0; list-style:none; }
+#chapter2 .tb-group { display:flex; gap:1px; }
+#chapter2 .tb-pip { position:relative; width:14px; height:30px; padding:0; border:0; background:transparent; cursor:pointer; }
+#chapter2 .tb-pip::before, #chapter2 .tb-pip::after { content:""; position:absolute; left:2px; top:13px; height:4px; border-radius:2px; }
+#chapter2 .tb-pip::before { right:2px; background:#2f3a3f; transition:background-color .3s ease; }
+#chapter2 .tb-pip:hover::before { background:#4a585e; }
+#chapter2 .tb-pip.done::before { background:#6f8a66; }
+#chapter2 .tb-pip[aria-current="step"]::before, #chapter2 .tb-pip[aria-current="step"]::after { top:11px; height:8px; }
+#chapter2 .tb-pip[aria-current="step"]::before { background:#3b4f37; }
+#chapter2 .tb-pip[aria-current="step"]::after { width:calc((100% - 4px) * var(--fill, 0)); background:var(--green); }
+#chapter2 .tb-label { min-width:0; overflow:hidden; color:var(--soft); font-size:12.5px; white-space:nowrap; text-overflow:ellipsis; }
+#chapter2 .tb-held { min-width:0; overflow:hidden; color:var(--amber); font-size:12.5px; white-space:nowrap; text-overflow:ellipsis; }
+#chapter2 .tb-switch { display:inline-flex; align-items:center; gap:8px; min-height:40px; padding:4px 11px 4px 6px; border:1px solid var(--edge); border-radius:999px; background:transparent; color:#e8ebe0; font:inherit; white-space:nowrap; cursor:pointer; }
+#chapter2 .tb-switch .trk { position:relative; width:30px; height:18px; border-radius:999px; background:#2f3a3f; transition:background-color .2s ease; }
+#chapter2 .tb-switch .trk::after { content:""; position:absolute; left:2px; top:2px; width:14px; height:14px; border-radius:50%; background:#c3cbc1; transition:transform .2s ease; }
+#chapter2 .tb-switch[aria-checked="true"] { border-color:var(--green); }
+#chapter2 .tb-switch[aria-checked="true"] .trk { background:#375535; }
+#chapter2 .tb-switch[aria-checked="true"] .trk::after { transform:translateX(12px); background:var(--green); }
+#chapter2 .lbl-short, #chapter2 .tb-speed-cycle { display:none; }
+#chapter2 svg.lbl-short { width:15px; height:15px; }
+#chapter2 .tour-hatch { position:absolute; z-index:72; right:14px; bottom:9px; display:inline-flex; align-items:center; gap:10px; min-height:40px; padding:8px 15px; border-radius:8px; background:var(--green); color:#101418; font:650 13.5px/1.4 system-ui, sans-serif; text-decoration:none; }
+#chapter2 .tour-hatch:hover { background:#d0e3be; }
+#chapter2 :is(button, select, summary, a, input, [tabindex]):focus-visible { outline:2px solid var(--green); outline-offset:3px; }
+.tour-sr { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+
+/* Free play: the desktop's surfaces; the bar keeps only Replay and where you are, on one line. */
+#chapter2[data-tour-mode="freeplay"] :is(.tour-card, .tour-heading, .tour-note) { display:none; }
+#chapter2[data-tour-mode="freeplay"] .tour-bar { right:auto; flex-wrap:nowrap; border:0; background:transparent; padding:9px 16px; }
+#chapter2[data-tour-mode="freeplay"] .tb-where { flex:none; }
+#chapter2[data-tour-mode="freeplay"] .tour-bar > :not(#tour-replay, .tb-where), #chapter2[data-tour-mode="freeplay"] .tb-pips, #chapter2[data-tour-mode="freeplay"] .tb-held { display:none; }
+#chapter2[data-tour-mode="tour"] .tour-browse-toggle { display:none; }
+
+@media (max-width:1000px) { #chapter2 .tb-label { display:none; } }
+@media (max-width:760px) {
+  #chapter2 .tour-bar { padding-right:16px; }
+  #chapter2 .tour-hatch { bottom:calc(var(--bar-h) + 10px); }
+  #chapter2 .lbl-long { display:none; }
+  #chapter2 .lbl-short { display:inline; }
+}
+@media (max-width:600px) {
+  #chapter2 { --bar-h:110px; min-height:620px; }
+  /* A phone's controls are thumb-sized (contract 1.6): every standalone control is at least 44px high. */
+  #chapter2 :is(.tb-btn, .tb-switch, .tb-speed-cycle) { min-height:44px; }
+  #chapter2 .tb-pip { height:44px; }
+  #chapter2 .tb-pip::before, #chapter2 .tb-pip::after { top:20px; }
+  #chapter2 .tb-pip[aria-current="step"]::before, #chapter2 .tb-pip[aria-current="step"]::after { top:18px; }
+  #chapter2 .tour-heading { top:12px; left:14px; gap:8px; }
+  #chapter2 .tour-heading h1 { font-size:21px; }
+  #chapter2 .tour-note { top:58px; left:14px; right:auto; max-width:none; text-align:left; font-size:10.5px; }
+  #chapter2[data-tour-mode="tour"] .forest-drawing, #chapter2[data-tour-mode="tour"] .forest-still { top:72px; bottom:52%; }
+  #chapter2[data-tour-mode="tour"] .forest-still { inset:72px 10% 52%; }
+  #chapter2 .tour-card, #chapter2:is([data-tour-kind="beats"], [data-tour-kind="principles"])[data-tour-mode="tour"] .tour-card { left:10px; right:10px; top:calc(48% + 4px); bottom:calc(var(--bar-h) + 54px); width:auto; max-height:none; padding:14px 15px 12px; justify-content:flex-start; }
+  #chapter2:is([data-tour-kind="beats"], [data-tour-kind="principles"])[data-tour-mode="tour"] .tour-card { padding:4px 6px; }
+  #chapter2:is([data-tour-kind="beats"], [data-tour-kind="principles"])[data-tour-mode="tour"] .tour-stage::before { inset:auto 0 0 0; width:auto; height:60%; background:linear-gradient(0deg, #101418f5 72%, #10141800); }
+  #chapter2[data-tour-kind="beats"] .tour-line { font-size:22px; }
+  #chapter2[data-tour-kind="principles"] .tour-title { font-size:22px; margin-bottom:10px; }
+  #chapter2[data-tour-kind="principles"] .tour-lines { gap:6px; }
+  #chapter2[data-tour-kind="principles"] .tour-line { padding:7px 10px 8px; }
+  #chapter2[data-tour-kind="principles"] .tour-line b { font-size:14.5px; }
+  #chapter2[data-tour-kind="principles"] .tour-line .note { font-size:13px; }
+  #chapter2 .tour-title { font-size:21px; }
+  #chapter2 .tour-line { font-size:15px; }
+  #chapter2 .tour-bar { gap:6px; padding:8px 10px; align-content:flex-start; }
+  #chapter2 .tb-speed { display:none; }
+  #chapter2 .tb-speed-cycle { display:inline-flex; min-width:46px; font-variant-numeric:tabular-nums; }
+  #chapter2 .tb-where { order:5; flex:1 1 100%; padding-right:150px; }
+  #chapter2 #tour-everything { margin-left:auto; }
+  #chapter2 .tb-pips { flex:1 1 auto; gap:5px; }
+  #chapter2 .tb-group { flex:var(--n, 1) 1 0; }
+  #chapter2 .tb-pip { flex:1 1 0; width:auto; min-width:6px; }
+  #chapter2 .tb-held { display:none; }
+  #chapter2 .tb-btn { padding:6px 9px; }
+  #chapter2 .tb-speed button { min-width:40px; }
+  #chapter2 .tour-hatch { right:10px; bottom:8px; min-height:44px; padding:6px 12px; font-size:13px; }
+}
+@media (max-width:360px) {
+  /* The bar's first row still fits on one line at 320px. */
+  #chapter2 .tour-bar { gap:6px 4px; padding-inline:8px; }
+  #chapter2 .tb-btn { padding-inline:7px; }
+  #chapter2 .tb-speed-cycle { min-width:40px; }
+  #chapter2 .tb-switch { gap:5px; padding:4px 8px 4px 5px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  #chapter2 .tour-card.is-in, #chapter2 .tour-line, #chapter2 .tour-tag-ring, #chapter2 .tb-play[data-state="waiting"], #chapter2 .chip-recording::before { animation:none !important; transition:none !important; }
+  #chapter2[data-tour-kind="beats"] .tour-line.on { animation:none; }
 }

@@ -1,164 +1,231 @@
-import type { Explainer, TourStep } from "./tour.js";
+import type { GlobeSurfaces, GlobeTarget } from "@storytree/forest/view";
+import type { Chip, Decision, Explainer, Group, TourStep } from "./tour.js";
 
-export const researchDate = "2026-10-03";
-export const explainers: { id: Explainer; title: string }[] = [
-  { id: "stories", title: "Story nodes" }, { id: "capabilities", title: "Capability nodes" },
-  { id: "knowledge", title: "Knowledge graph" }, { id: "sessions", title: "Sessions" }, { id: "arcs", title: "Arcs" },
-];
-const decisions = {
-  attention: { number: 853, title: "Attention is scarce", reason: "Signals must be real; you decide where your attention goes." },
-  guide: { number: 852, title: "One surface at a time", reason: "The guide reuses the app’s globe controls and keeps a way past every explanation." },
-  tour: { number: 857, title: "Five explainers, then free play", reason: "Start with the whole globe, explain its parts, and leave the visitor free to explore." },
-  boundary: { number: 819, title: "A package for each story", reason: "Code ownership follows the behaviour a story promises." },
-  islands: { number: 804, title: "Code islands", reason: "Land, territories and file circles connect the plan to measured code." },
-  allocation: { number: 838, title: "Trace code to its capability", reason: "Tests and measured execution evidence assign code; unclaimed code stays visible." },
-  rows: { number: 839, title: "Rows by dependency depth", reason: "A story’s position shows how far its chain of dependencies reaches." },
-  edges: { number: 847, title: "Package edges have a direction", reason: "The machine checks dependency loops and keeps stories from leaning on the frame." },
-  tests: { number: 623, title: "Minimal viable TDD", reason: "A small test should fail for the missing behaviour, then pass when it exists." },
-  health: { number: 744, title: "Health says what was checked", reason: "Proposed, untested, healthy and unhealthy describe different evidence states." },
-  reasons: { number: 825, title: "Health you can maintain", reason: "A capability should say why it is not green and who can move it." },
-  shelves: { number: 627, title: "A shelf for each capability", reason: "Agents read the spines first, then open only the knowledge their task needs." },
-  graph: { number: 647, title: "Knowledge inside the planet", reason: "A graph of project knowledge rejects loops; history is retained when decisions change." },
-  loose: { number: 658, title: "Loose notes at the core", reason: "Knowledge unreachable from any story or capability shelf still has a place, at the centre." },
-  librarian: { number: 780, title: "Graduate learning; curate when needed", reason: "Each landing preserves durable learning; changes to decisions trigger curation." },
-  reads: { number: 740, title: "Session reading paths", reason: "Recorded reads draw a path in the session’s colour, making its context inspectable." },
-  window: { number: 746, title: "The session’s context window", reason: "Transcript evidence distinguishes what is in a window from older reads. Missing evidence stays missing." },
-  nudge: { number: 739, title: "Context guidance for Claude Code", reason: "A context reading can prompt a session to wrap up. Harness support is explicit, not assumed." },
-  close: { number: 758, title: "Verify the close-out", reason: "A session’s safe-to-close claim is checked against its branches and running work." },
-  arcs: { number: 638, title: "The arc surface", reason: "Intent and an end state hold a journey together while increments make the work manageable." },
-  waits: { number: 760, title: "Make waits visible", reason: "An increment waiting on other work appears with that dependency, instead of looking ready." },
-  landed: { number: 772, title: "Landed is a work outcome", reason: "A green increment bar records a landing; it does not certify every behaviour of the product." },
-  owner: { number: 824, title: "Owner decisions live in questions", reason: "The owner’s open questions have a durable place on the arc." },
+/** When the comparisons were checked against each tool's own documentation (definition_b0b80acc7330). */
+export const researchDate = "3 October 2026";
+export const groupTitles: Record<Group, string> = {
+  opening: "Why storytree", stories: "Story nodes", capabilities: "Capability nodes", knowledge: "Knowledge graph",
+  sessions: "Sessions", arcs: "Arcs", ending: "The whole globe",
 };
-type Reason = keyof typeof decisions;
-const why = (...keys: Reason[]) => keys.map(key => decisions[key]);
-const all = { sea: true, grounds: true, roads: true, nameplates: true, territories: "health", fileCircles: true, knowledgeCore: true, sessionTints: true } as const;
-const land = { ...all, knowledgeCore: false, sessionTints: false, territories: false, fileCircles: false } as const;
-const core = { ...all, sea: false, grounds: false, roads: false, nameplates: false, territories: false, fileCircles: false, sessionTints: false } as const;
-const forest = { kind: "story", story: "story_deee4230348c" } as const;
-const library = { kind: "story", story: "story_754e87e7d531" } as const;
-const territory = { kind: "capability", capability: "capability_8ffc78a4bad2" } as const;
-const centre = { kind: "core" } as const;
-const make = (id: string, explainer: TourStep["explainer"], title: string, lines: string[], reasons: Reason[], view: Partial<TourStep> = {}): TourStep => ({
-  id, explainer, title, lines, why: why(...reasons), surfaces: all, target: forest, framing: 1.35, ...view,
-});
+export const explainers: { id: Explainer; title: string }[] = (["stories", "capabilities", "knowledge", "sessions", "arcs"] as const).map(id => ({ id, title: groupTitles[id] }));
 
+const adr = (number: number, title: string): Decision => ({ number, title });
+const decisions = {
+  problem: adr(853, "Storytree's problem and its four principles"),
+  busy: adr(857, "Open on the busy globe; five explainers, compared with other tools"),
+  guide: adr(852, "One surface at a time, on the real globe"),
+  islands: adr(804, "Code islands: land, territories and file circles"),
+  packages: adr(819, "A package for each story"),
+  rows: adr(839, "Islands sit in rows by dependency depth"),
+  edges: adr(847, "Dependencies run one way"),
+  pathways: adr(776, "Roads wind round islands and merge on the way"),
+  allocation: adr(838, "Every line of code belongs to a capability"),
+  tests: adr(623, "Minimal viable TDD: red, then green"),
+  health: adr(744, "Health says what was checked"),
+  maintain: adr(825, "Every card that isn't green says why, and who moves it"),
+  core: adr(647, "The knowledge inside the planet, a graph that refuses loops"),
+  loose: adr(658, "Loose notes gather at the core"),
+  shelves: adr(627, "Every story and capability has a shelf of front covers"),
+  librarian: adr(780, "Each landing keeps what the session learned"),
+  claims: adr(643, "Claims, the wait refusal and release on merge"),
+  closeOut: adr(758, "A session leaves the list by a verified close-out"),
+  reads: adr(740, "Each session's reading path, in its colour"),
+  window: adr(746, "A session's context window, from its transcript"),
+  arcs: adr(638, "The arc surface"),
+  waits: adr(760, "Waiting work shows as waiting"),
+  landed: adr(772, "Landed is a work outcome"),
+  questions: adr(824, "The owner's decisions live in written questions"),
+};
+const principle = (n: 1 | 2 | 3 | 4): Chip => ({ kind: "principle", text: [
+  "", "Signals must be real", "Show what matters now; hide the rest", "Your attention goes where you send it", "Nothing is out of reach",
+][n]! });
+const partial = (text: string): Chip => ({ kind: "partial", text });
+
+const complete: GlobeSurfaces = { sea: true, grounds: true, roads: true, nameplates: true, territories: "health", fileCircles: true, knowledgeCore: true, sessionTints: true };
+const none = { roads: false, territories: false, fileCircles: false, knowledgeCore: false, sessionTints: false } as const;
+const quiet: Partial<GlobeSurfaces> = { ...none, nameplates: false };
+const land: Partial<GlobeSurfaces> = { ...none, nameplates: true };
+const roads: Partial<GlobeSurfaces> = { ...land, roads: true };
+const plain: Partial<GlobeSurfaces> = { ...land, territories: "plain" };
+const files: Partial<GlobeSurfaces> = { ...plain, fileCircles: true };
+const health: Partial<GlobeSurfaces> = { ...files, territories: "health" };
+const core: Partial<GlobeSurfaces> = { ...none, grounds: false, nameplates: false, knowledgeCore: true };
+const tinted: Partial<GlobeSurfaces> = { ...land, roads: true, sessionTints: true };
+
+const story = (id: string): GlobeTarget => ({ kind: "story", story: id });
+const capability = (id: string): GlobeTarget => ({ kind: "capability", capability: id });
+const website = story("story_769e230c466d"), agentLink = story("story_609c3b171b3f"), world = story("story_ca702fee28cb");
+const library = story("story_754e87e7d531"), forest = story("story_deee4230348c"), centre: GlobeTarget = { kind: "core" };
+const onTheSite = capability("capability_18562ff0841c"), cloud = capability("capability_a954e1eb16f6");
+const vscode = { name: "VS Code docs", url: "https://code.visualstudio.com/docs/editing/getting-started/userinterface#_explorer-view" };
+const aider = { name: "Aider docs", url: "https://aider.chat/docs/repomap.html" };
+const sonar = { name: "SonarQube docs", url: "https://docs.sonarsource.com/sonarqube-server/quality-standards-administration/managing-quality-gates/introduction-to-quality-gates" };
+const codescene = { name: "CodeScene docs", url: "https://codescene.io/docs/guides/technical/hotspots.html" };
+const cursorRules = { name: "Cursor docs", url: "https://cursor.com/docs/rules" };
+const graphiti = { name: "Graphiti docs", url: "https://help.getzep.com/graphiti/getting-started/overview" };
+const cursorAgents = { name: "Cursor docs", url: "https://cursor.com/docs/agent/agents-window" };
+const langsmith = { name: "LangSmith docs", url: "https://docs.langchain.com/langsmith/studio" };
+const linear = { name: "Linear docs", url: "https://linear.app/docs/initiatives" };
+const github = { name: "GitHub docs", url: "https://docs.github.com/en/issues/planning-and-tracking-with-projects/learning-about-projects/about-projects" };
+const compared = `Checked against each tool's own documentation on ${researchDate}. Follow a link to read it there.`;
+
+/**
+ * The tour, one thought per line (ADR-0879 D4). Each explainer opens on the owner's own line (ADR-0857 D3);
+ * {name} placeholders are the saved reading's own counts, filled in when the page is built.
+ */
 export const steps: TourStep[] = [
-  make("problem", "opening", "Your attention has a limit.", [
+  { id: "problem", explainer: "opening", kind: "beats", title: "Why storytree", lines: [
     "Your attention is the scarcest resource in AI-driven development, and coding agents spend it on noise.",
     "They write more than anyone can read, and engineers and vibe coders alike can't tell which part needs them.",
     "So you either read every line, and become the bottleneck the agents were meant to remove, or you blindly trust the model and find the problems in production.",
     "There's no in-between.",
-  ], ["attention", "tour"]),
-  make("principles", "opening", "Four principles for the view.", [
+  ], why: "Storytree's own statement of the problem it answers. The busy globe behind it is storytree's own project, every surface on at once: more than anyone can read.",
+  decisions: [decisions.problem, decisions.busy], surfaces: complete, target: forest, framing: 1.1, drift: true },
+  { id: "principles", explainer: "opening", kind: "principles", title: "Storytree answers to four principles.", lines: [
     "Signals must be real.", "Show what matters now; hide the rest.", "Your attention goes where you send it.", "Nothing is out of reach.",
-  ], ["attention", "guide"]),
+  ], notes: [
+    "Everything you see comes from the real code and the real work, and says where it came from.",
+    "Nothing asks for your attention unless it needs it.",
+    "You choose what to look into, and how deep to go.",
+    "Whatever storytree hides, you can always bring back.",
+  ], why: "Every storytree surface answers to these four. Each step of this tour shows one of them at work, and the controls below keep the third and fourth in your hands.",
+  decisions: [decisions.problem], surfaces: complete, lineSurfaces: { 2: quiet }, target: forest, framing: 1.1, drift: true },
 
-  make("stories-islands", "stories", "One island, one story.", [
-    "storytree breaks up your codebase into stories", "A story describes something the software does. Each island is one story.", "You are looking at Storytree’s own saved project, not a generated example.",
-  ], ["boundary", "islands"], { surfaces: land, target: forest }),
-  make("stories-rows", "stories", "A place in the dependency chain.", [
-    "The islands sit in rows by dependency depth.", "Deeper chains sit further north. Position helps explain what a story builds on.",
-  ], ["rows", "edges"], { surfaces: land, target: library, framing: 1.5 }),
-  make("stories-roads", "stories", "Roads run one way.", [
-    "Roads connect stories through their recorded dependencies.", "A dependency has a direction: one piece of behaviour relies on another.", "An import dependency is not the same as two files often changing together.",
-  ], ["edges", "islands"], { surfaces: land, target: forest }),
-  make("stories-growth", "stories", "Land follows code.", [
-    "An island grows with the code measured in its package.", "Small islands keep enough room to see; larger ones make room for their files.", "This is a saved reading. The land is not growing live on this page.",
-  ], ["islands", "allocation"], { surfaces: { ...land, fileCircles: true }, framing: .72 }),
-  make("stories-comparison", "stories", "Another way to find your way.", [
-    "Storytree starts from the behaviour and its owners.", "File navigation and a coding agent’s context map answer different questions. No speed advantage is claimed here.",
-  ], ["boundary", "shelves"], { surfaces: land, comparisons: [
-    { name: "VS Code Explorer", claim: "Browses files and folders, with symbol navigation in Outline. Storytree adds a story-and-capability view of the project.", url: "https://code.visualstudio.com/docs/editing/getting-started/userinterface#_explorer-view" },
-    { name: "Aider", claim: "Ranks a repository map of identifiers and signatures within a token budget. Storytree’s shelves carry curated project knowledge linked to the work.", url: "https://aider.chat/docs/repomap.html" },
-  ] }),
+  { id: "stories-island", explainer: "stories", title: "Each island is a story.", lines: [
+    "Storytree breaks up your codebase into stories.",
+    "A story is something your software lets someone do.",
+    "This one is the website you're reading now.",
+  ], why: "People think about what software does for them, not about folders. A story groups the code by the journey it serves, so you find your way by what matters to the person using it.",
+  decisions: [decisions.islands, decisions.packages], chips: [principle(1)], surfaces: land, target: website, framing: .62,
+  tags: [{ target: website, text: "a story: The website" }] },
+  { id: "stories-globe", explainer: "stories", title: "One project, {stories} stories.", lines: [
+    "Storytree's own project has {stories} of them, from the library to the website.",
+    "An island's size follows the code inside it.",
+    "The longer a story's chain of dependencies, the further north it sits.",
+  ], why: "Size and place carry meaning, so the globe tells you something before you read a word: big islands hold a lot of code, and northern ones stand on many others.",
+  decisions: [decisions.rows, decisions.islands], chips: [principle(2)], surfaces: land, target: forest, framing: 1.1, drift: true },
+  { id: "stories-roads", explainer: "stories", title: "Roads show what depends on what.", lines: [
+    "A road joins two stories when one builds on the other.",
+    "Pick a story and its roads light up: blue to what it builds on, violet to what builds on it.",
+    "Change one island, and the roads show who feels it.",
+  ], why: "A change to one story can break the stories that stand on it. The roads show where the ripples go before you make the change, and they only run one way: storytree refuses a loop.",
+  decisions: [decisions.edges, decisions.pathways], chips: [principle(3)], surfaces: roads, select: "story_609c3b171b3f", target: agentLink, framing: .8 },
+  { id: "stories-compare", explainer: "stories", kind: "compare", title: "Other tools map files. Storytree maps what your software does.", lines: [
+    "VS Code's Explorer browses files and folders; its Outline lists a file's symbols.",
+    "Aider's repo map ranks your code's names and signatures to fit the model's budget.",
+    "Storytree groups the code by what it lets someone do, with the plan beside it.",
+  ], sources: [vscode, aider, undefined], why: compared, decisions: [decisions.busy], surfaces: land, target: forest, framing: 1.1, drift: true },
 
-  make("capabilities-territories", "capabilities", "The work within a story.", [
-    "Stories are broken up into capabilities", "Each capability occupies a territory on its island.", "Its share of the land follows the code allocated to it.",
-  ], ["islands", "allocation"], { surfaces: { ...land, territories: "plain" }, target: territory, framing: .7 }),
-  make("capabilities-contracts", "capabilities", "A promise a test can check.", [
-    "A capability has contracts: named promises about behaviour.", "The agent is instructed to show the smallest test failing, then make it pass.", "Passing a test does not establish that the test was a good one. This discipline still depends on the work being done honestly.",
-  ], ["tests", "health"], { surfaces: { ...land, territories: "plain" }, panel: "stories", target: territory, framing: .7 }),
-  make("capabilities-files", "capabilities", "The code behind a promise.", [
-    "Each circle is a surveyed code file. Its size follows its lines of code.", "Tests trace files to capabilities; measured execution can provide evidence where tracing cannot reach.", "A file’s place records that evidence, not an agent’s guess about which folder looks right.",
-  ], ["allocation", "islands"], { surfaces: { ...land, territories: "plain", fileCircles: true }, target: territory, framing: .7 }),
-  make("capabilities-unclaimed", "capabilities", "The gaps stay visible.", [
-    "Code without allocation evidence has an Unclaimed territory.", "Storytree’s saved project still has unclaimed code. The allocation work is in progress.", "A visible gap is more useful than a claim of completeness the evidence cannot support.",
-  ], ["allocation", "attention"], { surfaces: { ...land, territories: "plain", fileCircles: true }, framing: .7 }),
-  make("capabilities-health", "capabilities", "Health, and who said so.", [
-    "Green means healthy, red unhealthy; yellow marks proposed or untested capabilities.", "Read the evidence label: an agent’s report and an independent test result are different signals.", "Storytree checks its own project’s tests on main. It does not yet run every connected project’s tests itself.", "The capability card says why it is not green, and who can move it.",
-  ], ["health", "reasons", "tests"], { surfaces: { ...land, territories: "health", fileCircles: true }, panel: "stories", target: territory, framing: .7 }),
-  make("capabilities-comparison", "capabilities", "Different evidence, different questions.", [
-    "Storytree connects named behaviour, code ownership and the available health evidence.", "It does not currently supply a maintenance-hotspot or historical change-coupling investigation view.",
-  ], ["allocation", "health"], { comparisons: [
-    { name: "SonarQube quality gates", claim: "Evaluate configured conditions on analysis metrics such as coverage and detected issues. Those measurements complement behavioural contracts.", url: "https://docs.sonarsource.com/sonarqube-server/quality-standards-administration/managing-quality-gates/introduction-to-quality-gates" },
-    { name: "CodeScene hotspots", claim: "Combine development activity and code-health information to guide maintenance investigation. That is a surface Storytree does not provide today.", url: "https://codescene.io/docs/guides/technical/hotspots.html" },
-    { name: "CodeScene change coupling", claim: "Finds files that change together in repository history. Storytree’s dependency roads describe a different relationship.", url: "https://codescene.io/docs/guides/technical/change-coupling.html" },
-  ] }),
+  { id: "capabilities-territories", explainer: "capabilities", title: "Each story splits into capabilities.", lines: [
+    "Stories are broken up into capabilities.",
+    "A capability is one part that makes the story work, and it gets its own territory.",
+    "Its share of the island follows its share of the code.",
+  ], why: "A story is too big to check in one go. Capabilities cut it into parts small enough to promise something about, and the land shows how much code each part holds.",
+  decisions: [decisions.islands, decisions.allocation], chips: [principle(2)], surfaces: plain, target: onTheSite, framing: .5,
+  tags: [{ target: onTheSite, text: "a capability: The forest on the site" }] },
+  { id: "capabilities-contracts", explainer: "capabilities", title: "Every capability makes promises.", lines: [
+    "Each capability carries contracts: promises a test can check.",
+    "The agent shows each test failing first, then passing.",
+    "Storytree's own project holds {contracts} of them.",
+  ], why: "'Done' means nothing if the agent decides what done is. So the promise comes first, then a test that fails without the work and passes with it.",
+  decisions: [decisions.tests, decisions.health], chips: [partial("In your project, red then green is the agent's report: nothing re-runs it.")],
+  surfaces: plain, target: onTheSite, framing: .5, panel: "story" },
+  { id: "capabilities-files", explainer: "capabilities", title: "Every file is a circle.", lines: [
+    "Each circle is one code file, sized by its lines.",
+    "A file sits on the capability whose tests reach it.",
+    "Hatched ground is code no capability claims yet.",
+  ], why: "Code that belongs to no promise is code nobody is watching. Drawing every file on the capability it serves shows what is covered, and what has slipped through. This island is the drawing engine itself.",
+  decisions: [decisions.allocation, decisions.islands], chips: [principle(1)], surfaces: files, target: world, framing: .62,
+  tags: [{ target: world, text: "The world: the engine drawing this globe" }] },
+  { id: "capabilities-health", explainer: "capabilities", title: "Health says who said so.", lines: [
+    "Green is healthy, yellow untested, red failing.",
+    "In storytree's own project, CI runs the tests on every merge and records what it saw.",
+    "A card that isn't green says why, and who can move it.",
+  ], why: "Agents say 'done' when it isn't. So every health mark says where it came from, and an agent's word never passes as proof. The yellow card open here waits on the owner: only he can connect the cloud.",
+  decisions: [decisions.health, decisions.maintain], chips: [partial("In your project: what your agent reported, labelled as the agent's.")],
+  surfaces: health, target: cloud, framing: .58, panel: "story", tags: [{ target: cloud, text: "untested: waits on the owner" }] },
+  { id: "capabilities-compare", explainer: "capabilities", kind: "compare", title: "Quality tools measure code. Storytree tracks its promises.", lines: [
+    "SonarQube's quality gates pass or fail code on conditions like coverage and detected issues.",
+    "CodeScene finds hotspots from your history and code health; storytree has no such view yet.",
+    "Storytree ties each piece of code to the promise it keeps, and says who vouched for it.",
+  ], sources: [sonar, codescene, undefined], why: compared, decisions: [decisions.busy], surfaces: health, target: forest, framing: 1.1, drift: true },
 
-  make("knowledge-inside", "knowledge", "Knowledge beneath the islands.", [
-    "Storytree remembers things using a knowledgegraph", "Hundreds of project notes sit inside this saved globe.", "They include the decisions and working knowledge behind what gets built.",
-  ], ["graph", "loose"], { surfaces: core, target: centre }),
-  make("knowledge-kinds", "knowledge", "Different notes do different jobs.", [
-    "Decisions record a choice and its reason. Principles and guardrails guide judgement.", "Patterns and processes describe approaches and ceremonies; definitions keep terms precise.", "Agent roles describe responsibilities. Each kind gives a future reader a useful starting point.",
-  ], ["graph", "shelves"], { surfaces: core, target: centre, panel: "knowledge" }),
-  make("knowledge-shelves", "knowledge", "Read the spines first.", [
-    "Each story and capability has a shelf of front covers.", "The shelf puts relevant knowledge beside the behaviour it supports.", "An agent opens the books it needs for the current task.",
-  ], ["shelves", "librarian"], { surfaces: { ...core, grounds: true, nameplates: true }, target: library }),
-  make("knowledge-links", "knowledge", "Links without loops.", [
-    "Notes link to other notes. The knowledge graph rejects loops.", "Notes no story or capability shelf reaches gather at the centre.", "Choose a note to read its saved title and kind. This public snapshot does not include full note bodies.",
-  ], ["graph", "loose"], { surfaces: core, target: centre, panel: "knowledge" }),
-  make("knowledge-history", "knowledge", "A changed decision leaves a history.", [
-    "Earlier decisions remain recorded when the project changes direction.", "The graph can calculate ghosts of earlier states; this globe does not expose a ghost-inspection view.", "What you can open here is the saved note’s title and kind.",
-  ], ["graph", "librarian"], { surfaces: core, target: centre, panel: "knowledge" }),
-  make("knowledge-pull", "knowledge", "Pull what the work needs.", [
-    "Agents pull relevant knowledge as they work, rather than receiving the whole library in every prompt.", "The librarian pass preserves durable lessons and checks changed decisions for stale guidance.", "These are working practices with recorded evidence, not a guarantee that an agent will never forget.",
-  ], ["shelves", "librarian"], { surfaces: core, target: centre }),
-  make("knowledge-comparison", "knowledge", "Memory already has many forms.", [
-    "Storytree’s emphasis is curated project knowledge linked to the plan and its capability shelves.", "It does not claim to have invented selective context or graph memory.",
-  ], ["shelves", "librarian"], { surfaces: core, target: centre, comparisons: [
-    { name: "Cursor rules", claim: "Can apply always, by file pattern, by agent relevance or manually. Selective context already exists in coding harnesses.", url: "https://cursor.com/docs/rules" },
-    { name: "Graphiti", claim: "Provides a temporal entity-and-fact graph with provenance and hybrid retrieval. Storytree’s library organises project decisions around the work.", url: "https://help.getzep.com/graphiti/getting-started/overview" },
-  ] }),
+  { id: "knowledge-inside", explainer: "knowledge", title: "What the project knows lives inside.", lines: [
+    "Storytree remembers things using a knowledge graph.",
+    "Inside this globe: {notes} notes, {decisions} of them decisions.",
+    "Each sits beneath the story or capability it's about.",
+  ], why: "Every new agent session starts on its first day. The library keeps the decisions and lessons, so the next session doesn't have to relearn them.",
+  decisions: [decisions.core, decisions.loose], chips: [principle(1)], surfaces: { ...core, grounds: true }, target: centre, framing: 1, drift: true },
+  { id: "knowledge-kinds", explainer: "knowledge", title: "Different notes do different jobs.", lines: [
+    "Decisions record what was chosen, and why.",
+    "Principles and guardrails steer judgement; definitions keep words exact.",
+    "Patterns and processes say how the work gets done.",
+  ], why: "A future reader needs to know what kind of note they've found: a choice to respect, a rule to follow, or a way of working.",
+  decisions: [decisions.core, decisions.shelves], surfaces: core, target: centre, framing: .9, panel: "knowledge" },
+  { id: "knowledge-shelves", explainer: "knowledge", title: "Every story keeps a shelf.", lines: [
+    "Each story and capability has a shelf of front covers: the decisions that shaped it.",
+    "An agent reads the spines first, then opens only what its task needs.",
+    "Nothing has to be pasted into every prompt.",
+  ], why: "Pasting everything in up front wastes the agent's memory, and it goes stale. A shelf puts the right few books beside the work.",
+  decisions: [decisions.shelves, decisions.librarian], chips: [principle(3)], surfaces: { ...core, grounds: true, nameplates: true }, target: library, framing: .7 },
+  { id: "knowledge-links", explainer: "knowledge", title: "Notes link, and never loop.", lines: [
+    "Notes link to the notes they stand on.",
+    "The graph refuses loops, so every chain of reasons ends.",
+    "A replaced decision stays, linked to what replaced it.",
+  ], why: "Reasons that go round in circles explain nothing. Refusing loops keeps every chain readable, and keeping replaced decisions shows what was tried before.",
+  decisions: [decisions.core, decisions.loose], chips: [principle(4)], surfaces: core, target: centre, framing: .78, tags: [{ target: centre, text: "notes no shelf reaches gather here" }] },
+  { id: "knowledge-compare", explainer: "knowledge", kind: "compare", title: "Memory comes in many shapes. Storytree's sits with the work.", lines: [
+    "Cursor's rules load always, by file pattern, when the agent finds them relevant, or by hand.",
+    "Graphiti keeps a graph of entities and facts over time, with where each came from.",
+    "Storytree keeps decisions on the shelves of the work they shaped.",
+  ], sources: [cursorRules, graphiti, undefined], why: compared, decisions: [decisions.busy], surfaces: core, target: centre, framing: .9, drift: true },
 
-  make("sessions-recording", "sessions", "See the sessions doing the work.", [
-    "Storytree visualises agents working through sessions", "This is a recording from 2 October 2026, 00:00–04:15 UTC.", "The names, claims and note reads come from recorded activity. They are not live visitors or invented agents.",
-  ], ["reads", "guide"], { panel: "sessions" }),
-  make("sessions-claims", "sessions", "A colour for the session.", [
-    "A recorded claim connects a session to the work it owns.", "Session colours connect the list to its activity on the globe.", "A claim is ownership of work; it does not certify that the work is finished or healthy.",
-  ], ["close", "islands"], { panel: "sessions" }),
-  make("sessions-unplanned", "sessions", "Work can show before it is planned.", [
-    "Observed sessions can appear even without a planned increment.", "The list distinguishes activity, ownership and the evidence available about the session.", "A verified close-out checks the session’s branch and running work before it leaves the list.",
-  ], ["close", "owner"], { panel: "sessions" }),
-  make("sessions-context", "sessions", "Context has a limit too.", [
-    "Claude Code has a partial context reading and wrap-up nudge; Codex does not have that same path.", "The saved recording has no transcript-derived context totals. Missing readings remain absent here.", "A nudge is guidance for the agent, not proof it will stop at the right time.",
-  ], ["nudge", "window"], { panel: "sessions" }),
-  make("sessions-reads", "sessions", "Follow what a session read.", [
-    "Select a recorded session to follow its note reads in order.", "Those reads connect its work to the knowledge inside the globe.", "A recorded read shows what was opened. It does not prove what the model understood or still remembers.",
-  ], ["reads", "window"], { surfaces: { ...core, sessionTints: true }, target: centre, panel: "sessions" }),
-  make("sessions-comparison", "sessions", "Alongside the coding harness.", [
-    "Storytree relates observed sessions to project claims, reads and close-outs.", "It works beside the harness; this recording is not a remote control for those agents.",
-  ], ["reads", "close"], { comparisons: [
-    { name: "Cursor Agents Window", claim: "Manages parallel agents, isolated worktrees and diff or pull-request review. Storytree adds the project’s recorded work and knowledge relationships.", url: "https://cursor.com/docs/agent/agents-window" },
-    { name: "LangSmith Studio", claim: "Visualises and debugs systems using the Agent Server API protocol, alongside tracing and evaluation. Its compatibility and execution focus differ from this project view.", url: "https://docs.langchain.com/langsmith/studio" },
-  ] }),
+  { id: "sessions-recording", explainer: "sessions", title: "Agents at work, recorded.", lines: [
+    "Storytree visualises agents working through sessions.",
+    "This is storytree's own activity, {recording}.",
+    "Each session has a colour, and tints the stories it's working on.",
+  ], why: "With a dozen sessions, nobody knows who changed what. One shared record of who is on what replaces the guessing.",
+  decisions: [decisions.closeOut, decisions.guide], chips: [{ kind: "recording", text: "Recording, not live" }], surfaces: tinted, target: forest, framing: 1.1, drift: true, panel: "sessions" },
+  { id: "sessions-claims", explainer: "sessions", title: "A session claims its work first.", lines: [
+    "Before an agent writes, it claims the work it will do.",
+    "A second claim on the same work is turned away.",
+    "A session leaves the list only when its close-out checks out.",
+  ], why: "Two agents editing the same thing is how work gets lost. A claim says who is on what before anyone writes, and the close-out is checked against the session's branches and running work.",
+  decisions: [decisions.claims, decisions.closeOut], chips: [partial("Claims run on trust: an agent that never asks shows up afterwards, as unplanned work.")],
+  surfaces: tinted, target: forest, framing: 1.1, drift: true, panel: "sessions" },
+  { id: "sessions-reads", explainer: "sessions", title: "Follow what a session read.", lines: [
+    "Pick a session to follow its reads through the library, in order.",
+    "It shows what the work stood on, and what it never opened.",
+  ], why: "An agent's work is only as good as what it read before it acted. The path shows what the work stood on.",
+  decisions: [decisions.reads, decisions.window], chips: [partial("A read shows what was opened, not what the model understood.")],
+  surfaces: { ...core, sessionTints: true }, target: centre, framing: .9, panel: "sessions" },
+  { id: "sessions-compare", explainer: "sessions", kind: "compare", title: "Harnesses run agents. Storytree shows the work they share.", lines: [
+    "Cursor's Agents window runs agents in parallel, each in its own worktree, with diffs to review.",
+    "LangSmith Studio visualises and debugs agent systems, with tracing and evaluation.",
+    "Storytree ties each session to the work it claimed, what it read and how it closed.",
+  ], sources: [cursorAgents, langsmith, undefined], why: compared, decisions: [decisions.busy], surfaces: tinted, target: forest, framing: 1.1, drift: true },
 
-  make("arcs-intent", "arcs", "A direction for the work.", [
-    "In Storytree work is planned using arcs", "An arc records an intent and the end state it is trying to reach.", "Open one to see the work that belongs to that journey.",
-  ], ["arcs", "owner"], { panel: "arcs" }),
-  make("arcs-increments", "arcs", "One finishable increment at a time.", [
-    "An arc breaks into increments that can reach a clear outcome.", "Their bars distinguish work still open, landed work and failed outcomes.", "A green landing is not the same claim as verified product health.",
-  ], ["arcs", "landed"], { panel: "arcs" }),
-  make("arcs-waits", "arcs", "What is waiting, and why.", [
-    "Some work waits on another increment. Some needs an answer only the owner can give.", "The arc keeps those dependencies and questions with the work they hold.", "Waiting is visible; it is not silently counted as progress.",
-  ], ["waits", "owner"], { panel: "arcs" }),
-  make("arcs-owner", "arcs", "The owner keeps the decisions.", [
-    "Agents can carry a bounded increment through its checks and landing.", "Owner-level decisions become written questions with their stakes and options.", "The owner’s answer stays recorded with the work it unblocks.",
-  ], ["owner", "landed"], { panel: "arcs" }),
-  make("arcs-comparison", "arcs", "Plans connected to execution.", [
-    "Storytree makes increments, claims, waits and owner questions explicit beside the project.", "Existing planning tools remain useful; their goals and health signals are not interchangeable with test evidence.",
-  ], ["arcs", "waits", "landed"], { panel: "arcs", comparisons: [
-    { name: "Linear initiatives", claim: "Connect projects to strategic goals and progress updates. Storytree’s arcs connect a journey to agent work and the questions holding it.", url: "https://linear.app/docs/initiatives" },
-    { name: "GitHub Projects", claim: "Offers configurable tables, boards, roadmaps and automation linked to issues and pull requests. Storytree adds its own explicit claim and owner-question model.", url: "https://docs.github.com/en/issues/planning-and-tracking-with-projects/learning-about-projects/about-projects" },
-  ] }),
+  { id: "arcs-plan", explainer: "arcs", title: "Bigger work is an arc.", lines: [
+    "In storytree, work is planned using arcs.",
+    "An arc says what it's for and what done looks like, then breaks into increments.",
+    "Green bars have landed; yellow ones are waiting.",
+  ], why: "A journey needs an end state to hold it together, and pieces small enough to finish. Waiting work shows as waiting, never as progress.",
+  decisions: [decisions.arcs, decisions.waits, decisions.landed], chips: [principle(2)], surfaces: roads, target: forest, framing: 1.1, drift: true, panel: "arcs" },
+  { id: "arcs-questions", explainer: "arcs", title: "Only your calls wait on you.", lines: [
+    "Remember twelve agents waiting on you?",
+    "Here, agents make the everyday calls themselves.",
+    "Only what's truly yours to decide waits, written up with its stakes and options.",
+  ], why: "Approving every step is exhausting. Agents decide what is reversible and theirs to decide, and write a question for the rest, holding only the work that needs your answer.",
+  decisions: [decisions.questions, decisions.waits], chips: [principle(2)], surfaces: roads, target: forest, framing: 1.1, drift: true, panel: "arcs" },
+  { id: "arcs-compare", explainer: "arcs", kind: "compare", title: "Planners track goals. Storytree tracks the work your agents do.", lines: [
+    "Linear's initiatives connect projects to goals and progress updates.",
+    "GitHub Projects lays issues and pull requests out as tables, boards and roadmaps.",
+    "Storytree ties each increment to the claims, landings and questions holding it.",
+  ], sources: [linear, github, undefined], why: compared, decisions: [decisions.busy], surfaces: roads, target: forest, framing: 1.1, drift: true },
+
+  { id: "everything", explainer: "ending", title: "Now read the whole globe.", lines: [
+    "Everything is back: the plan, the code, its health, the knowledge and the sessions.",
+    "It's the globe you started on. Now you can read it.",
+  ], why: "Nothing storytree hides is out of reach: the Show everything switch brings every surface back at any step.",
+  decisions: [decisions.busy, decisions.guide], chips: [principle(4)], surfaces: complete, target: forest, framing: 1.1, drift: true },
 ];

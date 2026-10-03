@@ -69,7 +69,7 @@ try {
   }
   if (process.argv.includes("--verify-camera")) await verifyTourCamera(browser, url);
   if (process.argv.includes("--verify-tour")) {
-    const proof = { contracts: ["2.4", "2.5", "2.6"], observed: "not-observed", source: "Locally built unpublished working tree", baseCommit: (await readFile(path.join(dist, "version.txt"), "utf8")).trim() };
+    const proof = { contracts: ["2.4", "2.5", "2.6", "2.7", "2.8"], observed: "not-observed", source: "Locally built unpublished working tree", baseCommit: (await readFile(path.join(dist, "version.txt"), "utf8")).trim() };
     try { await journey("website 2.4 guided tour and dated free play", measured => verifyTour(measured, url, output)); proof.observed = "pass"; }
     catch (error) { proof.observed = "fail"; proof.detail = error.message; throw error; }
     finally { await writeFile(path.join(output, "tour-observations.json"), JSON.stringify(proof, null, 2) + "\n"); }

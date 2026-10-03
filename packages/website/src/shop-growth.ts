@@ -7,7 +7,8 @@ import path from "node:path";
 import { promisify } from "node:util";
 import type { Line } from "@storytree/agent-link";
 import { codeSurveyReader, type ProjectSurvey } from "@storytree/forest/code-survey";
-import type { AnnotatedTree, Change } from "@storytree/library";
+import { commitOfLog, judgeRun, parseTestLog, proofsAt, VERIFIED_BY_PROJECT_CI } from "@storytree/ci-health";
+import type { AnnotatedCapability, AnnotatedTree, Change, HealthState } from "@storytree/library";
 
 const run = promisify(execFile);
 const time = (value: string) => Date.parse(value);
@@ -79,4 +80,50 @@ export function shopStages(changes: readonly Change[], lines: readonly Line[], m
   }
   stages.push({ id: "complete", at: seconds(last, 60) });
   return { window, stages: stages.sort((a, b) => time(a.at) - time(b.at)) };
+}
+
+/** When a run finished: the latest time its log printed. */
+const finishedAt = (log: string) => new Date(Math.max(...[...log.matchAll(/\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z/g)].map(([at]) => time(at)))).toISOString();
+const rollUp = (states: readonly HealthState[]): HealthState =>
+  states.includes("failing") ? "failing" : states.length > 0 && states.every(state => state === "passing") ? "passing" : "not-checked";
+
+/**
+ * The shop's verified health as storytree's CI health reading (ADR-0902) would have recorded it, run by run: each
+ * push run on main (its archived log) judged against the test titles at the commit it tested, and each contract's
+ * verdict that changed written as a verified health change dated when the run finished, by the project's CI. The
+ * plan now (`tree`) carries the last run's verdicts. Nothing is written for a contract no run had a test for.
+ */
+export async function ciHealth(input: { tree: AnnotatedTree; changes: readonly Change[]; repository: string; runs: readonly { id: string; log: string }[] }): Promise<{ tree: AnnotatedTree; changes: Change[] }> {
+  const git = async (args: string[]) => (await run("git", args, { cwd: input.repository, encoding: "utf8", maxBuffer: 1 << 28, windowsHide: true })).stdout;
+  const runs = input.runs.map(item => ({ ...item, finished: finishedAt(item.log), commit: commitOfLog(item.log) })).sort((a, b) => time(a.finished) - time(b.finished));
+  const latest = new Map<string, HealthState>();
+  const changes = [...input.changes];
+  let seq = Math.max(0, ...changes.map(change => change.seq));
+  for (const item of runs) {
+    if (item.commit === undefined) continue;
+    const paths = (await git(["ls-tree", "-r", "--name-only", item.commit, "--", "packages"])).split("\n").filter(file => /^packages\/[^/]+\/src\/.+\.[cm]?[jt]sx?$/.test(file));
+    const files = await Promise.all(paths.map(async file => ({ path: file, text: await git(["show", `${item.commit}:${file}`]) })));
+    const { verdicts } = judgeRun(proofsAt(input.tree, files), parseTestLog(item.log));
+    for (const [contract, verdict] of verdicts) {
+      if (verdict.total === 0 || latest.get(contract) === verdict.state) continue;
+      const id = `health_${contract}_verified`;
+      const fields = { node: contract, column: "verified", state: verdict.state, by: VERIFIED_BY_PROJECT_CI, note: `${verdict.note}, at commit ${item.commit.slice(0, 12)}, run ${item.id}` };
+      changes.push({ seq: ++seq, recordId: id, type: "health", action: latest.has(contract) ? "updated" : "created", record: { id, type: "health", version: 1, fields, createdAt: item.finished, updatedAt: item.finished } } as Change);
+      latest.set(contract, verdict.state);
+    }
+  }
+  if (latest.size === 0) return { tree: input.tree, changes };
+  const verifiedOf = (contract: string): HealthState => latest.get(contract) ?? "not-checked";
+  const { unverified: _, ...rest } = input.tree;
+  const stories = input.tree.stories.map(story => {
+    const capabilities = story.capabilities.map(capability => {
+      const contracts = capability.contracts.map(contract => ({ ...contract, health: { ...contract.health, verified: { state: verifiedOf(contract.id) } } }));
+      const verified = rollUp(contracts.map(contract => contract.health.verified.state));
+      const { reportOnly: __, ...kept } = capability;
+      return { ...kept, contracts, health: { ...capability.health, verified: { state: verified } },
+        status: capability.proposed ? "proposed" : verified === "passing" ? "healthy" : verified === "failing" ? "unhealthy" : "untested" } as AnnotatedCapability;
+    });
+    return { ...story, capabilities, health: { ...story.health, verified: { state: rollUp(capabilities.flatMap(capability => capability.contracts.map(contract => contract.health.verified.state))) } } };
+  });
+  return { tree: { ...rest, stories }, changes };
 }

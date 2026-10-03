@@ -664,6 +664,9 @@ importers:
       '@storytree/arc-surface':
         specifier: workspace:*
         version: link:../arc-surface
+      '@storytree/ci-health':
+        specifier: workspace:*
+        version: link:../ci-health
       '@storytree/forest':
         specifier: workspace:*
         version: link:../forest

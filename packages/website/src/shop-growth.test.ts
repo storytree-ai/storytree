@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { refreshGrowthSnapshot, type GrowthReading } from "./conduit-growth.js";
-import { codeAt } from "./shop-growth.js";
+import { ciHealth, codeAt } from "./shop-growth.js";
 
 const t = (minute: number) => `2026-10-03T16:${String(minute).padStart(2, "0")}:00.000Z`;
 const untested = { reported: { state: "not-checked" }, verified: { state: "not-checked" } };
@@ -51,4 +51,40 @@ test("3.5 · a stage's land comes only from the survey of the code as it stood a
   assert.deepEqual(files("one"), ["src/sign-in.js"]);
   assert.deepEqual(files("two"), ["src/sign-in.js", "src/sign-out.js"]);
   assert.deepEqual(saved.scene.islands[0].land.files.map((item: { path: string }) => item.path).sort(), ["src/sign-in.js", "src/sign-out.js"], "the full plan's frame stands on the code at the window's end");
+});
+
+/** The shop's CI on main, archived as `gh run view --log` saves it: the commit its checkout printed, then its TAP. */
+const ciLog = (commit: string, finished: string, outcome: "ok" | "not ok") => [
+  `test\tRun actions/checkout@v4\t${finished} [command]/usr/bin/git log -1 --format=%H`,
+  `test\tRun actions/checkout@v4\t${finished} ${commit}`,
+  `test\tRun npm test\t${finished} ${outcome} 1 - 1.1 sign in works`,
+].join("\n");
+
+test("3.7 · the shop's saved growth colours each stage only by the CI results recorded by its time, and before any run its land reads as the agent's report alone", async context => {
+  const directory = await mkdtemp(path.join(tmpdir(), "shop-ci-"));
+  context.after(() => rm(directory, { recursive: true, force: true }));
+  const root = await mkdtemp(path.join(directory, "repo-"));
+  execFileSync("git", ["init", "-q", "-b", "main"], { cwd: root });
+  await mkdir(path.join(root, "packages", "have-an-account", "src"), { recursive: true });
+  await writeFile(path.join(root, "packages", "have-an-account", "package.json"), JSON.stringify({ name: "have-an-account" }));
+  await writeFile(path.join(root, "packages", "have-an-account", "src", "sign-in.js"), "export const signIn = () => true;\n");
+  await writeFile(path.join(root, "packages", "have-an-account", "src", "sign-in.test.js"), `import { test } from "node:test";\nimport { signIn } from "./sign-in.js";\ntest("1.1 sign in works", () => signIn());\n`);
+  execFileSync("git", ["add", "-A"], { cwd: root });
+  execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "sign in"], { cwd: root, env: { ...process.env, GIT_AUTHOR_DATE: t(2), GIT_COMMITTER_DATE: t(2) } });
+  const commit = execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
+
+  const recorded = reading(codeAt(root));
+  const contract = { seq: 3, recordId: "contract_a11", type: "contract", action: "created", record: { id: "contract_a11", type: "contract", version: 1, fields: { capability: "capability_a1", title: "1.1 · Sign in works" }, createdAt: t(1), updatedAt: t(1) } };
+  const tree = structuredClone(recorded.tree) as GrowthReading["tree"];
+  tree.stories[0]!.capabilities[0]!.contracts = [{ id: "contract_a11", title: "1.1 · Sign in works", description: "", health: untested }] as never;
+  const changes = [...recorded.changes, contract] as GrowthReading["changes"];
+  const verified = await ciHealth({ tree, changes, repository: root, runs: [{ id: "1", log: ciLog(commit, t(4), "ok") }, { id: "2", log: ciLog(commit, t(6), "not ok") }] });
+  const file = path.join(directory, "shop.json");
+  await refreshGrowthSnapshot(file, async () => ({ ...recorded, tree: verified.tree, changes: verified.changes, stages: [{ id: "built", at: t(3) }, { id: "passed", at: t(5) }, { id: "failed", at: t(7) }] }));
+  const saved = JSON.parse(await readFile(file, "utf8"));
+  const territory = (id: string) => saved.stages.find((stage: { id: string }) => stage.id === id).scene.islands[0].land.territories.find((item: { capability?: string }) => item.capability === "capability_a1").status;
+  assert.equal(territory("built"), "untested", "no CI run had finished: the land reads only what the agent reports");
+  assert.equal(territory("passed"), "healthy", "the first run on main passed its test");
+  assert.equal(territory("failed"), "unhealthy", "the next one failed it");
+  assert.equal(saved.scene.islands[0].land.territories.find((item: { capability?: string }) => item.capability === "capability_a1").status, "unhealthy", "the full plan's frame stands on the last run");
 });

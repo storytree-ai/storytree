@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@storytree/arc-surface": "workspace:*",
+    "@storytree/ci-health": "workspace:*",
     "@storytree/forest": "workspace:*",
     "@storytree/knowledge-core": "workspace:*",
     "@storytree/forest-world": "workspace:*",

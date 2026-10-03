@@ -1,17 +1,20 @@
 // From the checkout root, with the shop's code as a git repository (a bare mirror will do) and its library either
 // reachable (read only) or as a saved record (packages/app-setup/evidence/shop/harness/record-library.sh writes one):
-// node --import tsx packages/website/src/refresh-shop.ts --repository <shop git dir> (--record <file> | --library <postgres url>) [--output <file>]
+// node --import tsx packages/website/src/refresh-shop.ts --repository <shop git dir> (--record <file> | --library <postgres url>) [--ci <dir>] [--output <file>]
+// --ci names the folder of the shop's archived CI runs (runs.tsv, then run-<id>.log per run): each push run on main
+// colours the stages after it finished with the verified health it recorded (ADR-0902).
 // The shop: the store the test laptop's Claude Code built with storytree (packages/app-setup/evidence/shop).
 import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import type { Line } from "@storytree/agent-link";
 import type { AnnotatedTree, Change } from "@storytree/library";
 import { refreshGrowthSnapshot } from "./conduit-growth.js";
-import { codeAt, landings, shopStages } from "./shop-growth.js";
+import { ciHealth, codeAt, landings, shopStages } from "./shop-growth.js";
 
 const project = "shop";
-const { values } = parseArgs({ options: { repository: { type: "string" }, record: { type: "string" }, library: { type: "string" }, output: { type: "string" } } });
+const { values } = parseArgs({ options: { repository: { type: "string" }, record: { type: "string" }, library: { type: "string" }, ci: { type: "string" }, output: { type: "string" } } });
 if (!values.repository || !values.record === !values.library) throw new Error("Give --repository <shop git dir>, and one of --record <saved library record> or --library <postgres url>.");
 
 /** The library's own recorded history of the shop: its plan, every dated change and its activity lines. */
@@ -34,7 +37,14 @@ async function history(): Promise<{ capturedAt: string; tree: AnnotatedTree; cha
   } finally { await server.close(); }
 }
 
-const recorded = await history();
+/** The shop's archived push runs on main, each with its log. */
+async function ciRuns(folder: string): Promise<{ id: string; log: string }[]> {
+  const rows = (await readFile(path.join(folder, "runs.tsv"), "utf8")).trim().split("\n").map(row => row.split("\t"));
+  return Promise.all(rows.filter(([, event, branch]) => event === "push" && branch === "main").map(async ([id]) => ({ id: id!, log: await readFile(path.join(folder, `run-${id}.log`), "utf8") })));
+}
+
+const saved = await history();
+const recorded = values.ci ? { ...saved, ...await ciHealth({ tree: saved.tree, changes: saved.changes, repository: values.repository, runs: await ciRuns(values.ci) }) } : saved;
 const merges = await landings(values.repository);
 const { window, stages } = shopStages(recorded.changes, recorded.lines, merges);
 await refreshGrowthSnapshot(values.output ?? fileURLToPath(new URL("./shop-snapshot.json", import.meta.url)), async () => ({

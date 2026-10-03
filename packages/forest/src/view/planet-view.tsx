@@ -2,7 +2,7 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Group, Quaternion, Vector3 } from "three";
-import { claimTints, coastArcs, openingTurn, selectionLanes, type ClaimTint, type CoastArc, type EdgeMarker, type FacingIsland, type ForestScene, type GlobeTurn, type Island, type SessionWisp } from "@storytree/forest";
+import { claimTints, coastArcs, openingTurn, selectionLanes, selectionNeighbours, type ClaimTint, type CoastArc, type EdgeMarker, type FacingIsland, type ForestScene, type GlobeTurn, type Island, type SessionWisp } from "@storytree/forest";
 import type { Descriptor3D } from "@storytree/forest-world";
 import { islandNormal, onIslandSurface, PlanetWorldCanvas, plateTransform } from "@storytree/forest-world/planet";
 import { codePathKey, type CodePlaces } from "@storytree/knowledge-core";
@@ -12,7 +12,7 @@ import { coastTintMarks } from "./session-tints.js";
 import { circleStops, fileCircleMarks, lightFileCircles } from "./file-circles.js";
 import { lightTerritories, territoryLand } from "./territory-land.js";
 import { fileCircles, territories } from "../territories/territories.js";
-import { NameplateCrowd, Nameplates, Overlay, SelectionRing } from "./island-overlays.js";
+import { NameplateCrowd, Nameplates, NeighbourRing, Overlay, SelectionRing } from "./island-overlays.js";
 import { dragTurn, focusRotation, globeHover, hiddenMarkers, isGlobeDrag, oncePerFrame, pickGlobe, planetLayout, type ForestMode } from "./planet-navigation.js";
 import { claimsOn } from "./planet-update.js";
 import { createGlobeGuide, type GlobeControls, type GlobePose } from "./globe-guide.js";
@@ -93,6 +93,9 @@ export function PlanetView({ core, scene, places, wisps, selected, highlighted, 
   const lighting = useCodeLighting(core, codePlaces);
   // Contract 3.26: the selected story's links to other stories light as lanes; the Library shows none.
   const lanes = useKept(useMemo(() => mode === "forest" ? selectionLanes(scene, selected) : [], [scene, selected, mode]), JSON.stringify);
+  // Contract 3.27: the islands those lanes reach are ringed by relation.
+  const neighbours = useKept(useMemo(() => mode === "forest" ? selectionNeighbours(scene, selected) : new Map<string, "up" | "down">(), [scene, selected, mode]),
+    neighbours => JSON.stringify([...neighbours]));
   const overlays = useCallback((island: Island, descriptors: readonly Descriptor3D[], coast: readonly (readonly { x: number; z: number }[])[]) => {
     // Lane B has already centred the descriptors in the plate's own ground coordinates.
     const local = { ...island, x: 0, z: 0 };
@@ -105,8 +108,10 @@ export function PlanetView({ core, scene, places, wisps, selected, highlighted, 
       {shownSurfaces.nameplates && <Nameplates island={island} coast={coast} radius={layout.radius} selected={selected} dimmed={emphasis === "dimmed"} />}
       {shownSurfaces.sessionTints && <CoastTints arcs={coastArcs(wisps, island.story)} coast={coast} radius={layout.radius} />}
       {mode === "forest" && <SelectionRing island={island.story === selected ? local : undefined} descriptors={descriptors} onGlobe />}
+      {mode === "forest" && neighbours.has(island.story) && <NeighbourRing key={`${selected}:${neighbours.get(island.story)}`}
+        island={local} descriptors={descriptors} relation={neighbours.get(island.story)!} />}
     </>;
-  }, [wisps, claimed, selected, highlighted, layout.spots, layout.radius, lighting, reportStops, shownSurfaces, mode]);
+  }, [wisps, claimed, selected, neighbours, highlighted, layout.spots, layout.radius, lighting, reportStops, shownSurfaces, mode]);
   return <PlanetWorldCanvas scene={layout.scene} spots={layout.spots} radius={layout.radius}
     surface surfaces={shownSurfaces} framing={cameraFraming} sideOffset={cameraOffset} orbit={false}
     inside={<group name="globe-core" visible={library && shownSurfaces.knowledgeCore}><KnowledgeGlobePoints core={core} spots={layout.spots} radius={layout.radius} places={codePlaces} /></group>}

@@ -2,8 +2,9 @@
 import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
-import { DoubleSide, Quaternion, type Group } from "three";
-import type { Island } from "@storytree/forest";
+import { DoubleSide, Quaternion, RingGeometry, type Group, type Mesh, type MeshBasicMaterial } from "three";
+import { ringPulse, type Island } from "@storytree/forest";
+import { LANE_COLOUR } from "@storytree/forest-world/geometry";
 import { globeOccluder, onIslandSurface } from "@storytree/forest-world/planet";
 import { territories, type Coast } from "../territories/territories.js";
 import { capabilityPlates, facing, screenOnPlate, settlePlates, STORY_PLATE_WIDTH, storyPlate } from "./nameplates.js";
@@ -131,6 +132,43 @@ export function SelectionRing({ island, descriptors, onGlobe = false, emphasis =
     <mesh name={emphasis ? `session-highlight:${island.story}` : ""} raycast={() => {}} position={[centre.x, 0.4, centre.z]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={5}>
       <ringGeometry args={[reach + 3, reach + 5, 96]} />
       <meshBasicMaterial color={emphasis ? "#edf4ee" : "#ffd75e"} side={DoubleSide} depthTest={onGlobe} transparent opacity={0.9} forceSinglePass />
+    </mesh>
+  );
+}
+
+const reducedMotion = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/** A neighbour of the selected story, ringed in its relation's lane colour, pulsing in once (contract 3.27). */
+export function NeighbourRing({ island, descriptors, relation }: { island: Island; descriptors: readonly Descriptor3D[]; relation: "up" | "down" }) {
+  const centre = centreOf(island);
+  const reach = islandReach(descriptors, new Map([[island.story, centre]])).get(island.story) ?? 20;
+  const { clock, invalidate } = useThree();
+  const mesh = useRef<Mesh>(null);
+  const started = useRef({ at: clock.getElapsedTime(), reduced: reducedMotion() });
+  // One ring per width the pulse passes through, kept until the ring goes.
+  const geometries = useMemo(() => new Map<number, RingGeometry>(), [reach]);
+  useEffect(() => () => geometries.forEach(geometry => geometry.dispose()), [geometries]);
+  const ringFor = (pulseWidth: number) => {
+    const width = Math.round(pulseWidth * 20) / 20;
+    let geometry = geometries.get(width);
+    if (geometry === undefined) geometries.set(width, geometry = new RingGeometry(reach + 3, reach + 3 + width, 96));
+    return geometry;
+  };
+  useFrame(() => {
+    const { at, reduced } = started.current;
+    const pulse = ringPulse(clock.getElapsedTime() - at, reduced);
+    if (mesh.current) {
+      mesh.current.geometry = ringFor(pulse.width);
+      (mesh.current.material as MeshBasicMaterial).opacity = 0.9 * pulse.opacity;
+    }
+    // The canvas draws on demand: ask for frames only while the pulse is still settling.
+    if (pulse.opacity < 1) invalidate();
+  });
+  useEffect(() => invalidate(), [invalidate]);
+  return (
+    <mesh ref={mesh} name={`neighbour-ring:${relation}:${island.story}`} raycast={() => {}} position={[centre.x, 0.4, centre.z]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={5}
+      geometry={ringFor(ringPulse(0, started.current.reduced).width)} dispose={null}>
+      <meshBasicMaterial color={LANE_COLOUR[relation]} side={DoubleSide} transparent opacity={0.9 * ringPulse(0, started.current.reduced).opacity} forceSinglePass />
     </mesh>
   );
 }

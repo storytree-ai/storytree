@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { ForestScene, Island } from '../index.js';
-import { selectionLanes } from '../index.js';
+import { ringPulse, selectionLanes, selectionNeighbours } from '../index.js';
 
 const island = (story: string, capabilities: string[]): Island => ({
   story, title: story, x: 0, z: 0, radius: 1, key: story,
@@ -25,4 +25,16 @@ test('3.26 selecting a story lights its links to other stories, up where it buil
   ], 'its own internal link, a2 on a1, stays unlit');
   assert.deepEqual(selectionLanes(scene, undefined), []);
   assert.deepEqual(selectionLanes(scene, 'nowhere'), []);
+});
+
+test('3.27 a selected story\'s neighbours are ringed by relation, violet when both, pulsing in once', () => {
+  assert.deepEqual([...selectionNeighbours(scene, 'b')], [['a', 'up'], ['c', 'down']]);
+  const cycle: ForestScene = { ...scene, links: [...scene.links!, { from: 'a1', to: 'c1' }] };
+  assert.deepEqual([...selectionNeighbours(cycle, 'c')], [['b', 'up'], ['a', 'down']], 'a story on both sides reads as building on it');
+  assert.deepEqual([...selectionNeighbours(scene, undefined)], []);
+  const start = ringPulse(0, false), settled = ringPulse(0.72, false);
+  assert.ok(start.width > settled.width && start.opacity < settled.opacity, 'it starts wide and faint');
+  assert.deepEqual(ringPulse(5, false), settled);
+  assert.deepEqual(ringPulse(0, true), settled);
+  assert.equal(settled.opacity, 1);
 });

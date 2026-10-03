@@ -24,16 +24,17 @@ await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
 const url = `http://127.0.0.1:${server.address().port}/`;
 const browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
 
-// Pause every animation the first frame the collapse reaches `phase`, then put each one at a fixed time.
-const freeze = (page, phase, times) => page.evaluate(([target, at]) => new Promise(resolve => {
+// Put each named animation at a fixed time after its own delay (paused, so the picture is repeatable).
+const setTimes = (page, at) => page.evaluate(times => document.getAnimations().forEach(animation => {
+  animation.pause();
+  if (animation.id in times) animation.currentTime = animation.effect.getTiming().delay + times[animation.id];
+}), at);
+// Pause everything the first frame the collapse reaches `phase`.
+const freeze = (page, phase, times) => page.evaluate(target => new Promise(resolve => {
   const root = document.querySelector("#opening");
-  const tick = () => {
-    if (root.dataset.crt !== target) { requestAnimationFrame(tick); return; }
-    document.getAnimations().forEach(animation => { animation.pause(); if (animation.id in at) animation.currentTime = animation.effect.getTiming().delay + at[animation.id]; });
-    resolve();
-  };
+  const tick = () => { if (root.dataset.crt === target) { document.getAnimations().forEach(animation => animation.pause()); resolve(); } else requestAnimationFrame(tick); };
   tick();
-}), [phase, times]);
+}), phase).then(() => setTimes(page, times));
 const resume = page => page.evaluate(() => document.getAnimations().forEach(animation => animation.play()));
 
 const sizes = [
@@ -58,11 +59,15 @@ for (const size of sizes.filter(size => !only || size.name === only)) {
   await page.waitForTimeout(1800);
   await shot("3-peak-finale");
   await page.evaluate(() => document.getElementById("opening-better").click());
-  await freeze(page, "line", { "crt-squash": 225, "crt-line": 250 });
-  await shot("4-turn-line");
+  await freeze(page, "line", { "crt-squash": 130, "crt-line": 130 });
+  await shot("4-turn-squash");
+  await setTimes(page, { "crt-squash": 225, "crt-line": 250 });
+  await shot("5-turn-line");
   await resume(page);
-  await freeze(page, "point", { "crt-point": 200 });
-  await shot("5-turn-point");
+  await freeze(page, "point", { "crt-point": 140 });
+  await shot("6-turn-point");
+  await setTimes(page, { "crt-point": 200, "crt-glow": 50 });
+  await shot("7-turn-glow");
   await resume(page);
   await page.waitForFunction(() => document.querySelector("#opening").hidden);
   console.log(`${size.name}: captured${errors.length ? `, page errors: ${errors.join("; ")}` : ""}`);

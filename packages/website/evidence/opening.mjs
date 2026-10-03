@@ -96,6 +96,7 @@ export async function verifyOpening(browser, url, output) {
   }));
   assert.deepEqual(turn.seen.map(step => step[0]), ["line", "point"], "The screen collapses to a line, then to a point");
   assert.ok(turn.total < 1500, `The turn takes under 1.5 seconds (took ${Math.round(turn.total)} ms)`);
+  console.log(`turn: line at ${turn.seen[0][1]} ms, point at ${turn.seen[1][1]} ms, handed over at ${Math.round(turn.total)} ms; finale reached ${Math.round(elapsed)} ms after Run`);
   assert.equal(page.url(), url, "The turn does not navigate or change the hash");
   assert.ok(await page.locator("#website-forest").evaluate(el => el.getBoundingClientRect().top < innerHeight));
   await page.reload();

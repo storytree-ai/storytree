@@ -13,3 +13,6 @@ One row per landing of the shop build: session, pull request, merge commit and t
 | 5 | #7 | 2026-10-03T18:28:02Z | f84b9bc0 | part 5 (wave 2 begins: 5 new stories planned) | official **26/26**; ours **7/7** (part 5) |
 | 6 | #8 | 2026-10-03T18:49:24Z | 733d7b0f | part 6 | official **26/26**; ours **13/13** (parts 5-6) |
 | 7 | #9 | 2026-10-03T19:53Z | 9f3f7144 | part 7 (first turn cut by a network outage; resumed) | official **26/26**; ours **18/18** (parts 5-7) |
+| 8 | #10 | 2026-10-03T20:01:20Z | 8084c37e | part 8 | — |
+| 8 (same turn) | #11 | 2026-10-03T20:04:56Z | c3365105 | reviews answer in place (the project's own recorded rule) | official **26/26**; ours **23/23** (parts 5-8) |
+| 9 | #12 | 2026-10-03T20:20:17Z | 7f745ec5 | part 9 (wave 2 complete) | official **26/26**; ours **29/29** |

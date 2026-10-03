@@ -1,0 +1,182 @@
+model: claude-opus-5-5 | mcp: storytree=connected,claude.ai Claude Docs=connected,claude.ai Google Drive=connected,claude.ai Gmail=connected,claude.ai Google Calendar=connected
+calls: 160
+  - ToolSearch
+  - Glob
+  - st:check_setup {}
+  - Read C:\Users\mickh\shop\shop-requirements-2.md
+  - Write C:\Users\mickh\shop\.storytree-check
+  - PowerShell echo storytree-check
+  - st:check_setup {}
+  - ToolSearch
+  - st:search_notes {"query":"orchestrator role","limit":3}
+  - st:search_notes {"query":"librarian role","limit":3}
+  - st:show_plan {}
+  - st:open {"id":"agent_d97940a3ce57"}
+  - st:open {"id":"agent_9a5f274a583c"}
+  - PowerShell $p = Get-Content 'C:\Users\mickh\.claude\projects\C--Users-mickh-shop\c3cd44d1-4c47-4e02-b5ea-aae2cb
+  - PowerShell $p = Get-Content 'C:\Users\mickh\.claude\projects\C--Users-mickh-shop\c3cd44d1-4c47-4e02-b5ea-aae2cb
+  - PowerShell git ls-files | Where-Object { $_ -notmatch 'node_modules' }; Get-Content package.json; git show --st
+  - Read C:\Users\mickh\shop\packages\sign-in-and-see-the-products\src\server\index.js
+  - Read C:\Users\mickh\shop\packages\sign-in-and-see-the-products\src\core\index.js
+  - Read C:\Users\mickh\shop\packages\sign-in-and-see-the-products\src\core\testing.js
+  - Read C:\Users\mickh\shop\packages\sign-in-and-see-the-products\src\catalog\index.js
+  - Read C:\Users\mickh\shop\packages\sign-in-and-see-the-products\package.json
+  - Grep
+  - Grep
+  - Read C:\Users\mickh\shop\packages\browse-products-and-pick-them\src\product-page\index.js
+  - Read C:\Users\mickh\shop\packages\browse-products-and-pick-them\src\cart-state\index.js
+  - Read C:\Users\mickh\shop\packages\browse-products-and-pick-them\src\cart-state\cart.js
+  - Read C:\Users\mickh\shop\packages\check-out\src\checkout\index.js
+  - Read C:\Users\mickh\shop\packages\check-out\src\checkout\checkout.js
+  - Read C:\Users\mickh\shop\packages\review-the-cart-and-use-the-menu\src\cart\index.js
+  - Read C:\Users\mickh\shop\packages\review-the-cart-and-use-the-menu\src\menu\index.js
+  - Read C:\Users\mickh\shop\packages\sign-in-and-see-the-products\src\auth\index.js
+  - Read C:\Users\mickh\shop\packages\sign-in-and-see-the-products\src\auth\users.json
+  - Read C:\Users\mickh\shop\packages\review-products\src\reviews\reviews.test.js
+  - Read C:\Users\mickh\shop\packages\review-products\package.json
+  - Read C:\Users\mickh\shop\packages\review-products\src\reviews\store.js
+  - Read C:\Users\mickh\shop\packages\review-the-cart-and-use-the-menu\src\cart\cart-page.js
+  - Read C:\Users\mickh\shop\packages\see-my-orders\src\orders\store.js
+  - Read C:\Users\mickh\shop\packages\browse-products-and-pick-them\src\sorting\sort.js
+  - Read C:\Users\mickh\shop\packages\check-out\src\checkout\checkout.test.js
+  - Read C:\Users\mickh\shop\packages\sign-in-and-see-the-products\src\catalog\products.json
+  - Read C:\Users\mickh\shop\packages\review-the-cart-and-use-the-menu\src\menu\menu.test.js
+  - st:search_notes {"query":"forms answer in place without a page reload","limit":5}
+  - st:open {"id":"increment_9f2109ef4fb5"}
+  - st:open {"id":"story_09eeafd698a6"}
+  - st:open {"id":"decision_87cfec17d654"}
+  - st:open {"id":"decision_8787534f359b"}
+  - st:ready_increment {"increment":"increment_9f2109ef4fb5"}
+  - st:name_session {"title":"Part 9: stock and an admin page"}
+  - st:plan_capability {"story":"story_09eeafd698a6","title":"Stock (src/stock)","description":"Each product's stock and the admin's price, kept on the server; the
+  - st:plan_capability {"story":"story_09eeafd698a6","title":"Admin page (src/admin)","description":"admin_user's Admin link and /admin.html, where each product's 
+  - st:claim {"increment":"increment_9f2109ef4fb5","reason":"Part 9: stock and an admin page"}
+  - st:plan_contract {"capability":"capability_b7a8cd7b4722","title":"Stock and prices are kept, start at 10, and survive a restart","description":"With no stock
+  - st:plan_contract {"capability":"capability_b7a8cd7b4722","title":"Products and the product page show the stock","description":"Each .inventory_item (includin
+  - st:plan_contract {"capability":"capability_b7a8cd7b4722","title":"A sold-out product's Add to cart is disabled","description":"At stock 0 the server draws Ad
+  - st:plan_contract {"capability":"capability_b7a8cd7b4722","title":"Finish takes the order's products off stock","description":"Placing an order through /api/o
+  - st:plan_contract {"capability":"capability_b7a8cd7b4722","title":"Finish refuses a sold-out product in place and keeps the cart","description":"If a product 
+  - st:plan_contract {"capability":"capability_d262e956736c","title":"Only admin_user sees the Admin link and reaches /admin.html","description":"admin_user (sec
+  - st:plan_contract {"capability":"capability_d262e956736c","title":"Admin lists every product with price and stock inputs","description":"One [data-test=\"admi
+  - st:plan_contract {"capability":"capability_d262e956736c","title":"Saving a row keeps it and says Saved, in place","description":"Save keeps that row's price 
+  - st:plan_contract {"capability":"capability_d262e956736c","title":"The shop uses the admin's price and stock straight away","description":"After a save, Produ
+  - st:claim {"capability":"capability_b7a8cd7b4722","reason":"Part 9: stock and an admin page"}
+  - st:claim {"capability":"capability_d262e956736c","reason":"Part 9: stock and an admin page"}
+  - PowerShell git checkout -b part-9-stock-admin; Get-Content packages/browse-products-and-pick-them/package.json,
+  - Write C:\Users\mickh\shop\packages\manage-stock-and-prices\package.json
+  - Write C:\Users\mickh\shop\packages\manage-stock-and-prices\src\stock\stock.test.js
+  - Edit C:\Users\mickh\shop\packages\manage-stock-and-prices\src\stock\stock.test.js
+  - Write C:\Users\mickh\shop\packages\manage-stock-and-prices\src\admin\admin.test.js
+  - Edit C:\Users\mickh\shop\packages\manage-stock-and-prices\src\admin\admin.test.js
+  - PowerShell npm install --silent; node --test packages/manage-stock-and-prices 2>$null | Select-String -Pattern 
+  - PowerShell node --test packages/manage-stock-and-prices/src/stock/stock.test.js packages/manage-stock-and-price
+  - st:report {"contract":"contract_2f9c9ed27779","result":"red","note":"stock.test.js: store.js does not exist yet"}
+  - st:report {"contract":"contract_1a7fb705e2ef","result":"red","note":"stock.test.js: store.js does not exist yet"}
+  - st:report {"contract":"contract_1c5d7758993d","result":"red","note":"stock.test.js: store.js does not exist yet"}
+  - st:report {"contract":"contract_3dd9f47446ef","result":"red","note":"stock.test.js: store.js does not exist yet"}
+  - st:report {"contract":"contract_43c0900f075b","result":"red","note":"stock.test.js: store.js does not exist yet"}
+  - st:report {"contract":"contract_ea1714d21629","result":"red","note":"admin.test.js: the admin feature does not exist yet"}
+  - st:report {"contract":"contract_c4fefb3b00fd","result":"red","note":"admin.test.js: the admin feature does not exist yet"}
+  - st:report {"contract":"contract_b50f7ee79402","result":"red","note":"admin.test.js: the admin feature does not exist yet"}
+  - st:report {"contract":"contract_1f12ae4ccef3","result":"red","note":"admin.test.js: the admin feature does not exist yet"}
+  - Write C:\Users\mickh\shop\packages\manage-stock-and-prices\src\stock\store.js
+  - Write C:\Users\mickh\shop\packages\manage-stock-and-prices\src\stock\index.js
+  - Edit C:\Users\mickh\shop\packages\sign-in-and-see-the-products\src\catalog\index.js
+  - Edit C:\Users\mickh\shop\packages\sign-in-and-see-the-products\src\catalog\index.js
+  - Edit C:\Users\mickh\shop\packages\sign-in-and-see-the-products\src\catalog\index.js
+  - Edit C:\Users\mickh\shop\packages\sign-in-and-see-the-products\src\catalog\index.js
+  - Edit C:\Users\mickh\shop\packages\sign-in-and-see-the-products\package.json
+  - Edit C:\Users\mickh\shop\packages\sign-in-and-see-the-products\package.json
+  - Edit C:\Users\mickh\shop\packages\browse-products-and-pick-them\src\cart-state\index.js
+  - Edit C:\Users\mickh\shop\packages\browse-products-and-pick-them\src\cart-state\cart.js
+  - Edit C:\Users\mickh\shop\packages\browse-products-and-pick-them\src\product-page\index.js
+  - Edit C:\Users\mickh\shop\packages\browse-products-and-pick-them\src\product-page\index.js
+  - Edit C:\Users\mickh\shop\packages\browse-products-and-pick-them\src\product-page\index.js
+  - Edit C:\Users\mickh\shop\packages\browse-products-and-pick-them\src\product-page\index.js
+  - Edit C:\Users\mickh\shop\packages\browse-products-and-pick-them\package.json
+  - Edit C:\Users\mickh\shop\packages\browse-products-and-pick-them\package.json
+  - Edit C:\Users\mickh\shop\packages\review-the-cart-and-use-the-menu\src\cart\index.js
+  - Edit C:\Users\mickh\shop\packages\review-the-cart-and-use-the-menu\src\cart\index.js
+  - Edit C:\Users\mickh\shop\packages\check-out\src\checkout\index.js
+  - Edit C:\Users\mickh\shop\packages\check-out\src\checkout\index.js
+  - Edit C:\Users\mickh\shop\packages\check-out\src\checkout\index.js
+  - Edit C:\Users\mickh\shop\packages\check-out\src\checkout\index.js
+  - Edit C:\Users\mickh\shop\packages\check-out\src\checkout\index.js
+  - Edit C:\Users\mickh\shop\packages\check-out\src\checkout\index.js
+  - Edit C:\Users\mickh\shop\packages\check-out\package.json
+  - Edit C:\Users\mickh\shop\packages\check-out\package.json
+  - Edit C:\Users\mickh\shop\packages\check-out\src\checkout\checkout.js
+  - Edit C:\Users\mickh\shop\packages\check-out\src\checkout\checkout.js
+  - Edit C:\Users\mickh\shop\packages\check-out\src\checkout\checkout.js
+  - Edit C:\Users\mickh\shop\packages\browse-products-and-pick-them\src\product-page\product-page.test.js
+  - PowerShell npm install --silent; node --test packages/manage-stock-and-prices/src/stock/stock.test.js 2>$null |
+  - Edit C:\Users\mickh\shop\packages\sign-in-and-see-the-products\src\auth\users.json
+  - Edit C:\Users\mickh\shop\packages\sign-in-and-see-the-products\src\auth\index.js
+  - Edit C:\Users\mickh\shop\packages\sign-in-and-see-the-products\src\auth\index.js
+  - Edit C:\Users\mickh\shop\packages\review-the-cart-and-use-the-menu\src\menu\index.js
+  - Edit C:\Users\mickh\shop\packages\review-the-cart-and-use-the-menu\src\menu\index.js
+  - Edit C:\Users\mickh\shop\packages\review-the-cart-and-use-the-menu\package.json
+  - Write C:\Users\mickh\shop\packages\manage-stock-and-prices\src\admin\index.js
+  - Write C:\Users\mickh\shop\packages\manage-stock-and-prices\src\admin\admin.js
+  - Edit C:\Users\mickh\shop\packages\manage-stock-and-prices\package.json
+  - Edit C:\Users\mickh\shop\packages\sign-in-and-see-the-products\src\server\index.js
+  - Edit C:\Users\mickh\shop\packages\sign-in-and-see-the-products\src\server\index.js
+  - PowerShell npm install --silent; npm test 2>$null | Select-String -Pattern "^(not ok|# (pass|fail))|^\s+(error|
+  - PowerShell $env:SHOP_DATA_DIR = Join-Path $env:TEMP "shop-smoke-$(Get-Random)"; $env:PORT = '3917' $p = Start-P
+  - PowerShell $env:SHOP_DATA_DIR = Join-Path $env:TEMP "shop-smoke-1"; $env:PORT = '3917' $p = Start-Process node 
+  - PowerShell $env:SHOP_DATA_DIR = Join-Path $env:TEMP "shop-smoke-2"; $env:PORT = '3918' $p = Start-Process node 
+  - Read C:\Users\mickh\shop\packages\sign-in-and-see-the-products\src\server\start.js
+  - PowerShell Get-NetTCPConnection -LocalPort 3917,3918 -State Listen -ErrorAction SilentlyContinue | Select-Objec
+  - PowerShell $env:SHOP_DATA_DIR = Join-Path $env:TEMP "shop-smoke-2"; $env:PORT = '3918' $p = Start-Process node 
+  - PowerShell foreach ($d in 'shop-smoke-1','shop-smoke-2') { $t = Join-Path $env:TEMP $d; if (Test-Path $t) { Rem
+  - st:report {"contract":"contract_2f9c9ed27779","result":"green"}
+  - st:report {"contract":"contract_1a7fb705e2ef","result":"green"}
+  - st:report {"contract":"contract_1c5d7758993d","result":"green"}
+  - st:report {"contract":"contract_3dd9f47446ef","result":"green"}
+  - st:report {"contract":"contract_43c0900f075b","result":"green"}
+  - st:report {"contract":"contract_ea1714d21629","result":"green"}
+  - st:report {"contract":"contract_c4fefb3b00fd","result":"green"}
+  - st:report {"contract":"contract_b50f7ee79402","result":"green"}
+  - st:report {"contract":"contract_1f12ae4ccef3","result":"green"}
+  - PowerShell git add -A; git commit -q -m @' Part 9: stock and an admin page Each product has stock (10 to start
+  - Write C:\Users\mickh\shop\.git\PART9_MSG
+  - PowerShell git commit -q -F .git/PART9_MSG; Remove-Item .git/PART9_MSG; git log --oneline -1; git push 2>&1 | S
+  - Write C:\Users\mickh\shop\.git\PART9_PR
+  - PowerShell gh pr create --base main --head part-9-stock-admin --title "Part 9: stock and an admin page" --body-
+  - PowerShell gh pr checks 12 --watch --interval 10
+  - PowerShell gh pr list --state merged --limit 3 --json number,mergedBy,mergedAt | ConvertFrom-Json | ForEach-Obj
+  - PowerShell gh pr merge 12 --merge --delete-branch; git checkout -q main; git pull -q; git log --oneline -2; git
+  - st:land {"capability":"capability_b7a8cd7b4722"}
+  - st:land {"capability":"capability_d262e956736c"}
+  - st:mark_built {"capability":"capability_b7a8cd7b4722","built":true}
+  - st:mark_built {"capability":"capability_d262e956736c","built":true}
+  - st:close_increment {"increment":"increment_9f2109ef4fb5","disposition":"landed","pr":"#12"}
+  - ToolSearch
+  - st:search_notes {"query":"PowerShell strips double quotes from native command arguments, git commit message","limit":3}
+  - st:correct_note {"id":"decision_87cfec17d654","text":"The admin's price and stock edits must show straight away everywhere, so the catalog stops being a fix
+  - ToolSearch
+  - st:record_friction {"title":"Windows PowerShell 5.1 strips double quotes from native arguments","description":"Embedded double quotes vanish from arguments pas
+  - st:reinforce {"friction":"friction_4a4f580146b2","evidence":"Again in part 9: `node --test packages/manage-stock-and-prices` reported \"not ok 1 - packag
+  - st:write_note {"kind":"decision","title":"On Windows PowerShell, pass quoted text to git and node through files","text":"Windows PowerShell 5.1 strips emb
+  - PowerShell git status --short; git branch --list
+  - st:close_out {"safe":true,"why":"PR #12 merged, main clean and up to date, no servers of mine running"}
+RESULT success turns 161 ms 784528 cost 3.8052728000000013 
+Part 9 is finished and merged ([PR #12](https://github.com/HuaMick/shop/pull/12)). CI passed before the merge.
+
+**Stock**
+- Every product starts with 10 in stock.
+- Products and each product page show `[data-test="stock"]`: "In stock" from 6 up, "Only 5 left" down to "Only 1 left", then "Sold out".
+- A sold-out product's Add to cart button is disabled. If it was already in someone's cart, its Remove button still works.
+- Finish takes one of each product off stock. If something sold out in the meantime, Finish shows "Error: Sauce Labs Backpack is sold out" (or whichever product it was) on the same page. No order is saved and the cart stays as it was.
+
+**Admin**
+- `admin_user` / `secret_sauce` signs in and gets an **Admin** link in the side menu. Nobody else sees it, and anyone else who opens `/admin.html` is sent to Products.
+- The admin page has one row per product, each with its own price, stock and Save. Saving shows "Saved" in that row without reloading the page.
+- I chose two error messages the requirements don't specify: a price must look like 9.99 and stock must be a whole number, otherwise the error shows in the row.
+- New prices and stock show up straight away across the shop: product pages, cart, checkout and new orders. Orders already placed keep the price they were bought at.
+
+**Testing:** all 63 tests pass, including 9 new ones. I also ran the real server on a throwaway data folder and checked the admin access, saving, the new price on Products, selling the last one and the refusal after it.
+
+**One thing to watch:** stock is saved in `data/` and survives a restart, as the requirements ask. So if you keep running the Swag Labs tests against the same running shop, each checkout uses up stock, and after about 10 runs products will sell out and those tests will start failing. Delete `data/stock.json` (or restock from the admin page) between runs to reset it.
+
+The code is in a new package, `packages/manage-stock-and-prices`. Part 9 was the last part of `shop-requirements-2.md`, so that list is done. I've updated the plan and notes in storytree.

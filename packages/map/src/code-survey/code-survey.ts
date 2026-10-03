@@ -8,6 +8,7 @@
  *   reaches what it takes from there. A file belongs to the capability whose numbered tests reach it
  *   nearest (fewest ordinary imports away), then most; a tie goes to the lower number. So a test's own
  *   subject stays its own, and a file reached only through others goes to the capability nearest it.
+ * - A CommonJS `require("…")` of a relative file or the package's own exported subpath is an ordinary import (8.12).
  * - A package-prefixed title proves that package's numbered contracts (ADR-0845). A foreign prefix
  *   never assigns the importing package's code to a same-numbered local capability.
  * - Where no import leads, because a test runs the code in a process it starts, the package's coverage
@@ -232,12 +233,42 @@ function importsOf(file: SourceFile): readonly RegExpExecArray[] {
   return imports;
 }
 
+/** Parse each unchanged source once for the CommonJS requires it makes. */
+const requireSyntax = new WeakMap<SourceFile, readonly string[]>();
+
+/** What a file requires the CommonJS way: each `require("…")` call's string, read from syntax, so a comment or a string is none. */
+function requiresOf(file: SourceFile): readonly string[] {
+  const cached = requireSyntax.get(file);
+  if (cached !== undefined) return cached;
+  const specifiers: string[] = [];
+  if (/\brequire\s*\(/.test(file.text)) {
+    const visit = (value: unknown): void => {
+      if (Array.isArray(value)) { value.forEach(visit); return; }
+      if (value === null || typeof value !== "object" || !("type" in value)) return;
+      const node = value as { type: string; callee?: { type: string; name?: string }; arguments?: { type: string; value?: unknown }[] };
+      const [first] = node.arguments ?? [];
+      if (node.type === "CallExpression" && node.callee?.type === "Identifier" && node.callee.name === "require" && node.arguments?.length === 1
+        && first?.type === "StringLiteral" && typeof first.value === "string") specifiers.push(first.value);
+      Object.values(value).forEach(visit);
+    };
+    visit(syntaxOf(file)?.program);
+  }
+  requireSyntax.set(file, specifiers);
+  return specifiers;
+}
+
 function edgesOf(file: SourceFile, paths: ReadonlySet<string>, packages: readonly SurveyPackage[]): Edge[] {
-  return importsOf(file).flatMap((match): Edge[] => {
+  const imports = importsOf(file).flatMap((match): Edge[] => {
     const to = resolve(file.path, match[4] ?? match[5]!, paths, packages);
     if (to === undefined) return [];
     return [{ to, reexport: match[1] === "export", typeOnly: match[2] !== undefined, names: match[5] !== undefined ? "all" : namesOf(match[3] ?? "") }];
   });
+  // A CommonJS require runs the whole file it names, as a bare import does (8.12).
+  const requires = requiresOf(file).flatMap((specifier): Edge[] => {
+    const to = resolve(file.path, specifier, paths, packages);
+    return to === undefined ? [] : [{ to, reexport: false, typeOnly: false, names: "all" }];
+  });
+  return [...imports, ...requires];
 }
 
 /**

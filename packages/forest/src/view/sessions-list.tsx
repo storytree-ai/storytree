@@ -2,7 +2,7 @@
 import React, { Fragment, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { ContextReading, SessionWindow } from "@storytree/agent-link";
-import type { Line, LogReading } from "@storytree/agent-link/readings";
+import { ON_MAIN_LABELS, type Line, type LogReading, type OnMain } from "@storytree/agent-link/readings";
 import { pageKept, pageReading, type LiveReads, type PageReading } from "@storytree/arc-surface";
 import type { AnnotatedTree, ArcView } from "@storytree/library";
 import type { RosterEntry } from "@storytree/knowledge-core";
@@ -306,6 +306,10 @@ function SessionDetail({ row, files }: { row: SessionRow; files: SessionFiles | 
   </div>;
 }
 
+/** Work on main as a row's label (7.20, ADR-0906): outside a workspace is a warning, a new repository's first commit is not; the reading's words on hover. */
+const ON_MAIN_WORDS: Readonly<Record<OnMain, string>> = { "outside-workspace": "on main", "first-commit-pending": "first commit" };
+const ON_MAIN_TONES: Readonly<Record<OnMain, "warning" | "neutral">> = { "outside-workspace": "warning", "first-commit-pending": "neutral" };
+
 /** The one row the quiet sessions fold into (ADR-0758 D5): "N idle", opening to list them. None when there are none. */
 function IdleFold({ count, open, onToggle }: { count: number; open: boolean; onToggle(): void }) {
   if (count === 0) return null;
@@ -394,7 +398,7 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
           onClick={() => onSelect?.(clickedSelection(rows, row.id, selected))}
           onKeyDown={event => { if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) {
             event.preventDefault(); onSelect?.(clickedSelection(rows, row.id, selected)); } }}
-          aria-label={`${row.label} · ${row.agent}${row.machine === undefined ? "" : ` on ${row.machine}`}`}
+          aria-label={`${row.label} · ${row.agent}${row.machine === undefined ? "" : ` on ${row.machine}`}${row.onMain === undefined ? "" : ` · ${ON_MAIN_LABELS[row.onMain]}`}`}
           onPointerEnter={() => setHovered(row.id)} onPointerLeave={() => setHovered(undefined)}
           onFocus={() => setFocused(row.id)} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setFocused(undefined); }}>
           {/* One expander per row, at its start (7.8): its detail and its children (7.2), counted by the "+N" after its name. */}
@@ -403,6 +407,7 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
             onClick={event => { event.stopPropagation(); onToggle(row.id); }} />
           {depth === 0 && <span className="session-colour" style={{ background: sessionColour(row.id) }} aria-hidden="true" />}
           <span className="session-label" title={`${row.label}\n${row.agent} · ${row.id}${row.machine === undefined ? "" : ` · on ${row.machine}`}${row.state === "observed" ? "\nSubagent observed; current state unavailable" : ""}${row.worktrees.length > 0 ? `\n${row.worktrees.map(tree => tree.path).join("\n")}` : ""}`}>{row.label}</span>
+          {row.onMain !== undefined && <span className="session-on-main" data-tone={ON_MAIN_TONES[row.onMain]} title={ON_MAIN_LABELS[row.onMain]}>{ON_MAIN_WORDS[row.onMain]}</span>}
           {row.machine !== undefined && <span className="session-machine" title={`Runs on ${row.machine}`}>{row.machine}</span>}
           {row.children.length > 0 && <span className="session-children" aria-hidden="true">+{row.children.length}</span>}
           {row.worktrees.length > 1 && <span className="session-worktrees" title={row.worktrees.map(tree => tree.path).join("\n")}

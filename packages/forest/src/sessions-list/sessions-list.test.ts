@@ -259,3 +259,14 @@ test("7.16 a row lists the commands its session started and has not seen finish,
   assert.ok(row!.running[1]!.words.length <= 48, "one short line");
   assert.deepEqual(sessionRows(tree, log({ ...hook, kind: "prompt-submitted" }), [], now)[0]?.running, [], "a session running nothing lists nothing");
 });
+
+test("7.20 a row carries the agent link's work-on-main flag (4.26): outside a workspace for uncommitted work on main, first commit pending in a repository with none; an unflagged row carries none (ADR-0906)", () => {
+  const hook = (session: string) => ({ session, harness: "claude-code", source: "hook", folder: `/w/${session}`, branch: "main", machine: "mint" }) as const;
+  const look = (of: string, unborn: boolean): Partial<Line> & NewLine =>
+    ({ session: "looker", harness: "claude-code", source: "hook", machine: "mint", kind: "main-state", of: `/w/${of}`, dirty: true, ...(unborn ? { unborn: true } : {}) });
+  const lines = log({ ...hook("stray"), kind: "file-edited", files: ["/w/stray/a.ts"] }, look("stray", false),
+    { ...hook("fresh"), kind: "file-edited", files: ["/w/fresh/a.ts"] }, look("fresh", true),
+    { ...hook("plain"), kind: "prompt-submitted" });
+  const rows = new Map(sessionRows(tree, lines, [], now).map(row => [row.id, row]));
+  assert.deepEqual(["stray", "fresh", "plain"].map(id => rows.get(id)?.onMain), ["outside-workspace", "first-commit-pending", undefined]);
+});

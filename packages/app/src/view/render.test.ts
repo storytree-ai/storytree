@@ -22,7 +22,7 @@ test("2.6–2.8 the app bar holds only the gear and opens a sectioned overlay", 
   assert.match(html, /<nav class="app-menu-sections"[\s\S]*data-app-section="help"[\s\S]*aria-label="Close app menu"[\s\S]*<\/nav>/);
   assert.doesNotMatch(html, /app-menu-header/);
   const sections = [...html.matchAll(/data-app-section="([^"]+)"/g)].map((match) => match[1]);
-  assert.deepEqual(sections, ["projects", "sessions", "library", "surfaces", "updates", "help"], "no catch-all Settings tab");
+  assert.deepEqual(sections, ["projects", "sessions", "sharing", "library", "surfaces", "updates", "help"], "no catch-all Settings tab");
   for (const section of sections) assert.match(html, new RegExp(`id="app-${section}"`));
   assert.doesNotMatch(html, /<h1/, "the tab on show is the heading");
   assert.match(html, /role="dialog"[^>]*aria-label="App menu"/);

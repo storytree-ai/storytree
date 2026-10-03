@@ -63,6 +63,9 @@ import {
 } from "@storytree/app";
 import { projectsOnThisComputer, setupHelpActions } from "@storytree/app-setup";
 import { settingsActions, SETTINGS_CHANNELS } from "@storytree/agent-link/settings";
+import { createJourneyRuntime, type JourneyRuntime } from "@storytree/journey-events/runtime";
+import { JOURNEY_CHANNELS } from "@storytree/journey-events/bridge";
+import { sourceVersion } from "@storytree/app/version";
 import { connect, type AnnotatedTree, type Storytree } from "@storytree/library";
 import { DataDirInUseError, findBinaries, start, type LocalPostgres } from "@storytree/local-postgres";
 
@@ -90,6 +93,7 @@ const LOOK_EVERY_MS = 60_000;
 let projects: ReturnType<typeof projectSelection> | undefined;
 let shutDown: Promise<void> | undefined;
 let updates: ReturnType<typeof mainUpdates> | undefined;
+let journey: JourneyRuntime | undefined;
 /** An installed app's release updater, which answers the gear's Updates panel in its place. */
 let releases: ReturnType<typeof followReleases>;
 /** What the window was opened with, so it can be opened again after it is closed. */
@@ -139,6 +143,11 @@ if (!args.smoke && !app.requestSingleInstanceLock()) {
 }
 
 async function run(): Promise<void> {
+  journey = createJourneyRuntime({ home: home.dir, appVersion: sourceVersion()?.version ?? "0.3.0" });
+  ipcMain.handle(JOURNEY_CHANNELS.readJourney, () => journey!.readJourney());
+  ipcMain.handle(JOURNEY_CHANNELS.chooseJourney, (_event, on: boolean) => journey!.chooseJourney(on));
+  ipcMain.handle(JOURNEY_CHANNELS.prepareJourneyDeletion, () => journey!.prepareJourneyDeletion());
+  if (!args.smoke) journey.desktopStarted(installedApp());
   const settings = settingsActions(home.dir);
   ipcMain.handle(SETTINGS_CHANNELS.readSettings, () => settings.readSettings());
   ipcMain.handle(SETTINGS_CHANNELS.saveSetting, (_event, name: unknown, values: unknown) => settings.saveSetting(name, values));
@@ -162,7 +171,7 @@ async function run(): Promise<void> {
   ipcMain.handle(CHANNELS.readSetupLicense, () => help.readSetupLicense());
   ipcMain.handle(CHANNELS.agentConnections, () => help.agentConnections());
   ipcMain.handle(CHANNELS.checkSetupFolder, () => help.checkSetupFolder());
-  ipcMain.handle(CHANNELS.addProject, () => help.addProject());
+  ipcMain.handle(CHANNELS.addProject, () => help.addProject().then(result => journey!.afterProjectAdded(result)));
   ipcMain.handle(CHANNELS.removeProject, (_event, name: unknown) => help.removeProject(name));
   ipcMain.handle(CHANNELS.deletableProjects, () => help.deletableProjects());
   ipcMain.handle(CHANNELS.deleteProject, (_event, name: unknown, typed: unknown, snapshot: unknown) => help.deleteProject(name, typed, snapshot));
@@ -544,6 +553,7 @@ function drewText(tree: AnnotatedTree, drew: string | undefined): string {
 function shutdown(): Promise<void> {
   updates?.stop();
   shutDown ??= (async () => {
+    await journey?.finish();
     await reads?.close().catch((error: unknown) => console.error(`closing the projects: ${messageOf(error)}`));
     reads = undefined;
     await storytree?.close().catch((error: unknown) => console.error(`closing the library: ${messageOf(error)}`));
@@ -555,6 +565,7 @@ function shutdown(): Promise<void> {
 }
 
 function fail(error: unknown): void {
+  journey?.record("error");
   console.error(`storytree 0.3: ${messageOf(error)}`);
   void lifecycle.quit(1);
 }

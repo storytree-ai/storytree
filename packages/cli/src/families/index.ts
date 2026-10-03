@@ -12,6 +12,7 @@ import { friction, resteer } from "./capture.js";
 import { contextFamily } from "./context.js";
 import { doctorFamily, setupFamily } from "./doctor.js";
 import { library } from "./library.js";
+import { journeyFamily } from "./journey.js";
 import { questions } from "./question.js";
 import { noticeboard } from "./noticeboard.js";
 import { projectFamily } from "./project.js";
@@ -51,6 +52,7 @@ export const FAMILIES: readonly Family[] = [
   workspace,
   processes,
   settings,
+  journeyFamily,
   auth,
   contextFamily,
   session,

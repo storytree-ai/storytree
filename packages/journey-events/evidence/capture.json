@@ -1,0 +1,191 @@
+{
+  "browser": "148.0.7778.96",
+  "intercepted": true,
+  "liveSends": 0,
+  "errors": [],
+  "measures": [
+    {
+      "name": "first-launch-unavailable",
+      "viewport": {
+        "width": 1100,
+        "height": 820
+      },
+      "panel": {
+        "x": 24,
+        "y": 394.265625,
+        "width": 480,
+        "height": 401.734375
+      },
+      "frameFraction": 0.21378325942350332,
+      "controls": [
+        {
+          "label": "No thanks",
+          "disabled": false,
+          "width": 97.15625,
+          "height": 39.6875,
+          "fontSize": "14px"
+        },
+        {
+          "label": "Share journey events",
+          "disabled": true,
+          "width": 167.84375,
+          "height": 39.6875,
+          "fontSize": "14px"
+        }
+      ],
+      "overflow": false
+    },
+    {
+      "name": "settings-unavailable",
+      "viewport": {
+        "width": 1100,
+        "height": 820
+      },
+      "panel": {
+        "x": 265,
+        "y": 109,
+        "width": 680,
+        "height": 451.53125
+      },
+      "frameFraction": 0.34040049889135254,
+      "controls": [
+        {
+          "label": "Turn off",
+          "disabled": false,
+          "width": 81.921875,
+          "height": 39.6875,
+          "fontSize": "14px"
+        },
+        {
+          "label": "Turn on sharing",
+          "disabled": true,
+          "width": 134.453125,
+          "height": 39.6875,
+          "fontSize": "14px"
+        },
+        {
+          "label": "Prepare deletion request",
+          "disabled": false,
+          "width": 193.140625,
+          "height": 39.6875,
+          "fontSize": "14px"
+        }
+      ],
+      "overflow": false
+    },
+    {
+      "name": "deletion-unavailable",
+      "viewport": {
+        "width": 1100,
+        "height": 820
+      },
+      "panel": {
+        "x": 265,
+        "y": 109,
+        "width": 680,
+        "height": 510.90625
+      },
+      "frameFraction": 0.3851621396895787,
+      "controls": [
+        {
+          "label": "Turn off",
+          "disabled": false,
+          "width": 81.921875,
+          "height": 39.6875,
+          "fontSize": "14px"
+        },
+        {
+          "label": "Turn on sharing",
+          "disabled": true,
+          "width": 134.453125,
+          "height": 39.6875,
+          "fontSize": "14px"
+        },
+        {
+          "label": "Prepare deletion request",
+          "disabled": false,
+          "width": 193.140625,
+          "height": 39.6875,
+          "fontSize": "14px"
+        }
+      ],
+      "overflow": false
+    },
+    {
+      "name": "settings-configured-example",
+      "viewport": {
+        "width": 1100,
+        "height": 820
+      },
+      "panel": {
+        "x": 265,
+        "y": 109,
+        "width": 680,
+        "height": 487.21875
+      },
+      "frameFraction": 0.36730460088691796,
+      "controls": [
+        {
+          "label": "Turn off",
+          "disabled": false,
+          "width": 81.921875,
+          "height": 39.6875,
+          "fontSize": "14px"
+        },
+        {
+          "label": "Turn on sharing",
+          "disabled": true,
+          "width": 134.453125,
+          "height": 39.6875,
+          "fontSize": "14px"
+        },
+        {
+          "label": "Prepare deletion request",
+          "disabled": false,
+          "width": 193.140625,
+          "height": 39.6875,
+          "fontSize": "14px"
+        }
+      ],
+      "overflow": false
+    },
+    {
+      "name": "settings-narrow",
+      "viewport": {
+        "width": 560,
+        "height": 820
+      },
+      "panel": {
+        "x": 29,
+        "y": 174,
+        "width": 502,
+        "height": 530.59375
+      },
+      "frameFraction": 0.5800480455139373,
+      "controls": [
+        {
+          "label": "Turn off",
+          "disabled": false,
+          "width": 81.921875,
+          "height": 39.6875,
+          "fontSize": "14px"
+        },
+        {
+          "label": "Turn on sharing",
+          "disabled": true,
+          "width": 134.453125,
+          "height": 39.6875,
+          "fontSize": "14px"
+        },
+        {
+          "label": "Prepare deletion request",
+          "disabled": false,
+          "width": 193.140625,
+          "height": 39.6875,
+          "fontSize": "14px"
+        }
+      ],
+      "overflow": false
+    }
+  ]
+}

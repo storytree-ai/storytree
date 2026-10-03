@@ -26,6 +26,8 @@ import { changedByQuoting } from "./handed.js";
 import { FAMILIES, GUESSES } from "./families/index.js";
 import { commandSession, commandWriter, person } from "./writer.js";
 
+type JourneyRuntime = ReturnType<typeof import("@storytree/journey-events/runtime").createJourneyRuntime>;
+
 /** Where a command runs, and where its answer goes. */
 export interface Io {
   readonly cwd: string;
@@ -54,6 +56,8 @@ export interface Context {
   activityContext(): Promise<ClaimContext & { readonly folder: string }>;
   /** The calling agent and the resources its claims use; refuses a shell with no agent session. */
   claimContext(): Promise<ClaimContext & { readonly folder: string }>;
+  /** The journey story's shared consent controls, opened only when a command acts. */
+  journey(): Promise<JourneyRuntime>;
 }
 
 /** One verb of a family: `storytree <family> <name> …`. */
@@ -101,6 +105,7 @@ export async function run(argv: readonly string[], io: Io): Promise<number> {
   }
   const opened = new Opened(io.cwd);
   let writer: WriteOptions | undefined;
+  let journey: Promise<JourneyRuntime> | undefined;
   try {
     const answer = await dispatch(argv, {
       cwd: io.cwd,
@@ -110,6 +115,8 @@ export async function run(argv: readonly string[], io: Io): Promise<number> {
       activityContext: () => opened.activityContext(),
       claimContext: () => opened.claimContext(),
       writer: () => (writer ??= commandWriter()),
+      journey: () => (journey ??= import("@storytree/journey-events/runtime").then(({ createJourneyRuntime }) =>
+        createJourneyRuntime({ appVersion: sourceVersion()?.version ?? "0.3.0" }))),
     });
     io.out(render(writer === undefined ? answer : { ...answer, text: `${answer.text}\nWriter: ${writer.actor}` }));
     return 0;
@@ -123,6 +130,8 @@ export async function run(argv: readonly string[], io: Io): Promise<number> {
     return 1;
   } finally {
     await opened.close();
+    // Observation must finish before this short-lived process exits, without changing its answer.
+    await journey?.then((runtime) => runtime.finish()).catch(() => {});
   }
 }
 
@@ -164,10 +173,10 @@ async function dispatchIn(family: Family, path: string, words: readonly string[]
   const inner = family.families?.find((candidate) => candidate.name === second);
   if (inner !== undefined) return dispatchIn(inner, `${path} ${inner.name}`, rest, context);
   const verb = family.verbs.find((candidate) => candidate.name === second);
-  if (verb !== undefined) return asksHelp(rest) ? helpOf(verb) : verb.act(parseArgs(rest, verb.switches ?? [], context.cwd), context);
+  if (verb !== undefined) return asksHelp(rest) ? helpOf(verb) : act(verb, parseArgs(rest, verb.switches ?? [], context.cwd), context);
   const help = second === undefined || second === "--help" || second === "-h";
   if (family.bare !== undefined && !(help && second !== undefined)) {
-    return family.bare.act(parseArgs(words, family.bare.switches ?? [], context.cwd), context);
+    return act(family.bare, parseArgs(words, family.bare.switches ?? [], context.cwd), context);
   }
   if (help) return verbsOf(family, path);
   const named = [
@@ -176,6 +185,13 @@ async function dispatchIn(family: Family, path: string, words: readonly string[]
   ];
   const guessed = Object.hasOwn(family.guesses ?? {}, second) ? family.guesses?.[second] : undefined;
   throw unknown(`storytree ${path}`, second, guessed ?? nearest(second, named), "Its commands", named);
+}
+
+/** A successful invocation may record only the installed app version, never the command's words. */
+async function act(verb: Verb, args: Args, context: Context): Promise<Answer> {
+  const answer = await verb.act(args, context);
+  try { (await context.journey()).record("app_version"); } catch { /* Optional observation cannot fail a command. */ }
+  return answer;
 }
 
 /**

@@ -41,6 +41,9 @@ const idle = { phase: "unavailable", runningBuild: "capture", reason: "a capture
  * set up, every change refused. Typed as the whole bridge, so a method the bridge gains needs one here.
  */
 const QUIET: StorytreeBridge = {
+  readJourney: async () => ({ consent: "off", available: false, installId: "00000000-0000-4000-8000-000000000000", queued: 0 }),
+  chooseJourney: async () => { throw new Error("a capture’s stand-in bridge changes no sharing consent"); },
+  prepareJourneyDeletion: async () => { throw new Error("a capture’s stand-in bridge prepares no deletion request"); },
   checkForUpdates: async () => idle,
   readSignIn: async () => ({ available: false, on: false }),
   setSignIn: async () => ({ available: false, on: false }),

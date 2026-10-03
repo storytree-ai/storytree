@@ -7,10 +7,11 @@ import { SETTINGS_CHANNELS, type SettingsBridge } from "@storytree/agent-link/vi
 import { SURFACES_CHANNELS } from "@storytree/app/surfaces";
 import type { InstallChoice, InstallChoiceState, ProjectSelection, SignInState, SurfacesBridge, UpdateAction, UpdateState } from "@storytree/app";
 import type { SetupHelpBridge } from "@storytree/app-setup";
+import { JOURNEY_CHANNELS, type JourneyBridge } from "@storytree/journey-events/bridge";
 import type { ProjectSurvey } from "@storytree/forest/code-survey";
 import type { AnnotatedTree, ArcView, Holds, Changes, Note, SchemaRecord } from "@storytree/library";
 
-export interface StorytreeBridge extends SetupHelpBridge, SurfacesBridge {
+export interface StorytreeBridge extends SetupHelpBridge, SurfacesBridge, JourneyBridge {
   checkForUpdates(action: UpdateAction): Promise<UpdateState>;
   /** Whether the app opens at sign-in, in the tray (lifecycle 1.12), and whether it can here. */
   readSignIn(): Promise<SignInState>;
@@ -101,6 +102,9 @@ export function createBridge(
   invoke: (channel: string, ...args: unknown[]) => Promise<unknown>,
 ): StorytreeBridge & SettingsBridge & SurfacesBridge {
   return {
+    readJourney: () => invoke(JOURNEY_CHANNELS.readJourney) as ReturnType<JourneyBridge["readJourney"]>,
+    chooseJourney: (on) => invoke(JOURNEY_CHANNELS.chooseJourney, on) as ReturnType<JourneyBridge["chooseJourney"]>,
+    prepareJourneyDeletion: () => invoke(JOURNEY_CHANNELS.prepareJourneyDeletion) as ReturnType<JourneyBridge["prepareJourneyDeletion"]>,
     readSettings: () => invoke(SETTINGS_CHANNELS.readSettings) as ReturnType<SettingsBridge["readSettings"]>,
     saveSetting: (name, values) => invoke(SETTINGS_CHANNELS.saveSetting, name, values) as ReturnType<SettingsBridge["saveSetting"]>,
     readSurfaces: () => invoke(SURFACES_CHANNELS.readSurfaces) as ReturnType<SurfacesBridge["readSurfaces"]>,

@@ -213,6 +213,7 @@ const incrementClose: Verb = {
     const done = await caller.library.closeIncrement(id, outcome, context.writer());
     if (done === null) throw new Refusal(`no increment "${id}" in this project`);
     await closed(caller, id, outcome.disposition);
+    await context.journey?.().then((journey) => journey.incrementClosed(done.fields.outcome?.disposition)).catch(() => {});
     return { text: `Closed increment ${id}: ${done.fields.outcome?.disposition ?? ""}. Any claim on it has ended.`, next: [{ command: `storytree arc show ${done.fields.arc}`, why: "see the arc" }] };
   },
 };

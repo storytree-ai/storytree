@@ -412,7 +412,12 @@ test("8.5 the agent fires a test of each hook, and the connection shows as verif
     const folder = path.join(dir, "site");
     mkdirSync(folder);
     writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
-    const setup = { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome } };
+    let verifiedJourneys = 0;
+    const setup = {
+      dataDir: path.join(home.storytreeHome, "pgdata"),
+      setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome },
+      journey: { hooksVerified: () => { verifiedJourneys++; } },
+    };
     try {
       const server = await connect({ url: testServerUrl() });
       await (await server.openProject(project)).close().finally(() => server.close()); // set up, as a marked folder's project is
@@ -435,8 +440,10 @@ test("8.5 the agent fires a test of each hook, and the connection shows as verif
         assert.deepEqual((await check()).missing, ["file edit", "command"]);
         await fireHook(home.storytreeHome, "claude-code", "post-tool-use-write", folder, "claude-1");
         assert.deepEqual((await check()).missing, ["command"]);
+        assert.equal(verifiedJourneys, 0, "journey 1.5: missing hooks cannot report a verified milestone");
         await fireHook(home.storytreeHome, "claude-code", "post-tool-use-bash", folder, "claude-1");
         assert.deepEqual(await check(), { verified: true, missing: [], fixes: [] });
+        assert.equal(verifiedJourneys, 1, "journey 1.5: only the verified reading reports the milestone");
       });
 
       // A Codex session whose hooks have not run is told only the fix that is Codex's own, its one-time
@@ -446,6 +453,7 @@ test("8.5 the agent fires a test of each hook, and the connection shows as verif
         const { verified, missing, fixes } = answer.data as { verified: boolean; missing: string[]; fixes: string[] };
         assert.deepEqual({ verified, missing, fixes }, { verified: false, missing: ["session start", "storytree tool call", "file edit", "command"], fixes: ["codex-approval"] });
         assert.doesNotMatch(answer.text, /storytree-check/);
+        assert.equal(verifiedJourneys, 1, "another session's unverified reading reports nothing");
       });
     } finally {
       await dropTestProjects([project]);

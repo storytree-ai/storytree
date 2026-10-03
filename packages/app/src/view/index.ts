@@ -28,6 +28,8 @@ export function mountAppMenu(host: HTMLElement, options: {
   mountRemoveProject?(host: HTMLElement, current: () => string | undefined, onRemoved: (project: string) => Promise<void>): { stop(): void; refresh(): void };
   /** The app setup's Delete a project control: offers every project but the one on show; once deleted, the frame refreshes the list. */
   mountDeleteProject?(host: HTMLElement, onDeleted: (project: string) => Promise<void>): { stop(): void; refresh(): void };
+  /** A story-owned sharing settings surface; the frame only gives it a section. */
+  mountJourney?(host: HTMLElement): { open(): void; close(): void; stop(): void };
   /** Hears a surface switched or set in the Surfaces menu, saved already, for the frame to apply. */
   onSurfacesChanged(): void;
 }) {
@@ -56,6 +58,8 @@ export function mountAppMenu(host: HTMLElement, options: {
     stop(): void { sessionSettings.stop(); decisionRights.stop(); },
   };
   const library = mountSettings(menu.querySelector<HTMLElement>('[data-app-settings="library"]')!, bridge, { returnFocus: gear, embedded: true, group: "library" });
+  const journey = options.mountJourney?.(menu.querySelector<HTMLElement>("[data-app-journey]")!);
+  if (journey === undefined) menu.querySelector<HTMLElement>('[data-app-section="sharing"]')!.hidden = true;
   const surfaces = mountSurfaces(menu.querySelector<HTMLElement>("[data-app-surfaces]")!, {
     readSurfaces: () => desktop!.storytree.readSurfaces(),
     saveSurface: (words) => desktop!.storytree.saveSurface(words),
@@ -82,7 +86,7 @@ export function mountAppMenu(host: HTMLElement, options: {
   let section = "projects";
   let stopped = false;
   const wasInert = options.background.inert;
-  const tabs: Record<string, { open(): void; close(): void }> = { sessions, library, surfaces, help };
+  const tabs: Record<string, { open(): void; close(): void }> = { sessions, library, surfaces, help, ...(journey === undefined ? {} : { sharing: journey }) };
   function selectSection(next: string): void {
     if (stopped) return;
     if (section !== next) tabs[section]?.close();
@@ -156,7 +160,7 @@ export function mountAppMenu(host: HTMLElement, options: {
     },
     stop(): void {
       stopped = true;
-      updates.stop(); installChoice.stop(); signIn.stop(); help.stop(); sessions.stop(); library.stop(); surfaces.stop(); addProject?.stop(); removeProject?.stop(); deleteProject?.stop();
+      updates.stop(); journey?.stop(); installChoice.stop(); signIn.stop(); help.stop(); sessions.stop(); library.stop(); surfaces.stop(); addProject?.stop(); removeProject?.stop(); deleteProject?.stop();
       options.background.inert = wasInert;
       document.removeEventListener("keydown", key, true);
       document.adoptedStyleSheets = document.adoptedStyleSheets.filter((candidate) => candidate !== sheet);

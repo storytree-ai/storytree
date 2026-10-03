@@ -74,6 +74,15 @@ export interface AgentToolOptions {
   readonly setup?: Omit<SetupOptions, "folder">;
   /** Other stories' tools, served through the same routing, session attribution and refusals. */
   readonly extensions?: readonly ToolExtension[];
+  /** Optional observations owned by the journey story; no tool content is passed. */
+  readonly journey?: JourneyMilestones;
+}
+
+/** The completed operations the journey story may observe. */
+export interface JourneyMilestones {
+  hooksVerified?(): void;
+  projectCreated?(): void;
+  incrementClosed?(outcome: unknown): void;
 }
 
 /** A tool server, and how to close it with every connection it opened. */
@@ -106,6 +115,7 @@ export interface Call {
   readonly agent: Agent;
   /** The hook's `tool-requested` line for this call, by the harness's call id: the cause of the lines the call writes (ADR-0746 D2). */
   readonly request?: number;
+  readonly journey?: JourneyMilestones;
 }
 
 /** Registers one tool: its name, what it is for, its arguments, and what it does with them. */
@@ -170,6 +180,7 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
           get quietMs() { return quietMs ??= idleAfterMs(); },
           agent: agentOf(lines, meta),
           ...(request === undefined ? {} : { request }),
+          ...(options.journey === undefined ? {} : { journey: options.journey }),
         }));
       } catch (error) {
         if (isUnreachable(error)) {
@@ -191,6 +202,7 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
     setup: { ...(options.dataDir === undefined ? {} : { storytreeHome: path.dirname(options.dataDir) }), ...options.setup },
     connections,
     callerOf,
+    ...(options.journey === undefined ? {} : { journey: options.journey }),
   });
   registerPlanTools(define);
   registerMapTools(define);

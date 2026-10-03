@@ -9,6 +9,7 @@ import { rmSync } from "node:fs";
 import { McpServer, type CallToolResult, type ServerContext } from "@modelcontextprotocol/server";
 import { z } from "zod";
 
+import { habitsCard } from "../instructions/index.js";
 import { findProject, notAProjectYet, setUpProject, starterRolesIn, suggestProjectName } from "../routing/index.js";
 import { checkFilesWritten, codexHooksState, FIX_SENTENCES, HOOK_TESTS, openStorytree, runSetupCheck, verifyHooks, type Fix, type SetupOptions } from "../setup/index.js";
 import { isUnreachable, NOT_RUNNING_ANSWER, refusalOf, result } from "./answers.js";
@@ -81,7 +82,7 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
           said.push(`Not verified yet: storytree has not received this session's ${verification.missing.join(", ")} from its hooks.`);
           said.push(...verification.fixes.map((fix) => FIX_SENTENCES[fix]), "Then call check_setup again.");
         }
-        return result({ text: said.join(" "), data: { ...data, starterRoles, ...verification } });
+        return result({ text: withCard(said.join(" ")), data: { ...data, starterRoles, ...verification } });
       } catch (error) {
         if (isUnreachable(error)) {
           await connections.close();
@@ -129,7 +130,7 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
         const said = [`This folder is now storytree project ${quoted(name)}, and its setup is finished: carry on with the user's request, with no second check_setup in this session.`];
         if (starterRoles.length > 0) said.push(rolesSentence(starterRoles));
         said.push(fixes[0] === "codex-approval" ? FIX_SENTENCES["codex-approval"] : SET_UP_THIS_SESSION);
-        return result({ text: said.join(" "), data: { project: name, starterRoles, fixes } });
+        return result({ text: withCard(said.join(" ")), data: { project: name, starterRoles, fixes } });
       } catch (error) {
         if (isUnreachable(error)) {
           await connections.close();
@@ -139,6 +140,15 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
       }
     }) as never,
   );
+}
+
+/**
+ * An answer in a project, followed by the whole habits card (7.7). Claude Code keeps only the first 2,048
+ * characters of a server's instructions and Codex shows none, while every agent is told to call check_setup
+ * first: its answer is where the whole card reaches them.
+ */
+function withCard(text: string): string {
+  return `${text}\n\nHow to work with storytree in this project, whole (your harness may have shown you only the start of it):\n\n${habitsCard()}`;
 }
 
 /** What a session that set its project up is told of its hooks, which only a session started in the project can show. */

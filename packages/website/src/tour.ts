@@ -12,16 +12,20 @@ export type Chip = { kind: "principle" | "partial" | "recording"; text: string }
 export type Tag = { target: GlobeTarget; text: string };
 export type TourStep = {
   id: string; explainer: Group; title: string;
-  /** beats replace one another; principles and lines accumulate; a comparison's lines each carry a source. */
-  kind?: "beats" | "principles" | "lines" | "compare";
+  /** beats replace one another; lines accumulate; a comparison's lines each carry a source; a statement is a headline and
+   * its subhead, alone; fixes pair each pain (its note) with its fix (its line). */
+  kind?: "beats" | "lines" | "compare" | "statement" | "fixes";
   lines: string[];
   notes?: string[]; sources?: (Source | undefined)[];
   why?: string; decisions: Decision[]; chips?: Chip[];
   surfaces: Partial<GlobeSurfaces>;
   /** From the given line (1-based) on, these surfaces replace the step's own. */
   lineSurfaces?: Record<number, Partial<GlobeSurfaces>>;
-  /** The globe a step shows: storytree's own (the default), or Conduit's at one of its saved growth stages (ADR-0879 D7). */
-  map?: "conduit"; stage?: string;
+  /** The globe a step shows: storytree's own (the default), Conduit's at one of its saved growth stages (ADR-0879 D7),
+   * or the shop's recorded growth (ADR-0889 2.2). */
+  map?: "conduit" | "shop"; stage?: string;
+  /** The shop's growth: held at its point ("seed"), or replayed over `seconds` as the step plays; absent, it is whole. */
+  growth?: "seed" | { seconds: number };
   /** From the given line (1-based) on, Conduit's globe shows this later stage: it grows as the step is read. */
   lineStages?: Record<number, string>;
   target?: GlobeTarget; framing?: number; drift?: boolean;
@@ -34,13 +38,14 @@ export type TourState = {
   index: number; generation: number; lines: number; speed: .75 | 1 | 1.5;
   holds: readonly Hold[]; freePlay: boolean;
 };
-export type TourDetail = { step: TourStep; state: TourState; running: boolean };
+export type TourDetail = { step: TourStep; state: TourState; running: boolean; elapsed: number };
 
 /** Reading time at 1×, with a short floor even for a two-word line. */
 export const readingTime = (text: string): number => Math.max(2800, text.trim().split(/\s+/).length / 2.6 * 1000);
 /** A step rests on its last line before the camera moves on. */
 export const settle = 1200;
-const duration = (step: TourStep) => step.lines.reduce((sum, line) => sum + readingTime(line), 0) + settle;
+/** A step that replays a growth lasts as long as it does, however short its words. */
+const duration = (step: TourStep) => Math.max(step.lines.reduce((sum, line) => sum + readingTime(line), 0), typeof step.growth === "object" ? step.growth.seconds * 1000 : 0) + settle;
 const shown = (step: TourStep, elapsed: number) => {
   let start = 0, count = 0;
   for (const line of step.lines) { if (elapsed >= start) count++; start += readingTime(line); }
@@ -75,6 +80,8 @@ export function createTour(steps: readonly TourStep[]) {
     get running() { return !state.freePlay && state.holds.length === 0; },
     /** How far the current step has played, 0 to 1; it holds still while the tour waits. */
     progress() { return state.freePlay ? 1 : Math.min(1, elapsed / duration(steps[state.index]!)); },
+    /** How long the current step has played, in milliseconds at its speed; it holds still while the tour waits. */
+    elapsed() { return elapsed; },
     tick(milliseconds: number) {
       if (!tour.running || !Number.isFinite(milliseconds) || milliseconds <= 0) return state;
       elapsed += milliseconds * state.speed;
@@ -103,9 +110,17 @@ export function createTour(steps: readonly TourStep[]) {
   return tour;
 }
 
-/** The globe on show for `step` in `state` (ADR-0879 D7): Conduit's at the stage its arrived lines have reached, else storytree's. */
-export function globeOf(step: TourStep, state: TourState): { map: "storytree" } | { map: "conduit"; stage: string } {
-  if (step.map !== "conduit" || state.freePlay || state.holds.includes("everything")) return { map: "storytree" };
+export type GlobeOn = { map: "storytree" } | { map: "conduit"; stage: string } | { map: "shop"; at?: number };
+/**
+ * The globe on show for `step` in `state`, `elapsed` milliseconds into it: Conduit's at the stage its arrived lines have
+ * reached (ADR-0879 D7), the shop's at its growth's moment in seconds or whole (ADR-0889 2.2), else storytree's.
+ */
+export function globeOf(step: TourStep, state: TourState, elapsed = 0): GlobeOn {
+  if (!step.map || state.freePlay || state.holds.includes("everything")) return { map: "storytree" };
+  if (step.map === "shop") {
+    if (step.growth === "seed") return { map: "shop", at: 0 };
+    return step.growth ? { map: "shop", at: Math.min(step.growth.seconds, elapsed / 1000) } : { map: "shop" };
+  }
   let stage = step.stage ?? "complete";
   for (const [from, next] of Object.entries(step.lineStages ?? {})) if (state.lines >= Number(from)) stage = next;
   return { map: "conduit", stage };

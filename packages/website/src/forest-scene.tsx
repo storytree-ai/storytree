@@ -9,8 +9,11 @@ import { knowledge } from "@storytree/knowledge-core";
 import { createKnowledgeCore, KnowledgeNoteCard, type KnowledgeCore } from "@storytree/knowledge-core/view";
 import saved from "./forest-snapshot.json" with { type: "json" };
 import grown from "./conduit-snapshot.json" with { type: "json" };
+import shopSaved from "./shop-snapshot.json" with { type: "json" };
+import { crossingLength, growthPlan, type GrowthPlan } from "@storytree/forest-world/planet";
+import { buildPlanetPathways } from "@storytree/forest-world/geometry";
 import type { GrowthSnapshot, TourSnapshot } from "./forest-data.js";
-import { globeOf, type Hold, type Tag, type TourDetail, type TourStep } from "./tour.js";
+import { globeOf, type GlobeOn, type Hold, type Tag, type TourDetail, type TourStep } from "./tour.js";
 import { savedReading } from "./tour-reading.js";
 
 const snapshot = saved as unknown as TourSnapshot;
@@ -19,10 +22,22 @@ const places = new Map(snapshot.places.map(place => [place.id, place.place]));
 const conduit = grown as unknown as GrowthSnapshot;
 const conduitPlaces = new Map(conduit.places.map(place => [place.id, place.place]));
 const stages = new Map(conduit.stages.map(stage => [stage.id, stage]));
-type GlobeMap = "storytree" | "conduit";
+/** The shop's recorded growth (ADR-0889 2.2): Act 2 arrives on it, grown from a point as its agents built it. */
+const shop = shopSaved as unknown as GrowthSnapshot;
+const shopPlaces = new Map(shop.places.map(place => [place.id, place.place]));
+const shopSessions = shop.stages.map(({ at, wisps }) => ({ at, wisps }));
+let shopGrowth: GrowthPlan | undefined;
+/** Planned on first use: a stage whose recorded sessions changed holds a beat, so each claim and landing is seen (world 7.6). */
+const shopPlan = () => shopGrowth ??= (() => {
+  const pathways = buildPlanetPathways(shop.scene, new Map(shop.spots), shop.radius);
+  const sessions = (index: number) => JSON.stringify(shop.stages[index]?.wisps.map(wisp => [wisp.session, wisp.story]) ?? []);
+  const stages = shop.stages.map(({ id, at, scene }, index) => ({ id, at, scene, ...(sessions(index) !== sessions(index - 1) ? { hold: 1 } : {}) }));
+  return growthPlan(stages, { fromPoint: true, seconds: 15, roadLength: link => crossingLength(pathways, link), until: shop.stages.at(-1)!.at });
+})();
+type GlobeMap = "storytree" | "conduit" | "shop";
 const notes = [...knowledge(snapshot.changes).notes.values()];
 const complete: GlobeSurfaces = { sea: true, grounds: true, roads: true, nameplates: true, territories: "health", fileCircles: true, knowledgeCore: true, sessionTints: true };
-const overviews: Record<GlobeMap, GlobeTarget> = { storytree: { kind: "story", story: "story_deee4230348c" }, conduit: { kind: "core" } };
+const overviews: Record<GlobeMap, GlobeTarget> = { storytree: { kind: "story", story: "story_deee4230348c" }, conduit: { kind: "core" }, shop: { kind: "core" } };
 /** The globe at rest fills most of the short side (ADR-0877 D2). */
 const restingFraming = 1.1;
 type Recording = ReturnType<typeof savedReading>;
@@ -39,7 +54,7 @@ const reader = (() => {
 })();
 /** Overview steps drift round the islands in their places' order, one leg at a time. */
 const order = (nodes: readonly { id: string; place: number }[]) => [...nodes].sort((a, b) => a.place - b.place).map(place => place.id);
-const driftOrders: Record<GlobeMap, string[]> = { storytree: order(snapshot.places), conduit: order(conduit.places) };
+const driftOrders: Record<GlobeMap, string[]> = { storytree: order(snapshot.places), conduit: order(conduit.places), shop: order(shop.places) };
 
 /** A lost graphics context leaves the saved picture and the readable app surfaces available. */
 class GlobeBoundary extends Component<{ children: ReactNode; failed(): void }, { failed: boolean }> {
@@ -126,7 +141,7 @@ function Tags({ tags, controls, arrived }: { tags: readonly Tag[]; controls: Glo
 /** Where the globe's middle sits: in the room the card (left) and any side panel (right) leave it. */
 function offsetFor(step: TourStep | undefined, width: number) {
   if (!step || width <= 600) return 0;
-  const opening = step.kind === "beats" || step.kind === "principles";
+  const opening = step.kind === "beats" || step.kind === "statement" || step.kind === "fixes";
   const cardRight = opening ? Math.min(64, width * .04) + Math.min(560, width * .46) : 24 + Math.min(400, width * .36);
   const panel = step.panel === "story" ? Math.min(480, width - 24) + 12 : 0;
   return Math.round(Math.min(width * .2, (cardRight - panel) / 2));
@@ -146,6 +161,16 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   const [browserOpen, setBrowserOpen] = useState(false);
   const [width, setWidth] = useState(window.innerWidth);
   const [arrived, setArrived] = useState(false);
+  // The shop's own knowledge core, its notes appearing as the time-lapse reaches their dates (knowledge core 1.9).
+  const shopCore = useMemo(() => { const made = createKnowledgeCore(shop.project); made.take(shop.changes ?? [], []); return made; }, []);
+  useEffect(() => () => shopCore.dispose(), [shopCore]);
+  // Where the arrival's time-lapse stands: told every frame by the tour while it plays (ADR-0889 2.2).
+  const [growthAt, setGrowthAt] = useState<{ at: number; index: number; generation: number }>();
+  useEffect(() => {
+    const hear = (event: Event) => setGrowthAt((event as CustomEvent<{ at: number; index: number; generation: number }>).detail);
+    window.addEventListener("storytree-tour-growth", hear);
+    return () => window.removeEventListener("storytree-tour-growth", hear);
+  }, []);
   // The globe on show lags the step's while the camera pulls back to swap one project's globe for the other.
   const [shownMap, setShownMap] = useState<GlobeMap>("storytree");
   const shownMapNow = useRef<GlobeMap>("storytree");
@@ -153,7 +178,7 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   useEffect(() => { const resize = () => setWidth(window.innerWidth); window.addEventListener("resize", resize); return () => window.removeEventListener("resize", resize); }, []);
   const [progress, setProgress] = useState(recording.progress);
   const [openingActive, setOpeningActive] = useState(() => document.getElementById("opening")?.hidden === false);
-  const camera = useRef<{ target?: GlobeTarget; framing: number; entered: boolean; flight: number[]; drift: number[]; missed?: boolean }>({ framing: restingFraming, entered: false, flight: [], drift: [] });
+  const camera = useRef<{ target?: GlobeTarget; framing: number; entered: boolean; flight: number[]; drift: number[]; missed?: boolean; dive?: (() => void) | undefined }>({ framing: restingFraming, entered: false, flight: [], drift: [] });
   const previous = useRef<TourDetail | undefined>(undefined);
   const latest = useRef<TourDetail | undefined>(undefined);
   latest.current = tour;
@@ -173,12 +198,12 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
     return shown;
   }, [step, state?.lines, free, everything]);
   const sideOffset = offsetFor(touring && !everything ? step : undefined, width);
-  const globe = step && state ? globeOf(step, state) : { map: "storytree" as const };
+  const globe: GlobeOn = step && state ? globeOf(step, state, tour!.elapsed) : { map: "storytree" };
   const stage = shownMap === "conduit" ? stages.get(globe.map === "conduit" ? globe.stage : "complete") ?? stages.get("complete")! : undefined;
 
   // Touching the globe hands it to the visitor: the tour waits, and says so (ADR-0879 D3).
   const explore = useCallback(() => { if (touring) { controls?.cancel(); clearFlight(); clearDrift(); hold("exploring"); } }, [touring, controls]);
-  const clearFlight = () => { camera.current.flight.forEach(clearTimeout); camera.current.flight = []; };
+  const clearFlight = () => { camera.current.flight.forEach(clearTimeout); camera.current.flight = []; camera.current.dive = undefined; };
   const clearDrift = () => { camera.current.drift.forEach(clearTimeout); camera.current.drift = []; };
   const pickStory = useCallback((id: string | undefined, picked?: string) => {
     explore(); setStory(id); setCapability(picked); setNote(undefined); core.pin(undefined);
@@ -299,6 +324,7 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
     camera.current.entered = true;
     const from = { ...camera.current };
     let arrive = 0;
+    const land = () => { setArrived(true); if (latest.current?.running) drift(next()); };
     const switching = map !== shownMapNow.current;
     if (switching && (still || first)) setShownMap(map);
     if (still) after(camera.current.flight, switching ? 60 : 0, () => go({ target, framing, duration: 0 }));
@@ -306,10 +332,16 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
       // One project's globe for the other (ADR-0879 D7): pull back until the globe is small, swap it there, and dive into the new one.
       const wide = Math.max(from.framing, framing, 1) * 2.4;
       go({ target: from.target ?? overviews[shownMapNow.current], framing: wide, duration: 900 / speed });
-      after(camera.current.flight, 900 / speed, () => setShownMap(map));
-      after(camera.current.flight, 960 / speed, () => go({ target: overview, framing: wide, duration: 0 }));
-      after(camera.current.flight, 1020 / speed, () => go({ target, framing, duration: 1500 / speed }));
-      arrive = 2520 / speed;
+      // The dive waits for the new globe to be drawn: a heavy globe can take longer to lay out than any fixed beat.
+      after(camera.current.flight, 900 / speed, () => {
+        camera.current.dive = () => {
+          go({ target: overview, framing: wide, duration: 0 });
+          after(camera.current.flight, 60 / speed, () => go({ target, framing, duration: 1500 / speed }));
+          after(camera.current.flight, 1560 / speed, land);
+        };
+        setShownMap(map);
+      });
+      arrive = -1;
     } else if (first) {
       // Chapter 2's first view grows in from far away, out of the point chapter 1 ends on.
       // The far pose lands first (one beat), so the flight in starts from it rather than from a stale zoom.
@@ -322,9 +354,15 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
       after(camera.current.flight, 1000 / speed, () => go({ target, framing, duration: 1150 / speed }));
       arrive = 2150 / speed;
     } else go({ target, framing, duration: arrive = 1800 / speed });
-    after(camera.current.flight, arrive, () => { setArrived(true); if (latest.current?.running) drift(next()); });
+    if (arrive >= 0) after(camera.current.flight, arrive, land);
     camera.current.target = target; camera.current.framing = framing;
   }, [controls, tour, sideOffset, openingActive, globe.map]);
+  // Once a swapped globe is drawn, the camera dives into it.
+  useEffect(() => {
+    if (!camera.current.dive) return;
+    let frame = requestAnimationFrame(() => { frame = requestAnimationFrame(() => { const dive = camera.current.dive; camera.current.dive = undefined; dive?.(); }); });
+    return () => cancelAnimationFrame(frame);
+  }, [shownMap]);
   // A stage that grows the step's island lets the camera fly in to it.
   useEffect(() => {
     if (!controls || !step?.target || !camera.current.missed || exploringNow || everything) return;
@@ -340,12 +378,24 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   const shownNotes = notes.filter(item => String(item.fields.title ?? "").toLowerCase().includes(query.toLowerCase()));
   const selected = story ?? (touring && !everything ? step?.select : undefined);
   const onStorytree = shownMap === "storytree";
+  const onShop = shownMap === "shop";
+  // The tour's step says how far the shop has grown (seconds at 1×); its plan may be a little longer or shorter.
+  const playing = typeof step?.growth === "object" ? step.growth.seconds : undefined;
+  // Undefined is whole; a held seed is the point the globe grows from.
+  let shopMoment: number | undefined;
+  if (globe.map === "shop" && globe.at !== undefined) {
+    const told = growthAt && growthAt.index === state?.index && growthAt.generation === state?.generation ? growthAt.at : globe.at;
+    shopMoment = playing === undefined ? 0 : told / playing * shopPlan().seconds;
+  }
+  const growth = onShop ? { plan: shopPlan(), at: shopMoment ?? Infinity } : undefined;
   return <>
     {webgl && <GlobeBoundary failed={failed}>
-      <div className="forest-drawing" role="group" aria-label={onStorytree ? "Storytree’s saved project globe" : `Conduit’s saved globe, as it stood ${stage!.at.slice(0, 16).replace("T", " ")} UTC`}
-        data-globe={shownMap} data-stage={stage?.id} data-islands={(stage?.scene ?? snapshot.scene).islands.length} onPointerDown={explore} onWheel={explore}>
-        <PlanetView core={core} scene={stage?.scene ?? snapshot.scene} places={onStorytree ? places : conduitPlaces} frame={onStorytree ? undefined : conduit.scene}
-          wisps={stage?.wisps ?? wisps} selected={selected}
+      <div className="forest-drawing" role="group" aria-label={onStorytree ? "Storytree’s saved project globe" : onShop ? "An online shop’s globe, growing as its agents built it" : `Conduit’s saved globe, as it stood ${stage!.at.slice(0, 16).replace("T", " ")} UTC`}
+        data-globe={shownMap} data-arrived={arrived} data-stage={stage?.id} data-growth={onShop ? shopMoment === undefined ? "whole" : shopMoment.toFixed(2) : undefined}
+        data-islands={(onShop ? shop.scene : stage?.scene ?? snapshot.scene).islands.length} onPointerDown={explore} onWheel={explore}>
+        <PlanetView core={onShop ? shopCore : core} scene={onShop ? shop.scene : stage?.scene ?? snapshot.scene} places={onStorytree ? places : onShop ? shopPlaces : conduitPlaces}
+          frame={onStorytree ? undefined : onShop ? shop.scene : conduit.scene} growth={growth} recordedSessions={onShop ? shopSessions : undefined}
+          wisps={onShop ? [] : stage?.wisps ?? wisps} selected={selected}
           highlighted={highlight.stories} highlightedSession={highlight.session} onPick={pickStory} onNote={pickNote}
           onWispHover={() => {}} onControls={onControls} surfaces={surfaces} framing={restingFraming} sideOffset={offsetFor(undefined, width)} mode={mode} />
       </div>

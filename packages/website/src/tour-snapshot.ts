@@ -30,6 +30,12 @@ const pick = (value: object, keys: readonly string[]): Record<string, unknown> =
 // Recognisable credentials and credential assignments fail closed. Never echo the offending value.
 const credential = /-----BEGIN (?:[A-Z ]+ )?PRIVATE KEY-----|\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|sk-(?:proj-|ant-)?[A-Za-z0-9_-]{20,}|AIza[A-Za-z0-9_-]{30,}|AKIA[A-Z0-9]{16}|ya29\.[A-Za-z0-9_-]+)|\bBearer\s+[A-Za-z0-9._~-]{16,}|[a-z][a-z0-9+.-]*:\/\/[^\s/:]+:[^\s/@]+@|\b(?:api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|secret|password|private[_-]?key)\b["']?\s*[:=]\s*["']?[^\s"',;]+/i;
 
+/** The library's history as the knowledge core reads it: its notes and the stories and capabilities they hang on, with only their public fields. */
+export const publicNotes = (changes: readonly Change[]) => changes.filter(change => knowledge.has(change.type)).map(change => ({
+  ...pick(change, ["seq", "recordId", "type", "action"]),
+  record: { ...pick(change.record, ["id", "type", "version", "createdAt", "updatedAt"]), fields: pick(change.record.fields, ["title", "number", "status", "frontCoverOf", "links", "supersedes", "story"]) },
+}));
+
 /** Apply to every retained value, including prose and nested records. */
 export function scrub(value: unknown, cloudIds: readonly string[]): unknown {
   if (typeof value === "string") {
@@ -73,10 +79,7 @@ export async function refreshTourSnapshot(file: string, read: () => Promise<Tour
     };
     const snapshot = {
       version: 1, capturedAt, radius: grown.radius, scene, spots: [...grown.spots], project, places, tree: plan,
-      changes: changes.filter(change => knowledge.has(change.type)).map(change => ({
-        ...pick(change, ["seq", "recordId", "type", "action"]),
-        record: { ...pick(change.record, ["id", "type", "version", "createdAt", "updatedAt"]), fields: pick(change.record.fields, ["title", "number", "status", "frontCoverOf", "links", "supersedes", "story"]) },
-      })),
+      changes: publicNotes(changes),
       arcs, holds: { waits: Object.fromEntries(Object.entries(input.holds.waits).filter(([id]) => boardIds.has(id))), heldOn: Object.fromEntries(Object.entries(input.holds.heldOn).filter(([id]) => boardIds.has(id))) },
       recording: { window, lines: lines.filter(line => kinds.has(line.kind) && Date.parse(line.at) >= from && Date.parse(line.at) < to) },
     };

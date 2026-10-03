@@ -1,0 +1,9 @@
+{
+  "contract": "2.11",
+  "source": "Locally built unpublished working tree, SwiftShader",
+  "observed": [
+    "2.11 arrival with the live globe at 1440 and 390: pass",
+    "2.11 reduced motion and no WebGL keep the arrival dark under the pain: pass",
+    "Act 1's exit lands on the pain: pass"
+  ]
+}

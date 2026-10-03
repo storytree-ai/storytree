@@ -11,7 +11,6 @@ export const explainers: { id: Explainer; title: string }[] = (["stories", "capa
 
 const adr = (number: number, title: string): Decision => ({ number, title });
 const decisions = {
-  problem: adr(853, "Storytree's problem and its four principles"),
   busy: adr(857, "Open on the busy globe; five explainers, compared with other tools"),
   guide: adr(852, "One surface at a time, on the real globe"),
   islands: adr(804, "Code islands: land, territories and file circles"),
@@ -61,6 +60,10 @@ const onTheSite = capability("capability_18562ff0841c"), cloud = capability("cap
 const discover = story("story_a4dbabc54188");
 const ci = story("story_0f2877a9d736"), backendProfiles = story("story_9e44fb81bdb7"), discuss = story("story_885ea80b96a5");
 const conduit = { map: "conduit" as const };
+// The shop (shop-snapshot.json): the store the test laptop's Claude Code built with storytree, its recorded growth replayed as Act 2 arrives.
+const shop = { map: "shop" as const, target: { kind: "core" } as GlobeTarget };
+/** How long the arrival's time-lapse plays at 1×. */
+export const arrivalSeconds = 15;
 const conduitDecision = adr(879, "Concepts grow on Conduit, a smaller real project");
 const realworld = { name: "Conduit's build, judged", url: "https://github.com/storytree-ai/storytree/blob/main/packages/app-setup/evidence/first-build/conduit.md" };
 const vscode = { name: "VS Code docs", url: "https://code.visualstudio.com/docs/editing/getting-started/userinterface#_explorer-view" };
@@ -80,22 +83,33 @@ const compared = `Checked against each tool's own documentation on ${researchDat
  * {name} placeholders are the saved reading's own counts, filled in when the page is built.
  */
 export const steps: TourStep[] = [
-  { id: "problem", explainer: "opening", kind: "beats", title: "Why storytree", lines: [
-    "Your attention is the scarcest resource in AI-driven development, and coding agents spend it on noise.",
-    "They write more than anyone can read, and engineers and vibe coders alike can't tell which part needs them.",
-    "So you either read every line, and become the bottleneck the agents were meant to remove, or you blindly trust the model and find the problems in production.",
-    "There's no in-between.",
-  ], why: "Storytree's own statement of the problem it answers. The busy globe behind it is storytree's own project, every surface on at once: more than anyone can read.",
-  decisions: [decisions.problem, decisions.busy], surfaces: complete, target: forest, framing: 1.1, drift: true },
-  { id: "principles", explainer: "opening", kind: "principles", title: "Storytree answers to four principles.", lines: [
-    "Signals must be real.", "Show what matters now; hide the rest.", "Your attention goes where you send it.", "Nothing is out of reach.",
+  // DRAFT (ADR-0889 2.1): the agent's wording for the pain, standing in until the owner writes his own.
+  { id: "pain", explainer: "opening", kind: "beats", ...shop, growth: "seed", title: "The problem", lines: [
+    "Your agents write more code than anyone can read.",
+    "You can't tell which part of it needs you.",
+    "So you read every line, or you trust every line.",
+  ], why: "Your attention is the scarcest resource in AI-driven development, and coding agents spend it on noise. Reading every line makes you the bottleneck the agents were meant to remove; trusting every line finds the problems in production. There's no in-between.",
+  decisions: [], surfaces: complete, framing: 1.1 },
+  { id: "grow", explainer: "opening", kind: "beats", ...shop, growth: { seconds: arrivalSeconds }, title: "A project grows", lines: [
+    "This is an online shop that coding agents built with storytree, on 3 October 2026.",
+    "Under five hours of its work, replayed from its own records.",
+  ], chips: [{ kind: "recording", text: "Recorded 3 October 2026 · timing compressed" }],
+  decisions: [], surfaces: complete, framing: 1.1 },
+  // The owner's words, final (ADR-0889 2.3): the value statement has its slide to itself.
+  { id: "value", explainer: "opening", kind: "statement", ...shop, title: "Storytree builds a map of your project and glues it to your code.", lines: [
+    "The map grows as your agents work, and says what needs you and what doesn't.",
+  ], decisions: [], surfaces: complete, framing: 1.1, drift: true },
+  // The owner's words, final (ADR-0889 2.4): each pain (its note) with its fix beside it. The four principles are this step's depth.
+  { id: "fixes", explainer: "opening", kind: "fixes", ...shop, title: "What storytree fixes", lines: [
+    "See your whole project as a map",
+    "Agents see each other working on the map",
+    "Every decision remembered, anchored to the map",
   ], notes: [
-    "Everything you see comes from the real code and the real work, and says where it came from.",
-    "Nothing asks for your attention unless it needs it.",
-    "You choose what to look into, and how deep to go.",
-    "Whatever storytree hides, you can always bring back.",
-  ], why: "Every storytree surface answers to these four. Each step of this tour shows one of them at work, and the controls below keep the third and fourth in your hands.",
-  decisions: [decisions.problem], surfaces: complete, lineSurfaces: { 2: quiet }, target: forest, framing: 1.1, drift: true },
+    "No idea what your agents built",
+    "Agents colliding in a void of code",
+    "Agents forgetting why it was built that way",
+  ], why: "Storytree answers to four principles. Signals must be real: everything you see comes from the real code and the real work, and says where it came from. Show what matters now and hide the rest: nothing asks for your attention unless it needs it. Your attention goes where you send it: you choose what to look into, and how deep to go. Nothing is out of reach: whatever storytree hides, you can always bring back.",
+  decisions: [], surfaces: complete, framing: 1.1, drift: true },
 
   { id: "stories-grow", explainer: "stories", ...conduit, stage: "empty", lineStages: { 3: "stories" }, title: "Watch a real project grow.", lines: [
     "Storytree breaks up your codebase into stories.",

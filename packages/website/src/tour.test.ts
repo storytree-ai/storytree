@@ -105,3 +105,31 @@ test("2.9 · Conduit's globe grows a stage at a time as a step's lines arrive; e
   tour.skip();
   assert.deepEqual(globeOf(growing[1]!, tour.state), { map: "storytree" });
 });
+
+test("2.11 · the arrival holds the shop's globe at a point under the pain, grows it on the tour's clock, then shows it whole", () => {
+  const arrival: TourStep[] = [
+    { ...step("pain", "opening", ["One", "Two"]), map: "shop", growth: "seed" },
+    { ...step("grow", "opening", ["Three"]), map: "shop", growth: { seconds: 12 } },
+    { ...step("value", "opening", ["Four"]), map: "shop" },
+    step("stories", "stories"),
+  ];
+  const tour = createTour(arrival);
+  const globe = () => globeOf(arrival[tour.state.index]!, tour.state, tour.elapsed());
+  assert.deepEqual(globe(), { map: "shop", at: 0 }, "the pain is said before any globe: the shop's is still a point");
+  tour.tick(whole(arrival[0]!));
+  assert.equal(tour.state.index, 1);
+  tour.tick(4000);
+  assert.deepEqual(globe(), { map: "shop", at: 4 });
+  tour.togglePlay(); tour.tick(60_000);
+  assert.deepEqual(globe(), { map: "shop", at: 4 }, "pausing the tour pauses the growth");
+  tour.togglePlay(); tour.setSpeed(1.5); tour.tick(2000);
+  assert.deepEqual(globe(), { map: "shop", at: 7 }, "a faster tour grows it faster");
+  tour.tick((12_000 - 7000) / 1.5);
+  assert.equal(tour.state.index, 1, "the step lasts as long as the growth, however short its words");
+  assert.deepEqual(globe(), { map: "shop", at: 12 });
+  tour.tick(settle / 1.5 + 1);
+  assert.equal(tour.state.index, 2);
+  assert.deepEqual(globe(), { map: "shop" }, "after the time-lapse the shop's globe is whole");
+  tour.hold("everything");
+  assert.deepEqual(globe(), { map: "storytree" });
+});

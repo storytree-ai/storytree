@@ -1,4 +1,5 @@
-// Pictures of chapter 2's tour as a visitor meets it (ADR-0879 D1), from the locally built site.
+// Pictures of chapter 2's tour as a visitor meets it (ADR-0879 D1), from the locally built site. Its arrival (pain, growth,
+// value, fixes) is pictured by ../arrival/capture.mjs.
 // pnpm --filter @storytree/website build && node packages/website/evidence/journey/capture.mjs [--only <name>]
 import { createServer } from "node:http";
 import { mkdir, readFile } from "node:fs/promises";
@@ -36,32 +37,31 @@ const shot = (page, tag, name) => page.screenshot({ path: path.join(here, `${tag
 const at = (index, wait, name) => async (page, tag) => { await step(page, index); await page.waitForTimeout(wait); await shot(page, tag, name); };
 const shots = {
   async opening(page, tag) { await page.waitForTimeout(3500); await shot(page, tag, "1-opening"); },
-  principles: at(1, 9000, "2-principles"),
-  async grow(page, tag) { await step(page, 2); await page.waitForTimeout(3500); await shot(page, tag, "3a-grow-empty"); await page.waitForTimeout(10000); await shot(page, tag, "3b-grow-stories"); },
-  story: at(3, 6500, "4-story"),
-  roads: at(4, 6000, "5-roads"),
-  contracts: at(7, 9000, "6-contracts"),
-  conduitHealth: at(8, 13000, "7-conduit-health"),
-  compare: at(9, 15000, "8-compare"),
-  claim: at(10, 9000, "9-claim"),
-  landing: at(11, 14000, "10-landing"),
-  close: at(12, 9000, "11-close"),
-  arcsPlan: at(14, 13000, "12-arcs-plan"),
-  arcsGrow: at(15, 9000, "13-arcs-grow"),
-  arcsLanded: at(16, 13000, "14-arcs-landed"),
-  ret: at(18, 6000, "15-return"),
-  async health(page, tag) { await step(page, 20); await page.waitForTimeout(3500); await page.locator("#tour-depth").click(); await page.waitForTimeout(800); await shot(page, tag, "16-health-depth"); },
-  questions: at(21, 9000, "17-questions"),
-  knowledge: at(22, 9000, "18-knowledge"),
-  reads: at(25, 9000, "19-reads"),
+  async grow(page, tag) { await step(page, 4); await page.waitForTimeout(3500); await shot(page, tag, "3a-grow-empty"); await page.waitForTimeout(10000); await shot(page, tag, "3b-grow-stories"); },
+  story: at(5, 6500, "4-story"),
+  roads: at(6, 6000, "5-roads"),
+  contracts: at(9, 9000, "6-contracts"),
+  conduitHealth: at(10, 13000, "7-conduit-health"),
+  compare: at(11, 15000, "8-compare"),
+  claim: at(12, 9000, "9-claim"),
+  landing: at(13, 14000, "10-landing"),
+  close: at(14, 9000, "11-close"),
+  arcsPlan: at(16, 13000, "12-arcs-plan"),
+  arcsGrow: at(17, 9000, "13-arcs-grow"),
+  arcsLanded: at(18, 13000, "14-arcs-landed"),
+  ret: at(20, 6000, "15-return"),
+  async health(page, tag) { await step(page, 22); await page.waitForTimeout(3500); await page.locator("#tour-depth").click(); await page.waitForTimeout(800); await shot(page, tag, "16-health-depth"); },
+  questions: at(23, 9000, "17-questions"),
+  knowledge: at(24, 9000, "18-knowledge"),
+  reads: at(27, 9000, "19-reads"),
   async exploring(page, tag) {
-    await step(page, 3); await page.waitForTimeout(3000);
+    await step(page, 5); await page.waitForTimeout(3000);
     const box = await page.locator("#website-forest canvas").boundingBox();
     await page.mouse.move(box.x + box.width * .6, box.y + box.height * .5); await page.mouse.down();
     await page.mouse.move(box.x + box.width * .75, box.y + box.height * .55, { steps: 8 }); await page.mouse.up();
     await page.waitForTimeout(600); await shot(page, tag, "20-exploring");
   },
-  everything: at(27, 7000, "21-everything"),
+  everything: at(29, 7000, "21-everything"),
   async handoff(page, tag) {
     // A first-time visitor: chapter 1 to its finale, then the turn into chapter 2's first view.
     await page.goto(url); await page.locator("#opening-run").click();

@@ -55,8 +55,11 @@ function observe(host: HTMLElement) {
   let stop: (() => void) | undefined;
   const opening = document.getElementById("opening");
   const openingVisible = () => opening && !opening.hidden && opening.getBoundingClientRect().bottom > 0;
-  const schedule = (early = false) => {
-    if (scheduled || (!early && openingVisible())) return;
+  // Act 1 loads nothing of the globe. After the hand-over it waits for Act 2's first words, so its setup stalls
+  // only a screen of still text (2.10); a slow or missing tour lets it start anyway.
+  let awaitingWords = false;
+  const schedule = () => {
+    if (scheduled || awaitingWords || openingVisible()) return;
     scheduled = true;
     const requested = generation;
     const start = () => {
@@ -70,9 +73,15 @@ function observe(host: HTMLElement) {
   window.addEventListener("storytree-opening", event => {
     if ((event as CustomEvent<{ active: boolean }>).detail.active) {
       generation++;
-      scheduled = false;
+      scheduled = false; awaitingWords = false;
       stop?.(); stop = undefined;
-    } else schedule();
+    } else {
+      const requested = generation;
+      awaitingWords = true;
+      const start = () => { if (requested !== generation || !awaitingWords) return; awaitingWords = false; schedule(); };
+      window.addEventListener("storytree-arrived", start, { once: true });
+      setTimeout(start, 4000);
+    }
   });
   const check = () => {
     const box = host.getBoundingClientRect();
@@ -82,10 +91,6 @@ function observe(host: HTMLElement) {
   window.addEventListener("resize", check);
   if ("IntersectionObserver" in window) {
     new IntersectionObserver(check).observe(host);
-    // A visitor who pressed Run meets the globe about twenty seconds later, so it starts below the fold, where it draws
-    // nothing (world 6.10), once every helper waits on the visitor: its setup stalls nothing that moves, and the turn
-    // lands on it live. Without IntersectionObserver it could not tell it is off screen, so there it waits.
-    window.addEventListener("storytree-opening-quiet", () => schedule(true));
   }
   check();
 }

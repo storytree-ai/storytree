@@ -19,7 +19,7 @@ const browser = await chromium.launch({ headless: true, args: ["--no-sandbox", "
 try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   await page.addInitScript(() => {
-    window.openingFrames = { ready: [], playing: [], turn: [], swarm: [], quiet: [] };
+    window.openingFrames = { ready: [], playing: [], turn: [], swarm: [], quiet: [], exit: [], pain: [] };
     window.globeDraws = 0;
     for (const kind of [WebGLRenderingContext, WebGL2RenderingContext]) {
       for (const method of ["drawArrays", "drawElements", "drawArraysInstanced", "drawElementsInstanced"]) {
@@ -40,12 +40,18 @@ try {
       if (last !== undefined) {
         window.openingFrames[window.finaleAt ? "turn" : window.runAt ? "playing" : "ready"].push(now - last);
         if (window.runAt && !window.finaleAt) window.openingFrames[window.parkedAt ? "quiet" : "swarm"].push(now - last);
+        // The way out: from the exit click to the hand-over, then Act 2's first three seconds (the pain beat, on builds that have it).
+        if (window.exitAt !== undefined && window.handoverAt === undefined) window.openingFrames.exit.push(now - last);
+        else if (window.handoverAt !== undefined && now - window.handoverAt <= 3000) window.openingFrames.pain.push(now - last);
       }
       last = now;
       requestAnimationFrame(frame);
     };
     requestAnimationFrame(frame);
-    document.addEventListener("click", event => { if (event.target.id === "opening-run") { window.runAt = performance.now(); last = undefined; } }, true);
+    document.addEventListener("click", event => {
+      if (event.target.id === "opening-run") { window.runAt = performance.now(); last = undefined; }
+      if (event.target.closest?.("#opening-better")) window.exitAt ??= performance.now();
+    }, true);
     document.addEventListener("DOMContentLoaded", () => {
       new MutationObserver(() => {
         if (window.runAt && !document.getElementById("opening-better").hidden && !window.finaleAt) window.finaleAt = performance.now();
@@ -60,7 +66,7 @@ try {
   });
   await page.goto(`http://127.0.0.1:${server.address().port}/`);
   const run = page.getByRole("button", { name: "Run", exact: true });
-  const better = page.getByRole("button", { name: "show me the better way" });
+  const better = page.locator("#opening-better"); // by id: its wording is a draft (ADR-0888 1.5)
   await run.waitFor();
   await page.waitForTimeout(2500);
   await run.click();
@@ -86,6 +92,7 @@ try {
     return {
       ready: summarize(window.openingFrames.ready), playing: summarize(window.openingFrames.playing),
       swarm: summarize(window.openingFrames.swarm), quiet: summarize(window.openingFrames.quiet),
+      exit: summarize(window.openingFrames.exit), pain: summarize(window.openingFrames.pain), exitToHandoverMs: Math.round(window.handoverAt - window.exitAt),
       parkedAfterRunMs: Math.round(window.parkedAt - window.runAt),
       activatedAfterRunMs: first === undefined ? null : Math.round(first - window.runAt),
       finaleMs: Math.round(window.finaleAt - window.runAt),

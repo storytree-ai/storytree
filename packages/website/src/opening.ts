@@ -210,8 +210,6 @@ export function wireOpening() {
       agent.l.forEach((line, j) => later(at[j]!, () => append(window, line, { stream: true })));
       later(parkAt, () => park(window, agent.d));
     });
-    // Every helper now waits on the visitor and nothing streams until the finale: the page may do heavy work.
-    later(clock.quiet, () => window.dispatchEvent(new Event("storytree-opening-quiet")));
     later(clock.lead, () => park(lead, "awaiting instructions"));
     later(clock.finale, () => showFinale(FINALE));
   });

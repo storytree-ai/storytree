@@ -24,7 +24,7 @@ echo "wdio exit $?" >> "$out.meta.txt"
 if [ "$part" -ge 5 ]; then
   # Wave 2: our own frozen suite (wave2/README.md), copied beside the grade folder so it installs outside the repository.
   rm -rf "$grade/wave2" && cp -r "$here/wave2" "$grade/wave2" && rm -rf "$grade/wave2/node_modules"
-  (cd "$grade/wave2" && npm ci --no-audit --no-fund > /dev/null 2>&1 && SHOP_URL="http://localhost:$port" timeout 900 npx playwright test > "$out.wave2.txt" 2>&1; echo "wave2 exit $?" >> "$out.meta.txt"; cp results.json "$out.wave2.json" 2>/dev/null)
+  (cd "$grade/wave2" && npm ci --no-audit --no-fund > /dev/null 2>&1 && npx playwright install chromium > /dev/null 2>&1 && SHOP_URL="http://localhost:$port" timeout 900 npx playwright test --grep "(^|\\s)($(seq -s "|" 5 "$part"))\\.[0-9]+\\s" > "$out.wave2.txt" 2>&1; echo "wave2 exit $?" >> "$out.meta.txt"; cp results.json "$out.wave2.json" 2>/dev/null)
 fi
 pkill -P "$(cat "$grade/server.pid")" 2>/dev/null; kill "$(cat "$grade/server.pid")" 2>/dev/null
 fuser -k "$port/tcp" >/dev/null 2>&1 || true

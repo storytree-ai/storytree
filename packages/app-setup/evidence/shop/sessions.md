@@ -13,6 +13,7 @@ official Swag Labs suite run on Mint against a clone of the merged commit (`grad
 | 4 checkout (fresh) | 571 s, $2.55; app 0.3.614 | from the plan; its own package for checkout | three checkout pages, errors in place, 8% tax; ran Swag Labs' suite itself in Edge (all 9 runnable specs); closed its wave 1 arc; 29 own tests; PR #6 | **26/26**, the suite's ceiling |
 | 5 accounts (fresh; wave 2's spec dropped into the folder) | 698 s, $2.54; app 0.3.614 | planned the five new stories (sign up, orders, search, reviews, stock and prices) on a new arc, one package each; part 5's capability and 6 contracts | sign up, greeting, /api/me, accounts in a data file with hashed passwords; 36 own tests; PR #7 | official **26/26**; ours **7/7** |
 | 6 orders (fresh) | 731 s, $3.33; app 0.3.614 | from the plan; 1 capability, 6 contracts | orders saved on the server numbered from 1001, My Orders, order page; checkout details now sent to the server; 43 own tests; PR #8 | official **26/26**; ours **13/13** |
+| 7 search (fresh; resumed twice in the same session) | 449 + 338 + 219 s, $1.08 + $1.52 + $0.81; app 0.3.614, then 0.3.619 between turns | from the plan; 1 capability, 5 contracts | search box, ?q= in the address, server-filtered list, no-match message; fixed the cart's buttons for products that come back into the list; 48 own tests; PR #9 | official **26/26**; ours **18/18** |
 
 ## Session 1 notes
 
@@ -73,3 +74,13 @@ official Swag Labs suite run on Mint against a clone of the merged commit (`grad
 - The grader was corrected twice before its first real wave 2 grade, never the tests: Playwright's browser is now
   installed by `grade-shop.sh`, and the run is limited to wave 2 parts up to the one graded (Playwright matches
   `--grep` against the whole title path, so the filter anchors on whitespace, not `^`).
+
+## Session 7 notes
+
+- The first turn ended after 449 s when the laptop lost its connection to Claude's API ("Can't reach the API server … ENOTFOUND"), after
+  planning and claiming but before any code. The Mint box lost its connection too, and the supervising lane dropped
+  with it; the overnight manager closed Shops 3 and 4 for it. Resumed as a user would ("Looks like the connection
+  dropped… please carry on"), the same session rebuilt part 7 from its saved plan, committed it locally and then
+  asked before pushing; told to carry on as usual, it pushed, tried the search box key by key in headless Edge, and
+  merged PR #9. The app updated itself to 0.3.619 between turns, outside any turn.
+- Both suites were green at the first grade of the merged commit.

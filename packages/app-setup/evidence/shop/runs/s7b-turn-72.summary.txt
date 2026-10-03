@@ -1,0 +1,50 @@
+model: claude-opus-5-5 | mcp: storytree=connected,claude.ai Claude Docs=connected,claude.ai Google Drive=connected,claude.ai Gmail=connected,claude.ai Google Calendar=connected
+calls: 32
+  - ToolSearch
+  - PowerShell git status; git log --oneline -3; git remote -v; git show --stat HEAD
+  - st:check_setup {}
+  - Write C:\Users\mickh\shop\.storytree-check
+  - st:check_setup {}
+  - ToolSearch
+  - st:search_notes {"query":"orchestrator role: how to work in this project","limit":3}
+  - st:name_session {"title":"Ship Part 7 search: PR, browser, merge"}
+  - ToolSearch
+  - st:open {"id":"agent_d97940a3ce57"}
+  - st:show_plan {}
+  - PowerShell npm test 2>&1 | Select-Object -Last 25; Get-Content package.json
+  - Grep
+  - PowerShell git push -u origin part-7-search; gh pr list --state all --limit 3
+  - PowerShell gh pr view 8 --json title,body,mergeCommit,statusCheckRollup | ConvertFrom-Json | Format-List; git l
+  - Read C:\Users\mickh\shop\packages\search-products\src\search\search.js
+  - Read C:\Users\mickh\shop\packages\search-products\src\search\index.js
+  - PowerShell git diff HEAD~1 -- packages/sign-in-and-see-the-products packages/browse-products-and-pick-them; Get
+  - PowerShell Get-ChildItem node_modules -Directory | Where-Object Name -match 'playwright|puppeteer'; Get-ChildIt
+  - Grep
+  - PowerShell $d = Join-Path $env:TEMP "shop-search-check"; New-Item -ItemType Directory -Force $d | Out-Null; New
+  - Write C:\Users\mickh\AppData\Local\Temp\shop-search-check\check.mjs
+  - PowerShell $d = Join-Path $env:TEMP "shop-search-check"; $env:PORT='3077'; $env:SHOP_DATA_DIR="$d\data"; $srv =
+  - Read C:\Users\mickh\AppData\Local\Temp\shop-search-check\1-bolt.png
+  - Read C:\Users\mickh\AppData\Local\Temp\shop-search-check\2-none.png
+  - PowerShell gh pr create --base main --head part-7-search --title "Part 7: search products" --body @' Part 7: a 
+  - Write C:\Users\mickh\AppData\Local\Temp\shop-search-check\pr-body.md
+  - PowerShell gh pr create --base main --head part-7-search --title "Part 7: search products" --body-file "$env:TE
+  - PowerShell Start-Sleep 10; gh pr checks 9 --watch --interval 10
+  - PowerShell gh pr merge 9 --merge; gh pr view 9 --json state,mergeCommit --jq '.state + " " + .mergeCommit.oid';
+  - st:close_increment {"increment":"increment_87b109a5a9a0","disposition":"landed","pr":"#9","note":"Merged as 9f3f714 after CI passed and the search box was chec
+  - st:close_out {"safe":true,"why":"PR #9 merged, main pulled, tree clean, test server and Edge stopped"}
+RESULT success turns 33 ms 218848 cost 0.8077036000000001 
+I pushed Part 7, opened **PR #9** (https://github.com/HuaMick/shop/pull/9), checked it in Edge, and merged it after the `test` check passed. `main` on your machine is now at `9f3f714`.
+
+**Browser test before merging:** I signed in as `standard_user` in headless Edge on a separate port with throwaway data, so your real `data/` wasn't touched. I typed into the search box one key at a time. Everything behaved correctly and the page showed no errors:
+- **Typing narrows the list as you go:** "b" still shows all 6, "bo" shows 3 and "bolt" shows only the Bolt T-Shirt.
+- **Backspacing to empty** brings all six products back.
+- **Upper case and spaces don't matter:** "JACKET" finds the Fleece Jacket, and "  red " matches on the trimmed text.
+- **No match:** "zzz" shows "No products match ÔÇ£zzzÔÇØ."
+- **Sorting:** choosing price high to low while searching works, and the order stays after the box is cleared.
+- **Cart:** a product that had been hidden and came back (Onesie) can still be added. The badge showed 1 and the button changed to Remove.
+- **The address:** the search stays in it as `?q=ÔÇª`, so reloading or opening `/inventory.html?q=fleece` directly shows the filtered list.
+- **Unit tests:** all 48 pass on my machine.
+
+One thing I didn't test is the small Ô£ò that Edge puts inside the search box. It should clear the search like backspacing does, so it's worth a click when you try it.
+
+I also marked the Part 7 piece as done (landed, PR #9) in storytree's plan.

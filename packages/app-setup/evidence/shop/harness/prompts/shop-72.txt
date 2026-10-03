@@ -1,0 +1,1 @@
+Yes, push it and open the pull request as usual, and merge it once the check passes. Please also try typing in the search box in a real browser before you merge, since that's how I'll test it.

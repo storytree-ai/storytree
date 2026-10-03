@@ -208,7 +208,7 @@ export function wireOpening() {
       later(spawn, () => { window.hidden = false; powerOn(window); status(window, "running"); count++; counter(); age(); sfx.blip(); });
       agent.l.forEach((line, j) => later(spawn + 500 + j * 650, () => append(window, line, { stream: true })));
       later(spawn + 3200, () => park(window, agent.d));
-      parked = Math.max(parked, spawn + 3200);
+      parked = spawn + 3200; // the last helper spawns last
     });
     // Every helper now waits on the visitor and nothing streams until the finale: the page may do heavy work.
     later(parked, () => window.dispatchEvent(new Event("storytree-opening-quiet")));

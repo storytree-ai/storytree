@@ -11,6 +11,8 @@ official Swag Labs suite run on Mint against a clone of the merged commit (`grad
 | 2 follow-up (same session) | 1,326 s, $2.59 | settled the user's answer; a fix increment | moved the code into one package per story (PR #3); reproduced the flaky test with Swag Labs' own suite in headless Edge (2 of 10), fixed it by showing sign-in errors in place (PR #4); 18 own tests | **10/10** parts 1-2 |
 | 3 cart and menu (fresh) | 554 s, $2.37; app 0.3.614 | from the plan; part 3's 2 capabilities | Cart page, side menu (All Items, About, Logout, Reset App State); its tests run the browser scripts against the HTML the server sends; PR #5 | **17/17** parts 1-3, first time |
 | 4 checkout (fresh) | 571 s, $2.55; app 0.3.614 | from the plan; its own package for checkout | three checkout pages, errors in place, 8% tax; ran Swag Labs' suite itself in Edge (all 9 runnable specs); closed its wave 1 arc; 29 own tests; PR #6 | **26/26**, the suite's ceiling |
+| 5 accounts (fresh; wave 2's spec dropped into the folder) | 698 s, $2.54; app 0.3.614 | planned the five new stories (sign up, orders, search, reviews, stock and prices) on a new arc, one package each; part 5's capability and 6 contracts | sign up, greeting, /api/me, accounts in a data file with hashed passwords; 36 own tests; PR #7 | official **26/26**; ours **7/7** |
+| 6 orders (fresh) | 731 s, $3.33; app 0.3.614 | from the plan; 1 capability, 6 contracts | orders saved on the server numbered from 1001, My Orders, order page; checkout details now sent to the server; 43 own tests; PR #8 | official **26/26**; ours **13/13** |
 
 ## Session 1 notes
 
@@ -56,3 +58,18 @@ official Swag Labs suite run on Mint against a clone of the merged commit (`grad
   21 decisions, 1 process (how to run Swag Labs' suite in Edge on this laptop, written by session 4 for the next),
   2 questions (both the layout question, settled), 3 frictions; 1,080 activity lines.
 - Session 3 hit the project's daily friction cap again and said so in its answer.
+
+## Sessions 5 and 6 notes (wave 2)
+
+- Wave 2's spec reached the agent as a user's second list (`harness/shop-requirements-2.md`, dropped into the folder
+  before session 5). The agent planned all five new stories at once, so **the globe grew from 4 islands to 9** in
+  session 5, each new story with its own package and roads to what it uses; parts 5 and 6 then filled two of them
+  with land. Wave 2 is graded by both suites: the official one (all 26 tests now regressions) and our own frozen
+  one (`grade/wave2/`, ours, reported as ours).
+- Both parts were green at their first grade on both suites.
+- Session 6 reported the design choices it made that a user might care about (checkout details now sent to the
+  server, the order number in the complete page's address, Swag Labs' tests creating real orders) rather than
+  deciding them silently.
+- The grader was corrected twice before its first real wave 2 grade, never the tests: Playwright's browser is now
+  installed by `grade-shop.sh`, and the run is limited to wave 2 parts up to the one graded (Playwright matches
+  `--grep` against the whole title path, so the filter anchors on whitespace, not `^`).

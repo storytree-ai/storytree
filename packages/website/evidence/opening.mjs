@@ -12,7 +12,8 @@ const peak = ["AGENTS: 12 ▲", "WAITING ON YOU: 12", "ANSWERED: 00"];
 export async function verifyOpeningFrames(browser, url, output) {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   await page.addInitScript(() => {
-    window.openingFrames = { ready: [], playing: [] };
+    // Playing is Run to the finale: the swarm until every helper waits on the visitor, then the quiet before the finale.
+    window.openingFrames = { ready: [], playing: [], swarm: [], quiet: [] };
     window.globeDraws = 0;
     for (const kind of [WebGLRenderingContext, WebGL2RenderingContext]) {
       for (const method of ["drawArrays", "drawElements", "drawArraysInstanced", "drawElementsInstanced"]) {
@@ -31,7 +32,10 @@ export async function verifyOpeningFrames(browser, url, output) {
     window.addEventListener("storytree-opening", event => { if (!event.detail.active && window.runAt) window.handoverAt ??= performance.now(); });
     let last;
     const frame = now => {
-      if (last !== undefined) window.openingFrames[window.runAt ? "playing" : "ready"].push(now - last);
+      if (last !== undefined) {
+        window.openingFrames[window.runAt ? "playing" : "ready"].push(now - last);
+        if (window.runAt && !window.finaleAt) window.openingFrames[window.parkedAt ? "quiet" : "swarm"].push(now - last);
+      }
       last = now;
       requestAnimationFrame(frame);
     };
@@ -48,6 +52,12 @@ export async function verifyOpeningFrames(browser, url, output) {
       new MutationObserver(() => {
         if (window.runAt && !document.getElementById("opening-better").hidden && !window.finaleAt) window.finaleAt = performance.now();
       }).observe(document.getElementById("opening-better"), { attributes: true, attributeFilter: ["hidden"] });
+      const agents = document.getElementById("opening-agents");
+      new MutationObserver(() => {
+        if (!window.runAt || window.parkedAt) return;
+        const helpers = [...agents.querySelectorAll(".opening-agent")];
+        if (helpers.length && helpers.every(helper => !helper.hidden && helper.classList.contains("is-parked"))) window.parkedAt = performance.now();
+      }).observe(agents, { subtree: true, attributes: true, attributeFilter: ["class", "hidden"] });
     });
   });
   try {
@@ -62,10 +72,14 @@ export async function verifyOpeningFrames(browser, url, output) {
         const elapsedMs = values.reduce((a, b) => a + b, 0);
         return { frames: values.length, elapsedMs, fps: values.length * 1000 / elapsedMs, p95FrameMs: sorted[Math.floor(sorted.length * .95)] };
       };
+      const activated = performance.getEntriesByName("forest-activate").at(0)?.startTime;
       return {
         viewport: [innerWidth, innerHeight], renderer: "SwiftShader",
         ready: summarize(window.openingFrames.ready), playing: summarize(window.openingFrames.playing),
+        swarm: summarize(window.openingFrames.swarm), quiet: summarize(window.openingFrames.quiet),
         finaleMs: window.finaleAt - window.runAt,
+        parkedAfterRunMs: window.parkedAt - window.runAt,
+        activatedAfterRunMs: activated === undefined ? null : activated - window.runAt,
         beforeRun: window.beforeRun,
         activationCount: performance.getEntriesByName("forest-activate").length,
         sceneRequested: performance.getEntriesByType("resource").some(entry => /forest-scene-[^/]*\.js$/.test(entry.name)),
@@ -78,6 +92,7 @@ export async function verifyOpeningFrames(browser, url, output) {
     console.log(JSON.stringify(measured));
     assert.deepEqual(measured.beforeRun, { activations: 0, sceneRequested: false }, "website 2.3: nothing about the globe starts or is requested before Run");
     assert.equal(measured.activationCount, 1, "website 2.10: Run starts the globe while Chapter 1 plays");
+    assert.ok(measured.activatedAfterRunMs >= measured.parkedAfterRunMs, "website 2.10: the globe starts only once every helper waits on the visitor, so its setup stalls none of the swarm");
     assert.equal(measured.mountedLayers, 1, "website 2.10: one globe is mounted below Chapter 1");
     assert.equal(measured.forestState, "live", "website 2.10: the globe is live before the turn");
     assert.equal(measured.globeDraws, 0, "website 2.10: the globe draws nothing while Chapter 1 plays");

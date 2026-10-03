@@ -714,3 +714,9 @@
 .planet-nameplate:not(.capability) { width:max-content; white-space:normal; text-wrap:balance; text-align:center; line-height:1.15; border-radius:0.6rem; }
 .planet-nameplate.crowded { visibility:hidden; }
 .planet-nameplate.capability { transform:none; padding:0.05rem 0.45rem; font-size:0.7rem; font-weight:500; background:rgb(16 20 24 / 0.62); }
+/* Unsurveyed progress counts landed work, without claiming code coverage or test health (forest 3.29). */
+.planet-nameplate.with-progress { display:inline-flex; align-items:center; gap:6px; }
+.planet-nameplate.with-progress .planet-nameplate-title { flex:0 0 calc(112px - 1.1rem); }
+.planet-progress { display:block; flex:0 0 58px; font-size:0.62rem; font-weight:500; line-height:1.2; white-space:nowrap; }
+.planet-progress-meter { display:block; height:3px; margin:0.2rem 0 0.1rem; overflow:hidden; border-radius:2px; background:color-mix(in srgb, currentColor 22%, transparent); }
+.planet-progress-meter > span { display:block; height:100%; background:currentColor; }

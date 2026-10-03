@@ -1,0 +1,26 @@
+{
+  "viewport": [
+    1440,
+    900
+  ],
+  "renderer": "SwiftShader",
+  "ready": {
+    "frames": 148,
+    "elapsedMs": 2583.2000000000003,
+    "fps": 57.29327965314338,
+    "p95FrameMs": 16.700000000000273
+  },
+  "playing": {
+    "frames": 1348,
+    "elapsedMs": 22465.800000000003,
+    "fps": 60.002314629347715,
+    "p95FrameMs": 16.700000000000728
+  },
+  "finaleMs": 22002.20000001788,
+  "activationCount": 0,
+  "sceneRequested": false,
+  "mountedLayers": 0,
+  "forestState": "still",
+  "globeDraws": 0,
+  "handoverLoadMs": 1333.2999999821186
+}

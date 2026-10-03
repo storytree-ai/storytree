@@ -1,0 +1,2496 @@
+{
+  "capturedAt": "2026-10-03T05:30:30.033Z",
+  "baseCommit": "38c3dac483d421d27f108d34a01292860c436834",
+  "renderer": "Built Website, shared Forest PlanetView, Chromium/SwiftShader",
+  "source": "packages/website/src/conduit-snapshot.json",
+  "redLayout": {
+    "description": "Stacked title/count increased height, crowded one phone label and clipped Manage progress. Independent visual review caught page bounds being mistaken for globe visibility.",
+    "capturedAt": "2026-10-03T05:24:12.404Z",
+    "readableCounts": [
+      {
+        "width": 1440,
+        "stage": "planned",
+        "readable": 5
+      },
+      {
+        "width": 1440,
+        "stage": "part1",
+        "readable": 4
+      },
+      {
+        "width": 1440,
+        "stage": "frontend",
+        "readable": 5
+      },
+      {
+        "width": 390,
+        "stage": "planned",
+        "readable": 3
+      },
+      {
+        "width": 390,
+        "stage": "part1",
+        "readable": 2
+      },
+      {
+        "width": 390,
+        "stage": "frontend",
+        "readable": 3
+      }
+    ]
+  },
+  "measurementNotes": [
+    "DOM visibility and viewport bounds are separate from label/progress being fully inside the clipped globe.",
+    "No private WebGL mesh introspection; absent land survey and capability territory DOM labels do not independently enumerate file-circle meshes."
+  ],
+  "captures": [
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "stage": "planned",
+      "savedAt": "2026-10-01T21:18:38.000Z",
+      "step": "stories-roads",
+      "image": "390-planned.png",
+      "primaryStory": "story_acab0558201e",
+      "expected": [
+        {
+          "id": "story_a4dbabc54188",
+          "title": "Discover articles",
+          "total": 1,
+          "landed": 0,
+          "hasSurvey": false,
+          "capabilities": [
+            {
+              "capability": "capability_67c1b8734fd5",
+              "form": "seedling",
+              "status": "proposed"
+            }
+          ]
+        },
+        {
+          "id": "story_b6f530c5966b",
+          "title": "Manage my account",
+          "total": 1,
+          "landed": 0,
+          "hasSurvey": false,
+          "capabilities": [
+            {
+              "capability": "capability_9185590d5850",
+              "form": "seedling",
+              "status": "proposed"
+            }
+          ]
+        },
+        {
+          "id": "story_acab0558201e",
+          "title": "Read and publish articles",
+          "total": 1,
+          "landed": 0,
+          "hasSurvey": false,
+          "capabilities": [
+            {
+              "capability": "capability_be6d7ec11b44",
+              "form": "seedling",
+              "status": "proposed"
+            }
+          ]
+        },
+        {
+          "id": "story_885ea80b96a5",
+          "title": "Discuss an article",
+          "total": 1,
+          "landed": 0,
+          "hasSurvey": false,
+          "capabilities": [
+            {
+              "capability": "capability_ad14d502734c",
+              "form": "seedling",
+              "status": "proposed"
+            }
+          ]
+        },
+        {
+          "id": "story_9d37f9381e3f",
+          "title": "Connect with authors",
+          "total": 1,
+          "landed": 0,
+          "hasSurvey": false,
+          "capabilities": [
+            {
+              "capability": "capability_a867c9a6e53f",
+              "form": "seedling",
+              "status": "proposed"
+            }
+          ]
+        }
+      ],
+      "actual": {
+        "map": "conduit",
+        "stage": "planned",
+        "islands": 5,
+        "canvas": {
+          "x": 0,
+          "y": 72,
+          "width": 390,
+          "height": 333.125,
+          "right": 390,
+          "bottom": 405.125
+        },
+        "capabilityLabels": 0,
+        "labels": [
+          {
+            "id": "story_a4dbabc54188",
+            "title": "Discover articles",
+            "text": "Discover articles0 / 1 landed",
+            "progress": "0 / 1 landed",
+            "bounds": {
+              "x": 85.28189086914062,
+              "y": 253.91494750976562,
+              "width": 175.984375,
+              "height": 33.375,
+              "right": 261.2662658691406,
+              "bottom": 287.2899475097656
+            },
+            "titleBounds": {
+              "x": 94.07876586914062,
+              "y": 255.50869750976562,
+              "width": 94.390625,
+              "height": 30.1875,
+              "right": 188.46939086914062,
+              "bottom": 285.6961975097656
+            },
+            "progressBounds": {
+              "x": 194.46939086914062,
+              "y": 260.7586975097656,
+              "width": 58,
+              "height": 19.6875,
+              "right": 252.46939086914062,
+              "bottom": 280.4461975097656
+            },
+            "trackBounds": {
+              "x": 194.46939086914062,
+              "y": 275.8524475097656,
+              "width": 58,
+              "height": 3,
+              "right": 252.46939086914062,
+              "bottom": 278.8524475097656
+            },
+            "fillBounds": {
+              "x": 194.46939086914062,
+              "y": 275.8524475097656,
+              "width": 0,
+              "height": 3,
+              "right": 194.46939086914062,
+              "bottom": 278.8524475097656
+            },
+            "domVisible": true,
+            "insidePageViewport": true,
+            "labelFullyInsideGlobe": true,
+            "progressFullyInsideGlobe": true,
+            "readableProgress": true,
+            "readableLabel": true,
+            "selected": false,
+            "crowded": false,
+            "color": "rgb(243, 239, 228)",
+            "opacity": "0.5",
+            "meterHidden": "true",
+            "meterColor": "rgb(243, 239, 228)",
+            "fillColor": "rgb(243, 239, 228)",
+            "fillStyle": "0%",
+            "progressFont": "9.92px"
+          },
+          {
+            "id": "story_b6f530c5966b",
+            "title": "Manage my account",
+            "text": "Manage my account0 / 1 landed",
+            "progress": "0 / 1 landed",
+            "bounds": {
+              "x": 104.40682983398438,
+              "y": 366.5189208984375,
+              "width": 175.984375,
+              "height": 33.375,
+              "right": 280.3912048339844,
+              "bottom": 399.8939208984375
+            },
+            "titleBounds": {
+              "x": 113.20370483398438,
+              "y": 368.1126708984375,
+              "width": 94.390625,
+              "height": 30.1875,
+              "right": 207.59432983398438,
+              "bottom": 398.3001708984375
+            },
+            "progressBounds": {
+              "x": 213.59432983398438,
+              "y": 373.3626708984375,
+              "width": 58,
+              "height": 19.6875,
+              "right": 271.5943298339844,
+              "bottom": 393.0501708984375
+            },
+            "trackBounds": {
+              "x": 213.59432983398438,
+              "y": 388.4564208984375,
+              "width": 58,
+              "height": 3,
+              "right": 271.5943298339844,
+              "bottom": 391.4564208984375
+            },
+            "fillBounds": {
+              "x": 213.59432983398438,
+              "y": 388.4564208984375,
+              "width": 0,
+              "height": 3,
+              "right": 213.59432983398438,
+              "bottom": 391.4564208984375
+            },
+            "domVisible": true,
+            "insidePageViewport": true,
+            "labelFullyInsideGlobe": true,
+            "progressFullyInsideGlobe": true,
+            "readableProgress": true,
+            "readableLabel": true,
+            "selected": false,
+            "crowded": false,
+            "color": "rgb(243, 239, 228)",
+            "opacity": "0.5",
+            "meterHidden": "true",
+            "meterColor": "rgb(243, 239, 228)",
+            "fillColor": "rgb(243, 239, 228)",
+            "fillStyle": "0%",
+            "progressFont": "9.92px"
+          },
+          {
+            "id": "story_acab0558201e",
+            "title": "Read and publish articles",
+            "text": "Read and publish articles0 / 1 landed",
+            "progress": "0 / 1 landed",
+            "bounds": {
+              "x": 127.75254821777344,
+              "y": 202.44619750976562,
+              "width": 175.98439025878906,
+              "height": 48.46875,
+              "right": 303.7369384765625,
+              "bottom": 250.91494750976562
+            },
+            "titleBounds": {
+              "x": 136.54942321777344,
+              "y": 204.03994750976562,
+              "width": 94.390625,
+              "height": 45.28125,
+              "right": 230.94004821777344,
+              "bottom": 249.32119750976562
+            },
+            "progressBounds": {
+              "x": 236.94004821777344,
+              "y": 216.83682250976562,
+              "width": 58.00001525878906,
+              "height": 19.6875,
+              "right": 294.9400634765625,
+              "bottom": 236.52432250976562
+            },
+            "trackBounds": {
+              "x": 236.94004821777344,
+              "y": 231.93057250976562,
+              "width": 58.00001525878906,
+              "height": 3,
+              "right": 294.9400634765625,
+              "bottom": 234.93057250976562
+            },
+            "fillBounds": {
+              "x": 236.94004821777344,
+              "y": 231.93057250976562,
+              "width": 0,
+              "height": 3,
+              "right": 236.94004821777344,
+              "bottom": 234.93057250976562
+            },
+            "domVisible": true,
+            "insidePageViewport": true,
+            "labelFullyInsideGlobe": true,
+            "progressFullyInsideGlobe": true,
+            "readableProgress": true,
+            "readableLabel": true,
+            "selected": true,
+            "crowded": false,
+            "color": "rgb(29, 31, 35)",
+            "opacity": "1",
+            "meterHidden": "true",
+            "meterColor": "rgb(29, 31, 35)",
+            "fillColor": "rgb(29, 31, 35)",
+            "fillStyle": "0%",
+            "progressFont": "9.92px"
+          },
+          {
+            "id": "story_885ea80b96a5",
+            "title": "Discuss an article",
+            "text": "Discuss an article0 / 1 landed",
+            "progress": "0 / 1 landed",
+            "bounds": {
+              "x": 107.0078125,
+              "y": 290.2899169921875,
+              "width": 175.984375,
+              "height": 33.375,
+              "right": 282.9921875,
+              "bottom": 323.6649169921875
+            },
+            "titleBounds": {
+              "x": 115.8046875,
+              "y": 291.8836669921875,
+              "width": 94.390625,
+              "height": 30.1875,
+              "right": 210.1953125,
+              "bottom": 322.0711669921875
+            },
+            "progressBounds": {
+              "x": 216.1953125,
+              "y": 297.1336669921875,
+              "width": 58,
+              "height": 19.6875,
+              "right": 274.1953125,
+              "bottom": 316.8211669921875
+            },
+            "trackBounds": {
+              "x": 216.1953125,
+              "y": 312.2274169921875,
+              "width": 58,
+              "height": 3,
+              "right": 274.1953125,
+              "bottom": 315.2274169921875
+            },
+            "fillBounds": {
+              "x": 216.1953125,
+              "y": 312.2274169921875,
+              "width": 0,
+              "height": 3,
+              "right": 216.1953125,
+              "bottom": 315.2274169921875
+            },
+            "domVisible": true,
+            "insidePageViewport": true,
+            "labelFullyInsideGlobe": true,
+            "progressFullyInsideGlobe": true,
+            "readableProgress": true,
+            "readableLabel": true,
+            "selected": false,
+            "crowded": false,
+            "color": "rgb(243, 239, 228)",
+            "opacity": "0.5",
+            "meterHidden": "true",
+            "meterColor": "rgb(243, 239, 228)",
+            "fillColor": "rgb(243, 239, 228)",
+            "fillStyle": "0%",
+            "progressFont": "9.92px"
+          },
+          {
+            "id": "story_9d37f9381e3f",
+            "title": "Connect with authors",
+            "text": "Connect with authors0 / 1 landed",
+            "progress": "0 / 1 landed",
+            "bounds": {
+              "x": 169.1302490234375,
+              "y": 326.6649475097656,
+              "width": 175.984375,
+              "height": 33.375,
+              "right": 345.1146240234375,
+              "bottom": 360.0399475097656
+            },
+            "titleBounds": {
+              "x": 177.9271240234375,
+              "y": 328.2586975097656,
+              "width": 94.390625,
+              "height": 30.1875,
+              "right": 272.3177490234375,
+              "bottom": 358.4461975097656
+            },
+            "progressBounds": {
+              "x": 278.3177490234375,
+              "y": 333.5086975097656,
+              "width": 58,
+              "height": 19.6875,
+              "right": 336.3177490234375,
+              "bottom": 353.1961975097656
+            },
+            "trackBounds": {
+              "x": 278.3177490234375,
+              "y": 348.6024475097656,
+              "width": 58,
+              "height": 3,
+              "right": 336.3177490234375,
+              "bottom": 351.6024475097656
+            },
+            "fillBounds": {
+              "x": 278.3177490234375,
+              "y": 348.6024475097656,
+              "width": 0,
+              "height": 3,
+              "right": 278.3177490234375,
+              "bottom": 351.6024475097656
+            },
+            "domVisible": true,
+            "insidePageViewport": true,
+            "labelFullyInsideGlobe": true,
+            "progressFullyInsideGlobe": true,
+            "readableProgress": true,
+            "readableLabel": true,
+            "selected": false,
+            "crowded": false,
+            "color": "rgb(243, 239, 228)",
+            "opacity": "0.5",
+            "meterHidden": "true",
+            "meterColor": "rgb(243, 239, 228)",
+            "fillColor": "rgb(243, 239, 228)",
+            "fillStyle": "0%",
+            "progressFont": "9.92px"
+          }
+        ]
+      },
+      "errors": [],
+      "readableLabelCount": 5,
+      "readableProgressCount": 5,
+      "assertions": "PASS: saved counts and stable IDs, neutral color, accessible count/decorative meter, no overlapping visible labels, primary complete label inside globe; planned all five complete labels inside globe and not crowded."
+    },
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "stage": "part1",
+      "savedAt": "2026-10-01T21:32:30.000Z",
+      "step": "capabilities-contracts",
+      "image": "390-part1.png",
+      "primaryStory": "story_a4dbabc54188",
+      "expected": [
+        {
+          "id": "story_a4dbabc54188",
+          "title": "Discover articles",
+          "total": 1,
+          "landed": 1,
+          "hasSurvey": false,
+          "capabilities": [
+            {
+              "capability": "capability_67c1b8734fd5",
+              "form": "green",
+              "status": "untested"
+            }
+          ]
+        },
+        {
+          "id": "story_b6f530c5966b",
+          "title": "Manage my account",
+          "total": 1,
+          "landed": 0,
+          "hasSurvey": false,
+          "capabilities": [
+            {
+              "capability": "capability_9185590d5850",
+              "form": "seedling",
+              "status": "proposed"
+            }
+          ]
+        },
+        {
+          "id": "story_acab0558201e",
+          "title": "Read and publish articles",
+          "total": 1,
+          "landed": 0,
+          "hasSurvey": false,
+          "capabilities": [
+            {
+              "capability": "capability_be6d7ec11b44",
+              "form": "seedling",
+              "status": "proposed"
+            }
+          ]
+        },
+        {
+          "id": "story_885ea80b96a5",
+          "title": "Discuss an article",
+          "total": 1,
+          "landed": 0,
+          "hasSurvey": false,
+          "capabilities": [
+            {
+              "capability": "capability_ad14d502734c",
+              "form": "seedling",
+              "status": "proposed"
+            }
+          ]
+        },
+        {
+          "id": "story_9d37f9381e3f",
+          "title": "Connect with authors",
+          "total": 1,
+          "landed": 0,
+          "hasSurvey": false,
+          "capabilities": [
+            {
+              "capability": "capability_a867c9a6e53f",
+              "form": "seedling",
+              "status": "proposed"
+            }
+          ]
+        }
+      ],
+      "actual": {
+        "map": "conduit",
+        "stage": "part1",
+        "islands": 5,
+        "canvas": {
+          "x": 0,
+          "y": 72,
+          "width": 390,
+          "height": 333.125,
+          "right": 390,
+          "bottom": 405.125
+        },
+        "capabilityLabels": 0,
+        "labels": [
+          {
+            "id": "story_a4dbabc54188",
+            "title": "Discover articles",
+            "text": "Discover articles1 / 1 landed",
+            "progress": "1 / 1 landed",
+            "bounds": {
+              "x": 107.0078125,
+              "y": 263.30804443359375,
+              "width": 175.984375,
+              "height": 33.375,
+              "right": 282.9921875,
+              "bottom": 296.68304443359375
+            },
+            "titleBounds": {
+              "x": 115.8046875,
+              "y": 264.90179443359375,
+              "width": 94.390625,
+              "height": 30.1875,
+              "right": 210.1953125,
+              "bottom": 295.08929443359375
+            },
+            "progressBounds": {
+              "x": 216.1953125,
+              "y": 270.15179443359375,
+              "width": 58,
+              "height": 19.6875,
+              "right": 274.1953125,
+              "bottom": 289.83929443359375
+            },
+            "trackBounds": {
+              "x": 216.1953125,
+              "y": 285.24554443359375,
+              "width": 58,
+              "height": 3,
+              "right": 274.1953125,
+              "bottom": 288.24554443359375
+            },
+            "fillBounds": {
+              "x": 216.1953125,
+              "y": 285.24554443359375,
+              "width": 58,
+              "height": 3,
+              "right": 274.1953125,
+              "bottom": 288.24554443359375
+            },
+            "domVisible": true,
+            "insidePageViewport": true,
+            "labelFullyInsideGlobe": true,
+            "progressFullyInsideGlobe": true,
+            "readableProgress": true,
+            "readableLabel": true,
+            "selected": false,
+            "crowded": false,
+            "color": "rgb(243, 239, 228)",
+            "opacity": "1",
+            "meterHidden": "true",
+            "meterColor": "rgb(243, 239, 228)",
+            "fillColor": "rgb(243, 239, 228)",
+            "fillStyle": "100%",
+            "progressFont": "9.92px"
+          },
+          {
+            "id": "story_b6f530c5966b",
+            "title": "Manage my account",
+            "text": "Manage my account0 / 1 landed",
+            "progress": "0 / 1 landed",
+            "bounds": {
+              "x": 129.49740600585938,
+              "y": 463.14080810546875,
+              "width": 175.984375,
+              "height": 33.375,
+              "right": 305.4817810058594,
+              "bottom": 496.51580810546875
+            },
+            "titleBounds": {
+              "x": 138.29428100585938,
+              "y": 464.73455810546875,
+              "width": 94.390625,
+              "height": 30.1875,
+              "right": 232.68490600585938,
+              "bottom": 494.92205810546875
+            },
+            "progressBounds": {
+              "x": 238.68490600585938,
+              "y": 469.98455810546875,
+              "width": 58,
+              "height": 19.6875,
+              "right": 296.6849060058594,
+              "bottom": 489.67205810546875
+            },
+            "trackBounds": {
+              "x": 238.68490600585938,
+              "y": 485.07830810546875,
+              "width": 58,
+              "height": 3,
+              "right": 296.6849060058594,
+              "bottom": 488.07830810546875
+            },
+            "fillBounds": {
+              "x": 238.68490600585938,
+              "y": 485.07830810546875,
+              "width": 0,
+              "height": 3,
+              "right": 238.68490600585938,
+              "bottom": 488.07830810546875
+            },
+            "domVisible": true,
+            "insidePageViewport": true,
+            "labelFullyInsideGlobe": false,
+            "progressFullyInsideGlobe": false,
+            "readableProgress": false,
+            "readableLabel": false,
+            "selected": false,
+            "crowded": false,
+            "color": "rgb(243, 239, 228)",
+            "opacity": "1",
+            "meterHidden": "true",
+            "meterColor": "rgb(243, 239, 228)",
+            "fillColor": "rgb(243, 239, 228)",
+            "fillStyle": "0%",
+            "progressFont": "9.92px"
+          },
+          {
+            "id": "story_acab0558201e",
+            "title": "Read and publish articles",
+            "text": "Read and publish articles0 / 1 landed",
+            "progress": "0 / 1 landed",
+            "bounds": {
+              "x": 162.35025024414062,
+              "y": 372.96258544921875,
+              "width": 175.984375,
+              "height": 48.46875,
+              "right": 338.3346252441406,
+              "bottom": 421.43133544921875
+            },
+            "titleBounds": {
+              "x": 171.14712524414062,
+              "y": 374.55633544921875,
+              "width": 94.390625,
+              "height": 45.28125,
+              "right": 265.5377502441406,
+              "bottom": 419.83758544921875
+            },
+            "progressBounds": {
+              "x": 271.5377502441406,
+              "y": 387.35321044921875,
+              "width": 58,
+              "height": 19.6875,
+              "right": 329.5377502441406,
+              "bottom": 407.04071044921875
+            },
+            "trackBounds": {
+              "x": 271.5377502441406,
+              "y": 402.44696044921875,
+              "width": 58,
+              "height": 3,
+              "right": 329.5377502441406,
+              "bottom": 405.44696044921875
+            },
+            "fillBounds": {
+              "x": 271.5377502441406,
+              "y": 402.44696044921875,
+              "width": 0,
+              "height": 3,
+              "right": 271.5377502441406,
+              "bottom": 405.44696044921875
+            },
+            "domVisible": true,
+            "insidePageViewport": true,
+            "labelFullyInsideGlobe": false,
+            "progressFullyInsideGlobe": false,
+            "readableProgress": false,
+            "readableLabel": false,
+            "selected": false,
+            "crowded": false,
+            "color": "rgb(243, 239, 228)",
+            "opacity": "1",
+            "meterHidden": "true",
+            "meterColor": "rgb(243, 239, 228)",
+            "fillColor": "rgb(243, 239, 228)",
+            "fillStyle": "0%",
+            "progressFont": "9.92px"
+          },
+          {
+            "id": "story_885ea80b96a5",
+            "title": "Discuss an article",
+            "text": "Discuss an article0 / 1 landed",
+            "progress": "0 / 1 landed",
+            "bounds": {
+              "x": 136.32025146484375,
+              "y": 336.5876159667969,
+              "width": 175.984375,
+              "height": 33.375,
+              "right": 312.30462646484375,
+              "bottom": 369.9626159667969
+            },
+            "titleBounds": {
+              "x": 145.11712646484375,
+              "y": 338.1813659667969,
+              "width": 94.390625,
+              "height": 30.1875,
+              "right": 239.50775146484375,
+              "bottom": 368.3688659667969
+            },
+            "progressBounds": {
+              "x": 245.50775146484375,
+              "y": 343.4313659667969,
+              "width": 58,
+              "height": 19.6875,
+              "right": 303.50775146484375,
+              "bottom": 363.1188659667969
+            },
+            "trackBounds": {
+              "x": 245.50775146484375,
+              "y": 358.5251159667969,
+              "width": 58,
+              "height": 3,
+              "right": 303.50775146484375,
+              "bottom": 361.5251159667969
+            },
+            "fillBounds": {
+              "x": 245.50775146484375,
+              "y": 358.5251159667969,
+              "width": 0,
+              "height": 3,
+              "right": 245.50775146484375,
+              "bottom": 361.5251159667969
+            },
+            "domVisible": true,
+            "insidePageViewport": true,
+            "labelFullyInsideGlobe": true,
+            "progressFullyInsideGlobe": true,
+            "readableProgress": true,
+            "readableLabel": true,
+            "selected": false,
+            "crowded": false,
+            "color": "rgb(243, 239, 228)",
+            "opacity": "1",
+            "meterHidden": "true",
+            "meterColor": "rgb(243, 239, 228)",
+            "fillColor": "rgb(243, 239, 228)",
+            "fillStyle": "0%",
+            "progressFont": "9.92px"
+          },
+          {
+            "id": "story_9d37f9381e3f",
+            "title": "Connect with authors",
+            "text": "Connect with authors0 / 1 landed",
+            "progress": "0 / 1 landed",
+            "bounds": {
+              "x": 215.31719970703125,
+              "y": 299.68304443359375,
+              "width": 175.984375,
+              "height": 33.375,
+              "right": 391.30157470703125,
+              "bottom": 333.05804443359375
+            },
+            "titleBounds": {
+              "x": 224.11407470703125,
+              "y": 301.27679443359375,
+              "width": 94.390625,
+              "height": 30.1875,
+              "right": 318.50469970703125,
+              "bottom": 331.46429443359375
+            },
+            "progressBounds": {
+              "x": 324.50469970703125,
+              "y": 306.52679443359375,
+              "width": 58,
+              "height": 19.6875,
+              "right": 382.50469970703125,
+              "bottom": 326.21429443359375
+            },
+            "trackBounds": {
+              "x": 324.50469970703125,
+              "y": 321.62054443359375,
+              "width": 58,
+              "height": 3,
+              "right": 382.50469970703125,
+              "bottom": 324.62054443359375
+            },
+            "fillBounds": {
+              "x": 324.50469970703125,
+              "y": 321.62054443359375,
+              "width": 0,
+              "height": 3,
+              "right": 324.50469970703125,
+              "bottom": 324.62054443359375
+            },
+            "domVisible": true,
+            "insidePageViewport": false,
+            "labelFullyInsideGlobe": false,
+            "progressFullyInsideGlobe": true,
+            "readableProgress": true,
+            "readableLabel": false,
+            "selected": false,
+            "crowded": false,
+            "color": "rgb(243, 239, 228)",
+            "opacity": "1",
+            "meterHidden": "true",
+            "meterColor": "rgb(243, 239, 228)",
+            "fillColor": "rgb(243, 239, 228)",
+            "fillStyle": "0%",
+            "progressFont": "9.92px"
+          }
+        ]
+      },
+      "errors": [],
+      "readableLabelCount": 2,
+      "readableProgressCount": 3,
+      "assertions": "PASS: saved counts and stable IDs, neutral color, accessible count/decorative meter, no overlapping visible labels, primary complete label inside globe; planned all five complete labels inside globe and not crowded."
+    },
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "stage": "frontend",
+      "savedAt": "2026-10-02T00:31:10.000Z",
+      "step": "capabilities-health",
+      "image": "390-frontend.png",
+      "primaryStory": "story_885ea80b96a5",
+      "expected": [
+        {
+          "id": "story_a4dbabc54188",
+          "title": "Discover articles",
+          "total": 1,
+          "landed": 1,
+          "hasSurvey": false,
+          "capabilities": [
+            {
+              "capability": "capability_67c1b8734fd5",
+              "form": "green",
+              "status": "untested"
+            }
+          ]
+        },
+        {
+          "id": "story_b6f530c5966b",
+          "title": "Manage my account",
+          "total": 1,
+          "landed": 1,
+          "hasSurvey": false,
+          "capabilities": [
+            {
+              "capability": "capability_9185590d5850",
+              "form": "green",
+              "status": "untested"
+            }
+          ]
+        },
+        {
+          "id": "story_acab0558201e",
+          "title": "Read and publish articles",
+          "total": 1,
+          "landed": 1,
+          "hasSurvey": false,
+          "capabilities": [
+            {
+              "capability": "capability_be6d7ec11b44",
+              "form": "green",
+              "status": "untested"
+            }
+          ]
+        },
+        {
+          "id": "story_885ea80b96a5",
+          "title": "Discuss an article",
+          "total": 1,
+          "landed": 1,
+          "hasSurvey": false,
+          "capabilities": [
+            {
+              "capability": "capability_ad14d502734c",
+              "form": "green",
+              "status": "untested"
+            }
+          ]
+        },
+        {
+          "id": "story_9d37f9381e3f",
+          "title": "Connect with authors",
+          "total": 1,
+          "landed": 1,
+          "hasSurvey": false,
+          "capabilities": [
+            {
+              "capability": "capability_a867c9a6e53f",
+              "form": "green",
+              "status": "untested"
+            }
+          ]
+        }
+      ],
+      "actual": {
+        "map": "conduit",
+        "stage": "frontend",
+        "islands": 5,
+        "canvas": {
+          "x": 0,
+          "y": 72,
+          "width": 390,
+          "height": 333.125,
+          "right": 390,
+          "bottom": 405.125
+        },
+        "capabilityLabels": 0,
+        "labels": [
+          {
+            "id": "story_a4dbabc54188",
+            "title": "Discover articles",
+            "text": "Discover articles1 / 1 landed",
+            "progress": "1 / 1 landed",
+            "bounds": {
+              "x": 85.28189086914062,
+              "y": 294.5965270996094,
+              "width": 175.984375,
+              "height": 33.375,
+              "right": 261.2662658691406,
+              "bottom": 327.9715270996094
+            },
+            "titleBounds": {
+              "x": 94.07876586914062,
+              "y": 296.1902770996094,
+              "width": 94.390625,
+              "height": 30.1875,
+              "right": 188.46939086914062,
+              "bottom": 326.3777770996094
+            },
+            "progressBounds": {
+              "x": 194.46939086914062,
+              "y": 301.4402770996094,
+              "width": 58,
+              "height": 19.6875,
+              "right": 252.46939086914062,
+              "bottom": 321.1277770996094
+            },
+            "trackBounds": {
+              "x": 194.46939086914062,
+              "y": 316.5340270996094,
+              "width": 58,
+              "height": 3,
+              "right": 252.46939086914062,
+              "bottom": 319.5340270996094
+            },
+            "fillBounds": {
+              "x": 194.46939086914062,
+              "y": 316.5340270996094,
+              "width": 58,
+              "height": 3,
+              "right": 252.46939086914062,
+              "bottom": 319.5340270996094
+            },
+            "domVisible": true,
+            "insidePageViewport": true,
+            "labelFullyInsideGlobe": true,
+            "progressFullyInsideGlobe": true,
+            "readableProgress": true,
+            "readableLabel": true,
+            "selected": false,
+            "crowded": false,
+            "color": "rgb(243, 239, 228)",
+            "opacity": "1",
+            "meterHidden": "true",
+            "meterColor": "rgb(243, 239, 228)",
+            "fillColor": "rgb(243, 239, 228)",
+            "fillStyle": "100%",
+            "progressFont": "9.92px"
+          },
+          {
+            "id": "story_b6f530c5966b",
+            "title": "Manage my account",
+            "text": "Manage my account1 / 1 landed",
+            "progress": "1 / 1 landed",
+            "bounds": {
+              "x": 104.40682983398438,
+              "y": 366.5189208984375,
+              "width": 175.984375,
+              "height": 33.375,
+              "right": 280.3912048339844,
+              "bottom": 399.8939208984375
+            },
+            "titleBounds": {
+              "x": 113.20370483398438,
+              "y": 368.1126708984375,
+              "width": 94.390625,
+              "height": 30.1875,
+              "right": 207.59432983398438,
+              "bottom": 398.3001708984375
+            },
+            "progressBounds": {
+              "x": 213.59432983398438,
+              "y": 373.3626708984375,
+              "width": 58,
+              "height": 19.6875,
+              "right": 271.5943298339844,
+              "bottom": 393.0501708984375
+            },
+            "trackBounds": {
+              "x": 213.59432983398438,
+              "y": 388.4564208984375,
+              "width": 58,
+              "height": 3,
+              "right": 271.5943298339844,
+              "bottom": 391.4564208984375
+            },
+            "fillBounds": {
+              "x": 213.59432983398438,
+              "y": 388.4564208984375,
+              "width": 58,
+              "height": 3,
+              "right": 271.5943298339844,
+              "bottom": 391.4564208984375
+            },
+            "domVisible": true,
+            "insidePageViewport": true,
+            "labelFullyInsideGlobe": true,
+            "progressFullyInsideGlobe": true,
+            "readableProgress": true,
+            "readableLabel": true,
+            "selected": false,
+            "crowded": false,
+            "color": "rgb(243, 239, 228)",
+            "opacity": "1",
+            "meterHidden": "true",
+            "meterColor": "rgb(243, 239, 228)",
+            "fillColor": "rgb(243, 239, 228)",
+            "fillStyle": "100%",
+            "progressFont": "9.92px"
+          },
+          {
+            "id": "story_acab0558201e",
+            "title": "Read and publish articles",
+            "text": "Read and publish articles1 / 1 landed",
+            "progress": "1 / 1 landed",
+            "bounds": {
+              "x": 127.75254821777344,
+              "y": 202.44619750976562,
+              "width": 175.98439025878906,
+              "height": 48.46875,
+              "right": 303.7369384765625,
+              "bottom": 250.91494750976562
+            },
+            "titleBounds": {
+              "x": 136.54942321777344,
+              "y": 204.03994750976562,
+              "width": 94.390625,
+              "height": 45.28125,
+              "right": 230.94004821777344,
+              "bottom": 249.32119750976562
+            },
+            "progressBounds": {
+              "x": 236.94004821777344,
+              "y": 216.83682250976562,
+              "width": 58.00001525878906,
+              "height": 19.6875,
+              "right": 294.9400634765625,
+              "bottom": 236.52432250976562
+            },
+            "trackBounds": {
+              "x": 236.94004821777344,
+              "y": 231.93057250976562,
+              "width": 58.00001525878906,
+              "height": 3,
+              "right": 294.9400634765625,
+              "bottom": 234.93057250976562
+            },
+            "fillBounds": {
+              "x": 236.94004821777344,
+              "y": 231.93057250976562,
+              "width": 58.00001525878906,
+              "height": 3,
+              "right": 294.9400634765625,
+              "bottom": 234.93057250976562
+            },
+            "domVisible": true,
+            "insidePageViewport": true,
+            "labelFullyInsideGlobe": true,
+            "progressFullyInsideGlobe": true,
+            "readableProgress": true,
+            "readableLabel": true,
+            "selected": false,
+            "crowded": false,
+            "color": "rgb(243, 239, 228)",
+            "opacity": "1",
+            "meterHidden": "true",
+            "meterColor": "rgb(243, 239, 228)",
+            "fillColor": "rgb(243, 239, 228)",
+            "fillStyle": "100%",
+            "progressFont": "9.92px"
+          },
+          {
+            "id": "story_885ea80b96a5",
+            "title": "Discuss an article",
+            "text": "Discuss an article1 / 1 landed",
+            "progress": "1 / 1 landed",
+            "bounds": {
+              "x": 107.0078125,
+              "y": 258.2215270996094,
+              "width": 175.984375,
+              "height": 33.375,
+              "right": 282.9921875,
+              "bottom": 291.5965270996094
+            },
+            "titleBounds": {
+              "x": 115.8046875,
+              "y": 259.8152770996094,
+              "width": 94.390625,
+              "height": 30.1875,
+              "right": 210.1953125,
+              "bottom": 290.0027770996094
+            },
+            "progressBounds": {
+              "x": 216.1953125,
+              "y": 265.0652770996094,
+              "width": 58,
+              "height": 19.6875,
+              "right": 274.1953125,
+              "bottom": 284.7527770996094
+            },
+            "trackBounds": {
+              "x": 216.1953125,
+              "y": 280.1590270996094,
+              "width": 58,
+              "height": 3,
+              "right": 274.1953125,
+              "bottom": 283.1590270996094
+            },
+            "fillBounds": {
+              "x": 216.1953125,
+              "y": 280.1590270996094,
+              "width": 58,
+              "height": 3,
+              "right": 274.1953125,
+              "bottom": 283.1590270996094
+            },
+            "domVisible": true,
+            "insidePageViewport": true,
+            "labelFullyInsideGlobe": true,
+            "progressFullyInsideGlobe": true,
+            "readableProgress": true,
+            "readableLabel": true,
+            "selected": false,
+            "crowded": false,
+            "color": "rgb(243, 239, 228)",
+            "opacity": "1",
+            "meterHidden": "true",
+            "meterColor": "rgb(243, 239, 228)",
+            "fillColor": "rgb(243, 239, 228)",
+            "fillStyle": "100%",
+            "progressFont": "9.92px"
+          },
+          {
+            "id": "story_9d37f9381e3f",
+            "title": "Connect with authors",
+            "text": "Connect with authors1 / 1 landed",
+            "progress": "1 / 1 landed",
+            "bounds": {
+              "x": 169.1302490234375,
+              "y": 330.9715270996094,
+              "width": 175.984375,
+              "height": 33.375,
+              "right": 345.1146240234375,
+              "bottom": 364.3465270996094
+            },
+            "titleBounds": {
+              "x": 177.9271240234375,
+              "y": 332.5652770996094,
+              "width": 94.390625,
+              "height": 30.1875,
+              "right": 272.3177490234375,
+              "bottom": 362.7527770996094
+            },
+            "progressBounds": {
+              "x": 278.3177490234375,
+              "y": 337.8152770996094,
+              "width": 58,
+              "height": 19.6875,
+              "right": 336.3177490234375,
+              "bottom": 357.5027770996094
+            },
+            "trackBounds": {
+              "x": 278.3177490234375,
+              "y": 352.9090270996094,
+              "width": 58,
+              "height": 3,
+              "right": 336.3177490234375,
+              "bottom": 355.9090270996094
+            },
+            "fillBounds": {
+              "x": 278.3177490234375,
+              "y": 352.9090270996094,
+              "width": 58,
+              "height": 3,
+              "right": 336.3177490234375,
+              "bottom": 355.9090270996094
+            },
+            "domVisible": true,
+            "insidePageViewport": true,
+            "labelFullyInsideGlobe": true,
+            "progressFullyInsideGlobe": true,
+            "readableProgress": true,
+            "readableLabel": true,
+            "selected": false,
+            "crowded": false,
+            "color": "rgb(243, 239, 228)",
+            "opacity": "1",
+            "meterHidden": "true",
+            "meterColor": "rgb(243, 239, 228)",
+            "fillColor": "rgb(243, 239, 228)",
+            "fillStyle": "100%",
+            "progressFont": "9.92px"
+          }
+        ]
+      },
+      "errors": [],
+      "readableLabelCount": 5,
+      "readableProgressCount": 5,
+      "assertions": "PASS: saved counts and stable IDs, neutral color, accessible count/decorative meter, no overlapping visible labels, primary complete label inside globe; planned all five complete labels inside globe and not crowded."
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "stage": "planned",
+      "savedAt": "2026-10-01T21:18:38.000Z",
+      "step": "stories-roads",
+      "image": "1440-planned.png",
+      "primaryStory": "story_acab0558201e",
+      "expected": [
+        {
+          "id": "story_a4dbabc54188",
+          "title": "Discover articles",
+          "total": 1,
+          "landed": 0,
+          "hasSurvey": false,
+          "capabilities": [
+            {
+              "capability": "capability_67c1b8734fd5",
+              "form": "seedling",
+              "status": "proposed"
+            }
+          ]
+        },
+        {
+          "id": "story_b6f530c5966b",
+          "title": "Manage my account",
+          "total": 1,
+          "landed": 0,
+          "hasSurvey": false,
+          "capabilities": [
+            {
+              "capability": "capability_9185590d5850",
+              "form": "seedling",
+              "status": "proposed"
+            }
+          ]
+        },
+        {
+          "id": "story_acab0558201e",
+          "title": "Read and publish articles",
+          "total": 1,
+          "landed": 0,
+          "hasSurvey": false,
+          "capabilities": [
+            {
+              "capability": "capability_be6d7ec11b44",
+              "form": "seedling",
+              "status": "proposed"
+            }
+          ]
+        },
+        {
+          "id": "story_885ea80b96a5",
+          "title": "Discuss an article",
+          "total": 1,
+          "landed": 0,
+          "hasSurvey": false,
+          "capabilities": [
+            {
+              "capability": "capability_ad14d502734c",
+              "form": "seedling",
+              "status": "proposed"
+            }
+          ]
+        },
+        {
+          "id": "story_9d37f9381e3f",
+          "title": "Connect with authors",
+          "total": 1,
+          "landed": 0,
+          "hasSurvey": false,
+          "capabilities": [
+            {
+              "capability": "capability_a867c9a6e53f",
+              "form": "seedling",
+              "status": "proposed"
+            }
+          ]
+        }
+      ],
+      "actual": {
+        "map": "conduit",
+        "stage": "planned",
+        "islands": 5,
+        "canvas": {
+          "x": 0,
+          "y": 0,
+          "width": 1440,
+          "height": 900,
+          "right": 1440,
+          "bottom": 900
+        },
+        "capabilityLabels": 0,
+        "labels": [
+          {
+            "id": "story_a4dbabc54188",
+            "title": "Discover articles",
+            "text": "Discover articles0 / 1 landed",
+            "progress": "0 / 1 landed",
+            "bounds": {
+              "x": 785.3110961914062,
+              "y": 398.0973815917969,
+              "width": 175.984375,
+              "height": 33.375,
+              "right": 961.2954711914062,
+              "bottom": 431.4723815917969
+            },
+            "titleBounds": {
+              "x": 794.1079711914062,
+              "y": 399.6911315917969,
+              "width": 94.390625,
+              "height": 30.1875,
+              "right": 888.4985961914062,
+              "bottom": 429.8786315917969
+            },
+            "progressBounds": {
+              "x": 894.4985961914062,
+              "y": 404.9411315917969,
+              "width": 58,
+              "height": 19.6875,
+              "right": 952.4985961914062,
+              "bottom": 424.6286315917969
+            },
+            "trackBounds": {
+              "x": 894.4985961914062,
+              "y": 420.0348815917969,
+              "width": 58,
+              "height": 3,
+              "right": 952.4985961914062,
+              "bottom": 423.0348815917969
+            },
+            "fillBounds": {
+              "x": 894.4985961914062,
+              "y": 420.0348815917969,
+              "width": 0,
+              "height": 3,
+              "right": 894.4985961914062,
+              "bottom": 423.0348815917969
+            },
+            "domVisible": true,
+            "insidePageViewport": true,
+            "labelFullyInsideGlobe": true,
+            "progressFullyInsideGlobe": true,
+            "readableProgress": true,
+            "readableLabel": true,
+            "selected": false,
+            "crowded": false,
+            "color": "rgb(243, 239, 228)",
+            "opacity": "0.5",
+            "meterHidden": "true",
+            "meterColor": "rgb(243, 239, 228)",
+            "fillColor": "rgb(243, 239, 228)",
+            "fillStyle": "0%",
+            "progressFont": "9.92px"
+          },
+          {
+            "id": "story_b6f530c5966b",
+            "title": "Manage my account",
+            "text": "Manage my account0 / 1 landed",
+            "progress": "0 / 1 landed",
+            "bounds": {
+              "x": 836.9807739257812,
+              "y": 789.9020385742188,
+              "width": 175.984375,
+              "height": 33.375,
+              "right": 1012.9651489257812,
+              "bottom": 823.2770385742188
+            },
+            "titleBounds": {
+              "x": 845.7776489257812,
+              "y": 791.4957885742188,
+              "width": 94.390625,
+              "height": 30.1875,
+              "right": 940.1682739257812,
+              "bottom": 821.6832885742188
+            },
+            "progressBounds": {
+              "x": 946.1682739257812,
+              "y": 796.7457885742188,
+              "width": 58,
+              "height": 19.6875,
+              "right": 1004.1682739257812,
+              "bottom": 816.4332885742188
+            },
+            "trackBounds": {
+              "x": 946.1682739257812,
+              "y": 811.8395385742188,
+              "width": 58,
+              "height": 3,
+              "right": 1004.1682739257812,
+              "bottom": 814.8395385742188
+            },
+            "fillBounds": {
+              "x": 946.1682739257812,
+              "y": 811.8395385742188,
+              "width": 0,
+              "height": 3,
+              "right": 946.1682739257812,
+              "bottom": 814.8395385742188
+            },
+            "domVisible": true,
+            "insidePageViewport": true,
+            "labelFullyInsideGlobe": true,
+            "progressFullyInsideGlobe": true,
+            "readableProgress": true,
+            "readableLabel": true,
+            "selected": false,
+            "crowded": false,
+            "color": "rgb(243, 239, 228)",
+            "opacity": "0.5",
+            "meterHidden": "true",
+            "meterColor": "rgb(243, 239, 228)",
+            "fillColor": "rgb(243, 239, 228)",
+            "fillStyle": "0%",
+            "progressFont": "9.92px"
+          },
+          {
+            "id": "story_acab0558201e",
+            "title": "Read and publish articles",
+            "text": "Read and publish articles0 / 1 landed",
+            "progress": "0 / 1 landed",
+            "bounds": {
+              "x": 900.0535888671875,
+              "y": 346.6286315917969,
+              "width": 175.984375,
+              "height": 48.46875,
+              "right": 1076.0379638671875,
+              "bottom": 395.0973815917969
+            },
+            "titleBounds": {
+              "x": 908.8504638671875,
+              "y": 348.2223815917969,
+              "width": 94.390625,
+              "height": 45.28125,
+              "right": 1003.2410888671875,
+              "bottom": 393.5036315917969
+            },
+            "progressBounds": {
+              "x": 1009.2410888671875,
+              "y": 361.0192565917969,
+              "width": 58,
+              "height": 19.6875,
+              "right": 1067.2410888671875,
+              "bottom": 380.7067565917969
+            },
+            "trackBounds": {
+              "x": 1009.2410888671875,
+              "y": 376.1130065917969,
+              "width": 58,
+              "height": 3,
+              "right": 1067.2410888671875,
+              "bottom": 379.1130065917969
+            },
+            "fillBounds": {
+              "x": 1009.2410888671875,
+              "y": 376.1130065917969,
+              "width": 0,
+              "height": 3,
+              "right": 1009.2410888671875,
+              "bottom": 379.1130065917969
+            },
+            "domVisible": true,
+            "insidePageViewport": true,
+            "labelFullyInsideGlobe": true,
+            "progressFullyInsideGlobe": true,
+            "readableProgress": true,
+            "readableLabel": true,
+            "selected": true,
+            "crowded": false,
+            "color": "rgb(29, 31, 35)",
+            "opacity": "1",
+            "meterHidden": "true",
+            "meterColor": "rgb(29, 31, 35)",
+            "fillColor": "rgb(29, 31, 35)",
+            "fillStyle": "0%",
+            "progressFont": "9.92px"
+          },
+          {
+            "id": "story_885ea80b96a5",
+            "title": "Discuss an article",
+            "text": "Discuss an article0 / 1 landed",
+            "progress": "0 / 1 landed",
+            "bounds": {
+              "x": 844.0078125,
+              "y": 497.3161926269531,
+              "width": 175.984375,
+              "height": 33.374969482421875,
+              "right": 1019.9921875,
+              "bottom": 530.691162109375
+            },
+            "titleBounds": {
+              "x": 852.8046875,
+              "y": 498.9099426269531,
+              "width": 94.390625,
+              "height": 30.187469482421875,
+              "right": 947.1953125,
+              "bottom": 529.097412109375
+            },
+            "progressBounds": {
+              "x": 953.1953125,
+              "y": 504.1599426269531,
+              "width": 58,
+              "height": 19.687469482421875,
+              "right": 1011.1953125,
+              "bottom": 523.847412109375
+            },
+            "trackBounds": {
+              "x": 953.1953125,
+              "y": 519.253662109375,
+              "width": 58,
+              "height": 3,
+              "right": 1011.1953125,
+              "bottom": 522.253662109375
+            },
+            "fillBounds": {
+              "x": 953.1953125,
+              "y": 519.253662109375,
+              "width": 0,
+              "height": 3,
+              "right": 953.1953125,
+              "bottom": 522.253662109375
+            },
+            "domVisible": true,
+            "insidePageViewport": true,
+            "labelFullyInsideGlobe": true,
+            "progressFullyInsideGlobe": true,
+            "readableProgress": true,
+            "readableLabel": true,
+            "selected": false,
+            "crowded": false,
+            "color": "rgb(243, 239, 228)",
+            "opacity": "0.5",
+            "meterHidden": "true",
+            "meterColor": "rgb(243, 239, 228)",
+            "fillColor": "rgb(243, 239, 228)",
+            "fillStyle": "0%",
+            "progressFont": "9.92px"
+          },
+          {
+            "id": "story_9d37f9381e3f",
+            "title": "Connect with authors",
+            "text": "Connect with authors0 / 1 landed",
+            "progress": "0 / 1 landed",
+            "bounds": {
+              "x": 1011.84326171875,
+              "y": 398.0973815917969,
+              "width": 175.984375,
+              "height": 33.375,
+              "right": 1187.82763671875,
+              "bottom": 431.4723815917969
+            },
+            "titleBounds": {
+              "x": 1020.64013671875,
+              "y": 399.6911315917969,
+              "width": 94.390625,
+              "height": 30.1875,
+              "right": 1115.03076171875,
+              "bottom": 429.8786315917969
+            },
+            "progressBounds": {
+              "x": 1121.03076171875,
+              "y": 404.9411315917969,
+              "width": 58,
+              "height": 19.6875,
+              "right": 1179.03076171875,
+              "bottom": 424.6286315917969
+            },
+            "trackBounds": {
+              "x": 1121.03076171875,
+              "y": 420.0348815917969,
+              "width": 58,
+              "height": 3,
+              "right": 1179.03076171875,
+              "bottom": 423.0348815917969
+            },
+            "fillBounds": {
+              "x": 1121.03076171875,
+              "y": 420.0348815917969,
+              "width": 0,
+              "height": 3,
+              "right": 1121.03076171875,
+              "bottom": 423.0348815917969
+            },
+            "domVisible": true,
+            "insidePageViewport": true,
+            "labelFullyInsideGlobe": true,
+            "progressFullyInsideGlobe": true,
+            "readableProgress": true,
+            "readableLabel": true,
+            "selected": false,
+            "crowded": false,
+            "color": "rgb(243, 239, 228)",
+            "opacity": "0.5",
+            "meterHidden": "true",
+            "meterColor": "rgb(243, 239, 228)",
+            "fillColor": "rgb(243, 239, 228)",
+            "fillStyle": "0%",
+            "progressFont": "9.92px"
+          }
+        ]
+      },
+      "errors": [],
+      "readableLabelCount": 5,
+      "readableProgressCount": 5,
+      "assertions": "PASS: saved counts and stable IDs, neutral color, accessible count/decorative meter, no overlapping visible labels, primary complete label inside globe; planned all five complete labels inside globe and not crowded."
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "stage": "part1",
+      "savedAt": "2026-10-01T21:32:30.000Z",
+      "step": "capabilities-contracts",
+      "image": "1440-part1.png",
+      "primaryStory": "story_a4dbabc54188",
+      "expected": [
+        {
+          "id": "story_a4dbabc54188",
+          "title": "Discover articles",
+          "total": 1,
+          "landed": 1,
+          "hasSurvey": false,
+          "capabilities": [
+            {
+              "capability": "capability_67c1b8734fd5",
+              "form": "green",
+              "status": "untested"
+            }
+          ]
+        },
+        {
+          "id": "story_b6f530c5966b",
+          "title": "Manage my account",
+          "total": 1,
+          "landed": 0,
+          "hasSurvey": false,
+          "capabilities": [
+            {
+              "capability": "capability_9185590d5850",
+              "form": "seedling",
+              "status": "proposed"
+            }
+          ]
+        },
+        {
+          "id": "story_acab0558201e",
+          "title": "Read and publish articles",
+          "total": 1,
+          "landed": 0,
+          "hasSurvey": false,
+          "capabilities": [
+            {
+              "capability": "capability_be6d7ec11b44",
+              "form": "seedling",
+              "status": "proposed"
+            }
+          ]
+        },
+        {
+          "id": "story_885ea80b96a5",
+          "title": "Discuss an article",
+          "total": 1,
+          "landed": 0,
+          "hasSurvey": false,
+          "capabilities": [
+            {
+              "capability": "capability_ad14d502734c",
+              "form": "seedling",
+              "status": "proposed"
+            }
+          ]
+        },
+        {
+          "id": "story_9d37f9381e3f",
+          "title": "Connect with authors",
+          "total": 1,
+          "landed": 0,
+          "hasSurvey": false,
+          "capabilities": [
+            {
+              "capability": "capability_a867c9a6e53f",
+              "form": "seedling",
+              "status": "proposed"
+            }
+          ]
+        }
+      ],
+      "actual": {
+        "map": "conduit",
+        "stage": "part1",
+        "islands": 5,
+        "canvas": {
+          "x": 0,
+          "y": 0,
+          "width": 1440,
+          "height": 900,
+          "right": 1440,
+          "bottom": 900
+        },
+        "capabilityLabels": 0,
+        "labels": [
+          {
+            "id": "story_a4dbabc54188",
+            "title": "Discover articles",
+            "text": "Discover articles1 / 1 landed",
+            "progress": "1 / 1 landed",
+            "bounds": {
+              "x": 844.0078125,
+              "y": 511.0584411621094,
+              "width": 175.984375,
+              "height": 33.375030517578125,
+              "right": 1019.9921875,
+              "bottom": 544.4334716796875
+            },
+            "titleBounds": {
+              "x": 852.8046875,
+              "y": 512.6522216796875,
+              "width": 94.390625,
+              "height": 30.1875,
+              "right": 947.1953125,
+              "bottom": 542.8397216796875
+            },
+            "progressBounds": {
+              "x": 953.1953125,
+              "y": 517.9022216796875,
+              "width": 58,
+              "height": 19.6875,
+              "right": 1011.1953125,
+              "bottom": 537.5897216796875
+            },
+            "trackBounds": {
+              "x": 953.1953125,
+              "y": 532.9959716796875,
+              "width": 58,
+              "height": 3,
+              "right": 1011.1953125,
+              "bottom": 535.9959716796875
+            },
+            "fillBounds": {
+              "x": 953.1953125,
+              "y": 532.9959716796875,
+              "width": 58,
+              "height": 3,
+              "right": 1011.1953125,
+              "bottom": 535.9959716796875
+            },
+            "domVisible": true,
+            "insidePageViewport": true,
+            "labelFullyInsideGlobe": true,
+            "progressFullyInsideGlobe": true,
+            "readableProgress": true,
+            "readableLabel": true,
+            "selected": false,
+            "crowded": false,
+            "color": "rgb(243, 239, 228)",
+            "opacity": "1",
+            "meterHidden": "true",
+            "meterColor": "rgb(243, 239, 228)",
+            "fillColor": "rgb(243, 239, 228)",
+            "fillStyle": "100%",
+            "progressFont": "9.92px"
+          },
+          {
+            "id": "story_b6f530c5966b",
+            "title": "Manage my account",
+            "text": "Manage my account0 / 1 landed",
+            "progress": "0 / 1 landed",
+            "bounds": {
+              "x": 904.7677001953125,
+              "y": 1050.9442138671875,
+              "width": 175.984375,
+              "height": 33.375,
+              "right": 1080.7520751953125,
+              "bottom": 1084.3192138671875
+            },
+            "titleBounds": {
+              "x": 913.5645751953125,
+              "y": 1052.5379638671875,
+              "width": 94.390625,
+              "height": 30.1875,
+              "right": 1007.9552001953125,
+              "bottom": 1082.7254638671875
+            },
+            "progressBounds": {
+              "x": 1013.9552001953125,
+              "y": 1057.7879638671875,
+              "width": 58,
+              "height": 19.6875,
+              "right": 1071.9552001953125,
+              "bottom": 1077.4754638671875
+            },
+            "trackBounds": {
+              "x": 1013.9552001953125,
+              "y": 1072.8817138671875,
+              "width": 58,
+              "height": 3,
+              "right": 1071.9552001953125,
+              "bottom": 1075.8817138671875
+            },
+            "fillBounds": {
+              "x": 1013.9552001953125,
+              "y": 1072.8817138671875,
+              "width": 0,
+              "height": 3,
+              "right": 1013.9552001953125,
+              "bottom": 1075.8817138671875
+            },
+            "domVisible": true,
+            "insidePageViewport": false,
+            "labelFullyInsideGlobe": false,
+            "progressFullyInsideGlobe": false,
+            "readableProgress": false,
+            "readableLabel": false,
+            "selected": false,
+            "crowded": false,
+            "color": "rgb(243, 239, 228)",
+            "opacity": "1",
+            "meterHidden": "true",
+            "meterColor": "rgb(243, 239, 228)",
+            "fillColor": "rgb(243, 239, 228)",
+            "fillStyle": "0%",
+            "progressFont": "9.92px"
+          },
+          {
+            "id": "story_acab0558201e",
+            "title": "Read and publish articles",
+            "text": "Read and publish articles0 / 1 landed",
+            "progress": "0 / 1 landed",
+            "bounds": {
+              "x": 993.52587890625,
+              "y": 547.4334716796875,
+              "width": 175.984375,
+              "height": 48.46875,
+              "right": 1169.51025390625,
+              "bottom": 595.9022216796875
+            },
+            "titleBounds": {
+              "x": 1002.32275390625,
+              "y": 549.0272216796875,
+              "width": 94.390625,
+              "height": 45.28125,
+              "right": 1096.71337890625,
+              "bottom": 594.3084716796875
+            },
+            "progressBounds": {
+              "x": 1102.71337890625,
+              "y": 561.8240966796875,
+              "width": 58,
+              "height": 19.6875,
+              "right": 1160.71337890625,
+              "bottom": 581.5115966796875
+            },
+            "trackBounds": {
+              "x": 1102.71337890625,
+              "y": 576.9178466796875,
+              "width": 58,
+              "height": 3,
+              "right": 1160.71337890625,
+              "bottom": 579.9178466796875
+            },
+            "fillBounds": {
+              "x": 1102.71337890625,
+              "y": 576.9178466796875,
+              "width": 0,
+              "height": 3,
+              "right": 1102.71337890625,
+              "bottom": 579.9178466796875
+            },
+            "domVisible": true,
+            "insidePageViewport": true,
+            "labelFullyInsideGlobe": true,
+            "progressFullyInsideGlobe": true,
+            "readableProgress": true,
+            "readableLabel": true,
+            "selected": false,
+            "crowded": false,
+            "color": "rgb(243, 239, 228)",
+            "opacity": "1",
+            "meterHidden": "true",
+            "meterColor": "rgb(243, 239, 228)",
+            "fillColor": "rgb(243, 239, 228)",
+            "fillStyle": "0%",
+            "progressFont": "9.92px"
+          },
+          {
+            "id": "story_885ea80b96a5",
+            "title": "Discuss an article",
+            "text": "Discuss an article0 / 1 landed",
+            "progress": "0 / 1 landed",
+            "bounds": {
+              "x": 923.2008666992188,
+              "y": 709.0369873046875,
+              "width": 175.98443603515625,
+              "height": 33.375,
+              "right": 1099.185302734375,
+              "bottom": 742.4119873046875
+            },
+            "titleBounds": {
+              "x": 931.9977416992188,
+              "y": 710.6307373046875,
+              "width": 94.39068603515625,
+              "height": 30.1875,
+              "right": 1026.388427734375,
+              "bottom": 740.8182373046875
+            },
+            "progressBounds": {
+              "x": 1032.388427734375,
+              "y": 715.8807373046875,
+              "width": 58,
+              "height": 19.6875,
+              "right": 1090.388427734375,
+              "bottom": 735.5682373046875
+            },
+            "trackBounds": {
+              "x": 1032.388427734375,
+              "y": 730.9744873046875,
+              "width": 58,
+              "height": 3,
+              "right": 1090.388427734375,
+              "bottom": 733.9744873046875
+            },
+            "fillBounds": {
+              "x": 1032.388427734375,
+              "y": 730.9744873046875,
+              "width": 0,
+              "height": 3,
+              "right": 1032.388427734375,
+              "bottom": 733.9744873046875
+            },
+            "domVisible": true,
+            "insidePageViewport": true,
+            "labelFullyInsideGlobe": true,
+            "progressFullyInsideGlobe": true,
+            "readableProgress": true,
+            "readableLabel": true,
+            "selected": false,
+            "crowded": false,
+            "color": "rgb(243, 239, 228)",
+            "opacity": "1",
+            "meterHidden": "true",
+            "meterColor": "rgb(243, 239, 228)",
+            "fillColor": "rgb(243, 239, 228)",
+            "fillStyle": "0%",
+            "progressFont": "9.92px"
+          },
+          {
+            "id": "story_9d37f9381e3f",
+            "title": "Connect with authors",
+            "text": "Connect with authors0 / 1 landed",
+            "progress": "0 / 1 landed",
+            "bounds": {
+              "x": 1136.6260986328125,
+              "y": 499.9383239746094,
+              "width": 175.984375,
+              "height": 33.375030517578125,
+              "right": 1312.6104736328125,
+              "bottom": 533.3133544921875
+            },
+            "titleBounds": {
+              "x": 1145.4229736328125,
+              "y": 501.5320739746094,
+              "width": 94.390625,
+              "height": 30.187530517578125,
+              "right": 1239.8135986328125,
+              "bottom": 531.7196044921875
+            },
+            "progressBounds": {
+              "x": 1245.8135986328125,
+              "y": 506.7820739746094,
+              "width": 58,
+              "height": 19.687530517578125,
+              "right": 1303.8135986328125,
+              "bottom": 526.4696044921875
+            },
+            "trackBounds": {
+              "x": 1245.8135986328125,
+              "y": 521.8758544921875,
+              "width": 58,
+              "height": 3,
+              "right": 1303.8135986328125,
+              "bottom": 524.8758544921875
+            },
+            "fillBounds": {
+              "x": 1245.8135986328125,
+              "y": 521.8758544921875,
+              "width": 0,
+              "height": 3,
+              "right": 1245.8135986328125,
+              "bottom": 524.8758544921875
+            },
+            "domVisible": true,
+            "insidePageViewport": true,
+            "labelFullyInsideGlobe": true,
+            "progressFullyInsideGlobe": true,
+            "readableProgress": true,
+            "readableLabel": true,
+            "selected": false,
+            "crowded": false,
+            "color": "rgb(243, 239, 228)",
+            "opacity": "1",
+            "meterHidden": "true",
+            "meterColor": "rgb(243, 239, 228)",
+            "fillColor": "rgb(243, 239, 228)",
+            "fillStyle": "0%",
+            "progressFont": "9.92px"
+          }
+        ]
+      },
+      "errors": [],
+      "readableLabelCount": 4,
+      "readableProgressCount": 4,
+      "assertions": "PASS: saved counts and stable IDs, neutral color, accessible count/decorative meter, no overlapping visible labels, primary complete label inside globe; planned all five complete labels inside globe and not crowded."
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "stage": "frontend",
+      "savedAt": "2026-10-02T00:31:10.000Z",
+      "step": "capabilities-health",
+      "image": "1440-frontend.png",
+      "primaryStory": "story_885ea80b96a5",
+      "expected": [
+        {
+          "id": "story_a4dbabc54188",
+          "title": "Discover articles",
+          "total": 1,
+          "landed": 1,
+          "hasSurvey": false,
+          "capabilities": [
+            {
+              "capability": "capability_67c1b8734fd5",
+              "form": "green",
+              "status": "untested"
+            }
+          ]
+        },
+        {
+          "id": "story_b6f530c5966b",
+          "title": "Manage my account",
+          "total": 1,
+          "landed": 1,
+          "hasSurvey": false,
+          "capabilities": [
+            {
+              "capability": "capability_9185590d5850",
+              "form": "green",
+              "status": "untested"
+            }
+          ]
+        },
+        {
+          "id": "story_acab0558201e",
+          "title": "Read and publish articles",
+          "total": 1,
+          "landed": 1,
+          "hasSurvey": false,
+          "capabilities": [
+            {
+              "capability": "capability_be6d7ec11b44",
+              "form": "green",
+              "status": "untested"
+            }
+          ]
+        },
+        {
+          "id": "story_885ea80b96a5",
+          "title": "Discuss an article",
+          "total": 1,
+          "landed": 1,
+          "hasSurvey": false,
+          "capabilities": [
+            {
+              "capability": "capability_ad14d502734c",
+              "form": "green",
+              "status": "untested"
+            }
+          ]
+        },
+        {
+          "id": "story_9d37f9381e3f",
+          "title": "Connect with authors",
+          "total": 1,
+          "landed": 1,
+          "hasSurvey": false,
+          "capabilities": [
+            {
+              "capability": "capability_a867c9a6e53f",
+              "form": "green",
+              "status": "untested"
+            }
+          ]
+        }
+      ],
+      "actual": {
+        "map": "conduit",
+        "stage": "frontend",
+        "islands": 5,
+        "canvas": {
+          "x": 0,
+          "y": 0,
+          "width": 1440,
+          "height": 900,
+          "right": 1440,
+          "bottom": 900
+        },
+        "capabilityLabels": 0,
+        "labels": [
+          {
+            "id": "story_a4dbabc54188",
+            "title": "Discover articles",
+            "text": "Discover articles1 / 1 landed",
+            "progress": "1 / 1 landed",
+            "bounds": {
+              "x": 785.3110961914062,
+              "y": 342.746826171875,
+              "width": 175.984375,
+              "height": 33.375,
+              "right": 961.2954711914062,
+              "bottom": 376.121826171875
+            },
+            "titleBounds": {
+              "x": 794.1079711914062,
+              "y": 344.340576171875,
+              "width": 94.390625,
+              "height": 30.1875,
+              "right": 888.4985961914062,
+              "bottom": 374.528076171875
+            },
+            "progressBounds": {
+              "x": 894.4985961914062,
+              "y": 349.590576171875,
+              "width": 58,
+              "height": 19.6875,
+              "right": 952.4985961914062,
+              "bottom": 369.278076171875
+            },
+            "trackBounds": {
+              "x": 894.4985961914062,
+              "y": 364.684326171875,
+              "width": 58,
+              "height": 3,
+              "right": 952.4985961914062,
+              "bottom": 367.684326171875
+            },
+            "fillBounds": {
+              "x": 894.4985961914062,
+              "y": 364.684326171875,
+              "width": 58,
+              "height": 3,
+              "right": 952.4985961914062,
+              "bottom": 367.684326171875
+            },
+            "domVisible": true,
+            "insidePageViewport": true,
+            "labelFullyInsideGlobe": true,
+            "progressFullyInsideGlobe": true,
+            "readableProgress": true,
+            "readableLabel": true,
+            "selected": false,
+            "crowded": false,
+            "color": "rgb(243, 239, 228)",
+            "opacity": "1",
+            "meterHidden": "true",
+            "meterColor": "rgb(243, 239, 228)",
+            "fillColor": "rgb(243, 239, 228)",
+            "fillStyle": "100%",
+            "progressFont": "9.92px"
+          },
+          {
+            "id": "story_b6f530c5966b",
+            "title": "Manage my account",
+            "text": "Manage my account1 / 1 landed",
+            "progress": "1 / 1 landed",
+            "bounds": {
+              "x": 836.9807739257812,
+              "y": 789.9020385742188,
+              "width": 175.984375,
+              "height": 33.375,
+              "right": 1012.9651489257812,
+              "bottom": 823.2770385742188
+            },
+            "titleBounds": {
+              "x": 845.7776489257812,
+              "y": 791.4957885742188,
+              "width": 94.390625,
+              "height": 30.1875,
+              "right": 940.1682739257812,
+              "bottom": 821.6832885742188
+            },
+            "progressBounds": {
+              "x": 946.1682739257812,
+              "y": 796.7457885742188,
+              "width": 58,
+              "height": 19.6875,
+              "right": 1004.1682739257812,
+              "bottom": 816.4332885742188
+            },
+            "trackBounds": {
+              "x": 946.1682739257812,
+              "y": 811.8395385742188,
+              "width": 58,
+              "height": 3,
+              "right": 1004.1682739257812,
+              "bottom": 814.8395385742188
+            },
+            "fillBounds": {
+              "x": 946.1682739257812,
+              "y": 811.8395385742188,
+              "width": 58,
+              "height": 3,
+              "right": 1004.1682739257812,
+              "bottom": 814.8395385742188
+            },
+            "domVisible": true,
+            "insidePageViewport": true,
+            "labelFullyInsideGlobe": true,
+            "progressFullyInsideGlobe": true,
+            "readableProgress": true,
+            "readableLabel": true,
+            "selected": false,
+            "crowded": false,
+            "color": "rgb(243, 239, 228)",
+            "opacity": "1",
+            "meterHidden": "true",
+            "meterColor": "rgb(243, 239, 228)",
+            "fillColor": "rgb(243, 239, 228)",
+            "fillStyle": "100%",
+            "progressFont": "9.92px"
+          },
+          {
+            "id": "story_acab0558201e",
+            "title": "Read and publish articles",
+            "text": "Read and publish articles1 / 1 landed",
+            "progress": "1 / 1 landed",
+            "bounds": {
+              "x": 900.0535888671875,
+              "y": 379.121826171875,
+              "width": 175.984375,
+              "height": 48.46875,
+              "right": 1076.0379638671875,
+              "bottom": 427.590576171875
+            },
+            "titleBounds": {
+              "x": 908.8504638671875,
+              "y": 380.715576171875,
+              "width": 94.390625,
+              "height": 45.28125,
+              "right": 1003.2410888671875,
+              "bottom": 425.996826171875
+            },
+            "progressBounds": {
+              "x": 1009.2410888671875,
+              "y": 393.512451171875,
+              "width": 58,
+              "height": 19.6875,
+              "right": 1067.2410888671875,
+              "bottom": 413.199951171875
+            },
+            "trackBounds": {
+              "x": 1009.2410888671875,
+              "y": 408.606201171875,
+              "width": 58,
+              "height": 3,
+              "right": 1067.2410888671875,
+              "bottom": 411.606201171875
+            },
+            "fillBounds": {
+              "x": 1009.2410888671875,
+              "y": 408.606201171875,
+              "width": 58,
+              "height": 3,
+              "right": 1067.2410888671875,
+              "bottom": 411.606201171875
+            },
+            "domVisible": true,
+            "insidePageViewport": true,
+            "labelFullyInsideGlobe": true,
+            "progressFullyInsideGlobe": true,
+            "readableProgress": true,
+            "readableLabel": true,
+            "selected": false,
+            "crowded": false,
+            "color": "rgb(243, 239, 228)",
+            "opacity": "1",
+            "meterHidden": "true",
+            "meterColor": "rgb(243, 239, 228)",
+            "fillColor": "rgb(243, 239, 228)",
+            "fillStyle": "100%",
+            "progressFont": "9.92px"
+          },
+          {
+            "id": "story_885ea80b96a5",
+            "title": "Discuss an article",
+            "text": "Discuss an article1 / 1 landed",
+            "progress": "1 / 1 landed",
+            "bounds": {
+              "x": 844.0078125,
+              "y": 497.3161926269531,
+              "width": 175.984375,
+              "height": 33.374969482421875,
+              "right": 1019.9921875,
+              "bottom": 530.691162109375
+            },
+            "titleBounds": {
+              "x": 852.8046875,
+              "y": 498.9099426269531,
+              "width": 94.390625,
+              "height": 30.187469482421875,
+              "right": 947.1953125,
+              "bottom": 529.097412109375
+            },
+            "progressBounds": {
+              "x": 953.1953125,
+              "y": 504.1599426269531,
+              "width": 58,
+              "height": 19.687469482421875,
+              "right": 1011.1953125,
+              "bottom": 523.847412109375
+            },
+            "trackBounds": {
+              "x": 953.1953125,
+              "y": 519.253662109375,
+              "width": 58,
+              "height": 3,
+              "right": 1011.1953125,
+              "bottom": 522.253662109375
+            },
+            "fillBounds": {
+              "x": 953.1953125,
+              "y": 519.253662109375,
+              "width": 58,
+              "height": 3,
+              "right": 1011.1953125,
+              "bottom": 522.253662109375
+            },
+            "domVisible": true,
+            "insidePageViewport": true,
+            "labelFullyInsideGlobe": true,
+            "progressFullyInsideGlobe": true,
+            "readableProgress": true,
+            "readableLabel": true,
+            "selected": false,
+            "crowded": false,
+            "color": "rgb(243, 239, 228)",
+            "opacity": "1",
+            "meterHidden": "true",
+            "meterColor": "rgb(243, 239, 228)",
+            "fillColor": "rgb(243, 239, 228)",
+            "fillStyle": "100%",
+            "progressFont": "9.92px"
+          },
+          {
+            "id": "story_9d37f9381e3f",
+            "title": "Connect with authors",
+            "text": "Connect with authors1 / 1 landed",
+            "progress": "1 / 1 landed",
+            "bounds": {
+              "x": 1011.84326171875,
+              "y": 344.27264404296875,
+              "width": 175.984375,
+              "height": 33.375,
+              "right": 1187.82763671875,
+              "bottom": 377.64764404296875
+            },
+            "titleBounds": {
+              "x": 1020.64013671875,
+              "y": 345.86639404296875,
+              "width": 94.390625,
+              "height": 30.1875,
+              "right": 1115.03076171875,
+              "bottom": 376.05389404296875
+            },
+            "progressBounds": {
+              "x": 1121.03076171875,
+              "y": 351.11639404296875,
+              "width": 58,
+              "height": 19.6875,
+              "right": 1179.03076171875,
+              "bottom": 370.80389404296875
+            },
+            "trackBounds": {
+              "x": 1121.03076171875,
+              "y": 366.21014404296875,
+              "width": 58,
+              "height": 3,
+              "right": 1179.03076171875,
+              "bottom": 369.21014404296875
+            },
+            "fillBounds": {
+              "x": 1121.03076171875,
+              "y": 366.21014404296875,
+              "width": 58,
+              "height": 3,
+              "right": 1179.03076171875,
+              "bottom": 369.21014404296875
+            },
+            "domVisible": true,
+            "insidePageViewport": true,
+            "labelFullyInsideGlobe": true,
+            "progressFullyInsideGlobe": true,
+            "readableProgress": true,
+            "readableLabel": true,
+            "selected": false,
+            "crowded": false,
+            "color": "rgb(243, 239, 228)",
+            "opacity": "1",
+            "meterHidden": "true",
+            "meterColor": "rgb(243, 239, 228)",
+            "fillColor": "rgb(243, 239, 228)",
+            "fillStyle": "100%",
+            "progressFont": "9.92px"
+          }
+        ]
+      },
+      "errors": [],
+      "readableLabelCount": 5,
+      "readableProgressCount": 5,
+      "assertions": "PASS: saved counts and stable IDs, neutral color, accessible count/decorative meter, no overlapping visible labels, primary complete label inside globe; planned all five complete labels inside globe and not crowded."
+    }
+  ]
+}

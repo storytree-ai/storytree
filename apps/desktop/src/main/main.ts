@@ -143,7 +143,8 @@ if (!args.smoke && !app.requestSingleInstanceLock()) {
 }
 
 async function run(): Promise<void> {
-  journey = createJourneyRuntime({ home: home.dir, appVersion: sourceVersion()?.version ?? "0.3.0" });
+  // The bundled main is CommonJS with no import.meta, so its own build is named from Electron when packaged and from the checkout at its app path otherwise.
+  journey = createJourneyRuntime({ home: home.dir, appVersion: app.isPackaged ? app.getVersion() : (sourceVersion(app.getAppPath())?.version ?? "0.3.0") });
   ipcMain.handle(JOURNEY_CHANNELS.readJourney, () => journey!.readJourney());
   ipcMain.handle(JOURNEY_CHANNELS.chooseJourney, (_event, on: boolean) => journey!.chooseJourney(on));
   ipcMain.handle(JOURNEY_CHANNELS.prepareJourneyDeletion, () => journey!.prepareJourneyDeletion());

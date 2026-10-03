@@ -1,0 +1,61 @@
+pass part 1  login.spec.ts :: should be able to test loading of login page
+pass part 1  login.spec.ts :: should be able to login with a standard user
+pass part 1  login.spec.ts :: should not be able to login with a locked user
+pass part 1  swag.items.list.spec.ts :: should validate that all products are present
+pass part 2  swag.item.details.spec.ts :: should validate that we can go back from the details to the inventory page
+pass part 2  swag.item.details.spec.ts :: should validate that a product can be added to a cart
+pass part 2  swag.item.details.spec.ts :: should validate that a product can be removed from the cart
+pass part 2  swag.items.list.spec.ts :: should validate that the details of a product can be opened
+pass part 2  swag.items.list.spec.ts :: should validate that a product can be added to the cart
+pass part 2  swag.items.list.spec.ts :: should validate that a product can be removed from the cart
+pass part 3  cart.summary.spec.ts :: should validate that we can continue shopping
+pass part 3  cart.summary.spec.ts :: should validate that a product can be removed from the cart
+pass part 3  menu.spec.ts :: should be able to the swag items overview page
+pass part 3  menu.spec.ts :: should be able to open the about page
+pass part 3  menu.spec.ts :: should be able to log out
+pass part 3  menu.spec.ts :: should be able to clear the cart
+pass part 3  swag.items.list.spec.ts :: should be able to open the cart summary page
+pass part 4  cart.summary.spec.ts :: should validate that we can go from the cart to the checkout page
+pass part 4  checkout.complete.spec.ts :: should be able to test loading of login page
+pass part 4  checkout.personal.info.spec.ts :: should validate we get an error if we don not provide all personal information
+pass part 4  checkout.personal.info.spec.ts :: should validate that we can cancel the first checkout
+pass part 4  checkout.personal.info.spec.ts :: should be able to continue the checkout
+pass part 4  checkout.summary.spec.ts :: should validate that we can continue shopping
+pass part 4  checkout.summary.spec.ts :: should validate that we can cancel checkout and go to the inventory page
+pass part 4  checkout.summary.spec.ts :: should validate that we have 1 product in our checkout overview
+pass part 4  demo.spec.ts :: should be able to log in, add a product to the cart, and complete checkout
+
+all: 26/26 passed (26 in the suite)
+parts 1-8: 26/26 passed (earlier parts are the regression set)
+pass 5.1 the sign-in page links to a sign-up form
+pass 5.2 signing up signs the new user in, on Products, greeted by name
+pass 5.3 a new user can sign out and sign in again
+pass 5.4 sign-up errors, in order
+pass 5.5 a username can be taken only once
+pass 5.6 a Swag Labs user is greeted by username
+pass 5.7 /api/me answers the signed-in user, or 401
+pass 6.1 Finish saves an order and shows its number, counting up across the shop
+pass 6.2 My Orders lists this user's orders, newest first
+pass 6.3 an order's page shows its products and total
+pass 6.4 another user's order is not found
+pass 6.5 a user with no orders is told so
+pass 6.6 orders survive a reload and a new browser
+pass 7.1 typing filters Products by name, ignoring case
+pass 7.2 search matches descriptions too
+pass 7.3 the search is in the address and survives a reload
+pass 7.4 no match says so and lists nothing
+pass 7.5 sorting works on the filtered list
+pass 8.1 someone who hasn't bought it can't review it
+pass 8.2 a buyer reviews it once; the review shows with their name and stars
+pass 8.3 a review needs text
+pass 8.4 the rating is the average, on the product page and on Products
+pass 8.5 an unreviewed product says so
+fail 9.1 only the admin sees Admin; anyone else is sent to Products  -- Error: [2mexpect([22m[31mpage[39m[2m).[22mtoHaveURL[2m([22m[32mexpected[39m[2m)[22m failed
+fail 9.2 stock reads In stock, Only n left, Sold out  -- Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+fail 9.3 buying takes one off stock  -- Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+fail 9.4 Finish refuses a product that sold out meanwhile, and keeps the cart  -- Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+fail 9.5 a new price shows at once, and old orders keep theirs  -- Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+fail 9.6 the admin's price is used at checkout  -- Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+wave 2 (our suite): 23/29 passed
+parts 5-8: 23/23 passed (ours; earlier wave 2 parts are regressions)

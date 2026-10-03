@@ -14,6 +14,8 @@ official Swag Labs suite run on Mint against a clone of the merged commit (`grad
 | 5 accounts (fresh; wave 2's spec dropped into the folder) | 698 s, $2.54; app 0.3.614 | planned the five new stories (sign up, orders, search, reviews, stock and prices) on a new arc, one package each; part 5's capability and 6 contracts | sign up, greeting, /api/me, accounts in a data file with hashed passwords; 36 own tests; PR #7 | official **26/26**; ours **7/7** |
 | 6 orders (fresh) | 731 s, $3.33; app 0.3.614 | from the plan; 1 capability, 6 contracts | orders saved on the server numbered from 1001, My Orders, order page; checkout details now sent to the server; 43 own tests; PR #8 | official **26/26**; ours **13/13** |
 | 7 search (fresh; resumed twice in the same session) | 449 + 338 + 219 s, $1.08 + $1.52 + $0.81; app 0.3.614, then 0.3.619 between turns | from the plan; 1 capability, 5 contracts | search box, ?q= in the address, server-filtered list, no-match message; fixed the cart's buttons for products that come back into the list; 48 own tests; PR #9 | official **26/26**; ours **18/18** |
+| 8 reviews (fresh) | 638 s, $2.78; app 0.3.619 | from the plan; 1 capability, 6 contracts | reviews, ratings, buyers-only rule checked on the server (PR #10); then, by its own project's recorded rule, the form answers in place (PR #11); 54 own tests | official **26/26**; ours **23/23** |
+| 9 stock and an admin (fresh) | 789 s, $3.81; app 0.3.619 | from the plan; 2 capabilities, 9 contracts | stock on every product, sold-out refusal at Finish, admin_user's Admin page for prices and stock, prices used from then on; 63 own tests; PR #12 | official **26/26**; ours **29/29** |
 
 ## Session 1 notes
 
@@ -84,3 +86,23 @@ official Swag Labs suite run on Mint against a clone of the merged commit (`grad
   asked before pushing; told to carry on as usual, it pushed, tried the search box key by key in headless Edge, and
   merged PR #9. The app updated itself to 0.3.619 between turns, outside any turn.
 - Both suites were green at the first grade of the merged commit.
+## Session 8 notes
+
+- **The project's memory at work.** After merging reviews (PR #10), the agent found in the shop's library the rule it had
+  recorded after session 2's flaky sign-in: tests click and read the result straight away, so a form must answer in
+  place rather than reload the page. It fixed the review form the same way in PR #11, in the same turn, before any
+  grade. Nobody told it; the knowledge came from its own earlier session.
+- It named the `data-test` attributes it invented beyond the spec (`review-name`, `review-score`, `review-body`) and
+  offered to rename them, rather than leaving the user to discover them.
+
+## Session 9 notes: the build complete
+
+- **Both waves are complete and green on both suites**: the official Swag Labs suite 26/26 (its ceiling), and our frozen
+  wave 2 suite 29/29. No grade after part 2 found an earlier part broken.
+- The globe at the end (`shots/s9-after.png`): nine stories, all with land and file dots, joined by roads from their
+  package dependencies. The nameplates crowd one column down the globe's middle (friction_92d59bf69b1e, already
+  recorded for Conduit's globe).
+- The library at the end (`library-s9`, kept privately): 9 stories, 16 capabilities, 63 contracts, 39 decisions,
+  2 arcs, 47 increment changes, 1 process, 4 frictions; 2,238 activity lines from 9 sessions and 6 follow-up turns.
+- The agent warned that stock persists, so repeated runs of Swag Labs' suite against one long-running shop use it
+  up after about ten checkouts. The grader is unaffected: it starts every grade from a fresh clone and data folder.

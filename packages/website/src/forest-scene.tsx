@@ -221,7 +221,13 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   const onHighlight = useCallback((stories: readonly string[] | undefined, session?: string) => setHighlight({ stories, session }), []);
   const onControls = useCallback((next: GlobeControls | undefined) => setControls(next), []);
   useEffect(() => {
-    const hear = (event: Event) => setTour((event as CustomEvent<TourDetail>).detail);
+    let first = true;
+    const hear = (event: Event) => {
+      const detail = (event as CustomEvent<TourDetail>).detail;
+      // The first globe drawn is the step's own: under Act 2's pain that is the shop's seed, never a flash of another (2.10).
+      if (first) { first = false; setShownMap(globeOf(detail.step, detail.state, detail.elapsed).map); }
+      setTour(detail);
+    };
     window.addEventListener("storytree-tour", hear);
     window.dispatchEvent(new Event("storytree-tour-request"));
     return () => window.removeEventListener("storytree-tour", hear);
@@ -389,7 +395,7 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   }
   const growth = onShop ? { plan: shopPlan(), at: shopMoment ?? Infinity } : undefined;
   return <>
-    {webgl && <GlobeBoundary failed={failed}>
+    {webgl && tour && <GlobeBoundary failed={failed}>
       <div className="forest-drawing" role="group" aria-label={onStorytree ? "Storytree’s saved project globe" : onShop ? "An online shop’s globe, growing as its agents built it" : `Conduit’s saved globe, as it stood ${stage!.at.slice(0, 16).replace("T", " ")} UTC`}
         data-globe={shownMap} data-arrived={arrived} data-stage={stage?.id} data-growth={onShop ? shopMoment === undefined ? "whole" : shopMoment.toFixed(2) : undefined}
         data-islands={(onShop ? shop.scene : stage?.scene ?? snapshot.scene).islands.length} onPointerDown={explore} onWheel={explore}>

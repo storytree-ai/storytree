@@ -62,3 +62,56 @@ needs no separate cut to Conduit; cost is measured at export (Conduit's 21 stage
   reinstalled 0.3.611 (the first release with the fix) by hand, silently, on 2026-10-04 01:43 AEST: the app
   opened its window ("conduit-codex · storytree 0.3 · version 0.3.611") and its database within 45 seconds
   (`runs/state-0-before.txt`).
+
+## The build judged (increment_70f941a84f6e)
+
+**Result.** The old laptop's Claude Code built the shop from a user's two spec files and one-line prompts, in nine
+fresh sessions plus six follow-up turns (2026-10-03 15:45Z to 20:22Z). Both waves pass in full: Sauce Labs' own
+Swag Labs suite **26/26** (the ceiling the live saucedemo.com reaches), and our frozen wave 2 suite **29/29**.
+After part 2, no grade found an earlier part broken. Session by session: `sessions.md`; landings: `runs/landings.md`.
+
+| | |
+|---|---|
+| Agent time, cost | 9 sessions and 6 follow-up turns, 7,492 s (2 h 5 min) of agent time, $27.76 (Claude Max, as the CLI reports it) |
+| Shop pull requests | 12, each merged by the agent after its own CI check |
+| Plan in its library | 9 stories, 16 capabilities, 63 contracts, 35 decisions (34 on a story's or capability's shelf), 2 arcs, 1 process, 4 frictions; 2,238 activity lines from 13 recorded sessions |
+| Failures at first grade | 1, the agent's own: a sign-in flaky against the official suite (part 1, caught at part 2) |
+| Follow-ups from the user | the layout choice (session 2), the flaky test (2), resuming after a network outage and "push as usual" (7) |
+
+**The globe at each stage**, as the laptop's own app drew it after each session (the land stays neutral grey:
+nothing verifies a user's tests yet, question_da91783103b9). The saved growth on the website
+(`packages/website/src/shop-snapshot.json`, PR #589) replays the same history in 27 dated stages.
+
+| After | Picture | What the globe shows |
+|---|---|---|
+| Session 1 | `shots/s1-after.png` | 4 stories planned with roads; no land (code not yet one package per story) |
+| Session 2 | `shots/s2-after.png` | land and file dots on the first two stories, after the user chose one package per story |
+| Session 3 | `shots/s3-after.png` | the cart story fills in |
+| Session 4 | `shots/s4-after.png` | wave 1 complete: 4 stories, all with land, 18 files |
+| Session 5 | `shots/s5-after.png` | wave 2 planned: **9 stories**, new roads; sign up fills in |
+| Sessions 6–8 | `shots/s6-after.png`, `s7-after.png`, `s8-after.png` | orders, search, reviews fill in one at a time |
+| Session 9 | `shots/s9-after.png` | complete: 9 stories, all with land, 33 files, roads between them |
+
+**What the tour needs, and whether the shop has it** (the arc's end state 2):
+- stories as islands: 9, in two waves (4, then 5 more); several parts each: 1 to 4 capabilities per story;
+- code as file dots inside the parts: yes, from the layout fix on (33 files at the end);
+- health colours: **no**. A user project's land stays neutral (ADR-0630). That is the owner's question on this arc;
+  every shop pull request's CI log is archived, so a later verifier could still colour the history;
+- roads from real dependencies: yes, from each story package's `package.json`;
+- growth over time: yes, two waves of new stories, with land filling in landing by landing (27 recorded stages);
+- several recorded sessions claiming and landing parts: 13 sessions, 48 claims;
+- knowledge anchored to the stories it shaped: 34 decisions on story and capability shelves, and one reused
+  unprompted (session 8 applied the rule session 2 recorded).
+
+**What it says about storytree.**
+- **The guidance gap was the biggest finding.** Claude Code shows only the first 2,048 characters of a tool server's
+  instructions, so until PR #579 every Claude Code agent on a user's project had seen only a third of the habits card.
+  Once it arrived whole, the agent numbered its tests, asked before moving code, and drew land.
+- **Continuity without chat history works.** Every fresh session found its place from the library within its first
+  calls, including the session cut off by the network outage, which rebuilt part 7 from its saved plan.
+- **The project's memory pays.** Session 8 found a rule the project had recorded six sessions earlier and applied it
+  before any grade.
+- **Gaps, each an object:** the installed app dying at startup (PR #576), the CI launch check (increment_118f74f678ef),
+  the habits card's delivery (PR #579), verified health for a user's project (question_da91783103b9), and the crowded
+  nameplates (friction_92d59bf69b1e). The project's daily friction cap (3) refused the agent's later reports; it
+  carried the same content in questions and answers instead.

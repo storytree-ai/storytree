@@ -24,7 +24,7 @@ test("3.6 the public smoke check visits the mounted scopes and expands queues, j
 
   const arc = (id: string, state: "active" | "parked" | "closed" = "active") => ({
     arc: record(id, "arc", { title: id, intent: `Build ${id}`, endState: "Done" }), state,
-    increments: [record(`${id}-work`, "increment", { arc: id, title: `${id} work`, objective: id, body: id, status: "ready" })],
+    increments: [record(`${id}-work`, "increment", { arc: id, title: `${id} work`, objective: id, body: id, status: "proposal" })],
     questions: [],
   });
   const snapshot: BoardSnapshot = {

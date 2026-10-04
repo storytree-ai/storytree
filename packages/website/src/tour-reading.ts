@@ -72,7 +72,7 @@ function arcsAt(arcs: TourSnapshot["arcs"], lines: readonly Line[], until: strin
     const increments = view.increments.filter(increment => increment.createdAt <= until).map(increment => {
       if (closed.has(increment.id)) return increment;
       const { outcome: _outcome, ...fields } = increment.fields;
-      return { ...increment, fields: { ...fields, status: claimed.has(increment.id) ? "active" as const : "ready" as const } };
+      return { ...increment, fields: { ...fields, status: claimed.has(increment.id) ? "active" as const : "proposal" as const } };
     });
     return { ...view, increments, state: increments.length > 0 && increments.every(increment => closed.has(increment.id)) ? "closed" as const : "active" as const };
   });

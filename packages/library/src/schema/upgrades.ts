@@ -39,6 +39,15 @@ export const UPGRADES: readonly UpgradeStep[] = [
     name: "capability-proposed",
     up: (fields) => ({ ...fields, proposed: true }),
   },
+  {
+    // Capability 10 (ADR-0909 D4): an increment's ready step is retired. One stored as ready was a
+    // proposal somebody had marked able to start, which gated nothing, so it reads as a proposal and
+    // keeps the date it was parked.
+    type: "increment",
+    from: 1,
+    name: "increment-ready-retired",
+    up: (fields) => (fields["status"] === "ready" ? { ...fields, status: "proposal" } : fields),
+  },
 ];
 
 /** The schema the library runs on. */

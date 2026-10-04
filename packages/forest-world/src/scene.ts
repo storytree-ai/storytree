@@ -51,8 +51,8 @@ export interface Island {
 
 /** An island's code (ADR-0804 D2, D3): its territories' shares, and its files, for the page to lay on its land. */
 export interface IslandLand {
-  /** Each territory's capability, its title, its word and its lines; no capability (and no word) for Unclaimed code. */
-  territories: readonly { capability?: string; title?: string; status?: CapabilityWord; lines: number }[];
+  /** Each territory's capability, its title, its description, its word and its lines; no capability (and no word) for Unclaimed code. */
+  territories: readonly { capability?: string; title?: string; description?: string; status?: CapabilityWord; lines: number }[];
   files: readonly { path: string; lines: number; capability?: string }[];
   /** The package its story's code lives in, so a file's path in the package can be named from the repository's root (ADR-0804 D5). */
   package?: string;

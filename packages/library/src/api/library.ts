@@ -154,8 +154,8 @@ export interface Library {
    * `outcome`, born closed. Everything it touches or remedies must be live.
    */
   addIncrement(increment: NewIncrement, options?: WriteOptions): Promise<SchemaRecord<"increment">>;
-  /** Move an increment on, to ready or active, only forward (LifecycleError otherwise). Null if `id` is not a live increment. */
-  advanceIncrement(id: string, to: "ready" | "active", options?: WriteOptions): Promise<SchemaRecord<"increment"> | null>;
+  /** Start an increment: move it on to active, only forward (LifecycleError otherwise). Null if `id` is not a live increment. */
+  advanceIncrement(id: string, to: "active", options?: WriteOptions): Promise<SchemaRecord<"increment"> | null>;
   /**
    * Close an increment with its pull request, note and what the close meant; a close with no pull
    * request needs a note. Null if `id` is not a live increment.
@@ -469,7 +469,7 @@ class LibraryHandle implements Library {
     return this.#project.flight.addIncrement(increment, options);
   }
 
-  advanceIncrement(id: string, to: "ready" | "active", options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
+  advanceIncrement(id: string, to: "active", options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
     return this.#project.flight.advanceIncrement(id, to, options);
   }
 

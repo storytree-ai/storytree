@@ -4,7 +4,7 @@ import type { Claim } from "@storytree/agent-link";
 import type { FieldsOf, Hold } from "@storytree/library";
 import { arcState, incrementState } from "./board-states.js";
 
-const open: FieldsOf<"increment"> = { arc: "a", title: "Build", objective: "Build it", body: "Build it", status: "ready" };
+const open: FieldsOf<"increment"> = { arc: "a", title: "Build", objective: "Build it", body: "Build it", status: "proposal" };
 const held: Claim = { increment: "i", session: "s", label: "Codex", reason: "building", since: "2026-09-27T00:00:00Z", holder: "idle" };
 const waits: Hold[] = [{ on: "other", reason: "needs it", forGood: false }];
 
@@ -21,12 +21,14 @@ test("1.4 only a recorded landing or pull request makes a closed increment green
   }
 });
 
-test("1.5 waiting on you precedes queued, held, open; proposals do not await approval and released active work stays in progress", () => {
+test("1.5 waiting on you precedes queued, held, open; a proposal waits on you only while your question holds it, and released active work stays in progress", () => {
   assert.equal(incrementState(open, { heldOn: ["q"], waits, claim: held }).state, "waiting-on-you");
   assert.equal(incrementState(open, { heldOn: [], waits, claim: held }).state, "queued");
   assert.equal(incrementState(open, { heldOn: [], waits: [], claim: held }).state, "held");
   assert.deepEqual(incrementState({ ...open, status: "active" }), { state: "open", color: "grey", progress: "in-progress" });
-  assert.deepEqual(incrementState({ ...open, status: "proposal", parked: "2026-09-27" }, { heldOn: ["q"] }), { state: "open", color: "grey", progress: "planned" });
+  const proposal = { ...open, status: "proposal" as const, parked: "2026-09-27" };
+  assert.deepEqual(incrementState(proposal), { state: "open", color: "grey", progress: "planned" });
+  assert.deepEqual(incrementState(proposal, { heldOn: ["q"] }), { state: "waiting-on-you", color: "yellow", progress: "planned" });
   assert.equal(incrementState(open, { waits }).color, "yellow");
 });
 

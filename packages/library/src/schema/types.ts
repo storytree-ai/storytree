@@ -44,8 +44,12 @@ export type KnowledgeKind =
   | "resteer"
   | "techstack";
 
-/** An increment's lifecycle, in the only order it moves (capability 10). */
-export const INCREMENT_STATUSES = ["proposal", "ready", "active", "closed"] as const;
+/**
+ * An increment's lifecycle, in the only order it moves (capability 10). Its ready step, between
+ * proposal and active, is retired (ADR-0909 D4): an increment stored as ready is upgraded on read
+ * to a proposal (./upgrades.ts).
+ */
+export const INCREMENT_STATUSES = ["proposal", "active", "closed"] as const;
 
 /** A string that may not be empty: a title, a text, a term or a meaning. */
 const nonEmpty = z.string().min(1);
@@ -442,7 +446,7 @@ export const SCHEMA_VERSIONS: Readonly<Record<RecordType, number>> = {
   friction: 1,
   resteer: 1,
   techstack: 1,
-  increment: 1,
+  increment: 2,
   question: 1,
 };
 

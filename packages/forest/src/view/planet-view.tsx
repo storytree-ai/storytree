@@ -247,7 +247,7 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
   onNote: (note: string) => void;
 }) {
   const { camera, gl, scene, size, invalidate } = useThree();
-  const [hover, setHover] = useState<{ title: string; x: number; y: number }>();
+  const [hover, setHover] = useState<{ title: string; detail?: string; x: number; y: number }>();
   const opened = useRef(false);
   const lastMarkers = useRef("");
   const [markers, setMarkers] = useState<ScreenMarker[]>([]);
@@ -320,9 +320,9 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
     const hoverAt = oncePerFrame(({ event, at }: { event: PointerEvent; at: number }): void => {
       if (stopped || at !== cleared || down !== undefined) return;
       const box = element.getBoundingClientRect();
-      const { cursor, title } = globeHover(scene, camera, box, { x: event.clientX, y: event.clientY }, mode);
+      const { cursor, title, detail } = globeHover(scene, camera, box, { x: event.clientX, y: event.clientY }, mode);
       element.style.cursor = cursor;
-      setHover(title === undefined ? undefined : { title, x: Math.max(8, Math.min(box.width - 220, event.clientX - box.left + 12)), y: event.clientY - box.top + 14 });
+      setHover(title === undefined ? undefined : { title, ...(detail === undefined ? {} : { detail }), x: Math.max(8, Math.min(box.width - (detail === undefined ? 220 : 280), event.clientX - box.left + 12)), y: event.clientY - box.top + 14 });
     });
     // A drag redraws the globe once a frame, at the latest turn.
     const dragTo = oncePerFrame((next: GlobeTurn): void => { if (!stopped) turnTo(next); });
@@ -375,7 +375,9 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
   }, [camera, gl, scene, onPick, onNote, mode, turnTo]);
 
   return <Overlay fullscreen zIndexRange={[40, 40]} style={{ pointerEvents: "none" }}>
-    {hover !== undefined && <span role="tooltip" className="knowledge-tooltip" style={{ position: "absolute", left: hover.x, top: hover.y }}>{hover.title}</span>}
+    {hover !== undefined && <span role="tooltip" className={`knowledge-tooltip${hover.detail === undefined ? "" : " with-detail"}`} style={{ position: "absolute", left: hover.x, top: hover.y }}>
+      {hover.detail === undefined ? hover.title : <><strong>{hover.title}</strong><span className="knowledge-tooltip-detail">{hover.detail}</span></>}
+    </span>}
     {mode === "forest" && markers.map(marker => <button key={marker.story} type="button" className="planet-edge-marker"
       data-failing-story={marker.story}
       style={{ left: marker.left, top: marker.top }}

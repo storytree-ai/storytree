@@ -50,12 +50,6 @@ export function registerWorkTools(define: Define): void {
     },
   );
 
-  define("ready_increment", "Mark a proposed increment ready: planned and able to start.", z.object({ increment: id("increment") }), async ({ increment }, { library, writer }) => {
-    const readied = await library.advanceIncrement(increment, "ready", writer);
-    if (readied === null) return noIncrement(increment);
-    return { text: `${quoted(readied.fields.title)} (${increment}) is ready. Claim it to start it.`, data: { id: increment } };
-  });
-
   define(
     "close_increment",
     "Close an increment with its outcome: landed, failed or withdrawn, with its pull request, or a note when there is none. Any claim on it ends.",

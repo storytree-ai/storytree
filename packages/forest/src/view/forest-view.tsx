@@ -2,13 +2,11 @@
  * The forest's globe-only page (the forest story, capability 3; ADR-0655).
  * PlanetView reuses the ported island drawing, with story names, selection and claims.
  * Unchanged islands retain their objects, and a live update that changed nothing on show is not drawn again.
- * The flat canvas remains available in the engine; the page mounts only the globe.
+ * The page mounts only the globe, and loads none of 0.2's pine kit: no island carries a tree (ADR-0804 D1).
  */
 import { createRoot } from "react-dom/client";
 import type { ForestScene, SessionWisp } from "@storytree/forest";
 import { KnowledgeNoteCard, type KnowledgeCore } from "@storytree/knowledge-core/view";
-import { preloadKit } from "@storytree/forest-world/canvas";
-import kitBytes from "@storytree/forest-world/assets/dressing-kit.glb";
 import { PlanetView } from "./planet-view.js";
 import { nextScene, sameWisps } from "./planet-update.js";
 import { PanelSelection, type Selection } from "./panel-selection.js";
@@ -49,8 +47,6 @@ interface Drawn {
  */
 export async function openForestView(container: HTMLElement, onSelect: (selection: Selection) => void, core: KnowledgeCore,
   onWispHover: (session: string | undefined) => void = () => {}, { library = true, opening = "whole-planet" }: { library?: boolean; opening?: GlobeOpening | undefined } = {}): Promise<ForestView> {
-  // Parses 0.2's pine kit, which nothing on the globe draws since ADR-0804 D1 (no tree on any island).
-  await preloadKit(kitBytes);
   const root = createRoot(container);
   let drawn: Drawn = {
     mode: "forest", places: new Map(), scene: { islands: [] }, wisps: [], selected: undefined, highlighted: undefined, highlightedSession: undefined, viewport: undefined,

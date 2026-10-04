@@ -1,0 +1,37 @@
+{
+  "browser": "154.0.8037.57",
+  "rows": [
+    {
+      "arc": "The app keeps up",
+      "chip": "waiting",
+      "bars": [
+        "The globe redraws after losing its drawing context\nopen · planned [arc-grey]"
+      ]
+    },
+    {
+      "arc": "One owner-approved waitlist row proves the live path",
+      "chip": "waiting",
+      "bars": [
+        "The waitlist form writes a row\nlanded · landed\nClose: landed [arc-green]",
+        "Send one live waitlist entry\nwaiting on you · planned [arc-yellow]",
+        "Show the row in the owner's session\nopen · planned [arc-grey]"
+      ]
+    },
+    {
+      "arc": "The land follows merged work",
+      "chip": "queued",
+      "bars": [
+        "Redraw the land after a merge\nwaiting on you · planned [arc-yellow]"
+      ]
+    },
+    {
+      "arc": "Promoted releases for first users",
+      "chip": "ready · 2 to take",
+      "bars": [
+        "Verify stable channels on a real Windows install\nopen · planned [arc-grey]",
+        "CI starts the packaged app\nopen · planned [arc-grey]"
+      ]
+    }
+  ],
+  "errors": []
+}

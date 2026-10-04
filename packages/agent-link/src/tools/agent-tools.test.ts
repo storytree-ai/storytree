@@ -66,7 +66,6 @@ const TOOLS = [
   "plan_story",
   "raise_question",
   "read_context",
-  "ready_increment",
   "record_friction",
   "record_resteer",
   "reinforce",
@@ -224,19 +223,18 @@ test("6.20 cancelling an MCP edit queued for the write lock leaves the record an
 
 // 5.15 / 6.21: exercise library admission through real MCP calls.
 for (const scenario of [
-  { tool: "claim", boundary: "library", target: "proposal" },
-  { tool: "make_workspace", boundary: "library", target: "ready" },
-  { tool: "attach_workspace", boundary: "library", target: "proposal" },
-  { tool: "claim", boundary: "admitted", target: "proposal" },
-  { tool: "make_workspace", boundary: "admitted", target: "proposal" },
-  { tool: "attach_workspace", boundary: "admitted", target: "proposal" },
+  { tool: "claim", boundary: "library" },
+  { tool: "make_workspace", boundary: "library" },
+  { tool: "attach_workspace", boundary: "library" },
+  { tool: "claim", boundary: "admitted" },
+  { tool: "make_workspace", boundary: "admitted" },
+  { tool: "attach_workspace", boundary: "admitted" },
 ] as const) {
-  test(`6.21 cancelling ${scenario.tool} at ${scenario.boundary} (${scenario.target}) ${scenario.boundary === "admitted" ? "completes the admitted claim" : "leaves no claim, activation or workspace change"}`, async () => {
+  test(`6.21 cancelling ${scenario.tool} at ${scenario.boundary} ${scenario.boundary === "admitted" ? "completes the admitted claim" : "leaves no claim, activation or workspace change"}`, async () => {
     await withProject(async ({ folder, project, library, log }) => {
-      const { tool, boundary, target } = scenario;
+      const { tool, boundary } = scenario;
       const arc = await library.createArc({ title: "Cancellation", intent: "Claim only wanted work", endState: "No abandoned claim" });
       const increment = await library.addIncrement({ arc: arc.id, title: "Queued work", objective: "Build", body: "Red then green" });
-      if (target === "ready") await library.advanceIncrement(increment.id, target);
       const id = increment.id;
       const before = await library.get(id);
       const history = await library.history({ id });
@@ -576,7 +574,6 @@ test('6.4 a bad call gets a readable refusal rather than a crash, and with story
         ["correct_note", { id: "memory_000000000000", text: "Mailgun needs a verified sending domain" }],
         ["retire_from_plan", { id: "contract_000000000000", reason: "no longer promised" }],
         ["park_increment", { arc: "arc_000000000000", title: "Email form", objective: "Build it", body: "Red then green" }],
-        ["ready_increment", { increment: "increment_000000000000" }],
         ["close_increment", { increment: "increment_000000000000", disposition: "landed", pr: "#1" }],
         ["move_increment", { increment: "increment_000000000000", to: "arc_000000000000", reason: "belongs there" }],
         ["park_arc", { arc: "arc_000000000000", parked: true }],
@@ -872,7 +869,7 @@ async function planned(agent: Agent) {
   return { story, arc, capability };
 }
 
-test("6.9 it parks an increment, readies it, starts it by claiming it, and closes it landed with its pull request, which ends the claim and closes the arc; it records a landing never parked, parks new work on the closed arc, which re-opens it, and parks and unparks the arc", async () => {
+test("6.9 it parks an increment, starts it by claiming it, and closes it landed with its pull request, which ends the claim and closes the arc; it records a landing never parked, parks new work on the closed arc, which re-opens it, and parks and unparks the arc", async () => {
   await withProject(async ({ folder, project, library, log }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { arc, capability } = await planned(agent);
@@ -880,8 +877,6 @@ test("6.9 it parks an increment, readies it, starts it by claiming it, and close
 
       const increment = idOf(await agent.call("park_increment", { arc, title: "Email form", objective: "Build the email form", body: "Red then green, contract by contract", touches: [capability] }));
       assert.equal((await incrementOf(increment))?.status, "proposal");
-      assert.equal((await agent.call("ready_increment", { increment })).isError, false);
-      assert.equal((await incrementOf(increment))?.status, "ready");
       const claimed = await agent.call("claim", { increment, reason: "driving the email form" });
       assert.equal(claimed.isError, false, claimed.text);
       assert.equal((await incrementOf(increment))?.status, "active", "claiming it started it");
@@ -1322,7 +1317,6 @@ test("6.16 every library write from a tool names the calling session, including 
       const arc = await write("plan_arc", { title: "Launch", intent: "Ship signup", end_state: "Visitors join" });
       for (const id of [story, capability, contract, arc]) await write("edit_plan", { id, description: "Corrected" });
       const increment = await write("park_increment", { arc, title: "Form", objective: "Build it", body: "Red then green" });
-      await write("ready_increment", { increment });
       await write("claim", { increment, reason: "driving it" });
       for (const parked of [true, false]) await write("park_arc", { arc, parked });
       const blocker = await write("park_increment", { arc, title: "Mailer", objective: "Send mail", body: "Connect it" });

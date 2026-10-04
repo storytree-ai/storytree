@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import type { Line } from "@storytree/agent-link";
 import type { AnnotatedTree, ArcView, Change, Holds } from "@storytree/library";
-import { refreshGrowthSnapshot } from "./conduit-growth.js";
+import { refreshGrowthSnapshot } from "./saved-growth.js";
 import { ciHealth, codeAt, landings, shopStages } from "./shop-growth.js";
 
 const { values } = parseArgs({ options: { repository: { type: "string" }, record: { type: "string" }, library: { type: "string" }, ci: { type: "string" }, project: { type: "string", default: "shop" }, output: { type: "string" } } });

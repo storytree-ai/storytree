@@ -27,13 +27,9 @@ export function tourCounts(snapshot: Pick<TourSnapshot, "capturedAt" | "tree" | 
   };
 }
 
-/** Conduit's growth's own dates, storytree's own growth's days and the shop's day, for the words shown over their globes. */
-export function growthCounts(growth: Pick<GrowthSnapshot, "window">, own?: Pick<GrowthSnapshot, "window">, shop?: Pick<GrowthSnapshot, "window">): Record<string, string> {
-  const from = new Date(growth.window.from), to = new Date(growth.window.to);
-  const days = own && { from: new Date(own.window.from), to: new Date(own.window.to) };
-  return { conduitRecording: `${day(from)}, ${time(from)} to ${day(to)}, ${time(to)} UTC`,
-    ...(days ? { ownRecording: `${day(days.from)} to ${day(days.to)}` } : {}),
-    ...(shop ? { shopDay: day(new Date(shop.window.to)) } : {}) };
+/** Storytree's own growth's days and the shop's day, for the words shown over their globes. */
+export function growthCounts(own: Pick<GrowthSnapshot, "window">, shop: Pick<GrowthSnapshot, "window">): Record<string, string> {
+  return { ownRecording: `${day(new Date(own.window.from))} to ${day(new Date(own.window.to))}`, shopDay: day(new Date(shop.window.to)) };
 }
 
 /** Fill each {name} the counts know; an unknown name stays as written, so a gap shows instead of a guess. */

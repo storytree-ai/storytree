@@ -45,8 +45,7 @@ export async function verifyTourCamera(browser, url) {
     const resumed = await positions();
     if (distance(destination, resumed) > 5) failures.push(`Play left the camera ${Math.round(distance(destination, resumed))} pixels from the step's view`);
     if (await stepOf(page) !== "knowledge-shelves") failures.push(`Play restarted or moved the step: ${await stepOf(page)}`);
-    // 2.9: after the opening, Conduit's globe grows a stage at a time as the lines arrive; the steps at scale and free play are storytree's.
-    const globe = () => page.locator(".forest-drawing").evaluate(node => ({ map: node.dataset.globe, stage: node.dataset.stage, islands: Number(node.dataset.islands) }));
+    const globe = () => page.locator(".forest-drawing").evaluate(node => ({ map: node.dataset.globe, islands: Number(node.dataset.islands) }));
     if (await page.locator("#tour-play").getAttribute("aria-label") === "Play the tour") await page.locator("#tour-play").click();
     // 2.16: the map chapter's last step grows the shop from its first four stories to eight, Orders among them.
     const risen = () => page.locator(".forest-drawing").evaluate(node => ({ map: node.dataset.globe, risen: Number(node.dataset.risen) }));

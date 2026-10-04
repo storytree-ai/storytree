@@ -5,9 +5,6 @@
   "4": 4,
   "5": 4
  },
- "src/conduit-growth.ts": {
-  "3": 349
- },
  "src/escape-html.ts": {
   "1": 3,
   "2": 1,
@@ -70,21 +67,21 @@
  "src/refresh-forest.ts": {
   "3": 1
  },
- "src/refresh-growth.ts": {
-  "3": 1
- },
  "src/refresh-own.ts": {
   "3": 4
  },
  "src/refresh-shop.ts": {
   "3": 6
  },
+ "src/saved-growth.ts": {
+  "3": 337
+ },
  "src/shop-growth.ts": {
   "3": 89
  },
  "src/tour-copy.ts": {
   "1": 6,
-  "2": 12
+  "2": 103
  },
  "src/tour-counts.ts": {
   "1": 34,
@@ -93,10 +90,10 @@
   "5": 11
  },
  "src/tour-reading.ts": {
-  "2": 38
+  "2": 72
  },
  "src/tour-snapshot.ts": {
-  "3": 189
+  "3": 193
  },
  "src/tour-ui.ts": {
   "1": 23,
@@ -104,7 +101,7 @@
  },
  "src/tour.ts": {
   "1": 14,
-  "2": 236
+  "2": 503
  },
  "src/waitlist.ts": {
   "2": 5,

@@ -53,10 +53,11 @@ test("2.14 · free play on the shop reads its story panels, its arcs and its rec
   } finally { recording.reading.stop(); }
 });
 
-test("2.17 · the agents chapter pins the shop's records to recorded moments: three sessions building at once, then the session that stood down", async () => {
+test("2.17 · the agents chapter opens on the sessions strip and pins the shop's records to recorded moments: three sessions building at once, then the session that stood down", async () => {
   const shopReading = growthReading(shop as never)!;
   const chapter = steps.filter(step => step.explainer === "agents");
   assert.ok(chapter.length >= 5 && chapter.every(step => step.map === "shop" && step.recorded), "every agents step is the shop at a recorded moment");
+  assert.equal(chapter[0]!.panel, "sessions", "the chapter opens on the sessions strip, not a replay of its fix");
   const tour = createTour(steps);
   tour.go(steps.indexOf(chapter[1]!));
   assert.equal((globeOf(chapter[1]!, tour.state) as { when?: string }).when, chapter[1]!.recorded, "the globe shows the shop as it stood then");

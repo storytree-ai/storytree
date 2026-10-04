@@ -242,6 +242,35 @@ async function verifyAgentTags(page, width, height, output) {
   }
 }
 
+// 2.19 at every width: a chapter step is told like the arrival's beats, as plain lines with no card and no bullet points,
+// only smaller (explain mode after the arrival's impact mode), with its How and Why beneath the lines.
+async function verifyOneFormat(page, width, output) {
+  await goToStep(page, "pain");
+  const impact = await page.locator("#tour-lines .tour-line.on .said").first().evaluate(node => parseFloat(getComputedStyle(node).fontSize));
+  for (const id of ["map-parts", "agents-sessions", "knowledge-kinds"]) {
+    await goToStep(page, id);
+    if (await page.locator("#tour-play").getAttribute("aria-label") === "Pause the tour") await page.locator("#tour-play").click();
+    const look = await page.locator("#tour-card").evaluate(card => {
+      const style = getComputedStyle(card);
+      const lines = [...card.querySelectorAll(".tour-line.on")];
+      return {
+        background: style.backgroundColor, border: parseFloat(style.borderTopWidth), shadow: style.boxShadow,
+        bullets: lines.map(line => getComputedStyle(line, "::before")).filter(before => before.display !== "none" && before.content !== "none").length,
+        sizes: lines.map(line => parseFloat(getComputedStyle(line.querySelector(".said")).fontSize)),
+        last: Math.max(...lines.map(line => line.getBoundingClientRect().bottom)),
+        overflow: card.scrollHeight - card.clientHeight,
+      };
+    });
+    const depth = await page.locator("#tour-depth").boundingBox();
+    assert.ok(/rgba\(0, 0, 0, 0\)|transparent/.test(look.background) && look.border === 0 && look.shadow === "none", `${id} has no card at ${width}px: ${JSON.stringify(look)}`);
+    assert.equal(look.bullets, 0, `${id} has no bullet points at ${width}px`);
+    assert.ok(look.sizes.length && look.sizes.every(size => size < impact && size >= 16), `${id} is told in explain mode, smaller than the arrival's ${impact}px, at ${width}px: ${look.sizes}`);
+    assert.ok(depth && depth.y >= look.last - 1, `${id}'s How and Why sit beneath its lines at ${width}px`);
+    assert.ok(look.overflow <= 1, `${id}'s lines and its How and Why fit their room without scrolling at ${width}px: ${look.overflow}px over`);
+    await page.screenshot({ path: path.join(output, `format-${id}-${width}.png`) });
+  }
+}
+
 export async function verifyImmersive(browser, url, output) {
   const measurements = [];
   for (const width of [1920, 1440, 1280, 390, 320]) {
@@ -292,6 +321,7 @@ export async function verifyImmersive(browser, url, output) {
     await goToStep(page, "value");
     assert.equal(await recorded.isVisible(), false, "a step without a recording has no small print");
     await verifyAgentTags(page, width, height, output);
+    await verifyOneFormat(page, width, output);
     await page.locator("#tour-skip").click();
     await page.locator(".forest-views").waitFor();
     assert.equal(await page.locator("#chapter2").getAttribute("data-tour-mode"), "freeplay");

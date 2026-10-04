@@ -160,14 +160,9 @@ export const steps: TourStep[] = [
   decisions: [], surfaces: lit(roads), target: orders, framing: 1.0, tags: [{ target: orders, text: "a new story: Orders" }] },
 
   // Agents on the map (ADR-0893): the shop's own records at two recorded moments, 4 October 2026: parts 2, 3 and 4 built by three
-  // sessions at once, then the session sent to part 7 while another held it. The owner's lines are his; every other line, and
-  // each step's How and Why, is DRAFT, the agent's wording until the owner writes his own.
-  { id: "agents-fix", explainer: "agents", kind: "fixes", ...shopMap, recorded: together, title: "What storytree fixes", lines: [
-    "Agents see each other working on the map",
-  ], notes: [
-    "Agents colliding in a void of code",
-  ], why: "In the first act a dozen agents worked blind: nobody could tell who was on what. Storytree puts every session's work on the same map, so each agent can see the others before it starts.",
-  decisions: [], surfaces: lit(land), framing: 1.05 },
+  // sessions at once, then the session sent to part 7 while another held it. It opens on the sessions strip: the fixes are said
+  // once, in the arrival (ADR-0890, amended 2026-10-05). The owner's lines are his; every other line, and each step's How and
+  // Why, is DRAFT, the agent's wording until the owner writes his own.
   { id: "agents-sessions", explainer: "agents", ...shopMap, recorded: together, panel: "sessions", title: "Your sessions, listed.", lines: [
     "Storytree lists your conversations with AI here as active sessions.",
     "Each one is an agent at work, named for the part it is building.",

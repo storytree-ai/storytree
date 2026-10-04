@@ -1,0 +1,827 @@
+{
+ "label": "before",
+ "forests": {
+  "row": {
+   "errors": [],
+   "shown": "5 of 5",
+   "overlaps": [],
+   "plates": [
+    {
+     "story": "story_conduit0",
+     "title": "Have an account0 / 1 landed",
+     "box": [
+      632,
+      567,
+      808,
+      600
+     ],
+     "shown": true,
+     "faded": false,
+     "facing": 1,
+     "onPlate": {
+      "x": 0,
+      "z": 23.2
+     }
+    },
+    {
+     "story": "story_conduit1",
+     "title": "Comment on articles0 / 1 landed",
+     "box": [
+      506,
+      603,
+      682,
+      637
+     ],
+     "shown": true,
+     "faded": false,
+     "facing": 0.94,
+     "onPlate": {
+      "x": -16.5,
+      "z": 41.8
+     }
+    },
+    {
+     "story": "story_conduit2",
+     "title": "Browse the home page feed0 / 1 landed",
+     "box": [
+      758,
+      617,
+      934,
+      665
+     ],
+     "shown": true,
+     "faded": false,
+     "facing": 0.94,
+     "onPlate": {
+      "x": 19.8,
+      "z": 49.1
+     }
+    },
+    {
+     "story": "story_conduit3",
+     "title": "Read and write articles0 / 1 landed",
+     "box": [
+      395,
+      567,
+      571,
+      601
+     ],
+     "shown": true,
+     "faded": false,
+     "facing": 0.77,
+     "onPlate": {
+      "x": -15.1,
+      "z": 17.8
+     }
+    },
+    {
+     "story": "story_conduit4",
+     "title": "Follow people and favourite articles0 / 1 landed",
+     "box": [
+      870,
+      565,
+      1046,
+      614
+     ],
+     "shown": true,
+     "faded": false,
+     "facing": 0.77,
+     "onPlate": {
+      "x": 14.4,
+      "z": 17
+     }
+    }
+   ]
+  },
+  "chain": {
+   "errors": [],
+   "shown": "5 of 5",
+   "overlaps": [],
+   "plates": [
+    {
+     "story": "story_conduit0",
+     "title": "Have an account0 / 1 landed",
+     "box": [
+      632,
+      823,
+      808,
+      856
+     ],
+     "shown": true,
+     "faded": false,
+     "facing": 0.69,
+     "onPlate": {
+      "x": 0,
+      "z": 24.5
+     }
+    },
+    {
+     "story": "story_conduit1",
+     "title": "Comment on articles0 / 1 landed",
+     "box": [
+      632,
+      710,
+      808,
+      744
+     ],
+     "shown": true,
+     "faded": false,
+     "facing": 0.92,
+     "onPlate": {
+      "x": 0,
+      "z": 24.5
+     }
+    },
+    {
+     "story": "story_conduit2",
+     "title": "Browse the home page feed0 / 1 landed",
+     "box": [
+      632,
+      568,
+      808,
+      617
+     ],
+     "shown": true,
+     "faded": false,
+     "facing": 1,
+     "onPlate": {
+      "x": 0,
+      "z": 24
+     }
+    },
+    {
+     "story": "story_conduit3",
+     "title": "Read and write articles0 / 1 landed",
+     "box": [
+      632,
+      421,
+      808,
+      454
+     ],
+     "shown": true,
+     "faded": false,
+     "facing": 0.92,
+     "onPlate": {
+      "x": 0,
+      "z": 24.3
+     }
+    },
+    {
+     "story": "story_conduit4",
+     "title": "Follow people and favourite articles0 / 1 landed",
+     "box": [
+      632,
+      291,
+      808,
+      339
+     ],
+     "shown": true,
+     "faded": false,
+     "facing": 0.69,
+     "onPlate": {
+      "x": 0,
+      "z": 24.9
+     }
+    }
+   ]
+  },
+  "storytree": {
+   "errors": [],
+   "shown": "11 of 15",
+   "overlaps": [],
+   "plates": [
+    {
+     "story": "story_754e87e7d531",
+     "title": "The library",
+     "box": [
+      517,
+      708,
+      606,
+      726
+     ],
+     "shown": true,
+     "faded": false,
+     "facing": 0.88,
+     "onPlate": {
+      "x": -76.5,
+      "z": 20.1
+     }
+    },
+    {
+     "story": "story_609c3b171b3f",
+     "title": "The agent link",
+     "box": [
+      875,
+      581,
+      987,
+      599
+     ],
+     "shown": true,
+     "faded": false,
+     "facing": 0.73,
+     "onPlate": {
+      "x": 83.3,
+      "z": 41.9
+     }
+    },
+    {
+     "story": "story_a93c6fb1a257",
+     "title": "The app",
+     "box": [
+      356,
+      526,
+      426,
+      544
+     ],
+     "shown": true,
+     "faded": false,
+     "facing": 0.35,
+     "onPlate": {
+      "x": -54.2,
+      "z": 11.6
+     }
+    },
+    {
+     "story": "story_deee4230348c",
+     "title": "The forest",
+     "box": [
+      630,
+      218,
+      714,
+      236
+     ],
+     "shown": true,
+     "faded": false,
+     "facing": 0.08,
+     "onPlate": {
+      "x": -1.8,
+      "z": 103.1
+     }
+    },
+    {
+     "story": "story_7722ddb5461e",
+     "title": "The arc surface",
+     "box": [
+      791,
+      233,
+      903,
+      266
+     ],
+     "shown": true,
+     "faded": false,
+     "facing": 0.3,
+     "onPlate": {
+      "x": 14.1,
+      "z": 46.7
+     }
+    },
+    {
+     "story": "story_f9fb5136c28f",
+     "title": "The command line",
+     "box": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "shown": false,
+     "faded": false,
+     "facing": -0.42,
+     "onPlate": {
+      "x": -208.7,
+      "z": 151
+     }
+    },
+    {
+     "story": "story_cec2df1b2320",
+     "title": "The librarian",
+     "box": [
+      632,
+      435,
+      733,
+      454
+     ],
+     "shown": true,
+     "faded": false,
+     "facing": 0.92,
+     "onPlate": {
+      "x": -3,
+      "z": 28.2
+     }
+    },
+    {
+     "story": "story_d754d997f22a",
+     "title": "The knowledge core",
+     "box": [
+      489,
+      406,
+      601,
+      454
+     ],
+     "shown": true,
+     "faded": false,
+     "facing": 0.66,
+     "onPlate": {
+      "x": -33.7,
+      "z": 55.1
+     }
+    },
+    {
+     "story": "story_b91056a06337",
+     "title": "The app setup",
+     "box": [
+      665,
+      286,
+      775,
+      304
+     ],
+     "shown": true,
+     "faded": false,
+     "facing": 0.63,
+     "onPlate": {
+      "x": 2.3,
+      "z": 39.7
+     }
+    },
+    {
+     "story": "story_9abd84ab493f",
+     "title": "Process ledger",
+     "box": [
+      383,
+      742,
+      495,
+      775
+     ],
+     "shown": true,
+     "faded": false,
+     "facing": 0.43,
+     "onPlate": {
+      "x": 6,
+      "z": -31.7
+     }
+    },
+    {
+     "story": "story_769e230c466d",
+     "title": "The website",
+     "box": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "shown": false,
+     "faded": false,
+     "facing": -0.18,
+     "onPlate": {
+      "x": -485.6,
+      "z": 138.2
+     }
+    },
+    {
+     "story": "story_ca702fee28cb",
+     "title": "The world",
+     "box": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "shown": false,
+     "faded": false,
+     "facing": 0.15,
+     "onPlate": {
+      "x": 41.1,
+      "z": -169.5
+     }
+    },
+    {
+     "story": "story_1d360b6227d8",
+     "title": "The local database",
+     "box": [
+      492,
+      849,
+      604,
+      883
+     ],
+     "shown": true,
+     "faded": false,
+     "facing": 0.32,
+     "onPlate": {
+      "x": 26.7,
+      "z": -3.9
+     }
+    },
+    {
+     "story": "story_95ed402f9bd3",
+     "title": "The dev loop",
+     "box": [
+      483,
+      385,
+      583,
+      403
+     ],
+     "shown": true,
+     "faded": false,
+     "facing": 0.16,
+     "onPlate": {
+      "x": -57.4,
+      "z": 137
+     }
+    },
+    {
+     "story": "story_55eb820f95c9",
+     "title": "Keys0 / 1 landed",
+     "box": [
+      541,
+      863,
+      717,
+      885
+     ],
+     "shown": false,
+     "faded": false,
+     "facing": 0,
+     "onPlate": {
+      "x": -48.4,
+      "z": -65.2
+     }
+    }
+   ]
+  },
+  "storytreeTurned": {
+   "shown": "8 of 15",
+   "overlaps": [],
+   "moved": [
+    {
+     "title": "The library",
+     "moved": 93.2
+    },
+    {
+     "title": "The app",
+     "moved": 16.9
+    },
+    {
+     "title": "The librarian",
+     "moved": 40.5
+    },
+    {
+     "title": "The knowledge core",
+     "moved": 22.9
+    },
+    {
+     "title": "Process ledger",
+     "moved": 48.8
+    },
+    {
+     "title": "The local database",
+     "moved": 34.7
+    }
+   ],
+   "mostMoved": 93.2,
+   "plates": [
+    {
+     "story": "story_754e87e7d531",
+     "title": "The library",
+     "box": [
+      846,
+      709,
+      934,
+      727
+     ],
+     "shown": true,
+     "faded": false,
+     "facing": 0.86,
+     "onPlate": {
+      "x": -1.3,
+      "z": 75.1
+     }
+    },
+    {
+     "story": "story_609c3b171b3f",
+     "title": "The agent link",
+     "box": [
+      782,
+      719,
+      894,
+      737
+     ],
+     "shown": false,
+     "faded": false,
+     "facing": -0.15,
+     "onPlate": {
+      "x": 78.7,
+      "z": 178.8
+     }
+    },
+    {
+     "story": "story_a93c6fb1a257",
+     "title": "The app",
+     "box": [
+      830,
+      374,
+      899,
+      392
+     ],
+     "shown": true,
+     "faded": false,
+     "facing": 0.69,
+     "onPlate": {
+      "x": -44.8,
+      "z": 25.6
+     }
+    },
+    {
+     "story": "story_deee4230348c",
+     "title": "The forest",
+     "box": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "shown": false,
+     "faded": false,
+     "facing": -0.35,
+     "onPlate": {
+      "x": -255.4,
+      "z": -431
+     }
+    },
+    {
+     "story": "story_7722ddb5461e",
+     "title": "The arc surface",
+     "box": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "shown": false,
+     "faded": false,
+     "facing": -0.51,
+     "onPlate": {
+      "x": -209.8,
+      "z": -314.2
+     }
+    },
+    {
+     "story": "story_f9fb5136c28f",
+     "title": "The command line",
+     "box": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "shown": false,
+     "faded": false,
+     "facing": -0.21,
+     "onPlate": {
+      "x": -135.6,
+      "z": -477.7
+     }
+    },
+    {
+     "story": "story_cec2df1b2320",
+     "title": "The librarian",
+     "box": [
+      998,
+      658,
+      1100,
+      676
+     ],
+     "shown": true,
+     "faded": false,
+     "facing": 0.39,
+     "onPlate": {
+      "x": 33,
+      "z": 9.7
+     }
+    },
+    {
+     "story": "story_d754d997f22a",
+     "title": "The knowledge core",
+     "box": [
+      980,
+      491,
+      1092,
+      540
+     ],
+     "shown": true,
+     "faded": false,
+     "facing": 0.4,
+     "onPlate": {
+      "x": -12.2,
+      "z": 47.2
+     }
+    },
+    {
+     "story": "story_b91056a06337",
+     "title": "The app setup",
+     "box": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "shown": false,
+     "faded": false,
+     "facing": -0.04,
+     "onPlate": {
+      "x": -246.4,
+      "z": -217.5
+     }
+    },
+    {
+     "story": "story_9abd84ab493f",
+     "title": "Process ledger",
+     "box": [
+      637,
+      533,
+      749,
+      566
+     ],
+     "shown": true,
+     "faded": false,
+     "facing": 0.99,
+     "onPlate": {
+      "x": -33.8,
+      "z": -3.4
+     }
+    },
+    {
+     "story": "story_769e230c466d",
+     "title": "The website",
+     "box": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "shown": false,
+     "faded": false,
+     "facing": -0.77,
+     "onPlate": {
+      "x": -267.3,
+      "z": -432.3
+     }
+    },
+    {
+     "story": "story_ca702fee28cb",
+     "title": "The world",
+     "box": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "shown": false,
+     "faded": false,
+     "facing": 0.08,
+     "onPlate": {
+      "x": -490,
+      "z": -197.1
+     }
+    },
+    {
+     "story": "story_1d360b6227d8",
+     "title": "The local database",
+     "box": [
+      517,
+      623,
+      629,
+      656
+     ],
+     "shown": true,
+     "faded": false,
+     "facing": 0.9,
+     "onPlate": {
+      "x": -5.7,
+      "z": -16.3
+     }
+    },
+    {
+     "story": "story_95ed402f9bd3",
+     "title": "The dev loop",
+     "box": [
+      867,
+      352,
+      967,
+      370
+     ],
+     "shown": true,
+     "faded": false,
+     "facing": 0.18,
+     "onPlate": {
+      "x": -111.6,
+      "z": 59.9
+     }
+    },
+    {
+     "story": "story_55eb820f95c9",
+     "title": "Keys0 / 1 landed",
+     "box": [
+      365,
+      655,
+      541,
+      678
+     ],
+     "shown": true,
+     "faded": false,
+     "facing": 0.65,
+     "onPlate": {
+      "x": 16.3,
+      "z": -20.9
+     }
+    }
+   ]
+  },
+  "agentLinkSelected": {
+   "capabilities": "8 of 8 shown",
+   "overlaps": [],
+   "faded": [],
+   "list": [
+    {
+     "title": "Project routing",
+     "box": [
+      648,
+      304,
+      741,
+      320
+     ],
+     "shown": true
+    },
+    {
+     "title": "Hooks",
+     "box": [
+      623,
+      334,
+      671,
+      350
+     ],
+     "shown": true
+    },
+    {
+     "title": "Sessions",
+     "box": [
+      568,
+      403,
+      628,
+      419
+     ],
+     "shown": true
+    },
+    {
+     "title": "Claims",
+     "box": [
+      540,
+      450,
+      589,
+      466
+     ],
+     "shown": true
+    },
+    {
+     "title": "Agent tools (the MCP server)",
+     "box": [
+      603,
+      498,
+      723,
+      526
+     ],
+     "shown": true
+    },
+    {
+     "title": "Setup check",
+     "box": [
+      513,
+      549,
+      590,
+      565
+     ],
+     "shown": true
+    },
+    {
+     "title": "Context readings",
+     "box": [
+      509,
+      651,
+      613,
+      667
+     ],
+     "shown": true
+    },
+    {
+     "title": "Settings",
+     "box": [
+      612,
+      669,
+      669,
+      685
+     ],
+     "shown": true
+    }
+   ]
+  }
+ },
+ "browser": "148.0.7778.96"
+}

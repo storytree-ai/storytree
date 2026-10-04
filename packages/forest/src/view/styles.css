@@ -733,16 +733,18 @@
 .session-detail-running li { display:flex; gap:8px; justify-content:space-between; color:#d9dedb; }
 .session-run-command { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
 .session-run-time { flex-shrink:0; font-variant-numeric:tabular-nums; color:#b3bdb9; }
-/* The globe's nameplates (arc north-up): a story's hangs below its island from its top edge; a capability's is smaller, on its territory. */
-.planet-nameplate { display:inline-block; transform:translate(-50%, var(--drop, 0px)); }
+/* The globe's nameplates (arc north-up): a story's hangs from its top edge at a fixed point south of its island; a capability's is smaller, on its territory. */
+.planet-nameplate { display:inline-block; transform:translateX(-50%); opacity:var(--plate-opacity, 1); transition:opacity .18s ease-out; }
+@media (prefers-reduced-motion: reduce) { .planet-nameplate { transition:none; } }
 /* A story's plate wraps its title to STORY_PLATE_WIDTH (set where it is drawn), balanced and centred under its island. */
 .planet-nameplate:not(.capability) { width:max-content; white-space:normal; text-wrap:balance; text-align:center; line-height:1.15; border-radius:0.6rem; }
-.planet-nameplate.crowded { visibility:hidden; }
+/* A name that overlaps a more face-on one, a larger territory's or the Sessions strip fades where it is; it never moves (ADR-0917). */
+.planet-nameplate.crowded { opacity:0; }
 /* A capability's name wraps by word to two lines at most, an ellipsis past them; its full name and description read on hover (3.32). */
 .planet-nameplate.capability { transform:none; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; width:max-content; max-width:120px; white-space:normal; text-wrap:balance; text-align:center; line-height:1.15; border-radius:0.6rem; padding:0.1rem 0.45rem; font-size:0.7rem; font-weight:500; background:rgb(16 20 24 / 0.62); }
 /* Unsurveyed progress counts landed work, without claiming code coverage or test health (forest 3.29). */
-.planet-nameplate.with-progress { display:inline-flex; align-items:center; gap:6px; }
-.planet-nameplate.with-progress .planet-nameplate-title { flex:0 0 calc(112px - 1.1rem); }
-.planet-progress { display:block; flex:0 0 58px; font-size:0.62rem; font-weight:500; line-height:1.2; white-space:nowrap; }
+/* Its progress sits beneath the title, so the plate keeps STORY_PLATE_WIDTH and a row of small islands' names clear each other (1.10). */
+.planet-nameplate.with-progress { display:inline-flex; flex-direction:column; align-items:center; }
+.planet-progress { display:block; width:58px; font-size:0.62rem; font-weight:500; line-height:1.2; white-space:nowrap; }
 .planet-progress-meter { display:block; height:3px; margin:0.2rem 0 0.1rem; overflow:hidden; border-radius:2px; background:color-mix(in srgb, currentColor 22%, transparent); }
 .planet-progress-meter > span { display:block; height:100%; background:currentColor; }

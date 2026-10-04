@@ -5,17 +5,6 @@ import type { Coast, Point, TerritoryMap } from "../territories/territories.js";
 /** How far past the coast a story's nameplate starts, in ground units. */
 export const NAMEPLATE_GAP = 3;
 
-/** The screen's down and right as they lie in a plate's own ground plane (x, z), unnormalised: a point's drop down the screen is `down` · point. */
-export interface PlateView { down: Point; right: Point }
-
-/** How the screen lies on a plate turned by `plate` (its whole turn on the globe, world frame) for an eye turned by `eye`. */
-export function screenOnPlate(plate: Quaternion, eye: Quaternion): PlateView {
-  const toPlate = plate.clone().invert();
-  const down = new Vector3(0, -1, 0).applyQuaternion(eye).applyQuaternion(toPlate);
-  const right = new Vector3(1, 0, 0).applyQuaternion(eye).applyQuaternion(toPlate);
-  return { down: { x: down.x, z: down.z }, right: { x: right.x, z: right.z } };
-}
-
 /** How squarely a plate turned by `plate` (world frame) faces an eye turned by `eye`: 1 face on, 0 edge-on at the rim, below 0 turned away. */
 export function facing(plate: Quaternion, eye: Quaternion): number {
   return new Vector3(0, 1, 0).applyQuaternion(plate).dot(new Vector3(0, 0, 1).applyQuaternion(eye));
@@ -26,93 +15,63 @@ export function facesEye(plate: Quaternion, eye: Quaternion): boolean {
   return facing(plate, eye) > 0;
 }
 
-/** A story nameplate as the screen shows it: its box in pixels where it hangs, before any displacement, how squarely its island faces the eye, and whether it is dimmed behind the stories in focus. */
-export interface ShownPlate { story: string; box: { left: number; top: number; right: number; bottom: number }; facing: number; dimmed?: boolean }
+/** A name's box on screen, in pixels. */
+export interface Box { left: number; top: number; right: number; bottom: number }
 
-/** How wide a story's nameplate may grow, in pixels, before its title wraps: neighbours in a row of small islands then clear each other a slot apart. */
+/** A story nameplate as the screen shows it: its box in pixels, how squarely its island faces the eye, and whether it is dimmed behind the stories in focus. */
+export interface ShownPlate { story: string; box: Box; facing: number; dimmed?: boolean }
+
+/** How wide a story's nameplate may grow, in pixels, before its title wraps: neighbours in a row of small islands then clear each other. */
 export const STORY_PLATE_WIDTH = 112;
 
-/** The space left between a plate and the one it steps below, in pixels. */
-export const PLATE_STEP_GAP = 3;
+/** How far two names' boxes may run into each other, in pixels, before they overlap: a plate's rounded ends and padding, which cover no letter. */
+export const NAME_OVERLAP_SLACK = 4;
 
-/** The furthest a plate steps from its resting position to clear other names, in pixels; past it, it is hidden. */
-export const MAX_DROP = 140;
+const overlaps = (box: Box, other: Box) => box.left + NAME_OVERLAP_SLACK < other.right && other.left + NAME_OVERLAP_SLACK < box.right
+  && box.top + NAME_OVERLAP_SLACK < other.bottom && other.top + NAME_OVERLAP_SLACK < box.bottom;
 
-/** On a small globe a plate steps no further than this share of the globe's radius on screen, so it still reads as its own island's name, not a neighbour's. */
-export const DROP_PER_RADIUS = 1 / 3;
-
-/** How far a plate may step on a globe `radius` pixels across from its middle to its rim: MAX_DROP, or less on a small globe. */
-export function furthestDrop(radius = Infinity): number {
-  return Math.min(MAX_DROP, radius * DROP_PER_RADIUS);
-}
-
-/**
- * How the story nameplates on screen settle so that no two overlap. Taken one at a time, each plate stays where
- * it hangs if it clears the plates already settled, or else steps down the screen just below the ones it would
- * overlap, by the least drop that clears them all. Three orders are tried: the more squarely faced first (so the
- * more edge-on steps), west to east, and every other plate west to east before the rest (so a row of small
- * islands zigzags in two lines rather than a staircase); the one that hides fewer names in focus, then fewer in all, and then steps less in all, is kept.
- * The selected story's plate always goes first, then the plates not dimmed, so a dimmed name yields to the stories in focus. The Sessions strip lifts a plate's resting position just above its top edge; if stepping down to
- * clear another name would cross that edge, it steps above the other instead. The selected plate stays at
- * its (possibly lifted) resting position. Only collision clearance beyond `furthest` (MAX_DROP, or less on a small globe) hides a plate.
- * Boxes are measured before any displacement, so a displacement never feeds back on itself.
- */
-export function settlePlates(plates: readonly ShownPlate[], selected?: string, strip?: ShownPlate["box"], furthest = MAX_DROP): { drops: Map<string, number>; hidden: Set<string> } {
-  const first = (a: ShownPlate, b: ShownPlate) => Number(b.story === selected) - Number(a.story === selected) || Number(a.dimmed ?? false) - Number(b.dimmed ?? false);
-  const west = (a: ShownPlate, b: ShownPlate) => a.box.left - b.box.left || b.facing - a.facing;
-  const along = new Map([...plates].sort(west).map((plate, i) => [plate, i]));
-  const tries = [
-    (a: ShownPlate, b: ShownPlate) => b.facing - a.facing,
-    west,
-    (a: ShownPlate, b: ShownPlate) => along.get(a)! % 2 - along.get(b)! % 2 || west(a, b),
-  ].map(order => settleInOrder([...plates].sort((a, b) => first(a, b) || order(a, b)), selected, strip, furthest));
-  const stepped = ({ drops }: { drops: Map<string, number> }) => [...drops.values()].reduce((sum, drop) => sum + Math.abs(drop), 0);
-  const dimmed = new Set(plates.filter(plate => plate.dimmed).map(plate => plate.story));
-  const inFocus = ({ hidden }: { hidden: Set<string> }) => [...hidden].filter(story => !dimmed.has(story)).length;
-  return tries.reduce((best, next) => (inFocus(next) - inFocus(best) || next.hidden.size - best.hidden.size || stepped(next) - stepped(best)) < 0 ? next : best);
-}
-
-function settleInOrder(order: readonly ShownPlate[], selected: string | undefined, strip: ShownPlate["box"] | undefined, furthest: number): { drops: Map<string, number>; hidden: Set<string> } {
-  const settled: ShownPlate["box"][] = [], drops = new Map<string, number>(), hidden = new Set<string>();
-  const overlaps = (box: ShownPlate["box"], other: ShownPlate["box"]) => box.left < other.right && other.left < box.right && box.top < other.bottom && other.top < box.bottom;
-  for (const { story, box } of order) {
-    const ceiling = strip !== undefined && box.left < strip.right && strip.left < box.right
-      ? strip.top - PLATE_STEP_GAP - box.bottom : Infinity;
-    const rest = Math.min(0, ceiling);
-    const clears = (drop: number) => drop <= ceiling && Math.abs(drop - rest) <= furthest
-      && (drop === rest || story !== selected)
-      && !settled.some(other => overlaps({ ...box, top: box.top + drop, bottom: box.bottom + drop }, other));
-    const down = [rest, ...settled.map(other => other.bottom + PLATE_STEP_GAP - box.top)]
-      .filter(drop => drop >= rest).sort((a, b) => a - b);
-    const above = ceiling === Infinity ? [] : settled.map(other => other.top - PLATE_STEP_GAP - box.bottom)
-      .filter(drop => drop < rest).sort((a, b) => b - a);
-    const drop = down.find(clears) ?? above.find(clears);
-    if (drop === undefined) { hidden.add(story); continue; }
-    if (drop !== 0) drops.set(story, drop);
-    settled.push({ ...box, top: box.top + drop, bottom: box.bottom + drop });
+/** Taken in order, each name shows if it clears the names already shown and the strip; the rest fade. A faded name fades no other. */
+function fadeOverlaps<T extends { box: Box }>(ordered: readonly T[], strip?: Box): T[] {
+  const shown: Box[] = [], faded: T[] = [];
+  for (const name of ordered) {
+    if ((strip !== undefined && overlaps(name.box, strip)) || shown.some(other => overlaps(name.box, other))) faded.push(name);
+    else shown.push(name.box);
   }
-  return { drops, hidden };
+  return faded;
 }
 
 /**
- * Where a story's nameplate hangs from: on the line through the island's middle that runs straight down the
- * screen, just past the coast's lowest point, so the plate reads below its island and under it. It hangs no
- * further than `furthest` from the island's middle, so seen edge-on it stays on the globe, which hides it.
+ * Which story names fade where names overlap on screen (ADR-0917): no name moves off its island to clear another. The selected
+ * story's shows first, then the names not dimmed, each the more squarely its island faces the eye the sooner; a name that would
+ * overlap one already shown fades. A name under the Sessions strip fades, the selected one too, rather than lifting above it.
  */
-export function storyPlate(coast: Coast, view: PlateView, furthest = Infinity): Point {
-  // Along the plate, the way that keeps its place across the screen, turned to run down it.
-  let along = { x: -view.right.z, z: view.right.x };
-  const length = Math.hypot(along.x, along.z);
-  const drop = (p: Point) => p.x * view.down.x + p.z * view.down.z;
-  if (length < 1e-9) along = { x: 0, z: 1 };
-  else along = { x: along.x / length, z: along.z / length };
-  if (drop(along) < 0) along = { x: -along.x, z: -along.z };
-  const points = coast.flat();
-  const reach = Math.max(0, ...points.map(p => Math.hypot(p.x, p.z)));
-  // Edge on, the screen barely moves down the plate: hang it no further than a few of the island's reaches.
-  const lowest = Math.max(0, ...points.map(drop));
-  const step = Math.min((drop(along) > 1e-9 ? Math.min(lowest / drop(along), 4 * reach) : reach) + NAMEPLATE_GAP, furthest);
-  return { x: along.x * step, z: along.z * step };
+export function fadedPlates(plates: readonly ShownPlate[], selected?: string, strip?: Box): Set<string> {
+  const order = [...plates].sort((a, b) => Number(b.story === selected) - Number(a.story === selected)
+    || Number(a.dimmed ?? false) - Number(b.dimmed ?? false) || b.facing - a.facing);
+  return new Set(fadeOverlaps(order, strip).map(plate => plate.story));
+}
+
+/** Which of a selected island's capability names fade where they overlap on screen: the larger territory's name shows (ADR-0917). */
+export function fadedCapabilities(names: readonly { capability: string; box: Box; size: number }[]): Set<string> {
+  return new Set(fadeOverlaps([...names].sort((a, b) => b.size - a.size), undefined).map(name => name.capability));
+}
+
+/** The globe's south as it lies on a plate turned by `plate` on the unturned globe: the way to its south pole along the surface, in the plate's own ground (x, z). */
+export function southOnPlate(plate: Quaternion): Point {
+  const south = new Vector3(0, -1, 0).applyQuaternion(plate.clone().invert());
+  const length = Math.hypot(south.x, south.z);
+  // At a pole every way is south: take the plate's own +z.
+  return length < 1e-9 ? { x: 0, z: 1 } : { x: south.x / length, z: south.z / length };
+}
+
+/**
+ * Where a story's nameplate hangs from: one point on its island's own plate, just past the coast's southmost point on the line
+ * south from the island's middle, so it reads below its island in the globe's north-up view and turns with the island, like
+ * print on a map. It is never re-placed as the globe turns (ADR-0917).
+ */
+export function storyPlate(coast: Coast, south: Point): Point {
+  const southmost = Math.max(0, ...coast.flat().map(p => p.x * south.x + p.z * south.z));
+  return { x: south.x * (southmost + NAMEPLATE_GAP), z: south.z * (southmost + NAMEPLATE_GAP) };
 }
 
 /** A capability's name as the globe shows it: its stored title without the number the plan gives it ("1 · Hooks" reads "Hooks"; 3.32). */
@@ -123,13 +82,14 @@ export function globeName(title: string): string {
 /**
  * One nameplate per capability's territory, named without its number, at the seed of its cell nearest the
  * territory's middle: a seed lies inside its own cell, so the plate is on the territory's land. Unclaimed code has none.
+ * Its size is the territory's count of cells, which ranks it where names overlap.
  */
-export function capabilityPlates(map: TerritoryMap): { capability: string; title: string; x: number; z: number }[] {
+export function capabilityPlates(map: TerritoryMap): { capability: string; title: string; x: number; z: number; size: number }[] {
   return map.territories.flatMap(({ capability, title }, territory) => {
     const sites = map.cells.filter(cell => cell.territory === territory).map(cell => cell.site);
     if (capability === undefined || sites.length === 0) return [];
     const middle = { x: sites.reduce((s, p) => s + p.x, 0) / sites.length, z: sites.reduce((s, p) => s + p.z, 0) / sites.length };
     const at = sites.reduce((best, p) => Math.hypot(p.x - middle.x, p.z - middle.z) < Math.hypot(best.x - middle.x, best.z - middle.z) ? p : best);
-    return [{ capability, title: globeName(title ?? capability), x: at.x, z: at.z }];
+    return [{ capability, title: globeName(title ?? capability), x: at.x, z: at.z, size: sites.length }];
   });
 }

@@ -1,0 +1,382 @@
+{
+ "390-cut": {
+  "shown": "8 of 8 facing the eye",
+  "faded": [],
+  "overlaps": [],
+  "list": [
+   {
+    "title": "Signing in",
+    "onScreen": true,
+    "shown": true,
+    "box": [
+     156,
+     337,
+     238,
+     355
+    ]
+   },
+   {
+    "title": "Browsing",
+    "onScreen": true,
+    "shown": true,
+    "box": [
+     100,
+     283,
+     179,
+     301
+    ]
+   },
+   {
+    "title": "The cart",
+    "onScreen": true,
+    "shown": true,
+    "box": [
+     159,
+     261,
+     231,
+     280
+    ]
+   },
+   {
+    "title": "Checkout",
+    "onScreen": true,
+    "shown": true,
+    "box": [
+     130,
+     167,
+     209,
+     185
+    ]
+   },
+   {
+    "title": "Accounts",
+    "onScreen": true,
+    "shown": true,
+    "box": [
+     217,
+     283,
+     295,
+     301
+    ]
+   },
+   {
+    "title": "Orders",
+    "onScreen": true,
+    "shown": true,
+    "box": [
+     195,
+     188,
+     257,
+     206
+    ]
+   },
+   {
+    "title": "Stock and admin",
+    "onScreen": true,
+    "shown": true,
+    "box": [
+     112,
+     104,
+     224,
+     137
+    ]
+   },
+   {
+    "title": "Reviews",
+    "onScreen": true,
+    "shown": true,
+    "box": [
+     191,
+     140,
+     261,
+     158
+    ]
+   }
+  ]
+ },
+ "390-freeplay": {
+  "shown": "8 of 8 facing the eye",
+  "faded": [],
+  "overlaps": [],
+  "list": [
+   {
+    "title": "Signing in",
+    "onScreen": true,
+    "shown": true,
+    "box": [
+     156,
+     531,
+     239,
+     549
+    ]
+   },
+   {
+    "title": "Browsing",
+    "onScreen": true,
+    "shown": true,
+    "box": [
+     94,
+     468,
+     172,
+     487
+    ]
+   },
+   {
+    "title": "The cart",
+    "onScreen": true,
+    "shown": true,
+    "box": [
+     159,
+     447,
+     231,
+     465
+    ]
+   },
+   {
+    "title": "Checkout",
+    "onScreen": true,
+    "shown": true,
+    "box": [
+     127,
+     341,
+     206,
+     359
+    ]
+   },
+   {
+    "title": "Accounts",
+    "onScreen": true,
+    "shown": true,
+    "box": [
+     224,
+     468,
+     302,
+     487
+    ]
+   },
+   {
+    "title": "Orders",
+    "onScreen": true,
+    "shown": true,
+    "box": [
+     199,
+     362,
+     261,
+     381
+    ]
+   },
+   {
+    "title": "Stock and admin",
+    "onScreen": true,
+    "shown": true,
+    "box": [
+     109,
+     271,
+     221,
+     304
+    ]
+   },
+   {
+    "title": "Reviews",
+    "onScreen": true,
+    "shown": true,
+    "box": [
+     195,
+     307,
+     265,
+     326
+    ]
+   }
+  ]
+ },
+ "1440-cut": {
+  "shown": "8 of 8 facing the eye",
+  "faded": [],
+  "overlaps": [],
+  "list": [
+   {
+    "title": "Signing in",
+    "onScreen": true,
+    "shown": true,
+    "box": [
+     972,
+     709,
+     1055,
+     727
+    ]
+   },
+   {
+    "title": "Browsing",
+    "onScreen": true,
+    "shown": true,
+    "box": [
+     819,
+     494,
+     898,
+     512
+    ]
+   },
+   {
+    "title": "The cart",
+    "onScreen": true,
+    "shown": true,
+    "box": [
+     972,
+     506,
+     1044,
+     524
+    ]
+   },
+   {
+    "title": "Checkout",
+    "onScreen": true,
+    "shown": true,
+    "box": [
+     899,
+     250,
+     979,
+     268
+    ]
+   },
+   {
+    "title": "Accounts",
+    "onScreen": true,
+    "shown": true,
+    "box": [
+     1133,
+     512,
+     1211,
+     530
+    ]
+   },
+   {
+    "title": "Orders",
+    "onScreen": true,
+    "shown": true,
+    "box": [
+     1062,
+     264,
+     1124,
+     282
+    ]
+   },
+   {
+    "title": "Stock and admin",
+    "onScreen": true,
+    "shown": true,
+    "box": [
+     879,
+     85,
+     991,
+     119
+    ]
+   },
+   {
+    "title": "Reviews",
+    "onScreen": true,
+    "shown": true,
+    "box": [
+     1057,
+     102,
+     1127,
+     120
+    ]
+   }
+  ]
+ },
+ "1440-freeplay": {
+  "shown": "8 of 8 facing the eye",
+  "faded": [],
+  "overlaps": [],
+  "list": [
+   {
+    "title": "Signing in",
+    "onScreen": true,
+    "shown": true,
+    "box": [
+     684,
+     697,
+     767,
+     716
+    ]
+   },
+   {
+    "title": "Browsing",
+    "onScreen": true,
+    "shown": true,
+    "box": [
+     538,
+     492,
+     617,
+     510
+    ]
+   },
+   {
+    "title": "The cart",
+    "onScreen": true,
+    "shown": true,
+    "box": [
+     684,
+     504,
+     756,
+     522
+    ]
+   },
+   {
+    "title": "Checkout",
+    "onScreen": true,
+    "shown": true,
+    "box": [
+     614,
+     259,
+     694,
+     277
+    ]
+   },
+   {
+    "title": "Accounts",
+    "onScreen": true,
+    "shown": true,
+    "box": [
+     838,
+     509,
+     915,
+     528
+    ]
+   },
+   {
+    "title": "Orders",
+    "onScreen": true,
+    "shown": true,
+    "box": [
+     770,
+     272,
+     832,
+     291
+    ]
+   },
+   {
+    "title": "Stock and admin",
+    "onScreen": true,
+    "shown": true,
+    "box": [
+     594,
+     102,
+     706,
+     135
+    ]
+   },
+   {
+    "title": "Reviews",
+    "onScreen": true,
+    "shown": true,
+    "box": [
+     765,
+     118,
+     836,
+     136
+    ]
+   }
+  ]
+ }
+}

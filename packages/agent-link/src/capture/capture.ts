@@ -76,16 +76,26 @@ export function hasConcreteEvidence(text: string): boolean {
 /** A quoted excerpt: the only evidence a re-steer takes. */
 const QUOTED = /["“][^"”]{3,}["”]/;
 
-/** File friction with concrete evidence, at most three times per branch and UTC day (ADR-0716). */
+/**
+ * File friction with concrete evidence, at most three times per writer, branch and UTC day
+ * (ADR-0716, narrowed to the writer): every session of a user's project may share one branch, so a
+ * branch-wide count let the day's first session use up the others' reports. One whose writer was not
+ * recorded counts toward every writer's three.
+ */
 export async function recordFriction(library: Library, friction: NewFriction, options?: WriteOptions): Promise<SchemaRecord<"friction">> {
   requireConcreteEvidence(friction.evidence);
   const { branch = "(no branch)", ...fields } = friction;
   const date = new Date().toISOString().slice(0, 10);
-  const filed = (await library.list("friction")).filter(({ fields }) =>
+  const today = (await library.list("friction")).filter(({ fields }) =>
     fields.provenance?.branch === branch && fields.provenance.date === date,
   );
-  if (filed.length >= 3) {
-    throw new CaptureError(`Filing cap: 3 friction items already filed on "${branch}" for ${date} (ADR-0716; ADR-0168 D3). Distil to the three that fought you hardest, or use storytree friction reinforce <id> --evidence ... for a recurrence.`);
+  let filed = 0;
+  for (const { id } of today) {
+    const writer = (await library.history({ id }))[0]?.actor;
+    if (writer === undefined || writer === options?.actor) filed++;
+  }
+  if (filed >= 3) {
+    throw new CaptureError(`Filing cap: 3 friction items already filed on "${branch}" for ${date} by this session (ADR-0716; ADR-0168 D3). Distil to the three that fought you hardest, or use storytree friction reinforce <id> --evidence ... for a recurrence.`);
   }
   return library.writeKnowledge("friction", { ...fields, provenance: { branch, date, source: "retro" } }, options);
 }

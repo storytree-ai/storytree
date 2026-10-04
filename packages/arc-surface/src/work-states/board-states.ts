@@ -38,7 +38,7 @@ export function incrementState(increment: FieldsOf<"increment">, facts: Incremen
     };
   }
   const progress = increment.status === "active" ? "in-progress" : "planned";
-  if (increment.status !== "proposal" && facts.heldOn?.length) return { state: "waiting-on-you", color: "yellow", progress };
+  if (facts.heldOn?.length) return { state: "waiting-on-you", color: "yellow", progress };
   if (facts.waits?.length) return { state: "queued", color: "yellow", progress };
   if (facts.claim) return { state: "held", color: "grey", progress };
   return { state: "open", color: "grey", progress };

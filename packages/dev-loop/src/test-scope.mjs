@@ -28,9 +28,10 @@ const RELATIVE_PATH = /["'`]((?:\.\.\/)+[^"'`$\r\n]*)["'`]/g;
 /**
  * Checks that a change inside any one package can fail, so every scoped run carries them as units
  * of their own (a full run has them in their package already). The package-boundary check (ADR-0649 D3)
- * is one: a story's code landing in the frame is a change to the frame alone.
+ * is one: a story's code landing in the frame is a change to the frame alone. The code allocation guardrail
+ * (ADR-0838 D5) is another: a file left unreached in one package is a change to that package alone.
  */
-const ALWAYS_RUN = ["packages/dev-loop/src/package-boundaries.test.mjs"];
+const ALWAYS_RUN = ["packages/dev-loop/src/package-boundaries.test.mjs", "packages/dev-loop/src/allocation.test.mjs"];
 
 /**
  * The workspace packages: each one's name, its dir (repo-relative, posix), the workspace packages

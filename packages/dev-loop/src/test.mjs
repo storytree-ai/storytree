@@ -8,7 +8,8 @@
 // (a root file, a package.json, the lockfile, the dev loop, ...) or origin/main cannot be read. The
 // first line printed is the decision, `scope: ...`. Each package is one unit, its
 // `<dir>/src/**/*.test.{ts,mjs}`; the package-boundary check
-// (packages/dev-loop/src/package-boundaries.test.mjs) is a unit of every run. The units run one after another against
+// (packages/dev-loop/src/package-boundaries.test.mjs) and the code allocation guardrail
+// (packages/dev-loop/src/allocation.test.mjs, ADR-0838 D5) are units of every run. The units run one after another against
 // the one Postgres, and a failure never stops the rest: the run ends with a PASS / FAIL / NOT RUN
 // table, and exits non-zero if any unit did not pass.
 //

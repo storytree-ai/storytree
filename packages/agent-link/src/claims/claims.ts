@@ -97,7 +97,7 @@ export type LandAnswer =
  * Claim `id`, a capability or an increment, for the context's session, with a one-line reason.
  * Refused if the library has no live capability or increment by that id, if it is a closed
  * increment, if it is waiting work (waitingOn), or if another live session holds it; a holder idle
- * past the quiet time is taken over. Claiming a proposed or ready increment starts it, through the
+ * past the quiet time is taken over. Claiming a proposed increment starts it, through the
  * library's own `advanceIncrement` (0.2's ADR-0386). Claiming what it already holds changes nothing,
  * unless `moveBranch` is given with a new branch: then it holds it on that branch from now on.
  */
@@ -118,7 +118,7 @@ export async function claim(context: ClaimContext, id: string, reason: string, o
     context.writer?.signal?.throwIfAborted();
     // Activation takes the library lock and checks cancellation there, before any claimed line.
     // Once admitted, complete the claim (and its workspace) even if cancellation arrives later.
-    if (found.status === "proposal" || found.status === "ready") await context.library.advanceIncrement(id, "active", { ...context.writer, actor: `session:${context.session}` });
+    if (found.status === "proposal") await context.library.advanceIncrement(id, "active", { ...context.writer, actor: `session:${context.session}` });
     const line = await log.append({
       ...who(context),
       kind: "claimed",

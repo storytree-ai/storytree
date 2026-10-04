@@ -379,11 +379,6 @@ test("5.7 session A claims a proposed increment, which the claim shows while the
     const refused = await claim(as("B"), proposed, "I want it too");
     assert.ok(!refused.ok && refused.refused === "held" && refused.holder.session === "A");
 
-    const ready = await park("password reset");
-    await library.advanceIncrement(ready, "ready");
-    assert.equal((await claim(as("B"), ready, "driving the reset")).ok, true);
-    assert.equal(await statusOf(library, arc, ready), "active");
-
     const active = await park("welcome email");
     await library.advanceIncrement(active, "active");
     assert.equal((await claim(as("B"), active, "picking it up")).ok, true, "an active one is claimed, not started again");

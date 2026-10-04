@@ -8,7 +8,7 @@
  * Every rule is the library's (its capabilities 10, 11 and 12): an arc's intent and end state, a
  * close's note, the loop check, whether a wait holds (`waitHolds`) and whether work is held on the
  * owner (`heldOnQuestion`), and an arc's state, which `arcView` works out. There is no `increment
- * start` (starting is claiming, the agent tools'), no `increment ready` (ADR-0645 D5), and no hand
+ * start` (starting is claiming, the agent tools'), no `increment ready` (ADR-0645 D5; ADR-0909 D4 retired the step, and the word is refused saying so), and no hand
  * close or re-open of an arc (the owner's R1). `arc list` reads list(kind), then each arc's view.
  */
 import { closed } from "@storytree/agent-link";
@@ -248,6 +248,9 @@ const increment: Family = {
   summary: "the increments of an arc's work",
   verbs: [incrementNew, incrementAdd, incrementClose, incrementEdit, incrementMove, ...waiting("arc increment", "increment")],
   guesses: { show: "library read <id>", read: "library read <id>", get: "library read <id>", open: "library read <id>" },
+  retired: {
+    ready: { why: "ADR-0909 retired the increment's ready step, and claiming a proposal starts it.", instead: "workspace <increment> --reason …" },
+  },
 };
 
 const list: Verb = {

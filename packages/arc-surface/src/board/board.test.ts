@@ -15,7 +15,7 @@ const arc = (id: string, state: ArcView["state"] = "active", at = "2026-09-27"):
 
 test("3.2 lanes show finished bars first, then oldest open work, with named counts and state colours", () => {
   const a = arc("a");
-  a.increments.push(increment("new", "proposal", "2026-09-27"), increment("failed", "closed", "2026-09-26", "failed"), increment("old", "ready", "2026-09-25"), increment("landed", "closed", "2026-09-24", "landed"));
+  a.increments.push(increment("new", "proposal", "2026-09-27"), increment("failed", "closed", "2026-09-26", "failed"), increment("old", "proposal", "2026-09-25"), increment("landed", "closed", "2026-09-24", "landed"));
   const snapshot: BoardSnapshot = { arcs: [a], waits: { old: [{ on: "outside", reason: "needs it", forGood: true }] }, heldOn: {} };
   const board = boardView(snapshot, [], new Date());
   assert.deepEqual(board.lanes[0]?.bars.map(({ id, reading }) => [id, reading.color]), [["landed", "green"], ["failed", "red"], ["old", "yellow"], ["new", "grey"]]);
@@ -47,7 +47,7 @@ test("3.3 lanes sort waiting, blocked, claimed, idle, quiet then recent activity
 });
 
 test("3.3 a lane whose open work all waits reads queued, ranks with blocked and names what it waits on; free work reads ready · N to take", () => {
-  const work = (id: string, arcId: string, at = "2026-09-20") => record(id, "increment", { arc: arcId, title: `Build ${id}`, objective: id, body: id, status: "ready" }, at);
+  const work = (id: string, arcId: string, at = "2026-09-20") => record(id, "increment", { arc: arcId, title: `Build ${id}`, objective: id, body: id, status: "proposal" }, at);
   const ready = arc("ready", "active", "2026-09-20"); ready.increments.push(work("r1", "ready"), work("r2", "ready"));
   const queued = arc("queued", "active", "2026-09-20"); queued.increments.push(work("q1", "queued"));
   const claimed = arc("claimed"); claimed.increments.push(work("c1", "claimed", "2026-09-27"));

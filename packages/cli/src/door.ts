@@ -81,6 +81,8 @@ export interface Family {
    * the refusal names it rather than running it, so each job keeps one name.
    */
   readonly guesses?: Readonly<Record<string, string>>;
+  /** Words for a step storytree has retired, each with why and the command for the job now (after `storytree `). */
+  readonly retired?: Readonly<Record<string, { readonly why: string; readonly instead: string }>>;
   readonly summary: string;
   readonly verbs: readonly Verb[];
   /** Families within it: `storytree arc increment <verb>`. */
@@ -183,6 +185,8 @@ async function dispatchIn(family: Family, path: string, words: readonly string[]
     ...family.verbs.map((verb) => ({ name: verb.name, command: verb.usage })),
     ...(family.families ?? []).map((inner) => ({ name: inner.name, command: `${path} ${inner.name}` })),
   ];
+  const retired = Object.hasOwn(family.retired ?? {}, second) ? family.retired?.[second] : undefined;
+  if (retired !== undefined) throw new Refusal(`storytree ${path} ${second} is retired: ${retired.why}\nRun storytree ${retired.instead}`, { code: 2, next: [] });
   const guessed = Object.hasOwn(family.guesses ?? {}, second) ? family.guesses?.[second] : undefined;
   throw unknown(`storytree ${path}`, second, guessed ?? nearest(second, named), "Its commands", named);
 }

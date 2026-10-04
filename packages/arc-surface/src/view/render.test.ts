@@ -57,7 +57,7 @@ test("3.1 the arc bar omits the project and exposes open/close to keyboard users
 });
 
 test("3/4 a queued lane says what it waits on, and its chip under the blocker names the increment", () => {
-  const work = (id: string, arcId: string) => record(id, "increment", { arc: arcId, title: `Build ${id}`, objective: id, body: id, status: "ready" });
+  const work = (id: string, arcId: string) => record(id, "increment", { arc: arcId, title: `Build ${id}`, objective: id, body: id, status: "proposal" });
   const arcs = ["lamp", "users", "cutover"].map((id) => ({ arc: record(id, "arc", { title: `Arc ${id}`, intent: id, endState: "Done" }), state: "active" as const, increments: [work(`${id}1`, id)], questions: [] }));
   const queued = boardView({ arcs, heldOn: {}, waits: {
     lamp1: [{ on: "users1", reason: "after first users", forGood: false }],

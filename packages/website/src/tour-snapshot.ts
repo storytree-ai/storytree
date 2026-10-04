@@ -36,6 +36,18 @@ export const publicNotes = (changes: readonly Change[]) => changes.filter(change
   record: { ...pick(change.record, ["id", "type", "version", "createdAt", "updatedAt"]), fields: pick(change.record.fields, ["title", "number", "status", "frontCoverOf", "links", "supersedes", "story"]) },
 }));
 
+/** The plan as the story panels read it: each story, capability and contract with only its public fields and health. */
+export const publicPlan = (tree: AnnotatedTree) => ({
+  ...pick(tree, ["unverified"]), arcs: [],
+  stories: tree.stories.map(story => ({ ...pick(story, ["id", "title", "description", "health"]),
+    capabilities: story.capabilities.map(capability => ({ ...pick(capability, ["id", "title", "description", "proposed", "dependsOn", "status", "health", "why", "reportOnly"]),
+      contracts: capability.contracts.map(contract => pick(contract, ["id", "title", "description", "health"])) })) })),
+});
+
+/** The activity the sessions and arcs surfaces replay: their kinds of line, inside the recording's window. */
+export const publicActivity = (lines: readonly Line[], window: { from: string; to: string }) =>
+  lines.filter(line => kinds.has(line.kind) && Date.parse(line.at) >= Date.parse(window.from) && Date.parse(line.at) < Date.parse(window.to));
+
 /** Apply to every retained value, including prose and nested records. */
 export function scrub(value: unknown, cloudIds: readonly string[]): unknown {
   if (typeof value === "string") {
@@ -71,17 +83,11 @@ export async function refreshTourSnapshot(file: string, read: () => Promise<Tour
     const grown = growPlanet(places.map(({ id, place }) => ({ story: id, place, reach: islandCoastReach(scene.islands.find(island => island.story === id)!) })));
     const arcs = input.arcs.filter(view => view.state !== "closed");
     const boardIds = new Set(arcs.flatMap(view => [view.arc.id, ...view.increments.map(increment => increment.id)]));
-    const plan = {
-      ...pick(tree, ["unverified"]), arcs: [],
-      stories: tree.stories.map(story => ({ ...pick(story, ["id", "title", "description", "health"]),
-        capabilities: story.capabilities.map(capability => ({ ...pick(capability, ["id", "title", "description", "proposed", "dependsOn", "status", "health", "why", "reportOnly"]),
-          contracts: capability.contracts.map(contract => pick(contract, ["id", "title", "description", "health"])) })) })),
-    };
     const snapshot = {
-      version: 1, capturedAt, radius: grown.radius, scene, spots: [...grown.spots], project, places, tree: plan,
+      version: 1, capturedAt, radius: grown.radius, scene, spots: [...grown.spots], project, places, tree: publicPlan(tree),
       changes: publicNotes(changes),
       arcs, holds: { waits: Object.fromEntries(Object.entries(input.holds.waits).filter(([id]) => boardIds.has(id))), heldOn: Object.fromEntries(Object.entries(input.holds.heldOn).filter(([id]) => boardIds.has(id))) },
-      recording: { window, lines: lines.filter(line => kinds.has(line.kind) && Date.parse(line.at) >= from && Date.parse(line.at) < to) },
+      recording: { window, lines: publicActivity(lines, window) },
     };
     return scrub(snapshot, input.cloudProjectIds) as TourSnapshot;
   });

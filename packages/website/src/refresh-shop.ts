@@ -11,7 +11,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import type { Line } from "@storytree/agent-link";
-import type { AnnotatedTree, Change } from "@storytree/library";
+import type { AnnotatedTree, ArcView, Change, Holds } from "@storytree/library";
 import { refreshGrowthSnapshot } from "./conduit-growth.js";
 import { ciHealth, codeAt, landings, shopStages } from "./shop-growth.js";
 
@@ -20,7 +20,7 @@ const project = values.project!;
 if (!values.repository || !values.record === !values.library) throw new Error("Give --repository <shop git dir>, and one of --record <saved library record> or --library <postgres url>.");
 
 /** The library's own recorded history of the shop: its plan, every dated change and its activity lines. */
-async function history(): Promise<{ capturedAt: string; tree: AnnotatedTree; changes: Change[]; lines: Line[] }> {
+async function history(): Promise<{ capturedAt: string; tree: AnnotatedTree; changes: Change[]; lines: Line[]; arcs?: ArcView[]; holds?: Holds }> {
   if (values.record) {
     const saved = JSON.parse(await readFile(values.record, "utf8"));
     if (saved.project !== project) throw new Error(`The record is of ${saved.project}, not ${project}.`);
@@ -33,8 +33,8 @@ async function history(): Promise<{ capturedAt: string; tree: AnnotatedTree; cha
     const library = await openNamedProject(server, project);
     const activity = await openActivityLog(server);
     try {
-      const [tree, changes, log] = await Promise.all([library.projectTree(), library.changesSince(0), activity.since(project, 0)]);
-      return { capturedAt: new Date().toISOString(), tree, changes: [...changes.changes], lines: [...log.lines] };
+      const [tree, changes, log, arcs, holds] = await Promise.all([library.projectTree(), library.changesSince(0), activity.since(project, 0), library.arcViews(), library.holds()]);
+      return { capturedAt: new Date().toISOString(), tree, changes: [...changes.changes], lines: [...log.lines], arcs, holds };
     } finally { await activity.close(); }
   } finally { await server.close(); }
 }
@@ -51,5 +51,6 @@ const merges = await landings(values.repository);
 const { window, stages } = shopStages(recorded.changes, recorded.lines, merges);
 await refreshGrowthSnapshot(values.output ?? fileURLToPath(new URL("./shop-snapshot.json", import.meta.url)), async () => ({
   project, capturedAt: recorded.capturedAt, window, tree: recorded.tree, changes: recorded.changes, lines: recorded.lines, stages, surveyAt: codeAt(values.repository!),
+  ...(recorded.arcs ? { arcs: recorded.arcs, holds: recorded.holds } : {}),
 }));
 console.log(`Saved the shop's growth: ${stages.length} stages from ${window.from} to ${window.to}, each with its code as it stood then.`);

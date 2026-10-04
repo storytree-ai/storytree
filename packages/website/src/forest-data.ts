@@ -28,4 +28,6 @@ export interface GrowthSnapshot extends ForestSnapshot {
   stages: { id: string; at: string; scene: ForestSnapshot["scene"]; wisps: SessionWisp[]; counts: { stories: number; capabilities: number; contracts: number } }[];
   /** The dated notes its knowledge core grows from; a growth saved before they were kept has none. */
   changes?: Change[];
+  /** Its public reading, for free play's story panels, arcs and sessions; a growth saved without its arcs has none. */
+  reading?: Pick<TourSnapshot, "tree" | "arcs" | "holds" | "recording">;
 }

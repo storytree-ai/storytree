@@ -6,9 +6,9 @@ import { forestScene, growPlanet, sessionColour, storyNodes, type SessionWisp } 
 import type { ProjectSurvey } from "@storytree/forest/code-survey";
 import { saveForestSnapshot } from "@storytree/forest/snapshot";
 import { islandCoastReach } from "@storytree/forest-world/geometry";
-import type { AnnotatedCapability, AnnotatedStory, AnnotatedTree, Change, HealthState } from "@storytree/library";
+import type { AnnotatedCapability, AnnotatedStory, AnnotatedTree, ArcView, Change, HealthState, Holds } from "@storytree/library";
 import type { GrowthSnapshot } from "./forest-data.js";
-import { publicNotes, scrub } from "./tour-snapshot.js";
+import { publicActivity, publicNotes, publicPlan, scrub } from "./tour-snapshot.js";
 
 export interface GrowthReading {
   project: string;
@@ -22,6 +22,9 @@ export interface GrowthReading {
   stages: readonly { id: string; at: string }[];
   /** The code's survey as it stood at `at`, for `plan`'s stories; without it, no stage draws land. */
   surveyAt?(at: string, plan: AnnotatedTree): Promise<ProjectSurvey>;
+  /** Its arcs, closed ones too, and their holds: given, the growth also saves its public reading for free play's panels. */
+  arcs?: readonly ArcView[];
+  holds?: Holds;
 }
 
 type Fields = Record<string, unknown>;
@@ -121,7 +124,8 @@ export async function refreshGrowthSnapshot(file: string, read: () => Promise<Gr
         wisps: wispsAt(plan, before, at), counts: { stories: plan.stories.length, capabilities: capabilities.length, contracts: capabilities.reduce((sum, item) => sum + item.contracts.length, 0) } });
     }
     const snapshot = { version: 1, capturedAt, radius: grown.radius, scene, spots: [...grown.spots], project, window, places,
-      titles: Object.fromEntries(tree.stories.map(story => [story.id, story.title])), stages, changes: publicNotes(changes) };
+      titles: Object.fromEntries(tree.stories.map(story => [story.id, story.title])), stages, changes: publicNotes(changes),
+      ...(input.arcs ? { reading: { tree: publicPlan(tree), arcs: input.arcs, holds: input.holds ?? { waits: {}, heldOn: {} }, recording: { window, lines: publicActivity(own, window) } } } : {}) };
     return scrub(snapshot, []) as GrowthSnapshot;
   });
 }

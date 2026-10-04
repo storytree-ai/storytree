@@ -12,7 +12,7 @@ const untested = { reported: { state: "not-checked" }, verified: { state: "not-c
 const change = (seq: number, type: string, id: string, fields: object) =>
   ({ seq, recordId: id, type, action: "created", record: { id, type, version: 1, fields, createdAt: at(1), updatedAt: at(1) } });
 
-test("3.5, 3.7 · the shop's refresh command saves its growth from a saved record, its code and its archived CI runs on main", async t => {
+test("3.5, 3.7, 3.9 · the shop's refresh command saves its growth and public reading from a saved record, its code and its archived CI runs on main", async t => {
   const directory = await mkdtemp(path.join(tmpdir(), "website-shop-"));
   t.after(() => rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }));
   const repository = path.join(directory, "repo");
@@ -26,7 +26,10 @@ test("3.5, 3.7 · the shop's refresh command saves its growth from a saved recor
   execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "sign in"], { cwd: repository, env: { ...process.env, GIT_AUTHOR_DATE: at(2), GIT_COMMITTER_DATE: at(2) } });
   const commit = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repository, encoding: "utf8" }).trim();
 
-  const record = { project: "shop", capturedAt: at(30), lines: [],
+  const arc = { id: "arc_a", type: "arc", version: 1, fields: { title: "Accounts", intent: "", endState: "" }, createdAt: at(1), updatedAt: at(1) };
+  const record = { project: "shop", capturedAt: at(30),
+    lines: [{ seq: 1, at: at(1), kind: "session-started", project: "shop", session: "s1", folder: "/home/someone/shop" }],
+    arcs: [{ arc, state: "closed", increments: [], questions: [] }], holds: { waits: {}, heldOn: {} },
     tree: { arcs: [], unverified: true, stories: [{ id: "story_a", title: "Have an account", description: "", health: untested, capabilities: [
       { id: "capability_a1", title: "1 · Sign in", description: "", dependsOn: [], proposed: false, status: "untested", reportOnly: true, health: untested,
         contracts: [{ id: "contract_a11", title: "1.1 · Sign in works", description: "", health: untested }] }] }] },
@@ -56,6 +59,10 @@ test("3.5, 3.7 · the shop's refresh command saves its growth from a saved recor
   assert.deepEqual(land(shop.stages[1])!.files.map(file => file.path), ["src/sign-in.js"]);
   assert.equal(land(shop.stages[1])!.territories.find(item => item.capability === "capability_a1")!.status, "healthy", "only the push run on main colours the land");
   assert.equal(shop.scene.islands[0].land.territories.find((item: { capability?: string }) => item.capability === "capability_a1").status, "healthy");
+  assert.deepEqual(shop.reading.tree.stories.map((story: { id: string }) => story.id), ["story_a"], "the plan is saved for the story panels");
+  assert.equal(shop.reading.tree.stories[0].capabilities[0].health.verified.state, "passing", "with the health its CI verified");
+  assert.deepEqual(shop.reading.arcs.map((view: { arc: { id: string } }) => view.arc.id), ["arc_a"], "closed arcs too: the shop is finished");
+  assert.deepEqual(shop.reading.recording.lines, [{ seq: 1, at: at(1), kind: "session-started", project: "shop", session: "s1" }], "its activity, private fields removed");
 
   const unchanged = await readFile(output, "utf8");
   await writeFile(saved, JSON.stringify({ ...record, project: "conduit" }));

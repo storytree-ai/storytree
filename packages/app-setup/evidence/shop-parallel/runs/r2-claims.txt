@@ -1,0 +1,31 @@
+06:47:56 72cbaf46 claimed increment_66e6c723983c | Part 2: Browsing | holder 
+06:48:02 72cbaf46 session-named  | Part 2: Browsing | holder 
+06:48:05 72cbaf46 claimed Browsing / 4 · Product page | Part 2: product page | holder 
+06:48:06 72cbaf46 claimed Browsing / 5 · Sorting | Part 2: sorting | holder 
+06:48:06 72cbaf46 claimed Browsing / 6 · Cart buttons and badge | Part 2: cart buttons and badge | holder 
+06:49:18 de0fbc58 claimed increment_707aaa928acd | Part 4: Checkout | holder 
+06:49:27 182c4d96 claimed increment_1973b6b220df | Part 3: cart page and menu | holder 
+06:49:34 de0fbc58 session-named  | Part 4: Checkout | holder 
+06:49:38 de0fbc58 claimed Checkout / 1 · Your information | Part 4: your information | holder 
+06:49:39 182c4d96 claimed The cart / 1 · Cart page | Part 3: cart page | holder 
+06:49:40 de0fbc58 claimed Checkout / 2 · Overview | Part 4: overview | holder 
+06:49:42 182c4d96 claimed The cart / 2 · Menu | Part 3: menu | holder 
+06:49:42 de0fbc58 claimed Checkout / 3 · Order complete | Part 4: order complete | holder 
+07:00:22 de0fbc58 landed Checkout / 1 · Your information |  | holder 
+07:00:27 de0fbc58 landed Checkout / 2 · Overview |  | holder 
+07:00:31 de0fbc58 landed Checkout / 3 · Order complete |  | holder 
+07:00:40 de0fbc58 closed increment_707aaa928acd |  | holder 
+07:01:02 182c4d96 merged increment_66e6c723983c |  | holder 72cbaf46-fa8a-4a1c-a15f-54544f314f77
+07:01:02 182c4d96 merged Browsing / 4 · Product page |  | holder 72cbaf46-fa8a-4a1c-a15f-54544f314f77
+07:01:02 182c4d96 merged Browsing / 5 · Sorting |  | holder 72cbaf46-fa8a-4a1c-a15f-54544f314f77
+07:01:02 182c4d96 merged Browsing / 6 · Cart buttons and badge |  | holder 72cbaf46-fa8a-4a1c-a15f-54544f314f77
+07:01:07 72cbaf46 landed Browsing / 4 · Product page |  | holder 
+07:01:09 72cbaf46 landed Browsing / 5 · Sorting |  | holder 
+07:01:11 72cbaf46 landed Browsing / 6 · Cart buttons and badge |  | holder 
+07:01:19 72cbaf46 closed increment_66e6c723983c |  | holder 
+07:06:38 182c4d96 merged increment_1973b6b220df |  | holder 182c4d96-93a7-4a31-a44e-544d9fcb80da
+07:06:38 182c4d96 merged The cart / 1 · Cart page |  | holder 182c4d96-93a7-4a31-a44e-544d9fcb80da
+07:06:38 182c4d96 merged The cart / 2 · Menu |  | holder 182c4d96-93a7-4a31-a44e-544d9fcb80da
+07:06:44 182c4d96 landed The cart / 1 · Cart page |  | holder 
+07:06:46 182c4d96 landed The cart / 2 · Menu |  | holder 
+07:06:49 182c4d96 closed increment_1973b6b220df |  | holder 

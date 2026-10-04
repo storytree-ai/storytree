@@ -62,9 +62,9 @@ const ci = story("story_0f2877a9d736"), backendProfiles = story("story_9e44fb81b
 const conduit = { map: "conduit" as const };
 // Storytree's own recorded growth (own-snapshot.json): Act 2 arrives on it, grown from a point as its agents built it (ADR-0889 2.2b).
 const own = { map: "own" as const, target: { kind: "core" } as GlobeTarget };
-// The shop (shop-snapshot.json): the store the test laptop's Claude Code built with storytree, where the chapters teach (ADR-0890),
-// walking only three of its stories. Read from its saved snapshot, so the rebuilt shop is a data swap.
-const teaching = ["story_0c36494ccf30", "story_29b9f7826e86", "story_24ca85400abc"];
+// The shop (shop-snapshot.json): the store the test laptop's Claude Code sessions rebuilt side by side with storytree, where the
+// chapters teach (ADR-0890), walking only three of its stories: Browsing, The cart and Checkout.
+const teaching = ["story_9d312bf7fc51", "story_c3e9a28aef14", "story_a2276e03429a"];
 const cart = story(teaching[1]!);
 /** How long the arrival's time-lapse plays at 1×. */
 export const arrivalSeconds = 15;

@@ -91,7 +91,7 @@ const runs = {
       await go(page, "start-small"); await play(page);
       await page.waitForFunction(() => document.querySelector(".forest-drawing")?.dataset.globe === "shop" && document.querySelector(".forest-drawing")?.dataset.arrived === "true", null, { timeout: 30_000 });
       assert.deepEqual(await drawing(page), { globe: "shop", growth: "whole" }, "the shop is shown whole");
-      assert.equal(await page.locator(".forest-drawing").getAttribute("data-focus"), "story_0c36494ccf30 story_29b9f7826e86 story_24ca85400abc", "narrowed to products, cart and checkout");
+      assert.equal(await page.locator(".forest-drawing").getAttribute("data-focus"), "story_9d312bf7fc51 story_c3e9a28aef14 story_a2276e03429a", "narrowed to products, cart and checkout");
       await page.waitForTimeout(6000); await shot(page, `${tag}-6-start-small`);
       await page.close();
     }

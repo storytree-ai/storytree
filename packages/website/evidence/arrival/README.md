@@ -1,5 +1,7 @@
 # Act 2 arrives (ADR-0889, contracts 2.11 and 2.12)
 
+**Amended 2026-10-04 (increment_8254e068412e):** the shop is now the parallel rebuild, with 8 stories; the cut narrows to Browsing → The cart → Checkout. Before and after pictures: `../shop-swap/`.
+
 ## Amended 2026-10-04: the arrival grows storytree's own globe, then cuts to the shop (ADR-0889 2.2b, increment_24f45ba457c7)
 
 The time-lapse now replays **storytree's own project** (`src/own-snapshot.json`, saved by `refresh-own.ts`, PR #603): 24 dated stages from 25 September to 4 October 2026, its 19 islands arriving in the order they were recorded, its knowledge notes gathering in the core, its claims on the coasts, and its land as `main` stood at each stage. The card names it: **"This is storytree, built with storytree."** / "8 days of its agents' work: every island, road and note, replayed from its own records." (the number of days and the dates are filled from the saved growth at build). The value statement and the three fixes sit over storytree's whole globe. Then a new beat, **"Let's start small"**, cuts to the shop's globe, whole, narrowed to its three teaching stories (Browse products and pick them → Review the cart and use the menu → Check out), ringed, with the other six dimmed. The shop is read from its saved snapshot, so the rebuilt shop is a data swap. **The naming and the cut's lines are the agent's DRAFT** (marked in `src/tour-copy.ts`) for the owner to replace.

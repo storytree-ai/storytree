@@ -164,7 +164,7 @@ test("2.12 · after the fixes, the tour cuts to the shop's whole globe narrowed 
   assert.equal(globe.map, "shop");
   assert.ok(globe.map === "shop" && globe.at === undefined, "the shop is shown whole, not grown");
   const titles = shop.titles as Record<string, string>;
-  assert.deepEqual(globe.map === "shop" && globe.focus?.map(id => titles[id]), ["Browse products and pick them", "Review the cart and use the menu", "Check out"],
+  assert.deepEqual(globe.map === "shop" && globe.focus?.map(id => titles[id]), ["Browsing", "The cart", "Checkout"],
     "products, cart and checkout, read from the shop's saved snapshot");
   tour.hold("everything");
   assert.deepEqual(globeOf(tourSteps[cut]!, tour.state), { map: "storytree" }, "show everything still opens storytree's own globe");

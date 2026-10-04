@@ -9,6 +9,8 @@
  * - A story's package manifests say which other stories' packages it depends on, through any dependency
  *   field: the code's edges between stories, which place the islands in rows (ADR-0840 D2). The app
  *   story includes both its package and desktop manifests, as plan-edges does.
+ * - A package's test files outside its src (a test/ folder, say) are read too, as tests only: their numbered
+ *   titles reach the package's source as a test in src would, and no line of theirs counts as source.
  * - A package's coverage map (survey-coverage.json beside its src, ADR-0838 D3) is read with its files,
  *   and again only when it changed.
  * - Surveying again reads only what changed (ADR-0836 D2): a file whose size and modified time are as
@@ -28,6 +30,7 @@ import { packageOf, surveyStory, type CoverageMap, type SourceFile, type StorySu
 export type ProjectSurvey = Readonly<Record<string, StorySurvey>>;
 
 const SKIPPED = new Set(["node_modules", "dist", "out", "evidence"]);
+const TEST_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$/;
 
 /** The dependency fields of a package.json, in the order their names are listed. */
 const DEPENDENCY_FIELDS = ["dependencies", "devDependencies", "optionalDependencies", "peerDependencies"] as const;
@@ -124,6 +127,19 @@ export function codeSurveyReader({ readFile: readText = (file: string) => readFi
     return found.flat();
   }
 
+  /** The test files of a package outside its src (a test/ folder, say): read as tests only, never as source. */
+  async function testsBeside(root: string, dir: string, seen: Map<string, Kept>): Promise<SourceFile[]> {
+    const entries = await readdir(dir, { withFileTypes: true }).catch(() => []);
+    const found = await Promise.all(entries.map(async (entry): Promise<SourceFile[]> => {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) return SKIPPED.has(entry.name) || (dir === root && entry.name === "src") ? [] : testsBeside(root, full, seen);
+      if (!TEST_FILE.test(entry.name)) return [];
+      const file = await fileAt(root, full, seen);
+      return file === undefined ? [] : [file];
+    }));
+    return found.flat();
+  }
+
   async function survey(folder: string, tree: AnnotatedTree): Promise<ProjectSurvey> {
     if (!checkouts.has(folder)) checkouts.set(folder, checkoutAt(folder, checkoutScope));
     const checkout = await checkouts.get(folder)!;
@@ -135,6 +151,7 @@ export function codeSurveyReader({ readFile: readText = (file: string) => readFi
       // The desktop is the app story's frame, just as plan-edges maps it (ADR-0864 D4).
       if (storyPackage === "app") sources.push(...await filesUnder(root, path.join(checkout, "apps", "desktop", "src"), seen));
       if (sources.length === 0) return [];
+      sources.push(...await testsBeside(root, root, seen));
       const manifestPaths = [path.join(root, "package.json"), ...(storyPackage === "app" ? [path.join(checkout, "apps", "desktop", "package.json")] : [])];
       const manifests = await Promise.all(manifestPaths.map((file) => fileAt(root, file, seen)));
       const map = await fileAt(root, path.join(root, COVERAGE_MAP), seen);

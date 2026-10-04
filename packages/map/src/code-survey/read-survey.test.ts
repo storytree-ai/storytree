@@ -31,6 +31,23 @@ test("8.1 a numbered test reaches its own package's public subpath through packa
   }
 });
 
+test("8.13 a numbered test outside the package's src reaches its source, and only test files are read there", async () => {
+  const folder = await mkdtemp(path.join(tmpdir(), "code-survey-tests-"));
+  try {
+    const root = path.join(folder, "packages", "shop");
+    await mkdir(path.join(root, "src"), { recursive: true });
+    await mkdir(path.join(root, "test"), { recursive: true });
+    await writeFile(path.join(root, "src/claim.js"), "export const claim = () => 1;\n");
+    await writeFile(path.join(root, "test/fake-dom.js"), "export const dom = {};\n");
+    await writeFile(path.join(root, "test/claim.test.js"), 'import { claim } from "../src/claim.js";\nimport { dom } from "./fake-dom.js";\ntest("3.1 a claim holds", () => claim(dom));\n');
+    const survey = await codeSurveyReader().read(folder, tree);
+    assert.deepEqual(survey["story-shop"]?.files, [{ path: "src/claim.js", lines: 1, capability: "cap-claims" }]);
+    assert.deepEqual(survey["story-shop"]?.tests?.map(file => file.path), ["test/claim.test.js"]);
+  } finally {
+    await rm(folder, { recursive: true, force: true });
+  }
+});
+
 test("8.5 changes to a package's exports refresh self reach without rereading its source", async () => {
   const folder = await mkdtemp(path.join(tmpdir(), "code-survey-self-cache-"));
   try {

@@ -1,0 +1,60 @@
+07:22:54 a670a873 claimed increment_bcdf3193160a | Part 6: Orders | holder 
+07:22:55 3437a351 claimed increment_b878ef17a3b2 | Part 5: Accounts | holder 
+07:23:13 3437a351 session-named  | Part 5: Accounts (sign up) | holder 
+07:23:28 a670a873 session-named  | Part 6: Orders | holder 
+07:24:34 f88b0fc1 claimed increment_68bcf7b5ff4b | Part 9a: stock, prices, admin page | holder 
+07:24:51 f88b0fc1 session-named  | Part 9a: stock, prices, admin page | holder 
+07:25:28 3437a351 claimed Accounts / 1 · Account store | Part 5: account store | holder 
+07:25:29 3437a351 claimed Accounts / 2 · Sign-up page | Part 5: sign-up page | holder 
+07:25:29 3437a351 claimed Accounts / 3 · Signing in with an account | Part 5: signing in with an account | holder 
+07:25:30 3437a351 claimed Accounts / 4 · Who is signed in | Part 5: greeting and /api/me | holder 
+07:25:31 3437a351 claimed Signing in / 3 · Sign-in page | Part 5: account sources seam | holder 
+07:25:32 3437a351 claimed Signing in / 4 · Page shell | Part 5: header pieces know the user | holder 
+07:26:10 f88b0fc1 claimed Stock and admin / 1 · Stock and price store | Part 9a: stock and price store | holder 
+07:26:11 f88b0fc1 claimed Stock and admin / 2 · Showing stock | Part 9a: showing stock | holder 
+07:26:12 f88b0fc1 claimed Stock and admin / 3 · Admin page | Part 9a: admin page | holder 
+07:26:13 a670a873 claimed Orders / 1 · Order store | Part 6: order store | holder 
+07:26:13 a670a873 claimed Orders / 2 · Placing an order | Part 6: placing an order | holder 
+07:26:14 a670a873 claimed Orders / 3 · My Orders page | Part 6: My Orders page | holder 
+07:26:16 a670a873 claimed Orders / 4 · Order page | Part 6: order page | holder 
+07:26:17 a670a873 claimed The cart / 2 · Menu | Part 6: menu link seam | holder 
+07:26:18 a670a873 claimed Checkout / 1 · Your information | Part 6: Continue saves details | holder 
+07:26:19 a670a873 claimed Checkout / 2 · Overview | Part 6: Finish places the order | holder 
+07:26:20 a670a873 claimed Checkout / 3 · Order complete | Part 6: complete shows order number | holder 
+07:27:27 f88b0fc1 claimed Signing in / 1 · Shop server | Routes before assets; npm run reset | holder 
+07:33:37 a670a873 landed Orders / 1 · Order store |  | holder 
+07:33:40 a670a873 landed Orders / 2 · Placing an order |  | holder 
+07:33:42 a670a873 landed Orders / 3 · My Orders page |  | holder 
+07:33:44 a670a873 landed Orders / 4 · Order page |  | holder 
+07:33:45 a670a873 landed The cart / 2 · Menu |  | holder 
+07:33:46 a670a873 landed Checkout / 1 · Your information |  | holder 
+07:33:47 a670a873 landed Checkout / 2 · Overview |  | holder 
+07:33:48 a670a873 landed Checkout / 3 · Order complete |  | holder 
+07:33:55 a670a873 closed increment_bcdf3193160a |  | holder 
+07:36:01 f88b0fc1 landed Stock and admin / 1 · Stock and price store |  | holder 
+07:36:03 f88b0fc1 landed Stock and admin / 2 · Showing stock |  | holder 
+07:36:06 f88b0fc1 landed Signing in / 1 · Shop server |  | holder 
+07:36:07 f88b0fc1 closed increment_68bcf7b5ff4b |  | holder 
+07:36:12 f88b0fc1 released Stock and admin / 3 · Admin page |  | holder 
+07:36:59 f88b0fc1 claimed increment_1ed528fef3bd | Part 9c: stock at Finish | holder 
+07:37:08 f88b0fc1 session-named  | Part 9c: stock at Finish | holder 
+07:37:09 f88b0fc1 claimed Stock and admin / 4 · Stock at Finish | Part 9c: stock at Finish | holder 
+07:37:10 f88b0fc1 claimed Orders / 2 · Placing an order | Part 9c: stock check in placing orders | holder 
+07:40:28 3437a351 landed Accounts / 1 · Account store |  | holder 
+07:40:29 3437a351 landed Accounts / 2 · Sign-up page |  | holder 
+07:40:30 3437a351 landed Accounts / 3 · Signing in with an account |  | holder 
+07:40:31 3437a351 landed Accounts / 4 · Who is signed in |  | holder 
+07:40:32 3437a351 landed Signing in / 3 · Sign-in page |  | holder 
+07:40:33 3437a351 landed Signing in / 4 · Page shell |  | holder 
+07:40:38 3437a351 closed increment_b878ef17a3b2 |  | holder 
+07:41:46 f88b0fc1 landed Stock and admin / 4 · Stock at Finish |  | holder 
+07:41:48 f88b0fc1 merged increment_1ed528fef3bd |  | holder f88b0fc1-5beb-4806-8ab6-75ed997f6ffb
+07:41:48 f88b0fc1 merged Orders / 2 · Placing an order |  | holder f88b0fc1-5beb-4806-8ab6-75ed997f6ffb
+07:41:50 f88b0fc1 closed increment_1ed528fef3bd |  | holder 
+07:41:57 f88b0fc1 claimed increment_c0bdff43bf17 | Part 9b: admin sign-in and link | holder 
+07:42:05 f88b0fc1 session-named  | Part 9b: admin sign-in and Admin link | holder 
+07:42:07 f88b0fc1 claimed Stock and admin / 3 · Admin page | Part 9b: admin sign-in and link | holder 
+07:42:08 f88b0fc1 claimed Signing in / 3 · Sign-in page | Part 9b: admin_user in sign-in users | holder 
+07:45:09 f88b0fc1 landed Stock and admin / 3 · Admin page |  | holder 
+07:45:11 f88b0fc1 landed Signing in / 3 · Sign-in page |  | holder 
+07:45:11 f88b0fc1 closed increment_c0bdff43bf17 |  | holder 

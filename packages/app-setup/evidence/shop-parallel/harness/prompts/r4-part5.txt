@@ -1,0 +1,3 @@
+Let's build the next parts. You're on part 5 in shop-requirements-2.md: accounts, so anyone can sign up. Please commit shop-requirements-2.md along with your work, like the first list.
+
+Two other sessions are building parts 6 and 9 at the same time as you, so work in a storytree workspace of your own, and leave whatever another session is already doing to that session.

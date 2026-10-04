@@ -1,0 +1,123 @@
+model: claude-opus-5-5 | mcp: storytree=connected,claude.ai Claude Docs=connected,claude.ai Google Drive=connected,claude.ai Gmail=connected,claude.ai Google Calendar=connected
+calls: 103
+  - ToolSearch
+  - ToolSearch
+  - st:check_setup {}
+  - Write C:\Users\mickh\shop2\.storytree-check
+  - PowerShell echo storytree-check
+  - ToolSearch
+  - st:check_setup {}
+  - st:search_notes {"query":"orchestrator role","limit":3}
+  - st:show_plan {}
+  - st:open {"id":"agent_f1819ad186ac"}
+  - PowerShell $p = Get-Content "C:\Users\mickh\.claude\projects\C--Users-mickh-shop2\83723b4f-84f4-4511-af6d-e5ee5
+  - Grep
+  - Grep
+  - ToolSearch
+  - Read C:\Users\mickh\shop2\shop-requirements-2.md
+  - st:make_workspace {"increment":"increment_a3680f01c877","reason":"Part 8: Reviews"}
+  - EnterWorktree
+  - st:open {"id":"story_8434f888c7d7"}
+  - st:open {"id":"decision_16624068289f"}
+  - st:open {"id":"increment_a3680f01c877"}
+  - PowerShell git log --oneline -3; ls; ls packages; Get-ChildItem packages -Recurse -File -Exclude node_modules |
+  - Read C:\Users\mickh\shop2\.claude\worktrees\increment-a3680f01c877-d198ce\packages\browsing\src\product-extras\product-extras.js
+  - Read C:\Users\mickh\shop2\.claude\worktrees\increment-a3680f01c877-d198ce\packages\stock-and-admin\src\index.js
+  - Read C:\Users\mickh\shop2\.claude\worktrees\increment-a3680f01c877-d198ce\packages\stock-and-admin\src\showing-stock\showing-stock.js
+  - Read C:\Users\mickh\shop2\.claude\worktrees\increment-a3680f01c877-d198ce\packages\stock-and-admin\package.json
+  - Read C:\Users\mickh\shop2\.claude\worktrees\increment-a3680f01c877-d198ce\packages\orders\src\index.js
+  - Read C:\Users\mickh\shop2\.claude\worktrees\increment-a3680f01c877-d198ce\packages\accounts\src\index.js
+  - Read C:\Users\mickh\shop2\.claude\worktrees\increment-a3680f01c877-d198ce\packages\signing-in\src\shop-server\server.js
+  - Read C:\Users\mickh\shop2\.claude\worktrees\increment-a3680f01c877-d198ce\packages\browsing\src\product-page\product-page.js
+  - Read C:\Users\mickh\shop2\.claude\worktrees\increment-a3680f01c877-d198ce\packages\stock-and-admin\src\admin-page\admin-page.js
+  - Read C:\Users\mickh\shop2\.claude\worktrees\increment-a3680f01c877-d198ce\packages\stock-and-admin\src\stock-and-price-store\store.js
+  - Read C:\Users\mickh\shop2\.claude\worktrees\increment-a3680f01c877-d198ce\packages\stock-and-admin\test\admin-page.test.js
+  - Read C:\Users\mickh\shop2\.claude\worktrees\increment-a3680f01c877-d198ce\packages\signing-in\test-support\test-shop.js
+  - Read C:\Users\mickh\shop2\.claude\worktrees\increment-a3680f01c877-d198ce\packages\orders\src\order-store\order-store.js
+  - Read C:\Users\mickh\shop2\.claude\worktrees\increment-a3680f01c877-d198ce\packages\browsing\src\products-page\products-page.js
+  - Read C:\Users\mickh\shop2\.claude\worktrees\increment-a3680f01c877-d198ce\packages\stock-and-admin\test\showing-stock.test.js
+  - Read C:\Users\mickh\shop2\.claude\worktrees\increment-a3680f01c877-d198ce\packages\orders\test\helpers.js
+  - Read C:\Users\mickh\.claude\projects\C--Users-mickh-shop2\83723b4f-84f4-4511-af6d-e5ee53bc201e\tool-results\bfq2g1ebh.txt
+  - Read C:\Users\mickh\shop2\.claude\worktrees\increment-a3680f01c877-d198ce\packages\orders\package.json
+  - Read C:\Users\mickh\shop2\.claude\worktrees\increment-a3680f01c877-d198ce\packages\stock-and-admin\src\showing-stock\public\stock.css
+  - st:open {"id":"capability_5cdb1bc8cc25"}
+  - st:focus {"select":"story:Reviews","down":2,"kind":["capability","promise"],"mode":"show"}
+  - st:claim {"capability":"capability_b97d91ed1347","reason":"Part 8: Reviews"}
+  - st:claim {"capability":"capability_5cdb1bc8cc25","reason":"Part 8: Reviews"}
+  - st:claim {"capability":"capability_493a553d7ac1","reason":"Part 8: Reviews"}
+  - st:name_session {"title":"Part 8: Reviews"}
+  - PowerShell npm install --no-audit --no-fund; npm test 2>$null | Select-Object -Last 12
+  - Grep
+  - Read C:\Users\mickh\shop2\.claude\worktrees\increment-a3680f01c877-d198ce\packages\signing-in\src\index.js
+  - Read C:\Users\mickh\shop2\.claude\worktrees\increment-a3680f01c877-d198ce\packages\browsing\package.json
+  - Read C:\Users\mickh\shop2\.claude\worktrees\increment-a3680f01c877-d198ce\packages\browsing\src\product-page\public\product.css
+  - Write C:\Users\mickh\shop2\.claude\worktrees\increment-a3680f01c877-d198ce\packages\reviews\package.json
+  - Edit C:\Users\mickh\shop2\.claude\worktrees\increment-a3680f01c877-d198ce\package.json
+  - Read C:\Users\mickh\shop2\.claude\worktrees\increment-a3680f01c877-d198ce\packages\accounts\package.json
+  - Grep
+  - Write C:\Users\mickh\shop2\.claude\worktrees\increment-a3680f01c877-d198ce\packages\reviews\test\helpers.js
+  - Write C:\Users\mickh\shop2\.claude\worktrees\increment-a3680f01c877-d198ce\packages\reviews\test\review-store.test.js
+  - Write C:\Users\mickh\shop2\.claude\worktrees\increment-a3680f01c877-d198ce\packages\reviews\test\showing-reviews.test.js
+  - Write C:\Users\mickh\shop2\.claude\worktrees\increment-a3680f01c877-d198ce\packages\reviews\test\writing-a-review.test.js
+  - PowerShell npm install --no-audit --no-fund | Out-Null; node --test "packages/reviews/test/*.test.js" 2>$null |
+  - ToolSearch
+  - TaskStop
+  - Edit C:\Users\mickh\shop2\.claude\worktrees\increment-a3680f01c877-d198ce\packages\reviews\test\review-store.test.js
+  - PowerShell node --test --test-timeout=20000 "packages/reviews/test/*.test.js" 2>$null | Select-String -Pattern 
+  - ToolSearch
+  - st:report {"contract":"contract_e7cfcdaa4ea1","result":"red","note":"packages/reviews/test/review-store.test.js: POST /reviews is a 404, no reviews pa
+  - st:report {"contract":"contract_19d2460ac94c","result":"red","note":"showing-reviews.test.js fails: no showing-reviews module, no rating on pages"}
+  - st:report {"contract":"contract_ab8c9b032ef8","result":"red","note":"showing-reviews.test.js fails: no reviews listed"}
+  - st:report {"contract":"contract_3d10b628eab7","result":"red","note":"writing-a-review.test.js: no review form on the page"}
+  - st:report {"contract":"contract_bce3e9e2ca5d","result":"red","note":"writing-a-review.test.js: POST /reviews 404"}
+  - st:report {"contract":"contract_56bb0bced5f2","result":"red","note":"writing-a-review.test.js: no review-locked note"}
+  - Write C:\Users\mickh\shop2\.claude\worktrees\increment-a3680f01c877-d198ce\packages\reviews\src\review-store\review-store.js
+  - Write C:\Users\mickh\shop2\.claude\worktrees\increment-a3680f01c877-d198ce\packages\reviews\src\showing-reviews\showing-reviews.js
+  - Write C:\Users\mickh\shop2\.claude\worktrees\increment-a3680f01c877-d198ce\packages\reviews\src\showing-reviews\public\reviews.css
+  - Write C:\Users\mickh\shop2\.claude\worktrees\increment-a3680f01c877-d198ce\packages\reviews\src\writing-a-review\writing-a-review.js
+  - Write C:\Users\mickh\shop2\.claude\worktrees\increment-a3680f01c877-d198ce\packages\reviews\src\index.js
+  - PowerShell node --test --test-timeout=20000 "packages/reviews/test/*.test.js" 2>$null | Select-String -Pattern 
+  - PowerShell npm test 2>$null | Select-String -Pattern "^not ok|^# (tests|pass|fail)"
+  - PowerShell git status --short; Select-String -Path README.md -Pattern "stock-and-admin|accounts|orders" | Selec
+  - Edit C:\Users\mickh\shop2\.claude\worktrees\increment-a3680f01c877-d198ce\README.md
+  - PowerShell git add -A; git commit -q -m @' Part 8: Reviews A new reviews package: each product's rating on Pro
+  - st:report {"contract":"contract_e7cfcdaa4ea1","result":"green"}
+  - st:report {"contract":"contract_19d2460ac94c","result":"green"}
+  - st:report {"contract":"contract_ab8c9b032ef8","result":"green"}
+  - st:report {"contract":"contract_3d10b628eab7","result":"green"}
+  - st:report {"contract":"contract_bce3e9e2ca5d","result":"green"}
+  - st:report {"contract":"contract_56bb0bced5f2","result":"green"}
+  - PowerShell gh pr checks 12 --watch --interval 15; gh pr view 12 --json mergeable,mergeStateStatus
+  - PowerShell git fetch -q origin; git log --oneline HEAD..origin/main
+  - PowerShell git merge -q --no-edit origin/main; git status --short; npm install --no-audit --no-fund | Out-Null;
+  - PowerShell git show --stat HEAD^2 | Select-Object -First 30; git grep -n "textContent\|desc" -- "packages/brows
+  - PowerShell git push -q; Start-Sleep 5; gh pr checks 12 --watch --interval 15; gh pr merge 12 --merge; gh pr vie
+  - st:land {"capability":"capability_b97d91ed1347"}
+  - st:land {"capability":"capability_5cdb1bc8cc25"}
+  - st:land {"capability":"capability_493a553d7ac1"}
+  - st:mark_built {"capability":"capability_b97d91ed1347","built":true}
+  - st:mark_built {"capability":"capability_5cdb1bc8cc25","built":true}
+  - st:mark_built {"capability":"capability_493a553d7ac1","built":true}
+  - st:close_increment {"increment":"increment_a3680f01c877","disposition":"landed","pr":"#12"}
+  - ToolSearch
+  - PowerShell git status --short; git log --oneline -1 origin/main
+  - st:record_friction {"title":"A failing shop test hangs node --test","description":"A test that starts its own shop and fails before closing it leaves the serve
+  - st:close_out {"safe":true,"why":"PR #12 merged after CI passed; worktree clean; no servers of mine running; Part 8 closed."}
+RESULT success turns 104 ms 782447 cost 2.0281383999999996 
+Part 8 (reviews) is built and merged to main through PR #12, after the check passed.
+
+**What now works:**
+- **Ratings:** every product on Products and on its own page shows a rating like "4.5 (2 reviews)", or "No reviews yet".
+- **Review list:** each product page lists its reviews under the product, newest first, with the reviewer's name (their full name if they signed up), 1 to 5 stars and the text.
+- **Writing a review:** someone who has ordered the product sees a form with a 1ÔÇô5 stars dropdown, a text box and a submit button. Sending it with no text shows "Error: Please write a review". After reviewing, they see "Thanks for your review!" instead of the form. Anyone who hasn't bought it sees "Only customers who bought this can review it."
+- **Server checks:** the server itself refuses a review from someone who hasn't ordered the product, and a second review of the same product, so hiding the form isn't the only protection.
+- **Saved to disk:** reviews are kept in `data/reviews.json` and are still there after the server restarts.
+
+The code is a new `packages/reviews` package. It adds its parts to the product pages through the hooks the browsing package already offers, so no browsing files changed.
+
+**Working alongside Part 7:** the other session merged search (PR #11) while my PR was waiting. I merged it into my branch, and the full suite passed with both parts together: 100 tests. Search only matches product names and descriptions, so a search for "reviews" won't match every product because of the rating text.
+
+In storytree, Part 8 is closed and its three capabilities are landed and marked built. That was the last open piece of work in the "A proper shop" initiative, so it now reads closed.
+
+- **Test hang:** a failing test that started its own shop server never shut it down, which stopped the test run from finishing. I fixed this in my test and logged it in storytree.
+- **storytree update:** storytree reports its hooks are one version behind. Leaving the storytree app open lets it update itself.

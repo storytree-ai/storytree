@@ -243,3 +243,122 @@ export function windowFiles(window: SessionWindow): SessionFiles {
   for (const open of window.opens) if (open.kind === "file") files.set(open.id, (files.get(open.id) ?? false) || open.resident);
   return { files: [...files].map(([path, resident]) => ({ path, resident })) };
 }
+
+/** How a past session ended, as its History row leads with it (7.21). */
+export type HistoryOutcome = { kind: "landed"; prs: number[] } | { kind: "held"; question: string } | { kind: "closed-out" } | { kind: "no-close-out" };
+
+/** A session the live list no longer lists, as the History tab shows it (7.21). */
+export interface HistoryRow {
+  id: string;
+  label: string;
+  agent: string;
+  startedAt: string;
+  lastSeenAt: string;
+  /** How long it ran: its first line to its last. */
+  ranMs: number;
+  /** The stories it claimed work in, in the order claimed. */
+  stories: { id: string; title: string }[];
+  outcome: HistoryOutcome;
+}
+
+/** A span of time, from its first millisecond up to, not including, its end. */
+export interface HistoryRange {
+  from: number;
+  to: number;
+}
+
+export type HistoryPreset = "today" | "yesterday" | "week";
+
+const localDay = (at: Date, offset: number): number => new Date(at.getFullYear(), at.getMonth(), at.getDate() + offset).getTime();
+
+/** A preset's range in local days (7.21): today, yesterday, or the seven days ending today. */
+export function presetRange(preset: HistoryPreset, now: Date): HistoryRange {
+  const [from, to] = preset === "today" ? [0, 1] : preset === "yesterday" ? [-1, 0] : [-6, 1];
+  return { from: localDay(now, from), to: localDay(now, to) };
+}
+
+/** A custom range of local days, as a date input gives them (YYYY-MM-DD), from the first's start to the last's end; none when either is unreadable or it ends before it starts. */
+export function dayRange(first: string, last: string): HistoryRange | undefined {
+  const day = (said: string): Date | undefined => {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(said);
+    return match === null ? undefined : new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  };
+  const from = day(first);
+  const to = day(last);
+  if (from === undefined || to === undefined || to < from) return undefined;
+  return { from: from.getTime(), to: localDay(to, 1) };
+}
+
+/** Every time there is: History's rows for each past session, before a range narrows them. */
+export const ALL_TIME: HistoryRange = { from: -Infinity, to: Infinity };
+
+/** Whether a session was active in a range: its first line to its last overlaps it (7.21). */
+function active(session: { startedAt: string; lastSeenAt: string }, range: HistoryRange): boolean {
+  return Date.parse(session.startedAt) < range.to && Date.parse(session.lastSeenAt) >= range.from;
+}
+
+/** The history rows active in `range`, in their order. */
+export function withinRange(rows: readonly HistoryRow[], range: HistoryRange): HistoryRow[] {
+  return rows.filter(row => active(row, range));
+}
+
+/** A pull request as an increment's outcome records it ("#13", "13", or its address), as its number. */
+function prNumber(pr: string | undefined): number | undefined {
+  const digits = pr === undefined ? undefined : /(\d+)\s*$/.exec(pr)?.[1];
+  return digits === undefined ? undefined : Number(digits);
+}
+
+/**
+ * The sessions the live list no longer lists (7.1 hides them) whose first line to last overlaps `range`, latest first (7.21).
+ * Read from the same log reading as the live rows: the agent link's fold keeps every session it was fed, and the
+ * claims, closes and merges one by one, so no second reading is needed.
+ */
+export function historyRows(tree: AnnotatedTree, log: readonly Line[] | LogReading, arcs: readonly ArcView[], range: HistoryRange, now: Date,
+  quietMs?: number, leaveMs?: number): HistoryRow[] {
+  const { fold, lines } = logReading(log);
+  const judged = { now, ...(quietMs === undefined ? {} : { quietMs }), ...(leaveMs === undefined ? {} : { leaveMs }) };
+  const subagents = new Set(lines.flatMap(line => line.kind === "subagent-started" ? [line.subagent] : []));
+  const increments = new Map(arcs.flatMap(arc => arc.increments).map(inc => [inc.id, inc]));
+  const questions = new Map(arcs.flatMap(arc => arc.questions).map(question => [question.id, question]));
+  const stories = new Map(tree.stories.map(story => [story.id, story]));
+  const storyOf = new Map(tree.stories.flatMap(story => [[story.id, story.id], ...story.capabilities.map(cap => [cap.id, story.id])] as [string, string][]));
+  const ordered = [...lines].sort((a, b) => a.seq - b.seq);
+  return fold.sessions(judged).filter(session => session.listing === "hidden" && !subagents.has(session.session) && active(session, range)).map((session): HistoryRow => {
+    const own = ordered.filter(line => line.session === session.session);
+    const claimed = own.flatMap(line => line.kind === "claimed" ? [line] : []);
+    const held = claimed.flatMap(line => line.increment === undefined ? [] : [increments.get(line.increment)]).filter(inc => inc !== undefined);
+    const touched = [...new Set(claimed.flatMap(line => line.capability !== undefined ? [line.capability] : increments.get(line.increment ?? "")?.fields.touches ?? [])
+      .flatMap(id => storyOf.has(id) ? [storyOf.get(id)!] : []))];
+    const prs = [...new Set([
+      ...ordered.flatMap(line => line.kind === "merged" && line.holder === session.session ? [line.pr] : []),
+      ...own.flatMap(line => line.kind === "closed" && line.disposition === "landed" ? [prNumber(increments.get(line.increment)?.fields.outcome?.pr)] : []),
+    ].filter((pr): pr is number => pr !== undefined))];
+    const ran = [Date.parse(session.startedAt), Date.parse(session.lastSeenAt)] as const;
+    const asked = held.flatMap(inc => inc.fields.heldOn ?? []).map(id => questions.get(id))
+      .find(question => question !== undefined && Date.parse(question.createdAt) >= ran[0] && Date.parse(question.createdAt) <= ran[1]);
+    // A close-out is read from the fold: the page's reading keeps no close-out lines one by one.
+    const closedOut = session.closeOut !== undefined;
+    const outcome: HistoryOutcome = prs.length > 0 ? { kind: "landed", prs } : asked !== undefined ? { kind: "held", question: asked.fields.title }
+      : closedOut ? { kind: "closed-out" } : { kind: "no-close-out" };
+    // Named as a live row is (7.18, 7.1, 7.14): its own name, its first claim's reason, its increment's title, its app's title, or where it worked.
+    const label = (session.name === undefined ? undefined : fitted(session.name)) || claimed.find(line => line.reason.trim())?.reason.trim()
+      || held[0]?.fields.title || (session.title === undefined ? workingIn(session.label, lines, session.session, session.worktrees) : fitted(session.title));
+    return { id: session.session, label, agent: session.label, startedAt: session.startedAt, lastSeenAt: session.lastSeenAt,
+      ranMs: Math.max(0, ran[1] - ran[0]), stories: touched.map(id => ({ id, title: stories.get(id)!.title })), outcome };
+  }).sort((a, b) => Date.parse(b.lastSeenAt) - Date.parse(a.lastSeenAt));
+}
+
+/**
+ * The roster the knowledge core is handed (7.22, 7.23): the live rows' alone, whichever tab is open and whatever range is
+ * chosen; a selected history session joins it, undrawn, so the core draws it in its own colour.
+ */
+export function globeRoster(live: readonly SessionRow[], history: readonly HistoryRow[], selected: string | undefined): RosterEntry[] {
+  const roster = sessionRoster(live);
+  const past = roster.some(entry => entry.members.includes(selected ?? "")) ? undefined : history.find(row => row.id === selected);
+  return past === undefined ? roster : [...roster, { session: past.id, label: past.label, colour: sessionColour(past.id), members: [past.id], undrawn: true }];
+}
+
+/** The selection a click on a history row leaves (7.23): its session, or none when it was the one selected. */
+export function historySelection(clicked: string, selected: string | undefined): string | undefined {
+  return clicked === selected ? undefined : clicked;
+}

@@ -6,7 +6,8 @@ import { ON_MAIN_LABELS, type Line, type LogReading, type OnMain } from "@storyt
 import { pageKept, pageReading, type LiveReads, type PageReading } from "@storytree/arc-surface";
 import type { AnnotatedTree, ArcView } from "@storytree/library";
 import type { RosterEntry } from "@storytree/knowledge-core";
-import { atWork, clickedSelection, sessionRoster, sessionRows, windowFiles, type SessionDetails, type SessionFiles, type SessionRow } from "../sessions-list/sessions-list.js";
+import { ALL_TIME, atWork, clickedSelection, dayRange, globeRoster, historyRows, historySelection, presetRange, sessionRows, windowFiles, withinRange,
+  type HistoryOutcome, type HistoryPreset, type HistoryRange, type HistoryRow, type SessionDetails, type SessionFiles, type SessionRow } from "../sessions-list/sessions-list.js";
 import { sessionColour, sessionWisps, type SessionWisp } from "../agent-claims/agent-claims.js";
 
 export interface SessionsReads extends LiveReads {
@@ -96,6 +97,23 @@ export function keptPanelOpen(project: string, storage?: Parameters<typeof pageK
   return { read: (): boolean => kept.read() ?? true, write: (open: boolean): void => kept.write(open) };
 }
 
+/** The strip's two tabs (7.21): the sessions at work now, and the ones that have left the list. */
+export type SessionsTab = "live" | "history";
+
+/** Which tab the strip shows, kept per project like its open state; nothing kept, or a foreign value, is Live (7.22). */
+export function keptTab(project: string, storage?: Parameters<typeof pageKept>[2]) {
+  const kept = pageKept<SessionsTab>(`storytree.forest.sessions-tab.v1:${project}`, (value): value is SessionsTab => value === "live" || value === "history", storage);
+  return { read: (): SessionsTab => kept.read() ?? "live", write: (tab: SessionsTab): void => kept.write(tab) };
+}
+
+/** History's range as chosen (7.21): a preset, or a custom from–to of days (YYYY-MM-DD). */
+export type HistoryChoice = { preset: HistoryPreset } | { from: string; to: string };
+
+/** The span a choice covers at `now`; none for an unreadable custom range. */
+function rangeOf(choice: HistoryChoice, now: Date): HistoryRange | undefined {
+  return "preset" in choice ? presetRange(choice.preset, now) : dayRange(choice.from, choice.to);
+}
+
 /** The optional details seam takes already-read facts; it never asks for or parses transcripts. */
 export function mountSessionsList(container: HTMLElement, options: {
   project: string;
@@ -134,6 +152,11 @@ export function mountSessionsList(container: HTMLElement, options: {
   let expanded: ReadonlySet<string> = new Set();
   const openKept = keptPanelOpen(options.project);
   let stripOpen = openKept.read();
+  const tabKept = keptTab(options.project);
+  let tab = tabKept.read();
+  let range: HistoryChoice = { preset: "today" };
+  // Every session that has left the live list; History shows those active in the range chosen (7.21).
+  let past: HistoryRow[] = [];
   let files: ReadonlyMap<string, SessionFiles> = new Map();
   let stopped = false;
   const draw = (error?: string): void => root.render(<SessionsList rows={rows} loading={tree === undefined && rows.length === 0}
@@ -141,6 +164,9 @@ export function mountSessionsList(container: HTMLElement, options: {
     error={error} highlighted={highlighted} selected={selected} onHighlight={options.onHighlight}
     expanded={expanded} files={files} onToggle={toggle} open={stripOpen}
     onToggleOpen={() => { stripOpen = !stripOpen; openKept.write(stripOpen); draw(); }}
+    // Choosing a tab or a range redraws the strip and nothing else: the globe keeps the live rows (7.22).
+    tab={tab} onTab={next => { tab = next; tabKept.write(tab); draw(); }} history={past} range={range} now={now()}
+    onRange={next => { range = next; draw(); }}
     {...(options.onSelect ? { onSelect: options.onSelect } : {})} />);
   /** Supplied details (showDetails) keep their parent; a reading supplies the tokens and groups. */
   const merged = (): ReadonlyMap<string, SessionDetails> => new Map([...new Set([...details.keys(), ...readings.keys()])]
@@ -188,10 +214,11 @@ export function mountSessionsList(container: HTMLElement, options: {
   const refresh = (now: Date, ask = true): void => {
     if (stopped || tree === undefined || arcs === undefined) return;
     rows = sessionRows(tree, log, arcs, now, merged(), quietMs, leaveMs);
+    past = historyRows(tree, log, arcs, ALL_TIME, now, quietMs, leaveMs);
     kept.write(rows);
     askFiles(everyId(rows).filter(session => expanded.has(session) && !files.has(session)));
     options.onWisps?.(sessionWisps(rows, log, now, quietMs));
-    options.onRoster?.(sessionRoster(rows));
+    options.onRoster?.(globeRoster(rows, past, selected));
     draw();
     if (ask) askReadings();
   };
@@ -221,7 +248,13 @@ export function mountSessionsList(container: HTMLElement, options: {
     /** Highlight a session's row from its wisp, or none. */
     hover(session: string | undefined) { highlighted = session; draw(); },
     /** Mark the session the knowledge core has selected, or none. */
-    select(session: string | undefined) { selected = session; draw(); },
+    select(session: string | undefined) {
+      const was = selected;
+      selected = session;
+      // A history session selected, or let go, joins or leaves the core's roster so it is drawn in its own colour (7.23).
+      if (past.some(row => row.id === session || row.id === was)) options.onRoster?.(globeRoster(rows, past, selected));
+      draw();
+    },
     stop() {
       stopped = true;
       stopHearing();
@@ -317,7 +350,8 @@ function IdleFold({ count, open, onToggle }: { count: number; open: boolean; onT
     aria-label={`${open ? "Hide" : "Show"} ${count} idle session${count === 1 ? "" : "s"}`} onClick={onToggle}>{count} idle</button></li>;
 }
 
-export function SessionsList({ rows, loading = false, refreshing = false, error, highlighted, selected, onHighlight, onSelect, files, ...control }: {
+export function SessionsList({ rows, loading = false, refreshing = false, error, highlighted, selected, onHighlight, onSelect, files,
+  history = [], range: chosen, onRange, now = new Date(), ...control }: {
   rows: readonly SessionRow[];
   loading?: boolean;
   /** The rows are the ones last kept, drawn before this start's first read lands. */
@@ -337,6 +371,16 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
   /** Whether the strip shows its rows (7.17), when the caller keeps it; otherwise the list keeps its own, starting expanded. */
   open?: boolean;
   onToggleOpen?(): void;
+  /** The tab shown (7.21), when the caller keeps it; otherwise the list keeps its own, starting on Live. */
+  tab?: SessionsTab;
+  onTab?(tab: SessionsTab): void;
+  /** Every session that has left the live list, latest first (7.21). */
+  history?: readonly HistoryRow[];
+  /** History's range, when the caller keeps it; otherwise the list keeps its own, starting on Today. */
+  range?: HistoryChoice;
+  onRange?(range: HistoryChoice): void;
+  /** The time History's presets count days from. */
+  now?: Date;
 }) {
   const [own, setOwn] = useState<ReadonlySet<string>>(new Set());
   const [ownOpen, setOwnOpen] = useState(true);
@@ -348,6 +392,11 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
   const [hovered, setHovered] = useState<string>();
   const [focused, setFocused] = useState<string>();
   const [idleOpen, setIdleOpen] = useState(false);
+  const [ownTab, setOwnTab] = useState<SessionsTab>("live");
+  const tab = control.tab ?? ownTab;
+  const onTab = control.onTab ?? setOwnTab;
+  const [ownRange, setOwnRange] = useState<HistoryChoice>({ preset: "today" });
+  const range = chosen ?? ownRange;
   const visible: { row: SessionRow; depth: number }[] = [];
   const visit = (list: readonly SessionRow[], depth: number): void => {
     for (const row of list) {
@@ -360,8 +409,8 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
   visit(rows.filter(row => !row.idle), 0);
   const atWorkCount = visible.length;
   if (idleOpen) visit(idle, 0);
-  // Folded, the strip draws no rows, so none is hovered or drawn.
-  if (!stripOpen) visible.length = 0;
+  // Folded, or showing History, the strip draws no live rows, so none is hovered or drawn.
+  if (!stripOpen || tab === "history") visible.length = 0;
   const active = visible.find(({ row }) => row.id === (hovered ?? focused ?? highlighted))?.row;
   const islands = active?.stories.join("\0");
   const session = active?.id;
@@ -379,12 +428,18 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
       <button type="button" className="sessions-handle" aria-expanded={stripOpen} aria-controls="sessions-body"
         aria-label={stripOpen ? "Hide sessions" : "Show sessions"} title={stripOpen ? "Hide sessions" : "Show sessions"}>
         Sessions <span className="sessions-count" title="Sessions at work or waiting for you">{atWork(rows)}</span></button>
-      <span className="session-legend" aria-label="Bar colours">
-        {GROUPS.map(([group, name]) => <span key={group} data-group={group}><span className="session-swatch" aria-hidden="true" />{name}</span>)}
+      <span className="sessions-tabs" role="tablist" aria-label="Sessions shown">
+        {([["live", "Live"], ["history", "History"]] as const).map(([id, name]) => <button key={id} type="button" role="tab" aria-selected={tab === id}
+          aria-controls="sessions-body" onClick={event => { event.stopPropagation(); if (!stripOpen) onToggleOpen(); onTab(id); }}>{name}</button>)}
       </span>
+      {tab === "live" && <span className="session-legend" aria-label="Bar colours">
+        {GROUPS.map(([group, name]) => <span key={group} data-group={group}><span className="session-swatch" aria-hidden="true" />{name}</span>)}
+      </span>}
       <span className="sessions-caret" aria-hidden="true">{stripOpen ? "▾" : "▴"}</span>
     </header>
     <div id="sessions-body" className="sessions-body" hidden={!stripOpen}>
+    {tab === "history" ? <HistoryBody rows={history} range={range} onRange={onRange ?? setOwnRange} now={now} selected={selected}
+      onSelect={session => onSelect?.(historySelection(session, selected))} /> : <>
     {loading && !error && <p role="status">Reading sessions…</p>}
     {refreshing && !error && <p role="status">As last read. Refreshing…</p>}
     {error && <p role="status">{error}</p>}
@@ -419,7 +474,58 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
         {isOpen(row.id) && <SessionDetail row={row} files={files?.get(row.id)} />}
       </li></Fragment>)}
       {stripOpen && atWorkCount === visible.length && <IdleFold count={idle.length} open={idleOpen} onToggle={() => setIdleOpen(!idleOpen)} />}
-    </ul>
+    </ul></>}
     </div>
   </aside>;
+}
+
+/** How a past session ended, in a few words: its pull requests, or the question its work waits on. */
+function outcomeWords(outcome: HistoryOutcome): string {
+  switch (outcome.kind) {
+    case "landed": return `Landed ${outcome.prs.map(pr => `#${pr}`).join(" · ")}`;
+    case "held": return `Held: ${outcome.question}`;
+    case "closed-out": return "Closed out";
+    case "no-close-out": return "Ended without a close-out";
+  }
+}
+
+/** A local day as a date input writes it (YYYY-MM-DD). */
+function dayOf(ms: number): string {
+  const at = new Date(ms);
+  return `${at.getFullYear()}-${String(at.getMonth() + 1).padStart(2, "0")}-${String(at.getDate()).padStart(2, "0")}`;
+}
+
+const PRESETS = [["today", "Today"], ["yesterday", "Yesterday"], ["week", "7 days"]] as const;
+
+/**
+ * History (7.21): a range bar of presets and a custom from–to of days, then each past session active in the range,
+ * led by how it ended. A row lights nothing on hover or focus (7.22); clicking one selects its session as a live row does (7.23).
+ */
+function HistoryBody({ rows, range, onRange, now, selected, onSelect }: { rows: readonly HistoryRow[]; range: HistoryChoice; onRange(range: HistoryChoice): void;
+  now: Date; selected: string | undefined; onSelect(session: string): void }) {
+  const span = rangeOf(range, now);
+  const shown = span === undefined ? [] : withinRange(rows, span);
+  const [from, to] = "preset" in range ? [dayOf(span!.from), dayOf(span!.to - 1)] : [range.from, range.to];
+  return <>
+    <div className="history-range" role="group" aria-label="Sessions active in">
+      {PRESETS.map(([preset, name]) => <button key={preset} type="button" aria-pressed={"preset" in range && range.preset === preset}
+        onClick={() => onRange({ preset })}>{name}</button>)}
+      <label>From <input type="date" value={from} max={to} onChange={event => onRange({ from: event.currentTarget.value, to })} /></label>
+      <label>to <input type="date" value={to} min={from} onChange={event => onRange({ from, to: event.currentTarget.value })} /></label>
+    </div>
+    {shown.length === 0 ? <p>No sessions ended in this range</p> : <ul>
+      {shown.map(row => <li key={row.id}>
+        <div className="history-row" data-session-id={row.id} data-selected={row.id === selected || undefined} tabIndex={0}
+          aria-label={`${outcomeWords(row.outcome)} · ${row.label} · ${row.agent}`}
+          onClick={() => onSelect(row.id)}
+          onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onSelect(row.id); } }}>
+          <span className="history-outcome" data-outcome={row.outcome.kind} title={outcomeWords(row.outcome)}>{outcomeWords(row.outcome)}</span>
+          <span className="session-colour" style={{ background: sessionColour(row.id) }} aria-hidden="true" />
+          <span className="session-label" title={`${row.label}\n${row.agent} · ${row.id}\n${new Date(row.startedAt).toLocaleString()} – ${new Date(row.lastSeenAt).toLocaleString()}`}>{row.label}</span>
+          <span className="history-agent">{row.agent}</span><span className="history-ran">{ranFor(row.ranMs)}</span>
+          <span className="history-stories">{row.stories.map(story => story.title).join(", ")}</span>
+        </div>
+      </li>)}
+    </ul>}
+  </>;
 }

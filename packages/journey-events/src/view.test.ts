@@ -29,6 +29,7 @@ test("3.1 first launch has no preselected consent, disables unavailable sharing 
   await setImmediate();
   assert.equal(s.element.querySelector<HTMLButtonElement>('[data-journey-on]')!.disabled, true);
   assert.equal(s.element.querySelector('[checked]'), null);
+  assert.match(s.element.querySelector<HTMLElement>('.journey-panel')!.textContent ?? "", /PostHog in the US/);
   assert.equal(s.element.querySelector<HTMLElement>('[data-journey-status]')!.textContent?.includes("unavailable"), true);
   assert.deepEqual(s.choices, []);
   s.element.querySelector<HTMLButtonElement>('[data-journey-off]')!.click();

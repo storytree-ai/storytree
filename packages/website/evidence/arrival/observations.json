@@ -2,13 +2,15 @@
   "contract": "2.11, 2.12",
   "source": "Locally built unpublished working tree, SwiftShader",
   "observed": [
-    "1440: 33.8 fps over 2.5 s of the time-lapse",
-    "390: 58.5 fps over 2.5 s of the time-lapse",
-    "2.11 arrival on storytree's own globe and 2.12 the cut to the shop's three islands, live globe at 1440 and 390: pass",
+    "1440: 33.5 fps over 2.5 s of the time-lapse",
+    "390: 58.4 fps over 2.5 s of the time-lapse",
+    "2.11 arrival on storytree's own globe and 2.12 the map chapter's empty globe, live globe at 1440 and 390: pass",
     "2.11 reduced motion, no WebGL and a loading globe keep the arrival dark under the pain: pass",
     "Act 1's exit lands on the pain: pass",
     "The map chapter's five steps and its growth on the shop: pictured",
     "The agents chapter's steps on the shop's recorded moments: pictured",
+    "Every chapter step in the tour's one format: pictured in one-format/after",
+    "The map chapter grows the shop from its empty globe, M0 to M3: pictured, with a clip at 1440",
     "A close-to-close move stays in and turns the globe: recorded"
   ]
 }

@@ -1,5 +1,5 @@
 // The globe's story nameplates on the shop at phone and desktop widths (forest 3.30): the cut to the shop's three
-// teaching islands (Act 2's start-small step) and free play on the whole shop. Saves a picture of each and every
+// teaching islands (the stand-down step since the cut was retired: the whole shop, its four teaching stories lit) and free play on the whole shop. Saves a picture of each and every
 // plate's box where it hangs and where it settled, so how far each name sits from its island is measured, not eyeballed.
 // pnpm --filter @storytree/website build && node packages/website/evidence/nameplates-phone/capture.mjs <before|after>
 import assert from "node:assert/strict";
@@ -44,7 +44,7 @@ for (const [tag, viewport] of [["1440", { width: 1440, height: 900 }], ["390", {
   await page.addInitScript(() => localStorage.setItem("storytree-opening-seen", "yes"));
   await page.goto(url);
   await page.waitForFunction(() => document.querySelector("#website-forest")?.dataset.forestState === "live", null, { timeout: 90_000 });
-  await page.locator('#tour-pips [data-step="start-small"]').click();
+  await page.locator('#tour-pips [data-step="agents-standdown"]').click();
   if (await page.locator("#tour-play").getAttribute("aria-label") === "Play the tour") await page.locator("#tour-play").click();
   await page.waitForFunction(() => document.querySelector(".forest-drawing")?.dataset.globe === "shop" && document.querySelector(".forest-drawing")?.dataset.arrived === "true", null, { timeout: 30_000 });
   await page.waitForTimeout(6000);

@@ -89,15 +89,13 @@ const runs = {
       assert.equal(await page.locator("#tour-why .tour-decisions").count(), 0, "with no decision list");
       await shot(page, `${tag}-5-principles-depth`);
       await page.locator("#tour-depth").click();
-      // 2.12: the cut to the shop, whole, narrowed to products, cart and checkout.
-      await go(page, "start-small"); await play(page);
-      await page.waitForFunction(() => document.querySelector(".forest-drawing")?.dataset.globe === "shop" && document.querySelector(".forest-drawing")?.dataset.arrived === "true", null, { timeout: 30_000 });
-      assert.deepEqual(await drawing(page), { globe: "shop", growth: "whole" }, "the shop is shown whole");
-      assert.equal(await page.locator(".forest-drawing").getAttribute("data-focus"), "story_9d312bf7fc51 story_c3e9a28aef14 story_a2276e03429a", "narrowed to products, cart and checkout");
-      await page.waitForTimeout(6000); await shot(page, `${tag}-6-start-small`);
+      // 2.12: the map chapter opens on the shop's empty globe, swelling from a point where storytree's was.
+      await go(page, "map-empty"); await play(page); await page.waitForTimeout(300);
+      assert.equal((await drawing(page)).globe, "shop", "the shop's point replaces storytree's globe at once");
+      await page.waitForTimeout(4500); await shot(page, `${tag}-6-map-empty`);
       await page.close();
     }
-    observed.push("2.11 arrival on storytree's own globe and 2.12 the cut to the shop's three islands, live globe at 1440 and 390: pass");
+    observed.push("2.11 arrival on storytree's own globe and 2.12 the map chapter's empty globe, live globe at 1440 and 390: pass");
   },
   // The look of each fixes treatment as it plays: three frames of one row turning.
   async turning() {
@@ -159,7 +157,7 @@ const runs = {
     const out = name => path.join(here, `../map-chapter/${name}.png`);
     for (const [width, height] of [[1440, 900], [390, 844]]) {
       const page = await open({ width, height });
-      for (const id of ["map-stories", "map-parts", "map-code", "map-health"]) {
+      for (const id of ["map-parts", "map-code", "map-health"]) {
         await go(page, id); await pause(page);
         await page.waitForFunction(() => document.querySelector(".forest-drawing")?.dataset.arrived === "true", null, { timeout: 30_000 }).catch(() => {});
         await page.waitForTimeout(1500);
@@ -167,12 +165,17 @@ const runs = {
         await play(page);
       }
       await go(page, "map-grow");
-      for (const [index, wait] of [[0, 900], [1, 5000], [2, 9000]]) {
+      for (const [index, wait] of [[0, 900], [1, 5000]]) {
         await page.waitForTimeout(wait);
-        if (width > 600 || index === 2) await page.screenshot({ path: out(`${width}-map-grow-${index}`) });
+        if (width > 600) await page.screenshot({ path: out(`${width}-map-grow-${index}`) });
       }
+      // The step ends soon after its growth does: catch the eight stories while it still shows them.
+      await page.waitForFunction(() => document.querySelector(".forest-drawing")?.dataset.risen === "8" || document.querySelector("#chapter2").dataset.tourStep !== "map-grow", null, { timeout: 30_000 });
+      await pause(page);
+      assert.equal(await stepOf(page), "map-grow");
       assert.equal(Number(await page.locator(".forest-drawing").getAttribute("data-risen")), 8, "the growth step ends on the shop's eight stories");
-      await pause(page); await page.locator("#tour-depth").click(); await page.waitForTimeout(600);
+      await page.waitForTimeout(1500); await page.screenshot({ path: out(`${width}-map-grow-2`) });
+      await page.locator("#tour-depth").click(); await page.waitForTimeout(600);
       await page.screenshot({ path: out(`${width}-map-grow-depth`) });
       await page.close();
     }
@@ -220,6 +223,33 @@ const runs = {
     }
     observed.push(`Every chapter step in the tour's one format: pictured in ${to}`);
   },
+  // M0 to M3 (2.12, 2.16, ADR-0891 amended 2026-10-05): the hand-off from the fixes to the shop's empty globe, its four stories
+  // planned and lit as they are named, signing in built first, then the other three together; a clip at 1440 and frames of
+  // each beat at every width.
+  async mapGrows() {
+    const out = name => path.join(here, `../map-grows/${name}`);
+    await mkdir(path.join(here, "../map-grows"), { recursive: true });
+    const until = (page, id) => page.waitForFunction(id => document.querySelector("#chapter2").dataset.tourStep === id, id, { timeout: 60_000 });
+    for (const [width, height] of [[1440, 900], [1920, 1080], [1280, 800], [390, 844], [320, 700]]) {
+      const clip = width === 1440;
+      const page = await open({ width, height }, { video: clip });
+      await go(page, "fixes"); await play(page);
+      await until(page, "map-empty"); await page.waitForTimeout(600); await page.screenshot({ path: out(`${width}-m0-swelling.png`) });
+      await page.waitForTimeout(4000); await page.screenshot({ path: out(`${width}-m0-empty.png`) });
+      await until(page, "map-planned"); await page.waitForTimeout(3000); await page.screenshot({ path: out(`${width}-m1-planned.png`) });
+      await page.waitForTimeout(4500); await page.screenshot({ path: out(`${width}-m1-named.png`) });
+      await until(page, "map-first"); await page.waitForTimeout(4000); await page.screenshot({ path: out(`${width}-m2-first.png`) });
+      await until(page, "map-together"); await page.waitForTimeout(5000); await page.screenshot({ path: out(`${width}-m3-together.png`) });
+      await until(page, "map-parts"); await page.waitForTimeout(3500); await page.screenshot({ path: out(`${width}-m4-parts.png`) });
+      if (clip) {
+        const video = page.video(); await page.close();
+        const file = await video.path();
+        await rm(out("1440-m0-to-m3.webm"), { force: true });
+        await rename(file, out("1440-m0-to-m3.webm"));
+      } else await page.close();
+    }
+    observed.push("The map chapter grows the shop from its empty globe, M0 to M3: pictured, with a clip at 1440");
+  },
   // A clip of a close-to-close move (2.15): the camera stays in and turns the globe, never out and in again.
   async closeFlight() {
     const page = await open({ width: 1440, height: 900 }, { video: true });
@@ -239,8 +269,8 @@ const runs = {
   async clip() {
     const page = await open({ width: 1440, height: 900 }, { video: true });
     await page.waitForTimeout(500);
-    await page.waitForFunction(() => document.querySelector("#chapter2").dataset.tourStep === "start-small", null, { timeout: 120_000 });
-    await page.waitForTimeout(9000);
+    await page.waitForFunction(() => document.querySelector("#chapter2").dataset.tourStep === "map-empty", null, { timeout: 120_000 });
+    await page.waitForTimeout(6000);
     const video = page.video(); await page.close();
     const file = await video.path();
     await rm(path.join(here, "arrival.webm"), { force: true });

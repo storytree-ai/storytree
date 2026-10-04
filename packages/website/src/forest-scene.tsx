@@ -357,9 +357,12 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
     let arrive = 0;
     const land = () => { setArrived(true); if (latest.current?.running) drift(next()); };
     const switching = map !== shownMapNow.current;
-    if (switching && (still || first)) setShownMap(map);
+    // A globe that grows from a point needs no pull back and dive: the old one gives way to the new one's point, which swells
+    // where the visitor is already looking (2.12; owner, 2026-10-05: "is this really needed?").
+    const swells = typeof step.growth === "object" && step.growth.stage === undefined;
+    if (switching && (still || first || swells)) setShownMap(map);
     if (still) after(camera.current.flight, switching ? 60 : 0, () => go({ target, framing, duration: 0 }));
-    else if (switching && !first) {
+    else if (switching && !first && !swells) {
       // One project's globe for the other (ADR-0879 D7): pull back until the globe is small, swap it there, and dive into the new one.
       const wide = Math.max(from.framing, framing, 1) * 2.4;
       go({ target: from.target ?? overviews[shownMapNow.current], framing: wide, duration: 900 / speed });

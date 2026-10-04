@@ -1,0 +1,3 @@
+Let's carry on with the shop. Next, part 4 in shop-requirements.md: checkout.
+
+Two other sessions are building parts 2 and 3 at the same time as you, so work in a storytree workspace of your own, and leave whatever another session is already doing to that session.

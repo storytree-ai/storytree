@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import saved from "./forest-snapshot.json" with { type: "json" };
 import type { TourSnapshot } from "./forest-data.js";
-import { savedReading } from "./tour-reading.js";
+import { growthReading, savedReading } from "./tour-reading.js";
 import shop from "./shop-snapshot.json" with { type: "json" };
 import type { Line } from "@storytree/agent-link";
 import { createTour, globeOf } from "./tour.js";
@@ -33,8 +33,28 @@ test("2.6 replay delivers saved activity through the app reading in order, with 
   } finally { stop(); recording.reading.stop(); }
 });
 
+test("2.14 · free play on the shop reads its story panels, its arcs and its recorded sessions from the shop's saved growth", async () => {
+  const reading = growthReading(shop as never);
+  assert.ok(reading, "the shop's growth carries its reading");
+  assert.equal(growthReading({ ...shop, reading: undefined } as never), undefined, "a growth saved without one has none");
+  const recording = savedReading(reading);
+  try {
+    // A picked island's story panel: the shop's stories, each capability with the health CI verified.
+    const tree = await recording.reads.projectTree(reading.project);
+    const stories = tree.stories.map(story => story.title);
+    for (const title of ["Browsing", "The cart", "Checkout"]) assert.ok(stories.includes(title), `${title} has a story panel`);
+    assert.ok(tree.stories.every(story => story.capabilities.every(capability => capability.health?.verified)), "each capability carries its verified health");
+    // The arcs drawer: the shop's own two arcs, both closed.
+    assert.deepEqual((await recording.reads.arcViews(reading.project)).map(view => [view.arc.fields.title, view.state]), [["Swag Labs copy", "closed"], ["A proper shop", "closed"]]);
+    // The sessions list: every recorded line, at rest at the growth's end.
+    const { lines } = await recording.reads.linesSince(reading.project, 0);
+    assert.equal(lines.length, reading.recording.lines.length);
+    assert.ok(lines.some(line => line.kind === "session-started"), "its sessions are recorded");
+  } finally { recording.reading.stop(); }
+});
+
 test("2.17 · the agents chapter pins the shop's records to recorded moments: three sessions building at once, then the session that stood down", async () => {
-  const shopReading = { ...shop, ...shop.reading, changes: shop.changes ?? [] } as unknown as TourSnapshot;
+  const shopReading = growthReading(shop as never)!;
   const chapter = steps.filter(step => step.explainer === "agents");
   assert.ok(chapter.length >= 5 && chapter.every(step => step.map === "shop" && step.recorded), "every agents step is the shop at a recorded moment");
   const tour = createTour(steps);

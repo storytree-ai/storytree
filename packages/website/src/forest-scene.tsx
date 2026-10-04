@@ -14,7 +14,7 @@ import { crossingLength, growthMoment, growthPlan, type GrowthPlan } from "@stor
 import { buildPlanetPathways } from "@storytree/forest-world/geometry";
 import type { GrowthSnapshot, TourSnapshot } from "./forest-data.js";
 import { flight, globeOf, placeTags, replayMoment, type Box, type GlobeOn, type Hold, type Tag, type TagSide, type TourDetail, type TourStep } from "./tour.js";
-import { savedReading } from "./tour-reading.js";
+import { growthReading, savedReading } from "./tour-reading.js";
 
 const snapshot = saved as unknown as TourSnapshot;
 const places = new Map(snapshot.places.map(place => [place.id, place.place]));
@@ -33,8 +33,7 @@ function recordedGrowth(snapshot: GrowthSnapshot) {
 const shop = shopSaved as unknown as GrowthSnapshot;
 const own = ownSaved as unknown as GrowthSnapshot;
 const growths = { own: recordedGrowth(own), shop: recordedGrowth(shop) };
-/** The shop's saved reading, for free play's story panels, arcs and sessions on the shop (2.14); a growth saved without one has none. */
-const shopSnapshot = shop.reading && { ...shop, ...shop.reading, changes: shop.changes ?? [] } as unknown as TourSnapshot;
+const shopSnapshot = growthReading(shop);
 type Grown = keyof typeof growths;
 type GlobeMap = "storytree" | Grown;
 const grows = (map: GlobeMap): map is Grown => map === "own" || map === "shop";

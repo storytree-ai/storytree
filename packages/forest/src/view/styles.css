@@ -687,6 +687,23 @@
 .session-detail-files li[data-resident="no"] { opacity:.5; }
 .sessions-list .session-detail-note { margin:2px 0; font-size:11px; }
 .session-row[data-idle] { opacity:.6; }
+.sessions-tabs { display:inline-flex; gap:2px; }
+.sessions-list .sessions-tabs button { font-size:11px; letter-spacing:.04em; color:#abb4b1; padding:3px 8px; border-radius:3px; }
+.sessions-list .sessions-tabs button[aria-selected="true"] { color:#eceae3; background:#ffffff17; }
+.history-range { display:flex; flex-wrap:wrap; align-items:center; gap:4px 6px; padding:4px 4px 6px; font-size:11px; color:#abb4b1; }
+.sessions-list .history-range button { font-size:11px; padding:2px 8px; border:1px solid #4a5654; }
+.sessions-list .history-range button[aria-pressed="true"] { color:#eceae3; background:#ffffff17; border-color:#8d9794; }
+.history-range label { display:inline-flex; align-items:center; gap:4px; margin-left:6px; }
+.history-range input { font:inherit; color:#d9dedb; background:#12181b99; border:1px solid #4a5654; border-radius:3px; padding:1px 4px; color-scheme:dark; }
+.history-row { display:flex; align-items:center; gap:8px; min-height:29px; border-radius:4px; padding:0 4px; cursor:pointer; }
+.history-row:hover,.history-row:focus-visible { background:#ffffff0b; outline:none; }
+.history-row[data-selected] { background:#ffffff17; }
+.history-row[data-selected] .session-colour { box-shadow:0 0 0 2px #ffffffcc; }
+.history-outcome { flex:0 0 13rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11px; border:1px solid #4a5654; border-radius:3px; padding:0 5px; color:#b3bdb9; }
+.history-outcome[data-outcome="landed"] { color:#9fd6a8; border-color:#4f7d57; background:#9fd6a81a; }
+.history-outcome[data-outcome="held"] { color:#f2c46b; border-color:#9a7a34; background:#f2c46b1a; }
+.history-agent,.history-ran { font-size:11px; color:#b3bdb9; white-space:nowrap; }
+.history-stories { flex:0 1 16rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11px; color:#b3bdb9; text-align:right; }
 .session-idle-fold { font:inherit; font-size:11px; color:#b3bdb9; background:none; border:0; padding:2px 0 2px 16px; cursor:pointer; }
 .session-idle-fold::before { content:"▸ "; }
 .session-idle-fold[aria-expanded="true"]::before { content:"▾ "; }

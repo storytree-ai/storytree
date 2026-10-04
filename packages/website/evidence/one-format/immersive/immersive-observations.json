@@ -1,0 +1,13 @@
+{
+  "story": "The website",
+  "commit": "5571912d1327de34250a826dd1f2121d0624074a",
+  "evidence": "packages/website/evidence/one-format/immersive",
+  "note": "Locally built website served from packages/website/dist",
+  "checks": [
+    {
+      "contract": "2.19",
+      "name": "Every chapter step is told in the arrival's format, at 1920, 1440, 1280, 390 and 320",
+      "observed": "pass"
+    }
+  ]
+}

@@ -11,7 +11,7 @@ export async function deleteJourneyEvents(options: {
   if (!/^[1-9][0-9]*$/.test(options.projectId) || !/^phx_[A-Za-z0-9_-]+$/.test(options.personalKey)
     || !/^[A-Za-z0-9_-]{1,128}$/.test(options.distinctId)) throw unavailable();
   const fetch = options.fetch ?? globalThis.fetch;
-  const base = `https://eu.posthog.com/api/projects/${options.projectId}/persons/`;
+  const base = `https://us.posthog.com/api/projects/${options.projectId}/persons/`;
   const headers = { Authorization: `Bearer ${options.personalKey}`, "Content-Type": "application/json" };
   try {
     const lookup = await fetch(`${base}?distinct_id=${encodeURIComponent(options.distinctId)}`, {

@@ -18,7 +18,7 @@ function mount(host: HTMLElement, bridge: JourneyBridge, firstLaunch: boolean) {
   panel.setAttribute("aria-label", firstLaunch ? "Choose journey sharing" : "Journey sharing");
   panel.hidden = true;
   panel.innerHTML = `<h2>${firstLaunch ? "Help improve storytree?" : "Journey sharing"}</h2>
-    <p>Share a few milestones with PostHog in the EU: installation, first launch, agent connected, hooks verified, first project, first landed increment, errors and app version.</p>
+    <p>Share a few milestones with PostHog in the US: installation, first launch, agent connected, hooks verified, first project, first landed increment, errors and app version.</p>
     <p>No code, conversations, prompts or file contents. Events use a random installation identifier.</p>
     <p data-journey-retention></p>
     <p class="journey-status" data-journey-status role="status" aria-live="polite">Reading sharing settings…</p>

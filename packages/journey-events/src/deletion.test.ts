@@ -9,7 +9,7 @@ function person(distinctIds = [credentials.distinctId]) {
   return { id: personId, uuid: personId, distinct_ids: distinctIds };
 }
 
-test("4.2 administrator requests only the matching EU person's events and reports queued, never erased", async () => {
+test("4.2 administrator requests only the matching US person's events and reports queued, never erased", async () => {
   const calls: Array<{ url: string; init?: RequestInit }> = [];
   const result = await deleteJourneyEvents({
     ...credentials,
@@ -21,8 +21,8 @@ test("4.2 administrator requests only the matching EU person's events and report
   });
   assert.deepEqual(result, { status: "requested" });
   assert.equal(calls.length, 2);
-  assert.equal(calls[0]!.url, `https://eu.posthog.com/api/projects/1234/persons/?distinct_id=${credentials.distinctId}`);
-  assert.equal(calls[1]!.url, "https://eu.posthog.com/api/projects/1234/persons/bulk_delete/");
+  assert.equal(calls[0]!.url, `https://us.posthog.com/api/projects/1234/persons/?distinct_id=${credentials.distinctId}`);
+  assert.equal(calls[1]!.url, "https://us.posthog.com/api/projects/1234/persons/bulk_delete/");
   assert.deepEqual(JSON.parse(calls[1]!.init!.body as string), { ids: [personId], delete_events: true });
   for (const call of calls) {
     assert.equal(new Headers(call.init!.headers).get("Authorization"), "Bearer phx_test_secret");
@@ -45,7 +45,7 @@ test("4.2 missing authorization makes no request and absent person does not clai
 test("4.2 administrator refuses ambiguous or malformed matches before deletion", async () => {
   for (const body of [
     { next: null, results: [person(), person()] },
-    { next: "https://eu.posthog.com/more", results: [person()] },
+    { next: "https://us.posthog.com/more", results: [person()] },
     { next: null, results: [person(["somebody_else"])] },
     { next: null, results: [{ distinct_ids: [credentials.distinctId], uuid: "invalid" }] },
     { next: null, unexpected: [] },

@@ -80,7 +80,7 @@ export function createJourneyRuntime(options: {
 
 export function formatJourneyState(state: JourneyState): string {
   const choice = state.consent === "on" ? "on" : state.consent === "off" ? "off" : "not chosen (off)";
-  return `Journey sharing: ${choice}. ${state.available ? `PostHog EU; retention: ${state.retention}. ${state.queued} queued events.` : "Sharing is not available in this build; nothing is sent."}`;
+  return `Journey sharing: ${choice}. ${state.available ? `PostHog US; retention: ${state.retention}. ${state.queued} queued events.` : "Sharing is not available in this build; nothing is sent."}`;
 }
 export function formatDeletionRequest(request: DeletionRequest): string {
   return `Sharing is off and this computer's queued events are cleared.\nInstallation ID: ${request.installId}\n${request.contact ? `Ask ${request.contact} to delete events for this ID.` : "No deletion contact is configured in this build."} Remote deletion has not been requested or confirmed.`;

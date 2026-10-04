@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { connect, type Library } from "@storytree/library";
-import { gitIn, readProjectCi, VERIFIED_BY_PROJECT_CI, type GitHub } from "./read-ci.js";
+import { gitIn, readProjectCi, VERIFIED_BY_PROJECT_CI, type GitHub } from "../index.js";
 
 /** A project in the test Postgres `pnpm test` starts, dropped afterwards: one story, its agent reporting every contract passing. */
 async function shopLibrary(t: { after(fn: () => Promise<void>): void }): Promise<{ library: Library; capability: string; contracts: string[] }> {

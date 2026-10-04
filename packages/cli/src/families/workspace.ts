@@ -71,7 +71,7 @@ function refusal(id: string, answer: Exclude<WorkspaceAnswer, { ok: true }>): st
     case "yours":
       return `You already hold ${id}${answer.claim.branch === undefined ? "" : ` on branch ${answer.claim.branch}`}. Work there, or release it first.`;
     case "waiting":
-      return `${id} is waiting: ${answer.waits.map((wait) => `${wait.increment} waits on ${wait.onOwner ? "the owner's question " : ""}${wait.on} (${wait.reason})${wait.forGood ? ", which will never release" : ""}`).join("; ")}. Pick other work.${answer.wayThrough === undefined ? "" : ` If your work builds it, list it in your increment's touches (storytree arc increment edit ${answer.wayThrough[0]} --touches …, adding ${id} to what it lists) and claim again.`}`;
+      return `${id} is waiting: ${answer.waits.map((wait) => `${wait.increment} waits on ${wait.onOwner ? "the owner's question " : ""}${wait.on} (${wait.reason})${wait.forGood ? ", which will never release" : ""}`).join("; ")}. Pick other work.`;
     case "closed":
       return `${id} is closed: there is nothing left to claim. Pick other work.`;
     case "unknown-capability":

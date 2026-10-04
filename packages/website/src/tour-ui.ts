@@ -1,5 +1,5 @@
 import { createTour, globeOf, groups, type FreePlayProject, type Hold, type TourState, type TourStep } from "./tour.js";
-import { groupTitles, steps } from "./tour-copy.js";
+import { groupTitles, researchDate, steps } from "./tour-copy.js";
 import { fill } from "./tour-counts.js";
 
 const element = <K extends keyof HTMLElementTagNameMap>(tag: K, text = "", className = "") => {
@@ -80,8 +80,24 @@ export function wireTour() {
       return item;
     }));
   };
+  /** A comparison: each tool's line with a link to its own documentation. */
+  const comparison = (lines: string[], sources: TourStep["sources"]) => {
+    const list = element("ul", "", "tour-compare");
+    list.append(...lines.map((line, index) => {
+      const item = element("li");
+      item.append(element("span", text(line), "said"));
+      const source = sources?.[index];
+      if (source) {
+        const link = element("a", `${source.name} ↗`, "source");
+        link.href = source.url; link.rel = "noopener"; link.target = "_blank";
+        item.append(" ", link);
+      }
+      return item;
+    }));
+    return list;
+  };
   const drawDepth = (step: TourStep) => {
-    const title = element("h3", step.kind === "compare" ? "Where these come from" : "Why it exists");
+    const title = element("h3", step.kind === "compare" ? "Where these come from" : step.how ? "How it works" : "Why it exists");
     const back = element("button", "Back to the tour", "tour-back");
     back.type = "button";
     back.addEventListener("click", () => render(tour.release("reading")));
@@ -92,7 +108,11 @@ export function wireTour() {
       item.append(element("span", `ADR-${String(decision.number).padStart(4, "0")}`, "number"), ` ${decision.title}`);
       return item;
     }));
-    depth.replaceChildren(title, element("p", text(step.why ?? "")),
+    // A chapter's depth is How and Why as curated explainers, never decision numbers (ADR-0891); older steps keep their decisions.
+    const why = step.how ? [element("p", text(step.how)), element("h3", "Why it exists"), element("p", text(step.why ?? ""))] : [element("p", text(step.why ?? ""))];
+    const compared = step.compare ? [element("h3", "Compared with other tools"), comparison(step.compare.lines, step.compare.sources),
+      element("p", `Checked against each tool's own documentation on ${researchDate}. Follow a link to read it there.`, "tour-decisions-intro")] : [];
+    depth.replaceChildren(title, ...why, ...compared,
       ...(step.decisions.length ? [element("p", "The decisions behind it, from storytree's own decision log:", "tour-decisions-intro"), list] : []), back);
   };
 
@@ -121,7 +141,7 @@ export function wireTour() {
       recorded.textContent = dated ? text(dated.text) : "";
       recorded.hidden = !dated;
       depthToggle.hidden = state.freePlay || !step.why;
-      depthToggle.textContent = step.kind === "compare" ? "Sources and decisions" : step.decisions.length ? `Why it exists · ${step.decisions.length} ${step.decisions.length === 1 ? "decision" : "decisions"}` : "Why it exists";
+      depthToggle.textContent = step.kind === "compare" ? "Sources and decisions" : step.how ? step.compare ? "How, why and other tools" : "How and why" : step.decisions.length ? `Why it exists · ${step.decisions.length} ${step.decisions.length === 1 ? "decision" : "decisions"}` : "Why it exists";
       card.classList.remove("is-in"); void card.offsetWidth; card.classList.add("is-in");
       label.textContent = !state.freePlay ? `${at.title} · ${at.at} of ${at.of}` : state.project === "shop"
         ? text("Free play · an online shop agents built with storytree, recorded {shopDay} · read only") : text("Free play · storytree’s own project, saved {saved} · read only");

@@ -1,8 +1,8 @@
 import type { GlobeSurfaces, GlobeTarget } from "@storytree/forest/view";
 
-export type Explainer = "stories" | "capabilities" | "knowledge" | "sessions" | "arcs";
-/** "scale" is the return to storytree's own globe for what Conduit cannot show (ADR-0879 D7). */
-export type Group = "opening" | Explainer | "scale" | "ending";
+/** "map" is Act 2's first chapter, taught on the shop (ADR-0891). */
+export type Explainer = "map" | "knowledge" | "sessions" | "arcs";
+export type Group = "opening" | Explainer | "ending";
 /** Why the tour is waiting: the visitor's pause, a step's depth being read, every surface shown, or the globe being explored. */
 export type Hold = "paused" | "reading" | "everything" | "exploring";
 export type Decision = { number: number; title: string };
@@ -17,15 +17,18 @@ export type TourStep = {
   kind?: "beats" | "lines" | "compare" | "statement" | "fixes";
   lines: string[];
   notes?: string[]; sources?: (Source | undefined)[];
-  why?: string; decisions: Decision[]; chips?: Chip[];
+  /** A step's depth: how it works and why it exists, as curated explainers (ADR-0891); a comparison offered there. */
+  how?: string; why?: string; decisions: Decision[]; chips?: Chip[];
+  compare?: { lines: string[]; sources: (Source | undefined)[] };
   surfaces: Partial<GlobeSurfaces>;
   /** From the given line (1-based) on, these surfaces replace the step's own. */
   lineSurfaces?: Record<number, Partial<GlobeSurfaces>>;
   /** The globe a step shows: storytree's saved reading (the default), Conduit's at one of its saved growth stages
    * (ADR-0879 D7), storytree's own recorded growth (ADR-0889 2.2b) or the shop's (ADR-0890). */
   map?: "conduit" | "own" | "shop"; stage?: string;
-  /** A recorded growth: held at its point ("seed"), or replayed over `seconds` as the step plays; absent, it is whole. */
-  growth?: "seed" | { seconds: number };
+  /** A recorded growth: held at its point ("seed"), or replayed over `seconds` as the step plays, whole or only its
+   * named `stage` (from the globe as it stood before that stage, to where the next begins); absent, it is whole. */
+  growth?: "seed" | { seconds: number; stage?: string };
   /** The stories a growth's globe is narrowed to: the rest are dimmed (ADR-0890's three teaching stories). */
   focus?: readonly string[];
   /** From the given line (1-based) on, Conduit's globe shows this later stage: it grows as the step is read. */
@@ -120,6 +123,16 @@ export function createTour(steps: readonly TourStep[], { ready = () => true }: {
     choose(project: FreePlayProject) { return state.project === project ? state : update({ project }); },
   };
   return tour;
+}
+
+/**
+ * Where in a recorded growth's plan (its seconds) a step that replays it stands, `told` seconds into the step's replay:
+ * across the whole growth, or across only its named stage, from where that stage begins to where the next does (2.16).
+ */
+export function replayMoment(plan: { seconds: number; stages: readonly { id: string; start: number }[] }, growth: { seconds: number; stage?: string }, told: number): number {
+  const at = growth.stage === undefined ? -1 : plan.stages.findIndex(stage => stage.id === growth.stage);
+  const from = at < 0 ? 0 : plan.stages[at]!.start, to = at < 0 ? plan.seconds : plan.stages[at + 1]?.start ?? plan.seconds;
+  return from + Math.min(1, Math.max(0, told / growth.seconds)) * (to - from);
 }
 
 /** A step's camera view: what it faces, and how close (the short half-side in globe radii). */

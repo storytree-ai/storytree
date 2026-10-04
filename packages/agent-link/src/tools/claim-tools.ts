@@ -167,8 +167,7 @@ async function refusalText(library: Library, id: string, answer: Exclude<ClaimAn
       const waits = answer.waits.map((wait) =>
         wait.onOwner === true ? `${wait.increment} is waiting on the owner: it is held on their open question ${wait.on}` : `${wait.increment} waits on ${wait.on} (${wait.reason})${wait.forGood ? ", which will never release" : ""}`,
       );
-      const way = answer.wayThrough === undefined ? "" : ` If your work builds it, list ${id} in the touches of ${answer.wayThrough.join(" or ")} (storytree arc increment edit <increment> --touches …, keeping what it already lists) and claim again: work your increment names is not waiting.`;
-      return `${await titleOf(library, id)} is waiting work: ${waits.join("; ")}. Pick other work until it releases.${way}`;
+      return `${await titleOf(library, id)} is waiting work: ${waits.join("; ")}. Pick other work until it releases.`;
     }
     case "unknown-capability":
       return `There is no capability or increment ${id} in this project's plan; plan it first, or find its id with show_plan.`;

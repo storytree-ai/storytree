@@ -468,27 +468,6 @@ test("5.9 a claim on a capability is refused when every open increment naming it
   });
 });
 
-test("5.18 a capability claim refused as waiting work names the claimant's open increments whose touches omit it, the way through; listing it there lets the claim stand", async () => {
-  await withWorld(async ({ library, emailForm, as }) => {
-    const { park } = await arcOf(library);
-    const design = await park("design");
-    const waiting = await park("form, first cut", [emailForm]);
-    await library.addWait(waiting, design, "the design comes first");
-    const mine = await park("arrival"); // parked without touches
-    assert.equal((await claim(as("A"), mine, "driving arrival")).ok, true);
-
-    const refused = await claim(as("A"), emailForm, "building the form");
-    assert.ok(!refused.ok && refused.refused === "waiting");
-    assert.deepEqual(refused.wayThrough, [mine]);
-    const other = await claim(as("B"), emailForm, "building the form");
-    assert.ok(!other.ok && other.refused === "waiting");
-    assert.equal(other.wayThrough, undefined, "B holds no increment, so there is no way through to name");
-
-    await library.editIncrement(mine, { touches: [emailForm] });
-    assert.equal((await claim(as("A"), emailForm, "building the form")).ok, true, "listed in its touches, the claim stands");
-  });
-});
-
 test("5.16 a reason longer than 40 characters is refused naming the limit and its length, with nothing written or started; 40 characters is claimed", async () => {
   await withWorld(async ({ log, project, emailForm, as }) => {
     const long = "Build the email form and its validation!!";

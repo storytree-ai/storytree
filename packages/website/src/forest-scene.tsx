@@ -14,7 +14,7 @@ import ownSaved from "./own-snapshot.json" with { type: "json" };
 import { crossingLength, growthPlan, type GrowthPlan } from "@storytree/forest-world/planet";
 import { buildPlanetPathways } from "@storytree/forest-world/geometry";
 import type { GrowthSnapshot, TourSnapshot } from "./forest-data.js";
-import { flight, globeOf, type GlobeOn, type Hold, type Tag, type TourDetail, type TourStep } from "./tour.js";
+import { flight, globeOf, replayMoment, type GlobeOn, type Hold, type Tag, type TourDetail, type TourStep } from "./tour.js";
 import { savedReading } from "./tour-reading.js";
 
 const snapshot = saved as unknown as TourSnapshot;
@@ -412,13 +412,12 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   const selected = story ?? (touring && !everything ? step?.select : undefined);
   const onStorytree = shownMap === "storytree";
   const grown = grows(shownMap) ? growths[shownMap] : undefined;
-  // The tour's step says how far the growth has played (seconds at 1×); its plan may be a little longer or shorter.
-  const playing = typeof step?.growth === "object" ? step.growth.seconds : undefined;
+  // The tour's step says how far the growth has played (seconds at 1×), over the whole plan or one stage of it (2.16).
   // Undefined is whole; a held seed is the point the globe grows from.
   let moment: number | undefined;
   if (grown && globe.map === shownMap && "at" in globe && globe.at !== undefined) {
     const told = growthAt && growthAt.index === state?.index && growthAt.generation === state?.generation ? growthAt.at : globe.at;
-    moment = playing === undefined ? 0 : told / playing * grown.plan().seconds;
+    moment = typeof step?.growth === "object" ? replayMoment(grown.plan(), step.growth, told) : 0;
   }
   const growth = grown ? { plan: grown.plan(), at: moment ?? Infinity } : undefined;
   // A step narrowed to a few stories dims the rest (ADR-0890's three teaching stories).
@@ -437,7 +436,7 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
     {webgl && tour && <GlobeBoundary failed={failed}>
       <div className="forest-drawing" role="group" aria-label={onStorytree ? "Storytree’s saved project globe" : shownMap === "own" ? "Storytree’s own globe, growing as its agents built it" : shownMap === "shop" ? "An online shop’s globe, as its agents built it" : `Conduit’s saved globe, as it stood ${stage!.at.slice(0, 16).replace("T", " ")} UTC`}
         data-globe={shownMap} data-arrived={arrived} data-stage={stage?.id} data-growth={grown ? moment === undefined ? "whole" : moment.toFixed(2) : undefined} data-focus={focus?.join(" ")}
-        data-islands={drawn.islands.length} onPointerDown={explore} onWheel={explore}>
+        data-islands={drawn.islands.length} data-risen={growth ? [...growth.plan.islands.values()].filter(window => window.start <= growth.at).length : undefined} onPointerDown={explore} onWheel={explore}>
         <PlanetView core={grown ? growthCores[shownMap as Grown] : core} scene={drawn} places={onStorytree ? places : grown?.places ?? conduitPlaces}
           frame={onStorytree ? undefined : grown?.snapshot.scene ?? conduit.scene} growth={growth} recordedSessions={grown?.sessions}
           wisps={grown ? [] : stage?.wisps ?? wisps} selected={selected}

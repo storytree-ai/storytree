@@ -152,13 +152,38 @@ const runs = {
     await page.close();
     observed.push("Act 1's exit lands on the pain: pass");
   },
+  // The map chapter (2.16, ADR-0891): each step on the shop's three teaching islands, at 1440 and 390, and the growth
+  // step's stage replaying (Orders and its roads growing on).
+  async map() {
+    const out = name => path.join(here, `../map-chapter/${name}.png`);
+    for (const [width, height] of [[1440, 900], [390, 844]]) {
+      const page = await open({ width, height });
+      for (const id of ["map-stories", "map-parts", "map-code", "map-health"]) {
+        await go(page, id); await pause(page);
+        await page.waitForFunction(() => document.querySelector(".forest-drawing")?.dataset.arrived === "true", null, { timeout: 30_000 }).catch(() => {});
+        await page.waitForTimeout(1500);
+        await page.screenshot({ path: out(`${width}-${id}`) });
+        await play(page);
+      }
+      await go(page, "map-grow");
+      for (const [index, wait] of [[0, 900], [1, 5000], [2, 9000]]) {
+        await page.waitForTimeout(wait);
+        if (width > 600 || index === 2) await page.screenshot({ path: out(`${width}-map-grow-${index}`) });
+      }
+      assert.equal(Number(await page.locator(".forest-drawing").getAttribute("data-risen")), 8, "the growth step ends on the shop's eight stories");
+      await pause(page); await page.locator("#tour-depth").click(); await page.waitForTimeout(600);
+      await page.screenshot({ path: out(`${width}-map-grow-depth`) });
+      await page.close();
+    }
+    observed.push("The map chapter's five steps and its growth on the shop: pictured");
+  },
   // A clip of a close-to-close move (2.15): the camera stays in and turns the globe, never out and in again.
   async closeFlight() {
     const page = await open({ width: 1440, height: 900 }, { video: true });
-    await go(page, "stories-island");
+    await go(page, "map-parts");
     await page.waitForFunction(() => document.querySelector(".forest-drawing")?.dataset.arrived === "true", null, { timeout: 30_000 });
     await page.waitForTimeout(1500);
-    await go(page, "stories-roads");
+    await go(page, "map-code");
     for (let frame = 0; frame < 5; frame++) { await page.screenshot({ path: path.join(here, `../act2-polish/close-flight-${frame}.png`) }); await page.waitForTimeout(600); }
     await page.waitForTimeout(1500);
     const video = page.video(); await page.close();

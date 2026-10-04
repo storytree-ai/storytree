@@ -58,7 +58,8 @@ test("4.17 the start check passes a build only when its main process exits 0 whe
     if (!process.argv.includes("--start-check")) process.exit(2);
     if (process.env.ELECTRON_RUN_AS_NODE !== undefined) process.exit(3);
     process.exit(0);`);
-  const dies = script("dies.cjs", `throw new TypeError("sourceVersion: no package.json");`);
+  // A long stack after the message must not push the message out of the refusal.
+  const dies = script("dies.cjs", `console.error("x".repeat(20)); throw new TypeError("sourceVersion: no package.json" + "\\n    at frame".repeat(200));`);
   const lingers = script("lingers.cjs", `setInterval(() => {}, 1000);`);
 
   process.env.ELECTRON_RUN_AS_NODE = "1";

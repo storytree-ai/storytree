@@ -14,12 +14,12 @@ import type { Build, RunningBuild, updateToMain } from "@storytree/app";
 
 /** How long a build's main process may take to start and exit its check. */
 export const START_CHECK_TIMEOUT_MS = 60_000;
-/** How much of what the check printed its refusal keeps. */
-const TAIL_CHARS = 600;
+/** How much of what the check printed its refusal keeps: the start, where the error is said before its stack. */
+const SAID_CHARS = 600;
 
 /**
  * Start `launch` with `--start-check` and wait for it to exit: undefined when it exited 0, else why
- * not (its exit code and the end of what it printed, or that it did not finish in time).
+ * not (its exit code and the start of what it printed, or that it did not finish in time).
  */
 export function startsCleanly(launch: { execPath: string; args: readonly string[] }, timeoutMs = START_CHECK_TIMEOUT_MS): Promise<string | undefined> {
   // The updater may run with ELECTRON_RUN_AS_NODE set for its own children; the build must start as Electron.
@@ -27,7 +27,7 @@ export function startsCleanly(launch: { execPath: string; args: readonly string[
   return new Promise((resolve) => {
     let said = "";
     const child = spawn(launch.execPath, [...launch.args, "--start-check"], { env, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
-    const hear = (chunk: Buffer): void => { said = (said + chunk.toString("utf8")).slice(-TAIL_CHARS); };
+    const hear = (chunk: Buffer): void => { if (said.length < SAID_CHARS) said = (said + chunk.toString("utf8")).slice(0, SAID_CHARS); };
     child.stdout.on("data", hear);
     child.stderr.on("data", hear);
     const timer = setTimeout(() => {

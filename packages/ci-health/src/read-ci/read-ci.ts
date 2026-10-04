@@ -8,6 +8,7 @@
  *   sign-in, so the user sets nothing up.
  * - The run's commit (`head_sha`) is the commit every verdict is for: the tests' titles are read from
  *   the files at that commit, in the project's own clone, and the commit is written in each note.
+ * - A job the run skipped has no log and is passed over.
  * - Passing and failing are written by the project's CI; a skip writes not checked with its reason;
  *   a contract no test ran for is left as it stands. The agent's reported column is never written.
  * - A project with no GitHub origin, or no finished push run, writes nothing and says why.
@@ -81,7 +82,9 @@ export async function readProjectCi({ library, git, github }: { library: Library
   if (run === undefined) return { written: false, why: `${repository} has no finished push run on ${branch}, so there are no CI results to read; its health stays not checked.` };
 
   const commit: string = run.head_sha;
-  const jobs: { id: number }[] = (await github.json(`repos/${repository}/actions/runs/${run.id}/jobs`)).jobs ?? [];
+  // A job the run skipped ran nothing and has no log: GitHub answers its log with 404.
+  const jobs: { id: number }[] = ((await github.json(`repos/${repository}/actions/runs/${run.id}/jobs`)).jobs ?? [])
+    .filter((job: { conclusion?: string }) => job.conclusion !== "skipped");
   const results = (await Promise.all(jobs.map((job) => github.text(`repos/${repository}/actions/jobs/${job.id}/logs`)))).flatMap(parseTestLog);
 
   let files;

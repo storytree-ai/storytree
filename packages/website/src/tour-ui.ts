@@ -118,7 +118,7 @@ export function wireTour() {
       depthToggle.textContent = step.kind === "compare" ? "Sources and decisions" : step.decisions.length ? `Why it exists · ${step.decisions.length} ${step.decisions.length === 1 ? "decision" : "decisions"}` : "Why it exists";
       card.classList.remove("is-in"); void card.offsetWidth; card.classList.add("is-in");
       label.textContent = !state.freePlay ? `${at.title} · ${at.at} of ${at.of}` : state.project === "shop"
-        ? "Free play · an online shop agents built with storytree, recorded 3 October 2026 · read only" : text("Free play · storytree’s own project, saved {saved} · read only");
+        ? text("Free play · an online shop agents built with storytree, recorded {shopDay} · read only") : text("Free play · storytree’s own project, saved {saved} · read only");
       pipButtons.forEach((button, index) => {
         button.classList.toggle("done", state.freePlay || index < state.index);
         if (!state.freePlay && index === state.index) button.setAttribute("aria-current", "step"); else button.removeAttribute("aria-current");
@@ -129,7 +129,7 @@ export function wireTour() {
     // The note names whose globe is on show: Conduit's growth is a replay of its own library (ADR-0879 D7).
     note.textContent = globe.map === "conduit" ? text("Conduit · replayed from its own library, {conduitRecording}")
       : globe.map === "own" ? text("Storytree, built with storytree · replayed from its own records, {ownRecording}")
-      : globe.map === "shop" ? "An online shop agents built with storytree · replayed from its own records, 3 October 2026"
+      : globe.map === "shop" ? text("An online shop agents built with storytree · replayed from its own records, {shopDay}")
       : step.chips?.some(chip => chip.kind === "recording") && !state.freePlay ? text("Recording · storytree's activity, {recording}") : text("storytree's own project · saved {saved} · read only");
     // A step's lines arrive one at a time; a waiting step shows them all (the engine says how many).
     const shown = state.freePlay ? lines.children.length : state.lines;

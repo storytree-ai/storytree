@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import shop from "./shop-snapshot.json" with { type: "json" };
 import { createTour, globeOf, groups, readingTime, settle, type TourStep } from "./tour.js";
+import { steps as tourSteps } from "./tour-copy.js";
 
 const step = (id: string, explainer: TourStep["explainer"], lines = ["One two three four five six seven eight nine ten"]): TourStep => ({
   id, title: id, explainer, lines, decisions: [], surfaces: {},
@@ -106,38 +108,38 @@ test("2.9 · Conduit's globe grows a stage at a time as a step's lines arrive; e
   assert.deepEqual(globeOf(growing[1]!, tour.state), { map: "storytree" });
 });
 
-test("2.11 · the arrival holds the shop's globe at a point under the pain, grows it on the tour's clock, then shows it whole", () => {
+test("2.11 · the arrival holds storytree's own globe at a point under the pain, grows it on the tour's clock, then shows it whole", () => {
   const arrival: TourStep[] = [
-    { ...step("pain", "opening", ["One", "Two"]), map: "shop", growth: "seed" },
-    { ...step("grow", "opening", ["Three"]), map: "shop", growth: { seconds: 12 } },
-    { ...step("value", "opening", ["Four"]), map: "shop" },
+    { ...step("pain", "opening", ["One", "Two"]), map: "own", growth: "seed" },
+    { ...step("grow", "opening", ["Three"]), map: "own", growth: { seconds: 12 } },
+    { ...step("value", "opening", ["Four"]), map: "own" },
     step("stories", "stories"),
   ];
   const tour = createTour(arrival);
   const globe = () => globeOf(arrival[tour.state.index]!, tour.state, tour.elapsed());
-  assert.deepEqual(globe(), { map: "shop", at: 0 }, "the pain is said before any globe: the shop's is still a point");
+  assert.deepEqual(globe(), { map: "own", at: 0 }, "the pain is said before any globe: storytree's is still a point");
   tour.tick(whole(arrival[0]!));
   assert.equal(tour.state.index, 1);
   tour.tick(4000);
-  assert.deepEqual(globe(), { map: "shop", at: 4 });
+  assert.deepEqual(globe(), { map: "own", at: 4 });
   tour.togglePlay(); tour.tick(60_000);
-  assert.deepEqual(globe(), { map: "shop", at: 4 }, "pausing the tour pauses the growth");
+  assert.deepEqual(globe(), { map: "own", at: 4 }, "pausing the tour pauses the growth");
   tour.togglePlay(); tour.setSpeed(1.5); tour.tick(2000);
-  assert.deepEqual(globe(), { map: "shop", at: 7 }, "a faster tour grows it faster");
+  assert.deepEqual(globe(), { map: "own", at: 7 }, "a faster tour grows it faster");
   tour.tick((12_000 - 7000) / 1.5);
   assert.equal(tour.state.index, 1, "the step lasts as long as the growth, however short its words");
-  assert.deepEqual(globe(), { map: "shop", at: 12 });
+  assert.deepEqual(globe(), { map: "own", at: 12 });
   tour.tick(settle / 1.5 + 1);
   assert.equal(tour.state.index, 2);
-  assert.deepEqual(globe(), { map: "shop" }, "after the time-lapse the shop's globe is whole");
+  assert.deepEqual(globe(), { map: "own" }, "after the time-lapse storytree's globe is whole");
   tour.hold("everything");
   assert.deepEqual(globe(), { map: "storytree" });
 });
 
 test("2.10 · the time-lapse waits for its globe to be set up, then plays from its first frame", () => {
   const arrival: TourStep[] = [
-    { ...step("pain", "opening", ["One"]), map: "shop", growth: "seed" },
-    { ...step("grow", "opening", ["Two"]), map: "shop", growth: { seconds: 12 } },
+    { ...step("pain", "opening", ["One"]), map: "own", growth: "seed" },
+    { ...step("grow", "opening", ["Two"]), map: "own", growth: { seconds: 12 } },
   ];
   let ready = false;
   const tour = createTour(arrival, { ready: () => ready });
@@ -150,5 +152,21 @@ test("2.10 · the time-lapse waits for its globe to be set up, then plays from i
   assert.equal(tour.state.index, 1);
   assert.equal(tour.elapsed(), 0, "the growth starts from its first frame");
   tour.tick(3000);
-  assert.deepEqual(globeOf(arrival[1]!, tour.state, tour.elapsed()), { map: "shop", at: 3 });
+  assert.deepEqual(globeOf(arrival[1]!, tour.state, tour.elapsed()), { map: "own", at: 3 });
+});
+
+test("2.12 · after the fixes, the tour cuts to the shop's whole globe narrowed to its three teaching stories", () => {
+  const cut = tourSteps.findIndex(item => item.id === "fixes") + 1;
+  const arrival = tourSteps.slice(0, cut);
+  assert.ok(arrival.every(item => item.map === "own"), "the pain, the growth, the value and the fixes are all over storytree's own globe");
+  const tour = createTour(tourSteps);
+  tour.go(cut);
+  const globe = globeOf(tourSteps[cut]!, tour.state, tour.elapsed());
+  assert.equal(globe.map, "shop");
+  assert.ok(globe.map === "shop" && globe.at === undefined, "the shop is shown whole, not grown");
+  const titles = shop.titles as Record<string, string>;
+  assert.deepEqual(globe.map === "shop" && globe.focus?.map(id => titles[id]), ["Browse products and pick them", "Review the cart and use the menu", "Check out"],
+    "products, cart and checkout, read from the shop's saved snapshot");
+  tour.hold("everything");
+  assert.deepEqual(globeOf(tourSteps[cut]!, tour.state), { map: "storytree" }, "show everything still opens storytree's own globe");
 });

@@ -43,7 +43,8 @@ export async function buildWebsite(output = path.join(packageRoot, "dist"), opti
     .map(([name, asset]) => [path.basename(asset.entryPoint!, path.extname(asset.entryPoint!)), `/assets/${path.basename(name)}`]));
   // The tour's numbers come from the saved reading the page draws, so the words never outrun the data.
   const counts = { ...tourCounts(JSON.parse(await readFile(path.join(packageRoot, "src", "forest-snapshot.json"), "utf8")) as TourSnapshot),
-    ...growthCounts(JSON.parse(await readFile(path.join(packageRoot, "src", "conduit-snapshot.json"), "utf8")) as GrowthSnapshot) };
+    ...growthCounts(JSON.parse(await readFile(path.join(packageRoot, "src", "conduit-snapshot.json"), "utf8")) as GrowthSnapshot,
+      JSON.parse(await readFile(path.join(packageRoot, "src", "own-snapshot.json"), "utf8")) as GrowthSnapshot) };
   const countsScript = `<script type="application/json" id="tour-counts">${JSON.stringify(counts).replaceAll("<", "\\u003c")}</script>`;
   for (const page of ["index.html", "waitlist.html", "404.html"]) {
     const template = fill(await readFile(path.join(packageRoot, "src", page), "utf8"), counts);

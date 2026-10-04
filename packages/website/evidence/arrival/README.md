@@ -1,4 +1,24 @@
-# Act 2 arrives (ADR-0889, contract 2.11)
+# Act 2 arrives (ADR-0889, contracts 2.11 and 2.12)
+
+## Amended 2026-10-04: the arrival grows storytree's own globe, then cuts to the shop (ADR-0889 2.2b, increment_24f45ba457c7)
+
+The time-lapse now replays **storytree's own project** (`src/own-snapshot.json`, saved by `refresh-own.ts`, PR #603): 24 dated stages from 25 September to 4 October 2026, its 19 islands arriving in the order they were recorded, its knowledge notes gathering in the core, its claims on the coasts, and its land as `main` stood at each stage. The card names it: **"This is storytree, built with storytree."** / "8 days of its agents' work: every island, road and note, replayed from its own records." (the number of days and the dates are filled from the saved growth at build). The value statement and the three fixes sit over storytree's whole globe. Then a new beat, **"Let's start small"**, cuts to the shop's globe, whole, narrowed to its three teaching stories (Browse products and pick them → Review the cart and use the menu → Check out), ringed, with the other six dimmed. The shop is read from its saved snapshot, so the rebuilt shop is a data swap. **The naming and the cut's lines are the agent's DRAFT** (marked in `src/tour-copy.ts`) for the owner to replace.
+
+![Desktop: growth, value, the cut](arrival-strip.png)
+
+![Phone: pain, growth, value, fixes, the cut](phone-strip.png)
+
+| Step | The visitor sees | Likely feels / thinks |
+|---|---|---|
+| Growth | Storytree's own globe swelling from the point: islands rising one by one, roads, the core filling with dots (`1440-2-grow-0` to `-4`, `390-2-grow-1`, `-3`) | "That's a real, big project, and they built it with their own tool" |
+| Value, fixes | The owner's words over storytree's full globe (`1440-3-value.png`, `1440-4-fixes-*.png`) | The promise, with a working map behind it |
+| The cut | The shop's small globe; three islands ringed and named, the rest dimmed (`1440-6-start-small.png`, `390-6-start-small.png`) | Relief: "fine, something small I already understand" |
+
+**Measured** (SwiftShader on the Mint box, headless Chromium, three 5 s runs over the time-lapse): storytree's own **37.6–38.5 fps at 1440×900** and **57.5–57.8 at 390×844**; the shop's on the same build and machine **41.4–42.2** and **58.2–59.0**. Chapter 2's lazy chunk grows from storytree's growth to 7.2 MB raw / 1.36 MB gzip; it loads behind the pain beat, as before (2.10's journey passes; the setup's longest frames under the pain are 1.4 s and 0.7 s, after the first pain line).
+
+**Seen and parked:** on a phone the cut's middle island's name ("Review the cart and use the menu") is laid out at the globe's lower edge, away from its ring, by the globe's nameplate placement (packages/forest, outside this lane's fence).
+
+## As first built (PR #594): the arrival on the shop's growth
 
 2026-10-04, Mint box, increment_92f9fd9cae02. Act 2 no longer opens on storytree's busy globe with the problem and the four principles over it. It opens in four steps:
 

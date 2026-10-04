@@ -124,3 +124,20 @@ three times in one round. Part 4 noted that the project's process for running Sw
 
 Pictures: `shots/r1-after.png` (the globe as R2 began) and `shots/r2-after.png`: the same four islands, each now
 fuller of file dots, roads unchanged (no new dependencies between stories).
+
+## R3: wave 2 planned, nothing built (increment_4e4f66a1ee1c)
+
+Wave 2's spec (`harness/shop-requirements-2.md`) dropped into the folder, and one fresh session asked to plan only,
+told that three sessions would next build parts 5, 6 and 9 at once, then two build 7 and 8 (`prompts/r3-plan.txt`,
+583 s, $2.55). It planned four new stories, each with its own package (Accounts, Orders, Stock and admin,
+Reviews), and put search inside Browsing as a seventh capability, so the globe grew from 4 islands to 8
+(the library after R3: 8 stories, 31 capabilities, 84 contracts, 46 decisions).
+
+It planned for the parallel sessions on purpose: a brief per part naming what it builds, where, and which Swag
+Labs tests it must re-run; one data file per story; **"each shared file has exactly one part allowed to change
+it"**, with the few expected merge overlaps named; slots on the product pages so reviews and stock do not edit the
+same lines. And it **split part 9**: 9a (stock, prices, the admin page) runs beside 5 and 6, while 9b (`admin_user`,
+the Admin link, taking stock off at Finish) waits for 5 and 6, because taking stock off at Finish lives inside
+part 6's order saving. It asked the user two questions in the library: whether to add `npm run reset`, since Swag
+Labs' checkout tests sell the shop out after about ten runs; and whether a hand-edited `session-username` cookie
+may stand for a test shop. The user answered both in R4's part 9 prompt (yes, and yes).

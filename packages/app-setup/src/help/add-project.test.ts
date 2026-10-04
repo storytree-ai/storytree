@@ -51,9 +51,11 @@ test("3.4 Add project: the picked folder becomes a project under its own name (k
   writeFileSync(path.join(home, "project-choice.json"), JSON.stringify({ current: `${site}-2` }));
   picked = path.join(dir, `Blog Posts ${token}`);
   assert.deepEqual(await actions.addProject(), { status: "already a project", project: blog, folder: picked });
-  const projects = await library.listProjects();
-  assert.deepEqual([blog, site, `${site}-2`].filter((name) => projects.includes(name)).length, 3, "an existing project creates nothing");
-  assert.deepEqual(await library.listProjects(), projects, "the app's library stays open");
+  // Only this test's projects: sibling tests add and drop their own on the same server.
+  const ours = (names: readonly string[]) => [blog, site, `${site}-2`].filter((name) => names.includes(name));
+  const projects = ours(await library.listProjects());
+  assert.equal(projects.length, 3, "an existing project creates nothing");
+  assert.deepEqual(ours(await library.listProjects()), projects, "the app's library stays open");
 
   assert.deepEqual(await actions.removeProject(blog), { status: "removed", project: blog, freed: picked });
   assert.equal(projectsOnThisComputer(await library.projectIdentities(), home).includes(blog), false, "a removed project leaves this computer's list");

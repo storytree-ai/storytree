@@ -2,12 +2,12 @@
 import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
-import { DoubleSide, Quaternion, RingGeometry, type Group, type Mesh, type MeshBasicMaterial } from "three";
+import { DoubleSide, Quaternion, RingGeometry, Vector3, type Group, type Mesh, type MeshBasicMaterial } from "three";
 import { ringPulse, type Island } from "@storytree/forest";
 import { LANE_COLOUR } from "@storytree/forest-world/geometry";
 import { globeOccluder, onIslandSurface } from "@storytree/forest-world/planet";
 import { territories, type Coast } from "../territories/territories.js";
-import { capabilityPlates, facing, screenOnPlate, settlePlates, STORY_PLATE_WIDTH, storyPlate } from "./nameplates.js";
+import { capabilityPlates, facing, furthestDrop, screenOnPlate, settlePlates, STORY_PLATE_WIDTH, storyPlate } from "./nameplates.js";
 import { islandProgress } from "./island-progress.js";
 import { GROUND_PER_WORLD_UNIT, islandReach, type Descriptor3D } from "@storytree/forest-world";
 
@@ -58,7 +58,7 @@ export function Nameplates({ island, coast, radius, selected, dimmed = false }: 
   return <>
     <group ref={anchor}>
       <Overlay occlude={occluder} zIndexRange={[20, 10]} style={{ pointerEvents: "none" }}>
-        <div ref={label} className={`forest-label planet-nameplate${chosen ? " selected" : ""}${progress !== undefined ? " with-progress" : ""}`} data-story-id={island.story} style={{ opacity, maxWidth: progress === undefined ? STORY_PLATE_WIDTH : STORY_PLATE_WIDTH + 64 }}>
+        <div ref={label} className={`forest-label planet-nameplate${chosen ? " selected" : ""}${progress !== undefined ? " with-progress" : ""}`} data-story-id={island.story} data-dimmed={dimmed ? "" : undefined} style={{ opacity, maxWidth: progress === undefined ? STORY_PLATE_WIDTH : STORY_PLATE_WIDTH + 64 }}>
           <span className="planet-nameplate-title">{island.title}</span>
           {progress !== undefined && <span className="planet-progress">
             {progress.landed} / {progress.total} landed
@@ -73,9 +73,12 @@ export function Nameplates({ island, coast, radius, selected, dimmed = false }: 
   </>;
 }
 
-/** Settle the story names against each other and the Sessions strip whenever the globe draws. */
-export function NameplateCrowd({ selected }: { selected: string | undefined }) {
+/** Settle the story names against each other and the Sessions strip whenever the globe draws, each within reach of its island on a globe `radius` across. */
+export function NameplateCrowd({ selected, radius }: { selected: string | undefined; radius: number }) {
   const gl = useThree(state => state.gl);
+  const camera = useThree(state => state.camera);
+  const size = useThree(state => state.size);
+  const [middle, rim] = useMemo(() => [new Vector3(), new Vector3()], []);
   const invalidate = useThree(state => state.invalidate);
   const strip = useRef<HTMLElement | null>(null);
   useEffect(() => {
@@ -116,10 +119,14 @@ export function NameplateCrowd({ selected }: { selected: string | undefined }) {
       if (label.style.visibility === "hidden" || box.width === 0) return [];
       // Where it hangs, without the step it took last frame.
       const drop = Number(label.dataset.drop ?? 0);
-      return [{ story: label.dataset.storyId!, box: { left: box.left, right: box.right, top: box.top - drop, bottom: box.bottom - drop }, facing: Number(label.dataset.facing ?? 0) }];
+      return [{ story: label.dataset.storyId!, box: { left: box.left, right: box.right, top: box.top - drop, bottom: box.bottom - drop }, facing: Number(label.dataset.facing ?? 0), dimmed: label.dataset.dimmed !== undefined }];
     });
     const stripBox = strip.current?.getBoundingClientRect();
-    const { drops, hidden } = settlePlates(shown, selected, stripBox && stripBox.width > 0 && stripBox.height > 0 ? stripBox : undefined);
+    // The globe's radius on screen, in pixels: its middle and a point on its rim across the screen, projected.
+    middle.set(0, 0, 0).project(camera);
+    rim.set(1, 0, 0).applyQuaternion(camera.quaternion).multiplyScalar(radius).project(camera);
+    const across = Math.abs(rim.x - middle.x) * size.width / 2;
+    const { drops, hidden } = settlePlates(shown, selected, stripBox && stripBox.width > 0 && stripBox.height > 0 ? stripBox : undefined, furthestDrop(across));
     for (const label of labels) {
       const story = label.dataset.storyId!, drop = drops.get(story) ?? 0;
       label.classList.toggle("crowded", hidden.has(story));

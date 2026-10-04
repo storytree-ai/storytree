@@ -6,7 +6,7 @@ import { turnToIsland } from "@storytree/forest";
 import { plateTransform } from "@storytree/forest-world/planet";
 import { territories, type Point } from "../territories/territories.js";
 import { dragTurn, focusRotation } from "./planet-navigation.js";
-import { capabilityPlates, facesEye, facing, MAX_DROP, PLATE_STEP_GAP, screenOnPlate, settlePlates, storyPlate } from "./nameplates.js";
+import { capabilityPlates, facesEye, facing, furthestDrop, MAX_DROP, PLATE_STEP_GAP, screenOnPlate, settlePlates, storyPlate, type ShownPlate } from "./nameplates.js";
 
 const coast = [[{ x: 30, z: 0 }, { x: 12, z: 26 }, { x: -28, z: 14 }, { x: -22, z: -22 }, { x: 6, z: -31 }]];
 
@@ -92,4 +92,39 @@ test("3.4 / 7.17: near-side names clear the Sessions strip and each other as the
   assert.equal(settlePlates([library], undefined, { left: 0, right: 600, top: 886, bottom: 960 }).drops.size, 0,
     "a strip narrowed beside a story panel does not lift a name outside its width");
   assert.equal(settlePlates([library]).drops.size, 0, "removing the strip restores the name's natural position");
+});
+
+test("3.31 on a phone's small globe each name on show sits by its own island, the names in focus first; a desktop's big globe settles as before", () => {
+  // The shop's nine names where they hang at the cut to its three teaching islands (website step start-small), measured in the
+  // browser at 390 x 844 (globe radius about 173 px) and 1440 x 900 (about 430 px): [title, left, top, right, bottom, facing, dimmed].
+  const plates = (rows: [string, number, number, number, number, number, number][]): ShownPlate[] =>
+    rows.map(([story, left, top, right, bottom, facing, dimmed]) => ({ story, box: { left, top, right, bottom }, facing, dimmed: dimmed === 1 }));
+  const phone = plates([["Sign in and see the products", 139, 125.1, 251, 173.6, 0.637, 1],
+    ["Browse products and pick them", 121.6, 208.2, 233.6, 256.7, 0.951, 0],
+    ["Review the cart and use the menu", 139, 257.8, 251, 306.2, 1, 0],
+    ["Check out", 138.9, 300.2, 221.9, 318.5, 0.953, 0],
+    ["Sign up for an account", 156.4, 202.9, 268.4, 236.3, 0.951, 1],
+    ["See my orders", 159.3, 341, 269, 359.3, 0.823, 1],
+    ["Search products", 139, 159.6, 251, 193, 0.833, 1],
+    ["Review products", 153.6, 296.7, 265.6, 330, 0.953, 1],
+    ["Manage stock and prices", 119.8, 334, 231.8, 367.3, 0.823, 1]]);
+  const reach = 173 / 3;
+  const { drops, hidden } = settlePlates(phone, undefined, undefined, furthestDrop(173));
+  const far = phone.filter(({ story }) => !hidden.has(story)).map(({ story }) => [story, Math.abs(drops.get(story) ?? 0)] as const);
+  assert.deepEqual(far.filter(([, drop]) => drop > reach), [], "no name on show steps further from its island than a third of the globe's radius");
+  for (const story of ["Browse products and pick them", "Review the cart and use the menu", "Check out"]) {
+    assert.ok(!hidden.has(story) && Math.abs(drops.get(story) ?? 0) <= 12, `${story}, in focus, is shown by its own island`);
+  }
+  const desktop = plates([["Sign in and see the products", 952, 143.5, 1064, 192, 0.637, 1],
+    ["Browse products and pick them", 905.1, 368, 1017.1, 416.4, 0.951, 0],
+    ["Review the cart and use the menu", 952, 501.9, 1064, 550.3, 1, 0],
+    ["Check out", 927.1, 610.8, 1010.1, 629.1, 0.953, 0],
+    ["Sign up for an account", 999, 353.7, 1111, 387.1, 0.951, 1],
+    ["See my orders", 1004.8, 721, 1114.6, 739.3, 0.823, 1],
+    ["Search products", 952, 236.7, 1064, 270.1, 0.833, 1],
+    ["Review products", 991.4, 607, 1103.4, 640.3, 0.953, 1],
+    ["Manage stock and prices", 900.2, 707.8, 1012.2, 741.1, 0.823, 1]]);
+  assert.equal(furthestDrop(430), MAX_DROP, "a big globe keeps the furthest step");
+  assert.deepEqual(settlePlates(desktop, undefined, undefined, furthestDrop(430)), settlePlates(desktop.map(({ dimmed, ...plate }) => plate)),
+    "on a desktop's globe the names settle as they did before focus counted");
 });

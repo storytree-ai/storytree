@@ -1,40 +1,40 @@
-/** The globe's nameplates: a story's below its island whatever the turn, its capabilities' on their own land. */
+/** The globe's nameplates: a story's fixed just south of its island, its capabilities' on their own land; where names overlap, one fades. */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Euler, Quaternion, Vector3 } from "three";
 import { turnToIsland } from "@storytree/forest";
 import { plateTransform } from "@storytree/forest-world/planet";
 import { territories, type Point } from "../territories/territories.js";
-import { dragTurn, focusRotation } from "./planet-navigation.js";
-import { capabilityPlates, facesEye, facing, furthestDrop, MAX_DROP, PLATE_STEP_GAP, screenOnPlate, settlePlates, storyPlate, type ShownPlate } from "./nameplates.js";
+import { focusRotation } from "./planet-navigation.js";
+import { capabilityPlates, facesEye, facing, fadedCapabilities, fadedPlates, southOnPlate, storyPlate } from "./nameplates.js";
 
 const coast = [[{ x: 30, z: 0 }, { x: 12, z: 26 }, { x: -28, z: 14 }, { x: -22, z: -22 }, { x: 6, z: -31 }]];
 
-test("a story's nameplate sits just below its island on screen, whatever the globe's spin and tilt", () => {
+test("3.4 a story's name sits at one point on its island's own plate, just south of its coast, so it turns with the island and opens below it on screen", () => {
   const radius = 400;
   const eye = new Quaternion().setFromEuler(new Euler(-0.3, 0, 0));
   for (const spot of [{ x: 0, y: 0, z: 1 }, { x: 0.3, y: 0.6, z: 0.74 }, { x: -0.5, y: -0.55, z: 0.67 }, { x: 0.05, y: 0.97, z: 0.2 }, { x: 0.9, y: 0.1, z: -0.4 }]) {
     const { position, quaternion } = plateTransform(spot, radius);
-    const facing = turnToIsland(spot);
-    for (const turn of [facing, dragTurn(facing, { x: 60, y: 0 }, 800), dragTurn(facing, { x: -40, y: 50 }, 800), dragTurn(facing, { x: 20, y: -45 }, 800), dragTurn(facing, { x: 160, y: 90 }, 800)]) {
-      const rotation = focusRotation(turn, eye);
-      const toView = eye.clone().invert().multiply(rotation);
-      const plate = storyPlate(coast, screenOnPlate(rotation.clone().multiply(quaternion), eye));
-      const view = (p: Point) => new Vector3(p.x, 0, p.z).applyQuaternion(quaternion).add(new Vector3(...position)).applyQuaternion(toView);
-      const why = `island at ${JSON.stringify(spot)}, turned ${JSON.stringify(turn)}`;
-      const land = coast[0]!.map(view), at = view(plate);
-      assert.ok(at.y < Math.min(...land.map(p => p.y)), `${why}: the plate is below every point of the coast`);
-      assert.ok(at.x > Math.min(...land.map(p => p.x)) && at.x < Math.max(...land.map(p => p.x)), `${why}: and under the island, not beside it`);
-    }
+    const south = southOnPlate(quaternion);
+    const plate = storyPlate(coast, south);
+    const why = `island at ${JSON.stringify(spot)}`;
+    // On the globe, the plate's south runs toward the south pole along the surface.
+    const onGlobe = new Vector3(south.x, 0, south.z).applyQuaternion(quaternion);
+    const pole = new Vector3(0, -1, 0).projectOnPlane(new Vector3(spot.x, spot.y, spot.z).normalize()).normalize();
+    assert.ok(onGlobe.dot(pole) > 0.999, `${why}: the plate's south is the globe's`);
+    assert.ok(plate.x * south.x + plate.z * south.z > Math.max(...coast[0]!.map(p => p.x * south.x + p.z * south.z)), `${why}: the name sits south of every point of the coast`);
+    // Turned to face the eye, as a click on the island does: the name is below the island and under it.
+    const rotation = focusRotation(turnToIsland(spot), eye);
+    const toView = eye.clone().invert().multiply(rotation);
+    const view = (p: Point) => new Vector3(p.x, 0, p.z).applyQuaternion(quaternion).add(new Vector3(...position)).applyQuaternion(toView);
+    const land = coast[0]!.map(view), at = view(plate);
+    assert.ok(at.y < Math.min(...land.map(p => p.y)), `${why}: the name is below every point of the coast`);
+    assert.ok(at.x > Math.min(...land.map(p => p.x)) && at.x < Math.max(...land.map(p => p.x)), `${why}: and under the island, not beside it`);
   }
 });
 
-test("a story's nameplate hides once its island turns away, and never leaves the globe, even for an island edge-on at the rim", () => {
+test("a story's nameplate hides once its island turns away", () => {
   const eye = new Quaternion();
-  // Edge on at a slant, as at the rim off to one side: the screen barely runs down the plate, and skewed across it.
-  const plate = new Quaternion().setFromEuler(new Euler(0.05, 0, Math.PI / 4));
-  const at = storyPlate(coast, screenOnPlate(plate, eye), 100);
-  assert.ok(Math.hypot(at.x, at.z) <= 100 + 1e-9, `the plate stays within reach of its island: ${JSON.stringify(at)}`);
   assert.equal(facesEye(new Quaternion().setFromEuler(new Euler(0.05, 0, 0)), eye), true, "an island just in front of the rim shows its plate");
   assert.equal(facesEye(new Quaternion().setFromEuler(new Euler(-0.05, 0.3, 0)), eye), false, "one just past it hides its plate");
 });
@@ -56,75 +56,36 @@ test("3.32 selecting a story shows one capability nameplate per territory, named
   }
 });
 
-test("no two story nameplates overlap on screen: where two would, one steps down just below the other, the least in all, and only one that would step too far is hidden", () => {
+test("3.31 where two story names overlap on screen, the less face-on one fades and neither moves; the selected name always shows, a dimmed one yields, and a name under the Sessions strip fades", () => {
   const box = (left: number, top: number) => ({ left, top, right: left + 120, bottom: top + 20 });
-  // As storytree's own globe shows them: The local database's plate over Process ledger's, both islands near the rim.
-  const { drops, hidden } = settlePlates([
+  // As storytree's own globe showed them: The local database's plate over Process ledger's, both islands near the rim.
+  const rim = [
     { story: "local database", box: box(388, 785), facing: facing(new Quaternion().setFromEuler(new Euler(0.25, 0, 0)), new Quaternion()) },
     { story: "process ledger", box: box(410, 798), facing: facing(new Quaternion().setFromEuler(new Euler(0.9, 0, 0)), new Quaternion()) },
     { story: "library", box: box(545, 833), facing: 0.8 },
-  ]);
-  assert.deepEqual([...hidden], [], "nothing is hidden");
-  assert.deepEqual([...drops], [["process ledger", 785 + 20 + PLATE_STEP_GAP - 798]], "the one that need step less steps just below the other; a plate clear of the others stays");
-  // Five small islands in a row, plates a slot and a half wide: the more edge-on step, and they zigzag in two lines, not a staircase.
-  const row = settlePlates([0, 1, 2, 3, 4].map(i => ({ story: `r${i}`, box: { left: i * 64 - 45, right: i * 64 + 45, top: 0, bottom: i === 4 ? 50 : 34 }, facing: 1 - Math.abs(i - 2) / 20 })));
-  assert.deepEqual([...row.drops.keys()].sort(), ["r1", "r3"], "every other plate steps down once");
-  const chosen = settlePlates([{ story: "a", box: box(0, 0), facing: 0.2 }, { story: "b", box: box(10, 5), facing: 0.9 }], "a");
-  assert.deepEqual([...chosen.drops.keys()], ["b"], "the selected story's plate never steps");
-  // A crowd stacked deeper than MAX_DROP: the plate that would have to step past it is hidden.
-  const crowd = Array.from({ length: Math.ceil(MAX_DROP / 20) + 2 }, (_, i) => ({ story: `s${i}`, box: box(0, 0), facing: 1 - i / 100 }));
-  const settled = settlePlates(crowd);
-  assert.ok(settled.hidden.size > 0 && [...settled.drops.values()].every(drop => drop <= MAX_DROP), "past the furthest step, a plate hides");
-});
-
-test("3.4 / 7.17: near-side names clear the Sessions strip and each other as the strip changes", () => {
+  ];
+  // The local database's island is the nearer the rim (facing 0.25 to 0.78): its name fades.
+  assert.deepEqual([...fadedPlates(rim)], ["local database"], "the more edge-on of an overlapping pair fades; a name clear of the others shows");
+  // A chain of three, each over the next: the middle fades, and a faded name fades no other.
+  const chain = [{ story: "a", box: box(0, 0), facing: 1 }, { story: "b", box: box(100, 0), facing: 0.9 }, { story: "c", box: box(200, 0), facing: 0.8 }];
+  assert.deepEqual([...fadedPlates(chain)], ["b"]);
+  const pair = [{ story: "a", box: box(0, 0), facing: 0.2 }, { story: "b", box: box(10, 5), facing: 0.9 }];
+  assert.deepEqual([...fadedPlates(pair, "a")], ["b"], "the selected story's name shows, however edge-on");
+  assert.deepEqual([...fadedPlates([{ ...pair[1]!, dimmed: true }, pair[0]!])], ["b"], "a dimmed name yields to a name in focus");
   const library = { story: "library", box: { left: 660, right: 760, top: 897, bottom: 916 }, facing: 0.7 };
-  const neighbour = { story: "neighbour", box: { left: 650, right: 750, top: 860, bottom: 879 }, facing: 0.8 };
-  for (const top of [886, 923, 620]) {
-    const strip = { left: 0, right: 1440, top, bottom: 960 };
-    const plates = [library, neighbour];
-    const { drops, hidden } = settlePlates(plates, "library", strip);
-    assert.equal(hidden.size, 0, "strip clearance keeps both names readable, including the selected name");
-    const boxes = plates.map(({ story, box }) => ({ top: box.top + (drops.get(story) ?? 0), bottom: box.bottom + (drops.get(story) ?? 0) }));
-    assert.ok(boxes.every(box => box.bottom <= top - PLATE_STEP_GAP), "the whole name clears the strip");
-    assert.ok(boxes[0]!.bottom <= boxes[1]!.top || boxes[1]!.bottom <= boxes[0]!.top, "lifting names does not stack them on each other");
+  for (const selected of [undefined, "library"]) {
+    assert.deepEqual([...fadedPlates([library], selected, { left: 0, right: 1440, top: 886, bottom: 960 })], ["library"], "a name under the strip fades rather than lifting");
   }
-  assert.equal(settlePlates([library], undefined, { left: 0, right: 600, top: 886, bottom: 960 }).drops.size, 0,
-    "a strip narrowed beside a story panel does not lift a name outside its width");
-  assert.equal(settlePlates([library]).drops.size, 0, "removing the strip restores the name's natural position");
+  assert.deepEqual([...fadedPlates([library], undefined, { left: 0, right: 600, top: 886, bottom: 960 })], [], "a strip narrowed beside a story panel fades no name outside its width");
 });
 
-test("3.31 on a phone's small globe each name on show sits by its own island, the names in focus first; a desktop's big globe settles as before", () => {
-  // The shop's nine names where they hang at the cut to its three teaching islands (website step start-small), measured in the
-  // browser at 390 x 844 (globe radius about 173 px) and 1440 x 900 (about 430 px): [title, left, top, right, bottom, facing, dimmed].
-  const plates = (rows: [string, number, number, number, number, number, number][]): ShownPlate[] =>
-    rows.map(([story, left, top, right, bottom, facing, dimmed]) => ({ story, box: { left, top, right, bottom }, facing, dimmed: dimmed === 1 }));
-  const phone = plates([["Sign in and see the products", 139, 125.1, 251, 173.6, 0.637, 1],
-    ["Browse products and pick them", 121.6, 208.2, 233.6, 256.7, 0.951, 0],
-    ["Review the cart and use the menu", 139, 257.8, 251, 306.2, 1, 0],
-    ["Check out", 138.9, 300.2, 221.9, 318.5, 0.953, 0],
-    ["Sign up for an account", 156.4, 202.9, 268.4, 236.3, 0.951, 1],
-    ["See my orders", 159.3, 341, 269, 359.3, 0.823, 1],
-    ["Search products", 139, 159.6, 251, 193, 0.833, 1],
-    ["Review products", 153.6, 296.7, 265.6, 330, 0.953, 1],
-    ["Manage stock and prices", 119.8, 334, 231.8, 367.3, 0.823, 1]]);
-  const reach = 173 / 3;
-  const { drops, hidden } = settlePlates(phone, undefined, undefined, furthestDrop(173));
-  const far = phone.filter(({ story }) => !hidden.has(story)).map(({ story }) => [story, Math.abs(drops.get(story) ?? 0)] as const);
-  assert.deepEqual(far.filter(([, drop]) => drop > reach), [], "no name on show steps further from its island than a third of the globe's radius");
-  for (const story of ["Browse products and pick them", "Review the cart and use the menu", "Check out"]) {
-    assert.ok(!hidden.has(story) && Math.abs(drops.get(story) ?? 0) <= 12, `${story}, in focus, is shown by its own island`);
-  }
-  const desktop = plates([["Sign in and see the products", 952, 143.5, 1064, 192, 0.637, 1],
-    ["Browse products and pick them", 905.1, 368, 1017.1, 416.4, 0.951, 0],
-    ["Review the cart and use the menu", 952, 501.9, 1064, 550.3, 1, 0],
-    ["Check out", 927.1, 610.8, 1010.1, 629.1, 0.953, 0],
-    ["Sign up for an account", 999, 353.7, 1111, 387.1, 0.951, 1],
-    ["See my orders", 1004.8, 721, 1114.6, 739.3, 0.823, 1],
-    ["Search products", 952, 236.7, 1064, 270.1, 0.833, 1],
-    ["Review products", 991.4, 607, 1103.4, 640.3, 0.953, 1],
-    ["Manage stock and prices", 900.2, 707.8, 1012.2, 741.1, 0.823, 1]]);
-  assert.equal(furthestDrop(430), MAX_DROP, "a big globe keeps the furthest step");
-  assert.deepEqual(settlePlates(desktop, undefined, undefined, furthestDrop(430)), settlePlates(desktop.map(({ dimmed, ...plate }) => plate)),
-    "on a desktop's globe the names settle as they did before focus counted");
+test("3.33 where a selected island's capability names overlap, the smaller territory's fades", () => {
+  const box = (left: number, top: number) => ({ left, top, right: left + 80, bottom: top + 30 });
+  // As The agent link showed them: Sessions over Claims, Context readings over Settings.
+  const names = [
+    { capability: "sessions", box: box(500, 400), size: 9 }, { capability: "claims", box: box(530, 415), size: 14 },
+    { capability: "context readings", box: box(600, 480), size: 6 }, { capability: "settings", box: box(620, 500), size: 3 },
+    { capability: "hooks", box: box(400, 300), size: 1 },
+  ];
+  assert.deepEqual([...fadedCapabilities(names)].sort(), ["sessions", "settings"], "the larger territory's name shows; a name clear of the others shows however small");
 });

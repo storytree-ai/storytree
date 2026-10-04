@@ -114,7 +114,7 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
         spot={layout.spots.get(island.story)!} lighting={lighting} surfaces={shownSurfaces} onStops={reportStops} />}
       {mode === "forest" && <SessionIslandEmphasis emphasis={emphasis} />}
       {emphasis === "held" && <SelectionRing island={local} descriptors={descriptors} onGlobe emphasis />}
-      {shownSurfaces.nameplates && <Nameplates island={island} coast={coast} radius={layout.radius} selected={selected} dimmed={emphasis === "dimmed"} />}
+      {shownSurfaces.nameplates && <Nameplates island={island} spot={layout.spots.get(island.story)!} coast={coast} radius={layout.radius} selected={selected} dimmed={emphasis === "dimmed"} />}
       {shownSurfaces.sessionTints && <CoastTints arcs={coastArcs(wisps, island.story)} coast={coast} radius={layout.radius} />}
       {mode === "forest" && <SelectionRing island={island.story === selected ? local : undefined} descriptors={descriptors} onGlobe />}
       {mode === "forest" && neighbours.has(island.story) && <NeighbourRing key={`${selected}:${neighbours.get(island.story)}`}
@@ -128,7 +128,7 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
     <Navigation islands={layout.islands} radius={layout.radius} titles={new Map(scene.islands.map(i => [i.story, i.title]))}
       rotation={rotation} onRotate={setRotation} onPose={setPose} onControls={onControls} onPick={onPick} onNote={onNote} mode={mode}
       showFailures={shownSurfaces.grounds || shownSurfaces.territories !== false || shownSurfaces.fileCircles || shownSurfaces.nameplates || shownSurfaces.roads} />
-    <NameplateCrowd selected={selected} radius={layout.radius} />
+    <NameplateCrowd selected={selected} />
     {growth !== undefined && recordedSessions !== undefined && <ReplaySessions recorded={recordedSessions} onWisps={setReplayed} />}
   </PlanetWorldCanvas>;
 }

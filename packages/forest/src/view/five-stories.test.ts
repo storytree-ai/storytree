@@ -9,7 +9,7 @@ import { onIslandSurface } from "@storytree/forest-world/planet";
 import { forestScene, openingTurn, storyNodes } from "@storytree/forest";
 
 import { focusRotation, globeFraming, planetLayout } from "./planet-navigation.js";
-import { facing, screenOnPlate, settlePlates, STORY_PLATE_WIDTH, storyPlate, type ShownPlate } from "./nameplates.js";
+import { facing, fadedPlates, southOnPlate, STORY_PLATE_WIDTH, storyPlate, type ShownPlate } from "./nameplates.js";
 
 const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
 // A first build's stories, as the Conduit builds named them: one capability each.
@@ -53,23 +53,18 @@ function opening(chain: boolean, width = 1440, height = 840): ShownPlate[] {
   return scene.islands.map(island => {
     const { position, quaternion } = plateTransform(layout.spots.get(island.story)!, layout.radius);
     const turned = rotation.clone().multiply(quaternion);
-    const at = surface(storyPlate(plates.get(island.story)!.coast, screenOnPlate(turned, eye), layout.radius * 0.9))
+    const at = surface(storyPlate(plates.get(island.story)!.coast, southOnPlate(quaternion)))
       .applyQuaternion(quaternion).add(new Vector3(...position)).applyQuaternion(rotation);
     const size = plateSize(island.title), x = width / 2 + zoom * at.x, y = height / 2 - zoom * at.y;
     return { story: island.title, box: { left: x - size.width / 2, right: x + size.width / 2, top: y, bottom: y + size.height }, facing: facing(turned, eye) };
   });
 }
 
-test("1.10 a five-story forest, in a row and in a chain, opens with every story's nameplate readable: none hidden, none overlapping, every island facing the eye at least half on", () => {
+test("1.10 a five-story forest, in a row and in a chain, opens with every story's nameplate readable: none faded, none overlapping, every island facing the eye at least half on", () => {
   for (const [shape, chain] of [["row", false], ["chain", true]] as const) {
     const plates = opening(chain);
-    const { drops, hidden } = settlePlates(plates);
-    assert.deepEqual([...hidden], [], `${shape}: no plate is hidden`);
-    const shown = plates.map(({ story, box }) => {
-      const drop = drops.get(story) ?? 0;
-      return { story, box: { ...box, top: box.top + drop, bottom: box.bottom + drop } };
-    });
-    for (const [i, { story, box }] of shown.entries()) for (const other of shown.slice(i + 1)) {
+    assert.deepEqual([...fadedPlates(plates)], [], `${shape}: no plate fades`);
+    for (const [i, { story, box }] of plates.entries()) for (const other of plates.slice(i + 1)) {
       const overlap = box.left < other.box.right && other.box.left < box.right && box.top < other.box.bottom && other.box.top < box.bottom;
       assert.ok(!overlap, `${shape}: ${story}'s plate overlaps ${other.story}'s`);
     }

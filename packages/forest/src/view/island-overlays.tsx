@@ -1,13 +1,13 @@
 /** The globe's nameplates and selection rings, drawn on each island's plate. */
 import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
-import { DoubleSide, Quaternion, RingGeometry, Vector3, type Group, type Mesh, type MeshBasicMaterial } from "three";
+import { useEffect, useMemo, useRef, useState, type ComponentProps, type CSSProperties } from "react";
+import { DoubleSide, Quaternion, RingGeometry, type Group, type Mesh, type MeshBasicMaterial } from "three";
 import { ringPulse, type Island } from "@storytree/forest";
 import { LANE_COLOUR } from "@storytree/forest-world/geometry";
-import { globeOccluder, onIslandSurface } from "@storytree/forest-world/planet";
+import { globeOccluder, onIslandSurface, plateTransform, type PlanetSpot } from "@storytree/forest-world/planet";
 import { territories, type Coast } from "../territories/territories.js";
-import { capabilityPlates, facing, furthestDrop, screenOnPlate, settlePlates, STORY_PLATE_WIDTH, storyPlate } from "./nameplates.js";
+import { capabilityPlates, facing, fadedCapabilities, fadedPlates, southOnPlate, STORY_PLATE_WIDTH, storyPlate } from "./nameplates.js";
 import { islandProgress } from "./island-progress.js";
 import { GROUND_PER_WORLD_UNIT, islandReach, type Descriptor3D } from "@storytree/forest-world";
 
@@ -25,16 +25,17 @@ const centreOf = (island: Island): { x: number; z: number } => ({ x: island.x * 
 const PLATE_LIFT = 2;
 
 /**
- * A story's nameplate, its top edge just below the island's coast as the screen sees it; while the story is
+ * A story's nameplate, its top edge at a fixed point just south of the island's coast, turning with the island; while the story is
  * selected, a smaller nameplate on each of its capabilities' territories, and the other stories' plates dim. No plate takes a pointer from the land beneath it.
  */
-export function Nameplates({ island, coast, radius, selected, dimmed = false }: {
-  island: Island; coast: Coast; radius: number; selected: string | undefined; dimmed?: boolean;
+export function Nameplates({ island, spot, coast, radius, selected, dimmed = false }: {
+  island: Island; spot: PlanetSpot; coast: Coast; radius: number; selected: string | undefined; dimmed?: boolean;
 }) {
   // Plates hide behind the sphere only (whatever radius it has grown to): one exact test each, not a raycast of the land.
   const occluder = useMemo(() => [{ current: globeOccluder(radius) }], [radius]);
   const surface = useMemo(() => onIslandSurface(radius, PLATE_LIFT), [radius]);
-  // The plate hangs below its island as the screen sees it, so it follows every turn: placed each frame, before the overlay reads it.
+  // Placed once on the island's own plate, like print on a map: it moves only as the island does (ADR-0911).
+  const at = useMemo(() => surface(storyPlate(coast, southOnPlate(plateTransform(spot, radius).quaternion))).toArray(), [surface, coast, spot, radius]);
   const anchor = useRef<Group>(null);
   const label = useRef<HTMLDivElement>(null);
   const camera = useThree(state => state.camera);
@@ -43,9 +44,6 @@ export function Nameplates({ island, coast, radius, selected, dimmed = false }: 
     const group = anchor.current;
     if (group?.parent == null) return;
     group.parent.getWorldQuaternion(turned);
-    // Kept on the globe, so the sphere still hides a plate whose island is edge-on at the rim.
-    group.position.copy(surface(storyPlate(coast, screenOnPlate(turned, camera.quaternion), radius * 0.9)));
-    group.updateMatrixWorld();
     if (label.current === null) return;
     const faces = facing(turned, camera.quaternion);
     label.current.style.visibility = faces > 0 ? "" : "hidden";
@@ -53,12 +51,14 @@ export function Nameplates({ island, coast, radius, selected, dimmed = false }: 
   }, -1);
   const chosen = island.story === selected;
   const plates = useMemo(() => chosen && island.land !== undefined ? capabilityPlates(territories(island.land.territories, coast)) : [], [chosen, island.land, coast]);
-  const opacity = dimmed ? 0.24 : selected !== undefined && !chosen ? 0.5 : 1;
   const progress = islandProgress(island);
+  const opacity = dimmed ? 0.24 : selected !== undefined && !chosen ? 0.5 : 1;
+  // Its opacity is a variable, so a crowded plate's fade (styles.css) can take it to nothing and back.
+  const plateStyle = { "--plate-opacity": opacity, maxWidth: progress === undefined ? STORY_PLATE_WIDTH : STORY_PLATE_WIDTH + 64 } as CSSProperties;
   return <>
-    <group ref={anchor}>
+    <group ref={anchor} position={at}>
       <Overlay occlude={occluder} zIndexRange={[20, 10]} style={{ pointerEvents: "none" }}>
-        <div ref={label} className={`forest-label planet-nameplate${chosen ? " selected" : ""}${progress !== undefined ? " with-progress" : ""}`} data-story-id={island.story} data-dimmed={dimmed ? "" : undefined} style={{ opacity, maxWidth: progress === undefined ? STORY_PLATE_WIDTH : STORY_PLATE_WIDTH + 64 }}>
+        <div ref={label} className={`forest-label planet-nameplate${chosen ? " selected" : ""}${progress !== undefined ? " with-progress" : ""}`} data-story-id={island.story} data-dimmed={dimmed ? "" : undefined} style={plateStyle}>
           <span className="planet-nameplate-title">{island.title}</span>
           {progress !== undefined && <span className="planet-progress">
             {progress.landed} / {progress.total} landed
@@ -68,17 +68,14 @@ export function Nameplates({ island, coast, radius, selected, dimmed = false }: 
       </Overlay>
     </group>
     {plates.map(plate => <Overlay key={plate.capability} occlude={occluder} position={surface(plate).toArray()} center zIndexRange={[25, 21]} style={{ pointerEvents: "none" }}>
-      <div className="forest-label planet-nameplate capability" data-capability-id={plate.capability}>{plate.title}</div>
+      <div className="forest-label planet-nameplate capability" data-capability-id={plate.capability} data-size={plate.size}>{plate.title}</div>
     </Overlay>)}
   </>;
 }
 
-/** Settle the story names against each other and the Sessions strip whenever the globe draws, each within reach of its island on a globe `radius` across. */
-export function NameplateCrowd({ selected, radius }: { selected: string | undefined; radius: number }) {
+/** Fade the names that overlap another or the Sessions strip whenever the globe draws: no name moves to clear another (ADR-0911). */
+export function NameplateCrowd({ selected }: { selected: string | undefined }) {
   const gl = useThree(state => state.gl);
-  const camera = useThree(state => state.camera);
-  const size = useThree(state => state.size);
-  const [middle, rim] = useMemo(() => [new Vector3(), new Vector3()], []);
   const invalidate = useThree(state => state.invalidate);
   const strip = useRef<HTMLElement | null>(null);
   useEffect(() => {
@@ -112,28 +109,18 @@ export function NameplateCrowd({ selected, radius }: { selected: string | undefi
   useFrame(() => {
     const host = gl.domElement.parentElement;
     if (host === null) return;
+    // Turned away, or hidden behind the sphere: not on screen to crowd another.
+    const onScreen = (label: HTMLElement) => label.style.visibility !== "hidden" && label.getBoundingClientRect().width > 0;
     const labels = [...host.querySelectorAll<HTMLElement>(".planet-nameplate[data-story-id]")];
-    const shown = labels.flatMap(label => {
-      const box = label.getBoundingClientRect();
-      // Turned away, or hidden behind the sphere: not on screen to crowd another.
-      if (label.style.visibility === "hidden" || box.width === 0) return [];
-      // Where it hangs, without the step it took last frame.
-      const drop = Number(label.dataset.drop ?? 0);
-      return [{ story: label.dataset.storyId!, box: { left: box.left, right: box.right, top: box.top - drop, bottom: box.bottom - drop }, facing: Number(label.dataset.facing ?? 0), dimmed: label.dataset.dimmed !== undefined }];
-    });
+    const shown = labels.filter(onScreen).map(label => ({ story: label.dataset.storyId!, box: label.getBoundingClientRect(),
+      facing: Number(label.dataset.facing ?? 0), dimmed: label.dataset.dimmed !== undefined }));
     const stripBox = strip.current?.getBoundingClientRect();
-    // The globe's radius on screen, in pixels: its middle and a point on its rim across the screen, projected.
-    middle.set(0, 0, 0).project(camera);
-    rim.set(1, 0, 0).applyQuaternion(camera.quaternion).multiplyScalar(radius).project(camera);
-    const across = Math.abs(rim.x - middle.x) * size.width / 2;
-    const { drops, hidden } = settlePlates(shown, selected, stripBox && stripBox.width > 0 && stripBox.height > 0 ? stripBox : undefined, furthestDrop(across));
-    for (const label of labels) {
-      const story = label.dataset.storyId!, drop = drops.get(story) ?? 0;
-      label.classList.toggle("crowded", hidden.has(story));
-      if (Number(label.dataset.drop ?? 0) === drop) continue;
-      label.dataset.drop = String(drop);
-      label.style.setProperty("--drop", `${drop}px`);
-    }
+    const faded = fadedPlates(shown, selected, stripBox && stripBox.width > 0 && stripBox.height > 0 ? stripBox : undefined);
+    for (const label of labels) label.classList.toggle("crowded", faded.has(label.dataset.storyId!));
+    const capabilities = [...host.querySelectorAll<HTMLElement>(".planet-nameplate.capability")];
+    const fadedNames = fadedCapabilities(capabilities.filter(onScreen).map(label => ({ capability: label.dataset.capabilityId!,
+      box: label.getBoundingClientRect(), size: Number(label.dataset.size ?? 0) })));
+    for (const label of capabilities) label.classList.toggle("crowded", fadedNames.has(label.dataset.capabilityId!));
   });
   return null;
 }

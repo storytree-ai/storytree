@@ -19,6 +19,10 @@
  * While it runs, it keeps a snapshot of every project, taken at start and once a day (ADR-0641 B1),
  * in ~/.storytree/0.3/backups: @storytree/app's backUp.
  *
+ * Before it restarts into a new build, it starts that build with `--start-check`, which goes as far
+ * as registering the main process's handlers and exits 0 without opening the library; a build that
+ * cannot is never restarted into (./start-check.ts). A start that fails ends the app.
+ *
  * `--smoke` renders the project without showing a window, saves a screenshot to the file given
  * with `--screenshot <file>`, prints the page's text to stdout, and quits: exit 0 only if the
  * surface on show says it drew every story of the project and every one of its capabilities.
@@ -56,6 +60,8 @@ import {
   SURFACES_CHANNELS,
   TRAY_MENU,
   mainUpdates,
+  buildApp,
+  updateToMain,
   whenToInstall,
   installChoice,
   type Launch,
@@ -74,6 +80,7 @@ import { APP_OWNER, appHome } from "../home.js";
 import { parseArgs } from "./args.js";
 import { createTrayIcon } from "./tray-icon.js";
 import { followReleases, installedApp } from "./releases.js";
+import { checkedUpdate, runWhenReady, startsCleanly } from "./start-check.js";
 
 const args = parseArgs(process.argv);
 const home = appHome();
@@ -112,9 +119,9 @@ const lifecycle = background({
   relaunch,
 });
 // The app that follows merged main runs with no terminal, so what it says goes to a log beside its data.
-if (slot !== undefined && !args.smoke) logTo(path.join(home.dir, "app.log"));
+if (slot !== undefined && !args.smoke && !args.startCheck) logTo(path.join(home.dir, "app.log"));
 
-if (!args.smoke && !app.requestSingleInstanceLock()) {
+if (!args.smoke && !args.startCheck && !app.requestSingleInstanceLock()) {
   app.quit(); // the app is already open: that one is focused instead (or, with --quit, quits)
 } else if (args.quit) {
   app.exit(0); // asked to quit, and none is running: start nothing
@@ -139,7 +146,8 @@ if (!args.smoke && !app.requestSingleInstanceLock()) {
       void lifecycle.quit(1);
     }, SMOKE_TIMEOUT_MS).unref();
   }
-  app.whenReady().then(run, (error: unknown) => fail(error));
+  // A failure in run, not only in whenReady, ends the app: half-started, it would hold the lock with no handlers.
+  void runWhenReady(app.whenReady(), run, fail);
 }
 
 async function run(): Promise<void> {
@@ -148,7 +156,7 @@ async function run(): Promise<void> {
   ipcMain.handle(JOURNEY_CHANNELS.readJourney, () => journey!.readJourney());
   ipcMain.handle(JOURNEY_CHANNELS.chooseJourney, (_event, on: boolean) => journey!.chooseJourney(on));
   ipcMain.handle(JOURNEY_CHANNELS.prepareJourneyDeletion, () => journey!.prepareJourneyDeletion());
-  if (!args.smoke) journey.desktopStarted(installedApp());
+  if (!args.smoke && !args.startCheck) journey.desktopStarted(installedApp());
   const settings = settingsActions(home.dir);
   ipcMain.handle(SETTINGS_CHANNELS.readSettings, () => settings.readSettings());
   ipcMain.handle(SETTINGS_CHANNELS.saveSetting, (_event, name: unknown, values: unknown) => settings.saveSetting(name, values));
@@ -210,6 +218,12 @@ async function run(): Promise<void> {
     return folder === undefined ? {} : readCodeSurvey(folder, treesRead.get(name) ?? await open().projectTree(name));
   });
 
+  if (args.startCheck) {
+    console.log("start check: the main process reached its handlers");
+    app.exit(0);
+    return;
+  }
+
   let problem: string | undefined;
   let project: string | undefined;
   try {
@@ -250,6 +264,11 @@ async function run(): Promise<void> {
       { execPath: electronIn(next.dir), args: [appDirIn(next.dir)] },
       BrowserWindow.getAllWindows().some(window => window.isVisible()),
     ),
+    update: checkedUpdate(updateToMain, {
+      build: buildApp,
+      shaOf: slotSha,
+      startCheck: next => startsCleanly({ execPath: electronIn(next), args: [appDirIn(next)] }),
+    }),
     log: line => console.log(line),
   });
   ipcMain.handle(CHANNELS.checkForUpdates, (_event, action: unknown) => (releases ?? updates!).request(action));

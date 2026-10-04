@@ -68,6 +68,13 @@ html:has(> body.immersive-home) { scroll-padding-top:0; }
 /* Act 2 arrives (ADR-0889): the pain in words on the dark screen chapter 1 leaves, before any globe or name. */
 #chapter2[data-tour-step="pain"][data-tour-mode="tour"] :is(.tour-heading h1, .tour-note) { opacity:0; transition:none; }
 #chapter2 :is(.tour-heading h1, .tour-note) { transition:opacity 1.2s ease; }
+/* With no globe yet, the pain is centred on the dark screen (owner, 2026-10-04). */
+#chapter2[data-tour-step="pain"][data-tour-mode="tour"] .tour-stage::before { display:none; }
+#chapter2[data-tour-step="pain"][data-tour-mode="tour"] .tour-card { left:0; right:0; width:min(860px, calc(100% - 48px)); margin-inline:auto; text-align:center; align-items:center; }
+#chapter2[data-tour-step="pain"][data-tour-mode="tour"] .tour-depth { align-self:center; }
+/* A recording's date is small print in the bottom-left corner, above the bar. */
+#chapter2 .tour-recorded { position:absolute; z-index:66; left:24px; bottom:calc(var(--bar-h) + 8px); margin:0; color:var(--dim); font:10.5px/1.4 system-ui, sans-serif; letter-spacing:.01em; pointer-events:none; }
+#chapter2[data-tour-mode="freeplay"] .tour-recorded { display:none; }
 /* Until a growth's drawing is live (loading, or no WebGL), the still is storytree's saved reading, not the growth: the arrival
    stays dark, and so does free play on the shop. */
 #chapter2:is([data-globe-map="own"], [data-globe-map="shop"]) #website-forest:not([data-forest-state="live"]) .forest-still,
@@ -183,6 +190,8 @@ html:has(> body.immersive-home) { scroll-padding-top:0; }
   #chapter2 .tb-pip[aria-current="step"]::before, #chapter2 .tb-pip[aria-current="step"]::after { top:18px; }
   #chapter2 .tour-heading { top:12px; left:14px; gap:8px; }
   #chapter2 .tour-heading h1 { font-size:21px; }
+  #chapter2 .tour-recorded { left:14px; bottom:calc(var(--bar-h) + 6px); max-width:calc(100% - 28px); font-size:10px; }
+  #chapter2[data-tour-step="pain"][data-tour-mode="tour"] .tour-card { top:72px; justify-content:center; }
   #chapter2 .tour-note { top:58px; left:14px; right:auto; max-width:none; text-align:left; font-size:10.5px; }
   #chapter2[data-tour-mode="tour"] .forest-drawing, #chapter2[data-tour-mode="tour"] .forest-still { top:72px; bottom:52%; }
   #chapter2[data-tour-mode="tour"] .forest-still { inset:72px 10% 52%; }

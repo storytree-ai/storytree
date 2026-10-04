@@ -91,7 +91,8 @@ export async function verifyTour(browser, url, output) {
   await page.clock.runFor(15000); assert.equal(await stepOf(page), "stories-island", "Pause holds the step");
   await page.locator("#tour-play").click();
   // A waiting step shows all its lines, so the pace is timed on a fresh step: its first line (9 words) reads for 3.5 s at 1×.
-  await page.locator("#tour-speed-cycle").click(); assert.equal(await page.locator("#tour-speed-cycle").textContent(), "1.5×");
+  assert.equal(await page.locator("#tour-speed-cycle").textContent(), "0.75×", "Act 2 arrives at 0.75×");
+  await page.locator("#tour-speed-cycle").click(); await page.locator("#tour-speed-cycle").click(); assert.equal(await page.locator("#tour-speed-cycle").textContent(), "1.5×");
   await goToStep(page, "stories-roads"); assert.equal(await shown(), 1);
   await page.clock.runFor(3500); assert.equal(await shown(), 2, "1.5× brings the next line in two thirds of the time");
   await goToStep(page, "stories-island");
@@ -204,6 +205,24 @@ export async function verifyImmersive(browser, url, output) {
     assert.ok(globe.width >= width * .95 && globe.height >= height * .95, "The globe occupies the viewport");
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, "No sideways scroll");
     await page.screenshot({ path: path.join(output, `tour-${width}.png`) });
+    if (width > 600) assert.equal(await page.locator('#tour-bar [data-speed="0.75"]').getAttribute("aria-pressed"), "true", "Act 2 arrives at 0.75×");
+    // 2.11: with no globe yet, the pain is centred on the screen, in two lines.
+    await goToStep(page, "pain");
+    const said = await page.locator("#tour-lines .tour-line.on").evaluateAll(lines => lines.map(line => { const box = line.querySelector(".said").getBoundingClientRect(); return box.x + box.width / 2; }));
+    assert.equal(said.length, 2, "the pain is said in two lines");
+    for (const centre of said) assert.ok(Math.abs(centre - width / 2) < width * .04, `the pain is centred at ${width}px (${Math.round(centre)})`);
+    await page.screenshot({ path: path.join(output, `pain-${width}.png`) });
+    // The recording's date is small print in the bottom-left corner, not a chip on the card.
+    await goToStep(page, "grow");
+    assert.equal(await page.locator("#tour-card .chip-recording").count(), 0, "no recording chip on the card");
+    const recorded = page.locator("#tour-recorded");
+    assert.match(await recorded.textContent(), /Recorded \d+ \w+ \d{4} to \d+ \w+ \d{4} · timing compressed/);
+    const corner = await recorded.boundingBox(), barTop = (await page.locator("#tour-bar").boundingBox()).y;
+    assert.ok(corner.x < 30 && corner.x + corner.width <= (width < 600 ? width - 10 : width * .5) && corner.y + corner.height <= barTop && corner.y > barTop - 60, `the recording's date sits bottom left at ${width}px: ${JSON.stringify(corner)}`);
+    assert.ok(await recorded.evaluate(node => parseFloat(getComputedStyle(node).fontSize)) <= 11.5, "it is small print");
+    await page.screenshot({ path: path.join(output, `grow-${width}.png`) });
+    await goToStep(page, "value");
+    assert.equal(await recorded.isVisible(), false, "a step without a recording has no small print");
     await page.locator("#tour-skip").click();
     await page.locator(".forest-views").waitFor();
     assert.equal(await page.locator("#chapter2").getAttribute("data-tour-mode"), "freeplay");

@@ -252,3 +252,14 @@ where CI health had looked only (PR #614, CI health 3.4; the export's own readin
 **Not yet swapped into the website.** The tour names the first build's three teaching stories by id
 (`tour-copy.ts`), its contract 2.12 test expects their titles, and its caption dates the shop 3 October; all
 are outside this lane's write fence, so the swap, with exact steps, is increment_8254e068412e.
+
+## Verified on the laptop (after PRs #613 and #614 reached app 0.3.648)
+
+In the shop's folder, as a user would, `storytree health ci` read the newest push run on `main`: **"Read 100 test
+results … 85 contracts verified passing, 0 failing."** `storytree tree` now shows each contract's verified health
+beside the agent's report (`runs/verified-tree.txt`): 28 capabilities healthy, and Browsing's three named as
+untested with the exact contract no test proves ("no test names it, the agent's to move: 1.3").
+
+The app's globe did not change colour for it, before or after a restart (`shots/verified-health.png`,
+`verified-health-restart.png`): the user's own globe does not yet show what storytree verified, while the
+website's export of the same project does. Parked as increment_c4d50c340617 (arc_e05282628cd8).

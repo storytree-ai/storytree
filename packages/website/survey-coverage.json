@@ -6,7 +6,7 @@
   "5": 4
  },
  "src/conduit-growth.ts": {
-  "3": 305
+  "3": 349
  },
  "src/escape-html.ts": {
   "1": 3,
@@ -58,6 +58,9 @@
   "1": 72,
   "2": 43
  },
+ "src/own-growth.ts": {
+  "3": 24
+ },
  "src/publish-source.ts": {
   "4": 20
  },
@@ -70,11 +73,14 @@
  "src/refresh-growth.ts": {
   "3": 1
  },
+ "src/refresh-own.ts": {
+  "3": 4
+ },
  "src/refresh-shop.ts": {
   "3": 6
  },
  "src/shop-growth.ts": {
-  "3": 77
+  "3": 89
  },
  "src/tour-copy.ts": {
   "1": 6,
@@ -90,7 +96,7 @@
   "2": 38
  },
  "src/tour-snapshot.ts": {
-  "3": 169
+  "3": 189
  },
  "src/tour-ui.ts": {
   "1": 23,

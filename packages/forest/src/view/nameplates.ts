@@ -26,8 +26,8 @@ export function facesEye(plate: Quaternion, eye: Quaternion): boolean {
   return facing(plate, eye) > 0;
 }
 
-/** A story nameplate as the screen shows it: its box in pixels where it hangs, before any displacement, and how squarely its island faces the eye. */
-export interface ShownPlate { story: string; box: { left: number; top: number; right: number; bottom: number }; facing: number }
+/** A story nameplate as the screen shows it: its box in pixels where it hangs, before any displacement, how squarely its island faces the eye, and whether it is dimmed behind the stories in focus. */
+export interface ShownPlate { story: string; box: { left: number; top: number; right: number; bottom: number }; facing: number; dimmed?: boolean }
 
 /** How wide a story's nameplate may grow, in pixels, before its title wraps: neighbours in a row of small islands then clear each other a slot apart. */
 export const STORY_PLATE_WIDTH = 112;
@@ -38,38 +38,48 @@ export const PLATE_STEP_GAP = 3;
 /** The furthest a plate steps from its resting position to clear other names, in pixels; past it, it is hidden. */
 export const MAX_DROP = 140;
 
+/** On a small globe a plate steps no further than this share of the globe's radius on screen, so it still reads as its own island's name, not a neighbour's. */
+export const DROP_PER_RADIUS = 1 / 3;
+
+/** How far a plate may step on a globe `radius` pixels across from its middle to its rim: MAX_DROP, or less on a small globe. */
+export function furthestDrop(radius = Infinity): number {
+  return Math.min(MAX_DROP, radius * DROP_PER_RADIUS);
+}
+
 /**
  * How the story nameplates on screen settle so that no two overlap. Taken one at a time, each plate stays where
  * it hangs if it clears the plates already settled, or else steps down the screen just below the ones it would
  * overlap, by the least drop that clears them all. Three orders are tried: the more squarely faced first (so the
  * more edge-on steps), west to east, and every other plate west to east before the rest (so a row of small
- * islands zigzags in two lines rather than a staircase); the one that hides fewer, and then steps less in all, is kept.
- * The selected story's plate always goes first. The Sessions strip lifts a plate's resting position just above its top edge; if stepping down to
+ * islands zigzags in two lines rather than a staircase); the one that hides fewer names in focus, then fewer in all, and then steps less in all, is kept.
+ * The selected story's plate always goes first, then the plates not dimmed, so a dimmed name yields to the stories in focus. The Sessions strip lifts a plate's resting position just above its top edge; if stepping down to
  * clear another name would cross that edge, it steps above the other instead. The selected plate stays at
- * its (possibly lifted) resting position. Only collision clearance beyond MAX_DROP hides a plate.
+ * its (possibly lifted) resting position. Only collision clearance beyond `furthest` (MAX_DROP, or less on a small globe) hides a plate.
  * Boxes are measured before any displacement, so a displacement never feeds back on itself.
  */
-export function settlePlates(plates: readonly ShownPlate[], selected?: string, strip?: ShownPlate["box"]): { drops: Map<string, number>; hidden: Set<string> } {
-  const first = (a: ShownPlate, b: ShownPlate) => Number(b.story === selected) - Number(a.story === selected);
+export function settlePlates(plates: readonly ShownPlate[], selected?: string, strip?: ShownPlate["box"], furthest = MAX_DROP): { drops: Map<string, number>; hidden: Set<string> } {
+  const first = (a: ShownPlate, b: ShownPlate) => Number(b.story === selected) - Number(a.story === selected) || Number(a.dimmed ?? false) - Number(b.dimmed ?? false);
   const west = (a: ShownPlate, b: ShownPlate) => a.box.left - b.box.left || b.facing - a.facing;
   const along = new Map([...plates].sort(west).map((plate, i) => [plate, i]));
   const tries = [
     (a: ShownPlate, b: ShownPlate) => b.facing - a.facing,
     west,
     (a: ShownPlate, b: ShownPlate) => along.get(a)! % 2 - along.get(b)! % 2 || west(a, b),
-  ].map(order => settleInOrder([...plates].sort((a, b) => first(a, b) || order(a, b)), selected, strip));
+  ].map(order => settleInOrder([...plates].sort((a, b) => first(a, b) || order(a, b)), selected, strip, furthest));
   const stepped = ({ drops }: { drops: Map<string, number> }) => [...drops.values()].reduce((sum, drop) => sum + Math.abs(drop), 0);
-  return tries.reduce((best, next) => next.hidden.size < best.hidden.size || (next.hidden.size === best.hidden.size && stepped(next) < stepped(best)) ? next : best);
+  const dimmed = new Set(plates.filter(plate => plate.dimmed).map(plate => plate.story));
+  const inFocus = ({ hidden }: { hidden: Set<string> }) => [...hidden].filter(story => !dimmed.has(story)).length;
+  return tries.reduce((best, next) => (inFocus(next) - inFocus(best) || next.hidden.size - best.hidden.size || stepped(next) - stepped(best)) < 0 ? next : best);
 }
 
-function settleInOrder(order: readonly ShownPlate[], selected?: string, strip?: ShownPlate["box"]): { drops: Map<string, number>; hidden: Set<string> } {
+function settleInOrder(order: readonly ShownPlate[], selected: string | undefined, strip: ShownPlate["box"] | undefined, furthest: number): { drops: Map<string, number>; hidden: Set<string> } {
   const settled: ShownPlate["box"][] = [], drops = new Map<string, number>(), hidden = new Set<string>();
   const overlaps = (box: ShownPlate["box"], other: ShownPlate["box"]) => box.left < other.right && other.left < box.right && box.top < other.bottom && other.top < box.bottom;
   for (const { story, box } of order) {
     const ceiling = strip !== undefined && box.left < strip.right && strip.left < box.right
       ? strip.top - PLATE_STEP_GAP - box.bottom : Infinity;
     const rest = Math.min(0, ceiling);
-    const clears = (drop: number) => drop <= ceiling && Math.abs(drop - rest) <= MAX_DROP
+    const clears = (drop: number) => drop <= ceiling && Math.abs(drop - rest) <= furthest
       && (drop === rest || story !== selected)
       && !settled.some(other => overlaps({ ...box, top: box.top + drop, bottom: box.bottom + drop }, other));
     const down = [rest, ...settled.map(other => other.bottom + PLATE_STEP_GAP - box.top)]

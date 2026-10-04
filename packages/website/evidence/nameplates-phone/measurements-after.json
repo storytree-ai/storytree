@@ -1,0 +1,1040 @@
+{
+ "1440-cut": [
+  {
+   "story": "story_171ee67ff59d",
+   "title": "Sign in and see the products",
+   "facing": 0.637,
+   "crowded": false,
+   "dimmed": true,
+   "hangs": {
+    "left": 952,
+    "top": 143.5,
+    "right": 1064,
+    "bottom": 192
+   },
+   "settled": {
+    "left": 952,
+    "top": 143.5,
+    "right": 1064,
+    "bottom": 192
+   }
+  },
+  {
+   "story": "story_0c36494ccf30",
+   "title": "Browse products and pick them",
+   "facing": 0.951,
+   "crowded": false,
+   "dimmed": false,
+   "hangs": {
+    "left": 905.1,
+    "top": 368,
+    "right": 1017.1,
+    "bottom": 416.4
+   },
+   "settled": {
+    "left": 905.1,
+    "top": 368,
+    "right": 1017.1,
+    "bottom": 416.4
+   }
+  },
+  {
+   "story": "story_29b9f7826e86",
+   "title": "Review the cart and use the menu",
+   "facing": 1,
+   "crowded": false,
+   "dimmed": false,
+   "hangs": {
+    "left": 952,
+    "top": 501.9,
+    "right": 1064,
+    "bottom": 550.3
+   },
+   "settled": {
+    "left": 952,
+    "top": 501.9,
+    "right": 1064,
+    "bottom": 550.3
+   }
+  },
+  {
+   "story": "story_24ca85400abc",
+   "title": "Check out",
+   "facing": 0.953,
+   "crowded": false,
+   "dimmed": false,
+   "hangs": {
+    "left": 927.1,
+    "top": 610.8,
+    "right": 1010.1,
+    "bottom": 629.1
+   },
+   "settled": {
+    "left": 927.1,
+    "top": 610.8,
+    "right": 1010.1,
+    "bottom": 629.1
+   }
+  },
+  {
+   "story": "story_36ccce674208",
+   "title": "Sign up for an account",
+   "facing": 0.951,
+   "crowded": false,
+   "dimmed": true,
+   "hangs": {
+    "left": 999,
+    "top": 353.7,
+    "right": 1111,
+    "bottom": 387.1
+   },
+   "settled": {
+    "left": 999,
+    "top": 419.4,
+    "right": 1111,
+    "bottom": 452.8
+   }
+  },
+  {
+   "story": "story_f5a3a0aa30de",
+   "title": "See my orders",
+   "facing": 0.823,
+   "crowded": false,
+   "dimmed": true,
+   "hangs": {
+    "left": 1004.8,
+    "top": 721,
+    "right": 1114.6,
+    "bottom": 739.3
+   },
+   "settled": {
+    "left": 1004.8,
+    "top": 744.1,
+    "right": 1114.6,
+    "bottom": 762.4
+   }
+  },
+  {
+   "story": "story_209e62fb4a25",
+   "title": "Search products",
+   "facing": 0.833,
+   "crowded": false,
+   "dimmed": true,
+   "hangs": {
+    "left": 952,
+    "top": 236.7,
+    "right": 1064,
+    "bottom": 270.1
+   },
+   "settled": {
+    "left": 952,
+    "top": 236.7,
+    "right": 1064,
+    "bottom": 270.1
+   }
+  },
+  {
+   "story": "story_8bdc37cf0fe5",
+   "title": "Review products",
+   "facing": 0.953,
+   "crowded": false,
+   "dimmed": true,
+   "hangs": {
+    "left": 991.4,
+    "top": 607,
+    "right": 1103.4,
+    "bottom": 640.3
+   },
+   "settled": {
+    "left": 991.4,
+    "top": 632.1,
+    "right": 1103.4,
+    "bottom": 665.4
+   }
+  },
+  {
+   "story": "story_09eeafd698a6",
+   "title": "Manage stock and prices",
+   "facing": 0.823,
+   "crowded": false,
+   "dimmed": true,
+   "hangs": {
+    "left": 900.2,
+    "top": 707.8,
+    "right": 1012.2,
+    "bottom": 741.1
+   },
+   "settled": {
+    "left": 900.2,
+    "top": 707.8,
+    "right": 1012.2,
+    "bottom": 741.1
+   }
+  }
+ ],
+ "1440-freeplay": [
+  {
+   "story": "story_171ee67ff59d",
+   "title": "Sign in and see the products",
+   "facing": 0.637,
+   "crowded": false,
+   "dimmed": false,
+   "hangs": {
+    "left": 664,
+    "top": 157.5,
+    "right": 776,
+    "bottom": 205.9
+   },
+   "settled": {
+    "left": 664,
+    "top": 157.5,
+    "right": 776,
+    "bottom": 205.9
+   }
+  },
+  {
+   "story": "story_0c36494ccf30",
+   "title": "Browse products and pick them",
+   "facing": 0.951,
+   "crowded": false,
+   "dimmed": false,
+   "hangs": {
+    "left": 619.2,
+    "top": 371.7,
+    "right": 731.2,
+    "bottom": 420.2
+   },
+   "settled": {
+    "left": 619.2,
+    "top": 371.7,
+    "right": 731.2,
+    "bottom": 420.2
+   }
+  },
+  {
+   "story": "story_29b9f7826e86",
+   "title": "Review the cart and use the menu",
+   "facing": 1,
+   "crowded": false,
+   "dimmed": false,
+   "hangs": {
+    "left": 664,
+    "top": 499.5,
+    "right": 776,
+    "bottom": 548
+   },
+   "settled": {
+    "left": 664,
+    "top": 499.5,
+    "right": 776,
+    "bottom": 548
+   }
+  },
+  {
+   "story": "story_24ca85400abc",
+   "title": "Check out",
+   "facing": 0.953,
+   "crowded": false,
+   "dimmed": false,
+   "hangs": {
+    "left": 640.9,
+    "top": 603.6,
+    "right": 723.9,
+    "bottom": 621.9
+   },
+   "settled": {
+    "left": 640.9,
+    "top": 603.6,
+    "right": 723.9,
+    "bottom": 621.9
+   }
+  },
+  {
+   "story": "story_36ccce674208",
+   "title": "Sign up for an account",
+   "facing": 0.951,
+   "crowded": false,
+   "dimmed": false,
+   "hangs": {
+    "left": 708.9,
+    "top": 358.1,
+    "right": 820.9,
+    "bottom": 391.5
+   },
+   "settled": {
+    "left": 708.9,
+    "top": 423.2,
+    "right": 820.9,
+    "bottom": 456.5
+   }
+  },
+  {
+   "story": "story_f5a3a0aa30de",
+   "title": "See my orders",
+   "facing": 0.823,
+   "crowded": false,
+   "dimmed": false,
+   "hangs": {
+    "left": 714.5,
+    "top": 708.8,
+    "right": 824.3,
+    "bottom": 727.1
+   },
+   "settled": {
+    "left": 714.5,
+    "top": 732.4,
+    "right": 824.3,
+    "bottom": 750.7
+   }
+  },
+  {
+   "story": "story_209e62fb4a25",
+   "title": "Search products",
+   "facing": 0.833,
+   "crowded": false,
+   "dimmed": false,
+   "hangs": {
+    "left": 664,
+    "top": 246.4,
+    "right": 776,
+    "bottom": 279.7
+   },
+   "settled": {
+    "left": 664,
+    "top": 246.4,
+    "right": 776,
+    "bottom": 279.7
+   }
+  },
+  {
+   "story": "story_8bdc37cf0fe5",
+   "title": "Review products",
+   "facing": 0.953,
+   "crowded": false,
+   "dimmed": false,
+   "hangs": {
+    "left": 701.6,
+    "top": 599.8,
+    "right": 813.6,
+    "bottom": 633.2
+   },
+   "settled": {
+    "left": 701.6,
+    "top": 624.9,
+    "right": 813.6,
+    "bottom": 658.3
+   }
+  },
+  {
+   "story": "story_09eeafd698a6",
+   "title": "Manage stock and prices",
+   "facing": 0.823,
+   "crowded": false,
+   "dimmed": false,
+   "hangs": {
+    "left": 614.6,
+    "top": 696.1,
+    "right": 726.6,
+    "bottom": 729.4
+   },
+   "settled": {
+    "left": 614.6,
+    "top": 696.1,
+    "right": 726.6,
+    "bottom": 729.4
+   }
+  }
+ ],
+ "390-cut": [
+  {
+   "story": "story_171ee67ff59d",
+   "title": "Sign in and see the products",
+   "facing": 0.637,
+   "crowded": true,
+   "dimmed": true,
+   "hangs": {
+    "left": 139,
+    "top": 125.1,
+    "right": 251,
+    "bottom": 173.6
+   },
+   "settled": {
+    "left": 139,
+    "top": 125.1,
+    "right": 251,
+    "bottom": 173.6
+   }
+  },
+  {
+   "story": "story_0c36494ccf30",
+   "title": "Browse products and pick them",
+   "facing": 0.951,
+   "crowded": false,
+   "dimmed": false,
+   "hangs": {
+    "left": 121.6,
+    "top": 208.2,
+    "right": 233.6,
+    "bottom": 256.7
+   },
+   "settled": {
+    "left": 121.6,
+    "top": 208.2,
+    "right": 233.6,
+    "bottom": 256.7
+   }
+  },
+  {
+   "story": "story_29b9f7826e86",
+   "title": "Review the cart and use the menu",
+   "facing": 1,
+   "crowded": false,
+   "dimmed": false,
+   "hangs": {
+    "left": 139,
+    "top": 257.8,
+    "right": 251,
+    "bottom": 306.2
+   },
+   "settled": {
+    "left": 139,
+    "top": 257.8,
+    "right": 251,
+    "bottom": 306.2
+   }
+  },
+  {
+   "story": "story_24ca85400abc",
+   "title": "Check out",
+   "facing": 0.953,
+   "crowded": false,
+   "dimmed": false,
+   "hangs": {
+    "left": 138.9,
+    "top": 300.2,
+    "right": 221.9,
+    "bottom": 318.5
+   },
+   "settled": {
+    "left": 138.9,
+    "top": 309.2,
+    "right": 221.9,
+    "bottom": 327.5
+   }
+  },
+  {
+   "story": "story_36ccce674208",
+   "title": "Sign up for an account",
+   "facing": 0.951,
+   "crowded": true,
+   "dimmed": true,
+   "hangs": {
+    "left": 156.4,
+    "top": 202.9,
+    "right": 268.4,
+    "bottom": 236.3
+   },
+   "settled": {
+    "left": 156.4,
+    "top": 202.9,
+    "right": 268.4,
+    "bottom": 236.3
+   }
+  },
+  {
+   "story": "story_f5a3a0aa30de",
+   "title": "See my orders",
+   "facing": 0.823,
+   "crowded": false,
+   "dimmed": true,
+   "hangs": {
+    "left": 159.3,
+    "top": 341,
+    "right": 269,
+    "bottom": 359.3
+   },
+   "settled": {
+    "left": 159.3,
+    "top": 366.9,
+    "right": 269,
+    "bottom": 385.2
+   }
+  },
+  {
+   "story": "story_209e62fb4a25",
+   "title": "Search products",
+   "facing": 0.833,
+   "crowded": false,
+   "dimmed": true,
+   "hangs": {
+    "left": 139,
+    "top": 159.6,
+    "right": 251,
+    "bottom": 193
+   },
+   "settled": {
+    "left": 139,
+    "top": 159.6,
+    "right": 251,
+    "bottom": 193
+   }
+  },
+  {
+   "story": "story_8bdc37cf0fe5",
+   "title": "Review products",
+   "facing": 0.953,
+   "crowded": false,
+   "dimmed": true,
+   "hangs": {
+    "left": 153.6,
+    "top": 296.7,
+    "right": 265.6,
+    "bottom": 330
+   },
+   "settled": {
+    "left": 153.6,
+    "top": 330.5,
+    "right": 265.6,
+    "bottom": 363.9
+   }
+  },
+  {
+   "story": "story_09eeafd698a6",
+   "title": "Manage stock and prices",
+   "facing": 0.823,
+   "crowded": true,
+   "dimmed": true,
+   "hangs": {
+    "left": 119.8,
+    "top": 334,
+    "right": 231.8,
+    "bottom": 367.3
+   },
+   "settled": {
+    "left": 119.8,
+    "top": 334,
+    "right": 231.8,
+    "bottom": 367.3
+   }
+  }
+ ],
+ "390-freeplay": [
+  {
+   "story": "story_171ee67ff59d",
+   "title": "Sign in and see the products",
+   "facing": 0.637,
+   "crowded": true,
+   "dimmed": false,
+   "hangs": {
+    "left": 139,
+    "top": 295.2,
+    "right": 251,
+    "bottom": 343.7
+   },
+   "settled": {
+    "left": 139,
+    "top": 295.2,
+    "right": 251,
+    "bottom": 343.7
+   }
+  },
+  {
+   "story": "story_0c36494ccf30",
+   "title": "Browse products and pick them",
+   "facing": 0.951,
+   "crowded": false,
+   "dimmed": false,
+   "hangs": {
+    "left": 119.6,
+    "top": 388.1,
+    "right": 231.6,
+    "bottom": 436.5
+   },
+   "settled": {
+    "left": 119.6,
+    "top": 388.1,
+    "right": 231.6,
+    "bottom": 436.5
+   }
+  },
+  {
+   "story": "story_29b9f7826e86",
+   "title": "Review the cart and use the menu",
+   "facing": 1,
+   "crowded": false,
+   "dimmed": false,
+   "hangs": {
+    "left": 139,
+    "top": 443.5,
+    "right": 251,
+    "bottom": 491.9
+   },
+   "settled": {
+    "left": 139,
+    "top": 443.5,
+    "right": 251,
+    "bottom": 491.9
+   }
+  },
+  {
+   "story": "story_24ca85400abc",
+   "title": "Check out",
+   "facing": 0.953,
+   "crowded": false,
+   "dimmed": false,
+   "hangs": {
+    "left": 137.2,
+    "top": 490.5,
+    "right": 220.2,
+    "bottom": 508.8
+   },
+   "settled": {
+    "left": 137.2,
+    "top": 494.9,
+    "right": 220.2,
+    "bottom": 513.2
+   }
+  },
+  {
+   "story": "story_36ccce674208",
+   "title": "Sign up for an account",
+   "facing": 0.951,
+   "crowded": true,
+   "dimmed": false,
+   "hangs": {
+    "left": 158.5,
+    "top": 382.2,
+    "right": 270.5,
+    "bottom": 415.6
+   },
+   "settled": {
+    "left": 158.5,
+    "top": 382.2,
+    "right": 270.5,
+    "bottom": 415.6
+   }
+  },
+  {
+   "story": "story_f5a3a0aa30de",
+   "title": "See my orders",
+   "facing": 0.823,
+   "crowded": false,
+   "dimmed": false,
+   "hangs": {
+    "left": 161.5,
+    "top": 536.1,
+    "right": 271.3,
+    "bottom": 554.4
+   },
+   "settled": {
+    "left": 161.5,
+    "top": 552.6,
+    "right": 271.3,
+    "bottom": 570.9
+   }
+  },
+  {
+   "story": "story_209e62fb4a25",
+   "title": "Search products",
+   "facing": 0.833,
+   "crowded": false,
+   "dimmed": false,
+   "hangs": {
+    "left": 139,
+    "top": 333.8,
+    "right": 251,
+    "bottom": 367.1
+   },
+   "settled": {
+    "left": 139,
+    "top": 333.8,
+    "right": 251,
+    "bottom": 367.1
+   }
+  },
+  {
+   "story": "story_8bdc37cf0fe5",
+   "title": "Review products",
+   "facing": 0.953,
+   "crowded": false,
+   "dimmed": false,
+   "hangs": {
+    "left": 155.3,
+    "top": 486.9,
+    "right": 267.3,
+    "bottom": 520.3
+   },
+   "settled": {
+    "left": 155.3,
+    "top": 516.2,
+    "right": 267.3,
+    "bottom": 549.6
+   }
+  },
+  {
+   "story": "story_09eeafd698a6",
+   "title": "Manage stock and prices",
+   "facing": 0.823,
+   "crowded": false,
+   "dimmed": false,
+   "hangs": {
+    "left": 117.6,
+    "top": 528.6,
+    "right": 229.6,
+    "bottom": 562
+   },
+   "settled": {
+    "left": 117.6,
+    "top": 573.9,
+    "right": 229.6,
+    "bottom": 607.2
+   }
+  }
+ ],
+ "320-cut": [
+  {
+   "story": "story_171ee67ff59d",
+   "title": "Sign in and see the products",
+   "facing": 0.637,
+   "crowded": true,
+   "dimmed": true,
+   "hangs": {
+    "left": 104,
+    "top": 114.1,
+    "right": 216,
+    "bottom": 162.6
+   },
+   "settled": {
+    "left": 104,
+    "top": 114.1,
+    "right": 216,
+    "bottom": 162.6
+   }
+  },
+  {
+   "story": "story_0c36494ccf30",
+   "title": "Browse products and pick them",
+   "facing": 0.951,
+   "crowded": false,
+   "dimmed": false,
+   "hangs": {
+    "left": 90.2,
+    "top": 179.9,
+    "right": 202.2,
+    "bottom": 228.4
+   },
+   "settled": {
+    "left": 90.2,
+    "top": 179.9,
+    "right": 202.2,
+    "bottom": 228.4
+   }
+  },
+  {
+   "story": "story_29b9f7826e86",
+   "title": "Review the cart and use the menu",
+   "facing": 1,
+   "crowded": false,
+   "dimmed": false,
+   "hangs": {
+    "left": 104,
+    "top": 219.2,
+    "right": 216,
+    "bottom": 267.7
+   },
+   "settled": {
+    "left": 104,
+    "top": 231.4,
+    "right": 216,
+    "bottom": 279.9
+   }
+  },
+  {
+   "story": "story_24ca85400abc",
+   "title": "Check out",
+   "facing": 0.953,
+   "crowded": false,
+   "dimmed": false,
+   "hangs": {
+    "left": 106.9,
+    "top": 253.6,
+    "right": 189.9,
+    "bottom": 271.9
+   },
+   "settled": {
+    "left": 106.9,
+    "top": 282.9,
+    "right": 189.9,
+    "bottom": 301.2
+   }
+  },
+  {
+   "story": "story_36ccce674208",
+   "title": "Sign up for an account",
+   "facing": 0.951,
+   "crowded": true,
+   "dimmed": true,
+   "hangs": {
+    "left": 117.8,
+    "top": 175.8,
+    "right": 229.8,
+    "bottom": 209.1
+   },
+   "settled": {
+    "left": 117.8,
+    "top": 175.8,
+    "right": 229.8,
+    "bottom": 209.1
+   }
+  },
+  {
+   "story": "story_f5a3a0aa30de",
+   "title": "See my orders",
+   "facing": 0.823,
+   "crowded": true,
+   "dimmed": true,
+   "hangs": {
+    "left": 120.3,
+    "top": 285.9,
+    "right": 230.1,
+    "bottom": 304.2
+   },
+   "settled": {
+    "left": 120.3,
+    "top": 285.9,
+    "right": 230.1,
+    "bottom": 304.2
+   }
+  },
+  {
+   "story": "story_209e62fb4a25",
+   "title": "Search products",
+   "facing": 0.833,
+   "crowded": false,
+   "dimmed": true,
+   "hangs": {
+    "left": 104,
+    "top": 141.4,
+    "right": 216,
+    "bottom": 174.8
+   },
+   "settled": {
+    "left": 104,
+    "top": 141.4,
+    "right": 216,
+    "bottom": 174.8
+   }
+  },
+  {
+   "story": "story_8bdc37cf0fe5",
+   "title": "Review products",
+   "facing": 0.953,
+   "crowded": true,
+   "dimmed": true,
+   "hangs": {
+    "left": 115.6,
+    "top": 250,
+    "right": 227.6,
+    "bottom": 283.4
+   },
+   "settled": {
+    "left": 115.6,
+    "top": 250,
+    "right": 227.6,
+    "bottom": 283.4
+   }
+  },
+  {
+   "story": "story_09eeafd698a6",
+   "title": "Manage stock and prices",
+   "facing": 0.823,
+   "crowded": false,
+   "dimmed": true,
+   "hangs": {
+    "left": 88.8,
+    "top": 279.6,
+    "right": 200.8,
+    "bottom": 313
+   },
+   "settled": {
+    "left": 88.8,
+    "top": 304.2,
+    "right": 200.8,
+    "bottom": 337.5
+   }
+  }
+ ],
+ "320-freeplay": [
+  {
+   "story": "story_171ee67ff59d",
+   "title": "Sign in and see the products",
+   "facing": 0.637,
+   "crowded": false,
+   "dimmed": false,
+   "hangs": {
+    "left": 104,
+    "top": 246,
+    "right": 216,
+    "bottom": 294.5
+   },
+   "settled": {
+    "left": 104,
+    "top": 246,
+    "right": 216,
+    "bottom": 294.5
+   }
+  },
+  {
+   "story": "story_0c36494ccf30",
+   "title": "Browse products and pick them",
+   "facing": 0.951,
+   "crowded": true,
+   "dimmed": false,
+   "hangs": {
+    "left": 88.1,
+    "top": 322.2,
+    "right": 200.1,
+    "bottom": 370.6
+   },
+   "settled": {
+    "left": 88.1,
+    "top": 322.2,
+    "right": 200.1,
+    "bottom": 370.6
+   }
+  },
+  {
+   "story": "story_29b9f7826e86",
+   "title": "Review the cart and use the menu",
+   "facing": 1,
+   "crowded": false,
+   "dimmed": false,
+   "hangs": {
+    "left": 104,
+    "top": 367.6,
+    "right": 216,
+    "bottom": 416.1
+   },
+   "settled": {
+    "left": 104,
+    "top": 367.6,
+    "right": 216,
+    "bottom": 416.1
+   }
+  },
+  {
+   "story": "story_24ca85400abc",
+   "title": "Check out",
+   "facing": 0.953,
+   "crowded": false,
+   "dimmed": false,
+   "hangs": {
+    "left": 105.1,
+    "top": 406.8,
+    "right": 188.1,
+    "bottom": 425.1
+   },
+   "settled": {
+    "left": 105.1,
+    "top": 419.1,
+    "right": 188.1,
+    "bottom": 437.4
+   }
+  },
+  {
+   "story": "story_36ccce674208",
+   "title": "Sign up for an account",
+   "facing": 0.951,
+   "crowded": false,
+   "dimmed": false,
+   "hangs": {
+    "left": 120,
+    "top": 317.3,
+    "right": 232,
+    "bottom": 350.7
+   },
+   "settled": {
+    "left": 120,
+    "top": 333.8,
+    "right": 232,
+    "bottom": 367.2
+   }
+  },
+  {
+   "story": "story_f5a3a0aa30de",
+   "title": "See my orders",
+   "facing": 0.823,
+   "crowded": false,
+   "dimmed": false,
+   "hangs": {
+    "left": 122.7,
+    "top": 444.2,
+    "right": 232.4,
+    "bottom": 462.5
+   },
+   "settled": {
+    "left": 122.7,
+    "top": 473.9,
+    "right": 232.4,
+    "bottom": 492.1
+   }
+  },
+  {
+   "story": "story_209e62fb4a25",
+   "title": "Search products",
+   "facing": 0.833,
+   "crowded": false,
+   "dimmed": false,
+   "hangs": {
+    "left": 104,
+    "top": 277.6,
+    "right": 216,
+    "bottom": 311
+   },
+   "settled": {
+    "left": 104,
+    "top": 297.5,
+    "right": 216,
+    "bottom": 330.8
+   }
+  },
+  {
+   "story": "story_8bdc37cf0fe5",
+   "title": "Review products",
+   "facing": 0.953,
+   "crowded": true,
+   "dimmed": false,
+   "hangs": {
+    "left": 117.4,
+    "top": 403.3,
+    "right": 229.4,
+    "bottom": 436.6
+   },
+   "settled": {
+    "left": 117.4,
+    "top": 403.3,
+    "right": 229.4,
+    "bottom": 436.6
+   }
+  },
+  {
+   "story": "story_09eeafd698a6",
+   "title": "Manage stock and prices",
+   "facing": 0.823,
+   "crowded": false,
+   "dimmed": false,
+   "hangs": {
+    "left": 86.4,
+    "top": 437.5,
+    "right": 198.4,
+    "bottom": 470.9
+   },
+   "settled": {
+    "left": 86.4,
+    "top": 437.5,
+    "right": 198.4,
+    "bottom": 470.9
+   }
+  }
+ ]
+}

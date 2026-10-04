@@ -128,7 +128,7 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
     <Navigation islands={layout.islands} radius={layout.radius} titles={new Map(scene.islands.map(i => [i.story, i.title]))}
       rotation={rotation} onRotate={setRotation} onPose={setPose} onControls={onControls} onPick={onPick} onNote={onNote} mode={mode}
       showFailures={shownSurfaces.grounds || shownSurfaces.territories !== false || shownSurfaces.fileCircles || shownSurfaces.nameplates || shownSurfaces.roads} />
-    <NameplateCrowd selected={selected} />
+    <NameplateCrowd selected={selected} radius={layout.radius} />
     {growth !== undefined && recordedSessions !== undefined && <ReplaySessions recorded={recordedSessions} onWisps={setReplayed} />}
   </PlanetWorldCanvas>;
 }

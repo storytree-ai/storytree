@@ -150,7 +150,8 @@
 
 .knowledge-tooltip.with-detail { max-width: 280px; }
 .knowledge-tooltip.with-detail strong { display: block; font-weight: 600; }
-.knowledge-tooltip-detail { display: block; margin-top: 3px; color: #c4d0d8; }
+/* A capability's description on hover: four lines at most, an ellipsis past them; the story panel reads it whole. */
+.knowledge-tooltip-detail { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; margin-top: 3px; color: #c4d0d8; }
 
 .core-entrance,
 .core-pinned-label {

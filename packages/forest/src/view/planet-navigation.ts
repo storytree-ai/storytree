@@ -17,7 +17,7 @@ export function isGlobeDrag(from: { x: number; y: number }, to: { x: number; y: 
 
 /**
  * The cursor and tooltip for the actual eligible artifact, file or capability territory beneath the pointer
- * (3.12, 3.17): a territory gives its capability's name, without its number, and its description as the detail (3.32).
+ * (3.12, 3.17): a territory gives its capability's name, without its number, and its description's first paragraph as the detail (3.32).
  */
 export function globeHover(world: Object3D, camera: Camera,
   box: { left: number; top: number; width: number; height: number }, cursor: { x: number; y: number }, mode: ForestMode): { cursor: string; title: string | undefined; detail?: string } {
@@ -29,7 +29,9 @@ export function globeHover(world: Object3D, camera: Camera,
   if (file !== undefined) return { cursor: pointer, title: `${file.file} · ${file.lines} lines · ${file.capability === undefined ? "Unclaimed" : globeName(territory(file.capability)?.title ?? file.capability)}` };
   if (hit?.kind !== "story" || hit.capability === undefined) return { cursor: pointer, title: undefined };
   const { title, description } = territory(hit.capability) ?? {};
-  return { cursor: pointer, title: globeName(title ?? hit.capability), ...(description === undefined || description.trim() === "" ? {} : { detail: description }) };
+  // What the capability does is its description's first paragraph; later ones are notes for the agents who build it.
+  const detail = description?.trim().split(/\r?\n\s*\r?\n/)[0]?.trim();
+  return { cursor: pointer, title: globeName(title ?? hit.capability), ...(detail === undefined || detail === "" ? {} : { detail }) };
 }
 
 /**

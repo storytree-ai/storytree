@@ -191,10 +191,10 @@ test("3.15 a click on a capability's territory picks its story with that capabil
   assert.equal(world.getObjectByName("territory-borders")?.userData.borders, 1);
 });
 
-test("3.32 pointing at a capability's territory shows its full name, without its number, and its description; a file there names the capability the same way", () => {
+test("3.32 pointing at a capability's territory shows its full name, without its number, and its description's first paragraph; a file there names the capability the same way", () => {
   const land = {
     radius: 2,
-    territories: [{ capability: "cap-a", title: "6 · Agent tools (the MCP server)", description: "The tools an agent calls to read and write the plan." }, { capability: "cap-b", title: "7 · Instructions" }],
+    territories: [{ capability: "cap-a", title: "6 · Agent tools (the MCP server)", description: "The tools an agent calls to read and write the plan.\r\n\r\nAs built: notes for the agents who build it." }, { capability: "cap-b", title: "7 · Instructions" }],
     cells: [
       { polygon: [{ x: -2, z: -2 }, { x: 0, z: -2 }, { x: 0, z: 2 }, { x: -2, z: 2 }], territory: 0 },
       { polygon: [{ x: 0, z: -2 }, { x: 2, z: -2 }, { x: 2, z: 2 }, { x: 0, z: 2 }], territory: 1 },

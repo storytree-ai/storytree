@@ -686,6 +686,9 @@ importers:
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6
+      '@types/pg':
+        specifier: ^8.23.1
+        version: 8.23.1
       '@types/react':
         specifier: ^19.1.8
         version: 19.3.0
@@ -695,6 +698,9 @@ importers:
       esbuild:
         specifier: ^0.28.2
         version: 0.28.2
+      pg:
+        specifier: ^8.23.0
+        version: 8.23.0
       playwright-core:
         specifier: 1.60.0
         version: 1.60.0

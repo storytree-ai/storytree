@@ -339,7 +339,8 @@ export async function verifyImmersive(browser, url, output) {
     await goToStep(page, "value");
     assert.equal(await recorded.isVisible(), false, "a step without a recording has no small print");
     await verifyAgentTags(page, width, height, output);
-    await verifyOneFormat(page, width, output);
+    // A failure here is 2.19's own, so its observation can say so (capture.mjs writes it).
+    await verifyOneFormat(page, width, output).catch(error => { error.contract = "2.19"; throw error; });
     await page.locator("#tour-skip").click();
     await page.locator(".forest-views").waitFor();
     assert.equal(await page.locator("#chapter2").getAttribute("data-tour-mode"), "freeplay");

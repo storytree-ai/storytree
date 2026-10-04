@@ -58,7 +58,20 @@ try {
     }
   }
   else if (process.argv.includes("--verify-recording")) await verifyRecordingFreeplay(browser, url, output);
-  else if (process.argv.includes("--verify-immersive")) await verifyImmersive(browser, url, output);
+  else if (process.argv.includes("--verify-immersive")) {
+    // 2.19 is checked only in the browser: its verdict is written down for pnpm record:acceptance. A journey that stops
+    // before 2.19's own checks finish has not observed it.
+    const check = { contract: "2.19", name: "Every chapter step is told in the arrival's format, at 1920, 1440, 1280, 390 and 320", observed: "not-observed" };
+    try { await verifyImmersive(browser, url, output); check.observed = "pass"; }
+    catch (error) { if (error.contract === "2.19") { check.observed = "fail"; check.detail = error.message; } throw error; }
+    finally {
+      await writeFile(path.join(output, "immersive-observations.json"), JSON.stringify({
+        story: "The website", commit: (await readFile(path.join(dist, "version.txt"), "utf8")).trim(),
+        evidence: path.relative(path.resolve(here, "../../.."), output).split(path.sep).join("/"),
+        note: "Locally built website served from packages/website/dist", checks: [check],
+      }, null, 2) + "\n");
+    }
+  }
   else {
   if (process.argv.includes("--verify-forest")) {
     const checks = [];

@@ -27,12 +27,16 @@ export type TourStep = {
    * or the shop's (ADR-0890). */
   map?: "own" | "shop";
   /** A recorded growth: held at its point ("seed"), or replayed over `seconds` as the step plays, whole or only its
-   * named `stage` (from the globe as it stood before that stage, to where the next begins); absent, it is whole. */
-  growth?: "seed" | { seconds: number; stage?: string };
+   * named `stage` (from the globe as it stood before that stage, to where the next begins, or to where the stage named `until`
+   * begins); absent, it is whole. */
+  growth?: "seed" | { seconds: number; stage?: string; until?: string };
   /** A moment in the shop's records: its globe, its sessions and its arcs as they stood then (ADR-0893). */
   recorded?: string;
-  /** The stories a growth's globe is narrowed to: the rest are dimmed (ADR-0890's three teaching stories). */
+  /** The stories a growth's globe is narrowed to: the rest are dimmed (ADR-0890's teaching stories). */
   focus?: readonly string[];
+  /** Stories the narration names: each lights as its words are said (`said`, as it stands in the lines), the rest dimmed
+   * until then (ADR-0891, amended 2026-10-05). */
+  names?: readonly { said: string; story: string }[];
   target?: GlobeTarget; framing?: number; drift?: boolean;
   /** A story selected so its dependency lanes draw on. */
   select?: string;
@@ -47,8 +51,10 @@ export type TourState = {
 };
 export type TourDetail = { step: TourStep; state: TourState; running: boolean; elapsed: number };
 
+/** How long words take to say at 1×: 2.6 words a second. */
+export const spoken = (text: string): number => text.trim().split(/\s+/).filter(Boolean).length / 2.6 * 1000;
 /** Reading time at 1×, with a short floor even for a two-word line. */
-export const readingTime = (text: string): number => Math.max(2800, text.trim().split(/\s+/).length / 2.6 * 1000);
+export const readingTime = (text: string): number => Math.max(2800, spoken(text));
 /** A step rests on its last line before the camera moves on. */
 export const settle = 1200;
 /** A step that replays a growth lasts as long as it does, however short its words. */
@@ -127,11 +133,13 @@ export function createTour(steps: readonly TourStep[], { ready = () => true }: {
 
 /**
  * Where in a recorded growth's plan (its seconds) a step that replays it stands, `told` seconds into the step's replay:
- * across the whole growth, or across only its named stage, from where that stage begins to where the next does (2.16).
+ * across the whole growth, or across only its named stage, from where that stage begins to where the next does, or the stage
+ * named `until` (2.12, 2.16).
  */
-export function replayMoment(plan: { seconds: number; stages: readonly { id: string; start: number }[] }, growth: { seconds: number; stage?: string }, told: number): number {
+export function replayMoment(plan: { seconds: number; stages: readonly { id: string; start: number }[] }, growth: { seconds: number; stage?: string; until?: string }, told: number): number {
   const at = growth.stage === undefined ? -1 : plan.stages.findIndex(stage => stage.id === growth.stage);
-  const from = at < 0 ? 0 : plan.stages[at]!.start, to = at < 0 ? plan.seconds : plan.stages[at + 1]?.start ?? plan.seconds;
+  const until = growth.until === undefined ? undefined : plan.stages.find(stage => stage.id === growth.until)?.start;
+  const from = at < 0 ? 0 : plan.stages[at]!.start, to = until ?? (at < 0 ? plan.seconds : plan.stages[at + 1]?.start ?? plan.seconds);
   return from + Math.min(1, Math.max(0, told / growth.seconds)) * (to - from);
 }
 
@@ -153,10 +161,24 @@ export type GlobeOn = { map: "storytree" } | { map: "own" | "shop"; at?: number;
 export function globeOf(step: TourStep, state: TourState, elapsed = 0): GlobeOn {
   if (state.freePlay) return state.project === "shop" ? { map: "shop" } : { map: "storytree" };
   if (!step.map || state.holds.includes("everything")) return { map: "storytree" };
-  const focus = step.focus ? { focus: step.focus } : {};
+  const lit = named(step, state, elapsed);
+  const focus = lit ? { focus: lit } : step.focus ? { focus: step.focus } : {};
   if (step.growth === "seed") return { map: step.map, at: 0, ...focus };
   if (step.recorded) return { map: step.map, when: step.recorded, ...focus };
   return step.growth ? { map: step.map, at: Math.min(step.growth.seconds, elapsed / 1000), ...focus } : { map: step.map, ...focus };
+}
+
+/** The stories the narration has named by `elapsed`, in the order said; a waiting step has said all its shown lines (2.16). */
+function named(step: TourStep, state: TourState, elapsed: number): readonly string[] | undefined {
+  if (!step.names?.length) return undefined;
+  const waiting = state.holds.length > 0;
+  const said = step.names.flatMap(({ said, story }) => {
+    const line = step.lines.findIndex(text => text.includes(said));
+    if (line < 0) return [];
+    const begins = step.lines.slice(0, line).reduce((sum, text) => sum + readingTime(text), 0) + spoken(step.lines[line]!.slice(0, step.lines[line]!.indexOf(said)));
+    return (waiting ? line < state.lines : elapsed >= begins) ? [story] : [];
+  });
+  return said.length ? said : undefined;
 }
 
 export type Box = { x: number; y: number; width: number; height: number };

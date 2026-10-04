@@ -80,7 +80,7 @@ import { APP_OWNER, appHome } from "../home.js";
 import { parseArgs } from "./args.js";
 import { createTrayIcon } from "./tray-icon.js";
 import { followReleases, installedApp } from "./releases.js";
-import { checkedUpdate, runWhenReady, startsCleanly } from "./start-check.js";
+import { checkedUpdate, finishStartCheck, runWhenReady, startsCleanly } from "./start-check.js";
 
 const args = parseArgs(process.argv);
 const home = appHome();
@@ -219,8 +219,7 @@ async function run(): Promise<void> {
   });
 
   if (args.startCheck) {
-    console.log("start check: the main process reached its handlers");
-    app.exit(0);
+    await finishStartCheck((code) => app.exit(code));
     return;
   }
 

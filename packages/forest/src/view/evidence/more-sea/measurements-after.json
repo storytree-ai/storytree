@@ -1,0 +1,206 @@
+{
+  "label": "after",
+  "forests": {
+    "row": {
+      "front": {
+        "errors": [],
+        "radius": 218,
+        "islands": 5,
+        "rotation": [
+          -0.4226,
+          0,
+          0,
+          0.9063
+        ],
+        "zoom": 1.6794,
+        "landUnits2": 5274,
+        "landShareOfGlobe": 0.0088,
+        "landShareOfFace": 0.0311,
+        "nearestCoastGap": {
+          "least": 39.4,
+          "median": 40.5,
+          "mean": 40.2
+        },
+        "islandAreas": {
+          "story_conduit0": 1058,
+          "story_conduit1": 1052,
+          "story_conduit2": 1054,
+          "story_conduit3": 1048,
+          "story_conduit4": 1061
+        },
+        "namesShown": "5 of 5",
+        "nameOverlaps": []
+      },
+      "quarter": {
+        "errors": [],
+        "radius": 218,
+        "islands": 5,
+        "rotation": [
+          -0.2988,
+          0.6409,
+          -0.2988,
+          0.6409
+        ],
+        "zoom": 1.6794,
+        "landUnits2": 5274,
+        "landShareOfGlobe": 0.0088,
+        "landShareOfFace": 0.007,
+        "nearestCoastGap": {
+          "least": 39.4,
+          "median": 40.5,
+          "mean": 40.2
+        },
+        "islandAreas": {
+          "story_conduit0": 1058,
+          "story_conduit1": 1052,
+          "story_conduit2": 1054,
+          "story_conduit3": 1048,
+          "story_conduit4": 1061
+        },
+        "namesShown": "3 of 5",
+        "nameOverlaps": []
+      }
+    },
+    "chain": {
+      "front": {
+        "errors": [],
+        "radius": 218,
+        "islands": 5,
+        "rotation": [
+          -0.4226,
+          0,
+          0,
+          0.9063
+        ],
+        "zoom": 1.6794,
+        "landUnits2": 5274,
+        "landShareOfGlobe": 0.0088,
+        "landShareOfFace": 0.0298,
+        "nearestCoastGap": {
+          "least": 51.9,
+          "median": 52.1,
+          "mean": 52
+        },
+        "islandAreas": {
+          "story_conduit0": 1058,
+          "story_conduit1": 1052,
+          "story_conduit2": 1054,
+          "story_conduit3": 1048,
+          "story_conduit4": 1061
+        },
+        "namesShown": "5 of 5",
+        "nameOverlaps": []
+      },
+      "quarter": {
+        "errors": [],
+        "radius": 218,
+        "islands": 5,
+        "rotation": [
+          -0.2988,
+          0.6409,
+          -0.2988,
+          0.6409
+        ],
+        "zoom": 1.6794,
+        "landUnits2": 5274,
+        "landShareOfGlobe": 0.0088,
+        "landShareOfFace": 0.0006,
+        "nearestCoastGap": {
+          "least": 51.9,
+          "median": 52.1,
+          "mean": 52
+        },
+        "islandAreas": {
+          "story_conduit0": 1058,
+          "story_conduit1": 1052,
+          "story_conduit2": 1054,
+          "story_conduit3": 1048,
+          "story_conduit4": 1061
+        },
+        "namesShown": "2 of 5",
+        "nameOverlaps": []
+      }
+    },
+    "storytree": {
+      "front": {
+        "errors": [],
+        "radius": 218,
+        "islands": 15,
+        "rotation": [
+          -0.4226,
+          0,
+          0,
+          0.9063
+        ],
+        "zoom": 1.6794,
+        "landUnits2": 109135,
+        "landShareOfGlobe": 0.1827,
+        "landShareOfFace": 0.2478,
+        "nearestCoastGap": {
+          "least": 38.4,
+          "median": 45.1,
+          "mean": 46.4
+        },
+        "islandAreas": {
+          "story_754e87e7d531": 11359,
+          "story_609c3b171b3f": 15891,
+          "story_a93c6fb1a257": 3421,
+          "story_deee4230348c": 6820,
+          "story_7722ddb5461e": 2408,
+          "story_f9fb5136c28f": 4103,
+          "story_cec2df1b2320": 1414,
+          "story_d754d997f22a": 2986,
+          "story_b91056a06337": 2861,
+          "story_9abd84ab493f": 1991,
+          "story_769e230c466d": 1168,
+          "story_ca702fee28cb": 47004,
+          "story_1d360b6227d8": 1122,
+          "story_95ed402f9bd3": 5534,
+          "story_55eb820f95c9": 1052
+        },
+        "namesShown": "11 of 15",
+        "nameOverlaps": []
+      },
+      "quarter": {
+        "errors": [],
+        "radius": 218,
+        "islands": 15,
+        "rotation": [
+          -0.2988,
+          0.6409,
+          -0.2988,
+          0.6409
+        ],
+        "zoom": 1.6794,
+        "landUnits2": 109135,
+        "landShareOfGlobe": 0.1827,
+        "landShareOfFace": 0.1198,
+        "nearestCoastGap": {
+          "least": 38.5,
+          "median": 45.1,
+          "mean": 46.4
+        },
+        "islandAreas": {
+          "story_754e87e7d531": 11359,
+          "story_609c3b171b3f": 15891,
+          "story_a93c6fb1a257": 3421,
+          "story_deee4230348c": 6820,
+          "story_7722ddb5461e": 2408,
+          "story_f9fb5136c28f": 4103,
+          "story_cec2df1b2320": 1414,
+          "story_d754d997f22a": 2986,
+          "story_b91056a06337": 2861,
+          "story_9abd84ab493f": 1991,
+          "story_769e230c466d": 1168,
+          "story_ca702fee28cb": 47004,
+          "story_1d360b6227d8": 1122,
+          "story_95ed402f9bd3": 5534,
+          "story_55eb820f95c9": 1052
+        },
+        "namesShown": "9 of 15",
+        "nameOverlaps": []
+      }
+    }
+  },
+  "browser": "148.0.7778.96"
+}

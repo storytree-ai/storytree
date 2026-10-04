@@ -9,7 +9,7 @@
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"; first="$here/../../shop/harness"
 private="${SHOP_PRIVATE:-$HOME/storytree-lanes/shop-parallel-private}"; evidence="$here/.."
-mkdir -p "$private"
+mkdir -p "$private" "$evidence/runs" "$evidence/shots"
 ps() { ssh -n winlap "powershell -NoProfile -ExecutionPolicy Bypass -Command \"$1\"" | tr -d '\r'; }
 case "$1" in
   push)

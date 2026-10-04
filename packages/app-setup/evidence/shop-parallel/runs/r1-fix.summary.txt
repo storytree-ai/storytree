@@ -1,0 +1,64 @@
+model: claude-opus-5-5 | mcp: storytree=connected,claude.ai Claude Docs=connected,claude.ai Google Drive=connected,claude.ai Gmail=connected,claude.ai Google Calendar=connected
+calls: 47
+  - PowerShell gh api "repos/saucelabs/sample-app-web/contents/test/e2e/test/specs/login.spec.ts" -H "Accept: appli
+  - PowerShell npm start
+  - PowerShell Set-Location "$env:TEMP\swag-e2e\test\e2e"; 1..5 | ForEach-Object { $out = npx wdio run test/configs
+  - PowerShell $p = Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue | Select-Objec
+  - PowerShell $env:PORT='3001'; npm start
+  - PowerShell node "$env:TEMP\swag-e2e\slow-proxy.mjs"
+  - PowerShell Start-Sleep 2; Set-Location "$env:TEMP\swag-e2e\test\e2e"; 1..3 | ForEach-Object { $out = npx wdio r
+  - PowerShell foreach ($port in 3000,3001) { $p = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction
+  - PowerShell npm start
+  - PowerShell Start-Sleep 2; Set-Location "$env:TEMP\swag-e2e\test\e2e"; 1..5 | ForEach-Object { $out = npx wdio r
+  - st:park_increment {"arc":"arc_cea872e0a0f2","title":"Fix: sign-in errors show without a page load","objective":"Swag Labs' locked-user login test passes every
+  - st:ready_increment {"increment":"increment_c36b2b12c242"}
+  - st:set_wait {"waiter":"increment_66e6c723983c","on":"increment_c36b2b12c242","reason":"The owner asked for the sign-in fix before the other sessions sta
+  - st:set_wait {"waiter":"increment_1973b6b220df","on":"increment_c36b2b12c242","reason":"The owner asked for the sign-in fix before the other sessions sta
+  - st:set_wait {"waiter":"increment_707aaa928acd","on":"increment_c36b2b12c242","reason":"The owner asked for the sign-in fix before the other sessions sta
+  - st:plan_contract {"capability":"capability_ac8c6fe73f7c","title":"Errors show at once, without loading a new page","description":"On Login with missing, wron
+  - st:claim {"increment":"increment_c36b2b12c242","reason":"Fix flaky locked-user sign-in test"}
+  - st:claim {"capability":"capability_ac8c6fe73f7c","reason":"Sign-in errors drawn in the page"}
+  - st:name_session {"title":"Fix flaky locked-user sign-in test"}
+  - PowerShell git switch -c fix-sign-in-errors-in-page
+  - Edit C:\Users\mickh\shop2\packages\signing-in\test\sign-in-page.test.js
+  - Edit C:\Users\mickh\shop2\packages\signing-in\test\sign-in-page.test.js
+  - PowerShell npm test 2>$null | Select-String -Pattern '^# (tests|pass|fail)|^not ok|^\s+not ok' | Select-Object 
+  - st:report {"contract":"contract_49ec49a5d530","result":"red","note":"3.5 fails: the sign-in page has no browser script yet; the other 21 tests pass."}
+  - PowerShell New-Item -ItemType Directory -Force packages/signing-in/src/sign-in-page/public | Out-Null; git mv p
+  - Write C:\Users\mickh\shop2\packages\signing-in\src\sign-in-page\public\sign-in-form.js
+  - Edit C:\Users\mickh\shop2\packages\signing-in\src\sign-in-page\sign-in-page.js
+  - Edit C:\Users\mickh\shop2\packages\signing-in\src\sign-in-page\sign-in-page.js
+  - PowerShell npm test 2>$null | Select-String -Pattern '^# (tests|pass|fail)|not ok' | Select-Object -First 10
+  - PowerShell $p = Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue | Select-Objec
+  - PowerShell npm start
+  - PowerShell Start-Sleep 2; Set-Location "$env:TEMP\swag-e2e\test\e2e"; foreach ($conf in 'cft','edge') { 1..5 | 
+  - PowerShell git add -A; git commit -q -m @' Show sign-in errors in the page, without a page load Swag Labs' log
+  - PowerShell $f = Join-Path $env:TEMP 'pr-body.md'; @' Fixes the intermittent failure of Swag Labs' `login.spec.t
+  - PowerShell gh pr checks 2 --watch --interval 10
+  - PowerShell gh pr merge 2 --merge --delete-branch; git switch main -q; git pull -q; git branch -D fix-sign-in-er
+  - st:report {"contract":"contract_49ec49a5d530","result":"green","note":"npm test 22/22; Swag Labs login.spec 5/5 in Chrome for Testing and 5/5 in Edge.
+  - st:land {"capability":"capability_ac8c6fe73f7c"}
+  - st:close_increment {"increment":"increment_c36b2b12c242","disposition":"landed","pr":"#2"}
+  - st:record_friction {"title":"Page-load race in a Swag Labs check not caught before landing","description":"Part 1 landed with a sign-in design that raced Swag 
+  - st:record_resteer {"title":"Fix the flaky locked-user test before parallel work","quote":"Everything for part 1 passes except one, and it fails only some of t
+  - st:record_resteer {"title":"Fix the flaky locked-user test before parallel work","description":"The owner found an intermittent Swag Labs failure in part 1 an
+  - st:write_note {"kind":"decision","front_cover_of":"capability_ac8c6fe73f7c","title":"Errors are drawn in the page, never by a page load","text":"Swag Labs
+  - st:record_resteer {"title":"Fix the flaky locked-user test before parallel work","description":"The owner found an intermittent Swag Labs failure in part 1 an
+  - st:correct_note {"id":"process_458bb141368b","fields":"{\"failureModes\": \"Their own wdio.local.chrome.conf.ts needs a Chrome install; this machine has non
+  - st:record_resteer {"title":"Fix the flaky locked-user test before parallel work","description":"The owner found an intermittent Swag Labs failure in part 1 an
+  - st:close_out {"safe":true,"why":"PR #2 merged after CI passed; on main, tree clean; test servers stopped; parts 2-4 free to start."}
+RESULT success turns 48 ms 933213 cost 5.484757999999998 
+I've fixed the cause and merged it (pull request #2). You can start the other sessions now.
+
+**Why it failed some of the time:** at line 27, the test checks for the error once, straight after clicking Login, and doesn't wait. On saucedemo.com the error appears inside the page during the click itself. My sign-in page sent the form to the server and the error came back on a whole new page. Whenever the check ran before that new page arrived, it saw the old page, which has no error, and failed.
+
+**The fix:** the sign-in page now checks the username and password in the browser when you click Login, the way saucedemo.com does. If something is wrong, the error appears straight away and the page stays put. Correct details still go to the server, which signs you in. The server keeps the same check for browsers without JavaScript.
+
+**Checks:**
+- **My tests:** all 22 pass, including a new one for the in-page error. The GitHub check passed before I merged.
+- **Swag Labs' tests:** `login.spec` passed all 3 tests on 5 runs in Chrome and 5 in Edge. The products spec gives the same result as before: "all products are present" passes, and the 4 tests waiting on parts 2 and 3 still fail.
+- **Caveat:** I couldn't make the original failure happen on this machine, even before the fix. It passed 5 out of 5 in Edge, 5 out of 5 in Chrome, and also with the server slowed down on purpose. So I've fixed the cause, but I can't show you a before-and-after here. Please re-run it a few times in your Chrome to confirm.
+
+**For parts 2ÔÇô4:** I've added a rule to storytree for those sessions. Anything a Swag Labs test checks right after a click has to change inside the page during that click, never by loading a new page. That covers the checkout field errors, the cart buttons, the badge and Reset App State. The instructions for running Swag Labs' tests now say to run each test file 5 times, since a single pass proved nothing here.
+
+To try it: `npm start`, then open **http://localhost:3000**.

@@ -65,3 +65,26 @@ the holder, and its reason (agent link contract 5.2), written by both `claim` an
 - `lanes.sh` (Mint): `push`, `start <turn> [session]`, `wait <turn>…`, `fetch <turn>…`, `shot <name>`,
   `session <turn>`.
 - `record-library.sh <label>`: the library record after each round.
+
+## R1: part 1, one session (increment_3c0c11637a86)
+
+One fresh session (`harness/prompts/r1-part1.txt`, 1,110 s, app 0.3.636) set up `shop2`, planned the whole of
+wave 1 and built part 1. **Land from the first landing** (`shots/r1-after.png`): the user's spec asked for one
+package per story, and the agent made four (`signing-in`, `browsing`, `cart`, `checkout`), numbered its tests
+by contract, and the globe drew all four islands with file dots and roads after PR #1.
+
+It took "two or three sessions building the other parts at the same time" as a design brief: it made all four
+story packages and the shared files in part 1, including the one piece parts 2 to 4 all use (the cart store,
+which reads and writes `cart-contents`), so "each later part can work inside its own package without editing
+anyone else's code", and it told the user how to start the other sessions. Its plan: 4 stories, 15
+capabilities, 39 contracts, 20 decisions, one arc with an increment per part.
+
+**Grade:** 3/4. The locked-user sign-in test failed 3 runs of 5, the same timing failure the first build hit
+(the error came back on a new page after a form post). Told as a user would (`prompts/r1-fix.txt`), the same
+session (resumed, 939 s) fixed it at its cause and merged PR #2, and recorded a rule in the project for the
+parallel sessions to come: anything a Swag Labs test checks straight after a click must change inside the page.
+After PR #2: **4/4**, and the login spec passed 5 runs of 5 (`runs/r1-grade-fixed.txt`, `runs/r1-login-5x.txt`).
+
+The library after R1 (`library-r1b`, kept privately): 4 stories, 15 capabilities, 40 contracts, 21 decisions,
+521 activity lines. Every shop CI run is archived privately (`harness/ci-archive.sh`); its logs carry TAP with
+contract-numbered test titles, which verified health from CI (ADR-0901) reads.

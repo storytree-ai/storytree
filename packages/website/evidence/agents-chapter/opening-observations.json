@@ -1,0 +1,13 @@
+{
+  "story": "The website",
+  "commit": "f42356ccedf0b1e33fbd893639a94ca9d280e935",
+  "evidence": "packages/website/evidence/agents-chapter",
+  "note": "Locally built website served from packages/website/dist",
+  "checks": [
+    {
+      "contract": "1.8",
+      "name": "Chapter 1 playback, exits, sound, storage and static fallbacks",
+      "observed": "pass"
+    }
+  ]
+}

@@ -11,7 +11,7 @@ import saved from "./forest-snapshot.json" with { type: "json" };
 import grown from "./conduit-snapshot.json" with { type: "json" };
 import shopSaved from "./shop-snapshot.json" with { type: "json" };
 import ownSaved from "./own-snapshot.json" with { type: "json" };
-import { crossingLength, growthPlan, type GrowthPlan } from "@storytree/forest-world/planet";
+import { crossingLength, growthMoment, growthPlan, type GrowthPlan } from "@storytree/forest-world/planet";
 import { buildPlanetPathways } from "@storytree/forest-world/geometry";
 import type { GrowthSnapshot, TourSnapshot } from "./forest-data.js";
 import { flight, globeOf, replayMoment, type GlobeOn, type Hold, type Tag, type TourDetail, type TourStep } from "./tour.js";
@@ -251,7 +251,7 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   useEffect(() => {
     if (!tour) return;
     const before = recordingAt.current;
-    const inSessions = !free && step?.panel === "sessions";
+    const inSessions = !free && step?.panel === "sessions" && !step.recorded;
     const wasInSessions = before?.inSessions === true && before.generation === state!.generation;
     recordingAt.current = { inSessions, generation: state!.generation };
     if (inSessions && !wasInSessions) replay();
@@ -419,14 +419,19 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
     const told = growthAt && growthAt.index === state?.index && growthAt.generation === state?.generation ? growthAt.at : globe.at;
     moment = typeof step?.growth === "object" ? replayMoment(grown.plan(), step.growth, told) : 0;
   }
+  // A step at a recorded moment shows the shop as it stood then: its globe, and its sessions and arcs read from its records (2.17).
+  const recordedAt = touring && !everything && globe.map === "shop" && "when" in globe ? globe.when : undefined;
+  if (grown && recordedAt && globe.map === shownMap) moment = growthMoment(grown.plan(), recordedAt);
   const growth = grown ? { plan: grown.plan(), at: moment ?? Infinity } : undefined;
   // A step narrowed to a few stories dims the rest (ADR-0890's three teaching stories).
   const focus = touring && !everything && globe.map === shownMap && "focus" in globe ? globe.focus : undefined;
   const drawn = grown?.snapshot.scene ?? stage?.scene ?? snapshot.scene;
   // Free play on the shop reads the shop's saved reading for its panels, arcs and sessions; everywhere else, storytree's.
   const onShop = free && shownMap === "shop" && shopView !== undefined;
+  const shopAt = useMemo(() => recordedAt && shopSnapshot ? { recording: savedReading(shopSnapshot, { until: recordedAt }) } : undefined, [recordedAt]);
+  useEffect(() => () => shopAt?.recording.reading.stop(), [shopAt]);
   const panelReading = onStorytree ? snapshot : shownMap === "shop" ? shopSnapshot : undefined;
-  const shownProgress = onShop ? shopView.recording.progress() : progress;
+  const shownProgress = onShop ? shopView.recording.progress() : shopAt ? shopAt.recording.progress() : progress;
   // While the shop's sessions are on show, its core hears their recorded reads, as storytree's core hears its own.
   useEffect(() => {
     if (!onShop) return;
@@ -438,8 +443,8 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
         data-globe={shownMap} data-arrived={arrived} data-stage={stage?.id} data-growth={grown ? moment === undefined ? "whole" : moment.toFixed(2) : undefined} data-focus={focus?.join(" ")}
         data-islands={drawn.islands.length} data-risen={growth ? [...growth.plan.islands.values()].filter(window => window.start <= growth.at).length : undefined} onPointerDown={explore} onWheel={explore}>
         <PlanetView core={grown ? growthCores[shownMap as Grown] : core} scene={drawn} places={onStorytree ? places : grown?.places ?? conduitPlaces}
-          frame={onStorytree ? undefined : grown?.snapshot.scene ?? conduit.scene} growth={growth} recordedSessions={grown?.sessions}
-          wisps={grown ? [] : stage?.wisps ?? wisps} selected={selected}
+          frame={onStorytree ? undefined : grown?.snapshot.scene ?? conduit.scene} growth={growth} recordedSessions={shopAt && shownMap === "shop" ? undefined : grown?.sessions}
+          wisps={shopAt && shownMap === "shop" ? wisps : grown ? [] : stage?.wisps ?? wisps} selected={selected}
           highlighted={focus ?? highlight.stories} highlightedSession={highlight.session} onPick={pickStory} onNote={pickNote}
           onWispHover={() => {}} onControls={onControls} surfaces={surfaces} framing={restingFraming} sideOffset={offsetFor(undefined, width)} mode={mode} />
       </div>
@@ -478,7 +483,9 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
       {note && <div className="story-panel" onKeyDown={event => { if (event.key === "Escape") { event.preventDefault(); closeNote(); } }}><KnowledgeNoteCard core={activeCore} onClose={closeNote} /></div>}
       {/* The recorded sessions and the arcs of the project on show: the shop's in free play on it, storytree's otherwise. */}
       <div className="tour-session-surface" hidden={free ? !onStorytree && !onShop : requestedPanel !== "sessions"}>
-        {onShop
+        {shopAt
+          ? <Sessions key={`shop@${recordedAt}`} project={shop.project} recording={shopAt.recording} core={growthCores.shop} onWisps={setWisps} onHighlight={onHighlight} onPick={explore} />
+          : onShop
           ? <Sessions key="shop" project={shop.project} recording={shopView.recording} core={growthCores.shop} onWisps={setWisps} onHighlight={onHighlight} onPick={explore} />
           : <Sessions key="storytree" project={snapshot.project} recording={recording} core={core} onWisps={setWisps} onHighlight={onHighlight} onPick={explore} />}
         <p className="tour-recording-progress" data-recording-index={shownProgress.index} data-recording-total={shownProgress.total}>
@@ -486,7 +493,9 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
         </p>
       </div>
       <div className="tour-arc-surface" hidden={free ? !onStorytree && !onShop : requestedPanel !== "arcs"}>
-        {onShop
+        {shopAt
+          ? <Arcs key={`shop@${recordedAt}`} project={shop.project} recording={shopAt.recording} open={requestedPanel === "arcs"} />
+          : onShop
           ? <Arcs key="shop" project={shop.project} recording={shopView.recording} open={false} />
           : <Arcs key="storytree" project={snapshot.project} recording={recording} open={requestedPanel === "arcs"} />}
       </div>

@@ -58,13 +58,15 @@ export async function verifyTourCamera(browser, url) {
     await page.waitForTimeout(16000);
     const after = await risen();
     if (after.risen !== 8) failures.push(`Its second round of work grows the shop to eight stories: ${JSON.stringify(after)}`);
-    await goToStep(page, "arcs-grow"); await page.waitForTimeout(2500);
-    if ((await globe()).islands !== 12) failures.push(`The backend arc grows Conduit to twelve islands: ${JSON.stringify(await globe())}`);
+    // 2.17: an agents step shows the shop as it stood at its recorded moment.
+    await goToStep(page, "agents-parallel"); await page.waitForTimeout(2500);
+    const parallel = await page.locator(".forest-drawing").evaluate(node => ({ map: node.dataset.globe, growth: node.dataset.growth }));
+    if (parallel.map !== "shop" || parallel.growth === "whole") failures.push(`The agents chapter shows the shop at a recorded moment: ${JSON.stringify(parallel)}`);
     await goToStep(page, "knowledge-kinds"); await page.waitForTimeout(2500);
     if ((await globe()).map !== "storytree") failures.push("The knowledge steps return to storytree's globe");
     assert.deepEqual(failures, []);
   } finally { await page.close(); }
-  console.log("PASS contracts 2.9 and 2.16: the shop grows on in the map chapter, Conduit's globe grows as the tour reads it, then storytree's returns");
+  console.log("PASS contracts 2.16 and 2.17: the shop grows on in the map chapter and stands at its recorded moments in the agents chapter, then storytree's returns");
   console.log("PASS contracts 2.4 and 2.7: exploring holds the tour and says so; Play flies back to the step's view");
 }
 
@@ -84,7 +86,7 @@ export async function verifyTour(browser, url, output) {
   const pips = await page.locator("#tour-pips [data-go]").count();
   assert.ok(pips >= 20, `one pip per step (${pips})`);
   assert.deepEqual(await page.locator("#tour-pips .tb-group").evaluateAll(groups => groups.map(group => group.dataset.group)),
-    ["opening", "map", "sessions", "arcs", "knowledge", "ending"]);
+    ["opening", "map", "agents", "knowledge", "ending"]);
   await goToStep(page, "map-parts");
   assert.equal(await page.locator('#tour-pips [data-step="map-parts"]').getAttribute("aria-current"), "step");
   // 2.4: the lines arrive at a readable pace; pause holds them; a faster speed brings the next sooner.
@@ -130,8 +132,26 @@ export async function verifyTour(browser, url, output) {
   assert.match(await page.locator("#tour-why").textContent(), /Checked against each tool's own documentation on \d+ \w+ \d{4}/);
   await page.screenshot({ path: path.join(output, "390-map-depth.png") });
   await page.locator("#tour-depth").click();
-  // 2.5: every other explainer reaches its dated, sourced comparison.
-  for (const subject of ["knowledge", "sessions", "arcs"]) {
+  // 2.17: the agents chapter shows the shop's records as they stood: three sessions at once, its arc, then the stand-down.
+  const rows = () => page.locator(".tour-session-surface .session-row").allTextContents();
+  await goToStep(page, "agents-parallel"); await page.clock.runFor(500);
+  assert.equal(await page.locator(".tour-session-surface").evaluate(node => node.hidden), false, "the sessions strip is open");
+  for (const name of ["Part 2: Browsing", "Part 3: cart page and menu", "Part 4: Checkout"]) assert.ok((await rows()).some(row => row.includes(name)), `the strip lists ${name}: ${await rows()}`);
+  await page.screenshot({ path: path.join(output, "390-agents-parallel.png") });
+  await goToStep(page, "agents-arcs"); await page.clock.runFor(500);
+  assert.equal(await page.locator(".tour-arc-surface").evaluate(node => node.hidden), false, "the arcs panel is open");
+  await page.locator(".arc-lanes").waitFor();
+  assert.match(await page.locator(".arc-lanes").textContent(), /Swag Labs copy/, "the shop's own arc, open");
+  await page.screenshot({ path: path.join(output, "390-agents-arcs.png") });
+  await goToStep(page, "agents-standdown"); await page.clock.runFor(500);
+  for (const name of ["Part 7: Search", "Part 8: Reviews"]) assert.ok((await rows()).some(row => row.includes(name)), `the strip lists ${name}: ${await rows()}`);
+  await page.locator("#tour-depth").click();
+  const agentsCompared = await page.locator("#tour-why a.source").evaluateAll(nodes => nodes.map(node => node.href));
+  assert.ok(agentsCompared.length >= 2, "the agents chapter's last step offers sourced comparisons");
+  assert.doesNotMatch(await page.locator("#tour-why").textContent(), /ADR-\d/, "its depth names no decision numbers");
+  await page.locator("#tour-depth").click();
+  // 2.5: the knowledge explainer reaches its dated, sourced comparison.
+  for (const subject of ["knowledge"]) {
     await goToStep(page, `${subject}-compare`);
     await page.locator("#tour-play").click(); await page.locator("#tour-play").click();
     const links = await page.locator("#tour-lines a.source").evaluateAll(nodes => nodes.map(node => node.href));

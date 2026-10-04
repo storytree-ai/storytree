@@ -4,12 +4,15 @@ import type { SessionsReads } from "@storytree/forest/view";
 import type { TourSnapshot } from "./forest-data.js";
 
 /** The app's read-only surfaces receive the saved records, with the recording's own clock. */
-export function savedReading(snapshot: TourSnapshot, { replay = false }: { replay?: boolean } = {}) {
+/** `until` holds the reading at a recorded moment: only what was recorded by then (2.17). */
+export function savedReading(snapshot: TourSnapshot, { replay = false, until }: { replay?: boolean; until?: string } = {}) {
   // Publication omits private optional fields. No missing field is reconstructed.
   const lines = snapshot.recording.lines as readonly Line[];
-  let index = replay ? 0 : lines.length;
+  let index = replay ? 0 : until === undefined ? lines.length : lines.filter(line => line.at <= until).length;
   let elapsed = 0;
-  const at = () => index === lines.length ? snapshot.recording.window.to : lines[index - 1]?.at ?? snapshot.recording.window.from;
+  // Held at a moment, the clock reads that moment; once played on, the last event's.
+  let held = replay ? undefined : until;
+  const at = () => held ?? (index === lines.length ? snapshot.recording.window.to : lines[index - 1]?.at ?? snapshot.recording.window.from);
   const progress = () => ({ index, total: lines.length, at: at() });
   const jobs = new Set<{ ms: number; elapsed: number; run(): void }>();
   const timers: Timers = {
@@ -22,7 +25,7 @@ export function savedReading(snapshot: TourSnapshot, { replay = false }: { repla
   };
   const reads: SessionsReads & BoardReads = {
     projectTree: async () => snapshot.tree,
-    arcViews: async () => snapshot.arcs,
+    arcViews: async () => until === undefined || replay ? snapshot.arcs : arcsAt(snapshot.arcs, lines, until),
     holds: async () => snapshot.holds,
     changesSince: async (_project, cursor) => ({ changes: snapshot.changes.filter(change => change.seq > cursor), cursor: snapshot.changes.at(-1)?.seq ?? cursor }),
     linesSince: async (_project, cursor) => {
@@ -38,6 +41,7 @@ export function savedReading(snapshot: TourSnapshot, { replay = false }: { repla
     advance(milliseconds: number, { paused = false, speed = 1 }: { paused?: boolean; speed?: number } = {}) {
       if (paused || !Number.isFinite(milliseconds) || milliseconds <= 0 || !Number.isFinite(speed) || speed <= 0) return progress();
       const delta = milliseconds * speed;
+      held = undefined;
       elapsed += delta;
       const before = index;
       index = Math.min(lines.length, index + Math.floor(elapsed / 1000));
@@ -49,4 +53,22 @@ export function savedReading(snapshot: TourSnapshot, { replay = false }: { repla
       return progress();
     },
   };
+}
+
+/**
+ * The arcs as they stood at `until`, from the recorded activity: an increment closed by then is closed, one claimed by then is
+ * active, any other is ready; what was not yet created is absent; an arc whose increments had all closed is closed.
+ */
+function arcsAt(arcs: TourSnapshot["arcs"], lines: readonly Line[], until: string): TourSnapshot["arcs"] {
+  const offered = lines.filter(line => line.at <= until) as readonly (Line & { increment?: string; capability?: string })[];
+  const closed = new Set(offered.flatMap(line => line.kind === "closed" && line.increment ? [line.increment] : []));
+  const claimed = new Set(offered.flatMap(line => line.kind === "claimed" && line.increment && !line.capability ? [line.increment] : []));
+  return arcs.filter(view => view.arc.createdAt <= until).map(view => {
+    const increments = view.increments.filter(increment => increment.createdAt <= until).map(increment => {
+      if (closed.has(increment.id)) return increment;
+      const { outcome: _outcome, ...fields } = increment.fields;
+      return { ...increment, fields: { ...fields, status: claimed.has(increment.id) ? "active" as const : "ready" as const } };
+    });
+    return { ...view, increments, state: increments.length > 0 && increments.every(increment => closed.has(increment.id)) ? "closed" as const : "active" as const };
+  });
 }

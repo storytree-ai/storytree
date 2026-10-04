@@ -4,9 +4,9 @@ import type { Chip, Decision, Explainer, Group, TourStep } from "./tour.js";
 /** When the comparisons were checked against each tool's own documentation (definition_b0b80acc7330). */
 export const researchDate = "3 October 2026";
 export const groupTitles: Record<Group, string> = {
-  opening: "Why storytree", map: "The map", knowledge: "Knowledge graph", sessions: "Sessions", arcs: "Arcs", ending: "The whole globe",
+  opening: "Why storytree", map: "The map", agents: "Agents on the map", knowledge: "Knowledge graph", ending: "The whole globe",
 };
-export const explainers: { id: Explainer; title: string }[] = (["map", "knowledge", "sessions", "arcs"] as const).map(id => ({ id, title: groupTitles[id] }));
+export const explainers: { id: Explainer; title: string }[] = (["map", "agents", "knowledge"] as const).map(id => ({ id, title: groupTitles[id] }));
 
 const adr = (number: number, title: string): Decision => ({ number, title });
 const decisions = {
@@ -48,15 +48,10 @@ const plain: Partial<GlobeSurfaces> = { ...land, territories: "plain" };
 const files: Partial<GlobeSurfaces> = { ...plain, fileCircles: true };
 const health: Partial<GlobeSurfaces> = { ...files, territories: "health" };
 const core: Partial<GlobeSurfaces> = { ...none, grounds: false, nameplates: false, knowledgeCore: true };
-const tinted: Partial<GlobeSurfaces> = { ...land, roads: true, sessionTints: true };
 
 const story = (id: string): GlobeTarget => ({ kind: "story", story: id });
 const capability = (id: string): GlobeTarget => ({ kind: "capability", capability: id });
 const library = story("story_754e87e7d531"), forest = story("story_deee4230348c"), centre: GlobeTarget = { kind: "core" };
-// Conduit's stories (conduit-snapshot.json): the RealWorld site Codex built with storytree on the test laptop.
-const discover = story("story_a4dbabc54188");
-const ci = story("story_0f2877a9d736"), backendProfiles = story("story_9e44fb81bdb7"), discuss = story("story_885ea80b96a5");
-const conduit = { map: "conduit" as const };
 // Storytree's own recorded growth (own-snapshot.json): Act 2 arrives on it, grown from a point as its agents built it (ADR-0889 2.2b).
 const own = { map: "own" as const, target: { kind: "core" } as GlobeTarget };
 // The shop (shop-snapshot.json): the store the test laptop's Claude Code sessions rebuilt side by side with storytree, where the
@@ -64,6 +59,9 @@ const own = { map: "own" as const, target: { kind: "core" } as GlobeTarget };
 const teaching = ["story_9d312bf7fc51", "story_c3e9a28aef14", "story_a2276e03429a"];
 const browsing = story(teaching[0]!), cart = story(teaching[1]!), checkout = story(teaching[2]!), ordersId = "story_de7821cbec70", orders = story(ordersId);
 const cartPage = capability("capability_fb0f52101882");
+// Two recorded moments in the shop's records: parts 2, 3 and 4 claimed by three sessions at once, and the session sent to
+// part 7 while part 7 and part 8 were held, before it stood down (08:03:17).
+const together = "2026-10-04T06:50:00.000Z", standDown = "2026-10-04T08:03:00.000Z";
 // The map chapter's steps are the shop, whole, with its three teaching stories lit and the rest dimmed. The drawing dims
 // only where session tints are on; the shop's whole globe has no live sessions, so they add nothing else.
 const shopMap = { map: "shop" as const, focus: teaching };
@@ -77,7 +75,6 @@ const graphiti = { name: "Graphiti docs", url: "https://help.getzep.com/graphiti
 const cursorAgents = { name: "Cursor docs", url: "https://cursor.com/docs/agent/agents-window" };
 const langsmith = { name: "LangSmith docs", url: "https://docs.langchain.com/langsmith/studio" };
 const linear = { name: "Linear docs", url: "https://linear.app/docs/initiatives" };
-const github = { name: "GitHub docs", url: "https://docs.github.com/en/issues/planning-and-tracking-with-projects/learning-about-projects/about-projects" };
 const compared = `Checked against each tool's own documentation on ${researchDate}. Follow a link to read it there.`;
 
 /**
@@ -162,56 +159,57 @@ export const steps: TourStep[] = [
   ], sources: [vscode, aider, undefined] },
   decisions: [], surfaces: lit(roads), target: orders, framing: 1.0, tags: [{ target: orders, text: "a new story: Orders" }] },
 
-  { id: "sessions-claim", explainer: "sessions", ...conduit, stage: "part1-building", title: "One session, one part.", lines: [
-    "Storytree visualises agents working through sessions.",
-    "Each part of Conduit was built by a fresh Codex session, told only to carry on with the next part.",
-    "While a session works, the island it claimed wears its colour.",
-  ], why: "With a dozen sessions, nobody knows who changed what. One shared record of who is on what replaces the guessing. A claim says who is on what before anyone writes.",
-  decisions: [decisions.claims, decisions.guide], chips: [{ kind: "recording", text: "Recorded, 1 October 2026" }], surfaces: tinted, target: discover, framing: .55,
-  tags: [{ target: discover, text: "claimed: “Build part 1 home feed”" }] },
-  { id: "sessions-landing", explainer: "sessions", ...conduit, stage: "part1", lineStages: { 2: "part3-building", 3: "frontend" }, title: "Work lands one part at a time.", lines: [
-    "1 October, 21:32 UTC: part 1 landed, and its session's colour left the island.",
-    "Each new session found its place from the plan alone, with no chat history.",
-    "By 00:31 the next morning, all five parts had landed.",
-  ], why: "An agent's memory ends with its session. The plan, the claims and the landings live in the library, so the next session starts where the last one stopped.",
-  decisions: [decisions.closeOut, decisions.landed], chips: [principle(1)], surfaces: tinted, target: discuss, framing: .72 },
-  { id: "sessions-close", explainer: "sessions", ...conduit, stage: "backend1-building", title: "A session claims first, and closes out last.", lines: [
-    "Before an agent writes, it claims the work it will do.",
-    "A second claim on the same work is turned away.",
-    "A session leaves the list only when its close-out checks out.",
-  ], why: "Two agents editing the same thing is how work gets lost. The close-out is checked against the session's branches and running work. Here, one backend session holds a capability on each of two islands, both in its colour.",
-  decisions: [decisions.claims, decisions.closeOut], chips: [partial("Claims run on trust: an agent that never asks shows up afterwards, as unplanned work.")],
-  surfaces: tinted, target: backendProfiles, framing: 1.05 },
-  { id: "sessions-compare", explainer: "sessions", ...conduit, stage: "frontend", kind: "compare", title: "Harnesses run agents. Storytree shows the work they share.", lines: [
+  // Agents on the map (ADR-0893): the shop's own records at two recorded moments, 4 October 2026: parts 2, 3 and 4 built by three
+  // sessions at once, then the session sent to part 7 while another held it. The owner's lines are his; every other line, and
+  // each step's How and Why, is DRAFT, the agent's wording until the owner writes his own.
+  { id: "agents-fix", explainer: "agents", kind: "fixes", ...shopMap, recorded: together, title: "What storytree fixes", lines: [
+    "Agents see each other working on the map",
+  ], notes: [
+    "Agents colliding in a void of code",
+  ], why: "In the first act a dozen agents worked blind: nobody could tell who was on what. Storytree puts every session's work on the same map, so each agent can see the others before it starts.",
+  decisions: [], surfaces: lit(land), framing: 1.05 },
+  { id: "agents-sessions", explainer: "agents", ...shopMap, recorded: together, panel: "sessions", title: "Your sessions, listed.", lines: [
+    "Storytree lists your conversations with AI here as active sessions.",
+    "Each one is an agent at work, named for the part it is building.",
+    "On 4 October, three of them were building the shop at once.",
+  ], how: "A session starts when you open a conversation with a coding agent in your project. It leaves the list when it closes out, and storytree checks that against its branches and anything still running.",
+  why: "With several agents at once, the first question is who is working right now. The list answers it from what the agents did, not from what they said.",
+  decisions: [], surfaces: lit(land), framing: 1.05 },
+  { id: "agents-arcs", explainer: "agents", ...shopMap, recorded: together, panel: "arcs", title: "Plans of work are arcs.", lines: [
+    "It lists plans of work here. In storytree they are known as arcs.",
+    "The shop's first arc had four parts, each an increment of work.",
+    "Parts 2, 3 and 4 were built side by side.",
+  ], how: "An arc has an end state and a list of increments. A session claims an increment before it starts, lands it through a pull request, and closes it.",
+  why: "A plan that lives beside the work lets the next agent pick up the next piece without asking you.",
+  decisions: [], surfaces: lit(land), framing: 1.05 },
+  { id: "agents-claim", explainer: "agents", ...shopMap, recorded: together, panel: "arcs", title: "A claim shows in both places.", lines: [
+    "A session can stake its claim on the map as well as on the arc it's working on.",
+    "Part 3's session claimed the cart: its increment on the arc and its island on the map wear its colour.",
+    "The name on the island is the session's name in the list.",
+  ], how: "Before writing, an agent claims the increment it will build and each part it will touch. A second claim on the same work is turned away.",
+  why: "Two agents editing the same thing is how work gets lost. A claim says who is on what before anyone writes.",
+  // Aimed past the cart so the island sits below the arcs drawer, both in view at once.
+  decisions: [], surfaces: lit(land), target: checkout, framing: .95, tags: [{ target: cart, text: "Part 3: cart page and menu" }] },
+  { id: "agents-parallel", explainer: "agents", ...shopMap, recorded: together, panel: "sessions", title: "Who is on what, at a glance.", lines: [
+    "This means your agents can tell who is working on what just by looking at the map.",
+    "Browsing, the cart and checkout, each built by its own session, at the same time.",
+  ], how: "Each claimed island wears its session's colour round its coast, and the list shows the same sessions in the same colours.",
+  why: "An agent that can see what is taken picks other work instead of colliding with it.",
+  decisions: [], surfaces: lit(land), framing: 1.05,
+  tags: [{ target: browsing, text: "Part 2: Browsing" }, { target: cart, text: "Part 3: cart page and menu" }, { target: checkout, text: "Part 4: Checkout" }] },
+  { id: "agents-standdown", explainer: "agents", ...shopMap, recorded: standDown, panel: "sessions", title: "An agent read the map and stood down.", lines: [
+    "Later, a third session was sent to part 7 while another session held it.",
+    "It read the plan, saw part 7 taken, and changed nothing.",
+    "Its own words: “Changed nothing: part 7 is held by live session c3831547 and part 8 by 83723b4f, and every other increment is closed.”",
+  ], how: "The session read the arc and the claims on it, found both open parts held by live sessions, and closed out without claiming anything. Asked later to take part 8 over if it had stalled, it found that session still live and declined.",
+  why: "Agents that read the map don't pull work out from under each other. The record shows it happened, and why.",
+  compare: { lines: [
     "Cursor's Agents window runs agents in parallel, each in its own worktree, with diffs to review.",
     "LangSmith Studio visualises and debugs agent systems, with tracing and evaluation.",
-    "Storytree ties each session to the work it claimed, what it read and how it closed.",
-  ], sources: [cursorAgents, langsmith, undefined], why: compared, decisions: [decisions.busy], surfaces: tinted, target: discuss, framing: .72 },
-
-  { id: "arcs-plan", explainer: "arcs", ...conduit, stage: "frontend", lineStages: { 3: "ci" }, title: "Bigger work is an arc.", lines: [
-    "In Storytree work is planned using arcs.",
-    "Conduit's first arc was its frontend: five parts, and a fix each time the official suite found a failure.",
-    "Then a new story: every pull request runs the official suite.",
-  ], why: "A journey needs an end state to hold it together, and pieces small enough to finish. Each piece is an increment: claimed, landed and closed in turn.",
-  decisions: [decisions.arcs, decisions.landed], chips: [principle(2)], surfaces: roads, target: ci, framing: .95,
-  tags: [{ target: ci, text: "a new story: Review changes with official CI" }] },
-  { id: "arcs-grow", explainer: "arcs", ...conduit, stage: "backend-planned", title: "A new arc grows the globe.", lines: [
-    "Conduit's second arc gave it its own backend.",
-    "The agent planned six new stories, and the roads rewired.",
-    "Pick a backend story: the frontend builds on it.",
-  ], why: "Planning comes before code. The new stories and their roads were in the library before the backend had a line of code, so every session after knew where its work fitted.",
-  decisions: [decisions.arcs, decisions.edges], chips: [principle(3)], surfaces: roads, select: "story_607f121daf0b", target: backendProfiles, framing: 1.05 },
-  { id: "arcs-landed", explainer: "arcs", ...conduit, stage: "backend2-building", lineStages: { 2: "backend4-building", 3: "complete" }, title: "Increments land, one pull request at a time.", lines: [
-    "Each backend part landed as its own pull request.",
-    "While a part is claimed, its islands wear its session's colour.",
-    "On 2 October, Conduit grew from five islands to twelve.",
-  ], why: "Waiting work shows as waiting, never as progress: a planned part stays a seedling, and the arc closes when its last increment lands.",
-  decisions: [decisions.waits, decisions.landed], chips: [principle(1)], surfaces: roads, target: backendProfiles, framing: 1.05 },
-  { id: "arcs-compare", explainer: "arcs", ...conduit, stage: "complete", kind: "compare", title: "Planners track goals. Storytree tracks the work your agents do.", lines: [
     "Linear's initiatives connect projects to goals and progress updates.",
-    "GitHub Projects lays issues and pull requests out as tables, boards and roadmaps.",
-    "Storytree ties each increment to the claims, landings and questions holding it.",
-  ], sources: [linear, github, undefined], why: compared, decisions: [decisions.busy], surfaces: roads, target: backendProfiles, framing: 1.05, drift: true },
+    "Storytree ties each session to the work it claimed on the map, and each increment to the session holding it.",
+  ], sources: [cursorAgents, langsmith, linear, undefined] },
+  decisions: [], surfaces: lit(land), target: browsing, framing: .9, tags: [{ target: browsing, text: "part 7, held" }] },
 
   { id: "knowledge-inside", explainer: "knowledge", title: "What the project knows lives inside.", lines: [
     "Storytree remembers things using a knowledge graph.",

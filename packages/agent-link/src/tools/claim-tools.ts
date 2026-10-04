@@ -56,6 +56,12 @@ export function registerClaimTools(define: Define, extensions: readonly ToolExte
           data: { made: false, status, ref, name, base },
         };
       }
+      if (made.existing) {
+        return {
+          text: `You hold ${await titleOf(call.library, id)} in the workspace you are in, ${made.folder}, on branch ${made.branch}: no worktree was made.`,
+          data: { made: false, status: made.status, folder: made.folder, branch: made.branch, base: made.base },
+        };
+      }
       return {
         text: `Made a workspace at ${made.folder}, on branch ${made.branch} from ${made.base} as just fetched, and you hold ${await titleOf(call.library, id)} there. Call EnterWorktree with path ${JSON.stringify(made.folder)} to work in it, and set it up as this project does at session start (install its packages).`,
         data: { made: true, status: made.status, folder: made.folder, branch: made.branch, base: made.base },

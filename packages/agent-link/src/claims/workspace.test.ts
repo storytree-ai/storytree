@@ -126,6 +126,32 @@ test("5.12 session A makes a workspace for a proposed increment: a new folder wh
   });
 });
 
+test("5.19 making a workspace for a capability from inside a worktree whose branch this session holds work on claims the capability there, on that branch, and makes no second worktree or branch", async () => {
+  await withWorld(async ({ log, library, project, site, park, as }) => {
+    const story = await library.addStory({ title: "Visitor can sign up" });
+    const form = (await library.addCapability({ title: "Email form", story: story.id })).id;
+    const made = await makeWorkspace(as("A"), await park("email form"), "building the email form");
+    assert.ok(made.ok && made.status === "ready", JSON.stringify(made));
+    const [before, branchesBefore] = [worktrees(site), branches(site)];
+
+    const here = await makeWorkspace(as("A", made.folder), form, "building the form");
+
+    assert.ok(here.ok && here.status === "ready", JSON.stringify(here));
+    assert.equal(here.existing, true);
+    assert.equal(path.resolve(here.folder), path.resolve(made.folder));
+    assert.equal(here.branch, made.branch);
+    assert.deepEqual(worktrees(site), before, "git worktree list is unchanged");
+    assert.deepEqual(branches(site), branchesBefore, "no branch is cut");
+    const claimed = (await readClaims(log, project)).find((one) => one.capability === form);
+    assert.deepEqual({ session: claimed?.session, branch: claimed?.branch }, { session: "A", branch: made.branch });
+
+    // Session B holds nothing on that branch: its call is prepared a workspace of its own, as before.
+    const reset = (await library.addCapability({ title: "Password reset", story: story.id })).id;
+    const other = await makeWorkspace(as("B", made.folder), reset, "building the reset");
+    assert.ok(other.ok && other.status === "prepared", JSON.stringify(other));
+  });
+});
+
 test("4.22 a workspace made from the main checkout places its branch under the workspace's folder, not the main checkout's (regression, 2026-10-02: the main checkout labelled unmerged)", async () => {
   await withWorld(async ({ log, project, site, park, as }) => {
     await log.append(project, { session: "A", harness: "claude-code", source: "hook", folder: site, branch: "main", kind: "session-started", how: "startup" });

@@ -11,7 +11,7 @@ import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, realpathSync } from "node:fs";
 import path from "node:path";
 
-import { claim, claimRefusal, reasonRefusal, readClaim, release, type Claim, type ClaimAnswer, type ClaimContext } from "./claims.js";
+import { claim, claimRefusal, reasonRefusal, readClaim, readClaims, release, type Claim, type ClaimAnswer, type ClaimContext } from "./claims.js";
 import { endIfMerged, inMergeQueue, type MergeWatch } from "./merges.js";
 
 type WorkspaceContext = ClaimContext & { readonly folder: string };
@@ -39,6 +39,8 @@ export interface ClaimedWorkspace {
   /** The fresh remote branch (Claude Code), or the pinned commit (Codex attachment). */
   base: string;
   takenOverFrom?: Claim;
+  /** Claimed in the worktree the session called from, which already held its work: nothing was made (5.19). */
+  existing?: true;
 }
 
 export type WorkspaceAnswer =
@@ -53,6 +55,13 @@ const NAME_PART_MAX = 32;
 export async function makeWorkspace(context: WorkspaceContext, id: string, reason: string, watch: MergeWatch = {}): Promise<WorkspaceAnswer> {
   const refused = reasonRefusal(reason) ?? await workspaceRefusal(context, id, reason, watch);
   if (refused !== undefined) return refused;
+  const here = await worktreeHoldingWork(context, id);
+  if (here !== undefined) {
+    const claimed = await claim({ ...context, ...here }, id, reason);
+    if (!claimed.ok) return claimed;
+    const base = run(here.folder, ["rev-parse", "HEAD"]).trim();
+    return { ok: true, status: "ready", claim: claimed.claim, ...here, base, existing: true, ...(claimed.takenOverFrom === undefined ? {} : { takenOverFrom: claimed.takenOverFrom }) };
+  }
   const repository = repositoryOf(context.folder);
   if (typeof repository !== "string") return repository;
   const main = defaultBranch(repository);
@@ -132,6 +141,28 @@ async function workspaceRefusal(context: WorkspaceContext, id: string, reason: s
     return { ok: false, refused: "yours", claim: mine };
   }
   return claimRefusal(context, id, reason);
+}
+
+/**
+ * The linked worktree the context's folder is in, and its branch, when `id` is a capability and
+ * this session already holds work on that branch: a capability claimed from inside it is claimed
+ * there, never given a second worktree (5.19). Undefined otherwise, as from the main checkout.
+ */
+async function worktreeHoldingWork(context: WorkspaceContext, id: string): Promise<{ folder: string; branch: string } | undefined> {
+  if ((await context.library.get(id))?.type !== "capability") return undefined;
+  let folder: string;
+  let branch: string;
+  try {
+    const absolute = (flag: string) => realpathSync(run(context.folder, ["rev-parse", "--path-format=absolute", flag]).trim());
+    if (absolute("--absolute-git-dir") === absolute("--git-common-dir")) return undefined; // the main checkout
+    folder = absolute("--show-toplevel");
+    branch = run(folder, ["branch", "--show-current"]).trim();
+  } catch {
+    return undefined;
+  }
+  if (!branch) return undefined;
+  const held = (await readClaims(context.log, context.project)).some((one) => one.session === context.session && one.branch === branch);
+  return held ? { folder, branch } : undefined;
 }
 
 /** The main checkout of the repository `folder` is in, or why there is none to make a workspace from. */

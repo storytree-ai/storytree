@@ -17,17 +17,30 @@ export const START_CHECK_TIMEOUT_MS = 60_000;
 /** How much of what the check printed its refusal keeps: the start, where the error is said before its stack. */
 const SAID_CHARS = 600;
 
+/** What Electron's main process prints for a rejection nothing handled: it warns, and still exits 0. */
+const UNHANDLED = /UnhandledPromiseRejectionWarning: (?!Unhandled promise rejection\.)([^\r\n]*)/;
+
 /**
- * Start `launch` with `--start-check` and wait for it to exit: undefined when it exited 0, else why
- * not (its exit code and the start of what it printed, or that it did not finish in time).
+ * Start `launch` with `--start-check` and wait for it to exit: undefined when it exited 0 with no
+ * promise rejection left unhandled, else why not (its exit code and the start of what it printed, the
+ * rejection, or that it did not finish in time). `env` is the environment it starts in (the release's
+ * install check gives it a throwaway home); by default this process's own.
  */
-export function startsCleanly(launch: { execPath: string; args: readonly string[] }, timeoutMs = START_CHECK_TIMEOUT_MS): Promise<string | undefined> {
+export function startsCleanly(launch: { execPath: string; args: readonly string[]; env?: NodeJS.ProcessEnv }, timeoutMs = START_CHECK_TIMEOUT_MS): Promise<string | undefined> {
   // The updater may run with ELECTRON_RUN_AS_NODE set for its own children; the build must start as Electron.
-  const { ELECTRON_RUN_AS_NODE: _asNode, ...env } = process.env;
+  const { ELECTRON_RUN_AS_NODE: _asNode, ...env } = launch.env ?? process.env;
   return new Promise((resolve) => {
     let said = "";
+    let heard = "";
+    let rejection: string | undefined;
     const child = spawn(launch.execPath, [...launch.args, "--start-check"], { env, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
-    const hear = (chunk: Buffer): void => { if (said.length < SAID_CHARS) said = (said + chunk.toString("utf8")).slice(0, SAID_CHARS); };
+    const hear = (chunk: Buffer): void => {
+      const text = chunk.toString("utf8");
+      if (said.length < SAID_CHARS) said = (said + text).slice(0, SAID_CHARS);
+      // Keep the last line's tail, so a warning split across chunks is still found.
+      heard = (heard + text).slice(-2 * SAID_CHARS);
+      rejection ??= UNHANDLED.exec(heard)?.[1]?.trim();
+    };
     child.stdout.on("data", hear);
     child.stderr.on("data", hear);
     const timer = setTimeout(() => {
@@ -37,7 +50,8 @@ export function startsCleanly(launch: { execPath: string; args: readonly string[
     child.on("error", (error) => { clearTimeout(timer); resolve(error.message); });
     child.on("close", (code, signal) => {
       clearTimeout(timer);
-      resolve(code === 0 ? undefined : `it exited with ${code === null ? `signal ${signal}` : `code ${code}`}${said.trim() === "" ? "" : `: ${said.trim()}`}`);
+      if (code === 0) resolve(rejection === undefined ? undefined : `it left an unhandled promise rejection: ${rejection}`);
+      else resolve(`it exited with ${code === null ? `signal ${signal}` : `code ${code}`}${said.trim() === "" ? "" : `: ${said.trim()}`}`);
     });
   });
 }
@@ -71,4 +85,15 @@ export function checkedUpdate(update: typeof updateToMain, { build, shaOf, start
 /** Run the app once Electron is ready; a failure in either ends the app through `fail`. */
 export function runWhenReady(ready: Promise<unknown>, run: () => Promise<void>, fail: (error: unknown) => void): Promise<void> {
   return ready.then(run).catch(fail);
+}
+
+/**
+ * End a `--start-check` start: wait a turn first, so a promise rejection the start left unhandled is
+ * said (Electron only warns of one, and the check reads that warning), then say it reached its handlers
+ * and exit 0.
+ */
+export async function finishStartCheck(exit: (code: number) => void): Promise<void> {
+  await new Promise((resolve) => setImmediate(resolve));
+  console.log("start check: the main process reached its handlers");
+  exit(0);
 }

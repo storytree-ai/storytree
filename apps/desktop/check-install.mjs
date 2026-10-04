@@ -1,12 +1,14 @@
-// Windows packaging proof: install the built NSIS payload, run its Electron and Postgres
-// binaries, verify the shipped license (app setup 4.2), and uninstall. No real app data,
-// update feed or release is used.
+// Windows packaging proof: install the built NSIS payload, start the installed app's own main once
+// (4.17's start check), run its Postgres binaries, verify the shipped license (app setup 4.2), and
+// uninstall. No real app data, update feed or release is used. The release workflow runs it before
+// it publishes, so a release whose installed app cannot start never publishes.
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { checkEmbeddingBinaries, checkTools } from "./check-tools.mjs";
+import { startsCleanly } from "./src/main/start-check.ts";
 
 const release = path.resolve("apps/desktop/release");
 const installer = readdirSync(release).find((file) => file.endsWith("-setup.exe"));
@@ -77,6 +79,17 @@ try {
     encoding: "utf8", timeout: 30_000, env: { ...process.env, ELECTRON_RUN_AS_NODE: "1" },
   });
   assert.equal(result.trim(), version);
+  // The installed app's real main, as Electron, with a throwaway home: it must reach its handlers and
+  // exit 0 in time, with no promise rejection left unhandled (0.3.606 passed every check and died here).
+  const starter = path.join(temp, "starting user");
+  const startHome = path.join(starter, ".storytree", "0.3");
+  mkdirSync(startHome, { recursive: true });
+  const cannotStart = await startsCleanly({
+    execPath: path.join(installed, "storytree-0.3.exe"),
+    args: [],
+    env: { ...process.env, USERPROFILE: starter, STORYTREE_HOME: startHome, LOCALAPPDATA: path.join(starter, "AppData", "Local"), APPDATA: path.join(starter, "AppData", "Roaming") },
+  });
+  assert.equal(cannotStart, undefined, `the installed app cannot start: ${cannotStart}`);
   const postgres = execFileSync(path.join(installed, "resources", "postgres", "bin", "postgres.exe"), ["--version"], { encoding: "utf8", timeout: 30_000 });
   assert.match(postgres, /PostgreSQL/);
   const tools = path.join(installed, "resources", "agent-tools");
@@ -100,6 +113,7 @@ try {
   execFileSync(node, [path.join(tools, "storytree-deliver.mjs"), "inspect", installed, process.arch], { timeout: 30_000 });
   assert.match(readFileSync(path.join(release, "latest.yml"), "utf8"), new RegExp(`version: ${version.replaceAll(".", "\\.")}(?:\\s|$)`));
   console.log(`4.4 PASS: NSIS installed ${version}; its Electron, Postgres and update configuration work`);
+  console.log("4.17 PASS (Windows x64): the installed app's main process started with a throwaway home, reached its handlers and exited 0");
   console.log("app setup 4.2 PASS: the NSIS and arm64 portable payloads carry the same offline license");
   console.log("app setup 1.1 PASS (Windows x64): bundled Node, CLI, hook, setup and MCP run from an installed path with spaces; arm64 Node PE inspected, not executed");
   checkUninstall(tools);

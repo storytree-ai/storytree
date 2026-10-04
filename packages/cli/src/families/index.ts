@@ -24,6 +24,7 @@ import { settings } from "./settings.js";
 import { mapFamily } from "./map.js";
 import { affectedFamily } from "./affected.js";
 import { releaseFamily } from "./release.js";
+import { checkFamily } from "./guardrails.js";
 
 /** Words agents try for a family storytree does not have, each with the command for that job. */
 export const GUESSES: Readonly<Record<string, string>> = {
@@ -38,6 +39,7 @@ export const FAMILIES: readonly Family[] = [
   decisions,
   noticeboard,
   doctorFamily,
+  checkFamily,
   appFamily,
   releaseFamily,
   friction,

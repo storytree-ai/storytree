@@ -1029,6 +1029,24 @@ test("6.12 friction capture uses the calling folder's branch for the shared dail
   });
 });
 
+test("6.36 the daily friction cap counts each session's own reports: on a branch every session shares, a second session's report is accepted after another filed three that day, and each is still refused its own fourth", async () => {
+  await withProject(async ({ folder, library }) => {
+    git(folder, "init", "-b", "main");
+    const report = (title: string) => ({ title, description: title, statement: title, evidence: `src/${title}.ts: Error`, impact: "Lost time" });
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      for (const title of ["one", "two", "three"]) assert.equal((await agent.call("record_friction", report(title))).isError, false);
+      assert.equal((await agent.call("record_friction", report("four"))).isError, true, "the first session's own fourth is refused");
+    });
+    await withAgent(folder, claudeCode("claude-2"), async (agent) => {
+      const later = await agent.call("record_friction", report("islands"));
+      assert.equal(later.isError, false, later.text);
+      const saved = await library.get(idOf(later));
+      assert.ok(saved?.type === "friction");
+      assert.equal(saved.fields.title, "islands");
+    });
+  });
+});
+
 test("6.12 it records friction with concrete evidence and a re-steer with the owner's quoted words, the agent's account kept apart; vague evidence, a re-steer quoting nobody and a defect with no failure mode are each refused as a readable answer, and nothing is written", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {

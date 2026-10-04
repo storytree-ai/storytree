@@ -90,7 +90,7 @@ test("2.8 · the pips group steps by explainer, the current one fills as it play
   tour.tick(whole(steps[2]!)); assert.equal(tour.state.index, 3);
 });
 
-test("2.9 · Conduit's globe grows a stage at a time as a step's lines arrive; everything shown and free play return to storytree's", () => {
+test("2.9 · Conduit's globe grows a stage at a time as a step's lines arrive; everything shown returns to storytree's", () => {
   const growing: TourStep[] = [step("opening", "opening"),
     { ...step("grow", "stories", ["Storytree breaks up your codebase into stories.", "Two", "Three"]), map: "conduit", stage: "empty", lineStages: { 3: "stories" } },
     step("scale", "scale")];
@@ -104,8 +104,7 @@ test("2.9 · Conduit's globe grows a stage at a time as a step's lines arrive; e
   assert.deepEqual(globeOf(growing[1]!, tour.state), { map: "storytree" });
   tour.release("everything"); tour.next();
   assert.deepEqual(globeOf(growing[2]!, tour.state), { map: "storytree" });
-  tour.skip();
-  assert.deepEqual(globeOf(growing[1]!, tour.state), { map: "storytree" });
+
 });
 
 test("2.11 · the arrival holds storytree's own globe at a point under the pain, grows it on the tour's clock, then shows it whole", () => {
@@ -169,4 +168,19 @@ test("2.12 · after the fixes, the tour cuts to the shop's whole globe narrowed 
     "products, cart and checkout, read from the shop's saved snapshot");
   tour.hold("everything");
   assert.deepEqual(globeOf(tourSteps[cut]!, tour.state), { map: "storytree" }, "show everything still opens storytree's own globe");
+});
+
+test("2.13 · free play opens on the shop's whole globe, and the selector switches it to storytree's own project and back", () => {
+  const tour = createTour(steps);
+  tour.skip();
+  assert.deepEqual(globeOf(steps[0]!, tour.state), { map: "shop" }, "the full shop, whole");
+  tour.choose("storytree");
+  assert.deepEqual(globeOf(steps[0]!, tour.state), { map: "storytree" }, "storytree's own saved project");
+  assert.equal(tour.state.freePlay, true, "choosing a project stays in free play");
+  tour.choose("shop");
+  assert.deepEqual(globeOf(steps[0]!, tour.state), { map: "shop" });
+  tour.choose("storytree"); tour.replay();
+  assert.deepEqual(globeOf(steps[0]!, tour.state), { map: "storytree" }, "the tour itself is not the selector's");
+  tour.skip();
+  assert.deepEqual(globeOf(steps[0]!, tour.state), { map: "storytree" }, "the choice lasts as long as the page");
 });

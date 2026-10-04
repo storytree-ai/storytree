@@ -183,6 +183,8 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   const [shownMap, setShownMap] = useState<GlobeMap>("storytree");
   const shownMapNow = useRef<GlobeMap>("storytree");
   shownMapNow.current = shownMap;
+  // The core on show: a growth's own, or storytree's saved reading's.
+  const activeCore = grows(shownMap) ? growthCores[shownMap] : core;
   useEffect(() => { const resize = () => setWidth(window.innerWidth); window.addEventListener("resize", resize); return () => window.removeEventListener("resize", resize); }, []);
   const [progress, setProgress] = useState(recording.progress);
   const [openingActive, setOpeningActive] = useState(() => document.getElementById("opening")?.hidden === false);
@@ -218,14 +220,14 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   }, [core, explore]);
   const pickCapability = useCallback((id: string) => { explore(); setCapability(id); }, [explore]);
   const closeStory = useCallback(() => { setStory(undefined); setCapability(undefined); }, []);
-  const pickNote = useCallback((id: string) => { explore(); setNote(id); setStory(undefined); core.pin(id); }, [core, explore]);
-  const closeNote = useCallback(() => { setNote(undefined); core.pin(undefined); }, [core]);
+  const pickNote = useCallback((id: string) => { explore(); setNote(id); setStory(undefined); activeCore.pin(id); }, [activeCore, explore]);
+  const closeNote = useCallback(() => { setNote(undefined); activeCore.pin(undefined); }, [activeCore]);
   useEffect(() => {
     const escape = (event: KeyboardEvent) => { if (event.key !== "Escape" || event.defaultPrevented) return; if (note) closeNote(); else if (story) closeStory(); else setBrowserOpen(false); };
     window.addEventListener("keydown", escape); return () => window.removeEventListener("keydown", escape);
   }, [note, story, closeNote, closeStory]);
   // A recording restart replaces the core, but the visitor is still reading this note.
-  useEffect(() => { core.pin(note); }, [core, note]);
+  useEffect(() => { activeCore.pin(note); }, [activeCore, note]);
   const onHighlight = useCallback((stories: readonly string[] | undefined, session?: string) => setHighlight({ stories, session }), []);
   const onControls = useCallback((next: GlobeControls | undefined) => setControls(next), []);
   useEffect(() => {
@@ -385,11 +387,22 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
     });
     return () => cancelAnimationFrame(frame);
   }, [stage?.id]);
-  // Free play is storytree's own globe.
-  useEffect(() => { if (free && shownMap !== "storytree") setShownMap("storytree"); }, [free, shownMap]);
+  // Free play shows the project its selector chose (ADR-0890): the whole shop, or storytree's own. A switch closes what
+  // the visitor had open on the other and frames the new globe whole.
+  useEffect(() => {
+    if (!free || shownMap === globe.map) return;
+    setStory(undefined); setCapability(undefined); setNote(undefined); setBrowserOpen(false);
+    setShownMap(globe.map);
+  }, [free, globe.map, shownMap]);
+  useEffect(() => {
+    if (!free || !controls) return;
+    const frame = requestAnimationFrame(() => controls.stop({ target: overviews[shownMap], framing: restingFraming, duration: reduced() ? 0 : 1200, sideOffset: 0 }));
+    return () => cancelAnimationFrame(frame);
+  }, [free, shownMap, controls]);
   useEffect(() => () => { clearFlight(); clearDrift(); }, []);
 
-  const shownNotes = notes.filter(item => String(item.fields.title ?? "").toLowerCase().includes(query.toLowerCase()));
+  // Find reads the project on show: its islands and its notes.
+  const shownNotes = (grows(shownMap) ? [...knowledge(growths[shownMap].snapshot.changes ?? []).notes.values()] : notes).filter(item => String(item.fields.title ?? "").toLowerCase().includes(query.toLowerCase()));
   const selected = story ?? (touring && !everything ? step?.select : undefined);
   const onStorytree = shownMap === "storytree";
   const grown = grows(shownMap) ? growths[shownMap] : undefined;
@@ -426,11 +439,11 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
       <button className="tour-browse-toggle" type="button" aria-label="Find a story or note in the saved project" aria-expanded={browserOpen} hidden={!free} onClick={() => setBrowserOpen(value => !value)}>Find</button>
       <div className="tour-record-browser" hidden={!browserOpen || !free}>
         <header><h2>Saved project</h2><button type="button" aria-label="Close project browser" onClick={() => setBrowserOpen(false)}>×</button></header>
-        <p className="tour-recorded-label">Saved {snapshot.capturedAt.slice(0, 10)} · read only</p>
+        <p className="tour-recorded-label">{grows(shownMap) ? `Recorded ${growths[shownMap].snapshot.window.to.slice(0, 10)}` : `Saved ${snapshot.capturedAt.slice(0, 10)}`} · read only</p>
         <label htmlFor="tour-story-choice">Open a story</label>
         <select id="tour-story-choice" value={story ?? ""} onChange={event => { pickStory(event.target.value); controls?.stop({ target: { kind: "story", story: event.target.value }, framing: .6, duration: reduced() ? 0 : 1400 }); setBrowserOpen(false); }}>
           <option value="" disabled>Choose an island…</option>
-          {snapshot.tree.stories.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}
+          {(grows(shownMap) ? Object.entries(growths[shownMap].snapshot.titles).map(([id, title]) => ({ id, title })) : snapshot.tree.stories).map(item => <option key={item.id} value={item.id}>{item.title}</option>)}
         </select>
         <div className="tour-knowledge" onKeyDown={event => {
           if (event.key !== "Escape" || !note) return;
@@ -448,14 +461,15 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
         </div>
       </div>
       {story && onStorytree && snapshot.tree.stories.some(item => item.id === story) && <StoryDetails story={story} capability={capability} choose={pickCapability} close={closeStory} />}
-      {note && <div className="story-panel" onKeyDown={event => { if (event.key === "Escape") { event.preventDefault(); closeNote(); } }}><KnowledgeNoteCard core={core} onClose={closeNote} /></div>}
-      <div className="tour-session-surface" hidden={!free && requestedPanel !== "sessions"}>
+      {note && <div className="story-panel" onKeyDown={event => { if (event.key === "Escape") { event.preventDefault(); closeNote(); } }}><KnowledgeNoteCard core={activeCore} onClose={closeNote} /></div>}
+      {/* The recorded sessions and the arcs are storytree's saved reading's: the shop's growth keeps neither. */}
+      <div className="tour-session-surface" hidden={free ? !onStorytree : requestedPanel !== "sessions"}>
         <Sessions recording={recording} core={core} onWisps={setWisps} onHighlight={onHighlight} onPick={explore} />
         <p className="tour-recording-progress" data-recording-index={progress.index} data-recording-total={progress.total}>
           Recording · <time dateTime={progress.at}>{progress.at.slice(11, 16)} UTC</time> · {progress.index} of {progress.total} events
         </p>
       </div>
-      <div className="tour-arc-surface" hidden={!free && requestedPanel !== "arcs"}>
+      <div className="tour-arc-surface" hidden={free ? !onStorytree : requestedPanel !== "arcs"}>
         <Arcs recording={recording} open={requestedPanel === "arcs"} />
       </div>
     </>, panelHost)}

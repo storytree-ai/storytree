@@ -1,4 +1,4 @@
-import { createTour, globeOf, groups, type Hold, type TourState, type TourStep } from "./tour.js";
+import { createTour, globeOf, groups, type FreePlayProject, type Hold, type TourState, type TourStep } from "./tour.js";
 import { groupTitles, steps } from "./tour-copy.js";
 import { fill } from "./tour-counts.js";
 
@@ -30,6 +30,7 @@ export function wireTour() {
   const pips = get<HTMLOListElement>("tour-pips"), label = get("tour-label"), held = get("tour-held");
   const everything = get<HTMLButtonElement>("tour-everything"), note = get("tour-note"), live = get("tour-live");
   const speeds = [...document.querySelectorAll<HTMLButtonElement>("#tour-bar [data-speed]")], cycle = get<HTMLButtonElement>("tour-speed-cycle");
+  const projects = get("tour-project"), projectButtons = [...projects.querySelectorAll<HTMLButtonElement>("[data-project]")];
   const grouped = groups(steps);
   let previous: TourState | undefined;
   let visible = false;
@@ -96,7 +97,7 @@ export function wireTour() {
 
   const render = (state = tour.state) => {
     const step = steps[state.index]!;
-    const changedStep = !previous || previous.index !== state.index || previous.generation !== state.generation || previous.freePlay !== state.freePlay;
+    const changedStep = !previous || previous.index !== state.index || previous.generation !== state.generation || previous.freePlay !== state.freePlay || previous.project !== state.project;
     const running = tour.running;
     root.dataset.tourMode = state.freePlay ? "freeplay" : "tour";
     root.dataset.tourStep = step.id;
@@ -109,19 +110,21 @@ export function wireTour() {
       kicker.textContent = state.freePlay ? "Act 2 · Your turn" : step.explainer === "opening" || step.explainer === "ending" ? `Act 2 · ${at.title}` : `${at.title} · ${at.at} of ${at.of}`;
       heading.textContent = state.freePlay ? "Your turn." : text(step.title);
       if (state.freePlay) {
-        lines.replaceChildren(...["Explore storytree's own project: open an island, the arcs or the library.", "It's a saved reading, so nothing you do changes the project."].map(line => element("li", line, "tour-line on")));
+        lines.replaceChildren(...[state.project === "shop" ? "Explore the whole shop: open an island or the library." : "Explore storytree's own project: open an island, the arcs or the library.",
+          "It's a saved reading, so nothing you do changes the project."].map(line => element("li", line, "tour-line on")));
       } else drawLines(step);
       chips.replaceChildren(...(state.freePlay ? [] : step.chips ?? []).map(chip => element("span", text(chip.text), `chip chip-${chip.kind}`)));
       depthToggle.hidden = state.freePlay || !step.why;
       depthToggle.textContent = step.kind === "compare" ? "Sources and decisions" : step.decisions.length ? `Why it exists · ${step.decisions.length} ${step.decisions.length === 1 ? "decision" : "decisions"}` : "Why it exists";
       card.classList.remove("is-in"); void card.offsetWidth; card.classList.add("is-in");
-      label.textContent = state.freePlay ? text("Free play · storytree’s own project, saved {saved} · read only") : `${at.title} · ${at.at} of ${at.of}`;
+      label.textContent = !state.freePlay ? `${at.title} · ${at.at} of ${at.of}` : state.project === "shop"
+        ? "Free play · an online shop agents built with storytree, recorded 3 October 2026 · read only" : text("Free play · storytree’s own project, saved {saved} · read only");
       pipButtons.forEach((button, index) => {
         button.classList.toggle("done", state.freePlay || index < state.index);
         if (!state.freePlay && index === state.index) button.setAttribute("aria-current", "step"); else button.removeAttribute("aria-current");
         button.style.removeProperty("--fill");
       });
-      live.textContent = state.freePlay ? "Free play. Explore storytree's own project." : `${heading.textContent} Step ${state.index + 1} of ${steps.length}.`;
+      live.textContent = state.freePlay ? state.project === "shop" ? "Free play. Explore the whole shop." : "Free play. Explore storytree's own project." : `${heading.textContent} Step ${state.index + 1} of ${steps.length}.`;
     }
     // The note names whose globe is on show: Conduit's growth is a replay of its own library (ADR-0879 D7).
     note.textContent = globe.map === "conduit" ? text("Conduit · replayed from its own library, {conduitRecording}")
@@ -151,6 +154,8 @@ export function wireTour() {
     cycle.setAttribute("aria-label", `Tour speed ${state.speed}×, change it`);
     label.hidden = !held.hidden;
     everything.setAttribute("aria-checked", String(state.holds.includes("everything")));
+    projects.hidden = !state.freePlay;
+    projectButtons.forEach(button => button.setAttribute("aria-pressed", String(button.dataset.project === state.project)));
     previous = { ...state };
     window.dispatchEvent(new CustomEvent("storytree-tour", { detail: { step, state, running, elapsed: tour.elapsed() } }));
   };
@@ -166,6 +171,8 @@ export function wireTour() {
   get("tour-next").addEventListener("click", () => render(tour.next()));
   get("tour-replay").addEventListener("click", () => render(tour.replay()));
   get("tour-skip").addEventListener("click", () => render(tour.skip()));
+  // Free play's project: the whole shop, or storytree's own (ADR-0890). Nothing is stored beyond the page.
+  projectButtons.forEach(button => button.addEventListener("click", () => render(tour.choose(button.dataset.project as FreePlayProject))));
   everything.addEventListener("click", () => render(tour.state.holds.includes("everything") ? tour.release("everything") : tour.hold("everything")));
   depthToggle.addEventListener("click", () => render(tour.state.holds.includes("reading") ? tour.release("reading") : tour.hold("reading")));
   document.addEventListener("keydown", event => {

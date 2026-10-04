@@ -12,6 +12,12 @@
 .tour-recorded-label { font-size:11px; color:var(--muted); margin:8px 0 18px; }
 .tour-record-browser label { display:block; font-size:12px; margin:14px 0 5px; color:var(--muted); }
 .tour-record-browser input,.tour-record-browser select { width:100%; min-height:44px; font:14px/1.5 system-ui; padding:6px; border:1px solid var(--line,#485159); border-radius:5px; background:var(--bg,#17191c); color:var(--text,#e7e8ea); }
+/* Free play's project selector (ADR-0890): small, in the row of free play's own controls, below the arcs bar. */
+#chapter2 .tour-project { position:absolute; z-index:8; top:66px; left:264px; display:flex; align-items:center; gap:2px; padding:3px; border:1px solid #485159; border-radius:9px; background:#101418; font:13px/1.5 system-ui, sans-serif; }
+#chapter2 .tour-project .tp-label { padding:0 8px 0 6px; color:var(--dim,#9aa3ab); font-size:11px; letter-spacing:.06em; text-transform:uppercase; }
+#chapter2 .tour-project button { min-height:36px; padding:6px 12px; border:0; border-radius:6px; color:#d7dbdf; background:none; font:inherit; cursor:pointer; }
+#chapter2 .tour-project button[aria-pressed="true"] { color:#101418; background:#c9e4a8; font-weight:600; }
+#chapter2 .tour-project button:focus-visible { outline:2px solid #c9e4a8; outline-offset:2px; }
 /* Panels stop above the tour bar. */
 #chapter2 .story-panel { top:66px; bottom:calc(var(--bar-h) + 12px); }
 #chapter2 .sessions-list { bottom:var(--bar-h); max-height:31%; }
@@ -26,6 +32,9 @@
 @media(max-width:600px) {
  #chapter2 .forest-views { top:60px; left:14px; }
  #chapter2 .tour-browse-toggle { top:61px; left:180px; }
+ #chapter2 .tour-project { top:110px; left:14px; }
+ #chapter2 .tour-project .tp-label { display:none; }
+ #chapter2 .tour-project button { min-height:44px; }
  #chapter2 .story-panel { top:110px; bottom:calc(var(--bar-h) + 8px); width:calc(100% - 24px); }
  #chapter2:has(.story-panel) .sessions-list { right:0; visibility:hidden; }
  #chapter2 .sessions-list .session-legend { display:none; }

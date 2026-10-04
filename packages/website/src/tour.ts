@@ -36,9 +36,11 @@ export type TourStep = {
   panel?: "story" | "arcs" | "sessions" | "knowledge";
   tags?: Tag[];
 };
+/** Free play's project: the example shop, whole (the default), or storytree's own saved project (ADR-0890). */
+export type FreePlayProject = "shop" | "storytree";
 export type TourState = {
   index: number; generation: number; lines: number; speed: .75 | 1 | 1.5;
-  holds: readonly Hold[]; freePlay: boolean;
+  holds: readonly Hold[]; freePlay: boolean; project: FreePlayProject;
 };
 export type TourDetail = { step: TourStep; state: TourState; running: boolean; elapsed: number };
 
@@ -68,7 +70,7 @@ export function groups(steps: readonly TourStep[]): { explainer: Group; steps: n
 /** `ready` says whether the globe a growth plays on is set up: until it is, the time-lapse and the step before it wait (2.10). */
 export function createTour(steps: readonly TourStep[], { ready = () => true }: { ready?: () => boolean } = {}) {
   if (!steps.length) throw new Error("A tour needs at least one step.");
-  let state: TourState = { index: 0, generation: 0, lines: 1, speed: 1, holds: [], freePlay: false };
+  let state: TourState = { index: 0, generation: 0, lines: 1, speed: 1, holds: [], freePlay: false, project: "shop" };
   let elapsed = 0;
   const update = (patch: Partial<TourState>) => state = { ...state, ...patch };
   const all = (index = state.index) => steps[index]!.lines.length;
@@ -114,6 +116,8 @@ export function createTour(steps: readonly TourStep[], { ready = () => true }: {
     /** Play clears every hold and continues the step where it stopped; pause is the visitor's own hold. */
     togglePlay() { return state.freePlay ? state : tour.running ? tour.hold("paused") : update({ holds: [] }); },
     setSpeed(speed: .75 | 1 | 1.5) { return update({ speed }); },
+    /** The selector's choice of free play's project; it lasts as long as the page. */
+    choose(project: FreePlayProject) { return state.project === project ? state : update({ project }); },
   };
   return tour;
 }
@@ -122,10 +126,11 @@ export type GlobeOn = { map: "storytree" } | { map: "conduit"; stage: string } |
 /**
  * The globe on show for `step` in `state`, `elapsed` milliseconds into it: Conduit's at the stage its arrived lines have
  * reached (ADR-0879 D7), a recorded growth's (storytree's own or the shop's) at its moment in seconds or whole, narrowed
- * to the step's focus (ADR-0889 2.2b), else storytree's saved reading.
+ * to the step's focus (ADR-0889 2.2b), else storytree's saved reading. Free play shows the project its selector chose (ADR-0890).
  */
 export function globeOf(step: TourStep, state: TourState, elapsed = 0): GlobeOn {
-  if (!step.map || state.freePlay || state.holds.includes("everything")) return { map: "storytree" };
+  if (state.freePlay) return state.project === "shop" ? { map: "shop" } : { map: "storytree" };
+  if (!step.map || state.holds.includes("everything")) return { map: "storytree" };
   if (step.map === "own" || step.map === "shop") {
     const focus = step.focus ? { focus: step.focus } : {};
     if (step.growth === "seed") return { map: step.map, at: 0, ...focus };

@@ -152,9 +152,8 @@ export function wireTour() {
       });
       live.textContent = state.freePlay ? state.project === "shop" ? "Free play. Explore the whole shop." : "Free play. Explore storytree's own project." : `${heading.textContent} Step ${state.index + 1} of ${steps.length}.`;
     }
-    // The note names whose globe is on show: Conduit's growth is a replay of its own library (ADR-0879 D7).
-    note.textContent = globe.map === "conduit" ? text("Conduit · replayed from its own library, {conduitRecording}")
-      : globe.map === "own" ? text("Storytree’s own project · replayed from its own records, {ownRecording}")
+    // The note names whose globe is on show: a recorded growth is a replay of its own records.
+    note.textContent = globe.map === "own" ? text("Storytree’s own project · replayed from its own records, {ownRecording}")
       : globe.map === "shop" ? text("An online shop agents built with storytree · replayed from its own records, {shopDay}")
       : step.chips?.some(chip => chip.kind === "recording") && !state.freePlay ? text("Recording · storytree's activity, {recording}") : text("storytree's own project · saved {saved} · read only");
     // A step's lines arrive one at a time; a waiting step shows them all (the engine says how many).

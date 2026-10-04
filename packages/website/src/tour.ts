@@ -23,9 +23,9 @@ export type TourStep = {
   surfaces: Partial<GlobeSurfaces>;
   /** From the given line (1-based) on, these surfaces replace the step's own. */
   lineSurfaces?: Record<number, Partial<GlobeSurfaces>>;
-  /** The globe a step shows: storytree's saved reading (the default), Conduit's at one of its saved growth stages
-   * (ADR-0879 D7), storytree's own recorded growth (ADR-0889 2.2b) or the shop's (ADR-0890). */
-  map?: "conduit" | "own" | "shop"; stage?: string;
+  /** The globe a step shows: storytree's saved reading (the default), storytree's own recorded growth (ADR-0889 2.2b)
+   * or the shop's (ADR-0890). */
+  map?: "own" | "shop";
   /** A recorded growth: held at its point ("seed"), or replayed over `seconds` as the step plays, whole or only its
    * named `stage` (from the globe as it stood before that stage, to where the next begins); absent, it is whole. */
   growth?: "seed" | { seconds: number; stage?: string };
@@ -33,8 +33,6 @@ export type TourStep = {
   recorded?: string;
   /** The stories a growth's globe is narrowed to: the rest are dimmed (ADR-0890's three teaching stories). */
   focus?: readonly string[];
-  /** From the given line (1-based) on, Conduit's globe shows this later stage: it grows as the step is read. */
-  lineStages?: Record<number, string>;
   target?: GlobeTarget; framing?: number; drift?: boolean;
   /** A story selected so its dependency lanes draw on. */
   select?: string;
@@ -146,24 +144,19 @@ export function flight(from: CameraView, to: CameraView): { framing: number; ms:
   return [{ framing: to.framing, ms: JSON.stringify(from.target) === JSON.stringify(to.target) ? 1800 : 2000 }];
 }
 
-export type GlobeOn = { map: "storytree" } | { map: "conduit"; stage: string } | { map: "own" | "shop"; at?: number; when?: string; focus?: readonly string[] };
+export type GlobeOn = { map: "storytree" } | { map: "own" | "shop"; at?: number; when?: string; focus?: readonly string[] };
 /**
- * The globe on show for `step` in `state`, `elapsed` milliseconds into it: Conduit's at the stage its arrived lines have
- * reached (ADR-0879 D7), a recorded growth's (storytree's own or the shop's) at its moment in seconds or whole, narrowed
- * to the step's focus (ADR-0889 2.2b), else storytree's saved reading. Free play shows the project its selector chose (ADR-0890).
+ * The globe on show for `step` in `state`, `elapsed` milliseconds into it: a recorded growth's (storytree's own or the
+ * shop's) at its moment in seconds or whole, narrowed to the step's focus (ADR-0889 2.2b), else storytree's saved reading.
+ * Free play shows the project its selector chose (ADR-0890).
  */
 export function globeOf(step: TourStep, state: TourState, elapsed = 0): GlobeOn {
   if (state.freePlay) return state.project === "shop" ? { map: "shop" } : { map: "storytree" };
   if (!step.map || state.holds.includes("everything")) return { map: "storytree" };
-  if (step.map === "own" || step.map === "shop") {
-    const focus = step.focus ? { focus: step.focus } : {};
-    if (step.growth === "seed") return { map: step.map, at: 0, ...focus };
-    if (step.recorded) return { map: step.map, when: step.recorded, ...focus };
-    return step.growth ? { map: step.map, at: Math.min(step.growth.seconds, elapsed / 1000), ...focus } : { map: step.map, ...focus };
-  }
-  let stage = step.stage ?? "complete";
-  for (const [from, next] of Object.entries(step.lineStages ?? {})) if (state.lines >= Number(from)) stage = next;
-  return { map: "conduit", stage };
+  const focus = step.focus ? { focus: step.focus } : {};
+  if (step.growth === "seed") return { map: step.map, at: 0, ...focus };
+  if (step.recorded) return { map: step.map, when: step.recorded, ...focus };
+  return step.growth ? { map: step.map, at: Math.min(step.growth.seconds, elapsed / 1000), ...focus } : { map: step.map, ...focus };
 }
 
 export type Box = { x: number; y: number; width: number; height: number };

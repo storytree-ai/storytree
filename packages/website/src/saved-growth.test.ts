@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { planAt, refreshGrowthSnapshot, type GrowthReading } from "./conduit-growth.js";
+import { planAt, refreshGrowthSnapshot, type GrowthReading } from "./saved-growth.js";
 
 const t = (minute: number) => `2026-10-01T21:${String(minute).padStart(2, "0")}:00.000Z`;
 const passing = { reported: { state: "passing" }, verified: { state: "not-checked" } };
@@ -50,7 +50,7 @@ test("3.4 · a stage holds only the stories, capabilities, links, contracts and 
 });
 
 test("3.4 · the saved growth draws each stage at the full plan's places, with the claims live at its time, scrubbed and dated", async context => {
-  const directory = await mkdtemp(path.join(tmpdir(), "conduit-growth-"));
+  const directory = await mkdtemp(path.join(tmpdir(), "saved-growth-"));
   context.after(() => rm(directory, { recursive: true, force: true }));
   const file = path.join(directory, "conduit.json");
   await refreshGrowthSnapshot(file, async () => reading());
@@ -71,7 +71,7 @@ test("3.4 · the saved growth draws each stage at the full plan's places, with t
 });
 
 test("3.4 · a stage outside the recording's window, or credential-like text, refuses the refresh", async context => {
-  const directory = await mkdtemp(path.join(tmpdir(), "conduit-growth-"));
+  const directory = await mkdtemp(path.join(tmpdir(), "saved-growth-"));
   context.after(() => rm(directory, { recursive: true, force: true }));
   const file = path.join(directory, "conduit.json");
   const late = reading();
@@ -83,7 +83,7 @@ test("3.4 · a stage outside the recording's window, or credential-like text, re
 });
 
 test("3.6 · a saved growth keeps the project's notes as dated changes with only their public fields, so its replay grows the core", async context => {
-  const directory = await mkdtemp(path.join(tmpdir(), "conduit-growth-"));
+  const directory = await mkdtemp(path.join(tmpdir(), "saved-growth-"));
   context.after(() => rm(directory, { recursive: true, force: true }));
   const file = path.join(directory, "growth.json");
   const noted = reading();

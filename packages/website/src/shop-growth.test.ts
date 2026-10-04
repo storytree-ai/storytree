@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { refreshGrowthSnapshot, type GrowthReading } from "./conduit-growth.js";
+import { refreshGrowthSnapshot, type GrowthReading } from "./saved-growth.js";
 import { ciHealth, codeAt } from "./shop-growth.js";
 
 const t = (minute: number) => `2026-10-03T16:${String(minute).padStart(2, "0")}:00.000Z`;

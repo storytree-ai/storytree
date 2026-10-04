@@ -94,23 +94,6 @@ test("2.8 · the pips group steps by explainer, the current one fills as it play
   tour.tick(whole(steps[2]!)); assert.equal(tour.state.index, 3);
 });
 
-test("2.9 · Conduit's globe grows a stage at a time as a step's lines arrive; everything shown returns to storytree's", () => {
-  const growing: TourStep[] = [step("opening", "opening"),
-    { ...step("grow", "map", ["Storytree breaks up your codebase into stories.", "Two", "Three"]), map: "conduit", stage: "empty", lineStages: { 3: "stories" } },
-    step("knowledge", "knowledge")];
-  const tour = atOne(growing);
-  assert.deepEqual(globeOf(growing[tour.state.index]!, tour.state), { map: "storytree" });
-  tour.next();
-  assert.deepEqual(globeOf(growing[1]!, tour.state), { map: "conduit", stage: "empty" });
-  tour.tick(readingTime("Storytree breaks up your codebase into stories.") + readingTime("Two"));
-  assert.deepEqual(globeOf(growing[1]!, tour.state), { map: "conduit", stage: "stories" });
-  tour.hold("everything");
-  assert.deepEqual(globeOf(growing[1]!, tour.state), { map: "storytree" });
-  tour.release("everything"); tour.next();
-  assert.deepEqual(globeOf(growing[2]!, tour.state), { map: "storytree" });
-
-});
-
 test("2.11 · the arrival holds storytree's own globe at a point under the pain, grows it on the tour's clock, then shows it whole", () => {
   const arrival: TourStep[] = [
     { ...step("pain", "opening", ["One", "Two"]), map: "own", growth: "seed" },

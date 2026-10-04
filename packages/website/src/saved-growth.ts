@@ -1,5 +1,5 @@
-// Node-only: Conduit's saved growth (ADR-0879 D7). The tour introduces storytree's ideas on Conduit's own
-// library as it grew, one recorded stage at a time; every stage is replayed from its history, never drawn by hand.
+// Node-only: a project's saved growth, as storytree's own (refresh-own.ts) and the shop's (refresh-shop.ts) are saved for
+// the tour: its library as it grew, one recorded stage at a time; every stage is replayed from its history, never drawn by hand.
 import type { Line } from "@storytree/agent-link";
 import { workStates } from "@storytree/arc-surface";
 import { forestScene, growPlanet, sessionColour, storyNodes, type SessionWisp } from "@storytree/forest";

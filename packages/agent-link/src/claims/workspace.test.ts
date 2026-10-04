@@ -136,7 +136,7 @@ test("4.22 a workspace made from the main checkout places its branch under the w
   });
 });
 
-test("5.13 making a workspace for work another live session holds, or for waiting work, is refused naming the holder or the blocker, and no folder, branch or line is made; for work the session already holds it is refused naming the branch it holds it on", async () => {
+test("5.13 making a workspace for work another live session holds, or for waiting work, is refused naming the holder or the blocker, and no folder, branch or claim is made, only a claim-refused line for the held work; for work the session already holds it is refused naming the branch it holds it on", async () => {
   await withWorld(async ({ log, library, project, site, park, as }) => {
     const form = await park("email form");
     const confirm = await park("confirmation email");
@@ -153,7 +153,8 @@ test("5.13 making a workspace for work another live session holds, or for waitin
 
     assert.deepEqual(worktrees(site), [path.resolve(site)], "no workspace was made");
     assert.deepEqual(branches(site), ["main"], "no branch was made");
-    assert.equal((await log.since(project, 0)).lines.length, lines, "nothing was written");
+    assert.deepEqual((await log.since(project, 0)).lines.slice(lines).map((line) => line.kind === "claim-refused" ? [line.session, line.increment, line.holder] : line.kind),
+      [["A", form, "B"]], "only the refusal of held work was written");
     assert.equal(await statusOf(library, confirm), "proposal", "not started");
 
     const mine = await makeWorkspace(as("B"), form, "again");
@@ -217,7 +218,7 @@ test("5.12 Codex prepares without creating or claiming, then attaches the app's 
   });
 });
 
-test("5.13 Codex checks held, waiting and already-owned work before creation, and refuses a claim lost before attachment without changing the app worktree", async () => {
+test("5.13 Codex checks held, waiting and already-owned work before creation, and refuses a claim lost before attachment without changing the app worktree, recording only each refusal of held work", async () => {
   await withWorld(async ({ dir, log, library, project, site, park, as }) => {
     const increment = await park("email form");
     const waiting = await park("confirmation");
@@ -240,7 +241,8 @@ test("5.13 Codex checks held, waiting and already-owned work before creation, an
     assert.equal(git(folder, "rev-parse", "--abbrev-ref", "HEAD").trim(), "HEAD");
     assert.deepEqual(branches(site), ["main"]);
     assert.ok(existsSync(folder));
-    assert.equal((await log.since(project, 0)).lines.length, lines);
+    assert.deepEqual((await log.since(project, 0)).lines.slice(lines).map((line) => line.kind === "claim-refused" ? [line.session, line.increment, line.holder] : line.kind),
+      [["B", increment, "A"], ["B", increment, "A"]]);
     assert.equal((await readClaims(log, project))[0]?.session, "A");
   });
 });

@@ -103,6 +103,8 @@ export const NEW_LINE = z.discriminatedUnion("kind", [
   z.object({ ...common, kind: z.literal("note-read"), ...noteRead }).strict(),
   /** A claim taken, on the git branch its session's folder was on, when it was on one (ADR-0643 D3). */
   z.object({ ...common, kind: z.literal("claimed"), ...part, reason: z.string().min(1), takenOverFrom: z.string().min(1).optional() }).strict().refine(onePart, ONE_PART),
+  /** A claim turned away because another live session (`holder`) held the work: the reason the refused session gave. */
+  z.object({ ...common, kind: z.literal("claim-refused"), ...part, holder: z.string().min(1), reason: z.string().min(1) }).strict().refine(onePart, ONE_PART),
   z.object({ ...common, kind: z.literal("released"), ...part }).strict().refine(onePart, ONE_PART),
   z.object({ ...common, kind: z.literal("landed"), capability: z.string().min(1) }).strict(),
   /** An increment closed through storytree, with what the close meant: it ends any claim on it (ADR-0643 D1, 6). */

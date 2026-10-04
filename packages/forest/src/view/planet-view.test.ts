@@ -191,6 +191,40 @@ test("3.15 a click on a capability's territory picks its story with that capabil
   assert.equal(world.getObjectByName("territory-borders")?.userData.borders, 1);
 });
 
+test("3.32 pointing at a capability's territory shows its full name, without its number, and its description; a file there names the capability the same way", () => {
+  const land = {
+    radius: 2,
+    territories: [{ capability: "cap-a", title: "6 · Agent tools (the MCP server)", description: "The tools an agent calls to read and write the plan." }, { capability: "cap-b", title: "7 · Instructions" }],
+    cells: [
+      { polygon: [{ x: -2, z: -2 }, { x: 0, z: -2 }, { x: 0, z: 2 }, { x: -2, z: 2 }], territory: 0 },
+      { polygon: [{ x: 0, z: -2 }, { x: 2, z: -2 }, { x: 2, z: 2 }, { x: 0, z: 2 }], territory: 1 },
+    ],
+    borders: [{ from: { x: 0, z: -2 }, to: { x: 0, z: 2 } }],
+  };
+  const world = new Group();
+  const plate = new Group();
+  plate.name = "planet:story";
+  plate.rotation.x = Math.PI / 2;
+  plate.add(territoryLand(land, (p) => new Vector3(p.x, 0, p.z)));
+  const file = new Mesh(new PlaneGeometry(0.5, 0.5));
+  file.name = "file:src/tools.ts";
+  file.userData = { file: "src/tools.ts", lines: 120, capability: "cap-a" };
+  // Lying on the land of cap-a's territory, just above it, at the screen's (300, 500).
+  file.rotation.x = -Math.PI / 2;
+  file.position.set(-1, 0.01, 1);
+  plate.add(file);
+  world.add(plate);
+  world.updateMatrixWorld(true);
+  const camera = new OrthographicCamera(-4, 4, 4, -4, 0.1, 100);
+  camera.position.z = 40;
+  camera.updateMatrixWorld();
+  const box = { left: 0, top: 0, width: 800, height: 800 };
+  assert.deepEqual(globeHover(world, camera, box, { x: 300, y: 300 }, "forest"),
+    { cursor: "pointer", title: "Agent tools (the MCP server)", detail: "The tools an agent calls to read and write the plan." });
+  assert.deepEqual(globeHover(world, camera, box, { x: 500, y: 400 }, "forest"), { cursor: "pointer", title: "Instructions" }, "no description: the name alone");
+  assert.deepEqual(globeHover(world, camera, box, { x: 300, y: 500 }, "forest"), { cursor: "pointer", title: "src/tools.ts · 120 lines · Agent tools (the MCP server)" });
+});
+
 test("3.14 a territory's land and borders stop at its island's coast", () => {
   const land = {
     radius: 2,

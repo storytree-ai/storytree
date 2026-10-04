@@ -69,6 +69,8 @@ test("3.31 where two story names overlap on screen, the less face-on one fades a
   // A chain of three, each over the next: the middle fades, and a faded name fades no other.
   const chain = [{ story: "a", box: box(0, 0), facing: 1 }, { story: "b", box: box(100, 0), facing: 0.9 }, { story: "c", box: box(200, 0), facing: 0.8 }];
   assert.deepEqual([...fadedPlates(chain)], ["b"]);
+  // Pills whose rounded ends meet, as a row of small islands' names do, cover no letter: both show.
+  assert.deepEqual([...fadedPlates([{ story: "a", box: box(0, 0), facing: 1 }, { story: "b", box: box(117, 0), facing: 0.8 }])], []);
   const pair = [{ story: "a", box: box(0, 0), facing: 0.2 }, { story: "b", box: box(10, 5), facing: 0.9 }];
   assert.deepEqual([...fadedPlates(pair, "a")], ["b"], "the selected story's name shows, however edge-on");
   assert.deepEqual([...fadedPlates([{ ...pair[1]!, dimmed: true }, pair[0]!])], ["b"], "a dimmed name yields to a name in focus");

@@ -34,7 +34,7 @@ export function Nameplates({ island, spot, coast, radius, selected, dimmed = fal
   // Plates hide behind the sphere only (whatever radius it has grown to): one exact test each, not a raycast of the land.
   const occluder = useMemo(() => [{ current: globeOccluder(radius) }], [radius]);
   const surface = useMemo(() => onIslandSurface(radius, PLATE_LIFT), [radius]);
-  // Placed once on the island's own plate, like print on a map: it moves only as the island does (ADR-0911).
+  // Placed once on the island's own plate, like print on a map: it moves only as the island does (ADR-0917).
   const at = useMemo(() => surface(storyPlate(coast, southOnPlate(plateTransform(spot, radius).quaternion))).toArray(), [surface, coast, spot, radius]);
   const anchor = useRef<Group>(null);
   const label = useRef<HTMLDivElement>(null);
@@ -54,7 +54,7 @@ export function Nameplates({ island, spot, coast, radius, selected, dimmed = fal
   const progress = islandProgress(island);
   const opacity = dimmed ? 0.24 : selected !== undefined && !chosen ? 0.5 : 1;
   // Its opacity is a variable, so a crowded plate's fade (styles.css) can take it to nothing and back.
-  const plateStyle = { "--plate-opacity": opacity, maxWidth: progress === undefined ? STORY_PLATE_WIDTH : STORY_PLATE_WIDTH + 64 } as CSSProperties;
+  const plateStyle = { "--plate-opacity": opacity, maxWidth: STORY_PLATE_WIDTH } as CSSProperties;
   return <>
     <group ref={anchor} position={at}>
       <Overlay occlude={occluder} zIndexRange={[20, 10]} style={{ pointerEvents: "none" }}>
@@ -73,7 +73,7 @@ export function Nameplates({ island, spot, coast, radius, selected, dimmed = fal
   </>;
 }
 
-/** Fade the names that overlap another or the Sessions strip whenever the globe draws: no name moves to clear another (ADR-0911). */
+/** Fade the names that overlap another or the Sessions strip whenever the globe draws: no name moves to clear another (ADR-0917). */
 export function NameplateCrowd({ selected }: { selected: string | undefined }) {
   const gl = useThree(state => state.gl);
   const invalidate = useThree(state => state.invalidate);

@@ -25,7 +25,8 @@ function forest(chain: boolean) {
 
 /**
  * A story nameplate's box as the desktop draws it (`.forest-label`: 0.82rem semibold, 0.1rem by 0.55rem of padding),
- * its title wrapped by word to the plate's width, at an estimated 7.2 px a character and 15.5 px a line.
+ * its title wrapped by word to the plate's width, at an estimated 7.2 px a character and 15.5 px a line, and a first
+ * build's progress ("0 / 1 landed" over its meter, 58 px wide, 22 px tall) beneath it.
  */
 function plateSize(title: string): { width: number; height: number } {
   const room = Math.max(1, Math.floor((STORY_PLATE_WIDTH - 17.6) / 7.2));
@@ -35,7 +36,7 @@ function plateSize(title: string): { width: number; height: number } {
     if (last !== undefined && last.length + 1 + word.length <= room) lines[lines.length - 1] = `${last} ${word}`;
     else lines.push(word);
   }
-  return { width: Math.max(...lines.map(line => line.length)) * 7.2 + 17.6, height: lines.length * 15.5 + 3.2 };
+  return { width: Math.max(58, ...lines.map(line => line.length * 7.2)) + 17.6, height: lines.length * 15.5 + 22 + 3.2 };
 }
 
 /** Each story's nameplate on screen as the app opens a window `width` by `height` (the canvas below its header), measured as the view measures it. */

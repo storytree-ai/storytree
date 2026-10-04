@@ -20,8 +20,8 @@ the growth's stage samples. This replaces the Conduit `sessions-*` and `arcs-*` 
 **Copy:** the owner's lines are his (from ADR-0893). Every other line, title, How and Why is **DRAFT**, marked in
 `tour-copy.ts`. The stand-down quote is the session's own close-out, word for word.
 
-**Phone residue** (increment_4274bd965ee7): at 390 the parallel step's three tags crowd, and the arcs drawer runs under the
-card.
+**Phone:** the tags' crowding and the arcs drawer running under the card at 390 were fixed by increment_4274bd965ee7
+(contract 2.18; before and after pictures in `../agents-phone/`). This folder's pictures are now at 1440, 390 and 320.
 
 Checks:
 - `tour-reading.test.ts` 2.17: red, then green. At 06:50, three sessions are live and the first arc is active with two

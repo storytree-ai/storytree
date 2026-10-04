@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import shop from "./shop-snapshot.json" with { type: "json" };
-import { createTour, flight, globeOf, groups, readingTime, replayMoment, settle, type TourStep } from "./tour.js";
+import { createTour, flight, globeOf, groups, placeTags, readingTime, replayMoment, settle, type TourStep } from "./tour.js";
 import { steps as tourSteps } from "./tour-copy.js";
 
 const step = (id: string, explainer: TourStep["explainer"], lines = ["One two three four five six seven eight nine ten"]): TourStep => ({
@@ -218,4 +218,25 @@ test("2.16 · the map chapter walks the shop's three teaching stories, and its g
   assert.ok(added.includes("Orders"), `that stage adds Orders, the story shown growing on: ${added}`);
   assert.deepEqual(grow.focus?.map(id => titles[id]), ["Browsing", "The cart", "Checkout", "Orders"]);
   assert.ok(grow.compare && grow.compare.sources.some(Boolean), "the comparison is offered on the last step");
+});
+
+test("2.18 · on a phone, each tag's name sits inside the screen, clear of the other tags and rings, the card and the panels", () => {
+  // The agents chapter's parallel step at 320: three rings close together, a sessions list above and the card below.
+  const room = { width: 320, height: 560 };
+  const tags = [{ x: 142, y: 262, width: 115, height: 25 }, { x: 175, y: 262, width: 185, height: 25 }, { x: 145, y: 195, width: 115, height: 25 }];
+  const keepOut = [{ x: 10, y: 84, width: 300, height: 86 }, { x: 10, y: 340, width: 300, height: 200 }];
+  const placed = placeTags(tags, room, { keepOut, sides: ["right", "left", "below", "above"] });
+  const boxes = placed.map((at, index) => ({ x: tags[index]!.x + at.x, y: tags[index]!.y + at.y, width: tags[index]!.width, height: tags[index]!.height }));
+  const rings = tags.map(tag => ({ x: tag.x - 17, y: tag.y - 17, width: 34, height: 34 }));
+  const meets = (a: typeof boxes[number], b: typeof boxes[number]) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+  boxes.forEach((box, index) => {
+    assert.ok(box.x >= 8 && box.y >= 8 && box.x + box.width <= room.width - 8 && box.y + box.height <= room.height - 8, `tag ${index} is inside the screen: ${JSON.stringify(box)}`);
+    for (const [other, ring] of rings.entries()) assert.ok(!meets(box, ring), `tag ${index} is clear of ring ${other}`);
+    for (const [other, label] of boxes.entries()) if (other !== index) assert.ok(!meets(box, label), `tag ${index} is clear of tag ${other}`);
+    for (const panel of keepOut) assert.ok(!meets(box, panel), `tag ${index} is clear of ${JSON.stringify(panel)}`);
+  });
+  // A laptop keeps its placement: the name to the right of its ring, or to the left where the right has no room.
+  const wide = { width: 1440, height: 900 };
+  assert.equal(placeTags([{ x: 900, y: 400, width: 160, height: 25 }], wide)[0]!.side, "right");
+  assert.equal(placeTags([{ x: 1350, y: 400, width: 160, height: 25 }], wide)[0]!.side, "left");
 });

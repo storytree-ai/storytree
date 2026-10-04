@@ -258,6 +258,7 @@ async function verifyOneFormat(page, width, output) {
         bullets: lines.map(line => getComputedStyle(line, "::before")).filter(before => before.display !== "none" && before.content !== "none").length,
         sizes: lines.map(line => parseFloat(getComputedStyle(line.querySelector(".said")).fontSize)),
         last: Math.max(...lines.map(line => line.getBoundingClientRect().bottom)),
+        overflow: card.scrollHeight - card.clientHeight,
       };
     });
     const depth = await page.locator("#tour-depth").boundingBox();
@@ -265,6 +266,7 @@ async function verifyOneFormat(page, width, output) {
     assert.equal(look.bullets, 0, `${id} has no bullet points at ${width}px`);
     assert.ok(look.sizes.length && look.sizes.every(size => size < impact && size >= 16), `${id} is told in explain mode, smaller than the arrival's ${impact}px, at ${width}px: ${look.sizes}`);
     assert.ok(depth && depth.y >= look.last - 1, `${id}'s How and Why sit beneath its lines at ${width}px`);
+    assert.ok(look.overflow <= 1, `${id}'s lines and its How and Why fit their room without scrolling at ${width}px: ${look.overflow}px over`);
     await page.screenshot({ path: path.join(output, `format-${id}-${width}.png`) });
   }
 }

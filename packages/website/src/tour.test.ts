@@ -7,7 +7,7 @@ import { steps as tourSteps } from "./tour-copy.js";
 const step = (id: string, explainer: TourStep["explainer"], lines = ["One two three four five six seven eight nine ten"]): TourStep => ({
   id, title: id, explainer, lines, decisions: [], surfaces: {},
 });
-const steps = [step("opening", "opening", ["First line", "Second line"]), step("story", "map"), step("comparison", "map"), step("arcs", "arcs")];
+const steps = [step("opening", "opening", ["First line", "Second line"]), step("story", "map"), step("comparison", "map"), step("agents", "agents")];
 /** These tests time the clock at 1×; Act 2 itself starts at 0.75× (2.4). */
 const atOne = (...args: Parameters<typeof createTour>) => { const tour = createTour(...args); tour.setSpeed(1); return tour; };
 const whole = (s: TourStep) => s.lines.reduce((sum, line) => sum + readingTime(line), 0) + settle;
@@ -78,7 +78,7 @@ test("2.7 · a waiting tour names every hold, and play clears them and continues
 
 test("2.8 · the pips group steps by explainer, the current one fills as it plays, and any pip jumps to its step", () => {
   assert.deepEqual(groups(steps), [
-    { explainer: "opening", steps: [0] }, { explainer: "map", steps: [1, 2] }, { explainer: "arcs", steps: [3] },
+    { explainer: "opening", steps: [0] }, { explainer: "map", steps: [1, 2] }, { explainer: "agents", steps: [3] },
   ]);
   const tour = atOne(steps);
   assert.equal(tour.progress(), 0);

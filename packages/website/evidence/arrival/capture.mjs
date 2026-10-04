@@ -177,6 +177,24 @@ const runs = {
     }
     observed.push("The map chapter's five steps and its growth on the shop: pictured");
   },
+  // The agents chapter (2.17, ADR-0893): each step on the shop at its recorded moment, at 1440 and 390.
+  async agents() {
+    const out = name => path.join(here, `../agents-chapter/${name}.png`);
+    for (const [width, height] of [[1440, 900], [390, 844]]) {
+      const page = await open({ width, height });
+      for (const id of ["agents-fix", "agents-sessions", "agents-arcs", "agents-claim", "agents-parallel", "agents-standdown"]) {
+        await go(page, id); await pause(page);
+        await page.waitForFunction(() => document.querySelector(".forest-drawing")?.dataset.arrived === "true", null, { timeout: 30_000 }).catch(() => {});
+        await page.waitForTimeout(2000);
+        await page.screenshot({ path: out(`${width}-${id}`) });
+        await play(page);
+      }
+      await pause(page); await page.locator("#tour-depth").click(); await page.waitForTimeout(600);
+      await page.screenshot({ path: out(`${width}-agents-standdown-depth`) });
+      await page.close();
+    }
+    observed.push("The agents chapter's steps on the shop's recorded moments: pictured");
+  },
   // A clip of a close-to-close move (2.15): the camera stays in and turns the globe, never out and in again.
   async closeFlight() {
     const page = await open({ width: 1440, height: 900 }, { video: true });

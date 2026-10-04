@@ -1,7 +1,7 @@
 import type { GlobeSurfaces, GlobeTarget } from "@storytree/forest/view";
 
-/** "map" is Act 2's first chapter, taught on the shop (ADR-0891). */
-export type Explainer = "map" | "knowledge" | "sessions" | "arcs";
+/** "map" and "agents" are Act 2's first two chapters, taught on the shop (ADR-0891, ADR-0893). */
+export type Explainer = "map" | "agents" | "knowledge";
 export type Group = "opening" | Explainer | "ending";
 /** Why the tour is waiting: the visitor's pause, a step's depth being read, every surface shown, or the globe being explored. */
 export type Hold = "paused" | "reading" | "everything" | "exploring";
@@ -29,6 +29,8 @@ export type TourStep = {
   /** A recorded growth: held at its point ("seed"), or replayed over `seconds` as the step plays, whole or only its
    * named `stage` (from the globe as it stood before that stage, to where the next begins); absent, it is whole. */
   growth?: "seed" | { seconds: number; stage?: string };
+  /** A moment in the shop's records: its globe, its sessions and its arcs as they stood then (ADR-0893). */
+  recorded?: string;
   /** The stories a growth's globe is narrowed to: the rest are dimmed (ADR-0890's three teaching stories). */
   focus?: readonly string[];
   /** From the given line (1-based) on, Conduit's globe shows this later stage: it grows as the step is read. */
@@ -144,7 +146,7 @@ export function flight(from: CameraView, to: CameraView): { framing: number; ms:
   return [{ framing: to.framing, ms: JSON.stringify(from.target) === JSON.stringify(to.target) ? 1800 : 2000 }];
 }
 
-export type GlobeOn = { map: "storytree" } | { map: "conduit"; stage: string } | { map: "own" | "shop"; at?: number; focus?: readonly string[] };
+export type GlobeOn = { map: "storytree" } | { map: "conduit"; stage: string } | { map: "own" | "shop"; at?: number; when?: string; focus?: readonly string[] };
 /**
  * The globe on show for `step` in `state`, `elapsed` milliseconds into it: Conduit's at the stage its arrived lines have
  * reached (ADR-0879 D7), a recorded growth's (storytree's own or the shop's) at its moment in seconds or whole, narrowed
@@ -156,6 +158,7 @@ export function globeOf(step: TourStep, state: TourState, elapsed = 0): GlobeOn 
   if (step.map === "own" || step.map === "shop") {
     const focus = step.focus ? { focus: step.focus } : {};
     if (step.growth === "seed") return { map: step.map, at: 0, ...focus };
+    if (step.recorded) return { map: step.map, when: step.recorded, ...focus };
     return step.growth ? { map: step.map, at: Math.min(step.growth.seconds, elapsed / 1000), ...focus } : { map: step.map, ...focus };
   }
   let stage = step.stage ?? "complete";

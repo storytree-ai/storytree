@@ -1041,7 +1041,8 @@ test("6.36 the daily friction cap counts each session's own reports: on a branch
       const later = await agent.call("record_friction", report("islands"));
       assert.equal(later.isError, false, later.text);
       const saved = await library.get(idOf(later));
-      assert.equal(saved?.fields.title, "islands");
+      assert.ok(saved?.type === "friction");
+      assert.equal(saved.fields.title, "islands");
     });
   });
 });

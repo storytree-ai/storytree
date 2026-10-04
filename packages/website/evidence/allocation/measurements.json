@@ -3,67 +3,42 @@
     "viewport": 1440,
     "document": 1440,
     "headings": 1,
-    "mount": {
-      "x": 130,
-      "y": 219.21875,
-      "width": 690.5,
-      "height": 560,
-      "top": 219.21875,
-      "right": 820.5,
-      "bottom": 779.21875,
-      "left": 130
-    },
+    "mount": null,
     "waitlist": {
       "x": 130,
-      "y": 1535.28125,
+      "y": 100,
       "width": 1180,
-      "height": 755.640625,
-      "top": 1535.28125,
+      "height": 708.640625,
+      "top": 100,
       "right": 1310,
-      "bottom": 2290.921875,
+      "bottom": 808.640625,
       "left": 130
     },
     "form": {
       "x": 723.796875,
-      "y": 1617.28125,
+      "y": 182,
       "width": 596.203125,
-      "height": 532.25,
-      "top": 1617.28125,
+      "height": 485.25,
+      "top": 182,
       "right": 1320,
-      "bottom": 2149.53125,
+      "bottom": 667.25,
       "left": 723.796875
     },
     "emailFont": "16px",
     "primaryInputs": 7,
-    "bodyFont": "22px",
+    "bodyFont": "16px",
     "assets": [
       {
-        "name": "/assets/styles.css",
-        "bytes": 38461
+        "name": "/assets/styles-O6YMFLJA.css",
+        "bytes": 63939
       },
       {
-        "name": "/assets/forest.js",
-        "bytes": 1230
-      },
-      {
-        "name": "/assets/main.js",
-        "bytes": 11797
+        "name": "/assets/main-QPTSUXPG.js",
+        "bytes": 17756
       },
       {
         "name": "/assets/chunk-IWGYTNAB.js",
         "bytes": 1066
-      },
-      {
-        "name": "/assets/tour-ui-CMRHHDVF.js",
-        "bytes": 24111
-      },
-      {
-        "name": "/forest-desktop.png",
-        "bytes": 64272
-      },
-      {
-        "name": "/assets/forest-scene-QQVK7V6F.js",
-        "bytes": 3364299
       }
     ],
     "controls": [
@@ -73,13 +48,13 @@
         "height": 44
       },
       {
-        "name": "Join the waitlist",
-        "width": 99.953125,
+        "name": "Back to the project ↗",
+        "width": 138.703125,
         "height": 44
       },
       {
         "name": "GitHub ↗",
-        "width": 62.6875,
+        "width": 62.140625,
         "height": 44
       },
       {
@@ -167,67 +142,42 @@
     "viewport": 390,
     "document": 390,
     "headings": 1,
-    "mount": {
-      "x": 20,
-      "y": 252.765625,
-      "width": 350,
-      "height": 320,
-      "top": 252.765625,
-      "right": 370,
-      "bottom": 572.765625,
-      "left": 20
-    },
+    "mount": null,
     "waitlist": {
       "x": 20,
-      "y": 1815.078125,
+      "y": 78,
       "width": 350,
-      "height": 938.234375,
-      "top": 1815.078125,
+      "height": 897.265625,
+      "top": 78,
       "right": 370,
-      "bottom": 2753.3125,
+      "bottom": 975.265625,
       "left": 20
     },
     "form": {
       "x": 10,
-      "y": 2072.671875,
+      "y": 341.625,
       "width": 370,
-      "height": 578.25,
-      "top": 2072.671875,
+      "height": 531.25,
+      "top": 341.625,
       "right": 380,
-      "bottom": 2650.921875,
+      "bottom": 872.875,
       "left": 10
     },
     "emailFont": "16px",
     "primaryInputs": 7,
-    "bodyFont": "16px",
+    "bodyFont": "15px",
     "assets": [
       {
-        "name": "/assets/styles.css",
-        "bytes": 38461
+        "name": "/assets/styles-O6YMFLJA.css",
+        "bytes": 63939
       },
       {
-        "name": "/assets/main.js",
-        "bytes": 11797
-      },
-      {
-        "name": "/assets/forest.js",
-        "bytes": 1230
+        "name": "/assets/main-QPTSUXPG.js",
+        "bytes": 17756
       },
       {
         "name": "/assets/chunk-IWGYTNAB.js",
         "bytes": 1066
-      },
-      {
-        "name": "/assets/tour-ui-CMRHHDVF.js",
-        "bytes": 24111
-      },
-      {
-        "name": "/forest-phone.png",
-        "bytes": 43466
-      },
-      {
-        "name": "/assets/forest-scene-QQVK7V6F.js",
-        "bytes": 3364299
       }
     ],
     "controls": [
@@ -237,13 +187,13 @@
         "height": 44
       },
       {
-        "name": "Join the waitlist",
-        "width": 85.671875,
+        "name": "Back to the project ↗",
+        "width": 118.609375,
         "height": 44
       },
       {
         "name": "GitHub ↗",
-        "width": 53.453125,
+        "width": 52.984375,
         "height": 44
       },
       {
@@ -331,67 +281,42 @@
     "viewport": 320,
     "document": 320,
     "headings": 1,
-    "mount": {
-      "x": 20,
-      "y": 268.625,
-      "width": 280,
-      "height": 320,
-      "top": 268.625,
-      "right": 300,
-      "bottom": 588.625,
-      "left": 20
-    },
+    "mount": null,
     "waitlist": {
       "x": 20,
-      "y": 1912.671875,
+      "y": 133,
       "width": 280,
-      "height": 1116.734375,
-      "top": 1912.671875,
+      "height": 1075.765625,
+      "top": 133,
       "right": 300,
-      "bottom": 3029.40625,
+      "bottom": 1208.765625,
       "left": 20
     },
     "form": {
       "x": 10,
-      "y": 2195.765625,
+      "y": 422.125,
       "width": 300,
-      "height": 731.25,
-      "top": 2195.765625,
+      "height": 684.25,
+      "top": 422.125,
       "right": 310,
-      "bottom": 2927.015625,
+      "bottom": 1106.375,
       "left": 10
     },
     "emailFont": "16px",
     "primaryInputs": 7,
-    "bodyFont": "16px",
+    "bodyFont": "15px",
     "assets": [
       {
-        "name": "/assets/styles.css",
-        "bytes": 38461
+        "name": "/assets/styles-O6YMFLJA.css",
+        "bytes": 63939
       },
       {
-        "name": "/assets/forest.js",
-        "bytes": 1230
-      },
-      {
-        "name": "/assets/main.js",
-        "bytes": 11797
-      },
-      {
-        "name": "/forest-phone.png",
-        "bytes": 43466
+        "name": "/assets/main-QPTSUXPG.js",
+        "bytes": 17756
       },
       {
         "name": "/assets/chunk-IWGYTNAB.js",
         "bytes": 1066
-      },
-      {
-        "name": "/assets/tour-ui-CMRHHDVF.js",
-        "bytes": 24111
-      },
-      {
-        "name": "/assets/forest-scene-QQVK7V6F.js",
-        "bytes": 3364299
       }
     ],
     "controls": [
@@ -401,13 +326,13 @@
         "height": 44
       },
       {
-        "name": "Join the waitlist",
-        "width": 85.671875,
+        "name": "Back to the project ↗",
+        "width": 118.609375,
         "height": 44
       },
       {
         "name": "GitHub ↗",
-        "width": 53.453125,
+        "width": 52.984375,
         "height": 44
       },
       {

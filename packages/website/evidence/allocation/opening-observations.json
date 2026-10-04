@@ -1,6 +1,6 @@
 {
   "story": "The website",
-  "commit": "88fc0e6c8ffb559aaeb050a79d442a7342310c88",
+  "commit": "695adcec0bdf6dbd8c0272e560660acbd4e31220",
   "evidence": "packages/website/evidence/allocation",
   "note": "Locally built website served from packages/website/dist",
   "checks": [

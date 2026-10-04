@@ -1,9 +1,12 @@
 {
  "src/build.ts": {
-  "1": 3,
-  "2": 1,
-  "4": 1,
-  "5": 1
+  "1": 12,
+  "2": 4,
+  "4": 4,
+  "5": 4
+ },
+ "src/conduit-growth.ts": {
+  "3": 305
  },
  "src/escape-html.ts": {
   "1": 3,
@@ -12,26 +15,48 @@
   "5": 1
  },
  "src/forest-scene.tsx": {
-  "1": 39,
-  "2": 98
+  "1": 10,
+  "2": 146
  },
  "src/forest.ts": {
-  "1": 11,
-  "2": 23
+  "1": 13,
+  "2": 24
  },
  "src/main.ts": {
   "1": 5,
   "2": 10
  },
- "src/opening-markup.ts": {
+ "src/opening-audio.ts": {
+  "1": 7,
+  "2": 4
+ },
+ "src/opening-clock.ts": {
   "1": 15,
   "2": 5,
   "4": 5,
   "5": 5
  },
+ "src/opening-lines.ts": {
+  "1": 8,
+  "2": 6,
+  "4": 2,
+  "5": 2
+ },
+ "src/opening-markup.ts": {
+  "1": 24,
+  "2": 8,
+  "4": 8,
+  "5": 8
+ },
+ "src/opening-seed.ts": {
+  "1": 8,
+  "2": 5,
+  "4": 2,
+  "5": 2
+ },
  "src/opening.ts": {
-  "1": 44,
-  "2": 29
+  "1": 72,
+  "2": 43
  },
  "src/publish-source.ts": {
   "4": 20
@@ -42,28 +67,41 @@
  "src/refresh-forest.ts": {
   "3": 1
  },
+ "src/refresh-growth.ts": {
+  "3": 1
+ },
+ "src/refresh-shop.ts": {
+  "3": 6
+ },
+ "src/shop-growth.ts": {
+  "3": 77
+ },
  "src/tour-copy.ts": {
-  "1": 3,
-  "2": 6
+  "1": 6,
+  "2": 12
+ },
+ "src/tour-counts.ts": {
+  "1": 34,
+  "2": 14,
+  "4": 11,
+  "5": 11
  },
  "src/tour-reading.ts": {
-  "1": 12,
-  "2": 39
+  "2": 38
  },
  "src/tour-snapshot.ts": {
-  "3": 85
+  "3": 169
  },
  "src/tour-ui.ts": {
-  "1": 14,
-  "2": 36
+  "1": 23,
+  "2": 56
  },
  "src/tour.ts": {
-  "1": 4,
-  "2": 66
+  "1": 14,
+  "2": 236
  },
  "src/waitlist.ts": {
-  "1": 1,
-  "2": 6,
+  "2": 5,
   "5": 3
  }
 }

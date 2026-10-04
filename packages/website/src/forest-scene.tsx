@@ -14,7 +14,7 @@ import ownSaved from "./own-snapshot.json" with { type: "json" };
 import { crossingLength, growthPlan, type GrowthPlan } from "@storytree/forest-world/planet";
 import { buildPlanetPathways } from "@storytree/forest-world/geometry";
 import type { GrowthSnapshot, TourSnapshot } from "./forest-data.js";
-import { globeOf, type GlobeOn, type Hold, type Tag, type TourDetail, type TourStep } from "./tour.js";
+import { flight, globeOf, type GlobeOn, type Hold, type Tag, type TourDetail, type TourStep } from "./tour.js";
 import { savedReading } from "./tour-reading.js";
 
 const snapshot = saved as unknown as TourSnapshot;
@@ -51,7 +51,6 @@ const restingFraming = 1.1;
 type Recording = ReturnType<typeof savedReading>;
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 const hold = (reason: Hold, held = true) => window.dispatchEvent(new CustomEvent("storytree-tour-hold", { detail: { reason, held } }));
-const sameTarget = (a: GlobeTarget | undefined, b: GlobeTarget | undefined) => JSON.stringify(a) === JSON.stringify(b);
 const ownerOf = (target: GlobeTarget | undefined) => target?.kind === "story" ? target.story : target?.kind === "capability"
   ? snapshot.tree.stories.find(owner => owner.capabilities.some(item => item.id === target.capability))?.id : undefined;
 /** The session that read most in the recording: the sessions explainer follows its path. */
@@ -308,7 +307,7 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
     wasExploring.current = exploringNow;
   }, [exploringNow]);
 
-  // The camera flies; it never snaps (ADR-0879 D5). A far move pulls back first, then dives in.
+  // The camera flies; it never snaps (ADR-0879 D5). Between close steps it stays in and turns the globe (2.15).
   useEffect(() => {
     if (!tour || !controls || free || !step || openingActive) return;
     const before = previous.current;
@@ -369,12 +368,14 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
       go({ target, framing: framing * 7, duration: 0 });
       after(camera.current.flight, 60, () => go({ target, framing, duration: 2600 }));
       arrive = 2660;
-    } else if (!sameTarget(from.target, target) && Math.min(from.framing, framing) < .8) {
-      const wide = Math.max(from.framing, framing, 1) * 1.08;
-      go({ target, framing: wide, duration: 1000 / speed });
-      after(camera.current.flight, 1000 / speed, () => go({ target, framing, duration: 1150 / speed }));
-      arrive = 2150 / speed;
-    } else go({ target, framing, duration: arrive = 1800 / speed });
+    } else {
+      // The legs follow one another; each turns the globe and zooms at once.
+      for (const leg of flight(from, { target, framing })) {
+        const fly = () => go({ target, framing: leg.framing, duration: leg.ms / speed });
+        if (arrive) after(camera.current.flight, arrive, fly); else fly();
+        arrive += leg.ms / speed;
+      }
+    }
     if (arrive >= 0) after(camera.current.flight, arrive, land);
     camera.current.target = target; camera.current.framing = framing;
   }, [controls, tour, sideOffset, openingActive, globe.map]);

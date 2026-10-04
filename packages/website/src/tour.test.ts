@@ -1,17 +1,21 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import shop from "./shop-snapshot.json" with { type: "json" };
-import { createTour, globeOf, groups, readingTime, settle, type TourStep } from "./tour.js";
+import { createTour, flight, globeOf, groups, readingTime, settle, type TourStep } from "./tour.js";
 import { steps as tourSteps } from "./tour-copy.js";
 
 const step = (id: string, explainer: TourStep["explainer"], lines = ["One two three four five six seven eight nine ten"]): TourStep => ({
   id, title: id, explainer, lines, decisions: [], surfaces: {},
 });
 const steps = [step("opening", "opening", ["First line", "Second line"]), step("story", "stories"), step("comparison", "stories"), step("arcs", "arcs")];
+/** These tests time the clock at 1×; Act 2 itself starts at 0.75× (2.4). */
+const atOne = (...args: Parameters<typeof createTour>) => { const tour = createTour(...args); tour.setSpeed(1); return tour; };
 const whole = (s: TourStep) => s.lines.reduce((sum, line) => sum + readingTime(line), 0) + settle;
 
 test("2.4 · readable lines, speed, pause and inspection holds control the same tour clock", () => {
   const tour = createTour(steps);
+  assert.equal(tour.state.speed, .75, "Act 2 plays at 0.75× until the visitor changes it");
+  tour.setSpeed(1);
   assert.equal(tour.state.lines, 1);
   tour.tick(readingTime("First line") - 1);
   assert.equal(tour.state.lines, 1);
@@ -33,7 +37,7 @@ test("2.4 · readable lines, speed, pause and inspection holds control the same 
 });
 
 test("2.6 · skip reaches free play during every hold and replay returns with working controls", () => {
-  const tour = createTour(steps);
+  const tour = atOne(steps);
   tour.togglePlay(); tour.hold("reading"); tour.hold("everything"); tour.hold("exploring"); tour.skip();
   assert.equal(tour.state.freePlay, true);
   assert.deepEqual(tour.state.holds, []);
@@ -76,7 +80,7 @@ test("2.8 · the pips group steps by explainer, the current one fills as it play
   assert.deepEqual(groups(steps), [
     { explainer: "opening", steps: [0] }, { explainer: "stories", steps: [1, 2] }, { explainer: "arcs", steps: [3] },
   ]);
-  const tour = createTour(steps);
+  const tour = atOne(steps);
   assert.equal(tour.progress(), 0);
   tour.tick(whole(steps[0]!) / 2);
   assert.equal(tour.progress(), .5);
@@ -94,7 +98,7 @@ test("2.9 · Conduit's globe grows a stage at a time as a step's lines arrive; e
   const growing: TourStep[] = [step("opening", "opening"),
     { ...step("grow", "stories", ["Storytree breaks up your codebase into stories.", "Two", "Three"]), map: "conduit", stage: "empty", lineStages: { 3: "stories" } },
     step("scale", "scale")];
-  const tour = createTour(growing);
+  const tour = atOne(growing);
   assert.deepEqual(globeOf(growing[tour.state.index]!, tour.state), { map: "storytree" });
   tour.next();
   assert.deepEqual(globeOf(growing[1]!, tour.state), { map: "conduit", stage: "empty" });
@@ -114,7 +118,7 @@ test("2.11 · the arrival holds storytree's own globe at a point under the pain,
     { ...step("value", "opening", ["Four"]), map: "own" },
     step("stories", "stories"),
   ];
-  const tour = createTour(arrival);
+  const tour = atOne(arrival);
   const globe = () => globeOf(arrival[tour.state.index]!, tour.state, tour.elapsed());
   assert.deepEqual(globe(), { map: "own", at: 0 }, "the pain is said before any globe: storytree's is still a point");
   tour.tick(whole(arrival[0]!));
@@ -141,7 +145,7 @@ test("2.10 · the time-lapse waits for its globe to be set up, then plays from i
     { ...step("grow", "opening", ["Two"]), map: "own", growth: { seconds: 12 } },
   ];
   let ready = false;
-  const tour = createTour(arrival, { ready: () => ready });
+  const tour = atOne(arrival, { ready: () => ready });
   tour.tick(10_000);
   assert.equal(tour.state.index, 0, "the pain beat waits for the globe it hides");
   tour.tick(10_000);
@@ -183,4 +187,15 @@ test("2.13 · free play opens on the shop's whole globe, and the selector switch
   assert.deepEqual(globeOf(steps[0]!, tour.state), { map: "storytree" }, "the tour itself is not the selector's");
   tour.skip();
   assert.deepEqual(globeOf(steps[0]!, tour.state), { map: "storytree" }, "the choice lasts as long as the page");
+});
+
+test("2.15 · between two close steps the camera stays in and turns the globe; it pulls back only when the next step is the wide view", () => {
+  const cart = { kind: "story", story: "cart" } as const, checkout = { kind: "story", story: "checkout" } as const;
+  const widest = (legs: { framing: number }[]) => Math.max(...legs.map(leg => leg.framing));
+  const close = flight({ target: cart, framing: .55 }, { target: checkout, framing: .72 });
+  assert.equal(close.length, 1, "one flight that turns the globe and settles, never out and in again");
+  assert.ok(widest(close) <= .72, "it never pulls back wider than either close view");
+  const out = flight({ target: cart, framing: .55 }, { target: checkout, framing: 1.1 });
+  assert.deepEqual(out.map(leg => leg.framing), [1.1], "to the wide view it pulls back as it turns");
+  assert.ok(close.concat(out).every(leg => leg.ms > 0));
 });

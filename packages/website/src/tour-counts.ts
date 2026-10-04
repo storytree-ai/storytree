@@ -32,7 +32,7 @@ export function growthCounts(growth: Pick<GrowthSnapshot, "window">, own?: Pick<
   const from = new Date(growth.window.from), to = new Date(growth.window.to);
   const days = own && { from: new Date(own.window.from), to: new Date(own.window.to) };
   return { conduitRecording: `${day(from)}, ${time(from)} to ${day(to)}, ${time(to)} UTC`,
-    ...(days ? { ownRecording: `${day(days.from)} to ${day(days.to)}`, ownDays: String(Math.round((days.to.getTime() - days.from.getTime()) / 86_400_000)) } : {}),
+    ...(days ? { ownRecording: `${day(days.from)} to ${day(days.to)}` } : {}),
     ...(shop ? { shopDay: day(new Date(shop.window.to)) } : {}) };
 }
 

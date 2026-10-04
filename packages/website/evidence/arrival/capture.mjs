@@ -70,7 +70,7 @@ const runs = {
       assert.equal((await drawing(page)).growth, held, "pausing the tour holds the growth");
       await play(page);
       for (const [index, wait] of [[3, 2400], [4, 2400]]) await sample(index, wait);
-      assert.ok(moments.every((at, index) => index === 0 || at >= moments[index - 1]) && moments.at(-1) > moments[0] + 10, `storytree's globe grows as the step plays: ${moments}`);
+      assert.ok(moments.every((at, index) => index === 0 || at >= moments[index - 1]) && moments.at(-1) > moments[0] + 7, `storytree's globe grows as the step plays: ${moments}`);
       await page.waitForFunction(() => document.querySelector("#chapter2").dataset.tourStep === "value", null, { timeout: 30_000 });
       await page.waitForTimeout(400);
       assert.deepEqual(await drawing(page), { globe: "own", growth: "whole" }, "after the time-lapse storytree's globe is whole");
@@ -152,7 +152,22 @@ const runs = {
     await page.close();
     observed.push("Act 1's exit lands on the pain: pass");
   },
-  // A clip of the arrival playing at 1×, pain to fixes.
+  // A clip of a close-to-close move (2.15): the camera stays in and turns the globe, never out and in again.
+  async closeFlight() {
+    const page = await open({ width: 1440, height: 900 }, { video: true });
+    await go(page, "stories-island");
+    await page.waitForFunction(() => document.querySelector(".forest-drawing")?.dataset.arrived === "true", null, { timeout: 30_000 });
+    await page.waitForTimeout(1500);
+    await go(page, "stories-roads");
+    for (let frame = 0; frame < 5; frame++) { await page.screenshot({ path: path.join(here, `../act2-polish/close-flight-${frame}.png`) }); await page.waitForTimeout(600); }
+    await page.waitForTimeout(1500);
+    const video = page.video(); await page.close();
+    const file = await video.path();
+    await rm(path.join(here, "../act2-polish/close-flight.webm"), { force: true });
+    await rename(file, path.join(here, "../act2-polish/close-flight.webm"));
+    observed.push("A close-to-close move stays in and turns the globe: recorded");
+  },
+  // A clip of the arrival playing at the default 0.75×, pain to fixes.
   async clip() {
     const page = await open({ width: 1440, height: 900 }, { video: true });
     await page.waitForTimeout(500);

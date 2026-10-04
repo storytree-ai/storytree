@@ -24,6 +24,7 @@ export function wireTour() {
   const text = (value: string) => fill(value, counts);
   // The globe sets up behind the pain beat; the time-lapse waits until it is live, or has fallen back to its still (2.10).
   const tour = createTour(steps, { ready: () => document.getElementById("website-forest")?.dataset.forestState !== "loading" });
+  const recorded = get("tour-recorded");
   const card = get("tour-card"), kicker = get("tour-kicker"), heading = get("tour-title"), lines = get("tour-lines"), chips = get("tour-chips");
   const depthToggle = get<HTMLButtonElement>("tour-depth"), depth = get("tour-why");
   const play = get<HTMLButtonElement>("tour-play"), icon = play.querySelector("path")!;
@@ -63,7 +64,7 @@ export function wireTour() {
   const drawLines = (step: TourStep) => {
     const kind = step.kind ?? "lines";
     lines.replaceChildren(...step.lines.map((line, index) => {
-      const item = element("li", "", kind === "beats" && index === step.lines.length - 1 ? "tour-line coda" : "tour-line");
+      const item = element("li", "", kind === "beats" && index > 0 && index === step.lines.length - 1 ? "tour-line coda" : "tour-line");
       if (kind === "fixes") {
         // A pain overcome, with its fix beside it (ADR-0889 2.4).
         item.append(element("span", text(step.notes?.[index] ?? ""), "pain"), element("span", "", "turn"), element("span", text(line), "fix"));
@@ -113,7 +114,12 @@ export function wireTour() {
         lines.replaceChildren(...[state.project === "shop" ? "Explore the whole shop: open an island, the arcs or the library." : "Explore storytree's own project: open an island, the arcs or the library.",
           "It's a saved reading, so nothing you do changes the project."].map(line => element("li", line, "tour-line on")));
       } else drawLines(step);
-      chips.replaceChildren(...(state.freePlay ? [] : step.chips ?? []).map(chip => element("span", text(chip.text), `chip chip-${chip.kind}`)));
+      const stepChips = state.freePlay ? [] : step.chips ?? [];
+      chips.replaceChildren(...stepChips.filter(chip => chip.kind !== "recording").map(chip => element("span", text(chip.text), `chip chip-${chip.kind}`)));
+      // A recording's date is small print in the corner, not a chip on the card (owner, 2026-10-04).
+      const dated = stepChips.find(chip => chip.kind === "recording");
+      recorded.textContent = dated ? text(dated.text) : "";
+      recorded.hidden = !dated;
       depthToggle.hidden = state.freePlay || !step.why;
       depthToggle.textContent = step.kind === "compare" ? "Sources and decisions" : step.decisions.length ? `Why it exists · ${step.decisions.length} ${step.decisions.length === 1 ? "decision" : "decisions"}` : "Why it exists";
       card.classList.remove("is-in"); void card.offsetWidth; card.classList.add("is-in");
@@ -128,7 +134,7 @@ export function wireTour() {
     }
     // The note names whose globe is on show: Conduit's growth is a replay of its own library (ADR-0879 D7).
     note.textContent = globe.map === "conduit" ? text("Conduit · replayed from its own library, {conduitRecording}")
-      : globe.map === "own" ? text("Storytree, built with storytree · replayed from its own records, {ownRecording}")
+      : globe.map === "own" ? text("Storytree’s own project · replayed from its own records, {ownRecording}")
       : globe.map === "shop" ? text("An online shop agents built with storytree · replayed from its own records, {shopDay}")
       : step.chips?.some(chip => chip.kind === "recording") && !state.freePlay ? text("Recording · storytree's activity, {recording}") : text("storytree's own project · saved {saved} · read only");
     // A step's lines arrive one at a time; a waiting step shows them all (the engine says how many).

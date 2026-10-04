@@ -70,7 +70,7 @@ export function groups(steps: readonly TourStep[]): { explainer: Group; steps: n
 /** `ready` says whether the globe a growth plays on is set up: until it is, the time-lapse and the step before it wait (2.10). */
 export function createTour(steps: readonly TourStep[], { ready = () => true }: { ready?: () => boolean } = {}) {
   if (!steps.length) throw new Error("A tour needs at least one step.");
-  let state: TourState = { index: 0, generation: 0, lines: 1, speed: 1, holds: [], freePlay: false, project: "shop" };
+  let state: TourState = { index: 0, generation: 0, lines: 1, speed: .75, holds: [], freePlay: false, project: "shop" };
   let elapsed = 0;
   const update = (patch: Partial<TourState>) => state = { ...state, ...patch };
   const all = (index = state.index) => steps[index]!.lines.length;
@@ -120,6 +120,15 @@ export function createTour(steps: readonly TourStep[], { ready = () => true }: {
     choose(project: FreePlayProject) { return state.project === project ? state : update({ project }); },
   };
   return tour;
+}
+
+/** A step's camera view: what it faces, and how close (the short half-side in globe radii). */
+export type CameraView = { target?: GlobeTarget; framing: number };
+/** The legs of the camera's flight from one step's view to the next on the same globe, in milliseconds at 1× (ADR-0879 D5). */
+export function flight(from: CameraView, to: CameraView): { framing: number; ms: number }[] {
+  // One eased flight turns the globe and zooms together: between close views it stays in and turns; to a wider view it pulls
+  // back as it turns (2.15, narrowing D5's pull-back before far moves; the owner, 2026-10-04: "just stay zoomed in and rotate the globe").
+  return [{ framing: to.framing, ms: JSON.stringify(from.target) === JSON.stringify(to.target) ? 1800 : 2000 }];
 }
 
 export type GlobeOn = { map: "storytree" } | { map: "conduit"; stage: string } | { map: "own" | "shop"; at?: number; focus?: readonly string[] };

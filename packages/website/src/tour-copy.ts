@@ -87,17 +87,15 @@ const compared = `Checked against each tool's own documentation on ${researchDat
  * {name} placeholders are the saved reading's own counts, filled in when the page is built.
  */
 export const steps: TourStep[] = [
-  // DRAFT (ADR-0889 2.1): the agent's wording for the pain, standing in until the owner writes his own.
+  // The owner's words, final (2026-10-04): the feeling leads, and the guide's line bridges to the value statement.
   { id: "pain", explainer: "opening", kind: "beats", ...own, growth: "seed", title: "The problem", lines: [
-    "Your agents write more code than anyone can read.",
-    "You can't tell which part of it needs you.",
-    "So you read every line, or you trust every line.",
+    "Right now, building with AI feels overwhelming, exhausting and disconnected.",
+    "Storytree is here to fix that.",
   ], why: "Your attention is the scarcest resource in AI-driven development, and coding agents spend it on noise. Reading every line makes you the bottleneck the agents were meant to remove; trusting every line finds the problems in production. There's no in-between.",
   decisions: [], surfaces: complete, framing: 1.1 },
-  { id: "grow", explainer: "opening", kind: "beats", ...own, growth: { seconds: arrivalSeconds }, title: "Storytree, built with storytree", lines: [
-    // DRAFT (ADR-0889 2.2b): the agent's naming, standing in until the owner writes his own.
-    "This is storytree, built with storytree.",
-    "{ownDays} days of its agents' work: every island, road and note, replayed from its own records.",
+  { id: "grow", explainer: "opening", kind: "beats", ...own, growth: { seconds: arrivalSeconds }, title: "Storytree, a living map", lines: [
+    // The owner's words (2026-10-04), punctuation tidied.
+    "This is storytree, a living map of your project, for both you and your agents.",
   ], chips: [{ kind: "recording", text: "Recorded {ownRecording} · timing compressed" }],
   decisions: [], surfaces: complete, framing: 1.1 },
   // The owner's words, final (ADR-0889 2.3): the value statement has its slide to itself.

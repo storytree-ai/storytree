@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import shop from "./shop-snapshot.json" with { type: "json" };
-import { createTour, flight, globeOf, groups, readingTime, settle, type TourStep } from "./tour.js";
+import { createTour, flight, globeOf, groups, readingTime, replayMoment, settle, type TourStep } from "./tour.js";
 import { steps as tourSteps } from "./tour-copy.js";
 
 const step = (id: string, explainer: TourStep["explainer"], lines = ["One two three four five six seven eight nine ten"]): TourStep => ({
   id, title: id, explainer, lines, decisions: [], surfaces: {},
 });
-const steps = [step("opening", "opening", ["First line", "Second line"]), step("story", "stories"), step("comparison", "stories"), step("arcs", "arcs")];
+const steps = [step("opening", "opening", ["First line", "Second line"]), step("story", "map"), step("comparison", "map"), step("arcs", "arcs")];
 /** These tests time the clock at 1×; Act 2 itself starts at 0.75× (2.4). */
 const atOne = (...args: Parameters<typeof createTour>) => { const tour = createTour(...args); tour.setSpeed(1); return tour; };
 const whole = (s: TourStep) => s.lines.reduce((sum, line) => sum + readingTime(line), 0) + settle;
@@ -78,7 +78,7 @@ test("2.7 · a waiting tour names every hold, and play clears them and continues
 
 test("2.8 · the pips group steps by explainer, the current one fills as it plays, and any pip jumps to its step", () => {
   assert.deepEqual(groups(steps), [
-    { explainer: "opening", steps: [0] }, { explainer: "stories", steps: [1, 2] }, { explainer: "arcs", steps: [3] },
+    { explainer: "opening", steps: [0] }, { explainer: "map", steps: [1, 2] }, { explainer: "arcs", steps: [3] },
   ]);
   const tour = atOne(steps);
   assert.equal(tour.progress(), 0);
@@ -96,8 +96,8 @@ test("2.8 · the pips group steps by explainer, the current one fills as it play
 
 test("2.9 · Conduit's globe grows a stage at a time as a step's lines arrive; everything shown returns to storytree's", () => {
   const growing: TourStep[] = [step("opening", "opening"),
-    { ...step("grow", "stories", ["Storytree breaks up your codebase into stories.", "Two", "Three"]), map: "conduit", stage: "empty", lineStages: { 3: "stories" } },
-    step("scale", "scale")];
+    { ...step("grow", "map", ["Storytree breaks up your codebase into stories.", "Two", "Three"]), map: "conduit", stage: "empty", lineStages: { 3: "stories" } },
+    step("knowledge", "knowledge")];
   const tour = atOne(growing);
   assert.deepEqual(globeOf(growing[tour.state.index]!, tour.state), { map: "storytree" });
   tour.next();
@@ -116,7 +116,7 @@ test("2.11 · the arrival holds storytree's own globe at a point under the pain,
     { ...step("pain", "opening", ["One", "Two"]), map: "own", growth: "seed" },
     { ...step("grow", "opening", ["Three"]), map: "own", growth: { seconds: 12 } },
     { ...step("value", "opening", ["Four"]), map: "own" },
-    step("stories", "stories"),
+    step("stories", "map"),
   ];
   const tour = atOne(arrival);
   const globe = () => globeOf(arrival[tour.state.index]!, tour.state, tour.elapsed());
@@ -198,4 +198,24 @@ test("2.15 · between two close steps the camera stays in and turns the globe; i
   const out = flight({ target: cart, framing: .55 }, { target: checkout, framing: 1.1 });
   assert.deepEqual(out.map(leg => leg.framing), [1.1], "to the wide view it pulls back as it turns");
   assert.ok(close.concat(out).every(leg => leg.ms > 0));
+});
+
+test("2.16 · the map chapter walks the shop's three teaching stories, and its growth step replays one stage of the shop's recorded growth", () => {
+  const plan = { seconds: 30, stages: [{ id: "planned", start: 2 }, { id: "pr5", start: 10 }, { id: "pr6-building", start: 14 }, { id: "pr6", start: 20 }] };
+  assert.equal(replayMoment(plan, { seconds: 8, stage: "pr6-building" }, 0), 14, "it opens where the stage begins: the globe as it stood before");
+  assert.equal(replayMoment(plan, { seconds: 8, stage: "pr6-building" }, 4), 17);
+  assert.equal(replayMoment(plan, { seconds: 8, stage: "pr6-building" }, 8), 20, "it ends where the next stage begins");
+  assert.equal(replayMoment(plan, { seconds: 8, stage: "pr6" }, 8), 30, "the last stage runs to the growth's end");
+  assert.equal(replayMoment(plan, { seconds: 15 }, 7.5), 15, "a whole replay spans the whole growth");
+  const chapter = tourSteps.filter(item => item.explainer === "map");
+  assert.ok(chapter.length >= 5 && chapter.every(item => item.map === "shop"), "the map chapter is taught on the shop");
+  const titles = shop.titles as Record<string, string>;
+  const grow = chapter.at(-1)!;
+  assert.ok(typeof grow.growth === "object" && grow.growth.stage, "its last step replays a stage of the shop's growth");
+  const stages = shop.stages as { id: string; scene: { islands: { story: string }[] } }[];
+  const at = stages.findIndex(stage => typeof grow.growth === "object" && stage.id === grow.growth.stage);
+  const added = stages[at]!.scene.islands.filter(island => !stages[at - 1]!.scene.islands.some(before => before.story === island.story)).map(island => titles[island.story]);
+  assert.ok(added.includes("Orders"), `that stage adds Orders, the story shown growing on: ${added}`);
+  assert.deepEqual(grow.focus?.map(id => titles[id]), ["Browsing", "The cart", "Checkout", "Orders"]);
+  assert.ok(grow.compare && grow.compare.sources.some(Boolean), "the comparison is offered on the last step");
 });

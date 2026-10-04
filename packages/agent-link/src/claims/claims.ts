@@ -59,7 +59,7 @@ export type ClaimAnswer =
   | { ok: false; refused: "held"; holder: Claim }
   | { ok: false; refused: "unknown-capability"; capability: string }
   | { ok: false; refused: "closed"; increment: string }
-  | { ok: false; refused: "waiting"; waits: Waiting[]; wayThrough?: string[] }
+  | { ok: false; refused: "waiting"; waits: Waiting[] }
   | { ok: false; refused: "reason-too-long"; limit: number; length: number };
 
 /**
@@ -104,7 +104,7 @@ export type LandAnswer =
 export async function claim(context: ClaimContext, id: string, reason: string, options: { readonly moveBranch?: true } = {}): Promise<ClaimAnswer> {
   const tooLong = reasonRefusal(reason);
   if (tooLong !== undefined) return tooLong;
-  const found = await claimable(context, id);
+  const found = await claimable(context.library, id);
   if (!("part" in found)) return found;
   return context.log.locked(context.project, async (log) => {
     const current = (await heldNow(log, context)).get(id);
@@ -138,7 +138,7 @@ export async function claim(context: ClaimContext, id: string, reason: string, o
  * it does something slow (makeWorkspace fetches). `claim` itself checks again under the lock.
  */
 export async function claimRefusal(context: ClaimContext, id: string, reason?: string): Promise<Exclude<ClaimAnswer, { ok: true }> | undefined> {
-  const found = await claimable(context, id);
+  const found = await claimable(context.library, id);
   if (!("part" in found)) return found;
   const current = await readClaim(context.log, context.project, id, {
     ...(context.quietMs === undefined ? {} : { quietMs: context.quietMs }),
@@ -151,29 +151,12 @@ export async function claimRefusal(context: ClaimContext, id: string, reason?: s
 }
 
 /** The live capability or increment `id`, when the library would let it be claimed; otherwise why not. */
-async function claimable(context: ClaimContext, id: string): Promise<Found | Exclude<ClaimAnswer, { ok: true } | { refused: "held" }>> {
-  const found = await partNamed(context.library, id);
+async function claimable(library: Library, id: string): Promise<Found | Exclude<ClaimAnswer, { ok: true } | { refused: "held" }>> {
+  const found = await partNamed(library, id);
   if (found === undefined) return { ok: false, refused: "unknown-capability", capability: id };
   if (found.status === "closed") return { ok: false, refused: "closed", increment: id };
-  const waits = await waitingOn(context.library, found);
-  if (waits.length === 0) return found;
-  const wayThrough = found.part.capability === undefined ? [] : await untouchedOwn(context, found.part.capability);
-  return { ok: false, refused: "waiting", waits, ...(wayThrough.length === 0 ? {} : { wayThrough }) };
-}
-
-/**
- * The open increments the context's session holds whose touches omit `capability`: listing it in
- * one's touches lets a claim refused as waiting work stand (ADR-0643), so the refusal names them.
- */
-async function untouchedOwn(context: ClaimContext, capability: string): Promise<string[]> {
-  const options = {
-    ...(context.quietMs === undefined ? {} : { quietMs: context.quietMs }),
-    ...(context.restarted === undefined ? {} : { restarted: context.restarted }),
-  };
-  const held = new Set((await readClaims(context.log, context.project, options)).filter((one) => one.session === context.session).map((one) => one.increment));
-  return (await increments(context.library))
-    .filter((one) => held.has(one.id) && one.fields.status !== "closed" && one.fields.touches?.includes(capability) !== true)
-    .map((one) => one.id);
+  const waits = await waitingOn(library, found);
+  return waits.length > 0 ? { ok: false, refused: "waiting", waits } : found;
 }
 
 /** Release `id`, a capability or an increment, if the context's session holds it. */

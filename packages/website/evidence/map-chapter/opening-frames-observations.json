@@ -1,0 +1,13 @@
+{
+  "story": "The website",
+  "commit": "unpublished local build",
+  "evidence": "packages/website/evidence/map-chapter",
+  "note": "Locally built website served from packages/website/dist, SwiftShader",
+  "checks": [
+    {
+      "contract": "2.10",
+      "name": "After Run the turn lands on a live globe that drew nothing in chapter 1",
+      "observed": "pass"
+    }
+  ]
+}

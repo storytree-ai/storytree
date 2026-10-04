@@ -58,12 +58,14 @@ function github(runs: (query: URLSearchParams) => object[], log: string): GitHub
       const [where, query = ""] = route.split("?");
       if (where === "repos/acme/shop") return { default_branch: "trunk" };
       if (where === "repos/acme/shop/actions/runs") return { workflow_runs: runs(new URLSearchParams(query)) };
-      if (where === "repos/acme/shop/actions/runs/7/jobs") return { jobs: [{ id: 70 }] };
+      if (where === "repos/acme/shop/actions/runs/7/jobs") return { jobs: [{ id: 70, conclusion: "success" }, { id: 71, conclusion: "skipped" }] };
       throw new Error(`no such route: ${route}`);
     },
     async text(route) {
       asked.push(route);
       if (route === "repos/acme/shop/actions/jobs/70/logs") return log;
+      // A skipped job ran nothing, so it has no log (storytree's own automerge job, 2026-10-04).
+      if (route === "repos/acme/shop/actions/jobs/71/logs") throw new Error(`gh api ${route}: HTTP 404`);
       throw new Error(`no such route: ${route}`);
     },
   };
@@ -139,4 +141,15 @@ test("3.4 a story whose tests live in its package's own test folder, outside src
   const read = await readProjectCi({ library, git: gitIn(folder), github: github(pushRunsOnTrunk(commit), tap("ok")) });
   assert.equal(read.written, true, read.written ? "" : read.why);
   assert.equal((await library.projectTree()).stories[0]!.capabilities.find(({ id }) => id === capability)!.status, "healthy", "both contracts verified passing from packages/check-out/test");
+});
+
+test("3.5 a job the run skipped, which has no log, is passed over: the run's other jobs are read all the same", async (t) => {
+  const { library, capability } = await shopLibrary(t);
+  const { folder, commit } = projectFolder(t);
+  const asked = github(pushRunsOnTrunk(commit), tap("ok"));
+  const read = await readProjectCi({ library, git: gitIn(folder), github: asked });
+  assert.equal(read.written, true, read.written ? "" : read.why);
+  assert.equal(read.written && read.tests, 2, "the job that ran is read");
+  assert.equal(asked.asked.includes("repos/acme/shop/actions/jobs/71/logs"), false, "the skipped job's log is not asked for");
+  assert.equal((await library.projectTree()).stories[0]!.capabilities.find(({ id }) => id === capability)!.status, "healthy");
 });

@@ -1,0 +1,71 @@
+{
+  "label": "after",
+  "story": "The agent link",
+  "errors": [
+    "TypeError: Cannot read properties of undefined (reading 'choice')"
+  ],
+  "plates": [
+    {
+      "capability": "capability_07c95281a87e",
+      "text": "Project routing",
+      "lines": 1,
+      "cut": false,
+      "width": 90
+    },
+    {
+      "capability": "capability_10e1dea84e5b",
+      "text": "Hooks",
+      "lines": 1,
+      "cut": false,
+      "width": 47
+    },
+    {
+      "capability": "capability_b91cd36a9783",
+      "text": "Sessions",
+      "lines": 1,
+      "cut": false,
+      "width": 57
+    },
+    {
+      "capability": "capability_7077da59ee64",
+      "text": "Claims",
+      "lines": 1,
+      "cut": false,
+      "width": 48
+    },
+    {
+      "capability": "capability_11fe600afeda",
+      "text": "Agent tools (the MCP server)",
+      "lines": 2,
+      "cut": false,
+      "width": 120
+    },
+    {
+      "capability": "capability_199d7af33d32",
+      "text": "Setup check",
+      "lines": 1,
+      "cut": false,
+      "width": 76
+    },
+    {
+      "capability": "capability_dbef625bdd09",
+      "text": "Context readings",
+      "lines": 1,
+      "cut": false,
+      "width": 101
+    },
+    {
+      "capability": "capability_2902dfd80083",
+      "text": "Settings",
+      "lines": 1,
+      "cut": false,
+      "width": 56
+    }
+  ],
+  "numbered": 0,
+  "overTwoLines": 0,
+  "tooltip": {
+    "text": "Agent tools (the MCP server)",
+    "detail": "The toolbox the agent calls, served as an MCP server: plan work (arc, story, capability, contract), see the plan and who is on what, claim or release a capability, report a contract red or green, report a capability landed, say a capability is built so it is no longer proposed (`mark_built`, ADR-0744 D2), and search, read and write artifacts (plus list and add a node's front covers, once the library has them). Each tool is a thin wrapper over the library API and the claims above that answers in a short plain sentence the agent can act on, and every artifact read is logged in the agent activity log (ADR-0624); a new artifact with no place named goes onto the claimed capability's shelf of front covers (ADR-0627 D4, which redirected ADR-0624's default link)."
+  }
+}

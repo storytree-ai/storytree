@@ -1,0 +1,67 @@
+{
+  "label": "before",
+  "story": "The agent link",
+  "errors": [
+    "TypeError: Cannot read properties of undefined (reading 'choice')"
+  ],
+  "plates": [
+    {
+      "capability": "capability_07c95281a87e",
+      "text": "1 · Project routing",
+      "lines": 1,
+      "cut": false,
+      "width": 104
+    },
+    {
+      "capability": "capability_10e1dea84e5b",
+      "text": "3 · Hooks",
+      "lines": 1,
+      "cut": false,
+      "width": 62
+    },
+    {
+      "capability": "capability_b91cd36a9783",
+      "text": "4 · Sessions",
+      "lines": 1,
+      "cut": false,
+      "width": 72
+    },
+    {
+      "capability": "capability_7077da59ee64",
+      "text": "5 · Claims",
+      "lines": 1,
+      "cut": false,
+      "width": 63
+    },
+    {
+      "capability": "capability_11fe600afeda",
+      "text": "6 · Agent tools (the MCP server)",
+      "lines": 1,
+      "cut": false,
+      "width": 177
+    },
+    {
+      "capability": "capability_199d7af33d32",
+      "text": "8 · Setup check",
+      "lines": 1,
+      "cut": false,
+      "width": 91
+    },
+    {
+      "capability": "capability_dbef625bdd09",
+      "text": "9 · Context readings",
+      "lines": 1,
+      "cut": false,
+      "width": 116
+    },
+    {
+      "capability": "capability_2902dfd80083",
+      "text": "10 · Settings",
+      "lines": 1,
+      "cut": false,
+      "width": 75
+    }
+  ],
+  "numbered": 8,
+  "overTwoLines": 0
+}

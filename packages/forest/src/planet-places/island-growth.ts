@@ -7,7 +7,7 @@
  *   in slot order with two reaches and {@link SEA_GAP} between neighbours, each row centred on the front of the
  *   globe. When islands still grow into each other (across rows),
  *   {@link growPlanet} nudges them apart: first by pushing every overlapping pair away from each other
- *   along the sphere, then by pulling each back toward its anchor as far as it can go without touching
+ *   along the sphere (and, where a row's band stops a pair parting north and south, along their parallels), then by pulling each back toward its anchor as far as it can go without touching
  *   another. Nudging keeps each island within {@link ROW_BAND} of its row's latitude, so no island is pushed past
  *   a row below or above it. Islands that do not overlap never move, so a small project keeps its places exactly.
  * - When nudging cannot make room, the globe grows: the radius rises in steps of {@link GROWTH_STEP} until
@@ -21,37 +21,41 @@ import { PLANET_RADIUS, ROW_LATITUDE, rowLatitude, rowOf, type PlanetPoint } fro
 /**
  * Ground units² of land per line of code in a surveyed story.
  *
- * Derived so the islands keep today's total land. Over the eight-story seed and its real code survey
- * (`view/evidence/growth/measurements.json`), today's land is capabilities x 318 ground units², 58
- * capabilities and 18,444 units² in all, over 25,122 non-test lines in all: 0.734 units² a line. The
- * per-story ratios run from 0.29 (The agent link) to 2.6 (The librarian), with a median of 0.86. 0.75 rounds
- * the total's ratio up, so the seed's total land moves by +2% (drawn: 22,794 to 22,965 units², coasts
- * included), while The agent link grows to 2.6 times its old island and a story with little code shrinks.
+ * Twice what ADR-0804 D3 first derived (0.75, so the islands kept the capability-ratio land's total): the owner
+ * asked for bigger land on a globe with plenty of room (ADR-0910). The camera frames the whole globe, so land
+ * gets bigger by taking a larger share of it, at the same radius: on storytree's own globe, 8.6% of the surface
+ * to 18.3% (view/evidence/more-sea). Land still follows lines of code: more lines, more land.
  */
-export const LAND_PER_LINE = 0.75;
+export const LAND_PER_LINE = 1.5;
 
-/** The least land an island has: one capability's worth, as an unsurveyed story with one capability draws. */
-export const MIN_ISLAND_AREA = 318;
+/** The least land an island has, and what each capability of an unsurveyed story draws (ADR-0910: 800, from 318, with the land per line). */
+export const MIN_ISLAND_AREA = 800;
 
 /** A surveyed story's land: its lines times the per-line constant, never below the floor. */
 export function islandArea(lines: number): number {
   return Math.max(MIN_ISLAND_AREA, lines * LAND_PER_LINE);
 }
 
+/** An unsurveyed story's land: one {@link MIN_ISLAND_AREA} per capability, at least one's worth, so it grows in step with the surveyed islands. */
+export function unsurveyedArea(capabilities: number): number {
+  return Math.max(1, capabilities) * MIN_ISLAND_AREA;
+}
+
 /**
- * The farthest an island may be nudged from its anchor, in radians of arc: about 65 ground units on the
- * shipped globe. A judgement, not a measurement: it keeps an island
- * near enough to its place to be found there, and when nudging would need more, the globe grows instead.
+ * The farthest an island may be nudged from its anchor, in radians of arc: 1.2, about 260 ground units on the
+ * shipped globe (ADR-0910; was 0.3). A judgement, not a measurement: bigger islands with wider sea between them
+ * need farther nudging, and this is the point past which an island would no longer be near enough to its
+ * row to be found there, so the globe grows instead.
  */
-export const MAX_NUDGE = 0.3;
+export const MAX_NUDGE = 1.2;
 
 /**
  * The open sea kept between two islands' reaches, in ground units. An island's reach is its coast's farthest
  * point, so this is measured against the worst direction, and the real coast gap facing a neighbour is wider.
- * Twelve is the most that leaves the eight-story seed at today's sizes unmoved (its nearest pair has 18.3 to spare);
- * the approved ribbon envelope (19.3, ADR-0655 D3) is met by real coasts, which a test measures.
+ * Thirty-six, three times what it was (ADR-0910): on storytree's own globe the nearest coasts run from 38 to
+ * 45 or more apart, against the approved ribbon envelope of 19.3 (ADR-0655 D3), which real coasts meet and a test measures.
  */
-export const SEA_GAP = 12;
+export const SEA_GAP = 36;
 
 /** How much the radius rises at each try when nudging cannot make room. */
 export const GROWTH_STEP = 1.02;
@@ -90,6 +94,13 @@ function step(from: Vec, toward: Vec, by: number): Vec {
   return normalise([from[0] * Math.cos(by) + tangent[0] * Math.sin(by), from[1] * Math.cos(by) + tangent[1] * Math.sin(by), from[2] * Math.cos(by) + tangent[2] * Math.sin(by)]);
 }
 
+const longitudeOf = (v: Vec) => Math.atan2(v[0], v[2]);
+/** `spot` moved `by` radians of arc east (west when negative) along its parallel. */
+function along(spot: Vec, by: number): Vec {
+  const turn = by / Math.max(1e-6, Math.hypot(spot[0], spot[2])), cos = Math.cos(turn), sin = Math.sin(turn);
+  return [spot[0] * cos + spot[2] * sin, spot[1], spot[2] * cos - spot[0] * sin];
+}
+
 /**
  * How far north or south of its row's latitude nudging may move an island, as a share of the rows' spacing.
  * Under a half, so an island never reaches the band of the row above or below: every island stays north of
@@ -119,6 +130,13 @@ function settle(anchors: readonly Vec[], bands: readonly (readonly [number, numb
       const a = spots[i]!, b = spots[j]!;
       spots[i] = intoBand(step(a, b, -short / 2), bands[i]!);
       spots[j] = intoBand(step(b, a, -short / 2), bands[j]!);
+      // A pair the bands stop from parting north and south parts east and west instead, the more westerly one going west.
+      const left = need(i, j) - angleBetween(spots[i]!, spots[j]!);
+      if (left > SLACK) {
+        const apart = longitudeOf(spots[j]!) - longitudeOf(spots[i]!), west = Math.atan2(Math.sin(apart), Math.cos(apart)) >= 0 ? i : j, east = west === i ? j : i;
+        spots[west] = along(spots[west]!, -left / 2);
+        spots[east] = along(spots[east]!, left / 2);
+      }
     }
     if (spots.some((spot, i) => angleBetween(spot, anchors[i]!) > MAX_NUDGE)) return undefined;
   }

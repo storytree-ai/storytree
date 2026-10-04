@@ -44,4 +44,12 @@
  #chapter2 .arc-panes { grid-template-columns:minmax(0,1fr); grid-template-rows:1fr 1fr; }
  #chapter2[data-tour-mode="tour"] .sessions-list { left:10px; right:10px; top:84px; bottom:auto; max-height:30%; }
  #chapter2 .tour-recording-progress { top:auto; bottom:calc(var(--bar-h) + 8px); right:12px; }
+ /* While the tour talks, a panel takes a band at the top (2.18): the sessions list scrolls past three, and the arcs drawer
+    shows its list of arcs alone, never running under the card. The globe keeps its size and moves down a little, so
+    the islands the step faces sit in the band between the panel and the card. */
+ #chapter2[data-tour-mode="tour"] .sessions-list { max-height:140px; }
+ #chapter2[data-tour-mode="tour"] .arc-overlay { height:auto; min-height:0; max-height:136px; bottom:auto; }
+ #chapter2[data-tour-mode="tour"] .arc-panes { grid-template-rows:minmax(0,1fr); }
+ #chapter2[data-tour-mode="tour"] .arc-briefing { display:none; }
+ #chapter2[data-tour-mode="tour"]:has(.tour-session-surface:not([hidden]), .tour-arc-surface:not([hidden])) .forest-drawing { top:104px; bottom:calc(52% - 32px); }
 }

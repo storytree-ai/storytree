@@ -14,7 +14,7 @@ import ownSaved from "./own-snapshot.json" with { type: "json" };
 import { crossingLength, growthMoment, growthPlan, type GrowthPlan } from "@storytree/forest-world/planet";
 import { buildPlanetPathways } from "@storytree/forest-world/geometry";
 import type { GrowthSnapshot, TourSnapshot } from "./forest-data.js";
-import { flight, globeOf, replayMoment, type GlobeOn, type Hold, type Tag, type TourDetail, type TourStep } from "./tour.js";
+import { flight, globeOf, placeTags, replayMoment, type Box, type GlobeOn, type Hold, type Tag, type TagSide, type TourDetail, type TourStep } from "./tour.js";
 import { savedReading } from "./tour-reading.js";
 
 const snapshot = saved as unknown as TourSnapshot;
@@ -119,9 +119,10 @@ function Tags({ tags, controls, arrived }: { tags: readonly Tag[]; controls: Glo
   const refs = useRef<(HTMLDivElement | null)[]>([]);
   useEffect(() => {
     if (!controls || !host || !tags.length) return;
-    let frame = 0;
+    let frame = 0, previous: (TagSide | undefined)[] = [];
     const place = () => {
       const canvas = document.querySelector("#website-forest canvas")?.getBoundingClientRect(), stage = host.getBoundingClientRect();
+      const shown: { node: HTMLDivElement; label: HTMLElement; box: Box; index: number }[] = [];
       tags.forEach((tag, index) => {
         const node = refs.current[index];
         if (!node) return;
@@ -129,9 +130,26 @@ function Tags({ tags, controls, arrived }: { tags: readonly Tag[]; controls: Glo
         if (!at || !canvas || !at.visible || !arrived) { node.classList.add("away"); return; }
         const x = at.x + canvas.left - stage.left, y = at.y + canvas.top - stage.top;
         node.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
-        // The name sits on whichever side has room for it.
-        const label = (node.lastElementChild as HTMLElement | null)?.offsetWidth ?? 0;
-        node.classList.toggle("to-left", x + 24 + label > stage.width - 8 && x - 24 - label >= 8);
+        const label = node.lastElementChild as HTMLElement;
+        shown.push({ node, label, box: { x, y, width: label.offsetWidth, height: label.offsetHeight }, index });
+      });
+      // A laptop sets each name on whichever side of its ring has room; a phone also keeps them clear of one another, the
+      // other rings, the islands' names, the card and the panels, below or above the ring where the sides have no room (2.18).
+      const room = { width: stage.width, height: stage.height };
+      const phone = stage.width <= 600;
+      const keepOut = phone ? [...document.querySelectorAll("#chapter2 :is(.tour-card, .sessions-list, .arc-overlay, .arc-handle), #website-forest .planet-nameplate:not(.crowded)")]
+        .filter(node => getComputedStyle(node).visibility === "visible").map(node => ({ box: node.getBoundingClientRect(), soft: node.classList.contains("planet-nameplate") }))
+        .filter(({ box }) => box.width && box.height)
+        .map(({ box, soft }) => ({ x: box.left - stage.left, y: box.top - stage.top, width: box.width, height: box.height, soft })) : [];
+      const sides = shown.length ? phone
+        ? placeTags(shown.map(item => item.box), room, { keepOut, sides: ["right", "left", "below", "above"], previous: shown.map(item => previous[item.index]) })
+        : shown.map(item => placeTags([item.box], { width: room.width, height: Infinity })[0]!) : [];
+      previous = [];
+      shown.forEach(({ node, label, index }, at) => {
+        const side = sides[at]!;
+        previous[index] = side.side;
+        label.style.left = `${Math.round(side.x)}px`;
+        label.style.top = `${Math.round(side.y)}px`;
         node.classList.remove("away");
       });
       frame = requestAnimationFrame(place);

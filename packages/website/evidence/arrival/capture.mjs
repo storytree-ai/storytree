@@ -4,7 +4,7 @@
 // pnpm --filter @storytree/website build && node packages/website/evidence/arrival/capture.mjs [--only <name>]
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
-import { readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
@@ -177,10 +177,13 @@ const runs = {
     }
     observed.push("The map chapter's five steps and its growth on the shop: pictured");
   },
-  // The agents chapter (2.17, ADR-0893): each step on the shop at its recorded moment, at 1440 and 390.
+  // The agents chapter (2.17, ADR-0893): each step on the shop at its recorded moment, at 1440, 390 and 320.
+  // --to <folder> (beside this one) writes them elsewhere, for a before-and-after.
   async agents() {
-    const out = name => path.join(here, `../agents-chapter/${name}.png`);
-    for (const [width, height] of [[1440, 900], [390, 844]]) {
+    const to = process.argv.includes("--to") ? process.argv[process.argv.indexOf("--to") + 1] : "agents-chapter";
+    const out = name => path.join(here, `../${to}/${name}.png`);
+    await mkdir(path.join(here, `../${to}`), { recursive: true });
+    for (const [width, height] of [[1440, 900], [390, 844], [320, 700]]) {
       const page = await open({ width, height });
       for (const id of ["agents-fix", "agents-sessions", "agents-arcs", "agents-claim", "agents-parallel", "agents-standdown"]) {
         await go(page, id); await pause(page);

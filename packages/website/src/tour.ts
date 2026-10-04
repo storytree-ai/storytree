@@ -165,3 +165,35 @@ export function globeOf(step: TourStep, state: TourState, elapsed = 0): GlobeOn 
   for (const [from, next] of Object.entries(step.lineStages ?? {})) if (state.lines >= Number(from)) stage = next;
   return { map: "conduit", stage };
 }
+
+export type Box = { x: number; y: number; width: number; height: number };
+export type TagSide = "right" | "left" | "below" | "above";
+const ring = 17, gap = 24, margin = 8;
+const meet = (a: Box, b: Box) => Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
+/**
+ * Where each tag's name sits, as its box's top-left from its ring's middle: `tags` are the rings' middles with their names'
+ * sizes. A name takes the first of `sides` (its `previous` side first, so it does not flit) where it stays inside the room,
+ * clear of the names already placed, the other rings and `keepOut`; where none is clear, the side that covers least, a
+ * `soft` box (an island's name) counting a fifth as much as a ring, a name or a panel (2.18).
+ */
+export function placeTags(tags: readonly Box[], room: { width: number; height: number }, { keepOut = [], sides = ["right", "left"], previous = [] }: { keepOut?: readonly (Box & { soft?: boolean })[]; sides?: readonly TagSide[]; previous?: readonly (TagSide | undefined)[] } = {}): { side: TagSide; x: number; y: number }[] {
+  const rings = tags.map(tag => ({ x: tag.x - ring, y: tag.y - ring, width: ring * 2, height: ring * 2 }));
+  const placed: Box[] = [];
+  return tags.map((tag, index) => {
+    const across = Math.min(Math.max(margin, tag.x - tag.width / 2), room.width - margin - tag.width) - tag.x;
+    const offsets: Record<TagSide, { x: number; y: number }> = {
+      right: { x: gap, y: -tag.height / 2 }, left: { x: -gap - tag.width, y: -tag.height / 2 },
+      below: { x: across, y: gap }, above: { x: across, y: -gap - tag.height },
+    };
+    const order = [...new Set([previous[index], ...sides].filter((side): side is TagSide => !!side && sides.includes(side)))];
+    const scored = order.map(side => {
+      const at = offsets[side], box = { x: tag.x + at.x, y: tag.y + at.y, width: tag.width, height: tag.height };
+      const outside = tag.width * tag.height - meet(box, { x: margin, y: margin, width: room.width - margin * 2, height: room.height - margin * 2 });
+      const covered = [...placed, ...rings.filter((_, other) => other !== index), ...keepOut].reduce((sum, other) => sum + meet(box, other) * ("soft" in other && other.soft ? .2 : 1), 0);
+      return { side, ...at, box, cost: outside * 4 + covered };
+    });
+    const best = scored.find(option => option.cost === 0) ?? scored.reduce((a, b) => b.cost < a.cost ? b : a);
+    placed.push(best.box);
+    return { side: best.side, x: best.x, y: best.y };
+  });
+}

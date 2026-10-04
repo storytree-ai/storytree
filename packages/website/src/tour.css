@@ -132,7 +132,6 @@ html:has(> body.immersive-home) { scroll-padding-top:0; }
 #chapter2 .tour-tag-ring { position:absolute; left:-17px; top:-17px; width:34px; height:34px; border:2px solid var(--green); border-radius:50%; box-shadow:0 0 0 4px #bdd6a629; animation:tour-ring 2s ease-out infinite; }
 @keyframes tour-ring { 0% { transform:scale(.7); opacity:1; } 70%, 100% { transform:scale(1.15); opacity:.75; } }
 #chapter2 .tour-tag-text { position:absolute; left:24px; top:-13px; padding:3px 9px; border-radius:7px; background:#f5f5ee; color:#141a17; font:650 12.5px/1.45 system-ui, sans-serif; white-space:nowrap; box-shadow:0 8px 20px -10px #000e; }
-#chapter2 .tour-tag.to-left .tour-tag-text { left:auto; right:24px; }
 
 /* The bar, always there: play, speed, where you are, Next, free play, replay, show everything (ADR-0879 D2). */
 #chapter2 .tour-bar { position:absolute; z-index:70; left:0; right:0; bottom:0; min-height:var(--bar-h); display:flex; flex-wrap:wrap; align-items:center; gap:8px 10px; padding:9px 210px 9px 16px; border-top:1px solid var(--edge); background:#0c1013f2; font:13px/1.4 system-ui, sans-serif; }

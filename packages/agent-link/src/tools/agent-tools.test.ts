@@ -445,6 +445,35 @@ test("6.2 it claims the capability, sees who is on what, reports the contract re
   });
 });
 
+test("6.37 land refuses while the story's package has a source file no numbered test reaches, naming it, and lands once it is placed (ADR-0911 D4)", async () => {
+  await withProject(async ({ folder, project, log }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const story = idOf(await agent.call("plan_story", { title: "Shopping cart", ...FOUNDED }));
+      const capability = idOf(await agent.call("plan_capability", { story, title: "Adding", ...FOUNDED }));
+      const src = path.join(folder, "packages/shopping-cart/src");
+      mkdirSync(src, { recursive: true });
+      writeFileSync(path.join(folder, "packages/shopping-cart/package.json"), JSON.stringify({ name: "shopping-cart" }));
+      writeFileSync(path.join(src, "cart.js"), "export const add = (a, b) => a + b;\n");
+      writeFileSync(path.join(src, "cart.test.js"), 'import { test } from "node:test";\nimport { add } from "./cart.js";\ntest("1.1 adds", () => add(1, 2));\n');
+      writeFileSync(path.join(src, "refund.js"), "export const refund = () => 0;\n");
+      assert.equal((await agent.call("claim", { capability, reason: "building the cart" })).isError, false);
+
+      const held = await agent.call("land", { capability });
+      assert.equal(held.isError, true, held.text);
+      assert.match(held.text, /packages\/shopping-cart\/src\/refund\.js/);
+      assert.match(held.text, /number a test that reaches it/);
+      assert.doesNotMatch(held.text, /cart\.js \(/);
+      assert.deepEqual((await log.since(project, 0)).lines.filter((line) => line.kind === "landed"), [], "a held landing records nothing");
+      assert.equal((await readClaims(log, project)).length, 1, "the claim stays");
+
+      writeFileSync(path.join(src, "refund.test.js"), 'import { test } from "node:test";\nimport { refund } from "./refund.js";\ntest("1.2 refunds", () => refund());\n');
+      const landed = await agent.call("land", { capability });
+      assert.equal(landed.isError, false, landed.text);
+      assert.deepEqual(await readClaims(log, project), []);
+    });
+  });
+});
+
 test("6.2 show_plan reads every arc's increments in one ask, however many arcs the project has (ADR-0836 D3)", async () => {
   await withProject(async ({ folder, project, library, log }) => {
     for (const title of ["Launch", "Relaunch", "Sunset"]) {

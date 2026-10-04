@@ -99,6 +99,9 @@ importers:
       '@modelcontextprotocol/server':
         specifier: ^2.1.0
         version: 2.1.0
+      '@storytree/guardrails':
+        specifier: workspace:*
+        version: link:../guardrails
       '@storytree/journey-events':
         specifier: workspace:*
         version: link:../journey-events

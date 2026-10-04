@@ -115,9 +115,14 @@ export function storyPlate(coast: Coast, view: PlateView, furthest = Infinity): 
   return { x: along.x * step, z: along.z * step };
 }
 
+/** A capability's name as the globe shows it: its stored title without the number the plan gives it ("1 · Hooks" reads "Hooks"; 3.32). */
+export function globeName(title: string): string {
+  return title.replace(/^\d+ · /, "");
+}
+
 /**
- * One nameplate per capability's territory, at the seed of its cell nearest the territory's middle:
- * a seed lies inside its own cell, so the plate is on the territory's land. Unclaimed code has none.
+ * One nameplate per capability's territory, named without its number, at the seed of its cell nearest the
+ * territory's middle: a seed lies inside its own cell, so the plate is on the territory's land. Unclaimed code has none.
  */
 export function capabilityPlates(map: TerritoryMap): { capability: string; title: string; x: number; z: number }[] {
   return map.territories.flatMap(({ capability, title }, territory) => {
@@ -125,6 +130,6 @@ export function capabilityPlates(map: TerritoryMap): { capability: string; title
     if (capability === undefined || sites.length === 0) return [];
     const middle = { x: sites.reduce((s, p) => s + p.x, 0) / sites.length, z: sites.reduce((s, p) => s + p.z, 0) / sites.length };
     const at = sites.reduce((best, p) => Math.hypot(p.x - middle.x, p.z - middle.z) < Math.hypot(best.x - middle.x, best.z - middle.z) ? p : best);
-    return [{ capability, title: title ?? capability, x: at.x, z: at.z }];
+    return [{ capability, title: globeName(title ?? capability), x: at.x, z: at.z }];
   });
 }

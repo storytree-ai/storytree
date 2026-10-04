@@ -15,7 +15,7 @@
 export type Point = { readonly x: number; readonly z: number };
 
 /** What a territory stands for: a capability's code, or Unclaimed code (no capability). */
-export type TerritoryShare = { readonly capability?: string; readonly title?: string; readonly lines: number };
+export type TerritoryShare = { readonly capability?: string; readonly title?: string; readonly description?: string; readonly lines: number };
 
 export type Territory = TerritoryShare;
 

@@ -39,13 +39,13 @@ test("a story's nameplate hides once its island turns away, and never leaves the
   assert.equal(facesEye(new Quaternion().setFromEuler(new Euler(-0.05, 0.3, 0)), eye), false, "one just past it hides its plate");
 });
 
-test("selecting a story shows one capability nameplate per territory, each inside its own territory, none for Unclaimed code", () => {
+test("3.32 selecting a story shows one capability nameplate per territory, named without its number, each inside its own territory, none for Unclaimed code", () => {
   const map = territories([
-    { capability: "cap-a", title: "1 · Draw", lines: 300 }, { capability: "cap-b", title: "2 · Pick", lines: 90 },
-    { lines: 60 }, { capability: "cap-c", title: "3 · Name", lines: 25 },
+    { capability: "cap-a", title: "1 · Draw", lines: 300 }, { capability: "cap-b", title: "12 · Pick the land", lines: 90 },
+    { lines: 60 }, { capability: "cap-c", title: "Name", lines: 25 },
   ], coast);
   const plates = capabilityPlates(map);
-  assert.deepEqual(plates.map(p => [p.capability, p.title]), [["cap-a", "1 · Draw"], ["cap-b", "2 · Pick"], ["cap-c", "3 · Name"]]);
+  assert.deepEqual(plates.map(p => [p.capability, p.title]), [["cap-a", "Draw"], ["cap-b", "Pick the land"], ["cap-c", "Name"]]);
   const inside = (p: Point, polygon: readonly Point[]) => polygon.reduce((odd, a, i) => {
     const b = polygon[(i + 1) % polygon.length]!;
     return (a.z > p.z) !== (b.z > p.z) && p.x < a.x + (p.z - a.z) * (b.x - a.x) / (b.z - a.z) ? !odd : odd;

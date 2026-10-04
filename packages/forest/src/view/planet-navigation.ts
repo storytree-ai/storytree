@@ -6,6 +6,7 @@ import { pickProjectedNote, type ProjectedNote } from "./globe-picking.js";
 import type { Selection } from "./panel-selection.js";
 import type { GlobeOpening } from "../surfaces/surfaces.js";
 import { isDrawn } from "./globe-guide.js";
+import { globeName } from "./nameplates.js";
 
 export type ForestMode = "forest" | "library";
 
@@ -14,14 +15,23 @@ export function isGlobeDrag(from: { x: number; y: number }, to: { x: number; y: 
   return Math.hypot(to.x - from.x, to.y - from.y) >= 5;
 }
 
-/** The cursor and tooltip for the actual eligible artifact or file beneath the pointer (3.12, 3.17). */
+/**
+ * The cursor and tooltip for the actual eligible artifact, file or capability territory beneath the pointer
+ * (3.12, 3.17): a territory gives its capability's name, without its number, and its description's first paragraph as the detail (3.32).
+ */
 export function globeHover(world: Object3D, camera: Camera,
-  box: { left: number; top: number; width: number; height: number }, cursor: { x: number; y: number }, mode: ForestMode) {
+  box: { left: number; top: number; width: number; height: number }, cursor: { x: number; y: number }, mode: ForestMode): { cursor: string; title: string | undefined; detail?: string } {
   const hit = pickGlobe(world, camera, box, cursor, mode);
-  const file = hit?.kind === "note" ? undefined : pointedFile(world, camera, box, cursor);
-  const title = hit?.kind === "note" ? world.getObjectByName(`knowledge-point:${hit.id}`)?.userData.title as string | undefined
-    : file === undefined ? undefined : `${file.file} · ${file.lines} lines · ${file.capability === undefined ? "Unclaimed" : world.getObjectByName(`territory:${file.capability}`)?.userData.title ?? file.capability}`;
-  return { cursor: hit === undefined ? "" : "pointer", title };
+  const pointer = hit === undefined ? "" : "pointer";
+  if (hit?.kind === "note") return { cursor: pointer, title: world.getObjectByName(`knowledge-point:${hit.id}`)?.userData.title as string | undefined };
+  const territory = (capability: string) => world.getObjectByName(`territory:${capability}`)?.userData as { title?: string; description?: string } | undefined;
+  const file = pointedFile(world, camera, box, cursor);
+  if (file !== undefined) return { cursor: pointer, title: `${file.file} · ${file.lines} lines · ${file.capability === undefined ? "Unclaimed" : globeName(territory(file.capability)?.title ?? file.capability)}` };
+  if (hit?.kind !== "story" || hit.capability === undefined) return { cursor: pointer, title: undefined };
+  const { title, description } = territory(hit.capability) ?? {};
+  // What the capability does is its description's first paragraph; later ones are notes for the agents who build it.
+  const detail = description?.trim().split(/\r?\n\s*\r?\n/)[0]?.trim();
+  return { cursor: pointer, title: globeName(title ?? hit.capability), ...(detail === undefined || detail === "" ? {} : { detail }) };
 }
 
 /**

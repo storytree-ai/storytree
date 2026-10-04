@@ -63,9 +63,9 @@ export function repositoryOf(remote: string): string | undefined {
   return match === null ? undefined : `${match[1]}/${match[2]}`;
 }
 
-/** Each code file under a package's src at `commit`, in repository coordinates. */
+/** Each code file in a package at `commit` (its src, and test folders beside it), in repository coordinates. */
 async function filesAt(git: Git, commit: string): Promise<{ path: string; text: string }[]> {
-  const paths = (await git(["ls-tree", "-r", "--name-only", commit, "--", "packages"])).split("\n").filter((file) => /^packages\/[^/]+\/src\/.+\.[cm]?[jt]sx?$/.test(file));
+  const paths = (await git(["ls-tree", "-r", "--name-only", commit, "--", "packages"])).split("\n").filter((file) => /^packages\/[^/]+\/.+\.[cm]?[jt]sx?$/.test(file));
   return Promise.all(paths.map(async (file) => ({ path: file, text: await git(["show", `${commit}:${file}`]) })));
 }
 

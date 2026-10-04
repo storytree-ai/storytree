@@ -30,14 +30,14 @@ async function shopLibrary(t: { after(fn: () => Promise<void>): void }): Promise
   return { library, capability: capability.id, contracts };
 }
 
-/** The project's folder: a git repository whose one commit holds the story's tests, with a GitHub origin unless told otherwise. */
-function projectFolder(t: { after(fn: () => void): void }, origin: string | null = "https://github.com/acme/shop.git"): { folder: string; commit: string } {
+/** The project's folder: a git repository whose one commit holds the story's tests (in its package's `tests`, `src` by default), with a GitHub origin unless told otherwise. */
+function projectFolder(t: { after(fn: () => void): void }, origin: string | null = "https://github.com/acme/shop.git", tests = "src"): { folder: string; commit: string } {
   const folder = mkdtempSync(path.join(tmpdir(), "ci-health-"));
   t.after(() => rmSync(folder, { recursive: true, force: true }));
   const git = (...args: string[]) => execFileSync("git", ["-C", folder, "-c", "user.name=t", "-c", "user.email=t@t", ...args], { encoding: "utf8" }).trim();
   git("init", "-q");
-  mkdirSync(path.join(folder, "packages/check-out/src"), { recursive: true });
-  writeFileSync(path.join(folder, "packages/check-out/src/checkout.test.js"), [
+  mkdirSync(path.join(folder, "packages/check-out", tests), { recursive: true });
+  writeFileSync(path.join(folder, "packages/check-out", tests, "checkout.test.js"), [
     `import { test } from "node:test";`,
     `test("1.1 your information page shows the form", () => {});`,
     `test("1.2 missing details show the error", () => {});`,
@@ -131,4 +131,12 @@ test("3.3 a job log holding terminal escape sequences is read all the same, from
   const plain = path.join(folder, "gh-plain.mjs");
   writeFileSync(plain, `if (process.argv.includes("--allow-escape-sequences")) { process.stderr.write("unknown flag: --allow-escape-sequences\\n"); process.exit(1); }\nprocess.stdout.write(${JSON.stringify(log)});\n`);
   for (const gh of [strict, plain]) assert.equal(await ghApi(process.execPath, [gh]).text("repos/acme/shop/actions/jobs/1/logs"), log, path.basename(gh));
+});
+
+test("3.4 a story whose tests live in its package's own test folder, outside src, is verified from its CI as one with them under src is", async (t) => {
+  const { library, capability } = await shopLibrary(t);
+  const { folder, commit } = projectFolder(t, "https://github.com/acme/shop.git", "test");
+  const read = await readProjectCi({ library, git: gitIn(folder), github: github(pushRunsOnTrunk(commit), tap("ok")) });
+  assert.equal(read.written, true, read.written ? "" : read.why);
+  assert.equal((await library.projectTree()).stories[0]!.capabilities.find(({ id }) => id === capability)!.status, "healthy", "both contracts verified passing from packages/check-out/test");
 });

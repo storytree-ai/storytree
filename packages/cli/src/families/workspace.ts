@@ -19,6 +19,7 @@ const make: Verb = {
       const { ref, name } = made;
       return { text: `Work is available; nothing is claimed yet. Call the Codex desktop app's create_worktree with ${JSON.stringify({ ref, name })}, from freshly fetched ${made.base}. Then run storytree workspace attach ${id} --folder <returned-directory> --ref ${ref} --name ${name} --reason <text>. Use the returned directory explicitly; creation does not change your cwd or permissions. If the app returns a directory with a registration error, attach it; do not create another. If create_worktree is unavailable (a headless lane), make it yourself: git worktree add --detach <folder> ${ref}, then run the same attach with that folder.` };
     }
+    if (made.existing) return { text: `${caller.session} holds ${id} in this workspace, ${made.folder}, on branch ${made.branch}: no worktree was made.` };
     const enter = `Call EnterWorktree with path ${JSON.stringify(made.folder)} to work in it.`;
     return {
       text: `Made workspace ${made.folder}\nBranch: ${made.branch}, from freshly fetched ${made.base}.\n${caller.session} holds ${id}: ${reason}\n${enter}\nSet it up as this project does at session start.`,

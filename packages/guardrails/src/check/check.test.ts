@@ -58,5 +58,5 @@ test("3.2 · it reads the checkout a folder is in, and a folder outside any repo
   const loose = plant(t, KEPT);
   assert.equal(checkoutOf(loose), loose);
   execFileSync("git", ["init", "-q"], { cwd: loose });
-  assert.equal(realpathSync(checkoutOf(path.join(loose, "packages", "cart"))), realpathSync(loose));
+  assert.equal(realpathSync.native(checkoutOf(path.join(loose, "packages", "cart"))), realpathSync.native(loose));
 });

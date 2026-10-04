@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { connect, type Library } from "@storytree/library";
-import { gitIn, readProjectCi, VERIFIED_BY_PROJECT_CI, type GitHub } from "../index.js";
+import { ghApi, gitIn, readProjectCi, VERIFIED_BY_PROJECT_CI, type GitHub } from "../index.js";
 
 /** A project in the test Postgres `pnpm test` starts, dropped afterwards: one story, its agent reporting every contract passing. */
 async function shopLibrary(t: { after(fn: () => Promise<void>): void }): Promise<{ library: Library; capability: string; contracts: string[] }> {
@@ -118,4 +118,17 @@ test("3.2 a project with no GitHub origin, or with no finished push run on its d
 
   for (const id of contracts) assert.equal((await library.health(id)).verified.state, "not-checked");
   assert.equal((await library.projectTree()).unverified, true, "nothing verifies the project's health");
+});
+
+test("3.3 a job log holding terminal escape sequences is read all the same, from a gh that refuses to print one unless allowed (gh 2.102) as from one that prints it as it is", async (t) => {
+  const folder = mkdtempSync(path.join(tmpdir(), "ci-health-gh-"));
+  t.after(() => rmSync(folder, { recursive: true, force: true }));
+  const log = "test\tRun npm test\t\u001b[32mok 1 - 1.1 · Your information page shows the form\u001b[0m\n";
+  // Like gh 2.102: it refuses a response holding escape sequences until --allow-escape-sequences is passed.
+  const strict = path.join(folder, "gh-strict.mjs");
+  writeFileSync(strict, `if (!process.argv.includes("--allow-escape-sequences")) { process.stderr.write("the response contains terminal escape sequences; pass --allow-escape-sequences to output it anyway\\n"); process.exit(1); }\nprocess.stdout.write(${JSON.stringify(log)});\n`);
+  // Like gh 2.75: it prints the log as it is, and knows no such flag.
+  const plain = path.join(folder, "gh-plain.mjs");
+  writeFileSync(plain, `if (process.argv.includes("--allow-escape-sequences")) { process.stderr.write("unknown flag: --allow-escape-sequences\\n"); process.exit(1); }\nprocess.stdout.write(${JSON.stringify(log)});\n`);
+  for (const gh of [strict, plain]) assert.equal(await ghApi(process.execPath, [gh]).text("repos/acme/shop/actions/jobs/1/logs"), log, path.basename(gh));
 });

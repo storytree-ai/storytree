@@ -29,7 +29,7 @@ function drawnArea(descriptors: readonly { kind: string; points?: readonly { x: 
   return area;
 }
 
-test("3.19 a surveyed island's area follows its lines, a tiny story keeps a floor, and an unsurveyed island keeps its capability ratio", () => {
+test("3.19 a surveyed island's area follows its lines, a tiny story keeps a floor, and an unsurveyed island grows in step: a floor's worth of land for each capability", () => {
   assert.ok(LAND_PER_LINE > 0 && MIN_ISLAND_AREA > 0);
   assert.equal(islandArea(9000), 9000 * LAND_PER_LINE);
   assert.ok(islandArea(9000) > islandArea(1500), "more lines, more land");
@@ -40,7 +40,7 @@ test("3.19 a surveyed island's area follows its lines, a tiny story keeps a floo
   assert.equal(areaOf("big"), islandArea(9000));
   assert.equal(areaOf("small"), islandArea(1500));
   assert.equal(areaOf("tiny"), MIN_ISLAND_AREA);
-  assert.equal(areaOf("unsurveyed"), undefined, "no survey, no area: the capability ratio stands");
+  assert.equal(areaOf("unsurveyed"), 3 * MIN_ISLAND_AREA, "no survey: one floor's worth of land for each of its three capabilities");
 
   const spots = growPlanet(storyNodes(tree, []).map(({ id, place }) => ({ story: id, place, reach: islandCoastReach(scene.islands.find(i => i.story === id)!) }))).spots;
   const plates = buildPlanetPathways(scene, spots, PLANET_RADIUS).plates;

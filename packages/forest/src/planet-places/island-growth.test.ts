@@ -51,19 +51,21 @@ test("1.8 when a row no longer fits round the globe, the radius grows until noth
   assert.deepEqual(growPlanet(set), grown, "the same islands always give the same globe");
 });
 
-test("1.4 after nudging, on storytree's own seven rows at their real sizes, every island sits north of every island in a lower row, and none overlap", () => {
-  // Rows and coast reaches as storytree's library and code gave them on 2026-10-02 (view/evidence/code-rows): seven rows, The world the largest.
+test("1.4 after nudging, on storytree's own seven rows at their real sizes, every island sits north of every island in a lower row, none overlap, and the globe keeps its radius", () => {
+  // Rows and coast reaches as storytree's library and code give them (view/evidence/more-sea, the seed of view/evidence/code-rows
+  // at the land of the more-sea decision): seven rows, The world the largest.
   const rows: [string, number, number][][] = [
-    [["The local database", 26.6], ["Process ledger", 23.3], ["The library", 54.1], ["The world", 102], ["Keys", 13.5]],
-    [["The librarian", 20.4]],
-    [["The agent link", 75.6]],
-    [["The app", 33.5], ["The knowledge core", 31.9], ["The app setup", 28.8]],
-    [["The dev loop", 33.2], ["The arc surface", 26.8]],
-    [["The forest", 37]],
-    [["The command line", 35.5], ["The website", 20]],
+    [["The local database", 34.2], ["Process ledger", 31.5], ["The library", 76.1], ["The world", 143.5], ["Keys", 20]],
+    [["The librarian", 25.8]],
+    [["The agent link", 107]],
+    [["The app", 46.5], ["The knowledge core", 41.7], ["The app setup", 37.2]],
+    [["The dev loop", 45.8], ["The arc surface", 34.5]],
+    [["The forest", 50.9]],
+    [["The command line", 48.7], ["The website", 26.8]],
   ].map((row, r) => row.map(([story, reach], slot) => [story as string, placeInRow(r, slot), reach as number]));
   const set = rows.flat().map(([story, place, reach]): GrowingIsland => ({ story, place, reach }));
   const grown = growPlanet(set);
+  assert.equal(grown.radius, PLANET_RADIUS, "the land and the sea fit the globe as it is, without growing it");
   const latitude = (story: string) => Math.asin(grown.spots.get(story)!.y);
   rows.forEach((row, r) => rows.slice(0, r).flat().forEach(([below]) => row.forEach(([story]) => {
     assert.ok(latitude(story) > latitude(below), `${story} (row ${r}) sits north of ${below}`);

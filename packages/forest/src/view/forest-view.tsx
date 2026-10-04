@@ -49,6 +49,7 @@ interface Drawn {
  */
 export async function openForestView(container: HTMLElement, onSelect: (selection: Selection) => void, core: KnowledgeCore,
   onWispHover: (session: string | undefined) => void = () => {}, { library = true, opening = "whole-planet" }: { library?: boolean; opening?: GlobeOpening | undefined } = {}): Promise<ForestView> {
+  // Parses 0.2's pine kit, which nothing on the globe draws since ADR-0804 D1 (no tree on any island).
   await preloadKit(kitBytes);
   const root = createRoot(container);
   let drawn: Drawn = {

@@ -26,8 +26,9 @@ export function plateTransform(spot: PlanetSpot, radius: number) {
   };
 }
 
-/** L1: the flat forest's lamp fixed over the viewer's shoulder. Ground and kit share this sun.
- * Baked shadow atlases and skirt colours remain the approved flat island's, as ADR-0646 allows. */
+/** L1: the flat forest's lamp fixed over the viewer's shoulder, turned with the camera. Since ADR-0804 D1
+ * the globe's islands are unlit flat surfaces with no kit, shadows or skirt, so only the shell's highlight
+ * (`createPlanetSurface`'s `sunInView`) uses this lamp; this function is called by its test alone. */
 export function lightForCamera(camera: Quaternion, target = new Vector3()): Vector3 {
   return target.copy(sunInView).applyQuaternion(camera);
 }
@@ -78,8 +79,8 @@ export function createPlanetSurface(radius: number) {
 
 /**
  * What hides a name behind the globe: the sea sphere as an exact ray-vs-sphere test, no triangles.
- * An `Html` label given `occlude` alone raycasts the WHOLE scene (every plate's ground and pines)
- * once per label per frame; measured 2026-09-28, that was 84% of a drag frame, at 8 fps.
+ * An `Html` label given `occlude` alone raycasts the WHOLE scene (every plate's meshes; the ground and
+ * pines then) once per label per frame; measured 2026-09-28, that was 84% of a drag frame, at 8 fps.
  * The globe turns about its centre, so the sphere stays at the world origin whatever the turn.
  */
 export function globeOccluder(radius: number): Object3D {

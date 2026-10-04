@@ -10,6 +10,11 @@
 // directly against an already-PROJECTED screen coordinate (`treeSpot.y`) to size the scene's
 // vertical bounds, so — like `TILE_DEPTH` in `hex.ts` — it carries the camera's UPRIGHT
 // foreshortening (cos θ) itself rather than leaving the call site to remember to apply it.
+//
+// ⚠ IN 0.3 (noted in place 2026-10-05, ADR-0804 D1): no surface draws a story tree, flora or a 2D
+// map. Only `tileQuota` and `ringsOf` shape today's islands (the globe's `forest-ground.ts` lays
+// each island's hexes with them). The crown and art rungs below are still read by `scene.ts`'s
+// `buildScene` while it computes 0.2's drawables, which the globe discards: it keeps only the cells.
 
 import { HEX_R, HEX_TILES_PER_CAPABILITY, HEX_W, TILE_SCALE } from './hex.js';
 import { LAND_CAMERA_ELEVATION_DEG, uprightForeshortening } from './camera.js';

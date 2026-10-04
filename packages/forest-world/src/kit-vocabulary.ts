@@ -1,5 +1,12 @@
 // kit-vocabulary.ts — WHAT EACH BOUGHT PROP MEANS, and where on the island it stands.
 //
+// ⚠ NO PRODUCT SURFACE DRAWS THIS VOCABULARY (noted in place 2026-10-05). Since ADR-0804 D1 the
+// globe draws each island as one flat surface cut into capability territories, filled by each
+// capability's verified word (ADR-0825 D3): no pine, leaf tint, trunk, flower or ground cover. Only
+// the flat canvas (`ForestWorldCanvas.tsx`, mounted by no product surface) places these props. The
+// globe reaches this file for one camera constant (`RENDER_ELEV_DEG`, via `camera-framing.ts`).
+// Where the text below says "the SHIPPED map", read 0.2's map as it stood.
+//
 // ⚠ THE VOCABULARY BELOW IS THE OWNER'S, SETTLED 2026-08-29, and it REPLACES the one PR #1693
 // proposed under ADR-0463 D4's delegation. The delegation was to propose and be adjusted; this
 // is the adjustment. It is recorded as ADR-0475 and the settled answer lives on

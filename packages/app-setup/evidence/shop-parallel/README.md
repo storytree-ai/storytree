@@ -88,3 +88,39 @@ After PR #2: **4/4**, and the login spec passed 5 runs of 5 (`runs/r1-grade-fixe
 The library after R1 (`library-r1b`, kept privately): 4 stories, 15 capabilities, 40 contracts, 21 decisions,
 521 activity lines. Every shop CI run is archived privately (`harness/ci-archive.sh`); its logs carry TAP with
 contract-numbered test titles, which verified health from CI (ADR-0901) reads.
+
+## R2: parts 2, 3 and 4, three sessions at once (increment_74ff85c17194)
+
+Three fresh sessions on the laptop at the same time (app 0.3.640, which records refused claims): part 2 started
+at 06:47Z, parts 3 and 4 a minute later, when part 2 already held its three parts, the cart badge among them.
+Each made its own storytree workspace (`.claude\worktrees\increment-…` in the shop's folder), claimed only its
+own story's parts, ran its own copy of the shop on its own port (3102, 3104) so as not to collide with the
+others, and changed only its own package. Claims and landings as the library recorded them: `runs/r2-claims.txt`.
+
+| Lane | Time, cost | Landed |
+|---|---|---|
+| part 2, Browsing (72cbaf46) | 886 s, $2.38 | shop PR #4 at 07:00:58Z: product page, sorting, Add to cart / Remove, the badge |
+| part 3, The cart (182c4d96) | 1,167 s, $3.21 | shop PR #5 at 07:06:32Z: Cart page, menu; merged parts 2 and 4 into its branch and ran Swag Labs' suite on the three together (29/29 in Edge) before merging |
+| part 4, Checkout (de0fbc58) | 788 s, $2.67 | shop PR #3 at 06:59:48Z, first of the three: the three checkout pages, tax in whole cents |
+
+**Grade of `main` after the round: 26/26**, Swag Labs' ceiling, at the first grade (`runs/r2-grade.txt`). Wave 1
+took two rounds of agent time (R1 and its follow-up, then R2 at once) where the first build took four sessions in a row.
+
+**No claim was turned away in R2, and why.** The overlap was real: part 3's user asked for the badge to be right
+after Reset App State, and the badge is part 2's ("Cart buttons and badge", Browsing). But the agents shared work
+through the project instead of colliding: R1 had already built the cart store all three parts use; part 2 recorded
+a decision ("The cart badge is browsing's header piece, on every signed-in page") and told the others in its
+answer that changing the cart through the store is enough for the badge to follow; part 3 left the badge to part 2
+("Part 2's session built the badge itself, so I didn't touch it"), proved Reset empties it on every page with a
+test of its own, and broke Reset on purpose to see that test fail. A refusal still has to happen for real
+(the arc's end state), so R4 and R5 are cut where wave 2's spec itself makes two parts change the same thing
+(below).
+
+**What else the round showed.** Three sessions on one Windows machine each hit the same PowerShell 5.1 quoting
+trap with `gh pr create --body` and `git commit -m`, and each recorded it in the shop's library (a friction, a
+reinforcement of it, a principle: "Hand gh and git any text with quotes in a file"), so the project learned it
+three times in one round. Part 4 noted that the project's process for running Swag Labs' suite assumes port
+3000, which parallel sessions avoid.
+
+Pictures: `shots/r1-after.png` (the globe as R2 began) and `shots/r2-after.png`: the same four islands, each now
+fuller of file dots, roads unchanged (no new dependencies between stories).

@@ -1,0 +1,127 @@
+Signing in  [story_516defd61e9a]  agent says passing · storytree verified passing
+  1 · 1 · Shop server  [capability_0afc181fea8f]  agent says passing · storytree verified passing; healthy
+      - 1.1 · Serves on PORT, 3000 by default  [contract_fe2fe81f934f]  agent says passing · storytree verified passing
+      - 1.2 · Story packages plug themselves in  [contract_13366493b5dd]  agent says passing · storytree verified passing
+      - 1.3 · Unknown addresses get 404  [contract_40ca46ad8d90]  agent says passing · storytree verified passing
+      - 1.4 · npm run reset empties the data folder  [contract_ebcc98076970]  agent says passing · storytree verified passing
+      - 1.5 · Exact routes come before asset files  [contract_36b1c31558e3]  agent says passing · storytree verified passing
+  2 · 2 · Session  [capability_21ae76ba8575]  agent says passing · storytree verified passing; healthy
+      - 2.1 · Signed-out browsers are sent to the sign-in page  [contract_1d2268eae664]  agent says passing · storytree verified passing
+      - 2.2 · A session-username cookie counts as signed in  [contract_5c30098cc124]  agent says passing · storytree verified passing
+      - 2.3 · Signing out clears the cookie  [contract_ae28f5cb0858]  agent says passing · storytree verified passing
+  3 · 3 · Sign-in page  [capability_ac8c6fe73f7c]  agent says passing · storytree verified passing; healthy
+      - 3.1 · The sign-in form is at /  [contract_16a0e32929d1]  agent says passing · storytree verified passing
+      - 3.2 · standard_user signs in to Products  [contract_4e54bd679c96]  agent says passing · storytree verified passing
+      - 3.3 · locked_out_user is refused  [contract_c3f719b3bc7c]  agent says passing · storytree verified passing
+      - 3.4 · Missing or wrong details show their error  [contract_94e6d807fe07]  agent says passing · storytree verified passing
+      - 3.5 · Errors show at once, without loading a new page  [contract_49ec49a5d530]  agent says passing · storytree verified passing
+      - 3.6 · Other stories' accounts can sign in  [contract_824d59954481]  agent says passing · storytree verified passing
+  4 · 4 · Page shell  [capability_7678be237522]  agent says passing · storytree verified passing; healthy
+      - 4.1 · Signed-in pages have the header with an empty cart link  [contract_f35dcb04ac60]  agent says passing · storytree verified passing
+      - 4.2 · Other stories can add to the header  [contract_c2203b7d589f]  agent says passing · storytree verified passing
+      - 4.3 · Header pieces can depend on who is signed in  [contract_1d697062a6f6]  agent says passing · storytree verified passing
+Browsing  [story_9d312bf7fc51]  agent says not checked · storytree verified not checked
+  1 · 1 · Product catalog  [capability_c13a56b01497]  agent says not checked · storytree verified not checked; untested — no test names it, the agent's to move: 1.3
+      - 1.1 · The six products with their ids and prices  [contract_cdfd395f81b4]  agent says passing · storytree verified passing
+      - 1.2 · Browsers can load the catalog  [contract_8ba356f50b27]  agent says passing · storytree verified passing
+      - 1.3 · Browsers get the current prices  [contract_920abb0e50d7]  agent says not checked · storytree verified not checked
+  2 · 2 · Products page  [capability_ee0498ea759b]  agent says not checked · storytree verified not checked; untested — no test names it, the agent's to move: 2.3
+      - 2.1 · Lists all six products A to Z  [contract_3ad994fc4a30]  agent says passing · storytree verified passing
+      - 2.2 · Each item shows name, description, price and Add to cart  [contract_16d51d8c3c9d]  agent says passing · storytree verified passing
+      - 2.3 · Other stories can add to each item  [contract_8dafd02cc278]  agent says not checked · storytree verified not checked
+  3 · 3 · Cart store  [capability_f2d7e79ec8ea]  agent says passing · storytree verified passing; healthy
+      - 3.1 · Reads cart-contents as a list of ids  [contract_25b243551b97]  agent says passing · storytree verified passing
+      - 3.2 · Add, remove and clear write cart-contents back  [contract_d31a8832afed]  agent says passing · storytree verified passing
+      - 3.3 · Every change announces cart-change  [contract_9fa28a39f7ae]  agent says passing · storytree verified passing
+  4 · 4 · Product page  [capability_b1532822a9a5]  agent says not checked · storytree verified not checked; untested — no test names it, the agent's to move: 4.4
+      - 4.1 · Shows the product named in the address  [contract_08798de6aa63]  agent says passing · storytree verified passing
+      - 4.2 · Back to Products  [contract_f2b9c4f82376]  agent says passing · storytree verified passing
+      - 4.3 · Opened from the product's name  [contract_1e3d517349d8]  agent says passing · storytree verified passing
+      - 4.4 · Other stories can add under the product  [contract_465c2a5c87be]  agent says not checked · storytree verified not checked
+  5 · 5 · Sorting  [capability_a561e5b550c9]  agent says passing · storytree verified passing; healthy
+      - 5.1 · Sort menu with four orders  [contract_8cf6539de4f6]  agent says passing · storytree verified passing
+      - 5.2 · Choosing an order reorders the list  [contract_1cc9b433fba9]  agent says passing · storytree verified passing
+  6 · 6 · Cart buttons and badge  [capability_966d15b08695]  agent says passing · storytree verified passing; healthy
+      - 6.1 · Add to cart becomes Remove  [contract_cd193c2f9fd8]  agent says passing · storytree verified passing
+      - 6.2 · The badge shows the count  [contract_f1c37aac83bc]  agent says passing · storytree verified passing
+  7 · 7 · Search  [capability_514e624872cb]  agent says passing · storytree verified passing; healthy
+      - 7.1 · Typing filters the list  [contract_3ff69b2f21ff]  agent says passing · storytree verified passing
+      - 7.2 · The address keeps the search  [contract_038db9776fc5]  agent says passing · storytree verified passing
+      - 7.3 · No match says so  [contract_4f7987f3d684]  agent says passing · storytree verified passing
+      - 7.4 · Sorting works on the filtered list  [contract_5e3c165acdc1]  agent says passing · storytree verified passing
+The cart  [story_c3e9a28aef14]  agent says passing · storytree verified passing
+  1 · 1 · Cart page  [capability_fb0f52101882]  agent says passing · storytree verified passing; healthy
+      - 1.1 · One cart_item per product in the cart  [contract_4a74f062b993]  agent says passing · storytree verified passing
+      - 1.2 · Remove takes a product out  [contract_a92c24072ebe]  agent says passing · storytree verified passing
+      - 1.3 · Continue Shopping and Checkout  [contract_113760c5eeb5]  agent says passing · storytree verified passing
+  2 · 2 · Menu  [capability_36f0e06e3de1]  agent says passing · storytree verified passing; healthy
+      - 2.1 · The burger button opens the menu  [contract_76ef0359b8a9]  agent says passing · storytree verified passing
+      - 2.2 · All Items, About and Logout go where they should  [contract_71ce8e89fdec]  agent says passing · storytree verified passing
+      - 2.3 · Reset App State empties the cart at once  [contract_c0179f270a98]  agent says passing · storytree verified passing
+      - 2.4 · Other stories can add links to the menu  [contract_b7d78e543208]  agent says passing · storytree verified passing
+Checkout  [story_a2276e03429a]  agent says passing · storytree verified passing
+  1 · 1 · Your information  [capability_edc2c87dd93c]  agent says passing · storytree verified passing; healthy
+      - 1.1 · The information form  [contract_c49920b787e0]  agent says passing · storytree verified passing
+      - 1.2 · Missing fields show their error in order  [contract_1c92cdcfaae6]  agent says passing · storytree verified passing
+      - 1.3 · Continue sends the details to the server for the order  [contract_7f91157a834a]  agent says passing · storytree verified passing
+  2 · 2 · Overview  [capability_732117bdcaa5]  agent says passing · storytree verified passing; healthy
+      - 2.1 · One cart_item per product, with name, description and price  [contract_87cdcf5fcffa]  agent says passing · storytree verified passing
+      - 2.2 · Item total, 8% tax and total  [contract_7c6b64aadb52]  agent says passing · storytree verified passing
+      - 2.3 · Finish and Cancel  [contract_7b3cfa8756b9]  agent says passing · storytree verified passing
+  3 · 3 · Order complete  [capability_e1defbef9981]  agent says passing · storytree verified passing; healthy
+      - 3.1 · Finishing places the order, then empties the cart  [contract_4ed50d89be82]  agent says passing · storytree verified passing
+      - 3.2 · Thank you for your order, and Back Home  [contract_8975bf038c51]  agent says passing · storytree verified passing
+Accounts  [story_346c357048d7]  agent says passing · storytree verified passing
+  1 · 1 · Account store  [capability_fd2938a6238d]  agent says passing · storytree verified passing; healthy
+      - 1.1 · Accounts survive a restart  [contract_ea8762d4c349]  agent says passing · storytree verified passing
+      - 1.2 · Passwords are kept hashed  [contract_6a58b0c8896e]  agent says passing · storytree verified passing
+  2 · 2 · Sign-up page  [capability_62089da8995f]  agent says passing · storytree verified passing; healthy
+      - 2.1 · Sign up link and form  [contract_be644395d794]  agent says passing · storytree verified passing
+      - 2.2 · Broken rules show their error in order  [contract_8854b4841e87]  agent says passing · storytree verified passing
+      - 2.3 · Signing up signs in to Products  [contract_209606c2c389]  agent says passing · storytree verified passing
+  3 · 3 · Signing in with an account  [capability_af1d7d6ae2ef]  agent says passing · storytree verified passing; healthy
+      - 3.1 · A signed-up user signs in again  [contract_fe8eb77331a8]  agent says passing · storytree verified passing
+      - 3.2 · A wrong password is refused with the Swag Labs error  [contract_c3be7d6e43d4]  agent says passing · storytree verified passing
+  4 · 4 · Who is signed in  [capability_b4dc32240d29]  agent says passing · storytree verified passing; healthy
+      - 4.1 · Every signed-in page greets the user  [contract_941c1ceaf727]  agent says passing · storytree verified passing
+      - 4.2 · GET /api/me answers who is signed in  [contract_326a539f3415]  agent says passing · storytree verified passing
+Orders  [story_de7821cbec70]  agent says passing · storytree verified passing
+  1 · 1 · Order store  [capability_778cc9ca0591]  agent says passing · storytree verified passing; healthy
+      - 1.1 · Orders survive a restart  [contract_15d074810a36]  agent says passing · storytree verified passing
+      - 1.2 · Numbers count up from 1001 across the shop  [contract_de6cf352879f]  agent says passing · storytree verified passing
+  2 · 2 · Placing an order  [capability_e26f28ee3893]  agent says passing · storytree verified passing; healthy
+      - 2.1 · Finish saves the order for the signed-in user  [contract_feeaa5d3c690]  agent says passing · storytree verified passing
+      - 2.2 · The complete page shows the order number  [contract_cdab63d0a978]  agent says passing · storytree verified passing
+  3 · 3 · My Orders page  [capability_86eb27d9f9db]  agent says passing · storytree verified passing; healthy
+      - 3.1 · My Orders link in the side menu  [contract_b63848fa6a47]  agent says passing · storytree verified passing
+      - 3.2 · One row per order of this user, newest first  [contract_c987dd5bbd10]  agent says passing · storytree verified passing
+      - 3.3 · No orders yet  [contract_d193aeb59387]  agent says passing · storytree verified passing
+  4 · 4 · Order page  [capability_5be16c93cf65]  agent says passing · storytree verified passing; healthy
+      - 4.1 · Shows the order's products and total  [contract_c092c9e90511]  agent says passing · storytree verified passing
+      - 4.2 · Another user's or a missing order is not found  [contract_92a2ef05134a]  agent says passing · storytree verified passing
+Stock and admin  [story_cf0715d50ec8]  agent says passing · storytree verified passing
+  1 · 1 · Stock and price store  [capability_bcf7dc751a13]  agent says passing · storytree verified passing; healthy
+      - 1.1 · Every product starts with 10 at its catalog price  [contract_5bc934e85cc4]  agent says passing · storytree verified passing
+      - 1.2 · Stock and prices survive a restart  [contract_9ba714c2780c]  agent says passing · storytree verified passing
+      - 1.3 · Taking stock off is all or nothing  [contract_05fe18a985ab]  agent says passing · storytree verified passing
+  2 · 2 · Showing stock  [capability_5e0457655aac]  agent says passing · storytree verified passing; healthy
+      - 2.1 · Stock wording on Products and the product page  [contract_a9fb5eeda453]  agent says passing · storytree verified passing
+      - 2.2 · Sold out cannot be added to the cart  [contract_30a6540f41c8]  agent says passing · storytree verified passing
+  3 · 3 · Admin page  [capability_be5d01b8d41e]  agent says passing · storytree verified passing; healthy
+      - 3.1 · Only the admin gets in  [contract_0514ad1d2ba5]  agent says passing · storytree verified passing
+      - 3.2 · A row per product, saved one at a time  [contract_acd85779051f]  agent says passing · storytree verified passing
+      - 3.3 · The shop follows the admin straight away  [contract_cc87c104f4a8]  agent says passing · storytree verified passing
+      - 3.4 · admin_user signs in and sees the Admin link  [contract_f7c2aecaaf67]  agent says passing · storytree verified passing
+  4 · 4 · Stock at Finish  [capability_562a2f23825b]  agent says passing · storytree verified passing; healthy
+      - 4.1 · Finishing takes one of each off stock  [contract_5d731bc387f6]  agent says passing · storytree verified passing
+      - 4.2 · A sold-out product stops Finish  [contract_4d946ae92954]  agent says passing · storytree verified passing
+Reviews  [story_8434f888c7d7]  agent says passing · storytree verified passing
+  1 · 1 · Review store  [capability_b97d91ed1347]  agent says passing · storytree verified passing; healthy
+      - 1.1 · Reviews survive a restart  [contract_e7cfcdaa4ea1]  agent says passing · storytree verified passing
+  2 · 2 · Ratings and reviews shown  [capability_5cdb1bc8cc25]  agent says passing · storytree verified passing; healthy
+      - 2.1 · Rating wording on the product page and Products  [contract_19d2460ac94c]  agent says passing · storytree verified passing
+      - 2.2 · Reviews listed under the product, newest first  [contract_ab8c9b032ef8]  agent says passing · storytree verified passing
+  3 · 3 · Writing a review  [capability_493a553d7ac1]  agent says passing · storytree verified passing; healthy
+      - 3.1 · A customer who bought it can review it once  [contract_3d10b628eab7]  agent says passing · storytree verified passing
+      - 3.2 · Text is required  [contract_bce3e9e2ca5d]  agent says passing · storytree verified passing
+      - 3.3 · Everyone else is locked out  [contract_56bb0bced5f2]  agent says passing · storytree verified passing

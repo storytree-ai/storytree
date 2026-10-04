@@ -225,3 +225,30 @@ both at the first grade (`runs/r5-grade.txt`).
 | R4 | `shots/r4-after-pull-restart.png` | accounts, orders, stock and admin filled in, once main was pulled |
 | R5, during | `shots/r5-during.png` | parts 7 and 8 building; the turned-away session, which never named itself, listed beside them as "Claude Code · shop2" |
 | R5 | `shots/r5-after.png` | complete: 8 islands with land, roads, and the sessions' trails |
+
+## Export: the rebuild's growth for the website (increment_0d8cd83a8a24)
+
+`export/shop2-snapshot.json` is the rebuild's growth in the website's saved-snapshot form: **27 dated stages**
+from 05:41Z to 08:17Z on 2026-10-04, each with its code as it stood then (land, file dots, roads), its sessions
+and claims, and **health verified from the shop's own CI** (ADR-0901): every push run on `main` colours the
+stages after it, by the contract numbers in its test titles.
+
+```
+node --import tsx packages/website/src/refresh-shop.ts --project shop2 \
+  --repository ~/storytree-lanes/shop-parallel-grade/shop.git \
+  --record ~/storytree-lanes/shop-parallel-private/library-final.json \
+  --ci ~/storytree-lanes/shop-parallel-private/ci --output <file>
+```
+
+Verified health along the way: the first landing's 7 built capabilities healthy; 10 after R2; 22 during R4; at
+the end **28 of 31 healthy**. The other three (Browsing's product catalog, Products page, product page) read
+untested, truly: part 9a added a contract to each (1.3, 2.3, 4.4) that no numbered test proves.
+
+**Two gaps found and fixed on the way:** `storytree health ci` failed on the laptop because gh 2.102 will not
+print a job log holding terminal escape sequences unless told to (PR #613, CI health 3.3); and nothing was
+verified at first, because the rebuild's agents kept their tests in `packages/<story>/test/`, outside `src/`,
+where CI health had looked only (PR #614, CI health 3.4; the export's own reading follows it here).
+
+**Not yet swapped into the website.** The tour names the first build's three teaching stories by id
+(`tour-copy.ts`), its contract 2.12 test expects their titles, and its caption dates the shop 3 October; all
+are outside this lane's write fence, so the swap, with exact steps, is increment_8254e068412e.

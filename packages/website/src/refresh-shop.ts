@@ -1,6 +1,8 @@
 // From the checkout root, with the shop's code as a git repository (a bare mirror will do) and its library either
 // reachable (read only) or as a saved record (packages/app-setup/evidence/shop/harness/record-library.sh writes one):
-// node --import tsx packages/website/src/refresh-shop.ts --repository <shop git dir> (--record <file> | --library <postgres url>) [--ci <dir>] [--output <file>]
+// node --import tsx packages/website/src/refresh-shop.ts --repository <shop git dir> (--record <file> | --library <postgres url>) [--ci <dir>] [--project <name>] [--output <file>]
+// --project names the shop's project in its library: shop (the first build, the default) or shop2 (the parallel rebuild,
+// packages/app-setup/evidence/shop-parallel, whose harness/record-library.sh saves its record).
 // --ci names the folder of the shop's archived CI runs (runs.tsv, then run-<id>.log per run): each push run on main
 // colours the stages after it finished with the verified health it recorded (ADR-0902).
 // The shop: the store the test laptop's Claude Code built with storytree (packages/app-setup/evidence/shop).
@@ -13,8 +15,8 @@ import type { AnnotatedTree, Change } from "@storytree/library";
 import { refreshGrowthSnapshot } from "./conduit-growth.js";
 import { ciHealth, codeAt, landings, shopStages } from "./shop-growth.js";
 
-const project = "shop";
-const { values } = parseArgs({ options: { repository: { type: "string" }, record: { type: "string" }, library: { type: "string" }, ci: { type: "string" }, output: { type: "string" } } });
+const { values } = parseArgs({ options: { repository: { type: "string" }, record: { type: "string" }, library: { type: "string" }, ci: { type: "string" }, project: { type: "string", default: "shop" }, output: { type: "string" } } });
+const project = values.project!;
 if (!values.repository || !values.record === !values.library) throw new Error("Give --repository <shop git dir>, and one of --record <saved library record> or --library <postgres url>.");
 
 /** The library's own recorded history of the shop: its plan, every dated change and its activity lines. */

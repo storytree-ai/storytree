@@ -101,7 +101,7 @@ export async function ciHealth(input: { tree: AnnotatedTree; changes: readonly C
   let seq = Math.max(0, ...changes.map(change => change.seq));
   for (const item of runs) {
     if (item.commit === undefined) continue;
-    const paths = (await git(["ls-tree", "-r", "--name-only", item.commit, "--", "packages"])).split("\n").filter(file => /^packages\/[^/]+\/src\/.+\.[cm]?[jt]sx?$/.test(file));
+    const paths = (await git(["ls-tree", "-r", "--name-only", item.commit, "--", "packages"])).split("\n").filter(file => /^packages\/[^/]+\/.+\.[cm]?[jt]sx?$/.test(file)); // tests in a package's test folder too (CI health 3.4)
     const files = await Promise.all(paths.map(async file => ({ path: file, text: await git(["show", `${item.commit}:${file}`]) })));
     const { verdicts } = judgeRun(proofsAt(input.tree, files), parseTestLog(item.log));
     for (const [contract, verdict] of verdicts) {

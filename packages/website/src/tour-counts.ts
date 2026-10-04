@@ -27,10 +27,12 @@ export function tourCounts(snapshot: Pick<TourSnapshot, "capturedAt" | "tree" | 
   };
 }
 
-/** Conduit's growth's own dates, for the words shown over its globe. */
-export function growthCounts(growth: Pick<GrowthSnapshot, "window">): Record<string, string> {
+/** Conduit's growth's own dates, and storytree's own growth's days, for the words shown over their globes. */
+export function growthCounts(growth: Pick<GrowthSnapshot, "window">, own?: Pick<GrowthSnapshot, "window">): Record<string, string> {
   const from = new Date(growth.window.from), to = new Date(growth.window.to);
-  return { conduitRecording: `${day(from)}, ${time(from)} to ${day(to)}, ${time(to)} UTC` };
+  const days = own && { from: new Date(own.window.from), to: new Date(own.window.to) };
+  return { conduitRecording: `${day(from)}, ${time(from)} to ${day(to)}, ${time(to)} UTC`,
+    ...(days ? { ownRecording: `${day(days.from)} to ${day(days.to)}`, ownDays: String(Math.round((days.to.getTime() - days.from.getTime()) / 86_400_000)) } : {}) };
 }
 
 /** Fill each {name} the counts know; an unknown name stays as written, so a gap shows instead of a guess. */

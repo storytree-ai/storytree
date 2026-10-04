@@ -111,7 +111,7 @@ export function wireTour() {
       if (state.freePlay) {
         lines.replaceChildren(...["Explore storytree's own project: open an island, the arcs or the library.", "It's a saved reading, so nothing you do changes the project."].map(line => element("li", line, "tour-line on")));
       } else drawLines(step);
-      chips.replaceChildren(...(state.freePlay ? [] : step.chips ?? []).map(chip => element("span", chip.text, `chip chip-${chip.kind}`)));
+      chips.replaceChildren(...(state.freePlay ? [] : step.chips ?? []).map(chip => element("span", text(chip.text), `chip chip-${chip.kind}`)));
       depthToggle.hidden = state.freePlay || !step.why;
       depthToggle.textContent = step.kind === "compare" ? "Sources and decisions" : step.decisions.length ? `Why it exists · ${step.decisions.length} ${step.decisions.length === 1 ? "decision" : "decisions"}` : "Why it exists";
       card.classList.remove("is-in"); void card.offsetWidth; card.classList.add("is-in");
@@ -125,6 +125,7 @@ export function wireTour() {
     }
     // The note names whose globe is on show: Conduit's growth is a replay of its own library (ADR-0879 D7).
     note.textContent = globe.map === "conduit" ? text("Conduit · replayed from its own library, {conduitRecording}")
+      : globe.map === "own" ? text("Storytree, built with storytree · replayed from its own records, {ownRecording}")
       : globe.map === "shop" ? "An online shop agents built with storytree · replayed from its own records, 3 October 2026"
       : step.chips?.some(chip => chip.kind === "recording") && !state.freePlay ? text("Recording · storytree's activity, {recording}") : text("storytree's own project · saved {saved} · read only");
     // A step's lines arrive one at a time; a waiting step shows them all (the engine says how many).
@@ -215,7 +216,7 @@ export function wireTour() {
       if (current && !tour.state.freePlay) current.style.setProperty("--fill", tour.progress().toFixed(3));
       // A step that replays a growth tells the drawing where it is, every frame (ADR-0889 2.2).
       const growing = globeOf(steps[tour.state.index]!, tour.state, tour.elapsed());
-      if (tour.running && typeof steps[tour.state.index]!.growth === "object" && growing.map === "shop" && growing.at !== undefined) window.dispatchEvent(new CustomEvent("storytree-tour-growth", { detail: { at: growing.at, index: tour.state.index, generation: tour.state.generation } }));
+      if (tour.running && typeof steps[tour.state.index]!.growth === "object" && (growing.map === "own" || growing.map === "shop") && growing.at !== undefined) window.dispatchEvent(new CustomEvent("storytree-tour-growth", { detail: { at: growing.at, index: tour.state.index, generation: tour.state.generation } }));
     }
     requestAnimationFrame(frame);
   };

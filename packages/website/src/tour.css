@@ -68,9 +68,9 @@ html:has(> body.immersive-home) { scroll-padding-top:0; }
 /* Act 2 arrives (ADR-0889): the pain in words on the dark screen chapter 1 leaves, before any globe or name. */
 #chapter2[data-tour-step="pain"][data-tour-mode="tour"] :is(.tour-heading h1, .tour-note) { opacity:0; transition:none; }
 #chapter2 :is(.tour-heading h1, .tour-note) { transition:opacity 1.2s ease; }
-/* Until the shop's drawing is live (loading, or no WebGL), the still is storytree's own globe, not the shop's: the arrival stays dark. */
-#chapter2[data-globe-map="shop"][data-tour-mode="tour"] #website-forest:not([data-forest-state="live"]) .forest-still,
-#chapter2[data-globe-map="shop"][data-tour-mode="tour"]:has(#website-forest[data-forest-state="still"]) .tour-note { visibility:hidden; }
+/* Until a growth's drawing is live (loading, or no WebGL), the still is storytree's saved reading, not the growth: the arrival stays dark. */
+#chapter2:is([data-globe-map="own"], [data-globe-map="shop"])[data-tour-mode="tour"] #website-forest:not([data-forest-state="live"]) .forest-still,
+#chapter2:is([data-globe-map="own"], [data-globe-map="shop"])[data-tour-mode="tour"]:has(#website-forest[data-forest-state="still"]) .tour-note { visibility:hidden; }
 
 /* The value statement, alone on its slide: the headline and its subhead, nothing else. */
 #chapter2[data-tour-kind="statement"] .tour-kicker { visibility:hidden; }
@@ -226,6 +226,6 @@ html:has(> body.immersive-home) { scroll-padding-top:0; }
   #chapter2 .tour-card.is-in, #chapter2 .tour-line, #chapter2 .tour-tag-ring, #chapter2 .tb-play[data-state="waiting"], #chapter2 .chip-recording::before { animation:none !important; transition:none !important; }
   #chapter2[data-tour-kind="beats"] .tour-line.on { animation:none; }
   #chapter2 :is(.tour-title, .pain, .turn, .fix) { animation:none !important; }
-  /* Reduced motion draws the shop's globe whole at once, so under the pain it is not drawn at all. */
+  /* Reduced motion draws storytree's growing globe whole at once, so under the pain it is not drawn at all. */
   #chapter2[data-tour-step="pain"][data-tour-mode="tour"] #website-forest { opacity:0; }
 }

@@ -1,9 +1,11 @@
 {
-  "contract": "2.11",
+  "contract": "2.11, 2.12",
   "source": "Locally built unpublished working tree, SwiftShader",
   "observed": [
-    "2.11 arrival with the live globe at 1440 and 390: pass",
-    "2.11 reduced motion and no WebGL keep the arrival dark under the pain: pass",
+    "1440: 34.8 fps over 2.5 s of the time-lapse",
+    "390: 58.1 fps over 2.5 s of the time-lapse",
+    "2.11 arrival on storytree's own globe and 2.12 the cut to the shop's three islands, live globe at 1440 and 390: pass",
+    "2.11 reduced motion, no WebGL and a loading globe keep the arrival dark under the pain: pass",
     "Act 1's exit lands on the pain: pass"
   ]
 }

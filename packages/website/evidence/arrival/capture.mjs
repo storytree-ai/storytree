@@ -1,5 +1,6 @@
-// Act 2's arrival (ADR-0889, contract 2.11), from the locally built site: the pain on a dark screen, the shop's
-// recorded growth replayed on the tour's clock, the value statement alone, and the three fixes in each look.
+// Act 2's arrival (ADR-0889, contracts 2.11 and 2.12), from the locally built site: the pain on a dark screen,
+// storytree's own recorded growth replayed on the tour's clock, the value statement alone, the three fixes in each
+// look, and the cut to the shop's three teaching islands.
 // pnpm --filter @storytree/website build && node packages/website/evidence/arrival/capture.mjs [--only <name>]
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
@@ -34,6 +35,8 @@ async function open(viewport, { firstVisit = false, reducedMotion = "no-preferen
 }
 const stepOf = page => page.locator("#chapter2").getAttribute("data-tour-step");
 const drawing = page => page.locator(".forest-drawing").evaluate(node => ({ globe: node.dataset.globe, growth: node.dataset.growth }));
+/** Frames drawn per second over `ms`, counted by the page's own animation frames. */
+const fps = (page, ms) => page.evaluate(ms => new Promise(resolve => { let n = 0; const start = performance.now(); const tick = now => { n++; if (now - start < ms) requestAnimationFrame(tick); else resolve(n * 1000 / (now - start)); }; requestAnimationFrame(tick); }), ms);
 const go = async (page, id) => { await page.locator(`#tour-pips [data-step="${id}"]`).click(); assert.equal(await stepOf(page), id); };
 const shot = (page, name) => page.screenshot({ path: path.join(here, `${name}.png`) });
 const pause = async page => { if (await page.locator("#tour-play").getAttribute("aria-label") === "Pause the tour") await page.locator("#tour-play").click(); };
@@ -45,26 +48,31 @@ const runs = {
     for (const [tag, viewport] of [["1440", { width: 1440, height: 900 }], ["390", { width: 390, height: 844 }]]) {
       const page = await open(viewport);
       assert.equal(await stepOf(page), "pain", "Act 2 opens on the pain");
-      assert.deepEqual(await drawing(page), { globe: "shop", growth: "0.00" }, "under the pain the shop's globe is still its point");
+      assert.deepEqual(await drawing(page), { globe: "own", growth: "0.00" }, "under the pain storytree's own globe is still its point");
       assert.equal(await page.locator(".tour-heading h1").evaluate(node => getComputedStyle(node).opacity), "0", "nor is storytree named yet");
       await page.waitForTimeout(9000); await shot(page, `${tag}-1-pain`);
       await go(page, "grow");
       const moments = [];
       const sample = async (index, wait) => {
         await page.waitForTimeout(wait);
-        moments.push(Number((await drawing(page)).growth));
+        // A slow machine can finish the time-lapse before the last sample: whole is its end.
+        const { growth } = await drawing(page);
+        moments.push(growth === "whole" ? Infinity : Number(growth));
         if (tag === "1440" || index % 2 === 1) await shot(page, `${tag}-2-grow-${index}`);
       };
-      for (const [index, wait] of [[0, 600], [1, 2800], [2, 2800]]) await sample(index, wait);
+      await sample(0, 0);
+      const rate = await fps(page, 2500);
+      observed.push(`${tag}: ${rate.toFixed(1)} fps over 2.5 s of the time-lapse`);
+      for (const [index, wait] of [[1, 0], [2, 2800]]) await sample(index, wait);
       await pause(page); const held = (await drawing(page)).growth;
       await page.waitForTimeout(2500);
       assert.equal((await drawing(page)).growth, held, "pausing the tour holds the growth");
       await play(page);
       for (const [index, wait] of [[3, 2400], [4, 2400]]) await sample(index, wait);
-      assert.ok(moments.every((at, index) => index === 0 || at >= moments[index - 1]) && moments.at(-1) > moments[0] + 10, `the shop grows as the step plays: ${moments}`);
+      assert.ok(moments.every((at, index) => index === 0 || at >= moments[index - 1]) && moments.at(-1) > moments[0] + 10, `storytree's globe grows as the step plays: ${moments}`);
       await page.waitForFunction(() => document.querySelector("#chapter2").dataset.tourStep === "value", null, { timeout: 30_000 });
       await page.waitForTimeout(400);
-      assert.deepEqual(await drawing(page), { globe: "shop", growth: "whole" }, "after the time-lapse the shop is whole");
+      assert.deepEqual(await drawing(page), { globe: "own", growth: "whole" }, "after the time-lapse storytree's globe is whole");
       assert.equal(await page.locator("#tour-title").textContent(), "Storytree builds a map of your project and glues it to your code.");
       assert.equal(await page.locator("#tour-chips .chip").count(), 0, "the value statement is alone on its slide");
       await page.waitForTimeout(2200); await shot(page, `${tag}-3-value`);
@@ -78,9 +86,16 @@ const runs = {
       assert.match(await page.locator("#tour-why").textContent(), /four principles/, "the principles are the fixes' depth");
       assert.equal(await page.locator("#tour-why .tour-decisions").count(), 0, "with no decision list");
       await shot(page, `${tag}-5-principles-depth`);
+      await page.locator("#tour-depth").click();
+      // 2.12: the cut to the shop, whole, narrowed to products, cart and checkout.
+      await go(page, "start-small"); await play(page);
+      await page.waitForFunction(() => document.querySelector(".forest-drawing")?.dataset.globe === "shop" && document.querySelector(".forest-drawing")?.dataset.arrived === "true", null, { timeout: 30_000 });
+      assert.deepEqual(await drawing(page), { globe: "shop", growth: "whole" }, "the shop is shown whole");
+      assert.equal(await page.locator(".forest-drawing").getAttribute("data-focus"), "story_0c36494ccf30 story_29b9f7826e86 story_24ca85400abc", "narrowed to products, cart and checkout");
+      await page.waitForTimeout(6000); await shot(page, `${tag}-6-start-small`);
       await page.close();
     }
-    observed.push("2.11 arrival with the live globe at 1440 and 390: pass");
+    observed.push("2.11 arrival on storytree's own globe and 2.12 the cut to the shop's three islands, live globe at 1440 and 390: pass");
   },
   // The look of each fixes treatment as it plays: three frames of one row turning.
   async turning() {
@@ -108,11 +123,11 @@ const runs = {
     });
     await still.goto(url); await still.locator("#tour-play").waitFor();
     assert.equal(await stepOf(still), "pain");
-    assert.equal(await still.locator(".forest-still img").evaluate(node => node.checkVisibility({ visibilityProperty: true })), false, "no WebGL: storytree's still never stands in for the shop");
+    assert.equal(await still.locator(".forest-still img").evaluate(node => node.checkVisibility({ visibilityProperty: true })), false, "no WebGL: storytree's saved still never stands in under the pain");
     await go(still, "fixes"); await pause(still); await still.waitForTimeout(300);
     await still.screenshot({ path: path.join(here, "390-no-webgl-4-fixes.png") });
     await still.close();
-    // While the globe is still loading, storytree's saved still never stands in for the shop either.
+    // While the globe is still loading, storytree's saved still never stands in under the pain either.
     const loading = await browser.newPage({ viewport: { width: 1440, height: 900 } });
     loading.on("pageerror", error => errors.push(error.message));
     await loading.addInitScript(() => localStorage.setItem("storytree-opening-seen", "yes"));
@@ -140,7 +155,7 @@ const runs = {
   async clip() {
     const page = await open({ width: 1440, height: 900 }, { video: true });
     await page.waitForTimeout(500);
-    await page.waitForFunction(() => document.querySelector("#chapter2").dataset.tourStep === "fixes", null, { timeout: 90_000 });
+    await page.waitForFunction(() => document.querySelector("#chapter2").dataset.tourStep === "start-small", null, { timeout: 120_000 });
     await page.waitForTimeout(9000);
     const video = page.video(); await page.close();
     const file = await video.path();
@@ -151,7 +166,7 @@ const runs = {
 try {
   for (const [name, run] of Object.entries(runs)) if (!only || only === name) { console.log(`run ${name}`); await run(); }
   assert.deepEqual(errors, [], "the browser reports no errors");
-  if (!only) await writeFile(path.join(here, "observations.json"), JSON.stringify({ contract: "2.11", source: "Locally built unpublished working tree, SwiftShader", observed }, null, 2) + "\n");
+  if (!only) await writeFile(path.join(here, "observations.json"), JSON.stringify({ contract: "2.11, 2.12", source: "Locally built unpublished working tree, SwiftShader", observed }, null, 2) + "\n");
   console.log(observed.join("\n"));
 } finally {
   await browser.close(); server.close();

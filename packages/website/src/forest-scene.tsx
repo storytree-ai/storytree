@@ -10,6 +10,7 @@ import { createKnowledgeCore, KnowledgeNoteCard, type KnowledgeCore } from "@sto
 import saved from "./forest-snapshot.json" with { type: "json" };
 import grown from "./conduit-snapshot.json" with { type: "json" };
 import shopSaved from "./shop-snapshot.json" with { type: "json" };
+import ownSaved from "./own-snapshot.json" with { type: "json" };
 import { crossingLength, growthPlan, type GrowthPlan } from "@storytree/forest-world/planet";
 import { buildPlanetPathways } from "@storytree/forest-world/geometry";
 import type { GrowthSnapshot, TourSnapshot } from "./forest-data.js";
@@ -22,22 +23,27 @@ const places = new Map(snapshot.places.map(place => [place.id, place.place]));
 const conduit = grown as unknown as GrowthSnapshot;
 const conduitPlaces = new Map(conduit.places.map(place => [place.id, place.place]));
 const stages = new Map(conduit.stages.map(stage => [stage.id, stage]));
-/** The shop's recorded growth (ADR-0889 2.2): Act 2 arrives on it, grown from a point as its agents built it. */
+/** A recorded growth to replay from a point: storytree's own (ADR-0889 2.2b), where Act 2 arrives, and the shop's, where its chapters teach (ADR-0890). */
+function recordedGrowth(snapshot: GrowthSnapshot) {
+  let planned: GrowthPlan | undefined;
+  return { snapshot, places: new Map(snapshot.places.map(place => [place.id, place.place])), sessions: snapshot.stages.map(({ at, wisps }) => ({ at, wisps })),
+    /** Planned on first use: a stage whose recorded sessions changed holds a beat, so each claim and landing is seen (world 7.6). */
+    plan: () => planned ??= (() => {
+      const pathways = buildPlanetPathways(snapshot.scene, new Map(snapshot.spots), snapshot.radius);
+      const sessions = (index: number) => JSON.stringify(snapshot.stages[index]?.wisps.map(wisp => [wisp.session, wisp.story]) ?? []);
+      const stages = snapshot.stages.map(({ id, at, scene }, index) => ({ id, at, scene, ...(sessions(index) !== sessions(index - 1) ? { hold: 1 } : {}) }));
+      return growthPlan(stages, { fromPoint: true, seconds: 15, roadLength: link => crossingLength(pathways, link), until: snapshot.stages.at(-1)!.at });
+    })() };
+}
 const shop = shopSaved as unknown as GrowthSnapshot;
-const shopPlaces = new Map(shop.places.map(place => [place.id, place.place]));
-const shopSessions = shop.stages.map(({ at, wisps }) => ({ at, wisps }));
-let shopGrowth: GrowthPlan | undefined;
-/** Planned on first use: a stage whose recorded sessions changed holds a beat, so each claim and landing is seen (world 7.6). */
-const shopPlan = () => shopGrowth ??= (() => {
-  const pathways = buildPlanetPathways(shop.scene, new Map(shop.spots), shop.radius);
-  const sessions = (index: number) => JSON.stringify(shop.stages[index]?.wisps.map(wisp => [wisp.session, wisp.story]) ?? []);
-  const stages = shop.stages.map(({ id, at, scene }, index) => ({ id, at, scene, ...(sessions(index) !== sessions(index - 1) ? { hold: 1 } : {}) }));
-  return growthPlan(stages, { fromPoint: true, seconds: 15, roadLength: link => crossingLength(pathways, link), until: shop.stages.at(-1)!.at });
-})();
-type GlobeMap = "storytree" | "conduit" | "shop";
+const own = ownSaved as unknown as GrowthSnapshot;
+const growths = { own: recordedGrowth(own), shop: recordedGrowth(shop) };
+type Grown = keyof typeof growths;
+type GlobeMap = "storytree" | "conduit" | Grown;
+const grows = (map: GlobeMap): map is Grown => map === "own" || map === "shop";
 const notes = [...knowledge(snapshot.changes).notes.values()];
 const complete: GlobeSurfaces = { sea: true, grounds: true, roads: true, nameplates: true, territories: "health", fileCircles: true, knowledgeCore: true, sessionTints: true };
-const overviews: Record<GlobeMap, GlobeTarget> = { storytree: { kind: "story", story: "story_deee4230348c" }, conduit: { kind: "core" }, shop: { kind: "core" } };
+const overviews: Record<GlobeMap, GlobeTarget> = { storytree: { kind: "story", story: "story_deee4230348c" }, conduit: { kind: "core" }, own: { kind: "core" }, shop: { kind: "core" } };
 /** The globe at rest fills most of the short side (ADR-0877 D2). */
 const restingFraming = 1.1;
 type Recording = ReturnType<typeof savedReading>;
@@ -54,7 +60,7 @@ const reader = (() => {
 })();
 /** Overview steps drift round the islands in their places' order, one leg at a time. */
 const order = (nodes: readonly { id: string; place: number }[]) => [...nodes].sort((a, b) => a.place - b.place).map(place => place.id);
-const driftOrders: Record<GlobeMap, string[]> = { storytree: order(snapshot.places), conduit: order(conduit.places), shop: order(shop.places) };
+const driftOrders: Record<GlobeMap, string[]> = { storytree: order(snapshot.places), conduit: order(conduit.places), own: order(own.places), shop: order(shop.places) };
 
 /** A lost graphics context leaves the saved picture and the readable app surfaces available. */
 class GlobeBoundary extends Component<{ children: ReactNode; failed(): void }, { failed: boolean }> {
@@ -161,9 +167,11 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   const [browserOpen, setBrowserOpen] = useState(false);
   const [width, setWidth] = useState(window.innerWidth);
   const [arrived, setArrived] = useState(false);
-  // The shop's own knowledge core, its notes appearing as the time-lapse reaches their dates (knowledge core 1.9).
-  const shopCore = useMemo(() => { const made = createKnowledgeCore(shop.project); made.take(shop.changes ?? [], []); return made; }, []);
-  useEffect(() => () => shopCore.dispose(), [shopCore]);
+  // Each growth's own knowledge core, its notes appearing as the time-lapse reaches their dates (knowledge core 1.9).
+  const growthCores = useMemo(() => Object.fromEntries((Object.keys(growths) as Grown[]).map(map => {
+    const made = createKnowledgeCore(growths[map].snapshot.project); made.take(growths[map].snapshot.changes ?? [], []); return [map, made];
+  })) as Record<Grown, KnowledgeCore>, []);
+  useEffect(() => () => Object.values(growthCores).forEach(made => made.dispose()), [growthCores]);
   // Where the arrival's time-lapse stands: told every frame by the tour while it plays (ADR-0889 2.2).
   const [growthAt, setGrowthAt] = useState<{ at: number; index: number; generation: number }>();
   useEffect(() => {
@@ -384,25 +392,28 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   const shownNotes = notes.filter(item => String(item.fields.title ?? "").toLowerCase().includes(query.toLowerCase()));
   const selected = story ?? (touring && !everything ? step?.select : undefined);
   const onStorytree = shownMap === "storytree";
-  const onShop = shownMap === "shop";
-  // The tour's step says how far the shop has grown (seconds at 1×); its plan may be a little longer or shorter.
+  const grown = grows(shownMap) ? growths[shownMap] : undefined;
+  // The tour's step says how far the growth has played (seconds at 1×); its plan may be a little longer or shorter.
   const playing = typeof step?.growth === "object" ? step.growth.seconds : undefined;
   // Undefined is whole; a held seed is the point the globe grows from.
-  let shopMoment: number | undefined;
-  if (globe.map === "shop" && globe.at !== undefined) {
+  let moment: number | undefined;
+  if (grown && globe.map === shownMap && "at" in globe && globe.at !== undefined) {
     const told = growthAt && growthAt.index === state?.index && growthAt.generation === state?.generation ? growthAt.at : globe.at;
-    shopMoment = playing === undefined ? 0 : told / playing * shopPlan().seconds;
+    moment = playing === undefined ? 0 : told / playing * grown.plan().seconds;
   }
-  const growth = onShop ? { plan: shopPlan(), at: shopMoment ?? Infinity } : undefined;
+  const growth = grown ? { plan: grown.plan(), at: moment ?? Infinity } : undefined;
+  // A step narrowed to a few stories dims the rest (ADR-0890's three teaching stories).
+  const focus = touring && !everything && globe.map === shownMap && "focus" in globe ? globe.focus : undefined;
+  const drawn = grown?.snapshot.scene ?? stage?.scene ?? snapshot.scene;
   return <>
     {webgl && tour && <GlobeBoundary failed={failed}>
-      <div className="forest-drawing" role="group" aria-label={onStorytree ? "Storytree’s saved project globe" : onShop ? "An online shop’s globe, growing as its agents built it" : `Conduit’s saved globe, as it stood ${stage!.at.slice(0, 16).replace("T", " ")} UTC`}
-        data-globe={shownMap} data-arrived={arrived} data-stage={stage?.id} data-growth={onShop ? shopMoment === undefined ? "whole" : shopMoment.toFixed(2) : undefined}
-        data-islands={(onShop ? shop.scene : stage?.scene ?? snapshot.scene).islands.length} onPointerDown={explore} onWheel={explore}>
-        <PlanetView core={onShop ? shopCore : core} scene={onShop ? shop.scene : stage?.scene ?? snapshot.scene} places={onStorytree ? places : onShop ? shopPlaces : conduitPlaces}
-          frame={onStorytree ? undefined : onShop ? shop.scene : conduit.scene} growth={growth} recordedSessions={onShop ? shopSessions : undefined}
-          wisps={onShop ? [] : stage?.wisps ?? wisps} selected={selected}
-          highlighted={highlight.stories} highlightedSession={highlight.session} onPick={pickStory} onNote={pickNote}
+      <div className="forest-drawing" role="group" aria-label={onStorytree ? "Storytree’s saved project globe" : shownMap === "own" ? "Storytree’s own globe, growing as its agents built it" : shownMap === "shop" ? "An online shop’s globe, as its agents built it" : `Conduit’s saved globe, as it stood ${stage!.at.slice(0, 16).replace("T", " ")} UTC`}
+        data-globe={shownMap} data-arrived={arrived} data-stage={stage?.id} data-growth={grown ? moment === undefined ? "whole" : moment.toFixed(2) : undefined} data-focus={focus?.join(" ")}
+        data-islands={drawn.islands.length} onPointerDown={explore} onWheel={explore}>
+        <PlanetView core={grown ? growthCores[shownMap as Grown] : core} scene={drawn} places={onStorytree ? places : grown?.places ?? conduitPlaces}
+          frame={onStorytree ? undefined : grown?.snapshot.scene ?? conduit.scene} growth={growth} recordedSessions={grown?.sessions}
+          wisps={grown ? [] : stage?.wisps ?? wisps} selected={selected}
+          highlighted={focus ?? highlight.stories} highlightedSession={highlight.session} onPick={pickStory} onNote={pickNote}
           onWispHover={() => {}} onControls={onControls} surfaces={surfaces} framing={restingFraming} sideOffset={offsetFor(undefined, width)} mode={mode} />
       </div>
     </GlobeBoundary>}

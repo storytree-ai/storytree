@@ -136,7 +136,7 @@ export async function verifyOpeningFrames(browser, url, output) {
     // The turn is about 1.1 s of animation; a loaded machine may stretch it, never freeze it.
     assert.ok(measured.exitToHandoverMs < 2000, `website 1.9: the turn hands over in about the time it is drawn to take (${Math.round(measured.exitToHandoverMs)} ms)`);
     assert.ok(measured.painStallsMs.every(([start, end]) => start >= 0 || end - start < 1000), `website 1.9: the turn draws frames throughout (${JSON.stringify(measured.painStallsMs)})`);
-    assert.deepEqual(measured.globesBeforeGrowth, ["shop"], "website 2.10: under the pain the drawing shows only the shop's seed, never another globe");
+    assert.deepEqual(measured.globesBeforeGrowth, ["own"], "website 2.10: under the pain the drawing shows only storytree's own seed, never another globe");
     assert.equal(measured.activationsAfterHandover, 1, "website 2.10: the hand-over starts one globe");
     assert.ok(measured.liveBeforeGrowth, "website 2.10: the globe is set up behind the pain beat, before the time-lapse starts");
     const before = measured.painStallsMs.filter(([start]) => start >= 0 && start < measured.firstPainLineMs);

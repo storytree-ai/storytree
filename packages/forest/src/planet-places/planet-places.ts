@@ -1,13 +1,13 @@
 /**
  * Story nodes' places on the globe: rows by dependency depth (the rows decision, which supersedes ADR-0646's
  * permanent places and ADR-0648's packed book). A place is a row and a slot in it; the rows are bands of
- * latitude, the bottom one about 42° south and the top one about 42° north, evenly spaced, so a story with a
+ * latitude, the bottom one about 46° south and the top one about 46° north, evenly spaced, so a story with a
  * deeper chain of dependencies sits further north. Distances use the forest engine's ground units.
  */
 export const PLANET_RADIUS = 218;
 
 /** The latitude of the top row, and (south) of the bottom row, in radians. */
-export const ROW_LATITUDE = 42 * Math.PI / 180;
+export const ROW_LATITUDE = 46 * Math.PI / 180;
 
 /** The slots a row's places are numbered across: a place is its row times this, plus its slot, plus one. */
 const ROW_PLACES = 1000;

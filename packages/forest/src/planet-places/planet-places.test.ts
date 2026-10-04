@@ -40,7 +40,7 @@ test("1.4 a story's island sits north of every story it depends on, and stories 
   for (const id of ["b", "c"]) assert.ok(near(at(id), at("a")), "a, b and c depend on nothing: one row");
   assert.ok([...spots.values()].every(p => latitude(p) >= at("a") - 1e-6), "and it is the bottom row");
   assert.ok(near(at("f"), at("d")), "d and f are each one above what they depend on: one row");
-  assert.ok(near(at("a"), -42, 1) && near(at("e"), 42, 1), "rows run from about 42° south to 42° north");
+  assert.ok(near(at("a"), -46, 1) && near(at("e"), 46, 1), "rows run from about 46° south to 46° north");
   assert.ok(near(at("d") - at("a"), at("e") - at("d")), "evenly spaced");
 });
 

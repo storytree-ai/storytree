@@ -20,7 +20,7 @@ import type { AnnotatedTree, Change } from "@storytree/library";
 
 import { grove } from "../capability-tree/capability-tree.js";
 import { packageOf, type StorySurvey } from "@storytree/map";
-import { islandArea } from "../planet-places/island-growth.js";
+import { islandArea, MIN_ISLAND_AREA, unsurveyedArea } from "../planet-places/island-growth.js";
 import { storyNodes } from "../story-nodes/story-nodes.js";
 import { landForCircles } from "../territories/territories.js";
 
@@ -29,6 +29,11 @@ export type { ForestScene, Island, PlacedTree };
 
 /** The largest an island grows, so it always fits its place. */
 const MAX_RADIUS = PLACE_WIDTH * 0.42;
+/**
+ * The flat forest's places are spread out as far as the land grew (ADR-0910: 318 to {@link MIN_ISLAND_AREA} ground
+ * units² for each capability an unsurveyed story draws), so neighbouring story nodes still never overlap on it.
+ */
+const FLAT_SPREAD = Math.sqrt(MIN_ISLAND_AREA / 318);
 /** How far apart the grove's entries are set out from an island's middle. 0.2 stood a tree on each spot;
  *  since ADR-0804 D1 none is drawn: the spots set each entry's x and z, which the drawing does not read,
  *  and `Island.radius`, which only `storyAt` reads. */
@@ -62,8 +67,8 @@ export function forestScene(tree: AnnotatedTree, history: readonly Change[], sta
     const reach = Math.max(...spots.map(({ r }) => r));
     const radius = Math.min(MAX_RADIUS, reach + 2.4);
     const squeeze = reach + 2.4 > MAX_RADIUS ? (MAX_RADIUS - 2.4) / reach : 1;
-    const x = (node?.at.x ?? 0) * PLACE_WIDTH;
-    const z = (node?.at.y ?? 0) * PLACE_WIDTH;
+    const x = (node?.at.x ?? 0) * PLACE_WIDTH * FLAT_SPREAD;
+    const z = (node?.at.y ?? 0) * PLACE_WIDTH * FLAT_SPREAD;
     const contractsOf = new Map(story.capabilities.map(({ id, contracts }) => [id, contracts.length]));
     const placed = trees.map(({ capability, form, status }, index): PlacedTree => {
       const spot = spots[index] ?? { r: 0, angle: 0 };
@@ -79,10 +84,10 @@ export function forestScene(tree: AnnotatedTree, history: readonly Change[], sta
       };
     });
     const land = landOf(story.capabilities, survey[story.id], packageOf(story.title));
-    // ADR-0804 D3, D7: a surveyed story's land follows its lines of code, grown where its files' circles need more room; unsurveyed, it follows its capabilities.
-    const area = land === undefined ? undefined : landForCircles(land.territories, land.files, islandArea(land.territories.reduce((sum, { lines }) => sum + lines, 0)));
+    // ADR-0804 D3, D7: a surveyed story's land follows its lines of code, grown where its files' circles need more room; unsurveyed, it follows its capabilities, a one-capability floor's worth of land each, so it grows in step with the surveyed ones.
+    const area = land === undefined ? unsurveyedArea(story.capabilities.length) : landForCircles(land.territories, land.files, islandArea(land.territories.reduce((sum, { lines }) => sum + lines, 0)));
     const key = JSON.stringify([story.title, x, z, placed.map(({ capability, form, status, contracts }) => [capability, form, status, contracts]), land?.territories, area]);
-    return { story: story.id, title: story.title, x, z, radius, trees: placed, ...(land === undefined ? {} : { land, area: area! }), key };
+    return { story: story.id, title: story.title, x, z, radius, trees: placed, ...(land === undefined ? {} : { land }), area, key };
   });
   const links = tree.stories.flatMap(story => story.capabilities.flatMap(capability =>
     capability.dependsOn.map(to => ({ from: capability.id, to }))));

@@ -212,14 +212,14 @@ export async function verifyTour(browser, url, output) {
 
 // Website 2.6, 1.6 and 5.4: the chapter fills the viewport, its controls are reachable and tappable, free play is the desktop's.
 const overlap = (a, b) => Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
-// 2.18 on a phone: the agents chapter's tags each read whole inside the screen, clear of one another, the card and the panels,
-// and the arcs drawer ends above the card.
-async function verifyPhoneAgents(page, width, height, output) {
+// 2.18 at every width: the agents chapter's tags each read whole inside the screen, clear of one another, the other rings,
+// the card and the panels; on a phone the arcs drawer ends above the card.
+async function verifyAgentTags(page, width, height, output) {
   for (const id of ["agents-arcs", "agents-claim", "agents-parallel"]) {
     await goToStep(page, id);
     if (await page.locator("#tour-play").getAttribute("aria-label") === "Pause the tour") await page.locator("#tour-play").click();
     const card = await page.locator("#tour-card").boundingBox();
-    if (id !== "agents-parallel") {
+    if (id !== "agents-parallel" && width < 600) {
       await page.locator("#chapter2 .arc-overlay").waitFor();
       await page.waitForTimeout(400);
       const drawer = await page.locator("#chapter2 .arc-overlay").boundingBox();
@@ -230,11 +230,13 @@ async function verifyPhoneAgents(page, width, height, output) {
     await page.waitForFunction(count => document.querySelectorAll("#tour-tags .tour-tag:not(.away)").length === count, count, { timeout: 30_000 });
     await page.waitForTimeout(800);
     const tags = await page.locator("#tour-tags .tour-tag:not(.away) .tour-tag-text").evaluateAll(nodes => nodes.map(node => { const box = node.getBoundingClientRect(); return { x: box.x, y: box.y, width: box.width, height: box.height, text: node.textContent }; }));
+    const rings = await page.locator("#tour-tags .tour-tag:not(.away) .tour-tag-ring").evaluateAll(nodes => nodes.map(node => { const box = node.getBoundingClientRect(); return { x: box.x, y: box.y, width: box.width, height: box.height }; }));
     const panels = await page.locator("#chapter2 :is(.sessions-list, .arc-overlay)").evaluateAll(nodes => nodes.map(node => node.getBoundingClientRect()).filter(box => box.width).map(box => ({ x: box.x, y: box.y, width: box.width, height: box.height })));
     tags.forEach((tag, index) => {
       assert.ok(tag.x >= 0 && tag.y >= 0 && tag.x + tag.width <= width && tag.y + tag.height <= height, `${tag.text} is inside the screen at ${width}px: ${JSON.stringify(tag)}`);
       for (const other of tags.slice(index + 1)) assert.equal(overlap(tag, other), 0, `${tag.text} is clear of ${other.text} at ${width}px`);
       for (const panel of [card, ...panels]) assert.equal(overlap(tag, panel), 0, `${tag.text} is clear of the card and the panels at ${width}px`);
+      rings.forEach((ring, other) => { if (other !== index) assert.equal(overlap(tag, ring), 0, `${tag.text} is clear of ring ${other} at ${width}px`); });
     });
     await page.screenshot({ path: path.join(output, `${id}-${width}.png`) });
   }
@@ -242,8 +244,8 @@ async function verifyPhoneAgents(page, width, height, output) {
 
 export async function verifyImmersive(browser, url, output) {
   const measurements = [];
-  for (const width of [1440, 390, 320]) {
-    const height = width < 600 ? 844 : 1000;
+  for (const width of [1920, 1440, 1280, 390, 320]) {
+    const height = { 1920: 1080, 1440: 900, 1280: 800 }[width] ?? 844;
     const page = await browser.newPage({ viewport: { width, height }, reducedMotion: "reduce" });
     await page.addInitScript(() => localStorage.setItem("storytree-opening-seen", "yes"));
     await page.goto(url);
@@ -289,7 +291,7 @@ export async function verifyImmersive(browser, url, output) {
     await page.screenshot({ path: path.join(output, `grow-${width}.png`) });
     await goToStep(page, "value");
     assert.equal(await recorded.isVisible(), false, "a step without a recording has no small print");
-    if (width < 600) await verifyPhoneAgents(page, width, height, output);
+    await verifyAgentTags(page, width, height, output);
     await page.locator("#tour-skip").click();
     await page.locator(".forest-views").waitFor();
     assert.equal(await page.locator("#chapter2").getAttribute("data-tour-mode"), "freeplay");

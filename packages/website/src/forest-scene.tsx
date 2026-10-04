@@ -128,17 +128,18 @@ function Tags({ tags, controls, arrived }: { tags: readonly Tag[]; controls: Glo
         const label = node.lastElementChild as HTMLElement;
         shown.push({ node, label, box: { x, y, width: label.offsetWidth, height: label.offsetHeight }, index });
       });
-      // A laptop sets each name on whichever side of its ring has room; a phone also keeps them clear of one another, the
-      // other rings, the islands' names, the card and the panels, below or above the ring where the sides have no room (2.18).
+      // Each name sits on whichever side of its ring has room, clear of the other names, the other rings, the islands' names,
+      // the card and the panels, below or above the ring where the sides have no room (2.18). A phone keeps a name on its
+      // last side so it does not flit as the globe turns; a laptop has the room to take the first clear side every frame,
+      // so a side chosen while a panel slid in is not kept once it has gone, and its names share the room when the first
+      // clear sides leave one covered.
       const room = { width: stage.width, height: stage.height };
       const phone = stage.width <= 600;
-      const keepOut = phone ? [...document.querySelectorAll("#chapter2 :is(.tour-card, .sessions-list, .arc-overlay, .arc-handle), #website-forest .planet-nameplate:not(.crowded)")]
+      const keepOut = [...document.querySelectorAll("#chapter2 :is(.tour-card, .sessions-list, .arc-overlay, .arc-handle), #website-forest .planet-nameplate:not(.crowded)")]
         .filter(node => getComputedStyle(node).visibility === "visible").map(node => ({ box: node.getBoundingClientRect(), soft: node.classList.contains("planet-nameplate") }))
         .filter(({ box }) => box.width && box.height)
-        .map(({ box, soft }) => ({ x: box.left - stage.left, y: box.top - stage.top, width: box.width, height: box.height, soft })) : [];
-      const sides = shown.length ? phone
-        ? placeTags(shown.map(item => item.box), room, { keepOut, sides: ["right", "left", "below", "above"], previous: shown.map(item => previous[item.index]) })
-        : shown.map(item => placeTags([item.box], { width: room.width, height: Infinity })[0]!) : [];
+        .map(({ box, soft }) => ({ x: box.left - stage.left, y: box.top - stage.top, width: box.width, height: box.height, soft }));
+      const sides = shown.length ? placeTags(shown.map(item => item.box), room, { keepOut, sides: ["right", "left", "below", "above"], previous: phone ? shown.map(item => previous[item.index]) : [], share: !phone }) : [];
       previous = [];
       shown.forEach(({ node, label, index }, at) => {
         const side = sides[at]!;

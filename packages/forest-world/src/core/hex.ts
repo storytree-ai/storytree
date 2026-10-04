@@ -48,16 +48,20 @@ export interface Axial {
 
 /**
  * THE LAND-PER-CAPABILITY RATIO, in ground units² — ADR-0520 D2's constant, and the number the whole
- * lattice below derives from, which is why it lives in this root package (`forest-world-r3f`
- * re-exports it; the mapper still sizes every 3D island to exactly `capabilities × this`).
+ * lattice below derives from, which is why it lives in this root package (`land-per-capability.ts`
+ * re-exports it; the mapper sizes every island without surveyed code to exactly
+ * `capabilities × this`, and an island with surveyed code to its lines' area, ADR-0804 D3).
  *
  * Provenance (ADR-0520 D2): PICKED ON THE LOOK from a rendered ladder (2,239 / 318 / 200 / 108) at
  * both zooms on the RTX 2060 (`docs/research/chapter2-land-per-capability-2026-09-05/`). 318 is the
  * density of the picture the owner called nicer on 2026-09-05 — 72 trees on the fixture island, about
  * 318 units² of land per tree — and the approved Cycles render's own density read in the true basis
- * (≈ 316 per pine; `land-per-capability.test.ts` holds the two within a few percent). A constant
- * with no provenance is how the old ratio drifted unchosen; change this one on a rendered ladder,
- * never by hand.
+ * (≈ 316 per pine; `land-per-capability.test.ts` holds the two within a few percent).
+ *
+ * ⚠ THAT PROVENANCE IS HISTORY (corrected in place 2026-10-05). No tree stands on an island since
+ * ADR-0804 D1: the globe draws each island flat, cut into capability territories. The value is now
+ * the land one capability gets and, through `HEX_R` below, the hex every island's coast is built
+ * from; tree size and spacing constrain neither. A change to it is judged on the globe's islands.
  */
 export const LAND_AREA_PER_CAPABILITY = 318;
 

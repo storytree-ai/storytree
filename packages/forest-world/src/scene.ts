@@ -1,11 +1,13 @@
 /**
  * The forest a story's surface hands this engine to draw: its islands, one per story node, each with
- * its grove, in world units. The forest story (packages/forest) lays it out and imports these shapes
+ * its capabilities (still typed as a grove of trees, 0.2's names), in world units. Since ADR-0804 D1
+ * no tree is drawn: an island is a flat surface cut into capability territories, and a `PlacedTree`
+ * is only a capability's record on it. The forest story (packages/forest) lays it out and imports these shapes
  * from here, so the engine never depends on the story: a workspace dependency back would make a
  * cycle, which pnpm turns into a loop of directory junctions on Windows.
  */
 
-/** How a capability's tree looks. */
+/** A capability's work-state form (0.2 drew it as a tree's look; nothing draws it since ADR-0804 D1). */
 export type TreeForm = "seedling" | "pale" | "green" | "dead";
 
 /** A capability's word (ADR-0744): what storytree verified about it, never the agent's report alone. */
@@ -14,20 +16,20 @@ export type CapabilityWord = "proposed" | "healthy" | "unhealthy" | "untested";
 /** How many world units one place-width is: wide enough that neighbouring islands never touch. */
 export const PLACE_WIDTH = 16;
 
-/** One tree as it stands on its island, in world units. */
+/** One capability on its island, in world units: 0.2's tree, of which only the record remains (no tree is drawn, ADR-0804 D1). */
 export interface PlacedTree {
   /** The capability's id; undefined for the one seedling of a story with no capabilities yet. */
   capability: string | undefined;
   form: TreeForm;
   /** Its capability's word; absent for the one seedling of a story with no capabilities yet. */
   status?: CapabilityWord;
-  /** How many contracts its capability has: 0.2's engine grows that much ground cover on its parcel. */
+  /** How many contracts its capability has: 0.2's engine reads it as its parcel's ground cover, which nothing draws since ADR-0804 D1. */
   contracts: number;
   x: number;
   z: number;
-  /** How tall it stands, 1 for a full tree. */
+  /** 0.2's tree height, 1 for a full tree; nothing reads it to draw since ADR-0804 D1. */
   scale: number;
-  /** Which way it is turned, in radians, so a grove does not look stamped. */
+  /** 0.2's tree turn, in radians; nothing reads it to draw since ADR-0804 D1. */
   turn: number;
 }
 

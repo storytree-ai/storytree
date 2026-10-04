@@ -1,20 +1,23 @@
 /**
  * The one join between 0.3's forest and 0.2's drawing engine (the forest story, capability 3).
  *
- * 0.3 decides WHERE and WHAT: each story node's place on the spiral (P1, `storyNodes`) and its
- * grove, one tree per capability in one of four forms (G1, `grove`), both carried by
- * `forestScene`. 0.2's engine decides HOW IT LOOKS: the relaxed-mesh ground, the smoothed coast, the
- * parcels and the kit trees standing on them. Between the two, this file builds the input 0.2's
+ * 0.3 decides WHERE and WHAT: each story node's place (P1, `storyNodes`) and its capabilities, one
+ * entry per capability in build order with its work-state form (`grove`), both carried by
+ * `forestScene`. 0.2's engine builds the ground: the relaxed-mesh cells, the smoothed coast and one
+ * parcel per capability. Between the two, this file builds the input 0.2's
  * scene core takes (`SceneInput`), the way 0.2's own website did for islands whose centres it
  * already knew (`composePublicGroundScene` in 0.2's `packages/forest-world`): a hexagon of tiles
  * per island, relaxed into the mesh, its boundary smoothed into a coast, and one parcel per
  * capability seeded on its own cell. Only the input is new; the ground is 0.2's.
  *
- * What it leaves to 0.2 unchanged: an island's size follows its capability count (0.2's
- * `LAND_AREA_PER_CAPABILITY`, applied by `worldTo3D`), and what stands on a parcel follows the
- * status it wears (`stateForm` in `kit-vocabulary.ts`). What it takes from 0.3 alone: the place and
- * the form. The form a tree takes is 0.3's `grove`'s decision; `statusOf` only names which of 0.2's
- * statuses draws that form.
+ * ⚠ NO TREE STANDS ON THESE PARCELS (corrected in place 2026-10-05, ADR-0804 D1). This header used
+ * to say 0.2's engine also stands its kit trees on them. Today the globe keeps only the cells this
+ * join yields (`forestDescriptors`' `cell-ground`): each island's coast, parcels and reach, under its
+ * flat surface and its capability territories. An island's size follows its capability count
+ * (`LAND_AREA_PER_CAPABILITY`, applied by `worldTo3D`) unless its story's surveyed code sets it
+ * (`Island.area`, ADR-0804 D3). Each capability's form still reaches the engine as its parcel's status
+ * (`statusOf`), which only the unmounted flat canvas's props would show; the globe fills a
+ * territory by its capability's verified word instead (ADR-0825 D3).
  *
  * This first pass builds land. The globe's `buildPlanetPathways` joins recorded capability links
  * to these actual clipped coasts and parcel centres, then feeds the ground's worn paths and the
@@ -62,10 +65,11 @@ export const GROUND_PER_PLACE = 110;
 export const GROUND_PER_WORLD_UNIT = GROUND_PER_PLACE / PLACE_WIDTH;
 
 /**
- * Which of 0.2's statuses draws each of 0.3's tree forms: a seedling wears 0.2's building tint
- * (planned or being built), a pale tree 0.2's `mapped` tint (landed, nothing reported), a green tree
- * the kit's own needles (landed and reported passing), and a dead tree 0.2's bare trunk (landed,
- * reported failing).
+ * Which of 0.2's statuses each of 0.3's forms becomes on its parcel: a seedling 0.2's `building`
+ * (planned or being built), pale 0.2's `mapped` (landed, nothing reported), green `healthy` (landed
+ * and reported passing), and dead `unhealthy` (landed, reported failing). 0.2 drew these as a
+ * tree's tint, needles or bare trunk; since ADR-0804 D1 no tree is drawn, and the globe ignores
+ * these statuses.
  */
 const STATUS: Readonly<Record<TreeForm, SceneStatus>> = {
   seedling: "building",
@@ -135,7 +139,7 @@ function groundFor(island: Island, owner: number, centre: Pt): { cells: RelaxedC
 }
 
 /** The cell the `index`th of `count` parcels is seeded on: spread evenly through the island's cells, so the
- *  parcels (and the trees standing on them) share the island rather than crowding one side of it. */
+ *  parcels (and the pathway ends set on their centres) share the island rather than crowding one side of it. */
 function spreadIndex(index: number, count: number, cells: number): number {
   return Math.min(cells - 1, Math.floor(((index + 0.5) * cells) / count));
 }
@@ -222,7 +226,7 @@ export function islandAt(descriptors: readonly Descriptor3D[], x: number, z: num
   return groundCells(descriptors).find((cell) => inside(cell.points!, x, z))?.island;
 }
 
-/** Where each capability's parcel lies, as the middle of its cells, in 0.2 ground units: the tree stands on it. */
+/** Where each capability's parcel lies, as the middle of its cells, in 0.2 ground units: the globe's pathways end there (`planet/pathways.ts`). */
 export function parcelSpots(descriptors: readonly Descriptor3D[]): Map<string, { x: number; z: number }> {
   const sums = new Map<string, { x: number; z: number; n: number }>();
   for (const cell of groundCells(descriptors)) {

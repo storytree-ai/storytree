@@ -21,6 +21,13 @@
 // one decimal place; the studio's inline JSX mixed raw + toFixed, so the mapper's
 // output is VISUALLY identical (sub-pixel), not byte-identical — visual parity is
 // operator-attested (ADR-0070), determinism + shape correctness is red-green here.
+//
+// ⚠ IN 0.3 (noted in place 2026-10-05, ADR-0804 D1): the studio, the 0.2 website and their 2D
+// maps are gone, and no surface draws the story tree, garden plants, decor trees, flora, signposts
+// or wisp orbits this still builds. The globe calls `buildScene` (through `forest-ground.ts`'s
+// `forestDescriptors` and `worldTo3D`) and keeps only the relaxed cells: each island's coast,
+// parcels and reach. Everything else here is computed and dropped. Read the tree and plant prose
+// below as 0.2's map, not as what an island shows today.
 
 import { hash, rand01 } from './rng.js';
 import {

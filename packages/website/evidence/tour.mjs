@@ -132,6 +132,15 @@ export async function verifyTour(browser, url, output) {
   // 2.6: skipping opens dated, read-only free play; the app's surfaces work without WebGL.
   await page.locator("#tour-skip").click();
   assert.equal(await page.locator("#chapter2").getAttribute("data-tour-mode"), "freeplay");
+  // 2.13: free play opens on the whole shop; the selector switches it to storytree's own saved project.
+  assert.equal(await page.locator("#chapter2").getAttribute("data-globe-map"), "shop");
+  assert.match(await page.locator("#tour-label").textContent(), /online shop .* recorded \d+ \w+ \d{4} · read only/);
+  assert.equal(await page.locator(".forest-still img").evaluate(node => node.checkVisibility({ visibilityProperty: true })), false, "storytree's still never stands in for the shop");
+  await page.clock.runFor(500);
+  assert.equal(await page.locator(".tour-session-surface").evaluate(node => node.hidden), true, "storytree's recorded sessions are not the shop's");
+  await page.getByRole("button", { name: "storytree", exact: true }).click();
+  assert.equal(await page.getByRole("button", { name: "storytree", exact: true }).getAttribute("aria-pressed"), "true");
+  assert.equal(await page.locator("#chapter2").getAttribute("data-globe-map"), "storytree");
   assert.match(await page.locator("#tour-label").textContent(), /saved \d+ \w+ \d{4} · read only/);
   assert.equal(await page.locator("#website-forest").getAttribute("data-forest-state"), "still");
   await page.getByRole("button", { name: "Find a story or note in the saved project", exact: true }).click();
@@ -188,6 +197,16 @@ export async function verifyImmersive(browser, url, output) {
     await page.locator(".forest-views").waitFor();
     assert.equal(await page.locator("#chapter2").getAttribute("data-tour-mode"), "freeplay");
     assert.equal(await page.locator(".tour-card").isVisible(), false, "Free play clears the guide card");
+    // 2.13: it opens on the whole shop; the selector is small, inside the viewport, and switches to storytree's own.
+    await page.waitForFunction(() => document.querySelector(".forest-drawing")?.dataset.globe === "shop");
+    assert.equal(await page.locator(".forest-drawing").getAttribute("data-growth"), "whole");
+    const selector = await page.locator("#tour-project").boundingBox();
+    assert.ok(selector.x >= 0 && selector.x + selector.width <= width && selector.y >= 0, `The project selector is inside the viewport at ${width}px`);
+    for (const button of await page.locator("#tour-project button").all()) if (width < 600) assert.ok((await button.boundingBox()).height >= 44, "The selector keeps 44px touch targets");
+    await page.waitForTimeout(1500);
+    await page.screenshot({ path: path.join(output, `freeplay-shop-${width}.png`) });
+    await page.getByRole("button", { name: "storytree", exact: true }).click();
+    await page.waitForFunction(() => document.querySelector(".forest-drawing")?.dataset.globe === "storytree");
     await page.getByRole("button", { name: "Library", exact: true }).click();
     assert.equal(await page.getByRole("button", { name: "Library", exact: true }).getAttribute("aria-pressed"), "true");
     await page.getByRole("button", { name: "Forest", exact: true }).click();

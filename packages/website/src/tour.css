@@ -68,8 +68,9 @@ html:has(> body.immersive-home) { scroll-padding-top:0; }
 /* Act 2 arrives (ADR-0889): the pain in words on the dark screen chapter 1 leaves, before any globe or name. */
 #chapter2[data-tour-step="pain"][data-tour-mode="tour"] :is(.tour-heading h1, .tour-note) { opacity:0; transition:none; }
 #chapter2 :is(.tour-heading h1, .tour-note) { transition:opacity 1.2s ease; }
-/* Until a growth's drawing is live (loading, or no WebGL), the still is storytree's saved reading, not the growth: the arrival stays dark. */
-#chapter2:is([data-globe-map="own"], [data-globe-map="shop"])[data-tour-mode="tour"] #website-forest:not([data-forest-state="live"]) .forest-still,
+/* Until a growth's drawing is live (loading, or no WebGL), the still is storytree's saved reading, not the growth: the arrival
+   stays dark, and so does free play on the shop. */
+#chapter2:is([data-globe-map="own"], [data-globe-map="shop"]) #website-forest:not([data-forest-state="live"]) .forest-still,
 #chapter2:is([data-globe-map="own"], [data-globe-map="shop"])[data-tour-mode="tour"]:has(#website-forest[data-forest-state="still"]) .tour-note { visibility:hidden; }
 
 /* The value statement, alone on its slide: the headline and its subhead, nothing else. */

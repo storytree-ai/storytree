@@ -1,7 +1,12 @@
 import { pageReading, type BoardReads, type Timers } from "@storytree/arc-surface";
 import type { Line } from "@storytree/agent-link";
 import type { SessionsReads } from "@storytree/forest/view";
-import type { TourSnapshot } from "./forest-data.js";
+import type { GrowthSnapshot, TourSnapshot } from "./forest-data.js";
+
+/** A saved growth's public reading as a snapshot the surfaces read, for free play's story panels, arcs and sessions on it (2.14); a growth saved without one has none. */
+export function growthReading(growth: GrowthSnapshot): TourSnapshot | undefined {
+  return growth.reading && { ...growth, ...growth.reading, changes: growth.changes ?? [] } as unknown as TourSnapshot;
+}
 
 /** The app's read-only surfaces receive the saved records, with the recording's own clock. */
 /** `until` holds the reading at a recorded moment: only what was recorded by then (2.17). */

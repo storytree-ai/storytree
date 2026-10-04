@@ -36,14 +36,21 @@ export function gitIn(folder: string): Git {
   return async (args) => (await promisify(execFile)("git", ["-C", folder, ...args], { encoding: "utf8", maxBuffer: 256 * 1024 * 1024, windowsHide: true })).stdout;
 }
 
-/** The Actions API through the user's `gh` sign-in, asking again on GitHub's passing 5xx answers. */
-export function ghApi(): GitHub {
+/**
+ * The Actions API through the user's `gh` sign-in (`command`, after `prefix`), asking again on GitHub's passing 5xx
+ * answers. A job's log may hold terminal escape sequences, which gh from 2.10x prints only when allowed; older gh knows
+ * no such flag, so it is passed only once gh asks for it.
+ */
+export function ghApi(command = "gh", prefix: readonly string[] = []): GitHub {
   const call = async (route: string): Promise<string> => {
+    let allow: string[] = [];
     for (let attempt = 1; ; attempt++) {
       try {
-        return (await promisify(execFile)("gh", ["api", route], { encoding: "utf8", maxBuffer: 256 * 1024 * 1024, windowsHide: true })).stdout;
+        return (await promisify(execFile)(command, [...prefix, "api", route, ...allow], { encoding: "utf8", maxBuffer: 256 * 1024 * 1024, windowsHide: true })).stdout;
       } catch (error) {
-        if (attempt >= 3 || !/HTTP 5\d\d/.test(String((error as { stderr?: string }).stderr ?? error))) throw error;
+        const said = String((error as { stderr?: string }).stderr ?? error);
+        if (allow.length === 0 && said.includes("--allow-escape-sequences")) allow = ["--allow-escape-sequences"];
+        else if (attempt >= 3 || !/HTTP 5\d\d/.test(said)) throw error;
       }
     }
   };

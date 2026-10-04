@@ -203,7 +203,7 @@ test("2.16 · the map chapter walks the shop's three teaching stories, and its g
   assert.ok(grow.compare && grow.compare.sources.some(Boolean), "the comparison is offered on the last step");
 });
 
-test("2.18 · on a phone, each tag's name sits inside the screen, clear of the other tags and rings, the card and the panels", () => {
+test("2.18 · on a phone and on a laptop, each tag's name sits inside the screen, clear of the other tags and rings, the card and the panels", () => {
   // The agents chapter's parallel step at 320: three rings close together, a sessions list above and the card below.
   const room = { width: 320, height: 560 };
   const tags = [{ x: 142, y: 262, width: 115, height: 25 }, { x: 175, y: 262, width: 185, height: 25 }, { x: 145, y: 195, width: 115, height: 25 }];
@@ -218,8 +218,30 @@ test("2.18 · on a phone, each tag's name sits inside the screen, clear of the o
     for (const [other, label] of boxes.entries()) if (other !== index) assert.ok(!meets(box, label), `tag ${index} is clear of tag ${other}`);
     for (const panel of keepOut) assert.ok(!meets(box, panel), `tag ${index} is clear of ${JSON.stringify(panel)}`);
   });
-  // A laptop keeps its placement: the name to the right of its ring, or to the left where the right has no room.
+  // A laptop: the name to the right of its ring, or to the left where the right has no room. A ring between pixels (as
+  // the globe drifts) is still clear on the right: the claim step's cart at 1280 once went left by a rounding error.
   const wide = { width: 1440, height: 900 };
   assert.equal(placeTags([{ x: 900, y: 400, width: 160, height: 25 }], wide)[0]!.side, "right");
   assert.equal(placeTags([{ x: 1350, y: 400, width: 160, height: 25 }], wide)[0]!.side, "left");
+  assert.equal(placeTags([{ x: 896.0133401209908, y: 598.6357908097438, width: 187, height: 24 }], { width: 1280, height: 800 }, { share: true })[0]!.side, "right");
 });
+
+test("2.18 · on a laptop, where the first-come sides leave a tag over a panel, the tags share the room so each reads clear", () => {
+  // The parallel step at 1280×800 reached from the claim step: Browsing and the cart sit on the sessions list's top edge.
+  // Part 2 taking the room above its ring left Part 3 none; Part 2 to the left (over an island's name) frees it.
+  const room = { width: 1280, height: 800 };
+  const tags = [{ x: 799.27, y: 579.33, width: 120, height: 24 }, { x: 891.82, y: 579.72, width: 187, height: 24 }, { x: 852, y: 400, width: 121, height: 24 }];
+  const names = [[847, 743, 83, 18], [760, 610, 79, 18], [856, 625, 71, 18], [812, 421, 80, 18], [957, 616, 78, 18], [914, 434, 62, 18], [783, 246, 112, 33], [901, 260, 70, 18]];
+  const panels = [{ x: 24, y: 476, width: 400, height: 248 }, { x: 440, y: 591, width: 824, height: 137 }];
+  const keepOut = [...names.map(([x, y, width, height]) => ({ x: x!, y: y!, width: width!, height: height!, soft: true })), ...panels];
+  const placed = placeTags(tags, room, { keepOut, sides: ["right", "left", "below", "above"], share: true });
+  const boxes = placed.map((at, index) => ({ x: tags[index]!.x + at.x, y: tags[index]!.y + at.y, width: tags[index]!.width, height: tags[index]!.height }));
+  const rings = tags.map(tag => ({ x: tag.x - 17, y: tag.y - 17, width: 34, height: 34 }));
+  const meets = (a: typeof boxes[number], b: typeof boxes[number]) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+  boxes.forEach((box, index) => {
+    for (const [other, ring] of rings.entries()) if (other !== index) assert.ok(!meets(box, ring), `tag ${index} is clear of ring ${other}`);
+    for (const [other, label] of boxes.entries()) if (other !== index) assert.ok(!meets(box, label), `tag ${index} is clear of tag ${other}`);
+    for (const panel of panels) assert.ok(!meets(box, panel), `tag ${index} is clear of ${JSON.stringify(panel)}: ${JSON.stringify(box)}`);
+  });
+});
+

@@ -167,26 +167,59 @@ const meet = (a: Box, b: Box) => Math.max(0, Math.min(a.x + a.width, b.x + b.wid
  * Where each tag's name sits, as its box's top-left from its ring's middle: `tags` are the rings' middles with their names'
  * sizes. A name takes the first of `sides` (its `previous` side first, so it does not flit) where it stays inside the room,
  * clear of the names already placed, the other rings and `keepOut`; where none is clear, the side that covers least, a
- * `soft` box (an island's name) counting a fifth as much as a ring, a name or a panel (2.18).
+ * `soft` box (an island's name) counting a fifth as much as a ring, a name or a panel. With `share` (a laptop), a side is
+ * clear allowing for rounding, and when taking sides first come, first served leaves a name over a ring, a name, a panel or
+ * the room's edge, up to four names share the room instead: every choice of sides, a name above or below also flush with
+ * its ring's left or right edge, is weighed and the one that covers least wins, the hard boxes first. A phone keeps the
+ * first-come placement it was given (2.18).
  */
-export function placeTags(tags: readonly Box[], room: { width: number; height: number }, { keepOut = [], sides = ["right", "left"], previous = [] }: { keepOut?: readonly (Box & { soft?: boolean })[]; sides?: readonly TagSide[]; previous?: readonly (TagSide | undefined)[] } = {}): { side: TagSide; x: number; y: number }[] {
+export function placeTags(tags: readonly Box[], room: { width: number; height: number }, { keepOut = [], sides = ["right", "left"], previous = [], share = false }: { keepOut?: readonly (Box & { soft?: boolean })[]; sides?: readonly TagSide[]; previous?: readonly (TagSide | undefined)[]; share?: boolean } = {}): { side: TagSide; x: number; y: number }[] {
   const rings = tags.map(tag => ({ x: tag.x - ring, y: tag.y - ring, width: ring * 2, height: ring * 2 }));
-  const placed: Box[] = [];
-  return tags.map((tag, index) => {
+  // Each name's sides in the order it tries them, each with what it covers apart from the other names: `hard` counts the
+  // rings, the panels and four times what falls outside the room; `cost` adds a fifth of the islands' names it covers.
+  const options = tags.map((tag, index) => {
     const across = Math.min(Math.max(margin, tag.x - tag.width / 2), room.width - margin - tag.width) - tag.x;
     const offsets: Record<TagSide, { x: number; y: number }> = {
       right: { x: gap, y: -tag.height / 2 }, left: { x: -gap - tag.width, y: -tag.height / 2 },
       below: { x: across, y: gap }, above: { x: across, y: -gap - tag.height },
     };
     const order = [...new Set([previous[index], ...sides].filter((side): side is TagSide => !!side && sides.includes(side)))];
-    const scored = order.map(side => {
-      const at = offsets[side], box = { x: tag.x + at.x, y: tag.y + at.y, width: tag.width, height: tag.height };
-      const outside = tag.width * tag.height - meet(box, { x: margin, y: margin, width: room.width - margin * 2, height: room.height - margin * 2 });
-      const covered = [...placed, ...rings.filter((_, other) => other !== index), ...keepOut].reduce((sum, other) => sum + meet(box, other) * ("soft" in other && other.soft ? .2 : 1), 0);
-      return { side, ...at, box, cost: outside * 4 + covered };
+    // After the four sides, a name above or below may also sit flush with its ring's left or right edge rather than centred.
+    const flush = !share ? [] : order.filter(side => side === "below" || side === "above").flatMap(side => [ring - tag.width, -ring].map(x => ({ side, x, y: offsets[side].y })));
+    return [...order.map(side => ({ side, ...offsets[side] })), ...flush].map(({ side, ...at }) => {
+      const box = { x: tag.x + at.x, y: tag.y + at.y, width: tag.width, height: tag.height };
+      const inside = tag.width * tag.height - meet(box, { x: margin, y: margin, width: room.width - margin * 2, height: room.height - margin * 2 });
+      const outside = share ? Math.max(0, inside) : inside;
+      const others = [...rings.filter((_, other) => other !== index), ...keepOut];
+      const hard = outside * 4 + others.reduce((sum, other) => sum + ("soft" in other && other.soft ? 0 : meet(box, other)), 0);
+      return { side, ...at, box, hard, cost: hard + others.reduce((sum, other) => sum + ("soft" in other && other.soft ? meet(box, other) * .2 : 0), 0) };
     });
-    const best = scored.find(option => option.cost === 0) ?? scored.reduce((a, b) => b.cost < a.cost ? b : a);
-    placed.push(best.box);
-    return { side: best.side, x: best.x, y: best.y };
   });
+  // Sharing allows for rounding: fractional boxes can leave a side a hair above or below zero.
+  const clear = (value: number) => share ? Math.abs(value) < 1e-6 : value === 0;
+  const placed: Box[] = [];
+  const first = options.map(sided => {
+    const scored = sided.map(option => { const names = placed.reduce((sum, other) => sum + meet(option.box, other), 0); return { option, hard: option.hard + names, cost: option.cost + names }; });
+    const best = scored.find(choice => clear(choice.cost)) ?? scored.reduce((a, b) => b.cost < a.cost ? b : a);
+    placed.push(best.option.box);
+    return best;
+  });
+  const weigh = (choice: readonly (typeof options)[number][number][]) => {
+    const names = choice.reduce((sum, option, index) => sum + choice.slice(index + 1).reduce((more, other) => more + meet(option.box, other.box), 0), 0);
+    return { hard: choice.reduce((sum, option) => sum + option.hard, 0) + names, cost: choice.reduce((sum, option) => sum + option.cost, 0) + names };
+  };
+  let chosen = first.map(({ option }) => option);
+  if (share && !clear(first.reduce((sum, { hard }) => sum + hard, 0)) && tags.length <= 4) {
+    let best = weigh(chosen);
+    const choose = (index: number, choice: (typeof options)[number][number][]): void => {
+      if (index === options.length) {
+        const weighed = weigh(choice);
+        if (weighed.hard < best.hard - 1e-6 || (clear(weighed.hard - best.hard) && weighed.cost < best.cost - 1e-6)) { best = weighed; chosen = [...choice]; }
+        return;
+      }
+      for (const option of options[index]!) choose(index + 1, [...choice, option]);
+    };
+    choose(0, []);
+  }
+  return chosen.map(option => ({ side: option.side, x: option.x, y: option.y }));
 }

@@ -3,11 +3,11 @@ import { createElement } from "react";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { arcsAfter, isSessionRows, keptPanelOpen, SessionsList, windowsReader } from "./sessions-list.js";
+import { arcsAfter, isSessionRows, keptPanelOpen, keptTab, SessionsList, windowsReader } from "./sessions-list.js";
 import type { ArcView } from "@storytree/library";
 import type { SessionWindow } from "@storytree/agent-link";
 import { sessionColour } from "../agent-claims/agent-claims.js";
-import type { SessionRow } from "../sessions-list/sessions-list.js";
+import type { HistoryRow, SessionRow } from "../sessions-list/sessions-list.js";
 
 const row: SessionRow = { id: "parent", label: "Build <signup>", agent: "Codex", state: "waiting",
   idle: false, lastSeenAt: "2026-09-28T12:00:00Z", totalTokens: 120_000, stories: ["signup"], worktrees: [], running: [], description: [], children: [
@@ -211,4 +211,54 @@ test("expanded rows' windows are read in one batched ask, one at a time: rows as
   await new Promise(resolve => setTimeout(resolve, 0));
   assert.deepEqual(heard, ["a", "b"]);
   assert.deepEqual(asks, [["a", "b"], ["c", "d"]], "the rows asked meanwhile, together, without b again");
+});
+
+/** A time on 3 October 2026, local, as History's days are. */
+const local = (hour: number, minute: number): string => new Date(2026, 9, 3, hour, minute).toISOString();
+const past: HistoryRow[] = [
+  { id: "lander", label: "Build signup", agent: "Claude Code", startedAt: local(9, 0), lastSeenAt: local(10, 30), ranMs: 90 * 60_000,
+    stories: [{ id: "s1", title: "Sign up" }], outcome: { kind: "landed", prs: [12, 13] } },
+  { id: "holder", label: "Choose the tabs", agent: "Codex", startedAt: local(13, 0), lastSeenAt: local(14, 0), ranMs: 60 * 60_000,
+    stories: [], outcome: { kind: "held", question: "Which tab opens first?" } },
+  { id: "quiet", label: "Tidy the docs", agent: "Codex", startedAt: local(15, 0), lastSeenAt: local(15, 20), ranMs: 20 * 60_000,
+    stories: [], outcome: { kind: "no-close-out" } },
+];
+
+test("7.21 the History tab lists past sessions, each row led by how it ended, under a range bar of presets and a custom from–to", () => {
+  const html = renderToStaticMarkup(createElement(SessionsList, { rows: [row], history: past, tab: "history", range: { preset: "yesterday" },
+    now: new Date(2026, 9, 4, 12), onHighlight() {} }));
+  assert.match(html, /role="tab" aria-selected="false"[^>]*>Live</);
+  assert.match(html, /role="tab" aria-selected="true"[^>]*>History</);
+  assert.doesNotMatch(html, /data-session-id="parent"/, "the live rows are not drawn under History");
+  assert.deepEqual([...html.matchAll(/aria-pressed="(\w+)"[^>]*>(Today|Yesterday|7 days)</g)].map(m => [m[2], m[1]]),
+    [["Today", "false"], ["Yesterday", "true"], ["7 days", "false"]]);
+  assert.match(html, /type="date"[^>]*value="2026-10-03"[^>]*>.*type="date"[^>]*value="2026-10-03"/, "the custom days show the range chosen");
+  const rows = [...html.matchAll(/class="history-row" data-session-id="(\w+)".*?<span class="history-outcome" data-outcome="([\w-]+)"[^>]*>([^<]*)</g)];
+  assert.deepEqual(rows.map(m => [m[1], m[2], m[3]]), [["lander", "landed", "Landed #12 · #13"], ["holder", "held", "Held: Which tab opens first?"],
+    ["quiet", "no-close-out", "Ended without a close-out"]], "outcome leads each row");
+  assert.match(html, /Build signup<\/span><span class="history-agent">Claude Code<\/span><span class="history-ran">1h 30m<\/span><span class="history-stories">Sign up<\/span>/);
+  const none = renderToStaticMarkup(createElement(SessionsList, { rows: [row], history: [], tab: "history", range: { preset: "today" }, onHighlight() {} }));
+  assert.match(none, /No sessions ended in this range/);
+});
+
+test("7.22 the Live tab is the list as it was; the tab is kept per project, Live when nothing or a foreign value is kept", () => {
+  const live = renderToStaticMarkup(createElement(SessionsList, { rows: [row], history: past, onHighlight() {} }));
+  assert.match(live, /role="tab" aria-selected="true"[^>]*>Live</);
+  assert.match(live, /data-session-id="parent"/);
+  assert.doesNotMatch(live, /history-row/);
+  const store = new Map<string, string>();
+  const storage = { getItem: (key: string) => store.get(key) ?? null, setItem: (key: string, value: string) => void store.set(key, value) };
+  assert.equal(keptTab("demo", storage).read(), "live");
+  keptTab("demo", storage).write("history");
+  assert.equal(keptTab("demo", storage).read(), "history");
+  assert.equal(keptTab("other", storage).read(), "live", "kept per project");
+  store.set("storytree.forest.sessions-tab.v1:demo", "\"archive\"");
+  assert.equal(keptTab("demo", storage).read(), "live", "a foreign value is ignored");
+});
+
+test("7.23 the selected history row is marked as a selected live row is", () => {
+  const html = renderToStaticMarkup(createElement(SessionsList, { rows: [row], history: past, tab: "history", range: { preset: "yesterday" },
+    now: new Date(2026, 9, 4, 12), selected: "holder", onHighlight() {} }));
+  assert.match(html, /class="history-row" data-session-id="holder" data-selected="true"/);
+  assert.doesNotMatch(html, /data-session-id="lander" data-selected/);
 });

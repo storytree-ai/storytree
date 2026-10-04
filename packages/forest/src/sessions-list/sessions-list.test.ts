@@ -1,9 +1,9 @@
 /** Running sessions: the forest's session-to-island reading. */
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { Line, NewLine } from "@storytree/agent-link/readings";
+import { LogFold, type Line, type NewLine } from "@storytree/agent-link/readings";
 import type { AnnotatedTree, ArcView } from "@storytree/library";
-import { atWork, clickedSelection, sessionRoster, sessionRows, windowFiles } from "./sessions-list.js";
+import { atWork, clickedSelection, dayRange, globeRoster, historyRows, historySelection, presetRange, sessionRoster, sessionRows, windowFiles } from "./sessions-list.js";
 import { sessionColour } from "../agent-claims/agent-claims.js";
 
 const now = new Date("2026-09-28T12:00:00Z");
@@ -270,3 +270,88 @@ test("7.20 a row carries the agent link's work-on-main flag (4.26): outside a wo
   const rows = new Map(sessionRows(tree, lines, [], now).map(row => [row.id, row]));
   assert.deepEqual(["stray", "fresh", "plain"].map(id => rows.get(id)?.onMain), ["outside-workspace", "first-commit-pending", undefined]);
 });
+
+describe7_21();
+function describe7_21(): void {
+  const day = (at: string): string => `2026-10-0${at}`;
+  const later = new Date("2026-10-04T12:00:00Z");
+  const range = { from: Date.parse(day("3T00:00:00Z")), to: Date.parse(day("4T00:00:00Z")) };
+  const lines = (): Line[] => [
+    // Landed: a verified close-out, a merged pull request it held and an increment it closed as landed.
+    { session: "lander", harness: "claude-code", source: "hook", kind: "session-started", at: day("3T09:00:00Z") },
+    { session: "lander", harness: "claude-code", source: "tool", kind: "claimed", increment: "inc-a", reason: "Build signup", at: day("3T09:01:00Z"), branch: "claude/a" },
+    { session: "lander", harness: "claude-code", source: "hook", kind: "subagent-started", subagent: "helper", task: "Read", at: day("3T09:05:00Z") },
+    { session: "helper", harness: "claude-code", source: "hook", kind: "session-ended", at: day("3T09:06:00Z") },
+    { session: "lander", harness: "claude-code", source: "tool", kind: "closed", increment: "inc-a", disposition: "landed", at: day("3T10:00:00Z") },
+    { session: "ci", source: "tool", kind: "merged", increment: "inc-a", holder: "lander", branch: "claude/a", pr: 12, at: day("3T09:59:00Z") },
+    { session: "lander", harness: "claude-code", source: "tool", kind: "closed-out", safe: true, why: "merged", running: 0, at: day("3T10:30:00Z") },
+    // Held: its increment waits on a question asked while it ran; it ended without closing out.
+    { session: "holder", harness: "codex", source: "tool", kind: "claimed", increment: "inc-b", reason: "Choose the tabs", at: day("3T13:00:00Z") },
+    { session: "holder", harness: "codex", source: "hook", kind: "session-ended", at: day("3T14:00:00Z") },
+    // Ended without a close-out, named by itself.
+    { session: "quiet", harness: "codex", source: "hook", kind: "session-named", title: "Tidy the docs", at: day("3T15:00:00Z") },
+    { session: "quiet", harness: "codex", source: "hook", kind: "session-ended", at: day("3T15:20:00Z") },
+    // Outside the range: ended the day before.
+    { session: "old", harness: "codex", source: "hook", kind: "session-ended", at: day("2T15:00:00Z") },
+    // Still listed live: History leaves it to the Live tab.
+    { session: "live", harness: "codex", source: "hook", kind: "prompt-submitted", at: day("4T11:59:00Z") },
+  ].map((line, index) => ({ project: "demo", seq: index + 1, ...line }) as Line);
+  const arcs = [{ arc: { id: "arc", fields: { title: "Build" } }, state: "active",
+    increments: [
+      { id: "inc-a", fields: { title: "Finish signup", status: "closed", touches: ["cap-one"], outcome: { date: "2026-10-03", disposition: "landed", pr: "#13" } } },
+      { id: "inc-b", fields: { title: "Tabs", status: "ready", touches: ["two"], heldOn: ["q-old", "q-new"] } },
+    ],
+    questions: [
+      { id: "q-old", createdAt: day("1T00:00:00Z"), fields: { title: "Asked before it ran", lifecycle: "settled" } },
+      { id: "q-new", createdAt: day("3T13:30:00Z"), fields: { title: "Which tab opens first?", lifecycle: "open" } },
+    ] }] as unknown as ArcView[];
+
+  test("7.21 History lists the sessions the live list no longer lists that were active in the range, latest first, each led by how it ended", () => {
+    const rows = historyRows(tree, lines(), arcs, range, later);
+    assert.deepEqual(rows.map(row => row.id), ["quiet", "holder", "lander"], "no subagent, nothing live, nothing outside the range");
+    const [quiet, holder, lander] = rows;
+    assert.deepEqual(lander!.outcome, { kind: "landed", prs: [12, 13] });
+    assert.equal(lander!.label, "Build signup");
+    assert.equal(lander!.agent, "Claude Code");
+    assert.equal(lander!.ranMs, 90 * 60_000, "first line to last");
+    assert.deepEqual(lander!.stories, [{ id: "one", title: "one" }]);
+    assert.deepEqual(holder!.outcome, { kind: "held", question: "Which tab opens first?" }, "a question asked while it ran, not one asked before");
+    assert.deepEqual(holder!.stories, [{ id: "two", title: "two" }], "an increment may touch a story itself");
+    assert.deepEqual(quiet!.outcome, { kind: "no-close-out" });
+    assert.equal(quiet!.label, "Tidy the docs");
+  });
+
+  test("7.21 a session closed out with nothing landed or held reads as closed out; one active across the range's edge is included", () => {
+    const edge = [{ project: "demo", seq: 1, session: "late", harness: "codex", source: "hook", kind: "session-started", at: day("2T23:00:00Z") },
+      { project: "demo", seq: 2, session: "late", harness: "codex", source: "tool", kind: "closed-out", safe: true, why: "nothing to land", running: 0, at: day("3T01:00:00Z") },
+      { project: "demo", seq: 3, session: "late", harness: "codex", source: "hook", kind: "session-ended", at: day("3T01:00:01Z") }] as Line[];
+    // Read as the page holds it: the fold has every line, the lines kept are only those read one by one.
+    const fold = new LogFold();
+    fold.add(edge);
+    assert.deepEqual(historyRows(tree, { fold, lines: [] }, [], range, later).map(row => [row.id, row.outcome.kind]), [["late", "closed-out"]]);
+    assert.deepEqual(historyRows(tree, edge, [], { from: range.from + 86_400_000, to: range.to + 86_400_000 }, later), []);
+  });
+
+  test("7.21 the range's presets are local days, today included, and a custom range runs from its first day to the end of its last", () => {
+    const at = new Date(2026, 9, 4, 15, 30);
+    const midnight = (d: number): number => new Date(2026, 9, d).getTime();
+    assert.deepEqual(presetRange("today", at), { from: midnight(4), to: midnight(5) });
+    assert.deepEqual(presetRange("yesterday", at), { from: midnight(3), to: midnight(4) });
+    assert.deepEqual(presetRange("week", at), { from: new Date(2026, 8, 28).getTime(), to: midnight(5) }, "seven days, today the last");
+    assert.deepEqual(dayRange("2026-10-01", "2026-10-03"), { from: midnight(1), to: midnight(4) });
+    assert.equal(dayRange("2026-10-03", "2026-10-01"), undefined, "a range that ends before it starts is none");
+    assert.equal(dayRange("", "2026-10-01"), undefined);
+  });
+
+  test("7.22 7.23 the globe's roster is the live rows' whatever History holds; a selected history session joins it, undrawn, in its own colour", () => {
+    const live = sessionRows(tree, lines(), arcs, later);
+    const history = historyRows(tree, lines(), arcs, range, later);
+    assert.deepEqual(globeRoster(live, history, undefined), sessionRoster(live), "opening History or changing its range changes nothing");
+    assert.deepEqual(globeRoster(live, history, "live"), sessionRoster(live));
+    assert.deepEqual(globeRoster(live, history, "holder"), [...sessionRoster(live),
+      { session: "holder", label: "Choose the tabs", colour: sessionColour("holder"), members: ["holder"], undrawn: true }]);
+    assert.equal(historySelection("holder", undefined), "holder");
+    assert.equal(historySelection("holder", "holder"), undefined, "clicking the selected row again goes back to every live session");
+    assert.equal(historySelection("quiet", "holder"), "quiet");
+  });
+}

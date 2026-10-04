@@ -141,3 +141,87 @@ the Admin link, taking stock off at Finish) waits for 5 and 6, because taking st
 part 6's order saving. It asked the user two questions in the library: whether to add `npm run reset`, since Swag
 Labs' checkout tests sell the shop out after about ten runs; and whether a hand-edited `session-username` cookie
 may stand for a test shop. The user answered both in R4's part 9 prompt (yes, and yes).
+
+## R4: parts 5, 6 and 9, three sessions at once (increment_d6b1bd728081)
+
+Three fresh sessions at 07:21Z (`prompts/r4-part5.txt`, `r4-part6.txt`, `r4-part9.txt`). Part 9's user answered
+the planner's two questions and asked for as much of part 9 as possible, "including taking stock off at Finish
+too, not only 9a": work that lives inside part 6's order saving, which part 6's session claimed at 07:26.
+
+| Lane | Time, cost | Landed |
+|---|---|---|
+| part 6, Orders (a670a873) | 802 s, $3.63 | shop PR #6 at 07:33Z, first; claimed its own four parts and the three checkout parts the plan gave it |
+| part 9, Stock and admin (f88b0fc1) | 1,480 s, $7.15 | PR #8 (9a) at 07:35Z; then, **once part 6 had landed**, PR #9 (stock off at Finish, which it split out as 9c because it needed only part 6); then, once part 5 had landed, PR #10 (9b: `admin_user`, the Admin link) |
+| part 5, Accounts (3437a351) | 1,213 s, $3.92 | PR #7 at 07:40Z, after merging `main` into its branch twice as 6 and 9a landed ("the conflicts were only lists that every part adds to, plus one line in the server that part 9 also changed, and I kept both sides") |
+
+The globe while they worked (`shots/r4-during.png`): five sessions listed, three of them building. **The
+picture also shows a fault**: under the load of three agents and their headless browsers the app's globe went
+blank (white, nameplates only) and stayed so until the app was restarted (`r4-after.png`,
+`r4-after-restart.png`); parked as increment_d0c8f5088868. And the restarted globe drew the new islands with
+"4/4 landed" meters but no land: every session builds in a workspace, so the shop's main folder, which the app
+surveys, had not moved since R2. Once the user pulled `main` and the app restarted, land appeared
+(`r4-after-pull-restart.png`); parked as increment_23546de8c3b6.
+
+**Grade of `main` after R4:** official **26/26**; our suite 19/29, which is parts 5, 6 and 9 in full (7/7, 6/6,
+6/6); the ten failures are parts 7 and 8, not yet built (`runs/r4-grade.txt`).
+
+## R5: parts 7 and 8 at once, and the turned-away session (increment_e50f2332d906)
+
+Two fresh sessions at 07:59Z (`prompts/r5-part7.txt`, `r5-part8.txt`). Part 7 (c3831547, 505 s, $1.84) landed
+search as PR #11 at 08:06Z; part 8 (83723b4f, 794 s, $2.03) built reviews in a new package through the product
+slots part 9a had made ("no browsing files changed"), merged part 7 into its branch, and landed PR #12 at 08:11Z.
+
+**The turned-away session.** Two rounds of real overlap had produced no refusal, so at 08:01:46Z, with part 7's
+session holding part 7 and its Search capability, the user sent the same part 7 prompt to a third, fresh
+session (`prompts/r5-part7-again.txt`, identical to part 7's): the plainest way two sessions get the same work,
+done here on purpose and said so. Nothing in the library was touched. The third session (1706a9dd, 94 s)
+checked the plan, saw part 7 "held by live session c3831547" and part 8 by 83723b4f, made no workspace, claimed
+nothing, changed no code, and closed out safe, saying why: *"Changed nothing: part 7 is held by live session
+c3831547 and part 8 by 83723b4f, and every other increment is closed."* That close-out is in the library's
+activity log. Asked next, honestly, to take part 8 over if it had stalled (`prompts/r5-takeover.txt`), the same
+session looked at part 8's workspace and running work, found it live and mid-merge, and declined: "Before I
+take over I'd need its claim released or the session stopped, so we don't both work on the same branch."
+
+So storytree turned a session away from work another session held, twice, as it happened, but **through the
+plan, not through the claim tool**: no agent in five rounds ever called `claim` on held work, so no
+`claim-refused` line (PR #604) was written. Whether that satisfies the arc's "a claim turned away" is the
+owner's call (question_29337cbd5041 on the arc).
+
+**Grade of `main` after R5, the build complete:** official **26/26**, the ceiling; our wave 2 suite **29/29**;
+both at the first grade (`runs/r5-grade.txt`).
+
+## The rebuild judged
+
+| | First build (one session at a time) | Rebuild (two or three at once) |
+|---|---|---|
+| Result | 26/26 official, 29/29 ours | **26/26 official, 29/29 ours** |
+| Sessions, turns | 9 sessions, 6 follow-ups | 12 sessions (incl. the turned-away one), 2 follow-ups |
+| Agent time, cost | 7,492 s, $27.76 | 10,410 s, $39.64 (summed over sessions) |
+| Agent wall time (the rounds end to end) | 7,492 s, every session in turn | **6,145 s** (R1 2,049 · R2 1,232 · R3 583 · R4 1,484 · R5 797) |
+| Shop pull requests | 12 | 12 |
+| Land from | session 2's follow-up (layout fixed) | **the first landing** |
+| Failures at first grade | 1 (flaky sign-in) | 1 (the same flaky sign-in, part 1; fixed before R2) |
+| Plan at the end | 9 stories, 16 capabilities, 63 contracts | 8 stories, 31 capabilities, 88 contracts, 51 decisions, 2,731 activity lines |
+
+**What parallel lanes showed about storytree.**
+- **The plan is the coordination layer.** Sessions found each other's claims in the plan before acting and stood
+  down; R1's and R3's planners designed the parts so no two sessions would need the same file; part 2's
+  recorded decision told part 3 the badge was already handled. In five rounds no claim collided.
+- **Workspaces held.** Every lane made its own storytree workspace; merges between lanes were the expected list
+  conflicts, resolved by the lanes themselves; nothing landed red.
+- **The project learned in parallel**, sometimes three times over: three sessions each hit PowerShell 5.1's
+  quoting trap in one round and each recorded it.
+- **Gaps, each an object:** a refused claim left no trace (fixed, PR #604); land does not follow merged work
+  while every session builds in a workspace (increment_23546de8c3b6); the globe stays blank after losing its
+  drawing under load (increment_d0c8f5088868).
+
+**The globe at each stage** (the laptop's own app, after each round):
+
+| After | Picture | What it shows |
+|---|---|---|
+| R1 | `shots/r1-after.png` | 4 islands with land from the first landing, roads from package dependencies |
+| R2 | `shots/r2-after.png` | the products, cart and checkout islands filled in by three sessions at once |
+| R4, during | `shots/r4-during.png` | 8 stories planned, five sessions listed, three building (and the blank-globe fault) |
+| R4 | `shots/r4-after-pull-restart.png` | accounts, orders, stock and admin filled in, once main was pulled |
+| R5, during | `shots/r5-during.png` | parts 7 and 8 building; the turned-away session, which never named itself, listed beside them as "Claude Code · shop2" |
+| R5 | `shots/r5-after.png` | complete: 8 islands with land, roads, and the sessions' trails |

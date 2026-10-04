@@ -1,0 +1,3 @@
+Let's build the last two parts. You're on part 7 in shop-requirements-2.md: search.
+
+Another session is building part 8 at the same time as you, so work in a storytree workspace of your own, and leave whatever another session is already doing to that session.

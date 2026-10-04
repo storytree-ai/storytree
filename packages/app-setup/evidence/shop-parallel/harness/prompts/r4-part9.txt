@@ -1,0 +1,5 @@
+Let's build the next parts. You're on part 9 in shop-requirements-2.md: stock and an admin page. Answers to the two questions from the planning session: yes, please add the `npm run reset` command; and the cookie is fine as it is for a test shop.
+
+I'd like as much of part 9 done today as possible, so if you can, include taking stock off at Finish too, not only 9a.
+
+Two other sessions are building parts 5 and 6 at the same time as you, so work in a storytree workspace of your own, and leave whatever another session is already doing to that session.

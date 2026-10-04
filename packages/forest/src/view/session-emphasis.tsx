@@ -1,4 +1,4 @@
-/** Session hover is a temporary forest reading, independent of selection and tree health. */
+/** Session hover is a temporary forest reading, independent of selection and capability health. */
 import { useFrame, useThree } from "@react-three/fiber";
 import { useLayoutEffect, useRef } from "react";
 import { Group, Mesh, ShaderMaterial, type Material } from "three";
@@ -6,7 +6,7 @@ import { restoreTerritoryPresentation } from "./globe-surfaces.js";
 
 export type SessionEmphasis = "held" | "dimmed" | undefined;
 
-/** Own per-mesh copies: shared kit materials, palette colours and live shader inputs stay intact. */
+/** Own per-mesh copies: shared materials, palette colours and live shader inputs stay intact. */
 export function SessionIslandEmphasis({ emphasis }: { emphasis: SessionEmphasis }) {
   const anchor = useRef<Group>(null);
   const saved = useRef(new Map<Mesh, { original: Material | Material[]; copies: Material[] }>());

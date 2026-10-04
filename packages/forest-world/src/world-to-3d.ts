@@ -2,11 +2,17 @@
 // from the @storytree/forest-world semantic scene graph to typed 3D instance
 // descriptors. No React, no three.js — node:test-provable (the provability firewall).
 //
+// ⚠ IN 0.3 (noted in place 2026-10-05, ADR-0804 D1): no surface draws a tree, kit prop, bloom or
+// ground cover. The globe reads only this mapper's `cell-ground` cells (each island's coast, parcels
+// and reach, through `forest-ground.ts`); every other family it emits is drawn by nothing. The flat
+// canvas that stood the kit's trees on these parcels (`ForestWorldCanvas.tsx`) is mounted by no
+// product surface. The tree prose below describes 0.2's map as it stood.
+//
 // The mapper consumes the SEMANTIC LAYER (SceneKind / status / position), never the
 // 2D SVG primitives. It supplies its own 3D geometry family for each core kind:
 //   cell        → cell-ground       (extruded parcel prism, the RELAXED-MESH substrate)
 //   cell-wheat  → cell-ground       (ditto — wheat is a 2D look, not a different ground)
-//   tree        → (SKIPPED)         (the 3D map stands the kit's capability trees, not one hero tree — ADR-0508)
+//   tree        → (SKIPPED)         (no hero tree — ADR-0508; and no kit trees on today's islands — ADR-0804 D1)
 //   trail-fill  → trail-strip       (routed ribbon strip on the ground plane, ADR-0169 §4)
 //   trail-ghost → trail-ghost-strip (the under-island run — surfaces may skip it)
 //   cave        → cave-arch         (the forced-route portal prop at the rim bearing)

@@ -2,10 +2,10 @@
 //
 // The owner, 2026-09-05, on the one-tree-per-capability sheet: *"i want one tree per a capability,
 // we need to scale the land size, can we build a ratio based on this as land should also scale per
-// land size."* One tree per capability STANDS (ADR-0518 D1). What was wrong was the SIZE of the land
-// under it: the island the 2D layout drew was `max(3, capabilities + 2)` hex tiles of `HEX_R = 27`
-// (`apps/studio/src/components/TreeView.tsx`, `packages/forest-world/src/sizing.ts`), so island area
-// already scaled with capability count — through a constant nobody chose. On the fixture island it
+// land size."* One tree per capability stood then (ADR-0518 D1; no tree is drawn since ADR-0804
+// D1). What was wrong was the SIZE of the land under it: the island the 2D layout drew was
+// `max(3, capabilities + 2)` hex tiles of `HEX_R = 27` (`apps/studio/src/components/TreeView.tsx`,
+// `packages/forest-world/src/sizing.ts`), so island area already scaled with capability count — through a constant nobody chose. On the fixture island it
 // came to ~2,240 units² of land per capability, and one tree standing on 2,240 units² is a tree
 // adrift on a field. The picture he called nicer stood a tree on roughly 320.
 //
@@ -36,12 +36,16 @@
 // on `land-ground-stack-arc` rather than decided by a mapper constant. Compacting the layout on this
 // side would be a second decision wearing this one's name.
 //
-// ⚠ THE TREES DO NOT SHRINK. The ratio is land per tree at the tree's SHIPPED size (`KIT_ROLE_SIZE`,
-// picked for legibility at the overview zoom). Scaling the trees with the land would leave every
-// picture identical up to the layout's gaps and answer nothing the owner asked. What DOES follow the
-// island is every feature sized as a fraction of it — the beach band, the worn path, the noise
-// lattices, the relief, the skirt — through {@link LAND_SCALE}, so a band tuned as a fraction of the
-// 234-unit island stays that fraction of a 90-unit one.
+// ⚠ NO TREE STANDS ON AN ISLAND ANY MORE (corrected in place 2026-10-05, ADR-0804 D1). This paragraph
+// used to say the ratio was land per tree at the kit tree's fixed size. That was 0.2's pine forest,
+// and the flat canvas that still draws it (`ForestWorldCanvas.tsx`) is mounted by no product surface.
+// Today the globe draws each island as one flat surface cut into capability territories, so the ratio
+// is simply land per capability, for an island whose story has no surveyed code (a surveyed island's
+// land follows its lines of code instead: `landRatioFactor`'s `area` below, `Island.area`). Tree size and spacing
+// constrain nothing here. What does follow the island is every feature sized as a fraction of it —
+// the beach band, the worn path, the noise lattices, the relief, the skirt, the coast's smoothing —
+// through {@link LAND_SCALE}, so a band tuned as a fraction of the 234-unit island stays that
+// fraction of a 90-unit one.
 //
 // Pure: no React, no three — behind the provability firewall with `world-to-3d.ts`.
 
@@ -92,8 +96,9 @@ export const TUNED_LAND_AREA_PER_CAPABILITY = (HEX_TILE_AREA * TUNED_FIXTURE.til
  *        drawing's 0.342 foreshortening, i.e. 2.9× too dense; it is rendered because the increment
  *        asked for it and because it is the boldest rung, not because it is a second approved density.
  *
- * ⚠ THE TREES' SIZE IS FIXED, so a rung is also a spacing: a tree every √K units — 17.8 at 318,
- * 14.1 at 200, 10.4 at 108 — against a pine 18 units tall and a tree clearance of ~10 units.
+ * The rungs are history: tree densities from 2026-09-05, when a pine stood on every capability's
+ * land. Since ADR-0804 D1 no tree is drawn on an island, so a rung is no longer a tree spacing and
+ * nothing about trees argues for or against any value of the ratio.
  */
 export const LAND_AREA_PER_CAPABILITY_RUNGS = [318, 200, 108] as const;
 
@@ -101,9 +106,11 @@ export const LAND_AREA_PER_CAPABILITY_RUNGS = [318, 200, 108] as const;
  * ⚠⚠ THE SHIPPED RATIO — the rung the map draws. PICKED ON THE LOOK (ADR-0489 D3, ADR-0503 D1),
  * from the ladder above rendered at both zooms on the RTX 2060
  * (`docs/research/chapter2-land-per-capability-2026-09-05/`). Its provenance is the ladder's: the
- * density of the picture the owner called nicer, which the approved render's own density agrees
- * with in the true basis. A constant with no provenance is how the old ratio drifted unchosen for
- * as long as it did; change this one on a rendered ladder, never by hand.
+ * density of the pine forest the owner called nicer, which the approved render's own density agrees
+ * with in the true basis. That forest is retired (ADR-0804 D1), so the provenance is history, not a
+ * constraint. What the value does today: it is the land one capability gets on an island whose
+ * story has no surveyed code, and, through `HEX_R`, the size of the hex every island's coast is
+ * built from (`core/hex.ts`). A change to it is judged on the globe's islands, not on tree spacing.
  *
  * ⚠ DECLARED IN THE ENGINE since ADR-0528 (`packages/forest-world/src/hex.ts`), because the 2D
  * lattice derives from it and that package is the root; re-exported here so every reader in this

@@ -1,6 +1,13 @@
 // ForestWorldCanvas.tsx — the thin R3F shell over the pure descriptor mapping
-// (the r3f-world-spike capability's visible half). Browser-only by design: this
-// file imports React / three / @react-three/fiber / @react-three/drei and is
+// (the r3f-world-spike capability's visible half).
+//
+// ⚠ NO PRODUCT SURFACE MOUNTS THIS CANVAS (noted in place 2026-10-05). Since ADR-0804 D1 the desktop
+// app and the website mount only the globe (`planet/PlanetWorldCanvas.tsx`), whose islands are flat
+// surfaces with no pines, plants or textured ground; only `evidence/canvas/page.tsx` mounts this one.
+// The desktop page still calls `preloadKit` from here, which parses the pine kit that nothing draws.
+// The kit trees, props and ground looks described below are this unmounted canvas's, not an island's.
+//
+// Browser-only by design: this file imports React / three / @react-three/fiber / @react-three/drei and is
 // exported via the `./canvas` subpath, NEVER from the pure root barrel — the
 // provability firewall (world-to-3d.ts stays importable under bare node:test).
 //
@@ -10,7 +17,8 @@
 // ground, a ground ribbon-line for a trail segment, a dark rim disc for a cave
 // portal, an emissive sprite-ball for a wisp — coloured by the folded status
 // variant. (A cone-on-trunk stood for the story tree until ADR-0508 retired it;
-// each island stands the bought kit's one tree per capability instead — ADR-0518.)
+// each island then stood the bought kit's one tree per capability instead — ADR-0518 — until
+// ADR-0804 D1 took every tree off the islands.)
 //
 // THE PROJECTION IS ORTHOGRAPHIC AND THE VIEW DOES NOT ROTATE (ADR-0380 D6 fence 4). This
 // canvas shipped for months as a PerspectiveCamera under a rotate-capable orbit control, which

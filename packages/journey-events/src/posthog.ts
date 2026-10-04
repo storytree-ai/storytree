@@ -32,7 +32,7 @@ export function createPostHogTransport(options: {
         || !JOURNEY_EVENTS.has(event.event) || !JOURNEY_VERSION.test(event.properties.app_version)
         || Object.keys(event.properties).length !== 1 || new Date(event.timestamp).toISOString() !== event.timestamp) throw unavailable();
       client = new PostHog(options.projectKey, {
-        host: "https://eu.i.posthog.com",
+        host: "https://us.i.posthog.com",
         flushAt: 1,
         flushInterval: 0,
         fetchRetryCount: 0,
@@ -49,7 +49,7 @@ export function createPostHogTransport(options: {
           let timer: ReturnType<typeof setTimeout> | undefined;
           const controller = new AbortController();
           try {
-            if (url !== "https://eu.i.posthog.com/batch/" || typeof init.body !== "string" || !permitted()) throw unavailable();
+            if (url !== "https://us.i.posthog.com/batch/"|| typeof init.body !== "string" || !permitted()) throw unavailable();
             const deadline = new Promise<never>((_resolve, reject) => {
               timer = setTimeout(() => { controller.abort(); reject(unavailable()); }, 900);
             });

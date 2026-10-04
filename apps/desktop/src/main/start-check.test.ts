@@ -2,11 +2,12 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { test } from "node:test";
 
 import { mainUpdates, type RunningBuild } from "@storytree/app";
 
-import { checkedUpdate, runWhenReady, startsCleanly } from "./start-check.js";
+import { checkedUpdate, finishStartCheck, runWhenReady, startsCleanly } from "./start-check.js";
 
 test("4.17 a built main that cannot start is never restarted into: the running app stays, the same commit is not built again, and the next good main is", async () => {
   let main = "bad1234567";
@@ -61,12 +62,14 @@ test("4.17 the start check passes a build only when its main process exits 0 whe
   // A long stack after the message must not push the message out of the refusal.
   const dies = script("dies.cjs", `console.error("x".repeat(20)); throw new TypeError("sourceVersion: no package.json" + "\\n    at frame".repeat(200));`);
   const lingers = script("lingers.cjs", `setInterval(() => {}, 1000);`);
+  const ownHome = script("own-home.cjs", `process.exit(process.env.STORYTREE_HOME === "throwaway" ? 0 : 4);`);
 
   process.env.ELECTRON_RUN_AS_NODE = "1";
   t.after(() => { delete process.env.ELECTRON_RUN_AS_NODE; });
   assert.equal(await startsCleanly(launch(starts)), undefined);
   assert.match(await startsCleanly(launch(dies)) ?? "", /code 1.*sourceVersion: no package\.json/s);
   assert.match(await startsCleanly(launch(lingers), 500) ?? "", /did not finish starting within 0\.5 s/);
+  assert.equal(await startsCleanly({ ...launch(ownHome), env: { ...process.env, STORYTREE_HOME: "throwaway" } }), undefined, "the install check starts the app with a throwaway home");
 });
 
 test("1.13 a start that fails after the app is ready ends the app instead of lingering half-started", async () => {
@@ -74,4 +77,18 @@ test("1.13 a start that fails after the app is ready ends the app instead of lin
   await runWhenReady(Promise.resolve(), async () => { throw new Error("sourceVersion"); }, (error) => failed.push(error));
   await runWhenReady(Promise.reject(new Error("not ready")), async () => {}, (error) => failed.push(error));
   assert.deepEqual(failed.map((error) => (error as Error).message), ["sourceVersion", "not ready"]);
+});
+
+test("4.17 a start that leaves a promise rejection unhandled fails its check, though the process still exits 0", async (t) => {
+  const dir = mkdtempSync(path.join(tmpdir(), "start-check-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const finish = pathToFileURL(path.join(import.meta.dirname, "start-check.ts")).href;
+  const start = (name: string, plant: string): { execPath: string; args: string[] } => {
+    const file = path.join(dir, name);
+    writeFileSync(file, `import { finishStartCheck } from ${JSON.stringify(finish)};\n${plant}\nawait finishStartCheck((code) => process.exit(code));\n`);
+    // Electron's main process only warns of an unhandled rejection, as Node does in this mode.
+    return { execPath: process.execPath, args: ["--unhandled-rejections=warn", file] };
+  };
+  assert.equal(await startsCleanly(start("starts.mjs", "")), undefined);
+  assert.match(await startsCleanly(start("rejects.mjs", `void Promise.resolve().then(() => { throw new Error("planted"); });`)) ?? "", /unhandled promise rejection: Error: planted/);
 });

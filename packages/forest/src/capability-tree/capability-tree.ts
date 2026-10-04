@@ -5,11 +5,16 @@
  * work state (the one rule for planned, in progress or landed, ADR-0632 D3), and the health the
  * agent reports for its tests, always labelled as the agent's own (ADR-0630).
  *
- * Its shelf: a story node is a grove, one tree per capability (T1). A tree's size follows the work
- * state and its leaves follow the agent's report (G1): a seedling while planned or being built, a
- * pale tree once landed with nothing reported, a full green tree once landed and reported passing,
- * and a dead tree once landed with a failing report. A story with no capabilities yet shows one
- * seedling, so a new story is never invisible.
+ * Its shelf: a story node is a grove, one tree per capability (T1), and each tree takes a form from
+ * the work state and the agent's report (G1): a seedling while planned or being built, pale once
+ * landed with nothing reported, green once landed and reported passing, and dead once landed with a
+ * failing report. A story with no capabilities yet has one seedling, so a new story is never empty.
+ *
+ * ⚠ NO TREE IS DRAWN (noted in place 2026-10-05, ADR-0804 D1). The grove is now data: the story's
+ * capabilities in build order, each with its form. The globe draws an island as a flat surface cut
+ * into capability territories, filled by each capability's verified word (ADR-0825 D3), not by its
+ * form; the form survives in the smoke check's report (`forestDrawn`), the island's landed count
+ * (`islandProgress`) and the engine's parcel statuses, none of which draws a tree.
  */
 import type { PartState, WorkStates } from "@storytree/arc-surface";
 import type { TreeForm } from "@storytree/forest-world/scene";

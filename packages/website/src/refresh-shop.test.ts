@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import { execFile, execFileSync } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { connect } from "@storytree/library";
 
 const at = (minute: number) => `2026-10-03T16:${String(minute).padStart(2, "0")}:00.000Z`;
 const untested = { reported: { state: "not-checked" }, verified: { state: "not-checked" } };
@@ -69,4 +71,42 @@ test("3.5, 3.7, 3.9 · the shop's refresh command saves its growth and public re
   await assert.rejects(run("--repository", repository, "--record", saved, "--output", output), /The record is of conduit, not shop/);
   await assert.rejects(run("--record", saved, "--output", output), /Give --repository/);
   assert.equal(await readFile(output, "utf8"), unchanged);
+});
+
+test("3.10 · the shop's saved library record keeps its arcs and holds, and its export reads them from the record with no library", async t => {
+  const url = process.env.STORYTREE_TEST_PG_URL;
+  assert.ok(url, "Run through pnpm test for an isolated test Postgres");
+  const directory = await mkdtemp(path.join(tmpdir(), "website-shop-record-"));
+  t.after(() => rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }));
+  const project = `t-${randomBytes(4).toString("hex")}`;
+  const server = await connect({ url });
+  t.after(async () => { try { await server.dropProject(project); } finally { await server.close(); } });
+  const library = await server.openProject(project);
+  const story = await library.addStory({ title: "Have an account", description: "" });
+  await library.addCapability({ story: story.id, title: "1 · Sign in", proposed: false });
+  const accounts = await library.createArc({ title: "Accounts", intent: "Sign in", endState: "Signed in" });
+  const orders = await library.createArc({ title: "Orders", intent: "Order", endState: "Ordered" });
+  await library.addWait(orders.id, accounts.id, "orders need an account");
+
+  const repository = path.join(directory, "repo");
+  await mkdir(repository);
+  execFileSync("git", ["init", "-q", "-b", "main"], { cwd: repository });
+  await writeFile(path.join(repository, "README.md"), "shop\n");
+  execFileSync("git", ["add", "-A"], { cwd: repository });
+  execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "start"], { cwd: repository });
+  const run = (script: string, ...args: string[]) => promisify(execFile)(process.execPath, ["--import", import.meta.resolve("tsx"), script, ...args],
+    { cwd: directory, timeout: 30_000, env: { ...process.env, STORYTREE_EMBEDDER: "off" } });
+
+  const record = path.join(directory, "library-final.json");
+  await run(fileURLToPath(new URL("../../app-setup/evidence/shop/harness/record-library.ts", import.meta.url)), "--library", url, "--project", project, "--out", record);
+  const saved = JSON.parse(await readFile(record, "utf8"));
+  assert.deepEqual(saved.arcs.map((view: { arc: { id: string } }) => view.arc.id).sort(), [accounts.id, orders.id].sort(), "the record keeps the arcs");
+  assert.deepEqual(saved.holds.waits[orders.id].map((hold: { on: string }) => hold.on), [accounts.id], "and the holds");
+
+  await library.close();
+  const output = path.join(directory, "shop.json");
+  await run(fileURLToPath(new URL("./refresh-shop.ts", import.meta.url)), "--repository", repository, "--record", record, "--project", project, "--output", output);
+  const shop = JSON.parse(await readFile(output, "utf8"));
+  assert.deepEqual(shop.reading.arcs.map((view: { arc: { id: string } }) => view.arc.id).sort(), [accounts.id, orders.id].sort(), "the export reads the arcs from the record alone");
+  assert.ok(shop.reading.holds.waits[orders.id], "and its holds");
 });

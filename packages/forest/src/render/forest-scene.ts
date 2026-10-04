@@ -1,12 +1,15 @@
 /**
- * Capability 3 · Story node render (the forest story): the plan the page draws the 3D forest from.
+ * Capability 3 · Story node render (the forest story): the plan the page draws the globe from.
  * The page itself (apps/desktop) only turns this plan into meshes, so everything the forest decides
  * about what is drawn where is here, and tested without a browser.
  *
- * - Every story node is an island at its place (capability 1), in world units, carrying its grove
- *   (capability 2): one tree per capability, set out from the island's middle in build order.
+ * - Every story node is an island at its place (capability 1), in world units, carrying its
+ *   capabilities (capability 2's grove, one entry per capability in build order) and, once its code is
+ *   surveyed, their territories and files. No tree is drawn (ADR-0804 D1): the island is a flat
+ *   surface cut into capability territories. The grove's entries keep 0.2's tree fields (a spot, a
+ *   height, a turn), which nothing draws.
  * - Each island is named with its story's title (the label the page keeps facing the camera).
- * - What the page drew is said as the smoke check reads it (ADR-0634 D2), with each tree's form.
+ * - What the page drew is said as the smoke check reads it (ADR-0634 D2), with each capability's form.
  * - An island's key changes only when something drawn on it changes, so a change redraws only the
  *   islands it touched, without a reload.
  * - A click is turned into a point on the ground, and the island under it is the one selected.
@@ -31,7 +34,9 @@ const MAX_RADIUS = PLACE_WIDTH * 0.42;
  * units² for each capability an unsurveyed story draws), so neighbouring story nodes still never overlap on it.
  */
 const FLAT_SPREAD = Math.sqrt(MIN_ISLAND_AREA / 318);
-/** How far apart trees stand on an island. */
+/** How far apart the grove's entries are set out from an island's middle. 0.2 stood a tree on each spot;
+ *  since ADR-0804 D1 none is drawn: the spots set each entry's x and z, which the drawing does not read,
+ *  and `Island.radius`, which only `storyAt` reads. */
 const TREE_SPACING = 1.9;
 
 /** What the forest says it drew: the smoke check's fields (ADR-0634 D2), with the forest's own added. */
@@ -41,11 +46,11 @@ export interface ForestDrawn {
   capabilities: string[];
   /** The story names on show, one per island. */
   labels: string[];
-  /** Every tree, with its form. */
+  /** Every capability (0.2's tree), with its form. */
   trees: { capability: string | undefined; form: TreeForm }[];
 }
 
-/** How tall each form stands: a seedling is small, every landed tree full size. */
+/** 0.2's tree height for each form (a seedling small, every landed tree full size); nothing draws it since ADR-0804 D1. */
 const HEIGHT: Readonly<Record<TreeForm, number>> = { seedling: 0.5, pale: 1, green: 1, dead: 0.9 };
 
 /**

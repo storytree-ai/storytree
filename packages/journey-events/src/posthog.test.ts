@@ -17,7 +17,7 @@ function requestBody(init?: RequestInit): Record<string, unknown> {
   return JSON.parse(text) as Record<string, unknown>;
 }
 
-test("2.2 Node transport sends one EU request without IP, person enrichment, or flags", async () => {
+test("2.2 Node transport sends one US request without IP, person enrichment, or flags", async () => {
   const calls: Array<{ url: string; init?: RequestInit }> = [];
   const transport = createPostHogTransport({
     projectKey: "phc_test_only",
@@ -30,7 +30,7 @@ test("2.2 Node transport sends one EU request without IP, person enrichment, or 
   await transport.send(event);
   await transport.close();
   assert.equal(calls.length, 1);
-  assert.equal(new URL(calls[0]!.url).origin, "https://eu.i.posthog.com");
+  assert.equal(new URL(calls[0]!.url).origin, "https://us.i.posthog.com");
   assert.equal(new URL(calls[0]!.url).pathname, "/batch/");
   assert.equal(calls[0]!.init!.redirect, "error");
   const body = requestBody(calls[0]!.init);

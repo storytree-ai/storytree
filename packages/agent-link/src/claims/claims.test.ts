@@ -83,7 +83,7 @@ test('5.1 session A claims "email form", and the claim shows A and the reason', 
   });
 });
 
-test("5.2 B's claim on it is refused, naming A; once A has been idle past the quiet time, B's claim succeeds", async () => {
+test("5.2 B's claim on it is refused, naming A, and a claim-refused line records it; once A has been idle past the quiet time, B's claim succeeds", async () => {
   await withWorld(async ({ log, project, emailForm, as }) => {
     const quietMs = 1_000;
     assert.equal((await claim(as("A"), emailForm, "building the email form")).ok, true);
@@ -96,6 +96,9 @@ test("5.2 B's claim on it is refused, naming A; once A has been idle past the qu
       label: "Claude Code",
       reason: "building the email form",
     });
+    const refusals = (await log.since(project, 0)).lines.filter((line) => line.kind === "claim-refused");
+    assert.deepEqual(refusals.map((line) => ({ session: line.session, capability: line.capability, holder: line.holder, reason: line.reason })),
+      [{ session: "B", capability: emailForm, holder: "A", reason: "I want it too" }], "the refusal is recorded as it happens, naming the holder");
 
     await sleep(quietMs + 300); // A says nothing for longer than the quiet time
     const takenOver = await claim(as("B", { quietMs }), emailForm, "A went quiet; taking over");

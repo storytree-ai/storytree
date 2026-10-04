@@ -110,7 +110,10 @@ export async function claim(context: ClaimContext, id: string, reason: string, o
     const current = (await heldNow(log, context)).get(id);
     const mine = current?.session === context.session;
     if (mine && !(options.moveBranch && context.branch !== undefined && context.branch !== current.branch)) return { ok: true, claim: current, alreadyHeld: true };
-    if (!mine && current?.holder === "live") return { ok: false, refused: "held", holder: current };
+    if (!mine && current?.holder === "live") {
+      await log.append({ ...who(context), kind: "claim-refused", ...found.part, holder: current.session, reason });
+      return { ok: false, refused: "held", holder: current };
+    }
     // A claim may have waited for this lock without needing any library write at all.
     context.writer?.signal?.throwIfAborted();
     // Activation takes the library lock and checks cancellation there, before any claimed line.
@@ -134,14 +137,17 @@ export async function claim(context: ClaimContext, id: string, reason: string, o
  * `claim` gives, read without taking the lock or writing a line, for a caller that must know before
  * it does something slow (makeWorkspace fetches). `claim` itself checks again under the lock.
  */
-export async function claimRefusal(context: ClaimContext, id: string): Promise<Exclude<ClaimAnswer, { ok: true }> | undefined> {
+export async function claimRefusal(context: ClaimContext, id: string, reason?: string): Promise<Exclude<ClaimAnswer, { ok: true }> | undefined> {
   const found = await claimable(context.library, id);
   if (!("part" in found)) return found;
   const current = await readClaim(context.log, context.project, id, {
     ...(context.quietMs === undefined ? {} : { quietMs: context.quietMs }),
     ...(context.restarted === undefined ? {} : { restarted: context.restarted }),
   });
-  return current !== undefined && current.session !== context.session && current.holder === "live" ? { ok: false, refused: "held", holder: current } : undefined;
+  if (current === undefined || current.session === context.session || current.holder !== "live") return undefined;
+  // A caller giving the reason it would claim with is turned away now, so the refusal is recorded.
+  if (reason !== undefined) await context.log.append(context.project, { ...who(context), kind: "claim-refused", ...found.part, holder: current.session, reason });
+  return { ok: false, refused: "held", holder: current };
 }
 
 /** The live capability or increment `id`, when the library would let it be claimed; otherwise why not. */

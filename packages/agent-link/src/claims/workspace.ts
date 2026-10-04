@@ -51,7 +51,7 @@ const NAME_PART_MAX = 32;
 
 /** Create and claim for Claude Code; for Codex return the app's creation arguments without a claim. */
 export async function makeWorkspace(context: WorkspaceContext, id: string, reason: string, watch: MergeWatch = {}): Promise<WorkspaceAnswer> {
-  const refused = reasonRefusal(reason) ?? await workspaceRefusal(context, id, watch);
+  const refused = reasonRefusal(reason) ?? await workspaceRefusal(context, id, reason, watch);
   if (refused !== undefined) return refused;
   const repository = repositoryOf(context.folder);
   if (typeof repository !== "string") return repository;
@@ -80,7 +80,7 @@ export async function makeWorkspace(context: WorkspaceContext, id: string, reaso
 
 /** Attach an app-created worktree (Codex's, or the one a Claude Code session is already in) to this session's work, leaving its lifetime to the app. */
 export async function attachWorkspace(context: WorkspaceContext, id: string, reason: string, attachment: WorkspaceAttachment, watch: MergeWatch = {}): Promise<ClaimedWorkspace | WorkspaceRefusal> {
-  const refused = reasonRefusal(reason) ?? await workspaceRefusal(context, id, watch);
+  const refused = reasonRefusal(reason) ?? await workspaceRefusal(context, id, reason, watch);
   if (refused !== undefined) return refused;
   const codex = context.harness === "codex";
 
@@ -126,12 +126,12 @@ export async function attachWorkspace(context: WorkspaceContext, id: string, rea
  * merged is ended first, and one on a branch waiting in the merge queue, which can take no more
  * commits, is not pointed back at either.
  */
-async function workspaceRefusal(context: WorkspaceContext, id: string, watch: MergeWatch): Promise<WorkspaceRefusal | undefined> {
+async function workspaceRefusal(context: WorkspaceContext, id: string, reason: string, watch: MergeWatch): Promise<WorkspaceRefusal | undefined> {
   const mine = await readClaim(context.log, context.project, id);
   if (mine?.session === context.session && !(await endIfMerged({ ...context, source: "tool" }, mine, watch)) && !(await inMergeQueue(context.folder, mine, watch))) {
     return { ok: false, refused: "yours", claim: mine };
   }
-  return claimRefusal(context, id);
+  return claimRefusal(context, id, reason);
 }
 
 /** The main checkout of the repository `folder` is in, or why there is none to make a workspace from. */

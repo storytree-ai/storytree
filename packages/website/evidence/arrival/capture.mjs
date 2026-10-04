@@ -64,7 +64,8 @@ const runs = {
       const rate = await fps(page, 2500);
       observed.push(`${tag}: ${rate.toFixed(1)} fps over 2.5 s of the time-lapse`);
       for (const [index, wait] of [[1, 0], [2, 2800]]) await sample(index, wait);
-      await pause(page); const held = (await drawing(page)).growth;
+      // The pause lands on the next frame: read the held moment once it has.
+      await pause(page); await page.waitForTimeout(300); const held = (await drawing(page)).growth;
       await page.waitForTimeout(2500);
       assert.equal((await drawing(page)).growth, held, "pausing the tour holds the growth");
       await play(page);

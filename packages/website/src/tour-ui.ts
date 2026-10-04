@@ -110,7 +110,7 @@ export function wireTour() {
       kicker.textContent = state.freePlay ? "Act 2 · Your turn" : step.explainer === "opening" || step.explainer === "ending" ? `Act 2 · ${at.title}` : `${at.title} · ${at.at} of ${at.of}`;
       heading.textContent = state.freePlay ? "Your turn." : text(step.title);
       if (state.freePlay) {
-        lines.replaceChildren(...[state.project === "shop" ? "Explore the whole shop: open an island or the library." : "Explore storytree's own project: open an island, the arcs or the library.",
+        lines.replaceChildren(...[state.project === "shop" ? "Explore the whole shop: open an island, the arcs or the library." : "Explore storytree's own project: open an island, the arcs or the library.",
           "It's a saved reading, so nothing you do changes the project."].map(line => element("li", line, "tour-line on")));
       } else drawLines(step);
       chips.replaceChildren(...(state.freePlay ? [] : step.chips ?? []).map(chip => element("span", text(chip.text), `chip chip-${chip.kind}`)));

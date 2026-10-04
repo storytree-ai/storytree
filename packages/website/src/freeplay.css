@@ -37,6 +37,8 @@
  #chapter2 .tour-project button { min-height:44px; }
  #chapter2 .story-panel { top:110px; bottom:calc(var(--bar-h) + 8px); width:calc(100% - 24px); }
  #chapter2:has(.story-panel) .sessions-list { right:0; visibility:hidden; }
+ /* An open story panel covers the globe on a phone, so the project selector steps aside until it closes. */
+ #chapter2:has(.story-panel) .tour-project { visibility:hidden; }
  #chapter2 .sessions-list .session-legend { display:none; }
  #chapter2 .sessions-list { max-height:24%; }
  #chapter2 .arc-panes { grid-template-columns:minmax(0,1fr); grid-template-rows:1fr 1fr; }

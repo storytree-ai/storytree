@@ -137,7 +137,18 @@ export async function verifyTour(browser, url, output) {
   assert.match(await page.locator("#tour-label").textContent(), /online shop .* recorded \d+ \w+ \d{4} · read only/);
   assert.equal(await page.locator(".forest-still img").evaluate(node => node.checkVisibility({ visibilityProperty: true })), false, "storytree's still never stands in for the shop");
   await page.clock.runFor(500);
-  assert.equal(await page.locator(".tour-session-surface").evaluate(node => node.hidden), true, "storytree's recorded sessions are not the shop's");
+  // 2.14: on the shop, free play opens the shop's own recorded sessions, story panels and arcs.
+  assert.equal(await page.locator(".tour-session-surface").evaluate(node => node.hidden), false, "the shop's recorded sessions are shown");
+  assert.ok(await page.locator(".session-row").count() > 0, "the shop's sessions are listed");
+  await page.getByRole("button", { name: "Find a story or note in the saved project", exact: true }).click();
+  await page.locator("#tour-story-choice").selectOption("story_c3e9a28aef14");
+  await page.locator('.story-panel[data-story-id="story_c3e9a28aef14"] .panel-head').waitFor();
+  await page.locator(".panel-close").click();
+  await page.locator("[data-open-arcs]").click(); await page.locator('[data-arc-scope="closed"]').click();
+  assert.match(await page.locator(".arc-lanes").textContent(), /A proper shop/, "the shop's own arcs, closed ones under Closed");
+  await page.locator(".arc-lane").last().click(); assert.ok(await page.locator(".arc-briefing").isVisible());
+  await page.screenshot({ path: path.join(output, "390-no-webgl-shop-arcs.png") });
+  await page.locator('[data-arc-scope="active"]').click(); await page.locator("[data-close-arcs]").click();
   await page.getByRole("button", { name: "storytree", exact: true }).click();
   assert.equal(await page.getByRole("button", { name: "storytree", exact: true }).getAttribute("aria-pressed"), "true");
   assert.equal(await page.locator("#chapter2").getAttribute("data-globe-map"), "storytree");
@@ -205,6 +216,13 @@ export async function verifyImmersive(browser, url, output) {
     for (const button of await page.locator("#tour-project button").all()) if (width < 600) assert.ok((await button.boundingBox()).height >= 44, "The selector keeps 44px touch targets");
     await page.waitForTimeout(1500);
     await page.screenshot({ path: path.join(output, `freeplay-shop-${width}.png`) });
+    // 2.14: an island of the shop opens its story panel, read from the shop's saved growth.
+    await page.getByRole("button", { name: "Find a story or note in the saved project", exact: true }).click();
+    await page.locator("#tour-story-choice").selectOption("story_c3e9a28aef14");
+    await page.locator('.story-panel[data-story-id="story_c3e9a28aef14"] .panel-head').waitFor();
+    await page.waitForTimeout(1200);
+    await page.screenshot({ path: path.join(output, `freeplay-shop-story-${width}.png`) });
+    await page.locator(".panel-close").click();
     await page.getByRole("button", { name: "storytree", exact: true }).click();
     await page.waitForFunction(() => document.querySelector(".forest-drawing")?.dataset.globe === "storytree");
     await page.getByRole("button", { name: "Library", exact: true }).click();
@@ -222,6 +240,10 @@ export async function verifyImmersive(browser, url, output) {
     }
     const panel = await page.locator(".story-panel").boundingBox();
     assert.ok(panel.x + panel.width <= width && panel.y + panel.height <= height, "The story panel is inside the viewport");
+    assert.ok(await page.locator(".story-panel .panel-head").evaluate(head => {
+      const box = head.getBoundingClientRect();
+      return head.contains(document.elementFromPoint(box.x + 24, box.y + box.height / 2));
+    }), `Nothing covers the story panel's title at ${width}px`);
     await page.screenshot({ path: path.join(output, `story-${width}.png`) });
     await page.locator(".panel-close").click();
     assert.equal(await page.locator(".story-panel").count(), 0, "Close returns to unobscured free play");

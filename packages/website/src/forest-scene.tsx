@@ -38,6 +38,8 @@ function recordedGrowth(snapshot: GrowthSnapshot) {
 const shop = shopSaved as unknown as GrowthSnapshot;
 const own = ownSaved as unknown as GrowthSnapshot;
 const growths = { own: recordedGrowth(own), shop: recordedGrowth(shop) };
+/** The shop's saved reading, for free play's story panels, arcs and sessions on the shop (2.14); a growth saved without one has none. */
+const shopSnapshot = shop.reading && { ...shop, ...shop.reading, changes: shop.changes ?? [] } as unknown as TourSnapshot;
 type Grown = keyof typeof growths;
 type GlobeMap = "storytree" | "conduit" | Grown;
 const grows = (map: GlobeMap): map is Grown => map === "own" || map === "shop";
@@ -70,9 +72,9 @@ class GlobeBoundary extends Component<{ children: ReactNode; failed(): void }, {
   render() { return this.state.failed ? null : this.props.children; }
 }
 
-function StoryDetails({ story, capability, choose, close }: { story: string; capability: string | undefined; choose(id: string): void; close(): void }) {
+function StoryDetails({ saved, story, capability, choose, close }: { saved: TourSnapshot; story: string; capability: string | undefined; choose(id: string): void; close(): void }) {
   const ref = useRef<HTMLDivElement>(null);
-  const panel = useMemo(() => drillDown(snapshot.tree, story, workStates(snapshot.recording.lines as Recording["lines"]), snapshot.changes), [story]);
+  const panel = useMemo(() => drillDown(saved.tree, story, workStates(saved.recording.lines as Recording["lines"]), saved.changes), [saved, story]);
   useEffect(() => {
     const host = ref.current;
     if (!host || !panel) return;
@@ -89,25 +91,25 @@ function StoryDetails({ story, capability, choose, close }: { story: string; cap
   return <div ref={ref} className="story-panel tour-story-panel" data-story-id={story} />;
 }
 
-function Sessions({ recording, core, onWisps, onHighlight, onPick }: { recording: Recording; core: KnowledgeCore; onWisps(wisps: readonly SessionWisp[]): void; onHighlight(stories: readonly string[] | undefined, session?: string): void; onPick(): void }) {
+function Sessions({ project, recording, core, onWisps, onHighlight, onPick }: { project: string; recording: Recording; core: KnowledgeCore; onWisps(wisps: readonly SessionWisp[]): void; onHighlight(stories: readonly string[] | undefined, session?: string): void; onPick(): void }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    const list = mountSessionsList(ref.current!, { project: snapshot.project, reads: recording.reads,
+    const list = mountSessionsList(ref.current!, { project, reads: recording.reads,
       reading: recording.reading, now: recording.now, onWisps, onHighlight,
       onRoster: roster => core.showRoster(roster), onSelect: session => { onPick(); core.select(session); } });
     const stop = core.onSelect(session => list.select(session));
     return () => { stop(); list.stop(); };
-  }, [recording, core, onWisps, onHighlight, onPick]);
+  }, [project, recording, core, onWisps, onHighlight, onPick]);
   return <div ref={ref} className="tour-sessions" />;
 }
 
-function Arcs({ recording, open }: { recording: Recording; open: boolean }) {
+function Arcs({ project, recording, open }: { project: string; recording: Recording; open: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   const mounted = useRef<ReturnType<typeof mountArcSurface>>(undefined);
   useEffect(() => {
-    mounted.current = mountArcSurface(ref.current!, { project: snapshot.project, reads: recording.reads, timers: recording.timers, reading: recording.reading });
+    mounted.current = mountArcSurface(ref.current!, { project, reads: recording.reads, timers: recording.timers, reading: recording.reading });
     return () => { mounted.current?.stop(); mounted.current = undefined; };
-  }, [recording]);
+  }, [project, recording]);
   useEffect(() => { if (open) mounted.current?.open(); else mounted.current?.close(); }, [open]);
   return <div ref={ref} className="tour-arcs" />;
 }
@@ -172,6 +174,9 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
     const made = createKnowledgeCore(growths[map].snapshot.project); made.take(growths[map].snapshot.changes ?? [], []); return [map, made];
   })) as Record<Grown, KnowledgeCore>, []);
   useEffect(() => () => Object.values(growthCores).forEach(made => made.dispose()), [growthCores]);
+  // The shop's saved reading, at rest at its end, for free play on the shop (2.14).
+  const shopView = useMemo(() => shopSnapshot && { recording: savedReading(shopSnapshot) }, []);
+  useEffect(() => () => shopView?.recording.reading.stop(), [shopView]);
   // Where the arrival's time-lapse stands: told every frame by the tour while it plays (ADR-0889 2.2).
   const [growthAt, setGrowthAt] = useState<{ at: number; index: number; generation: number }>();
   useEffect(() => {
@@ -418,6 +423,15 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   // A step narrowed to a few stories dims the rest (ADR-0890's three teaching stories).
   const focus = touring && !everything && globe.map === shownMap && "focus" in globe ? globe.focus : undefined;
   const drawn = grown?.snapshot.scene ?? stage?.scene ?? snapshot.scene;
+  // Free play on the shop reads the shop's saved reading for its panels, arcs and sessions; everywhere else, storytree's.
+  const onShop = free && shownMap === "shop" && shopView !== undefined;
+  const panelReading = onStorytree ? snapshot : shownMap === "shop" ? shopSnapshot : undefined;
+  const shownProgress = onShop ? shopView.recording.progress() : progress;
+  // While the shop's sessions are on show, its core hears their recorded reads, as storytree's core hears its own.
+  useEffect(() => {
+    if (!onShop) return;
+    return shopView.recording.reading.subscribe({ onNews: news => growthCores.shop.take(shop.changes ?? [], news.lines) });
+  }, [onShop, shopView, growthCores]);
   return <>
     {webgl && tour && <GlobeBoundary failed={failed}>
       <div className="forest-drawing" role="group" aria-label={onStorytree ? "Storytree’s saved project globe" : shownMap === "own" ? "Storytree’s own globe, growing as its agents built it" : shownMap === "shop" ? "An online shop’s globe, as its agents built it" : `Conduit’s saved globe, as it stood ${stage!.at.slice(0, 16).replace("T", " ")} UTC`}
@@ -460,17 +474,21 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
           {shownNotes.length === 0 && <p>No saved notes match that search.</p>}
         </div>
       </div>
-      {story && onStorytree && snapshot.tree.stories.some(item => item.id === story) && <StoryDetails story={story} capability={capability} choose={pickCapability} close={closeStory} />}
+      {story && panelReading?.tree.stories.some(item => item.id === story) && <StoryDetails saved={panelReading} story={story} capability={capability} choose={pickCapability} close={closeStory} />}
       {note && <div className="story-panel" onKeyDown={event => { if (event.key === "Escape") { event.preventDefault(); closeNote(); } }}><KnowledgeNoteCard core={activeCore} onClose={closeNote} /></div>}
-      {/* The recorded sessions and the arcs are storytree's saved reading's: the shop's growth keeps neither. */}
-      <div className="tour-session-surface" hidden={free ? !onStorytree : requestedPanel !== "sessions"}>
-        <Sessions recording={recording} core={core} onWisps={setWisps} onHighlight={onHighlight} onPick={explore} />
-        <p className="tour-recording-progress" data-recording-index={progress.index} data-recording-total={progress.total}>
-          Recording · <time dateTime={progress.at}>{progress.at.slice(11, 16)} UTC</time> · {progress.index} of {progress.total} events
+      {/* The recorded sessions and the arcs of the project on show: the shop's in free play on it, storytree's otherwise. */}
+      <div className="tour-session-surface" hidden={free ? !onStorytree && !onShop : requestedPanel !== "sessions"}>
+        {onShop
+          ? <Sessions key="shop" project={shop.project} recording={shopView.recording} core={growthCores.shop} onWisps={setWisps} onHighlight={onHighlight} onPick={explore} />
+          : <Sessions key="storytree" project={snapshot.project} recording={recording} core={core} onWisps={setWisps} onHighlight={onHighlight} onPick={explore} />}
+        <p className="tour-recording-progress" data-recording-index={shownProgress.index} data-recording-total={shownProgress.total}>
+          Recording · <time dateTime={shownProgress.at}>{shownProgress.at.slice(11, 16)} UTC</time> · {shownProgress.index} of {shownProgress.total} events
         </p>
       </div>
-      <div className="tour-arc-surface" hidden={free ? !onStorytree : requestedPanel !== "arcs"}>
-        <Arcs recording={recording} open={requestedPanel === "arcs"} />
+      <div className="tour-arc-surface" hidden={free ? !onStorytree && !onShop : requestedPanel !== "arcs"}>
+        {onShop
+          ? <Arcs key="shop" project={shop.project} recording={shopView.recording} open={false} />
+          : <Arcs key="storytree" project={snapshot.project} recording={recording} open={requestedPanel === "arcs"} />}
       </div>
     </>, panelHost)}
   </>;

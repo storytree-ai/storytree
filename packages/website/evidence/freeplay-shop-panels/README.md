@@ -1,0 +1,14 @@
+# Free play on the shop opens its story panels, arcs and sessions (contracts 2.14 and 3.9)
+
+2026-10-04, Mint box, increment_d8bcfce678d3. Free play opens on the shop (ADR-0890), and the shop now offers what storytree's own project does:
+
+- **Story panels.** Picking an island (or a story in Find) opens its panel: the story's description and its capability tree, each capability with the health the shop's own CI verified (`freeplay-shop-story-1440.png`, `freeplay-shop-story-390.png`: The cart, its Cart page and Menu healthy, the parts of other stories it builds on beneath).
+- **Arcs.** The arcs drawer holds the shop's two arcs, "Swag Labs copy" (5 increments landed) and "A proper shop" (7 landed). Both are finished, so they sit under **Closed** (`390-no-webgl-shop-arcs.png`).
+- **Sessions.** The sessions tray lists the shop's recorded Claude Code sessions, and selecting one shows its reads in the shop's own knowledge core.
+- Choosing storytree in the selector switches every one of them back to storytree's project.
+
+**Where the data comes from.** The shop's saved growth (`src/shop-snapshot.json`) now carries its public reading: the plan with health, the arcs with their increments and questions, their holds, and the activity the sessions replay, picked and scrubbed exactly as storytree's own saved reading is (`publicPlan`, `publicActivity`, `scrub` in `tour-snapshot.ts`). The rebuild's saved record (`~/storytree-lanes/shop-parallel-private/library-final.json`) has no arc views, so they were read by the library itself: the record was restored into a throwaway local Postgres and `arcViews()` and `holds()` read from it, then saved beside it as `library-final-arcs.json`, which `refresh-shop.ts --project shop2 --record` then exported. The snapshot grows from 465 KB to 694 KB; it loads with Act 2's chunk, behind the pain beat.
+
+**Phone fix on the way:** on a phone, the project selector sat over an open story panel's title, storytree's as well as the shop's (since the selector arrived). The selector now steps aside while a panel is open, as the sessions tray already did; closing the panel brings it back. The immersive journey checks nothing covers the title at 1440, 390 and 320.
+
+Browser journeys, on the locally built site: `--verify-tour` (2.13 and 2.14 without WebGL: the shop's sessions listed, The cart's panel, the shop's closed arcs and a briefing, then storytree's), `--verify-immersive` (2.13, 2.14 and the uncovered title at 1440, 390 and 320), `--verify-recording`, `--verify-forest --verify-camera --verify-opening`, `--verify-enlarged`, and the arrival's `arrival`, `turning`, `reduced` and `handoff` all pass. The arrival's "pausing holds the growth" check read the held moment in the same instant as the pause click, and failed 2 runs in about 10 when a frame landed between; it now reads after the pause has landed.

@@ -148,6 +148,10 @@
   font: 12px/1.35 system-ui, sans-serif;
 }
 
+.knowledge-tooltip.with-detail { max-width: 280px; }
+.knowledge-tooltip.with-detail strong { display: block; font-weight: 600; }
+.knowledge-tooltip-detail { display: block; margin-top: 3px; color: #c4d0d8; }
+
 .core-entrance,
 .core-pinned-label {
   padding: 0.05rem 0.45rem;
@@ -733,7 +737,8 @@
 /* A story's plate wraps its title to STORY_PLATE_WIDTH (set where it is drawn), balanced and centred under its island. */
 .planet-nameplate:not(.capability) { width:max-content; white-space:normal; text-wrap:balance; text-align:center; line-height:1.15; border-radius:0.6rem; }
 .planet-nameplate.crowded { visibility:hidden; }
-.planet-nameplate.capability { transform:none; padding:0.05rem 0.45rem; font-size:0.7rem; font-weight:500; background:rgb(16 20 24 / 0.62); }
+/* A capability's name wraps by word to two lines at most, an ellipsis past them; its full name and description read on hover (3.32). */
+.planet-nameplate.capability { transform:none; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; width:max-content; max-width:120px; white-space:normal; text-wrap:balance; text-align:center; line-height:1.15; border-radius:0.6rem; padding:0.1rem 0.45rem; font-size:0.7rem; font-weight:500; background:rgb(16 20 24 / 0.62); }
 /* Unsurveyed progress counts landed work, without claiming code coverage or test health (forest 3.29). */
 .planet-nameplate.with-progress { display:inline-flex; align-items:center; gap:6px; }
 .planet-nameplate.with-progress .planet-nameplate-title { flex:0 0 calc(112px - 1.1rem); }

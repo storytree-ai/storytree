@@ -39,9 +39,9 @@ const BORDER_OPACITY = 0.85;
 
 type Point = { readonly x: number; readonly z: number };
 
-/** Land cut into territories: each territory's capability and title, its cells, and the borders between. */
+/** Land cut into territories: each territory's capability, title and description, its cells, and the borders between. */
 export type DrawnLand = {
-  readonly territories: readonly { readonly capability?: string; readonly title?: string; readonly status?: CapabilityWord }[];
+  readonly territories: readonly { readonly capability?: string; readonly title?: string; readonly description?: string; readonly status?: CapabilityWord }[];
   readonly cells: readonly { readonly polygon: readonly Point[]; readonly territory: number }[];
   readonly borders: readonly { readonly from: Point; readonly to: Point }[];
 };
@@ -63,7 +63,7 @@ export function territoryLand(land: DrawnLand, onSurface: (point: Point) => Vect
     // A capability a running session claims keeps its fill; its border is outlined in the session's colour (ADR-0825 D3).
     const claimant = territory.capability === undefined ? undefined : claimed.get(territory.capability);
     mesh.userData = territory.capability === undefined ? { territory: true }
-      : { territory: true, capability: territory.capability, title: territory.title ?? territory.capability, word: territory.status ?? "untested", ...(claimant === undefined ? {} : { claimedBy: claimant.colour }) };
+      : { territory: true, capability: territory.capability, title: territory.title ?? territory.capability, ...(territory.description === undefined ? {} : { description: territory.description }), word: territory.status ?? "untested", ...(claimant === undefined ? {} : { claimedBy: claimant.colour }) };
     mesh.renderOrder = 1;
     group.add(mesh);
     if (territory.capability === undefined) group.add(hatch(pieces, onSurface));

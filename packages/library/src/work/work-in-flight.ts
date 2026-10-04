@@ -1,6 +1,6 @@
 /**
  * Capability 10 · Work in flight (the library story, ADR-0640): each arc whole, with its
- * increments. An increment moves proposal → ready → active → closed, only ever forward; closed, it
+ * increments. An increment moves proposal → active → closed, only ever forward (its ready step is retired, ADR-0909 D4); closed, it
  * stays as the arc's log entry, with the day it closed, its pull request, its note and whether it
  * landed, failed or was withdrawn. An arc's state is worked out from its increments on every read:
  * closed when none is open, active otherwise or while it has none, and parked, the one state that
@@ -245,15 +245,15 @@ export class WorkInFlight {
   }
 
   /**
-   * Move an increment on to `to`, `ready` or `active`, and only forward (LifecycleError otherwise).
+   * Start an increment: move it on to `active`, and only forward (LifecycleError otherwise).
    * Null, with nothing written, if `id` is not a live increment.
    */
-  advanceIncrement(id: string, to: "ready" | "active", options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
+  advanceIncrement(id: string, to: "active", options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
     return this.#serially(async () => {
       const increment = await liveRecord(this.#records, id, ["increment"]);
       if (increment === null) return null;
       const from = increment.fields.status;
-      if (!(to === "ready" || to === "active") || rank(to) <= rank(from)) throw new LifecycleError(id, from, to);
+      if (to !== "active" || rank(to) <= rank(from)) throw new LifecycleError(id, from, to);
       return (await this.#records.edit(id, { status: to }, options)) as SchemaRecord<"increment"> | null;
     });
   }

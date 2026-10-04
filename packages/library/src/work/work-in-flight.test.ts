@@ -118,11 +118,11 @@ for (const backend of [memory, postgres]) {
   contract("10.2", "an increment moves only forward, and closing records date, pull request, note and outcome; a close with no pull request needs a note", async ({ work, flight, transactions }) => {
     const arc = await work.createArc(ARC);
     const increment = await flight.addIncrement({ arc: arc.id, ...WORK });
-    assert.equal((await flight.advanceIncrement(increment.id, "ready"))?.fields.status, "ready");
+    await assert.rejects(flight.advanceIncrement(increment.id, "ready" as never), LifecycleError, "there is no ready step (ADR-0909 D4)");
     assert.equal((await flight.advanceIncrement(increment.id, "active"))?.fields.status, "active");
 
     const history = await transactions.history();
-    await assert.rejects(flight.advanceIncrement(increment.id, "ready"), LifecycleError, "never backward");
+    await assert.rejects(flight.advanceIncrement(increment.id, "proposal" as never), LifecycleError, "never backward");
     await assert.rejects(flight.advanceIncrement(increment.id, "active"), LifecycleError, "never in place");
     await assert.rejects(
       flight.closeIncrement(increment.id, { disposition: "withdrawn" }),
@@ -149,6 +149,21 @@ for (const backend of [memory, postgres]) {
     const merged = await flight.closeIncrement(other.id, { pr: "#5", disposition: "landed" });
     assert.deepEqual({ ...merged?.fields.outcome, date: undefined }, { date: undefined, pr: "#5", disposition: "landed" });
     assert.equal(await flight.closeIncrement("increment_000000000000", { pr: "#6", disposition: "landed" }), null);
+  });
+
+  contract("10.7", "an increment stored as ready, a step ADR-0909 D4 retired, reads as a proposal keeping its parked date, and an edit stores it so", async ({ flight, records, transactions, work }) => {
+    const arc = await work.createArc(ARC);
+    const parked = "2026-10-01T06:26:04.938Z";
+    await transactions.save({ id: "increment-ready", type: "increment", version: 1, fields: { arc: arc.id, ...WORK, status: "ready", parked } });
+    const upgraded = await records.get("increment-ready");
+    assert.equal(upgraded?.version, 2);
+    assert.deepEqual(upgraded?.fields, { arc: arc.id, ...WORK, status: "proposal", parked });
+    assert.deepEqual((await flight.arcView(arc.id))?.increments.map(({ fields }) => fields.status), ["proposal"]);
+    await flight.editIncrement("increment-ready", { title: "Renamed" });
+    const stored = await transactions.get("increment-ready");
+    assert.equal(stored?.version, 2, "an edit stores it upgraded, in place");
+    assert.equal(stored?.fields["status"], "proposal");
+    assert.equal((await flight.advanceIncrement("increment-ready", "active"))?.fields.status, "active", "claiming it starts it");
   });
 
   contract("10.3", "an arc reads closed exactly when none of its increments is open, active otherwise or with none, and parked until unparked", async ({ work, flight, records }) => {

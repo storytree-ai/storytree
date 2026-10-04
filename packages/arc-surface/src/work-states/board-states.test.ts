@@ -4,7 +4,7 @@ import type { Claim } from "@storytree/agent-link";
 import type { FieldsOf, Hold } from "@storytree/library";
 import { arcState, incrementState } from "./board-states.js";
 
-const open: FieldsOf<"increment"> = { arc: "a", title: "Build", objective: "Build it", body: "Build it", status: "ready" };
+const open: FieldsOf<"increment"> = { arc: "a", title: "Build", objective: "Build it", body: "Build it", status: "proposal" };
 const held: Claim = { increment: "i", session: "s", label: "Codex", reason: "building", since: "2026-09-27T00:00:00Z", holder: "idle" };
 const waits: Hold[] = [{ on: "other", reason: "needs it", forGood: false }];
 

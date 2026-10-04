@@ -162,7 +162,8 @@ function Tags({ tags, controls, arrived }: { tags: readonly Tag[]; controls: Glo
 function offsetFor(step: TourStep | undefined, width: number) {
   if (!step || width <= 600) return 0;
   const opening = step.kind === "beats" || step.kind === "statement" || step.kind === "fixes";
-  const cardRight = opening ? Math.min(64, width * .04) + Math.min(560, width * .46) : 24 + Math.min(400, width * .36);
+  // A chapter's lines start where the arrival's do (ADR-0890, amended 2026-10-05).
+  const cardRight = Math.min(64, width * .04) + (opening ? Math.min(560, width * .46) : Math.min(400, width * .36));
   const panel = step.panel === "story" ? Math.min(480, width - 24) + 12 : 0;
   return Math.round(Math.min(width * .2, (cardRight - panel) / 2));
 }

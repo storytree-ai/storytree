@@ -10,7 +10,8 @@ import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const dist = path.resolve(here, "../../dist");
+// --dist <folder> pictures another build (main's, for a before-and-after).
+const dist = process.argv.includes("--dist") ? path.resolve(process.argv[process.argv.indexOf("--dist") + 1]) : path.resolve(here, "../../dist");
 const only = process.argv.includes("--only") ? process.argv[process.argv.indexOf("--only") + 1] : undefined;
 const types = { ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".png": "image/png", ".json": "application/json" };
 const server = createServer(async (req, res) => {
@@ -185,7 +186,7 @@ const runs = {
     await mkdir(path.join(here, `../${to}`), { recursive: true });
     for (const [width, height] of [[1920, 1080], [1440, 900], [1280, 800], [390, 844], [320, 700]]) {
       const page = await open({ width, height });
-      for (const id of ["agents-fix", "agents-sessions", "agents-arcs", "agents-claim", "agents-parallel", "agents-standdown"]) {
+      for (const id of ["agents-sessions", "agents-arcs", "agents-claim", "agents-parallel", "agents-standdown"]) {
         await go(page, id); await pause(page);
         await page.waitForFunction(() => document.querySelector(".forest-drawing")?.dataset.arrived === "true", null, { timeout: 30_000 }).catch(() => {});
         await page.waitForTimeout(2000);
@@ -197,6 +198,27 @@ const runs = {
       await page.close();
     }
     observed.push("The agents chapter's steps on the shop's recorded moments: pictured");
+  },
+  // Every chapter step told in the tour's one format (2.19), the map's and the agents', played in order with motion, at 1920,
+  // 1440, 1280, 390 and 320, each with its How and Why opened once. --to <folder> (beside this one) says where they go.
+  async chapters() {
+    const to = process.argv.includes("--to") ? process.argv[process.argv.indexOf("--to") + 1] : "one-format/after";
+    const out = name => path.join(here, `../${to}/${name}.png`);
+    await mkdir(path.join(here, `../${to}`), { recursive: true });
+    for (const [width, height] of [[1920, 1080], [1440, 900], [1280, 800], [390, 844], [320, 700]]) {
+      const page = await open({ width, height });
+      const ids = await page.locator("#tour-pips [data-step]").evaluateAll(pips => pips.map(pip => pip.dataset.step).filter(id => /^(map|agents)-/.test(id)));
+      for (const id of ["fixes", ...ids]) {
+        await go(page, id); await pause(page);
+        await page.waitForFunction(() => document.querySelector(".forest-drawing")?.dataset.arrived === "true", null, { timeout: 30_000 }).catch(() => {});
+        await page.waitForTimeout(2000);
+        await page.screenshot({ path: out(`${width}-${id}`) });
+        if (id === "map-parts") { await page.locator("#tour-depth").click(); await page.waitForTimeout(600); await page.screenshot({ path: out(`${width}-${id}-depth`) }); await page.locator("#tour-depth").click(); }
+        await play(page);
+      }
+      await page.close();
+    }
+    observed.push(`Every chapter step in the tour's one format: pictured in ${to}`);
   },
   // A clip of a close-to-close move (2.15): the camera stays in and turns the globe, never out and in again.
   async closeFlight() {

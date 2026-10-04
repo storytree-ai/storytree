@@ -53,11 +53,11 @@ test("3.19 a surveyed island's area follows its lines, a tiny story keeps a floo
 
 test("3.19 an island whose files' circles do not fit on the land its lines give it grows until they all fit at full size inside its drawn coast", () => {
   const crowded = { arcs: [], stories: [{ id: "crowded", title: "crowded", health, capabilities: [capability("c1"), capability("c2"), capability("c3")] }] };
-  // Two hundred three-line files: little code, but many circles.
-  const files = Array.from({ length: 200 }, (_, at) => ({ path: `src/${at}.ts`, lines: 3, capability: `c${(at % 3) + 1}` }));
+  // Four hundred one-line files: little code, but many circles.
+  const files = Array.from({ length: 400 }, (_, at) => ({ path: `src/${at}.ts`, lines: 1, capability: `c${(at % 3) + 1}` }));
   const scene = forestScene(crowded, [], workStates([]), { crowded: { files, imports: [] } });
   const island = scene.islands[0]!;
-  assert.ok(island.area! > islandArea(600), `the island grew past the ${islandArea(600)} units² its lines give it (to ${island.area!.toFixed(0)})`);
+  assert.ok(island.area! > islandArea(400), `the island grew past the ${islandArea(400)} units² its lines give it (to ${island.area!.toFixed(0)})`);
   const coast = buildPlanetPathways(scene, new Map([["crowded", { x: 0, y: 0, z: 1 }]]), PLANET_RADIUS).plates.get("crowded")!.coast;
   const circles = fileCircles(territories(island.land!.territories, coast), island.land!.files);
   assert.equal(circles.length, files.length);

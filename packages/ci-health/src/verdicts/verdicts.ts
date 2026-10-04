@@ -31,11 +31,14 @@ export type StoryProofs = {
 
 export type Verdict = { state: "passing" | "failing" | "not-checked"; passed: number; failed: number; skipped: number; total: number; note: string };
 
-/** Each story's proofs, from the files at the run's commit (repository paths, `packages/<package>/src/…`). */
+/**
+ * Each story's proofs, from the files at the run's commit (repository paths): its package's tests wherever they sit in
+ * it, under `src/` or in a test folder beside it (`packages/<package>/test/…`), as users' projects lay them out.
+ */
 export function proofsAt(tree: PlanTree, files: readonly SourceFile[]): StoryProofs[] {
   return tree.stories.map((story) => {
     const own = packageOf(story.title);
-    const sources = files.filter((file) => file.path.startsWith(`packages/${own}/src/`));
+    const sources = files.filter((file) => file.path.startsWith(`packages/${own}/`));
     const titles = new Map<string, { numbers: string[]; package?: string }>();
     if (sources.length > 0) {
       for (const test of surveyStory(sources, story.capabilities, {}, own).tests ?? []) {

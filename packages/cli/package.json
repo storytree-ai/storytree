@@ -19,12 +19,13 @@
     "@storytree/arc-surface": "workspace:*",
     "@storytree/ci-health": "workspace:*",
     "@storytree/forest": "workspace:*",
+    "@storytree/guardrails": "workspace:*",
     "@storytree/journey-events": "workspace:*",
     "@storytree/keys": "workspace:*",
     "@storytree/librarian": "workspace:*",
     "@storytree/library": "workspace:*",
-    "@storytree/processes": "workspace:*",
-    "@storytree/map": "workspace:*"
+    "@storytree/map": "workspace:*",
+    "@storytree/processes": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^24.13.6",

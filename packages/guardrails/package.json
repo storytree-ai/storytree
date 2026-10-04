@@ -1,0 +1,20 @@
+{
+  "name": "@storytree/guardrails",
+  "private": true,
+  "type": "module",
+  "description": "Guardrails (ADR-0911 D2): storytree's package rule and allocation rule, run from a checkout alone as `storytree check`, and the same code storytree's own dev loop runs.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@storytree/map": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.6",
+    "tsx": "^4.23.15",
+    "typescript": "~7.0.2"
+  }
+}

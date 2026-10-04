@@ -269,6 +269,9 @@ importers:
       '@storytree/forest':
         specifier: workspace:*
         version: link:../forest
+      '@storytree/guardrails':
+        specifier: workspace:*
+        version: link:../guardrails
       '@storytree/journey-events':
         specifier: workspace:*
         version: link:../journey-events
@@ -315,15 +318,15 @@ importers:
       '@storytree/agent-link':
         specifier: workspace:*
         version: link:../agent-link
+      '@storytree/guardrails':
+        specifier: workspace:*
+        version: link:../guardrails
       '@storytree/library':
         specifier: workspace:*
         version: link:../library
       '@storytree/local-postgres':
         specifier: workspace:*
         version: link:../local-postgres
-      '@storytree/map':
-        specifier: workspace:*
-        version: link:../map
       pg:
         specifier: ^8.23.0
         version: 8.23.0
@@ -431,6 +434,22 @@ importers:
       playwright-core:
         specifier: 1.60.0
         version: 1.60.0
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+      typescript:
+        specifier: ~7.0.2
+        version: 7.0.2
+
+  packages/guardrails:
+    dependencies:
+      '@storytree/map':
+        specifier: workspace:*
+        version: link:../map
+    devDependencies:
+      '@types/node':
+        specifier: ^24.13.6
+        version: 24.13.6
       tsx:
         specifier: ^4.23.15
         version: 4.23.15

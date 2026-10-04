@@ -21,7 +21,8 @@
     "@storytree/map": "workspace:*",
     "pg": "^8.23.0",
     "zod": "^4.6.5",
-    "@storytree/processes": "workspace:*"
+    "@storytree/processes": "workspace:*",
+    "@storytree/guardrails": "workspace:*"
   },
   "devDependencies": {
     "@modelcontextprotocol/client": "^2.1.0",

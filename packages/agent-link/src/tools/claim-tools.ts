@@ -2,9 +2,14 @@
  * The claiming and reporting tools: claim or release a capability or an increment (claiming an
  * increment starts it, ADR-0643 D1), report a contract red or green, and report a capability
  * landed. A claim on waiting work is refused, naming what it waits for (W2, ADR-0643 D2). And make
- * a workspace already claimed for a piece of work, in one step (ADR-0653, the owner's K1).
+ * a workspace already claimed for a piece of work, in one step (ADR-0653, the owner's K1). A landing
+ * that would leave a source file of the capability's story package reached by no numbered test is held
+ * until each is placed, through the Guardrails story's allocation rule, the code `storytree check` runs
+ * (ADR-0911 D4, contract 6.37).
  */
+import { allocationProblems, checkoutOf } from "@storytree/guardrails";
 import type { Library } from "@storytree/library";
+import { packageOf } from "@storytree/map/code-survey";
 import { z } from "zod";
 
 import { attachWorkspace, claim, CLAIM_REASON_LIMIT, currentBranch, increments, land, makeWorkspace, release, type Claim, type ClaimAnswer, type ClaimContext, type WorkspaceRefusal } from "../claims/index.js";
@@ -127,6 +132,14 @@ export function registerClaimTools(define: Define, extensions: readonly ToolExte
     "Report a capability landed: its work is finished. Your claim on it ends.",
     z.object({ capability: capabilityId }),
     async ({ capability }, call) => {
+      const unplaced = await unplacedFiles(call, capability);
+      if (unplaced.length > 0) {
+        return {
+          text: [`${await titleOf(call.library, capability)} is not landed: its story's package has ${unplaced.length === 1 ? "a source file" : `${unplaced.length} source files`} no numbered test reaches (ADR-0911 D4). Place each, then land again; your claim stays.`, ...unplaced.map((problem) => `- ${problem}`)].join("\n"),
+          refused: true,
+          data: { landed: false, unplaced },
+        };
+      }
       const answer = await land(claimContext(call), capability);
       if (answer.ok) {
         const next: string[] = [];
@@ -149,6 +162,12 @@ export function registerClaimTools(define: Define, extensions: readonly ToolExte
         : { text: `There is no capability ${capability} in this project's plan.`, refused: true };
     },
   );
+}
+
+/** The allocation problems of `capability`'s story package in the checkout the session works in; none for a capability the plan lacks. */
+async function unplacedFiles({ library, folder }: Call, capability: string): Promise<string[]> {
+  const story = (await library.projectTree()).stories.find((one) => one.capabilities.some((part) => part.id === capability));
+  return story === undefined ? [] : allocationProblems(checkoutOf(folder), [packageOf(story.title)]);
 }
 
 function claimContext({ log, library, project, caller, folder, quietMs, writer }: Call): ClaimContext & { readonly folder: string } {

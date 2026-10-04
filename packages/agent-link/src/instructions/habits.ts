@@ -93,7 +93,7 @@ Code the map can draw.
 Red, then green, then landed.
 - Write a contract's test first, run it, see it fail, and \`report\` it red.
 - Make it pass, and \`report\` it green.
-- When its contracts pass, \`land\` the capability: your claim on it ends. If you stop before then, \`release\` it.
+- When its contracts pass, \`land\` the capability: your claim on it ends. A landing that leaves a source file of the story's package reached by no numbered test is held, naming each file: place it, then land again. If you stop before then, \`release\` it.
 - A capability is proposed until you \`mark_built\` it, once you consider it built. Its card then says healthy, unhealthy or untested from what storytree verified, never from your report.
 - At an increment boundary, \`read_context\` says how many tokens your context holds; judge whether to take on more.
 - When the increment is done, \`close_increment\` with its outcome (landed, failed or withdrawn) and its pull request. Record work that landed without ever being parked with \`park_increment\` and its outcome.

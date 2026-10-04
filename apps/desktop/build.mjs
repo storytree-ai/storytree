@@ -60,9 +60,6 @@ await build({
   platform: "browser",
   format: "iife",
   target: "es2023",
-  // The forest view's pine kit export is bundled into the page as its bytes (@storytree/forest/view),
-  // though nothing draws it since ADR-0804 D1: the globe's islands carry no trees.
-  loader: { ".glb": "binary" },
 });
 
 cpSync(fileURLToPath(import.meta.resolve("@storytree/arc-surface/view/styles.css")), path.join(dist, "renderer", "arc-surface.css"));

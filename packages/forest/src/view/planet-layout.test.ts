@@ -12,7 +12,7 @@ import type { StorySurvey } from "@storytree/map";
 
 const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
 const ids = ["story_05e45963ca9f", "story_16ac26dfa5d6", "story_78b33d16d0b6", "story_20549f1d48af", "story_be32e99ed54f", "story_4c04d95d52a8", "story_69d0ee10bbe7", "story_eb7d623fb9c8"];
-const counts = [8, 4, 5, 11, 7, 4, 6, 13];
+const counts = [4, 2, 3, 6, 4, 2, 3, 7];
 // The last story depends on the first, so it sits alone in the row above the other seven.
 const tree = { arcs: [], stories: ids.map((id, i) => ({ id, title: id, health, capabilities: Array.from({ length: counts[i]! }, (_, c) => ({ id: `${id}-${c}`, title: `Capability ${c}`, dependsOn: i === 7 && c === 0 ? [`${ids[0]}-0`] : [], proposed: true, status: "proposed" as const, contracts: [], health })) })) };
 const places = new Map(storyNodes(tree, []).map(({ id, place }) => [id, place]));
@@ -37,7 +37,7 @@ test("1.7 an island that outgrows its neighbours' room moves them along its row,
   assert.equal(before.radius, PLANET_RADIUS, "the seed's islands at their capability sizes fit as placed");
   const anchor = (story: string) => { const p = before.spots.get(story)!; return new Vector3(p.x, p.y, p.z); };
 
-  const scene = forestScene(tree, [], workStates([]), { [ids[0]!]: survey(12000) });
+  const scene = forestScene(tree, [], workStates([]), { [ids[0]!]: survey(4000) });
   const layout = planetLayout(scene, places);
   assert.equal(layout.radius, PLANET_RADIUS, "nudging alone made the room");
   const moved = (id: string) => new Vector3(layout.spots.get(id)!.x, layout.spots.get(id)!.y, layout.spots.get(id)!.z).angleTo(anchor(id));

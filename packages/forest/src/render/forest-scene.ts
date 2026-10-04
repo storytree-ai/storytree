@@ -17,7 +17,7 @@ import type { AnnotatedTree, Change } from "@storytree/library";
 
 import { grove } from "../capability-tree/capability-tree.js";
 import { packageOf, type StorySurvey } from "@storytree/map";
-import { islandArea, unsurveyedArea } from "../planet-places/island-growth.js";
+import { islandArea, MIN_ISLAND_AREA, unsurveyedArea } from "../planet-places/island-growth.js";
 import { storyNodes } from "../story-nodes/story-nodes.js";
 import { landForCircles } from "../territories/territories.js";
 
@@ -26,6 +26,11 @@ export type { ForestScene, Island, PlacedTree };
 
 /** The largest an island grows, so it always fits its place. */
 const MAX_RADIUS = PLACE_WIDTH * 0.42;
+/**
+ * The flat forest's places are spread out as far as the land grew (ADR-0910: 318 to {@link MIN_ISLAND_AREA} ground
+ * units² for each capability an unsurveyed story draws), so neighbouring story nodes still never overlap on it.
+ */
+const FLAT_SPREAD = Math.sqrt(MIN_ISLAND_AREA / 318);
 /** How far apart trees stand on an island. */
 const TREE_SPACING = 1.9;
 
@@ -57,8 +62,8 @@ export function forestScene(tree: AnnotatedTree, history: readonly Change[], sta
     const reach = Math.max(...spots.map(({ r }) => r));
     const radius = Math.min(MAX_RADIUS, reach + 2.4);
     const squeeze = reach + 2.4 > MAX_RADIUS ? (MAX_RADIUS - 2.4) / reach : 1;
-    const x = (node?.at.x ?? 0) * PLACE_WIDTH;
-    const z = (node?.at.y ?? 0) * PLACE_WIDTH;
+    const x = (node?.at.x ?? 0) * PLACE_WIDTH * FLAT_SPREAD;
+    const z = (node?.at.y ?? 0) * PLACE_WIDTH * FLAT_SPREAD;
     const contractsOf = new Map(story.capabilities.map(({ id, contracts }) => [id, contracts.length]));
     const placed = trees.map(({ capability, form, status }, index): PlacedTree => {
       const spot = spots[index] ?? { r: 0, angle: 0 };

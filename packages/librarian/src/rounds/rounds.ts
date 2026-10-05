@@ -62,8 +62,9 @@ export interface Worklist {
 /** Whether the pass is due: graduation always; the rest on a curated write since `since`, or with no `since`. */
 export async function roundDue(library: Library, { since }: { since?: number }): Promise<RoundDue> {
   if (since === undefined) return { graduation: true, rest: true };
-  const { changes } = await library.changesSince(since);
-  return { graduation: true, rest: changes.some((change) => CURATED.includes(change.type)) };
+  // Whether one curated change came after `since`: one entry at most, never the changes themselves (6.6).
+  const curated = await library.history({ since, types: CURATED, oldest: 1 });
+  return { graduation: true, rest: curated.length > 0 };
 }
 
 /** Gather the worklist: graduation's list and the friction drain always, the rest when the trigger fired. */

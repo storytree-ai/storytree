@@ -2,7 +2,7 @@
  * MemoryTransactions: the in-memory twin of PgTransactions. The behaviour suite runs unchanged on
  * both, so later stories can test against this one without a database.
  */
-import { check, editedRecord, historyEntry, jsonCopy, now, numbered, savedRecord } from "./records.js";
+import { check, editedRecord, historyEntry, historyFilter, jsonCopy, now, numbered, savedRecord } from "./records.js";
 import type {
   EditInput,
   HistoryEntry,
@@ -72,11 +72,13 @@ export class MemoryTransactions implements Transactions {
     this.#records.delete(input.id);
   }
 
-  async history(filter: HistoryFilter = {}): Promise<HistoryEntry[]> {
-    const { id, since } = filter;
-    return this.#history
-      .filter((entry) => (id === undefined || entry.recordId === id) && (since === undefined || entry.seq > since))
-      .map((entry) => jsonCopy(entry));
+  async history(given: HistoryFilter = {}): Promise<HistoryEntry[]> {
+    const { id, since, from, types, oldest, newest } = historyFilter(given);
+    const kept = this.#history.filter((entry) =>
+      (id === undefined || entry.recordId === id) && (since === undefined || entry.seq > since)
+      && (from === undefined || entry.at >= from) && (types === undefined || types.includes(entry.type)));
+    const limited = oldest !== undefined ? kept.slice(0, oldest) : newest !== undefined ? kept.slice(-newest) : kept;
+    return limited.map((entry) => jsonCopy(entry));
   }
 
   /** `input` numbered from every number its type's records have held, as the history keeps them. */

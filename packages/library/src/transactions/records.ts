@@ -3,11 +3,29 @@
  * exactly: the record a save or an edit would leave, the check on it, and the shape of a history
  * entry. Each backend only decides where these go and how a write stays atomic.
  */
-import type { HistoryEntry, RecordEnvelope, SaveInput, Upgrade, Validate } from "./types.js";
+import type { HistoryEntry, HistoryFilter, RecordEnvelope, SaveInput, Upgrade, Validate } from "./types.js";
 
 /** The time now, as records carry it: an ISO 8601 UTC timestamp. */
 export function now(): string {
   return new Date().toISOString();
+}
+
+/**
+ * `filter` as both backends apply it: its time as records carry one (UTC, to the millisecond), so
+ * that a comparison means the same in each. A malformed filter is refused before anything is read.
+ */
+export function historyFilter(filter: HistoryFilter): HistoryFilter {
+  const { from, oldest, newest } = filter;
+  for (const [name, limit] of [["oldest", oldest], ["newest", newest]] as const) {
+    if (limit !== undefined && !(Number.isSafeInteger(limit) && limit > 0)) {
+      throw new RangeError(`history's ${name} is how many changes to keep, a whole number above 0, not ${String(limit)}`);
+    }
+  }
+  if (oldest !== undefined && newest !== undefined) throw new RangeError("history keeps the oldest or the newest changes, not both");
+  if (from === undefined) return filter;
+  const at = typeof from === "string" ? Date.parse(from) : Number.NaN;
+  if (Number.isNaN(at)) throw new RangeError(`history's from is a time (ISO 8601), not ${JSON.stringify(from)}`);
+  return { ...filter, from: new Date(at).toISOString() };
 }
 
 /** The record `save` would store, given the record stored now (if any). */

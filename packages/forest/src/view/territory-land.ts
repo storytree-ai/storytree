@@ -30,8 +30,8 @@ const UNCHARTED_FILL = { colour: "#101418", opacity: 0.92 };
 const UNCHARTED_HATCH = { colour: "#8fa8b8", opacity: 0.35 };
 /** The hatch lines lie this far apart, measured across them, in ground units. */
 const HATCH_SPACING = 0.35;
-/** A claim's outline: a band this deep inside the territory's border, in ground units. */
-const CLAIM_INSET = 0.3;
+/** A claim's outline: a band this deep inside the territory's border, in ground units; the only claim mark, so it reads at globe zoom (ADR-0923 D1). */
+const CLAIM_INSET = 1.2;
 const CLAIM_OPACITY = 0.95;
 const FADED_CLAIM_OPACITY = 0.6;
 const BORDER_COLOUR = "#f4f7f8";

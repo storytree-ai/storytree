@@ -1,4 +1,4 @@
-// Seeded, repeatable capture of the actual desktop page (ADR-0804 D9, session tints): same seed (the
+// Seeded, repeatable capture of the actual desktop page (session claims, ADR-0923 narrowing ADR-0804 D9): same seed (the
 // knowledge-under-islands snapshot), the same agent log written out below, the page's clock fixed at NOW,
 // same 1440 x 960 viewport, same programmatic turns; nothing is hand-panned. Run under flock /tmp/storytree-heavy.lock after
 // `node build.mjs`. Measures what can be counted before anyone looks, and writes measurements.json.
@@ -35,7 +35,7 @@ add(49, SESSIONS.A, { kind: 'prompt-submitted', source: 'hook' });
 add(40, SESSIONS.A, claim(CAP.agentTools, 'tool call arguments'));
 add(38, SESSIONS.A, claim(CAP.libraryTransactions, 'transaction retries'));
 add(1, SESSIONS.A, { kind: 'file-edited', source: 'hook', files: ['packages/agent-link/src/tools.ts'] });
-// B: live; holds Claims (The agent link, so that coast splits in two); last line 30 seconds ago.
+// B: live; holds Claims (The agent link, beside A's Agent tools); last line 30 seconds ago.
 add(30, SESSIONS.B, { kind: 'session-started', source: 'hook' });
 add(29, SESSIONS.B, { kind: 'prompt-submitted', source: 'hook' });
 add(20, SESSIONS.B, claim(CAP.claims, 'takeover of an idle claim'));
@@ -119,8 +119,8 @@ function measure(page) {
     console.error(JSON.stringify({ state: await page.evaluate(() => document.body.dataset.state + ' | ' + (document.querySelector('.empty')?.innerText ?? '')), errors, urls: failed, warnings: warnings.slice(0, 5) }));
     throw error;
   });
-  // Territories arrive with the survey, and the tints with the first read of the log: wait until both are drawn.
-  await page.waitForFunction(() => { let bands = 0, files = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('coast-tint:')) bands++; if (o.name.startsWith('file:')) files++; }); return bands > 0 && files > 0; }, undefined, { timeout: 30000 });
+  // Territories arrive with the survey, and the claim outlines with the first read of the log: wait until both are drawn.
+  await page.waitForFunction(() => { let outlines = 0, files = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('territory-claim:')) outlines++; if (o.name.startsWith('file:')) files++; }); return outlines > 0 && files > 0; }, undefined, { timeout: 30000 });
   await page.evaluate(() => { for (const menu of document.querySelectorAll('[popover]')) if (menu.matches(':popover-open')) menu.hidePopover(); });
   await settle(page);
   const results = { now: new Date(NOW).toISOString(), sessions: SESSIONS, capabilities: CAP, logLines: lines.length };
@@ -163,6 +163,8 @@ function measure(page) {
   results.seed = seed.stats;
   writeFileSync(path.join(out, `${prefix}measurements.json`), JSON.stringify(results, null, 2) + '\n');
   assert.deepEqual(errors, []);
+  // ADR-0923 D1: a claimed territory's outline is the only claim mark; no island's coast is tinted.
+  for (const view of [results.front, results.closeUpAgentLink, results.closeUpForest]) assert.deepEqual(view.islands.flatMap(i => i.coastTintBands), [], 'no coast tint');
   console.log(JSON.stringify({ browser: results.browser, sessionRows: results.sessionRows, wispObjects: results.front.wispObjects,
     islands: results.front.islands.filter(i => i.coastTintBands.length || i.claimedTerritories.length).map(i => [i.story, i.coastTintBands.map(b => [b.session, b.colour, b.opacity]), i.claimedTerritories.map(t => [t.capability, t.claimedBy])]), errors }));
 });

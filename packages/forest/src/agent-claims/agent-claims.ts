@@ -1,9 +1,9 @@
 /**
  * Capability 5 · Agent capability claims (the forest story): each running session with a row in the
- * sessions list (capability 7) marks the island of each story it holds a claim in, in its own colour,
- * the colour its row wears too. Since ADR-0804 D9 the mark is no orbiting wisp (ADR-0736, ADR-0781):
- * it tints the island's coast, split into one arc per session, and fills the territory of each
- * capability it claims faintly in its colour. It follows
+ * sessions list (capability 7) outlines the territory of each capability it claims, in its own colour,
+ * the colour its row wears too (ADR-0825 D3). That outline is the only claim mark (ADR-0923): no
+ * orbiting wisp (ADR-0736, ADR-0781), no coast tint (ADR-0804 D9), and an increment claim draws
+ * nothing. It follows
  * the agent link's own readings of the log (claims and sessions, through its browser-safe
  * `readings` entry), so the forest and the claim tool always agree.
  *
@@ -39,8 +39,13 @@ export function sessionWisps(rows: readonly SessionRow[], log: readonly Line[] |
   const claims = fold.claims(judged);
   const quiet = new Set(claims.filter(claim => claim.holder === "idle" && hooked.has(claim.session)).map(claim => claim.session));
   const held = (session: string) => claims.flatMap(claim => (claim.session === session && claim.capability !== undefined ? [claim.capability] : []));
-  return rows.flatMap(row => row.stories.map(story => ({ session: row.id, story, colour: sessionColour(row.id),
-    phase: (hashOf(row.id) >>> 8) % 360, faded: quiet.has(row.id), capabilities: held(row.id) })));
+  // A folded subagent claims in its parent's colour (5.5): its row's outlines are its own and its children's.
+  const heldUnder = (row: SessionRow): string[] => [...held(row.id), ...row.children.flatMap(heldUnder)];
+  return rows.flatMap(row => {
+    const capabilities = [...new Set(heldUnder(row))];
+    return row.stories.map(story => ({ session: row.id, story, colour: sessionColour(row.id),
+      phase: (hashOf(row.id) >>> 8) % 360, faded: quiet.has(row.id), capabilities }));
+  });
 }
 
 /**
@@ -51,21 +56,6 @@ export function replayWisps(stages: readonly { at: number; wisps: readonly Sessi
   let shown: readonly SessionWisp[] = [];
   for (const stage of stages) if (stage.at <= now) shown = stage.wisps;
   return shown;
-}
-
-/** One session's share of an island's coast: from and to as fractions of the way round. */
-export interface CoastArc {
-  session: string;
-  colour: string;
-  faded: boolean;
-  from: number;
-  to: number;
-}
-
-/** The coast of `story`'s island split into one equal arc per session working on it, in list order (as a shared note's ring is, ADR-0754). */
-export function coastArcs(wisps: readonly SessionWisp[], story: string): CoastArc[] {
-  const here = wisps.filter(wisp => wisp.story === story);
-  return here.map((wisp, at) => ({ session: wisp.session, colour: wisp.colour, faded: wisp.faded, from: at / here.length, to: (at + 1) / here.length }));
 }
 
 /** A claimed capability's tint: its claimant's colour, and whether the claimant has gone quiet. */

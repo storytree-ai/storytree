@@ -98,8 +98,8 @@ export function sessionRows(tree: AnnotatedTree, log: readonly Line[] | LogReadi
     if (ended.has(session.session)) continue;
     const own = claims.filter(claim => claim.session === session.session);
     const heldIncrements = increments.filter(inc => own.some(claim => claim.increment === inc.id));
+    // A row's islands are only its claimed capabilities': an increment's touches are a plan, not a claim (ADR-0923 D2).
     const held = new Set(own.flatMap(claim => claim.capability ? [claim.capability] : []));
-    for (const increment of heldIncrements) for (const id of increment.fields.touches ?? []) held.add(id);
     const detail = details.get(session.session);
     if (detail?.parentSession) parents.set(session.session, detail.parentSession);
     // The name a session gave itself comes first (7.18): eventually consistent, the row reads as before until it does.

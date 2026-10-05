@@ -32,7 +32,7 @@ test("7.1–7.5 rows start collapsed, showing neither detail nor children; a row
   assert.match(unavailable, /Context total unavailable">—/);
 });
 
-test("5.5 a row wears its session's wisp colour, and a hovered wisp highlights its row", () => {
+test("5.5 a row wears its session's colour, the one its outlines wear", () => {
   const html = renderToStaticMarkup(createElement(SessionsList, { rows: [row], highlighted: "parent", onHighlight() {} }));
   assert.ok(html.includes(`class="session-colour" style="background:${sessionColour("parent")}"`), html);
   assert.match(html, /data-session-id="parent"[^>]*data-highlighted="true"/);

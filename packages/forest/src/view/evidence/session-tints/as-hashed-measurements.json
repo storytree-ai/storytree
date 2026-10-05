@@ -54,24 +54,7 @@
     "islands": [
       {
         "story": "story_05e45963ca9f",
-        "coastTintBands": [
-          {
-            "name": "coast-tint:a3f81c52-7d0e-4b96-8a14-2c5e9d10b7f3",
-            "session": "a3f81c52-7d0e-4b96-8a14-2c5e9d10b7f3",
-            "colour": "hsl(356, 80%, 68%)",
-            "drawnColour": "#ef6c75",
-            "opacity": 0.9,
-            "vertices": 202
-          },
-          {
-            "name": "coast-tint:5be07d94-1c28-4f6a-b3d9-e8a4c60f2117",
-            "session": "5be07d94-1c28-4f6a-b3d9-e8a4c60f2117",
-            "colour": "hsl(335, 80%, 68%)",
-            "drawnColour": "#ef6ca3",
-            "opacity": 0.9,
-            "vertices": 204
-          }
-        ],
+        "coastTintBands": [],
         "territories": 8,
         "claimedTerritories": [
           {
@@ -79,16 +62,16 @@
             "capability": "capability_05ff7e9f0f99",
             "title": "5 · Claims",
             "claimedBy": "hsl(335, 80%, 68%)",
-            "drawnColour": "#ef6ca3",
-            "opacity": 0.32
+            "drawnColour": "#f2d16b",
+            "opacity": 0.8
           },
           {
             "name": "territory:capability_4da153322012",
             "capability": "capability_4da153322012",
             "title": "6 · Agent tools (the MCP server)",
             "claimedBy": "hsl(356, 80%, 68%)",
-            "drawnColour": "#ef6c75",
-            "opacity": 0.32
+            "drawnColour": "#f2d16b",
+            "opacity": 0.8
           }
         ]
       },
@@ -112,16 +95,7 @@
       },
       {
         "story": "story_be32e99ed54f",
-        "coastTintBands": [
-          {
-            "name": "coast-tint:c91d6e08-42fa-4a7b-95c3-0d7b18e3a5d2",
-            "session": "c91d6e08-42fa-4a7b-95c3-0d7b18e3a5d2",
-            "colour": "hsl(336, 80%, 68%)",
-            "drawnColour": "#ef6ca0",
-            "opacity": 0.35,
-            "vertices": 362
-          }
-        ],
+        "coastTintBands": [],
         "territories": 6,
         "claimedTerritories": [
           {
@@ -129,8 +103,8 @@
             "capability": "capability_9f02379a2e1a",
             "title": "3 · Story node render",
             "claimedBy": "hsl(336, 80%, 68%)",
-            "drawnColour": "#ef6ca0",
-            "opacity": 0.14
+            "drawnColour": "#f2d16b",
+            "opacity": 0.8
           }
         ]
       },
@@ -148,16 +122,7 @@
       },
       {
         "story": "story_eb7d623fb9c8",
-        "coastTintBands": [
-          {
-            "name": "coast-tint:a3f81c52-7d0e-4b96-8a14-2c5e9d10b7f3",
-            "session": "a3f81c52-7d0e-4b96-8a14-2c5e9d10b7f3",
-            "colour": "hsl(356, 80%, 68%)",
-            "drawnColour": "#ef6c75",
-            "opacity": 0.9,
-            "vertices": 522
-          }
-        ],
+        "coastTintBands": [],
         "territories": 5,
         "claimedTerritories": [
           {
@@ -165,8 +130,8 @@
             "capability": "capability_75abfdd699c0",
             "title": "2 · Library transactions",
             "claimedBy": "hsl(356, 80%, 68%)",
-            "drawnColour": "#ef6c75",
-            "opacity": 0.32
+            "drawnColour": "#f2d16b",
+            "opacity": 0.8
           }
         ]
       }
@@ -178,24 +143,7 @@
     "islands": [
       {
         "story": "story_05e45963ca9f",
-        "coastTintBands": [
-          {
-            "name": "coast-tint:a3f81c52-7d0e-4b96-8a14-2c5e9d10b7f3",
-            "session": "a3f81c52-7d0e-4b96-8a14-2c5e9d10b7f3",
-            "colour": "hsl(356, 80%, 68%)",
-            "drawnColour": "#ef6c75",
-            "opacity": 0.9,
-            "vertices": 202
-          },
-          {
-            "name": "coast-tint:5be07d94-1c28-4f6a-b3d9-e8a4c60f2117",
-            "session": "5be07d94-1c28-4f6a-b3d9-e8a4c60f2117",
-            "colour": "hsl(335, 80%, 68%)",
-            "drawnColour": "#ef6ca3",
-            "opacity": 0.9,
-            "vertices": 204
-          }
-        ],
+        "coastTintBands": [],
         "territories": 8,
         "claimedTerritories": [
           {
@@ -203,16 +151,16 @@
             "capability": "capability_05ff7e9f0f99",
             "title": "5 · Claims",
             "claimedBy": "hsl(335, 80%, 68%)",
-            "drawnColour": "#ef6ca3",
-            "opacity": 0.32
+            "drawnColour": "#f2d16b",
+            "opacity": 0.8
           },
           {
             "name": "territory:capability_4da153322012",
             "capability": "capability_4da153322012",
             "title": "6 · Agent tools (the MCP server)",
             "claimedBy": "hsl(356, 80%, 68%)",
-            "drawnColour": "#ef6c75",
-            "opacity": 0.32
+            "drawnColour": "#f2d16b",
+            "opacity": 0.8
           }
         ]
       },
@@ -236,16 +184,7 @@
       },
       {
         "story": "story_be32e99ed54f",
-        "coastTintBands": [
-          {
-            "name": "coast-tint:c91d6e08-42fa-4a7b-95c3-0d7b18e3a5d2",
-            "session": "c91d6e08-42fa-4a7b-95c3-0d7b18e3a5d2",
-            "colour": "hsl(336, 80%, 68%)",
-            "drawnColour": "#ef6ca0",
-            "opacity": 0.35,
-            "vertices": 362
-          }
-        ],
+        "coastTintBands": [],
         "territories": 6,
         "claimedTerritories": [
           {
@@ -253,8 +192,8 @@
             "capability": "capability_9f02379a2e1a",
             "title": "3 · Story node render",
             "claimedBy": "hsl(336, 80%, 68%)",
-            "drawnColour": "#ef6ca0",
-            "opacity": 0.14
+            "drawnColour": "#f2d16b",
+            "opacity": 0.8
           }
         ]
       },
@@ -272,16 +211,7 @@
       },
       {
         "story": "story_eb7d623fb9c8",
-        "coastTintBands": [
-          {
-            "name": "coast-tint:a3f81c52-7d0e-4b96-8a14-2c5e9d10b7f3",
-            "session": "a3f81c52-7d0e-4b96-8a14-2c5e9d10b7f3",
-            "colour": "hsl(356, 80%, 68%)",
-            "drawnColour": "#ef6c75",
-            "opacity": 0.9,
-            "vertices": 522
-          }
-        ],
+        "coastTintBands": [],
         "territories": 5,
         "claimedTerritories": [
           {
@@ -289,8 +219,8 @@
             "capability": "capability_75abfdd699c0",
             "title": "2 · Library transactions",
             "claimedBy": "hsl(356, 80%, 68%)",
-            "drawnColour": "#ef6c75",
-            "opacity": 0.32
+            "drawnColour": "#f2d16b",
+            "opacity": 0.8
           }
         ]
       }
@@ -302,24 +232,7 @@
     "islands": [
       {
         "story": "story_05e45963ca9f",
-        "coastTintBands": [
-          {
-            "name": "coast-tint:a3f81c52-7d0e-4b96-8a14-2c5e9d10b7f3",
-            "session": "a3f81c52-7d0e-4b96-8a14-2c5e9d10b7f3",
-            "colour": "hsl(356, 80%, 68%)",
-            "drawnColour": "#ef6c75",
-            "opacity": 0.9,
-            "vertices": 202
-          },
-          {
-            "name": "coast-tint:5be07d94-1c28-4f6a-b3d9-e8a4c60f2117",
-            "session": "5be07d94-1c28-4f6a-b3d9-e8a4c60f2117",
-            "colour": "hsl(335, 80%, 68%)",
-            "drawnColour": "#ef6ca3",
-            "opacity": 0.9,
-            "vertices": 204
-          }
-        ],
+        "coastTintBands": [],
         "territories": 8,
         "claimedTerritories": [
           {
@@ -327,16 +240,16 @@
             "capability": "capability_05ff7e9f0f99",
             "title": "5 · Claims",
             "claimedBy": "hsl(335, 80%, 68%)",
-            "drawnColour": "#ef6ca3",
-            "opacity": 0.32
+            "drawnColour": "#f2d16b",
+            "opacity": 0.8
           },
           {
             "name": "territory:capability_4da153322012",
             "capability": "capability_4da153322012",
             "title": "6 · Agent tools (the MCP server)",
             "claimedBy": "hsl(356, 80%, 68%)",
-            "drawnColour": "#ef6c75",
-            "opacity": 0.32
+            "drawnColour": "#f2d16b",
+            "opacity": 0.8
           }
         ]
       },
@@ -360,16 +273,7 @@
       },
       {
         "story": "story_be32e99ed54f",
-        "coastTintBands": [
-          {
-            "name": "coast-tint:c91d6e08-42fa-4a7b-95c3-0d7b18e3a5d2",
-            "session": "c91d6e08-42fa-4a7b-95c3-0d7b18e3a5d2",
-            "colour": "hsl(336, 80%, 68%)",
-            "drawnColour": "#ef6ca0",
-            "opacity": 0.35,
-            "vertices": 362
-          }
-        ],
+        "coastTintBands": [],
         "territories": 6,
         "claimedTerritories": [
           {
@@ -377,8 +281,8 @@
             "capability": "capability_9f02379a2e1a",
             "title": "3 · Story node render",
             "claimedBy": "hsl(336, 80%, 68%)",
-            "drawnColour": "#ef6ca0",
-            "opacity": 0.14
+            "drawnColour": "#f2d16b",
+            "opacity": 0.8
           }
         ]
       },
@@ -396,16 +300,7 @@
       },
       {
         "story": "story_eb7d623fb9c8",
-        "coastTintBands": [
-          {
-            "name": "coast-tint:a3f81c52-7d0e-4b96-8a14-2c5e9d10b7f3",
-            "session": "a3f81c52-7d0e-4b96-8a14-2c5e9d10b7f3",
-            "colour": "hsl(356, 80%, 68%)",
-            "drawnColour": "#ef6c75",
-            "opacity": 0.9,
-            "vertices": 522
-          }
-        ],
+        "coastTintBands": [],
         "territories": 5,
         "claimedTerritories": [
           {
@@ -413,8 +308,8 @@
             "capability": "capability_75abfdd699c0",
             "title": "2 · Library transactions",
             "claimedBy": "hsl(356, 80%, 68%)",
-            "drawnColour": "#ef6c75",
-            "opacity": 0.32
+            "drawnColour": "#f2d16b",
+            "opacity": 0.8
           }
         ]
       }

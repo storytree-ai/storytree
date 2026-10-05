@@ -173,7 +173,7 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await flight.waitHolds("increment_000000000000"), [], "nothing holds what does not exist");
   });
 
-  contract("11.5", "holds() answers every arc's and increment's holds in one reading, as waitHolds and heldOnQuestion do", async ({ work, flight }) => {
+  contract("11.5", "holds() answers every arc's and open increment's holds in one reading, as waitHolds and heldOnQuestion do", async ({ work, flight }) => {
     const mail = await work.createArc({ title: "Mail", ...ARC });
     const launch = await work.createArc({ title: "Launch", ...ARC });
     await flight.addWait(launch.id, mail.id, "launch needs mail");
@@ -184,11 +184,13 @@ for (const backend of [memory, postgres]) {
     const done = await flight.addIncrement({ arc: mail.id, title: "Templates", ...WORK });
     await flight.closeIncrement(done.id, { pr: "#1", disposition: "landed" });
 
-    const ids = [mail.id, launch.id, mailer.id, form.id, done.id];
+    const ids = [mail.id, launch.id, mailer.id, form.id];
     const one = await flight.holds();
     assert.deepEqual(one.waits, Object.fromEntries(await Promise.all(ids.map(async (id) => [id, await flight.waitHolds(id)]))));
-    assert.deepEqual(one.heldOn, Object.fromEntries(await Promise.all([mailer.id, form.id, done.id].map(async (id) => [id, await flight.heldOnQuestion(id)]))));
+    assert.deepEqual(one.heldOn, Object.fromEntries(await Promise.all([mailer.id, form.id].map(async (id) => [id, await flight.heldOnQuestion(id)]))));
     assert.deepEqual(one.waits[form.id]?.map(({ on }) => on), [mailer.id, mail.id], "its own wait, then its arc's");
     assert.deepEqual(one.heldOn[form.id], [question.id]);
+    assert.equal(one.waits[done.id], undefined, "closed increments are omitted");
+    assert.deepEqual(await flight.waitHolds(done.id), []);
   });
 }

@@ -3,7 +3,7 @@
  * exactly: the record a save or an edit would leave, the check on it, and the shape of a history
  * entry. Each backend only decides where these go and how a write stays atomic.
  */
-import type { HistoryEntry, HistoryFilter, RecordEnvelope, SaveInput, Upgrade, Validate } from "./types.js";
+import type { HistoryEntry, HistoryFilter, ListFilter, RecordEnvelope, SaveInput, Upgrade, Validate } from "./types.js";
 
 /** The time now, as records carry it: an ISO 8601 UTC timestamp. */
 export function now(): string {
@@ -26,6 +26,39 @@ export function historyFilter(filter: HistoryFilter): HistoryFilter {
   const at = typeof from === "string" ? Date.parse(from) : Number.NaN;
   if (Number.isNaN(at)) throw new RangeError(`history's from is a time (ISO 8601), not ${JSON.stringify(from)}`);
   return { ...filter, from: new Date(at).toISOString() };
+}
+
+/** Refuse malformed list filters the same way on both backends, before a read. */
+export function listFilter(filter: ListFilter): ListFilter {
+  if (filter.limit !== undefined && !(Number.isSafeInteger(filter.limit) && filter.limit > 0)) {
+    throw new RangeError("list's limit must be a whole number above 0");
+  }
+  for (const matches of [filter.where, filter.not]) {
+    for (const [path, value] of Object.entries(matches ?? {})) {
+      if (path.split(".").some((part) => part === "") || !(value === null || typeof value === "string" || typeof value === "boolean" || (typeof value === "number" && Number.isFinite(value)))) {
+        throw new RangeError("list's field predicates need a nonempty path and a JSON scalar");
+      }
+    }
+  }
+  if (filter.projection !== undefined && !(Number.isSafeInteger(filter.projection.version) && filter.projection.version > 0)) {
+    throw new RangeError("list's projection version must be a whole number above 0");
+  }
+  return filter;
+}
+
+/** A stored JSON field path; inherited object properties are never fields. */
+export function fieldAt(fields: Record<string, unknown>, path: string): unknown {
+  let value: unknown = fields;
+  for (const key of path.split(".")) {
+    if (typeof value !== "object" || value === null || !Object.hasOwn(value, key)) return undefined;
+    value = (value as Record<string, unknown>)[key];
+  }
+  return value;
+}
+
+/** Pick top-level fields, keeping an absent field absent (and a present null present). */
+export function pickFields(fields: Record<string, unknown>, names: readonly string[]): Record<string, unknown> {
+  return Object.fromEntries(names.filter((name) => Object.hasOwn(fields, name)).map((name) => [name, fields[name]]));
 }
 
 /** The record `save` would store, given the record stored now (if any). */

@@ -4,11 +4,12 @@
  */
 import type { Pool, PoolClient } from "pg";
 
-import { check, editedRecord, historyEntry, historyFilter, now, numbered, savedRecord } from "./records.js";
+import { check, listFilter, editedRecord, historyEntry, historyFilter, now, numbered, savedRecord } from "./records.js";
 import type {
   EditInput,
   HistoryEntry,
   HistoryFilter,
+  ListFilter,
   RecordEnvelope,
   RetireInput,
   SaveInput,
@@ -71,11 +72,29 @@ export class PgTransactions implements Transactions {
     return row === undefined ? null : recordOf(row);
   }
 
-  async list(type: string): Promise<RecordEnvelope[]> {
-    // COLLATE "C": code-point order, the same on every server whatever its default collation.
+  async list(type: string, filter: ListFilter = {}): Promise<RecordEnvelope[]> {
+    filter = listFilter(filter);
+    const params: unknown[] = [type];
+    const bind = (value: unknown): string => { params.push(value); return `$${params.length}`; };
+    const clauses = ["type = $1"];
+    if (filter.ids !== undefined) clauses.push(`id = ANY(${bind(filter.ids)}::text[])`);
+    for (const [matches, operator] of [[filter.where, "="], [filter.not, "IS DISTINCT FROM"]] as const) {
+      for (const [path, value] of Object.entries(matches ?? {})) {
+        clauses.push(`(fields #> ${bind(path.split("."))}::text[]) ${operator} ${bind(JSON.stringify(value))}::jsonb`);
+      }
+    }
+    let columns = RECORD_COLUMNS;
+    if (filter.projection !== undefined) {
+      const version = bind(filter.projection.version);
+      const names = bind(filter.projection.fields);
+      columns = `id, type, version, CASE WHEN version = ${version} THEN
+        (SELECT coalesce(jsonb_object_agg(key, value), '{}'::jsonb) FROM jsonb_each(fields) WHERE key = ANY(${names}::text[]))
+        ELSE fields END AS fields, created_at, updated_at`;
+    }
+    const limit = filter.limit === undefined ? "" : ` LIMIT ${bind(filter.limit)}`;
+    // Every path, field name and value is bound; caller text never becomes SQL.
     const { rows } = await this.#pool.query<RecordRow>(
-      `SELECT ${RECORD_COLUMNS} FROM record WHERE type = $1 ORDER BY id COLLATE "C"`,
-      [type],
+      `SELECT ${columns} FROM record WHERE ${clauses.join(" AND ")} ORDER BY id COLLATE "C"${limit}`, params,
     );
     return rows.map(recordOf);
   }

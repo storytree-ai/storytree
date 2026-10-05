@@ -15,7 +15,7 @@ import { test } from "node:test";
 import { connect } from "../project/index.js";
 import { MissingReferenceError } from "../references.js";
 import { SchemaError, SchemaRecords } from "../schema/index.js";
-import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { dropTestDatabases, testServerUrl, uniqueProjectName, withCountedProject } from "../testing/pg.js";
 import { MemoryTransactions, type Transactions } from "../transactions/index.js";
 import { LifecycleError, WorkInFlight, WorkModel, type ArcView, type NewIncrement } from "./index.js";
 
@@ -294,3 +294,60 @@ for (const backend of [memory, postgres]) {
     assert.equal((await transactions.get("arc-old"))?.version, 2, "an edit stores it upgraded, in place");
   });
 }
+
+
+test("10.8 work reads stay small as unrelated closed history grows, preserving blockers and the arc log", async (t) => {
+  await withCountedProject(async ({ work, flight, records, pool }, received) => {
+    const arc = await work.createArc(ARC);
+    const history = await work.createArc({ ...ARC, title: "History" });
+    const empty = await work.createArc({ ...ARC, title: "No increments yet" });
+    const waiter = await flight.addIncrement({ ...WORK, arc: arc.id });
+    const landed = await flight.addIncrement({ ...WORK, arc: history.id, outcome: { disposition: "landed", pr: "#1", note: "kept" } });
+    const failed = await flight.addIncrement({ ...WORK, arc: history.id, outcome: { disposition: "failed", note: "failed" } });
+    await flight.addWait(waiter.id, landed.id, "landed blocker");
+    await flight.addWait(waiter.id, failed.id, "failed blocker");
+    await flight.addWait(arc.id, history.id, "closed arc releases");
+    await flight.addWait(arc.id, empty.id, "empty arc still holds");
+    const logged = await flight.addIncrement({ ...WORK, arc: arc.id, outcome: { disposition: "landed", date: "2026-10-01", pr: "#7", note: "whole log" } });
+    const expected = [{ on: failed.id, reason: "failed blocker", forGood: true }, { on: empty.id, reason: "empty arc still holds", forGood: false }];
+    const readings = {
+      holds: async () => { assert.deepEqual((await flight.holds()).waits[waiter.id], expected); },
+      waitHolds: async () => { assert.deepEqual(await flight.waitHolds(waiter.id), expected); },
+      arcView: async () => {
+        const view = await flight.arcView(arc.id);
+        assert.deepEqual(view?.increments.find(({ id }) => id === logged.id), logged, "the closed log keeps every field");
+        assert.deepEqual(view?.increments.map(({ id }) => id).sort(), [waiter.id, logged.id].sort());
+      },
+    };
+    const measure = async (read: () => Promise<void>) => { const before = received(); await read(); return received() - before; };
+    const small = new Map<string, number>();
+    for (const [name, read] of Object.entries(readings)) small.set(name, await measure(read));
+    // Hundreds of old increments and settled questions, with long bodies and outcome notes.
+    // No shared project is touched; seed traffic is outside the measured reads.
+    await pool.query(`INSERT INTO record (id, type, version, fields, created_at, updated_at)
+      SELECT 'old-' || g, 'increment', 2,
+        jsonb_build_object('arc', $1::text, 'status', 'closed', 'title', 'Old work', 'objective', repeat('o', 1000),
+          'body', repeat('b', 8000), 'outcome', jsonb_build_object('disposition', 'landed', 'date', '2026-10-01', 'note', repeat('n', 4000))), now(), now()
+      FROM generate_series(1, 700) g`, [history.id]);
+    await pool.query(`INSERT INTO record (id, type, version, fields, created_at, updated_at)
+      SELECT 'old-question-' || g, 'question', 1,
+        jsonb_build_object('arc', $1::text, 'lifecycle', 'settled', 'title', 'Answered', 'stakes', 'Old work', 'statement', 'Which?',
+          'options', 'A or B', 'answer', 'A', 'settledAt', '2026-10-01T00:00:00Z', 'context', repeat('q', 8000)), now(), now()
+      FROM generate_series(1, 100) g`, [history.id]);
+    const large = new Map<string, number>();
+    for (const [name, read] of Object.entries(readings)) {
+      const bytes = await measure(read);
+      large.set(name, bytes);
+      t.diagnostic(`${name}: few=${small.get(name)} bytes; many=${bytes} bytes`);
+    }
+    for (const [name, bytes] of large) assert.ok(bytes <= small.get(name)! + 128 * 1024, `${name} grew from ${small.get(name)} to ${bytes} bytes`);
+    const question = await flight.raiseQuestion({ arc: history.id, title: "Still needed?", stakes: "Keeps arc open", statement: "Which?", context: "Context", options: "A or B" });
+    assert.ok((await flight.waitHolds(waiter.id)).some(({ on }) => on === history.id), "a closed-work arc with an open question holds");
+    await flight.settleQuestion(question.id, { answer: "A" });
+    await flight.parkArc(history.id);
+    assert.ok((await flight.waitHolds(waiter.id)).some(({ on }) => on === history.id), "a parked arc holds");
+    await flight.unparkArc(history.id);
+    await records.retire(failed.id, "removed");
+    assert.deepEqual(await flight.waitHolds(waiter.id), expected, "a missing blocker still holds for good");
+  });
+});

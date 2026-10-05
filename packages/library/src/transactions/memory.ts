@@ -2,11 +2,12 @@
  * MemoryTransactions: the in-memory twin of PgTransactions. The behaviour suite runs unchanged on
  * both, so later stories can test against this one without a database.
  */
-import { check, editedRecord, historyEntry, historyFilter, jsonCopy, now, numbered, savedRecord } from "./records.js";
+import { check, fieldAt, listFilter, pickFields, editedRecord, historyEntry, historyFilter, jsonCopy, now, numbered, savedRecord } from "./records.js";
 import type {
   EditInput,
   HistoryEntry,
   HistoryFilter,
+  ListFilter,
   RecordEnvelope,
   RetireInput,
   SaveInput,
@@ -43,11 +44,17 @@ export class MemoryTransactions implements Transactions {
     return record === undefined ? null : jsonCopy(record);
   }
 
-  async list(type: string): Promise<RecordEnvelope[]> {
+  async list(type: string, filter: ListFilter = {}): Promise<RecordEnvelope[]> {
+    filter = listFilter(filter);
     return [...this.#records.values()]
-      .filter((record) => record.type === type)
+      .filter((record) => record.type === type
+        && (filter.ids === undefined || filter.ids.includes(record.id))
+        && Object.entries(filter.where ?? {}).every(([path, value]) => fieldAt(record.fields, path) === value)
+        && Object.entries(filter.not ?? {}).every(([path, value]) => fieldAt(record.fields, path) !== value))
       .sort((a, b) => compareIds(a.id, b.id))
-      .map((record) => jsonCopy(record));
+      .slice(0, filter.limit)
+      .map((record) => jsonCopy(filter.projection?.version === record.version
+        ? { ...record, fields: pickFields(record.fields, filter.projection.fields) } : record));
   }
 
   async edit(input: EditInput): Promise<RecordEnvelope | null> {

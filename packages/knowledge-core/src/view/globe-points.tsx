@@ -8,8 +8,7 @@ import { AdditiveBlending, Color, type Group, type InterleavedBufferAttribute } 
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
-import { SessionRing } from "./ring.js";
-import { arcKey, arrived, DOT_FLOOR, IN_VIEW, fillAt, stepPoint, growthPlan, heldNotes, ringArcs, noteTitle, replayAt, type Lighting, type Point, type ReplayMoment, type Trail, type WindowView } from "../look-inside/look-inside.js";
+import { DOT_FLOOR, IN_VIEW, fillAt, stepPoint, growthPlan, heldNotes, noteTitle, replayAt, type Lighting, type Point, type ReplayMoment, type Trail, type WindowView } from "../look-inside/look-inside.js";
 
 const noRaycast = () => {};
 
@@ -112,13 +111,13 @@ export function GlobePoints({ points, radius, notes, sizes, lit = new Map(), tra
     growth.current = { starts: new Map([...growth.current.starts, ...plan.starts]), busy: plan.busy };
     return growth.current.starts;
   }, [trails]);
-  // A newly read note lights, and each session's arc on it appears, only when that session's line into it arrives (ADR-0742 D2, ADR-0754 D2).
+  // A newly read note lights only when the growing line into it arrives (ADR-0742 D2).
   const shown = useRef<ReadonlySet<string>>(new Set());
   const [, arrive] = useState(0);
   const now = performance.now();
-  const held = heldNotes(trails.map(trail => ({ to: arcKey(trail.to, trail.colour), key: trailKey(trail) })), starts, now, GROW_MS, shown.current);
-  const showing = arrived(lit, held);
-  useEffect(() => { shown.current = new Set([...showing].flatMap(([note, { readers }]) => readers.map(({ colour }) => arcKey(note, colour)))); });
+  const held = heldNotes(trails.map(trail => ({ to: trail.to, key: trailKey(trail) })), starts, now, GROW_MS, shown.current);
+  const showing = new Map([...lit].filter(([note]) => !held.has(note)));
+  useEffect(() => { shown.current = new Set(showing.keys()); });
   useEffect(() => {
     const next = Math.min(...trails.flatMap(trail => {
       const start = starts.get(trailKey(trail));
@@ -147,7 +146,7 @@ export function GlobePoints({ points, radius, notes, sizes, lit = new Map(), tra
       return <mesh key={point.id} name={`knowledge-point:${point.id}`}
       position={[point.at.x, point.at.y, point.at.z]} raycast={noRaycast}
       userData={{ id: point.id, size, title: notes.has(point.id) ? noteTitle(notes.get(point.id)!) : point.id, depth: point.depth ?? null, home: point.home ?? null,
-        lit: lighting?.colour ?? null, arcs: lighting !== undefined ? ringArcs(lighting) : [], window: state, colour, opacity }}>
+        lit: lighting?.colour ?? null, window: state, colour, opacity }}>
       <sphereGeometry args={[radius * size, 12, 8]} />
       <meshBasicMaterial color={colour} transparent opacity={opacity} depthWrite={false} />
       {state === "in-window" && <Billboard name={`knowledge-window:${point.id}`}>
@@ -156,8 +155,6 @@ export function GlobePoints({ points, radius, notes, sizes, lit = new Map(), tra
           <meshBasicMaterial color={IN_VIEW} transparent opacity={0.9} depthWrite={false} />
         </mesh>
       </Billboard>}
-      {lighting !== undefined && ringArcs(lighting).length > 0 && <SessionRing name={`knowledge-arcs:${point.id}`}
-        arcs={ringArcs(lighting)} radius={radius * Math.max(0.0125, size + 0.0035)} tube={radius * 0.0016} />}
     </mesh>;
     })}
   </group>;

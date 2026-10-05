@@ -203,35 +203,9 @@ export function legend(agents: readonly AgentReplay[], colour?: string): LegendE
     }));
 }
 
-/** A lit note's dot colour, and who read it: each reader's colour, in the order they first reached it, with its latest read. */
+/** A lit note's dot colour: the selected session's agent that first read it. */
 export interface Lighting {
   colour: string;
-  readers: readonly { colour: string; last: number }[];
-}
-
-/** The ring around a note several listed sessions read: one arc per session, in arrival order (ADR-0754 D2); none for one reader. */
-export function ringArcs(lighting: Lighting): string[] {
-  return lighting.readers.length > 1 ? lighting.readers.map(({ colour }) => colour) : [];
-}
-
-/** A note's arc for one reader colour, the key a growing line holds it by (ADR-0754 D2). */
-export const arcKey = (note: string, colour: string): string => `${note} ${colour}`;
-
-/**
- * What is drawn now (ADR-0742 D2, ADR-0754 D2): each reader's arc only once its line into the note
- * has arrived (`held` names the arcs still waiting), the dot in the latest arrived reader's colour,
- * and a note none of whose lines has arrived stays unlit.
- */
-export function arrived(lit: ReadonlyMap<string, Lighting>, held: ReadonlySet<string>): Map<string, Lighting> {
-  if (held.size === 0) return new Map(lit);
-  const shown = new Map<string, Lighting>();
-  for (const [note, lighting] of lit) {
-    const readers = lighting.readers.filter(({ colour }) => !held.has(arcKey(note, colour)));
-    if (readers.length === 0) continue;
-    const latest = readers.reduce((a, b) => (b.last > a.last ? b : a));
-    shown.set(note, { colour: latest.colour, readers });
-  }
-  return shown;
 }
 
 /**
@@ -251,7 +225,7 @@ export function lighting(reads: ReadRecord, roster: readonly RosterEntry[], sess
       if (seen === undefined || seq < seen.seq) first.set(note, { colour: colours.get(agent)!, seq });
     }
   }
-  return new Map([...first].map(([note, { colour, seq }]) => [note, { colour, readers: [{ colour, last: seq }] }]));
+  return new Map([...first].map(([note, { colour }]) => [note, { colour }]));
 }
 
 /** A knowledge dot's radius, as a fraction of the globe's: an unread note's, and the most-read note's (ADR-0926 D2). */
@@ -428,4 +402,3 @@ function titleOf(knowledge: Knowledge, id: string): string {
   const note = knowledge.notes.get(id);
   return note === undefined ? id : noteTitle(note);
 }
-

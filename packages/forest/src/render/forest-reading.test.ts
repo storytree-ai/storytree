@@ -6,7 +6,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { joinedReads, pageReading, type Timers } from "@storytree/arc-surface";
+import { joinedReads, pageReading, type News, type Timers } from "@storytree/arc-surface";
 import type { AnnotatedTree } from "@storytree/library";
 
 import { forestReading, treeAfter, type ForestReads } from "./forest-reading.js";
@@ -75,6 +75,171 @@ function clockTimers(): Timers & { at: number; tick(): Promise<void> } {
 }
 
 const survey = { "story-shop": { files: [{ path: "src/claim.ts", lines: 1 }], imports: [] } };
+
+const merged = {
+  seq: 1, project: "shop", at: "2026-10-06T00:00:00Z", session: "observer", source: "tool",
+  kind: "merged", increment: "increment_1", holder: "builder", branch: "work", pr: 1,
+} satisfies News["lines"][number];
+const closed = {
+  seq: 2, project: "shop", at: merged.at, session: "builder", source: "tool",
+  kind: "closed", increment: "increment_1", disposition: "landed",
+} satisfies News["lines"][number];
+const increment: News["changes"][number] = {
+  seq: 1, recordId: "increment_1", type: "increment", action: "updated",
+  record: {
+    id: "increment_1", type: "increment", version: 2, createdAt: merged.at, updatedAt: merged.at,
+    fields: { arc: "arc_1", title: "New code", objective: "New code", body: "New code", status: "closed", outcome: { date: "2026-10-06", disposition: "landed", pr: "1" } },
+  },
+};
+
+test("7.25 landing news refreshes the survey from the existing tree, coalesces within ten seconds and ignores unrelated traffic", async (t) => {
+  let news: News = { changes: [], lines: [] };
+  let trees = 0;
+  let surveys = 0;
+  let current = survey;
+  const reads: ForestReads = {
+    changesSince: async (_project, cursor) => ({ changes: news.changes.splice(0), cursor: cursor + 1 }),
+    linesSince: async (_project, cursor) => ({ lines: news.lines.splice(0), cursor: cursor + 1 }),
+    projectTree: async () => (trees++, tree),
+    codeSurvey: async () => (surveys++, current),
+  };
+  const timers = clockTimers();
+  const drawn: unknown[] = [];
+  const reading = forestReading({ project: "shop", reads, timers, onTree: (read, _news, code) => {
+    assert.equal(read, tree);
+    drawn.push(code);
+  }, onError: (error) => { throw error; } });
+  t.after(() => reading.stop());
+  await settle();
+  assert.deepEqual({ trees, surveys }, { trees: 1, surveys: 1 });
+
+  // Each landing signal works alone, without a plan change or a restart.
+  for (const landing of [{ changes: [], lines: [merged] }, { changes: [], lines: [closed] }, { changes: [increment], lines: [] }]) {
+    current = { "story-shop": { files: [{ path: "src/claim.ts", lines: surveys + 1 }], imports: [] } };
+    news = landing;
+    timers.at += 12_000;
+    const before = surveys;
+    await timers.tick();
+    assert.equal(surveys, before + 1);
+    assert.deepEqual(drawn.at(-1), current, "newly landed code is drawn");
+    assert.equal(trees, 1, "landing news preserves 7.24");
+  }
+
+  const before = surveys;
+  for (let repeat = 0; repeat < 4; repeat++) {
+    news = { changes: [], lines: [{ ...merged, seq: 10 + repeat }] };
+    timers.at += 2_000;
+    await timers.tick();
+    assert.equal(surveys, before);
+  }
+  const draws = drawn.length;
+  timers.at += 2_000;
+  await timers.tick();
+  assert.equal(surveys, before + 1, "repeated landing news coalesces into one paced survey");
+  assert.equal(drawn.length, draws, "an unchanged survey adds no redraw");
+
+  news = {
+    lines: [
+      { ...closed, disposition: "failed" }, { ...closed, disposition: "withdrawn" },
+      { seq: 20, project: "shop", at: merged.at, session: "builder", source: "hook", kind: "file-edited", files: ["src/claim.ts"] },
+      { seq: 21, project: "shop", at: merged.at, session: "builder", source: "tool", kind: "landed", capability: "capability_1" },
+    ],
+    changes: [
+      { ...increment, record: { ...increment.record, fields: { status: "active" } } },
+      { ...increment, record: { ...increment.record, fields: { status: "closed", outcome: { disposition: "failed" } } } },
+      { ...increment, record: { ...increment.record, fields: { status: "closed", outcome: { disposition: "withdrawn" } } } },
+      { ...increment, action: "retired" },
+    ],
+  };
+  timers.at += 12_000;
+  await timers.tick();
+  timers.at += 12_000;
+  await timers.tick();
+  assert.deepEqual({ trees, surveys }, { trees: 1, surveys: before + 1 });
+});
+
+test("7.25 landing news during a survey converges one read at a time, retries failures and stops pending redraws", async (t) => {
+  let lines: News["lines"] = [];
+  let trees = 0;
+  let surveys = 0;
+  let land!: (value: typeof survey) => void;
+  let fail!: (error: Error) => void;
+  const reads: ForestReads = {
+    changesSince: async () => ({ changes: [], cursor: 0 }),
+    linesSince: async (_project, cursor) => ({ lines: lines.splice(0), cursor: cursor + 1 }),
+    projectTree: async () => (trees++, tree),
+    codeSurvey: () => {
+      surveys++;
+      return new Promise((resolve, reject) => { land = resolve; fail = reject; });
+    },
+  };
+  const timers = clockTimers();
+  const drawn: unknown[] = [];
+  const reading = forestReading({ project: "shop", reads, timers, onTree: (_tree, _news, code) => drawn.push(code), onError: (error) => { throw error; } });
+  t.after(() => reading.stop());
+  await settle();
+  assert.deepEqual(drawn, [{}], "the tree never waits for a survey");
+  for (const at of [12_000, 14_000]) {
+    lines = [{ ...merged, seq: at }];
+    timers.at = at;
+    await timers.tick();
+    assert.equal(surveys, 1, "a running survey is never overlapped");
+  }
+  land(survey);
+  await settle();
+  timers.at = 16_000;
+  await timers.tick();
+  assert.equal(surveys, 2, "news during a survey is remembered");
+  fail(new Error("temporarily offline"));
+  await settle();
+  timers.at = 24_000;
+  await timers.tick();
+  assert.equal(surveys, 2, "a retry is paced too");
+  timers.at = 26_000;
+  await timers.tick();
+  assert.equal(surveys, 3, "a failed survey retries without more news");
+  const newer = { "story-shop": { files: [{ path: "src/new.ts", lines: 10 }], imports: [] } };
+  land(newer);
+  await settle();
+  assert.deepEqual(drawn.at(-1), newer);
+  assert.equal(trees, 1);
+
+  lines = [{ ...merged, seq: 30 }];
+  timers.at = 36_000;
+  await timers.tick();
+  assert.equal(surveys, 4);
+  lines = [{ ...merged, seq: 31 }];
+  timers.at = 38_000;
+  await timers.tick();
+  reading.stop();
+  const draws = drawn.length;
+  land(survey);
+  await settle();
+  timers.at = 50_000;
+  await timers.tick();
+  assert.equal(drawn.length, draws, "a stopped reading never draws the pending survey");
+  assert.equal(surveys, 4, "a stopped reading never services a queued refresh");
+});
+
+test("7.25 stopping during a tree read prevents a later survey and draw", async () => {
+  let finish!: (value: AnnotatedTree) => void;
+  let surveys = 0;
+  let draws = 0;
+  const timers = clockTimers();
+  const reading = forestReading({ project: "shop", timers, reads: {
+    changesSince: async () => ({ changes: [], cursor: 0 }),
+    linesSince: async () => ({ lines: [], cursor: 0 }),
+    projectTree: () => new Promise((resolve) => { finish = resolve; }),
+    codeSurvey: async () => (surveys++, survey),
+  }, onTree: () => { draws++; }, onError: (error) => { throw error; } });
+  await settle();
+  reading.stop();
+  finish(tree);
+  await settle();
+  timers.at = 12_000;
+  await timers.tick();
+  assert.deepEqual({ surveys, draws }, { surveys: 0, draws: 0 });
+});
 
 test("the tree is drawn without waiting for the code's survey, and drawn again with the survey once it lands", async () => {
   let land: (value: typeof survey) => void = () => {};

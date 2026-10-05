@@ -290,3 +290,21 @@ test("2.18 · on a laptop, where the first-come sides leave a tag over a panel, 
   });
 });
 
+
+test("2.16 · until the shop is rebuilt clean, the code and colours steps frame the story with the least code no part's tests reach, and tag no hatched ground", () => {
+  // ADR-0911 D5 (owner's choice A, 2026-10-05): the tour stops pointing at unallocated code while the shop still has it.
+  type Island = { story: string; land?: { territories: { capability?: string; lines: number }[] } };
+  const stages = shop.stages as { id: string; at: string; scene: { islands: Island[] } }[];
+  const unallocated = (island: Island) => {
+    const parts = island.land?.territories ?? [];
+    return parts.filter(part => !part.capability).reduce((sum, part) => sum + part.lines, 0) / Math.max(1, parts.reduce((sum, part) => sum + part.lines, 0));
+  };
+  for (const id of ["map-code", "map-health"]) {
+    const item = tourSteps.find(candidate => candidate.id === id)!;
+    const stood = stages.filter(stage => stage.at <= item.recorded!).at(-1)!;
+    const shown = stood.scene.islands.filter(island => item.focus?.includes(island.story));
+    const cleanest = shown.reduce((a, b) => unallocated(b) < unallocated(a) ? b : a);
+    assert.deepEqual(item.target, { kind: "story", story: cleanest.story }, `${id} frames the story with the least unallocated code`);
+    assert.equal(item.tags, undefined, `${id} puts no tag on hatched ground`);
+  }
+});

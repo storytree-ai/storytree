@@ -60,6 +60,9 @@ const own = { map: "own" as const, target: { kind: "core" } as GlobeTarget };
 const signingInId = "story_516defd61e9a", built = ["story_9d312bf7fc51", "story_c3e9a28aef14", "story_a2276e03429a"];
 const teaching = [signingInId, ...built];
 const browsing = story(built[0]!), cart = story(built[1]!), checkout = story(built[2]!), ordersId = "story_de7821cbec70", orders = story(ordersId);
+// Until the shop is rebuilt clean (ADR-0911 D5, the owner's choice A, 2026-10-05), the tour names no hatched code and frames
+// the code and colours on signing in, the story with the least code no part's tests reach (22% of its lines at 07:25).
+const signingIn = story(signingInId);
 const cartPage = capability("capability_fb0f52101882");
 // Two recorded moments in the shop's records: parts 2, 3 and 4 claimed by three sessions at once, and the session sent to
 // part 7 while part 7 and part 8 were held, before it stood down (08:03:17).
@@ -158,16 +161,16 @@ export const steps: TourStep[] = [
     // The owner's words.
     "Your code is shown as dots in the parts.",
     "Each dot is a file, sized by its lines, in the part whose tests reach it.",
-  ], how: "Storytree reads the code itself: each story's package, its files, and which part's tests reach each file. Code no part's tests reach is drawn hatched: nobody is watching it yet.",
-  why: "Code that belongs to no promise is code nobody is checking. Drawing every file in the part it serves shows what is covered, and what has slipped through.",
-  decisions: [], surfaces: lit(files), target: checkout, framing: .55 },
+  ], how: "Storytree reads the code itself: each story's package, its files, and which part's tests reach each file.",
+  why: "Drawing every file in the part it serves shows which promise each piece of code is there to keep.",
+  decisions: [], surfaces: lit(files), target: signingIn, framing: .55 },
   { id: "map-health", explainer: "map", ...shopMap, recorded: firstRound, title: "Parts have colours.", lines: [
     // The owner's words.
     "Parts have colours.",
     "Green means its tests passed when the shop's own CI ran them, not because an agent said so.",
-  ], how: "The shop's CI ran its tests, and storytree matched each result to the promise it checks. On Browsing, the dark, hatched ground is code no part's tests reach yet.",
+  ], how: "The shop's CI ran its tests, and storytree matched each result to the promise it checks.",
   why: "Agents say 'done' when it isn't. A colour counts only when something other than the agent checked it, and it always says where it came from.",
-  decisions: [], surfaces: lit(health), target: browsing, framing: .6, tags: [{ target: browsing, text: "hatched: code no test reaches yet" }] },
+  decisions: [], surfaces: lit(health), target: signingIn, framing: .6 },
   { id: "map-grow", explainer: "map", ...shopMap, focus: [...teaching, ordersId], growth: { seconds: 10, stage: "pr6-building" }, title: "As it grows, stories are added.", lines: [
     // The owner's words.
     "As your project grows, more stories are added.",

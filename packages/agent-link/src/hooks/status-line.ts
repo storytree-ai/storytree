@@ -15,6 +15,10 @@
  *
  * Claude Code has room for one status line, so the setup check installs this one only where the
  * user has none of their own (hooks-config.ts). Codex's status line shows only its own items.
+ *
+ * Claude Code runs it after every message, so it reads only what it shows (contract 2.7): the claims
+ * standing, the state alone of the sessions that wrote in the last LONGEST_COMMAND_MS, the recent
+ * edits of this session and of those working, and the titles of what this session holds.
  */
 import path from "node:path";
 
@@ -50,7 +54,7 @@ function sessionIn(input: unknown): { session?: string; folder?: string } {
 }
 
 async function lineFor(where: ConnectOptions, project: string, session: string, folder: string, identity: string | undefined): Promise<string> {
-  const [{ openActivityLog }, { connect }, { claimsFrom, increments }, { sessionsFrom }] = await Promise.all([
+  const [{ openActivityLog }, { connect }, { readClaims }, { readSessionStates }] = await Promise.all([
     import("../activity/index.js"),
     import("@storytree/library"),
     import("../claims/index.js"),
@@ -59,22 +63,29 @@ async function lineFor(where: ConnectOptions, project: string, session: string, 
   const storytree = await connect(withConnectTimeout(where, WAIT_MS));
   const log = await openActivityLog(storytree, { connectTimeoutMs: WAIT_MS });
   try {
-    const [{ lines }, library] = await Promise.all([log.since(project, 0), openNamedProject(storytree, project, identity)]);
     const now = Date.now();
     const quietMs = idleAfterMs();
+    const [claims, states] = await Promise.all([readClaims(log, project, { now: new Date(now), quietMs }), readSessionStates(log, project, { now: new Date(now), quietMs })]);
+    const held = claims.filter((claim) => claim.session === session);
+    const others = states.filter((other) => other.session !== session && other.state === "working");
+    // Only what this session holds is looked up, by its id: never the whole plan.
     const titles = new Map<string, string>();
-    const [tree, live] = await Promise.all([library.projectTree(), increments(library)]);
-    for (const story of tree.stories) for (const capability of story.capabilities) titles.set(capability.id, capability.title);
-    for (const increment of live) titles.set(increment.id, increment.fields.title);
-
-    const held = claimsFrom(lines, { now: new Date(now), quietMs }).filter((claim) => claim.session === session);
-    const others = sessionsFrom(lines, { now: new Date(now), quietMs }).filter((other) => other.session !== session && other.state === "working");
+    if (held.length > 0) {
+      const library = await openNamedProject(storytree, project, identity);
+      for (const id of held.map((claim) => claim.capability ?? claim.increment)) {
+        const fields = (await library.get(id))?.fields as { title?: unknown } | undefined;
+        if (typeof fields?.title === "string") titles.set(id, fields.title);
+      }
+    }
     const parts = [
       "storytree",
       held.length === 0 ? "holds nothing" : `holds ${held.map((claim) => titles.get(claim.capability ?? claim.increment) ?? claim.capability ?? claim.increment).join(", ")}`,
       others.length === 0 ? "no other agents working" : `${others.length} other agent${others.length === 1 ? "" : "s"} working`,
     ];
-    const shared = sharedFile(lines, session, new Set(others.map((other) => other.session)), now - quietMs);
+    const edits = others.length === 0 ? [] : await log.lines(project, {
+      kinds: ["file-edited"], sessions: [session, ...others.map((other) => other.session)], since: new Date(now - quietMs).toISOString(), omit: ["transcript"],
+    });
+    const shared = sharedFile(edits, session, new Set(others.map((other) => other.session)), now - quietMs);
     if (shared !== undefined) parts.push(`⚠ ${shown(shared.file, folder)} is being edited by ${shared.label} too`);
     return parts.join(" · ");
   } finally {

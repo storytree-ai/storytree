@@ -164,8 +164,8 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
         let quietMs = options.quietMs;
         const { library, log } = await connections.reach(where.library, where.project, where.identity);
         await (sighted ??= connections.server(where.library).then((storytree) => recordTrunkOnSight(storytree, where.project, where.folder, options.setup?.storytreeHome, where.identity)).catch(() => undefined));
-        // What the hooks have written, the one run just before this call included (ADR-0629 D2).
-        const { lines } = await log.since(where.project, 0);
+        // What the hooks wrote of this very call, the one run just before it (ADR-0629 D2): only those lines (contract 2.7).
+        const lines = await callLines(log, where.project, meta);
         const caller = seenCaller(lines, callerOf(context), meta);
         // The hook's line for this very call, joined by the id the harness gave it: never a guess by time.
         const requested = requestOf(lines, meta);
@@ -221,7 +221,7 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
       if (where.status === 'routed') {
         try {
           const { log } = await connections.reach(where.library, where.project, where.identity);
-          const { lines } = await log.since(where.project, 0);
+          const lines = await callLines(log, where.project, meta);
           caller = seenCaller(lines, caller, meta);
           agent = requestOf(lines, meta) || caller.harness === 'codex' ? agentOf(lines, meta) : 'unknown';
         } catch (error) {
@@ -294,6 +294,19 @@ function agentOf(lines: readonly Line[], meta: Readonly<Record<string, unknown>>
 }
 
 /**
+ * The lines a call is read from (contract 2.7): the line the hook before it left, found by the call's
+ * id, and the start of the subagent that line or the call names. Nothing else of the log is sent.
+ */
+export async function callLines(log: ActivityLog, project: string, meta: Readonly<Record<string, unknown>>): Promise<Line[]> {
+  const call = callOf(meta);
+  const requested = call === undefined ? [] : await log.lines(project, { kinds: ["tool-requested"], where: { call }, newest: 1, omit: ["transcript"] });
+  const agent = requestOf(requested, meta)?.agent ?? threadAgent(meta);
+  if (typeof agent !== "object") return requested;
+  const started = await log.lines(project, { kinds: ["subagent-started"], where: { subagent: agent.subagent }, newest: 1, omit: ["transcript"] });
+  return [...started, ...requested].sort((a, b) => a.seq - b.seq);
+}
+
+/**
  * The calling session as the hook before the call named it, when one did. After Claude Code's
  * /clear the window is a new session that only its hooks see, while this server keeps the id it was
  * started with; a call no hook saw keeps the id the harness gave the server.
@@ -305,8 +318,13 @@ export function seenCaller(lines: readonly Line[], caller: Caller, meta: Readonl
 
 /** The line the hook before a call left, found by the call's id: Claude Code's `_meta["claudecode/toolUseId"]`, Codex's `_meta.callId`. */
 function requestOf(lines: readonly Line[], meta: Readonly<Record<string, unknown>>): Extract<Line, { kind: "tool-requested" }> | undefined {
-  const call = text(meta["claudecode/toolUseId"]) ?? text(meta.callId);
+  const call = callOf(meta);
   return call === undefined ? undefined : lines.findLast((line): line is Extract<Line, { kind: "tool-requested" }> => line.kind === "tool-requested" && line.call === call);
+}
+
+/** The call's id, as the harness gave it. */
+function callOf(meta: Readonly<Record<string, unknown>>): string | undefined {
+  return text(meta["claudecode/toolUseId"]) ?? text(meta.callId);
 }
 
 /** Codex names the thread making each call beside its session: the session's own thread is its orchestrator. */

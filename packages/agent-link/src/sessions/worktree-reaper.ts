@@ -24,7 +24,7 @@ import path from "node:path";
 
 import { due, type MergeContext } from "../claims/merges.js";
 import { registeredHookScripts } from "../setup/hooks-config.js";
-import { sessionsFrom } from "./sessions.js";
+import { readSessions } from "./sessions.js";
 
 /** How worktrees are reaped. */
 export interface ReapWatch {
@@ -67,8 +67,9 @@ export async function reapWorktrees(context: MergeContext, watch: ReapWatch = {}
     return [];
   }
   const protect = [context.folder, ...(watch.protect ?? defaultProtected())];
-  const { lines } = await context.log.since(context.project, 0);
-  const sessions = sessionsFrom(lines);
+  // Only the sessions whose lines name a folder in one of these worktrees are read (contract 2.7).
+  const users = await context.log.lines(context.project, { within: trees.map((tree) => tree.folder), latestBy: ["session"], omit: ["command", "files", "transcript"] });
+  const sessions = users.length === 0 ? [] : await readSessions(context.log, context.project, { of: users.map((line) => line.session) });
   const candidates = trees.filter((tree) => {
     if (tree.locked || protect.some((kept) => inside(tree.folder, kept))) return false;
     const users = sessions.filter((session) => session.worktrees.some((folder) => inside(tree.folder, folder)));

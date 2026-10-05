@@ -7,8 +7,8 @@
 import { wordAndWhy, type AnnotatedTree, type HealthState, type NodeHealth } from "@storytree/library";
 import { z } from "zod";
 
-import { claimsFrom } from "../claims/index.js";
-import { sessionsFrom } from "../sessions/index.js";
+import { readClaims } from "../claims/index.js";
+import { readSessions } from "../sessions/index.js";
 import type { Answer, Call, Define } from "./server.js";
 import { quoted } from "./text.js";
 
@@ -192,10 +192,10 @@ async function editPlan(target: string, changes: Changes, { library, writer }: C
 }
 
 async function showPlan({ library, log, project, quietMs }: Call): Promise<Answer> {
-  const [tree, views, { lines }] = await Promise.all([library.projectTree(), library.arcViews(), log.since(project, 0)]);
+  // Who holds what, and the sessions the running-sessions list shows: read from what decides them alone (contract 2.7).
+  const [tree, views, claims, inView] = await Promise.all([library.projectTree(), library.arcViews(), readClaims(log, project, { quietMs }), readSessions(log, project, { quietMs, of: "in-view" })]);
   const incrementsOf = new Map(views.map((view) => [view.arc.id, view.increments]));
-  const claims = claimsFrom(lines, { quietMs });
-  const sessions = sessionsFrom(lines, { quietMs });
+  const sessions = inView.filter((session) => session.listing !== "hidden");
   const holderOf = new Map(claims.map((claim) => [claim.capability ?? claim.increment, claim]));
   const heldBy = (id: string) => {
     const claim = holderOf.get(id);

@@ -5,7 +5,7 @@
  * after RETAIN_MS; before they go, what was worked out from them is kept, and read from then on.
  */
 import type { ActivityLog, Line } from "../activity/index.js";
-import { contextReading, type ContextReading, type TranscriptReader } from "../context/context.js";
+import { contextReading, transcriptLines, type ContextReading, type TranscriptReader } from "../context/context.js";
 import { sessionWindow, type SessionWindow } from "../context/window.js";
 
 /** How long raw transcript records are kept: 180 days (D4). */
@@ -65,11 +65,9 @@ export async function storedSessionWindow(log: ActivityLog, project: string, lin
  */
 export async function pruneTranscripts(log: ActivityLog, { now = new Date(), home }: { now?: Date; home?: string } = {}): Promise<number> {
   const before = new Date(now.getTime() - RETAIN_MS);
-  const lines = new Map<string, readonly Line[]>();
   for (const { project, session } of await log.transcripts.storedBefore(before)) {
     if ((await log.transcripts.kept(project, session)) !== undefined) continue;
-    if (!lines.has(project)) lines.set(project, (await log.since(project, 0)).lines);
-    const own = lines.get(project)!;
+    const own = await transcriptLines(log, project, session);
     const read = storedReader(log, project, session);
     const kept: Kept = {
       context: await contextReading(own, session, { now, ...(home === undefined ? {} : { home }), read }),

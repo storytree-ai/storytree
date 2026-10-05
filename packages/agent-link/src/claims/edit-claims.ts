@@ -50,16 +50,23 @@ export async function claimFromEdits(context: EditClaimsContext): Promise<void> 
     const { log, library, project, home, machine } = context;
     const place = placeFile(home, project);
     const last = readPlace(place);
-    const read = await log.since(project, last === undefined ? 0 : Math.min(last.edits, last.notices));
+    // Only the recent edits and refusals since the last look are read, never the rest of the log (contract 2.7).
+    const from = last === undefined ? 0 : Math.min(last.edits, last.notices);
+    const since = new Date(Date.now() - RECENT_MS).toISOString();
+    const read = await log.lines(project, { kinds: ["file-edited", "claim-refused"], after: from, since, omit: ["transcript"] });
+    const cursor = Math.max(read.at(-1)?.seq ?? from, last?.edits ?? 0);
     const recent = (line: Line) => Date.now() - Date.parse(line.at) <= RECENT_MS;
-    const edits = read.lines.filter((line): line is Extract<Line, { kind: "file-edited" }> =>
+    const edits = read.filter((line): line is Extract<Line, { kind: "file-edited" }> =>
       line.kind === "file-edited" && line.seq > (last?.edits ?? 0) && recent(line) && line.folder !== undefined && (machine === undefined || line.machine === machine));
     // Where this look got to is kept before claiming: a look cut short claims each edit at most once.
-    writePlace(place, { edits: read.cursor, notices: last?.notices ?? 0 });
+    writePlace(place, { edits: cursor, notices: last?.notices ?? 0 });
 
-    const titles = new Map((await library.projectTree()).stories.flatMap((story) => story.capabilities.map(({ id, title }) => [id, title] as const)));
+    // The plan's titles, read only when there is an edit to claim from or a refusal to tell of: most looks have neither.
+    let known: Promise<Map<string, string>> | undefined;
+    const titlesOf = () => (known ??= library.projectTree().then((tree) => new Map(tree.stories.flatMap((story) => story.capabilities.map(({ id, title }) => [id, title] as const)))));
     const lookup = context.lookup ?? surveyLookup(library);
     const done = new Set<string>();
+    const titles = edits.length === 0 ? new Map<string, string>() : await titlesOf();
     for (const [checkout, lines] of byFolder(edits)) {
       const owners = await lookup(checkout, lines.flatMap((line) => line.files.map((file) => path.resolve(checkout, file)))).catch(() => new Map<string, string>());
       for (const line of lines) {
@@ -79,12 +86,12 @@ export async function claimFromEdits(context: EditClaimsContext): Promise<void> 
     }
 
     // Edits to what a session here holds, by any session on any machine, including this look's own.
-    const added = await log.since(project, read.cursor);
-    for (const line of [...read.lines, ...added.lines]) {
+    const added = await log.lines(project, { kinds: ["claim-refused"], after: cursor, since, omit: ["transcript"] });
+    for (const line of [...read, ...added]) {
       if (line.kind !== "claim-refused" || line.file === undefined || line.capability === undefined || line.seq <= (last?.notices ?? 0) || !recent(line)) continue;
-      leaveNotice(home, line.holder, editedNotice(titles.get(line.capability) ?? line.capability, line.file, line));
+      leaveNotice(home, line.holder, editedNotice((await titlesOf()).get(line.capability) ?? line.capability, line.file, line));
     }
-    writePlace(place, { edits: read.cursor, notices: added.cursor });
+    writePlace(place, { edits: cursor, notices: Math.max(added.at(-1)?.seq ?? cursor, last?.notices ?? 0) });
   } catch {
     // Whatever went wrong, nothing more is claimed or said.
   }

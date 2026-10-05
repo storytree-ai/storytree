@@ -14,7 +14,7 @@ import { findProject, notAProjectYet, setUpProject, starterRolesIn, suggestProje
 import { checkFilesWritten, codexHooksState, FIX_SENTENCES, HOOK_TESTS, openStorytree, runSetupCheck, verifyHooks, type Fix, type SetupOptions } from "../setup/index.js";
 import { isUnreachable, NOT_RUNNING_ANSWER, refusalOf, result } from "./answers.js";
 import type { Connections } from "./connections.js";
-import { lineOf, metaOf, seenCaller, type Caller, type JourneyMilestones } from "./server.js";
+import { callLines, lineOf, metaOf, seenCaller, type Caller, type JourneyMilestones } from "./server.js";
 import { quoted } from "./text.js";
 
 export interface SetupToolContext {
@@ -63,12 +63,16 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
         const starterRoles = await starterRolesIn(library);
         if (starterRoles.length > 0) said.push(rolesSentence(starterRoles));
         // The session as the hook before this call named it: after Claude Code's /clear, the new one.
-        const caller = seenCaller((await log.since(report.project.name, 0)).lines, heard, metaOf(context));
+        const caller = seenCaller(await callLines(log, report.project.name, metaOf(context)), heard, metaOf(context));
         await log.append(report.project.name, { ...lineOf(caller), source: "tool", folder, kind: "tool-called", tool: "check_setup" });
-        const { lines } = await log.since(report.project.name, 0);
-        const verification = verifyHooks(lines, caller.session, caller.harness, { ...report.machine, ...(report.codexHooks === undefined ? {} : { codexHooks: report.codexHooks }) });
+        // This session's hook lines alone: the latest of each kind, and its edits for the check file (contract 2.7).
+        const [fired, edits] = await Promise.all([
+          log.lines(report.project.name, { sessions: [caller.session], where: { source: "hook" }, latestBy: ["kind"], omit: ["command", "files", "transcript"] }),
+          log.lines(report.project.name, { sessions: [caller.session], kinds: ["file-edited"], where: { source: "hook" }, omit: ["transcript"] }),
+        ]);
+        const verification = verifyHooks(fired, caller.session, caller.harness, { ...report.machine, ...(report.codexHooks === undefined ? {} : { codexHooks: report.codexHooks }) });
         // The check file's work is done once its edit has arrived (8.20): it goes from where the agent wrote it.
-        for (const file of checkFilesWritten(lines, caller.session)) {
+        for (const file of checkFilesWritten(edits, caller.session)) {
           try {
             rmSync(file, { force: true });
           } catch {

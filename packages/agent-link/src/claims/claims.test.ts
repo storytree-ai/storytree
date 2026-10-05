@@ -290,9 +290,12 @@ test("5.10 the board asks GitHub itself before it shows claims, even in a minute
   await withWorld(async ({ log, project, emailForm, as }) => {
     assert.equal((await claim(as("A", { branch: "feature/signup" }), emailForm, "building the email form")).ok, true);
     let locks = 0;
-    const counted = Object.assign(Object.create(log) as ActivityLog, {
-      since: log.since.bind(log),
-      locked: <T>(of: string, work: (locked: LockedLog) => Promise<T>) => { locks++; return log.locked(of, work); },
+    const counted = new Proxy(log, {
+      get(target, key) {
+        if (key === "locked") return (of: string, work: (locked: LockedLog) => Promise<unknown>) => { locks++; return log.locked(of, work); };
+        const value = Reflect.get(target, key) as unknown;
+        return typeof value === "function" ? value.bind(target) : value;
+      },
     });
     const context = { log: counted, project, folder: "/work/site", session: "person:owner", source: "tool" as const };
     const unmerged = await boardClaims(context, { mergedPulls: async () => [] });
@@ -493,14 +496,19 @@ for (const target of ["capability", "active increment"] as const) {
       const blocker = log.locked(project, async () => { acquired(); await hold; });
       await locked;
       const abort = new AbortController();
-      const observing: ActivityLog = {
-        append: log.append.bind(log), since: log.since.bind(log), close: log.close.bind(log), transcripts: log.transcripts,
-        locked: (project, work) => {
-          const pending = log.locked(project, work);
-          requested();
-          return pending;
+      const observing = new Proxy(log, {
+        get(target, key) {
+          if (key === "locked") {
+            return (of: string, work: (locked: LockedLog) => Promise<unknown>) => {
+              const pending = log.locked(of, work);
+              requested();
+              return pending;
+            };
+          }
+          const value = Reflect.get(target, key) as unknown;
+          return typeof value === "function" ? value.bind(target) : value;
         },
-      };
+      });
       const context = { ...as("A", { log: observing }), writer: { signal: abort.signal } };
       const pending = claim(context, id, "Build form");
       const cancelled = assert.rejects(pending, /cancel claim/);

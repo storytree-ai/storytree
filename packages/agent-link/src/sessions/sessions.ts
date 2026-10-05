@@ -24,9 +24,12 @@
  *   its repository's first commit, labelled as setting up git.
  * - It is flagged "hooks not running" (`hooksRunning: false`) until a line from one of its hooks
  *   arrives: a session seen only through its tool calls is not an agent doing nothing.
+ * - It is read from the few lines that decide it (contract 2.7), never from the whole log: a reader
+ *   of the list reads only the sessions the list may show, and the claims standing, so what it takes
+ *   from the store does not grow with the project's history.
  */
 import type { ActivityLog, Line } from "../activity/index.js";
-import { sessionsFrom as readLines, type Session, type SessionOptions } from "../readings.js";
+import { held, LogFold, LONGEST_COMMAND_MS, sessionsFrom as readLines, type Session, type SessionOptions } from "../readings.js";
 import { idleAfterMs, leaveAfterMs } from "../settings/settings.js";
 
 export { closeOut } from "./close-out.js";
@@ -41,8 +44,42 @@ export function sessionsFrom(lines: readonly Line[], options: SessionOptions = {
   return readLines(lines, { ...options, quietMs: options.quietMs ?? idleAfterMs(), leaveMs: options.leaveMs ?? leaveAfterMs() });
 }
 
-/** The sessions in `project`'s log, in the order they started, each judged at `options.now`. */
-export async function readSessions(log: ActivityLog, project: string, options: SessionOptions = {}): Promise<Session[]> {
-  const { lines } = await log.since(project, 0);
-  return sessionsFrom(lines, options);
+export interface ReadSessionsOptions extends SessionOptions {
+  /**
+   * Which sessions: every one (the default); only those the running-sessions list may show at
+   * `now`, which are all a reader of the list needs; or those named.
+   */
+  readonly of?: "all" | "in-view" | readonly string[];
+}
+
+/** How far back a session's unfinished commands are read: a command started earlier is past any limit, with a minute's margin. */
+const COMMANDS_MS = LONGEST_COMMAND_MS + 60_000;
+
+/**
+ * The sessions in `project`'s log, in the order they started, each judged at `options.now`: read
+ * from the lines that decide them and the claims standing, as a fold of the whole log reads them.
+ */
+export async function readSessions(log: ActivityLog, project: string, options: ReadSessionsOptions = {}): Promise<Session[]> {
+  const now = options.now ?? new Date();
+  const quietMs = options.quietMs ?? idleAfterMs();
+  const leaveMs = options.leaveMs ?? leaveAfterMs();
+  const claimLines = await log.standing(project);
+  const holders = [...held(claimLines, new Map(), new Set(), now.getTime(), Infinity)];
+  const of = options.of ?? "all";
+  const sessions = Array.isArray(of) ? (of as readonly string[])
+    : of === "all" ? await log.sessionsInView(project, new Date(0).toISOString())
+    : [...new Set([...await log.sessionsInView(project, new Date(now.getTime() - Math.max(leaveMs, LONGEST_COMMAND_MS)).toISOString()), ...holders.map(([, claim]) => claim.session)])];
+  const fold = new LogFold();
+  fold.add(await log.foldLines(project, sessions, new Date(now.getTime() - COMMANDS_MS).toISOString()));
+  // The claims standing are the log's, not those the lines read for the sessions would leave.
+  const snapshot = fold.snapshot();
+  const standing = LogFold.fromSnapshot({ ...snapshot, holders: holders.map(([id, { holder: _holder, ...claim }]) => [id, claim]) });
+  return standing.sessions({ now, quietMs, leaveMs });
+}
+
+/** The state of each session that wrote in the last LONGEST_COMMAND_MS, from the lines that decide it alone: the rest of each session is not read. */
+export async function readSessionStates(log: ActivityLog, project: string, options: SessionOptions = {}): Promise<Pick<Session, "session" | "harness" | "state">[]> {
+  const now = options.now ?? new Date();
+  const lines = await log.stateLines(project, new Date(now.getTime() - LONGEST_COMMAND_MS).toISOString(), new Date(now.getTime() - COMMANDS_MS).toISOString());
+  return sessionsFrom(lines, { ...options, now }).map(({ session, harness, state }) => ({ session, ...(harness === undefined ? {} : { harness }), state }));
 }

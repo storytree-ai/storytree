@@ -53,7 +53,8 @@ const log: Verb = {
     const limit = Number(args.text("limit") ?? LOG_LINES);
     if (!Number.isSafeInteger(limit) || limit < 1) throw new Refusal(`--limit takes a whole number, 1 or more\nusage: storytree noticeboard log [--session <id>] [--limit <n>]`, { code: 2 });
     const { log: activity, project } = await context.activityContext();
-    const lines = (await activity.since(project, 0)).lines.filter((line) => session === undefined || line.session === session).slice(-limit);
+    // The latest lines alone, never the whole log (agent link 2.7).
+    const lines = await activity.lines(project, { ...(session === undefined ? {} : { sessions: [session] }), newest: limit });
     if (lines.length === 0) return { text: session === undefined ? "The activity log has no lines yet." : `The activity log has no lines for ${session}.` };
     return { text: lines.map(lineText).join("\n") };
   },

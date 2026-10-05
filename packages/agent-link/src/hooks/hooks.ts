@@ -28,6 +28,10 @@
  * No other prints: in a folder that isn't a storytree project, a session start adds nothing for the
  * agent (ADR-0752 D3).
  *
+ * Nothing a hook reads grows with the log (contract 3.21): every hook of every session on every
+ * machine runs one, so each reads only the lines it needs, narrowed on the server (contract 2.7),
+ * never the whole log, which once made the store's egress grow with the square of its activity.
+ *
  * A hook's input is the harness's own JSON on stdin. hookLines() turns it into lines, and knows
  * nothing of storytree's state; runHook() routes the session's folder (capability 1) and, only when
  * it is a project on a running storytree, opens the log and writes them. Everything a hook does is

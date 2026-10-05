@@ -94,8 +94,8 @@ async function endMergedOn(context: MergeContext, watch: MergeWatch, asked: (bra
 
   return context.log.locked(context.project, async (log) => {
     const written: Line[] = [];
-    // Read again under the lock: a claim may have ended, or been taken again, since.
-    for (const claim of claimsFrom(await log.lines())) {
+    // Read again under the lock: a claim may have ended, or been taken again, since. The standing claims alone (contract 2.7).
+    for (const claim of claimsFrom(await log.standing())) {
       if (claim.branch === undefined) continue;
       const pull = (merged.get(claim.branch) ?? []).find((pull) => Date.parse(pull.mergedAt) > Date.parse(claim.since));
       if (pull === undefined) continue;

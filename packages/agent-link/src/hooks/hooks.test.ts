@@ -37,6 +37,7 @@ import { leaveNotice } from "../claims/notices.js";
 import { hookLines } from "./hooks.js";
 import { readSettings, setSetting } from "../settings/settings.js";
 import { registerHooks } from "../setup/hooks-config.js";
+import { countingStore, longHistory } from "../testing/egress.js";
 import { withTempDir } from "../testing/folders.js";
 import { dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 
@@ -844,4 +845,55 @@ test("4.10 a pull request's merge is recorded on its branch by the hooks though 
     while ((await merged()).length === 0 && Date.now() < deadline) await sleep(250);
     assert.deepEqual(await merged(), [["claude/fix", false, "merged", 7]]);
   });
+});
+
+test("3.21 a hook's reads do not grow with the log's length: the same hooks (a command's finish, which also hands on the look around the machine, a prompt, and the status line) take about as much from the store in a project whose log holds weeks of history as in one whose log holds an hour's", { timeout: 120_000 }, async () => {
+  const [short, long] = [uniqueProjectName(), uniqueProjectName()];
+  const owner = JSON.parse(readFileSync(`${testServerDataDir()}.owner.json`, "utf8")) as Record<string, unknown>;
+  const log = await openActivityLog(testServerUrl());
+  try {
+    const taken: Record<string, number> = {};
+    let history = 0;
+    for (const project of [short, long]) {
+      await withTempDir(async (dir) => {
+        const folder = projectFolder(dir, project);
+        // The same last hour in both: two sessions working, one of them editing files.
+        for (const session of ["now-1", "now-2"]) {
+          const write = (line: Record<string, unknown>) => log.append(project, { session, harness: "claude-code", source: "hook", folder, ...line } as NewLine);
+          await write({ kind: "session-started", how: "startup" });
+          await write({ kind: "prompt-submitted" });
+          await write({ kind: "file-edited", files: [path.join(folder, "src", `${session}.ts`)] });
+          await write({ kind: "command-started", command: "pnpm test", call: `${session}-call` });
+          await write({ kind: "command-run", command: "pnpm test", call: `${session}-call` });
+          await write({ kind: "turn-ended" });
+        }
+        if (project === long) history = await longHistory(project, folder, 400, MACHINE);
+
+        const store = await countingStore();
+        try {
+          const home = path.join(dir, "counted-home");
+          mkdirSync(home);
+          writeFileSync(path.join(home, "pgdata.owner.json"), JSON.stringify({ ...owner, port: store.port }));
+          const status = JSON.stringify({ hook_event_name: "Status", session_id: "now-1", cwd: folder, workspace: { current_dir: folder, project_dir: folder } });
+          for (const ran of [
+            await runHook("claude-code", recorded("claude-code", "post-tool-use-bash", folder), home),
+            await runHook("claude-code", recorded("claude-code", "user-prompt-submit", folder), home),
+            await runHook("statusline", status, home),
+          ]) assert.deepEqual({ code: ran.code, stderr: ran.stderr }, { code: 0, stderr: "" });
+          // The look around the machine runs on in a copy of the hook: wait for it too.
+          await store.settled(1_500, 60_000);
+          taken[project] = store.received();
+        } finally {
+          await store.close();
+        }
+        assert.ok((await linesOf(project)).some((line) => line.kind === "command-run" && line.command === "echo probe-command"), "the hook wrote its line");
+      });
+    }
+    assert.ok(history > 20_000_000, `the long history is weeks' worth: ${history} bytes`);
+    assert.ok(taken[long]! - taken[short]! < 128 * 1024,
+      `the hooks took ${taken[short]} bytes from a short log and ${taken[long]} from one ${history} bytes longer: no more than 128 KiB apart`);
+  } finally {
+    await log.close();
+    await dropTestProjects([short, long]);
+  }
 });

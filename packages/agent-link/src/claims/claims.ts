@@ -24,8 +24,8 @@ import { uptime } from "node:os";
 
 import type { Hold, IncrementStatus, Library, SchemaRecord, WriteOptions } from "@storytree/library";
 
-import { thisMachine, type ActivityLog, type Line, type LockedLog } from "../activity/index.js";
-import { attributeFrom, CLAIM_KINDS, claimOf, claimsFrom as readLines, COMMAND_KINDS, held, partOf, runningIn, type Attributed, type Claim, type ClaimsOptions, type Part, type Restart } from "../readings.js";
+import { thisMachine, type ActivityLog, type Line, type LineFilter } from "../activity/index.js";
+import { attributeFrom, CLAIM_KINDS, claimOf, claimsFrom as readLines, COMMAND_KINDS, held, LONGEST_COMMAND_MS, partOf, runningIn, type Attributed, type Claim, type ClaimsOptions, type Part, type Restart } from "../readings.js";
 import { idleAfterMs } from "../settings/settings.js";
 
 export { attributeFrom } from "../readings.js";
@@ -201,9 +201,11 @@ export function claimsFrom(lines: readonly Line[], options: ClaimsOptions = {}):
   return readLines(lines, { ...options, quietMs: options.quietMs ?? idleAfterMs(), ...(restarted === undefined ? {} : { restarted }) });
 }
 
-/** Who holds what in `project`'s log. */
+/** Who holds what in `project`'s log, read from the standing claims and their holders' latest lines alone (contract 2.7). */
 export async function readClaims(log: ActivityLog, project: string, options: ClaimsOptions = {}): Promise<Claim[]> {
-  return claimsFrom((await log.since(project, 0)).lines, options);
+  const reads: ClaimReads = { standing: () => log.standing(project), lines: (filter) => log.lines(project, filter), lastSeen: (sessions) => log.lastSeen(project, sessions) };
+  const now = (options.now ?? new Date()).getTime();
+  return [...(await heldIn(reads, now, options.quietMs ?? idleAfterMs(), options.restarted ?? thisRestart())).values()];
 }
 
 /** The current holder of one capability or increment, or undefined when nobody holds it. */
@@ -213,12 +215,12 @@ export function claimFrom(lines: readonly Line[], id: string, options: ClaimsOpt
 
 /** Who holds one capability or increment in `project`, using the same reading as the board. */
 export async function readClaim(log: ActivityLog, project: string, id: string, options: ClaimsOptions = {}): Promise<Claim | undefined> {
-  return claimFrom((await log.since(project, 0)).lines, id, options);
+  return (await readClaims(log, project, options)).find((claim) => (claim.increment ?? claim.capability) === id);
 }
 
-/** Every edit and command in `project`'s log, with what it counts toward. */
+/** Every edit and command in `project`'s log, with what it counts toward: the lines of the kinds that reading takes. */
 export async function readAttribution(log: ActivityLog, project: string): Promise<Attributed[]> {
-  return attributeFrom((await log.since(project, 0)).lines);
+  return attributeFrom(await log.lines(project, { kinds: [...CLAIM_KINDS, "file-edited", "command-run"] }));
 }
 
 /**
@@ -249,13 +251,32 @@ async function waitingOn(library: Library, found: Found): Promise<Waiting[]> {
 }
 
 /** Who holds what right now, read under the project's lock, by the database's clock. */
-async function heldNow(log: LockedLog, context: ClaimContext): Promise<Map<string, Claim>> {
-  // One scan while writers wait; keep each reading's kinds (including its machine history) unchanged.
-  const history = await log.lines([...CLAIM_KINDS, ...COMMAND_KINDS]);
-  const lines = history.filter((line) => CLAIM_KINDS.some((kind) => kind === line.kind));
-  const commands = history.filter((line) => COMMAND_KINDS.some((kind) => kind === line.kind));
-  const [lastSeen, now] = [await log.lastSeen(), (await log.now()).getTime()];
-  return held(lines, lastSeen, runningIn(commands, now), now, context.quietMs ?? idleAfterMs(), context.restarted ?? thisRestart());
+async function heldNow(log: ClaimReads & { now(): Promise<Date> }, context: ClaimContext): Promise<Map<string, Claim>> {
+  return heldIn(log, (await log.now()).getTime(), context.quietMs ?? idleAfterMs(), context.restarted ?? thisRestart());
+}
+
+/** What the claims reading asks of a log, locked or not. */
+interface ClaimReads {
+  standing(): Promise<Line[]>;
+  lines(filter: LineFilter): Promise<Line[]>;
+  lastSeen(sessions: readonly string[]): Promise<Map<string, string>>;
+}
+
+/** How far back a holder's commands are read: a command started earlier is past any limit on it, with a minute for a finish written before its start. */
+const COMMANDS_MS = LONGEST_COMMAND_MS + 60_000;
+
+/**
+ * Who holds what at `now`: the standing claims, each holder judged by when it last wrote and by its
+ * commands still running, which only its lines of the last LONGEST_COMMAND_MS can show. Nothing
+ * here grows with the log: ended claims and old commands are never sent (contract 2.7).
+ */
+async function heldIn(reads: ClaimReads, now: number, quietMs: number, restarted: Restart | undefined): Promise<Map<string, Claim>> {
+  const claimLines = await reads.standing();
+  const holders = [...new Set([...held(claimLines, new Map(), new Set(), now, Infinity).values()].map((claim) => claim.session))];
+  if (holders.length === 0) return new Map();
+  const commands = await reads.lines({ kinds: [...COMMAND_KINDS], sessions: holders, since: new Date(now - COMMANDS_MS).toISOString(), omit: ["command", "transcript"] });
+  const lastSeen = await reads.lastSeen(holders);
+  return held(claimLines, lastSeen, runningIn(commands, now), now, quietMs, restarted);
 }
 
 /** The fields every line a claim writes carries: whose it is. */

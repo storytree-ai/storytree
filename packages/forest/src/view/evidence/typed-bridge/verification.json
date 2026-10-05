@@ -1,0 +1,48 @@
+{
+  "renderer": "4eef7c6baa810580bc300712c63e8e9e58387d92",
+  "red": {
+    "capture": "capability-names",
+    "exit": 1,
+    "errors": [
+      "TypeError: Cannot read properties of undefined (reading 'choice')"
+    ]
+  },
+  "green": {
+    "capability-names": {
+      "errors": []
+    },
+    "circles-fit": {
+      "errors": []
+    },
+    "nameplates": {
+      "errors": []
+    },
+    "north-up": {
+      "errors": []
+    },
+    "one-program-per-frame": {
+      "errors": [],
+      "defaulted": [
+        "readInstallChoice",
+        "checkForUpdates",
+        "readSignIn",
+        "readJourney",
+        "agentConnections",
+        "readSurfaces",
+        "arcViews"
+      ]
+    },
+    "redraw-only-changed": {
+      "errors": [],
+      "defaulted": [
+        "readInstallChoice",
+        "checkForUpdates",
+        "readSignIn",
+        "readJourney",
+        "agentConnections",
+        "readSurfaces",
+        "arcViews"
+      ]
+    }
+  }
+}

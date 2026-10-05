@@ -98,7 +98,7 @@ test("5.5 a session keeps one colour, never green or the needs-you amber; a fold
 });
 
 test("5.7 replaying a growth, the sessions recorded with the latest stage reached outline the territories they held, none before the first", () => {
-  const wisp = (session: string, story: string): SessionWisp => ({ session, story, colour: sessionColour(session), phase: 0, faded: false, capabilities: [] });
+  const wisp = (session: string, story: string): SessionWisp => ({ session, story, colour: sessionColour(session), faded: false, capabilities: [] });
   // Recorded: nobody, then A on the shop, then A and B, then A landed and B still on the till, then nobody.
   const stages = [
     { at: 1, wisps: [] },

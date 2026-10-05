@@ -84,7 +84,7 @@ function StoryDetails({ saved, story, capability, choose, close }: { saved: Tour
   return <div ref={ref} className="story-panel tour-story-panel" data-story-id={story} />;
 }
 
-function Sessions({ project, recording, core, onWisps, onHighlight, onPick }: { project: string; recording: Recording; core: KnowledgeCore; onWisps(wisps: readonly SessionWisp[]): void; onHighlight(stories: readonly string[] | undefined, session?: string): void; onPick(): void }) {
+function Sessions({ project, recording, core, onWisps, onHighlight, onPick }: { project: string; recording: Recording; core: KnowledgeCore; onWisps(wisps: readonly SessionWisp[]): void; onHighlight(stories: readonly string[] | undefined): void; onPick(): void }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const list = mountSessionsList(ref.current!, { project, reads: recording.reads,
@@ -173,7 +173,7 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   const [tour, setTour] = useState<TourDetail>();
   const [controls, setControls] = useState<GlobeControls>();
   const [wisps, setWisps] = useState<readonly SessionWisp[]>([]);
-  const [highlight, setHighlight] = useState<{ stories: readonly string[] | undefined; session: string | undefined }>({ stories: undefined, session: undefined });
+  const [highlight, setHighlight] = useState<readonly string[]>();
   const [story, setStory] = useState<string>();
   const [capability, setCapability] = useState<string>();
   const [note, setNote] = useState<string>();
@@ -245,7 +245,7 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   }, [note, story, closeNote, closeStory]);
   // A recording restart replaces the core, but the visitor is still reading this note.
   useEffect(() => { activeCore.pin(note); }, [activeCore, note]);
-  const onHighlight = useCallback((stories: readonly string[] | undefined, session?: string) => setHighlight({ stories, session }), []);
+  const onHighlight = useCallback((stories: readonly string[] | undefined) => setHighlight(stories), []);
   const onControls = useCallback((next: GlobeControls | undefined) => setControls(next), []);
   useEffect(() => {
     let first = true;
@@ -451,8 +451,8 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
         <PlanetView core={grown ? growthCores[shownMap as Grown] : core} scene={drawn} places={grown?.places ?? places}
           frame={grown?.snapshot.scene} growth={growth} recordedSessions={shopAt && shownMap === "shop" ? undefined : grown?.sessions}
           wisps={shopAt && shownMap === "shop" ? wisps : grown ? [] : wisps} selected={selected}
-          highlighted={focus ?? highlight.stories} highlightedSession={highlight.session} onPick={pickStory} onNote={pickNote}
-          onWispHover={() => {}} onControls={onControls} surfaces={surfaces} framing={restingFraming} sideOffset={offsetFor(undefined, width)} mode={mode} />
+          highlighted={focus ?? highlight} onPick={pickStory} onNote={pickNote}
+          onControls={onControls} surfaces={surfaces} framing={restingFraming} sideOffset={offsetFor(undefined, width)} mode={mode} />
       </div>
     </GlobeBoundary>}
     {touring && !everything && step?.tags && <Tags tags={step.tags} controls={controls} arrived={arrived} />}

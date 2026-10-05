@@ -18,8 +18,8 @@ export interface ForestView {
   show(scene: ForestScene, places: ReadonlyMap<string, number>): void;
   /** Show where each running session works: the outline on each territory it claimed (capability 5, ADR-0923). */
   showWisps(wisps: readonly SessionWisp[]): void;
-  /** Light a session’s claimed islands and swell its wisps, without changing the selected story. */
-  highlight(stories: readonly string[] | undefined, session?: string): void;
+  /** Light a session’s claimed islands, without changing the selected story. */
+  highlight(stories: readonly string[] | undefined): void;
   /** Mark `story` selected (undefined for none), as a click would. */
   select(story: string | undefined): void;
   /** Stop drawing and let go of the GPU. */
@@ -34,22 +34,20 @@ interface Drawn {
   wisps: readonly SessionWisp[];
   selected: string | undefined;
   highlighted: readonly string[] | undefined;
-  highlightedSession: string | undefined;
   viewport: { width: number; height: number } | undefined;
 }
 
 /**
  * Open the globe in `container`. `onSelect` hears the story or artifact picked, or empty space.
  * The app's existing core supplies the faint points; its inspection page stays deferred.
- * `onWispHover` hears the session whose wisp the pointer is over, or undefined when it leaves.
  * With `library` off (ADR-0750) the globe stays solid and has no Forest and Library buttons;
  * `opening` is how close it opens.
  */
 export async function openForestView(container: HTMLElement, onSelect: (selection: Selection) => void, core: KnowledgeCore,
-  onWispHover: (session: string | undefined) => void = () => {}, { library = true, opening = "whole-planet" }: { library?: boolean; opening?: GlobeOpening | undefined } = {}): Promise<ForestView> {
+  { library = true, opening = "whole-planet" }: { library?: boolean; opening?: GlobeOpening | undefined } = {}): Promise<ForestView> {
   const root = createRoot(container);
   let drawn: Drawn = {
-    mode: "forest", places: new Map(), scene: { islands: [] }, wisps: [], selected: undefined, highlighted: undefined, highlightedSession: undefined, viewport: undefined,
+    mode: "forest", places: new Map(), scene: { islands: [] }, wisps: [], selected: undefined, highlighted: undefined, viewport: undefined,
   };
 
   const render = (next: Partial<Drawn>): void => {
@@ -59,8 +57,8 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
     container.dataset.forestMode = drawn.mode;
     root.render(<>
       <PlanetView core={core} scene={drawn.scene} places={drawn.places} wisps={drawn.wisps}
-        selected={drawn.selected} highlighted={drawn.highlighted} highlightedSession={drawn.highlightedSession}
-        onPick={pick} onNote={pickNote} onWispHover={onWispHover} mode={drawn.mode} framing={globeFraming(opening)} library={library} />
+        selected={drawn.selected} highlighted={drawn.highlighted}
+        onPick={pick} onNote={pickNote} mode={drawn.mode} framing={globeFraming(opening)} library={library} />
       {library && <div className="forest-views" role="group" aria-label="Globe view">
         {(["forest", "library"] as const).map(mode => <button key={mode} type="button"
           data-forest-mode={mode} aria-pressed={drawn.mode === mode} onClick={() => changeMode(mode)}>
@@ -97,8 +95,8 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
     showWisps(wisps) {
       if (!sameWisps(wisps, drawn.wisps)) render({ wisps });
     },
-    highlight(stories, session) {
-      render({ highlighted: stories, highlightedSession: session });
+    highlight(stories) {
+      render({ highlighted: stories });
     },
     select(story) {
       selection.story(story);

@@ -33,11 +33,8 @@ test("7.1–7.5 rows start collapsed, showing neither detail nor children; a row
 });
 
 test("5.5 a row wears its session's colour, the one its outlines wear", () => {
-  const html = renderToStaticMarkup(createElement(SessionsList, { rows: [row], highlighted: "parent", onHighlight() {} }));
+  const html = renderToStaticMarkup(createElement(SessionsList, { rows: [row], onHighlight() {} }));
   assert.ok(html.includes(`class="session-colour" style="background:${sessionColour("parent")}"`), html);
-  assert.match(html, /data-session-id="parent"[^>]*data-highlighted="true"/);
-  const plain = renderToStaticMarkup(createElement(SessionsList, { rows: [row], onHighlight() {} }));
-  assert.doesNotMatch(plain, /data-highlighted/);
 });
 
 test("7.6 a row's bar is its tokens on a 1,000,000-token scale in four groups, numbers on hover; a Claude row marks its reading's context guidance, one mark (ADR-0739 D1), Codex rows none; a row without a composition is one raw segment", () => {

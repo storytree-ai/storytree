@@ -8,5 +8,5 @@ Object.assign(globalThis, { __snapshot: snapshot });
 const core = createKnowledgeCore('website-evidence');
 createRoot(document.getElementById('desktop-forest')!).render(
   <PlanetView core={core} scene={snapshot.scene} places={new Map()} wisps={[]} selected={undefined}
-    onPick={() => {}} onNote={() => {}} onWispHover={() => {}} library={false} framing={1.18} />,
+    onPick={() => {}} onNote={() => {}} library={false} framing={1.18} />,
 );

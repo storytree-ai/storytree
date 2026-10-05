@@ -59,7 +59,7 @@ await withCapture({ folder: here, dist }, async ({ browser, origin, out, settle 
   await page.evaluate(() => demo.options({ surfaces: { sessionTints: false } }));
   await page.waitForFunction(() => {
     let visible = 0; demo.state().scene.traverse(object => {
-      if (object.name.startsWith('territory-claim:') || object.name.startsWith('coast-tint:')) {
+      if (object.name.startsWith('territory-claim:')) {
         let shown = true; for (let at = object; at; at = at.parent) if (!at.visible) shown = false;
         if (shown) visible++;
       }

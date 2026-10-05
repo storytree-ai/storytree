@@ -30,7 +30,7 @@ test("3.2 a live update that changed one island keeps the other island's objects
 });
 
 test("wisps that draw the same as those on show are not drawn again", () => {
-  const wisp = (capabilities: string[]): SessionWisp => ({ session: "s", story: "a", colour: "hsl(1, 80%, 68%)", phase: 3, faded: false, capabilities });
+  const wisp = (capabilities: string[]): SessionWisp => ({ session: "s", story: "a", colour: "hsl(1, 80%, 68%)", faded: false, capabilities });
   assert.ok(sameWisps([wisp(["c"])], [wisp(["c"])]));
   assert.ok(!sameWisps([wisp(["c"])], [wisp(["c", "d"])]));
   assert.ok(!sameWisps([wisp(["c"])], [{ ...wisp(["c"]), faded: true }]));

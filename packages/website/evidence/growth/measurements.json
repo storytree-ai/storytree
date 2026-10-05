@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-10-03T17:37:47.936Z",
+  "capturedAt": "2026-10-05T07:00:37.593Z",
   "browser": "148.0.7778.96",
   "renderer": "SwiftShader",
   "viewport": {
@@ -8,15 +8,15 @@
   },
   "seconds": 15,
   "maps": {
-    "conduit": {
+    "shop": {
       "frames": [
         {
           "at": 0.4,
-          "file": "conduit-00.png",
+          "file": "shop-00.png",
           "visiblePlates": 0,
-          "plates": 12,
+          "plates": 8,
           "visibleNotes": 0,
-          "notes": 0,
+          "notes": 58,
           "visibleTerritories": 0,
           "territories": 0,
           "visibleFiles": 0,
@@ -25,117 +25,117 @@
         },
         {
           "at": 1.2,
-          "file": "conduit-01.png",
-          "visiblePlates": 4,
-          "plates": 12,
-          "visibleNotes": 0,
-          "notes": 0,
-          "visibleTerritories": 0,
-          "territories": 0,
+          "file": "shop-01.png",
+          "visiblePlates": 2,
+          "plates": 8,
+          "visibleNotes": 25,
+          "notes": 58,
+          "visibleTerritories": 2,
+          "territories": 7,
           "visibleFiles": 0,
-          "files": 0,
+          "files": 23,
           "sessions": []
         },
         {
           "at": 2.4,
-          "file": "conduit-02.png",
-          "visiblePlates": 5,
-          "plates": 12,
-          "visibleNotes": 0,
-          "notes": 0,
-          "visibleTerritories": 0,
-          "territories": 0,
+          "file": "shop-02.png",
+          "visiblePlates": 4,
+          "plates": 8,
+          "visibleNotes": 25,
+          "notes": 58,
+          "visibleTerritories": 8,
+          "territories": 12,
           "visibleFiles": 0,
-          "files": 0,
-          "sessions": [
-            "01a0f951-2e43-74e2-b150-644eb4aeeac5@story_a4dbabc54188"
-          ]
+          "files": 36,
+          "sessions": []
         },
         {
           "at": 3.9,
-          "file": "conduit-03.png",
-          "visiblePlates": 5,
-          "plates": 12,
-          "visibleNotes": 0,
-          "notes": 0,
-          "visibleTerritories": 0,
-          "territories": 0,
-          "visibleFiles": 0,
-          "files": 0,
+          "file": "shop-03.png",
+          "visiblePlates": 4,
+          "plates": 8,
+          "visibleNotes": 26,
+          "notes": 58,
+          "visibleTerritories": 8,
+          "territories": 12,
+          "visibleFiles": 12,
+          "files": 36,
           "sessions": [
-            "01a0f971-1c22-7343-81c8-5d745302e08d@story_b6f530c5966b"
+            "capability_ff897f5c13aa@story_d263ef0f3f72"
           ]
         },
         {
           "at": 5.7,
-          "file": "conduit-04.png",
-          "visiblePlates": 5,
-          "plates": 12,
-          "visibleNotes": 0,
-          "notes": 0,
-          "visibleTerritories": 0,
-          "territories": 0,
-          "visibleFiles": 0,
-          "files": 0,
-          "sessions": []
+          "file": "shop-04.png",
+          "visiblePlates": 4,
+          "plates": 8,
+          "visibleNotes": 28,
+          "notes": 58,
+          "visibleTerritories": 8,
+          "territories": 12,
+          "visibleFiles": 14,
+          "files": 36,
+          "sessions": [
+            "capability_276fa436dc33@story_2de9e8f4db21",
+            "capability_668ca101a358@story_66f80ffaaa4d",
+            "capability_94f91d2ed3a9@story_66f80ffaaa4d",
+            "capability_d37b7ec1b593@story_66f80ffaaa4d",
+            "capability_ed214990be99@story_2de9e8f4db21"
+          ]
         },
         {
           "at": 7.5,
-          "file": "conduit-05.png",
-          "visiblePlates": 5,
-          "plates": 12,
-          "visibleNotes": 0,
-          "notes": 0,
-          "visibleTerritories": 0,
-          "territories": 0,
-          "visibleFiles": 0,
-          "files": 0,
-          "sessions": [
-            "01a0f9d1-a29d-7cf3-8872-3c71ccd2b871@story_9d37f9381e3f",
-            "01a0f9d1-a29d-7cf3-8872-3c71ccd2b871@story_a4dbabc54188",
-            "01a0f9d1-a29d-7cf3-8872-3c71ccd2b871@story_acab0558201e"
-          ]
-        },
-        {
-          "at": 9.6,
-          "file": "conduit-06.png",
-          "visiblePlates": 9,
-          "plates": 12,
-          "visibleNotes": 0,
-          "notes": 0,
-          "visibleTerritories": 0,
-          "territories": 0,
-          "visibleFiles": 0,
-          "files": 0,
+          "file": "shop-05.png",
+          "visiblePlates": 4,
+          "plates": 8,
+          "visibleNotes": 54,
+          "notes": 58,
+          "visibleTerritories": 8,
+          "territories": 12,
+          "visibleFiles": 31,
+          "files": 36,
           "sessions": []
         },
         {
-          "at": 12,
-          "file": "conduit-07.png",
-          "visiblePlates": 12,
-          "plates": 12,
-          "visibleNotes": 0,
-          "notes": 0,
-          "visibleTerritories": 0,
-          "territories": 0,
-          "visibleFiles": 0,
-          "files": 0,
+          "at": 9.6,
+          "file": "shop-06.png",
+          "visiblePlates": 8,
+          "plates": 8,
+          "visibleNotes": 57,
+          "notes": 58,
+          "visibleTerritories": 19,
+          "territories": 19,
+          "visibleFiles": 38,
+          "files": 56,
           "sessions": [
-            "01a0fc32-ebbd-7552-a678-d1dd048f950a@story_0f2877a9d736",
-            "01a0fc32-ebbd-7552-a678-d1dd048f950a@story_607f121daf0b"
+            "capability_69e4d74be829@story_b393a0c5a8de",
+            "capability_773d76b91157@story_0c07d0047754"
           ]
         },
         {
+          "at": 12,
+          "file": "shop-07.png",
+          "visiblePlates": 8,
+          "plates": 8,
+          "visibleNotes": 57,
+          "notes": 58,
+          "visibleTerritories": 19,
+          "territories": 19,
+          "visibleFiles": 46,
+          "files": 56,
+          "sessions": []
+        },
+        {
           "at": 15,
-          "file": "conduit-08.png",
-          "visiblePlates": 12,
-          "plates": 12,
-          "visibleNotes": 0,
-          "notes": 0,
-          "visibleTerritories": 0,
-          "territories": 0,
-          "visibleFiles": 0,
-          "files": 0,
+          "file": "shop-08.png",
+          "visiblePlates": 8,
+          "plates": 8,
+          "visibleNotes": 58,
+          "notes": 58,
+          "visibleTerritories": 19,
+          "territories": 19,
+          "visibleFiles": 56,
+          "files": 56,
           "sessions": []
         }
       ],
@@ -143,133 +143,128 @@
         "seconds": 15,
         "stages": [
           {
-            "id": "stories",
-            "start": 0.6141260634262281,
-            "at": "2026-10-01T21:16:50.000Z"
-          },
-          {
             "id": "planned",
-            "start": 1.7707301495456242,
-            "at": "2026-10-01T21:18:38.000Z"
+            "start": 0.6208248506384072,
+            "at": "2026-10-05T01:53:07.861Z"
           },
           {
-            "id": "part1-building",
-            "start": 2.313208172238792,
-            "at": "2026-10-01T21:25:00.000Z"
+            "id": "pr1-building",
+            "start": 2.1193421025792603,
+            "at": "2026-10-05T01:54:54.784Z"
           },
           {
-            "id": "part1",
-            "start": 2.978511407617206,
-            "at": "2026-10-01T21:32:30.000Z"
+            "id": "pr1",
+            "start": 2.7919023574375346,
+            "at": "2026-10-05T02:06:32.147Z"
           },
           {
-            "id": "part2-building",
-            "start": 3.6438146429956197,
-            "at": "2026-10-01T21:55:00.000Z"
+            "id": "pr2-building",
+            "start": 3.531718637781636,
+            "at": "2026-10-05T02:17:37.788Z"
           },
           {
-            "id": "part2",
-            "start": 4.309117878374034,
-            "at": "2026-10-01T21:57:20.000Z"
+            "id": "pr2",
+            "start": 4.204278892639911,
+            "at": "2026-10-05T02:21:39.790Z"
           },
           {
-            "id": "part3-building",
-            "start": 4.974421113752448,
-            "at": "2026-10-01T22:15:00.000Z"
+            "id": "pr4-building",
+            "start": 4.944095172984012,
+            "at": "2026-10-05T02:35:08.955Z"
           },
           {
-            "id": "part3",
-            "start": 5.639724349130862,
-            "at": "2026-10-01T22:21:10.000Z"
+            "id": "pr3",
+            "start": 5.616655427842287,
+            "at": "2026-10-05T02:40:02.942Z"
           },
           {
-            "id": "part4-building",
-            "start": 6.3050275845092765,
-            "at": "2026-10-01T23:00:00.000Z"
+            "id": "pr5",
+            "start": 6.356471708186389,
+            "at": "2026-10-05T02:46:21.000Z"
           },
           {
-            "id": "part5-building",
-            "start": 6.97033081988769,
-            "at": "2026-10-01T23:50:00.000Z"
+            "id": "pr4",
+            "start": 7.096287988530491,
+            "at": "2026-10-05T02:46:51.304Z"
           },
           {
-            "id": "frontend",
-            "start": 7.635634055266104,
-            "at": "2026-10-02T00:31:10.000Z"
+            "id": "pr7-building",
+            "start": 7.768848243388765,
+            "at": "2026-10-05T03:08:57.049Z"
           },
           {
-            "id": "ci",
-            "start": 8.300937290644518,
-            "at": "2026-10-02T08:11:40.000Z"
+            "id": "pr7",
+            "start": 8.833139816991814,
+            "at": "2026-10-05T03:15:04.833Z"
           },
           {
-            "id": "backend-planned",
-            "start": 9.032770849560775,
-            "at": "2026-10-02T09:58:00.000Z"
+            "id": "pr9",
+            "start": 9.572956097335917,
+            "at": "2026-10-05T03:19:52.437Z"
           },
           {
-            "id": "backend1-building",
-            "start": 10.49640886820766,
-            "at": "2026-10-02T10:20:00.000Z"
+            "id": "pr8",
+            "start": 10.31277237768002,
+            "at": "2026-10-05T03:21:57.850Z"
           },
           {
-            "id": "backend1",
-            "start": 11.161712103586073,
-            "at": "2026-10-02T10:33:10.000Z"
+            "id": "pr10-building",
+            "start": 11.052588658024124,
+            "at": "2026-10-05T03:24:53.861Z"
           },
           {
-            "id": "backend2-building",
-            "start": 11.827015338964488,
-            "at": "2026-10-02T10:50:00.000Z"
+            "id": "pr10",
+            "start": 11.725148912882398,
+            "at": "2026-10-05T03:28:11.259Z"
           },
           {
-            "id": "backend3-building",
-            "start": 12.492318574342901,
-            "at": "2026-10-02T11:20:00.000Z"
+            "id": "pr11-building",
+            "start": 12.397709167740674,
+            "at": "2026-10-05T03:38:54.787Z"
           },
           {
-            "id": "backend4-building",
-            "start": 13.157621809721315,
-            "at": "2026-10-02T11:45:00.000Z"
+            "id": "pr12",
+            "start": 13.070269422598948,
+            "at": "2026-10-05T03:45:28.000Z"
           },
           {
-            "id": "backend5-building",
-            "start": 13.82292504509973,
-            "at": "2026-10-02T12:15:00.000Z"
+            "id": "pr13-building",
+            "start": 13.810085702943052,
+            "at": "2026-10-05T04:17:21.157Z"
           },
           {
-            "id": "complete",
-            "start": 14.488228280478143,
-            "at": "2026-10-02T12:38:50.000Z"
+            "id": "pr13",
+            "start": 14.482645957801326,
+            "at": "2026-10-05T04:19:35.015Z"
           }
         ],
-        "islands": 12,
-        "roads": 45,
-        "capabilities": 13,
-        "files": 0
+        "islands": 8,
+        "roads": 63,
+        "capabilities": 34,
+        "files": 56
       },
       "play": {
-        "framesDrawn": 672,
-        "meanFps": 44.89,
-        "p95FrameMs": 35.4,
-        "visiblePlatesAtEnd": 12,
-        "plates": 12,
-        "visibleNotesAtEnd": 0,
-        "notes": 0
+        "framesDrawn": 474,
+        "meanFps": 31.61,
+        "p95FrameMs": 73,
+        "visiblePlatesAtEnd": 8,
+        "plates": 8,
+        "visibleNotesAtEnd": 58,
+        "notes": 58
       },
       "baseline": {
-        "framesDrawn": 712,
-        "meanFps": 43.12,
-        "p95FrameMs": 31.8
+        "framesDrawn": 441,
+        "meanFps": 26.48,
+        "p95FrameMs": 70.9
       },
       "reducedMotion": {
-        "visiblePlatesAt300ms": 12,
-        "plates": 12,
-        "visibleNotesAt300ms": 0,
-        "notes": 0,
+        "visiblePlatesAt300ms": 8,
+        "plates": 8,
+        "visibleNotesAt300ms": 58,
+        "notes": 58,
         "drawsIn1sAfter": 0,
-        "visibleTerritoriesAt300ms": 0,
-        "visibleFilesAt300ms": 0
+        "visibleTerritoriesAt300ms": 19,
+        "visibleFilesAt300ms": 56
       }
     },
     "storytree": {
@@ -393,71 +388,71 @@
         }
       ],
       "plan": {
-        "seconds": 15,
+        "seconds": 14.999999999999998,
         "stages": [
           {
             "id": "2026-09-25T20:40:47.697Z",
-            "start": 0.7992413462774699,
+            "start": 0.7992408747544983,
             "at": "2026-09-25T20:40:47.697Z"
           },
           {
             "id": "2026-09-26T07:06:32.078Z",
-            "start": 1.7516706172581216,
+            "start": 1.751669583836942,
             "at": "2026-09-26T07:06:32.078Z"
           },
           {
             "id": "2026-09-26T15:13:23.157Z",
-            "start": 3.0171360821974487,
+            "start": 3.017134302198231,
             "at": "2026-09-26T15:13:23.157Z"
           },
           {
             "id": "2026-09-27T02:54:54.110Z",
-            "start": 4.2826015471367755,
+            "start": 4.28259902055952,
             "at": "2026-09-27T02:54:54.110Z"
           },
           {
             "id": "2026-09-27T02:55:31.207Z",
-            "start": 5.3082946081928615,
+            "start": 5.308291476494459,
             "at": "2026-09-27T02:55:31.207Z"
           },
           {
             "id": "2026-09-27T04:36:00.418Z",
-            "start": 6.49474000669725,
+            "start": 6.494745024487539,
             "at": "2026-09-27T04:36:00.418Z"
           },
           {
             "id": "2026-09-27T21:54:03.748Z",
-            "start": 7.600357202381083,
+            "start": 7.600361567897928,
             "at": "2026-09-27T21:54:03.748Z"
           },
           {
             "id": "2026-09-27T23:04:24.287Z",
-            "start": 8.552786473361735,
+            "start": 8.552790276980373,
             "at": "2026-09-27T23:04:24.287Z"
           },
           {
             "id": "2026-09-30T11:56:04.414Z",
-            "start": 9.578479534417822,
+            "start": 9.578482732915312,
             "at": "2026-09-30T11:56:04.414Z"
           },
           {
             "id": "2026-09-30T12:15:51.889Z",
-            "start": 10.604172595473909,
+            "start": 10.604175188850252,
             "at": "2026-09-30T12:15:51.889Z"
           },
           {
             "id": "2026-09-30T12:16:07.036Z",
-            "start": 12.355843212732033,
+            "start": 12.355844772687195,
             "at": "2026-09-30T12:16:07.036Z"
           },
           {
             "id": "2026-10-01T15:13:54.405Z",
-            "start": 13.308272483712686,
+            "start": 13.308273481769643,
             "at": "2026-10-01T15:13:54.405Z"
           },
           {
             "id": "saved",
-            "start": 14.493813814024268,
+            "start": 14.493814112655482,
             "at": "2026-10-02T05:26:36.338Z"
           }
         ],
@@ -467,18 +462,18 @@
         "files": 428
       },
       "play": {
-        "framesDrawn": 332,
-        "meanFps": 22.06,
-        "p95FrameMs": 131.3,
+        "framesDrawn": 306,
+        "meanFps": 20.52,
+        "p95FrameMs": 135.6,
         "visiblePlatesAtEnd": 15,
         "plates": 15,
         "visibleNotesAtEnd": 771,
         "notes": 771
       },
       "baseline": {
-        "framesDrawn": 229,
-        "meanFps": 13.87,
-        "p95FrameMs": 149.3
+        "framesDrawn": 131,
+        "meanFps": 7.85,
+        "p95FrameMs": 291
       },
       "reducedMotion": {
         "visiblePlatesAt300ms": 15,

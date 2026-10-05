@@ -97,7 +97,7 @@ function wispsAt(plan: AnnotatedTree, lines: readonly Line[], at: string): Sessi
   return [...held].flatMap(([session, capabilities]) => {
     const byStory = new Map<string, string[]>();
     for (const capability of capabilities) { const story = owner.get(capability); if (story) byStory.set(story, [...(byStory.get(story) ?? []), capability]); }
-    return [...byStory].map(([story, claimed]) => ({ session, story, colour: sessionColour(session), phase: 0, faded: false, capabilities: claimed }));
+    return [...byStory].map(([story, claimed]) => ({ session, story, colour: sessionColour(session), faded: false, capabilities: claimed }));
   });
 }
 

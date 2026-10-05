@@ -118,7 +118,7 @@ function rangeOf(choice: HistoryChoice, now: Date): HistoryRange | undefined {
 export function mountSessionsList(container: HTMLElement, options: {
   project: string;
   reads: SessionsReads;
-  onHighlight(stories: readonly string[] | undefined, session?: string): void;
+  onHighlight(stories: readonly string[] | undefined): void;
   /** Hears each listed session's wisps (capability 5) whenever the rows are redrawn. */
   onWisps?(wisps: readonly SessionWisp[]): void;
   /** Hears the listed rows as the knowledge core's roster whenever they are redrawn (ADR-0738 D2). */
@@ -146,7 +146,6 @@ export function mountSessionsList(container: HTMLElement, options: {
   let leaveMs: number | undefined;
   let askedAt = -Infinity;
   let asking = false;
-  let highlighted: string | undefined;
   let selected: string | undefined;
   // Every row starts collapsed; these are the ones the user opened.
   let expanded: ReadonlySet<string> = new Set();
@@ -161,7 +160,7 @@ export function mountSessionsList(container: HTMLElement, options: {
   let stopped = false;
   const draw = (error?: string): void => root.render(<SessionsList rows={rows} loading={tree === undefined && rows.length === 0}
     refreshing={tree === undefined && rows.length > 0}
-    error={error} highlighted={highlighted} selected={selected} onHighlight={options.onHighlight}
+    error={error} selected={selected} onHighlight={options.onHighlight}
     expanded={expanded} files={files} onToggle={toggle} open={stripOpen}
     onToggleOpen={() => { stripOpen = !stripOpen; openKept.write(stripOpen); draw(); }}
     // Choosing a tab or a range redraws the strip and nothing else: the globe keeps the live rows (7.22).
@@ -245,8 +244,6 @@ export function mountSessionsList(container: HTMLElement, options: {
   });
   return {
     showDetails(next: ReadonlyMap<string, SessionDetails>) { details = next; refresh(now()); },
-    /** Highlight a session's row from its wisp, or none. */
-    hover(session: string | undefined) { highlighted = session; draw(); },
     /** Mark the session the knowledge core has selected, or none. */
     select(session: string | undefined) {
       const was = selected;
@@ -350,18 +347,16 @@ function IdleFold({ count, open, onToggle }: { count: number; open: boolean; onT
     aria-label={`${open ? "Hide" : "Show"} ${count} idle session${count === 1 ? "" : "s"}`} onClick={onToggle}>{count} idle</button></li>;
 }
 
-export function SessionsList({ rows, loading = false, refreshing = false, error, highlighted, selected, onHighlight, onSelect, files,
+export function SessionsList({ rows, loading = false, refreshing = false, error, selected, onHighlight, onSelect, files,
   history = [], range: chosen, onRange, now = new Date(), ...control }: {
   rows: readonly SessionRow[];
   loading?: boolean;
   /** The rows are the ones last kept, drawn before this start's first read lands. */
   refreshing?: boolean;
   error?: string | undefined;
-  /** The session whose wisp is hovered on the forest. */
-  highlighted?: string | undefined;
   /** The session the knowledge core has selected. */
   selected?: string | undefined;
-  onHighlight(stories: readonly string[] | undefined, session?: string): void;
+  onHighlight(stories: readonly string[] | undefined): void;
   onSelect?(session: string | undefined): void;
   /** The rows opened, when the caller keeps them; otherwise the list keeps its own. Every other row is collapsed (7.8). */
   expanded?: ReadonlySet<string>;
@@ -411,13 +406,12 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
   if (idleOpen) visit(idle, 0);
   // Folded, or showing History, the strip draws no live rows, so none is hovered or drawn.
   if (!stripOpen || tab === "history") visible.length = 0;
-  const active = visible.find(({ row }) => row.id === (hovered ?? focused ?? highlighted))?.row;
+  const active = visible.find(({ row }) => row.id === (hovered ?? focused))?.row;
   const islands = active?.stories.join("\0");
-  const session = active?.id;
   useEffect(() => {
-    onHighlight(islands ? islands.split("\0") : undefined, session);
+    onHighlight(islands ? islands.split("\0") : undefined);
     return () => onHighlight(undefined);
-  }, [islands, session, onHighlight]);
+  }, [islands, onHighlight]);
   useEffect(() => {
     document.body.dataset.drew = JSON.stringify({ ...JSON.parse(document.body.dataset.drew ?? "{}"),
       sessions: visible.map(({ row }) => row.id) });
@@ -448,7 +442,7 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
       {visible.map(({ row, depth }, index) => <Fragment key={row.id}>
       {index === atWorkCount && <IdleFold count={idle.length} open={idleOpen} onToggle={() => setIdleOpen(!idleOpen)} />}
       <li style={{ marginLeft: Math.min(depth, 5) * 14 }}>
-        <div className="session-row" data-session-id={row.id} data-state={row.state} data-idle={row.idle || undefined} data-highlighted={row.id === highlighted || undefined}
+        <div className="session-row" data-session-id={row.id} data-state={row.state} data-idle={row.idle || undefined}
           data-selected={row.id === selected || undefined} tabIndex={0}
           onClick={() => onSelect?.(clickedSelection(rows, row.id, selected))}
           onKeyDown={event => { if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) {

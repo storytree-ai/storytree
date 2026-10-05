@@ -670,9 +670,8 @@
 .sessions-list ul { list-style:none; margin:0; padding:0; }
 .sessions-list p { margin:4px 0; font-size:12px; color:#abb4b1; }
 .session-row { display:flex; align-items:center; gap:8px; min-height:29px; border-radius:4px; padding:0 4px; }
-.session-row:hover,.session-row:focus-within,.session-row[data-highlighted] { background:#ffffff0b; }
+.session-row:hover,.session-row:focus-within { background:#ffffff0b; }
 .session-colour { width:8px; height:8px; flex-shrink:0; border-radius:50%; }
-.session-row[data-highlighted] .session-colour { box-shadow:0 0 0 2px #ffffff55; }
 .session-row { cursor:pointer; }
 .session-row[data-selected] { background:#ffffff17; }
 .session-row[data-selected] .session-colour { box-shadow:0 0 0 2px #ffffffcc; }

@@ -41,15 +41,12 @@ export type PlanetViewProps = {
   wisps: readonly SessionWisp[];
   selected: string | undefined;
   highlighted?: readonly string[] | undefined;
-  /** The session whose row or wisp is hovered: its wisps swell. */
-  highlightedSession?: string | undefined;
   /** Hears a click on an island, or undefined for empty space. */
   onPick: (story: string | undefined, capability?: string) => void;
   onNote: (note: string) => void;
-  onWispHover: (session: string | undefined) => void;
 };
 
-export function PlanetView({ core, scene, places, wisps: live, selected, highlighted, highlightedSession, onPick, onNote, onWispHover, mode = "forest", framing, sideOffset, surfaces, onControls, library = true, frame, growth, recordedSessions }: PlanetViewProps) {
+export function PlanetView({ core, scene, places, wisps: live, selected, highlighted, onPick, onNote, mode = "forest", framing, sideOffset, surfaces, onControls, library = true, frame, growth, recordedSessions }: PlanetViewProps) {
   // Zoomed in past the islands, or in the Library, only the glass and the core show (ADR-0919 D3, D4). The hidden
   // marks stay mounted, so guides can still locate them.
   const [past, setPast] = useState(false);

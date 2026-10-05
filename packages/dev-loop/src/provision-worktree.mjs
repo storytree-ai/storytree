@@ -24,6 +24,9 @@
 // .codex/config.toml, ADR-0793 D2): the harness starts the server beside the session-start hook,
 // so in a worktree still being installed it waits for that install, then runs the server from this
 // worktree's source. It never installs itself, so two installs never run in one worktree at once.
+// A primary checkout on main behind locally fetched origin/main is refused before it can serve
+// old code against newer records. The hook names the gap and pull/install/restart repair too.
+// This checks local Git refs only: no network wait, checkout update or change to linked worktrees.
 //
 // With --check it is what `pnpm storytree` runs first: a worktree that is FRESH, UNLINKED or BEHIND
 // cannot start the command line at all, and the crash names a missing module (often @storytree/app), not
@@ -44,6 +47,27 @@ import { fileURLToPath } from "node:url";
 
 const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
 const WORKSPACE_GROUPS = ["packages", "apps"];
+
+/** A known-stale primary must be repaired before this process loads the agent link's source. */
+function checkoutRefusal(root) {
+  const git = (...args) => {
+    const result = spawnSync("git", args, { cwd: root, encoding: "utf8", timeout: 5_000, windowsHide: true });
+    return result.status === 0 ? result.stdout.trim() : "";
+  };
+  const dirs = git("rev-parse", "--path-format=absolute", "--git-dir", "--git-common-dir").split(/\r?\n/);
+  if (dirs.length !== 2 || dirs[0] !== dirs[1]) return ""; // Not Git, or a linked worktree.
+  if (git("symbolic-ref", "--quiet", "--short", "HEAD") !== "main") return "";
+  const counts = git("rev-list", "--left-right", "--count", "HEAD...refs/remotes/origin/main");
+  if (!/^\d+\s+\d+$/.test(counts)) return ""; // No fetched main to compare yet.
+  const [ahead, behind] = counts.split(/\s+/).map(Number);
+  if (behind === 0) return "";
+  const reconcile = ahead > 0
+    ? ` It also has ${ahead} local commit${ahead === 1 ? "" : "s"}; reconcile those with origin/main before the fast-forward.`
+    : "";
+  return `storytree: the primary checkout (${root}) on main is ${behind} commit${behind === 1 ? "" : "s"} behind locally fetched origin/main; ` +
+    `the agent link cannot start from this older code.${reconcile} Preserve any local edits, then run ` +
+    "`git pull --ff-only origin main && pnpm install` in that checkout and restart the session's agent link.";
+}
 
 /** Which condition calls for an install, or undefined when the worktree is installed and current. */
 function conditionOf(root) {
@@ -134,9 +158,14 @@ export function pnpmInstall(root) {
 /**
  * Install root's dependencies if it is fresh, stale, unlinked or behind, trying `retries` more times after a
  * failure (a failed install leaves the store warm, so the retry is quick).
- * @returns {{ ok: boolean, condition?: "fresh" | "stale" | "unlinked" | "behind", code: number }}
+ * @returns {{ ok: boolean, condition?: "fresh" | "stale" | "unlinked" | "behind" | "checkout", message?: string, code: number }}
  */
 export function provision({ root = repoRoot, install = pnpmInstall, retries = 1, log = () => {} } = {}) {
+  const message = checkoutRefusal(root);
+  if (message) {
+    log(message);
+    return { ok: false, condition: "checkout", message, code: 1 };
+  }
   const condition = conditionOf(root);
   if (condition === undefined) return { ok: true, code: 0 };
   const attempts = retries + 1;
@@ -166,7 +195,12 @@ function startServer(root) {
  * install; past that it starts anyway, and the harness reports what failed.
  * @returns {Promise<number>} the server's exit code
  */
-export async function serve({ root = repoRoot, start = startServer, pollMs = 500, waitMs = 240_000 } = {}) {
+export async function serve({ root = repoRoot, start = startServer, pollMs = 500, waitMs = 240_000, log = (line) => process.stderr.write(`${line}\n`) } = {}) {
+  const refusal = checkoutRefusal(root);
+  if (refusal) {
+    log(refusal);
+    return 1;
+  }
   const until = Date.now() + waitMs;
   while (conditionOf(root) !== undefined && Date.now() < until) await new Promise((resolve) => setTimeout(resolve, pollMs));
   return start(root);
@@ -203,7 +237,7 @@ export function checkOutput(root) {
 /** What the hook writes to stdout for a result: the agent's heads-up when the install failed, else "". */
 export function hookOutput(result, root) {
   if (result.ok) return "";
-  const additionalContext =
+  const additionalContext = result.message ??
     `This worktree (${root}) ${WHAT_HAPPENED[result.condition]}. Run \`pnpm install\` in ${root} before ` +
     "any pnpm, tsx or test command: until then they fail with errors such as ERR_MODULE_NOT_FOUND or " +
     "TS2307 that name the wrong cause.";

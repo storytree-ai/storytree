@@ -33,7 +33,7 @@ import path from "node:path";
 
 import { thisMachine, type ActivityLog, type Line, type NewLine } from "../activity/index.js";
 import { inside } from "../readings.js";
-import { ask } from "../setup/machine.js";
+import { ask, type Answer } from "../setup/machine.js";
 import { due, ghAllMergedPulls, ghAllOpenPulls, type AllMergedPulls, type AllOpenPulls, type MergeContext, type MergedPull, type OpenPull } from "../claims/merges.js";
 
 /** How branches are watched. */
@@ -48,7 +48,15 @@ export interface BranchWatch {
   readonly machine?: string;
   /** How long one look may take before the rest wait for the next. By default, 3 s. */
   readonly budgetMs?: number;
+  /** How git is asked about a branch on this machine. By default, this machine's git. */
+  readonly git?: GitRunner;
 }
+
+/** Runs git with `args` in `cwd`, giving up after `timeout`: an answer that says whether it answered in time. */
+export type GitRunner = (cwd: string, timeout: number, args: readonly string[]) => Promise<Answer>;
+
+/** This machine's git, run without blocking this process (the app runs the look on its main process, ADR-0836 D3). */
+export const gitRunner: GitRunner = (cwd, timeout, args) => ask("git", args, process.env, timeout, { cwd, shell: false });
 
 /** Branches that are a project's main line, never a session's own work. */
 const MAIN_BRANCHES = new Set(["main", "master"]);
@@ -113,7 +121,7 @@ export async function resolveBranches(context: MergeContext, watch: BranchWatch 
       continue;
     }
     looked[branch] = Date.now();
-    const local = await gitState(facts.folder, branch);
+    const local = await gitState(facts.folder, branch, watch.git ?? gitRunner);
     if (local === undefined) found.push(...onGitHub);
     else found.push({ of: branch, open: local === "ahead", how: local, ...(local === "ahead" ? (open === undefined ? {} : { pull: open }) : { pull: {} }) });
   }
@@ -207,12 +215,13 @@ function toLookAt(lines: readonly Line[], machine: string | undefined, looked: R
   return candidates;
 }
 
-/**
- * What git says, run in `cwd` without blocking this process (the app runs the look on its main
- * process, ADR-0836 D3): its output, or a throw when it fails or takes longer than `timeout`.
- */
+/** What git says in `cwd`: its output, or a throw when it fails or takes longer than `timeout`. */
 async function git(cwd: string, timeout: number, ...args: string[]): Promise<string> {
-  const answer = await ask("git", args, process.env, timeout, { cwd, shell: false });
+  return outOf(await gitRunner(cwd, timeout, args), args);
+}
+
+/** An answer's output, or a throw when git failed or did not answer in time. */
+function outOf(answer: Answer, args: readonly string[]): string {
   if (!answer.answered || answer.code !== 0) throw new Error(`git ${args[0]} did not answer`);
   return answer.out;
 }
@@ -289,25 +298,28 @@ function latestStates(lines: readonly Line[]): Map<string, Line & { kind: "branc
 }
 
 /** What this machine's git says of `branch`, from `folder` or the nearest folder above it still there; undefined when git cannot say. */
-async function gitState(folder: string, branch: string): Promise<"deleted" | "not-ahead" | "ahead" | undefined> {
+async function gitState(folder: string, branch: string, runner: GitRunner): Promise<"deleted" | "not-ahead" | "ahead" | undefined> {
   let cwd = folder;
   while (!existsSync(cwd)) {
     const parent = path.dirname(cwd);
     if (parent === cwd) return undefined;
     cwd = parent;
   }
-  const run = async (...args: string[]) => (await git(cwd, GIT_TIMEOUT_MS, ...args)).trim();
+  const run = async (...args: string[]) => outOf(await runner(cwd, GIT_TIMEOUT_MS, args), args).trim();
   try {
     await run("rev-parse", "--git-dir");
   } catch {
     return undefined;
   }
-  try {
-    await run("rev-parse", "--verify", "-q", `refs/heads/${branch}`);
-  } catch {
+  const verify = ["rev-parse", "--verify", "-q", `refs/heads/${branch}`];
+  const exists = await runner(cwd, GIT_TIMEOUT_MS, verify);
+  // A git that did not answer in time says nothing: slowness is not absence.
+  if (!exists.answered) return undefined;
+  if (exists.code !== 0) {
     // A branch with no commit yet has no ref either: it is only just started, not deleted.
-    const current = await run("symbolic-ref", "--short", "-q", "HEAD").catch(() => "");
-    return current === branch ? undefined : "deleted";
+    const head = await runner(cwd, GIT_TIMEOUT_MS, ["symbolic-ref", "--short", "-q", "HEAD"]);
+    if (!head.answered) return undefined;
+    return head.code === 0 && head.out.trim() === branch ? undefined : "deleted";
   }
   try {
     return Number(await run("rev-list", "--count", `${await mainLine(run)}..refs/heads/${branch}`)) === 0 ? "not-ahead" : "ahead";

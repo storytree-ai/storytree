@@ -770,16 +770,37 @@ test("8.11 a Codex installed only as its desktop app, off the PATH, is found whe
   });
 });
 
-test("8.14 the check names Codex's storytree tool server as missing, with its fix, where Codex has none (regression: the owner's Windows laptop, 2026-09-29)", async () => {
+test("8.23 the check's codex-server line judges the tool server a Codex session in this folder starts: missing where none is named, ok from the project's own .codex/config.toml, and not ok where Codex's entry names a removed install (regression: the owner's Windows laptop and the Mint box, 2026-09-29 and 2026-10-05)", async () => {
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
     const options = { ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome };
-    assert.equal((await runSetupCheck(options)).lines.find((line) => line.check === "codex-server")?.state, "ok");
+    const codexServer = async (folder = dir) => (await runSetupCheck({ ...options, folder })).lines.find((line) => line.check === "codex-server");
+    assert.equal((await codexServer())?.state, "ok");
 
     writeFileSync(home.codexConfig, 'model = "gpt-5"\n');
-    const line = (await runSetupCheck(options)).lines.find((each) => each.check === "codex-server");
-    assert.equal(line?.state, "needs-attention");
-    assert.match(line?.fix ?? "", /storytree setup connect --codex/);
+    const missing = await codexServer();
+    assert.equal(missing?.state, "needs-attention");
+    assert.match(missing?.fix ?? "", /storytree setup connect --codex/);
+
+    // A 0.3 worktree: Codex reads the repository's own .codex/config.toml, from its root down to the session's folder, over its own.
+    const repo = path.join(dir, "repo");
+    const folder = path.join(repo, "packages", "app");
+    for (const made of [path.join(repo, ".git"), path.join(repo, ".codex"), folder]) mkdirSync(made, { recursive: true });
+    const projectConfig = path.join(repo, ".codex", "config.toml");
+    writeFileSync(projectConfig, '[mcp_servers.storytree]\ncommand = "node"\nargs = ["packages/dev-loop/src/provision-worktree.mjs", "--serve"]\n');
+    const served = await codexServer(folder);
+    assert.equal(served?.state, "ok");
+    assert.ok(served?.message.includes(projectConfig), served?.message);
+
+    // A removed install: Codex would start a command, or a server file, that is not there.
+    const gone = path.join(dir, "Programs", "storytree-0.3", "resources", "agent-tools");
+    for (const [command, server] of [[path.join(gone, "node.exe"), path.join(gone, "storytree-mcp.mjs")], [process.execPath, path.join(gone, "storytree-mcp.mjs")]] as const) {
+      writeFileSync(home.codexConfig, `model = "gpt-5"\n\n[mcp_servers.storytree]\ncommand = ${JSON.stringify(command)}\nargs = [${JSON.stringify(server)}]\n\n[projects.'c:\\code']\ntrust_level = "trusted"\n`);
+      const broken = await codexServer();
+      assert.equal(broken?.state, "needs-attention");
+      assert.ok(broken?.message.includes(command === process.execPath ? server : command), broken?.message);
+      assert.match(broken?.fix ?? "", /\[mcp_servers\.storytree\]/);
+    }
   });
 });
 

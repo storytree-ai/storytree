@@ -11,6 +11,7 @@
  *   . <dir>/env.sh            (PowerShell: . <dir>/env.ps1), then codex or claude in a new folder
  *   pnpm --filter @storytree/app-setup dev-home <dir> --remove
  */
+import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
@@ -18,6 +19,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 
 import { buildBins } from "@storytree/agent-link/bins";
+import { findBinaries } from "@storytree/local-postgres";
 import { installCommand } from "../deliver/command.js";
 import { connectAgents, installedToolServerCommand, type ConnectionResult, type Harness, type RunHarness } from "./index.js";
 
@@ -98,13 +100,54 @@ export async function removeDevHome(dir: string): Promise<void> {
       else throw new Error(`Codex refreshed its sign-in inside ${dir}, and ${codexSignIn.from} changed meanwhile: check that codex login status works, then remove ${dir} by hand.`);
     }
   }
-  const owner = path.join(dir, "home", ".storytree", "0.3", "pgdata.owner.json");
+  const dataDir = path.join(dir, "home", ".storytree", "0.3", "pgdata");
+  const owner = `${dataDir}.owner.json`;
+  const record = existsSync(owner) ? readFileSync(owner, "utf8") : undefined;
+  const postmaster = path.join(dataDir, "postmaster.pid");
+  const postgresPid = existsSync(postmaster) ? Number(readFileSync(postmaster, "utf8").split("\n")[0]) : undefined;
+  if (record !== undefined) {
+    const { pid } = JSON.parse(record) as { pid: number };
+    if (!Number.isInteger(pid) || pid <= 0) throw new Error(`Invalid database owner ${pid}; keeping ${dir}.`);
+    try { process.kill(pid, "SIGTERM"); } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error;
+    }
+    // Windows kill terminates Node without running its cleanup handler. Wait for the process,
+    // not its owner file: that file remains when the handler never ran (also after a crash).
+    await waitForExit(pid, dir);
+  }
+  if (existsSync(path.join(dataDir, "PG_VERSION"))) {
+    const pgCtl = (...args: string[]) => new Promise<number | null>((resolve, reject) => {
+      const child = spawn(path.join(findBinaries(), process.platform === "win32" ? "pg_ctl.exe" : "pg_ctl"), ["-D", dataDir, ...args], { stdio: "ignore", windowsHide: true, timeout: 25_000 });
+      child.on("error", reject);
+      child.on("close", resolve);
+    });
+    let status = await pgCtl("status");
+    if (status === 0) {
+      await pgCtl("-m", "fast", "-w", "-t", "20", "stop");
+      status = await pgCtl("status");
+    }
+    if (status !== 3) throw new Error(`Could not confirm the database stopped; keeping ${dir}.`);
+  }
+  // pg_ctl can observe postmaster.pid disappearing just before the OS process has exited.
+  if (postgresPid !== undefined) await waitForExit(postgresPid, dir);
   if (existsSync(owner)) {
-    const { pid } = JSON.parse(readFileSync(owner, "utf8")) as { pid: number };
-    try { process.kill(pid, "SIGTERM"); } catch { /* Already gone. */ }
-    for (let waited = 0; existsSync(owner) && waited < 20_000; waited += 250) await sleep(250);
+    if (readFileSync(owner, "utf8") !== record) throw new Error(`The database owner changed; keeping ${dir}.`);
+    rmSync(owner);
   }
   rmSync(dir, { recursive: true, force: true });
+}
+
+async function waitForExit(pid: number, dir: string): Promise<void> {
+  if (!Number.isInteger(pid) || pid <= 0) throw new Error(`Invalid database process ${pid}; keeping ${dir}.`);
+  for (let waited = 0; processAlive(pid) && waited < 20_000; waited += 250) await sleep(250);
+  if (processAlive(pid)) throw new Error(`The database process ${pid} has not stopped; keeping ${dir}.`);
+}
+
+function processAlive(pid: number): boolean {
+  try { process.kill(pid, 0); return true; } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ESRCH") return false;
+    throw error;
+  }
 }
 
 if (process.argv[1] !== undefined && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

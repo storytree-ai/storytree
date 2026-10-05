@@ -25,8 +25,8 @@ await build({
   plugins: [{ name: 'north-up-observation', setup(builder) {
     builder.onLoad({ filter: /planet-view\.tsx$/ }, args => ({
       contents: replace(readFileSync(args.path, 'utf8'),
-        'const { camera, gl, scene, size } = useThree();',
-        'const { camera, gl, scene, size } = useThree(); globalThis.__nav = { rotation, onRotate };'),
+        'const { camera, gl, scene, size, invalidate } = useThree();',
+        'const { camera, gl, scene, size, invalidate } = useThree(); globalThis.__nav = { rotation, onRotate };'),
       loader: 'tsx', resolveDir: path.dirname(args.path),
     }));
   } }],

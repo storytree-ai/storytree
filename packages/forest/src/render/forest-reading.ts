@@ -63,6 +63,24 @@ const pageTimers: Timers = {
   },
 };
 
+/** The record types a project's tree is read from (the library's projectTree and its health): a change to any other leaves it as it was. */
+const TREE_TYPES: ReadonlySet<string> = new Set(["story", "capability", "contract", "arc", "health"]);
+
+/** Whether `news` changes the tree: a change to one of its records (7.24). */
+function changesTree(news: { readonly changes: readonly { readonly type: string }[] }): boolean {
+  return news.changes.some((change) => TREE_TYPES.has(change.type));
+}
+
+/**
+ * The tree after `news`: read again only when a change touches its records, or when there is none
+ * yet, so a note's or the work's change costs no tree read (7.24). The sessions list's and the
+ * forest's rule alike.
+ */
+export async function treeAfter(reads: Pick<ForestReads, "projectTree">, project: string,
+  news: { readonly changes: readonly { readonly type: string }[] }, last: AnnotatedTree | undefined): Promise<AnnotatedTree> {
+  return last !== undefined && !changesTree(news) ? last : reads.projectTree(project);
+}
+
 /**
  * Start reading project `project`'s forest live. A failed read, of the news or of the tree, is
  * reported and asked again from the same place at the next ask, so a first read that fails is drawn
@@ -82,7 +100,7 @@ export function forestReading({ project, reads, onTree, onError, onClock = () =>
   const own = page === undefined ? pageReading({ project, reads, timers }) : undefined;
   const stopHearing = (page ?? own!).subscribe({
     onNews: async (news) => {
-      if (tree === undefined || news.changes.length > 0) {
+      if (tree === undefined || changesTree(news)) {
         tree = await reads.projectTree(project);
         if (reads.codeSurvey !== undefined) pacing.want();
       }

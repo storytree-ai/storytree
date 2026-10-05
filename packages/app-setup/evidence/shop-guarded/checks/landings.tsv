@@ -1,0 +1,34 @@
+run	event	branch	conclusion	package rule	allocation rule
+37253743312	pull_request	part-1-sign-in	success	The package rule: kept (one package per story, roads one way).	The allocation rule: kept (every source file is reached by a numbered test).
+37254035998	push	main	success	The package rule: kept (one package per story, roads one way).	The allocation rule: kept (every source file is reached by a numbered test).
+37254982422	pull_request	fix-sign-in-error-race	success	The package rule: kept (one package per story, roads one way).	The allocation rule: kept (every source file is reached by a numbered test).
+37255067261	push	main	success	The package rule: kept (one package per story, roads one way).	The allocation rule: kept (every source file is reached by a numbered test).
+37256205211	pull_request	claude/increment-de7e9bee51b3-b420a8	success	The package rule: kept (one package per story, roads one way).	The allocation rule: kept (every source file is reached by a numbered test).
+37256243470	pull_request	claude/increment-fd46f313b721-f286f7	failure	The package rule: kept (one package per story, roads one way).	The allocation rule: 3 problems.
+37256277080	push	main	success	The package rule: kept (one package per story, roads one way).	The allocation rule: kept (every source file is reached by a numbered test).
+37256357544	pull_request	claude/increment-cc9ba3905bf1-dc9f6d	failure	The package rule: kept (one package per story, roads one way).	The allocation rule: 4 problems.
+37256359513	pull_request	claude/increment-fd46f313b721-f286f7	success	The package rule: kept (one package per story, roads one way).	The allocation rule: kept (every source file is reached by a numbered test).
+37256427659	push	main	success	The package rule: kept (one package per story, roads one way).	The allocation rule: kept (every source file is reached by a numbered test).
+37256603905	pull_request	claude/increment-cc9ba3905bf1-dc9f6d	success	The package rule: kept (one package per story, roads one way).	The allocation rule: kept (every source file is reached by a numbered test).
+37256702079	push	main	success	The package rule: kept (one package per story, roads one way).	The allocation rule: kept (every source file is reached by a numbered test).
+37257621798	pull_request	add-requirements-2	success	The package rule: kept (one package per story, roads one way).	The allocation rule: kept (every source file is reached by a numbered test).
+37257715456	push	main	success	The package rule: kept (one package per story, roads one way).	The allocation rule: kept (every source file is reached by a numbered test).
+37258391219	pull_request	claude/increment-6f86a41904a3-1e6f9a	failure	The package rule: kept (one package per story, roads one way).	The allocation rule: 3 problems.
+37258500116	pull_request	claude/increment-e76c6dca1a16-cccbdc	success	The package rule: kept (one package per story, roads one way).	The allocation rule: kept (every source file is reached by a numbered test).
+37258537293	pull_request	claude/increment-6f86a41904a3-1e6f9a	success	The package rule: kept (one package per story, roads one way).	The allocation rule: kept (every source file is reached by a numbered test).
+37258576181	pull_request	claude/increment-ee9f5f5c0e14-e2ee92	success	The package rule: kept (one package per story, roads one way).	The allocation rule: kept (every source file is reached by a numbered test).
+37258645567	push	main	success	The package rule: kept (one package per story, roads one way).	The allocation rule: kept (every source file is reached by a numbered test).
+37258857008	pull_request	claude/increment-ee9f5f5c0e14-e2ee92	success	The package rule: kept (one package per story, roads one way).	The allocation rule: kept (every source file is reached by a numbered test).
+37258937514	push	main	success	The package rule: kept (one package per story, roads one way).	The allocation rule: kept (every source file is reached by a numbered test).
+37258976821	pull_request	claude/increment-e76c6dca1a16-cccbdc	success	The package rule: kept (one package per story, roads one way).	The allocation rule: kept (every source file is reached by a numbered test).
+37259080081	push	main	success	The package rule: kept (one package per story, roads one way).	The allocation rule: kept (every source file is reached by a numbered test).
+37259452506	pull_request	claude/increment-ebd3aa397c3d-d5c37c	success	The package rule: kept (one package per story, roads one way).	The allocation rule: kept (every source file is reached by a numbered test).
+37259536881	push	main	success	The package rule: kept (one package per story, roads one way).	The allocation rule: kept (every source file is reached by a numbered test).
+37260448393	pull_request	claude/increment-10adaa728a5a-c50d3f	success	The package rule: kept (one package per story, roads one way).	The allocation rule: kept (every source file is reached by a numbered test).
+37260503371	pull_request	claude/increment-7f6ab6c81d92-8de242	success	The package rule: kept (one package per story, roads one way).	The allocation rule: kept (every source file is reached by a numbered test).
+37260537092	push	main	success	The package rule: kept (one package per story, roads one way).	The allocation rule: kept (every source file is reached by a numbered test).
+37260596551	pull_request	claude/increment-7f6ab6c81d92-8de242	success	The package rule: kept (one package per story, roads one way).	The allocation rule: kept (every source file is reached by a numbered test).
+37260615534	pull_request	claude/increment-7f6ab6c81d92-8de242	success	The package rule: kept (one package per story, roads one way).	The allocation rule: kept (every source file is reached by a numbered test).
+37260698417	push	main	success	The package rule: kept (one package per story, roads one way).	The allocation rule: kept (every source file is reached by a numbered test).
+37262903988	pull_request	claude/increment-e87b99039696-2063f8	success	The package rule: kept (one package per story, roads one way).	The allocation rule: kept (every source file is reached by a numbered test).
+37262997938	push	main	success	The package rule: kept (one package per story, roads one way).	The allocation rule: kept (every source file is reached by a numbered test).

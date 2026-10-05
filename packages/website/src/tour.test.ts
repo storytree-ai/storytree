@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { growthPlan } from "@storytree/forest-world/planet";
 import shop from "./shop-snapshot.json" with { type: "json" };
 import { createTour, flight, globeOf, groups, placeTags, readingTime, replayMoment, settle, spoken, type TourStep } from "./tour.js";
 import { steps as tourSteps } from "./tour-copy.js";
@@ -209,24 +210,24 @@ test("2.16 · the map chapter grows the shop in the order it was recorded, then 
   };
   const [empty, planned, first, together] = chapter;
   assert.deepEqual(grows(empty!), { risen: [], built: [] }, "M0: the empty globe");
-  assert.deepEqual(grows(planned!), { risen: ["Signing in", "Browsing", "The cart", "Checkout"], built: [] }, "M1: the four stories, planned together");
+  assert.deepEqual(grows(planned!), { risen: ["Signing in", "Browsing", "Cart", "Checkout"], built: [] }, "M1: the four stories, planned together");
   assert.equal(grows(first!).built[0], "Signing in", "M2: signing in is built first");
   assert.deepEqual(first!.focus?.map(id => titles[id]), ["Signing in"]);
-  assert.deepEqual(grows(together!), { risen: [], built: ["Browsing", "The cart", "Checkout"] }, "M3: the other three, together");
-  assert.deepEqual(together!.focus?.map(id => titles[id]), ["Browsing", "The cart", "Checkout"]);
+  assert.deepEqual(grows(together!), { risen: [], built: ["Browsing", "Cart", "Checkout"] }, "M3: the other three, together");
+  assert.deepEqual(together!.focus?.map(id => titles[id]), ["Browsing", "Cart", "Checkout"]);
   // Then the shop's four stories as they stood once built, before its second round, and that round growing on.
   const walk = chapter.slice(4, -1);
   assert.ok(walk.length >= 3 && walk.every(item => item.recorded), "the parts, the code and the colours hold the shop at a recorded moment");
   for (const item of walk) {
     const stood = stages.filter(stage => stage.at <= item.recorded!).at(-1)!;
-    assert.equal(stood.id, "pr5", `${item.id}: the shop once its first four stories were built`);
-    assert.deepEqual(item.focus?.map(id => titles[id]), ["Signing in", "Browsing", "The cart", "Checkout"]);
+    assert.equal(stood.id, "pr4", `${item.id}: the shop once its first four stories were built`);
+    assert.deepEqual(item.focus?.map(id => titles[id]), ["Signing in", "Browsing", "Cart", "Checkout"]);
   }
   const grow = chapter.at(-1)!;
   const at = index((grow.growth as { stage: string }).stage);
   const added = stages[at]!.scene.islands.filter(island => !stages[at - 1]!.scene.islands.some(before => before.story === island.story)).map(island => titles[island.story]);
   assert.ok(added.includes("Orders"), `that stage adds Orders, the story shown growing on: ${added}`);
-  assert.deepEqual(grow.focus?.map(id => titles[id]), ["Signing in", "Browsing", "The cart", "Checkout", "Orders"]);
+  assert.deepEqual(grow.focus?.map(id => titles[id]), ["Signing in", "Browsing", "Cart", "Checkout", "Orders"]);
   assert.ok(grow.compare && grow.compare.sources.some(Boolean), "the comparison is offered on the last step");
 });
 
@@ -291,20 +292,23 @@ test("2.18 · on a laptop, where the first-come sides leave a tag over a panel, 
 });
 
 
-test("2.16 · until the shop is rebuilt clean, the code and colours steps frame the story with the least code no part's tests reach, and tag no hatched ground", () => {
-  // ADR-0911 D5 (owner's choice A, 2026-10-05): the tour stops pointing at unallocated code while the shop still has it.
+test("2.16 · every stage a map step replays from or to is one the shop's replay draws, so no step falls back to the empty globe", () => {
+  // The replay skips a recorded stage that changes nothing on the globe, and a step naming one would start from the beginning.
+  // Planned as the site plans it (forest-scene's recordedGrowth): a stage whose sessions changed holds a beat.
+  type Stage = { id: string; at: string; scene: unknown; wisps: { session: string; story: string }[] };
+  const recorded = shop.stages as unknown as Stage[];
+  const sessions = (index: number) => JSON.stringify(recorded[index]?.wisps.map(wisp => [wisp.session, wisp.story]) ?? []);
+  const stages = recorded.map(({ id, at, scene }, index) => ({ id, at, scene, ...(sessions(index) !== sessions(index - 1) ? { hold: 1 } : {}) }));
+  const drawn = new Set(growthPlan(stages as never, { fromPoint: true, seconds: 15, until: recorded.at(-1)!.at }).stages.map(stage => stage.id));
+  const named = tourSteps.flatMap(item => typeof item.growth === "object" && item.map === "shop" ? [item.growth.stage, item.growth.until].filter((id): id is string => id !== undefined).map(id => [item.id, id]) : []);
+  assert.ok(named.length >= 4);
+  assert.deepEqual(named.filter(([, id]) => !drawn.has(id!)), []);
+});
+
+test("2.16 · the shop the map chapter teaches on was rebuilt with storytree's guardrails: no stage of its growth has code no part's tests reach, so no step shows hatched ground", () => {
+  // ADR-0911 D5: the shop was rebuilt with storytree check in its CI and the landing hold in its agents' link (shop3, 2026-10-05).
   type Island = { story: string; land?: { territories: { capability?: string; lines: number }[] } };
-  const stages = shop.stages as { id: string; at: string; scene: { islands: Island[] } }[];
-  const unallocated = (island: Island) => {
-    const parts = island.land?.territories ?? [];
-    return parts.filter(part => !part.capability).reduce((sum, part) => sum + part.lines, 0) / Math.max(1, parts.reduce((sum, part) => sum + part.lines, 0));
-  };
-  for (const id of ["map-code", "map-health"]) {
-    const item = tourSteps.find(candidate => candidate.id === id)!;
-    const stood = stages.filter(stage => stage.at <= item.recorded!).at(-1)!;
-    const shown = stood.scene.islands.filter(island => item.focus?.includes(island.story));
-    const cleanest = shown.reduce((a, b) => unallocated(b) < unallocated(a) ? b : a);
-    assert.deepEqual(item.target, { kind: "story", story: cleanest.story }, `${id} frames the story with the least unallocated code`);
-    assert.equal(item.tags, undefined, `${id} puts no tag on hatched ground`);
-  }
+  const stages = shop.stages as { id: string; scene: { islands: Island[] } }[];
+  const hatched = stages.flatMap(stage => stage.scene.islands.filter(island => island.land?.territories.some(part => !part.capability && part.lines > 0)).map(island => `${stage.id}: ${(shop.titles as Record<string, string>)[island.story]}`));
+  assert.deepEqual(hatched, []);
 });

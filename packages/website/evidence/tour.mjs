@@ -194,8 +194,8 @@ export async function verifyTour(browser, url, output) {
   assert.equal(await page.locator(".tour-session-surface").evaluate(node => node.hidden), false, "the shop's recorded sessions are shown");
   assert.ok(await page.locator(".session-row").count() > 0, "the shop's sessions are listed");
   await page.getByRole("button", { name: "Find a story or note in the saved project", exact: true }).click();
-  await page.locator("#tour-story-choice").selectOption("story_c3e9a28aef14");
-  await page.locator('.story-panel[data-story-id="story_c3e9a28aef14"] .panel-head').waitFor();
+  await page.locator("#tour-story-choice").selectOption("story_2de9e8f4db21");
+  await page.locator('.story-panel[data-story-id="story_2de9e8f4db21"] .panel-head').waitFor();
   await page.locator(".panel-close").click();
   await page.locator("[data-open-arcs]").click(); await page.locator('[data-arc-scope="closed"]').click();
   assert.match(await page.locator(".arc-lanes").textContent(), /A proper shop/, "the shop's own arcs, closed ones under Closed");
@@ -355,8 +355,8 @@ export async function verifyImmersive(browser, url, output) {
     await page.screenshot({ path: path.join(output, `freeplay-shop-${width}.png`) });
     // 2.14: an island of the shop opens its story panel, read from the shop's saved growth.
     await page.getByRole("button", { name: "Find a story or note in the saved project", exact: true }).click();
-    await page.locator("#tour-story-choice").selectOption("story_c3e9a28aef14");
-    await page.locator('.story-panel[data-story-id="story_c3e9a28aef14"] .panel-head').waitFor();
+    await page.locator("#tour-story-choice").selectOption("story_2de9e8f4db21");
+    await page.locator('.story-panel[data-story-id="story_2de9e8f4db21"] .panel-head').waitFor();
     await page.waitForTimeout(1200);
     await page.screenshot({ path: path.join(output, `freeplay-shop-story-${width}.png`) });
     await page.locator(".panel-close").click();

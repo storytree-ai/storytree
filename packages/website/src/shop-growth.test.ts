@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { refreshGrowthSnapshot, type GrowthReading } from "./saved-growth.js";
-import { ciHealth, codeAt } from "./shop-growth.js";
+import { ciHealth, codeAt, shopStages } from "./shop-growth.js";
 
 const t = (minute: number) => `2026-10-03T16:${String(minute).padStart(2, "0")}:00.000Z`;
 const untested = { reported: { state: "not-checked" }, verified: { state: "not-checked" } };
@@ -87,4 +87,17 @@ test("3.7 · the shop's saved growth colours each stage only by the CI results r
   assert.equal(territory("passed"), "healthy", "the first run on main passed its test");
   assert.equal(territory("failed"), "unhealthy", "the next one failed it");
   assert.equal(saved.scene.islands[0].land.territories.find((item: { capability?: string }) => item.capability === "capability_a1").status, "unhealthy", "the full plan's frame stands on the last run");
+});
+
+test("3.11 · each increment has a stage while it was built and one once it landed, named by its pull request, merged or squashed", () => {
+  const change = (minute: number) => ({ record: { updatedAt: t(minute) } }) as never;
+  const line = (kind: string, minute: number, increment: string, session: string) => ({ kind, at: t(minute), increment, session }) as never;
+  const lines = [line("claimed", 2, "increment_a", "s1"), line("claimed", 3, "increment_b", "s2"), line("closed", 11, "increment_a", "s1"), line("closed", 21, "increment_b", "s2")];
+  const merges = [
+    { at: t(1), subject: "Start the shop" },
+    { at: t(10), subject: "Merge pull request #1 from someone/part-1" },
+    { at: t(20), subject: "Part 2: the cart (#2)" },
+  ];
+  const { stages } = shopStages([change(1), change(25)], lines, merges);
+  assert.deepEqual(stages.map(stage => stage.id), ["empty", "planned", "pr1-building", "pr1", "pr2-building", "pr2", "complete"]);
 });

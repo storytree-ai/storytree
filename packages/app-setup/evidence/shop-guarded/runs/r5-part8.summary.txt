@@ -1,0 +1,180 @@
+model: claude-opus-5-5 | mcp: storytree=connected,claude.ai Claude Docs=connected,claude.ai Google Drive=connected,claude.ai Gmail=connected,claude.ai Google Calendar=connected
+calls: 156
+  - ToolSearch
+  - st:check_setup {}
+  - Write C:\Users\mickh\shop3\.storytree-check
+  - PowerShell echo storytree-check
+  - st:check_setup {}
+  - st:show_plan {}
+  - ToolSearch
+  - st:search_notes {"query":"orchestrator role","limit":3}
+  - st:search_notes {"query":"librarian role","limit":3}
+  - PowerShell $p='C:\Users\mickh\.claude\projects\C--Users-mickh-shop3\0d1f401c-72dd-474c-95b2-90fa312a60ea\tool-r
+  - st:open {"id":"agent_60d590ea712d"}
+  - Grep
+  - Grep
+  - Read C:\Users\mickh\shop3\shop-requirements-2.md
+  - st:open {"id":"story_fc074cf6cbb7"}
+  - Grep
+  - st:open {"id":"decision_250debfab776"}
+  - PowerShell $p='C:\Users\mickh\.claude\projects\C--Users-mickh-shop3\0d1f401c-72dd-474c-95b2-90fa312a60ea\tool-r
+  - st:open {"id":"capability_8778a7094191"}
+  - st:make_workspace {"increment":"increment_7f6ab6c81d92","reason":"Part 8: Reviews"}
+  - ToolSearch
+  - EnterWorktree
+  - st:name_session {"title":"Part 8: Reviews"}
+  - PowerShell git log --oneline -5; ls; ls packages; cat package.json; ls packages\*\src, packages\*\test -Name; G
+  - Read C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\signing-in\src\server\server.js
+  - Read C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\browsing\src\index.js
+  - Read C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\browsing\src\product-page\product-page.js
+  - Read C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\browsing\src\products-page\products-page.js
+  - Read C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\orders\src\order-store\order-store.js
+  - Read C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\orders\src\index.js
+  - st:open {"id":"decision_3ac80c049165"}
+  - st:open {"id":"capability_ba052446877b"}
+  - st:open {"id":"capability_bc2872c14deb"}
+  - st:open {"id":"capability_2767eaa1bd2f"}
+  - Read C:\Users\mickh\.claude\projects\C--Users-mickh-shop3\0d1f401c-72dd-474c-95b2-90fa312a60ea\tool-results\bid5e1u7v.txt
+  - st:open {"id":"decision_9f84e6dbeb01"}
+  - st:open {"id":"decision_a17da4e22e35"}
+  - st:open {"id":"decision_0a66674111f2"}
+  - st:open {"id":"capability_d26f20f6bedc"}
+  - st:open {"id":"decision_e2e0187cfe8a"}
+  - PowerShell $p='C:\Users\mickh\.claude\projects\C--Users-mickh-shop3\0d1f401c-72dd-474c-95b2-90fa312a60ea\tool-r
+  - ToolSearch
+  - st:show_plan {}
+  - PowerShell $p='C:\Users\mickh\.claude\projects\C--Users-mickh-shop3--claude-worktrees-increment-7f6ab6c81d92-8d
+  - st:claim {"capability":"capability_d26f20f6bedc","reason":"Part 8: Reviews"}
+  - st:claim {"capability":"capability_8778a7094191","reason":"Part 8: Reviews"}
+  - st:claim {"capability":"capability_ba052446877b","reason":"Part 8: Reviews"}
+  - st:claim {"capability":"capability_bc2872c14deb","reason":"Part 8: Reviews"}
+  - st:claim {"capability":"capability_2767eaa1bd2f","reason":"Part 8: Reviews"}
+  - Read C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\admin\src\admin-page\admin-page.js
+  - Read C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\admin\test\admin-page.test.js
+  - Read C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\orders\test\helpers.js
+  - Read C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\signing-in\src\index.js
+  - Read C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\admin\src\index.js
+  - Read C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\orders\package.json
+  - Read C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\signing-in\src\accounts-store\accounts-store.js
+  - Read C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\signing-in\src\accounts-store\data-file.js
+  - Read C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\browsing\src\catalog\catalog.js
+  - Read C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\browsing\test\product-page.test.js
+  - Read C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\accounts\src\sign-up-page\sign-up-page.js
+  - Read C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\accounts\src\sign-up-page\sign-up-form.js
+  - Grep
+  - Read C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\browsing\test\fake-dom.js
+  - Read C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\browsing\src\cart-buttons\cart-button-html.js
+  - Read C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\browsing\src\browsing.css
+  - Read C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\.github\workflows
+  - PowerShell ls .github\workflows; npm install --no-audit --no-fund; npm test 2>$null | Select-Object -Last 10
+  - st:plan_contract {"capability":"capability_bc2872c14deb","title":"each Products item shows its rating in the product page's wording","description":"Every .in
+  - st:open {"id":"contract_ac63845a147b"}
+  - st:open {"id":"contract_032c0b950e8e"}
+  - st:open {"id":"contract_757f3da7080f"}
+  - st:open {"id":"contract_e2dbda76e3bd"}
+  - st:open {"id":"contract_a9eaa00197bc"}
+  - Write C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\browsing\test\product-extras.test.js
+  - PowerShell node --test packages/browsing/test/product-extras.test.js 2>$null | Select-String 'not ok|SyntaxErro
+  - st:report {"contract":"contract_ac63845a147b","result":"red","note":"Browsing does not export addProductExtras yet."}
+  - Write C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\browsing\src\product-extras\product-extras.js
+  - Edit C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\browsing\src\products-page\products-page.js
+  - Edit C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\browsing\src\products-page\products-page.js
+  - Edit C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\browsing\src\product-page\product-page.js
+  - Edit C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\browsing\src\product-page\product-page.js
+  - Edit C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\browsing\src\product-page\product-page.js
+  - Edit C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\browsing\src\product-page\product-page.js
+  - Edit C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\browsing\src\product-page\product-page.js
+  - Edit C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\browsing\src\index.js
+  - Edit C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\browsing\src\index.js
+  - PowerShell node --test packages/browsing/test/ 2>$null | Select-String '^not ok|^# (pass|fail)' 
+  - PowerShell node --test "packages/browsing/test/*.test.js" 2>$null | Select-String '^not ok|^# (pass|fail)|error
+  - st:report {"contract":"contract_ac63845a147b","result":"green","note":"Browsing's 17 tests pass. details gets (product, { user, url }) rather than (pr
+  - st:correct_note {"id":"decision_e2e0187cfe8a"}
+  - st:correct_note {"id":"decision_e2e0187cfe8a","text":"Browsing exports addProductExtras({ item(product), details(product, { user, url }) }); a package regis
+  - Write C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\reviews\package.json
+  - Write C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\reviews\test\helpers.js
+  - Write C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\reviews\test\review-store.test.js
+  - Write C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\reviews\test\product-page.test.js
+  - Write C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\reviews\test\products-rating.test.js
+  - Read C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\signing-in\src\session\users.json
+  - PowerShell foreach ($f in 'packages/reviews/test/product-page.test.js','packages/reviews/test/products-rating.t
+  - Write C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\reviews\test\writing-a-review.test.js
+  - PowerShell npm install --no-audit --no-fund; node --test "packages/reviews/test/*.test.js" 2>$null | Select-Str
+  - st:report {"contract":"contract_032c0b950e8e","result":"red","note":"review-store.js does not exist yet."}
+  - st:report {"contract":"contract_757f3da7080f","result":"red","note":"packages/reviews/src does not exist yet."}
+  - st:report {"contract":"contract_037bd9853489","result":"red","note":"packages/reviews/src does not exist yet."}
+  - st:report {"contract":"contract_e2dbda76e3bd","result":"red","note":"packages/reviews/src does not exist yet."}
+  - st:report {"contract":"contract_a9eaa00197bc","result":"red","note":"packages/reviews/src does not exist yet."}
+  - Write C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\reviews\src\review-store\review-store.js
+  - Write C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\reviews\src\rating-text.js
+  - Write C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\reviews\src\writing-a-review\write-area.js
+  - Write C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\reviews\src\writing-a-review\review-route.js
+  - Write C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\reviews\src\writing-a-review\review-form.js
+  - Write C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\reviews\src\reviews-on-product-page\reviews-section.js
+  - Write C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\reviews\src\rating-on-products\products-rating.js
+  - Write C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\reviews\src\reviews.css
+  - Write C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\reviews\src\index.js
+  - Read C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\signing-in\src\server\responses.js
+  - PowerShell node --test "packages/reviews/test/*.test.js" 2>$null | Select-String '^not ok|^ok|^# (pass|fail)|er
+  - PowerShell npm test 2>$null | Select-String '^not ok|^# (tests|pass|fail)'; git status --short
+  - st:report {"contract":"contract_032c0b950e8e","result":"green"}
+  - st:report {"contract":"contract_757f3da7080f","result":"green"}
+  - st:report {"contract":"contract_037bd9853489","result":"green"}
+  - st:report {"contract":"contract_e2dbda76e3bd","result":"green"}
+  - st:report {"contract":"contract_a9eaa00197bc","result":"green"}
+  - PowerShell $d = Join-Path $env:TEMP "shop3-smoke-8-$(Get-Random)"; $env:SHOP_DATA_DIR=$d; $env:PORT='3108'; $p 
+  - st:land {"capability":"capability_d26f20f6bedc"}
+  - st:land {"capability":"capability_8778a7094191"}
+  - st:land {"capability":"capability_ba052446877b"}
+  - st:land {"capability":"capability_bc2872c14deb"}
+  - st:land {"capability":"capability_2767eaa1bd2f"}
+  - st:mark_built {"capability":"capability_d26f20f6bedc","built":true}
+  - st:mark_built {"capability":"capability_8778a7094191","built":true}
+  - st:mark_built {"capability":"capability_ba052446877b","built":true}
+  - st:mark_built {"capability":"capability_bc2872c14deb","built":true}
+  - st:mark_built {"capability":"capability_2767eaa1bd2f","built":true}
+  - PowerShell git fetch origin -q; git log --oneline HEAD..origin/main; git add -A; git commit -q -m @' Part 8: Re
+  - PowerShell gh pr create --base main --title "Part 8: Reviews" --body @' Part 8 of `shop-requirements-2.md`. - 
+  - Write C:\Users\mickh\AppData\Local\Temp\shop3-pr8-body.md
+  - PowerShell gh pr create --base main --title "Part 8: Reviews" --body-file "$env:TEMP\shop3-pr8-body.md"; Remove
+  - PowerShell gh pr checks 12 --watch --interval 15; gh pr view 12 --json mergeable,mergeStateStatus; gh pr list -
+  - PowerShell git fetch origin -q; git merge origin/main --no-edit; git status --short
+  - Edit C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\browsing\src\products-page\products-page.js
+  - Read C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\browsing\src\products-page\products-page.js
+  - Read C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\browsing\src\search\search.js
+  - PowerShell npm test 2>$null | Select-String '^not ok|^# (tests|pass|fail)'; git add -A; git commit -q --no-edit
+  - Edit C:\Users\mickh\shop3\.claude\worktrees\increment-7f6ab6c81d92-8de242\packages\reviews\test\products-rating.test.js
+  - PowerShell npm test 2>$null | Select-String '^not ok|^# (tests|pass|fail)'; if ($?) { git commit -q -am "3.2: t
+  - PowerShell Start-Sleep 10; gh pr checks 12 --watch --interval 15 | Select-Object -Last 2; gh pr view 12 --json 
+  - PowerShell gh pr merge 12 --squash --delete-branch=false; gh pr view 12 --json state,mergeCommit
+  - st:close_increment {"increment":"increment_7f6ab6c81d92","disposition":"landed","pr":"#12"}
+  - st:record_friction {"title":"gh pr create --body mangled by Windows PowerShell 5.1","description":"A PR body containing double quotes passed to gh with --body 
+  - st:write_note {"kind":"decision","title":"A refused empty review comes back as ?review-error=text","text":"Without the page script, the POST answers 303 t
+  - st:search_notes {"query":"PowerShell quoting breaks command arguments","limit":4}
+  - ToolSearch
+  - st:reinforce {"friction":"friction_0b8b14e04fb5","evidence":"Part 8 (PR #12): gh pr create --body @'ÔÇª[data-test=\"rating\"]ÔÇª'@ ÔåÆ `unknown arguments
+  - PowerShell git status --short; git fetch -q origin; git log --oneline -1 origin/main; Get-Process node -ErrorAc
+  - PowerShell Get-NetTCPConnection -LocalPort 3108 -State Listen -ErrorAction SilentlyContinue | Measure-Object | 
+  - st:close_out {"safe":true,"why":"PR #12 merged after both checks passed on a branch merged with Part 7's main; worktree clean; smoke-test server on 3108 
+RESULT success turns 157 ms 655075 cost 3.4778348 
+Part 8 (Reviews) is built and merged to main as PR #12. All 78 tests pass, and both CI checks passed before the merge. That was the last open part, so everything in `shop-requirements-2.md` is now on main.
+
+**What works now:**
+- **Product page:** under the product there's a Reviews section with `[data-test="rating"]` ("4.5 (2 reviews)", "5.0 (1 review)" or "No reviews yet"). Below it, each `[data-test="review"]` shows the reviewer's name, 1 to 5 stars and the text, newest first.
+- **Products:** every item shows the same `[data-test="rating"]`. The server draws it into each item, so it stays put through sorting and search.
+- **Writing a review:**
+  - Someone who has ordered the product and hasn't reviewed it gets the stars menu, the text box and Submit.
+  - Empty text shows "Error: Please write a review" immediately. Without scripts, the server refuses it the same way.
+  - Anyone who hasn't bought it sees the "Only customers who bought thisÔÇª" note; someone who has reviewed it sees "Thanks for your review!"
+  - The server enforces "bought it" and "only once" itself, so posting directly to the URL doesn't get around either.
+- Reviews are saved in `reviews.json` in the data folder, so they survive a restart. I also ran a real `npm start` server to confirm the page, script and styles load.
+
+**Working alongside Part 7:** I built in my own workspace and stayed off Search. Part 7 merged first and touched the same Products page file. The only conflict was two import lines, both of which were needed. I re-ran everything on the combined code and added a check that ratings still show on a searched Products page.
+
+**Choices I made that you may want to review:**
+- The stars menu starts on 5.
+- The built-in users (standard_user, admin_user) appear on reviews under their username, matching the greeting.
+- Without scripts, a refused empty review sends you back to the product page with `?review-error=text` in the address, which is what makes the error show.
+- To add reviews to its pages, Browsing now has a small hook that other packages can use, so Browsing doesn't depend on Reviews.
+
+**Housekeeping:** the storytree app has a hooks update waiting (v0.3.686). It installs only while the app is open, so leave the app open until it finishes.

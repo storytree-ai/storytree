@@ -1,0 +1,1 @@
+Thanks! Yes, please turn on branch protection for this shop repository (shop3), so main only takes pull requests whose checks have passed. Only this repository, please. No pictures needed.

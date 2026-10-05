@@ -1,0 +1,1 @@
+Thanks. Please carry on: merge PR #8 once its checks pass, then do the rest of part 9 (taking stock off at Finish, and the Admin link) once what it needs has landed.

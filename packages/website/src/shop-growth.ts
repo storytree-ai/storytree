@@ -43,7 +43,8 @@ export function codeAt(repository: string, branch = "main"): (at: string, plan: 
   };
 }
 
-const pullRequest = (subject: string) => /^Merge pull request #(\d+)/.exec(subject)?.[1];
+/** The pull request a landing on main merged: GitHub's merge commit ("Merge pull request #N …") or a squash ("… (#N)"). */
+const pullRequest = (subject: string) => (/^Merge pull request #(\d+)/.exec(subject) ?? /\(#(\d+)\)$/.exec(subject))?.[1];
 
 /**
  * The moments the tour grows the shop through, all from its records: empty before its first change, planned just

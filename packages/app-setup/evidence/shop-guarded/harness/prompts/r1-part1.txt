@@ -1,0 +1,5 @@
+Please set this folder up as a new storytree project called shop3 first.
+
+I want to build an online shop. Everything I want is in shop-requirements.md in this folder. Please read it and follow it exactly, because I'll check the site with Swag Labs' own tests.
+
+Plan the whole shop first, then build only part 1 today: signing in, and the products page. After that I'll have two or three sessions building the other parts at the same time, so plan it with that in mind. Tell me how to open it in my browser when you're done.

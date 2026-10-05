@@ -105,6 +105,14 @@ export interface HistoryFilter {
   readonly id?: string;
   /** Only changes with a sequence number greater than this. */
   readonly since?: number;
+  /** Only changes made at or after this time (an ISO 8601 time, in any zone), to the millisecond. */
+  readonly from?: string;
+  /** Only changes to records of these types; none for an empty list. */
+  readonly types?: readonly string[];
+  /** Only the first this many changes the rest of the filter keeps. Not with `newest`. */
+  readonly oldest?: number;
+  /** Only the last this many changes the rest of the filter keeps, still oldest first. Not with `oldest`. */
+  readonly newest?: number;
 }
 
 /** A project's records. These six verbs are the only data actions the library allows. */

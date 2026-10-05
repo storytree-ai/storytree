@@ -6,7 +6,7 @@
  */
 import type { Library, Note, Related, SchemaRecord, WriteOptions } from "@storytree/library";
 
-import { allNotes, LibrarianRefusal, noteOf } from "../notes.js";
+import { allNotes, LibrarianRefusal, noteOf, typesOf } from "../notes.js";
 
 /** The kinds that carry no links: signals to act on, not notes anyone reasons from. */
 const UNLINKED = { friction: "friction", resteer: "a re-steer" } as const;
@@ -46,9 +46,10 @@ export async function unrestedDecisions(library: Library): Promise<SchemaRecord<
 
 /** Related but unlinked neighbours for each live note written since `cursor`, including edits. */
 export async function relatedUnlinked(library: Library, cursor: number): Promise<Related[]> {
-  const written = new Set((await library.changesSince(cursor)).changes.map((change) => change.recordId));
+  const notes = await allNotes(library);
+  const written = new Set((await library.history({ since: cursor, types: typesOf(notes) })).map((change) => change.recordId));
   const related: Related[] = [];
-  for (const note of await allNotes(library)) {
+  for (const note of notes) {
     if (!written.has(note.id)) continue;
     const result = await library.related(note.id, { unlinked: true });
     if (result !== null) related.push(result);

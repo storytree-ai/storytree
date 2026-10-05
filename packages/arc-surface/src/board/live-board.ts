@@ -10,6 +10,9 @@ export interface BoardState { status: "loading" | "refreshing" | "ready" | "erro
 export interface WatchBoardOptions { project: string; reads: BoardReads; timers?: Timers; kept?: Kept<BoardSnapshot>; /** The scope drawn first, so a kept board opens at the saved scope. */ scope?: BoardScope; onState(state: BoardState): void;
   /** The page's one live reading, which the board hears; without it the board reads for itself. */ reading?: PageReading }
 
+/** The records the board's work reading is made of: a change to any other leaves it as it was. */
+const WORK_TYPES: ReadonlySet<string> = new Set(["arc", "increment", "question"]);
+
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 /** Whether a kept value has a board snapshot's shape, so one kept by an older build is not drawn. */
 export function isBoardSnapshot(value: unknown): value is BoardSnapshot {
@@ -35,12 +38,16 @@ export function watchBoard({ project, reads, timers, kept, scope: startScope = "
   const own = page === undefined ? pageReading({ project, reads, ...(timers ? { timers } : {}) }) : undefined;
   const reading = page ?? own!;
   const stopHearing = reading.subscribe({
-    onNews: async () => {
-      const [next, idleAfter] = await Promise.all([readBoard(project, reads),
+    onNews: async (news) => {
+      // The work is read again only for news that changes it, and at first (3.9): each read is every
+      // arc and hold. News that fails to be heard comes back joined with the next, so none is lost.
+      const rereads = !fresh || news.changes.some((change) => WORK_TYPES.has(change.type));
+      const [next, idleAfter] = await Promise.all([rereads ? readBoard(project, reads) : snapshot,
         // An unreadable setting keeps the last one read; the next news tries again.
         reads.idleAfterMs?.().catch(() => undefined)]);
       if (stopped) return;
-      snapshot = next; fresh = true; kept?.write(next); quietMs = idleAfter ?? quietMs;
+      if (rereads && next !== undefined) { snapshot = next; fresh = true; kept?.write(next); }
+      quietMs = idleAfter ?? quietMs;
       log = reading.held(); now = timers?.now() ?? Date.now(); error = undefined; draw();
     },
     onClock: (at) => { now = at; draw(); },

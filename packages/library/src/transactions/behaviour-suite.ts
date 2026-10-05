@@ -458,6 +458,33 @@ export function transactionsBehaviourSuite(label: string, makeStore: () => Promi
     }
   });
 
+  contract("2.13", "list narrows by ids and stored fields, limits in id order and projects only a known version", async (store) => {
+    const a = await store.save({ id: "a", type: "note", fields: { status: "closed", arc: "one", outcome: { disposition: "landed", note: "long" }, body: "heavy", flag: false, count: 2, nullable: null } });
+    const b = await store.save({ id: "b", type: "note", fields: { status: "active", arc: "one", body: "heavy" } });
+    const c = await store.save({ id: "c", type: "note", version: 2, fields: { status: "closed", arc: "two", body: "upgrade needs this" } });
+    await store.save({ id: "d", type: "other", fields: a.fields });
+    await store.save({ id: "gone", type: "note", fields: a.fields });
+    await store.retire({ id: "gone", reason: "retired" });
+    assert.deepEqual(await store.list("note", { where: { arc: "one" } }), [a, b]);
+    assert.deepEqual(await store.list("note", { where: { "outcome.disposition": "landed" } }), [a]);
+    assert.deepEqual(await store.list("note", { where: { flag: false, count: 2, nullable: null } }), [a]);
+    assert.deepEqual(await store.list("note", { where: { status: "CLOSED" } }), []);
+    assert.deepEqual(await store.list("note", { not: { status: "closed" } }), [b]);
+    assert.deepEqual(await store.list("note", { not: { missing: "anything" } }), [a, b, c]);
+    assert.deepEqual(await store.list("note", { ids: ["c", "b", "b", "d", "gone"], where: { status: "closed" } }), [c]);
+    assert.deepEqual(await store.list("note", { ids: [] }), []);
+    assert.deepEqual(await store.list("note", { where: { status: "closed" }, limit: 1 }), [a]);
+    const projected = await store.list("note", { projection: { version: 1, fields: ["arc", "missing"] } });
+    assert.deepEqual(projected, [{ ...a, fields: { arc: "one" } }, { ...b, fields: { arc: "one" } }, c], "other versions stay whole for upgrade/refusal");
+    assert.deepEqual(await store.list("note", { ids: ["a"], projection: { version: 1, fields: [] } }), [{ ...a, fields: {} }]);
+    projected[0]!.fields["arc"] = "changed";
+    assert.deepEqual(await store.get("a"), a);
+    for (const limit of [0, -1, 1.5, Infinity]) await assert.rejects(store.list("note", { limit }), RangeError);
+    for (const value of [undefined, {}, [], NaN]) await assert.rejects(store.list("note", { where: { status: value } } as never), RangeError);
+    const odd = await store.save({ id: "odd", type: "note", fields: { "quote'--": "yes", "__proto__": null } });
+    assert.deepEqual(await store.list("note", { where: { "quote'--": "yes" }, projection: { version: 1, fields: ["quote'--"] } }), [{ ...odd, fields: { "quote'--": "yes" } }]);
+  });
+
   contract("2.9", "a validate check sees the merged result, and if it throws nothing is written", async (store) => {
     // What validate saw is copied at the moment it ran, so a later change to that object cannot hide it.
     const seen: RecordEnvelope[] = [];

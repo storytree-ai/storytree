@@ -9,6 +9,7 @@ import type { RosterEntry } from "@storytree/knowledge-core";
 import { ALL_TIME, atWork, clickedSelection, dayRange, globeRoster, historyRows, historySelection, presetRange, sessionRows, windowFiles, withinRange,
   type HistoryOutcome, type HistoryPreset, type HistoryRange, type HistoryRow, type SessionDetails, type SessionFiles, type SessionRow } from "../sessions-list/sessions-list.js";
 import { sessionColour, sessionWisps, type SessionWisp } from "../agent-claims/agent-claims.js";
+import { treeAfter } from "../render/forest-reading.js";
 
 export interface SessionsReads extends LiveReads {
   projectTree(project: string): Promise<AnnotatedTree>;
@@ -226,12 +227,9 @@ export function mountSessionsList(container: HTMLElement, options: {
   const page = options.reading ?? own!;
   const stopHearing = page.subscribe({
     async onNews(news) {
-      let nextTree = tree;
-      let nextArcs = arcs;
-      if (tree === undefined || news.changes.length > 0) {
-        nextTree = await options.reads.projectTree(options.project);
-        nextArcs = await arcsAfter(options.reads, options.project, news, arcs);
-      }
+      // Each read again only when the news changes what it is read from (7.24, ADR-0836 D3).
+      const nextTree = await treeAfter(options.reads, options.project, news, tree);
+      const nextArcs = await arcsAfter(options.reads, options.project, news, arcs);
       if (stopped) return;
       tree = nextTree;
       arcs = nextArcs;

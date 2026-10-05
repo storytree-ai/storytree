@@ -9,6 +9,9 @@
  * so the server must let them: the local test server trusts every local connection.
  */
 import { randomBytes } from "node:crypto";
+import { connect as connectSocket, createServer, type AddressInfo, type Socket } from "node:net";
+
+import { connect, type Project } from "../project/index.js";
 
 import pg from "pg";
 import type { Client } from "pg";
@@ -186,4 +189,35 @@ function assertTestName(action: "create" | "drop", what: "database" | "role", na
 
 function quoteIdentifier(name: string): string {
   return `"${name.replaceAll('"', '""')}"`;
+}
+
+/** Count bytes on every project connection, as the shared server bills its egress. */
+export async function withCountedProject(body: (project: Project, received: () => number) => Promise<void>): Promise<void> {
+  const upstream = new URL(testServerUrl());
+  let received = 0;
+  const sockets = new Set<Socket>();
+  const proxy = createServer((client) => {
+    const server = connectSocket(Number(upstream.port || 5432), upstream.hostname);
+    for (const socket of [client, server]) sockets.add(socket);
+    server.on("data", (chunk: Buffer) => { received += chunk.length; });
+    client.pipe(server).pipe(client);
+    const done = () => {
+      for (const socket of [client, server]) { socket.destroy(); sockets.delete(socket); }
+    };
+    for (const socket of [client, server]) socket.on("close", done).on("error", done);
+  });
+  await new Promise<void>((resolve) => proxy.listen(0, "127.0.0.1", resolve));
+  const url = new URL(upstream.href);
+  url.hostname = "127.0.0.1";
+  url.port = String((proxy.address() as AddressInfo).port);
+  const name = uniqueProjectName();
+  try {
+    const storytree = await connect({ url: url.href });
+    try { await body(await storytree.openProject(name), () => received); }
+    finally { await storytree.close(); }
+  } finally {
+    for (const socket of sockets) socket.destroy();
+    await new Promise<void>((resolve) => proxy.close(() => resolve()));
+    await dropTestDatabases([`storytree_${name}`]);
+  }
 }

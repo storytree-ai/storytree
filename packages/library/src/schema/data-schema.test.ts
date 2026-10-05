@@ -373,6 +373,7 @@ for (const backend of [memory, postgres]) {
     // A list holding one is refused whole: never handed out with that record missing or misread.
     await assert.rejects(records.list("story"), newerVersion("story-future", "story", 2));
     await assert.rejects(records.list("definition"), newerVersion("definition-future", "definition", 7));
+    await assert.rejects(records.select("story", ["title"]), newerVersion("story-future", "story", 2));
 
     // Editing one would check it by rules older than the ones it was written on, so an edit is
     // refused the same way, and writes nothing.
@@ -487,6 +488,14 @@ for (const backend of [memory, postgres]) {
     // Two versions on, the steps run in order, whatever order they are listed in.
     const muchLater = new SchemaRecords(transactions, STORY_V3);
     assert.deepEqual((await muchLater.get("story-2"))?.fields, { name: "Visitor can pay", about: "By card" });
+
+    // Projection cannot deprive an upgrade of fields used to derive its answer. This schema
+    // exists only in the test, so its renamed field is deliberately outside today's static type.
+    assert.deepEqual(await later.select("story", ["summary"] as never), [
+      { ...signUp, version: 2, fields: { summary: "" } },
+      { ...pay, version: 2, fields: { summary: "By card" } },
+    ]);
+    assert.deepEqual(await records.select("story", ["title"], { ids: [pay.id] }), [{ ...pay, fields: { title: "Visitor can pay" } }]);
 
     // Reading changes nothing stored.
     assert.deepEqual(await transactions.get("story-1"), signUp);

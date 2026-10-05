@@ -5,6 +5,7 @@ export type {
   EditInput,
   HistoryEntry,
   HistoryFilter,
+  ListFilter,
   RecordEnvelope,
   RetireInput,
   SaveInput,

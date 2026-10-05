@@ -11,7 +11,7 @@
  * The tool server runs this at its start, and again whenever the agent calls check_setup; the
  * agent's part (firing each hook to verify it) goes through check_setup's answer.
  */
-import { readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
 import { codexHookTrust } from "../hooks/codex-trust.js";
@@ -69,8 +69,11 @@ export interface SetupReport {
   readonly hooks: HooksReport | undefined;
   /** The project the folder is set up as, or the name to suggest when asking the user. */
   readonly project: { status: "set up"; name: string } | { status: "ask"; suggestion: string };
-  /** Whether Codex's config.toml has storytree's tool server; undefined without a Codex home here, or with Codex disconnected. */
-  readonly codexServer: { readonly state: "registered" | "missing"; readonly config: string } | undefined;
+  /**
+   * Whether a Codex session in the folder starts storytree's tool server, and from which config.toml; `broken`
+   * names the `missing` command or server file. Undefined without a Codex home here, or with Codex disconnected.
+   */
+  readonly codexServer: { readonly state: "registered" | "missing" | "broken"; readonly config: string; readonly missing?: string } | undefined;
   /** Whether Codex runs storytree's hooks, or waits for the user to trust them; undefined where Codex has none. */
   readonly codexHooks: "running" | "waiting" | undefined;
   /** What putting the `storytree` command on the path found; undefined when there was nothing to put there. */
@@ -95,7 +98,7 @@ export async function runSetupCheck(options: SetupOptions): Promise<SetupReport>
   const disconnected = disconnectedHarnesses(options.storytreeHome ?? storytreeHome());
   const homes = options.homes ?? defaultHomes();
   const hooks = options.hook === undefined ? undefined : registerHooks(homes, options.hook, disconnected);
-  const codexServer = disconnected.has("codex") ? undefined : codexServerState(homes.codex);
+  const codexServer = disconnected.has("codex") ? undefined : codexServerState(homes.codex, options.folder);
   const codexHooks = codexHooksState(options);
   const found = findProject(options.folder);
   const project = found.project === undefined ? { status: "ask" as const, suggestion: suggestedName(options.folder) } : { status: "set up" as const, name: found.project };
@@ -124,22 +127,69 @@ export function codexHooksState(options: Pick<SetupOptions, "homes" | "storytree
   return trust === "not registered" ? undefined : trust;
 }
 
-/** Whether Codex's config.toml in `home` registers storytree's tool server, where Codex has a home here. */
-function codexServerState(home: string | undefined): SetupReport["codexServer"] {
+const SERVER_TABLE = /^\s*\[\s*mcp_servers\s*\.\s*(?:storytree|"storytree")\s*\]/m;
+
+/**
+ * Whether a Codex session in `folder` starts storytree's tool server, where Codex has a home here (8.23).
+ * Codex reads a project's own .codex/config.toml over its home's, as 0.3's checkouts serve their own
+ * source (ADR-0793 D2); a registration naming a command or server file that is not there (a removed
+ * install) starts nothing.
+ */
+function codexServerState(home: string | undefined, folder: string): SetupReport["codexServer"] {
   if (home === undefined) return undefined;
   try {
     if (!statSync(home).isDirectory()) return undefined;
   } catch {
     return undefined;
   }
-  const config = path.join(home, "config.toml");
-  let text = "";
-  try {
-    text = readFileSync(config, "utf8");
-  } catch {
-    // No config yet: no server either.
+  const own = path.join(home, "config.toml");
+  // The layer nearest the folder that names the server is the one Codex starts.
+  const config = [own, ...projectConfigs(folder, home)].filter((file) => SERVER_TABLE.test(readText(file))).at(-1);
+  if (config === undefined) return { state: "missing", config: own };
+  const gone = serverFiles(readText(config)).find((file) => path.isAbsolute(file) && !existsSync(file));
+  return gone === undefined ? { state: "registered", config } : { state: "broken", config, missing: gone };
+}
+
+/** The project configs Codex reads for `folder`: from its repository's root (the nearest .git above it) down to it, or only its own outside a repository; never Codex's home. */
+function projectConfigs(folder: string, home: string): string[] {
+  const dirs: string[] = [];
+  for (let dir = path.resolve(folder); ; dir = path.dirname(dir)) {
+    dirs.unshift(dir);
+    if (existsSync(path.join(dir, ".git"))) break;
+    if (path.dirname(dir) === dir) {
+      dirs.splice(0, dirs.length - 1);
+      break;
+    }
   }
-  return { state: /^\s*\[\s*mcp_servers\s*\.\s*(?:storytree|"storytree")\s*\]/m.test(text) ? "registered" : "missing", config };
+  const fold = (file: string) => (process.platform === "win32" ? path.resolve(file).toLowerCase() : path.resolve(file));
+  return dirs.map((dir) => path.join(dir, ".codex")).filter((codex) => fold(codex) !== fold(home)).map((codex) => path.join(codex, "config.toml"));
+}
+
+/** The command and first argument storytree's table names, read as machine.ts reads CODEX_CLI_PATH: TOML strings, no TOML parser. */
+function serverFiles(config: string): string[] {
+  const start = SERVER_TABLE.exec(config);
+  if (start === null) return [];
+  const rest = config.slice(start.index + start[0].length);
+  const next = rest.search(/^\s*\[/m);
+  const table = next === -1 ? rest : rest.slice(0, next);
+  const named = [/^\s*command\s*=\s*("(?:[^"\\]|\\.)*"|'[^']*')/m.exec(table)?.[1], /^\s*args\s*=\s*\[\s*("(?:[^"\\]|\\.)*"|'[^']*')/m.exec(table)?.[1]];
+  return named.flatMap((literal) => {
+    if (literal === undefined) return [];
+    if (literal.startsWith("'")) return [literal.slice(1, -1)];
+    try {
+      return [JSON.parse(literal) as string];
+    } catch {
+      return [];
+    }
+  });
+}
+
+function readText(file: string): string {
+  try {
+    return readFileSync(file, "utf8");
+  } catch {
+    return "";
+  }
 }
 export { builtFromMain } from "./built-from-main.js";
 export type { FollowMainOptions } from "./built-from-main.js";

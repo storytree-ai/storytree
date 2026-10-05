@@ -115,6 +115,20 @@ export interface HistoryFilter {
   readonly newest?: number;
 }
 
+/** Narrow current records before they leave the store. Predicates read STORED fields, before upgrades. */
+export interface ListFilter {
+  /** Only these ids; an empty list keeps none. */
+  readonly ids?: readonly string[];
+  /** Each dot-separated field path must equal the given JSON scalar; missing is different from null. */
+  readonly where?: Readonly<Record<string, string | number | boolean | null>>;
+  /** Each path must differ from the scalar; a missing path differs from every scalar. */
+  readonly not?: Readonly<Record<string, string | number | boolean | null>>;
+  /** Keep the first this many matches, in id order. */
+  readonly limit?: number;
+  /** Keep only these top-level fields on this version. Other versions stay whole for upgrade or refusal. */
+  readonly projection?: { readonly version: number; readonly fields: readonly string[] };
+}
+
 /** A project's records. These six verbs are the only data actions the library allows. */
 export interface Transactions {
   /** Create the record, or replace it whole if the id exists. Appends one history entry. */
@@ -122,7 +136,7 @@ export interface Transactions {
   /** The current record, or `null` if it is missing or retired. */
   get(id: string): Promise<RecordEnvelope | null>;
   /** The current (not retired) records of one type, ordered by id. */
-  list(type: string): Promise<RecordEnvelope[]>;
+  list(type: string, filter?: ListFilter): Promise<RecordEnvelope[]>;
   /**
    * Change only the named fields, merged onto what is stored now. Returns `null`, and writes
    * nothing, if the record is missing or retired.

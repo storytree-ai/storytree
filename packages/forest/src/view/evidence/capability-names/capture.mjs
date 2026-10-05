@@ -2,9 +2,10 @@
 // Reuses the rows capture's build, seed and survey: `node ../rows/build.mjs <checkout> <label>`, then
 // `node --import tsx capture.mjs <label>` (after: this branch; before: origin/main). Measures each capability
 // plate's text, how many lines it takes and whether it is cut short, and the hover tooltip; writes measurements-<label>.json.
+import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { withCapture } from '../../../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
+import { fakeBridge, withCapture } from '../../../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
 import { fileURLToPath } from 'node:url';
 import { gunzipSync } from 'node:zlib';
 
@@ -23,24 +24,25 @@ await withCapture({ folder: here, dist }, async ({ browser, out, origin, settle 
   page.on('pageerror', error => errors.push(String(error)));
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
   // The rows capture's stand-in bridge.
+  const bridge = fakeBridge({});
+  await bridge.install(page);
   await page.addInitScript(({ data, survey }) => {
     const copy = value => structuredClone(value);
-    const known = {
+    window.storytreeAnswers = {
       projectSelection: async () => ({ projects: data.projects, current: 'storytree' }),
       chooseProject: async () => ({ projects: data.projects, current: 'storytree' }),
       listProjects: async () => copy(data.projects), projectTree: async () => copy(data.tree),
       changesSince: async (_, cursor) => cursor === 0 ? copy(data.changes) : { changes: [], cursor: data.changes.cursor },
       linesSince: async (_, cursor) => cursor === 0 ? copy(data.lines) : { lines: [], cursor: data.lines.cursor },
-      frontCovers: async (_, id) => copy(data.covers[id] ?? []), relatedNotes: async () => [],
-      arcView: async () => null, arcViews: async () => [], codeSurvey: async () => copy(survey), holds: async () => ({ waits: {}, heldOn: {} }), waitHolds: async () => [], heldOnQuestion: async () => [],
-      readSurfaces: async () => ({ ok: false }), readSignIn: async () => ({ on: false }), agentConnections: async () => [],
+      frontCovers: async (_, id) => copy(data.covers[id] ?? []),
+      codeSurvey: async () => copy(survey),
       windowReadings: async (_, sessions) => sessions.map(session => ({ session, at: new Date().toISOString(), compactions: 0, inView: [], glimpses: [], opens: [] })),
       windowReading: async (_, session) => ({ session, at: new Date().toISOString(), compactions: 0, inView: [], glimpses: [], opens: [] }),
-      contextReadings: async () => [], idleAfterMs: async () => 3600000, leaveAfterMs: async () => 3600000, checkForUpdates: async () => ({ state: 'idle' }),
+      contextReadings: async () => [], idleAfterMs: async () => 3600000, leaveAfterMs: async () => 3600000,
     };
-    window.storytree = new Proxy(known, { get: (t, m) => m === 'then' ? undefined : (t[m] ?? (async () => undefined)) });
   }, { data: seed, survey });
   await page.goto(`${origin}/index.html`, { timeout: 180000, waitUntil: 'domcontentloaded' });
+  await bridge.ready(page);
   await page.waitForFunction(id => {
     const state = window.__globe;
     return document.body.dataset.state === 'ready' && !!state && !!window.__nav && !!state.scene.getObjectByName(`planet:${id}`)?.getObjectByName('island-ground');
@@ -106,5 +108,6 @@ await withCapture({ folder: here, dist }, async ({ browser, out, origin, settle 
   }
   await page.screenshot({ path: path.join(out, `${label}-hover.png`), timeout: 180000 });
   writeFileSync(path.join(out, `measurements-${label}.json`), JSON.stringify(results, null, 2) + '\n');
+  assert.deepEqual(errors, []);
   console.log(JSON.stringify({ numbered: results.numbered, overTwoLines: results.overTwoLines, plates: results.plates.map(p => `${p.text} (${p.lines})`), tooltip: results.tooltip, errors }, null, 1));
 });

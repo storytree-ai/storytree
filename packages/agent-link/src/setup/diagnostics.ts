@@ -58,13 +58,20 @@ export function setupLines(report: Omit<SetupReport, "lines">): SetupLine[] {
     : { check: "hooks-release", state: "ok", message: `storytree's hooks run v${running}, the latest release.` });
 
   if (codexServer !== undefined) lines.push(codexServer.state === "registered"
-    ? { check: "codex-server", state: "ok", message: "Codex has storytree's tool server." }
-    : {
-        check: "codex-server",
-        state: "needs-attention",
-        message: `Codex has no storytree tool server ([mcp_servers.storytree] in ${codexServer.config}), so Codex sessions get no storytree tools.`,
-        fix: "Run `storytree setup connect --codex`, then start a new Codex session.",
-      });
+    ? { check: "codex-server", state: "ok", message: `Codex has storytree's tool server here, from ${codexServer.config}.` }
+    : codexServer.state === "broken"
+      ? {
+          check: "codex-server",
+          state: "needs-attention",
+          message: `Codex's storytree tool server ([mcp_servers.storytree] in ${codexServer.config}) starts ${codexServer.missing}, which is not there (a removed install), so Codex sessions here get no storytree tools.`,
+          fix: `Take the [mcp_servers.storytree] table out of ${codexServer.config}; then, where storytree is installed, run \`storytree setup connect --codex\` and start a new Codex session.`,
+        }
+      : {
+          check: "codex-server",
+          state: "needs-attention",
+          message: `Codex has no storytree tool server ([mcp_servers.storytree] in ${codexServer.config}), so Codex sessions get no storytree tools.`,
+          fix: "Run `storytree setup connect --codex`, then start a new Codex session.",
+        });
 
   if (report.codexHooks !== undefined) lines.push(report.codexHooks === "running"
     ? { check: "codex-hooks", state: "ok", message: "Codex runs storytree's hooks: one has reached storytree since they were registered." }

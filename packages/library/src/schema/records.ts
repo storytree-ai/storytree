@@ -16,7 +16,8 @@ import { randomUUID } from "node:crypto";
 
 import type { z } from "zod";
 
-import type { HistoryEntry, HistoryFilter, RecordEnvelope, Transactions } from "../transactions/types.js";
+import type { HistoryEntry, HistoryFilter, ListFilter, RecordEnvelope, Transactions } from "../transactions/types.js";
+import { pickFields } from "../transactions/records.js";
 import { MissingUpgradeError, NewerSchemaError, SchemaError, UnknownTypeError, type FieldProblem } from "./errors.js";
 import type { FieldsOf, LibrarySchema, RecordType } from "./types.js";
 import { LIBRARY_SCHEMA } from "./upgrades.js";
@@ -91,10 +92,26 @@ export class SchemaRecords {
    * The current records of `type`, upgraded, ordered by id. An unknown type is refused, and so is
    * the whole list if any record in it cannot be interpreted.
    */
-  async list<T extends RecordType>(type: T): Promise<SchemaRecord<T>[]> {
+  async list<T extends RecordType>(type: T, filter?: Omit<ListFilter, "projection">): Promise<SchemaRecord<T>[]> {
     if (!this.#isRecordType(type)) throw new UnknownTypeError(type);
-    const records = await this.#transactions.list(type);
+    const records = await this.#transactions.list(type, filter);
     return records.map((record) => this.current(record) as SchemaRecord<T>);
+  }
+
+  /**
+   * A field selection, never a whole SchemaRecord. Current-version rows project on the server;
+   * older rows arrive whole, upgrade, then project, so no upgrade loses an input it needs.
+   * Filters, like list's, compare stored fields, before any upgrade.
+   */
+  async select<T extends RecordType, K extends keyof FieldsOf<T> & string>(
+    type: T, fields: readonly K[], filter: Omit<ListFilter, "projection"> = {},
+  ): Promise<(Omit<SchemaRecord<T>, "fields"> & { fields: Pick<FieldsOf<T>, K> })[]> {
+    if (!this.#isRecordType(type)) throw new UnknownTypeError(type);
+    const records = await this.#transactions.list(type, { ...filter, projection: { version: this.#version(type), fields } });
+    return records.map((record) => {
+      const current = this.current(record) as SchemaRecord<T>;
+      return { ...current, fields: pickFields(current.fields, fields) as Pick<FieldsOf<T>, K> };
+    });
   }
 
   /**

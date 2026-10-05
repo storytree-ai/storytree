@@ -1,0 +1,4 @@
+Thanks, that plan looks good.
+1. Leave the cookie as it is: it's a test shop, so trusting it is fine.
+2. Yes, split part 9 into two halves.
+3. Yes, please add shop-requirements-2.md to main through a small pull request now, before the sessions start.

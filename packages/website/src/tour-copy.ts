@@ -55,24 +55,24 @@ const library = story("story_754e87e7d531"), forest = story("story_deee4230348c"
 // Storytree's own recorded growth (own-snapshot.json): Act 2 arrives on it, grown from a point as its agents built it (ADR-0889 2.2b).
 const own = { map: "own" as const, target: { kind: "core" } as GlobeTarget };
 // The shop (shop-snapshot.json): the store the test laptop's Claude Code sessions rebuilt side by side with storytree, where the
-// chapters teach (ADR-0890), walking only four of its stories: Signing in, Browsing, The cart and Checkout (ADR-0891, amended
+// chapters teach (ADR-0890), walking only four of its stories: Signing in, Browsing, Cart and Checkout (ADR-0891, amended
 // 2026-10-05).
-const signingInId = "story_516defd61e9a", built = ["story_9d312bf7fc51", "story_c3e9a28aef14", "story_a2276e03429a"];
+const signingInId = "story_d263ef0f3f72", built = ["story_0c07d0047754", "story_2de9e8f4db21", "story_66f80ffaaa4d"];
 const teaching = [signingInId, ...built];
-const browsing = story(built[0]!), cart = story(built[1]!), checkout = story(built[2]!), ordersId = "story_de7821cbec70", orders = story(ordersId);
-// Until the shop is rebuilt clean (ADR-0911 D5, the owner's choice A, 2026-10-05), the tour names no hatched code and frames
-// the code and colours on signing in, the story with the least code no part's tests reach (22% of its lines at 07:25).
+const browsing = story(built[0]!), cart = story(built[1]!), checkout = story(built[2]!), ordersId = "story_8a4b7fb5d36c", orders = story(ordersId);
+// The shop was rebuilt with storytree's guardrails (ADR-0911 D5): no part of its code is unallocated at any stage, so the tour
+// shows no hatched ground. The code and colours steps keep framing signing in, the story built first.
 const signingIn = story(signingInId);
-const cartPage = capability("capability_fb0f52101882");
+const cartPage = capability("capability_ed214990be99");
 // Two recorded moments in the shop's records: parts 2, 3 and 4 claimed by three sessions at once, and the session sent to
-// part 7 while part 7 and part 8 were held, before it stood down (08:03:17).
-const together = "2026-10-04T06:50:00.000Z", standDown = "2026-10-04T08:03:00.000Z";
+// part 7 while part 7 and part 8 were held, after it said so and before it closed out (03:42:34).
+const together = "2026-10-05T02:33:00.000Z", standDown = "2026-10-05T03:40:00.000Z";
 // The chapters' steps are the shop with its teaching stories lit and the rest dimmed. The drawing dims only where session
 // tints are on; the shop at these moments has no live sessions but the ones a step shows, so they add nothing else.
 const shopMap = { map: "shop" as const, focus: teaching };
-// After its first four stories were built (pr5, 07:06) and before its second round began (07:28): where the map chapter
+// After its first four stories were built (pr4, 02:46) and before its second round began (03:02): where the map chapter
 // teaches the parts, the code and the colours.
-const firstRound = "2026-10-04T07:25:00.000Z";
+const firstRound = "2026-10-05T03:00:00.000Z";
 const lit = (surfaces: Partial<GlobeSurfaces>): Partial<GlobeSurfaces> => ({ ...surfaces, sessionTints: true });
 /** How long the arrival's time-lapse plays at 1×. */
 export const arrivalSeconds = 15;
@@ -128,22 +128,22 @@ export const steps: TourStep[] = [
   ], how: "Before writing code, the shop's agents wrote its stories into storytree's plan. Each story's code lives in its own package, and storytree draws each package as an island.",
   why: "People think about what software does for them, not about folders. Grouping the code by the journey it serves lets you find your way by what matters to the person using it.",
   decisions: [], surfaces: lit(land), framing: 1.05 },
-  // DRAFT (ADR-0891's words for M1): the four stories planned together at 05:48, each lit as the narration names it.
+  // DRAFT (ADR-0891's words for M1): the four stories planned together at 01:53, each lit as the narration names it.
   { id: "map-planned", explainer: "map", map: "shop", growth: { seconds: 6, stage: "planned" }, title: "Let's build a shopping site.", lines: [
     "Let's build a shopping site.",
     "It starts with signing in, then browsing the products, the cart, and checkout.",
   ], names: [{ said: "signing in", story: signingInId }, { said: "browsing the products", story: built[0]! }, { said: "the cart", story: built[1]! }, { said: "checkout", story: built[2]! }],
-  how: "The shop's agent planned all four stories in one go, at 05:48 on 4 October, before any code was written. An island appears the moment its story is planned.",
+  how: "The shop's agent planned all four stories in one go, at 01:53 on 5 October, before any code was written. An island appears the moment its story is planned.",
   why: "A plan you can see is a plan you can check: you know what the agents mean to build before they build it.",
   decisions: [], surfaces: lit(land), framing: .95 },
-  // DRAFT (ADR-0891's words for M2): pr1, 05:59.
-  { id: "map-first", explainer: "map", map: "shop", focus: [signingInId], growth: { seconds: 5, stage: "pr1-building", until: "pr3-building" }, title: "Signing in is built first.", lines: [
+  // DRAFT (ADR-0891's words for M2): pr1, 02:06.
+  { id: "map-first", explainer: "map", map: "shop", focus: [signingInId], growth: { seconds: 5, stage: "pr1-building", until: "pr4-building" }, title: "Signing in is built first.", lines: [
     "Signing in is built first.",
   ], how: "One agent took signing in, and its land filled in as its code landed. The coloured coast is that agent's session, working on the island.",
   why: "Watching the land fill in shows where the work actually went, story by story.",
   decisions: [], surfaces: lit(files), framing: .95 },
-  // DRAFT (ADR-0891's words for M3): pr3 to pr5, 06:53 to 07:06.
-  { id: "map-together", explainer: "map", map: "shop", focus: built, growth: { seconds: 6, stage: "pr3-building", until: "pr6-building" }, title: "Then the other three, all at once.", lines: [
+  // DRAFT (ADR-0891's words for M3): pr3 to pr5, 02:39 to 02:46.
+  { id: "map-together", explainer: "map", map: "shop", focus: built, growth: { seconds: 6, stage: "pr4-building", until: "pr7-building" }, title: "Then the other three, all at once.", lines: [
     "Then the other three, all at once, by three agents working side by side.",
   ], how: "Browsing, the cart and checkout depend only on what was already built, so three agents built them at the same time, each on its own island.",
   why: "Stories that don't wait on each other can be built in parallel, and the map shows that they were.",
@@ -171,7 +171,7 @@ export const steps: TourStep[] = [
   ], how: "The shop's CI ran its tests, and storytree matched each result to the promise it checks.",
   why: "Agents say 'done' when it isn't. A colour counts only when something other than the agent checked it, and it always says where it came from.",
   decisions: [], surfaces: lit(health), target: signingIn, framing: .6 },
-  { id: "map-grow", explainer: "map", ...shopMap, focus: [...teaching, ordersId], growth: { seconds: 10, stage: "pr6-building" }, title: "As it grows, stories are added.", lines: [
+  { id: "map-grow", explainer: "map", ...shopMap, focus: [...teaching, ordersId], growth: { seconds: 10, stage: "pr7-building" }, title: "As it grows, stories are added.", lines: [
     // The owner's words.
     "As your project grows, more stories are added.",
     // DRAFT.
@@ -185,14 +185,14 @@ export const steps: TourStep[] = [
   ], sources: [vscode, aider, undefined] },
   decisions: [], surfaces: lit(roads), target: orders, framing: 1.0, tags: [{ target: orders, text: "a new story: Orders" }] },
 
-  // Agents on the map (ADR-0893): the shop's own records at two recorded moments, 4 October 2026: parts 2, 3 and 4 built by three
+  // Agents on the map (ADR-0893): the shop's own records at two recorded moments, 5 October 2026: parts 2, 3 and 4 built by three
   // sessions at once, then the session sent to part 7 while another held it. It opens on the sessions strip: the fixes are said
   // once, in the arrival (ADR-0890, amended 2026-10-05). The owner's lines are his; every other line, and each step's How and
   // Why, is DRAFT, the agent's wording until the owner writes his own.
   { id: "agents-sessions", explainer: "agents", ...shopMap, recorded: together, panel: "sessions", title: "Your sessions, listed.", lines: [
     "Storytree lists your conversations with AI here as active sessions.",
     "Each one is an agent at work, named for the part it is building.",
-    "On 4 October, three of them were building the shop at once.",
+    "On 5 October, three of them were building the shop at once.",
   ], how: "A session starts when you open a conversation with a coding agent in your project. It leaves the list when it closes out, and storytree checks that against its branches and anything still running.",
   why: "With several agents at once, the first question is who is working right now. The list answers it from what the agents did, not from what they said.",
   decisions: [], surfaces: lit(land), framing: 1.05 },
@@ -210,19 +210,19 @@ export const steps: TourStep[] = [
   ], how: "Before writing, an agent claims the increment it will build and each part it will touch. A second claim on the same work is turned away.",
   why: "Two agents editing the same thing is how work gets lost. A claim says who is on what before anyone writes.",
   // Aimed past the cart so the island sits below the arcs drawer, both in view at once.
-  decisions: [], surfaces: lit(land), target: checkout, framing: .95, tags: [{ target: cart, text: "Part 3: cart page and menu" }] },
+  decisions: [], surfaces: lit(land), target: checkout, framing: .95, tags: [{ target: cart, text: "Part 3: cart page and side menu" }] },
   { id: "agents-parallel", explainer: "agents", ...shopMap, recorded: together, panel: "sessions", title: "Who is on what, at a glance.", lines: [
     "This means your agents can tell who is working on what just by looking at the map.",
     "Browsing, the cart and checkout, each built by its own session, at the same time.",
   ], how: "Each claimed island wears its session's colour round its coast, and the list shows the same sessions in the same colours.",
   why: "An agent that can see what is taken picks other work instead of colliding with it.",
   decisions: [], surfaces: lit(land), framing: 1.05,
-  tags: [{ target: browsing, text: "Part 2: Browsing" }, { target: cart, text: "Part 3: cart page and menu" }, { target: checkout, text: "Part 4: Checkout" }] },
+  tags: [{ target: browsing, text: "Part 2: product page, sorting, cart" }, { target: cart, text: "Part 3: cart page and side menu" }, { target: checkout, text: "Part 4: Checkout" }] },
   { id: "agents-standdown", explainer: "agents", ...shopMap, recorded: standDown, panel: "sessions", title: "An agent read the map and stood down.", lines: [
     "Later, a third session was sent to part 7 while another session held it.",
     "It read the plan, saw part 7 taken, and changed nothing.",
-    "Its own words: “Changed nothing: part 7 is held by live session c3831547 and part 8 by 83723b4f, and every other increment is closed.”",
-  ], how: "The session read the arc and the claims on it, found both open parts held by live sessions, and closed out without claiming anything. Asked later to take part 8 over if it had stalled, it found that session still live and declined.",
+    "Its own words: “Part 7 (Search) is already being worked on by another session, so I've stopped there. I haven't made a workspace or changed any code.”",
+  ], how: "The session read the arc and the claims on it, found both open parts held by live sessions, and claimed nothing. Asked to take part 8 over if it had stalled, it looked at that session's workspace, found it still writing, and left it alone.",
   why: "Agents that read the map don't pull work out from under each other. The record shows it happened, and why.",
   compare: { lines: [
     "Cursor's Agents window runs agents in parallel, each in its own worktree, with diffs to review.",

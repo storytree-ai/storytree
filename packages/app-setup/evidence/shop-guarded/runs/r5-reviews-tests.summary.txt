@@ -1,0 +1,60 @@
+model: claude-opus-5-5 | mcp: storytree=connected,claude.ai Claude Docs=connected,claude.ai Google Drive=connected,claude.ai Gmail=connected,claude.ai Google Calendar=connected
+calls: 40
+  - st:focus {"select":"cap:capability_8778a7094191","mode":"show","kind":["promise"],"down":1}
+  - st:focus {"select":"cap:capability_bc2872c14deb","mode":"show","kind":["promise"],"down":1}
+  - st:open {"id":"contract_3fc24ec2c69b"}
+  - st:open {"id":"contract_6e11a0eba5b2"}
+  - ToolSearch
+  - PowerShell git checkout -q --detach origin/main 2>$null; git fetch -q origin; git status --short | Select-Objec
+  - st:park_increment {"arc":"arc_ae18527f63bf","title":"Reviews: prove promises 1.2 and 3.1","objective":"Every Reviews promise has a numbered test that proves i
+  - st:make_workspace {"increment":"increment_e87b99039696","reason":"Reviews: prove 1.2 and 3.1"}
+  - EnterWorktree
+  - st:claim {"capability":"capability_8778a7094191","reason":"Reviews: prove 1.2 and 3.1"}
+  - st:claim {"capability":"capability_bc2872c14deb","reason":"Reviews: prove 1.2 and 3.1"}
+  - st:name_session {"title":"Reviews: prove 1.2 and 3.1"}
+  - PowerShell npm install --no-audit --no-fund 2>$null | Select-Object -Last 1; git log --oneline -1
+  - Edit C:\Users\mickh\shop3\.claude\worktrees\increment-e87b99039696-2063f8\packages\reviews\test\review-store.test.js
+  - Edit C:\Users\mickh\shop3\.claude\worktrees\increment-e87b99039696-2063f8\packages\reviews\test\review-store.test.js
+  - Edit C:\Users\mickh\shop3\.claude\worktrees\increment-e87b99039696-2063f8\packages\reviews\test\product-page.test.js
+  - Edit C:\Users\mickh\shop3\.claude\worktrees\increment-e87b99039696-2063f8\packages\reviews\test\product-page.test.js
+  - Write C:\Users\mickh\shop3\.claude\worktrees\increment-e87b99039696-2063f8\packages\reviews\test\products-rating.test.js
+  - PowerShell node --test "packages/reviews/test/*.test.js" 2>$null | Select-String '^not ok|^ok|^# (pass|fail)|er
+  - PowerShell $a='packages/reviews/src/rating-text.js'; $b='packages/reviews/src/rating-on-products/products-ratin
+  - st:report {"contract":"contract_6e11a0eba5b2","result":"red","note":"The code already existed from Part 8, so the test passed at once. To see it fail,
+  - st:report {"contract":"contract_3fc24ec2c69b","result":"red","note":"The code already existed from Part 8, so the test passed at once. To see it fail,
+  - PowerShell npm test 2>$null | Select-String '^not ok|^# (tests|pass|fail)'; git status --short
+  - st:report {"contract":"contract_6e11a0eba5b2","result":"green"}
+  - st:report {"contract":"contract_3fc24ec2c69b","result":"green","note":"Covers the rating inside each item, the product page's wording, a server-drawn 
+  - st:retire_from_plan {"id":"contract_037bd9853489","reason":"A near-copy of 3.1, planned in Part 8 because 3.1 was missed. Its test is now 3.1's test."}
+  - st:focus {"select":"story:Reviews","mode":"show","kind":["promise"],"down":2}
+  - st:focus {"select":"cap:capability_d26f20f6bedc","mode":"show","kind":["promise"],"down":1}
+  - Write C:\Users\mickh\AppData\Local\Temp\shop3-pr-reviews-tests.md
+  - Write C:\Users\mickh\AppData\Local\Temp\shop3-commit-reviews-tests.txt
+  - PowerShell git add -A; git commit -q -F "$env:TEMP\shop3-commit-reviews-tests.txt"; git push -q -u origin HEAD 
+  - PowerShell Start-Sleep 10; gh pr checks 13 --watch --interval 15 | Select-Object -Last 2; gh pr view 13 --json 
+  - PowerShell gh pr merge 13 --squash; gh pr view 13 --json state; git status --short
+  - st:land {"capability":"capability_8778a7094191"}
+  - st:land {"capability":"capability_bc2872c14deb"}
+  - st:close_increment {"increment":"increment_e87b99039696","disposition":"landed","pr":"#13"}
+  - st:search_notes {"query":"show_plan output too large, promises missed when summarizing plan","limit":4}
+  - st:record_friction {"title":"Planned promises missed when reading a too-large show_plan","description":"show_plan's output was too large to read inline, and my
+  - PowerShell git status --short; git fetch -q origin; git log --oneline -1 origin/main
+  - st:close_out {"safe":true,"why":"PR #13 merged after both checks passed; worktree clean; no servers started this time"}
+RESULT success turns 41 ms 357493 cost 4.7622898 
+Every Reviews promise now has a test that proves it, and storytree shows all 6 as healthy. The changes are merged to main as PR #13; both CI checks passed and all 79 tests pass. Only tests changed; the review code itself didn't need any fixes.
+
+**Why it happened:** both promises were already in the plan when I built Part 8, and I missed them. The plan was too large to read directly, and my filtered summary of it left out any promise without "review" in its title. When storytree numbered the Products promise I added "3.2", that was a sign a 3.1 already existed, and I didn't follow it up. Next time I'll list each part's promises directly before building. I've recorded this in storytree.
+
+**What's tested now:**
+- **1.2 ┬À Rating is the average to one decimal and the count:**
+  - The promise's own cases: no reviews reads "No reviews yet", one review of 4 reads "4.0 (1 review)", and 5 and 4 read "4.5 (2 reviews)".
+  - An uneven average is rounded to one decimal: 5, 4, 4 reads "4.3" and 11/3 reads "3.7".
+  - A refused review doesn't count toward the rating.
+- **3.1 ┬À Each product on Products shows its rating:**
+  - Each rating is inside its own product item and uses the same wording as the product page.
+  - Each rating stays with its product on a searched page from the server, and when Browsing's sort and search scripts reorder the list.
+  - The sort and search check runs the real scripts in a simulated page, not a real browser.
+
+Because the code already worked, both tests passed straight away. To make sure they can actually fail, I briefly broke the rounding and the Products rating: each test went red, then green once the code was restored.
+
+The "3.2" promise I added in Part 8 duplicated 3.1, so I've removed it from the plan, and its test is now 3.1's test.

@@ -1,0 +1,3 @@
+Option 3, thanks: keep it private and free, and every session merges only after both checks pass.
+
+I ran Swag Labs' own tests against part 1 in Chrome. Everything for part 1 passes except one, and it fails only some of the time: "should not be able to login with a locked user" (login.spec.ts) failed 2 of 5 runs, with "expect(received).toBeTruthy() Received: false" at login.spec.ts:27. The real saucedemo.com passes it every time. Can you fix that before the other sessions start?

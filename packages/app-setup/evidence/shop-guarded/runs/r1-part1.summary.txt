@@ -1,0 +1,253 @@
+model: claude-opus-5-5 | mcp: storytree=connected,claude.ai Claude Docs=pending,claude.ai Google Drive=pending,claude.ai Gmail=pending,claude.ai Google Calendar=pending
+calls: 214
+  - ToolSearch
+  - Read C:\Users\mickh\shop3\shop-requirements.md
+  - st:check_setup {}
+  - st:set_up_project {"name":"shop3"}
+  - ToolSearch
+  - st:search_notes {"query":"orchestrator role","limit":3}
+  - st:search_notes {"query":"librarian role","limit":3}
+  - st:open {"id":"agent_60d590ea712d"}
+  - st:open {"id":"agent_eecb4c6bc3b6"}
+  - PowerShell node --version; npm --version; git --version; gh auth status; gh api user --jq .login; Get-ChildItem
+  - PowerShell gh api repos/saucelabs/sample-app-web/contents/test/e2e --jq '.[].path'; gh api repos/saucelabs/samp
+  - PowerShell New-Item -ItemType Directory -Force "$env:TEMP\swag" | Out-Null; Set-Location "$env:TEMP\swag"; if (
+  - PowerShell $b="$env:TEMP\swag\sample-app-web\test\e2e\test"; foreach ($f in "helpers\index.ts","configs\e2eCons
+  - PowerShell $r="$env:TEMP\swag\sample-app-web"; $b="$r\test\e2e\test"; foreach ($f in "$r\src\utils\InventoryDat
+  - PowerShell $b="$env:TEMP\swag\sample-app-web\test\e2e\test\specs"; Select-String -Path "$b\*.ts" -Pattern "cont
+  - st:name_session {"title":"Plan shop3; build part 1 (sign in)"}
+  - st:plan_story {"title":"Signing in","description":"A shopper signs in as a Swag Labs user, stays signed in through the session-username cookie, and signs 
+  - st:plan_story {"title":"Browsing","description":"A signed-in shopper looks through the six Swag Labs products, sorts them, opens a product's page, and add
+  - st:plan_story {"title":"Cart","description":"A signed-in shopper reviews what is in their cart, removes products, goes back to shopping or on to checkout,
+  - st:plan_story {"title":"Checkout","description":"A signed-in shopper gives their name and postal code, reviews the order with its item total, 8% tax and t
+  - st:plan_capability {"story":"story_d263ef0f3f72","title":"Shop server","description":"The node:http server behind npm start: listens on PORT (3000 by default),
+  - st:plan_capability {"story":"story_d263ef0f3f72","title":"Session","description":"Who is signed in: the session-username cookie, read on every request, and the
+  - st:plan_capability {"story":"story_d263ef0f3f72","title":"Page shell","description":"The frame of every signed-in page: the header with the .shopping_cart_link
+  - st:plan_capability {"story":"story_d263ef0f3f72","title":"Sign-in page","description":"The page at / with #login_button_container, #user-name, #password and th
+  - st:plan_capability {"story":"story_d263ef0f3f72","title":"Sign-out","description":"GET /logout clears the session-username cookie and sends the shopper to the 
+  - st:plan_capability {"story":"story_0c07d0047754","title":"Catalog","description":"The six Swag Labs products, ids 0 to 5, with their exact names, descriptions 
+  - st:plan_capability {"story":"story_0c07d0047754","title":"Products page","description":"/inventory.html for signed-in shoppers: .inventory_list with one .inven
+  - st:plan_capability {"story":"story_0c07d0047754","title":"Cart store","description":"The one browser module that reads and changes the cart in localStorage car
+  - st:plan_capability {"story":"story_0c07d0047754","title":"Products page","description":"/inventory.html for signed-in shoppers: .inventory_list with one .inven
+  - st:plan_capability {"story":"story_0c07d0047754","title":"Product page","description":"/inventory-item.html?id=N: .inventory_details with .inventory_details_na
+  - st:plan_capability {"story":"story_0c07d0047754","title":"Sorting","description":"The .product_sort_container menu on Products: name A to Z, name Z to A, price
+  - st:plan_capability {"story":"story_0c07d0047754","title":"Cart buttons and badge","description":"Add to cart (btn_primary btn_inventory) / Remove (btn_secondar
+  - st:plan_capability {"story":"story_2de9e8f4db21","title":"Cart page","description":"/cart.html: #cart_contents_container with one .cart_item (name, description
+  - st:plan_capability {"story":"story_2de9e8f4db21","title":"Side menu","description":"The .bm-burger-button on every signed-in page opening a menu with All Items
+  - st:plan_capability {"story":"story_66f80ffaaa4d","title":"Your information","description":"/checkout-step-one.html: #checkout_info_container with first name, l
+  - st:plan_capability {"story":"story_66f80ffaaa4d","title":"Order overview","description":"/checkout-step-two.html: #checkout_summary_container with one .cart_it
+  - st:plan_capability {"story":"story_66f80ffaaa4d","title":"Order complete","description":"Finish empties the cart and shows /checkout-complete.html: #checkout_c
+  - st:plan_contract {"capability":"capability_323895c5a414","title":"listens on PORT, 3000 by default","description":"npm start serves the shop at http://localh
+  - st:plan_contract {"capability":"capability_323895c5a414","title":"mounts every story package's plugin","description":"Routes, scripts and assets exported by 
+  - st:plan_contract {"capability":"capability_678463042156","title":"a valid session-username cookie signs the browser in","description":"A request carrying ses
+  - st:plan_contract {"capability":"capability_678463042156","title":"no valid session sends you to sign in","description":"A guarded page with no cookie, an unk
+  - st:plan_contract {"capability":"capability_ae20917d7a32","title":"header has an empty cart link","description":"Every signed-in page has a header with a .sho
+  - st:plan_contract {"capability":"capability_ae20917d7a32","title":"plugins' header pieces and scripts appear on every signed-in page","description":"Header HT
+  - st:plan_contract {"capability":"capability_ff897f5c13aa","title":"sign-in page has Swag Labs' form","description":"/ shows #login_button_container holding #u
+  - st:plan_contract {"capability":"capability_ff897f5c13aa","title":"standard_user signs in to Products","description":"standard_user / secret_sauce sets sessio
+  - st:plan_contract {"capability":"capability_ff897f5c13aa","title":"refusals show Swag Labs' exact errors","description":"[data-test=\"error\"] reads 'Epic sad
+  - st:plan_contract {"capability":"capability_918e1fa754ab","title":"signing out clears the cookie and returns to sign in","description":"GET /logout expires se
+  - st:plan_contract {"capability":"capability_1f1d23ed44d0","title":"six products with Swag Labs' ids, names, descriptions and prices","description":"Ids 0 to 5
+  - st:plan_contract {"capability":"capability_2466ec721a72","title":"lists the six products A to Z","description":"/inventory.html has .inventory_list with six 
+  - st:plan_contract {"capability":"capability_2466ec721a72","title":"each item shows its name, description and price","description":"Each .inventory_item has .i
+  - st:plan_contract {"capability":"capability_05589d74df4b","title":"reads cart-contents as a list of product ids","description":"'[4]' reads as [4]; missing or
+  - st:plan_contract {"capability":"capability_05589d74df4b","title":"add, remove and clear write cart-contents and announce cart-changed","description":"Each ch
+  - st:plan_contract {"capability":"capability_f29c62742cce","title":"shows the product named by ?id=","description":"/inventory-item.html?id=4 has .inventory_de
+  - st:plan_contract {"capability":"capability_f29c62742cce","title":"product names link to it and its back button returns to Products","description":"Each .inve
+  - st:plan_contract {"capability":"capability_fb36c3db4690","title":"sort menu offers the four orders","description":".product_sort_container offers name A to Z
+  - st:plan_contract {"capability":"capability_fb36c3db4690","title":"each choice reorders the products","description":"Choosing an order puts the .inventory_ite
+  - st:plan_contract {"capability":"capability_9a6a5d648ba6","title":"Add to cart and Remove swap on Products and the product page","description":"A product not 
+  - st:plan_contract {"capability":"capability_9a6a5d648ba6","title":"the badge counts the cart, and is gone when empty","description":"On every signed-in page .
+  - st:plan_contract {"capability":"capability_ed214990be99","title":"lists each product in the cart","description":"/cart.html has #cart_contents_container with
+  - st:plan_contract {"capability":"capability_ed214990be99","title":"Remove takes a product out of the cart","description":"A .cart_item's Remove (btn_secondary
+  - st:plan_contract {"capability":"capability_ed214990be99","title":"Continue Shopping and Checkout lead on","description":"The first .btn_secondary on the page
+  - st:plan_contract {"capability":"capability_276fa436dc33","title":"burger button opens the menu on every signed-in page","description":".bm-burger-button open
+  - st:plan_contract {"capability":"capability_276fa436dc33","title":"All Items, About and Logout go where Swag Labs' do","description":"All Items to /inventory.
+  - st:plan_contract {"capability":"capability_276fa436dc33","title":"Reset App State empties the cart straight away","description":"#reset_sidebar_link clears c
+  - st:plan_contract {"capability":"capability_d37b7ec1b593","title":"has the information form, Continue and Cancel","description":"#checkout_info_container with
+  - st:plan_contract {"capability":"capability_d37b7ec1b593","title":"a missing field shows its error, in order","description":"[data-test=error] reads 'Error: F
+  - st:plan_contract {"capability":"capability_668ca101a358","title":"lists each product in the cart","description":"#checkout_summary_container with one .cart_i
+  - st:plan_contract {"capability":"capability_668ca101a358","title":"item total, 8% tax and total are right","description":"For [4] the page shows item total $2
+  - st:plan_contract {"capability":"capability_668ca101a358","title":"Finish and Cancel lead on","description":"Finish (cart_button) goes to /checkout-complete.h
+  - st:plan_contract {"capability":"capability_94f91d2ed3a9","title":"finishing empties the cart and thanks you","description":"After Finish, cart-contents is em
+  - st:plan_contract {"capability":"capability_94f91d2ed3a9","title":"Back Home returns to Products","description":"The Back Home button goes to /inventory.html.
+  - st:plan_arc {"title":"Swag Labs copy","intent":"Deliver a copy of Swag Labs (saucedemo.com) that passes Swag Labs' own e2e tests at http://localhost:300
+  - st:park_increment {"arc":"arc_0ed6b538c0eb","title":"Part 1: Sign in and the Products list","objective":"A shopper can sign in as standard_user, see the six p
+  - st:park_increment {"arc":"arc_0ed6b538c0eb","title":"Part 2: Browsing","objective":"A shopper can open a product's page, sort Products, and add or remove prod
+  - st:park_increment {"arc":"arc_0ed6b538c0eb","title":"Part 3: The cart and the menu","objective":"A shopper can review and change their cart on the Cart page a
+  - st:park_increment {"arc":"arc_0ed6b538c0eb","title":"Part 4: Checkout","objective":"A shopper can give their details, review the order with item total, 8% tax
+  - st:set_wait {"waiter":"increment_de7e9bee51b3","on":"increment_f0b649f85ab2","reason":"Needs part 1's server plugins, page shell, catalog and cart store
+  - st:set_wait {"waiter":"increment_fd46f313b721","on":"increment_f0b649f85ab2","reason":"Needs part 1's server plugins, page shell, catalog and cart store
+  - st:set_wait {"waiter":"increment_cc9ba3905bf1","on":"increment_f0b649f85ab2","reason":"Needs part 1's server plugins, page shell, catalog and cart store
+  - Read C:\Users\mickh\shop3\.storytree.json
+  - Write C:\Users\mickh\shop3\package.json
+  - Write C:\Users\mickh\shop3\.gitignore
+  - PowerShell git init -b main -q; git add -A; git commit -q -m "Start shop3: requirements and npm workspaces root
+  - Write C:\Users\mickh\shop3\.gitattributes
+  - PowerShell git config user.name "HuaMick"; git config user.email "hua.mick@gmail.com"; git add -A; git commit -
+  - PowerShell git checkout -q -b part-1-sign-in; git branch --show-current
+  - st:wire_pipeline {"test":"npm test","install":"npm ci"}
+  - st:claim {"increment":"increment_f0b649f85ab2","reason":"Part 1: sign in + products list"}
+  - st:claim {"capability":"capability_323895c5a414","reason":"Build the shop server"}
+  - Write C:\Users\mickh\shop3\packages\signing-in\package.json
+  - Write C:\Users\mickh\shop3\packages\signing-in\test\server.test.js
+  - PowerShell node --test packages/signing-in/test/server.test.js 2>&1 | Select-Object -Last 12
+  - st:report {"contract":"contract_8056832e13c0","result":"red","note":"server.test.js written; fails: src/server/server.js does not exist yet"}
+  - st:report {"contract":"contract_3810a68e878b","result":"red","note":"server.test.js written; fails: src/server/server.js does not exist yet"}
+  - Edit C:\Users\mickh\shop3\packages\signing-in\test\server.test.js
+  - Write C:\Users\mickh\shop3\packages\signing-in\src\server\responses.js
+  - Write C:\Users\mickh\shop3\packages\signing-in\src\server\server.js
+  - Write C:\Users\mickh\shop3\packages\signing-in\src\session\users.json
+  - Write C:\Users\mickh\shop3\packages\signing-in\src\session\users.js
+  - Write C:\Users\mickh\shop3\packages\signing-in\src\session\session.js
+  - Write C:\Users\mickh\shop3\packages\signing-in\src\page-shell\page-shell.js
+  - Write C:\Users\mickh\shop3\packages\signing-in\src\index.js
+  - Write C:\Users\mickh\shop3\server.js
+  - Write C:\Users\mickh\shop3\packages\signing-in\src\page-shell\shop.css
+  - PowerShell npm install --silent; node --test packages/signing-in/test/server.test.js 2>&1 | Select-Object -Last
+  - st:report {"contract":"contract_8056832e13c0","result":"green"}
+  - st:report {"contract":"contract_3810a68e878b","result":"green"}
+  - st:land {"capability":"capability_323895c5a414"}
+  - st:claim {"capability":"capability_678463042156","reason":"Build the session cookie guard"}
+  - Edit C:\Users\mickh\shop3\packages\signing-in\test\server.test.js
+  - Edit C:\Users\mickh\shop3\packages\signing-in\test\server.test.js
+  - PowerShell node --test packages/signing-in/test/server.test.js 2>&1 | Select-Object -Last 8 | Select-Object -Fi
+  - st:land {"capability":"capability_323895c5a414"}
+  - Write C:\Users\mickh\shop3\packages\signing-in\test\session.test.js
+  - PowerShell node --test packages/signing-in/test/session.test.js 2>&1 | Select-Object -Last 40
+  - Edit C:\Users\mickh\shop3\packages\signing-in\test\session.test.js
+  - PowerShell node --test packages/signing-in/test/session.test.js 2>&1 | Select-Object -Last 8 | Select-Object -F
+  - st:report {"contract":"contract_9a2cd41eade4","result":"green","note":"No genuine red: session.js was written with the Shop server, which needed it to
+  - st:report {"contract":"contract_e5009ae958ac","result":"green","note":"No genuine red: session.js was written with the Shop server, which needed it to
+  - st:land {"capability":"capability_678463042156"}
+  - st:claim {"capability":"capability_ae20917d7a32","reason":"Build the page shell"}
+  - Write C:\Users\mickh\shop3\packages\signing-in\test\page-shell.test.js
+  - PowerShell node --test packages/signing-in/test/page-shell.test.js 2>&1 | Select-Object -Last 8 | Select-Object
+  - st:report {"contract":"contract_47ea78f03d9a","result":"green","note":"No genuine red: page-shell.js was written with the Shop server, which renders p
+  - st:report {"contract":"contract_7abfcc637608","result":"green","note":"No genuine red: page-shell.js was written with the Shop server; test written af
+  - st:land {"capability":"capability_ae20917d7a32"}
+  - st:claim {"capability":"capability_ff897f5c13aa","reason":"Build the sign-in page"}
+  - Write C:\Users\mickh\shop3\packages\signing-in\test\sign-in-page.test.js
+  - PowerShell node --test packages/signing-in/test/sign-in-page.test.js 2>&1 | Select-String "^not ok|^ok|# pass|#
+  - st:report {"contract":"contract_ea58d6182a14","result":"red","note":"No route at / yet: 404"}
+  - st:report {"contract":"contract_93b2cd3f75a0","result":"red","note":"No POST / route yet: 404"}
+  - st:report {"contract":"contract_b94f1ca76903","result":"red","note":"No POST / route yet: 404"}
+  - Write C:\Users\mickh\shop3\packages\signing-in\src\sign-in-page\sign-in-page.js
+  - Edit C:\Users\mickh\shop3\packages\signing-in\src\index.js
+  - PowerShell node --test packages/signing-in/test/sign-in-page.test.js 2>&1 | Select-String "^not ok|^ok|# pass|#
+  - st:report {"contract":"contract_ea58d6182a14","result":"green"}
+  - st:report {"contract":"contract_93b2cd3f75a0","result":"green"}
+  - st:report {"contract":"contract_b94f1ca76903","result":"green"}
+  - st:land {"capability":"capability_ff897f5c13aa"}
+  - st:claim {"capability":"capability_918e1fa754ab","reason":"Build sign-out"}
+  - Write C:\Users\mickh\shop3\packages\signing-in\test\sign-out.test.js
+  - PowerShell node --test packages/signing-in/test/sign-out.test.js 2>&1 | Select-String "^not ok|^ok|# pass|# fai
+  - st:report {"contract":"contract_ef6dab7d0b1b","result":"red","note":"/logout is 404"}
+  - Write C:\Users\mickh\shop3\packages\signing-in\src\sign-out\sign-out.js
+  - Write C:\Users\mickh\shop3\packages\signing-in\src\index.js
+  - PowerShell node --test "packages/signing-in/test/**/*.test.js" 2>&1 | Select-String "^not ok|^ok|# pass|# fail"
+  - st:report {"contract":"contract_ef6dab7d0b1b","result":"green"}
+  - st:land {"capability":"capability_918e1fa754ab"}
+  - st:claim {"capability":"capability_1f1d23ed44d0","reason":"Build the product catalog"}
+  - Write C:\Users\mickh\shop3\packages\browsing\package.json
+  - Write C:\Users\mickh\shop3\packages\browsing\test\catalog.test.js
+  - PowerShell node --test packages/browsing/test/catalog.test.js 2>&1 | Select-String "^not ok|^ok|# pass|# fail"
+  - st:report {"contract":"contract_48e426f6871f","result":"red","note":"catalog.js does not exist yet"}
+  - Write C:\Users\mickh\shop3\packages\browsing\src\catalog\products.json
+  - Write C:\Users\mickh\shop3\packages\browsing\src\catalog\catalog.js
+  - PowerShell node --test packages/browsing/test/catalog.test.js 2>&1 | Select-String "^not ok|^ok|# pass|# fail"
+  - st:report {"contract":"contract_48e426f6871f","result":"green"}
+  - st:land {"capability":"capability_1f1d23ed44d0"}
+  - st:claim {"capability":"capability_05589d74df4b","reason":"Build the browser cart store"}
+  - Write C:\Users\mickh\shop3\packages\browsing\test\cart-store.test.js
+  - PowerShell node --test packages/browsing/test/cart-store.test.js 2>&1 | Select-String "^not ok|^ok|# pass|# fai
+  - st:report {"contract":"contract_5e0cea506ffb","result":"red","note":"cart-store.js does not exist yet"}
+  - st:report {"contract":"contract_57ae5149c46a","result":"red","note":"cart-store.js does not exist yet"}
+  - Write C:\Users\mickh\shop3\packages\browsing\src\cart-store\cart-store.js
+  - PowerShell node --test packages/browsing/test/cart-store.test.js 2>&1 | Select-String "^not ok|^ok|# pass|# fai
+  - st:report {"contract":"contract_5e0cea506ffb","result":"green"}
+  - st:report {"contract":"contract_57ae5149c46a","result":"green"}
+  - st:land {"capability":"capability_05589d74df4b"}
+  - st:claim {"capability":"capability_2466ec721a72","reason":"Build the Products page"}
+  - Write C:\Users\mickh\shop3\packages\browsing\test\products-page.test.js
+  - PowerShell npm install --silent; node --test packages/browsing/test/products-page.test.js 2>&1 | Select-String 
+  - st:report {"contract":"contract_d21f6c37ff3b","result":"red","note":"browsing's src/index.js (plugin) and the products page do not exist yet"}
+  - st:report {"contract":"contract_ef292e718f94","result":"red","note":"browsing's src/index.js (plugin) and the products page do not exist yet"}
+  - Write C:\Users\mickh\shop3\packages\browsing\src\products-page\products-page.js
+  - Write C:\Users\mickh\shop3\packages\browsing\src\index.js
+  - PowerShell npm test 2>&1 | Select-String "^not ok|^ok|# pass|# fail|actual|expected"
+  - st:report {"contract":"contract_d21f6c37ff3b","result":"green"}
+  - st:report {"contract":"contract_ef292e718f94","result":"green"}
+  - st:land {"capability":"capability_2466ec721a72"}
+  - PowerShell $c = @("C:\Program Files\Google\Chrome\Application\chrome.exe","${env:ProgramFiles(x86)}\Google\Chro
+  - PowerShell Set-Location "$env:TEMP\swag\sample-app-web\test\e2e"; npm ci --no-audit --no-fund --loglevel=error 
+  - st:mark_built {"capability":"capability_323895c5a414","built":true}
+  - st:mark_built {"capability":"capability_678463042156","built":true}
+  - st:mark_built {"capability":"capability_ae20917d7a32","built":true}
+  - st:mark_built {"capability":"capability_ff897f5c13aa","built":true}
+  - st:mark_built {"capability":"capability_918e1fa754ab","built":true}
+  - st:mark_built {"capability":"capability_1f1d23ed44d0","built":true}
+  - st:mark_built {"capability":"capability_05589d74df4b","built":true}
+  - st:mark_built {"capability":"capability_2466ec721a72","built":true}
+  - Read C:\Users\mickh\AppData\Local\Temp\claude\C--Users-mickh-shop3\d5d354e6-d569-4463-bf30-1e65810227b2\tasks\b2htb1s9x.output
+  - PowerShell Set-Location "$env:TEMP\swag\sample-app-web\test\e2e"; npm ci --no-audit --no-fund; "exit: $LASTEXIT
+  - PowerShell git status --short; git add -A; git commit -q -m @' Part 1: sign in and the Products list - package
+  - PowerShell Get-Content "C:\Users\mickh\AppData\Local\Temp\claude\C--Users-mickh-shop3\d5d354e6-d569-4463-bf30-1
+  - PowerShell Set-Location "$env:TEMP\swag\sample-app-web\test\e2e"; npm install --no-audit --no-fund; "exit: $LAS
+  - PowerShell git push -q -u origin part-1-sign-in; gh pr create --base main --head part-1-sign-in --title "Part 1
+  - PowerShell gh pr checks 1 --watch --interval 15; "exit: $LASTEXITCODE"
+  - PowerShell npm start
+  - PowerShell Start-Sleep 2; $r = Invoke-WebRequest http://localhost:3000/ -UseBasicParsing; $r.StatusCode; ($r.Co
+  - PowerShell Get-Content "C:\Users\mickh\AppData\Local\Temp\claude\C--Users-mickh-shop3\d5d354e6-d569-4463-bf30-1
+  - ToolSearch
+  - st:record_friction {"title":"Plugin entry files are only loaded dynamically","description":"A story package's src/index.js, loaded by the server with import(),
+  - Write C:\Users\mickh\AppData\Local\Temp\swag\sample-app-web\test\e2e\test\configs\wdio.local.edge.conf.ts
+  - PowerShell Set-Location "$env:TEMP\swag\sample-app-web\test\e2e"; npx wdio test/configs/wdio.local.edge.conf.ts
+  - PowerShell gh pr merge 1 --squash --delete-branch; git checkout -q main; git pull -q; git log --oneline -3; git
+  - st:close_increment {"increment":"increment_f0b649f85ab2","disposition":"landed","pr":"#1"}
+  - st:write_note {"kind":"process","fields":{"title":"Check a part against Swag Labs' own e2e tests","purpose":"The owner judges the shop with saucelabs/samp
+  - st:write_note {"kind":"process","fields":{"title":"Check a part against Swag Labs' own e2e tests","purpose":"The owner judges the shop with saucelabs/samp
+  - st:write_note {"kind":"process","fields":{"title":"Check a part against Swag Labs' own e2e tests","description":"How to run saucelabs/sample-app-web's e2e
+  - st:write_note {"kind":"process","fields":{"title":"Check a part against Swag Labs' own e2e tests","description":"How to run saucelabs/sample-app-web's e2e
+  - ToolSearch
+  - TaskStop
+  - PowerShell git status --short; git branch -a
+  - PowerShell git fetch --prune -q; git branch -a
+  - st:close_out {"safe":true,"why":"PR #1 merged, main clean, the shop server I started is stopped"}
+RESULT success turns 215 ms 1238563 cost 4.567637399999999 
+Part 1 is built, tested and merged. You can now sign in and see the six products in your browser.
+
+## How to open it
+In a terminal in `C:\Users\mickh\shop3`:
+```
+npm install
+npm start
+```
+Then go to **http://localhost:3000** and sign in with `standard_user` / `secret_sauce`. Press Ctrl+C in the terminal to stop it. To use a different port, run `$env:PORT=4000; npm start`.
+
+## What works now
+- **Signing in** works as your requirements describe, including all four "Epic sadface" errors. `locked_out_user` is refused.
+- The **`session-username` cookie** counts as being signed in, even when a test sets it directly. Any other page sends you to sign in if you aren't signed in. Going to `/logout` signs you out.
+- **Products** (`/inventory.html`) lists the six products A to Z. The names, descriptions and prices are copied word for word from Swag Labs' own data.
+- **Checks:** my 16 tests pass (`npm test`). I also ran Swag Labs' own tests against the site: all 3 sign-in tests pass, and so does "all products are present". The other 4 fail because they need the product page, Add to cart, the cart badge and the Cart page, which are parts 2 and 3.
+
+## Set-up
+- storytree project `shop3` is set up, with the whole shop planned: 4 stories, 14 parts and their promises, under one plan called "Swag Labs copy".
+- There's a private GitHub repo at github.com/HuaMick/shop3. The work went in through pull request #1, which I merged after both automatic checks passed (`npm test` and storytree's check).
+- Git had no author name set on this computer, so I set it for this repo only, to HuaMick / hua.mick@gmail.com.
+
+## Running parts 2ÔÇô4 at the same time
+Each part has its own package, so the sessions don't edit each other's files:
+- **Part 2, Browsing:** works only in `packages/browsing`.
+- **Part 3, the cart and the menu:** creates `packages/cart`.
+- **Part 4, Checkout:** creates `packages/checkout`.
+
+The server picks up new packages by itself. Part 1 also includes two things the later parts need: the cart's saved contents (`cart-contents`) and a header that other parts can add to. So all three can start at once. Each part's plan in storytree lists exactly what it must build, plus two traps I found in Swag Labs' tests:
+- On the Cart page, Continue Shopping must come before the Remove buttons, because the test clicks the first button of that kind.
+- The order-complete page also needs the text "Your order has been dispatched". It isn't in your requirements file, but one of Swag Labs' tests checks for it.
+
+## Two things for you
+1. **Branch protection:** do you want `main` to accept only pull requests whose checks have passed? It's a GitHub setting, so I haven't turned it on without asking. Say yes and I'll do it.
+2. **Product pictures:** I left them out because the requirements don't mention them. Tell me if you want Swag Labs' images.
+
+The next session you start in this folder will finish checking storytree's setup.

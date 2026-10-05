@@ -1,0 +1,136 @@
+model: claude-opus-5-5 | mcp: storytree=connected,claude.ai Claude Docs=connected,claude.ai Google Drive=connected,claude.ai Gmail=connected,claude.ai Google Calendar=connected
+calls: 103
+  - ToolSearch
+  - Read C:\Users\mickh\shop3\shop-requirements-2.md
+  - st:check_setup {}
+  - Write C:\Users\mickh\shop3\.storytree-check
+  - PowerShell echo storytree-check
+  - ToolSearch
+  - st:check_setup {}
+  - st:search_notes {"query":"orchestrator role","limit":3}
+  - st:search_notes {"query":"librarian role","limit":3}
+  - st:show_plan {}
+  - st:open {"id":"agent_60d590ea712d"}
+  - st:open {"id":"agent_eecb4c6bc3b6"}
+  - PowerShell git fetch -q; git status -sb; git log --oneline -8 origin/main; git ls-tree -r --name-only origin/ma
+  - PowerShell git pull --ff-only -q; git log --oneline -1; Get-Content package.json, server.js, packages/*/package
+  - PowerShell Get-Content packages/checkout/src/index.js, packages/checkout/src/order-overview/order-overview-page
+  - PowerShell Get-Content packages/checkout/src/your-information/your-information-page.js, packages/checkout/src/y
+  - Grep
+  - st:name_session {"title":"Plan part two: parts 5 to 9"}
+  - st:plan_story {"title":"Accounts","description":"Anyone can sign up for their own account with a full name, username and password, and is then signed in; 
+  - st:plan_story {"title":"Orders","description":"Every finished checkout is saved on the server as a numbered order; a signed-in shopper sees their own orde
+  - st:plan_story {"title":"Admin","description":"admin_user sets each product's price and stock from /admin.html, and the shop shows the new values straight 
+  - st:plan_story {"title":"Reviews","description":"Customers who bought a product review it once with 1 to 5 stars and some text; every product shows its rev
+  - st:plan_capability {"story":"story_d263ef0f3f72","title":"Accounts store","description":"Who can sign in: Swag Labs' users from users.json, plus accounts made 
+  - st:plan_capability {"story":"story_0c07d0047754","title":"Stock and prices","description":"Each product's stock (10 to start) and its current price, kept as ch
+  - st:plan_capability {"story":"story_8a4b7fb5d36c","title":"Order store","description":"orders.json in the data folder: placeOrder(username, ids, details) prices
+  - st:plan_capability {"story":"story_e5e6b9a3823e","title":"Who is signed in","description":"GET /api/me answers {\"username\", \"name\"} for the signed-in user,
+  - st:plan_capability {"story":"story_0c07d0047754","title":"Search","description":"The [data-test=\"search\"] box on Products: filters names and descriptions as 
+  - st:plan_capability {"story":"story_d263ef0f3f72","title":"Greeting","description":"Every signed-in page's header shows [data-test=\"greeting\"] reading \"Hi, <
+  - st:plan_capability {"story":"story_e5e6b9a3823e","title":"Sign-up page","description":"A Sign up link ([data-test=\"signup-link\"]) on the sign-in page to /sig
+  - st:plan_capability {"story":"story_66f80ffaaa4d","title":"Placing the order","description":"Your Information saves the details on the server; Finish posts the 
+  - st:plan_capability {"story":"story_8a4b7fb5d36c","title":"My Orders page","description":"A My Orders link in the side menu (#orders_sidebar_link) to /orders.ht
+  - st:plan_capability {"story":"story_b393a0c5a8de","title":"Admin page","description":"/admin.html for admin_user only (anyone else goes to Products): one [data-
+  - st:plan_capability {"story":"story_0c07d0047754","title":"Product extras","description":"A hook other stories use to add a line to each .inventory_item on Prod
+  - st:plan_capability {"story":"story_8a4b7fb5d36c","title":"Order page","description":"/order.html?id=<number>: one .cart_item per product (.inventory_item_name,
+  - st:plan_capability {"story":"story_d263ef0f3f72","title":"Per-user header pieces","description":"A plugin's header piece may depend on who is signed in, and pl
+  - st:plan_capability {"story":"story_b393a0c5a8de","title":"Admin link","description":"#admin_sidebar_link to /admin.html in the side menu, for admin_user only."
+  - st:plan_capability {"story":"story_fc074cf6cbb7","title":"Review store","description":"reviews.json in the data folder: each review's product, username, stars 
+  - st:plan_capability {"story":"story_fc074cf6cbb7","title":"Reviews on the product page","description":"Under the product: [data-test=\"rating\"] (\"4.5 (2 revie
+  - st:plan_capability {"story":"story_fc074cf6cbb7","title":"Rating on Products","description":"Each .inventory_item on Products shows its [data-test=\"rating\"] 
+  - st:plan_capability {"story":"story_fc074cf6cbb7","title":"Writing a review","description":"A buyer who has not reviewed the product gets [data-test=\"review-st
+  - st:edit_plan {"id":"capability_ba052446877b","depends_on":["capability_d26f20f6bedc","capability_8778a7094191"]}
+  - st:edit_plan {"id":"capability_bc2872c14deb","depends_on":["capability_d26f20f6bedc","capability_8778a7094191"]}
+  - st:edit_plan {"id":"capability_2767eaa1bd2f","depends_on":["capability_d26f20f6bedc","capability_8778a7094191"]}
+  - st:edit_plan {"id":"capability_e427145af77d","depends_on":["capability_69e4d74be829","capability_276fa436dc33","capability_9f577bccbba7"]}
+  - st:plan_contract {"capability":"capability_6207ddb9a1aa","title":"an account made by signing up can sign in, and survives a restart","description":"createAcc
+  - st:plan_contract {"capability":"capability_6207ddb9a1aa","title":"passwords are stored hashed and never sent to the browser","description":"accounts.json hol
+  - st:plan_contract {"capability":"capability_6207ddb9a1aa","title":"admin_user signs in with secret_sauce, unlisted","description":"admin_user / secret_sauce s
+  - st:plan_contract {"capability":"capability_6207ddb9a1aa","title":"a signed-up user signs in with the sign-in page; Swag Labs' refusals still show in the same
+  - st:plan_contract {"capability":"capability_b121919c17f7","title":"every signed-in page greets the user by name","description":"[data-test=\"greeting\"] reads
+  - st:plan_contract {"capability":"capability_7ff6bc4b07f4","title":"GET /api/me answers the signed-in user, or 401","description":"Signed in: 200 application/j
+  - st:plan_contract {"capability":"capability_07d680873d0a","title":"the sign-in page links to the sign-up form","description":"[data-test=\"signup-link\"] on /
+  - st:plan_contract {"capability":"capability_07d680873d0a","title":"sign-up refusals show in order","description":"[data-test=\"error\"] reads 'Error: Name is 
+  - st:plan_contract {"capability":"capability_07d680873d0a","title":"signing up signs the new user in and goes to Products","description":"Success sets session-
+  - st:plan_contract {"capability":"capability_3c86a78517b6","title":"placing an order saves what was bought, at the prices then","description":"placeOrder('stan
+  - st:plan_contract {"capability":"capability_3c86a78517b6","title":"order numbers count up from 1001 across the shop and survive a restart","description":"The 
+  - st:plan_contract {"capability":"capability_3c86a78517b6","title":"ordersOf and orderFor give a user only their own orders","description":"ordersOf(username) 
+  - st:plan_contract {"capability":"capability_57362b4ef303","title":"Finish saves the order and the complete page shows its number","description":"With [4] in t
+  - st:plan_contract {"capability":"capability_57362b4ef303","title":"the cart empties only once the order is saved","description":"cart-contents is cleared by t
+  - st:plan_contract {"capability":"capability_57362b4ef303","title":"Finish refuses a sold-out product and keeps the cart","description":"(Part 9, second half.)
+  - st:plan_contract {"capability":"capability_0f71bd556cc4","title":"My Orders is in the side menu","description":"#orders_sidebar_link ('My Orders') in the sid
+  - st:plan_contract {"capability":"capability_0f71bd556cc4","title":"one row per order of this user, newest first","description":"Each [data-test=\"order-row\"]
+  - st:plan_contract {"capability":"capability_0f71bd556cc4","title":"no orders says so","description":"With no orders, /orders.html shows [data-test=\"no-orders
+  - st:plan_contract {"capability":"capability_dbcb9e668740","title":"shows the order's products and total","description":"/order.html?id=1001 has one .cart_item
+  - st:plan_contract {"capability":"capability_dbcb9e668740","title":"another user's or a missing order is not found","description":"An order of another user, a 
+  - st:plan_contract {"capability":"capability_773d76b91157","title":"every product starts with 10; set price and stock survive a restart","description":"With an
+  - st:plan_contract {"capability":"capability_773d76b91157","title":"the stock label reads In stock, Only n left or Sold out","description":"Each .inventory_ite
+  - st:plan_contract {"capability":"capability_773d76b91157","title":"a sold-out product's Add to cart is disabled","description":"At stock 0 the Add to cart but
+  - st:plan_contract {"capability":"capability_773d76b91157","title":"takeStock takes one of each, or nothing","description":"takeStock([4, 0]) lowers each by on
+  - st:plan_contract {"capability":"capability_773d76b91157","title":"a changed price shows everywhere straight away","description":"After setProduct(4, {price: 
+  - st:plan_contract {"capability":"capability_69e4d74be829","title":"only admin_user reaches /admin.html","description":"Signed in as anyone else /admin.html (G
+  - st:plan_contract {"capability":"capability_69e4d74be829","title":"one row per product with price and stock inputs and Save","description":"Six [data-test=\"a
+  - st:plan_contract {"capability":"capability_69e4d74be829","title":"saving shows Saved and the shop shows it at once","description":"Saving a row shows [data-t
+  - st:plan_contract {"capability":"capability_9f577bccbba7","title":"header pieces and menu links can depend on who is signed in","description":"A plugin's head
+  - st:plan_contract {"capability":"capability_e427145af77d","title":"only admin_user's menu has Admin","description":"admin_user's side menu has #admin_sidebar_
+  - st:plan_contract {"capability":"capability_03cd00002ef2","title":"typing filters names and descriptions as you type, ignoring case","description":"Typing 'BA
+  - st:plan_contract {"capability":"capability_03cd00002ef2","title":"the address keeps the search","description":"Typing updates the address to /inventory.html?
+  - st:plan_contract {"capability":"capability_03cd00002ef2","title":"no match says so, with no items in the page","description":"[data-test=\"no-results\"] read
+  - st:plan_contract {"capability":"capability_03cd00002ef2","title":"sorting works on the filtered list","description":"The sort options keep the values az, za,
+  - st:plan_contract {"capability":"capability_d26f20f6bedc","title":"registered extras appear on Products and the product page","description":"After addProductE
+  - st:plan_contract {"capability":"capability_8778a7094191","title":"only a buyer reviews, once; reviews survive a restart","description":"addReview(username, p
+  - st:plan_contract {"capability":"capability_8778a7094191","title":"rating is the average to one decimal and the count","description":"Stars 5 and 4 read '4.5 
+  - st:plan_contract {"capability":"capability_ba052446877b","title":"the product page lists its reviews newest first, with its rating","description":"Under the 
+  - st:plan_contract {"capability":"capability_bc2872c14deb","title":"each product on Products shows its rating","description":"Each .inventory_item has [data-te
+  - st:plan_contract {"capability":"capability_2767eaa1bd2f","title":"a buyer who has not reviewed gets the form, and a review needs text","description":"[data-t
+  - st:plan_contract {"capability":"capability_2767eaa1bd2f","title":"non-buyers see the locked note, reviewers the thank-you","description":"Someone who has not
+  - st:plan_arc {"title":"A proper shop","intent":"Deliver shop-requirements-2.md, parts 5 to 9 (accounts, orders, search, reviews, stock and an admin), on 
+  - st:park_increment {"arc":"arc_ae18527f63bf","title":"Part 5: Accounts","objective":"Anyone can sign up, is signed in and greeted by name, and can sign in agai
+  - st:park_increment {"arc":"arc_ae18527f63bf","title":"Part 6: Orders","objective":"Finish saves a numbered order on the server; the shopper sees their orders u
+  - st:park_increment {"arc":"arc_ae18527f63bf","title":"Part 9, first half: Stock, prices and the Admin page","objective":"Products have stock shown on Products 
+  - st:park_increment {"arc":"arc_ae18527f63bf","title":"Part 7: Search","objective":"Products has a search box that filters as you type, keeps ?q= in the address
+  - st:park_increment {"arc":"arc_ae18527f63bf","title":"Part 8: Reviews","objective":"Customers who bought a product review it once; every product shows its revi
+  - st:park_increment {"arc":"arc_ae18527f63bf","title":"Part 9, second half: Finish takes stock, and the Admin link","objective":"Finishing an order takes its pr
+  - st:set_wait {"waiter":"increment_10adaa728a5a","on":"increment_e76c6dca1a16","reason":"Both change Products (products-page.js); search goes on top of th
+  - st:set_wait {"waiter":"increment_7f6ab6c81d92","on":"increment_6f86a41904a3","reason":"Reviews show the reviewer's name from the accounts store."}
+  - st:set_wait {"waiter":"increment_7f6ab6c81d92","on":"increment_ee9f5f5c0e14","reason":"Only buyers may review: needs Orders' ordersOf."}
+  - st:set_wait {"waiter":"increment_7f6ab6c81d92","on":"increment_e76c6dca1a16","reason":"Both change Products and the product page; extras go on top of th
+  - st:set_wait {"waiter":"increment_ebd3aa397c3d","on":"increment_6f86a41904a3","reason":"The Admin link needs admin_user and Part 5's changed page shell."
+  - st:set_wait {"waiter":"increment_ebd3aa397c3d","on":"increment_ee9f5f5c0e14","reason":"Finish must save orders on the server before it can take stock."}
+  - st:set_wait {"waiter":"increment_ebd3aa397c3d","on":"increment_e76c6dca1a16","reason":"Needs takeStock and the Admin page."}
+  - st:raise_question {"arc":"arc_ae18527f63bf","title":"Can someone pretend to be another shopper with the cookie?","stakes":"Whether one shopper can see another
+  - st:raise_question {"arc":"arc_ae18527f63bf","title":"Split Part 9 so it can run beside Parts 5 and 6","stakes":"Whether parts 5, 6 and 9 can truly be built at
+  - PowerShell git status --short; Test-Path .storytree-check
+  - st:close_out {"safe":true,"why":"Planning only: no branches, no code changed, main fast-forwarded and clean, nothing running"}
+RESULT success turns 104 ms 539708 cost 2.4329590000000003 
+The plan for parts 5 to 9 is written into storytree under a new arc, **"A proper shop"**. No code was changed. I only fast-forwarded your local `main`, which was 3 merged PRs behind.
+
+## What's planned
+There are four new stories: **Accounts**, **Orders**, **Admin** and **Reviews**. Search and stock are added to the existing **Browsing** story. In total that's 16 new parts, each with tests that check your exact wording and `data-test` names. Each piece of work has a written brief for its session: what to build, in what order, and which folders it may touch.
+
+**First wave (three sessions at once)**
+- **Part 5: Accounts.** Sign-up, the "Hi, ÔÇª" greeting, `/api/me`, and `admin_user`. New accounts' passwords are stored scrambled (hashed), not as plain text.
+- **Part 6: Orders.** Finish saves the order on the server, with prices fixed at the moment of buying. Order numbers start at 1001. Also the My Orders list and the order page.
+- **Part 9, first half.** Stock, the stock labels, disabled Add to cart for sold-out products, admin-set prices showing everywhere, and the Admin page.
+
+Each session gets its own folders, so the three won't overwrite each other.
+
+**Second wave**
+- **Part 7: Search.**
+- **Part 8: Reviews.** It waits for 5, 6 and 9 because it needs names, purchases and the same product pages.
+- **Part 9, second half.** Finish takes stock and refuses sold-out items, and the Admin link appears in the menu. This could be a third session or whoever is free first.
+
+A few choices I made that you may notice:
+- Saved data goes in a `data/` folder that git ignores.
+- The checkout name and postal code are kept on the server between the two checkout steps.
+- One review shows as "(1 review)".
+- Order dates look like "Oct 5, 2026".
+- `admin_user` isn't added to the sign-in page's list of usernames.
+
+## Two questions for you before the sessions start
+1. **Should someone be able to fake another person's sign-in?** Right now the shop trusts any username put in the `session-username` cookie, because that's how Swag Labs' tests sign in. With real accounts, that would let one person see another's orders and write reviews as them. I recommend signing the cookie for new accounts only, so Swag Labs' tests still work. The catch: your own tests would need to sign up or sign in through the pages rather than setting that cookie by hand. Part 5 waits on your answer.
+2. **May I split Part 9 into two halves?** "Finish refuses sold-out items" changes the same Finish button as Part 6. The admin-only menu link needs the page header that Part 5 is changing. Built all at once, they would collide. I recommend the split; the second half waits on your answer.
+
+## Before you start the sessions
+`shop-requirements-2.md` isn't committed to `main` yet. The new sessions work in separate copies of the project (git worktrees) made from `main`, so they won't see the file. Should I add it to `main` through a small pull request first?

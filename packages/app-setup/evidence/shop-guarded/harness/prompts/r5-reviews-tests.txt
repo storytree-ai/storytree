@@ -1,0 +1,1 @@
+Thanks, reviews work well. One thing: storytree shows two of the Reviews parts as untested. "Review store" has the promise "rating is the average to one decimal and the count", and "Rating on Products" has "each product on Products shows its rating", and no test names either. Can you make sure every promise has a test that proves it?

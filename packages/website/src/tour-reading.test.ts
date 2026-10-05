@@ -42,7 +42,7 @@ test("2.14 · free play on the shop reads its story panels, its arcs and its rec
     // A picked island's story panel: the shop's stories, each capability with the health CI verified.
     const tree = await recording.reads.projectTree(reading.project);
     const stories = tree.stories.map(story => story.title);
-    for (const title of ["Browsing", "The cart", "Checkout"]) assert.ok(stories.includes(title), `${title} has a story panel`);
+    for (const title of ["Browsing", "Cart", "Checkout"]) assert.ok(stories.includes(title), `${title} has a story panel`);
     assert.ok(tree.stories.every(story => story.capabilities.every(capability => capability.health?.verified)), "each capability carries its verified health");
     // The arcs drawer: the shop's own two arcs, both closed.
     assert.deepEqual((await recording.reads.arcViews(reading.project)).map(view => [view.arc.fields.title, view.state]), [["Swag Labs copy", "closed"], ["A proper shop", "closed"]]);
@@ -83,12 +83,12 @@ test("2.17 · the agents chapter opens on the sessions strip and pins the shop's
   const together = chapter.find(item => item.id === "agents-parallel")!.recorded!;
   const then = savedReading(shopReading, { until: together });
   try {
-    const arcs = await then.reads.arcViews("shop2");
+    const arcs = await then.reads.arcViews("shop3");
     assert.deepEqual(arcs.map(view => [view.arc.fields.title, view.state]), [["Swag Labs copy", "active"]]);
     const count = (status: string) => arcs[0]!.increments.filter(increment => increment.fields.status === status).length;
     assert.deepEqual([count("closed"), count("active")], [2, 3], "part 1 and its fix closed; parts 2, 3 and 4 claimed");
   } finally { then.reading.stop(); }
-  assert.deepEqual(live("agents-parallel").sort(), ["Part 2: Browsing", "Part 3: cart page and menu", "Part 4: Checkout"]);
-  assert.deepEqual(live("agents-standdown").sort(), ["1706a9dd-208b-4d97-bea5-6d77beef73ad", "Part 7: Search", "Part 8: Reviews"].sort(),
+  assert.deepEqual(live("agents-parallel").sort(), ["Part 2: product page, sorting, cart", "Part 3: cart page and side menu", "Part 4: Checkout"]);
+  assert.deepEqual(live("agents-standdown").sort(), ["326ef02d-5230-4c5c-b67f-fc7424373027", "Part 7: Search", "Part 8: Reviews"].sort(),
     "part 7 and part 8 are held, and the session sent to part 7 has started and not yet stood down");
 });

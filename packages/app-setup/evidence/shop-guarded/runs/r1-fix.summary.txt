@@ -1,0 +1,67 @@
+model: claude-opus-5-5 | mcp: storytree=connected,claude.ai Claude Docs=connected,claude.ai Google Drive=connected,claude.ai Gmail=connected,claude.ai Google Calendar=connected
+calls: 44
+  - ToolSearch
+  - st:settle_question {"question":"question_d08a56e618df","answer":"Option 3, thanks: keep it private and free, and every session merges only after both checks pa
+  - PowerShell npm start
+  - PowerShell Start-Sleep 2; Set-Location "$env:TEMP\swag\sample-app-web\test\e2e"; 1..5 | ForEach-Object { $out =
+  - PowerShell $f="$env:TEMP\swag\sample-app-web\test\e2e\test\specs\login.spec.ts"; $i=0; Get-Content $f | ForEach
+  - st:park_increment {"arc":"arc_0ed6b538c0eb","title":"Fix: sign-in errors show without a page load","objective":"Swag Labs' locked-user test passes every time:
+  - st:claim {"increment":"increment_2bc23f150c32","reason":"Fix flaky locked-user sign-in test"}
+  - st:claim {"capability":"capability_ff897f5c13aa","reason":"Show sign-in errors in the same click"}
+  - st:name_session {"title":"Fix flaky locked-user sign-in test"}
+  - PowerShell git checkout -q -b fix-sign-in-error-race; git branch --show-current
+  - TaskStop
+  - Write C:\Users\mickh\AppData\Local\Temp\swag\slow-shop.mjs
+  - PowerShell node "$env:TEMP\swag\slow-shop.mjs" "C:\Users\mickh\shop3"
+  - PowerShell Start-Sleep 2; Set-Location "$env:TEMP\swag\sample-app-web\test\e2e"; 1..3 | ForEach-Object { $out =
+  - st:plan_contract {"capability":"capability_ff897f5c13aa","title":"a refusal shows in the same click, without leaving the page","description":"With the page's
+  - Write C:\Users\mickh\shop3\packages\signing-in\test\sign-in-form.test.js
+  - PowerShell node --test packages/signing-in/test/sign-in-form.test.js 2>&1 | Select-String "^not ok|^ok|# pass|#
+  - st:report {"contract":"contract_90ba7bb8e5e5","result":"red","note":"sign-in-form.js and sign-in-check.js do not exist; refusals currently need a POST
+  - Write C:\Users\mickh\shop3\packages\signing-in\src\sign-in-page\sign-in-check.js
+  - Write C:\Users\mickh\shop3\packages\signing-in\src\sign-in-page\sign-in-form.js
+  - Edit C:\Users\mickh\shop3\packages\signing-in\src\session\users.js
+  - Edit C:\Users\mickh\shop3\packages\signing-in\src\sign-in-page\sign-in-page.js
+  - Edit C:\Users\mickh\shop3\packages\signing-in\src\sign-in-page\sign-in-page.js
+  - Edit C:\Users\mickh\shop3\packages\signing-in\src\sign-in-page\sign-in-page.js
+  - Edit C:\Users\mickh\shop3\packages\signing-in\src\index.js
+  - Grep
+  - PowerShell npm test 2>&1 | Select-String "^not ok|# pass|# fail|actual|expected"
+  - TaskStop
+  - PowerShell node "$env:TEMP\swag\slow-shop.mjs" "C:\Users\mickh\shop3"
+  - Edit C:\Users\mickh\AppData\Local\Temp\swag\slow-shop.mjs
+  - TaskStop
+  - PowerShell node "$env:TEMP\swag\slow-shop.mjs" "C:\Users\mickh\shop3"
+  - PowerShell Start-Sleep 2; Set-Location "$env:TEMP\swag\sample-app-web\test\e2e"; 1..5 | ForEach-Object { $out =
+  - TaskStop
+  - st:report {"contract":"contract_90ba7bb8e5e5","result":"green","note":"Also checked in Edge with Swag Labs' login.spec against a server delaying POSTs
+  - st:land {"capability":"capability_ff897f5c13aa"}
+  - PowerShell git add -A; git commit -q -m @' Sign-in: show refusals in the same click, as Swag Labs does Swag La
+  - Write C:\Users\mickh\AppData\Local\Temp\swag\pr2-body.md
+  - PowerShell gh pr create --base main --head fix-sign-in-error-race --title "Sign-in: show refusals in the same c
+  - PowerShell gh pr checks 2 --watch --interval 15 | Select-Object -Last 3; "exit: $LASTEXITCODE"
+  - PowerShell gh pr merge 2 --squash --delete-branch; git checkout -q main; git pull -q; git fetch --prune -q; git
+  - st:close_increment {"increment":"increment_2bc23f150c32","disposition":"landed","pr":"#2"}
+  - st:write_note {"kind":"decision","title":"Sign-in refusals are drawn in the browser, in the same click","text":"Swag Labs' login.spec checks isErrorMessag
+  - st:close_out {"safe":true,"why":"PR #2 merged after both checks passed, main clean, test servers stopped"}
+RESULT success turns 45 ms 509882 cost 6.088955400000001 
+I've fixed the locked-user test, and the fix is merged (pull request #2, after both checks passed). Parts 2ÔÇô4 can start now.
+
+**What was wrong:** line 27 checks for the error message straight after clicking Login, without waiting. On saucedemo.com the error appears within that same click. On our shop, a refused sign-in went to the server and reloaded the page to show the error. If the test looked before the reload finished, it saw the old page with no error and failed. That's why it failed only some of the time.
+
+**The fix:** the sign-in page now checks the details in the browser as you click. A refused sign-in shows its error straight away and never leaves the page, as on saucedemo. A correct sign-in still goes to the server, which checks it again with the same rules and signs you in.
+
+**How I checked it:**
+- I couldn't make the old version fail here: Edge passed it every time, even with the server slowed down on purpose. So I haven't watched the failure go away. What I can show is that the gap it fell into no longer exists.
+- With the fix, Swag Labs' sign-in tests passed 5 of 5 in Edge against a server deliberately slowed by 0.4 seconds per sign-in. The server log showed the locked user never reached the server at all.
+- All 17 of my own tests pass, including a new one for this.
+
+It would be worth running your 5 Chrome runs again to confirm on your setup.
+
+**For the parallel sessions:** I've noted this trap in storytree. Wherever a Swag Labs test checks the page straight after a click, the change has to happen within that click, with no page reload. That affects the cart badge after Reset App State and the checkout error messages.
+
+**Also recorded:**
+- Option 3 for branch protection: shop3 stays private and free, and every session merges only after both checks pass. I've followed that for pull request #2.
+- No product pictures.
+
+To try it: `npm start`, then open http://localhost:3000.

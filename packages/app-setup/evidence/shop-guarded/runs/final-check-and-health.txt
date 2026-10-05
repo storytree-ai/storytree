@@ -1,0 +1,9 @@
+ac31e61 Reviews: tests that prove promises 1.2 and 3.1 (#13)
+storytree 0.3.689 (8b5a540)
+The package rule: kept (one package per story, roads one way).
+The allocation rule: kept (every source file is reached by a numbered test).
+storytree check passed.
+Read 79 test results from https://github.com/HuaMick/shop3/actions/runs/37262997938 (commit ac31e6125f82): 76 contracts verified passing, 0 failing, 0 not checked by a skip.
+
+next:
+  - storytree tree   (see each contract's verified health beside the agent's report)

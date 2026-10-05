@@ -1,0 +1,31 @@
+model: claude-opus-5-5 | mcp: storytree=connected,claude.ai Claude Docs=connected,claude.ai Google Drive=connected,claude.ai Gmail=connected,claude.ai Google Calendar=connected
+calls: 11
+  - ToolSearch
+  - st:settle_question {"question":"question_3e4658dfe9f0","answer":"Leave the cookie as it is: it's a test shop, so trusting it is fine."}
+  - st:settle_question {"question":"question_eb2c2290fe32","answer":"Yes, split part 9 into two halves."}
+  - st:write_note {"kind":"decision","title":"Signed-up accounts use the bare session-username cookie too","text":"The owner chose to keep trusting the sessio
+  - PowerShell git fetch -q; git status -sb; gh --version | Select-Object -First 1; gh pr list --state merged --lim
+  - st:write_note {"kind":"decision","title":"Signed-up accounts use the bare session-username cookie too","text":"The owner chose to keep trusting the sessio
+  - PowerShell git switch -c add-requirements-2; if ($?) { git add shop-requirements-2.md; git commit -q -m "Add sh
+  - PowerShell gh pr create --base main --head add-requirements-2 --title "Add shop-requirements-2.md: parts 5 to 9
+  - PowerShell gh pr checks 6 --watch --interval 15
+  - PowerShell gh pr merge 6 --squash --delete-branch; git switch -q main; git pull -q --ff-only; git log --oneline
+  - st:close_out {"safe":true,"why":"PR #6 merged after both checks passed; branch deleted; main up to date and clean; nothing running"}
+RESULT success turns 12 ms 141785 cost 2.781390400000001 
+All three are done. `shop-requirements-2.md` is now on `main`, so the sessions can start.
+
+1. **Cookie:** it stays exactly as Swag Labs has it, for new accounts and `admin_user` too. I wrote your answer into the plan so the Part 5 session doesn't add anything for it.
+2. **Part 9:** it's split into two halves.
+3. **Requirements file:** I added it in [PR #6](https://github.com/HuaMick/shop3/pull/6). Both checks passed and it's merged into `main`, and your local copy is up to date.
+
+**First wave, three sessions:**
+- Part 5: Accounts
+- Part 6: Orders
+- Part 9, first half: stock, prices and the Admin page
+
+**After those land:**
+- Part 7: Search
+- Part 8: Reviews
+- Part 9, second half: Finish takes stock, and the Admin link in the menu. This can run as a third session, or be done by whichever first-wave session finishes first.
+
+Each session will find its brief in the plan under the matching part name.

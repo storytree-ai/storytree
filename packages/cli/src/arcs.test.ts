@@ -59,6 +59,30 @@ test("4.5 `arc list` reads every arc in one ask, however many arcs the project h
   });
 });
 
+test("4.8 `arc show` reads the arc's view once and every hold in one ask, however many open increments the arc has: never a hold read per increment", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const arc = await anArc(world);
+    const first = await library.addIncrement({ arc, title: "Schema", objective: "Tables", body: "…" });
+    for (const title of ["Form", "Email", "Thanks page"]) {
+      const next = await library.addIncrement({ arc, title, objective: title, body: "…" });
+      await library.addWait(next.id, first.id, "needs the tables");
+    }
+    const asked = { arcView: 0, holds: 0, waitHolds: 0, heldOnQuestion: 0 };
+    const counted = new Proxy(library, {
+      get(target, key) {
+        if (typeof key === "string" && key in asked) asked[key as keyof typeof asked]++;
+        const value = Reflect.get(target, key) as unknown;
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+    const show = arcs.verbs.find((verb) => verb.name === "show")!;
+    const answer = await show.act(parseArgs([arc], [], world.folder), { library: async () => counted } as unknown as Context);
+    assert.equal(answer.text.split("\n").filter((line) => line.includes(`waits on ${first.id}: needs the tables`)).length, 3, answer.text);
+    assert.deepEqual(asked, { arcView: 1, holds: 1, waitHolds: 0, heldOnQuestion: 0 });
+  });
+});
+
 /** An arc written straight into the library, for a test that is about something else. */
 async function anArc(world: World): Promise<string> {
   const arc = await (await world.library()).createArc({ title: "Launch v1", intent: "Ship sign-up", endState: "Visitors sign up" });

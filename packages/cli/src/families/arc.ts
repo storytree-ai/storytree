@@ -12,7 +12,7 @@
  * close or re-open of an arc (the owner's R1). `arc list` reads list(kind), then each arc's view.
  */
 import { closed } from "@storytree/agent-link";
-import type { ArcView, Library } from "@storytree/library";
+import type { ArcView, Holds } from "@storytree/library";
 
 import { labelOf, Refusal, type Answer } from "../answer.js";
 import { commaSeparatedIds, type Args } from "../args.js";
@@ -45,13 +45,13 @@ function closeOf(args: Args): { disposition: never; pr?: string; note?: string; 
   return given(args, ["disposition", "pr", "note", "date"]) as never;
 }
 
-/** Why an open increment cannot start yet: the blockers holding it, and the owner's questions it is held on. */
-async function holdsOn(library: Library, id: string): Promise<string[]> {
+/** Why an open increment cannot start yet, from one reading of every hold: the blockers holding it, and the owner's questions it is held on. */
+function holdsOn(holds: Holds, id: string): string[] {
   const lines: string[] = [];
-  for (const hold of await library.waitHolds(id)) {
+  for (const hold of holds.waits[id] ?? []) {
     lines.push(`waits on ${hold.on}: ${hold.reason}${hold.forGood ? " (never releases: the blocker did not land, or is gone)" : ""}`);
   }
-  for (const question of await library.heldOnQuestion(id)) lines.push(`waiting on you: question ${question}`);
+  for (const question of holds.heldOn[id] ?? []) lines.push(`waiting on you: question ${question}`);
   return lines;
 }
 
@@ -62,18 +62,19 @@ const show: Verb = {
   async act(args, context) {
     const id = args.word(0, "the arc's id", this.usage);
     const library = await context.library();
-    const view = await library.arcView(id);
+    // Every hold in one ask, never one per increment: each ask reads all the project's work (4.8).
+    const [view, holds] = await Promise.all([library.arcView(id), library.holds()]);
     if (view === null) throw new Refusal(`no arc "${id}" in this project`);
     const { arc, state, increments, questions } = view;
     const lines = [`${arc.fields.title}  [${arc.id}]  ${stateOf(view)}`, "", `Intent: ${arc.fields.intent}`, `End state: ${arc.fields.endState}`];
-    for (const line of await holdsOn(library, arc.id)) lines.push(`This arc ${line}`);
+    for (const line of holdsOn(holds, arc.id)) lines.push(`This arc ${line}`);
     const open = increments.filter((increment) => increment.fields.status !== "closed");
     const closed = increments.filter((increment) => increment.fields.status === "closed");
     lines.push("", `Work (${open.length} open)`);
     if (open.length === 0) lines.push("  (none)");
     for (const increment of open) {
       lines.push(`  - ${increment.id}  [${increment.fields.status}]  ${increment.fields.title}`);
-      for (const line of await holdsOn(library, increment.id)) lines.push(`      ${line}`);
+      for (const line of holdsOn(holds, increment.id)) lines.push(`      ${line}`);
     }
     const waiting = questions.filter((question) => question.fields.lifecycle === "open");
     // A parked arc's questions are parked with it until it is unparked (ADR-0835 D2).

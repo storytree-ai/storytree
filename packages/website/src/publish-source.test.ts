@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { publicationBase, publicationSource, websiteChanged } from "./publish-source.js";
 
@@ -33,6 +36,60 @@ test("4.3 · website build inputs trigger publishing; unrelated merges do not", 
   assert.equal(websiteChanged(["packages/app/src/view.ts", "stories/forest.md", "AGENTS.md"]), false);
   assert.equal(websiteChanged([]), false);
   assert.equal(websiteChanged(["packages/website-other/src/page.ts"]), false);
+});
+
+// The live site skipped these merges even though it bundles both packages.
+test("4.3 · the forest changes from PR #646 publish the website", () => {
+  for (const file of [
+    "packages/forest/src/view/island-overlays.tsx",
+    "packages/forest/src/view/nameplates.ts",
+    "packages/forest/src/view/planet-view.tsx",
+    "packages/forest/src/view/styles.css",
+  ]) assert.equal(websiteChanged([file]), true, file);
+});
+
+test("4.3 · the knowledge-core changes from PR #667 publish the website", () => {
+  for (const file of [
+    "packages/knowledge-core/src/look-inside/look-inside.ts",
+    "packages/knowledge-core/src/reads/reads.ts",
+    "packages/knowledge-core/src/view/globe-points.tsx",
+    "packages/knowledge-core/src/view/surface.tsx",
+  ]) assert.equal(websiteChanged([file]), true, file);
+});
+
+test("4.3 · publishing follows package manifests transitively, including cycles, without including unrelated packages", t => {
+  const root = mkdtempSync(join(tmpdir(), "website-inputs-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const manifest = (directory: string, contents: object) => {
+    const file = join(root, directory, "package.json");
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, JSON.stringify(contents));
+  };
+  manifest("packages/website", {
+    name: "@storytree/website", dependencies: { "@example/view": "workspace:*", react: "^19" },
+    devDependencies: { "@example/build": "workspace:*" },
+  });
+  // Package names need not match their directories; the graph comes from the manifests.
+  manifest("packages/drawing", {
+    name: "@example/view", dependencies: { "@example/data": "workspace:*" },
+  });
+  manifest("apps/data", {
+    name: "@example/data", dependencies: { "@example/view": "workspace:*" },
+    optionalDependencies: { "@example/optional": "workspace:*" },
+    peerDependencies: { "@example/peer": "workspace:*" },
+  });
+  for (const name of ["build", "optional", "peer", "unrelated"])
+    manifest(`packages/${name}`, { name: `@example/${name}` });
+
+  for (const directory of ["packages/website", "packages/drawing", "apps/data", "packages/build", "packages/optional", "packages/peer"]) {
+    assert.equal(websiteChanged([`${directory}/src/index.ts`], root), true, directory);
+    assert.equal(websiteChanged([`${directory}/package.json`], root), true, directory);
+  }
+  for (const file of ["packages/unrelated/src/index.ts", "packages/drawing-other/src/index.ts", "packages/forest-world/src/scene.ts"])
+    assert.equal(websiteChanged([file], root), false, file);
+
+  manifest("packages/drawing", { name: "@example/view" });
+  assert.equal(websiteChanged(["apps/data/src/index.ts"], root), false, "removing a dependency changes the publication scope");
 });
 
 test("4.3 · a merge is compared with the commit the live site carries, so a website merge whose own run was cancelled still publishes", () => {

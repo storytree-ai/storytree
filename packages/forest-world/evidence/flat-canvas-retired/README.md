@@ -37,7 +37,7 @@ JSON-identical, before the old path was deleted.
 | | Before | After |
 |---|---|---|
 | forest-world source files (non-test) | 84 | 34 |
-| forest-world source lines (non-test) | 29,384 | 7,817 |
+| forest-world source lines (non-test) | 29,384 | 7,845 |
 | Desktop renderer bundle (`apps/desktop` build) | 4,985,164 bytes | 4,892,835 bytes |
 | Website assets | 8,277,116 bytes | 8,235,983 bytes |
 

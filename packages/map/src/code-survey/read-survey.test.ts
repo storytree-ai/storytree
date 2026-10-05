@@ -31,18 +31,57 @@ test("8.1 a numbered test reaches its own package's public subpath through packa
   }
 });
 
-test("8.13 a numbered test outside the package's src reaches its source, and only test files are read there", async () => {
+test("8.13 a numbered test outside src reaches source through its helpers without reading unrelated scripts", async () => {
   const folder = await mkdtemp(path.join(tmpdir(), "code-survey-tests-"));
   try {
     const root = path.join(folder, "packages", "shop");
     await mkdir(path.join(root, "src"), { recursive: true });
     await mkdir(path.join(root, "test"), { recursive: true });
     await writeFile(path.join(root, "src/claim.js"), "export const claim = () => 1;\n");
-    await writeFile(path.join(root, "test/fake-dom.js"), "export const dom = {};\n");
-    await writeFile(path.join(root, "test/claim.test.js"), 'import { claim } from "../src/claim.js";\nimport { dom } from "./fake-dom.js";\ntest("3.1 a claim holds", () => claim(dom));\n');
-    const survey = await codeSurveyReader().read(folder, tree);
+    await writeFile(path.join(root, "test/fake-dom.ts"), 'export { claim } from "../src/claim.js";\n');
+    await writeFile(path.join(root, "test/claim.test.js"), 'import { claim } from "./fake-dom.js";\ntest("3.1 a claim holds", () => claim());\n');
+    await writeFile(path.join(root, "release.js"), 'throw new Error("unrelated script");\n');
+    const read: string[] = [];
+    const survey = await codeSurveyReader({ readFile: file => (read.push(file), readFile(file, "utf8")) }).read(folder, tree);
     assert.deepEqual(survey["story-shop"]?.files, [{ path: "src/claim.js", lines: 1, capability: "cap-claims" }]);
-    assert.deepEqual(survey["story-shop"]?.tests?.map(file => file.path), ["test/claim.test.js"]);
+    assert.deepEqual(survey["story-shop"]?.tests?.map(file => file.path), ["test/claim.test.js", "test/fake-dom.ts"]);
+    assert.equal(read.includes(path.join(root, "release.js")), false);
+  } finally {
+    await rm(folder, { recursive: true, force: true });
+  }
+});
+
+test("8.13 8.5 CommonJS helper chains stay within the package and refresh when a helper changes or disappears", async () => {
+  const folder = await mkdtemp(path.join(tmpdir(), "code-survey-helpers-"));
+  try {
+    const root = path.join(folder, "packages/shop");
+    for (const dir of ["src", "test", "helpers", "node_modules/hidden", "../other"]) {
+      await mkdir(path.join(root, dir), { recursive: true });
+    }
+    await writeFile(path.join(root, "package.json"), JSON.stringify({ name: "@x/shop", exports: { "./helper": "./helpers/index.js" } }));
+    await writeFile(path.join(root, "src/claim.js"), "module.exports = () => 1;\n");
+    await writeFile(path.join(root, "test/claim.test.cjs"), 'const claim = require("./page-helpers.cjs");\ntest("3.1 a claim holds", () => claim());\n');
+    await writeFile(path.join(root, "test/page-helpers.cjs"), 'module.exports = require("@x/shop/helper");\nrequire("../../other/helper.js");\nrequire("../node_modules/hidden/index.js");\n');
+    const helper = path.join(root, "helpers/index.js");
+    await writeFile(helper, 'require("../test/page-helpers.cjs");\nmodule.exports = require("../src/claim.js");\n');
+    await writeFile(path.join(root, "../other/helper.js"), 'require("../shop/src/claim.js");\n');
+    await writeFile(path.join(root, "node_modules/hidden/index.js"), 'require("../../src/claim.js");\n');
+    const read: string[] = [];
+    const reader = codeSurveyReader({ readFile: file => (read.push(file), readFile(file, "utf8")) });
+    const first = await reader.read(folder, tree);
+    assert.deepEqual(first["story-shop"]?.files, [{ path: "src/claim.js", lines: 1, capability: "cap-claims" }]);
+    assert.deepEqual(first["story-shop"]?.tests?.map(file => file.path), ["test/claim.test.cjs", "test/page-helpers.cjs", "helpers/index.js"]);
+    assert.equal(read.some(file => file.includes(`${path.sep}other${path.sep}`) || file.includes(`${path.sep}node_modules${path.sep}`)), false);
+    read.length = 0;
+    assert.equal((await reader.read(folder, tree))["story-shop"], first["story-shop"]);
+    assert.deepEqual(read, []);
+    await writeFile(helper, "module.exports = () => 2;\n");
+    const changed = await reader.read(folder, tree);
+    assert.deepEqual(read, [helper]);
+    assert.deepEqual(changed["story-shop"]?.files, [{ path: "src/claim.js", lines: 1 }]);
+    await rm(helper);
+    const removed = await reader.read(folder, tree);
+    assert.deepEqual(removed["story-shop"]?.tests?.map(file => file.path), ["test/claim.test.cjs", "test/page-helpers.cjs"]);
   } finally {
     await rm(folder, { recursive: true, force: true });
   }

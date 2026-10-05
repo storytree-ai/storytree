@@ -9,7 +9,7 @@ import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 import { SessionRing } from "./ring.js";
-import { arcKey, arrived, IN_VIEW, fillAt, stepPoint, growthPlan, heldNotes, ringArcs, noteTitle, replayAt, type Lighting, type Point, type ReplayMoment, type Trail, type WindowView } from "../look-inside/look-inside.js";
+import { arcKey, arrived, DOT_FLOOR, IN_VIEW, fillAt, stepPoint, growthPlan, heldNotes, ringArcs, noteTitle, replayAt, type Lighting, type Point, type ReplayMoment, type Trail, type WindowView } from "../look-inside/look-inside.js";
 
 const noRaycast = () => {};
 
@@ -32,8 +32,10 @@ const trailKey = (trail: Trail) => `${trail.colour} ${trail.from} ${trail.to}`;
 export interface CoreGrowth { now(): number; moment(date: string): number }
 
 /** Mesh raycasts stay disabled: the globe picks these small dots in screen space. */
-export function GlobePoints({ points, radius, notes, lit = new Map(), trails = [], window, replay = false, stops, growth: grows }: {
+export function GlobePoints({ points, radius, notes, sizes, lit = new Map(), trails = [], window, replay = false, stops, growth: grows }: {
   points: readonly GlobePoint[]; radius: number; notes: ReadonlyMap<string, RecordEnvelope>;
+  /** Each note's dot radius, as a fraction of the globe's, from how widely it is read (ADR-0926); the floor for one not given. */
+  sizes?: ReadonlyMap<string, number> | undefined;
   /** Notes the selected session read, each in the colour of the agent that read it (ADR-0738 D5). */
   lit?: ReadonlyMap<string, Lighting>;
   /** The selected session's reading path, one curve per step, from the earlier read to the later (ADR-0740). */
@@ -140,21 +142,22 @@ export function GlobePoints({ points, radius, notes, lit = new Map(), trails = [
       // An open read wears its reader's colour, or the session's; a compacted one is lighter; a glimpse is the session's, faint (ADR-0756).
       const colour = state === "faded" ? lighter(window!.colour) : lighting?.colour ?? (state === null ? "#a5c5d1" : window!.colour);
       const opacity = state === "glimpsed" && lighting === undefined ? 0.4 : state === "faded" ? 0.8 : lighting !== undefined || state === "in-window" ? 1 : lit.size > 0 ? 0.3 : 0.52;
-      const size = (lighting !== undefined && state !== "faded") || state === "in-window" ? 0.009 : state === "faded" ? 0.0075 : 0.006;
+      // A dot's size is its note's reach alone: a session's read shows in colour, brightness and rings, never in size (ADR-0926 D3).
+      const size = sizes?.get(point.id) ?? DOT_FLOOR;
       return <mesh key={point.id} name={`knowledge-point:${point.id}`}
       position={[point.at.x, point.at.y, point.at.z]} raycast={noRaycast}
-      userData={{ id: point.id, title: notes.has(point.id) ? noteTitle(notes.get(point.id)!) : point.id, depth: point.depth ?? null, home: point.home ?? null,
+      userData={{ id: point.id, size, title: notes.has(point.id) ? noteTitle(notes.get(point.id)!) : point.id, depth: point.depth ?? null, home: point.home ?? null,
         lit: lighting?.colour ?? null, arcs: lighting !== undefined ? ringArcs(lighting) : [], window: state, colour, opacity }}>
       <sphereGeometry args={[radius * size, 12, 8]} />
       <meshBasicMaterial color={colour} transparent opacity={opacity} depthWrite={false} />
       {state === "in-window" && <Billboard name={`knowledge-window:${point.id}`}>
         <mesh raycast={noRaycast}>
-          <torusGeometry args={[radius * 0.015, radius * 0.0022, 8, 28]} />
+          <torusGeometry args={[radius * Math.max(0.015, size + 0.006), radius * 0.0022, 8, 28]} />
           <meshBasicMaterial color={IN_VIEW} transparent opacity={0.9} depthWrite={false} />
         </mesh>
       </Billboard>}
       {lighting !== undefined && ringArcs(lighting).length > 0 && <SessionRing name={`knowledge-arcs:${point.id}`}
-        arcs={ringArcs(lighting)} radius={radius * 0.0125} tube={radius * 0.0016} />}
+        arcs={ringArcs(lighting)} radius={radius * Math.max(0.0125, size + 0.0035)} tube={radius * 0.0016} />}
     </mesh>;
     })}
   </group>;

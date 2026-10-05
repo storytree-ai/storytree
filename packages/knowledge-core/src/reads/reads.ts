@@ -4,6 +4,11 @@ import type { Line } from "@storytree/agent-link";
 /** What the picture says when the log holds no reads: never that the knowledge went unused. */
 export const NO_RECORDED_READS = "no recorded reads";
 
+/** How far back a note's reach looks (ADR-0926 D1). */
+export const REACH_DAYS = 90;
+/** What a session's strongest read of a note weighs in its reach: a peek counts for less than a whole read. */
+const WEIGHT = { whole: 1, peek: 0.3 } as const;
+
 /** One read that lights its note. */
 export interface Lit {
   note: string;
@@ -88,6 +93,22 @@ export class ReadRecord {
   /** How many distinct sessions peeked at or read the note. */
   visits(note: string): number {
     return new Set(this.#reads.filter((read) => read.note === note).map(({ session }) => session)).size;
+  }
+
+  /**
+   * Each read note's reach (ADR-0926 D1): the distinct sessions that read it in the REACH_DAYS before
+   * `now`, each counted once at the weight of its strongest read (a whole read 1, a peek 0.3).
+   */
+  reach(now: number): Map<string, number> {
+    const since = now - REACH_DAYS * 86_400_000;
+    const strongest = new Map<string, Map<string, number>>();
+    for (const { note, session, read, at } of this.#reads) {
+      const when = Date.parse(at);
+      if (!(when >= since && when <= now)) continue;
+      const sessions = strongest.get(note) ?? strongest.set(note, new Map()).get(note)!;
+      sessions.set(session, Math.max(sessions.get(session) ?? 0, WEIGHT[read]));
+    }
+    return new Map([...strongest].map(([note, sessions]) => [note, [...sessions.values()].reduce((a, b) => a + b, 0)]));
   }
 
   totals(note: string): { peeks: number; wholes: number } {

@@ -12,9 +12,11 @@
  * tables are current does neither, so an account let only read or write some rows (CI's health
  * account, ADR-0747) opens it too; one whose tables are behind is refused saying who may.
  */
+import path from "node:path";
 import type { Pool, PoolClient } from "pg";
 
 import { HealthRecord } from "../health/health-record.js";
+import { modelsFolder } from "../knowledge/bge-small.js";
 import type { EmbedderSource } from "../knowledge/embedding.js";
 import { Knowledge } from "../knowledge/knowledge.js";
 import { SchemaRecords } from "../schema/records.js";
@@ -152,24 +154,32 @@ export async function connect(options: ConnectOptions, seams: ProjectSeams = {})
   if ([options.url, options.cloudSql, options.address].filter((given) => given !== undefined).length > 1) {
     throw new ConnectionError("config", "Give connect() one of a url, a cloudSql instance or an address, not more.");
   }
-  if (options.address !== undefined) return new ServerConnection(addressServer(options.address, options.connectTimeoutMs), seams.embedder);
-  if (options.cloudSql === undefined) return new ServerConnection(localServer(new URL(options.url), options.connectTimeoutMs), seams.embedder);
-  return new ServerConnection(await cloudSqlServer(options.cloudSql, seams), seams.embedder);
+  if (options.address !== undefined) return new ServerConnection(addressServer(options.address, options.connectTimeoutMs), seams);
+  if (options.cloudSql === undefined) return new ServerConnection(localServer(new URL(options.url), options.connectTimeoutMs), seams);
+  return new ServerConnection(await cloudSqlServer(options.cloudSql, seams), seams);
 }
 
 /** What tests may hand connect() in place of the real thing: the Cloud SQL connector, and the embedder. */
-export type ProjectSeams = CloudSqlSeams & { readonly embedder?: EmbedderSource };
+export type ProjectSeams = CloudSqlSeams & {
+  readonly embedder?: EmbedderSource;
+  /** Local SQLite file; null disables it. Custom embedders default to no disk cache. */
+  readonly vectorCache?: string | null;
+};
 
 class ServerConnection implements Storytree {
   readonly #server: ServerAccess;
   readonly #projects = new Set<ProjectLibrary>();
   readonly #own = new Map<string, Promise<Pool>>();
   readonly #embedder: EmbedderSource | undefined;
+  readonly #vectorCache: string | null;
   #closed = false;
 
-  constructor(server: ServerAccess, embedder?: EmbedderSource) {
+  constructor(server: ServerAccess, seams: ProjectSeams) {
     this.#server = server;
-    this.#embedder = embedder;
+    this.#embedder = seams.embedder;
+    this.#vectorCache = seams.vectorCache === undefined
+      ? (seams.embedder === undefined ? path.join(modelsFolder(), "vectors.sqlite") : null)
+      : seams.vectorCache;
   }
 
   async openProject(name: string, options: OpenOptions = {}): Promise<Project> {
@@ -186,7 +196,7 @@ class ServerConnection implements Storytree {
         await pool.end();
         throw error;
       }
-      const project = new ProjectLibrary(name, identity, pool, () => this.#projects.delete(project), this.#embedder);
+      const project = new ProjectLibrary(name, identity, pool, () => this.#projects.delete(project), this.#vectorCache, this.#embedder);
       this.#projects.add(project);
       return project;
     } catch (error) {
@@ -365,7 +375,7 @@ class ProjectLibrary implements Project {
   readonly #forget: () => void;
   #closing: Promise<void> | undefined;
 
-  constructor(name: string, identity: string, pool: Pool, forget: () => void, embedder?: EmbedderSource) {
+  constructor(name: string, identity: string, pool: Pool, forget: () => void, vectorCache: string | null, embedder?: EmbedderSource) {
     this.name = name;
     this.identity = identity;
     this.pool = pool;
@@ -373,7 +383,7 @@ class ProjectLibrary implements Project {
     this.records = new SchemaRecords(this.transactions);
     this.work = new WorkModel(this.records);
     this.flight = new WorkInFlight(this.records);
-    this.knowledge = new Knowledge(this.records, name, { vectors: new PgVectors(pool), ...(embedder === undefined ? {} : { embedder }) });
+    this.knowledge = new Knowledge(this.records, name, { vectors: new PgVectors(pool, vectorCache), ...(embedder === undefined ? {} : { embedder }) });
     this.health = new HealthRecord(this.records, this.work);
     this.#forget = forget;
   }

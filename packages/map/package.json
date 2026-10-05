@@ -11,10 +11,10 @@
     "typecheck": "tsc -p ."
   },
   "dependencies": {
-    "@babel/parser": "^7.29.9",
-    "@storytree/library": "workspace:*"
+    "@babel/parser": "^7.29.9"
   },
   "devDependencies": {
+    "@storytree/library": "workspace:*",
     "@types/node": "^24.13.6",
     "tsx": "^4.23.15",
     "typescript": "~7.0.2"

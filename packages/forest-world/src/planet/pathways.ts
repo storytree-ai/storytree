@@ -330,12 +330,19 @@ export function buildPlanetPathways(scene: ForestScene, spots: ReadonlyMap<strin
 export function planetPathwayDrawing(scene: ForestScene, spots: ReadonlyMap<string, PlanetSpot>, radius: number): {
   plan: PlanetPathways; issue: string | undefined;
 } {
+  // A link naming a capability on no island (one depending on a retired capability, say) is left out on its own,
+  // rather than costing every road; the notice names it.
+  const drawn = new Set(scene.islands.flatMap(island => island.trees.flatMap(tree => tree.capability === undefined ? [] : [tree.capability])));
+  const links = scene.links ?? [];
+  const kept = links.filter(link => drawn.has(link.from) && drawn.has(link.to));
+  const left = links.filter(link => !kept.includes(link)).map(link => `${link.from}->${link.to}`);
+  const leftOut = left.length === 0 ? undefined : `Left out ${left.length === 1 ? 'a link' : `${left.length} links`} naming a capability on no island: ${left.join(', ')}`;
   try {
-    return { plan: buildPlanetPathways(scene, spots, radius), issue: undefined };
+    return { plan: buildPlanetPathways({ ...scene, links: kept }, spots, radius), issue: leftOut };
   } catch (error) {
     return {
       plan: buildPlanetPathways({ ...scene, links: [] }, spots, radius),
-      issue: error instanceof Error ? error.message : String(error),
+      issue: [error instanceof Error ? error.message : String(error), leftOut].filter(Boolean).join('; '),
     };
   }
 }

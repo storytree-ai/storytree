@@ -23,7 +23,6 @@ test("3.29 unsurveyed island progress follows recorded landings, independently o
     const stages = [[], [line("claimed", "write", 1)], [line("landed", "write", 2)], [line("landed", "write", 2), line("landed", "publish", 3)]];
     for (const [index, activity] of stages.entries()) {
       const island = forestScene(tree, [], workStates(activity)).islands[0]!;
-      assert.equal(island.land, undefined);
       assert.deepEqual(islandProgress(island), { landed: Math.max(0, index - 1), total: 2 }, `${reported}, stage ${index}`);
       assert.ok(island.trees.every(tree => tree.status === "untested"), "recorded landing never grants verified health");
     }

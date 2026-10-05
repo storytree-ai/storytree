@@ -34,7 +34,7 @@ export interface Island {
   x: number;
   z: number;
   trees: PlacedTree[];
-  /** The island's territories, in its own flat coordinates about its middle; absent before its code is surveyed. */
+  /** The island's territories, in its own flat coordinates about its middle; files stay empty before its code is surveyed. */
   land?: IslandLand;
   /** The island's land in ground units², when its story's code sets it (ADR-0804 D3, D7); absent, the land follows its capability count. */
   area?: number;
@@ -42,9 +42,9 @@ export interface Island {
   key: string;
 }
 
-/** An island's code (ADR-0804 D2, D3): its territories' shares, and its files, for the page to lay on its land. */
+/** An island's territories and surveyed files (ADR-0804 D2, D3), for the page to lay on its land. */
 export interface IslandLand {
-  /** Each territory's capability, its title, its description, its word and its lines; no capability (and no word) for Unclaimed code. */
+  /** Each territory's capability, title, description, word and lines (equal weights of 1 before survey); no capability or word for Unclaimed code. */
   territories: readonly { capability?: string; title?: string; description?: string; status?: CapabilityWord; lines: number }[];
   files: readonly { path: string; lines: number; capability?: string }[];
   /** The package its story's code lives in, so a file's path in the package can be named from the repository's root (ADR-0804 D5). */

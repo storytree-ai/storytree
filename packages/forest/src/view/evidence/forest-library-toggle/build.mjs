@@ -26,8 +26,8 @@ for (const variant of ['production']) {
     plugins: [{ name: 'forest-library-toggle-observation', setup(builder) {
       builder.onLoad({ filter: /planet-view\.tsx$/ }, args => {
         let contents = replace(readFileSync(args.path, 'utf8'),
-          'const { camera, gl, scene, size } = useThree();',
-          'const { camera, gl, scene, size } = useThree(); globalThis.__nav = { rotation, onRotate };');
+          'const { camera, gl, scene, size, invalidate } = useThree();',
+          'const { camera, gl, scene, size, invalidate } = useThree(); globalThis.__nav = { rotation, onRotate };');
         return { contents, loader: 'tsx', resolveDir: path.dirname(args.path) };
       });
     } }],

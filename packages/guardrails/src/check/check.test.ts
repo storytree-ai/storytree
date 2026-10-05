@@ -3,13 +3,18 @@
  * the habits card says (ADR-0900 D1), with nothing but the checkout to read.
  */
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
+import { fileURLToPath } from "node:url";
 
 import { check, checkoutOf } from "../index.js";
+
+import { main } from "./run.js";
+
+const RUN = fileURLToPath(new URL("./run.ts", import.meta.url));
 
 /** A checkout holding `files` (repo-relative path to text), removed after the test. */
 function plant(t: TestContext, files: Record<string, string>): string {
@@ -59,4 +64,14 @@ test("3.2 · it reads the checkout a folder is in, and a folder outside any repo
   assert.equal(checkoutOf(loose), loose);
   execFileSync("git", ["init", "-q"], { cwd: loose });
   assert.equal(realpathSync.native(checkoutOf(path.join(loose, "packages", "cart"))), realpathSync.native(loose));
+});
+
+test("3.3 · run from storytree's source on a folder, as a user's CI runs it, it prints the report and exits by it", async (t: TestContext) => {
+  const run = (folder: string) => spawnSync(process.execPath, ["--import", "tsx", RUN, folder], { encoding: "utf8", cwd: path.dirname(RUN) });
+  let said = "";
+  assert.equal(await main(plant(t, KEPT), (text) => (said += text)), 0, said);
+  assert.match(said, /storytree check passed/);
+  const left = run(plant(t, { ...KEPT, "packages/checkout/src/refund.js": "export const refund = () => 0;\n" }));
+  assert.equal(left.status, 1, left.stderr);
+  assert.match(left.stdout, /packages\/checkout\/src\/refund\.js/);
 });

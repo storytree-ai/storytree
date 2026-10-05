@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { ForestScene, Island } from '../scene.js';
-import { buildPlanetPathways } from '../geometry.js';
+import { buildPlanetPathways, planetPathwayDrawing } from '../geometry.js';
 
 const R = 218;
 const island = (story: string, capabilities: string[]): Island => ({
@@ -44,4 +44,13 @@ test('6.12 a road between islands follows the globe\'s surface, however far roun
     const t = Math.max(0, Math.min(1, -a.dot(ab) / ab.lengthSq()));
     assert.ok(a.clone().addScaledVector(ab, t).length() >= R, `${road.id} cuts through the glass at point ${i}`);
   }
+});
+
+test('6.13 a link naming a capability on no island is left out on its own: every other road is drawn, and the notice names it', () => {
+  // A capability still depending on one that was retired (ADR-0920 left "5 · The canvas" depending on a retired one).
+  const stray = { from: 'b2', to: 'retired' };
+  const drawing = planetPathwayDrawing({ ...scene, links: [...links, stray] }, spots, R);
+  assert.deepEqual(drawing.plan.edges.map(e => `${e.from}->${e.to}`).sort(), links.map(l => `${l.from}->${l.to}`).sort(), 'every other link keeps its road');
+  assert.ok(drawing.plan.segments.some(segment => segment.island === undefined), 'the road between the islands is drawn');
+  assert.match(drawing.issue ?? '', /b2.*retired/, 'the notice names the link left out');
 });

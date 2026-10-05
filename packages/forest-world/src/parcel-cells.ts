@@ -8,9 +8,8 @@
 // ninety degrees from the land it is standing on, and the picture looks merely odd rather than wrong.
 //
 // ⚠ THE BASIS IS THE ISLAND'S TRUE FOOTPRINT (ADR-0517 D1). `forestDescriptors` builds each island
-// in plan view and sizes it about its own centre (`true-footprint.ts`), so anything placed off these
-// rings and lifted by `landRelief.height` sits on the ground the globe actually draws, because both
-// read the same numbers.
+// in plan view and sizes it about its own centre (`true-footprint.ts`). The globe's
+// `planet/island-surface.ts` projects these local coordinates onto its visible surface.
 
 import type { Descriptor3D } from './descriptors.js';
 

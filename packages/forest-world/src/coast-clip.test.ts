@@ -503,8 +503,7 @@ test('the cap leaves a HONEST coast alone, and every scale it reports is a rung'
   // along its own vertex bisectors stays simple however wide the beach is — a fold needs a rim that
   // TURNS sharply beside a parcel too shallow to absorb the turn. So the cap must bind NOWHERE
   // here: a cap that fired on an honest coast would be spending beach nothing asked it to spend.
-  // The island that does fold is the one the studio ships, and `harness/shipped-coast-scene.test.ts`
-  // is where that is asserted — it is the fixture with the real geometry.
+  // The seven-parcel cross below exercises a coast that does fold.
   for (const mode of COAST_MODES.filter((m) => m !== 'none')) {
     const d = coastDisplacement(BLOCK, 'story-a', mode);
     assert.equal(d.scales.size, 8, `${mode}: every rim vertex should report a scale`);

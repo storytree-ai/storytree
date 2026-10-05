@@ -90,8 +90,8 @@ test("3.3 `new` without a required field is refused, naming it", async () => {
 test("3.4 `history` lists every write with its writer, including retirement", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();
-    const note = await library.defineTerm({ term: "History", meaning: "First" });
-    await library.editNote(note.id, { meaning: "Second" }, { actor: "person:Sam" });
+    const note = await library.defineTerm({ term: "History", meaning: "First\nparagraph", links: [] });
+    await library.editNote(note.id, { meaning: 'Second: "quoted"' }, { actor: "person:Sam" });
     await library.retire(note.id, "Kept in a decision", { actor: "session:scribe" });
     const unrelated = await library.defineTerm({ term: "Unrelated", meaning: "Another record" }, { actor: "person:Elsewhere" });
     const ran = await world.run(["library", "history", note.id]);
@@ -107,6 +107,42 @@ test("3.4 `history` lists every write with its writer, including retirement", as
     assert.deepEqual(positions, [...positions].sort((a, b) => a - b));
     assert.ok(!ran.stdout.includes(unrelated.id));
     assert.ok(!ran.stdout.includes("person:Elsewhere"));
+    assert.doesNotMatch(ran.stdout, /fields:/);
+
+    const detailed = await world.run(["library", "history", note.id, "--fields"]);
+    assert.equal(detailed.code, 0, detailed.stderr);
+    const snapshots = detailed.stdout.split("\n").filter((line) => line.startsWith("    fields: "))
+      .map((line) => JSON.parse(line.slice("    fields: ".length)));
+    assert.deepEqual(snapshots, [
+      note.fields,
+      { ...note.fields, meaning: 'Second: "quoted"' },
+      { ...note.fields, meaning: 'Second: "quoted"' },
+    ]);
+    assert.equal(detailed.stdout.split("\n").filter((line) => !line.startsWith("    fields: ")).join("\n"), ran.stdout);
+    const missing = await world.run(["library", "history", "definition_missing", "--fields"]);
+    assert.equal(missing.code, 0, missing.stderr);
+    assert.match(missing.stdout, /No history/);
+  });
+});
+
+test("3.4 `history --fields` shows a contract's reported red then green after both writes", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const story = await library.addStory({ title: "First build" });
+    const capability = await library.addCapability({ story: story.id, title: "Build" });
+    const contract = await library.addContract({ capability: capability.id, title: "It works" });
+    await library.reportHealth(contract.id, "failing", { by: "session:builder", note: "Test went red" });
+    await library.reportHealth(contract.id, "passing", { by: "session:builder", note: "Test went green" });
+
+    const ran = await world.run(["library", "history", `health_${contract.id}_reported`, "--fields"]);
+    assert.equal(ran.code, 0, ran.stderr);
+    const snapshots = ran.stdout.split("\n").filter((line) => line.startsWith("    fields: "))
+      .map((line) => JSON.parse(line.slice("    fields: ".length)));
+    assert.deepEqual(snapshots.map(({ state, note }) => ({ state, note })), [
+      { state: "failing", note: "Test went red" },
+      { state: "passing", note: "Test went green" },
+    ]);
+    assert.ok(snapshots.every(({ column }) => column === "reported"));
   });
 });
 

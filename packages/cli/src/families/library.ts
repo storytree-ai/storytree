@@ -235,14 +235,17 @@ const list: Verb = {
 
 const history: Verb = {
   name: "history",
-  usage: "library history <id>",
-  summary: "every write to a record, with its writer",
+  usage: "library history <id> [--fields]",
+  summary: "every write with its writer; --fields includes stored fields after each write (last state for retirement)",
+  switches: ["fields"],
   async act(args, context) {
     const id = args.word(0, "the record's id", this.usage);
     const entries = await (await context.library()).history({ id });
     if (entries.length === 0) return { text: `No history for ${id}.` };
-    return { text: [`History of ${id}:`, ...entries.map((entry) =>
+    return { text: [`History of ${id}:`, ...entries.flatMap((entry) => [
       `  ${entry.seq}  ${entry.at}  ${entry.action}  ${entry.actor ?? "writer not recorded"}${entry.reason === undefined ? "" : `  ${entry.reason}`}`,
+      ...(args.has("fields") ? [`    fields: ${JSON.stringify(entry.record.fields)}`] : []),
+    ],
     )].join("\n") };
   },
 };

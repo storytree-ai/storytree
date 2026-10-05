@@ -7,16 +7,12 @@ import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { withCapture } from '../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
+import { buildPage } from './build.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../../../..');
-const find = (name) => { const dir = path.join(root, 'node_modules/.pnpm'); return readdirSyncFor(dir, name); };
-import { readdirSync } from 'node:fs';
-function readdirSyncFor(dir, prefix) { const hit = readdirSync(dir).find((entry) => entry.startsWith(prefix)); assert.ok(hit, `${prefix} is installed`); return path.join(dir, hit, 'node_modules', prefix.split('@')[0]); }
-const esbuild = await import(pathToFileURL(path.join(find('esbuild@0'), 'lib/main.js')).href);
-
-const bundle = await esbuild.build({ entryPoints: [path.join(here, 'entry.ts')], bundle: true, write: false, format: 'iife', platform: 'browser', absWorkingDir: root, loader: { '.png': 'dataurl', '.glb': 'dataurl' }, logLevel: 'error' });
+const bundle = await buildPage();
 const css = readFileSync(path.join(root, 'apps/desktop/src/renderer/styles.css'), 'utf8')
   + readFileSync(path.join(root, 'packages/forest/src/view/styles.css'), 'utf8');
 const html = (theme) => `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><style>${css}</style></head><body data-surface="forest"><main class="forest-workspace"><div class="story-panel"></div></main><script>${bundle.outputFiles[0].text}</script></body></html>`;

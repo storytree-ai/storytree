@@ -24,7 +24,13 @@ test("the forest page including claim markers can be built for the browser", asy
 const forest = fileURLToPath(new URL("../..", import.meta.url));
 const checkout = path.resolve(forest, "../..");
 const run = promisify(execFile);
-for (const script of globSync(["src/view/evidence/*/build.mjs", "evidence/*/build.mjs"], { cwd: forest }).sort()) {
+const builders = new Set([
+  ...globSync(["src/view/evidence/*/build.mjs", "evidence/*/build.mjs"], { cwd: forest }),
+  ...globSync(["evidence/*/page.tsx", "evidence/*/entry.ts", "evidence/*/entry.tsx"], { cwd: forest })
+    .map(entry => path.join(path.dirname(entry), "build.mjs")),
+  path.join("src", "view", "evidence", "depth", "build.mjs"),
+]);
+for (const script of [...builders].sort()) {
   test(`the forest evidence capture builds: ${script}`, { timeout: 130_000 }, async () => {
     const file = path.join(forest, script);
     // The performance comparison takes a checkout and output folder explicitly.

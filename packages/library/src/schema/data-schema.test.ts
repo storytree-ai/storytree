@@ -614,6 +614,10 @@ function newerVersion(id: string, type: RecordType, version: number): (error: un
     for (const part of [JSON.stringify(id), type, `version ${version}`, "version 1"]) {
       assert.ok(error.message.includes(part), `the message names ${part}: ${error.message}`);
     }
+    assert.match(error.message, /git pull/);
+    assert.match(error.message, /pnpm install/);
+    assert.match(error.message, /restart the agent link from a current worktree/);
+    assert.match(error.message, /The running code(?: is \d+ commits? behind locally fetched origin\/main|'s distance from locally fetched origin\/main is unknown)\./);
     return true;
   };
 }

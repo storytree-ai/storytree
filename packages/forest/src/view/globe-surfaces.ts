@@ -19,8 +19,9 @@ export function shownSurfaces(surfaces: Partial<GlobeSurfaces> | undefined, hide
 }
 
 /** Framings (radii across half the screen's short side) past which the islands drop away, and back above which they
- * return: past the closest a reader looks at an island's file circles (about 0.2), and apart so they do not flicker. */
-export const PAST_ISLANDS = { enter: 0.12, leave: 0.14 } as const;
+ * return: about four times the opening zoom (1.18), some 27 wheel notches in, beyond where a reader looks at capability
+ * names (about twice) and file circles (about 2.6 times), and apart so they do not flicker. */
+export const PAST_ISLANDS = { enter: 0.3, leave: 0.34 } as const;
 
 /** Whether the eye is zoomed in past the islands, given whether it was (ADR-0919 D3). */
 export function pastIslands(framing: number, wasPast: boolean): boolean {

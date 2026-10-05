@@ -137,6 +137,34 @@ function onGround(g: Ground, p: CoastPoint): Vector3 {
   return new Vector3(p.x, g.relief.height(p.x, p.z), p.z).applyQuaternion(g.transform.quaternion).add(g.at);
 }
 
+/** The farthest apart two points of a road between islands may be, in ground units: the ribbon is drawn straight
+ * between them, and at this length it sags a fraction of a unit, so it stays on the glass. */
+const MAX_ROAD_STEP = 1;
+
+/**
+ * `points` with every longer gap filled in along the globe's surface, its height eased between the gap's ends.
+ * The route is planned on an azimuthal chart that stretches islands far from its pole sideways (up to 3.3 times at
+ * 135°), so a route can stop well short of a far island's coast; its dock was then joined by one straight chord
+ * through the ball (the owner, 2026-10-05: "i can see a stray pathway").
+ */
+function alongTheGlobe(points: readonly Vector3[]): Vector3[] {
+  const out = [points[0]!.clone()];
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1]!, b = points[i]!;
+    const steps = Math.ceil(a.distanceTo(b) / MAX_ROAD_STEP);
+    const [from, to] = [a.clone().normalize(), b.clone().normalize()];
+    const angle = from.angleTo(to), sin = Math.sin(angle);
+    for (let j = 1; j < steps; j++) {
+      const t = j / steps;
+      const direction = sin < 1e-9 ? from.clone().lerp(to, t).normalize()
+        : from.clone().multiplyScalar(Math.sin((1 - t) * angle) / sin).addScaledVector(to, Math.sin(t * angle) / sin);
+      out.push(direction.multiplyScalar(a.length() + (b.length() - a.length()) * t));
+    }
+    out.push(b.clone());
+  }
+  return out;
+}
+
 function requireNetwork(network: TrailNetwork, where: string, cross = false): void {
   if (network.dropped.length || (cross && (network.caves.length || network.segments.some(s => s.hidden)))) {
     throw new Error(`Cannot draw all pathways ${where}: ${JSON.stringify({ dropped: network.dropped, caves: network.caves })}`);
@@ -230,7 +258,7 @@ export function buildPlanetPathways(scene: ForestScene, spots: ReadonlyMap<strin
     });
     if (ends[0]) world[0] = ends[0].point.clone();
     if (ends[1]) world[world.length - 1] = ends[1].point.clone();
-    plan.segments.push({ id: `cross:${segment.id}`, points: world, width: 0, links: [] });
+    plan.segments.push({ id: `cross:${segment.id}`, points: alongTheGlobe(world), width: 0, links: [] });
   }
 
   const localEdges = new Map<string, Map<string, TrailEdgeOut>>();

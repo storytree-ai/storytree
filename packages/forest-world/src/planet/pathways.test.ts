@@ -29,3 +29,19 @@ test('6.4 every recorded capability link on the globe is one unbroken trail, wit
   const crossing = plan.edges.find(e => e.from === 'b1')!;
   assert.ok(crossing.segments.some(ref => segments.get(ref.id)!.island === undefined), 'the link between islands crosses the glass');
 });
+
+test('6.12 a road between islands follows the globe\'s surface, however far round the globe its islands sit', () => {
+  // A large island 132° from the chart's pole, where the chart stretches it most, linked to one near the pole.
+  const far: Island = { ...island('far', []), trees: Array.from({ length: 30 }, (_, i) => ({ capability: `far${i}`, form: 'green' as const, status: 'healthy' as const, contracts: 1, x: i % 6, z: Math.floor(i / 6), scale: 1, turn: 0 })) };
+  const plan = buildPlanetPathways({ islands: [island('a', ['a1']), far], links: [{ from: 'far1', to: 'a1' }] },
+    new Map([['a', { x: R * Math.sin(0.3), y: 0, z: R * Math.cos(0.3) }], ['far', { x: -R * Math.sin(2.3), y: 0, z: R * Math.cos(2.3) }]]), R);
+  const roads = plan.segments.filter(segment => segment.island === undefined);
+  assert.ok(roads.length > 0);
+  for (const road of roads) for (let i = 1; i < road.points.length; i++) {
+    const a = road.points[i - 1]!, b = road.points[i]!, ab = b.clone().sub(a);
+    assert.ok(ab.length() <= 1.5, `${road.id} jumps ${ab.length().toFixed(1)} units at point ${i} of ${road.points.length}`);
+    // The ribbon is drawn straight between its points: the nearest it comes to the globe's middle stays outside the glass.
+    const t = Math.max(0, Math.min(1, -a.dot(ab) / ab.lengthSq()));
+    assert.ok(a.clone().addScaledVector(ab, t).length() >= R, `${road.id} cuts through the glass at point ${i}`);
+  }
+});

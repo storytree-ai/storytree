@@ -25,6 +25,11 @@ the 13-line agent log of `../session-tints` (sessions A and B live, C quiet), at
 verified column's (passing reads healthy, anything else untested), with four seeded so every word shows:
 Cloud connection and Hooks unhealthy, Storytree projects and Story nodes proposed. Run `node build.mjs`,
 then `node --import tsx capture.mjs`, under `flock /tmp/storytree-heavy.lock`. Full numbers: [measurements.json](measurements.json).
+These pictures were taken while each claiming session also tinted its island's coast. ADR-0923 removed
+that tint (2026-10-05), so the capture now waits for the claim outlines instead, and answers the page
+through the shared stand-in bridge (`fakeBridge`), as `../session-tints` does: its own stand-in had fallen
+behind the page, which then listed no sessions. Re-run that day into the scratch folder, not re-taken: the
+same four outlines as below, no page errors.
 
 ## Measured before looking
 
@@ -81,4 +86,5 @@ are 1 px and alias slightly (visible as a faint moire on the small islands); the
 - The hatch is a 1 px line, so at a higher device scale it would be thinner; spacing is in ground units
   (`HATCH_SPACING`), so it scales with the zoom, the line weight does not.
 - The coast side of a claimed territory's band lies on the session's coast arc (ADR-0804 D9), in the
-  same colour, so the two read as one there; inland, the band alone marks the claim.
+  same colour, so the two read as one there; inland, the band alone marks the claim. (Overtaken: ADR-0923
+  removed the coast arc, and the band is now the only claim mark.)

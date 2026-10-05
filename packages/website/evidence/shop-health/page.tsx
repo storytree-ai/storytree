@@ -32,5 +32,5 @@ let draws = 0;
 const none = () => {};
 createRoot(document.getElementById('globe')!).render(
   <PlanetView core={core} scene={stage?.scene ?? saved.scene} places={places} frame={saved.scene} wisps={[]} selected={undefined}
-    onPick={none} onNote={none} onWispHover={none} growth={play ? { plan } : undefined} />,
+    onPick={none} onNote={none} growth={play ? { plan } : undefined} />,
 );

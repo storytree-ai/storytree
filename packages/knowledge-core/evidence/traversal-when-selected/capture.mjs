@@ -2,8 +2,8 @@
 // survey) as the app opens it, five running sessions in the stand-in bridge, each holding a capability and with a window that
 // opens three notes and a surveyed file no other window opens. Two views: none selected, then one session's row clicked.
 // `node --import tsx build.mjs <checkout> before|after`, then `node --import tsx capture.mjs before|after` (append --retake to
-// replace the committed pictures). Counts, from the scene, every lit note, trail and file circle by colour, and every coast tint
-// and claimed territory, so "no traversal with none selected" and "who holds what unchanged" are measured, not looked at.
+// replace the committed pictures). Counts, from the scene, every lit note, trail and file circle by colour, and every claimed
+// territory, so "no traversal with none selected" and "who holds what unchanged" are measured, not looked at.
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
@@ -31,7 +31,7 @@ const SESSIONS = {
 };
 const SELECTED = 'scout';
 const ids = Object.keys(SESSIONS);
-// Each session holds a capability of the story whose file it opens, so the coast tints and claimed fills show beside the traversal.
+// Each session holds a capability of the story whose file it opens, so the claimed territories show beside the traversal.
 const storyOfPackage = { 'knowledge-core': 'story_d754d997f22a', forest: 'story_deee4230348c', library: 'story_754e87e7d531', 'agent-link': 'story_609c3b171b3f', cli: 'story_f9fb5136c28f' };
 for (const one of Object.values(SESSIONS)) {
   const [, pkg, rest] = /^packages\/([^/]+)\/(.+)$/.exec(one.file);
@@ -73,16 +73,15 @@ assert.equal(new Set(Object.values(colour)).size, ids.length, 'five sessions, fi
 /** What the globe draws for the sessions, counted from the scene. */
 const measure = page => page.evaluate(() => {
   const { scene } = window.__globe;
-  const trails = [], litNotes = {}, windowNotes = {}, litFiles = [], coastTints = [], claimed = [];
+  const trails = [], litNotes = {}, windowNotes = {}, litFiles = [], claimed = [];
   scene.traverse(object => {
     if (object.name.startsWith('knowledge-trail:')) trails.push({ from: object.userData.from, to: object.userData.to, colour: object.userData.colour });
     if (object.name.startsWith('knowledge-point:') && object.userData.lit) litNotes[object.userData.id] = object.userData.lit;
     if (object.name.startsWith('knowledge-point:') && object.userData.window) windowNotes[object.userData.id] = object.userData.colour;
     if (object.name.startsWith('file-lit:')) litFiles.push(object.name.slice('file-lit:'.length));
-    if (object.name.startsWith('coast-tint:')) coastTints.push({ session: object.userData.session, colour: object.userData.colour });
     if (object.name.startsWith('territory:') && object.userData.claimedBy !== undefined) claimed.push({ capability: object.userData.capability, claimedBy: object.userData.claimedBy });
   });
-  return { trails, litNotes, windowNotes, litFiles, coastTints, claimed };
+  return { trails, litNotes, windowNotes, litFiles, claimed };
 });
 const rowsShown = page => page.getByRole('complementary', { name: 'Running sessions', exact: true }).locator('.session-row').evaluateAll(list => list.map(row => row.dataset.sessionId));
 const rest = async (page, settle) => { await page.waitForTimeout(1500); await settle(page, 24); };
@@ -97,7 +96,7 @@ await runCapture({
       if (document.body.dataset.state !== 'ready' || !state || !window.__nav) return false;
       return ids.every(id => !!state.scene.getObjectByName(`planet:${id}`)?.getObjectByName('island-ground'));
     }, seed.tree.stories.map(s => s.id), { timeout: 120000 });
-    await page.waitForFunction(() => { let bands = 0, files = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('coast-tint:')) bands++; if (o.name.startsWith('file:')) files++; }); return bands > 0 && files > 0; }, undefined, { timeout: 60000 });
+    await page.waitForFunction(() => { let outlines = 0, files = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('territory-claim:')) outlines++; if (o.name.startsWith('file:')) files++; }); return outlines > 0 && files > 0; }, undefined, { timeout: 60000 });
     for (const button of ['Close help', 'Close app menu']) { const b = page.getByRole('button', { name: button, exact: true }); if (await b.isVisible().catch(() => false)) await b.click(); }
     await page.evaluate(() => { for (const menu of document.querySelectorAll('[popover]')) if (menu.matches(':popover-open')) menu.hidePopover(); });
   },
@@ -129,7 +128,7 @@ await runCapture({
   }],
 });
 const summary = view => ({ trails: view.trails.length, trailColours: [...new Set(view.trails.map(t => t.colour))].length, litNotes: Object.keys(view.litNotes).length,
-  windowNotes: Object.keys(view.windowNotes).length, litFiles: view.litFiles.length, coastTints: view.coastTints.length, claimedTerritories: view.claimed.length });
+  windowNotes: Object.keys(view.windowNotes).length, litFiles: view.litFiles.length, claimedTerritories: view.claimed.length });
 results.summary = { rows: results.rows.length, noneSelected: summary(results.noneSelected), oneSelected: summary(results.oneSelected), windowsAskedWithNoneSelected: results.noneSelected.windowsAsked.length };
 writeFileSync(path.join(captureOutput(here), `measurements-${label}.json`), JSON.stringify(results, null, 1) + '\n');
 console.log(label, JSON.stringify(results.summary));

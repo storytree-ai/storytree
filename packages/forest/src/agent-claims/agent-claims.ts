@@ -12,7 +12,7 @@
  * amber. A missing hook never reads as an agent doing nothing (ADR-0626 D4): a holder whose session
  * has written no hook line is never faded as idle. A holder with hook evidence quiet past the quiet
  * time fades; landing, releasing or its window closing takes the wisp away. Folded subagents and
- * lanes orbit only through their parent's wisp (ADR-0736 D4).
+ * lanes claim only in their parent's colour, through its wisp (ADR-0736 D4).
  */
 import { logReading, type Line, type LogReading } from "@storytree/agent-link/readings";
 import type { SessionRow } from "../sessions-list/sessions-list.js";
@@ -22,8 +22,6 @@ export interface SessionWisp {
   session: string;
   story: string;
   colour: string;
-  /** Where on its orbit the wisp starts, in degrees, the same on every read. */
-  phase: number;
   /** Its holder has been quiet past the quiet time: it still holds its claims. */
   faded: boolean;
   /** The capabilities it holds a claim on. */
@@ -43,8 +41,7 @@ export function sessionWisps(rows: readonly SessionRow[], log: readonly Line[] |
   const heldUnder = (row: SessionRow): string[] => [...held(row.id), ...row.children.flatMap(heldUnder)];
   return rows.flatMap(row => {
     const capabilities = [...new Set(heldUnder(row))];
-    return row.stories.map(story => ({ session: row.id, story, colour: sessionColour(row.id),
-      phase: (hashOf(row.id) >>> 8) % 360, faded: quiet.has(row.id), capabilities }));
+    return row.stories.map(story => ({ session: row.id, story, colour: sessionColour(row.id), faded: quiet.has(row.id), capabilities }));
   });
 }
 

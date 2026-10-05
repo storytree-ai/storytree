@@ -1,4 +1,4 @@
-// World 7: replay Conduit's recorded growth and storytree's saved reading in real Chromium, in the shipped engine.
+// World 7: replay the shop's recorded growth and storytree's saved reading in real Chromium, in the shipped engine.
 // Writes a frame strip per map, a clip of each playing, the frame rate while it plays, and the reduced-motion check.
 // node packages/website/evidence/growth/capture.mjs
 import assert from 'node:assert/strict';
@@ -45,7 +45,7 @@ try {
   };
   const snap = page => page.evaluate(() => window.growthProof.snapshot());
   const result = { capturedAt: new Date().toISOString(), browser: browser.version(), renderer: 'SwiftShader', viewport: VIEW, seconds: SECONDS, maps: {} };
-  for (const map of ['conduit', 'storytree']) {
+  for (const map of ['shop', 'storytree']) {
     const record = result.maps[map] = { frames: [] };
     // The strip: fixed moments through the growth, each drawn by the shipped canvas.
     const moments = [0.4, 0.08, 0.16, 0.26, 0.38, 0.5, 0.64, 0.8, 1].map((f, i) => i === 0 ? f : +(f * SECONDS).toFixed(2));
@@ -69,26 +69,26 @@ try {
     assert.equal(notes[0], 0, `${map}: no note shows while the globe is still a point`);
     assert.ok(notes.every((n, i) => i === 0 || n >= notes[i - 1]), `${map}: notes only ever appear`);
     assert.equal(notes.at(-1), record.frames.at(-1).notes, `${map}: every note shows by the end`);
-    // Territories and file circles fill in behind their islands, where the reading has code: none at first, only ever more, all by the end.
+    // Territories and file circles fill in behind their islands: none at first, only ever more, all by the end.
     for (const kind of ['visibleTerritories', 'visibleFiles']) {
       const shown = record.frames.map(f => f[kind]);
       assert.equal(shown[0], 0, `${map}: no ${kind} while the globe is a point`);
       assert.ok(shown.every((n, i) => i === 0 || n >= shown[i - 1]), `${map}: ${kind} only ever fill in`);
       const total = record.frames.at(-1)[kind === 'visibleFiles' ? 'files' : 'territories'];
       assert.equal(shown.at(-1), total, `${map}: every one of ${kind} filled in by the end`);
-      assert.equal(total > 0, map === 'storytree', `${map}: only storytree's reading has code to fill in`);
+      assert.ok(total > 0, `${map}: the reading has code to fill in`);
     }
-    // Sessions pass over the islands where the recording carries them (Conduit's does): some moment shows one, and the end
-    // shows what the recording ends with, nobody.
-    if (map === 'conduit') {
-      assert.ok(record.frames.some(f => f.sessions.length > 0), `${map}: a recorded session passes over an island`);
-      assert.deepEqual(record.frames.at(-1).sessions, [], `${map}: the recording ends with nobody on the islands`);
+    // Sessions outline the territories they held where the recording carries them (the shop's does): some moment shows
+    // one, and the end shows what the recording ends with, nobody (forest 5.7, ADR-0923 D3).
+    if (map === 'shop') {
+      assert.ok(record.frames.some(f => f.sessions.length > 0), `${map}: a recorded session outlines a territory it held`);
+      assert.deepEqual(record.frames.at(-1).sessions, [], `${map}: the recording ends with no territory claimed`);
     }
     // The strip, laid out by the browser.
     const strip = await browser.newPage({ viewport: { width: 1800, height: 420 }, deviceScaleFactor: 1 });
     await strip.goto(`${url}/blank`);
     await strip.setContent(`<body style="margin:0;background:#101418;font:14px sans-serif;color:#d8dde3;display:flex;flex-wrap:wrap;gap:4px;padding:4px">${
-      record.frames.map(f => `<figure style="margin:0;width:352px"><img src="${url}/${f.file}" style="width:352px;display:block"><figcaption>${f.at}s · ${f.visiblePlates}/${f.plates} islands${f.notes ? ` · ${f.visibleNotes}/${f.notes} notes` : ''}${f.visibleFiles ? ` · ${f.visibleTerritories} territories · ${f.visibleFiles} files` : ''}${f.sessions.length ? ` · ${f.sessions.length} session${f.sessions.length > 1 ? 's' : ''} on islands` : ''}</figcaption></figure>`).join('')}</body>`);
+      record.frames.map(f => `<figure style="margin:0;width:352px"><img src="${url}/${f.file}" style="width:352px;display:block"><figcaption>${f.at}s · ${f.visiblePlates}/${f.plates} islands${f.notes ? ` · ${f.visibleNotes}/${f.notes} notes` : ''}${f.visibleFiles ? ` · ${f.visibleTerritories} territories · ${f.visibleFiles} files` : ''}${f.sessions.length ? ` · ${f.sessions.length} claimed territor${f.sessions.length > 1 ? 'ies' : 'y'} outlined` : ''}</figcaption></figure>`).join('')}</body>`);
     await strip.waitForLoadState('networkidle');
     await strip.screenshot({ path: path.join(here, `${map}-strip.png`), fullPage: true });
     await strip.close();

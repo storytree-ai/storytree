@@ -9,7 +9,7 @@ import { Color, Vector3, type Mesh, type MeshBasicMaterial } from "three";
 import { claimTints, type SessionWisp } from "@storytree/forest";
 import { territoryLand } from "./territory-land.js";
 
-const wisp = (session: string, story: string, colour: string, capabilities: string[] = []): SessionWisp => ({ session, story, colour, phase: 0, faded: false, capabilities });
+const wisp = (session: string, story: string, colour: string, capabilities: string[] = []): SessionWisp => ({ session, story, colour, faded: false, capabilities });
 const flat = (p: { x: number; z: number }) => new Vector3(p.x, 0, p.z);
 
 test("5.6 a capability a session has claimed has its territory's border outlined, inset, in that session's colour, fainter once it is quiet", () => {

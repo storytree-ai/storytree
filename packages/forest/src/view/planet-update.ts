@@ -24,7 +24,7 @@ export function nextScene(shown: OnShow, scene: ForestScene, places: ReadonlyMap
 export function sameWisps(a: readonly SessionWisp[], b: readonly SessionWisp[]): boolean {
   return a.length === b.length && a.every((wisp, index) => {
     const other = b[index]!;
-    return wisp.session === other.session && wisp.story === other.story && wisp.colour === other.colour && wisp.phase === other.phase
+    return wisp.session === other.session && wisp.story === other.story && wisp.colour === other.colour
       && wisp.faded === other.faded && wisp.capabilities.length === other.capabilities.length && wisp.capabilities.every((c, i) => c === other.capabilities[i]);
   });
 }

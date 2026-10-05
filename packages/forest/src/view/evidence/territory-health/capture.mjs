@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { withCapture } from '../../../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
+import { fakeBridge, withCapture } from '../../../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
 import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -39,7 +39,7 @@ add(49, SESSIONS.A, { kind: 'prompt-submitted', source: 'hook' });
 add(40, SESSIONS.A, claim(CAP.agentTools, 'tool call arguments'));
 add(38, SESSIONS.A, claim(CAP.libraryTransactions, 'transaction retries'));
 add(1, SESSIONS.A, { kind: 'file-edited', source: 'hook', files: ['packages/agent-link/src/tools.ts'] });
-// B: live; holds Claims (The agent link, so that coast splits in two); last line 30 seconds ago.
+// B: live; holds Claims (The agent link, beside A's Agent tools); last line 30 seconds ago.
 add(30, SESSIONS.B, { kind: 'session-started', source: 'hook' });
 add(29, SESSIONS.B, { kind: 'prompt-submitted', source: 'hook' });
 add(20, SESSIONS.B, claim(CAP.claims, 'takeover of an idle claim'));
@@ -87,6 +87,9 @@ function measure(page) {
     if (!['error', 'warning'].includes(message.type())) return;
     (message.type() === 'warning' ? warnings : errors).push(message.text());
   });
+  // The shared stand-in bridge answers whatever the page asks beyond the answers below.
+  const bridge = fakeBridge({});
+  await bridge.install(page);
   await page.addInitScript(({ data, survey, log, now }) => {
     // The page's clock stands still at the capture's NOW, so the quiet times judge the same on every run.
     const RealDate = Date;
@@ -97,8 +100,7 @@ function measure(page) {
     globalThis.Date = FixedDate;
     const copy = value => structuredClone(value);
     let current = data.projects.includes('storytree') ? 'storytree' : data.projects[0];
-    // The bridge has grown since this stand-in was written: anything it does not answer resolves to nothing.
-    const answers = {
+    window.storytreeAnswers = {
       projectSelection: async () => copy({ projects: data.projects, current }),
       chooseProject: async name => { current = name; return copy({ projects: data.projects, current }); },
       listProjects: async () => copy(data.projects), projectTree: async () => copy(data.tree),
@@ -107,7 +109,6 @@ function measure(page) {
       frontCovers: async (_, id) => copy(data.covers[id] ?? []), relatedNotes: async () => [], readSurfaces: async () => undefined,
       codeSurvey: async () => copy(survey),
     };
-    window.storytree = new Proxy(answers, { get: (target, name) => target[name] ?? (typeof name === 'string' ? async () => undefined : undefined) });
   }, { data: seed, survey, log, now: NOW });
   await page.goto(`${origin}/index.html`, { timeout: 180000, waitUntil: 'domcontentloaded' });
   await page.waitForFunction(ids => {
@@ -118,8 +119,8 @@ function measure(page) {
     console.error(JSON.stringify({ state: await page.evaluate(() => document.body.dataset.state + ' | ' + (document.querySelector('.empty')?.innerText ?? '')), errors, urls: failed, warnings: warnings.slice(0, 5) }));
     throw error;
   });
-  // Territories arrive with the survey, and the tints with the first read of the log: wait until both are drawn.
-  await page.waitForFunction(() => { let bands = 0, files = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('coast-tint:')) bands++; if (o.name.startsWith('file:')) files++; }); return bands > 0 && files > 0; }, undefined, { timeout: 30000 });
+  // Territories arrive with the survey, and the claim outlines with the first read of the log: wait until both are drawn.
+  await page.waitForFunction(() => { let outlines = 0, files = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('territory-claim:')) outlines++; if (o.name.startsWith('file:')) files++; }); return outlines > 0 && files > 0; }, undefined, { timeout: 30000 });
   await page.evaluate(() => { for (const menu of document.querySelectorAll('[popover]')) if (menu.matches(':popover-open')) menu.hidePopover(); });
   await settle(page);
   const results = { now: new Date(NOW).toISOString(), sessions: SESSIONS, capabilities: CAP, logLines: lines.length };

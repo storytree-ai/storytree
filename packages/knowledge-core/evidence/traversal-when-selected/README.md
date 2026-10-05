@@ -19,7 +19,7 @@ Storytree's own globe (the code-rows snapshot and its code survey, `packages/for
 - [After, the same session selected: unchanged](after-one-selected.png)
 - [What each run read from the scene](measurements-before.json), [and after](measurements-after.json)
 
-Counted from the scene's userData: `knowledge-trail:` lines, `knowledge-point:` dots with `lit` or `window` state, `file-lit:` fills, `coast-tint:` bands and `territory:` meshes with `claimedBy`. The captures in `../five-latest-sessions`, `../window-all-sessions`, `../window-files-all-sessions`, `../all-sessions` and `../shared-note` record the no-selection view this decision removes.
+Counted from the scene's userData: `knowledge-trail:` lines, `knowledge-point:` dots with `lit` or `window` state, `file-lit:` fills and `territory:` meshes with `claimedBy`. The coast tints in the table and the measurements were counted too when these pictures were taken; ADR-0923 then removed coast tints, so since 2026-10-05 the capture waits for `territory-claim:` outlines instead and counts no coast tints. The captures in `../five-latest-sessions`, `../window-all-sessions`, `../window-files-all-sessions`, `../all-sessions` and `../shared-note` record the no-selection view this decision removes.
 
 ```sh
 node --import tsx packages/knowledge-core/evidence/traversal-when-selected/build.mjs <main checkout> before

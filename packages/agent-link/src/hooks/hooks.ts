@@ -15,11 +15,13 @@
  * The once-a-minute look around the machine (which branches still hold open work, worktrees to reap,
  * which sessions the apps keep) takes longer than a hook may run: asking GitHub alone may take 10 s.
  * So a hook hands it, when due, to a copy of itself run with `--upkeep`, which may run longer and
- * writes nothing but what that look finds.
+ * writes nothing but what that look finds. That copy also claims, for each session on this machine,
+ * the capabilities of the files it edited since the last look (ADR-0924, claims/edit-claims.ts).
  *
- * One more, at each prompt (ADR-0636 D1, b2), prints: the project's definitions for the terms the
- * prompt names (definitions.ts), and once-per-session advice to start fresh when a Claude Code
- * session passes its context guidance (context-nudge.ts). The harness waits for it, so it gives up
+ * One more, at each prompt (ADR-0636 D1, b2), prints: what storytree left on this machine for the
+ * session about claims made from its edits (ADR-0924, claims/notices.ts), the project's definitions
+ * for the terms the prompt names (definitions.ts), and once-per-session advice to start fresh when a
+ * Claude Code session passes its context guidance (context-nudge.ts). The harness waits for it, so it gives up
  * after 2 s and prints nothing. It also writes a line saying the session's turn began (ADR-0754 D5). And a
  * second hook at the end of each turn (`--close-out-reminder`, close-out-reminder.ts) may
  * print one request to close out, once per session, deciding from this machine alone (ADR-0758 D4).
@@ -38,6 +40,7 @@ import type { NewLine } from "../activity/index.js";
 import type { MergeContext, MergeWatch } from "../claims/index.js";
 import { openNamedProject, route, storytreeHome, withConnectTimeout, type LocateOptions } from "../routing/index.js";
 import { claudeCodeLines } from "./claude-code.js";
+import { takeNotices } from "../claims/notices.js";
 import { CLOSE_OUT_REMINDER, closeOutReminder } from "./close-out-reminder.js";
 import { codexLines } from "./codex.js";
 import { noteCodexHookRan } from "./codex-trust.js";
@@ -121,7 +124,12 @@ export async function runHook({ argv, input, handOff, merges, locate }: HookInpu
     if (flags.includes(UPKEEP)) return void (made === undefined ? undefined : await upkeep(made, merges, locate));
     const asked = promptIn(harness, parsed);
     // A prompt's line is written while its context is looked up: the harness waits for both.
-    if (asked !== undefined) return (await Promise.all([withinTime(contextForPrompt(asked)), made === undefined ? undefined : writeLines(harness, input, flags, made, handOff, merges, locate)]))[0];
+    if (asked !== undefined) {
+      const [context] = await Promise.all([withinTime(contextForPrompt(asked)), made === undefined ? undefined : writeLines(harness, input, flags, made, handOff, merges, locate)]);
+      // What storytree left this session about claims from edits waits on this machine: it is said even when storytree is not reached (ADR-0924 D3).
+      const added = [...noticesFor(asked, locate), ...(context ?? [])];
+      return added.length === 0 ? undefined : JSON.stringify({ hookSpecificOutput: { hookEventName: "UserPromptSubmit", additionalContext: added.join("\n\n") } });
+    }
     if (made === undefined) return;
     await writeLines(harness, input, flags, made, handOff, merges, locate);
   } catch {
@@ -226,8 +234,15 @@ async function upkeep(made: HookLines, merges: MergeWatch | undefined, locate: L
   try {
     const log = await openActivityLog(storytree, { connectTimeoutMs: CONNECT_TIMEOUT_MS, branchOf: currentBranch, ...(machine === undefined ? {} : { machine }) });
     try {
-      // The hook that handed it on found it due: each look is taken now.
-      await lookAround({ log, project: where.project, folder: made.folder, session: first.session, ...(first.harness === undefined ? {} : { harness: first.harness }), source: "hook" }, { ...merges, everyMs: 0 });
+      // The hook that handed it on found it due: each look is taken now, and this machine's recent edits claim their capabilities (ADR-0924).
+      const claimingFromEdits = async () => {
+        const [{ claimFromEdits }, library] = await Promise.all([import("../claims/edit-claims.js"), openNamedProject(storytree, where.project, where.identity)]);
+        await claimFromEdits({ log, library, project: where.project, home: storytreeHome(), ...(machine === undefined ? {} : { machine }) });
+      };
+      await Promise.all([
+        lookAround({ log, project: where.project, folder: made.folder, session: first.session, ...(first.harness === undefined ? {} : { harness: first.harness }), source: "hook" }, { ...merges, everyMs: 0 }),
+        claimingFromEdits().catch(() => undefined),
+      ]);
     } finally {
       await log.close();
     }
@@ -256,12 +271,18 @@ function promptIn(harness: string, input: unknown): Prompted | undefined {
   return { harness, session, folder, prompt };
 }
 
+/** What storytree left on this machine for the session at a prompt in a project's folder, taken so it is said once. */
+function noticesFor({ session, folder }: Prompted, locate: LocateOptions | undefined): string[] {
+  if (route(folder, locate).status === "not-a-project") return [];
+  return takeNotices(storytreeHome(), session);
+}
+
 /**
- * What the agent is to be shown for a prompt, as the harness's hook output: the project's
- * definitions for the terms it names and, for Claude Code only, advice once past context guidance.
- * Undefined for none. Both are remembered separately across this session's prompts.
+ * What the agent is to be shown for a prompt: the project's definitions for the terms it names and,
+ * for Claude Code only, advice once past context guidance. Undefined for none. Both are remembered
+ * separately across this session's prompts.
  */
-async function contextForPrompt({ harness, session, folder, prompt }: Prompted): Promise<string | undefined> {
+async function contextForPrompt({ harness, session, folder, prompt }: Prompted): Promise<string[] | undefined> {
   if (isHarnessNotice(prompt)) return undefined;
   const where = route(folder);
   if (where.status !== "routed") return undefined;
@@ -273,8 +294,7 @@ async function contextForPrompt({ harness, session, folder, prompt }: Prompted):
     const fresh = notYetGiven(session, named);
     const nudge = harness === "claude-code" ? await contextNudge(storytree, where.project, session) : undefined;
     const context = [...(fresh.length === 0 ? [] : [definitionsContext(fresh)]), ...(nudge === undefined ? [] : [nudge])];
-    if (context.length === 0) return undefined;
-    return JSON.stringify({ hookSpecificOutput: { hookEventName: "UserPromptSubmit", additionalContext: context.join("\n\n") } });
+    return context.length === 0 ? undefined : context;
   } finally {
     await storytree.close();
   }

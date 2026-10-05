@@ -18,6 +18,7 @@
  * - A claim also ends when a pull request from the branch it was taken on merges after it was
  *   taken (ADR-0643 D3): a "merged" line, which merges.ts writes when GitHub shows one.
  * - Claims work on trust: storytree refuses a second claim, but cannot stop an agent that never asks.
+ *   Instead, a session's edits claim their capabilities for it, after the fact (ADR-0924, edit-claims.ts).
  */
 import { uptime } from "node:os";
 
@@ -40,6 +41,8 @@ export interface ClaimContext {
   readonly session: string;
   readonly harness?: string;
   readonly folder?: string;
+  /** Whether the claim is the agent's own (a tool's), or storytree's from an edit a hook saw (ADR-0924). By default, a tool's. */
+  readonly source?: "hook" | "tool";
   /** The git branch the session's folder is on, recorded with a claim so that its merge ends it (ADR-0643 D3). */
   readonly branch?: string;
   /** How long a holder may be quiet before its claim can be taken over. By default, the current idle-after setting. */
@@ -101,7 +104,8 @@ export type LandAnswer =
  * library's own `advanceIncrement` (0.2's ADR-0386). Claiming what it already holds changes nothing,
  * unless `moveBranch` is given with a new branch: then it holds it on that branch from now on.
  */
-export async function claim(context: ClaimContext, id: string, reason: string, options: { readonly moveBranch?: true } = {}): Promise<ClaimAnswer> {
+export async function claim(context: ClaimContext, id: string, reason: string, options: { readonly moveBranch?: true; readonly file?: string } = {}): Promise<ClaimAnswer> {
+  const file = options.file === undefined ? {} : { file: options.file };
   const tooLong = reasonRefusal(reason);
   if (tooLong !== undefined) return tooLong;
   const found = await claimable(context.library, id);
@@ -111,7 +115,7 @@ export async function claim(context: ClaimContext, id: string, reason: string, o
     const mine = current?.session === context.session;
     if (mine && !(options.moveBranch && context.branch !== undefined && context.branch !== current.branch)) return { ok: true, claim: current, alreadyHeld: true };
     if (!mine && current?.holder === "live") {
-      await log.append({ ...who(context), kind: "claim-refused", ...found.part, holder: current.session, reason });
+      await log.append({ ...who(context), kind: "claim-refused", ...found.part, holder: current.session, reason, ...file });
       return { ok: false, refused: "held", holder: current };
     }
     // A claim may have waited for this lock without needing any library write at all.
@@ -126,6 +130,7 @@ export async function claim(context: ClaimContext, id: string, reason: string, o
       reason,
       ...(current === undefined || mine ? {} : { takenOverFrom: current.session }),
       ...(context.branch === undefined ? {} : { branch: context.branch }),
+      ...file,
     });
     const claimed: Claim = { ...claimOf(line.session, line.harness, found.part, reason, line.at, context.branch), holder: "live" } as Claim;
     return current === undefined || mine ? { ok: true, claim: claimed } : { ok: true, claim: claimed, takenOverFrom: current };
@@ -258,7 +263,7 @@ function who(context: ClaimContext) {
   return {
     session: context.session,
     ...(context.harness === undefined ? {} : { harness: context.harness }),
-    source: "tool" as const,
+    source: context.source ?? ("tool" as const),
     ...(context.folder === undefined ? {} : { folder: context.folder }),
   };
 }

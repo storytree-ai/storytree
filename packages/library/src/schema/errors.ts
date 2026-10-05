@@ -2,7 +2,11 @@
  * The refusals of the data schema (capability 3). Each one names what is wrong, so whoever wrote
  * the record, an agent included, can put it right.
  */
+import { fileURLToPath } from "node:url";
+import { codeDistance } from "./code-distance.js";
 import { SCHEMA_VERSIONS } from "./types.js";
+
+const runningCodeDistance = codeDistance(fileURLToPath(import.meta.url));
 
 /** One thing wrong with a record's fields. */
 export interface FieldProblem {
@@ -67,9 +71,14 @@ export class NewerSchemaError extends Error {
   readonly knownVersion: number;
 
   constructor(id: string, type: string, version: number, knownVersion: number) {
+    const behind = runningCodeDistance();
+    const distance = behind === undefined
+      ? "The running code's distance from locally fetched origin/main is unknown."
+      : `The running code is ${behind} commit${behind === 1 ? "" : "s"} behind locally fetched origin/main.`;
     super(
       `record ${JSON.stringify(id)} (${type}) was written on schema version ${version}, which is newer than ` +
-        `version ${knownVersion}, the newest ${type} version this code knows: it is refused rather than guessed at`,
+        `version ${knownVersion}, the newest ${type} version this code knows: it is refused rather than guessed at. ` +
+        `${distance} Update the storytree checkout with \`git pull\` and \`pnpm install\`; restart the agent link from a current worktree if it is running.`,
     );
     this.name = "NewerSchemaError";
     this.id = id;

@@ -99,7 +99,7 @@ export const TILE_QUOTA_RULE = `max(1, capabilities) × ${HEX_TILES_PER_CAPABILI
 
 /**
  * THE TILE THIS ENGINE'S ART WAS AUTHORED ON, TYPED AS HISTORY (ADR-0528). `HEX_R = 27` was the one
- * by-eye number left on the layout path, and every prop, keep-out and offset in `scene.ts`,
+ * by-eye number left on the layout path, and every prop, keep-out and offset in 0.2's scene graph,
  * `coast.ts` and the studio's packer was judged in ground units against it. It is kept here for two
  * readers and nothing on the shipped path draws it: `tileUnits()` re-bases those lengths, and a
  * comparison page's control arm (`shipped-tile-scene.ts`) records which tile the map as it shipped
@@ -124,20 +124,6 @@ export const TILE_SCALE = HEX_R / PRE_ADR0528_TILE.hexR;
 export function tileUnits(authoredAgainstOldTile: number): number {
   return authoredAgainstOldTile * TILE_SCALE;
 }
-
-/**
- * The extrusion below a claimed tile, as a world HEIGHT. Named separately from the projected
- * offset so the two paint sites keep reading one already-projected number, and so the depth stops
- * being a bare screen constant the moment the land has a camera.
- */
-export const TILE_DEPTH_WORLD = tileUnits(8);
-
-/**
- * The tile extrusion ON SCREEN — an upright world height through the declared camera, so it carries
- * cos θ where the lattice carries sin θ. Read by the two `tile-side` / `hex-side` paint sites, and
- * (as a layout term) by the studio's nameplate baseline and scene bounds.
- */
-export const TILE_DEPTH = TILE_DEPTH_WORLD * uprightForeshortening();
 
 export const axialKey = (h: Axial): string => `${h.q},${h.r}`;
 
@@ -240,19 +226,6 @@ export function hexCorners(
     pts.push({ x: cx + R * Math.cos(a), y: cy + R * Math.sin(a) * f });
   }
   return pts;
-}
-
-export function hexPath(
-  cx: number,
-  cy: number,
-  R: number,
-  elevationDeg: number = LAND_CAMERA_ELEVATION_DEG,
-): string {
-  return (
-    hexCorners(cx, cy, R, elevationDeg)
-      .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`)
-      .join(' ') + ' Z'
-  );
 }
 
 /** A closed polygon `d` string. */

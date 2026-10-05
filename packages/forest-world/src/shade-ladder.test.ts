@@ -267,7 +267,7 @@ test('SHADE_KEYS is EMPTY for every status family — a semantic question art ma
   // ADR-0392 D5 / ADR-0398 D7: the land's colour is a capability's proof state, so rotating a
   // shaded ground's hue would change what the map ASSERTS. The keys are on family-less prop
   // tokens only (ADR-0406 D4). The shipped ground therefore never takes the mix branch, which is
-  // what makes `banded-ground-material`'s ramp a plain `token x level` table.
+  // what makes a ground token's ramp (`tokenRamp`) a plain `token x level` table.
   const groundTokens = ['#8cb85e', '#b7684e', '#d8c069', '#57544a', '#9ca3af'];
   for (const token of groundTokens) {
     assert.equal(SHADE_KEYS.get(token), undefined, `${token} must not carry a shade key`);

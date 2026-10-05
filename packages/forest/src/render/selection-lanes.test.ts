@@ -5,7 +5,7 @@ import type { ForestScene, Island } from '../index.js';
 import { ringPulse, selectionLanes, selectionNeighbours } from '../index.js';
 
 const island = (story: string, capabilities: string[]): Island => ({
-  story, title: story, x: 0, z: 0, radius: 1, key: story,
+  story, title: story, x: 0, z: 0, key: story,
   trees: capabilities.map(capability => ({ capability, form: 'green', contracts: 0, x: 0, z: 0, scale: 1, turn: 0 })),
 });
 // b builds on a; c builds on b; a2 builds on a1 within a; c also builds on a.

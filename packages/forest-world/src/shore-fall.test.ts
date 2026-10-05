@@ -25,7 +25,7 @@ import {
   shoreField,
   shoreRelief,
 } from './shore-fall.js';
-import type { InstanceDescriptor } from './world-to-3d.js';
+import type { InstanceDescriptor } from './descriptors.js';
 
 // ---------------------------------------------------------------------------
 // Fixtures — a square island, so every distance in this file is one anybody can check by hand.
@@ -154,7 +154,7 @@ test('⚠ A NEIGHBOURING ISLAND NEVER PULLS THE SHORE — the nearest loop is th
 test('a descriptor that belongs to no coast contributes no shore', () => {
   const tree = { kind: 'uat-bloom', island: 'story-a', transform: { x: 5, y: 0, z: 5 } };
   // ⚠ OMITTED, NOT SET TO `undefined`. Under `exactOptionalPropertyTypes` those are different
-  // inputs, and only the first is the shape `worldTo3D` can actually emit.
+  // inputs, and only the first is the shape `forestDescriptors` can actually emit.
   const { island: _i, ...homeless } = square();
   const { points: _p, ...ringless } = square('story-c');
   const field = shoreField(

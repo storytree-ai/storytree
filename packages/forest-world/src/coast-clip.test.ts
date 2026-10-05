@@ -32,7 +32,7 @@ import {
   type CoastMode,
   type CoastPoint,
 } from './coast-clip.js';
-import type { InstanceDescriptor } from './world-to-3d.js';
+import type { InstanceDescriptor } from './descriptors.js';
 
 /** A 2x2 block of unit-ish square parcels: four rings sharing one centre vertex, so the block has
  *  8 boundary edges, 4 interior ones and exactly one rim loop. Small enough to reason about by
@@ -327,18 +327,6 @@ test('the clip carries every parcel identity through untouched', () => {
   }
 });
 
-test('a descriptor that is not ground passes through in place', () => {
-  const bloom: InstanceDescriptor = {
-    kind: 'uat-bloom',
-    transform: { x: 3, y: 0, z: 4 },
-    group: 'uat-bloom',
-  };
-  const mixed = [...blockCells(), bloom];
-  const out = clipToCoast(mixed, 'subdivide');
-  assert.equal(out.length, 5);
-  assert.deepEqual(out[4], bloom);
-});
-
 test('a parcel the mapper could not attribute to an island is LEFT ALONE', () => {
   // No island id means no story seed, so there is no coast to draw — and pooling unhomed parcels
   // would compute a rim across the sea between two unrelated ones.
@@ -407,23 +395,6 @@ test('the coast is DETERMINISTIC and story-seeded', () => {
 // What belongs to no coast — one predicate, three ways to fail it
 // ---------------------------------------------------------------------------
 
-/** A descriptor that carries an island AND a ring but is NOT ground. If the clip read `island` and
- *  `points` without asking about `kind`, this would join the island's rim and be rewritten — and
- *  the picture would be an ordinary island with a signed criterion's bloom moved onto the
- *  shoreline. (It was the `story-tree` family until that was retired, ADR-0508; a bloom carries
- *  the same island id and plays the same part here.) */
-const BLOOM_ON_THE_ISLAND: InstanceDescriptor = {
-  kind: 'uat-bloom',
-  transform: { x: 5, y: 0, z: 5 },
-  group: 'uat-bloom',
-  island: 'story-a',
-  points: [
-    { x: 0, y: 0, z: 0 },
-    { x: 40, y: 0, z: 0 },
-    { x: 40, y: 0, z: 40 },
-  ],
-};
-
 /** Ground, on the island, with no ring at all. It bounds nothing, so it contributes no shore edge
  *  and has nothing to rewrite. */
 const GROUND_WITHOUT_A_RING: InstanceDescriptor = {
@@ -433,14 +404,6 @@ const GROUND_WITHOUT_A_RING: InstanceDescriptor = {
   island: 'story-a',
   material: 'healthy',
 };
-
-test('a NON-GROUND descriptor is left alone even when it carries an island and a ring', () => {
-  const out = clipToCoast([...blockCells(), BLOOM_ON_THE_ISLAND], 'subdivide');
-  assert.equal(out[4], BLOOM_ON_THE_ISLAND, 'the bloom was rewritten');
-  // And it did not reach the rim either: the island's coast is what it is without the tree.
-  const alone = clipToCoast(blockCells(), 'subdivide');
-  assert.deepEqual(out.slice(0, 4), alone);
-});
 
 test('GROUND WITH NO RING is left alone, and contributes no shore', () => {
   const out = clipToCoast([...blockCells(), GROUND_WITHOUT_A_RING], 'subdivide');

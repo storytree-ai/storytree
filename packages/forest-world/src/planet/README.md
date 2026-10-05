@@ -14,8 +14,8 @@ keeping the scene, camera and clock, so a host can mount the globe below the fol
 `kitBytes` prop is gone.
 
 `plateChildren(island, descriptors)` puts the page's names, selection and claim
-markers in the plate's local coordinates. `parcelSpots(descriptors)` and
-`islandAt(descriptors, x, z)` therefore use those local coordinates too. Other
+markers in the plate's local coordinates. `parcelSpots(descriptors)` therefore
+uses those local coordinates too. Other
 R3F `children` can read the default orbit controls. The optional `rotation`
 quaternion turns the globe as a whole for host-driven focus. The page, its
 selection handling and its failing-story markers are lane D's work.
@@ -34,13 +34,8 @@ lies behind it and an island seen from behind hides nothing. The shell still ans
 page keeps its near-side names, claims and picking rule. The surface owns and disposes its
 geometry and material.
 
-The flat canvas keeps its camera, controls and material defaults. Existing
-tests were left unchanged. A comparison against the red commit's shipped
-ground material also found byte-identical vertex and fragment shaders with
-the shipped grass, wheat, blight, rock and detail layers and no plate option.
-Centring a globe island changes the phase of coordinate-sampled terrain and
-cover compared with its offset flat counterpart, as the look spike reported;
-the geometry and paint recipes are reused unchanged.
+The camera's constants live in `camera.ts`: the shipped elevation (`SHIPPED_ELEVATION_DEG`), the
+orthographic zoom for a viewport (`orthographicZoomFor`) and the globe's framing.
 
 ## Historical first-slice capture
 

@@ -178,46 +178,15 @@ export function chaikinClosed(loop: Pt[], iterations: number): Pt[] {
   return cur;
 }
 
-/**
- * A closed SVG path through a loop's edge MIDPOINTS, each vertex its quadratic
- * control point — a cusp-free curve that closes watertight with Z. After Chaikin
- * this reads as a soft, hand-drawn coastline. The same `d` serves the island's
- * sand fill and its water moat (fill vs stroke of one curve).
- */
-export function smoothLoopPath(loop: Pt[]): string {
-  const n = loop.length;
-  if (n < 3) return '';
-  const mid = (a: Pt, b: Pt): Pt => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
-  const last = loop[n - 1];
-  const first = loop[0];
-  if (!last || !first) return '';
-  const m0 = mid(last, first);
-  let d = `M ${m0.x.toFixed(1)} ${m0.y.toFixed(1)}`;
-  for (let i = 0; i < n; i++) {
-    const c = loop[i];
-    const nxt = loop[(i + 1) % n];
-    if (!c || !nxt) continue;
-    const m = mid(c, nxt);
-    d += ` Q ${c.x.toFixed(1)} ${c.y.toFixed(1)} ${m.x.toFixed(1)} ${m.y.toFixed(1)}`;
-  }
-  return `${d} Z`;
-}
-
-/**
- * Turn a territory's raw hex-edge boundary loops into smooth organic coastlines:
- * outset a beach margin, Chaikin-round the corners, emit cusp-free `d` strings.
- * Returns the smoothed point loop(s) (for river docking / panel use) alongside
- * the paths.
- */
-/** A story island's smoothed coastline: the outset, Chaikin-smoothed boundary loops and the SVG
- *  path `d` for each. Named because `anti-slop/no-known-value-widening` reads an anonymous object
- *  return annotation as discarded type evidence — and deleting the annotation instead would let
- *  an empty-island `loops: []` infer as `never[][]`. */
+/** A story island's smoothed coastline: the outset, Chaikin-smoothed boundary loops. */
 export interface SmoothedCoast {
   loops: Pt[][];
-  paths: string[];
 }
 
+/**
+ * Turn a territory's raw hex-edge boundary loops into smooth organic coastlines: outset a beach
+ * margin, jittered by the story's id, and Chaikin-round the corners.
+ */
 export function smoothCoast(segs: BoundarySeg[], storyId: string, outset: number = COAST_OUTSET): SmoothedCoast {
   const loops = boundaryRingLoops(segs).map((l) =>
     chaikinClosed(
@@ -225,5 +194,5 @@ export function smoothCoast(segs: BoundarySeg[], storyId: string, outset: number
       COAST_SMOOTH_ITERS,
     ),
   );
-  return { loops, paths: loops.map(smoothLoopPath) };
+  return { loops };
 }

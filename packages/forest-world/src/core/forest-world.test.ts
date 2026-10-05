@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { hash, rand01 } from './rng.js';
 import { PLAN_VIEW_ELEVATION_DEG, groundFlattening } from './camera.js';
 import { HEX_R, hexCenter, pixelToHex, hexDist, hexCorners, axialKey, type Axial } from './hex.js';
-import { crownRadius, estRadius, ringsOf, storyTreeReach } from './sizing.js';
+import { ringsOf } from './sizing.js';
 import { smoothCoast, chaikinClosed, boundaryRingLoops, type BoundarySeg } from './coast.js';
 import { buildRelaxedCells, MESH_TUNING, type DrawTile } from './substrate.js';
 
@@ -76,19 +76,8 @@ test('hexCorners returns 6 points on the camera ground ellipse of radius R', () 
 
 // ---------- sizing ----------
 
-// test-removed: `crownRadius grows with capability count and is clamped to 32` was renamed to bind its declared contract; the unchanged predicate is covered by the title below.
-// test-updated (refactor): `crownRadius grows with capability count and is clamped to 32` gained only its declared-contract title prefix; its assertions are unchanged.
-test('rc-hex-and-sizing-geometry: crownRadius grows with capability count and is clamped to 32', () => {
-  assert.ok(crownRadius(0) < crownRadius(3));
-  assert.ok(crownRadius(3) < crownRadius(6));
-  assert.equal(crownRadius(100), 32); // clamp
-  for (let n = 0; n <= 20; n++) assert.ok(crownRadius(n) <= 32 && crownRadius(n) >= 18);
-});
-
-test('estRadius / ringsOf / storyTreeReach are monotonic and positive', () => {
-  assert.ok(estRadius(3) > 0 && estRadius(13) > estRadius(3));
+test('ringsOf counts the hex rings a quota fills', () => {
   assert.ok(ringsOf(1) === 0 && ringsOf(7) === 1 && ringsOf(19) === 2 && ringsOf(37) === 3);
-  assert.ok(storyTreeReach(5) > storyTreeReach(0));
 });
 
 // ---------- coast ----------
@@ -119,10 +108,9 @@ test('rc-coastline-chaikin-smoothed: chaikinClosed roughly doubles the vertex co
 test('smoothCoast is deterministic and seed-dependent (same id → byte-identical paths)', () => {
   const a = smoothCoast(SQUARE, 'island-1');
   const b = smoothCoast(SQUARE, 'island-1');
-  assert.deepEqual(a.paths, b.paths);
+  assert.deepEqual(a.loops, b.loops);
   const other = smoothCoast(SQUARE, 'island-2');
-  assert.notDeepEqual(a.paths, other.paths); // the coast wave is seeded by the id
-  assert.ok(a.paths[0]!.startsWith('M') && a.paths[0]!.endsWith('Z'));
+  assert.notDeepEqual(a.loops, other.loops); // the coast wave is seeded by the id
 });
 
 // ---------- substrate (the relaxed Townscaper mesh) ----------

@@ -21,7 +21,7 @@
 //   · The sprite track is authored at exactly 20.0° (`ELEV_DEG = 20.0`), and its 19 frames carry a
 //     signed owner ceiling verdict, so they cannot be re-rendered at another angle for free.
 //   · The land, though its MAPPING carried no camera, has always drawn its ground contact shadows
-//     as though it had one. The eight fixed shadow ellipses in `scene.ts` imply elevations of
+//     as though it had one. The eight fixed shadow ellipses in 0.2's `scene.ts` implied elevations of
 //     14.9°, 17.5°, 17.5°, 19.0°, 19.1°, 20.4°, 21.5° and 23.6° — mean 19.2°, median 19.0°.
 //   · So 20° sat ~0.8° from what the land's own existing art already implied, and well inside that
 //     art's own 8.7° spread. Adopting the sprite's angle cost the land nothing measurable, and it
@@ -90,37 +90,6 @@ export function projectGround(p: Pt, elevationDeg: number = LAND_CAMERA_ELEVATIO
 }
 
 /**
- * A polar offset of GROUND radius `r` at ground bearing `ang`, returned in SCREEN units — what a
- * layout or a scatter adds to an ALREADY-PROJECTED anchor to land `r` away across the ground.
- *
- * It replaces `{ cos·r, sin·r·0.7 }` (and the studio layout's `0.66` twin): both were hand-picked
- * top-down squashes inherited from the wisp orbit, with no relation to the shape the island
- * actually projects to. At the ORIGINAL 20° declared camera the same disc projected at
- * `sin 20° = 0.342`, so the old offsets over-reached the island's own projected height by roughly a
- * factor of two — which is what pushed scatter candidates into the water and exhausted the draws.
- * At the current ADR-0593 camera the disc projects at `sin 50° = 0.766` instead — past both retired
- * constants, so the same defect would now under-reach rather than over-reach; either way, a fixed
- * squash that does not track the declared camera is wrong, which is the property this function
- * fixes for good.
- *
- * ⚠ THIS IS THE ONE DEFINITION, and the SECOND one is why (ADR-0537). `scene.ts` held it privately
- * and `TreeView.tsx` held a deliberate local copy whose own comment gave the reason in terms: the
- * copy was cheaper than an engine sync and a web pin bump for two lines of arithmetic. ADR-0537
- * ruled that the publishing toll may not draw this boundary, so the copy is gone and the export
- * stands here beside {@link projectGround}, the function it is a polar spelling of.
- *
- * ⚠ NEVER pass this point-free to `Array.prototype.map` — the third parameter `.map` supplies would
- * land in `elevationDeg` (the `['1','2'].map(parseInt)` trap {@link projectGround} documents).
- */
-export function groundPolarOffset(
-  ang: number,
-  r: number,
-  elevationDeg: number = LAND_CAMERA_ELEVATION_DEG,
-): Pt {
-  return projectGround({ x: Math.cos(ang) * r, y: Math.sin(ang) * r }, elevationDeg);
-}
-
-/**
  * The inverse of {@link projectGround}: screen space back onto the ground plane.
  *
  * ⚠ Same point-free `.map` trap as {@link projectGround} — never pass this bare to `.map`.
@@ -129,41 +98,3 @@ export function unprojectGround(p: Pt, elevationDeg: number = LAND_CAMERA_ELEVAT
   return { x: p.x, y: p.y / groundFlattening(elevationDeg) };
 }
 
-/**
- * On-screen vertical half-extent of a ground-plane circle of radius `r`.
- *
- * This is the number a LAYOUT site needs wherever it used to add a bare ground radius — a cell's
- * projected half-height under a nameplate, the bottom of the scene bounds, a contact shadow's
- * semi-minor axis. It equals `r` only in plan view, which is why those sites were correct before
- * the land had a camera and wrong the moment it got one.
- *
- * ⚠ NEVER pass this point-free to `Array.prototype.map` — same index-as-`elevationDeg` trap as
- * {@link hexCenter}/{@link projectGround} (ADR-0367 D1). Always wrap:
- * `rs.map((r) => groundRadiusToScreenHalfHeight(r))`.
- */
-export function groundRadiusToScreenHalfHeight(
-  r: number,
-  elevationDeg: number = LAND_CAMERA_ELEVATION_DEG,
-): number {
-  return r * groundFlattening(elevationDeg);
-}
-
-/**
- * The vertical scale a sprite authored at `spriteElevationDeg` needs in order to stand on land
- * projected at `landElevationDeg`. EXACTLY 1 when the two agree — which is the whole point of
- * ADR-0367 D1, and what retires the lab's squash dial as the reconciliation MECHANISM.
- *
- * Anything other than 1 is a WARNING, not a fix. It reconciles upright height only and can do
- * nothing about the sprite's own ground footprint, which was baked at the angle it was rendered at;
- * a sprite standing on land at a different camera needs RE-RENDERING. The dial survives as a
- * comparison control precisely because that is all it ever was.
- *
- * ⚠ NEVER pass this point-free to `Array.prototype.map` — same index-as-`landElevationDeg` trap as
- * {@link hexCenter}/{@link projectGround} (ADR-0367 D1).
- */
-export function spriteUprightScale(
-  spriteElevationDeg: number,
-  landElevationDeg: number = LAND_CAMERA_ELEVATION_DEG,
-): number {
-  return uprightForeshortening(landElevationDeg) / uprightForeshortening(spriteElevationDeg);
-}

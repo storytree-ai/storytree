@@ -7,7 +7,7 @@ import { routeTrails, trailFillWidth, type TrailEdgeIn, type TrailEdgeOut, type 
 import { forestDescriptors, parcelSpots } from '../forest-ground/forest-ground.js';
 import { shoreRelief, type ShoreRelief } from '../shore-fall.js';
 import { RIBBON_GROUND_SCALE } from '../trail-ribbon-width.js';
-import type { Descriptor3D, InstanceDescriptor } from '../world-to-3d.js';
+import type { Descriptor3D, InstanceDescriptor } from '../descriptors.js';
 import { plateTransform, type PlanetSpot } from './planet.js';
 
 export interface PlanetPathwayPlate {
@@ -63,8 +63,7 @@ let crossRoutes: { key: string; network: TrailNetwork } | undefined;
 function prepareGround(island: Island): PreparedGround {
   const old = preparedGrounds.get(island);
   if (old) return old;
-  const descriptors = forestDescriptors({ islands: [{ ...island, x: 0, z: 0,
-    trees: island.trees.map(tree => ({ ...tree, x: tree.x - island.x, z: tree.z - island.z })) }] });
+  const descriptors = forestDescriptors({ islands: [{ ...island, x: 0, z: 0 }] });
   const cells = clipToCoast(descriptors.filter((d): d is InstanceDescriptor => d.kind === 'cell-ground' && d.points !== undefined), SHIPPED_COAST);
   const prepared = { descriptors, parcels: parcelSpots(descriptors), relief: shoreRelief(cells), rings: rimLoops(cells.map(c => c.points!)) };
   preparedGrounds.set(island, prepared);

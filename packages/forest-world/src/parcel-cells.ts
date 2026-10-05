@@ -1,30 +1,18 @@
 // parcel-cells.ts — the island's ground cells in the basis anything standing ON them works in,
 // and the one route from the SHIPPED descriptor stream into it.
 //
-// ⚠⚠ WHY THIS EXISTS AS ITS OWN MODULE. `harness/prop-layout.ts` has owned `GPoint` and
-// `LayoutCell` since the procedural dressing, and it is 1,100 lines of scatter, stand, meander and
-// loop machinery that the shipped map has no use for. When the bought kit crossed on 2026-08-30 it
-// needed the two TYPES and a way to reach them from `worldTo3D`'s output — not the machinery. So
-// the shapes crossed and the machinery stayed, and `harness/prop-layout.ts` re-exports them, which
-// is what stops the harness and the product disagreeing about what a cell is.
+// ⚠ THE `y`-MEANS-`z` TRAP, and it is why the conversion happens in exactly one place. The relaxed
+// mesh is built in 0.2's 2D drawing basis, where the second coordinate is `y`; the ground is a 3D
+// plane where it is `z`. `forest-ground.ts` converts each ring once as it emits the cell, and this
+// module reads only `x` and `z`. Converting ad hoc downstream is how a placement ends up rotated
+// ninety degrees from the land it is standing on, and the picture looks merely odd rather than wrong.
 //
-// ⚠ THE `y`-MEANS-`z` TRAP, and it is why the conversion happens in exactly one place. The scene
-// is authored in a 2D drawing basis where the second coordinate is `y`; the ground is a 3D plane
-// where it is `z`. Converting ad hoc downstream is how a placement ends up rotated ninety degrees
-// from the land it is standing on, and the picture looks merely odd rather than wrong.
-//
-// ⚠⚠ THE SHIPPED BASIS IS THE ISLAND'S TRUE FOOTPRINT SINCE 2026-09-05 (ADR-0517 D1). Until then
-// `worldTo3D` mapped the drawing's `(x, y)` straight to `(x, 0, z)`, so the shipped island was the
-// PROJECTED shape used as a ground plane — 234 units wide and 46 deep, measurably squashed — and
-// this header warned that the harness's `groundCellsFrom` (which unprojects) and the shipped path
-// (which did not) were two different bases. The mapper now unprojects per island itself
-// (`true-footprint.ts`), so the two agree on the island's shape; they still differ by where the
-// island sits (the harness unprojects about the drawing's origin, the mapper about each island's
-// own centre, holding the layout still). What matters here is unchanged: a prop placed off these
-// rings and lifted by `landRelief.height` sits on the ground the canvas actually draws, because
-// both read the same numbers.
+// ⚠ THE BASIS IS THE ISLAND'S TRUE FOOTPRINT (ADR-0517 D1). `forestDescriptors` builds each island
+// in plan view and sizes it about its own centre (`true-footprint.ts`), so anything placed off these
+// rings and lifted by `landRelief.height` sits on the ground the globe actually draws, because both
+// read the same numbers.
 
-import type { Descriptor3D } from './world-to-3d.js';
+import type { Descriptor3D } from './descriptors.js';
 
 /** A ground-space point. x east, z south — the space `landHeight(x, z)` takes. */
 export interface GPoint {
@@ -36,10 +24,9 @@ export interface GPoint {
  *  island it sits on, and the folded status it wears. The form everything that stands on the
  *  ground works in.
  *
- *  ⚠ `parcel` AND `island` ARE TWO DIFFERENT QUESTIONS AND BOTH ARE NEEDED. A capability's tree
- *  stands on its own parcel; a story's UAT bloom stands anywhere on its own ISLAND and on no
- *  other. One id cannot answer both, and answering the second with the first is how a story's
- *  signatures end up scattered over its neighbours. */
+ *  ⚠ `parcel` AND `island` ARE TWO DIFFERENT QUESTIONS AND BOTH ARE NEEDED. A capability owns its
+ *  own parcel; a story owns its whole ISLAND and no other. One id cannot answer both, and answering
+ *  the second with the first is how a story's ground ends up scattered over its neighbours. */
 export interface LayoutCell {
   points: GPoint[];
   parcel: string | undefined;
@@ -52,7 +39,7 @@ export interface LayoutCell {
  * THE SHIPPED DESCRIPTOR STREAM'S GROUND CELLS, in the placement basis.
  *
  * ⚠ A CELL WITH NO `parcel` IS KEPT, NOT DROPPED, and the distinction is load-bearing. Dropping
- * it would silently shrink the island a whole-story prop (a UAT bloom) may stand on, and on a
+ * it would silently shrink the island a whole-story claim reads, and on a
  * substrate with no parcel groups at all it would shrink it to nothing — an island that reports
  * none of the work, drawn with no error anywhere. Callers that need per-capability identity group
  * by `parcel` and get an honest absence.
@@ -96,9 +83,8 @@ export function cellsByParcel(cells: readonly LayoutCell[]): Map<string, LayoutC
  * ⚠ CELLS CARRYING NO ISLAND ARE LEFT OUT, and unlike {@link cellsByParcel}'s absence this one is
  * fail-CLOSED on purpose. A caller groups by island precisely so a per-story claim lands on the
  * right story's ground; a bucket of cells the substrate could not attribute is exactly the ground
- * no such claim may be drawn on. Dropping them here means an unattributed island grows no blooms
- * rather than growing everyone's — the same choice the shipped call sites were already making with
- * `blooms: 0`, now made per island instead of for the whole map.
+ * no such claim may be drawn on. Dropping them here means an unattributed cell belongs to no
+ * story's ground rather than to everyone's.
  */
 export function cellsByIsland(cells: readonly LayoutCell[]): Map<string, LayoutCell[]> {
   const out = new Map<string, LayoutCell[]>();

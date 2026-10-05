@@ -6,9 +6,9 @@ import type { ForestScene, Island } from '../scene.js';
 import { planetPathwayDrawing, type PlanetPathwayPlate } from './pathways.js';
 import { Pathways, SelectionLanes } from './PlanetTrailRibbons.js';
 import type { LitLink } from './lanes.js';
-import type { Descriptor3D } from '../world-to-3d.js';
+import type { Descriptor3D } from '../descriptors.js';
 import { EXACT_COLOUR_CANVAS_PROPS } from '../exact-colour.js';
-import { SHIPPED_ELEVATION_DEG } from '../camera-framing.js';
+import { SHIPPED_ELEVATION_DEG } from './camera.js';
 import { createPlanetSurface, plateTransform, type PlanetSpot } from './planet.js';
 import { disposeIslandSurface, islandSurface } from './island-surface.js';
 import { applyPlanetFraming, applyPlanetSideOffset } from './camera.js';
@@ -21,7 +21,7 @@ export { globeOccluder, plateTransform, PLATE_CLEARANCE } from './planet.js';
 export { islandNormal, onIslandSurface } from './island-surface.js';
 export { applyPlanetFraming, applyPlanetSideOffset } from './camera.js';
 /** The eye's height above the globe's equator, in degrees: a host turns what it shows toward it. */
-export { SHIPPED_ELEVATION_DEG } from '../camera-framing.js';
+export { SHIPPED_ELEVATION_DEG } from './camera.js';
 export { usePlanetGrowth, type GrowthReader, type PlanetGrowth } from './PlanetGrowth.js';
 export { crossingLength, growthMoment, growthPlan, type GrowthOptions, type GrowthPlan, type GrowthStage } from './growth.js';
 

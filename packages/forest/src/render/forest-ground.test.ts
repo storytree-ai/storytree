@@ -10,10 +10,10 @@ import { test } from "node:test";
 
 import { workStates } from "@storytree/arc-surface";
 import type { NewLine } from "@storytree/agent-link";
-import { forestDescriptors, GROUND_PER_PLACE, GROUND_PER_WORLD_UNIT, islandAt, islandReach, statusOf, type Descriptor3D, type InstanceDescriptor } from "@storytree/forest-world";
+import { forestDescriptors, GROUND_PER_PLACE, GROUND_PER_WORLD_UNIT, islandReach, statusOf, type Descriptor3D, type InstanceDescriptor } from "@storytree/forest-world";
 import type { AnnotatedCapability, AnnotatedStory, Change } from "@storytree/library";
 
-import { capabilityFactsFrom, parcelCellsFrom, stateForm } from "@storytree/forest-world/geometry";
+import { parcelCellsFrom } from "@storytree/forest-world/geometry";
 
 import { forestScene, PLACE_WIDTH, type ForestScene } from "../index.js";
 
@@ -44,6 +44,11 @@ function scene(sizes: number[], lines: NewLine[] = [], contracts = 0): ForestSce
 const ground = (descriptors: Descriptor3D[], island: string): InstanceDescriptor[] =>
   descriptors.filter((d): d is InstanceDescriptor => d.kind === "cell-ground" && d.island === island);
 
+/** Each capability's parcel and the status its cells are drawn in. */
+function parcelStatuses(cells: readonly Descriptor3D[]): { capId: string | undefined; status: string }[] {
+  return [...new Map(parcelCellsFrom(cells).map((cell) => [cell.parcel, cell.status])).entries()].map(([capId, status]) => ({ capId, status }));
+}
+
 function extent(cells: InstanceDescriptor[]): { minX: number; maxX: number; minZ: number; maxZ: number } {
   const points = cells.flatMap((cell) => cell.points ?? []);
   return {
@@ -54,19 +59,7 @@ function extent(cells: InstanceDescriptor[]): { minX: number; maxX: number; minZ
   };
 }
 
-test("each of 0.3's four tree forms is drawn as one of 0.2's statuses: a seedling and a pale tree are tinted pines, a green tree the kit's own pine, a dead tree a bare trunk", () => {
-  assert.deepEqual(
-    (["seedling", "pale", "green", "dead"] as const).map((form) => [form, statusOf(form), stateForm(statusOf(form))]),
-    [
-      ["seedling", "building", { role: "tree", tint: "building" }],
-      ["pale", "mapped", { role: "tree", tint: "mapped" }],
-      ["green", "healthy", { role: "tree", tint: null }],
-      ["dead", "unhealthy", { role: "deadTree", tint: null }],
-    ],
-  );
-});
-
-test("every story node's ground is drawn at its place on the spiral, one parcel per capability, each wearing its tree's form", () => {
+test("every story node's ground is drawn at its place on the spiral, one parcel per capability, each in its capability's status", () => {
   const forest = scene([3, 2], [{ kind: "landed", session: "s1", source: "tool", capability: "cap_0_1" }]);
   const descriptors = forestDescriptors(forest);
   const scale = GROUND_PER_PLACE / PLACE_WIDTH;
@@ -76,7 +69,7 @@ test("every story node's ground is drawn at its place on the spiral, one parcel 
     const { minX, maxX, minZ, maxZ } = extent(cells);
     assert.ok(Math.abs((minX + maxX) / 2 - island.x * scale) < GROUND_PER_PLACE * 0.15, `${island.story} is centred on its place in x`);
     assert.ok(Math.abs((minZ + maxZ) / 2 - island.z * scale) < GROUND_PER_PLACE * 0.15, `${island.story} is centred on its place in z`);
-    const facts = capabilityFactsFrom(parcelCellsFrom(cells));
+    const facts = parcelStatuses(cells);
     assert.deepEqual(
       facts.map(({ capId, status }) => [capId, status]).sort(),
       island.trees.map(({ capability, form }) => [capability, statusOf(form)]).sort(),
@@ -88,7 +81,7 @@ test("a story with no capabilities yet still gets ground and its one seedling", 
   const forest = scene([0]);
   const cells = ground(forestDescriptors(forest), "story_0");
   assert.ok(cells.length > 0);
-  assert.deepEqual(capabilityFactsFrom(parcelCellsFrom(cells)).map(({ status }) => status), ["building"]);
+  assert.deepEqual(parcelStatuses(cells).map(({ status }) => status), ["building"]);
 });
 
 test("neighbouring story nodes never overlap, even when every story is large", () => {
@@ -112,19 +105,3 @@ test("a capability landing changes only its own story node's ground, so only tha
   assert.notDeepEqual(ground(after, "story_1"), ground(before, "story_1"), "story_1's ground shows the landing");
 });
 
-test("a click on the ground picks the story node whose land is under it, and open sea picks none", () => {
-  const forest = scene([3, 1]);
-  const descriptors = forestDescriptors(forest);
-  for (const island of forest.islands) {
-    assert.equal(islandAt(descriptors, island.x * GROUND_PER_WORLD_UNIT, island.z * GROUND_PER_WORLD_UNIT), island.story);
-  }
-  const [first] = forest.islands;
-  assert.equal(islandAt(descriptors, first!.x * GROUND_PER_WORLD_UNIT + GROUND_PER_PLACE * 0.45, first!.z * GROUND_PER_WORLD_UNIT), undefined, "the sea between places");
-});
-
-test("a capability's contracts grow ground cover on its parcel, as 0.2's test counts did, and a capability with none grows none", () => {
-  const cover = (contracts: number): string[] =>
-    forestDescriptors(scene([2], [], contracts)).flatMap((d) => (d.kind === "coverage-flora" && "capability" in d ? [d.capability] : []));
-  assert.deepEqual([...new Set(cover(4))].sort(), ["cap_0_0", "cap_0_1"]);
-  assert.deepEqual(cover(0), []);
-});

@@ -1,5 +1,5 @@
 import { BackSide, FrontSide, Mesh, Object3D, Quaternion, ShaderMaterial, Sphere, SphereGeometry, Vector3, type Intersection, type Raycaster, type Side } from 'three';
-import { SHIPPED_ELEVATION_DEG } from '../camera-framing.js';
+import { SHIPPED_ELEVATION_DEG } from './camera.js';
 import { landHeightRange } from '../land-relief.js';
 import { SHORE_DIP } from '../shore-fall.js';
 import { LIGHT_DIRECTION } from '../shade-ladder.js';

@@ -5,7 +5,7 @@ import { buildPlanetPathways, growthMoment, growthPlan, growthProgress, plateGro
 
 const R = 218;
 const island = (story: string, capabilities: string[], files: string[] = []): Island => ({
-  story, title: story, x: 0, z: 0, radius: 1, key: story,
+  story, title: story, x: 0, z: 0, key: story,
   trees: capabilities.map((capability, i) => ({ capability, form: 'green', status: 'healthy', contracts: 1, x: i, z: 0, scale: 1, turn: 0 })),
   ...(files.length ? { land: { territories: [], files: files.map(path => ({ path, lines: 10 })) } } : {}),
 });

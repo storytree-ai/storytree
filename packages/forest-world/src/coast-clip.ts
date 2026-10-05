@@ -16,10 +16,6 @@
 // restating it: {@link COAST_OUTSET}, {@link COAST_SMOOTH_ITERS} and {@link jitteredOutset} are
 // imported, not transcribed. The 2D panel and the 3D canvas draw ONE map, so they read ONE beach.
 //
-// ⚠ THE HARNESS'S OWN `coast` POLYLINE IS A DIFFERENT, POORER THING (`harness/island-dressing.ts`)
-// — plain Chaikin, no perturbation, used only to place props on top of a still-hex-outlined ground.
-// Do not reach for it here and do not read the two as one component.
-//
 // ⚠⚠ THE SHAPE FORK, WHICH IS WHY THERE ARE THREE MODES AND NOT ONE. `smoothCoast` returns a loop
 // with FOUR TIMES the vertices it was handed (52 rim vertices → 208 smooth points), so there is no
 // 1:1 displacement of the mesh's existing boundary vertices to reach for. The three honest answers
@@ -46,10 +42,9 @@
 // ⚠ AND THE SUBDIVIDED VERTICES NEED NO SHARING ARGUMENT AT ALL: a boundary edge belongs to
 // exactly ONE parcel by definition, so the points inserted along it are that parcel's alone.
 //
-// ⚠ THIS CLIPS THE GROUND AND NOTHING ELSE. `ForestWorldCanvas` applies it inside `CellGround`,
-// so the occlusion atlas and the merged buffer read the clipped parcels while `dressMapFromKit`
-// reads the descriptors untouched. A tree stands where its parcel put it; the beach grows
-// underneath it. Moving the props too would confound every arm below with a second change.
+// ⚠ THIS CLIPS THE GROUND AND NOTHING ELSE. The globe applies it in `planet/pathways.ts`
+// (`prepareGround`), so the island's rim, its shore relief and its surface read the clipped parcels
+// while the descriptors themselves stay untouched.
 //
 // SEMANTICS DO NOT MOVE (ADR-0367 D5 / ADR-0392 D5). Every parcel keeps its own `material`, its
 // own `parcel` and its own `island`; the only thing that changes is where the OUTERMOST ones end.
@@ -67,7 +62,7 @@ import {
 } from './core/index.js';
 
 import { LAND_SCALE } from './land-per-capability.js';
-import type { InstanceDescriptor, Transform3D } from './world-to-3d.js';
+import type { InstanceDescriptor, Transform3D } from './descriptors.js';
 
 /** A ring vertex on the ground plane. x east, z south — the space the parcel rings arrive in. */
 export interface CoastPoint {

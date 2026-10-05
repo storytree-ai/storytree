@@ -12,7 +12,6 @@ import test from 'node:test';
 
 import { HEX_R, LAND_AREA_PER_CAPABILITY as ENGINE_RATIO, PRE_ADR0528_TILE } from './core/index.js';
 
-import { RECIPE_ISLAND_AREA } from './dressing-ground.js';
 import {
   HEX_TILE_AREA,
   LAND_AREA_PER_CAPABILITY,
@@ -29,7 +28,7 @@ import {
   sizeIslandsByCapability,
 } from './land-per-capability.js';
 import { islandCentres } from './true-footprint.js';
-import type { Descriptor3D, InstanceDescriptor } from './world-to-3d.js';
+import type { InstanceDescriptor } from './descriptors.js';
 
 /** A square cell of side `side` centred at (cx, cz) on island `island`, in parcel `parcel`. */
 function cell(island: string, parcel: string | undefined, cx: number, cz: number, side = 20): InstanceDescriptor {
@@ -51,7 +50,6 @@ function cell(island: string, parcel: string | undefined, cx: number, cz: number
   return d;
 }
 
-const asInstance = (d: Descriptor3D): d is InstanceDescriptor => d.kind !== 'skipped';
 
 /** The x/z extent of a set of descriptors' rings. */
 function extent(ds: readonly InstanceDescriptor[]) {
@@ -69,27 +67,6 @@ function extent(ds: readonly InstanceDescriptor[]) {
   }
   return { w: maxX - minX, d: maxZ - minZ };
 }
-
-test('⚠⚠ the constant carries its provenance: the approved render’s own density, in the TRUE basis, is the 318 rung — and the shipped pick is a rung of the declared ladder', () => {
-  // Thirteen stands of 4–8 pines, mean six, on the recipe island as this map places it (true basis).
-  const recipePines = 13 * 6;
-  // `RECIPE_ISLAND_AREA` is the recipe island THROUGH the shipped mapper (× LAND_SCALE²); its
-  // density is read on the island AS DRAWN, which is where the recipe's own 78 pines stood.
-  assert.equal(RECIPE_ISLAND_AREA, TUNED_FIXTURE.capabilities * LAND_AREA_PER_CAPABILITY, 'the recipe island through the shipped mapper, exactly');
-  const recipeDrawnArea = RECIPE_ISLAND_AREA / (LAND_SCALE * LAND_SCALE);
-  assert.ok(Math.abs(recipeDrawnArea - 24631.8) / 24631.8 < 0.001, `${recipeDrawnArea} — the drawn island, to the coast's 0.04%`);
-  const recipeDensity = recipeDrawnArea / recipePines;
-  assert.ok(Math.abs(recipeDensity - 318) / 318 < 0.02, `the recipe stands a pine on ${recipeDensity.toFixed(1)} units²; the rung is 318`);
-  // The increment's 108 is the same recipe read through the drawing's foreshortening (the squashed
-  // basis, 8,424.6): stated so nobody promotes it to a second approved density.
-  const squashedDensity = 8424.6 / recipePines;
-  assert.ok(Math.abs(squashedDensity - 108) < 1, `${squashedDensity.toFixed(1)}`);
-  assert.deepEqual([...LAND_AREA_PER_CAPABILITY_RUNGS], [318, 200, 108]);
-  assert.ok((LAND_AREA_PER_CAPABILITY_RUNGS as readonly number[]).includes(LAND_AREA_PER_CAPABILITY), 'the shipped pick is a rendered rung');
-  for (let i = 1; i < LAND_AREA_PER_CAPABILITY_RUNGS.length; i += 1) {
-    assert.ok(LAND_AREA_PER_CAPABILITY_RUNGS[i]! < LAND_AREA_PER_CAPABILITY_RUNGS[i - 1]!, 'the ladder descends — each rung is less land per tree');
-  }
-});
 
 test('the tuned reference is the fixture island: thirteen regular hexes of the PRE-ADR-0528 tile over eleven capabilities, ≈ 2,238.4 units² each — and LAND_SCALE is the edge-to-edge factor to the shipped rung', () => {
   // ⚠ The basis is FROZEN on the tile the constants were tuned on, not the engine's live tile: the
@@ -125,8 +102,6 @@ test('islandLand counts DISTINCT parcels per island and sums the rings’ areas;
     cell('a', 'a/p2', 40, 0),
     cell('a', undefined, 60, 0),
     cell('b', 'b/p1', 500, 0, 10),
-    { kind: 'skipped', sceneKind: 'x' } as Descriptor3D,
-    { kind: 'uat-bloom', transform: { x: 0, y: 0, z: 0 }, group: 'g', island: 'a' } as InstanceDescriptor,
   ];
   const land = islandLand(stream);
   assert.deepEqual([...land.keys()], ['a', 'b']);
@@ -134,17 +109,6 @@ test('islandLand counts DISTINCT parcels per island and sums the rings’ areas;
   assert.deepEqual(land.get('b'), { island: 'b', capabilities: 1, area: 100 });
   const none = cell('c', undefined, 0, 0);
   assert.deepEqual(islandLand([none]).get('c'), { island: 'c', capabilities: 0, area: 400 });
-  // ⚠ ONLY CELLS COUNT. A ribbon with a ring's worth of points and a stray `parcel` on island `a`
-  // adds neither land nor a capability — the island's size is a reading of its ground alone.
-  const ribbon: InstanceDescriptor = {
-    kind: 'trail-strip',
-    transform: { x: 0, y: 0, z: 0 },
-    group: 'g',
-    island: 'a',
-    parcel: 'a/not-a-parcel',
-    points: cell('a', 'a/p9', 100, 100, 40).points!,
-  };
-  assert.deepEqual(islandLand([...stream, ribbon]).get('a'), { island: 'a', capabilities: 2, area: 1600 });
   // A cell that lost its ring still names its capability and adds no land.
   const ringless = { ...cell('d', 'd/p', 0, 0) };
   delete ringless.points;
@@ -326,8 +290,8 @@ test('⚠ a ratio equal to an island’s own density leaves it byte-identical; t
   assert.deepEqual(same, a);
   const explicit = sizeIslandsByCapability(a, LAND_AREA_PER_CAPABILITY);
   assert.ok(Math.abs(islandLand(explicit).get('a')!.area - 2 * LAND_AREA_PER_CAPABILITY) < 1e-9);
-  // There is NO default ratio here — the one caller that means "the shipped one" says so (`worldTo3D`),
-  // and `world-to-3d.test.ts` holds that its default IS the shipped constant.
+  // There is NO default ratio here — the one caller that means "the shipped one" says so
+  // (`forest-ground.ts`'s `forestDescriptors`, which passes `LAND_AREA_PER_CAPABILITY`).
   const mixed = [cell('bare', undefined, 0, 0), cell('b', 'b/p', 300, 0)];
   const out = sizeIslandsByCapability(mixed, 100);
   // The bare island: 400 units² drawn, sized as ONE capability → 100, about its own centre (0, 0).
@@ -344,38 +308,3 @@ test('⚠ a ratio equal to an island’s own density leaves it byte-identical; t
   assert.deepEqual(sizeIslandsByCapability([], 100), []);
 });
 
-test('⚠ the whole stream follows the island: a bloom scales about its own island, a ribbon between two islands lands on both scaled coasts, and a cave keeps its bearing under the isotropic scale', () => {
-  // Island a at (50, 30): one cell of 1600 units² → at 400 its factor is 0.5. Island b at (250, 30):
-  // one cell of 400 units² → at 400 its factor is 1 (already at the ratio). Nothing sits at the
-  // origin, so a shift computed against the wrong centre — or added where it should be subtracted —
-  // is a number a test can see.
-  const a = cell('a', 'a/p', 50, 30, 40);
-  const b = cell('b', 'b/p', 250, 30, 20);
-  const bloom: InstanceDescriptor = { kind: 'uat-bloom', transform: { x: 60, y: 0, z: 40 }, group: 'g', island: 'a' };
-  const cave: InstanceDescriptor = { kind: 'cave-arch', transform: { x: 70, y: 0, z: 30 }, group: 'g', island: 'a', bearing: 0.7 };
-  const strip: InstanceDescriptor = {
-    kind: 'trail-strip',
-    transform: { x: 155, y: 0, z: 30 },
-    group: 'g',
-    points: [
-      { x: 70, y: 0, z: 30 },
-      { x: 155, y: 0, z: 30 },
-      { x: 240, y: 0, z: 30 },
-    ],
-  };
-  const out = sizeIslandsByCapability([a, b, bloom, cave, strip], 400).filter(asInstance);
-  const [, , bloomOut, caveOut, stripOut] = out as [InstanceDescriptor, InstanceDescriptor, InstanceDescriptor, InstanceDescriptor, InstanceDescriptor];
-  assert.deepEqual(bloomOut.transform, { x: 55, y: 0, z: 35 });
-  assert.deepEqual(caveOut.transform, { x: 60, y: 0, z: 30 });
-  assert.ok(Math.abs((caveOut.bearing as number) - 0.7) < 1e-12, 'isotropic: the rim normal does not turn');
-  // a's coast at x = 70 is now at 60 (20 from a's centre, halved); b's coast at x = 240 stays (factor 1).
-  // The midpoint at 155 is 105 from a — past a's reach (20√2) and its band (one reach) — so it is
-  // open ground and stays exactly where the drawing put it.
-  assert.ok(Math.abs(stripOut.points![0]!.x - 60) < 1e-9);
-  assert.ok(Math.abs(stripOut.points![2]!.x - 240) < 1e-9);
-  assert.equal(stripOut.points![1]!.x, 155, `the midpoint: ${stripOut.points![1]!.x}`);
-  assert.ok(stripOut.points!.every((q) => q.z === 30), 'nothing moved along z');
-  // The ribbon's transform moves by the MEAN of its points' shifts: (−10 + 0 + 0) / 3.
-  assert.ok(Math.abs(stripOut.transform.x - (155 - 10 / 3)) < 1e-9, `${stripOut.transform.x}`);
-  assert.equal(stripOut.transform.z, 30);
-});

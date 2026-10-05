@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { BackSide, DoubleSide, FrontSide, Quaternion, Raycaster, Vector3, type Material } from 'three';
-import { SHIPPED_ELEVATION_DEG } from '../camera-framing.js';
+import { SHIPPED_ELEVATION_DEG } from './camera.js';
 import { LIGHT_DIRECTION } from '../shade-ladder.js';
 import { landHeightRange } from '../land-relief.js';
 import { SHORE_DIP } from '../shore-fall.js';

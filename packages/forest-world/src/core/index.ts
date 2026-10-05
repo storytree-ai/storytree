@@ -1,10 +1,7 @@
-// @storytree/forest-world — the shared forest-world render core (ADR-0093,
-// strategy C). Pure, browser-safe, deterministic GEOMETRY: data-in → geometry-out.
-// Both the studio (React mapper) and the public website (string-SVG mapper) render
-// FROM this. No store, no React, no live data, no node: imports. Two pure layers:
-// the geometry KERNEL below (rng / hex / sizing / ranking / coast / substrate) and
-// the framework-agnostic SCENE-GRAPH (`scene.ts`) — the drawable tree the two
-// mappers walk.
+// The drawing engine's geometry core, from 0.2's forest-world (ADR-0093): pure, browser-safe,
+// deterministic geometry, data in and geometry out. The hex lattice, the relaxed mesh, the smoothed
+// coast and the trail router under the globe's islands. 0.2's 2D scene graph, its trees, plants
+// and flora went with the flat canvas (ADR-0920).
 
 export { hash, rand01 } from './rng.js';
 
@@ -17,23 +14,8 @@ export {
   groundFlattening,
   uprightForeshortening,
   projectGround,
-  groundPolarOffset,
   unprojectGround,
-  groundRadiusToScreenHalfHeight,
-  spriteUprightScale,
 } from './camera.js';
-
-// The ONE place that decides how much forest a surface opens on (ADR-0471). Every shipped map
-// used to answer that with a fit of its own; they now all convert from the single `scale` this
-// returns.
-export {
-  RESTING_ISLAND_SPANS,
-  MAX_EXTENT_SHOWN,
-  type RestingBound,
-  type RestingFrameInput,
-  type RestingFrame,
-  restingFrame,
-} from './resting-view.js';
 
 export {
   type Pt,
@@ -48,31 +30,16 @@ export {
   TILE_QUOTA_RULE,
   TILE_SCALE,
   tileUnits,
-  TILE_DEPTH,
-  TILE_DEPTH_WORLD,
   axialKey,
   AXIAL_DIRS,
   hexCenter,
   pixelToHex,
   hexDist,
   hexCorners,
-  hexPath,
   polyPath,
 } from './hex.js';
 
-export {
-  ringsOf,
-  estRadius,
-  tileQuota,
-  TREE_ART_RUNG,
-  PLATE_ART_RUNG,
-  FLORA_ART_RUNG,
-  TRAIL_ART_RUNG,
-  TREE_SCALE,
-  crownRadius,
-  crownRadiusWorld,
-  storyTreeReach,
-} from './sizing.js';
+export { ringsOf, tileQuota } from './sizing.js';
 
 export {
   type BoundarySeg,
@@ -84,7 +51,6 @@ export {
   loopSignedArea,
   outsetLoop,
   chaikinClosed,
-  smoothLoopPath,
   smoothCoast,
 } from './coast.js';
 
@@ -110,60 +76,5 @@ export {
   trailFillWidth,
 } from './routing.js';
 
-export {
-  type SceneStatus,
-  type SceneKind,
-  // The three states a UAT criterion's marker can be in. Exported because the 3D mapper
-  // (`@storytree/forest-world-r3f`'s `world-to-3d.ts`) derives its marker-kind table from it, so
-  // a fourth state added here reds that package's typecheck instead of silently reaching the map
-  // undrawn (ADR-0600 D2).
-  type MarkerState,
-  type BuildPhase,
-  type WispPhaseBand,
-  type ClaimColourState,
-  type ClaimGrade,
-  type SurfaceTheme,
-  type SurfaceFn,
-  type ParcelCell,
-  type ParcelFloraMark,
-  type SceneParcelInput,
-  type SceneGardenInput,
-  type SceneGardenHero,
-  type SceneVegetationInput,
-  type SceneVegHeroTrees,
-  type GardenHeroId,
-  SURFACES,
-  wispBand,
-  type SceneNodeBase,
-  type SceneG,
-  type ScenePath,
-  type SceneCircle,
-  type SceneEllipse,
-  type ScenePolygon,
-  type SceneRect,
-  type SceneText,
-  type BakedPaintNode,
-  type SceneBakedDef,
-  type SceneBakedUse,
-  type SceneNode,
-  type SceneTrailsInput,
-  type ScenePlantInput,
-  type SceneTerritoryInput,
-  type SceneInput,
-  type SceneEmptyHex,
-  BAKED_STONE_DEF,
-  buildScene,
-  type TileArt,
-  type ArtRungs,
-  tileArt,
-  SHIPPED_TILE_ART,
-  PLATE_SCALE,
-  FLORA_SCALE,
-  TRAIL_STROKE_SCALE,
-  landCellId,
-  buildTrails,
-  buildTree,
-  buildPlant,
-  buildConifer,
-  buildTerritoryFlora,
-} from './scene.js';
+/** The status a parcel's ground wears, folded from its capability's form by the forest's join. */
+export type SceneStatus = 'healthy' | 'mapped' | 'proposed' | 'building' | 'unhealthy' | 'unknown';

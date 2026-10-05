@@ -8,6 +8,8 @@
  */
 import { execFileSync } from "node:child_process";
 
+import { ask, type Answer } from "./machine.js";
+
 /** The release stamped into a bundled build, as JSON; undeclared when run from source. */
 declare const STORYTREE_RELEASE: string | undefined;
 
@@ -92,4 +94,34 @@ export function workflowFor({ install, test, systems, ref }: { install?: string 
 export function protectionCommand(repository: { owner: string; name: string }, systems: readonly System[]): string {
   const body = { required_status_checks: { strict: true, contexts: [...systems.map((system) => `test (${SYSTEMS[system]})`), CHECK_JOB] }, enforce_admins: false, required_pull_request_reviews: null, restrictions: null };
   return `gh api -X PUT repos/${repository.owner}/${repository.name}/branches/main/protection --input - <<'JSON'\n${JSON.stringify(body)}\nJSON`;
+}
+
+/** Whether GitHub lets `repository`'s plan protect a branch: read, never set. */
+export type Protection = "allowed" | "refused by plan" | "unknown";
+export type ProtectionReader = (folder: string, repository: { owner: string; name: string }) => Promise<Protection>;
+
+/** How long gh may take to read a branch's protection. */
+const GH_WAIT_MS = 10_000;
+
+/** Reads `repository`'s main branch protection by asking `command` (gh, with `prefix` before its own arguments). */
+export const protectionThrough = (command: string, prefix: readonly string[] = []): ProtectionReader => async (folder, repository) =>
+  protectionFrom(await ask(command, [...prefix, "api", `repos/${repository.owner}/${repository.name}/branches/main/protection`], process.env, GH_WAIT_MS, { cwd: folder, shell: false }));
+
+/** The protection read through `gh`: unknown when gh is missing, signed out, slow or says anything else. */
+export const ghProtection: ProtectionReader = protectionThrough("gh");
+
+/** What a protection read's answer says: gh prints GitHub's body, so a refusal names the plan and a 404 an unprotected branch. */
+function protectionFrom(answer: Answer): Protection {
+  if (!answer.answered) return "unknown";
+  if (answer.code === 0) return "allowed";
+  let body: { message?: unknown; status?: unknown };
+  try {
+    body = JSON.parse(answer.out) as typeof body;
+  } catch {
+    return "unknown";
+  }
+  const message = typeof body.message === "string" ? body.message : "";
+  if (String(body.status) === "403" && /upgrade to github pro|make this repository public/i.test(message)) return "refused by plan";
+  if (String(body.status) === "404" && /branch not protected/i.test(message)) return "allowed";
+  return "unknown";
 }

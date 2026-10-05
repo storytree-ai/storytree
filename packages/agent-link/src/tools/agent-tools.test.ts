@@ -33,7 +33,7 @@ import { claudeCode, codex, idOf, withAgent, type Agent } from "../testing/agent
 import { git, withTempDir } from "../testing/folders.js";
 import { dropTestProjects, projectDatabase, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { createAgentTools, NOT_RUNNING_ANSWER } from "./index.js";
-import { storytreeRef } from "../setup/pipeline.js";
+import { protectionThrough, storytreeRef } from "../setup/pipeline.js";
 import { registerPlanTools } from "./plan-tools.js";
 import type { Call, Define } from "./server.js";
 
@@ -480,7 +480,7 @@ test("11.1 on GitHub, wire_pipeline writes storytree's workflow: the project's i
   await withProject(async ({ folder }) => {
     git(folder, "init", "-q");
     git(folder, "remote", "add", "origin", "https://github.com/someone/shop.git");
-    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+    await withAgent(folder, claudeCode("claude-1", { protection: async () => "allowed" }), async (agent) => {
       const wired = await agent.call("wire_pipeline", { install: "npm ci", test: "npm test -- --grep \"a: b\"", systems: ["linux", "windows"] });
       assert.equal(wired.isError, false, wired.text);
       const workflow = readFileSync(path.join(folder, ".github/workflows/storytree.yml"), "utf8");
@@ -514,12 +514,37 @@ test("11.3 wire_pipeline proposes branch protection as a command for the user to
   await withProject(async ({ folder }) => {
     git(folder, "init", "-q");
     git(folder, "remote", "add", "origin", "git@github.com:someone/shop.git");
-    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+    // A gh that answers the protection read as GitHub does for a repository that can have protection and has none.
+    const gh = path.join(folder, "gh.mjs");
+    writeFileSync(gh, `console.log(${JSON.stringify(JSON.stringify({ message: "Branch not protected", status: "404" }))});\nprocess.exit(1);\n`);
+    await withAgent(folder, claudeCode("claude-1", { protection: protectionThrough(process.execPath, [gh]) }), async (agent) => {
       const wired = await agent.call("wire_pipeline", { test: "npm test" });
       assert.match(wired.text, /gh api -X PUT repos\/someone\/shop\/branches\/main\/protection/);
       assert.match(wired.text, /"contexts":\["test \(ubuntu-latest\)","storytree check"\]/);
       assert.match(wired.text, /only if the user approves/);
       assert.equal((wired.data.protection as { approved: boolean }).approved, false);
+    });
+  });
+});
+
+test("11.5 when GitHub refuses protection on the repository's plan (a free private repository), wire_pipeline offers merging only after both checks pass instead of a command that would fail, and only reads the setting", async () => {
+  await withProject(async ({ folder }) => {
+    git(folder, "init", "-q");
+    git(folder, "remote", "add", "origin", "https://github.com/someone/shop.git");
+    // A gh that answers the protection read as GitHub answered shop3 (2026-10-05), noting every call it is asked.
+    const gh = path.join(folder, "gh.mjs");
+    const calls = path.join(folder, "gh-calls.txt");
+    const refused = { message: "Upgrade to GitHub Pro or make this repository public to enable this feature.", status: "403" };
+    writeFileSync(gh, `import { appendFileSync } from "node:fs";\nappendFileSync(${JSON.stringify(calls)}, process.argv.slice(2).join(" ") + "\\n");\nconsole.log(${JSON.stringify(JSON.stringify(refused))});\nprocess.exit(1);\n`);
+    await withAgent(folder, claudeCode("claude-1", { protection: protectionThrough(process.execPath, [gh]) }), async (agent) => {
+      const wired = await agent.call("wire_pipeline", { test: "npm test" });
+      assert.equal(wired.isError, false, wired.text);
+      assert.doesNotMatch(wired.text, /-X PUT/);
+      assert.match(wired.text, /cannot have branch protection/);
+      assert.match(wired.text, /merge only after both checks pass/);
+      assert.match(wired.text, /GitHub Pro|public/);
+      assert.deepEqual(wired.data.protection, { approved: false, available: false });
+      assert.deepEqual(readFileSync(calls, "utf8").trim().split("\n"), ["api repos/someone/shop/branches/main/protection"], "it only read the setting");
     });
   });
 });

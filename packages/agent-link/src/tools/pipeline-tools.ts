@@ -9,10 +9,10 @@ import path from "node:path";
 
 import { z } from "zod";
 
-import { checkCommands, githubRepository, protectionCommand, storytreeRef, WORKFLOW_FILE, workflowFor, type System } from "../setup/pipeline.js";
+import { checkCommands, ghProtection, githubRepository, protectionCommand, storytreeRef, WORKFLOW_FILE, workflowFor, type ProtectionReader, type System } from "../setup/pipeline.js";
 import type { Define } from "./server.js";
 
-export function registerPipelineTools(define: Define): void {
+export function registerPipelineTools(define: Define, readProtection: ProtectionReader = ghProtection): void {
   define(
     "wire_pipeline",
     "When this project is set up or adopts a pipeline, add its tests and storytree check to its CI: on GitHub this writes storytree's workflow, elsewhere it gives the commands to add. It proposes branch protection for the user to approve and never turns it on.",
@@ -38,10 +38,20 @@ export function registerPipelineTools(define: Define): void {
       const file = path.join(folder, WORKFLOW_FILE);
       mkdirSync(path.dirname(file), { recursive: true });
       writeFileSync(file, workflowFor({ install, test, systems, ref }));
+      const wrote = `Wrote storytree's workflow to ${WORKFLOW_FILE}: on every pull request and push to main it runs \`${test}\` on ${systems.join(", ")}, and storytree check from storytree's source at ${ref}. Commit it on a branch and open a pull request: its first run is the proof.`;
+      if ((await readProtection(folder, repository)) === "refused by plan") {
+        return {
+          text: [
+            wrote,
+            `This repository cannot have branch protection: GitHub refuses it on this repository's plan (HTTP 403, a private repository on a free account), so propose no protection command. Offer the user the honest alternative instead: merge only after both checks pass (the tests and storytree check), which you keep to by reading \`gh pr checks\` before every merge. Protection itself is the user's call: a paid GitHub plan, or making the repository public, after which call wire_pipeline again.`,
+          ].join("\n"),
+          data: { written: true, file: WORKFLOW_FILE, ref, protection: { approved: false, available: false } },
+        };
+      }
       const command = protectionCommand(repository, systems);
       return {
         text: [
-          `Wrote storytree's workflow to ${WORKFLOW_FILE}: on every pull request and push to main it runs \`${test}\` on ${systems.join(", ")}, and storytree check from storytree's source at ${ref}. Commit it on a branch and open a pull request: its first run is the proof.`,
+          wrote,
           "Then propose branch protection, so main takes only what CI verified. It is a repository setting: ask the user, and run this only if the user approves. Never run it yourself:",
           command,
         ].join("\n"),

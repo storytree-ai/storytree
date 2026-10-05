@@ -44,6 +44,7 @@ import { habitsCard } from "../instructions/index.js";
 import { findProject, locateStorytree, recordTrunkOnSight, route } from "../routing/index.js";
 import { idleAfterMs } from "../settings/settings.js";
 import type { SetupOptions } from "../setup/index.js";
+import type { ProtectionReader } from "../setup/pipeline.js";
 import { isUnreachable, NOT_RUNNING_ANSWER, refusalOf, result, type Answer } from "./answers.js";
 import { registerClaimTools } from "./claim-tools.js";
 import { registerContextTools } from "./context-tools.js";
@@ -71,6 +72,8 @@ export interface AgentToolOptions {
   readonly quietMs?: number;
   /** How merges that end claims are watched for (ADR-0643 D3). By default, through `gh`. */
   readonly merges?: MergeWatch;
+  /** How wire_pipeline reads whether a repository's plan allows branch protection (capability 11). By default, through `gh`. */
+  readonly protection?: ProtectionReader;
   /** What the setup check (capability 8) works with: by default, the user's own homes and no hook command. */
   readonly setup?: Omit<SetupOptions, "folder">;
   /** Other stories' tools, served through the same routing, session attribution and refusals. */
@@ -238,7 +241,7 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
   registerClaimTools(define, extensions);
   registerWorkTools(define);
   registerNoteTools(define);
-  registerPipelineTools(define);
+  registerPipelineTools(define, options.protection);
   registerContextTools(define, options.dataDir === undefined ? undefined : path.dirname(path.resolve(options.dataDir)));
   for (const extension of extensions) extension.registerTools?.(define);
 

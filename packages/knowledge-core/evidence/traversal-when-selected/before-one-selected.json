@@ -1,0 +1,72 @@
+{
+  "trails": [
+    {
+      "from": "decision_d8d688dd9a8f",
+      "to": "file:packages/agent-link/src/activity/activity-log.ts",
+      "colour": "hsl(307, 80%, 68%)"
+    },
+    {
+      "from": "file:packages/agent-link/src/activity/activity-log.ts",
+      "to": "decision_8eda9dfc5053",
+      "colour": "hsl(307, 80%, 68%)"
+    },
+    {
+      "from": "decision_8eda9dfc5053",
+      "to": "decision_b8fea1080406",
+      "colour": "hsl(307, 80%, 68%)"
+    }
+  ],
+  "litNotes": {},
+  "windowNotes": {
+    "decision_b8fea1080406": "hsl(307, 80%, 68%)",
+    "decision_d8d688dd9a8f": "hsl(307, 80%, 68%)",
+    "decision_8eda9dfc5053": "hsl(307, 80%, 68%)"
+  },
+  "litFiles": [
+    "src/activity/activity-log.ts"
+  ],
+  "coastTints": [
+    {
+      "session": "curator",
+      "colour": "hsl(15, 80%, 68%)"
+    },
+    {
+      "session": "scout",
+      "colour": "hsl(307, 80%, 68%)"
+    },
+    {
+      "session": "reviewer",
+      "colour": "hsl(175, 80%, 68%)"
+    },
+    {
+      "session": "lane-north",
+      "colour": "hsl(349, 80%, 68%)"
+    },
+    {
+      "session": "builder",
+      "colour": "hsl(194, 80%, 68%)"
+    }
+  ],
+  "claimed": [
+    {
+      "capability": "capability_5e0362aae607",
+      "claimedBy": "hsl(15, 80%, 68%)"
+    },
+    {
+      "capability": "capability_11fe600afeda",
+      "claimedBy": "hsl(307, 80%, 68%)"
+    },
+    {
+      "capability": "capability_6133809a4139",
+      "claimedBy": "hsl(175, 80%, 68%)"
+    },
+    {
+      "capability": "capability_bfc6fa737f09",
+      "claimedBy": "hsl(349, 80%, 68%)"
+    },
+    {
+      "capability": "capability_062b84e5c6b0",
+      "claimedBy": "hsl(194, 80%, 68%)"
+    }
+  ]
+}

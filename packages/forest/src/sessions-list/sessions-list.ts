@@ -206,19 +206,13 @@ function fitted(label: string): string {
   return label.length > LABEL_LIMIT ? `${label.slice(0, LABEL_LIMIT - 1)}…` : label;
 }
 
-/** How many sessions the core draws at once with none selected (owner, 2026-10-03: "show a max of 5 sessions (ordered by latest ones)"). */
-const DRAWN_SESSIONS = 5;
-
 /**
- * The knowledge core's roster (ADR-0738 D2): each listed row, in its own colour, with every child session under it.
- * With none selected the core draws only the five most recently seen rows that are not idle; the rest are marked
- * undrawn, still listed so a click selects one in its colour (owner, 2026-10-03).
+ * The knowledge core's roster (ADR-0738 D2): each listed row, in its own colour, with every child session under it,
+ * so a selected session's traversal wears its row's colour; with none selected the core draws none (ADR-0921).
  */
 export function sessionRoster(rows: readonly SessionRow[]): RosterEntry[] {
   const members = (row: SessionRow): string[] => [row.id, ...row.children.flatMap(members)];
-  const latest = (row: SessionRow): number => Math.max(Date.parse(row.lastSeenAt), ...row.children.map(latest));
-  const drawn = new Set(rows.filter(row => !row.idle).sort((a, b) => latest(b) - latest(a)).slice(0, DRAWN_SESSIONS).map(row => row.id));
-  return rows.map(row => ({ session: row.id, label: row.label, colour: sessionColour(row.id), members: members(row), ...(drawn.has(row.id) ? {} : { undrawn: true as const }) }));
+  return rows.map(row => ({ session: row.id, label: row.label, colour: sessionColour(row.id), members: members(row) }));
 }
 
 /** The selection a click on a row leaves (ADR-0738 D5): its top-level session, a child's row its parent's, or none when that one was selected. */
@@ -350,12 +344,12 @@ export function historyRows(tree: AnnotatedTree, log: readonly Line[] | LogReadi
 
 /**
  * The roster the knowledge core is handed (7.22, 7.23): the live rows' alone, whichever tab is open and whatever range is
- * chosen; a selected history session joins it, undrawn, so the core draws it in its own colour.
+ * chosen; a selected history session joins it, so the core draws it in its own colour.
  */
 export function globeRoster(live: readonly SessionRow[], history: readonly HistoryRow[], selected: string | undefined): RosterEntry[] {
   const roster = sessionRoster(live);
   const past = roster.some(entry => entry.members.includes(selected ?? "")) ? undefined : history.find(row => row.id === selected);
-  return past === undefined ? roster : [...roster, { session: past.id, label: past.label, colour: sessionColour(past.id), members: [past.id], undrawn: true }];
+  return past === undefined ? roster : [...roster, { session: past.id, label: past.label, colour: sessionColour(past.id), members: [past.id] }];
 }
 
 /** The selection a click on a history row leaves (7.23): its session, or none when it was the one selected. */

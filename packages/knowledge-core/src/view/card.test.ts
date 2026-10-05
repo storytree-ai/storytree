@@ -31,7 +31,6 @@ test("4.6 one shared pin holds one card at a time for both globe modes: a new pi
   const asked: string[] = [];
   const core = createKnowledgeCore("app", { reads: {
     windowReading: async (_project, session) => { asked.push(session); throw new Error("not read"); },
-    windowReadings: async () => { asked.push("all"); return []; },
   } });
   const pinned = (): string | undefined => (core as unknown as { get(): { pinned: string | undefined } }).get().pinned;
   try {

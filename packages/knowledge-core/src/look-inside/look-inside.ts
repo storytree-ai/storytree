@@ -13,13 +13,6 @@ export interface RosterEntry {
   label: string;
   colour: string;
   members: readonly string[];
-  /** Listed, but neither read nor drawn while none is selected (owner, 2026-10-03): idle, or past the most recently active few. Selected, it is drawn as any session is. */
-  undrawn?: true;
-}
-
-/** The roster the globe draws: with none selected, only the entries not marked undrawn; with one selected, the whole roster, for its colour. */
-export function drawnRoster(roster: readonly RosterEntry[], session: string | undefined): readonly RosterEntry[] {
-  return session === undefined ? roster.filter(({ undrawn }) => undrawn !== true) : roster;
 }
 
 export interface Card {
@@ -76,9 +69,6 @@ export interface TraversalStep {
 
 /** How an opened file or capability stands in a selected session's window: read in it now, or compacted out since. */
 export type WindowState = "in-window" | "faded";
-
-/** How an opened file stands on the land: in a selected session's window, or, with none selected, read by a listed session since it started, with no fade (ADR-0738 D1). */
-export type CodeState = WindowState | "read";
 
 /**
  * The code's surface as the forest lays it on the globe (ADR-0804 D5), handed to the core so its traversal
@@ -245,16 +235,13 @@ export function arrived(lit: ReadonlyMap<string, Lighting>, held: ReadonlySet<st
 }
 
 /**
- * Which notes light, and in what colour (ADR-0738, ADR-0754 D2). With no session selected: every
- * listed session's reads since it started, each note in its latest reader's colour, with every
- * session that read it. With one selected: that session's whole reads, each note in the colour of
- * the agent that first read it, a listed session's agents in shades of its colour.
+ * Which notes light, and in what colour (ADR-0738 D5). With no session selected, none: a session's
+ * traversal shows only while it is selected (ADR-0921). With one selected: that session's whole reads,
+ * each note in the colour of the agent that first read it, a listed session's agents in shades of its colour.
  */
 export function lighting(reads: ReadRecord, roster: readonly RosterEntry[], session: string | undefined,
-  present: ReadonlySet<string>, windowed: ReadonlyMap<string, AgentReplay> = new Map()): Map<string, Lighting> {
-  if (session === undefined) {
-    return new Map([...liveReads(reads, roster, present, windowed)].map(([note, live]) => [note, lightingOf(live)]));
-  }
+  present: ReadonlySet<string>): Map<string, Lighting> {
+  if (session === undefined) return new Map();
   const { agents } = reads.replay(session, present);
   const colours = new Map(legend(agents, roster.find(({ members }) => members.includes(session))?.colour).map(({ agent, colour }) => [agent, colour]));
   const first = new Map<string, { colour: string; seq: number }>();
@@ -277,24 +264,24 @@ export interface Trail {
   mover: string;
   /** A selected session's traversal step (ADR-0756): solid or dotted, and whether it fades; a reading path's curve has none. */
   step?: Pick<TraversalStep, "edge" | "faded" | "kind">;
-  /** What a reading path's step crosses when it reaches a file with no session selected (ADR-0804 D5); none between two notes. */
+  /** What a reading path's step crosses when it reaches a file (ADR-0804 D5); none between two notes. */
   kind?: "hop" | "dive";
 }
 
 /**
- * The reading paths to draw (ADR-0740), in recorded order: every listed session's in its colour
- * with none selected, or the selected session's in its agents' colours. Each is the replay's jumps
- * (a known agent's full reads, one to the next, and in a selected session a subagent's first from
- * where it was spawned); a peek or an unknown agent draws none, and a repeated step of the same
- * session draws once.
+ * The reading paths to draw (ADR-0740), in recorded order: the selected session's in its agents'
+ * colours, and none with none selected (ADR-0921). Each is the replay's jumps (a known agent's full
+ * reads, one to the next, and a subagent's first from where it was spawned); a peek or an unknown
+ * agent draws none, and a repeated step draws once.
  */
 export function trails(reads: ReadRecord, roster: readonly RosterEntry[], session: string | undefined,
-  present: ReadonlySet<string>, windowed: ReadonlyMap<string, AgentReplay> = new Map()): Trail[] {
+  present: ReadonlySet<string>): Trail[] {
+  if (session === undefined) return [];
   const drawn = new Map<string, Trail>();
-  const agents = drawnAgents(reads, roster, session, present, windowed);
+  const agents = drawnAgents(reads, roster, session, present);
   // In a selected session's replay a subagent's first read steps from the session's latest full read before it,
   // where it was spawned, so the head carries on from there (ADR-0797): a line meaning "read next", never a followed link.
-  const wholes = session === undefined ? [] : agents.flatMap(({ replay }) => replay.known ? replay.jumps.map(({ to, seq }) => ({ agent: replay.agent, to, seq })) : []);
+  const wholes = agents.flatMap(({ replay }) => replay.known ? replay.jumps.map(({ to, seq }) => ({ agent: replay.agent, to, seq })) : []);
   const spawnedFrom = (agent: string, seq: number): string | undefined =>
     wholes.filter((whole) => whole.agent !== agent && whole.seq < seq).sort((a, b) => a.seq - b.seq).at(-1)?.to;
   for (const { listed, member, replay, colour } of agents) {
@@ -307,44 +294,6 @@ export function trails(reads: ReadRecord, roster: readonly RosterEntry[], sessio
     }
   }
   return [...drawn.values()].sort((a, b) => a.seq - b.seq);
-}
-
-/** One known agent's reading path (ADR-0742): every step it has taken, in recorded order, and where it ends. */
-export interface AgentPath {
-  /** The session the reads were filed under and the agent, as "<session> <agent>". */
-  mover: string;
-  colour: string;
-  /** The note it read in full most recently. */
-  note: string;
-  steps: Trail[];
-}
-
-/**
- * The paths to replay (ADR-0742 D3): one per known agent of each drawn session (as `trails` draws
- * them) that has read something in full, ending at its latest full read. A peek adds no step, and
- * an unknown agent or an unlisted session has none.
- */
-export function agentPaths(reads: ReadRecord, roster: readonly RosterEntry[], session: string | undefined,
-  present: ReadonlySet<string>, windowed: ReadonlyMap<string, AgentReplay> = new Map()): AgentPath[] {
-  return drawnAgents(reads, roster, session, present, windowed).flatMap(({ member, replay, colour }) => {
-    const note = replay.lit.filter(({ read }) => read === "whole").at(-1)?.note;
-    if (!replay.known || note === undefined) return [];
-    const mover = `${member} ${replay.agent}`;
-    const steps = replay.jumps.flatMap(({ from, to, seq }): Trail[] => {
-      if (from === undefined || from === to) return [];
-      const kind = crossing(from, to);
-      return [{ from, to, colour, seq, mover, ...(kind === undefined ? {} : { kind }) }];
-    });
-    return [{ mover, colour, note, steps }];
-  });
-}
-
-/** Where an agent's looping glow is (ADR-0742 D3): each step takes `step` ms in order, then a `pause`, then again. */
-export function glowAt(steps: number, elapsed: number, timing: { step: number; pause: number }): { step: number; t: number } | undefined {
-  if (steps === 0) return undefined;
-  const at = elapsed % (steps * timing.step + timing.pause);
-  if (at >= steps * timing.step) return undefined;
-  return { step: Math.floor(at / timing.step), t: (at % timing.step) / timing.step };
 }
 
 /** Where a selected session's replay is, `elapsed` ms into it (ADR-0797). */
@@ -393,13 +342,9 @@ export function growthPlan(fresh: readonly { key: string; mover: string; seq: nu
   return { starts, busy: next };
 }
 
-/** Each agent of each drawn session, with the colour its paths wear (ADR-0740 D2). */
-function drawnAgents(reads: ReadRecord, roster: readonly RosterEntry[], session: string | undefined,
-  present: ReadonlySet<string>, windowed: ReadonlyMap<string, AgentReplay>): { listed: string; member: string; replay: AgentReplay; colour: string }[] {
-  if (session === undefined) {
-    return roster.flatMap(({ session: listed, colour, members }) =>
-      members.flatMap((member) => memberAgents(reads, member, present, windowed).map((replay) => ({ listed, member, replay, colour }))));
-  }
+/** Each agent of the selected session, with the colour its paths wear (ADR-0740 D2). */
+function drawnAgents(reads: ReadRecord, roster: readonly RosterEntry[], session: string,
+  present: ReadonlySet<string>): { listed: string; member: string; replay: AgentReplay; colour: string }[] {
   const { agents } = reads.replay(session, present);
   const colours = new Map(legend(agents, roster.find(({ members }) => members.includes(session))?.colour).map(({ agent, colour }) => [agent, colour]));
   return agents.map((replay) => ({ listed: session, member: session, replay, colour: colours.get(replay.agent)! }));
@@ -418,9 +363,6 @@ export function heldNotes(steps: readonly { to: string; key: string }[], starts:
   }
   return held;
 }
-
-/** How far a glow's tail reaches back along its step, as a fraction of the step (ADR-0742 D3). */
-const TAIL = 0.35;
 
 /** A point `t` of the way along a step's curve: a quadratic Bezier bowed away from the globe's centre (ADR-0740 D3). */
 export function curvePoint(from: Point, to: Point, t: number): Point {
@@ -452,54 +394,6 @@ export function stepPoint(kind: TraversalStep["kind"], from: Point, to: Point, t
   return kind === "hop" ? hopPoint(from, to, t) : curvePoint(from, to, t);
 }
 
-/** The part of a step's curve a glow with its head at `t` lights: from up to TAIL back, to the head. */
-export function tailSpan(t: number): [number, number] {
-  return [Math.max(0, t - TAIL), t];
-}
-
-interface LiveNote {
-  colour: string;
-  seq: number;
-  /** Each listed session that read it, in the order it first did, with its colour and latest read. */
-  readers: Map<string, { colour: string; first: number; last: number }>;
-}
-
-/** Every listed session's reads since it started, no fade: each note in its latest reader's colour, with all its readers (ADR-0738 D1-D2, ADR-0754 D2). */
-function liveReads(reads: ReadRecord, roster: readonly RosterEntry[], present: ReadonlySet<string>,
-  windowed: ReadonlyMap<string, AgentReplay>): Map<string, LiveNote> {
-  const live = new Map<string, LiveNote>();
-  for (const { session, colour, members } of roster) {
-    for (const member of members) {
-      for (const { lit } of memberAgents(reads, member, present, windowed)) {
-        for (const { note, seq } of lit) {
-          const seen = live.get(note) ?? live.set(note, { colour, seq, readers: new Map() }).get(note)!;
-          if (seq > seen.seq) Object.assign(seen, { colour, seq });
-          const reader = seen.readers.get(session);
-          if (reader === undefined) seen.readers.set(session, { colour, first: seq, last: seq });
-          else Object.assign(reader, { first: Math.min(reader.first, seq), last: Math.max(reader.last, seq) });
-        }
-      }
-    }
-  }
-  // A session's members are read one after another, so arrival order is sorted in at the end.
-  for (const seen of live.values()) seen.readers = new Map([...seen.readers].sort(([, a], [, b]) => a.first - b.first));
-  return live;
-}
-
-/**
- * A listed member's agents with no session selected: its window's reads when it has a window, with
- * its log's subagents beside them (a subagent's transcript is its own), else its log's alone.
- */
-function memberAgents(reads: ReadRecord, member: string, present: ReadonlySet<string>, windowed: ReadonlyMap<string, AgentReplay>): AgentReplay[] {
-  const { agents } = reads.replay(member, present);
-  const window = windowed.get(member);
-  return window === undefined ? agents : [window, ...agents.filter(({ agent }) => agent.startsWith("subagent:"))];
-}
-
-function lightingOf({ colour, readers }: LiveNote): Lighting {
-  return { colour, readers: [...readers.values()].map(({ colour: reader, last }) => ({ colour: reader, last })) };
-}
-
 /**
  * A note's name: its title, a definition's term, or else the first line of its words (a memory has
  * no title field), shortened; its id only when it has none of these.
@@ -519,78 +413,3 @@ function titleOf(knowledge: Knowledge, id: string): string {
   return note === undefined ? id : noteTitle(note);
 }
 
-/**
- * Every listed session's window as the no-selection view reads it (ADR-0754 D1): the notes it
- * opened, in reading order, as one known agent's full reads, each a step from the stop before. With
- * the code's `places`, each surveyed file it opened is a stop too, on its circle (ADR-0804 D5), which
- * lights on the land rather than in the core; without them files are stepped over. Glimpses are not
- * drawn here, and a compacted read still lights, since this view shows a session's reads since it
- * started with no fade (ADR-0738 D1). A session with no window has none, so its log's reads stand
- * in. `stamps` give each open its place in time (see stampOpens); an unstamped open is history.
- */
-export function windowReplays(windows: ReadonlyMap<string, SessionWindow>, present: ReadonlySet<string>,
-  stamps: ReadonlyMap<string, readonly number[]> = new Map(), places?: CodePlaces): Map<string, AgentReplay> {
-  const replays = new Map<string, AgentReplay>();
-  for (const [session, window] of windows) {
-    if ("absent" in window) continue;
-    const replay: AgentReplay = { agent: "orchestrator", label: "orchestrator", known: true, lit: [], jumps: [] };
-    window.opens.forEach((open, index) => {
-      const seq = stamps.get(session)?.[index] ?? 0;
-      const key = open.kind === "file" ? surveyed(open.id, places) : undefined;
-      if (key !== undefined) {
-        replay.jumps.push({ from: replay.jumps.at(-1)?.to, to: fileStop(key), move: "jump", seq, at: window.at });
-        return;
-      }
-      if (open.kind !== "note" || !present.has(open.id)) return;
-      replay.lit.push({ note: open.id, read: "whole", seq, at: window.at });
-      replay.jumps.push({ from: replay.jumps.at(-1)?.to, to: open.id, move: "jump", seq, at: window.at });
-    });
-    replays.set(session, replay);
-  }
-  return replays;
-}
-
-/** The surveyed file a path names, when the code's places have its circle. */
-function surveyed(path: string, places: CodePlaces | undefined): string | undefined {
-  const key = places === undefined ? undefined : codeKey(path);
-  return key !== undefined && places!.files.has(key) ? key : undefined;
-}
-
-/**
- * The files every listed session's window has opened, as the no-selection view lights them on the land
- * (ADR-0804 D5, ADR-0738 D1): each read since the session started, with no fade, in the colour of the
- * session that read it latest by `stamps`, a later open winning a tie.
- */
-export function rosterCode(windows: ReadonlyMap<string, SessionWindow>, roster: readonly RosterEntry[], places: CodePlaces,
-  stamps: ReadonlyMap<string, readonly number[]> = new Map()): { files: Map<string, CodeState>; colours: Map<string, string> } {
-  const latest = new Map<string, { colour: string; seq: number }>();
-  for (const { colour, members } of roster) {
-    for (const member of members) {
-      const window = windows.get(member);
-      if (window === undefined || "absent" in window) continue;
-      window.opens.forEach((open, index) => {
-        const key = open.kind === "file" ? surveyed(open.id, places) : undefined;
-        if (key === undefined) return;
-        const seq = stamps.get(member)?.[index] ?? 0;
-        const seen = latest.get(key);
-        if (seen === undefined || seq >= seen.seq) latest.set(key, { colour, seq });
-      });
-    }
-  }
-  return {
-    files: new Map([...latest.keys()].map((key) => [key, "read" as const])),
-    colours: new Map([...latest].map(([key, { colour }]) => [key, colour])),
-  };
-}
-
-/**
- * When each of a session's `count` opens was first seen (ADR-0742 D4): every open in its first
- * window reading is history (0), and each open a later reading adds is stamped after `clock`, the
- * latest line or open already seen, so its step grows while history never does.
- */
-export function stampOpens(previous: readonly number[] | undefined, count: number, clock: number): { stamps: number[]; clock: number } {
-  if (previous === undefined) return { stamps: Array.from({ length: count }, () => 0), clock };
-  const stamps = previous.slice(0, count);
-  while (stamps.length < count) stamps.push(++clock);
-  return { stamps, clock };
-}

@@ -1,0 +1,27 @@
+writing to the scratch folder /tmp/storytree-captures/packages/forest/src/view/evidence/capability-names (--retake writes into the evidence folder)
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ actual - expected
+
++ [
++   "TypeError: Cannot read properties of undefined (reading 'choice')"
++ ]
+- []
+
+    at file:///home/mickh/code/storytree03-wt/increment-e92ed0402a5c-cb1135/packages/forest/src/view/evidence/capability-names/capture.mjs:110:10
+    at async withCapture (/home/mickh/code/storytree03-wt/increment-e92ed0402a5c-cb1135/apps/desktop/src/capture/runner.ts:100:12)
+    at async file:///home/mickh/code/storytree03-wt/increment-e92ed0402a5c-cb1135/packages/forest/src/view/evidence/capability-names/capture.mjs:21:1 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: [
+    "TypeError: Cannot read properties of undefined (reading 'choice')"
+  ],
+  expected: [],
+  operator: 'deepStrictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.19.0

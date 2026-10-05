@@ -2,10 +2,11 @@
 // into DIST), the knowledge-under-islands seed, and a stand-in bridge whose log grows by one line every read, so
 // every 2 s poll carries news but nothing drawn changes. Records Long Animation Frames for SECONDS and a screenshot.
 // Usage: node idle.mjs <dist> <out-prefix> [seconds]
+import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { withCapture } from '../../../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
+import { fakeBridge, withCapture } from '../../../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
 const here = path.dirname(fileURLToPath(import.meta.url));
 const [dist, outPrefix, secondsArg] = process.argv.slice(2).filter(arg => arg !== '--retake');
 const SECONDS = Number(secondsArg ?? 40);
@@ -25,6 +26,8 @@ const base = [
   const page = await browser.newPage({ viewport: { width: 1440, height: 960 }, deviceScaleFactor: 1, colorScheme: 'dark' });
   const errors = [];
   page.on('pageerror', e => errors.push(String(e))); page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
+  const bridge = fakeBridge({});
+  await bridge.install(page);
   await page.addInitScript(({ data, survey, base, now, A, mode }) => {
     const RealDate = Date;
     class FixedDate extends RealDate { constructor(...a) { if (a.length === 0) super(now); else super(...a); } static now() { return now; } }
@@ -32,7 +35,7 @@ const base = [
     const copy = v => structuredClone(v);
     const lines = [...base];
     window.__reads = { lines: 0, trees: 0 };
-    const known = {
+    window.storytreeAnswers = {
       projectSelection: async () => copy({ projects: data.projects, current: 'storytree' }),
       chooseProject: async () => copy({ projects: data.projects, current: 'storytree' }),
       listProjects: async () => copy(data.projects),
@@ -56,15 +59,14 @@ const base = [
         if (cursor > 0) lines.push({ ...line, session: A, harness: 'claude-code', project: 'storytree', seq: lines.length + 1, at: new Date(now).toISOString() });
         return { lines: copy(lines.slice(cursor)), cursor: lines.length };
       },
-      frontCovers: async () => [], relatedNotes: async () => [], readSurfaces: async () => undefined,
+      frontCovers: async () => [],
       codeSurvey: async () => copy(survey),
-      readSignIn: async () => ({ on: false }), agentConnections: async () => [], windowReadings: async () => [], contextReadings: async () => [], idleAfterMs: async () => 3600000, leaveAfterMs: async () => 3600000,
-      windowReading: async (_, session) => ({ session, at: new Date(now).toISOString(), turns: [], lines: [], opens: [] }), checkForUpdates: async () => ({ state: 'idle' }),
+      windowReadings: async () => [], contextReadings: async () => [], idleAfterMs: async () => 3600000, leaveAfterMs: async () => 3600000,
+      windowReading: async (_, session) => ({ session, at: new Date(now).toISOString(), turns: [], lines: [], opens: [] }),
     };
-    window.__unknown = new Set();
-    window.storytree = new Proxy(known, { get: (t, m) => m === 'then' ? undefined : (t[m] ?? (async () => { window.__unknown.add(String(m)); return undefined; })) });
   }, { data: seed, survey, base, now: NOW, A, mode: MODE });
   await page.goto(`${origin}/index.html`, { timeout: 180000, waitUntil: 'domcontentloaded' });
+  await bridge.ready(page);
   await page.waitForFunction(() => document.body.dataset.state === 'ready' && window.__globe, undefined, { timeout: 120000 }).catch(async e => { console.error(await page.evaluate(() => document.body.dataset.state + ' | ' + document.body.innerText.slice(0, 500)), errors); throw e; });
   await page.waitForFunction(() => { let f = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('file:')) f++; }); return f > 0; }, undefined, { timeout: 60000 });
   await page.evaluate(() => { for (const m of document.querySelectorAll('[popover]')) if (m.matches(':popover-open')) m.hidePopover(); });
@@ -111,7 +113,8 @@ const base = [
     }
     result.hoverTried = tried;
   }
-  result.errors = errors; result.unknownCalls = await page.evaluate(() => [...window.__unknown]);
+  result.errors = errors; result.defaulted = [...bridge.defaulted];
   writeFileSync(`${outputPrefix}.json`, JSON.stringify(result, null, 2));
+  assert.deepEqual(errors, []);
   console.log(JSON.stringify(result));
 });

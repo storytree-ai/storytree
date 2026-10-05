@@ -1,9 +1,10 @@
 // The globe after real pointer drags on the actual desktop page: where north points on screen after each.
 // Same seed and viewport as file-circles. `node capture.mjs <dist> <prefix>` after `node build.mjs`;
 // the before pictures come from origin/main bundled into another dist (see build.mjs).
+import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { withCapture } from '../../../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
+import { fakeBridge, withCapture } from '../../../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
 import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -27,24 +28,24 @@ const north = page => page.evaluate(() => {
   const errors = [];
   page.on('pageerror', error => errors.push(String(error)));
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+  const bridge = fakeBridge({});
+  await bridge.install(page);
   await page.addInitScript(({ data, survey }) => {
     const copy = value => structuredClone(value);
     let current = data.projects.includes('storytree') ? 'storytree' : data.projects[0];
-    // The bridge's newer calls (sign-in, arcs, holds, readings) answer with nothing in this capture.
-    const known = {
+    window.storytreeAnswers = {
       projectSelection: async () => copy({ projects: data.projects, current }),
       chooseProject: async name => { current = name; return copy({ projects: data.projects, current }); },
       listProjects: async () => copy(data.projects), projectTree: async () => copy(data.tree),
       changesSince: async (_, cursor) => cursor === 0 ? copy(data.changes) : { changes: [], cursor: data.changes.cursor },
       linesSince: async (_, cursor) => cursor === 0 ? copy(data.lines) : { lines: [], cursor: data.lines.cursor },
-      frontCovers: async (_, id) => copy(data.covers[id] ?? []), relatedNotes: async () => [], readSurfaces: async () => undefined,
+      frontCovers: async (_, id) => copy(data.covers[id] ?? []),
       codeSurvey: async () => copy(survey),
-      readSignIn: async () => ({ on: false, available: false }), arcViews: async () => [], holds: async () => ({ waits: [], owners: [] }),
       contextReadings: async () => [], windowReadings: async () => [], idleAfterMs: async () => 600000, leaveAfterMs: async () => 3600000,
     };
-    window.storytree = new Proxy(known, { get: (target, name) => target[name] ?? (async () => undefined) });
   }, { data: seed, survey });
   await page.goto(`${origin}/index.html`, { timeout: 180000, waitUntil: 'domcontentloaded' });
+  await bridge.ready(page);
   await page.waitForFunction(ids => {
     const state = window.__globe;
     if (document.body.dataset.state !== 'ready' || !state || !window.__nav) return false;
@@ -75,5 +76,6 @@ const north = page => page.evaluate(() => {
   await settle(page);
   await page.screenshot({ path: path.join(out, `${prefix}-tilted-to-the-pole.png`), timeout: 180000 });
   writeFileSync(path.join(out, `${prefix}-measurements.json`), JSON.stringify({ readings, errors }, null, 2) + '\n');
+  assert.deepEqual(errors, []);
   console.log(JSON.stringify({ readings, errors }, null, 2));
 });

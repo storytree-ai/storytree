@@ -8,6 +8,8 @@ import { test } from "node:test";
 import type { Library } from "@storytree/library";
 
 import { withLibrary } from "../testing/pg.js";
+import type { ToolAnswer, ToolCall } from "../rounds/host.js";
+import { librarianTools } from "../rounds/tools.js";
 import { annotate, brokenEdges, correct, supersede } from "./index.js";
 
 /** A capability, with an accepted, load-bearing decision on its shelf. */
@@ -38,6 +40,76 @@ test("2.1 supersede records an accepted successor that takes the old one's shelf
     assert.equal(old?.status, "superseded");
     assert.equal(old?.record.fields.text, "Mailgun: the simplest API.");
     assert.notEqual(old?.record.fields.loadBearing, true);
+  });
+});
+
+test("2.1 supersede accepts an existing successor through the tool, preserving its history and links without making a duplicate", async () => {
+  await withLibrary(async (library) => {
+    const { capability, cover } = await shelf(library);
+    const earlier = await library.recordDecision({ title: "Send nothing", text: "No email yet.", status: "accepted" });
+    const successor = await library.recordDecision({
+      title: "Send through Postmark", text: "Postmark replaces Mailgun.", status: "accepted", supersedes: [earlier.id], links: [earlier.id],
+      authority: { basis: "owner-directed", ownerSaid: "Use Postmark", scribedBy: "owner", at: "2026-10-06T00:00:00.000Z" },
+    });
+    const before = (await library.changesSince(0)).cursor;
+    const call: ToolCall = { library, project: library.name, folder: ".", caller: { session: "curator" }, writer: { actor: "curator" }, log: { lines: async () => [] } };
+    let invoke: (() => Promise<ToolAnswer>) | undefined;
+    librarianTools().registerTools!((name, _description, input, act) => {
+      if (name === "supersede") invoke = () => act(input.parse({ olds: [cover.id, earlier.id, cover.id], successor: successor.id }), call);
+    });
+    assert.ok(invoke);
+
+    const answer = await invoke();
+
+    assert.equal(answer.data?.id, successor.id);
+    assert.deepEqual((await library.get(successor.id))?.fields, {
+      ...successor.fields, supersedes: [earlier.id, cover.id], frontCoverOf: capability.id, loadBearing: true,
+    });
+    assert.deepEqual((await library.list("decision")).map(({ id }) => id).sort(), [cover.id, earlier.id, successor.id].sort());
+    for (const id of [cover.id, earlier.id]) {
+      const old = await library.decision(id);
+      assert.equal(old?.status, "superseded");
+      assert.deepEqual(old?.supersededBy, [successor.id]);
+    }
+    assert.notEqual((await library.decision(cover.id))?.record.fields.loadBearing, true);
+    assert.deepEqual((await library.frontCovers(capability.id)).map(({ id }) => id), [successor.id]);
+    assert.deepEqual(await textsOf(library, successor.id), [successor.fields.text, successor.fields.text]);
+    assert.ok((await library.history({ since: before })).every(({ actor }) => actor === "curator"));
+  });
+});
+
+test("2.1 an existing successor keeps its own shelf and load-bearing mark when another decision is added", async () => {
+  await withLibrary(async (library) => {
+    const { cover } = await shelf(library);
+    const { capability, cover: successor } = await shelf(library);
+    await supersede(library, [cover.id], successor.id);
+    await supersede(library, [cover.id], successor.id);
+    assert.deepEqual((await library.get(successor.id))?.fields, { ...successor.fields, supersedes: [cover.id] });
+    assert.deepEqual((await library.frontCovers(capability.id)).map(({ id }) => id), [successor.id]);
+  });
+});
+
+test("2.1 existing supersession refuses invalid decisions and loops before any write", async () => {
+  await withLibrary(async (library) => {
+    const { cover } = await shelf(library);
+    const proposal = await library.recordDecision({ title: "Proposal", text: "Maybe.", status: "proposed" });
+    const retired = await library.recordDecision({ title: "Retired", text: "Gone.", status: "accepted" });
+    await library.retire(retired.id, "Wrongly recorded");
+    const definition = await library.defineTerm({ term: "Email", meaning: "A message." });
+    await library.recordDecision({ title: "Successor", text: "Replaces Mailgun.", status: "accepted", supersedes: [cover.id] });
+    const current = await library.recordDecision({ title: "Current", text: "Independent decision.", status: "accepted" });
+    await library.editNote(proposal.id, { supersedes: [current.id] });
+    const { cursor } = await library.changesSince(0);
+    for (const id of ["decision_missing", retired.id, definition.id, proposal.id, cover.id]) {
+      await assert.rejects(supersede(library, [current.id], id), /live.*decision|accepted/);
+    }
+    for (const id of ["decision_missing", retired.id, definition.id]) {
+      await assert.rejects(supersede(library, [id], current.id), /supersedes.*decision/);
+    }
+    await assert.rejects(supersede(library, [current.id], current.id), /supersession loop/);
+    await assert.rejects(supersede(library, [proposal.id], current.id), /supersession loop/);
+    assert.equal((await library.decision(cover.id))?.record.fields.loadBearing, true);
+    assert.deepEqual((await library.changesSince(cursor)).changes, []);
   });
 });
 

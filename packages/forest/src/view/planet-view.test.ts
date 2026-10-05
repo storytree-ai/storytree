@@ -9,7 +9,6 @@ import { dragTurn, focusRotation, globeFraming, globeHover, hiddenMarkers, isGlo
 import { codePathKey } from "@storytree/knowledge-core";
 import { circleStops, fileCircleMarks, lightFileCircles } from "./file-circles.js";
 import { lightTerritories, territoryLand } from "./territory-land.js";
-import { coastTintMarks } from "./session-tints.js";
 
 test("3.12 hovering an eligible artifact shows its title and pointer in either mode; empty space clears both", () => {
   const world = new Group();
@@ -426,8 +425,7 @@ test("5.4 an animating globe redraws a session-lit island's land, circles and ti
   lightTerritories(drawn, new Map([["cap-a", "in-window" as const], ["cap-b", "faded" as const]]), "#e69f00");
   const circles = circlesOf();
   lightFileCircles(circles, new Map([[codePathKey("story", "src/a.ts"), "in-window" as const], [codePathKey("story", "src/b.ts"), "faded" as const]]), "#e69f00", "story");
-  const coast = [[{ x: -2, z: -2 }, { x: 2, z: -2 }, { x: 2, z: 2 }, { x: -2, z: 2 }]];
-  plate.add(drawn, circles, coastTintMarks(coast, [{ session: "A", colour: "#e69f00", faded: false, from: 0, to: 1 }], flat.onSurface));
-  assert.ok(plate.getObjectByName("territory-claim:cap-a") && plate.getObjectByName("file-ring:src/a.ts") && plate.getObjectByName("coast-tint:A"), "the fixture draws every kind of mark");
+  plate.add(drawn, circles);
+  assert.ok(plate.getObjectByName("territory-claim:cap-a") && plate.getObjectByName("file-ring:src/a.ts"), "the fixture draws every kind of mark");
   assert.deepEqual(programsEveryFrame(plate), []);
 });

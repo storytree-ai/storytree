@@ -1,0 +1,15 @@
+codex-config: B765B6506FB62F5E8A1F0997EB356012C9470BCA05CB133F1D995A759815CD2A
+codex-hooks: 622A98D44216047437C71330261838A39FAA15D04C868FFF6C95E65420C3B4B0
+codex-agents: 97465A3E2350C76AE2E2E6203B47902929158DB3BF15D3B604D18A63EF100802
+codex-tree: 35734B544807CCFC (76 files)
+claude-settings-storytree: "command": "C:\\Users\\mickh\\AppData\\Local\\Programs\\storytree-0.3\\resources\\agent-tools\\node.exe", | "C:\\Users\\mickh\\AppData\\Local\\Programs\\storytree-0.3\\resources\\agent-tools\\storytree-hook.mjs", | "matcher": "mcp__storytree__.*", | "command": "C:\\Users\\mickh\\AppData\\Local\\Programs\\storytree-0.3\\resources\\agent-tools\\node.exe", | "C:\\Users\\mickh\\AppData\\Local\\Programs\\storytree-0.3\\resources\\agent-tools\\storytree-hook.mjs", | "command": "C:\\Users\\mickh\\AppData\\Local\\Programs\\storytree-0.3\\resources\\agent-tools\\node.exe", | "C:\\Users\\mickh\\AppData\\Local\\Programs\\storytree-0.3\\resources\\agent-tools\\storytree-hook.mjs", | "command": "C:\\Users\\mickh\\AppData\\Local\\Programs\\storytree-0.3\\resources\\agent-tools\\node.exe", | "C:\\Users\\mickh\\AppData\\Local\\Programs\\storytree-0.3\\resources\\agent-tools\\storytree-hook.mjs", | "command": "C:\\Users\\mickh\\AppData\\Local\\Programs\\storytree-0.3\\resources\\agent-tools\\node.exe", | "C:\\Users\\mickh\\AppData\\Local\\Programs\\storytree-0.3\\resources\\agent-tools\\storytree-hook.mjs", | "command": "C:\\Users\\mickh\\AppData\\Local\\Programs\\storytree-0.3\\resources\\agent-tools\\node.exe", | "C:\\Users\\mickh\\AppData\\Local\\Programs\\storytree-0.3\\resources\\agent-tools\\storytree-hook.mjs", | "command": "C:\\Users\\mickh\\AppData\\Local\\Programs\\storytree-0.3\\resources\\agent-tools\\node.exe", | "C:\\Users\\mickh\\AppData\\Local\\Programs\\storytree-0.3\\resources\\agent-tools\\storytree-hook.mjs", | "command": "C:\\Users\\mickh\\AppData\\Local\\Programs\\storytree-0.3\\resources\\agent-tools\\node.exe", | "C:\\Users\\mickh\\AppData\\Local\\Programs\\storytree-0.3\\resources\\agent-tools\\storytree-hook.mjs", | "command": "C:\\Users\\mickh\\AppData\\Local\\Programs\\storytree-0.3\\resources\\agent-tools\\node.exe", | "C:\\Users\\mickh\\AppData\\Local\\Programs\\storytree-0.3\\resources\\agent-tools\\storytree-hook.mjs", | "command": "\"C:\\Users\\mickh\\AppData\\Local\\Programs\\storytree-0.3\\resources\\agent-tools\\node.exe\" \"C:\\Users\\mickh\\AppData\\Local\\Programs\\storytree-0.3\\resources\\agent-tools\\storytree-hook.mjs\" statusline"
+claude-mcp: "C:\\Users\\mickh\\AppData\\Local\\Programs\\storytree-0.3\\resources\\agent-tools\\storytree-mcp.mjs"
+command: C:\Users\mickh\.storytree\0.3\bin\storytree.exe
+command-file: 
+command-body: 
+user-path: C:\Users\mickh\AppData\Local\Microsoft\WindowsApps;C:\Users\mickh\.local\bin;C:\Users\mickh\AppData\Local\Microsoft\WinGet\Links;C:\Users\mickh\.storytree\0.3\bin;C:\Users\mickh\AppData\Local\Programs\ConduitTools\Git\cmd;C:\Users\mickh\AppData\Local\Programs\ConduitTools\Node22;C:\Program Files\GitHub CLI
+app: 0.3.691.0
+tasks: 
+processes: 1668 cmd.exe
+home-trials: st-accept-fb-fb01-a,st-accept-fb-fb01-b,st-accept-run
+projects: 

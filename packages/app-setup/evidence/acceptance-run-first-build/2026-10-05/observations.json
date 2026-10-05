@@ -1,0 +1,110 @@
+{
+  "story": "The app setup",
+  "release": "0.3.691",
+  "commit": "e5570c3a4e0064d5c5260f65dbeb9ea01b8cfa1a",
+  "evidence": "packages/app-setup/evidence/acceptance-run-first-build/2026-10-05",
+  "note": "Run on the old Windows test laptop (MicksOldLaptop) against the installed app 0.3.691.0, Claude Code with the laptop's own sign-in.",
+  "checks": [
+    {
+      "contract": "2.2",
+      "name": "the first folder: storytree's command says it was not a project before the session",
+      "observed": "pass"
+    },
+    {
+      "contract": "2.2",
+      "name": "the first folder: after one new Claude Code session there, storytree's command says it is project \"st-accept-fb-fb01-a\"",
+      "observed": "pass"
+    },
+    {
+      "contract": "1.6",
+      "name": "the first folder: a fresh PowerShell finds storytree's installed command",
+      "observed": "pass",
+      "detail": "C:\\Users\\mickh\\.storytree\\0.3\\bin\\storytree.exe"
+    },
+    {
+      "contract": "1.6",
+      "name": "the first folder: storytree doctor, run from that fresh PowerShell, exits 0",
+      "observed": "pass",
+      "detail": "exit 0"
+    },
+    {
+      "contract": "2.2",
+      "name": "a second folder, later: storytree's command says it was not a project before the session",
+      "observed": "pass"
+    },
+    {
+      "contract": "2.2",
+      "name": "a second folder, later: after one new Claude Code session there, storytree's command says it is project \"st-accept-fb-fb01-b\"",
+      "observed": "pass"
+    },
+    {
+      "contract": "1.6",
+      "name": "a second folder, later: a fresh PowerShell finds storytree's installed command",
+      "observed": "pass",
+      "detail": "C:\\Users\\mickh\\.storytree\\0.3\\bin\\storytree.exe"
+    },
+    {
+      "contract": "1.6",
+      "name": "a second folder, later: storytree doctor, run from that fresh PowerShell, exits 0",
+      "observed": "pass",
+      "detail": "exit 0"
+    },
+    {
+      "contract": "1.6",
+      "name": "an existing unrelated storytree command is preserved and the conflict named",
+      "observed": "not-observed"
+    },
+    {
+      "contract": "2.7",
+      "name": "the empty folder was not a project before the first session",
+      "observed": "pass"
+    },
+    {
+      "contract": "2.7",
+      "name": "the first session, asked to, made it project \"st-accept-fb-fb01-a\"",
+      "observed": "pass"
+    },
+    {
+      "contract": "2.7",
+      "name": "the library holds the stories, capabilities and contracts the build planned",
+      "observed": "pass",
+      "detail": "stories 1, capabilities 4, contracts 12"
+    },
+    {
+      "contract": "2.7",
+      "name": "the library holds an arc with the increments of the work",
+      "observed": "pass",
+      "detail": "arcs 1 (closed), increments on them 2"
+    },
+    {
+      "contract": "2.7",
+      "name": "the build sessions show up: the project's activity log has their start, from Claude Code",
+      "observed": "pass",
+      "detail": "session starts: 2"
+    },
+    {
+      "contract": "2.7",
+      "name": "the build sessions took claims: the activity log has their claimed lines",
+      "observed": "pass",
+      "detail": "claimed: increment_5229407197ca, capability_601bb941fd30, capability_3406ea599237, capability_eb45d91f5dfb, increment_95cf5097790b, capability_b885912bc673, capability_eb45d91f5dfb"
+    },
+    {
+      "contract": "2.7",
+      "name": "a contract was reported red, then green (the watcher saw it failing, then passing)",
+      "observed": "pass",
+      "detail": "seen red then green: 12 of 12; contracts whose reported health was written twice or more: 12"
+    },
+    {
+      "contract": "2.7",
+      "name": "an increment was closed as landed",
+      "observed": "pass",
+      "detail": "closed as landed: 2 of 2"
+    },
+    {
+      "contract": "2.7",
+      "name": "every claim they took ended: storytree's board says nobody holds anything",
+      "observed": "pass",
+      "detail": "claimed units 6, ended by a release, landing or closing line 6"
+    }
+  ]
+}

@@ -2,13 +2,12 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Group, Quaternion, Vector3 } from "three";
-import { claimTints, coastArcs, openingTurn, replayWisps, selectionLanes, selectionNeighbours, type ClaimTint, type CoastArc, type EdgeMarker, type FacingIsland, type ForestScene, type GlobeTurn, type Island, type SessionWisp } from "@storytree/forest";
+import { claimTints, openingTurn, replayWisps, selectionLanes, selectionNeighbours, type ClaimTint, type EdgeMarker, type FacingIsland, type ForestScene, type GlobeTurn, type Island, type SessionWisp } from "@storytree/forest";
 import type { Descriptor3D } from "@storytree/forest-world";
 import { islandNormal, onIslandSurface, PlanetWorldCanvas, plateTransform, usePlanetGrowth, type PlanetGrowth } from "@storytree/forest-world/planet";
 import { codePathKey, type CodePlaces } from "@storytree/knowledge-core";
 import { KnowledgeGlobePoints, useCodeLighting, type CodeLighting, type KnowledgeCore } from "@storytree/knowledge-core/view";
 import { SessionIslandEmphasis } from "./session-emphasis.js";
-import { coastTintMarks } from "./session-tints.js";
 import { circleStops, fileCircleMarks, lightFileCircles } from "./file-circles.js";
 import { lightTerritories, territoryLand } from "./territory-land.js";
 import { fileCircles, territories } from "../territories/territories.js";
@@ -78,7 +77,7 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
   // 5.7: replaying a growth with its recorded sessions, the wisps are the replay's, swapped as it passes each stage.
   const [replayed, setReplayed] = useState<readonly SessionWisp[]>();
   const wisps = growth !== undefined && recordedSessions !== undefined ? replayed ?? [] : live;
-  // ADR-0804 D9, narrowed by ADR-0825 D3: a running session tints its islands' coasts and outlines its claimed territories; no wisps.
+  // ADR-0825 D3, ADR-0923: a running session outlines the territories it claimed, and nothing else; no wisps, no coast tint.
   const claimed = useMemo(() => claimTints(wisps), [wisps]);
   // Each island reports where its file circles lie on the globe once it has drawn them (only the drawing knows its coast); the core's traversal hops between them (ADR-0804 D5).
   const [stopsByStory, setStops] = useState<ReadonlyMap<string, ReadonlyMap<string, { x: number; y: number; z: number }>>>(new Map());
@@ -113,7 +112,6 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
       {mode === "forest" && <SessionIslandEmphasis emphasis={emphasis} />}
       {emphasis === "held" && <SelectionRing island={local} descriptors={descriptors} onGlobe emphasis />}
       {shownSurfaces.nameplates && <Nameplates island={island} spot={layout.spots.get(island.story)!} coast={coast} radius={layout.radius} selected={selected} dimmed={emphasis === "dimmed"} />}
-      {shownSurfaces.sessionTints && <CoastTints arcs={coastArcs(wisps, island.story)} coast={coast} radius={layout.radius} />}
       {mode === "forest" && <SelectionRing island={island.story === selected ? local : undefined} descriptors={descriptors} onGlobe />}
       {mode === "forest" && neighbours.has(island.story) && <NeighbourRing key={`${selected}:${neighbours.get(island.story)}`}
         island={local} descriptors={descriptors} relation={neighbours.get(island.story)!} />}
@@ -215,17 +213,6 @@ function Territories({ story, land, coast, claimed, radius, spot, lighting, surf
     mark.material?.dispose();
   }), [drawn]);
   return <primitive object={drawn.root} />;
-}
-
-/** Each running session's arc of an island's coast (5.6, 5.7), laid just above the ground. */
-function CoastTints({ arcs, coast, radius }: { arcs: readonly CoastArc[]; coast: readonly (readonly { x: number; z: number }[])[]; radius: number }) {
-  const group = useMemo(() => coastTintMarks(coast, arcs, onIslandSurface(radius, TERRITORY_LIFT * 2)), [JSON.stringify(arcs), coast, radius]);
-  useEffect(() => () => group.traverse((object) => {
-    const mark = object as { geometry?: { dispose(): void }; material?: { dispose(): void } };
-    mark.geometry?.dispose();
-    mark.material?.dispose();
-  }), [group]);
-  return <primitive object={group} />;
 }
 
 type ScreenMarker = EdgeMarker & { left: number; top: number };

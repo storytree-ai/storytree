@@ -1,0 +1,1 @@
+Thanks, that works. Please add a filter so I can show all the items, only the active ones, or only the completed ones, with tests for it too.

@@ -1,23 +1,18 @@
 // Contract 6.10: count the frames the shipped globe draws in real Chromium while its canvas is off screen.
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { build } from 'esbuild';
+import { buildPage } from './build.mjs';
 import { chromium } from 'playwright-core';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const out = path.join(here, 'out');
-mkdirSync(out, { recursive: true });
 let browser;
 let server;
 try {
-  await build({
-    entryPoints: [path.join(here, 'page.tsx')], outfile: path.join(out, 'bundle.js'),
-    bundle: true, format: 'iife', platform: 'browser', jsx: 'automatic',
-    define: { 'process.env.NODE_ENV': '"production"' },
-  });
+  await buildPage(out);
   // The globe sits between two spacers taller than the viewport, so it starts below the fold.
   server = createServer((req, res) => {
     res.setHeader('Content-Type', req.url === '/bundle.js' ? 'text/javascript' : 'text/html');

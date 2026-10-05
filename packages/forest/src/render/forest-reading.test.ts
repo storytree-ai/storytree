@@ -9,7 +9,7 @@ import { test } from "node:test";
 import { joinedReads, pageReading, type Timers } from "@storytree/arc-surface";
 import type { AnnotatedTree } from "@storytree/library";
 
-import { forestReading, type ForestReads } from "./forest-reading.js";
+import { forestReading, treeAfter, type ForestReads } from "./forest-reading.js";
 
 const tree: AnnotatedTree = { arcs: [], stories: [] } as unknown as AnnotatedTree;
 
@@ -99,7 +99,7 @@ test("the code is surveyed again at most every 10 seconds however often the tree
   let cursor = 0;
   let surveys = 0;
   const reads: ForestReads = {
-    changesSince: async () => ({ changes: [{ seq: ++cursor } as never], cursor }),
+    changesSince: async () => ({ changes: [{ seq: ++cursor, type: "capability" } as never], cursor }),
     linesSince: async () => ({ lines: [], cursor: 0 }),
     projectTree: async () => tree,
     codeSurvey: async () => (surveys++, survey),
@@ -143,4 +143,41 @@ test("the forest draws from the page's one reading, and the surfaces hearing it 
   assert.deepEqual(asked, ["changes 0", "lines 0", "tree", "changes 0", "lines 0"]);
   reading.stop();
   page.stop();
+});
+
+test("7.24 the sessions list and the forest re-read the plan only when their news holds a change to a story, capability, contract, arc or health record; other news draws from the tree they have, and their first news always reads", async () => {
+  let asked = 0;
+  const counted = { projectTree: async () => { asked++; return tree; } };
+  // A health change as the page passes one on: a contract's reported state moving.
+  const fieldsOf = (type: string) => (type === "health" ? { node: "contract_1", column: "reported", state: "passing" } : {});
+  const news = (...types: string[]) => ({ lines: [], changes: types.map((type, n) => ({ seq: n + 1, recordId: `${type}_1`, type, action: "updated" as const, record: { fields: fieldsOf(type) } as never })) });
+  // The rule both surfaces read the tree by.
+  assert.equal(await treeAfter(counted, "shop", news(), undefined), tree);
+  assert.equal(asked, 1, "the first news reads the tree");
+  assert.equal(await treeAfter(counted, "shop", news("decision", "friction", "increment", "question"), tree), tree);
+  assert.equal(asked, 1, "notes and work leave the tree as it was");
+  for (const type of ["story", "capability", "contract", "arc", "health"]) await treeAfter(counted, "shop", news(type), tree);
+  assert.equal(asked, 6, "each change to the tree's own records reads it again");
+
+  // The forest hears its news so: a decision's change draws the tree it has, a health change reads it.
+  const asks = [[], ["decision"], ["health"]];
+  let ask = -1;
+  let reads = 0;
+  const forestReads: ForestReads = {
+    changesSince: async () => { ask++; return { changes: news(...(asks[ask] ?? [])).changes, cursor: ask + 1 }; },
+    linesSince: async () => ({ lines: [], cursor: 0 }),
+    projectTree: async () => { reads++; return tree; },
+  };
+  const timers = handTimers();
+  let drawn = 0;
+  const reading = forestReading({ project: "shop", reads: forestReads, timers, onTree: () => { drawn++; }, onError: (error) => { throw error; } });
+  // Each ask is let finish before the next, as two seconds between them would.
+  const answered = async (tick?: () => Promise<void>) => { await tick?.(); await new Promise((resolve) => setImmediate(resolve)); };
+  await answered();
+  assert.deepEqual({ reads, drawn }, { reads: 1, drawn: 1 });
+  await answered(() => timers.tick());
+  assert.deepEqual({ reads, drawn }, { reads: 1, drawn: 2 }, "a decision's change is drawn from the tree the forest has");
+  await answered(() => timers.tick());
+  assert.deepEqual({ reads, drawn }, { reads: 2, drawn: 3 }, "a health change reads the tree again");
+  reading.stop();
 });

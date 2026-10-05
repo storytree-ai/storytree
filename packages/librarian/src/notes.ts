@@ -18,6 +18,14 @@ export function allNotes(library: Library): Promise<Note[]> {
   return library.search("");
 }
 
+/**
+ * The types `notes` are of: what a read of the history since a cursor narrows to when it is after
+ * notes written. A type no live note has can name no note written either.
+ */
+export function typesOf(notes: readonly Note[]): string[] {
+  return [...new Set(notes.map((note) => note.type))];
+}
+
 /** The live note `id`, or a refusal saying there is none. */
 export async function noteOf(library: Library, id: string): Promise<Note> {
   const note = (await allNotes(library)).find((candidate) => candidate.id === id);

@@ -20,7 +20,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-import type { Library } from "@storytree/library";
+import type { AnnotatedTree, Library } from "@storytree/library";
 
 import type { ActivityLog, Line } from "../activity/index.js";
 import { labelOf } from "../readings.js";
@@ -61,10 +61,13 @@ export async function claimFromEdits(context: EditClaimsContext): Promise<void> 
     // Where this look got to is kept before claiming: a look cut short claims each edit at most once.
     writePlace(place, { edits: cursor, notices: last?.notices ?? 0 });
 
-    // The plan's titles, read only when there is an edit to claim from or a refusal to tell of: most looks have neither.
+    // The plan, read only when there is an edit to claim from or a refusal to tell of (most looks have
+    // neither), and then once, for the titles and the lookup both (5.23).
+    let plan: Promise<AnnotatedTree> | undefined;
+    const planOnce = () => (plan ??= library.projectTree());
     let known: Promise<Map<string, string>> | undefined;
-    const titlesOf = () => (known ??= library.projectTree().then((tree) => new Map(tree.stories.flatMap((story) => story.capabilities.map(({ id, title }) => [id, title] as const)))));
-    const lookup = context.lookup ?? surveyLookup(library);
+    const titlesOf = () => (known ??= planOnce().then((tree) => new Map(tree.stories.flatMap((story) => story.capabilities.map(({ id, title }) => [id, title] as const)))));
+    const lookup = context.lookup ?? surveyLookup(planOnce);
     const done = new Set<string>();
     const titles = edits.length === 0 ? new Map<string, string>() : await titlesOf();
     for (const [checkout, lines] of byFolder(edits)) {
@@ -116,10 +119,10 @@ function byFolder(edits: readonly Extract<Line, { kind: "file-edited" }>[]): Map
   return grouped;
 }
 
-/** The code survey's answer, of the checkout the edit was made in (ADR-0924 D5's interim lookup). */
-function surveyLookup(library: Library): CapabilityLookup {
+/** The code survey's answer, of the checkout the edit was made in (ADR-0924 D5's interim lookup), over the plan `planOf` reads. */
+function surveyLookup(planOf: () => Promise<AnnotatedTree>): CapabilityLookup {
   return async (checkout, files) => {
-    const [{ codeSurveyReader, packageOf }, tree] = await Promise.all([import("@storytree/map/code-survey"), library.projectTree()]);
+    const [{ codeSurveyReader, packageOf }, tree] = await Promise.all([import("@storytree/map/code-survey"), planOf()]);
     const survey = await codeSurveyReader({ checkout: "current" }).read(checkout, tree);
     const owners = new Map<string, string>();
     for (const story of tree.stories) {

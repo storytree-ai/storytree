@@ -91,12 +91,11 @@ async function sessionStart(call: ToolCall): Promise<{ since?: number }> {
   // The session's first start line alone, never the rest of the log (agent link 2.7).
   const [start] = await call.log.lines(call.project, { kinds: ["session-started"], sessions: [call.caller.session], where: { harness: call.caller.harness ?? null }, oldest: 1, omit: ["transcript"] });
   if (start === undefined) return {};
-  let since = 0;
-  for (const change of await call.library.history()) {
-    if (change.at >= start.at) break;
-    since = change.seq;
-  }
-  return { since };
+  // Two changes, never the whole history (contract 6.6): the newest, read first so that a change
+  // written between the reads still lands after the cursor, and the first made since the start.
+  const [newest] = await call.library.history({ newest: 1 });
+  const [first] = await call.library.history({ from: start.at, oldest: 1 });
+  return { since: first === undefined ? (newest?.seq ?? 0) : first.seq - 1 };
 }
 
 function branchIn(folder: string): string | undefined {

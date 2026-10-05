@@ -79,6 +79,28 @@ async function withWorld(body: (world: World) => Promise<void>): Promise<void> {
   }
 }
 
+test("5.23 an edit-claims look reads the plan once, and a look whose edits are to what their editors already hold reads no work besides", async () => {
+  await withWorld(async ({ library, emailForm, edit, pass, log, project }) => {
+    const asked = { projectTree: 0, arcViews: 0, holds: 0, waitHolds: 0 };
+    const counted = new Proxy(library, {
+      get(target, key) {
+        if (typeof key === "string" && key in asked) asked[key as keyof typeof asked]++;
+        const value = Reflect.get(target, key) as unknown;
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+    await edit("A", EMAIL);
+    await pass({ library: counted });
+    assert.deepEqual((await readClaims(log, project)).map(({ capability }) => capability), [emailForm]);
+    assert.equal(asked.projectTree, 1, "the plan once, for the titles and the lookup both");
+
+    for (const key of Object.keys(asked) as (keyof typeof asked)[]) asked[key] = 0;
+    await edit("A", EMAIL);
+    await pass({ library: counted });
+    assert.deepEqual(asked, { projectTree: 1, arcViews: 0, holds: 0, waitHolds: 0 });
+  });
+});
+
 test('5.20 an edit to a file of "email form" claims it for A, recording the file, with its title as the reason; A is told what, from which file, and how to release it; a second edit, and an edit to a file of no capability, claim and say nothing', async () => {
   await withWorld(async ({ log, project, home, emailForm, edit, pass }) => {
     await edit("A", EMAIL);

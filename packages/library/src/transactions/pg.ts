@@ -4,7 +4,7 @@
  */
 import type { Pool, PoolClient } from "pg";
 
-import { check, editedRecord, historyEntry, now, numbered, savedRecord } from "./records.js";
+import { check, editedRecord, historyEntry, historyFilter, now, numbered, savedRecord } from "./records.js";
 import type {
   EditInput,
   HistoryEntry,
@@ -104,22 +104,28 @@ export class PgTransactions implements Transactions {
     }, input.signal);
   }
 
-  async history(filter: HistoryFilter = {}): Promise<HistoryEntry[]> {
+  async history(given: HistoryFilter = {}): Promise<HistoryEntry[]> {
+    const filter = historyFilter(given);
     const conditions: string[] = [];
     const params: unknown[] = [];
-    if (filter.id !== undefined) {
-      params.push(filter.id);
-      conditions.push(`record_id = $${params.length}`);
-    }
-    if (filter.since !== undefined) {
-      params.push(filter.since);
-      conditions.push(`seq > $${params.length}`);
-    }
+    const narrow = (condition: (param: string) => string, value: unknown) => {
+      params.push(value);
+      conditions.push(condition(`$${params.length}`));
+    };
+    if (filter.id !== undefined) narrow((param) => `record_id = ${param}`, filter.id);
+    if (filter.since !== undefined) narrow((param) => `seq > ${param}`, filter.since);
+    if (filter.from !== undefined) narrow((param) => `at >= ${param}::timestamptz`, filter.from);
+    if (filter.types !== undefined) narrow((param) => `type = ANY(${param}::text[])`, filter.types);
     const where = conditions.length === 0 ? "" : `WHERE ${conditions.join(" AND ")}`;
-    const { rows } = await this.#pool.query<EventRow>(
-      `SELECT seq, record_id, type, action, record, reason, actor, at FROM record_event ${where} ORDER BY seq`,
-      params,
-    );
+    const columns = "seq, record_id, type, action, record, reason, actor, at";
+    // Only the changes kept leave the server: a limit is applied there, the newest read backwards and turned round.
+    if (filter.oldest !== undefined) params.push(filter.oldest);
+    if (filter.newest !== undefined) params.push(filter.newest);
+    const query =
+      filter.oldest !== undefined ? `SELECT ${columns} FROM record_event ${where} ORDER BY seq LIMIT $${params.length}`
+      : filter.newest !== undefined ? `SELECT * FROM (SELECT ${columns} FROM record_event ${where} ORDER BY seq DESC LIMIT $${params.length}) AS newest ORDER BY seq`
+      : `SELECT ${columns} FROM record_event ${where} ORDER BY seq`;
+    const { rows } = await this.#pool.query<EventRow>(query, params);
     return rows.map((row) =>
       historyEntry({
         seq: Number(row.seq),

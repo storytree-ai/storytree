@@ -22,7 +22,7 @@
  */
 import { uptime } from "node:os";
 
-import type { Hold, IncrementStatus, Library, SchemaRecord, WriteOptions } from "@storytree/library";
+import type { Hold, Holds, IncrementStatus, Library, SchemaRecord, WriteOptions } from "@storytree/library";
 
 import { thisMachine, type ActivityLog, type Line, type LineFilter } from "../activity/index.js";
 import { attributeFrom, CLAIM_KINDS, claimOf, claimsFrom as readLines, COMMAND_KINDS, held, LONGEST_COMMAND_MS, partOf, runningIn, type Attributed, type Claim, type ClaimsOptions, type Part, type Restart } from "../readings.js";
@@ -108,6 +108,13 @@ export async function claim(context: ClaimContext, id: string, reason: string, o
   const file = options.file === undefined ? {} : { file: options.file };
   const tooLong = reasonRefusal(reason);
   if (tooLong !== undefined) return tooLong;
+  // What this session already holds is answered before the library is read (5.23): the edit-claims
+  // look claims for every new edit, and most are to what the editor already holds.
+  // Whose a standing claim is needs no liveness, so the standing claims alone are read.
+  if (!(options.moveBranch && context.branch !== undefined)) {
+    const standing = held(await context.log.standing(context.project), new Map(), new Set(), Date.now(), Infinity).get(id);
+    if (standing?.session === context.session) return { ok: true, claim: standing, alreadyHeld: true };
+  }
   const found = await claimable(context.library, id);
   if (!("part" in found)) return found;
   return context.log.locked(context.project, async (log) => {
@@ -234,18 +241,21 @@ export async function readAttribution(log: ActivityLog, project: string): Promis
  * The agent link keeps no copy of the rule for whether a wait holds.
  */
 async function waitingOn(library: Library, found: Found): Promise<Waiting[]> {
-  const holding = async (increment: string): Promise<Waiting[]> => [
-    ...(await library.waitHolds(increment)).map((hold): Waiting => ({ increment, ...hold })),
-    ...(await library.heldOnQuestion(increment)).map((question): Waiting => ({ increment, on: question, reason: "waiting on the owner's answer", forGood: false, onOwner: true })),
+  // Every hold from one reading of the work, never one reading per increment (5.23).
+  const holding = (holds: Holds, increment: string): Waiting[] => [
+    ...(holds.waits[increment] ?? []).map((hold): Waiting => ({ increment, ...hold })),
+    ...(holds.heldOn[increment] ?? []).map((question): Waiting => ({ increment, on: question, reason: "waiting on the owner's answer", forGood: false, onOwner: true })),
   ];
   const { capability, increment } = found.part;
-  if (increment !== undefined) return holding(increment);
+  if (increment !== undefined) return holding(await library.holds(), increment);
   const naming = (await increments(library)).filter((one) => one.fields.status !== "closed" && one.fields.touches?.includes(capability) === true);
+  if (naming.length === 0) return [];
+  const holds = await library.holds();
   const waits: Waiting[] = [];
   for (const one of naming) {
-    const holds = await holding(one.id);
-    if (holds.length === 0) return [];
-    waits.push(...holds);
+    const held = holding(holds, one.id);
+    if (held.length === 0) return [];
+    waits.push(...held);
   }
   return waits;
 }
@@ -295,12 +305,12 @@ interface Found {
   readonly status?: IncrementStatus;
 }
 
-/** The live capability or increment `id` in `library`, or undefined when there is none. */
+/** The live capability or increment `id` in `library`, or undefined when there is none: that one record, not the plan (5.23). */
 async function partNamed(library: Library, id: string): Promise<Found | undefined> {
-  const { stories } = await library.projectTree();
-  if (stories.some((story) => story.capabilities.some((capability) => capability.id === id))) return { part: { capability: id } };
-  const increment = (await increments(library)).find((one) => one.id === id);
-  return increment === undefined ? undefined : { part: { increment: id }, status: increment.fields.status };
+  const record = await library.get(id);
+  if (record?.type === "capability") return { part: { capability: id } };
+  if (record?.type === "increment") return { part: { increment: id }, status: (record as SchemaRecord<"increment">).fields.status };
+  return undefined;
 }
 
 /** Every live increment in `library`, arc by arc, read in one ask however many arcs there are. */

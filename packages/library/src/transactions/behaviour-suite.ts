@@ -1,5 +1,5 @@
 /**
- * Capability 2 · Library transactions: ONE behaviour suite, one test per contract 2.1-2.9 in
+ * Capability 2 · Library transactions: ONE behaviour suite, one test per contract 2.1-2.9 and 2.12 in
  * the library story. Each backend registers it (memory.test.ts, pg.test.ts) and it must pass
  * unchanged on every one. Parity is the point: later stories test against the in-memory twin, so
  * the twin has to behave exactly as Postgres does.
@@ -9,6 +9,7 @@
  */
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { setTimeout as sleep } from "node:timers/promises";
 
 import type { HistoryEntry, RecordEnvelope, Transactions } from "./types.js";
 
@@ -416,6 +417,45 @@ export function transactionsBehaviourSuite(label: string, makeStore: () => Promi
       "the reader saw every new entry, in order, and nothing twice",
     );
     assert.equal(followed.length, RACERS);
+  });
+
+  contract("2.12", "history narrows on the server: from a time, to some types, to the oldest or newest few, and all of them combined", async (store) => {
+    await store.save({ id: "a", type: "note", fields: { v: 1 } });
+    await store.save({ id: "h", type: "health", fields: { v: 1 } });
+    await sleep(5); // so that some changes are made before `from` and some at or after it
+    await store.save({ id: "h", type: "health", fields: { v: 2 } });
+    await store.save({ id: "b", type: "task", fields: { v: 1 } });
+    await store.edit({ id: "a", fields: { v: 2 } });
+    await store.retire({ id: "b", reason: "finished" });
+    const all = await store.history();
+    const from = all[2]?.at ?? assert.fail("no third entry");
+    const fromOn = all.filter((entry) => entry.at >= from);
+    assert.ok(fromOn.length < all.length, "some changes were made before `from`");
+
+    // From a time: the changes made at or after it, to the millisecond, however the time is written.
+    assert.deepEqual(await store.history({ from }), fromOn);
+    const elevenHoursAhead = new Date(Date.parse(from) + 11 * 3_600_000).toISOString().replace("Z", "+11:00");
+    assert.deepEqual(await store.history({ from: elevenHoursAhead }), fromOn, "the same instant in another zone");
+    assert.deepEqual(await store.history({ from: new Date(Date.parse(all.at(-1)!.at) + 1).toISOString() }), []);
+
+    // To some types: their changes only, a retirement included; none for no types.
+    assert.deepEqual(await store.history({ types: ["note", "task"] }), all.filter((entry) => entry.type === "note" || entry.type === "task"));
+    assert.deepEqual(await store.history({ types: [] }), []);
+
+    // The oldest or the newest few, in order either way.
+    assert.deepEqual(await store.history({ oldest: 2 }), all.slice(0, 2));
+    assert.deepEqual(await store.history({ newest: 2 }), all.slice(-2));
+    assert.deepEqual(await store.history({ newest: 100 }), all);
+
+    // Combined with each other and with id and since: each narrows what the others leave.
+    assert.deepEqual(await store.history({ from, types: ["note"], oldest: 1 }), fromOn.filter((entry) => entry.type === "note").slice(0, 1));
+    assert.deepEqual(await store.history({ id: "h", newest: 1 }), all.filter((entry) => entry.recordId === "h").slice(-1));
+    assert.deepEqual(await store.history({ since: all[0]!.seq, types: ["health"] }), all.filter((entry) => entry.type === "health"));
+
+    // A filter that is not one is refused before anything is read.
+    for (const filter of [{ oldest: 0 }, { newest: -1 }, { oldest: 1.5 }, { oldest: 1, newest: 1 }, { from: "yesterday" }]) {
+      await assert.rejects(store.history(filter), RangeError, JSON.stringify(filter));
+    }
   });
 
   contract("2.9", "a validate check sees the merged result, and if it throws nothing is written", async (store) => {

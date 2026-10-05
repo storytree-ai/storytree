@@ -18,6 +18,7 @@ import { claimFrom, claimsFrom } from "../readings.js";
 import { runHook } from "../hooks/index.js";
 import { MARKER_FILE } from "../routing/index.js";
 import { claudeCode, withAgent } from "../testing/agent.js";
+import { countingStore } from "../testing/egress.js";
 import { withTempDir } from "../testing/folders.js";
 import { dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { claim, land, readAttribution, release, type ClaimContext, type MergedPull, type MergeWatch } from "./index.js";
@@ -190,11 +191,17 @@ test("5.6 while a command A started is still running, past the quiet time, B's c
 
     await sleep(quietMs + 300); // the build runs on, longer than the quiet time, and A writes nothing
     let historyReads = 0;
-    const counted = Object.assign(Object.create(log) as ActivityLog, {
-      locked: <T>(of: string, work: (locked: LockedLog) => Promise<T>) => log.locked(of, (locked) => work({
-        ...locked,
-        lines: (kinds) => { historyReads++; return locked.lines(kinds); },
-      })),
+    const locked = <T>(of: string, work: (locked: LockedLog) => Promise<T>) => log.locked(of, (inside) => work({
+      ...inside,
+      lines: (kinds) => { historyReads++; return inside.lines(kinds); },
+    }));
+    // The log as it is, but for the lock: each of its other reads still reaches the real log.
+    const counted = new Proxy(log, {
+      get(target, key) {
+        if (key === "locked") return locked;
+        const value = Reflect.get(target, key) as unknown;
+        return typeof value === "function" ? value.bind(target) : value;
+      },
     });
     const refused = await claim(as("B", { quietMs, log: counted }), emailForm, "A went quiet; taking over");
     assert.ok(!refused.ok && refused.refused === "held" && refused.holder.session === "A" && refused.holder.holder === "live");
@@ -541,6 +548,55 @@ test("5.7 claiming an increment reads every arc in one ask, however many arcs th
       },
     });
     assert.equal((await claim({ ...as("A"), library: counted }, proposed, "driving the email form")).ok, true);
-    assert.deepEqual(asked, { arcView: 0, arcViews: 1 });
+    assert.equal(asked.arcView, 0, "never an arc view per arc");
+    assert.ok(asked.arcViews <= 1, `every arc in one ask at most: ${asked.arcViews}`);
   });
+});
+
+test("5.23 a claim takes from the library what deciding it needs and no more: one the session already holds takes almost nothing, and a capability claim takes about as much with five open increments naming it as with one", { timeout: 180_000 }, async () => {
+  const taken = new Map<string, number>();
+  for (const naming of [1, 5]) {
+    const project = uniqueProjectName();
+    const store = await countingStore();
+    const counted = new URL(testServerUrl());
+    counted.hostname = "127.0.0.1";
+    counted.port = String(store.port);
+    const storytree = await connect({ url: counted.href });
+    const log = await openActivityLog(counted.href);
+    try {
+      const library = await storytree.openProject(project);
+      const story = await library.addStory({ title: "Visitor can sign up" });
+      const emailForm = (await library.addCapability({ title: "Email form", story: story.id })).id;
+      const arc = (await library.createArc({ title: "Signup", intent: "Build signup", endState: "Signup works" })).id;
+      // Weeks of closed work, as a project's increment log grows.
+      for (let n = 0; n < 150; n++) {
+        await library.addIncrement({ arc, title: `Done ${n}`, objective: "Done", body: "x".repeat(3000), outcome: { disposition: "landed", pr: `#${n}` } });
+      }
+      // Open increments naming the capability: all but the last wait, so a claim checks each of them.
+      const schema = await library.addIncrement({ arc, title: "Schema", objective: "Tables", body: "…" });
+      for (let n = 0; n < naming; n++) {
+        const part = await library.addIncrement({ arc, title: `Part ${n}`, objective: "A part", body: "…", touches: [emailForm] });
+        if (n < naming - 1) await library.addWait(part.id, schema.id, "needs the tables");
+      }
+      const context: ClaimContext = { log, library, project, session: "A", harness: "claude-code" };
+      let before = store.received();
+      assert.equal((await claim(context, emailForm, "building the email form")).ok, true);
+      taken.set(`first, ${naming} naming it`, store.received() - before);
+      before = store.received();
+      const again = await claim(context, emailForm, "building the email form");
+      assert.equal(again.ok && again.alreadyHeld, true);
+      taken.set(`again, ${naming} naming it`, store.received() - before);
+    } finally {
+      try {
+        await log.close();
+        await storytree.close();
+        await store.close();
+      } finally {
+        await dropTestProjects([project]);
+      }
+    }
+  }
+  const report = JSON.stringify(Object.fromEntries(taken));
+  assert.ok(taken.get("again, 5 naming it")! < 32 * 1024, `a claim already held takes almost nothing: ${report}`);
+  assert.ok(taken.get("first, 5 naming it")! - taken.get("first, 1 naming it")! < 128 * 1024, `five open increments naming it take about as much as one: ${report}`);
 });

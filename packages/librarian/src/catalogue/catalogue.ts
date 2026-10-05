@@ -7,7 +7,7 @@
  */
 import type { Library, Note, WriteOptions } from "@storytree/library";
 
-import { allNotes, LibrarianRefusal, noteOf, referencesOf, type Reference } from "../notes.js";
+import { allNotes, LibrarianRefusal, noteOf, referencesOf, typesOf, type Reference } from "../notes.js";
 
 /** A note written new since the worklist's cursor, and the live notes that might already cover it. */
 export interface NewNote {
@@ -36,8 +36,8 @@ export async function retire(library: Library, id: string, reason: string, write
  * letters or more; a memory's text stands for its title).
  */
 export async function newNotes(library: Library, cursor: number): Promise<NewNote[]> {
-  const created = new Set((await library.changesSince(cursor)).changes.filter((change) => change.action === "created").map((change) => change.recordId));
   const notes = await allNotes(library);
+  const created = new Set((await library.history({ since: cursor, types: typesOf(notes) })).filter((change) => change.action === "created").map((change) => change.recordId));
   const listed: NewNote[] = [];
   for (const note of notes.filter((candidate) => created.has(candidate.id))) {
     const found = new Set<string>();

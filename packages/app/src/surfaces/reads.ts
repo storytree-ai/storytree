@@ -9,7 +9,7 @@
  * Only a project the library already has is read: a name that is not a project is refused, and
  * never created, since opening a project's library would create it.
  */
-import { cachedLines, idleAfterMs, leaveAfterMs, lookAsApp, projectFolder, openActivityLog, pruneTranscripts, standingDelegations, storedContextReading, storedSessionWindow, type ActivityLog, type LinesCache, type TranscriptCache, type ContextReading, type LinesSince, type SessionWindow } from "@storytree/agent-link";
+import { idleAfterMs, leaveAfterMs, lookAsApp, projectFolder, openActivityLog, pruneTranscripts, standingDelegations, storedContextReading, storedSessionWindow, type ActivityLog, type TranscriptCache, type ContextReading, type LinesSince, type SessionWindow } from "@storytree/agent-link";
 import type { AnnotatedTree, ArcView, Holds, Changes, Library, Note, SchemaRecord, Storytree } from "@storytree/library";
 
 /** The page's reads, as the app answers them. */
@@ -64,8 +64,6 @@ export function pageReads({ storytree }: PageReadsOptions): PageReads {
   const libraries = new Map<string, Promise<Library>>();
   /** What the page's reads already fetched of each session's stored transcript: each ask fetches only what was stored since. */
   const transcripts: TranscriptCache = new Map();
-  /** What the page's reads already fetched of each project's log: each window or context read fetches only the lines added since. */
-  const logLines: LinesCache = new Map();
   let log: Promise<ActivityLog> | undefined;
   /** The look under way, if one is: a look asked for meanwhile joins it rather than running beside it. */
   let looking: Promise<void> | undefined;
@@ -118,7 +116,7 @@ export function pageReads({ storytree }: PageReadsOptions): PageReads {
       const known = await project(name);
       if (!Array.isArray(sessions) || !sessions.every((one) => typeof one === "string")) throw new Error("sessions must be a list of session ids");
       const opened = await activityLog();
-      const lines = await cachedLines(opened, known, logLines);
+      const lines = await opened.lines(known, { sessions, has: ["transcript"], latestBy: ["session"], omit: ["command", "files"] });
       return Promise.all(sessions.map((session: string) => storedContextReading(opened, known, lines, session, { cache: transcripts })));
     },
     idleAfterMs: async () => idleAfterMs(),
@@ -127,14 +125,14 @@ export function pageReads({ storytree }: PageReadsOptions): PageReads {
       const known = await project(name);
       if (typeof session !== "string") throw new Error("session must be a session id");
       const opened = await activityLog();
-      const lines = await cachedLines(opened, known, logLines);
+      const lines = await opened.lines(known, { sessions: [session], has: ["transcript"], latestBy: ["session"], omit: ["command", "files"] });
       return storedSessionWindow(opened, known, lines, session, { cache: transcripts });
     },
     windowReadings: async (name, sessions) => {
       const known = await project(name);
       if (!Array.isArray(sessions) || !sessions.every((one) => typeof one === "string")) throw new Error("sessions must be a list of session ids");
       const opened = await activityLog();
-      const lines = await cachedLines(opened, known, logLines);
+      const lines = await opened.lines(known, { sessions, has: ["transcript"], latestBy: ["session"], omit: ["command", "files"] });
       return Promise.all(sessions.map((session: string) => storedSessionWindow(opened, known, lines, session, { cache: transcripts })));
     },
     projectFolder: async (name) => projectFolder(await activityLog(), await project(name)),
@@ -154,7 +152,6 @@ export function pageReads({ storytree }: PageReadsOptions): PageReads {
     close: async () => {
       const opened = [...libraries.values(), ...(log === undefined ? [] : [log])];
       libraries.clear();
-      logLines.clear();
       log = undefined;
       await Promise.all(opened.map((open) => open.then((it) => it.close()).catch(() => {})));
     },

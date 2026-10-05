@@ -11,6 +11,7 @@ import path from "node:path";
 import { test } from "node:test";
 
 import { openActivityLog, shipTranscript, type ActivityLog } from "@storytree/agent-link";
+import { countingStore, longHistory } from "@storytree/agent-link/testing/egress";
 import { connect, type Storytree } from "@storytree/library";
 import pg from "pg";
 
@@ -137,10 +138,75 @@ test("3.6 the page can ask the app for a session's window (agent link 9.10), or 
     assert.deepEqual(both.map((one) => [one.session, "opens" in one ? one.opens.length : one.absent]), [["A", 1], ["B", "no hook has named this session's transcript"]]);
     await assert.rejects(reads.windowReadings(shown, "A"), /sessions must be a list of session ids/);
 
-    // The app keeps the log's lines between reads: a session named since the last read is still seen.
+    // A session named since the last read is still seen.
     await ranElsewhere(log, shown, "B", [{ type: "user", message: { content: "hello" } }]);
     const named = await reads.windowReading(shown, "B");
     assert.ok("opens" in named, "a session named since the last read has its window");
+  });
+});
+
+test("3.9 after each app start, context readings and single or batched windows read no more activity history from a long log than a short one", { timeout: 120_000 }, async (t) => {
+  const projects = [uniqueProjectName(), uniqueProjectName()];
+  await withApp(projects, async ({ storytree, log }) => {
+    const taken: number[][] = [];
+    let history = 0;
+    for (const [index, project] of projects.entries()) {
+      await storytree.openProject(project);
+      if (index === 1) history = await longHistory(project, "/old-work", 400, "other-machine");
+      for (const session of ["A", "B"]) {
+        // Both named sessions have older references; only the latest reference places the reading.
+        await log.append(project, { session, source: "hook", kind: "command-run", transcript: "/old/transcript.jsonl", command: "x".repeat(index === 1 ? 1_000_000 : 1) });
+        const transcript = await ranElsewhere(log, project, session, [
+          { type: "assistant", message: { model: "claude-opus-5-5", usage: { input_tokens: 321 }, content: [{ type: "tool_use", id: "c1", name: "mcp__storytree__open", input: { id: "decision_000000000001" } }] } },
+          { type: "user", message: { content: [{ type: "tool_result", tool_use_id: "c1", content: "Claims" }] } },
+        ]);
+        await log.append(project, { session, harness: "claude-code", source: "hook", kind: "command-run", transcript, command: "x".repeat(index === 1 ? 1_000_000 : 1) });
+        // A newer line without a transcript must not hide the last reference that named one.
+        await log.append(project, { session, source: "hook", kind: "turn-ended" });
+      }
+      const store = await countingStore();
+      const url = new URL(testServerUrl());
+      url.port = String(store.port);
+      const counted = await connect({ url: url.href });
+      const bytes: number[] = [];
+      try {
+        // Each entry point is the first read of a fresh main process, with no lines or transcripts cached.
+        for (const kind of ["context", "windows", "window"] as const) {
+          const reads = pageReads({ storytree: counted });
+          const before = store.received();
+          try {
+            if (kind === "context") {
+              const contexts = await reads.contextReadings(project, ["B", "A", "missing"]);
+              assert.deepEqual(contexts.map((one) => [one.session, "tokens" in one ? one.tokens : one.absent]), [
+                ["B", 321], ["A", 321], ["missing", "no hook has named this session's transcript"],
+              ]);
+              assert.deepEqual(await reads.contextReadings(project, []), []);
+            } else {
+              const windows = kind === "windows" ? await reads.windowReadings(project, ["B", "A"]) : [await reads.windowReading(project, "A")];
+              assert.deepEqual(windows.map((one) => one.session), kind === "windows" ? ["B", "A"] : ["A"]);
+              for (const window of windows) {
+                assert.deepEqual("opens" in window && window.opens.map(({ id, resident }) => [id, resident]), [["decision_000000000001", true]]);
+                assert.notEqual(window.source, "/old/transcript.jsonl");
+              }
+              assert.deepEqual(await reads.windowReadings(project, []), []);
+            }
+          } finally {
+            await reads.close();
+          }
+          bytes.push(store.received() - before);
+        }
+        taken.push(bytes);
+      } finally {
+        await counted.close();
+        await store.close();
+      }
+    }
+    assert.ok(history > 20_000_000, `the long log has weeks of activity: ${history} bytes`);
+    t.diagnostic(`startup bytes (context, windows, window): short ${taken[0]}, long ${taken[1]}; long history ${history} bytes`);
+    for (let index = 0; index < 3; index++) {
+      assert.ok(taken[1]![index]! - taken[0]![index]! < 128 * 1024,
+        `startup read ${index} took ${taken[0]![index]} bytes from the short log and ${taken[1]![index]} from one ${history} bytes longer: at most 128 KiB apart`);
+    }
   });
 });
 

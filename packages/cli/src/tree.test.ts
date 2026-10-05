@@ -12,11 +12,15 @@ const command = new BuiltCommand();
 before(() => command.build());
 after(() => command.remove());
 
-test("10.1 a story with a capability and a contract prints in order with \"agent says passing\"", async () => {
+test("10.1 a story with capabilities and a contract prints in order with stored titles and \"agent says passing\"", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();
     const story = await library.addStory({ title: "Visitor can sign up" });
-    const capability = await library.addCapability({ title: "Email form", story: story.id });
+    const capability = await library.addCapability({ title: "4 · Email form", story: story.id });
+    const earlierNumber = await library.addCapability({ title: "1 · Visitor details", story: story.id });
+    const thankYou = await library.addCapability({ title: "Thank-you page", story: story.id });
+    const unnumbered = await library.editCapability(thankYou.id, { title: "Thank-you page" });
+    assert.ok(unnumbered);
     const contract = await library.addContract({ title: "Rejects an email with no @", capability: capability.id });
     await library.reportHealth(contract.id, "passing", { by: "agent" });
 
@@ -29,6 +33,10 @@ test("10.1 a story with a capability and a contract prints in order with \"agent
     assert.ok(at("Visitor can sign up") < at("Email form"), ran.stdout);
     assert.ok(at("Email form") < at("Rejects an email with no @"), ran.stdout);
     assert.match(lines[at("Rejects an email with no @")]!, /agent says passing/);
+    for (const each of [capability, earlierNumber, unnumbered]) {
+      const line = lines.find((line) => line.includes(`[${each.id}]`));
+      assert.equal(line?.split(`[${each.id}]`)[0], `  ${each.fields.title}  `, ran.stdout);
+    }
   });
 });
 

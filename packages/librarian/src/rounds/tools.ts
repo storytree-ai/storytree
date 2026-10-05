@@ -40,10 +40,10 @@ export function librarianTools({ tools }: { tools?: () => readonly string[] } = 
         const note = await link(library, from, to, writer);
         return { text: `${from} rests on ${to}.`, data: { id: note.id } };
       });
-      define("supersede", "Record an accepted successor when the decision changed; inherit its shelf and load-bearing mark. Use correct when only the wording changed.", z.object({
-        olds: z.array(text).min(1), successor: z.object({ title: text, text, frontCoverOf: text.optional() }),
+      define("supersede", "Record an accepted successor, or name an existing accepted decision by ID, when the decision changed; inherit the old shelf if it has none and the load-bearing mark. Use correct when only the wording changed.", z.object({
+        olds: z.array(text).min(1), successor: z.union([text.describe("An existing accepted decision's ID"), z.object({ title: text, text, frontCoverOf: text.optional() })]),
       }), async ({ olds, successor }, { library, writer }) => {
-        const note = await supersede(library, olds, defined(successor), writer);
+        const note = await supersede(library, olds, typeof successor === "string" ? successor : defined(successor), writer);
         return { text: `${note.id} supersedes ${olds.join(", ")}.`, data: { id: note.id } };
       });
       define("correct", "Correct a decision in place without changing what was decided, or mark/unmark it load-bearing. Only the owner can turn accepted back to proposed.", z.object({

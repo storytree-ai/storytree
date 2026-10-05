@@ -476,6 +476,29 @@ test("6.37 land refuses while the story's package has a source file no numbered 
   });
 });
 
+test("6.38 land names each planned contract of the capability that no numbered test in its story's package proves, and still lands", async () => {
+  await withProject(async ({ folder }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const story = idOf(await agent.call("plan_story", { title: "Shopping cart", ...FOUNDED }));
+      const capability = idOf(await agent.call("plan_capability", { story, title: "Adding", ...FOUNDED }));
+      idOf(await agent.call("plan_contract", { capability, title: "Adds an item" }));
+      idOf(await agent.call("plan_contract", { capability, title: "Refuses a sold-out item" }));
+      const src = path.join(folder, "packages/shopping-cart/src");
+      mkdirSync(src, { recursive: true });
+      writeFileSync(path.join(folder, "packages/shopping-cart/package.json"), JSON.stringify({ name: "shopping-cart" }));
+      writeFileSync(path.join(src, "cart.js"), "export const add = (a, b) => a + b;\n");
+      writeFileSync(path.join(src, "cart.test.js"), 'import { test } from "node:test";\nimport { add } from "./cart.js";\ntest("1.1 adds", () => add(1, 2));\n');
+      assert.equal((await agent.call("claim", { capability, reason: "building the cart" })).isError, false);
+
+      const landed = await agent.call("land", { capability });
+      assert.equal(landed.isError, false, landed.text);
+      assert.match(landed.text, /1\.2 · Refuses a sold-out item/);
+      assert.doesNotMatch(landed.text, /1\.1 · Adds an item/);
+      assert.deepEqual(landed.data.untested, ["1.2 · Refuses a sold-out item"]);
+    });
+  });
+});
+
 test("11.1 on GitHub, wire_pipeline writes storytree's workflow: the project's install and tests on each system chosen, and storytree check pinned to this storytree's release", async () => {
   await withProject(async ({ folder }) => {
     git(folder, "init", "-q");

@@ -11,6 +11,7 @@ import { test } from "node:test";
 import { openActivityLog, type Line } from "../activity/index.js";
 import { git, withTempDir } from "../testing/folders.js";
 import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { gitRunner, type GitRunner } from "./branch-states.js";
 import { lookAsApp, resolveBranches, sessionsFrom } from "./index.js";
 
 test("4.10 each branch a session worked on is marked resolved once its pull request merged (any machine), or, on the machine it was worked on, once it has nothing ahead of main or is deleted; one still ahead stays open, and one that gains work after it resolved is open again; a state is written only when it changes", async () => {
@@ -40,8 +41,9 @@ test("4.10 each branch a session worked on is marked resolved once its pull requ
       await log.append(project, { ...elsewhere, branch: "claude/laptop-only", kind: "file-edited", files: ["z.ts"] });
 
       const allMergedPulls = async () => new Map([["claude/merged", [{ number: 12, mergedAt: new Date(Date.now() + 1_000).toISOString() }]]]);
+      const allOpenPulls = async () => new Map<string, never>();
       const watcher = { log, project, folder: repo, session: "observer", harness: "claude-code", source: "hook" } as const;
-      const watch = { allMergedPulls, everyMs: 0, machine: "here" };
+      const watch = { allMergedPulls, allOpenPulls, everyMs: 0, budgetMs: 60_000, machine: "here" };
       const states = (lines: readonly Line[]) => lines.flatMap((line) => (line.kind === "branch-state" ? [[line.of, line.open, line.how, line.pr, line.session]] : [])).sort();
 
       assert.deepEqual(states(await resolveBranches(watcher, watch)), [
@@ -93,16 +95,43 @@ test("4.10 a session whose branches merged, or exist nowhere this machine can se
       await log.append(project, { ...elsewhere, machine: "third", session: "lane", branch: "claude/pushed", kind: "file-edited", files: ["y.ts"] });
 
       const allMergedPulls = async () => new Map([["claude/merged", [{ number: 12, mergedAt: new Date(Date.now() + 1_000).toISOString() }]]]);
+      const allOpenPulls = async () => new Map<string, never>();
       const watcher = (folder: string) => ({ log, project, folder, session: "observer", harness: "claude-code", source: "hook" }) as const;
       const openWork = async () => sessionsFrom((await log.since(project, 0)).lines).map((session) => [session.session, session.openWork]);
 
-      await resolveBranches(watcher(site), { allMergedPulls, everyMs: 0, machine: "here" });
+      await resolveBranches(watcher(site), { allMergedPulls, allOpenPulls, everyMs: 0, budgetMs: 60_000, machine: "here" });
       assert.deepEqual(await openWork(), [["finished", []], ["lane", ["claude/pushed"]]]);
 
-      await resolveBranches(watcher(laptop), { allMergedPulls, everyMs: 0, machine: "elsewhere" });
+      await resolveBranches(watcher(laptop), { allMergedPulls, allOpenPulls, everyMs: 0, budgetMs: 60_000, machine: "elsewhere" });
       assert.deepEqual(await openWork(), [["finished", ["claude/never-pushed"]], ["lane", ["claude/pushed"]]]);
-      await resolveBranches(watcher(site), { allMergedPulls, everyMs: 0, machine: "here" });
+      await resolveBranches(watcher(site), { allMergedPulls, allOpenPulls, everyMs: 0, budgetMs: 60_000, machine: "here" });
       assert.deepEqual(await openWork(), [["finished", ["claude/never-pushed"]], ["lane", ["claude/pushed"]]], "a branch its own machine found is not guessed away again");
+    });
+  } finally {
+    await log.close();
+  }
+});
+
+test("4.10 a git that does not answer whether a branch exists leaves it unresolved, never deleted; once git answers, the next look resolves it", async () => {
+  const log = await openActivityLog(testServerUrl());
+  const project = uniqueProjectName();
+  try {
+    await withTempDir(async (dir) => {
+      const repo = path.join(dir, "site");
+      git(dir, "init", "-q", "-b", "main", repo);
+      writeFileSync(path.join(repo, "a.txt"), "a\n");
+      git(repo, "add", "a.txt");
+      git(repo, "commit", "-q", "-m", "first");
+      await log.append(project, { session: "worker", harness: "claude-code", source: "hook", machine: "here", folder: repo, branch: "claude/gone", kind: "file-edited", files: ["x.ts"] });
+
+      const watcher = { log, project, folder: repo, session: "observer", harness: "claude-code", source: "hook" } as const;
+      const watch = { allMergedPulls: async () => new Map(), allOpenPulls: async () => new Map(), everyMs: 0, budgetMs: 60_000, machine: "here" };
+      // A loaded machine: git answers everything but one question, which outlasts its wait.
+      const slow = (question: string): GitRunner => async (cwd, timeout, args) => (args.includes(question) ? { answered: false } : gitRunner(cwd, timeout, args));
+      for (const question of ["--verify", "symbolic-ref"]) assert.deepEqual(await resolveBranches(watcher, { ...watch, git: slow(question) }), [], `a slow ${question} is not absence`);
+
+      const found = await resolveBranches(watcher, watch);
+      assert.deepEqual(found.flatMap((line) => (line.kind === "branch-state" ? [[line.of, line.open, line.how]] : [])), [["claude/gone", false, "deleted"]]);
     });
   } finally {
     await log.close();

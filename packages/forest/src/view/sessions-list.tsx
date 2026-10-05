@@ -123,7 +123,7 @@ export function mountSessionsList(container: HTMLElement, options: {
   onWisps?(wisps: readonly SessionWisp[]): void;
   /** Hears the listed rows as the knowledge core's roster whenever they are redrawn (ADR-0738 D2). */
   onRoster?(roster: readonly RosterEntry[]): void;
-  /** A row was clicked: select its session, or undefined to go back to every session (ADR-0738 D5). */
+  /** A row was clicked: select its session, or undefined to clear the selection (ADR-0738 D5). */
   onSelect?(session: string | undefined): void;
   /** The page's one live reading, which the list hears; without it the list reads for itself. */
   reading?: PageReading;

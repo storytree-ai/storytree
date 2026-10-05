@@ -1,0 +1,328 @@
+{
+ "label": "before",
+ "sessions": {
+  "builder": {
+   "minutes": 2,
+   "reason": "Build the window replay",
+   "capability": "capability_062b84e5c6b0",
+   "file": "packages/knowledge-core/src/look-inside/look-inside.ts"
+  },
+  "reviewer": {
+   "minutes": 3,
+   "reason": "Review the sessions list",
+   "capability": "capability_6133809a4139",
+   "file": "packages/forest/src/sessions-list/sessions-list.ts"
+  },
+  "curator": {
+   "minutes": 4,
+   "reason": "Curate the decision log",
+   "capability": "capability_5e0362aae607",
+   "file": "packages/library/src/api/library.ts"
+  },
+  "scout": {
+   "minutes": 5,
+   "reason": "Survey the agent link",
+   "capability": "capability_11fe600afeda",
+   "file": "packages/agent-link/src/activity/activity-log.ts"
+  },
+  "lane-north": {
+   "minutes": 6,
+   "reason": "Port the command line",
+   "capability": "capability_bfc6fa737f09",
+   "file": "packages/cli/src/args.ts"
+  }
+ },
+ "selected": "scout",
+ "colours": {
+  "builder": "hsl(194, 80%, 68%)",
+  "reviewer": "hsl(175, 80%, 68%)",
+  "curator": "hsl(15, 80%, 68%)",
+  "scout": "hsl(307, 80%, 68%)",
+  "lane-north": "hsl(349, 80%, 68%)"
+ },
+ "reads": {
+  "builder": [
+   "decision_81a5d08e0f52",
+   "decision_3034950d169d",
+   "decision_044acca95c54"
+  ],
+  "reviewer": [
+   "decision_1c485bf63dfa",
+   "decision_bf2b01d46359",
+   "decision_7de7f2260ae3"
+  ],
+  "curator": [
+   "decision_35215f8e57a3",
+   "decision_17a2ec8f5b30",
+   "decision_be0a891fc86c"
+  ],
+  "scout": [
+   "decision_d8d688dd9a8f",
+   "decision_8eda9dfc5053",
+   "decision_b8fea1080406"
+  ],
+  "lane-north": [
+   "decision_987b82f2ef8f",
+   "decision_fa207f2584ef",
+   "decision_f92dab3c148e"
+  ]
+ },
+ "browser": "148.0.7778.96",
+ "rows": [
+  "builder",
+  "reviewer",
+  "curator",
+  "scout",
+  "lane-north"
+ ],
+ "noneSelected": {
+  "trails": [
+   {
+    "from": "decision_81a5d08e0f52",
+    "to": "file:packages/knowledge-core/src/look-inside/look-inside.ts",
+    "colour": "hsl(194, 80%, 68%)"
+   },
+   {
+    "from": "file:packages/knowledge-core/src/look-inside/look-inside.ts",
+    "to": "decision_3034950d169d",
+    "colour": "hsl(194, 80%, 68%)"
+   },
+   {
+    "from": "decision_3034950d169d",
+    "to": "decision_044acca95c54",
+    "colour": "hsl(194, 80%, 68%)"
+   },
+   {
+    "from": "decision_1c485bf63dfa",
+    "to": "file:packages/forest/src/sessions-list/sessions-list.ts",
+    "colour": "hsl(175, 80%, 68%)"
+   },
+   {
+    "from": "file:packages/forest/src/sessions-list/sessions-list.ts",
+    "to": "decision_bf2b01d46359",
+    "colour": "hsl(175, 80%, 68%)"
+   },
+   {
+    "from": "decision_bf2b01d46359",
+    "to": "decision_7de7f2260ae3",
+    "colour": "hsl(175, 80%, 68%)"
+   },
+   {
+    "from": "decision_35215f8e57a3",
+    "to": "file:packages/library/src/api/library.ts",
+    "colour": "hsl(15, 80%, 68%)"
+   },
+   {
+    "from": "file:packages/library/src/api/library.ts",
+    "to": "decision_17a2ec8f5b30",
+    "colour": "hsl(15, 80%, 68%)"
+   },
+   {
+    "from": "decision_17a2ec8f5b30",
+    "to": "decision_be0a891fc86c",
+    "colour": "hsl(15, 80%, 68%)"
+   },
+   {
+    "from": "decision_d8d688dd9a8f",
+    "to": "file:packages/agent-link/src/activity/activity-log.ts",
+    "colour": "hsl(307, 80%, 68%)"
+   },
+   {
+    "from": "file:packages/agent-link/src/activity/activity-log.ts",
+    "to": "decision_8eda9dfc5053",
+    "colour": "hsl(307, 80%, 68%)"
+   },
+   {
+    "from": "decision_8eda9dfc5053",
+    "to": "decision_b8fea1080406",
+    "colour": "hsl(307, 80%, 68%)"
+   },
+   {
+    "from": "decision_987b82f2ef8f",
+    "to": "file:packages/cli/src/args.ts",
+    "colour": "hsl(349, 80%, 68%)"
+   },
+   {
+    "from": "file:packages/cli/src/args.ts",
+    "to": "decision_fa207f2584ef",
+    "colour": "hsl(349, 80%, 68%)"
+   },
+   {
+    "from": "decision_fa207f2584ef",
+    "to": "decision_f92dab3c148e",
+    "colour": "hsl(349, 80%, 68%)"
+   }
+  ],
+  "litNotes": {
+   "decision_17a2ec8f5b30": "hsl(15, 80%, 68%)",
+   "decision_1c485bf63dfa": "hsl(175, 80%, 68%)",
+   "decision_7de7f2260ae3": "hsl(175, 80%, 68%)",
+   "decision_987b82f2ef8f": "hsl(349, 80%, 68%)",
+   "decision_b8fea1080406": "hsl(307, 80%, 68%)",
+   "decision_d8d688dd9a8f": "hsl(307, 80%, 68%)",
+   "decision_044acca95c54": "hsl(194, 80%, 68%)",
+   "decision_3034950d169d": "hsl(194, 80%, 68%)",
+   "decision_35215f8e57a3": "hsl(15, 80%, 68%)",
+   "decision_81a5d08e0f52": "hsl(194, 80%, 68%)",
+   "decision_8eda9dfc5053": "hsl(307, 80%, 68%)",
+   "decision_be0a891fc86c": "hsl(15, 80%, 68%)",
+   "decision_bf2b01d46359": "hsl(175, 80%, 68%)",
+   "decision_f92dab3c148e": "hsl(349, 80%, 68%)",
+   "decision_fa207f2584ef": "hsl(349, 80%, 68%)"
+  },
+  "windowNotes": {},
+  "litFiles": [
+   "src/api/library.ts",
+   "src/activity/activity-log.ts",
+   "src/sessions-list/sessions-list.ts",
+   "src/args.ts",
+   "src/look-inside/look-inside.ts"
+  ],
+  "coastTints": [
+   {
+    "session": "curator",
+    "colour": "hsl(15, 80%, 68%)"
+   },
+   {
+    "session": "scout",
+    "colour": "hsl(307, 80%, 68%)"
+   },
+   {
+    "session": "reviewer",
+    "colour": "hsl(175, 80%, 68%)"
+   },
+   {
+    "session": "lane-north",
+    "colour": "hsl(349, 80%, 68%)"
+   },
+   {
+    "session": "builder",
+    "colour": "hsl(194, 80%, 68%)"
+   }
+  ],
+  "claimed": [
+   {
+    "capability": "capability_5e0362aae607",
+    "claimedBy": "hsl(15, 80%, 68%)"
+   },
+   {
+    "capability": "capability_11fe600afeda",
+    "claimedBy": "hsl(307, 80%, 68%)"
+   },
+   {
+    "capability": "capability_6133809a4139",
+    "claimedBy": "hsl(175, 80%, 68%)"
+   },
+   {
+    "capability": "capability_bfc6fa737f09",
+    "claimedBy": "hsl(349, 80%, 68%)"
+   },
+   {
+    "capability": "capability_062b84e5c6b0",
+    "claimedBy": "hsl(194, 80%, 68%)"
+   }
+  ],
+  "windowsAsked": [
+   "builder",
+   "reviewer",
+   "curator",
+   "scout",
+   "lane-north"
+  ]
+ },
+ "oneSelected": {
+  "trails": [
+   {
+    "from": "decision_d8d688dd9a8f",
+    "to": "file:packages/agent-link/src/activity/activity-log.ts",
+    "colour": "hsl(307, 80%, 68%)"
+   },
+   {
+    "from": "file:packages/agent-link/src/activity/activity-log.ts",
+    "to": "decision_8eda9dfc5053",
+    "colour": "hsl(307, 80%, 68%)"
+   },
+   {
+    "from": "decision_8eda9dfc5053",
+    "to": "decision_b8fea1080406",
+    "colour": "hsl(307, 80%, 68%)"
+   }
+  ],
+  "litNotes": {},
+  "windowNotes": {
+   "decision_b8fea1080406": "hsl(307, 80%, 68%)",
+   "decision_d8d688dd9a8f": "hsl(307, 80%, 68%)",
+   "decision_8eda9dfc5053": "hsl(307, 80%, 68%)"
+  },
+  "litFiles": [
+   "src/activity/activity-log.ts"
+  ],
+  "coastTints": [
+   {
+    "session": "curator",
+    "colour": "hsl(15, 80%, 68%)"
+   },
+   {
+    "session": "scout",
+    "colour": "hsl(307, 80%, 68%)"
+   },
+   {
+    "session": "reviewer",
+    "colour": "hsl(175, 80%, 68%)"
+   },
+   {
+    "session": "lane-north",
+    "colour": "hsl(349, 80%, 68%)"
+   },
+   {
+    "session": "builder",
+    "colour": "hsl(194, 80%, 68%)"
+   }
+  ],
+  "claimed": [
+   {
+    "capability": "capability_5e0362aae607",
+    "claimedBy": "hsl(15, 80%, 68%)"
+   },
+   {
+    "capability": "capability_11fe600afeda",
+    "claimedBy": "hsl(307, 80%, 68%)"
+   },
+   {
+    "capability": "capability_6133809a4139",
+    "claimedBy": "hsl(175, 80%, 68%)"
+   },
+   {
+    "capability": "capability_bfc6fa737f09",
+    "claimedBy": "hsl(349, 80%, 68%)"
+   },
+   {
+    "capability": "capability_062b84e5c6b0",
+    "claimedBy": "hsl(194, 80%, 68%)"
+   }
+  ]
+ },
+ "errors": [],
+ "summary": {
+  "rows": 5,
+  "noneSelected": {
+   "trails": 15,
+   "trailColours": 5,
+   "litNotes": 15,
+   "windowNotes": 0,
+   "litFiles": 5,
+   "coastTints": 5,
+   "claimedTerritories": 5
+  },
+  "oneSelected": {
+   "trails": 3,
+   "trailColours": 1,
+   "litNotes": 0,
+   "windowNotes": 3,
+   "litFiles": 1,
+   "coastTints": 5,
+   "claimedTerritories": 5
+  },
+  "windowsAskedWithNoneSelected": 5
+ }
+}

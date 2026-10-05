@@ -24,7 +24,7 @@
  * and that an increment moves only forward. A refusal throws with nothing written.
  */
 import { byCreation } from "../creation-order.js";
-import { checkReference, checkReferences, liveRecord, recordNamed, type Expected } from "../references.js";
+import { checkReference, checkReferences, liveRecord, type Expected } from "../references.js";
 import type { SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.js";
 import { INCREMENT_STATUSES, type FieldsOf } from "../schema/types.js";
 
@@ -166,10 +166,11 @@ export interface Hold {
 }
 
 /**
- * Every hold on a project's live work at once (11.5): each live arc's and increment's wait holds,
- * and each increment's owner holds, keyed by id, each as waitHolds and heldOnQuestion give it.
+ * Every hold on a project's open work at once (11.5): each live arc's and open increment's wait holds,
+ * and each open increment's owner holds, keyed by id, each as waitHolds and heldOnQuestion give it.
  */
 export interface Holds {
+  /** Closed increments have no holds and are omitted. */
   readonly waits: Readonly<Record<string, Hold[]>>;
   readonly heldOn: Readonly<Record<string, string[]>>;
 }
@@ -345,13 +346,13 @@ export class WorkInFlight {
    * when nothing holds, and for an id that is not a live arc or increment.
    */
   async waitHolds(id: string): Promise<Hold[]> {
-    const record = await recordNamed(this.#records, id);
-    if (record === null || !(record.type === "arc" || record.type === "increment")) return [];
-    return (await this.#snapshot()).waitHolds(record as SchemaRecord<"arc" | "increment">);
+    const work = await this.#snapshot();
+    const record = work.arcs.get(id) ?? work.increments.get(id);
+    return record === undefined ? [] : work.waitHolds(record);
   }
 
   /**
-   * Every live arc's and increment's wait holds, and every increment's owner holds, from one
+   * Every live arc's and open increment's wait holds, and every open increment's owner holds, from one
    * reading of the project's work (11.5): what a surface showing all of it asks, in place of a
    * waitHolds and a heldOnQuestion per id, each of which reads all the work again.
    */
@@ -467,7 +468,7 @@ export class WorkInFlight {
 
   /** The questions raised on arc `arcId`, open and settled, oldest first. */
   async questions(arcId: string): Promise<SchemaRecord<"question">[]> {
-    return (await this.#records.list("question")).filter((question) => question.fields.arc === arcId).sort(byCreation);
+    return (await this.#records.list("question", { where: { arc: arcId } })).sort(byCreation);
   }
 
   /**
@@ -513,7 +514,7 @@ export class WorkInFlight {
   async arcView(id: string, at: Date = new Date()): Promise<ArcView | null> {
     const arc = await liveRecord(this.#records, id, ["arc"]);
     if (arc === null) return null;
-    const increments = (await this.#records.list("increment")).filter((increment) => increment.fields.arc === id).sort(byCreation);
+    const increments = (await this.#records.list("increment", { where: { arc: id } })).sort(byCreation);
     const questions = await this.questions(id);
     return { arc, state: arcState(arc, increments, questions, at), increments, questions };
   }
@@ -539,14 +540,27 @@ export class WorkInFlight {
     });
   }
 
-  /** Every live arc, increment and question, and what each wait of theirs reads as, now. */
+  /** Only open work and the facts needed to read its named blockers, never closed prose. */
   async #snapshot(): Promise<Snapshot> {
     const [arcs, increments, questions] = await Promise.all([
-      this.#records.list("arc"),
-      this.#records.list("increment"),
-      this.#records.list("question"),
+      this.#records.select("arc", ["waits", "parked", "parkedUntil"]),
+      this.#records.select("increment", ["arc", "status", "waits", "heldOn"], { not: { status: "closed" } }),
+      this.#records.select("question", ["arc", "lifecycle"], { where: { lifecycle: "open" } }),
     ]);
-    return new Snapshot(arcs, increments, questions);
+    const hasIncrements = new Set(increments.map(({ fields }) => fields.arc));
+    const arcIds = new Set(arcs.map(({ id }) => id));
+    const namedArcs = new Set(arcs.flatMap(({ fields }) => (fields.waits ?? []).map(({ on }) => on)));
+    // An arc with no open work can be empty (active) or drained (closed). Read at most one
+    // increment, with no fields, only for named arc blockers whose existence matters.
+    const needsExistence = [...namedArcs].filter((id) => arcIds.has(id) && !hasIncrements.has(id));
+    const blockerIds = [...new Set(increments.flatMap(({ fields }) => (fields.waits ?? []).map(({ on }) => on)))];
+    const [landed] = await Promise.all([
+      blockerIds.length === 0 ? [] : this.#records.select("increment", [], { ids: blockerIds, where: { status: "closed", "outcome.disposition": "landed" } }),
+      ...needsExistence.map(async (arc) => {
+        if ((await this.#records.select("increment", [], { where: { arc }, limit: 1 })).length > 0) hasIncrements.add(arc);
+      }),
+    ]);
+    return new Snapshot(arcs, increments, questions, hasIncrements, new Set(landed.map(({ id }) => id)));
   }
 
   /**
@@ -615,18 +629,24 @@ function leaseOf(question: SchemaRecord<"question">, at: Date): QuestionLease {
   };
 }
 
+type ArcFacts = Omit<SchemaRecord<"arc">, "fields"> & { fields: Pick<FieldsOf<"arc">, "waits" | "parked" | "parkedUntil"> };
+type IncrementFacts = Omit<SchemaRecord<"increment">, "fields"> & { fields: Pick<FieldsOf<"increment">, "arc" | "status" | "waits" | "heldOn"> };
+type QuestionFacts = Omit<SchemaRecord<"question">, "fields"> & { fields: Pick<FieldsOf<"question">, "arc" | "lifecycle"> };
+
 /** The live arcs, increments and questions at one moment, and how their waits read then. */
 class Snapshot {
-  readonly arcs: ReadonlyMap<string, SchemaRecord<"arc">>;
-  readonly increments: ReadonlyMap<string, SchemaRecord<"increment">>;
-  readonly #byArc = new Map<string, SchemaRecord<"increment">[]>();
-  readonly #questionsByArc = new Map<string, SchemaRecord<"question">[]>();
-  readonly #questions: readonly SchemaRecord<"question">[];
+  readonly arcs: ReadonlyMap<string, ArcFacts>;
+  readonly increments: ReadonlyMap<string, IncrementFacts>;
+  readonly #byArc = new Map<string, IncrementFacts[]>();
+  readonly #questionsByArc = new Map<string, QuestionFacts[]>();
+  readonly #questions: readonly QuestionFacts[];
 
   constructor(
-    arcs: readonly SchemaRecord<"arc">[],
-    increments: readonly SchemaRecord<"increment">[],
-    questions: readonly SchemaRecord<"question">[],
+    arcs: readonly ArcFacts[],
+    increments: readonly IncrementFacts[],
+    questions: readonly QuestionFacts[],
+    readonly hasIncrements: ReadonlySet<string>,
+    readonly landed: ReadonlySet<string>,
   ) {
     this.arcs = new Map(arcs.map((arc) => [arc.id, arc]));
     this.#questions = questions;
@@ -647,9 +667,9 @@ class Snapshot {
    * The blockers still holding `record`'s waits: an arc's own; an open increment's own, then its
    * arc's; a closed increment's none (11.4).
    */
-  waitHolds(record: SchemaRecord<"arc" | "increment">): Hold[] {
+  waitHolds(record: ArcFacts | IncrementFacts): Hold[] {
     if (record.type === "arc") return holdsOf(record.fields.waits, (wait) => this.arcHold(wait));
-    const increment = record as SchemaRecord<"increment">;
+    const increment = record as IncrementFacts;
     if (increment.fields.status === "closed") return [];
     return [
       ...holdsOf(increment.fields.waits, (wait) => this.incrementHold(wait)),
@@ -658,12 +678,12 @@ class Snapshot {
   }
 
   /** The open questions an increment is held on; none once it is closed (12.3). */
-  heldOn(increment: SchemaRecord<"increment">): string[] {
+  heldOn(increment: IncrementFacts): string[] {
     return increment.fields.status === "closed" ? [] : heldOnOpen(increment, this.#questions);
   }
 
   /** The arc's open increments, oldest first. */
-  openIncrementsOf(arc: string): SchemaRecord<"increment">[] {
+  openIncrementsOf(arc: string): IncrementFacts[] {
     return (this.#byArc.get(arc) ?? []).filter((increment) => increment.fields.status !== "closed");
   }
 
@@ -671,7 +691,7 @@ class Snapshot {
   arcHold(wait: Wait): Hold | undefined {
     const arc = this.arcs.get(wait.on);
     if (arc === undefined) return { ...wait, forGood: true };
-    const state = arcState(arc, this.#byArc.get(arc.id) ?? [], this.#questionsByArc.get(arc.id) ?? []);
+    const state = arcState(arc, this.#byArc.get(arc.id) ?? [], this.#questionsByArc.get(arc.id) ?? [], new Date(), this.hasIncrements.has(arc.id));
     return state === "closed" ? undefined : { ...wait, forGood: false };
   }
 
@@ -680,16 +700,13 @@ class Snapshot {
    * other way or is missing (11.1, 11-a).
    */
   incrementHold(wait: Wait): Hold | undefined {
-    const increment = this.increments.get(wait.on);
-    if (increment === undefined) return { ...wait, forGood: true };
-    const { status, outcome } = increment.fields;
-    if (status !== "closed") return { ...wait, forGood: false };
-    return outcome?.disposition === "landed" ? undefined : { ...wait, forGood: true };
+    if (this.landed.has(wait.on)) return undefined;
+    return { ...wait, forGood: !this.increments.has(wait.on) };
   }
 }
 
 /** The open questions among those `increment` names, in its order, each once. */
-function heldOnOpen(increment: SchemaRecord<"increment">, questions: readonly SchemaRecord<"question">[]): string[] {
+function heldOnOpen(increment: IncrementFacts, questions: readonly QuestionFacts[]): string[] {
   const open = new Set(questions.filter((question) => question.fields.lifecycle === "open").map(({ id }) => id));
   return [...new Set(increment.fields.heldOn ?? [])].filter((id) => open.has(id));
 }
@@ -732,19 +749,20 @@ function loopThrough(start: string, next: (id: string) => readonly string[]): st
  * active, as 0.2's ADR-0526 settled: closed, it would leave every worklist with the question open.)
  */
 function arcState(
-  arc: SchemaRecord<"arc">,
-  increments: readonly SchemaRecord<"increment">[],
-  questions: readonly SchemaRecord<"question">[],
+  arc: ArcFacts,
+  increments: readonly IncrementFacts[],
+  questions: readonly QuestionFacts[],
   at: Date = new Date(),
+  hasIncrements: boolean = increments.length > 0,
 ): ArcState {
   if (isParked(arc, at)) return "parked";
-  if (increments.length === 0) return "active";
+  if (!hasIncrements) return "active";
   if (increments.some((increment) => increment.fields.status !== "closed")) return "active";
   return questions.some((question) => question.fields.lifecycle === "open") ? "active" : "closed";
 }
 
 /** Whether the owner has `arc` parked at `at`: parked, and, parked until a day, only before UTC midnight of that day (10.6). */
-function isParked(arc: SchemaRecord<"arc">, at: Date = new Date()): boolean {
+function isParked(arc: ArcFacts, at: Date = new Date()): boolean {
   const { parked, parkedUntil } = arc.fields;
   return parked === true && (parkedUntil === undefined || at.getTime() < Date.parse(`${parkedUntil}T00:00:00Z`));
 }

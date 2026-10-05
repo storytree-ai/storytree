@@ -191,8 +191,8 @@ export interface Library {
    */
   waitHolds(id: string): Promise<Hold[]>;
   /**
-   * Every live arc's and increment's wait holds, and every increment's owner holds, in one reading:
-   * each as waitHolds and heldOnQuestion give it, for a surface that shows all the work at once.
+   * Every live arc's and open increment's wait holds, and every open increment's owner holds, in one reading:
+   * each as waitHolds and heldOnQuestion give it. Closed increments have no holds and are omitted.
    */
   holds(): Promise<Holds>;
 

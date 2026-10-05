@@ -155,11 +155,7 @@ test('⚠ the grid is exact on a MANY-EDGED ring too, not just on a square', () 
   // The square has four long edges; a real coast after the clip has hundreds of short ones, which
   // is the case the bucketing actually has to survive — an edge shorter than a cell, many of them
   // per bucket, and a boundary that curves through every cell it touches.
-  //
-  // ⚠ THE FIXTURE IS BUILT HERE RATHER THAN IMPORTED FROM `harness/`. `src/` is MIRRORED into the
-  // public site by `pnpm sync:web-engine`, which copies nothing from `harness/` — so a src module
-  // reaching across that line dangles in the published tree. `harness/scope-fence.test.ts` fences
-  // it, and it caught this test's first version importing `shippedParcels`.
+
   const ring: CoastPoint[] = Array.from({ length: 240 }, (_, i) => {
     const a = (i / 240) * Math.PI * 2;
     // A wobbling radius, so the boundary is not a circle the grid could get right by symmetry.
@@ -492,8 +488,7 @@ test('⚠ the UN-PROJECTED forest fits the cap — so the grid is NOT what stand
   // took it: the 3D forest stands on true ground, `restoreTrueFootprint` is deleted, and the
   // corridor is landed rather than hypothetical. Nothing in THIS test changes — the extent it pins
   // is the one the deletion produces — but it is no longer describing a possibility. The landed
-  // extent is measured on the real committed forest in
-  // `harness/shipped-spacing-scene.test.ts`, which src cannot import (`scope-fence.test.ts`).
+  // extent is retained below as a regression fixture for the grid's capacity.
   const SAND_CELL = 2.6384359697243656;
   const unprojected: CoastEdge[] = [{ ax: 0, az: 0, bx: 2289.7, bz: 10235 }];
   const grid = buildSegmentGrid(unprojected, SAND_CELL);

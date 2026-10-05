@@ -9,7 +9,7 @@
 // as one landmass.
 //
 // ⚠⚠ THE COMPONENT WAS ALREADY BUILT AND THE SHIPPED RENDERER SIMPLY DID NOT IMPORT IT.
-// `smoothCoast()` (`packages/forest-world/src/coast.ts`) has chained the hex-union boundary into
+// `smoothCoast()` (`core/coast.ts`) has chained the hex-union boundary into
 // loops, outset each vertex by a story-seeded noise wave and Chaikin-rounded it since long before
 // this arc — and its ONLY caller was the studio's 2D map, which draws it as a separate overlay
 // polygon OVER a still-hex-outlined ground. So this module reads that same machinery rather than
@@ -19,7 +19,7 @@
 // ⚠⚠ THE SHAPE FORK, WHICH IS WHY THERE ARE THREE MODES AND NOT ONE. `smoothCoast` returns a loop
 // with FOUR TIMES the vertices it was handed (52 rim vertices → 208 smooth points), so there is no
 // 1:1 displacement of the mesh's existing boundary vertices to reach for. The three honest answers
-// trade differently and `harness/shipped-coast-scene.ts` costs them against each other:
+// trade differently; `coast-clip.test.ts` checks their geometry:
 //
 //   `outset`    — apply only the OUTSET. 1:1, perturbed, watertight for free, ZERO new triangles —
 //                 and it keeps every hex corner. The dropped ROUNDING is named rather than
@@ -100,8 +100,7 @@ export const COAST_MODES: readonly CoastMode[] = ['none', 'outset', 'project', '
  *
  * ⚠ THERE IS NO FLAG, and that is the arc's end-state item 6: a flag nobody flips is not adoption.
  * The before/after is `clipToCoast` called with `none` — the same function, one argument apart.
- * `harness/shipped-coast-scene.ts` is where the owner's comparison is taken, and if he prefers one
- * of the cheaper shapes, this constant is the whole change.
+ * `coast-clip.test.ts` exercises these modes and pins this choice.
  */
 export const SHIPPED_COAST: CoastMode = 'subdivide';
 

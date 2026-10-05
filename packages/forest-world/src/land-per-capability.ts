@@ -62,10 +62,9 @@ import type { Descriptor3D, Transform3D } from './descriptors.js';
 export const HEX_TILE_AREA = ((3 * Math.sqrt(3)) / 2) * PRE_ADR0528_TILE.hexR * PRE_ADR0528_TILE.hexR;
 
 /**
- * THE ISLAND EVERY GROUND-UNIT CONSTANT WAS TUNED ON: the harness fixture, thirteen hex tiles
- * carrying eleven capabilities (`harness/island-fixture.ts`, the shape `context-traversal-capture`
- * takes) — which is exactly the `capabilities + 2` quota the 2D layout gives an eleven-capability
- * story. Stated as tiles and capabilities rather than as an area so the arithmetic is visible.
+ * The historical tuning island had thirteen hex tiles carrying eleven capabilities: the
+ * `capabilities + 2` quota the layout gives an eleven-capability story. Its counts are retained
+ * here as the basis of LAND_SCALE; they do not depend on a fixture file.
  */
 export const TUNED_FIXTURE = { tiles: 13, capabilities: 11 } as const;
 

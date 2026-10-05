@@ -1,10 +1,5 @@
-// shore-fall.test.ts — the pure arithmetic of the landform that falls to the shore.
-//
-// ⚠ WHAT THIS FILE ASSERTS AND WHAT IT DELIBERATELY DOES NOT. Everything here is a claim about
-// the FIELD — the falloff, the distance, the height, the normal — driven by rings written out in
-// this file, so it needs no fixture and no renderer. The claims about the REAL island (its rim,
-// its parcel count, what each arm costs) live in `harness/shipped-shore-scene.test.ts`, next to
-// the instrument that measures them. That division is the one `coast-clip.test.ts` already draws.
+// The shore field's falloff, distance, height and normal, driven by rings defined here.
+// `planet/pathways.test.ts` exercises its use in the globe's routed trails.
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -174,7 +169,7 @@ test('no parcels at all is a field with no shore — everything is inland', () =
 // The relief — the two properties the whole increment rests on
 // ---------------------------------------------------------------------------
 
-test('⚠⚠ INLAND OF THE BAND THE FIELD IS `landRelief` TO THE LAST BIT', () => {
+test('⚠⚠ INLAND OF THE BAND THE HEIGHT IS `landHeight` TO THE LAST BIT', () => {
   // Not "within a tolerance" — the same double. `(H + D) * 1 - D` is `H` exactly, and a session
   // that later reaches for a tolerance here has changed the claim rather than relaxed it.
   const relief = shoreRelief([square()], 'beach');
@@ -334,11 +329,8 @@ test('⚠ THE ARMS ARE THREE DIFFERENT LANDS, and the authored width leaves our 
 });
 
 test('⚠ THE SHORE FALL CANNOT CROP A FRAME — it stays inside `landHeightRange`', () => {
-  // `landHeightRange` is the number a camera frames by and the number the ground shadow's reach is
-  // derived from (`land-shadow.ts`). Both would be wrong if the shore fall could push the land
-  // outside it. It cannot, and the reason is structural rather than lucky: the fall only ever
-  // moves the land TOWARD the waterline at `-SHORE_DIP`, and 0.62 is far inside the +/-4.224 the
-  // sine sum already reaches. So no framing constant moves in this increment.
+  // `planet/planet.ts` uses this bound for the tangent plates' clearance. The shore fall only
+  // moves land toward -SHORE_DIP, which stays inside the relief field's bound.
   assert.ok(SHORE_DIP < landHeightRange(), `the dip ${SHORE_DIP} escaped the bound`);
   const relief = shoreRelief([square()], 'shelf');
   const bound = landHeightRange();

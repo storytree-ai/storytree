@@ -1,95 +1,12 @@
-// shore-fall.ts — THE LANDFORM FALLS TO THE SHORE, on the SHIPPED side of the package.
+// The relief field falls toward the coast that `coast-clip.ts` prepares.
+// `planet/pathways.ts` samples its height when routing capability trails on tangent plates;
+// the visible island surface itself is drawn by `planet/island-surface.ts`.
 //
-// The SECOND of the approved treatment's six components to cross, counting from the coast clip
-// that made it possible, and the one the arc's own start-order note had lost track of. It is a
-// treatment of the GROUND ITSELF rather than an object placed on it, so ADR-0414 D1's
-// no-decoration fence does not reach it (the fence is narrow, and the arc says so in terms).
-//
-// ⚠⚠ THE PREMISE, CHECKED AT SOURCE BEFORE ANY OF THIS WAS WRITTEN, AND IT IS THE OPPOSITE OF
-// THE COAST'S. The coast clip turned out to be BUILT and merely unimported — two greps changed
-// the increment from "write a coast" to "import one". This component is genuinely ABSENT: a
-// repo-wide grep for a shore falloff, a shore height term or a beach dip returns exactly one hit,
-// and it is the sentence in the reference README naming the component as wanted. `landRelief` is
-// an unbounded sum of three sines with no shore term of any kind, so before this file the new
-// beach stood at whatever height the field happened to give it. PR #1776's own README says so.
-//
-// ⚠ AND IT COULD NOT HAVE BEEN WRITTEN EARLIER. A landform that falls to the shore needs a shore
-// to fall to, and until the coast clip landed the shipped mesh ended in raw 120-degree hex
-// corners. The coast is what unblocked this; the order was not a preference.
-//
-// ---------------------------------------------------------------------------------------------
-// WHERE THE NUMBERS COME FROM — the approved render's own generator, not taste.
-// ---------------------------------------------------------------------------------------------
-//
-// `docs/research/chapter2-land-idiom-2026-08-27/build_land.py` is the script that produced
-// `land-combined-1948px.png`, the picture the owner approved. Its landform block is four lines:
-//
-//     BEACH = 3.1                                # shore band width, ground units
-//     fall  = np.clip(shore / BEACH, 0.0, 1.0)
-//     fall  = fall * fall * (3 - 2 * fall)       # smoothstep
-//     z     = (...relief...) * fall
-//     z    -= 0.62 * (1.0 - fall)                # the beach dips below the grass line
-//
-// with the comment: "THE LANDFORM. Broad relief that FALLS TO THE COAST -- an island whose ground
-// is flat right up to a vertical cut has no shore, and a shore is most of what makes a coast
-// read."
-//
-// ⚠ THE TWO SCALES AGREE, WHICH IS WHY THE CONSTANTS TRANSFER RATHER THAN NEEDING A CONVERSION.
-// The generator sets `ASPECT = 233.8 / 135.1` from "the real island's ground footprint", and the
-// shipped island measures 234 units across (`land-relief.ts`). Same ground units, same island.
-// So 3.1 and 0.62 are used here as authored, and any deviation is an ARM rather than a re-tuning.
-//
-// ⚠⚠ AND THE ONE PLACE THE TWO GENUINELY DIFFER IS THE ARM VARIABLE. The reference's shore band
-// is 3.1 units; the beach this map actually draws is {@link COAST_OUTSET} = 7 units wide, more
-// than twice that. So the authored width would leave over half of our own beach flat. That is not
-// a defect in either number — it is the question this increment puts to a picture, and it is the
-// only thing the arms move.
-//
-// ---------------------------------------------------------------------------------------------
-// ⚠⚠⚠ AND THE MEASUREMENT ANSWERED THAT QUESTION BY DISSOLVING IT. READ THIS BEFORE TUNING A WIDTH.
-// ---------------------------------------------------------------------------------------------
-//
-// On the shipped island, measured rather than reasoned: **253 of 392 distinct ground vertices lie
-// EXACTLY on the coast, and the nearest interior vertex is 8.66 ground units away.** There is a
-// complete void between — not one vertex at any distance in (0, 8.66).
-//
-// So a band narrower than 8.66 units acts on the rim vertices ALONE, and **every width in that
-// range delivers the bit-identical land.** The reference's authored 3.1 and this map's own 7 are
-// indistinguishable here — not approximately, exactly: same moved count, same mean drop, same max
-// drop, same rung flips. The smoothstep never gets a sample to curve through; only its endpoint
-// value at distance 0 is ever read.
-//
-// ⚠ ON THE 35-ISLAND FOREST IT IS OVERWHELMING RATHER THAN ABSOLUTE, and the difference was caught
-// by the instrument's own refusal rather than reasoned about. The coast wave is seeded per island,
-// so 35 copies of one fixture wear 35 different coasts and each samples the rim-to-interior gap
-// differently. Across all of them exactly **ONE vertex in 8884** falls between 3.1 and 7 units of
-// its shore. Moving the band from the reference's width to ours therefore changes 0.011% of the
-// ground — which is a stronger statement about the knob than exact identity on one island was.
-//
-// ⚠ WHY, AND IT IS STRUCTURAL RATHER THAN A PROPERTY OF THIS ISLAND. The reference generator
-// displaces a **0.55-unit grid** (`GRID = 0.55`), so its 3.1-unit band spans about six samples.
-// This ground is PARCELS about 16.5 units across whose only vertices are their corners, and 8.66
-// is the lattice's own half-pitch. The mesh is roughly thirty times coarser than the surface the
-// component was authored on.
-//
-// ⚠⚠ THE ARC ALREADY MADE THIS CALL ONCE, FOR A DIFFERENT FIELD, AND IT IS WORTH READING TOGETHER.
-// For the shadow field it considered a per-vertex attribute and REJECTED it — "the mean cell pitch
-// is ~16.5 ground units, coarser than the features it had to represent, so a vertex attribute
-// smears" — and used a ground-space TEXTURE sampled in the fragment stage instead. The shore fall
-// inherits that constraint and CANNOT inherit its remedy: a texture can shade a surface, it cannot
-// move one, and this component's whole subject is where the ground SITS.
-//
-// ⚠ WHAT STILL LANDS, AND IT IS NOT NOTHING. The land does fall to its shore: 253 vertices drop to
-// the waterline, mean 0.668 units and up to 4.208, and 208 of them change SHADE RUNG — a visible
-// change in delivered colour, not merely a moved number. What it does not deliver is the falloff's
-// SHAPE: the fall is linear across the first triangle because there is nothing between the rim and
-// 8.66 units to curve through.
-//
-// ⚠ SO THE WIDTH IS NOT A TUNING KNOB BELOW 8.66 UNITS, AND A SESSION THAT REACHES FOR ONE IS
-// ABOUT TO SPEND A DAY ON A PARAMETER THE MESH CANNOT READ. The remedy is an inset ring of
-// vertices inside the band — exactly the move the coast clip's `subdivide` arm made for the
-// island's OUTLINE, one dimension over — and it costs triangles, which this component currently
-// does not. It is the next increment, not this one.
+// The inherited treatment blends landHeight toward a waterline 0.62 ground units below zero,
+// over an authored 3.1-unit shore band. LAND_SCALE scales both with the island.
+// Historical measurements found a coarse parcel mesh can skip the whole band: on the tuned
+// island, 253 of 392 vertices were on the coast and the nearest interior vertex was 8.66 units
+// away. A width change within that gap cannot move those vertices; the ring arms insert samples.
 
 import { GROUND_COAST_OUTSET, type CoastPoint, coastalIsland, rimLoops } from './coast-clip.js';
 import { LAND_SCALE } from './land-per-capability.js';
@@ -443,7 +360,7 @@ export interface ShoreNormal {
  * `H * 1 - D * 0`, both operations exact, and returns `H` itself.
  *
  * That is the difference between a property and nearly a property. **Inland of the band this
- * field IS `landRelief`, to the last bit** — not approximately and not within a tolerance — so
+ * height IS `landHeight`, to the last bit** — not approximately and not within a tolerance — so
  * the shore fall is a strict extension of the land already shipping, and the suite asks for that
  * identity with `assert.equal`. A session that meets that assertion failing by an ulp and reaches
  * for a tolerance has changed the claim rather than relaxed it; the fix is this line's shape.

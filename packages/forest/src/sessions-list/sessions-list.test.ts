@@ -36,10 +36,17 @@ test("one row per non-ended claiming session, plain idle, reason and held island
   assert.deepEqual(sessionRows(tree, lines, [], now)[0]!.stories, ["two"]);
 });
 
+test("7.4 a row's islands come only from capabilities it claimed: an increment claim's touches light none (ADR-0923 D2)", () => {
+  const lines = log({ ...off, kind: "claimed", increment: "inc", reason: "Finish signup" });
+  assert.deepEqual(sessionRows(tree, lines, [arc], now)[0]!.stories, [], "the increment touches cap-two, but touching is not claiming");
+  lines.push(...log({ ...off, kind: "claimed", capability: "cap-two", reason: "Finish signup" }).map(line => ({ ...line, seq: 2 })));
+  assert.deepEqual(sessionRows(tree, lines, [arc], now)[0]!.stories, ["two"]);
+});
+
 test("explicit children nest once and pass their islands up; ending a parent promotes its living child", () => {
   const lines = log(claimed("cap-one", "Build signup"),
     { ...parent, kind: "subagent-started", subagent: "child", task: "Finish signup" },
-    { ...child, kind: "claimed", increment: "inc", reason: "Finish signup" },
+    { ...child, kind: "claimed", capability: "cap-two", reason: "Finish signup" },
     { ...parent, kind: "subagent-started", subagent: "reader", task: "Read the library" });
   const [row] = sessionRows(tree, lines, [arc], now, new Map([["reader", { totalTokens: 123 }]]));
   assert.equal(row!.children.length, 2);

@@ -9,7 +9,7 @@
  */
 import { allocationProblems, checkoutOf } from "@storytree/guardrails";
 import type { Library } from "@storytree/library";
-import { packageOf } from "@storytree/map/code-survey";
+import { codeSurveyReader, packageOf } from "@storytree/map/code-survey";
 import { z } from "zod";
 
 import { attachWorkspace, claim, CLAIM_REASON_LIMIT, currentBranch, increments, land, makeWorkspace, release, type Claim, type ClaimAnswer, type ClaimContext, type WorkspaceRefusal } from "../claims/index.js";
@@ -140,6 +140,8 @@ export function registerClaimTools(define: Define, extensions: readonly ToolExte
           data: { landed: false, unplaced },
         };
       }
+      // Naming the gap is an aid: a checkout the survey cannot read names none, and never stops the landing.
+      const untested = await untestedContracts(call, capability).catch(() => []);
       const answer = await land(claimContext(call), capability);
       if (answer.ok) {
         const next: string[] = [];
@@ -152,9 +154,13 @@ export function registerClaimTools(define: Define, extensions: readonly ToolExte
             next.push(`The next step is unavailable: ${refusalOf(error)}`);
           }
         }
+        const gaps = untested.length === 0 ? [] : [
+          `No numbered test in its story's package proves ${untested.length === 1 ? "this planned contract" : `these ${untested.length} planned contracts`}: write each one's test ("N.M · …"), or retire the contract if it is no longer wanted.`,
+          ...untested.map((title) => `- ${title}`),
+        ];
         return {
-          text: [`Landed ${await titleOf(call.library, capability)}. Your claim on it has ended.`, ...next.map((line) => `Next: ${line}`)].join("\n"),
-          data: { landed: true, ...(next.length === 0 ? {} : { next }) },
+          text: [`Landed ${await titleOf(call.library, capability)}. Your claim on it has ended.`, ...gaps, ...next.map((line) => `Next: ${line}`)].join("\n"),
+          data: { landed: true, ...(untested.length === 0 ? {} : { untested }), ...(next.length === 0 ? {} : { next }) },
         };
       }
       return answer.refused === "held"
@@ -168,6 +174,24 @@ export function registerClaimTools(define: Define, extensions: readonly ToolExte
 async function unplacedFiles({ library, folder }: Call, capability: string): Promise<string[]> {
   const story = (await library.projectTree()).stories.find((one) => one.capabilities.some((part) => part.id === capability));
   return story === undefined ? [] : allocationProblems(checkoutOf(folder), [packageOf(story.title)]);
+}
+
+/**
+ * The titles of `capability`'s planned contracts that no numbered test in its story's package names, in the
+ * checkout the session works in, read with the map's survey as CI health reads proofs; none for a capability
+ * the plan lacks. A title prefixed with another package proves that package's contracts, not these.
+ */
+async function untestedContracts({ library, folder }: Call, capability: string): Promise<string[]> {
+  const tree = await library.projectTree();
+  const story = tree.stories.find((one) => one.capabilities.some((part) => part.id === capability));
+  if (story === undefined) return [];
+  const own = packageOf(story.title);
+  const survey = await codeSurveyReader({ checkout: "current" }).read(checkoutOf(folder), { ...tree, stories: [story] });
+  const proven = new Set((survey[story.id]?.tests ?? []).flatMap((test) => test.titles.filter((title) => title.package === undefined || title.package === own).map((title) => title.number)));
+  return (story.capabilities.find((part) => part.id === capability)?.contracts ?? []).map((contract) => contract.title).filter((title) => {
+    const number = /^(\d+\.\d+) · /.exec(title)?.[1];
+    return number !== undefined && !proven.has(number);
+  });
 }
 
 function claimContext({ log, library, project, caller, folder, quietMs, writer }: Call): ClaimContext & { readonly folder: string } {

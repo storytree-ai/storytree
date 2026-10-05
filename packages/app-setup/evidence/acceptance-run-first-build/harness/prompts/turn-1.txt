@@ -1,0 +1,1 @@
+Hi! I'd like to build a small to-do list web page in this folder, and I want storytree to keep its plan. Please set storytree up for this folder, as the project {project}, and tell me in one line what you did.

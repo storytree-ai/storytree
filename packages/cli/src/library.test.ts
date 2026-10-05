@@ -1,6 +1,6 @@
 /**
- * Capability 3 · Library: one test per contract in the command line story, each running the real, built
- * `storytree` command against a throwaway project.
+ * Capability 3 · Library: contract tests running the real, built `storytree` command against a
+ * throwaway project, plus a focused check of how the command presents the library's ranked answer.
  */
 import assert from "node:assert/strict";
 import { writeFileSync } from "node:fs";
@@ -8,6 +8,9 @@ import { userInfo } from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 
+import { parseArgs } from "./args.js";
+import type { Context } from "./door.js";
+import { library as libraryFamily } from "./families/library.js";
 import { BuiltCommand, inWorld } from "./testing/cli.js";
 
 const command = new BuiltCommand();
@@ -234,18 +237,44 @@ test("3.8 `library retire` retires records with a reason and their writer", asyn
   });
 });
 
-test("3.9 `search` gives the artifacts ranked by the library (capability 14), at most --limit; with no model, the word matches and why", async () => {
+test("3.9 `search` keeps the library's best-first order and scores, passing on the query and limit", async (t) => {
   await inWorld(command, async (world) => {
     const library = await world.library();
-    for (const n of [1, 2, 3]) await library.defineTerm({ term: `Mailer ${n}`, meaning: "The mailer needs a verified sender domain." });
+    const lesser = await library.defineTerm({ term: "Mailer 1", meaning: "Sends mail." });
+    const best = await library.defineTerm({ term: "Mailer 2", meaning: "Needs a verified sender domain." });
+    t.mock.method(library, "rankAll", async (query: string, options: { limit: number }) => {
+      assert.equal(query, "verified sender");
+      assert.deepEqual(options, { limit: 2 });
+      return { by: "meaning", hits: [{ note: best, score: 0.987 }, { note: lesser, score: 0.123 }] };
+    });
+
+    const search = libraryFamily.verbs.find((verb) => verb.name === "search")!;
+    const answer = await search.act(parseArgs(["verified", "sender", "--limit", "2"], [], world.folder), { library: async () => library } as Context);
+
+    assert.equal(answer.text, `closest in meaning to "verified sender":\n  0.99  ${best.id}  [definition]  Mailer 2\n  0.12  ${lesser.id}  [definition]  Mailer 1`);
+  });
+});
+
+test("3.9 `search` with no model gives at most --limit word matches and says why", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const mailers = new Map<string, string>();
+    for (const n of [3, 2, 1]) {
+      const note = await library.defineTerm({ term: `Mailer ${n}`, meaning: "The mailer needs a verified sender domain." });
+      mailers.set(note.id, note.fields.term);
+    }
     await library.defineTerm({ term: "Deploys", meaning: "Deploys go out on Tuesdays" });
 
     const ran = await world.run(["library", "search", "mailer", "--limit", "2"]);
 
     assert.equal(ran.code, 0, ran.stderr);
     assert.match(ran.stdout, /ranked by words: the embedding model is switched off/);
-    assert.match(ran.stdout, /Mailer 1[\s\S]*Mailer 2/);
-    assert.doesNotMatch(ran.stdout, /Mailer 3|Tuesdays/);
+    // Word matches have no scores; records created in one millisecond tie by random id.
+    const hits = [...ran.stdout.matchAll(/^  (definition_\w+)  \[definition\]  (.+)$/gm)];
+    assert.equal(hits.length, 2, ran.stdout);
+    assert.equal(new Set(hits.map((hit) => hit[1])).size, 2, ran.stdout);
+    for (const hit of hits) assert.equal(mailers.get(hit[1]!), hit[2], ran.stdout);
+    assert.doesNotMatch(ran.stdout, /Deploys|Tuesdays/);
 
     const story = await library.addStory({ title: "Sign up" });
     const capability = await library.addCapability({ story: story.id, title: "Email" });

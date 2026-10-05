@@ -13,7 +13,7 @@ import type { Line, NewLine } from "@storytree/agent-link";
 import { workStates } from "@storytree/arc-surface";
 import type { AnnotatedCapability, AnnotatedStory, AnnotatedTree, Change } from "@storytree/library";
 
-import { changedIslands, forestDrawn, forestScene, storyAt } from "./forest-scene.js";
+import { changedIslands, forestDrawn, forestScene } from "./forest-scene.js";
 
 const NO_HEALTH = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
 
@@ -60,16 +60,6 @@ test("3.2 a capability landing redraws just its story node", () => {
   const after = forestScene(tree, history, workStates(log(claimed("cap_2a"), landed("cap_2a"))));
   assert.deepEqual(changedIslands(before, after), ["story_2"]);
   assert.deepEqual(changedIslands(after, forestScene(tree, history, workStates(log(claimed("cap_2a"), landed("cap_2a"))))), [], "nothing changed, nothing redrawn");
-});
-
-test("3.3 clicking a story node selects it, and clicking the open sea selects nothing", () => {
-  const { tree, history } = project();
-  const scene = forestScene(tree, history, workStates([]));
-  assert.equal(scene.islands.length, 3);
-  for (const island of scene.islands) {
-    assert.equal(storyAt(scene, island.x + island.radius * 0.5, island.z), island.story);
-  }
-  assert.equal(storyAt(scene, 1_000, 1_000), undefined);
 });
 
 test("3.4 each story node shows its story's name", () => {

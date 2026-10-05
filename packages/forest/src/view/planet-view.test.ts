@@ -57,7 +57,7 @@ test("the globe opens every story with its grove at its place in the rows, reada
   assert.deepEqual([drawn.stories, drawn.capabilities], [["new", "kept"], ["cap"]], "what the page drew names every story and capability");
 });
 
-test("a click picks the rotated island mesh, while the see-through shell keeps far-side islands unselectable", () => {
+test("3.3 a click picks the rotated island mesh, while the see-through shell keeps far-side islands unselectable", () => {
   const world = new Group();
   const globe = new Group();
   globe.rotation.y = Math.PI / 2;

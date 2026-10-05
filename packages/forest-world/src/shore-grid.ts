@@ -231,9 +231,8 @@ export function buildSegmentGrid(edges: readonly CoastEdge[], width: number): Ed
     // ⚠ COUNTER-FREE, and that is a `check:mutation-diff` finding rather than a style choice. As
     // indexed `for` loops the `j += 1` and `i += 1` came back UNPROVEN — killed, but with no test
     // named — which the rung counts as neither a pass nor a survivor. It is what the bun runner's
-    // coverage attribution does to loop counters, and `rampSelectGlsl` in
-    // `banded-ground-material.ts` records the same finding and the same remedy: with the counter
-    // gone there is nothing left to mis-attribute.
+    // coverage attribution does to loop counters: with the counter gone there is nothing left to
+    // mis-attribute.
     // Stryker disable next-line ArithmeticOperator: EQUIVALENT BY SYMMETRY. The offsets are
     // [-1, 0, 1], so `cj - d` visits {cj+1, cj, cj-1} — the SAME three cells in the other order,
     // and the scan is order-independent. No input can separate the two.

@@ -24,15 +24,6 @@
 // of ~1e6. Crossing the probe into an ACES canvas would have shipped a calibration that misses its
 // own target by 24% while looking exactly like a calibration.
 //
-// ⚠ THE GROUND WAS NEVER AFFECTED, AND THAT IS THE OTHER HALF OF THE FINDING. three appends no
-// output transform and no tone-mapping chunk to a raw `ShaderMaterial` — both chunks live inside
-// the BUILT-IN materials' sources — so `createBandedGroundMaterial` writes its authored sRGB
-// straight to the framebuffer whatever the renderer is set to. That is what the arc's
-// palette-closure proof rests on, and it is unmoved by this file. What it means, though, is that
-// until now the shipped map drew its GROUND through one transfer function and every PROP, tree,
-// cave and wisp beside it through another. The ground was right and everything standing on it was
-// not.
-//
 // CROSSED (not copied) from `harness/banded-material.ts`, which re-exports; `scope-fence.test.ts`
 // carries the ADOPTED entry. It lives in `src/` because the product needs it: a shipped canvas that
 // cannot be put into this mode cannot draw a bought asset the way the approved picture does.
@@ -80,8 +71,8 @@ export const EXACT_COLOUR: ExactColourSettings = {
  * reverts to the defaults. Expressed as props, the settings are re-applied by the same pass that
  * would otherwise clobber them.
  *
- * `shipped-baseline.test.ts` parses `ForestWorldCanvas.tsx` and refuses a `<Canvas>` that does not
- * carry this spread, so the derivation cannot be quietly replaced by three literals.
+ * The globe's `<Canvas>` (`planet/PlanetWorldCanvas.tsx`) carries this spread rather than three
+ * literals, so the derivation stays in one place.
  */
 export const EXACT_COLOUR_CANVAS_PROPS = {
   /** `THREE.ColorManagement.enabled = !legacy`. */

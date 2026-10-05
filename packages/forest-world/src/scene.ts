@@ -16,21 +16,15 @@ export type CapabilityWord = "proposed" | "healthy" | "unhealthy" | "untested";
 /** How many world units one place-width is: wide enough that neighbouring islands never touch. */
 export const PLACE_WIDTH = 16;
 
-/** One capability on its island, in world units: 0.2's tree, of which only the record remains (no tree is drawn, ADR-0804 D1). */
+/** One capability on its island: 0.2's tree, of which only the record remains (no tree is drawn, ADR-0804 D1, ADR-0920). */
 export interface PlacedTree {
   /** The capability's id; undefined for the one seedling of a story with no capabilities yet. */
   capability: string | undefined;
   form: TreeForm;
   /** Its capability's word; absent for the one seedling of a story with no capabilities yet. */
   status?: CapabilityWord;
-  /** How many contracts its capability has: 0.2's engine reads it as its parcel's ground cover, which nothing draws since ADR-0804 D1. */
+  /** How many contracts its capability has. */
   contracts: number;
-  x: number;
-  z: number;
-  /** 0.2's tree height, 1 for a full tree; nothing reads it to draw since ADR-0804 D1. */
-  scale: number;
-  /** 0.2's tree turn, in radians; nothing reads it to draw since ADR-0804 D1. */
-  turn: number;
 }
 
 /** One story node, as an island. */
@@ -39,7 +33,6 @@ export interface Island {
   title: string;
   x: number;
   z: number;
-  radius: number;
   trees: PlacedTree[];
   /** The island's territories, in its own flat coordinates about its middle; absent before its code is surveyed. */
   land?: IslandLand;

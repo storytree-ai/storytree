@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { FrontSide, Mesh, MeshBasicMaterial, Raycaster, Vector3, type Intersection, type Object3D } from 'three';
-import type { InstanceDescriptor } from '../world-to-3d.js';
+import type { InstanceDescriptor } from '../descriptors.js';
 import { forestDescriptors } from '../index.js';
 import { clipToCoast, islandSurface, PLATE_CLEARANCE, rimLoops, SHIPPED_COAST } from '../geometry.js';
 import { onIslandSurface } from './PlanetWorldCanvas.js';
@@ -9,7 +9,7 @@ import { ISLAND_DEPTH_INSET } from './island-surface.js';
 
 const R = 218;
 const trees = ['c1', 'c2', 'c3'].map((capability, i) => ({ capability, form: 'green' as const, contracts: 1, x: i, z: 0, scale: 1, turn: 0 }));
-const descriptors = forestDescriptors({ islands: [{ story: 's', title: 'S', x: 0, z: 0, radius: 1, key: 's', trees }] });
+const descriptors = forestDescriptors({ islands: [{ story: 's', title: 'S', x: 0, z: 0, key: 's', trees }] });
 const cells = clipToCoast(descriptors.filter((d): d is InstanceDescriptor => d.kind === 'cell-ground' && d.points !== undefined), SHIPPED_COAST);
 const coast = rimLoops(cells.map(c => c.points!));
 

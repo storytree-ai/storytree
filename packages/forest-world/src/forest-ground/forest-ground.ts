@@ -3,21 +3,20 @@
  *
  * 0.3 decides WHERE and WHAT: each story node's place (P1, `storyNodes`) and its capabilities, one
  * entry per capability in build order with its work-state form (`grove`), both carried by
- * `forestScene`. 0.2's engine builds the ground: the relaxed-mesh cells, the smoothed coast and one
- * parcel per capability. Between the two, this file builds the input 0.2's
- * scene core takes (`SceneInput`), the way 0.2's own website did for islands whose centres it
- * already knew (`composePublicGroundScene` in 0.2's `packages/forest-world`): a hexagon of tiles
- * per island, relaxed into the mesh, its boundary smoothed into a coast, and one parcel per
- * capability seeded on its own cell. Only the input is new; the ground is 0.2's.
+ * `forestScene`. This file builds the ground from 0.2's geometry core, the way 0.2's own website did
+ * for islands whose centres it already knew (`composePublicGroundScene` in 0.2's
+ * `packages/forest-world`): a hexagon of tiles per island, relaxed into the mesh, its boundary
+ * smoothed into a coast, and one parcel per capability seeded on its own cell, each cell joining the
+ * parcel of the seed nearest it. The primitives are 0.2's; only the join is new.
  *
  * ⚠ NO TREE STANDS ON THESE PARCELS (corrected in place 2026-10-05, ADR-0804 D1). This header used
- * to say 0.2's engine also stands its kit trees on them. Today the globe keeps only the cells this
- * join yields (`forestDescriptors`' `cell-ground`): each island's coast, parcels and reach, under its
- * flat surface and its capability territories. An island's size follows its capability count
- * (`LAND_AREA_PER_CAPABILITY`, applied by `worldTo3D`) unless its story's surveyed code sets it
- * (`Island.area`, ADR-0804 D3). Each capability's form still reaches the engine as its parcel's status
- * (`statusOf`), which only the unmounted flat canvas's props would show; the globe fills a
- * territory by its capability's verified word instead (ADR-0825 D3).
+ * to say 0.2's engine also stands its kit trees on them. This join yields only cells
+ * (`forestDescriptors`' `cell-ground`): each island's coast, parcels and reach, under its flat
+ * surface and its capability territories. An island's size follows its capability count
+ * (`LAND_AREA_PER_CAPABILITY`, applied by `sizeIslandsByCapability`) unless its story's surveyed code
+ * sets it (`Island.area`, ADR-0804 D3). Each capability's form still reaches the cell as its parcel's
+ * status (`statusOf`), which nothing draws; the globe fills a territory by its capability's verified
+ * word instead (ADR-0825 D3).
  *
  * This first pass builds land. The globe's `buildPlanetPathways` joins recorded capability links
  * to these actual clipped coasts and parcel centres, then feeds the ground's worn paths and the
@@ -32,7 +31,6 @@ import {
   PLAN_VIEW_ELEVATION_DEG,
   axialKey,
   buildRelaxedCells,
-  buildScene,
   hexCenter,
   hexCorners,
   hash,
@@ -43,13 +41,10 @@ import {
   type BoundarySeg,
   type Pt,
   type RelaxedCell,
-  type SceneInput,
-  type SceneParcelInput,
   type SceneStatus,
-  type SceneTerritoryInput,
-  type SurfaceTheme,
 } from "../core/index.js";
-import { worldTo3D, type Descriptor3D, type InstanceDescriptor, type Transform3D } from "../world-to-3d.js";
+import type { Descriptor3D, InstanceDescriptor, Transform3D } from "../descriptors.js";
+import { LAND_AREA_PER_CAPABILITY, sizeIslandsByCapability } from "../land-per-capability.js";
 
 /**
  * How many of 0.2's ground units one of 0.3's place-widths spans. The spiral keeps places at least
@@ -89,9 +84,6 @@ function islandStatus(island: Island): SceneStatus {
   const forms = new Set(island.trees.map(({ form }) => form));
   return statusOf(WORST_FIRST.find((form) => forms.has(form)) ?? "seedling");
 }
-
-/** 0.2's three parcel surfaces, dealt round the capabilities in build order. */
-const THEMES: readonly SurfaceTheme[] = ["meadow", "woodland", "heath"];
 
 /** The parcel id of a story's lone seedling, for a story with no capabilities yet. */
 function parcelId(island: Island, index: number): string {
@@ -148,82 +140,8 @@ function centroid(poly: readonly Pt[]): Pt {
   return { x: poly.reduce((sum, p) => sum + p.x, 0) / poly.length, y: poly.reduce((sum, p) => sum + p.y, 0) / poly.length };
 }
 
-/** The input 0.2's scene core draws `scene` from: every island at its place, on the plan-view ground. */
-export function groundInput(scene: ForestScene): SceneInput {
-  const centres = scene.islands.map((island): Pt => ({ x: island.x * GROUND_PER_WORLD_UNIT, y: island.z * GROUND_PER_WORLD_UNIT }));
-  const grounds = scene.islands.map((island, owner) => groundFor(island, owner, centres[owner]!));
-  return {
-    offset: { x: 0, y: 0 },
-    width: 0,
-    height: 0,
-    empties: [],
-    relaxedCells: grounds.flatMap(({ cells }) => cells),
-    drawTiles: [],
-    wheatSets: [],
-    cameraElevationDeg: PLAN_VIEW_ELEVATION_DEG,
-    // Routing follows this pass: it needs the sized parcels and clipped beach, not tile centres.
-    trails: { segments: [], edges: [], caves: [], dropped: [] },
-    territories: scene.islands.map((island, owner): SceneTerritoryInput => {
-      const centre = centres[owner]!;
-      const { cells, coast, radius } = grounds[owner]!;
-      return {
-        id: island.story,
-        status: islandStatus(island),
-        caps: island.trees.filter(({ capability }) => capability !== undefined).length,
-        centroid: { ...centre },
-        groundRadius: radius,
-        screenRadius: radius,
-        treeSpot: { ...centre },
-        anchorSpace: "ground",
-        labelY: centre.y,
-        coastGroundLoops: coast,
-        decor: [],
-        plants: [],
-        parcels: island.trees.map(({ form, contracts }, index): SceneParcelInput => {
-          const parcel: SceneParcelInput = {
-            capId: parcelId(island, index),
-            status: statusOf(form),
-            theme: THEMES[index % THEMES.length]!,
-            seed: centroid(cells[spreadIndex(index, island.trees.length, cells.length)]!.poly),
-          };
-          // 0.2 grew a parcel's ground cover from its test count; 0.3's is its contracts. None
-          // reported leaves the count out, which 0.2 draws as bare ground rather than as zero tests.
-          if (contracts > 0) parcel.testCount = contracts;
-          return parcel;
-        }),
-        treeTitle: island.title,
-        wisps: [],
-        claims: [],
-        plate: { w: 0, h: 0, rx: 0, idY: 0, subY: 0, idText: island.title, subText: "", title: island.title },
-      };
-    }),
-  };
-}
-
-/** The 3D stream 0.2's canvas draws for `scene`: its ground, coast and parcels, sized per capability as 0.2 sized them, except an island whose land is set (`Island.area`, from its story's lines). */
-export function forestDescriptors(scene: ForestScene): Descriptor3D[] {
-  const islandAreas = new Map(scene.islands.flatMap((island) => (island.area === undefined ? [] : [[island.story, island.area] as const])));
-  return worldTo3D(buildScene(groundInput(scene)), { islandAreas });
-}
-
 function groundCells(descriptors: readonly Descriptor3D[]): InstanceDescriptor[] {
   return descriptors.filter((d): d is InstanceDescriptor => d.kind === "cell-ground" && d.points !== undefined);
-}
-
-/** Whether (x, z) is inside the closed ring `ring` (even-odd rule). */
-function inside(ring: readonly Transform3D[], x: number, z: number): boolean {
-  let within = false;
-  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-    const a = ring[i]!;
-    const b = ring[j]!;
-    if (a.z > z !== b.z > z && x < ((b.x - a.x) * (z - a.z)) / (b.z - a.z) + a.x) within = !within;
-  }
-  return within;
-}
-
-/** The story whose ground is under (x, z), in 0.2 ground units, or undefined over open sea. */
-export function islandAt(descriptors: readonly Descriptor3D[], x: number, z: number): string | undefined {
-  return groundCells(descriptors).find((cell) => inside(cell.points!, x, z))?.island;
 }
 
 /** Where each capability's parcel lies, as the middle of its cells, in 0.2 ground units: the globe's pathways end there (`planet/pathways.ts`). */
@@ -251,4 +169,79 @@ export function islandReach(descriptors: readonly Descriptor3D[], centres: Reado
     for (const point of cell.points!) reach.set(cell.island!, Math.max(reach.get(cell.island!) ?? 0, Math.hypot(point.x - centre.x, point.z - centre.z)));
   }
   return reach;
+}
+
+/**
+ * The ground the globe draws for `scene`: each island's relaxed-mesh cells at its place, each cell in
+ * the parcel of the capability whose seed is nearest it, sized per capability as 0.2 sized them,
+ * except an island whose land is set (`Island.area`, from its story's lines).
+ */
+export function forestDescriptors(scene: ForestScene): Descriptor3D[] {
+  const centres = scene.islands.map((island): Pt => ({ x: island.x * GROUND_PER_WORLD_UNIT, y: island.z * GROUND_PER_WORLD_UNIT }));
+  const out: InstanceDescriptor[] = [];
+  scene.islands.forEach((island, owner) => {
+    const { cells } = groundFor(island, owner, centres[owner]!);
+    const parcels = island.trees.map(({ form }, index) => ({
+      capId: parcelId(island, index),
+      status: statusOf(form),
+      seed: centroid(cells[spreadIndex(index, island.trees.length, cells.length)]!.poly),
+    }));
+    if (!parcels.length) {
+      for (const cell of cells) pushCell(out, cell.poly, islandStatus(island), undefined, island.story);
+      return;
+    }
+    parcelGroups(cells, parcels.map(({ seed }) => seed)).forEach((group, index) => {
+      for (const cell of group) pushCell(out, cell.poly, parcels[index]!.status, parcels[index]!.capId, island.story);
+    });
+  });
+  const islandAreas = new Map(scene.islands.flatMap((island) => (island.area === undefined ? [] : [[island.story, island.area] as const])));
+  return sizeIslandsByCapability(out, LAND_AREA_PER_CAPABILITY, undefined, islandAreas);
+}
+
+/**
+ * Each parcel's cells: every cell goes to the parcel whose seed is nearest its middle (ties to the
+ * first), then a parcel left with none takes the cell nearest its seed from a parcel holding two or
+ * more, so no capability is left without ground.
+ */
+function parcelGroups(cells: readonly RelaxedCell[], seeds: readonly Pt[]): RelaxedCell[][] {
+  const middle = new Map(cells.map((cell) => [cell, centroid(cell.poly)]));
+  const distance = (cell: RelaxedCell, seed: Pt): number => (middle.get(cell)!.x - seed.x) ** 2 + (middle.get(cell)!.y - seed.y) ** 2;
+  const groups: RelaxedCell[][] = seeds.map(() => []);
+  for (const cell of cells) {
+    let best = 0;
+    seeds.forEach((seed, index) => {
+      if (distance(cell, seed) < distance(cell, seeds[best]!)) best = index;
+    });
+    groups[best]!.push(cell);
+  }
+  seeds.forEach((seed, index) => {
+    if (groups[index]!.length > 0) return;
+    let spare: { from: number; at: number } | undefined;
+    let nearest = Infinity;
+    groups.forEach((group, from) => {
+      if (group.length < 2) return;
+      group.forEach((cell, at) => {
+        const d = distance(cell, seed);
+        if (d < nearest) [nearest, spare] = [d, { from, at }];
+      });
+    });
+    if (spare) groups[index]!.push(groups[spare.from]!.splice(spare.at, 1)[0]!);
+  });
+  return groups;
+}
+
+/** One ground cell as the globe reads it: its ring at a tenth of a ground unit, its middle, its parcel's status, and whose it is. */
+function pushCell(out: InstanceDescriptor[], poly: readonly Pt[], status: SceneStatus, parcel: string | undefined, island: string): void {
+  const points = poly.map((p) => ({ x: 0 + Number(p.x.toFixed(1)), y: 0, z: 0 + Number(p.y.toFixed(1)) }));
+  if (points.length < 3) return;
+  const cell: InstanceDescriptor = {
+    kind: "cell-ground",
+    transform: { x: points.reduce((sum, p) => sum + p.x, 0) / points.length, y: 0, z: points.reduce((sum, p) => sum + p.z, 0) / points.length },
+    group: "cell-ground",
+    material: status,
+    points,
+  };
+  if (parcel !== undefined) cell.parcel = parcel;
+  cell.island = island;
+  out.push(cell);
 }

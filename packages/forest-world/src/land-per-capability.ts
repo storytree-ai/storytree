@@ -38,21 +38,21 @@
 //
 // ⚠ NO TREE STANDS ON AN ISLAND ANY MORE (corrected in place 2026-10-05, ADR-0804 D1). This paragraph
 // used to say the ratio was land per tree at the kit tree's fixed size. That was 0.2's pine forest,
-// and the flat canvas that still draws it (`ForestWorldCanvas.tsx`) is mounted by no product surface.
-// Today the globe draws each island as one flat surface cut into capability territories, so the ratio
-// is simply land per capability, for an island whose story has no surveyed code (a surveyed island's
-// land follows its lines of code instead: `landRatioFactor`'s `area` below, `Island.area`). Tree size and spacing
+// gone with the flat canvas (ADR-0920). Today the globe draws each island as one flat surface cut
+// into capability territories, so the ratio is simply land per capability, for an island whose story
+// has no surveyed code (a surveyed island's land follows its lines of code instead:
+// `landRatioFactor`'s `area` below, `Island.area`). Tree size and spacing
 // constrain nothing here. What does follow the island is every feature sized as a fraction of it —
 // the beach band, the worn path, the noise lattices, the relief, the skirt, the coast's smoothing —
 // through {@link LAND_SCALE}, so a band tuned as a fraction of the 234-unit island stays that
 // fraction of a 90-unit one.
 //
-// Pure: no React, no three — behind the provability firewall with `world-to-3d.ts`.
+// Pure: no React, no three — behind the provability firewall with `forest-ground.ts`.
 
 import { LAND_AREA_PER_CAPABILITY, PRE_ADR0528_TILE } from './core/index.js';
 
 import { scaleAboutIslands, type IslandCentre, type IslandScale } from './true-footprint.js';
-import type { Descriptor3D, Transform3D } from './world-to-3d.js';
+import type { Descriptor3D, Transform3D } from './descriptors.js';
 
 /** One hex tile's ground-plane area in the TRUE basis ON THE TUNED TILE — a regular hexagon of the
  *  pre-ADR-0528 circumradius 27, `(3√3 / 2) · R²` ≈ 1,894. The unit every 2D island WAS built from,
@@ -239,14 +239,13 @@ export const MAX_LAND_FACTOR = 100;
 
 /**
  * SIZE EVERY ISLAND FROM THE RATIO: each island scaled isotropically about its own centre by
- * {@link landRatioFactor}, the whole stream — cells, blooms, caves, wisps, and the ribbons between
- * islands — through the same per-family rules the footprint restoration uses. The layout holds
- * still (see the header). Islands absent from the stream's `cell-ground` cells are untouched.
+ * {@link landRatioFactor}: every `cell-ground` cell, through the same per-island affine seam the
+ * footprint restoration uses. The layout holds still (see the header). Islands absent from the stream's `cell-ground` cells are untouched.
  */
 export function sizeIslandsByCapability<T extends Descriptor3D>(
   descriptors: readonly T[],
   /** REQUIRED rather than defaulted: the one caller that means "the shipped ratio" says so
-   *  (`worldTo3D`), so a caller that forgot the ratio is a refusal and not a silent default. */
+   *  (`forest-ground.ts`'s `forestDescriptors`), so a caller that forgot the ratio is a refusal and not a silent default. */
   areaPerCapability: number,
   /** The fewest capabilities an island is sized as if it held — {@link LAND_FLOOR_CAPABILITIES}
    *  unless a COMPARISON arm asks for the map as it stood (0). The shipped mapper never passes it. */

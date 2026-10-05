@@ -5,7 +5,7 @@ import { buildPlanetPathways } from '../geometry.js';
 
 const R = 218;
 const island = (story: string, capabilities: string[]): Island => ({
-  story, title: story, x: 0, z: 0, radius: 1, key: story,
+  story, title: story, x: 0, z: 0, key: story,
   trees: capabilities.map((capability, i) => ({ capability, form: 'green', status: 'healthy', contracts: 1, x: i, z: 0, scale: 1, turn: 0 })),
 });
 const links = [{ from: 'a2', to: 'a1' }, { from: 'b1', to: 'a1' }, { from: 'b2', to: 'b1' }];

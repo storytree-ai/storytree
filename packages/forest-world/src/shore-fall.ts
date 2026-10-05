@@ -94,7 +94,7 @@
 import { GROUND_COAST_OUTSET, type CoastPoint, coastalIsland, rimLoops } from './coast-clip.js';
 import { LAND_SCALE } from './land-per-capability.js';
 import { landGradient, landHeight } from './land-relief.js';
-import type { InstanceDescriptor } from './world-to-3d.js';
+import type { InstanceDescriptor } from './descriptors.js';
 import { buildEdgeGrid, nearestOnSegments } from './shore-grid.js';
 
 /** The reference generator's own `BEACH` — the width of the band over which the land rises from

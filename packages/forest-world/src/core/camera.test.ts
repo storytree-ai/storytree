@@ -23,16 +23,11 @@ import {
   groundFlattening,
   uprightForeshortening,
   projectGround,
-  groundPolarOffset,
   unprojectGround,
-  groundRadiusToScreenHalfHeight,
-  spriteUprightScale,
 } from './camera.js';
 import {
   HEX_R,
   HEX_W,
-  TILE_DEPTH,
-  TILE_DEPTH_WORLD,
   AXIAL_DIRS,
   hexCenter,
   hexCorners,
@@ -201,31 +196,7 @@ test('the projected lattice still CLOSES: neighbouring cells share their edge co
   }
 });
 
-test("a cell's projected vertical half-extent is its ground radius through the camera", () => {
-  // The number the nameplate baseline and the scene bounds must use. They added a bare HEX_R,
-  // which is the ground-plane radius and only equals the on-screen half-height in plan view.
-  for (const deg of SWEEP) {
-    assert.equal(groundRadiusToScreenHalfHeight(HEX_R, deg), HEX_R * groundFlattening(deg));
-    const hc = hexCenter({ q: 0, r: 0 }, { elevationDeg: deg });
-    const ys = hexCorners(hc.x, hc.y, HEX_R, deg).map((p) => p.y);
-    assert.ok(
-      Math.abs(Math.max(...ys) - groundRadiusToScreenHalfHeight(HEX_R, deg)) < 1e-9,
-      `${deg} deg: the projected cell's lowest corner is not its projected half-extent`,
-    );
-  }
-});
-
 // ---------- the tile extrusion is UPRIGHT, so it foreshortens by cos ----------
-
-test('TILE_DEPTH is the tile extrusion projected through the declared camera', () => {
-  // An extrusion below a claimed tile is a world HEIGHT, not a ground distance, so it carries
-  // cos(elevation) where the lattice carries sin(elevation). Keeping the world depth named
-  // separately is what lets the two paint sites keep reading one already-projected number.
-  assert.equal(TILE_DEPTH, TILE_DEPTH_WORLD * uprightForeshortening());
-  // Straight down, an upright extrusion is edge-on and contributes no screen offset. Stated as a
-  // bound because cos(pi/2) is 6.1e-17 rather than a hard zero in IEEE doubles.
-  assert.ok(Math.abs(TILE_DEPTH_WORLD * uprightForeshortening(PLAN_VIEW_ELEVATION_DEG)) < 1e-12);
-});
 
 // ---------- the composition property, in land terms ----------
 
@@ -260,107 +231,4 @@ test('the contact assertion has TEETH: an anchor at a different camera falls off
     !pointInPolygon(planViewAnchor, cell),
     'a plan-view anchor on an angled cell should NOT be judged planted',
   );
-});
-
-// ---------- the sprite reconciliation, derived from the same value ----------
-
-test('a sprite authored at the land camera needs NO vertical reconciliation', () => {
-  // This is what retires the lab squash dial as the reconciliation MECHANISM: once the ground is
-  // drawn at the camera the sprite was rendered at, the correction is exactly 1.
-  assert.equal(spriteUprightScale(LAND_CAMERA_ELEVATION_DEG), 1);
-});
-
-test('a sprite authored at a DIFFERENT camera reports a correction, and it moves with the land', () => {
-  // The correction is a warning that the sprite needs re-rendering, not a fix — it can only
-  // reconcile upright height, never the sprite's own ground footprint. It must still be a
-  // function of the land constant, so re-declaring the land camera moves it.
-  const seen = new Set<number>();
-  for (const deg of SWEEP) {
-    const s = spriteUprightScale(LAND_CAMERA_ELEVATION_DEG, deg);
-    assert.equal(s, uprightForeshortening(deg) / uprightForeshortening(LAND_CAMERA_ELEVATION_DEG));
-    seen.add(s);
-  }
-  assert.equal(seen.size, SWEEP.length, 'the correction must move as the land camera moves');
-  assert.ok(spriteUprightScale(LAND_CAMERA_ELEVATION_DEG, 30) !== 1);
-});
-
-// ---------------------------------------------------------------------------------------------
-// groundPolarOffset — the polar spelling of `projectGround`, and the SECOND definition's grave.
-//
-// It lived twice: privately in `scene.ts`, and as a deliberate local copy in the studio's
-// `TreeView.tsx` whose own comment named the reason — reaching into this package owed an engine
-// sync and a web pin bump for two lines of arithmetic. ADR-0537 ruled the toll may not draw that
-// boundary; the copy is gone and these assertions come with it, from
-// `apps/studio/src/components/buildWorld.groundSpace.test.ts`, so the one surviving definition is
-// the one under test.
-// ---------------------------------------------------------------------------------------------
-
-test('groundPolarOffset leaves the across-screen axis alone and foreshortens depth by sin θ', () => {
-  const sin = groundFlattening(LAND_CAMERA_ELEVATION_DEG); // 0.3420201…
-
-  // Literal values, not a round trip through the function's own inverse.
-  assert.deepEqual(groundPolarOffset(0, 100), { x: 100, y: 0 });
-
-  const south = groundPolarOffset(Math.PI / 2, 100);
-  assert.ok(Math.abs(south.x) < 1e-9);
-  assert.ok(Math.abs(south.y - 76.6044443) < 1e-6, `south.y=${south.y}`); // 100 · sin 50°, NOT 100 · 0.66
-
-  const west = groundPolarOffset(Math.PI, 100);
-  assert.ok(Math.abs(west.x + 100) < 1e-9);
-  assert.ok(Math.abs(west.y) < 1e-9);
-
-  const north = groundPolarOffset(-Math.PI / 2, 100);
-  assert.ok(Math.abs(north.y + 76.6044443) < 1e-6); // the sign survives
-
-  const se = groundPolarOffset(Math.PI / 4, 100);
-  assert.ok(Math.abs(se.x - 70.7106781) < 1e-6);
-  assert.ok(Math.abs(se.y - 70.7106781 * sin) < 1e-6);
-});
-
-test('CONTROL: the retired 0.66 squash disagrees by the measured 0.86x on the depth axis', () => {
-  // The hand-picked top-down squash the studio layout used before the land had a camera. At 20°
-  // this ratio was 1.9297 (the retired squash OVER-reached the true projection); at the ADR-0593
-  // 50° camera sin θ has grown past 0.66, so the same fixed squash now UNDER-reaches instead — the
-  // control's whole point is that the two numbers disagree, and they still do, on the other side.
-  const retiredY = Math.sin(Math.PI / 2) * 100 * 0.66;
-  const fixed = groundPolarOffset(Math.PI / 2, 100);
-  assert.ok(Math.abs(retiredY - 66) < 1e-9);
-  assert.ok(Math.abs(retiredY / fixed.y - 0.8616) < 1e-4, `ratio=${retiredY / fixed.y}`); // 0.66 / sin 50°
-});
-
-test('a ground circle projects to a screen ellipse of the camera own aspect', () => {
-  const sin = groundFlattening(LAND_CAMERA_ELEVATION_DEG);
-  const rs = [0, 1, 2, 3, 4, 5, 6, 7].map((k) => {
-    const o = groundPolarOffset((k / 8) * Math.PI * 2, 60);
-    return Math.hypot(o.x, o.y);
-  });
-  assert.ok(Math.abs(Math.max(...rs) - 60) < 1e-6); // across the screen: untouched
-  assert.ok(Math.abs(Math.min(...rs) - 60 * sin) < 1e-6); // into the depth: sin θ
-});
-
-test('groundPolarOffset moves with the camera it is asked for, and is exactly polar in plan view', () => {
-  // The elevation is a PARAMETER, not a baked constant: in plan view the projection is the
-  // identity, so the offset is the bare polar vector — which is what makes the default the only
-  // place the land camera enters.
-  const plan = groundPolarOffset(Math.PI / 3, 42, PLAN_VIEW_ELEVATION_DEG);
-  assert.ok(Math.abs(plan.x - Math.cos(Math.PI / 3) * 42) < 1e-9);
-  assert.ok(Math.abs(plan.y - Math.sin(Math.PI / 3) * 42) < 1e-9);
-
-  // And it agrees with `projectGround` by construction, at every elevation, not just the default.
-  for (const deg of [5, 20, 45, 70, 90]) {
-    const o = groundPolarOffset(1.234, 77, deg);
-    const p = projectGround({ x: Math.cos(1.234) * 77, y: Math.sin(1.234) * 77 }, deg);
-    assert.deepEqual(o, p);
-  }
-});
-
-test('groundPolarOffset is LINEAR in r, which is what lets a layout state one spot in two spaces', () => {
-  // The studio garden walks a plant inward in SCREEN space and re-derives its ground twin by
-  // scaling the ground reach — sound only because projecting is linear in the radius.
-  for (const ang of [0, 0.7, 2.1, -1.3]) {
-    const unit = groundPolarOffset(ang, 1);
-    const scaled = groundPolarOffset(ang, 13.5);
-    assert.ok(Math.abs(scaled.x - unit.x * 13.5) < 1e-9);
-    assert.ok(Math.abs(scaled.y - unit.y * 13.5) < 1e-9);
-  }
 });

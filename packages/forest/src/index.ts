@@ -6,7 +6,7 @@ export { placeInRow, PLANET_RADIUS, ROW_LATITUDE, rowLatitude, rowOf, type Plane
 export { GROWTH_STEP, growPlanet, islandArea, LAND_PER_LINE, MAX_NUDGE, MIN_ISLAND_AREA, ROW_BAND, SEA_GAP, type GrowingIsland, type GrownPlanet } from "./planet-places/island-growth.js";
 export { grove } from "./capability-tree/capability-tree.js";
 export type { Tree, TreeForm } from "./capability-tree/capability-tree.js";
-export { changedIslands, forestDrawn, forestScene, PLACE_WIDTH, storyAt } from "./render/forest-scene.js";
+export { changedIslands, forestDrawn, forestScene, PLACE_WIDTH } from "./render/forest-scene.js";
 export type { ForestDrawn, ForestScene, Island, PlacedTree } from "./render/forest-scene.js";
 export { keptTree } from "./render/kept-tree.js";
 export { ringPulse, selectionLanes, selectionNeighbours, type SelectionLane } from "./render/selection-lanes.js";

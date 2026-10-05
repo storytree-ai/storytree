@@ -377,8 +377,8 @@ export function paletteImageOfToken(token: string): Rgb255[] {
  *  bit-identity rather than an approximation (see `bandLevelIndex`).
  *
  *  ⚠ THE LADDER IS AN ARGUMENT, DEFAULTING TO `SHADE_LEVELS`, AND THE DEFAULT IS THE POINT: the
- *  shipped material passes nothing and therefore emits the byte-identical source every measured
- *  figure about the banded ground was taken against. What the argument buys is a COMPARISON —
+ *  default emits the byte-identical source every measured figure about the banded ground was
+ *  taken against. What the argument buys is a COMPARISON —
  *  `harness/shipped-land-scene.ts` renders candidate ladders through this same material rather
  *  than through a second implementation, which is what lets an arm claim to differ in exactly
  *  one thing. Whether the SHIPPED ladder moves is an owner-visible look decision

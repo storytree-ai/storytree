@@ -1,5 +1,20 @@
 import type { OrthographicCamera } from 'three';
-import { orthographicZoomFor, type FramingViewport } from '../camera-framing.js';
+
+/** The elevation the islands' light and tilt were signed at: the owner's 50° (ADR-0517 D2). */
+export const SHIPPED_ELEVATION_DEG: number = 50;
+
+/** The viewport the globe is framed into, CSS px. */
+export interface FramingViewport {
+  readonly width: number;
+  readonly height: number;
+}
+
+/** The orthographic `zoom` that frames `halfHeight` world units of a viewport whose shorter side is
+ *  `shortSideCssPx` CSS pixels: R3F divides its CSS-pixel frustum by `zoom`, so `zoom` is the CSS px
+ *  per world unit, and the shorter side binds. */
+export function orthographicZoomFor(halfHeight: number, shortSideCssPx: number): number {
+  return Math.max(shortSideCssPx, 1) / (2 * Math.max(halfHeight, Number.EPSILON));
+}
 
 /** The globe's framing is the number of radii covered by half the viewport's shorter side. */
 export function applyPlanetFraming(camera: OrthographicCamera, radius: number, framing: number, size: FramingViewport): void {

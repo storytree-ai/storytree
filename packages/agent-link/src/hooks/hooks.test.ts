@@ -33,6 +33,7 @@ import { openActivityLog, type Line, type NewLine } from "../activity/index.js";
 import { buildBins } from "../bins/build.js";
 import { readContext } from "../context/index.js";
 import { MARKER_FILE, setUpProject } from "../routing/index.js";
+import { leaveNotice } from "../claims/notices.js";
 import { hookLines } from "./hooks.js";
 import { readSettings, setSetting } from "../settings/settings.js";
 import { registerHooks } from "../setup/hooks-config.js";
@@ -391,6 +392,24 @@ function addedContext(ran: Ran): string | undefined {
 function prompted(harness: "claude-code" | "codex", folder: string, prompt: string, session: string): string {
   return JSON.stringify({ ...JSON.parse(recorded(harness, "user-prompt-submit", folder)), prompt, session_id: session });
 }
+
+test("3.20 at a session's next prompt, the prompt hook adds what storytree left it about claims made from edits, each once, for Claude Code and Codex alike, read from this machine with storytree stopped; another session gets none of it", async () => {
+  await withTempDir(async (dir) => {
+    const folder = projectFolder(dir, uniqueProjectName());
+    const home = storytreeHome(dir, false);
+    leaveNotice(home, "cc-edits", "[storytree] Your edit claimed \"Email form\" for you.");
+    leaveNotice(home, "cx-edits", "[storytree] Claude Code session cc-edits edited a file you hold.");
+    const ask = async (harness: "claude-code" | "codex", session: string) => {
+      const ran = await runHook(harness, prompted(harness, folder, "go on", session), home);
+      assert.deepEqual({ code: ran.code, stderr: ran.stderr }, { code: 0, stderr: "" });
+      return addedContext(ran);
+    };
+    assert.equal(await ask("claude-code", "cc-other"), undefined, "another session gets none");
+    assert.equal(await ask("claude-code", "cc-edits"), "[storytree] Your edit claimed \"Email form\" for you.");
+    assert.equal(await ask("claude-code", "cc-edits"), undefined, "each once");
+    assert.equal(await ask("codex", "cx-edits"), "[storytree] Claude Code session cc-edits edited a file you hold.");
+  });
+});
 
 test("3.7 at each prompt, every matching project definition is added for the agent: whole words in any case or plural, longest first, each once a session, meanings cut to 200 characters; a harness's own notice gets none, and with storytree stopped nothing is printed", async () => {
   const project = uniqueProjectName();

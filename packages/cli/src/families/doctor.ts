@@ -91,7 +91,7 @@ async function lastHook(library: ConnectOptions, project: string): Promise<strin
     throw error;
   });
   try {
-    const hook = (await log.since(project, 0)).lines.filter((line) => line.source === "hook").at(-1);
+    const [hook] = await log.lines(project, { where: { source: "hook" }, newest: 1, omit: ["command", "files", "transcript"] });
     if (hook === undefined) return "No hook has reached storytree in this project yet: start an agent session here.";
     return `Hooks last seen firing: ${hook.at}${hook.harness === undefined ? "" : `, from ${HARNESSES[hook.harness as keyof typeof HARNESSES] ?? hook.harness}`}.`;
   } finally {

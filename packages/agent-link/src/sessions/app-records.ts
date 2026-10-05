@@ -85,10 +85,16 @@ export async function recordAppStates(context: MergeContext, watch: { readonly p
   if (kept.size === 0) return [];
 
   return context.log.locked(context.project, async (log) => {
-    const known = await log.lastSeen();
+    // Only the sessions the apps keep are read, and the latest of what was said of each (contract 2.7).
+    const known = await log.lastSeen([...kept.keys()]);
+    const ids = [...known.keys()];
     const current = new Map<string, Line & { kind: "session-archived" | "session-unarchived" }>();
     const words = new Map<string, Line & { kind: "session-described" }>();
-    for (const line of await log.lines(["session-archived", "session-unarchived", "session-described"])) {
+    const said = ids.length === 0 ? [] : [
+      ...await log.lines({ kinds: ["session-archived", "session-unarchived"], where: { of: ids }, latestBy: ["of"] }),
+      ...await log.lines({ kinds: ["session-described"], where: { of: ids }, latestBy: ["of"] }),
+    ];
+    for (const line of said) {
       if (line.kind === "session-archived" || line.kind === "session-unarchived") current.set(line.of, line);
       else if (line.kind === "session-described") words.set(line.of, line);
     }

@@ -4,7 +4,7 @@ import { copyFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 import { connect } from "@storytree/library";
-import { ACTIVITY_DATABASE, openActivityLog, type ActivityLog } from "../activity/index.js";
+import { ACTIVITY_DATABASE, openActivityLog, type ActivityLog, type LockedLog } from "../activity/index.js";
 import { claim, claimRefusal, readClaims } from "../claims/index.js";
 import { claimsFrom, sessionsFrom } from "../readings.js";
 import { readSessions } from "../sessions/index.js";
@@ -28,13 +28,13 @@ test("10.10 after 15 quiet minutes, the default keeps sessions and claims live; 
       assert.ok(first.ok);
       const now = new Date(Date.parse(first.claim.since) + 15 * 60_000);
       // Move only the log's clock forward: no wall-clock sleep and no settings-derived override.
-      const later: ActivityLog = {
-        append: (...args) => log.append(...args),
-        since: (...args) => log.since(...args),
-        close: () => log.close(),
-        transcripts: log.transcripts,
-        locked: (name, work) => log.locked(name, (locked) => work({ ...locked, now: async () => now })),
-      };
+      const later = new Proxy(log, {
+        get(target, key) {
+          if (key === "locked") return (name: string, work: (locked: LockedLog) => Promise<unknown>) => log.locked(name, (locked) => work({ ...locked, now: async () => now }));
+          const value = Reflect.get(target, key) as unknown;
+          return typeof value === "function" ? value.bind(target) : value;
+        },
+      });
       const claimant = { log: later, library, project, session: "B" };
       assert.equal((await readSessions(log, project, { now }))[0]?.state, "working");
       assert.equal((await readClaims(log, project, { now }))[0]?.holder, "live");

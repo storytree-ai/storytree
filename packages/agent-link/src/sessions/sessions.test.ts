@@ -8,7 +8,8 @@ import { test } from "node:test";
 
 import { openActivityLog, type ActivityLog, type Line, type NewLine } from "../activity/index.js";
 import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { LEAVE_MS, LONGEST_COMMAND_MS, QUIET_MS, readSessions } from "./index.js";
+import { claimsFrom, readClaims } from "../claims/index.js";
+import { LEAVE_MS, LONGEST_COMMAND_MS, QUIET_MS, readSessions, readSessionStates, sessionsFrom } from "./index.js";
 
 /** Run `body` with the log open on the test server and a fresh project to write in. */
 async function withProject(body: (log: ActivityLog, project: string) => Promise<void>): Promise<void> {
@@ -308,5 +309,82 @@ test("4.26 work on main is never silently dropped (ADR-0906): an ended session t
     assert.deepEqual((await listing("lane", after(claimed, 1_000)))?.closeOut?.needsYou, "says safe, but worked on main, outside a workspace", "a yes is not verified while work on main stands");
     const released = await log.append(project, { ...lane, source: "tool", kind: "released", increment: "inc-2" });
     assert.equal((await listing("lane", after(released, 1_000)))?.onMain, undefined);
+  });
+});
+
+test("4.28 the sessions read from the lines that decide them, and the claims read from those standing, are what a fold of the whole log gives at any time, from a share of its lines; the list's own read leaves out only sessions the list hides, and the status line's states agree (contract 2.7)", async () => {
+  await withProject(async (log, project) => {
+    const write = (line: Record<string, unknown>) => log.append(project, line as NewLine);
+    const a = { session: "a", harness: "claude-code", source: "hook", folder: "/w/a", branch: "feat-a" } as const;
+    const b = { session: "b", harness: "codex", source: "hook", folder: "/w/b", branch: "feat-b" } as const;
+    const c = { session: "c", harness: "claude-code", source: "hook", folder: "/w/main", branch: "main", machine: "box" } as const;
+    const d = { session: "d", harness: "claude-code", source: "hook" } as const;
+    const watcher = { session: "app:box", source: "tool", folder: "/w/main", machine: "box" } as const;
+
+    // a works in its worktree through many commands, claims, and leaves one running.
+    await write({ ...a, kind: "session-started", how: "startup" });
+    for (let turn = 0; turn < 3; turn++) {
+      await write({ ...a, kind: "prompt-submitted" });
+      for (let step = 0; step < 5; step++) {
+        await write({ ...a, kind: "command-started", command: `step ${turn}.${step}`, call: `a-${turn}-${step}` });
+        await write({ ...a, kind: "command-run", command: `step ${turn}.${step}`, call: `a-${turn}-${step}` });
+      }
+      await write({ ...a, kind: "file-edited", files: [`/w/a/src/${turn}.ts`] });
+      await write({ ...a, kind: "turn-ended" });
+    }
+    await write({ ...a, source: "tool", kind: "claimed", capability: "cap-1", reason: "building" });
+    await write({ ...a, kind: "prompt-submitted" });
+    await write({ ...a, kind: "command-started", command: "pnpm test", call: "a-run" });
+
+    // b claims and releases, finishes a command before its start is written, renames itself, closes out; its branch merges and an app archives it.
+    await write({ ...b, kind: "session-started", how: "startup" });
+    await write({ ...b, source: "tool", kind: "claimed", increment: "inc-1", reason: "the increment" });
+    await write({ ...b, kind: "command-run", command: "quick", call: "b-1" });
+    await write({ ...b, kind: "command-started", command: "quick", call: "b-1" });
+    await write({ ...b, source: "tool", kind: "released", increment: "inc-1" });
+    await write({ ...b, source: "tool", kind: "session-named", title: "first name" });
+    await write({ ...b, source: "tool", kind: "session-named", title: "second name" });
+    await write({ ...b, source: "tool", kind: "closed-out", safe: true, why: "done", running: 0 });
+    await write({ ...watcher, kind: "branch-state", of: "feat-b", open: false, how: "merged", pr: 9 });
+
+    // c edits on main, and outside its folder; a look finds main dirty; it ends.
+    await write({ ...c, kind: "session-started", how: "startup" });
+    await write({ ...c, kind: "file-edited", files: ["/w/main/readme.md"] });
+    await write({ ...c, kind: "file-edited", files: ["/elsewhere/note.md"] });
+    await write({ ...watcher, kind: "main-state", of: "/w/main", dirty: true });
+    await write({ ...c, kind: "session-ended", reason: "exit" });
+
+    // d moves between two worktrees, compacts mid-turn, leaves a background task running, and takes a's claim over.
+    await write({ ...d, folder: "/w/d1", branch: "d1", kind: "session-started", how: "startup" });
+    for (let turn = 0; turn < 4; turn++) {
+      const where = turn % 2 === 0 ? { folder: "/w/d1", branch: "d1" } : { folder: "/w/d2", branch: "d2" };
+      await write({ ...d, ...where, kind: "prompt-submitted" });
+      await write({ ...d, ...where, kind: "command-started", command: `d ${turn}`, call: `d-${turn}` });
+      await write({ ...d, ...where, kind: "command-run", command: `d ${turn}`, call: `d-${turn}` });
+      await write({ ...d, ...where, kind: "turn-ended" });
+    }
+    await write({ ...d, folder: "/w/d2", branch: "d2", kind: "prompt-submitted" });
+    await write({ ...d, folder: "/w/d2", branch: "d2", kind: "session-started", how: "compact" });
+    await write({ ...d, folder: "/w/d2", branch: "d2", kind: "command-started", command: "serve", call: "d-bg" });
+    await write({ ...d, folder: "/w/d2", branch: "d2", kind: "turn-ended", background: 1 });
+    await write({ ...d, folder: "/w/d1", branch: "d1", source: "tool", kind: "claimed", capability: "cap-1", reason: "taking over", takenOverFrom: "a" });
+    await write({ ...watcher, kind: "session-unarchived", of: "d", app: "claude-desktop" });
+    await write({ ...watcher, kind: "session-described", of: "d", app: "claude-desktop", title: "D's work" });
+    await write({ ...watcher, kind: "session-archived", of: "b", app: "codex" });
+    const last = await write({ ...a, kind: "file-edited", files: ["/w/a/src/last.ts"] });
+
+    const { lines } = await log.since(project, 0);
+    const shown = (sessions: readonly { listing: string }[]) => sessions.filter((session) => session.listing !== "hidden");
+    const working = (sessions: readonly { session: string; state: string }[]) => sessions.filter((session) => session.state === "working").map((session) => session.session);
+    for (const ms of [1_000, 2 * QUIET_MS, 2 * LEAVE_MS, LONGEST_COMMAND_MS + 60_000]) {
+      const options = { now: after(last, ms), quietMs: QUIET_MS, leaveMs: LEAVE_MS };
+      const whole = sessionsFrom(lines, options);
+      assert.deepEqual(await readSessions(log, project, options), whole, `every session, ${ms} ms after the last line`);
+      assert.deepEqual(shown(await readSessions(log, project, { ...options, of: "in-view" })), shown(whole), `the sessions the list shows, ${ms} ms after`);
+      assert.deepEqual(working(await readSessionStates(log, project, options)), working(whole), `the sessions working, ${ms} ms after`);
+      assert.deepEqual(await readClaims(log, project, options), claimsFrom(lines, options), `who holds what, ${ms} ms after`);
+    }
+    const read = await log.foldLines(project, ["a", "b", "c", "d"], new Date(0).toISOString());
+    assert.ok(read.length < lines.length, `the fold read ${read.length} of the log's ${lines.length} lines`);
   });
 });

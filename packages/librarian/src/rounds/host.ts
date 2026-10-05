@@ -16,10 +16,19 @@ interface ActivityLine {
   readonly at: string;
 }
 
+/** What the librarian asks of the log: the lines a bounded read names (the agent link's contract 2.7), never the whole log. */
+interface LineAsk {
+  readonly kinds?: readonly "session-started"[];
+  readonly sessions?: readonly string[];
+  readonly where?: Readonly<Record<string, string | null>>;
+  readonly oldest?: number;
+  readonly omit?: readonly string[];
+}
+
 /** What a tool has to work with for one call. */
 export interface ToolCall {
   readonly library: Library;
-  readonly log: { since(project: string, cursor: number): Promise<{ lines: readonly ActivityLine[] }> };
+  readonly log: { lines(project: string, filter: LineAsk): Promise<readonly ActivityLine[]> };
   readonly project: string;
   readonly caller: { readonly session: string; readonly harness?: string };
   readonly writer: WriteOptions;

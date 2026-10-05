@@ -1,5 +1,5 @@
 /**
- * Capability 6 · Agent tools (the MCP server): contracts 6.1-6.21 in
+ * Capability 6 · Agent tools (the MCP server): contracts 6.1-6.39 in
  * the agent link story. A test client talks to the server inside the test itself, over an
  * in-memory transport, with no real agent and no network, as Claude Code or Codex would: Claude
  * Code's session id reaches the server in its environment, Codex's on each call's `_meta`, and each
@@ -30,6 +30,7 @@ import { readClaims } from "../claims/index.js";
 import { sessionsFrom } from "../readings.js";
 import { MARKER_FILE } from "../routing/index.js";
 import { claudeCode, codex, idOf, withAgent, type Agent } from "../testing/agent.js";
+import { countingStore, longHistory } from "../testing/egress.js";
 import { git, withTempDir } from "../testing/folders.js";
 import { dropTestProjects, projectDatabase, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { createAgentTools, NOT_RUNNING_ANSWER } from "./index.js";
@@ -1761,4 +1762,40 @@ test("6.28 move_increment moves open work with its claim and completed history w
       assert.ok((await ids(target)).includes(increment) && !(await ids(target)).includes(done), "only completed history moved");
     });
   });
+});
+
+test("6.39 a tool call's reads do not grow with the log's length: the same calls (show the plan, claim, read the context, release) take about as much from the store in a project whose log holds weeks of history as in one whose log holds an hour's", { timeout: 120_000 }, async () => {
+  const owner = JSON.parse(readFileSync(`${testServerDataDir()}.owner.json`, "utf8")) as Record<string, unknown>;
+  const taken: number[] = [];
+  let history = 0;
+  for (const long of [false, true]) {
+    await withProject(async ({ folder, project, library, log }) => {
+      const story = await library.addStory({ title: "Visitor can sign up" });
+      const emailForm = await library.addCapability({ title: "Email form", story: story.id });
+      // The same last hour in both: this session and another one working.
+      for (const session of ["cc-1", "cc-2"]) {
+        await log.append(project, { session, harness: "claude-code", source: "hook", folder, kind: "session-started", how: "startup", transcript: path.join(folder, `${session}.jsonl`) });
+        await log.append(project, { session, harness: "claude-code", source: "hook", folder, kind: "command-run", command: "pnpm test", call: `${session}-call` });
+      }
+      if (long) history = await longHistory(project, folder, 400, hostname().trim());
+      const store = await countingStore();
+      try {
+        const dataDir = path.join(folder, "..", "counted", "pgdata");
+        mkdirSync(path.dirname(dataDir), { recursive: true });
+        writeFileSync(`${dataDir}.owner.json`, JSON.stringify({ ...owner, port: store.port }));
+        await withAgent(folder, claudeCode("cc-1", { dataDir }), async (agent) => {
+          for (const [tool, args] of [["show_plan", {}], ["claim", { capability: emailForm.id, reason: "building it" }], ["read_context", {}], ["release", { capability: emailForm.id }]] as const) {
+            const answer = await agent.call(tool, args);
+            assert.equal(answer.isError, false, `${tool}: ${answer.text}`);
+          }
+        });
+        await store.settled(500, 30_000);
+        taken.push(store.received());
+      } finally {
+        await store.close();
+      }
+    });
+  }
+  assert.ok(history > 20_000_000, `the long history is weeks' worth: ${history} bytes`);
+  assert.ok(taken[1]! - taken[0]! < 128 * 1024, `the calls took ${taken[0]} bytes from a short log and ${taken[1]} from one ${history} bytes longer: no more than 128 KiB apart`);
 });

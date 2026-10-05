@@ -1,5 +1,5 @@
 /**
- * Capability 2 · Agent activity log: one test per contract 2.1-2.4 in the agent link story, against
+ * Capability 2 · Agent activity log: one test per contract 2.1-2.7 in the agent link story, against
  * the real Postgres `pnpm test` provides. Each test writes under projects named with
  * uniqueProjectName(), so tests sharing the server never read each other's lines.
  */
@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 import { connect } from "@storytree/library";
 
 import { databasesOnTestServer, dropTestProjects, testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { ACTIVITY_DATABASE, cachedLines, openActivityLog, type ActivityLog, type Line, type LinesCache } from "./index.js";
+import { ACTIVITY_DATABASE, cachedLines, openActivityLog, type ActivityLog, type Line, type LinesCache, type NewLine } from "./index.js";
 
 const WRITER = fileURLToPath(new URL("../testing/activity-writer.ts", import.meta.url));
 
@@ -246,4 +246,38 @@ test("2.4 the log never shows up in the library's list of projects, and writing 
     await storytree.close();
     await dropTestProjects([project]);
   }
+});
+
+test("2.7 a bounded read sends only the lines it asks for, oldest first: by kind, session, cursor and time, by a field's value, values or absence, by a field carried, the latest for each key, the newest or oldest few, and inside folders whatever their case or slashes, with the fields it never reads left out", async () => {
+  const project = uniqueProjectName();
+  await withLog(async (log) => {
+    const at = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
+    const write = (line: Record<string, unknown>, minutesAgo = 0) => log.append(project, { source: "hook", ...line } as NewLine, minutesAgo === 0 ? {} : { at: at(minutesAgo) });
+    const old = await write({ session: "A", kind: "command-started", command: "x".repeat(2_000), call: "c1", folder: "C:\\Work\\Site" }, 120);
+    const finish = await write({ session: "A", kind: "command-run", command: "x".repeat(2_000), call: "c1", folder: "C:\\Work\\Site\\pkg" }, 119);
+    const edit = await write({ session: "B", kind: "file-edited", files: ["src/a.ts"], folder: "/work/other", machine: "mint", transcript: "/t/b.jsonl" }, 30);
+    const call = await write({ session: "B", kind: "tool-requested", tool: "open", call: "call-9", agent: "orchestrator", folder: "/work/other" }, 20);
+    const state1 = await write({ session: "W", kind: "branch-state", of: "feat", open: true, how: "ahead" }, 10);
+    const state2 = await write({ session: "W", kind: "branch-state", of: "feat", open: false, how: "merged", pr: 4 }, 5);
+    const other = await write({ session: "W", kind: "branch-state", of: "fix", open: true, how: "ahead" }, 4);
+    const seqs = (lines: readonly Line[]) => lines.map((line) => line.seq);
+
+    assert.deepEqual(seqs(await log.lines(project, { kinds: ["branch-state"] })), [state1.seq, state2.seq, other.seq], "by kind, oldest first");
+    assert.deepEqual(seqs(await log.lines(project, { sessions: ["A", "B"], after: old.seq })), [finish.seq, edit.seq, call.seq], "by session, after a cursor");
+    assert.deepEqual(seqs(await log.lines(project, { since: at(25) })), [call.seq, state1.seq, state2.seq, other.seq], "written since a time");
+    assert.deepEqual(seqs(await log.lines(project, { where: { call: "call-9" } })), [call.seq], "by a field's value");
+    assert.deepEqual(seqs(await log.lines(project, { where: { of: ["fix", "none"] } })), [other.seq], "by one of a field's values");
+    assert.deepEqual(seqs(await log.lines(project, { where: { machine: null, session: "B" } })), [call.seq], "by a field's absence");
+    assert.deepEqual(seqs(await log.lines(project, { has: ["transcript"] })), [edit.seq], "by a field carried");
+    assert.deepEqual(seqs(await log.lines(project, { kinds: ["branch-state"], latestBy: ["of"] })), [state2.seq, other.seq], "the latest for each key");
+    assert.deepEqual(seqs(await log.lines(project, { newest: 2 })), [state2.seq, other.seq], "the newest few, oldest first");
+    assert.deepEqual(seqs(await log.lines(project, { oldest: 2 })), [old.seq, finish.seq], "the oldest few");
+    assert.deepEqual(seqs(await log.lines(project, { within: ["c:/work/site/"] })), [old.seq, finish.seq], "inside a folder, whatever its case or slashes");
+    assert.deepEqual(seqs(await log.lines(project, { within: ["/work/oth"] })), [], "a folder's name is no prefix of another's");
+
+    const [slim] = await log.lines(project, { kinds: ["command-started"], omit: ["command"] });
+    assert.deepEqual({ ...slim, command: undefined }, { ...old, command: undefined });
+    assert.equal((slim as { command?: string }).command, undefined, "a field left out is not sent");
+    assert.deepEqual(await log.lines(project, { sessions: [] }), [], "no sessions, no lines");
+  });
 });

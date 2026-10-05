@@ -7,7 +7,9 @@ import { readFileSync } from "node:fs";
 import { connect, createServer, type AddressInfo, type Socket } from "node:net";
 import { setTimeout as sleep } from "node:timers/promises";
 
-import { testServerDataDir } from "./pg.js";
+import pg from "pg";
+
+import { testServerDataDir, testServerUrl } from "./pg.js";
 
 export interface CountingStore {
   /** The port to give a reader in place of the server's. */
@@ -64,4 +66,36 @@ export async function countingStore(): Promise<CountingStore> {
       return new Promise<void>((resolve) => server.close(() => resolve()));
     },
   };
+}
+
+/**
+ * Fill `project`'s log with a long history from three days ago: `sessions` old sessions, each with
+ * fat shell commands (a kilobyte each, as heredocs make them), file edits and tool calls. Written
+ * straight into the table, as a log that has grown for weeks would hold them. Returns how many bytes
+ * the project's lines take in the table.
+ */
+export async function longHistory(project: string, folder: string, sessions: number, machine: string): Promise<number> {
+  const url = new URL(testServerUrl());
+  url.pathname = "/storytree-activity";
+  const client = new pg.Client({ connectionString: url.href });
+  await client.connect();
+  try {
+    const perSession = 60;
+    await client.query(
+      `INSERT INTO activity (project, at, session, harness, source, kind, folder, detail)
+       SELECT $1, now() - interval '3 days' + g * interval '1 second', 'old-' || (g / $4::int), 'claude-code', 'hook',
+         (ARRAY['command-started', 'command-run', 'command-started', 'command-run', 'file-edited', 'tool-called'])[g % 6 + 1], $2,
+         CASE g % 6
+           WHEN 4 THEN jsonb_build_object('files', jsonb_build_array($2::text || '/src/file-' || g || '.ts'), 'machine', $3::text)
+           WHEN 5 THEN jsonb_build_object('tool', 'open', 'machine', $3::text)
+           ELSE jsonb_build_object('command', 'cat <<EOF ' || repeat('x', 1000) || ' EOF', 'call', 'call-' || (g / 2), 'machine', $3::text)
+         END
+       FROM generate_series(1, $5::int) AS g`,
+      [project, folder, machine, perSession, sessions * perSession],
+    );
+    const { rows } = await client.query<{ bytes: string }>("SELECT coalesce(sum(pg_column_size(activity.*)), 0) AS bytes FROM activity WHERE project = $1", [project]);
+    return Number(rows[0]!.bytes);
+  } finally {
+    await client.end();
+  }
 }

@@ -22,7 +22,7 @@ import type { KnowledgeKind, Library, Note, NoteEdit, SchemaRecord, WriteOptions
 import { z } from "zod";
 
 import type { Line, NewLine } from "../activity/index.js";
-import { claimsFrom } from "../claims/index.js";
+import { readClaims } from "../claims/index.js";
 import { lineOf, type Answer, type Call, type Define } from "./server.js";
 import { firstLineOf, quoted, spineOf, wholeOf, type Findable } from "./text.js";
 
@@ -222,8 +222,7 @@ function write(library: Library, args: NoteArgs, place: { links?: string[]; fron
 
 /** The capability the calling session claimed most recently of those it still holds. */
 async function latestClaim(call: Call): Promise<string | undefined> {
-  const { lines } = await call.log.since(call.project, 0);
-  const mine = claimsFrom(lines, { quietMs: call.quietMs }).filter((held) => held.session === call.caller.session && held.capability !== undefined);
+  const mine = (await readClaims(call.log, call.project, { quietMs: call.quietMs })).filter((held) => held.session === call.caller.session && held.capability !== undefined);
   return mine.sort((a, b) => (a.since < b.since ? -1 : a.since > b.since ? 1 : 0)).at(-1)?.capability;
 }
 
@@ -242,10 +241,10 @@ async function howFound(call: Call, id: string): Promise<Found> {
   return (await readsOf(call)).filter((line) => line.note === id && line.read === "peek").at(-1)?.found ?? "id";
 }
 
-/** The calling session's artifact reads, oldest first. */
+/** The calling session's artifact reads, oldest first: its own note-read lines alone (contract 2.7). */
 async function readsOf(call: Call): Promise<Extract<Line, { kind: "note-read" }>[]> {
-  const { lines } = await call.log.since(call.project, 0);
-  return lines.filter((line): line is Extract<Line, { kind: "note-read" }> => line.kind === "note-read" && line.session === call.caller.session);
+  const lines = await call.log.lines(call.project, { kinds: ["note-read"], sessions: [call.caller.session], omit: ["transcript"] });
+  return lines.filter((line): line is Extract<Line, { kind: "note-read" }> => line.kind === "note-read");
 }
 
 async function recordReads(call: Call, reads: readonly { note: string; found: Found; read: "peek" | "whole" }[]): Promise<void> {

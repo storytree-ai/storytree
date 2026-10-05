@@ -23,6 +23,7 @@ import { z } from "zod";
 
 import type { Storytree } from "@storytree/library";
 
+import { BRANCH_FACTS, countValues, FOLD_LINES, foldValues, inViewValues, MAIN_WORK, selectLines, SESSION_COUNT, SESSIONS_IN_VIEW, STANDING_CLAIMS, STATE_LINES, stateValues, type LineFilter } from "./bounded.js";
 import { NEW_LINE, type Line, type LineKind, type LinesSince, type NewLine } from "./lines.js";
 import { PgTranscriptRecords, TRANSCRIPT_SCHEMA, type TranscriptRecords } from "./transcript-records.js";
 
@@ -33,8 +34,34 @@ export const ACTIVITY_DATABASE = "storytree-activity";
 export interface ActivityLog {
   /** Add a line to `project`'s log, and return it as the log keeps it. A line that is not one the log knows is refused. */
   append(project: string, line: NewLine, options?: AppendOptions): Promise<Line>;
-  /** `project`'s lines after `cursor`, oldest first, and the cursor to pass next time. Start from 0. */
+  /**
+   * `project`'s lines after `cursor`, oldest first, and the cursor to pass next time. Start from 0
+   * only for a reader that keeps what it read and asks again from its cursor (the app's): a reader
+   * that asks once asks for what it needs, with `lines`.
+   */
   since(project: string, cursor: number): Promise<LinesSince>;
+  /** `project`'s lines that `filter` asks for, oldest first, narrowed on the server (contract 2.7). */
+  lines(project: string, filter: LineFilter): Promise<Line[]>;
+  /** The claim lines that decide who holds what in `project` now: ended claims send nothing (bounded.ts STANDING_CLAIMS). */
+  standing(project: string): Promise<Line[]>;
+  /** When each of `sessions`, or of every session of `project` when none are named, last wrote a line. */
+  lastSeen(project: string, sessions?: readonly string[]): Promise<Map<string, string>>;
+  /**
+   * The lines the sessions fold needs for `sessions`, read as it reads their whole history; a
+   * command started before `commandsSince` (ISO 8601) is past any limit, so its text is not sent
+   * (bounded.ts FOLD_LINES).
+   */
+  foldLines(project: string, sessions: readonly string[], commandsSince: string): Promise<Line[]>;
+  /** The lines that decide the state alone of each session that wrote since `activeSince`, read as foldLines reads (bounded.ts STATE_LINES). */
+  stateLines(project: string, activeSince: string, commandsSince: string): Promise<Line[]>;
+  /** The sessions the running-sessions list may show, judged from `since` (bounded.ts SESSIONS_IN_VIEW); the holders of claims are not among them unless they are otherwise. */
+  sessionsInView(project: string, since: string): Promise<string[]>;
+  /** How many sessions have written a line of their own to `project`'s log. */
+  sessionCount(project: string): Promise<number>;
+  /** The branches worth a look from `machine`, with what the log knows of each (bounded.ts BRANCH_FACTS). */
+  branchFacts(project: string, machine: string | undefined): Promise<BranchFacts[]>;
+  /** The folders on the main line worth a look on `machine`, with when each was last worked in (bounded.ts MAIN_WORK). */
+  mainWork(project: string, machine: string | undefined): Promise<{ folder: string; at: string }[]>;
   /**
    * Run `work` holding `project`'s lock: what it reads through the LockedLog it is handed, and any
    * line it adds, happen with no other write to the project in between. It is how a claim checks
@@ -47,6 +74,15 @@ export interface ActivityLog {
   close(): Promise<void>;
 }
 
+/** A branch the project's lines name, as BRANCH_FACTS reads it: when it was first and last worked on, where this machine last worked on it, and its latest state line. */
+export interface BranchFacts {
+  readonly branch: string;
+  readonly firstAt: string;
+  readonly lastAt: string;
+  readonly folder?: string;
+  readonly state?: Line & { kind: "branch-state" };
+}
+
 /** How a line written earlier elsewhere, and only now reaching the log, is added (a hook's queued line). */
 export interface AppendOptions {
   /** When it was written, rather than now: an ISO 8601 time. */
@@ -57,10 +93,12 @@ export interface AppendOptions {
 
 /** One project's log, as a locked write sees it. */
 export interface LockedLog {
-  /** The project's lines, oldest first: only those of `kinds`, when given. */
-  lines(kinds?: readonly LineKind[]): Promise<Line[]>;
-  /** When each of the project's sessions last wrote a line. */
-  lastSeen(): Promise<Map<string, string>>;
+  /** The project's lines that `filter` asks for, or of `kinds`, oldest first (ActivityLog.lines). */
+  lines(filter: LineFilter | readonly LineKind[]): Promise<Line[]>;
+  /** The claim lines that decide who holds what now (ActivityLog.standing). */
+  standing(): Promise<Line[]>;
+  /** When each of `sessions`, or of every session when none are named, last wrote a line. */
+  lastSeen(sessions?: readonly string[]): Promise<Map<string, string>>;
   /** The time by the database's clock, which stamps every line. */
   now(): Promise<Date>;
   /** Add a line, as ActivityLog.append does. */
@@ -95,6 +133,10 @@ const SCHEMA: readonly string[] = [
     detail  jsonb NOT NULL
   )`,
   `CREATE INDEX IF NOT EXISTS activity_project_seq_idx ON activity (project, seq)`,
+  // Bounded reads (contract 2.7) narrow by kind, by session and by time.
+  `CREATE INDEX IF NOT EXISTS activity_project_kind_seq_idx ON activity (project, kind, seq)`,
+  `CREATE INDEX IF NOT EXISTS activity_project_session_seq_idx ON activity (project, session, seq)`,
+  `CREATE INDEX IF NOT EXISTS activity_project_at_idx ON activity (project, at)`,
   ...TRANSCRIPT_SCHEMA,
 ];
 
@@ -224,25 +266,67 @@ class PgActivityLog implements ActivityLog {
     return { lines, cursor: lines.at(-1)?.seq ?? cursor };
   }
 
+  async lines(project: string, filter: LineFilter): Promise<Line[]> {
+    assertProject(project);
+    return readLines(this.#pool, project, filter);
+  }
+
+  async standing(project: string): Promise<Line[]> {
+    assertProject(project);
+    return (await this.#pool.query<ActivityRow>(STANDING_CLAIMS, [project])).rows.map(lineOf);
+  }
+
+  async lastSeen(project: string, sessions?: readonly string[]): Promise<Map<string, string>> {
+    assertProject(project);
+    return lastSeenIn(this.#pool, project, sessions);
+  }
+
+  async foldLines(project: string, sessions: readonly string[], commandsSince: string): Promise<Line[]> {
+    assertProject(project);
+    if (sessions.length === 0) return [];
+    return (await this.#pool.query<ActivityRow>(FOLD_LINES, foldValues(project, sessions, commandsSince))).rows.map(lineOf);
+  }
+
+  async stateLines(project: string, activeSince: string, commandsSince: string): Promise<Line[]> {
+    assertProject(project);
+    return (await this.#pool.query<ActivityRow>(STATE_LINES, stateValues(project, activeSince, commandsSince))).rows.map(lineOf);
+  }
+
+  async sessionsInView(project: string, since: string): Promise<string[]> {
+    assertProject(project);
+    return (await this.#pool.query<{ session: string }>(SESSIONS_IN_VIEW, inViewValues(project, since))).rows.map((row) => row.session);
+  }
+
+  async branchFacts(project: string, machine: string | undefined): Promise<BranchFacts[]> {
+    assertProject(project);
+    const { rows } = await this.#pool.query<Partial<ActivityRow> & { branch: string; first_seq: string; first_at: Date; last_at: Date; worked_in: string | null }>(BRANCH_FACTS, [project, machine ?? null]);
+    return rows.map(({ branch, first_seq: _first, first_at, last_at, worked_in, ...state }) => ({
+      branch,
+      firstAt: first_at.toISOString(),
+      lastAt: last_at.toISOString(),
+      ...(worked_in === null ? {} : { folder: worked_in }),
+      ...(state.seq === null || state.seq === undefined ? {} : { state: lineOf(state as ActivityRow) as Line & { kind: "branch-state" } }),
+    }));
+  }
+
+  async mainWork(project: string, machine: string | undefined): Promise<{ folder: string; at: string }[]> {
+    assertProject(project);
+    const { rows } = await this.#pool.query<{ folder: string; at: Date }>(MAIN_WORK, [project, machine ?? null]);
+    return rows.map(({ folder, at }) => ({ folder, at: at.toISOString() }));
+  }
+
+  async sessionCount(project: string): Promise<number> {
+    assertProject(project);
+    return Number((await this.#pool.query<{ count: string }>(SESSION_COUNT, countValues(project))).rows[0]?.count ?? 0);
+  }
+
   locked<T>(project: string, work: (log: LockedLog) => Promise<T>): Promise<T> {
     assertProject(project);
     return this.#write(project, (client) =>
       work({
-        lines: async (kinds) => {
-          const { rows } = await client.query<ActivityRow>(
-            `SELECT seq, project, at, ${COLUMNS.join(", ")}, detail FROM activity
-              WHERE project = $1 AND ($2::text[] IS NULL OR kind = ANY($2)) ORDER BY seq`,
-            [project, kinds === undefined ? null : [...kinds]],
-          );
-          return rows.map(lineOf);
-        },
-        lastSeen: async () => {
-          const { rows } = await client.query<{ session: string; at: Date }>(
-            "SELECT session, max(at) AS at FROM activity WHERE project = $1 GROUP BY session",
-            [project],
-          );
-          return new Map(rows.map((row) => [row.session, row.at.toISOString()]));
-        },
+        lines: (filter) => readLines(client, project, Array.isArray(filter) ? { kinds: filter as readonly LineKind[] } : (filter as LineFilter)),
+        standing: async () => (await client.query<ActivityRow>(STANDING_CLAIMS, [project])).rows.map(lineOf),
+        lastSeen: (sessions) => lastSeenIn(client, project, sessions),
         now: async () => (await client.query<{ now: Date }>("SELECT now() AS now")).rows[0]!.now,
         append: (line) => insert(client, project, parseLine(this.#stamped(line))),
       }),
@@ -284,6 +368,26 @@ class PgActivityLog implements ActivityLog {
       client.release(broken);
     }
   }
+}
+
+/** What runs a query: the log's pool, or the client a locked write holds. */
+type Queryable = Pool | PoolClient;
+
+/** `project`'s lines that `filter` asks for, oldest first. */
+async function readLines(on: Queryable, project: string, filter: LineFilter): Promise<Line[]> {
+  const { text, values } = selectLines(project, filter);
+  const lines = (await on.query<ActivityRow>(text, values)).rows.map(lineOf);
+  return filter.newest === undefined ? lines : lines.reverse();
+}
+
+/** When each of `sessions`, or of every session, last wrote a line to `project`'s log. */
+async function lastSeenIn(on: Queryable, project: string, sessions: readonly string[] | undefined): Promise<Map<string, string>> {
+  if (sessions !== undefined && sessions.length === 0) return new Map();
+  const { rows } = await on.query<{ session: string; at: Date }>(
+    "SELECT session, max(at) AS at FROM activity WHERE project = $1 AND ($2::text[] IS NULL OR session = ANY($2)) GROUP BY session",
+    [project, sessions === undefined ? null : [...sessions]],
+  );
+  return new Map(rows.map((row) => [row.session, row.at.toISOString()]));
 }
 
 /** `line`, checked against the kinds of line the log knows: anything else is refused, naming what is wrong. */

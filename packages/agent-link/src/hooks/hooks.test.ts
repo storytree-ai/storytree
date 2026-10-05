@@ -37,7 +37,7 @@ import { leaveNotice } from "../claims/notices.js";
 import { hookLines } from "./hooks.js";
 import { readSettings, setSetting } from "../settings/settings.js";
 import { registerHooks } from "../setup/hooks-config.js";
-import { countingStore } from "../testing/egress.js";
+import { countingStore, longHistory } from "../testing/egress.js";
 import { withTempDir } from "../testing/folders.js";
 import { dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 
@@ -847,37 +847,6 @@ test("4.10 a pull request's merge is recorded on its branch by the hooks though 
   });
 });
 
-/**
- * Fill `project`'s log with a long history from three days ago: `sessions` old sessions, each with
- * fat shell commands (a kilobyte each, as heredocs make them), file edits and tool calls. Written
- * straight into the table, as a log that has grown for weeks would hold them.
- */
-async function longHistory(project: string, folder: string, sessions: number): Promise<number> {
-  const url = new URL(testServerUrl());
-  url.pathname = "/storytree-activity";
-  const client = new pg.Client({ connectionString: url.href });
-  await client.connect();
-  try {
-    const perSession = 60;
-    await client.query(
-      `INSERT INTO activity (project, at, session, harness, source, kind, folder, detail)
-       SELECT $1, now() - interval '3 days' + g * interval '1 second', 'old-' || (g / $4::int), 'claude-code', 'hook',
-         (ARRAY['command-started', 'command-run', 'command-started', 'command-run', 'file-edited', 'tool-called'])[g % 6 + 1], $2,
-         CASE g % 6
-           WHEN 4 THEN jsonb_build_object('files', jsonb_build_array($2::text || '/src/file-' || g || '.ts'), 'machine', $3::text)
-           WHEN 5 THEN jsonb_build_object('tool', 'open', 'machine', $3::text)
-           ELSE jsonb_build_object('command', 'cat <<EOF ' || repeat('x', 1000) || ' EOF', 'call', 'call-' || (g / 2), 'machine', $3::text)
-         END
-       FROM generate_series(1, $5::int) AS g`,
-      [project, folder, MACHINE, perSession, sessions * perSession],
-    );
-    const { rows } = await client.query<{ bytes: string }>("SELECT coalesce(sum(pg_column_size(activity.*)), 0) AS bytes FROM activity WHERE project = $1", [project]);
-    return Number(rows[0]!.bytes);
-  } finally {
-    await client.end();
-  }
-}
-
 test("3.21 a hook's reads do not grow with the log's length: the same hooks (a command's finish, which also hands on the look around the machine, a prompt, and the status line) take about as much from the store in a project whose log holds weeks of history as in one whose log holds an hour's", { timeout: 120_000 }, async () => {
   const [short, long] = [uniqueProjectName(), uniqueProjectName()];
   const owner = JSON.parse(readFileSync(`${testServerDataDir()}.owner.json`, "utf8")) as Record<string, unknown>;
@@ -890,7 +859,7 @@ test("3.21 a hook's reads do not grow with the log's length: the same hooks (a c
         const folder = projectFolder(dir, project);
         // The same last hour in both: two sessions working, one of them editing files.
         for (const session of ["now-1", "now-2"]) {
-          const write = (line: Omit<NewLine, "session" | "source" | "folder">) => log.append(project, { session, harness: "claude-code", source: "hook", folder, ...line } as NewLine);
+          const write = (line: Record<string, unknown>) => log.append(project, { session, harness: "claude-code", source: "hook", folder, ...line } as NewLine);
           await write({ kind: "session-started", how: "startup" });
           await write({ kind: "prompt-submitted" });
           await write({ kind: "file-edited", files: [path.join(folder, "src", `${session}.ts`)] });
@@ -898,7 +867,7 @@ test("3.21 a hook's reads do not grow with the log's length: the same hooks (a c
           await write({ kind: "command-run", command: "pnpm test", call: `${session}-call` });
           await write({ kind: "turn-ended" });
         }
-        if (project === long) history = await longHistory(project, folder, 400);
+        if (project === long) history = await longHistory(project, folder, 400, MACHINE);
 
         const store = await countingStore();
         try {

@@ -2,7 +2,8 @@ export { ACTIVITY_DATABASE, forgetProjectActivity, openActivityLog, thisMachine 
 export { currentBranch } from "./branch.js";
 export { cachedLines } from "./lines-cache.js";
 export type { LinesCache } from "./lines-cache.js";
-export type { ActivityLog, AppendOptions, LockedLog, OpenOptions } from "./activity-log.js";
+export type { ActivityLog, AppendOptions, BranchFacts, LockedLog, OpenOptions } from "./activity-log.js";
+export type { LineFilter } from "./bounded.js";
 export type { StoredSession, TranscriptRecord, TranscriptRecords } from "./transcript-records.js";
 export { NEW_LINE } from "./lines.js";
 export { lineText } from "./text.js";

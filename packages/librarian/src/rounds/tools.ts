@@ -88,8 +88,8 @@ export function librarianTools({ tools }: { tools?: () => readonly string[] } = 
  * millisecond stays after the cursor too: uncertainty must never hide a curated write.
  */
 async function sessionStart(call: ToolCall): Promise<{ since?: number }> {
-  const { lines } = await call.log.since(call.project, 0);
-  const start = lines.find((line) => line.kind === "session-started" && line.session === call.caller.session && line.harness === call.caller.harness);
+  // The session's first start line alone, never the rest of the log (agent link 2.7).
+  const [start] = await call.log.lines(call.project, { kinds: ["session-started"], sessions: [call.caller.session], where: { harness: call.caller.harness ?? null }, oldest: 1, omit: ["transcript"] });
   if (start === undefined) return {};
   let since = 0;
   for (const change of await call.library.history()) {

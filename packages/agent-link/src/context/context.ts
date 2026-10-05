@@ -116,6 +116,10 @@ export async function contextReading(lines: readonly Line[], session: string,
 
 /** `session`'s reading in `project`, worked out now from what the hooks recorded. */
 export async function readContext(log: ActivityLog, project: string, session: string, options: { now?: Date; home?: string } = {}): Promise<ContextReading> {
-  const { lines } = await log.since(project, 0);
-  return contextReading(lines, session, options);
+  return contextReading(await transcriptLines(log, project, session), session, options);
+}
+
+/** The line that names `session`'s transcript, its latest: all a reading of it needs from the log (contract 2.7). */
+export function transcriptLines(log: ActivityLog, project: string, session: string): Promise<Line[]> {
+  return log.lines(project, { sessions: [session], has: ["transcript"], newest: 1, omit: ["command", "files"] });
 }

@@ -31,8 +31,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { thisMachine, type ActivityLog, type Line, type NewLine } from "../activity/index.js";
-import { inside } from "../readings.js";
+import { thisMachine, type ActivityLog, type BranchFacts, type Line, type NewLine } from "../activity/index.js";
 import { ask, type Answer } from "../setup/machine.js";
 import { due, ghAllMergedPulls, ghAllOpenPulls, type AllMergedPulls, type AllOpenPulls, type MergeContext, type MergedPull, type OpenPull } from "../claims/merges.js";
 
@@ -85,10 +84,11 @@ interface Found {
 export async function resolveBranches(context: MergeContext, watch: BranchWatch = {}): Promise<Line[]> {
   if (!due(`${context.project}-branches`, watch.everyMs ?? EVERY_MS)) return [];
   const machine = watch.machine ?? thisMachine();
-  const { lines } = await context.log.since(context.project, 0);
+  // What the log knows of the branches and folders worth a look, worked out on the server (contract 2.7).
+  const [facts, work] = await Promise.all([context.log.branchFacts(context.project, machine), context.log.mainWork(context.project, machine)]);
   const looked = lookedAt(context.project);
-  const candidates = toLookAt(lines, machine, looked);
-  const places = mainFoldersToLookAt(lines, machine);
+  const candidates = toLookAt(facts, machine, looked);
+  const places = work.filter(({ folder }) => existsSync(folder)).map(({ folder }) => folder);
   if (candidates.size === 0 && places.length === 0) return [];
   const deadline = Date.now() + (watch.budgetMs ?? BUDGET_MS);
   const mainFound: MainFound[] = [];
@@ -130,7 +130,7 @@ export async function resolveBranches(context: MergeContext, watch: BranchWatch 
 
   return context.log.locked(context.project, async (log) => {
     // Read again under the lock: another machine may have written a state since.
-    const current = latestStates(await log.lines(["branch-state"]));
+    const current = latestStates(found.length === 0 ? [] : await log.lines({ kinds: ["branch-state"], where: { of: found.map((state) => state.of) }, latestBy: ["of"] }));
     const written: Line[] = [];
     const by = {
       session: context.session,
@@ -140,7 +140,7 @@ export async function resolveBranches(context: MergeContext, watch: BranchWatch 
       ...(machine === undefined ? {} : { machine }),
     };
     if (mainFound.length > 0) {
-      const mains = latestMainStates(await log.lines(["main-state"]), machine);
+      const mains = latestMainStates(await log.lines({ kinds: ["main-state"], where: { of: mainFound.map((state) => state.of), machine: machine ?? null }, latestBy: ["of"] }), machine);
       for (const state of mainFound) {
         const now = mains.get(state.of);
         // No line yet reads as nothing on main: a clean folder needs none.
@@ -184,8 +184,8 @@ export async function lookAsApp(log: ActivityLog, project: string, watch: Branch
 
 /** The latest folder a session of `project` worked in on this machine that is still there; undefined when there is none. */
 export async function projectFolder(log: ActivityLog, project: string, machine = thisMachine()): Promise<string | undefined> {
-  const { lines } = await log.since(project, 0);
-  return lines.findLast((line) => line.machine === machine && line.folder !== undefined && existsSync(line.folder))?.folder;
+  const lines = await log.lines(project, { where: { machine: machine ?? null }, has: ["folder"], latestBy: ["folder"], newest: 200, omit: ["command", "files", "transcript"] });
+  return lines.findLast((line) => line.folder !== undefined && existsSync(line.folder))?.folder;
 }
 
 /** What is known of a branch worth looking at: when it was first worked on, its latest folder on this machine, and whether its own machine has found it ahead. */
@@ -196,19 +196,10 @@ interface Facts {
 }
 
 /** The branches no line has resolved, worked on since they resolved, or worked on here and taken for deleted by another machine since this one last looked. */
-function toLookAt(lines: readonly Line[], machine: string | undefined, looked: Readonly<Record<string, number>>): Map<string, Facts> {
-  const states = latestStates(lines);
-  const worked = new Map<string, Facts & { lastAt: string }>();
-  for (const line of lines) {
-    if (line.branch === undefined || line.kind === "merged" || MAIN_BRANCHES.has(line.branch)) continue;
-    const facts = worked.get(line.branch) ?? { firstAt: line.at, lastAt: line.at };
-    facts.lastAt = line.at;
-    if (machine !== undefined && line.machine === machine && line.folder !== undefined) facts.folder = line.folder;
-    worked.set(line.branch, facts);
-  }
+function toLookAt(worked: readonly BranchFacts[], machine: string | undefined, looked: Readonly<Record<string, number>>): Map<string, Facts> {
   const candidates = new Map<string, Facts>();
-  for (const [branch, { lastAt, ...facts }] of worked) {
-    const state = states.get(branch);
+  for (const { branch, lastAt, state, ...known } of worked) {
+    const facts: Facts = { firstAt: known.firstAt, ...(known.folder === undefined ? {} : { folder: known.folder }) };
     const guessedElsewhere = state?.how === "deleted" && facts.folder !== undefined && state.machine !== undefined && state.machine !== machine && (looked[branch] ?? 0) < Date.parse(state.at);
     if (state === undefined || state.open || guessedElsewhere || Date.parse(lastAt) > Date.parse(state.at)) candidates.set(branch, { ...facts, foundThere: state?.how === "ahead" });
   }
@@ -250,24 +241,6 @@ function pullOf(pull: OpenPull | undefined): Pull {
 /** Whether `line` already says `pull`. */
 function samePull(pull: Pull, line: Pull | undefined): boolean {
   return pull.pr === line?.pr && pull.draft === line?.draft && pull.checks === line?.checks && pull.queued === line?.queued;
-}
-
-/**
- * The folders on this machine a session edited files in, or claimed an increment in, on the main line, that
- * are still there: those no look has found clean, or worked in since one did (ADR-0906).
- */
-function mainFoldersToLookAt(lines: readonly Line[], machine: string | undefined): string[] {
-  const states = latestMainStates(lines, machine);
-  const worked = new Map<string, string>();
-  for (const line of lines) {
-    if (line.machine !== machine || line.folder === undefined || line.branch === undefined || !MAIN_BRANCHES.has(line.branch)) continue;
-    const folder = line.folder;
-    if ((line.kind === "file-edited" && line.files.some((file) => inside(file, folder))) || (line.kind === "claimed" && line.increment !== undefined)) worked.set(folder, line.at);
-  }
-  return [...worked].filter(([folder, at]) => {
-    const state = states.get(folder);
-    return existsSync(folder) && (state === undefined || state.dirty || Date.parse(at) > Date.parse(state.at));
-  }).map(([folder]) => folder);
 }
 
 /** The latest `main-state` line for each folder on `machine`. */

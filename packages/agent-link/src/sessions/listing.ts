@@ -22,10 +22,11 @@ export interface ListingOptions extends SessionOptions {
 /** `project`'s sessions, as text or JSON, in the order they started. */
 export async function sessionsListing(log: ActivityLog, project: string, options: ListingOptions = {}): Promise<string> {
   if (options.look !== undefined) await resolveBranches(options.look.context, { ...options.look.watch, everyMs: 0 }).catch(() => []);
-  const sessions = await readSessions(log, project, options);
+  // The list reads only the sessions it may show, unless it is asked for every one (contract 2.7).
+  const sessions = await readSessions(log, project, { ...options, of: options.all === true ? "all" : "in-view" });
   const shown = options.all === true ? sessions : sessions.filter((session) => session.listing !== "hidden");
   if (options.json === true) return JSON.stringify(shown, undefined, 2);
-  const hidden = sessions.length - shown.length;
+  const hidden = (options.all === true ? sessions.length : await log.sessionCount(project)) - shown.length;
   const count = `${shown.length} session${shown.length === 1 ? "" : "s"}${options.all === true ? "" : " in the list"}`;
   const header = hidden === 0 ? `${count}.` : `${count}; ${hidden} hidden (--all shows them).`;
   return [header, ...shown.map(block)].join("\n\n");

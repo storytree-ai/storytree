@@ -1,0 +1,2590 @@
+{
+  "dots": {
+    "agent_0b14b89a31ce": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_008e2a3232a0": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_026dc42f1fa9": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_034cd0a050ea": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_03b7fe15e4e8": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_064aa677f191": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_0b43f63d23fb": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_0c5d8fd4535c": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_101478dc54ed": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_11abba9f5405": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_11c04f68a90a": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_13c403f3a480": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_153f390ff901": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_157c2ae1dac8": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_17a2ec8f5b30": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_193b820248ca": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_1b26771bb0d7": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_1c485bf63dfa": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_1efd775d4d12": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_1f685a9fd9b0": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_201187b6b53c": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_2281ccf4958b": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_229b50334c5b": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_229b7f7d10de": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_26d8e2e52df5": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_2806e35c8cd4": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_285848291aa8": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_28941424227e": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_2c6211723c5a": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_2c63f94af33a": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_2d65a6ac9409": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_2ec8215ae769": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_2f8c47f576c2": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_2ffb006ea686": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_3054205bc3cb": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_317a3ae6ed5e": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_31d49ab7ce3b": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_32b9bddc1975": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_348adb20a237": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_36c08baf74dd": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_37781df2ef78": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_37dfcaa8189a": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_385a83af169a": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_394cc68a71c6": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_3bda46a571f3": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_40929f834889": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_413c61f53d62": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_427a75532473": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_4731de1d51ef": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_48654a48e3c1": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_49f698bd6e83": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_4de11a09692e": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_4e976c836fd6": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_4f2ff8ae50ed": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_4fa45187cbe1": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_519f8d2b30c5": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_53de20aa2bb9": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_54a5cc32d370": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_57a1e3f80bf9": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_57b522eb0fdb": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_59a757fcbfc5": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_59bc36372634": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_59f6c07aedc4": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_5a637443cab7": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_5aadb523c1cb": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_5ac5b78da7bf": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_5aceecc28637": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_5ae1815d9959": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_5b9ef03b8a42": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_5bb18d2b26f7": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_5f30662977ae": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_611484cb49a2": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_6361f8f515b8": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_6377290920d9": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_66bfbd433f93": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_67b283aa164b": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_69b5ac6855c3": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_69e9153f6847": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_6be3b0bfb19e": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_6c1fa40d93b0": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_6e254791da68": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_6fb213bb979d": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_70ff04f90448": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_72bbaca6f0c7": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_7da1485d4895": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_7de7f2260ae3": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_7f839e27f1d8": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_7ff487c18ba8": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_8048baf75dc7": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_808aa1bb576b": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_861e6fa952db": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_885303994fec": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_88a8cec6139c": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_8c8442277610": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_909ba178babf": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_91348293f1ee": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_914f96703a84": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_91b4219db238": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_938ddca3f568": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_94985f0ccb52": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_95280f2cfbbe": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_974b0b980b38": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_978d973db5fc": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_987b82f2ef8f": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_9c33ec3787a9": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_9c40c0afb115": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_9d11b2ad1587": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_9e3ae7772594": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_9e3fea0b02a3": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_9ec9a13fbeb4": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_a12097957060": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_a18c5e1d110b": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_a4ce3f5a2ff6": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_a821017e746d": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_a8ca582fe22d": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_a95c3fb28de0": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_ab0b0213b2ec": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_ab42aa0b7279": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_ac738439f3a0": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_ad31324ce96d": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_aeed8aeee659": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_b1cea1029b68": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_b211a3cf352a": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_b2456b8e06fd": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_b7266435826c": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_b77bc6d23919": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_b8fea1080406": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_b940ed415ec9": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_c1e761b0e486": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_c9ba244fd3d6": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_ca11ceae8dba": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_cc981dbccd5f": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_d04020c2b4c1": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_d09a05eb392c": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_d0cdcaf08474": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_d23dbdb96a2b": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_d28fc676fefe": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_d84bf8c77a1e": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_d8d688dd9a8f": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_da37f3db9903": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_db32650e02f4": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_e0347bfebf80": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_e24759048e89": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_e360a095c406": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_e4deb5208b36": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_e64bdffa8a98": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_e6c902805f71": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_e73cd3e83fa5": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_e79353e8bc70": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_e9a82de47352": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_ed27678103a0": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_ed2e9f09c155": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_fae3dd7b8ffa": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_fdc1fe84308c": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_fee3ecbf6de5": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "definition_d42095d5c9e8": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "guardrail_647d58a593c5": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "guardrail_bdb3f0e65931": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "pattern_28ad4dd7868e": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "pattern_efc36d671fa5": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "principle_00574b7381cb": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "principle_084e4640a77f": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "principle_4642c49301e6": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "principle_48af5028121b": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "principle_5a995978191e": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "principle_653f7dd8ad04": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "principle_79e34898a2c8": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "principle_7e2a7e9b607f": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "principle_8048cf08cfde": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "principle_882f0f72455d": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "principle_94a7609d8047": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "principle_95fd6ea3af9e": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "principle_a24f9d3a9648": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "principle_bc9f530a3303": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "principle_bd1191c7312a": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "principle_e1f7a9a377d0": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "principle_e3e5bf53649f": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "process_0967b1a1d3cb": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "process_19b0741af17c": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "process_529c2dd67bbf": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "process_642f0040a5de": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "process_911ad6a734c1": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "agent_14dfa5f34189": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "agent_82228ab38aec": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "agent_bf87c8aaa4b8": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "agent_d6a2ac6972a3": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "agent_e314f29707ec": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_044acca95c54": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_086ba2fa35d6": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_08e9630e5cf3": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_0a16e7f63feb": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_13a84b8340ca": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_15246fb83d46": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_18c7e1303c0a": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_2851bb62728b": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_30055d13e692": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_3034950d169d": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_35215f8e57a3": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_37185bef1c1a": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_4902c5804e07": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_4f2235a6ee77": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_5db16e838ea4": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_6a1c055b2b39": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_7f61940da58a": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_81a5d08e0f52": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_8eda9dfc5053": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_954560f86294": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_9772fa378aeb": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_97f410ec0a23": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_9c324176eeaf": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_9e04d8327f7e": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_a892bf770318": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_a9d963166e40": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_b8617ff29caf": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_be0a891fc86c": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_bf125d640f99": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_bf2b01d46359": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_c2021c372da6": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_c6d15f202bbf": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_cb3742d3fca0": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_cda4dc73c7b8": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_dfb6e40aa9f7": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_e3661ebef646": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_f92dab3c148e": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_f9e854f82530": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "decision_fa207f2584ef": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "decision_ff0816a5d01c": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_0496f7a7fd42": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_05985e64f4bf": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_05f1c5bfbc06": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_073fb3246378": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_0805d54752f9": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_09619da69a32": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_0a91550338f6": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_0b0dbb20e31d": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_15a3b286ac00": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_19040467294d": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_1a3f9f9490e2": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_1ed80da95dc8": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_1f661949fd49": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_206d7aac1370": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_2154e5c176c0": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_25dd200f3a9f": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_260c6cd8536b": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_267c39ea2095": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_26d3391630de": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_277e3aaafcf8": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_28a2b2059e49": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_2a4132cf857d": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_2e69527eae43": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_30b61d126339": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_31088b75de0f": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_333dddab341a": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_33fc248327ed": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_343550c42b80": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_35dfd8c5fb2d": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_36c25fba9b5e": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_3702c29f0e7b": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_37448fa51086": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_38ce97a31da0": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_3d49293fe750": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_3db0f1a76998": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_40329ab464ab": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_41ee81361261": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_43535d8283a4": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_462326216b5c": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_47ffa291b353": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_4a0d345d2e02": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_4af4f6d1dead": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_4b265d9e22be": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_4ddd0254a16d": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_5025d803a392": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_51ea903e6cda": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_524fa9f69470": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_544c26716607": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_557aab56abc8": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_56baeb684f6d": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_59b84ec5da9f": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_5aea03c62006": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_5e339ed028f7": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_62dd8cac84be": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_641a7ef28e27": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_64b36dbd69ff": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_67cb71d58142": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_6bc49bbfd90e": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_6dccab5abfd7": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_6f58ee8e133f": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_7affe730a0a7": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_8004d742d307": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_82f83df4a350": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_86927cfab863": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_8cfc55f2fb68": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_8d448d6bf35c": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_8ee39f77fbd3": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_8faf05b3da25": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_996acd8c8260": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_9a6e046e6cc4": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_9e02dd8fbf93": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_9e74b423266b": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_9f41bf8f68c6": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_a1d995bee4df": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_a7b6b178c0b5": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_a9bccb18cd55": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_ac411b282aeb": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_ae8788ef4ab8": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_af8c5ea30d2b": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_b06fc5daaa5e": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_b53fd751c4e8": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_b879caf421fc": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_bc94be38a4e4": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_be9591197f3d": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_bf6b2a35d00f": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_c278a4786d3c": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_c5bb32266a84": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_c5ce88e6aac0": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_c6f97908b8b5": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_c936b54219fa": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_cbfc26126ef9": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_ced28c8a774e": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_d213d71bd76d": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_d6b505e7a6c0": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_d6e62f0da829": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_d75b3448a809": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_d9819a836228": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_d99ad93e470a": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_dc42885d70cc": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_dc6bdfc58c62": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_dd268180a335": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_de1a11d28b1b": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_e678a53fea1c": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_e9489a249d2e": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_ea70dc00c586": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_f1d1d4b40c8b": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_f1d70ab6f779": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_f42b5554bbad": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_f5db86b5a898": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_f7b8d0a737d2": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_f98f637ebab8": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_fbbbc98b8477": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "friction_fbc02593a9cc": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "friction_fe3b20c49cf7": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "guardrail_2d0fb4d45f75": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "guardrail_2f0b3ec349d9": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "guardrail_40e3fd9d51a3": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "guardrail_6ac067d45164": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "guardrail_b114f702f8de": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "pattern_3d1ac0a1ee70": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "pattern_4ed1969a172c": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "pattern_67e658cde793": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "pattern_71e822187330": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "pattern_a45e96114c7a": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "pattern_ad3e87c83f34": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "pattern_e99d4cdbe809": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "pattern_ee166b5c76ba": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "principle_037c644a6e7c": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "principle_049430a6e917": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "principle_08737a12669c": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "principle_0ca2b77785e9": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "principle_139ec9dc3f17": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "principle_13a38824af26": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "principle_155218ce771f": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "principle_183377547f97": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "principle_1e3418812c33": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "principle_1f4e24939fac": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "principle_2366111e8a67": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "principle_25e8591976f5": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "principle_275d164491ec": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "principle_31651a3224fb": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "principle_34cb39f936b3": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "principle_3c243d0d86a1": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "principle_3e47feb3d912": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "principle_425d1687511a": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "principle_43ea5d4f68c4": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "principle_4e9e67b0f6ee": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "principle_5126b1c5db6b": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "principle_561ef0d505d9": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "principle_67593a23b40a": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "principle_6a4150acf3ea": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "principle_758d83408b98": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "principle_786a13e07cbc": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "principle_9d0928f79f5b": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "principle_9e78ac0605c3": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "principle_a04ef5bf4787": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "principle_ac5f245517d1": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "principle_b6c49306c650": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "principle_bc27a43350bf": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "principle_c1855a8e6514": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "principle_c21ba0716b71": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "principle_c660f3c89819": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "principle_d1d6fab2499e": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "principle_d5794238a5ab": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "principle_d7c1d363bd3b": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "principle_da258f7e96be": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "principle_e575d0cb1d97": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "principle_eabea9e3d90b": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "principle_efa652a21e64": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "principle_f077cb889052": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "principle_f39ecf3320a9": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "principle_f72b66ffa0cd": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "principle_fb9b404a41b3": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "process_693209c6a91a": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "process_81a7122f6849": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "process_c919b1ebdbcd": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "process_cd52098612cb": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "process_d7eaa00da14b": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "process_e94a82a59c04": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "resteer_0529fcf54d26": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "resteer_05a2346ac48c": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "resteer_07ba4c96bf6a": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "resteer_08579bfd2b7f": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "resteer_123c8a249536": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "resteer_127d3a944833": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "resteer_156ef46e85b0": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "resteer_15a023fe6573": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "resteer_20e9647d0a20": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "resteer_351851e09858": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "resteer_41a8e7eb9fac": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "resteer_6205a21287b2": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "resteer_6480c718fdfd": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "resteer_752387693928": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "resteer_890b63fe8ed1": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "resteer_ac478e23e22e": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "resteer_ad3e5c192b53": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "resteer_ae6371e8a8ba": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "resteer_b13d3575c87f": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "resteer_b6114f3642a5": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "resteer_baee5604c5e3": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "resteer_d2362f34c827": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "resteer_f4358ef1d675": {
+      "radius": 1.308,
+      "facing": false,
+      "lit": null,
+      "window": null
+    },
+    "resteer_f76aa91b0a0f": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    },
+    "resteer_fcee72aa9cbf": {
+      "radius": 1.308,
+      "facing": true,
+      "lit": null,
+      "window": null
+    }
+  }
+}

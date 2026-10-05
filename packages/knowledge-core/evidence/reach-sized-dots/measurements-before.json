@@ -1,0 +1,44 @@
+{
+ "label": "before",
+ "selected": "scout",
+ "opened": [
+  "agent_bf87c8aaa4b8",
+  "decision_229b50334c5b",
+  "decision_48654a48e3c1"
+ ],
+ "stale": "decision_385a83af169a",
+ "browser": "148.0.7778.96",
+ "noneSelected": {},
+ "oneSelected": {},
+ "errors": [],
+ "summary": {
+  "noneSelected": {
+   "dots": 431,
+   "distinctSizes": 1,
+   "largestOverFloor": 1,
+   "mostRead": 1,
+   "rarelyRead": 1,
+   "peekedOnly": 1,
+   "readOnly120DaysAgo": 1,
+   "opened": {
+    "agent_bf87c8aaa4b8": 1,
+    "decision_229b50334c5b": 1,
+    "decision_48654a48e3c1": 1
+   }
+  },
+  "oneSelected": {
+   "dots": 431,
+   "distinctSizes": 2,
+   "largestOverFloor": 1.5,
+   "mostRead": 1.5,
+   "rarelyRead": 1.5,
+   "peekedOnly": 1,
+   "readOnly120DaysAgo": 1,
+   "opened": {
+    "agent_bf87c8aaa4b8": 1.5,
+    "decision_229b50334c5b": 1.5,
+    "decision_48654a48e3c1": 1.5
+   }
+  }
+ }
+}

@@ -5,7 +5,7 @@
 // UNLINKED (an install reported success but linked no workspace package).
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -166,4 +166,82 @@ test("the tool server starts in a fresh worktree once the session-start install 
   writeFileSync(path.join(root, "node_modules", ".modules.yaml"), "");
   assert.equal(await serving, 0);
   assert.equal(started, 1);
+});
+
+function git(root, ...args) {
+  const result = spawnSync("git", ["-c", "user.name=Provision test", "-c", "user.email=provision@example.test", "-c", "commit.gpgsign=false", ...args], {
+    cwd: root, encoding: "utf8", timeout: 10_000,
+  });
+  assert.equal(result.status, 0, result.stderr);
+  return result.stdout.trim();
+}
+
+/** Two real repositories: origin can advance independently of the installed primary checkout. */
+function repoPair(t) {
+  const remote = worktree(t, "current");
+  git(remote, "init", "--initial-branch=main");
+  writeFileSync(path.join(remote, "version.txt"), "one\n");
+  git(remote, "add", "version.txt");
+  git(remote, "commit", "-m", "initial");
+  const root = worktree(t, "current");
+  git(root, "init", "--initial-branch=main");
+  git(root, "remote", "add", "origin", remote);
+  git(root, "fetch", "origin", "main");
+  git(root, "reset", "--hard", "origin/main");
+  return { root, remote };
+}
+
+test("2.4 a stale primary names the gap at session start and refuses to serve until updated", async (t) => {
+  const { root, remote } = repoPair(t);
+  git(remote, "commit", "--allow-empty", "-m", "new record schema");
+  git(root, "fetch", "origin", "main");
+  const before = git(root, "rev-parse", "HEAD");
+  const hook = spawnSync(process.execPath, [script, "--hook", "--root", root], { encoding: "utf8" });
+  assert.equal(hook.status, 0, "a warning must leave the session able to repair its checkout");
+  assert.notEqual(hook.stdout, "", "the session is told about its stale checkout");
+  const warning = JSON.parse(hook.stdout).hookSpecificOutput.additionalContext;
+  assert.ok(warning.includes(root));
+  assert.match(warning, /1 commit behind.*origin\/main/);
+  assert.match(warning, /git pull --ff-only origin main && pnpm install/);
+  assert.match(warning, /restart/i);
+  const messages = [];
+  const code = await serve({ root, start: () => assert.fail("a stale server must not start"), log: (message) => messages.push(message) });
+  assert.equal(code, 1);
+  assert.equal(messages.length, 1);
+  assert.match(messages[0], /1 commit behind/);
+  assert.equal(git(root, "rev-parse", "HEAD"), before, "startup never moves the checkout");
+
+  git(root, "merge", "--ff-only", "origin/main");
+  assert.equal(hookOutput(provision({ root }), root), "", "an updated primary is silent");
+  assert.equal(await serve({ root, start: async () => 17 }), 17, "the updated server can start");
+});
+
+test("2.4 a stale dirty or diverged primary keeps its edits and names local commits to reconcile", (t) => {
+  const { root, remote } = repoPair(t);
+  git(root, "commit", "--allow-empty", "-m", "local work");
+  writeFileSync(path.join(root, "version.txt"), "local edits\n");
+  git(remote, "commit", "--allow-empty", "-m", "new record schema");
+  git(root, "fetch", "origin", "main");
+  const before = git(root, "rev-parse", "HEAD");
+  const result = provision({ root, install: () => assert.fail("updating the checkout comes first") });
+  assert.equal(result.ok, false);
+  const warning = JSON.parse(hookOutput(result, root)).hookSpecificOutput.additionalContext;
+  assert.match(warning, /1 commit behind/);
+  assert.match(warning, /1 local commit/);
+  assert.match(warning, /reconcile/i);
+  assert.equal(git(root, "rev-parse", "HEAD"), before);
+  assert.equal(readFileSync(path.join(root, "version.txt"), "utf8"), "local edits\n");
+});
+
+test("2.4 a feature branch or linked worktree can serve while the primary is behind", async (t) => {
+  const { root, remote } = repoPair(t);
+  git(remote, "commit", "--allow-empty", "-m", "new record schema");
+  git(root, "fetch", "origin", "main");
+  git(root, "switch", "-c", "feature");
+  assert.equal(hookOutput(provision({ root }), root), "");
+  assert.equal(await serve({ root, start: async () => 19 }), 19);
+
+  const linked = path.join(root, "linked");
+  git(root, "worktree", "add", linked, "main");
+  assert.equal(await serve({ root: linked, waitMs: 0, start: async () => 23 }), 23, "even a linked worktree on main is left alone");
 });

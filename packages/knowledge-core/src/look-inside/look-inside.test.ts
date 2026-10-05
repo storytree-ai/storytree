@@ -7,7 +7,7 @@ import type { Agent, Line } from "@storytree/agent-link";
 import { knowledge } from "../ghosts/ghosts.js";
 import { ReadRecord } from "../reads/reads.js";
 import { History } from "../testing/changes.js";
-import { codeKey, curvePoint, fillAt, hopPoint, growthPlan, heldNotes, legend, lighting, noteCard, trails, replayAt, ringArcs, traversalTrails, windowView, type CodePlaces } from "./look-inside.js";
+import { DOT_CEILING, DOT_FLOOR, codeKey, curvePoint, dotSizes, fillAt, hopPoint, growthPlan, heldNotes, legend, lighting, noteCard, trails, replayAt, ringArcs, traversalTrails, windowView, type CodePlaces } from "./look-inside.js";
 
 let seq = 0;
 const read = (session: string, note: string, how: "peek" | "whole", agent?: Agent): Line => ({
@@ -331,3 +331,14 @@ test("4.20 the traversal's trails carry what a step crosses; a hop arcs above th
   assert.ok(dive[0]! >= SURFACE - 1e-9 && dive[2]! < SURFACE && dive[1]! < SURFACE, "a dive leaves the surface and ends inside the core");
 });
 
+
+test("4.21 each knowledge dot is sized by its note's reach: an unread note at the floor, the most-read at the ceiling, area growing linearly between", () => {
+  const sizes = dotSizes(new Map([["top", 4], ["half", 2], ["peeked", 0.3], ["elsewhere", 9]]), ["top", "half", "peeked", "unread"]);
+  assert.equal(sizes.get("unread"), DOT_FLOOR, "an unread note stays a visible dot");
+  assert.equal(sizes.get("top"), DOT_CEILING, "the most-read drawn note sits at the ceiling, whatever an undrawn note's reach");
+  const area = (note: string) => sizes.get(note)! ** 2 - DOT_FLOOR ** 2;
+  assert.ok(Math.abs(area("half") - area("top") / 2) < 1e-12, "half the reach, half the area above the floor");
+  assert.ok(sizes.get("peeked")! > DOT_FLOOR && sizes.get("peeked")! < sizes.get("half")!);
+  assert.ok(DOT_FLOOR > 0 && DOT_CEILING > DOT_FLOOR);
+  assert.deepEqual([...dotSizes(new Map(), ["a", "b"]).values()], [DOT_FLOOR, DOT_FLOOR], "with no recorded reads every dot rests at the floor");
+});

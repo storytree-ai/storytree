@@ -97,3 +97,21 @@ test("3.5 with no captured reads the picture says 'no recorded reads', never tha
   assert.equal(record.status(), undefined);
   assert.deepEqual(record.sessions(), ["s1"]);
 });
+
+test("4.21 a note's reach is the distinct sessions that read it in the last 90 days: a whole read 1, a peek 0.3, a session once at its strongest", () => {
+  const now = Date.UTC(2026, 9, 5);
+  const daysAgo = (days: number) => new Date(now - days * 86_400_000).toISOString();
+  const record = new ReadRecord("app");
+  record.add([
+    read("s1", "n", "whole", "orchestrator", { at: daysAgo(1) }), read("s1", "n", "whole", worker, { at: daysAgo(2) }),
+    read("s2", "n", "peek", undefined, { at: daysAgo(3) }), read("s2", "n", "peek", undefined, { at: daysAgo(4) }),
+    read("s3", "n", "peek", undefined, { at: daysAgo(5) }), read("s3", "n", "whole", undefined, { at: daysAgo(6) }),
+    read("s4", "n", "whole", undefined, { at: daysAgo(91) }),
+    read("s5", "n", "whole", undefined, { at: daysAgo(1), project: "site" }),
+    read("s4", "old", "whole", undefined, { at: daysAgo(91) }),
+  ]);
+  const reach = record.reach(now);
+  assert.equal(reach.get("n"), 2.3, "s1 twice counts 1, s2's peeks 0.3, s3's peek and whole 1; s4 is too old and s5 another project's");
+  assert.equal(reach.get("old") ?? 0, 0, "a read 91 days old counts nothing");
+  assert.equal(reach.get("never-read") ?? 0, 0);
+});

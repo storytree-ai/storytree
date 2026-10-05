@@ -36,7 +36,8 @@ import { dropTestProjects, projectDatabase, testServerDataDir, testServerUrl, un
 import { createAgentTools, NOT_RUNNING_ANSWER } from "./index.js";
 import { protectionThrough, storytreeRef } from "../setup/pipeline.js";
 import { registerPlanTools } from "./plan-tools.js";
-import type { Call, Define } from "./server.js";
+import { registerWorkTools } from "./work-tools.js";
+import type { Answer, Call, Define } from "./server.js";
 
 /** The toolbox: every tool the server offers. */
 const TOOLS = [
@@ -1032,6 +1033,88 @@ test("6.9 it parks an increment, starts it by claiming it, and closes it landed 
     });
   });
 });
+
+test("6.9 a committed close remains successful when a newer sibling schema prevents reading its arc", async () => {
+  await withProject(async ({ folder, project, library, log }) => {
+    await withAgent(folder, codex("closing-agent"), async (agent) => {
+      const { arc } = await planned(agent);
+      const increment = idOf(await agent.call("park_increment", { arc, title: "Email form", objective: "Build it", body: "Ready to close" }));
+      const future = await library.addIncrement({ arc, title: "Future work", objective: "Later", body: "Written by newer code" });
+      assert.equal((await agent.call("claim", { increment, reason: "Finish form" })).isError, false);
+      const url = new URL(testServerUrl());
+      url.pathname = `/${projectDatabase(project)}`;
+      const writer = new pg.Client({ connectionString: url.href });
+      await writer.connect();
+      try {
+        await writer.query("UPDATE record SET version = 999 WHERE id = $1", [future.id]);
+        const answer = await agent.call("close_increment", { increment, disposition: "landed", pr: "#12" });
+        const saved = await library.get(increment);
+        assert.equal(saved?.type, "increment");
+        if (saved?.type !== "increment") throw new Error("The increment must still exist");
+        assert.equal(saved.fields.status, "closed");
+        assert.equal(saved.fields.outcome?.disposition, "landed");
+        assert.equal(saved.fields.outcome?.pr, "#12");
+        assert.deepEqual(await readClaims(log, project), [], "the committed close ended its claim");
+        assert.equal(answer.isError, false, answer.text);
+        assert.equal(answer.data.id, increment);
+        assert.equal(answer.data.disposition, "landed");
+        assert.ok(answer.text.startsWith(`Closed "Email form" (${increment}), landed.`), answer.text);
+        assert.match(answer.text, /follow-up arc read.*failed/i);
+        assert.ok(answer.text.includes(future.id), answer.text);
+        assert.match(answer.text, /schema version 999/);
+        assert.match(answer.text, /git pull/);
+        assert.match(answer.text, /pnpm install/);
+        assert.match(answer.text, /restart the agent link/);
+
+        const before = await library.history({ id: future.id });
+        const refused = await agent.call("close_increment", { increment: future.id, disposition: "withdrawn", note: "Cannot read it" });
+        assert.equal(refused.isError, true, refused.text);
+        assert.doesNotMatch(refused.text, /^Closed/);
+        assert.deepEqual(await library.history({ id: future.id }), before, "a pre-write schema refusal wrote nothing");
+      } finally {
+        await writer.end();
+      }
+    });
+  });
+});
+
+for (const tool of ["park_increment", "move_increment"] as const) {
+  test(`${tool === "park_increment" ? "6.9" : "6.28"} ${tool} keeps its committed result when a follow-up arc read fails`, async () => {
+    await withProject(async ({ folder, project, library, log }) => {
+      const arc = await library.createArc({ title: "Launch", intent: "Ship it", endState: "Shipped" });
+      const done = await library.addIncrement({ arc: arc.id, title: "Earlier work", objective: "Ship it", body: "Done", outcome: { disposition: "landed", pr: "#1" } });
+      const acts = new Map<string, (args: never, call: Call) => Promise<Answer>>();
+      registerWorkTools(((name, _description, _input, act) => acts.set(name, act as never)) as Define);
+      let committed = false;
+      const unavailable = new Proxy(library, {
+        get(target, key) {
+          if (key === "arcView") return async (id: string) => {
+            if (committed) throw new Error("Arc connection lost");
+            return target.arcView(id);
+          };
+          if (key === "addIncrement" || key === "moveIncrement") return async (...args: never[]) => {
+            const saved = await (target[key] as (...input: never[]) => Promise<unknown>)(...args);
+            committed = true;
+            return saved;
+          };
+          const value = Reflect.get(target, key) as unknown;
+          return typeof value === "function" ? value.bind(target) : value;
+        },
+      });
+      const call = { library: unavailable, log, project, folder, caller: { session: "writer" }, writer: {}, quietMs: 60_000, agent: "orchestrator" } as Call;
+      const args = tool === "park_increment"
+        ? { arc: arc.id, title: "Next work", objective: "Ship next", body: "Ready" }
+        : { increment: done.id, to: arc.id, reason: "Keep completed history here" };
+      const answer = await acts.get(tool)!(args as never, call);
+      assert.notEqual(answer.refused, true, answer.text);
+      assert.equal(committed, true);
+      const saved = await library.get(String(answer.data?.id));
+      assert.equal(saved?.type, "increment");
+      assert.ok(answer.text.startsWith(tool === "park_increment" ? "Parked " : "Moved "), answer.text);
+      assert.match(answer.text, /follow-up arc read.*failed.*Arc connection lost/i);
+    });
+  });
+}
 
 test("6.23 mark_built switches a capability's proposed flag off when the agent considers it built, and back on, with the session as its writer; anything but a capability is refused", async () => {
   await withProject(async ({ folder, library }) => {

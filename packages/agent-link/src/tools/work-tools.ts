@@ -44,9 +44,12 @@ export function registerWorkTools(define: Define): void {
         ...(touches === undefined ? {} : { touches }),
         ...(outcome === undefined ? {} : { outcome: defined(outcome) }),
       }, writer);
-      const reopened = before === "closed" && (await library.arcView(arc))?.state === "active" ? ` Its arc ${await arcName(library, arc)} re-opens.` : "";
       const said = outcome === undefined ? `Parked ${quoted(title)} (${increment.id}) as a proposal. Claim it to start it.` : `Recorded ${quoted(title)} (${increment.id}), ${outcome.disposition}.`;
-      return { text: `${said}${reopened}`, data: { id: increment.id } };
+      const saved = { text: said, data: { id: increment.id } };
+      return afterWrite(saved, async () => {
+        const reopened = before === "closed" && (await library.arcView(arc))?.state === "active" ? ` Its arc ${await arcName(library, arc)} re-opens.` : "";
+        return { ...saved, text: `${said}${reopened}` };
+      });
     },
   );
 
@@ -57,11 +60,14 @@ export function registerWorkTools(define: Define): void {
     async ({ increment, disposition: meant, pr: pull, note: why }, call) => {
       const done = await call.library.closeIncrement(increment, defined({ disposition: meant, pr: pull, note: why }), call.writer);
       if (done === null) return noIncrement(increment);
+      const saved = { text: `Closed ${quoted(done.fields.title)} (${increment}), ${meant}.`, data: { id: increment, disposition: meant } };
       await closed(claimContext(call), increment, meant);
       try { call.journey?.incrementClosed?.(done.fields.outcome?.disposition); } catch { /* Observation cannot fail a completed close. */ }
-      const view = await call.library.arcView(done.fields.arc);
-      const arc = view?.state === "closed" ? ` Its arc ${await arcName(call.library, done.fields.arc)} now reads closed: that was its last open increment.` : "";
-      return { text: `Closed ${quoted(done.fields.title)} (${increment}), ${meant}.${arc}`, data: { id: increment } };
+      return afterWrite(saved, async () => {
+        const view = await call.library.arcView(done.fields.arc);
+        const arc = view?.state === "closed" ? ` Its arc ${await arcName(call.library, done.fields.arc)} now reads closed: that was its last open increment.` : "";
+        return { ...saved, text: `${saved.text}${arc}` };
+      });
     },
   );
 
@@ -72,7 +78,9 @@ export function registerWorkTools(define: Define): void {
     async ({ increment, to, reason }, { library, writer }) => {
       const moved = await library.moveIncrement(increment, to, reason, writer);
       if (moved === null) return noIncrement(increment);
-      return { text: `Moved ${quoted(moved.fields.title)} (${increment}) to arc ${await arcName(library, to)}.`, data: { id: increment } };
+      const said = `Moved ${quoted(moved.fields.title)} (${increment}) to arc`;
+      const saved = { text: `${said} ${to}.`, data: { id: increment } };
+      return afterWrite(saved, async () => ({ ...saved, text: `${said} ${await arcName(library, to)}.` }));
     },
   );
 
@@ -265,6 +273,16 @@ function noIncrement(increment: string): Answer {
 async function arcName(library: Library, arc: string): Promise<string> {
   const view = await library.arcView(arc);
   return view === null ? arc : `${quoted(view.arc.fields.title)} (${arc})`;
+}
+
+/** An optional arc read cannot turn a committed write into a refusal or hide its result. */
+async function afterWrite(saved: Answer, followUp: () => Promise<Answer>): Promise<Answer> {
+  try {
+    return await followUp();
+  } catch (error) {
+    // Keep the library's recovery advice, including NewerSchemaError's update instructions.
+    return { ...saved, text: `${saved.text} The follow-up arc read failed: ${error instanceof Error ? error.message : String(error)}` };
+  }
 }
 
 function claimContext({ log, library, project, caller, folder, quietMs }: Call) {

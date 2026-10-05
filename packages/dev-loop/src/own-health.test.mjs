@@ -189,7 +189,9 @@ test("contractsCoveredBy reads only test titles: a comment or a fixture string n
 
 test("contractsCoveredBy finds the contract numbers a test file names, in itself and in the modules it imports", () => {
   const covered = (file) => [...contractsCoveredBy(path.join(librarySrc, file), { root: librarySrc })].sort();
-  assert.deepEqual(covered("transactions/pg.test.ts"), ["2.1", "2.2", "2.3", "2.4", "2.5", "2.6", "2.7", "2.8", "2.9"], "through behaviour-suite.ts");
+  // pg.test.ts names no contract itself: it covers exactly what the behaviour suite it imports names.
+  assert.ok(covered("transactions/behaviour-suite.ts").includes("2.1"));
+  assert.deepEqual(covered("transactions/pg.test.ts"), covered("transactions/behaviour-suite.ts"), "through behaviour-suite.ts");
   assert.deepEqual(covered("project/project-libraries.test.ts"), ["1.1", "1.10", "1.11", "1.12", "1.2", "1.3", "1.4", "1.5"]);
   assert.ok(covered("transactions/cloud-sql.test.ts").includes("8.1"));
 });

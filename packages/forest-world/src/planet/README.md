@@ -25,9 +25,13 @@ ADR-0804 removed both, so only the glass ball's highlight still follows that lam
 the plate's origin above the shell (so the flat surface rests on it). ADR-0648 replaces the opaque sea with a light grey
 transparent shell, tuned after #93 at the owner’s request to read as glass. The same
 sphere uses a small shader: 0.012 base opacity, a Fresnel rim and a single soft
-highlight from L1’s view-space lamp. It keeps both face draws and depth writing off,
-without a transmission buffer or refraction. The far side remains visible through it. It still answers rays, so the page keeps its
-near-side names, claims and picking rule. The surface owns and disposes its
+highlight from L1’s view-space lamp, without a transmission buffer or refraction. Since ADR-0919
+the ball is a one-way mirror: the near face is that see-through glass, writing no depth, and the far
+face is solid, painting the bowl's backdrop (`FAR_WALL_COLOUR`) and writing depth, so nothing on the
+far side shows through while the core inside does. Each island's ground likewise has a depth-only
+copy just under it (`ISLAND_DEPTH_INSET`), drawn from outside only, so a facing island hides what
+lies behind it and an island seen from behind hides nothing. The shell still answers rays, so the
+page keeps its near-side names, claims and picking rule. The surface owns and disposes its
 geometry and material.
 
 The flat canvas keeps its camera, controls and material defaults. Existing

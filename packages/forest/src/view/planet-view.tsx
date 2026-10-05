@@ -16,7 +16,7 @@ import { NameplateCrowd, Nameplates, NeighbourRing, Overlay, SelectionRing } fro
 import { dragTurn, focusRotation, globeHover, hiddenMarkers, isGlobeDrag, oncePerFrame, pickGlobe, planetLayout, type ForestMode } from "./planet-navigation.js";
 import { claimsOn } from "./planet-update.js";
 import { createGlobeGuide, type GlobeControls, type GlobePose } from "./globe-guide.js";
-import { growLand, presentTerritories, type GlobeSurfaces } from "./globe-surfaces.js";
+import { growLand, pastIslands, presentTerritories, shownSurfaces as surfacesFor, type GlobeSurfaces } from "./globe-surfaces.js";
 
 export type PlanetViewProps = {
   /** Receives the app-owned controls while the globe is mounted. */
@@ -51,12 +51,10 @@ export type PlanetViewProps = {
 };
 
 export function PlanetView({ core, scene, places, wisps: live, selected, highlighted, highlightedSession, onPick, onNote, onWispHover, mode = "forest", framing, sideOffset, surfaces, onControls, library = true, frame, growth, recordedSessions }: PlanetViewProps) {
-  const shownSurfaces = useMemo((): GlobeSurfaces => ({
-    sea: true, grounds: true, roads: true, nameplates: true, territories: "health", fileCircles: true, knowledgeCore: true, sessionTints: true,
-    ...surfaces,
-    // Keep exterior marks mounted inside the Library so guides can still locate hidden targets.
-    ...(mode === "library" ? { sea: false, grounds: false, roads: false, nameplates: false, territories: false, fileCircles: false, sessionTints: false } as const : {}),
-  }), [surfaces, mode]);
+  // Zoomed in past the islands, or in the Library, only the glass and the core show (ADR-0919 D3, D4). The hidden
+  // marks stay mounted, so guides can still locate them.
+  const [past, setPast] = useState(false);
+  const shownSurfaces = useMemo(() => surfacesFor(surfaces, mode === "library" || past), [surfaces, mode, past]);
   const [cameraFraming, setFraming] = useState(framing);
   const [cameraOffset, setOffset] = useState(sideOffset);
   const previousFraming = useRef(framing);
@@ -126,7 +124,7 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
     inside={<group name="globe-core" visible={library && shownSurfaces.knowledgeCore}><GrowingCore core={core} spots={layout.spots} radius={layout.radius} places={codePlaces} growing={growth !== undefined} /></group>}
     rotation={rotation.toArray()} plateChildren={overlays} lanes={lanes} growth={growth}>
     <Navigation islands={layout.islands} radius={layout.radius} titles={new Map(scene.islands.map(i => [i.story, i.title]))}
-      rotation={rotation} onRotate={setRotation} onPose={setPose} onControls={onControls} onPick={onPick} onNote={onNote} mode={mode}
+      rotation={rotation} onRotate={setRotation} onPose={setPose} onControls={onControls} onPick={onPick} onNote={onNote} mode={mode} onPast={setPast}
       showFailures={shownSurfaces.grounds || shownSurfaces.territories !== false || shownSurfaces.fileCircles || shownSurfaces.nameplates || shownSurfaces.roads} />
     <NameplateCrowd selected={selected} />
     {growth !== undefined && recordedSessions !== undefined && <ReplaySessions recorded={recordedSessions} onWisps={setReplayed} />}
@@ -232,8 +230,10 @@ function CoastTints({ arcs, coast, radius }: { arcs: readonly CoastArc[]; coast:
 
 type ScreenMarker = EdgeMarker & { left: number; top: number };
 
-function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onControls, onPick, onNote, mode, showFailures }: {
+function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onControls, onPick, onNote, mode, onPast, showFailures }: {
   onPose: (pose: GlobePose) => void;
+  /** Told when the eye zooms in past the islands, and back out (ADR-0919 D3). */
+  onPast: (past: boolean) => void;
   onControls: ((controls: GlobeControls | undefined) => void) | undefined;
   showFailures: boolean;
   mode: ForestMode;
@@ -290,12 +290,15 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
     return () => { onControls?.(undefined); };
   }, [onControls]);
   useEffect(() => () => guide.current!.cancel(), []);
+  const past = useRef(false);
 
   // OrbitControls runs before this frame. Project the rim with the current eye AND zoom.
   useFrame(() => {
     const now = performance.now();
     guide.current!.frame(now - guideFrameAt.current);
     guideFrameAt.current = now;
+    const zoomedPast = pastIslands(Math.min(size.width, size.height) / (2 * camera.zoom * radius), past.current);
+    if (zoomedPast !== past.current) onPast(past.current = zoomedPast);
     const centre = new Vector3().project(camera);
     const rim = radius * camera.zoom + 16;
     const next = (showFailures ? hiddenMarkers(islands, rotation, camera.quaternion, mode) : []).map(marker => ({

@@ -7,6 +7,26 @@ export type GlobeSurfaces = {
   fileCircles: boolean; knowledgeCore: boolean; sessionTints: boolean;
 };
 
+/** The ordinary Forest view. */
+const FOREST: GlobeSurfaces = { sea: true, grounds: true, roads: true, nameplates: true, territories: "health", fileCircles: true, knowledgeCore: true, sessionTints: true };
+/** The islands and every mark on or between them; the glass and the core are not among them. */
+const NO_ISLANDS = { grounds: false, roads: false, nameplates: false, territories: false, fileCircles: false, sessionTints: false } as const;
+
+/** What the globe shows: a host's switches over the Forest view, with the islands hidden in the Library or once
+ * zoomed past them, while the glass and the core inside it stay (ADR-0919 D3, D4). */
+export function shownSurfaces(surfaces: Partial<GlobeSurfaces> | undefined, hideIslands: boolean): GlobeSurfaces {
+  return { ...FOREST, ...surfaces, ...(hideIslands ? NO_ISLANDS : {}) };
+}
+
+/** Framings (radii across half the screen's short side) past which the islands drop away, and back above which they
+ * return: past the closest a reader looks at an island's file circles (about 0.2), and apart so they do not flicker. */
+export const PAST_ISLANDS = { enter: 0.12, leave: 0.14 } as const;
+
+/** Whether the eye is zoomed in past the islands, given whether it was (ADR-0919 D3). */
+export function pastIslands(framing: number, wasPast: boolean): boolean {
+  return framing < (wasPast ? PAST_ISLANDS.leave : PAST_ISLANDS.enter);
+}
+
 const healthOpacity = new WeakMap<Mesh, number>();
 const presentation = new WeakMap<Object3D, GlobeSurfaces["territories"]>();
 /** How far each territory has filled in on a growing globe (3.30); absent is whole. */

@@ -2,9 +2,9 @@
  * No pines, plants or banded land colour. The surface is the island's coast filled in and bent onto
  * the globe's sphere (so it lies on the glass, not on a tangent plane that lifts off at its edges),
  * in the plate's local frame: origin at PLATE_CLEARANCE above the shell, +y out of the sphere.
- * Later increments lay capability territories and file circles on it, and dive lines through it into
- * the knowledge core, so it writes no depth and stays faint. */
-import { BufferGeometry, DoubleSide, Float32BufferAttribute, Group, Mesh, MeshBasicMaterial, ShapeUtils, Vector2, Vector3 } from 'three';
+ * Capability territories and file circles are laid on it, so the ground itself writes no depth and stays
+ * faint; a depth layer just under it hides what lies behind the island (ADR-0919 D2). */
+import { BufferGeometry, DoubleSide, Float32BufferAttribute, FrontSide, Group, Mesh, MeshBasicMaterial, ShapeUtils, Vector2, Vector3 } from 'three';
 import type { CoastPoint } from '../coast-clip.js';
 import { PLATE_CLEARANCE } from './planet.js';
 
@@ -17,6 +17,9 @@ export const ISLAND_COAST_OPACITY = 0.95;
 export const ISLAND_COAST_WIDTH = 0.9;
 /** Longest edge of the ground's triangles, in ground units: at the globe's radius a chord this long sags 0.03. */
 const MAX_EDGE = 8;
+/** How far under the land its depth lies, in ground units: below every mark laid on it (the deepest, a territory's
+ * triangle, measured 0.11 under the sphere on 2026-10-05), and too shallow to show at any zoom. */
+export const ISLAND_DEPTH_INSET = 0.5;
 
 interface Pt { x: number; z: number }
 
@@ -122,6 +125,16 @@ export function islandSurface(coast: readonly (readonly CoastPoint[])[], radius:
     }));
     ground.name = 'island-ground';
     group.add(ground);
+    // ADR-0919 D2: the land hides what lies behind it. Its depth, just under it, drawn before anything see-through
+    // and only from outside, so an island seen from behind, through the glass, hides nothing.
+    const inner = sphere - ISLAND_DEPTH_INSET;
+    const under = new BufferGeometry();
+    under.setAttribute('position', new Float32BufferAttribute(points.flatMap(p => [p.x, Math.sqrt(Math.max(inner * inner - p.x * p.x - p.z * p.z, 0)) - sphere, p.z]), 3));
+    under.setIndex(triangles);
+    const depth = new Mesh(under, new MeshBasicMaterial({ colorWrite: false, side: FrontSide }));
+    depth.name = 'island-depth';
+    depth.raycast = () => {};
+    group.add(depth);
   }
   coast.forEach((ring, index) => {
     if (ring.length < 3) return;

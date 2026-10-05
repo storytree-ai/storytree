@@ -67,7 +67,7 @@ const DECISION_RIGHTS_LINES = [
 
 const HABITS_CARD = `storytree keeps the plan of this project and records what you do, so the user can watch it grow. Work with it like this.
 
-Start every session with \`check_setup\`, and do what it says. If this folder isn't a storytree project, carry on without storytree: never offer to set it up. Call \`set_up_project\` only when the user asks for storytree here, with a name no project has (a refusal suggests one); set its join only when they ask to add this computer's copy of a project they already have elsewhere.
+Start every session with \`check_setup\`, and do what it says. If this folder isn't a storytree project, carry on without storytree: never offer to set it up. Call \`set_up_project\` only when the user asks for storytree here, with a name no project has (a refusal suggests one); set its join only when they ask to add this computer's copy of a project they already have elsewhere. Once the project is set up, or when it adopts a pipeline, call \`wire_pipeline\` with its test command: it adds the tests and storytree's check to the project's CI, the checks storytree owns, so never write your own. Branch protection is a repository setting: propose it as \`wire_pipeline\` words it, and turn it on only if the user approves.
 
 Plan first.
 - \`focus\` shows what a file, capability, promise or story depends on (up) and what depends on it (down). Start with counts, then dry_run or a narrowed show; an oversized show refuses with counts.

@@ -10,7 +10,7 @@
  * What the tests check is read back through the library and the activity log themselves.
  */
 import assert from "node:assert/strict";
-import { appendFileSync, copyFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { hostname } from "node:os";
 import { createServer, connect as openSocket, type AddressInfo, type Socket } from "node:net";
 import path from "node:path";
@@ -33,6 +33,7 @@ import { claudeCode, codex, idOf, withAgent, type Agent } from "../testing/agent
 import { git, withTempDir } from "../testing/folders.js";
 import { dropTestProjects, projectDatabase, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { createAgentTools, NOT_RUNNING_ANSWER } from "./index.js";
+import { storytreeRef } from "../setup/pipeline.js";
 import { registerPlanTools } from "./plan-tools.js";
 import type { Call, Define } from "./server.js";
 
@@ -79,6 +80,7 @@ const TOOLS = [
   "settle_question",
   "show_plan",
   "stop_own_run",
+  "wire_pipeline",
   "write_note",
 ];
 
@@ -474,6 +476,54 @@ test("6.37 land refuses while the story's package has a source file no numbered 
   });
 });
 
+test("11.1 on GitHub, wire_pipeline writes storytree's workflow: the project's install and tests on each system chosen, and storytree check pinned to this storytree's release", async () => {
+  await withProject(async ({ folder }) => {
+    git(folder, "init", "-q");
+    git(folder, "remote", "add", "origin", "https://github.com/someone/shop.git");
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const wired = await agent.call("wire_pipeline", { install: "npm ci", test: "npm test -- --grep \"a: b\"", systems: ["linux", "windows"] });
+      assert.equal(wired.isError, false, wired.text);
+      const workflow = readFileSync(path.join(folder, ".github/workflows/storytree.yml"), "utf8");
+      assert.match(workflow, /on:\n {2}pull_request:\n {2}push:\n {4}branches: \[main\]/);
+      assert.match(workflow, /os: \[ubuntu-latest, windows-latest\]/);
+      assert.ok(workflow.includes('- run: "npm ci"\n      - run: "npm test -- --grep \\"a: b\\""'), workflow);
+      assert.ok(workflow.includes(`--branch ${storytreeRef()} https://github.com/storytree-ai/storytree.git`), workflow);
+      assert.match(workflow, /pnpm install --frozen-lockfile --filter "@storytree\/guardrails\.\.\."/);
+      assert.match(workflow, /node --import tsx src\/check\/run\.ts "\$GITHUB_WORKSPACE"/);
+      assert.match(wired.text, /\.github\/workflows\/storytree\.yml/);
+    });
+  });
+});
+
+test("11.2 in a project not on GitHub, wire_pipeline writes nothing and gives the commands to add to the user's own pipeline", async () => {
+  await withProject(async ({ folder }) => {
+    git(folder, "init", "-q");
+    git(folder, "remote", "add", "origin", "https://gitlab.com/someone/shop.git");
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const wired = await agent.call("wire_pipeline", { test: "npm test" });
+      assert.equal(wired.isError, false, wired.text);
+      assert.equal(existsSync(path.join(folder, ".github")), false, "nothing is written");
+      assert.match(wired.text, /npm test/);
+      assert.match(wired.text, /src\/check\/run\.ts/);
+      assert.match(wired.text, /the pipeline you have/);
+    });
+  });
+});
+
+test("11.3 wire_pipeline proposes branch protection as a command for the user to approve, and changes no repository setting itself", async () => {
+  await withProject(async ({ folder }) => {
+    git(folder, "init", "-q");
+    git(folder, "remote", "add", "origin", "git@github.com:someone/shop.git");
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const wired = await agent.call("wire_pipeline", { test: "npm test" });
+      assert.match(wired.text, /gh api -X PUT repos\/someone\/shop\/branches\/main\/protection/);
+      assert.match(wired.text, /"contexts":\["test \(ubuntu-latest\)","storytree check"\]/);
+      assert.match(wired.text, /only if the user approves/);
+      assert.equal((wired.data.protection as { approved: boolean }).approved, false);
+    });
+  });
+});
+
 test("6.2 show_plan reads every arc's increments in one ask, however many arcs the project has (ADR-0836 D3)", async () => {
   await withProject(async ({ folder, project, library, log }) => {
     for (const title of ["Launch", "Relaunch", "Sunset"]) {
@@ -619,6 +669,7 @@ test('6.4 a bad call gets a readable refusal rather than a crash, and with story
         ["read_context", {}],
         ["close_out", { safe: true, why: "all merged" }],
         ["name_session", { title: "Building signup" }],
+        ["wire_pipeline", { test: "npm test" }],
       ];
       // Own's offline tools and the setup check's two do not depend on the library.
       const offlineTools = ["check_setup", "set_up_project", "list_all_runs", "list_own_runs", "stop_own_run", "clear_own_runs"];

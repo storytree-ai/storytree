@@ -54,6 +54,7 @@ import { registerMapTools } from "./map-tools.js";
 import { registerSetupTools } from "./setup-tools.js";
 import { registerWorkTools } from "./work-tools.js";
 import { OWN_TOOLS, registerOwnTools } from "./own-tools.js";
+import { registerPipelineTools } from "./pipeline-tools.js";
 
 export { NOT_RUNNING_ANSWER };
 export type { Answer };
@@ -237,6 +238,7 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
   registerClaimTools(define, extensions);
   registerWorkTools(define);
   registerNoteTools(define);
+  registerPipelineTools(define);
   registerContextTools(define, options.dataDir === undefined ? undefined : path.dirname(path.resolve(options.dataDir)));
   for (const extension of extensions) extension.registerTools?.(define);
 

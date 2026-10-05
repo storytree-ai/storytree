@@ -1,0 +1,51 @@
+{
+  "trails": [],
+  "litNotes": {},
+  "windowNotes": {},
+  "litFiles": [],
+  "coastTints": [
+    {
+      "session": "curator",
+      "colour": "hsl(15, 80%, 68%)"
+    },
+    {
+      "session": "scout",
+      "colour": "hsl(307, 80%, 68%)"
+    },
+    {
+      "session": "reviewer",
+      "colour": "hsl(175, 80%, 68%)"
+    },
+    {
+      "session": "lane-north",
+      "colour": "hsl(349, 80%, 68%)"
+    },
+    {
+      "session": "builder",
+      "colour": "hsl(194, 80%, 68%)"
+    }
+  ],
+  "claimed": [
+    {
+      "capability": "capability_5e0362aae607",
+      "claimedBy": "hsl(15, 80%, 68%)"
+    },
+    {
+      "capability": "capability_11fe600afeda",
+      "claimedBy": "hsl(307, 80%, 68%)"
+    },
+    {
+      "capability": "capability_6133809a4139",
+      "claimedBy": "hsl(175, 80%, 68%)"
+    },
+    {
+      "capability": "capability_bfc6fa737f09",
+      "claimedBy": "hsl(349, 80%, 68%)"
+    },
+    {
+      "capability": "capability_062b84e5c6b0",
+      "claimedBy": "hsl(194, 80%, 68%)"
+    }
+  ],
+  "windowsAsked": []
+}

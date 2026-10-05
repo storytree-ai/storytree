@@ -9,13 +9,12 @@ import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 import { SessionRing } from "./ring.js";
-import { arcKey, arrived, IN_VIEW, fillAt, stepPoint, glowAt, growthPlan, heldNotes, ringArcs, noteTitle, replayAt, tailSpan, type AgentPath, type Lighting, type Point, type ReplayMoment, type Trail, type WindowView } from "../look-inside/look-inside.js";
+import { arcKey, arrived, IN_VIEW, fillAt, stepPoint, growthPlan, heldNotes, ringArcs, noteTitle, replayAt, type Lighting, type Point, type ReplayMoment, type Trail, type WindowView } from "../look-inside/look-inside.js";
 
 const noRaycast = () => {};
 
-/** How long a new step's line takes to grow, and each step of a glow's loop, and its rest between loops (ADR-0742). */
+/** How long a new step's line takes to grow (ADR-0742). */
 const GROW_MS = 900;
-const GLOW = { step: 900, pause: 1200 };
 /** A traversal step's faint fill: how long it takes to run from the earlier note to the later, and its rest (ADR-0756). */
 const FILL = { run: 1600, pause: 900 };
 /** A selected session's replay (ADR-0797): each step's line grows in this long, and the finished picture holds this long. */
@@ -33,14 +32,12 @@ const trailKey = (trail: Trail) => `${trail.colour} ${trail.from} ${trail.to}`;
 export interface CoreGrowth { now(): number; moment(date: string): number }
 
 /** Mesh raycasts stay disabled: the globe picks these small dots in screen space. */
-export function GlobePoints({ points, radius, notes, lit = new Map(), trails = [], paths = [], window, replay = false, stops, growth: grows }: {
+export function GlobePoints({ points, radius, notes, lit = new Map(), trails = [], window, replay = false, stops, growth: grows }: {
   points: readonly GlobePoint[]; radius: number; notes: ReadonlyMap<string, RecordEnvelope>;
-  /** Notes a running session read, in its latest reader's colour, with every session that read it (ADR-0738, ADR-0754 D2). */
+  /** Notes the selected session read, each in the colour of the agent that read it (ADR-0738 D5). */
   lit?: ReadonlyMap<string, Lighting>;
-  /** Each session's reading path, one curve per step, from the earlier read to the later (ADR-0740). */
+  /** The selected session's reading path, one curve per step, from the earlier read to the later (ADR-0740). */
   trails?: readonly Trail[];
-  /** Each drawn agent's path, replayed by a looping glow (ADR-0742). */
-  paths?: readonly AgentPath[];
   /** The selected session's window, in its colour: a warm white ring on each note it holds now, compacted reads lighter, glimpses faint (ADR-0756). */
   window?: (WindowView & { colour: string }) | undefined;
   /** A selected session: its trails replay as one head walking them in recorded order, building the picture, then resting and starting again (ADR-0797). */
@@ -135,7 +132,6 @@ export function GlobePoints({ points, radius, notes, lit = new Map(), trails = [
       return from === undefined || to === undefined ? null
         : <TrailCurve key={trailKey(trail)} trail={trail} from={from} to={to} grow={starts.get(trailKey(trail))} radius={radius} replayed={replayed} />;
     })}
-    {!reducedMotion() && !replaying && paths.map(path => <PathGlow key={path.mover} path={path} at={at} starts={starts} />)}
     {points.map(point => {
       // A note the replay has not reached yet is drawn as if unread (ADR-0797 D1).
       const hidden = unreached(point.id);
@@ -297,50 +293,4 @@ function lineOf(width: number, additive: boolean): Line2 {
   line.visible = false;
   line.frustumCulled = false;
   return line;
-}
-
-const GLOW_POINTS = 20;
-
-/**
- * One agent's looping glow (ADR-0742 D3): it travels the agent's grown steps in recorded order,
- * bright at its head and fading behind, so it shows which way the agent read; after the last step
- * it rests, then starts again from the first.
- */
-function PathGlow({ path, at, starts }: { path: AgentPath; at: ReadonlyMap<string, Point>; starts: ReadonlyMap<string, number> }) {
-  const invalidate = useThree(state => state.invalidate);
-  const size = useThree(state => state.size);
-  const began = useRef(performance.now());
-  const glow = useMemo(() => lineOf(3.5, true), []);
-  useEffect(() => () => { glow.geometry.dispose(); glow.material.dispose(); }, [glow]);
-  useEffect(() => { glow.material.resolution.set(size.width, size.height); }, [glow, size]);
-  const colours = useMemo(() => {
-    // Additive: black adds nothing, so the far end fades to nothing; the head is whitened to glow.
-    const head = new Color(path.colour).lerp(new Color("#ffffff"), 0.12);
-    return Array.from({ length: GLOW_POINTS }, (_, index) => head.clone().multiplyScalar((index / (GLOW_POINTS - 1)) ** 1.8).toArray()).flat();
-  }, [path.colour]);
-
-  useFrame(() => {
-    const now = performance.now();
-    // A step still growing, or yet to grow, is not part of the loop yet.
-    const steps = path.steps.filter(step => {
-      const start = starts.get(`${step.colour} ${step.from} ${step.to}`);
-      return (start === undefined || start + GROW_MS <= now) && at.has(step.from) && at.has(step.to);
-    });
-    const place = glowAt(steps.length, now - began.current, GLOW);
-    invalidate();
-    if (place === undefined) { glow.visible = false; return; }
-    const step = steps[place.step]!;
-    const from = at.get(step.from)!, to = at.get(step.to)!;
-    const [tail, head] = tailSpan(place.t);
-    const positions: number[] = [];
-    for (let index = 0; index < GLOW_POINTS; index++) {
-      const point = stepPoint(step.kind, from, to, tail + (head - tail) * index / (GLOW_POINTS - 1));
-      positions.push(point.x, point.y, point.z);
-    }
-    moveLine(glow.geometry, positions, colours);
-    glow.visible = head > tail;
-    glow.userData = { mover: path.mover, step: `${step.from}>${step.to}` };
-  });
-
-  return <primitive object={glow} name={`knowledge-glow:${path.mover}`} />;
 }

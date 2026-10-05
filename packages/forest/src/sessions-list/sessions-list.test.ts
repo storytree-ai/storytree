@@ -133,21 +133,7 @@ test("7.7 the knowledge core's roster is exactly the listed rows, each with its 
   ]);
 });
 
-test("7.19 the core's roster marks undrawn every idle row and every row past the five most recently seen of the rest; every row stays listed", () => {
-  const at = (minutes: number) => new Date(now.getTime() - minutes * 60_000).toISOString();
-  const working = (session: string, minutes: number): Partial<Line> & NewLine => ({ session, harness: "claude-code", source: "hook", kind: "prompt-submitted", at: at(minutes) });
-  const lines = log(
-    { ...working("idle", 200) }, { session: "idle", harness: "claude-code", source: "hook", kind: "turn-ended", at: at(180) },
-    ...["s1", "s2", "s3", "s4", "s5", "s6"].map((session, index) => working(session, 10 - index)));
-  const rows = sessionRows(tree, lines, [], now, new Map(), undefined, 24 * 60 * 60_000);
-  const roster = sessionRoster(rows);
-  assert.deepEqual(roster.map(entry => entry.session).sort(), ["idle", "s1", "s2", "s3", "s4", "s5", "s6"], "every listed row is in the roster, to select and colour");
-  assert.deepEqual(roster.filter(entry => entry.undrawn !== true).map(entry => entry.session).sort(), ["s2", "s3", "s4", "s5", "s6"],
-    "the five most recently seen active sessions are drawn");
-  assert.deepEqual(roster.filter(entry => entry.undrawn === true).map(entry => entry.session).sort(), ["idle", "s1"], "the idle one, and the sixth");
-});
-
-test("7.7 clicking a row selects its session, a child's row its parent, and clicking the selected row again goes back to every session", () => {
+test("7.7 clicking a row selects its session, a child's row its parent, and clicking the selected row again clears the selection", () => {
   const lines = log(claimed("cap-one", "Build signup"),
     { ...parent, kind: "subagent-started", subagent: "child", task: "Finish signup" },
     { ...off, kind: "claimed", increment: "tidy", reason: "Tidy" });
@@ -155,7 +141,7 @@ test("7.7 clicking a row selects its session, a child's row its parent, and clic
   assert.equal(clickedSelection(rows, "off", undefined), "off", "a row selects its own session");
   assert.equal(clickedSelection(rows, "child", undefined), "parent", "a child's row selects its parent");
   assert.equal(clickedSelection(rows, "child", "off"), "parent", "and moves the one selection off another session");
-  assert.equal(clickedSelection(rows, "parent", "parent"), undefined, "the selected row clicked again goes back to every session");
+  assert.equal(clickedSelection(rows, "parent", "parent"), undefined, "the selected row clicked again clears the selection");
   assert.equal(clickedSelection(rows, "child", "parent"), undefined, "so does its child's row");
 });
 
@@ -343,15 +329,15 @@ function describe7_21(): void {
     assert.equal(dayRange("", "2026-10-01"), undefined);
   });
 
-  test("7.22 7.23 the globe's roster is the live rows' whatever History holds; a selected history session joins it, undrawn, in its own colour", () => {
+  test("7.22 7.23 the globe's roster is the live rows' whatever History holds; a selected history session joins it in its own colour", () => {
     const live = sessionRows(tree, lines(), arcs, later);
     const history = historyRows(tree, lines(), arcs, range, later);
     assert.deepEqual(globeRoster(live, history, undefined), sessionRoster(live), "opening History or changing its range changes nothing");
     assert.deepEqual(globeRoster(live, history, "live"), sessionRoster(live));
     assert.deepEqual(globeRoster(live, history, "holder"), [...sessionRoster(live),
-      { session: "holder", label: "Choose the tabs", colour: sessionColour("holder"), members: ["holder"], undrawn: true }]);
+      { session: "holder", label: "Choose the tabs", colour: sessionColour("holder"), members: ["holder"] }]);
     assert.equal(historySelection("holder", undefined), "holder");
-    assert.equal(historySelection("holder", "holder"), undefined, "clicking the selected row again goes back to every live session");
+    assert.equal(historySelection("holder", "holder"), undefined, "clicking the selected row again clears the selection");
     assert.equal(historySelection("quiet", "holder"), "quiet");
   });
 }

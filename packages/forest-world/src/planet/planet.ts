@@ -33,16 +33,25 @@ export function lightForCamera(camera: Quaternion, target = new Vector3()): Vect
   return target.copy(sunInView).applyQuaternion(camera);
 }
 
-/** The actual surface mounted by the globe. It admits far land and the future core through it,
- * while retaining ray hits for the page's existing near-side selection and label rule. */
+/** What the inside of the bowl shows where the core has nothing: a little lighter than the page, so the ball reads as one. */
+export const FAR_WALL_COLOUR = '#151b21';
+const byte = (hex: string, at: number) => parseInt(hex.slice(at, at + 2), 16) / 255;
+
+/** The actual surface mounted by the globe: a one-way mirror (ADR-0919 D1). From outside, its near face is
+ * nearly clear glass over the core, and its far face is solid: it paints the bowl's backdrop and hides the far
+ * side's land, roads and lines. It retains ray hits for the page's existing near-side selection and label rule. */
 export function createPlanetSurface(radius: number) {
   const uniforms = {
     opacity: { value: 0.012 },
     // L1 is fixed in view space; orbiting updates the normal, not this lamp.
     sunInView: { value: sunInView.clone() },
+    // The authored bytes, as the shader writes them: a Color would be linearised whenever colour management is on.
+    wall: { value: new Vector3(byte(FAR_WALL_COLOUR, 1), byte(FAR_WALL_COLOUR, 3), byte(FAR_WALL_COLOUR, 5)) },
   };
+  // The far face is drawn in the opaque pass and writes depth, so nothing beyond it is drawn over it; the core, inside, is in front of it.
   const face = (side: Side) => new ShaderMaterial({
-    transparent: true, depthWrite: false, side, uniforms,
+    transparent: side !== BackSide, depthWrite: side === BackSide, side, uniforms,
+    defines: side === BackSide ? { FAR_WALL: '' } : {},
     vertexShader: `
       varying vec3 shellNormal;
       void main() {
@@ -53,6 +62,7 @@ export function createPlanetSurface(radius: number) {
     fragmentShader: `
       uniform float opacity;
       uniform vec3 sunInView;
+      uniform vec3 wall;
       varying vec3 shellNormal;
       void main() {
         // The globe's orthographic camera has parallel view rays along +z.
@@ -63,11 +73,16 @@ export function createPlanetSurface(radius: number) {
         float highlight = gl_FrontFacing ? pow(max(dot(normal, halfLight), 0.0), 96.0) : 0.0;
         float alpha = opacity + 0.5 * rim + 0.16 * highlight;
         vec3 colour = mix(vec3(0.72, 0.75, 0.78), vec3(1.0, 0.98, 0.93), highlight);
+        #ifdef FAR_WALL
+        // The glass's sheen laid over the bowl's backdrop, as the see-through face once blended over the page.
+        gl_FragColor = vec4(mix(wall, colour, min(alpha, 1.0)), 1.0);
+        #else
         gl_FragColor = vec4(colour, alpha);
+        #endif
       }
     `,
   });
-  // The far face blends first, then the near one, as three's own two-pass double-sided draw would; but each
+  // The far face first, then the near one, as three's own two-pass double-sided draw would; but each
   // face keeps its own program, where that draw re-versions one material twice a frame (ADR-0836 D1).
   const geometry = new SphereGeometry(radius, 96, 64);
   geometry.addGroup(0, geometry.index!.count, 0);

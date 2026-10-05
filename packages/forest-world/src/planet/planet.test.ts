@@ -45,19 +45,20 @@ test('6.2 L1 gives the island under the flat viewing angle its original local li
 });
 
 // The globe mounts this actual Three mesh; material/depth behaviour is observable without WebGL.
-test('6.3 the glass has a nearly clear middle, retaining the 80% far-side minimum through both faces', () => {
+test('6.3 from outside, the glass is a one-way mirror: its far face hides the far side, its near face stays nearly clear over the core', () => {
   const surface = planet.createPlanetSurface(160);
   try {
-    const material = surface.material[0]!;
-    assert.ok(material.transparent);
-    const opacity = material.uniforms.opacity!.value as number;
+    const far = surface.material.find(material => material.side === BackSide)!;
+    const near = surface.material.find(material => material.side === FrontSide)!;
+    // ADR-0919 D1: the far face is solid, drawn in the opaque pass and writing depth, so nothing beyond it is drawn over it.
+    assert.equal(far.transparent, false, 'the far face is opaque');
+    assert.equal(far.depthWrite, true, 'the far face hides what lies beyond it');
+    // The near face is the glass the core is seen through, and hides nothing.
+    assert.ok(near.transparent);
+    const opacity = near.uniforms.opacity!.value as number;
     assert.ok(opacity > 0 && opacity < 1, 'the ball still has a visible, transparent surface');
-    // The owner found #90 too opaque: each shell face blends over the far side.
-    const farSideTransmission = (1 - opacity) ** 2;
-    assert.ok(farSideTransmission >= 0.8, `both shell faces leave only ${farSideTransmission} of the far side`);
-    // The glass request follows #93: move the visible shell toward the rim, clearing its middle.
-    assert.ok(farSideTransmission >= 0.95, `the clear middle leaves only ${farSideTransmission} of the far side`);
-    assert.equal(material.depthWrite, false, 'the shell must not hide interior or far-side draws');
+    assert.ok(1 - opacity >= 0.95, `the clear middle leaves only ${1 - opacity} of the core`);
+    assert.equal(near.depthWrite, false, 'the near face must not hide the core');
     assert.equal(surface.geometry.parameters.radius, 160);
   } finally {
     surface.geometry.dispose();
@@ -72,7 +73,7 @@ test('5.4 an animating globe redraws the glass, far face then near face, without
   try {
     const materials: Material[] = surface.material;
     assert.deepEqual(materials.filter(material => material.transparent && material.side === DoubleSide && !material.forceSinglePass), []);
-    // Both faces of the ball remain visible, the far one blended first: three draws an object's groups in order.
+    // Both faces of the ball remain, each with its own program: three draws an object's groups in order.
     const whole = surface.geometry.index!.count;
     assert.deepEqual(surface.geometry.groups.map(group => ({ start: group.start, count: group.count, side: materials[group.materialIndex!]!.side })),
       [{ start: 0, count: whole, side: BackSide }, { start: 0, count: whole, side: FrontSide }]);

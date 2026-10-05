@@ -29,7 +29,8 @@ test('3.8 an island is drawn as one ground surface and its coast, with no pines,
     const surface = islandSurface(plate.coast, PLANET_RADIUS, story);
     assert.equal(surface.name, `island-surface:${story}`);
     const kinds = all(surface).map(object => object.name.split(':')[0]);
-    assert.deepEqual([...new Set(kinds)].sort(), ['island-coast', 'island-ground']);
+    // The depth under the ground draws no colour: it only hides what lies behind the island (ADR-0919 D2).
+    assert.deepEqual([...new Set(kinds)].sort(), ['island-coast', 'island-depth', 'island-ground']);
     assert.equal(all(surface).filter(object => object.name === 'island-ground').length, plate.coast.length > 0 ? 1 : 0);
     assert.ok(all(surface).every(object => object instanceof Mesh), 'nothing else is mounted');
   }

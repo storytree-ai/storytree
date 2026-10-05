@@ -62,13 +62,13 @@ export interface SeededCaptureOptions extends CaptureOptions {
 
 /** Render a bounded number of frames; an observation hook may request each globe redraw. */
 export async function settle(page: Page, frames = 12): Promise<void> {
-  // A string avoids tsx's function-name helpers being copied into the browser.
-  await page.evaluate(`async frames => {
+  // A string avoids tsx's function-name helpers; invoke it so Playwright awaits the loop.
+  await page.evaluate(`(async frames => {
     for (let i = 0; i < frames; i++) {
       globalThis.__globe?.invalidate();
       await new Promise(requestAnimationFrame);
     }
-  }`, frames);
+  })(${JSON.stringify(frames)})`);
 }
 
 const MIME: Record<string, string> = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".json": "application/json", ".map": "application/json", ".png": "image/png", ".svg": "image/svg+xml", ".glb": "model/gltf-binary" };

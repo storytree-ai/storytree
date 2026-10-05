@@ -254,6 +254,22 @@ export function lighting(reads: ReadRecord, roster: readonly RosterEntry[], sess
   return new Map([...first].map(([note, { colour, seq }]) => [note, { colour, readers: [{ colour, last: seq }] }]));
 }
 
+/** A knowledge dot's radius, as a fraction of the globe's: an unread note's, and the most-read note's (ADR-0926 D2). */
+export const DOT_FLOOR = 0.006;
+export const DOT_CEILING = 0.012;
+
+/**
+ * Each drawn note's dot size from its reach (ADR-0926 D2): the floor for a note no session read, the
+ * ceiling for the most-read drawn note, and between them the area above the floor's grows linearly
+ * with reach, so the radius grows with its square root. Nothing a session lights changes it (D3).
+ */
+export function dotSizes(reach: ReadonlyMap<string, number>, notes: Iterable<string>): Map<string, number> {
+  const drawn = [...notes];
+  const top = Math.max(0, ...drawn.map(note => reach.get(note) ?? 0));
+  return new Map(drawn.map(note => [note, top === 0 ? DOT_FLOOR
+    : Math.sqrt(DOT_FLOOR ** 2 + (DOT_CEILING ** 2 - DOT_FLOOR ** 2) * (reach.get(note) ?? 0) / top)]));
+}
+
 /** One step of a session's reading path: from a full read to the same agent's next, never a followed link (ADR-0740). */
 export interface Trail {
   from: string;

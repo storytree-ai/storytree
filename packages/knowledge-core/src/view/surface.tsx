@@ -11,7 +11,7 @@ import type { Line, SessionWindow } from "@storytree/agent-link";
 import type { Change } from "@storytree/library";
 
 import { knowledge, storedEdges } from "../ghosts/ghosts.js";
-import { ORCHESTRATOR, lighting, noteCard, trails as readingPaths, traversalTrails, windowView, fileStop, type CodePlaces, type WindowState, type Point, type RosterEntry } from "../look-inside/look-inside.js";
+import { ORCHESTRATOR, dotSizes, lighting, noteCard, trails as readingPaths, traversalTrails, windowView, fileStop, type CodePlaces, type WindowState, type Point, type RosterEntry } from "../look-inside/look-inside.js";
 import { ReadRecord } from "../reads/reads.js";
 import { underShelves } from "../shelves/shelves.js";
 import { globePoints } from "../shelves/positions.js";
@@ -162,6 +162,8 @@ export function KnowledgeGlobePoints({ core, spots, radius, places, growth }: {
     [store.reads, state.version, state.roster, state.session, known]);
   const paths = useMemo(() => readingPaths(store.reads, state.roster, state.session, new Set(known.notes.keys())),
     [store.reads, state.version, state.roster, state.session, known]);
+  // Sized by how widely each note was read in the last 90 days, whoever is selected (ADR-0926); no reads leave every dot at the floor.
+  const sizes = useMemo(() => dotSizes(store.reads.reach(Date.now()), points.map(({ id }) => id)), [store.reads, state.version, points]);
   const joined = useMemo(() => storedEdges(known), [known]);
   const colour = colourOf(state.roster, state.session) ?? ORCHESTRATOR;
   // Only a selected session's window is drawn, never every running session's at once (ADR-0746 D1).
@@ -173,7 +175,7 @@ export function KnowledgeGlobePoints({ core, spots, radius, places, growth }: {
   const traversal = useMemo(() => window === undefined ? undefined : traversalTrails(window.steps, colour, state.session!), [window, colour, state.session]);
   const drawnPaths = window?.status !== undefined ? paths : traversal ?? [];
   // A new selection starts its own history, so lines already taken when it opens do not grow (ADR-0742 D4).
-  return <GlobePoints key={state.session ?? ""} points={points} radius={radius} notes={known.notes} lit={lit} trails={drawnPaths} window={window} replay={state.session !== undefined} stops={stops} growth={growth} />;
+  return <GlobePoints key={state.session ?? ""} points={points} radius={radius} notes={known.notes} sizes={sizes} lit={lit} trails={drawnPaths} window={window} replay={state.session !== undefined} stops={stops} growth={growth} />;
 }
 
 /** The land the selected session's window has opened (ADR-0804 D5), for the forest to light: the files and capabilities opened, and the colour they wear. */

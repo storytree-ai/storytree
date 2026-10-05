@@ -1,0 +1,1 @@
+Hi again. Please build the to-do list page now: I want to add items, tick them off, delete them, and still have them there when I reload the page. Plain HTML, CSS and JavaScript that I can open by double-clicking index.html, with no build step. Please add tests too, and keep the plan in storytree as you go.

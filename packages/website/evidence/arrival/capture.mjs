@@ -1,10 +1,11 @@
 // Act 2's arrival (ADR-0889, contracts 2.11 and 2.12), from the locally built site: the pain on a dark screen,
 // storytree's own recorded growth replayed on the tour's clock, the value statement alone, the three fixes in each
 // look, and the cut to the shop's three teaching islands.
-// pnpm --filter @storytree/website build && node packages/website/evidence/arrival/capture.mjs [--only <name>]
+// pnpm --filter @storytree/website build && node packages/website/evidence/arrival/capture.mjs [--only <name>] [--check]
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
-import { mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
@@ -12,6 +13,10 @@ import { chromium } from "playwright-core";
 const here = path.dirname(fileURLToPath(import.meta.url));
 // --dist <folder> pictures another build (main's, for a before-and-after).
 const dist = process.argv.includes("--dist") ? path.resolve(process.argv[process.argv.indexOf("--dist") + 1]) : path.resolve(here, "../../dist");
+// --check asserts without rewriting the committed pictures: every picture, clip and observation goes to a fresh temporary
+// folder instead (named at the end). A lane that only needs the check runs it this way.
+const pictures = process.argv.includes("--check") ? path.join(await mkdtemp(path.join(tmpdir(), "arrival-check-")), "arrival") : here;
+for (const folder of ["", "../map-chapter", "../act2-polish"]) await mkdir(path.join(pictures, folder), { recursive: true });
 const only = process.argv.includes("--only") ? process.argv[process.argv.indexOf("--only") + 1] : undefined;
 const types = { ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".png": "image/png", ".json": "application/json" };
 const server = createServer(async (req, res) => {
@@ -27,7 +32,7 @@ const observed = [];
 const errors = [];
 
 async function open(viewport, { firstVisit = false, reducedMotion = "no-preference", video = false } = {}) {
-  const page = await browser.newPage({ viewport, deviceScaleFactor: 1, reducedMotion, ...(video ? { recordVideo: { dir: here, size: viewport } } : {}) });
+  const page = await browser.newPage({ viewport, deviceScaleFactor: 1, reducedMotion, ...(video ? { recordVideo: { dir: pictures, size: viewport } } : {}) });
   page.on("pageerror", error => errors.push(error.message));
   if (!firstVisit) await page.addInitScript(() => localStorage.setItem("storytree-opening-seen", "yes"));
   await page.goto(url);
@@ -39,7 +44,7 @@ const drawing = page => page.locator(".forest-drawing").evaluate(node => ({ glob
 /** Frames drawn per second over `ms`, counted by the page's own animation frames. */
 const fps = (page, ms) => page.evaluate(ms => new Promise(resolve => { let n = 0; const start = performance.now(); const tick = now => { n++; if (now - start < ms) requestAnimationFrame(tick); else resolve(n * 1000 / (now - start)); }; requestAnimationFrame(tick); }), ms);
 const go = async (page, id) => { await page.locator(`#tour-pips [data-step="${id}"]`).click(); assert.equal(await stepOf(page), id); };
-const shot = (page, name) => page.screenshot({ path: path.join(here, `${name}.png`) });
+const shot = (page, name) => page.screenshot({ path: path.join(pictures, `${name}.png`) });
 const pause = async page => { if (await page.locator("#tour-play").getAttribute("aria-label") === "Pause the tour") await page.locator("#tour-play").click(); };
 const play = async page => { if (await page.locator("#tour-play").getAttribute("aria-label") === "Play the tour") await page.locator("#tour-play").click(); };
 
@@ -125,7 +130,7 @@ const runs = {
     assert.equal(await stepOf(still), "pain");
     assert.equal(await still.locator(".forest-still img").evaluate(node => node.checkVisibility({ visibilityProperty: true })), false, "no WebGL: storytree's saved still never stands in under the pain");
     await go(still, "fixes"); await pause(still); await still.waitForTimeout(300);
-    await still.screenshot({ path: path.join(here, "390-no-webgl-4-fixes.png") });
+    await still.screenshot({ path: path.join(pictures, "390-no-webgl-4-fixes.png") });
     await still.close();
     // While the globe is still loading, storytree's saved still never stands in under the pain either.
     const loading = await browser.newPage({ viewport: { width: 1440, height: 900 } });
@@ -154,7 +159,7 @@ const runs = {
   // The map chapter (2.16, ADR-0891): each step on the shop's three teaching islands, at 1440 and 390, and the growth
   // step's stage replaying (Orders and its roads growing on).
   async map() {
-    const out = name => path.join(here, `../map-chapter/${name}.png`);
+    const out = name => path.join(pictures, `../map-chapter/${name}.png`);
     for (const [width, height] of [[1440, 900], [390, 844]]) {
       const page = await open({ width, height });
       for (const id of ["map-parts", "map-code", "map-health"]) {
@@ -185,8 +190,8 @@ const runs = {
   // --to <folder> (beside this one) writes them elsewhere, for a before-and-after.
   async agents() {
     const to = process.argv.includes("--to") ? process.argv[process.argv.indexOf("--to") + 1] : "agents-chapter";
-    const out = name => path.join(here, `../${to}/${name}.png`);
-    await mkdir(path.join(here, `../${to}`), { recursive: true });
+    const out = name => path.join(pictures, `../${to}/${name}.png`);
+    await mkdir(path.join(pictures, `../${to}`), { recursive: true });
     for (const [width, height] of [[1920, 1080], [1440, 900], [1280, 800], [390, 844], [320, 700]]) {
       const page = await open({ width, height });
       for (const id of ["agents-sessions", "agents-arcs", "agents-claim", "agents-parallel", "agents-standdown"]) {
@@ -206,8 +211,8 @@ const runs = {
   // 1440, 1280, 390 and 320, each with its How and Why opened once. --to <folder> (beside this one) says where they go.
   async chapters() {
     const to = process.argv.includes("--to") ? process.argv[process.argv.indexOf("--to") + 1] : "one-format/after";
-    const out = name => path.join(here, `../${to}/${name}.png`);
-    await mkdir(path.join(here, `../${to}`), { recursive: true });
+    const out = name => path.join(pictures, `../${to}/${name}.png`);
+    await mkdir(path.join(pictures, `../${to}`), { recursive: true });
     for (const [width, height] of [[1920, 1080], [1440, 900], [1280, 800], [390, 844], [320, 700]]) {
       const page = await open({ width, height });
       const ids = await page.locator("#tour-pips [data-step]").evaluateAll(pips => pips.map(pip => pip.dataset.step).filter(id => /^(map|agents)-/.test(id)));
@@ -227,8 +232,8 @@ const runs = {
   // planned and lit as they are named, signing in built first, then the other three together; a clip at 1440 and frames of
   // each beat at every width.
   async mapGrows() {
-    const out = name => path.join(here, `../map-grows/${name}`);
-    await mkdir(path.join(here, "../map-grows"), { recursive: true });
+    const out = name => path.join(pictures, `../map-grows/${name}`);
+    await mkdir(path.join(pictures, "../map-grows"), { recursive: true });
     const until = (page, id) => page.waitForFunction(id => document.querySelector("#chapter2").dataset.tourStep === id, id, { timeout: 60_000 });
     for (const [width, height] of [[1440, 900], [1920, 1080], [1280, 800], [390, 844], [320, 700]]) {
       const clip = width === 1440;
@@ -257,12 +262,12 @@ const runs = {
     await page.waitForFunction(() => document.querySelector(".forest-drawing")?.dataset.arrived === "true", null, { timeout: 30_000 });
     await page.waitForTimeout(1500);
     await go(page, "map-code");
-    for (let frame = 0; frame < 5; frame++) { await page.screenshot({ path: path.join(here, `../act2-polish/close-flight-${frame}.png`) }); await page.waitForTimeout(600); }
+    for (let frame = 0; frame < 5; frame++) { await page.screenshot({ path: path.join(pictures, `../act2-polish/close-flight-${frame}.png`) }); await page.waitForTimeout(600); }
     await page.waitForTimeout(1500);
     const video = page.video(); await page.close();
     const file = await video.path();
-    await rm(path.join(here, "../act2-polish/close-flight.webm"), { force: true });
-    await rename(file, path.join(here, "../act2-polish/close-flight.webm"));
+    await rm(path.join(pictures, "../act2-polish/close-flight.webm"), { force: true });
+    await rename(file, path.join(pictures, "../act2-polish/close-flight.webm"));
     observed.push("A close-to-close move stays in and turns the globe: recorded");
   },
   // A clip of the arrival playing at the default 0.75×, pain to fixes.
@@ -273,16 +278,17 @@ const runs = {
     await page.waitForTimeout(6000);
     const video = page.video(); await page.close();
     const file = await video.path();
-    await rm(path.join(here, "arrival.webm"), { force: true });
-    await rename(file, path.join(here, "arrival.webm"));
+    await rm(path.join(pictures, "arrival.webm"), { force: true });
+    await rename(file, path.join(pictures, "arrival.webm"));
   },
 };
 try {
   for (const [name, run] of Object.entries(runs)) if (!only || only === name) { console.log(`run ${name}`); await run(); }
   assert.deepEqual(errors, [], "the browser reports no errors");
-  if (!only) await writeFile(path.join(here, "observations.json"), JSON.stringify({ contract: "2.11, 2.12", source: "Locally built unpublished working tree, SwiftShader", observed }, null, 2) + "\n");
+  if (!only) await writeFile(path.join(pictures, "observations.json"), JSON.stringify({ contract: "2.11, 2.12", source: "Locally built unpublished working tree, SwiftShader", observed }, null, 2) + "\n");
   console.log(observed.join("\n"));
+  if (pictures !== here) console.log(`--check: pictures in ${path.dirname(pictures)}, nothing committed was written`);
 } finally {
   await browser.close(); server.close();
-  for (const name of await readdir(here)) if (name.endsWith(".webm") && name !== "arrival.webm") await rm(path.join(here, name));
+  for (const name of await readdir(pictures)) if (name.endsWith(".webm") && name !== "arrival.webm") await rm(path.join(pictures, name));
 }

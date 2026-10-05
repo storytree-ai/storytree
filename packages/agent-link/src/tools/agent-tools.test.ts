@@ -488,7 +488,7 @@ test("11.1 on GitHub, wire_pipeline writes storytree's workflow: the project's i
       assert.match(workflow, /os: \[ubuntu-latest, windows-latest\]/);
       assert.ok(workflow.includes('- run: "npm ci"\n      - run: "npm test -- --grep \\"a: b\\""'), workflow);
       assert.ok(workflow.includes(`--branch ${storytreeRef()} https://github.com/storytree-ai/storytree.git`), workflow);
-      assert.match(workflow, /pnpm install --frozen-lockfile --filter "@storytree\/guardrails\.\.\."/);
+      assert.match(workflow, /pnpm install --frozen-lockfile --prod --ignore-scripts --filter-prod "@storytree\/guardrails\.\.\."/);
       assert.match(workflow, /node --import tsx src\/check\/run\.ts "\$GITHUB_WORKSPACE"/);
       assert.match(wired.text, /\.github\/workflows\/storytree\.yml/);
     });

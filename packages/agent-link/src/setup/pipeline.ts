@@ -34,7 +34,7 @@ export function checkCommands(ref: string, workspace: string): string[] {
     `git clone --quiet --depth 1 --branch ${ref} https://github.com/storytree-ai/storytree.git "$RUNNER_TEMP/storytree"`,
     `cd "$RUNNER_TEMP/storytree"`,
     "corepack enable",
-    `pnpm install --frozen-lockfile --filter "@storytree/guardrails..."`,
+    `pnpm install --frozen-lockfile --prod --ignore-scripts --filter-prod "@storytree/guardrails..."`,
     "cd packages/guardrails",
     `node --import tsx src/check/run.ts "${workspace}"`,
   ];

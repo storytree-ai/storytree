@@ -449,13 +449,13 @@ importers:
       '@storytree/map':
         specifier: workspace:*
         version: link:../map
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
     devDependencies:
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6
-      tsx:
-        specifier: ^4.23.15
-        version: 4.23.15
       typescript:
         specifier: ~7.0.2
         version: 7.0.2
@@ -648,10 +648,10 @@ importers:
       '@babel/parser':
         specifier: ^7.29.9
         version: 7.29.9
+    devDependencies:
       '@storytree/library':
         specifier: workspace:*
         version: link:../library
-    devDependencies:
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6

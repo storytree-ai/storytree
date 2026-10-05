@@ -1,0 +1,33 @@
+{
+  "project": "shop",
+  "marks": [
+    {
+      "capability": "browse",
+      "word": "unhealthy",
+      "colour": "e24b4a",
+      "opacity": 0.85,
+      "vertices": 1182
+    },
+    {
+      "capability": "filter",
+      "word": "proposed",
+      "colour": "f2d16b",
+      "opacity": 0.8,
+      "vertices": 1149
+    },
+    {
+      "capability": "search",
+      "word": "untested",
+      "colour": "f2d16b",
+      "opacity": 0.8,
+      "vertices": 1161
+    },
+    {
+      "capability": "server",
+      "word": "healthy",
+      "colour": "97c459",
+      "opacity": 0.8,
+      "vertices": 2634
+    }
+  ]
+}

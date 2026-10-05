@@ -50,6 +50,7 @@ import { codexLines } from "./codex.js";
 import { noteCodexHookRan } from "./codex-trust.js";
 import { contextNudge } from "./context-nudge.js";
 import { definitionsContext, definitionsNamedIn, isHarnessNotice, notYetGiven } from "./definitions.js";
+import { shellEdits } from "./shell-edits.js";
 
 /** What a hook is run with: the command's arguments (the harness first, then any flags) and its stdin. */
 export interface HookInput {
@@ -157,6 +158,10 @@ async function writeLines(harness: string, input: string, flags: readonly string
     if (root !== undefined && root !== path.resolve(made.folder)) made = { ...made, lines: made.lines.map((line) => (line.folder === made.folder ? { ...line, folder: root } : line)) };
     // Storytree cannot be reached: the lines wait on this machine for the next hook that reaches it.
     const home = storytreeHome();
+    // Observe before queueing or reaching the store: shell writes remain edits while offline, and
+    // a command's edit line feeds the same upkeep/claim path as an explicit edit tool (3.22).
+    const firstLine = made.lines[0];
+    if (root !== undefined && firstLine !== undefined) made = { ...made, lines: [...made.lines, ...shellEdits(home, root, firstLine)] };
     const { enqueue, uploadQueued } = await import("./queue.js");
     if (where.status === "not-running") {
       enqueue(home, where.project, made.lines);

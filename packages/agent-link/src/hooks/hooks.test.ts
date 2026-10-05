@@ -34,11 +34,13 @@ import { buildBins } from "../bins/build.js";
 import { readContext } from "../context/index.js";
 import { MARKER_FILE, setUpProject } from "../routing/index.js";
 import { leaveNotice } from "../claims/notices.js";
+import { claimFromEdits } from "../claims/edit-claims.js";
+import { readClaims } from "../claims/index.js";
 import { hookLines } from "./hooks.js";
 import { readSettings, setSetting } from "../settings/settings.js";
 import { registerHooks } from "../setup/hooks-config.js";
 import { countingStore, longHistory } from "../testing/egress.js";
-import { withTempDir } from "../testing/folders.js";
+import { git, withTempDir } from "../testing/folders.js";
 import { dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 
 const FIXTURES = fileURLToPath(new URL("./fixtures/", import.meta.url));
@@ -198,6 +200,88 @@ test("3.2 recorded Codex hook inputs make the same four lines, with the edited f
       { ...common, kind: "file-edited", files: ["hello.txt", "greeting.txt", "notes.txt"] },
       { ...common, kind: "file-edited", files: ["hello.txt", "greeting.txt", "notes.txt"] },
     ]);
+  });
+});
+
+for (const harness of ["claude-code", "codex"] as const) test(`3.22 ${harness} shell writes survive offline hooks and claim their capability, without attributing existing dirt or read-only commands`, async () => {
+  const project = uniqueProjectName();
+  await withTempDir(async (dir) => {
+    const folder = projectFolder(dir, project);
+    const home = storytreeHome(dir, false);
+    const session = `shell-${project}`;
+    const file = "packages/sign-up/src/email.ts";
+    mkdirSync(path.dirname(path.join(folder, file)), { recursive: true });
+    writeFileSync(path.join(folder, file), "export const email = 1;\n");
+    writeFileSync(path.join(folder, "packages/sign-up/package.json"), '{"name":"sign-up"}');
+    writeFileSync(path.join(folder, "packages/sign-up/src/email.test.ts"), 'import { email } from "./email.js";\ntest("1.1 email", () => email);\n');
+    writeFileSync(path.join(folder, ".gitignore"), "ignored.txt\n");
+    writeFileSync(path.join(folder, ".gitattributes"), "*.ts text\n");
+    git(folder, "init", "-b", "shell-test");
+    git(folder, "config", "core.autocrlf", "false");
+    git(folder, "add", ".");
+    git(folder, "commit", "-m", "baseline");
+    writeFileSync(path.join(folder, "existing.txt"), "pre-existing dirt");
+    writeFileSync(path.join(folder, file), "export const email = 0;\r\n");
+    const input = (event: string, extra: Record<string, unknown> = {}) => JSON.stringify({ session_id: session, cwd: folder, hook_event_name: event, ...extra });
+    const fire = async (event: string, extra: Record<string, unknown> = {}) => {
+      const ran = await runHook(harness, input(event, extra), home);
+      assert.deepEqual({ code: ran.code, stdout: ran.stdout, stderr: ran.stderr }, { code: 0, stdout: "", stderr: "" });
+    };
+    let call = 0;
+    const command = async (script: string, fails = false) => {
+      const detail = { tool_name: harness === "claude-code" ? "PowerShell" : "Bash", tool_input: { command: `node -e ${JSON.stringify(script)}` }, tool_use_id: `shell-${++call}` };
+      await fire("PreToolUse", detail);
+      const run = () => execFileSync(process.execPath, ["-e", script], { cwd: folder, stdio: "ignore" });
+      if (fails) assert.throws(run); else run();
+      await fire(fails && harness === "claude-code" ? "PostToolUseFailure" : "PostToolUse", detail);
+    };
+    const write = (name: string, content: string) => `require('node:fs').writeFileSync(${JSON.stringify(name)}, ${JSON.stringify(content)});`;
+    const expected: string[][] = [];
+    await fire("SessionStart", { source: "startup" });
+    await command("0");
+    await command(write(file, "export const email = 2;\n")); expected.push([file]);
+    await command(write(file, "export const email = 3;\r\n")); expected.push([file]);
+    await command("0");
+    // Staging and committing leave the file's bytes alone.
+    git(folder, "add", ".");
+    git(folder, "commit", "-m", "edited");
+    await command("0");
+    await command(`require('node:fs').unlinkSync(${JSON.stringify(file)});`); expected.push([file]);
+    await command(write(file, "export const email = 3;\n")); expected.push([file]);
+    const added = "new ü file.txt";
+    await command(write(added, "new") + write("ignored.txt", "ignored")); expected.push([added]);
+    await command(`require('node:fs').renameSync(${JSON.stringify(added)}, 'moved.txt');`); expected.push(["moved.txt", added].sort());
+    await command("require('node:fs').unlinkSync('moved.txt');"); expected.push(["moved.txt"]);
+    await command(write(file, "export const email = 4;\n") + "process.exit(1);", true); expected.push([file]);
+    // The explicit edit hook already records this write; the next command must not repeat it.
+    writeFileSync(path.join(folder, file), "export const email = 5;\n");
+    await fire("PostToolUse", harness === "codex"
+      ? { tool_name: "apply_patch", tool_input: { command: `*** Begin Patch\n*** Update File: ${file}\n*** End Patch` } }
+      : { tool_name: "Write", tool_input: { file_path: file } });
+    expected.push([file]);
+    await command("0");
+    // A command may write and commit before its after-hook; it is still an edit.
+    await command(write(file, "export const email = 6;\n") + "const {execFileSync:g}=require('node:child_process');g('git',['add','.']);g('git',['-c','user.name=test','-c','user.email=test@storytree.invalid','commit','-m','write and commit']);"); expected.push([file]);
+
+    copyFileSync(`${testServerDataDir()}.owner.json`, path.join(home, "pgdata.owner.json"));
+    await command("0"); // The next connected hook uploads the offline lines.
+    const edits = (await linesOf(project)).filter((line) => line.kind === "file-edited");
+    assert.deepEqual(edits.map((line) => line.files.map((name) => path.relative(folder, path.resolve(folder, name)).split(path.sep).join("/")).sort()), expected);
+    assert.ok(edits.every((line) => line.session === session && line.folder === folder && line.branch === "shell-test"));
+
+    const storytree = await connect({ url: testServerUrl() });
+    const log = await openActivityLog(testServerUrl());
+    try {
+      const library = await storytree.openProject(project);
+      const story = await library.addStory({ title: "Sign up" });
+      const cap = await library.addCapability({ story: story.id, title: "1 · Email" });
+      await claimFromEdits({ log, library, project, home });
+      assert.deepEqual((await readClaims(log, project)).map(({ session, capability }) => ({ session, capability })), [{ session, capability: cap.id }]);
+    } finally {
+      await log.close();
+      await storytree.close();
+      await dropTestProjects([project]);
+    }
   });
 });
 

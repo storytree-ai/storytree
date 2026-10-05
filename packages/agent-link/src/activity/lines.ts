@@ -101,10 +101,14 @@ export const NEW_LINE = z.discriminatedUnion("kind", [
   z.object({ ...common, kind: z.literal("tool-requested"), tool: z.string().min(1), call: z.string().min(1), agent: AGENT }).strict(),
   z.object({ ...common, kind: z.literal("tool-called"), tool: z.string().min(1) }).strict(),
   z.object({ ...common, kind: z.literal("note-read"), ...noteRead }).strict(),
-  /** A claim taken, on the git branch its session's folder was on, when it was on one (ADR-0643 D3). */
-  z.object({ ...common, kind: z.literal("claimed"), ...part, reason: z.string().min(1), takenOverFrom: z.string().min(1).optional() }).strict().refine(onePart, ONE_PART),
-  /** A claim turned away because another live session (`holder`) held the work: the reason the refused session gave. */
-  z.object({ ...common, kind: z.literal("claim-refused"), ...part, holder: z.string().min(1), reason: z.string().min(1) }).strict().refine(onePart, ONE_PART),
+  /**
+   * A claim taken, on the git branch its session's folder was on, when it was on one (ADR-0643 D3).
+   * One storytree took because the session edited a file of the capability names that `file`, from
+   * the checkout's root (ADR-0924 D1).
+   */
+  z.object({ ...common, kind: z.literal("claimed"), ...part, reason: z.string().min(1), takenOverFrom: z.string().min(1).optional(), file: z.string().min(1).optional() }).strict().refine(onePart, ONE_PART),
+  /** A claim turned away because another live session (`holder`) held the work: the reason the refused session gave, and the `file` whose edit asked for it (ADR-0924 D2). */
+  z.object({ ...common, kind: z.literal("claim-refused"), ...part, holder: z.string().min(1), reason: z.string().min(1), file: z.string().min(1).optional() }).strict().refine(onePart, ONE_PART),
   z.object({ ...common, kind: z.literal("released"), ...part }).strict().refine(onePart, ONE_PART),
   z.object({ ...common, kind: z.literal("landed"), capability: z.string().min(1) }).strict(),
   /** An increment closed through storytree, with what the close meant: it ends any claim on it (ADR-0643 D1, 6). */

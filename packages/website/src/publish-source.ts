@@ -1,3 +1,7 @@
+import { globSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+
 export interface CheckedRun {
   conclusion: string | null;
   event: string;
@@ -44,6 +48,32 @@ const buildFiles = new Set([
   ".npmrc", ".github/workflows/website.yml",
 ]);
 
-export function websiteChanged(paths: readonly string[]): boolean {
-  return paths.some(file => buildFiles.has(file) || file.startsWith("packages/website/") || file.startsWith("packages/forest-world/"));
+interface PackageManifest {
+  name: string;
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+  optionalDependencies?: Record<string, string>;
+  peerDependencies?: Record<string, string>;
+}
+
+/** Contract 4.3: both CI selection and stale-publication checks use the workspace dependency graph. */
+export function websiteChanged(paths: readonly string[], root = fileURLToPath(new URL("../../../", import.meta.url))): boolean {
+  if (paths.some(file => buildFiles.has(file))) return true;
+  const packages = new Map<string, { directory: string; manifest: PackageManifest }>();
+  // These are the workspace roots in pnpm-workspace.yaml; package membership comes from manifests.
+  for (const file of globSync(["packages/*/package.json", "apps/*/package.json"], { cwd: root })) {
+    const manifest: PackageManifest = JSON.parse(readFileSync(join(root, file), "utf8"));
+    packages.set(manifest.name, { directory: file.replaceAll("\\", "/").replace(/package\.json$/, ""), manifest });
+  }
+  const pending = ["@storytree/website"];
+  const directories = new Set<string>();
+  if (!packages.has("@storytree/website")) throw new Error("Missing website workspace package.");
+  while (pending.length) {
+    const pkg = packages.get(pending.pop()!);
+    if (!pkg || directories.has(pkg.directory)) continue;
+    directories.add(pkg.directory);
+    const { dependencies, devDependencies, optionalDependencies, peerDependencies } = pkg.manifest;
+    pending.push(...Object.keys({ ...dependencies, ...devDependencies, ...optionalDependencies, ...peerDependencies }));
+  }
+  return [...directories].some(directory => paths.some(file => file.startsWith(directory)));
 }

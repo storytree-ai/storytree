@@ -78,8 +78,10 @@ test("3.9 Library hides the islands and every mark on them, and keeps the glass 
 test("3.34 zooming in past the islands hides them, leaving the glass and core; zooming back out brings them back without flickering", () => {
   // Framing is how many radii half the screen's short side spans: smaller is closer in.
   assert.equal(pastIslands(1.18, false), false, "the opening view");
-  assert.equal(pastIslands(0.2, false), false, "close on an island, reading its file circles");
+  assert.equal(pastIslands(1.18 / 2.6, false), false, "close on an island, reading its file circles (2.6 times the opening zoom)");
   assert.equal(pastIslands(0.55, false), false, "the closest a guided stop frames");
+  // The owner found ten times the opening zoom (about 45 wheel notches) too far to reach: they are gone by four times.
+  assert.equal(pastIslands(1.18 / 4, false), true, "four times the opening zoom is past the islands");
   let past = false;
   const zoom = (framing: number) => (past = pastIslands(framing, past));
   assert.equal(zoom(PAST_ISLANDS.enter * 0.99), true, "past the islands");

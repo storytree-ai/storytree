@@ -1,0 +1,151 @@
+{
+  "seed": "code-rows: storytree's own 15 stories and their code",
+  "before": {
+    "roadsInsideTheGlass": [
+      {
+        "id": "pathway:cross:tkmhq5x",
+        "inside": 5.75,
+        "longestStep": 204.73
+      }
+    ],
+    "longestStepOfTheWorstEight": 204.73,
+    "wheel": [
+      {
+        "notches": 0,
+        "framing": 1.18,
+        "shownGrounds": 15
+      },
+      {
+        "notches": 5,
+        "framing": 0.913,
+        "shownGrounds": 15
+      },
+      {
+        "notches": 10,
+        "framing": 0.707,
+        "shownGrounds": 15
+      },
+      {
+        "notches": 15,
+        "framing": 0.547,
+        "shownGrounds": 15
+      },
+      {
+        "notches": 20,
+        "framing": 0.423,
+        "shownGrounds": 15
+      },
+      {
+        "notches": 25,
+        "framing": 0.327,
+        "shownGrounds": 15
+      },
+      {
+        "notches": 30,
+        "framing": 0.253,
+        "shownGrounds": 15
+      },
+      {
+        "notches": 35,
+        "framing": 0.196,
+        "shownGrounds": 15
+      },
+      {
+        "notches": 40,
+        "framing": 0.152,
+        "shownGrounds": 15
+      },
+      {
+        "notches": 45,
+        "framing": 0.117,
+        "shownGrounds": 0
+      },
+      {
+        "notches": 50,
+        "framing": 0.091,
+        "shownGrounds": 0
+      },
+      {
+        "notches": 55,
+        "framing": 0.07,
+        "shownGrounds": 0
+      },
+      {
+        "notches": 60,
+        "framing": 0.066,
+        "shownGrounds": 0
+      }
+    ]
+  },
+  "after": {
+    "roadsInsideTheGlass": [],
+    "longestStepOfTheWorstEight": 1.12,
+    "wheel": [
+      {
+        "notches": 0,
+        "framing": 1.18,
+        "shownGrounds": 15
+      },
+      {
+        "notches": 5,
+        "framing": 0.913,
+        "shownGrounds": 15
+      },
+      {
+        "notches": 10,
+        "framing": 0.707,
+        "shownGrounds": 15
+      },
+      {
+        "notches": 15,
+        "framing": 0.547,
+        "shownGrounds": 15
+      },
+      {
+        "notches": 20,
+        "framing": 0.423,
+        "shownGrounds": 15
+      },
+      {
+        "notches": 25,
+        "framing": 0.327,
+        "shownGrounds": 15
+      },
+      {
+        "notches": 30,
+        "framing": 0.253,
+        "shownGrounds": 0
+      },
+      {
+        "notches": 35,
+        "framing": 0.196,
+        "shownGrounds": 0
+      },
+      {
+        "notches": 40,
+        "framing": 0.152,
+        "shownGrounds": 0
+      },
+      {
+        "notches": 45,
+        "framing": 0.117,
+        "shownGrounds": 0
+      },
+      {
+        "notches": 50,
+        "framing": 0.091,
+        "shownGrounds": 0
+      },
+      {
+        "notches": 55,
+        "framing": 0.07,
+        "shownGrounds": 0
+      },
+      {
+        "notches": 60,
+        "framing": 0.066,
+        "shownGrounds": 0
+      }
+    ]
+  }
+}

@@ -247,3 +247,29 @@ test("8.12 a CommonJS require of a relative file or the package's own exported s
   ]);
   assert.deepEqual(survey.imports, [{ from: "src/auth/index.js", to: "src/core/index.js" }, { from: "src/auth/index.js", to: "src/auth/sign-in.js" }]);
 });
+
+test("8.14 a test file that runs an imported behaviour suite carries the suite's numbered titles, for its proofs and its reach; comments and a file that registers no tests credit nothing", () => {
+  const suite = [
+    'import { test } from "node:test";',
+    'import { store } from "./store.js";',
+    "export function storeSuite(label: string): void {",
+    "  function contract(number: string, title: string, body: () => void): void {",
+    "    test(`${number} [${label}] ${title}`, body);",
+    "  }",
+    '  contract("2.1", "save replaces", () => store);',
+    '  // contract("2.9", "commented", () => store);',
+    '  contract("map 2.2", "foreign proof", () => store);',
+    "}",
+  ].join("\n");
+  const surveyed = surveyStory([
+    { path: "src/store.ts", text: "export const store = true;" },
+    { path: "src/suite.ts", text: suite },
+    { path: "src/inert.ts", text: 'export const register = (number: string) => number;\nregister("2.8");' },
+    { path: "src/memory.test.ts", text: 'import { storeSuite } from "./suite.js";\nimport { register } from "./inert.js";\nstoreSuite("memory");\n' },
+  ], [{ id: "transactions", title: "2 · Library transactions" }], {}, "library");
+  assert.deepEqual(surveyed.tests?.find(file => file.path === "src/memory.test.ts")?.titles, [
+    { number: "2.1", title: "2.1" },
+    { package: "map", number: "2.2", title: "map 2.2" },
+  ]);
+  assert.equal(surveyed.files.find(file => file.path === "src/store.ts")?.capability, "transactions");
+});

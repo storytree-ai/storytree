@@ -1,4 +1,4 @@
-/** What a live update hands the globe (ADR-0836 D1): only what changed, and nothing when nothing on show did. */
+/** Capability 3 · Story node render. What a live update hands the globe (ADR-0836 D1): only what changed, and nothing when nothing on show did. */
 import type { ClaimTint, ForestScene, Island, SessionWisp } from "@storytree/forest";
 
 /** The globe's drawing as it stands: the scene and each story's permanent place. */

@@ -1,5 +1,5 @@
 /**
- * The capability tree's own space (the forest story, capability 4; ADR-0743): a large layer over
+ * Capability 4 · Drill-down. The capability tree's own space (the forest story, capability 4; ADR-0743): a large layer over
  * the forest, beside the story panel, popped out from the tree's space inside the panel, where the
  * tree is moved and zoomed (`attachPanZoom`). It opens at the tree's opening zoom (by default the
  * whole tree fitted in it, ADR-0750), its "Fit" control fits the whole tree, and keeps where it was while the live reading redraws the same story.

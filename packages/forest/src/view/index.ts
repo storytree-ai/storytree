@@ -1,3 +1,4 @@
+/** Capability 3 · Story node render. */
 /// <reference path="./assets.d.ts" />
 
 // @storytree/forest/view: the forest's surfaces, for the app to mount (ADR-0649 D2).

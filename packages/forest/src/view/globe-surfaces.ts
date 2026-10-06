@@ -1,3 +1,4 @@
+/** Capability 3 · Story node render. */
 import type { Group, Mesh, MeshBasicMaterial, Object3D } from "three";
 
 /** The app's attention switches, also available to guides mounted outside the app. */

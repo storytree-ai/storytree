@@ -1,5 +1,5 @@
 /**
- * The forest's globe-only page (the forest story, capability 3; ADR-0655).
+ * Capability 3 · Story node render. The forest's globe-only page (the forest story, capability 3; ADR-0655).
  * PlanetView reuses the ported island drawing, with story names, selection and claims.
  * Unchanged islands retain their objects, and a live update that changed nothing on show is not drawn again.
  * The page mounts only the globe, and loads none of 0.2's pine kit: no island carries a tree (ADR-0804 D1).

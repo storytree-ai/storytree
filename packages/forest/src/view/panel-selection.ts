@@ -1,4 +1,4 @@
-/** Forest capability 3: the story and artifact share one panel slot. A story picked by its territory names that capability (3.15). */
+/** Capability 3 · Story node render. Forest capability 3: the story and artifact share one panel slot. A story picked by its territory names that capability (3.15). */
 export type Selection = { kind: "story"; id: string; capability?: string } | { kind: "note"; id: string } | undefined;
 
 export class PanelSelection {

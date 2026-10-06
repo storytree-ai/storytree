@@ -1,5 +1,5 @@
 /**
- * The forest story's surfaces, as the app's Surfaces menu lists them (ADR-0750): each with its plain
+ * Capability 3 · Story node render. The forest story's surfaces, as the app's Surfaces menu lists them (ADR-0750): each with its plain
  * name, one line on what it is, whether it can be switched off, and its own settings. Plain data, so
  * the app, the desktop frame and the command line can all read it without a browser.
  */

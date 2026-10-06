@@ -1,5 +1,5 @@
 /**
- * The forest's reading: the arc surface's live reading, with the project's tree read again when the
+ * Capability 7 · Running sessions. The forest's reading: the arc surface's live reading, with the project's tree read again when the
  * library changed (and once at the start), handed on with the news that came with it, and the survey
  * of its code (capability 8), when the host can read the code. The tree never waits for the survey:
  * it is drawn with the last survey, and drawn again when a newer one lands (ADR-0836 D2).

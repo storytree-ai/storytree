@@ -530,6 +530,26 @@ test("5.9 a claim on a capability is refused when every open increment naming it
   });
 });
 
+test("5.18 a capability claim refused as waiting names the claiming session's open increment whose touches omit the capability; once that increment lists it, the claim stands", async () => {
+  await withWorld(async ({ library, emailForm, as }) => {
+    const { park } = await arcOf(library);
+    const design = await park("design");
+    const waiting = await park("form, waiting cut", [emailForm]);
+    await library.addWait(waiting, design, "the design comes first");
+    const mine = await park("form, my cut");
+    assert.equal((await claim(as("A"), mine, "driving my cut")).ok, true);
+
+    const refused = await claim(as("A"), emailForm, "building the form");
+    assert.ok(!refused.ok && refused.refused === "waiting");
+    assert.deepEqual(refused.untouched, [mine]);
+    const other = await claim(as("B"), emailForm, "building the form");
+    assert.ok(!other.ok && other.refused === "waiting" && other.untouched === undefined, "a session holding no increment is not told to edit one");
+
+    await library.editIncrement(mine, { touches: [emailForm] });
+    assert.equal((await claim(as("A"), emailForm, "building the form")).ok, true, "listing it in its touches lets the claim stand");
+  });
+});
+
 test("5.16 a reason longer than 40 characters is refused naming the limit and its length, with nothing written or started; 40 characters is claimed", async () => {
   await withWorld(async ({ log, project, emailForm, as }) => {
     const long = "Build the email form and its validation!!";

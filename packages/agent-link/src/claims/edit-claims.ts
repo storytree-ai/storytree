@@ -8,10 +8,11 @@
  * release a wrong guess (D3); and, as editor, who holds what it edited. A holder is told of an edit to
  * what it holds by the look on its own machine, which reads every machine's refusals.
  *
- * Which capability a file belongs to is one seam (`CapabilityLookup`, D5 still open). For now it is
- * the code survey's answer (packages/map): a file belongs to the capability whose numbered tests reach
- * it nearest. A file the survey places nowhere claims nothing (D4). Any failure claims nothing and
- * says nothing.
+ * Which capability a file belongs to is one seam (`CapabilityLookup`), in ADR-0925 D4's order, read
+ * from the session's own checkout: a source file's opening "Capability N · <title>" declaration; else a
+ * test file's one numbered capability; else the code survey's inference (packages/map: the capability
+ * whose numbered tests reach it nearest), which the session is told was inferred. A file none of these
+ * places claims nothing (ADR-0924 D4). Any failure claims nothing and says nothing.
  *
  * Where the last look got to is kept on this machine, per project: a look reads only what came after,
  * and only edits from the last 15 minutes count, so a first look, or one after a long gap, claims
@@ -27,8 +28,14 @@ import { labelOf } from "../readings.js";
 import { claim, CLAIM_REASON_LIMIT, type Claim } from "./claims.js";
 import { leaveNotice } from "./notices.js";
 
+/** A file's capability, and whether the survey inferred it rather than the file declaring it. */
+export interface Owner {
+  readonly capability: string;
+  readonly inferred: boolean;
+}
+
 /** Which capability each of `files` (absolute paths in the checkout at `checkout`) belongs to; a file that belongs to none is absent. */
-export type CapabilityLookup = (checkout: string, files: readonly string[]) => Promise<ReadonlyMap<string, string>>;
+export type CapabilityLookup = (checkout: string, files: readonly string[]) => Promise<ReadonlyMap<string, Owner>>;
 
 export interface EditClaimsContext {
   readonly log: ActivityLog;
@@ -67,22 +74,23 @@ export async function claimFromEdits(context: EditClaimsContext): Promise<void> 
     const planOnce = () => (plan ??= library.projectTree());
     let known: Promise<Map<string, string>> | undefined;
     const titlesOf = () => (known ??= planOnce().then((tree) => new Map(tree.stories.flatMap((story) => story.capabilities.map(({ id, title }) => [id, title] as const)))));
-    const lookup = context.lookup ?? surveyLookup(planOnce);
+    const lookup = context.lookup ?? declaredFirstLookup(planOnce);
     const done = new Set<string>();
     const titles = edits.length === 0 ? new Map<string, string>() : await titlesOf();
     for (const [checkout, lines] of byFolder(edits)) {
-      const owners = await lookup(checkout, lines.flatMap((line) => line.files.map((file) => path.resolve(checkout, file)))).catch(() => new Map<string, string>());
+      const owners = await lookup(checkout, lines.flatMap((line) => line.files.map((file) => path.resolve(checkout, file)))).catch(() => new Map<string, Owner>());
       for (const line of lines) {
         for (const edited of line.files) {
           const full = path.resolve(checkout, edited);
-          const capability = owners.get(full);
+          const owner = owners.get(full);
+          const capability = owner?.capability;
           const title = capability === undefined ? undefined : titles.get(capability);
           if (capability === undefined || title === undefined || done.has(`${line.session}\n${capability}`)) continue;
           done.add(`${line.session}\n${capability}`);
           const file = path.relative(checkout, full).split(path.sep).join("/");
           const answer = await claim({ log, library, project, session: line.session, ...(line.harness === undefined ? {} : { harness: line.harness }), source: "hook", folder: checkout, ...(line.branch === undefined ? {} : { branch: line.branch }) },
             capability, [...title].slice(0, CLAIM_REASON_LIMIT).join("").trim(), { file });
-          if (answer.ok && answer.alreadyHeld !== true) leaveNotice(home, line.session, claimedNotice(title, capability, file));
+          if (answer.ok && answer.alreadyHeld !== true) leaveNotice(home, line.session, claimedNotice(title, capability, file, owner!.inferred));
           else if (!answer.ok && answer.refused === "held") leaveNotice(home, line.session, heldNotice(title, file, answer.holder));
         }
       }
@@ -100,8 +108,9 @@ export async function claimFromEdits(context: EditClaimsContext): Promise<void> 
   }
 }
 
-function claimedNotice(title: string, capability: string, file: string): string {
-  return `[storytree] Your edit to ${file} claimed "${title}" (${capability}) for you. If you are not writing that capability, release it: the release tool, or \`storytree workspace release ${capability}\`.`;
+function claimedNotice(title: string, capability: string, file: string, inferred: boolean): string {
+  const guessed = inferred ? ` The file declares no capability, so this was inferred from the tests that reach it; declare it with an opening comment "Capability N · <title>".` : "";
+  return `[storytree] Your edit to ${file} claimed "${title}" (${capability}) for you.${guessed} If you are not writing that capability, release it: the release tool, or \`storytree workspace release ${capability}\`.`;
 }
 
 function heldNotice(title: string, file: string, holder: Claim): string {
@@ -119,17 +128,39 @@ function byFolder(edits: readonly Extract<Line, { kind: "file-edited" }>[]): Map
   return grouped;
 }
 
-/** The code survey's answer, of the checkout the edit was made in (ADR-0924 D5's interim lookup), over the plan `planOf` reads. */
-function surveyLookup(planOf: () => Promise<AnnotatedTree>): CapabilityLookup {
+/**
+ * ADR-0925 D4's lookup, over the plan `planOf` reads: each file's own declaration, read from the checkout
+ * the edit was made in, then the code survey's inference of that checkout for the files that declare none.
+ */
+function declaredFirstLookup(planOf: () => Promise<AnnotatedTree>): CapabilityLookup {
   return async (checkout, files) => {
-    const [{ codeSurveyReader, packageOf }, tree] = await Promise.all([import("@storytree/map/code-survey"), planOf()]);
+    const [{ codeSurveyReader, declaredNumberOf, packageOf }, tree] = await Promise.all([import("@storytree/map/code-survey"), planOf()]);
+    const owners = new Map<string, Owner>();
+    const undeclared: string[] = [];
+    for (const file of files) {
+      const relative = path.relative(checkout, file).split(path.sep).join("/");
+      const story = tree.stories.find(({ title }) => relative.startsWith(`packages/${packageOf(title)}/`) || (packageOf(title) === "app" && relative.startsWith("apps/desktop/")));
+      if (story === undefined) continue;
+      let text: string;
+      try {
+        text = readFileSync(file, "utf8");
+      } catch {
+        continue;
+      }
+      const number = declaredNumberOf({ path: relative, text }, packageOf(story.title));
+      const declared = number === undefined ? undefined : story.capabilities.find(({ title }) => Number(/^\s*(\d+)\s*·/.exec(title)?.[1]) === number);
+      if (declared === undefined) undeclared.push(file);
+      else owners.set(file, { capability: declared.id, inferred: false });
+    }
+    if (undeclared.length === 0) return owners;
     const survey = await codeSurveyReader({ checkout: "current" }).read(checkout, tree);
-    const owners = new Map<string, string>();
+    const inferred = new Map<string, string>();
     for (const story of tree.stories) {
       const root = path.join(checkout, "packages", packageOf(story.title));
-      for (const file of survey[story.id]?.files ?? []) if (file.capability !== undefined) owners.set(path.resolve(root, file.path), file.capability);
+      for (const file of survey[story.id]?.files ?? []) if (file.capability !== undefined) inferred.set(path.resolve(root, file.path), file.capability);
     }
-    return new Map(files.flatMap((file) => (owners.has(file) ? [[file, owners.get(file)!] as const] : [])));
+    for (const file of undeclared) if (inferred.has(file)) owners.set(file, { capability: inferred.get(file)!, inferred: true });
+    return owners;
   };
 }
 

@@ -166,6 +166,20 @@ export const declarationOf = (text: string): number | undefined => {
   return match === null ? undefined : Number(match[1]);
 };
 
+/**
+ * The capability number a file declares itself (ADR-0925 D1, D4): a test file, the one number its own
+ * numbered titles carry (none when they carry several); a source file, its opening comment's. Not code, none.
+ */
+export function declaredNumberOf(file: SourceFile, ownPackage?: string): number | undefined {
+  if (!CODE_FILE.test(file.path) || DECLARATION.test(file.path)) return undefined;
+  if (!TEST_FILE.test(file.path)) return declarationOf(file.text);
+  const numbers = new Set(calledTitles(file).flatMap((title) => {
+    const named = NUMBERED_TITLE.exec(title);
+    return named === null || (named[1] !== undefined && named[1] !== ownPackage) ? [] : [Number(named[2])];
+  }));
+  return numbers.size === 1 ? [...numbers][0] : undefined;
+}
+
 const linesOf = (text: string): number => text.split("\n").filter((line) => line.trim() !== "").length;
 
 /**

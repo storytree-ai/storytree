@@ -36,8 +36,7 @@ test("3.22 a clean pull, fast-forward or merge invents no edit for the files Git
     const home = path.join(dir, "home");
     const root = path.join(dir, "repo");
     mkdirSync(root);
-    const observe = (kind: "command-started" | "command-run") => shellEdits(home, root, { session: "one", harness: "codex", source: "hook", kind, command: "git", folder: root });
-    const edited = () => observe("command-run").map((line) => line.kind === "file-edited" && line.files);
+    const edited = () => shellEdits(home, root, { session: "one", harness: "codex", source: "hook", kind: "command-run", command: "git", folder: root }).map((line) => line.kind === "file-edited" && line.files);
     const commit = (file: string, text: string, message: string) => {
       writeFileSync(path.join(root, file), text);
       git(root, "add", file);
@@ -49,7 +48,7 @@ test("3.22 a clean pull, fast-forward or merge invents no edit for the files Git
     git(root, "checkout", "-q", "-b", "incoming");
     commit("source.ts", "two", "incoming change");
     git(root, "checkout", "-q", "main");
-    observe("command-started");
+    assert.deepEqual(edited(), []);
 
     git(root, "merge", "-q", "--ff-only", "incoming");
     assert.deepEqual(edited(), []);

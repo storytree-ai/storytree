@@ -169,10 +169,11 @@ export type ProjectSeams = CloudSqlSeams & {
 class ServerConnection implements Storytree {
   readonly #server: ServerAccess;
   readonly #projects = new Set<ProjectLibrary>();
+  readonly #opening = new Set<Promise<Project>>();
   readonly #own = new Map<string, Promise<Pool>>();
   readonly #embedder: EmbedderSource | undefined;
   readonly #vectorCache: string | null;
-  #closed = false;
+  #closing: Promise<void> | undefined;
 
   constructor(server: ServerAccess, seams: ProjectSeams) {
     this.#server = server;
@@ -183,6 +184,17 @@ class ServerConnection implements Storytree {
   }
 
   async openProject(name: string, options: OpenOptions = {}): Promise<Project> {
+    this.#assertOpen();
+    const opening = this.#openProject(name, options);
+    this.#opening.add(opening);
+    try {
+      return await opening;
+    } finally {
+      this.#opening.delete(opening);
+    }
+  }
+
+  async #openProject(name: string, options: OpenOptions): Promise<Project> {
     assertProjectName(name); // before anything touches the server
     const database = projectDatabase(name);
     try {
@@ -204,7 +216,8 @@ class ServerConnection implements Storytree {
     }
   }
 
-  ownDatabase(name: string): Promise<Pool> {
+  async ownDatabase(name: string): Promise<Pool> {
+    this.#assertOpen();
     if (name.startsWith(PROJECT_DATABASE_PREFIX) || name === "" || name === "postgres") {
       return Promise.reject(new Error(`"${name}" is not a database of its own to hand out: it is a project's, or the server's.`));
     }
@@ -222,6 +235,7 @@ class ServerConnection implements Storytree {
   }
 
   async listProjects(): Promise<string[]> {
+    this.#assertOpen();
     try {
       const { rows } = await this.#server.admin.query<{ datname: string }>(
         "SELECT datname FROM pg_database WHERE starts_with(datname, $1)",
@@ -234,6 +248,7 @@ class ServerConnection implements Storytree {
   }
 
   async projectIdentities(): Promise<Record<string, string>> {
+    this.#assertOpen();
     try {
       const { rows } = await this.#server.admin.query<{ datname: string; identity: string }>(
         "SELECT datname, oid::text AS identity FROM pg_database WHERE starts_with(datname, $1) ORDER BY datname",
@@ -276,17 +291,31 @@ class ServerConnection implements Storytree {
     }
   }
 
-  async close(): Promise<void> {
-    if (this.#closed) return;
-    this.#closed = true;
+  close(): Promise<void> {
+    this.#closing ??= this.#close();
+    return this.#closing;
+  }
+
+  async #close(): Promise<void> {
     try {
-      await Promise.all([...this.#projects].map((project) => project.close()));
+      // An opening owns a pool before it can hand back a project. Wait for those owners to
+      // finish (or discard their failed pools) before taking the final set to close.
+      await Promise.allSettled(this.#opening);
       const own = await Promise.allSettled(this.#own.values());
-      await Promise.all(own.map((opened) => (opened.status === "fulfilled" && !opened.value.ended ? opened.value.end() : undefined)));
-      await this.#server.admin.end();
+      const closed = await Promise.allSettled([
+        ...[...this.#projects].map((project) => project.close()),
+        ...own.map((opened) => (opened.status === "fulfilled" && !opened.value.ended ? opened.value.end() : undefined)),
+        this.#server.admin.end(),
+      ]);
+      const failed = closed.find((result) => result.status === "rejected");
+      if (failed?.status === "rejected") throw failed.reason;
     } finally {
       this.#server.close();
     }
+  }
+
+  #assertOpen(): void {
+    if (this.#closing !== undefined) throw new Error("This library server connection is closed.");
   }
 
   /**

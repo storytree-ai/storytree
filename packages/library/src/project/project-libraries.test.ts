@@ -106,6 +106,80 @@ test("1.2 opening the same project again succeeds and changes nothing", async ()
   });
 });
 
+test("1.13 closing waits for an opening project and concurrent closers, then releases its connections", async () => {
+  const name = uniqueProjectName();
+  await withStorytree([databaseOf(name)], async (storytree) => {
+    await (await storytree.openProject(name)).close();
+    let project: Project | undefined;
+    let finishedWhileOpening: boolean[] | undefined;
+    try {
+      await withTestClient(async (blocker) => {
+        await blocker.query("BEGIN");
+        await blocker.query("LOCK TABLE library_meta IN ACCESS EXCLUSIVE MODE");
+        const pid = (await blocker.query<{ pid: number }>("SELECT pg_backend_pid() AS pid")).rows[0]!.pid;
+        const opening = storytree.openProject(name).then((opened) => { project = opened; });
+        let closing: Promise<void>[] = [];
+        try {
+          const deadline = Date.now() + 5_000;
+          for (;;) {
+            await blocker.query("SELECT pg_stat_clear_snapshot()");
+            const { rows } = await blocker.query(
+              "SELECT 1 FROM pg_stat_activity WHERE datname = current_database() AND $1 = ANY(pg_blocking_pids(pid))", [pid],
+            );
+            if (rows.length > 0) break;
+            assert.ok(Date.now() < deadline, "the project opening reaches the held schema read");
+            await new Promise((resolve) => setTimeout(resolve, 10));
+          }
+          const finished = [false, false];
+          closing = finished.map((_, i) => storytree.close().then(() => { finished[i] = true; }));
+          await new Promise((resolve) => setImmediate(resolve));
+          finishedWhileOpening = [...finished];
+        } finally {
+          await blocker.query("ROLLBACK");
+          await opening;
+          await Promise.all(closing);
+        }
+      }, databaseOf(name));
+      assert.ok(project?.pool.ended, "shutdown includes the project that finished opening during it");
+      assert.deepEqual(finishedWhileOpening, [false, false], "neither close finishes while the project is still opening");
+      await assert.rejects(project.transactions.get("after-close"), /pool after calling end/);
+      await withTestClient(async (observer) => {
+        const { rows } = await observer.query<{ n: number }>(
+          "SELECT count(*)::int AS n FROM pg_stat_activity WHERE datname = $1", [databaseOf(name)],
+        );
+        assert.equal(rows[0]?.n, 0, "no project connection is left on Postgres");
+      });
+    } finally {
+      // Also cleans up the orphan when this regression is run against the broken implementation.
+      await project?.close();
+    }
+  });
+});
+
+test("1.13 closing refuses new openings and every caller waits for an own-database client to return", async () => {
+  const name = uniqueProjectName();
+  const own = `${name}-own`;
+  await withStorytree([databaseOf(name), own], async (storytree) => {
+    await (await storytree.openProject(name)).close();
+    const pool = await storytree.ownDatabase(own);
+    const client = await pool.connect();
+    const finished = [false, false];
+    const closing = finished.map((_, i) => storytree.close().then(() => { finished[i] = true; }));
+    try {
+      await new Promise((resolve) => setImmediate(resolve));
+      assert.deepEqual(finished, [false, false], "both closers wait for the checked-out connection");
+      await assert.rejects(storytree.openProject(name), /closed/i);
+      await assert.rejects(storytree.ownDatabase(own), /closed/i);
+    } finally {
+      client.release();
+      await Promise.all(closing);
+    }
+    assert.ok(pool.ended);
+    await assert.rejects(storytree.openProject(name), /closed/i);
+    await assert.rejects(storytree.ownDatabase(own), /closed/i);
+  });
+});
+
 test("1.2 reopening while a record write is in flight does not deadlock (PR 75 macOS CLI incident)", async () => {
   const name = uniqueProjectName();
   await withStorytree([databaseOf(name)], async (storytree) => {

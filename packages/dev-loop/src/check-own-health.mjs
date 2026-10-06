@@ -16,7 +16,8 @@
 //   app never restarts into an update mid-write.
 //
 // A story's tests are its own package's: the story is proven by the tests in packages/<name>/src,
-// the package named after its title (packages/dev-loop/src/own-health.mjs's packageOf). Since every story
+// the package named after its title (packages/dev-loop/src/own-health.mjs's packageOf), and the app
+// story's also by apps/desktop/src, the other half of its frame (sourcesOf). Since every story
 // numbers its contracts from 1.1, another package's test counts for the story only when its title
 // names the story's package first (a title like processes 3.6: …): a dependant proving the story's contract
 // through its own front door (ADR-0845). A story with no such package has no tests yet, so its contracts are
@@ -37,7 +38,7 @@ import { connect } from "@storytree/library";
 
 import { appHome } from "../../../apps/desktop/src/home.ts";
 import { appLibraryServer } from "./library-server.mjs";
-import { contractsCoveredBy, contractsOf, creditWindows, dependantTestsNaming, judge, packageOf, parseJunit, readWindowsEvidence, recordHealth, recordingTarget } from "./own-health.mjs";
+import { contractsCoveredBy, contractsOf, creditWindows, dependantTestsNaming, judge, packageOf, parseJunit, readWindowsEvidence, recordHealth, recordingTarget, sourcesOf } from "./own-health.mjs";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 const PROJECT = "storytree";
@@ -112,26 +113,28 @@ async function main() {
 export async function checkStory(library, story, writer, { root, windows, runTests = runStoryTests, log = (line) => console.log(line), error = (line) => console.error(line) }) {
   const { numbers, contractIds } = contractsOf(story);
   const name = packageOf(story.title);
-  const source = path.join(root, "packages", name, "src");
-  if (!existsSync(source)) {
+  const sources = sourcesOf(name).map((dir) => path.join(root, dir));
+  if (!existsSync(sources[0])) {
     log(`\n"${story.title}" has no tests yet (no packages/${name}), so its ${numbers.length} contracts are left not checked.`);
     return true;
   }
-  const tests = [`packages/${name}/src/**/*.test.ts`, `packages/${name}/src/**/*.test.mjs`, ...dependantTestsNaming(name, { root })];
+  const owned = sourcesOf(name).filter((dir) => existsSync(path.join(root, dir)));
+  const tests = [...owned.flatMap((dir) => [`${dir}/**/*.test.ts`, `${dir}/**/*.test.mjs`]), ...dependantTestsNaming(name, { root })];
   log(`\nrunning the tests of "${story.title}" (${tests.join(", ")}, junit reporter) …`);
   const run = await runTests(tests, root);
   if (run.results === undefined) {
     error(`\nThe test run (exit code ${run.code}) produced no report, so no health was recorded for "${story.title}".`);
     return false;
   }
-  const dependant = (test) => path.relative(source, path.resolve(root, test)).startsWith("..");
+  const sourceOf = (test) => sources.find((source) => !path.relative(source, path.resolve(root, test)).startsWith(".."));
+  const dependant = (test) => sourceOf(test) === undefined;
   const count = (status) => run.results.filter((result) => result.status === status).length;
   log(`tests: ${run.results.length} results: ${count("passed")} passed, ${count("failed")} failed, ${count("skipped")} skipped`);
 
   const { verdicts, unmapped, crashedFiles } = judge({
     contracts: numbers,
     results: creditWindows(run.results, windows, { root, commit: writer.commit }),
-    coverage: (test) => (dependant(test) ? contractsCoveredBy(test, { root: path.join(root, "packages"), prefix: name }) : contractsCoveredBy(test, { root: source })),
+    coverage: (test) => (dependant(test) ? contractsCoveredBy(test, { root: path.join(root, "packages"), prefix: name }) : contractsCoveredBy(test, { root: sourceOf(test) })),
     show: (test) => path.relative(root, test),
     prefix: name,
     dependant,

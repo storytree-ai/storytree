@@ -293,6 +293,38 @@ test("5.4 checking a story also runs a dependant's test titled with the story's 
   });
 });
 
+test("5.4 checking the app story also runs the desktop app's tests as its own, crediting their numbered titles", async (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "own-health-frame-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  mkdirSync(path.join(root, "packages/app/src"), { recursive: true });
+  mkdirSync(path.join(root, "apps/desktop/src/main"), { recursive: true });
+  const own = path.join(root, "packages/app/src/projects.test.ts");
+  const frame = path.join(root, "apps/desktop/src/main/start-check.test.ts");
+  writeFileSync(own, 'test("1.1 it lists the projects", () => {});\n');
+  writeFileSync(frame, 'test("1.2 a start that fails ends the app", () => {});\n');
+  await withLibrary(async (lib) => {
+    const added = await lib.addStory({ title: "The app" });
+    const capability = await lib.addCapability({ story: added.id, title: "1 · Lifecycle" });
+    for (const number of [1, 2]) await lib.addContract({ capability: capability.id, title: `1.${number} · It does ${number}` });
+    const story = (await lib.projectTree()).stories[0];
+    const { contractIds } = contractsOf(story);
+    const ran = [];
+    const run = async (globs) => {
+      ran.push(...globs);
+      return {
+        code: 0,
+        results: [
+          { name: "1.1 it lists the projects", suites: [], file: own, status: "passed" },
+          { name: "1.2 a start that fails ends the app", suites: [], file: frame, status: "passed" },
+        ],
+      };
+    };
+    assert.equal(await checkStory(lib, story, { by: "storytree test run" }, { root, runTests: run, log: () => {}, error: () => {} }), true);
+    assert.deepEqual(ran, ["packages/app/src/**/*.test.ts", "packages/app/src/**/*.test.mjs", "apps/desktop/src/**/*.test.ts", "apps/desktop/src/**/*.test.mjs"]);
+    assert.equal((await lib.health(contractIds.get("1.2"))).verified.state, "passing", "the desktop app's unprefixed 1.2 is the app story's");
+  });
+});
+
 test("5.4 Windows CI at the same commit verifies Get storytree 1.9 and Front door 1.12, naming its run; unavailable or unrelated evidence gives no credit", async (t) => {
   const root = mkdtempSync(path.join(tmpdir(), "own-health-windows-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));

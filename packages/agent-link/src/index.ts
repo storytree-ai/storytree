@@ -22,7 +22,7 @@ export { decisionRights, habitsCard, removeCodexInstructions, STANDING_DELEGATIO
 export type { DecisionRights } from "./instructions/index.js";
 export { contextCommand, contextReading, readContext, sessionWindow } from "./context/index.js";
 export { pruneTranscripts, RETAIN_MS, scrub, shipTranscript, storedContextReading, storedSessionWindow } from "./transcripts/index.js";
-export type { TranscriptCache } from "./transcripts/index.js";
+export { TranscriptCache } from "./transcripts/index.js";
 export type { Arrival, ContextCommandAnswer, ContextCommandOptions, ContextReading, SessionWindow, WindowOpen, WindowReading, WindowTarget } from "./context/index.js";
 export { CaptureError, hasConcreteEvidence, recordFriction, recordResteer, reinforceFriction } from "./capture/index.js";
 export type { NewFriction, NewResteer, Reinforcement } from "./capture/index.js";

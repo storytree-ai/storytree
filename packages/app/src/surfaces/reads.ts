@@ -9,7 +9,9 @@
  * Only a project the library already has is read: a name that is not a project is refused, and
  * never created, since opening a project's library would create it.
  */
-import { idleAfterMs, leaveAfterMs, lookAsApp, projectFolder, openActivityLog, pruneTranscripts, standingDelegations, storedContextReading, storedSessionWindow, type ActivityLog, type TranscriptCache, type ContextReading, type LinesSince, type SessionWindow } from "@storytree/agent-link";
+import path from "node:path";
+
+import { idleAfterMs, leaveAfterMs, lookAsApp, projectFolder, openActivityLog, pruneTranscripts, standingDelegations, storedContextReading, storedSessionWindow, TranscriptCache, type ActivityLog, type ContextReading, type LinesSince, type SessionWindow } from "@storytree/agent-link";
 import type { AnnotatedTree, ArcView, Holds, Changes, Library, Note, SchemaRecord, Storytree } from "@storytree/library";
 
 /** The page's reads, as the app answers them. */
@@ -53,6 +55,11 @@ export interface PageReads {
 export interface PageReadsOptions {
   /** The app's connection to its library, local or Cloud SQL; the agent activity log is its own database there. */
   readonly storytree: Storytree;
+  /**
+   * The folder the sessions' fetched transcript records are kept in between app starts (app 3.10),
+   * one folder inside it per project's database; without it they are kept only while the app runs.
+   */
+  readonly transcriptCacheHome?: string;
 }
 
 /**
@@ -60,10 +67,10 @@ export interface PageReadsOptions {
  * opened the first time they are asked for, and kept open until close(). A cursor is passed on as
  * the page gave it: the library and the log each refuse one that is not a whole number, 0 or more.
  */
-export function pageReads({ storytree }: PageReadsOptions): PageReads {
+export function pageReads({ storytree, transcriptCacheHome }: PageReadsOptions): PageReads {
   const libraries = new Map<string, Promise<Library>>();
   /** What the page's reads already fetched of each session's stored transcript: each ask fetches only what was stored since. */
-  const transcripts: TranscriptCache = new Map();
+  const caches = new Map<string, Promise<TranscriptCache>>();
   let log: Promise<ActivityLog> | undefined;
   /** The look under way, if one is: a look asked for meanwhile joins it rather than running beside it. */
   let looking: Promise<void> | undefined;
@@ -84,6 +91,22 @@ export function pageReads({ storytree }: PageReadsOptions): PageReads {
       open.catch(() => libraries.delete(name));
     }
     return open;
+  }
+
+  /**
+   * `name`'s transcript cache. Its folder is named by the project's database too, so a project
+   * deleted and made again under the same name never reads the old one's records.
+   */
+  function transcripts(name: string): Promise<TranscriptCache> {
+    let cache = caches.get(name);
+    if (cache === undefined) {
+      cache = transcriptCacheHome === undefined
+        ? Promise.resolve(new TranscriptCache())
+        : storytree.projectIdentities().then((identities) => new TranscriptCache(path.join(transcriptCacheHome, `${name}-${identities[name] ?? "unknown"}`)));
+      caches.set(name, cache);
+      cache.catch(() => caches.delete(name));
+    }
+    return cache;
   }
 
   function activityLog(): Promise<ActivityLog> {
@@ -117,7 +140,8 @@ export function pageReads({ storytree }: PageReadsOptions): PageReads {
       if (!Array.isArray(sessions) || !sessions.every((one) => typeof one === "string")) throw new Error("sessions must be a list of session ids");
       const opened = await activityLog();
       const lines = await opened.lines(known, { sessions, has: ["transcript"], latestBy: ["session"], omit: ["command", "files"] });
-      return Promise.all(sessions.map((session: string) => storedContextReading(opened, known, lines, session, { cache: transcripts })));
+      const cache = await transcripts(known);
+      return Promise.all(sessions.map((session: string) => storedContextReading(opened, known, lines, session, { cache })));
     },
     idleAfterMs: async () => idleAfterMs(),
     leaveAfterMs: async () => leaveAfterMs(),
@@ -126,14 +150,15 @@ export function pageReads({ storytree }: PageReadsOptions): PageReads {
       if (typeof session !== "string") throw new Error("session must be a session id");
       const opened = await activityLog();
       const lines = await opened.lines(known, { sessions: [session], has: ["transcript"], latestBy: ["session"], omit: ["command", "files"] });
-      return storedSessionWindow(opened, known, lines, session, { cache: transcripts });
+      return storedSessionWindow(opened, known, lines, session, { cache: await transcripts(known) });
     },
     windowReadings: async (name, sessions) => {
       const known = await project(name);
       if (!Array.isArray(sessions) || !sessions.every((one) => typeof one === "string")) throw new Error("sessions must be a list of session ids");
       const opened = await activityLog();
       const lines = await opened.lines(known, { sessions, has: ["transcript"], latestBy: ["session"], omit: ["command", "files"] });
-      return Promise.all(sessions.map((session: string) => storedSessionWindow(opened, known, lines, session, { cache: transcripts })));
+      const cache = await transcripts(known);
+      return Promise.all(sessions.map((session: string) => storedSessionWindow(opened, known, lines, session, { cache })));
     },
     projectFolder: async (name) => projectFolder(await activityLog(), await project(name)),
     lookAround: () => {

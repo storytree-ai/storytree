@@ -1,0 +1,79 @@
+{
+ "forest-world 6.7 the mounted globe hides its sea, island grounds and roads independently, keeping plate children; hiding the exterior hides all of it": {
+  "src/coast-clip.ts": {
+   "6": 39
+  },
+  "src/core/camera.ts": {
+   "6": 2
+  },
+  "src/core/coast.ts": {
+   "6": 12
+  },
+  "src/core/hex.ts": {
+   "6": 6
+  },
+  "src/core/rng.ts": {
+   "6": 2
+  },
+  "src/core/routing.ts": {
+   "6": 46
+  },
+  "src/core/sizing.ts": {
+   "6": 2
+  },
+  "src/core/substrate.ts": {
+   "6": 22
+  },
+  "src/forest-ground/forest-ground.ts": {
+   "6": 39
+  },
+  "src/land-per-capability.ts": {
+   "6": 5
+  },
+  "src/land-relief.ts": {
+   "6": 2
+  },
+  "src/planet/camera.ts": {
+   "6": 3
+  },
+  "src/planet/exterior.ts": {
+   "6": 1
+  },
+  "src/planet/growth.ts": {
+   "6": 1
+  },
+  "src/planet/island-surface.ts": {
+   "6": 25
+  },
+  "src/planet/lanes.ts": {
+   "6": 2
+  },
+  "src/planet/paint-while-seen.ts": {
+   "6": 7
+  },
+  "src/planet/pathways.ts": {
+   "6": 60
+  },
+  "src/planet/planet.ts": {
+   "6": 4
+  },
+  "src/planet/PlanetGrowth.tsx": {
+   "6": 7
+  },
+  "src/planet/PlanetTrailRibbons.tsx": {
+   "6": 19
+  },
+  "src/planet/PlanetWorldCanvas.tsx": {
+   "6": 27
+  },
+  "src/planet/redraw-on-restore.ts": {
+   "6": 2
+  },
+  "src/shade-ladder.ts": {
+   "6": 1
+  },
+  "src/true-footprint.ts": {
+   "6": 5
+  }
+ }
+}

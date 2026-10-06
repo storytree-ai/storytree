@@ -1,3 +1,4 @@
+/** Capability 4 · Stop the work I own. */
 import koffi from 'koffi';
 import type { ProcessIdentity } from '../process/index.js';
 import type { SignalResult, StopPhase } from './signal.js';

@@ -1,3 +1,4 @@
+/** Capability 2 · Keep sight of unfinished runs. */
 import koffi from "koffi";
 import type { ProcessReading } from "./index.js";
 

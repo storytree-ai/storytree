@@ -1,4 +1,4 @@
-// Process ledger (story_9abd84ab493f), foundation capabilities 1 and 2.
+// Capability 1 · Record who started each run. Process ledger (story_9abd84ab493f), foundation capabilities 1 and 2.
 export { launchOwned } from './launch/launch.js';
 export type { LaunchOptions, LaunchResult, LaunchDependencies } from './launch/launch.js';
 export { ledgerHome, localMachine, readLedger } from './ledger/files.js';

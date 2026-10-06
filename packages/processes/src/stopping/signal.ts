@@ -1,3 +1,4 @@
+/** Capability 4 · Stop the work I own. */
 import { probeProcess } from '../process/index.js';
 import type { ProcessIdentity } from '../process/index.js';
 export type StopPhase = 'polite' | 'force';

@@ -1,4 +1,4 @@
-/** Capability 3: one local inventory reading for the CLI, MCP and closing surfaces. */
+/** Capability 3 · See what remains: one local inventory reading for the CLI, MCP and closing surfaces. */
 import { ownerSchema, sameOwner } from '../ledger/records.js';
 import type { RunOwner } from '../ledger/records.js';
 import { observeRuns } from '../observation/observe.js';

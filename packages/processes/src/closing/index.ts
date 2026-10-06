@@ -1,4 +1,4 @@
-/** Capability 5: conservative record cleanup and a bounded, all-session closing reading. */
+/** Capability 5 · Finish with an honest inventory: conservative record cleanup and a bounded, all-session closing reading. */
 import { unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { ledgerHome, readLedger, reason } from '../ledger/files.js';

@@ -33,7 +33,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 
 import { McpServer, type CallToolResult, type ServerContext } from "@modelcontextprotocol/server";
-import { ConnectionError, type Library, type WriteOptions } from "@storytree/library";
+import { type Library, type WriteOptions } from "@storytree/library";
 import { librarianTools } from "@storytree/librarian";
 import { appDatabaseWork } from "@storytree/processes/listing";
 import type { z } from "zod";
@@ -45,7 +45,7 @@ import { findProject, locateStorytree, recordTrunkOnSight, route } from "../rout
 import { idleAfterMs } from "../settings/settings.js";
 import type { SetupOptions } from "../setup/index.js";
 import type { ProtectionReader } from "../setup/pipeline.js";
-import { isUnreachable, NOT_RUNNING_ANSWER, refusalOf, result, type Answer } from "./answers.js";
+import { isUnreachable, libraryDown, NOT_RUNNING_ANSWER, refusalOf, result, type Answer } from "./answers.js";
 import { registerClaimTools } from "./claim-tools.js";
 import { registerContextTools } from "./context-tools.js";
 import { Connections } from "./connections.js";
@@ -225,7 +225,7 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
           caller = seenCaller(lines, caller, meta);
           agent = requestOf(lines, meta) || caller.harness === 'codex' ? agentOf(lines, meta) : 'unknown';
         } catch (error) {
-          if (!isUnreachable(error) && !(error instanceof ConnectionError && error.problem === 'timeout')) throw error;
+          if (!libraryDown(error)) throw error;
           await connections.close();
         }
       }

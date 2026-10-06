@@ -193,6 +193,12 @@ async function writeLines(harness: string, input: string, flags: readonly string
       if (where.identity !== undefined && (await storytree.projectIdentities())[where.project] !== where.identity) return;
       // Lines that waited go first, so the log keeps each session's lines in the order they happened.
       await uploadQueued(home, log);
+      // The first hook to reach the log since this machine started says so, once: sessions it outlived read gone everywhere (4.29).
+      const [by] = made.lines;
+      if (by !== undefined) {
+        const { recordMachineStart } = await import("../sessions/machine-start.js");
+        await recordMachineStart(home, log, where.project, { session: by.session, ...(by.harness === undefined ? {} : { harness: by.harness }) }).catch(() => undefined);
+      }
       for (const line of made.lines) {
         await log.append(where.project, line);
         written += 1;

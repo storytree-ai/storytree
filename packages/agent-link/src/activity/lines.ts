@@ -146,6 +146,12 @@ export const NEW_LINE = z.discriminatedUnion("kind", [
   z.object({ ...common, kind: z.literal("session-archived"), of: z.string().min(1), app: z.enum(["claude-desktop", "codex"]) }).strict(),
   z.object({ ...common, kind: z.literal("session-unarchived"), of: z.string().min(1), app: z.enum(["claude-desktop", "codex"]) }).strict(),
   /**
+   * The machine the line names started (`startedAt`, by its own clock), written once by the first
+   * hook to reach the log after each start, never on the session that wrote it: a session last seen
+   * on that machine before then died with it, and reads gone on every machine (agent link 4.29).
+   */
+  z.object({ ...common, kind: z.literal("machine-started"), machine: z.string().min(1), startedAt: z.string().datetime({ offset: true }) }).strict(),
+  /**
    * How the app that keeps a session (`of`) names and describes it (agent link 4.19): its title, and
    * Claude's latest post-turn status, scrubbed. Written as the archive lines are, when either changes.
    */

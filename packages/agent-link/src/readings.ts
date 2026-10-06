@@ -177,8 +177,8 @@ export function labelOf(harness: string | undefined): string {
   return harness === undefined ? "an unnamed harness" : (LABELS[harness] ?? harness);
 }
 
-/** The kinds of line whose writer only looked at others' work: a claim's merge, a branch's or a folder's state, what an app keeps. */
-const ABOUT_OTHERS: ReadonlySet<Line["kind"]> = new Set(["merged", "branch-state", "main-state", "session-archived", "session-unarchived", "session-described"]);
+/** The kinds of line whose writer only looked at others' work: a claim's merge, a branch's or a folder's state, what an app keeps, a machine's start. */
+const ABOUT_OTHERS: ReadonlySet<Line["kind"]> = new Set(["merged", "branch-state", "main-state", "session-archived", "session-unarchived", "session-described", "machine-started"]);
 
 /** The sessions `lines` show, in the order they started, each judged at `options.now`. */
 export function sessionsFrom(lines: readonly Line[], options: SessionOptions = {}): Session[] {
@@ -473,6 +473,8 @@ export interface LogFoldSnapshot {
   appWords: [string, Line & { kind: "session-described" }][];
   holders: [string, Omit<Claim, "holder">][];
   machines: [string, string][];
+  /** Absent in a snapshot kept before agent link 4.29. */
+  machineStarts?: [string, string][];
 }
 
 /**
@@ -492,6 +494,8 @@ export class LogFold {
   #appWords = new Map<string, Line & { kind: "session-described" }>();
   #holders = new Map<string, Omit<Claim, "holder">>();
   #machines = new Map<string, string>();
+  /** When each machine last started, as its machine-started lines say (agent link 4.29). */
+  #machineStarts = new Map<string, string>();
 
   /** Fold a bounded session reading with the log's standing claims, not the partial claims among its selected lines. */
   static fromBounded(lines: readonly Line[], claimLines: readonly Line[]): LogFold {
@@ -524,6 +528,7 @@ export class LogFold {
     fold.#appWords = new Map(snapshot.appWords);
     fold.#holders = new Map(snapshot.holders);
     fold.#machines = new Map(snapshot.machines);
+    fold.#machineStarts = new Map(snapshot.machineStarts ?? []);
     return fold;
   }
 
@@ -547,6 +552,7 @@ export class LogFold {
       appWords: [...this.#appWords],
       holders: [...this.#holders],
       machines: [...this.#machines],
+      machineStarts: [...this.#machineStarts],
     };
   }
 
@@ -561,6 +567,7 @@ export class LogFold {
       else if (line.kind === "main-state") this.#mainStates.set(placeKey(line.machine, line.of), { dirty: line.dirty, unborn: line.unborn, at: line.at });
       else if (line.kind === "session-archived" || line.kind === "session-unarchived") this.#appRecords.set(line.of, line);
       else if (line.kind === "session-described") this.#appWords.set(line.of, line);
+      else if (line.kind === "machine-started" && !(Date.parse(this.#machineStarts.get(line.machine) ?? "") >= Date.parse(line.startedAt))) this.#machineStarts.set(line.machine, line.startedAt);
       holding(this.#holders, line);
     }
   }
@@ -625,10 +632,12 @@ export class LogFold {
     return [...this.#sessions.values()].map((own) => {
       const { session, harness, latest } = own;
       const folder = own.startedIn ?? own.firstFolder;
-      const running = [...own.running.values()].filter(({ until }) => now <= until);
+      // A session last seen before its machine's latest start died with it: nothing of it still runs (4.29).
+      const died = this.#diedWithMachine(session, latest.at);
+      const running = died ? [] : [...own.running.values()].filter(({ until }) => now <= until);
       const quiet = now - Date.parse(latest.at) > quietMs && running.length === 0;
       const state: SessionState = latest.kind === "session-ended" ? "ended"
-        : now - Date.parse(latest.at) > LONGEST_COMMAND_MS ? "gone"
+        : died || now - Date.parse(latest.at) > LONGEST_COMMAND_MS ? "gone"
         : own.prompted ? (own.inTurn || running.length > 0 ? "working" : "waiting")
         : quiet ? "waiting" : "working";
       const branches = [...own.branches];
@@ -684,9 +693,17 @@ export class LogFold {
     return [...this.#holders.values()].map((holder) => {
       const seen = this.#lastSeen.get(holder.session) ?? holder.since;
       const running = [...(this.#sessions.get(holder.session)?.running.values() ?? [])].some(({ until }) => now <= until);
-      const idle = finished.has(holder.session) || (now - Date.parse(seen) > quietMs && !running) || diedIn(options.restarted, this.#machines.get(holder.session), seen);
+      const idle = finished.has(holder.session) || (now - Date.parse(seen) > quietMs && !running)
+        || diedIn(options.restarted, this.#machines.get(holder.session), seen) || this.#diedWithMachine(holder.session, seen);
       return { ...holder, holder: idle ? "idle" : "live" } as Claim;
     });
+  }
+
+  /** Whether `session`, last seen at `lastSeen`, was last seen on its machine before that machine's latest recorded start (4.29). */
+  #diedWithMachine(session: string, lastSeen: string): boolean {
+    const machine = this.#machines.get(session);
+    const started = machine === undefined ? undefined : this.#machineStarts.get(machine);
+    return started !== undefined && Date.parse(lastSeen) < Date.parse(started);
   }
 
   /** The machine each session's latest line naming one was written on. */

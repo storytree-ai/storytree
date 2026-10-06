@@ -122,10 +122,11 @@ function projectFolder(dir: string, project: string): string {
   return folder;
 }
 
-async function linesOf(project: string): Promise<Line[]> {
+/** `project`'s lines, less the machine's start the first hook to reach it records (4.30), unless `starts` asks for those too. */
+async function linesOf(project: string, { starts = false } = {}): Promise<Line[]> {
   const log = await openActivityLog(testServerUrl());
   try {
-    return (await log.since(project, 0)).lines;
+    return (await log.since(project, 0)).lines.filter((line) => starts || line.kind !== "machine-started");
   } finally {
     await log.close();
   }
@@ -151,7 +152,7 @@ function written(line: Line): Omit<Line, "seq" | "at" | "transcript"> {
   return rest;
 }
 
-test("3.1 recorded Claude Code hook inputs (a start, a file edit, a shell command, an end) make four lines on that session, carrying the file path, the command and the machine's name", async () => {
+test("3.1 recorded Claude Code hook inputs (a start, a file edit, a shell command, an end) make four lines on that session, carrying the file path, the command and the machine's name; the first of them also records when the machine started, once (4.29)", async () => {
   const project = uniqueProjectName();
   await withTempDir(async (dir) => {
     const folder = projectFolder(dir, project);
@@ -168,6 +169,9 @@ test("3.1 recorded Claude Code hook inputs (a start, a file edit, a shell comman
       { ...common, kind: "command-run", command: "echo probe-command", call: "toolu_0198fGg1AbRnVBG34suBFFTy" },
       { ...common, kind: "session-ended", reason: "other" },
     ]);
+    const starts = (await linesOf(project, { starts: true })).filter((line) => line.kind === "machine-started");
+    assert.deepEqual(starts.map((line) => line.kind === "machine-started" && { session: line.session, machine: line.machine, before: Date.parse(line.startedAt) < Date.now() }),
+      [{ session, machine: MACHINE, before: true }]);
   });
 });
 

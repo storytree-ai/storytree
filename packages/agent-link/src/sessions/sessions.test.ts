@@ -388,3 +388,38 @@ test("4.28 the sessions read from the lines that decide them, and the claims rea
     assert.ok(read.length < lines.length, `the fold read ${read.length} of the log's ${lines.length} lines`);
   });
 });
+
+test("4.29 a session last seen on a machine before that machine's recorded start reads gone, not working, to a reader on any machine, its commands no longer run and its claims read free; a session seen since the start, or on another machine, reads as before (regression: nine dead lanes read working after the Mint box rebooted, 2026-10-06)", async () => {
+  await withProject(async (log, project) => {
+    const write = (line: Record<string, unknown>) => log.append(project, line as NewLine);
+    const dead = { session: "dead", harness: "codex", source: "hook", folder: "/w/dead", machine: "mint" } as const;
+    const alive = { session: "alive", harness: "claude-code", source: "hook", folder: "/w/alive", machine: "mint" } as const;
+    const elsewhere = { session: "elsewhere", harness: "claude-code", source: "hook", folder: "/w/laptop", machine: "laptop" } as const;
+    await write({ ...dead, kind: "session-started", how: "startup" });
+    await write({ ...dead, source: "tool", kind: "claimed", increment: "inc-dead", reason: "a lane" });
+    await write({ ...dead, kind: "prompt-submitted" });
+    const lastWords = await write({ ...dead, kind: "command-started", command: "pnpm gate", call: "dead-1" });
+    await write({ ...elsewhere, kind: "session-started", how: "startup" });
+    await write({ ...elsewhere, source: "tool", kind: "claimed", increment: "inc-laptop", reason: "laptop work" });
+    await write({ ...elsewhere, kind: "prompt-submitted" });
+    // Mint starts again after the dead lane's last line; the first hook there records it.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    await write({ ...alive, kind: "machine-started", startedAt: after(lastWords, 10).toISOString() });
+    await write({ ...alive, kind: "session-started", how: "startup" });
+    await write({ ...alive, source: "tool", kind: "claimed", increment: "inc-alive", reason: "after the restart" });
+    const last = await write({ ...alive, kind: "prompt-submitted" });
+
+    const { lines } = await log.since(project, 0);
+    const options = { now: after(last, 1_000), quietMs: QUIET_MS, leaveMs: LEAVE_MS };
+    const states = (sessions: readonly { session: string; state: string }[]) => Object.fromEntries(sessions.map(({ session, state }) => [session, state]));
+    const expected = { dead: "gone", alive: "working", elsewhere: "working" };
+    assert.deepEqual(states(sessionsFrom(lines, options)), expected, "a fold of the whole log");
+    assert.deepEqual(states(await readSessions(log, project, options)), expected, "the sessions list's bounded read");
+    assert.deepEqual(states(await readSessionStates(log, project, options)), expected, "the status line's states");
+    assert.deepEqual(sessionsFrom(lines, options).find((one) => one.session === "dead")?.running, [], "its command died with it");
+    const holders = (claims: readonly { increment?: string | undefined; holder: string }[]) => Object.fromEntries(claims.map(({ increment, holder }) => [increment, holder]));
+    const free = { "inc-dead": "idle", "inc-laptop": "live", "inc-alive": "live" };
+    assert.deepEqual(holders(claimsFrom(lines, options)), free, "the noticeboard from the whole log");
+    assert.deepEqual(holders(await readClaims(log, project, options)), free, "the noticeboard's bounded read");
+  });
+});

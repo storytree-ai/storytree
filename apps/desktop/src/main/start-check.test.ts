@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { execFile } from "node:child_process";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { promisify } from "node:util";
 import { test } from "node:test";
 
 import { mainUpdates, type RunningBuild } from "@storytree/app";
@@ -77,6 +79,49 @@ test("1.13 a start that fails after the app is ready ends the app instead of lin
   await runWhenReady(Promise.resolve(), async () => { throw new Error("sourceVersion"); }, (error) => failed.push(error));
   await runWhenReady(Promise.reject(new Error("not ready")), async () => {}, (error) => failed.push(error));
   assert.deepEqual(failed.map((error) => (error as Error).message), ["sourceVersion", "not ready"]);
+});
+
+test("4.17 a startup timeout names the running child and keeps bounded output from both ends", async (t) => {
+  const dir = mkdtempSync(path.join(tmpdir(), "start-check-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const file = path.join(dir, "stalled.cjs");
+  writeFileSync(file, `console.log("startup entered"); console.log("x".repeat(5000)); console.error("waiting for handlers"); setInterval(() => {}, 1000);`);
+  const problem = await startsCleanly({ execPath: process.execPath, args: [file] }, 1000);
+  assert.match(problem ?? "", /did not finish starting within 1 s.*process \d+.*still running/s);
+  assert.match(problem ?? "", /stdout open.*stderr open/);
+  assert.match(problem ?? "", /startup entered/);
+  assert.match(problem ?? "", /waiting for handlers/);
+  assert.ok(problem!.length < 1800, "a noisy child cannot flood the refusal");
+});
+
+test("4.17 an exited child with inherited output pipes is diagnosed and cannot keep the checker alive", async (t) => {
+  const dir = mkdtempSync(path.join(tmpdir(), "start-check-"));
+  const pidFile = path.join(dir, "holder.pid");
+  t.after(() => {
+    if (existsSync(pidFile)) {
+      try { process.kill(Number(readFileSync(pidFile, "utf8")), "SIGKILL"); } catch { /* Already ended. */ }
+    }
+    rmSync(dir, { recursive: true, force: true });
+  });
+  const child = path.join(dir, "exits.cjs");
+  writeFileSync(child, `
+    const { spawn } = require("node:child_process");
+    const { writeFileSync } = require("node:fs");
+    // Windows otherwise ends this descendant with its parent, closing the pipes normally.
+    const holder = spawn(process.execPath, ["-e", "setTimeout(() => {}, 15000)"], { detached: true, windowsHide: true, stdio: ["ignore", "inherit", "inherit"] });
+    writeFileSync(${JSON.stringify(pidFile)}, String(holder.pid));
+    process.stdout.write("start check: the main process reached its handlers\\n", () => process.exit(0));
+  `);
+  const checker = path.join(dir, "checker.mjs");
+  const checkModule = pathToFileURL(path.join(import.meta.dirname, "start-check.ts")).href;
+  writeFileSync(checker, `
+    import { startsCleanly } from ${JSON.stringify(checkModule)};
+    console.log(await startsCleanly({ execPath: process.execPath, args: [${JSON.stringify(child)}] }, 2000));
+  `);
+  // The checker must exit naturally after refusing, although a descendant still holds its pipes.
+  const { stdout } = await promisify(execFile)(process.execPath, [checker], { timeout: 6000 });
+  assert.match(stdout, /exited with code 0.*stdout open.*stderr open/s);
+  assert.match(stdout, /main process reached its handlers/);
 });
 
 test("4.17 a start that leaves a promise rejection unhandled fails its check, though the process still exits 0", async (t) => {

@@ -19,8 +19,18 @@ export interface AgentConnection {
   step?: string;
 }
 
+/** Already verified by the identity story; neither tokens nor provider subjects enter this bridge. */
+export interface FeedbackAccount { readonly id: string; readonly email: string }
+export interface FeedbackIdentityBridge {
+  status(): Promise<FeedbackAccount | null>;
+  signIn(): Promise<FeedbackAccount>;
+  signOut(): Promise<void>;
+}
+
 /** Only these actions cross from the help surface to the OS. No project data enters feedback. */
 export interface SetupHelpBridge {
+  /** Present only after the desktop identity integration is configured. Never needed for basic use. */
+  readonly feedbackIdentity?: FeedbackIdentityBridge;
   readSetupLicense(): Promise<string>;
   /** Each connected agent that still needs a step from the user, or has taken it; read now. */
   agentConnections(): Promise<AgentConnection[]>;

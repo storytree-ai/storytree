@@ -71,6 +71,16 @@ function changesTree(news: { readonly changes: readonly { readonly type: string 
   return news.changes.some((change) => TREE_TYPES.has(change.type));
 }
 
+/** Landed work can change the code without changing the plan (7.25). */
+function landsCode(news: News): boolean {
+  return news.lines.some((line) => line.kind === "merged" || (line.kind === "closed" && line.disposition === "landed"))
+    || news.changes.some((change) => {
+      if (change.type !== "increment" || change.action === "retired") return false;
+      const fields = change.record.fields as { status?: string; outcome?: { disposition?: string } };
+      return fields.status === "closed" && fields.outcome?.disposition === "landed";
+    });
+}
+
 /**
  * The tree after `news`: read again only when a change touches its records, or when there is none
  * yet, so a note's or the work's change costs no tree read (7.24). The sessions list's and the
@@ -100,10 +110,13 @@ export function forestReading({ project, reads, onTree, onError, onClock = () =>
   const own = page === undefined ? pageReading({ project, reads, timers }) : undefined;
   const stopHearing = (page ?? own!).subscribe({
     onNews: async (news) => {
+      let refreshSurvey = landsCode(news);
       if (tree === undefined || changesTree(news)) {
         tree = await reads.projectTree(project);
-        if (reads.codeSurvey !== undefined) pacing.want();
+        refreshSurvey = true;
       }
+      if (stopped) return;
+      if (reads.codeSurvey !== undefined && refreshSurvey) pacing.want();
       await onTree(tree, news, survey);
     },
     onClock,

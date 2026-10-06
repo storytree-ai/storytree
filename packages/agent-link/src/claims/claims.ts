@@ -8,7 +8,8 @@
  *
  * - Claims are lines in the agent activity log (claimed, released, landed), and who holds what is
  *   worked out from them, with the holders' liveness from their sessions' latest lines. A holder
- *   whose command is still running is live however long the command takes (capability 4).
+ *   whose command is still running is live however long the command takes (capability 4), unless
+ *   its standing safe close-out is verified by the same branch and process facts as the session list.
  * - Taking a claim, landing and releasing each check and write under the project's lock
  *   (ActivityLog.locked), so two sessions claiming at once cannot both win.
  * - A session may hold more than one capability. Its edits count toward the one it claimed most
@@ -24,8 +25,8 @@ import { uptime } from "node:os";
 
 import type { Hold, Holds, IncrementStatus, Library, SchemaRecord, WriteOptions } from "@storytree/library";
 
-import { thisMachine, type ActivityLog, type Line, type LineFilter } from "../activity/index.js";
-import { attributeFrom, CLAIM_KINDS, claimOf, claimsFrom as readLines, COMMAND_KINDS, held, LONGEST_COMMAND_MS, partOf, runningIn, type Attributed, type Claim, type ClaimsOptions, type Part, type Restart } from "../readings.js";
+import { thisMachine, type ActivityLog, type Line } from "../activity/index.js";
+import { attributeFrom, CLAIM_KINDS, claimOf, claimsFrom as readLines, held, LogFold, LONGEST_COMMAND_MS, partOf, type Attributed, type Claim, type ClaimsOptions, type Part, type Restart } from "../readings.js";
 import { idleAfterMs } from "../settings/settings.js";
 
 export { attributeFrom } from "../readings.js";
@@ -110,17 +111,17 @@ export async function claim(context: ClaimContext, id: string, reason: string, o
   if (tooLong !== undefined) return tooLong;
   // What this session already holds is answered before the library is read (5.23): the edit-claims
   // look claims for every new edit, and most are to what the editor already holds.
-  // Whose a standing claim is needs no liveness, so the standing claims alone are read.
+  // A finished holder claiming again must write an admitted claim to reopen its session.
   if (!(options.moveBranch && context.branch !== undefined)) {
-    const standing = held(await context.log.standing(context.project), new Map(), new Set(), Date.now(), Infinity).get(id);
-    if (standing?.session === context.session) return { ok: true, claim: standing, alreadyHeld: true };
+    const standing = await readClaim(context.log, context.project, id, context);
+    if (standing?.session === context.session && standing.holder === "live") return { ok: true, claim: standing, alreadyHeld: true };
   }
   const found = await claimable(context.library, id);
   if (!("part" in found)) return found;
   return context.log.locked(context.project, async (log) => {
     const current = (await heldNow(log, context)).get(id);
     const mine = current?.session === context.session;
-    if (mine && !(options.moveBranch && context.branch !== undefined && context.branch !== current.branch)) return { ok: true, claim: current, alreadyHeld: true };
+    if (mine && current.holder === "live" && !(options.moveBranch && context.branch !== undefined && context.branch !== current.branch)) return { ok: true, claim: current, alreadyHeld: true };
     if (!mine && current?.holder === "live") {
       await log.append({ ...who(context), kind: "claim-refused", ...found.part, holder: current.session, reason, ...file });
       return { ok: false, refused: "held", holder: current };
@@ -210,7 +211,7 @@ export function claimsFrom(lines: readonly Line[], options: ClaimsOptions = {}):
 
 /** Who holds what in `project`'s log, read from the standing claims and their holders' latest lines alone (contract 2.7). */
 export async function readClaims(log: ActivityLog, project: string, options: ClaimsOptions = {}): Promise<Claim[]> {
-  const reads: ClaimReads = { standing: () => log.standing(project), lines: (filter) => log.lines(project, filter), lastSeen: (sessions) => log.lastSeen(project, sessions) };
+  const reads: ClaimReads = { standing: () => log.standing(project), foldLines: (sessions, since) => log.foldLines(project, sessions, since) };
   const now = (options.now ?? new Date()).getTime();
   return [...(await heldIn(reads, now, options.quietMs ?? idleAfterMs(), options.restarted ?? thisRestart())).values()];
 }
@@ -268,25 +269,24 @@ async function heldNow(log: ClaimReads & { now(): Promise<Date> }, context: Clai
 /** What the claims reading asks of a log, locked or not. */
 interface ClaimReads {
   standing(): Promise<Line[]>;
-  lines(filter: LineFilter): Promise<Line[]>;
-  lastSeen(sessions: readonly string[]): Promise<Map<string, string>>;
+  foldLines(sessions: readonly string[], commandsSince: string): Promise<Line[]>;
 }
 
 /** How far back a holder's commands are read: a command started earlier is past any limit on it, with a minute for a finish written before its start. */
 const COMMANDS_MS = LONGEST_COMMAND_MS + 60_000;
 
 /**
- * Who holds what at `now`: the standing claims, each holder judged by when it last wrote and by its
- * commands still running, which only its lines of the last LONGEST_COMMAND_MS can show. Nothing
- * here grows with the log: ended claims and old commands are never sent (contract 2.7).
+ * Who holds what at `now`: the standing claims and the bounded session reading that verifies each
+ * holder's close-out, including commands within LONGEST_COMMAND_MS. Ended claims and irrelevant
+ * history are never sent (contract 2.7), including while claim admission holds the lock.
  */
 async function heldIn(reads: ClaimReads, now: number, quietMs: number, restarted: Restart | undefined): Promise<Map<string, Claim>> {
   const claimLines = await reads.standing();
   const holders = [...new Set([...held(claimLines, new Map(), new Set(), now, Infinity).values()].map((claim) => claim.session))];
   if (holders.length === 0) return new Map();
-  const commands = await reads.lines({ kinds: [...COMMAND_KINDS], sessions: holders, since: new Date(now - COMMANDS_MS).toISOString(), omit: ["command", "transcript"] });
-  const lastSeen = await reads.lastSeen(holders);
-  return held(claimLines, lastSeen, runningIn(commands, now), now, quietMs, restarted);
+  const fold = LogFold.fromBounded(await reads.foldLines(holders, new Date(now - COMMANDS_MS).toISOString()), claimLines);
+  return new Map(fold.claims({ now: new Date(now), quietMs, ...(restarted === undefined ? {} : { restarted }) })
+    .map((claim) => [claim.increment ?? claim.capability, claim]));
 }
 
 /** The fields every line a claim writes carries: whose it is. */

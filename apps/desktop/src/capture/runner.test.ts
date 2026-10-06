@@ -6,7 +6,36 @@ import path from "node:path";
 import { test } from "node:test";
 import { chromium, type Browser, type Page } from "playwright-core";
 
-import { outputFolder, runCapture } from "./index.js";
+import { outputFolder, runCapture, settle } from "./index.js";
+
+test("2.9 · capture settling awaits each requested frame after invalidating the globe", async t => {
+  // Chrome is installed on the three CI runner images; no browser download during tests.
+  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  t.after(() => browser.close());
+  const page = await browser.newPage();
+  await page.evaluate(`(() => {
+    globalThis.events = [];
+    globalThis.__globe = { invalidate() { events.push("invalidate"); } };
+    const nextFrame = requestAnimationFrame.bind(globalThis);
+    globalThis.requestAnimationFrame = callback => nextFrame(time => {
+      events.push("frame");
+      callback(time);
+    });
+  })()`);
+
+  for (const frames of [3, undefined, 0]) {
+    await page.evaluate("events.length = 0");
+    await settle(page, frames);
+    assert.deepEqual(await page.evaluate("events"),
+      Array.from({ length: frames ?? 12 }, () => ["invalidate", "frame"]).flat(),
+      "each redraw request is followed by a completed frame before settling returns");
+  }
+
+  await page.evaluate("delete globalThis.__globe; events.length = 0");
+  await settle(page, 2);
+  assert.deepEqual(await page.evaluate("events"), ["frame", "frame"],
+    "a page without a globe hook still awaits its frames");
+});
 
 // Each probe owns its socket and finishes only after it closes. Global fetch leaves
 // connection cleanup running, which can abort native Windows Node at test-force-exit.

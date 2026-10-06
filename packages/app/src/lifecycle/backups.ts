@@ -20,7 +20,7 @@ export const BACKUPS_KEPT = 14;
 const SNAPSHOT_FILE = /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z\.json$/;
 
 export interface BackUpOptions {
-  readonly storytree: Storytree;
+  readonly storytree: Pick<Storytree, "snapshot">;
   /** The projects to take a snapshot of. */
   readonly projects: readonly string[];
   /** Where the snapshots go: ~/.storytree/0.3/backups for the app. */
@@ -46,4 +46,33 @@ export async function backUp({ storytree, projects, dir, now = new Date(), keep 
     for (const old of snapshots.slice(0, Math.max(0, snapshots.length - keep))) rmSync(path.join(folder, old));
   }
   return written;
+}
+
+/** Keep start-up and daily snapshots, holding update restarts until their library reads and files finish. */
+export function keepBackups(options: {
+  storytree: Pick<Storytree, "listProjects" | "snapshot">;
+  dir: string;
+  log: (message: string) => void;
+}) {
+  let taking = false;
+  let stopped = false;
+  const take = async (): Promise<void> => {
+    if (taking || stopped) return;
+    taking = true;
+    try {
+      const written = await backUp({ ...options, projects: await options.storytree.listProjects() });
+      options.log(`backups: ${written.length} project snapshot${written.length === 1 ? "" : "s"} in ${options.dir}`);
+    } catch (error) {
+      options.log(`backups: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      taking = false;
+    }
+  };
+  const timer = setInterval(() => void take(), BACKUP_EVERY_MS);
+  timer.unref();
+  void take();
+  return {
+    canRestart: () => !taking,
+    stop: () => { stopped = true; clearInterval(timer); },
+  };
 }

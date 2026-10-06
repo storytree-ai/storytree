@@ -1,0 +1,44 @@
+{
+  "capturedAt": "2026-10-06T02:18:31.334Z",
+  "snapshot": "packages/website/src/own-snapshot.json",
+  "before": "C:\\code\\storytree03",
+  "after": "C:\\code\\storytree03\\.claude\\worktrees\\increment-1be648346ca0-8ee632",
+  "shots": [
+    {
+      "shot": "the-world",
+      "label": "after",
+      "dockAboveGlass": 1.69,
+      "highestRoadAboveGlass": 1.69
+    },
+    {
+      "shot": "the-world",
+      "label": "before",
+      "dockAboveGlass": 13.06,
+      "highestRoadAboveGlass": 13.06
+    },
+    {
+      "shot": "the-agent-link",
+      "label": "after",
+      "dockAboveGlass": 1.69,
+      "highestRoadAboveGlass": 1.69
+    },
+    {
+      "shot": "the-agent-link",
+      "label": "before",
+      "dockAboveGlass": 10.07,
+      "highestRoadAboveGlass": 13.06
+    },
+    {
+      "shot": "whole",
+      "label": "after",
+      "dockAboveGlass": 1.69,
+      "highestRoadAboveGlass": 1.69
+    },
+    {
+      "shot": "whole",
+      "label": "before",
+      "dockAboveGlass": 13.06,
+      "highestRoadAboveGlass": 13.06
+    }
+  ]
+}

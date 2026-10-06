@@ -9,9 +9,9 @@ import { STABLE_FEED, type ReleaseChannel } from "./release-channel.js";
 export interface ReleaseOptions {
   /** The same database-stop/relaunch handoff the development updater uses. */
   readonly restart: (target: Launch, showing: boolean) => Promise<void>;
-  /** False while a seed writes the library, or the app is shutting down. */
+  /** False while a seed or snapshot is being written, or the app is shutting down. */
   readonly canRestart: () => Promise<boolean>;
-  /** Whether now is a quiet moment to install (whenToInstall); the user's say-so skips it, never a seed. */
+  /** Whether now is a quiet moment to install (whenToInstall); the user's say-so skips it, never a seed or snapshot. */
   readonly quiet: () => Promise<boolean>;
   /** This installed app's storytree home, where a named acceptance run can hold automatic updates. */
   readonly home?: string;
@@ -95,7 +95,9 @@ export class ReleaseUpdater extends NsisUpdater {
       this.set("pending");
     }
     if (this.stopped) return "stopped";
-    const ready = await this.options.canRestart() && (this.asked || await this.options.quiet());
+    // The quiet read may yield long enough for a daily snapshot to start. Check safety last.
+    const quiet = this.asked || await this.options.quiet();
+    const canRestart = await this.options.canRestart();
     if (this.stopped) return "stopped";
     const holds = this.asked || this.options.home === undefined ? [] : heldUpdateRuns(this.options.home);
     if (holds.length > 0) {
@@ -104,7 +106,11 @@ export class ReleaseUpdater extends NsisUpdater {
       this._logger.info(reason);
       return "waiting";
     }
-    if (!ready) { this.set("pending"); return "waiting"; }
+    if (!canRestart) {
+      this.set("pending", { reason: "Waiting for the library to finish writing before restarting." });
+      return "waiting";
+    }
+    if (!quiet) { this.set("pending"); return "waiting"; }
     this.set("restarting");
     if (!this.install(true, true)) throw new Error("The downloaded release could not be installed");
     await this.restarting;

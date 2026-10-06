@@ -43,7 +43,7 @@
 // exactly ONE parcel by definition, so the points inserted along it are that parcel's alone.
 //
 // ⚠ THIS CLIPS THE GROUND AND NOTHING ELSE. The globe applies it in `planet/pathways.ts`
-// (`prepareGround`), so the island's rim, its shore relief and its surface read the clipped parcels
+// (`prepareGround`), so the island's rim and its surface read the clipped parcels
 // while the descriptors themselves stay untouched.
 //
 // SEMANTICS DO NOT MOVE (ADR-0367 D5 / ADR-0392 D5). Every parcel keeps its own `material`, its
@@ -567,12 +567,6 @@ function ringOf(points: readonly Transform3D[]): CoastPoint[] {
  * one alone leaves the OTHER still refusing the descriptor, so the output never moves. Named once,
  * a single fixture separates every branch.
  *
- * ⚠ EXPORTED SINCE THE SHORE FALL (2026-09-01) FOR THAT SAME REASON, one seam wider. The
- * shore field measures distance to the boundary of exactly these descriptors, so a second
- * spelling there would be a third mutant no single test pins — and worse than the two above,
- * because a shore drawn round a different set of parcels than the coast was cut from is a
- * waterline in the wrong place rather than merely an unmoved output.
- *
  * Three ways to belong to no coast, and each is a decision:
  *  - NOT GROUND. A story tree carries a `transform`, not a parcel ring; clipping one would move a
  *    tree to where a shoreline went.
@@ -582,7 +576,7 @@ function ringOf(points: readonly Transform3D[]): CoastPoint[] {
  *    draw — inventing a seed would put a shoreline where the map cannot say there is one, and
  *    POOLING the unnamed parcels would compute a rim across the sea between two unrelated ones.
  */
-export function coastalIsland(d: InstanceDescriptor): string | null {
+function coastalIsland(d: InstanceDescriptor): string | null {
   if (d.kind !== 'cell-ground') return null;
   if (d.points === undefined) return null;
   return d.island ?? null;

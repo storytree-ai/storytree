@@ -1,4 +1,4 @@
-import type { SetupHelpBridge } from "../help/bridge.js";
+import type { FeedbackAccount, SetupHelpBridge } from "../help/bridge.js";
 import { draftSaid, feedbackText } from "../help/feedback.js";
 import { guideOffered, rememberGuideDismissed } from "./first-run.js";
 import { guide, recoveryRequest } from "./guide.js";
@@ -40,6 +40,15 @@ export function mountSetupHelp(host: HTMLElement, bridge: SetupHelpBridge, optio
     <div data-content="feedback" hidden><h3>Prepare a GitHub issue</h3>
       <p>Review your message here, then open a draft on storytree-ai/storytree. You need a GitHub account to submit a public issue. Include only what you want to share.</p>
       <p>Only the title and message you write are included. Project contents, paths, transcripts and logs are never attached automatically.</p>
+      <div data-feedback-identity hidden>
+        <p>Signing in to storytree is optional. Use Google, GitHub or Microsoft to add your account to this message. You may be asked once to confirm your email.</p>
+        <p data-feedback-identity-status role="status"></p>
+        <div class="setup-help-actions">
+          <button type="button" data-feedback-sign-in>Sign in to storytree</button>
+          <button type="button" data-feedback-include-identity hidden>Add account to message</button>
+          <button type="button" data-feedback-sign-out hidden>Sign out of storytree</button>
+        </div>
+      </div>
       <form data-feedback-form>
         <label>Title<input name="title" required autocomplete="off"></label>
         <label>Message<textarea name="body" required></textarea></label>
@@ -63,6 +72,7 @@ export function mountSetupHelp(host: HTMLElement, bridge: SetupHelpBridge, optio
     panel.scrollTop = 0;
     if (name === "license") void license();
     if (name === "guide") void agents();
+    if (name === "feedback") void identity("status");
   }
   /** Each connected agent still waiting on a step from the user, or past it, read afresh whenever the guide shows. */
   async function agents(): Promise<void> {
@@ -97,6 +107,46 @@ export function mountSetupHelp(host: HTMLElement, bridge: SetupHelpBridge, optio
     try { await bridge.copyHelpText(text); say(status, "Copied. Paste the text where you want to use it."); }
     catch { say(status, "Could not copy. Select and copy the text shown here, or try again.", true); }
   }
+  let account: FeedbackAccount | null = null;
+  let identityBusy = false;
+  async function identity(action: "status" | "signIn" | "signOut"): Promise<void> {
+    const identityBridge = bridge.feedbackIdentity;
+    if (!identityBridge || identityBusy) return;
+    identityBusy = true;
+    get("[data-feedback-identity]").hidden = false;
+    const status = get("[data-feedback-identity-status]");
+    const signIn = get<HTMLButtonElement>("[data-feedback-sign-in]");
+    const signOut = get<HTMLButtonElement>("[data-feedback-sign-out]");
+    const include = get<HTMLButtonElement>("[data-feedback-include-identity]");
+    signIn.disabled = signOut.disabled = include.disabled = true;
+    say(status, action === "signIn" ? "Finish signing in in your browser. You can still prepare feedback here." : "Checking your storytree account…");
+    try {
+      if (action === "signOut") { await identityBridge.signOut(); account = null; }
+      else account = await identityBridge[action]();
+      if (stopped) return;
+      say(status, account ? `Signed in as ${account.email}. Your account is added only when you choose Add account to message.` : "You can send feedback without signing in to storytree.");
+    } catch {
+      if (stopped) return;
+      // A status failure cannot leave a previously verified account offered as current.
+      if (action !== "signOut") account = null;
+      say(status, "Your account could not be updated. You can continue preparing feedback without signing in.", true);
+    } finally {
+      signIn.disabled = signOut.disabled = include.disabled = false;
+      signIn.hidden = account !== null;
+      signOut.hidden = include.hidden = account === null;
+      identityBusy = false;
+    }
+  }
+  get("[data-feedback-sign-in]").addEventListener("click", () => { void identity("signIn"); });
+  get("[data-feedback-sign-out]").addEventListener("click", () => { void identity("signOut"); });
+  get("[data-feedback-include-identity]").addEventListener("click", () => {
+    if (!account || identityBusy) return;
+    const message = get<HTMLTextAreaElement>("[name=body]");
+    const attribution = `Storytree account: ${account.email}\nStorytree user: ${account.id}`;
+    if (!message.value.includes(attribution)) message.value = `${message.value}${message.value ? "\n\n" : ""}${attribution}`;
+    say(feedbackStatus, "Your account is now in the message. Review, edit or remove it before sharing.");
+    message.focus();
+  });
   const form = get<HTMLFormElement>("[data-feedback-form]");
   const submit = get<HTMLButtonElement>("[type=submit]");
   const draft = () => ({ title: get<HTMLInputElement>("[name=title]").value, body: get<HTMLTextAreaElement>("[name=body]").value });

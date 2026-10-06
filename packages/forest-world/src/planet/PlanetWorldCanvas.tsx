@@ -16,6 +16,7 @@ import { GrowthProvider, usePlanetGrowth, type PlanetGrowth } from './PlanetGrow
 import { plateGrowth, roadSegmentWindows } from './growth.js';
 import { paintWhileSeen, startingFrameloop, viewportWatch, type ViewportWatch } from './paint-while-seen.js';
 import { redrawOnRestore } from './redraw-on-restore.js';
+import { globeExterior, type PlanetSurfaceVisibility } from './exterior.js';
 
 export type { PlanetSpot } from './planet.js';
 export { globeOccluder, plateTransform, PLATE_CLEARANCE } from './planet.js';
@@ -26,12 +27,7 @@ export { SHIPPED_ELEVATION_DEG } from './camera.js';
 export { usePlanetGrowth, type GrowthReader, type PlanetGrowth } from './PlanetGrowth.js';
 export { crossingLength, growthMoment, growthPlan, type GrowthOptions, type GrowthPlan, type GrowthStage } from './growth.js';
 
-/** Exterior surfaces owned by the engine. The host owns the marks placed on each island. */
-export interface PlanetSurfaceVisibility {
-  sea: boolean;
-  grounds: boolean;
-  roads: boolean;
-}
+export type { PlanetSurfaceVisibility } from './exterior.js';
 
 export interface PlanetWorldCanvasProps {
   scene: ForestScene;
@@ -150,6 +146,7 @@ export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1
     (globalThis as { [CAPTURE_SEAM]?: (state: () => RootState) => void })[CAPTURE_SEAM]?.(get);
   }, []);
   const watch = useMemo(viewportWatch, []);
+  const exterior = globeExterior(surface, surfaces);
   return <Canvas orthographic {...EXACT_COLOUR_CANVAS_PROPS} frameloop={startingFrameloop(watch)}
     camera={{ position, near: 0.1, far: radius * 10 }} onCreated={onCreated}>
     <PaintWhileSeen watch={watch} />
@@ -157,21 +154,21 @@ export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1
     <Framing radius={radius} framing={framing} sideOffset={sideOffset} />
     <GrowthProvider growth={growth}>
     <group name="globe" quaternion={rotation}>
-      <Surface radius={radius} visible={surface && surfaces?.sea !== false} />
+      <Surface radius={radius} visible={exterior.sea} />
       {scene.islands.map(island => {
         const spot = spots.get(island.story);
         if (spot === undefined) throw new Error(`No planet spot for story ${island.story}`);
         return <Plate key={island.story} island={island} spot={spot} radius={radius} plate={pathways.plates.get(island.story)!}
-          visible={surface} grounds={surfaces?.grounds !== false} children={plateChildren} />;
+          visible={exterior.plates} grounds={exterior.grounds} children={plateChildren} />;
       })}
-      <group name="globe-roads" visible={surface && surfaces?.roads !== false}><Pathways plan={pathways} reveal={reveal} /><SelectionLanes plan={pathways} lit={lanes} /></group>
+      <group name="globe-roads" visible={exterior.roads}><Pathways plan={pathways} reveal={reveal} /><SelectionLanes plan={pathways} lit={lanes} /></group>
       {inside}
     </group>
     <OrbitControls makeDefault enablePan={false} enableRotate={orbit} minZoom={0.1} maxZoom={30} />
     {/* The host's children read the growth too (usePlanetGrowth), as the plates and the inside do. */}
     {children}
     </GrowthProvider>
-    {surface && surfaces?.roads !== false && drawing.issue && <Html fullscreen zIndexRange={[45, 45]} style={{ pointerEvents: 'none' }}>
+    {exterior.roads && drawing.issue && <Html fullscreen zIndexRange={[45, 45]} style={{ pointerEvents: 'none' }}>
       <div role="alert" title={drawing.issue} style={{ position: 'absolute', right: 16, bottom: 16,
         maxWidth: 320, padding: '10px 14px', borderRadius: 6, background: '#352b20', color: '#ffe1ac' }}>
         {pathways.edges.length > 0 ? 'Some pathways could not be drawn.' : 'Pathways could not be drawn.'} Island health and selection are still available.

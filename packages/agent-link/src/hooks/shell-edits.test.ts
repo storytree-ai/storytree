@@ -30,3 +30,49 @@ test("3.22 a first observation invents no edit, worktrees keep separate baseline
     assert.deepEqual(observe(first).map((line) => line.kind === "file-edited" && line.files), [["file.txt"]]);
   });
 });
+
+test("3.22 a clean pull, fast-forward or merge invents no edit for the files Git imported, while writes committed in the same command still count", async () => {
+  await withTempDir((dir) => {
+    const home = path.join(dir, "home");
+    const root = path.join(dir, "repo");
+    mkdirSync(root);
+    const edited = () => shellEdits(home, root, { session: "one", harness: "codex", source: "hook", kind: "command-run", command: "git", folder: root }).map((line) => line.kind === "file-edited" && line.files);
+    const commit = (file: string, text: string, message: string) => {
+      writeFileSync(path.join(root, file), text);
+      git(root, "add", file);
+      git(root, "commit", "-q", "-m", message);
+    };
+    git(root, "init", "-q", "-b", "main");
+    commit("source.ts", "one", "start");
+    commit("other.ts", "one", "other");
+    git(root, "checkout", "-q", "-b", "incoming");
+    commit("source.ts", "two", "incoming change");
+    git(root, "checkout", "-q", "main");
+    assert.deepEqual(edited(), []);
+
+    git(root, "merge", "-q", "--ff-only", "incoming");
+    assert.deepEqual(edited(), []);
+
+    git(root, "checkout", "-q", "-b", "side", "main~1");
+    commit("side.ts", "side", "side change");
+    git(root, "checkout", "-q", "main");
+    assert.deepEqual(edited(), []);
+    git(root, "merge", "-q", "--no-edit", "side");
+    assert.deepEqual(edited(), []);
+
+    git(root, "checkout", "-q", "-b", "upstream", "main~1");
+    commit("upstream.ts", "upstream", "upstream change");
+    git(root, "checkout", "-q", "main");
+    assert.deepEqual(edited(), []);
+    git(root, "pull", "-q", "--no-rebase", "--no-edit", ".", "upstream");
+    assert.deepEqual(edited(), []);
+
+    git(root, "checkout", "-q", "upstream");
+    commit("later.ts", "later", "later upstream change");
+    git(root, "checkout", "-q", "main");
+    assert.deepEqual(edited(), []);
+    commit("source.ts", "three", "the session's own change");
+    git(root, "merge", "-q", "--no-edit", "upstream");
+    assert.deepEqual(edited(), [["source.ts"]]);
+  });
+});

@@ -19,6 +19,8 @@ export type ConnectionProblem =
   | "create-database"
   /** The project's tables need setting up or upgrading, and the account may not: only the role that owns its database may. */
   | "project-owner"
+  /** The Cloud SQL instance is not running: stopped, or busy with an operation such as a restart. */
+  | "stopped"
   /** The server did not answer in time. */
   | "timeout"
   /** A library reached by address has no password saved: no `postgres` key, and no PGPASSWORD. */

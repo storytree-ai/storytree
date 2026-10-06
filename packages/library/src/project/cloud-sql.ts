@@ -90,12 +90,15 @@ const ACCOUNT = /^[^\s@\p{Cc}]+@[^\s@\p{Cc}]+$/u;
 const PG_CONNECT_TIMEOUT =
   /^(?:Connection terminated due to connection timeout|timeout exceeded when trying to connect|timeout expired)$/;
 
+/** The Cloud SQL Admin API's words when an instance is not running: stopped, or mid-operation. */
+const NOT_RUNNING = "not in an appropriate state to handle the request";
+
 /**
  * Reach the Cloud SQL instance `config` names, signed in as its user. The config is checked before
  * anything reaches the network; then the connector signs in and looks the instance up, and every
  * pool on the instance opens its sockets through it. Refused with a ConnectionError saying what to
  * fix when the config is wrong, when there is no Google sign-in or a bad one, when the instance is
- * missing or not allowed, and when the sign-in does not finish in time.
+ * missing or not allowed, when it is not running, and when the sign-in does not finish in time.
  */
 export async function cloudSqlServer(config: unknown, seams: CloudSqlSeams = {}): Promise<ServerAccess> {
   const { instance, user } = checkConfig(config);
@@ -225,6 +228,16 @@ function explainSignIn(error: unknown, instance: string, user: string): unknown 
     return new ConnectionError(
       "sign-in",
       "Your Google sign-in was not accepted: it has expired or been revoked. Run `gcloud auth application-default login`, then try again.",
+      error,
+    );
+  }
+  // The Admin API's refusal while the instance is stopped (activation policy NEVER) or mid-operation.
+  if (status === 400 && message.includes(NOT_RUNNING)) {
+    return new ConnectionError(
+      "stopped",
+      `The library is unreachable: its Cloud SQL instance "${instance}" is not running (stopped, or busy with an ` +
+        "operation such as a restart). Wait for it to run again, or ask whoever runs the instance to start it; do not " +
+        `work around it with another library. (Google said: ${message})`,
       error,
     );
   }

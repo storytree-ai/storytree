@@ -1,4 +1,4 @@
-/** Forest capability 3: choose an artifact using pixels, independent of WebGL. */
+/** Capability 3 · Story node render. Forest capability 3: choose an artifact using pixels, independent of WebGL. */
 export interface ProjectedNote {
   id: string;
   x: number;

@@ -1,4 +1,4 @@
-/** The forest owns its sessions surface; the desktop only mounts it and carries public reads. */
+/** Capability 7 · Running sessions. The forest owns its sessions surface; the desktop only mounts it and carries public reads. */
 import React, { Fragment, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { ContextReading, SessionWindow } from "@storytree/agent-link";

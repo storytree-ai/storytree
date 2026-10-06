@@ -1,5 +1,5 @@
 /**
- * The drill-down's panel (the forest story, capability 4): @storytree/forest's drillDown, as HTML.
+ * Capability 4 · Drill-down. The drill-down's panel (the forest story, capability 4): @storytree/forest's drillDown, as HTML.
  * It explains the story in plain words and draws its capability tree, which opens in its own space
  * (ADR-0743). Each of the story's own capabilities is a card you can click; the one selected shows
  * below the tree, with its health as the agent reports it and its contracts on request (ADR-0659).

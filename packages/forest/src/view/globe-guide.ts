@@ -1,3 +1,4 @@
+/** Capability 3 · Story node render. */
 import { Vector3, type Camera, type Mesh, type Object3D } from "three";
 import { turnToIsland, type GlobeTurn } from "@storytree/forest";
 export type GlobeTarget = { kind: "story"; story: string } | { kind: "capability"; capability: string } | { kind: "file"; story: string; path: string } | { kind: "core" };

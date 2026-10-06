@@ -1,4 +1,4 @@
-/** The forest's running sessions, read from the agent link; no transcript or liveness reader here. */
+/** Capability 7 · Running sessions. The forest's running sessions, read from the agent link; no transcript or liveness reader here. */
 import { logReading, QUIET_MS, type Line, type LogReading, type OnMain, type PullState, type Session, type SessionState } from "@storytree/agent-link/readings";
 import type { AnnotatedTree, ArcView } from "@storytree/library";
 import type { SessionWindow } from "@storytree/agent-link";

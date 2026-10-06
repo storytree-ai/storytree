@@ -1,4 +1,4 @@
-/** Where the globe's nameplates sit on an island's plate: the story's just south of its coast, its capabilities' on their own land. */
+/** Capability 3 · Story node render. Where the globe's nameplates sit on an island's plate: the story's just south of its coast, its capabilities' on their own land. */
 import { Quaternion, Vector3 } from "three";
 import type { Coast, Point, TerritoryMap } from "../territories/territories.js";
 

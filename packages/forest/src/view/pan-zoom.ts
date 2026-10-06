@@ -1,5 +1,5 @@
 /**
- * Moving the capability tree about in a frame (the forest story, capability 4; ADR-0743), shared by
+ * Capability 4 · Drill-down. Moving the capability tree about in a frame (the forest story, capability 4; ADR-0743), shared by
  * the tree's two spaces: the one inside the story panel and the larger window it pops out into.
  * Drag pans; the wheel, a trackpad pinch or a two-finger pinch zooms about the pointer. There are no
  * scroll bars (0.2's ADR-0502), and the pan is bounded so the tree can never be dragged out of

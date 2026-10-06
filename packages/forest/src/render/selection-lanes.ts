@@ -1,3 +1,4 @@
+/** Capability 3 · Story node render. */
 import type { ForestScene } from "./forest-scene.js";
 
 /** A capability link lit by a story selection: `from` builds on `to`; "up" when the selected story is the one building. */

@@ -1,5 +1,5 @@
 /**
- * Islands grow with their code from anchored places (ADR-0804 D3, D7).
+ * Capability 1 · Story nodes. Islands grow with their code from anchored places (ADR-0804 D3, D7).
  *
  * - A surveyed story's island has land in proportion to its lines of code: {@link LAND_PER_LINE} ground
  *   units² a line, never below {@link MIN_ISLAND_AREA}, so a tiny story stays visible.

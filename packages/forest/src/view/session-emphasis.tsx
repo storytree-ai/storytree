@@ -1,4 +1,4 @@
-/** Session hover is a temporary forest reading, independent of selection and capability health. */
+/** Capability 7 · Running sessions. Session hover is a temporary forest reading, independent of selection and capability health. */
 import { useFrame, useThree } from "@react-three/fiber";
 import { useLayoutEffect, useRef } from "react";
 import { Group, Mesh, ShaderMaterial, type Material } from "three";

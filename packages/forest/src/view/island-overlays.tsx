@@ -1,4 +1,4 @@
-/** The globe's nameplates and selection rings, drawn on each island's plate. */
+/** Capability 3 · Story node render. The globe's nameplates and selection rings, drawn on each island's plate. */
 import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState, type ComponentProps, type CSSProperties } from "react";

@@ -1,4 +1,4 @@
-/** The forest's globe book: lane B's plates at lane A's places, with lane C's failure turns. */
+/** Capability 3 · Story node render. The forest's globe book: lane B's plates at lane A's places, with lane C's failure turns. */
 import { useFrame, useThree } from "@react-three/fiber";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Group, Quaternion, Vector3 } from "three";

@@ -1,5 +1,5 @@
 /**
- * The project's tree the forest last drew, kept in the page's storage so the next start draws it at
+ * Capability 3 · Story node render. The project's tree the forest last drew, kept in the page's storage so the next start draws it at
  * once, marked as not yet fresh, while the first read crosses the network. The forest owns its key
  * and judges the shape, so a tree kept by an older build is not drawn.
  */

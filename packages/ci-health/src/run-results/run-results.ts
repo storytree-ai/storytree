@@ -10,8 +10,11 @@
  * each failure after a `test at <file>` line. Nothing else in the log is a result.
  */
 
-/** One test as the run reported it: its title, the titles of the tests it sits in (outermost first), and how it went. */
-export type TestResult = { name: string; suites: string[]; status: "passed" | "failed" | "skipped"; message?: string };
+/**
+ * One test as the run reported it: its title, the titles of the tests it sits in (outermost first), and how it went;
+ * and the platform of the job that ran it (`win32`, `darwin`, `linux`), where the job named one.
+ */
+export type TestResult = { name: string; suites: string[]; status: "passed" | "failed" | "skipped"; message?: string; platform?: string };
 
 /** A log line's text, without the saved log's job and step columns or the runner's timestamp. */
 function textOf(line: string): string {

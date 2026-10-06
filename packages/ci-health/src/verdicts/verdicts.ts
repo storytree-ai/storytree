@@ -10,8 +10,13 @@
  *
  * Judging follows storytree's own health (ADR-0744, packages/dev-loop/src/own-health.mjs): a contract
  * passes only if it has tests and every one passed; any failure fails it; a skipped test is no pass,
- * so a skip leaves it not checked, as does having no tests.
+ * so a skip leaves it not checked, as does having no tests. A skip whose reason names the platform the test needs
+ * (`platform:<os>`, own-health's creditWindows) counts passed when every job of that platform ran the same test and
+ * passed it: one skipped on Windows because it needs a POSIX shell is proved by the Linux and macOS jobs. A contract
+ * a skip leaves not checked carries the skip's kind (ADR-0825 D2): `owner` when any reason says `owner:`, else the
+ * platform one names, else `other`.
  */
+import type { SkipKind } from "@storytree/library";
 import { packageOf, surveyStory, type SourceFile } from "@storytree/map";
 import type { TestResult } from "../run-results/run-results.js";
 
@@ -29,7 +34,7 @@ export type StoryProofs = {
   readonly titles: ReadonlyMap<string, { readonly numbers: readonly string[]; readonly package?: string }>;
 };
 
-export type Verdict = { state: "passing" | "failing" | "not-checked"; passed: number; failed: number; skipped: number; total: number; note: string };
+export type Verdict = { state: "passing" | "failing" | "not-checked"; passed: number; failed: number; skipped: number; total: number; note: string; skip?: SkipKind };
 
 /**
  * Each story's proofs, from the files at the run's commit (repository paths): its package's tests wherever they sit in
@@ -71,8 +76,41 @@ function countingName(result: TestResult): string | undefined {
   return [...result.suites, result.name].find((name) => /^(?:[a-z][a-z0-9-]*\s+)?\d+\.\d+/.test(name));
 }
 
+/** Whether a job on `platform` is one a test needing `need` (`posix`, `win32`, `darwin`, `linux`, `macos`) runs on. */
+function serves(need: string, platform: string | undefined): boolean {
+  if (platform === undefined) return false;
+  if (need === "posix") return platform === "linux" || platform === "darwin";
+  return platform === ({ windows: "win32", macos: "darwin" } as Record<string, string>)[need] || platform === need;
+}
+
+/** The platform a skip's reason says its test needs (`platform:posix: …` -> `posix`), or undefined. */
+function neededPlatform(result: TestResult): string | undefined {
+  return result.status === "skipped" ? /^platform:([a-z0-9]+)/i.exec(result.message ?? "")?.[1]?.toLowerCase() : undefined;
+}
+
+/** Each result, with a platform skip counted passed where every job of the platform it needs ran it and passed. */
+function creditPlatformSkips(results: readonly TestResult[]): TestResult[] {
+  const key = (result: TestResult) => JSON.stringify([result.suites, result.name]);
+  const byTest = new Map<string, TestResult[]>();
+  for (const result of results) byTest.set(key(result), [...(byTest.get(key(result)) ?? []), result]);
+  return results.map((result) => {
+    const need = neededPlatform(result);
+    if (need === undefined || serves(need, result.platform)) return result;
+    const there = byTest.get(key(result))!.filter(({ platform }) => serves(need, platform));
+    return there.length > 0 && there.every(({ status }) => status === "passed") ? { ...result, status: "passed" } : result;
+  });
+}
+
+/** The kind of a contract's skip, from its skip reasons (own-health's skipKind). */
+function skipKind(reasons: readonly string[]): SkipKind {
+  if (reasons.some((reason) => /^owner\b/i.test(reason))) return "owner";
+  const platform = reasons.map((reason) => /^platform:([a-z0-9]+)/i.exec(reason)?.[1]).find(Boolean);
+  return platform === undefined ? "other" : `platform:${platform.toLowerCase()}`;
+}
+
 /** Each contract's verdict from a run's results, and the results that credit no contract. */
-export function judgeRun(proofs: readonly StoryProofs[], results: readonly TestResult[]): { verdicts: Map<string, Verdict>; unmatched: TestResult[] } {
+export function judgeRun(proofs: readonly StoryProofs[], reported: readonly TestResult[]): { verdicts: Map<string, Verdict>; unmatched: TestResult[] } {
+  const results = creditPlatformSkips(reported);
   const byPackage = new Map(proofs.map((story) => [story.package, story]));
   const tests = new Map<string, TestResult[]>(proofs.flatMap((story) => [...story.contracts.values()].map((id) => [id, []] as [string, TestResult[]])));
   const unmatched: TestResult[] = [];
@@ -102,7 +140,7 @@ export function judgeRun(proofs: readonly StoryProofs[], results: readonly TestR
     else if (own.length === 0) verdicts.set(id, { state: "not-checked", ...counts, note: "no test ran" });
     else if (skipped > 0) {
       const reasons = [...new Set(own.flatMap(({ status, message }) => (status === "skipped" && message ? [message] : [])))];
-      verdicts.set(id, { state: "not-checked", ...counts, note: `${skipped} of ${own.length} tests skipped${reasons.length > 0 ? ` (${reasons.join("; ")})` : ""}` });
+      verdicts.set(id, { state: "not-checked", ...counts, skip: skipKind(reasons), note: `${skipped} of ${own.length} tests skipped${reasons.length > 0 ? ` (${reasons.join("; ")})` : ""}` });
     } else verdicts.set(id, { state: "passing", ...counts, note: tally });
   }
   return { verdicts, unmatched };

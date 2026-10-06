@@ -9,7 +9,9 @@
  * - The run's commit (`head_sha`) is the commit every verdict is for: the tests' titles are read from
  *   the files at that commit, in the project's own clone, and the commit is written in each note.
  * - A skipped job is passed over; a cancelled job's log is read if available, passed over only on 404.
- * - Passing and failing are written by the project's CI; a skip writes not checked with its reason;
+ * - Each job's results are its platform's, read from its runner labels or its name, so a test one platform skips
+ *   for another is credited from the jobs of the platform it needs.
+ * - Passing and failing are written by the project's CI; a skip writes not checked with its reason and kind;
  *   a contract no test ran for is left as it stands. The agent's reported column is never written.
  * - A project with no GitHub origin, or no finished push run, writes nothing and says why.
  */
@@ -64,6 +66,16 @@ export function repositoryOf(remote: string): string | undefined {
   return match === null ? undefined : `${match[1]}/${match[2]}`;
 }
 
+/** The platform a job ran on, from its runner labels or else its name (`verify on Windows`), or undefined. */
+export function platformOfJob(job: { name?: string; labels?: readonly string[] }): string | undefined {
+  for (const text of [...(job.labels ?? []), job.name ?? ""]) {
+    if (/windows/i.test(text)) return "win32";
+    if (/mac/i.test(text)) return "darwin";
+    if (/ubuntu|linux/i.test(text)) return "linux";
+  }
+  return undefined;
+}
+
 /** Each code file in a package at `commit` (its src, and test folders beside it), in repository coordinates. */
 async function filesAt(git: Git, commit: string): Promise<{ path: string; text: string }[]> {
   const paths = (await git(["ls-tree", "-r", "--name-only", commit, "--", "packages"])).split("\n").filter((file) => /^packages\/[^/]+\/.+\.[cm]?[jt]sx?$/.test(file));
@@ -83,18 +95,20 @@ export async function readProjectCi({ library, git, github }: { library: Library
 
   const commit: string = run.head_sha;
   // A job the run skipped ran nothing and has no log: GitHub answers its log with 404.
-  const jobs: { id: number; conclusion?: string }[] = ((await github.json(`repos/${repository}/actions/runs/${run.id}/jobs`)).jobs ?? [])
+  const jobs: { id: number; conclusion?: string; name?: string; labels?: string[] }[] = ((await github.json(`repos/${repository}/actions/runs/${run.id}/jobs`)).jobs ?? [])
     .filter((job: { conclusion?: string }) => job.conclusion !== "skipped");
   const results = (await Promise.all(jobs.map(async (job) => {
+    const platform = platformOfJob(job);
+    const onPlatform = (log: string) => parseTestLog(log).map((result) => (platform === undefined ? result : { ...result, platform }));
     try {
-      return await github.text(`repos/${repository}/actions/jobs/${job.id}/logs`);
+      return onPlatform(await github.text(`repos/${repository}/actions/jobs/${job.id}/logs`));
     } catch (error) {
       // Cancellation can leave no log, but a job that started may still hold test evidence.
       const said = String((error as { stderr?: string })?.stderr ?? error);
-      if (job.conclusion === "cancelled" && /\bHTTP 404\b/.test(said)) return "";
+      if (job.conclusion === "cancelled" && /\bHTTP 404\b/.test(said)) return [];
       throw error;
     }
-  }))).flatMap(parseTestLog);
+  }))).flat();
 
   let files;
   try {
@@ -111,7 +125,7 @@ export async function readProjectCi({ library, git, github }: { library: Library
   for (const [id, verdict] of verdicts) {
     if (verdict.state === "not-checked") {
       if (verdict.skipped === 0) continue;
-      await library.recordVerified(id, "not-checked", { by: VERIFIED_BY_PROJECT_CI, note: `${verdict.note}, ${at}` });
+      await library.recordVerified(id, "not-checked", { by: VERIFIED_BY_PROJECT_CI, note: `${verdict.note}, ${at}`, ...(verdict.skip === undefined ? {} : { skip: verdict.skip }) });
       counts.notChecked++;
       continue;
     }

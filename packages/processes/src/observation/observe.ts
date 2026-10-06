@@ -1,3 +1,4 @@
+/** Capability 2 · Keep sight of unfinished runs. */
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { ledgerHome, readLedger, reason, writeRecord } from '../ledger/files.js';

@@ -1,3 +1,4 @@
+/** Capability 1 · Record who started each run. */
 import { z } from 'zod';
 
 const text = z.string().trim().min(1);

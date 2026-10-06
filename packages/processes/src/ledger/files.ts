@@ -1,3 +1,4 @@
+/** Capability 1 · Record who started each run. */
 import { randomUUID } from 'node:crypto';
 import { mkdir, open, readdir, readFile, rename, rm, stat } from 'node:fs/promises';
 import { homedir, hostname } from 'node:os';

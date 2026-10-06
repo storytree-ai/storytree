@@ -1,3 +1,4 @@
+/** Capability 1 · Record who started each run. */
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';

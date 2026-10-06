@@ -1,3 +1,4 @@
+/** Capability 2 · Keep sight of unfinished runs. */
 import { readLinuxProcess } from "./linux.js";
 
 /** Native lifetime evidence. Treat these strings as opaque, never as display timestamps. */

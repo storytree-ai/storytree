@@ -1,3 +1,4 @@
+/** Capability 4 · Stop the work I own. */
 import { performance } from 'node:perf_hooks';
 import { setTimeout as pause } from 'node:timers/promises';
 import { z } from 'zod';

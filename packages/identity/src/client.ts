@@ -1,3 +1,4 @@
+/** Capability 2 · Social sign-in and session. */
 import { setTimeout } from "node:timers/promises";
 
 /** Only this reviewed identity crosses into a CLI answer or feedback draft. */

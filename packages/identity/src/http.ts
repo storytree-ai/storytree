@@ -1,3 +1,4 @@
+/** Capability 1 · Portable user identity. */
 import { IdentityVerificationError } from "./service.js";
 import { IdentityConflictError, type StorytreeUser } from "./store.js";
 

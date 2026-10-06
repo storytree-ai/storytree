@@ -16,6 +16,15 @@ import { codeSurveyReader } from "./read-survey.js";
 
 const tree = { arcs: [], stories: [{ id: "story-shop", title: "Shop", capabilities: [{ id: "cap-claims", title: "3 · Claims" }] }] } as unknown as AnnotatedTree;
 
+/** The command lines of running processes that name `needle`. */
+function processesNaming(needle: string): string[] {
+  const lines = process.platform === "win32"
+    ? execFileSync("powershell", ["-NoProfile", "-NonInteractive", "-Command",
+      "Get-CimInstance Win32_Process | ForEach-Object { $_.CommandLine }"], { encoding: "utf8", windowsHide: true })
+    : execFileSync("ps", ["-A", "-o", "args="], { encoding: "utf8" });
+  return lines.split(/\r?\n/).filter(line => line.includes(needle));
+}
+
 test("8.1 a numbered test reaches its own package's public subpath through package.json exports", async () => {
   const folder = await mkdtemp(path.join(tmpdir(), "code-survey-self-"));
   try {
@@ -355,6 +364,8 @@ test("8.11 a stalled origin is bounded, shared across worktrees and readers, and
     assert.ok(results.every(result => result.status === "rejected"));
     assert.equal(connections, 1, "the two readers share the same pending fetch");
     assert.ok(Date.now() - started < 15_000, "Git's timeout bounds a nonresponsive origin");
+    // On Windows, `git` is often Git for Windows' launcher, whose real git.exe is its child.
+    assert.deepEqual(processesNaming(path.basename(folder)), [], "no git process the reading started outlives it");
   } finally {
     for (const socket of sockets) socket.destroy();
     await new Promise<void>(resolve => server.close(() => resolve()));

@@ -1,5 +1,5 @@
 /** Capability 8 · Files from disk or an immutable merged Git tree; never check out over local work. */
-import { execFile } from "node:child_process";
+import { type ChildProcess, execFile } from "node:child_process";
 import { readdir, realpath, stat } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -16,13 +16,32 @@ const MAX_BYTES = 64 * 1024 * 1024;
 
 async function git(folder: string, args: string[], input?: string): Promise<Buffer> {
   const run = execute("git", args, {
-    cwd: folder, encoding: "buffer", timeout: 5_000, maxBuffer: MAX_BYTES, windowsHide: true,
+    cwd: folder, encoding: "buffer", maxBuffer: MAX_BYTES, windowsHide: true,
     env: { ...process.env, GIT_TERMINAL_PROMPT: "0", GCM_INTERACTIVE: "Never" },
   });
   // No interactive credentials, and no process kept between readings.
+  let ended: Promise<void> | undefined;
+  const deadline = setTimeout(() => { ended = endTree(run.child); }, 5_000);
   run.child.stdin?.on("error", () => {}); // An early Git exit is reported by the promise.
   run.child.stdin?.end(input);
-  return (await run).stdout;
+  try {
+    return (await run).stdout;
+  } finally {
+    clearTimeout(deadline);
+    await ended;
+  }
+}
+
+/**
+ * End a Git that ran past its deadline, with every process it started. On Windows `git` is often
+ * Git for Windows' launcher, and killing it leaves its real git.exe running with the repository open.
+ */
+function endTree(child: ChildProcess): Promise<void> {
+  if (process.platform !== "win32" || child.pid === undefined) {
+    child.kill();
+    return Promise.resolve();
+  }
+  return new Promise(resolve => execFile("taskkill", ["/pid", String(child.pid), "/T", "/F"], { windowsHide: true }, () => resolve()));
 }
 const gitText = async (folder: string, args: string[]) => (await git(folder, args)).toString("utf8").trim();
 

@@ -1,267 +1,116 @@
 {
- "src/banded-ground-material.ts": {
-  "5": 31
- },
- "src/camera-framing.ts": {
-  "5": 4
- },
- "src/cell-ground-geometry.ts": {
-  "5": 15
- },
  "src/coast-clip.ts": {
-  "5": 39,
-  "6": 195,
+  "6": 390,
   "7": 312
- },
- "src/contact-shade.ts": {
-  "5": 10
  },
  "src/core/camera.ts": {
   "1": 4,
-  "5": 4,
-  "6": 10,
+  "6": 20,
   "7": 16
  },
  "src/core/coast.ts": {
   "1": 24,
-  "5": 11,
-  "6": 60,
+  "6": 120,
   "7": 96
  },
  "src/core/hex.ts": {
   "1": 12,
-  "5": 10,
-  "6": 34,
+  "5": 4,
+  "6": 64,
   "7": 48
  },
  "src/core/rng.ts": {
   "1": 8,
-  "5": 2,
-  "6": 10,
+  "6": 20,
   "7": 16
  },
  "src/core/routing.ts": {
-  "1": 100,
-  "5": 40,
-  "6": 128,
-  "7": 336
- },
- "src/core/scene.ts": {
-  "5": 66
+  "1": 106,
+  "5": 3,
+  "6": 370,
+  "7": 368
  },
  "src/core/sizing.ts": {
   "1": 4,
-  "5": 1,
-  "6": 10,
+  "6": 20,
   "7": 16
  },
  "src/core/substrate.ts": {
   "1": 44,
-  "5": 14,
-  "6": 110,
+  "6": 220,
   "7": 176
  },
- "src/core/testing/scene-fixture.ts": {
-  "5": 7
- },
- "src/cover-dressing.ts": {
-  "5": 9
- },
- "src/detail-normal-texture.ts": {
-  "5": 1
- },
- "src/dressing-ground.ts": {
-  "5": 17
- },
  "src/exact-colour.ts": {
-  "2": 4,
-  "5": 1
+  "2": 4
  },
  "src/forest-ground/forest-ground.ts": {
   "1": 74,
-  "6": 187,
+  "6": 382,
   "7": 312
- },
- "src/ForestWorldCanvas.causal.ts": {
-  "5": 2
- },
- "src/ForestWorldCanvas.growth-material.ts": {
-  "5": 10
- },
- "src/ForestWorldCanvas.readiness.ts": {
-  "5": 1
- },
- "src/ForestWorldCanvas.registered-camera.ts": {
-  "5": 2
- },
- "src/ForestWorldCanvas.tsx": {
-  "5": 73
- },
- "src/ForestWorldCanvas.underlay.ts": {
-  "5": 1
- },
- "src/ground-casters.ts": {
-  "5": 10
- },
- "src/ground-dependency.ts": {
-  "5": 13
- },
- "src/island-path.ts": {
-  "5": 12
- },
- "src/kit-mesh.ts": {
-  "5": 28
- },
- "src/kit-status-presentation.ts": {
-  "5": 2
- },
- "src/kit-vocabulary.ts": {
-  "5": 24
- },
- "src/land-blight.ts": {
-  "5": 9
- },
- "src/land-grain.ts": {
-  "5": 13
- },
- "src/land-grass.ts": {
-  "5": 13
  },
  "src/land-per-capability.ts": {
   "1": 10,
-  "5": 5,
-  "6": 25,
+  "6": 50,
   "7": 40
  },
  "src/land-relief.ts": {
-  "5": 6,
-  "6": 30,
-  "7": 32
- },
- "src/land-rock.ts": {
-  "5": 1
- },
- "src/land-sand.ts": {
-  "5": 1
- },
- "src/land-shadow.ts": {
-  "5": 23,
-  "6": 6,
+  "5": 2,
+  "6": 28,
   "7": 16
  },
- "src/land-wear.ts": {
-  "5": 2
- },
- "src/land-wheat.ts": {
-  "5": 15
- },
- "src/leaf-tint.ts": {
-  "5": 3
- },
- "src/light-calibration.ts": {
-  "5": 10
- },
- "src/map-dressing.ts": {
-  "5": 5
- },
- "src/map-texels.ts": {
-  "5": 5
- },
- "src/native-prop-hit-projection.ts": {
-  "5": 1
- },
- "src/native-prop-hit-records.ts": {
-  "5": 2
- },
- "src/native-prop-targets.ts": {
-  "5": 3
- },
- "src/parcel-cells.ts": {
-  "5": 4
- },
  "src/planet/camera.ts": {
-  "6": 9
+  "6": 12
+ },
+ "src/planet/exterior.ts": {
+  "6": 2
  },
  "src/planet/growth.ts": {
+  "6": 1,
   "7": 344
  },
  "src/planet/island-surface.ts": {
-  "6": 48
+  "6": 87,
+  "7": 16
  },
  "src/planet/lanes.ts": {
-  "6": 14,
+  "6": 16,
   "7": 8
  },
  "src/planet/paint-while-seen.ts": {
-  "6": 28
+  "6": 35
  },
  "src/planet/pathways.ts": {
-  "6": 126,
-  "7": 336
+  "6": 477,
+  "7": 440
  },
  "src/planet/planet.ts": {
   "5": 7,
-  "6": 31,
+  "6": 39,
   "7": 8
  },
- "src/prop-lighting.ts": {
-  "5": 7
+ "src/planet/PlanetGrowth.tsx": {
+  "6": 7
+ },
+ "src/planet/PlanetTrailRibbons.tsx": {
+  "6": 19
+ },
+ "src/planet/PlanetWorldCanvas.tsx": {
+  "6": 27
+ },
+ "src/planet/redraw-on-restore.ts": {
+  "6": 5
  },
  "src/shade-ladder.ts": {
-  "5": 11,
-  "6": 9,
+  "5": 1,
+  "6": 14,
   "7": 8
- },
- "src/shadow-atlas.ts": {
-  "5": 20
- },
- "src/shadow-rung.ts": {
-  "5": 15
- },
- "src/shore-atlas.ts": {
-  "5": 4
- },
- "src/shore-fall.ts": {
-  "5": 10,
-  "6": 24,
-  "7": 64
- },
- "src/shore-grid.ts": {
-  "5": 17,
-  "6": 51,
-  "7": 136
- },
- "src/shore-ring.ts": {
-  "5": 28
- },
- "src/stepped-skirt.ts": {
-  "5": 14
- },
- "src/texture-convention.ts": {
-  "5": 2
  },
  "src/trail-ribbon-width.ts": {
   "5": 12
  },
- "src/trail-wear.ts": {
-  "5": 3
- },
  "src/true-footprint.ts": {
   "1": 10,
-  "5": 7,
-  "6": 25,
+  "6": 50,
   "7": 40
- },
- "src/wear-atlas.ts": {
-  "5": 1
- },
- "src/wisp-asset.ts": {
-  "5": 4
- },
- "src/wisp-mesh.ts": {
-  "5": 2
- },
- "src/world-to-3d.ts": {
-  "5": 7
  }
 }

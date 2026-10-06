@@ -4,8 +4,7 @@ import { FrontSide, Mesh, MeshBasicMaterial, Raycaster, Vector3, type Intersecti
 import type { InstanceDescriptor } from '../descriptors.js';
 import { forestDescriptors } from '../index.js';
 import { clipToCoast, islandSurface, PLATE_CLEARANCE, rimLoops, SHIPPED_COAST } from '../geometry.js';
-import { onIslandSurface } from './PlanetWorldCanvas.js';
-import { ISLAND_DEPTH_INSET } from './island-surface.js';
+import { ISLAND_DEPTH_INSET, onIslandSurface } from './island-surface.js';
 
 const R = 218;
 const trees = ['c1', 'c2', 'c3'].map((capability, i) => ({ capability, form: 'green' as const, contracts: 1, x: i, z: 0, scale: 1, turn: 0 }));

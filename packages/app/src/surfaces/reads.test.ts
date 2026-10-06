@@ -5,12 +5,12 @@
  */
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
-import { openActivityLog, shipTranscript, type ActivityLog } from "@storytree/agent-link";
+import { ACTIVITY_DATABASE, openActivityLog, pruneTranscripts, RETAIN_MS, shipTranscript, type ActivityLog } from "@storytree/agent-link";
 import { countingStore, longHistory } from "@storytree/agent-link/testing/egress";
 import { connect, type Storytree } from "@storytree/library";
 import pg from "pg";
@@ -210,7 +210,156 @@ test("3.9 after each app start, context readings and single or batched windows r
   });
 });
 
+
+test("3.10 app restarts fetch only appended transcript records and preserve readings through compaction", { timeout: 120_000 }, async (t) => {
+  const project = uniqueProjectName();
+  const cacheHome = mkdtempSync(path.join(tmpdir(), "transcript-cache-"));
+  try {
+    await withApp([project], async ({ storytree, log }) => {
+      await storytree.openProject(project);
+      const records: unknown[] = [
+        { uuid: "call", type: "assistant", message: { model: "claude", usage: { input_tokens: 4321 }, content: [
+          { type: "tool_use", id: "old", name: "Read", input: { file_path: "old.ts" } },
+          { type: "tool_use", id: "kept", name: "Read", input: { file_path: "kept.ts" } },
+        ] } },
+        { uuid: "old", type: "user", message: { content: [{ type: "tool_result", tool_use_id: "old", content: "decision_000000000001" }] } },
+        ...Array.from({ length: 128 }, (_, i) => ({ uuid: `large-${i}`, type: "user", message: { content: "x".repeat(64 * 1024) } })),
+        { uuid: "kept", type: "user", message: { content: [{ type: "tool_result", tool_use_id: "kept", content: "decision_000000000002" }] } },
+      ];
+      let cursor = 0;
+      const append = async (added: unknown[]) => {
+        const batch = added.map((value) => {
+          const record = JSON.stringify(value);
+          const start = cursor;
+          cursor += Buffer.byteLength(record) + 1;
+          return { part: "", start, finish: cursor, record };
+        });
+        await log.transcripts.store(project, "session", batch);
+      };
+      await log.append(project, { session: "session", source: "hook", kind: "session-started", harness: "claude-code", transcript: "/remote/session.jsonl" });
+      await append(records);
+      const store = await countingStore();
+      const url = new URL(testServerUrl());
+      url.port = String(store.port);
+      const counted = await connect({ url: url.href });
+      const take = async () => {
+        const reads = pageReads({ storytree: counted, transcriptCacheHome: cacheHome });
+        const before = store.received();
+        try {
+          const [contexts, window, windows] = await Promise.all([
+            reads.contextReadings(project, ["session"]), reads.windowReading(project, "session"), reads.windowReadings(project, ["session"]),
+          ]);
+          assert.deepEqual(stable(window), stable(windows[0]!));
+          return { context: contexts[0]!, window, bytes: store.received() - before };
+        } finally { await reads.close(); }
+      };
+      try {
+        const cold = await take();
+        assert.ok(cold.bytes > 8_000_000, `cold read fetched the long transcript: ${cold.bytes}`);
+        const restarted = await take();
+        assert.deepEqual(stable(restarted.context), stable(cold.context));
+        assert.deepEqual(stable(restarted.window), stable(cold.window));
+        t.diagnostic(`transcript server bytes: cold ${cold.bytes}; restarted ${restarted.bytes}`);
+        assert.ok(restarted.bytes < 128 * 1024, `restart fetched ${restarted.bytes} bytes, expected only the tail`);
+        const tail = [
+          { type: "system", subtype: "compact_boundary", compactMetadata: { preservedSegment: { headUuid: "kept", tailUuid: "kept" } } },
+          { type: "assistant", message: { model: "claude", usage: { input_tokens: 8765 }, content: [{ type: "tool_use", id: "new", name: "Read", input: { file_path: "new.ts" } }] } },
+          { type: "user", message: { content: [{ type: "tool_result", tool_use_id: "new", content: "decision_000000000003" }] } },
+        ];
+        await append(tail);
+        const updated = await take();
+        assert.equal("tokens" in updated.context && updated.context.tokens, 8765);
+        assert.deepEqual("opens" in updated.window && updated.window.opens.map(({ id, resident }) => [id, resident]), [["old.ts", false], ["kept.ts", true], ["new.ts", true]]);
+        assert.equal("compactions" in updated.window && updated.window.compactions, 1);
+        assert.ok(updated.bytes < 128 * 1024, `append after restart fetched ${updated.bytes} bytes`);
+        const freshHome = mkdtempSync(path.join(tmpdir(), "transcript-full-"));
+        const fresh = pageReads({ storytree, transcriptCacheHome: freshHome });
+        try {
+          const [expected] = await fresh.contextReadings(project, ["session"]);
+          assert.deepEqual("composition" in updated.context && updated.context.composition, expected && "composition" in expected && expected.composition);
+        } finally { await fresh.close(); rmSync(freshHome, { recursive: true, force: true }); }
+      } finally { await counted.close(); await store.close(); }
+    });
+  } finally { rmSync(cacheHome, { recursive: true, force: true }); }
+});
+
+test("3.10 a Codex session's kept records survive a torn or unreadable checkpoint and a store holding less, and retention retires them for the kept reading", { timeout: 120_000 }, async (t) => {
+  const project = uniqueProjectName();
+  const cacheHome = mkdtempSync(path.join(tmpdir(), "transcript-cache-"));
+  try {
+    await withApp([project], async ({ storytree, log }) => {
+      await storytree.openProject(project);
+      const tokens = (input: number) => ({ type: "event_msg", payload: { type: "token_count", info: { last_token_usage: { input_tokens: input, cached_input_tokens: 0, output_tokens: 1 }, model_context_window: 258_400 } } });
+      let cursor = 0;
+      const append = async (added: unknown[]) => {
+        await log.transcripts.store(project, "codex", added.map((value) => {
+          const record = JSON.stringify(value);
+          const start = cursor;
+          cursor += Buffer.byteLength(record) + 1;
+          return { part: "", start, finish: cursor, record };
+        }));
+      };
+      await log.append(project, { session: "codex", source: "hook", kind: "session-started", harness: "codex", transcript: "/remote/rollout.jsonl" });
+      await append([{ type: "session_meta", payload: { id: "codex" } }, ...Array.from({ length: 32 }, (_, i) => ({ type: "response_item", payload: { id: i, text: "x".repeat(64 * 1024) } })), tokens(1000)]);
+      const store = await countingStore();
+      const url = new URL(testServerUrl());
+      url.port = String(store.port);
+      const counted = await connect({ url: url.href });
+      const read = async () => {
+        const reads = pageReads({ storytree: counted, transcriptCacheHome: cacheHome });
+        const before = store.received();
+        try {
+          const [context] = await reads.contextReadings(project, ["codex"]);
+          return { tokens: context && ("tokens" in context ? context.tokens : context.absent), bytes: store.received() - before };
+        } finally { await reads.close(); }
+      };
+      const checkpoints = () => readdirSync(cacheHome, { recursive: true, withFileTypes: true }).filter((one) => one.isFile()).map((one) => path.join(one.parentPath, one.name));
+      try {
+        assert.equal((await read()).tokens, 1000);
+        const [file] = checkpoints();
+        assert.ok(file !== undefined, "the records are kept on disk");
+
+        // A torn write, then a batch written twice: what continues is kept, the rest fetched again.
+        const lines = readFileSync(file, "utf8").trimEnd().split("\n");
+        writeFileSync(file, `${lines.join("\n")}\n{"from":12,"fini\n${lines.at(-1)}\n`);
+        await append([tokens(2000)]);
+        const torn = await read();
+        t.diagnostic(`server bytes after a torn checkpoint: ${torn.bytes}`);
+        assert.deepEqual(torn.tokens, 2000);
+        assert.ok(torn.bytes < 128 * 1024, `a torn checkpoint fetched ${torn.bytes} bytes`);
+        for (const line of readFileSync(file, "utf8").trimEnd().split("\n")) JSON.parse(line);
+
+        writeFileSync(file, "not a checkpoint");
+        assert.equal((await read()).tokens, 2000, "an unreadable checkpoint is fetched again whole");
+
+        // The store now holds less than was kept (emptied, or another one): the checkpoint is not trusted.
+        const activity = new URL(testServerUrl());
+        activity.pathname = `/${ACTIVITY_DATABASE}`;
+        const client = new pg.Client({ connectionString: activity.href });
+        await client.connect();
+        try {
+          await client.query("DELETE FROM transcript_records WHERE project = $1", [project]);
+        } finally { await client.end(); }
+        cursor = 0;
+        await append([{ type: "session_meta", payload: { id: "codex" } }, tokens(3000)]);
+        assert.equal((await read()).tokens, 3000);
+
+        // Retention keeps the reading before the raw records go, and the checkpoint goes with them.
+        await pruneTranscripts(log, { now: new Date(Date.now() + RETAIN_MS + 60_000) });
+        assert.equal((await read()).tokens, 3000);
+        assert.deepEqual(checkpoints(), []);
+      } finally { await counted.close(); await store.close(); }
+    });
+  } finally { rmSync(cacheHome, { recursive: true, force: true }); }
+});
+
 // --- helpers ---------------------------------------------------------------------------------
+
+/** A reading without the moment it was taken, to compare two takes of it. */
+function stable<T extends { at: string }>(value: T): Omit<T, "at"> {
+  const { at: _at, ...rest } = value;
+  return rest;
+}
 
 interface App {
   storytree: Storytree;

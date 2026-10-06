@@ -235,7 +235,7 @@ async function run(): Promise<void> {
     });
     ({ storytree, postgres } = opened);
     console.log(`library: ${opened.where}`);
-    reads = pageReads({ storytree });
+    reads = pageReads({ storytree, transcriptCacheHome: path.join(home.dir, "transcripts") });
     projects = projectSelection({ listProjects: async () => projectsOnThisComputer(await opened.storytree.projectIdentities(), home.dir), file: path.join(home.dir, "project-choice.json") });
     project = (await projects.read(args.project)).current;
     if (!args.smoke) recordLaunch();

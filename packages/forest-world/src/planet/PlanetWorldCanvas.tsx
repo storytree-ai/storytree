@@ -15,6 +15,7 @@ import { applyPlanetFraming, applyPlanetSideOffset } from './camera.js';
 import { GrowthProvider, usePlanetGrowth, type PlanetGrowth } from './PlanetGrowth.js';
 import { plateGrowth, roadSegmentWindows } from './growth.js';
 import { paintWhileSeen, startingFrameloop, viewportWatch, type ViewportWatch } from './paint-while-seen.js';
+import { redrawOnRestore } from './redraw-on-restore.js';
 
 export type { PlanetSpot } from './planet.js';
 export { globeOccluder, plateTransform, PLATE_CLEARANCE } from './planet.js';
@@ -127,6 +128,8 @@ function PaintWhileSeen({ watch }: { watch: ViewportWatch | undefined }) {
   const get = useThree(state => state.get);
   const canvas = useThree(state => state.gl.domElement);
   useEffect(() => paintWhileSeen(get, canvas, watch), [get, canvas, watch]);
+  // World 6.15: a context the browser hands back is drawn again, not left blank until something moves.
+  useEffect(() => redrawOnRestore(get, canvas), [get, canvas]);
   return null;
 }
 

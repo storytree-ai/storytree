@@ -45,7 +45,14 @@ function snapshot() {
   };
 }
 
-Object.assign(window, { planetProof: { snapshot } });
+// The canvas's WebGL context, so a capture can lose and restore it as a busy GPU would (6.15). A lost
+// context hands out no extensions, so the one asked for before the loss is kept.
+let losing: WEBGL_lose_context | null | undefined;
+const context = () => losing ??= state?.gl.getContext().getExtension('WEBGL_lose_context');
+
+Object.assign(window, { planetProof: { snapshot, loseContext: () => context()?.loseContext(), restoreContext: () => context()?.restoreContext() } });
+// `?idle` mounts a still globe, which draws only when something asks it to (6.15).
+const idle = new URLSearchParams(location.search).has('idle');
 createRoot(document.getElementById('globe')!).render(
-  <PlanetWorldCanvas scene={scene} spots={spots} radius={218}><Observe /><Turning /></PlanetWorldCanvas>,
+  <PlanetWorldCanvas scene={scene} spots={spots} radius={218}><Observe />{!idle && <Turning />}</PlanetWorldCanvas>,
 );

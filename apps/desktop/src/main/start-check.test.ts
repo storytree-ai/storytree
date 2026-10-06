@@ -103,12 +103,16 @@ test("4.17 an exited child with inherited output pipes is diagnosed and cannot k
     }
     rmSync(dir, { recursive: true, force: true });
   });
+  // The descendant outlives the checker's budget by far, so a checker its pipes kept alive is caught,
+  // while that budget leaves room for a loaded runner's slow process starts (Windows CI took over 3 s).
+  const CHECKER_BUDGET_MS = 30_000;
+  const HOLDS_PIPES_MS = 2 * CHECKER_BUDGET_MS;
   const child = path.join(dir, "exits.cjs");
   writeFileSync(child, `
     const { spawn } = require("node:child_process");
     const { writeFileSync } = require("node:fs");
     // Windows otherwise ends this descendant with its parent, closing the pipes normally.
-    const holder = spawn(process.execPath, ["-e", "setTimeout(() => {}, 15000)"], { detached: true, windowsHide: true, stdio: ["ignore", "inherit", "inherit"] });
+    const holder = spawn(process.execPath, ["-e", "setTimeout(() => {}, ${HOLDS_PIPES_MS})"], { detached: true, windowsHide: true, stdio: ["ignore", "inherit", "inherit"] });
     writeFileSync(${JSON.stringify(pidFile)}, String(holder.pid));
     process.stdout.write("start check: the main process reached its handlers\\n", () => process.exit(0));
   `);
@@ -116,10 +120,14 @@ test("4.17 an exited child with inherited output pipes is diagnosed and cannot k
   const checkModule = pathToFileURL(path.join(import.meta.dirname, "start-check.ts")).href;
   writeFileSync(checker, `
     import { startsCleanly } from ${JSON.stringify(checkModule)};
-    console.log(await startsCleanly({ execPath: process.execPath, args: [${JSON.stringify(child)}] }, 2000));
+    const began = performance.now();
+    console.log("checker started");
+    const problem = await startsCleanly({ execPath: process.execPath, args: [${JSON.stringify(child)}] }, 2000);
+    console.log(\`refused after \${Math.round(performance.now() - began)} ms\`);
+    console.log(problem);
   `);
   // The checker must exit naturally after refusing, although a descendant still holds its pipes.
-  const { stdout } = await promisify(execFile)(process.execPath, [checker], { timeout: 6000 });
+  const { stdout } = await promisify(execFile)(process.execPath, [checker], { timeout: CHECKER_BUDGET_MS });
   assert.match(stdout, /exited with code 0.*stdout open.*stderr open/s);
   assert.match(stdout, /main process reached its handlers/);
 });

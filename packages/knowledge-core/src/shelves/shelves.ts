@@ -1,4 +1,4 @@
-/** Capability 1's founding book (D1): knowledge hangs under its shelves, as deep as its longest chain. */
+/** Capability 1 · Knowledge under its shelves. Capability 1's founding book (D1): knowledge hangs under its shelves, as deep as its longest chain. */
 import type { Change } from "@storytree/library";
 
 import { linksOf, type Knowledge } from "../ghosts/ghosts.js";

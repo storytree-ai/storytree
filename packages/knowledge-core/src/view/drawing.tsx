@@ -1,5 +1,5 @@
 /**
- * The knowledge core's drawing (the knowledge core story, capability 4 · Look inside and inspect a note): the
+ * Capability 4 · Look inside and inspect an artifact. The knowledge core's drawing (the knowledge core story, capability 4 · Look inside and inspect a note): the
  * pinned note's summary card, mounted in the globe's right-hand story-panel slot. The notes themselves
  * are drawn under the islands by `GlobePoints`.
  */

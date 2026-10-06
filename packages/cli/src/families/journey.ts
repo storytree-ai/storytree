@@ -1,4 +1,4 @@
-/** Consent and deletion controls delegate entirely to the journey events story. */
+/** Capability 1 · Front door. Consent and deletion controls delegate entirely to the journey events story. */
 import { Refusal } from "../answer.js";
 import type { Family } from "../door.js";
 

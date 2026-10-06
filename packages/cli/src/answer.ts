@@ -1,5 +1,5 @@
 /**
- * What a command answers: a short plain sentence or listing, then what you might run next
+ * Capability 1 · Front door. What a command answers: a short plain sentence or listing, then what you might run next
  * (capability 1). 0.2's envelope, as behaviour: the body, a blank line, and `next:` with one
  * command per line and why you would run it. A hint opens a record the answer just named or
  * listed, never a stock step (ADR-0786 D2).

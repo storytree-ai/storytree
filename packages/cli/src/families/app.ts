@@ -1,5 +1,5 @@
 /**
- * `storytree app …`: control the running storytree app from outside (ADR-0656 D0), so an agent
+ * Capability 1 · Front door. `storytree app …`: control the running storytree app from outside (ADR-0656 D0), so an agent
  * testing it, or a script needing its database, never force-kills it. Each verb is the app story's
  * own function (packages/app); the door keeps no rule of its own.
  *

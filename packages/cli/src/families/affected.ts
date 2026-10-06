@@ -1,4 +1,4 @@
-/** Git selection and impact belong to The map; this front door only parses and prints. */
+/** Capability 1 · Front door. Git selection and impact belong to The map; this front door only parses and prints. */
 import { affectedCommand } from "@storytree/map/read";
 import { Refusal } from "../answer.js";
 import type { Family } from "../door.js";

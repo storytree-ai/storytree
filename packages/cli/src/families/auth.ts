@@ -1,4 +1,4 @@
-/** A thin front door onto the keys story (ADR-0843): save, list and remove the keys storytree keeps. */
+/** Capability 1 · Front door. A thin front door onto the keys story (ADR-0843): save, list and remove the keys storytree keeps. */
 import { authFile, listKeys, removeKey, saveKey } from "@storytree/keys";
 
 import { Refusal } from "../answer.js";

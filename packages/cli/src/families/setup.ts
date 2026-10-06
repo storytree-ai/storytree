@@ -1,4 +1,4 @@
-/** Thin front door onto app-setup's bundled helper; it owns delivery paths and connection results. */
+/** Capability 1 · Front door. Thin front door onto app-setup's bundled helper; it owns delivery paths and connection results. */
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";

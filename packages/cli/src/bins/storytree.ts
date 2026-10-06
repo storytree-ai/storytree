@@ -1,5 +1,5 @@
 /**
- * `storytree`: the command line for people (the command line story). Everything it does is the front
+ * Capability 1 · Front door. `storytree`: the command line for people (the command line story). Everything it does is the front
  * door's (../door.ts); this only hands it the command and the terminal.
  */
 import { run } from "../door.js";

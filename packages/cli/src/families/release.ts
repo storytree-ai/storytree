@@ -1,4 +1,4 @@
-/** The app story owns promotion; this front door only parses the owner's selected version. */
+/** Capability 1 · Front door. The app story owns promotion; this front door only parses the owner's selected version. */
 import { pinRelease } from "@storytree/app";
 import type { Family, Verb } from "../door.js";
 import { Refusal } from "../answer.js";

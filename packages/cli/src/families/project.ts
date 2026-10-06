@@ -1,5 +1,5 @@
 /**
- * `storytree project remove <project>`: take a project added by mistake off this computer's list.
+ * Capability 3 · Library. `storytree project remove <project>`: take a project added by mistake off this computer's list.
  * `storytree project delete <project> --confirm <project>`: delete its records (ADR-0831).
  * A front door only: the app setup owns removing and deleting a project.
  */

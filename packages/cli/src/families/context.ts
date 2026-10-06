@@ -1,5 +1,5 @@
 /**
- * `storytree context` (the agent link's contract 9.6, ADR-0725): how many tokens this agent
+ * Capability 1 · Front door. `storytree context` (the agent link's contract 9.6, ADR-0725): how many tokens this agent
  * session's context holds, worked out now. A front door only: the agent link reads it.
  */
 import { contextCommand } from "@storytree/agent-link";

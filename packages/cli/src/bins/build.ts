@@ -1,5 +1,5 @@
 /**
- * The `storytree` command, built into one plain Node script: what a person's shell runs, with no
+ * Capability 1 · Front door. The `storytree` command, built into one plain Node script: what a person's shell runs, with no
  * tsx and only its staged native dependencies beside it. esbuild bundles it with everything it imports (the library,
  * the agent link, pg and zod included).
  *

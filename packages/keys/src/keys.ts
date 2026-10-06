@@ -1,5 +1,5 @@
 /**
- * The key store and its resolver (ADR-0843), pi's shape: one `auth.json` in storytree's home, one
+ * Capability 1 · Key store and resolver. The key store and its resolver (ADR-0843), pi's shape: one `auth.json` in storytree's home, one
  * entry per name, readable and writable by the user alone, written under a lock by write-then-rename
  * so the app, the command line and the MCP server share it safely. A key resolves from an explicit
  * value, then its saved entry, then its environment variable; an entry `!<command>` runs the

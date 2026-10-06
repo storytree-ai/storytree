@@ -9,6 +9,8 @@
  *   nearest (fewest ordinary imports away), then most; a tie goes to the lower number. So a test's own
  *   subject stays its own, and a file reached only through others goes to the capability nearest it.
  * - A CommonJS `require("…")` of a relative file or the package's own exported subpath is an ordinary import (8.12).
+ * - A test file that runs an imported behaviour suite (a file it reaches by value that imports node:test
+ *   itself) carries the numbered titles the suite registers, for its proofs and its reach (8.14).
  * - A package-prefixed title proves that package's numbered contracts (ADR-0845). A foreign prefix
  *   never assigns the importing package's code to a same-numbered local capability.
  * - Where no import leads, because a test runs the code in a process it starts, the package's coverage
@@ -276,6 +278,10 @@ export function dependenciesOf(file: SourceFile, paths: ReadonlySet<string>, pac
   return edgesOf(file, paths, packages).map(edge => edge.to);
 }
 
+/** A behaviour suite: a file that registers tests itself, by a value import or require of node:test. */
+const registersTests = (file: SourceFile): boolean =>
+  importsOf(file).some((match) => match[2] === undefined && (match[4] ?? match[5]) === "node:test") || requiresOf(file).includes("node:test");
+
 /**
  * The source files a test file reaches, each with how near: what it imports (0), and through a re-export
  * the file the names it takes come from (as near as the file re-exporting them), and every file those
@@ -326,7 +332,10 @@ export function surveyStory(tree: readonly SourceFile[], capabilities: readonly 
   const code = tree.filter((file) => CODE_FILE.test(file.path) && !DECLARATION.test(file.path));
   const paths = new Set(code.map((file) => file.path));
   const byPath = new Map(code.map((file) => [file.path, file]));
-  const calls = new Map(code.filter(isTestCode).map((file) => [file.path, calledTitles(file)]));
+  const reaches = new Map(code.filter((file) => TEST_FILE.test(file.path)).map((file) => [file.path, reached(file, byPath, paths, packages)]));
+  // A test file's titles are its own, then those of each behaviour suite it runs.
+  const calls = new Map(code.filter(isTestCode).map((file) => [file.path, [...calledTitles(file),
+    ...[...reaches.get(file.path) ?? []].filter(([path, depth]) => depth < BY_TYPES && registersTests(byPath.get(path)!)).flatMap(([path]) => calledTitles(byPath.get(path)!))]]));
   const byNumber = new Map(capabilities.flatMap((capability) => {
     const number = numberOf(capability.title);
     return number === undefined ? [] : [[number, capability.id] as const];
@@ -343,7 +352,7 @@ export function surveyStory(tree: readonly SourceFile[], capabilities: readonly 
       if (byNumber.has(number)) counts.set(number, (counts.get(number) ?? 0) + 1);
     }
     if (counts.size === 0) continue;
-    for (const [path, depth] of reached(test, byPath, paths, packages)) {
+    for (const [path, depth] of reaches.get(test.path)!) {
       const tally = reach.get(path) ?? new Map<number, { depth: number; count: number }>();
       for (const [number, count] of counts) {
         const was = tally.get(number);

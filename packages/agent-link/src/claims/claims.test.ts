@@ -318,17 +318,33 @@ test("5.10 the board asks GitHub itself before it shows claims, even in a minute
   });
 });
 
-test("5.10 asking gh for merged pull requests answers when gh exits, even while a process it started still holds its output (regression: gh's tzutil, 2026-09-28)", { timeout: 30_000 }, async () => {
+test("5.10 asking gh for merged pull requests answers when gh exits, even while a process it started still holds its output (regression: gh's tzutil, 2026-09-28)", { timeout: 30_000 }, async (t) => {
   await withTempDir(async (folder) => {
-    // A gh that answers one merged pull request, leaving behind a process that keeps its output open for 20s.
+    // The descendant holds output until this test stops it: its lifetime proves the ordering,
+    // independently of how long a busy runner takes to start gh (queue run 37328670634).
     const gh = path.join(folder, "gh.mjs");
+    const pidFile = path.join(folder, "descendant.pid");
     const merged = [{ number: 9, mergedAt: "2026-09-28T00:00:00Z" }];
     // Detached, as Node would otherwise end it with gh on Windows; in the temporary folder, so it holds no folder the test removes.
-    writeFileSync(gh, `import { spawn } from "node:child_process";\nimport { tmpdir } from "node:os";\nspawn(process.execPath, ["-e", "setTimeout(() => {}, 20_000)"], { stdio: "inherit", detached: true, cwd: tmpdir() });\nconsole.log(${JSON.stringify(JSON.stringify(merged))});\nprocess.exit(0);\n`);
+    writeFileSync(gh, `import { spawn } from "node:child_process";
+import { writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+const child = spawn(process.execPath, ["-e", "setTimeout(() => {}, 60_000)"], { stdio: "inherit", detached: true, cwd: tmpdir() });
+writeFileSync(${JSON.stringify(pidFile)}, String(child.pid));
+process.stdout.write(${JSON.stringify(JSON.stringify(merged))}, () => process.exit(0));
+`);
 
     const started = Date.now();
-    assert.deepEqual(await mergedPullsThrough(process.execPath, [gh])(folder, "feature/signup & more"), merged);
-    assert.ok(Date.now() - started < 2_500, `answered when gh exited, not at the deadline: ${Date.now() - started}ms`);
+    try {
+      const result = await mergedPullsThrough(process.execPath, [gh])(folder, "feature/signup & more");
+      const elapsed = Date.now() - started;
+      t.diagnostic(`gh merge query returned in ${elapsed} ms`);
+      assert.deepEqual(result, merged, `gh must return its merged result while output is held (query took ${elapsed} ms)`);
+      const pid = Number(readFileSync(pidFile, "utf8"));
+      assert.doesNotThrow(() => process.kill(pid, 0), "the descendant still holds gh's output when the answer arrives");
+    } finally {
+      try { process.kill(Number(readFileSync(pidFile, "utf8")), "SIGKILL"); } catch { /* gh may have failed before spawning. */ }
+    }
   });
 });
 

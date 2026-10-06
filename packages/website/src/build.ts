@@ -1,3 +1,4 @@
+/** Capability 1 · Home page. */
 import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";

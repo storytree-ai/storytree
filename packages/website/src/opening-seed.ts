@@ -1,4 +1,4 @@
-/** Chapter 1's randomness is seeded: jittered windows, typing rhythm and grain are the same on every load. */
+/** Capability 1 · Home page. Chapter 1's randomness is seeded: jittered windows, typing rhythm and grain are the same on every load. */
 export const OPENING_SEED = 0x0c1a0f;
 
 export function mulberry32(seed: number) {

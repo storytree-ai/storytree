@@ -1,3 +1,4 @@
+/** Capability 1 · Home page. */
 import { OPENING_SEED, mulberry32 } from "./opening-seed.js";
 
 const MASTER_GAIN = 0.15;

@@ -1,4 +1,4 @@
-// Chapter 1's words, all in this one file (ADR-0888): the owner writes the final copy and replaces these.
+// Capability 1 · Home page. Chapter 1's words, all in this one file (ADR-0888): the owner writes the final copy and replaces these.
 // Everything marked DRAFT is the agent's wording, standing in until he does.
 export const BANNER = [
   "swarm 0.9.7-nightly · multi-agent dev shell",

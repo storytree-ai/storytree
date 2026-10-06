@@ -1,3 +1,4 @@
+/** Capability 1 · Home page. */
 import { AGENTS, BANNER, EXTRA, FINALE, FINALE_AGAIN, THINK } from "./opening-copy.js";
 import { createOpeningAudio } from "./opening-audio.js";
 import type { OpeningClock } from "./opening-clock.js";

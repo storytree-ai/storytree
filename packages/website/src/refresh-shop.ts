@@ -1,4 +1,4 @@
-// From the checkout root, with the shop's code as a git repository (a bare mirror will do) and its library either
+// Capability 3 · Saved snapshot. From the checkout root, with the shop's code as a git repository (a bare mirror will do) and its library either
 // reachable (read only) or as a saved record (packages/app-setup/evidence/shop/harness/record-library.sh writes one):
 // node --import tsx packages/website/src/refresh-shop.ts --repository <shop git dir> (--record <file> | --library <postgres url>) [--ci <dir>] [--project <name>] [--output <file>]
 // --project names the shop's project in its library: shop (the first build, the default), shop2 (the parallel rebuild,

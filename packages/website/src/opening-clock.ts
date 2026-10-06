@@ -1,3 +1,4 @@
+/** Capability 1 · Home page. */
 import { OPENING_SEED, mulberry32 } from "./opening-seed.js";
 
 // ADR-0888 1.2-1.3: storytree 0.2's escalating clock (its storm-script.ts). The lead agent thinks for about

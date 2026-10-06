@@ -1,4 +1,4 @@
-// Type-only: browsers never import refresh/database code.
+// Capability 3 · Saved snapshot. Type-only: browsers never import refresh/database code.
 import type { Line } from "@storytree/agent-link";
 import type { AnnotatedTree, ArcView, Change, Holds } from "@storytree/library";
 import type { SessionWisp, StoryNode } from "@storytree/forest";

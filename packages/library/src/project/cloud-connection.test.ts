@@ -213,6 +213,30 @@ test("8.2 an instance that does not exist, or that the account may not use, is r
   }
 });
 
+test("8.2 a stopped Cloud SQL instance is refused saying the shared library is unreachable because its instance is not running, and not to work around it", async () => {
+  // The Admin API's reply when the instance is stopped: a 400 whose reason is invalidState.
+  const stopped = googleHttpError(400, "The instance or operation is not in an appropriate state to handle the request.", {
+    error: {
+      code: 400,
+      message: "The instance or operation is not in an appropriate state to handle the request.",
+      errors: [{ reason: "invalidState" }],
+    },
+  });
+  const google = fakeGoogle(async () => {
+    throw stopped;
+  });
+
+  const refused = await refusalOf(connect({ cloudSql: { instance: INSTANCE, user: USER } }, { connector: google.make }), "stopped");
+
+  assert.equal(
+    refused.message,
+    `The shared library is unreachable: its Cloud SQL instance "${INSTANCE}" is not running. Do not work around it ` +
+      "(no other library, no local copy); whoever runs the instance must start it again, then try again.",
+  );
+  assert.equal(refused.cause, stopped, "Google's own refusal is kept as its cause");
+  assertNotClosed(google);
+});
+
 test("8.2 a Google account that is not a database user on the instance is refused, saying to add it as a Cloud SQL IAM user", async (t) => {
   const run = uniqueProjectName();
   // No role of this name on the server: an account never added to the instance as a database user.

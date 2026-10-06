@@ -10,7 +10,8 @@ name: CI
 # the queue, and the queue runs this workflow again (`merge_group`) on the merge of main, every pull
 # request ahead of it, and this one; it merges only if `verify` passes there too, so two pull
 # requests that each passed alone cannot together leave main red. While no queue is required on
-# main, `automerge` merges directly, as before the queue.
+# main, `automerge` merges directly, as before the queue. A pull request the queue takes out because
+# its queue run failed, while its own `verify` passed, goes back in once (requeue.yml).
 #
 # The product ships for Windows first, on x64 and arm64; the Windows run here is x64. The macOS run
 # keeps the code working on a Mac from the day each line is written, so that Mac support later is

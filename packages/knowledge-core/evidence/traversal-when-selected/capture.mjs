@@ -2,7 +2,8 @@
 // survey) as the app opens it, five running sessions in the stand-in bridge, each holding a capability and with a window that
 // opens three notes and a surveyed file no other window opens. Two views: none selected, then one session's row clicked.
 // `node --import tsx build.mjs <checkout> before|after`, then `node --import tsx capture.mjs before|after` (append --retake to
-// replace the committed pictures). Counts, from the scene, every lit note, trail and file circle by colour, and every claimed
+// replace the committed pictures; --smoke runs the page built as `smoke`, takes no pictures and skips the fixed rests, so a test
+// proves every wait below still resolves in a real browser). Counts, from the scene, every lit note, trail and file circle by colour, and every claimed
 // territory, so "no traversal with none selected" and "who holds what unchanged" are measured, not looked at.
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -14,6 +15,7 @@ import { sessionColour } from '../../../forest/src/agent-claims/agent-claims.ts'
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const label = process.argv[2];
+const smoke = process.argv.includes('--smoke');
 assert.ok(['before', 'after'].includes(label), 'pass a before/after build label');
 const rows = path.join(here, '../../../forest/src/view/evidence/code-rows');
 const seed = JSON.parse(gunzipSync(readFileSync(path.join(rows, 'seed.json.gz'))).toString('utf8'));
@@ -84,11 +86,11 @@ const measure = page => page.evaluate(() => {
   return { trails, litNotes, windowNotes, litFiles, claimed };
 });
 const rowsShown = page => page.getByRole('complementary', { name: 'Running sessions', exact: true }).locator('.session-row').evaluateAll(list => list.map(row => row.dataset.sessionId));
-const rest = async (page, settle) => { await page.waitForTimeout(1500); await settle(page, 24); };
+const rest = async (page, settle) => { if (!smoke) await page.waitForTimeout(1500); await settle(page, 24); };
 
 const results = { label, sessions: SESSIONS, selected: SELECTED, colours: colour, reads };
 await runCapture({
-  folder: here, dist: path.join(here, 'dist', label), seed, survey,
+  folder: here, dist: path.join(here, 'dist', smoke ? 'smoke' : label), seed, survey,
   answers: { windowReading, windowReadings: async (project, sessions) => Promise.all(sessions.map(one => windowReading(project, one))), idleAfterMs: async () => 30 * 60_000, leaveAfterMs: async () => 60 * 60_000 },
   prepare: async ({ page }) => {
     await page.waitForFunction(ids => {
@@ -101,8 +103,8 @@ await runCapture({
     await page.evaluate(() => { for (const menu of document.querySelectorAll('[popover]')) if (menu.matches(':popover-open')) menu.hidePopover(); });
   },
   views: [{
-    name: `${label}-none-selected`,
-    prepare: async ({ page, settle }) => { await page.mouse.move(2, 2); await rest(page, settle); await page.waitForTimeout(11_000); await rest(page, settle); },
+    name: `${label}-none-selected`, ...(smoke ? { picture: false } : {}),
+    prepare: async ({ page, settle }) => { await page.mouse.move(2, 2); await rest(page, settle); if (!smoke) await page.waitForTimeout(11_000); await rest(page, settle); },
     measure: async ({ page, browser }) => {
       results.browser = await browser.version();
       results.rows = await rowsShown(page);
@@ -110,7 +112,7 @@ await runCapture({
       return results.noneSelected;
     },
   }, {
-    name: `${label}-one-selected`,
+    name: `${label}-one-selected`, ...(smoke ? { picture: false } : {}),
     prepare: async ({ page, settle }) => {
       const row = page.getByRole('complementary', { name: 'Running sessions', exact: true }).locator(`.session-row[data-session-id="${SELECTED}"]`);
       await row.click();

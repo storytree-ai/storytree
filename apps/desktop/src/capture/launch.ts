@@ -1,7 +1,8 @@
 /**
  * Chromium for a capture, found from this checkout on any machine: Playwright is this package's own
  * playwright-core, and Chromium is the one Playwright installed for itself, unless the environment
- * names others by path (CAPTURE_PLAYWRIGHT, CAPTURE_CHROMIUM). A path is imported by its file URL,
+ * names others by path (CAPTURE_PLAYWRIGHT, CAPTURE_CHROMIUM) or names an installed browser channel
+ * (CAPTURE_CHANNEL, such as chrome, which CI's runner images carry). A path is imported by its file URL,
  * since import() refuses a bare Windows path (ERR_UNSUPPORTED_ESM_URL_SCHEME).
  */
 import { pathToFileURL } from "node:url";
@@ -25,11 +26,13 @@ const THIS_MACHINE: Machine = { env: process.env, platform: process.platform };
 export function launchPlan({ env, platform }: Machine = THIS_MACHINE, { softwareGL = true }: { softwareGL?: boolean } = {}): LaunchPlan {
   const playwright = env.CAPTURE_PLAYWRIGHT ?? env.PLANET_PLAYWRIGHT ?? env.STORYTREE_PLAYWRIGHT;
   const executablePath = env.CAPTURE_CHROMIUM ?? env.PLANET_CHROMIUM;
+  const channel = executablePath === undefined ? env.CAPTURE_CHANNEL : undefined;
   const module = playwright === undefined ? "playwright-core" : playwright.startsWith("file:") ? playwright : pathToFileURL(playwright, { windows: platform === "win32" }).href;
   const options: LaunchOptions = {
     headless: true,
     args: ["--no-sandbox", "--disable-dev-shm-usage", ...(softwareGL ? ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"] : [])],
     ...(executablePath === undefined ? {} : { executablePath }),
+    ...(channel === undefined ? {} : { channel }),
   };
   return { module, options };
 }

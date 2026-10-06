@@ -47,12 +47,16 @@ export function registerClaimTools(define: Define, extensions: readonly ToolExte
 
   define(
     "make_workspace",
-    "Make a claimed Claude Code workspace, or prepare a Codex app workspace: check the work is free and fetch main. For Codex, pass the returned ref and name to the app's create_worktree, then call attach_workspace with its returned folder. Refused if held, waiting or already yours; pick other work.",
-    z.object({ ...part, reason: z.string().min(1).describe(`What you are about to do, in ${CLAIM_REASON_LIMIT} characters or fewer: it names your session in the sessions list`) }),
-    async ({ capability, increment, reason }, call) => {
+    "Make a claimed Claude Code workspace, or prepare a Codex app workspace: check the work is free and fetch main. For Codex, pass the returned ref and name to the app's create_worktree, then call attach_workspace with its returned folder. Refused if held, waiting or already yours; pick other work. Refused too if an open pull request was already made for the work, naming it: carry that one on, or close it, or pass despite_open_pulls to build beside it.",
+    z.object({
+      ...part,
+      reason: z.string().min(1).describe(`What you are about to do, in ${CLAIM_REASON_LIMIT} characters or fewer: it names your session in the sessions list`),
+      despite_open_pulls: z.boolean().optional().describe("Make it even though open pull requests were already made for this work; only once you have read them and know why"),
+    }),
+    async ({ capability, increment, reason, despite_open_pulls }, call) => {
       const id = capability ?? increment;
       if (id === undefined || (capability !== undefined && increment !== undefined)) return { text: ONE_PART, refused: true, data: { made: false } };
-      const made = await makeWorkspace(claimContext(call), id, reason);
+      const made = await makeWorkspace(claimContext(call), id, reason, {}, { despiteOpenPulls: despite_open_pulls === true });
       if (!made.ok) return { text: await workspaceRefusalText(call.library, id, made), refused: true, data: { made: false } };
       if (made.status === "prepared") {
         const { ref, name, base, status } = made;

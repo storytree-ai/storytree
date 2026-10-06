@@ -15,7 +15,7 @@ import { openActivityLog, type ActivityLog } from "../activity/index.js";
 import { git, withTempDir } from "../testing/folders.js";
 import { dropTestProjects, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { readSessions } from "../sessions/index.js";
-import { claim, makeWorkspace, readClaims, type ClaimContext } from "./index.js";
+import { claim, makeWorkspace, readClaims, release, type ClaimContext } from "./index.js";
 import * as workspace from "./workspace.js";
 
 interface World {
@@ -372,5 +372,31 @@ test("5.12 a Claude Code session the app started in its own linked worktree atta
     assert.deepEqual(worktrees(site), [path.resolve(site), path.resolve(folder)], "no second worktree");
     assert.deepEqual((await readClaims(log, project)).map(({ session, branch }) => ({ session, branch })), [{ session: "A", branch: "claude/app-made" }]);
     assert.equal(await statusOf(library, increment), "active");
+  });
+});
+
+test("5.25 making a workspace for work that already has an open pull request is refused naming it, before anything is claimed or made, unless the session says to build beside it; a GitHub that cannot be asked refuses nothing", async () => {
+  await withWorld(async ({ log, project, site, park, as }) => {
+    const increment = await park("email form");
+    const stem = increment.replace(/_/g, "-");
+    const pull = (number: number) => ({ number, draft: false, queued: false });
+    const allOpenPulls = async () => new Map([[`codex/${stem}-a1b2c3`, pull(716)], ["claude/increment-other-d4e5f6", pull(700)]]);
+
+    const refused = await makeWorkspace(as("A"), increment, "build form", { allOpenPulls });
+
+    assert.equal(refused.ok, false, JSON.stringify(refused));
+    assert.ok(!refused.ok && refused.refused === "no-workspace");
+    assert.match(refused.why, /#716/);
+    assert.match(refused.why, new RegExp(`codex/${stem}-a1b2c3`));
+    assert.doesNotMatch(refused.why, /#700/);
+    assert.deepEqual(await readClaims(log, project), [], "nothing claimed");
+    assert.deepEqual(worktrees(site), [path.resolve(site)], "no worktree made");
+
+    const beside = await makeWorkspace(as("A"), increment, "build form", { allOpenPulls }, { despiteOpenPulls: true });
+    assert.ok(beside.ok && beside.status === "ready", JSON.stringify(beside));
+    await release(as("A"), increment);
+
+    const unasked = await makeWorkspace(as("A"), increment, "build form", { allOpenPulls: async () => undefined });
+    assert.ok(unasked.ok && unasked.status === "ready", JSON.stringify(unasked));
   });
 });

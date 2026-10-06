@@ -3,4 +3,4 @@ export type { Attributed, Claim, ClaimAnswer, ClaimContext, ClaimsOptions, LandA
 export { boardClaims, currentBranch, endMergedClaims } from "./merges.js";
 export type { MergeContext, MergedPull, MergedPulls, MergeWatch } from "./merges.js";
 export { attachWorkspace, makeWorkspace } from "./workspace.js";
-export type { ClaimedWorkspace, WorkspaceAnswer, WorkspaceAttachment, WorkspaceRefusal } from "./workspace.js";
+export type { ClaimedWorkspace, WorkspaceAnswer, WorkspaceAttachment, WorkspaceOptions, WorkspaceRefusal } from "./workspace.js";

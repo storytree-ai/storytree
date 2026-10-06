@@ -228,6 +228,7 @@ function explainSignIn(error: unknown, instance: string, user: string): unknown 
       error,
     );
   }
+  if (isStopped(error, message)) return stoppedInstance(instance, error);
   // The Admin API does not know the instance, or will not show it to this account.
   if (status === 403 || status === 404) {
     return new ConnectionError(
@@ -260,7 +261,34 @@ function explainConnection(error: unknown, instance: string, user: string, timeo
     );
   }
   if (error instanceof Error && PG_CONNECT_TIMEOUT.test(error.message)) return timedOut(instance, timeoutMs, error);
+  // The connector refreshes its certificate as it opens a socket, and a stopped instance refuses that too.
+  if (isStopped(error, error instanceof Error ? error.message : String(error))) return stoppedInstance(instance, error);
   return error;
+}
+
+/**
+ * Whether Google refused because the instance is not running: the Admin API answers a stopped
+ * instance with a 400 whose reason is invalidState, in these words.
+ */
+function isStopped(error: unknown, message: string): boolean {
+  return message.includes(NOT_RUNNING) || googleReasons(error).includes("invalidState");
+}
+
+/** The Admin API's words for an instance that is stopped (or mid-operation). */
+const NOT_RUNNING = "The instance or operation is not in an appropriate state to handle the request";
+
+/**
+ * The refusal of a stopped instance. The library on it is the one shared by every machine and
+ * session, so the message says plainly that it is down, and that the answer is to start it again,
+ * not to work around it with another library.
+ */
+function stoppedInstance(instance: string, cause: unknown): ConnectionError {
+  return new ConnectionError(
+    "stopped",
+    `The shared library is unreachable: its Cloud SQL instance "${instance}" is not running. Do not work around it ` +
+      "(no other library, no local copy); whoever runs the instance must start it again, then try again.",
+    cause,
+  );
 }
 
 function timedOut(instance: string, timeoutMs: number, cause?: unknown): ConnectionError {
@@ -285,6 +313,18 @@ function httpStatus(error: unknown): number | undefined {
   const { status, response } = error as { status?: unknown; response?: { status?: unknown } };
   if (typeof status === "number") return status;
   return typeof response?.status === "number" ? response.status : undefined;
+}
+
+/** The reasons in a failed Google API reply's `error.errors` (`invalidState`, say). */
+function googleReasons(error: unknown): string[] {
+  if (typeof error !== "object" || error === null) return [];
+  const data = (error as { response?: { data?: unknown } }).response?.data;
+  const errors = (data as { error?: { errors?: unknown } } | null | undefined)?.error?.errors;
+  if (!Array.isArray(errors)) return [];
+  return errors.flatMap((entry) => {
+    const reason = (entry as { reason?: unknown } | null)?.reason;
+    return typeof reason === "string" ? [reason] : [];
+  });
 }
 
 /** The OAuth error code in a failed token request's reply (`invalid_grant`, say). */

@@ -1,7 +1,7 @@
 /** Capability trails on tangent islands and the glass between them (forest contracts 3.6–3.7).
  * The existing cost-grid router owns routing, merging and width; this adapter only changes spaces. */
 import type { ForestScene, Island } from '../scene.js';
-import { Vector3 } from 'three';
+import { Quaternion, Vector3 } from 'three';
 import { clipToCoast, rimLoops, SHIPPED_COAST, type CoastPoint } from '../coast-clip.js';
 import { routeTrails, trailFillWidth, type TrailEdgeIn, type TrailEdgeOut, type TrailNetwork, type TrailSegment } from '../core/routing.js';
 import { forestDescriptors, parcelSpots } from '../forest-ground/forest-ground.js';
@@ -25,6 +25,9 @@ export interface PlanetPathwaySegment {
   /** Physical ground units, from the original capability links sharing this segment. */
   width: number;
   links: string[];
+  /** On a road between islands: its longest stretch, in ground units, that the router never planned and the globe
+   * filled in along its surface. */
+  unrouted?: number;
 }
 
 export interface PlanetPathways {
@@ -139,6 +142,9 @@ function onGround(g: Ground, p: CoastPoint): Vector3 {
   return g.surface(p).applyQuaternion(g.transform.quaternion).add(g.at);
 }
 
+/** The farthest apart two points of a road between islands are on the chart, in chart units: the router's own step. */
+const CHART_STEP = 0.8;
+
 /** How far over the glass a road between islands rides, away from its docks, in ground units. */
 const ROAD_LIFT = 1.02;
 
@@ -148,9 +154,9 @@ const MAX_ROAD_STEP = 1;
 
 /**
  * `points` with every longer gap filled in along the globe's surface, its height eased between the gap's ends.
- * The route is planned on an azimuthal chart that stretches islands far from its pole sideways (up to 3.3 times at
- * 135°), so a route can stop well short of a far island's coast; its dock was then joined by one straight chord
- * through the ball (the owner, 2026-10-05: "i can see a stray pathway").
+ * The route is planned on an azimuthal chart that stretches islands far from its pole sideways, so a route can stop
+ * short of a far island's coast; its dock was then joined by one straight chord through the ball (the owner,
+ * 2026-10-05: "i can see a stray pathway").
  */
 function alongTheGlobe(points: readonly Vector3[]): Vector3[] {
   const out = [points[0]!.clone()];
@@ -176,22 +182,51 @@ function requireNetwork(network: TrailNetwork, where: string, cross = false): vo
   }
 }
 
-/** One ordered chain per recorded capability edge, including its two shore connections.
- * The azimuthal chart covers the fixed 36-place spiral, including its occupied far hemisphere. */
+/** The candidate poles: a fixed Fibonacci spiral of 4000 directions, about 3° apart. */
+const POLES = Array.from({ length: 4000 }, (_, i) => {
+  const z = 1 - (2 * i + 1) / 4000, s = Math.sqrt(1 - z * z), turn = i * Math.PI * (3 - Math.sqrt(5));
+  return new Vector3(s * Math.cos(turn), s * Math.sin(turn), z);
+});
+
+/**
+ * The chart's pole: the direction that brings the farthest coast nearest. The chart stretches land sideways by
+ * θ/sinθ at θ from its pole (2.5 times at 122°, 3.3 at 135°), so about +z a road to an island far round the globe
+ * stopped well short of its coast. On storytree's own plan the farthest island's middle sits 135° from +z and 113°
+ * from this pole, which weighs each island by its coast's reach.
+ * It depends only on where the islands are and how far their coasts reach, so routes are kept while no island moves.
+ */
+function chartPole(islands: readonly { at: Vector3; reach: number }[]): Vector3 {
+  if (islands.length === 0) return new Vector3(0, 0, 1);
+  let best = POLES[0]!, worst = Infinity;
+  for (const pole of POLES) {
+    let far = 0;
+    for (const island of islands) far = Math.max(far, pole.angleTo(island.at) + island.reach);
+    if (far < worst) { best = pole; worst = far; }
+  }
+  return best;
+}
+
+/** One ordered chain per recorded capability edge, including its two shore connections. Routes between islands
+ * are planned on an azimuthal chart about the islands' own middle (`chartPole`). */
 export function buildPlanetPathways(scene: ForestScene, spots: ReadonlyMap<string, PlanetSpot>, radius: number, route: typeof routeTrails = routeTrails): PlanetPathways {
   const plan: PlanetPathways = { plates: new Map(), segments: [], edges: [], docks: [] };
+  const pole = chartPole(scene.islands.flatMap(island => {
+    const spot = spots.get(island.story);
+    return spot ? [{ at: new Vector3(spot.x, spot.y, spot.z), reach: islandCoastReach(island) / radius }] : [];
+  }));
+  const toChart = new Quaternion().setFromUnitVectors(pole, new Vector3(0, 0, 1)), fromChart = toChart.clone().invert();
   const chart = (v: Vector3): Point => {
-    const n = v.clone().normalize(), angle = Math.acos(Math.max(-1, Math.min(1, n.z))), s = Math.hypot(n.x, n.y);
+    const n = v.clone().normalize().applyQuaternion(toChart), angle = Math.acos(Math.max(-1, Math.min(1, n.z))), s = Math.hypot(n.x, n.y);
     if (s < 1e-10) {
-      if (n.z < 0) throw new Error('A pathway cannot chart the antipode of the fixed planet spiral');
+      if (n.z < 0) throw new Error('A pathway cannot chart the antipode of the islands\' middle');
       return { x: 0, y: 0 };
     }
     return { x: radius * angle * n.x / s, y: radius * angle * n.y / s };
   };
   const sphere = (p: Point): Vector3 => {
     const d = Math.hypot(p.x, p.y), angle = d / radius;
-    return d < 1e-10 ? new Vector3(0, 0, 1)
-      : new Vector3(Math.sin(angle) * p.x / d, Math.sin(angle) * p.y / d, Math.cos(angle));
+    return (d < 1e-10 ? new Vector3(0, 0, 1)
+      : new Vector3(Math.sin(angle) * p.x / d, Math.sin(angle) * p.y / d, Math.cos(angle))).applyQuaternion(fromChart);
   };
   const grounds = new Map<string, Ground>();
   const owners = new Map<string, string>();
@@ -247,10 +282,17 @@ export function buildPlanetPathways(scene: ForestScene, spots: ReadonlyMap<strin
     pairDocks.set(keyOf(edge), { source: dockAt(edge.from, true), target: dockAt(edge.to, false) });
   }
   for (const segment of network.segments) {
-    const points = spline(segment);
+    const routed = spline(segment);
     const ends = [docks.get(`${segment.id}:0`), docks.get(`${segment.id}:${segment.points.length - 1}`)];
-    if (ends[0]) points[0] = chart(ends[0].point);
-    if (ends[1]) points[points.length - 1] = chart(ends[1].point);
+    // The router ends a road on its island's disc, which reaches past the coast wherever the coast is not round; the
+    // rest of the way to the dock, the nearest coast to that end, is a straight line on the chart that no coast crosses.
+    const points = [...ends[0] ? [chart(ends[0].point)] : [], ...routed, ...ends[1] ? [chart(ends[1].point)] : []]
+      .flatMap((point, i, all) => {
+        if (i === 0) return [point];
+        const from = all[i - 1]!, steps = Math.ceil(Math.hypot(point.x - from.x, point.y - from.y) / CHART_STEP);
+        return Array.from({ length: steps }, (_, j) => j + 1 === steps ? point
+          : { x: from.x + (point.x - from.x) * (j + 1) / steps, y: from.y + (point.y - from.y) * (j + 1) / steps });
+      });
     const walk = [0];
     for (let i = 1; i < points.length; i++) walk.push(walk[i - 1]! + Math.hypot(points[i]!.x - points[i - 1]!.x, points[i]!.y - points[i - 1]!.y));
     const length = walk.at(-1)!;
@@ -266,7 +308,8 @@ export function buildPlanetPathways(scene: ForestScene, spots: ReadonlyMap<strin
     });
     if (ends[0]) world[0] = ends[0].point.clone();
     if (ends[1]) world[world.length - 1] = ends[1].point.clone();
-    plan.segments.push({ id: `cross:${segment.id}`, points: alongTheGlobe(world), width: 0, links: [] });
+    const unrouted = Math.max(...world.slice(1).map((point, i) => point.distanceTo(world[i]!)));
+    plan.segments.push({ id: `cross:${segment.id}`, points: alongTheGlobe(world), width: 0, links: [], unrouted });
   }
 
   const localEdges = new Map<string, Map<string, TrailEdgeOut>>();

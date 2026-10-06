@@ -49,7 +49,7 @@ function projectFolder(t: { after(fn: () => void): void }, origin: string | null
 }
 
 /** GitHub as the Actions API answers: the repository, its runs for the query asked, a run's jobs and their logs. */
-function github(runs: (query: URLSearchParams) => object[], log: string, jobs = [{ id: 70, conclusion: "success" }, { id: 71, conclusion: "skipped" }]): GitHub & { asked: string[] } {
+function github(runs: (query: URLSearchParams) => object[], log: string, jobs: { id: number; conclusion: string; name?: string; labels?: string[] }[] = [{ id: 70, conclusion: "success" }, { id: 71, conclusion: "skipped" }]): GitHub & { asked: string[] } {
   const asked: string[] = [];
   return {
     asked,
@@ -194,4 +194,27 @@ test("3.6 authentication and unrelated log errors remain visible without writing
     await assert.rejects(readProjectCi({ library, git: gitIn(folder), github: asked }), (caught) => caught === error, `${conclusion}: ${message}`);
     for (const id of contracts) assert.equal((await library.health(id)).verified.state, "not-checked");
   }
+});
+
+test("3.7 each job's results are read as its platform's: a test skipped on Windows for a platform reason and passed on the Linux and macOS jobs verifies passing, and a contract a skip leaves not checked records the skip's kind", async (t) => {
+  const { library, contracts } = await shopLibrary(t);
+  const { folder, commit } = projectFolder(t);
+  const posixSkip = "ok 1 - 1.1 your information page shows the form # SKIP platform:posix: a stand-in gh on PATH must be an .exe on Windows";
+  const logs: Record<number, string> = {
+    70: [posixSkip, "ok 2 - 1.2 missing details show the error # SKIP owner: needs a signed-in account"].join("\n"),
+    71: ["ok 1 - 1.1 your information page shows the form", "ok 2 - 1.2 missing details show the error # SKIP owner: needs a signed-in account"].join("\n"),
+    72: ["ok 1 - 1.1 your information page shows the form", "ok 2 - 1.2 missing details show the error # SKIP owner: needs a signed-in account"].join("\n"),
+  };
+  const asked = github(pushRunsOnTrunk(commit), "", [
+    { id: 70, conclusion: "success", name: "verify on Windows", labels: ["windows-latest"] },
+    { id: 71, conclusion: "success", name: "verify on Linux", labels: ["ubuntu-latest"] },
+    { id: 72, conclusion: "success", name: "verify on macOS", labels: ["macos-latest"] },
+  ]);
+  asked.text = async (route) => logs[Number(/jobs\/(\d+)\/logs$/.exec(route)?.[1])] ?? "";
+  const read = await readProjectCi({ library, git: gitIn(folder), github: asked });
+  assert.equal(read.written, true, read.written ? "" : read.why);
+  const [first, second] = await Promise.all(contracts.map((id) => library.health(id)));
+  assert.equal(first!.verified.state, "passing", "Linux and macOS, the platforms it needs, passed it");
+  assert.equal(second!.verified.state, "not-checked");
+  assert.equal(second!.verified.skip, "owner", "the skip's kind is recorded, so the worklist says who moves it");
 });

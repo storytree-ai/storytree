@@ -67,3 +67,32 @@ test("2.2 a contract is passing only when it has tests and every one passed, fai
   assert.equal(read("c_out_12").state, "not-checked", "no test ran");
   assert.equal(read("c_out_12").total, 0);
 });
+
+test("2.3 a test skipped on one platform for a platform reason counts passed when the same test passed on every job of the platform it needs; otherwise it stays skipped, and a contract a skip leaves not checked carries the skip's kind", () => {
+  const proofs = proofsAt(TREE, FILES);
+  const onPosix = "platform:posix: a stand-in gh on PATH must be an .exe on Windows";
+  const { verdicts } = judgeRun(proofs, [
+    // The cart's 1.1: skipped on Windows, passed on Linux and macOS, the platforms it needs.
+    { name: "1.1 cart page shows its shell", suites: [], status: "skipped", message: onPosix, platform: "win32" },
+    { name: "1.1 cart page shows its shell", suites: [], status: "passed", platform: "linux" },
+    { name: "1.1 cart page shows its shell", suites: [], status: "passed", platform: "darwin" },
+    // The cart's 1.2: skipped on Windows, and on macOS too, a platform it needs: no credit.
+    { name: "1.2 cart lists what is in cart-contents", suites: [], status: "skipped", message: onPosix, platform: "win32" },
+    { name: "1.2 cart lists what is in cart-contents", suites: [], status: "passed", platform: "linux" },
+    { name: "1.2 cart lists what is in cart-contents", suites: [], status: "skipped", message: "platform:posix", platform: "darwin" },
+    // Checkout's 1.1: needs Windows, and no Windows job ran it.
+    { name: "1.1 your information page shows the form", suites: [], status: "skipped", message: "platform:win32 needs Windows", platform: "linux" },
+    // Checkout's 1.2: only the owner can run it.
+    { name: "1.2 missing details show the error", suites: [], status: "skipped", message: "owner: needs a signed-in account", platform: "linux" },
+    { name: "1.2 the shopper's details are kept", suites: [], status: "skipped", message: "slow", platform: "linux" },
+  ]);
+  const read = (id: string) => verdicts.get(id)!;
+  assert.deepEqual([read("c_cart_11").state, read("c_cart_11").passed, read("c_cart_11").skipped], ["passing", 3, 0], "the platform it needs passed it");
+  assert.equal(read("c_cart_11").skip, undefined);
+  assert.equal(read("c_cart_12").state, "not-checked", "macOS, a platform it needs, skipped it too");
+  assert.equal(read("c_cart_12").skip, "platform:posix");
+  assert.equal(read("c_out_11").state, "not-checked", "no job of the platform it needs ran it");
+  assert.equal(read("c_out_11").skip, "platform:win32");
+  assert.equal(read("c_out_12").skip, "owner", "an owner skip outranks any other");
+  assert.equal(judgeRun(proofs, [{ name: "1.1 cart page shows its shell", suites: [], status: "skipped", message: "slow" }]).verdicts.get("c_cart_11")!.skip, "other");
+});

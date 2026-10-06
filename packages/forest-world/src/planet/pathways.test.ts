@@ -61,6 +61,17 @@ test('6.12 a road between islands follows the globe\'s surface, however far roun
   }
 });
 
+test('6.14 a road to an island far round the globe is routed all the way to its coast, not filled in along the surface', () => {
+  // A large island 132° from +z, linked to one near +z: about the islands' own middle, neither is far round the chart.
+  const far: Island = { ...island('far', []), trees: Array.from({ length: 30 }, (_, i) => ({ capability: `far${i}`, form: 'green' as const, status: 'healthy' as const, contracts: 1, x: i % 6, z: Math.floor(i / 6), scale: 1, turn: 0 })) };
+  const at = (angle: number) => ({ x: R * Math.sin(angle), y: 0, z: R * Math.cos(angle) });
+  const plan = buildPlanetPathways({ islands: [island('a', ['a1']), far], links: [{ from: 'far1', to: 'a1' }] },
+    new Map([['a', at(0.3)], ['far', at(-2.3)]]), R);
+  const roads = plan.segments.filter(segment => segment.island === undefined);
+  assert.ok(roads.length > 0);
+  for (const road of roads) assert.ok(road.unrouted! <= 3, `${road.id} runs ${road.unrouted!.toFixed(1)} units the router never planned`);
+});
+
 test('6.13 a link naming a capability on no island is left out on its own: every other road is drawn, and the notice names it', () => {
   // A capability still depending on one that was retired (ADR-0920 left "5 · The canvas" depending on a retired one).
   const stray = { from: 'b2', to: 'retired' };

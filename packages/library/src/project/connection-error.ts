@@ -13,6 +13,8 @@ export type ConnectionProblem =
   | "sign-in"
   /** The Cloud SQL instance does not exist, or the account is not allowed to use it. */
   | "instance"
+  /** The Cloud SQL instance exists but is not running (stopped), so the library on it cannot be reached. */
+  | "stopped"
   /** The account is not a database user on the Cloud SQL instance. */
   | "database-user"
   /** A new project's database cannot be made: the server's user may not create databases, nor take on a role that may. */

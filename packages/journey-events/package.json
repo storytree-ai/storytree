@@ -7,7 +7,8 @@
     "./view": "./src/view.ts",
     "./bridge": "./src/bridge.ts",
     "./runtime": "./src/runtime.ts",
-    "./deletion": "./src/deletion.ts"
+    "./deletion": "./src/deletion.ts",
+    "./release": "./src/release.ts"
   },
   "scripts": {
     "typecheck": "tsc -p ."

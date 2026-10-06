@@ -36,7 +36,7 @@ export function createPostHogTransport(options: {
         flushAt: 1,
         flushInterval: 0,
         fetchRetryCount: 0,
-        requestTimeout: 1_000,
+        requestTimeout: 3_000,
         disableCompression: true,
         disableGeoip: true,
         enableLocalEvaluation: false,
@@ -50,8 +50,9 @@ export function createPostHogTransport(options: {
           const controller = new AbortController();
           try {
             if (url !== "https://us.i.posthog.com/batch/"|| typeof init.body !== "string" || !permitted()) throw unavailable();
+            // A cold TLS connection to the US from far away takes over a second (seen live from Australia).
             const deadline = new Promise<never>((_resolve, reject) => {
-              timer = setTimeout(() => { controller.abort(); reject(unavailable()); }, 900);
+              timer = setTimeout(() => { controller.abort(); reject(unavailable()); }, 2_500);
             });
             const response = await Promise.race([
               fetch(url, {
@@ -76,7 +77,7 @@ export function createPostHogTransport(options: {
       });
       if (!accepted) throw unavailable();
     } catch { throw unavailable(); }
-    finally { await client?.shutdown(1_000); }
+    finally { await client?.shutdown(3_000); }
   }
 
   return {

@@ -3,8 +3,15 @@ import path from "node:path";
 import { openJourney, type JourneyConfiguration, type JourneyTransport } from "./index.js";
 import type { DeletionRequest, JourneyBridge, JourneyState } from "./bridge.js";
 
-/** Deliberately absent until the owner's account, privacy notice and credential gate is complete. */
-const RELEASE_CONFIGURATION: JourneyConfiguration | undefined = undefined;
+/** PostHog's public project token, stamped into shipped builds only (release.ts); absent in development copies. */
+declare const STORYTREE_JOURNEY_KEY: string | undefined;
+const RELEASE_CONFIGURATION = releaseConfiguration(typeof STORYTREE_JOURNEY_KEY === "string" ? STORYTREE_JOURNEY_KEY : undefined);
+
+/** US project 645059 on PostHog's free plan (one year of events); the owner is the deletion contact. */
+export function releaseConfiguration(projectKey: string | undefined): JourneyConfiguration | undefined {
+  return projectKey === undefined ? undefined
+    : { projectKey, retention: "1 year (PostHog's free plan)", deletionContact: "hua.mick@gmail.com" };
+}
 
 export type JourneyRuntime = ReturnType<typeof createJourneyRuntime>;
 

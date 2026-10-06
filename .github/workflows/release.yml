@@ -76,6 +76,9 @@ jobs:
     env:
       STORYTREE_RELEASE_VERSION: ${{ needs.source.outputs.version }}
       RELEASE_SHA: ${{ needs.source.outputs.sha }}
+      # PostHog's public project token (a repository variable, not a secret: it is public by design).
+      # The private personal key never enters a build; it stays in Secret Manager for deletions.
+      STORYTREE_JOURNEY_KEY: ${{ vars.STORYTREE_JOURNEY_KEY }}
     steps:
       - uses: actions/checkout@v6
         with:

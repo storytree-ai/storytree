@@ -12,7 +12,7 @@ import { existsSync, mkdirSync, realpathSync } from "node:fs";
 import path from "node:path";
 
 import { claim, claimRefusal, reasonRefusal, readClaim, readClaims, release, type Claim, type ClaimAnswer, type ClaimContext } from "./claims.js";
-import { endIfMerged, inMergeQueue, type MergeWatch } from "./merges.js";
+import { endIfMerged, ghAllOpenPulls, inMergeQueue, type MergeWatch } from "./merges.js";
 
 type WorkspaceContext = ClaimContext & { readonly folder: string };
 
@@ -48,11 +48,16 @@ export type WorkspaceAnswer =
   | { ok: true; status: "prepared"; ref: string; name: string; base: string }
   | WorkspaceRefusal;
 
+export interface WorkspaceOptions {
+  /** Make the workspace even though open pull requests are already for this work (5.25). */
+  readonly despiteOpenPulls?: boolean;
+}
+
 const FETCH_TIMEOUT_MS = 120_000;
 const NAME_PART_MAX = 32;
 
 /** Create and claim for Claude Code; for Codex return the app's creation arguments without a claim. */
-export async function makeWorkspace(context: WorkspaceContext, id: string, reason: string, watch: MergeWatch = {}): Promise<WorkspaceAnswer> {
+export async function makeWorkspace(context: WorkspaceContext, id: string, reason: string, watch: MergeWatch = {}, options: WorkspaceOptions = {}): Promise<WorkspaceAnswer> {
   const refused = reasonRefusal(reason) ?? await workspaceRefusal(context, id, reason, watch);
   if (refused !== undefined) return refused;
   const here = await worktreeHoldingWork(context, id);
@@ -62,6 +67,8 @@ export async function makeWorkspace(context: WorkspaceContext, id: string, reaso
     const base = run(here.folder, ["rev-parse", "HEAD"]).trim();
     return { ok: true, status: "ready", claim: claimed.claim, ...here, base, existing: true, ...(claimed.takenOverFrom === undefined ? {} : { takenOverFrom: claimed.takenOverFrom }) };
   }
+  const inFlight = options.despiteOpenPulls === true ? undefined : await openPullsRefusal(context, id, watch);
+  if (inFlight !== undefined) return inFlight;
   const repository = repositoryOf(context.folder);
   if (typeof repository !== "string") return repository;
   const main = defaultBranch(repository);
@@ -144,6 +151,26 @@ async function workspaceRefusal(context: WorkspaceContext, id: string, reason: s
 }
 
 /**
+ * Why a new workspace would rebuild work already in flight: the open pull requests whose head branch
+ * was made for `id` (`<harness>/<id's name>-<suffix>`), other than on a branch this session holds work on,
+ * as one waiting in the merge queue. Undefined when there is none, or GitHub cannot be asked (5.25).
+ */
+async function openPullsRefusal(context: WorkspaceContext, id: string, watch: MergeWatch): Promise<WorkspaceRefusal | undefined> {
+  const pulls = await (watch.allOpenPulls ?? ghAllOpenPulls)(context.folder).catch(() => undefined);
+  if (pulls === undefined) return undefined;
+  const made = new RegExp(`(?:^|/)${stemFor(id)}-[a-z0-9]+$`);
+  const ours = new Set((await readClaims(context.log, context.project)).filter((one) => one.session === context.session).map((one) => one.branch));
+  const forId = [...pulls].filter(([branch]) => made.test(branch) && !ours.has(branch));
+  if (forId.length === 0) return undefined;
+  const named = forId.map(([branch, pull]) => `#${pull.number} on ${branch}`).join("; ");
+  return {
+    ok: false,
+    refused: "no-workspace",
+    why: `${id} already has open pull requests: ${named}. Carry one on (check its branch out into a worktree with git worktree add, then attach that folder) or close it, or make a workspace despite them`,
+  };
+}
+
+/**
  * The linked worktree the context's folder is in, and its branch, when `id` is a capability and
  * this session already holds work on that branch: a capability claimed from inside it is claimed
  * there, never given a second worktree (5.19). Undefined otherwise, as from the main checkout.
@@ -204,8 +231,12 @@ function fetchMain(repository: string, main: string): { ok: false; refused: "no-
 
 /** A work-derived app-compatible name; the random suffix separates parallel preparations. */
 function nameFor(id: string): string {
-  const stem = id.toLowerCase().replace(/[^a-z0-9-]+/g, "-").slice(0, NAME_PART_MAX).replace(/^-+|-+$/g, "") || "work";
-  return `${stem}-${randomBytes(3).toString("hex")}`;
+  return `${stemFor(id)}-${randomBytes(3).toString("hex")}`;
+}
+
+/** The part of a workspace's name that comes from its work's id. */
+function stemFor(id: string): string {
+  return id.toLowerCase().replace(/[^a-z0-9-]+/g, "-").slice(0, NAME_PART_MAX).replace(/^-+|-+$/g, "") || "work";
 }
 
 /** Claude Code's existing placement: a name no folder or branch has yet. */

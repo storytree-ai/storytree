@@ -45,6 +45,8 @@ export interface MergeWatch {
   readonly mergedPulls?: MergedPulls;
   /** How to ask GitHub which pull requests wait in the merge queue (ADR-0796). By default, through `gh`. */
   readonly queuedPulls?: QueuedPulls;
+  /** How to ask GitHub which pull requests are open, so a workspace is not made beside one (5.25). By default, through `gh`. */
+  readonly allOpenPulls?: AllOpenPulls;
   /** How often a project is asked about, at most. By default, once a minute. */
   readonly everyMs?: number;
 }

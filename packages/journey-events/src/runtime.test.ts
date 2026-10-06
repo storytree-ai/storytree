@@ -4,7 +4,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { DatabaseSync } from "node:sqlite";
-import { createJourneyRuntime } from "./runtime.js";
+import { createJourneyRuntime, releaseConfiguration } from "./runtime.js";
+import { journeyDefine } from "./release.js";
 
 test("3.1 first-launch consent records current launch milestones only after an explicit yes, and shutdown awaits delivery", async () => {
   const home = mkdtempSync(path.join(tmpdir(), "journey-runtime-"));
@@ -38,7 +39,7 @@ test("2.3 optional observation cannot prevent application cleanup when local sto
   } finally { await runtime.finish(); rmSync(home, { recursive: true, force: true }); }
 });
 
-test("3.1 shipped runtime stays unavailable until the owner activation configuration is supplied", async () => {
+test("3.1 a development copy, stamped with no public project token, stays unavailable", async () => {
   const home = mkdtempSync(path.join(tmpdir(), "journey-runtime-"));
   const runtime = createJourneyRuntime({ home, appVersion: "0.3.42" });
   try {
@@ -66,5 +67,22 @@ test("1.4 only completed current actions produce project and landing milestones"
     runtime.incrementClosed("landed");
     await runtime.finish();
     assert.deepEqual(events, ["first_project", "first_landed_increment"]);
+  } finally { await runtime.finish(); rmSync(home, { recursive: true, force: true }); }
+});
+
+test("2.4 a shipped build is stamped with only the public project token, which makes sharing available with its retention and deletion contact", async () => {
+  assert.deepEqual(journeyDefine({}), {});
+  assert.throws(() => journeyDefine({ STORYTREE_JOURNEY_KEY: "phx_private_personal_key" }), /public project token/);
+  const stamp = journeyDefine({ STORYTREE_JOURNEY_KEY: " phc_public_token " });
+  assert.deepEqual(stamp, { STORYTREE_JOURNEY_KEY: '"phc_public_token"' });
+  const home = mkdtempSync(path.join(tmpdir(), "journey-runtime-"));
+  const configuration = releaseConfiguration(JSON.parse(stamp.STORYTREE_JOURNEY_KEY!) as string)!;
+  const runtime = createJourneyRuntime({ home, appVersion: "0.3.42", configuration });
+  try {
+    const state = await runtime.readJourney();
+    assert.equal(state.available, true);
+    assert.equal(state.consent, "pending");
+    assert.match(state.retention!, /1 year/);
+    assert.equal(state.deletionContact, "hua.mick@gmail.com");
   } finally { await runtime.finish(); rmSync(home, { recursive: true, force: true }); }
 });

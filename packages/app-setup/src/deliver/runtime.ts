@@ -1,3 +1,4 @@
+/** Capability 1 · Get storytree. */
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";

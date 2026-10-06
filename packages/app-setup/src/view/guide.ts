@@ -1,4 +1,4 @@
-/** One offline guide; the README and installation point here. Projects are added from Projects, not here. */
+/** Capability 3 · First-run guide. One offline guide; the README and installation point here. Projects are added from Projects, not here. */
 export const guide = `
   <h3>Start your first project</h3>
   <ol>

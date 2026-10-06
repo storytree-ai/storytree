@@ -1,3 +1,4 @@
+/** Capability 3 · First-run guide. */
 const SEEN = "storytree:setup:guide-seen:v1";
 
 /** Where the guide's dismissal is remembered: the renderer's localStorage, whose very reading may throw. */

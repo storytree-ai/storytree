@@ -1,5 +1,5 @@
 /**
- * A dev home's database (see dev-home.ts): what its app.json starts when a storytree command finds
+ * Capability 2 · Connect an agent. A dev home's database (see dev-home.ts): what its app.json starts when a storytree command finds
  * it closed. It runs the home's own Postgres, as the app would, until it is told to stop.
  *
  *   node --import tsx dev-database.ts <storytree home>

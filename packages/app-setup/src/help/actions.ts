@@ -1,3 +1,4 @@
+/** Capability 3 · First-run guide. */
 import { homedir } from "node:os";
 import path from "node:path";
 import { CODEX_TRUST_STEP, codexHookTrust, readProjectChoice, runSetupCheck } from "@storytree/agent-link";

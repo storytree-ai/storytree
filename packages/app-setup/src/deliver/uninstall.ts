@@ -1,5 +1,5 @@
 /**
- * Leaving storytree: what the NSIS uninstaller runs, from the installation's own bundled Node, just
+ * Capability 1 · Get storytree. Leaving storytree: what the NSIS uninstaller runs, from the installation's own bundled Node, just
  * before it deletes the app's files. It undoes what delivery and connection added: both agents'
  * registration, hooks and status line, the command and its PATH entry, the home, and the updater's
  * download cache. The user's project folders are never touched, not even their storytree marker.

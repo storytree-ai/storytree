@@ -1,3 +1,4 @@
+/** Capability 5 · Send feedback. */
 export interface FeedbackDraft { readonly title: string; readonly body: string }
 export type DraftResult = { status: "opened" } | { status: "failed"; error: string };
 

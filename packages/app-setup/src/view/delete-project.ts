@@ -1,3 +1,4 @@
+/** Capability 3 · First-run guide. */
 import type { SetupHelpBridge } from "../help/bridge.js";
 
 type Deletion = { deleted: null } | { deleted: string; snapshot?: string } | { failed: string };

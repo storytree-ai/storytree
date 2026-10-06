@@ -1,0 +1,15 @@
+{
+  "seed": "code-rows: storytree's own 15 stories and their code (../code-rows/seed.json.gz, survey.json), laid out by planetLayout at radius 218",
+  "unrouted": "a road's longest stretch, in ground units, between two points the routing planned: the globe fills it in along its surface",
+  "before": {
+    "roads": 28,
+    "longestUnrouted": [220.55, 63.24, 33.48, 25.86, 20.86, 20.84, 17.77, 16.88]
+  },
+  "after": {
+    "roads": 27,
+    "longestUnrouted": [0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8]
+  },
+  "approach": "a road's straight run on the chart from where the router ended it, on its island's disc, to its dock on the coast, in ground units (15 docks)",
+  "approachChartAboutPlusZ": { "longest": 219.2, "total": 450 },
+  "approachChartAboutTheIslands": { "longest": 67.6, "total": 364 }
+}

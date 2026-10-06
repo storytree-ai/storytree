@@ -1,5 +1,5 @@
 /**
- * The agent link's extension point (its ToolExtension, ADR-0643 D6), as far as the librarian's
+ * Capability 6 · Rounds. The agent link's extension point (its ToolExtension, ADR-0643 D6), as far as the librarian's
  * tools use it. Restated rather than imported: the agent link depends on this package to serve
  * these tools, and a dependency back would make a workspace cycle, which pnpm turns into a loop of
  * directory junctions on Windows that `git clean` never finishes walking. The agent link checks the

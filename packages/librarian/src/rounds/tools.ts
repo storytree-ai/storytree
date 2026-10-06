@@ -1,4 +1,4 @@
-/** Rounds 6.3–6.4: curation on the agent link's shared server, through its public extension point. */
+/** Capability 6 · Rounds. Rounds 6.3–6.4: curation on the agent link's shared server, through its public extension point. */
 import { execFileSync } from "node:child_process";
 import { homedir } from "node:os";
 import path from "node:path";

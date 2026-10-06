@@ -1,5 +1,5 @@
 /**
- * What every capability of the librarian reads the library with: its notes, found through the
+ * Capability 1 · Links. What every capability of the librarian reads the library with: its notes, found through the
  * library's public API alone (a plain search for nothing returns every live note), and the refusal
  * the librarian's own rules end in.
  */

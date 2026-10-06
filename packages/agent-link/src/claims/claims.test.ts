@@ -12,7 +12,7 @@ import { test } from "node:test";
 
 import { connect, type Library } from "@storytree/library";
 
-import { openActivityLog, type ActivityLog, type LockedLog } from "../activity/index.js";
+import { openActivityLog, type ActivityLog, type LockedLog, type NewLine } from "../activity/index.js";
 import { readClaim, readClaims } from "../index.js";
 import { claimFrom, claimsFrom } from "../readings.js";
 import { runHook } from "../hooks/index.js";
@@ -21,7 +21,8 @@ import { claudeCode, withAgent } from "../testing/agent.js";
 import { countingStore } from "../testing/egress.js";
 import { withTempDir } from "../testing/folders.js";
 import { dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { claim, land, readAttribution, release, type ClaimContext, type MergedPull, type MergeWatch } from "./index.js";
+import { readSessions } from "../sessions/index.js";
+import { claim, claimRefusal, land, readAttribution, release, type ClaimContext, type MergedPull, type MergeWatch } from "./index.js";
 import { boardClaims, due, mergedPullsThrough } from "./merges.js";
 
 interface World {
@@ -113,6 +114,46 @@ test("5.2 B's claim on it is refused, naming A, and a claim-refused line records
   });
 });
 
+test("5.2, 4.12 verified safe close-out permits takeover despite stale commands; unverified or resumed holders still bind", async () => {
+  for (const scenario of ["finished", "compacted", "unsafe", "unknown-runs", "running", "unmerged", "dirty-main", "background", "prompted", "restarted", "new-claim", "reclaimed"] as const) {
+    await withWorld(async ({ log, project, emailForm, passwordReset, as }) => {
+      const own = { session: "A", harness: "codex", source: "hook", machine: "mint", folder: "/work", branch: "main" } as const;
+      const append = (line: NewLine) => log.append(project, line);
+      assert.ok((await claim({ ...as("A"), ...own, source: "tool" }, emailForm, "building email form")).ok);
+      await append({ ...own, kind: "command-started", call: "lost-finish", command: "pnpm test > results.log" });
+      // A branch look can resolve the work without releasing a capability claimed on main.
+      await append({ ...own, branch: "fix-login", kind: "file-edited", files: ["a.ts"] });
+      if (scenario !== "unmerged") await append({ session: "observer", source: "hook", kind: "branch-state", of: "fix-login", open: false, how: "merged", pr: 3 });
+      if (scenario === "dirty-main") {
+        await append({ ...own, kind: "file-edited", files: ["a.ts"] });
+        await append({ session: "observer", source: "hook", kind: "main-state", machine: "mint", of: "/work", dirty: true });
+      }
+      await append({ ...own, source: "tool", kind: "closed-out", safe: scenario !== "unsafe", why: "finished",
+        ...(scenario === "unknown-runs" ? {} : { running: scenario === "running" ? 1 : 0 }) });
+      if (scenario === "background") await append({ ...own, kind: "turn-ended", background: 1 });
+      if (scenario === "prompted") await append({ ...own, kind: "prompt-submitted" });
+      if (scenario === "restarted" || scenario === "compacted") await append({ ...own, kind: "session-started", how: scenario === "compacted" ? "compact" : "resume" });
+      if (scenario === "new-claim" || scenario === "reclaimed") {
+        assert.ok((await claim(as("A"), scenario === "new-claim" ? passwordReset : emailForm, "continuing work")).ok);
+      }
+      const finished = scenario === "finished" || scenario === "compacted";
+      const options = { quietMs: 60_000 };
+      const session = (await readSessions(log, project, { of: ["A"] }))[0]!;
+      assert.equal(session.closeOut?.verified === true, finished, `${scenario}: session listing`);
+      assert.equal(session.listing, finished ? "hidden" : "listed", scenario);
+      const bounded = await readClaims(log, project, options);
+      const whole = claimsFrom((await log.since(project, 0)).lines, options);
+      assert.equal(bounded.find((one) => one.capability === emailForm)?.holder, finished ? "idle" : "live", `${scenario}: bounded claims`);
+      assert.deepEqual(bounded, whole, `${scenario}: board and bounded reader agree`);
+      assert.equal((await claimRefusal(as("B", options), emailForm)) === undefined, finished, `${scenario}: workspace preview`);
+      const contender = await claim(as("B", options), emailForm, "next writer");
+      assert.equal(contender.ok, finished, `${scenario}: atomic admission`);
+      if (contender.ok) assert.equal(contender.takenOverFrom?.session, "A", scenario);
+      else assert.ok(contender.refused === "held" && contender.holder.session === "A", scenario);
+    });
+  }
+});
+
 test('5.3 when A reports it landed, the claim ends and a "landed" line is written; a release, or A\'s session ending, also ends it', async () => {
   await withWorld(async ({ log, project, emailForm, as }) => {
     assert.equal((await claim(as("A"), emailForm, "building the email form")).ok, true);
@@ -193,7 +234,7 @@ test("5.6 while a command A started is still running, past the quiet time, B's c
     let historyReads = 0;
     const locked = <T>(of: string, work: (locked: LockedLog) => Promise<T>) => log.locked(of, (inside) => work({
       ...inside,
-      lines: (kinds) => { historyReads++; return inside.lines(kinds); },
+      foldLines: (sessions, since) => { historyReads++; return inside.foldLines(sessions, since); },
     }));
     // The log as it is, but for the lock: each of its other reads still reaches the real log.
     const counted = new Proxy(log, {
@@ -205,7 +246,7 @@ test("5.6 while a command A started is still running, past the quiet time, B's c
     });
     const refused = await claim(as("B", { quietMs, log: counted }), emailForm, "A went quiet; taking over");
     assert.ok(!refused.ok && refused.refused === "held" && refused.holder.session === "A" && refused.holder.holder === "live");
-    assert.equal(historyReads, 1, "claim and command history are read together while the contender holds the lock (concurrent scan waits, 2026-10-02)");
+    assert.equal(historyReads, 1, "the holder's lifecycle is read once while the contender holds the lock");
     assert.deepEqual((await readClaims(log, project, { quietMs })).map(({ session, holder }) => ({ session, holder })), [{ session: "A", holder: "live" }]);
   });
 });

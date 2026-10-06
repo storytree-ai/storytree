@@ -333,19 +333,15 @@ test("3.10 a Codex session's kept records survive a torn or unreadable checkpoin
         assert.equal((await read()).tokens, 2000, "an unreadable checkpoint is fetched again whole");
 
         // The store now holds less than was kept (emptied, or another one): the checkpoint is not trusted.
-        const activity = new URL(testServerUrl());
-        activity.pathname = `/${ACTIVITY_DATABASE}`;
-        const client = new pg.Client({ connectionString: activity.href });
-        await client.connect();
-        try {
-          await client.query("DELETE FROM transcript_records WHERE project = $1", [project]);
-        } finally { await client.end(); }
+        await activityQuery("DELETE FROM transcript_records WHERE project = $1", [project]);
         cursor = 0;
         await append([{ type: "session_meta", payload: { id: "codex" } }, tokens(3000)]);
         assert.equal((await read()).tokens, 3000);
 
         // Retention keeps the reading before the raw records go, and the checkpoint goes with them.
-        await pruneTranscripts(log, { now: new Date(Date.now() + RETAIN_MS + 60_000) });
+        // Only this project's records age: pruning in the future would expire concurrent tests' records too.
+        await activityQuery("UPDATE transcript_records SET at = at - $2 * interval '1 millisecond' WHERE project = $1", [project, RETAIN_MS + 60_000]);
+        await pruneTranscripts(log);
         assert.equal((await read()).tokens, 3000);
         assert.deepEqual(checkpoints(), []);
       } finally { await counted.close(); await store.close(); }
@@ -380,6 +376,19 @@ async function withApp(projects: readonly string[], body: (app: App) => Promise<
     await log.close();
     await storytree.close();
     await dropLibraries(projects);
+  }
+}
+
+/** Run one statement against the activity database directly, as another writer of it would. */
+async function activityQuery(text: string, values: unknown[]): Promise<void> {
+  const url = new URL(testServerUrl());
+  url.pathname = `/${ACTIVITY_DATABASE}`;
+  const client = new pg.Client({ connectionString: url.href });
+  await client.connect();
+  try {
+    await client.query(text, values);
+  } finally {
+    await client.end();
   }
 }
 

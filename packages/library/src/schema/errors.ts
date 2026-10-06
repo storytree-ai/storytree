@@ -6,7 +6,10 @@ import { fileURLToPath } from "node:url";
 import { codeDistance } from "./code-distance.js";
 import { SCHEMA_VERSIONS } from "./types.js";
 
-const runningCodeDistance = codeDistance(fileURLToPath(import.meta.url));
+// CommonJS bundles have no ESM source URL and cannot identify the loaded source revision.
+const runningCodeDistance = import.meta.url === undefined
+  ? () => undefined
+  : codeDistance(fileURLToPath(import.meta.url));
 
 /** One thing wrong with a record's fields. */
 export interface FieldProblem {

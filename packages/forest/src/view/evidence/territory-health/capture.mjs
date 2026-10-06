@@ -2,6 +2,8 @@
 // snapshot with each capability given a word (below), the session-tints agent log at the fixed clock NOW, the same
 // 1440 x 960 viewport and the same programmatic turns; nothing is hand-panned. Run `node build.mjs`, then this, under
 // flock /tmp/storytree-heavy.lock. Measures what can be counted before anyone looks, and writes measurements.json.
+// --smoke runs the page built by `node build.mjs smoke` and takes no pictures, so a test proves every wait below still
+// resolves in a real browser.
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -9,6 +11,7 @@ import { fakeBridge, withCapture } from '../../../../../../apps/desktop/src/capt
 import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+const smoke = process.argv.includes('--smoke');
 const seed = JSON.parse(readFileSync(path.join(here, '../knowledge-under-islands/seed.json'), 'utf8'));
 // survey.json is readCodeSurvey(<this checkout>, seed.tree), precomputed by `tsx survey.mjs`.
 const survey = JSON.parse(readFileSync(path.join(here, '../session-tints/survey.json'), 'utf8'));
@@ -21,7 +24,8 @@ for (const story of seed.tree.stories) for (const capability of story.capabiliti
   capability.proposed = capability.status === 'proposed';
   if (capability.status === 'unhealthy') capability.health = { ...capability.health, verified: { state: 'failing' } };
 }
-await withCapture({ folder: here, dist: path.join(here, 'dist') }, async ({ browser, origin, out, settle }) => {
+await withCapture({ folder: here, dist: path.join(here, 'dist', ...(smoke ? ['smoke'] : [])) }, async ({ browser, origin, out, settle }) => {
+const picture = (page, name) => smoke ? undefined : page.screenshot({ path: path.join(out, name), timeout: 180000 });
 
 
 
@@ -132,7 +136,7 @@ function measure(page) {
     return { key: key ?? null, rows: Array.isArray(rows) ? rows.map(r => ({ id: r.id, label: r.label, agent: r.agent, state: r.state, idle: r.idle, stories: r.stories })) : kept };
   });
   results.front = await measure(page);
-  await page.screenshot({ path: path.join(out, 'front.png'), timeout: 180000 });
+  await picture(page, 'front.png');
 
   const AGENT_LINK = 'story_05e45963ca9f', FOREST = 'story_be32e99ed54f', LIBRARY = 'story_eb7d623fb9c8';
   const faceIt = async story => {
@@ -152,7 +156,7 @@ function measure(page) {
     await faceIt(story);
     await zoomed();
     results[`closeUp-${name}`] = await measure(page);
-    await page.screenshot({ path: path.join(out, `close-up-${name}.png`), timeout: 180000 });
+    await picture(page, `close-up-${name}.png`);
     await unzoom();
   }
   // Turn the globe half round about its up axis from the library facing: the failures go behind, and their rim markers show.
@@ -166,7 +170,7 @@ function measure(page) {
   await page.waitForFunction(() => document.querySelectorAll('.planet-edge-marker').length > 0, undefined, { timeout: 10000 }).catch(() => {});
   await settle(page);
   results.turnedAway = await measure(page);
-  await page.screenshot({ path: path.join(out, 'rim-markers.png'), timeout: 180000 });
+  await picture(page, 'rim-markers.png');
   await page.mouse.move(2, 2); await settle(page);
 
   results.browser = await browser.version(); results.errors = errors; results.warnings = [...new Set(warnings)];

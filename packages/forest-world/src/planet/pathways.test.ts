@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { Vector3 } from 'three';
 import type { ForestScene, Island } from '../scene.js';
-import { buildPlanetPathways, planetPathwayDrawing, plateTransform, PLATE_CLEARANCE } from '../geometry.js';
+import { buildPlanetPathways, islandCoastReach, planetPathwayDrawing, plateTransform, PLATE_CLEARANCE } from '../geometry.js';
 import { onIslandSurface } from './island-surface.js';
 
 const R = 218;
@@ -68,4 +68,21 @@ test('6.13 a link naming a capability on no island is left out on its own: every
   assert.deepEqual(drawing.plan.edges.map(e => `${e.from}->${e.to}`).sort(), links.map(l => `${l.from}->${l.to}`).sort(), 'every other link keeps its road');
   assert.ok(drawing.plan.segments.some(segment => segment.island === undefined), 'the road between the islands is drawn');
   assert.match(drawing.issue ?? '', /b2.*retired/, 'the notice names the link left out');
+});
+
+test('6.14 a road to islands far round the globe is routed up to their coast, not filled in along the surface', () => {
+  // Three islands 126° to 143° from the globe's +z, where a chart about +z stretched them 2.5 to 3.3 times sideways:
+  // the router's disc for each reached far past its coast and every road stopped short of it.
+  const islands = ['a', 'b', 'c'].map(story => ({ ...island(story, []), trees: Array.from({ length: 8 }, (_, i) => ({
+    capability: `${story}${i}`, form: 'green' as const, status: 'healthy' as const, contracts: 1, x: i % 4, z: Math.floor(i / 4), scale: 1, turn: 0 })) }));
+  const at = (angle: number, turn = 0) => ({ x: R * Math.sin(angle) * Math.cos(turn), y: R * Math.sin(angle) * Math.sin(turn), z: R * Math.cos(angle) });
+  const spots = new Map([['a', at(2.2)], ['b', at(2.5)], ['c', at(2.35, 0.4)]]);
+  const plan = buildPlanetPathways({ islands, links: [{ from: 'a1', to: 'b1' }, { from: 'c1', to: 'a2' }, { from: 'b2', to: 'c2' }] }, spots, R);
+  // The router still sees each island as the disc its farthest coast reaches, so a road may stop where a coast dips
+  // inside that disc; it stops no farther out than that, and a little.
+  const dip = new Map(plan.docks.map(dock => [dock.point, islandCoastReach(islands.find(i => i.story === dock.story)!) - Math.hypot(dock.local.x, dock.local.z)]));
+  for (const road of plan.segments.filter(segment => segment.island === undefined)) {
+    const ends = [...dip].filter(([point]) => point.equals(road.points[0]!) || point.equals(road.points.at(-1)!)).map(([, d]) => d);
+    assert.ok(road.filled! <= Math.max(0, ...ends) + 3, `${road.id} is filled in along the surface for ${road.filled!.toFixed(1)} units`);
+  }
 });

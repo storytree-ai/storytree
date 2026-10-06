@@ -1,6 +1,6 @@
 /**
  * Capability 1 · Lifecycle, contract 1.8 in the app story (ADR-0641 D2 step 4, choice B1): the app
- * writes a snapshot of each project at start and once a day, keeping each project's newest 14.
+ * writes a snapshot of each project once a day (at start unless one under a day old is reused), keeping each project's newest 14.
  * Against the real Postgres `pnpm test` provides; apps/desktop wires the timing to the app.
  */
 import assert from "node:assert/strict";
@@ -13,7 +13,7 @@ import { test } from "node:test";
 import { connect } from "@storytree/library";
 import pg from "pg";
 
-import { BACKUP_EVERY_MS, BACKUPS_KEPT, backUp } from "./backups.js";
+import { BACKUP_EVERY_MS, BACKUPS_KEPT, backUp, keepBackups } from "./backups.js";
 
 test("1.8 the app writes a snapshot of each project to backups/<project>/, keeping that project's newest 14, and each restores", async () => {
   const url = process.env.STORYTREE_TEST_PG_URL;
@@ -64,4 +64,38 @@ test("1.8 the app writes a snapshot of each project to backups/<project>/, keepi
       await admin.end();
     }
   }
+});
+
+test("1.8 a start reuses a project's successful snapshot under a day old, and takes the next at its day mark", async (t) => {
+  t.mock.timers.enable({ apis: ["setInterval", "Date"], now: Date.parse("2026-10-06T12:00:00.000Z") });
+  const dir = mkdtempSync(path.join(tmpdir(), "storytree-backups-due-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const hour = 60 * 60 * 1000;
+  const file = (hoursAgo: number): string => `${new Date(Date.now() - hoursAgo * hour).toISOString().replace(/[:.]/g, "-")}.json`;
+  const put = (project: string, name: string, text = "{}\n"): void => {
+    mkdirSync(path.join(dir, project), { recursive: true });
+    writeFileSync(path.join(dir, project, name), text);
+  };
+  put("fresh", file(23));
+  put("stale", file(25));
+  put("partial", file(30));
+  put("partial", file(1), "{\"records\":[");
+  const taken: string[] = [];
+  const backups = keepBackups({ dir, log: () => {}, storytree: {
+    listProjects: async () => ["fresh", "stale", "none", "partial"],
+    snapshot: async (project) => { taken.push(project); return { format: "storytree-project-snapshot", version: 1, project, takenAt: new Date().toISOString(), records: [], history: [] }; },
+  } });
+  t.after(() => backups.stop());
+  const settle = async (): Promise<void> => { for (let i = 0; i < 5; i++) await new Promise(resolve => setImmediate(resolve)); };
+  await settle();
+  assert.deepEqual(taken, ["stale", "none", "partial"], "a start takes no new snapshot of a project whose newest successful one is under a day old");
+  t.mock.timers.tick(hour - 1);
+  await settle();
+  assert.deepEqual(taken, ["stale", "none", "partial"]);
+  t.mock.timers.tick(1);
+  await settle();
+  assert.deepEqual(taken.slice(3), ["fresh"], "the reused snapshot's day mark takes the next");
+  t.mock.timers.tick(23 * hour);
+  await settle();
+  assert.deepEqual(taken.slice(4), ["stale", "none", "partial"], "while running, every project still gets one a day");
 });

@@ -3,8 +3,27 @@ import path from "node:path";
 import { openJourney, type JourneyConfiguration, type JourneyTransport } from "./index.js";
 import type { DeletionRequest, JourneyBridge, JourneyState } from "./bridge.js";
 
-/** Deliberately absent until the owner's account, privacy notice and credential gate is complete. */
-const RELEASE_CONFIGURATION: JourneyConfiguration | undefined = undefined;
+/** PostHog US project 645059's public token, stamped in by a release build (journeyBuildDefine); absent from development copies. */
+declare const STORYTREE_JOURNEY_KEY: string | undefined;
+const PUBLIC_TOKEN = /^phc_[A-Za-z0-9_]+$/;
+const RELEASE_CONFIGURATION = releaseConfiguration(typeof STORYTREE_JOURNEY_KEY === "string" ? STORYTREE_JOURNEY_KEY : undefined);
+
+/** The shipped configuration for a public project token; anything else leaves sharing unavailable. */
+export function releaseConfiguration(projectKey: string | undefined): JourneyConfiguration | undefined {
+  if (projectKey === undefined || !PUBLIC_TOKEN.test(projectKey)) return undefined;
+  return { projectKey, retention: "1 year (PostHog US free plan)", deletionContact: "hua.mick@gmail.com" };
+}
+
+/**
+ * What a bundler stamps in from its environment: only the public project token. A private
+ * administrative key (phx_) or anything else is refused, so it can never reach a shipped build.
+ */
+export function journeyBuildDefine(env: Record<string, string | undefined>): Record<string, string> {
+  const key = env.STORYTREE_JOURNEY_KEY?.trim();
+  if (!key) return {};
+  if (!PUBLIC_TOKEN.test(key)) throw new Error("STORYTREE_JOURNEY_KEY must be PostHog's public project token (phc_…); a private key never ships.");
+  return { STORYTREE_JOURNEY_KEY: JSON.stringify(key) };
+}
 
 export type JourneyRuntime = ReturnType<typeof createJourneyRuntime>;
 

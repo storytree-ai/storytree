@@ -20,7 +20,7 @@ export interface JourneyTransport {
 }
 const MAX_EVENTS = 500;
 const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
-const FLUSH_LIMIT_MS = 3_000;
+const FLUSH_LIMIT_MS = 6_000;
 
 /** One computer-wide consent record and bounded queue, shared atomically by app and CLI. */
 export function openJourney(options: { home: string; appVersion: string; configuration?: JourneyConfiguration }) {

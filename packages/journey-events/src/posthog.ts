@@ -12,6 +12,8 @@ export const JOURNEY_EVENTS = new Set(["installed", "first_launch", "agent_conne
 export const JOURNEY_VERSION = /^\d{1,5}\.\d{1,5}\.\d{1,5}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const unavailable = () => new Error("Journey event delivery unavailable");
+/** A fresh TLS round trip from a distant computer to PostHog US measured 0.6–1.1 s (2026-10-06). */
+const REQUEST_LIMIT_MS = 4_000;
 
 /** Storytree owns persistence and retries. Each immediate SDK send has no background queue. */
 export function createPostHogTransport(options: {
@@ -36,7 +38,7 @@ export function createPostHogTransport(options: {
         flushAt: 1,
         flushInterval: 0,
         fetchRetryCount: 0,
-        requestTimeout: 1_000,
+        requestTimeout: REQUEST_LIMIT_MS + 100,
         disableCompression: true,
         disableGeoip: true,
         enableLocalEvaluation: false,
@@ -51,7 +53,7 @@ export function createPostHogTransport(options: {
           try {
             if (url !== "https://us.i.posthog.com/batch/"|| typeof init.body !== "string" || !permitted()) throw unavailable();
             const deadline = new Promise<never>((_resolve, reject) => {
-              timer = setTimeout(() => { controller.abort(); reject(unavailable()); }, 900);
+              timer = setTimeout(() => { controller.abort(); reject(unavailable()); }, REQUEST_LIMIT_MS);
             });
             const response = await Promise.race([
               fetch(url, {

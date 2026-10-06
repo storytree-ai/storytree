@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { DatabaseSync } from "node:sqlite";
-import { createJourneyRuntime } from "./runtime.js";
+import { createJourneyRuntime, journeyBuildDefine, releaseConfiguration } from "./runtime.js";
 
 test("3.1 first-launch consent records current launch milestones only after an explicit yes, and shutdown awaits delivery", async () => {
   const home = mkdtempSync(path.join(tmpdir(), "journey-runtime-"));
@@ -66,5 +66,20 @@ test("1.4 only completed current actions produce project and landing milestones"
     runtime.incrementClosed("landed");
     await runtime.finish();
     assert.deepEqual(events, ["first_project", "first_landed_increment"]);
+  } finally { await runtime.finish(); rmSync(home, { recursive: true, force: true }); }
+});
+
+test("3.1 a build stamps in only the public project token, refusing a private key, and that token makes sharing available", async () => {
+  assert.deepEqual(journeyBuildDefine({}), {});
+  assert.deepEqual(journeyBuildDefine({ STORYTREE_JOURNEY_KEY: "phc_public" }), { STORYTREE_JOURNEY_KEY: '"phc_public"' });
+  assert.throws(() => journeyBuildDefine({ STORYTREE_JOURNEY_KEY: "phx_private" }), /public project token/);
+  assert.equal(releaseConfiguration("phx_private"), undefined);
+  const home = mkdtempSync(path.join(tmpdir(), "journey-runtime-"));
+  const runtime = createJourneyRuntime({ home, appVersion: "0.3.42", configuration: releaseConfiguration("phc_public")! });
+  try {
+    const state = await runtime.readJourney();
+    assert.equal(state.available, true);
+    assert.match(state.retention!, /1 year/);
+    assert.equal(state.deletionContact, "hua.mick@gmail.com");
   } finally { await runtime.finish(); rmSync(home, { recursive: true, force: true }); }
 });

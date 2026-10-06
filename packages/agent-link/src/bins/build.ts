@@ -13,6 +13,7 @@ import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { build } from "esbuild";
+import { journeyBuildDefine } from "@storytree/journey-events/runtime";
 
 import { buildLauncher, LAUNCHER_PROGRAM } from "./launcher.js";
 
@@ -47,7 +48,8 @@ export async function buildBins(outdir: string, { release }: { release?: { versi
     logLevel: "warning",
     // Under a coverage run (`pnpm survey:coverage`), the code survey traces the bundle back to its files.
     sourcemap: process.env.NODE_V8_COVERAGE !== undefined,
-    ...(release === undefined ? {} : { define: { STORYTREE_RELEASE: JSON.stringify(JSON.stringify(release)) } }),
+    // A release build's public analytics token (never the private key), from STORYTREE_JOURNEY_KEY.
+    define: { ...journeyBuildDefine(process.env), ...(release === undefined ? {} : { STORYTREE_RELEASE: JSON.stringify(JSON.stringify(release)) }) },
     // pg is CommonJS and requires Node's own modules; an ES module has no `require` of its own.
     banner: { js: 'import { createRequire as __storytreeRequire } from "node:module"; const require = __storytreeRequire(import.meta.url);' },
     external: [

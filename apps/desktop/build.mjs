@@ -7,6 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { build } from "esbuild";
+import { journeyBuildDefine } from "@storytree/journey-events/runtime";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const dist = path.join(here, "dist");
@@ -24,6 +25,8 @@ await build({
   platform: "node",
   format: "cjs",
   target: "node22",
+  // A release build's public analytics token (never the private key), from STORYTREE_JOURNEY_KEY.
+  define: journeyBuildDefine(process.env),
   // local-postgres finds its binaries from its own location (import.meta.url) only when not told
   // where they are; the app always tells it (main.ts: postgresBinaries), so that path is never taken.
   logOverride: { "empty-import-meta": "silent" },

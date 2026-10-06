@@ -100,3 +100,12 @@ test("2.2 corrupt queue rows cannot widen the journey payload", async () => {
   await transport.close();
   assert.equal(requests, 0);
 });
+
+test("2.1 an acknowledgement over a distant link (over a second, as measured to PostHog US) counts as delivered", async () => {
+  const transport = createPostHogTransport({
+    projectKey: "phc_test_only", permitted: () => true,
+    fetch: async () => { await new Promise(resolve => setTimeout(resolve, 1_500)); return Response.json({ status: 1 }); },
+  });
+  await transport.send(event);
+  await transport.close();
+});

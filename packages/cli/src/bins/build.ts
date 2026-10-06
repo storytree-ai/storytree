@@ -11,6 +11,7 @@ import { buildLauncher, LAUNCHER_PROGRAM, stageNativeProbes } from "@storytree/a
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { build } from "esbuild";
+import { journeyBuildDefine } from "@storytree/journey-events/runtime";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -28,6 +29,8 @@ export async function buildCommand(outdir: string): Promise<string> {
     splitting: true,
     chunkNames: "chunks/[name]-[hash]",
     target: "node24",
+    // A release build's public analytics token (never the private key), from STORYTREE_JOURNEY_KEY.
+    define: journeyBuildDefine(process.env),
     logLevel: "warning",
     // Under a coverage run (`pnpm survey:coverage`), the code survey traces the bundle back to its files.
     sourcemap: process.env.NODE_V8_COVERAGE !== undefined,

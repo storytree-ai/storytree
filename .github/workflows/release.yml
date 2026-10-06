@@ -76,6 +76,9 @@ jobs:
     env:
       STORYTREE_RELEASE_VERSION: ${{ needs.source.outputs.version }}
       RELEASE_SHA: ${{ needs.source.outputs.sha }}
+      # PostHog US project 645059's PUBLIC token (a variable, not a secret: it ships in the app).
+      # The private administrative key stays in Secret Manager and never reaches a build.
+      STORYTREE_JOURNEY_KEY: ${{ vars.POSTHOG_PROJECT_TOKEN }}
     steps:
       - uses: actions/checkout@v6
         with:

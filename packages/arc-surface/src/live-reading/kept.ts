@@ -1,5 +1,5 @@
 /**
- * A surface's last known state, kept in the page's own storage so the next start can draw it at
+ * Capability 3 · Arc surface. A surface's last known state, kept in the page's own storage so the next start can draw it at
  * once, marked as not yet fresh, while the live reading crosses the network. Each story names its
  * own key and judges its own shape; the app only gives the page its storage, which survives restarts
  * and updates because the app keeps one data folder. Storage is optional: a denied, full, unreadable

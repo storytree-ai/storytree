@@ -1,3 +1,4 @@
+/** Capability 3 · Arc surface. */
 import type { BoardScope } from "../board/board.js";
 
 export interface DrawerPreferences { open: boolean; scope: BoardScope; picked?: string }

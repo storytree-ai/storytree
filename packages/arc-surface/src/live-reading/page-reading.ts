@@ -1,5 +1,5 @@
 /**
- * The page's one live reading (ADR-0836 D3): every surface on the page (the forest, the sessions
+ * Capability 3 · Arc surface. The page's one live reading (ADR-0836 D3): every surface on the page (the forest, the sessions
  * list, the knowledge core, the arc surface) hears the same news from one live reading, so the page
  * asks the library's changes and the agent log's lines once per tick, not once per surface.
  *

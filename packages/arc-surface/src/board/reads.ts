@@ -1,3 +1,4 @@
+/** Capability 3 · Arc surface. */
 import type { ArcView, Holds } from "@storytree/library";
 import type { LiveReads } from "../live-reading/live-reading.js";
 import type { BoardSnapshot } from "./board.js";

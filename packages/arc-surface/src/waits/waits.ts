@@ -1,4 +1,4 @@
-/** Capability 4: give the library's holding waits names and a queue shape, without rejudging them. */
+/** Capability 4 · Waits: give the library's holding waits names and a queue shape, without rejudging them. */
 import type { Hold } from "@storytree/library";
 import type { ArcState, IncrementState } from "../work-states/board-states.js";
 

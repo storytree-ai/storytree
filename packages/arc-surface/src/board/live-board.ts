@@ -1,3 +1,4 @@
+/** Capability 3 · Arc surface. */
 import type { Line, LogReading } from "@storytree/agent-link/readings";
 import type { Kept } from "../live-reading/kept.js";
 import type { Timers } from "../live-reading/live-reading.js";

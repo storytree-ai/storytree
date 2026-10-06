@@ -1,3 +1,4 @@
+/** Capability 3 · Arc surface. */
 import { queueRun } from "../waits/waits.js";
 import { boardView } from "../board/board.js";
 import { readBoard, type BoardReads } from "../board/reads.js";

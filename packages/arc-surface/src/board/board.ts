@@ -1,3 +1,4 @@
+/** Capability 3 · Arc surface. */
 import { logReading, type Line, type LogReading } from "@storytree/agent-link/readings";
 import type { ArcView, Hold } from "@storytree/library";
 import { agentsOnBoard, type BoardAgent } from "../agents/agents.js";

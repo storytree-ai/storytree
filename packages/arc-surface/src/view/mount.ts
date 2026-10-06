@@ -1,3 +1,4 @@
+/** Capability 3 · Arc surface. */
 import type { BoardReads } from "../board/reads.js";
 import { isBoardSnapshot, watchBoard, type BoardState } from "../board/live-board.js";
 import { pageKept } from "../live-reading/kept.js";

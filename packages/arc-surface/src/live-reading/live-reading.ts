@@ -1,5 +1,5 @@
 /**
- * The live reading (part of capability 3 · Arc surface, the arc surface story): what keeps the
+ * Capability 3 · Arc surface. The live reading (part of capability 3 · Arc surface, the arc surface story): what keeps the
  * overlay and the forest current while they are open. The forest uses it (ADR-0632 D3), and the app
  * only carries its two reads (ADR-0634 D3).
  *

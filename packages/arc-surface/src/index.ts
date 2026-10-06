@@ -1,4 +1,4 @@
-// @storytree/arc-surface: the arc surface story. Its Work states and live
+// Capability 3 · Arc surface. @storytree/arc-surface: the arc surface story. Its Work states and live
 // reading are shared with the forest, which reads them (ADR-0632 D3). Everything exported here is
 // safe to bundle into the page: it imports nothing from Node.
 export { keptWorkStates, workStates } from "./work-states/work-states.js";

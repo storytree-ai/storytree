@@ -1,4 +1,4 @@
-/** The arc surface story's surface, as the app's Surfaces menu lists it (ADR-0750). Plain data. */
+/** Capability 3 · Arc surface. The arc surface story's surface, as the app's Surfaces menu lists it (ADR-0750). Plain data. */
 export const arcSurfaces = [
   {
     id: "arcs",

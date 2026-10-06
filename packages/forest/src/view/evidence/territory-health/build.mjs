@@ -1,5 +1,5 @@
 // Bundles the actual desktop page for the capture, adding only observation hooks (R3F state, the
-// navigation rotation). Output goes to the ignored dist/. See README.md.
+// navigation rotation). Output goes to the ignored dist/ (dist/smoke for `node build.mjs smoke`). See README.md.
 import { mkdirSync, readFileSync, copyFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -13,7 +13,7 @@ function replace(source, needle, value) {
   if (!source.includes(needle)) throw new Error(`Capture observation hook moved: ${needle}`);
   return source.replace(needle, value);
 }
-const out = path.join(here, 'dist');
+const out = path.join(here, 'dist', ...(process.argv[2] === 'smoke' ? ['smoke'] : []));
 mkdirSync(out, { recursive: true });
 await build({
   absWorkingDir: path.join(root, 'apps/desktop'),

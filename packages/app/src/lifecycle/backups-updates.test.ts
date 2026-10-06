@@ -10,7 +10,7 @@ import { mainUpdates } from "../updates/main-updates.js";
 
 for (const when of ["start-up", "daily"] as const) {
   test(`4.8 a ready main build keeps its window open during a ${when} snapshot, even when the menu asks`, async (t) => {
-    t.mock.timers.enable({ apis: ["setInterval"] });
+    t.mock.timers.enable({ apis: ["setInterval", "Date"] });
     const dir = mkdtempSync(path.join(tmpdir(), "storytree-backup-update-"));
     t.after(() => rmSync(dir, { recursive: true, force: true }));
     const snapshot = deferred<ProjectSnapshot>();

@@ -1,5 +1,5 @@
 /**
- * Where the Postgres tools (initdb, pg_ctl, postgres) come from: the @embedded-postgres package
+ * Capability 1 · Postgres binaries. Where the Postgres tools (initdb, pg_ctl, postgres) come from: the @embedded-postgres package
  * built for this machine, which holds them in native/bin. There is no Windows arm64 build, so on
  * Windows arm64 the x64 one is used; Windows runs it under emulation. A packaged app ships the
  * binaries itself and hands over the directory it put them in.

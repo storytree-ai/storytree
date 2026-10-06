@@ -1,5 +1,5 @@
 /**
- * One local Postgres server on a data directory, as storytree runs it: the cluster is made with
+ * Capability 2 · A server on a data directory. One local Postgres server on a data directory, as storytree runs it: the cluster is made with
  * initdb the first time, trusts local connections and listens on 127.0.0.1 only, and the server
  * runs on a free port unless one is asked for.
  *

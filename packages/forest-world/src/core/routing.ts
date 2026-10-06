@@ -38,6 +38,76 @@ export interface TrailIsland {
   x: number;
   y: number;
   r: number; // obstacle disc radius, in the same ground-plane units as x/y
+  /** The island's real coast, as rings in the same units: when given, the router blocks, docks and opens caves
+   *  against it rather than the disc, which must still enclose it (`r` bounds the grid and the cheap far test). */
+  outline?: readonly (readonly Pt[])[];
+}
+
+/** Signed distance from (x, y) to the island's edge: negative inside. The disc's, or its outline's when it has one. */
+function rimDistance(isl: TrailIsland, x: number, y: number): number {
+  const disc = Math.hypot(x - isl.x, y - isl.y) - isl.r;
+  if (!isl.outline) return disc;
+  let d = Infinity;
+  let inside = false;
+  for (const ring of isl.outline) {
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const a = ring[j]!;
+      const b = ring[i]!;
+      if ((b.y > y) !== (a.y > y) && x < ((a.x - b.x) * (y - b.y)) / (a.y - b.y) + b.x) inside = !inside;
+      const q = nearestOnSegment(a, b, x, y);
+      d = Math.min(d, Math.hypot(x - q.x, y - q.y));
+    }
+  }
+  return inside ? -d : d;
+}
+
+function nearestOnSegment(a: Pt, b: Pt, x: number, y: number): Pt {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const l2 = dx * dx + dy * dy;
+  const u = l2 === 0 ? 0 : Math.max(0, Math.min(1, ((x - a.x) * dx + (y - a.y) * dy) / l2));
+  return { x: a.x + u * dx, y: a.y + u * dy };
+}
+
+/** The point of the island's edge nearest (x, y); without an outline, the disc's point on the bearing (bx, by). */
+function rimPoint(isl: TrailIsland, x: number, y: number, bx: number, by: number): Pt {
+  if (!isl.outline) return { x: isl.x + bx * isl.r, y: isl.y + by * isl.r };
+  let best: Pt = { x: isl.x, y: isl.y };
+  let bd = Infinity;
+  for (const ring of isl.outline) {
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const q = nearestOnSegment(ring[j]!, ring[i]!, x, y);
+      const d = Math.hypot(q.x - x, q.y - y);
+      if (d < bd) {
+        bd = d;
+        best = q;
+      }
+    }
+  }
+  return best;
+}
+
+/** How far out along the bearing (bx, by) from the island's centre its edge last lies: the disc's radius, or the
+ *  outline's outermost crossing of that ray. */
+function rimReach(isl: TrailIsland, bx: number, by: number): number {
+  if (!isl.outline) return isl.r;
+  let far = 0;
+  for (const ring of isl.outline) {
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const a = ring[j]!;
+      const b = ring[i]!;
+      const ex = b.x - a.x;
+      const ey = b.y - a.y;
+      const den = bx * ey - by * ex;
+      if (Math.abs(den) < 1e-12) continue;
+      const ax = a.x - isl.x;
+      const ay = a.y - isl.y;
+      const along = (ax * ey - ay * ex) / den; // distance along the ray
+      const u = (ax * by - ay * bx) / den; // position on the edge
+      if (along > far && u >= 0 && u <= 1) far = along;
+    }
+  }
+  return far;
 }
 
 export interface TrailEdgeIn {
@@ -254,7 +324,9 @@ function buildGrid(islands: readonly TrailIsland[], seed: string, t: TrailTuning
       for (let k = 0; k < islands.length; k++) {
         const isl = islands[k];
         if (!isl) continue;
-        const rim = Math.hypot(cx - isl.x, cy - isl.y) - isl.r;
+        let rim = Math.hypot(cx - isl.x, cy - isl.y) - isl.r;
+        // the disc encloses the outline, so beyond the falloff band the disc's distance already decides nothing
+        if (isl.outline && rim < t.clearance + t.falloff) rim = rimDistance(isl, cx, cy);
         surplusMin = Math.min(surplusMin, rim - t.clearance);
         if (rim <= t.clearance) {
           if (rim < bAd) {
@@ -652,7 +724,7 @@ function meanderSpline(
       const bp = base.pts[i]!; // proximity is judged on the UN-meandered geometry (order-independent)
       let nearIsland = false;
       for (const isl of islands) {
-        if (Math.hypot(bp.x - isl.x, bp.y - isl.y) < isl.r + t.clearance) {
+        if (rimDistance(isl, bp.x, bp.y) < t.clearance) {
           nearIsland = true;
           break;
         }
@@ -737,6 +809,21 @@ function circleCrossing(a: NodeRec, b: NodeRec, isl: TrailIsland): Pt {
     tt = t1 >= 0 && t1 <= 1 ? t1 : Math.min(1, Math.max(0, t2));
   }
   return { x: a.x + dx * tt, y: a.y + dy * tt };
+}
+
+/** Where the link a-b, one end under the island and one not, crosses its outline: bisected on the signed distance. */
+function outlineCrossing(a: NodeRec, b: NodeRec, isl: TrailIsland): Pt {
+  let lo = 0;
+  let hi = 1;
+  const inA = rimDistance(isl, a.x, a.y) < 0;
+  for (let k = 0; k < 30; k++) {
+    const mid = (lo + hi) / 2;
+    const inMid = rimDistance(isl, a.x + (b.x - a.x) * mid, a.y + (b.y - a.y) * mid) < 0;
+    if (inMid === inA) lo = mid;
+    else hi = mid;
+  }
+  const tt = (lo + hi) / 2;
+  return { x: a.x + (b.x - a.x) * tt, y: a.y + (b.y - a.y) * tt };
 }
 
 /**
@@ -852,7 +939,7 @@ export function routeTrails(
   // pass 1 abort — cave mode is for WALLED-IN edges, never a blocked doorstep
   // (ADR-0169 §1: caves only when forced).
   const dockCellAt = (isl: TrailIsland, bx: number, by: number, fi: number, ti: number): number => {
-    const rad = isl.r + 0.75 * grid.cs;
+    const rad = rimReach(isl, bx, by) + 0.75 * grid.cs;
     const idx0 = cellIndexAt(isl.x + bx * rad, isl.y + by * rad);
     if (!blockedFor(grid, idx0, fi, ti)) return idx0;
     const base = Math.atan2(by, bx);
@@ -861,7 +948,8 @@ export function routeTrails(
     for (let k = 1; k <= steps >> 1; k++) {
       for (const s of [1, -1] as const) {
         const ang = base + (s * k * 2 * Math.PI) / steps;
-        const idx = cellIndexAt(isl.x + Math.cos(ang) * rad, isl.y + Math.sin(ang) * rad);
+        const out = isl.outline ? rimReach(isl, Math.cos(ang), Math.sin(ang)) + 0.75 * grid.cs : rad;
+        const idx = cellIndexAt(isl.x + Math.cos(ang) * out, isl.y + Math.sin(ang) * out);
         if (!blockedFor(grid, idx, fi, ti)) return idx;
       }
     }
@@ -1052,7 +1140,7 @@ export function routeTrails(
         bfx /= lf;
         bfy /= lf;
       }
-      nodes.push({ key: `r:${A.id}:${firstCell}`, x: A.x + bfx * A.r, y: A.y + bfy * A.r, underOf: -1 });
+      nodes.push({ key: `r:${A.id}:${firstCell}`, ...rimPoint(A, pF.x, pF.y, bfx, bfy), underOf: -1 });
       for (const ci of path) {
         const p = centerOf(ci);
         nodes.push({
@@ -1076,7 +1164,7 @@ export function routeTrails(
         btx /= lt;
         bty /= lt;
       }
-      nodes.push({ key: `r:${B.id}:${lastCell}`, x: B.x + btx * B.r, y: B.y + bty * B.r, underOf: -1 });
+      nodes.push({ key: `r:${B.id}:${lastCell}`, ...rimPoint(B, pL.x, pL.y, btx, bty), underOf: -1 });
       routed.push({ key: c.key, from: c.from, to: c.to, title: c.title, nodes });
     }
     return routed;
@@ -1109,7 +1197,7 @@ export function routeTrails(
         const N = re.nodes.length;
         for (let k = 0; k < N; k++) {
           const nd = re.nodes[fromStart ? k : N - 1 - k]!;
-          if (Math.hypot(nd.x - isl.x, nd.y - isl.y) > isl.r + probe) return nd;
+          if (rimDistance(isl, nd.x, nd.y) > probe) return nd;
         }
         return re.nodes[fromStart ? N - 1 : 0]!; // whole path within the band — use the far end
       };
@@ -1305,7 +1393,7 @@ export function routeTrails(
     const key = `${isl.id}${SEP}${linkKeyOf(a, b)}`;
     let acc = caveMap.get(key);
     if (!acc) {
-      const p = circleCrossing(a, b, isl);
+      const p = isl.outline ? outlineCrossing(a, b, isl) : circleCrossing(a, b, isl);
       acc = {
         islandId: isl.id,
         x: p.x,

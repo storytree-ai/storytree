@@ -69,7 +69,21 @@ test('6.14 a road to an island far round the globe is routed all the way to its 
     new Map([['a', at(0.3)], ['far', at(-2.3)]]), R);
   const roads = plan.segments.filter(segment => segment.island === undefined);
   assert.ok(roads.length > 0);
-  for (const road of roads) assert.ok(road.unrouted! <= 3, `${road.id} runs ${road.unrouted!.toFixed(1)} units the router never planned`);
+  for (const road of roads) assert.ok(road.unrouted! <= 1, `${road.id} runs ${road.unrouted!.toFixed(1)} units the router never planned`);
+});
+
+test('6.14 a road to an island whose coast is not round is routed to that coast, from any side', () => {
+  // An L-shaped island: its coast dips far inside the disc round its farthest point, most of all in the L's corner.
+  const trees = [...Array.from({ length: 10 }, (_, i) => [i, 0]), ...Array.from({ length: 9 }, (_, i) => [0, i + 1])];
+  const ell: Island = { ...island('ell', []), trees: trees.map(([x, z], i) => ({ capability: `ell${i}`, form: 'green' as const, status: 'healthy' as const, contracts: 1, x: x!, z: z!, scale: 1, turn: 0 })) };
+  for (let side = 0; side < 8; side++) {
+    const angle = side * Math.PI / 4;
+    const plan = buildPlanetPathways({ islands: [island('a', ['a1']), ell], links: [{ from: 'ell0', to: 'a1' }] },
+      new Map([['ell', { x: 0, y: 0, z: R }], ['a', { x: R * Math.sin(0.3) * Math.cos(angle), y: R * Math.sin(0.3) * Math.sin(angle), z: R * Math.cos(0.3) }]]), R);
+    for (const road of plan.segments.filter(segment => segment.island === undefined)) {
+      assert.ok(road.unrouted! <= 1, `from side ${side}, ${road.id} runs ${road.unrouted!.toFixed(1)} units the router never planned`);
+    }
+  }
 });
 
 test('6.13 a link naming a capability on no island is left out on its own: every other road is drawn, and the notice names it', () => {

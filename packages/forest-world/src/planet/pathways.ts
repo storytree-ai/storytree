@@ -25,8 +25,9 @@ export interface PlanetPathwaySegment {
   /** Physical ground units, from the original capability links sharing this segment. */
   width: number;
   links: string[];
-  /** On a road between islands: its longest stretch, in ground units, that the router never planned and the globe
-   * filled in along its surface. */
+  /** On a road between islands: its longest stretch, in ground units, that the router never planned: the straight
+   * run on the chart from where the router ends it to its dock on the coast, or a gap the globe filled in along its
+   * surface. */
   unrouted?: number;
 }
 
@@ -254,7 +255,7 @@ export function buildPlanetPathways(scene: ForestScene, spots: ReadonlyMap<strin
     return [keyOf(pair), pair];
   })).values()];
   const maxWidth = trailFillWidth(cross.length) * RIBBON_GROUND_SCALE;
-  const nodes = [...grounds.values()].map(g => ({ id: g.id, ...g.centre, r: g.r }));
+  const nodes = [...grounds.values()].map(g => ({ id: g.id, ...g.centre, r: g.r, outline: g.chartRings.map(ring => ring.map(({ x, y }) => ({ x, y }))) }));
   const crossKey = JSON.stringify([nodes, pairs, maxWidth]);
   const network = crossRoutes?.key === crossKey ? crossRoutes.network
     : route(nodes, pairs, 'globe-pathways-real-seed', { cellSize: 2, clearance: maxWidth / 2 + 1, falloff: maxWidth, meanderAmp: 0.4 });
@@ -284,8 +285,8 @@ export function buildPlanetPathways(scene: ForestScene, spots: ReadonlyMap<strin
   for (const segment of network.segments) {
     const routed = spline(segment);
     const ends = [docks.get(`${segment.id}:0`), docks.get(`${segment.id}:${segment.points.length - 1}`)];
-    // The router ends a road on its island's disc, which reaches past the coast wherever the coast is not round; the
-    // rest of the way to the dock, the nearest coast to that end, is a straight line on the chart that no coast crosses.
+    // The router ends a road on its island's charted coast; the dock is the nearest coast to that end, so any straight
+    // line left between them on the chart is the snap from the router's polyline to the coast's, sampled at its step.
     const points = [...ends[0] ? [chart(ends[0].point)] : [], ...routed, ...ends[1] ? [chart(ends[1].point)] : []]
       .flatMap((point, i, all) => {
         if (i === 0) return [point];
@@ -297,18 +298,23 @@ export function buildPlanetPathways(scene: ForestScene, spots: ReadonlyMap<strin
     for (let i = 1; i < points.length; i++) walk.push(walk[i - 1]! + Math.hypot(points[i]!.x - points[i - 1]!.x, points[i]!.y - points[i - 1]!.y));
     const length = walk.at(-1)!;
     // Over the sea a road rides its lift above the glass; within 8 units of a dock it eases to the dock's height. A short
-    // road's two approaches overlap, so it blends between its ends' heights rather than adding them up.
+    // road's two approaches overlap, so it blends between its ends' heights rather than adding them up. A junction,
+    // an end with no dock, rides at the lift on every road that meets there, so the chain does not break at it.
     const height = (end: Dock | undefined) => end ? end.point.length() - radius : ROAD_LIFT;
+    const ease = Math.min(8, length);
     const world = points.map((point, i) => {
       const from = ends[0] ? Math.max(0, 1 - walk[i]! / 8) : 0;
       const to = ends[1] ? Math.max(0, 1 - (length - walk[i]!) / 8) : 0;
-      const blend = Math.max(from, to);
+      const junction = (ends[0] ? 1 : Math.min(1, walk[i]! / ease)) * (ends[1] ? 1 : Math.min(1, (length - walk[i]!) / ease));
+      const blend = Math.max(from, to) * junction;
       const dock = from + to === 0 ? ROAD_LIFT : (height(ends[0]) * from + height(ends[1]) * to) / (from + to);
       return sphere(point).multiplyScalar(radius + ROAD_LIFT + (dock - ROAD_LIFT) * blend);
     });
     if (ends[0]) world[0] = ends[0].point.clone();
     if (ends[1]) world[world.length - 1] = ends[1].point.clone();
-    const unrouted = Math.max(...world.slice(1).map((point, i) => point.distanceTo(world[i]!)));
+    const approach = (end: Dock | undefined, at: Point) => end ? Math.hypot(chart(end.point).x - at.x, chart(end.point).y - at.y) : 0;
+    const unrouted = Math.max(approach(ends[0], routed[0]!), approach(ends[1], routed.at(-1)!),
+      ...world.slice(1).map((point, i) => point.distanceTo(world[i]!)));
     plan.segments.push({ id: `cross:${segment.id}`, points: alongTheGlobe(world), width: 0, links: [], unrouted });
   }
 

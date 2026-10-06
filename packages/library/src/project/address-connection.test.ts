@@ -5,7 +5,7 @@
  * scram-sha-256 line for members of a password group at the top of its pg_hba.conf.
  */
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -30,7 +30,11 @@ async function createPasswordRole(name: string, password: string): Promise<void>
   });
   const rules = readFileSync(file, "utf8");
   if (!rules.split(/\r?\n/).includes(PASSWORD_LINE)) {
-    writeFileSync(file, `${PASSWORD_LINE}\n${rules}`);
+    // Written beside it and renamed over it: on Windows every new backend reads pg_hba.conf afresh, so a
+    // connection from another test file opened mid-write would fail on a truncated file.
+    const next = `${file}.${process.pid}.next`;
+    writeFileSync(next, `${PASSWORD_LINE}\n${rules}`);
+    await replace(next, file);
     await withTestClient((client) => client.query("SELECT pg_reload_conf()"));
   }
   // The reload is a signal: wait until the server asks the role for its password.
@@ -44,6 +48,20 @@ async function createPasswordRole(name: string, password: string): Promise<void>
     if (asked) return;
     if (Date.now() > until) throw new Error(`the test server did not take up ${PASSWORD_LINE}`);
     await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+}
+
+/** Rename `from` over `to`, retrying while Windows refuses because a backend has `to` open. */
+async function replace(from: string, to: string): Promise<void> {
+  for (const until = Date.now() + 10_000; ;) {
+    try {
+      renameSync(from, to);
+      return;
+    } catch (error) {
+      const code = (error as { code?: unknown }).code;
+      if ((code !== "EPERM" && code !== "EBUSY" && code !== "EACCES") || Date.now() > until) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
   }
 }
 

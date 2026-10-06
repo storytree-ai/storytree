@@ -1,4 +1,4 @@
-/** The map owns selection and answers; this front door only parses and prints. */
+/** Capability 1 · Front door. The map owns selection and answers; this front door only parses and prints. */
 import type { FocusOptions, NodeKind } from "@storytree/map";
 import { mapCommand } from "@storytree/map/read";
 import type { Args } from "../args.js";

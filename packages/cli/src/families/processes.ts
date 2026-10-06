@@ -1,3 +1,4 @@
+/** Capability 1 · Front door. */
 import { locateStorytree } from '@storytree/agent-link';
 import { Refusal } from '../answer.js';
 import type { Family } from '../door.js';

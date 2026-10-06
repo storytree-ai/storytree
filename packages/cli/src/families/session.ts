@@ -1,5 +1,5 @@
 /**
- * `storytree session list [--all] [--json]`: the running sessions, as the app's list shows them.
+ * Capability 11 · Workspace. `storytree session list [--all] [--json]`: the running sessions, as the app's list shows them.
  * `storytree session close-out --safe yes|no --why <text>` (ADR-0758 D2): the calling agent session
  * records whether it is safe to close, and why. A front door only: the agent link reads the
  * sessions, writes the line and counts the session's own running work.

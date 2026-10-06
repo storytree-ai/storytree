@@ -1,5 +1,5 @@
 /**
- * A verb's words after `storytree <family> <verb>`: the words it takes in order, and its flags,
+ * Capability 1 · Front door. A verb's words after `storytree <family> <verb>`: the words it takes in order, and its flags,
  * `--name value` or `--name=value`, each kept in the order given. A verb names the flags that are
  * switches (`--current`), which take no value. After `--`, every word is taken in order.
  */

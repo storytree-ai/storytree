@@ -1,4 +1,4 @@
-/** A thin front door onto the agent link's per-user settings. */
+/** Capability 1 · Front door. A thin front door onto the agent link's per-user settings. */
 import { readSettings, setLibrary, setSetting, type LibraryReading, type SettingReading } from "@storytree/agent-link";
 import { readSurfaces, setSurface, type SurfaceReading } from "@storytree/app";
 import { arcSurfaces } from "@storytree/arc-surface/surfaces";

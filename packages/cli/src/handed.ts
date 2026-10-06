@@ -1,5 +1,5 @@
 /**
- * The words given to storytree, as they were handed on, so a word changed on its way is refused.
+ * Capability 1 · Front door. The words given to storytree, as they were handed on, so a word changed on its way is refused.
  *
  * - `pnpm storytree` (ADR-0851 D2, front door contract 1.11): pnpm runs a package script by appending
  *   each word to the script's line as a JSON string and handing that line to a shell, which can still

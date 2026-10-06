@@ -63,7 +63,7 @@ export type ClaimAnswer =
   | { ok: false; refused: "held"; holder: Claim }
   | { ok: false; refused: "unknown-capability"; capability: string }
   | { ok: false; refused: "closed"; increment: string }
-  | { ok: false; refused: "waiting"; waits: Waiting[] }
+  | { ok: false; refused: "waiting"; waits: Waiting[]; untouched?: string[] }
   | { ok: false; refused: "reason-too-long"; limit: number; length: number };
 
 /**
@@ -116,7 +116,7 @@ export async function claim(context: ClaimContext, id: string, reason: string, o
     const standing = await readClaim(context.log, context.project, id, context);
     if (standing?.session === context.session && standing.holder === "live") return { ok: true, claim: standing, alreadyHeld: true };
   }
-  const found = await claimable(context.library, id);
+  const found = await claimable(context, id);
   if (!("part" in found)) return found;
   return context.log.locked(context.project, async (log) => {
     const current = (await heldNow(log, context)).get(id);
@@ -151,7 +151,7 @@ export async function claim(context: ClaimContext, id: string, reason: string, o
  * it does something slow (makeWorkspace fetches). `claim` itself checks again under the lock.
  */
 export async function claimRefusal(context: ClaimContext, id: string, reason?: string): Promise<Exclude<ClaimAnswer, { ok: true }> | undefined> {
-  const found = await claimable(context.library, id);
+  const found = await claimable(context, id);
   if (!("part" in found)) return found;
   const current = await readClaim(context.log, context.project, id, {
     ...(context.quietMs === undefined ? {} : { quietMs: context.quietMs }),
@@ -163,13 +163,31 @@ export async function claimRefusal(context: ClaimContext, id: string, reason?: s
   return { ok: false, refused: "held", holder: current };
 }
 
-/** The live capability or increment `id`, when the library would let it be claimed; otherwise why not. */
-async function claimable(library: Library, id: string): Promise<Found | Exclude<ClaimAnswer, { ok: true } | { refused: "held" }>> {
+/**
+ * The live capability or increment `id`, when the library would let it be claimed; otherwise why
+ * not. A capability refused as waiting names the session's own open increments whose touches omit
+ * it (`untouched`): listing it there lets the claim stand (5.18).
+ */
+async function claimable(context: ClaimContext, id: string): Promise<Found | Exclude<ClaimAnswer, { ok: true } | { refused: "held" }>> {
+  const { library } = context;
   const found = await partNamed(library, id);
   if (found === undefined) return { ok: false, refused: "unknown-capability", capability: id };
   if (found.status === "closed") return { ok: false, refused: "closed", increment: id };
   const waits = await waitingOn(library, found);
-  return waits.length > 0 ? { ok: false, refused: "waiting", waits } : found;
+  if (waits.length === 0) return found;
+  const untouched = found.part.capability === undefined ? [] : await untouchedBy(context, found.part.capability);
+  return { ok: false, refused: "waiting", waits, ...(untouched.length === 0 ? {} : { untouched }) };
+}
+
+/** The open increments the context's session holds whose touches do not name `capability`. */
+async function untouchedBy(context: ClaimContext, capability: string): Promise<string[]> {
+  const held = (await readClaims(context.log, context.project, context)).flatMap((one) => (one.session === context.session && one.holder === "live" && one.increment !== undefined ? [one.increment] : []));
+  const untouched: string[] = [];
+  for (const increment of held) {
+    const record = (await context.library.get(increment)) as SchemaRecord<"increment"> | null | undefined;
+    if (record?.type === "increment" && record.fields.status !== "closed" && record.fields.touches?.includes(capability) !== true) untouched.push(increment);
+  }
+  return untouched;
 }
 
 /** Release `id`, a capability or an increment, if the context's session holds it. */

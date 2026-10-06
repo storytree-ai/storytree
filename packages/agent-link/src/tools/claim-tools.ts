@@ -210,7 +210,8 @@ async function refusalText(library: Library, id: string, answer: Exclude<ClaimAn
       const waits = answer.waits.map((wait) =>
         wait.onOwner === true ? `${wait.increment} is waiting on the owner: it is held on their open question ${wait.on}` : `${wait.increment} waits on ${wait.on} (${wait.reason})${wait.forGood ? ", which will never release" : ""}`,
       );
-      return `${await titleOf(library, id)} is waiting work: ${waits.join("; ")}. Pick other work until it releases.`;
+      const yours = (answer.untouched ?? []).map((increment) => `${increment} is yours and its touches omit ${id}: list ${id} in its touches (arc increment edit ${increment} --touches …) and claim again`);
+      return `${await titleOf(library, id)} is waiting work: ${waits.join("; ")}. ${yours.length === 0 ? "Pick other work until it releases." : `${yours.join("; ")}.`}`;
     }
     case "unknown-capability":
       return `There is no capability or increment ${id} in this project's plan; plan it first, or find its id with show_plan.`;

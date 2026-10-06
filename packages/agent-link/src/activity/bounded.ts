@@ -43,7 +43,7 @@ const ROW = "seq, project, at, session, harness, source, kind, folder";
 /** The fields every line has its own column for. */
 const COLUMN_FIELDS = new Set(["session", "harness", "source", "kind", "folder"]);
 /** The kinds of line whose writer only looked at others' work (readings.ts ABOUT_OTHERS). */
-const ABOUT_OTHERS = ["merged", "branch-state", "main-state", "session-archived", "session-unarchived", "session-described"];
+const ABOUT_OTHERS = ["merged", "branch-state", "main-state", "session-archived", "session-unarchived", "session-described", "machine-started"];
 /** Fields the sessions fold never reads from a line that only places its session: dropped from those. */
 const PLACING_ONLY = ["command", "files", "transcript", "task"];
 
@@ -124,6 +124,10 @@ const INSIDE = `(left(f.file, 1) IN ('/', '\\') OR f.file ~ '^[A-Za-z]:') IS NOT
   OR left(regexp_replace(replace(f.file, '\\', '/'), '/+$', ''), length(regexp_replace(replace(o.folder, '\\', '/'), '/+$', '')) + 1)
      = regexp_replace(replace(o.folder, '\\', '/'), '/+$', '') || '/'`;
 
+/** The latest start each machine recorded (agent link 4.29): one line a machine, however often it started. */
+const MACHINE_STARTS = `SELECT DISTINCT ON (detail->>'machine') seq FROM activity WHERE project = $1 AND kind = 'machine-started'
+    ORDER BY detail->>'machine', (detail->>'startedAt')::timestamptz DESC, seq DESC`;
+
 /**
  * The lines the sessions fold needs for sessions $2 (capability 4), which it reads exactly as it
  * reads their whole history: the first and the last line each session wrote from each place (folder,
@@ -131,7 +135,8 @@ const INSIDE = `(left(f.file, 1) IN ('/', '\\') OR f.file ~ '^[A-Za-z]:') IS NOT
  * the latest line of each kind that turns, ends, closes out, names or claims, and its first start
  * naming a folder; its latest work on the main line in each folder (ADR-0906); its commands started
  * since $3 with no finish, and every turn's end, start and end after the first of them; and what
- * others' lines last said of its branches, of each folder on the main line, and of it in the apps.
+ * others' lines last said of its branches, of each folder on the main line, and of it in the apps;
+ * and each machine's latest start.
  * Lines kept only to place a session leave out what the fold never reads ($5): a command's text, an
  * edit's files (kept as none), a transcript's path, a subagent's task.
  */
@@ -189,6 +194,8 @@ WITH own AS (
     SELECT DISTINCT ON (kind = 'session-described', detail->>'of') seq FROM activity
     WHERE project = $1 AND kind IN ('session-archived', 'session-unarchived', 'session-described') AND detail->>'of' = ANY($2::text[])
     ORDER BY kind = 'session-described', detail->>'of', seq DESC) AS apps
+  UNION ALL
+  SELECT seq, true FROM (${MACHINE_STARTS}) AS starts
 )
 SELECT a.${ROW.split(", ").join(", a.")},
   CASE WHEN p.whole THEN a.detail
@@ -207,7 +214,7 @@ export function foldValues(project: string, sessions: readonly string[], command
  * a line of its own since $2, for a reader that shows nothing else of them (the status line): its
  * latest line, and the finish of a command it may be; the latest line of each kind that turns or ends;
  * and its commands started since $3 with no finish, with every turn's end, start and end after the
- * first of them. Read as FOLD_LINES reads, these give each session the state its whole history gives.
+ * first of them; and each machine's latest start. Read as FOLD_LINES reads, these give each session the state its whole history gives.
  */
 export const STATE_LINES = `
 WITH own AS (
@@ -235,6 +242,8 @@ WITH own AS (
   UNION ALL
   SELECT o.seq, false FROM own o JOIN (SELECT session, min(seq) AS first FROM unfinished GROUP BY session) u ON u.session = o.session AND o.seq > u.first
   WHERE o.kind IN ('turn-ended', 'session-started', 'session-ended')
+  UNION ALL
+  SELECT seq, true FROM (${MACHINE_STARTS}) AS starts
 )
 SELECT a.${ROW.split(", ").join(", a.")},
   CASE WHEN p.whole THEN a.detail

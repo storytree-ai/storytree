@@ -1,4 +1,4 @@
-/** The map's Node entry point: a live library reading joined to the caller's checkout. */
+/** Capability 3 · Counts before detail. The map's Node entry point: a live library reading joined to the caller's checkout. */
 import { affectedProject, type AffectedOptions } from "./affected.js";
 import type { Library } from "@storytree/library";
 import { codeSurveyReader } from "./code-survey/read-survey.js";

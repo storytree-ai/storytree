@@ -1,4 +1,4 @@
-/** Capabilities 2 and 3 · Focus selection and counts before detail. */
+/** Capability 2 · Focus selection. Capabilities 2 and 3 · Focus selection and counts before detail. */
 import { normalizePath, type ChangeLabel, type MapEdge, type MapHealth, type MapNode, type NodeKind, type ProjectGraph } from "./graph.js";
 
 export type FocusMode = "counts" | "dry_run" | "show";

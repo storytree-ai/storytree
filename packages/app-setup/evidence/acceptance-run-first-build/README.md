@@ -14,18 +14,25 @@ mints each contract's verdict; `pnpm record:acceptance <observations.json>` writ
   to set storytree up there as a named project (`prompts/turn-1.txt`); doctor again, its exit code, and where a fresh
   PowerShell finds the command; turn 2, a second new session asked to build a to-do page with tests and keep the
   plan in storytree (`turn-2.txt`); turn 3, that session continued (`--continue`) for a filter, with tests
-  (`turn-3.txt`). During turns 2 and 3 a watcher runs `storytree tree` every few seconds (`watch.txt`), because the
-  command shows a contract's reported health as it stands, not each state it had. Folder b, later: doctor, turn 4
+  (`turn-3.txt`). Folder b, later: doctor, turn 4
   (set up a second project), doctor. Every session runs with storytree's tools, Edit, Write, Read, Glob, Grep, Bash
   and PowerShell allowed (step 7); the transcripts (`turn-*.jsonl`) are kept as evidence. A stamp starting `dry`
   swaps every prompt for "Reply with just the word ok.", to test the capture cheaply.
 - `read.ps1`, over SSH afterwards, in folder a: `storytree doctor`, `tree`, `noticeboard`, `noticeboard log`,
   `library list` of stories, capabilities, contracts and increments, `arc list` and `arc show`, `library read` of
-  each increment and `library history` of each contract's reported health.
+  each increment and `library history --fields` of each contract's reported health: every write with the state it
+  stored, so a red and a green moments apart are both read back after the run, with nothing polled during it.
 - `observe.mjs` turns those into checks. It reads only what the installed command said; the transcripts are never
-  read. It voids the run if the app's version changed.
+  read. It voids the run if the app's version changed. A contract went red then green when its history has failing,
+  then passing, read by `reportedStates` in `packages/dev-loop/src/acceptance-health.mjs` (proven there on captured
+  histories); a history not read leaves that check not observed, never failed.
 
 ## Run of 2026-10-05 (2026-10-05/, stamp fb01)
+
+Run with the harness of that day: a watcher read `storytree tree` every 3 s through turns 2 and 3 (`output/watch.txt`)
+and red then green was judged from its readings, because `library history` did not yet print each write's fields.
+The harness has since dropped the watcher (increment_a74d2a2c70f8); this run's outputs and `observations.json` are
+kept as they were, and observe.mjs run over them now reads the red-then-green check as not observed.
 
 Laptop `micksoldlaptop`, Windows 11 x64, Node 22 and Git on the path (installed by an earlier first-build round);
 storytree 0.3.691 (built from e5570c3a) before and after the run, held from updating throughout; Claude Code

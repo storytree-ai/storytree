@@ -1,7 +1,7 @@
 // Turns one first-build run into the checks it observed, for `pnpm record:acceptance` (ADR-0825 D5). Every
-// check reads what storytree's installed command said on the laptop: `storytree doctor` around each session,
-// the watcher's `storytree tree` readings during the build turns (journey.ps1), and read.ps1's reading of each
-// project's plan and activity log afterwards. The sessions' transcripts (turn-*.jsonl) are kept as evidence and
+// check reads what storytree's installed command said on the laptop: `storytree doctor` around each session
+// (journey.ps1), and read.ps1's reading of each project's plan, activity log and each contract's reported
+// health history afterwards. The sessions' transcripts (turn-*.jsonl) are kept as evidence and
 // never read here. A clause the journey does not exercise is written as not-observed, so its contract is left
 // not checked rather than passed. It voids the run if the app updated during it.
 // Usage: node observe.mjs <journey out> <read.ps1 dir of the first folder> --stamp <stamp>
@@ -9,6 +9,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { parseArgs } from "node:util";
+
+import { reportedStates, wentRedThenGreen } from "../../../../dev-loop/src/acceptance-health.mjs";
 
 const { positionals, values } = parseArgs({
   allowPositionals: true,
@@ -93,25 +95,17 @@ check("1.6", "an existing unrelated storytree command is preserved and the confl
   const claimed = lines.filter((line) => line.kind === "claimed");
   check("2.7", "the build sessions took claims: the activity log has their claimed lines", claimed.length > 0, `claimed: ${claimed.map((line) => line.about).join(", ") || "none"}`);
 
-  // Red then green: the watcher's readings of `storytree tree`, every few seconds through the build turns.
-  const seen = new Map();
-  for (const reading of (journey("watch.txt") ?? "").split(/^@@ /m).slice(1)) {
-    for (const m of reading.matchAll(/\[(contract_[0-9a-f]+)\]\s+agent says (passing|failing)/g)) {
-      const states = seen.get(m[1]) ?? [];
-      if (states.at(-1) !== m[2]) states.push(m[2]);
-      seen.set(m[1], states);
-    }
-  }
-  const redThenGreen = [...seen].filter(([, states]) => states.indexOf("failing") >= 0 && states.slice(states.indexOf("failing")).includes("passing"));
-  const writes = contracts.map((id) => [...(read(readA, `history-${id}.txt`) ?? "").matchAll(/^\s+\d+\s+\S+\s+(created|updated)/gm)].length);
-  const reportedTwice = writes.filter((count) => count >= 2).length;
-  // A red and a green between two readings is missed by the watcher; with a contract reported twice that is
-  // not seen, never failed. With none reported twice, no contract can have gone red then green.
+  // Red then green: every state each contract's reported health was written with, oldest first, so a red and
+  // a green moments apart are both seen. A history not read leaves it not observed unless another contract shows it.
+  const histories = contracts.map((id) => reportedStates(read(readA, `history-${id}.txt`)));
+  const redThenGreen = histories.filter(wentRedThenGreen).length;
+  const neverRed = histories.filter((states) => states !== undefined && !states.includes("failing")).length;
+  const unread = histories.filter((states) => states === undefined).length;
   check(
     "2.7",
-    "a contract was reported red, then green (the watcher saw it failing, then passing)",
-    redThenGreen.length > 0 ? true : reportedTwice > 0 ? undefined : false,
-    `seen red then green: ${redThenGreen.length} of ${contracts.length}; contracts whose reported health was written twice or more: ${reportedTwice}`,
+    "a contract was reported red, then green (its reported health history has failing, then passing)",
+    redThenGreen > 0 ? true : unread > 0 ? undefined : false,
+    `red then green: ${redThenGreen} of ${contracts.length}; never red: ${neverRed}; history not read: ${unread}`,
   );
   const landed = increments.filter((increment) => increment.status === "closed" && increment.landed);
   check("2.7", "an increment was closed as landed", landed.length > 0, `closed as landed: ${landed.length} of ${increments.length}`);

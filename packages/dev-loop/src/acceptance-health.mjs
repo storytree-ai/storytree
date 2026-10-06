@@ -89,3 +89,43 @@ export function recordAcceptance(library, contractIds, verdicts, { commit, evide
   );
   return recordHealth(library, contractIds, withEvidence, { by: ACCEPTED_BY, commit });
 }
+
+/**
+ * The states a contract's reported health was written with, oldest first, read from what
+ * `storytree library history health_<contract>_reported --fields` printed: every write, so a red and a
+ * green between two readings of the tree are both there. A retirement repeats the last state. No
+ * history ("No history for …") is no states; no text, or a history printed without its fields, is
+ * undefined: not read, never read as never red.
+ * @param {string | undefined} text
+ * @returns {string[] | undefined}
+ */
+export function reportedStates(text) {
+  if (text === undefined) return undefined;
+  if (/^No history for /m.test(text)) return [];
+  const writes = [];
+  let seq;
+  for (const line of text.replace(/\r/g, "").split("\n")) {
+    const entry = /^\s+(\d+)\s+\S+\s+(?:created|updated|retired)\b/.exec(line);
+    if (entry) {
+      if (seq !== undefined) return undefined;
+      seq = Number(entry[1]);
+      continue;
+    }
+    const fields = /^\s+fields: (\{.*\})\s*$/.exec(line);
+    if (fields && seq !== undefined) {
+      writes.push({ seq, state: JSON.parse(fields[1]).state });
+      seq = undefined;
+    }
+  }
+  if (seq !== undefined || writes.length === 0) return undefined;
+  return writes.sort((a, b) => a.seq - b.seq).map(({ state }) => state);
+}
+
+/**
+ * Whether reported states went failing, then passing later.
+ * @param {string[] | undefined} states
+ */
+export function wentRedThenGreen(states) {
+  const red = states?.indexOf("failing") ?? -1;
+  return red >= 0 && states.slice(red).includes("passing");
+}

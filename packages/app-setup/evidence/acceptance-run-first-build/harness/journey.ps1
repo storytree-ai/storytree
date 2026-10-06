@@ -1,10 +1,9 @@
 # The first-build journey, run in the owner's desktop session (../../acceptance-run/harness/run-task.ps1, through
 # held-journey.ps1). Folder a: a new Claude Code session asked to set storytree up there; then a second new
 # session asked to build a small to-do page with tests, and the same session continued for one more feature.
-# Folder b, later: a new session asked to set storytree up there. While the build turns run, a watcher reads
-# the plan with storytree's installed command every few seconds (`storytree tree`), since the command shows a
-# contract's reported health as it stands, not each state it had. Every raw output goes to $Out; read.ps1 then
-# reads the plan back over SSH and observe.mjs turns both into checks. Usage: journey.ps1 <outDir> <stamp>
+# Folder b, later: a new session asked to set storytree up there. Every raw output goes to $Out; read.ps1 then
+# reads the plan back over SSH, each contract's reported health as every state it was written with, and
+# observe.mjs turns both into checks. Usage: journey.ps1 <outDir> <stamp>
 # A stamp starting "dry" swaps every prompt for "Reply with just the word ok." to test the capture cheaply.
 param([string]$Out, [string]$Stamp)
 $ErrorActionPreference = 'Continue'
@@ -42,25 +41,8 @@ Turn 1 $folderA $a
 Doctor 'a-after'
 powershell -NoProfile -Command '(Get-Command storytree).Source' *> "$Out\command-a.txt"
 
-# The watcher: the plan as storytree's command shows it, stamped, until the build turns end.
-$stop = "$Out\watch.stop"
-$watch = Start-Job -ArgumentList $folderA, "$Out\watch.txt", $stop -ScriptBlock {
-  param($folder, $file, $stop)
-  $env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environment]::GetEnvironmentVariable('Path','User')
-  Set-Location -LiteralPath $folder
-  while (-not (Test-Path $stop)) {
-    $tree = (& storytree tree 2>&1 | Out-String)
-    Add-Content -LiteralPath $file -Encoding utf8 -Value ("@@ " + (Get-Date).ToUniversalTime().ToString('o') + "`n" + $tree)
-    Start-Sleep -Seconds 3
-  }
-}
 Turn 2 $folderA $a
 Turn 3 $folderA $a -Continue
-'stop' | Set-Content $stop
-Wait-Job $watch -Timeout 60 | Out-Null
-Remove-Job $watch -Force
-Remove-Item $stop
-Set-Location -LiteralPath $folderA
 Doctor 'a-final'
 
 New-Item -ItemType Directory -Force $folderB | Out-Null

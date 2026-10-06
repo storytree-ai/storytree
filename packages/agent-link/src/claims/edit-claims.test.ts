@@ -153,3 +153,29 @@ test("5.22 when the lookup or the library fails while claiming from edits, nothi
     assert.deepEqual(takeNotices(home, "A"), []);
   });
 });
+
+test("5.24 an edited file's capability is its opening declaration first, then a test file's single numbered capability, then the survey's inference, which the session is told was inferred", async () => {
+  await withWorld(async ({ log, project, home, checkout, emailForm, edit, pass }) => {
+    // The survey would give email.ts to 1 · Email form (1.1 reaches it); it declares 2 · Password reset.
+    writeFileSync(path.join(checkout, EMAIL), "/**\n * Capability 2 · Password reset: the email it sends.\n */\nexport const email = 1;\n");
+    await edit("A", EMAIL);
+    await edit("B", "packages/sign-up/src/email.test.ts");
+    await pass();
+
+    const held = (await readClaims(log, project)).map(({ capability, session, reason }) => ({ capability, session, reason }));
+    assert.deepEqual(held.find((one) => one.session === "A")?.reason, "2 · Password reset", "A's edit claims what the file declares");
+    assert.deepEqual(held.find((one) => one.session === "B"), { capability: emailForm, session: "B", reason: "1 · Email form" }, "B's edit to a test claims its titles' one capability");
+    for (const session of ["A", "B"] as const) {
+      const [told = "", ...more] = takeNotices(home, session);
+      assert.deepEqual(more, []);
+      assert.doesNotMatch(told, /inferred/, `${session} is not told it was inferred: ${told}`);
+    }
+  });
+  await withWorld(async ({ home, edit, pass }) => {
+    await edit("A", RESET);
+    await pass();
+    const [told = ""] = takeNotices(home, "A");
+    assert.match(told, /2 · Password reset/);
+    assert.match(told, /inferred/, `an undeclared file's capability is inferred, and A is told so: ${told}`);
+  });
+});

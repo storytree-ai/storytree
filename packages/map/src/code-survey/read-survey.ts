@@ -25,7 +25,7 @@ import { surveySourceReader, type SurveySource } from "./survey-source.js";
 
 import type { AnnotatedTree } from "@storytree/library";
 
-import { dependenciesOf, packageOf, surveyStory, type CoverageMap, type SourceFile, type StorySurvey, type SurveyPackage } from "./code-survey.js";
+import { declaredNumberOf, dependenciesOf, packageOf, surveyStory, type CoverageMap, type SourceFile, type StorySurvey, type SurveyPackage } from "./code-survey.js";
 
 /** Each story's survey, by story id; a story with no package is absent. */
 export type ProjectSurvey = Readonly<Record<string, StorySurvey>>;
@@ -59,7 +59,7 @@ function manifestFrom(text: string): { name: string; deps: string[]; exports: Su
 /** The file beside a package's src that holds its coverage map (written by the dev loop's `pnpm survey:coverage`). */
 const COVERAGE_MAP = "survey-coverage.json";
 
-export { packageOf };
+export { declaredNumberOf, packageOf };
 
 /** A file as last read: kept while its disk fingerprint or Git blob is unchanged. */
 type Kept = { readonly version: string; readonly file: SourceFile };

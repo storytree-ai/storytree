@@ -6,15 +6,19 @@ import type { Family, Verb } from "../door.js";
 
 const make: Verb = {
   name: "workspace",
-  usage: "workspace <increment|capability> --reason <text>",
+  usage: "workspace <increment|capability> --reason <text> [--despite-open-pulls]",
   summary: "make a claimed Claude Code workspace or prepare a Codex app workspace",
+  switches: ["despite-open-pulls"],
   async act(args, context) {
     const id = args.word(0, "the work's id", this.usage);
     const reason = args.need("reason", this.usage).trim();
     if (!reason) throw new Refusal(`this needs a non-empty --reason\nusage: storytree ${this.usage}`, { code: 2 });
     const caller = await context.claimContext();
-    const made = await makeWorkspace(caller, id, reason);
-    if (!made.ok) throw new Refusal(refusal(id, made));
+    const made = await makeWorkspace(caller, id, reason, {}, { despiteOpenPulls: args.has("despite-open-pulls") });
+    // The owning story words the open pull requests refusal; this door names its own way past them (5.25).
+    if (!made.ok) throw new Refusal(made.refused === "no-workspace" && made.why.includes("already has open pull requests")
+      ? `Workspace setup refused: ${made.why}: storytree workspace ${id} --reason <text> --despite-open-pulls.`
+      : refusal(id, made));
     if (made.status === "prepared") {
       const { ref, name } = made;
       return { text: `Work is available; nothing is claimed yet. Call the Codex desktop app's create_worktree with ${JSON.stringify({ ref, name })}, from freshly fetched ${made.base}. Then run storytree workspace attach ${id} --folder <returned-directory> --ref ${ref} --name ${name} --reason <text>. Use the returned directory explicitly; creation does not change your cwd or permissions. If the app returns a directory with a registration error, attach it; do not create another. If create_worktree is unavailable (a headless lane), make it yourself: git worktree add --detach <folder> ${ref}, then run the same attach with that folder.` };

@@ -1,0 +1,15 @@
+{
+  "errors": [],
+  "roads": 27,
+  "longestUnrouted": [
+    68,
+    66.5,
+    50.2,
+    30,
+    25.6,
+    23.9,
+    18.7,
+    18.3
+  ],
+  "totalUnrouted": 384
+}

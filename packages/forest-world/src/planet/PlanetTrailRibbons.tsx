@@ -54,7 +54,7 @@ export function Pathways({ plan, reveal }: { plan: PlanetPathways; reveal?: Read
     localSegmentCount: plan.segments.filter(segment => segment.island !== undefined).length,
   }}>{meshes.map(({ route, geometry, halo }) => <group key={route.id}>
     <mesh name={`pathway:${route.id}`} geometry={geometry} raycast={ignoreRay}
-      userData={{ links: route.links, widthGround: route.width }}>
+      userData={{ links: route.links, widthGround: route.width, unrouted: route.unrouted }}>
       <meshBasicMaterial color="#c7bba1" side={DoubleSide} />
     </mesh>
     <mesh name={`pathway-halo:${route.id}`} geometry={halo} raycast={ignoreRay}>

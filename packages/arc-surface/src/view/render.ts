@@ -1,3 +1,4 @@
+/** Capability 3 · Arc surface. */
 import type { BoardAgent } from "../agents/agents.js";
 import { briefing, type QuestionReading } from "../briefing/briefing.js";
 import type { Bar, BoardView, Lane } from "../board/board.js";

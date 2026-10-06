@@ -1,4 +1,4 @@
-/** Capability 5: an arc's intent and its questions, without proposals or a write affordance. */
+/** Capability 5 · Briefing: an arc's intent and its questions, without proposals or a write affordance. */
 import type { FieldsOf } from "@storytree/library";
 
 export interface Question {

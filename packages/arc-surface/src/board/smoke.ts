@@ -1,3 +1,4 @@
+/** Capability 3 · Arc surface. */
 import type { BoardView } from "./board.js";
 export interface ArcDrawn { arcs: string[]; increments: string[]; holders: { work: string; session: string; label: string }[] }
 export function arcSmokeProblems(board: BoardView, drawn: ArcDrawn): string[] {

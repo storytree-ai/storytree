@@ -24,6 +24,10 @@ const raise: Verb = {
   usage: "question new --arc <arc> --title <t> --stakes … --statement … --context … --options … [--analogy …] [--diagram …] [--recommendation …] [--hold <increment>]…",
   summary: "raise a question for the owner on an arc, optionally holding increments on it",
   async act(args, context) {
+    const unsupported = args.names.filter((name) => ![...QUESTION_FIELDS, "hold"].includes(name));
+    if (unsupported.length > 0) {
+      throw new Refusal(`unsupported option${unsupported.length === 1 ? "" : "s"}: ${unsupported.map((name) => `--${name}`).join(", ")}\nusage: storytree ${this.usage}`, { code: 2 });
+    }
     const fields: Record<string, unknown> = {};
     for (const name of QUESTION_FIELDS) {
       const value = args.text(name);

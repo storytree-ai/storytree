@@ -39,8 +39,10 @@ export function buildLauncher(file: string, arch: keyof typeof TARGETS): void {
 }
 
 function run(tool: string, args: string[]): void {
+  const t0 = performance.now();
   const ran = spawnSync(llvm(tool), args, { encoding: "utf8" });
   if (ran.error !== undefined || ran.status !== 0) throw new Error(`${tool} could not build storytree's Windows command: ${ran.error?.message ?? ""}${ran.stdout}${ran.stderr}`.trim());
+  console.log(`EXP launcher ${tool} ${Math.round(performance.now() - t0)} ms`);
 }
 
 /** An LLVM tool on the PATH, or in LLVM's own folder on Windows. */

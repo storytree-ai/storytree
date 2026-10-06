@@ -32,6 +32,7 @@ const ENTRY_POINTS: Readonly<Record<string, string>> = {
 
 /** Build every command into `outdir`, and return the path of each, by name. A `release` is stamped in, for `storytree --version` to print. */
 export async function buildBins(outdir: string, { release }: { release?: { version: string; commit: string } } = {}): Promise<Record<string, string>> {
+  const t0 = performance.now(); const lap = (m: string) => console.log(`EXP buildBins ${m} +${Math.round(performance.now() - t0)} ms`);
   await build({
     entryPoints: ENTRY_POINTS,
     outdir,
@@ -62,9 +63,12 @@ export async function buildBins(outdir: string, { release }: { release?: { versi
       "@huggingface/transformers",
     ],
   });
+  lap('esbuild done');
   await stageNativeProbes(outdir);
+  lap('koffi staged');
   // On Windows the `storytree` command is a program of its own, beside the script it runs (ADR-0854).
   if (process.platform === "win32") buildLauncher(path.join(outdir, LAUNCHER_PROGRAM), process.arch === "arm64" ? "arm64" : "x64");
+  lap('launcher built');
   // The release beside the scripts, so the setup check can say when installed hooks lag the latest (contract 8.18).
   if (release !== undefined) writeFileSync(path.join(outdir, "release.json"), `${JSON.stringify(release)}\n`);
   return Object.fromEntries(Object.keys(ENTRY_POINTS).map((name) => [name, path.join(outdir, `${name}.mjs`)]));

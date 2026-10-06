@@ -12,7 +12,9 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 
 export async function buildToolBundle(outdir, { platform = process.platform, arch = process.arch, release } = {}) {
   mkdirSync(outdir, { recursive: true });
+  const t0 = performance.now(); const lap = (m) => console.log(`EXP bundle ${m} +${Math.round(performance.now() - t0)} ms`);
   await buildBins(outdir, { release });
+  lap('bins');
   await build({
     stdin: {
       contents: 'import { runDeliveryCommand } from "@storytree/app-setup/deliver"; runDeliveryCommand().catch(error => { console.error(error.message); process.exitCode = 1; });',
@@ -24,7 +26,9 @@ export async function buildToolBundle(outdir, { platform = process.platform, arc
     banner: { js: 'import { createRequire as __storytreeRequire } from "node:module"; const require = __storytreeRequire(import.meta.url);' },
     external: ["pg-native", "pg-cloudflare", "cloudflare:sockets", "@google-cloud/cloud-sql-connector", "@huggingface/transformers"],
   });
+  lap('deliver esbuild');
   stageEmbeddingRuntime(outdir, platform, arch);
+  lap('embedding runtime');
 }
 
 /** Copy the locked Node runtime, never model weights or another target's native libraries.

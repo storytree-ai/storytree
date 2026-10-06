@@ -9,7 +9,7 @@ import { setTimeout as pause } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
-test("app setup 1.1 / library 14.5: delivered tools run outside a checkout, including native embedding inference without a model download", async (t) => {
+test("app setup 1.1 / library 14.5: delivered tools run outside a checkout, including native embedding inference without a model download", { timeout: 300_000 }, async (t) => {
   const temp = mkdtempSync(path.join(tmpdir(), "storytree delivered tools "));
   const cwd = fileURLToPath(new URL("../../../../", import.meta.url));
   const started = performance.now();
@@ -44,10 +44,11 @@ test("app setup 1.1 / library 14.5: delivered tools run outside a checkout, incl
       ]));
       const temp = process.env.STORYTREE_DELIVERY_TEST_DIR;
       const dir = path.join(temp, 'installed app', 'resources', 'agent-tools');
+      for (const n of [1, 2, 3]) await phase('EXP extra build ' + n, () => buildToolBundle(path.join(temp, 'exp' + n)));
       await phase('build bundle and stage native runtime', () => buildToolBundle(dir));
       await phase('check native inference, commands and MCP', () => checkTools(process.execPath, dir, path.join(temp, 'fresh user')));
       console.log('standalone tools PASS');
-    `], { cwd, env: { ...process.env, STORYTREE_DELIVERY_TEST_DIR: temp }, encoding: "utf8", timeout: 60_000, signal: t.signal });
+    `], { cwd, env: { ...process.env, STORYTREE_DELIVERY_TEST_DIR: temp }, encoding: "utf8", timeout: 300_000, signal: t.signal });
     // Keep observations even when the child stalls: the old synchronous call printed only on
     // success, and blocked the test runner's own timeout until it returned.
     pending.child.stdout!.pipe(process.stdout, { end: false });

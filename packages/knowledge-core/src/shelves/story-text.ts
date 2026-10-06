@@ -1,4 +1,4 @@
-/** Capability 1: imported story prose is library content, not knowledge drawn inside the globe. */
+/** Capability 1 · Knowledge under its shelves: imported story prose is library content, not knowledge drawn inside the globe. */
 import type { RecordEnvelope } from "@storytree/library";
 
 /** The stored story-text convention, shared by drawing and its evidence (ADR-0661 D3). */

@@ -1,3 +1,4 @@
+/** Capability 4 · Look inside and inspect an artifact. */
 import type { GlobePoint } from "../shelves/positions.js";
 import { noteMoments, noteShown } from "../shelves/growing.js";
 import type { RecordEnvelope } from "@storytree/library";

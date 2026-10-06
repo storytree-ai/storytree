@@ -1,4 +1,4 @@
-/** Capability 2's founding book (G2): earlier decisions sit as ghosts beside their replacements. */
+/** Capability 2 · Earlier decisions beside their replacements. Capability 2's founding book (G2): earlier decisions sit as ghosts beside their replacements. */
 import type { Change, RecordEnvelope } from "@storytree/library";
 
 /** What made a decision a ghost: the decision log's supersession, or the older cover-history recipe. */

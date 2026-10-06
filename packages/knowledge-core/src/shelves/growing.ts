@@ -1,4 +1,4 @@
-/** Capability 1 in a replay (world 7): the core grows as the recording added its notes, each where the finished core draws it. */
+/** Capability 1 · Knowledge under its shelves. Capability 1 in a replay (world 7): the core grows as the recording added its notes, each where the finished core draws it. */
 import type { RecordEnvelope } from "@storytree/library";
 import type { GlobePoint } from "./positions.js";
 

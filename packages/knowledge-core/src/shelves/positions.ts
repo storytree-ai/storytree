@@ -1,4 +1,4 @@
-/** Capability 1's drawing coordinates, shared by the globe and the unmounted inspection view. */
+/** Capability 1 · Knowledge under its shelves. Capability 1's drawing coordinates, shared by the globe and the unmounted inspection view. */
 import type { RecordEnvelope } from "@storytree/library";
 import type { Core } from "./shelves.js";
 import { isStoryText } from "./story-text.js";

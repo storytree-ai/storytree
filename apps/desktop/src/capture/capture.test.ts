@@ -109,6 +109,14 @@ test("on Windows, a Playwright named by path is imported by its file URL", () =>
   assert.equal(plan.options.executablePath, "C:\\tools\\chrome.exe");
 });
 
+test("a capture launches an installed browser channel when one is named, and a Chromium named by path wins over it", () => {
+  assert.equal(launchPlan({ env: { CAPTURE_CHANNEL: "chrome" }, platform: "linux" }).options.channel, "chrome");
+  assert.equal(launchPlan({ env: {}, platform: "linux" }).options.channel, undefined);
+  const named = launchPlan({ env: { CAPTURE_CHANNEL: "chrome", CAPTURE_CHROMIUM: "/opt/chromium" }, platform: "linux" }).options;
+  assert.equal(named.executablePath, "/opt/chromium");
+  assert.equal(named.channel, undefined);
+});
+
 test("seeding a capability landed makes the work states read it landed", async () => {
   const lines: Line[] = [];
   const log = { append: async (project: string, line: NewLine) => { const kept = { ...line, project, seq: lines.length + 1, at: new Date().toISOString() } as Line; lines.push(kept); return kept; } };

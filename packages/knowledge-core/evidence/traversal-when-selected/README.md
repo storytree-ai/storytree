@@ -27,3 +27,5 @@ node --import tsx packages/knowledge-core/evidence/traversal-when-selected/build
 node --import tsx packages/knowledge-core/evidence/traversal-when-selected/capture.mjs before --retake
 node --import tsx packages/knowledge-core/evidence/traversal-when-selected/capture.mjs after --retake
 ```
+
+`src/traversal-smoke.test.ts` builds this page as `smoke` and runs `capture.mjs after --smoke` in installed Chrome (`CAPTURE_CHANNEL`, default `chrome`): no pictures and no fixed rests, so a scene target one of these waits names that the globe no longer draws fails that test on the changing branch. Measured on the Mint box, 2026-10-07: about 18 s green; with `knowledge-point:` renamed it fails at the selected window's wait after its 30 s bound.

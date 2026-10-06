@@ -1,9 +1,10 @@
 name: Land
 
 # Lands a pull request whose `verify` passed on its head commit: hands it to the merge queue when
-# main requires one (ADR-0796), or merges it directly when none is required. Two callers: ci.yml's
-# `automerge`, once its own run's `verify` passed, and hold-release.yml, when the `hold` label is
-# taken off a pull request whose head had already passed `verify` in a run that skipped landing it.
+# main requires one (ADR-0796), or merges it directly when none is required. Three callers: ci.yml's
+# `automerge`, once its own run's `verify` passed; hold-release.yml, when the `hold` label is taken
+# off a pull request whose head had already passed `verify` in a run that skipped landing it; and
+# requeue.yml, once, when the merge queue removed a pull request whose head's `verify` passed.
 # It lands nothing that is held when it runs (a draft, or the `hold` label), and only the commit
 # `verify` passed: never one pushed since.
 

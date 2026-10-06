@@ -13,7 +13,8 @@ import { listRuns } from '@storytree/processes/listing';
 import { createAgentTools } from './server.js';
 import { openActivityLog } from '../activity/index.js';
 import { removeTempDir } from '../testing/folders.js';
-import { connect } from '@storytree/library';
+import { connect, ConnectionError } from '@storytree/library';
+import { libraryDown } from './answers.js';
 import { testServerDataDir, testServerUrl, uniqueProjectName, dropTestProjects } from '../testing/pg.js';
 
 for (const installed of [false, true]) test(`processes 3.4/3.6/4.1/5.1: own tools, ${installed ? 'installed' : 'source'} MCP reads and clears the offline ledger and stops only its caller scope`, async t => {
@@ -117,6 +118,15 @@ test('processes 3.6: own tools, offline Claude MCP refuses self authority from a
     assert.equal(answer.isError, true, JSON.stringify(answer));
     assert.match(JSON.stringify(answer), /list_all_runs/);
   }
+});
+
+// The caller lookup falls back when the library is down, whichever way it is down.
+test('processes 3.6: own tools fall back on a stopped Cloud SQL library as on an unreachable or timed-out one', () => {
+  assert.equal(libraryDown(new ConnectionError('stopped', 'The shared library is unreachable: its Cloud SQL instance is not running.')), true);
+  assert.equal(libraryDown(new ConnectionError('timeout', 'did not answer within 3 seconds')), true);
+  assert.equal(libraryDown(Object.assign(new Error('connect ECONNREFUSED'), { code: 'ECONNREFUSED' })), true);
+  assert.equal(libraryDown(new ConnectionError('database-user', 'Cloud SQL did not let the account in')), false);
+  assert.equal(libraryDown(new Error('a defect')), false);
 });
 
 test('processes 3.6/4.1: own tools online, Claude hook identity selects only its named subagent, after a session reset', async t => {

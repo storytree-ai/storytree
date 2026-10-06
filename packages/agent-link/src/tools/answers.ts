@@ -53,3 +53,8 @@ export function isUnreachable(error: unknown): boolean {
   const codes = ["ECONNREFUSED", "ECONNRESET", "EPIPE", "ETIMEDOUT", "57P01", "57P02", "57P03", "08000", "08001", "08003", "08004", "08006"];
   return (typeof code === "string" && codes.includes(code)) || (typeof message === "string" && /Connection terminated|timeout exceeded when trying to connect/.test(message));
 }
+
+/** The library is down: unreachable, timed out, or its Cloud SQL instance stopped. A lookup that can do without it falls back. */
+export function libraryDown(error: unknown): boolean {
+  return isUnreachable(error) || (error instanceof ConnectionError && (error.problem === "timeout" || error.problem === "stopped"));
+}

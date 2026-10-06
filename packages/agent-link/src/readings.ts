@@ -493,6 +493,15 @@ export class LogFold {
   #holders = new Map<string, Omit<Claim, "holder">>();
   #machines = new Map<string, string>();
 
+  /** Fold a bounded session reading with the log's standing claims, not the partial claims among its selected lines. */
+  static fromBounded(lines: readonly Line[], claimLines: readonly Line[]): LogFold {
+    const fold = new LogFold();
+    fold.add(lines);
+    fold.#holders.clear();
+    for (const line of claimLines) holding(fold.#holders, line);
+    return fold;
+  }
+
   /** A fold that goes on from `snapshot`, as the fold it was taken from would. */
   static fromSnapshot(snapshot: LogFoldSnapshot): LogFold {
     const fold = new LogFold();
@@ -669,10 +678,13 @@ export class LogFold {
   claims(options: ClaimsOptions = {}): Claim[] {
     const now = (options.now ?? new Date()).getTime();
     const quietMs = options.quietMs ?? QUIET_MS;
+    // The same verified lifecycle fact that lets a session leave the list permits takeover.
+    // Keep the claim standing: a prompt or admitted claim can put its holder back to work.
+    const finished = new Set(this.sessions({ now: new Date(now) }).filter((session) => session.closeOut?.verified).map((session) => session.session));
     return [...this.#holders.values()].map((holder) => {
       const seen = this.#lastSeen.get(holder.session) ?? holder.since;
       const running = [...(this.#sessions.get(holder.session)?.running.values() ?? [])].some(({ until }) => now <= until);
-      const idle = (now - Date.parse(seen) > quietMs && !running) || diedIn(options.restarted, this.#machines.get(holder.session), seen);
+      const idle = finished.has(holder.session) || (now - Date.parse(seen) > quietMs && !running) || diedIn(options.restarted, this.#machines.get(holder.session), seen);
       return { ...holder, holder: idle ? "idle" : "live" } as Claim;
     });
   }

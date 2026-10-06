@@ -9,16 +9,12 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { fileURLToPath } from "node:url";
 
 import { connect } from "@storytree/library";
 import pg from "pg";
 
 import { checkStory } from "./check-own-health.mjs";
 import { contractsCoveredBy, contractsOf, judge, packageOf, parseJunit, readWindowsEvidence, recordHealth, recordingTarget } from "./own-health.mjs";
-
-const root = fileURLToPath(new URL("../../..", import.meta.url));
-const librarySrc = path.join(root, "packages", "library", "src");
 
 test("parseJunit reads each test's name, the suites around it, its file, and whether it passed, failed or was skipped", () => {
   const results = parseJunit(JUNIT);
@@ -187,13 +183,24 @@ test("contractsCoveredBy reads only test titles: a comment or a fixture string n
   assert.deepEqual([...contractsCoveredBy(file, { root: directory })].sort(), ["1.1", "1.4", "1.5", "1.6"]);
 });
 
-test("contractsCoveredBy finds the contract numbers a test file names, in itself and in the modules it imports", () => {
-  const covered = (file) => [...contractsCoveredBy(path.join(librarySrc, file), { root: librarySrc })].sort();
-  // pg.test.ts names no contract itself: it covers exactly what the behaviour suite it imports names.
-  assert.ok(covered("transactions/behaviour-suite.ts").includes("2.1"));
-  assert.deepEqual(covered("transactions/pg.test.ts"), covered("transactions/behaviour-suite.ts"), "through behaviour-suite.ts");
-  assert.deepEqual(covered("project/project-libraries.test.ts"), ["1.1", "1.10", "1.11", "1.12", "1.2", "1.3", "1.4", "1.5"]);
-  assert.ok(covered("transactions/cloud-sql.test.ts").includes("8.1"));
+test("contractsCoveredBy finds the contract numbers a test file names, in itself and in the modules it imports", (t) => {
+  const directory = mkdtempSync(path.join(tmpdir(), "own-health-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const src = path.join(directory, "src");
+  mkdirSync(path.join(src, "transactions"), { recursive: true });
+  const plant = (file, lines) => writeFileSync(path.join(src, file), lines.join("\n"));
+  plant("transactions/pg.test.ts", ['import { suite } from "./behaviour-suite.js";', 'import { helper } from "../helper.js";', "suite();"]);
+  plant("transactions/behaviour-suite.ts", ['import { more } from "./more";', 'export function suite() { test("2.1 · commits", () => {}); test("2.3 · rolls back", () => {}); }']);
+  plant("transactions/more.ts", ['import { suite } from "./behaviour-suite.js";', 'test("2.2 · nests", () => {});']);
+  plant("helper.ts", ['test("4.1 · helps", () => {});']);
+  plant("named.test.ts", ['import "./transactions/more.js";', 'test("1.1 · opens", () => {});', 'test("1.13, 1.2 · closes", () => {});']);
+  writeFileSync(path.join(directory, "outside.ts"), 'test("9.9 · beyond the root", () => {});');
+  plant("reaches-out.test.ts", ['import "../outside.js";', 'test("3.1 · inside", () => {});']);
+  const covered = (file) => [...contractsCoveredBy(path.join(src, file), { root: src })].sort();
+  // pg.test.ts names no contract itself: it covers what the modules it imports name, transitively and through a cycle.
+  assert.deepEqual(covered("transactions/pg.test.ts"), ["2.1", "2.2", "2.3", "4.1"]);
+  assert.deepEqual(covered("named.test.ts"), ["1.1", "1.13", "1.2", "2.1", "2.2", "2.3"], "its own titles and an import's");
+  assert.deepEqual(covered("reaches-out.test.ts"), ["3.1"], "a module outside the root covers nothing");
 });
 
 /** A story in `lib` with one capability and four contracts, as `projectTree()` hands it back. */

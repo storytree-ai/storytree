@@ -34,6 +34,7 @@ async function measure(page) {
     scene.getObjectByName('knowledge-points')?.traverse(object => {
       if (object.isMesh || object.isLine || object.isPoints) knowledgeObjects.push({ name: object.name, type: object.type });
     });
+    const shownInScene = object => { for (let at = object; at; at = at.parent) if (!at.visible) return false; return true; };
     scene.traverse(object => {
       if (object.name.startsWith('knowledge-point:')) {
         const ray = new raycaster.constructor(), hits = [];
@@ -47,7 +48,7 @@ async function measure(page) {
       if (object.name.startsWith('knowledge-thread:')) threads.push(object.name);
       if (/pathway|trail/.test(object.name)) {
         pathways.push({ name: object.name, children: object.children.length, data: object.userData,
-          vertices: object.geometry?.attributes.position?.count ?? 0 });
+          vertices: object.geometry?.attributes.position?.count ?? 0, shown: shownInScene(object) });
       }
       if (!object.name.startsWith('planet:story_')) return;
       const normal = new V(0, 1, 0).applyQuaternion(object.getWorldQuaternion(new Q()));
@@ -113,72 +114,6 @@ async function measure(page) {
       selected: document.body.dataset.selected ?? null, panelVisible: !document.querySelector('.story-panel').hidden,
     };
   });
-}
-
-// Measure the mounted shader itself, against black and white. Their pixel difference is the
-// background transmitted through both faces; no copied shader formula stands in for the GPU.
-async function glass(page) {
-  const result = await page.evaluate(() => {
-    const { scene, camera, gl } = window.__globe;
-    const shell = scene.getObjectByName('planet:shell');
-    const context = gl.getContext(), width = context.drawingBufferWidth, height = context.drawingBufferHeight;
-    const background = scene.background.clone(), visible = [];
-    scene.traverse(object => {
-      if (object !== shell && (object.isMesh || object.isLine || object.isPoints)) {
-        visible.push([object, object.visible]); object.visible = false;
-      }
-    });
-    const pixels = value => {
-      scene.background.setRGB(value, value, value);
-      gl.render(scene, camera);
-      const bytes = new Uint8Array(width * height * 4);
-      context.readPixels(0, 0, width, height, context.RGBA, context.UNSIGNED_BYTE, bytes);
-      return bytes;
-    };
-    try {
-      const black = pixels(0), white = pixels(1);
-      const centre = shell.getWorldPosition(camera.position.clone()).project(camera);
-      const cx = (centre.x + 1) * width / 2, cy = (centre.y + 1) * height / 2;
-      const radius = shell.geometry.parameters.radius * camera.zoom * gl.getPixelRatio();
-      const at = (x, y) => 4 * (Math.round(cy + y * radius) * width + Math.round(cx + x * radius));
-      const centreLight = black[at(0, 0)];
-      const rim = [[0.95, 0], [-0.95, 0], [0, 0.95], [0, -0.95]].map(([x, y]) => black[at(x, y)]);
-      let transmission = 1;
-      const bright = new Set(), levels = new Set();
-      // Sample the inner disc, excluding the deliberately brighter silhouette.
-      for (let y = -40; y <= 40; y++) for (let x = -40; x <= 40; x++) {
-        if (Math.hypot(x, y) > 40) continue;
-        const index = at(x / 50, y / 50);
-        transmission = Math.min(transmission, (white[index] - black[index]) / 255);
-        if (black[index] > centreLight + 10) { bright.add(`${x},${y}`); levels.add(black[index]); }
-      }
-      let highlights = 0;
-      while (bright.size) {
-        highlights++;
-        const pending = [bright.values().next().value];
-        while (pending.length) {
-          const key = pending.pop();
-          if (!bright.delete(key)) continue;
-          const [x, y] = key.split(',').map(Number);
-          for (const next of [`${x - 1},${y}`, `${x + 1},${y}`, `${x},${y - 1}`, `${x},${y + 1}`]) if (bright.has(next)) pending.push(next);
-        }
-      }
-      return { transmission, centreLight, rim, highlights, highlightLevels: levels.size,
-        faces: shell.material.map(material => ({ transparent: material.transparent, depthWrite: material.depthWrite })),
-        sea: !!scene.getObjectByName('planet:sea') };
-    } finally {
-      scene.background.copy(background);
-      for (const [object, value] of visible) object.visible = value;
-      gl.render(scene, camera);
-    }
-  });
-  writeFileSync(path.join(out, 'glass.json'), JSON.stringify(result, null, 2) + '\n');
-  assert.ok(result.transmission >= 0.8, `inner disc transmits ${result.transmission}`);
-  assert.ok(result.rim.every(value => value > result.centreLight + 10), 'the rim is brighter than the clear middle');
-  assert.equal(result.highlights, 1, 'one highlight on the inner disc');
-  assert.ok(result.highlightLevels > 10, 'the highlight has a soft gradient');
-  assert.deepEqual(result.faces, [{ transparent: true, depthWrite: false }, { transparent: true, depthWrite: false }]);
-  assert.equal(result.sea, false);
 }
 
 function checkPoints(result) {
@@ -247,16 +182,16 @@ function checkMode(result, mode) {
   checkPoints(result);
   assert.equal(result.points.length, census.drawn);
   assert.equal(result.points.filter(point => point.depth === null).length, census.noShelf);
-  assert.equal(result.plates.length, mode === 'forest' ? seed.stats.stories : 0, 'islands mounted');
+  assert.equal(result.plates.length, seed.stats.stories, 'islands stay mounted, hidden in Library (ADR-0919 D4)');
   assert.deepEqual(result.drawn.islands, mode === 'forest' ? seed.tree.stories.map(s => s.id).sort() : [], 'islands submitted to renderer');
   assert.deepEqual(result.drawn.points, census.notes.map(n => n.id).sort(), 'every point submitted to renderer');
   assert.equal(result.labels.length, mode === 'forest' ? seed.stats.stories : 0, 'island DOM overlays follow mode');
-  assert.equal(result.shellPresent, mode === 'forest', 'Library shows only the core');
+  assert.equal(result.shellPresent, true, 'both modes keep the glass (ADR-0919 D4)');
   assert.equal(result.seaPresent, false);
   assert.equal(result.corePresent, false);
   if (mode === 'library') {
-    assert.deepEqual(result.drawn.otherMeshes, [], 'Library submits only knowledge meshes');
-    assert.equal(result.pathways.length, 0);
+    assert.deepEqual(result.drawn.otherMeshes, ['planet:shell'], 'Library submits only the glass and the knowledge meshes');
+    assert.deepEqual(result.pathways.filter(pathway => pathway.shown), [], 'no road or hop is shown');
     assert.equal(result.markers.length, 0);
     assert.equal(result.panelVisible, false);
     assert.equal(result.selected, null);
@@ -468,7 +403,6 @@ currentTest = context;
 let complete = false;
 try {
   const { page, errors, warnings } = await openPage(browser, 'production', seed);
-  await check('3.5', 'the mounted glass transmits at least 80% through both faces, with a bright rim and one soft highlight', () => glass(page));
   for (const view of ['front', 'quarter-turn']) {
     if (view === 'quarter-turn') await turn(page, Math.PI / 2);
     const forest = await measure(page);
@@ -495,7 +429,7 @@ try {
   await panelJourney(browser);
   complete = true;
 } finally {
-  if (!complete) for (const contract of ['3.5', '3.9', '3.10', '4.8', '4.9', '4.11']) checks.push({ contract, name: 'complete browser journey', observed: 'not-observed' });
+  if (!complete) for (const contract of ['3.9', '3.10', '4.8', '4.9', '4.11']) checks.push({ contract, name: 'complete browser journey', observed: 'not-observed' });
   if (!complete) knowledgeChecks.push({ contract: '1.7', name: 'complete two-mode journey', observed: 'not-observed' });
   writeFileSync(path.join(out, 'observations.json'), JSON.stringify({ story: 'The forest', commit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: here, encoding: 'utf8' }).trim(), evidence: out, checks }, null, 2) + '\n');
   writeFileSync(path.join(out, 'knowledge-observations.json'), JSON.stringify({ story: 'The knowledge core', commit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: here, encoding: 'utf8' }).trim(), evidence: 'packages/forest/src/view/evidence/forest-library-toggle', checks: knowledgeChecks }, null, 2) + '\n');

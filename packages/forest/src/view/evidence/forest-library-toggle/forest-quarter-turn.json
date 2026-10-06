@@ -1,9 +1,9 @@
 {
   "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
-  "sceneId": "f9e67328-6353-4d06-a85e-b6b0ae8d70f1",
-  "cameraId": "757a4809-5799-4f88-90f6-03271c099bd3",
-  "pointLayerId": "102575bb-6a36-4b94-9306-1132da012390",
-  "canvasId": "4d81ee08-f13e-460c-a307-3c10fb53e7d0",
+  "sceneId": "b5d3a1b0-f900-408d-9aeb-00ebe1cb0c33",
+  "cameraId": "08062477-10f9-49c1-a96b-418fcecdeda6",
+  "pointLayerId": "cced5bf4-a4fb-4ed1-a0d7-208de0575fac",
+  "canvasId": "02349ce4-8371-4e42-b62b-2719ab30b133",
   "zoom": 1.6793655730057533,
   "camera": [
     0,
@@ -17,10 +17,10 @@
     0.90630778703665
   ],
   "rotation": [
-    -0.2998651497059933,
-    0.6386422519201126,
-    -0.2978037728917023,
-    0.6430628887641375
+    -0.30071837351666736,
+    0.6357756896852774,
+    -0.29694257046772066,
+    0.6458969283707139
   ],
   "canvas": {
     "width": 1440,
@@ -31,139 +31,139 @@
   "plates": [
     {
       "story": "story_754e87e7d531",
-      "facing": 0.005473599589778,
+      "facing": 0.01691135298991575,
       "screen": [
-        0.38079293523408414,
-        -0.5714613326184607,
-        -0.20115831609734358
+        0.35331252458138007,
+        -0.6184002457235795,
+        -0.20346372841096771
       ],
       "position": [
-        -0.07632430260700752,
-        -147.00271320277287,
-        163.26303515631403
+        -1.4051239433129972,
+        -158.89391736586904,
+        151.70817648913982
       ],
-      "meshes": 2,
-      "vertices": 1490,
-      "triangles": 2078
+      "meshes": 16,
+      "vertices": 8581,
+      "triangles": 7823
     },
     {
       "story": "story_609c3b171b3f",
-      "facing": -0.2095639733948919,
+      "facing": -0.3458908846802271,
       "screen": [
-        0.5010429889780273,
-        1.5191980433371762e-16,
-        -0.15781499059386506
+        0.48077873307629093,
+        0.005952498547995712,
+        -0.13033671501294908
       ],
       "position": [
-        47.520235843992,
-        0,
-        214.49114048873687
+        79.11969948974168,
+        1.780575364550616,
+        204.94273557960483
       ],
-      "meshes": 2,
-      "vertices": 1003,
-      "triangles": 1344
+      "meshes": 11,
+      "vertices": 7132,
+      "triangles": 6210
     },
     {
       "story": "story_a93c6fb1a257",
-      "facing": -0.036279921300772566,
+      "facing": -0.064812917401315,
       "screen": [
-        0.3803492023709835,
-        0.5714613326184609,
-        -0.19274240802250486
+        0.3548506872758113,
+        0.6136267654362372,
+        -0.18699125058331878
       ],
       "position": [
-        9.095064176139923,
-        147.00271320277287,
-        163.00952205770952
+        16.551175377421597,
+        158.03327685150165,
+        151.71079119176116
       ],
-      "meshes": 2,
-      "vertices": 681,
-      "triangles": 880
+      "meshes": 7,
+      "vertices": 5512,
+      "triangles": 3660
     },
     {
       "story": "story_deee4230348c",
-      "facing": 0.4206009963751819,
+      "facing": 0.6336464582700665,
       "screen": [
-        0.31394288208268795,
-        -0.5714613326184608,
-        -0.284832074290123
+        0.14682178714346716,
+        -0.6137155013464246,
+        -0.3277738666187
       ],
       "position": [
-        -91.47206903922184,
-        -147.00271320277287,
-        135.23196759470312
+        -138.2294633678339,
+        -157.79591096861304,
+        65.25096245615003
       ],
-      "meshes": 2,
-      "vertices": 784,
-      "triangles": 1026
+      "meshes": 9,
+      "vertices": 6146,
+      "triangles": 4688
     },
     {
       "story": "story_7722ddb5461e",
-      "facing": -0.3713744132903778,
+      "facing": -0.5836770579581813,
       "screen": [
-        0.3298438576865903,
-        0.5714613326184609,
-        -0.12520021323702124
+        0.19345342994556688,
+        0.6139521763546273,
+        -0.08240814436568067
       ],
       "position": [
-        82.5615638558792,
-        147.00271320277287,
-        140.84890005790808
+        129.4745361813366,
+        158.03327685150165,
+        80.78644719897069
       ],
-      "meshes": 2,
-      "vertices": 656,
-      "triangles": 830
+      "meshes": 8,
+      "vertices": 5101,
+      "triangles": 3403
     },
     {
       "story": "story_f9fb5136c28f",
-      "facing": 0.38021926472057443,
+      "facing": 0.594877084144369,
       "screen": [
-        0.3271871596303505,
-        0.5714613326184609,
-        -0.2766926663010617
+        0.18425546437231116,
+        0.6139707213935831,
+        -0.3199594480546658
       ],
       "position": [
-        -82.56156385587921,
-        147.00271320277287,
-        140.84890005790808
+        -129.4745361813366,
+        158.03327685150165,
+        80.78644719897069
       ],
-      "meshes": 2,
-      "vertices": 1358,
-      "triangles": 1874
+      "meshes": 14,
+      "vertices": 9141,
+      "triangles": 8303
     },
     {
       "story": "story_cec2df1b2320",
-      "facing": -0.4121088699794727,
+      "facing": -0.6227282188069598,
       "screen": [
-        0.31688630583421645,
-        -0.5714613326184607,
-        -0.11698970941214493
+        0.15761914048308134,
+        -0.6144272773378514,
+        -0.07453692840809545
       ],
       "position": [
-        91.47206903922182,
-        -147.00271320277287,
-        135.23196759470312
+        137.82462956175408,
+        -157.97340804631392,
+        65.67644935002009
       ],
-      "meshes": 2,
-      "vertices": 792,
-      "triangles": 1042
+      "meshes": 9,
+      "vertices": 5619,
+      "triangles": 4329
     },
     {
       "story": "story_d754d997f22a",
-      "facing": 0.22303331727998077,
+      "facing": 0.3716741834423317,
       "screen": [
-        0.49951386437933193,
-        1.7954158693984808e-16,
-        -0.24501000921965932
+        0.47571278295562286,
+        -0.0009591373245880922,
+        -0.27497030571934633
       ],
       "position": [
-        -47.520235843992,
+        -78.53844489419713,
         0,
-        214.49114048873687
+        205.17391363530805
       ],
-      "meshes": 2,
-      "vertices": 560,
-      "triangles": 698
+      "meshes": 7,
+      "vertices": 4491,
+      "triangles": 2953
     }
   ],
   "pathways": [
@@ -581,13 +581,14 @@
             "to": "capability_8ffc78a4bad2"
           }
         ],
-        "segmentCount": 316,
-        "localSegmentCount": 303
+        "segmentCount": 307,
+        "localSegmentCount": 294
       },
-      "vertices": 0
+      "vertices": 0,
+      "shown": true
     },
     {
-      "name": "pathway:cross:t1fajcuc",
+      "name": "pathway:cross:t1hmxrc5",
       "children": 0,
       "data": {
         "links": [
@@ -612,18 +613,21 @@
           "capability_f874f7de8110->capability_dd486ffa5b02",
           "capability_f874f7de8110->capability_f27ac2abb10b"
         ],
-        "widthGround": 4.624922359499622
+        "widthGround": 4.624922359499622,
+        "unrouted": 0.7996089218360136
       },
-      "vertices": 170
+      "vertices": 460,
+      "shown": true
     },
     {
-      "name": "pathway-halo:cross:t1fajcuc",
+      "name": "pathway-halo:cross:t1hmxrc5",
       "children": 0,
       "data": {},
-      "vertices": 170
+      "vertices": 460,
+      "shown": true
     },
     {
-      "name": "pathway:cross:tem9n86",
+      "name": "pathway:cross:t10pxegd",
       "children": 0,
       "data": {
         "links": [
@@ -642,50 +646,21 @@
           "capability_f874f7de8110->capability_dd486ffa5b02",
           "capability_f874f7de8110->capability_f27ac2abb10b"
         ],
-        "widthGround": 3.9674916480965474
+        "widthGround": 3.9674916480965474,
+        "unrouted": 0.7966539793467655
       },
-      "vertices": 354
+      "vertices": 230,
+      "shown": true
     },
     {
-      "name": "pathway-halo:cross:tem9n86",
+      "name": "pathway-halo:cross:t10pxegd",
       "children": 0,
       "data": {},
-      "vertices": 354
+      "vertices": 230,
+      "shown": true
     },
     {
-      "name": "pathway:cross:t1a53sly",
-      "children": 0,
-      "data": {
-        "links": [
-          "capability_062b84e5c6b0->capability_8ffc78a4bad2",
-          "capability_562b2527ebca->capability_78d6e026f902",
-          "capability_7889e605384c->capability_78d6e026f902",
-          "capability_7b7421be1a1b->capability_75d059640d9d",
-          "capability_81ad90bacdbc->capability_5f1ce148e63a",
-          "capability_81ad90bacdbc->capability_a7f068502213",
-          "capability_81ad90bacdbc->capability_d632ff0454c0",
-          "capability_ab59a8461dd7->capability_13b04e769a4b",
-          "capability_ab59a8461dd7->capability_5a80222c88c4",
-          "capability_ab59a8461dd7->capability_75d059640d9d",
-          "capability_ab59a8461dd7->capability_a1d4fadbec3e",
-          "capability_ab59a8461dd7->capability_baaeecb42577",
-          "capability_bfc6fa737f09->capability_5f1ce148e63a",
-          "capability_f874f7de8110->capability_75d059640d9d",
-          "capability_f874f7de8110->capability_dd486ffa5b02",
-          "capability_f874f7de8110->capability_f27ac2abb10b"
-        ],
-        "widthGround": 4.2
-      },
-      "vertices": 62
-    },
-    {
-      "name": "pathway-halo:cross:t1a53sly",
-      "children": 0,
-      "data": {},
-      "vertices": 62
-    },
-    {
-      "name": "pathway:cross:toli4dr",
+      "name": "pathway:cross:txl0pgl",
       "children": 0,
       "data": {
         "links": [
@@ -705,18 +680,21 @@
           "capability_f874f7de8110->capability_dd486ffa5b02",
           "capability_f874f7de8110->capability_f27ac2abb10b"
         ],
-        "widthGround": 4.085685011586675
+        "widthGround": 4.085685011586675,
+        "unrouted": 0.7755685635796746
       },
-      "vertices": 106
+      "vertices": 28,
+      "shown": true
     },
     {
-      "name": "pathway-halo:cross:toli4dr",
+      "name": "pathway-halo:cross:txl0pgl",
       "children": 0,
       "data": {},
-      "vertices": 106
+      "vertices": 28,
+      "shown": true
     },
     {
-      "name": "pathway:cross:tbumoae",
+      "name": "pathway:cross:t9k3bsq",
       "children": 0,
       "data": {
         "links": [
@@ -737,18 +715,21 @@
           "capability_f874f7de8110->capability_dd486ffa5b02",
           "capability_f874f7de8110->capability_f27ac2abb10b"
         ],
-        "widthGround": 4.2
+        "widthGround": 4.2,
+        "unrouted": 0.7986776997946377
       },
-      "vertices": 34
+      "vertices": 222,
+      "shown": true
     },
     {
-      "name": "pathway-halo:cross:tbumoae",
+      "name": "pathway-halo:cross:t9k3bsq",
       "children": 0,
       "data": {},
-      "vertices": 34
+      "vertices": 222,
+      "shown": true
     },
     {
-      "name": "pathway:cross:tfd2lhg",
+      "name": "pathway:cross:t1frnv8r",
       "children": 0,
       "data": {
         "links": [
@@ -759,41 +740,21 @@
           "capability_8419d8d4cdae->capability_11fe600afeda",
           "capability_8c01238b7f31->capability_7077da59ee64"
         ],
-        "widthGround": 2.8045407685048604
+        "widthGround": 2.8045407685048604,
+        "unrouted": 0.8009047210563073
       },
-      "vertices": 218
+      "vertices": 242,
+      "shown": true
     },
     {
-      "name": "pathway-halo:cross:tfd2lhg",
+      "name": "pathway-halo:cross:t1frnv8r",
       "children": 0,
       "data": {},
-      "vertices": 218
+      "vertices": 242,
+      "shown": true
     },
     {
-      "name": "pathway:cross:t1k902ob",
-      "children": 0,
-      "data": {
-        "links": [
-          "capability_053416712f7c->capability_199d7af33d32",
-          "capability_3c32df358d67->capability_b91cd36a9783",
-          "capability_56dfc9b9c3cf->capability_7077da59ee64",
-          "capability_7789d00d3390->capability_f1d66d700591",
-          "capability_7b7421be1a1b->capability_07c95281a87e",
-          "capability_8419d8d4cdae->capability_11fe600afeda",
-          "capability_8c01238b7f31->capability_7077da59ee64"
-        ],
-        "widthGround": 2.981176179958132
-      },
-      "vertices": 38
-    },
-    {
-      "name": "pathway-halo:cross:t1k902ob",
-      "children": 0,
-      "data": {},
-      "vertices": 38
-    },
-    {
-      "name": "pathway:cross:t14hx04k",
+      "name": "pathway:cross:tn1i96u",
       "children": 0,
       "data": {
         "links": [
@@ -809,53 +770,62 @@
           "capability_8419d8d4cdae->capability_11fe600afeda",
           "capability_8c01238b7f31->capability_7077da59ee64"
         ],
-        "widthGround": 3.58496231131986
+        "widthGround": 3.58496231131986,
+        "unrouted": 0.7582998396308563
       },
-      "vertices": 34
+      "vertices": 36,
+      "shown": true
     },
     {
-      "name": "pathway-halo:cross:t14hx04k",
+      "name": "pathway-halo:cross:tn1i96u",
       "children": 0,
       "data": {},
-      "vertices": 34
+      "vertices": 36,
+      "shown": true
     },
     {
-      "name": "pathway:cross:tkq9bkj",
+      "name": "pathway:cross:t6809rk",
       "children": 0,
       "data": {
         "links": [
           "capability_062b84e5c6b0->capability_8ffc78a4bad2",
           "capability_7889e605384c->capability_78d6e026f902"
         ],
-        "widthGround": 1.8727922061357858
+        "widthGround": 1.8727922061357858,
+        "unrouted": 0.772062258227486
       },
-      "vertices": 74
+      "vertices": 86,
+      "shown": true
     },
     {
-      "name": "pathway-halo:cross:tkq9bkj",
+      "name": "pathway-halo:cross:t6809rk",
       "children": 0,
       "data": {},
-      "vertices": 74
+      "vertices": 86,
+      "shown": true
     },
     {
-      "name": "pathway:cross:tew2hvp",
+      "name": "pathway:cross:tji2f6j",
       "children": 0,
       "data": {
         "links": [
           "capability_062b84e5c6b0->capability_8ffc78a4bad2"
         ],
-        "widthGround": 1.5
+        "widthGround": 1.5,
+        "unrouted": 0.8025176575298913
       },
-      "vertices": 250
+      "vertices": 424,
+      "shown": true
     },
     {
-      "name": "pathway-halo:cross:tew2hvp",
+      "name": "pathway-halo:cross:tji2f6j",
       "children": 0,
       "data": {},
-      "vertices": 250
+      "vertices": 424,
+      "shown": true
     },
     {
-      "name": "pathway:cross:tenpbc9",
+      "name": "pathway:cross:t12a1fok",
       "children": 0,
       "data": {
         "links": [
@@ -864,76 +834,138 @@
           "capability_62c8006ef894->capability_7077da59ee64",
           "capability_62c8006ef894->capability_b91cd36a9783"
         ],
-        "widthGround": 2.4
+        "widthGround": 2.4,
+        "unrouted": 0.803223488653214
       },
-      "vertices": 278
+      "vertices": 310,
+      "shown": true
     },
     {
-      "name": "pathway-halo:cross:tenpbc9",
+      "name": "pathway-halo:cross:t12a1fok",
       "children": 0,
       "data": {},
-      "vertices": 278
+      "vertices": 310,
+      "shown": true
     },
     {
-      "name": "pathway:cross:t1gb27un",
+      "name": "pathway:cross:t10mdj5r",
+      "children": 0,
+      "data": {
+        "links": [
+          "capability_396a53756a5c->capability_7077da59ee64",
+          "capability_396a53756a5c->capability_f1d66d700591",
+          "capability_62c8006ef894->capability_7077da59ee64",
+          "capability_62c8006ef894->capability_b91cd36a9783",
+          "capability_7789d00d3390->capability_f1d66d700591"
+        ],
+        "widthGround": 2.612461179749811,
+        "unrouted": 0.7971387278065103
+      },
+      "vertices": 122,
+      "shown": true
+    },
+    {
+      "name": "pathway-halo:cross:t10mdj5r",
+      "children": 0,
+      "data": {},
+      "vertices": 122,
+      "shown": true
+    },
+    {
+      "name": "pathway:cross:tcv0fh1",
       "children": 0,
       "data": {
         "links": [
           "capability_11fe600afeda->capability_75d059640d9d"
         ],
-        "widthGround": 1.5
+        "widthGround": 1.5,
+        "unrouted": 0.7837980035469155
       },
-      "vertices": 194
+      "vertices": 240,
+      "shown": true
     },
     {
-      "name": "pathway-halo:cross:t1gb27un",
+      "name": "pathway-halo:cross:tcv0fh1",
       "children": 0,
       "data": {},
-      "vertices": 194
+      "vertices": 240,
+      "shown": true
     },
     {
-      "name": "pathway:cross:to8lshw",
+      "name": "pathway:cross:tsku8f4",
+      "children": 0,
+      "data": {
+        "links": [
+          "capability_7889e605384c->capability_78d6e026f902"
+        ],
+        "widthGround": 1.5,
+        "unrouted": 0.7754822334281298
+      },
+      "vertices": 182,
+      "shown": true
+    },
+    {
+      "name": "pathway-halo:cross:tsku8f4",
+      "children": 0,
+      "data": {},
+      "vertices": 182,
+      "shown": true
+    },
+    {
+      "name": "pathway:cross:t1gw6rep",
       "children": 0,
       "data": {
         "links": [
           "capability_7789d00d3390->capability_f1d66d700591"
         ],
-        "widthGround": 1.5
+        "widthGround": 1.5,
+        "unrouted": 0.737671064227977
       },
-      "vertices": 198
+      "vertices": 234,
+      "shown": true
     },
     {
-      "name": "pathway-halo:cross:to8lshw",
+      "name": "pathway-halo:cross:t1gw6rep",
       "children": 0,
       "data": {},
-      "vertices": 198
+      "vertices": 234,
+      "shown": true
+    },
+    {
+      "name": "pathways:selection-lanes",
+      "children": 0,
+      "data": {
+        "lanes": []
+      },
+      "vertices": 0,
+      "shown": true
     }
   ],
   "points": [
     {
       "id": "decision_026dc42f1fa9",
+      "size": 0.006,
       "title": "1 · Project routing: founding book (ADR-0626 D5)",
       "depth": 1,
       "home": "capability_07c95281a87e",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        64.17020330689624,
-        0,
-        171.50836541566017
+        89.14178328662784,
+        1.4696422284174782,
+        159.9516083826616
       ],
       "world": [
-        171.94692939085058,
-        -48.24978143824445,
-        -40.4863738092154
+        161.29223973258811,
+        -65.59341831273827,
+        -56.70318576672293
       ],
       "screen": [
-        0.40105799111534113,
-        6.905445651532621e-17,
-        -0.14226742841582307
+        0.3762064369443044,
+        0.00495460968483459,
+        -0.12051417143515264
       ],
       "material": {
         "colour": "a5c5d1",
@@ -947,28 +979,28 @@
     },
     {
       "id": "decision_03b7fe15e4e8",
+      "size": 0.006,
       "title": "2 · Capability tree: founding book (T1)",
       "depth": 1,
       "home": "capability_8595861a88df",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        -73.21216280556477,
-        -104.88680551256789,
-        131.04072514565934
+        -123.01095227013911,
+        -114.84350809092132,
+        72.19562778287934
       ],
       "world": [
-        130.5325919329628,
-        -10.64506338319478,
-        127.98773171218559
+        70.17496886556822,
+        21.1885512870361,
+        167.8077871824583
       ],
       "screen": [
-        0.30446102923253643,
-        -0.4077390977786031,
-        -0.26805297168230857
+        0.16367975944386925,
+        -0.44677532517765384,
+        -0.3139099393375616
       ],
       "material": {
         "colour": "a5c5d1",
@@ -982,28 +1014,28 @@
     },
     {
       "id": "decision_064aa677f191",
+      "size": 0.006,
       "title": "The arc surface's capability tree",
       "depth": 1,
       "home": "story_7722ddb5461e",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        68.81755441807333,
-        122.53119663643412,
-        117.40180771503918
+        107.92093225084236,
+        131.7255042380138,
+        67.33794112794146
       ],
       "world": [
-        117.8737162621513,
-        26.665853353258104,
-        -137.57780954606167
+        69.13293723665655,
+        2.7407419406435745,
+        -169.54662993597762
       ],
       "screen": [
-        0.27493480701792405,
-        0.47633026215376345,
-        -0.13766128486468732
+        0.16124927049445625,
+        0.5117476623884282,
+        -0.10199280439166736
       ],
       "material": {
         "colour": "a5c5d1",
@@ -1017,28 +1049,28 @@
     },
     {
       "id": "decision_0c5d8fd4535c",
+      "size": 0.006,
       "title": "1 · Links: founding book (proposed, approved with ADR-0644)",
       "depth": 1,
       "home": "capability_a19bf216935b",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        96.66459726493116,
-        -121.33235094447313,
-        97.3003116639195
+        124.74937289868068,
+        -130.38728719605888,
+        31.13974468486195
       ],
       "world": [
-        97.96478662458249,
-        -151.5243978094619,
-        31.244069038458413
+        32.8781567666894,
+        -179.0261681312358,
+        20.039768757934773
       ],
       "screen": [
-        0.22849818058913657,
-        -0.4716698450648155,
-        -0.11198575853500081
+        0.07668672858036713,
+        -0.5070251756446231,
+        -0.08604918921855753
       ],
       "material": {
         "colour": "a5c5d1",
@@ -1052,28 +1084,28 @@
     },
     {
       "id": "decision_101478dc54ed",
+      "size": 0.006,
       "title": "6 · Decisions: founding book (ADR-0645 D1 item 6 and D4, V1)",
       "depth": 1,
       "home": "capability_562b2527ebca",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        -86.8602209053563,
-        126.68236209072333,
-        99.6986236584416
+        -115.4504262739441,
+        135.43765128430823,
+        43.13671391929063
       ],
       "world": [
-        99.09709216765252,
-        148.49388215856948,
-        -40.770917151723275
+        41.53735508328049,
+        175.9585394895247,
+        -29.08908581236039
       ],
       "screen": [
-        0.2311392291268524,
-        0.49246758704215243,
-        -0.2803760474187369
+        0.09688389461191219,
+        0.5263081229372407,
+        -0.3065681521702719
       ],
       "material": {
         "colour": "a5c5d1",
@@ -1087,28 +1119,28 @@
     },
     {
       "id": "decision_11abba9f5405",
+      "size": 0.006,
       "title": "3 · Reads by session and agent: founding book (R1 and T1, approved with ADR-0647)",
       "depth": 1,
       "home": "capability_e8f28605e711",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        -64.17020330689624,
+        -88.68813646221338,
         3.129356517410036e-15,
-        171.50836541566017
+        160.21032691702433
       ],
       "world": [
-        171.0616406249859,
-        50.06233484674055,
-        42.00728670577339
+        158.84102024289908,
+        69.6766619359276,
+        58.71650082950628
       ],
       "screen": [
-        0.3989930973992829,
-        1.1048713042452192e-16,
-        -0.26001352064767047
+        0.37048908469032593,
+        -0.0007469841513847211,
+        -0.28365306565296844
       ],
       "material": {
         "colour": "a5c5d1",
@@ -1122,28 +1154,28 @@
     },
     {
       "id": "decision_11c04f68a90a",
+      "size": 0.006,
       "title": "3 · Library: founding book (ADR-0645 D1 item 3)",
       "depth": 1,
       "home": "capability_ab59a8461dd7",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        -51.12120807416399,
-        138.60597160334342,
-        108.20323988185932
+        -87.06033843029861,
+        146.5833053615,
+        66.83387211361561
       ],
       "world": [
-        107.84803283029538,
-        128.8261494909181,
-        -72.83927115216889
+        65.67757705612165,
+        161.63496380340962,
+        -55.619499712849816
       ],
       "screen": [
-        0.2515503797938782,
-        0.538819668804787,
-        -0.24764106147137044
+        0.15318980809233784,
+        0.5695224720457552,
+        -0.280855122311074
       ],
       "material": {
         "colour": "a5c5d1",
@@ -1157,28 +1189,28 @@
     },
     {
       "id": "decision_13c403f3a480",
+      "size": 0.006,
       "title": "5 · Queues: founding book (proposed, approved; 0.2's ADR-0168 D4)",
       "depth": 1,
       "home": "capability_d8451645c169",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        56.619491743064266,
-        -137.77789637637835,
-        106.51018178961586
+        93.89568394705299,
+        -145.7660860857079,
+        58.89637580844116
       ],
       "world": [
-        106.89820754563517,
-        -131.37112354156002,
-        69.62280892752369
+        60.1430811069479,
+        -164.97631514863846,
+        51.94766245886544
       ],
       "screen": [
-        0.24933495773356049,
-        -0.5356005923510276,
-        -0.14878348525609142
+        0.14028086092430703,
+        -0.5669372936904089,
+        -0.11474115722269607
       ],
       "material": {
         "colour": "a5c5d1",
@@ -1192,28 +1224,28 @@
     },
     {
       "id": "decision_1f685a9fd9b0",
+      "size": 0.006,
       "title": "4 · Look inside and inspect an artifact: founding book (E1 and V1, approved with ADR-0647)",
       "depth": 1,
       "home": "capability_062b84e5c6b0",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        -39.22201030694047,
+        -64.82366176052419,
         -25.553135153652594,
-        177.03560543376983
+        169.34540017306736
       ],
       "world": [
-        176.7608411252087,
-        14.555333043895399,
-        45.570623483666004
+        168.3075416520676,
+        35.07149087821307,
+        63.05153725815861
       ],
       "screen": [
-        0.41228621005724314,
-        -0.09933577652640556,
-        -0.2371597450681343
+        0.39256929323293643,
+        -0.10012735172201757,
+        -0.2618882220472376
       ],
       "material": {
         "colour": "a5c5d1",
@@ -1227,28 +1259,28 @@
     },
     {
       "id": "decision_201187b6b53c",
+      "size": 0.006,
       "title": "5 · Briefing: founding book (0.2's ADR-0314 D3)",
       "depth": 1,
       "home": "capability_ee7d649bbc20",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        83.17991701422743,
-        103.27209188198661,
-        126.28899731894604
+        125.876500241229,
+        113.55478323801711,
+        69.23403997158357
       ],
       "world": [
-        126.85976562951728,
-        3.331354426593627,
-        -132.01680325666277
+        71.28027434124056,
+        -22.671898969106806,
+        -167.14676750380826
       ],
       "screen": [
-        0.2958943374969304,
-        0.4014620272196649,
-        -0.12454075888136462
+        0.16625783161539548,
+        0.44110028256175204,
+        -0.08554745321267598
       ],
       "material": {
         "colour": "a5c5d1",
@@ -1262,28 +1294,28 @@
     },
     {
       "id": "decision_229b50334c5b",
+      "size": 0.006,
       "title": "4 · Graduation: founding book (proposed, approved; 0.2's ADR-0095)",
       "depth": 1,
       "home": "capability_53fd994f7b4c",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        54.33290394410897,
-        -121.33235094447313,
-        125.93383406887698
+        102.76460910125596,
+        -130.38728719605888,
+        77.27564204792174
       ],
       "world": [
-        126.30562488807881,
-        -118.94590691983586,
-        58.580668728255986
+        78.67386945720841,
+        -161.6842079658153,
+        34.66372107978499
       ],
       "screen": [
-        0.29460183071391416,
-        -0.4716698450648154,
-        -0.15100424514701338
+        0.18350303869664533,
+        -0.5072405398592881,
+        -0.10686189399826584
       ],
       "material": {
         "colour": "a5c5d1",
@@ -1297,28 +1329,28 @@
     },
     {
       "id": "decision_229b7f7d10de",
+      "size": 0.006,
       "title": "Knowledge beneath the islands, with loose artifacts at the core",
       "depth": 1,
       "home": "capability_c72570081c61",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        -39.22201030694046,
+        -64.82366176052419,
         25.553135153652594,
-        177.03560543376983
+        169.34540017306736
       ],
       "world": [
-        176.7608411252087,
-        47.40581037472225,
-        6.420949106218415
+        168.36936622007735,
+        67.92194417174161,
+        23.901891527247646
       ],
       "screen": [
-        0.41228621005724314,
-        0.09933577652640578,
-        -0.2371597450681343
+        0.39271349608166073,
+        0.09854405595916527,
+        -0.2618882220472376
       ],
       "material": {
         "colour": "a5c5d1",
@@ -1332,28 +1364,28 @@
     },
     {
       "id": "decision_26d8e2e52df5",
+      "size": 0.006,
       "title": "5 · Health record: founding book (ADR-0621 D1 and D5)",
       "depth": 1,
       "home": "capability_f27ac2abb10b",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        -19.195090972184804,
-        -108.73986375487193,
-        146.0825962020851
+        -20.39923577330035,
+        -119.4452916013577,
+        137.29394704112752
       ],
       "world": [
-        145.9467134714127,
-        -54.420771149589505,
-        96.2853617866049
+        136.82277416944927,
+        -59.65783354791611,
+        106.08207089298844
       ],
       "screen": [
-        0.34041373069059094,
-        -0.42271755463719457,
-        -0.21859012635554176
+        0.31913257853238053,
+        -0.464977830615261,
+        -0.22068690206156605
       ],
       "material": {
         "colour": "a5c5d1",
@@ -1367,28 +1399,28 @@
     },
     {
       "id": "decision_285848291aa8",
+      "size": 0.006,
       "title": "The planet begins with islands spread around a globe",
       "depth": 1,
       "home": "capability_33812c1d778b",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        -54.33290394410898,
-        -121.33235094447313,
-        125.93383406887698
+        -103.18306996241022,
+        -130.24078556181001,
+        76.96444795731973
       ],
       "world": [
-        125.55605098929462,
-        -35.705049085743376,
-        128.4280418357234
+        75.22656020508639,
+        -3.8442082408986638,
+        166.91051825068166
       ],
       "screen": [
-        0.29285348543607825,
-        -0.4716698450648154,
-        -0.25069984823605074
+        0.17546235470009264,
+        -0.5066548142992848,
+        -0.2957871266542177
       ],
       "material": {
         "colour": "a5c5d1",
@@ -1402,28 +1434,28 @@
     },
     {
       "id": "decision_2c63f94af33a",
+      "size": 0.006,
       "title": "The globe packs its islands together on a see-through grey ball, with no sea",
       "depth": 1,
       "home": "capability_33812c1d778b",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        -61.31567171731906,
-        -117.04183135945371,
-        126.78537973236172
+        -109.88264088189658,
+        -126.19738021180478,
+        74.38387500323806
       ],
       "world": [
-        126.35940944405235,
-        -27.59367337056671,
-        129.63341866536126
+        72.5491536175075,
+        3.858395634455309,
+        168.09124751905244
       ],
       "screen": [
-        0.2947272806189994,
-        -0.45499079209863824,
-        -0.25711158784223065
+        0.1692174318554832,
+        -0.49092379564535193,
+        -0.3018970354026599
       ],
       "material": {
         "colour": "a5c5d1",
@@ -1437,28 +1469,28 @@
     },
     {
       "id": "decision_2ec8215ae769",
+      "size": 0.006,
       "title": "1 · Lifecycle: founding book (ADR-0621 D4 and D5, ADR-0626 D8)",
       "depth": 1,
       "home": "capability_076723ee3066",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        33.02029149140372,
-        121.33235094447316,
-        133.1204543415847
+        39.063335759015565,
+        130.43670140565678,
+        122.44695637617927
       ],
       "world": [
-        133.3450603388157,
-        53.39995188584212,
-        -113.58025542244295
+        123.18534625557035,
+        55.255043407987266,
+        -123.71412629880511
       ],
       "screen": [
-        0.31102097731025274,
-        0.47166984506481563,
-        -0.17060301437166048
+        0.28732393000055284,
+        0.5064833473093807,
+        -0.16593046601121064
       ],
       "material": {
         "colour": "a5c5d1",
@@ -1472,28 +1504,28 @@
     },
     {
       "id": "decision_2ffb006ea686",
+      "size": 0.006,
       "title": "11 · Workspace: founding book (ADR-0653 D1, K1 with owner A2/B1)",
       "depth": 1,
       "home": "capability_8c01238b7f31",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        -54.273526487796964,
-        111.06575473730057,
-        135.09891504824233
+        -103.91664454297394,
+        120.83994886572813,
+        90.17744809572639
       ],
       "world": [
-        134.72132350356742,
-        113.68051877691408,
-        -49.59676445151286
+        88.73058581677401,
+        158.25302163366524,
+        -24.815291342775026
       ],
       "screen": [
-        0.3142310453356416,
-        0.4317592704762112,
-        -0.2507033754116825
+        0.20695984874072618,
+        0.46933874023902616,
+        -0.29664469564967133
       ],
       "material": {
         "colour": "a5c5d1",
@@ -1507,28 +1539,28 @@
     },
     {
       "id": "decision_3054205bc3cb",
+      "size": 0.006,
       "title": "4 · Sessions: founding book (ADR-0626 D1 row 4 and D9)",
       "depth": 1,
       "home": "capability_b91cd36a9783",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        21.580973858320966,
-        18.068795147724096,
-        180.94395433182078
+        48.39440029512276,
+        19.537843907001747,
+        175.52546560411417
       ],
       "world": [
-        181.08851443196207,
-        -3.96105832678645,
-        -26.910859476369062
+        176.26560481288854,
+        -22.598666977606417,
+        -44.189039486980036
       ],
       "screen": [
-        0.42238030111637864,
-        0.07024100119625301,
-        -0.18140069383225788
+        0.4111310950386142,
+        0.07512293973382181,
+        -0.15811206906163422
       ],
       "material": {
         "colour": "a5c5d1",
@@ -1542,28 +1574,28 @@
     },
     {
       "id": "decision_32b9bddc1975",
+      "size": 0.006,
       "title": "5 · Questions: founding book (ADR-0645 D1 item 5 and D5)",
       "depth": 1,
       "home": "capability_bfc6fa737f09",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        -76.04597596298923,
-        135.68379364566164,
-        96.64291014739766
+        -103.93755747019433,
+        143.85178479016264,
+        45.128511606464485
       ],
       "world": [
-        96.11604773459842,
-        145.97974881627775,
-        -54.63105987821285
+        43.71442589646889,
+        172.57024103946083,
+        -42.91264704168858
       ],
       "screen": [
-        0.22418608552619754,
-        0.5274599348688448,
-        -0.2704351639936283
+        0.10196180818644586,
+        0.5590071821901589,
+        -0.2960344569739276
       ],
       "material": {
         "colour": "a5c5d1",
@@ -1577,28 +1609,28 @@
     },
     {
       "id": "decision_36c08baf74dd",
+      "size": 0.006,
       "title": "The globe is the only view, and islands get room for pathways between them",
       "depth": 1,
       "home": "capability_8ffc78a4bad2",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        -94.37800946597586,
-        -104.88680551256789,
-        116.7239639431806
+        -133.91901297330804,
+        -114.84350809092129,
+        49.0876869858975
       ],
       "world": [
-        116.07016988860329,
-        5.492878104792071,
-        141.5290724627159
+        46.90360838898691,
+        29.292161948827562,
+        174.57077409594152
       ],
       "screen": [
-        0.27072812133867974,
-        -0.4077390977786032,
-        -0.2873810018242746
+        0.10940042385862286,
+        -0.4466658865865984,
+        -0.3235937689711451
       ],
       "material": {
         "colour": "a5c5d1",
@@ -1612,28 +1644,28 @@
     },
     {
       "id": "decision_37781df2ef78",
+      "size": 0.006,
       "title": "1 · Front door: founding book (ADR-0645 D1)",
       "depth": 1,
       "home": "capability_7b7421be1a1b",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        -46.099261726606684,
-        121.33235094447316,
-        129.17528046243612
+        -93.33817414102622,
+        130.43670140565678,
+        88.3582852619436
       ],
       "world": [
-        128.85421571313904,
-        113.98675709275997,
-        -62.74188951910845
+        87.0843417448849,
+        156.2991189415139,
+        -38.98508998279463
       ],
       "screen": [
-        0.3005462969518093,
-        0.47166984506481563,
-        -0.24316639540241003
+        0.20312006315864925,
+        0.506653120068189,
+        -0.28691493988355765
       ],
       "material": {
         "colour": "a5c5d1",
@@ -1647,28 +1679,28 @@
     },
     {
       "id": "decision_37dfcaa8189a",
+      "size": 0.006,
       "title": "Routed pathways on the glass globe",
       "depth": 1,
       "home": "capability_8ffc78a4bad2",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        -101.00972983559284,
-        -100.21939577493671,
-        115.26509267357206
+        -139.15045168931508,
+        -110.39311618580544,
+        44.535896683987936
       ],
       "world": [
-        114.56558789390272,
-        13.565394025315527,
-        142.20984690049565
+        42.27806466874729,
+        36.11036663858561,
+        174.47504425874828
       ],
       "screen": [
-        0.2672187557780346,
-        -0.38959491437932164,
-        -0.2934560505297221
+        0.09861156430278485,
+        -0.4293435774406425,
+        -0.3283293200160663
       ],
       "material": {
         "colour": "a5c5d1",
@@ -1682,28 +1714,28 @@
     },
     {
       "id": "decision_394cc68a71c6",
+      "size": 0.006,
       "title": "2 · Decision log: founding book (proposed, approved)",
       "depth": 1,
       "home": "capability_b7a12a2b7273",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        94.37800946597586,
-        -104.88680551256792,
-        116.72396394318064
+        133.6182980528836,
+        -115.00848830640982,
+        49.51901092434253
       ],
       "world": [
-        117.37220396702615,
-        -139.09918118773777,
-        20.20192883919071
+        51.408945116949916,
+        -175.73406094841258,
+        2.7558273788543604
       ],
       "screen": [
-        0.2737650535694903,
-        -0.4077390977786033,
-        -0.11420651842592289
+        0.11990890635270544,
+        -0.44732842181350224,
+        -0.07816992599412753
       ],
       "material": {
         "colour": "a5c5d1",
@@ -1717,28 +1749,28 @@
     },
     {
       "id": "decision_427a75532473",
+      "size": 0.006,
       "title": "Every knowledge read is recorded, and a new artifact has a default place",
       "depth": 1,
       "home": "capability_11fe600afeda",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        21.58097385832096,
-        -18.068795147724096,
-        180.94395433182078
+        48.49988500996115,
+        -16.59855945016679,
+        175.79870129838795
       ],
       "world": [
-        181.08851443196207,
-        -27.18985361262907,
-        0.7721407571693465
+        176.49669988807224,
+        -45.90450507305918,
+        -16.571835825196306
       ],
       "screen": [
-        0.42238030111637864,
-        -0.0702410011962528,
-        -0.18140069383225788
+        0.41167011325160685,
+        -0.06535563809510089,
+        -0.1580191185251253
       ],
       "material": {
         "colour": "a5c5d1",
@@ -1752,28 +1784,28 @@
     },
     {
       "id": "decision_4731de1d51ef",
+      "size": 0.006,
       "title": "11 · Waits: founding book (11-b)",
       "depth": 1,
       "home": "capability_d632ff0454c0",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        3.025028671888191,
-        -140.18357495971995,
-        117.78093611891028
+        2.09012449176456,
+        -148.66484008877285,
+        106.89869550648662
       ],
       "world": [
-        117.7990005254044,
-        -91.80314367239849,
-        105.96467660065186
+        106.73820717678112,
+        -95.99685752472021,
+        113.68593964983158
       ],
       "screen": [
-        0.274760536134515,
-        -0.5449524761301507,
-        -0.19802513244850328
+        0.24896176452366922,
+        -0.5784251007434582,
+        -0.19963122541289724
       ],
       "material": {
         "colour": "a5c5d1",
@@ -1787,28 +1819,28 @@
     },
     {
       "id": "decision_49f698bd6e83",
+      "size": 0.006,
       "title": "The agent link's capability tree",
       "depth": 1,
       "home": "story_609c3b171b3f",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        39.609550297062654,
-        0,
-        178.7848369556671
+        65.94865662527273,
+        1.4841632876448605,
+        170.82595338138023
       ],
       "world": [
-        179.0538090724533,
-        -29.39722730344314,
-        -24.66720258795392
+        171.81213063957944,
+        -47.700499900080594,
+        -41.69158757316082
       ],
       "screen": [
-        0.41763444815531015,
-        8.286534781839145e-17,
-        -0.1648466858038693
+        0.4007435794734398,
+        0.00496158713109237,
+        -0.14194271406702774
       ],
       "material": {
         "colour": "a5c5d1",
@@ -1822,28 +1854,28 @@
     },
     {
       "id": "decision_4de11a09692e",
+      "size": 0.006,
       "title": "5 · Agent capability claims: founding book",
       "depth": 1,
       "home": "capability_efa4328b624c",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        -77.78533840347541,
-        -137.7778963763784,
-        92.19342058713713
+        -105.1713090610192,
+        -145.6380630326987,
+        35.51738653779649
       ],
       "world": [
-        91.65466595690737,
-        -28.489151812318273,
-        155.9510334603219
+        33.735430591442,
+        -12.669746445250523,
+        179.5392231458716
       ],
       "screen": [
-        0.21378012585190645,
-        -0.535600592351028,
-        -0.2720027850737249
+        0.07868627878582335,
+        -0.5663154262388052,
+        -0.29703197323804065
       ],
       "material": {
         "colour": "a5c5d1",
@@ -1857,28 +1889,28 @@
     },
     {
       "id": "decision_4fa45187cbe1",
+      "size": 0.006,
       "title": "3 · Surfaces: founding book (ADR-0632 D1 row 3; ADR-0633 D3 item 14)",
       "depth": 1,
       "home": "capability_7789d00d3390",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        -18.00661596883385,
-        121.33235094447313,
-        135.9674843322408
+        -11.741486036870977,
+        130.43670140565678,
+        127.98960439058126
       ],
       "world": [
-        135.84004032274274,
-        92.50294496627598,
-        -80.76894835072311
+        127.95365279771019,
+        94.23023389422148,
+        -91.00252829434669
       ],
       "screen": [
-        0.3168403988246215,
-        0.4716698450648155,
-        -0.2174357426636997
+        0.29844577701223024,
+        0.5064609233195924,
+        -0.21261456893501096
       ],
       "material": {
         "colour": "a5c5d1",
@@ -1892,28 +1924,28 @@
     },
     {
       "id": "decision_519f8d2b30c5",
+      "size": 0.006,
       "title": "3 · Arc surface: founding book (ADR-0633 D3 item 14)",
       "depth": 1,
       "home": "capability_d077e76e50d7",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        45.22713791214172,
-        132.49420489071815,
-        118.03696906754476
+        86.75524197401124,
+        140.87030062855246,
+        78.49854005554508
       ],
       "world": [
-        118.34613642769612,
-        51.14418544030076,
-        -130.04383371880922
+        79.98096914764076,
+        24.95265048632471,
+        -162.82918721135803
       ],
       "screen": [
-        0.27603670446515965,
-        0.51506066276908,
-        -0.15930836646066493
+        0.18655178622525445,
+        0.5472463403914196,
+        -0.12156544356286825
       ],
       "material": {
         "colour": "a5c5d1",
@@ -1927,28 +1959,28 @@
     },
     {
       "id": "decision_54a5cc32d370",
+      "size": 0.006,
       "title": "7 · Instructions (the habits card): founding book (ADR-0626 D1 row 7 and D7)",
       "depth": 1,
       "home": "capability_18edee1c0154",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        39.22201030694046,
-        -25.553135153652594,
-        177.03560543376983
+        65.37800367625333,
+        -24.082653633128725,
+        169.34779841880015
       ],
       "world": [
-        177.30194592634675,
-        -45.53484338558172,
-        -4.851021395685948
+        170.29452899744814,
+        -63.71351418692952,
+        -21.755364935786616
       ],
       "screen": [
-        0.41354831113282553,
-        -0.09933577652640557,
-        -0.1651911645568246
+        0.3972038462077005,
+        -0.094420312050463,
+        -0.1424455594115216
       ],
       "material": {
         "colour": "a5c5d1",
@@ -1962,28 +1994,28 @@
     },
     {
       "id": "decision_57a1e3f80bf9",
+      "size": 0.006,
       "title": "2 · Agents on the board: founding book (ADR-0626 D3 and D4)",
       "depth": 1,
       "home": "capability_62c8006ef894",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        66.73311723080735,
-        139.3926100069597,
-        98.23098156949756
+        96.21362544909918,
+        147.31861957329644,
+        50.725703592545784
       ],
       "world": [
-        98.68896782240824,
-        38.999592877072985,
-        -149.2395851829208
+        52.363213859592406,
+        21.550330995381326,
+        -174.1453745245165
       ],
       "screen": [
-        0.23018729860614578,
-        0.541877662909966,
-        -0.1394523282508775
+        0.12213469256630168,
+        0.5724435632011114,
+        -0.11250059386009026
       ],
       "material": {
         "colour": "a5c5d1",
@@ -1997,28 +2029,28 @@
     },
     {
       "id": "decision_59bc36372634",
+      "size": 0.006,
       "title": "2 · Library transactions: founding book (ADR-0621 D1)",
       "depth": 1,
       "home": "capability_5a80222c88c4",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        22.55946415425323,
-        -112.50740654248742,
-        142.70980502458974
+        21.385907017613597,
+        -122.94633823176211,
+        134.01408618662126
       ],
       "world": [
-        142.8620243654707,
-        -88.84540726671383,
-        72.3178401351383
+        134.17539685516778,
+        -93.95003308643567,
+        81.87361334285849
       ],
       "screen": [
-        0.333218840846223,
-        -0.4373635769805917,
-        -0.18026100377526522
+        0.3129576975318794,
+        -0.4785754304811455,
+        -0.1823087696136042
       ],
       "material": {
         "colour": "a5c5d1",
@@ -2032,28 +2064,28 @@
     },
     {
       "id": "decision_5a637443cab7",
+      "size": 0.006,
       "title": "The librarian is a story of its own: six capabilities, on for 0.3's own library first",
       "depth": 1,
       "home": "story_cec2df1b2320",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        76.24472932500235,
-        -122.53119663643412,
-        112.71992503989988
+        114.8809870119896,
+        -131.67560178260314,
+        54.74330204089269
       ],
       "world": [
-        113.24317743323037,
-        -136.57136713797215,
-        45.356133464958496
+        56.32711784628823,
+        -172.0384125282741,
+        27.621998658347685
       ],
       "screen": [
-        0.2641342966099293,
-        -0.4763302621537635,
-        -0.13081758220960493
+        0.13138030908013115,
+        -0.5121436733920978,
+        -0.09543190841054128
       ],
       "material": {
         "colour": "a5c5d1",
@@ -2067,28 +2099,28 @@
     },
     {
       "id": "decision_5aceecc28637",
+      "size": 0.006,
       "title": "The app can be controlled from outside",
       "depth": 1,
       "home": "capability_076723ee3066",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        26.203731761957002,
-        125.37721397757078,
-        130.86960325824268
+        32.03232408344688,
+        134.21018282240553,
+        120.39307056716143
       ],
       "world": [
-        131.04724235554815,
-        61.209709350261676,
-        -112.30728450222077
+        121.02919138355186,
+        63.04375126839554,
+        -122.10796312711254
       ],
       "screen": [
-        0.30566142673506796,
-        0.4873939277622872,
-        -0.17684263200800676
+        0.2822948018586966,
+        0.521162606117191,
+        -0.1723517864033769
       ],
       "material": {
         "colour": "a5c5d1",
@@ -2102,28 +2134,28 @@
     },
     {
       "id": "decision_5ae1815d9959",
+      "size": 0.006,
       "title": "The story panel is a description and a clickable capability diagram",
       "depth": 1,
       "home": "capability_f0ffead428df",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        -96.66459726493119,
-        -121.33235094447313,
-        97.3003116639195
+        -124.99919136874807,
+        -130.24078556181001,
+        30.748566363356083
       ],
       "world": [
-        96.63120690057556,
-        -3.429166109769654,
-        155.51072333678405
+        28.683839251923807,
+        12.36301308268421,
+        180.43649207764818
       ],
       "screen": [
-        0.2253876696483647,
-        -0.4716698450648155,
-        -0.28935590851998283
+        0.06690368352959992,
+        -0.5064359371171743,
+        -0.3151547859213846
       ],
       "material": {
         "colour": "a5c5d1",
@@ -2137,28 +2169,28 @@
     },
     {
       "id": "decision_5b9ef03b8a42",
+      "size": 0.006,
       "title": "3 · Data schema: founding book (ADR-0621 D1; ADR-0636 a1)",
       "depth": 1,
       "home": "capability_a1d4fadbec3e",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        14.446259082666726,
-        -105.70415055088749,
-        148.83169203779073
+        13.214589649750396,
+        -116.62430877971057,
+        140.55987913356861
       ],
       "world": [
-        148.92780105475077,
-        -78.22508181664269,
-        72.34833134064762
+        140.60363478679744,
+        -83.55607743126072,
+        82.35249971337869
       ],
       "screen": [
-        0.34736697493721996,
-        -0.4109164614791147,
-        -0.18774321916518932
+        0.32795125513947465,
+        -0.4540292569943029,
+        -0.18989632335193152
       ],
       "material": {
         "colour": "a5c5d1",
@@ -2172,28 +2204,28 @@
     },
     {
       "id": "decision_5f30662977ae",
+      "size": 0.006,
       "title": "10 · Work in flight: founding book (10-b)",
       "depth": 1,
       "home": "capability_a7f068502213",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        -9.11678784630608,
-        -139.08801034136508,
-        118.76171082737802
+        -10.060586620292872,
+        -147.64676994817881,
+        107.85244698533802
       ],
       "world": [
-        118.69599796739858,
-        -81.79279595886067,
-        112.93419763630277
+        107.50803862408307,
+        -86.02502107379426,
+        120.72552248988582
       ],
       "screen": [
-        0.27685273977779173,
-        -0.540693555984159,
-        -0.20917086666274298
+        0.25075735956480266,
+        -0.5744710516065568,
+        -0.2107912112176331
       ],
       "material": {
         "colour": "a5c5d1",
@@ -2207,28 +2239,28 @@
     },
     {
       "id": "decision_611484cb49a2",
+      "size": 0.006,
       "title": "The 0.3 MVP one-page spec",
       "depth": 3,
       "home": "story_609c3b171b3f",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        24.52019780294355,
-        0,
-        110.67632763922248
+        40.82535886326407,
+        0.9187677494944374,
+        105.749399712283
       ],
       "world": [
-        110.84283418770919,
-        -18.19828356879814,
-        -15.270173030638144
+        106.35989039593012,
+        -29.52888089052608,
+        -25.809078021480506
       ],
       "screen": [
-        0.258535610762811,
-        -2.7621782606130418e-17,
-        -0.1782593953630488
+        0.2480793587216532,
+        0.003071458700199965,
+        -0.16408074619262303
       ],
       "material": {
         "colour": "a5c5d1",
@@ -2242,28 +2274,28 @@
     },
     {
       "id": "decision_66bfbd433f93",
+      "size": 0.006,
       "title": "The forest keeps 0.2's fixed view and full-size seedlings",
       "depth": 1,
       "home": "capability_8ffc78a4bad2",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        -89.21728922975225,
-        -114.18414475500022,
-        111.96066625857449
+        -126.4662741098014,
+        -123.64721888887232,
+        47.44029061706815
       ],
       "world": [
-        111.34258404218451,
-        -4.461753368593745,
-        145.3129592833583
+        45.35925019490847,
+        17.906756948130536,
+        176.50728278843428
       ],
       "screen": [
-        0.2597012534027006,
-        -0.44388176315891853,
-        -0.28261614604307417
+        0.1057982822148386,
+        -0.48088237309198983,
+        -0.3167338557275483
       ],
       "material": {
         "colour": "a5c5d1",
@@ -2277,28 +2309,28 @@
     },
     {
       "id": "decision_69b5ac6855c3",
+      "size": 0.006,
       "title": "The forest's capability tree",
       "depth": 2,
       "home": "story_deee4230348c",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        -61.721923739287604,
-        -99.19192108663711,
-        91.24946312753796
+        -93.27206092663974,
+        -106.47476640109693,
+        44.02890380567119
       ],
       "world": [
-        90.82153596922538,
-        -15.9965497876048,
-        116.06315780248003
+        42.47454229143575,
+        3.4821571124322848,
+        141.98198984018148
       ],
       "screen": [
-        0.21183688999197336,
-        -0.38560068841018935,
-        -0.25725940795693114
+        0.09906983896307515,
+        -0.4141122177468236,
+        -0.2862349199265607
       ],
       "material": {
         "colour": "a5c5d1",
@@ -2312,28 +2344,28 @@
     },
     {
       "id": "decision_6e254791da68",
+      "size": 0.006,
       "title": "The app updates itself",
       "depth": 1,
       "home": "capability_6a0c1b26f586",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        8.45935521326971,
-        102.34267078031174,
-        151.61580210165582
+        15.654448519085962,
+        112.68600217970196,
+        143.49124556682716
       ],
       "world": [
-        151.6705473748053,
-        60.10567416563732,
-        -83.16421942230463
+        143.8492177506727,
+        62.004706820971016,
+        -94.84594500855066
       ],
       "screen": [
-        0.3537642995835919,
-        0.3978489767544385,
-        -0.1932535326213095
+        0.33552142221428866,
+        0.4373816918556015,
+        -0.1876990346593137
       ],
       "material": {
         "colour": "a5c5d1",
@@ -2347,28 +2379,28 @@
     },
     {
       "id": "decision_6fb213bb979d",
+      "size": 0.006,
       "title": "4 · Drill-down: founding book",
       "depth": 1,
       "home": "capability_f0ffead428df",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        -103.47435262672579,
-        -117.04183135945371,
-        95.53639338233991
+        -130.166617206648,
+        -126.19738021180478,
+        25.76445987509067
       ],
       "world": [
-        94.82035707065384,
-        4.535857046610795,
-        156.59329578831412
+        23.626512289922868,
+        18.865873030912134,
+        180.6067583225934
       ],
       "screen": [
-        0.22116394900634545,
-        -0.45499079209863824,
-        -0.2955923651342226
+        0.05510771020818582,
+        -0.4906937263744564,
+        -0.3198255733522939
       ],
       "material": {
         "colour": "a5c5d1",
@@ -2382,28 +2414,28 @@
     },
     {
       "id": "decision_70ff04f90448",
+      "size": 0.006,
       "title": "8 · Doctor: founding book (ADR-0645 D1 item 8)",
       "depth": 1,
       "home": "capability_053416712f7c",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        -79.84015565675328,
-        102.53595834352512,
-        129.01496498964872
+        -124.2260708665539,
+        112.86667870342741,
+        73.22520437332501
       ],
       "world": [
-        128.46116025121083,
-        127.75023105696744,
-        -26.656015677594976
+        71.46138741582502,
+        168.4996826052511,
+        -5.83622056942854
       ],
       "screen": [
-        0.2996295138809147,
-        0.3986003667529355,
-        -0.2741210128970937
+        0.16668026920189322,
+        0.4384244773394389,
+        -0.3150390341370134
       ],
       "material": {
         "colour": "a5c5d1",
@@ -2417,28 +2449,28 @@
     },
     {
       "id": "decision_7f839e27f1d8",
+      "size": 0.006,
       "title": "2 · Agent activity log: founding book (ADR-0626 D2, B1)",
       "depth": 1,
       "home": "capability_f1d66d700591",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        56.86304675555995,
-        18.068795147724096,
-        173.1272565357188
+        82.10694442819799,
+        19.537843907001744,
+        162.51048191464588
       ],
       "world": [
-        173.51537742073128,
-        -31.029355827707512,
-        -49.623857925988816
+        163.7655403173015,
+        -48.56309098373903,
+        -65.99551801969139
       ],
       "screen": [
-        0.40471632114927214,
-        0.07024100119625297,
-        -0.1489816352813913
+        0.38197529229661364,
+        0.07518172398272177,
+        -0.12700345220727838
       ],
       "material": {
         "colour": "a5c5d1",
@@ -2452,28 +2484,28 @@
     },
     {
       "id": "decision_7ff487c18ba8",
+      "size": 0.006,
       "title": "1 · Work states: founding book (ADR-0632 D3)",
       "depth": 1,
       "home": "capability_396a53756a5c",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        90.18922468341303,
-        121.33235094447313,
-        103.33101550498789
+        120.39189274090256,
+        130.43670140565678,
+        44.999927651881315
       ],
       "world": [
-        103.95068003674731,
-        9.449638212246873,
-        -150.45894741608242
+        46.98588874349739,
+        -7.883259266975635,
+        -176.81378589440746
       ],
       "screen": [
-        0.2424599907559026,
-        0.4716698450648154,
-        -0.1179647650593515
+        0.10959233885126121,
+        0.5068416916905649,
+        -0.09024025161720584
       ],
       "material": {
         "colour": "a5c5d1",
@@ -2487,28 +2519,28 @@
     },
     {
       "id": "decision_861e6fa952db",
+      "size": 0.006,
       "title": "12 · Owner questions: founding book (12-a)",
       "depth": 1,
       "home": "capability_5f1ce148e63a",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        14.459415914851416,
-        -136.96055133805882,
-        120.68830543418986
+        13.496327596101175,
+        -145.66979620302774,
+        110.14124575102223
       ],
       "world": [
-        120.78517477451368,
-        -98.47510144794752,
-        96.15888076255169
+        110.15770459057364,
+        -102.77315592596005,
+        104.09559520149837
       ],
       "screen": [
-        0.28172564478583506,
-        -0.5324232286505163,
-        -0.1875530371720865
+        0.2569375787371489,
+        -0.5667981787236054,
+        -0.18921285730500192
       ],
       "material": {
         "colour": "a5c5d1",
@@ -2522,28 +2554,28 @@
     },
     {
       "id": "decision_8c8442277610",
+      "size": 0.006,
       "title": "The command line is a front door onto the library and the agent link: ten capabilities, writes recorded by writer, friction and plan verbs, no anchors yet",
       "depth": 1,
       "home": "story_f9fb5136c28f",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        -68.81755441807333,
-        122.53119663643412,
-        117.40180771503918
+        -107.92093225084236,
+        131.7255042380138,
+        67.33794112794146
       ],
       "world": [
-        116.92431288362009,
-        132.0979552283479,
-        -49.10977174842839
+        65.84593231325076,
+        168.0685847082872,
+        -30.825288838097233
       ],
       "screen": [
-        0.2727203690334787,
-        0.47633026215376345,
-        -0.26393481513430117
+        0.15358248867963945,
+        0.5117631202379154,
+        -0.299998983117131
       ],
       "material": {
         "colour": "a5c5d1",
@@ -2557,28 +2589,28 @@
     },
     {
       "id": "decision_909ba178babf",
+      "size": 0.006,
       "title": "The agent link's revised tree: increment claims, the wait refusal, release on merge, and planning tools",
       "depth": 1,
       "home": "story_609c3b171b3f",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        33.63908750674396,
-        5.564431781335217,
-        179.917712554002
+        60.199100802462084,
+        7.04690984359009,
+        172.7985640109064
       ],
       "world": [
-        180.14547362213276,
-        -21.240962179227683,
-        -25.087133338787805
+        173.70368183882593,
+        -39.69938673846305,
+        -42.23652457560751
       ],
       "screen": [
-        0.4201807035192025,
-        0.021631285108596014,
-        -0.1703314651895732
+        0.40515553220065137,
+        0.026577441456087914,
+        -0.14724472748323103
       ],
       "material": {
         "colour": "a5c5d1",
@@ -2592,28 +2624,28 @@
     },
     {
       "id": "decision_91348293f1ee",
+      "size": 0.006,
       "title": "9 · Friction and re-steers: founding book (ADR-0645 D1 item 9, F1)",
       "depth": 1,
       "home": "capability_8419d8d4cdae",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        -66.85164580090132,
-        104.05873028560286,
-        135.0391517488872
+        -115.43120758771316,
+        114.29009744981359,
+        84.53605349053379
       ],
       "world": [
-        134.57479808823504,
-        118.81134364607769,
-        -36.144470400386766
+        82.90657344825398,
+        162.80121605220432,
+        -12.45787024305425
       ],
       "screen": [
-        0.3138892818105311,
-        0.404520021324844,
-        -0.26224281099823543
+        0.19337561836787587,
+        0.443904084874231,
+        -0.307128952937736
       ],
       "material": {
         "colour": "a5c5d1",
@@ -2627,28 +2659,28 @@
     },
     {
       "id": "decision_914f96703a84",
+      "size": 0.006,
       "title": "Every story and capability has a shelf of front covers",
       "depth": 2,
       "home": "capability_13b04e769a4b",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        -15.530301266799748,
-        -108.41534515615542,
-        99.90005143759497
+        -16.32989582648124,
+        -115.63951559445097,
+        91.30133917625193
       ],
       "world": [
-        99.79054707337852,
-        -57.263535315359306,
-        93.47637047929507
+        90.90210843006743,
+        -60.82929810558848,
+        100.05848677123653
       ],
       "screen": [
-        0.23275667953672488,
-        -0.4214560144462581,
-        -0.2149355839450261
+        0.2120248214042935,
+        -0.4499672170199063,
+        -0.2163112158795556
       ],
       "material": {
         "colour": "a5c5d1",
@@ -2662,28 +2694,28 @@
     },
     {
       "id": "decision_91b4219db238",
+      "size": 0.006,
       "title": "Five pieces of 0.2's forest are left out",
       "depth": 1,
       "home": "story_deee4230348c",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        -76.24472932500235,
-        -122.5311966364341,
-        112.71992503989985
+        -115.21842820349617,
+        -131.52765261311976,
+        54.38864587759384
       ],
       "world": [
-        112.1913091384549,
-        -19.76044385527653,
-        143.37213610894594
+        52.46855224236183,
+        4.301488197710476,
+        175.38951686140066
       ],
       "screen": [
-        0.26168086410773184,
-        -0.4763302621537634,
-        -0.2707192572652172
+        0.12238038930732817,
+        -0.5115503866284291,
+        -0.30651253675711243
       ],
       "material": {
         "colour": "a5c5d1",
@@ -2697,28 +2729,28 @@
     },
     {
       "id": "decision_94985f0ccb52",
+      "size": 0.006,
       "title": "The knowledge inside the planet: four capabilities, a graph that refuses loops, built alongside the MVP",
       "depth": 1,
       "home": "story_d754d997f22a",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        -39.609550297062654,
+        -65.464163383,
         0,
-        178.7848369556671
+        171.0186472656239
       ],
       "world": [
-        178.50735778989718,
-        31.286680711887936,
-        26.252642246106387
+        170.00175171874707,
+        52.00553992456312,
+        43.906293736914165
       ],
       "screen": [
-        0.4163598766674635,
-        1.1048713042452192e-16,
-        -0.23752636456746645
+        0.3965209572043548,
+        -0.0007994698979354344,
+        -0.26249917562453307
       ],
       "material": {
         "colour": "a5c5d1",
@@ -2732,28 +2764,28 @@
     },
     {
       "id": "decision_95280f2cfbbe",
+      "size": 0.006,
       "title": "5 · Claims: founding book (ADR-0626 D3, C1; ADR-0643 D1)",
       "depth": 1,
       "home": "capability_7077da59ee64",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        14.273817306984672,
-        3.129356517410035e-15,
-        182.56284545187947
+        41.465046151531304,
+        1.469642228417481,
+        178.35757483037222
       ],
       "world": [
-        182.65696246184282,
-        -9.96942800209213,
-        -8.36534335960407
+        178.97000047278564,
+        -28.87417774405994,
+        -25.864168078164766
       ],
       "screen": [
-        0.42603863115030977,
-        1.1739257607605454e-16,
-        -0.1881149006978261
+        0.4174389686039161,
+        0.004871476202786315,
+        -0.16450839929725114
       ],
       "material": {
         "colour": "a5c5d1",
@@ -2767,28 +2799,28 @@
     },
     {
       "id": "decision_9c33ec3787a9",
+      "size": 0.006,
       "title": "1 · Knowledge under its shelves: founding book (D1, approved with ADR-0647)",
       "depth": 1,
       "home": "capability_c72570081c61",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        -44.94471444422996,
+        -70.15321044072994,
         31.037256329719632,
-        174.7844265461025
+        166.27732913533922
       ],
       "world": [
-        174.47024073266076,
-        55.30278134620086,
-        5.888282776984381
+        165.22712505499055,
+        75.49592112892948,
+        23.09323361846471
       ],
       "screen": [
-        0.40694349416730075,
-        0.12065486055714376,
-        -0.24239580123001725
+        0.3853843688112048,
+        0.11987793265617623,
+        -0.26673450644204855
       ],
       "material": {
         "colour": "a5c5d1",
@@ -2802,28 +2834,28 @@
     },
     {
       "id": "decision_9d11b2ad1587",
+      "size": 0.006,
       "title": "13 · Decision log: founding book (13-a)",
       "depth": 1,
       "home": "capability_78d6e026f902",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        22.566893564525195,
-        -130.15729534645885,
-        126.81777550068472
+        21.544999021162255,
+        -139.34776675097626,
+        116.83726853488847
       ],
       "world": [
-        126.97042418155642,
-        -100.28020416493708,
-        85.76319977586056
+        116.98316521737212,
+        -104.80154797703834,
+        94.15152148181973
       ],
       "screen": [
-        0.29615244327839313,
-        -0.5059761131490392,
-        -0.18015361165889077
+        0.27285763928791507,
+        -0.5422538732621472,
+        -0.18192282947251948
       ],
       "material": {
         "colour": "a5c5d1",
@@ -2837,28 +2869,28 @@
     },
     {
       "id": "decision_9ec9a13fbeb4",
+      "size": 0.006,
       "title": "The library's revised tree: eight more knowledge kinds, work in flight, waits, owner questions and the decision log",
       "depth": 1,
       "home": "story_754e87e7d531",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        -0.06361860898429687,
-        -122.53119663643415,
-        136.08466557079865
+        -1.1712132003928142,
+        -132.44287407290773,
+        126.45334225297147
       ],
       "world": [
-        136.08098909958568,
-        -77.99370907492069,
-        94.50862474089385
+        126.26052995639296,
+        -82.85858881693073,
+        103.56479727396571
       ],
       "screen": [
-        0.3174024003255769,
-        -0.4763302621537636,
-        -0.20097465531160152
+        0.29449664894198324,
+        -0.515455262409033,
+        -0.20289628603102294
       ],
       "material": {
         "colour": "a5c5d1",
@@ -2872,28 +2904,28 @@
     },
     {
       "id": "decision_a12097957060",
+      "size": 0.006,
       "title": "Minimal viable TDD",
       "depth": 2,
       "home": "story_a93c6fb1a257",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        6.137008415573614,
-        99.19192108663714,
-        109.99271575358763
+        11.168112793018347,
+        106.63493200220162,
+        102.36875565097122
       ],
       "world": [
-        110.03243180682821,
-        59.63944701562009,
-        -79.44241883494462
+        102.65588518626149,
+        61.10378524092294,
+        -87.76784300560361
       ],
       "screen": [
-        0.25664538595901465,
-        0.3856006884101894,
-        -0.19512075275597363
+        0.2394399436781095,
+        0.41405234208052377,
+        -0.19124008727412178
       ],
       "material": {
         "colour": "a5c5d1",
@@ -2907,28 +2939,28 @@
     },
     {
       "id": "decision_a821017e746d",
+      "size": 0.006,
       "title": "1 · Project libraries: founding book (ADR-0621 D3)",
       "depth": 1,
       "home": "capability_5e0362aae607",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        25.490136197066644,
-        -121.33235094447313,
-        134.76515859428284
+        24.392285140471824,
+        -131.14705249136918,
+        125.45278573412382
       ],
       "world": [
-        134.93778264771498,
-        -96.80492454475082,
-        77.15915887309251
+        125.65095828329434,
+        -101.61735350382706,
+        86.13178594089459
       ],
       "screen": [
-        0.31473592593931343,
-        -0.4716698450648154,
-        -0.1775219751212448
+        0.29307485216131474,
+        -0.5104149889493576,
+        -0.1794311994375125
       ],
       "material": {
         "colour": "a5c5d1",
@@ -2942,28 +2974,28 @@
     },
     {
       "id": "decision_a8ca582fe22d",
+      "size": 0.006,
       "title": "4 · Arcs and increments: founding book (ADR-0645 D1 item 4)",
       "depth": 1,
       "home": "capability_81ad90bacdbc",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        -62.72298670093945,
-        140.12874354542114,
-        99.81330859006411
+        -93.35414160260724,
+        148.00672410788616,
+        53.96247088942864
       ],
       "world": [
-        99.37827238058722,
-        138.64790133695152,
-        -66.58568039382641
+        52.713552974958226,
+        167.23061831508286,
+        -52.80280324671559
       ],
       "screen": [
-        0.23179506852881485,
-        0.5447393233766954,
-        -0.25823203268918804
+        0.12295184180133313,
+        0.5751168691548952,
+        -0.28644900976734256
       ],
       "material": {
         "colour": "a5c5d1",
@@ -2977,28 +3009,28 @@
     },
     {
       "id": "decision_ab42aa0b7279",
+      "size": 0.006,
       "title": "The library's capability tree",
       "depth": 1,
       "home": "story_754e87e7d531",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        -6.1394581611458126,
-        -118.2719760490091,
-        139.66739467373966
+        -7.281204557450984,
+        -128.4661203920703,
+        130.29341645533225
       ],
       "world": [
-        139.62172198251534,
-        -70.58275076737493,
-        95.1671395217269
+        130.011919198454,
+        -75.58051587750846,
+        104.48646269265873
       ],
       "screen": [
-        0.3256609904739123,
-        -0.4597728815464511,
-        -0.20657161716452765
+        0.3032465849754019,
+        -0.5000135797957116,
+        -0.20855504326142016
       ],
       "material": {
         "colour": "a5c5d1",
@@ -3012,28 +3044,28 @@
     },
     {
       "id": "decision_ac738439f3a0",
+      "size": 0.006,
       "title": "6 · Unclaimed work: founding book",
       "depth": 1,
       "home": "capability_8b120b7271d8",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        -56.61949174306429,
-        -137.7778963763784,
-        106.51018178961586
+        -94.26324835785024,
+        -145.6380630326987,
+        58.625327334778326
       ],
       "world": [
-        106.11708800126688,
-        -44.62709330030515,
-        142.40969270979159
+        57.0067910680233,
+        -20.773357107041974,
+        172.77623623238833
       ],
       "screen": [
-        0.2475130337457632,
-        -0.5356005923510279,
-        -0.25267475493175895
+        0.13296561437106974,
+        -0.5664248648298605,
+        -0.28734814360445726
       ],
       "material": {
         "colour": "a5c5d1",
@@ -3047,28 +3079,28 @@
     },
     {
       "id": "decision_aeed8aeee659",
+      "size": 0.006,
       "title": "2 · Storytree projects: founding book (ADR-0632 D4 and D3)",
       "depth": 1,
       "home": "capability_3c5ed8b3ca70",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        6.554320309300157,
-        140.3220311086346,
-        117.4721365721697
+        11.667401203058622,
+        148.1874006316116,
+        106.94531519993338
       ],
       "world": [
-        117.5145532867532,
-        85.7972226864808,
-        -111.18498435086148
+        107.28978130260785,
+        87.48057048123776,
+        -119.87070958460117
       ],
       "screen": [
-        0.2740970765512825,
-        0.5454907133751928,
-        -0.19478522441405066
+        0.2502482847984944,
+        0.5755625787733716,
+        -0.1908460002869078
       ],
       "material": {
         "colour": "a5c5d1",
@@ -3082,28 +3114,28 @@
     },
     {
       "id": "decision_b211a3cf352a",
+      "size": 0.006,
       "title": "8 · Cloud connection (GCP): founding book (ADR-0621 D4)",
       "depth": 1,
       "home": "capability_a954e1eb16f6",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        -24.871688001019017,
-        -125.87687886756771,
-        130.64970303272665
+        -25.928334092129166,
+        -135.37012441618697,
+        120.56361518614557
       ],
       "world": [
-        130.475030452979,
-        -61.169359770564235,
-        112.9934080092883
+        119.9909286644504,
+        -65.8411686856316,
+        121.65546409575276
       ],
       "screen": [
-        0.30432676983279194,
-        -0.4893363352027978,
-        -0.22370045828087537
+        0.27987310371120444,
+        -0.5268052390142168,
+        -0.22552535765065207
       ],
       "material": {
         "colour": "a5c5d1",
@@ -3117,28 +3149,28 @@
     },
     {
       "id": "decision_b77bc6d23919",
+      "size": 0.006,
       "title": "8 · Setup check: founding book (ADR-0626 D5)",
       "depth": 1,
       "home": "capability_199d7af33d32",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        56.863046755559935,
-        -18.0687951477241,
-        173.1272565357188
+        82.21242914303636,
+        -16.598559450166793,
+        162.78371760891963
       ],
       "world": [
-        173.51537742073128,
-        -54.25815111355012,
-        -21.940857692450397
+        163.9966353924852,
+        -71.86892907919177,
+        -38.37831435790764
       ],
       "screen": [
-        0.40471632114927214,
-        -0.07024100119625284,
-        -0.1489816352813913
+        0.3825143105096062,
+        -0.06529685384620094,
+        -0.12691050167076956
       ],
       "material": {
         "colour": "a5c5d1",
@@ -3152,28 +3184,28 @@
     },
     {
       "id": "decision_b940ed415ec9",
+      "size": 0.006,
       "title": "4 · Waits: founding book (ADR-0633 D3 item 3; ADR-0628 D6)",
       "depth": 1,
       "home": "capability_fa8ea39882fe",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        55.391819184459706,
-        110.17049699822815,
-        135.37777645758376
+        105.08790679957994,
+        120.00310218276111,
+        89.93732101300658
       ],
       "world": [
-        135.7566469626905,
-        29.10000175906865,
-        -119.39956910755436
+        91.67235549253677,
+        -2.378190690043028,
+        -158.50381019865668
       ],
       "screen": [
-        0.31664588779977565,
-        0.428279027360551,
-        -0.15009250976470423
+        0.21382138584793212,
+        0.4660717287623795,
+        -0.1049074865392099
       ],
       "material": {
         "colour": "a5c5d1",
@@ -3187,28 +3219,28 @@
     },
     {
       "id": "decision_c9ba244fd3d6",
+      "size": 0.006,
       "title": "ADR-0650: 0.3's library has no memory type, and its knowledge records are called artifacts",
       "depth": 1,
       "home": "capability_baaeecb42577",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        -9.131735711391661,
-        -103.57669154758118,
-        150.73624239364108
+        -10.380677410569515,
+        -114.64733503455955,
+        142.41195352206623
       ],
       "world": [
-        150.66966570786352,
-        -58.78615141254445,
-        85.88233018253563
+        142.09855787590774,
+        -64.19193141778604,
+        96.02255042666576
       ],
       "screen": [
-        0.35142979095287713,
-        -0.40264613414547173,
-        -0.20938693803423258
+        0.33143809176467365,
+        -0.44635095368395333,
+        -0.21156771715132994
       ],
       "material": {
         "colour": "a5c5d1",
@@ -3222,28 +3254,28 @@
     },
     {
       "id": "decision_ca11ceae8dba",
+      "size": 0.006,
       "title": "2 · Earlier decisions beside their replacements: founding book (G2, approved with ADR-0647)",
       "depth": 1,
       "home": "capability_7889e605384c",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        -14.273817306984672,
+        -40.95918705883499,
         0,
-        182.56284545187947
+        178.48047342911036
       ],
       "world": [
-        182.4600416254315,
-        11.898808571877082,
-        9.984285884111006
+        177.83588762924592,
+        33.3167731140271,
+        28.23692795589998
       ],
       "screen": [
-        0.4255793227152033,
-        1.2084529890182083e-16,
-        -0.21430596948859826
+        0.4147937046242713,
+        -0.0008363116114675461,
+        -0.24012337844150666
       ],
       "material": {
         "colour": "a5c5d1",
@@ -3257,28 +3289,28 @@
     },
     {
       "id": "decision_cc981dbccd5f",
+      "size": 0.006,
       "title": "7 · Board, read only: founding book (ADR-0645 D1 item 7)",
       "depth": 1,
       "home": "capability_56dfc9b9c3cf",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        -89.11529594854514,
-        106.98090824328467,
-        118.93899150171542
+        -127.50892742999868,
+        117.02161802115097,
+        59.83601542017291
       ],
       "world": [
-        118.32144680884919,
-        137.65914741578626,
-        -24.14391761540647
+        58.028793416963104,
+        173.53919842565395,
+        -7.052669306933143
       ],
       "screen": [
-        0.27597911710974,
-        0.4158797552607863,
-        -0.28256673593273396
+        0.13534938598265378,
+        0.4546396543098896,
+        -0.31786354435669584
       ],
       "material": {
         "colour": "a5c5d1",
@@ -3292,28 +3324,28 @@
     },
     {
       "id": "decision_d04020c2b4c1",
+      "size": 0.006,
       "title": "3 · Hooks: founding book (ADR-0626 D1 row 3 and D4, E1)",
       "depth": 1,
       "home": "capability_10e1dea84e5b",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        39.22201030694046,
-        25.553135153652594,
-        177.03560543376983
+        65.22882576190582,
+        27.021938089963676,
+        168.9613847942337
       ],
       "world": [
-        177.30194592634675,
-        -12.684366054754868,
-        -44.00069577313353
+        169.96771120792565,
+        -30.754081869868685,
+        -60.81198890910108
       ],
       "screen": [
-        0.41354831113282553,
-        0.09933577652640575,
-        -0.1651911645568246
+        0.39644155934052006,
+        0.10424639793808389,
+        -0.1425770113208823
       ],
       "material": {
         "colour": "a5c5d1",
@@ -3327,28 +3359,28 @@
     },
     {
       "id": "decision_d23dbdb96a2b",
+      "size": 0.006,
       "title": "7 · Library API: founding book (ADR-0621 D1 and D5)",
       "depth": 1,
       "home": "capability_75d059640d9d",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        -24.87551387922233,
-        -116.78782302137859,
-        138.8335247811989
+        -26.010260733197327,
+        -126.92398056655138,
+        129.40905645947964
       ],
       "world": [
-        138.65863110684853,
-        -55.280851987195355,
-        106.06953296373422
+        128.8443075844005,
+        -60.253030088733084,
+        115.3327844466726
       ],
       "screen": [
-        0.3234146270568695,
-        -0.4540033549268332,
-        -0.2237557613456146
+        0.3005231867152865,
+        -0.49401313878837017,
+        -0.22572410289684386
       ],
       "material": {
         "colour": "a5c5d1",
@@ -3362,28 +3394,28 @@
     },
     {
       "id": "decision_d84bf8c77a1e",
+      "size": 0.006,
       "title": "The app's capability tree",
       "depth": 1,
       "home": "story_a93c6fb1a257",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        7.581010395708584,
-        122.53119663643412,
-        135.8733547544318
+        13.79590403843443,
+        131.7255042380138,
+        126.45552168649388
       ],
       "world": [
-        135.92241576137604,
-        73.67225807811893,
-        -98.134752678461
+        126.81021111244068,
+        75.4811464740813,
+        -108.4191001833927
       ],
       "screen": [
-        0.3170325355964299,
-        0.47633026215376345,
-        -0.19395974201697563
+        0.2957787539553118,
+        0.5114764225700589,
+        -0.189165978774688
       ],
       "material": {
         "colour": "a5c5d1",
@@ -3397,28 +3429,28 @@
     },
     {
       "id": "decision_da37f3db9903",
+      "size": 0.006,
       "title": "3 · Catalogue: founding book (proposed, approved; 0.2's `edit-first-curation`)",
       "depth": 1,
       "home": "capability_36bcae448803",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        73.21216280556476,
-        -104.88680551256789,
-        131.04072514565934
+        122.62591615417128,
+        -115.00848830640984,
+        72.58695960587244
       ],
       "world": [
-        131.54262309877427,
-        -122.80993574292471,
-        33.87022868408949
+        74.30680146220944,
+        -167.06308086570235,
+        10.067803539779456
       ],
       "screen": [
-        0.306816878631879,
-        -0.4077390977786032,
-        -0.13371576173192912
+        0.17331706141084458,
+        -0.4474361039208347,
+        -0.08857627838398163
       ],
       "material": {
         "colour": "a5c5d1",
@@ -3432,28 +3464,28 @@
     },
     {
       "id": "decision_e360a095c406",
+      "size": 0.006,
       "title": "4 · Work model: founding book (ADR-0621 D2)",
       "depth": 1,
       "home": "capability_dd486ffa5b02",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        3.0091584894872163,
-        -102.4811269292263,
-        151.72836909589765
+        1.75028337081025,
+        -113.62926489396554,
+        143.59060229617702
       ],
       "world": [
-        151.74551637657476,
-        -67.37693676635242,
-        77.2436473218972
+        143.46304023671223,
+        -72.81661651815836,
+        87.45873795617548
       ],
       "screen": [
-        0.3539391611955561,
-        -0.3983872139994802,
-        -0.19825453591565612
+        0.3346206816281579,
+        -0.44239970102120774,
+        -0.2004556435309791
       ],
       "material": {
         "colour": "a5c5d1",
@@ -3467,28 +3499,28 @@
     },
     {
       "id": "decision_e73cd3e83fa5",
+      "size": 0.006,
       "title": "Decisions about the whole project sit on no shelf",
       "depth": 1,
       "home": "capability_13b04e769a4b",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        -19.184489800164396,
-        -133.92483813407438,
-        123.40594589349968
+        -20.172224256241538,
+        -142.84881338138064,
+        112.78400721772299
       ],
       "world": [
-        123.2706757965264,
-        -70.73730833073799,
-        115.47081059207039
+        112.29083982537743,
+        -75.14207413043282,
+        123.60166012917456
       ],
       "screen": [
-        0.2875229570747778,
-        -0.5206221354924365,
-        -0.21843688642698145
+        0.261913014675892,
+        -0.5558418563187079,
+        -0.22013619646375326
       ],
       "material": {
         "colour": "a5c5d1",
@@ -3502,28 +3534,28 @@
     },
     {
       "id": "decision_e9a82de47352",
+      "size": 0.006,
       "title": "10 · Plan view: founding book (ADR-0645 D1 item 10, P1)",
       "depth": 1,
       "home": "capability_f874f7de8110",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        -91.7322751686426,
-        115.982339798223,
-        108.01028167407947
+        -124.23749351470985,
+        125.43575152700537,
+        48.61945952021484
       ],
       "world": [
-        107.3749451353083,
-        145.3920817916665,
-        -29.405749598929344
+        46.87354513613305,
+        176.31975284795212,
+        -15.721002576426423
       ],
       "screen": [
-        0.2504469253661366,
-        0.4508721030874786,
-        -0.28489852271596805
+        0.10933030275882379,
+        0.4874014116684305,
+        -0.31470572155906984
       ],
       "material": {
         "colour": "a5c5d1",
@@ -3537,28 +3569,28 @@
     },
     {
       "id": "decision_fae3dd7b8ffa",
+      "size": 0.006,
       "title": "6 · Rounds: founding book (proposed, approved; 0.2's `pre-merge-librarian-pass`)",
       "depth": 1,
       "home": "capability_389fd5e3722d",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        77.78533840347538,
-        -137.77789637637838,
-        92.19342058713713
+        104.88806584576534,
+        -145.7660860857079,
+        35.82842712691125
       ],
       "world": [
-        92.72778841388701,
-        -147.66036898637307,
-        55.954509082624924
+        37.245224761688384,
+        -173.6472952313487,
+        44.63568629794034
       ],
       "screen": [
-        0.2162831326711717,
-        -0.5356005923510279,
-        -0.12927424195008508
+        0.0868727058661679,
+        -0.5668296115830764,
+        -0.10433480483284185
       ],
       "material": {
         "colour": "a5c5d1",
@@ -3572,28 +3604,28 @@
     },
     {
       "id": "decision_fee3ecbf6de5",
+      "size": 0.006,
       "title": "2 · Who wrote it: founding book (ADR-0645 D2, W1 and A1)",
       "depth": 1,
       "home": "capability_3c32df358d67",
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
       "at": [
-        -44.92412282241348,
-        131.59894715164572,
-        119.14896011806009
+        -87.05438599058822,
+        140.03345394558542,
+        79.65613633532118
       ],
       "world": [
-        118.8362399854082,
-        119.63283009211075,
-        -71.40636127322739
+        78.49051209360672,
+        157.55985827489167,
+        -50.4684552139198
       ],
       "screen": [
-        0.27717984757908926,
-        0.5115804196534198,
-        -0.24202480886960598
+        0.1830753664133262,
+        0.5440001724167692,
+        -0.2810288143479671
       ],
       "material": {
         "colour": "a5c5d1",
@@ -3607,11 +3639,11 @@
     },
     {
       "id": "agent_0b14b89a31ce",
+      "size": 0.006,
       "title": "frontend-builder",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -3642,11 +3674,11 @@
     },
     {
       "id": "agent_14dfa5f34189",
+      "size": 0.006,
       "title": "session-orchestrator",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -3656,14 +3688,14 @@
         0
       ],
       "world": [
-        0.6826303590795624,
-        -75.8067173437373,
-        -63.6093885638903
+        1.507053699755298,
+        -75.80090170883499,
+        -63.60212874885547
       ],
       "screen": [
-        0.001592202672398295,
-        -2.4859604345517414e-16,
-        -0.10926313922577524
+        0.003515130694499995,
+        -0.000007087245015940965,
+        -0.1092715080077864
       ],
       "material": {
         "colour": "a5c5d1",
@@ -3677,11 +3709,11 @@
     },
     {
       "id": "agent_82228ab38aec",
+      "size": 0.006,
       "title": "explorer",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -3691,14 +3723,14 @@
         -65.9739972080327
       ],
       "world": [
-        -66.19997105360409,
-        -17.486978981090154,
-        71.44961924831576
+        -66.54845996823586,
+        -17.858621792676402,
+        71.03274453119948
       ],
       "screen": [
-        -0.15440826711305572,
-        -0.2564686565387684,
-        -0.22990148804462196
+        -0.15522110084334284,
+        -0.256155885717718,
+        -0.2293944401859177
       ],
       "material": {
         "colour": "a5c5d1",
@@ -3712,11 +3744,11 @@
     },
     {
       "id": "agent_bf87c8aaa4b8",
+      "size": 0.006,
       "title": "story-author",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -3726,14 +3758,14 @@
         65.9739972080327
       ],
       "world": [
-        65.74488414755105,
-        68.02479054358169,
-        -29.043360205722216
+        65.54375750173233,
+        68.39255626523307,
+        -28.63132536529584
       ],
       "screen": [
-        0.15334679866479017,
-        0.25646865653876794,
-        -0.23073654819610245
+        0.15287768038034286,
+        0.2561606105477281,
+        -0.23123801686679912
       ],
       "material": {
         "colour": "a5c5d1",
@@ -3747,11 +3779,11 @@
     },
     {
       "id": "agent_d6a2ac6972a3",
+      "size": 0.006,
       "title": "corpus-investigator",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -3761,14 +3793,14 @@
         -98.96099581204905
       ],
       "world": [
-        -98.95864140086636,
-        -42.930193160095,
-        50.100227614748256
+        -99.02925788289413,
+        -43.484765075112094,
+        49.478563936754185
       ],
       "screen": [
-        -0.23081629933338443,
-        -0.2564686565387685,
-        -0.19942875328310516
+        -0.23098100890116807,
+        -0.25600313776111666,
+        -0.19867236588605441
       ],
       "material": {
         "colour": "a5c5d1",
@@ -3782,11 +3814,11 @@
     },
     {
       "id": "agent_e314f29707ec",
+      "size": 0.006,
       "title": "librarian-curator",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -3796,14 +3828,14 @@
         65.9739972080327
       ],
       "world": [
-        65.51734069452453,
-        72.09006234141857,
-        17.42927629135477
+        65.00150104889855,
+        72.4559050331914,
+        17.8388727032733
       ],
       "screen": [
-        0.15281606444065743,
-        0.12823432826938394,
-        -0.2610005179197492
+        0.15161289313224666,
+        0.12792873852476525,
+        -0.2614991969964422
       ],
       "material": {
         "colour": "a5c5d1",
@@ -3817,11 +3849,11 @@
     },
     {
       "id": "decision_086ba2fa35d6",
+      "size": 0.006,
       "title": "6 · Knowledge and memory: founding book (6-a)",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -3831,14 +3863,14 @@
         -65.9739972080327
       ],
       "world": [
-        -65.51734069452453,
-        -29.68279437460082,
-        -67.9682902429152
+        -64.9216906097345,
+        -30.048668096551385,
+        -68.37784967450793
       ],
       "screen": [
-        -0.15281606444065743,
-        0.12823432826938364,
-        -0.1391095788736817
+        -0.1514267390990542,
+        0.12853973035117053,
+        -0.1386108997969887
       ],
       "material": {
         "colour": "a5c5d1",
@@ -3852,11 +3884,11 @@
     },
     {
       "id": "decision_4f2235a6ee77",
+      "size": 0.006,
       "title": "The forest becomes a planet, and each read names its agent",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -3866,14 +3898,14 @@
         0
       ],
       "world": [
-        0.45508690605303975,
-        -29.334177579082656,
-        -67.67576601837375
+        1.0446076860855533,
+        -29.330316004236657,
+        -67.67090765152096
       ],
       "screen": [
-        0.0010614684482655257,
-        0.1282343282693838,
-        -0.13952710894942189
+        0.0024364974795962214,
+        0.1282295096079574,
+        -0.13953268813742947
       ],
       "material": {
         "colour": "a5c5d1",
@@ -3887,11 +3919,11 @@
     },
     {
       "id": "decision_6be3b0bfb19e",
+      "size": 0.006,
       "title": "Verified health is dropped from the MVP",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -3901,14 +3933,14 @@
         -65.9739972080327
       ],
       "world": [
-        -66.42751450663062,
-        28.98556078356449,
-        67.3832417938323
+        -67.01090598190561,
+        28.61196391192193,
+        66.963965628534
       ],
       "screen": [
-        -0.1549390013371885,
-        -0.12823432826938436,
-        -0.2601654577682687
+        -0.15629973405824663,
+        -0.12791928886474468,
+        -0.2596556203155608
       ],
       "material": {
         "colour": "a5c5d1",
@@ -3922,11 +3954,11 @@
     },
     {
       "id": "decision_b8617ff29caf",
+      "size": 0.006,
       "title": "The license: PolyForm Shield",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -3936,14 +3968,14 @@
         65.9739972080327
       ],
       "world": [
-        66.42751450663062,
-        -71.39282875038224,
-        -16.844227842271852
+        66.93109554274156,
+        -71.01920084856194,
+        -16.424988657299362
       ],
       "screen": [
-        0.1549390013371885,
-        -0.12823432826938413,
-        -0.1399446390251622
+        0.15611358002505415,
+        -0.12854918001119195,
+        -0.14045447647787013
       ],
       "material": {
         "colour": "a5c5d1",
@@ -3957,11 +3989,11 @@
     },
     {
       "id": "decision_e3661ebef646",
+      "size": 0.006,
       "title": "7 · Library entrypoints: founding book",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -3971,14 +4003,14 @@
         -98.96099581204905
       ],
       "world": [
-        -98.95864140086636,
-        41.88434277354051,
-        -50.97780028837263
+        -98.86963700456603,
+        41.329708798167914,
+        -51.59939000571508
       ],
       "screen": [
-        -0.23081629933338443,
-        0.25646865653876766,
-        -0.19942875328310516
+        -0.23060870083478313,
+        0.2569337999907556,
+        -0.1986723658860543
       ],
       "material": {
         "colour": "a5c5d1",
@@ -3992,11 +4024,11 @@
     },
     {
       "id": "guardrail_2d0fb4d45f75",
+      "size": 0.006,
       "title": "Never mock a module — give the code a seam",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -4006,14 +4038,14 @@
         0
       ],
       "world": [
-        -0.6826303590795587,
-        33.39944937691955,
-        114.14840251545074
+        -1.586864138919341,
+        33.39366477219498,
+        114.14110572009011
       ],
       "screen": [
-        -0.0015922026723982864,
-        -0.2564686565387682,
-        -0.29084695756765566
+        -0.003701284727692445,
+        -0.2564613816309207,
+        -0.2908385887856445
       ],
       "material": {
         "colour": "a5c5d1",
@@ -4027,11 +4059,11 @@
     },
     {
       "id": "guardrail_2f0b3ec349d9",
+      "size": 0.006,
       "title": "Verification is never bypassed",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -4041,14 +4073,14 @@
         -32.98699860401635
       ],
       "world": [
-        -33.44130070634183,
-        7.956235197914696,
-        92.79901088188325
+        -34.0676620535776,
+        7.767521489759291,
+        92.5869251256448
       ],
       "screen": [
-        -0.078000234892727,
-        -0.2564686565387684,
-        -0.26037422280613887
+        -0.07946119278551765,
+        -0.25630863367431933,
+        -0.2601165144857812
       ],
       "material": {
         "colour": "a5c5d1",
@@ -4062,11 +4094,11 @@
     },
     {
       "id": "guardrail_40e3fd9d51a3",
+      "size": 0.006,
       "title": "Types stay honest",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -4076,14 +4108,14 @@
         -32.98699860401635
       ],
       "world": [
-        -32.53112689423575,
-        -8.30485199343286,
-        -93.09153510642471
+        -31.898636242242453,
+        -8.485873582074019,
+        -93.29386714863176
       ],
       "screen": [
-        -0.07587729799619596,
-        0.25646865653876777,
-        -0.13931834391155173
+        -0.07440204379313275,
+        0.256618854417532,
+        -0.13907179396720903
       ],
       "material": {
         "colour": "a5c5d1",
@@ -4097,11 +4129,11 @@
     },
     {
       "id": "guardrail_647d58a593c5",
+      "size": 0.006,
       "title": "The owner owns the outer loop",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -4111,14 +4143,14 @@
         32.98699860401635
       ],
       "world": [
-        32.986213800288795,
-        -42.23295956905867,
-        50.68527606383117
+        32.903338708745984,
+        -42.04806089048264,
+        50.892447982728115
       ],
       "screen": [
-        0.0769387664444615,
-        -0.2564686565387682,
-        -0.20026381343458555
+        0.07674546425613275,
+        -0.256623579247543,
+        -0.20051594256693583
       ],
       "material": {
         "colour": "a5c5d1",
@@ -4132,11 +4164,11 @@
     },
     {
       "id": "guardrail_6ac067d45164",
+      "size": 0.006,
       "title": "Escalate up when blocked or out of scope",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -4146,14 +4178,14 @@
         -32.98699860401635
       ],
       "world": [
-        -32.53112689423575,
-        -50.71211996025062,
-        -42.55252115486426
+        -31.978446681406496,
+        -50.893110518714025,
+        -42.75489017739713
       ],
       "screen": [
-        -0.07587729799619596,
-        -3.3146139127356556e-16,
-        -0.13931834391155173
+        -0.07458819782632521,
+        0.0001503855415958446,
+        -0.13907179396720903
       ],
       "material": {
         "colour": "a5c5d1",
@@ -4167,11 +4199,11 @@
     },
     {
       "id": "guardrail_b114f702f8de",
+      "size": 0.006,
       "title": "The library is the edit surface",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -4181,14 +4213,14 @@
         98.96099581204905
       ],
       "world": [
-        98.95864140086636,
-        -41.88434277354051,
-        50.97780028837263
+        98.86963700456603,
+        -41.329708798167914,
+        51.59939000571508
       ],
       "screen": [
-        0.23081629933338443,
-        -0.2564686565387681,
-        -0.20068134351032574
+        0.23060870083478313,
+        -0.25693379999075605,
+        -0.2014377309073766
       ],
       "material": {
         "colour": "a5c5d1",
@@ -4202,11 +4234,11 @@
     },
     {
       "id": "guardrail_bdb3f0e65931",
+      "size": 0.006,
       "title": "An agent never self-attests",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -4216,14 +4248,14 @@
         98.96099581204905
       ],
       "world": [
-        98.73109794783983,
-        25.791830974523016,
-        21.641915858108952
+        98.4470962104783,
+        26.344495374750423,
+        22.261122617432274
       ],
       "screen": [
-        0.23028556510925166,
-        -2.7621782606130418e-17,
-        -0.2309453132339726
+        0.2296231446364756,
+        -0.0004629686998146775,
+        -0.23169891103701956
       ],
       "material": {
         "colour": "a5c5d1",
@@ -4237,11 +4269,11 @@
     },
     {
       "id": "pattern_28ad4dd7868e",
+      "size": 0.006,
       "title": "Parallel build-lane fan-out",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -4251,14 +4283,14 @@
         -98.96099581204905
       ],
       "world": [
-        -98.73109794783983,
-        -25.791830974523016,
-        -21.641915858108952
+        -98.4470962104783,
+        -26.344495374750423,
+        -22.261122617432274
       ],
       "screen": [
-        -0.23028556510925166,
-        -4.1432673909195697e-16,
-        -0.1691647835594583
+        -0.2296231446364756,
+        0.00046296869981423555,
+        -0.16841118575641134
       ],
       "material": {
         "colour": "a5c5d1",
@@ -4272,11 +4304,11 @@
     },
     {
       "id": "pattern_3d1ac0a1ee70",
+      "size": 0.006,
       "title": "Proof-walkthrough first",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -4286,14 +4318,14 @@
         0
       ],
       "world": [
-        0.6826303590795587,
-        -33.39944937691955,
-        -114.14840251545074
+        1.586864138919341,
+        -33.39366477219498,
+        -114.14110572009011
       ],
       "screen": [
-        0.0015922026723982864,
-        0.25646865653876777,
-        -0.10926313922577524
+        0.003701284727692445,
+        0.25646138163092025,
+        -0.1092715080077864
       ],
       "material": {
         "colour": "a5c5d1",
@@ -4307,11 +4339,11 @@
     },
     {
       "id": "pattern_4ed1969a172c",
+      "size": 0.006,
       "title": "Edit-first curation",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -4321,14 +4353,14 @@
         0
       ],
       "world": [
-        -0.4550869060530379,
-        8.130543595673778,
-        92.94527299415398
+        -1.0845129056675749,
+        8.126697535916655,
+        92.94039613713828
       ],
       "screen": [
-        -0.0010614684482655214,
-        -0.25646865653876827,
-        -0.260582987844009
+        -0.0025295744961924462,
+        -0.2564637440459259,
+        -0.26057740865600143
       ],
       "material": {
         "colour": "a5c5d1",
@@ -4342,11 +4374,11 @@
     },
     {
       "id": "pattern_67e658cde793",
+      "size": 0.006,
       "title": "Decompose by testability; delegate the glue",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -4356,14 +4388,14 @@
         0
       ],
       "world": [
-        0.4550869060530379,
-        -8.130543595673778,
-        -92.94527299415398
+        1.0845129056675749,
+        -8.126697535916655,
+        -92.94039613713828
       ],
       "screen": [
-        0.0010614684482655214,
-        0.2564686565387678,
-        -0.13952710894942189
+        0.0025295744961924462,
+        0.2564637440459255,
+        -0.13953268813742947
       ],
       "material": {
         "colour": "a5c5d1",
@@ -4377,11 +4409,11 @@
     },
     {
       "id": "pattern_71e822187330",
+      "size": 0.006,
       "title": "Pull-based context architecture",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -4391,14 +4423,14 @@
         0
       ],
       "world": [
-        -0.4550869060530434,
-        71.7414455459004,
-        17.13675206681331
+        -0.9647972469215103,
+        71.73755294087667,
+        17.13193068028633
       ],
       "screen": [
-        -0.0010614684482655344,
-        0.1282343282693838,
-        -0.260582987844009
+        -0.0022503434464037713,
+        0.12823895926797838,
+        -0.26057740865600143
       ],
       "material": {
         "colour": "a5c5d1",
@@ -4412,11 +4444,11 @@
     },
     {
       "id": "pattern_a45e96114c7a",
+      "size": 0.006,
       "title": "An example carries its discriminator",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -4426,14 +4458,14 @@
         -32.98699860401635
       ],
       "world": [
-        -32.98621380028878,
-        -42.58157636457684,
-        50.392751839289716
+        -33.06295958707407,
+        -42.76641298279737,
+        50.18550595974115
       ],
       "screen": [
-        -0.07693876644446146,
-        -0.2564686565387684,
-        -0.19984628335884547
+        -0.07711777232251765,
+        -0.2563133585043298,
+        -0.19959415422649518
       ],
       "material": {
         "colour": "a5c5d1",
@@ -4447,11 +4479,11 @@
     },
     {
       "id": "pattern_ad3e87c83f34",
+      "size": 0.006,
       "title": "When a term is in question, the definition note wins",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -4461,14 +4493,14 @@
         32.98699860401635
       ],
       "world": [
-        32.53112689423574,
-        93.11938792706836,
-        -7.98649279669618
+        32.05825712057054,
+        93.30034745535403,
+        -7.784086793837502
       ],
       "screen": [
-        0.07587729799619594,
-        0.2564686565387679,
-        -0.26079175288187906
+        0.07477435185951765,
+        0.25631808333433986,
+        -0.26103830282622187
       ],
       "material": {
         "colour": "a5c5d1",
@@ -4482,11 +4514,11 @@
     },
     {
       "id": "pattern_e99d4cdbe809",
+      "size": 0.006,
       "title": "A measured claim carries the method that produced it",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -4496,14 +4528,14 @@
         32.98699860401635
       ],
       "world": [
-        33.441300706341835,
-        -92.7707711315502,
-        8.279017021237639
+        33.908041175249515,
+        -92.58199536303931,
+        8.49102881682447
       ],
       "screen": [
-        0.07800023489272703,
-        -0.25646865653876827,
-        -0.13973587398729204
+        0.07908888471913275,
+        -0.2566283040775535,
+        -0.1399935823076498
       ],
       "material": {
         "colour": "a5c5d1",
@@ -4517,11 +4549,11 @@
     },
     {
       "id": "pattern_ee166b5c76ba",
+      "size": 0.006,
       "title": "Pair the fence with the affordance",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -4531,14 +4563,14 @@
         -65.9739972080327
       ],
       "world": [
-        -66.42751450663062,
-        7.781926800155612,
-        92.65274876961253
+        -67.05081120148763,
+        7.408345443601927,
+        92.23345411415131
       ],
       "screen": [
-        -0.1549390013371885,
-        -0.25646865653876844,
-        -0.2601654577682687
+        -0.15639281107484287,
+        -0.2561535233027128,
+        -0.2596556203155608
       ],
       "material": {
         "colour": "a5c5d1",
@@ -4552,11 +4584,11 @@
     },
     {
       "id": "pattern_efc36d671fa5",
+      "size": 0.006,
       "title": "Render and witness a flag-guarded surface",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -4566,14 +4598,14 @@
         65.9739972080327
       ],
       "world": [
-        65.51734069452453,
-        93.29369632482745,
-        -7.8402306844254515
+        65.04140626848056,
+        93.6595235015114,
+        -7.4306157823440175
       ],
       "screen": [
-        0.15281606444065743,
-        0.256468656538768,
-        -0.2610005179197492
+        0.15170597014884285,
+        0.2561629729627333,
+        -0.2614991969964422
       ],
       "material": {
         "colour": "a5c5d1",
@@ -4587,11 +4619,11 @@
     },
     {
       "id": "principle_00574b7381cb",
+      "size": 0.006,
       "title": "A compliance gate turns a judgment ceremony into theatre",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -4601,14 +4633,14 @@
         65.9739972080327
       ],
       "world": [
-        66.42751450663062,
-        -92.59646273379111,
-        8.425279133508367
+        66.89119032315955,
+        -92.22281931688194,
+        8.844499828317952
       ],
       "screen": [
-        0.1549390013371885,
-        -0.25646865653876816,
-        -0.1399446390251622
+        0.15602050300845796,
+        -0.25678341444916003,
+        -0.14045447647787013
       ],
       "material": {
         "colour": "a5c5d1",
@@ -4622,11 +4654,11 @@
     },
     {
       "id": "principle_037c644a6e7c",
+      "size": 0.006,
       "title": "Minimum test to red: pin the missing behaviour, nothing else",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -4636,14 +4668,14 @@
         -65.9739972080327
       ],
       "world": [
-        -65.51734069452453,
-        -8.479160391191943,
-        -93.23779721869543
+        -64.88178539015247,
+        -8.845049628231383,
+        -93.64733816012524
       ],
       "screen": [
-        -0.15281606444065743,
-        0.2564686565387677,
-        -0.1391095788736817
+        -0.15133366208245794,
+        0.25677396478913866,
+        -0.1386108997969887
       ],
       "material": {
         "colour": "a5c5d1",
@@ -4657,11 +4689,11 @@
     },
     {
       "id": "principle_049430a6e917",
+      "size": 0.006,
       "title": "Test creation principles",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -4671,14 +4703,14 @@
         -32.98699860401635
       ],
       "world": [
-        -32.986213800288795,
-        42.23295956905867,
-        -50.68527606383117
+        -32.903338708745984,
+        42.04806089048264,
+        -50.892447982728115
       ],
       "screen": [
-        -0.0769387664444615,
-        0.25646865653876777,
-        -0.19984628335884536
+        -0.07674546425613275,
+        0.25662357924754253,
+        -0.19959415422649507
       ],
       "material": {
         "colour": "a5c5d1",
@@ -4692,11 +4724,11 @@
     },
     {
       "id": "principle_084e4640a77f",
+      "size": 0.006,
       "title": "A contract that says \"observable\" must name its observer",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -4706,14 +4738,14 @@
         32.98699860401635
       ],
       "world": [
-        32.53112689423575,
-        50.71211996025062,
-        42.55252115486426
+        31.978446681406496,
+        50.893110518714025,
+        42.75489017739713
       ],
       "screen": [
-        0.07587729799619596,
-        -1.1048713042452182e-16,
-        -0.26079175288187917
+        0.07458819782632521,
+        -0.00015038554159628654,
+        -0.26103830282622187
       ],
       "material": {
         "colour": "a5c5d1",
@@ -4727,11 +4759,11 @@
     },
     {
       "id": "principle_08737a12669c",
+      "size": 0.006,
       "title": "Cross-story dependency direction and the no-cycle rule",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -4741,14 +4773,14 @@
         65.9739972080327
       ],
       "world": [
-        65.97242760057757,
-        -42.05865117129959,
-        50.8315381761019
+        65.886487856656,
+        -41.68888484432527,
+        51.2459189942216
       ],
       "screen": [
-        0.15387753288892297,
-        -0.25646865653876816,
-        -0.2004725784724557
+        0.15367708254545795,
+        -0.2567786896191495,
+        -0.20097683673715616
       ],
       "material": {
         "colour": "a5c5d1",
@@ -4762,11 +4794,11 @@
     },
     {
       "id": "principle_139ec9dc3f17",
+      "size": 0.006,
       "title": "Observability-first",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -4776,14 +4808,14 @@
         -65.9739972080327
       ],
       "world": [
-        -65.97242760057757,
-        42.05865117129959,
-        -50.8315381761019
+        -65.886487856656,
+        41.68888484432527,
+        -51.2459189942216
       ],
       "screen": [
-        -0.15387753288892297,
-        0.2564686565387677,
-        -0.1996375183209752
+        -0.15367708254545795,
+        0.25677868961914907,
+        -0.19913326005627474
       ],
       "material": {
         "colour": "a5c5d1",
@@ -4797,11 +4829,11 @@
     },
     {
       "id": "principle_13a38824af26",
+      "size": 0.006,
       "title": "Two-consumer extraction",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -4811,14 +4843,14 @@
         0
       ],
       "world": [
-        0.2275434530265208,
-        -25.268905781245767,
-        -21.203129521296766
+        0.5023512332517659,
+        -25.26696723627833,
+        -21.200709582951824
       ],
       "screen": [
-        0.000530734224132765,
-        -2.3478515215210894e-16,
-        -0.16979107867306875
+        0.001171710231499998,
+        -0.0000023624150054563675,
+        -0.16979386826707243
       ],
       "material": {
         "colour": "a5c5d1",
@@ -4832,11 +4864,11 @@
     },
     {
       "id": "principle_155218ce771f",
+      "size": 0.006,
       "title": "Signal and noise",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -4846,14 +4878,14 @@
         0
       ],
       "world": [
-        0.4550869060530434,
-        -71.7414455459004,
-        -17.13675206681331
+        0.9647972469215103,
+        -71.73755294087667,
+        -17.13193068028633
       ],
       "screen": [
-        0.0010614684482655344,
-        -0.12823432826938425,
-        -0.13952710894942189
+        0.0022503434464037713,
+        -0.12823895926797882,
+        -0.13953268813742947
       ],
       "material": {
         "colour": "a5c5d1",
@@ -4867,11 +4899,11 @@
     },
     {
       "id": "principle_183377547f97",
+      "size": 0.006,
       "title": "Deep modules",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -4881,14 +4913,14 @@
         32.98699860401635
       ],
       "world": [
-        32.98621380028878,
-        42.58157636457684,
-        -50.392751839289716
+        33.06295958707407,
+        42.76641298279737,
+        -50.18550595974115
       ],
       "screen": [
-        0.07693876644446146,
-        0.25646865653876794,
-        -0.20026381343458544
+        0.07711777232251765,
+        0.25631335850432935,
+        -0.20051594256693572
       ],
       "material": {
         "colour": "a5c5d1",
@@ -4902,11 +4934,11 @@
     },
     {
       "id": "principle_1e3418812c33",
+      "size": 0.006,
       "title": "Legible at the resting view",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -4916,14 +4948,14 @@
         -32.98699860401635
       ],
       "world": [
-        -33.66884415936835,
-        75.63240894597823,
-        63.46312645161957
+        -34.49020284766532,
+        75.44172566267763,
+        63.24865773736199
       ],
       "screen": [
-        -0.07853096911685978,
-        -2.4859604345517414e-16,
-        -0.2906381925297856
+        -0.0804467489838252,
+        0.000162197616622063,
+        -0.2903776946154242
       ],
       "material": {
         "colour": "a5c5d1",
@@ -4937,11 +4969,11 @@
     },
     {
       "id": "principle_1f4e24939fac",
+      "size": 0.006,
       "title": "Exploration principles",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -4951,14 +4983,14 @@
         32.98699860401635
       ],
       "world": [
-        33.66884415936835,
-        -75.63240894597823,
-        -63.46312645161957
+        34.49020284766532,
+        -75.44172566267763,
+        -63.24865773736199
       ],
       "screen": [
-        0.07853096911685978,
-        -1.9335247824291323e-16,
-        -0.10947190426364528
+        0.0804467489838252,
+        -0.00016219761662250495,
+        -0.10973240217800673
       ],
       "material": {
         "colour": "a5c5d1",
@@ -4972,11 +5004,11 @@
     },
     {
       "id": "principle_2366111e8a67",
+      "size": 0.006,
       "title": "Claim by write-ownership — the capability you will write",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -4986,14 +5018,14 @@
         0
       ],
       "world": [
-        -0.4550869060530361,
-        -13.073090387735093,
-        118.2147799699342
+        -1.1244181252495964,
+        -13.076920932403347,
+        118.2098846227556
       ],
       "screen": [
-        -0.0010614684482655172,
-        -0.3847029848081523,
-        -0.260582987844009
+        -0.0026226515127886715,
+        -0.38469797848389403,
+        -0.26057740865600154
       ],
       "material": {
         "colour": "a5c5d1",
@@ -5007,11 +5039,11 @@
     },
     {
       "id": "principle_25e8591976f5",
+      "size": 0.006,
       "title": "Slow growth: the minimum to green",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -5021,14 +5053,14 @@
         98.96099581204905
       ],
       "world": [
-        98.95864140086636,
-        0.5229251932772486,
-        0.43878633681218693
+        98.94944744373008,
+        1.0775281384720918,
+        1.060413034480451
       ],
       "screen": [
-        0.23081629933338443,
-        -4.100108355597486e-17,
-        -0.20068134351032574
+        0.2307948548679756,
+        -0.00046533111481992324,
+        -0.2014377309073766
       ],
       "material": {
         "colour": "a5c5d1",
@@ -5042,11 +5074,11 @@
     },
     {
       "id": "principle_275d164491ec",
+      "size": 0.006,
       "title": "Least-authority tool grants",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -5056,14 +5088,14 @@
         98.96099581204905
       ],
       "world": [
-        98.73109794783984,
-        4.588196991114137,
-        46.911422833889176
+        98.4071909908963,
+        5.140876906430419,
+        47.530611103049594
       ],
       "screen": [
-        0.2302855651092517,
-        -0.12823432826938408,
-        -0.2309453132339726
+        0.2295300676198794,
+        -0.1286972031377828,
+        -0.23169891103701956
       ],
       "material": {
         "colour": "a5c5d1",
@@ -5077,11 +5109,11 @@
     },
     {
       "id": "principle_31651a3224fb",
+      "size": 0.006,
       "title": "Defects amend the owning capability",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -5091,14 +5123,14 @@
         -98.96099581204905
       ],
       "world": [
-        -99.18618485389288,
-        45.949614571377396,
-        -4.505163791295642
+        -99.41189345739983,
+        45.393057566126245,
+        -5.129191937145944
       ],
       "screen": [
-        -0.2313470335575172,
-        0.12823432826938364,
-        -0.2296927230067518
+        -0.2318734880828794,
+        0.1287019279677928,
+        -0.22893354601569738
       ],
       "material": {
         "colour": "a5c5d1",
@@ -5112,11 +5144,11 @@
     },
     {
       "id": "principle_34cb39f936b3",
+      "size": 0.006,
       "title": "One way to do things",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -5126,14 +5158,14 @@
         -98.96099581204905
       ],
       "world": [
-        -98.73109794783983,
-        -46.99546495793189,
-        3.6275911176712676
+        -98.48700143006033,
+        -47.548113843070425,
+        3.0083658681850416
       ],
       "screen": [
-        -0.23028556510925166,
-        -0.1282343282693844,
-        -0.1691647835594584
+        -0.22971622165307182,
+        -0.12777126573815384,
+        -0.16841118575641145
       ],
       "material": {
         "colour": "a5c5d1",
@@ -5147,11 +5179,11 @@
     },
     {
       "id": "principle_3c243d0d86a1",
+      "size": 0.006,
       "title": "The reader chooses the thread and the depth",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -5161,14 +5193,14 @@
         98.96099581204905
       ],
       "world": [
-        99.18618485389287,
-        -3.5423466045596403,
-        -46.033850160264805
+        99.49170389656386,
+        -2.985820629486236,
+        -45.409785034088685
       ],
       "screen": [
-        0.23134703355751718,
-        0.128234328269384,
-        -0.1704173737866791
+        0.23205964211607183,
+        0.1277665409081429,
+        -0.17117655077773342
       ],
       "material": {
         "colour": "a5c5d1",
@@ -5182,11 +5214,11 @@
     },
     {
       "id": "principle_3e47feb3d912",
+      "size": 0.006,
       "title": "Red-green",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -5196,14 +5228,14 @@
         65.9739972080327
       ],
       "world": [
-        65.97242760057757,
-        -20.855017187890713,
-        25.56203120032168
+        65.92639307623803,
+        -20.485266376005274,
+        25.976430508604285
       ],
       "screen": [
-        0.15387753288892297,
-        -0.12823432826938413,
-        -0.2004725784724557
+        0.15377015956205417,
+        -0.12854445518118143,
+        -0.20097683673715616
       ],
       "material": {
         "colour": "a5c5d1",
@@ -5217,11 +5249,11 @@
     },
     {
       "id": "principle_425d1687511a",
+      "size": 0.006,
       "title": "An observable is evidence only for what it observes",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -5231,14 +5263,14 @@
         0
       ],
       "world": [
-        0.4550869060530361,
-        13.073090387735093,
-        -118.2147799699342
+        1.1244181252495964,
+        13.076920932403347,
+        -118.2098846227556
       ],
       "screen": [
-        0.0010614684482655172,
-        0.38470298480815185,
-        -0.13952710894942189
+        0.0026226515127886715,
+        0.3846979784838936,
+        -0.13953268813742936
       ],
       "material": {
         "colour": "a5c5d1",
@@ -5252,11 +5284,11 @@
     },
     {
       "id": "principle_43ea5d4f68c4",
+      "size": 0.006,
       "title": "The resting view is designed, not fitted",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -5266,14 +5298,14 @@
         0
       ],
       "world": [
-        -0.2275434530265153,
-        -38.341996168980856,
-        97.01165044863743
+        -0.6220668919978305,
+        -38.34388816868167,
+        97.00917503980378
       ],
       "screen": [
-        -0.0005307342241327522,
-        -0.38470298480815224,
-        -0.23031901812036226
+        -0.0014509412812886732,
+        -0.38470034089889926,
+        -0.23031622852635858
       ],
       "material": {
         "colour": "a5c5d1",
@@ -5287,11 +5319,11 @@
     },
     {
       "id": "principle_4642c49301e6",
+      "size": 0.006,
       "title": "Price the deferral",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -5301,14 +5333,14 @@
         0
       ],
       "world": [
-        0.2275434530265153,
-        38.341996168980856,
-        -97.01165044863743
+        0.6220668919978305,
+        38.34388816868167,
+        -97.00917503980378
       ],
       "screen": [
-        0.0005307342241327522,
-        0.3847029848081518,
-        -0.16979107867306864
+        0.0014509412812886732,
+        0.3847003408988988,
+        -0.16979386826707232
       ],
       "material": {
         "colour": "a5c5d1",
@@ -5322,11 +5354,11 @@
     },
     {
       "id": "principle_48af5028121b",
+      "size": 0.006,
       "title": "Implementation outranks the doc",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -5336,14 +5368,14 @@
         32.98699860401635
       ],
       "world": [
-        32.75867034726227,
-        4.2395801955959715,
-        46.61889860934772
+        32.440892695076236,
+        4.422524814115691,
+        46.82366908006262
       ],
       "screen": [
-        0.07640803222032871,
-        -0.1282343282693842,
-        -0.2305277831582323
+        0.07566683104122897,
+        -0.12838698239456967,
+        -0.2307771226965789
       ],
       "material": {
         "colour": "a5c5d1",
@@ -5357,11 +5389,11 @@
     },
     {
       "id": "principle_4e9e67b0f6ee",
+      "size": 0.006,
       "title": "A spec body describes only what it contracts",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -5371,14 +5403,14 @@
         -32.98699860401635
       ],
       "world": [
-        -33.21375725331531,
-        46.29823136689556,
-        -4.212639566754183
+        -33.445595161579774,
+        46.11140965844097,
+        -4.422249914158976
       ],
       "screen": [
-        -0.07746950066859425,
-        0.12823432826938375,
-        -0.230110253082492
+        -0.07801025150422898,
+        0.12839170722457968,
+        -0.22985533435613803
       ],
       "material": {
         "colour": "a5c5d1",
@@ -5392,11 +5424,11 @@
     },
     {
       "id": "principle_5126b1c5db6b",
+      "size": 0.006,
       "title": "Reference, don't restate",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -5406,14 +5438,14 @@
         -32.98699860401635
       ],
       "world": [
-        -32.75867034726227,
-        -46.646848162413725,
-        3.9201153422127257
+        -32.52070313424028,
+        -46.8297617507557,
+        3.7153078911720088
       ],
       "screen": [
-        -0.07640803222032871,
-        -0.12823432826938433,
-        -0.1695823136351986
+        -0.07585298507442143,
+        -0.128081486481367,
+        -0.1693329740968521
       ],
       "material": {
         "colour": "a5c5d1",
@@ -5427,11 +5459,11 @@
     },
     {
       "id": "principle_561ef0d505d9",
+      "size": 0.006,
       "title": "Durable notes carry intent, not implementation surface",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -5441,14 +5473,14 @@
         32.98699860401635
       ],
       "world": [
-        33.21375725331531,
-        -3.890963400077806,
-        -46.326374384806265
+        33.52540560074382,
+        -3.7041727218009637,
+        -46.11672705707566
       ],
       "screen": [
-        0.07746950066859425,
-        0.12823432826938388,
-        -0.1699998437109388
+        0.07819640553742144,
+        0.12807676165135606,
+        -0.17025476243729276
       ],
       "material": {
         "colour": "a5c5d1",
@@ -5462,11 +5494,11 @@
     },
     {
       "id": "principle_5a995978191e",
+      "size": 0.006,
       "title": "The owner-fork bar: escalate ownership, not uncertainty",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -5476,14 +5508,14 @@
         -32.98699860401635
       ],
       "world": [
-        -33.21375725331531,
-        3.890963400077806,
-        46.326374384806265
+        -33.52540560074382,
+        3.7041727218009637,
+        46.11672705707566
       ],
       "screen": [
-        -0.07746950066859425,
-        -0.12823432826938433,
-        -0.2301102530824921
+        -0.07819640553742144,
+        -0.1280767616513565,
+        -0.22985533435613814
       ],
       "material": {
         "colour": "a5c5d1",
@@ -5497,11 +5529,11 @@
     },
     {
       "id": "principle_653f7dd8ad04",
+      "size": 0.006,
       "title": "Register follows audience",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -5511,14 +5543,14 @@
         32.98699860401635
       ],
       "world": [
-        32.75867034726227,
-        46.646848162413725,
-        -3.9201153422127257
+        32.52070313424028,
+        46.8297617507557,
+        -3.7153078911720088
       ],
       "screen": [
-        0.07640803222032871,
-        0.12823432826938388,
-        -0.2305277831582323
+        0.07585298507442143,
+        0.12808148648136655,
+        -0.2307771226965788
       ],
       "material": {
         "colour": "a5c5d1",
@@ -5532,11 +5564,11 @@
     },
     {
       "id": "principle_67593a23b40a",
+      "size": 0.006,
       "title": "The splitting rule",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -5546,14 +5578,14 @@
         32.98699860401635
       ],
       "world": [
-        33.21375725331531,
-        -46.29823136689556,
-        4.212639566754183
+        33.445595161579774,
+        -46.11140965844097,
+        4.422249914158976
       ],
       "screen": [
-        0.07746950066859425,
-        -0.1282343282693842,
-        -0.1699998437109389
+        0.07801025150422898,
+        -0.12839170722458013,
+        -0.17025476243729287
       ],
       "material": {
         "colour": "a5c5d1",
@@ -5567,11 +5599,11 @@
     },
     {
       "id": "principle_6a4150acf3ea",
+      "size": 0.006,
       "title": "Route structural forks to story-author, not the owner",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -5581,14 +5613,14 @@
         -32.98699860401635
       ],
       "world": [
-        -32.75867034726227,
-        -4.2395801955959715,
-        -46.61889860934772
+        -32.440892695076236,
+        -4.422524814115691,
+        -46.82366908006262
       ],
       "screen": [
-        -0.07640803222032871,
-        0.12823432826938375,
-        -0.1695823136351986
+        -0.07566683104122897,
+        0.12838698239456922,
+        -0.169332974096852
       ],
       "material": {
         "colour": "a5c5d1",
@@ -5602,11 +5634,11 @@
     },
     {
       "id": "principle_758d83408b98",
+      "size": 0.006,
       "title": "An awaited notification is never a turn-ending state",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -5616,14 +5648,14 @@
         -65.9739972080327
       ],
       "world": [
-        -65.97242760057757,
-        20.855017187890713,
-        -25.56203120032168
+        -65.92639307623803,
+        20.485266376005274,
+        -25.976430508604285
       ],
       "screen": [
-        -0.15387753288892297,
-        0.1282343282693837,
-        -0.1996375183209752
+        -0.15377015956205417,
+        0.128544455181181,
+        -0.19913326005627474
       ],
       "material": {
         "colour": "a5c5d1",
@@ -5637,11 +5669,11 @@
     },
     {
       "id": "principle_786a13e07cbc",
+      "size": 0.006,
       "title": "The author of the work is not its only witness",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -5651,14 +5683,14 @@
         0
       ],
       "world": [
-        -0.6826303590795606,
-        54.60308336032843,
-        88.87889553967052
+        -1.5469589193373194,
+        54.59728324051498,
+        88.87161723447278
       ],
       "screen": [
-        -0.001592202672398291,
-        -0.12823432826938422,
-        -0.29084695756765566
+        -0.00360820771109622,
+        -0.12822714719295258,
+        -0.2908385887856445
       ],
       "material": {
         "colour": "a5c5d1",
@@ -5672,11 +5704,11 @@
     },
     {
       "id": "principle_79e34898a2c8",
+      "size": 0.006,
       "title": "Machine in the loop is the default; a human is the exception",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -5686,14 +5718,14 @@
         0
       ],
       "world": [
-        0.6826303590795606,
-        -54.60308336032843,
-        -88.87889553967052
+        1.5469589193373194,
+        -54.59728324051498,
+        -88.87161723447278
       ],
       "screen": [
-        0.001592202672398291,
-        0.12823432826938377,
-        -0.10926313922577524
+        0.00360820771109622,
+        0.12822714719295214,
+        -0.1092715080077864
       ],
       "material": {
         "colour": "a5c5d1",
@@ -5707,11 +5739,11 @@
     },
     {
       "id": "principle_7e2a7e9b607f",
+      "size": 0.006,
       "title": "Decide against a standard, not a budget",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -5721,14 +5753,14 @@
         65.9739972080327
       ],
       "world": [
-        65.97242760057757,
-        21.552250778927043,
-        -24.97698275123876
+        66.00620351540208,
+        21.92197056063473,
+        -24.562546462630348
       ],
       "screen": [
-        0.15387753288892297,
-        0.1282343282693839,
-        -0.2004725784724556
+        0.15395631359524664,
+        0.12792401369475473,
+        -0.20097683673715616
       ],
       "material": {
         "colour": "a5c5d1",
@@ -5742,11 +5774,11 @@
     },
     {
       "id": "principle_8048cf08cfde",
+      "size": 0.006,
       "title": "A human's words are stored verbatim, or not at all",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -5756,13 +5788,13 @@
         0
       ],
       "world": [
-        3.662292536345685e-15,
-        -42.407267966817756,
-        50.53901395156044
+        -0.07981043916404307,
+        -42.407236936640004,
+        50.53897697123463
       ],
       "screen": [
-        8.542122227520645e-18,
-        -0.25646865653876827,
+        -0.00018615403319245002,
+        -0.2564684688759364,
         -0.2000550483967155
       ],
       "material": {
@@ -5777,11 +5809,11 @@
     },
     {
       "id": "principle_882f0f72455d",
+      "size": 0.006,
       "title": "The authoritative source beats the derived one",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -5791,14 +5823,14 @@
         -98.96099581204905
       ],
       "world": [
-        -99.18618485389288,
-        24.745980587968518,
-        20.76434318448458
+        -99.45179867698185,
+        24.189439097806236,
+        20.140296548471373
       ],
       "screen": [
-        -0.2313470335575172,
-        -3.936104021373591e-16,
-        -0.2296927230067518
+        -0.23196656509947564,
+        0.00046769352982472016,
+        -0.2289335460156975
       ],
       "material": {
         "colour": "a5c5d1",
@@ -5812,11 +5844,11 @@
     },
     {
       "id": "principle_94a7609d8047",
+      "size": 0.006,
       "title": "Escalate inline, or on a named signal",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -5826,14 +5858,14 @@
         98.96099581204905
       ],
       "world": [
-        99.18618485389288,
-        -24.745980587968518,
-        -20.76434318448458
+        99.45179867698185,
+        -24.189439097806236,
+        -20.140296548471373
       ],
       "screen": [
-        0.2313470335575172,
-        -4.833811956072827e-17,
-        -0.1704173737866791
+        0.23196656509947564,
+        -0.00046769352982516213,
+        -0.17117655077773342
       ],
       "material": {
         "colour": "a5c5d1",
@@ -5847,11 +5879,11 @@
     },
     {
       "id": "principle_95fd6ea3af9e",
+      "size": 0.006,
       "title": "A decision that blinds an instrument escalates inline",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -5861,13 +5893,13 @@
         0
       ],
       "world": [
-        -5.493438804518527e-15,
-        63.610901950226626,
-        -75.80852092734067
+        0.11971565874606459,
+        63.610855404960006,
+        -75.80846545685195
       ],
       "screen": [
-        -1.2813183341280969e-17,
-        0.38470298480815185,
+        0.000279231049788675,
+        0.38470270331390405,
         -0.2000550483967155
       ],
       "material": {
@@ -5882,11 +5914,11 @@
     },
     {
       "id": "principle_9d0928f79f5b",
+      "size": 0.006,
       "title": "No claim without evidence",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -5896,14 +5928,14 @@
         -32.98699860401635
       ],
       "world": [
-        -33.213757253315315,
-        67.50186535030444,
-        -29.482146542534405
+        -33.40568994199775,
+        67.31502812676098,
+        -29.69173839977629
       ],
       "screen": [
-        -0.07746950066859426,
-        0.2564686565387678,
-        -0.230110253082492
+        -0.07791717448763275,
+        0.25662594166254776,
+        -0.22985533435613803
       ],
       "material": {
         "colour": "a5c5d1",
@@ -5917,11 +5949,11 @@
     },
     {
       "id": "principle_9e78ac0605c3",
+      "size": 0.006,
       "title": "Read the force a decision answered, not the clause it left behind",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -5931,14 +5963,14 @@
         32.98699860401635
       ],
       "world": [
-        33.21375725331531,
-        17.312670583331073,
-        -71.59588136058647
+        33.565310820325834,
+        17.49944574651904,
+        -71.38621554269297
       ],
       "screen": [
-        0.07746950066859425,
-        0.2564686565387679,
-        -0.1699998437109388
+        0.07828948255401764,
+        0.2563109960893241,
+        -0.17025476243729276
       ],
       "material": {
         "colour": "a5c5d1",
@@ -5952,11 +5984,11 @@
     },
     {
       "id": "principle_a04ef5bf4787",
+      "size": 0.006,
       "title": "A deferral recorded without a status reads as pending work",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -5966,14 +5998,14 @@
         -65.9739972080327
       ],
       "world": [
-        -65.97242760057757,
-        -21.552250778927043,
-        24.97698275123876
+        -66.00620351540208,
+        -21.92197056063473,
+        24.562546462630348
       ],
       "screen": [
-        -0.15387753288892297,
-        -0.12823432826938436,
-        -0.19963751832097532
+        -0.15395631359524664,
+        -0.12792401369475515,
+        -0.19913326005627474
       ],
       "material": {
         "colour": "a5c5d1",
@@ -5987,11 +6019,11 @@
     },
     {
       "id": "principle_a24f9d3a9648",
+      "size": 0.006,
       "title": "Prose names a set it never checked",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -6001,14 +6033,14 @@
         0
       ],
       "world": [
-        0.4550869060530416,
-        -50.537811562491534,
-        -42.40625904259353
+        1.0047024665035318,
+        -50.53393447255666,
+        -42.40141916590365
       ],
       "screen": [
-        0.00106146844826553,
-        -2.4859604345517414e-16,
-        -0.13952710894942189
+        0.002343420462999996,
+        -0.00000472483001069176,
+        -0.13953268813742947
       ],
       "material": {
         "colour": "a5c5d1",
@@ -6022,11 +6054,11 @@
     },
     {
       "id": "principle_ac5f245517d1",
+      "size": 0.006,
       "title": "Delegate exploration to digest-returning subagents",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -6036,14 +6068,14 @@
         -98.96099581204905
       ],
       "world": [
-        -98.95864140086636,
-        -0.5229251932772486,
-        -0.43878633681218693
+        -98.94944744373008,
+        -1.0775281384720918,
+        -1.060413034480451
       ],
       "screen": [
-        -0.23081629933338443,
-        -4.009474381421125e-16,
-        -0.19942875328310516
+        -0.2307948548679756,
+        0.0004653311148194813,
+        -0.1986723658860543
       ],
       "material": {
         "colour": "a5c5d1",
@@ -6057,11 +6089,11 @@
     },
     {
       "id": "principle_b6c49306c650",
+      "size": 0.006,
       "title": "An owner-approved reference is repo-resident",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -6071,14 +6103,14 @@
         32.98699860401635
       ],
       "world": [
-        32.75867034726227,
-        -16.964053787812905,
-        71.88840558512794
+        32.40098747549422,
+        -16.78109365420431,
+        72.09315756567993
       ],
       "screen": [
-        0.07640803222032871,
-        -0.2564686565387682,
-        -0.2305277831582323
+        0.07557375402463276,
+        -0.2566212168325377,
+        -0.2307771226965789
       ],
       "material": {
         "colour": "a5c5d1",
@@ -6092,11 +6124,11 @@
     },
     {
       "id": "principle_bc27a43350bf",
+      "size": 0.006,
       "title": "Stateless graduates, stateful stays",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -6106,14 +6138,14 @@
         -32.98699860401635
       ],
       "world": [
-        -32.75867034726226,
-        -67.8504821458226,
-        29.189622317992946
+        -32.5606083538223,
+        -68.0333802190757,
+        28.984796376789326
       ],
       "screen": [
-        -0.0764080322203287,
-        -0.2564686565387683,
-        -0.1695823136351986
+        -0.07594606209101766,
+        -0.2563157209193351,
+        -0.1693329740968521
       ],
       "material": {
         "colour": "a5c5d1",
@@ -6127,11 +6159,11 @@
     },
     {
       "id": "principle_bc9f530a3303",
+      "size": 0.006,
       "title": "Guidance quality: structure over emphasis",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -6141,14 +6173,14 @@
         -65.9739972080327
       ],
       "world": [
-        -66.19997105360409,
-        3.7166550023187233,
-        46.18011227253553
+        -66.50855474865384,
+        3.3449966756436,
+        45.763256045582175
       ],
       "screen": [
-        -0.15440826711305572,
-        -0.12823432826938436,
-        -0.22990148804462196
+        -0.15512802382674662,
+        -0.12792165127974994,
+        -0.2293944401859177
       ],
       "material": {
         "colour": "a5c5d1",
@@ -6162,11 +6194,11 @@
     },
     {
       "id": "principle_bd1191c7312a",
+      "size": 0.006,
       "title": "Plain language first",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -6176,14 +6208,14 @@
         -65.9739972080327
       ],
       "world": [
-        -65.74488414755106,
-        -4.413888593355055,
-        -46.76516072161845
+        -65.42404184298627,
+        -4.781700860273055,
+        -47.177140091556105
       ],
       "screen": [
-        -0.15334679866479023,
-        0.1282343282693837,
-        -0.16937354859732845
+        -0.1525984493305542,
+        0.1285420927661758,
+        -0.16887207992663178
       ],
       "material": {
         "colour": "a5c5d1",
@@ -6197,11 +6229,11 @@
     },
     {
       "id": "principle_c1855a8e6514",
+      "size": 0.006,
       "title": "A check that could not run is unverified, not refuted",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -6211,14 +6243,14 @@
         32.98699860401635
       ],
       "world": [
-        32.30358344120923,
-        75.98102574149638,
-        63.755650676161025
+        31.47609544815473,
+        76.16007775499234,
+        63.95559976034895
       ],
       "screen": [
-        0.0753465637720632,
-        -1.381089130306523e-16,
-        -0.2910557226055258
+        0.0734164875948252,
+        -0.0001480231265910926,
+        -0.29129948295586483
       ],
       "material": {
         "colour": "a5c5d1",
@@ -6232,11 +6264,11 @@
     },
     {
       "id": "principle_c21ba0716b71",
+      "size": 0.006,
       "title": "One element per signal",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -6246,14 +6278,14 @@
         -32.98699860401635
       ],
       "world": [
-        -32.30358344120923,
-        -75.98102574149638,
-        -63.755650676161025
+        -31.47609544815473,
+        -76.16007775499234,
+        -63.95559976034895
       ],
       "screen": [
-        -0.0753465637720632,
-        -3.038396086674351e-16,
-        -0.10905437418790509
+        -0.0734164875948252,
+        0.00014802312659065064,
+        -0.10881061383756607
       ],
       "material": {
         "colour": "a5c5d1",
@@ -6267,11 +6299,11 @@
     },
     {
       "id": "principle_c660f3c89819",
+      "size": 0.006,
       "title": "The journey principle",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -6281,14 +6313,14 @@
         -32.98699860401635
       ],
       "world": [
-        -33.66884415936835,
-        54.42877496256934,
-        88.73263342739979
+        -34.53010806724735,
+        54.23810719435762,
+        88.5181462229793
       ],
       "screen": [
-        -0.07853096911685978,
-        -0.1282343282693843,
-        -0.2906381925297856
+        -0.08053982600042142,
+        -0.12807203682134602,
+        -0.2903776946154242
       ],
       "material": {
         "colour": "a5c5d1",
@@ -6302,11 +6334,11 @@
     },
     {
       "id": "principle_d1d6fab2499e",
+      "size": 0.006,
       "title": "De-noising promotes a signal, never drops it",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -6316,14 +6348,14 @@
         32.98699860401635
       ],
       "world": [
-        32.30358344120922,
-        97.18465972490526,
-        38.4861437003808
+        31.51600066773675,
+        97.36369622331235,
+        38.68611127473164
       ],
       "screen": [
-        0.07534656377206317,
-        0.1282343282693839,
-        -0.2910557226055257
+        0.07350956461142144,
+        0.128086211311377,
+        -0.29129948295586483
       ],
       "material": {
         "colour": "a5c5d1",
@@ -6337,11 +6369,11 @@
     },
     {
       "id": "principle_d5794238a5ab",
+      "size": 0.006,
       "title": "Tightening a shared contract needs a full sweep",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -6351,14 +6383,14 @@
         32.98699860401635
       ],
       "world": [
-        33.668844159368355,
-        -96.8360429293871,
-        -38.19361947583935
+        34.450297628083305,
+        -96.64534413099763,
+        -37.97916925174467
       ],
       "screen": [
-        0.07853096911685979,
-        -0.12823432826938425,
-        -0.10947190426364539
+        0.08035367196722898,
+        -0.1283964320545906,
+        -0.10973240217800673
       ],
       "material": {
         "colour": "a5c5d1",
@@ -6372,11 +6404,11 @@
     },
     {
       "id": "principle_d7c1d363bd3b",
+      "size": 0.006,
       "title": "Mechanical waiting never pays context rent",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -6386,14 +6418,14 @@
         -32.98699860401635
       ],
       "world": [
-        -32.30358344120923,
-        -54.77739175808751,
-        -89.02515765194126
+        -31.436190228572706,
+        -54.95645928667235,
+        -89.22508824596626
       ],
       "screen": [
-        -0.0753465637720632,
-        0.1282343282693837,
-        -0.10905437418790509
+        -0.07332341057822898,
+        0.12838225756455868,
+        -0.10881061383756607
       ],
       "material": {
         "colour": "a5c5d1",
@@ -6407,11 +6439,11 @@
     },
     {
       "id": "principle_da258f7e96be",
+      "size": 0.006,
       "title": "Verify an edit persisted, or escalate",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -6421,14 +6453,14 @@
         -98.96099581204905
       ],
       "world": [
-        -98.95864140086636,
-        -21.726559176686127,
-        24.830720638968035
+        -98.9893526633121,
+        -22.281146606792095,
+        24.209075451136865
       ],
       "screen": [
-        -0.23081629933338443,
-        -0.12823432826938444,
-        -0.19942875328310516
+        -0.23088793188457185,
+        -0.12776890332314858,
+        -0.19867236588605441
       ],
       "material": {
         "colour": "a5c5d1",
@@ -6442,11 +6474,11 @@
     },
     {
       "id": "principle_e1f7a9a377d0",
+      "size": 0.006,
       "title": "Citing a document is not reading it",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -6456,14 +6488,14 @@
         98.96099581204905
       ],
       "world": [
-        98.95864140086636,
-        21.726559176686127,
-        -24.830720638968035
+        98.9893526633121,
+        22.281146606792095,
+        -24.209075451136865
       ],
       "screen": [
-        0.23081629933338443,
-        0.128234328269384,
-        -0.20068134351032574
+        0.23088793188457185,
+        0.12776890332314816,
+        -0.2014377309073765
       ],
       "material": {
         "colour": "a5c5d1",
@@ -6477,11 +6509,11 @@
     },
     {
       "id": "principle_e3e5bf53649f",
+      "size": 0.006,
       "title": "Accepted decisions carry no stale prose",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -6491,14 +6523,14 @@
         32.98699860401635
       ],
       "world": [
-        32.98621380028879,
-        -21.029325585649794,
-        25.41576908805095
+        32.943243928328,
+        -20.844442422162636,
+        25.6229594971108
       ],
       "screen": [
-        0.07693876644446149,
-        -0.1282343282693842,
-        -0.20026381343458555
+        0.07683854127272897,
+        -0.12838934480957487,
+        -0.20051594256693583
       ],
       "material": {
         "colour": "a5c5d1",
@@ -6512,11 +6544,11 @@
     },
     {
       "id": "principle_e575d0cb1d97",
+      "size": 0.006,
       "title": "Show what matters at the stage they are at",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -6526,14 +6558,14 @@
         -32.98699860401635
       ],
       "world": [
-        -32.98621380028879,
-        21.029325585649794,
-        -25.41576908805095
+        -32.943243928328,
+        20.844442422162636,
+        -25.6229594971108
       ],
       "screen": [
-        -0.07693876644446149,
-        0.12823432826938375,
-        -0.19984628335884536
+        -0.07683854127272897,
+        0.12838934480957442,
+        -0.19959415422649507
       ],
       "material": {
         "colour": "a5c5d1",
@@ -6547,11 +6579,11 @@
     },
     {
       "id": "principle_eabea9e3d90b",
+      "size": 0.006,
       "title": "A story's proof proves the goal, not the surface",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -6561,14 +6593,14 @@
         65.9739972080327
       ],
       "world": [
-        65.74488414755105,
-        46.82115656017281,
-        -3.7738532299419965
+        65.5038522821503,
+        47.188937796913066,
+        -3.3618368796785254
       ],
       "screen": [
-        0.15334679866479017,
-        0.12823432826938394,
-        -0.23073654819610245
+        0.15278460336374663,
+        0.12792637610976,
+        -0.23123801686679912
       ],
       "material": {
         "colour": "a5c5d1",
@@ -6582,11 +6614,11 @@
     },
     {
       "id": "principle_efa652a21e64",
+      "size": 0.006,
       "title": "An escape sequence in a tool argument becomes a real byte",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -6596,14 +6628,14 @@
         65.9739972080327
       ],
       "world": [
-        66.1999710536041,
-        -46.12392296913647,
-        4.358901679024912
+        66.4287443094898,
+        -45.752233612283604,
+        4.77572092565246
       ],
       "screen": [
-        0.15440826711305575,
-        -0.12823432826938413,
-        -0.17020860874880894
+        0.15494186979355418,
+        -0.1285468175961867,
+        -0.1707156566075132
       ],
       "material": {
         "colour": "a5c5d1",
@@ -6617,11 +6649,11 @@
     },
     {
       "id": "principle_f077cb889052",
+      "size": 0.006,
       "title": "The same file in another tree is a different file",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -6631,13 +6663,13 @@
         0
       ],
       "world": [
-        -1.8311462681728424e-15,
-        21.203633983408878,
-        -25.26950697578022
+        0.039905219582021534,
+        21.203618468320002,
+        -25.269488485617316
       ],
       "screen": [
-        -4.2710611137603224e-18,
-        0.1282343282693838,
+        0.00009307701659622501,
+        0.12823423443796786,
         -0.2000550483967155
       ],
       "material": {
@@ -6652,11 +6684,11 @@
     },
     {
       "id": "principle_f39ecf3320a9",
+      "size": 0.006,
       "title": "Signals must be real",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -6666,14 +6698,14 @@
         -32.98699860401635
       ],
       "world": [
-        -33.2137572533153,
-        -38.51630456673994,
-        96.86538833636669
+        -33.60521603990786,
+        -38.70306421483904,
+        96.6557040283103
       ],
       "screen": [
-        -0.07746950066859423,
-        -0.38470298480815235,
-        -0.2301102530824921
+        -0.07838255957061388,
+        -0.3845452305272927,
+        -0.22985533435613814
       ],
       "material": {
         "colour": "a5c5d1",
@@ -6687,11 +6719,11 @@
     },
     {
       "id": "principle_f72b66ffa0cd",
+      "size": 0.006,
       "title": "Cold rebuild",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -6701,14 +6733,14 @@
         32.98699860401635
       ],
       "world": [
-        32.75867034726226,
-        89.05411612923147,
-        -54.459129293773174
+        32.60051357340433,
+        89.2369986873957,
+        -54.25428486240664
       ],
       "screen": [
-        0.0764080322203287,
-        0.38470298480815196,
-        -0.2305277831582323
+        0.07603913910761388,
+        0.38454995535730274,
+        -0.2307771226965788
       ],
       "material": {
         "colour": "a5c5d1",
@@ -6722,11 +6754,11 @@
     },
     {
       "id": "principle_fb9b404a41b3",
+      "size": 0.006,
       "title": "Friction earns durable guidance by supporting evidence, not by being reported",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -6736,14 +6768,14 @@
         32.98699860401635
       ],
       "world": [
-        33.213757253315315,
-        -88.70549933371332,
-        54.751653518314626
+        33.365784722415725,
+        -88.51864659508098,
+        54.96122688539361
       ],
       "screen": [
-        0.07746950066859426,
-        -0.3847029848081523,
-        -0.1699998437109389
+        0.07782409747103652,
+        -0.38486017610051626,
+        -0.17025476243729287
       ],
       "material": {
         "colour": "a5c5d1",
@@ -6757,11 +6789,11 @@
     },
     {
       "id": "process_0967b1a1d3cb",
+      "size": 0.006,
       "title": "Merge ceremony",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -6771,14 +6803,14 @@
         -32.98699860401635
       ],
       "world": [
-        -32.758670347262274,
-        38.16768777122177,
-        -97.15791256090816
+        -32.361082255912194,
+        37.98471212252431,
+        -97.36264605129726
       ],
       "screen": [
-        -0.07640803222032874,
-        0.3847029848081518,
-        -0.1695823136351986
+        -0.07548067700803653,
+        0.3848554512705054,
+        -0.169332974096852
       ],
       "material": {
         "colour": "a5c5d1",
@@ -6792,11 +6824,11 @@
     },
     {
       "id": "process_529c2dd67bbf",
+      "size": 0.006,
       "title": "Pre-merge librarian pass",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -6806,14 +6838,14 @@
         0
       ],
       "world": [
-        0.22754345302652446,
-        -67.67617374806352,
-        29.335884430263675
+        0.4225407940877228,
+        -67.67420417291834,
+        29.33826738828281
       ],
       "screen": [
-        0.0005307342241327736,
-        -0.25646865653876827,
-        -0.16979107867306875
+        0.0009855561983075482,
+        -0.25647083129094167,
+        -0.16979386826707243
       ],
       "material": {
         "colour": "a5c5d1",
@@ -6827,11 +6859,11 @@
     },
     {
       "id": "process_642f0040a5de",
+      "size": 0.006,
       "title": "Stage the owner's look",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -6841,14 +6873,14 @@
         0
       ],
       "world": [
-        -0.22754345302652446,
-        67.67617374806352,
-        -29.335884430263675
+        -0.4225407940877228,
+        67.67420417291834,
+        -29.33826738828281
       ],
       "screen": [
-        -0.0005307342241327736,
-        0.2564686565387678,
-        -0.23031901812036215
+        -0.0009855561983075482,
+        0.2564708312909412,
+        -0.23031622852635847
       ],
       "material": {
         "colour": "a5c5d1",
@@ -6862,11 +6894,11 @@
     },
     {
       "id": "process_693209c6a91a",
+      "size": 0.006,
       "title": "Library edit ceremony",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -6876,14 +6908,14 @@
         0
       ],
       "world": [
-        -0.6826303590795642,
-        97.01035132714618,
-        38.339881588110075
+        -1.4671484801732764,
+        97.00452017715499,
+        38.332640263238154
       ],
       "screen": [
-        -0.0015922026723982992,
-        0.12823432826938386,
-        -0.29084695756765566
+        -0.00342205367790377,
+        0.12824132168298358,
+        -0.2908385887856445
       ],
       "material": {
         "colour": "a5c5d1",
@@ -6897,11 +6929,11 @@
     },
     {
       "id": "process_911ad6a734c1",
+      "size": 0.006,
       "title": "Attempt privileged actions, approve inline",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -6911,14 +6943,14 @@
         0
       ],
       "world": [
-        0.6826303590795642,
-        -97.01035132714618,
-        -38.339881588110075
+        1.4671484801732764,
+        -97.00452017715499,
+        -38.332640263238154
       ],
       "screen": [
-        0.0015922026723982992,
-        -0.1282343282693843,
-        -0.10926313922577524
+        0.00342205367790377,
+        -0.128241321682984,
+        -0.1092715080077864
       ],
       "material": {
         "colour": "a5c5d1",
@@ -6932,11 +6964,11 @@
     },
     {
       "id": "process_c919b1ebdbcd",
+      "size": 0.006,
       "title": "Justify a new check",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -6946,14 +6978,14 @@
         -32.98699860401635
       ],
       "world": [
-        -32.98621380028879,
-        -21.377942381167962,
-        25.12324486350949
+        -33.02305436749205,
+        -21.562794514477368,
+        24.916017474123834
       ],
       "screen": [
-        -0.07693876644446149,
-        -0.1282343282693843,
-        -0.19984628335884536
+        -0.07702469530592143,
+        -0.12807912406636174,
+        -0.19959415422649518
       ],
       "material": {
         "colour": "a5c5d1",
@@ -6967,11 +6999,11 @@
     },
     {
       "id": "process_cd52098612cb",
+      "size": 0.006,
       "title": "Friction adjudication",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -6981,14 +7013,14 @@
         32.98699860401635
       ],
       "world": [
-        32.98621380028879,
-        21.377942381167962,
-        -25.12324486350949
+        33.02305436749205,
+        21.562794514477368,
+        -24.916017474123834
       ],
       "screen": [
-        0.07693876644446149,
-        0.12823432826938386,
-        -0.20026381343458555
+        0.07702469530592143,
+        0.1280791240663613,
+        -0.20051594256693572
       ],
       "material": {
         "colour": "a5c5d1",
@@ -7002,11 +7034,11 @@
     },
     {
       "id": "process_d7eaa00da14b",
+      "size": 0.006,
       "title": "Migrate a library schema: expand, migrate, contract",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -7016,14 +7048,14 @@
         -32.98699860401635
       ],
       "world": [
-        -32.98621380028878,
-        -63.78521034798571,
-        75.66225881506993
+        -33.10286480665609,
+        -63.97003145111737,
+        75.45499444535847
       ],
       "screen": [
-        -0.07693876644446146,
-        -0.3847029848081524,
-        -0.19984628335884547
+        -0.07721084933911389,
+        -0.3845475929422979,
+        -0.19959415422649518
       ],
       "material": {
         "colour": "a5c5d1",
@@ -7037,11 +7069,11 @@
     },
     {
       "id": "process_e94a82a59c04",
+      "size": 0.006,
       "title": "Affected-only test scope",
       "depth": null,
       "home": null,
       "lit": null,
-      "arcs": [],
       "window": null,
       "colour": "#a5c5d1",
       "opacity": 0.52,
@@ -7051,14 +7083,14 @@
         32.98699860401635
       ],
       "world": [
-        32.98621380028878,
-        63.78521034798571,
-        -75.66225881506993
+        33.10286480665609,
+        63.97003145111737,
+        -75.45499444535847
       ],
       "screen": [
-        0.07693876644446146,
-        0.38470298480815196,
-        -0.20026381343458544
+        0.07721084933911389,
+        0.38454759294229746,
+        -0.20051594256693572
       ],
       "material": {
         "colour": "a5c5d1",
@@ -7968,44 +8000,44 @@
       "process_e94a82a59c04"
     ],
     "otherMeshes": [
-      "pathway-halo:cross:t14hx04k",
-      "pathway-halo:cross:t1a53sly",
-      "pathway-halo:cross:t1fajcuc",
-      "pathway-halo:cross:t1gb27un",
-      "pathway-halo:cross:t1k902ob",
-      "pathway-halo:cross:tbumoae",
-      "pathway-halo:cross:tem9n86",
-      "pathway-halo:cross:tenpbc9",
-      "pathway-halo:cross:tew2hvp",
-      "pathway-halo:cross:tfd2lhg",
-      "pathway-halo:cross:tkq9bkj",
-      "pathway-halo:cross:to8lshw",
-      "pathway-halo:cross:toli4dr",
-      "pathway:cross:t14hx04k",
-      "pathway:cross:t1a53sly",
-      "pathway:cross:t1fajcuc",
-      "pathway:cross:t1gb27un",
-      "pathway:cross:t1k902ob",
-      "pathway:cross:tbumoae",
-      "pathway:cross:tem9n86",
-      "pathway:cross:tenpbc9",
-      "pathway:cross:tew2hvp",
-      "pathway:cross:tfd2lhg",
-      "pathway:cross:tkq9bkj",
-      "pathway:cross:to8lshw",
-      "pathway:cross:toli4dr",
+      "pathway-halo:cross:t10mdj5r",
+      "pathway-halo:cross:t10pxegd",
+      "pathway-halo:cross:t12a1fok",
+      "pathway-halo:cross:t1frnv8r",
+      "pathway-halo:cross:t1gw6rep",
+      "pathway-halo:cross:t1hmxrc5",
+      "pathway-halo:cross:t6809rk",
+      "pathway-halo:cross:t9k3bsq",
+      "pathway-halo:cross:tcv0fh1",
+      "pathway-halo:cross:tji2f6j",
+      "pathway-halo:cross:tn1i96u",
+      "pathway-halo:cross:tsku8f4",
+      "pathway-halo:cross:txl0pgl",
+      "pathway:cross:t10mdj5r",
+      "pathway:cross:t10pxegd",
+      "pathway:cross:t12a1fok",
+      "pathway:cross:t1frnv8r",
+      "pathway:cross:t1gw6rep",
+      "pathway:cross:t1hmxrc5",
+      "pathway:cross:t6809rk",
+      "pathway:cross:t9k3bsq",
+      "pathway:cross:tcv0fh1",
+      "pathway:cross:tji2f6j",
+      "pathway:cross:tn1i96u",
+      "pathway:cross:tsku8f4",
+      "pathway:cross:txl0pgl",
       "planet:shell"
     ]
   },
   "render": {
-    "frame": 59,
-    "calls": 220,
-    "triangles": 67500,
+    "frame": 55,
+    "calls": 293,
+    "triangles": 100709,
     "points": 0,
-    "lines": 0
+    "lines": 626
   },
   "memory": {
-    "geometries": 219,
+    "geometries": 292,
     "textures": 0
   },
   "shellPresent": true,
@@ -8014,23 +8046,23 @@
   "labels": [
     {
       "story": "story_754e87e7d531",
-      "text": "The library",
+      "text": "The library0 / 13 landed",
       "visible": false,
-      "opacity": 1,
+      "opacity": 0,
       "bounds": {
-        "x": 0,
-        "y": 0,
-        "width": 0,
-        "height": 0,
-        "top": 0,
-        "right": 0,
-        "bottom": 0,
-        "left": 0
+        "x": 826.9503173828125,
+        "y": 871.4354248046875,
+        "width": 88.28125,
+        "height": 37.96875,
+        "top": 871.4354248046875,
+        "right": 915.2315673828125,
+        "bottom": 909.4041748046875,
+        "left": 826.9503173828125
       }
     },
     {
       "story": "story_609c3b171b3f",
-      "text": "The agent link",
+      "text": "The agent link0 / 8 landed",
       "visible": false,
       "opacity": 1,
       "bounds": {
@@ -8046,39 +8078,39 @@
     },
     {
       "story": "story_a93c6fb1a257",
-      "text": "The app",
+      "text": "The app0 / 4 landed",
       "visible": false,
       "opacity": 1,
       "bounds": {
-        "x": 0,
-        "y": 0,
-        "width": 0,
-        "height": 0,
-        "top": 0,
-        "right": 0,
-        "bottom": 0,
-        "left": 0
+        "x": 988.4818115234375,
+        "y": 321.81689453125,
+        "width": 75.59375,
+        "height": 37.96875,
+        "top": 321.81689453125,
+        "right": 1064.0755615234375,
+        "bottom": 359.78564453125,
+        "left": 988.4818115234375
       }
     },
     {
       "story": "story_deee4230348c",
-      "text": "The forest",
+      "text": "The forest0 / 6 landed",
       "visible": true,
       "opacity": 1,
       "bounds": {
-        "x": 901.2467041015625,
-        "y": 815.9881591796875,
+        "x": 758.37451171875,
+        "y": 848.3952026367188,
         "width": 83.796875,
-        "height": 18.28125,
-        "top": 815.9881591796875,
-        "right": 985.0435791015625,
-        "bottom": 834.2694091796875,
-        "left": 901.2467041015625
+        "height": 37.96875,
+        "top": 848.3952026367188,
+        "right": 842.17138671875,
+        "bottom": 886.3639526367188,
+        "left": 758.37451171875
       }
     },
     {
       "story": "story_7722ddb5461e",
-      "text": "The arc surface",
+      "text": "The arc surface0 / 5 landed",
       "visible": false,
       "opacity": 1,
       "bounds": {
@@ -8094,23 +8126,23 @@
     },
     {
       "story": "story_f9fb5136c28f",
-      "text": "The command line",
+      "text": "The command line0 / 11 landed",
       "visible": true,
       "opacity": 1,
       "bounds": {
-        "x": 891.8779907226562,
-        "y": 341.32794189453125,
+        "x": 824.9570922851562,
+        "y": 327.42889404296875,
         "width": 112,
-        "height": 33.375,
-        "top": 341.32794189453125,
-        "right": 1003.8779907226562,
-        "bottom": 374.70294189453125,
-        "left": 891.8779907226562
+        "height": 53.0625,
+        "top": 327.42889404296875,
+        "right": 936.9570922851562,
+        "bottom": 380.49139404296875,
+        "left": 824.9570922851562
       }
     },
     {
       "story": "story_cec2df1b2320",
-      "text": "The librarian",
+      "text": "The librarian0 / 6 landed",
       "visible": false,
       "opacity": 1,
       "bounds": {
@@ -8126,24 +8158,25 @@
     },
     {
       "story": "story_d754d997f22a",
-      "text": "The knowledge core",
+      "text": "The knowledge core0 / 4 landed",
       "visible": true,
       "opacity": 1,
       "bounds": {
-        "x": 1022.3179931640625,
-        "y": 586.8582763671875,
+        "x": 1001.7459716796875,
+        "y": 610.05712890625,
         "width": 112,
-        "height": 48.46875,
-        "top": 586.8582763671875,
-        "right": 1134.3179931640625,
-        "bottom": 635.3270263671875,
-        "left": 1022.3179931640625
+        "height": 68.15625,
+        "top": 610.05712890625,
+        "right": 1113.7459716796875,
+        "bottom": 678.21337890625,
+        "left": 1001.7459716796875
       }
     }
   ],
   "markers": [],
   "mode": "forest",
   "drew": {
+    "sessions": [],
     "surface": "forest",
     "stories": [
       "story_754e87e7d531",
@@ -8453,8 +8486,7 @@
         "capability": "capability_062b84e5c6b0",
         "form": "seedling"
       }
-    ],
-    "sessions": []
+    ]
   },
   "view": "globe",
   "selected": null,

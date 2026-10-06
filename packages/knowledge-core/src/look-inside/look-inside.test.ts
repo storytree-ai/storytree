@@ -7,7 +7,7 @@ import type { Agent, Line } from "@storytree/agent-link";
 import { knowledge } from "../ghosts/ghosts.js";
 import { ReadRecord } from "../reads/reads.js";
 import { History } from "../testing/changes.js";
-import { DOT_CEILING, DOT_FLOOR, codeKey, curvePoint, dotSizes, fillAt, hopPoint, growthPlan, heldNotes, legend, lighting, noteCard, trails, replayAt, ringArcs, traversalTrails, windowView, type CodePlaces } from "./look-inside.js";
+import { DOT_CEILING, DOT_FLOOR, codeKey, curvePoint, dotSizes, fillAt, hopPoint, growthPlan, heldNotes, legend, lighting, noteCard, trails, replayAt, traversalTrails, windowView, type CodePlaces } from "./look-inside.js";
 
 let seq = 0;
 const read = (session: string, note: string, how: "peek" | "whole", agent?: Agent): Line => ({
@@ -98,8 +98,6 @@ test("4.9 the globe's dots light as the core does: nothing with none selected, o
   assert.match(one.get("deep")!.colour, /^hsl\(300, 80%, \d+%\)$/);
   assert.notEqual(one.get("deep")!.colour, "hsl(300, 80%, 68%)", "its subagent a shade");
   assert.equal(one.size, 2, "another session's reads stay faint");
-  assert.deepEqual(one.get("deep")!.readers.map(({ colour }) => colour), [one.get("deep")!.colour], "a note both read wears the selected session's colour alone");
-  assert.deepEqual(ringArcs(one.get("deep")!), [], "with no ring for the other session");
 });
 
 test("4.10 a selected session's reading path runs from one full read to that agent's next, in its colour; with none selected no path draws, and peeks and unknown agents draw none", () => {

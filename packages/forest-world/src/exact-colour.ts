@@ -1,32 +1,6 @@
-// exact-colour.ts — THE TRANSFER FUNCTION THE WHOLE MAP IS DRAWN THROUGH.
-//
-// THE INCREMENT: `cross-the-light-calibration-probe` on `adopt-the-land-into-the-shipped-map-arc`.
-// It was parked to cross ONE thing — `calibrateLights`'s renderer probe — on the premise that the
-// shipped canvas's crowns read lighter than the approved reference because a `MeshStandardMaterial`
-// carries a specular term the authored arithmetic does not model.
-//
-// ⚠⚠ THAT PREMISE IS TRUE IN ITS DIRECTION AND WRONG IN ITS MECHANISM, AND THE REAL ONE IS THIS
-// FILE. The approved reference — `docs/research/chapter2-vocabulary-2026-08-29/island-kit-8px.png`
-// — was rendered by `harness/kit-island-scene.ts`, which calls `configureExactColour` FIRST and
-// calibrates SECOND. The shipped canvas mounted a default `<Canvas>`, and @react-three/fiber's
-// defaults are `outputColorSpace = SRGBColorSpace` and `toneMapping = ACESFilmicToneMapping`
-// (`linear` / `flat` are the props that turn each off; `legacy` is the one that turns
-// `THREE.ColorManagement` off). So the two surfaces were never in the same transfer function, and
-// no light intensity closes that: a white fully-lit standard face delivers **0.318** through the
-// reference's linear passthrough and **0.662** through ACES + an sRGB encode, 2.08x, before any
-// probe runs.
-//
-// ⚠⚠ AND IT MADE THE PROBE ITSELF INVALID, WHICH IS WHY THE TWO CROSS TOGETHER. `calibrateLights`
-// returns `scale = target / probe` — a correction that is only right where the transfer is LINEAR
-// in intensity. It is, exactly, under the settings below: one shot lands a lit white face on the
-// ladder's top rung to four decimals. Under ACES it is not; the naive scale delivers 0.764 against
-// a target of 1.0, and no iteration fixes it, because ACES asymptotes — reaching 1.0 wants a scale
-// of ~1e6. Crossing the probe into an ACES canvas would have shipped a calibration that misses its
-// own target by 24% while looking exactly like a calibration.
-//
-// CROSSED (not copied) from `harness/banded-material.ts`, which re-exports; `scope-fence.test.ts`
-// carries the ADOPTED entry. It lives in `src/` because the product needs it: a shipped canvas that
-// cannot be put into this mode cannot draw a bought asset the way the approved picture does.
+// Exact-colour settings shared by the globe's React-Three-Fiber canvas and raw-renderer callers.
+// `planet/PlanetWorldCanvas.tsx` applies EXACT_COLOUR_CANVAS_PROPS on every configure pass.
+// Linear output, no tone curve and no input colour conversion preserve the authored RGB bytes.
 
 import * as THREE from 'three';
 
@@ -34,10 +8,8 @@ import * as THREE from 'three';
  * The three renderer settings that make up exact-colour mode, as plain data.
  *
  * IT IS A VALUE RATHER THAN THREE ASSIGNMENTS so that both spellings below are derived from one
- * place. The map is configured twice — once by @react-three/fiber from `<Canvas>` props, once by
- * the measurement harness on a raw `THREE.WebGLRenderer` — and a harness measuring a transfer
- * function the product does not have is the exact fault this module was written to close. Two
- * hand-kept copies of these three settings would reopen it.
+ * place. @react-three/fiber's `<Canvas>` props and configureExactColour's raw-renderer form
+ * must agree; keeping their settings together avoids two transfer functions drifting apart.
  */
 export interface ExactColourSettings {
   /** No output transform: the shader's rgb is already authored sRGB. */
@@ -112,9 +84,8 @@ export function configureExactColour(renderer: ColourConfigurableRenderer): void
 /**
  * Is this renderer in exact-colour mode?
  *
- * The fence {@link configureExactColour}'s callers are held to — see `light-calibration.ts`, which
- * REFUSES to calibrate outside it. A calibration is an arithmetic claim about a linear transfer,
- * and this predicate is what makes "the transfer is linear here" checkable rather than assumed.
+ * Checks all three settings, including three.js's global input colour conversion.
+ * `exact-colour.test.ts` verifies that changing any one leaves this mode.
  */
 export function isExactColour(renderer: ColourConfigurableRenderer): boolean {
   return (

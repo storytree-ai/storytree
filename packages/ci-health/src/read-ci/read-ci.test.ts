@@ -49,7 +49,7 @@ function projectFolder(t: { after(fn: () => void): void }, origin: string | null
 }
 
 /** GitHub as the Actions API answers: the repository, its runs for the query asked, a run's jobs and their logs. */
-function github(runs: (query: URLSearchParams) => object[], log: string): GitHub & { asked: string[] } {
+function github(runs: (query: URLSearchParams) => object[], log: string, jobs = [{ id: 70, conclusion: "success" }, { id: 71, conclusion: "skipped" }]): GitHub & { asked: string[] } {
   const asked: string[] = [];
   return {
     asked,
@@ -58,7 +58,7 @@ function github(runs: (query: URLSearchParams) => object[], log: string): GitHub
       const [where, query = ""] = route.split("?");
       if (where === "repos/acme/shop") return { default_branch: "trunk" };
       if (where === "repos/acme/shop/actions/runs") return { workflow_runs: runs(new URLSearchParams(query)) };
-      if (where === "repos/acme/shop/actions/runs/7/jobs") return { jobs: [{ id: 70, conclusion: "success" }, { id: 71, conclusion: "skipped" }] };
+      if (where === "repos/acme/shop/actions/runs/7/jobs") return { jobs };
       throw new Error(`no such route: ${route}`);
     },
     async text(route) {
@@ -152,4 +152,46 @@ test("3.5 a job the run skipped, which has no log, is passed over: the run's oth
   assert.equal(read.written && read.tests, 2, "the job that ran is read");
   assert.equal(asked.asked.includes("repos/acme/shop/actions/jobs/71/logs"), false, "the skipped job's log is not asked for");
   assert.equal((await library.projectTree()).stories[0]!.capabilities.find(({ id }) => id === capability)!.status, "healthy");
+});
+
+test("3.6 a cancelled job without a log leaves available results readable and contracts without evidence not checked", async (t) => {
+  const { library, contracts } = await shopLibrary(t);
+  const { folder, commit } = projectFolder(t);
+  const asked = github(pushRunsOnTrunk(commit), "ok 1 - 1.1 your information page shows the form", [
+    { id: 70, conclusion: "success" }, { id: 71, conclusion: "cancelled" },
+  ]);
+  const read = await readProjectCi({ library, git: gitIn(folder), github: asked });
+  assert.equal(read.written, true, read.written ? "" : read.why);
+  assert.equal(read.written && read.tests, 1);
+  assert.equal(read.written && read.passing, 1);
+  assert.equal((await library.health(contracts[0]!)).verified.state, "passing");
+  assert.equal((await library.health(contracts[1]!)).verified.state, "not-checked", "no result must not become a pass");
+});
+
+test("3.6 available test results in a cancelled job still count, including failures", async (t) => {
+  const { library, contracts } = await shopLibrary(t);
+  const { folder, commit } = projectFolder(t);
+  const read = await readProjectCi({ library, git: gitIn(folder), github: github(pushRunsOnTrunk(commit), tap("not ok"), [{ id: 70, conclusion: "cancelled" }]) });
+  assert.equal(read.written && read.tests, 2);
+  assert.equal((await library.health(contracts[0]!)).verified.state, "passing");
+  assert.equal((await library.health(contracts[1]!)).verified.state, "failing");
+});
+
+test("3.6 authentication and unrelated log errors remain visible without writing partial verdicts", async (t) => {
+  const { library, contracts } = await shopLibrary(t);
+  const { folder, commit } = projectFolder(t);
+  for (const [conclusion, message] of [
+    ["cancelled", "HTTP 401"], ["cancelled", "HTTP 403"], ["cancelled", "HTTP 500"],
+    ["cancelled", "connection reset"], ["success", "HTTP 404"], ["failure", "HTTP 404"],
+  ]) {
+    const asked = github(pushRunsOnTrunk(commit), tap("ok"), [{ id: 70, conclusion: "success" }, { id: 71, conclusion: conclusion! }]);
+    const readLog = asked.text;
+    const error = Object.assign(new Error("gh failed"), { stderr: `gh: ${message}` });
+    asked.text = async (route) => {
+      if (route.endsWith("/71/logs")) throw error;
+      return readLog(route);
+    };
+    await assert.rejects(readProjectCi({ library, git: gitIn(folder), github: asked }), (caught) => caught === error, `${conclusion}: ${message}`);
+    for (const id of contracts) assert.equal((await library.health(id)).verified.state, "not-checked");
+  }
 });

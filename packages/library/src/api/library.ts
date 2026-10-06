@@ -311,6 +311,8 @@ export interface Library {
    * Retire a record: it is gone from every read, and its history keeps it and `reason`. Retiring
    * a missing or already retired record is a harmless no-op. A question an increment is held on is
    * refused (RetireRefusedError): take it off the increment's heldOn first, or settle it instead.
+   * A capability with live dependents is also refused, naming every dependent: remove it from
+   * their dependsOn first. Refusals write nothing.
    */
   retire(id: string, reason: string, options?: WriteOptions): Promise<void>;
   /**

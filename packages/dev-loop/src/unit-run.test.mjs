@@ -119,7 +119,7 @@ test("never ends", () => new Promise(() => { setInterval(() => {}, 1000); }));`,
   assert.match(out.text, /✖ never ends[\s\S]*timed out after 1000ms/, "node names the test and its limit");
 });
 
-test("6.1 a unit past its deadline is killed with its whole process tree, naming the test still running", async (t) => {
+test("6.1 a unit past its deadline keeps completed failure details and names the running test while killing its whole process tree", async (t) => {
   // Detached, the wedged child leaves Windows' kill-on-close job and the Unix process group, as a
   // tool's own children may: only a kill that walks the process tree reaches it.
   const pidFile = path.join(tmpdir(), `unit-run-grandchild-${process.pid}.txt`);
@@ -137,14 +137,23 @@ test("waits on a wedged child", () => {
   writeFileSync(${JSON.stringify(pidFile)}, String(child.pid));
   return new Promise(() => {});
 });`,
+    "z-failed.test.mjs": `import { test } from "node:test"; import assert from "node:assert/strict";
+test("completed failure", () => assert.equal("actual merge", "expected merge", "merged result differed"));`,
   });
   const started = Date.now();
-  const result = await runUnit({ root, files: ["wedged.test.mjs"], env: process.env, testLimitMs: 60_000, unitLimitMs: 3_000, ...captured().options });
+  const { out, closed, options } = captured();
+  const result = await runUnit({ root, files: ["wedged.test.mjs", "z-failed.test.mjs"], env: process.env, args: ["--test-concurrency=2"], testLimitMs: 60_000, unitLimitMs: 3_000, ...options });
+  await closed;
   assert.equal(result.timedOut, true);
   assert.notEqual(result.code, 0);
   assert.ok(Date.now() - started < 20_000, "it ended soon after its deadline");
   assert.deepEqual(result.running.map((entry) => entry.name), ["waits on a wedged child"]);
   assert.match(result.running[0].file, /wedged\.test\.mjs$/);
+  assert.match(out.stderr, /completed failure/);
+  assert.match(out.stderr, /merged result differed/);
+  assert.match(out.stderr, /actual merge/);
+  assert.match(out.stderr, /expected merge/);
+  assert.match(out.stderr, /z-failed\.test\.mjs:2:/, "a later file's assertion survives even while ordered results wait on the hung file");
 
   const grandchild = Number(readFileSync(pidFile, "utf8"));
   let alive = true;

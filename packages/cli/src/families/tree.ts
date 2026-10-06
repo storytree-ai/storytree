@@ -50,8 +50,8 @@ const tree: Verb = {
     const unverified = plan.unverified === true;
     for (const story of stories) {
       lines.push(`${story.title}  [${story.id}]  ${healthOf(story.health, unverified)}`);
-      story.capabilities.forEach((capability, index) => {
-        lines.push(`  ${index + 1} · ${capability.title}  [${capability.id}]  ${healthOf(capability.health, unverified)}; ${capability.reportOnly ? NOT_VERIFIED : wordAndWhy(capability)}${claimOn(claims, capability.id)}`);
+      story.capabilities.forEach((capability) => {
+        lines.push(`  ${capability.title}  [${capability.id}]  ${healthOf(capability.health, unverified)}; ${capability.reportOnly ? NOT_VERIFIED : wordAndWhy(capability)}${claimOn(claims, capability.id)}`);
         for (const contract of capability.contracts) {
           lines.push(`      - ${contract.title}  [${contract.id}]  ${healthOf(contract.health, unverified)}`);
         }

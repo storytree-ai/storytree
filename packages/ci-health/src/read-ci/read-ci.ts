@@ -8,7 +8,7 @@
  *   sign-in, so the user sets nothing up.
  * - The run's commit (`head_sha`) is the commit every verdict is for: the tests' titles are read from
  *   the files at that commit, in the project's own clone, and the commit is written in each note.
- * - A job the run skipped has no log and is passed over.
+ * - A skipped job is passed over; a cancelled job's log is read if available, passed over only on 404.
  * - Passing and failing are written by the project's CI; a skip writes not checked with its reason;
  *   a contract no test ran for is left as it stands. The agent's reported column is never written.
  * - A project with no GitHub origin, or no finished push run, writes nothing and says why.
@@ -83,9 +83,18 @@ export async function readProjectCi({ library, git, github }: { library: Library
 
   const commit: string = run.head_sha;
   // A job the run skipped ran nothing and has no log: GitHub answers its log with 404.
-  const jobs: { id: number }[] = ((await github.json(`repos/${repository}/actions/runs/${run.id}/jobs`)).jobs ?? [])
+  const jobs: { id: number; conclusion?: string }[] = ((await github.json(`repos/${repository}/actions/runs/${run.id}/jobs`)).jobs ?? [])
     .filter((job: { conclusion?: string }) => job.conclusion !== "skipped");
-  const results = (await Promise.all(jobs.map((job) => github.text(`repos/${repository}/actions/jobs/${job.id}/logs`)))).flatMap(parseTestLog);
+  const results = (await Promise.all(jobs.map(async (job) => {
+    try {
+      return await github.text(`repos/${repository}/actions/jobs/${job.id}/logs`);
+    } catch (error) {
+      // Cancellation can leave no log, but a job that started may still hold test evidence.
+      const said = String((error as { stderr?: string })?.stderr ?? error);
+      if (job.conclusion === "cancelled" && /\bHTTP 404\b/.test(said)) return "";
+      throw error;
+    }
+  }))).flatMap(parseTestLog);
 
   let files;
   try {

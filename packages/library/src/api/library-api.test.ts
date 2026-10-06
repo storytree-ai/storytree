@@ -10,7 +10,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { connect, MissingReferenceError, type Change, type NodeHealth, type RecordEnvelope, type Storytree } from "@storytree/library";
+import { connect, MissingReferenceError, RetireRefusedError, type Change, type NodeHealth, type RecordEnvelope, type Storytree } from "@storytree/library";
 // The type half of 7.3, which `pnpm typecheck` checks rather than a test run: the entry exports no
 // type that reaches a connection pool, a store or a table. Each import below must fail to compile.
 // If one ever compiles, its @ts-expect-error is left unused, and that fails the typecheck.
@@ -480,6 +480,48 @@ test("7.4 editStory, editContract and editArc change only the fields they name, 
     assert.equal(await lib.editContract(arc.id, { title: "An arc, not a contract" }), null);
     assert.equal(await lib.editArc(contract.id, { title: "A contract, not an arc" }), null);
     assert.deepEqual(await lib.changesSince(before.cursor), { changes: [], cursor: before.cursor }, "nothing was written");
+  });
+});
+
+test("4.9 · retiring a capability refuses live dependents without writing, then succeeds once their links are gone", async () => {
+  const name = uniqueProjectName();
+  await withStorytree([name], async (storytree) => {
+    const lib = await storytree.openProject(name);
+    const story = await lib.addStory({ title: "The plan" });
+    const otherStory = await lib.addStory({ title: "The world" });
+    const target = await lib.addCapability({ story: story.id, title: "Source" });
+    const unrelated = await lib.addCapability({ story: story.id, title: "Other source" });
+    const first = await lib.addCapability({ story: story.id, title: "First dependent", dependsOn: [target.id, unrelated.id] });
+    const second = await lib.addCapability({ story: otherStory.id, title: "Second dependent", dependsOn: [target.id] });
+    const retired = await lib.addCapability({ story: otherStory.id, title: "Old dependent", dependsOn: [target.id] });
+    await lib.retire(retired.id, "No longer used");
+    const before = await lib.changesSince(0);
+    const tree = await lib.projectTree();
+
+    await assert.rejects(lib.retire(target.id, "No longer used"), (error: unknown) => {
+      assert.ok(error instanceof RetireRefusedError);
+      assert.equal(error.id, target.id);
+      assert.deepEqual(new Set(error.heldBy), new Set([first.id, second.id]));
+      for (const id of [target.id, first.id, second.id]) assert.ok(error.message.includes(id), error.message);
+      assert.match(error.message, /dependsOn/);
+      assert.ok(!error.message.includes(retired.id));
+      return true;
+    });
+    assert.deepEqual(await lib.changesSince(before.cursor), { changes: [], cursor: before.cursor });
+    assert.deepEqual(await lib.projectTree(), tree);
+    assert.deepEqual(await lib.get(target.id), target);
+
+    await lib.editCapability(first.id, { dependsOn: [unrelated.id] });
+    await lib.retire(second.id, "No longer needed");
+    await lib.retire(target.id, "Replaced", { actor: "session:retirer" });
+    assert.equal(await lib.get(target.id), null);
+    const remaining = await lib.get(first.id);
+    assert.equal(remaining?.type, "capability");
+    assert.deepEqual(remaining.fields.dependsOn, [unrelated.id]);
+    const history = await lib.history({ id: target.id });
+    assert.equal(history.at(-1)?.action, "retired");
+    assert.equal(history.at(-1)?.reason, "Replaced");
+    assert.equal(history.at(-1)?.actor, "session:retirer");
   });
 });
 

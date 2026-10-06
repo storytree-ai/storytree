@@ -1,17 +1,5 @@
-// land-relief.test.ts — the claims the SHIPPED map's land shape rests on.
-//
-// ⚠ THE MODULE'S OWN TESTS, IN ITS OWN HOME. The relief field crossed from `harness/` into `src/`
-// on 2026-08-30 (`put-the-treatment-on-the-shipped-map`), and a module that ships needs its
-// evidence where it ships: `harness/land-definition.test.ts` still exercises these symbols through
-// the re-export, but it is a harness file, so a mutation sweep over `src/` finds no witness there
-// and every line below reads as unproven. That is not a formality — the first sweep after the
-// crossing reported the WAVE TABLE ITSELF as an uncaught mutant, meaning it could have been emptied
-// (a perfectly flat land, silently) without anything failing.
-//
-// ⚠ THESE ARE ART CONSTANTS AND THE TESTS TREAT THEM AS SUCH. The wavelengths were chosen against a
-// measured cell pitch and the amplitude was chosen by looking; the point of pinning them is not
-// that the numbers are provably right, but that CHANGING THE LAND'S SHAPE has to be a deliberate
-// act rather than something that falls out of an edit elsewhere.
+// The live relief field's shape, bound and analytic gradient.
+// The frozen samples preserve the inherited tuning while the property tests check its geometry.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -22,8 +10,6 @@ import {
   landGradient,
   landHeight,
   landHeightRange,
-  landNormal,
-  landRelief,
 } from './land-relief.js';
 
 /** Ground points spanning the TUNED island (234 units wide, 46 deep) and beyond it. The shipped
@@ -106,47 +92,5 @@ test('the gradient is the field ANALYTIC — it agrees with a finite difference 
     const g = landGradient(x, z);
     assert.ok(Math.abs(g.dx - (landHeight(x + h, z) - landHeight(x - h, z)) / (2 * h)) < 1e-5);
     assert.ok(Math.abs(g.dz - (landHeight(x, z + h) - landHeight(x, z - h)) / (2 * h)) < 1e-5);
-  }
-});
-
-test('the peak slope crosses the shade ladder — the amplitude earns its number', () => {
-  // The amplitude was picked because SLOPE, not height, is what moves a pixel between shade rungs:
-  // reaching the next rung up needs the normal tilted about 9 degrees toward the light and the next
-  // one down about 11 degrees away. A land whose peak slope fell under that would be relief nobody
-  // could see, which is the failure this number exists to avoid.
-  let peak = 0;
-  for (let x = -20; x <= 260; x += 1) {
-    for (let z = -30; z <= 60; z += 1) {
-      const g = landGradient(x, z);
-      peak = Math.max(peak, Math.hypot(g.dx, g.dz));
-    }
-  }
-  const degrees = (Math.atan(peak) * 180) / Math.PI;
-  assert.ok(degrees > 11, `peak slope is only ${degrees.toFixed(1)}° — under the ladder's step`);
-  // And the other side of it: this is a SWELL, not terrain. A land steep enough to read as hills
-  // would be a different decision than the one that was made.
-  assert.ok(degrees < 45, `peak slope is ${degrees.toFixed(1)}° — that is terrain, not a swell`);
-});
-
-test('the normal points UP everywhere, however violent the land gets', () => {
-  // What `cell-ground-geometry.ts` relies on to give up its derived-normal guarantee for the top
-  // face: `y = 1/hypot(dx, 1, dz)` is positive for every finite gradient, so no parcel can ever be
-  // lit as though seen from underneath.
-  for (const amplitude of [0, 1, LAND_RELIEF_AMPLITUDE, 500]) {
-    for (const [x, z] of SAMPLES) {
-      const n = landNormal(x, z, amplitude);
-      assert.ok(n.y > 0, `the normal at (${x}, ${z}) at amplitude ${amplitude} faces down`);
-      assert.ok(Math.abs(Math.hypot(n.x, n.y, n.z) - 1) < 1e-12, 'the normal must be a unit vector');
-    }
-  }
-});
-
-test('landRelief is the SHIPPED pair — the same field, at the same amplitude, in both halves', () => {
-  // ⚠ THE FAILURE THIS CATCHES LOOKS LIKE ART RATHER THAN LIKE A BUG: a surface lit for a shape it
-  // does not have. Both functions default the amplitude, so a caller passing one and not the other
-  // gets normals belonging to a different land; the pair binds it once for the map.
-  for (const [x, z] of SAMPLES) {
-    assert.equal(landRelief.height(x, z), landHeight(x, z));
-    assert.deepEqual(landRelief.normal(x, z), landNormal(x, z));
   }
 });

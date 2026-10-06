@@ -191,18 +191,21 @@ export class WaitLoopError extends Error {
 }
 
 /**
- * A question some increment is held on cannot be retired (12.4): retiring it would leave the work
- * pointing at nothing. The message names the question and the increments held on it.
+ * A question some increment is held on (12.4), or a capability another depends on (4.9), cannot
+ * be retired: the message names the live records whose links must be dealt with first.
  */
 export class RetireRefusedError extends Error {
   readonly id: string;
-  /** The increments held on it. */
+  /** The increments held on the question, or capabilities depending on the capability. */
   readonly heldBy: readonly string[];
 
-  constructor(id: string, heldBy: readonly string[]) {
+  constructor(id: string, heldBy: readonly string[], field: "heldOn" | "dependsOn" = "heldOn") {
     super(
-      `question ${JSON.stringify(id)} cannot be retired: ${heldBy.map((held) => JSON.stringify(held)).join(", ")} ` +
-        "hold on it (take it off their heldOn first, or settle it instead)",
+      `${field === "heldOn" ? "question" : "capability"} ${JSON.stringify(id)} cannot be retired: ` +
+        `${heldBy.map((held) => JSON.stringify(held)).join(", ")} ` +
+        (field === "heldOn"
+          ? "hold on it (take it off their heldOn first, or settle it instead)"
+          : "depend on it (take it off their dependsOn first)"),
     );
     this.name = "RetireRefusedError";
     this.id = id;
@@ -483,14 +486,20 @@ export class WorkInFlight {
   }
 
   /**
-   * Retire a record, as capability 2's retire does, except a question an increment is held on,
-   * which is refused (RetireRefusedError) with nothing written.
+   * Retire a record, as capability 2's retire does, except a question an increment is held on or
+   * a capability with live dependents, refused (RetireRefusedError) with nothing written.
    */
   retire(id: string, reason: string, options?: WriteOptions): Promise<void> {
     return this.#serially(async () => {
-      if ((await liveRecord(this.#records, id, ["question"])) !== null) {
+      const record = await liveRecord(this.#records, id, ["question", "capability"]);
+      if (record?.type === "question") {
         const heldBy = (await this.#records.list("increment")).filter((increment) => increment.fields.heldOn?.includes(id) === true);
         if (heldBy.length > 0) throw new RetireRefusedError(id, heldBy.sort(byCreation).map((increment) => increment.id));
+      }
+      if (record?.type === "capability") {
+        const dependents = (await this.#records.select("capability", ["dependsOn"]))
+          .filter((capability) => capability.fields.dependsOn?.includes(id) === true);
+        if (dependents.length > 0) throw new RetireRefusedError(id, dependents.map((capability) => capability.id), "dependsOn");
       }
       await this.#records.retire(id, reason, options);
     });

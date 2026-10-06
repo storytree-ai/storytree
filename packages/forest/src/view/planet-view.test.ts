@@ -9,6 +9,7 @@ import { dragTurn, focusRotation, globeFraming, globeHover, hiddenMarkers, isGlo
 import { codePathKey } from "@storytree/knowledge-core";
 import { circleStops, fileCircleMarks, lightFileCircles } from "./file-circles.js";
 import { lightTerritories, territoryLand } from "./territory-land.js";
+import { territories } from "../territories/territories.js";
 
 test("3.12 hovering an eligible artifact shows its title and pointer in either mode; empty space clears both", () => {
   const world = new Group();
@@ -351,6 +352,43 @@ test("3.18 a capability the selected session opened fills its territory in the s
   assert.deepEqual([colourOf(a!), (a!.material as MeshBasicMaterial).opacity], resting, "the tint itself is untouched");
   lightTerritories(drawn, new Map(), "#e69f00");
   assert.deepEqual([a!.getObjectByName("territory-lit:cap-a"), b!.getObjectByName("territory-lit:cap-b"), a!.userData.window], [undefined, undefined, undefined]);
+});
+
+test("3.14, 3.20 an unsurveyed user project's land shows verified health, updates with it, and gains code when surveyed", () => {
+  const words = ["healthy", "unhealthy", "untested"] as const;
+  const health = { reported: { state: "passing" as const }, verified: { state: "not-checked" as const } };
+  const tree: AnnotatedTree = { arcs: [], stories: [{ id: "shop", title: "Browsing", health, capabilities: words.map((status, at) =>
+    ({ id: `cap-${at}`, title: `${at + 1} · ${status}`, description: `Browse ${at}`, dependsOn: [], proposed: false, status, contracts: [], health })) }] };
+  const unverified: AnnotatedTree = { ...tree, unverified: true, stories: tree.stories.map(story => ({ ...story,
+    capabilities: story.capabilities.map(capability => ({ ...capability, status: "untested", reportOnly: true })) })) };
+  const beforeCI = forestScene(unverified, [], workStates([])).islands[0]!;
+  assert.equal(beforeCI.land, undefined, "before any verification or code survey, the existing bare land remains");
+  const read = (survey = {}) => forestScene(tree, [], workStates([]), survey).islands[0]!;
+  const island = read();
+  assert.ok(island.land, "health has land to colour before a code survey is available");
+  assert.notEqual(island.key, beforeCI.key, "the first CI health creates the territories without a reload");
+  assert.deepEqual(island.land.files, [], "no files are invented");
+  assert.equal(island.land.package, undefined, "no package is inferred without a survey");
+  assert.deepEqual(read({ shop: { files: [], imports: [] } }).land, island.land, "an empty survey still draws health");
+  const map = territories(island.land.territories, 20);
+  const drawn = territoryLand(map, p => new Vector3(p.x, 0, p.z));
+  assert.deepEqual(words.map((_, at) => {
+    const mesh = drawn.getObjectByName(`territory:cap-${at}`) as Mesh;
+    assert.ok(mesh.geometry.attributes.position!.count > 0, "each capability has visible land");
+    assert.equal(mesh.userData.title, `${at + 1} · ${words[at]}`);
+    assert.equal(mesh.userData.description, `Browse ${at}`);
+    return (mesh.material as MeshBasicMaterial).color.getHexString();
+  }), ["97c459", "e24b4a", "f2d16b"], "the verified word wins over a passing agent report");
+  assert.deepEqual([0, 1, 2].map(at => map.cells.filter(cell => cell.territory === at).length), [40, 40, 40], "unsurveyed capabilities share the land equally");
+
+  tree.stories[0]!.capabilities[0]!.status = "unhealthy";
+  const changed = read();
+  assert.notEqual(changed.key, island.key, "fresh verified health redraws the island");
+  assert.equal(changed.land!.territories[0]!.status, "unhealthy");
+  const surveyed = read({ shop: { files: [{ path: "src/browse.ts", lines: 100, capability: "cap-0" }], imports: [] } });
+  assert.notEqual(surveyed.key, changed.key);
+  assert.deepEqual(surveyed.land!.territories.map(({ capability, lines }) => [capability, lines]), [["cap-0", 100]], "real code replaces equal shares");
+  assert.equal(surveyed.land!.files.length, 1);
 });
 
 test("3.20 each territory is filled by its capability's word, green, red or yellow, never grey, and a claim leaves the fill alone", () => {

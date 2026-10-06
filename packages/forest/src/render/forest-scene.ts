@@ -5,7 +5,8 @@
  *
  * - Every story node is an island at its place (capability 1), in world units, carrying its
  *   capabilities (capability 2's grove, one entry per capability in build order) and, once its code is
- *   surveyed, their territories and files. No tree is drawn (ADR-0804 D1, ADR-0920): the island is
+ *   surveyed, their files and code-sized territories. Before then, a verified project shows health
+ *   on equal capability shares without inventing code. No tree is drawn (ADR-0804 D1, ADR-0920): the island is
  *   a flat surface cut into capability territories, and a grove entry is only its capability's record.
  * - Each island is named with its story's title (the label the page keeps facing the camera).
  * - What the page drew is said as the smoke check reads it (ADR-0634 D2), with each capability's form.
@@ -60,9 +61,9 @@ export function forestScene(tree: AnnotatedTree, history: readonly Change[], sta
       ...(status === undefined ? {} : { status }),
       contracts: capability === undefined ? 0 : (contractsOf.get(capability) ?? 0),
     }));
-    const land = landOf(story.capabilities, survey[story.id], packageOf(story.title));
+    const land = landOf(story.capabilities, survey[story.id], packageOf(story.title), tree.unverified !== true);
     // ADR-0804 D3, D7: a surveyed story's land follows its lines of code, grown where its files' circles need more room; unsurveyed, it follows its capabilities, a one-capability floor's worth of land each, so it grows in step with the surveyed ones.
-    const area = land === undefined ? unsurveyedArea(story.capabilities.length) : landForCircles(land.territories, land.files, islandArea(land.territories.reduce((sum, { lines }) => sum + lines, 0)));
+    const area = land === undefined || land.files.length === 0 ? unsurveyedArea(story.capabilities.length) : landForCircles(land.territories, land.files, islandArea(land.territories.reduce((sum, { lines }) => sum + lines, 0)));
     const key = JSON.stringify([story.title, x, z, placed.map(({ capability, form, status, contracts }) => [capability, form, status, contracts]), land?.territories, area]);
     return { story: story.id, title: story.title, x, z, trees: placed, ...(land === undefined ? {} : { land }), area, key };
   });
@@ -95,10 +96,15 @@ export function forestDrawn(scene: ForestScene): ForestDrawn {
 
 /**
  * A surveyed story's land: one territory per capability with code, in the story's order, then Unclaimed
- * code, and its files. The page cuts it to the island's coast, which only the drawing knows.
+ * code, and its files. Before a survey, a verified project's capabilities get equal shares (weight 1),
+ * with no files or package asserted. A project never verified keeps its existing bare land.
+ * The page cuts it to the island's coast, which only the drawing knows.
  */
-function landOf(capabilities: readonly { id: string; title: string; description?: string; status: CapabilityWord }[], survey: StorySurvey | undefined, pkg: string): Island["land"] {
-  if (survey === undefined || survey.files.length === 0) return undefined;
+function landOf(capabilities: readonly { id: string; title: string; description?: string; status: CapabilityWord }[], survey: StorySurvey | undefined, pkg: string, verified: boolean): Island["land"] {
+  if (survey === undefined || survey.files.length === 0) return !verified || capabilities.length === 0 ? undefined : {
+    territories: capabilities.map(({ id, title, description, status }) => ({ capability: id, title, ...(description === undefined ? {} : { description }), status, lines: 1 })),
+    files: [],
+  };
   const linesOf = (capability: string | undefined) => survey.files.filter((file) => file.capability === capability).reduce((sum, file) => sum + file.lines, 0);
   return {
     territories: [...capabilities.map(({ id, title, description, status }) => ({ capability: id, title, ...(description === undefined ? {} : { description }), status, lines: linesOf(id) })), { lines: linesOf(undefined) }].filter(({ lines }) => lines > 0),

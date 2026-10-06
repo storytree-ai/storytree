@@ -14,7 +14,11 @@
 // colour and not be a second source of error.
 
 import type { CoastPoint } from './coast-clip.js';
-import { indices } from './land-shadow.js';
+
+/** A finite range for the grid's bounded bucket and coarsening walks. */
+function indices(count: number): number[] {
+  return Array.from({ length: Math.max(0, count) }, (_, i) => i);
+}
 
 /** One coast edge, flattened — the walk reads these four numbers and nothing else, so the grid
  *  stores them rather than re-deriving them from a ring and an index on every hit. */

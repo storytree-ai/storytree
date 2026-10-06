@@ -25,8 +25,8 @@
  */
 import { parse } from "@babel/parser";
 
-/** A file of a story's package: its path from the package root, and its text. */
-export type SourceFile = { readonly path: string; readonly text: string };
+/** A file of a story's package; the disk reader tags helpers outside src as test support. */
+export type SourceFile = { readonly path: string; readonly text: string; readonly testSupport?: boolean };
 
 /** A package's literal exports, in the same coordinates as its source files. */
 export type SurveyPackage = { readonly root: string; readonly name: string; readonly exports: Readonly<Record<string, string>> };
@@ -75,7 +75,7 @@ export function packageOf(title: string): string {
 const TEST_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$/;
 /** A test file, or a test helper under a testing/ folder: never counted as source, though a test reaches through a helper. */
 const TEST_SUPPORT = /(?:^|\/)testing\//;
-const isTestCode = (path: string): boolean => TEST_FILE.test(path) || TEST_SUPPORT.test(path);
+const isTestCode = (file: SourceFile): boolean => file.testSupport === true || TEST_FILE.test(file.path) || TEST_SUPPORT.test(file.path);
 const CODE_FILE = /\.[cm]?[jt]sx?$/;
 const DECLARATION = /\.d\.[cm]?ts$/;
 const NUMBERED_TITLE = /^(?:([a-z][a-z0-9-]*)\s+)?(\d+)\.\d+\b/;
@@ -271,6 +271,11 @@ function edgesOf(file: SourceFile, paths: ReadonlySet<string>, packages: readonl
   return [...imports, ...requires];
 }
 
+/** Dependencies to load from disk, using the same syntax and resolution as the survey's reach. */
+export function dependenciesOf(file: SourceFile, paths: ReadonlySet<string>, packages: readonly SurveyPackage[]): string[] {
+  return edgesOf(file, paths, packages).map(edge => edge.to);
+}
+
 /**
  * The source files a test file reaches, each with how near: what it imports (0), and through a re-export
  * the file the names it takes come from (as near as the file re-exporting them), and every file those
@@ -321,7 +326,7 @@ export function surveyStory(tree: readonly SourceFile[], capabilities: readonly 
   const code = tree.filter((file) => CODE_FILE.test(file.path) && !DECLARATION.test(file.path));
   const paths = new Set(code.map((file) => file.path));
   const byPath = new Map(code.map((file) => [file.path, file]));
-  const calls = new Map(code.filter((file) => isTestCode(file.path)).map((file) => [file.path, calledTitles(file)]));
+  const calls = new Map(code.filter(isTestCode).map((file) => [file.path, calledTitles(file)]));
   const byNumber = new Map(capabilities.flatMap((capability) => {
     const number = numberOf(capability.title);
     return number === undefined ? [] : [[number, capability.id] as const];
@@ -361,14 +366,14 @@ export function surveyStory(tree: readonly SourceFile[], capabilities: readonly 
     reach.set(path, tally);
   }
 
-  const sources = code.filter((file) => !isTestCode(file.path));
+  const sources = code.filter((file) => !isTestCode(file));
   const files = sources.map((file): SurveyedFile => {
     const tally = [...(reach.get(file.path) ?? [])].sort(([a, near], [b, far]) => near.depth - far.depth || far.count - near.count || a - b);
     const capability = tally.length > 0 ? byNumber.get(tally[0]![0]) : undefined;
     return capability === undefined ? { path: file.path, lines: linesOf(file.text) } : { path: file.path, lines: linesOf(file.text), capability };
   });
-  const imports = sources.flatMap((file) => edgesOf(file, paths, packages).filter((edge) => !isTestCode(edge.to)).map((edge) => ({ from: file.path, to: edge.to })));
-  const tests = code.filter((file) => isTestCode(file.path)).map((file): SurveyedTest => ({
+  const imports = sources.flatMap((file) => edgesOf(file, paths, packages).filter((edge) => !isTestCode(byPath.get(edge.to)!)).map((edge) => ({ from: file.path, to: edge.to })));
+  const tests = code.filter(isTestCode).map((file): SurveyedTest => ({
     kind: "test",
     path: file.path,
     titles: proofTitles(calls.get(file.path) ?? []),

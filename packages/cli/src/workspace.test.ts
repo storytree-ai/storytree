@@ -6,6 +6,8 @@
  */
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { copyFileSync, linkSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 
@@ -14,9 +16,27 @@ import { claim, openActivityLog, readClaims } from "@storytree/agent-link";
 import { BuiltCommand, inWorld, testServerUrl, type World } from "./testing/cli.js";
 
 const command = new BuiltCommand();
+/** A folder holding a `gh` that is a copy of Node: `gh api …` runs the project folder's `api` script. */
+let ghFolder: string;
 
-before(() => command.build());
-after(() => command.remove());
+before(async () => {
+  await command.build();
+  ghFolder = mkdtempSync(path.join(tmpdir(), "storytree-cli-gh-"));
+  const gh = path.join(ghFolder, process.platform === "win32" ? "gh.exe" : "gh");
+  if (process.platform === "win32") {
+    try {
+      linkSync(process.execPath, gh);
+    } catch {
+      copyFileSync(process.execPath, gh);
+    }
+  } else {
+    symlinkSync(process.execPath, gh);
+  }
+});
+after(() => {
+  command.remove();
+  rmSync(ghFolder, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+});
 
 function git(cwd: string, ...args: string[]): string {
   return execFileSync("git", ["-c", "user.name=storytree test", "-c", "user.email=test@storytree.invalid", ...args], { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
@@ -93,6 +113,32 @@ test("11.3 from a shell no agent session runs, it is refused saying to run it fr
   });
 });
 
+test("11.8 work with an open pull request is refused naming it and --despite-open-pulls, with nothing made or claimed; with the flag, the workspace is made beside it", async () => {
+  await inWorld(command, async (world) => {
+    const increment = await withRepository(world);
+    // gh's GraphQL answers that an open pull request is on a branch a workspace made for this increment.
+    const pulls = [{ number: 41, headRefName: `claude/${increment.replace(/_/g, "-")}-a1b2c3`, isDraft: false, isInMergeQueue: false }];
+    writeFileSync(path.join(world.folder, "api"), `process.stdout.write(${JSON.stringify(JSON.stringify({ data: { repository: { pullRequests: { nodes: pulls } } } }))});\n`);
+    const env = { CLAUDE_CODE_SESSION_ID: "claude-9", PATH: [ghFolder, process.env.PATH ?? process.env.Path ?? ""].join(path.delimiter) };
+    const log = await openActivityLog(testServerUrl());
+    try {
+      const refused = await world.run(["workspace", increment, "--reason", "build form"], env);
+      assert.equal(refused.code, 1);
+      assert.match(refused.stderr, /#41/);
+      assert.match(refused.stderr, /--despite-open-pulls/);
+      assert.deepEqual(await readClaims(log, world.project), []);
+      assert.equal(git(world.folder, "worktree", "list").trim().split(/\r?\n/).length, 1);
+
+      const made = await world.run(["workspace", increment, "--reason", "build form", "--despite-open-pulls"], env);
+      assert.equal(made.code, 0, made.stderr);
+      const [held] = await readClaims(log, world.project);
+      assert.equal(held?.session, "claude-9");
+      assert.equal(git(world.folder, "worktree", "list").trim().split(/\r?\n/).length, 2);
+    } finally {
+      await log.close();
+    }
+  });
+});
 
 test("11.4 Codex prepares app creation then attaches its returned folder; an invalid directory and a person-only shell are refused", async () => {
   await inWorld(command, async (world) => {

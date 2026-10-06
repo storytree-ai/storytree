@@ -1,0 +1,68 @@
+name: Hold release
+
+# Taking the `hold` label off a pull request releases it. Labels are no trigger for ci.yml, so a
+# pull request whose run passed `verify` while it was held stayed green and unmerged (PR #704);
+# this lands it then. It lands only a head commit whose latest `verify` passed, through land.yml,
+# which reads again whether it is held (a draft, or `hold` put back) and enqueues at that commit.
+# While a run on the head is still going, it leaves the pull request to that run: its `automerge`
+# reads the labels when it runs. A head whose `verify` failed, or never ran, is left as it is: a
+# push, or `gh pr ready` after a draft, runs it again. A pull request from a fork is never landed.
+
+on:
+  pull_request:
+    branches: [main]
+    types: [unlabeled]
+
+concurrency:
+  group: hold-release-${{ github.event.pull_request.number }}
+
+permissions:
+  contents: read
+
+jobs:
+  # Whether the head's `verify` passed: the latest `verify` check on that exact commit, finished.
+  verified:
+    name: head verified?
+    if: >-
+      github.event.label.name == 'hold' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      checks: read
+    outputs:
+      passed: ${{ steps.verify.outputs.passed }}
+    steps:
+      - name: Latest verify on the head
+        id: verify
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          latest=$(gh api "repos/$GITHUB_REPOSITORY/commits/$SHA/check-runs?check_name=verify&per_page=100" \
+            --jq '.check_runs | sort_by(.started_at) | last | if . == null then "none" else "\(.status) \(.conclusion)" end')
+          echo "verify on $SHA: $latest"
+          passed=false
+          case "$latest" in
+            "completed success") passed=true; echo "Released with its head verified: landing it." ;;
+            none) echo "verify has not run on this head: a push, or \`gh pr ready\`, runs it." ;;
+            completed*) echo "verify did not pass on this head: not landed." ;;
+            *) echo "verify is still running on this head: that run lands it when it passes." ;;
+          esac
+          echo "passed=$passed" >> "$GITHUB_OUTPUT"
+
+  land:
+    name: land
+    needs: verified
+    if: needs.verified.outputs.passed == 'true'
+    permissions:
+      actions: write # to start the own-health workflow on main once merged
+      contents: write
+      pull-requests: write
+    uses: ./.github/workflows/land.yml
+    with:
+      pr: ${{ github.event.pull_request.number }}
+      pr-id: ${{ github.event.pull_request.node_id }}
+      sha: ${{ github.event.pull_request.head.sha }}
+    secrets:
+      MERGE_QUEUE_TOKEN: ${{ secrets.MERGE_QUEUE_TOKEN }}

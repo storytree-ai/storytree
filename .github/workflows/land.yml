@@ -1,0 +1,140 @@
+name: Land
+
+# Lands a pull request whose `verify` passed on its head commit: hands it to the merge queue when
+# main requires one (ADR-0796), or merges it directly when none is required. Two callers: ci.yml's
+# `automerge`, once its own run's `verify` passed, and hold-release.yml, when the `hold` label is
+# taken off a pull request whose head had already passed `verify` in a run that skipped landing it.
+# It lands nothing that is held when it runs (a draft, or the `hold` label), and only the commit
+# `verify` passed: never one pushed since.
+
+on:
+  workflow_call:
+    inputs:
+      pr:
+        description: The pull request's number.
+        type: number
+        required: true
+      pr-id:
+        description: The pull request's GraphQL node id, for the enqueue.
+        type: string
+        required: true
+      sha:
+        description: The head commit `verify` passed; nothing else is landed.
+        type: string
+        required: true
+    secrets:
+      MERGE_QUEUE_TOKEN:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  land:
+    name: land
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      actions: write # to start the own-health workflow on main once merged
+      contents: write
+      pull-requests: write
+    env:
+      PR: ${{ inputs.pr }}
+      SHA: ${{ inputs.sha }}
+    steps:
+      # Whether it is held now, not in the event that started the run: a draft, the `hold` label,
+      # or no longer open. A ready issued seconds after a push can have its own run cancelled by the
+      # push's, which began while it was still a draft (PR #281), and a `hold` removed after a run
+      # started was still in that run's event (PR #704); either way the run that lands it reads now.
+      - name: Still held?
+        id: held
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          read -r state draft hold queued <<< "$(gh api graphql -f owner="${GITHUB_REPOSITORY%/*}" -f name="${GITHUB_REPOSITORY#*/}" -F pr="$PR" \
+            -f query='query($owner: String!, $name: String!, $pr: Int!) { repository(owner: $owner, name: $name) { pullRequest(number: $pr) { state isDraft isInMergeQueue labels(first: 100) { nodes { name } } } } }' \
+            --jq '.data.repository.pullRequest | "\(.state) \(.isDraft) \([.labels.nodes[].name] | index("hold") != null) \(.isInMergeQueue)"')"
+          held=false
+          if [ "$state" != OPEN ]; then held=true; echo "The pull request is $state: nothing to land."
+          elif [ "$draft" = true ]; then held=true; echo "A draft: not merged. \`gh pr ready\` releases it."
+          elif [ "$hold" = true ]; then held=true; echo "Carries the \`hold\` label: not merged. Removing the label releases it."
+          elif [ "$queued" = true ]; then held=true; echo "Already in the merge queue: nothing more to do."
+          fi
+          echo "held=$held" >> "$GITHUB_OUTPUT"
+      # With a merge queue required on main, enqueue the pull request at the commit `verify` passed
+      # (expectedHeadOid): the queue tests it on top of main and merges it. It enqueues with the
+      # MERGE_QUEUE_TOKEN secret, never this workflow's own token: GitHub starts no workflow from an
+      # event that token causes, so an entry it enqueued gets no `merge_group` run and waits in the
+      # queue until it times out (2026-09-30, PRs #311-#316). Without a queue, merge it
+      # directly. --match-head-commit: merge the commit `verify` passed, never one pushed since.
+      # --auto: if main's protection still holds the merge back, GitHub's auto-merge makes it once
+      # it allows; otherwise gh merges now. --delete-branch: the repo's own "automatically delete
+      # head branches" setting left #1's branch in place after this job merged it, so gh deletes the
+      # branch itself.
+      - name: Merge
+        id: merge
+        if: steps.held.outputs.held == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_ID: ${{ inputs.pr-id }}
+          QUEUE_TOKEN: ${{ secrets.MERGE_QUEUE_TOKEN }}
+        run: |
+          queue=$(gh api graphql -f owner="${GITHUB_REPOSITORY%/*}" -f name="${GITHUB_REPOSITORY#*/}" -F pr="$PR" \
+            -f query='query($owner: String!, $name: String!, $pr: Int!) { repository(owner: $owner, name: $name) { pullRequest(number: $pr) { isMergeQueueEnabled } } }' \
+            --jq .data.repository.pullRequest.isMergeQueueEnabled)
+          echo "queue=$queue" >> "$GITHUB_OUTPUT"
+          if [ "$queue" = true ]; then
+            if [ -z "$QUEUE_TOKEN" ]; then
+              echo "::error::main requires the merge queue, but the MERGE_QUEUE_TOKEN secret is not set, so this pull request cannot be enqueued (an entry this workflow's own token enqueued would never be checked)."
+              exit 1
+            fi
+            # GitHub can refuse the enqueue with `Required status check "verify" is in progress`
+            # seconds after this run's `verify` passed on this very commit, before it has taken the
+            # result in (PR #681: verify done 15:18:28, refused 15:18:34, the commit's only run). That
+            # refusal alone is retried, a bounded number of times, still at expectedHeadOid, and only
+            # while the pull request's head is still the commit `verify` passed: a newer push has a run
+            # of its own. Any other refusal, or the same one past the last try, fails here as before.
+            for attempt in 1 2 3 4 5 6; do
+              if out=$(GH_TOKEN="$QUEUE_TOKEN" gh api graphql -f id="$PR_ID" -f sha="$SHA" \
+                -f query='mutation($id: ID!, $sha: GitObjectID!) { enqueuePullRequest(input: {pullRequestId: $id, expectedHeadOid: $sha}) { mergeQueueEntry { position } } }' \
+                --jq '"Entered the merge queue at position \(.data.enqueuePullRequest.mergeQueueEntry.position)."' 2>&1); then
+                echo "$out"
+                exit 0
+              fi
+              echo "$out"
+              if ! grep -q 'Required status check "verify" is in progress' <<< "$out"; then exit 1; fi
+              head=$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq .headRefOid)
+              if [ "$head" != "$SHA" ]; then
+                echo "::error::The pull request's head moved to $head after verify passed $SHA, so this run does not enqueue it: the newer push's run does."
+                exit 1
+              fi
+              if [ "$attempt" = 6 ]; then break; fi
+              echo "verify passed on $SHA in this run, but GitHub still reads it in progress: trying again in 15 s (attempt $attempt of 6)."
+              sleep 15
+            done
+            echo "::error::GitHub still reads verify in progress on $SHA after six tries over 75 s, although this run's verify passed it. Not enqueued; re-run this job to try again."
+            exit 1
+          else
+            gh pr merge "$PR" --repo "$GITHUB_REPOSITORY" --auto --merge --match-head-commit "$SHA" --delete-branch
+          fi
+      # A direct merge starts no push workflow (it was made with this token), so start the one that
+      # records each contract's verified health on main (own-health.yml). Only once the merge has
+      # happened, which GitHub finishes a few seconds after `gh pr merge --auto` returns (7 s on
+      # #219), so this waits for it, up to two minutes. A merge still held back after that records
+      # nothing now, and the next change to main records it. The merge is already made or
+      # scheduled, so a failure here never fails it. The queue's merge starts CI, whose completion
+      # starts own-health.yml with Windows evidence for that exact commit.
+      - name: Record own health on main
+        if: steps.merge.outcome == 'success' && steps.merge.outputs.queue != 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for attempt in $(seq 1 24); do
+            if [ "$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json state --jq .state)" = MERGED ]; then
+              gh workflow run own-health.yml --repo "$GITHUB_REPOSITORY" --ref main
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Not merged after two minutes, so main has not changed yet: nothing to record now."

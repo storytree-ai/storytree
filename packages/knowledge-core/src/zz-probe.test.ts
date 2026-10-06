@@ -10,13 +10,13 @@ const checkout = path.resolve(pkg, "../..");
 const folder = path.join(pkg, "evidence/traversal-when-selected");
 const run = promisify(execFile);
 
-test("4.16 probe: the click's steps timed, two at a time, five rounds", { timeout: 1_500_000 }, async () => {
-  await run(process.execPath, ["--import", "tsx", path.join(folder, "build.mjs"), checkout, "smoke"], { cwd: checkout, timeout: 120_000 });
-  for (let round = 0; round < 5; round++) {
-    const once = () => run(process.execPath, ["--import", "tsx", path.join(folder, "probe.mjs"), "after", "--smoke"],
-      { cwd: checkout, timeout: 280_000, env: { ...process.env, CAPTURE_CHANNEL: process.env.CAPTURE_CHANNEL ?? "chrome" } })
+test("4.16 probe: the click's steps timed, one at a time, while 110 s allow", { timeout: 170_000 }, async () => {
+  const began = Date.now();
+  await run(process.execPath, ["--import", "tsx", path.join(folder, "build.mjs"), checkout, "smoke"], { cwd: checkout, timeout: 60_000 });
+  for (let round = 0; Date.now() - began < 110_000; round++) {
+    const out = await run(process.execPath, ["--import", "tsx", path.join(folder, "probe.mjs"), "after", "--smoke"],
+      { cwd: checkout, timeout: 150_000 - (Date.now() - began), env: { ...process.env, CAPTURE_CHANNEL: process.env.CAPTURE_CHANNEL ?? "chrome" } })
       .then(r => r.stderr, (e: any) => `FAILED ${String(e.stderr ?? e).slice(-1500)}`);
-    const outs = await Promise.all([once(), once()]);
-    for (const out of outs) for (const l of out.split("\n").filter(l => l.startsWith("PROBE") || l.startsWith("FAILED") || l.includes("Timeout"))) console.log(`round ${round}: ${l}`);
+    for (const l of out.split("\n").filter(l => l.startsWith("PROBE") || l.startsWith("FAILED") || l.includes("Timeout"))) console.log(`round ${round} at ${Date.now() - began} ms: ${l}`);
   }
 });

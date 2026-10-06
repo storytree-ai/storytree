@@ -13,7 +13,7 @@
 
 import type { Descriptor3D } from './descriptors.js';
 
-/** A ground-space point. x east, z south — the space `landHeight(x, z)` takes. */
+/** A ground-space point. x east, z south. */
 export interface GPoint {
   x: number;
   z: number;

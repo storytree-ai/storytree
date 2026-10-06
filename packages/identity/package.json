@@ -3,7 +3,10 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./client": "./src/client.ts",
+    "./session-store": "./src/session-store.ts",
+    "./command": "./src/command.ts"
   },
   "scripts": {
     "typecheck": "tsc -p ."

@@ -101,3 +101,68 @@ test("3.4 Add project asks the picker bridge, shows the chosen project and leave
     assert.equal(button.disabled, false);
   } finally { mounted.stop(); }
 });
+
+test("5.5 feedback sign-in is optional and only explicitly added identity enters the editable draft", async () => {
+  let statuses = 0;
+  let signIns = 0;
+  const drafts: unknown[] = [];
+  const copied: string[] = [];
+  const user = { id: "76c80829-6cfd-4f1e-95e8-9a9c781529ce", email: "me@example.test" };
+  const mounted = mountSetupHelp(document.body, helpBridge({
+    feedbackIdentity: {
+      status: async () => { statuses++; return null; },
+      signIn: async () => { signIns++; return user; },
+      signOut: async () => {},
+    },
+    openFeedbackDraft: async draft => { drafts.push(draft); return { status: "opened" }; },
+    copyHelpText: async text => { copied.push(text); },
+  }));
+  const click = (selector: string) => document.querySelector<HTMLButtonElement>(selector)!.click();
+  const message = document.querySelector<HTMLTextAreaElement>("[name=body]")!;
+  const title = document.querySelector<HTMLInputElement>("[name=title]")!;
+  try {
+    await setImmediate();
+    assert.equal(statuses, 0, "first run never asks identity");
+    click('[data-page="feedback"]');
+    await setImmediate();
+    assert.equal(statuses, 1);
+    assert.equal(signIns, 0);
+    title.value = "Suggestion"; message.value = "Please add this.";
+    click('[type="submit"]'); await setImmediate();
+    assert.deepEqual(drafts, [{ title: "Suggestion", body: "Please add this." }]);
+    click("[data-feedback-sign-in]"); await setImmediate();
+    assert.equal(signIns, 1);
+    assert.equal(message.value, "Please add this.", "sign-in alone attaches nothing");
+    click("[data-feedback-include-identity]");
+    assert.match(message.value, /me@example.test/);
+    assert.match(message.value, /76c80829-6cfd-4f1e-95e8-9a9c781529ce/);
+    const reviewed = message.value;
+    click("[data-feedback-include-identity]");
+    assert.equal(message.value, reviewed, "does not repeat attribution");
+    click("[data-copy-feedback]"); await setImmediate();
+    assert.equal(copied[0], `Suggestion\n\n${reviewed}`);
+    message.value = "Only this text now.";
+    click('[type="submit"]'); await setImmediate();
+    assert.deepEqual(drafts[1], { title: "Suggestion", body: "Only this text now." });
+    click("[data-feedback-sign-out]"); await setImmediate();
+    assert.equal(document.querySelector<HTMLElement>("[data-feedback-include-identity]")!.hidden, true);
+  } finally { mounted.stop(); }
+});
+
+test("5.5 unavailable sign-in leaves feedback open and does not expose private errors", async () => {
+  const mounted = mountSetupHelp(document.body, helpBridge({
+    feedbackIdentity: {
+      status: async () => null,
+      signIn: async () => { throw new Error("private-token"); },
+      signOut: async () => {},
+    },
+  }));
+  try {
+    document.querySelector<HTMLButtonElement>('[data-page="feedback"]')!.click(); await setImmediate();
+    document.querySelector<HTMLButtonElement>("[data-feedback-sign-in]")!.click(); await setImmediate();
+    const status = document.querySelector<HTMLElement>("[data-feedback-identity-status]")!;
+    assert.match(status.textContent!, /without signing in/i);
+    assert.doesNotMatch(status.textContent!, /private-token/);
+    assert.equal(document.querySelector<HTMLButtonElement>('[type="submit"]')!.disabled, false);
+  } finally { mounted.stop(); }
+});

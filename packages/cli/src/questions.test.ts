@@ -161,6 +161,9 @@ test("5.3 a held increment reads as waiting on you until its question is settled
     assert.equal(raised.code, 0, raised.stderr);
     const question = /\bquestion_[0-9a-f]+\b/.exec(raised.stdout)?.[0];
     assert.ok(question !== undefined, raised.stdout);
+    const stored = await (await world.library()).get(increment);
+    assert.ok(stored?.type === "increment");
+    assert.deepEqual(stored.fields.heldOn, [question]);
 
     const held = await world.run(["arc", "show", arc]);
     assert.match(held.stdout, new RegExp(`waiting on you: question ${question}`));
@@ -168,6 +171,23 @@ test("5.3 a held increment reads as waiting on you until its question is settled
     await world.run(["question", "settle", question, "--answer", "Mailgun"]);
     const released = await world.run(["arc", "show", arc]);
     assert.doesNotMatch(released.stdout, /waiting on you: question/);
+  });
+});
+
+test("5.10 unsupported question new flags are refused before any write, naming --hold", async () => {
+  await inWorld(command, async (world) => {
+    const { arc, increment } = await arcWithWork(world);
+    const library = await world.library();
+    const before = (await library.changesSince(0)).cursor;
+
+    for (const extra of [["--holds", increment], ["--hold", increment, "--unknown", "value"]]) {
+      const ran = await world.run(["question", "new", ...questionFlags(arc), ...extra]);
+
+      assert.equal(ran.code, 2, ran.stdout);
+      assert.match(ran.stderr, /unsupported.*--(?:holds|unknown)/i);
+      assert.match(ran.stderr, /--hold\b/);
+      assert.deepEqual((await library.changesSince(before)).changes, [], "neither a question nor a hold was written");
+    }
   });
 });
 

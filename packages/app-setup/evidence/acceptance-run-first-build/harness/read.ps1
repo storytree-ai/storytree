@@ -1,6 +1,6 @@
 # Reads a trial project's plan back with storytree's installed command, run over SSH after the journey:
 # the tree, the stories, capabilities, contracts, arcs and increments, every write to each contract's reported
-# health, who holds anything now, and the activity log. Each answer goes to its own file for observe.mjs.
+# health with the state it stored (`library history --fields`), who holds anything now, and the activity log. Each answer goes to its own file for observe.mjs.
 # Usage: powershell -File read.ps1 <project folder> <outDir>
 param([string]$Folder, [string]$Out)
 $ErrorActionPreference = 'Continue'
@@ -20,6 +20,6 @@ foreach ($id in (Select-String -Path "$Out\list-increment.txt" -Pattern '^\s+(in
   St "read-$id.txt" @('library', 'read', $id)
 }
 foreach ($id in (Select-String -Path "$Out\list-contract.txt" -Pattern '^\s+(contract_[0-9a-f]+)' | ForEach-Object { $_.Matches[0].Groups[1].Value })) {
-  St "history-$id.txt" @('library', 'history', "health_${id}_reported")
+  St "history-$id.txt" @('library', 'history', "health_${id}_reported", '--fields')
 }
 'done' | Set-Content "$Out\done.txt"

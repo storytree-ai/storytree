@@ -10,7 +10,7 @@ import { connect } from "@storytree/library";
 import pg from "pg";
 
 import { acceptRun } from "./record-acceptance.mjs";
-import { mintAcceptance, readObservations, recordAcceptance } from "./acceptance-health.mjs";
+import { mintAcceptance, readObservations, recordAcceptance, reportedStates, wentRedThenGreen } from "./acceptance-health.mjs";
 import { contractsOf } from "./own-health.mjs";
 
 test("5.5 an acceptance verdict passes only when the harness ran checks for the contract and every one passed; any failure fails it; none, or one not observed, leaves it not checked", () => {
@@ -37,6 +37,31 @@ test("5.5 an acceptance verdict passes only when the harness ran checks for the 
   assert.deepEqual(brief("1.3"), { state: "not-checked", reason: "1 of 2 checks not observed (the window)" });
   assert.deepEqual(brief("1.4"), { state: "not-checked", reason: "no checks" });
   assert.equal(verdicts.has("9.9"), false, "a check for a contract the story does not have counts for none");
+});
+
+test("5.5 a harness reads a contract's reported health from its whole history, oldest first: red then green between two former polls is seen, never red is not, and a history it cannot read is no reading", () => {
+  const fields = (state) => `    fields: {"contract":"contract_5ec0bf62325f","column":"reported","state":"${state}","by":"session:d8024e51"}`;
+  // Captured as Windows PowerShell 5.1 writes `storytree library history <id> --fields` to a file; out of seq order on purpose.
+  const quick = [
+    "History of health_contract_5ec0bf62325f_reported:",
+    "  62  2026-10-05T05:52:59.100Z  updated  session:d8024e51-fe47-4880-b806-7fea314228af",
+    fields("passing"),
+    "  59  2026-10-05T05:52:58.332Z  created  session:d8024e51-fe47-4880-b806-7fea314228af",
+    fields("failing"),
+    "  70  2026-10-05T05:58:00.000Z  retired  session:d8024e51-fe47-4880-b806-7fea314228af  contract dropped",
+    fields("passing"),
+  ].join("\r\n");
+  assert.deepEqual(reportedStates(quick), ["failing", "passing", "passing"]);
+  assert.equal(wentRedThenGreen(reportedStates(quick)), true, "a failing then passing 0.8 s apart, inside one 3 s poll, is seen");
+
+  const neverRed = ["History of health_contract_69c55fff651c_reported:", "  60  2026-10-05T05:53:00.000Z  created  session:d8024e51", fields("passing")].join("\n");
+  assert.deepEqual(reportedStates(neverRed), ["passing"]);
+  assert.equal(wentRedThenGreen(reportedStates(neverRed)), false);
+  assert.equal(wentRedThenGreen(["passing", "failing"]), false, "green then red is not red then green");
+
+  assert.deepEqual(reportedStates("No history for health_contract_7db9af49bad4_reported."), [], "never reported: no states, so never red");
+  assert.equal(reportedStates(undefined), undefined, "no file: not read");
+  assert.equal(reportedStates("History of health_contract_5ec0bf62325f_reported:\n  59  2026-10-05T05:52:58.332Z  created  session:d8024e51\n  62  2026-10-05T05:53:48.826Z  updated  session:d8024e51"), undefined, "a history printed without --fields: not read");
 });
 
 test("5.5 an observation the harness did not mint is refused: a check whose result is not pass, fail or not-observed, or a run with no commit or evidence path", () => {

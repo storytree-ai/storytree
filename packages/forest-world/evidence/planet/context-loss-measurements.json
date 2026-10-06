@@ -1,0 +1,123 @@
+{
+  "capturedAt": "2026-10-06T12:32:37.312Z",
+  "browser": "148.0.7778.96",
+  "renderer": "SwiftShader",
+  "viewport": [
+    960,
+    720
+  ],
+  "paintedShare": {
+    "shown": 0.35320833333333335,
+    "lost": 1,
+    "restored": 0.35320833333333335,
+    "backFromAway": 0.35320833333333335
+  },
+  "framesAfterRestoreOnScreen": 1,
+  "framesWhileRestoredAway": 0,
+  "framesBackFromAway": 2,
+  "phases": {
+    "shown": {
+      "created": true,
+      "draws": 2,
+      "frameloop": "demand",
+      "clock": 1.5462000000001863,
+      "at": 1839.1000000000931,
+      "camera": {
+        "zoom": 1.1662260923651064,
+        "position": [
+          0,
+          667.9907543997489,
+          560.5107956466624
+        ]
+      },
+      "plates": 4,
+      "top": 60
+    },
+    "lost": {
+      "created": true,
+      "draws": 2,
+      "frameloop": "demand",
+      "clock": 2.380399999999907,
+      "at": 2673.2999999998137,
+      "camera": {
+        "zoom": 1.1662260923651064,
+        "position": [
+          0,
+          667.9907543997489,
+          560.5107956466624
+        ]
+      },
+      "plates": 4,
+      "top": 60
+    },
+    "restored": {
+      "created": true,
+      "draws": 3,
+      "frameloop": "demand",
+      "clock": 3.884700000000186,
+      "at": 4177.600000000093,
+      "camera": {
+        "zoom": 1.1662260923651064,
+        "position": [
+          0,
+          667.9907543997489,
+          560.5107956466624
+        ]
+      },
+      "plates": 4,
+      "top": 60
+    },
+    "awayLost": {
+      "created": true,
+      "draws": 3,
+      "frameloop": "never",
+      "clock": 4.784799999999814,
+      "at": 5077.799999999814,
+      "camera": {
+        "zoom": 1.1662260923651064,
+        "position": [
+          0,
+          667.9907543997489,
+          560.5107956466624
+        ]
+      },
+      "plates": 4,
+      "top": 1080
+    },
+    "awayRestored": {
+      "created": true,
+      "draws": 3,
+      "frameloop": "never",
+      "clock": 6.288100000000093,
+      "at": 6581.100000000093,
+      "camera": {
+        "zoom": 1.1662260923651064,
+        "position": [
+          0,
+          667.9907543997489,
+          560.5107956466624
+        ]
+      },
+      "plates": 4,
+      "top": 1080
+    },
+    "back": {
+      "created": true,
+      "draws": 5,
+      "frameloop": "demand",
+      "clock": 7.79119999999972,
+      "at": 8084.299999999814,
+      "camera": {
+        "zoom": 1.1662260923651064,
+        "position": [
+          0,
+          667.9907543997489,
+          560.5107956466624
+        ]
+      },
+      "plates": 4,
+      "top": 60
+    }
+  },
+  "errors": []
+}

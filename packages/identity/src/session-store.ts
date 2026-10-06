@@ -1,3 +1,4 @@
+/** Capability 2 · Social sign-in and session. */
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { constants } from "node:fs";

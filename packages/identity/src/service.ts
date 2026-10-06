@@ -1,3 +1,4 @@
+/** Capability 1 · Portable user identity. */
 import { createRemoteJWKSet, customFetch, jwtVerify } from "jose";
 import type { Pool } from "pg";
 import { IdentityConflictError, initialize, remember, type ProviderIdentity, type StorytreeUser } from "./store.js";

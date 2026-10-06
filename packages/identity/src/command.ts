@@ -1,3 +1,4 @@
+/** Capability 2 · Social sign-in and session. */
 import { createIdentityClient, type ClientConfiguration } from "./client.js";
 import { withSessionStore } from "./session-store.js";
 

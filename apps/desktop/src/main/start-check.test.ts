@@ -107,7 +107,8 @@ test("4.17 an exited child with inherited output pipes is diagnosed and cannot k
   writeFileSync(child, `
     const { spawn } = require("node:child_process");
     const { writeFileSync } = require("node:fs");
-    const holder = spawn(process.execPath, ["-e", "setTimeout(() => {}, 15000)"], { stdio: ["ignore", "inherit", "inherit"] });
+    // Windows otherwise ends this descendant with its parent, closing the pipes normally.
+    const holder = spawn(process.execPath, ["-e", "setTimeout(() => {}, 15000)"], { detached: true, windowsHide: true, stdio: ["ignore", "inherit", "inherit"] });
     writeFileSync(${JSON.stringify(pidFile)}, String(holder.pid));
     process.stdout.write("start check: the main process reached its handlers\\n", () => process.exit(0));
   `);

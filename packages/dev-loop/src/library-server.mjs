@@ -1,4 +1,4 @@
-// How this repo's library scripts (`pnpm check:own-health`, `library:export`, `library:restore`)
+// Capability 5 · Library tools. How this repo's library scripts (`pnpm check:own-health`, `library:export`, `library:restore`)
 // reach the app's library (~/.storytree/0.3/pgdata) without anyone quitting the app first. The
 // "seed" in the names below is the first such script, `pnpm seed:library`, deleted by the flip
 // (ADR-0641 D2 step 4).

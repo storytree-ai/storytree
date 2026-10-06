@@ -1,4 +1,4 @@
-// `pnpm test-ratio`: how many lines of test code this repo has for each line of implementation,
+// Capability 6 · Running the tests. `pnpm test-ratio`: how many lines of test code this repo has for each line of implementation,
 // overall and per package. It is a report for the session landing an increment to read (ADR-0623 in
 // storytree 0.2's decision log), never a gate: a rising ratio is a prompt to look, so there is no
 // threshold and nothing fails on it.

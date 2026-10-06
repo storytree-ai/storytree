@@ -1,4 +1,4 @@
-// `pnpm build:guidance`: generate this repo's own agent guidance from the agent roles in the project
+// Capability 4 · Agent guidance. `pnpm build:guidance`: generate this repo's own agent guidance from the agent roles in the project
 // `storytree` in the desktop app's library (~/.storytree/0.3): CLAUDE.md's generated region,
 // AGENTS.md, a Claude Code and a Codex role file for every other role, and a SKILL.md for each
 // harness for every process marked as a skill, removing role and skill files nothing generates any more. `pnpm check:guidance` (`--check`) writes nothing and exits 1 when a

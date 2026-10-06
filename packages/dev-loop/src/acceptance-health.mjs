@@ -1,4 +1,4 @@
-// The rules `pnpm record:acceptance` (packages/dev-loop/src/record-acceptance.mjs) runs: how an acceptance
+// Capability 5 · Library tools. The rules `pnpm record:acceptance` (packages/dev-loop/src/record-acceptance.mjs) runs: how an acceptance
 // run becomes each contract's VERIFIED health (ADR-0825 D5). A model drives the product as a user
 // would; its harness then checks what happened for itself (an exit code, a file, a record in the
 // library, a picture) and writes each check down as observed passing, failing or not observed. The

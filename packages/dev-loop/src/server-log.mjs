@@ -1,4 +1,4 @@
-// The test Postgres's server log across runs (increment_5297d1d7c3e7): a run's start moves the
+// Capability 6 · Running the tests. The test Postgres's server log across runs (increment_5297d1d7c3e7): a run's start moves the
 // previous run's log aside, one deep, instead of deleting it, so the `--rerun-failed` that follows a
 // red run leaves the red run's server log readable.
 

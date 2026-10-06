@@ -1,4 +1,4 @@
-// `pnpm library:export`: print the project `storytree` in the desktop app's library
+// Capability 5 · Library tools. `pnpm library:export`: print the project `storytree` in the desktop app's library
 // (~/.storytree/0.3/pgdata) as story and decision files, into library-export/stories/ and
 // library-export/decisions/ (which git ignores). They are read-only copies, for reading the plan
 // outside the app: the library is the one copy of 0.3's own stories and decisions (ADR-0641 D2

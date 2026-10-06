@@ -1,4 +1,4 @@
-// `pnpm lag:desktop`: what a user's clicks cost in the desktop app (ADR-0836), measured the same way by
+// Capability 8 · Lag instruments. `pnpm lag:desktop`: what a user's clicks cost in the desktop app (ADR-0836), measured the same way by
 // every re-measure (capability 8, Lag instruments). It launches a second copy of the built desktop app
 // with a throwaway STORYTREE_HOME holding copies of the real home's settings.json, machine.json and
 // project-choice.json, so it reads the same library while the running app is left alone, and records,

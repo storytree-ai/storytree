@@ -1,4 +1,4 @@
-// Whether the plan's edges between stories follow the code (ADR-0840 D2): a capability of story X may
+// Capability 3 · Package boundaries. Whether the plan's edges between stories follow the code (ADR-0840 D2): a capability of story X may
 // depend on a capability of story Y only when X's package depends on Y's, directly or through other
 // workspace dependencies (every field of package.json counts, as in package-boundaries.mjs). The
 // library holds the plan and CI cannot read it, so `pnpm gate` runs this as check:plan-edges.

@@ -1,4 +1,4 @@
-// The machine's heavy-run lock (increment_d8c91507b3a1, increment_8610446d96b6): `pnpm test` and
+// Capability 6 · Running the tests. The machine's heavy-run lock (increment_d8c91507b3a1, increment_8610446d96b6): `pnpm test` and
 // `pnpm gate` take it themselves around their heavy part, so concurrent sessions on one machine
 // queue instead of saturating it. It is a file, heavy-run.lock in STORYTREE_HOME (default
 // ~/.storytree/0.3), created exclusively, so it works on every platform without flock. It names its

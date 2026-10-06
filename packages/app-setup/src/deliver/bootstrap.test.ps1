@@ -7,31 +7,43 @@ $channelHome = Join-Path $channelRoot 'home'
 $channelInstall = Join-Path $channelRoot 'app'
 $channelFile = Join-Path $channelHome 'release-channel.json'
 try {
-  Assert ((Initialize-StorytreeChannel $channelHome $channelInstall '') -eq 'stable') 'new installation defaults to stable'
+  Assert ((Resolve-StorytreeChannel $channelHome $channelInstall '') -eq 'stable') 'new installation defaults to stable'
+  Assert (-not (Test-Path -LiteralPath $channelFile)) 'choosing a channel writes nothing before a download succeeds'
+  Save-StorytreeChannel $channelHome 'stable'
   $saved = Get-Content -LiteralPath $channelFile -Raw | ConvertFrom-Json
-  Assert ($saved.schema -eq 1 -and $saved.channel -ceq 'stable') 'channel is on disk before delivery can launch the installer'
-  Assert ((Initialize-StorytreeChannel $channelHome $channelInstall '') -eq 'stable') 'rerun keeps stable'
-  try { Initialize-StorytreeChannel $channelHome $channelInstall 'development'; throw 'accepted conflict' }
+  Assert ($saved.schema -eq 1 -and $saved.channel -ceq 'stable') 'saving puts the channel on disk'
+  Assert ((Resolve-StorytreeChannel $channelHome $channelInstall '') -eq 'stable') 'rerun keeps stable'
+  # A record with no installed app is what a failed download left behind: an explicit choice replaces it.
+  Assert ((Resolve-StorytreeChannel $channelHome $channelInstall 'development') -eq 'development') 'retry on development after a failed stable download'
+  Save-StorytreeChannel $channelHome 'development'
+  Assert ((Get-Content -LiteralPath $channelFile -Raw | ConvertFrom-Json).channel -ceq 'development') 'the explicit retry replaces the leftover record'
+  Save-StorytreeChannel $channelHome 'stable'
+  New-Item -ItemType Directory -Path $channelInstall -Force | Out-Null
+  [IO.File]::WriteAllText((Join-Path $channelInstall 'storytree-0.3.exe'), 'app')
+  try { Resolve-StorytreeChannel $channelHome $channelInstall 'development'; throw 'accepted conflict' }
   catch { Assert ($_.Exception.Message -match 'already.*stable') 'an explicit conflicting channel cannot silently migrate an install' }
+  Remove-Item -LiteralPath (Join-Path $channelInstall 'storytree-0.3.exe')
   [IO.File]::WriteAllText($channelFile, '{broken')
-  try { Initialize-StorytreeChannel $channelHome $channelInstall ''; throw 'unexpected success' }
+  try { Resolve-StorytreeChannel $channelHome $channelInstall ''; throw 'unexpected success' }
   catch { Assert ($_.Exception.Message -match 'channel') 'corrupt saved channel stops delivery' }
   [IO.File]::WriteAllText($channelFile, '{"schema":1,"channel":"preview"}')
-  try { Initialize-StorytreeChannel $channelHome $channelInstall ''; throw 'unexpected success' }
+  try { Resolve-StorytreeChannel $channelHome $channelInstall ''; throw 'unexpected success' }
   catch { Assert ($_.Exception.Message -match 'channel') 'unknown saved channel stops delivery' }
   Remove-Item -LiteralPath $channelFile
   New-Item -ItemType Directory -Path (Join-Path $channelInstall 'resources') -Force | Out-Null
   [IO.File]::WriteAllText((Join-Path $channelInstall 'resources/storytree-installed'), 'nsis')
-  try { Initialize-StorytreeChannel $channelHome $channelInstall 'stable'; throw 'accepted legacy switch' }
+  try { Resolve-StorytreeChannel $channelHome $channelInstall 'stable'; throw 'accepted legacy switch' }
   catch { Assert ($_.Exception.Message -match 'already.*development') 'stable default cannot overwrite legacy development' }
-  Assert ((Initialize-StorytreeChannel $channelHome $channelInstall '') -eq 'development') 'legacy owner install remains development'
+  Assert ((Resolve-StorytreeChannel $channelHome $channelInstall '') -eq 'development') 'legacy owner install remains development'
+  Save-StorytreeChannel $channelHome 'development'
   [IO.File]::WriteAllText((Join-Path $channelInstall 'resources/storytree-installed'), 'nsis-stable')
-  Assert ((Initialize-StorytreeChannel $channelHome $channelInstall '') -eq 'development') 'saved channel survives a newer marker'
+  Assert ((Resolve-StorytreeChannel $channelHome $channelInstall '') -eq 'development') 'saved channel survives a newer marker'
+  try { Resolve-StorytreeChannel $channelHome $channelInstall 'stable'; throw 'accepted conflict' }
+  catch { Assert ($_.Exception.Message -match 'already.*development') 'a marked installation keeps its saved channel' }
   Remove-Item -LiteralPath $channelFile
-  Assert ((Initialize-StorytreeChannel $channelHome $channelInstall '') -eq 'stable') 'new installer marker selects stable'
-  Remove-Item -LiteralPath $channelFile
+  Assert ((Resolve-StorytreeChannel $channelHome $channelInstall '') -eq 'stable') 'new installer marker selects stable'
   Remove-Item -LiteralPath $channelInstall -Recurse -Force
-  Assert ((Initialize-StorytreeChannel $channelHome $channelInstall 'development') -eq 'development') 'a fresh install accepts explicit development'
+  Assert ((Resolve-StorytreeChannel $channelHome $channelInstall 'development') -eq 'development') 'a fresh install accepts explicit development'
 } finally { if (Test-Path -LiteralPath $channelRoot) { Remove-Item -LiteralPath $channelRoot -Recurse -Force } }
 $script:ReleaseUrls = [Collections.Generic.List[string]]::new()
 $script:StablePointer = @{ schema = 1; channel = 'stable'; version = '0.3.123' }
@@ -72,6 +84,7 @@ $ops = @{
   Stage = { param($Step) $script:Calls.Add("stage:$Step") }
   Probe ={ param($Dir, $Arch) $script:Calls.Add("probe:$Arch"); return $script:Usable }
   Download = { param($Arch) $script:Calls.Add("download:$Arch"); if ($script:Fail -eq 'download') { throw 'offline' }; return 'verified installer' }
+  Persist = { $script:Calls.Add('persist') }
   Install = { param($Installer, $Dir) $script:Calls.Add('install'); if ($script:Fail -eq 'install') { throw 'refused' }; $script:Usable = $true }
   Finish = { param($Dir, $Arch) $script:Calls.Add('finish'); if ($script:Fail -eq 'finish') { throw 'database did not start' }; return @{ command = @{ status = 'installed'; pathEntry = 'new bin' } } }
   Path = { param($Report) $script:Calls.Add('path'); if ($script:Fail -eq 'path') { throw 'registry refused' } }
@@ -80,11 +93,11 @@ foreach ($arch in @('x64', 'arm64')) {
   $script:Usable = $false; $script:Calls.Clear()
   $answer = Invoke-StorytreeDelivery 'app with spaces' $arch $ops
   Assert ($answer.state -eq 'ready') 'clean install ready'
-  Assert (($script:Calls -join ',') -eq "probe:$arch,stage:download,download:$arch,stage:install,install,stage:verify,probe:$arch,stage:finish,finish,stage:path,path") 'clean install names each stage before it runs'
+  Assert (($script:Calls -join ',') -eq "probe:$arch,stage:download,download:$arch,persist,stage:install,install,stage:verify,probe:$arch,stage:finish,finish,stage:path,path") 'clean install saves its channel only after the download, before the installer can launch the app'
   $script:Calls.Clear()
   $answer = Invoke-StorytreeDelivery 'app with spaces' $arch $ops
   Assert ($answer.state -eq 'ready') 'repeat ready'
-  Assert (($script:Calls -join ',') -eq "probe:$arch,stage:finish,finish,stage:path,path") 'repeat must not download or reinstall'
+  Assert (($script:Calls -join ',') -eq "probe:$arch,persist,stage:finish,finish,stage:path,path") 'repeat must not download or reinstall'
 }
 # A download reports its size, speed and time left while it runs, and ends on the whole size.
 $payload = New-Object byte[] (3MB + 17)
@@ -116,6 +129,7 @@ foreach ($step in @('download', 'install', 'finish', 'path')) {
   try { Invoke-StorytreeDelivery 'app with spaces' 'arm64' $ops; throw 'accepted failure' }
   catch { Assert ($_.Exception.Message -match "$step.*[Rr]etry") "failure names $step and retry" }
   if ($step -in @('download', 'install')) { Assert (-not $script:Calls.Contains('finish')) 'failure cannot announce app readiness' }
+  if ($step -eq 'download') { Assert (-not $script:Calls.Contains('persist')) 'a failed download leaves no channel record behind' }
   $script:Fail = ''
   Assert ((Invoke-StorytreeDelivery 'app with spaces' 'arm64' $ops).state -eq 'ready') 'safe retry'
 }

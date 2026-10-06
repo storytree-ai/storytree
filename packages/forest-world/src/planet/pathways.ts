@@ -5,9 +5,9 @@ import { Vector3 } from 'three';
 import { clipToCoast, rimLoops, SHIPPED_COAST, type CoastPoint } from '../coast-clip.js';
 import { routeTrails, trailFillWidth, type TrailEdgeIn, type TrailEdgeOut, type TrailNetwork, type TrailSegment } from '../core/routing.js';
 import { forestDescriptors, parcelSpots } from '../forest-ground/forest-ground.js';
-import { shoreRelief, type ShoreRelief } from '../shore-fall.js';
 import { RIBBON_GROUND_SCALE } from '../trail-ribbon-width.js';
 import type { Descriptor3D, InstanceDescriptor } from '../descriptors.js';
+import { onIslandSurface } from './island-surface.js';
 import { plateTransform, type PlanetSpot } from './planet.js';
 
 export interface PlanetPathwayPlate {
@@ -39,12 +39,12 @@ interface ChartPoint extends Point { local: CoastPoint }
 interface PreparedGround {
   descriptors: Descriptor3D[];
   parcels: Map<string, CoastPoint>;
-  relief: ShoreRelief;
   rings: CoastPoint[][];
 }
 interface Ground extends PreparedGround {
   id: string;
   transform: ReturnType<typeof plateTransform>;
+  surface: ReturnType<typeof onIslandSurface>;
   at: Vector3;
   chartRings: ChartPoint[][];
   centre: Point;
@@ -65,7 +65,7 @@ function prepareGround(island: Island): PreparedGround {
   if (old) return old;
   const descriptors = forestDescriptors({ islands: [{ ...island, x: 0, z: 0 }] });
   const cells = clipToCoast(descriptors.filter((d): d is InstanceDescriptor => d.kind === 'cell-ground' && d.points !== undefined), SHIPPED_COAST);
-  const prepared = { descriptors, parcels: parcelSpots(descriptors), relief: shoreRelief(cells), rings: rimLoops(cells.map(c => c.points!)) };
+  const prepared = { descriptors, parcels: parcelSpots(descriptors), rings: rimLoops(cells.map(c => c.points!)) };
   preparedGrounds.set(island, prepared);
   return prepared;
 }
@@ -132,9 +132,15 @@ function nearest(p: Point, rings: readonly (readonly ChartPoint[])[]): ChartPoin
   return best;
 }
 
+/** Plate point `p` where the globe draws it: on the island's surface, bent onto the sphere (ADR-0804 D1). On the flat
+ * plate a coast 80 units out stood 11 units over its drawn land, and the road climbing to it showed past the globe's
+ * edge (the owner, 2026-10-06: "the payways look to flow off the globe when they hit the edge rather then end"). */
 function onGround(g: Ground, p: CoastPoint): Vector3 {
-  return new Vector3(p.x, g.relief.height(p.x, p.z), p.z).applyQuaternion(g.transform.quaternion).add(g.at);
+  return g.surface(p).applyQuaternion(g.transform.quaternion).add(g.at);
 }
+
+/** How far over the glass a road between islands rides, away from its docks, in ground units. */
+const ROAD_LIFT = 1.02;
 
 /** The farthest apart two points of a road between islands may be, in ground units: the ribbon is drawn straight
  * between them, and at this length it sags a fraction of a unit, so it stays on the glass. */
@@ -189,12 +195,13 @@ export function buildPlanetPathways(scene: ForestScene, spots: ReadonlyMap<strin
   };
   const grounds = new Map<string, Ground>();
   const owners = new Map<string, string>();
+  const surface = onIslandSurface(radius);
   for (const island of scene.islands) {
     const spot = spots.get(island.story);
     if (!spot) throw new Error(`No planet spot for story ${island.story}`);
     const prepared = prepareGround(island);
     const transform = plateTransform(spot, radius), at = new Vector3(...transform.position);
-    const g: Ground = { ...prepared, id: island.story, transform, at, chartRings: [], centre: chart(at), r: 0 };
+    const g: Ground = { ...prepared, id: island.story, transform, surface, at, chartRings: [], centre: chart(at), r: 0 };
     g.chartRings = g.rings.map(ring => ring.map(local => ({ ...chart(onGround(g, local)), local })));
     g.r = Math.max(...g.chartRings.flat().map(p => Math.hypot(p.x - g.centre.x, p.y - g.centre.y)));
     grounds.set(g.id, g);
@@ -247,13 +254,15 @@ export function buildPlanetPathways(scene: ForestScene, spots: ReadonlyMap<strin
     const walk = [0];
     for (let i = 1; i < points.length; i++) walk.push(walk[i - 1]! + Math.hypot(points[i]!.x - points[i - 1]!.x, points[i]!.y - points[i - 1]!.y));
     const length = walk.at(-1)!;
+    // Over the sea a road rides its lift above the glass; within 8 units of a dock it eases to the dock's height. A short
+    // road's two approaches overlap, so it blends between its ends' heights rather than adding them up.
+    const height = (end: Dock | undefined) => end ? end.point.length() - radius : ROAD_LIFT;
     const world = points.map((point, i) => {
       const from = ends[0] ? Math.max(0, 1 - walk[i]! / 8) : 0;
       const to = ends[1] ? Math.max(0, 1 - (length - walk[i]!) / 8) : 0;
       const blend = Math.max(from, to);
-      const rise = Math.max((ends[0]?.point.length() ?? radius) - radius, 0) * from
-        + Math.max((ends[1]?.point.length() ?? radius) - radius, 0) * to;
-      return sphere(point).multiplyScalar(radius + rise + 1.02 * (1 - blend));
+      const dock = from + to === 0 ? ROAD_LIFT : (height(ends[0]) * from + height(ends[1]) * to) / (from + to);
+      return sphere(point).multiplyScalar(radius + ROAD_LIFT + (dock - ROAD_LIFT) * blend);
     });
     if (ends[0]) world[0] = ends[0].point.clone();
     if (ends[1]) world[world.length - 1] = ends[1].point.clone();

@@ -1,4 +1,4 @@
-// `pnpm test`: run the tests a branch's changes can reach, with node:test (through tsx) against a
+// Capability 6 · Running the tests. `pnpm test`: run the tests a branch's changes can reach, with node:test (through tsx) against a
 // real Postgres. Run it as `pnpm test` (node --import tsx packages/dev-loop/src/test.mjs): it imports
 // @storytree/local-postgres, which is TypeScript. CI runs the same command, so it decides the same way.
 //

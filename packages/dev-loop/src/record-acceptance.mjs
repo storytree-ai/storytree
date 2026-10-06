@@ -1,4 +1,4 @@
-// `pnpm record:acceptance <observations.json> [--dry-run]`: write an acceptance run's verdicts to the
+// Capability 5 · Library tools. `pnpm record:acceptance <observations.json> [--dry-run]`: write an acceptance run's verdicts to the
 // verified column of 0.3's own library (ADR-0825 D5). The observations file is the harness's: the
 // story it accepts, the commit, the evidence path and each check it observed
 // (packages/dev-loop/src/acceptance-health.mjs says the rules). The library is the one the storytree

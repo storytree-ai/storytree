@@ -1,4 +1,4 @@
-// The fresh-worktree install: run at every session start (.claude/settings.json and
+// Capability 2 · Worktree setup. The fresh-worktree install: run at every session start (.claude/settings.json and
 // .codex/hooks.json), it gives a 0.3 worktree that cannot run its own code a `pnpm install`, retried
 // once, and tells the agent plainly if it still cannot. Ported from storytree 0.2's
 // packages/cli/provision-worktree.mjs (ADR-0636 D1, b4 folded into b5; ADR-0633 D2).

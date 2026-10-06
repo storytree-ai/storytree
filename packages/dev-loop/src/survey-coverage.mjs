@@ -1,4 +1,4 @@
-// `pnpm survey:coverage`: the coverage map the code survey reads where import tracing cannot reach
+// Capability 6 · Running the tests. `pnpm survey:coverage`: the coverage map the code survey reads where import tracing cannot reach
 // (ADR-0838 D3). A command line's tests run the built command in a process they start, so no import
 // leads from a test to the code it runs; the code it ran says which capability it belongs to.
 //

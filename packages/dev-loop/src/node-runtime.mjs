@@ -1,4 +1,4 @@
-// Which Node.js may run storytree's tests on this machine.
+// Capability 6 · Running the tests. Which Node.js may run storytree's tests on this machine.
 //
 // On Windows, libuv (Node.js's I/O layer) asks RtlGetVersion for the Windows version on every TCP
 // connect, and hands it an OSVERSIONINFOW whose size field it never set. When the stack garbage

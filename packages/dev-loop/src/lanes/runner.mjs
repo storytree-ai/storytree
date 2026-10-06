@@ -1,4 +1,4 @@
-// node packages/dev-loop/src/lanes/runner.mjs run <brief-file> <log> <err> [add-dir ...]
+// Capability 10 · A Mint lane runs on the engine its allowance allows. node packages/dev-loop/src/lanes/runner.mjs run <brief-file> <log> <err> [add-dir ...]
 // node packages/dev-loop/src/lanes/runner.mjs status
 import { spawn } from "node:child_process";
 import { constants, homedir } from "node:os";

@@ -1,4 +1,4 @@
-// ADR-0716: one foreground command for the checks before landing. Tests keep their own
+// Capability 7 · The gate. ADR-0716: one foreground command for the checks before landing. Tests keep their own
 // scoping, per-package table and rerun record in test.mjs. No second test runner lives here.
 // Library edits are not Git edits: --guidance declares a role/note edit even when regeneration
 // left the committed files unchanged. A hand-written CLAUDE.md header edit alone is not one.

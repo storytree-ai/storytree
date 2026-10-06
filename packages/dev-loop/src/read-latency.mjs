@@ -1,4 +1,4 @@
-// `pnpm lag:reads`: what the page's reads cost against a slow library (ADR-0836), measured the same
+// Capability 8 · Lag instruments. `pnpm lag:reads`: what the page's reads cost against a slow library (ADR-0836), measured the same
 // way by every lane (capability 8, Lag instruments). It seeds one fixed project into a throwaway
 // Postgres, adds a fixed delay to every pg query to stand in for Cloud SQL's round trip, and prints
 // the query count and median time over the rounds of each library and activity-log read the page's

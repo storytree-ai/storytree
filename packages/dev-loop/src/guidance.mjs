@@ -1,4 +1,4 @@
-// The generated guidance's rules, which packages/dev-loop/src/build-guidance.mjs runs: how the agent roles in the
+// Capability 4 · Agent guidance. The generated guidance's rules, which packages/dev-loop/src/build-guidance.mjs runs: how the agent roles in the
 // library become 0.3's own CLAUDE.md region, AGENTS.md and role files, how those files are checked
 // for drift against the library, and the size budget each is held to (ADR-0636 D1, b5). It ports
 // the behaviour of 0.2's `build:guidance` / `build:agents` / `check:guidance` / `check:agents`

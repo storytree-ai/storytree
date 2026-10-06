@@ -1,4 +1,4 @@
-// Which parts of this repo break the package boundaries of ADR-0649 D1-D3 (in storytree 0.2's
+// Capability 3 · Package boundaries. Which parts of this repo break the package boundaries of ADR-0649 D1-D3 (in storytree 0.2's
 // decision log). The rule's code is the Guardrails story's (packages/guardrails, ADR-0911 D2), the same
 // code a user's project runs as `storytree check`; this file holds only storytree's own declarations, and
 // packages/dev-loop/src/package-boundaries.test.mjs runs the rule over the repo with them in `pnpm test` and CI.

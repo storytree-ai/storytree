@@ -1,4 +1,4 @@
-// What `pnpm test` runs by default (ADR-0649 D4): only the packages a branch's changes can reach.
+// Capability 1 · Test scoping. What `pnpm test` runs by default (ADR-0649 D4): only the packages a branch's changes can reach.
 // test.mjs runs it, locally and in CI alike, so the two never decide differently.
 //
 // The changes are the branch against where it left main, merge-base(origin/main, HEAD), plus the

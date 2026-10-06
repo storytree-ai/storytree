@@ -1,4 +1,4 @@
-// `pnpm library:restore <snapshot.json> [--project <name>]`: restore a project snapshot the app took
+// Capability 5 · Library tools. `pnpm library:restore <snapshot.json> [--project <name>]`: restore a project snapshot the app took
 // (~/.storytree/0.3/backups/<project>/<time>.json, ADR-0641 B1) into the desktop app's library, as
 // the project it was taken of or as `--project <name>`. The library restores only into a project
 // that holds no record and no history, so this can never overwrite live edits: to put a project

@@ -1,4 +1,4 @@
-// Supplement node's spec reporter: record running tests and completed failures before the unit
+// Capability 6 · Running the tests. Supplement node's spec reporter: record running tests and completed failures before the unit
 // deadline (ADR-0731). Spec prints ERR_TEST_FAILURE.cause, losing the wrapper's exit
 // code and signal; a process that dies before reporting a test otherwise says only "test failed".
 import { closeSync, openSync, writeSync } from "node:fs";

@@ -1,4 +1,4 @@
-// Mint lane allowance and limit-stop policy (dev loop capability 10; ADR-0929).
+// Capability 10 · A Mint lane runs on the engine its allowance allows. Mint lane allowance and limit-stop policy (dev loop capability 10; ADR-0929).
 import { createReadStream } from "node:fs";
 import { mkdir, open, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";

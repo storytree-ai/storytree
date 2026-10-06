@@ -1,4 +1,4 @@
-// Which source files of a story package no numbered test reaches (ADR-0838 D5): the guardrail that keeps
+// Capability 9 · Code allocation guardrail. Which source files of a story package no numbered test reaches (ADR-0838 D5): the guardrail that keeps
 // every line of code on an island inside a capability's territory. The rule's code is the Guardrails
 // story's (packages/guardrails, ADR-0911 D2), the same a user's project runs as `storytree check`;
 // packages/dev-loop/src/allocation.test.mjs runs it over the checkout, with storytree's declared stories,

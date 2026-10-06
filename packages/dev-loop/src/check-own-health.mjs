@@ -1,4 +1,4 @@
-// `pnpm check:own-health`: run each of 0.3's own stories' tests and record each contract's VERIFIED
+// Capability 5 · Library tools. `pnpm check:own-health`: run each of 0.3's own stories' tests and record each contract's VERIFIED
 // health in the project `storytree`. The library is the one copy of those stories (ADR-0641), so
 // each story, its contracts and their numbers are read from it; nothing is read from a file into
 // it. This is what stayed of `pnpm seed:library` when its file-to-library half was deleted

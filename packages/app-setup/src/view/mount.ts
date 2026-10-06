@@ -1,3 +1,4 @@
+/** Capability 3 · First-run guide. */
 import type { FeedbackAccount, SetupHelpBridge } from "../help/bridge.js";
 import { draftSaid, feedbackText } from "../help/feedback.js";
 import { guideOffered, rememberGuideDismissed } from "./first-run.js";

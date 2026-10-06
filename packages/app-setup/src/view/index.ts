@@ -1,3 +1,4 @@
+/** Capability 3 · First-run guide. */
 export { mountSetupHelp } from "./mount.js";
 export { mountAddProject } from "./add-project.js";
 export { mountDeleteProject } from "./delete-project.js";

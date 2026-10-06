@@ -1,3 +1,4 @@
+/** Capability 1 · Get storytree. */
 import { launcherFile, launcherFor, removeLauncher, writeLauncher } from "@storytree/agent-link";
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";

@@ -1,4 +1,4 @@
-/** The installed harness validates Codex's TOML; no second TOML parser or global CLI edits. */
+/** Capability 2 · Connect an agent. The installed harness validates Codex's TOML; no second TOML parser or global CLI edits. */
 import { execFile } from "node:child_process";
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";

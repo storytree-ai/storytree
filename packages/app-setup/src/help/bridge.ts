@@ -1,3 +1,4 @@
+/** Capability 3 · First-run guide. */
 import type { SetupLine } from "@storytree/agent-link";
 import type { DraftResult } from "./feedback.js";
 

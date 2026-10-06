@@ -1,4 +1,4 @@
-// The app setup (story_b91056a06337): the desktop carries OS actions; this package owns help.
+// Capability 3 · First-run guide. The app setup (story_b91056a06337): the desktop carries OS actions; this package owns help.
 export { setupHelpActions } from "./help/actions.js";
 export type { AddedFolder, AgentConnection, SetupHelpBridge } from "./help/bridge.js";
 export { openFeedbackDraft, feedbackText } from "./help/feedback.js";

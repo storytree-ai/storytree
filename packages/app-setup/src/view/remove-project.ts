@@ -1,3 +1,4 @@
+/** Capability 3 · First-run guide. */
 import type { SetupHelpBridge } from "../help/bridge.js";
 
 type Removal = { removed: string | null; kept?: string } | { failed: string };

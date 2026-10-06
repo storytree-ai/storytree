@@ -1,3 +1,4 @@
+/** Capability 3 · First-run guide. */
 import type { SetupHelpBridge } from "../help/bridge.js";
 
 /** Add project, in the app menu's Projects section: the native folder picker, then the new project on show. */

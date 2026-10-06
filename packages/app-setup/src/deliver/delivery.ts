@@ -1,3 +1,4 @@
+/** Capability 1 · Get storytree. */
 import { locateApp, locateStorytree, readLibrary, storytreeHome } from "@storytree/agent-link";
 import { spawn } from "node:child_process";
 import { mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs";

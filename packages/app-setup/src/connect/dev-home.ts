@@ -1,5 +1,5 @@
 /**
- * A dev build's commands, connected to a throwaway home: what a live Codex or Claude Code check runs
+ * Capability 2 · Connect an agent. A dev build's commands, connected to a throwaway home: what a live Codex or Claude Code check runs
  * against on any box, instead of a rig hand-built for it. Its own HOME, CODEX_HOME, CLAUDE_CONFIG_DIR
  * and storytree home, its own Postgres (started on demand, as the app would start), and the same
  * connection an installed storytree makes. The user's own homes are only read, for Codex's sign-in, which

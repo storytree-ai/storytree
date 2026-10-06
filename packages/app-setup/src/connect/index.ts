@@ -1,4 +1,4 @@
-/** Capability 2: per-user agent connection. Setup checks and hook verification stay in agent-link. */
+/** Capability 2 · Connect an agent: per-user agent connection. Setup checks and hook verification stay in agent-link. */
 import { statSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";

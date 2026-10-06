@@ -1,5 +1,5 @@
 /**
- * Adding a project (ADR-0752, ADR-0757): the folder the user chose, in the installer's folder step
+ * Capability 3 · First-run guide. Adding a project (ADR-0752, ADR-0757): the folder the user chose, in the installer's folder step
  * or the app's Add project, becomes a storytree project through the agent link's one setup check,
  * as every other way of adding one does. The choice is the user's explicit yes; a folder that
  * already belongs to a project is left as it is (and put back on this computer's list, if it was

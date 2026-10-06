@@ -1,3 +1,4 @@
+/** Capability 1 · Get storytree. */
 export { toolPaths, verifyPayload, writePayloadManifest } from "./payload.js";
 export type { Architecture, InstalledTools } from "./payload.js";
 export { installCommand } from "./command.js";

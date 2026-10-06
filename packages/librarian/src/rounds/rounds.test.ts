@@ -109,8 +109,10 @@ test("6.7 the worklist reads the live notes about once however many notes the se
         const note = await library.writeKnowledge("principle", principle(n, `Older lesson number ${n}`));
         await library.editNote(note.id, { statement: `Lesson ${n} holds, edited.` });
       }
-      const started = new Date();
-      await new Promise((resolve) => setTimeout(resolve, 5));
+      // The start just after the last older edit by the library's own clock, which a runner's may not match.
+      const [last] = await library.history({ newest: 1 });
+      const started = new Date(Date.parse(last!.at) + 1);
+      await new Promise((resolve) => setTimeout(resolve, 50));
       let before = received();
       await library.search("");
       const once = received() - before;

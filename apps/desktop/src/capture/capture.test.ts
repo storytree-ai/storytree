@@ -5,14 +5,79 @@
  */
 import assert from "node:assert/strict";
 import path from "node:path";
+import { createRequire } from "node:module";
+import { runInNewContext } from "node:vm";
 import { test } from "node:test";
+import type { Page } from "playwright-core";
 
 import type { Line, NewLine } from "@storytree/agent-link";
 import { workStates } from "@storytree/arc-surface";
 
-import { fakeBridge, launchPlan, outputFolder, seedWorkStates } from "./index.js";
+import { fakeBridge, launchPlan, outputFolder, seedWorkStates, visibleGlobeTargets, zoomGlobe } from "./index.js";
 
 const checkout = path.resolve(import.meta.dirname, "../../../..");
+
+test("a capture finds front-facing dots and islands in canvas coordinates, excluding hidden and off-screen targets", async () => {
+  const { Scene, Group, Object3D, OrthographicCamera } = createRequire(path.join(checkout, "packages/forest-world/package.json"))("three");
+  const scene = new Scene(), globe = new Group();
+  globe.name = "globe";
+  scene.add(globe);
+  const camera = new OrthographicCamera(-5, 5, 5, -5, 0.1, 100);
+  camera.position.z = 20;
+  camera.updateMatrixWorld();
+  const target = (name: string, x: number, z: number, parent = globe) => {
+    const object = new Object3D();
+    object.name = name;
+    object.userData.id = name.split(":")[1];
+    object.position.set(x, 0, z);
+    parent.add(object);
+    return object;
+  };
+  target("knowledge-point:front", 1, 2);
+  target("knowledge-point:back", 0, -2);
+  target("knowledge-point:offscreen", 8, 2);
+  target("planet:island", -2, 3);
+  const hidden = new Group();
+  hidden.visible = false;
+  globe.add(hidden);
+  target("knowledge-point:hidden", 0, 2, hidden);
+  scene.updateMatrixWorld(true);
+  const state = { scene, camera, gl: { domElement: { getBoundingClientRect: () => ({ left: 100, top: 50, width: 800, height: 600 }) } } };
+  const page = { evaluate: async (source: string) => runInNewContext(source, { globalThis: { __globe: state } }) } as unknown as Page;
+  const found = await visibleGlobeTargets(page);
+  assert.deepEqual(JSON.parse(JSON.stringify(found)), {
+    zoom: 1,
+    dots: [{ id: "front", x: 580, y: 350 }],
+    islands: [{ id: "island", x: 340, y: 350 }],
+  });
+  assert.equal((await visibleGlobeTargets(page, { x: 0.1, y: 0.6 })).dots.length, 0);
+  globe.rotation.y = Math.PI;
+  scene.updateMatrixWorld(true);
+  assert.deepEqual(Array.from((await visibleGlobeTargets(page)).dots, dot => dot.id), ["back"]);
+  await assert.rejects(visibleGlobeTargets({ evaluate: async (source: string) => runInNewContext(source, { globalThis: {} }) } as unknown as Page), /capture.*globe/i);
+});
+
+test("a capture zooms by wheel to a target scale and back, and refuses an unreachable scale", async () => {
+  const camera = { zoom: 2, isOrthographicCamera: true };
+  const state = { camera, controls: { minZoom: 0.1, maxZoom: 30 }, gl: { domElement: { getBoundingClientRect: () => ({ left: 100, top: 50, width: 800, height: 600 }) } } };
+  const evaluate = async (source: string) => runInNewContext(source, { globalThis: { __globe: state } });
+  const moves: number[][] = [], wheels: number[] = [];
+  const page = { evaluate,
+    mouse: { move: async (x: number, y: number) => { moves.push([x, y]); }, wheel: async (_x: number, y: number) => { wheels.push(y); camera.zoom *= y < 0 ? 1 / 0.95 : 0.95; } },
+    waitForFunction: async (source: string) => { assert.ok(await evaluate(source), "wait until the wheel changed the camera"); },
+  } as unknown as Page;
+  const close = 2 / 0.95 ** 8;
+  assert.ok(Math.abs(await zoomGlobe(page, close) - close) < 1e-12);
+  assert.equal(wheels.length, 8);
+  assert.deepEqual(moves[0], [500, 350]);
+  assert.ok(Math.abs(await zoomGlobe(page, 2, { x: 580, y: 350 }) - 2) < 1e-12);
+  assert.equal(wheels.length, 16);
+  await assert.rejects(zoomGlobe(page, 31), /outside.*0\.1.*30/);
+  await assert.rejects(zoomGlobe(page, Number.NaN), /positive.*finite/);
+  assert.equal(wheels.length, 16, "bad targets never send a wheel event");
+  page.waitForFunction = async () => { throw new Error("wheel blocked by an overlay"); };
+  await assert.rejects(zoomGlobe(page, close), /wheel did not change zoom.*canvas receives the pointer/);
+});
 
 test("a call the fake bridge cannot answer fails at once, naming the method", async () => {
   const bridge = fakeBridge({ listProjects: async () => ["storytree"] });

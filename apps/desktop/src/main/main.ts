@@ -17,7 +17,7 @@
  * builds main's new commit beside itself and restarts into it (@storytree/app's follow-main).
  *
  * While it runs, it keeps a snapshot of every project, taken at start and once a day (ADR-0641 B1),
- * in ~/.storytree/0.3/backups: @storytree/app's backUp.
+ * in ~/.storytree/0.3/backups: @storytree/app's keepBackups, which holds restarts while writing.
  *
  * Before it restarts into a new build, it starts that build with `--start-check`, which goes as far
  * as registering the main process's handlers and exits 0 without opening the library; a build that
@@ -40,9 +40,8 @@ import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeTheme, powe
 import {
   agentActiveAt,
   appDirIn,
-  BACKUP_EVERY_MS,
   background,
-  backUp,
+  keepBackups,
   buildLabel,
   electronIn,
   launchToRecord,
@@ -100,6 +99,7 @@ const LOOK_EVERY_MS = 60_000;
 let projects: ReturnType<typeof projectSelection> | undefined;
 let shutDown: Promise<void> | undefined;
 let updates: ReturnType<typeof mainUpdates> | undefined;
+let backups: ReturnType<typeof keepBackups> | undefined;
 let journey: JourneyRuntime | undefined;
 /** An installed app's release updater, which answers the gear's Updates panel in its place. */
 let releases: ReturnType<typeof followReleases>;
@@ -250,6 +250,9 @@ async function run(): Promise<void> {
   build = await whichBuild();
   const dir = slot === undefined ? undefined : path.join(home.runtime, slot);
   const running = slot === undefined || dir === undefined ? undefined : { slot, dir, sha: await slotSha(dir) };
+  const canRestart = async () => shutDown === undefined
+    && (postgres === undefined || !(await seedWriting(postgres.url)))
+    && shutDown === undefined && (backups?.canRestart() ?? true);
   updates = mainUpdates({
     runtimeDir: home.runtime, runningBuild: build,
     ...(running === undefined ? {} : { running }),
@@ -258,7 +261,7 @@ async function run(): Promise<void> {
         await refreshOwnHealth({ running, home: home.dir, log: line => console.log(line) });
       }
     },
-    canRestart: async () => shutDown === undefined && (postgres === undefined || !(await seedWriting(postgres.url))),
+    canRestart,
     restart: next => lifecycle.restart(
       { execPath: electronIn(next.dir), args: [appDirIn(next.dir)] },
       BrowserWindow.getAllWindows().some(window => window.isVisible()),
@@ -287,14 +290,14 @@ async function run(): Promise<void> {
     showTray();
     addStartMenuShortcut();
     try { signingIn.apply(); } catch (error) { console.error(`opening at sign-in: ${messageOf(error)}`); }
-    void keepBackups();
+    if (storytree !== undefined) backups = keepBackups({ storytree, dir: home.backups, log: line => console.log(line) });
     // The app looks at each project's branches itself, once a minute, so its sessions list never waits on a hook's look (agent link 4.21).
     setInterval(() => void reads?.lookAround(), LOOK_EVERY_MS).unref();
     updates.start();
     const launchedAt = Date.now();
     releases = followReleases({
       restart: lifecycle.restart,
-      canRestart: async () => shutDown === undefined && (postgres === undefined || !(await seedWriting(postgres.url))),
+      canRestart,
       // Installing stops the app and its database for a minute or two: not under a user or an agent.
       quiet: async () => {
         const now = Date.now();
@@ -309,25 +312,6 @@ async function run(): Promise<void> {
       },
     }, home.dir);
   }
-}
-
-/**
- * Keep snapshots of every project (ADR-0641 B1): one now, then one a day while the app runs, each
- * project's newest 14 in ~/.storytree/0.3/backups/<project>/. A failed snapshot is logged and taken
- * again at the next one; the app is untouched.
- */
-async function keepBackups(): Promise<void> {
-  const take = async (): Promise<void> => {
-    if (storytree === undefined) return;
-    try {
-      const written = await backUp({ storytree, projects: await storytree.listProjects(), dir: home.backups });
-      console.log(`backups: ${written.length} project snapshot${written.length === 1 ? "" : "s"} in ${home.backups}`);
-    } catch (error) {
-      console.error(`backups: ${messageOf(error)}`);
-    }
-  };
-  setInterval(() => void take(), BACKUP_EVERY_MS).unref();
-  await take();
 }
 
 /** The tray icon, whose menu brings the window back or quits the app. */
@@ -571,6 +555,7 @@ function drewText(tree: AnnotatedTree, drew: string | undefined): string {
 /** Close the library and stop Postgres. Safe to call more than once. */
 function shutdown(): Promise<void> {
   updates?.stop();
+  backups?.stop();
   shutDown ??= (async () => {
     await journey?.finish();
     await reads?.close().catch((error: unknown) => console.error(`closing the projects: ${messageOf(error)}`));

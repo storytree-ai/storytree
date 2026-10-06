@@ -10,6 +10,7 @@ import { NodeHttpExecutor } from "builder-util/out/nodeHttpExecutor.js";
 import { ElectronHttpExecutor } from "electron-updater/out/electronHttpExecutor.js";
 
 import { background, type Launch } from "../lifecycle/background.js";
+import { keepBackups } from "../lifecycle/backups.js";
 import { ReleaseUpdater } from "./releases.js";
 
 test("4.15 stable downloads only the pinned artifact while development continues to advance; no stable feed never falls back", async (t) => {
@@ -76,6 +77,48 @@ test("4.4 a downloaded release waits for a quiet moment, says it is pending, and
   assert.equal(launches.length, 1);
   assert.equal(feed.downloads, 1);
 });
+
+for (const entry of ["automatic", "menu"] as const) {
+  test(`4.4 the ${entry} release restart keeps its window open while a snapshot is being written`, async (t) => {
+    const feed = await fixture(t);
+    feed.version = "0.3.2";
+    let finishSnapshot!: () => void;
+    const writing = new Promise<void>(resolve => { finishSnapshot = resolve; });
+    let backups: ReturnType<typeof keepBackups> | undefined;
+    t.after(() => backups?.stop());
+    const startBackup = () => backups ??= keepBackups({ dir: path.join(feed.holds, "backups"), log: () => {}, storytree: {
+      listProjects: async () => ["project"],
+      snapshot: async () => {
+        await writing;
+        return { format: "storytree-project-snapshot", version: 1, project: "project", takenAt: new Date().toISOString(), records: [], history: [] };
+      },
+    } });
+    let windowOpen = true, restarts = 0;
+    const lifecycle = background({
+      stopPages: () => { windowOpen = false; }, stopDatabase: async () => { backups?.stop(); },
+      relaunch: () => { restarts++; }, exit: () => {},
+    });
+    const updater = feed.updater(lifecycle.restart, async () => backups?.canRestart() ?? true, async () => {
+      startBackup(); // A daily snapshot can start during the asynchronous quiet-moment read.
+      await new Promise(resolve => setImmediate(resolve));
+      return true;
+    });
+    t.after(() => updater.stop());
+    if (entry === "menu") { startBackup(); updater.request("install"); }
+    const result = await updater.check();
+    assert.equal(windowOpen, true, "a snapshot never strands the user in shutdown");
+    assert.equal(result, "waiting");
+    assert.equal(updater.request("status").phase, "pending");
+    assert.match(updater.request("status").reason ?? "", /library.*writing/i);
+    finishSnapshot();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(await updater.check(), "restarting");
+    await updater.check();
+    assert.equal(windowOpen, false);
+    assert.equal(restarts, 1);
+    assert.equal(feed.downloads, 1);
+  });
+}
 
 test("4.12 a named run holds an automatic release install until released, without holding the download", async (t) => {
   const feed = await fixture(t);

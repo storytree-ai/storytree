@@ -5,7 +5,7 @@ import type { AddressInfo } from "node:net";
 import { test } from "node:test";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
 import pg from "pg";
-import { createIdentityService } from "./index.js";
+import { createIdentityService, createIdentityHandler } from "./index.js";
 
 const clientId = "client_storytree_test";
 const issuer = `https://api.workos.com/user_management/${clientId}`;
@@ -181,4 +181,42 @@ test("1.5 invalid WorkOS tokens or identity evidence fail closed before writes a
     await unavailable.end();
     await assert.rejects(j.open(unavailable).resolve(token), { message: "Storytree could not save your identity. Try again later." });
   } finally { await j.close(); }
+});
+
+
+test("1.5 the HTTP identity boundary verifies bearer sessions and returns only the portable id and verified email", async () => {
+  const j = await journey();
+  const handle = createIdentityHandler(j.service);
+  const server = createServer((req, res) => {
+    void handle(new Request(`https://identity.example.test${req.url}`, { method: req.method ?? "GET", headers: req.headers as Record<string, string> }))
+      .then(async answer => { res.writeHead(answer.status, Object.fromEntries(answer.headers)); res.end(await answer.text()); });
+  });
+  await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+  const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  try {
+    j.put("user_http", [google("http-private-subject")]);
+    const token = await j.token("user_http");
+    const valid = await fetch(`${base}/v1/identity`, { headers: { Authorization: `Bearer ${token}` } });
+    assert.equal(valid.status, 200);
+    assert.equal(valid.headers.get("cache-control"), "no-store");
+    const user = await valid.json() as { id: string; email: string };
+    assert.deepEqual(user, { id: (await j.service.resolve(token)).id, email: "first@example.test" });
+    const before = await j.snapshot();
+    for (const authorization of ["", "Bearer bad-token", "Basic private"]) {
+      const invalid = await fetch(`${base}/v1/identity`, { headers: { Authorization: authorization } });
+      assert.equal(invalid.status, 401);
+      assert.doesNotMatch(await invalid.text(), /private|bad-token/);
+    }
+    assert.equal((await fetch(`${base}/v1/identity?access_token=${token}`)).status, 404);
+    assert.equal((await fetch(`${base}/other`)).status, 404);
+    assert.equal((await fetch(`${base}/v1/identity`, { method: "POST" })).status, 405);
+    assert.deepEqual(await j.snapshot(), before);
+    const failed = await createIdentityHandler({ resolve: async () => { throw new Error("private database credential"); } })(
+      new Request("https://identity.example.test/v1/identity", { headers: { Authorization: "Bearer token" } }));
+    assert.equal(failed.status, 503);
+    assert.doesNotMatch(await failed.text(), /private|credential/);
+  } finally {
+    await new Promise<void>(resolve => server.close(() => resolve()));
+    await j.close();
+  }
 });

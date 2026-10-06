@@ -1,8 +1,17 @@
 # Forest render contracts on the actual page
 
 Increment `increment_05f91c159f48`, refreshed 2026-10-02. The existing capture now
-runs named Node tests for forest 3.5, 3.9 and 3.10, and emits machine observations
-for `pnpm record:acceptance`. Pointer hover and the five-CSS-pixel drag threshold
+runs named Node tests for forest 3.9 and 3.10, and emits machine observations
+for `pnpm record:acceptance`.
+
+Increment `increment_fa47ebc6ac05` (2026-10-07) retired forest 3.5: ADR-0919 D1 made the
+glass a one-way mirror, so its old pixel test (at least 80% transmitted through both faces)
+failed and stopped the whole journey before 3.10. The glass is the world's (contract 6.3,
+`packages/forest-world/src/planet/planet.test.ts`). Library now keeps the glass and the
+islands' objects, hidden (ADR-0919 D4), so its checks count what is drawn and shown, not what
+is mounted. The census (`measurements.json`) and every capture were retaken on that run.
+The Library choice's panel rule is also proven in the ordinary suite (3.10 in
+`../../panel-selection.test.ts`). Pointer hover and the five-CSS-pixel drag threshold
 (3.12) run in the ordinary suite in `../../planet-view.test.ts`.
 
 Increment `increment_c5580ace0978` also names Knowledge core 1.7 in four browser
@@ -43,16 +52,10 @@ window, not an owner acceptance or a claim about every tree shape.
 
 | Check | Observed |
 | --- | --- |
-| 3.5 glass | At least 81.96% background transmission across the inner disc, a brighter rim, one soft highlight, no opaque sea |
 | 3.9 Forest | Eight story islands and 176 eligible knowledge points submitted at both angles |
-| 3.9 Library | Zero story islands; only the same 176 eligible knowledge points |
+| 3.9 Library | Zero story islands or roads drawn; only the glass and the same 176 eligible knowledge points |
 | 3.10 switching | Canvas, scene, camera and point-layer identities, rotation, zoom and point positions survive both switches |
 | 3.10 interaction | Library clears the story selection and panel; hidden islands cannot be selected; real pointer drag and wheel zoom work; reload defaults to Forest |
-
-The glass test measures actual shader pixels against black and white. Their
-difference gives transmission through both faces, without duplicating the shader
-formula. It samples the brighter rim and counts connected bright regions and their
-intensity levels to verify one soft highlight. See `glass.json`.
 
 The original read-only snapshot remains the input (`seed.json`). The current
 placement API excludes story-description definitions from the visible points:

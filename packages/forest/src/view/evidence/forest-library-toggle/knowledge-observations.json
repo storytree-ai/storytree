@@ -1,6 +1,6 @@
 {
   "story": "The knowledge core",
-  "commit": "4dd932e7355452c16e4b1e76eee3463e45bf4dd9",
+  "commit": "fab5b6ed933d278bf5320095db109fcea74974d8",
   "evidence": "packages/forest/src/view/evidence/forest-library-toggle",
   "checks": [
     {

@@ -74,7 +74,7 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
   });
   const changeMode = (mode: ForestMode): void => {
     render({ mode });
-    if (mode === "library" && selection.current?.kind === "story") selection.close();
+    selection.modeChosen(mode);
   };
   const pick = (story: string | undefined, capability?: string): void => selection.story(story, capability);
   const pickNote = (note: string): void => selection.note(note);

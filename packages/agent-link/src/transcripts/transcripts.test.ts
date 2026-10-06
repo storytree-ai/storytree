@@ -8,7 +8,9 @@ import { writeFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 
-import { openActivityLog } from "../activity/index.js";
+import pg from "pg";
+
+import { ACTIVITY_DATABASE, openActivityLog } from "../activity/index.js";
 import { withTempDir } from "../testing/folders.js";
 import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { pruneTranscripts, scrub, shipTranscript, storedContextReading, storedSessionWindow } from "./index.js";
@@ -46,15 +48,34 @@ test("9.13 raw records older than 180 days are deleted by the retention pass, an
       writeFileSync(transcript, `${JSON.stringify({ type: "assistant", requestId: "r1", message: { model: "claude-opus-5-5", usage: { input_tokens: 4_000 } } })}\n`);
       const line = await log.append(project, { session: "old", harness: "claude-code", source: "hook", kind: "session-started", transcript });
       await shipTranscript(log, project, "old", transcript);
-      const later = new Date(Date.parse(line.at) + 181 * 24 * 60 * 60 * 1000);
-      await pruneTranscripts(log, { now: later });
+      const fresh = path.join(dir, "fresh.jsonl");
+      writeFileSync(fresh, `${JSON.stringify({ type: "user", message: { content: "still fresh" } })}\n`);
+      await shipTranscript(log, project, "fresh", fresh);
+      // The pass runs at the real time over the log every test shares, so the old record is made
+      // old rather than the pass run in the future, which would expire other tests' fresh records too.
+      await storeAgo(project, "old", 181 * 24 * 60 * 60 * 1000);
+      await pruneTranscripts(log);
       assert.equal(await log.transcripts.text(project, "old"), undefined, "its raw records are gone");
-      const reading = await storedContextReading(log, project, [line], "old", { now: later });
+      assert.notEqual(await log.transcripts.text(project, "fresh"), undefined, "a record stored within the limit stays");
+      const reading = await storedContextReading(log, project, [line], "old");
       assert.equal("tokens" in reading && reading.tokens, 4_000, "its reading remains");
-      const window = await storedSessionWindow(log, project, [line], "old", { now: later });
+      const window = await storedSessionWindow(log, project, [line], "old");
       assert.equal("absent" in window, false, "and so does its window");
     });
   } finally {
     await log.close();
   }
 });
+
+/** Move `session`'s stored records `ms` into the past, as if they had been stored then. */
+async function storeAgo(project: string, session: string, ms: number): Promise<void> {
+  const url = new URL(testServerUrl());
+  url.pathname = `/${ACTIVITY_DATABASE}`;
+  const client = new pg.Client({ connectionString: url.href });
+  await client.connect();
+  try {
+    await client.query("UPDATE transcript_records SET at = at - $3 * interval '1 millisecond' WHERE project = $1 AND session = $2", [project, session, ms]);
+  } finally {
+    await client.end();
+  }
+}

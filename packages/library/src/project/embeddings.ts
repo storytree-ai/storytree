@@ -1,7 +1,9 @@
 /**
  * Capability 14 · Ranked search: a project's vectors, kept in its own database's `embedding` table
  * (schema.ts), with an optional machine-local copy. Model + chunk hash is immutable: only keys
- * missing locally need a server read. SQLite serializes writers from independent processes.
+ * missing locally need a server read. SQLite serializes writers from independent processes; WAL keeps
+ * readers from blocking them, and the wait outlasts a slow runner's lock contention (Windows CI held a
+ * writer past 5 s, and the swallowed busy error lost its vectors).
  */
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
@@ -83,7 +85,12 @@ export class PgVectors implements VectorStore {
       const { DatabaseSync } = await import("node:sqlite");
       await mkdir(path.dirname(this.#cache), { recursive: true });
       db = new DatabaseSync(this.#cache);
-      db.exec("PRAGMA busy_timeout = 5000");
+      db.exec("PRAGMA busy_timeout = 20000");
+      try {
+        db.exec("PRAGMA journal_mode = WAL");
+      } catch {
+        // Another process switching the mode at the same moment: the file still works in its current mode.
+      }
       db.exec("CREATE TABLE IF NOT EXISTS embedding (model TEXT NOT NULL, key TEXT NOT NULL, vector BLOB NOT NULL, PRIMARY KEY (model, key))");
       use(db);
     } catch {

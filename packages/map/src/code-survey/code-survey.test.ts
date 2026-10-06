@@ -273,3 +273,26 @@ test("8.14 a test file that runs an imported behaviour suite carries the suite's
   ]);
   assert.equal(surveyed.files.find(file => file.path === "src/store.ts")?.capability, "transactions");
 });
+
+test("8.15 a source file's opening \"Capability N · …\" declaration, after a shebang, puts it in capability N when N's tests reach it; a declaration they do not reach, or none, leaves inference", () => {
+  const caps = [{ id: "cap-claims", title: "3 · Claims" }, { id: "cap-hooks", title: "4 · Hooks" }, { id: "cap-merges", title: "5 · Merges" }];
+  const shared = (opening: string) => `${opening}\nexport const shared = 1;\n`;
+  const files = (opening: string, extra: { path: string; text: string }[] = []) => [
+    { path: "src/hooks.ts", text: shared(opening) },
+    { path: "src/claims.test.ts", text: 'import { shared } from "./hooks.js";\ntest("3.1 claims", () => shared);\ntest("3.2 again", () => shared);\n' },
+    { path: "src/hooks.test.ts", text: 'import { shared } from "./hooks.js";\ntest("4.1 hooks", () => shared);\n' },
+    ...extra,
+  ];
+  const surveyed = (opening: string, extra?: { path: string; text: string }[]) => surveyStory(files(opening, extra), caps).files.find((file) => file.path === "src/hooks.ts");
+
+  assert.deepEqual(surveyed("/** A shared hook. */"), { path: "src/hooks.ts", lines: 2, capability: "cap-claims" }, "undeclared, the most tests win");
+  assert.deepEqual(surveyed("/**\n * Capability 4 · Hooks: the edit hook.\n */"),
+    { path: "src/hooks.ts", lines: 4, capability: "cap-hooks", declared: 4, reachedBy: [3, 4] }, "declared and reached, the declaration wins");
+  assert.deepEqual(surveyed("#!/usr/bin/env node\n// Capability 4 · Hooks"),
+    { path: "src/hooks.ts", lines: 3, capability: "cap-hooks", declared: 4, reachedBy: [3, 4] }, "a line comment after a shebang declares");
+  assert.deepEqual(surveyed("/** Capability 5 · Merges */"),
+    { path: "src/hooks.ts", lines: 2, capability: "cap-claims", declared: 5, reachedBy: [3, 4] }, "a declaration no test of it reaches is inferred instead");
+  assert.equal(surveyed("/** Capability 5 · Merges */", [{ path: "src/merges.test.ts", text: 'import "./hooks.js";\ntest("5.1 merges", () => {});\n' }])?.capability, "cap-merges", "reached, it holds");
+  assert.equal(surveyed("const x = 1;\n/** Capability 4 · Hooks */")?.declared, undefined, "only the opening comment declares");
+  assert.equal(surveyed("/** See Capability 4 · Hooks */")?.declared, undefined, "the comment must begin with it");
+});

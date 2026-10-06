@@ -19,6 +19,10 @@
  *   is its subject, and code a test ran is nearer to it than code only imported along the way.
  * - A file reached only through type imports (a file of types) goes, after every other reach, to the
  *   capability whose tests reach it so nearest (ADR-0838 D4). A literal `import("./x.js")` is an import.
+ * - A source file whose opening comment begins "Capability N · <title>" (after a shebang) declares capability N
+ *   (ADR-0925 D1). A declaration N's numbered tests or coverage map reach puts the file in N whatever the
+ *   ranking says (ADR-0925 D3); one they do not reach is reported, with the numbers that do reach it, for the
+ *   allocation rule to fail, and the file is allocated by inference meanwhile (8.15).
  * - A file nothing reaches is Unclaimed: no capability. Its folder's name allocates nothing, since name
  *   matching is brittle (ADR-0838 D3 retired the fallback).
  * - Lines are a file's non-blank lines. Test files, and test helpers under a testing/ folder, are read for
@@ -36,8 +40,17 @@ export type SurveyPackage = { readonly root: string; readonly name: string; read
 /** A capability as the survey needs it: its id and its numbered title ("3 · Claims"). */
 export type SurveyCapability = { readonly id: string; readonly title: string };
 
-/** A surveyed source file. `capability` is absent for Unclaimed ground. */
-export type SurveyedFile = { readonly path: string; readonly lines: number; readonly capability?: string };
+/**
+ * A surveyed source file. `capability` is absent for Unclaimed ground. A declared file also carries its
+ * declared number and the capability numbers whose numbered tests reach it, lowest first.
+ */
+export type SurveyedFile = {
+  readonly path: string;
+  readonly lines: number;
+  readonly capability?: string;
+  readonly declared?: number;
+  readonly reachedBy?: readonly number[];
+};
 
 /** An import from one source file to another. */
 export type FileImport = { readonly from: string; readonly to: string };
@@ -143,6 +156,15 @@ function proofTitles(titles: readonly string[]): SurveyedTest["titles"] {
     return [...numbers].map(number => ({ number, title: title!, ...(lead[1] === undefined ? {} : { package: lead[1] }) }));
   });
 }
+
+/** The opening comment's "Capability N · …", after a shebang: a comment that begins with it, before any code. */
+const DECLARED = /^(?:#![^\n]*\n)?\s*(?:\/\*+|\/\/)[\s*]*Capability\s+(\d+)\s*·/;
+
+/** The capability number a source file declares in its opening comment (ADR-0925 D1), if any. */
+export const declarationOf = (text: string): number | undefined => {
+  const match = DECLARED.exec(text);
+  return match === null ? undefined : Number(match[1]);
+};
 
 const linesOf = (text: string): number => text.split("\n").filter((line) => line.trim() !== "").length;
 
@@ -378,8 +400,15 @@ export function surveyStory(tree: readonly SourceFile[], capabilities: readonly 
   const sources = code.filter((file) => !isTestCode(file));
   const files = sources.map((file): SurveyedFile => {
     const tally = [...(reach.get(file.path) ?? [])].sort(([a, near], [b, far]) => near.depth - far.depth || far.count - near.count || a - b);
-    const capability = tally.length > 0 ? byNumber.get(tally[0]![0]) : undefined;
-    return capability === undefined ? { path: file.path, lines: linesOf(file.text) } : { path: file.path, lines: linesOf(file.text), capability };
+    const declared = declarationOf(file.text);
+    const reachedBy = tally.map(([number]) => number).sort((a, b) => a - b);
+    const owner = declared !== undefined && reachedBy.includes(declared) ? declared : tally[0]?.[0];
+    const capability = owner === undefined ? undefined : byNumber.get(owner);
+    return {
+      path: file.path, lines: linesOf(file.text),
+      ...(capability === undefined ? {} : { capability }),
+      ...(declared === undefined ? {} : { declared, reachedBy }),
+    };
   });
   const imports = sources.flatMap((file) => edgesOf(file, paths, packages).filter((edge) => !isTestCode(byPath.get(edge.to)!)).map((edge) => ({ from: file.path, to: edge.to })));
   const tests = code.filter(isTestCode).map((file): SurveyedTest => ({

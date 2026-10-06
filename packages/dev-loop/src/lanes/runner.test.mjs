@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -39,7 +39,7 @@ test("10.6 · foreground engines receive the exact brief, model, directories and
     assert.deepEqual(result.args, engine === "codex"
       ? ["exec", brief, "--model", "gpt-6-astra", "--sandbox", "danger-full-access", "--dangerously-bypass-hook-trust", ...adds, "--json"]
       : ["-p", brief, "--model", "claude-opus-5-5", "--permission-mode", "bypassPermissions", ...adds, "--output-format", "stream-json", "--verbose"]);
-    assert.equal(result.cwd, options.cwd);
+    assert.equal(result.cwd, await realpath(options.cwd));
     assert.equal(result.token, "test-login"); assert.equal(result.db, "test-db");
     assert.deepEqual(result.keys, []); assert.equal(result.stdin, "");
     assert.equal(await readFile(options.err, "utf8"), "engine stderr\n");

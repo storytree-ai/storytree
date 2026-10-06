@@ -390,6 +390,15 @@ export function packageOf(title) {
   return PACKAGE_NAMED_OTHERWISE[name] ?? name;
 }
 
+/**
+ * The repo-relative folders holding a story's own tests, by its package: packages/<name>/src, and
+ * for the app story also the desktop app's, the other half of its frame (ADR-0649).
+ * @param {string} name
+ */
+export function sourcesOf(name) {
+  return name === "app" ? ["packages/app/src", "apps/desktop/src"] : [`packages/${name}/src`];
+}
+
 /** Stories whose package is not named after their title. */
 const PACKAGE_NAMED_OTHERWISE = {
   "command-line": "cli",

@@ -1,3 +1,4 @@
+/** Capability 1 · Home page. */
 import { AGENTS, BANNER, EXIT, FINALE, FOOTNOTE, THINK } from "./opening-copy.js";
 import { openingClock } from "./opening-clock.js";
 import { escapeHtml } from "./escape-html.js";

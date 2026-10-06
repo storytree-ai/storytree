@@ -1,4 +1,4 @@
-// Node-only refresh policy. Drawing and storage stay in the app's public exports.
+// Capability 3 · Saved snapshot. Node-only refresh policy. Drawing and storage stay in the app's public exports.
 import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 import type { Line } from "@storytree/agent-link";

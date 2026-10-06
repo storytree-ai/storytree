@@ -1,4 +1,4 @@
-// Node-only: storytree's own saved growth (ADR-0889 2.2b). Act 2's arrival grows storytree's real project, so its
+// Capability 3 · Saved snapshot. Node-only: storytree's own saved growth (ADR-0889 2.2b). Act 2's arrival grows storytree's real project, so its
 // stages are sampled from the library's dated history: each a moment something was recorded, never drawn by hand.
 import type { Change } from "@storytree/library";
 

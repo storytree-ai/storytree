@@ -1,3 +1,4 @@
+/** Capability 2 · The forest on the site. */
 import { createTour, globeOf, groups, type FreePlayProject, type Hold, type TourState, type TourStep } from "./tour.js";
 import { groupTitles, researchDate, steps } from "./tour-copy.js";
 import { fill } from "./tour-counts.js";

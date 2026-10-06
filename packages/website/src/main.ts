@@ -1,3 +1,4 @@
+/** Capability 1 · Home page. */
 import { wireWaitlist } from "./waitlist.js";
 import { wireOpening } from "./opening.js";
 

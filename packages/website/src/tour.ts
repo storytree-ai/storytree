@@ -1,3 +1,4 @@
+/** Capability 2 · The forest on the site. */
 import type { GlobeSurfaces, GlobeTarget } from "@storytree/forest/view";
 
 /** "map" and "agents" are Act 2's first two chapters, taught on the shop (ADR-0891, ADR-0893). */

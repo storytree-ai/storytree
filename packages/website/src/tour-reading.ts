@@ -1,3 +1,4 @@
+/** Capability 2 · The forest on the site. */
 import { pageReading, type BoardReads, type Timers } from "@storytree/arc-surface";
 import type { Line } from "@storytree/agent-link";
 import type { SessionsReads } from "@storytree/forest/view";

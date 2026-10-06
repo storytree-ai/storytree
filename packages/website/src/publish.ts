@@ -1,3 +1,4 @@
+/** Capability 4 · Publish on merge. */
 import { createHash } from "node:crypto";
 import { lstat, readFile, readdir } from "node:fs/promises";
 import path from "node:path";

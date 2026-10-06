@@ -1,4 +1,4 @@
-// From the checkout root: node --import tsx packages/website/src/refresh-forest.ts --from <ISO> --to <ISO> [--output <file>]
+// Capability 3 · Saved snapshot. From the checkout root: node --import tsx packages/website/src/refresh-forest.ts --from <ISO> --to <ISO> [--output <file>]
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { route, openNamedProject, openActivityLog } from "@storytree/agent-link";

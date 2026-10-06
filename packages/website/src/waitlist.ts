@@ -1,3 +1,4 @@
+/** Capability 5 · Waitlist. */
 type Answers = { email: string; computer?: string; agent?: string };
 type Outcome = "joined" | "invalid" | "refused" | "rate-limited" | "failed";
 

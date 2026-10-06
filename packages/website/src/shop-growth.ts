@@ -1,4 +1,4 @@
-// Node-only: the shop's saved growth (ADR-0879 D7), with each stage's land surveyed from the shop's code as it
+// Capability 3 · Saved snapshot. Node-only: the shop's saved growth (ADR-0879 D7), with each stage's land surveyed from the shop's code as it
 // stood at that stage's time: the latest commit on main's first-parent line by then, never the code of today.
 import { execFile } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";

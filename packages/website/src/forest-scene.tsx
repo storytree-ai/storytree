@@ -1,3 +1,4 @@
+/** Capability 2 · The forest on the site. */
 import { Component, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { createRoot } from "react-dom/client";

@@ -1,4 +1,4 @@
-// From the checkout root, after `git fetch origin`, with storytree's library reachable as this checkout routes it (read only):
+// Capability 3 · Saved snapshot. From the checkout root, after `git fetch origin`, with storytree's library reachable as this checkout routes it (read only):
 // node --import tsx packages/website/src/refresh-own.ts [--record <saved library record>] [--repository <git dir>] [--branch origin/main] [--output <file>]
 // Storytree's own growth (ADR-0889 2.2b): its plan and notes from the library's dated history, its land from main's
 // commits as they stood at each stage, for Act 2's arrival time-lapse.

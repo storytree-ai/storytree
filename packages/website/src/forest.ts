@@ -1,4 +1,4 @@
-/** The page and its still work before this small entry asks for React or the drawing engine. */
+/** Capability 2 · The forest on the site. The page and its still work before this small entry asks for React or the drawing engine. */
 const host = document.querySelector<HTMLElement>("#website-forest");
 
 function hasWebGL(): boolean {

@@ -1,3 +1,4 @@
+/** Capability 2 · The forest on the site. */
 import type { GlobeSurfaces, GlobeTarget } from "@storytree/forest/view";
 import type { Chip, Decision, Explainer, Group, TourStep } from "./tour.js";
 

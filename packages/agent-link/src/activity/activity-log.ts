@@ -97,6 +97,8 @@ export interface LockedLog {
   lines(filter: LineFilter | readonly LineKind[]): Promise<Line[]>;
   /** The claim lines that decide who holds what now (ActivityLog.standing). */
   standing(): Promise<Line[]>;
+  /** The bounded session reading, on the same locked connection as claim admission (ActivityLog.foldLines). */
+  foldLines(sessions: readonly string[], commandsSince: string): Promise<Line[]>;
   /** When each of `sessions`, or of every session when none are named, last wrote a line. */
   lastSeen(sessions?: readonly string[]): Promise<Map<string, string>>;
   /** The time by the database's clock, which stamps every line. */
@@ -326,6 +328,8 @@ class PgActivityLog implements ActivityLog {
       work({
         lines: (filter) => readLines(client, project, Array.isArray(filter) ? { kinds: filter as readonly LineKind[] } : (filter as LineFilter)),
         standing: async () => (await client.query<ActivityRow>(STANDING_CLAIMS, [project])).rows.map(lineOf),
+        foldLines: async (sessions, commandsSince) => sessions.length === 0 ? []
+          : (await client.query<ActivityRow>(FOLD_LINES, foldValues(project, sessions, commandsSince))).rows.map(lineOf),
         lastSeen: (sessions) => lastSeenIn(client, project, sessions),
         now: async () => (await client.query<{ now: Date }>("SELECT now() AS now")).rows[0]!.now,
         append: (line) => insert(client, project, parseLine(this.#stamped(line))),

@@ -69,11 +69,7 @@ export async function readSessions(log: ActivityLog, project: string, options: R
   const sessions = Array.isArray(of) ? (of as readonly string[])
     : of === "all" ? await log.sessionsInView(project, new Date(0).toISOString())
     : [...new Set([...await log.sessionsInView(project, new Date(now.getTime() - Math.max(leaveMs, LONGEST_COMMAND_MS)).toISOString()), ...holders.map(([, claim]) => claim.session)])];
-  const fold = new LogFold();
-  fold.add(await log.foldLines(project, sessions, new Date(now.getTime() - COMMANDS_MS).toISOString()));
-  // The claims standing are the log's, not those the lines read for the sessions would leave.
-  const snapshot = fold.snapshot();
-  const standing = LogFold.fromSnapshot({ ...snapshot, holders: holders.map(([id, { holder: _holder, ...claim }]) => [id, claim]) });
+  const standing = LogFold.fromBounded(await log.foldLines(project, sessions, new Date(now.getTime() - COMMANDS_MS).toISOString()), claimLines);
   return standing.sessions({ now, quietMs, leaveMs });
 }
 

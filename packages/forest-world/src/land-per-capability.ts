@@ -223,7 +223,7 @@ export function landRatioFactor(land: IslandLand, areaPerCapability: number, flo
   // ⚠ REFUSED, NOT DRAWN. No island on this map is a hundred times too small or too large for its
   // capabilities — the drawing's own ratio is within a factor of three of any rung — so a factor
   // past this is an arithmetic fault (a ratio multiplied where it should divide), and the honest
-  // answer is a refusal in a microsecond rather than a shore field over a continent that never
+  // answer is a refusal in a microsecond rather than ground geometry over a continent that never
   // finishes building. The mutation rung scored exactly that inversion as a TIMEOUT for want of it.
   if (factor > MAX_LAND_FACTOR || factor < 1 / MAX_LAND_FACTOR) {
     throw new Error(

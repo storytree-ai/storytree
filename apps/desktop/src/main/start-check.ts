@@ -14,7 +14,7 @@ import type { Build, RunningBuild, updateToMain } from "@storytree/app";
 
 /** How long a build's main process may take to start and exit its check. */
 export const START_CHECK_TIMEOUT_MS = 60_000;
-/** How much of what the check printed its refusal keeps: the start, where the error is said before its stack. */
+/** Keep the start of an error before its stack, and the last output when a check times out. */
 const SAID_CHARS = 600;
 
 /** What Electron's main process prints for a rejection nothing handled: it warns, and still exits 0. */
@@ -32,10 +32,17 @@ export function startsCleanly(launch: { execPath: string; args: readonly string[
   return new Promise((resolve) => {
     let said = "";
     let heard = "";
+    let printedChars = 0;
     let rejection: string | undefined;
+    const began = performance.now();
+    let spawnedAfter: number | undefined;
+    let exited: { code: number | null; signal: NodeJS.Signals | null } | undefined;
     const child = spawn(launch.execPath, [...launch.args, "--start-check"], { env, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
+    child.on("spawn", () => { spawnedAfter = Math.round(performance.now() - began); });
+    child.on("exit", (code, signal) => { exited = { code, signal }; });
     const hear = (chunk: Buffer): void => {
       const text = chunk.toString("utf8");
+      printedChars += text.length;
       if (said.length < SAID_CHARS) said = (said + text).slice(0, SAID_CHARS);
       // Keep the last line's tail, so a warning split across chunks is still found.
       heard = (heard + text).slice(-2 * SAID_CHARS);
@@ -44,8 +51,19 @@ export function startsCleanly(launch: { execPath: string; args: readonly string[
     child.stdout.on("data", hear);
     child.stderr.on("data", hear);
     const timer = setTimeout(() => {
+      const processState = exited === undefined ? "still running" : `exited with ${exited.code === null ? `signal ${exited.signal}` : `code ${exited.code}`}`;
+      const output = printedChars > SAID_CHARS ? `${said}\n…\n${heard.slice(-SAID_CHARS)}` : said;
+      const evidence = [
+        `process ${child.pid ?? "unknown"}: ${spawnedAfter === undefined ? "spawn not observed" : `spawned after ${spawnedAfter} ms`}, ${processState}`,
+        `stdout ${child.stdout.readableEnded ? "ended" : "open"}, stderr ${child.stderr.readableEnded ? "ended" : "open"}`,
+        `elapsed ${Math.round(performance.now() - began)} ms`,
+      ].join("; ");
       child.kill("SIGKILL");
-      resolve(`it did not finish starting within ${timeoutMs / 1000} s`);
+      // An exited child can leave inherited pipes open in a descendant. The deadline must also
+      // release our readers, or the checker itself stays alive after it has refused the build.
+      child.stdout.destroy();
+      child.stderr.destroy();
+      resolve(`it did not finish starting within ${timeoutMs / 1000} s (${evidence})${output.trim() === "" ? "; no child output" : `: ${output.trim()}`}`);
     }, timeoutMs);
     child.on("error", (error) => { clearTimeout(timer); resolve(error.message); });
     child.on("close", (code, signal) => {

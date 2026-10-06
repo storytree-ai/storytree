@@ -12,6 +12,7 @@ import { newNotes, type NewNote } from "../catalogue/index.js";
 import { brokenEdges, type BrokenEdge } from "../decision-log/index.js";
 import { memoryWorklist, processGaps, type MemoryItem, type ProcessGaps } from "../graduation/index.js";
 import { relatedUnlinked, unrestedDecisions } from "../links/index.js";
+import { allNotes } from "../notes.js";
 import { frictionDrain, openQuestions } from "../queues/index.js";
 
 /** The curated kinds: a write to any of them since the session started makes the whole pass due. */
@@ -46,12 +47,14 @@ export interface Worklist {
   readonly rest?: {
     /** Links (1): accepted decisions on no shelf that nothing rests on. */
     readonly links: SchemaRecord<"decision">[];
-    /** Links (1): related but unlinked neighbours for notes written since the session started. */
-    readonly related: Related[];
+    /** Links (1): related but unlinked neighbours for notes written since the session started; unread with no start. */
+    readonly related?: Related[];
     /** Decision log (2), the health report: edges to records no longer live. */
     readonly health: BrokenEdge[];
-    /** Catalogue (3): notes written new since the session started, with what might already cover them. */
-    readonly catalogue: NewNote[];
+    /** Catalogue (3): notes written new since the session started, with what might already cover them; unread with no start. */
+    readonly catalogue?: NewNote[];
+    /** Why a list was left unread: with no session start, which notes it wrote is unknown. */
+    readonly unread?: string;
     /** Graduation (4): processes and tools that match nothing, when the tools served are known. */
     readonly processes?: ProcessGaps;
     /** Queues (5): open questions whose review lease has lapsed, longest lapsed first. */
@@ -70,17 +73,22 @@ export async function roundDue(library: Library, { since }: { since?: number }):
 /** Gather the worklist: graduation's list and the friction drain always, the rest when the trigger fired. */
 export async function worklist(library: Library, options: WorklistOptions): Promise<Worklist> {
   const graduation = await memoryWorklist(options.memoryFolders ?? [], options.now === undefined ? {} : { now: options.now });
-  const friction = await frictionDrain(library, options.branch === undefined ? {} : { branch: options.branch });
+  // The live notes, read once for every list that needs them (6.7).
+  const notes = await allNotes(library);
+  const friction = await frictionDrain(library, options.branch === undefined ? {} : { branch: options.branch }, notes);
   if (!(await roundDue(library, options)).rest) return { graduation, friction };
+  const { since } = options;
   return {
     graduation,
     friction,
     rest: {
-      links: await unrestedDecisions(library),
-      related: await relatedUnlinked(library, options.since ?? 0),
-      health: await brokenEdges(library),
-      catalogue: await newNotes(library, options.since ?? 0),
-      ...(options.tools === undefined ? {} : { processes: await processGaps(library, options.tools) }),
+      links: await unrestedDecisions(library, notes),
+      // With no start the notes this session wrote are unknown; every note's history is never read instead (6.7).
+      ...(since === undefined
+        ? { unread: "No session start is recorded, so the notes this session wrote are unknown: the catalogue and related lists were not gathered. Search for each note you wrote, and read its related notes, by hand." }
+        : { related: await relatedUnlinked(library, since, notes), catalogue: await newNotes(library, since, notes) }),
+      health: await brokenEdges(library, notes),
+      ...(options.tools === undefined ? {} : { processes: await processGaps(library, options.tools, notes) }),
       questions: await openQuestions(library, options.now),
     },
   };

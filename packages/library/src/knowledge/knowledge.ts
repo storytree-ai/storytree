@@ -28,7 +28,7 @@ import type { FieldsOf, KnowledgeKind } from "../schema/types.js";
 import { NumberTakenError, type HistoryEntry } from "../transactions/index.js";
 import { defaultEmbedder } from "./bge-small.js";
 import { MemoryVectors, rankByMeaning, renderNote, type EmbedderSource, type VectorStore } from "./embedding.js";
-import { relatedTo, type Related, type RelatedOptions, type SimilarityDoc } from "./similarity.js";
+import { relatedEach, relatedTo, type Related, type RelatedOptions, type SimilarityDoc } from "./similarity.js";
 
 /**
  * The fields that link an artifact to other artifacts (6-a), which the loop check follows: its links,
@@ -435,6 +435,12 @@ export class Knowledge {
     return holdingEvery(await this.#notes(), query);
   }
 
+  /** search() for each of `queries`, in order, from one reading of the artifacts. */
+  async searchEach(queries: readonly string[]): Promise<Note[][]> {
+    const notes = await this.#notes();
+    return queries.map((query) => holdingEvery(notes, query));
+  }
+
   /**
    * The live artifacts ranked by how close their meaning is to `query`, best first, at most
    * `limit` of them (capability 14, ADR-0732). Each artifact's rendered text is embedded in chunks
@@ -501,6 +507,13 @@ export class Knowledge {
     const notes = await this.#notes();
     if (!notes.some((note) => note.id === noteId)) return null;
     return relatedTo(notes.map(similarityDocOf), noteId, options);
+  }
+
+  /** related() for each of `noteIds` that is a live artifact, in order, from one reading of the artifacts. */
+  async relatedEach(noteIds: readonly string[], options: RelatedOptions = {}): Promise<Related[]> {
+    const notes = await this.#notes();
+    const live = new Set(notes.map((note) => note.id));
+    return relatedEach(notes.map(similarityDocOf), noteIds.filter((id) => live.has(id)), options);
   }
 
   /**

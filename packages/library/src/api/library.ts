@@ -270,6 +270,8 @@ export interface Library {
   editNote(id: string, fields: NoteEdit, options?: WriteOptions): Promise<Note | null>;
   /** The live artifacts holding every word of `query`, ignoring case, in creation order. */
   search(query: string): Promise<Note[]>;
+  /** search() for each of `queries`, in order, from one reading of the artifacts: many searches cost one. */
+  searchEach(queries: readonly string[]): Promise<Note[][]>;
   /**
    * The live artifacts ranked by how close their meaning is to `query`, best first, ten unless
    * `limit` says (capability 14, ADR-0732). With no embedding model to hand it gives search()'s
@@ -286,6 +288,8 @@ export interface Library {
    * live artifact.
    */
   related(noteId: string, options?: RelatedOptions): Promise<Related | null>;
+  /** related() for each of `noteIds` that is a live artifact, in order, from one reading of the artifacts. */
+  relatedEach(noteIds: readonly string[], options?: RelatedOptions): Promise<Related[]>;
   /** Every live definition, in creation order. */
   definitions(): Promise<SchemaRecord<"definition">[]>;
   /**
@@ -612,6 +616,10 @@ class LibraryHandle implements Library {
     return this.#project.knowledge.search(query);
   }
 
+  searchEach(queries: readonly string[]): Promise<Note[][]> {
+    return this.#project.knowledge.searchEach(queries);
+  }
+
   rank(query: string, options?: RankOptions): Promise<Ranked> {
     return this.#project.knowledge.rank(query, options);
   }
@@ -626,6 +634,10 @@ class LibraryHandle implements Library {
 
   related(noteId: string, options?: RelatedOptions): Promise<Related | null> {
     return this.#project.knowledge.related(noteId, options);
+  }
+
+  relatedEach(noteIds: readonly string[], options?: RelatedOptions): Promise<Related[]> {
+    return this.#project.knowledge.relatedEach(noteIds, options);
   }
 
   definitions(): Promise<SchemaRecord<"definition">[]> {

@@ -100,8 +100,8 @@ export async function graduate(library: Library, file: string, kind: string, fie
 }
 
 /** Each process whose `surfaces` names none of `tools`, and each tool of `tools` no process's `surfaces` names. */
-export async function processGaps(library: Library, tools: readonly string[]): Promise<ProcessGaps> {
-  const processes = (await allNotes(library)).filter((note): note is Extract<Note, { type: "process" }> => note.type === "process");
+export async function processGaps(library: Library, tools: readonly string[], read: Promise<readonly Note[]> | readonly Note[] = allNotes(library)): Promise<ProcessGaps> {
+  const processes = (await read).filter((note): note is Extract<Note, { type: "process" }> => note.type === "process");
   const names = (note: Extract<Note, { type: "process" }>, tool: string): boolean => new RegExp(`\\b${tool.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`).test(note.fields.surfaces);
   return {
     processes: processes.filter((note) => !tools.some((tool) => names(note, tool))),

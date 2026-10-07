@@ -13,6 +13,7 @@ import { MARKER_FILE } from "../routing/index.js";
 import { idOf, type Agent } from "./agent.js";
 import { withTempDir } from "./folders.js";
 import { dropTestProjects, testServerUrl, uniqueProjectName } from "./pg.js";
+import { timed, loopbackBaseline } from "./phase-timing.js";
 
 /** The toolbox: every tool the server offers. */
 export const TOOLS = [
@@ -73,24 +74,28 @@ export interface World {
 
 /** Run `body` with a throwaway folder set up as a fresh project, and that project's library and log. */
 export async function withProject(body: (world: World) => Promise<void>): Promise<void> {
+  await loopbackBaseline(testServerUrl());
   const project = uniqueProjectName();
-  await withTempDir(async (dir) => {
+  await timed("whole", () => withTempDir(async (dir) => {
     const folder = path.join(dir, "site");
     mkdirSync(folder);
     writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
-    const storytree = await connect({ url: testServerUrl() });
-    const log = await openActivityLog(testServerUrl());
+    const storytree = await timed("connect", () => connect({ url: testServerUrl() }));
+    const log = await timed("activityLog", () => openActivityLog(testServerUrl()));
     try {
-      await body({ folder, project, library: await storytree.openProject(project), log });
+      const library = await timed("openProject", () => storytree.openProject(project));
+      await timed("body", () => body({ folder, project, library, log }));
     } finally {
       try {
-        await log.close();
-        await storytree.close();
+        await timed("closeLogAndLibrary", async () => {
+          await log.close();
+          await storytree.close();
+        });
       } finally {
-        await dropTestProjects([project]);
+        await timed("drop", () => dropTestProjects([project]));
       }
     }
-  });
+  }));
 }
 
 /** A story, an arc growing it, and a capability, planned through the tools. */

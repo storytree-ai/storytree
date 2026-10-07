@@ -30,8 +30,12 @@ const ENTRY_POINTS: Readonly<Record<string, string>> = {
   storytree: path.resolve(here, "../../../cli/src/bins/storytree.ts"),
 };
 
-/** Build every command into `outdir`, and return the path of each, by name. A `release` is stamped in, for `storytree --version` to print. */
-export async function buildBins(outdir: string, { release }: { release?: { version: string; commit: string } } = {}): Promise<Record<string, string>> {
+/**
+ * Build every command into `outdir`, and return the path of each, by name. A `release` is stamped in, for `storytree --version` to print.
+ * `launcher: false` leaves out the host's Windows command, for a caller that builds its own per architecture: compiling it
+ * launches LLVM, and a cold first launch on a busy Windows runner costs most of a delivery build's time.
+ */
+export async function buildBins(outdir: string, { release, launcher = true }: { release?: { version: string; commit: string }; launcher?: boolean } = {}): Promise<Record<string, string>> {
   await build({
     entryPoints: ENTRY_POINTS,
     outdir,
@@ -64,7 +68,7 @@ export async function buildBins(outdir: string, { release }: { release?: { versi
   });
   await stageNativeProbes(outdir);
   // On Windows the `storytree` command is a program of its own, beside the script it runs (ADR-0854).
-  if (process.platform === "win32") buildLauncher(path.join(outdir, LAUNCHER_PROGRAM), process.arch === "arm64" ? "arm64" : "x64");
+  if (launcher && process.platform === "win32") buildLauncher(path.join(outdir, LAUNCHER_PROGRAM), process.arch === "arm64" ? "arm64" : "x64");
   // The release beside the scripts, so the setup check can say when installed hooks lag the latest (contract 8.18).
   if (release !== undefined) writeFileSync(path.join(outdir, "release.json"), `${JSON.stringify(release)}\n`);
   return Object.fromEntries(Object.keys(ENTRY_POINTS).map((name) => [name, path.join(outdir, `${name}.mjs`)]));

@@ -12,6 +12,7 @@ import { test } from "node:test";
 import { healthHistory, withCountedLibrary, withLibrary } from "../testing/pg.js";
 import { roundDue, worklist } from "../index.js";
 import type { ToolAnswer, ToolCall } from "./host.js";
+import type { WorklistView } from "./rounds.js";
 import { librarianTools } from "./tools.js";
 
 test("6.1 the trigger fires on a write to a curated kind since the session started, and when there is no start; graduation is due either way", async () => {
@@ -87,7 +88,7 @@ test("6.6 the worklist and land's next-line check take about as much from a libr
         const before = received();
         assert.equal(await tools.landNext!("capability_x", call), "run the librarian's pass");
         const answer = await acts.get("worklist")!({ memoryFolders: [folder] }, call);
-        const listed = answer.data?.worklist as Awaited<ReturnType<typeof worklist>>;
+        const listed = answer.data?.worklist as WorklistView;
         assert.deepEqual(listed.rest?.catalogue?.map(({ note }) => note.id), [principle.id], "the note written since the session started, and nothing older");
         taken.push(received() - before);
       });
@@ -127,18 +128,18 @@ test("6.7 the worklist reads the live notes about once however many notes the se
         caller: { session: "s-1", harness: "claude-code" },
         log: { lines: async () => (start ? [{ kind: "session-started", session: "s-1", harness: "claude-code", at: started.toISOString() }] : []) },
       });
-      const take = async (start: boolean): Promise<{ bytes: number; listed: Awaited<ReturnType<typeof worklist>> & { rest?: { unread?: string } } }> => {
+      const take = async (start: boolean): Promise<{ bytes: number; listed: WorklistView }> => {
         before = received();
         const answer = await acts.get("worklist")!({ memoryFolders: [folder] }, callFor(start));
-        return { bytes: received() - before, listed: answer.data?.worklist as Awaited<ReturnType<typeof worklist>> };
+        return { bytes: received() - before, listed: answer.data?.worklist as WorklistView };
       };
 
       await library.writeKnowledge("principle", principle(1000, "Graduate durable memory every landing"));
       const one = await take(true);
       for (let n = 1001; n < 1008; n += 1) await library.writeKnowledge("principle", principle(n, `Session lesson about worklists, phases and stalls ${n}`));
       const eight = await take(true);
-      assert.equal(eight.listed.rest?.catalogue?.length, 8);
-      assert.equal(eight.listed.rest?.related?.length, 8);
+      assert.equal(eight.listed.rest?.counts.catalogue, 8);
+      assert.equal(eight.listed.rest?.counts.related, 8);
       assert.ok(eight.bytes - one.bytes < once, `one note written took ${one.bytes} bytes and eight took ${eight.bytes}: no more than one reading of the notes (${once}) apart`);
 
       const unsure = await take(false);
@@ -194,6 +195,40 @@ test("6.8 a worklist call names each phase through the call's progress before it
   } finally {
     rmSync(folder, { recursive: true, force: true });
   }
+});
+
+test("6.9 the worklist tool answers in a size a session can read: the drain's three due reports and how many wait, and each other list's first few notes named, with how many it holds", async () => {
+  await withLibrary(async (library) => {
+    const folder = mkdtempSync(path.join(tmpdir(), "storytree-librarian-"));
+    try {
+      const long = "A decision's reasoning, at length. ".repeat(600);
+      const decisions = [];
+      for (let n = 0; n < 12; n += 1) decisions.push(await library.recordDecision({ title: `Decision ${n}`, text: long, status: "accepted" }));
+      for (let n = 0; n < 6; n += 1) {
+        await library.writeKnowledge("friction", { title: `Report ${n}`, description: "Slow", statement: "The gate hangs", evidence: `gate.log: ${long}`, impact: "A rerun", provenance: { branch: "claude/other", date: "2026-10-07", source: "retro" } });
+      }
+      const tools = librarianTools();
+      const acts = new Map<string, (args: unknown, call: ToolCall) => Promise<ToolAnswer>>();
+      tools.registerTools!((name, _description, _input, act) => {
+        acts.set(name, act as unknown as (args: unknown, call: ToolCall) => Promise<ToolAnswer>);
+      });
+      const answer = await acts.get("worklist")!({ memoryFolders: [folder] }, {
+        library, project: "p", folder, writer: {},
+        caller: { session: "s-1", harness: "claude-code" },
+        log: { lines: async () => [] },
+      });
+      const listed = answer.data?.worklist as WorklistView;
+      assert.deepEqual(listed.friction.map(({ title, recurrences }) => [title, recurrences]), [["Report 0", 0], ["Report 1", 0], ["Report 2", 0]]);
+      assert.equal(listed.frictionMore, 3);
+      assert.deepEqual(listed.rest?.links, decisions.slice(0, 5).map(({ id }, n) => ({ id, type: "decision", title: `Decision ${n}` })));
+      assert.equal(listed.rest?.counts.links, 12);
+      const size = JSON.stringify(answer).length;
+      const whole = JSON.stringify(await worklist(library, { memoryFolders: [folder] })).length;
+      assert.ok(size < 8_000 && whole > 200_000, `the tool answered in ${size} characters, against ${whole} for the whole worklist`);
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
 });
 
 test("6.5 the librarian's subagent definition names every tool the librarian serves", () => {

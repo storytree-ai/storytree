@@ -15,12 +15,7 @@
  */
 import { spawn } from "node:child_process";
 
-import { runHook, statusLine, UPKEEP } from "../hooks/index.js";
-
-/** The longest a hook may run, start to finish. Reaching storytree is given up well before this. */
-const DEADLINE_MS = 5_000;
-/** The longest the look around the machine a hook hands on may run: asking GitHub alone may take 10 s. */
-const UPKEEP_DEADLINE_MS = 20_000;
+import { DEADLINE_MS, runHook, statusLine, UPKEEP, UPKEEP_DEADLINE_MS } from "../hooks/index.js";
 
 setTimeout(() => process.exit(0), process.argv.includes(UPKEEP) ? UPKEEP_DEADLINE_MS : DEADLINE_MS).unref();
 process.on("uncaughtException", () => process.exit(0));

@@ -1,5 +1,5 @@
 /**
- * How storytree reaches a Postgres server: the seam between where the server is (a postgres://
+ * Capability 1 · Project libraries. How storytree reaches a Postgres server: the seam between where the server is (a postgres://
  * URL, or a Cloud SQL instance reached with Google sign-in, capability 8) and what storytree does
  * there (capability 1). Wherever the server is, every database on it is reached through a pool its
  * PoolFactory makes.

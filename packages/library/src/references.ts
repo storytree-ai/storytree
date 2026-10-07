@@ -1,5 +1,5 @@
 /**
- * References between records (capabilities 4, 5, 6 and 9): a capability names its story, a
+ * Capability 4 · Work model. References between records (capabilities 4, 5, 6 and 9): a capability names its story, a
  * contract its capability, an arc the stories it grows, a capability the capabilities it depends
  * on, a health entry its contract, a note the notes it links to, and a decision the story or
  * capability it is a front cover of. A write whose references are broken is refused, and writes

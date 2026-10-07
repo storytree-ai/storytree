@@ -1,5 +1,5 @@
 /**
- * The library's upgrade steps, and the schema it runs on.
+ * Capability 3 · Data schema. The library's upgrade steps, and the schema it runs on.
  *
  * Every user has their own local library, so a record written by an older storytree stays in a
  * database nobody else can reach. When a type changes so that such a record no longer fits, its

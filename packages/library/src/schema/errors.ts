@@ -1,5 +1,5 @@
 /**
- * The refusals of the data schema (capability 3). Each one names what is wrong, so whoever wrote
+ * Capability 3 · Data schema. The refusals of the data schema (capability 3). Each one names what is wrong, so whoever wrote
  * the record, an agent included, can put it right.
  */
 import { fileURLToPath } from "node:url";

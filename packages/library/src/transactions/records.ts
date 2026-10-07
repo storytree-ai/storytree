@@ -1,5 +1,5 @@
 /**
- * What a write stores, worked out by one piece of code for both backends so that they agree
+ * Capability 2 · Library transactions. What a write stores, worked out by one piece of code for both backends so that they agree
  * exactly: the record a save or an edit would leave, the check on it, and the shape of a history
  * entry. Each backend only decides where these go and how a write stays atomic.
  */

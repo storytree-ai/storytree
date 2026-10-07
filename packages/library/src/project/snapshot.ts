@@ -1,5 +1,5 @@
 /**
- * A project's snapshot (capability 1, contracts 1.6 to 1.8; ADR-0641 D2 step 4, choice B1): its
+ * Capability 1 · Project libraries. A project's snapshot (capability 1, contracts 1.6 to 1.8; ADR-0641 D2 step 4, choice B1): its
  * tables as plain data, the backup of a library that is the only copy of its plan.
  */
 import type { Pool } from "pg";

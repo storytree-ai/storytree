@@ -1,4 +1,4 @@
-/** Project names, and the database each project lives in. */
+/** Capability 1 · Project libraries. Project names, and the database each project lives in. */
 
 /** A project's database is this prefix followed by the project's name. */
 export const PROJECT_DATABASE_PREFIX = "storytree_";

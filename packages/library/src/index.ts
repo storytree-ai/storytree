@@ -1,4 +1,4 @@
-// @storytree/library: the project library every later storytree story reads and writes, and the
+// Capability 7 · Library API. @storytree/library: the project library every later storytree story reads and writes, and the
 // only way to reach it (capability 7 · Library API, the library story). At run time this entry
 // exports connect(), the errors a caller may need to catch by class, and the name a seed's
 // connection carries while it writes (SEED_CONNECTION). Everything else it exports

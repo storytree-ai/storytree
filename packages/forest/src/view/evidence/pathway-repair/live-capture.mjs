@@ -27,6 +27,12 @@ const phase = message => { currentPhase = message; console.error(`[live pathways
 phase('launch browser');
 await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => {
   phase('browser ready');
+  browser.on('disconnected', () => phase('browser disconnected'));
+  const closeBrowser = async () => {
+    phase(`close browser (${browser.contexts().length} contexts remain)`);
+    await browser.close();
+    phase('browser close returned; finish capture server cleanup');
+  };
   const all = { label, browser: await browser.version(), dist, restoredLink, expected, runs: [] };
   for (const reduced of [false, true]) {
     const name = reduced ? 'reduced' : 'normal';
@@ -64,6 +70,27 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
       writeFileSync(path.join(out, `${name}-failure.json`), JSON.stringify(report, null, 2) + '\n');
       console.error(`live pathway failure: ${JSON.stringify(report)}`);
       throw error;
+    };
+    const closePage = async () => {
+      // Only after the complete observation: release this page's software-GL resources before
+      // closing its owned context. A browser shutdown must not wait for a live scene's GPU work.
+      phase(`${name}: release renderer after observation`);
+      let timer;
+      try {
+        await Promise.race([
+          page.evaluate(() => {
+            const state = window.__globe;
+            if (!state) return;
+            state.internal.frames = 0;
+            state.setFrameloop('never');
+            state.gl.dispose();
+            state.gl.forceContextLoss();
+          }),
+          new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('renderer cleanup exceeded 10 seconds')), 10000); }),
+        ]);
+      } finally { clearTimeout(timer); }
+      phase(`${name}: close page`);
+      await page.close();
     };
     try {
     const bridge = fakeBridge({
@@ -180,7 +207,8 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
       const observation = await page.evaluate(() => ({ ...window.liveEvidence, timeOrigin: performance.timeOrigin }));
       writeFileSync(path.join(out, 'initial-measurements.json'), JSON.stringify({ label, dist, errors, screencast: initialScreencast, ...observation }, null, 2) + '\n');
       assert.deepEqual(errors, []);
-      await page.close();
+      await closePage();
+      await closeBrowser();
       return;
     }
     // Framing and RAF-based settling serve pictures only. The smoke reads world-space meshes and
@@ -270,8 +298,7 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
     };
     all.runs.push({ name, reduced, summary, errors, restored, unrelated, screencast, ...observation });
     if (!smoke) writeFileSync(path.join(out, `${name}-measurements.json`), JSON.stringify(all.runs.at(-1), null, 2) + '\n');
-    phase(`${name}: close page`);
-    await page.close();
+    await closePage();
     phase(`${name}: complete`);
     } catch (error) { await failedWait(currentPhase, error); }
   }
@@ -280,5 +307,6 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
   const summary = Object.fromEntries(all.runs.map(run => [run.name, run.summary]));
   console.log(JSON.stringify(summary));
   assert.ok(all.runs.every(run => run.errors.length === 0), 'the real page has no errors');
+  await closeBrowser();
 });
-phase('browser closed');
+phase('capture browser and server closed');

@@ -267,7 +267,12 @@ No local demand-render stall was reproduced. The initial completion allowance is
 now 30 seconds; the capture remains bounded at 120 seconds inside the test's
 155-second limit. Failed stages retain elapsed phase diagnostics and a bounded
 passive frame tail, including progress, redraw state, visibility and canvas size.
-macOS requires its CI rerun to establish the result.
+The next macOS run completed every behavior check and both page closures, then
+exceeded the child deadline during capture cleanup. After all observations and
+pictures, the capture now cancels pending redraws and disposes its own renderer
+and WebGL context before closing each page. Shutdown phases distinguish browser
+disconnection from the capture server's cleanup. No observation or deadline is
+changed by this cleanup; macOS requires its CI rerun to verify process completion.
 
 Use `capture_locked` from above, with `PATHWAY_CAPTURE_DIST` naming the intended
 bundle and `PATHWAY_CAPTURE_OUT` naming its output:

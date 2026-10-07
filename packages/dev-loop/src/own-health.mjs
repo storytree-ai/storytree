@@ -421,7 +421,7 @@ function optional(field, value) {
  * "not re-run at <commit>" (history keeps the old verdict). With no tests there is nothing to re-run,
  * and a verdict from elsewhere stands. One whose column already says the same is not written
  * again, so its note keeps the commit it was first not re-run at. A run that saw no Windows run
- * (`windowsSeen` false: no Windows evidence, on another system) cannot re-run a Windows-only test
+ * (`windowsSeen` false: no Windows evidence) cannot re-run a Windows-only test it skipped
  * either, so a passing verdict from elsewhere stands against its platform:win32 skip. The reported
  * column is never touched: that is what an agent says, and no agent has spoken here.
  * @param {import("@storytree/library").Library} library

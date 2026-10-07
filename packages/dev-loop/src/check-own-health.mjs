@@ -154,8 +154,8 @@ export async function checkStory(library, story, writer, { root, windows, runTes
     for (const result of unmapped) log(`  ${result.status.padEnd(7)} ${result.name}`);
   }
 
-  // Without Windows evidence, a run elsewhere cannot re-run a Windows-only test: a Windows pass stands.
-  const windowsSeen = windows !== undefined || process.platform === "win32";
+  // Without Windows evidence, a run cannot re-run a test that skips off Windows: a Windows pass stands.
+  const windowsSeen = windows !== undefined;
   log(`\nverified health of "${story.title}", by "${writer.by}"${writer.commit === undefined ? "" : ` at commit ${writer.commit}`}:`);
   for (const capability of story.capabilities) {
     log(`  ${capability.title}`);

@@ -1,5 +1,5 @@
 /**
- * The tray icon: a 32x32 PNG of a green tree, inline so the packaged app needs no extra file.
+ * Capability 1 · Lifecycle. The tray icon: a 32x32 PNG of a green tree, inline so the packaged app needs no extra file.
  * Drawn by a throwaway script (a circle for the crown, a bar for the trunk); replace it freely.
  */
 import { nativeImage, type NativeImage } from "electron";

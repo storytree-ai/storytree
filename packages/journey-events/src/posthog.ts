@@ -1,3 +1,4 @@
+/** Capability 2 · PostHog delivery. */
 import { PostHog } from "posthog-node";
 
 export interface DeliveryEvent {

@@ -22,7 +22,7 @@ export async function timed<T>(phase: string, body: () => Promise<T>): Promise<T
   return spans.run([...(spans.getStore() ?? []), span], async () => {
     try { return await body(); }
     finally {
-      console.error(`DBPROFILE ${JSON.stringify({ phase, ms: +(performance.now() - start).toFixed(3), connects: rounded(span.connects), queries: [...span.queries].map(([sql, sample]) => ({ sql, ...rounded(sample) })) })}`);
+      console.error(`DBPROFILE ${JSON.stringify({ file: process.argv[1]?.replaceAll("\\", "/").split("/").pop(), phase, ms: +(performance.now() - start).toFixed(3), connects: rounded(span.connects), queries: [...span.queries].map(([sql, sample]) => ({ sql, ...rounded(sample) })) })}`);
     }
   });
 }

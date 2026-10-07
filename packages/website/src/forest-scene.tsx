@@ -154,7 +154,8 @@ function Tags({ tags, controls, arrived }: { tags: readonly Tag[]; controls: Glo
     return () => cancelAnimationFrame(frame);
   }, [tags, controls, host, arrived]);
   if (!host) return null;
-  return createPortal(<>{tags.map((tag, index) => <div key={index} ref={node => { refs.current[index] = node; }} className="tour-tag away">
+  return createPortal(<>{tags.map((tag, index) => <div key={index} ref={node => { refs.current[index] = node; }} className="tour-tag away"
+    data-story={tag.target.kind === "story" ? tag.target.story : undefined}>
     <span className="tour-tag-ring" /><span className="tour-tag-text">{tag.text}</span>
   </div>)}</>, host);
 }
@@ -330,7 +331,8 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
     const moved = !before || before.state.index !== state!.index || before.state.generation !== state!.generation || before.state.freePlay
       || before.state.holds.includes("exploring") || before.state.holds.includes("everything") || !camera.current.entered;
     const map = globe.map, overview = overviews[map], driftOrder = driftOrders[map];
-    const target = step.target ?? overview, framing = step.framing ?? restingFraming;
+    const view = width > 600 && step.laptop ? step.laptop : step;
+    const target = view.target ?? overview, framing = view.framing ?? restingFraming;
     const speed = state!.speed, still = reduced();
     const go = (stop: { target: GlobeTarget; framing: number; duration: number }) => {
       const reached = controls.stop({ ...stop, sideOffset });

@@ -39,6 +39,8 @@ export type TourStep = {
    * until then (ADR-0891, amended 2026-10-05). */
   names?: readonly { said: string; story: string }[];
   target?: GlobeTarget; framing?: number; drift?: boolean;
+  /** A laptop's own view where a phone's would not fit its panels (wider than 600px). */
+  laptop?: { target: GlobeTarget; framing: number };
   /** A story selected so its dependency lanes draw on. */
   select?: string;
   panel?: "story" | "arcs" | "sessions" | "knowledge";

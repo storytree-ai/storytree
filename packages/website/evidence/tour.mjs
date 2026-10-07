@@ -253,9 +253,22 @@ async function verifyAgentTags(page, width, height, output) {
     tags.forEach((tag, index) => {
       assert.ok(tag.x >= 0 && tag.y >= 0 && tag.x + tag.width <= width && tag.y + tag.height <= height, `${tag.text} is inside the screen at ${width}px: ${JSON.stringify(tag)}`);
       for (const other of tags.slice(index + 1)) assert.equal(overlap(tag, other), 0, `${tag.text} is clear of ${other.text} at ${width}px`);
-      for (const panel of [card, ...panels]) assert.equal(overlap(tag, panel), 0, `${tag.text} is clear of the card and the panels at ${width}px`);
+      for (const panel of [card, ...panels]) assert.equal(overlap(tag, panel), 0, `${tag.text} is clear of the card and the panels on the ${id} step at ${width}px: ${JSON.stringify({ tag, panels })}`);
       rings.forEach((ring, other) => { if (other !== index) assert.equal(overlap(tag, ring), 0, `${tag.text} is clear of ring ${other} at ${width}px`); });
     });
+    // On a laptop the tagged islands' own names read too, clear of the card and the panels, reached in order from the step before.
+    if (width > 600) {
+    const named = await page.evaluate(() => [...document.querySelectorAll("#tour-tags .tour-tag:not(.away)[data-story]")].map(tag => {
+      const plate = document.querySelector(`.planet-nameplate[data-story-id="${tag.dataset.story}"]`);
+      const box = plate?.getBoundingClientRect();
+      return { story: tag.dataset.story, text: plate?.textContent, shown: !!plate && !plate.classList.contains("crowded") && box.width > 0, x: box?.x, y: box?.y, width: box?.width, height: box?.height };
+    }));
+    assert.equal(named.length, count, `every tag names its island at ${width}px`);
+    for (const plate of named) {
+      assert.ok(plate.shown, `${plate.text ?? plate.story}'s name is shown on the ${id} step at ${width}px`);
+      for (const panel of [card, ...panels]) assert.equal(overlap(plate, panel), 0, `${plate.text}'s name is clear of the card and the panels on the ${id} step at ${width}px: ${JSON.stringify({ plate, panel })}`);
+    }
+    }
     await page.screenshot({ path: path.join(output, `${id}-${width}.png`) });
   }
 }

@@ -35,26 +35,12 @@ export function createIdentityClient(config: ClientConfiguration) {
   const request = config.fetch ?? fetch;
   const now = config.now ?? Date.now;
   const wait = config.wait ?? ((ms, signal) => setTimeout(ms, undefined, { signal }));
-  const call = async (url: string, init: RequestInit, signal?: AbortSignal) => {
-    try {
-      const timeout = AbortSignal.timeout(10_000);
-      const response = await request(url, { ...init, redirect: "error", signal: signal ? AbortSignal.any([signal, timeout]) : timeout });
-      return { status: response.status, ok: response.ok, data: object(await response.json()) };
-    } catch {
-      if (signal?.aborted) throw cancelled();
-      throw unavailable();
-    }
-  };
+  const call = caller(request);
   const post = (path: string, fields: Record<string, string>, signal?: AbortSignal) => call(api + path, {
     method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
     body: new URLSearchParams({ client_id: config.clientId, ...fields }),
   }, signal);
-  const resolve = async (accessToken: string, signal?: AbortSignal): Promise<SignedInUser> => {
-    const response = await call(config.identityUrl, { headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" } }, signal);
-    if (response.status >= 500 || response.status === 429) throw unavailable();
-    if (!response.ok) throw refused();
-    return signedInUser(response.data);
-  };
+  const resolve = (accessToken: string, signal?: AbortSignal) => verifiedUser(config.identityUrl, accessToken, request, signal);
   // Serialize one instance; a CLI host uses withSessionStore to serialize across processes too.
   let active = false;
   const exclusive = async <T>(act: () => Promise<T>) => {
@@ -115,7 +101,7 @@ export function createIdentityClient(config: ClientConfiguration) {
       await config.store.write(refreshToken);
       try { return await resolve(accessToken); }
       catch (error) {
-        if (error instanceof SignInError && error.message === refused().message) { await config.store.clear(); return null; }
+        if (isRefused(error)) { await config.store.clear(); return null; }
         throw error;
       }
     }),
@@ -123,6 +109,29 @@ export function createIdentityClient(config: ClientConfiguration) {
     signOut: (): Promise<void> => exclusive(() => config.store.clear()),
   };
 }
+
+function caller(request: typeof fetch) {
+  return async (url: string, init: RequestInit, signal?: AbortSignal) => {
+    try {
+      const timeout = AbortSignal.timeout(10_000);
+      const response = await request(url, { ...init, redirect: "error", signal: signal ? AbortSignal.any([signal, timeout]) : timeout });
+      return { status: response.status, ok: response.ok, data: object(await response.json()) };
+    } catch {
+      if (signal?.aborted) throw cancelled();
+      throw unavailable();
+    }
+  };
+}
+/** Asks the explicitly configured Storytree identity endpoint who an access token belongs to. */
+export async function verifiedUser(identityUrl: string, accessToken: string, request: typeof fetch = fetch, signal?: AbortSignal): Promise<SignedInUser> {
+  if (!httpsUrl(identityUrl)) throw new Error("Sign-in needs an explicit HTTPS identity endpoint.");
+  const response = await caller(request)(identityUrl, { headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" } }, signal);
+  if (response.status >= 500 || response.status === 429) throw unavailable();
+  if (!response.ok) throw refused();
+  return signedInUser(response.data);
+}
+/** True when the identity server refused the session, as opposed to being unreachable. */
+export function isRefused(error: unknown): boolean { return error instanceof SignInError && error.message === refused().message; }
 
 function object(value: unknown): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) throw refused();

@@ -29,12 +29,16 @@ export function openQuestions(library: Library, at?: Date): Promise<SchemaRecord
 
 /** Three unrouted reports from other branches, most recurrences first and oldest first on ties. */
 export async function frictionDrain(library: Library, { branch }: { branch?: string }, read: Promise<readonly Note[]> | readonly Note[] = allNotes(library)): Promise<SchemaRecord<"friction">[]> {
+  return (await unroutedFriction(library, branch === undefined ? {} : { branch }, read)).slice(0, DRAIN);
+}
+
+/** Every unrouted report from other branches, in the drain's order: what the drain takes its three from. */
+export async function unroutedFriction(library: Library, { branch }: { branch?: string }, read: Promise<readonly Note[]> | readonly Note[] = allNotes(library)): Promise<SchemaRecord<"friction">[]> {
   return (await read)
     .filter((note): note is SchemaRecord<"friction"> => note.type === "friction")
     .filter((report) => report.fields.route === undefined && (branch === undefined || report.fields.provenance?.branch !== branch))
     // allNotes is in creation order; stable sorting keeps that order when recurrence counts tie.
-    .sort((a, b) => (b.fields.reinforcedBy?.length ?? 0) - (a.fields.reinforcedBy?.length ?? 0))
-    .slice(0, DRAIN);
+    .sort((a, b) => (b.fields.reinforcedBy?.length ?? 0) - (a.fields.reinforcedBy?.length ?? 0));
 }
 
 /** Route with a reason and optional delivery stamp; deferred tool work needs a live remedy, and a routed report keeps its route. */

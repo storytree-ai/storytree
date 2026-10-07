@@ -11,7 +11,7 @@ import { claudeCodeMemoryFolder, graduate, park } from "../graduation/index.js";
 import { link } from "../links/index.js";
 import { route } from "../queues/index.js";
 import type { ToolCall, ToolExtension } from "./host.js";
-import { roundDue, worklist } from "./rounds.js";
+import { roundDue, worklist, worklistView } from "./rounds.js";
 
 const text = z.string().trim().min(1);
 
@@ -29,13 +29,15 @@ export function librarianTools({ tools }: { tools?: () => readonly string[] } = 
       }), async (args, call) => {
         const branch = branchIn(call.folder);
         const served = args.tools ?? tools?.();
-        return { text: "The librarian's worklist. Review graduation at every landing.", data: { worklist: await worklist(call.library, {
+        const full = await worklist(call.library, {
           ...await sessionStart(call),
           ...(branch === undefined ? {} : { branch }),
           memoryFolders: args.memoryFolders?.map((folder) => path.resolve(call.folder, folder)) ?? [claudeCodeMemoryFolder(call.folder, homedir())],
           ...(served === undefined ? {} : { tools: served }),
           ...(call.progress === undefined ? {} : { progress: call.progress }),
-        }) } };
+        });
+        // Bounded (6.9): the full records once reached fifteen million characters.
+        return { text: `The librarian's worklist. Review graduation at every landing. ${full.friction.length} friction reports are due${full.frictionMore === undefined ? "" : `, and ${full.frictionMore} more wait`}; each other list shows its first few, with counts: read any note whole by its ID.`, data: { worklist: worklistView(full) } };
       });
       define("link", "Make one note rest on another, preserving its existing links. A definition rests only on the decision that created its term.", z.object({ from: text, to: text }), async ({ from, to }, { library, writer }) => {
         const note = await link(library, from, to, writer);

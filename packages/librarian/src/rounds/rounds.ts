@@ -13,7 +13,7 @@ import { brokenEdges, type BrokenEdge } from "../decision-log/index.js";
 import { memoryWorklist, processGaps, type MemoryItem, type ProcessGaps } from "../graduation/index.js";
 import { relatedUnlinked, unrestedDecisions } from "../links/index.js";
 import { allNotes } from "../notes.js";
-import { frictionDrain, openQuestions } from "../queues/index.js";
+import { DRAIN, openQuestions, unroutedFriction } from "../queues/index.js";
 
 /** The curated kinds: a write to any of them since the session started makes the whole pass due. */
 export const CURATED: readonly string[] = ["decision", "question", "principle", "guardrail", "pattern", "process", "definition", "agent"];
@@ -45,6 +45,8 @@ export interface Worklist {
   readonly graduation: MemoryItem[];
   /** Queues (5): the friction drain. Always there, since filing friction is not a curated write. */
   readonly friction: SchemaRecord<"friction">[];
+  /** How many more unrouted reports from other branches wait beyond these; absent when none do. */
+  readonly frictionMore?: number;
   /** The rest, when the trigger fired. */
   readonly rest?: {
     /** Links (1): accepted decisions on no shelf that nothing rests on. */
@@ -80,9 +82,11 @@ export async function worklist(library: Library, options: WorklistOptions): Prom
   await phase("friction");
   // The live notes, read once for every list that needs them (6.7).
   const notes = await allNotes(library);
-  const friction = await frictionDrain(library, options.branch === undefined ? {} : { branch: options.branch }, notes);
+  const unrouted = await unroutedFriction(library, options.branch === undefined ? {} : { branch: options.branch }, notes);
+  const friction = unrouted.slice(0, DRAIN);
+  const more = unrouted.length > friction.length ? { frictionMore: unrouted.length - friction.length } : {};
   await phase("trigger");
-  if (!(await roundDue(library, options)).rest) return { graduation, friction };
+  if (!(await roundDue(library, options)).rest) return { graduation, friction, ...more };
   const { since } = options;
   await phase("links");
   const links = await unrestedDecisions(library, notes);
@@ -100,6 +104,7 @@ export async function worklist(library: Library, options: WorklistOptions): Prom
   return {
     graduation,
     friction,
+    ...more,
     rest: {
       links,
       ...(related === undefined || catalogue === undefined
@@ -110,4 +115,73 @@ export async function worklist(library: Library, options: WorklistOptions): Prom
       questions,
     },
   };
+}
+
+/** How many items of each rest list a session is shown; the counts say how many there are. */
+export const SHOWN = 5;
+
+/** A note named by what a session needs to pick it: its ID, kind and title. Read it whole with its ID. */
+export interface NoteRef {
+  readonly id: string;
+  readonly type: string;
+  readonly title: string;
+}
+
+/**
+ * The worklist as a session reads it (6.9): graduation whole, the friction drain's due reports and
+ * how many more wait, and each rest list's first few items, named only, with how many each holds. The full
+ * records once took fifteen million characters; any one is read whole by its ID.
+ */
+export interface WorklistView {
+  readonly graduation: MemoryItem[];
+  readonly friction: (NoteRef & { readonly recurrences: number })[];
+  readonly frictionMore?: number;
+  readonly rest?: {
+    readonly links: NoteRef[];
+    readonly related?: { source: string; hits: (NoteRef & { readonly linked: boolean })[] }[];
+    readonly health: BrokenEdge[];
+    readonly catalogue?: { note: NoteRef; lookalikes: NoteRef[] }[];
+    readonly unread?: string;
+    readonly processes?: { processes: NoteRef[]; tools: string[] };
+    readonly questions: NoteRef[];
+    /** How many each list holds, of which the first few are shown. */
+    readonly counts: { links: number; related?: number; health: number; catalogue?: number; processes?: number; questions: number };
+  };
+}
+
+/** Bound a worklist to what a session can read: SHOWN items a list, named only, with counts. */
+export function worklistView(full: Worklist): WorklistView {
+  const view: WorklistView = {
+    graduation: full.graduation,
+    friction: full.friction.map((report) => ({ ...ref(report), recurrences: report.fields.reinforcedBy?.length ?? 0 })),
+    ...(full.frictionMore === undefined ? {} : { frictionMore: full.frictionMore }),
+  };
+  const { rest } = full;
+  if (rest === undefined) return view;
+  const shown = <T>(list: readonly T[]): T[] => list.slice(0, SHOWN);
+  return {
+    ...view,
+    rest: {
+      links: shown(rest.links).map(ref),
+      ...(rest.related === undefined ? {} : { related: shown(rest.related).map(({ source, hits }) => ({ source, hits: shown(hits).map((hit) => ({ id: hit.id, type: hit.type, title: hit.title, linked: hit.linked })) })) }),
+      health: shown(rest.health),
+      ...(rest.catalogue === undefined ? {} : { catalogue: shown(rest.catalogue).map(({ note, lookalikes }) => ({ note: ref(note), lookalikes: shown(lookalikes).map(ref) })) }),
+      ...(rest.unread === undefined ? {} : { unread: rest.unread }),
+      ...(rest.processes === undefined ? {} : { processes: { processes: shown(rest.processes.processes).map(ref), tools: rest.processes.tools } }),
+      questions: shown(rest.questions).map(ref),
+      counts: {
+        links: rest.links.length,
+        ...(rest.related === undefined ? {} : { related: rest.related.length }),
+        health: rest.health.length,
+        ...(rest.catalogue === undefined ? {} : { catalogue: rest.catalogue.length }),
+        ...(rest.processes === undefined ? {} : { processes: rest.processes.processes.length }),
+        questions: rest.questions.length,
+      },
+    },
+  };
+}
+
+function ref(note: { readonly id: string; readonly type: string; readonly fields: object }): NoteRef {
+  const fields = note.fields as Readonly<Record<string, unknown>>;
+  return { id: note.id, type: note.type, title: String(fields.title ?? fields.term ?? fields.name ?? note.id) };
 }

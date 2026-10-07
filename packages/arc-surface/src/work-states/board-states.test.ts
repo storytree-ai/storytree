@@ -55,3 +55,11 @@ test("1.6 the arc rolls up its open increments: every one held reads queued, any
   assert.equal(arcState("active", { increments: [free, claimed], claims: [{ ...held, holder: "live" }] }), "claimed");
   assert.equal(arcState("active", { increments: [landed] }), "quiet", "nothing open is not work to take");
 });
+
+test("1.6 an idle claim does not hide free work: free work reads ready beside it, a live holder still reads claimed, nothing free still reads idle (ADR-0938 D3)", () => {
+  const free = incrementState(open), claimed = incrementState(open, { claim: held });
+  assert.equal(arcState("active", { increments: [free, claimed], claims: [held] }), "ready", "an idle claim leaves the free increment to take");
+  assert.equal(arcState("active", { increments: [free, claimed], claims: [{ ...held, holder: "live" }] }), "claimed", "a live holder still outranks free work");
+  assert.equal(arcState("active", { increments: [claimed], claims: [held] }), "idle", "only idle-claimed work and nothing free reads idle");
+  assert.equal(arcState("active", { increments: [incrementState(open, { waits })], claims: [held] }), "queued", "queued still outranks idle");
+});

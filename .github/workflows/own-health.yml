@@ -39,13 +39,6 @@ on:
         type: boolean
         default: false
 
-# One recording at a time. A run in progress finishes; a newer one waits, replacing any older one
-# still waiting. A delayed CI completion for an older commit must not overwrite newer health:
-# after acquiring this slot, a job checks that its checkout is still main before recording.
-concurrency:
-  group: own-health
-  cancel-in-progress: false
-
 permissions:
   contents: read
 
@@ -96,6 +89,13 @@ jobs:
   record:
     name: record own health
     needs: secrets
+    # One recording at a time. A run in progress finishes; a newer one waits, replacing any older one
+    # still waiting. A delayed CI completion for an older commit must not overwrite newer health:
+    # after acquiring this slot, a job checks that its checkout is still main before recording.
+    # The group is on this job, not the workflow, so a preflight run never waits or is replaced.
+    concurrency:
+      group: own-health
+      cancel-in-progress: false
     if: >-
       !inputs.preflight && (
       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||

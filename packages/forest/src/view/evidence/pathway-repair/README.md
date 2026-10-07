@@ -294,12 +294,12 @@ unit being killed at its unchanged 180-second deadline with live roads pending. 
 about 44 seconds remained for live roads. That log does not establish a stuck live-road
 step: child stderr was buffered until exit and was lost when the package was killed.
 
-The territory smoke now keeps its full fixture, 1440 × 960 viewport, fill/claim
+The territory smoke now keeps its full fixture and fill/claim
 measurements and turn-away failure-marker check, but omits the four picture-only
 close-ups and their zoom/unzoom tour. It requests six settling frames instead of
 204 and waits explicitly for both failure markers. The full picture capture still
-performs the tour. State predicates poll independently of RAF, and renderer resources
-are released after observation, before page/browser shutdown.
+performs the tour. State predicates poll independently of RAF. After observation, redraws stop and
+page closure releases the renderer resources.
 
 Both numbered tests now stream subprocess phase diagnostics while retaining stdout
 for the same assertions. The last live-road step and its elapsed time therefore remain
@@ -317,6 +317,15 @@ not a lost invalidation or a cleanup hang. The smoke viewport is now 320 × 240
 all 131 saved link identities, geometry observations and the product's clock remain
 the same. Full pictures remain 1440 × 960. macOS CI and its merge-queue run verify
 the complete capture lifecycle and combined budget.
+
+The revised live-road proof passed on macOS both in its PR run and the next merge
+queue (about 50 seconds each). That queue instead exposed the territory capture's
+new explicit WebGL disposal step exceeding its ten-second guard after all observations.
+Territory cleanup now stops redraws and leaves WebGL resource disposal to page closure,
+avoiding an extra synchronous driver drain. Its smoke viewport is 640 × 480, reducing
+pixel work while retaining all territory/claim geometry and both failure markers;
+full picture captures remain 1440 × 960. No behavior assertion or existing timeout
+was removed or enlarged.
 
 Use the command wrapper from above, with `PATHWAY_CAPTURE_DIST` naming the intended
 bundle and `PATHWAY_CAPTURE_OUT` naming its output:

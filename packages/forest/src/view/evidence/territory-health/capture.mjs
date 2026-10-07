@@ -88,7 +88,7 @@ function measure(page) {
   });
 }
 
-  const page = await browser.newPage({ viewport: { width: 1440, height: 960 }, deviceScaleFactor: 1, colorScheme: 'dark' });
+  const page = await browser.newPage({ viewport: smoke ? { width: 640, height: 480 } : { width: 1440, height: 960 }, deviceScaleFactor: 1, colorScheme: 'dark' });
   const errors = [], warnings = [], failed = [];
   page.on('response', r => { if (r.status() >= 400) failed.push(r.url()); });
   page.on('pageerror', error => errors.push(String(error)));
@@ -192,8 +192,9 @@ function measure(page) {
   assert.equal(results.front.greyFills, 0);
   console.log(JSON.stringify({ browser: results.browser, fills: results.front.fills, greyFills: results.front.greyFills,
     outlines: results.front.islands.flatMap(i => i.claimOutlines.map(o => [i.story, o.capability, o.colour, o.opacity, o.triangles])), markers: results.turnedAway.markers, errors }));
-  // Observation is complete. Release software-GL work before closing the page and browser.
-  phase('release renderer after observation');
+  // Observation is complete. Stop redraws, then let page closure release the WebGL context.
+  // Explicit dispose/forceContextLoss can itself stall the macOS software-GL driver.
+  phase('stop redraws after observation');
   let cleanupTimer;
   try {
     await Promise.race([
@@ -201,8 +202,6 @@ function measure(page) {
         const state = window.__globe;
         state.internal.frames = 0;
         state.setFrameloop('never');
-        state.gl.dispose();
-        state.gl.forceContextLoss();
       }),
       new Promise((_, reject) => { cleanupTimer = setTimeout(() => reject(new Error('renderer cleanup exceeded 10 seconds')), 10000); }),
     ]);

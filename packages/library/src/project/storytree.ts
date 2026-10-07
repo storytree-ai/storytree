@@ -20,7 +20,7 @@ import { modelsFolder } from "../knowledge/bge-small.js";
 import type { EmbedderSource } from "../knowledge/embedding.js";
 import { Knowledge } from "../knowledge/knowledge.js";
 import { SchemaRecords } from "../schema/records.js";
-import { PgTransactions, WRITE_LOCK } from "../transactions/pg.js";
+import { PgTransactions, takeWriteLock } from "../transactions/pg.js";
 import type { Transactions } from "../transactions/types.js";
 import { WorkInFlight } from "../work/work-in-flight.js";
 import { WorkModel } from "../work/work-model.js";
@@ -32,7 +32,7 @@ import { assertProjectName, PROJECT_DATABASE_PREFIX, ProjectGoneError, projectDa
 import { pendingMemories, upgradeMemories } from "./memory-upgrade.js";
 import { PROJECT_SCHEMA } from "./schema.js";
 import { readSnapshot, writeSnapshot, type ProjectSnapshot } from "./snapshot.js";
-import { localServer, type ServerAccess } from "./server.js";
+import { localServer, type ServerAccess, type WaitBounds } from "./server.js";
 
 /** Where the Postgres server is: at a URL, a Cloud SQL instance reached with Google sign-in, or an address whose password is a key. */
 export type ConnectOptions = (
@@ -75,6 +75,13 @@ export type ConnectOptions = (
    * storytree-pg on 2026-10-07 hooks' activity reads did so for minutes after their process ended.
    */
   readonly statementTimeoutMs?: number;
+  /**
+   * The longest a call waits for a connection slot on a full server, or for another session's write
+   * to the same project to finish, before it fails with the server's reason; by default 30 seconds.
+   */
+  readonly waitMs?: number;
+  /** Told once, as each such wait starts, what the call is waiting for, in a line a person can read. */
+  readonly onWait?: (what: string) => void;
 };
 
 /** How a project is opened. */
@@ -163,10 +170,10 @@ export async function connect(options: ConnectOptions, seams: ProjectSeams = {})
   if ([options.url, options.cloudSql, options.address].filter((given) => given !== undefined).length > 1) {
     throw new ConnectionError("config", "Give connect() one of a url, a cloudSql instance or an address, not more.");
   }
-  const { statementTimeoutMs } = options;
-  if (options.address !== undefined) return new ServerConnection(addressServer(options.address, options.connectTimeoutMs, statementTimeoutMs), seams);
-  if (options.cloudSql === undefined) return new ServerConnection(localServer(new URL(options.url), options.connectTimeoutMs, statementTimeoutMs), seams);
-  return new ServerConnection(await cloudSqlServer(options.cloudSql, seams, statementTimeoutMs), seams);
+  const bounds: WaitBounds = options;
+  if (options.address !== undefined) return new ServerConnection(addressServer(options.address, options.connectTimeoutMs, bounds), seams);
+  if (options.cloudSql === undefined) return new ServerConnection(localServer(new URL(options.url), options.connectTimeoutMs, bounds), seams);
+  return new ServerConnection(await cloudSqlServer(options.cloudSql, seams, bounds), seams);
 }
 
 /** What tests may hand connect() in place of the real thing: the Cloud SQL connector, and the embedder. */
@@ -492,7 +499,7 @@ async function applySchema(pool: Pool, name: string): Promise<void> {
     // Even CREATE INDEX IF NOT EXISTS locks its table. Take the writer's lock before any DDL:
     // schema visits record then record_event, while a save appends its event before its record.
     // Otherwise reopening beside a live write can deadlock (PR 75's concurrent CLI decisions).
-    await client.query(WRITE_LOCK);
+    await takeWriteLock(client, pool);
     for (const statement of PROJECT_SCHEMA) await client.query(statement);
     await client.query(
       "INSERT INTO library_meta (key, value) VALUES ('project', $1) ON CONFLICT (key) DO NOTHING",

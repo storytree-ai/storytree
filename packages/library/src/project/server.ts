@@ -42,9 +42,9 @@ export interface ServerAccess {
  * check; other failures are left as they are. Database-creation privileges are explained where
  * databases are created, on either kind of server.
  */
-export function localServer(url: URL, connectTimeoutMs = 3_000, statementTimeoutMs?: number): ServerAccess {
+export function localServer(url: URL, connectTimeoutMs = 3_000, bounds: WaitBounds = {}): ServerAccess {
   const pool = (connectionString: string, role?: string) =>
-    newPool({ connectionString, connectionTimeoutMillis: connectTimeoutMs, ...statementBound(statementTimeoutMs), ...actingAs(role) });
+    newPool({ connectionString, connectionTimeoutMillis: connectTimeoutMs, ...statementBound(bounds), ...actingAs(role) });
   return {
     kind: "postgres",
     admin: pool(url.href),
@@ -63,9 +63,23 @@ export function localServer(url: URL, connectTimeoutMs = 3_000, statementTimeout
   };
 }
 
-/** The pg config that has the server end each of a connection's statements still running after `ms`, or none. */
-export function statementBound(ms: number | undefined): PoolConfig {
-  return ms === undefined ? {} : { statement_timeout: ms };
+/** How a caller bounds its connections' waits, and hears of them (ConnectOptions says each). */
+export interface WaitBounds {
+  readonly statementTimeoutMs?: number;
+  readonly waitMs?: number;
+  readonly onWait?: (what: string) => void;
+}
+
+/** A pool's pg config, with how long its calls wait (waitMs) and who hears of each wait (onWait). */
+export type WaitingPoolConfig = PoolConfig & Pick<WaitBounds, "waitMs" | "onWait">;
+
+/** The pg config for `bounds`: the server ends each statement still running at its bound; the pool waits and says so as `bounds` asks. */
+export function statementBound({ statementTimeoutMs, waitMs, onWait }: WaitBounds = {}): WaitingPoolConfig {
+  return {
+    ...(statementTimeoutMs === undefined ? {} : { statement_timeout: statementTimeoutMs }),
+    ...(waitMs === undefined ? {} : { waitMs }),
+    ...(onWait === undefined ? {} : { onWait }),
+  };
 }
 
 /** The pg config that makes each connection act as `role` from its start, or none. */
@@ -77,10 +91,21 @@ export function actingAs(role: string | undefined): PoolConfig {
 /**
  * How long a pool keeps asking for a connection the server refused for want of a free slot
  * (SQLSTATE 53300: too many clients, or the slots left are reserved) before it passes the refusal
- * on. A server shared by parallel sessions frees a slot within seconds as their idle connections
- * close, so a call waits through the rush rather than failing in it.
+ * on, and how long a write waits for another session's to finish, unless the caller bounds it
+ * (waitMs). A server shared by parallel sessions frees a slot within seconds as their idle
+ * connections close, so a call waits through the rush rather than failing in it.
  */
-const SLOT_WAIT_MS = 30_000;
+export const WAIT_MS = 30_000;
+
+/**
+ * How long calls on `pool` wait, for a slot or for the write lock, and the caller's ear for each
+ * wait: told once, as it starts, what the call waits for (seen 2026-10-07: commands on a full
+ * storytree-pg waited minutes and said nothing).
+ */
+export function waitsOf(pool: Pool): { readonly waitMs: number; say(what: string): void } {
+  const { waitMs, onWait } = pool.options as WaitingPoolConfig;
+  return { waitMs: waitMs ?? WAIT_MS, say: (what) => onWait?.(what) };
+}
 
 /**
  * How many times a pool asks again when the server resets a connection while it is being opened.
@@ -95,7 +120,7 @@ const RESET_TRIES = 5;
  * A pool for `config`, whose connections wait for a free slot on the server rather than fail for
  * want of one, and each name the machine and process holding it unless `config` names them.
  */
-export function newPool(config: PoolConfig): Pool {
+export function newPool(config: WaitingPoolConfig): Pool {
   const pool = new SlotWaitingPool({ application_name: CLIENT_NAME, ...config });
   // An idle connection that drops (a server restart, a dropped database) is discarded by the pool
   // and the next query reconnects or fails loudly. Without a listener Node would crash instead.
@@ -134,19 +159,33 @@ class SlotWaitingPool extends pg.Pool {
     );
   }
 
+  /** When this pool last said it waits for a slot: it says so again only once that wait would have ended. */
+  #saidAt = -Infinity;
+
   async #connectWaiting(): Promise<PoolClient> {
-    const giveUpAt = Date.now() + SLOT_WAIT_MS;
+    const { waitMs, say } = waitsOf(this);
+    const giveUpAt = Date.now() + waitMs;
     let resets = 0;
     for (let pause = 50; ; pause = Math.min(pause * 2, 2_000)) {
       try {
         return await super.connect();
       } catch (error) {
+        const full = sqlState(error) === "53300";
         const reset = errorCode(error) === "ECONNRESET" && ++resets <= RESET_TRIES;
-        if ((sqlState(error) !== "53300" && !reset) || Date.now() + pause > giveUpAt) throw error;
+        if ((!full && !reset) || Date.now() + pause > giveUpAt) throw error;
+        if (full && Date.now() - this.#saidAt > waitMs) {
+          this.#saidAt = Date.now();
+          say(`the library's server has no free connection slot (${(error as Error).message}); waiting up to ${seconds(waitMs)} for one`);
+        }
         await new Promise((resolve) => setTimeout(resolve, pause * (0.5 + Math.random())));
       }
     }
   }
+}
+
+/** `ms` as a person reads it: "30 s", "0.3 s". */
+export function seconds(ms: number): string {
+  return `${Math.round(ms / 100) / 10} s`;
 }
 
 /** The code Node or pg gives an error, if any. */

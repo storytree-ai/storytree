@@ -4,7 +4,7 @@
  */
 import type { Pool } from "pg";
 
-import { WRITE_LOCK } from "../transactions/pg.js";
+import { takeWriteLock } from "../transactions/pg.js";
 
 /** A record as it is now: a row of the project's `record` table. */
 export interface SnapshotRecord {
@@ -137,7 +137,7 @@ export async function writeSnapshot(pool: Pool, project: string, snapshot: Proje
   let failed = false;
   try {
     await client.query("BEGIN");
-    await client.query(WRITE_LOCK);
+    await takeWriteLock(client, pool);
     const held = await client.query<{ held: boolean }>(
       "SELECT EXISTS (SELECT 1 FROM record) OR EXISTS (SELECT 1 FROM record_event) AS held",
     );

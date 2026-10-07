@@ -1,11 +1,13 @@
 /**
- * Capability 1 · Front door: one test per contract 1.1-1.5 in the command line story, each running the
+ * Capability 1 · Front door: one test per contract 1.1-1.5 and 1.15 in the command line story, each running the
  * real, built `storytree` command in a throwaway folder and storytree home.
  */
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 
-import { BuiltCommand, bareNode, inWorld, storytree } from "./testing/cli.js";
+import pg from "pg";
+
+import { BuiltCommand, bareNode, inWorld, storytree, testServerUrl } from "./testing/cli.js";
 
 const command = new BuiltCommand();
 
@@ -115,5 +117,32 @@ test("1.8 an answer's next: offers only what opens a record it just named", asyn
 
     assert.equal(ran.code, 0, ran.stderr);
     assert.doesNotMatch(ran.stdout, /library history/);
+  });
+});
+
+test("1.15 a command kept waiting on the library, here for another session's write, says so on stderr and goes on when it can", async () => {
+  await inWorld(command, async (world) => {
+    const url = new URL(testServerUrl());
+    url.pathname = `/storytree_${world.project}`;
+    const other = new pg.Client({ connectionString: url.href });
+    await other.connect();
+    try {
+      await other.query("BEGIN");
+      await other.query("SELECT pg_advisory_xact_lock(hashtext('storytree.record-writes'))");
+      const running = world.run(["library", "new", "definition", "--term", "Mailer", "--meaning", "Sends the mail."]);
+      // Its turn comes once the command is queued behind this lock.
+      for (let tries = 0; tries < 200; tries += 1) {
+        const { rows } = await other.query<{ n: number }>("SELECT count(*)::int AS n FROM pg_locks WHERE locktype = 'advisory' AND NOT granted");
+        if ((rows[0]?.n ?? 0) > 0) break;
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      await other.query("COMMIT");
+      const ran = await running;
+
+      assert.equal(ran.code, 0, ran.stderr);
+      assert.match(ran.stderr, /another session is writing to this project; waiting up to 30 s/);
+    } finally {
+      await other.end();
+    }
   });
 });

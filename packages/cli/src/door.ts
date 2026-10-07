@@ -109,7 +109,7 @@ export async function run(argv: readonly string[], io: Io): Promise<number> {
     io.err(render({ text: `storytree did nothing: word ${requoted + 1} ("${preview(argv[requoted] ?? "")}") arrived with its double quotes changed, as Windows PowerShell 5.1 hands on a word that holds a space and a double quote. Put that text in a file and pass @<file> in its place, as in --answer @answer.txt, or write each double quote inside it as \\".` }));
     return 1;
   }
-  const opened = new Opened(io.cwd);
+  const opened = new Opened(io.cwd, (what) => io.err(`storytree: ${what}\n`));
   let writer: WriteOptions | undefined;
   let journey: Promise<JourneyRuntime> | undefined;
   try {
@@ -273,12 +273,15 @@ function verbsOf(family: Family, path: string): Answer {
 /** The connection to storytree and the project's library, made on first use and closed at the end. */
 class Opened {
   readonly #cwd: string;
+  /** Where a wait on the library is said as it starts (stderr), so a command never waits in silence. */
+  readonly #say: (what: string) => void;
   #storytree: Promise<Storytree> | undefined;
   #library: Promise<Library> | undefined;
   #log: Promise<ActivityLog> | undefined;
 
-  constructor(cwd: string) {
+  constructor(cwd: string, say: (what: string) => void) {
     this.#cwd = cwd;
+    this.#say = say;
   }
 
   library(): Promise<Library> {
@@ -322,7 +325,7 @@ class Opened {
   #server(): Promise<Storytree> {
     return (this.#storytree ??= (async () => {
       const { connect } = await import("@storytree/library");
-      return connect(this.#routed().library);
+      return connect({ ...this.#routed().library, onWait: this.#say });
     })());
   }
 

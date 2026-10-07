@@ -9,14 +9,16 @@
  *   capture functions (capability 9), whose evidence rules a person meets exactly as an agent does.
  * - A field's value is text, except `true`, `false`, a whole number, or one starting with `[` or
  *   `{`, which are read as JSON (a list of links, a number, a switch). `@file` reads the file.
+ *   Text given for a field the library wants as a list is read as comma-separated ids (`--links a,b`),
+ *   since Windows PowerShell 5.1 strips a JSON list's inner quotes; a shell-joined word is refused.
  * - Reads use `get`, `list` and `history`. Edits use the kind's public editor; question wording
  *   has no public editor yet, so that edit says what is missing.
  */
 import { isDeepStrictEqual } from "node:util";
-import type { KnowledgeKind, Library, RecordType, WriteOptions } from "@storytree/library";
+import { SchemaError, type KnowledgeKind, type Library, type RecordType, type WriteOptions } from "@storytree/library";
 
 import { labelOf, Refusal, type Answer } from "../answer.js";
-import type { Args } from "../args.js";
+import { commaSeparatedIds, type Args } from "../args.js";
 import type { Family, Verb } from "../door.js";
 
 /** The fields a verb was given, keyed by flag name, each value read as `new` reads it. */
@@ -43,6 +45,21 @@ export function valueOf(text: string): unknown {
 }
 
 type Fields = Record<string, unknown>;
+
+/**
+ * `write(fields)`, and once more with each field the library refused as text for a list read as
+ * comma-separated ids. The refused write wrote nothing, so a shell-joined list is refused before any write.
+ */
+async function withIdLists<T>(fields: Fields, write: (fields: Fields) => Promise<T>): Promise<T> {
+  try {
+    return await write(fields);
+  } catch (error) {
+    if (!(error instanceof SchemaError) || error.lists.length === 0) throw error;
+    const lists = error.lists.filter((name) => typeof fields[name] === "string");
+    if (lists.length === 0) throw error;
+    return write({ ...fields, ...Object.fromEntries(lists.map((name) => [name, commaSeparatedIds(fields[name] as string, name)])) });
+  }
+}
 type Writer = (library: Library, fields: Fields, options: WriteOptions) => Promise<{ id: string }>;
 
 /** The library's writer for each kind `new` writes. */
@@ -144,7 +161,8 @@ const create: Verb = {
     if (write === undefined) {
       throw new Refusal(`storytree library new writes ${Object.keys(WRITERS).join(", ")}; not "${kind}"`, { code: 2 });
     }
-    const written = await write(await context.library(), fieldsOf(args), context.writer());
+    const library = await context.library();
+    const written = await withIdLists(fieldsOf(args), (fields) => write(library, fields, context.writer()));
     return { text: `Wrote ${kind} ${written.id}.`, next: [{ command: `storytree library read ${written.id}`, why: "read it back" }] };
   },
 };
@@ -185,7 +203,7 @@ const edit: Verb = {
     const fields = fieldsOf(args);
     if (Object.keys(fields).length === 0) return { text: `No fields given: ${id} is unchanged.` };
     const writer = context.writer();
-    const edited = await (() => {
+    const edited = await withIdLists(fields, async (fields) => {
       switch (record.type) {
         case "story": return library.editStory(id, fields as never, writer);
         case "capability": return library.editCapability(id, fields as never, writer);
@@ -195,7 +213,7 @@ const edit: Verb = {
         case "question": return library.editQuestion(id, fields as never, writer);
         default: return library.editNote(id, fields as never, writer);
       }
-    })();
+    });
     if (edited === null) throw new Refusal(`no live ${record.type} "${id}" in this project`);
     return { text: `Edited ${record.type} ${id}: ${Object.keys(fields).join(", ")}.`, next: [{ command: `storytree library read ${id}`, why: "read it back" }] };
   },

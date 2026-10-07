@@ -284,3 +284,33 @@ test("3.9 `search` with no model gives at most --limit word matches and says why
     assert.ok(found.stdout.includes(`${contract.id}  [contract]  1.1 · Confirmation goes out by courier pigeon`), found.stdout);
   });
 });
+
+test("3.11 a list field given to `new` or `edit` as comma-separated ids is written as a list, from any shell", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const decisions = await Promise.all(["Mailer", "Hosting"].map((title) => library.recordDecision({ title, text: "Use the service", status: "proposed" })));
+    const ids = decisions.map(({ id }) => id);
+
+    // Windows PowerShell 5.1 strips a JSON list's inner quotes; the comma word reaches the command intact.
+    const written = await world.run(["library", "new", "definition", "--term", "Stack", "--meaning", "What runs it", "--links", `${ids[0]}, ${ids[1]}`]);
+    assert.equal(written.code, 0, written.stderr);
+    const definition = (await library.list("definition")).find(({ id }) => written.stdout.includes(id));
+    assert.deepEqual((definition?.fields as Record<string, unknown> | undefined)?.links, ids);
+
+    const edited = await world.run(["library", "edit", definition!.id, "--links", ids[1]!]);
+    assert.equal(edited.code, 0, edited.stderr);
+    assert.deepEqual(((await library.get(definition!.id))?.fields as Record<string, unknown> | undefined)?.links, [ids[1]]);
+
+    // An unquoted comma list PowerShell joined with a space is refused before writing, with the quoted retry.
+    const before = (await library.changesSince(0)).cursor;
+    const joined = await world.run(["library", "new", "definition", "--term", "Joined", "--meaning", "Shell-joined", "--links", ids.join(" ")]);
+    assert.notEqual(joined.code, 0, joined.stdout);
+    assert.ok(joined.stderr.includes(`--links "id1,id2"`), joined.stderr);
+    assert.deepEqual((await library.changesSince(before)).changes, []);
+
+    // A text field keeps its commas.
+    const prose = await world.run(["library", "new", "definition", "--term", "Prose", "--meaning", "First, second"]);
+    assert.equal(prose.code, 0, prose.stderr);
+    assert.equal(((await library.list("definition")).find(({ id }) => prose.stdout.includes(id))?.fields as Record<string, unknown> | undefined)?.meaning, "First, second");
+  });
+});

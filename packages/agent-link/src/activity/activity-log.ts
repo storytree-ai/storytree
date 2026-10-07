@@ -139,6 +139,8 @@ const SCHEMA: readonly string[] = [
   `CREATE INDEX IF NOT EXISTS activity_project_kind_seq_idx ON activity (project, kind, seq)`,
   `CREATE INDEX IF NOT EXISTS activity_project_session_seq_idx ON activity (project, session, seq)`,
   `CREATE INDEX IF NOT EXISTS activity_project_at_idx ON activity (project, at)`,
+  // ... and inside folders, whatever their case or slashes (bounded.ts FOLDER_KEY), by a range of the folder's key.
+  `CREATE INDEX IF NOT EXISTS activity_project_folder_idx ON activity (project, (lower(replace(folder, '\\', '/'))) text_pattern_ops)`,
   ...TRANSCRIPT_SCHEMA,
 ];
 

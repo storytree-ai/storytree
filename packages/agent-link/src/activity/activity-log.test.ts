@@ -1,5 +1,5 @@
 /**
- * Capability 2 · Agent activity log: one test per contract 2.1-2.7 in the agent link story, against
+ * Capability 2 · Agent activity log: one test per contract 2.1-2.8 in the agent link story, against
  * the real Postgres `pnpm test` provides. Each test writes under projects named with
  * uniqueProjectName(), so tests sharing the server never read each other's lines.
  */
@@ -10,8 +10,10 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { connect } from "@storytree/library";
+import pg from "pg";
 
 import { databasesOnTestServer, dropTestProjects, testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { selectLines } from "./bounded.js";
 import { ACTIVITY_DATABASE, cachedLines, openActivityLog, type ActivityLog, type Line, type LinesCache, type NewLine } from "./index.js";
 
 const WRITER = fileURLToPath(new URL("../testing/activity-writer.ts", import.meta.url));
@@ -279,5 +281,33 @@ test("2.7 a bounded read sends only the lines it asks for, oldest first: by kind
     assert.deepEqual({ ...slim, command: undefined }, { ...old, command: undefined });
     assert.equal((slim as { command?: string }).command, undefined, "a field left out is not sent");
     assert.deepEqual(await log.lines(project, { sessions: [] }), [], "no sessions, no lines");
+  });
+});
+
+test("2.8 a read inside folders, latest line per session, on a log of many lines elsewhere is served by an index: it never scans the project's whole log", async () => {
+  const project = uniqueProjectName();
+  const url = new URL(testServerUrl());
+  url.pathname = `/${ACTIVITY_DATABASE}`;
+  await withLog(async (log) => {
+    const inside = await log.append(project, { session: "A", source: "hook", kind: "turn-ended", folder: "C:\\Work\\Tree\\pkg" } as NewLine);
+    const client = new pg.Client({ connectionString: url.href });
+    await client.connect();
+    try {
+      // Weeks of lines in other folders.
+      await client.query(
+        `INSERT INTO activity (project, session, source, kind, folder, detail)
+         SELECT $1, 's' || (i % 50), 'hook', 'turn-ended', '/work/other-' || (i % 200), '{}'::jsonb FROM generate_series(1, 50000) AS i`,
+        [project],
+      );
+      await client.query("ANALYZE activity");
+      const read = selectLines(project, { within: ["c:/work/tree"], latestBy: ["session"], omit: ["command", "files", "transcript"] });
+      const { rows } = await client.query<{ "QUERY PLAN": string }>(`EXPLAIN ${read.text}`, read.values);
+      const plan = rows.map((row) => row["QUERY PLAN"]).join("\n");
+      assert.doesNotMatch(plan, /Seq Scan on activity/, plan);
+      assert.deepEqual((await log.lines(project, { within: ["c:/work/tree"], latestBy: ["session"] })).map((line) => line.seq), [inside.seq]);
+    } finally {
+      await client.query("DELETE FROM activity WHERE project = $1", [project]);
+      await client.end();
+    }
   });
 });

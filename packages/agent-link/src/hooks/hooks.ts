@@ -43,11 +43,12 @@ import path from "node:path";
 
 import type { NewLine } from "../activity/index.js";
 import type { MergeContext, MergeWatch } from "../claims/index.js";
-import { openNamedProject, route, storytreeHome, withConnectTimeout, type LocateOptions } from "../routing/index.js";
+import { openNamedProject, route, storytreeHome, type LocateOptions } from "../routing/index.js";
 import { claudeCodeLines } from "./claude-code.js";
 import { takeNotices } from "../claims/notices.js";
 import { CLOSE_OUT_REMINDER, closeOutReminder } from "./close-out-reminder.js";
 import { codexLines } from "./codex.js";
+import { UPKEEP_DEADLINE_MS, withDeadline } from "./deadlines.js";
 import { noteCodexHookRan } from "./codex-trust.js";
 import { contextNudge } from "./context-nudge.js";
 import { definitionsContext, definitionsNamedIn, isHarnessNotice, notYetGiven } from "./definitions.js";
@@ -180,7 +181,7 @@ async function writeLines(harness: string, input: string, flags: readonly string
     const machine = thisMachine();
     let opened;
     try {
-      const storytree = await connect(withConnectTimeout(where.library, CONNECT_TIMEOUT_MS));
+      const storytree = await connect(withDeadline(where.library, CONNECT_TIMEOUT_MS));
       const log = await openActivityLog(storytree, { connectTimeoutMs: CONNECT_TIMEOUT_MS, branchOf: currentBranch, ...(machine === undefined ? {} : { machine }) }).catch(async (error: unknown) => {
         await storytree.close();
         throw error;
@@ -252,7 +253,7 @@ async function upkeep(made: HookLines, merges: MergeWatch | undefined, locate: L
   if (first === undefined || where.status !== "routed") return;
   const [{ openActivityLog, currentBranch, thisMachine }, { connect }] = await Promise.all([import("../activity/index.js"), import("@storytree/library")]);
   const machine = thisMachine();
-  const storytree = await connect(withConnectTimeout(where.library, CONNECT_TIMEOUT_MS));
+  const storytree = await connect(withDeadline(where.library, CONNECT_TIMEOUT_MS, UPKEEP_DEADLINE_MS));
   try {
     const log = await openActivityLog(storytree, { connectTimeoutMs: CONNECT_TIMEOUT_MS, branchOf: currentBranch, ...(machine === undefined ? {} : { machine }) });
     try {
@@ -309,7 +310,7 @@ async function contextForPrompt({ harness, session, folder, prompt }: Prompted):
   const where = route(folder);
   if (where.status !== "routed") return undefined;
   const { connect } = await import("@storytree/library");
-  const storytree = await connect(where.library);
+  const storytree = await connect(withDeadline(where.library, CONNECT_TIMEOUT_MS));
   try {
     const library = await openNamedProject(storytree, where.project, where.identity);
     const named = definitionsNamedIn(prompt, (await library.definitions()).map(({ id, fields }) => ({ id, ...fields })));

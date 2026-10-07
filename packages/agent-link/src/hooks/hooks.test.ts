@@ -1035,3 +1035,39 @@ test("3.21 a hook's reads do not grow with the log's length: the same hooks (a c
     await dropTestProjects([short, long]);
   }
 });
+
+test("3.24 a hook cut off at its deadline while a statement of its waits on the server leaves no statement running there: the server ends it", { timeout: 60_000 }, async () => {
+  const project = uniqueProjectName();
+  await withTempDir(async (dir) => {
+    const home = storytreeHome(dir, true);
+    const folder = projectFolder(dir, project);
+    const url = new URL(testServerUrl());
+    url.pathname = "/storytree-activity";
+    // The log is opened once first, so its tables are there; then the project's write lock is held, and the hook's write waits on it.
+    await (await openActivityLog(testServerUrl())).close();
+    // The lock is held in one connection's transaction, and looked at from another: a transaction sees the server's activity as it was when it began.
+    const [holder, looker] = [new pg.Client({ connectionString: url.href }), new pg.Client({ connectionString: url.href })];
+    await Promise.all([holder.connect(), looker.connect()]);
+    const holderPid = (await holder.query<{ pid: number }>("SELECT pg_backend_pid() AS pid")).rows[0]!.pid;
+    const waiting = async () => {
+      const { rows } = await looker.query<{ count: string }>(
+        "SELECT count(*) FROM pg_stat_activity WHERE datname = 'storytree-activity' AND pid <> $1 AND state = 'active' AND query LIKE '%pg_advisory_xact_lock(hashtext(''storytree.activity''), hashtext($1))%'",
+        [holderPid],
+      );
+      return Number(rows[0]!.count);
+    };
+    try {
+      await holder.query("BEGIN");
+      await holder.query("SELECT pg_advisory_xact_lock(hashtext('storytree.activity'), hashtext($1))", [project]);
+      const ran = await runHook("claude-code", recorded("claude-code", "session-end", folder), home);
+      assert.equal(ran.code, 0);
+      let left = await waiting();
+      for (const quit = Date.now() + 3_000; left > 0 && Date.now() < quit; left = await waiting()) await sleep(100);
+      assert.equal(left, 0, "no statement of the hook's still runs once it has gone");
+    } finally {
+      await holder.query("ROLLBACK").catch(() => undefined);
+      await Promise.all([holder.end(), looker.end()]);
+      await dropTestProjects([project]);
+    }
+  });
+});

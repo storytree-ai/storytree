@@ -25,8 +25,9 @@ import path from "node:path";
 import type { ConnectOptions } from "@storytree/library";
 
 import type { Line } from "../activity/index.js";
-import { openNamedProject, route, withConnectTimeout } from "../routing/index.js";
+import { openNamedProject, route } from "../routing/index.js";
 import { idleAfterMs } from "../settings/settings.js";
+import { withDeadline } from "./deadlines.js";
 
 /** How long the status line waits for storytree before showing nothing. */
 const WAIT_MS = 2_000;
@@ -60,7 +61,7 @@ async function lineFor(where: ConnectOptions, project: string, session: string, 
     import("../claims/index.js"),
     import("../sessions/index.js"),
   ]);
-  const storytree = await connect(withConnectTimeout(where, WAIT_MS));
+  const storytree = await connect(withDeadline(where, WAIT_MS));
   const log = await openActivityLog(storytree, { connectTimeoutMs: WAIT_MS });
   try {
     const now = Date.now();

@@ -7,5 +7,5 @@ export type { ActivityLog, AppendOptions, BranchFacts, LockedLog, OpenOptions } 
 export type { LineFilter } from "./bounded.js";
 export type { StoredSession, TranscriptRecord, TranscriptRecords } from "./transcript-records.js";
 export { NEW_LINE } from "./lines.js";
-export { lineText } from "./text.js";
+export { fullLineText, lineText } from "./text.js";
 export type { Agent, Line, LineKind, LinesSince, NewLine } from "./lines.js";

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { growthPlan } from "@storytree/forest-world/planet";
 import shop from "./shop-snapshot.json" with { type: "json" };
-import { createTour, flight, globeOf, groups, placeTags, readingTime, replayMoment, settle, spoken, type TourStep } from "./tour.js";
+import { aim, createTour, flight, globeOf, groups, placeTags, readingTime, replayMoment, settle, spoken, type TourStep } from "./tour.js";
 import { steps as tourSteps } from "./tour-copy.js";
 
 const step = (id: string, explainer: TourStep["explainer"], lines = ["One two three four five six seven eight nine ten"]): TourStep => ({
@@ -182,6 +182,23 @@ test("2.15 · between two close steps the camera stays in and turns the globe; i
   const out = flight({ target: cart, framing: .55 }, { target: checkout, framing: 1.1 });
   assert.deepEqual(out.map(leg => leg.framing), [1.1], "to the wide view it pulls back as it turns");
   assert.ok(close.concat(out).every(leg => leg.ms > 0));
+});
+
+test("2.15 · a step's view is reached even when its island is drawn after the step begins", () => {
+  const checkout = { kind: "story", story: "checkout" } as const, overview = { kind: "core" } as const;
+  let drawn = false, waiting: (() => void) | undefined;
+  const aimed: string[] = [];
+  const place = (target: { kind: string }) => { aimed.push(target.kind); return drawn; };
+  aim(place, checkout, overview, again => { waiting = again; });
+  assert.ok(waiting, "an island not yet drawn is aimed at again on a later beat, not left at the last step's turn");
+  drawn = true; waiting!(); waiting = undefined; aimed.length = 0;
+  aim(place, checkout, overview, again => { waiting = again; });
+  assert.equal(waiting, undefined, "once it is drawn the camera stops trying");
+  assert.deepEqual(aimed, ["story"]);
+  let tries = 0; drawn = false;
+  const retry = (again: () => void) => { tries++; again(); };
+  aim(place, checkout, overview, retry);
+  assert.ok(tries > 0 && tries <= 100, "an island that never comes is given up on");
 });
 
 test("2.16 · the map chapter grows the shop in the order it was recorded, then teaches on its four stories and replays one stage of its growth", () => {

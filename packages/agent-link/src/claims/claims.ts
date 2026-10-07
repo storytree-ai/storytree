@@ -269,7 +269,7 @@ async function waitingOn(library: Library, found: Found): Promise<Waiting[]> {
   const holding = (holds: Holds, increment: string): Waiting[] => [
     ...(holds.waits[increment] ?? []).map((hold): Waiting => ({ increment, ...hold })),
     ...(holds.heldOn[increment] ?? []).map((question): Waiting => ({ increment, on: question, reason: "waiting on the owner's answer", forGood: false, onOwner: true })),
-    ...(holds.waitsFor[increment] ?? []).filter((wait) => wait.holds).map(({ releaser, note, checkBack }): Waiting => ({
+    ...(holds.waitsFor?.[increment] ?? []).filter((wait) => wait.holds).map(({ releaser, note, checkBack }): Waiting => ({
       increment, on: releaser === "owner" ? "the owner" : "an outside event", reason: note, forGood: false, waitsFor: releaser, ...(checkBack === undefined ? {} : { checkBack }),
     })),
   ];

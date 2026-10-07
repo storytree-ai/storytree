@@ -210,15 +210,15 @@ for (const backend of [memory, postgres]) {
     const owner = { releaser: "owner", note: "run the NSIS install on the old laptop", holds: true };
     const event = { releaser: "event", note: "the next release build", checkBack: day(1) };
     assert.deepEqual(await flight.waitsFor(install.id), [owner, { ...event, holds: true }], "one note per releaser, the latest");
-    assert.deepEqual((await flight.holds()).waitsFor[install.id], [owner, { ...event, holds: true }]);
+    assert.deepEqual((await flight.holds()).waitsFor?.[install.id], [owner, { ...event, holds: true }]);
     const later = new Date(`${day(2)}T00:00:00Z`);
     assert.deepEqual(await flight.waitsFor(install.id, later), [owner, { ...event, holds: false }], "from its check-back day an event wait no longer holds");
-    assert.deepEqual((await flight.holds(later)).waitsFor[install.id], [owner, { ...event, holds: false }]);
+    assert.deepEqual((await flight.holds(later)).waitsFor?.[install.id], [owner, { ...event, holds: false }]);
 
     await flight.removeWaitFor(install.id, "owner");
     assert.deepEqual(await flight.waitsFor(install.id), [{ ...event, holds: true }]);
     await flight.closeIncrement(install.id, { pr: "#3", disposition: "landed" });
     assert.deepEqual(await flight.waitsFor(install.id), [], "a closed increment waits for nothing");
-    assert.equal((await flight.holds()).waitsFor[install.id], undefined);
+    assert.equal((await flight.holds()).waitsFor?.[install.id], undefined);
   });
 }

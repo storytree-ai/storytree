@@ -189,8 +189,11 @@ export interface Holds {
   /** Closed increments have no holds and are omitted. */
   readonly waits: Readonly<Record<string, Hold[]>>;
   readonly heldOn: Readonly<Record<string, string[]>>;
-  /** An event wait whose check-back has passed is kept, reading as no longer holding. */
-  readonly waitsFor: Readonly<Record<string, NoteWait[]>>;
+  /**
+   * An event wait whose check-back has passed is kept, reading as no longer holding. The library
+   * always gives it; it is optional so a reader built before it (or a stand-in) still fits.
+   */
+  readonly waitsFor?: Readonly<Record<string, NoteWait[]>>;
 }
 
 /**

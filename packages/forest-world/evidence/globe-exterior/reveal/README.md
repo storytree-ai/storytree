@@ -22,6 +22,8 @@ The four `1440-step3-*.png` pictures show the actual unchanged website with the 
 
 The numbered `src/planet/road-reveal.test.ts` runs the same behavior assertions in Chromium on CI, at a smaller viewport with no pictures or coverage writes. The website capture verifies the real consumer separately.
 
+The first merge-queue Linux run exposed a capture-clock race after the three PR jobs passed: a queued demand frame advanced the quarter-length sample. The proof now waits for the viewport observer's initial resume and clears pending frames before manually advancing. Its exact distance assertions and product renderer are unchanged.
+
 From the checkout:
 
 ```sh

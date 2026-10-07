@@ -25,7 +25,8 @@ try {
     const picture = async name => { if (!smoke) await page.screenshot({ path: path.join(out, `1440-${name}.png`) }); };
     await page.goto(origin);
     await page.evaluate(() => window.proof.mount(true));
-    await page.waitForFunction(() => window.proof.ready());
+    // Let the real viewport observer finish its initial resume before taking over the clock.
+    await page.waitForFunction(() => window.proof.ready() && window.proof.frameloop() === 'demand');
     await page.evaluate(() => window.proof.freeze());
     const frame = async delta => page.evaluate(delta => {
       window.proof.frame(delta);
@@ -55,7 +56,7 @@ try {
     assert.ok(empty(results.start), 'showing roads after a long hidden interval starts with undrawn roads and halos');
     await picture('start');
     results.quarter = await advance(0.25);
-    assert.ok(Math.abs(fraction(results.quarter) - 0.25) < 1e-8, 'a quarter second reveals a quarter of the physical road');
+    assert.ok(Math.abs(fraction(results.quarter) - 0.25) < 1e-8, `a quarter second reveals a quarter of the physical road; got ${fraction(results.quarter)}`);
     await picture('quarter');
     await mount(true, true);
     // Wait for the host update to commit even though its visibility did not change.

@@ -40,7 +40,13 @@ const shown = (object: Object3D | undefined) => {
     } });
   },
   ready: () => globe !== undefined && stories.every(story => globe!().scene.getObjectByName(`island-surface:${story}`) !== undefined),
-  freeze() { globe!().setFrameloop('never'); },
+  frameloop: () => globe?.().frameloop,
+  freeze() {
+    const state = globe!();
+    // R3F may still submit already-requested frames after switching to manual advancement.
+    state.internal.frames = 0;
+    state.setFrameloop('never');
+  },
   frame(delta: number) { const state = globe!(); state.advance(state.clock.elapsedTime + delta); },
   roads() {
     const roads: { name: string; progress: number; drawn: number; count: number; length?: number; fromEnd?: boolean }[] = [];

@@ -310,6 +310,26 @@ test("the forest draws from the page's one reading, and the surfaces hearing it 
   page.stop();
 });
 
+test("7.27 a health change re-recording the state the tree already shows draws from the tree held; a changed state, an unknown contract or another tree change reads it again", async () => {
+  let asked = 0;
+  const counted = { projectTree: async () => { asked++; return tree; } };
+  const column = (state: string) => ({ state, by: "storytree", at: "2026-10-08T00:00:00Z" });
+  const held = { arcs: [], stories: [{ id: "story_1", capabilities: [{ id: "capability_1", contracts: [
+    { id: "contract_1", health: { reported: column("passing"), verified: column("failing") } },
+  ] }] }] } as unknown as AnnotatedTree;
+  const health = (node: string, column: string, state: string) => ({ type: "health", action: "updated" as const, record: { fields: { node, column, state } } as never });
+  const news = (...changes: { type: string; action: "updated"; record: never }[]) => ({ lines: [], changes: changes.map((change, n) => ({ seq: n + 1, recordId: `r${n}`, ...change })) });
+
+  assert.equal(await treeAfter(counted, "shop", news(health("contract_1", "reported", "passing"), health("contract_1", "verified", "failing")), held), held);
+  assert.equal(asked, 0, "health re-recorded unchanged leaves the tree as it was");
+  await treeAfter(counted, "shop", news(health("contract_1", "verified", "passing")), held);
+  assert.equal(asked, 1, "a state that changed reads the tree");
+  await treeAfter(counted, "shop", news(health("contract_9", "reported", "passing")), held);
+  assert.equal(asked, 2, "a contract the tree does not hold reads the tree");
+  await treeAfter(counted, "shop", news(health("contract_1", "reported", "passing"), { type: "capability", action: "updated", record: { fields: {} } as never }), held);
+  assert.equal(asked, 3, "another change to the tree's records still reads it");
+});
+
 test("7.24 the sessions list and the forest re-read the plan only when their news holds a change to a story, capability, contract, arc or health record; other news draws from the tree they have, and their first news always reads", async () => {
   let asked = 0;
   const counted = { projectTree: async () => { asked++; return tree; } };

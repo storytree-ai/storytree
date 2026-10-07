@@ -16,6 +16,7 @@ export { BACKUP_EVERY_MS, BACKUPS_KEPT, backUp, keepBackups } from "./lifecycle/
 export type { BackUpOptions } from "./lifecycle/backups.js";
 export { appDirIn, buildApp, electronIn, setUpRuntime, slotOf, slotSha, updateToMain } from "./updates/follow-main.js";
 export type { Build, RunningBuild, Slot } from "./updates/follow-main.js";
+export { otherApp } from "./updates/one-app.js";
 export { mainUpdates } from "./updates/main-updates.js";
 export type { UpdateAction, UpdateState } from "./updates/main-updates.js";
 export { refreshOwnHealth } from "./updates/build-health.js";

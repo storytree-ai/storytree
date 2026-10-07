@@ -8,6 +8,8 @@
  * every few minutes it fetches main, and when main has moved it builds the new commit beside itself
  * and restarts into it. Nobody rebuilds it by hand, and it never runs work that is not merged.
  *
+ * It refuses where the installed app is present: one storytree app per machine (ADR-0940).
+ *
  * Run it once, with storytree 0.3 quit (tray icon → Quit): it refuses while the app is running,
  * since that app may be running from the build this would replace. Run it again to start over.
  *
@@ -22,6 +24,7 @@ import { pathToFileURL } from "node:url";
 import { storytreeHome } from "@storytree/agent-link";
 
 import { appDirIn, buildApp, electronIn, setUpRuntime, type RunningBuild, type SetUpOptions } from "./follow-main.js";
+import { installedAppDir, installedAppPresent } from "./one-app.js";
 
 const ORIGIN = "https://github.com/storytree-ai/storytree.git";
 
@@ -30,6 +33,8 @@ export interface FollowMainOptions {
   home: string;
   /** Where to clone from: a URL or a folder (default: the GitHub repository). */
   origin?: string;
+  /** Where Windows keeps a user's apps, where an installed app would be (default: LOCALAPPDATA). */
+  localAppData?: string;
   /** Open the window as well, rather than starting in the background. */
   show?: boolean;
   /** Clone and build main in the runtime folder (default: the real setup with the real build). */
@@ -40,7 +45,13 @@ export interface FollowMainOptions {
 }
 
 /** Set up the app that follows main and start it, unless the app is running. */
-export async function followMain({ home, origin = ORIGIN, show = false, setUp = (options) => setUpRuntime({ ...options, build: buildApp }), start = startApp, say = console.log }: FollowMainOptions): Promise<{ refused: number } | { started: number | undefined; build: RunningBuild }> {
+export async function followMain({ home, origin = ORIGIN, localAppData, show = false, setUp = (options) => setUpRuntime({ ...options, build: buildApp }), start = startApp, say = console.log }: FollowMainOptions): Promise<{ refused: number | string } | { started: number | undefined; build: RunningBuild }> {
+  // One storytree app per machine (ADR-0940 D1, contract 4.18).
+  const installed = installedAppPresent(localAppData);
+  if (installed !== undefined) {
+    say(`follow-main: ${installed}`);
+    return { refused: installedAppDir(localAppData)! };
+  }
   const running = runningApp(path.join(home, "pgdata"));
   if (running !== undefined) {
     say(`follow-main: storytree 0.3 is running (process ${running}). Quit it from its tray icon, then run this again.`);

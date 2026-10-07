@@ -47,6 +47,9 @@ const ABOUT_OTHERS = ["merged", "branch-state", "main-state", "session-archived"
 /** Fields the sessions fold never reads from a line that only places its session: dropped from those. */
 const PLACING_ONLY = ["command", "files", "transcript", "task"];
 
+/** A line's folder as a folder match reads it, without regard to case or slash: what activity_project_folder_idx keeps. */
+const FOLDER_KEY = "lower(replace(a.folder, '\\', '/'))";
+
 /** A field as SQL: its column, or the value it carries in `detail`. Field names come from code, never from input. */
 function field(name: string): string {
   if (COLUMN_FIELDS.has(name)) return name;
@@ -74,8 +77,12 @@ export function selectLines(project: string, filter: LineFilter): { text: string
   for (const name of filter.has ?? []) where.push(`${field(name)} IS NOT NULL`);
   if (filter.within !== undefined) {
     const folders = param(filter.within.map((folder) => folder.replaceAll("\\", "/").replace(/\/+$/, "").toLowerCase()));
-    where.push(`EXISTS (SELECT 1 FROM unnest(${folders}::text[]) AS w(folder)
-      WHERE lower(replace(activity.folder, '\\', '/')) = w.folder OR left(lower(replace(activity.folder, '\\', '/')), length(w.folder) + 1) = w.folder || '/')`);
+    // Each folder is a range of the index on the key (activity_project_folder_idx): from the folder to
+    // the folder with '0' after it, the byte after '/': the folder and its subfolders are in it, and the
+    // match leaves out the few others whose names only start with the folder's.
+    where.push(`seq IN (SELECT a.seq FROM unnest(${folders}::text[]) AS w(folder) JOIN activity a
+      ON a.project = $1 AND ${FOLDER_KEY} ~>=~ w.folder AND ${FOLDER_KEY} ~<~ (w.folder || '0')
+      WHERE ${FOLDER_KEY} = w.folder OR left(${FOLDER_KEY}, length(w.folder) + 1) = w.folder || '/')`);
   }
   const latest = filter.latestBy === undefined || filter.latestBy.length === 0 ? undefined : filter.latestBy.map(field).join(", ");
   const picked = latest === undefined

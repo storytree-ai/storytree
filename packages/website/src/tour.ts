@@ -157,6 +157,16 @@ export function flight(from: CameraView, to: CameraView): { framing: number; ms:
   return [{ framing: to.framing, ms: JSON.stringify(from.target) === JSON.stringify(to.target) ? 1800 : 2000 }];
 }
 
+/**
+ * Aims the camera at `target`, or at `overview` when a part or file is not on the globe. A globe swapped in can be drawn
+ * after its step begins: an island not found yet is aimed at again on a later beat (`again`), so the camera never keeps the
+ * last step's turn; after `tries` it gives up.
+ */
+export function aim(place: (target: GlobeTarget) => boolean, target: GlobeTarget, overview: GlobeTarget, again: (run: () => void) => void, tries = 100): void {
+  if (place(target) || (target.kind !== "story" && place(overview))) return;
+  if (tries > 0) again(() => aim(place, target, overview, again, tries - 1));
+}
+
 export type GlobeOn = { map: "storytree" } | { map: "own" | "shop"; at?: number; when?: string; focus?: readonly string[] };
 /**
  * The globe on show for `step` in `state`, `elapsed` milliseconds into it: a recorded growth's (storytree's own or the

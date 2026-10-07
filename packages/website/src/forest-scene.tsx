@@ -14,7 +14,7 @@ import ownSaved from "./own-snapshot.json" with { type: "json" };
 import { crossingLength, growthMoment, growthPlan, type GrowthPlan } from "@storytree/forest-world/planet";
 import { buildPlanetPathways } from "@storytree/forest-world/geometry";
 import type { GrowthSnapshot, TourSnapshot } from "./forest-data.js";
-import { flight, globeOf, placeTags, replayMoment, type Box, type GlobeOn, type Hold, type Tag, type TagSide, type TourDetail, type TourStep } from "./tour.js";
+import { aim, flight, globeOf, placeTags, replayMoment, type Box, type GlobeOn, type Hold, type Tag, type TagSide, type TourDetail, type TourStep } from "./tour.js";
 import { growthReading, savedReading } from "./tour-reading.js";
 
 const snapshot = saved as unknown as TourSnapshot;
@@ -337,15 +337,13 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
     const view = (width > 600 ? step.laptop : step.phone) ?? step;
     const target = view.target ?? overview, framing = view.framing ?? restingFraming;
     const speed = state!.speed, still = reduced();
-    const go = (stop: { target: GlobeTarget; framing: number; duration: number }) => {
-      const reached = controls.stop({ ...stop, sideOffset });
-      if (!reached && stop.target.kind !== "story") controls.stop({ ...stop, target: overview, sideOffset });
-    };
     const after = (timers: number[], ms: number, run: () => void) => { timers.push(window.setTimeout(run, ms)); };
+    const go = (stop: { target: GlobeTarget; framing: number; duration: number }, timers = camera.current.flight) =>
+      aim(target => controls.stop({ ...stop, target, sideOffset }), stop.target, overview, again => after(timers, 50, again));
     const drift = (from: number) => {
       if (!step.drift || still) return;
       const story = driftOrder[from % driftOrder.length]!;
-      go({ target: { kind: "story", story }, framing, duration: 18_000 / speed });
+      go({ target: { kind: "story", story }, framing, duration: 18_000 / speed }, camera.current.drift);
       after(camera.current.drift, 18_000 / speed, () => drift(from + 1));
     };
     const next = () => driftOrder.indexOf(ownerOf(target) ?? "") + 1;

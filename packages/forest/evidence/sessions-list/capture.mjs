@@ -1,6 +1,6 @@
 // Bounded browser evidence for the current running-sessions strip and row detail.
 // A prior read-only forest snapshot supplies the islands; all agent/arc activity here is synthetic.
-// Run build.mjs and this script through flock /tmp/storytree-heavy.lock.
+// Run build.mjs and this script through `node "<checkout>/packages/dev-loop/src/heavy-lock.mjs" --` (absolute checkout path).
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';

@@ -1,7 +1,7 @@
 // Seeded, repeatable capture of one build of the actual desktop page: `node capture.mjs <before|after>`
 // serves dist/<label>/ (made by build.mjs) to headless Chromium with a stand-in bridge answering from
 // seed.json.gz and survey.json, the same for both builds; same 1440 x 960 viewport, same programmatic
-// turns and zoom; nothing is hand-panned. Run under flock /tmp/storytree-heavy.lock. Writes
+// turns and zoom; nothing is hand-panned. Run under `node "<checkout>/packages/dev-loop/src/heavy-lock.mjs" --`. Writes
 // <label>-front.png, <label>-world.png, <label>-crowded.png and measurements-<label>.json.
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';

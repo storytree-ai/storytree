@@ -15,7 +15,7 @@ Renderer: **headless Chromium 148.0.7778.96, ANGLE / Vulkan 1.3.0 SwiftShader**,
 theme, device scale 1. The seed is the committed eight-story, 58-capability snapshot of the
 knowledge-under-islands capture, so the two sets compare one to one. Turns and zoom are set by the
 script (`capture.mjs`), never panned by hand. `build.mjs` bundles the actual desktop page with two
-observation hooks; run both under `flock /tmp/storytree-heavy.lock`. Counts are in
+observation hooks; run both under `node "<checkout>/packages/dev-loop/src/heavy-lock.mjs" --`. Counts are in
 [measurements.json](measurements.json).
 
 ## Measured before looking

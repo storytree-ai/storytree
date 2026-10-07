@@ -33,22 +33,15 @@ output folder to a scratch/evidence destination. `--retake` means that destinati
 is intentional; the default writes under `/tmp/storytree-captures`.
 
 ```sh
-capture_locked() {
-  node --import tsx --input-type=module -e '
-    import path from "node:path";
-    import { pathToFileURL } from "node:url";
-    import { acquireHeavyLock } from "./packages/dev-loop/src/heavy-lock.mjs";
-    const release = await acquireHeavyLock({ root: process.cwd(), what: "pathway evidence" });
-    try { await import(pathToFileURL(path.resolve(process.argv[1])).href); }
-    finally { release(); }
-  ' "$@"
-}
-capture_locked packages/forest/src/view/evidence/pathway-repair/build.mjs "$PWD" after
+node packages/dev-loop/src/heavy-lock.mjs -- node --import tsx \
+  packages/forest/src/view/evidence/pathway-repair/build.mjs "$PWD" after
 CAPTURE_CHROMIUM=/usr/bin/google-chrome \
 PATHWAY_CAPTURE_OUT=/home/mickh/storytree-lanes/pathway-repair-20261007/captures/after \
-capture_locked packages/forest/src/view/evidence/pathway-repair/capture.mjs after --retake
+node packages/dev-loop/src/heavy-lock.mjs -- node --import tsx \
+  packages/forest/src/view/evidence/pathway-repair/capture.mjs after --retake
 CAPTURE_FFMPEG=/home/mickh/.cache/ms-playwright/ffmpeg-1011/ffmpeg-linux \
-capture_locked packages/forest/src/view/evidence/pathway-repair/clip.mjs \
+node packages/dev-loop/src/heavy-lock.mjs -- node --import tsx \
+  packages/forest/src/view/evidence/pathway-repair/clip.mjs \
   /home/mickh/storytree-lanes/pathway-repair-20261007/captures/after
 ```
 
@@ -73,8 +66,9 @@ The recordings in `before/` and `endpoints/` used only the older outer
 `flock /tmp/storytree-heavy.lock`. That is a different file from the current
 gate/test lock, so those recordings cannot claim controlled isolation from other
 heavy machine work. Their frame timings describe those observed runs only.
-The documented command wrapper takes the current gate/test lock; an additional
-legacy outer `flock` is optional and does not replace that wrapper.
+The documented command wrapper takes the current gate/test lock. It coordinates
+participating commands only; uncontrolled competing work still prevents these
+timings from being controlled benchmarks.
 
 - Thirteen coloured lanes appear for the thirteen real cross-story links.
 - Twelve render submissions during selection include ten partially drawn frames.
@@ -184,7 +178,7 @@ front. The ordinary beige desktop roads still appear whole in this increment;
 selection-colour growth and website replay do not prove live-road growth.
 
 To repeat, point `PATHWAY_CAPTURE_DIST` at either preserved bundle and
-`PATHWAY_CAPTURE_OUT` at a fresh output folder, then use `capture_locked` above with
+`PATHWAY_CAPTURE_OUT` at a fresh output folder, then use the command wrapper above with
 the matching label. Rebuild from the intended checkout to capture changed product
 code. Keep the source bundle outside an automatically cleaned worktree if its exact
 baseline must survive the landing.
@@ -292,14 +286,14 @@ runs them sequentially. Separate files launched competing SwiftShader browsers
 inside one forest unit despite the shared lock around the whole test run. Both
 numbered behaviors retain their full fixtures, assertions and individual deadlines.
 
-Use `capture_locked` from above, with `PATHWAY_CAPTURE_DIST` naming the intended
+Use the command wrapper from above, with `PATHWAY_CAPTURE_DIST` naming the intended
 bundle and `PATHWAY_CAPTURE_OUT` naming its output:
 
 ```sh
-capture_locked packages/forest/src/view/evidence/pathway-repair/live-capture.mjs after-live --retake
-capture_locked packages/forest/src/view/evidence/pathway-repair/clip.mjs /path/to/after-live --live
+node packages/dev-loop/src/heavy-lock.mjs -- node --import tsx packages/forest/src/view/evidence/pathway-repair/live-capture.mjs after-live --retake
+node packages/dev-loop/src/heavy-lock.mjs -- node --import tsx packages/forest/src/view/evidence/pathway-repair/clip.mjs /path/to/after-live --live
 # Optional separate opening pictures, before the first road frame:
-capture_locked packages/forest/src/view/evidence/pathway-repair/live-capture.mjs after-live-initial --initial-only --retake
+node packages/dev-loop/src/heavy-lock.mjs -- node --import tsx packages/forest/src/view/evidence/pathway-repair/live-capture.mjs after-live-initial --initial-only --retake
 ```
 
 Use a separate output folder for the optional opening run. Video encoding retains

@@ -3,7 +3,7 @@
 The real desktop page (built by `../sessions-list/build.mjs`) with synthetic activity: eight sessions, the same in both builds.
 `capture.mjs` renders it; `CAPTURE_DIST`/`CAPTURE_AS=before` renders the same activity with the build from `main` before
 this change (at #252, where the agent link already reads close-outs but the list does not use them). Run through
-`flock /tmp/storytree-heavy.lock`.
+`node "<checkout>/packages/dev-loop/src/heavy-lock.mjs" --` (use the absolute checkout path).
 
 - `before-list.png`: the control. The header says 8: every session that has not ended, including one whose close-out
   was verified (fix-typo) and three quiet for 40-55 minutes.

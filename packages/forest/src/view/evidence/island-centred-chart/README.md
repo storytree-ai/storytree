@@ -39,5 +39,5 @@ worktree; **after** is this branch. The page reads 28 roads before and 27 after 
 ## Rerun
 
 `node --import tsx build.mjs <before checkout> before`, `node --import tsx build.mjs <this checkout> after`, then
-`flock /tmp/storytree-heavy.lock node --import tsx capture.mjs before|after --retake`. The unrouted lengths are each
+`node "<checkout>/packages/dev-loop/src/heavy-lock.mjs" -- node --import tsx capture.mjs before|after --retake`. The unrouted lengths are each
 cross segment's `unrouted`; for the before build, the same one line was added to a scratch copy of its `pathways.ts`.

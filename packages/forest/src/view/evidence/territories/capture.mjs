@@ -1,6 +1,6 @@
 // Seeded, repeatable capture of the actual desktop page: same seed (the knowledge-under-islands
 // snapshot, so the pictures compare with its production-*.png), same 1440 x 960 viewport, same
-// programmatic turns; nothing is hand-panned. Run under flock /tmp/storytree-heavy.lock after
+// programmatic turns; nothing is hand-panned. Run under `node "<checkout>/packages/dev-loop/src/heavy-lock.mjs" --` after
 // `node build.mjs`. Measures what can be counted before anyone looks, and writes measurements.json.
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';

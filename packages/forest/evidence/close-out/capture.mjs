@@ -2,7 +2,7 @@
 // close-outs that need you flagged with their reason, and the quiet sessions folded into "N idle".
 // The actual desktop page, built by ../sessions-list/build.mjs; all activity here is synthetic.
 // CAPTURE_DIST=<a dist/production> CAPTURE_AS=<prefix> renders the same activity with another build (the control).
-// Run both through flock /tmp/storytree-heavy.lock.
+// Run both through `node "<checkout>/packages/dev-loop/src/heavy-lock.mjs" --` (absolute checkout path).
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';

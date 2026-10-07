@@ -34,4 +34,4 @@ the outline taken out of `pathways.ts` (so both builds measure `unrouted` the sa
 
 `node --import tsx build.mjs <checkout> before` (with the `outline:` handoff removed from that checkout's
 `pathways.ts`), `node --import tsx build.mjs <this checkout> after`, then
-`flock /tmp/storytree-heavy.lock node --import tsx capture.mjs before|after --retake`.
+`node "<checkout>/packages/dev-loop/src/heavy-lock.mjs" -- node --import tsx capture.mjs before|after --retake`.

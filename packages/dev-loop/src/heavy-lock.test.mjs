@@ -2,7 +2,7 @@
 // lock in STORYTREE_HOME, taken by the test harness itself, instead of saturating the machine.
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -148,7 +148,7 @@ test("6.2 a locked command preserves arguments, cwd and failure status, inherits
   const result = await wrapper(process.execPath, script, ...args).done;
   assert.equal(result.code, 7, result.output);
   assert.match(result.output, /old-capture.*gone/);
-  assert.deepEqual(JSON.parse(result.output.trim().split("\n").at(-1)), { args, cwd: dir });
+  assert.deepEqual(JSON.parse(result.output.trim().split("\n").at(-1)), { args, cwd: realpathSync(dir) });
   assert.equal(existsSync(path.join(dir, "heavy-run.lock")), false);
   const missing = await wrapper(path.join(dir, "missing-command")).done;
   assert.equal(missing.code, 1, missing.output);

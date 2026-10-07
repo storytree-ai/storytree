@@ -10,7 +10,6 @@ import { InMemoryTransport } from "@modelcontextprotocol/server";
 
 import { createAgentTools, type AgentToolOptions } from "../tools/index.js";
 import { testServerDataDir } from "./pg.js";
-import { timed } from "./phase-timing.js";
 
 export interface Answer {
   text: string;
@@ -44,7 +43,7 @@ export async function agentIn(folder: string, options: AgentOptions = {}): Promi
   return {
     async call(tool, args = {}, perCall) {
       const sent = perCall ?? meta;
-      const result = await timed(`call:${tool}`, () => client.callTool({ name: tool, arguments: args, ...(sent === undefined ? {} : { _meta: sent }) }));
+      const result = await client.callTool({ name: tool, arguments: args, ...(sent === undefined ? {} : { _meta: sent }) });
       const content = result.content as { type: string; text?: string }[];
       return {
         text: content.map((block) => block.text ?? "").join("\n"),
@@ -67,11 +66,11 @@ export async function agentIn(folder: string, options: AgentOptions = {}): Promi
 
 /** Run `body` with an agent, and close it afterwards. */
 export async function withAgent(folder: string, options: AgentOptions, body: (agent: Agent) => Promise<void>): Promise<void> {
-  const agent = await timed("agentOpen", () => agentIn(folder, options));
+  const agent = await agentIn(folder, options);
   try {
-    await timed("agentBody", () => body(agent));
+    await body(agent);
   } finally {
-    await timed("agentClose", () => agent.close());
+    await agent.close();
   }
 }
 

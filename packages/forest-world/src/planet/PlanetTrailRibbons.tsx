@@ -5,10 +5,14 @@ import { BufferGeometry, DoubleSide, Float32BufferAttribute, type Vector3 } from
 import type { PlanetPathways } from './pathways.js';
 import { growthProgress, segmentDrawRange, type GrowthWindow } from './growth.js';
 import { usePlanetGrowth } from './PlanetGrowth.js';
-import { laneDrawSeconds, laneProgress, laneRoutes, type LitLink } from './lanes.js';
+import { advanceLaneClock, laneDrawSeconds, laneProgress, laneRoutes, type LitLink } from './lanes.js';
+
+const ribbonShapes = new WeakMap<BufferGeometry, {
+  position: Float32Array; distances: number[]; movedPair: number | undefined;
+}>();
 
 /** Physical-width strips follow the shell and ease onto the real shore, with no supporting land. */
-function ribbon(route: { points: Vector3[]; width: number }, halo = false, lift = 0): BufferGeometry {
+export function ribbon(route: { points: Vector3[]; width: number }, halo = false, lift = 0): BufferGeometry {
   const position: number[] = [], normal: number[] = [], index: number[] = [];
   const half = route.width * (halo ? 2.4 : 1) / 2;
   for (let i = 0; i < route.points.length; i++) {
@@ -25,7 +29,45 @@ function ribbon(route: { points: Vector3[]; width: number }, halo = false, lift 
   geometry.setAttribute('position', new Float32BufferAttribute(position, 3));
   geometry.setAttribute('normal', new Float32BufferAttribute(normal, 3));
   geometry.setIndex(index);
+  const distances = route.points.map(() => 0);
+  for (let i = 1; i < route.points.length; i++) distances[i] = distances[i - 1]! + route.points[i]!.distanceTo(route.points[i - 1]!);
+  ribbonShapes.set(geometry, { position: new Float32Array(position), distances, movedPair: undefined });
+  // Culling uses the complete strip even while its front is between two stations.
+  geometry.computeBoundingSphere();
   return geometry;
+}
+
+/** Reveal physical distance, moving the last pair of vertices between route samples. */
+export function revealRibbon(geometry: BufferGeometry, progress: number): void {
+  const shape = ribbonShapes.get(geometry)!;
+  const position = geometry.getAttribute('position');
+  const restore = shape.movedPair;
+  if (restore !== undefined) {
+    for (let j = 0; j < 6; j++) position.array[restore * 6 + j] = shape.position[restore * 6 + j]!;
+    shape.movedPair = undefined;
+    position.needsUpdate = true;
+  }
+  const fraction = Math.max(0, Math.min(1, progress));
+  const total = shape.distances.at(-1) ?? 0;
+  const distance = fraction * total;
+  geometry.userData.pathwayReveal = { progress: fraction, drawnLength: distance, totalLength: total };
+  if (fraction === 0 || total === 0) { geometry.setDrawRange(0, 0); return; }
+  if (fraction === 1) { geometry.setDrawRange(0, geometry.index?.count ?? 0); return; }
+  let lo = 1, hi = shape.distances.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if (shape.distances[mid]! < distance) lo = mid + 1;
+    else hi = mid;
+  }
+  const previous = shape.distances[lo - 1]!;
+  const between = (distance - previous) / (shape.distances[lo]! - previous);
+  for (let j = 0; j < 6; j++) {
+    const start = shape.position[(lo - 1) * 6 + j]!;
+    position.array[lo * 6 + j] = start + (shape.position[lo * 6 + j]! - start) * between;
+  }
+  shape.movedPair = lo;
+  position.needsUpdate = true;
+  geometry.setDrawRange(0, lo * 6);
 }
 
 // Neither the road nor its light can occlude a name, claim marker or island selection ray.
@@ -69,26 +111,31 @@ const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(pre
 /** A selected story's lit links (world 6.8–6.9): each lane rides just above its road and draws on from the
  * capability built on, at constant speed; a new selection draws its lanes again. */
 export function SelectionLanes({ plan, lit }: { plan: PlanetPathways; lit: readonly LitLink[] }) {
-  const lanes = useMemo(() => laneRoutes(plan, lit).map(lane => ({ lane, geometry: ribbon(lane, false, 0.12),
-    seconds: laneDrawSeconds(lane.length) })), [plan, lit]);
+  const key = lit.map(link => `${link.dir}:${link.from}->${link.to}`).sort().join('\n');
+  const animation = useRef({ key, elapsed: 0, started: false, reduced: reducedMotion() });
+  if (animation.current.key !== key) animation.current = { key, elapsed: 0, started: false, reduced: reducedMotion() };
+  const lanes = useMemo(() => laneRoutes(plan, lit).map(lane => {
+    const geometry = ribbon(lane, false, 0.12), seconds = laneDrawSeconds(lane.length);
+    revealRibbon(geometry, laneProgress(animation.current.elapsed, seconds, animation.current.reduced));
+    return { lane, geometry, seconds };
+  }), [plan, lit]);
   useEffect(() => () => lanes.forEach(({ geometry }) => geometry.dispose()), [lanes]);
-  const { clock, invalidate } = useThree();
-  const started = useRef({ lanes, at: clock.getElapsedTime(), reduced: reducedMotion() });
-  if (started.current.lanes !== lanes) started.current = { lanes, at: clock.getElapsedTime(), reduced: reducedMotion() };
-  const reveal = () => {
-    const { at, reduced } = started.current;
+  const { invalidate } = useThree();
+  useEffect(() => { invalidate(); }, [lanes, invalidate]);
+  useFrame((_, delta) => {
+    const state = animation.current;
+    // The first submitted frame is undrawn. Slow frames may stretch wall time, never skip the front.
+    if (state.started) state.elapsed = advanceLaneClock(state.elapsed, delta);
+    state.started = true;
     let drawing = false;
     for (const { geometry, seconds } of lanes) {
-      const progress = laneProgress(clock.getElapsedTime() - at, seconds, reduced);
-      const quads = (geometry.index?.count ?? 0) / 6;
-      geometry.setDrawRange(0, Math.round(progress * quads) * 6);
+      const progress = laneProgress(state.elapsed, seconds, state.reduced);
+      revealRibbon(geometry, progress);
       drawing ||= progress < 1;
     }
     // The canvas draws on demand: keep asking for frames only while a lane is still drawing.
     if (drawing) invalidate();
-  };
-  useEffect(() => { reveal(); }, [lanes]);
-  useFrame(reveal);
+  });
   return <group name="pathways:selection-lanes" userData={{ lanes: lanes.map(({ lane, seconds }) =>
     ({ from: lane.from, to: lane.to, dir: lane.dir, length: lane.length, seconds })) }}>
     {lanes.map(({ lane, geometry }) => <mesh key={`${lane.from}->${lane.to}`} name={`lane:${lane.dir}:${lane.from}->${lane.to}`}

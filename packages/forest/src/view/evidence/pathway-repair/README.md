@@ -14,8 +14,11 @@ The only observation wrapper reads geometry immediately before `gl.render`.
 Camera changes and bounded settling happen outside that measured interval.
 
 The normal-motion sequence runs from deselection through the completed selection.
-A separate resize and identical rotation checks whether an unrelated update restarts
-the lanes; reduced motion records the first submitted lane frame. The close views
+A separate resize and identical rotation checks a camera-only update. The harness
+also changes an unrelated mapped capability's description in its saved bridge data
+and appends a normal capability update. The desktop's actual two-second poll rereads
+the tree; neither a page reload nor a forced redraw delivers that change. Reduced
+motion records the first submitted lane frame. The close views
 only increase the camera zoom and retain the product's territory meshes and labels.
 
 ## Repeat
@@ -121,9 +124,67 @@ These pictures establish corrected destinations, not a resolved clutter policy.
 Shared lane readability and motion are the next increment on the same arc.
 
 The endpoint capture still finds no initial full-frame flash, demand-render stall,
-irrelevant-update restart, or reduced-motion failure. Its ten normal render frames
+camera-update restart, or reduced-motion failure. Its ten normal render frames
 include nine partial frames (94 ms median spacing, 555 ms maximum); its ordinary
 beige roads also start whole. The first increment does not claim to repair motion.
 
 Repeat this stage by passing `endpoints` in place of `after` to the build and
 capture commands and naming `captures/endpoints` as the output folder.
+
+## Physical selection fronts and distinct shared colours, second increment
+
+| View | Endpoint-fixed baseline | Motion and shared lanes repaired |
+| --- | --- | --- |
+| The agent link selected | [Before](before-motion-selected.png) | [After](after-motion-selected.png) |
+| Distinct cyan and violet lanes inland | [Before detail](before-motion-selected-detail.png) | [After detail](after-motion-selected-detail.png) |
+| Directional draw-on at observed compositor timing | [Before clip](before-motion.webm) | [After clip](after-motion.webm) |
+
+Both recordings use the current gate/test lock, Chrome 151 with ANGLE Vulkan
+SwiftShader, and the same seed, survey, viewport and scripted camera. These are real
+desktop frames with saved bridge data. The baseline bundle is preserved outside
+the worktree at the lane's `captures/bundles/before-motion/`; its source map contains
+`lanes.ts` and `PlanetTrailRibbons.tsx` byte-for-byte identical to commit
+`8f5c66c29ab2169490041ebb4d4eb56c0b5235fa`. The after bundle is likewise preserved
+at `captures/bundles/after-motion/`. Full pictures, compositor frames and traces
+live in `captures/before-motion/` and `captures/after-motion/`.
+
+[Motion measurements](motion-measurements.json) retains the bundle hashes, physical
+front trace, exact thirteen link identities, direction checks, shared-route
+measurements and source validation. Before, physical distance is measured from the
+submitted mesh's centreline and draw range. After, the renderer exposes
+`geometry.userData.pathwayReveal`, whose interpolated final vertex pair is also
+protected by the numbered product test.
+
+| Observed behavior | Before | After |
+| --- | --- | --- |
+| Normal render submissions / partial frames | 6 / 5 | 18 / 16 |
+| First submitted physical front | 6.3–13.3% | 0% for all thirteen lanes |
+| Largest frame gap | 821 ms | 571 ms |
+| Mean physical front across that gap | 18.2% → 99.7% | 3.4% → 10.9% |
+| Actual polled description update | Completed lanes restart (minimum observed front 15.0%) | Every submitted front stays complete |
+| Reduced-motion first submitted frame | Complete | Complete |
+| Shared cross-road opposite-colour separation at its midpoint | 0 | 1.924 ground units |
+
+Both runs complete on demand without capture invalidation and draw from dependency
+to dependent. The unrelated description update changes only The forest's Story node
+render description, outside the selected story and its neighbours. It causes a real
+tree reread (1 → 2) while preserving all 131 fixture links and all thirteen selected
+lanes. The earlier resize-only probe could not expose this restart fault.
+
+The complete geometry check covers fourteen segments shared by both colours:
+thirteen inland and one between islands. Every segment separates in its interior;
+the maximum separation per segment ranges from 1.200 to 2.312 ground units against
+0.9-unit strips. The lanes taper together at actual junctions, preserving continuous
+link identity. Those tapers leave about 19.5% of shared route length with overlapping
+strips; this is not a claim of zero overlap or a new inland-fork policy.
+
+Software-renderer timings describe these recorded runs, not all GPUs. The after
+clip stretches wall time across slow frames while keeping a visible directional
+front. The ordinary beige desktop roads still appear whole in this increment;
+selection-colour growth and website replay do not prove live-road growth.
+
+To repeat, point `PATHWAY_CAPTURE_DIST` at either preserved bundle and
+`PATHWAY_CAPTURE_OUT` at a fresh output folder, then use `capture_locked` above with
+the matching label. Rebuild from the intended checkout to capture changed product
+code. Keep the source bundle outside an automatically cleaned worktree if its exact
+baseline must survive the landing.

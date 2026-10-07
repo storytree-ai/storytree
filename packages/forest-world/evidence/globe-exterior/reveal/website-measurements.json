@@ -1,0 +1,438 @@
+{
+  "capturedAt": "2026-10-07T18:21:52.481Z",
+  "note": "Unchanged website, local engine changes; demand frames held at four measured fronts for pictures. Not a wall-time benchmark.",
+  "pictures": [
+    {
+      "name": "start",
+      "frame": {
+        "at": 12362.90000000596,
+        "progress": 0,
+        "roads": [
+          {
+            "name": "pathway:cross:t234u2h",
+            "links": [
+              "capability_668ca101a358->capability_05589d74df4b",
+              "capability_668ca101a358->capability_1f1d23ed44d0",
+              "capability_668ca101a358->capability_ae20917d7a32",
+              "capability_94f91d2ed3a9->capability_05589d74df4b",
+              "capability_94f91d2ed3a9->capability_ae20917d7a32",
+              "capability_d37b7ec1b593->capability_ae20917d7a32"
+            ],
+            "progress": 0,
+            "length": 160.66621340840138
+          },
+          {
+            "name": "pathway:cross:t1qu05cy",
+            "links": [
+              "capability_276fa436dc33->capability_05589d74df4b",
+              "capability_276fa436dc33->capability_918e1fa754ab",
+              "capability_276fa436dc33->capability_ae20917d7a32",
+              "capability_668ca101a358->capability_05589d74df4b",
+              "capability_668ca101a358->capability_1f1d23ed44d0",
+              "capability_668ca101a358->capability_ae20917d7a32",
+              "capability_94f91d2ed3a9->capability_05589d74df4b",
+              "capability_94f91d2ed3a9->capability_ae20917d7a32",
+              "capability_d37b7ec1b593->capability_ae20917d7a32",
+              "capability_ed214990be99->capability_05589d74df4b",
+              "capability_ed214990be99->capability_1f1d23ed44d0",
+              "capability_ed214990be99->capability_ae20917d7a32"
+            ],
+            "progress": 0,
+            "length": 44.12398153911781
+          },
+          {
+            "name": "pathway:cross:tlmz75e",
+            "links": [
+              "capability_276fa436dc33->capability_918e1fa754ab",
+              "capability_276fa436dc33->capability_ae20917d7a32",
+              "capability_668ca101a358->capability_ae20917d7a32",
+              "capability_94f91d2ed3a9->capability_ae20917d7a32",
+              "capability_d37b7ec1b593->capability_ae20917d7a32",
+              "capability_ed214990be99->capability_ae20917d7a32"
+            ],
+            "progress": 0,
+            "length": 48.13511232998263
+          },
+          {
+            "name": "pathway:cross:tq3phq3",
+            "links": [
+              "capability_2466ec721a72->capability_678463042156",
+              "capability_2466ec721a72->capability_ae20917d7a32",
+              "capability_276fa436dc33->capability_918e1fa754ab",
+              "capability_276fa436dc33->capability_ae20917d7a32",
+              "capability_668ca101a358->capability_ae20917d7a32",
+              "capability_94f91d2ed3a9->capability_ae20917d7a32",
+              "capability_9a6a5d648ba6->capability_ae20917d7a32",
+              "capability_d37b7ec1b593->capability_ae20917d7a32",
+              "capability_ed214990be99->capability_ae20917d7a32",
+              "capability_f29c62742cce->capability_ae20917d7a32"
+            ],
+            "progress": 0,
+            "length": 78.28791477184677
+          },
+          {
+            "name": "pathway:cross:tnok8uc",
+            "links": [
+              "capability_276fa436dc33->capability_05589d74df4b",
+              "capability_276fa436dc33->capability_918e1fa754ab",
+              "capability_276fa436dc33->capability_ae20917d7a32",
+              "capability_ed214990be99->capability_05589d74df4b",
+              "capability_ed214990be99->capability_1f1d23ed44d0",
+              "capability_ed214990be99->capability_ae20917d7a32"
+            ],
+            "progress": 0,
+            "length": 38.32983705648788
+          },
+          {
+            "name": "pathway:cross:tsmgcna",
+            "links": [
+              "capability_276fa436dc33->capability_05589d74df4b",
+              "capability_668ca101a358->capability_05589d74df4b",
+              "capability_668ca101a358->capability_1f1d23ed44d0",
+              "capability_94f91d2ed3a9->capability_05589d74df4b",
+              "capability_ed214990be99->capability_05589d74df4b",
+              "capability_ed214990be99->capability_1f1d23ed44d0"
+            ],
+            "progress": 0,
+            "length": 20.542363172083583
+          },
+          {
+            "name": "pathway:cross:typmd2q",
+            "links": [
+              "capability_2466ec721a72->capability_678463042156",
+              "capability_2466ec721a72->capability_ae20917d7a32",
+              "capability_9a6a5d648ba6->capability_ae20917d7a32",
+              "capability_f29c62742cce->capability_ae20917d7a32"
+            ],
+            "progress": 0,
+            "length": 32.258461922248685
+          }
+        ]
+      }
+    },
+    {
+      "name": "quarter",
+      "frame": {
+        "at": 13167.70000000298,
+        "progress": 0.2761645612233941,
+        "roads": [
+          {
+            "name": "pathway:cross:t234u2h",
+            "links": [
+              "capability_668ca101a358->capability_05589d74df4b",
+              "capability_668ca101a358->capability_1f1d23ed44d0",
+              "capability_668ca101a358->capability_ae20917d7a32",
+              "capability_94f91d2ed3a9->capability_05589d74df4b",
+              "capability_94f91d2ed3a9->capability_ae20917d7a32",
+              "capability_d37b7ec1b593->capability_ae20917d7a32"
+            ],
+            "progress": 0.007318456986530223,
+            "length": 160.66621340840138
+          },
+          {
+            "name": "pathway:cross:t1qu05cy",
+            "links": [
+              "capability_276fa436dc33->capability_05589d74df4b",
+              "capability_276fa436dc33->capability_918e1fa754ab",
+              "capability_276fa436dc33->capability_ae20917d7a32",
+              "capability_668ca101a358->capability_05589d74df4b",
+              "capability_668ca101a358->capability_1f1d23ed44d0",
+              "capability_668ca101a358->capability_ae20917d7a32",
+              "capability_94f91d2ed3a9->capability_05589d74df4b",
+              "capability_94f91d2ed3a9->capability_ae20917d7a32",
+              "capability_d37b7ec1b593->capability_ae20917d7a32",
+              "capability_ed214990be99->capability_05589d74df4b",
+              "capability_ed214990be99->capability_1f1d23ed44d0",
+              "capability_ed214990be99->capability_ae20917d7a32"
+            ],
+            "progress": 1,
+            "length": 44.12398153911781
+          },
+          {
+            "name": "pathway:cross:tlmz75e",
+            "links": [
+              "capability_276fa436dc33->capability_918e1fa754ab",
+              "capability_276fa436dc33->capability_ae20917d7a32",
+              "capability_668ca101a358->capability_ae20917d7a32",
+              "capability_94f91d2ed3a9->capability_ae20917d7a32",
+              "capability_d37b7ec1b593->capability_ae20917d7a32",
+              "capability_ed214990be99->capability_ae20917d7a32"
+            ],
+            "progress": 0.38418085710877653,
+            "length": 48.13511232998263
+          },
+          {
+            "name": "pathway:cross:tq3phq3",
+            "links": [
+              "capability_2466ec721a72->capability_678463042156",
+              "capability_2466ec721a72->capability_ae20917d7a32",
+              "capability_276fa436dc33->capability_918e1fa754ab",
+              "capability_276fa436dc33->capability_ae20917d7a32",
+              "capability_668ca101a358->capability_ae20917d7a32",
+              "capability_94f91d2ed3a9->capability_ae20917d7a32",
+              "capability_9a6a5d648ba6->capability_ae20917d7a32",
+              "capability_d37b7ec1b593->capability_ae20917d7a32",
+              "capability_ed214990be99->capability_ae20917d7a32",
+              "capability_f29c62742cce->capability_ae20917d7a32"
+            ],
+            "progress": 0.4126007361989437,
+            "length": 78.28791477184677
+          },
+          {
+            "name": "pathway:cross:tnok8uc",
+            "links": [
+              "capability_276fa436dc33->capability_05589d74df4b",
+              "capability_276fa436dc33->capability_918e1fa754ab",
+              "capability_276fa436dc33->capability_ae20917d7a32",
+              "capability_ed214990be99->capability_05589d74df4b",
+              "capability_ed214990be99->capability_1f1d23ed44d0",
+              "capability_ed214990be99->capability_ae20917d7a32"
+            ],
+            "progress": 0,
+            "length": 38.32983705648788
+          },
+          {
+            "name": "pathway:cross:tsmgcna",
+            "links": [
+              "capability_276fa436dc33->capability_05589d74df4b",
+              "capability_668ca101a358->capability_05589d74df4b",
+              "capability_668ca101a358->capability_1f1d23ed44d0",
+              "capability_94f91d2ed3a9->capability_05589d74df4b",
+              "capability_ed214990be99->capability_05589d74df4b",
+              "capability_ed214990be99->capability_1f1d23ed44d0"
+            ],
+            "progress": 1,
+            "length": 20.542363172083583
+          },
+          {
+            "name": "pathway:cross:typmd2q",
+            "links": [
+              "capability_2466ec721a72->capability_678463042156",
+              "capability_2466ec721a72->capability_ae20917d7a32",
+              "capability_9a6a5d648ba6->capability_ae20917d7a32",
+              "capability_f29c62742cce->capability_ae20917d7a32"
+            ],
+            "progress": 0,
+            "length": 32.258461922248685
+          }
+        ]
+      }
+    },
+    {
+      "name": "half",
+      "frame": {
+        "at": 13534.60000000894,
+        "progress": 0.5018263002458307,
+        "roads": [
+          {
+            "name": "pathway:cross:t234u2h",
+            "links": [
+              "capability_668ca101a358->capability_05589d74df4b",
+              "capability_668ca101a358->capability_1f1d23ed44d0",
+              "capability_668ca101a358->capability_ae20917d7a32",
+              "capability_94f91d2ed3a9->capability_05589d74df4b",
+              "capability_94f91d2ed3a9->capability_ae20917d7a32",
+              "capability_d37b7ec1b593->capability_ae20917d7a32"
+            ],
+            "progress": 0.28150500920460086,
+            "length": 160.66621340840138
+          },
+          {
+            "name": "pathway:cross:t1qu05cy",
+            "links": [
+              "capability_276fa436dc33->capability_05589d74df4b",
+              "capability_276fa436dc33->capability_918e1fa754ab",
+              "capability_276fa436dc33->capability_ae20917d7a32",
+              "capability_668ca101a358->capability_05589d74df4b",
+              "capability_668ca101a358->capability_1f1d23ed44d0",
+              "capability_668ca101a358->capability_ae20917d7a32",
+              "capability_94f91d2ed3a9->capability_05589d74df4b",
+              "capability_94f91d2ed3a9->capability_ae20917d7a32",
+              "capability_d37b7ec1b593->capability_ae20917d7a32",
+              "capability_ed214990be99->capability_05589d74df4b",
+              "capability_ed214990be99->capability_1f1d23ed44d0",
+              "capability_ed214990be99->capability_ae20917d7a32"
+            ],
+            "progress": 1,
+            "length": 44.12398153911781
+          },
+          {
+            "name": "pathway:cross:tlmz75e",
+            "links": [
+              "capability_276fa436dc33->capability_918e1fa754ab",
+              "capability_276fa436dc33->capability_ae20917d7a32",
+              "capability_668ca101a358->capability_ae20917d7a32",
+              "capability_94f91d2ed3a9->capability_ae20917d7a32",
+              "capability_d37b7ec1b593->capability_ae20917d7a32",
+              "capability_ed214990be99->capability_ae20917d7a32"
+            ],
+            "progress": 1,
+            "length": 48.13511232998263
+          },
+          {
+            "name": "pathway:cross:tq3phq3",
+            "links": [
+              "capability_2466ec721a72->capability_678463042156",
+              "capability_2466ec721a72->capability_ae20917d7a32",
+              "capability_276fa436dc33->capability_918e1fa754ab",
+              "capability_276fa436dc33->capability_ae20917d7a32",
+              "capability_668ca101a358->capability_ae20917d7a32",
+              "capability_94f91d2ed3a9->capability_ae20917d7a32",
+              "capability_9a6a5d648ba6->capability_ae20917d7a32",
+              "capability_d37b7ec1b593->capability_ae20917d7a32",
+              "capability_ed214990be99->capability_ae20917d7a32",
+              "capability_f29c62742cce->capability_ae20917d7a32"
+            ],
+            "progress": 0.6886563280061675,
+            "length": 78.28791477184677
+          },
+          {
+            "name": "pathway:cross:tnok8uc",
+            "links": [
+              "capability_276fa436dc33->capability_05589d74df4b",
+              "capability_276fa436dc33->capability_918e1fa754ab",
+              "capability_276fa436dc33->capability_ae20917d7a32",
+              "capability_ed214990be99->capability_05589d74df4b",
+              "capability_ed214990be99->capability_1f1d23ed44d0",
+              "capability_ed214990be99->capability_ae20917d7a32"
+            ],
+            "progress": 0,
+            "length": 38.32983705648788
+          },
+          {
+            "name": "pathway:cross:tsmgcna",
+            "links": [
+              "capability_276fa436dc33->capability_05589d74df4b",
+              "capability_668ca101a358->capability_05589d74df4b",
+              "capability_668ca101a358->capability_1f1d23ed44d0",
+              "capability_94f91d2ed3a9->capability_05589d74df4b",
+              "capability_ed214990be99->capability_05589d74df4b",
+              "capability_ed214990be99->capability_1f1d23ed44d0"
+            ],
+            "progress": 1,
+            "length": 20.542363172083583
+          },
+          {
+            "name": "pathway:cross:typmd2q",
+            "links": [
+              "capability_2466ec721a72->capability_678463042156",
+              "capability_2466ec721a72->capability_ae20917d7a32",
+              "capability_9a6a5d648ba6->capability_ae20917d7a32",
+              "capability_f29c62742cce->capability_ae20917d7a32"
+            ],
+            "progress": 0,
+            "length": 32.258461922248685
+          }
+        ]
+      }
+    },
+    {
+      "name": "complete",
+      "frame": {
+        "at": 14150.90000000596,
+        "progress": 1,
+        "roads": [
+          {
+            "name": "pathway:cross:t234u2h",
+            "links": [
+              "capability_668ca101a358->capability_05589d74df4b",
+              "capability_668ca101a358->capability_1f1d23ed44d0",
+              "capability_668ca101a358->capability_ae20917d7a32",
+              "capability_94f91d2ed3a9->capability_05589d74df4b",
+              "capability_94f91d2ed3a9->capability_ae20917d7a32",
+              "capability_d37b7ec1b593->capability_ae20917d7a32"
+            ],
+            "progress": 1,
+            "length": 160.66621340840138
+          },
+          {
+            "name": "pathway:cross:t1qu05cy",
+            "links": [
+              "capability_276fa436dc33->capability_05589d74df4b",
+              "capability_276fa436dc33->capability_918e1fa754ab",
+              "capability_276fa436dc33->capability_ae20917d7a32",
+              "capability_668ca101a358->capability_05589d74df4b",
+              "capability_668ca101a358->capability_1f1d23ed44d0",
+              "capability_668ca101a358->capability_ae20917d7a32",
+              "capability_94f91d2ed3a9->capability_05589d74df4b",
+              "capability_94f91d2ed3a9->capability_ae20917d7a32",
+              "capability_d37b7ec1b593->capability_ae20917d7a32",
+              "capability_ed214990be99->capability_05589d74df4b",
+              "capability_ed214990be99->capability_1f1d23ed44d0",
+              "capability_ed214990be99->capability_ae20917d7a32"
+            ],
+            "progress": 1,
+            "length": 44.12398153911781
+          },
+          {
+            "name": "pathway:cross:tlmz75e",
+            "links": [
+              "capability_276fa436dc33->capability_918e1fa754ab",
+              "capability_276fa436dc33->capability_ae20917d7a32",
+              "capability_668ca101a358->capability_ae20917d7a32",
+              "capability_94f91d2ed3a9->capability_ae20917d7a32",
+              "capability_d37b7ec1b593->capability_ae20917d7a32",
+              "capability_ed214990be99->capability_ae20917d7a32"
+            ],
+            "progress": 1,
+            "length": 48.13511232998263
+          },
+          {
+            "name": "pathway:cross:tq3phq3",
+            "links": [
+              "capability_2466ec721a72->capability_678463042156",
+              "capability_2466ec721a72->capability_ae20917d7a32",
+              "capability_276fa436dc33->capability_918e1fa754ab",
+              "capability_276fa436dc33->capability_ae20917d7a32",
+              "capability_668ca101a358->capability_ae20917d7a32",
+              "capability_94f91d2ed3a9->capability_ae20917d7a32",
+              "capability_9a6a5d648ba6->capability_ae20917d7a32",
+              "capability_d37b7ec1b593->capability_ae20917d7a32",
+              "capability_ed214990be99->capability_ae20917d7a32",
+              "capability_f29c62742cce->capability_ae20917d7a32"
+            ],
+            "progress": 1,
+            "length": 78.28791477184677
+          },
+          {
+            "name": "pathway:cross:tnok8uc",
+            "links": [
+              "capability_276fa436dc33->capability_05589d74df4b",
+              "capability_276fa436dc33->capability_918e1fa754ab",
+              "capability_276fa436dc33->capability_ae20917d7a32",
+              "capability_ed214990be99->capability_05589d74df4b",
+              "capability_ed214990be99->capability_1f1d23ed44d0",
+              "capability_ed214990be99->capability_ae20917d7a32"
+            ],
+            "progress": 1,
+            "length": 38.32983705648788
+          },
+          {
+            "name": "pathway:cross:tsmgcna",
+            "links": [
+              "capability_276fa436dc33->capability_05589d74df4b",
+              "capability_668ca101a358->capability_05589d74df4b",
+              "capability_668ca101a358->capability_1f1d23ed44d0",
+              "capability_94f91d2ed3a9->capability_05589d74df4b",
+              "capability_ed214990be99->capability_05589d74df4b",
+              "capability_ed214990be99->capability_1f1d23ed44d0"
+            ],
+            "progress": 1,
+            "length": 20.542363172083583
+          },
+          {
+            "name": "pathway:cross:typmd2q",
+            "links": [
+              "capability_2466ec721a72->capability_678463042156",
+              "capability_2466ec721a72->capability_ae20917d7a32",
+              "capability_9a6a5d648ba6->capability_ae20917d7a32",
+              "capability_f29c62742cce->capability_ae20917d7a32"
+            ],
+            "progress": 1,
+            "length": 32.258461922248685
+          }
+        ]
+      }
+    }
+  ]
+}

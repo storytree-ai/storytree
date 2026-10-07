@@ -1,5 +1,5 @@
 /**
- * Capability 11 · Workspace (the command line story): each test runs the real,
+ * Capability 11 · Workspace (the command line story): integration tests run the real,
  * built `storytree` command in a project folder that is a git clone with an origin beside it. The
  * agent's session reaches the command as its shell does, in CLAUDE_CODE_SESSION_ID or
  * CODEX_THREAD_ID.
@@ -13,6 +13,7 @@ import { after, before, test } from "node:test";
 
 import { claim, openActivityLog, readClaims } from "@storytree/agent-link";
 
+import { workspaceRefusalText } from "./families/workspace.js";
 import { BuiltCommand, inWorld, testServerUrl, type World } from "./testing/cli.js";
 
 const command = new BuiltCommand();
@@ -138,6 +139,24 @@ test("11.8 work with an open pull request is refused naming it and --despite-ope
       await log.close();
     }
   });
+});
+
+test("11.8 the CLI offers --despite-open-pulls from the refusal's pull data regardless of its wording", () => {
+  const increment = "increment_email";
+  const why = "Finish pull request #41 on claude/email first";
+  const refused = workspaceRefusalText(increment, {
+    ok: false,
+    refused: "no-workspace",
+    why,
+    openPulls: [{ number: 41, branch: "claude/email" }],
+  });
+  assert.ok(refused.includes(why), refused);
+  assert.ok(refused.includes(`storytree workspace ${increment} --reason <text> --despite-open-pulls`), refused);
+  assert.doesNotMatch(workspaceRefusalText(increment, {
+    ok: false,
+    refused: "no-workspace",
+    why: "Cannot check whether this work already has open pull requests",
+  }), /--despite-open-pulls/);
 });
 
 test("11.4 Codex prepares app creation then attaches its returned folder; an invalid directory and a person-only shell are refused", async () => {

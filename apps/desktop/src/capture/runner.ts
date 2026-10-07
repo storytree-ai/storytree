@@ -1,4 +1,4 @@
-/** One capture lifecycle; a new look supplies its seed, views and expectations. */
+/** Capability 2 · Storytree projects. One capture lifecycle; a new look supplies its seed, views and expectations. */
 import assert from "node:assert/strict";
 import { readFileSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";

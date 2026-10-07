@@ -1,5 +1,5 @@
 /**
- * Where a capture writes its pictures and measurements. A run to check that a capture still works
+ * Capability 2 · Storytree projects. Where a capture writes its pictures and measurements. A run to check that a capture still works
  * writes to a scratch folder, so the landing's committed evidence stays as it was; re-taking the
  * evidence into its own folder is a deliberate act, named on the command line with --retake.
  */

@@ -1,5 +1,5 @@
 /**
- * The capture kit: what a renderer evidence capture imports instead of copying the last one's
+ * Capability 2 · Storytree projects. The capture kit: what a renderer evidence capture imports instead of copying the last one's
  * harness. A fake bridge typed against the desktop app's StorytreeBridge, a launch that finds
  * Playwright and Chromium from this checkout on any machine, seeded work states, and an output
  * folder that leaves the committed evidence alone unless the run is named to re-take it.

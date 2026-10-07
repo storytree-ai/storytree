@@ -190,16 +190,20 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
     phase(`${name}: navigate desktop`);
     await page.goto(`${origin}/index.html`, { waitUntil: 'domcontentloaded', timeout: 60000 });
     phase(`${name}: wait for bridge ready`);
-    await bridge.ready(page, 60000);
+    // These predicates read existing state; they must not need another RAF after demand drawing ends.
+    await Promise.race([
+      page.waitForFunction(() => document.body.dataset.state === 'ready', undefined, { timeout: 60000, polling: 100 }),
+      bridge.unanswered,
+    ]);
     phase(`${name}: wait for island meshes`);
     await page.waitForFunction(ids => window.__globe && window.__nav && ids.every(id => window.__globe.scene.getObjectByName('planet:' + id)?.getObjectByName('island-ground')),
-      [dependencyStory, dependentStory], { timeout: 60000 });
+      [dependencyStory, dependentStory], { timeout: 60000, polling: 100 });
     // Observe initial growth to completion before any camera settling or later dependency addition.
     phase(`${name}: wait for initial 130-link roads to complete`);
     await page.waitForFunction(() => {
       const frame = window.liveEvidence.frames.at(-1);
       return frame?.links.length === 130 && frame.roads.length > 0 && frame.roads.every(road => road.fraction >= 1 - 1e-8);
-    }, undefined, { timeout: 30000 });
+    }, undefined, { timeout: 30000, polling: 100 });
     if (initialOnly) {
       await page.waitForTimeout(500);
       await initialCdp.send('Page.stopScreencast');
@@ -258,24 +262,26 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
     }, { restore, from });
     phase(`${name}: restore saved dependency and wait for real poll`);
     const restored = await update(true);
-    await page.waitForFunction(reads => window.liveTreeReads > reads, restored.reads, { timeout: 15000 });
+    await page.waitForFunction(reads => window.liveTreeReads > reads, restored.reads, { timeout: 15000, polling: 100 });
     phase(`${name}: wait for new crossing to complete`);
     await page.waitForFunction(() => {
       const frame = window.liveEvidence.frames.at(-1);
       return frame?.phase === 'restored-link' && frame.links.length === 131 && frame.roads.some(road => road.fresh) && frame.roads.every(road => road.fraction >= 1 - 1e-8);
-    }, undefined, { timeout: 15000 });
+    }, undefined, { timeout: 15000, polling: 100 });
     // gl.render submits work before the software compositor presents it. Let its final picture arrive.
     if (cdp) { await page.waitForTimeout(500); await cdp.send('Page.stopScreencast'); }
     if (!smoke) await page.screenshot({ path: path.join(out, `${name}-complete.png`) });
     phase(`${name}: update unrelated description and wait for real poll`);
     const unrelated = await update(false);
-    await page.waitForFunction(reads => window.liveTreeReads > reads, unrelated.reads, { timeout: 15000 });
+    await page.waitForFunction(reads => window.liveTreeReads > reads, unrelated.reads, { timeout: 15000, polling: 100 });
     await page.waitForTimeout(500);
     phase(`${name}: read submitted frames`);
-    const observation = await page.evaluate(() => {
+    // The saved trace is plain JSON. Transfer it as one string rather than recursively walking
+    // every frame/road object through Playwright's protocol, then retain the same full data.
+    const observation = JSON.parse(await page.evaluate(() => {
       const { gl } = window.__globe, context = gl.getContext(), debug = context.getExtension('WEBGL_debug_renderer_info');
-      return { ...window.liveEvidence, reads: window.liveTreeReads, renderer: debug ? context.getParameter(debug.UNMASKED_RENDERER_WEBGL) : context.getParameter(context.RENDERER) };
-    });
+      return JSON.stringify({ ...window.liveEvidence, reads: window.liveTreeReads, renderer: debug ? context.getParameter(debug.UNMASKED_RENDERER_WEBGL) : context.getParameter(context.RENDERER) });
+    }));
     const first = observation.frames.find(frame => frame.roads.length > 0);
     const initial = observation.frames.filter(frame => frame.phase === 'initial' && frame.roads.length > 0);
     const additions = observation.frames.filter(frame => frame.phase === 'restored-link' && frame.links.length === 131 && frame.roads.some(road => road.fresh));

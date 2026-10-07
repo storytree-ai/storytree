@@ -272,7 +272,14 @@ exceeded the child deadline during capture cleanup. After all observations and
 pictures, the capture now cancels pending redraws and disposes its own renderer
 and WebGL context before closing each page. Shutdown phases distinguish browser
 disconnection from the capture server's cleanup. No observation or deadline is
-changed by this cleanup; macOS requires its CI rerun to verify process completion.
+changed by this cleanup.
+
+A subsequent macOS failure trace showed all 28 initial roads complete across 15
+frames, with no pending redraw and a visible canvas, while the RAF-based state
+wait timed out. State predicates now poll every 100 ms, independently of rendering;
+they never invalidate the globe. The same complete raw observation is transferred
+as a JSON string and parsed in Node, avoiding recursive protocol serialization of
+every frame. macOS requires its CI rerun to verify the complete capture lifecycle.
 
 Use `capture_locked` from above, with `PATHWAY_CAPTURE_DIST` naming the intended
 bundle and `PATHWAY_CAPTURE_OUT` naming its output:

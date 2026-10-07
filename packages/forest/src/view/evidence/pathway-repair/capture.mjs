@@ -31,6 +31,19 @@ await withCapture({ folder: output, dist }, async ({ browser, origin, out, settl
     frontCovers: async (_, id) => seed.covers[id] ?? [], codeSurvey: async () => survey,
   });
   await bridge.install(page);
+  // Let the desktop's normal two-second poll deliver a genuine scene change later.
+  await page.addInitScript(data => {
+    window.captureSeed = structuredClone(data);
+    window.captureTreeReads = 0;
+    window.capturePolls = [];
+    window.storytreeAnswers = {
+      projectTree: async () => { window.captureTreeReads++; return structuredClone(window.captureSeed.tree); },
+      changesSince: async (_, cursor) => {
+        window.capturePolls.push({ at: performance.now(), cursor });
+        return { changes: structuredClone(window.captureSeed.changes.changes.filter(change => change.seq > cursor)), cursor: Math.max(cursor, window.captureSeed.changes.cursor) };
+      },
+    };
+  }, seed);
   await page.goto(`${origin}/index.html`, { waitUntil: 'domcontentloaded', timeout: 180000 });
   await bridge.ready(page, 180000);
   await page.waitForFunction(ids => window.__globe && window.__nav && ids.every(id => window.__globe.scene.getObjectByName(`planet:${id}`)?.getObjectByName('island-ground')),
@@ -43,6 +56,7 @@ await withCapture({ folder: output, dist }, async ({ browser, origin, out, settl
   await page.evaluate(() => {
     const state = window.__globe;
     window.__pathwayEvidence = { phase: 'setup', frames: [], events: [] };
+    const distances = new Map();
     window.__readPathways = () => {
       const { scene } = window.__globe;
       const group = scene.getObjectByName('pathways:selection-lanes');
@@ -55,6 +69,23 @@ await withCapture({ folder: output, dist }, async ({ browser, origin, out, settl
           const [, dir, link] = object.name.split(':'), [from, to] = link.split('->');
           const info = group?.userData.lanes?.find(lane => lane.from === from && lane.to === to);
           item.dir = dir; item.seconds = info?.seconds; item.length = info?.length;
+          item.reveal = geometry.userData.pathwayReveal ? { ...geometry.userData.pathwayReveal } : undefined;
+          if (item.reveal) item.physicalFraction = item.reveal.drawnLength / item.reveal.totalLength;
+          else {
+            // Old bundles expose only a rounded quad count. Measure its actual centreline distance.
+            if (!distances.has(geometry.uuid)) {
+              const position = geometry.attributes.position, along = [0];
+              let previous;
+              for (let i = 0; i < position.count; i += 2) {
+                const point = [0, 1, 2].map(axis => (position.array[i * 3 + axis] + position.array[(i + 1) * 3 + axis]) / 2);
+                if (previous) along.push(along.at(-1) + Math.hypot(...point.map((value, axis) => value - previous[axis])));
+                previous = point;
+              }
+              distances.set(geometry.uuid, along);
+            }
+            const along = distances.get(geometry.uuid);
+            item.physicalFraction = along[Math.min(along.length - 1, Math.floor(item.drawn / 6))] / along.at(-1);
+          }
           lanes.push(item);
         } else roads.push(item);
       });
@@ -121,6 +152,73 @@ await withCapture({ folder: output, dist }, async ({ browser, origin, out, settl
   await page.waitForTimeout(1600);
   await page.setViewportSize({ width: 1440, height: 960 });
   await page.waitForTimeout(300);
+
+  // A real scene re-read must preserve completed links, unlike a superficial camera-only update.
+  const beforeUpdate = await page.evaluate(() => ({ reads: window.captureTreeReads, ...window.__readPathways() }));
+  const involved = new Set(relevant.flatMap(link => [owners[link.from], owners[link.to]]));
+  const unrelatedStory = seed.tree.stories.find(story => !involved.has(story.id) && survey[story.id]?.files.some(file => file.capability));
+  const unrelatedCapability = unrelatedStory.capabilities.find(cap => survey[unrelatedStory.id].files.some(file => file.capability === cap.id));
+  await phase('polled-description-update');
+  const mutation = await page.evaluate(({ storyId, capabilityId }) => {
+    const capability = window.captureSeed.tree.stories.find(story => story.id === storyId).capabilities.find(cap => cap.id === capabilityId);
+    const previous = [...window.captureSeed.changes.changes].reverse().find(change => change.recordId === capabilityId)?.record;
+    const links = () => window.captureSeed.tree.stories.flatMap(story => story.capabilities.flatMap(cap => cap.dependsOn.map(to => cap.id + '->' + to))).sort();
+    const beforeLinks = links();
+    capability.description += ' Capture fixture: unrelated description update only.';
+    const at = new Date().toISOString(), seq = ++window.captureSeed.changes.cursor;
+    const fields = { ...previous?.fields, story: storyId, title: capability.title, description: capability.description, dependsOn: capability.dependsOn, proposed: capability.proposed };
+    const record = { id: capabilityId, type: 'capability', version: (previous?.version ?? 0) + 1, createdAt: previous?.createdAt ?? at, updatedAt: at, fields };
+    window.captureSeed.changes.changes.push({ seq, recordId: capabilityId, type: 'capability', action: 'updated', record });
+    return { at: performance.now(), story: storyId, capability: capabilityId, seq, linksPreserved: JSON.stringify(beforeLinks) === JSON.stringify(links()), totalLinks: beforeLinks.length };
+  }, { storyId: unrelatedStory.id, capabilityId: unrelatedCapability.id });
+  await page.waitForFunction(reads => window.captureTreeReads > reads, beforeUpdate.reads, { timeout: 15000 });
+  await page.waitForTimeout(3500);
+  const afterUpdate = await page.evaluate(() => ({ reads: window.captureTreeReads, ...window.__readPathways() }));
+
+  // Inspect the real completed mesh centres on shared cross-island road sections.
+  const geometryReading = await page.evaluate(owners => {
+    const { scene } = window.__globe;
+    scene.updateMatrixWorld(true);
+    const V = scene.position.constructor;
+    const centres = object => {
+      const position = object.geometry.attributes.position, points = [];
+      for (let i = 0; i < position.count; i += 2) points.push(new V().fromBufferAttribute(position, i).add(new V().fromBufferAttribute(position, i + 1)).multiplyScalar(0.5).applyMatrix4(object.matrixWorld));
+      return points;
+    };
+    const lanes = [], roads = [];
+    scene.traverse(object => {
+      if (object.name.startsWith('lane:')) {
+        const [, dir, link] = object.name.split(':'), [from, to] = link.split('->');
+        lanes.push({ name: object.name, dir, link, from, to, points: centres(object) });
+      }
+      if (object.name.startsWith('pathway:')) roads.push({ name: object.name, links: object.userData.links, points: centres(object) });
+    });
+    const closest = (points, target) => {
+      let found, distance = Infinity;
+      for (let i = 1; i < points.length; i++) {
+        const delta = points[i].clone().sub(points[i - 1]);
+        const t = Math.max(0, Math.min(1, target.clone().sub(points[i - 1]).dot(delta) / (delta.lengthSq() || 1)));
+        const candidate = points[i - 1].clone().addScaledVector(delta, t), gap = candidate.distanceToSquared(target);
+        if (gap < distance) { found = candidate; distance = gap; }
+      }
+      return found;
+    };
+    const shared = roads.flatMap(road => {
+      const up = lanes.filter(lane => lane.dir === 'up' && road.links.includes(lane.link));
+      const down = lanes.filter(lane => lane.dir === 'down' && road.links.includes(lane.link));
+      if (!up.length || !down.length) return [];
+      const target = road.points[Math.floor(road.points.length / 2)];
+      const separations = up.flatMap(a => down.map(b => closest(a.points, target).distanceTo(closest(b.points, target))));
+      return [{ road: road.name, up: up.map(lane => lane.link), down: down.map(lane => lane.link), minimumColourSeparation: Math.min(...separations) }];
+    });
+    const directions = lanes.map(lane => {
+      const dependency = scene.getObjectByName('planet:' + owners[lane.to]).getWorldPosition(new V());
+      const dependent = scene.getObjectByName('planet:' + owners[lane.from]).getWorldPosition(new V());
+      return { link: lane.link, startsAtDependency: lane.points[0].distanceTo(dependency) < lane.points[0].distanceTo(dependent),
+        endsAtDependent: lane.points.at(-1).distanceTo(dependent) < lane.points.at(-1).distanceTo(dependency) };
+    });
+    return { shared, directions };
+  }, owners);
   await phase('deselect');
   await deselect();
   await page.screenshot({ path: path.join(out, 'deselected.png'), timeout: 180000 });
@@ -129,7 +227,7 @@ await withCapture({ folder: output, dist }, async ({ browser, origin, out, settl
   await page.evaluate(() => { const { camera, invalidate } = window.__globe; camera.zoom *= 2.1; camera.updateProjectionMatrix(); invalidate(); });
   await settle(page, 4);
   await page.screenshot({ path: path.join(out, 'unselected-detail.png'), timeout: 180000 });
-  await phase('detail-selection'); await select(); await page.waitForTimeout(1800);
+  await phase('detail-selection'); await select(); await page.waitForTimeout(3500);
   await page.screenshot({ path: path.join(out, 'selected-detail.png'), timeout: 180000 });
   await deselect();
   await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -138,25 +236,31 @@ await withCapture({ folder: output, dist }, async ({ browser, origin, out, settl
 
   const observation = await page.evaluate(() => {
     const { gl } = window.__globe, context = gl.getContext(), debug = context.getExtension('WEBGL_debug_renderer_info');
-    return { ...window.__pathwayEvidence, renderer: debug ? context.getParameter(debug.UNMASKED_RENDERER_WEBGL) : context.getParameter(context.RENDERER),
+    return { ...window.__pathwayEvidence, polls: window.capturePolls, renderer: debug ? context.getParameter(debug.UNMASKED_RENDERER_WEBGL) : context.getParameter(context.RENDERER),
       reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches, frameloop: window.__globe.frameloop };
   });
   const trace = observation.frames.filter(frame => frame.phase === 'normal-selection' && frame.lanes.length > 0);
   const reduced = observation.frames.filter(frame => frame.phase === 'reduced-selection' && frame.lanes.length > 0);
   const updates = observation.frames.filter(frame => frame.phase === 'irrelevant-update' && frame.lanes.length > 0);
-  const complete = frame => frame.lanes.every(lane => lane.drawn === lane.count);
+  const polled = observation.frames.filter(frame => frame.phase === 'polled-description-update' && frame.lanes.length > 0);
+  const complete = frame => frame.lanes.every(lane => lane.physicalFraction >= 1 - 1e-8);
   const intervals = trace.slice(1).map((frame, i) => frame.at - trace[i].at).sort((a, b) => a - b);
   const summary = {
     normalFrames: trace.length, normalFirstFractions: trace[0]?.lanes.map(lane => lane.drawn / lane.count),
+    normalFirstPhysicalFractions: trace[0]?.lanes.map(lane => lane.physicalFraction),
     initialFullFrame: trace.length > 0 && complete(trace[0]),
-    normalPartialFrames: trace.filter(frame => frame.lanes.some(lane => lane.drawn > 0 && lane.drawn < lane.count)).length,
+    normalPartialFrames: trace.filter(frame => frame.lanes.some(lane => lane.physicalFraction > 0 && lane.physicalFraction < 1)).length,
     normalCompletedWithoutCaptureInvalidation: trace.length > 0 && complete(trace.at(-1)),
     minFrameMs: intervals[0], medianFrameMs: intervals[Math.floor(intervals.length / 2)], maxFrameMs: intervals.at(-1),
     irrelevantUpdateReset: updates.some(frame => !complete(frame)), reducedFirstFrameComplete: reduced.length > 0 && complete(reduced[0]),
+    polledUpdateReset: polled.some(frame => !complete(frame)), treeReadsBefore: beforeUpdate.reads, treeReadsAfter: afterUpdate.reads,
+    minimumPhysicalFractionAfterPoll: Math.min(...polled.flatMap(frame => frame.lanes.map(lane => lane.physicalFraction))),
+    allLinksPreservedByPoll: mutation.linksPreserved, allLaneDirectionsCorrect: geometryReading.directions.every(lane => lane.startsAtDependency && lane.endsAtDependent),
+    sharedCrossRoads: geometryReading.shared.length, minimumSharedColourSeparation: Math.min(...geometryReading.shared.map(road => road.minimumColourSeparation)),
     colouredLaneCount: normal.lanes.length, beigeRoadsInitiallyWhole: observation.frames[0]?.roads.every(road => road.drawn === road.count),
   };
   writeFileSync(path.join(out, 'measurements.json'), JSON.stringify({ label, dist, browser: await browser.version(), selected, expectedLinks: relevant, errors,
-    warnings: [...new Set(warnings)], bridgeDefaulted: bridge.defaulted, summary, screencast, ...observation }, null, 2) + '\n');
+    warnings: [...new Set(warnings)], bridgeDefaulted: bridge.defaulted, summary, mutation, beforeUpdate, afterUpdate, geometryReading, screencast, ...observation }, null, 2) + '\n');
   // ffmpeg concat durations preserve the observed compositor timing, rather than inventing a frame rate.
   const concat = screencast.flatMap((frame, i) => [`file '${frame.name}'`, `duration ${Math.max(0.001, (screencast[i + 1]?.timestamp ?? frame.timestamp + 0.4) - frame.timestamp).toFixed(6)}`]);
   if (screencast.length) concat.push(`file '${screencast.at(-1).name}'`);

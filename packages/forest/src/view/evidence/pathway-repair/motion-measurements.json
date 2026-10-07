@@ -1,0 +1,2049 @@
+{
+  "before-motion": {
+    "browser": "151.0.7922.173",
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "viewport": {
+      "width": 1440,
+      "height": 960
+    },
+    "selected": "story_609c3b171b3f",
+    "expectedLinks": [
+      {
+        "from": "capability_11fe600afeda",
+        "to": "capability_75d059640d9d"
+      },
+      {
+        "from": "capability_7789d00d3390",
+        "to": "capability_f1d66d700591"
+      },
+      {
+        "from": "capability_396a53756a5c",
+        "to": "capability_f1d66d700591"
+      },
+      {
+        "from": "capability_396a53756a5c",
+        "to": "capability_7077da59ee64"
+      },
+      {
+        "from": "capability_62c8006ef894",
+        "to": "capability_b91cd36a9783"
+      },
+      {
+        "from": "capability_62c8006ef894",
+        "to": "capability_7077da59ee64"
+      },
+      {
+        "from": "capability_7b7421be1a1b",
+        "to": "capability_07c95281a87e"
+      },
+      {
+        "from": "capability_3c32df358d67",
+        "to": "capability_b91cd36a9783"
+      },
+      {
+        "from": "capability_56dfc9b9c3cf",
+        "to": "capability_7077da59ee64"
+      },
+      {
+        "from": "capability_053416712f7c",
+        "to": "capability_199d7af33d32"
+      },
+      {
+        "from": "capability_8419d8d4cdae",
+        "to": "capability_11fe600afeda"
+      },
+      {
+        "from": "capability_8c01238b7f31",
+        "to": "capability_7077da59ee64"
+      },
+      {
+        "from": "capability_01dc27eec57f",
+        "to": "capability_199d7af33d32"
+      }
+    ],
+    "summary": {
+      "normalFrames": 6,
+      "normalFirstFractions": [
+        0.1433389544688027,
+        0.12260734609415416,
+        0.14626490897677338,
+        0.130568356374808,
+        0.13354873451803984,
+        0.1294891249367729,
+        0.12265758091993186,
+        0.12259194395796848,
+        0.12254160363086233,
+        0.12232779097387174,
+        0.12251356238698011,
+        0.12264833574529667,
+        0.2448377581120944
+      ],
+      "normalFirstPhysicalFractions": [
+        0.0954258416204148,
+        0.06476897533611999,
+        0.09090439138608362,
+        0.08607348503315088,
+        0.09032631396892353,
+        0.08561058868295052,
+        0.08017729367506987,
+        0.0749980426072266,
+        0.07700386976049094,
+        0.06329031574034223,
+        0.0739499065309722,
+        0.07827568038389685,
+        0.13324920921320957
+      ],
+      "initialFullFrame": false,
+      "normalPartialFrames": 5,
+      "normalCompletedWithoutCaptureInvalidation": true,
+      "minFrameMs": 17.100000008940697,
+      "medianFrameMs": 180.29999999701977,
+      "maxFrameMs": 821.2999999970198,
+      "irrelevantUpdateReset": false,
+      "reducedFirstFrameComplete": true,
+      "polledUpdateReset": true,
+      "treeReadsBefore": 1,
+      "treeReadsAfter": 2,
+      "minimumPhysicalFractionAfterPoll": 0.1500561857329211,
+      "allLinksPreservedByPoll": true,
+      "allLaneDirectionsCorrect": true,
+      "sharedCrossRoads": 1,
+      "minimumSharedColourSeparation": 0,
+      "colouredLaneCount": 13,
+      "beigeRoadsInitiallyWhole": true
+    },
+    "mutation": {
+      "at": 13554.40000000596,
+      "story": "story_deee4230348c",
+      "capability": "capability_8ffc78a4bad2",
+      "seq": 74422,
+      "linksPreserved": true,
+      "totalLinks": 131
+    },
+    "geometryReading": {
+      "shared": [
+        {
+          "road": "pathway:cross:tyic17u",
+          "up": [
+            "capability_11fe600afeda->capability_75d059640d9d"
+          ],
+          "down": [
+            "capability_7789d00d3390->capability_f1d66d700591",
+            "capability_396a53756a5c->capability_f1d66d700591",
+            "capability_396a53756a5c->capability_7077da59ee64",
+            "capability_62c8006ef894->capability_b91cd36a9783",
+            "capability_62c8006ef894->capability_7077da59ee64",
+            "capability_7b7421be1a1b->capability_07c95281a87e",
+            "capability_3c32df358d67->capability_b91cd36a9783",
+            "capability_56dfc9b9c3cf->capability_7077da59ee64",
+            "capability_053416712f7c->capability_199d7af33d32",
+            "capability_8419d8d4cdae->capability_11fe600afeda",
+            "capability_8c01238b7f31->capability_7077da59ee64",
+            "capability_01dc27eec57f->capability_199d7af33d32"
+          ],
+          "minimumColourSeparation": 0
+        }
+      ],
+      "directions": [
+        {
+          "link": "capability_11fe600afeda->capability_75d059640d9d",
+          "startsAtDependency": true,
+          "endsAtDependent": true
+        },
+        {
+          "link": "capability_7789d00d3390->capability_f1d66d700591",
+          "startsAtDependency": true,
+          "endsAtDependent": true
+        },
+        {
+          "link": "capability_396a53756a5c->capability_f1d66d700591",
+          "startsAtDependency": true,
+          "endsAtDependent": true
+        },
+        {
+          "link": "capability_396a53756a5c->capability_7077da59ee64",
+          "startsAtDependency": true,
+          "endsAtDependent": true
+        },
+        {
+          "link": "capability_62c8006ef894->capability_b91cd36a9783",
+          "startsAtDependency": true,
+          "endsAtDependent": true
+        },
+        {
+          "link": "capability_62c8006ef894->capability_7077da59ee64",
+          "startsAtDependency": true,
+          "endsAtDependent": true
+        },
+        {
+          "link": "capability_7b7421be1a1b->capability_07c95281a87e",
+          "startsAtDependency": true,
+          "endsAtDependent": true
+        },
+        {
+          "link": "capability_3c32df358d67->capability_b91cd36a9783",
+          "startsAtDependency": true,
+          "endsAtDependent": true
+        },
+        {
+          "link": "capability_56dfc9b9c3cf->capability_7077da59ee64",
+          "startsAtDependency": true,
+          "endsAtDependent": true
+        },
+        {
+          "link": "capability_053416712f7c->capability_199d7af33d32",
+          "startsAtDependency": true,
+          "endsAtDependent": true
+        },
+        {
+          "link": "capability_8419d8d4cdae->capability_11fe600afeda",
+          "startsAtDependency": true,
+          "endsAtDependent": true
+        },
+        {
+          "link": "capability_8c01238b7f31->capability_7077da59ee64",
+          "startsAtDependency": true,
+          "endsAtDependent": true
+        },
+        {
+          "link": "capability_01dc27eec57f->capability_199d7af33d32",
+          "startsAtDependency": true,
+          "endsAtDependent": true
+        }
+      ]
+    },
+    "physicalTrace": [
+      {
+        "at": 7650.20000000298,
+        "fractions": [
+          {
+            "name": "lane:up:capability_11fe600afeda->capability_75d059640d9d",
+            "fraction": 0.0954258416204148
+          },
+          {
+            "name": "lane:down:capability_7789d00d3390->capability_f1d66d700591",
+            "fraction": 0.06476897533611999
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_f1d66d700591",
+            "fraction": 0.09090439138608362
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_7077da59ee64",
+            "fraction": 0.08607348503315088
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_b91cd36a9783",
+            "fraction": 0.09032631396892353
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_7077da59ee64",
+            "fraction": 0.08561058868295052
+          },
+          {
+            "name": "lane:down:capability_7b7421be1a1b->capability_07c95281a87e",
+            "fraction": 0.08017729367506987
+          },
+          {
+            "name": "lane:down:capability_3c32df358d67->capability_b91cd36a9783",
+            "fraction": 0.0749980426072266
+          },
+          {
+            "name": "lane:down:capability_56dfc9b9c3cf->capability_7077da59ee64",
+            "fraction": 0.07700386976049094
+          },
+          {
+            "name": "lane:down:capability_053416712f7c->capability_199d7af33d32",
+            "fraction": 0.06329031574034223
+          },
+          {
+            "name": "lane:down:capability_8419d8d4cdae->capability_11fe600afeda",
+            "fraction": 0.0739499065309722
+          },
+          {
+            "name": "lane:down:capability_8c01238b7f31->capability_7077da59ee64",
+            "fraction": 0.07827568038389685
+          },
+          {
+            "name": "lane:down:capability_01dc27eec57f->capability_199d7af33d32",
+            "fraction": 0.13324920921320957
+          }
+        ]
+      },
+      {
+        "at": 7684.79999999702,
+        "fractions": [
+          {
+            "name": "lane:up:capability_11fe600afeda->capability_75d059640d9d",
+            "fraction": 0.15810601919913278
+          },
+          {
+            "name": "lane:down:capability_7789d00d3390->capability_f1d66d700591",
+            "fraction": 0.10860289534975545
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_f1d66d700591",
+            "fraction": 0.1513952328239456
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_7077da59ee64",
+            "fraction": 0.14439301149990919
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_b91cd36a9783",
+            "fraction": 0.14652916098876592
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_7077da59ee64",
+            "fraction": 0.14371751288674037
+          },
+          {
+            "name": "lane:down:capability_7b7421be1a1b->capability_07c95281a87e",
+            "fraction": 0.12764859933113776
+          },
+          {
+            "name": "lane:down:capability_3c32df358d67->capability_b91cd36a9783",
+            "fraction": 0.12190448291287101
+          },
+          {
+            "name": "lane:down:capability_56dfc9b9c3cf->capability_7077da59ee64",
+            "fraction": 0.1270012088444548
+          },
+          {
+            "name": "lane:down:capability_053416712f7c->capability_199d7af33d32",
+            "fraction": 0.17145370588467387
+          },
+          {
+            "name": "lane:down:capability_8419d8d4cdae->capability_11fe600afeda",
+            "fraction": 0.12115716278138604
+          },
+          {
+            "name": "lane:down:capability_8c01238b7f31->capability_7077da59ee64",
+            "fraction": 0.1288531485568812
+          },
+          {
+            "name": "lane:down:capability_01dc27eec57f->capability_199d7af33d32",
+            "fraction": 0.2748456365247726
+          }
+        ]
+      },
+      {
+        "at": 7701.9000000059605,
+        "fractions": [
+          {
+            "name": "lane:up:capability_11fe600afeda->capability_75d059640d9d",
+            "fraction": 0.18861858542851867
+          },
+          {
+            "name": "lane:down:capability_7789d00d3390->capability_f1d66d700591",
+            "fraction": 0.12853115858051778
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_f1d66d700591",
+            "fraction": 0.17888396227001635
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_7077da59ee64",
+            "fraction": 0.16947794449744624
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_b91cd36a9783",
+            "fraction": 0.1735203613203131
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_7077da59ee64",
+            "fraction": 0.16856725100446737
+          },
+          {
+            "name": "lane:down:capability_7b7421be1a1b->capability_07c95281a87e",
+            "fraction": 0.1502334005894618
+          },
+          {
+            "name": "lane:down:capability_3c32df358d67->capability_b91cd36a9783",
+            "fraction": 0.14452649723400762
+          },
+          {
+            "name": "lane:down:capability_56dfc9b9c3cf->capability_7077da59ee64",
+            "fraction": 0.1508656407995588
+          },
+          {
+            "name": "lane:down:capability_053416712f7c->capability_199d7af33d32",
+            "fraction": 0.23515232872103561
+          },
+          {
+            "name": "lane:down:capability_8419d8d4cdae->capability_11fe600afeda",
+            "fraction": 0.1437307673404216
+          },
+          {
+            "name": "lane:down:capability_8c01238b7f31->capability_7077da59ee64",
+            "fraction": 0.15323914601470792
+          },
+          {
+            "name": "lane:down:capability_01dc27eec57f->capability_199d7af33d32",
+            "fraction": 0.37610931009016885
+          }
+        ]
+      },
+      {
+        "at": 8523.20000000298,
+        "fractions": [
+          {
+            "name": "lane:up:capability_11fe600afeda->capability_75d059640d9d",
+            "fraction": 0.999791265002526
+          },
+          {
+            "name": "lane:down:capability_7789d00d3390->capability_f1d66d700591",
+            "fraction": 0.9945549448647923
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_f1d66d700591",
+            "fraction": 0.999885456504213
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_7077da59ee64",
+            "fraction": 0.998543646314509
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_b91cd36a9783",
+            "fraction": 0.9987060514171693
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_7077da59ee64",
+            "fraction": 0.9974692493454974
+          },
+          {
+            "name": "lane:down:capability_7b7421be1a1b->capability_07c95281a87e",
+            "fraction": 0.9953281389044114
+          },
+          {
+            "name": "lane:down:capability_3c32df358d67->capability_b91cd36a9783",
+            "fraction": 0.993791816009404
+          },
+          {
+            "name": "lane:down:capability_56dfc9b9c3cf->capability_7077da59ee64",
+            "fraction": 0.9946437352002825
+          },
+          {
+            "name": "lane:down:capability_053416712f7c->capability_199d7af33d32",
+            "fraction": 0.9960633349945328
+          },
+          {
+            "name": "lane:down:capability_8419d8d4cdae->capability_11fe600afeda",
+            "fraction": 0.9941511075172276
+          },
+          {
+            "name": "lane:down:capability_8c01238b7f31->capability_7077da59ee64",
+            "fraction": 0.9938191462474739
+          },
+          {
+            "name": "lane:down:capability_01dc27eec57f->capability_199d7af33d32",
+            "fraction": 1
+          }
+        ]
+      },
+      {
+        "at": 8703.5,
+        "fractions": [
+          {
+            "name": "lane:up:capability_11fe600afeda->capability_75d059640d9d",
+            "fraction": 1
+          },
+          {
+            "name": "lane:down:capability_7789d00d3390->capability_f1d66d700591",
+            "fraction": 0.9998547552721131
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_f1d66d700591",
+            "fraction": 1
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_7077da59ee64",
+            "fraction": 1
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_b91cd36a9783",
+            "fraction": 1
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_7077da59ee64",
+            "fraction": 1
+          },
+          {
+            "name": "lane:down:capability_7b7421be1a1b->capability_07c95281a87e",
+            "fraction": 0.9998666037315226
+          },
+          {
+            "name": "lane:down:capability_3c32df358d67->capability_b91cd36a9783",
+            "fraction": 0.9998081565139956
+          },
+          {
+            "name": "lane:down:capability_56dfc9b9c3cf->capability_7077da59ee64",
+            "fraction": 0.9998608248868852
+          },
+          {
+            "name": "lane:down:capability_053416712f7c->capability_199d7af33d32",
+            "fraction": 0.9998464224845494
+          },
+          {
+            "name": "lane:down:capability_8419d8d4cdae->capability_11fe600afeda",
+            "fraction": 0.9998885825652385
+          },
+          {
+            "name": "lane:down:capability_8c01238b7f31->capability_7077da59ee64",
+            "fraction": 0.9999242003970387
+          },
+          {
+            "name": "lane:down:capability_01dc27eec57f->capability_199d7af33d32",
+            "fraction": 1
+          }
+        ]
+      },
+      {
+        "at": 8889.90000000596,
+        "fractions": [
+          {
+            "name": "lane:up:capability_11fe600afeda->capability_75d059640d9d",
+            "fraction": 1
+          },
+          {
+            "name": "lane:down:capability_7789d00d3390->capability_f1d66d700591",
+            "fraction": 1
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_f1d66d700591",
+            "fraction": 1
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_7077da59ee64",
+            "fraction": 1
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_b91cd36a9783",
+            "fraction": 1
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_7077da59ee64",
+            "fraction": 1
+          },
+          {
+            "name": "lane:down:capability_7b7421be1a1b->capability_07c95281a87e",
+            "fraction": 1
+          },
+          {
+            "name": "lane:down:capability_3c32df358d67->capability_b91cd36a9783",
+            "fraction": 1
+          },
+          {
+            "name": "lane:down:capability_56dfc9b9c3cf->capability_7077da59ee64",
+            "fraction": 1
+          },
+          {
+            "name": "lane:down:capability_053416712f7c->capability_199d7af33d32",
+            "fraction": 1
+          },
+          {
+            "name": "lane:down:capability_8419d8d4cdae->capability_11fe600afeda",
+            "fraction": 1
+          },
+          {
+            "name": "lane:down:capability_8c01238b7f31->capability_7077da59ee64",
+            "fraction": 1
+          },
+          {
+            "name": "lane:down:capability_01dc27eec57f->capability_199d7af33d32",
+            "fraction": 1
+          }
+        ]
+      }
+    ],
+    "errors": [],
+    "warnings": [
+      "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead."
+    ],
+    "bundleSha256": "a79487a8210294cb2b04a39275040946ae3fc18f596844dc43b0d19776023482"
+  },
+  "after-motion": {
+    "browser": "151.0.7922.173",
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "viewport": {
+      "width": 1440,
+      "height": 960
+    },
+    "selected": "story_609c3b171b3f",
+    "expectedLinks": [
+      {
+        "from": "capability_11fe600afeda",
+        "to": "capability_75d059640d9d"
+      },
+      {
+        "from": "capability_7789d00d3390",
+        "to": "capability_f1d66d700591"
+      },
+      {
+        "from": "capability_396a53756a5c",
+        "to": "capability_f1d66d700591"
+      },
+      {
+        "from": "capability_396a53756a5c",
+        "to": "capability_7077da59ee64"
+      },
+      {
+        "from": "capability_62c8006ef894",
+        "to": "capability_b91cd36a9783"
+      },
+      {
+        "from": "capability_62c8006ef894",
+        "to": "capability_7077da59ee64"
+      },
+      {
+        "from": "capability_7b7421be1a1b",
+        "to": "capability_07c95281a87e"
+      },
+      {
+        "from": "capability_3c32df358d67",
+        "to": "capability_b91cd36a9783"
+      },
+      {
+        "from": "capability_56dfc9b9c3cf",
+        "to": "capability_7077da59ee64"
+      },
+      {
+        "from": "capability_053416712f7c",
+        "to": "capability_199d7af33d32"
+      },
+      {
+        "from": "capability_8419d8d4cdae",
+        "to": "capability_11fe600afeda"
+      },
+      {
+        "from": "capability_8c01238b7f31",
+        "to": "capability_7077da59ee64"
+      },
+      {
+        "from": "capability_01dc27eec57f",
+        "to": "capability_199d7af33d32"
+      }
+    ],
+    "summary": {
+      "normalFrames": 18,
+      "normalFirstFractions": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "normalFirstPhysicalFractions": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "initialFullFrame": false,
+      "normalPartialFrames": 16,
+      "normalCompletedWithoutCaptureInvalidation": true,
+      "minFrameMs": 16.200000002980232,
+      "medianFrameMs": 174.79999999701977,
+      "maxFrameMs": 570.6000000089407,
+      "irrelevantUpdateReset": false,
+      "reducedFirstFrameComplete": true,
+      "polledUpdateReset": false,
+      "treeReadsBefore": 1,
+      "treeReadsAfter": 2,
+      "minimumPhysicalFractionAfterPoll": 1,
+      "allLinksPreservedByPoll": true,
+      "allLaneDirectionsCorrect": true,
+      "sharedCrossRoads": 1,
+      "minimumSharedColourSeparation": 1.9235286989053382,
+      "colouredLaneCount": 13,
+      "beigeRoadsInitiallyWhole": true
+    },
+    "mutation": {
+      "at": 15075.5,
+      "story": "story_deee4230348c",
+      "capability": "capability_8ffc78a4bad2",
+      "seq": 74422,
+      "linksPreserved": true,
+      "totalLinks": 131
+    },
+    "geometryReading": {
+      "shared": [
+        {
+          "road": "pathway:cross:tyic17u",
+          "up": [
+            "capability_11fe600afeda->capability_75d059640d9d"
+          ],
+          "down": [
+            "capability_7789d00d3390->capability_f1d66d700591",
+            "capability_396a53756a5c->capability_f1d66d700591",
+            "capability_396a53756a5c->capability_7077da59ee64",
+            "capability_62c8006ef894->capability_b91cd36a9783",
+            "capability_62c8006ef894->capability_7077da59ee64",
+            "capability_7b7421be1a1b->capability_07c95281a87e",
+            "capability_3c32df358d67->capability_b91cd36a9783",
+            "capability_56dfc9b9c3cf->capability_7077da59ee64",
+            "capability_053416712f7c->capability_199d7af33d32",
+            "capability_8419d8d4cdae->capability_11fe600afeda",
+            "capability_8c01238b7f31->capability_7077da59ee64",
+            "capability_01dc27eec57f->capability_199d7af33d32"
+          ],
+          "minimumColourSeparation": 1.9235286989053382
+        }
+      ],
+      "directions": [
+        {
+          "link": "capability_11fe600afeda->capability_75d059640d9d",
+          "startsAtDependency": true,
+          "endsAtDependent": true
+        },
+        {
+          "link": "capability_7789d00d3390->capability_f1d66d700591",
+          "startsAtDependency": true,
+          "endsAtDependent": true
+        },
+        {
+          "link": "capability_396a53756a5c->capability_f1d66d700591",
+          "startsAtDependency": true,
+          "endsAtDependent": true
+        },
+        {
+          "link": "capability_396a53756a5c->capability_7077da59ee64",
+          "startsAtDependency": true,
+          "endsAtDependent": true
+        },
+        {
+          "link": "capability_62c8006ef894->capability_b91cd36a9783",
+          "startsAtDependency": true,
+          "endsAtDependent": true
+        },
+        {
+          "link": "capability_62c8006ef894->capability_7077da59ee64",
+          "startsAtDependency": true,
+          "endsAtDependent": true
+        },
+        {
+          "link": "capability_7b7421be1a1b->capability_07c95281a87e",
+          "startsAtDependency": true,
+          "endsAtDependent": true
+        },
+        {
+          "link": "capability_3c32df358d67->capability_b91cd36a9783",
+          "startsAtDependency": true,
+          "endsAtDependent": true
+        },
+        {
+          "link": "capability_56dfc9b9c3cf->capability_7077da59ee64",
+          "startsAtDependency": true,
+          "endsAtDependent": true
+        },
+        {
+          "link": "capability_053416712f7c->capability_199d7af33d32",
+          "startsAtDependency": true,
+          "endsAtDependent": true
+        },
+        {
+          "link": "capability_8419d8d4cdae->capability_11fe600afeda",
+          "startsAtDependency": true,
+          "endsAtDependent": true
+        },
+        {
+          "link": "capability_8c01238b7f31->capability_7077da59ee64",
+          "startsAtDependency": true,
+          "endsAtDependent": true
+        },
+        {
+          "link": "capability_01dc27eec57f->capability_199d7af33d32",
+          "startsAtDependency": true,
+          "endsAtDependent": true
+        }
+      ]
+    },
+    "physicalTrace": [
+      {
+        "at": 9413.40000000596,
+        "fractions": [
+          {
+            "name": "lane:up:capability_11fe600afeda->capability_75d059640d9d",
+            "fraction": 0
+          },
+          {
+            "name": "lane:down:capability_7789d00d3390->capability_f1d66d700591",
+            "fraction": 0
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_f1d66d700591",
+            "fraction": 0
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_7077da59ee64",
+            "fraction": 0
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_b91cd36a9783",
+            "fraction": 0
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_7077da59ee64",
+            "fraction": 0
+          },
+          {
+            "name": "lane:down:capability_7b7421be1a1b->capability_07c95281a87e",
+            "fraction": 0
+          },
+          {
+            "name": "lane:down:capability_3c32df358d67->capability_b91cd36a9783",
+            "fraction": 0
+          },
+          {
+            "name": "lane:down:capability_56dfc9b9c3cf->capability_7077da59ee64",
+            "fraction": 0
+          },
+          {
+            "name": "lane:down:capability_053416712f7c->capability_199d7af33d32",
+            "fraction": 0
+          },
+          {
+            "name": "lane:down:capability_8419d8d4cdae->capability_11fe600afeda",
+            "fraction": 0
+          },
+          {
+            "name": "lane:down:capability_8c01238b7f31->capability_7077da59ee64",
+            "fraction": 0
+          },
+          {
+            "name": "lane:down:capability_01dc27eec57f->capability_199d7af33d32",
+            "fraction": 0
+          }
+        ]
+      },
+      {
+        "at": 9429.60000000894,
+        "fractions": [
+          {
+            "name": "lane:up:capability_11fe600afeda->capability_75d059640d9d",
+            "fraction": 0.014470834339395531
+          },
+          {
+            "name": "lane:down:capability_7789d00d3390->capability_f1d66d700591",
+            "fraction": 0.0125
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_f1d66d700591",
+            "fraction": 0.014884591986988252
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_7077da59ee64",
+            "fraction": 0.013259916018673181
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_b91cd36a9783",
+            "fraction": 0.0136097476955223
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_7077da59ee64",
+            "fraction": 0.013150567664672808
+          },
+          {
+            "name": "lane:down:capability_7b7421be1a1b->capability_07c95281a87e",
+            "fraction": 0.0125
+          },
+          {
+            "name": "lane:down:capability_3c32df358d67->capability_b91cd36a9783",
+            "fraction": 0.0125
+          },
+          {
+            "name": "lane:down:capability_56dfc9b9c3cf->capability_7077da59ee64",
+            "fraction": 0.012500000000000002
+          },
+          {
+            "name": "lane:down:capability_053416712f7c->capability_199d7af33d32",
+            "fraction": 0.0125
+          },
+          {
+            "name": "lane:down:capability_8419d8d4cdae->capability_11fe600afeda",
+            "fraction": 0.0125
+          },
+          {
+            "name": "lane:down:capability_8c01238b7f31->capability_7077da59ee64",
+            "fraction": 0.0125
+          },
+          {
+            "name": "lane:down:capability_01dc27eec57f->capability_199d7af33d32",
+            "fraction": 0.026066723497068636
+          }
+        ]
+      },
+      {
+        "at": 9452.20000000298,
+        "fractions": [
+          {
+            "name": "lane:up:capability_11fe600afeda->capability_75d059640d9d",
+            "fraction": 0.0354053080199295
+          },
+          {
+            "name": "lane:down:capability_7789d00d3390->capability_f1d66d700591",
+            "fraction": 0.03058333333581686
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_f1d66d700591",
+            "fraction": 0.03641763506445523
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_7077da59ee64",
+            "fraction": 0.03244259452832156
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_b91cd36a9783",
+            "fraction": 0.03329851603108191
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_7077da59ee64",
+            "fraction": 0.032175055555512255
+          },
+          {
+            "name": "lane:down:capability_7b7421be1a1b->capability_07c95281a87e",
+            "fraction": 0.03058333333581686
+          },
+          {
+            "name": "lane:down:capability_3c32df358d67->capability_b91cd36a9783",
+            "fraction": 0.03058333333581686
+          },
+          {
+            "name": "lane:down:capability_56dfc9b9c3cf->capability_7077da59ee64",
+            "fraction": 0.03058333333581686
+          },
+          {
+            "name": "lane:down:capability_053416712f7c->capability_199d7af33d32",
+            "fraction": 0.03058333333581686
+          },
+          {
+            "name": "lane:down:capability_8419d8d4cdae->capability_11fe600afeda",
+            "fraction": 0.03058333333581686
+          },
+          {
+            "name": "lane:down:capability_8c01238b7f31->capability_7077da59ee64",
+            "fraction": 0.03058333333581686
+          },
+          {
+            "name": "lane:down:capability_01dc27eec57f->capability_199d7af33d32",
+            "fraction": 0.06377658349467359
+          }
+        ]
+      },
+      {
+        "at": 10022.800000011921,
+        "fractions": [
+          {
+            "name": "lane:up:capability_11fe600afeda->capability_75d059640d9d",
+            "fraction": 0.11258309116337233
+          },
+          {
+            "name": "lane:down:capability_7789d00d3390->capability_f1d66d700591",
+            "fraction": 0.09725000000248352
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_f1d66d700591",
+            "fraction": 0.1158021256617259
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_7077da59ee64",
+            "fraction": 0.10316214662791186
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_b91cd36a9783",
+            "fraction": 0.1058838370738675
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_7077da59ee64",
+            "fraction": 0.10231141643376723
+          },
+          {
+            "name": "lane:down:capability_7b7421be1a1b->capability_07c95281a87e",
+            "fraction": 0.09725000000248354
+          },
+          {
+            "name": "lane:down:capability_3c32df358d67->capability_b91cd36a9783",
+            "fraction": 0.09725000000248354
+          },
+          {
+            "name": "lane:down:capability_56dfc9b9c3cf->capability_7077da59ee64",
+            "fraction": 0.09725000000248353
+          },
+          {
+            "name": "lane:down:capability_053416712f7c->capability_199d7af33d32",
+            "fraction": 0.09725000000248353
+          },
+          {
+            "name": "lane:down:capability_8419d8d4cdae->capability_11fe600afeda",
+            "fraction": 0.09725000000248353
+          },
+          {
+            "name": "lane:down:capability_8c01238b7f31->capability_7077da59ee64",
+            "fraction": 0.09725000000248353
+          },
+          {
+            "name": "lane:down:capability_01dc27eec57f->capability_199d7af33d32",
+            "fraction": 0.20279910881237298
+          }
+        ]
+      },
+      {
+        "at": 10173.300000011921,
+        "fractions": [
+          {
+            "name": "lane:up:capability_11fe600afeda->capability_75d059640d9d",
+            "fraction": 0.18976087430681515
+          },
+          {
+            "name": "lane:down:capability_7789d00d3390->capability_f1d66d700591",
+            "fraction": 0.1639166666691502
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_f1d66d700591",
+            "fraction": 0.19518661625899658
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_7077da59ee64",
+            "fraction": 0.17388169872750214
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_b91cd36a9783",
+            "fraction": 0.1784691581166531
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_7077da59ee64",
+            "fraction": 0.1724477773120222
+          },
+          {
+            "name": "lane:down:capability_7b7421be1a1b->capability_07c95281a87e",
+            "fraction": 0.1639166666691502
+          },
+          {
+            "name": "lane:down:capability_3c32df358d67->capability_b91cd36a9783",
+            "fraction": 0.1639166666691502
+          },
+          {
+            "name": "lane:down:capability_56dfc9b9c3cf->capability_7077da59ee64",
+            "fraction": 0.1639166666691502
+          },
+          {
+            "name": "lane:down:capability_053416712f7c->capability_199d7af33d32",
+            "fraction": 0.1639166666691502
+          },
+          {
+            "name": "lane:down:capability_8419d8d4cdae->capability_11fe600afeda",
+            "fraction": 0.1639166666691502
+          },
+          {
+            "name": "lane:down:capability_8c01238b7f31->capability_7077da59ee64",
+            "fraction": 0.1639166666691502
+          },
+          {
+            "name": "lane:down:capability_01dc27eec57f->capability_199d7af33d32",
+            "fraction": 0.3418216341300724
+          }
+        ]
+      },
+      {
+        "at": 10293.5,
+        "fractions": [
+          {
+            "name": "lane:up:capability_11fe600afeda->capability_75d059640d9d",
+            "fraction": 0.266938657450258
+          },
+          {
+            "name": "lane:down:capability_7789d00d3390->capability_f1d66d700591",
+            "fraction": 0.23058333333581688
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_f1d66d700591",
+            "fraction": 0.2745711068562673
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_7077da59ee64",
+            "fraction": 0.24460125082709247
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_b91cd36a9783",
+            "fraction": 0.25105447915943874
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_7077da59ee64",
+            "fraction": 0.2425841381902772
+          },
+          {
+            "name": "lane:down:capability_7b7421be1a1b->capability_07c95281a87e",
+            "fraction": 0.23058333333581688
+          },
+          {
+            "name": "lane:down:capability_3c32df358d67->capability_b91cd36a9783",
+            "fraction": 0.2305833333358169
+          },
+          {
+            "name": "lane:down:capability_56dfc9b9c3cf->capability_7077da59ee64",
+            "fraction": 0.23058333333581688
+          },
+          {
+            "name": "lane:down:capability_053416712f7c->capability_199d7af33d32",
+            "fraction": 0.23058333333581688
+          },
+          {
+            "name": "lane:down:capability_8419d8d4cdae->capability_11fe600afeda",
+            "fraction": 0.23058333333581688
+          },
+          {
+            "name": "lane:down:capability_8c01238b7f31->capability_7077da59ee64",
+            "fraction": 0.23058333333581685
+          },
+          {
+            "name": "lane:down:capability_01dc27eec57f->capability_199d7af33d32",
+            "fraction": 0.4808441594477718
+          }
+        ]
+      },
+      {
+        "at": 10420.70000000298,
+        "fractions": [
+          {
+            "name": "lane:up:capability_11fe600afeda->capability_75d059640d9d",
+            "fraction": 0.34411644059370083
+          },
+          {
+            "name": "lane:down:capability_7789d00d3390->capability_f1d66d700591",
+            "fraction": 0.2972500000024835
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_f1d66d700591",
+            "fraction": 0.353955597453538
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_7077da59ee64",
+            "fraction": 0.3153208029266828
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_b91cd36a9783",
+            "fraction": 0.3236398002022243
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_7077da59ee64",
+            "fraction": 0.3127204990685322
+          },
+          {
+            "name": "lane:down:capability_7b7421be1a1b->capability_07c95281a87e",
+            "fraction": 0.2972500000024835
+          },
+          {
+            "name": "lane:down:capability_3c32df358d67->capability_b91cd36a9783",
+            "fraction": 0.2972500000024835
+          },
+          {
+            "name": "lane:down:capability_56dfc9b9c3cf->capability_7077da59ee64",
+            "fraction": 0.2972500000024835
+          },
+          {
+            "name": "lane:down:capability_053416712f7c->capability_199d7af33d32",
+            "fraction": 0.2972500000024835
+          },
+          {
+            "name": "lane:down:capability_8419d8d4cdae->capability_11fe600afeda",
+            "fraction": 0.2972500000024835
+          },
+          {
+            "name": "lane:down:capability_8c01238b7f31->capability_7077da59ee64",
+            "fraction": 0.2972500000024835
+          },
+          {
+            "name": "lane:down:capability_01dc27eec57f->capability_199d7af33d32",
+            "fraction": 0.6198666847654712
+          }
+        ]
+      },
+      {
+        "at": 10551.70000000298,
+        "fractions": [
+          {
+            "name": "lane:up:capability_11fe600afeda->capability_75d059640d9d",
+            "fraction": 0.4212942237371437
+          },
+          {
+            "name": "lane:down:capability_7789d00d3390->capability_f1d66d700591",
+            "fraction": 0.3639166666691503
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_f1d66d700591",
+            "fraction": 0.4333400880508087
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_7077da59ee64",
+            "fraction": 0.3860403550262731
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_b91cd36a9783",
+            "fraction": 0.39622512124500997
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_7077da59ee64",
+            "fraction": 0.3828568599467872
+          },
+          {
+            "name": "lane:down:capability_7b7421be1a1b->capability_07c95281a87e",
+            "fraction": 0.3639166666691503
+          },
+          {
+            "name": "lane:down:capability_3c32df358d67->capability_b91cd36a9783",
+            "fraction": 0.36391666666915023
+          },
+          {
+            "name": "lane:down:capability_56dfc9b9c3cf->capability_7077da59ee64",
+            "fraction": 0.36391666666915023
+          },
+          {
+            "name": "lane:down:capability_053416712f7c->capability_199d7af33d32",
+            "fraction": 0.36391666666915023
+          },
+          {
+            "name": "lane:down:capability_8419d8d4cdae->capability_11fe600afeda",
+            "fraction": 0.36391666666915023
+          },
+          {
+            "name": "lane:down:capability_8c01238b7f31->capability_7077da59ee64",
+            "fraction": 0.36391666666915023
+          },
+          {
+            "name": "lane:down:capability_01dc27eec57f->capability_199d7af33d32",
+            "fraction": 0.7588892100831707
+          }
+        ]
+      },
+      {
+        "at": 10663.5,
+        "fractions": [
+          {
+            "name": "lane:up:capability_11fe600afeda->capability_75d059640d9d",
+            "fraction": 0.4984720068805865
+          },
+          {
+            "name": "lane:down:capability_7789d00d3390->capability_f1d66d700591",
+            "fraction": 0.43058333333581694
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_f1d66d700591",
+            "fraction": 0.5127245786480793
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_7077da59ee64",
+            "fraction": 0.4567599071258634
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_b91cd36a9783",
+            "fraction": 0.46881044228779556
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_7077da59ee64",
+            "fraction": 0.4529932208250422
+          },
+          {
+            "name": "lane:down:capability_7b7421be1a1b->capability_07c95281a87e",
+            "fraction": 0.4305833333358169
+          },
+          {
+            "name": "lane:down:capability_3c32df358d67->capability_b91cd36a9783",
+            "fraction": 0.43058333333581694
+          },
+          {
+            "name": "lane:down:capability_56dfc9b9c3cf->capability_7077da59ee64",
+            "fraction": 0.4305833333358169
+          },
+          {
+            "name": "lane:down:capability_053416712f7c->capability_199d7af33d32",
+            "fraction": 0.43058333333581694
+          },
+          {
+            "name": "lane:down:capability_8419d8d4cdae->capability_11fe600afeda",
+            "fraction": 0.4305833333358169
+          },
+          {
+            "name": "lane:down:capability_8c01238b7f31->capability_7077da59ee64",
+            "fraction": 0.4305833333358169
+          },
+          {
+            "name": "lane:down:capability_01dc27eec57f->capability_199d7af33d32",
+            "fraction": 0.89791173540087
+          }
+        ]
+      },
+      {
+        "at": 10795.300000011921,
+        "fractions": [
+          {
+            "name": "lane:up:capability_11fe600afeda->capability_75d059640d9d",
+            "fraction": 0.5756497900240293
+          },
+          {
+            "name": "lane:down:capability_7789d00d3390->capability_f1d66d700591",
+            "fraction": 0.4972500000024835
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_f1d66d700591",
+            "fraction": 0.59210906924535
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_7077da59ee64",
+            "fraction": 0.5274794592254537
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_b91cd36a9783",
+            "fraction": 0.541395763330581
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_7077da59ee64",
+            "fraction": 0.5231295817032972
+          },
+          {
+            "name": "lane:down:capability_7b7421be1a1b->capability_07c95281a87e",
+            "fraction": 0.4972500000024835
+          },
+          {
+            "name": "lane:down:capability_3c32df358d67->capability_b91cd36a9783",
+            "fraction": 0.4972500000024834
+          },
+          {
+            "name": "lane:down:capability_56dfc9b9c3cf->capability_7077da59ee64",
+            "fraction": 0.4972500000024835
+          },
+          {
+            "name": "lane:down:capability_053416712f7c->capability_199d7af33d32",
+            "fraction": 0.4972500000024835
+          },
+          {
+            "name": "lane:down:capability_8419d8d4cdae->capability_11fe600afeda",
+            "fraction": 0.4972500000024835
+          },
+          {
+            "name": "lane:down:capability_8c01238b7f31->capability_7077da59ee64",
+            "fraction": 0.4972500000024835
+          },
+          {
+            "name": "lane:down:capability_01dc27eec57f->capability_199d7af33d32",
+            "fraction": 1
+          }
+        ]
+      },
+      {
+        "at": 10972.60000000894,
+        "fractions": [
+          {
+            "name": "lane:up:capability_11fe600afeda->capability_75d059640d9d",
+            "fraction": 0.6528275731674721
+          },
+          {
+            "name": "lane:down:capability_7789d00d3390->capability_f1d66d700591",
+            "fraction": 0.5639166666691502
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_f1d66d700591",
+            "fraction": 0.6714935598426206
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_7077da59ee64",
+            "fraction": 0.5981990113250439
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_b91cd36a9783",
+            "fraction": 0.6139810843733666
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_7077da59ee64",
+            "fraction": 0.5932659425815521
+          },
+          {
+            "name": "lane:down:capability_7b7421be1a1b->capability_07c95281a87e",
+            "fraction": 0.5639166666691502
+          },
+          {
+            "name": "lane:down:capability_3c32df358d67->capability_b91cd36a9783",
+            "fraction": 0.5639166666691502
+          },
+          {
+            "name": "lane:down:capability_56dfc9b9c3cf->capability_7077da59ee64",
+            "fraction": 0.5639166666691502
+          },
+          {
+            "name": "lane:down:capability_053416712f7c->capability_199d7af33d32",
+            "fraction": 0.5639166666691502
+          },
+          {
+            "name": "lane:down:capability_8419d8d4cdae->capability_11fe600afeda",
+            "fraction": 0.5639166666691502
+          },
+          {
+            "name": "lane:down:capability_8c01238b7f31->capability_7077da59ee64",
+            "fraction": 0.5639166666691502
+          },
+          {
+            "name": "lane:down:capability_01dc27eec57f->capability_199d7af33d32",
+            "fraction": 1
+          }
+        ]
+      },
+      {
+        "at": 11155.20000000298,
+        "fractions": [
+          {
+            "name": "lane:up:capability_11fe600afeda->capability_75d059640d9d",
+            "fraction": 0.7300053563109149
+          },
+          {
+            "name": "lane:down:capability_7789d00d3390->capability_f1d66d700591",
+            "fraction": 0.6305833333358167
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_f1d66d700591",
+            "fraction": 0.7508780504398913
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_7077da59ee64",
+            "fraction": 0.6689185634246342
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_b91cd36a9783",
+            "fraction": 0.6865664054161522
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_7077da59ee64",
+            "fraction": 0.663402303459807
+          },
+          {
+            "name": "lane:down:capability_7b7421be1a1b->capability_07c95281a87e",
+            "fraction": 0.6305833333358167
+          },
+          {
+            "name": "lane:down:capability_3c32df358d67->capability_b91cd36a9783",
+            "fraction": 0.6305833333358167
+          },
+          {
+            "name": "lane:down:capability_56dfc9b9c3cf->capability_7077da59ee64",
+            "fraction": 0.6305833333358167
+          },
+          {
+            "name": "lane:down:capability_053416712f7c->capability_199d7af33d32",
+            "fraction": 0.6305833333358167
+          },
+          {
+            "name": "lane:down:capability_8419d8d4cdae->capability_11fe600afeda",
+            "fraction": 0.6305833333358167
+          },
+          {
+            "name": "lane:down:capability_8c01238b7f31->capability_7077da59ee64",
+            "fraction": 0.6305833333358166
+          },
+          {
+            "name": "lane:down:capability_01dc27eec57f->capability_199d7af33d32",
+            "fraction": 1
+          }
+        ]
+      },
+      {
+        "at": 11330.70000000298,
+        "fractions": [
+          {
+            "name": "lane:up:capability_11fe600afeda->capability_75d059640d9d",
+            "fraction": 0.8071831394543577
+          },
+          {
+            "name": "lane:down:capability_7789d00d3390->capability_f1d66d700591",
+            "fraction": 0.6972500000024834
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_f1d66d700591",
+            "fraction": 0.8302625410371619
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_7077da59ee64",
+            "fraction": 0.7396381155242244
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_b91cd36a9783",
+            "fraction": 0.7591517264589378
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_7077da59ee64",
+            "fraction": 0.7335386643380619
+          },
+          {
+            "name": "lane:down:capability_7b7421be1a1b->capability_07c95281a87e",
+            "fraction": 0.6972500000024834
+          },
+          {
+            "name": "lane:down:capability_3c32df358d67->capability_b91cd36a9783",
+            "fraction": 0.6972500000024835
+          },
+          {
+            "name": "lane:down:capability_56dfc9b9c3cf->capability_7077da59ee64",
+            "fraction": 0.6972500000024834
+          },
+          {
+            "name": "lane:down:capability_053416712f7c->capability_199d7af33d32",
+            "fraction": 0.6972500000024834
+          },
+          {
+            "name": "lane:down:capability_8419d8d4cdae->capability_11fe600afeda",
+            "fraction": 0.6972500000024834
+          },
+          {
+            "name": "lane:down:capability_8c01238b7f31->capability_7077da59ee64",
+            "fraction": 0.6972500000024834
+          },
+          {
+            "name": "lane:down:capability_01dc27eec57f->capability_199d7af33d32",
+            "fraction": 1
+          }
+        ]
+      },
+      {
+        "at": 11525.10000000894,
+        "fractions": [
+          {
+            "name": "lane:up:capability_11fe600afeda->capability_75d059640d9d",
+            "fraction": 0.8843609225978005
+          },
+          {
+            "name": "lane:down:capability_7789d00d3390->capability_f1d66d700591",
+            "fraction": 0.76391666666915
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_f1d66d700591",
+            "fraction": 0.9096470316344326
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_7077da59ee64",
+            "fraction": 0.8103576676238147
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_b91cd36a9783",
+            "fraction": 0.8317370475017234
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_7077da59ee64",
+            "fraction": 0.803675025216317
+          },
+          {
+            "name": "lane:down:capability_7b7421be1a1b->capability_07c95281a87e",
+            "fraction": 0.7639166666691499
+          },
+          {
+            "name": "lane:down:capability_3c32df358d67->capability_b91cd36a9783",
+            "fraction": 0.76391666666915
+          },
+          {
+            "name": "lane:down:capability_56dfc9b9c3cf->capability_7077da59ee64",
+            "fraction": 0.76391666666915
+          },
+          {
+            "name": "lane:down:capability_053416712f7c->capability_199d7af33d32",
+            "fraction": 0.76391666666915
+          },
+          {
+            "name": "lane:down:capability_8419d8d4cdae->capability_11fe600afeda",
+            "fraction": 0.76391666666915
+          },
+          {
+            "name": "lane:down:capability_8c01238b7f31->capability_7077da59ee64",
+            "fraction": 0.76391666666915
+          },
+          {
+            "name": "lane:down:capability_01dc27eec57f->capability_199d7af33d32",
+            "fraction": 1
+          }
+        ]
+      },
+      {
+        "at": 11761.40000000596,
+        "fractions": [
+          {
+            "name": "lane:up:capability_11fe600afeda->capability_75d059640d9d",
+            "fraction": 0.9615387057412432
+          },
+          {
+            "name": "lane:down:capability_7789d00d3390->capability_f1d66d700591",
+            "fraction": 0.8305833333358167
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_f1d66d700591",
+            "fraction": 0.9890315222317032
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_7077da59ee64",
+            "fraction": 0.8810772197234051
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_b91cd36a9783",
+            "fraction": 0.9043223685445089
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_7077da59ee64",
+            "fraction": 0.8738113860945719
+          },
+          {
+            "name": "lane:down:capability_7b7421be1a1b->capability_07c95281a87e",
+            "fraction": 0.8305833333358167
+          },
+          {
+            "name": "lane:down:capability_3c32df358d67->capability_b91cd36a9783",
+            "fraction": 0.8305833333358167
+          },
+          {
+            "name": "lane:down:capability_56dfc9b9c3cf->capability_7077da59ee64",
+            "fraction": 0.8305833333358167
+          },
+          {
+            "name": "lane:down:capability_053416712f7c->capability_199d7af33d32",
+            "fraction": 0.8305833333358168
+          },
+          {
+            "name": "lane:down:capability_8419d8d4cdae->capability_11fe600afeda",
+            "fraction": 0.8305833333358168
+          },
+          {
+            "name": "lane:down:capability_8c01238b7f31->capability_7077da59ee64",
+            "fraction": 0.8305833333358167
+          },
+          {
+            "name": "lane:down:capability_01dc27eec57f->capability_199d7af33d32",
+            "fraction": 1
+          }
+        ]
+      },
+      {
+        "at": 11975.90000000596,
+        "fractions": [
+          {
+            "name": "lane:up:capability_11fe600afeda->capability_75d059640d9d",
+            "fraction": 1
+          },
+          {
+            "name": "lane:down:capability_7789d00d3390->capability_f1d66d700591",
+            "fraction": 0.8972500000024836
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_f1d66d700591",
+            "fraction": 1
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_7077da59ee64",
+            "fraction": 0.9517967718229955
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_b91cd36a9783",
+            "fraction": 0.9769076895872946
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_7077da59ee64",
+            "fraction": 0.9439477469728269
+          },
+          {
+            "name": "lane:down:capability_7b7421be1a1b->capability_07c95281a87e",
+            "fraction": 0.8972500000024834
+          },
+          {
+            "name": "lane:down:capability_3c32df358d67->capability_b91cd36a9783",
+            "fraction": 0.8972500000024834
+          },
+          {
+            "name": "lane:down:capability_56dfc9b9c3cf->capability_7077da59ee64",
+            "fraction": 0.8972500000024833
+          },
+          {
+            "name": "lane:down:capability_053416712f7c->capability_199d7af33d32",
+            "fraction": 0.8972500000024834
+          },
+          {
+            "name": "lane:down:capability_8419d8d4cdae->capability_11fe600afeda",
+            "fraction": 0.8972500000024834
+          },
+          {
+            "name": "lane:down:capability_8c01238b7f31->capability_7077da59ee64",
+            "fraction": 0.8972500000024834
+          },
+          {
+            "name": "lane:down:capability_01dc27eec57f->capability_199d7af33d32",
+            "fraction": 1
+          }
+        ]
+      },
+      {
+        "at": 12166.20000000298,
+        "fractions": [
+          {
+            "name": "lane:up:capability_11fe600afeda->capability_75d059640d9d",
+            "fraction": 1
+          },
+          {
+            "name": "lane:down:capability_7789d00d3390->capability_f1d66d700591",
+            "fraction": 0.9639166666691502
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_f1d66d700591",
+            "fraction": 1
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_7077da59ee64",
+            "fraction": 1
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_b91cd36a9783",
+            "fraction": 1
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_7077da59ee64",
+            "fraction": 1
+          },
+          {
+            "name": "lane:down:capability_7b7421be1a1b->capability_07c95281a87e",
+            "fraction": 0.9639166666691501
+          },
+          {
+            "name": "lane:down:capability_3c32df358d67->capability_b91cd36a9783",
+            "fraction": 0.96391666666915
+          },
+          {
+            "name": "lane:down:capability_56dfc9b9c3cf->capability_7077da59ee64",
+            "fraction": 0.9639166666691501
+          },
+          {
+            "name": "lane:down:capability_053416712f7c->capability_199d7af33d32",
+            "fraction": 0.9639166666691501
+          },
+          {
+            "name": "lane:down:capability_8419d8d4cdae->capability_11fe600afeda",
+            "fraction": 0.9639166666691501
+          },
+          {
+            "name": "lane:down:capability_8c01238b7f31->capability_7077da59ee64",
+            "fraction": 0.9639166666691501
+          },
+          {
+            "name": "lane:down:capability_01dc27eec57f->capability_199d7af33d32",
+            "fraction": 1
+          }
+        ]
+      },
+      {
+        "at": 12341,
+        "fractions": [
+          {
+            "name": "lane:up:capability_11fe600afeda->capability_75d059640d9d",
+            "fraction": 1
+          },
+          {
+            "name": "lane:down:capability_7789d00d3390->capability_f1d66d700591",
+            "fraction": 1
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_f1d66d700591",
+            "fraction": 1
+          },
+          {
+            "name": "lane:down:capability_396a53756a5c->capability_7077da59ee64",
+            "fraction": 1
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_b91cd36a9783",
+            "fraction": 1
+          },
+          {
+            "name": "lane:down:capability_62c8006ef894->capability_7077da59ee64",
+            "fraction": 1
+          },
+          {
+            "name": "lane:down:capability_7b7421be1a1b->capability_07c95281a87e",
+            "fraction": 1
+          },
+          {
+            "name": "lane:down:capability_3c32df358d67->capability_b91cd36a9783",
+            "fraction": 1
+          },
+          {
+            "name": "lane:down:capability_56dfc9b9c3cf->capability_7077da59ee64",
+            "fraction": 1
+          },
+          {
+            "name": "lane:down:capability_053416712f7c->capability_199d7af33d32",
+            "fraction": 1
+          },
+          {
+            "name": "lane:down:capability_8419d8d4cdae->capability_11fe600afeda",
+            "fraction": 1
+          },
+          {
+            "name": "lane:down:capability_8c01238b7f31->capability_7077da59ee64",
+            "fraction": 1
+          },
+          {
+            "name": "lane:down:capability_01dc27eec57f->capability_199d7af33d32",
+            "fraction": 1
+          }
+        ]
+      }
+    ],
+    "errors": [],
+    "warnings": [
+      "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead."
+    ],
+    "bundleSha256": "e8f0adec942b2dc35a2d548c9fbaa9df6b7abf1ecd2c4acf6c89fdcb1d5922a2"
+  },
+  "sharedSegments": {
+    "stories": 15,
+    "links": 131,
+    "selected": "The agent link",
+    "lanes": 13,
+    "sharedSegments": 14,
+    "totalLength": 239.40121823889444,
+    "overlapLength": 46.60788279077244,
+    "rows": [
+      {
+        "id": "island:story_609c3b171b3f:t1kim4bz",
+        "points": 9,
+        "length": 0.8467051916840213,
+        "roadWidth": 2.4,
+        "upWidth": 0.8999999999999999,
+        "downWidth": 0.8999999999999999,
+        "maxSeparation": 1.1999946967221296,
+        "overlapLength": 0.5773281288542927,
+        "overlapFraction": 0.6818525911079375,
+        "endpointSeparations": [
+          0,
+          0
+        ]
+      },
+      {
+        "id": "island:story_609c3b171b3f:t11hi0gc",
+        "points": 17,
+        "length": 2.836984714603705,
+        "roadWidth": 2.981176179958132,
+        "upWidth": 0.8999999999999999,
+        "downWidth": 0.8999999999999999,
+        "maxSeparation": 1.4905653085422406,
+        "overlapLength": 1.618979117679155,
+        "overlapFraction": 0.5706689603737637,
+        "endpointSeparations": [
+          0,
+          0
+        ]
+      },
+      {
+        "id": "island:story_609c3b171b3f:t1pt3hmh",
+        "points": 321,
+        "length": 67.34104582332765,
+        "roadWidth": 4.624922359499622,
+        "upWidth": 0.8999999999999999,
+        "downWidth": 0.8999999999999999,
+        "maxSeparation": 2.312429154285716,
+        "overlapLength": 7.872589693098871,
+        "overlapFraction": 0.11690625823889006,
+        "endpointSeparations": [
+          0,
+          0
+        ]
+      },
+      {
+        "id": "island:story_609c3b171b3f:t1l4nin6",
+        "points": 41,
+        "length": 8.115648932927183,
+        "roadWidth": 4.624922359499622,
+        "upWidth": 0.8999999999999999,
+        "downWidth": 0.8999999999999999,
+        "maxSeparation": 2.3124067345140644,
+        "overlapLength": 3.4523119339079087,
+        "overlapFraction": 0.4253895113551586,
+        "endpointSeparations": [
+          0,
+          0
+        ]
+      },
+      {
+        "id": "island:story_609c3b171b3f:trcamuk",
+        "points": 9,
+        "length": 1.415042834805654,
+        "roadWidth": 4.418376618407356,
+        "upWidth": 0.8999999999999999,
+        "downWidth": 0.8999999999999999,
+        "maxSeparation": 2.209157676593149,
+        "overlapLength": 0.6122313144048197,
+        "overlapFraction": 0.4326592095630132,
+        "endpointSeparations": [
+          0,
+          0
+        ]
+      },
+      {
+        "id": "island:story_609c3b171b3f:tygvwn8",
+        "points": 169,
+        "length": 35.003543266308704,
+        "roadWidth": 4.523009049186607,
+        "upWidth": 0.8999999999999999,
+        "downWidth": 0.8999999999999999,
+        "maxSeparation": 2.2614745699014867,
+        "overlapLength": 7.806984726693879,
+        "overlapFraction": 0.2230341273538496,
+        "endpointSeparations": [
+          0,
+          0
+        ]
+      },
+      {
+        "id": "island:story_609c3b171b3f:tpx5sh1",
+        "points": 193,
+        "length": 41.20754373341019,
+        "roadWidth": 4.085685011586675,
+        "upWidth": 0.8999999999999999,
+        "downWidth": 0.8999999999999999,
+        "maxSeparation": 2.0428204268279893,
+        "overlapLength": 7.522140150237014,
+        "overlapFraction": 0.18254279359383957,
+        "endpointSeparations": [
+          0,
+          0
+        ]
+      },
+      {
+        "id": "island:story_609c3b171b3f:t1928fy",
+        "points": 9,
+        "length": 1.002126478061115,
+        "roadWidth": 3.8449961479175903,
+        "upWidth": 0.8999999999999999,
+        "downWidth": 0.8999999999999999,
+        "maxSeparation": 1.9224788901760859,
+        "overlapLength": 0.47797270902846983,
+        "overlapFraction": 0.4769584673116685,
+        "endpointSeparations": [
+          0,
+          0
+        ]
+      },
+      {
+        "id": "island:story_609c3b171b3f:tlkdf0k",
+        "points": 9,
+        "length": 1.0024378361357444,
+        "roadWidth": 3.58496231131986,
+        "upWidth": 0.8999999999999999,
+        "downWidth": 0.8999999999999999,
+        "maxSeparation": 1.7924655180375344,
+        "overlapLength": 0.5029102601948902,
+        "overlapFraction": 0.5016872289393404,
+        "endpointSeparations": [
+          0,
+          0
+        ]
+      },
+      {
+        "id": "island:story_609c3b171b3f:t1d0r0t0",
+        "points": 89,
+        "length": 18.121695158930663,
+        "roadWidth": 3.8449961479175903,
+        "upWidth": 0.8999999999999999,
+        "downWidth": 0.8999999999999999,
+        "maxSeparation": 1.9224796716376056,
+        "overlapLength": 7.363018771221041,
+        "overlapFraction": 0.4063096033039948,
+        "endpointSeparations": [
+          0,
+          0
+        ]
+      },
+      {
+        "id": "island:story_609c3b171b3f:tbbdrn2",
+        "points": 9,
+        "length": 1.0127005013152415,
+        "roadWidth": 3.58496231131986,
+        "upWidth": 0.8999999999999999,
+        "downWidth": 0.8999999999999999,
+        "maxSeparation": 1.7924656262902774,
+        "overlapLength": 0.5080590219699048,
+        "overlapFraction": 0.5016873412327384,
+        "endpointSeparations": [
+          0,
+          0
+        ]
+      },
+      {
+        "id": "island:story_609c3b171b3f:t19bwv0t",
+        "points": 9,
+        "length": 1.0292344678485719,
+        "roadWidth": 2.4,
+        "upWidth": 0.8999999999999999,
+        "downWidth": 0.8999999999999999,
+        "maxSeparation": 1.1999891485151224,
+        "overlapLength": 0.7018082008264765,
+        "overlapFraction": 0.681873977941566,
+        "endpointSeparations": [
+          0,
+          0
+        ]
+      },
+      {
+        "id": "island:story_609c3b171b3f:tni1qcp",
+        "points": 9,
+        "length": 0.3800265660012815,
+        "roadWidth": 2.8045407685048604,
+        "upWidth": 0.8999999999999999,
+        "downWidth": 0.8999999999999999,
+        "maxSeparation": 1.4022620835500816,
+        "overlapLength": 0.22919672338877692,
+        "overlapFraction": 0.6031071085383122,
+        "endpointSeparations": [
+          0,
+          0
+        ]
+      },
+      {
+        "id": "cross:tyic17u",
+        "points": 110,
+        "length": 60.0864827335347,
+        "roadWidth": 3.8449961479175903,
+        "upWidth": 0.8999999999999999,
+        "downWidth": 0.8999999999999999,
+        "maxSeparation": 1.9224795591687944,
+        "overlapLength": 7.362352039266937,
+        "overlapFraction": 0.1225292562374924,
+        "endpointSeparations": [
+          0,
+          0
+        ]
+      }
+    ]
+  },
+  "baselineSourceValidation": [
+    {
+      "file": "packages/forest-world/src/planet/lanes.ts",
+      "inBundle": true,
+      "exactHeadContent": true,
+      "bundleSourceSha": "9028248bd0b8744b4485caffa0645c48dbf7f1959cc3741083dab45944b648ba",
+      "headSourceSha": "9028248bd0b8744b4485caffa0645c48dbf7f1959cc3741083dab45944b648ba"
+    },
+    {
+      "file": "packages/forest-world/src/planet/PlanetTrailRibbons.tsx",
+      "inBundle": true,
+      "exactHeadContent": true,
+      "bundleSourceSha": "9794d6ee4741435fb3f3cf4c38f0257be4720f0ea0acd79d16222176492eba87",
+      "headSourceSha": "9794d6ee4741435fb3f3cf4c38f0257be4720f0ea0acd79d16222176492eba87"
+    }
+  ]
+}

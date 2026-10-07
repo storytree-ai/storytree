@@ -1,4 +1,4 @@
-// Mounted with the view; the palette is shared with the existing forest controls.
+// Capability 2 · Storytree projects. Mounted with the view; the palette is shared with the existing forest controls.
 export const appMenuStyles = `
 :root:has(.app-menu-mount) { --app-bar-height: 48px; }
 body:has(> .app-menu-mount) > main { margin-top: var(--app-bar-height); }

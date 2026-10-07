@@ -1,5 +1,5 @@
 /**
- * Switch to the project chosen in the gear's Projects (app 2.1): the list is held while it switches;
+ * Capability 2 · Storytree projects. Switch to the project chosen in the gear's Projects (app 2.1): the list is held while it switches;
  * once switched the overlay closes (`chosen`); a failed choice shows its reason inside Projects
  * (`failed`) and leaves the overlay open. Either way the list is free again, so a failure can be retried.
  */

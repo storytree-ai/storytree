@@ -1,5 +1,5 @@
 /**
- * The Surfaces tab of the gear menu (the app story; ADR-0750): every surface of the app window the
+ * Capability 3 · Surfaces. The Surfaces tab of the gear menu (the app story; ADR-0750): every surface of the app window the
  * stories declare, with its name, one line on what it is, a switch where it can be switched off, and
  * its own settings beneath it. The Story panel is a group holding the surfaces within it. A change
  * is saved in the settings file at once, and `changed` hears it so the frame can apply it.

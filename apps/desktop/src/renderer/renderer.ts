@@ -1,5 +1,5 @@
 /**
- * The page's glue: it asks the main process (through the preload's functions) for the projects, and
+ * Capability 2 · Storytree projects. The page's glue: it asks the main process (through the preload's functions) for the projects, and
  * draws the project on show as its 3D forest (the forest story, capability 3), kept current by the
  * arc surface's live reading (@storytree/arc-surface). `data-state` on the body says where it got to
  * (loading, ready, empty, missing, error), and `data-drew` what the forest drew, both of which the

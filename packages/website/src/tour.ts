@@ -43,6 +43,8 @@ export type TourStep = {
   /** A story selected so its dependency lanes draw on. */
   select?: string;
   panel?: "story" | "arcs" | "sessions" | "knowledge";
+  /** Open the panel when this line is told, after the map has shown its preceding ideas. */
+  panelFromLine?: number;
   tags?: Tag[];
 };
 /** Free play's project: the example shop, whole (the default), or storytree's own saved project (ADR-0890). */

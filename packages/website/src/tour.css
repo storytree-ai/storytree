@@ -260,6 +260,10 @@ html:has(> body.immersive-home) { scroll-padding-top:0; }
   #chapter2 .tb-pip { min-width:3px; }
   #chapter2 .tb-switch { gap:5px; padding:4px 8px 4px 5px; }
 }
+@media (max-width:600px) and (max-height:620px) {
+  /* The four-line story step uses the spare gap above the bar on the shortest phones. */
+  #chapter2[data-tour-mode="tour"][data-tour-step="map-first"] .tour-card { bottom:calc(var(--bar-h) + 18px); }
+}
 @media (prefers-reduced-motion:reduce) {
   #chapter2 .tour-card.is-in, #chapter2 .tour-line, #chapter2 .tour-tag-ring, #chapter2 .tb-play[data-state="waiting"], #chapter2 .chip-recording::before { animation:none !important; transition:none !important; }
   #chapter2[data-tour-kind="beats"] .tour-line.on { animation:none; }

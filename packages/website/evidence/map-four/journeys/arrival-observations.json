@@ -1,0 +1,16 @@
+{
+  "contract": "2.11, 2.12",
+  "source": "Locally built unpublished working tree, SwiftShader",
+  "observed": [
+    "1440: 17.4 fps over 2.5 s of the time-lapse",
+    "390: 35.6 fps over 2.5 s of the time-lapse",
+    "2.11 arrival on storytree's own globe and 2.12 the map chapter's empty globe, live globe at 1440 and 390: pass",
+    "2.11 reduced motion, no WebGL and a loading globe keep the arrival dark under the pain: pass",
+    "Act 1's exit lands on the pain: pass",
+    "2.16: Health holds the four-story walk and offers the sourced comparison: pass",
+    "The agents chapter's steps on the shop's recorded moments: pictured",
+    "Every chapter step in the tour's one format: pictured in one-format/after",
+    "The map chapter's steps: pictured in map-four; framing misses: []",
+    "A close-to-close move stays in and turns the globe: recorded"
+  ]
+}

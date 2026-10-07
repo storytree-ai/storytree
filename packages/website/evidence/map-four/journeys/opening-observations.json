@@ -1,0 +1,13 @@
+{
+  "story": "The website",
+  "commit": "8f5c66c29ab2169490041ebb4d4eb56c0b5235fa",
+  "evidence": "packages/website/evidence/map-four/journeys",
+  "note": "Locally built website served from packages/website/dist",
+  "checks": [
+    {
+      "contract": "1.8",
+      "name": "Chapter 1 playback, exits, sound, storage and static fallbacks",
+      "observed": "pass"
+    }
+  ]
+}

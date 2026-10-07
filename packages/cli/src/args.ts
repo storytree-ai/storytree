@@ -57,6 +57,8 @@ export class Args {
   /**
    * `value`, or the text of the file it names when it is `@file` (relative to the folder the command
    * runs in), without a leading byte-order mark: PowerShell 5.1's `Set-Content -Encoding utf8` writes one.
+   * An `@` value holding whitespace that names no file is prose (`@storytree/cli now …`), kept as written;
+   * a one-word one is a path, so a mistyped file is refused rather than stored as its own name.
    */
   read(value: string): string {
     if (!value.startsWith("@") || value.length === 1) return value;
@@ -64,6 +66,8 @@ export class Args {
     try {
       return readFileSync(file, "utf8").replace(/^\uFEFF/, "");
     } catch (error) {
+      const missing = ["ENOENT", "ENOTDIR", "EINVAL"].includes((error as NodeJS.ErrnoException).code ?? "");
+      if (missing && /\s/.test(value)) return value;
       throw new Refusal(`cannot read ${file}: ${(error as Error).message}`);
     }
   }

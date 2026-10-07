@@ -249,7 +249,7 @@ in about 20 seconds on this machine. The smoke takes no pictures and retains its
 first-frame trace in the capture kit's scratch output. It uses the same real desktop
 bundle and browser as the full capture; CI's installed Chrome needs no download.
 
-The smoke uses a 640 × 480 viewport with the same 131-link scene and reads the real
+The smoke uses a 320 × 240 viewport with the same 131-link scene and reads the real
 world-space geometry. It omits picture framing, Help interactions and camera
 settling; full captures remain 1440 × 960. CI previously passed in 46 seconds on
 Windows and 59 seconds on Linux, while macOS reached the old 80-second subprocess
@@ -305,7 +305,18 @@ Both numbered tests now stream subprocess phase diagnostics while retaining stdo
 for the same assertions. The last live-road step and its elapsed time therefore remain
 in the test log even if the outer package deadline interrupts it. The live-road fixture,
 all first-display/addition/shared-road/reduced-motion assertions, and every existing
-time limit remain unchanged. macOS CI and its merge-queue run verify the combined budget.
+time limit remain unchanged.
+
+The first [PR #840 macOS run](https://github.com/storytree-ai/storytree/actions/runs/37653398523/job/112902265356)
+then isolated the next limit: the initial roads' 30-second wait. The territory proof
+completed in about 39 seconds. Live-road telemetry showed 13 submitted frames, gaps
+as large as 9.8 seconds, a visible 640 × 384 canvas and pending redraws; 27 of 28
+crossings were complete while one had not started. This was slow frame delivery,
+not a lost invalidation or a cleanup hang. The smoke viewport is now 320 × 240
+(previously 640 × 480) to reduce software-compositor pixel work. The actual scene,
+all 131 saved link identities, geometry observations and the product's clock remain
+the same. Full pictures remain 1440 × 960. macOS CI and its merge-queue run verify
+the complete capture lifecycle and combined budget.
 
 Use the command wrapper from above, with `PATHWAY_CAPTURE_DIST` naming the intended
 bundle and `PATHWAY_CAPTURE_OUT` naming its output:

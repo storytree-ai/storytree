@@ -37,7 +37,9 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
   for (const reduced of [false, true]) {
     const name = reduced ? 'reduced' : 'normal';
     phase(`${name}: create page`);
-    const page = await browser.newPage({ viewport: smoke ? { width: 640, height: 480 } : { width: 1440, height: 960 }, deviceScaleFactor: 1,
+    // Smoke observes world-space geometry, not pictures. Keep the full scene but limit
+    // software-compositor pixels so slow CI frames do not exhaust the animation's budget.
+    const page = await browser.newPage({ viewport: smoke ? { width: 320, height: 240 } : { width: 1440, height: 960 }, deviceScaleFactor: 1,
       colorScheme: 'dark', reducedMotion: reduced ? 'reduce' : 'no-preference' });
     const errors = [];
     const frameReports = [];

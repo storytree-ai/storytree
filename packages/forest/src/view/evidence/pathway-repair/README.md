@@ -249,7 +249,7 @@ in about 20 seconds on this machine. The smoke takes no pictures and retains its
 first-frame trace in the capture kit's scratch output. It uses the same real desktop
 bundle and browser as the full capture; CI's installed Chrome needs no download.
 
-The smoke uses a 640 × 480 viewport with the same 131-link scene and reads the real
+The smoke uses a 320 × 240 viewport with the same 131-link scene and reads the real
 world-space geometry. It omits picture framing, Help interactions and camera
 settling; full captures remain 1440 × 960. CI previously passed in 46 seconds on
 Windows and 59 seconds on Linux, while macOS reached the old 80-second subprocess
@@ -285,6 +285,47 @@ The pathway and territory-health browser proofs live in that one test file so No
 runs them sequentially. Separate files launched competing SwiftShader browsers
 inside one forest unit despite the shared lock around the whole test run. Both
 numbered behaviors retain their full fixtures, assertions and individual deadlines.
+
+### Shared macOS package deadline
+
+[PR #836's merge-queue macOS log](https://github.com/storytree-ai/storytree/actions/runs/37645075537/job/112873617092)
+shows the preceding territory-health proof taking **131.209 seconds**, then the forest
+unit being killed at its unchanged 180-second deadline with live roads pending. Only
+about 44 seconds remained for live roads. That log does not establish a stuck live-road
+step: child stderr was buffered until exit and was lost when the package was killed.
+
+The territory smoke now keeps its full fixture and fill/claim
+measurements and turn-away failure-marker check, but omits the four picture-only
+close-ups and their zoom/unzoom tour. It requests six settling frames instead of
+204 and waits explicitly for both failure markers. The full picture capture still
+performs the tour. State predicates poll independently of RAF. After observation, redraws stop and
+page closure releases the renderer resources.
+
+Both numbered tests now stream subprocess phase diagnostics while retaining stdout
+for the same assertions. The last live-road step and its elapsed time therefore remain
+in the test log even if the outer package deadline interrupts it. The live-road fixture,
+all first-display/addition/shared-road/reduced-motion assertions, and every existing
+time limit remain unchanged.
+
+The first [PR #840 macOS run](https://github.com/storytree-ai/storytree/actions/runs/37653398523/job/112902265356)
+then isolated the next limit: the initial roads' 30-second wait. The territory proof
+completed in about 39 seconds. Live-road telemetry showed 13 submitted frames, gaps
+as large as 9.8 seconds, a visible 640 × 384 canvas and pending redraws; 27 of 28
+crossings were complete while one had not started. This was slow frame delivery,
+not a lost invalidation or a cleanup hang. The smoke viewport is now 320 × 240
+(previously 640 × 480) to reduce software-compositor pixel work. The actual scene,
+all 131 saved link identities, geometry observations and the product's clock remain
+the same. Full pictures remain 1440 × 960. macOS CI and its merge-queue run verify
+the complete capture lifecycle and combined budget.
+
+The revised live-road proof passed on macOS both in its PR run and the next merge
+queue (about 50 seconds each). That queue instead exposed the territory capture's
+new explicit WebGL disposal step exceeding its ten-second guard after all observations.
+Territory cleanup now stops redraws and leaves WebGL resource disposal to page closure,
+avoiding an extra synchronous driver drain. Its smoke viewport is 640 × 480, reducing
+pixel work while retaining all territory/claim geometry and both failure markers;
+full picture captures remain 1440 × 960. No behavior assertion or existing timeout
+was removed or enlarged.
 
 Use the command wrapper from above, with `PATHWAY_CAPTURE_DIST` naming the intended
 bundle and `PATHWAY_CAPTURE_OUT` naming its output:

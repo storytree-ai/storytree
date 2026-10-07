@@ -197,16 +197,21 @@ test("6.8 a worklist call names each phase through the call's progress before it
   }
 });
 
-test("6.9 the worklist tool answers in a size a session can read: the drain's three due reports and how many wait, and each other list's first few notes named, with how many it holds", async () => {
+test("6.9 the worklist tool answers in a size a session can read, including when creation timestamps tie: the drain's three due reports and how many wait, and each other list's first few notes named, with how many it holds", async (t) => {
   await withLibrary(async (library) => {
     const folder = mkdtempSync(path.join(tmpdir(), "storytree-librarian-"));
     try {
       const long = "A decision's reasoning, at length. ".repeat(600);
+      // A fast database can save several notes in one millisecond. Exercise that tie on every run.
+      t.mock.timers.enable({ apis: ["Date"], now: Date.now() });
       const decisions = [];
       for (let n = 0; n < 12; n += 1) decisions.push(await library.recordDecision({ title: `Decision ${n}`, text: long, status: "accepted" }));
+      const reports = [];
       for (let n = 0; n < 6; n += 1) {
-        await library.writeKnowledge("friction", { title: `Report ${n}`, description: "Slow", statement: "The gate hangs", evidence: `gate.log: ${long}`, impact: "A rerun", provenance: { branch: "claude/other", date: "2026-10-07", source: "retro" } });
+        reports.push(await library.writeKnowledge("friction", { title: `Report ${n}`, description: "Slow", statement: "The gate hangs", evidence: `gate.log: ${long}`, impact: "A rerun", provenance: { branch: "claude/other", date: "2026-10-07", source: "retro" } }));
       }
+      t.mock.timers.reset();
+      assert.equal(new Set([...decisions, ...reports].map(({ createdAt }) => createdAt)).size, 1, "every note was created in the same millisecond");
       const tools = librarianTools();
       const acts = new Map<string, (args: unknown, call: ToolCall) => Promise<ToolAnswer>>();
       tools.registerTools!((name, _description, _input, act) => {
@@ -218,9 +223,12 @@ test("6.9 the worklist tool answers in a size a session can read: the drain's th
         log: { lines: async () => [] },
       });
       const listed = answer.data?.worklist as WorklistView;
-      assert.deepEqual(listed.friction.map(({ title, recurrences }) => [title, recurrences]), [["Report 0", 0], ["Report 1", 0], ["Report 2", 0]]);
+      // Creation order breaks equal timestamps by ID, not by insertion order or report title.
+      reports.sort((a, b) => a.id < b.id ? -1 : 1);
+      decisions.sort((a, b) => a.id < b.id ? -1 : 1);
+      assert.deepEqual(listed.friction, reports.slice(0, 3).map(({ id, fields }) => ({ id, type: "friction", title: fields.title, recurrences: 0 })));
       assert.equal(listed.frictionMore, 3);
-      assert.deepEqual(listed.rest?.links, decisions.slice(0, 5).map(({ id }, n) => ({ id, type: "decision", title: `Decision ${n}` })));
+      assert.deepEqual(listed.rest?.links, decisions.slice(0, 5).map(({ id, fields }) => ({ id, type: "decision", title: fields.title })));
       assert.equal(listed.rest?.counts.links, 12);
       const size = JSON.stringify(answer).length;
       const whole = JSON.stringify(await worklist(library, { memoryFolders: [folder] })).length;

@@ -7,7 +7,7 @@
  * them into a directory of their own with buildBins().
  */
 import path from "node:path";
-import { writeFileSync } from "node:fs";
+import { writeFileSync, writeSync } from "node:fs";
 import { cp, mkdir, rm } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -36,7 +36,7 @@ const ENTRY_POINTS: Readonly<Record<string, string>> = {
  * launches LLVM, and a cold first launch on a busy Windows runner costs most of a delivery build's time.
  */
 export async function buildBins(outdir: string, { release, launcher = true }: { release?: { version: string; commit: string }; launcher?: boolean } = {}): Promise<Record<string, string>> {
-  await build({
+  await buildPhase("bundle JavaScript", () => build({
     entryPoints: ENTRY_POINTS,
     outdir,
     outExtension: { ".js": ".mjs" },
@@ -65,13 +65,33 @@ export async function buildBins(outdir: string, { release, launcher = true }: { 
       // Ranked search loads the embedding model runtime lazily, from node_modules (native ONNX Runtime).
       "@huggingface/transformers",
     ],
-  });
-  await stageNativeProbes(outdir);
+  }));
+  await buildPhase("stage native probes", () => stageNativeProbes(outdir));
   // On Windows the `storytree` command is a program of its own, beside the script it runs (ADR-0854).
-  if (launcher && process.platform === "win32") buildLauncher(path.join(outdir, LAUNCHER_PROGRAM), process.arch === "arm64" ? "arm64" : "x64");
+  if (launcher && process.platform === "win32") {
+    await buildPhase("compile Windows launcher", () => buildLauncher(path.join(outdir, LAUNCHER_PROGRAM), process.arch === "arm64" ? "arm64" : "x64"));
+  }
   // The release beside the scripts, so the setup check can say when installed hooks lag the latest (contract 8.18).
   if (release !== undefined) writeFileSync(path.join(outdir, "release.json"), `${JSON.stringify(release)}\n`);
   return Object.fromEntries(Object.keys(ENTRY_POINTS).map((name) => [name, path.join(outdir, `${name}.mjs`)]));
+}
+
+// Keep the last phase even when a deadline kills the process. stderr stays separate from a
+// caller's command/protocol output; a diagnostic write must not turn a successful build red.
+async function buildPhase<T>(name: string, run: () => T | Promise<T>): Promise<T> {
+  const started = performance.now();
+  const observe = (state: string) => {
+    try { writeSync(2, `buildBins: ${name} ${state} (${Math.round(performance.now() - started)} ms)\n`); } catch { /* diagnostic only */ }
+  };
+  observe("START");
+  try {
+    const result = await run();
+    observe("PASS");
+    return result;
+  } catch (error) {
+    observe("FAIL");
+    throw error;
+  }
 }
 
 /** Stage the exact native target beside CLI and MCP; packaging calls this again for each payload. */

@@ -35,9 +35,6 @@ export type TourStep = {
   recorded?: string;
   /** The stories a growth's globe is narrowed to: the rest are dimmed (ADR-0890's teaching stories). */
   focus?: readonly string[];
-  /** Stories the narration names: each lights as its words are said (`said`, as it stands in the lines), the rest dimmed
-   * until then (ADR-0891, amended 2026-10-05). */
-  names?: readonly { said: string; story: string }[];
   target?: GlobeTarget; framing?: number; drift?: boolean;
   /** A laptop's own view where a phone's would not fit its panels (wider than 600px). */
   laptop?: { target: GlobeTarget; framing: number };
@@ -57,7 +54,7 @@ export type TourState = {
 export type TourDetail = { step: TourStep; state: TourState; running: boolean; elapsed: number };
 
 /** How long words take to say at 1×: 2.6 words a second. */
-export const spoken = (text: string): number => text.trim().split(/\s+/).filter(Boolean).length / 2.6 * 1000;
+const spoken = (text: string): number => text.trim().split(/\s+/).filter(Boolean).length / 2.6 * 1000;
 /** Reading time at 1×, with a short floor even for a two-word line. */
 export const readingTime = (text: string): number => Math.max(2800, spoken(text));
 /** A step rests on its last line before the camera moves on. */
@@ -176,24 +173,10 @@ export type GlobeOn = { map: "storytree" } | { map: "own" | "shop"; at?: number;
 export function globeOf(step: TourStep, state: TourState, elapsed = 0): GlobeOn {
   if (state.freePlay) return state.project === "shop" ? { map: "shop" } : { map: "storytree" };
   if (!step.map || state.holds.includes("everything")) return { map: "storytree" };
-  const lit = named(step, state, elapsed);
-  const focus = lit ? { focus: lit } : step.focus ? { focus: step.focus } : {};
+  const focus = step.focus ? { focus: step.focus } : {};
   if (step.growth === "seed") return { map: step.map, at: 0, ...focus };
   if (step.recorded) return { map: step.map, when: step.recorded, ...focus };
   return step.growth ? { map: step.map, at: Math.min(step.growth.seconds, elapsed / 1000), ...focus } : { map: step.map, ...focus };
-}
-
-/** The stories the narration has named by `elapsed`, in the order said; a waiting step has said all its shown lines (2.16). */
-function named(step: TourStep, state: TourState, elapsed: number): readonly string[] | undefined {
-  if (!step.names?.length) return undefined;
-  const waiting = state.holds.length > 0;
-  const said = step.names.flatMap(({ said, story }) => {
-    const line = step.lines.findIndex(text => text.includes(said));
-    if (line < 0) return [];
-    const begins = step.lines.slice(0, line).reduce((sum, text) => sum + readingTime(text), 0) + spoken(step.lines[line]!.slice(0, step.lines[line]!.indexOf(said)));
-    return (waiting ? line < state.lines : elapsed >= begins) ? [story] : [];
-  });
-  return said.length ? said : undefined;
 }
 
 export type Box = { x: number; y: number; width: number; height: number };

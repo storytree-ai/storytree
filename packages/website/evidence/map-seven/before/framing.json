@@ -1,0 +1,396 @@
+[
+  {
+    "width": 1920,
+    "step": "map-empty",
+    "framed": [],
+    "misses": []
+  },
+  {
+    "width": 1920,
+    "step": "map-planned",
+    "framed": [
+      "Signing in",
+      "Browsing",
+      "Cart",
+      "Checkout"
+    ],
+    "misses": [
+      "Checkout: under the header"
+    ]
+  },
+  {
+    "width": 1920,
+    "step": "map-first",
+    "framed": [
+      "Signing in"
+    ],
+    "misses": []
+  },
+  {
+    "width": 1920,
+    "step": "map-together",
+    "framed": [
+      "Browsing",
+      "Cart",
+      "Checkout"
+    ],
+    "misses": [
+      "Checkout: under the header"
+    ]
+  },
+  {
+    "width": 1920,
+    "step": "map-parts",
+    "framed": [
+      "Cart"
+    ],
+    "misses": []
+  },
+  {
+    "width": 1920,
+    "step": "map-code",
+    "framed": [
+      "Signing in"
+    ],
+    "misses": []
+  },
+  {
+    "width": 1920,
+    "step": "map-health",
+    "framed": [
+      "Signing in"
+    ],
+    "misses": []
+  },
+  {
+    "width": 1920,
+    "step": "map-grow",
+    "framed": [
+      "Orders"
+    ],
+    "misses": []
+  },
+  {
+    "width": 1440,
+    "step": "map-empty",
+    "framed": [],
+    "misses": []
+  },
+  {
+    "width": 1440,
+    "step": "map-planned",
+    "framed": [
+      "Signing in",
+      "Browsing",
+      "Cart",
+      "Checkout"
+    ],
+    "misses": [
+      "Checkout: under the header"
+    ]
+  },
+  {
+    "width": 1440,
+    "step": "map-first",
+    "framed": [
+      "Signing in"
+    ],
+    "misses": []
+  },
+  {
+    "width": 1440,
+    "step": "map-together",
+    "framed": [
+      "Browsing",
+      "Cart",
+      "Checkout"
+    ],
+    "misses": [
+      "Checkout: under the header"
+    ]
+  },
+  {
+    "width": 1440,
+    "step": "map-parts",
+    "framed": [
+      "Cart"
+    ],
+    "misses": []
+  },
+  {
+    "width": 1440,
+    "step": "map-code",
+    "framed": [
+      "Signing in"
+    ],
+    "misses": []
+  },
+  {
+    "width": 1440,
+    "step": "map-health",
+    "framed": [
+      "Signing in"
+    ],
+    "misses": []
+  },
+  {
+    "width": 1440,
+    "step": "map-grow",
+    "framed": [
+      "Orders"
+    ],
+    "misses": []
+  },
+  {
+    "width": 1280,
+    "step": "map-empty",
+    "framed": [],
+    "misses": []
+  },
+  {
+    "width": 1280,
+    "step": "map-planned",
+    "framed": [
+      "Signing in",
+      "Browsing",
+      "Cart",
+      "Checkout"
+    ],
+    "misses": [
+      "Checkout: under the header"
+    ]
+  },
+  {
+    "width": 1280,
+    "step": "map-first",
+    "framed": [
+      "Signing in"
+    ],
+    "misses": []
+  },
+  {
+    "width": 1280,
+    "step": "map-together",
+    "framed": [
+      "Browsing",
+      "Cart",
+      "Checkout"
+    ],
+    "misses": [
+      "Checkout: under the header"
+    ]
+  },
+  {
+    "width": 1280,
+    "step": "map-parts",
+    "framed": [
+      "Cart"
+    ],
+    "misses": []
+  },
+  {
+    "width": 1280,
+    "step": "map-code",
+    "framed": [
+      "Signing in"
+    ],
+    "misses": []
+  },
+  {
+    "width": 1280,
+    "step": "map-health",
+    "framed": [
+      "Signing in"
+    ],
+    "misses": []
+  },
+  {
+    "width": 1280,
+    "step": "map-grow",
+    "framed": [
+      "Orders"
+    ],
+    "misses": []
+  },
+  {
+    "width": 390,
+    "step": "map-empty",
+    "framed": [],
+    "misses": []
+  },
+  {
+    "width": 390,
+    "step": "map-planned",
+    "framed": [
+      "Signing in",
+      "Browsing",
+      "Cart",
+      "Checkout"
+    ],
+    "misses": [
+      "Checkout: under the header"
+    ]
+  },
+  {
+    "width": 390,
+    "step": "map-first",
+    "framed": [
+      "Signing in"
+    ],
+    "misses": []
+  },
+  {
+    "width": 390,
+    "step": "map-together",
+    "framed": [
+      "Browsing",
+      "Cart",
+      "Checkout"
+    ],
+    "misses": [
+      "Checkout: under the header"
+    ]
+  },
+  {
+    "width": 390,
+    "step": "map-parts",
+    "framed": [
+      "Cart"
+    ],
+    "misses": []
+  },
+  {
+    "width": 390,
+    "step": "map-code",
+    "framed": [
+      "Signing in"
+    ],
+    "misses": []
+  },
+  {
+    "width": 390,
+    "step": "map-health",
+    "framed": [
+      "Signing in"
+    ],
+    "misses": []
+  },
+  {
+    "width": 390,
+    "step": "map-grow",
+    "framed": [
+      "Orders"
+    ],
+    "misses": []
+  },
+  {
+    "width": 320,
+    "step": "map-empty",
+    "framed": [],
+    "misses": []
+  },
+  {
+    "width": 320,
+    "step": "map-planned",
+    "framed": [
+      "Signing in",
+      "Browsing",
+      "Cart",
+      "Checkout"
+    ],
+    "misses": [
+      "Checkout: under the header"
+    ]
+  },
+  {
+    "width": 320,
+    "step": "map-first",
+    "framed": [
+      "Signing in"
+    ],
+    "misses": []
+  },
+  {
+    "width": 320,
+    "step": "map-together",
+    "framed": [
+      "Browsing",
+      "Cart",
+      "Checkout"
+    ],
+    "misses": [
+      "Checkout: under the header"
+    ]
+  },
+  {
+    "width": 320,
+    "step": "map-parts",
+    "framed": [
+      "Cart"
+    ],
+    "misses": []
+  },
+  {
+    "width": 320,
+    "step": "map-code",
+    "framed": [
+      "Signing in"
+    ],
+    "misses": []
+  },
+  {
+    "width": 320,
+    "step": "map-health",
+    "framed": [
+      "Signing in"
+    ],
+    "misses": []
+  },
+  {
+    "width": 320,
+    "step": "map-grow",
+    "framed": [
+      "Orders"
+    ],
+    "misses": []
+  },
+  {
+    "width": "clip-1440",
+    "step": "map-empty",
+    "framed": [],
+    "misses": []
+  },
+  {
+    "width": "clip-1440",
+    "step": "map-planned",
+    "framed": [
+      "Signing in",
+      "Browsing",
+      "Cart",
+      "Checkout"
+    ],
+    "misses": [
+      "Checkout: under the header"
+    ]
+  },
+  {
+    "width": "clip-1440",
+    "step": "map-first",
+    "framed": [
+      "Signing in"
+    ],
+    "misses": []
+  },
+  {
+    "width": "clip-1440",
+    "step": "map-together",
+    "framed": [
+      "Browsing",
+      "Cart",
+      "Checkout"
+    ],
+    "misses": [
+      "Checkout: under the header"
+    ]
+  }
+]

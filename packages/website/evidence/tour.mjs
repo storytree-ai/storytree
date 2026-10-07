@@ -58,9 +58,9 @@ export async function verifyTourCamera(browser, url) {
     if (swapped.map !== "shop" || !(Number(swapped.growth) < 1)) failures.push(`The shop's point replaces storytree's globe at once: ${JSON.stringify(swapped)}`);
     await page.waitForTimeout(3000);
     if ((await drawn()).risen !== 0) failures.push(`The empty globe carries no story yet: ${JSON.stringify(await drawn())}`);
-    await page.waitForFunction(() => document.querySelector("#chapter2").dataset.tourStep === "map-planned", null, { timeout: 30_000 });
+    await page.waitForFunction(() => document.querySelector("#chapter2").dataset.tourStep === "map-first", null, { timeout: 30_000 });
     await page.waitForTimeout(6000);
-    if ((await drawn()).risen !== 4) failures.push(`The four planned stories rise together: ${JSON.stringify(await drawn())}`);
+    if ((await drawn()).risen !== 4) failures.push(`The four planned stories rise together as signing in is built: ${JSON.stringify(await drawn())}`);
     // 2.16: the map chapter's last step grows the shop from its first four stories to eight, Orders among them.
     const risen = () => page.locator(".forest-drawing").evaluate(node => ({ map: node.dataset.globe, risen: Number(node.dataset.risen) }));
     await goToStep(page, "map-grow");

@@ -78,6 +78,7 @@ import { CHANNELS } from "../bridge.js";
 import { APP_OWNER, appHome } from "../home.js";
 import { parseArgs } from "./args.js";
 import { createTrayIcon } from "./tray-icon.js";
+import { startRefusal } from "./one-app.js";
 import { followReleases, installedApp } from "./releases.js";
 import { checkedUpdate, finishStartCheck, runWhenReady, startsCleanly } from "./start-check.js";
 
@@ -121,7 +122,14 @@ const lifecycle = background({
 // The app that follows merged main runs with no terminal, so what it says goes to a log beside its data.
 if (slot !== undefined && !args.smoke && !args.startCheck) logTo(path.join(home.dir, "app.log"));
 
-if (!args.smoke && !args.startCheck && !app.requestSingleInstanceLock()) {
+// One storytree app per machine (ADR-0940 D1): beside the other copy, say which and how to remove it, and start nothing.
+const refusal = args.smoke || args.startCheck ? undefined : startRefusal({ slot, installed: installedApp(), home: home.dir });
+
+if (refusal !== undefined) {
+  console.error(`storytree 0.3 cannot start: ${refusal}`);
+  if (!args.background) dialog.showErrorBox("storytree 0.3 cannot start", refusal);
+  app.exit(1);
+} else if (!args.smoke && !args.startCheck && !app.requestSingleInstanceLock()) {
   app.quit(); // the app is already open: that one is focused instead (or, with --quit, quits)
 } else if (args.quit) {
   app.exit(0); // asked to quit, and none is running: start nothing

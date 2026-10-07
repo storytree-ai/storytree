@@ -229,7 +229,7 @@ export async function verifyTour(browser, url, output) {
 const overlap = (a, b) => Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
 // 2.18 at every width: the agents chapter's tags each read whole inside the screen, clear of one another, the other rings,
 // the card and the panels, and the tagged islands' names read clear of them; on a phone the arcs drawer ends above the card.
-async function verifyAgentTags(page, width, height, output) {
+async function verifyAgentTags(page, width, height, output, size = `${width}`) {
   for (const id of ["agents-arcs", "agents-claim", "agents-parallel"]) {
     await goToStep(page, id);
     if (await page.locator("#tour-play").getAttribute("aria-label") === "Pause the tour") await page.locator("#tour-play").click();
@@ -268,7 +268,7 @@ async function verifyAgentTags(page, width, height, output) {
       for (const panel of [card, ...panels]) assert.equal(overlap(plate, panel), 0, `${plate.text}'s name is clear of the card and the panels on the ${id} step at ${width}px: ${JSON.stringify({ plate, panel })}`);
       for (const tag of tags) assert.equal(overlap(plate, tag), 0, `${plate.text}'s name is clear of ${tag.text} on the ${id} step at ${width}px: ${JSON.stringify({ plate, tag })}`);
     }
-    await page.screenshot({ path: path.join(output, `${id}-${width}.png`) });
+    await page.screenshot({ path: path.join(output, `${id}-${size}.png`) });
   }
 }
 
@@ -321,6 +321,18 @@ async function verifyShortPhones(browser, url) {
     await page.goto(url);
     await page.locator("#tour-play").click();
     await verifyEveryStepFits(page, `${width}x${height}`);
+    await page.close();
+  }
+}
+
+// 2.18 on short phones: the agents steps' tags still read clear where the words take room from the globe.
+async function verifyShortPhoneTags(browser, url, output) {
+  for (const [width, height] of [[320, 700], [320, 568]]) {
+    const page = await browser.newPage({ viewport: { width, height }, reducedMotion: "reduce" });
+    await page.addInitScript(() => localStorage.setItem("storytree-opening-seen", "yes"));
+    await page.goto(url);
+    await page.locator("#tour-play").click();
+    await verifyAgentTags(page, width, height, output, `${width}x${height}`);
     await page.close();
   }
 }
@@ -428,6 +440,7 @@ export async function verifyImmersive(browser, url, output) {
     await page.screenshot({ path: path.join(output, `waitlist-${width}.png`), fullPage: true });
     await page.close();
   }
+  await verifyShortPhoneTags(browser, url, output);
   await verifyShortPhones(browser, url).catch(error => { error.contract = "2.19"; throw error; });
   await writeFile(path.join(output, "immersive-measurements.json"), JSON.stringify({ source: "Locally built unpublished working tree", viewports: measurements }, null, 2) + "\n");
   console.log(JSON.stringify(measurements));

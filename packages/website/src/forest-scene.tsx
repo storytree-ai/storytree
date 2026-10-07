@@ -135,8 +135,11 @@ function Tags({ tags, controls, arrived }: { tags: readonly Tag[]; controls: Glo
       // clear sides leave one covered.
       const room = { width: stage.width, height: stage.height };
       const phone = stage.width <= 600;
+      // On a phone, the names of the islands the tags point at are as hard to cover as a panel: the step talks about those
+      // islands, and in a short band its tags can otherwise trade one for an untagged island's name.
+      const named = new Set(phone ? tags.flatMap(tag => tag.target.kind === "story" ? [tag.target.story] : []) : []);
       const keepOut = [...document.querySelectorAll("#chapter2 :is(.tour-card, .sessions-list, .arc-overlay, .arc-handle), #website-forest .planet-nameplate:not(.crowded)")]
-        .filter(node => getComputedStyle(node).visibility === "visible").map(node => ({ box: node.getBoundingClientRect(), soft: node.classList.contains("planet-nameplate") }))
+        .filter(node => getComputedStyle(node).visibility === "visible").map(node => ({ box: node.getBoundingClientRect(), soft: node.classList.contains("planet-nameplate") && !named.has((node as HTMLElement).dataset.storyId ?? "") }))
         .filter(({ box }) => box.width && box.height)
         .map(({ box, soft }) => ({ x: box.left - stage.left, y: box.top - stage.top, width: box.width, height: box.height, soft }));
       const sides = shown.length ? placeTags(shown.map(item => item.box), room, { keepOut, sides: ["right", "left", "below", "above"], previous: phone ? shown.map(item => previous[item.index]) : [], share: !phone }) : [];

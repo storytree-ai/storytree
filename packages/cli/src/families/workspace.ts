@@ -1,5 +1,5 @@
 /** Capability 11 · Workspace: a terminal front door onto the agent link's claimed workspace and release. */
-import { attachWorkspace, makeWorkspace, release, type WorkspaceAnswer } from "@storytree/agent-link";
+import type { WorkspaceAnswer } from "@storytree/agent-link";
 
 import { Refusal } from "../answer.js";
 import type { Family, Verb } from "../door.js";
@@ -14,6 +14,7 @@ const make: Verb = {
     const reason = args.need("reason", this.usage).trim();
     if (!reason) throw new Refusal(`this needs a non-empty --reason\nusage: storytree ${this.usage}`, { code: 2 });
     const caller = await context.claimContext();
+    const { makeWorkspace } = await import("@storytree/agent-link");
     const made = await makeWorkspace(caller, id, reason, {}, { despiteOpenPulls: args.has("despite-open-pulls") });
     // The owning story words the open pull requests refusal; this door names its own way past them (5.25).
     if (!made.ok) throw new Refusal(made.refused === "no-workspace" && made.why.includes("already has open pull requests")
@@ -44,6 +45,7 @@ const attach: Verb = {
     const codex = caller.harness === "codex";
     const folder = codex ? args.need("folder", this.usage) : args.text("folder") ?? caller.folder;
     const attachment = codex ? { folder, ref: args.need("ref", this.usage), name: args.need("name", this.usage) } : { folder };
+    const { attachWorkspace } = await import("@storytree/agent-link");
     const attached = await attachWorkspace(caller, id, reason, attachment);
     if (!attached.ok) throw new Refusal(`${refusal(id, attached)} The app's worktree is kept.`);
     return { text: `Attached workspace ${attached.folder}\nBranch: ${attached.branch}, at ${attached.base}.\n${caller.session} holds ${id}: ${reason}\nUse that directory explicitly for commands. Set it up as this project does at session start.` };
@@ -56,6 +58,7 @@ const releaseClaim: Verb = {
   summary: "release a claim this agent session holds, without closing or landing the work",
   async act(args, context) {
     const id = args.word(0, "the work's id", this.usage);
+    const { release } = await import("@storytree/agent-link");
     const answer = await release(await context.claimContext(), id);
     if (!answer.ok) {
       const holder = answer.holder;

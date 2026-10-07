@@ -11,12 +11,16 @@
  *   "not running" are its words, and come back before anything reaches a database.
  * - The library is reached only through its public API, opened on first use, so a command that
  *   needs none (the help) never connects.
+ * - A verb imports the other stories' code it calls inside its act, never at the top of its family's
+ *   file: the door and the menus statically load only the agent link's light routing entry, so the
+ *   help and the "not a project" and "not running" answers parse no more than that (contract 1.3).
  * - `--help` (or `-h`) after a command answers its usage and summary and runs nothing, whatever
  *   else the command would need.
  * - Exit codes: 0 answered; 1 refused (by the library, which is printed in its own words, or by
  *   the door, which says what to do); 2 a command used wrongly, with its usage.
  */
-import { currentBranch, openActivityLog, openNamedProject, readClaims, route, thisMachine, type ActivityLog, type Claim, type ClaimContext } from "@storytree/agent-link";
+import type { ActivityLog, Claim, ClaimContext } from "@storytree/agent-link";
+import { openNamedProject, route } from "@storytree/agent-link/routing";
 import { sourceVersion } from "@storytree/app/version";
 import type { ConnectOptions, Library, Storytree, WriteOptions } from "@storytree/library";
 
@@ -283,6 +287,7 @@ class Opened {
 
   async claims(): Promise<Claim[]> {
     const where = this.#routed();
+    const { openActivityLog, readClaims } = await import("@storytree/agent-link");
     const log = await openActivityLog(await this.#server());
     try {
       return await readClaims(log, where.project);
@@ -301,6 +306,7 @@ class Opened {
     const caller = commandSession() ?? { session: `person:${person()}` };
     const where = this.#routed();
     const library = await this.library();
+    const { currentBranch, openActivityLog, thisMachine } = await import("@storytree/agent-link");
     const machine = thisMachine();
     // Lines written from a terminal name its machine and its folder's branch, as a hook's do (ADR-0754 D4).
     const log = await (this.#log ??= this.#server().then((storytree) => openActivityLog(storytree, { branchOf: currentBranch, ...(machine === undefined ? {} : { machine }) })));

@@ -4,8 +4,7 @@
  * fields, resolves the current branch and passes the writer.
  */
 import { execFileSync } from "node:child_process";
-import { recordFriction, recordResteer, reinforceFriction } from "@storytree/agent-link";
-import { frictionDrain, route, type Route } from "@storytree/librarian";
+import type { Route } from "@storytree/librarian";
 
 import type { Args } from "../args.js";
 import type { Family, Verb } from "../door.js";
@@ -39,6 +38,7 @@ const frictionNew: Verb = {
   usage: "friction new --title <t> --description … --statement … --evidence <text|@file> --impact … [--links a,b]",
   summary: "file friction with concrete evidence and its impact",
   async act(args, context) {
+    const { recordFriction } = await import("@storytree/agent-link");
     const note = await recordFriction(await context.library(), { ...fields(args, ["title", "description", "statement", "evidence", "impact"]), branch: branchIn(context.cwd) } as never, context.writer());
     return { text: `Recorded friction ${note.id}.`, next: [{ command: `storytree library read ${note.id}`, why: "read it whole" }] };
   },
@@ -50,6 +50,7 @@ const reinforce: Verb = {
   summary: "add a dated recurrence on this branch, with its concrete evidence",
   async act(args, context) {
     const id = args.word(0, "the friction's id", this.usage);
+    const { reinforceFriction } = await import("@storytree/agent-link");
     const note = await reinforceFriction(await context.library(), id, {
       branch: args.text("branch") ?? branchIn(context.cwd),
       evidence: args.need("evidence", this.usage),
@@ -63,6 +64,7 @@ const drain: Verb = {
   usage: "friction drain",
   summary: "the reports a landing's librarian pass routes: up to three from other branches, most recurrences first",
   async act(_args, context) {
+    const { frictionDrain } = await import("@storytree/librarian");
     const due = await frictionDrain(await context.library(), { branch: branchIn(context.cwd) });
     if (due.length === 0) return { text: "No friction is due: every report from another branch is routed." };
     const lines = due.map((note) => `  ${note.id}  (${note.fields.reinforcedBy?.length ?? 0} recurrences)  ${note.fields.title}`);
@@ -84,6 +86,7 @@ const routeVerb: Verb = {
     const id = args.word(0, "the friction's id", this.usage);
     const to = args.need("to", this.usage) as Route;
     const dischargedBy = args.text("discharged-by");
+    const { route } = await import("@storytree/librarian");
     const note = await route(await context.library(), id, to, args.need("reason", this.usage), { ...context.writer(), ...(dischargedBy === undefined ? {} : { dischargedBy }) });
     return { text: `Routed ${note.id} to ${to}.`, next: [{ command: `storytree library read ${note.id}`, why: "read it back" }] };
   },
@@ -95,6 +98,7 @@ const resteerNew: Verb = {
   summary: "file a re-steer with the owner's quoted words, keeping your account apart",
   async act(args, context) {
     const given = fields(args, ["title", "description", "doing", "redirect", "evidence", "disposition", "mode", "self-report"]);
+    const { recordResteer } = await import("@storytree/agent-link");
     const note = await recordResteer(await context.library(), { ...given, dispositionBy: args.text("judged-by") } as never, context.writer());
     return { text: `Recorded re-steer ${note.id}.`, next: [{ command: `storytree library read ${note.id}`, why: "read it whole" }] };
   },

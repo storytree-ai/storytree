@@ -6,8 +6,6 @@
  * - `quit` asks the running app to quit, as its tray's Quit does, and answers once its database
  *   has stopped. A stopped app is left stopped (Lifecycle 1.7).
  */
-import { quitApp } from "@storytree/app";
-
 import { Refusal, type Answer } from "../answer.js";
 import type { Family, Verb } from "../door.js";
 
@@ -16,6 +14,7 @@ const quit: Verb = {
   usage: "app quit",
   summary: "quit the running storytree app, as its tray's Quit does",
   async act(): Promise<Answer> {
+    const { quitApp } = await import("@storytree/app");
     const result = await quitApp();
     switch (result.state) {
       case "quit":

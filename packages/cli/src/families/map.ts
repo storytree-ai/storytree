@@ -1,6 +1,5 @@
 /** Capability 1 · Front door. The map owns selection and answers; this front door only parses and prints. */
 import type { FocusOptions, NodeKind } from "@storytree/map";
-import { mapCommand } from "@storytree/map/read";
 import type { Args } from "../args.js";
 import { Refusal } from "../answer.js";
 import type { Family } from "../door.js";
@@ -29,6 +28,7 @@ export const mapFamily: Family = {
     switches: ["dry-run", "show", "json"],
     async act(args, context) {
       const select = args.need("select", this.usage);
+      const { mapCommand } = await import("@storytree/map/read");
       return { text: await mapCommand(await context.library(), context.cwd, { select, ...mapOptions(args) }, args.has("json")) };
     },
   },

@@ -3,8 +3,7 @@
  * `storytree project delete <project> --confirm <project>`: delete its records (ADR-0831).
  * A front door only: the app setup owns removing and deleting a project.
  */
-import { findProject, MARKER_FILE } from "@storytree/agent-link";
-import { deleteProject, removeProject, whoLoses } from "@storytree/app-setup";
+import { findProject, MARKER_FILE } from "@storytree/agent-link/routing";
 
 import { Refusal } from "../answer.js";
 import type { Family } from "../door.js";
@@ -21,6 +20,7 @@ export const projectFamily: Family = {
     summary: "take a project added by mistake off this computer's list and free its folder here; its records stay in the library",
     async act(args) {
       if (args.words.length !== 1 || args.names.length) throw new Refusal(`usage: storytree ${USAGE}`, { code: 2 });
+      const { removeProject } = await import("@storytree/app-setup");
       const removed = await removeProject(args.word(0, "a project", USAGE));
       if (removed.status === "no such project") throw new Refusal(removed.message);
       const folder = removed.kept !== undefined
@@ -39,6 +39,7 @@ export const projectFamily: Family = {
       if (args.words.length !== 1 || args.names.some((name) => name !== "confirm" && name !== "no-snapshot")) throw new Refusal(`usage: storytree ${DELETE_USAGE}`, { code: 2 });
       const project = args.word(0, "a project", DELETE_USAGE);
       const confirm = args.text("confirm");
+      const { deleteProject, whoLoses } = await import("@storytree/app-setup");
       if (confirm === undefined) {
         throw new Refusal(`${whoLoses(project)}\nA snapshot goes to this computer's backups first; add --no-snapshot to skip it.\nTo delete it, type its name: storytree project delete ${project} --confirm ${project}`);
       }

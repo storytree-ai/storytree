@@ -20,12 +20,17 @@ const dependencyStory = seed.tree.stories.find(story => story.capabilities.some(
 const dependentStory = seed.tree.stories.find(story => story.capabilities.some(cap => cap.id === from)).id;
 const expected = seed.tree.stories.flatMap(story => story.capabilities.flatMap(cap => cap.dependsOn.map(to => `${cap.id}->${to}`))).sort();
 const initialLinks = expected.filter(link => link !== restoredLink);
+const started = performance.now();
+const phase = message => console.error(`[live pathways +${Math.round(performance.now() - started)}ms] ${message}`);
 
+phase('launch browser');
 await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => {
+  phase('browser ready');
   const all = { label, browser: await browser.version(), dist, restoredLink, expected, runs: [] };
   for (const reduced of [false, true]) {
     const name = reduced ? 'reduced' : 'normal';
-    const page = await browser.newPage({ viewport: smoke ? { width: 960, height: 640 } : { width: 1440, height: 960 }, deviceScaleFactor: 1,
+    phase(`${name}: create page`);
+    const page = await browser.newPage({ viewport: smoke ? { width: 640, height: 480 } : { width: 1440, height: 960 }, deviceScaleFactor: 1,
       colorScheme: 'dark', reducedMotion: reduced ? 'reduce' : 'no-preference' });
     const errors = [];
     page.on('pageerror', error => errors.push(String(error)));
@@ -36,7 +41,12 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
       linesSince: async (_, cursor) => cursor === 0 ? seed.lines : { lines: [], cursor: seed.lines.cursor },
       frontCovers: async () => [], codeSurvey: async () => survey,
     });
+    phase(`${name}: install seeded bridge and first-frame observer`);
     await bridge.install(page);
+    if (smoke || initialOnly) {
+      // A returning user's dismissed guide leaves the actual forest visible from its first frame.
+      await page.addInitScript(() => localStorage.setItem('storytree:setup:guide-seen:v1', 'yes'));
+    }
     await page.addInitScript(({ seed, from, to, restoredLink, initialLinks, dependencyStory }) => {
       window.liveSeed = structuredClone(seed);
       window.liveTreeReads = 0;
@@ -93,8 +103,6 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
     let initialCdp;
     const initialScreencast = [];
     if (initialOnly) {
-      // A returning user's dismissed guide leaves the first visible forest frame unobscured.
-      await page.addInitScript(() => localStorage.setItem('storytree:setup:guide-seen:v1', 'yes'));
       const directory = path.join(out, 'initial-frames'); mkdirSync(directory, { recursive: true });
       initialCdp = await page.context().newCDPSession(page);
       initialCdp.on('Page.screencastFrame', event => {
@@ -105,11 +113,15 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
       });
       await initialCdp.send('Page.startScreencast', { format: 'jpeg', quality: 90, everyNthFrame: 1 });
     }
+    phase(`${name}: navigate desktop`);
     await page.goto(`${origin}/index.html`, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    phase(`${name}: wait for bridge ready`);
     await bridge.ready(page, 60000);
+    phase(`${name}: wait for island meshes`);
     await page.waitForFunction(ids => window.__globe && window.__nav && ids.every(id => window.__globe.scene.getObjectByName('planet:' + id)?.getObjectByName('island-ground')),
       [dependencyStory, dependentStory], { timeout: 60000 });
     // Observe initial growth to completion before any camera settling or later dependency addition.
+    phase(`${name}: wait for initial 130-link roads to complete`);
     await page.waitForFunction(() => {
       const frame = window.liveEvidence.frames.at(-1);
       return frame?.links.length === 130 && frame.roads.length > 0 && frame.roads.every(road => road.fraction >= 1 - 1e-8);
@@ -124,8 +136,12 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
       await page.close();
       return;
     }
-    for (const title of ['Close help', 'Close app menu']) { const button = page.getByRole('button', { name: title, exact: true }); if (await button.isVisible().catch(() => false)) await button.click(); }
-    await page.evaluate(ids => {
+    // Framing and RAF-based settling serve pictures only. The smoke reads world-space meshes and
+    // preserves the same real graph without waiting for an otherwise unnecessary camera redraw.
+    if (!smoke) {
+      phase(`${name}: frame the two islands for pictures`);
+      for (const title of ['Close help', 'Close app menu']) { const button = page.getByRole('button', { name: title, exact: true }); if (await button.isVisible().catch(() => false)) await button.click(); }
+      await page.evaluate(ids => {
       for (const menu of document.querySelectorAll('[popover]')) if (menu.matches(':popover-open')) menu.hidePopover();
       const { camera, scene } = window.__globe, { rotation, onRotate } = window.__nav;
       scene.updateMatrixWorld(true);
@@ -133,9 +149,10 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
       for (const id of ids) centre.add(scene.getObjectByName('planet:' + id).getWorldPosition(new V()).normalize());
       const eye = new V(0, 0, 1).applyQuaternion(camera.quaternion);
       onRotate(new Q().setFromUnitVectors(centre.normalize(), eye).multiply(rotation));
-    }, [dependencyStory, dependentStory]);
-    await settle(page, 2);
-    if (!smoke) await page.screenshot({ path: path.join(out, `${name}-initial.png`) });
+      }, [dependencyStory, dependentStory]);
+      await settle(page, 2);
+      await page.screenshot({ path: path.join(out, `${name}-initial.png`) });
+    }
 
     let cdp;
     const screencast = [], framesDir = path.join(out, `${name}-frames`);
@@ -164,8 +181,10 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
       window.liveSeed.changes.changes.push({ seq, recordId: cap.id, type: 'capability', action: 'updated', record });
       return { reads: window.liveTreeReads, seq, at: performance.now() };
     }, { restore, from });
+    phase(`${name}: restore saved dependency and wait for real poll`);
     const restored = await update(true);
     await page.waitForFunction(reads => window.liveTreeReads > reads, restored.reads, { timeout: 15000 });
+    phase(`${name}: wait for new crossing to complete`);
     await page.waitForFunction(() => {
       const frame = window.liveEvidence.frames.at(-1);
       return frame?.phase === 'restored-link' && frame.links.length === 131 && frame.roads.some(road => road.fresh) && frame.roads.every(road => road.fraction >= 1 - 1e-8);
@@ -173,9 +192,11 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
     // gl.render submits work before the software compositor presents it. Let its final picture arrive.
     if (cdp) { await page.waitForTimeout(500); await cdp.send('Page.stopScreencast'); }
     if (!smoke) await page.screenshot({ path: path.join(out, `${name}-complete.png`) });
+    phase(`${name}: update unrelated description and wait for real poll`);
     const unrelated = await update(false);
     await page.waitForFunction(reads => window.liveTreeReads > reads, unrelated.reads, { timeout: 15000 });
     await page.waitForTimeout(500);
+    phase(`${name}: read submitted frames`);
     const observation = await page.evaluate(() => {
       const { gl } = window.__globe, context = gl.getContext(), debug = context.getExtension('WEBGL_debug_renderer_info');
       return { ...window.liveEvidence, reads: window.liveTreeReads, renderer: debug ? context.getParameter(debug.UNMASKED_RENDERER_WEBGL) : context.getParameter(context.RENDERER) };
@@ -202,7 +223,9 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
     };
     all.runs.push({ name, reduced, summary, errors, restored, unrelated, screencast, ...observation });
     if (!smoke) writeFileSync(path.join(out, `${name}-measurements.json`), JSON.stringify(all.runs.at(-1), null, 2) + '\n');
+    phase(`${name}: close page`);
     await page.close();
+    phase(`${name}: complete`);
   }
   // Smoke runs retain the real first-frame trace in the shared kit's scratch output for a failing CI run.
   writeFileSync(path.join(out, 'live-measurements.json'), JSON.stringify(all, null, 2) + '\n');
@@ -210,3 +233,4 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
   console.log(JSON.stringify(summary));
   assert.ok(all.runs.every(run => run.errors.length === 0), 'the real page has no errors');
 });
+phase('browser closed');

@@ -10,10 +10,12 @@ const folder = fileURLToPath(new URL('./evidence/pathway-repair/', import.meta.u
 const checkout = path.resolve(folder, '../../../../../..');
 const run = promisify(execFile);
 
-test('3.35 · live desktop roads grow on first display and on a polled dependency, preserving shared roads and reduced motion', { timeout: 95_000 }, async () => {
+// CI software rendering took 46s on Windows and 59s on Linux; keep a bounded two-page budget
+// with room for macOS, inside the forest unit's 180s deadline. Subprocess stderr names each phase.
+test('3.35 · live desktop roads grow on first display and on a polled dependency, preserving shared roads and reduced motion', { timeout: 155_000 }, async () => {
   if (!process.env.PATHWAY_CAPTURE_DIST) await run(process.execPath, ['--import', 'tsx', path.join(folder, 'build.mjs'), checkout, 'live-smoke'], { cwd: checkout, timeout: 30_000 });
   const { stdout } = await run(process.execPath, ['--import', 'tsx', path.join(folder, 'live-capture.mjs'), '--smoke'], {
-    cwd: checkout, timeout: 80_000, maxBuffer: 1024 * 1024,
+    cwd: checkout, timeout: 120_000, maxBuffer: 1024 * 1024,
     env: { ...process.env, CAPTURE_CHANNEL: process.env.CAPTURE_CHANNEL ?? 'chrome' },
   });
   const summary = JSON.parse(stdout.trim().split('\n').at(-1)!);

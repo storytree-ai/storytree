@@ -255,6 +255,16 @@ in about 20 seconds on this machine. The smoke takes no pictures and retains its
 first-frame trace in the capture kit's scratch output. It uses the same real desktop
 bundle and browser as the full capture; CI's installed Chrome needs no download.
 
+The smoke uses a 640 × 480 viewport with the same 131-link scene and reads the real
+world-space geometry. It omits picture framing, Help interactions and camera
+settling; full captures remain 1440 × 960. CI previously passed in 46 seconds on
+Windows and 59 seconds on Linux, while macOS reached the old 80-second subprocess
+deadline without identifying its waiting stage. The capture now records elapsed
+phase diagnostics on stderr, included in a subprocess failure, and has a bounded
+120-second deadline inside the test's 155-second limit. The focused check after
+this smoke-only correction passed in 18.34 seconds locally; macOS requires its CI
+rerun to establish the result.
+
 Use `capture_locked` from above, with `PATHWAY_CAPTURE_DIST` naming the intended
 bundle and `PATHWAY_CAPTURE_OUT` naming its output:
 

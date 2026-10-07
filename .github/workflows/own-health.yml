@@ -14,10 +14,16 @@ name: Own health
 # hand (Actions > Own health > Run workflow) to record main as it is now. A manual run looks for
 # successful main-push CI at its exact checkout; without that evidence it grants no Windows credit.
 #
-# It signs in to Google keylessly: GitHub's OIDC token, exchanged through workload identity
-# federation for CI's own service account (infra/ci-health), which may connect to the instance as
-# its database user and nothing more. Three repository variables name that identity; until they
-# are all set, the job says so and passes without recording anything.
+# Where it records (ADR-0928 D4). When the repository variable HEALTH_PG_ADDRESS is set (the
+# library on the Mint box, a postgres:// address without a password), the job joins the tailnet as
+# an ephemeral tag:ci node, which the tailnet policy lets reach only the box's port 5432, and
+# connects by that address as CI's health role, its password the secret HEALTH_PG_PASSWORD. The job
+# runs in the environment own-health, deployable only from main, so that environment's copy of the
+# password, once it has one, wins over the repository's (ADR-0939).
+# Otherwise it signs in to Google keylessly: GitHub's OIDC token, exchanged through workload identity
+# federation for CI's own service account (infra/ci-health), which may connect to the Cloud SQL
+# instance as its database user and nothing more. Three repository variables name that identity;
+# until they are all set, the job says so and passes without recording anything.
 
 on:
   workflow_run:
@@ -45,6 +51,7 @@ jobs:
       github.event.workflow_run.head_branch == 'main' &&
       github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-latest
+    environment: own-health
     timeout-minutes: 45
     permissions:
       actions: read # download Windows evidence from the exact CI run
@@ -54,6 +61,7 @@ jobs:
       HEALTH_WIF_PROVIDER: ${{ vars.HEALTH_WIF_PROVIDER }}
       HEALTH_SERVICE_ACCOUNT: ${{ vars.HEALTH_SERVICE_ACCOUNT }}
       HEALTH_CLOUDSQL_INSTANCE: ${{ vars.HEALTH_CLOUDSQL_INSTANCE }}
+      HEALTH_PG_ADDRESS: ${{ vars.HEALTH_PG_ADDRESS }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -109,10 +117,20 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
         if: steps.evidence.outputs.current == 'true'
-      # Only when the identity is configured: without it the action has nothing to sign in as, and
-      # the script below says which variables are unset.
+      # The library on the Mint box: join the tailnet as an ephemeral tag:ci node, left at the job's end.
+      - name: Join the tailnet as CI
+        if: steps.evidence.outputs.current == 'true' && env.HEALTH_PG_ADDRESS != ''
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+          # Wait until the box answers: a new node's peers see it only after a few seconds.
+          ping: 100.97.8.31
+      # Cloud SQL, only when the identity is configured and no address is set: without the identity
+      # the action has nothing to sign in as, and the script below says which variables are unset.
       - name: Sign in to Google as CI's health identity
-        if: steps.evidence.outputs.current == 'true' && env.HEALTH_WIF_PROVIDER != '' && env.HEALTH_SERVICE_ACCOUNT != '' && env.HEALTH_CLOUDSQL_INSTANCE != ''
+        if: steps.evidence.outputs.current == 'true' && env.HEALTH_PG_ADDRESS == '' && env.HEALTH_WIF_PROVIDER != '' && env.HEALTH_SERVICE_ACCOUNT != '' && env.HEALTH_CLOUDSQL_INSTANCE != ''
         uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ vars.HEALTH_WIF_PROVIDER }}
@@ -122,3 +140,5 @@ jobs:
         env:
           STORYTREE_WINDOWS_EVIDENCE: ${{ steps.windows.outcome == 'success' && '.pgtest/windows-evidence' || '' }}
           STORYTREE_WINDOWS_RUN: ${{ steps.windows.outcome == 'success' && steps.evidence.outputs.run-url || '' }}
+          # The health role's password, read only when connecting by address.
+          PGPASSWORD: ${{ env.HEALTH_PG_ADDRESS != '' && secrets.HEALTH_PG_PASSWORD || '' }}

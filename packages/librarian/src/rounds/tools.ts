@@ -34,6 +34,7 @@ export function librarianTools({ tools }: { tools?: () => readonly string[] } = 
           ...(branch === undefined ? {} : { branch }),
           memoryFolders: args.memoryFolders?.map((folder) => path.resolve(call.folder, folder)) ?? [claudeCodeMemoryFolder(call.folder, homedir())],
           ...(served === undefined ? {} : { tools: served }),
+          ...(call.progress === undefined ? {} : { progress: call.progress }),
         }) } };
       });
       define("link", "Make one note rest on another, preserving its existing links. A definition rests only on the decision that created its term.", z.object({ from: text, to: text }), async ({ from, to }, { library, writer }) => {

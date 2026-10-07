@@ -35,6 +35,8 @@ export interface WorklistOptions {
   /** The tools served, to match against the processes; without them, processes are not matched. */
   readonly tools?: readonly string[];
   readonly now?: Date;
+  /** Told each phase as it starts; a rejection stops the worklist before that phase reads anything. */
+  readonly progress?: (phase: string) => Promise<void>;
 }
 
 /** The librarian's worklist: each capability's list. */
@@ -72,24 +74,40 @@ export async function roundDue(library: Library, { since }: { since?: number }):
 
 /** Gather the worklist: graduation's list and the friction drain always, the rest when the trigger fired. */
 export async function worklist(library: Library, options: WorklistOptions): Promise<Worklist> {
+  const phase = async (name: string): Promise<void> => options.progress?.(name);
+  await phase("graduation");
   const graduation = await memoryWorklist(options.memoryFolders ?? [], options.now === undefined ? {} : { now: options.now });
+  await phase("friction");
   // The live notes, read once for every list that needs them (6.7).
   const notes = await allNotes(library);
   const friction = await frictionDrain(library, options.branch === undefined ? {} : { branch: options.branch }, notes);
+  await phase("trigger");
   if (!(await roundDue(library, options)).rest) return { graduation, friction };
   const { since } = options;
+  await phase("links");
+  const links = await unrestedDecisions(library, notes);
+  // With no start the notes this session wrote are unknown; every note's history is never read instead (6.7).
+  if (since !== undefined) await phase("related");
+  const related = since === undefined ? undefined : await relatedUnlinked(library, since, notes);
+  await phase("health");
+  const health = await brokenEdges(library, notes);
+  if (since !== undefined) await phase("catalogue");
+  const catalogue = since === undefined ? undefined : await newNotes(library, since, notes);
+  if (options.tools !== undefined) await phase("processes");
+  const processes = options.tools === undefined ? undefined : await processGaps(library, options.tools, notes);
+  await phase("questions");
+  const questions = await openQuestions(library, options.now);
   return {
     graduation,
     friction,
     rest: {
-      links: await unrestedDecisions(library, notes),
-      // With no start the notes this session wrote are unknown; every note's history is never read instead (6.7).
-      ...(since === undefined
+      links,
+      ...(related === undefined || catalogue === undefined
         ? { unread: "No session start is recorded, so the notes this session wrote are unknown: the catalogue and related lists were not gathered. Search for each note you wrote, and read its related notes, by hand." }
-        : { related: await relatedUnlinked(library, since, notes), catalogue: await newNotes(library, since, notes) }),
-      health: await brokenEdges(library, notes),
-      ...(options.tools === undefined ? {} : { processes: await processGaps(library, options.tools, notes) }),
-      questions: await openQuestions(library, options.now),
+        : { related, catalogue }),
+      health,
+      ...(processes === undefined ? {} : { processes }),
+      questions,
     },
   };
 }

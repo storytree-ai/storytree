@@ -33,6 +33,8 @@ export interface ToolCall {
   readonly caller: { readonly session: string; readonly harness?: string };
   readonly writer: WriteOptions;
   readonly folder: string;
+  /** Names the phase a slow tool is in; rejects once the client has cancelled, so no further phase starts. */
+  readonly progress?: (message: string) => Promise<void>;
 }
 
 /** What a tool answers. */

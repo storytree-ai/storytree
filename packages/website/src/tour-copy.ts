@@ -218,8 +218,9 @@ export const steps: TourStep[] = [
   ], how: "Each claimed island wears its session's colour round its coast, and the list shows the same sessions in the same colours.",
   why: "An agent that can see what is taken picks other work instead of colliding with it.",
   // A laptop aims at Browsing, the lowest of the three, so all three names sit above the sessions list whichever step came
-  // before; a phone keeps the overview, which turns no further than the claim step left it.
-  decisions: [], surfaces: lit(land), framing: 1.05, laptop: { target: browsing, framing: 1.2 },
+  // before; a phone keeps the overview, which turns no further than the claim step left it, drawn back and moved left so the
+  // three stack between the sessions list and the card with their tags to their right.
+  decisions: [], surfaces: lit(land), laptop: { target: browsing, framing: 1.2 }, phone: { framing: 1.4, side: -107 },
   tags: [{ target: browsing, text: "Part 2: product page, sorting, cart" }, { target: cart, text: "Part 3: cart page and side menu" }, { target: checkout, text: "Part 4: Checkout" }] },
   { id: "agents-standdown", explainer: "agents", ...shopMap, recorded: standDown, panel: "sessions", title: "An agent read the map and stood down.", lines: [
     "Later, a third session was sent to part 7 while another session held it.",

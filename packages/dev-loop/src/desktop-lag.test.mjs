@@ -1,12 +1,31 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { copyFileSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { summary } from "./desktop-lag.mjs";
+import { lagHome, summary } from "./desktop-lag.mjs";
+
+test("8.3 pnpm lag:desktop --home starts cold on a new home and warm on one an earlier run left", () => {
+  const from = mkdtempSync(path.join(tmpdir(), "lag-home-from-"));
+  const home = path.join(mkdtempSync(path.join(tmpdir(), "lag-home-")), "run");
+  try {
+    writeFileSync(path.join(from, "settings.json"), '{"library":"cloud"}');
+    const cold = lagHome({ home, homeFrom: from });
+    assert.deepEqual(cold, { home, warm: false });
+    assert.equal(readFileSync(path.join(home, "settings.json"), "utf8"), '{"library":"cloud"}');
+    // The app keeps its reading under the home's electron folder; a run that left one is reused untouched.
+    mkdirSync(path.join(home, "electron"));
+    writeFileSync(path.join(home, "settings.json"), '{"library":"kept"}');
+    assert.deepEqual(lagHome({ home, homeFrom: from }), { home, warm: true });
+    assert.equal(readFileSync(path.join(home, "settings.json"), "utf8"), '{"library":"kept"}');
+  } finally {
+    rmSync(from, { recursive: true, force: true });
+    rmSync(path.dirname(home), { recursive: true, force: true });
+  }
+});
 
 test("8.2 pnpm lag:desktop analysis preserves the measured CPU intervals and their function attribution", () => {
   const out = mkdtempSync(path.join(tmpdir(), "lag-profile-"));

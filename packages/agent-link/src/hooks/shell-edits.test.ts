@@ -119,6 +119,13 @@ test("3.22 checkout, switch, reset and rebase claim no imported edits, including
     assert.deepEqual(edited(), ["incoming.ts"]);
     git(root, "checkout", "-q", "-f", "work");
     assert.deepEqual(edited(), [], "checkout at the same commit also discards dirt without claiming it");
+    writeFileSync(path.join(root, "untracked.ts"), "own scratch file");
+    writeFileSync(path.join(root, "staged.ts"), "own staged file");
+    git(root, "add", "staged.ts");
+    assert.deepEqual(edited(), ["staged.ts", "untracked.ts"]);
+    rmSync(path.join(root, "untracked.ts"));
+    git(root, "reset", "-q", "--hard", "HEAD");
+    assert.deepEqual(edited(), ["untracked.ts"], "reset discards the staged addition; the shell's deletion of an untracked file still counts");
     git(root, "switch", "-q", "-c", "side", "incoming~1");
     writeFileSync(path.join(root, "own.ts"), "own write beside switch");
     assert.deepEqual(edited(), ["own.ts"], "only the shell's own write counts");

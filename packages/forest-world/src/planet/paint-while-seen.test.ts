@@ -58,7 +58,7 @@ test('6.10 a globe starts paused, draws once its canvas is seen, and asks for no
   assert.ok(watch.stopped, 'unmounting stops the watch');
 });
 
-test('6.10 its clock keeps time while it is away, so a lane drawing on carries on rather than starting again', () => {
+test('6.10 its R3F clock keeps time while it is away, so recorded growth carries on rather than starting again', () => {
   const { watch, observe } = watcher();
   const globe = root(startingFrameloop(observe));
   paintWhileSeen(() => globe as unknown as PaintingRoot, canvas, observe);

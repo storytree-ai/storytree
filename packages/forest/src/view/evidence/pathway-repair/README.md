@@ -188,3 +188,84 @@ To repeat, point `PATHWAY_CAPTURE_DIST` at either preserved bundle and
 the matching label. Rebuild from the intended checkout to capture changed product
 code. Keep the source bundle outside an automatically cleaned worktree if its exact
 baseline must survive the landing.
+
+## Live beige crossing roads, third increment
+
+This increment enables ordinary **cross-island beige ribbons** in the desktop to
+grow on the first display and when a dependency arrives through the live poll.
+It leaves inland wear unchanged. The earlier selection-colour captures do not
+stand in for this behavior.
+
+| Actual desktop view | Evidence |
+| --- | --- |
+| First display, roads still growing (opening camera) | [Initial partial compositor frame](after-live-first-display-mid.jpg) |
+| Same first display, completed | [Initial completion](after-live-first-display-complete.png) |
+| Settled 130-link graph, before restoring the dependency (camera faces the two islands) | [Before addition](after-live-before-addition.png) |
+| Restored beige crossing growing out of The library | [Addition partial compositor frame](after-live-addition-mid.jpg) |
+| All 131 saved links restored | [Addition completion](after-live-addition-complete.png) |
+| Live addition at the actual compositor timing | [Before repair](before-live.webm) · [After repair](after-live.webm) |
+
+The fixture removes only Agent tools' saved dependency on Library API before
+navigation, then restores its exact original dependency list through a normal
+capability-update record. The desktop's existing two-second poll rereads the tree.
+No dependency is invented; the restored graph is exactly the saved 131-link graph.
+The selected route has two new-only spans, including one 97.671-unit crossing, and
+26 shared spans, including two crossings. Classification uses the original
+capability-link identities, never segment-ID stability.
+
+The first-frame observer is installed through the shared kit's capture seam at
+Canvas creation, before the first `gl.render`. It records geometry submitted by
+the real renderer, without changing time or requesting animation frames. The
+probe waits for initial completion before moving the camera and before restoring
+the dependency. It again waits without invalidation for the new road to finish.
+The separate opening pictures set only the returning user's existing guide-dismissed
+preference, so Help does not cover the forest; the 130-link data and renderer are
+the same. Their compositor starts recording before page navigation.
+
+[Live measurements](live-measurements.json) includes the initial frame traces,
+physical addition fronts, renderer identity, bundle hashes and exact link identities.
+Both bundles remain outside the checkout in the lane's `captures/bundles/before-live`
+and `captures/bundles/after-live`; the baseline is clean commit
+`12dc3d9c834bab0f60343b1d3979e19495233c79`. Full traces are in `captures/before-live/`
+and `captures/after-live/`; opening compositor pictures are in
+`captures/after-live-initial/`.
+
+| Observed behavior, Chrome 151 / ANGLE Vulkan SwiftShader | Before | After |
+| --- | --- | --- |
+| First normal frame of the initial 130-link graph | All 28 crossing ribbons whole | All 28 undrawn |
+| Initial partial render frames | 0 | 10 |
+| First frame of the restored new-only crossing | Whole | Undrawn |
+| Partial render frames of that crossing | 0 | 4 |
+| Existing/shared crossings during restoration | Complete | Complete |
+| Final link identities | All 131 | All 131 |
+| Unrelated description update after completion | Complete | Complete |
+| Reduced-motion initial and addition first frames | Complete | Complete |
+
+The added strip's actual drawn vertex pairs advance from the Library end toward
+the shared trunk leading to Agent tools (`fromEnd: true` for this segment).
+Existing route geometry can move as the router rebuilds the plan; its completed
+roads remain drawn. Both normal animations finish on demand. No coloured selection
+lane is mounted, and both pages report zero errors.
+
+The numbered real-browser test
+[`live-pathways-smoke.test.ts`](../../live-pathways-smoke.test.ts) protects forest
+3.35. Against the immutable baseline it failed with “new-only beige spans begin
+undrawn; observed [1]”. The corrected product passes, including initial growth,
+in about 20 seconds on this machine. The smoke takes no pictures and retains its
+first-frame trace in the capture kit's scratch output. It uses the same real desktop
+bundle and browser as the full capture; CI's installed Chrome needs no download.
+
+Use `capture_locked` from above, with `PATHWAY_CAPTURE_DIST` naming the intended
+bundle and `PATHWAY_CAPTURE_OUT` naming its output:
+
+```sh
+capture_locked packages/forest/src/view/evidence/pathway-repair/live-capture.mjs after-live --retake
+capture_locked packages/forest/src/view/evidence/pathway-repair/clip.mjs /path/to/after-live --live
+# Optional separate opening pictures, before the first road frame:
+capture_locked packages/forest/src/view/evidence/pathway-repair/live-capture.mjs after-live-initial --initial-only --retake
+```
+
+Use a separate output folder for the optional opening run. Video encoding retains
+the observed compositor timing, including the poll delay, and holds real pictures
+between frames; it does not generate intermediate motion. The capture allows the
+software compositor to present the final submitted frame before stopping its video.

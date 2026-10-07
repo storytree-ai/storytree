@@ -58,7 +58,7 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
     root.render(<>
       <PlanetView core={core} scene={drawn.scene} places={drawn.places} wisps={drawn.wisps}
         selected={drawn.selected} highlighted={drawn.highlighted}
-        onPick={pick} onNote={pickNote} mode={drawn.mode} framing={globeFraming(opening)} library={library} />
+        onPick={pick} onNote={pickNote} mode={drawn.mode} framing={globeFraming(opening)} library={library} liveRoads />
       {library && <div className="forest-views" role="group" aria-label="Globe view">
         {(["forest", "library"] as const).map(mode => <button key={mode} type="button"
           data-forest-mode={mode} aria-pressed={drawn.mode === mode} onClick={() => changeMode(mode)}>

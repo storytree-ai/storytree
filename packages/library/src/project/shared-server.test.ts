@@ -167,6 +167,13 @@ test("8.7 a caller that may be cut off bounds each statement, and the server end
   const own = `${uniqueProjectName()}-bounded`;
   const opened: Storytree[] = [];
   try {
+    // CREATE DATABASE can take longer than the query's 200 ms budget on Windows.
+    // Provision it before opening the connection whose cancellation this test proves.
+    const fixture = await connect({ url: testServerUrl() });
+    opened.push(fixture);
+    await fixture.ownDatabase(own);
+    await fixture.close();
+
     const storytree = await connect({ url: testServerUrl(), statementTimeoutMs: 200 });
     opened.push(storytree);
     const pool = await storytree.ownDatabase(own);

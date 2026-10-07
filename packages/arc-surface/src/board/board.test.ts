@@ -60,3 +60,21 @@ test("3.3 a lane whose open work all waits reads queued, ranks with blocked and 
   assert.equal(lane("ready").chip, "ready · 2 to take");
   assert.deepEqual(lane("queued").waits.map(({ title, arc }) => [title, arc?.title]), [["Build r1", "ready"]]);
 });
+
+test("3.3 an idle claim does not hide free work: the lane reads ready with its idle claims beside the chip; only-idle work still reads idle (ADR-0938 D3)", () => {
+  const work = (id: string, arcId: string, status: FieldsOf<"increment">["status"] = "proposal") => record(id, "increment", { arc: arcId, title: `Build ${id}`, objective: id, body: id, status }, "2026-09-20");
+  const only = arc("only"); only.increments.push(work("o1", "only", "active"));
+  const mixed = arc("mixed"); mixed.increments.push(work("m1", "mixed", "active"), work("m2", "mixed"), work("m3", "mixed"));
+  const free = arc("free", "active", "2026-09-20"); free.increments.push(work("f1", "free"));
+  const snapshot: BoardSnapshot = { arcs: [free, mixed, only], waits: {}, heldOn: {} };
+  const claim = (seq: number, session: string, increment: string) => ({ seq, project: "p", session, harness: "claude-code", source: "hook" as const, kind: "claimed" as const, increment, reason: "building", at: "2026-09-27T00:00:00Z" });
+  const board = boardView(snapshot, [claim(1, "s1", "o1"), claim(2, "s2", "m1")], new Date("2026-09-27T00:42:00Z"));
+  assert.deepEqual(board.lanes.map(({ id, state }) => [id, state]), [["only", "idle"], ["mixed", "ready"], ["free", "ready"]]);
+  const lane = (id: string) => board.lanes.find((lane) => lane.id === id)!;
+  assert.equal(lane("only").chip, "idle · 42 min");
+  assert.equal(lane("only").idle, undefined, "an idle lane's own chip says it; there is no beside-marker");
+  assert.equal(lane("mixed").chip, "ready · 2 to take");
+  assert.deepEqual(lane("mixed").idle, { chip: "idle · 42 min", agents: [lane("mixed").agents[0]] });
+  assert.equal(lane("mixed").idle?.agents[0]?.session, "s2");
+  assert.equal(lane("free").idle, undefined);
+});

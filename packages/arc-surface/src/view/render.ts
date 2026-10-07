@@ -27,6 +27,13 @@ function laneText(lane: Lane): string {
   return [lane.count, ...lane.agents.map(agentText), ...lane.waits.map(waitText),
     ...lane.holdsUp.map((work) => `Holds up ${workText(work)}: ${work.reason}`)].join("\n");
 }
+/** A ready lane that also has idle claims keeps them beside its chip, muted; its hover names who holds what (ADR-0938 D3). */
+function renderIdleMarker(lane: Lane): string {
+  if (!lane.idle) return "";
+  const held = (agent: BoardAgent) => lane.bars.find(({ id }) => id === agent.increment)?.title ?? agent.increment ?? agent.capability;
+  const title = lane.idle.agents.map((agent) => `Holds ${held(agent)}\n${agentText(agent)}`).join("\n");
+  return `<span class="arc-chip arc-idle-marker" title="${escape(title)}">${escape(lane.idle.chip)}</span>`;
+}
 /** A queued lane names its first blocker on its own line, and how many others (ADR-0760 D1). */
 function renderWaitsOn(lane: Lane): string {
   const [first, ...rest] = lane.state === "queued" ? lane.waits : [];
@@ -48,7 +55,7 @@ function renderQueue(queue: ArcQueue, lanes: ReadonlyMap<string, Lane>, selected
   return `<section class="arc-row" data-arc-id="${escape(lane.id)}"><div class="arc-lane-line">
     <span class="arc-caret-slot">${queue.queued.length ? `<button type="button" class="arc-caret" data-arc-queue="${escape(lane.id)}" aria-expanded="${open}" aria-controls="arc-queue-${escape(lane.id)}" aria-label="${escape(queueLabel)}" title="${escape(queueLabel)}"><span aria-hidden="true">${open ? "▾" : "▸"}</span></button>` : ""}</span>
     <button type="button" class="arc-lane" data-arc-select="${escape(lane.id)}" aria-pressed="${selected === lane.id}">
-      <span class="arc-lane-head"><span class="arc-chip arc-state-${lane.state}" title="${escape(laneText(lane))}">${escape(lane.chip)}</span><span class="arc-title" title="${escape(lane.title)}">${escape(lane.title)}</span></span>
+      <span class="arc-lane-head"><span class="arc-chip arc-state-${lane.state}" title="${escape(laneText(lane))}">${escape(lane.chip)}</span>${renderIdleMarker(lane)}<span class="arc-title" title="${escape(lane.title)}">${escape(lane.title)}</span></span>
       <span class="arc-track"><span class="arc-bars" aria-label="Increments">${lane.bars.map(renderBar).join("")}</span><span class="arc-count">${escape(lane.count)}</span>${renderWaitsOn(lane)}</span>
     </button></div>${open && queue.queued.length ? `<div class="arc-queue" id="arc-queue-${escape(lane.id)}" data-queue-shape="${run.shape}"><span aria-hidden="true">→</span>${chips.join("")}</div>` : ""}</section>`;
 }

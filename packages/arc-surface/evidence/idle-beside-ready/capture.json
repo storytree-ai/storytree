@@ -1,0 +1,34 @@
+{
+  "browser": "148.0.7778.96",
+  "lanes": [
+    {
+      "title": "Arc surface",
+      "chip": "claimed",
+      "marker": null,
+      "markerHover": null,
+      "count": "2 open"
+    },
+    {
+      "title": "Cloud backups",
+      "chip": "idle · 42 min",
+      "marker": null,
+      "markerHover": null,
+      "count": "1 open"
+    },
+    {
+      "title": "Docs refresh",
+      "chip": "ready · 2 to take",
+      "marker": null,
+      "markerHover": null,
+      "count": "2 open"
+    },
+    {
+      "title": "Website",
+      "chip": "ready · 3 to take",
+      "marker": "idle · 859 min",
+      "markerHover": "Holds Fix the footer links\nClaude Code · window opened 2026-10-06T11:50:31.448Z\nFix the footer links.\nidle for 859 min",
+      "count": "1 landed · 4 open"
+    }
+  ],
+  "errors": []
+}

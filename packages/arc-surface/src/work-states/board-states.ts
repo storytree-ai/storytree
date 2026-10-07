@@ -51,6 +51,7 @@ export function arcState(lifecycle: Lifecycle, facts: ArcFacts = {}): ArcState {
   const open = (facts.increments ?? []).filter(({ state }) => state !== "landed" && state !== "not-completed");
   if (open.length && open.every(({ state }) => state === "queued" || state === "waiting-on-you")) return "queued";
   if (facts.claims?.some((claim) => claim.holder === "live")) return "claimed";
-  if (facts.claims?.length) return "idle";
-  return open.some(({ state }) => state === "open") ? "ready" : "quiet";
+  // ADR-0938 D3: an idle claim does not hide free work.
+  if (open.some(({ state }) => state === "open")) return "ready";
+  return facts.claims?.length ? "idle" : "quiet";
 }

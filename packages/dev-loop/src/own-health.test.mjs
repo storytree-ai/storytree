@@ -325,7 +325,7 @@ test("5.4 checking the app story also runs the desktop app's tests as its own, c
   });
 });
 
-test("5.4 Windows CI at the same commit verifies Get storytree 1.9 and Front door 1.12, naming its run; unavailable or unrelated evidence gives no credit", async (t) => {
+test("5.4 Windows CI at the same commit verifies Get storytree 1.9 and Front door 1.12, naming its run; unavailable or unrelated evidence gives no credit, and a run that saw no Windows leaves that pass standing", async (t) => {
   const root = mkdtempSync(path.join(tmpdir(), "own-health-windows-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const commit = "a".repeat(40);
@@ -374,6 +374,8 @@ test("5.4 Windows CI at the same commit verifies Get storytree 1.9 and Front doo
       assert.match(verified.note, /1\/1 tests passed/);
       assert.ok(verified.note.includes(commit));
       assert.ok(verified.note.includes(windowsRun), "names the actual Windows run");
+      assert.equal((await record(undefined)).state, "passing", "a run without Windows evidence cannot re-run it, so the Windows pass stands");
+      assert.equal((await record({ ...evidence, results: [{ ...test, status: "failed" }] })).state, "not-checked", "Windows evidence that does not prove it takes the pass away");
       mkdirSync(path.join(directory, "unit-2"));
       writeFileSync(path.join(directory, "unit-2", "result.json"), JSON.stringify({ ...evidence, unit: "other", results: [{ ...test, file: "packages/other/src/test.ts", status: "passed" }] }));
       assert.equal(readWindowsEvidence(directory, { commit, run: windowsRun }).results.length, 2, "reads every unit, not only the last");

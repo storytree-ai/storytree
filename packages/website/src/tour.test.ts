@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { mapRecording, mapGrowthPlan, recordedScene } from "./map-recording.js";
+import { mapRecording, mapGrowthPlan, recordedFrame } from "./map-recording.js";
 import type { GrowthSnapshot } from "./forest-data.js";
 import shop from "./shop-snapshot.json" with { type: "json" };
 import { aim, createTour, flight, globeOf, groups, placeTags, readingTime, replayMoment, settle, type TourStep } from "./tour.js";
@@ -276,6 +276,23 @@ test("2.18 · on a phone, a tag beside its ring slides a little up or down to re
   });
 });
 
+test("2.18 · phone tags clear the taller progress labels on unsurveyed islands", () => {
+  for (const width of [390, 320]) {
+    const shift = (390 - width) / 2;
+    const tags = [{ x: 94 - shift, y: 366, width: 229, height: 25 }, { x: 69 - shift, y: 322, width: 216, height: 25 }, { x: 88 - shift, y: 265, width: 121, height: 25 }];
+    const names = [{ x: 55 - shift, y: 374, width: 79, height: 19 }, { x: 30 - shift, y: 336, width: 76, height: 39 }, { x: 48 - shift, y: 285, width: 80, height: 39 }];
+    const panels = [{ x: 10, y: 84, width: width - 20, height: 135 }, { x: 10, y: 409, width: width - 20, height: 289 }];
+    const placed = placeTags(tags, { width, height: 844 }, { keepOut: [...names, ...panels], sides: ["right", "left", "below", "above"] });
+    const boxes = placed.map((at, i) => ({ ...tags[i]!, x: tags[i]!.x + Math.round(at.x), y: tags[i]!.y + Math.round(at.y) }));
+    const rings = tags.map(tag => ({ x: tag.x - 17, y: tag.y - 17, width: 34, height: 34 }));
+    boxes.forEach((box, i) => {
+      assert.ok(box.x >= 0 && box.x + box.width <= width);
+      for (const other of [...names, ...panels, ...boxes.filter((_, j) => j !== i), ...rings.filter((_, j) => j !== i)])
+        assert.ok(box.x + box.width <= other.x || other.x + other.width <= box.x || box.y + box.height <= other.y || other.y + other.height <= box.y, `${width}: tag ${i} clears ${JSON.stringify(other)}`);
+    });
+  }
+});
+
 test("2.18 · on a laptop, where the first-come sides leave a tag over a panel, the tags share the room so each reads clear", () => {
   // The parallel step at 1280×800 reached from the claim step: Browsing and the cart sit on the sessions list's top edge.
   // Part 2 taking the room above its ring left Part 3 none; Part 2 to the left (over an island's name) frees it.
@@ -296,7 +313,7 @@ test("2.18 · on a laptop, where the first-come sides leave a tag over a panel, 
 });
 
 
-test("2.16 · the map replays capability landings and recorded health without later code or islands leaking in", () => {
+test("2.16 · the map replays capability landings, claims and health from the same recorded stage", () => {
   const original = shop as unknown as GrowthSnapshot;
   const recording = mapRecording(original);
   const plan = mapGrowthPlan(recording);
@@ -305,7 +322,7 @@ test("2.16 · the map replays capability landings and recorded health without la
   assert.deepEqual(missing, []);
   const signIn = "story_d263ef0f3f72", checkout = "story_66f80ffaaa4d", browsing = "story_0c07d0047754";
   const landings = original.reading!.recording.lines.filter(line => line.kind === "landed" && line.at < "2026-10-05T02:01:00.000Z" && "capability" in line);
-  const files = (id: string) => recordedScene(recording, plan, at(id)).islands.find(island => island.story === signIn)?.land?.files.length ?? 0;
+  const files = (id: string) => recordedFrame(recording, plan, at(id)).scene.islands.find(island => island.story === signIn)?.land?.files.length ?? 0;
   assert.equal(files("pr1-building"), 0);
   assert.ok(recording.stages.every(stage => stage.scene.islands.every(island => !island.land || island.land.territories.length > 0)), "unbuilt islands have no land yet");
   assert.ok(files("land-capability_323895c5a414") > 0);
@@ -316,11 +333,21 @@ test("2.16 · the map replays capability landings and recorded health without la
     if (!recording.stages.some(stage => stage.id === `land-${id}`)) continue;
     assert.equal(plan.capabilities.get(id)?.start, at(`land-${id}`), "territories fill when their agent lands them, not when planned");
   }
-  const status = (stage: string, story: string) => recordedScene(recording, plan, at(stage)).islands.find(island => island.story === story)!.land!.territories.map(cap => cap.status);
+  const status = (stage: string, story: string) => recordedFrame(recording, plan, at(stage)).scene.islands.find(island => island.story === story)!.land!.territories.map(cap => cap.status);
   assert.ok(status("pr4", checkout).every(status => status === "untested"));
   assert.ok(status("pr7-building", checkout).every(status => status === "healthy"));
   assert.ok(status("pr4", browsing).every(status => status === "healthy"), "Browsing's recorded green is drawn at 02:46, without its later capabilities");
-  assert.equal(recordedScene(recording, plan, 0).islands.length, 4, "planned islands are mounted for the opening camera; the growth clock keeps them invisible until planned");
+  const outlines = (when: number) => {
+    const frame = recordedFrame(recording, plan, when);
+    const surveyed = new Set(frame.scene.islands.flatMap(island => island.land?.territories.map(part => part.capability) ?? []));
+    return frame.wisps.flatMap(wisp => wisp.capabilities.filter(capability => surveyed.has(capability)));
+  };
+  for (const id of ["pr4-building", "pr5-building", "pr3"]) assert.deepEqual(outlines(at(id)), [], `${id}: unsurveyed capability claims draw nothing`);
+  assert.deepEqual(outlines(at("pr5") - .001), []);
+  assert.deepEqual(outlines(at("pr5")).sort(), ["capability_668ca101a358", "capability_d37b7ec1b593"], "only Checkout's two surveyed claims can draw when the new land arrives");
+  assert.equal(outlines(at("pr4") - .001).length, 2);
+  assert.deepEqual(recordedFrame(recording, plan, at("pr4")).wisps, [], "release arrives in the same frame as its recorded land and health");
+  assert.equal(recordedFrame(recording, plan, 0).scene.islands.length, 4, "planned islands are mounted for the opening camera; the growth clock keeps them invisible until planned");
   assert.ok([...plan.islands.values()].every(window => window.start > 0));
   assert.equal(recording.scene.islands.length, 4);
   assert.ok(recording.stages.every(stage => stage.scene.islands.length <= 4));

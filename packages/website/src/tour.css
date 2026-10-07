@@ -263,6 +263,8 @@ html:has(> body.immersive-home) { scroll-padding-top:0; }
 @media (max-width:600px) and (max-height:620px) {
   /* The four-line story step uses the spare gap above the bar on the shortest phones. */
   #chapter2[data-tour-mode="tour"][data-tour-step="map-first"] .tour-card { bottom:calc(var(--bar-h) + 18px); }
+  /* In the agents chapter's small globe, leave room for the island names the narration and tags refer to. */
+  #chapter2[data-tour-mode="tour"][data-tour-step^="agents-"] .planet-progress { display:none; }
 }
 @media (prefers-reduced-motion:reduce) {
   #chapter2 .tour-card.is-in, #chapter2 .tour-line, #chapter2 .tour-tag-ring, #chapter2 .tb-play[data-state="waiting"], #chapter2 .chip-recording::before { animation:none !important; transition:none !important; }

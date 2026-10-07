@@ -54,10 +54,11 @@ export function mapGrowthPlan(recording: GrowthSnapshot, roadLength?: GrowthOpti
   return plan;
 }
 
-/** The drawing uses this stage's land and statuses, rather than the final build's future territories. */
-export function recordedScene(recording: GrowthSnapshot, plan: GrowthPlan, at: number): GrowthSnapshot["scene"] {
+/** Land, health and claims come from one stage, so a newly surveyed territory never wears a previous holder's claim. */
+export function recordedFrame(recording: GrowthSnapshot, plan: GrowthPlan, at: number): Pick<GrowthSnapshot["stages"][number], "scene" | "wisps"> {
   const id = plan.stages.filter(stage => stage.start <= at).at(-1)?.id;
-  const scene = recording.stages.find(stage => stage.id === id)?.scene;
+  const stage = recording.stages.find(stage => stage.id === id);
   // Mount the planned islands for the camera even while the growth clock hides them beneath the empty globe.
-  return scene?.islands.length ? scene : recording.stages.find(stage => stage.scene.islands.length)!.scene;
+  return { scene: stage?.scene.islands.length ? stage.scene : recording.stages.find(stage => stage.scene.islands.length)!.scene,
+    wisps: stage?.wisps ?? [] };
 }

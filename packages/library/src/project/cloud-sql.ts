@@ -12,7 +12,7 @@
 import type { Duplex } from "node:stream";
 
 import { ConnectionError, sqlState } from "./connection-error.js";
-import { actingAs, newPool, type ServerAccess } from "./server.js";
+import { actingAs, newPool, statementBound, type ServerAccess } from "./server.js";
 
 /** A Cloud SQL instance, and the Google account storytree signs in to it as. */
 export interface CloudSqlConfig {
@@ -97,12 +97,12 @@ const PG_CONNECT_TIMEOUT =
  * fix when the config is wrong, when there is no Google sign-in or a bad one, when the instance is
  * missing or not allowed, and when the sign-in does not finish in time.
  */
-export async function cloudSqlServer(config: unknown, seams: CloudSqlSeams = {}): Promise<ServerAccess> {
+export async function cloudSqlServer(config: unknown, seams: CloudSqlSeams = {}, statementTimeoutMs?: number): Promise<ServerAccess> {
   const { instance, user } = checkConfig(config);
   const timeoutMs = seams.timeoutMs ?? TIMEOUT_MS;
   const connector = await (seams.connector ?? (() => googleConnector(instanceParts(instance).project)))();
   const options = await signIn(connector, instance, user, timeoutMs);
-  const pool = (database: string, role?: string) => newPool({ ...options, user, database, max: POOL_MAX, connectionTimeoutMillis: timeoutMs, ...actingAs(role) });
+  const pool = (database: string, role?: string) => newPool({ ...options, user, database, max: POOL_MAX, connectionTimeoutMillis: timeoutMs, ...statementBound(statementTimeoutMs), ...actingAs(role) });
   return {
     kind: "cloud-sql",
     admin: pool(ADMIN_DATABASE),

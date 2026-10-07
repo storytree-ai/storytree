@@ -1,5 +1,5 @@
 /**
- * Writing a capability's files claims it (ADR-0924), off the agent's path: the once-a-minute upkeep
+ * Capability 5 · Claims: writing a capability's files claims it, off the agent's path: the upkeep
  * copy of a hook reads the edits this machine's sessions made since its last look, and claims each
  * edited file's capability for its session, unless the session already holds it or another live
  * session does (D1). Nothing is ever stopped (D2): an edit to a capability another live session holds
@@ -88,9 +88,10 @@ export async function claimFromEdits(context: EditClaimsContext): Promise<void> 
           if (capability === undefined || title === undefined || done.has(`${line.session}\n${capability}`)) continue;
           done.add(`${line.session}\n${capability}`);
           const file = path.relative(checkout, full).split(path.sep).join("/");
-          const answer = await claim({ log, library, project, session: line.session, ...(line.harness === undefined ? {} : { harness: line.harness }), source: "hook", folder: checkout, ...(line.branch === undefined ? {} : { branch: line.branch }) },
-            capability, [...title].slice(0, CLAIM_REASON_LIMIT).join("").trim(), { file });
-          if (answer.ok && answer.alreadyHeld !== true) leaveNotice(home, line.session, claimedNotice(title, capability, file, owner!.inferred));
+          const answer = await claim({ log, library, project, home, session: line.session, ...(line.harness === undefined ? {} : { harness: line.harness }), source: "hook", folder: checkout, ...(line.branch === undefined ? {} : { branch: line.branch }) },
+            capability, [...title].slice(0, CLAIM_REASON_LIMIT).join("").trim(), { file, edit: line, notice: claimedNotice(title, capability, file, owner!.inferred) });
+          // A release after the edit wins. A later edit in this same batch may still claim it.
+          if (answer === undefined) done.delete(`${line.session}\n${capability}`);
           else if (!answer.ok && answer.refused === "held") leaveNotice(home, line.session, heldNotice(title, file, answer.holder));
         }
       }

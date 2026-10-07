@@ -12,10 +12,11 @@ import { test } from "node:test";
 import { connect, type Library } from "@storytree/library";
 
 import { openActivityLog, type ActivityLog } from "../activity/index.js";
-import { withTempDir } from "../testing/folders.js";
+import { shellEdits } from "../hooks/shell-edits.js";
+import { git, withTempDir } from "../testing/folders.js";
 import { dropTestProjects, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { claimFromEdits, type CapabilityLookup } from "./edit-claims.js";
-import { claim, readClaims, type ClaimContext } from "./index.js";
+import { claim, readClaims, release, type ClaimContext } from "./index.js";
 import { takeNotices } from "./notices.js";
 
 const EMAIL = "packages/sign-up/src/email.ts";
@@ -66,7 +67,7 @@ async function withWorld(body: (world: World) => Promise<void>): Promise<void> {
           await log.append(project, { session, harness: harnessOf[session], source: "hook", folder: checkout, kind: "file-edited", files: [path.join(checkout, file)] });
         },
         pass: (options = {}) => claimFromEdits({ log, library: options.library ?? library, project, home, ...(options.lookup === undefined ? {} : { lookup: options.lookup }) }),
-        as: (session) => ({ log, library, project, session, harness: harnessOf[session] }),
+        as: (session) => ({ log, library, project, session, harness: harnessOf[session], home }),
       });
     });
   } finally {
@@ -138,6 +139,56 @@ test('5.21 an edit by A to a file of "email form" while live B holds it stands a
     const holder = takeNotices(home, "B");
     assert.equal(holder.length, 1);
     for (const words of [EMAIL, "1 · Email form", "Claude Code session A"]) assert.ok(holder[0]!.includes(words), `B is told ${words}: ${holder[0]}`);
+  });
+});
+
+test("5.20 releasing an edit claim cancels its pending notice, and a delayed earlier edit cannot reclaim it; a fresh edit can", async () => {
+  await withWorld(async ({ log, project, home, emailForm, edit, pass, as }) => {
+    await edit("A", EMAIL);
+    await pass();
+    await edit("A", EMAIL); // still unprocessed when the session releases
+    assert.deepEqual(await release(as("A"), emailForm), { ok: true });
+    assert.deepEqual(takeNotices(home, "A"), [], "a released claim is not announced at the next prompt");
+    await pass();
+    assert.deepEqual(await readClaims(log, project), [], "an earlier edit does not undo release");
+    assert.deepEqual(takeNotices(home, "A"), []);
+
+    await edit("A", EMAIL);
+    await pass();
+    assert.deepEqual((await readClaims(log, project)).map(({ capability }) => capability), [emailForm]);
+    assert.equal(takeNotices(home, "A").length, 1, "a genuinely later edit is announced");
+
+    await edit("A", EMAIL);
+    assert.deepEqual(await release(as("A"), emailForm), { ok: true });
+    await edit("A", EMAIL);
+    await pass();
+    assert.deepEqual((await readClaims(log, project)).map(({ capability }) => capability), [emailForm], "a batch's earlier released edit does not hide its later fresh edit");
+    assert.equal(takeNotices(home, "A").length, 1);
+  });
+});
+
+test("5.20 a checkout-only file change claims nothing; a shell write after the switch claims its capability", async () => {
+  await withWorld(async ({ log, project, home, checkout, emailForm, pass }) => {
+    git(checkout, "init", "-q", "-b", "main");
+    git(checkout, "add", ".");
+    git(checkout, "commit", "-q", "-m", "base");
+    git(checkout, "switch", "-q", "-c", "incoming");
+    writeFileSync(path.join(checkout, EMAIL), "export const email = 2;\n");
+    git(checkout, "commit", "-qam", "incoming");
+    git(checkout, "switch", "-q", "main");
+    const observe = async () => {
+      for (const line of shellEdits(home, checkout, { session: "A", harness: "codex", source: "hook", kind: "command-run", command: "git", folder: checkout })) await log.append(project, line);
+      await pass();
+    };
+    await observe();
+    git(checkout, "switch", "-q", "-c", "work", "incoming");
+    await observe();
+    assert.deepEqual(await readClaims(log, project), []);
+    assert.deepEqual(takeNotices(home, "A"), []);
+    writeFileSync(path.join(checkout, EMAIL), "export const email = 3;\n");
+    await observe();
+    assert.deepEqual((await readClaims(log, project)).map(({ capability }) => capability), [emailForm]);
+    assert.equal(takeNotices(home, "A").length, 1);
   });
 });
 

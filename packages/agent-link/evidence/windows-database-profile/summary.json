@@ -1,0 +1,3144 @@
+{
+  "run": "https://github.com/storytree-ai/storytree/actions/runs/37639053003",
+  "head": "ac387581e85d187cc12135d7f575cd10620a0a69",
+  "files": [
+    "agent-tools.test.ts",
+    "agent-tools-reads.test.ts",
+    "agent-tools-writes.test.ts"
+  ],
+  "units": "milliseconds",
+  "systems": {
+    "Linux": {
+      "phases": {
+        "baseline:connect": {
+          "samples": 3,
+          "wall_total_ms": 44.915,
+          "wall_mean_ms": 14.972,
+          "wall_median_ms": 15.981,
+          "wall_p95_ms": 18.01,
+          "query_count": 0,
+          "query_total_ms": 0,
+          "query_mean_ms": 0,
+          "connect_count": 3,
+          "connect_total_ms": 44.12
+        },
+        "baseline:50-selects": {
+          "samples": 3,
+          "wall_total_ms": 72.518,
+          "wall_mean_ms": 24.173,
+          "wall_median_ms": 26.124,
+          "wall_p95_ms": 36.155,
+          "query_count": 150,
+          "query_total_ms": 70.153,
+          "query_mean_ms": 0.468,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "connect": {
+          "samples": 61,
+          "wall_total_ms": 10.157,
+          "wall_mean_ms": 0.167,
+          "wall_median_ms": 0.134,
+          "wall_p95_ms": 0.444,
+          "query_count": 0,
+          "query_total_ms": 0,
+          "query_mean_ms": 0,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "activityLog": {
+          "samples": 61,
+          "wall_total_ms": 409.772,
+          "wall_mean_ms": 6.718,
+          "wall_median_ms": 5.36,
+          "wall_p95_ms": 14.14,
+          "query_count": 732,
+          "query_total_ms": 225.563,
+          "query_mean_ms": 0.308,
+          "connect_count": 61,
+          "connect_total_ms": 155.281
+        },
+        "openProject": {
+          "samples": 61,
+          "wall_total_ms": 2402.171,
+          "wall_mean_ms": 39.38,
+          "wall_median_ms": 38.076,
+          "wall_p95_ms": 56.625,
+          "query_count": 1098,
+          "query_total_ms": 1921.373,
+          "query_mean_ms": 1.75,
+          "connect_count": 122,
+          "connect_total_ms": 404.575
+        },
+        "agentOpen": {
+          "samples": 58,
+          "wall_total_ms": 644.897,
+          "wall_mean_ms": 11.119,
+          "wall_median_ms": 8.142,
+          "wall_p95_ms": 48.197,
+          "query_count": 0,
+          "query_total_ms": 0,
+          "query_mean_ms": 0,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:show_plan": {
+          "samples": 14,
+          "wall_total_ms": 3577.309,
+          "wall_mean_ms": 255.522,
+          "wall_median_ms": 26.197,
+          "wall_p95_ms": 3001.907,
+          "query_count": 364,
+          "query_total_ms": 608.9,
+          "query_mean_ms": 1.673,
+          "connect_count": 98,
+          "connect_total_ms": 6519.363
+        },
+        "ALL_CALLS": {
+          "samples": 349,
+          "wall_total_ms": 7722.948,
+          "wall_mean_ms": 22.129,
+          "wall_median_ms": 5.344,
+          "wall_p95_ms": 48.217,
+          "query_count": 6387,
+          "query_total_ms": 3326.113,
+          "query_mean_ms": 0.521,
+          "connect_count": 487,
+          "connect_total_ms": 7963.061
+        },
+        "call:plan_story": {
+          "samples": 27,
+          "wall_total_ms": 712.032,
+          "wall_mean_ms": 26.372,
+          "wall_median_ms": 24.882,
+          "wall_p95_ms": 50.458,
+          "query_count": 1066,
+          "query_total_ms": 501.569,
+          "query_mean_ms": 0.471,
+          "connect_count": 115,
+          "connect_total_ms": 378.786
+        },
+        "agentBody": {
+          "samples": 58,
+          "wall_total_ms": 8900.215,
+          "wall_mean_ms": 153.452,
+          "wall_median_ms": 74.076,
+          "wall_p95_ms": 294.848,
+          "query_count": 8564,
+          "query_total_ms": 4293.632,
+          "query_mean_ms": 0.501,
+          "connect_count": 568,
+          "connect_total_ms": 8436.519
+        },
+        "agentClose": {
+          "samples": 58,
+          "wall_total_ms": 61.912,
+          "wall_mean_ms": 1.067,
+          "wall_median_ms": 0.44,
+          "wall_p95_ms": 4.396,
+          "query_count": 0,
+          "query_total_ms": 0,
+          "query_mean_ms": 0,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "body": {
+          "samples": 61,
+          "wall_total_ms": 13128.847,
+          "wall_mean_ms": 215.227,
+          "wall_median_ms": 116.021,
+          "wall_p95_ms": 692.541,
+          "query_count": 9688,
+          "query_total_ms": 5848.879,
+          "query_mean_ms": 0.604,
+          "connect_count": 650,
+          "connect_total_ms": 8972.761
+        },
+        "closeLogAndLibrary": {
+          "samples": 61,
+          "wall_total_ms": 44.183,
+          "wall_mean_ms": 0.724,
+          "wall_median_ms": 0.161,
+          "wall_p95_ms": 4.02,
+          "query_count": 0,
+          "query_total_ms": 0,
+          "query_mean_ms": 0,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "drop": {
+          "samples": 61,
+          "wall_total_ms": 1293.842,
+          "wall_mean_ms": 21.211,
+          "wall_median_ms": 13.313,
+          "wall_p95_ms": 89.63,
+          "query_count": 61,
+          "query_total_ms": 926.391,
+          "query_mean_ms": 15.187,
+          "connect_count": 61,
+          "connect_total_ms": 266.237
+        },
+        "whole": {
+          "samples": 61,
+          "wall_total_ms": 17480.56,
+          "wall_mean_ms": 286.567,
+          "wall_median_ms": 178.369,
+          "wall_p95_ms": 756.131,
+          "query_count": 11579,
+          "query_total_ms": 8922.223,
+          "query_mean_ms": 0.771,
+          "connect_count": 894,
+          "connect_total_ms": 9798.851
+        },
+        "call:claim": {
+          "samples": 25,
+          "wall_total_ms": 373.54,
+          "wall_mean_ms": 14.942,
+          "wall_median_ms": 15.59,
+          "wall_p95_ms": 27.678,
+          "query_count": 564,
+          "query_total_ms": 319.203,
+          "query_mean_ms": 0.566,
+          "connect_count": 34,
+          "connect_total_ms": 88.831
+        },
+        "call:report": {
+          "samples": 6,
+          "wall_total_ms": 20.449,
+          "wall_mean_ms": 3.408,
+          "wall_median_ms": 3.967,
+          "wall_p95_ms": 5.51,
+          "query_count": 44,
+          "query_total_ms": 10.919,
+          "query_mean_ms": 0.248,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:plan_arc": {
+          "samples": 23,
+          "wall_total_ms": 121.619,
+          "wall_mean_ms": 5.288,
+          "wall_median_ms": 3.878,
+          "wall_p95_ms": 12.381,
+          "query_count": 237,
+          "query_total_ms": 87.32,
+          "query_mean_ms": 0.368,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:plan_capability": {
+          "samples": 30,
+          "wall_total_ms": 198.299,
+          "wall_mean_ms": 6.61,
+          "wall_median_ms": 5.759,
+          "wall_p95_ms": 15.936,
+          "query_count": 580,
+          "query_total_ms": 147.572,
+          "query_mean_ms": 0.254,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:plan_contract": {
+          "samples": 11,
+          "wall_total_ms": 50.359,
+          "wall_mean_ms": 4.578,
+          "wall_median_ms": 4.366,
+          "wall_p95_ms": 7.566,
+          "query_count": 127,
+          "query_total_ms": 33.309,
+          "query_mean_ms": 0.262,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:edit_plan": {
+          "samples": 9,
+          "wall_total_ms": 90.581,
+          "wall_mean_ms": 10.065,
+          "wall_median_ms": 9.75,
+          "wall_p95_ms": 24.023,
+          "query_count": 129,
+          "query_total_ms": 70.903,
+          "query_mean_ms": 0.55,
+          "connect_count": 6,
+          "connect_total_ms": 27.819
+        },
+        "call:focus": {
+          "samples": 9,
+          "wall_total_ms": 117.529,
+          "wall_mean_ms": 13.059,
+          "wall_median_ms": 10.34,
+          "wall_p95_ms": 68.472,
+          "query_count": 71,
+          "query_total_ms": 35.439,
+          "query_mean_ms": 0.499,
+          "connect_count": 8,
+          "connect_total_ms": 23.554
+        },
+        "call:health_worklist": {
+          "samples": 3,
+          "wall_total_ms": 26.116,
+          "wall_mean_ms": 8.705,
+          "wall_median_ms": 2.958,
+          "wall_p95_ms": 22.589,
+          "query_count": 48,
+          "query_total_ms": 19.953,
+          "query_mean_ms": 0.416,
+          "connect_count": 8,
+          "connect_total_ms": 17.743
+        },
+        "call:release": {
+          "samples": 4,
+          "wall_total_ms": 36.364,
+          "wall_mean_ms": 9.091,
+          "wall_median_ms": 11.186,
+          "wall_p95_ms": 13.171,
+          "query_count": 51,
+          "query_total_ms": 32.41,
+          "query_mean_ms": 0.635,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:make_workspace": {
+          "samples": 4,
+          "wall_total_ms": 287.857,
+          "wall_mean_ms": 71.964,
+          "wall_median_ms": 77.642,
+          "wall_p95_ms": 131.626,
+          "query_count": 111,
+          "query_total_ms": 59.099,
+          "query_mean_ms": 0.532,
+          "connect_count": 13,
+          "connect_total_ms": 33.436
+        },
+        "call:attach_workspace": {
+          "samples": 4,
+          "wall_total_ms": 142.193,
+          "wall_mean_ms": 35.548,
+          "wall_median_ms": 39.401,
+          "wall_p95_ms": 62.346,
+          "query_count": 82,
+          "query_total_ms": 45.67,
+          "query_mean_ms": 0.557,
+          "connect_count": 4,
+          "connect_total_ms": 11.817
+        },
+        "call:land": {
+          "samples": 9,
+          "wall_total_ms": 239.179,
+          "wall_mean_ms": 26.575,
+          "wall_median_ms": 23.085,
+          "wall_p95_ms": 51.815,
+          "query_count": 216,
+          "query_total_ms": 109.778,
+          "query_mean_ms": 0.508,
+          "connect_count": 8,
+          "connect_total_ms": 18.644
+        },
+        "call:search_notes": {
+          "samples": 4,
+          "wall_total_ms": 129.989,
+          "wall_mean_ms": 32.497,
+          "wall_median_ms": 41.333,
+          "wall_p95_ms": 46.536,
+          "query_count": 153,
+          "query_total_ms": 130.777,
+          "query_mean_ms": 0.855,
+          "connect_count": 42,
+          "connect_total_ms": 275.913
+        },
+        "call:open": {
+          "samples": 16,
+          "wall_total_ms": 265.769,
+          "wall_mean_ms": 16.611,
+          "wall_median_ms": 11.297,
+          "wall_p95_ms": 46.735,
+          "query_count": 616,
+          "query_total_ms": 373.962,
+          "query_mean_ms": 0.607,
+          "connect_count": 62,
+          "connect_total_ms": 228.797
+        },
+        "call:write_note": {
+          "samples": 19,
+          "wall_total_ms": 128.096,
+          "wall_mean_ms": 6.742,
+          "wall_median_ms": 4.945,
+          "wall_p95_ms": 28.661,
+          "query_count": 295,
+          "query_total_ms": 91.27,
+          "query_mean_ms": 0.309,
+          "connect_count": 5,
+          "connect_total_ms": 10.925
+        },
+        "call:correct_note": {
+          "samples": 8,
+          "wall_total_ms": 24.082,
+          "wall_mean_ms": 3.01,
+          "wall_median_ms": 2.732,
+          "wall_p95_ms": 4.32,
+          "query_count": 69,
+          "query_total_ms": 14.125,
+          "query_mean_ms": 0.205,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:retire_from_plan": {
+          "samples": 6,
+          "wall_total_ms": 27.637,
+          "wall_mean_ms": 4.606,
+          "wall_median_ms": 4.106,
+          "wall_p95_ms": 9.619,
+          "query_count": 75,
+          "query_total_ms": 23.957,
+          "query_mean_ms": 0.319,
+          "connect_count": 3,
+          "connect_total_ms": 8.007
+        },
+        "call:park_increment": {
+          "samples": 21,
+          "wall_total_ms": 108.821,
+          "wall_mean_ms": 5.182,
+          "wall_median_ms": 4.818,
+          "wall_p95_ms": 9.559,
+          "query_count": 291,
+          "query_total_ms": 71.74,
+          "query_mean_ms": 0.247,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:close_increment": {
+          "samples": 5,
+          "wall_total_ms": 58.852,
+          "wall_mean_ms": 11.77,
+          "wall_median_ms": 9.956,
+          "wall_p95_ms": 25.003,
+          "query_count": 61,
+          "query_total_ms": 29.545,
+          "query_mean_ms": 0.484,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:move_increment": {
+          "samples": 6,
+          "wall_total_ms": 21.56,
+          "wall_mean_ms": 3.593,
+          "wall_median_ms": 2.909,
+          "wall_p95_ms": 9.874,
+          "query_count": 53,
+          "query_total_ms": 13.005,
+          "query_mean_ms": 0.245,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:park_arc": {
+          "samples": 5,
+          "wall_total_ms": 13.801,
+          "wall_mean_ms": 2.76,
+          "wall_median_ms": 3.213,
+          "wall_p95_ms": 3.37,
+          "query_count": 44,
+          "query_total_ms": 8.083,
+          "query_mean_ms": 0.184,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:mark_built": {
+          "samples": 4,
+          "wall_total_ms": 12.42,
+          "wall_mean_ms": 3.105,
+          "wall_median_ms": 3.493,
+          "wall_p95_ms": 4.641,
+          "query_count": 27,
+          "query_total_ms": 7.475,
+          "query_mean_ms": 0.277,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:set_wait": {
+          "samples": 7,
+          "wall_total_ms": 30.663,
+          "wall_mean_ms": 4.38,
+          "wall_median_ms": 4.098,
+          "wall_p95_ms": 9.913,
+          "query_count": 67,
+          "query_total_ms": 20.596,
+          "query_mean_ms": 0.307,
+          "connect_count": 2,
+          "connect_total_ms": 4.181
+        },
+        "call:clear_wait": {
+          "samples": 5,
+          "wall_total_ms": 16.383,
+          "wall_mean_ms": 3.277,
+          "wall_median_ms": 3.25,
+          "wall_p95_ms": 5.096,
+          "query_count": 44,
+          "query_total_ms": 9.919,
+          "query_mean_ms": 0.225,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:record_friction": {
+          "samples": 11,
+          "wall_total_ms": 155.201,
+          "wall_mean_ms": 14.109,
+          "wall_median_ms": 7.672,
+          "wall_p95_ms": 42.581,
+          "query_count": 273,
+          "query_total_ms": 107.426,
+          "query_mean_ms": 0.394,
+          "connect_count": 20,
+          "connect_total_ms": 66.182
+        },
+        "call:reinforce": {
+          "samples": 7,
+          "wall_total_ms": 38.302,
+          "wall_mean_ms": 5.472,
+          "wall_median_ms": 2.457,
+          "wall_p95_ms": 24.25,
+          "query_count": 68,
+          "query_total_ms": 26.563,
+          "query_mean_ms": 0.391,
+          "connect_count": 5,
+          "connect_total_ms": 15.233
+        },
+        "call:record_resteer": {
+          "samples": 7,
+          "wall_total_ms": 37.061,
+          "wall_mean_ms": 5.294,
+          "wall_median_ms": 3.305,
+          "wall_p95_ms": 18.867,
+          "query_count": 72,
+          "query_total_ms": 19.887,
+          "query_mean_ms": 0.276,
+          "connect_count": 5,
+          "connect_total_ms": 12.495
+        },
+        "call:raise_question": {
+          "samples": 8,
+          "wall_total_ms": 38.622,
+          "wall_mean_ms": 4.828,
+          "wall_median_ms": 3.296,
+          "wall_p95_ms": 15.368,
+          "query_count": 102,
+          "query_total_ms": 28.076,
+          "query_mean_ms": 0.275,
+          "connect_count": 2,
+          "connect_total_ms": 5.125
+        },
+        "call:correct_question": {
+          "samples": 6,
+          "wall_total_ms": 13.037,
+          "wall_mean_ms": 2.173,
+          "wall_median_ms": 1.526,
+          "wall_p95_ms": 4.324,
+          "query_count": 36,
+          "query_total_ms": 6.729,
+          "query_mean_ms": 0.187,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:settle_question": {
+          "samples": 4,
+          "wall_total_ms": 11.96,
+          "wall_mean_ms": 2.99,
+          "wall_median_ms": 3.559,
+          "wall_p95_ms": 4.016,
+          "query_count": 33,
+          "query_total_ms": 6.816,
+          "query_mean_ms": 0.207,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:retire_question": {
+          "samples": 4,
+          "wall_total_ms": 13.463,
+          "wall_mean_ms": 3.366,
+          "wall_median_ms": 3.35,
+          "wall_p95_ms": 6.025,
+          "query_count": 30,
+          "query_total_ms": 8.728,
+          "query_mean_ms": 0.291,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:read_context": {
+          "samples": 6,
+          "wall_total_ms": 45.807,
+          "wall_mean_ms": 7.635,
+          "wall_median_ms": 2.944,
+          "wall_p95_ms": 33.79,
+          "query_count": 53,
+          "query_total_ms": 19.849,
+          "query_mean_ms": 0.375,
+          "connect_count": 5,
+          "connect_total_ms": 11.569
+        },
+        "call:close_out": {
+          "samples": 1,
+          "wall_total_ms": 0.911,
+          "wall_mean_ms": 0.911,
+          "wall_median_ms": 0.911,
+          "wall_p95_ms": 0.911,
+          "query_count": 0,
+          "query_total_ms": 0,
+          "query_mean_ms": 0,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:name_session": {
+          "samples": 4,
+          "wall_total_ms": 91.167,
+          "wall_mean_ms": 22.792,
+          "wall_median_ms": 2.962,
+          "wall_p95_ms": 84.497,
+          "query_count": 46,
+          "query_total_ms": 72.782,
+          "query_mean_ms": 1.582,
+          "connect_count": 5,
+          "connect_total_ms": 34.821
+        },
+        "call:wire_pipeline": {
+          "samples": 5,
+          "wall_total_ms": 223.932,
+          "wall_mean_ms": 44.786,
+          "wall_median_ms": 42.044,
+          "wall_p95_ms": 74.489,
+          "query_count": 120,
+          "query_total_ms": 88.128,
+          "query_mean_ms": 0.734,
+          "connect_count": 20,
+          "connect_total_ms": 78.708
+        },
+        "call:check_setup": {
+          "samples": 1,
+          "wall_total_ms": 190.982,
+          "wall_mean_ms": 190.982,
+          "wall_median_ms": 190.982,
+          "wall_p95_ms": 190.982,
+          "query_count": 27,
+          "query_total_ms": 31.82,
+          "query_mean_ms": 1.179,
+          "connect_count": 3,
+          "connect_total_ms": 17.689
+        },
+        "call:librarian_worklist": {
+          "samples": 1,
+          "wall_total_ms": 31.004,
+          "wall_mean_ms": 31.004,
+          "wall_median_ms": 31.004,
+          "wall_p95_ms": 31.004,
+          "query_count": 42,
+          "query_total_ms": 32.811,
+          "query_mean_ms": 0.781,
+          "connect_count": 14,
+          "connect_total_ms": 73.423
+        }
+      },
+      "calls_by_connection_use": {
+        "opens_connections": {
+          "samples": 84,
+          "wall_total_ms": 6131.174,
+          "wall_mean_ms": 72.99,
+          "wall_median_ms": 28.364,
+          "wall_p95_ms": 116.611,
+          "query_count": 3119,
+          "query_total_ms": 2155.714,
+          "query_mean_ms": 0.691,
+          "connect_count": 487,
+          "connect_total_ms": 7963.061
+        },
+        "reuses_connections": {
+          "samples": 265,
+          "wall_total_ms": 1591.774,
+          "wall_mean_ms": 6.007,
+          "wall_median_ms": 4.27,
+          "wall_p95_ms": 16.416,
+          "query_count": 3268,
+          "query_total_ms": 1170.399,
+          "query_mean_ms": 0.358,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        }
+      },
+      "calls_by_file": {
+        "agent-tools-reads.test.ts": {
+          "samples": 123,
+          "wall_total_ms": 4432.027,
+          "wall_mean_ms": 36.033,
+          "wall_median_ms": 4.738,
+          "wall_p95_ms": 46.735,
+          "query_count": 2048,
+          "query_total_ms": 1164.783,
+          "query_mean_ms": 0.569,
+          "connect_count": 192,
+          "connect_total_ms": 6834.383
+        },
+        "agent-tools-writes.test.ts": {
+          "samples": 180,
+          "wall_total_ms": 2326.12,
+          "wall_mean_ms": 12.923,
+          "wall_median_ms": 4.81,
+          "wall_p95_ms": 42.581,
+          "query_count": 3449,
+          "query_total_ms": 1586.153,
+          "query_mean_ms": 0.46,
+          "connect_count": 226,
+          "connect_total_ms": 868.064
+        },
+        "agent-tools.test.ts": {
+          "samples": 46,
+          "wall_total_ms": 964.801,
+          "wall_mean_ms": 20.974,
+          "wall_median_ms": 13.233,
+          "wall_p95_ms": 73.124,
+          "query_count": 890,
+          "query_total_ms": 575.177,
+          "query_mean_ms": 0.646,
+          "connect_count": 69,
+          "connect_total_ms": 260.614
+        }
+      },
+      "call_queries": [
+        {
+          "sql": "SELECT id, type, version, fields, created_at, updated_at FROM record WHERE type = $1 ORDER BY id COLLATE \"C\"",
+          "count": 990,
+          "ms": 838.82,
+          "mean_ms": 0.847,
+          "max_ms": 8.248
+        },
+        {
+          "sql": "WITH latest AS ( SELECT DISTINCT ON (coalesce(detail->>'increment', detail->>'capability')) seq, session, coalesce(detail->>'increment', detail->>'capability') AS id FROM activity WHERE project = $1 A",
+          "count": 153,
+          "ms": 290.451,
+          "mean_ms": 1.898,
+          "max_ms": 12.54
+        },
+        {
+          "sql": "SELECT pg_get_userbyid(datdba) AS owner, datdba = (SELECT oid FROM pg_roles WHERE rolname = current_user) AS mine, pg_has_role(current_user, datdba, 'SET') AS may FROM pg_database WHERE datname = $1",
+          "count": 167,
+          "ms": 184.935,
+          "mean_ms": 1.107,
+          "max_ms": 3.755
+        },
+        {
+          "sql": "BEGIN",
+          "count": 771,
+          "ms": 176.123,
+          "mean_ms": 0.228,
+          "max_ms": 17.283
+        },
+        {
+          "sql": "INSERT INTO activity (project, session, harness, source, kind, folder, detail, at) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, coalesce($8::timestamptz, now())) RETURNING seq, at",
+          "count": 363,
+          "ms": 168.946,
+          "mean_ms": 0.465,
+          "max_ms": 3.313
+        },
+        {
+          "sql": "SELECT id, type, version, fields, created_at, updated_at FROM record WHERE id = $1",
+          "count": 318,
+          "ms": 121.989,
+          "mean_ms": 0.384,
+          "max_ms": 21.023
+        },
+        {
+          "sql": "WITH own AS ( SELECT seq, session, at, kind, folder, harness, source, detail->>'branch' AS branch, detail->>'machine' AS machine, detail->>'how' AS how, detail->>'call' AS call, detail ? 'increment' A",
+          "count": 34,
+          "ms": 115.774,
+          "mean_ms": 3.405,
+          "max_ms": 6.167
+        },
+        {
+          "sql": "COMMIT",
+          "count": 769,
+          "ms": 106.46,
+          "mean_ms": 0.138,
+          "max_ms": 1.905
+        },
+        {
+          "sql": "INSERT INTO record_event (record_id, type, action, record, reason, actor, at) VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7)",
+          "count": 256,
+          "ms": 102.142,
+          "mean_ms": 0.399,
+          "max_ms": 3.644
+        },
+        {
+          "sql": "SELECT pg_advisory_xact_lock(hashtext('storytree.activity'), hashtext($1))",
+          "count": 363,
+          "ms": 90.147,
+          "mean_ms": 0.248,
+          "max_ms": 3.113
+        },
+        {
+          "sql": "CREATE INDEX IF NOT EXISTS activity_project_folder_idx ON activity (project, (lower(replace(folder, '\\', '/'))) text_pattern_ops)",
+          "count": 57,
+          "ms": 84.231,
+          "mean_ms": 1.478,
+          "max_ms": 41.029
+        },
+        {
+          "sql": "INSERT INTO record (id, type, version, fields, created_at, updated_at) VALUES ($1, $2, $3, $4::jsonb, $5, $6) ON CONFLICT (id) DO UPDATE SET type = excluded.type, version = excluded.version, fields = ",
+          "count": 250,
+          "ms": 77.002,
+          "mean_ms": 0.308,
+          "max_ms": 2.389
+        },
+        {
+          "sql": "SELECT id, type, version, fields, created_at, updated_at FROM record WHERE id = $1 FOR UPDATE",
+          "count": 258,
+          "ms": 69.58,
+          "mean_ms": 0.27,
+          "max_ms": 3.009
+        },
+        {
+          "sql": "SELECT 1 FROM pg_database WHERE datname = $1",
+          "count": 112,
+          "ms": 68.764,
+          "mean_ms": 0.614,
+          "max_ms": 4.874
+        },
+        {
+          "sql": "SELECT oid::text AS identity FROM pg_database WHERE datname = $1",
+          "count": 57,
+          "ms": 68.435,
+          "mean_ms": 1.201,
+          "max_ms": 7.651
+        },
+        {
+          "sql": "CREATE TABLE IF NOT EXISTS activity ( seq bigserial PRIMARY KEY, project text NOT NULL, at timestamptz NOT NULL DEFAULT now(), session text NOT NULL, harness text, source text NOT NULL, kind text NOT ",
+          "count": 57,
+          "ms": 60.012,
+          "mean_ms": 1.053,
+          "max_ms": 40.373
+        },
+        {
+          "sql": "CREATE INDEX IF NOT EXISTS activity_project_at_idx ON activity (project, at)",
+          "count": 57,
+          "ms": 57.382,
+          "mean_ms": 1.007,
+          "max_ms": 40.802
+        },
+        {
+          "sql": "SELECT value FROM library_meta WHERE key = 'schema'",
+          "count": 55,
+          "ms": 54.806,
+          "mean_ms": 0.996,
+          "max_ms": 6.679
+        },
+        {
+          "sql": "CREATE INDEX IF NOT EXISTS transcript_records_at_idx ON transcript_records (at)",
+          "count": 57,
+          "ms": 51.998,
+          "mean_ms": 0.912,
+          "max_ms": 40.792
+        },
+        {
+          "sql": "SELECT jsonb_build_object('id', id, 'type', type, 'version', version, 'fields', fields, 'createdAt', created_at, 'updatedAt', updated_at) AS record FROM record WHERE type = 'memory' ORDER BY id COLLAT",
+          "count": 55,
+          "ms": 51.968,
+          "mean_ms": 0.945,
+          "max_ms": 5.294
+        },
+        {
+          "sql": "WITH branch_states AS ( SELECT DISTINCT ON (coalesce(detail->>'of', detail->>'branch')) coalesce(detail->>'of', detail->>'branch') AS branch, at, kind, detail->>'open' AS open FROM activity WHERE proj",
+          "count": 10,
+          "ms": 48.847,
+          "mean_ms": 4.885,
+          "max_ms": 29.624
+        },
+        {
+          "sql": "SELECT pg_try_advisory_xact_lock(hashtext('storytree.record-writes')) AS taken",
+          "count": 258,
+          "ms": 46.378,
+          "mean_ms": 0.18,
+          "max_ms": 1.436
+        },
+        {
+          "sql": "SELECT id, type, version, CASE WHEN version = $4 THEN (SELECT coalesce(jsonb_object_agg(key, value), '{}'::jsonb) FROM jsonb_each(fields) WHERE key = ANY($5::text[])) ELSE fields END AS fields, create",
+          "count": 46,
+          "ms": 45.614,
+          "mean_ms": 0.992,
+          "max_ms": 2.287
+        },
+        {
+          "sql": "SELECT pg_advisory_xact_lock(hashtext('storytree.activity-schema'))",
+          "count": 57,
+          "ms": 40.219,
+          "mean_ms": 0.706,
+          "max_ms": 5.795
+        },
+        {
+          "sql": "INSERT INTO trunks (project, machine, machine_name, folder) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING",
+          "count": 60,
+          "ms": 34.095,
+          "mean_ms": 0.568,
+          "max_ms": 2.525
+        },
+        {
+          "sql": "CREATE INDEX IF NOT EXISTS activity_project_seq_idx ON activity (project, seq)",
+          "count": 57,
+          "ms": 33.874,
+          "mean_ms": 0.594,
+          "max_ms": 2.752
+        },
+        {
+          "sql": "SELECT id, type, version, fields, created_at, updated_at FROM record WHERE type = $1 AND (fields #> $2::text[]) = $3::jsonb ORDER BY id COLLATE \"C\"",
+          "count": 61,
+          "ms": 32.3,
+          "mean_ms": 0.53,
+          "max_ms": 14.6
+        },
+        {
+          "sql": "SELECT COALESCE(MAX((record->'fields'->>$2::text)::numeric), 0) AS highest FROM record_event WHERE ($3::boolean OR type = $1) AND jsonb_typeof(record->'fields'->$2::text) = 'number'",
+          "count": 58,
+          "ms": 28.092,
+          "mean_ms": 0.484,
+          "max_ms": 1.638
+        },
+        {
+          "sql": "SELECT pg_advisory_xact_lock(hashtext('storytree.trunks-schema'))",
+          "count": 93,
+          "ms": 27.141,
+          "mean_ms": 0.292,
+          "max_ms": 1.526
+        },
+        {
+          "sql": "CREATE TABLE IF NOT EXISTS trunks ( project text NOT NULL, machine text NOT NULL, machine_name text NOT NULL, folder text NOT NULL, at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (project, machine",
+          "count": 93,
+          "ms": 19.487,
+          "mean_ms": 0.21,
+          "max_ms": 1.319
+        },
+        {
+          "sql": "SELECT id, type, version, CASE WHEN version = $2 THEN (SELECT coalesce(jsonb_object_agg(key, value), '{}'::jsonb) FROM jsonb_each(fields) WHERE key = ANY($3::text[])) ELSE fields END AS fields, create",
+          "count": 25,
+          "ms": 19.451,
+          "mean_ms": 0.778,
+          "max_ms": 2.959
+        },
+        {
+          "sql": "CREATE INDEX IF NOT EXISTS activity_project_kind_seq_idx ON activity (project, kind, seq)",
+          "count": 57,
+          "ms": 17.385,
+          "mean_ms": 0.305,
+          "max_ms": 1.826
+        },
+        {
+          "sql": "CREATE TABLE IF NOT EXISTS transcript_records ( project text NOT NULL, session text NOT NULL, part text NOT NULL, start bigint NOT NULL, finish bigint NOT NULL, at timestamptz NOT NULL DEFAULT now(), ",
+          "count": 57,
+          "ms": 17.117,
+          "mean_ms": 0.3,
+          "max_ms": 4.246
+        },
+        {
+          "sql": "CREATE TABLE IF NOT EXISTS transcript_readings ( project text NOT NULL, session text NOT NULL, at timestamptz NOT NULL DEFAULT now(), reading jsonb NOT NULL, PRIMARY KEY (project, session) )",
+          "count": 57,
+          "ms": 13.861,
+          "mean_ms": 0.243,
+          "max_ms": 4.126
+        },
+        {
+          "sql": "CREATE INDEX IF NOT EXISTS activity_project_session_seq_idx ON activity (project, session, seq)",
+          "count": 57,
+          "ms": 12.832,
+          "mean_ms": 0.225,
+          "max_ms": 0.875
+        },
+        {
+          "sql": "SELECT seq, project, at, session, harness, source, kind, folder, detail - $4::text[] AS detail FROM (SELECT * FROM activity WHERE project = $1 AND kind = ANY($2::text[]) AND detail->>'call' = $3) AS p",
+          "count": 14,
+          "ms": 9.586,
+          "mean_ms": 0.685,
+          "max_ms": 1.357
+        },
+        {
+          "sql": "SELECT seq, project, at, session, harness, source, kind, folder, detail - $4::text[] AS detail FROM (SELECT * FROM activity WHERE project = $1 AND kind = ANY($2::text[]) AND session = ANY($3::text[]))",
+          "count": 16,
+          "ms": 7.799,
+          "mean_ms": 0.487,
+          "max_ms": 1.336
+        },
+        {
+          "sql": "SELECT seq, record_id, type, action, record, reason, actor, at FROM record_event WHERE record_id = $1 ORDER BY seq",
+          "count": 14,
+          "ms": 6.524,
+          "mean_ms": 0.466,
+          "max_ms": 0.805
+        },
+        {
+          "sql": "DELETE FROM trunks WHERE project = $1 AND machine = $2",
+          "count": 28,
+          "ms": 5.629,
+          "mean_ms": 0.201,
+          "max_ms": 0.367
+        },
+        {
+          "sql": "SELECT now() AS now",
+          "count": 31,
+          "ms": 3.852,
+          "mean_ms": 0.124,
+          "max_ms": 0.265
+        },
+        {
+          "sql": "SELECT project, machine, machine_name, folder FROM trunks WHERE machine = $1 ORDER BY project",
+          "count": 5,
+          "ms": 3.667,
+          "mean_ms": 0.733,
+          "max_ms": 1.029
+        },
+        {
+          "sql": "SELECT 1 FROM activity WHERE project = $1 AND seq = $2",
+          "count": 11,
+          "ms": 2.577,
+          "mean_ms": 0.234,
+          "max_ms": 0.338
+        },
+        {
+          "sql": "SELECT seq, project, at, session, harness, source, kind, folder, detail - $3::text[] AS detail FROM (SELECT * FROM activity WHERE project = $1 AND session = ANY($2::text[]) AND detail->>'transcript' I",
+          "count": 5,
+          "ms": 2.464,
+          "mean_ms": 0.493,
+          "max_ms": 0.695
+        },
+        {
+          "sql": "SELECT seq, project, at, session, harness, source, kind, folder, detail - $4::text[] AS detail FROM (SELECT * FROM activity WHERE project = $1 AND kind = ANY($2::text[]) AND detail->>'subagent' = $3) ",
+          "count": 4,
+          "ms": 2.38,
+          "mean_ms": 0.595,
+          "max_ms": 1.072
+        },
+        {
+          "sql": "SELECT seq, record_id, type, action, record, reason, actor, at FROM record_event WHERE seq > $1 AND type = ANY($2::text[]) ORDER BY seq LIMIT $3",
+          "count": 2,
+          "ms": 1.417,
+          "mean_ms": 0.709,
+          "max_ms": 0.736
+        },
+        {
+          "sql": "DELETE FROM record WHERE id = $1",
+          "count": 6,
+          "ms": 1.083,
+          "mean_ms": 0.18,
+          "max_ms": 0.224
+        },
+        {
+          "sql": "SELECT seq, project, at, session, harness, source, kind, folder, detail - $4::text[] AS detail FROM (SELECT DISTINCT ON (kind) * FROM activity WHERE project = $1 AND session = ANY($2::text[]) AND sour",
+          "count": 1,
+          "ms": 0.886,
+          "mean_ms": 0.886,
+          "max_ms": 0.886
+        },
+        {
+          "sql": "SELECT id, type, version, CASE WHEN version = $7 THEN (SELECT coalesce(jsonb_object_agg(key, value), '{}'::jsonb) FROM jsonb_each(fields) WHERE key = ANY($8::text[])) ELSE fields END AS fields, create",
+          "count": 2,
+          "ms": 0.76,
+          "mean_ms": 0.38,
+          "max_ms": 0.4
+        },
+        {
+          "sql": "SELECT seq, project, at, session, harness, source, kind, folder, detail - $5::text[] AS detail FROM (SELECT * FROM activity WHERE project = $1 AND kind = ANY($2::text[]) AND session = ANY($3::text[]) ",
+          "count": 1,
+          "ms": 0.489,
+          "mean_ms": 0.489,
+          "max_ms": 0.489
+        },
+        {
+          "sql": "ROLLBACK",
+          "count": 2,
+          "ms": 0.342,
+          "mean_ms": 0.171,
+          "max_ms": 0.188
+        }
+      ]
+    },
+    "macOS": {
+      "phases": {
+        "baseline:connect": {
+          "samples": 3,
+          "wall_total_ms": 27.546,
+          "wall_mean_ms": 9.182,
+          "wall_median_ms": 7.439,
+          "wall_p95_ms": 14.47,
+          "query_count": 0,
+          "query_total_ms": 0,
+          "query_mean_ms": 0,
+          "connect_count": 3,
+          "connect_total_ms": 27.074
+        },
+        "baseline:50-selects": {
+          "samples": 3,
+          "wall_total_ms": 38.634,
+          "wall_mean_ms": 12.878,
+          "wall_median_ms": 9.868,
+          "wall_p95_ms": 19.519,
+          "query_count": 150,
+          "query_total_ms": 37.631,
+          "query_mean_ms": 0.251,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "connect": {
+          "samples": 61,
+          "wall_total_ms": 8.7,
+          "wall_mean_ms": 0.143,
+          "wall_median_ms": 0.102,
+          "wall_p95_ms": 0.183,
+          "query_count": 0,
+          "query_total_ms": 0,
+          "query_mean_ms": 0,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "activityLog": {
+          "samples": 61,
+          "wall_total_ms": 279.675,
+          "wall_mean_ms": 4.585,
+          "wall_median_ms": 4.111,
+          "wall_p95_ms": 6.532,
+          "query_count": 732,
+          "query_total_ms": 145.193,
+          "query_mean_ms": 0.198,
+          "connect_count": 61,
+          "connect_total_ms": 114.753
+        },
+        "openProject": {
+          "samples": 61,
+          "wall_total_ms": 3260.017,
+          "wall_mean_ms": 53.443,
+          "wall_median_ms": 50.816,
+          "wall_p95_ms": 74.092,
+          "query_count": 1098,
+          "query_total_ms": 2870.97,
+          "query_mean_ms": 2.615,
+          "connect_count": 122,
+          "connect_total_ms": 333.178
+        },
+        "agentOpen": {
+          "samples": 58,
+          "wall_total_ms": 297.366,
+          "wall_mean_ms": 5.127,
+          "wall_median_ms": 3.952,
+          "wall_p95_ms": 17.922,
+          "query_count": 0,
+          "query_total_ms": 0,
+          "query_mean_ms": 0,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:show_plan": {
+          "samples": 14,
+          "wall_total_ms": 3315.675,
+          "wall_mean_ms": 236.834,
+          "wall_median_ms": 21.341,
+          "wall_p95_ms": 3003.126,
+          "query_count": 364,
+          "query_total_ms": 224.885,
+          "query_mean_ms": 0.618,
+          "connect_count": 98,
+          "connect_total_ms": 6479.397
+        },
+        "ALL_CALLS": {
+          "samples": 349,
+          "wall_total_ms": 6760.292,
+          "wall_mean_ms": 19.37,
+          "wall_median_ms": 3.372,
+          "wall_p95_ms": 33.815,
+          "query_count": 6372,
+          "query_total_ms": 2116.723,
+          "query_mean_ms": 0.332,
+          "connect_count": 487,
+          "connect_total_ms": 7430.389
+        },
+        "call:plan_story": {
+          "samples": 27,
+          "wall_total_ms": 416.853,
+          "wall_mean_ms": 15.439,
+          "wall_median_ms": 14.857,
+          "wall_p95_ms": 21.085,
+          "query_count": 1066,
+          "query_total_ms": 275.557,
+          "query_mean_ms": 0.258,
+          "connect_count": 115,
+          "connect_total_ms": 213.892
+        },
+        "agentBody": {
+          "samples": 58,
+          "wall_total_ms": 7552.913,
+          "wall_mean_ms": 130.223,
+          "wall_median_ms": 45.3,
+          "wall_p95_ms": 494.125,
+          "query_count": 8549,
+          "query_total_ms": 2675.645,
+          "query_mean_ms": 0.313,
+          "connect_count": 568,
+          "connect_total_ms": 7864.224
+        },
+        "agentClose": {
+          "samples": 58,
+          "wall_total_ms": 23.668,
+          "wall_mean_ms": 0.408,
+          "wall_median_ms": 0.212,
+          "wall_p95_ms": 2.454,
+          "query_count": 0,
+          "query_total_ms": 0,
+          "query_mean_ms": 0,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "body": {
+          "samples": 61,
+          "wall_total_ms": 11665.67,
+          "wall_mean_ms": 191.24,
+          "wall_median_ms": 64.759,
+          "wall_p95_ms": 522.091,
+          "query_count": 9670,
+          "query_total_ms": 3593.991,
+          "query_mean_ms": 0.372,
+          "connect_count": 649,
+          "connect_total_ms": 8026.01
+        },
+        "closeLogAndLibrary": {
+          "samples": 61,
+          "wall_total_ms": 7.727,
+          "wall_mean_ms": 0.127,
+          "wall_median_ms": 0.085,
+          "wall_p95_ms": 0.359,
+          "query_count": 0,
+          "query_total_ms": 0,
+          "query_mean_ms": 0,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "drop": {
+          "samples": 61,
+          "wall_total_ms": 3542.151,
+          "wall_mean_ms": 58.068,
+          "wall_median_ms": 48.23,
+          "wall_p95_ms": 102.576,
+          "query_count": 61,
+          "query_total_ms": 3251.955,
+          "query_mean_ms": 53.311,
+          "connect_count": 61,
+          "connect_total_ms": 223.314
+        },
+        "whole": {
+          "samples": 61,
+          "wall_total_ms": 18986.237,
+          "wall_mean_ms": 311.25,
+          "wall_median_ms": 190.043,
+          "wall_p95_ms": 657.899,
+          "query_count": 11561,
+          "query_total_ms": 9862.131,
+          "query_mean_ms": 0.853,
+          "connect_count": 893,
+          "connect_total_ms": 8697.257
+        },
+        "call:claim": {
+          "samples": 25,
+          "wall_total_ms": 210.585,
+          "wall_mean_ms": 8.423,
+          "wall_median_ms": 7.692,
+          "wall_p95_ms": 15.505,
+          "query_count": 564,
+          "query_total_ms": 162.705,
+          "query_mean_ms": 0.288,
+          "connect_count": 34,
+          "connect_total_ms": 64.755
+        },
+        "call:report": {
+          "samples": 6,
+          "wall_total_ms": 12.023,
+          "wall_mean_ms": 2.004,
+          "wall_median_ms": 2.13,
+          "wall_p95_ms": 3.831,
+          "query_count": 44,
+          "query_total_ms": 6.573,
+          "query_mean_ms": 0.149,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:plan_arc": {
+          "samples": 23,
+          "wall_total_ms": 57.313,
+          "wall_mean_ms": 2.492,
+          "wall_median_ms": 2.296,
+          "wall_p95_ms": 3.762,
+          "query_count": 237,
+          "query_total_ms": 35.626,
+          "query_mean_ms": 0.15,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:plan_capability": {
+          "samples": 30,
+          "wall_total_ms": 118.799,
+          "wall_mean_ms": 3.96,
+          "wall_median_ms": 3.745,
+          "wall_p95_ms": 5.539,
+          "query_count": 580,
+          "query_total_ms": 88.086,
+          "query_mean_ms": 0.152,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:plan_contract": {
+          "samples": 11,
+          "wall_total_ms": 26.719,
+          "wall_mean_ms": 2.429,
+          "wall_median_ms": 2.61,
+          "wall_p95_ms": 3.098,
+          "query_count": 127,
+          "query_total_ms": 17.801,
+          "query_mean_ms": 0.14,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:edit_plan": {
+          "samples": 9,
+          "wall_total_ms": 29.02,
+          "wall_mean_ms": 3.224,
+          "wall_median_ms": 2.654,
+          "wall_p95_ms": 6.895,
+          "query_count": 129,
+          "query_total_ms": 21.994,
+          "query_mean_ms": 0.17,
+          "connect_count": 6,
+          "connect_total_ms": 12.008
+        },
+        "call:focus": {
+          "samples": 9,
+          "wall_total_ms": 149.08,
+          "wall_mean_ms": 16.564,
+          "wall_median_ms": 11.398,
+          "wall_p95_ms": 72.813,
+          "query_count": 71,
+          "query_total_ms": 26.733,
+          "query_mean_ms": 0.377,
+          "connect_count": 8,
+          "connect_total_ms": 39.885
+        },
+        "call:health_worklist": {
+          "samples": 3,
+          "wall_total_ms": 424.775,
+          "wall_mean_ms": 141.592,
+          "wall_median_ms": 2.186,
+          "wall_p95_ms": 422.044,
+          "query_count": 48,
+          "query_total_ms": 417.78,
+          "query_mean_ms": 8.704,
+          "connect_count": 8,
+          "connect_total_ms": 14.864
+        },
+        "call:release": {
+          "samples": 4,
+          "wall_total_ms": 17.78,
+          "wall_mean_ms": 4.445,
+          "wall_median_ms": 5.787,
+          "wall_p95_ms": 5.902,
+          "query_count": 51,
+          "query_total_ms": 16.299,
+          "query_mean_ms": 0.32,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:make_workspace": {
+          "samples": 4,
+          "wall_total_ms": 396.897,
+          "wall_mean_ms": 99.224,
+          "wall_median_ms": 87.897,
+          "wall_p95_ms": 220.748,
+          "query_count": 111,
+          "query_total_ms": 34.993,
+          "query_mean_ms": 0.315,
+          "connect_count": 13,
+          "connect_total_ms": 24.245
+        },
+        "call:attach_workspace": {
+          "samples": 4,
+          "wall_total_ms": 209.607,
+          "wall_mean_ms": 52.402,
+          "wall_median_ms": 62.673,
+          "wall_p95_ms": 83.86,
+          "query_count": 82,
+          "query_total_ms": 35.126,
+          "query_mean_ms": 0.428,
+          "connect_count": 4,
+          "connect_total_ms": 12.306
+        },
+        "call:land": {
+          "samples": 9,
+          "wall_total_ms": 242.069,
+          "wall_mean_ms": 26.897,
+          "wall_median_ms": 30.49,
+          "wall_p95_ms": 53.076,
+          "query_count": 216,
+          "query_total_ms": 54.164,
+          "query_mean_ms": 0.251,
+          "connect_count": 8,
+          "connect_total_ms": 16.619
+        },
+        "call:search_notes": {
+          "samples": 4,
+          "wall_total_ms": 82.841,
+          "wall_mean_ms": 20.71,
+          "wall_median_ms": 25.217,
+          "wall_p95_ms": 32.172,
+          "query_count": 153,
+          "query_total_ms": 56.016,
+          "query_mean_ms": 0.366,
+          "connect_count": 42,
+          "connect_total_ms": 142.924
+        },
+        "call:open": {
+          "samples": 16,
+          "wall_total_ms": 211.417,
+          "wall_mean_ms": 13.214,
+          "wall_median_ms": 7.665,
+          "wall_p95_ms": 47.885,
+          "query_count": 631,
+          "query_total_ms": 249.507,
+          "query_mean_ms": 0.395,
+          "connect_count": 62,
+          "connect_total_ms": 230.84
+        },
+        "call:write_note": {
+          "samples": 19,
+          "wall_total_ms": 86.256,
+          "wall_mean_ms": 4.54,
+          "wall_median_ms": 3.024,
+          "wall_p95_ms": 22.932,
+          "query_count": 295,
+          "query_total_ms": 61.619,
+          "query_mean_ms": 0.209,
+          "connect_count": 5,
+          "connect_total_ms": 8.708
+        },
+        "call:correct_note": {
+          "samples": 8,
+          "wall_total_ms": 13.904,
+          "wall_mean_ms": 1.738,
+          "wall_median_ms": 1.893,
+          "wall_p95_ms": 2.543,
+          "query_count": 69,
+          "query_total_ms": 8.795,
+          "query_mean_ms": 0.127,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:retire_from_plan": {
+          "samples": 6,
+          "wall_total_ms": 16.517,
+          "wall_mean_ms": 2.753,
+          "wall_median_ms": 2.698,
+          "wall_p95_ms": 5.676,
+          "query_count": 75,
+          "query_total_ms": 13.866,
+          "query_mean_ms": 0.185,
+          "connect_count": 3,
+          "connect_total_ms": 5.787
+        },
+        "call:park_increment": {
+          "samples": 21,
+          "wall_total_ms": 69.272,
+          "wall_mean_ms": 3.299,
+          "wall_median_ms": 2.969,
+          "wall_p95_ms": 5.455,
+          "query_count": 291,
+          "query_total_ms": 46.349,
+          "query_mean_ms": 0.159,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:close_increment": {
+          "samples": 5,
+          "wall_total_ms": 50.013,
+          "wall_mean_ms": 10.003,
+          "wall_median_ms": 6.957,
+          "wall_p95_ms": 22.047,
+          "query_count": 61,
+          "query_total_ms": 10.713,
+          "query_mean_ms": 0.176,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:move_increment": {
+          "samples": 6,
+          "wall_total_ms": 10.548,
+          "wall_mean_ms": 1.758,
+          "wall_median_ms": 1.615,
+          "wall_p95_ms": 3.377,
+          "query_count": 53,
+          "query_total_ms": 6.576,
+          "query_mean_ms": 0.124,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:park_arc": {
+          "samples": 5,
+          "wall_total_ms": 8.602,
+          "wall_mean_ms": 1.72,
+          "wall_median_ms": 1.793,
+          "wall_p95_ms": 2.724,
+          "query_count": 44,
+          "query_total_ms": 5.269,
+          "query_mean_ms": 0.12,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:mark_built": {
+          "samples": 4,
+          "wall_total_ms": 6.133,
+          "wall_mean_ms": 1.533,
+          "wall_median_ms": 1.667,
+          "wall_p95_ms": 2.319,
+          "query_count": 27,
+          "query_total_ms": 3.719,
+          "query_mean_ms": 0.138,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:set_wait": {
+          "samples": 7,
+          "wall_total_ms": 25.463,
+          "wall_mean_ms": 3.638,
+          "wall_median_ms": 2.631,
+          "wall_p95_ms": 11.199,
+          "query_count": 67,
+          "query_total_ms": 16.007,
+          "query_mean_ms": 0.239,
+          "connect_count": 2,
+          "connect_total_ms": 6.684
+        },
+        "call:clear_wait": {
+          "samples": 5,
+          "wall_total_ms": 18.68,
+          "wall_mean_ms": 3.736,
+          "wall_median_ms": 2.347,
+          "wall_p95_ms": 10.842,
+          "query_count": 44,
+          "query_total_ms": 14.056,
+          "query_mean_ms": 0.319,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:record_friction": {
+          "samples": 11,
+          "wall_total_ms": 77.862,
+          "wall_mean_ms": 7.078,
+          "wall_median_ms": 2.785,
+          "wall_p95_ms": 16.962,
+          "query_count": 243,
+          "query_total_ms": 52.138,
+          "query_mean_ms": 0.215,
+          "connect_count": 20,
+          "connect_total_ms": 31.654
+        },
+        "call:reinforce": {
+          "samples": 7,
+          "wall_total_ms": 23.151,
+          "wall_mean_ms": 3.307,
+          "wall_median_ms": 1.222,
+          "wall_p95_ms": 15.691,
+          "query_count": 68,
+          "query_total_ms": 14.228,
+          "query_mean_ms": 0.209,
+          "connect_count": 5,
+          "connect_total_ms": 8.457
+        },
+        "call:record_resteer": {
+          "samples": 7,
+          "wall_total_ms": 38.555,
+          "wall_mean_ms": 5.508,
+          "wall_median_ms": 2.985,
+          "wall_p95_ms": 15.335,
+          "query_count": 72,
+          "query_total_ms": 27.512,
+          "query_mean_ms": 0.382,
+          "connect_count": 5,
+          "connect_total_ms": 9.792
+        },
+        "call:raise_question": {
+          "samples": 8,
+          "wall_total_ms": 22.59,
+          "wall_mean_ms": 2.824,
+          "wall_median_ms": 2.402,
+          "wall_p95_ms": 7.221,
+          "query_count": 102,
+          "query_total_ms": 17.211,
+          "query_mean_ms": 0.169,
+          "connect_count": 2,
+          "connect_total_ms": 3.36
+        },
+        "call:correct_question": {
+          "samples": 6,
+          "wall_total_ms": 8.992,
+          "wall_mean_ms": 1.499,
+          "wall_median_ms": 1.218,
+          "wall_p95_ms": 2.606,
+          "query_count": 36,
+          "query_total_ms": 4.823,
+          "query_mean_ms": 0.134,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:settle_question": {
+          "samples": 4,
+          "wall_total_ms": 6.96,
+          "wall_mean_ms": 1.74,
+          "wall_median_ms": 2.099,
+          "wall_p95_ms": 2.441,
+          "query_count": 33,
+          "query_total_ms": 4.363,
+          "query_mean_ms": 0.132,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:retire_question": {
+          "samples": 4,
+          "wall_total_ms": 6.419,
+          "wall_mean_ms": 1.605,
+          "wall_median_ms": 1.952,
+          "wall_p95_ms": 2.254,
+          "query_count": 30,
+          "query_total_ms": 3.986,
+          "query_mean_ms": 0.133,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:read_context": {
+          "samples": 6,
+          "wall_total_ms": 36.173,
+          "wall_mean_ms": 6.029,
+          "wall_median_ms": 2.112,
+          "wall_p95_ms": 27.481,
+          "query_count": 53,
+          "query_total_ms": 13.629,
+          "query_mean_ms": 0.257,
+          "connect_count": 5,
+          "connect_total_ms": 8.244
+        },
+        "call:close_out": {
+          "samples": 1,
+          "wall_total_ms": 0.292,
+          "wall_mean_ms": 0.292,
+          "wall_median_ms": 0.292,
+          "wall_p95_ms": 0.292,
+          "query_count": 0,
+          "query_total_ms": 0,
+          "query_mean_ms": 0,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:name_session": {
+          "samples": 4,
+          "wall_total_ms": 16.254,
+          "wall_mean_ms": 4.064,
+          "wall_median_ms": 1.33,
+          "wall_p95_ms": 13.396,
+          "query_count": 46,
+          "query_total_ms": 10.165,
+          "query_mean_ms": 0.221,
+          "connect_count": 5,
+          "connect_total_ms": 7.988
+        },
+        "call:wire_pipeline": {
+          "samples": 5,
+          "wall_total_ms": 137.79,
+          "wall_mean_ms": 27.558,
+          "wall_median_ms": 21.19,
+          "wall_p95_ms": 50.204,
+          "query_count": 120,
+          "query_total_ms": 31.004,
+          "query_mean_ms": 0.258,
+          "connect_count": 20,
+          "connect_total_ms": 39.06
+        },
+        "call:check_setup": {
+          "samples": 1,
+          "wall_total_ms": 139.031,
+          "wall_mean_ms": 139.031,
+          "wall_median_ms": 139.031,
+          "wall_p95_ms": 139.031,
+          "query_count": 27,
+          "query_total_ms": 12.535,
+          "query_mean_ms": 0.464,
+          "connect_count": 3,
+          "connect_total_ms": 11.767
+        },
+        "call:librarian_worklist": {
+          "samples": 1,
+          "wall_total_ms": 19.382,
+          "wall_mean_ms": 19.382,
+          "wall_median_ms": 19.382,
+          "wall_p95_ms": 19.382,
+          "query_count": 42,
+          "query_total_ms": 14.315,
+          "query_mean_ms": 0.341,
+          "connect_count": 14,
+          "connect_total_ms": 37.153
+        }
+      },
+      "calls_by_connection_use": {
+        "opens_connections": {
+          "samples": 84,
+          "wall_total_ms": 5644.699,
+          "wall_mean_ms": 67.199,
+          "wall_median_ms": 15.899,
+          "wall_p95_ms": 139.031,
+          "query_count": 3104,
+          "query_total_ms": 1400.761,
+          "query_mean_ms": 0.451,
+          "connect_count": 487,
+          "connect_total_ms": 7430.389
+        },
+        "reuses_connections": {
+          "samples": 265,
+          "wall_total_ms": 1115.593,
+          "wall_mean_ms": 4.21,
+          "wall_median_ms": 2.631,
+          "wall_p95_ms": 14.319,
+          "query_count": 3268,
+          "query_total_ms": 715.962,
+          "query_mean_ms": 0.219,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        }
+      },
+      "calls_by_file": {
+        "agent-tools-reads.test.ts": {
+          "samples": 123,
+          "wall_total_ms": 4416.276,
+          "wall_mean_ms": 35.905,
+          "wall_median_ms": 3.311,
+          "wall_p95_ms": 33.815,
+          "query_count": 2063,
+          "query_total_ms": 1082.823,
+          "query_mean_ms": 0.525,
+          "connect_count": 192,
+          "connect_total_ms": 6715.027
+        },
+        "agent-tools-writes.test.ts": {
+          "samples": 180,
+          "wall_total_ms": 1770.215,
+          "wall_mean_ms": 9.835,
+          "wall_median_ms": 3.103,
+          "wall_p95_ms": 32.172,
+          "query_count": 3419,
+          "query_total_ms": 825.615,
+          "query_mean_ms": 0.241,
+          "connect_count": 226,
+          "connect_total_ms": 567.138
+        },
+        "agent-tools.test.ts": {
+          "samples": 46,
+          "wall_total_ms": 573.801,
+          "wall_mean_ms": 12.474,
+          "wall_median_ms": 6.296,
+          "wall_p95_ms": 48.022,
+          "query_count": 890,
+          "query_total_ms": 208.285,
+          "query_mean_ms": 0.234,
+          "connect_count": 69,
+          "connect_total_ms": 148.224
+        }
+      },
+      "call_queries": [
+        {
+          "sql": "CREATE INDEX IF NOT EXISTS activity_project_seq_idx ON activity (project, seq)",
+          "count": 57,
+          "ms": 421.591,
+          "mean_ms": 7.396,
+          "max_ms": 404.037
+        },
+        {
+          "sql": "SELECT id, type, version, fields, created_at, updated_at FROM record WHERE type = $1 ORDER BY id COLLATE \"C\"",
+          "count": 990,
+          "ms": 411.494,
+          "mean_ms": 0.416,
+          "max_ms": 3.667
+        },
+        {
+          "sql": "WITH latest AS ( SELECT DISTINCT ON (coalesce(detail->>'increment', detail->>'capability')) seq, session, coalesce(detail->>'increment', detail->>'capability') AS id FROM activity WHERE project = $1 A",
+          "count": 153,
+          "ms": 133.745,
+          "mean_ms": 0.874,
+          "max_ms": 5.605
+        },
+        {
+          "sql": "BEGIN",
+          "count": 768,
+          "ms": 116.754,
+          "mean_ms": 0.152,
+          "max_ms": 9.135
+        },
+        {
+          "sql": "INSERT INTO activity (project, session, harness, source, kind, folder, detail, at) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, coalesce($8::timestamptz, now())) RETURNING seq, at",
+          "count": 363,
+          "ms": 103.655,
+          "mean_ms": 0.286,
+          "max_ms": 2.59
+        },
+        {
+          "sql": "COMMIT",
+          "count": 766,
+          "ms": 91.914,
+          "mean_ms": 0.12,
+          "max_ms": 6.102
+        },
+        {
+          "sql": "SELECT pg_get_userbyid(datdba) AS owner, datdba = (SELECT oid FROM pg_roles WHERE rolname = current_user) AS mine, pg_has_role(current_user, datdba, 'SET') AS may FROM pg_database WHERE datname = $1",
+          "count": 167,
+          "ms": 86.134,
+          "mean_ms": 0.516,
+          "max_ms": 2.139
+        },
+        {
+          "sql": "INSERT INTO record_event (record_id, type, action, record, reason, actor, at) VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7)",
+          "count": 256,
+          "ms": 59.218,
+          "mean_ms": 0.231,
+          "max_ms": 1.523
+        },
+        {
+          "sql": "WITH own AS ( SELECT seq, session, at, kind, folder, harness, source, detail->>'branch' AS branch, detail->>'machine' AS machine, detail->>'how' AS how, detail->>'call' AS call, detail ? 'increment' A",
+          "count": 34,
+          "ms": 57.572,
+          "mean_ms": 1.693,
+          "max_ms": 2.793
+        },
+        {
+          "sql": "SELECT pg_advisory_xact_lock(hashtext('storytree.activity'), hashtext($1))",
+          "count": 363,
+          "ms": 55.6,
+          "mean_ms": 0.153,
+          "max_ms": 1.572
+        },
+        {
+          "sql": "SELECT id, type, version, fields, created_at, updated_at FROM record WHERE id = $1",
+          "count": 318,
+          "ms": 54.778,
+          "mean_ms": 0.172,
+          "max_ms": 0.571
+        },
+        {
+          "sql": "INSERT INTO record (id, type, version, fields, created_at, updated_at) VALUES ($1, $2, $3, $4::jsonb, $5, $6) ON CONFLICT (id) DO UPDATE SET type = excluded.type, version = excluded.version, fields = ",
+          "count": 250,
+          "ms": 47.66,
+          "mean_ms": 0.191,
+          "max_ms": 0.657
+        },
+        {
+          "sql": "SELECT id, type, version, fields, created_at, updated_at FROM record WHERE id = $1 FOR UPDATE",
+          "count": 258,
+          "ms": 42.8,
+          "mean_ms": 0.166,
+          "max_ms": 0.885
+        },
+        {
+          "sql": "SELECT 1 FROM pg_database WHERE datname = $1",
+          "count": 112,
+          "ms": 39.833,
+          "mean_ms": 0.356,
+          "max_ms": 1.491
+        },
+        {
+          "sql": "SELECT pg_try_advisory_xact_lock(hashtext('storytree.record-writes')) AS taken",
+          "count": 258,
+          "ms": 34.424,
+          "mean_ms": 0.133,
+          "max_ms": 0.631
+        },
+        {
+          "sql": "SELECT oid::text AS identity FROM pg_database WHERE datname = $1",
+          "count": 57,
+          "ms": 30.484,
+          "mean_ms": 0.535,
+          "max_ms": 2.868
+        },
+        {
+          "sql": "SELECT value FROM library_meta WHERE key = 'schema'",
+          "count": 55,
+          "ms": 28.147,
+          "mean_ms": 0.512,
+          "max_ms": 1.863
+        },
+        {
+          "sql": "WITH branch_states AS ( SELECT DISTINCT ON (coalesce(detail->>'of', detail->>'branch')) coalesce(detail->>'of', detail->>'branch') AS branch, at, kind, detail->>'open' AS open FROM activity WHERE proj",
+          "count": 10,
+          "ms": 25.93,
+          "mean_ms": 2.593,
+          "max_ms": 14.952
+        },
+        {
+          "sql": "SELECT id, type, version, CASE WHEN version = $4 THEN (SELECT coalesce(jsonb_object_agg(key, value), '{}'::jsonb) FROM jsonb_each(fields) WHERE key = ANY($5::text[])) ELSE fields END AS fields, create",
+          "count": 46,
+          "ms": 25.843,
+          "mean_ms": 0.562,
+          "max_ms": 2.196
+        },
+        {
+          "sql": "SELECT jsonb_build_object('id', id, 'type', type, 'version', version, 'fields', fields, 'createdAt', created_at, 'updatedAt', updated_at) AS record FROM record WHERE type = 'memory' ORDER BY id COLLAT",
+          "count": 55,
+          "ms": 23.637,
+          "mean_ms": 0.43,
+          "max_ms": 1.01
+        },
+        {
+          "sql": "SELECT pg_advisory_xact_lock(hashtext('storytree.activity-schema'))",
+          "count": 57,
+          "ms": 21.506,
+          "mean_ms": 0.377,
+          "max_ms": 3.028
+        },
+        {
+          "sql": "INSERT INTO trunks (project, machine, machine_name, folder) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING",
+          "count": 60,
+          "ms": 20.715,
+          "mean_ms": 0.345,
+          "max_ms": 0.498
+        },
+        {
+          "sql": "SELECT pg_advisory_xact_lock(hashtext('storytree.trunks-schema'))",
+          "count": 90,
+          "ms": 20.234,
+          "mean_ms": 0.225,
+          "max_ms": 1.389
+        },
+        {
+          "sql": "SELECT id, type, version, fields, created_at, updated_at FROM record WHERE type = $1 AND (fields #> $2::text[]) = $3::jsonb ORDER BY id COLLATE \"C\"",
+          "count": 61,
+          "ms": 17.272,
+          "mean_ms": 0.283,
+          "max_ms": 5.142
+        },
+        {
+          "sql": "SELECT COALESCE(MAX((record->'fields'->>$2::text)::numeric), 0) AS highest FROM record_event WHERE ($3::boolean OR type = $1) AND jsonb_typeof(record->'fields'->$2::text) = 'number'",
+          "count": 58,
+          "ms": 15.544,
+          "mean_ms": 0.268,
+          "max_ms": 0.843
+        },
+        {
+          "sql": "CREATE TABLE IF NOT EXISTS trunks ( project text NOT NULL, machine text NOT NULL, machine_name text NOT NULL, folder text NOT NULL, at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (project, machine",
+          "count": 90,
+          "ms": 13.382,
+          "mean_ms": 0.149,
+          "max_ms": 0.326
+        },
+        {
+          "sql": "CREATE INDEX IF NOT EXISTS activity_project_folder_idx ON activity (project, (lower(replace(folder, '\\', '/'))) text_pattern_ops)",
+          "count": 57,
+          "ms": 11.722,
+          "mean_ms": 0.206,
+          "max_ms": 0.786
+        },
+        {
+          "sql": "CREATE TABLE IF NOT EXISTS activity ( seq bigserial PRIMARY KEY, project text NOT NULL, at timestamptz NOT NULL DEFAULT now(), session text NOT NULL, harness text, source text NOT NULL, kind text NOT ",
+          "count": 57,
+          "ms": 11.064,
+          "mean_ms": 0.194,
+          "max_ms": 0.742
+        },
+        {
+          "sql": "CREATE INDEX IF NOT EXISTS activity_project_at_idx ON activity (project, at)",
+          "count": 57,
+          "ms": 10.489,
+          "mean_ms": 0.184,
+          "max_ms": 0.627
+        },
+        {
+          "sql": "CREATE TABLE IF NOT EXISTS transcript_records ( project text NOT NULL, session text NOT NULL, part text NOT NULL, start bigint NOT NULL, finish bigint NOT NULL, at timestamptz NOT NULL DEFAULT now(), ",
+          "count": 57,
+          "ms": 9.273,
+          "mean_ms": 0.163,
+          "max_ms": 1.313
+        },
+        {
+          "sql": "SELECT id, type, version, CASE WHEN version = $2 THEN (SELECT coalesce(jsonb_object_agg(key, value), '{}'::jsonb) FROM jsonb_each(fields) WHERE key = ANY($3::text[])) ELSE fields END AS fields, create",
+          "count": 25,
+          "ms": 9.199,
+          "mean_ms": 0.368,
+          "max_ms": 1.062
+        },
+        {
+          "sql": "CREATE INDEX IF NOT EXISTS transcript_records_at_idx ON transcript_records (at)",
+          "count": 57,
+          "ms": 9.06,
+          "mean_ms": 0.159,
+          "max_ms": 0.594
+        },
+        {
+          "sql": "CREATE INDEX IF NOT EXISTS activity_project_kind_seq_idx ON activity (project, kind, seq)",
+          "count": 57,
+          "ms": 8.739,
+          "mean_ms": 0.153,
+          "max_ms": 0.362
+        },
+        {
+          "sql": "CREATE INDEX IF NOT EXISTS activity_project_session_seq_idx ON activity (project, session, seq)",
+          "count": 57,
+          "ms": 8.148,
+          "mean_ms": 0.143,
+          "max_ms": 0.329
+        },
+        {
+          "sql": "CREATE TABLE IF NOT EXISTS transcript_readings ( project text NOT NULL, session text NOT NULL, at timestamptz NOT NULL DEFAULT now(), reading jsonb NOT NULL, PRIMARY KEY (project, session) )",
+          "count": 57,
+          "ms": 7.079,
+          "mean_ms": 0.124,
+          "max_ms": 0.334
+        },
+        {
+          "sql": "SELECT seq, project, at, session, harness, source, kind, folder, detail - $4::text[] AS detail FROM (SELECT * FROM activity WHERE project = $1 AND kind = ANY($2::text[]) AND detail->>'call' = $3) AS p",
+          "count": 14,
+          "ms": 6.214,
+          "mean_ms": 0.444,
+          "max_ms": 0.937
+        },
+        {
+          "sql": "SELECT seq, project, at, session, harness, source, kind, folder, detail - $4::text[] AS detail FROM (SELECT * FROM activity WHERE project = $1 AND kind = ANY($2::text[]) AND session = ANY($3::text[]))",
+          "count": 16,
+          "ms": 4.556,
+          "mean_ms": 0.285,
+          "max_ms": 0.518
+        },
+        {
+          "sql": "SELECT now() AS now",
+          "count": 31,
+          "ms": 4.273,
+          "mean_ms": 0.138,
+          "max_ms": 0.229
+        },
+        {
+          "sql": "DELETE FROM trunks WHERE project = $1 AND machine = $2",
+          "count": 25,
+          "ms": 3.851,
+          "mean_ms": 0.154,
+          "max_ms": 0.26
+        },
+        {
+          "sql": "SELECT seq, record_id, type, action, record, reason, actor, at FROM record_event WHERE record_id = $1 ORDER BY seq",
+          "count": 14,
+          "ms": 3.376,
+          "mean_ms": 0.241,
+          "max_ms": 0.496
+        },
+        {
+          "sql": "SELECT 1 FROM activity WHERE project = $1 AND seq = $2",
+          "count": 11,
+          "ms": 1.993,
+          "mean_ms": 0.181,
+          "max_ms": 0.231
+        },
+        {
+          "sql": "SELECT project, machine, machine_name, folder FROM trunks WHERE machine = $1 ORDER BY project",
+          "count": 5,
+          "ms": 1.939,
+          "mean_ms": 0.388,
+          "max_ms": 0.416
+        },
+        {
+          "sql": "SELECT seq, project, at, session, harness, source, kind, folder, detail - $4::text[] AS detail FROM (SELECT * FROM activity WHERE project = $1 AND kind = ANY($2::text[]) AND detail->>'subagent' = $3) ",
+          "count": 4,
+          "ms": 1.504,
+          "mean_ms": 0.376,
+          "max_ms": 0.626
+        },
+        {
+          "sql": "SELECT seq, project, at, session, harness, source, kind, folder, detail - $3::text[] AS detail FROM (SELECT * FROM activity WHERE project = $1 AND session = ANY($2::text[]) AND detail->>'transcript' I",
+          "count": 5,
+          "ms": 1.457,
+          "mean_ms": 0.291,
+          "max_ms": 0.313
+        },
+        {
+          "sql": "SELECT seq, record_id, type, action, record, reason, actor, at FROM record_event WHERE seq > $1 AND type = ANY($2::text[]) ORDER BY seq LIMIT $3",
+          "count": 2,
+          "ms": 0.925,
+          "mean_ms": 0.463,
+          "max_ms": 0.476
+        },
+        {
+          "sql": "DELETE FROM record WHERE id = $1",
+          "count": 6,
+          "ms": 0.756,
+          "mean_ms": 0.126,
+          "max_ms": 0.16
+        },
+        {
+          "sql": "SELECT id, type, version, CASE WHEN version = $7 THEN (SELECT coalesce(jsonb_object_agg(key, value), '{}'::jsonb) FROM jsonb_each(fields) WHERE key = ANY($8::text[])) ELSE fields END AS fields, create",
+          "count": 2,
+          "ms": 0.388,
+          "mean_ms": 0.194,
+          "max_ms": 0.198
+        },
+        {
+          "sql": "SELECT seq, project, at, session, harness, source, kind, folder, detail - $5::text[] AS detail FROM (SELECT * FROM activity WHERE project = $1 AND kind = ANY($2::text[]) AND session = ANY($3::text[]) ",
+          "count": 1,
+          "ms": 0.336,
+          "mean_ms": 0.336,
+          "max_ms": 0.336
+        },
+        {
+          "sql": "SELECT seq, project, at, session, harness, source, kind, folder, detail - $4::text[] AS detail FROM (SELECT DISTINCT ON (kind) * FROM activity WHERE project = $1 AND session = ANY($2::text[]) AND sour",
+          "count": 1,
+          "ms": 0.311,
+          "mean_ms": 0.311,
+          "max_ms": 0.311
+        },
+        {
+          "sql": "ROLLBACK",
+          "count": 2,
+          "ms": 0.205,
+          "mean_ms": 0.102,
+          "max_ms": 0.118
+        }
+      ]
+    },
+    "Windows": {
+      "phases": {
+        "baseline:connect": {
+          "samples": 3,
+          "wall_total_ms": 155.863,
+          "wall_mean_ms": 51.954,
+          "wall_median_ms": 53.152,
+          "wall_p95_ms": 63.511,
+          "query_count": 0,
+          "query_total_ms": 0,
+          "query_mean_ms": 0,
+          "connect_count": 3,
+          "connect_total_ms": 154.682
+        },
+        "baseline:50-selects": {
+          "samples": 3,
+          "wall_total_ms": 69.118,
+          "wall_mean_ms": 23.039,
+          "wall_median_ms": 18.387,
+          "wall_p95_ms": 36.745,
+          "query_count": 150,
+          "query_total_ms": 66.696,
+          "query_mean_ms": 0.445,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "connect": {
+          "samples": 61,
+          "wall_total_ms": 13.963,
+          "wall_mean_ms": 0.229,
+          "wall_median_ms": 0.188,
+          "wall_p95_ms": 0.336,
+          "query_count": 0,
+          "query_total_ms": 0,
+          "query_mean_ms": 0,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "activityLog": {
+          "samples": 61,
+          "wall_total_ms": 4896.176,
+          "wall_mean_ms": 80.265,
+          "wall_median_ms": 45.002,
+          "wall_p95_ms": 131.57,
+          "query_count": 732,
+          "query_total_ms": 2103.752,
+          "query_mean_ms": 2.874,
+          "connect_count": 61,
+          "connect_total_ms": 2750.515
+        },
+        "openProject": {
+          "samples": 61,
+          "wall_total_ms": 14759.534,
+          "wall_mean_ms": 241.96,
+          "wall_median_ms": 241.108,
+          "wall_p95_ms": 328.842,
+          "query_count": 1098,
+          "query_total_ms": 9088.163,
+          "query_mean_ms": 8.277,
+          "connect_count": 122,
+          "connect_total_ms": 5566.981
+        },
+        "agentOpen": {
+          "samples": 58,
+          "wall_total_ms": 941.304,
+          "wall_mean_ms": 16.229,
+          "wall_median_ms": 12.444,
+          "wall_p95_ms": 54.277,
+          "query_count": 0,
+          "query_total_ms": 0,
+          "query_mean_ms": 0,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:show_plan": {
+          "samples": 14,
+          "wall_total_ms": 5896.097,
+          "wall_mean_ms": 421.15,
+          "wall_median_ms": 219.505,
+          "wall_p95_ms": 3017.484,
+          "query_count": 364,
+          "query_total_ms": 553.123,
+          "query_mean_ms": 1.52,
+          "connect_count": 98,
+          "connect_total_ms": 14470.829
+        },
+        "ALL_CALLS": {
+          "samples": 349,
+          "wall_total_ms": 26750.913,
+          "wall_mean_ms": 76.65,
+          "wall_median_ms": 8.042,
+          "wall_p95_ms": 335.518,
+          "query_count": 6387,
+          "query_total_ms": 4530.452,
+          "query_mean_ms": 0.709,
+          "connect_count": 487,
+          "connect_total_ms": 36575.39
+        },
+        "call:plan_story": {
+          "samples": 27,
+          "wall_total_ms": 4360.168,
+          "wall_mean_ms": 161.488,
+          "wall_median_ms": 178.919,
+          "wall_p95_ms": 290.445,
+          "query_count": 1066,
+          "query_total_ms": 672.685,
+          "query_mean_ms": 0.631,
+          "connect_count": 115,
+          "connect_total_ms": 5881.85
+        },
+        "agentBody": {
+          "samples": 58,
+          "wall_total_ms": 29875.578,
+          "wall_mean_ms": 515.096,
+          "wall_median_ms": 383.933,
+          "wall_p95_ms": 1997.577,
+          "query_count": 8564,
+          "query_total_ms": 5797.245,
+          "query_mean_ms": 0.677,
+          "connect_count": 568,
+          "connect_total_ms": 43252.404
+        },
+        "agentClose": {
+          "samples": 58,
+          "wall_total_ms": 47.967,
+          "wall_mean_ms": 0.827,
+          "wall_median_ms": 0.619,
+          "wall_p95_ms": 2.017,
+          "query_count": 0,
+          "query_total_ms": 0,
+          "query_mean_ms": 0,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "body": {
+          "samples": 61,
+          "wall_total_ms": 48808.463,
+          "wall_mean_ms": 800.139,
+          "wall_median_ms": 472.515,
+          "wall_p95_ms": 2238.282,
+          "query_count": 9699,
+          "query_total_ms": 8770.626,
+          "query_mean_ms": 0.904,
+          "connect_count": 649,
+          "connect_total_ms": 48642.536
+        },
+        "closeLogAndLibrary": {
+          "samples": 61,
+          "wall_total_ms": 23.978,
+          "wall_mean_ms": 0.393,
+          "wall_median_ms": 0.262,
+          "wall_p95_ms": 1.547,
+          "query_count": 0,
+          "query_total_ms": 0,
+          "query_mean_ms": 0,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "drop": {
+          "samples": 61,
+          "wall_total_ms": 7281.731,
+          "wall_mean_ms": 119.373,
+          "wall_median_ms": 109.958,
+          "wall_p95_ms": 198.41,
+          "query_count": 61,
+          "query_total_ms": 3409.6,
+          "query_mean_ms": 55.895,
+          "connect_count": 61,
+          "connect_total_ms": 3364.26
+        },
+        "whole": {
+          "samples": 61,
+          "wall_total_ms": 76261.893,
+          "wall_mean_ms": 1250.195,
+          "wall_median_ms": 934.34,
+          "wall_p95_ms": 2884.554,
+          "query_count": 11590,
+          "query_total_ms": 23372.152,
+          "query_mean_ms": 2.017,
+          "connect_count": 893,
+          "connect_total_ms": 60324.297
+        },
+        "call:claim": {
+          "samples": 25,
+          "wall_total_ms": 1607.41,
+          "wall_mean_ms": 64.296,
+          "wall_median_ms": 46.874,
+          "wall_p95_ms": 180.76,
+          "query_count": 564,
+          "query_total_ms": 416.365,
+          "query_mean_ms": 0.738,
+          "connect_count": 34,
+          "connect_total_ms": 1593.101
+        },
+        "call:report": {
+          "samples": 6,
+          "wall_total_ms": 24.838,
+          "wall_mean_ms": 4.14,
+          "wall_median_ms": 4.37,
+          "wall_p95_ms": 7.226,
+          "query_count": 44,
+          "query_total_ms": 12.242,
+          "query_mean_ms": 0.278,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:plan_arc": {
+          "samples": 23,
+          "wall_total_ms": 134.461,
+          "wall_mean_ms": 5.846,
+          "wall_median_ms": 5.615,
+          "wall_p95_ms": 8.936,
+          "query_count": 237,
+          "query_total_ms": 71.7,
+          "query_mean_ms": 0.303,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:plan_capability": {
+          "samples": 30,
+          "wall_total_ms": 265.115,
+          "wall_mean_ms": 8.837,
+          "wall_median_ms": 8.547,
+          "wall_p95_ms": 11.937,
+          "query_count": 580,
+          "query_total_ms": 169.007,
+          "query_mean_ms": 0.291,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:plan_contract": {
+          "samples": 11,
+          "wall_total_ms": 59.664,
+          "wall_mean_ms": 5.424,
+          "wall_median_ms": 5.671,
+          "wall_p95_ms": 6.811,
+          "query_count": 127,
+          "query_total_ms": 33.039,
+          "query_mean_ms": 0.26,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:edit_plan": {
+          "samples": 9,
+          "wall_total_ms": 149.208,
+          "wall_mean_ms": 16.579,
+          "wall_median_ms": 6.378,
+          "wall_p95_ms": 56.073,
+          "query_count": 129,
+          "query_total_ms": 53.827,
+          "query_mean_ms": 0.417,
+          "connect_count": 6,
+          "connect_total_ms": 246.115
+        },
+        "call:focus": {
+          "samples": 9,
+          "wall_total_ms": 1356.989,
+          "wall_mean_ms": 150.777,
+          "wall_median_ms": 69.818,
+          "wall_p95_ms": 741.785,
+          "query_count": 71,
+          "query_total_ms": 726.766,
+          "query_mean_ms": 10.236,
+          "connect_count": 8,
+          "connect_total_ms": 384.472
+        },
+        "call:health_worklist": {
+          "samples": 3,
+          "wall_total_ms": 305.744,
+          "wall_mean_ms": 101.915,
+          "wall_median_ms": 5.405,
+          "wall_p95_ms": 299.185,
+          "query_count": 48,
+          "query_total_ms": 34.56,
+          "query_mean_ms": 0.72,
+          "connect_count": 8,
+          "connect_total_ms": 529.077
+        },
+        "call:release": {
+          "samples": 4,
+          "wall_total_ms": 57.137,
+          "wall_mean_ms": 14.284,
+          "wall_median_ms": 17.625,
+          "wall_p95_ms": 20.548,
+          "query_count": 51,
+          "query_total_ms": 45.907,
+          "query_mean_ms": 0.9,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:make_workspace": {
+          "samples": 4,
+          "wall_total_ms": 1648.318,
+          "wall_mean_ms": 412.079,
+          "wall_median_ms": 447.774,
+          "wall_p95_ms": 751.331,
+          "query_count": 111,
+          "query_total_ms": 89.212,
+          "query_mean_ms": 0.804,
+          "connect_count": 13,
+          "connect_total_ms": 711.998
+        },
+        "call:attach_workspace": {
+          "samples": 4,
+          "wall_total_ms": 1746.777,
+          "wall_mean_ms": 436.694,
+          "wall_median_ms": 492.77,
+          "wall_p95_ms": 759.614,
+          "query_count": 82,
+          "query_total_ms": 56.492,
+          "query_mean_ms": 0.689,
+          "connect_count": 4,
+          "connect_total_ms": 320.53
+        },
+        "call:land": {
+          "samples": 9,
+          "wall_total_ms": 1489.991,
+          "wall_mean_ms": 165.555,
+          "wall_median_ms": 195.197,
+          "wall_p95_ms": 397.613,
+          "query_count": 216,
+          "query_total_ms": 121.807,
+          "query_mean_ms": 0.564,
+          "connect_count": 8,
+          "connect_total_ms": 312.163
+        },
+        "call:search_notes": {
+          "samples": 4,
+          "wall_total_ms": 972.063,
+          "wall_mean_ms": 243.016,
+          "wall_median_ms": 302.673,
+          "wall_p95_ms": 365.48,
+          "query_count": 153,
+          "query_total_ms": 124.655,
+          "query_mean_ms": 0.815,
+          "connect_count": 42,
+          "connect_total_ms": 3369.414
+        },
+        "call:open": {
+          "samples": 16,
+          "wall_total_ms": 1820.245,
+          "wall_mean_ms": 113.765,
+          "wall_median_ms": 14.101,
+          "wall_p95_ms": 392.463,
+          "query_count": 616,
+          "query_total_ms": 449.234,
+          "query_mean_ms": 0.729,
+          "connect_count": 62,
+          "connect_total_ms": 4563.054
+        },
+        "call:write_note": {
+          "samples": 19,
+          "wall_total_ms": 363.238,
+          "wall_mean_ms": 19.118,
+          "wall_median_ms": 9.595,
+          "wall_p95_ms": 171.775,
+          "query_count": 295,
+          "query_total_ms": 171.244,
+          "query_mean_ms": 0.58,
+          "connect_count": 5,
+          "connect_total_ms": 206.809
+        },
+        "call:correct_note": {
+          "samples": 8,
+          "wall_total_ms": 37.364,
+          "wall_mean_ms": 4.67,
+          "wall_median_ms": 4.978,
+          "wall_p95_ms": 6.721,
+          "query_count": 69,
+          "query_total_ms": 18.841,
+          "query_mean_ms": 0.273,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:retire_from_plan": {
+          "samples": 6,
+          "wall_total_ms": 89.914,
+          "wall_mean_ms": 14.986,
+          "wall_median_ms": 6.892,
+          "wall_p95_ms": 62.405,
+          "query_count": 75,
+          "query_total_ms": 31.389,
+          "query_mean_ms": 0.419,
+          "connect_count": 3,
+          "connect_total_ms": 134.62
+        },
+        "call:park_increment": {
+          "samples": 21,
+          "wall_total_ms": 163.555,
+          "wall_mean_ms": 7.788,
+          "wall_median_ms": 6.932,
+          "wall_p95_ms": 11.779,
+          "query_count": 291,
+          "query_total_ms": 96.393,
+          "query_mean_ms": 0.331,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:close_increment": {
+          "samples": 5,
+          "wall_total_ms": 261.052,
+          "wall_mean_ms": 52.21,
+          "wall_median_ms": 15.155,
+          "wall_p95_ms": 132.34,
+          "query_count": 61,
+          "query_total_ms": 20.867,
+          "query_mean_ms": 0.342,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:move_increment": {
+          "samples": 6,
+          "wall_total_ms": 33.126,
+          "wall_mean_ms": 5.521,
+          "wall_median_ms": 4.918,
+          "wall_p95_ms": 10.183,
+          "query_count": 53,
+          "query_total_ms": 18.75,
+          "query_mean_ms": 0.354,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:park_arc": {
+          "samples": 5,
+          "wall_total_ms": 24.538,
+          "wall_mean_ms": 4.908,
+          "wall_median_ms": 5.433,
+          "wall_p95_ms": 6.516,
+          "query_count": 44,
+          "query_total_ms": 12.894,
+          "query_mean_ms": 0.293,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:mark_built": {
+          "samples": 4,
+          "wall_total_ms": 24.78,
+          "wall_mean_ms": 6.195,
+          "wall_median_ms": 5.622,
+          "wall_p95_ms": 10.434,
+          "query_count": 27,
+          "query_total_ms": 7.633,
+          "query_mean_ms": 0.283,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:set_wait": {
+          "samples": 7,
+          "wall_total_ms": 89.566,
+          "wall_mean_ms": 12.795,
+          "wall_median_ms": 6.45,
+          "wall_p95_ms": 50.478,
+          "query_count": 67,
+          "query_total_ms": 32.995,
+          "query_mean_ms": 0.492,
+          "connect_count": 2,
+          "connect_total_ms": 70.216
+        },
+        "call:clear_wait": {
+          "samples": 5,
+          "wall_total_ms": 26.256,
+          "wall_mean_ms": 5.251,
+          "wall_median_ms": 5.018,
+          "wall_p95_ms": 7.084,
+          "query_count": 44,
+          "query_total_ms": 13.423,
+          "query_mean_ms": 0.305,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:record_friction": {
+          "samples": 11,
+          "wall_total_ms": 693.839,
+          "wall_mean_ms": 63.076,
+          "wall_median_ms": 6.259,
+          "wall_p95_ms": 229.269,
+          "query_count": 273,
+          "query_total_ms": 147.026,
+          "query_mean_ms": 0.539,
+          "connect_count": 20,
+          "connect_total_ms": 886.486
+        },
+        "call:reinforce": {
+          "samples": 7,
+          "wall_total_ms": 184.818,
+          "wall_mean_ms": 26.403,
+          "wall_median_ms": 3.464,
+          "wall_p95_ms": 164.303,
+          "query_count": 68,
+          "query_total_ms": 31.859,
+          "query_mean_ms": 0.469,
+          "connect_count": 5,
+          "connect_total_ms": 216.483
+        },
+        "call:record_resteer": {
+          "samples": 7,
+          "wall_total_ms": 157.834,
+          "wall_mean_ms": 22.548,
+          "wall_median_ms": 4.774,
+          "wall_p95_ms": 131.513,
+          "query_count": 72,
+          "query_total_ms": 32.335,
+          "query_mean_ms": 0.449,
+          "connect_count": 5,
+          "connect_total_ms": 186.297
+        },
+        "call:raise_question": {
+          "samples": 8,
+          "wall_total_ms": 100.007,
+          "wall_mean_ms": 12.501,
+          "wall_median_ms": 4.972,
+          "wall_p95_ms": 65.739,
+          "query_count": 102,
+          "query_total_ms": 44.169,
+          "query_mean_ms": 0.433,
+          "connect_count": 2,
+          "connect_total_ms": 78.505
+        },
+        "call:correct_question": {
+          "samples": 6,
+          "wall_total_ms": 24.946,
+          "wall_mean_ms": 4.158,
+          "wall_median_ms": 3.258,
+          "wall_p95_ms": 7.494,
+          "query_count": 36,
+          "query_total_ms": 10.774,
+          "query_mean_ms": 0.299,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:settle_question": {
+          "samples": 4,
+          "wall_total_ms": 22.722,
+          "wall_mean_ms": 5.681,
+          "wall_median_ms": 5.601,
+          "wall_p95_ms": 6.375,
+          "query_count": 33,
+          "query_total_ms": 9.741,
+          "query_mean_ms": 0.295,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:retire_question": {
+          "samples": 4,
+          "wall_total_ms": 15.315,
+          "wall_mean_ms": 3.829,
+          "wall_median_ms": 4.311,
+          "wall_p95_ms": 5.286,
+          "query_count": 30,
+          "query_total_ms": 7.693,
+          "query_mean_ms": 0.256,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:read_context": {
+          "samples": 6,
+          "wall_total_ms": 299.879,
+          "wall_mean_ms": 49.98,
+          "wall_median_ms": 5.706,
+          "wall_p95_ms": 256.003,
+          "query_count": 53,
+          "query_total_ms": 35.701,
+          "query_mean_ms": 0.674,
+          "connect_count": 5,
+          "connect_total_ms": 346.82
+        },
+        "call:close_out": {
+          "samples": 1,
+          "wall_total_ms": 3.417,
+          "wall_mean_ms": 3.417,
+          "wall_median_ms": 3.417,
+          "wall_p95_ms": 3.417,
+          "query_count": 0,
+          "query_total_ms": 0,
+          "query_mean_ms": 0,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        },
+        "call:name_session": {
+          "samples": 4,
+          "wall_total_ms": 153.484,
+          "wall_mean_ms": 38.371,
+          "wall_median_ms": 4.224,
+          "wall_p95_ms": 142.488,
+          "query_count": 46,
+          "query_total_ms": 24.779,
+          "query_mean_ms": 0.539,
+          "connect_count": 5,
+          "connect_total_ms": 196.9
+        },
+        "call:wire_pipeline": {
+          "samples": 5,
+          "wall_total_ms": 871.083,
+          "wall_mean_ms": 174.217,
+          "wall_median_ms": 156.409,
+          "wall_p95_ms": 311.271,
+          "query_count": 120,
+          "query_total_ms": 74.863,
+          "query_mean_ms": 0.624,
+          "connect_count": 20,
+          "connect_total_ms": 701.892
+        },
+        "call:check_setup": {
+          "samples": 1,
+          "wall_total_ms": 959.722,
+          "wall_mean_ms": 959.722,
+          "wall_median_ms": 959.722,
+          "wall_p95_ms": 959.722,
+          "query_count": 27,
+          "query_total_ms": 21.047,
+          "query_mean_ms": 0.78,
+          "connect_count": 3,
+          "connect_total_ms": 147.562
+        },
+        "call:librarian_worklist": {
+          "samples": 1,
+          "wall_total_ms": 256.233,
+          "wall_mean_ms": 256.233,
+          "wall_median_ms": 256.233,
+          "wall_p95_ms": 256.233,
+          "query_count": 42,
+          "query_total_ms": 35.415,
+          "query_mean_ms": 0.843,
+          "connect_count": 14,
+          "connect_total_ms": 1020.197
+        }
+      },
+      "calls_by_connection_use": {
+        "opens_connections": {
+          "samples": 84,
+          "wall_total_ms": 22213.535,
+          "wall_mean_ms": 264.447,
+          "wall_median_ms": 180.813,
+          "wall_p95_ms": 715.964,
+          "query_count": 3119,
+          "query_total_ms": 2405.608,
+          "query_mean_ms": 0.771,
+          "connect_count": 487,
+          "connect_total_ms": 36575.39
+        },
+        "reuses_connections": {
+          "samples": 265,
+          "wall_total_ms": 4537.378,
+          "wall_mean_ms": 17.122,
+          "wall_median_ms": 6.406,
+          "wall_p95_ms": 54.98,
+          "query_count": 3268,
+          "query_total_ms": 2124.844,
+          "query_mean_ms": 0.65,
+          "connect_count": 0,
+          "connect_total_ms": 0
+        }
+      },
+      "calls_by_file": {
+        "agent-tools-reads.test.ts": {
+          "samples": 123,
+          "wall_total_ms": 10647.853,
+          "wall_mean_ms": 86.568,
+          "wall_median_ms": 8.553,
+          "wall_p95_ms": 335.518,
+          "query_count": 2048,
+          "query_total_ms": 1398.396,
+          "query_mean_ms": 0.683,
+          "connect_count": 192,
+          "connect_total_ms": 19320.651
+        },
+        "agent-tools-writes.test.ts": {
+          "samples": 180,
+          "wall_total_ms": 11852.788,
+          "wall_mean_ms": 65.849,
+          "wall_median_ms": 7.185,
+          "wall_p95_ms": 365.48,
+          "query_count": 3449,
+          "query_total_ms": 1969.307,
+          "query_mean_ms": 0.571,
+          "connect_count": 226,
+          "connect_total_ms": 14543.825
+        },
+        "agent-tools.test.ts": {
+          "samples": 46,
+          "wall_total_ms": 4250.272,
+          "wall_mean_ms": 92.397,
+          "wall_median_ms": 37.14,
+          "wall_p95_ms": 307.923,
+          "query_count": 890,
+          "query_total_ms": 1162.749,
+          "query_mean_ms": 1.306,
+          "connect_count": 69,
+          "connect_total_ms": 2710.914
+        }
+      },
+      "call_queries": [
+        {
+          "sql": "INSERT INTO activity (project, session, harness, source, kind, folder, detail, at) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, coalesce($8::timestamptz, now())) RETURNING seq, at",
+          "count": 363,
+          "ms": 904.974,
+          "mean_ms": 2.493,
+          "max_ms": 675.173
+        },
+        {
+          "sql": "SELECT id, type, version, fields, created_at, updated_at FROM record WHERE type = $1 ORDER BY id COLLATE \"C\"",
+          "count": 990,
+          "ms": 823.985,
+          "mean_ms": 0.832,
+          "max_ms": 5.569
+        },
+        {
+          "sql": "WITH latest AS ( SELECT DISTINCT ON (coalesce(detail->>'increment', detail->>'capability')) seq, session, coalesce(detail->>'increment', detail->>'capability') AS id FROM activity WHERE project = $1 A",
+          "count": 153,
+          "ms": 369.689,
+          "mean_ms": 2.416,
+          "max_ms": 6.807
+        },
+        {
+          "sql": "SELECT pg_get_userbyid(datdba) AS owner, datdba = (SELECT oid FROM pg_roles WHERE rolname = current_user) AS mine, pg_has_role(current_user, datdba, 'SET') AS may FROM pg_database WHERE datname = $1",
+          "count": 167,
+          "ms": 227.537,
+          "mean_ms": 1.362,
+          "max_ms": 7.353
+        },
+        {
+          "sql": "BEGIN",
+          "count": 771,
+          "ms": 204.178,
+          "mean_ms": 0.265,
+          "max_ms": 16.113
+        },
+        {
+          "sql": "WITH own AS ( SELECT seq, session, at, kind, folder, harness, source, detail->>'branch' AS branch, detail->>'machine' AS machine, detail->>'how' AS how, detail->>'call' AS call, detail ? 'increment' A",
+          "count": 34,
+          "ms": 189.865,
+          "mean_ms": 5.584,
+          "max_ms": 19.754
+        },
+        {
+          "sql": "INSERT INTO record_event (record_id, type, action, record, reason, actor, at) VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7)",
+          "count": 256,
+          "ms": 149.227,
+          "mean_ms": 0.583,
+          "max_ms": 10.916
+        },
+        {
+          "sql": "COMMIT",
+          "count": 769,
+          "ms": 146.992,
+          "mean_ms": 0.191,
+          "max_ms": 1.248
+        },
+        {
+          "sql": "SELECT id, type, version, fields, created_at, updated_at FROM record WHERE id = $1",
+          "count": 318,
+          "ms": 114.835,
+          "mean_ms": 0.361,
+          "max_ms": 1.405
+        },
+        {
+          "sql": "SELECT pg_advisory_xact_lock(hashtext('storytree.activity'), hashtext($1))",
+          "count": 363,
+          "ms": 103.653,
+          "mean_ms": 0.286,
+          "max_ms": 1.506
+        },
+        {
+          "sql": "INSERT INTO record (id, type, version, fields, created_at, updated_at) VALUES ($1, $2, $3, $4::jsonb, $5, $6) ON CONFLICT (id) DO UPDATE SET type = excluded.type, version = excluded.version, fields = ",
+          "count": 250,
+          "ms": 101.864,
+          "mean_ms": 0.407,
+          "max_ms": 0.967
+        },
+        {
+          "sql": "WITH branch_states AS ( SELECT DISTINCT ON (coalesce(detail->>'of', detail->>'branch')) coalesce(detail->>'of', detail->>'branch') AS branch, at, kind, detail->>'open' AS open FROM activity WHERE proj",
+          "count": 10,
+          "ms": 99.847,
+          "mean_ms": 9.985,
+          "max_ms": 58.653
+        },
+        {
+          "sql": "SELECT id, type, version, fields, created_at, updated_at FROM record WHERE id = $1 FOR UPDATE",
+          "count": 258,
+          "ms": 89.707,
+          "mean_ms": 0.348,
+          "max_ms": 1.557
+        },
+        {
+          "sql": "SELECT 1 FROM pg_database WHERE datname = $1",
+          "count": 112,
+          "ms": 86.616,
+          "mean_ms": 0.773,
+          "max_ms": 2.994
+        },
+        {
+          "sql": "SELECT oid::text AS identity FROM pg_database WHERE datname = $1",
+          "count": 57,
+          "ms": 70.41,
+          "mean_ms": 1.235,
+          "max_ms": 1.72
+        },
+        {
+          "sql": "SELECT value FROM library_meta WHERE key = 'schema'",
+          "count": 55,
+          "ms": 67.115,
+          "mean_ms": 1.22,
+          "max_ms": 3.209
+        },
+        {
+          "sql": "SELECT pg_try_advisory_xact_lock(hashtext('storytree.record-writes')) AS taken",
+          "count": 258,
+          "ms": 66.287,
+          "mean_ms": 0.257,
+          "max_ms": 0.588
+        },
+        {
+          "sql": "SELECT jsonb_build_object('id', id, 'type', type, 'version', version, 'fields', fields, 'createdAt', created_at, 'updatedAt', updated_at) AS record FROM record WHERE type = 'memory' ORDER BY id COLLAT",
+          "count": 55,
+          "ms": 60.828,
+          "mean_ms": 1.106,
+          "max_ms": 1.549
+        },
+        {
+          "sql": "SELECT id, type, version, CASE WHEN version = $4 THEN (SELECT coalesce(jsonb_object_agg(key, value), '{}'::jsonb) FROM jsonb_each(fields) WHERE key = ANY($5::text[])) ELSE fields END AS fields, create",
+          "count": 46,
+          "ms": 59.534,
+          "mean_ms": 1.294,
+          "max_ms": 2.749
+        },
+        {
+          "sql": "INSERT INTO trunks (project, machine, machine_name, folder) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING",
+          "count": 60,
+          "ms": 51.625,
+          "mean_ms": 0.86,
+          "max_ms": 1.505
+        },
+        {
+          "sql": "CREATE INDEX IF NOT EXISTS activity_project_seq_idx ON activity (project, seq)",
+          "count": 57,
+          "ms": 48.669,
+          "mean_ms": 0.854,
+          "max_ms": 1.538
+        },
+        {
+          "sql": "CREATE TABLE IF NOT EXISTS trunks ( project text NOT NULL, machine text NOT NULL, machine_name text NOT NULL, folder text NOT NULL, at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (project, machine",
+          "count": 93,
+          "ms": 43.978,
+          "mean_ms": 0.473,
+          "max_ms": 0.862
+        },
+        {
+          "sql": "SELECT pg_advisory_xact_lock(hashtext('storytree.trunks-schema'))",
+          "count": 93,
+          "ms": 41.858,
+          "mean_ms": 0.45,
+          "max_ms": 0.846
+        },
+        {
+          "sql": "SELECT COALESCE(MAX((record->'fields'->>$2::text)::numeric), 0) AS highest FROM record_event WHERE ($3::boolean OR type = $1) AND jsonb_typeof(record->'fields'->$2::text) = 'number'",
+          "count": 58,
+          "ms": 37.384,
+          "mean_ms": 0.645,
+          "max_ms": 1.157
+        },
+        {
+          "sql": "SELECT pg_advisory_xact_lock(hashtext('storytree.activity-schema'))",
+          "count": 57,
+          "ms": 35.938,
+          "mean_ms": 0.63,
+          "max_ms": 1.158
+        },
+        {
+          "sql": "CREATE TABLE IF NOT EXISTS activity ( seq bigserial PRIMARY KEY, project text NOT NULL, at timestamptz NOT NULL DEFAULT now(), session text NOT NULL, harness text, source text NOT NULL, kind text NOT ",
+          "count": 57,
+          "ms": 34.886,
+          "mean_ms": 0.612,
+          "max_ms": 0.852
+        },
+        {
+          "sql": "CREATE INDEX IF NOT EXISTS activity_project_folder_idx ON activity (project, (lower(replace(folder, '\\', '/'))) text_pattern_ops)",
+          "count": 57,
+          "ms": 29.688,
+          "mean_ms": 0.521,
+          "max_ms": 3.583
+        },
+        {
+          "sql": "SELECT id, type, version, fields, created_at, updated_at FROM record WHERE type = $1 AND (fields #> $2::text[]) = $3::jsonb ORDER BY id COLLATE \"C\"",
+          "count": 61,
+          "ms": 29.24,
+          "mean_ms": 0.479,
+          "max_ms": 3.357
+        },
+        {
+          "sql": "CREATE INDEX IF NOT EXISTS activity_project_at_idx ON activity (project, at)",
+          "count": 57,
+          "ms": 27.15,
+          "mean_ms": 0.476,
+          "max_ms": 0.809
+        },
+        {
+          "sql": "CREATE INDEX IF NOT EXISTS activity_project_session_seq_idx ON activity (project, session, seq)",
+          "count": 57,
+          "ms": 27.142,
+          "mean_ms": 0.476,
+          "max_ms": 5.553
+        },
+        {
+          "sql": "CREATE INDEX IF NOT EXISTS transcript_records_at_idx ON transcript_records (at)",
+          "count": 57,
+          "ms": 22.557,
+          "mean_ms": 0.396,
+          "max_ms": 0.934
+        },
+        {
+          "sql": "CREATE INDEX IF NOT EXISTS activity_project_kind_seq_idx ON activity (project, kind, seq)",
+          "count": 57,
+          "ms": 21.888,
+          "mean_ms": 0.384,
+          "max_ms": 0.556
+        },
+        {
+          "sql": "CREATE TABLE IF NOT EXISTS transcript_records ( project text NOT NULL, session text NOT NULL, part text NOT NULL, start bigint NOT NULL, finish bigint NOT NULL, at timestamptz NOT NULL DEFAULT now(), ",
+          "count": 57,
+          "ms": 21.672,
+          "mean_ms": 0.38,
+          "max_ms": 2.035
+        },
+        {
+          "sql": "SELECT seq, record_id, type, action, record, reason, actor, at FROM record_event WHERE record_id = $1 ORDER BY seq",
+          "count": 14,
+          "ms": 19.471,
+          "mean_ms": 1.391,
+          "max_ms": 12.963
+        },
+        {
+          "sql": "CREATE TABLE IF NOT EXISTS transcript_readings ( project text NOT NULL, session text NOT NULL, at timestamptz NOT NULL DEFAULT now(), reading jsonb NOT NULL, PRIMARY KEY (project, session) )",
+          "count": 57,
+          "ms": 18.098,
+          "mean_ms": 0.318,
+          "max_ms": 0.617
+        },
+        {
+          "sql": "SELECT id, type, version, CASE WHEN version = $2 THEN (SELECT coalesce(jsonb_object_agg(key, value), '{}'::jsonb) FROM jsonb_each(fields) WHERE key = ANY($3::text[])) ELSE fields END AS fields, create",
+          "count": 25,
+          "ms": 16.28,
+          "mean_ms": 0.651,
+          "max_ms": 1.1
+        },
+        {
+          "sql": "SELECT seq, project, at, session, harness, source, kind, folder, detail - $4::text[] AS detail FROM (SELECT * FROM activity WHERE project = $1 AND kind = ANY($2::text[]) AND detail->>'call' = $3) AS p",
+          "count": 14,
+          "ms": 14.022,
+          "mean_ms": 1.002,
+          "max_ms": 2.277
+        },
+        {
+          "sql": "SELECT seq, project, at, session, harness, source, kind, folder, detail - $4::text[] AS detail FROM (SELECT * FROM activity WHERE project = $1 AND kind = ANY($2::text[]) AND session = ANY($3::text[]))",
+          "count": 16,
+          "ms": 9.969,
+          "mean_ms": 0.623,
+          "max_ms": 0.733
+        },
+        {
+          "sql": "SELECT now() AS now",
+          "count": 31,
+          "ms": 9.752,
+          "mean_ms": 0.315,
+          "max_ms": 2.622
+        },
+        {
+          "sql": "DELETE FROM trunks WHERE project = $1 AND machine = $2",
+          "count": 28,
+          "ms": 9.272,
+          "mean_ms": 0.331,
+          "max_ms": 0.48
+        },
+        {
+          "sql": "SELECT project, machine, machine_name, folder FROM trunks WHERE machine = $1 ORDER BY project",
+          "count": 5,
+          "ms": 5.416,
+          "mean_ms": 1.083,
+          "max_ms": 1.264
+        },
+        {
+          "sql": "SELECT 1 FROM activity WHERE project = $1 AND seq = $2",
+          "count": 11,
+          "ms": 4.104,
+          "mean_ms": 0.373,
+          "max_ms": 0.431
+        },
+        {
+          "sql": "SELECT seq, project, at, session, harness, source, kind, folder, detail - $4::text[] AS detail FROM (SELECT * FROM activity WHERE project = $1 AND kind = ANY($2::text[]) AND detail->>'subagent' = $3) ",
+          "count": 4,
+          "ms": 3.872,
+          "mean_ms": 0.968,
+          "max_ms": 2.245
+        },
+        {
+          "sql": "SELECT seq, project, at, session, harness, source, kind, folder, detail - $3::text[] AS detail FROM (SELECT * FROM activity WHERE project = $1 AND session = ANY($2::text[]) AND detail->>'transcript' I",
+          "count": 5,
+          "ms": 3.418,
+          "mean_ms": 0.684,
+          "max_ms": 0.786
+        },
+        {
+          "sql": "DELETE FROM record WHERE id = $1",
+          "count": 6,
+          "ms": 1.703,
+          "mean_ms": 0.284,
+          "max_ms": 0.34
+        },
+        {
+          "sql": "SELECT seq, record_id, type, action, record, reason, actor, at FROM record_event WHERE seq > $1 AND type = ANY($2::text[]) ORDER BY seq LIMIT $3",
+          "count": 2,
+          "ms": 1.563,
+          "mean_ms": 0.782,
+          "max_ms": 0.907
+        },
+        {
+          "sql": "SELECT id, type, version, CASE WHEN version = $7 THEN (SELECT coalesce(jsonb_object_agg(key, value), '{}'::jsonb) FROM jsonb_each(fields) WHERE key = ANY($8::text[])) ELSE fields END AS fields, create",
+          "count": 2,
+          "ms": 1.036,
+          "mean_ms": 0.518,
+          "max_ms": 0.62
+        },
+        {
+          "sql": "SELECT seq, project, at, session, harness, source, kind, folder, detail - $5::text[] AS detail FROM (SELECT * FROM activity WHERE project = $1 AND kind = ANY($2::text[]) AND session = ANY($3::text[]) ",
+          "count": 1,
+          "ms": 0.701,
+          "mean_ms": 0.701,
+          "max_ms": 0.701
+        },
+        {
+          "sql": "SELECT seq, project, at, session, harness, source, kind, folder, detail - $4::text[] AS detail FROM (SELECT DISTINCT ON (kind) * FROM activity WHERE project = $1 AND session = ANY($2::text[]) AND sour",
+          "count": 1,
+          "ms": 0.574,
+          "mean_ms": 0.574,
+          "max_ms": 0.574
+        },
+        {
+          "sql": "ROLLBACK",
+          "count": 2,
+          "ms": 0.383,
+          "mean_ms": 0.192,
+          "max_ms": 0.201
+        }
+      ]
+    }
+  }
+}

@@ -18,7 +18,7 @@
  */
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { connect as connectTcp, createServer, type AddressInfo } from "node:net";
 import { hostname, tmpdir } from "node:os";
 import path from "node:path";
@@ -36,7 +36,9 @@ import { MARKER_FILE, setUpProject } from "../routing/index.js";
 import { leaveNotice } from "../claims/notices.js";
 import { claimFromEdits } from "../claims/edit-claims.js";
 import { readClaims } from "../claims/index.js";
+import { hookFailures, hookFailuresFile } from "./failures.js";
 import { hookLines } from "./hooks.js";
+import { queueFolder } from "./queue.js";
 import { readSettings, setSetting } from "../settings/settings.js";
 import { registerHooks } from "../setup/hooks-config.js";
 import { countingStore, longHistory } from "../testing/egress.js";
@@ -770,6 +772,52 @@ test("3.14 lines a hook writes while storytree cannot be reached wait on this ma
     await dropTestProjects([project]);
   }
 });
+
+test("3.23 a hook whose writing throws, or that cannot reach storytree, leaves one local trace of why (harness, event, session, tool call, error), still silent and exiting cleanly; a healthy hook leaves none (regression: the laptop's storytree tool calls went unrecorded for seven minutes with no evidence why, 2026-10-06)", async () => {
+  const project = uniqueProjectName();
+  try {
+    await withTempDir(async (dir) => {
+      const folder = projectFolder(dir, project);
+      const call = (session: string) => JSON.stringify({ ...JSON.parse(recorded("claude-code", "pre-tool-use-storytree", folder)), session_id: session });
+      const traced = (home: string, session: string) => hookFailures(home, session).map(({ harness, event, session, toolUseId, stage, error }) => ({ harness, event, session, toolUseId, stage, class: error.class }));
+      const silent = (ran: Ran, what: string) => assert.deepEqual({ code: ran.code, stdout: ran.stdout, stderr: ran.stderr }, { code: 0, stdout: "", stderr: "" }, what);
+
+      // Healthy: storytree running, the line written, nothing traced.
+      const healthy = storytreeHome(path.join(dir, "healthy"), true);
+      silent(await runHook("claude-code", call(`${project}-healthy`), healthy), "healthy");
+      assert.equal((await linesOf(project)).length, 1, "the healthy hook's line is written");
+      assert.equal(existsSync(hookFailuresFile(healthy)), false, "a healthy hook leaves no trace");
+
+      // The writing throws: storytree stopped, and the place lines wait on this machine cannot be made.
+      const blocked = storytreeHome(path.join(dir, "blocked"), false);
+      writeFileSync(queueFolder(blocked), "not a folder");
+      silent(await runHook("claude-code", call(`${project}-blocked`), blocked), "blocked");
+      assert.deepEqual(traced(blocked, `${project}-blocked`), [
+        { harness: "claude-code", event: "PreToolUse", session: `${project}-blocked`, toolUseId: "toolu_018cKhhRDozwv48NrNJx8p4z", stage: "write", class: "Error EEXIST" },
+      ]);
+
+      // Storytree's database does not answer: the line waits on this machine, and why is traced.
+      const unreachable = storytreeHome(path.join(dir, "unreachable"), true);
+      const record = path.join(unreachable, "pgdata.owner.json");
+      writeFileSync(record, JSON.stringify({ ...JSON.parse(readFileSync(record, "utf8")), port: await closedPort() }));
+      silent(await runHook("claude-code", call(`${project}-unreachable`), unreachable), "unreachable");
+      assert.deepEqual(traced(unreachable, `${project}-unreachable`).map(({ stage, session }) => ({ stage, session })), [{ stage: "reach", session: `${project}-unreachable` }]);
+      assert.equal(readdirSync(queueFolder(unreachable)).length, 1, "the line waits for the next hook");
+      assert.deepEqual(hookFailures(unreachable, "another-session"), [], "another session's trace is its own");
+    });
+  } finally {
+    await dropTestProjects([project]);
+  }
+});
+
+/** A port on this machine nothing listens on. */
+async function closedPort(): Promise<number> {
+  const server = createServer();
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const { port } = server.address() as AddressInfo;
+  await new Promise<void>((resolve) => server.close(() => resolve()));
+  return port;
+}
 
 test("3.13 each hook streams its session's new transcript records, and each subagent's under its parent, into the shared log, secrets scrubbed, from where the last hook left off and never twice (ADR-0749 D3, D4)", async () => {
   const project = uniqueProjectName();

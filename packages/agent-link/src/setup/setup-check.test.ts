@@ -21,6 +21,7 @@ import { connect } from "@storytree/library";
 import { runSetupCheck, setUpProject } from "../index.js";
 import { buildBins } from "../bins/build.js";
 import { noteCodexHookRan } from "../hooks/index.js";
+import { noteHookFailure } from "../hooks/failures.js";
 import type { Line } from "../activity/index.js";
 import { locateStorytree, MARKER_FILE } from "../routing/index.js";
 import { habitsCard } from "../instructions/index.js";
@@ -1082,6 +1083,38 @@ test("8.20 once storytree has received the session's edit of the check file, the
         const { missing } = (await agent.call("check_setup")).data as { missing: string[] };
         assert.deepEqual(missing, ["session start", "storytree tool call", "command"]);
         assert.equal(existsSync(checkFile), false);
+      });
+    } finally {
+      await dropTestProjects([project]);
+    }
+  });
+});
+
+test("8.24 the check tells a session the hook failures this machine traced for it (how many, and the latest's event, stage and error), so a session whose lines went missing can capture why; a session with none is told nothing of them", async () => {
+  const project = uniqueProjectName();
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const folder = path.join(dir, "site");
+    mkdirSync(folder);
+    writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
+    const setup = { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome } };
+    try {
+      const server = await connect({ url: testServerUrl() });
+      await (await server.openProject(project)).close().finally(() => server.close());
+      const who = { harness: "claude-code", event: "PreToolUse", session: "claude-1", toolUseId: "toolu_1" };
+      noteHookFailure(() => home.storytreeHome, who, "reach", new Error("timeout expired"));
+      noteHookFailure(() => home.storytreeHome, { ...who, toolUseId: "toolu_2" }, "write", Object.assign(new Error("EACCES: permission denied"), { code: "EACCES" }));
+      await withAgent(folder, claudeCode("claude-1", setup), async (agent) => {
+        const answer = await agent.call("check_setup");
+        const failures = (answer.data.hookFailures as { toolUseId: string; stage: string }[]).map(({ toolUseId, stage }) => ({ toolUseId, stage }));
+        assert.deepEqual(failures, [{ toolUseId: "toolu_1", stage: "reach" }, { toolUseId: "toolu_2", stage: "write" }]);
+        assert.match(answer.text, /2 hook failures/);
+        assert.match(answer.text, /EACCES: permission denied/);
+      });
+      await withAgent(folder, claudeCode("claude-2", setup), async (agent) => {
+        const answer = await agent.call("check_setup");
+        assert.deepEqual(answer.data.hookFailures, []);
+        assert.doesNotMatch(answer.text, /hook failure/);
       });
     } finally {
       await dropTestProjects([project]);

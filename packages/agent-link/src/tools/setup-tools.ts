@@ -10,7 +10,8 @@ import { McpServer, type CallToolResult, type ServerContext } from "@modelcontex
 import { z } from "zod";
 
 import { habitsCard } from "../instructions/index.js";
-import { findProject, notAProjectYet, setUpProject, starterRolesIn, suggestProjectName } from "../routing/index.js";
+import { hookFailures, type HookFailure } from "../hooks/failures.js";
+import { findProject, notAProjectYet, setUpProject, starterRolesIn, storytreeHome, suggestProjectName } from "../routing/index.js";
 import { checkFilesWritten, codexHooksState, FIX_SENTENCES, HOOK_TESTS, openStorytree, runSetupCheck, verifyHooks, type Fix, type SetupOptions } from "../setup/index.js";
 import { isUnreachable, NOT_RUNNING_ANSWER, refusalOf, result } from "./answers.js";
 import type { Connections } from "./connections.js";
@@ -86,7 +87,10 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
           said.push(`Not verified yet: storytree has not received this session's ${verification.missing.join(", ")} from its hooks.`);
           said.push(...verification.fixes.map((fix) => FIX_SENTENCES[fix]), "Then call check_setup again.");
         }
-        return result({ text: withCard(said.join(" ")), data: { ...data, starterRoles, ...verification } });
+        // What this machine's hooks traced of their failures for this session (contract 3.23), so a gap in its lines can be read.
+        const failures = hookFailures(setup.storytreeHome ?? storytreeHome(), caller.session);
+        if (failures.length > 0) said.push(failuresSentence(failures));
+        return result({ text: withCard(said.join(" ")), data: { ...data, starterRoles, ...verification, hookFailures: failures } });
       } catch (error) {
         if (isUnreachable(error)) {
           await connections.close();
@@ -162,4 +166,11 @@ const SET_UP_THIS_SESSION =
 /** The starter roles the project's library holds (1.14, 8.19), named for the agent to open. */
 function rolesSentence(starterRoles: readonly string[]): string {
   return `Its library holds the ${starterRoles.join(" and ")} roles, which say how to work in this project: find each with search_notes and read it before you start, and work as it says.`;
+}
+
+/** What the check says of the hook failures this machine traced for the session: how many, and the latest. */
+function failuresSentence(failures: readonly HookFailure[]): string {
+  const latest = failures.at(-1)!;
+  const count = failures.length === 1 ? "1 hook failure" : `${failures.length} hook failures`;
+  return `This machine traced ${count} for this session; the latest, at ${latest.at}, ${latest.event ?? "a hook"}${latest.toolUseId === undefined ? "" : ` (${latest.toolUseId})`} failed ${{ reach: "to reach storytree", write: "to write its lines", hook: "to run" }[latest.stage]}: ${latest.error.class}: ${latest.error.message}.`;
 }

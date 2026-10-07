@@ -35,7 +35,8 @@
  * A hook's input is the harness's own JSON on stdin. hookLines() turns it into lines, and knows
  * nothing of storytree's state; runHook() routes the session's folder (capability 1) and, only when
  * it is a project on a running storytree, opens the log and writes them. Everything a hook does is
- * inside one try: a failure anywhere means nothing is written, never an error the agent sees.
+ * inside one try: a failure anywhere means nothing is written, never an error the agent sees, and
+ * a trace of why left on this machine (failures.ts, contract 3.23).
  */
 import { homedir } from "node:os";
 import path from "node:path";
@@ -50,6 +51,7 @@ import { codexLines } from "./codex.js";
 import { noteCodexHookRan } from "./codex-trust.js";
 import { contextNudge } from "./context-nudge.js";
 import { definitionsContext, definitionsNamedIn, isHarnessNotice, notYetGiven } from "./definitions.js";
+import { hookIdentity, noteHookFailure, type HookFailure } from "./failures.js";
 import { shellEdits } from "./shell-edits.js";
 
 /** What a hook is run with: the command's arguments (the harness first, then any flags) and its stdin. */
@@ -114,9 +116,10 @@ interface Prompted {
  * agent (definitions and context advice), which it returns: the command prints it.
  */
 export async function runHook({ argv, input, handOff, merges, locate }: HookInput): Promise<string | undefined> {
+  const [harness = "", ...flags] = argv;
+  const parsed = parse(input);
+  const failed = (stage: HookFailure["stage"], error: unknown) => noteHookFailure(storytreeHome, hookIdentity(harness, parsed), stage, error);
   try {
-    const [harness = "", ...flags] = argv;
-    const parsed = parse(input);
     // Any Codex hook that runs proves the user trusted storytree's hooks there (3.18), in a project or not.
     if (harness === "codex" && typeof parsed === "object" && parsed !== null) {
       noteCodexHookRan({ storytreeHome: storytreeHome(), codexHome: process.env.CODEX_HOME || path.join(homedir(), ".codex") });
@@ -130,21 +133,22 @@ export async function runHook({ argv, input, handOff, merges, locate }: HookInpu
     const asked = promptIn(harness, parsed);
     // A prompt's line is written while its context is looked up: the harness waits for both.
     if (asked !== undefined) {
-      const [context] = await Promise.all([withinTime(contextForPrompt(asked)), made === undefined ? undefined : writeLines(harness, input, flags, made, handOff, merges, locate)]);
+      const [context] = await Promise.all([withinTime(contextForPrompt(asked)), made === undefined ? undefined : writeLines(harness, input, flags, made, handOff, merges, locate, failed)]);
       // What storytree left this session about claims from edits waits on this machine: it is said even when storytree is not reached (ADR-0924 D3).
       const added = [...noticesFor(asked, locate), ...(context ?? [])];
       return added.length === 0 ? undefined : JSON.stringify({ hookSpecificOutput: { hookEventName: "UserPromptSubmit", additionalContext: added.join("\n\n") } });
     }
     if (made === undefined) return;
-    await writeLines(harness, input, flags, made, handOff, merges, locate);
-  } catch {
-    // A hook never breaks the agent: whatever went wrong, nothing is written and nothing is said.
+    await writeLines(harness, input, flags, made, handOff, merges, locate, failed);
+  } catch (error) {
+    // A hook never breaks the agent: whatever went wrong, nothing is written and nothing is said, but why is kept here.
+    failed("hook", error);
   }
   return undefined;
 }
 
-/** Write one hook's lines to the log of the project its folder belongs to, or leave them waiting on this machine. Never throws. */
-async function writeLines(harness: string, input: string, flags: readonly string[], made: HookLines, handOff: HookInput["handOff"], merges: MergeWatch | undefined, locate: LocateOptions | undefined): Promise<void> {
+/** Write one hook's lines to the log of the project its folder belongs to, or leave them waiting on this machine; a failure is traced with `failed`. Never throws. */
+async function writeLines(harness: string, input: string, flags: readonly string[], made: HookLines, handOff: HookInput["handOff"], merges: MergeWatch | undefined, locate: LocateOptions | undefined, failed: (stage: HookFailure["stage"], error: unknown) => void): Promise<void> {
   try {
     if (made.lines.length === 0) return;
     const where = route(made.folder, locate);
@@ -182,7 +186,8 @@ async function writeLines(harness: string, input: string, flags: readonly string
         throw error;
       });
       opened = { storytree, log };
-    } catch {
+    } catch (error) {
+      failed("reach", error);
       enqueue(home, where.project, made.lines);
       return;
     }
@@ -223,15 +228,17 @@ async function writeLines(harness: string, input: string, flags: readonly string
         }
         if (looks && handOff === undefined) await lookAround(watcher, merges);
       }
-    } catch {
+    } catch (error) {
       // The log went away mid-hook: what it did not take waits for the next hook.
+      failed("write", error);
       enqueue(home, where.project, made.lines.slice(written));
     } finally {
       await log.close();
       await storytree.close();
     }
-  } catch {
+  } catch (error) {
     // Whatever went wrong, nothing is written.
+    failed("write", error);
   }
 }
 

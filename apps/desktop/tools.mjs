@@ -27,7 +27,8 @@ function observe(message) {
 
 export async function buildToolBundle(outdir, { platform = process.platform, arch = process.arch, release } = {}) {
   mkdirSync(outdir, { recursive: true });
-  await timed("agent link commands (buildBins)", () => buildBins(outdir, { release }));
+  // stageTools builds each payload's own `storytree` launcher; the host's here would only be overwritten.
+  await timed("agent link commands (buildBins)", () => buildBins(outdir, { release, launcher: false }));
   await timed("delivery helper bundle", () => build({
     stdin: {
       contents: 'import { runDeliveryCommand } from "@storytree/app-setup/deliver"; runDeliveryCommand().catch(error => { console.error(error.message); process.exitCode = 1; });',

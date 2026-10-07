@@ -4,6 +4,9 @@
  * there (capability 1). Wherever the server is, every database on it is reached through a pool its
  * PoolFactory makes.
  */
+import { hostname } from "node:os";
+import { basename } from "node:path";
+
 import pg from "pg";
 import type { Pool, PoolClient, PoolConfig } from "pg";
 
@@ -83,14 +86,29 @@ const SLOT_WAIT_MS = 30_000;
  */
 const RESET_TRIES = 5;
 
-/** A pool for `config`, whose connections wait for a free slot on the server rather than fail for want of one. */
+/**
+ * A pool for `config`, whose connections wait for a free slot on the server rather than fail for
+ * want of one, and each name the machine and process holding it unless `config` names them.
+ */
 export function newPool(config: PoolConfig): Pool {
-  const pool = new SlotWaitingPool(config);
+  const pool = new SlotWaitingPool({ application_name: CLIENT_NAME, ...config });
   // An idle connection that drops (a server restart, a dropped database) is discarded by the pool
   // and the next query reconnects or fails loudly. Without a listener Node would crash instead.
   pool.on("error", () => {});
   return pool;
 }
+
+/**
+ * What each connection is called on the server (Postgres's application_name): storytree, the
+ * machine, the process id and the script it runs, so a server whose slots run out shows who holds
+ * them (pg_stat_activity). Nothing secret; letters, digits, dots, dashes and underscores only, and
+ * cut to the 63 characters Postgres keeps.
+ */
+const CLIENT_NAME = ["storytree", hostname(), String(process.pid), basename(process.argv[1] ?? "")]
+  .map((part, i) => part.replace(/[^\w.-]/g, "").slice(0, i === 1 ? 24 : 32))
+  .filter(Boolean)
+  .join(" ")
+  .slice(0, 63);
 
 type ConnectCallback = (error: Error | undefined, client: PoolClient | undefined, done: (release?: unknown) => void) => void;
 

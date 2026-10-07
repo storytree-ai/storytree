@@ -224,7 +224,16 @@ function linksTo(docs: readonly SimilarityDoc[], sourceId: string): Map<string, 
  * ranked against the whole corpus's word counts; `kind` narrows which are listed and counted.
  */
 export function relatedTo(docs: readonly SimilarityDoc[], sourceId: string, options: RelatedOptions = {}): Related {
+  return relatedEach(docs, [sourceId], options)[0]!;
+}
+
+/** relatedTo() for each of `sourceIds`, from one indexing of the corpus. */
+export function relatedEach(docs: readonly SimilarityDoc[], sourceIds: readonly string[], options: RelatedOptions = {}): Related[] {
   const index = indexOf(docs);
+  return sourceIds.map((sourceId) => relatedIn(index, docs, sourceId, options));
+}
+
+function relatedIn(index: Index, docs: readonly SimilarityDoc[], sourceId: string, options: RelatedOptions): Related {
   const source = index.docs.find(({ doc }) => doc.id === sourceId);
   const terms = source === undefined ? [] : salientTerms(index, source);
   const links = linksTo(docs, sourceId);

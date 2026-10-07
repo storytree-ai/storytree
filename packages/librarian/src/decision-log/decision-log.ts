@@ -7,7 +7,7 @@
  * is still true. The health report (the owner's G1) is what a write cannot refuse: an edge to a
  * record retired since.
  */
-import type { Library, SchemaRecord, WriteOptions } from "@storytree/library";
+import type { Library, Note, SchemaRecord, WriteOptions } from "@storytree/library";
 
 import { allNotes, LibrarianRefusal, referencesOf, type Reference } from "../notes.js";
 
@@ -92,8 +92,8 @@ export async function annotate(library: Library, target: string, { by, note, dat
 }
 
 /** The health report: each note's link, supersession or other reference naming a record no longer live, in creation order. */
-export async function brokenEdges(library: Library): Promise<BrokenEdge[]> {
-  const notes = await allNotes(library);
+export async function brokenEdges(library: Library, read: Promise<readonly Note[]> | readonly Note[] = allNotes(library)): Promise<BrokenEdge[]> {
+  const notes = await read;
   const live = new Set(notes.map((note) => note.id));
   return notes.flatMap(referencesOf).filter((reference) => !live.has(reference.to));
 }

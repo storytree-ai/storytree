@@ -36,8 +36,8 @@ export async function link(library: Library, from: string, to: string, writer?: 
  * order. These are the decisions about the whole project that are found only by search until the
  * covers that rest on them link to them (ADR-0631 D2).
  */
-export async function unrestedDecisions(library: Library): Promise<SchemaRecord<"decision">[]> {
-  const notes = await allNotes(library);
+export async function unrestedDecisions(library: Library, read: Promise<readonly Note[]> | readonly Note[] = allNotes(library)): Promise<SchemaRecord<"decision">[]> {
+  const notes = await read;
   const restedOn = new Set(notes.flatMap((note) => note.fields.links ?? []));
   const accepted = new Set((await library.decisions()).filter(({ status }) => status === "accepted").map(({ record }) => record.id));
   return notes.filter((note): note is SchemaRecord<"decision"> =>
@@ -45,14 +45,9 @@ export async function unrestedDecisions(library: Library): Promise<SchemaRecord<
 }
 
 /** Related but unlinked neighbours for each live note written since `cursor`, including edits. */
-export async function relatedUnlinked(library: Library, cursor: number): Promise<Related[]> {
-  const notes = await allNotes(library);
+export async function relatedUnlinked(library: Library, cursor: number, read: Promise<readonly Note[]> | readonly Note[] = allNotes(library)): Promise<Related[]> {
+  const notes = await read;
   const written = new Set((await library.history({ since: cursor, types: typesOf(notes) })).map((change) => change.recordId));
-  const related: Related[] = [];
-  for (const note of notes) {
-    if (!written.has(note.id)) continue;
-    const result = await library.related(note.id, { unlinked: true });
-    if (result !== null) related.push(result);
-  }
-  return related;
+  // One reading of the notes for every note written, never one each (6.7).
+  return library.relatedEach(notes.filter((note) => written.has(note.id)).map((note) => note.id), { unlinked: true });
 }

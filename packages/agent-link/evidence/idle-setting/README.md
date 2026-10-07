@@ -18,7 +18,7 @@ keeps the 30-minute default; its bridge is outside this lane and the supervisor 
 - `verification.txt`: complete local verification summary and test scope/table.
 - `typecheck.txt`: full workspace typecheck.
 - `test-ratio.txt`: informational report, not a gate.
-- `capture.mjs` / `capture.txt`: headless checks of real gear/settings components with real writers
+- `capture.mjs` / `capture.txt`: headless checks of the real app menu's Sessions settings tab with real writers
   and a throwaway home. No live library is involved.
 - `settings-default.png`, `settings-saved.png`, `settings-refused.png`: component captures for review.
 - `library-update/`: supervisor-applied patch and checklist matching this implementation.

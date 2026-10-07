@@ -6,8 +6,8 @@ import { mkdirSync, readFileSync, renameSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { build } from 'esbuild';
 import { chromium } from 'playwright-core';
+import { buildShopHealthPage } from './build.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const [beforeFile, scratch = path.join(tmpdir(), 'shop-health-capture')] = process.argv.slice(2);
@@ -24,11 +24,7 @@ const SHOTS = [
 ];
 let browser, server;
 try {
-  await build({
-    entryPoints: [path.join(here, 'page.tsx')], outfile: path.join(scratch, 'bundle.js'), alias: { 'before-snapshot': path.resolve(beforeFile) },
-    bundle: true, format: 'iife', platform: 'browser', jsx: 'automatic', loader: { '.json': 'json', '.glb': 'binary', '.png': 'file', '.webp': 'file' },
-    define: { 'process.env.NODE_ENV': '"production"' },
-  });
+  await buildShopHealthPage(beforeFile, path.join(scratch, 'bundle.js'));
   server = createServer((req, res) => {
     const file = req.url.split('?')[0];
     if (file === '/bundle.js') { res.setHeader('Content-Type', 'text/javascript'); res.end(readFileSync(path.join(scratch, 'bundle.js'))); return; }

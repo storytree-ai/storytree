@@ -5,6 +5,7 @@ import type { Object3D } from 'three';
 import type { ForestScene, Island } from '../../src/scene.js';
 import { PlanetWorldCanvas } from '../../src/planet/PlanetWorldCanvas.js';
 import type { PlanetSurfaceVisibility } from '../../src/planet/exterior.js';
+import type { PlanetGrowth } from '../../src/planet/PlanetGrowth.js';
 
 const R = 218;
 const island = (story: string, capabilities: string[]): Island => ({
@@ -28,11 +29,30 @@ const shown = (object: Object3D | undefined) => {
 
 (window as any).proof = {
   stories,
-  mount(surface: boolean, surfaces?: Partial<PlanetSurfaceVisibility>) {
+  mount(surface: boolean, surfaces?: Partial<PlanetSurfaceVisibility>, growth?: PlanetGrowth) {
     root.render(<PlanetWorldCanvas scene={scene} spots={spots} radius={R} surface={surface} surfaces={surfaces}
-      plateChildren={island => <mesh name={`mark:${island.story}`} />} />);
+      growth={growth} plateChildren={island => <mesh name={`mark:${island.story}`} />} />);
+  },
+  recorded(at: number) {
+    this.mount(true, { roads: true }, { at, plan: {
+      seconds: 5, islands: new Map(), capabilities: new Map(), files: new Map(), stages: [],
+      roads: new Map([['b1->a1', { start: 2, seconds: 1 }]]),
+    } });
   },
   ready: () => globe !== undefined && stories.every(story => globe!().scene.getObjectByName(`island-surface:${story}`) !== undefined),
+  freeze() { globe!().setFrameloop('never'); },
+  frame(delta: number) { const state = globe!(); state.advance(state.clock.elapsedTime + delta); },
+  roads() {
+    const roads: { name: string; progress: number; drawn: number; count: number; length?: number; fromEnd?: boolean }[] = [];
+    globe!().scene.traverse((node: any) => {
+      if (!node.name.startsWith('pathway:') && !node.name.startsWith('pathway-halo:')) return;
+      const g = node.geometry, reveal = g.userData.pathwayReveal;
+      roads.push({ name: node.name, progress: reveal?.progress ?? Math.min(1, g.drawRange.count / g.index.count),
+        drawn: Math.min(g.drawRange.count, g.index.count), count: g.index.count,
+        length: reveal?.totalLength, fromEnd: reveal?.fromEnd });
+    });
+    return roads;
+  },
   /** What the mounted globe draws: its sea, each island's ground, its roads, and each island's host mark. */
   drawn() {
     const world = globe!().scene;

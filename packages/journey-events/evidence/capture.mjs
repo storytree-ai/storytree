@@ -3,11 +3,10 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { writeFileSync } from 'node:fs';
-import { buildCapture, withCapture, fakeBridge } from '../../../apps/desktop/src/capture/index.ts';
+import { withCapture, fakeBridge } from '../../../apps/desktop/src/capture/index.ts';
+import { build } from './build.mjs';
 const here = path.dirname(fileURLToPath(import.meta.url));
-const root = path.resolve(here, '../../..');
-const dist = path.join(root, '.pgtest/windows-health-successor/journey-renderer');
-await buildCapture({ dist, root });
+const dist = await build();
 await withCapture({ folder: here, dist, softwareGL: false }, async ({ browser, origin, out, settle }) => {
   const page = await browser.newPage({ viewport: { width: 1100, height: 820 }, deviceScaleFactor: 1, colorScheme: 'dark' });
   let state = { consent: 'pending', available: false, installId: 'installation-capture-example', queued: 0 };

@@ -205,18 +205,25 @@ html:has(> body.immersive-home) { scroll-padding-top:0; }
   #chapter2 .tour-recorded { left:14px; bottom:calc(var(--bar-h) + 6px); max-width:calc(100% - 28px); font-size:10px; }
   #chapter2[data-tour-step="pain"][data-tour-mode="tour"] .tour-card { top:72px; justify-content:center; }
   #chapter2 .tour-note { top:58px; left:14px; right:auto; max-width:none; text-align:left; font-size:10.5px; }
-  #chapter2[data-tour-mode="tour"] .forest-drawing, #chapter2[data-tour-mode="tour"] .forest-still { top:72px; bottom:52%; }
-  #chapter2[data-tour-mode="tour"] .forest-still { inset:72px 10% 52%; }
-  #chapter2 .tour-card, #chapter2:is([data-tour-kind="beats"], [data-tour-kind="statement"], [data-tour-kind="fixes"])[data-tour-mode="tour"] .tour-card { left:10px; right:10px; top:calc(48% + 4px); bottom:calc(var(--bar-h) + 54px); width:auto; max-height:none; padding:14px 15px 12px; justify-content:flex-start; }
+  /* The words under the globe keep the room their step needs (--tour-room, which the tour measures): on a short phone a long
+     step's globe gives that room up, down to 31% of the chapter, rather than the words scrolling. */
+  #chapter2 { --tour-under:calc(var(--bar-h) + 36px + var(--tour-room, 0px)); }
+  #chapter2[data-tour-mode="tour"] .forest-drawing, #chapter2[data-tour-mode="tour"] .forest-still { top:72px; bottom:clamp(52%, calc(var(--tour-under) + 4px), 69%); }
+  #chapter2[data-tour-mode="tour"] .forest-still { inset:72px 10% clamp(52%, calc(var(--tour-under) + 4px), 69%); }
+  #chapter2 .tour-card, #chapter2:is([data-tour-kind="beats"], [data-tour-kind="statement"], [data-tour-kind="fixes"])[data-tour-mode="tour"] .tour-card { left:10px; right:10px; top:clamp(calc(31% + 4px), calc(100% - var(--tour-under)), calc(48% + 4px)); bottom:calc(var(--bar-h) + 36px); width:auto; max-height:none; padding:14px 15px 12px; justify-content:flex-start; }
   #chapter2:is([data-tour-kind="beats"], [data-tour-kind="statement"], [data-tour-kind="fixes"], [data-tour-kind="lines"], [data-tour-kind="compare"])[data-tour-mode="tour"] .tour-card { left:10px; padding:4px 6px; }
   #chapter2:is([data-tour-kind="beats"], [data-tour-kind="statement"], [data-tour-kind="fixes"], [data-tour-kind="lines"], [data-tour-kind="compare"])[data-tour-mode="tour"] .tour-stage::before { inset:auto 0 0 0; width:auto; height:60%; background:linear-gradient(0deg, #101418f5 72%, #10141800); }
   #chapter2[data-tour-kind="beats"] .tour-line { font-size:22px; }
   #chapter2[data-tour-kind="statement"] .tour-title { font-size:26px; }
   #chapter2[data-tour-kind="statement"] .tour-line { font-size:17px; }
-  #chapter2[data-tour-kind="fixes"] .tour-title { margin-bottom:10px; }
-  #chapter2[data-tour-kind="fixes"] .tour-lines { gap:10px; }
-  #chapter2[data-fixes-look="beside"][data-tour-kind="fixes"] .tour-line { grid-template-columns:minmax(0,1fr) 26px minmax(0,1.1fr); }
-  #chapter2[data-fixes-look="beside"] :is(.pain, .fix) { padding:7px 9px; font-size:13.5px; }
+  #chapter2[data-tour-kind="fixes"] .tour-title { margin-bottom:6px; }
+  #chapter2[data-tour-kind="fixes"] .tour-lines { gap:8px; margin-bottom:6px; }
+  /* A phone has no room for a pain beside its fix: the pain is a small red caption above the fix (owner's brief, 2026-10-04). */
+  #chapter2[data-fixes-look="beside"][data-tour-kind="fixes"] .tour-line { grid-template-columns:minmax(0,1fr); gap:3px; }
+  #chapter2[data-fixes-look="beside"] .turn { display:none; }
+  #chapter2[data-fixes-look="beside"] :is(.pain, .fix) { padding:0 0 0 10px; border:0; border-radius:0; background:none; }
+  #chapter2[data-fixes-look="beside"] .pain { padding-left:13px; font-size:13px; }
+  #chapter2[data-fixes-look="beside"] .fix { border-left:3px solid var(--fix); font-size:16px; }
   #chapter2[data-fixes-look="resolve"] .fix { font-size:18px; }
   #chapter2[data-fixes-look="resolve"] .pain { font-size:12px; }
   #chapter2 .tour-title { font-size:21px; }
@@ -243,6 +250,8 @@ html:has(> body.immersive-home) { scroll-padding-top:0; }
   #chapter2[data-tour-mode="tour"]:is([data-tour-kind="lines"], [data-tour-kind="compare"]) .tour-kicker { margin-bottom:4px; }
 }
 @media (max-width:360px) {
+  /* A narrow phone tells a chapter's lines at the explain mode's floor, so the long steps fit below the globe. */
+  #chapter2[data-tour-mode="tour"]:is([data-tour-kind="lines"], [data-tour-kind="compare"]) .tour-line { font-size:16px; }
   /* The bar's first row still fits on one line at 320px. */
   #chapter2 .tour-bar { gap:6px 4px; padding-inline:8px; }
   #chapter2 .tb-btn { padding-inline:7px; }

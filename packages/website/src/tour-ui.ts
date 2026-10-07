@@ -34,6 +34,13 @@ export function wireTour() {
   const speeds = [...document.querySelectorAll<HTMLButtonElement>("#tour-bar [data-speed]")], cycle = get<HTMLButtonElement>("tour-speed-cycle");
   const projects = get("tour-project"), projectButtons = [...projects.querySelectorAll<HTMLButtonElement>("[data-project]")];
   const grouped = groups(steps);
+  // On a phone the words sit under the globe: the step tells the stylesheet the room its lines and its How and Why need, and
+  // a long step's globe gives that room up rather than the words scrolling.
+  const fitRoom = () => {
+    root.style.setProperty("--tour-room", "0px");
+    root.style.setProperty("--tour-room", `${card.scrollHeight}px`);
+  };
+  window.addEventListener("resize", fitRoom);
   let previous: TourState | undefined;
   let visible = false;
   let openingActive = !document.getElementById("opening")?.hidden;
@@ -164,6 +171,8 @@ export function wireTour() {
         ? index === shown - 1 || (index === shown - 2 && shown === step.lines.length) : index < shown;
       line.classList.toggle("on", on);
     });
+    // The arrival's beats show one line at a time, so their room is measured again as each arrives.
+    if (changedStep || state.lines !== previous?.lines) fitRoom();
     if (!changedStep && previous && state.lines > previous.lines && !state.freePlay) live.textContent = step.lines.slice(previous.lines, state.lines).map(text).join(" ");
     const reading = state.holds.includes("reading");
     if (reading && !previous?.holds.includes("reading")) { drawDepth(step); depth.hidden = false; depth.querySelector<HTMLElement>("h3")?.focus({ preventScroll: true }); depth.scrollIntoView({ block: "nearest" }); }

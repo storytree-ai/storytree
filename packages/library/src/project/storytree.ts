@@ -35,7 +35,7 @@ import { readSnapshot, writeSnapshot, type ProjectSnapshot } from "./snapshot.js
 import { localServer, type ServerAccess } from "./server.js";
 
 /** Where the Postgres server is: at a URL, a Cloud SQL instance reached with Google sign-in, or an address whose password is a key. */
-export type ConnectOptions =
+export type ConnectOptions = (
   | {
       /**
        * A postgres:// URL for the server. Its own database is only used to create and list project
@@ -66,7 +66,16 @@ export type ConnectOptions =
       readonly cloudSql: CloudSqlConfig;
       readonly url?: undefined;
       readonly address?: undefined;
-    };
+    }
+) & {
+  /**
+   * The longest each statement may run before the server ends it (Postgres's statement_timeout);
+   * by default, no bound. For a caller that may be cut off before it closes, such as a hook at its
+   * deadline: the server keeps running a statement whose process has gone, holding its slot, and on
+   * storytree-pg on 2026-10-07 hooks' activity reads did so for minutes after their process ended.
+   */
+  readonly statementTimeoutMs?: number;
+};
 
 /** How a project is opened. */
 export interface OpenOptions {
@@ -154,9 +163,10 @@ export async function connect(options: ConnectOptions, seams: ProjectSeams = {})
   if ([options.url, options.cloudSql, options.address].filter((given) => given !== undefined).length > 1) {
     throw new ConnectionError("config", "Give connect() one of a url, a cloudSql instance or an address, not more.");
   }
-  if (options.address !== undefined) return new ServerConnection(addressServer(options.address, options.connectTimeoutMs), seams);
-  if (options.cloudSql === undefined) return new ServerConnection(localServer(new URL(options.url), options.connectTimeoutMs), seams);
-  return new ServerConnection(await cloudSqlServer(options.cloudSql, seams), seams);
+  const { statementTimeoutMs } = options;
+  if (options.address !== undefined) return new ServerConnection(addressServer(options.address, options.connectTimeoutMs, statementTimeoutMs), seams);
+  if (options.cloudSql === undefined) return new ServerConnection(localServer(new URL(options.url), options.connectTimeoutMs, statementTimeoutMs), seams);
+  return new ServerConnection(await cloudSqlServer(options.cloudSql, seams, statementTimeoutMs), seams);
 }
 
 /** What tests may hand connect() in place of the real thing: the Cloud SQL connector, and the embedder. */

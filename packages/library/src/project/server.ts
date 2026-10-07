@@ -42,9 +42,9 @@ export interface ServerAccess {
  * check; other failures are left as they are. Database-creation privileges are explained where
  * databases are created, on either kind of server.
  */
-export function localServer(url: URL, connectTimeoutMs = 3_000): ServerAccess {
+export function localServer(url: URL, connectTimeoutMs = 3_000, statementTimeoutMs?: number): ServerAccess {
   const pool = (connectionString: string, role?: string) =>
-    newPool({ connectionString, connectionTimeoutMillis: connectTimeoutMs, ...actingAs(role) });
+    newPool({ connectionString, connectionTimeoutMillis: connectTimeoutMs, ...statementBound(statementTimeoutMs), ...actingAs(role) });
   return {
     kind: "postgres",
     admin: pool(url.href),
@@ -61,6 +61,11 @@ export function localServer(url: URL, connectTimeoutMs = 3_000): ServerAccess {
     },
     close: () => {},
   };
+}
+
+/** The pg config that has the server end each of a connection's statements still running after `ms`, or none. */
+export function statementBound(ms: number | undefined): PoolConfig {
+  return ms === undefined ? {} : { statement_timeout: ms };
 }
 
 /** The pg config that makes each connection act as `role` from its start, or none. */

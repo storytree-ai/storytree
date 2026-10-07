@@ -325,6 +325,24 @@ function describe7_21(): void {
     assert.deepEqual(historyRows(tree, edge, [], { from: range.from + 86_400_000, to: range.to + 86_400_000 }, later), []);
   });
 
+  test("7.26 History's rows read each line a bounded number of times, however many past sessions there are", () => {
+    let reads = 0;
+    const past = Array.from({ length: 200 }, (_, n) => [
+      { kind: "session-started", at: day("3T09:00:00Z") },
+      // Every third session is unnamed and claims nothing, so it is named by where it worked.
+      ...(n % 3 === 0 ? [] : [{ kind: "claimed", increment: "inc-a", reason: `Work ${n}`, at: day("3T09:01:00Z") }]),
+      { kind: "session-ended", at: day("3T09:30:00Z") },
+    ].map(line => ({ harness: "codex", source: "hook", ...line, s: `past-${n}` }))).flat();
+    const counted = past.map(({ s, ...line }, index) => Object.defineProperty({ project: "demo", seq: index + 1, ...line }, "session",
+      { enumerable: true, get: () => (reads++, s) }) as unknown as Line);
+    const rows = historyRows(tree, counted, arcs, range, later);
+    assert.equal(rows.length, 200);
+    assert.equal(rows.find(row => row.id === "past-7")!.label, "Work 7");
+    assert.equal(rows.find(row => row.id === "past-6")!.label, "Codex");
+    // One pass per past session would read a line's session 200 times over; a bounded number of passes reads it a few times.
+    assert.ok(reads <= 10 * counted.length, `${reads} reads of ${counted.length} lines' session`);
+  });
+
   test("7.21 the range's presets are local days, today included, and a custom range runs from its first day to the end of its last", () => {
     const at = new Date(2026, 9, 4, 15, 30);
     const midnight = (d: number): number => new Date(2026, 9, d).getTime();

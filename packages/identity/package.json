@@ -6,7 +6,8 @@
     ".": "./src/index.ts",
     "./client": "./src/client.ts",
     "./session-store": "./src/session-store.ts",
-    "./command": "./src/command.ts"
+    "./command": "./src/command.ts",
+    "./desktop": "./src/desktop.ts"
   },
   "scripts": {
     "typecheck": "tsc -p ."

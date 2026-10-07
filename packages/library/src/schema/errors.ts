@@ -17,6 +17,8 @@ export interface FieldProblem {
   readonly field: string | undefined;
   /** What is wrong, naming the field: `missing required field "title"`. */
   readonly problem: string;
+  /** Set when the field wants a list and was given text, so a caller reading text can offer it as one. */
+  readonly textForList?: true;
 }
 
 /**
@@ -28,12 +30,15 @@ export class SchemaError extends Error {
   readonly type: string;
   /** The fields at fault, each once, in the order their problems were found. */
   readonly fields: readonly string[];
+  /** The fields at fault that want a list and were given text (`links: "a,b"`), each once. */
+  readonly lists: readonly string[];
 
   constructor(type: string, problems: readonly FieldProblem[]) {
     super(`${type}: ${problems.map(({ problem }) => problem).join("; ")}`);
     this.name = "SchemaError";
     this.type = type;
     this.fields = [...new Set(problems.flatMap(({ field }) => (field === undefined ? [] : [field])))];
+    this.lists = [...new Set(problems.flatMap(({ field, textForList }) => (field === undefined || textForList !== true ? [] : [field])))];
   }
 }
 

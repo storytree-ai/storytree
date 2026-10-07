@@ -28,6 +28,8 @@ export interface Lane {
   agents: BoardAgent[];
   state: ArcState;
   chip: string;
+  /** A ready lane's idle claims, kept beside its chip (ADR-0938 D3). */
+  idle?: { chip: string; agents: BoardAgent[] };
   count: string;
   lastActivity: number;
   waits: NamedWait[];
@@ -76,12 +78,14 @@ export function boardView(snapshot: BoardSnapshot, log: readonly Line[] | LogRea
     const work = new Set(increments.flatMap((increment) => [increment.id, ...(increment.fields.touches ?? [])]));
     const workLines = lines.filter((line) => ("increment" in line && work.has(line.increment ?? "")) || ("capability" in line && work.has(line.capability ?? "")));
     const lastActivity = Math.max(time(arc.updatedAt), ...increments.map((i) => time(i.updatedAt)), ...questions.map((q) => time(q.updatedAt)), ...holders.map((h) => time(h.lastSeenAt)), ...workLines.map((line) => time(line.at)));
-    const chip = state === "idle" ? `idle · ${Math.min(...holders.map(({ quietMinutes }) => quietMinutes))} min`
+    const idleChip = (agents: readonly BoardAgent[]) => `idle · ${Math.min(...agents.map(({ quietMinutes }) => quietMinutes))} min`;
+    const idleHolders = holders.filter(({ holder }) => holder === "idle");
+    const chip = state === "idle" ? idleChip(holders)
       : state === "ready" ? `ready · ${bars.filter(({ reading }) => reading.state === "open").length} to take` : state;
     // A queued lane names what its increments wait on, once per blocker (ADR-0760 D1).
     const laneWaits = state !== "queued" ? waits.on(arc.id)
       : [...new Map(bars.flatMap((bar) => bar.waits).map((wait) => [wait.id, wait])).values()];
-    return { id: arc.id, title: arc.fields.title, view, bars, agents: holders, state, chip, count, lastActivity, waits: laneWaits, holdsUp: waits.heldUpBy(arc.id) };
+    return { id: arc.id, title: arc.fields.title, view, bars, agents: holders, state, chip, ...(state === "ready" && idleHolders.length ? { idle: { chip: idleChip(idleHolders), agents: idleHolders } } : {}), count, lastActivity, waits: laneWaits, holdsUp: waits.heldUpBy(arc.id) };
   }).sort((a, b) => rank[a.state] - rank[b.state] || b.lastActivity - a.lastActivity || a.id.localeCompare(b.id));
   return { scope, lanes, queues: arcQueues(lanes), selected: firstBriefing(lanes.map((lane) => ({ id: lane.id, parked: lane.view.state === "parked", questions: lane.view.questions }))) };
 }

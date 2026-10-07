@@ -32,7 +32,7 @@ test("1.5 waiting on you precedes queued, held, open; a proposal waits on you on
   assert.equal(incrementState(open, { waits }).color, "yellow");
 });
 
-test("1.6 the arc reads closed/parked, waiting, blocked, queued, claimed, idle, ready, quiet in that order", () => {
+test("1.6 the arc reads closed/parked, waiting, blocked, queued, claimed, ready, idle, quiet in that order", () => {
   const all = { openQuestions: 1, waits, claims: [held, { ...held, holder: "live" as const }] };
   assert.equal(arcState("closed", all), "closed");
   assert.equal(arcState("parked", all), "parked");

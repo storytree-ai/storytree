@@ -30,6 +30,7 @@
 .arc-title { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: .84rem; font-weight: 500; }
 .arc-chip { flex: 0 0 auto; font-size: .62rem; line-height: 1.4; white-space: nowrap; padding: 0 5px; border: 1px solid var(--line, #43504d); border-radius: 4px; color: var(--muted, #adb8b2); }
 .arc-state-waiting, .arc-state-blocked, .arc-state-queued { color: #a66a0a; background: #dfb34924; border-color: #b7893b; }
+.arc-idle-marker { border-style: dashed; font-size: .58rem; opacity: .8; }
 .arc-state-claimed { color: #287858; background: #55a47720; border-color: #638b73; }
 .arc-track { display: flex; align-items: center; gap: 8px; min-height: 16px; margin-top: 3px; }
 .arc-bars { display: flex; gap: 3px; min-width: 0; align-items: center; }

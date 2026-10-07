@@ -72,3 +72,16 @@ test("3/4 a queued lane says what it waits on, and its chip under the blocker na
   assert.match(top, /class="arc-waits-on"[^>]*>waits on outside \(missing\)</);
   assert.match(renderBoard(queued, "users"), /arc-state-ready[^>]*>ready · 1 to take</);
 });
+
+test("3.3 a ready lane that also has idle claims keeps a small muted marker beside its chip, whose hover names who holds what; an idle lane has only its own chip", () => {
+  const work = (id: string, arcId: string, status: "proposal" | "active" = "proposal") => record(id, "increment", { arc: arcId, title: `Build ${id}`, objective: id, body: id, status });
+  const arcs = ["mixed", "only", "free"].map((id) => ({ arc: record(id, "arc", { title: `Arc ${id}`, intent: id, endState: "Done" }), state: "active" as const, questions: [],
+    increments: id === "mixed" ? [work("m1", id, "active"), work("m2", id), work("m3", id)] : id === "only" ? [work("o1", id, "active")] : [work("f1", id)] }));
+  const claim = (seq: number, session: string, increment: string) => ({ seq, project: "p", session, harness: "claude-code", source: "hook" as const, kind: "claimed" as const, increment, reason: "Fix the footer", at: "2026-09-27T00:00:00Z" });
+  const html = renderBoard(boardView({ arcs, heldOn: {}, waits: {} }, [claim(1, "s1", "o1"), claim(2, "s2", "m1")], new Date("2026-09-27T00:42:00Z")), "mixed");
+  const row = (id: string) => html.split("<section").find((part) => part.includes(`data-arc-id="${id}"`))!;
+  assert.match(row("mixed"), /arc-state-ready[^>]*>ready · 2 to take<\/span><span class="arc-chip arc-idle-marker"[^>]*title="[^"]*Fix the footer[^"]*idle for 42 min[^"]*"[^>]*>idle · 42 min<\/span>/);
+  assert.equal((row("only").match(/arc-chip/g) ?? []).length, 1, "an idle lane has only its own chip");
+  assert.match(row("only"), /arc-state-idle[^>]*>idle · 42 min</);
+  assert.doesNotMatch(row("free"), /arc-idle-marker/);
+});

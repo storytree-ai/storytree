@@ -2,8 +2,8 @@
 // snapshot with each capability given a word (below), the session-tints agent log at the fixed clock NOW, the same
 // 1440 x 960 viewport and the same programmatic turns; nothing is hand-panned. Run `node build.mjs`, then this, under
 // `node "<checkout>/packages/dev-loop/src/heavy-lock.mjs" --`. Measures what can be counted before anyone looks, and writes measurements.json.
-// --smoke runs the page built by `node build.mjs smoke` and takes no pictures, so a test proves every wait below still
-// resolves in a real browser.
+// --smoke uses the same scene and measures its fills, claims and turned-away failure markers.
+// Only full captures tour the four close-up pictures; smoke waits for the marks it actually asserts.
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -12,6 +12,8 @@ import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const smoke = process.argv.includes('--smoke');
+const started = performance.now();
+const phase = message => console.error(`[territory health +${Math.round(performance.now() - started)}ms] ${message}`);
 const seed = JSON.parse(readFileSync(path.join(here, '../knowledge-under-islands/seed.json'), 'utf8'));
 // survey.json is readCodeSurvey(<this checkout>, seed.tree), precomputed by `tsx survey.mjs`.
 const survey = JSON.parse(readFileSync(path.join(here, '../session-tints/survey.json'), 'utf8'));
@@ -24,7 +26,10 @@ for (const story of seed.tree.stories) for (const capability of story.capabiliti
   capability.proposed = capability.status === 'proposed';
   if (capability.status === 'unhealthy') capability.health = { ...capability.health, verified: { state: 'failing' } };
 }
+phase('launch browser');
 await withCapture({ folder: here, dist: path.join(here, 'dist', ...(smoke ? ['smoke'] : [])) }, async ({ browser, origin, out, settle }) => {
+phase('browser ready');
+const settleView = page => settle(page, smoke ? 2 : 12);
 const picture = (page, name) => smoke ? undefined : page.screenshot({ path: path.join(out, name), timeout: 180000 });
 
 
@@ -114,19 +119,22 @@ function measure(page) {
       codeSurvey: async () => copy(survey),
     };
   }, { data: seed, survey, log, now: NOW });
+  phase('navigate desktop');
   await page.goto(`${origin}/index.html`, { timeout: 180000, waitUntil: 'domcontentloaded' });
+  phase('wait for island meshes');
   await page.waitForFunction(ids => {
     const state = window.__globe;
     if (document.body.dataset.state !== 'ready' || !state || !window.__nav) return false;
     return ids.every(id => !!state.scene.getObjectByName(`planet:${id}`)?.getObjectByName('island-ground'));
-  }, seed.tree.stories.map(s => s.id), { timeout: 60000 }).catch(async error => {
+  }, seed.tree.stories.map(s => s.id), { timeout: 60000, polling: 100 }).catch(async error => {
     console.error(JSON.stringify({ state: await page.evaluate(() => document.body.dataset.state + ' | ' + (document.querySelector('.empty')?.innerText ?? '')), errors, urls: failed, warnings: warnings.slice(0, 5) }));
     throw error;
   });
+  phase('wait for territory and claim meshes');
   // Territories arrive with the survey, and the claim outlines with the first read of the log: wait until both are drawn.
-  await page.waitForFunction(() => { let outlines = 0, files = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('territory-claim:')) outlines++; if (o.name.startsWith('file:')) files++; }); return outlines > 0 && files > 0; }, undefined, { timeout: 30000 });
+  await page.waitForFunction(() => { let outlines = 0, files = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('territory-claim:')) outlines++; if (o.name.startsWith('file:')) files++; }); return outlines > 0 && files > 0; }, undefined, { timeout: 30000, polling: 100 });
   await page.evaluate(() => { for (const menu of document.querySelectorAll('[popover]')) if (menu.matches(':popover-open')) menu.hidePopover(); });
-  await settle(page);
+  await settleView(page);
   const results = { now: new Date(NOW).toISOString(), sessions: SESSIONS, capabilities: CAP, logLines: lines.length };
   // The rows the page's sessions list drew (it keeps them in page storage), as sessionRows made them.
   results.sessionRows = await page.evaluate(() => {
@@ -148,11 +156,12 @@ function measure(page) {
       const Q = camera.quaternion.constructor;
       onRotate(new Q().setFromUnitVectors(at, eye).multiply(rotation));
     }, story);
-    await settle(page);
+    await settleView(page);
   };
-  const zoomed = async () => { await page.evaluate(() => { const { camera, invalidate } = window.__globe; camera.zoom *= 2.6; camera.updateProjectionMatrix(); invalidate(); }); await settle(page); };
-  const unzoom = async () => { await page.evaluate(() => { const { camera, invalidate } = window.__globe; camera.zoom /= 2.6; camera.updateProjectionMatrix(); invalidate(); }); await settle(page); };
-  for (const [name, story] of [['agent-link', AGENT_LINK], ['forest', FOREST], ['library', LIBRARY], ['command-line', 'story_20549f1d48af']]) {
+  const zoomed = async () => { await page.evaluate(() => { const { camera, invalidate } = window.__globe; camera.zoom *= 2.6; camera.updateProjectionMatrix(); invalidate(); }); await settleView(page); };
+  const unzoom = async () => { await page.evaluate(() => { const { camera, invalidate } = window.__globe; camera.zoom /= 2.6; camera.updateProjectionMatrix(); invalidate(); }); await settleView(page); };
+  // Close-ups serve pictures only; the smoke already measures all territories and claims.
+  if (!smoke) for (const [name, story] of [['agent-link', AGENT_LINK], ['forest', FOREST], ['library', LIBRARY], ['command-line', 'story_20549f1d48af']]) {
     await faceIt(story);
     await zoomed();
     results[`closeUp-${name}`] = await measure(page);
@@ -160,19 +169,21 @@ function measure(page) {
     await unzoom();
   }
   // Turn the globe half round about its up axis from the library facing: the failures go behind, and their rim markers show.
+  phase('turn failures behind the globe');
   await faceIt(LIBRARY);
   await page.evaluate(() => {
     const { camera } = window.__globe, { rotation, onRotate } = window.__nav;
     const Q = camera.quaternion.constructor, V = camera.position.constructor;
     onRotate(new Q().setFromAxisAngle(new V(0, 1, 0).applyQuaternion(camera.quaternion), Math.PI).multiply(rotation));
   });
-  await settle(page);
-  await page.waitForFunction(() => document.querySelectorAll('.planet-edge-marker').length > 0, undefined, { timeout: 10000 }).catch(() => {});
-  await settle(page);
+  await settleView(page);
+  await page.waitForFunction(() => document.querySelectorAll('.planet-edge-marker').length === 2, undefined, { timeout: 10000, polling: 100 });
+  if (!smoke) await settleView(page);
   results.turnedAway = await measure(page);
   await picture(page, 'rim-markers.png');
-  await page.mouse.move(2, 2); await settle(page);
+  if (!smoke) { await page.mouse.move(2, 2); await settleView(page); }
 
+  phase('read completed observation');
   results.browser = await browser.version(); results.errors = errors; results.warnings = [...new Set(warnings)];
   results.seed = seed.stats;
   writeFileSync(path.join(out, 'measurements.json'), JSON.stringify(results, null, 2) + '\n');
@@ -181,4 +192,23 @@ function measure(page) {
   assert.equal(results.front.greyFills, 0);
   console.log(JSON.stringify({ browser: results.browser, fills: results.front.fills, greyFills: results.front.greyFills,
     outlines: results.front.islands.flatMap(i => i.claimOutlines.map(o => [i.story, o.capability, o.colour, o.opacity, o.triangles])), markers: results.turnedAway.markers, errors }));
+  // Observation is complete. Release software-GL work before closing the page and browser.
+  phase('release renderer after observation');
+  let cleanupTimer;
+  try {
+    await Promise.race([
+      page.evaluate(() => {
+        const state = window.__globe;
+        state.internal.frames = 0;
+        state.setFrameloop('never');
+        state.gl.dispose();
+        state.gl.forceContextLoss();
+      }),
+      new Promise((_, reject) => { cleanupTimer = setTimeout(() => reject(new Error('renderer cleanup exceeded 10 seconds')), 10000); }),
+    ]);
+  } finally { clearTimeout(cleanupTimer); }
+  phase('close page');
+  await page.close();
+  phase('close browser and capture server');
 });
+phase('capture browser and server closed');

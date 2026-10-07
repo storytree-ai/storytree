@@ -286,6 +286,27 @@ runs them sequentially. Separate files launched competing SwiftShader browsers
 inside one forest unit despite the shared lock around the whole test run. Both
 numbered behaviors retain their full fixtures, assertions and individual deadlines.
 
+### Shared macOS package deadline
+
+[PR #836's merge-queue macOS log](https://github.com/storytree-ai/storytree/actions/runs/37645075537/job/112873617092)
+shows the preceding territory-health proof taking **131.209 seconds**, then the forest
+unit being killed at its unchanged 180-second deadline with live roads pending. Only
+about 44 seconds remained for live roads. That log does not establish a stuck live-road
+step: child stderr was buffered until exit and was lost when the package was killed.
+
+The territory smoke now keeps its full fixture, 1440 × 960 viewport, fill/claim
+measurements and turn-away failure-marker check, but omits the four picture-only
+close-ups and their zoom/unzoom tour. It requests six settling frames instead of
+204 and waits explicitly for both failure markers. The full picture capture still
+performs the tour. State predicates poll independently of RAF, and renderer resources
+are released after observation, before page/browser shutdown.
+
+Both numbered tests now stream subprocess phase diagnostics while retaining stdout
+for the same assertions. The last live-road step and its elapsed time therefore remain
+in the test log even if the outer package deadline interrupts it. The live-road fixture,
+all first-display/addition/shared-road/reduced-motion assertions, and every existing
+time limit remain unchanged. macOS CI and its merge-queue run verify the combined budget.
+
 Use the command wrapper from above, with `PATHWAY_CAPTURE_DIST` naming the intended
 bundle and `PATHWAY_CAPTURE_OUT` naming its output:
 

@@ -9,8 +9,11 @@
 // It writes result.json and renderer.cpuprofile to the out folder and prints a per-phase summary.
 // A report to read at an increment boundary, never a gate (ADR-0623).
 //
-//   pnpm lag:desktop [--project <name>] [--out <dir>] [--home-from <dir>|none]
+//   pnpm lag:desktop [--project <name>] [--out <dir>] [--home-from <dir>|none] [--home <dir>]
 //   pnpm lag:desktop --analyze <dir>      reprint a run's summary
+//
+// --home names the throwaway home: the first run on it starts cold, and a later run on the same home
+// starts warm from the reading the first one kept.
 //
 // APP_DIR is the desktop app to launch (default: this checkout's apps/desktop, built first with
 // `pnpm --filter @storytree/desktop build`; on the laptop, an installed slot's apps/desktop), and
@@ -35,13 +38,25 @@ function option(args, name, fallback) {
 
 const log = (...parts) => console.log(new Date().toISOString().slice(11, 23), ...parts);
 
+/**
+ * The throwaway home a run starts the app on. Given `home`, a home an earlier run left, it is reused as it is,
+ * so the app starts warm from the reading it kept there; otherwise a fresh one is made, holding copies of
+ * `homeFrom`'s settings (none when `homeFrom` is `none`), so the app starts cold.
+ */
+export function lagHome({ home, homeFrom }) {
+  if (home !== undefined && existsSync(path.join(home, "electron"))) return { home, warm: true };
+  const made = home ?? mkdtempSync(path.join(tmpdir(), "lag-desktop-home-"));
+  mkdirSync(made, { recursive: true });
+  if (homeFrom !== "none") for (const file of SETTINGS) if (existsSync(path.join(homeFrom, file))) cpSync(path.join(homeFrom, file), path.join(made, file));
+  return { home: made, warm: false };
+}
+
 /** Launch the app, run the script, and write result.json and renderer.cpuprofile into `out`. */
-async function measure({ appDir, exe, extraArgs, homeFrom, project, out }) {
+async function measure({ appDir, exe, extraArgs, home: reuse, homeFrom, project, out }) {
   const { _electron } = await import("playwright-core");
   mkdirSync(out, { recursive: true });
-  const home = mkdtempSync(path.join(tmpdir(), "lag-desktop-home-"));
-  if (homeFrom !== "none") for (const file of SETTINGS) if (existsSync(path.join(homeFrom, file))) cpSync(path.join(homeFrom, file), path.join(home, file));
-  log("home", home, homeFrom === "none" ? "(empty)" : `(settings from ${homeFrom})`);
+  const { home, warm } = lagHome({ home: reuse, homeFrom });
+  log("home", home, warm ? "(warm: reused)" : homeFrom === "none" ? "(empty)" : `(settings from ${homeFrom})`);
 
   const began = Date.now();
   const app = await _electron.launch({ executablePath: exe, args: [...extraArgs, appDir, ...(project ? ["--project", project] : [])], env: { ...process.env, STORYTREE_HOME: home }, timeout: 180_000 });
@@ -284,7 +299,8 @@ async function main(args) {
   const homeFrom = option(args, "home-from", process.env.STORYTREE_HOME ?? path.join(homedir(), ".storytree", "0.3"));
   const out = path.resolve(option(args, "out", path.join(tmpdir(), `lag-desktop-${new Date().toISOString().replace(/[:.]/g, "-")}`)));
   const extraArgs = (process.env.ELECTRON_ARGS ?? "").split(" ").filter(Boolean);
-  await measure({ appDir, exe, extraArgs, homeFrom, project: option(args, "project", undefined), out });
+  const home = option(args, "home", undefined);
+  await measure({ appDir, exe, extraArgs, home: home === undefined ? undefined : path.resolve(home), homeFrom, project: option(args, "project", undefined), out });
   console.log(`\n${summary(out)}`);
   console.log(`\nlag:desktop: the run is in ${out}`);
 }

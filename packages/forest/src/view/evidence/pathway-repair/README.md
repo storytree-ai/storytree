@@ -259,11 +259,15 @@ The smoke uses a 640 × 480 viewport with the same 131-link scene and reads the 
 world-space geometry. It omits picture framing, Help interactions and camera
 settling; full captures remain 1440 × 960. CI previously passed in 46 seconds on
 Windows and 59 seconds on Linux, while macOS reached the old 80-second subprocess
-deadline without identifying its waiting stage. The capture now records elapsed
-phase diagnostics on stderr, included in a subprocess failure, and has a bounded
-120-second deadline inside the test's 155-second limit. The focused check after
-this smoke-only correction passed in 18.34 seconds locally; macOS requires its CI
-rerun to establish the result.
+deadline. Its next run identified the initial roads' 15-second completion wait.
+Growth advances with rendered frames, so slow rendering stretches wall time: both
+real browser smokes passed together on one CPU core in 97.56 seconds, with initial
+roads advancing through 14 frames over 7.68 seconds and frame gaps up to 1.52 seconds.
+No local demand-render stall was reproduced. The initial completion allowance is
+now 30 seconds; the capture remains bounded at 120 seconds inside the test's
+155-second limit. Failed stages retain elapsed phase diagnostics and a bounded
+passive frame tail, including progress, redraw state, visibility and canvas size.
+macOS requires its CI rerun to establish the result.
 
 Use `capture_locked` from above, with `PATHWAY_CAPTURE_DIST` naming the intended
 bundle and `PATHWAY_CAPTURE_OUT` naming its output:

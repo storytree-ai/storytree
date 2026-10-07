@@ -21,7 +21,8 @@ const dependentStory = seed.tree.stories.find(story => story.capabilities.some(c
 const expected = seed.tree.stories.flatMap(story => story.capabilities.flatMap(cap => cap.dependsOn.map(to => `${cap.id}->${to}`))).sort();
 const initialLinks = expected.filter(link => link !== restoredLink);
 const started = performance.now();
-const phase = message => console.error(`[live pathways +${Math.round(performance.now() - started)}ms] ${message}`);
+let currentPhase;
+const phase = message => { currentPhase = message; console.error(`[live pathways +${Math.round(performance.now() - started)}ms] ${message}`); };
 
 phase('launch browser');
 await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => {
@@ -33,8 +34,38 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
     const page = await browser.newPage({ viewport: smoke ? { width: 640, height: 480 } : { width: 1440, height: 960 }, deviceScaleFactor: 1,
       colorScheme: 'dark', reducedMotion: reduced ? 'reduce' : 'no-preference' });
     const errors = [];
+    const frameReports = [];
     page.on('pageerror', error => errors.push(String(error)));
-    page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+    page.on('console', message => {
+      if (message.type() === 'error') errors.push(message.text());
+      if (message.text().startsWith('live-pathway-frame:')) {
+        frameReports.push(JSON.parse(message.text().slice('live-pathway-frame:'.length)));
+        if (frameReports.length > 24) frameReports.shift();
+      }
+    });
+    const failedWait = async (stage, error) => {
+      // Keep a Node-side tail even when a busy renderer cannot answer this bounded final read.
+      phase(`${name}: ${stage} failed; read passive renderer state`);
+      let timer;
+      const current = await Promise.race([
+        page.evaluate(() => {
+          const state = window.__globe;
+          const rect = state?.gl.domElement.getBoundingClientRect();
+          return { at: performance.now(), visibility: document.visibilityState, frameloop: state?.frameloop,
+            pendingFrames: state?.internal.frames, active: state?.internal.active,
+            canvas: rect && { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+            frames: window.liveEvidence?.frames.length, lastRender: window.liveEvidence?.lastRender,
+            lastFrame: window.liveEvidence?.frames.at(-1) };
+        }).catch(readError => ({ readError: String(readError) })),
+        new Promise(resolve => { timer = setTimeout(() => resolve({ readTimedOut: true }), 3000); }),
+      ]);
+      clearTimeout(timer);
+      const report = { stage, name, error: String(error), errors, frameReports, current };
+      writeFileSync(path.join(out, `${name}-failure.json`), JSON.stringify(report, null, 2) + '\n');
+      console.error(`live pathway failure: ${JSON.stringify(report)}`);
+      throw error;
+    };
+    try {
     const bridge = fakeBridge({
       projectSelection: async () => ({ projects: seed.projects, current: seed.projects[0] }),
       listProjects: async () => seed.projects,
@@ -47,7 +78,7 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
       // A returning user's dismissed guide leaves the actual forest visible from its first frame.
       await page.addInitScript(() => localStorage.setItem('storytree:setup:guide-seen:v1', 'yes'));
     }
-    await page.addInitScript(({ seed, from, to, restoredLink, initialLinks, dependencyStory }) => {
+    await page.addInitScript(({ seed, from, to, restoredLink, initialLinks, dependencyStory, telemetry }) => {
       window.liveSeed = structuredClone(seed);
       window.liveTreeReads = 0;
       const cap = window.liveSeed.tree.stories.flatMap(story => story.capabilities).find(cap => cap.id === from);
@@ -69,6 +100,7 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
           install(get);
           const state = get(), render = state.gl.render;
           state.gl.render = function (...args) {
+            const observedAt = performance.now();
             const { scene } = get();
             scene.updateMatrixWorld(true);
             const V = scene.position.constructor;
@@ -94,12 +126,27 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
               roads.push(item);
             });
             const links = (scene.getObjectByName('pathways:cross-island')?.userData.links ?? []).map(edge => `${edge.from}->${edge.to}`).sort();
-            window.liveEvidence.frames.push({ phase: window.liveEvidence.phase, at: performance.now(), links, roads, lanes });
-            return render.apply(this, args);
+            const frame = { phase: window.liveEvidence.phase, at: performance.now(), observerMs: performance.now() - observedAt, links, roads, lanes };
+            window.liveEvidence.frames.push(frame);
+            window.liveEvidence.lastRender = { frame: window.liveEvidence.frames.length, startedAt: frame.at };
+            const report = boundary => {
+              const current = get(), rect = current.gl.domElement.getBoundingClientRect();
+              console.debug('live-pathway-frame:' + JSON.stringify({ boundary, frame: window.liveEvidence.frames.length,
+                at: performance.now(), phase: frame.phase, observerMs: frame.observerMs, links: links.length, roads: roads.length,
+                minProgress: Math.min(...roads.map(road => road.fraction)), maxProgress: Math.max(...roads.map(road => road.fraction)),
+                incomplete: roads.filter(road => road.fraction < 1).slice(0, 3).map(road => ({ name: road.name, reveal: road.reveal })),
+                frameloop: current.frameloop, pendingFrames: current.internal.frames, active: current.internal.active,
+                visibility: document.visibilityState, canvas: { width: rect.width, height: rect.height } }));
+            };
+            if (telemetry) report('before render');
+            const result = render.apply(this, args);
+            window.liveEvidence.lastRender.completedAt = performance.now();
+            if (telemetry) report('after render');
+            return result;
           };
         }; },
       });
-    }, { seed, from, to, restoredLink, initialLinks, dependencyStory });
+    }, { seed, from, to, restoredLink, initialLinks, dependencyStory, telemetry: smoke });
     let initialCdp;
     const initialScreencast = [];
     if (initialOnly) {
@@ -125,7 +172,7 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
     await page.waitForFunction(() => {
       const frame = window.liveEvidence.frames.at(-1);
       return frame?.links.length === 130 && frame.roads.length > 0 && frame.roads.every(road => road.fraction >= 1 - 1e-8);
-    }, undefined, { timeout: 15000 });
+    }, undefined, { timeout: 30000 });
     if (initialOnly) {
       await page.waitForTimeout(500);
       await initialCdp.send('Page.stopScreencast');
@@ -226,6 +273,7 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
     phase(`${name}: close page`);
     await page.close();
     phase(`${name}: complete`);
+    } catch (error) { await failedWait(currentPhase, error); }
   }
   // Smoke runs retain the real first-frame trace in the shared kit's scratch output for a failing CI run.
   writeFileSync(path.join(out, 'live-measurements.json'), JSON.stringify(all, null, 2) + '\n');

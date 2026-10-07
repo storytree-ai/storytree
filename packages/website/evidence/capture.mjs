@@ -6,13 +6,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
 import { verifyOpening, verifyOpeningFrames } from "./opening.mjs";
-import { verifyTour, verifyTourCamera, verifyImmersive, verifyRecordingFreeplay } from "./tour.mjs";
+import { verifyTour, verifyTourCamera, verifyImmersive, verifyRecordingFreeplay, reviewChapters, reviewFallbacks } from "./tour.mjs";
 import { verifyForest } from "./forest.mjs";
 import { withBrowserCoverage } from "./browser-coverage.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const output = path.resolve(here, process.argv[2] ?? "scaffold");
-const dist = path.resolve(here, "../dist");
+const dist = path.resolve(process.env.WEBSITE_DIST ?? path.resolve(here, "../dist"));
 const verifyOpeningRequested = process.argv.includes("--verify-opening");
 const verifyOpeningFramesRequested = process.argv.includes("--verify-opening-frames");
 const verifyEnlarged = process.argv.includes("--verify-enlarged");
@@ -57,6 +57,8 @@ try {
       }, null, 2) + "\n");
     }
   }
+  else if (process.argv.includes("--review-chapters")) await reviewChapters(browser, url, output);
+  else if (process.argv.includes("--review-fallbacks")) await reviewFallbacks(browser, url, output);
   else if (process.argv.includes("--verify-recording")) await verifyRecordingFreeplay(browser, url, output);
   else if (process.argv.includes("--verify-immersive")) {
     // 2.19 is checked only in the browser: its verdict is written down for pnpm record:acceptance. A journey that stops

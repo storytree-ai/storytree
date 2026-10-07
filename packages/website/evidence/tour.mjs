@@ -453,6 +453,11 @@ export async function verifyImmersive(browser, url, output) {
 // The recording follows the tour's speed, and a step's depth stays readable above the app's drawers.
 export async function verifyRecordingFreeplay(browser, url, output) {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
+  const phoneProblems = [];
+  const touchTarget = async selector => {
+    await page.locator(selector).waitFor({ state: 'visible' });
+    if ((await page.locator(selector).boundingBox()).height < 44) phoneProblems.push(`1.6: ${selector} is shorter than 44px`);
+  };
   await page.addInitScript(() => {
     localStorage.setItem("storytree-opening-seen", "yes");
     const original = HTMLCanvasElement.prototype.getContext;
@@ -468,13 +473,97 @@ export async function verifyRecordingFreeplay(browser, url, output) {
   await page.screenshot({ path: path.join(output, "recording-390.png") });
   for (const step of ["map-health", "knowledge-kinds"]) {
     await goToStep(page, step);
+    await touchTarget('#tour-depth');
     await page.locator("#tour-depth").click();
     await page.locator(".tour-back").scrollIntoViewIfNeeded();
+    await touchTarget('.tour-back');
     assert.equal(await page.locator(".tour-back").evaluate(button => { const box = button.getBoundingClientRect(); return document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2) === button; }), true, "A step's depth stays above comparisons and the arc drawer");
     await page.locator(".tour-back").click();
   }
   await page.locator("#tour-skip").click();
   assert.equal(await at(), Number(await page.locator(".tour-recording-progress").getAttribute("data-recording-total")), "Free play shows the recording's end");
+  await touchTarget('.tour-browse-toggle');
+  if (!await page.locator('#tour-label').isVisible()) phoneProblems.push('2.6: phone free play hides its date and read-only status');
   await page.close();
+  assert.deepEqual(phoneProblems, [], 'Phone controls and dated free play remain usable');
   console.log("PASS: the recording follows the tour's speed and holds; depth stays readable above the app's drawers");
+}
+
+// Review captures of every chapter at its own controls, with each growth allowed to finish before pausing.
+export async function reviewChapters(browser, url, output) {
+  const observations = [];
+  for (const [width, height] of [[1440, 900], [1280, 800], [390, 844], [320, 844]]) {
+    if (process.env.WEBSITE_REVIEW_WIDTH && width !== Number(process.env.WEBSITE_REVIEW_WIDTH)) continue;
+    const page = await browser.newPage({ viewport: { width, height } });
+    const errors = [];
+    page.on('pageerror', error => errors.push(error.message));
+    page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+    await page.addInitScript(() => localStorage.setItem('storytree-opening-seen', 'yes'));
+    try {
+      await page.goto(url);
+      await page.waitForFunction(() => document.querySelector('#website-forest').dataset.forestState === 'live');
+      await page.locator('#tour-play').click();
+      const steps = await page.locator('#tour-pips [data-step]').evaluateAll(nodes => nodes.map(node => node.dataset.step));
+      for (const id of steps) {
+        await goToStep(page, id);
+        if (['grow', 'map-empty', 'map-first', 'map-together', 'map-health'].includes(id)) {
+          await page.locator('#tour-play').click();
+          await page.waitForTimeout(({ grow: 20, 'map-empty': 14, 'map-first': 23, 'map-together': 23, 'map-health': 20 })[id] * 1000);
+          // map-health's two lines can end before its longest review interval; return to its start if so.
+          if (await stepOf(page) !== id) await goToStep(page, id);
+          if (await page.locator('#tour-play').getAttribute('aria-label') === 'Pause the tour') await page.locator('#tour-play').click();
+        }
+        await page.waitForTimeout(1800);
+        const shot = `${width}-${id}.png`;
+        await page.screenshot({ path: path.join(output, shot) });
+        const measured = await page.evaluate(() => {
+          const card = document.querySelector('#tour-card');
+          const box = card.getBoundingClientRect();
+          const panels = [...document.querySelectorAll('.sessions-list, .arc-overlay, .story-panel')].filter(node => node.checkVisibility({ visibilityProperty: true })).map(node => node.getBoundingClientRect());
+          return { overflow: card.scrollHeight - card.clientHeight, sideways: document.documentElement.scrollWidth > innerWidth,
+            panelOverlap: panels.some(panel => Math.min(box.right, panel.right) > Math.max(box.left, panel.left) && Math.min(box.bottom, panel.bottom) > Math.max(box.top, panel.top)) };
+        });
+        observations.push({ width, height, step: id, picture: shot, ...measured });
+        if (await page.locator('#tour-depth').isVisible()) {
+          await page.locator('#tour-depth').click();
+          await page.screenshot({ path: path.join(output, `${width}-${id}-depth.png`) });
+          await page.locator('.tour-back').click();
+        }
+      }
+      await page.locator('#tour-skip').click();
+      await page.waitForTimeout(2500);
+      await page.screenshot({ path: path.join(output, `${width}-freeplay.png`) });
+      observations.push({ width, errors });
+      await writeFile(path.join(output, `${width}-chapter-review.json`), JSON.stringify(observations.filter(row => row.width === width), null, 2) + '\n');
+    } finally { await page.close(); }
+  }
+  await writeFile(path.join(output, 'chapter-review.json'), JSON.stringify(observations, null, 2) + '\n');
+  assert.deepEqual(observations.flatMap(row => row.errors ?? []), [], 'The reviewed chapters have no console errors');
+}
+
+// Inspect 2.2's still and the separately tracked missing shop fallback, without claiming the missing picture passes.
+export async function reviewFallbacks(browser, url, output) {
+  const observations = [];
+  for (const [width, height] of [[1440, 900], [1280, 800], [390, 844], [320, 844]]) {
+    const page = await browser.newPage({ viewport: { width, height }, reducedMotion: 'reduce' });
+    await page.addInitScript(() => {
+      localStorage.setItem('storytree-opening-seen', 'yes');
+      const original = HTMLCanvasElement.prototype.getContext;
+      HTMLCanvasElement.prototype.getContext = function (kind, ...args) { return kind.startsWith('webgl') ? null : original.call(this, kind, ...args); };
+    });
+    try {
+      await page.goto(url);
+      await page.locator('#tour-play').click();
+      await goToStep(page, 'knowledge-kinds');
+      await page.waitForTimeout(500);
+      await page.screenshot({ path: path.join(output, `${width}-no-webgl-knowledge.png`) });
+      await page.locator('#tour-skip').click();
+      await page.locator('.forest-views').waitFor();
+      await page.screenshot({ path: path.join(output, `${width}-no-webgl-shop.png`) });
+      observations.push({ width, shopStillVisible: await page.locator('.forest-still img').evaluate(node => node.checkVisibility({ visibilityProperty: true })) });
+      await page.getByRole('button', { name: 'storytree', exact: true }).click();
+      await page.screenshot({ path: path.join(output, `${width}-no-webgl-storytree.png`) });
+    } finally { await page.close(); }
+  }
+  await writeFile(path.join(output, 'fallback-review.json'), JSON.stringify(observations, null, 2) + '\n');
 }

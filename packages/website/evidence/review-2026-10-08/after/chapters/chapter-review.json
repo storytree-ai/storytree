@@ -1,0 +1,702 @@
+[
+  {
+    "width": 1440,
+    "height": 900,
+    "step": "pain",
+    "picture": "1440-pain.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 1440,
+    "height": 900,
+    "step": "grow",
+    "picture": "1440-grow.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 1440,
+    "height": 900,
+    "step": "value",
+    "picture": "1440-value.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 1440,
+    "height": 900,
+    "step": "fixes",
+    "picture": "1440-fixes.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 1440,
+    "height": 900,
+    "step": "map-empty",
+    "picture": "1440-map-empty.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 1440,
+    "height": 900,
+    "step": "map-first",
+    "picture": "1440-map-first.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 1440,
+    "height": 900,
+    "step": "map-together",
+    "picture": "1440-map-together.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 1440,
+    "height": 900,
+    "step": "map-health",
+    "picture": "1440-map-health.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 1440,
+    "height": 900,
+    "step": "agents-sessions",
+    "picture": "1440-agents-sessions.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 1440,
+    "height": 900,
+    "step": "agents-arcs",
+    "picture": "1440-agents-arcs.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 1440,
+    "height": 900,
+    "step": "agents-claim",
+    "picture": "1440-agents-claim.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 1440,
+    "height": 900,
+    "step": "agents-parallel",
+    "picture": "1440-agents-parallel.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 1440,
+    "height": 900,
+    "step": "agents-standdown",
+    "picture": "1440-agents-standdown.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 1440,
+    "height": 900,
+    "step": "knowledge-inside",
+    "picture": "1440-knowledge-inside.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 1440,
+    "height": 900,
+    "step": "knowledge-kinds",
+    "picture": "1440-knowledge-kinds.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 1440,
+    "height": 900,
+    "step": "knowledge-shelves",
+    "picture": "1440-knowledge-shelves.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 1440,
+    "height": 900,
+    "step": "knowledge-reads",
+    "picture": "1440-knowledge-reads.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 1440,
+    "height": 900,
+    "step": "knowledge-compare",
+    "picture": "1440-knowledge-compare.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 1440,
+    "height": 900,
+    "step": "everything",
+    "picture": "1440-everything.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 1440,
+    "errors": []
+  },
+  {
+    "width": 1280,
+    "height": 800,
+    "step": "pain",
+    "picture": "1280-pain.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 1280,
+    "height": 800,
+    "step": "grow",
+    "picture": "1280-grow.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 1280,
+    "height": 800,
+    "step": "value",
+    "picture": "1280-value.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 1280,
+    "height": 800,
+    "step": "fixes",
+    "picture": "1280-fixes.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 1280,
+    "height": 800,
+    "step": "map-empty",
+    "picture": "1280-map-empty.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 1280,
+    "height": 800,
+    "step": "map-first",
+    "picture": "1280-map-first.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 1280,
+    "height": 800,
+    "step": "map-together",
+    "picture": "1280-map-together.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 1280,
+    "height": 800,
+    "step": "map-health",
+    "picture": "1280-map-health.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 1280,
+    "height": 800,
+    "step": "agents-sessions",
+    "picture": "1280-agents-sessions.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 1280,
+    "height": 800,
+    "step": "agents-arcs",
+    "picture": "1280-agents-arcs.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 1280,
+    "height": 800,
+    "step": "agents-claim",
+    "picture": "1280-agents-claim.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 1280,
+    "height": 800,
+    "step": "agents-parallel",
+    "picture": "1280-agents-parallel.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 1280,
+    "height": 800,
+    "step": "agents-standdown",
+    "picture": "1280-agents-standdown.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 1280,
+    "height": 800,
+    "step": "knowledge-inside",
+    "picture": "1280-knowledge-inside.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 1280,
+    "height": 800,
+    "step": "knowledge-kinds",
+    "picture": "1280-knowledge-kinds.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 1280,
+    "height": 800,
+    "step": "knowledge-shelves",
+    "picture": "1280-knowledge-shelves.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 1280,
+    "height": 800,
+    "step": "knowledge-reads",
+    "picture": "1280-knowledge-reads.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 1280,
+    "height": 800,
+    "step": "knowledge-compare",
+    "picture": "1280-knowledge-compare.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 1280,
+    "height": 800,
+    "step": "everything",
+    "picture": "1280-everything.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 1280,
+    "errors": []
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "step": "pain",
+    "picture": "390-pain.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "step": "grow",
+    "picture": "390-grow.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "step": "value",
+    "picture": "390-value.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "step": "fixes",
+    "picture": "390-fixes.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "step": "map-empty",
+    "picture": "390-map-empty.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "step": "map-first",
+    "picture": "390-map-first.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "step": "map-together",
+    "picture": "390-map-together.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "step": "map-health",
+    "picture": "390-map-health.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "step": "agents-sessions",
+    "picture": "390-agents-sessions.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "step": "agents-arcs",
+    "picture": "390-agents-arcs.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "step": "agents-claim",
+    "picture": "390-agents-claim.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "step": "agents-parallel",
+    "picture": "390-agents-parallel.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "step": "agents-standdown",
+    "picture": "390-agents-standdown.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "step": "knowledge-inside",
+    "picture": "390-knowledge-inside.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "step": "knowledge-kinds",
+    "picture": "390-knowledge-kinds.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "step": "knowledge-shelves",
+    "picture": "390-knowledge-shelves.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "step": "knowledge-reads",
+    "picture": "390-knowledge-reads.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "step": "knowledge-compare",
+    "picture": "390-knowledge-compare.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "step": "everything",
+    "picture": "390-everything.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 390,
+    "errors": []
+  },
+  {
+    "width": 320,
+    "height": 844,
+    "step": "pain",
+    "picture": "320-pain.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 320,
+    "height": 844,
+    "step": "grow",
+    "picture": "320-grow.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 320,
+    "height": 844,
+    "step": "value",
+    "picture": "320-value.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 320,
+    "height": 844,
+    "step": "fixes",
+    "picture": "320-fixes.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 320,
+    "height": 844,
+    "step": "map-empty",
+    "picture": "320-map-empty.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 320,
+    "height": 844,
+    "step": "map-first",
+    "picture": "320-map-first.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 320,
+    "height": 844,
+    "step": "map-together",
+    "picture": "320-map-together.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 320,
+    "height": 844,
+    "step": "map-health",
+    "picture": "320-map-health.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 320,
+    "height": 844,
+    "step": "agents-sessions",
+    "picture": "320-agents-sessions.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 320,
+    "height": 844,
+    "step": "agents-arcs",
+    "picture": "320-agents-arcs.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 320,
+    "height": 844,
+    "step": "agents-claim",
+    "picture": "320-agents-claim.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 320,
+    "height": 844,
+    "step": "agents-parallel",
+    "picture": "320-agents-parallel.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 320,
+    "height": 844,
+    "step": "agents-standdown",
+    "picture": "320-agents-standdown.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 320,
+    "height": 844,
+    "step": "knowledge-inside",
+    "picture": "320-knowledge-inside.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 320,
+    "height": 844,
+    "step": "knowledge-kinds",
+    "picture": "320-knowledge-kinds.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 320,
+    "height": 844,
+    "step": "knowledge-shelves",
+    "picture": "320-knowledge-shelves.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 320,
+    "height": 844,
+    "step": "knowledge-reads",
+    "picture": "320-knowledge-reads.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 320,
+    "height": 844,
+    "step": "knowledge-compare",
+    "picture": "320-knowledge-compare.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 320,
+    "height": 844,
+    "step": "everything",
+    "picture": "320-everything.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 320,
+    "errors": []
+  }
+]

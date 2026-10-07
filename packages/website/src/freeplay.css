@@ -4,6 +4,8 @@
 /* Only website placement lives here. The desktop owns the panels and diagram vocabulary. */
 #chapter2 .tour-freeplay,.tour-session-surface,.tour-arc-surface,.tour-sessions,.tour-arcs { display:contents; }
 #chapter2 .forest-views { top:66px; left:24px; }
+#chapter2 .forest-views button { min-height:36px; font:13px/1.5 system-ui, sans-serif; }
+#chapter2 .forest-views button[aria-pressed="true"] { background:var(--green); font-weight:600; }
 #chapter2 .tour-browse-toggle { position:absolute; top:67px; left:200px; z-index:8; min-height:40px; padding:8px 12px; border:1px solid #485159; border-radius:8px; color:#eee; background:#101418; font:13px/1.5 system-ui, sans-serif; cursor:pointer; }
 #chapter2 .tour-record-browser { position:absolute; z-index:20; top:116px; left:12px; width:min(360px,calc(100% - 24px)); max-height:calc(100% - 196px); overflow:auto; padding:18px; border:1px solid var(--line,#485159); border-radius:10px; background:var(--surface,#1e2125); color:var(--text,#e7e8ea); box-shadow:0 8px 30px #0006; }
 .tour-record-browser header { display:flex; align-items:center; justify-content:space-between; }
@@ -16,7 +18,7 @@
 #chapter2 .tour-project { position:absolute; z-index:8; top:66px; left:264px; display:flex; align-items:center; gap:2px; padding:3px; border:1px solid #485159; border-radius:9px; background:#101418; font:13px/1.5 system-ui, sans-serif; }
 #chapter2 .tour-project .tp-label { padding:0 8px 0 6px; color:var(--dim,#9aa3ab); font-size:11px; letter-spacing:.06em; text-transform:uppercase; }
 #chapter2 .tour-project button { min-height:36px; padding:6px 12px; border:0; border-radius:6px; color:#d7dbdf; background:none; font:inherit; cursor:pointer; }
-#chapter2 .tour-project button[aria-pressed="true"] { color:#101418; background:#c9e4a8; font-weight:600; }
+#chapter2 .tour-project button[aria-pressed="true"] { color:#101418; background:var(--green); font-weight:600; }
 #chapter2 .tour-project button:focus-visible { outline:2px solid #c9e4a8; outline-offset:2px; }
 /* Panels stop above the tour bar. */
 #chapter2 .story-panel { top:66px; bottom:calc(var(--bar-h) + 12px); }
@@ -26,11 +28,12 @@
 #chapter2 .arc-overlay { position:absolute; top:48px; z-index:60; bottom:var(--bar-h); }
 #chapter2 .arc-overlay .arc-handle { top:-48px; }
 /* While the tour talks, the sessions list sits to the right of the card, above the bar. */
-#chapter2[data-tour-mode="tour"] .sessions-list { left:calc(24px + min(400px, 36vw) + 16px); right:16px; bottom:calc(var(--bar-h) + 14px); max-height:42%; z-index:4; border:1px solid #3d4748; border-radius:12px; }
+#chapter2[data-tour-mode="tour"] .sessions-list { left:calc(clamp(24px, 4vw, 64px) + min(400px, 36vw) + 16px); right:16px; bottom:calc(var(--bar-h) + 14px); max-height:42%; z-index:4; border:1px solid #3d4748; border-radius:12px; }
 #chapter2 .tour-recording-progress { position:absolute; z-index:6; top:52px; right:24px; margin:0; color:#f2967b; font:600 11px/1.5 system-ui, sans-serif; letter-spacing:.06em; text-transform:uppercase; font-variant-numeric:tabular-nums; }
 #chapter2[data-tour-mode="freeplay"] .tour-recording-progress { display:none; }
 @media(max-width:600px) {
  #chapter2 .forest-views { top:60px; left:14px; }
+ #chapter2 .forest-views button, #chapter2 .tour-browse-toggle { min-height:44px; }
  #chapter2 .tour-browse-toggle { top:61px; left:180px; }
  #chapter2 .tour-project { top:110px; left:14px; }
  #chapter2 .tour-project .tp-label { display:none; }
@@ -51,7 +54,7 @@
  #chapter2[data-tour-mode="tour"] .arc-overlay { height:auto; min-height:0; max-height:136px; bottom:auto; }
  #chapter2[data-tour-mode="tour"] .arc-panes { grid-template-rows:minmax(0,1fr); }
  #chapter2[data-tour-mode="tour"] .arc-briefing { display:none; }
- #chapter2[data-tour-mode="tour"]:has(.tour-session-surface:not([hidden]), .tour-arc-surface:not([hidden])) .forest-drawing { top:104px; bottom:max(calc(52% - 32px), calc(var(--tour-under) + 4px - 20px)); }
+ #chapter2[data-tour-mode="tour"]:has(.tour-session-surface:not([hidden]), .tour-arc-surface:not([hidden])) .forest-drawing { top:104px; bottom:max(calc(52% - 20px), calc(var(--tour-under) + 4px - 8px)); }
 }
 /* A short phone's long steps take room from the globe (2.19), so its globe's bottom follows the card up, and the band above
    is won back: the sessions list rises over the heading, and the globe rises with the panel it sits under (2.18). */

@@ -21,6 +21,7 @@
  */
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { Worker } from "node:worker_threads";
 import { surveySourceReader, type SurveySource } from "./survey-source.js";
 
 import type { AnnotatedTree } from "@storytree/library";
@@ -234,4 +235,49 @@ const shared = codeSurveyReader();
 /** The survey of every story in `tree` whose package the checkout at `folder` holds, read through one kept reader. */
 export function readCodeSurvey(folder: string, tree: AnnotatedTree): Promise<ProjectSurvey> {
   return shared.read(folder, tree);
+}
+
+/**
+ * A reader whose surveys run on a worker thread started from `workerFile` (this folder's survey-worker, or a
+ * bundle of it), so parsing never holds the asking thread's event loop (8.16). The worker starts on the first ask,
+ * keeps its reader between asks, and is started again after it dies; close ends it.
+ */
+export function offThreadSurveyReader(workerFile: string | URL, options: { execArgv?: string[] } = {}) {
+  let worker: Worker | undefined;
+  let next = 0;
+  const waiting = new Map<number, { resolve: (survey: ProjectSurvey) => void; reject: (error: Error) => void }>();
+  const failAll = (error: Error) => {
+    for (const { reject } of waiting.values()) reject(error);
+    waiting.clear();
+    worker = undefined;
+  };
+  const started = (): Worker => {
+    if (worker !== undefined) return worker;
+    const made = new Worker(workerFile, { execArgv: options.execArgv });
+    made.unref();
+    made.on("message", ({ id, survey, error }: { id: number; survey?: ProjectSurvey; error?: string }) => {
+      const asked = waiting.get(id);
+      waiting.delete(id);
+      if (error === undefined) asked?.resolve(survey!);
+      else asked?.reject(new Error(error));
+    });
+    made.on("error", failAll);
+    made.on("exit", (code) => { if (worker === made) failAll(new Error(`the survey worker stopped (exit ${code})`)); });
+    worker = made;
+    return made;
+  };
+  return {
+    read(folder: string, tree: AnnotatedTree): Promise<ProjectSurvey> {
+      return new Promise((resolve, reject) => {
+        const id = next++;
+        waiting.set(id, { resolve, reject });
+        started().postMessage({ id, folder, tree });
+      });
+    },
+    async close(): Promise<void> {
+      const stopping = worker;
+      worker = undefined;
+      await stopping?.terminate();
+    },
+  };
 }

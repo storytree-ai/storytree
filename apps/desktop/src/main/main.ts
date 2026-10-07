@@ -29,7 +29,7 @@
  */
 import { smokeArcSurface } from "@storytree/arc-surface";
 import { arcSurfaces } from "@storytree/arc-surface/surfaces";
-import { readCodeSurvey } from "@storytree/forest/code-survey";
+import { offThreadSurveyReader } from "@storytree/forest/code-survey";
 import { forestSurfaces } from "@storytree/forest/surfaces";
 import { appendFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { format } from "node:util";
@@ -224,9 +224,11 @@ async function run(): Promise<void> {
   ipcMain.handle(CHANNELS.frontCovers, (_event, name: unknown, nodeId: unknown) => open().frontCovers(name, nodeId));
   ipcMain.handle(CHANNELS.relatedNotes, (_event, name: unknown, noteId: unknown) => open().relatedNotes(name, noteId));
   ipcMain.handle(CHANNELS.standingDelegations, (_event, name: unknown) => open().standingDelegations(name));
+  // Surveys parse every changed file: on a worker thread, so the main process keeps answering meanwhile (map 8.16).
+  const surveys = offThreadSurveyReader(path.join(__dirname, "survey-worker.cjs"));
   ipcMain.handle(CHANNELS.codeSurvey, async (_event, name: unknown) => {
     const folder = await open().projectFolder(name);
-    return folder === undefined ? {} : readCodeSurvey(folder, treesRead.get(name) ?? await open().projectTree(name));
+    return folder === undefined ? {} : surveys.read(folder, treesRead.get(name) ?? await open().projectTree(name));
   });
 
   if (args.startCheck) {

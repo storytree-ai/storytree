@@ -172,5 +172,5 @@ function rolesSentence(starterRoles: readonly string[]): string {
 function failuresSentence(failures: readonly HookFailure[]): string {
   const latest = failures.at(-1)!;
   const count = failures.length === 1 ? "1 hook failure" : `${failures.length} hook failures`;
-  return `This machine traced ${count} for this session; the latest, at ${latest.at}, ${latest.event ?? "a hook"}${latest.toolUseId === undefined ? "" : ` (${latest.toolUseId})`} failed ${{ reach: "to reach storytree", write: "to write its lines", hook: "to run" }[latest.stage]}: ${latest.error.class}: ${latest.error.message}.`;
+  return `This machine traced ${count} for this session; the latest, at ${latest.at}, ${latest.event ?? "a hook"}${latest.toolUseId === undefined ? "" : ` (${latest.toolUseId})`} failed ${{ reach: "to reach storytree", write: "to write its lines", observe: "to observe shell writes", hook: "to run" }[latest.stage]}: ${latest.error.class}: ${latest.error.message}.`;
 }

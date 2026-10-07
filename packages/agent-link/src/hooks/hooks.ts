@@ -165,7 +165,7 @@ async function writeLines(harness: string, input: string, flags: readonly string
     // Observe before queueing or reaching the store: shell writes remain edits while offline, and
     // a command's edit line feeds the same upkeep/claim path as an explicit edit tool (3.22).
     const firstLine = made.lines[0];
-    if (root !== undefined && firstLine !== undefined) made = { ...made, lines: [...made.lines, ...shellEdits(home, root, firstLine)] };
+    if (root !== undefined && firstLine !== undefined) made = { ...made, lines: [...made.lines, ...shellEdits(home, root, firstLine, (error) => failed("observe", error))] };
     const { enqueue, uploadQueued } = await import("./queue.js");
     if (where.status === "not-running") {
       enqueue(home, where.project, made.lines);

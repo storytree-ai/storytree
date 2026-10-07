@@ -15,17 +15,19 @@ import { crossingLength, growthMoment, growthPlan, type GrowthPlan } from "@stor
 import { buildPlanetPathways } from "@storytree/forest-world/geometry";
 import type { GrowthSnapshot, TourSnapshot } from "./forest-data.js";
 import { aim, flight, globeOf, placeTags, replayMoment, type Box, type GlobeOn, type Hold, type Tag, type TagSide, type TourDetail, type TourStep } from "./tour.js";
+import { mapRecording, mapGrowthPlan, recordedScene } from "./map-recording.js";
 import { growthReading, savedReading } from "./tour-reading.js";
 
 const snapshot = saved as unknown as TourSnapshot;
 const places = new Map(snapshot.places.map(place => [place.id, place.place]));
 /** A recorded growth to replay from a point: storytree's own (ADR-0889 2.2b), where Act 2 arrives, and the shop's, where its chapters teach (ADR-0890). */
-function recordedGrowth(snapshot: GrowthSnapshot) {
+function recordedGrowth(snapshot: GrowthSnapshot, mapChapter = false) {
   let planned: GrowthPlan | undefined;
   return { snapshot, places: new Map(snapshot.places.map(place => [place.id, place.place])), sessions: snapshot.stages.map(({ at, wisps }) => ({ at, wisps })),
     /** Planned on first use: a stage whose recorded sessions changed holds a beat, so each claim and landing is seen (world 7.6). */
     plan: () => planned ??= (() => {
       const pathways = buildPlanetPathways(snapshot.scene, new Map(snapshot.spots), snapshot.radius);
+      if (mapChapter) return mapGrowthPlan(snapshot, link => crossingLength(pathways, link));
       const sessions = (index: number) => JSON.stringify(snapshot.stages[index]?.wisps.map(wisp => [wisp.session, wisp.story]) ?? []);
       const stages = snapshot.stages.map(({ id, at, scene }, index) => ({ id, at, scene, ...(sessions(index) !== sessions(index - 1) ? { hold: 1 } : {}) }));
       return growthPlan(stages, { fromPoint: true, seconds: 15, roadLength: link => crossingLength(pathways, link), until: snapshot.stages.at(-1)!.at });
@@ -34,6 +36,7 @@ function recordedGrowth(snapshot: GrowthSnapshot) {
 const shop = shopSaved as unknown as GrowthSnapshot;
 const own = ownSaved as unknown as GrowthSnapshot;
 const growths = { own: recordedGrowth(own), shop: recordedGrowth(shop) };
+const mapChapter = recordedGrowth(mapRecording(shop), true);
 const shopSnapshot = growthReading(shop);
 type Grown = keyof typeof growths;
 type GlobeMap = "storytree" | Grown;
@@ -223,7 +226,7 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   const free = state?.freePlay === true;
   const everything = state?.holds.includes("everything") === true;
   const touring = !!tour && !free;
-  const requestedPanel = touring && !everything ? step?.panel : undefined;
+  const requestedPanel = touring && !everything && (state?.lines ?? 1) >= (step?.panelFromLine ?? 1) ? step?.panel : undefined;
   const surfaces = useMemo((): Partial<GlobeSurfaces> => {
     if (!step || free || everything) return complete;
     let shown = step.surfaces;
@@ -317,7 +320,7 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
     else { setStory(undefined); setCapability(undefined); }
     if (step?.id === "knowledge-reads" && reader) core.select(reader);
   };
-  useEffect(openStepSurfaces, [step?.id, state?.generation, free, everything]);
+  useEffect(openStepSurfaces, [step?.id, state?.generation, free, everything, requestedPanel]);
   // Resuming after exploring closes what the visitor opened and puts the step's own surfaces back.
   const exploringNow = state?.holds.includes("exploring") === true;
   useEffect(() => {
@@ -421,7 +424,8 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   const shownNotes = (grows(shownMap) ? [...knowledge(growths[shownMap].snapshot.changes ?? []).notes.values()] : notes).filter(item => String(item.fields.title ?? "").toLowerCase().includes(query.toLowerCase()));
   const selected = story ?? (touring && !everything ? step?.select : undefined);
   const onStorytree = shownMap === "storytree";
-  const grown = grows(shownMap) ? growths[shownMap] : undefined;
+  const inMapChapter = touring && !everything && step?.explainer === "map" && shownMap === "shop";
+  const grown = inMapChapter ? mapChapter : grows(shownMap) ? growths[shownMap] : undefined;
   // The tour's step says how far the growth has played (seconds at 1×), over the whole plan or one stage of it (2.16).
   // Undefined is whole; a held seed is the point the globe grows from.
   let moment: number | undefined;
@@ -435,7 +439,7 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   const growth = grown ? { plan: grown.plan(), at: moment ?? Infinity } : undefined;
   // A step narrowed to a few stories dims the rest (ADR-0890's three teaching stories).
   const focus = touring && !everything && globe.map === shownMap && "focus" in globe ? globe.focus : undefined;
-  const drawn = grown?.snapshot.scene ?? snapshot.scene;
+  const drawn = inMapChapter && moment !== undefined ? recordedScene(mapChapter.snapshot, mapChapter.plan(), moment) : grown?.snapshot.scene ?? snapshot.scene;
   // Free play on the shop reads the shop's saved reading for its panels, arcs and sessions; everywhere else, storytree's.
   const onShop = free && shownMap === "shop" && shopView !== undefined;
   const shopAt = useMemo(() => recordedAt && shopSnapshot ? { recording: savedReading(shopSnapshot, { until: recordedAt }) } : undefined, [recordedAt]);
@@ -455,7 +459,7 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
         <PlanetView core={grown ? growthCores[shownMap as Grown] : core} scene={drawn} places={grown?.places ?? places}
           frame={grown?.snapshot.scene} growth={growth} recordedSessions={shopAt && shownMap === "shop" ? undefined : grown?.sessions}
           wisps={shopAt && shownMap === "shop" ? wisps : grown ? [] : wisps} selected={selected}
-          highlighted={focus ?? highlight} onPick={pickStory} onNote={pickNote}
+          highlighted={focus?.length === 0 ? ["planned-only"] : focus ?? highlight} onPick={pickStory} onNote={pickNote}
           onControls={onControls} surfaces={surfaces} framing={restingFraming} sideOffset={offsetFor(undefined, width)} mode={mode} />
       </div>
     </GlobeBoundary>}

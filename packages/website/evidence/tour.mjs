@@ -61,17 +61,17 @@ export async function verifyTourCamera(browser, url) {
     await page.waitForFunction(() => document.querySelector("#chapter2").dataset.tourStep === "map-first", null, { timeout: 30_000 });
     await page.waitForTimeout(6000);
     if ((await drawn()).risen !== 4) failures.push(`The four planned stories rise together as signing in is built: ${JSON.stringify(await drawn())}`);
-    // 2.16: the map chapter's last step grows the shop from its first four stories to eight, Orders among them.
-    const risen = () => page.locator(".forest-drawing").evaluate(node => ({ map: node.dataset.globe, risen: Number(node.dataset.risen) }));
-    await goToStep(page, "map-grow");
-    await page.waitForFunction(() => document.querySelector(".forest-drawing")?.dataset.globe === "shop", null, { timeout: 30_000 });
+    assert.equal(await page.locator(".story-panel").count(), 0, "2.16: the island and its code arrive before the panel");
+    await page.waitForFunction(() => document.querySelectorAll("#tour-lines .tour-line.on").length === 4, null, { timeout: 45_000 });
+    await page.locator(".story-panel").waitFor({ state: "visible" });
+    assert.match(await page.locator(".story-panel").textContent(), /Signing in.*Session/s, "2.16: the real story panel opens on the fourth line");
+    // 2.16: the map chapter keeps its four teaching stories through the health change.
+    await goToStep(page, "map-health");
     await page.waitForTimeout(800);
-    const before = await risen();
-    if (!(before.risen >= 4 && before.risen < 8)) failures.push(`The growth step opens on the shop's first four stories, the next rising: ${JSON.stringify(before)}`);
-    // The step ends soon after its growth does: read the shop while the step still shows it.
-    await page.waitForFunction(() => document.querySelector("#chapter2").dataset.tourStep !== "map-grow" || document.querySelector(".forest-drawing")?.dataset.risen === "8", null, { timeout: 30_000 });
-    const after = { ...await risen(), step: await stepOf(page) };
-    if (after.risen !== 8 || after.step !== "map-grow") failures.push(`Its second round of work grows the shop to eight stories: ${JSON.stringify(after)}`);
+    const risen = () => page.locator(".forest-drawing").evaluate(node => Number(node.dataset.risen));
+    if (await risen() !== 4) failures.push("Health opens on the four teaching stories");
+    await page.waitForTimeout(15_000);
+    if (await risen() !== 4) failures.push("Health keeps Orders and the rest for free play");
     // 2.17: an agents step shows the shop as it stood at its recorded moment.
     await goToStep(page, "agents-parallel"); await page.waitForTimeout(2500);
     const parallel = await page.locator(".forest-drawing").evaluate(node => ({ map: node.dataset.globe, growth: node.dataset.growth }));
@@ -80,7 +80,7 @@ export async function verifyTourCamera(browser, url) {
     if ((await globe()).map !== "storytree") failures.push("The knowledge steps return to storytree's globe");
     assert.deepEqual(failures, []);
   } finally { await page.close(); }
-  console.log("PASS contracts 2.16 and 2.17: the shop grows on in the map chapter and stands at its recorded moments in the agents chapter, then storytree's returns");
+  console.log("PASS contracts 2.16 and 2.17: the map chapter stays on four stories and stands at its recorded moments in the agents chapter, then storytree's returns");
   console.log("PASS contracts 2.4 and 2.7: exploring holds the tour and says so; Play flies back to the step's view");
 }
 
@@ -98,39 +98,39 @@ export async function verifyTour(browser, url, output) {
   const shown = () => page.locator("#tour-lines .tour-line.on").count();
   // 2.8: one pip per step, grouped by explainer; a pip jumps to its step.
   const pips = await page.locator("#tour-pips [data-go]").count();
-  assert.ok(pips >= 20, `one pip per step (${pips})`);
+  assert.equal(pips, 19, "one pip per step, with four in the map chapter");
   assert.deepEqual(await page.locator("#tour-pips .tb-group").evaluateAll(groups => groups.map(group => group.dataset.group)),
     ["opening", "map", "agents", "knowledge", "ending"]);
-  await goToStep(page, "map-parts");
-  assert.equal(await page.locator('#tour-pips [data-step="map-parts"]').getAttribute("aria-current"), "step");
+  await goToStep(page, "map-first");
+  assert.equal(await page.locator('#tour-pips [data-step="map-first"]').getAttribute("aria-current"), "step");
   // 2.4: the lines arrive at a readable pace; pause holds them; a faster speed brings the next sooner.
   assert.equal(await shown(), 1);
   await page.locator("#tour-play").click();
   assert.equal(await holds(page), "Paused");
-  await page.clock.runFor(15000); assert.equal(await stepOf(page), "map-parts", "Pause holds the step");
+  await page.clock.runFor(15000); assert.equal(await stepOf(page), "map-first", "Pause holds the step");
   await page.locator("#tour-play").click();
-  // A waiting step shows all its lines, so the pace is timed on a fresh step: its first line (9 words) reads for 3.5 s at 1×.
+  // A waiting step shows all its lines, so the pace is timed on a fresh step: its first line reads for about 7.7 s at 1×.
   assert.equal(await page.locator("#tour-speed-cycle").textContent(), "0.75×", "Act 2 arrives at 0.75×");
   await page.locator("#tour-speed-cycle").click(); await page.locator("#tour-speed-cycle").click(); assert.equal(await page.locator("#tour-speed-cycle").textContent(), "1.5×");
-  await goToStep(page, "map-code"); assert.equal(await shown(), 1);
-  await page.clock.runFor(3500); assert.equal(await shown(), 2, "1.5× brings the next line in two thirds of the time");
-  await goToStep(page, "map-parts");
+  await goToStep(page, "map-together"); assert.equal(await shown(), 1);
+  await page.clock.runFor(5500); assert.equal(await shown(), 2, "1.5× brings the next line in two thirds of the time");
+  await goToStep(page, "map-first");
   // 2.4, 2.7: depth holds the tour, says why, and Escape returns to the button; play continues the same step.
   await page.locator("#tour-depth").click();
   assert.equal(await holds(page), "Waiting while you read");
   assert.equal(await page.evaluate(() => document.activeElement?.tagName), "H3");
-  await page.clock.runFor(30000); assert.equal(await stepOf(page), "map-parts");
+  await page.clock.runFor(30000); assert.equal(await stepOf(page), "map-first");
   await page.keyboard.press("Escape"); assert.equal(await page.evaluate(() => document.activeElement?.id), "tour-depth");
   await page.locator("#tour-everything").click();
   assert.equal(await holds(page), "Showing everything");
-  await page.clock.runFor(30000); assert.equal(await stepOf(page), "map-parts");
+  await page.clock.runFor(30000); assert.equal(await stepOf(page), "map-first");
   await page.locator("#tour-depth").click();
   await page.locator("#tour-play").click();
   assert.equal(await holds(page), "", "Play clears every hold");
   assert.equal(await page.locator("#tour-everything").getAttribute("aria-checked"), "false");
-  assert.equal(await stepOf(page), "map-parts", "Play continues the step it stopped in");
+  assert.equal(await stepOf(page), "map-first", "Play continues the step it stopped in");
   await page.locator("#tour-next").focus(); await page.keyboard.press("Enter");
-  assert.equal(await stepOf(page), "map-code");
+  assert.equal(await stepOf(page), "map-together");
   // 2.16: the map chapter's depth is How and Why, never decision numbers; its last step offers the dated, sourced comparison.
   for (const id of await page.locator("#tour-pips [data-step]").evaluateAll(pips => pips.map(pip => pip.dataset.step).filter(id => id.startsWith("map-")))) {
     await goToStep(page, id);
@@ -281,7 +281,7 @@ async function verifyAgentTags(page, width, height, output, size = `${width}`) {
 async function verifyOneFormat(page, width, output) {
   await goToStep(page, "pain");
   const impact = await page.locator("#tour-lines .tour-line.on .said").first().evaluate(node => parseFloat(getComputedStyle(node).fontSize));
-  for (const id of ["map-parts", "agents-sessions", "knowledge-kinds"]) {
+  for (const id of ["map-first", "agents-sessions", "knowledge-kinds"]) {
     await goToStep(page, id);
     if (await page.locator("#tour-play").getAttribute("aria-label") === "Pause the tour") await page.locator("#tour-play").click();
     const look = await page.locator("#tour-card").evaluate(card => {
@@ -466,7 +466,7 @@ export async function verifyRecordingFreeplay(browser, url, output) {
   await page.locator("#tour-speed-cycle").click();
   await page.clock.runFor(2000); assert.ok(await at() - slow >= 2, "1.5× plays the recording faster");
   await page.screenshot({ path: path.join(output, "recording-390.png") });
-  for (const step of ["map-grow", "knowledge-kinds"]) {
+  for (const step of ["map-health", "knowledge-kinds"]) {
     await goToStep(page, step);
     await page.locator("#tour-depth").click();
     await page.locator(".tour-back").scrollIntoViewIfNeeded();

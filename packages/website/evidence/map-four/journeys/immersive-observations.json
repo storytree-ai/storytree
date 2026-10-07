@@ -1,0 +1,13 @@
+{
+  "story": "The website",
+  "commit": "8f5c66c29ab2169490041ebb4d4eb56c0b5235fa",
+  "evidence": "packages/website/evidence/map-four/journeys",
+  "note": "Locally built website served from packages/website/dist",
+  "checks": [
+    {
+      "contract": "2.19",
+      "name": "Every chapter step is told in the arrival's format, at 1920, 1440, 1280, 390 and 320, and every step fits its room, on short phones too",
+      "observed": "pass"
+    }
+  ]
+}

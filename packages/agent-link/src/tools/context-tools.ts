@@ -1,5 +1,5 @@
 /**
- * `read_context` (contract 6.22): the calling session's context reading (capability 9), worked out
+ * Capability 6 · Agent tools (the MCP server). `read_context` (contract 6.22): the calling session's context reading (capability 9), worked out
  * at the time of the call from the transcript its hooks named. The caller is the session the hook
  * before the call named, so after Claude Code's /clear it is the new session's (6.8).
  */

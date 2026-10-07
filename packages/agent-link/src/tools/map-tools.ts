@@ -1,4 +1,4 @@
-/** The agent front door for The map; its selection, graph and responses stay in the map package. */
+/** Capability 6 · Agent tools (the MCP server). The agent front door for The map; its selection, graph and responses stay in the map package. */
 import { formatFocus } from "@storytree/map";
 import { focusProject } from "@storytree/map/read";
 import { z } from "zod";

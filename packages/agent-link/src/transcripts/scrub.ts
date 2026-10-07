@@ -1,5 +1,5 @@
 /**
- * The scrub (ADR-0749 D4): before a transcript record leaves its machine, text shaped like an
+ * Capability 9 · Context readings. The scrub (ADR-0749 D4): before a transcript record leaves its machine, text shaped like an
  * obvious secret is replaced by a marker naming what was removed. It is best-effort for OBVIOUS
  * shapes (API keys, bearer and OAuth tokens, private keys, connection-string passwords), never a
  * guarantee: a secret in no known shape passes through, and the setup check says so.

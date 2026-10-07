@@ -1,3 +1,4 @@
+/** Capability 7 · Instructions (the habits card). */
 import type { Library } from "@storytree/library";
 
 /** The term of the definition a project keeps its owner's standing delegations under. */

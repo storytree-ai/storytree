@@ -1,4 +1,4 @@
-/** The setup check's lines and fixes, shared by the terminal and the agent's check_setup tool. */
+/** Capability 8 · Setup check. The setup check's lines and fixes, shared by the terminal and the agent's check_setup tool. */
 import { NODE_FLOOR, type AgentCliState, type MachineState } from "./machine.js";
 import { CODEX_TRUST_STEP } from "./verify.js";
 import type { SetupReport } from "./setup.js";

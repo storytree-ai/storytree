@@ -1,5 +1,5 @@
 /**
- * What a first run needs on the machine (ADR-0716, ported from 0.2's doctor): Claude Code or Codex
+ * Capability 8 · Setup check. What a first run needs on the machine (ADR-0716, ported from 0.2's doctor): Claude Code or Codex
  * installed and signed in, git, and a Node of at least {@link NODE_FLOOR}. Each is asked of the
  * user's own command by name, as their shell would find it (Codex also where its desktop app keeps it), and only its exit code is read for a
  * sign-in: nothing a tool prints about the account is kept.

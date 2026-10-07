@@ -1,5 +1,5 @@
 /**
- * Transcript records in the shared log (ADR-0749 D3, D4): each session's transcript, one record per
+ * Capability 2 · Agent activity log. Transcript records in the shared log (ADR-0749 D3, D4): each session's transcript, one record per
  * line of its file, as its own machine's hooks stream it in, beside the activity log in the same
  * database. Records arrive already scrubbed; this only stores, reads and expires them, and keeps
  * what was worked out from a session's records once they expire.

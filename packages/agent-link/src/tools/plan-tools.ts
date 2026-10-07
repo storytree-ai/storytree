@@ -1,5 +1,5 @@
 /**
- * The planning tools: plan an arc, a story, a capability or a contract, correct any of them, retire
+ * Capability 6 · Agent tools (the MCP server). The planning tools: plan an arc, a story, a capability or a contract, correct any of them, retire
  * a capability or a contract (ADR-0641 D2 step 3), and see the plan with its health, who holds what
  * and which sessions are about. A story or capability is planned with its founding decision, the
  * first book on its shelf, so none planned here starts with an empty shelf (ADR-0627 D5).

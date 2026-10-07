@@ -1,5 +1,5 @@
 /**
- * Definition lookups at each prompt (ADR-0636 D1, b2; 0.2's `definition-injection.mjs`, ported by
+ * Capability 3 · Hooks. Definition lookups at each prompt (ADR-0636 D1, b2; 0.2's `definition-injection.mjs`, ported by
  * behaviour): when the user sends a prompt, the hook adds the project library's definitions for the
  * terms it names, so the agent reads the project's meaning of a word before it acts on it.
  *

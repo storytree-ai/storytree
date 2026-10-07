@@ -1,5 +1,5 @@
 /**
- * Contract 6.32 · A session names itself: a short one-line title the running-sessions list calls
+ * Capability 4 · Sessions. Contract 6.32 · A session names itself: a short one-line title the running-sessions list calls
  * its row by, written as a `session-named` line; it names itself again when its work shifts, and the
  * latest wins. Eventually consistent: until it names itself, the list names the row as before.
  */

@@ -1,5 +1,5 @@
 /**
- * Lines a hook could not deliver (ADR-0749's consequence: losing a line matters once everything reads
+ * Capability 3 · Hooks. Lines a hook could not deliver (ADR-0749's consequence: losing a line matters once everything reads
  * from the shared log). While storytree cannot be reached (the app stopped, the machine offline, the
  * store restarting), a hook writes its lines here, under the storytree home, each with the time and
  * machine it was written at. The next hook that reaches the log uploads every waiting line before

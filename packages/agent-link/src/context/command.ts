@@ -1,5 +1,5 @@
 /**
- * `storytree context` (contract 9.6): this session's context reading, from a shell. The command
+ * Capability 9 · Context readings. `storytree context` (contract 9.6): this session's context reading, from a shell. The command
  * line's front door hands its arguments here. The session is the one the harness put in the
  * shell's environment: Claude Code's `CLAUDE_CODE_SESSION_ID`, Codex's `CODEX_THREAD_ID`. It exits
  * 0 whatever it finds: a figure, or an absence said in words and never as a number.

@@ -1,4 +1,4 @@
-/** Contract 9.7: guidance is a fresh settings reading, never an enforced limit. */
+/** Capability 9 · Context readings. Contract 9.7: guidance is a fresh settings reading, never an enforced limit. */
 import { readSettings } from "../settings/settings.js";
 
 export type ContextGuidance = {

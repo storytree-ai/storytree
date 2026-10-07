@@ -1,5 +1,5 @@
 /**
- * Release on merge (ADR-0643 D3, the owner's M): a claim ends when a pull request from the branch
+ * Capability 5 · Claims. Release on merge (ADR-0643 D3, the owner's M): a claim ends when a pull request from the branch
  * it was taken on merges. Storytree assumes the project is on GitHub, as its own is, and asks
  * GitHub through `gh`, which also sees squash merges that git alone cannot.
  *

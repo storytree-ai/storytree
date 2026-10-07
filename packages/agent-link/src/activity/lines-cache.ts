@@ -1,5 +1,5 @@
 /**
- * What a reader that asks again and again (the app, every 10 seconds) already has of each project's
+ * Capability 2 · Agent activity log. What a reader that asks again and again (the app, every 10 seconds) already has of each project's
  * log, so each ask fetches only the lines added since, as the transcript cache does for a session's
  * stored records. The whole log is tens of thousands of lines, seconds to fetch from a remote library.
  */

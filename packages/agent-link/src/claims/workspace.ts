@@ -1,5 +1,5 @@
 /**
- * Capability 5.12–5.14 · Claimed workspaces (ADR-0653, owner A2/B1).
+ * Capability 5 · Claims. Capability 5.12–5.14 · Claimed workspaces (ADR-0653, owner A2/B1).
  * Claude Code keeps its original fetch/claim/create path. Codex preparation only checks and
  * fetches: the agent calls the desktop app's create_worktree, then attaches that returned folder.
  * Storytree never creates or removes a Codex folder. App creation does not change the agent's cwd.

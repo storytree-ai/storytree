@@ -1,5 +1,5 @@
 /**
- * Codex's hook inputs, as recorded from Codex (codex-cli 0.155; hooks are on by default from 0.124,
+ * Capability 3 · Hooks. Codex's hook inputs, as recorded from Codex (codex-cli 0.155; hooks are on by default from 0.124,
  * and SessionEnd exists from 0.145): every event names the session (`session_id`), its working
  * folder (`cwd`) and itself (`hook_event_name`).
  *

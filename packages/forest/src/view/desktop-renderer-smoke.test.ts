@@ -2,7 +2,7 @@
 // The shared heavy-run lock serializes test runs, while separate files can launch competing
 // SwiftShader browsers within the same forest unit.
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
+import { execFile, type ExecFileOptions } from "node:child_process";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -11,7 +11,14 @@ import { promisify } from "node:util";
 const territoryFolder = fileURLToPath(new URL("./evidence/territory-health", import.meta.url));
 const pathwaysFolder = fileURLToPath(new URL("./evidence/pathway-repair/", import.meta.url));
 const checkout = path.resolve(pathwaysFolder, "../../../../../..");
-const run = promisify(execFile);
+const exec = promisify(execFile);
+const run = (file: string, args: string[], options: ExecFileOptions) => {
+  const result = exec(file, args, { ...options, encoding: "utf8" });
+  // A package deadline can kill this test before execFile rejects. Stream the capture's
+  // phase diagnostics now, while still retaining stdout for its behavior assertions.
+  result.child.stderr?.pipe(process.stderr, { end: false });
+  return result;
+};
 
 test("3.20 · 3.11 · in a real browser, each territory is filled by its word and never grey, claims draw their bands, and failing islands behind the globe get rim markers", { timeout: 200_000 }, async () => {
   await run(process.execPath, [path.join(territoryFolder, "build.mjs"), "smoke"], { cwd: checkout, timeout: 60_000 });
@@ -34,8 +41,9 @@ test("3.20 · 3.11 · in a real browser, each territory is filled by its word an
   ]);
 });
 
-// CI software rendering took 46s on Windows and 59s on Linux; keep a bounded two-page budget
-// with room for macOS, inside the forest unit's 180s deadline. Subprocess stderr names each phase.
+// The territory smoke above omits its picture-only tour: on macOS that tour consumed
+// 131s of the shared 180s package deadline before these two pages even started.
+// Both captures stream phases, including cleanup, before a package timeout can hide them.
 test('3.35 · live desktop roads grow on first display and on a polled dependency, preserving shared roads and reduced motion', { timeout: 155_000 }, async () => {
   if (!process.env.PATHWAY_CAPTURE_DIST) await run(process.execPath, ['--import', 'tsx', path.join(pathwaysFolder, 'build.mjs'), checkout, 'live-smoke'], { cwd: checkout, timeout: 30_000 });
   const { stdout } = await run(process.execPath, ['--import', 'tsx', path.join(pathwaysFolder, 'live-capture.mjs'), '--smoke'], {

@@ -1,4 +1,4 @@
-/** The actual desktop renderer, with read-only globe/navigation observations for capture views. */
+/** Capability 2 · Storytree projects. The actual desktop renderer, with read-only globe/navigation observations for capture views. */
 import { copyFileSync, mkdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";

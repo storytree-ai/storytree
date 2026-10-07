@@ -1,5 +1,5 @@
 /**
- * A fake `window.storytree` for a capture: it answers what the capture hands it, and every other
+ * Capability 2 · Storytree projects. A fake `window.storytree` for a capture: it answers what the capture hands it, and every other
  * bridge method with a quiet answer of the right shape, so a capture written before the bridge grew
  * still reaches ready. It records which methods the page asked that the capture left to those
  * answers. A call that is no bridge method at all fails the capture at once, naming the method,

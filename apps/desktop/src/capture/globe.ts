@@ -1,4 +1,4 @@
-/** Read-only globe observations, and zoom through the same wheel input as a person. */
+/** Capability 2 · Storytree projects. Read-only globe observations, and zoom through the same wheel input as a person. */
 import type { Page } from "playwright-core";
 
 export interface GlobeTarget {

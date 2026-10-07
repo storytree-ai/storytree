@@ -1,5 +1,5 @@
 /**
- * Chromium for a capture, found from this checkout on any machine: Playwright is this package's own
+ * Capability 2 · Storytree projects. Chromium for a capture, found from this checkout on any machine: Playwright is this package's own
  * playwright-core, and Chromium is the one Playwright installed for itself, unless the environment
  * names others by path (CAPTURE_PLAYWRIGHT, CAPTURE_CHROMIUM) or names an installed browser channel
  * (CAPTURE_CHANNEL, such as chrome, which CI's runner images carry). A path is imported by its file URL,

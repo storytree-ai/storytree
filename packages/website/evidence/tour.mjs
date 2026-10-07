@@ -150,7 +150,7 @@ export async function verifyTour(browser, url, output) {
   const rows = () => page.locator(".tour-session-surface .session-row").allTextContents();
   await goToStep(page, "agents-parallel"); await page.clock.runFor(500);
   assert.equal(await page.locator(".tour-session-surface").evaluate(node => node.hidden), false, "the sessions strip is open");
-  for (const name of ["Part 2: Browsing", "Part 3: cart page and menu", "Part 4: Checkout"]) assert.ok((await rows()).some(row => row.includes(name)), `the strip lists ${name}: ${await rows()}`);
+  for (const name of ["Part 2: product page, sorting, cart", "Part 3: cart page and side menu", "Part 4: Checkout"]) assert.ok((await rows()).some(row => row.includes(name)), `the strip lists ${name}: ${await rows()}`);
   await page.screenshot({ path: path.join(output, "390-agents-parallel.png") });
   await goToStep(page, "agents-arcs"); await page.clock.runFor(500);
   assert.equal(await page.locator(".tour-arc-surface").evaluate(node => node.hidden), false, "the arcs panel is open");
@@ -192,7 +192,11 @@ export async function verifyTour(browser, url, output) {
   await page.clock.runFor(500);
   // 2.14: on the shop, free play opens the shop's own recorded sessions, story panels and arcs.
   assert.equal(await page.locator(".tour-session-surface").evaluate(node => node.hidden), false, "the shop's recorded sessions are shown");
-  assert.ok(await page.locator(".session-row").count() > 0, "the shop's sessions are listed");
+  // At the recording's end every shop session has finished: none is live, and History lists them.
+  assert.match(await page.locator(".tour-session-surface #sessions-body").textContent(), /No running sessions/, "the shop's sessions are at rest at its end");
+  await page.locator(".tour-session-surface").getByRole("tab", { name: "History" }).click();
+  assert.ok(await page.locator(".tour-session-surface .history-row").count() > 0, "History lists the shop's sessions");
+  await page.locator(".tour-session-surface").getByRole("tab", { name: "Live" }).click();
   await page.getByRole("button", { name: "Find a story or note in the saved project", exact: true }).click();
   await page.locator("#tour-story-choice").selectOption("story_2de9e8f4db21");
   await page.locator('.story-panel[data-story-id="story_2de9e8f4db21"] .panel-head').waitFor();

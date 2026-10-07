@@ -103,6 +103,23 @@ test("2.2 start runs the server on the data directory, it answers SELECT 1 at th
   await stopped(again);
 });
 
+test("2.5 start can run the server with settings, as a throwaway test server runs without durability; a server started without them keeps them", async () => {
+  const dataDir = await freshCluster("settings");
+  const durable = await started({ dataDir });
+  assert.deepEqual(await query(durable.url, "SHOW fsync"), [{ fsync: "on" }]);
+  await stopped(durable);
+
+  const throwaway = await started({ dataDir, settings: { fsync: "off", synchronous_commit: "off", full_page_writes: "off" } });
+  assert.deepEqual(await query(throwaway.url, "SHOW fsync"), [{ fsync: "off" }]);
+  assert.deepEqual(await query(throwaway.url, "SHOW synchronous_commit"), [{ synchronous_commit: "off" }]);
+  assert.deepEqual(await query(throwaway.url, "SHOW full_page_writes"), [{ full_page_writes: "off" }]);
+  await stopped(throwaway);
+
+  // A setting the server's command line cannot carry as one word is refused before anything starts.
+  await assert.rejects(start({ dataDir, settings: { fsync: "off -c port=1" } }), /fsync/);
+  assert.equal(serverRunning(dataDir), false);
+});
+
 test("2.3 a second start on a data directory a live process holds is refused, naming that process, and its server is left running", async () => {
   const dataDir = await freshCluster("held");
   const holder = await hold(dataDir);

@@ -43,7 +43,7 @@ export function paintWhileSeen(root: () => PaintingRoot, canvas: Element, watch:
     // A frame an animation already asked for would still be drawn after the loop stops.
     if (!seen) state.internal.frames = 0;
     state.setFrameloop(seen ? 'demand' : 'never');
-    // setFrameloop stops the clock and sets it back to zero, which would restart a lane drawing on, so it
+    // setFrameloop stops the clock and sets it back to zero, which would restart recorded growth, so it
     // keeps running from where it was. Under "never" only R3F's advance() would set it, and nothing calls that.
     clock.start();
     clock.elapsedTime = elapsed;

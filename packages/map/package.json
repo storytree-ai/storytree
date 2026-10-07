@@ -5,6 +5,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./code-survey": "./src/code-survey/read-survey.ts",
+    "./code-survey/worker": "./src/code-survey/survey-worker.ts",
     "./read": "./src/read.ts"
   },
   "scripts": {

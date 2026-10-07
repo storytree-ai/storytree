@@ -1,5 +1,5 @@
 /**
- * Capability 7 · Board, read only: one test per contract 7.1-7.3 in the command line story, each running the
+ * Capability 7 · Board, read only: one test per contract 7.1-7.4 in the command line story, each running the
  * real, built `storytree` command. Claims are made the way the agent tool makes them, through the
  * agent link's own `claim`, into its activity log on the test Postgres.
  */
@@ -72,7 +72,7 @@ test("7.2 an idle claim reads idle", async () => {
   });
 });
 
-test("7.4 `noticeboard log` shows the latest activity-log lines, each naming the line that caused it, or saying its cause was not recorded (ADR-0746 D2)", async () => {
+test("7.4 `noticeboard log` keeps line identity and cause, with complete commands under --full and bounded session selection", async () => {
   await inWorld(command, async (world) => {
     await withClaimable(world, async (_increment, log) => {
       const hook = { session: "claude-1", harness: "claude-code", source: "hook" } as const;
@@ -86,6 +86,30 @@ test("7.4 `noticeboard log` shows the latest activity-log lines, each naming the
       const lineOf = (seq: number) => ran.stdout.split(/\r?\n/).find((one) => one.includes(`#${seq} `));
       assert.match(lineOf(caused.seq) ?? ran.stdout, new RegExp(`caused by #${request.seq}\\b`));
       assert.match(lineOf(unknown.seq) ?? ran.stdout, /cause not recorded/);
+
+      const recorded = 'pnpm storytree arc increment edit increment_0d9b1b970765 --title "a long recorded command"\n# keep $literal and quotes';
+      const started = await log.append(world.project, { ...hook, kind: "command-started", command: recorded, call: "command-1" });
+      const completed = await log.append(world.project, { ...hook, kind: "command-run", command: recorded, call: "command-1", causedBy: started.seq });
+      await log.append(world.project, { ...hook, session: "other-session", kind: "command-run", command: "other session's newest command" });
+
+      const selected = ["noticeboard", "log", "--session", hook.session, "--limit", "2"];
+      const full = await world.run([...selected, "--full"]);
+      assert.equal(full.code, 0, full.stderr);
+      assert.equal(full.stdout.trimEnd(), [
+        `#${started.seq}  ${started.at}  Claude Code ${hook.session}  command-started ${recorded}  · cause not recorded`,
+        `#${completed.seq}  ${completed.at}  Claude Code ${hook.session}  command-run ${recorded}  · caused by #${started.seq}`,
+      ].join("\n"));
+
+      const compact = await world.run(selected);
+      assert.equal(compact.code, 0, compact.stderr);
+      assert.equal(compact.stdout.trimEnd(), [
+        `#${started.seq}  ${started.at}  Claude Code ${hook.session}  command-started ${recorded.slice(0, 57)}...  · cause not recorded`,
+        `#${completed.seq}  ${completed.at}  Claude Code ${hook.session}  command-run ${recorded.slice(0, 57)}...  · caused by #${started.seq}`,
+      ].join("\n"));
+
+      const empty = await world.run(["noticeboard", "log", "--full", "--session", "missing-session"]);
+      assert.equal(empty.code, 0, empty.stderr);
+      assert.equal(empty.stdout.trim(), "The activity log has no lines for missing-session.");
     });
   });
 });

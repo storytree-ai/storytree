@@ -15,6 +15,7 @@ import { stopOwned } from "@storytree/processes/stopping";
 import { testChildArgs } from "@storytree/processes/testing";
 
 import { openActivityLog, type ActivityLog, type Line } from "../activity/index.js";
+import { readClaims } from "../claims/index.js";
 import { removeTempDir } from "../testing/folders.js";
 import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { closeOut, LEAVE_MS, readSessions } from "./index.js";
@@ -35,6 +36,28 @@ function after(line: Line, ms: number): Date {
 }
 
 const CLAUDE = { session: "claude-1", harness: "claude-code", source: "hook", folder: "/work/site", branch: "main" } as const;
+
+test("4.11 close-out releases every own claim across branches and sources, leaving other holders and unfinished work intact", async () => {
+  for (const safe of [true, false]) await withProject(async (log, project, home) => {
+    await log.append(project, { ...CLAUDE, kind: "claimed", capability: "hook-cap", reason: "automatic edit claim" });
+    await log.append(project, { ...CLAUDE, source: "tool", kind: "claimed", increment: "main-inc", reason: "before workspace" });
+    await log.append(project, { ...CLAUDE, source: "tool", branch: "feature", kind: "claimed", capability: "tool-cap", reason: "in workspace" });
+    await log.append(project, { ...CLAUDE, branch: "landed", kind: "claimed", capability: "merged-cap", reason: "landed work" });
+    await log.append(project, { session: "observer", source: "hook", kind: "merged", holder: CLAUDE.session, capability: "merged-cap", branch: "landed", pr: 3 });
+    await log.append(project, { ...CLAUDE, session: "other", kind: "claimed", capability: "other-cap", reason: "another session" });
+    await log.append(project, { ...CLAUDE, kind: "file-edited", files: ["unfinished.ts"] });
+    await log.append(project, { ...CLAUDE, kind: "main-state", of: CLAUDE.folder, dirty: true });
+    const context = { log, project, ...CLAUDE };
+    assert.deepEqual((await readClaims(log, project)).filter((one) => one.session === CLAUDE.session).map((one) => one.increment ?? one.capability), ["hook-cap", "main-inc", "tool-cap"], "a merge preserves claims on other branches, including unfinished main work");
+    const answer = await closeOut(context, { safe, why: "handoff" }, { home });
+    assert.deepEqual((await readClaims(log, project)).map((one) => one.capability), ["other-cap"]);
+    assert.deepEqual(answer.released, ["hook-cap", "main-inc", "tool-cap"]);
+    const session = (await readSessions(log, project)).find((one) => one.session === CLAUDE.session);
+    assert.equal(session?.closeOut?.verified, false, "releasing claims does not certify unfinished work");
+    assert.equal(session?.onMain, "outside-workspace");
+    assert.deepEqual((await closeOut(context, { safe, why: "again" }, { home })).released, []);
+  });
+});
 
 test("4.11 closing out records whether the session says it is safe to close, and why, and the session carries it", async () => {
   await withProject(async (log, project, home) => {

@@ -3,7 +3,7 @@
  * with a one-line reason, and its session's edits count toward it. One live session holds a
  * capability at a time: a second is refused with the holder's name and picks other work, with no
  * queue (the owner's C1, ADR-0626 D3). A claim ends when its holder lands or releases it, when the
- * holder's session ends, or when another session takes it over after the holder has gone idle, or
+ * holder closes out or its session ends, or when another session takes it over after the holder has gone idle, or
  * at once when the holder was last seen on this machine before it last started (contract 5.17).
  *
  * - Claims are lines in the agent activity log (claimed, released, landed), and who holds what is
@@ -139,7 +139,10 @@ export async function claim(context: ClaimContext, id: string, reason: string, o
       // Check under the same lock as release: delayed upkeep (or an offline edit uploaded later)
       // cannot undo the session's explicit release. This is bounded to this edit's recent history.
       const releases = await log.lines({ kinds: ["released"], sessions: [context.session], where: { capability: id }, since: options.edit.at, newest: 1 });
-      if (releases.some((line) => line.at > options.edit.at || line.seq > options.edit.seq)) return undefined;
+      // Close-out also ends edits that upkeep has not claimed yet, so there may be no per-capability
+      // release. An offline old edit keeps its original time and cannot reopen the closed session.
+      const closed = await log.lines({ kinds: ["closed-out"], sessions: [context.session], since: options.edit.at, newest: 1 });
+      if ([...releases, ...closed].some((line) => line.at > options.edit.at || line.seq > options.edit.seq)) return undefined;
     }
     const current = (await heldNow(log, context)).get(id);
     const mine = current?.session === context.session;

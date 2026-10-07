@@ -9,7 +9,10 @@
 import { listRuns } from "@storytree/processes/listing";
 
 import type { ActivityLog, Line } from "../activity/index.js";
+import { cancelClaimNotice } from "../claims/notices.js";
 import { rememberClosedOut } from "../hooks/close-out-reminder.js";
+import { held, partOf } from "../readings.js";
+import { storytreeHome } from "../routing/routing.js";
 import { resolveBranches, type BranchWatch } from "./branch-states.js";
 
 /** Who is closing out, and where. */
@@ -25,31 +28,42 @@ export interface CloseOutContext {
 export interface CloseOutOptions {
   /** The process ledger's home; by default, the one under the storytree home. */
   readonly home?: string;
+  /** Where automatic claim notices wait; separate from the own-process ledger's home. */
+  readonly claimHome?: string;
   /** Look at the project's branches first, now (GitHub's merges, git's state), so a merge no hook recorded counts. No look when absent. */
   readonly look?: BranchWatch;
 }
 
-/** Record `session`'s close-out, with how many of its own runs still run here, when the ledger could be read in full. */
-export async function closeOut(context: CloseOutContext, said: { safe: boolean; why: string }, options: CloseOutOptions = {}): Promise<{ line: Line; running: number | undefined }> {
+/** Release all of this session's claims and record its close-out; safety verification remains independent. */
+export async function closeOut(context: CloseOutContext, said: { safe: boolean; why: string }, options: CloseOutOptions = {}): Promise<{ line: Line; running: number | undefined; released: string[] }> {
   if (options.look !== undefined && context.folder !== undefined) {
     const watcher = { log: context.log, project: context.project, folder: context.folder, session: context.session, ...(context.harness === undefined ? {} : { harness: context.harness }), source: "tool" } as const;
     await resolveBranches(watcher, { ...options.look, everyMs: 0 }).catch(() => []);
   }
   const running = await ownRunning(context, options);
-  const line = await context.log.append(context.project, {
+  const who = {
     session: context.session,
     ...(context.harness === undefined ? {} : { harness: context.harness }),
-    source: "tool",
+    source: "tool" as const,
     ...(context.folder === undefined ? {} : { folder: context.folder }),
     ...(context.branch === undefined ? {} : { branch: context.branch }),
-    kind: "closed-out",
-    safe: said.safe,
-    why: said.why.trim(),
-    ...(running === undefined ? {} : { running }),
+  };
+  const { line, released } = await context.log.locked(context.project, async (log) => {
+    // Read only standing claims, under the same lock as admission: a concurrent claim is either
+    // included here or is fresh work after close-out. Never release another session's takeover.
+    const released: string[] = [];
+    for (const [id, claim] of held(await log.standing(), new Map(), new Set(), 0, Infinity)) {
+      if (claim.session !== context.session) continue;
+      await log.append({ ...who, kind: "released", ...partOf(claim) });
+      cancelClaimNotice(options.claimHome ?? storytreeHome(), context.session, id);
+      released.push(id);
+    }
+    const line = await log.append({ ...who, kind: "closed-out", safe: said.safe, why: said.why.trim(), ...(running === undefined ? {} : { running }) });
+    return { line, released };
   });
   // The turn-end reminder, on this machine, asks no more (ADR-0758 D4).
   rememberClosedOut(context.session);
-  return { line, running };
+  return { line, running, released };
 }
 
 /** The session's own runs (and their descendants) not yet gone on this machine; undefined when the reading is incomplete. */

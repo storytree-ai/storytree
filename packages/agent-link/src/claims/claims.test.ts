@@ -149,7 +149,12 @@ test("5.2, 4.12 verified safe close-out permits takeover despite stale commands;
       const contender = await claim(as("B", options), emailForm, "next writer");
       assert.equal(contender.ok, finished, `${scenario}: atomic admission`);
       if (contender.ok) assert.equal(contender.takenOverFrom?.session, "A", scenario);
-      else assert.ok(contender.refused === "held" && contender.holder.session === "A", scenario);
+      else {
+        assert.ok(contender.refused === "held" && contender.holder.session === "A", scenario);
+        assert.ok(contender.holder.binds, scenario);
+        if (scenario === "dirty-main") assert.match(contender.holder.binds ?? "", /worked on main/, scenario);
+        if (scenario === "unmerged") assert.match(contender.holder.binds ?? "", /fix-login is unmerged/, scenario);
+      }
     });
   }
 });

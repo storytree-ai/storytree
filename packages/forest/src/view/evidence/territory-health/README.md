@@ -61,6 +61,11 @@ This deliberately broken observation target tests the diagnostic; it does not re
 the original Windows incident. Rebuild `node build.mjs smoke` to restore the generated bundle before
 running the normal proof.
 
+Resumed after [PR #840](https://github.com/storytree-ai/storytree/pull/840) landed: the diagnostic
+coexists with its elapsed phase messages, 100 ms readiness polling, smaller smoke viewport,
+omission of picture-only tours in smoke, and renderer cleanup. Those changes belong to the separate
+macOS browser-proof repair; the original Windows readiness incident still has no established cause.
+
 ## Measured before looking
 
 - Fills drawn (word, colour, opacity), every island: healthy `#97c459` 0.8, unhealthy `#e24b4a` 0.85,

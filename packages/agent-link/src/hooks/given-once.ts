@@ -1,4 +1,4 @@
-/** The prompt hook's per-session ledgers survive separate invocations of the built command. */
+/** Capability 3 · Hooks. The prompt hook's per-session ledgers survive separate invocations of the built command. */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";

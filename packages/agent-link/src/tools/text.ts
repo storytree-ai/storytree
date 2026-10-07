@@ -1,4 +1,4 @@
-/** How the agent tools put records into their short sentences. */
+/** Capability 6 · Agent tools (the MCP server). How the agent tools put records into their short sentences. */
 import type { Note, SchemaRecord } from "@storytree/library";
 
 /** What a search finds: an artifact, or a story, capability or contract of the plan, found by its own words. */

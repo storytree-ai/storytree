@@ -1,5 +1,5 @@
 /**
- * Whether a session's hooks are proven to fire (ADR-0625 D9, ADR-0626 D5): the connection shows as
+ * Capability 8 · Setup check. Whether a session's hooks are proven to fire (ADR-0625 D9, ADR-0626 D5): the connection shows as
  * verified only once storytree has received all four from that session, a session start, a call to
  * a storytree tool (check_setup's own call fires it), a file edit and a command, each written by a
  * hook. Until then each missing one is named, with its fix.

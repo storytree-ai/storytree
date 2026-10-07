@@ -1,4 +1,4 @@
-/** How the tools' answers are sent, and how a failure becomes one. */
+/** Capability 6 · Agent tools (the MCP server). How the tools' answers are sent, and how a failure becomes one. */
 import type { CallToolResult } from "@modelcontextprotocol/server";
 import {
   ConnectionError,

@@ -1,5 +1,5 @@
 /**
- * Build the `storytree` command for Windows (ADR-0854): a small program of its own, compiled from
+ * Capability 8 · Setup check. Build the `storytree` command for Windows (ADR-0854): a small program of its own, compiled from
  * ../setup/launcher.c with LLVM alone (clang, lld-link and llvm-dlltool), so no C library or Windows
  * SDK is needed and either Windows architecture builds on any machine that has LLVM. The setup check
  * and the installer append to it what it runs (../setup/command.ts).

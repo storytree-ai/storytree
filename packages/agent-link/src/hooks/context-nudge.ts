@@ -1,4 +1,4 @@
-/** Contract 9.9: one advisory nudge per Claude Code session, using the reading's current guidance. */
+/** Capability 9 · Context readings. Contract 9.9: one advisory nudge per Claude Code session, using the reading's current guidance. */
 import type { Storytree } from "@storytree/library";
 
 import { openActivityLog } from "../activity/index.js";

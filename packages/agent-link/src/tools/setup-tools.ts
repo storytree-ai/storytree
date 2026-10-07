@@ -1,5 +1,5 @@
 /**
- * The setup check's two tools (capability 8): `check_setup`, which checks and fixes the setup on
+ * Capability 6 · Agent tools (the MCP server). The setup check's two tools (capability 8): `check_setup`, which checks and fixes the setup on
  * the spot and says what the agent must do (fire a hook), and `set_up_project`, which the agent
  * calls only when the user asks for storytree in this folder (ADR-0752 D2). Unlike the other tools they work in a
  * folder that is not a project yet, and open storytree when it is closed.

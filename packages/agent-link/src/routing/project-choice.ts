@@ -1,4 +1,4 @@
-/** The explicit project choice shared by setup and the app (ADR-0657 D3). */
+/** Capability 1 · Project routing. The explicit project choice shared by setup and the app (ADR-0657 D3). */
 import { randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";

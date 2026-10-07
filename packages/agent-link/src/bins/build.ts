@@ -1,5 +1,5 @@
 /**
- * The agent link's commands, built into plain Node scripts: what a harness runs, with no tsx and
+ * Capability 8 · Setup check. The agent link's commands, built into plain Node scripts: what a harness runs, with no tsx and
  * only its staged native dependencies beside it. Each is one ES module that esbuild bundles with everything it
  * imports (the library, pg and zod included).
  *

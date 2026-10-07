@@ -1,5 +1,5 @@
 /**
- * The status line (ADR-0636 D1, b3; 0.2's `presence-hook.sh statusline`, ported by behaviour): one
+ * Capability 3 · Hooks. The status line (ADR-0636 D1, b3; 0.2's `presence-hook.sh statusline`, ported by behaviour): one
  * line in a Claude Code window saying what storytree sees of this session. Claude Code runs it as a
  * command, with the session's id and folder on stdin, and shows what it prints.
  *

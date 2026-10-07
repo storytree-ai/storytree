@@ -1,5 +1,5 @@
 /**
- * The work tools (ADR-0643 D1, 6): park, ready, move and close increments, park and unpark arcs, set and
+ * Capability 6 · Agent tools (the MCP server). The work tools (ADR-0643 D1, 6): park, ready, move and close increments, park and unpark arcs, set and
  * clear waits, raise, correct, settle and retire the owner's questions, and record friction and re-steers. Each is a thin wrapper over the library's own
  * functions, or this story's capture functions over them, so no library rule is kept here twice.
  * Starting an increment is claiming it (claim-tools.ts), so a start is refused as a claim is.

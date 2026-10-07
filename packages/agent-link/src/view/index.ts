@@ -1,3 +1,4 @@
+/** Capability 10 · Settings. */
 /// <reference lib="dom" />
 /// <reference lib="dom.iterable" />
 import type { SettingsBridge } from "../settings/bridge.js";

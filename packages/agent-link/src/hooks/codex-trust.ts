@@ -1,5 +1,5 @@
 /**
- * Whether Codex runs storytree's hooks on this machine (contract 3.18). Codex runs a newly registered
+ * Capability 3 · Hooks. Whether Codex runs storytree's hooks on this machine (contract 3.18). Codex runs a newly registered
  * hook only after the user trusts it once ("Hooks need review" when Codex starts, or /hooks), and
  * storytree cannot read that trust: Codex keeps it as hashes of its own. So the proof is an event:
  * each Codex hook that runs notes it in the storytree home, and Codex's hooks count as running while

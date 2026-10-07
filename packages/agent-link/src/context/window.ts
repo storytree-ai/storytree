@@ -1,5 +1,5 @@
 /**
- * Contract 9.10 · a session's window, read from its transcript (ADR-0746 D1): what is in it now, the
+ * Capability 9 · Context readings. Contract 9.10 · a session's window, read from its transcript (ADR-0746 D1): what is in it now, the
  * call that brought each piece, each note or file the session opened, in order, with whether its
  * read is still in the window, and the notes it only glimpsed.
  *

@@ -1,5 +1,5 @@
 /**
- * The claiming and reporting tools: claim or release a capability or an increment (claiming an
+ * Capability 6 · Agent tools (the MCP server). The claiming and reporting tools: claim or release a capability or an increment (claiming an
  * increment starts it, ADR-0643 D1), report a contract red or green, and report a capability
  * landed. A claim on waiting work is refused, naming what it waits for (W2, ADR-0643 D2). And make
  * a workspace already claimed for a piece of work, in one step (ADR-0653, the owner's K1). A landing

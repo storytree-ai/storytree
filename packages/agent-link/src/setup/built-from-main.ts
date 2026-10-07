@@ -1,5 +1,5 @@
 /**
- * Hooks that follow main on a machine with no desktop app (contract 8.15). The app's updater keeps
+ * Capability 8 · Setup check. Hooks that follow main on a machine with no desktop app (contract 8.15). The app's updater keeps
  * the hooks it installed current; a machine without it (the Mint box) had hooks built once from a
  * checkout and never again (friction_c5bb32266a84). So a tool server run from a checkout's source,
  * which has no built hook script beside it, builds the checkout's commit into the storytree home

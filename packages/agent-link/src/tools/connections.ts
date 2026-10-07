@@ -1,5 +1,5 @@
 /**
- * The tool server's connections to storytree: one to the library's server and one to the agent
+ * Capability 6 · Agent tools (the MCP server). The tool server's connections to storytree: one to the library's server and one to the agent
  * activity log, both where project routing says the library is (the app's local database or a Cloud
  * SQL instance), and each project's library once opened. They are made on first use and kept, and
  * dropped when storytree moves (a new address or location) or goes away, so the next call starts

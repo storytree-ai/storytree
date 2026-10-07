@@ -8,6 +8,7 @@
  */
 import assert from "node:assert/strict";
 import { createServer, connect as openSocket, type Server } from "node:net";
+import { hostname } from "node:os";
 import { test } from "node:test";
 
 import { connect, type Storytree } from "@storytree/library";
@@ -135,6 +136,29 @@ test("8.5 a connection reset while it is being opened, as Windows delivers a ful
   } finally {
     await Promise.allSettled(opened.map((storytree) => storytree.close()));
     await new Promise((resolve) => proxy.close(resolve));
+    await dropTestDatabases([`storytree_${project}`]);
+  }
+});
+
+test("8.6 on a shared server, each of a library's connections names the machine and process that hold it, in at most Postgres's 63 characters", async () => {
+  const project = `${uniqueProjectName()}-named`;
+  const opened: Storytree[] = [];
+  try {
+    const storytree = await connect({ url: testServerUrl() });
+    opened.push(storytree);
+    await (await storytree.openProject(project)).addStory({ title: "Held open", description: "Its connection is named." });
+
+    const names = await withTestClient(async (client) =>
+      (await client.query<{ name: string }>("SELECT application_name AS name FROM pg_stat_activity WHERE datname = $1", [`storytree_${project}`])).rows.map((row) => row.name),
+    );
+
+    assert.ok(names.length > 0, "the project's pool holds a connection");
+    for (const name of names) {
+      assert.match(name, new RegExp(`^storytree ${hostname().replace(/[^\w.-]/g, "").slice(0, 24)} ${process.pid}\\b`));
+      assert.ok(name.length <= 63);
+    }
+  } finally {
+    await Promise.allSettled(opened.map((storytree) => storytree.close()));
     await dropTestDatabases([`storytree_${project}`]);
   }
 });

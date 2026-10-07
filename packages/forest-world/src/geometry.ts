@@ -5,7 +5,7 @@ export { parcelCellsFrom } from "./parcel-cells.js";
 export { clipToCoast, rimLoops, SHIPPED_COAST } from "./coast-clip.js";
 export { plateTransform, PLATE_CLEARANCE } from "./planet/planet.js";
 export { islandSurface } from "./planet/island-surface.js";
-export { buildPlanetPathways, islandCoastReach, planetPathwayDrawing } from "./planet/pathways.js";
+export { buildPlanetPathways, islandCoast, islandCoastReach, planetPathwayDrawing } from "./planet/pathways.js";
 export { routeTrails, trailFillWidth } from "./core/routing.js";
 export { laneDrawSeconds, laneProgress, laneRoutes, LANE_COLOUR, type LaneRoute, type LitLink } from "./planet/lanes.js";
 export { RIBBON_GROUND_SCALE } from "./trail-ribbon-width.js";

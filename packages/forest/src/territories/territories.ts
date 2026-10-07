@@ -124,6 +124,20 @@ export function territoryAt(map: TerritoryMap, x: number, z: number): Territory 
   return map.territories[nearest.territory];
 }
 
+/** A destination near each territory's middle, on one of its own cells even when its outline is concave. */
+export function territoryDestinations(map: TerritoryMap): { capability: string; x: number; z: number }[] {
+  return map.territories.flatMap((territory, at) => {
+    if (territory.capability === undefined) return [];
+    const sites = map.cells.filter(cell => cell.territory === at).map(cell => cell.site);
+    if (sites.length === 0) return [];
+    const x = sites.reduce((sum, site) => sum + site.x, 0) / sites.length;
+    const z = sites.reduce((sum, site) => sum + site.z, 0) / sites.length;
+    const distance = (site: Point) => (site.x - x) ** 2 + (site.z - z) ** 2;
+    const site = sites.reduce((best, site) => distance(site) < distance(best) ? site : best);
+    return [{ capability: territory.capability, ...site }];
+  });
+}
+
 /** `total` cells shared in proportion to `weights`, each at least one, by largest remainder. */
 function apportion(weights: readonly number[], total: number): number[] {
   const sum = weights.reduce((a, b) => a + b, 0);

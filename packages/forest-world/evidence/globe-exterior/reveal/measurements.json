@@ -1,0 +1,262 @@
+{
+  "capturedAt": "2026-10-07T18:29:29.583Z",
+  "proof": "forest-world 6.17 showing hidden roads draws them by distance without advancing recorded arrivals",
+  "results": {
+    "initial": [
+      {
+        "name": "pathway:cross:t395wll",
+        "progress": 1,
+        "drawn": 1026,
+        "count": 1026
+      },
+      {
+        "name": "pathway-halo:cross:t395wll",
+        "progress": 1,
+        "drawn": 1026,
+        "count": 1026
+      }
+    ],
+    "start": [
+      {
+        "name": "pathway:cross:t395wll",
+        "progress": 0,
+        "drawn": 0,
+        "count": 1026,
+        "length": 106.73769094887281,
+        "fromEnd": false
+      },
+      {
+        "name": "pathway-halo:cross:t395wll",
+        "progress": 0,
+        "drawn": 0,
+        "count": 1026,
+        "length": 106.73769094887281,
+        "fromEnd": false
+      }
+    ],
+    "quarter": [
+      {
+        "name": "pathway:cross:t395wll",
+        "progress": 0.25000000000000355,
+        "drawn": 306,
+        "count": 1026,
+        "length": 106.73769094887281,
+        "fromEnd": false
+      },
+      {
+        "name": "pathway-halo:cross:t395wll",
+        "progress": 0.25000000000000355,
+        "drawn": 306,
+        "count": 1026,
+        "length": 106.73769094887281,
+        "fromEnd": false
+      }
+    ],
+    "half": [
+      {
+        "name": "pathway:cross:t395wll",
+        "progress": 0.5000000000000071,
+        "drawn": 516,
+        "count": 1026,
+        "length": 106.73769094887281,
+        "fromEnd": false
+      },
+      {
+        "name": "pathway-halo:cross:t395wll",
+        "progress": 0.5000000000000071,
+        "drawn": 516,
+        "count": 1026,
+        "length": 106.73769094887281,
+        "fromEnd": false
+      }
+    ],
+    "complete": [
+      {
+        "name": "pathway:cross:t395wll",
+        "progress": 1,
+        "drawn": 1026,
+        "count": 1026,
+        "length": 106.73769094887281,
+        "fromEnd": false
+      },
+      {
+        "name": "pathway-halo:cross:t395wll",
+        "progress": 1,
+        "drawn": 1026,
+        "count": 1026,
+        "length": 106.73769094887281,
+        "fromEnd": false
+      }
+    ],
+    "again": [
+      {
+        "name": "pathway:cross:t395wll",
+        "progress": 0,
+        "drawn": 0,
+        "count": 1026,
+        "length": 106.73769094887281,
+        "fromEnd": false
+      },
+      {
+        "name": "pathway-halo:cross:t395wll",
+        "progress": 0,
+        "drawn": 0,
+        "count": 1026,
+        "length": 106.73769094887281,
+        "fromEnd": false
+      }
+    ],
+    "slow": [
+      {
+        "name": "pathway:cross:t395wll",
+        "progress": 0.08,
+        "drawn": 126,
+        "count": 1026,
+        "length": 106.73769094887281,
+        "fromEnd": false
+      },
+      {
+        "name": "pathway-halo:cross:t395wll",
+        "progress": 0.08,
+        "drawn": 126,
+        "count": 1026,
+        "length": 106.73769094887281,
+        "fromEnd": false
+      }
+    ],
+    "beforeRecordedArrival": [
+      {
+        "name": "pathway:cross:t395wll",
+        "progress": 0,
+        "drawn": 0,
+        "count": 1026,
+        "length": 106.73769094887281,
+        "fromEnd": false
+      },
+      {
+        "name": "pathway-halo:cross:t395wll",
+        "progress": 0,
+        "drawn": 0,
+        "count": 1026,
+        "length": 106.73769094887281,
+        "fromEnd": false
+      }
+    ],
+    "afterRecordedArrival": [
+      {
+        "name": "pathway:cross:t395wll",
+        "progress": 1,
+        "drawn": 1026,
+        "count": 1026,
+        "length": 106.73769094887281,
+        "fromEnd": false
+      },
+      {
+        "name": "pathway-halo:cross:t395wll",
+        "progress": 1,
+        "drawn": 1026,
+        "count": 1026,
+        "length": 106.73769094887281,
+        "fromEnd": false
+      }
+    ],
+    "reduced": [
+      {
+        "name": "pathway:cross:t395wll",
+        "progress": 1,
+        "drawn": 1026,
+        "count": 1026,
+        "length": 106.73769094887281,
+        "fromEnd": false
+      },
+      {
+        "name": "pathway-halo:cross:t395wll",
+        "progress": 1,
+        "drawn": 1026,
+        "count": 1026,
+        "length": 106.73769094887281,
+        "fromEnd": false
+      }
+    ]
+  },
+  "measured": {
+    "src/coast-clip.ts": {
+      "6": 39
+    },
+    "src/core/camera.ts": {
+      "6": 2
+    },
+    "src/core/coast.ts": {
+      "6": 12
+    },
+    "src/core/hex.ts": {
+      "6": 6
+    },
+    "src/core/rng.ts": {
+      "6": 2
+    },
+    "src/core/routing.ts": {
+      "6": 46
+    },
+    "src/core/sizing.ts": {
+      "6": 2
+    },
+    "src/core/substrate.ts": {
+      "6": 22
+    },
+    "src/forest-ground/forest-ground.ts": {
+      "6": 39
+    },
+    "src/land-per-capability.ts": {
+      "6": 5
+    },
+    "src/land-relief.ts": {
+      "6": 2
+    },
+    "src/planet/camera.ts": {
+      "6": 3
+    },
+    "src/planet/exterior.ts": {
+      "6": 1
+    },
+    "src/planet/growth.ts": {
+      "6": 9
+    },
+    "src/planet/island-surface.ts": {
+      "6": 25
+    },
+    "src/planet/lanes.ts": {
+      "6": 4
+    },
+    "src/planet/live-roads.ts": {
+      "6": 1
+    },
+    "src/planet/paint-while-seen.ts": {
+      "6": 7
+    },
+    "src/planet/pathways.ts": {
+      "6": 60
+    },
+    "src/planet/planet.ts": {
+      "6": 4
+    },
+    "src/planet/PlanetGrowth.tsx": {
+      "6": 13
+    },
+    "src/planet/PlanetTrailRibbons.tsx": {
+      "6": 25
+    },
+    "src/planet/PlanetWorldCanvas.tsx": {
+      "6": 27
+    },
+    "src/planet/redraw-on-restore.ts": {
+      "6": 2
+    },
+    "src/shade-ladder.ts": {
+      "6": 1
+    },
+    "src/true-footprint.ts": {
+      "6": 5
+    }
+  }
+}

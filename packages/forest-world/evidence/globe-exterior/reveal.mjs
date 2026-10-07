@@ -12,15 +12,17 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const pkgDir = path.resolve(here, '../..');
 const dist = path.join(here, 'out');
 const PROOF = 'forest-world 6.17 showing hidden roads draws them by distance without advancing recorded arrivals';
+const smoke = process.argv.includes('--smoke');
 const results = {};
 let traces;
 try {
   await buildPage(dist);
   await withCapture({ folder: path.join(here, 'reveal'), dist }, async ({ browser, origin, out }) => {
-    const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1, reducedMotion: 'no-preference' });
+    const page = await browser.newPage({ viewport: smoke ? { width: 640, height: 400 } : { width: 1440, height: 900 }, deviceScaleFactor: 1, reducedMotion: 'no-preference' });
     const errors = [];
     page.on('pageerror', error => errors.push(String(error)));
-    await page.coverage.startJSCoverage({ resetOnNavigation: false });
+    if (!smoke) await page.coverage.startJSCoverage({ resetOnNavigation: false });
+    const picture = async name => { if (!smoke) await page.screenshot({ path: path.join(out, `1440-${name}.png`) }); };
     await page.goto(origin);
     await page.evaluate(() => window.proof.mount(true));
     await page.waitForFunction(() => window.proof.ready());
@@ -51,10 +53,10 @@ try {
     await mount(true, true);
     results.start = await frame(10);
     assert.ok(empty(results.start), 'showing roads after a long hidden interval starts with undrawn roads and halos');
-    await page.screenshot({ path: path.join(out, '1440-start.png') });
+    await picture('start');
     results.quarter = await advance(0.25);
     assert.ok(Math.abs(fraction(results.quarter) - 0.25) < 1e-8, 'a quarter second reveals a quarter of the physical road');
-    await page.screenshot({ path: path.join(out, '1440-quarter.png') });
+    await picture('quarter');
     await mount(true, true);
     // Wait for the host update to commit even though its visibility did not change.
     await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
@@ -65,10 +67,10 @@ try {
       assert.equal(halo.progress, road.progress, 'the halo follows the same front');
       assert.equal(typeof road.fromEnd, 'boolean', 'the front follows the routed dependency direction');
     }
-    await page.screenshot({ path: path.join(out, '1440-half.png') });
+    await picture('half');
     results.complete = await advance(0.55);
     assert.ok(whole(results.complete), 'the road completes in one rendered second');
-    await page.screenshot({ path: path.join(out, '1440-complete.png') });
+    await picture('complete');
     await mount(false, true);
     await mount(true, true);
     results.again = await frame(10);
@@ -92,19 +94,21 @@ try {
     assert.ok(whole(results.reduced), 'reduced motion shows the complete road immediately');
     await page.evaluate(() => window.proof.dispose());
     assert.deepEqual(errors, [], 'no page errors');
-    traces = (await page.coverage.stopJSCoverage()).filter(script => script.url.endsWith('/bundle.js')).map(script => ({
-      functions: script.functions, source: script.source,
-      sourceMap: JSON.parse(readFileSync(path.join(dist, 'bundle.js.map'), 'utf8')),
-      bundlePath: 'evidence/globe-exterior/out/bundle.js',
-    }));
-    assert.equal(traces.length, 1);
-    const measured = recordBrowserCoverage({ pkgDir, proof: PROOF, passed: true, scripts: traces });
-    writeFileSync(path.join(out, 'measurements.json'), JSON.stringify({ capturedAt: new Date().toISOString(), proof: PROOF, results, measured }, null, 2) + '\n');
+    if (!smoke) {
+      traces = (await page.coverage.stopJSCoverage()).filter(script => script.url.endsWith('/bundle.js')).map(script => ({
+        functions: script.functions, source: script.source,
+        sourceMap: JSON.parse(readFileSync(path.join(dist, 'bundle.js.map'), 'utf8')),
+        bundlePath: 'evidence/globe-exterior/out/bundle.js',
+      }));
+      assert.equal(traces.length, 1);
+      const measured = recordBrowserCoverage({ pkgDir, proof: PROOF, passed: true, scripts: traces });
+      writeFileSync(path.join(out, 'measurements.json'), JSON.stringify({ capturedAt: new Date().toISOString(), proof: PROOF, results, measured }, null, 2) + '\n');
+    }
     console.log(JSON.stringify({ proof: PROOF, passed: true, output: out }));
     await page.close();
   });
 } catch (error) {
-  try { recordBrowserCoverage({ pkgDir, proof: PROOF, passed: false, scripts: [] }); } catch {}
+  if (!smoke) try { recordBrowserCoverage({ pkgDir, proof: PROOF, passed: false, scripts: [] }); } catch {}
   throw error;
 } finally {
   rmSync(dist, { recursive: true, force: true });

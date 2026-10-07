@@ -89,7 +89,7 @@ const releaseClaim: Verb = {
 export function workspaceRefusalText(id: string, answer: Exclude<WorkspaceAnswer | ClaimAnswer, { ok: true }>): string {
   switch (answer.refused) {
     case "held":
-      return `${id} is held by ${answer.holder.label} session ${answer.holder.session}: ${answer.holder.reason}. Pick other work.`;
+      return `${id} is held by ${answer.holder.label} session ${answer.holder.session}: ${answer.holder.reason}${answer.holder.binds === undefined ? "" : `; binds: ${answer.holder.binds}`}. Pick other work.`;
     case "yours":
       return `You already hold ${id}${answer.claim.branch === undefined ? "" : ` on branch ${answer.claim.branch}`}. Work there, or release it first.`;
     case "waiting":

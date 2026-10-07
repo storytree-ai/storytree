@@ -79,12 +79,13 @@ test("11.1 from an agent's shell, `workspace <increment> --reason` makes a workt
   });
 });
 
-test("11.2 work another live session holds is refused naming its holder, and no worktree is made", async () => {
+test("11.2 work another live session holds is refused naming its holder and why it binds, and no worktree is made", async () => {
   await inWorld(command, async (world) => {
     const increment = await withRepository(world);
     const log = await openActivityLog(testServerUrl());
     try {
       await claim({ log, library: await world.library(), project: world.project, session: "codex-1", harness: "codex" }, increment, "wiring the form");
+      await log.append(world.project, { session: "codex-1", harness: "codex", source: "hook", kind: "command-started", call: "running", command: "pnpm test" });
     } finally {
       await log.close();
     }
@@ -93,6 +94,7 @@ test("11.2 work another live session holds is refused naming its holder, and no 
 
     assert.equal(ran.code, 1);
     assert.match(ran.stderr, /codex-1/);
+    assert.match(ran.stderr, /binds: a command is still recorded as running/);
     assert.equal(git(world.folder, "worktree", "list").trim().split(/\r?\n/).length, 1);
   });
 });
@@ -313,6 +315,7 @@ test("11.9 `workspace claim` claims the work for the calling agent session witho
       const held = await world.run(["workspace", "claim", capability.id, "--reason", "me too"], { CODEX_THREAD_ID: "other" });
       assert.equal(held.code, 1);
       assert.match(held.stderr, /held by .* claude-9/);
+      assert.match(held.stderr, /binds: activity is within the claim quiet time/);
       const unknown = await world.run(["workspace", "claim", "capability_000000000000", "--reason", "x"], { CODEX_THREAD_ID: "other" });
       assert.equal(unknown.code, 1);
       assert.match(unknown.stderr, /no capability or increment/);

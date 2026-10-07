@@ -24,10 +24,11 @@ const close: Verb = {
     if (commandSession() === undefined) throw new Refusal("Run close-out from the agent's shell: it closes out the agent session that runs it.");
     const caller = await context.claimContext();
     const { closeOut } = await import("@storytree/agent-link");
-    const { running } = await closeOut(caller, { safe: safe === "yes", why }, { look: {} });
+    const { running, released } = await closeOut(caller, { safe: safe === "yes", why }, { look: {} });
     const counted = running === undefined ? "Your own running work could not be counted, so a yes will show as needing the owner." : running === 0 ? "Nothing of yours is running here." : `${running} run${running === 1 ? "" : "s"} of yours still ${running === 1 ? "runs" : "run"} here: stop ${running === 1 ? "it" : "them"} (storytree processes) and close out again.`;
+    const claims = released.length === 0 ? "No claims to release." : `Released claims: ${released.join(", ")}.`;
     return {
-      text: `Closed out: ${safe === "yes" ? "safe to close" : "not safe to close"} (${why}). ${counted}`,
+      text: `Closed out: ${safe === "yes" ? "safe to close" : "not safe to close"} (${why}). ${counted} ${claims}`,
     };
   },
 };

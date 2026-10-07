@@ -26,6 +26,7 @@ import type {
   Hold,
   Holds,
   NewQuestion,
+  NoteWait,
   QuestionEdit,
   QuestionLease,
   Settlement,
@@ -36,6 +37,7 @@ import type {
   NewIncrement,
   NewStory,
   StoryEdit,
+  WaitFor,
 } from "../work/index.js";
 
 /** A connection to one Postgres server and the storytree projects on it. */
@@ -191,10 +193,25 @@ export interface Library {
    */
   waitHolds(id: string): Promise<Hold[]>;
   /**
-   * Every live arc's and open increment's wait holds, and every open increment's owner holds, in one reading:
-   * each as waitHolds and heldOnQuestion give it. Closed increments have no holds and are omitted.
+   * Make an open increment wait for the owner (an action) or an outside event (with a check-back
+   * day), with a note; waiting again for the same releaser replaces it (RangeError for an event with
+   * no day or a day before today, an owner wait with a day, or a closed increment). Null if `id` is
+   * not a live increment.
    */
-  holds(): Promise<Holds>;
+  addWaitFor(id: string, wait: WaitFor, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null>;
+  /** Stop an increment waiting for `releaser`. Null if `id` is not a live increment. */
+  removeWaitFor(id: string, releaser: WaitFor["releaser"], options?: WriteOptions): Promise<SchemaRecord<"increment"> | null>;
+  /**
+   * What an open increment waits for outside the library at `at` (now, unless given), each with
+   * whether it still holds: an event wait no longer holds from its check-back day.
+   */
+  waitsFor(id: string, at?: Date): Promise<NoteWait[]>;
+  /**
+   * Every live arc's and open increment's wait holds, and every open increment's owner holds and
+   * waits for the owner or an event (read at `at`, now unless given), in one reading: each as
+   * waitHolds, heldOnQuestion and waitsFor give it. Closed increments have no holds and are omitted.
+   */
+  holds(at?: Date): Promise<Holds>;
 
   /** Raise a question for the owner on a live arc: it is open. */
   raiseQuestion(question: NewQuestion, options?: WriteOptions): Promise<SchemaRecord<"question">>;
@@ -535,8 +552,20 @@ class LibraryHandle implements Library {
     return this.#project.flight.heldOnQuestion(incrementId);
   }
 
-  holds(): Promise<Holds> {
-    return this.#project.flight.holds();
+  addWaitFor(id: string, wait: WaitFor, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
+    return this.#project.flight.addWaitFor(id, wait, options);
+  }
+
+  removeWaitFor(id: string, releaser: WaitFor["releaser"], options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
+    return this.#project.flight.removeWaitFor(id, releaser, options);
+  }
+
+  waitsFor(id: string, at?: Date): Promise<NoteWait[]> {
+    return this.#project.flight.waitsFor(id, at);
+  }
+
+  holds(at?: Date): Promise<Holds> {
+    return this.#project.flight.holds(at);
   }
 
   checkQuestion(id: string, at?: Date): Promise<QuestionLease | null> {

@@ -20,10 +20,10 @@ try {
   await page.exposeFunction('readSettings', ()=>bridge.readSettings());
   await page.exposeFunction('saveSetting', (...args)=>bridge.saveSetting(...args));
   await page.setContent('<style>body{margin:0;background:#101418;color:#eceae3;font:14px system-ui}main{padding:100px 32px;color:#a9b0ba}</style><div id="gear"></div><main>Settings component preview</main>');
-  await page.evaluate(()=>{window.storytree={readSettings:window.readSettings,saveSetting:window.saveSetting};});
+  await page.evaluate(()=>{window.storytree={readSettings:window.readSettings,saveSetting:window.saveSetting,standingDelegations:async()=>undefined};});
   await page.addScriptTag({content:bundle});
   await page.getByRole('button',{name:'App menu',exact:true}).click();
-  await page.getByRole('button',{name:'Settings',exact:true}).click();
+  await page.getByRole('button',{name:'Sessions',exact:true}).click();
   const row=page.locator('[data-setting="idle-after"]');
   const input=row.locator('input');
   await input.waitFor();

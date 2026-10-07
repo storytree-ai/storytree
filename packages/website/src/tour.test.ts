@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { growthPlan } from "@storytree/forest-world/planet";
 import shop from "./shop-snapshot.json" with { type: "json" };
-import { aim, createTour, flight, globeOf, groups, placeTags, readingTime, replayMoment, settle, spoken, type TourStep } from "./tour.js";
+import { aim, createTour, flight, globeOf, groups, placeTags, readingTime, replayMoment, settle, type TourStep } from "./tour.js";
 import { steps as tourSteps } from "./tour-copy.js";
 
 const step = (id: string, explainer: TourStep["explainer"], lines = ["One two three four five six seven eight nine ten"]): TourStep => ({
@@ -201,7 +201,7 @@ test("2.15 · a step's view is reached even when its island is drawn after the s
   assert.ok(tries > 0 && tries <= 100, "an island that never comes is given up on");
 });
 
-test("2.16 · the map chapter grows the shop in the order it was recorded, then teaches on its four stories and replays one stage of its growth", () => {
+test("2.16 · the map chapter tells the shop's build in seven steps, in the order it was recorded, each framing the island it names", () => {
   const plan = { seconds: 30, stages: [{ id: "planned", start: 2 }, { id: "pr5", start: 10 }, { id: "pr6-building", start: 14 }, { id: "pr6", start: 20 }] };
   assert.equal(replayMoment(plan, { seconds: 8, stage: "pr6-building" }, 0), 14, "it opens where the stage begins: the globe as it stood before");
   assert.equal(replayMoment(plan, { seconds: 8, stage: "pr6-building" }, 4), 17);
@@ -225,16 +225,28 @@ test("2.16 · the map chapter grows the shop in the order it was recorded, then 
     const was = files(before), now = files(after);
     return { risen: Object.keys(now).filter(title => !(title in was)), built: Object.keys(now).filter(title => now[title]! > (was[title] ?? 0)) };
   };
-  const [empty, planned, first, together] = chapter;
-  assert.deepEqual(grows(empty!), { risen: [], built: [] }, "M0: the empty globe");
-  assert.deepEqual(grows(planned!), { risen: ["Signing in", "Browsing", "Cart", "Checkout"], built: [] }, "M1: the four stories, planned together");
-  assert.equal(grows(first!).built[0], "Signing in", "M2: signing in is built first");
-  assert.deepEqual(first!.focus?.map(id => titles[id]), ["Signing in"]);
-  assert.deepEqual(grows(together!), { risen: [], built: ["Browsing", "Cart", "Checkout"] }, "M3: the other three, together");
-  assert.deepEqual(together!.focus?.map(id => titles[id]), ["Browsing", "Cart", "Checkout"]);
+  assert.equal(chapter.length, 7, "seven steps (ADR-0891, amended 2026-10-06)");
+  const [empty, first, together] = chapter;
+  const framed = (view: { target?: TourStep["target"] } | undefined) => view?.target?.kind === "story" ? titles[view.target.story] : undefined;
+  assert.deepEqual(grows(empty!), { risen: [], built: [] }, "1: the empty globe");
+  assert.deepEqual(grows(first!).risen, ["Signing in", "Browsing", "Cart", "Checkout"], "2: the four planned stories rise");
+  assert.equal(grows(first!).built[0], "Signing in", "2: signing in is built first");
+  assert.deepEqual(first!.focus?.map(id => titles[id]), ["Signing in"], "2: the other three stay faint until their turn");
+  // A laptop shows the four together, signing in lit among them; a phone, with no room for all four, frames signing in.
+  for (const item of [first!, together!]) assert.ok(item.target === undefined && item.framing! > 1, `${item.id}: the four stories framed together`);
+  assert.equal(framed(first!.phone), "Signing in");
+  assert.deepEqual(grows(together!), { risen: [], built: ["Browsing", "Cart", "Checkout"] }, "3: the other three, together");
+  assert.equal(framed(together!.phone), "Cart", "3: on a phone, the cart between browsing and checkout");
+  assert.ok(!together!.surfaces.roads && Object.values(together!.lineSurfaces ?? {}).some(surfaces => surfaces.roads), "3: their pathways draw in as the step says them");
   // Then the shop's four stories as they stood once built, before its second round, and that round growing on.
-  const walk = chapter.slice(4, -1);
-  assert.ok(walk.length >= 3 && walk.every(item => item.recorded), "the parts, the code and the colours hold the shop at a recorded moment");
+  const walk = chapter.slice(3, -2), colours = chapter.at(-2)!;
+  assert.ok(walk.length === 2 && walk.every(item => item.recorded), "the parts and the code hold the shop at a recorded moment");
+  assert.deepEqual(walk.map(framed), ["Cart", "Cart"], "4 and 5: the camera closes in on the cart, whose two parts the chapter names");
+  // 6: the colours stand where every part the shop built is green by its own CI, the end of its build.
+  const coloured = stages.filter(stage => stage.at <= colours.recorded!).at(-1)! as unknown as { id: string; scene: { islands: { land?: { territories: { status: string }[] } }[] } };
+  assert.equal(coloured.id, stages.at(-1)!.id);
+  assert.ok(coloured.scene.islands.every(island => island.land?.territories.every(part => part.status === "healthy")), "6: all the shop's parts are green");
+  assert.deepEqual(colours.focus?.map(id => titles[id]), ["Signing in", "Browsing", "Cart", "Checkout"]);
   for (const item of walk) {
     const stood = stages.filter(stage => stage.at <= item.recorded!).at(-1)!;
     assert.equal(stood.id, "pr4", `${item.id}: the shop once its first four stories were built`);
@@ -245,25 +257,8 @@ test("2.16 · the map chapter grows the shop in the order it was recorded, then 
   const added = stages[at]!.scene.islands.filter(island => !stages[at - 1]!.scene.islands.some(before => before.story === island.story)).map(island => titles[island.story]);
   assert.ok(added.includes("Orders"), `that stage adds Orders, the story shown growing on: ${added}`);
   assert.deepEqual(grow.focus?.map(id => titles[id]), ["Signing in", "Browsing", "Cart", "Checkout", "Orders"]);
+  assert.equal(framed(grow), "Orders", "7: the step frames the story it adds");
   assert.ok(grow.compare && grow.compare.sources.some(Boolean), "the comparison is offered on the last step");
-});
-
-test("2.16 · as the narration names each planned story, that story lights, and a waiting step shows every story it has named", () => {
-  const story = (id: string) => ({ kind: "story", story: id }) as const;
-  const named: TourStep = { ...step("planned", "map", ["Let's build a shop.", "It starts with signing in, then the cart."]), map: "shop",
-    names: [{ said: "signing in", story: "in" }, { said: "the cart", story: "cart" }], target: story("in") };
-  const tour = atOne([named, step("next", "map")]);
-  const focus = () => (globeOf(named, tour.state, tour.elapsed()) as { focus?: readonly string[] }).focus;
-  assert.equal(focus(), undefined, "before a story is named, none is dimmed");
-  const second = readingTime("Let's build a shop.");
-  tour.tick(second + spoken("It starts with") - 1);
-  assert.equal(focus(), undefined);
-  tour.tick(2);
-  assert.deepEqual(focus(), ["in"], "signing in lights as it is said");
-  tour.tick(spoken("signing in, then") + 1);
-  assert.deepEqual(focus(), ["in", "cart"]);
-  tour.go(0); tour.togglePlay();
-  assert.deepEqual(focus(), ["in", "cart"], "paused, the step shows whole, every story it names lit");
 });
 
 test("2.18 · on a phone and on a laptop, each tag's name sits inside the screen, clear of the other tags and rings, the card and the panels", () => {

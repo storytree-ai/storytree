@@ -62,7 +62,7 @@ const signingInId = "story_d263ef0f3f72", built = ["story_0c07d0047754", "story_
 const teaching = [signingInId, ...built];
 const browsing = story(built[0]!), cart = story(built[1]!), checkout = story(built[2]!), ordersId = "story_8a4b7fb5d36c", orders = story(ordersId);
 // The shop was rebuilt with storytree's guardrails (ADR-0911 D5): no part of its code is unallocated at any stage, so the tour
-// shows no hatched ground. The code and colours steps keep framing signing in, the story built first.
+// shows no hatched ground.
 const signingIn = story(signingInId);
 const cartPage = capability("capability_ed214990be99");
 // Two recorded moments in the shop's records: parts 2, 3 and 4 claimed by three sessions at once, and the session sent to
@@ -72,8 +72,14 @@ const together = "2026-10-05T02:33:00.000Z", standDown = "2026-10-05T03:40:00.00
 // tints are on; the shop at these moments has no live sessions but the ones a step shows, so they add nothing else.
 const shopMap = { map: "shop" as const, focus: teaching };
 // After its first four stories were built (pr4, 02:46) and before its second round began (03:02): where the map chapter
-// teaches the parts, the code and the colours.
+// teaches the parts and the code.
 const firstRound = "2026-10-05T03:00:00.000Z";
+// The end of the shop's build (04:21), when its CI had passed all 34 of its parts: where the colours are taught. In its first
+// round browsing's later parts were not yet checked.
+const built34 = "2026-10-05T04:30:00.000Z";
+// A view of the four teaching stories together, which run from checkout at the top of the globe to signing in at its foot.
+// A phone has no room to show all four at a size that reads: it frames the story the step names, and its neighbours.
+const whole = 1.15;
 const lit = (surfaces: Partial<GlobeSurfaces>): Partial<GlobeSurfaces> => ({ ...surfaces, sessionTints: true });
 /** How long the arrival's time-lapse plays at 1×. */
 export const arrivalSeconds = 15;
@@ -118,73 +124,72 @@ export const steps: TourStep[] = [
   ], why: "Storytree answers to four principles. Signals must be real: everything you see comes from the real code and the real work, and says where it came from. Show what matters now and hide the rest: nothing asks for your attention unless it needs it. Your attention goes where you send it: you choose what to look into, and how deep to go. Nothing is out of reach: whatever storytree hides, you can always bring back.",
   decisions: [], surfaces: complete, framing: 1.1, drift: true },
 
-  // The map (ADR-0891, amended 2026-10-05): the shop's empty globe, then its stories grown in the order they were recorded
-  // (option A), then the owner's ideas on its four stories. Lines quoted from the owner are his; every other line, and each
-  // step's How and Why, is DRAFT, the agent's wording until the owner writes his own.
+  // The map (ADR-0891, amended 2026-10-06): the build told as a story in seven steps, on shop3's recording. Lines marked
+  // ★ are the owner's words, ✎ his words lightly edited; every other line, and each step's How and Why, is DRAFT, the
+  // agent's wording until the owner writes his own.
   { id: "map-empty", explainer: "map", map: "shop", growth: { seconds: 5, until: "planned" }, title: "Your project, shown as a collection of stories.", lines: [
-    // The owner's words (2026-10-05).
+    // ★
     "Your project, shown as a collection of stories.",
     // DRAFT.
     "A story is something your software lets someone do.",
   ], how: "Before writing code, the shop's agents wrote its stories into storytree's plan. Each story's code lives in its own package, and storytree draws each package as an island.",
   why: "People think about what software does for them, not about folders. Grouping the code by the journey it serves lets you find your way by what matters to the person using it.",
   decisions: [], surfaces: lit(land), framing: 1.05 },
-  // DRAFT (ADR-0891's words for M1): the four stories planned together at 01:53, each lit as the narration names it.
-  { id: "map-planned", explainer: "map", map: "shop", growth: { seconds: 6, stage: "planned" }, title: "Let's build a shopping site.", lines: [
+  // pr1, 01:54 to 02:06, and pr2: the four stories planned at 01:53 rise, signing in lit and the other three faint.
+  { id: "map-first", explainer: "map", map: "shop", focus: [signingInId], growth: { seconds: 7, stage: "planned", until: "pr4-building" }, title: "Let's build a shopping site.", lines: [
+    // ★
     "Let's build a shopping site.",
-    "It starts with signing in, then browsing the products, the cart, and checkout.",
-  ], names: [{ said: "signing in", story: signingInId }, { said: "browsing the products", story: built[0]! }, { said: "the cart", story: built[1]! }, { said: "checkout", story: built[2]! }],
-  how: "The shop's agent planned all four stories in one go, at 01:53 on 5 October, before any code was written. An island appears the moment its story is planned.",
-  why: "A plan you can see is a plan you can check: you know what the agents mean to build before they build it.",
-  decisions: [], surfaces: lit(land), framing: .95 },
-  // DRAFT (ADR-0891's words for M2): pr1, 02:06.
-  { id: "map-first", explainer: "map", map: "shop", focus: [signingInId], growth: { seconds: 5, stage: "pr1-building", until: "pr4-building" }, title: "Signing in is built first.", lines: [
-    "Signing in is built first.",
-  ], how: "One agent took signing in, and its land filled in as its code landed. The coloured coast is that agent's session, working on the island.",
-  why: "Watching the land fill in shows where the work actually went, story by story.",
-  decisions: [], surfaces: lit(files), framing: .95 },
-  // DRAFT (ADR-0891's words for M3): pr3 to pr5, 02:39 to 02:46.
-  { id: "map-together", explainer: "map", map: "shop", focus: built, growth: { seconds: 6, stage: "pr4-building", until: "pr7-building" }, title: "Then the other three, all at once.", lines: [
-    "Then the other three, all at once, by three agents working side by side.",
-  ], how: "Browsing, the cart and checkout depend only on what was already built, so three agents built them at the same time, each on its own island.",
-  why: "Stories that don't wait on each other can be built in parallel, and the map shows that they were.",
-  decisions: [], surfaces: lit(files), framing: .95 },
-  // DRAFT: the owner's ideas as story lines (his words where quoted).
+    // ✎
+    "With storytree, your agents build it story by story, and each story shows up on the map as an island.",
+    // ★
+    "Let's start with the first story for our site: signing in.",
+  ], how: "The shop's agent planned four stories in one go, at 01:53 on 5 October, before any code was written: signing in, browsing, the cart and checkout. Each island appears the moment its story is planned, and its land fills in as its code lands. The coloured coast is the agent's session, working on the island.",
+  why: "A plan you can see is a plan you can check: you know what the agents mean to build before they build it, and you watch the work go where it was meant to.",
+  decisions: [], surfaces: lit(files), framing: whole, phone: { target: signingIn, framing: .8, side: 0 } },
+  // pr3 to pr5, 02:35 to 02:46 (pr3-building, 02:28, changes nothing on the globe): browsing, the cart and checkout grow together, and their pathways draw in.
+  { id: "map-together", explainer: "map", ...shopMap, growth: { seconds: 8, stage: "pr4-building", until: "pr7-building" }, title: "Three stories at once.", lines: [
+    // ✎
+    "Stories are like the organs of your app: each one plays a role in bringing it to life.",
+    // ✎
+    "Storytree draws a pathway between stories that depend on each other.",
+    // ✎
+    "Next: browsing, the cart and checkout. Each is self-contained, and the story they all need, signing in, is already built, so our agents can build all three at once.",
+  ], how: "The analogy breaks in one place: organs depend on each other both ways, while a pathway runs one way only, from a story to a story it builds on. Storytree refuses a pathway that would close a loop. The cart and checkout also build on browsing, which was built at the same moment, and their pathways show it.",
+  why: "Stories that don't wait on each other can be built in parallel, and the pathways show which ones can. A change to one story can reach the stories that stand on it; the pathways show where the ripples go.",
+  decisions: [], surfaces: lit(files), lineSurfaces: { 2: lit({ ...files, roads: true }) }, framing: whole, phone: { target: cart, framing: .85, side: 0 } },
   { id: "map-parts", explainer: "map", ...shopMap, recorded: firstRound, title: "Stories split into parts.", lines: [
-    // The owner's words.
-    "Stories are split into parts.",
-    "Each part is one piece that makes its story work.",
-    "The cart has two: its page and its menu.",
+    "Look inside a story and you'll find its parts, each one a piece of the work.",
+    "The cart has two: the cart page and the side menu.",
   ], how: "Storytree calls a part a capability. Each one carries promises a test can check, and an agent claims it, builds it and lands it on its own.",
   why: "A story is too big to check in one go. Parts are small enough to promise something about, and to hand to one agent at a time.",
-  decisions: [], surfaces: lit(plain), target: cart, framing: .55, tags: [{ target: cartPage, text: "a part: Cart page" }] },
+  decisions: [], surfaces: lit(plain), target: cart, framing: .5, tags: [{ target: cartPage, text: "a part: the cart page" }] },
   { id: "map-code", explainer: "map", ...shopMap, recorded: firstRound, title: "Your code is the dots.", lines: [
-    // The owner's words.
+    // ★
     "Your code is shown as dots in the parts.",
-    "Each dot is a file, sized by its lines, in the part whose tests reach it.",
-  ], how: "Storytree reads the code itself: each story's package, its files, and which part's tests reach each file.",
+    "One dot per file, sitting in the part it serves, so you can see where the code went without opening a single file.",
+  ], how: "Storytree reads the code itself: each story's package, its files, and which part's tests reach each file. A dot is sized by its file's lines.",
   why: "Drawing every file in the part it serves shows which promise each piece of code is there to keep.",
-  decisions: [], surfaces: lit(files), target: signingIn, framing: .55 },
-  { id: "map-health", explainer: "map", ...shopMap, recorded: firstRound, title: "Parts have colours.", lines: [
-    // The owner's words.
+  decisions: [], surfaces: lit(files), target: cart, framing: .5 },
+  { id: "map-health", explainer: "map", ...shopMap, recorded: built34, title: "Parts have colours.", lines: [
+    // ★
     "Parts have colours.",
-    "Green means its tests passed when the shop's own CI ran them, not because an agent said so.",
-  ], how: "The shop's CI ran its tests, and storytree matched each result to the promise it checks.",
+    "A part turns green when the shop's own CI runs its tests and they pass. An agent saying 'done' doesn't count.",
+  ], how: "The shop's CI ran its tests, and storytree matched each result to the promise it checks. This is the shop at the end of its build, when all 34 of its parts were green.",
   why: "Agents say 'done' when it isn't. A colour counts only when something other than the agent checked it, and it always says where it came from.",
-  decisions: [], surfaces: lit(health), target: signingIn, framing: .6 },
+  decisions: [], surfaces: lit(health), framing: whole, phone: { target: cart, framing: .85, side: 0 } },
+  // pr7 to pr9's round, from 03:08: Orders rises with its pathways to browsing and the cart, and from checkout.
   { id: "map-grow", explainer: "map", ...shopMap, focus: [...teaching, ordersId], growth: { seconds: 10, stage: "pr7-building" }, title: "As it grows, stories are added.", lines: [
-    // The owner's words.
+    // ★
     "As your project grows, more stories are added.",
-    // DRAFT.
-    "Orders came in the shop's second round, with a road to each story it builds on.",
-  ], how: "One codebase, one package per story. A road runs from a story to each story it builds on, and storytree refuses a road that would close a loop, so the dependencies always run one way.",
-  why: "A change to one story can break the stories that stand on it. The roads show where the ripples go before you make the change.",
+    "Let's add orders, so shoppers can see what they've bought. Its pathways run to browsing and the cart, and checkout now hands every finished purchase to it.",
+  ], how: "One codebase, one package per story. A pathway runs from a story to each story it builds on, and storytree refuses one that would close a loop, so the dependencies always run one way.",
+  why: "A change to one story can break the stories that stand on it. The pathways show where the ripples go before you make the change.",
   compare: { lines: [
     "VS Code's Explorer browses files and folders; its Outline lists a file's symbols.",
     "Aider's repo map ranks your code's names and signatures to fit the model's budget.",
     "Storytree groups the code by what it lets someone do, with the plan beside it.",
   ], sources: [vscode, aider, undefined] },
-  decisions: [], surfaces: lit(roads), target: orders, framing: 1.0, tags: [{ target: orders, text: "a new story: Orders" }] },
+  decisions: [], surfaces: lit(roads), target: orders, framing: .9, tags: [{ target: orders, text: "a new story: Orders" }] },
 
   // Agents on the map (ADR-0893): the shop's own records at two recorded moments, 5 October 2026: parts 2, 3 and 4 built by three
   // sessions at once, then the session sent to part 7 while another held it. It opens on the sessions strip: the fixes are said

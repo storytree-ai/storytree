@@ -1,4 +1,4 @@
-// Territory sizing — the pure curves that turn a story's capability count into the hex tiles its
+// Capability 1 · Scene layout. Territory sizing — the pure curves that turn a story's capability count into the hex tiles its
 // island is laid on (ADR-0093, ADR-0528 D1). The globe's `forest-ground.ts` lays each island's hexes
 // with `tileQuota` and `ringsOf`. 0.2's crown, reach and art rungs went with the flat canvas
 // (ADR-0920).

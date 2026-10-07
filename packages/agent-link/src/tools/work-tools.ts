@@ -21,6 +21,8 @@ const id = (what: string) => z.string().min(1).describe(`The id of the ${what}, 
 const disposition = z.enum(["landed", "failed", "withdrawn"]).describe("What the close meant: landed, failed, or withdrawn");
 const pr = z.string().min(1).optional().describe("Its pull request, such as #12");
 const note = z.string().min(1).optional().describe("Why it closed: needed when there is no pull request");
+/** Who releases a wait for something outside the plan, in words. */
+const releasedBy = (releaser: "owner" | "event"): string => (releaser === "owner" ? "the owner" : "an outside event");
 
 export function registerWorkTools(define: Define): void {
   define(
@@ -102,13 +104,23 @@ export function registerWorkTools(define: Define): void {
 
   define(
     "set_wait",
-    "Make an increment wait on another increment, on any arc, or an arc on another arc, with the reason. Waiting work cannot be claimed or started until the wait releases.",
+    "Make an increment wait on another increment, on any arc, or an arc on another arc, with the reason (`on`, `reason`). Or make an increment wait for something outside the plan, with a note (`for`, `note`): the owner, for an action only they can take that is not a decision (a decision is a question), or an outside event, with the day to check back, from which it reads ready again. Waiting work cannot be claimed or started until the wait releases.",
     z.object({
       waiter: z.string().min(1).describe("The id of the increment or arc that waits"),
-      on: z.string().min(1).describe("The id of the increment or arc it waits on"),
-      reason: z.string().min(1).describe("Why it waits, in a line"),
+      on: z.string().min(1).optional().describe("The id of the increment or arc it waits on; or give `for` instead"),
+      reason: z.string().min(1).optional().describe("With `on`: why it waits, in a line"),
+      for: z.enum(["owner", "event"]).optional().describe("Instead of `on`, for an increment: what outside the plan it waits for: the owner, or an outside event"),
+      note: z.string().min(1).optional().describe("With `for`: what the owner must do, or what must happen, in a line"),
+      check_back: z.string().min(1).optional().describe("With `for: event`, required: the day to check back (YYYY-MM-DD), from which it reads ready again"),
     }),
-    async ({ waiter, on, reason }, { library, writer }) => {
+    async ({ waiter, on, reason, for: releaser, note, check_back }, { library, writer }) => {
+      if (releaser !== undefined && on === undefined) {
+        if (note === undefined) return { text: "A wait for the owner or an outside event needs a `note` saying what.", refused: true };
+        const done = await library.addWaitFor(waiter, { releaser, note, ...(check_back === undefined ? {} : { checkBack: check_back }) }, writer);
+        if (done === null) return { text: `There is no increment ${waiter} in this project's plan.`, refused: true };
+        return { text: `${waiter} now waits for ${releasedBy(releaser)}: ${note}${check_back === undefined ? "" : ` (check back ${check_back})`}.`, data: { id: waiter } };
+      }
+      if (on === undefined || releaser !== undefined || reason === undefined) return { text: "Give either `on` and `reason` (work it waits on) or `for` and `note` (the owner or an outside event it waits for).", refused: true };
       const done = await library.addWait(waiter, on, reason, writer);
       if (done === null) return { text: `There is no increment or arc ${waiter} in this project's plan.`, refused: true };
       return { text: `${waiter} now waits on ${on}: ${reason}.`, data: { id: waiter } };
@@ -117,12 +129,17 @@ export function registerWorkTools(define: Define): void {
 
   define(
     "clear_wait",
-    "Stop an increment or arc waiting on another.",
-    z.object({ waiter: z.string().min(1).describe("The id of the increment or arc that waits"), on: z.string().min(1).describe("The id of what it waits on") }),
-    async ({ waiter, on }, { library, writer }) => {
-      const done = await library.removeWait(waiter, on, writer);
+    "Stop an increment or arc waiting on another (`on`), or an increment waiting for the owner or an outside event (`for`).",
+    z.object({
+      waiter: z.string().min(1).describe("The id of the increment or arc that waits"),
+      on: z.string().min(1).optional().describe("The id of what it waits on; or give `for` instead"),
+      for: z.enum(["owner", "event"]).optional().describe("Instead of `on`: stop it waiting for the owner, or for an outside event"),
+    }),
+    async ({ waiter, on, for: releaser }, { library, writer }) => {
+      if ((on === undefined) === (releaser === undefined)) return { text: "Give either `on` (work it waits on) or `for` (the owner or an outside event).", refused: true };
+      const done = on !== undefined ? await library.removeWait(waiter, on, writer) : await library.removeWaitFor(waiter, releaser!, writer);
       if (done === null) return { text: `There is no increment or arc ${waiter} in this project's plan.`, refused: true };
-      return { text: `${waiter} no longer waits on ${on}.`, data: { id: waiter } };
+      return { text: `${waiter} no longer waits ${on !== undefined ? `on ${on}` : `for ${releasedBy(releaser!)}`}.`, data: { id: waiter } };
     },
   );
 

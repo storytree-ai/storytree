@@ -1,4 +1,4 @@
-// A Mint track keeps its lanes fed (dev loop capability 11; ADR-0931 D1): when its queue empties it takes
+// Capability 11 · A Mint track keeps its lanes fed (ADR-0931 D1): when its queue empties it takes
 // the next ready increment in its fence from one library survey, under the manager's skip rules.
 // node packages/dev-loop/src/lanes/feed.mjs next <track>     (the box's lanes folder: LANES_DIR, else ~/storytree-lanes)
 import { existsSync } from "node:fs";

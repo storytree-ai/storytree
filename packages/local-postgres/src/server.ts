@@ -53,6 +53,12 @@ export interface StartOptions extends ClusterOptions {
   readonly serverLog?: string;
   /** Who is starting it, as a refusal names the holder to someone else. */
   readonly owner?: string;
+  /**
+   * Server settings for this run only (`-c name=value`), each value one plain word. A throwaway
+   * test server is started with fsync, synchronous_commit and full_page_writes off; the app's own
+   * server never is.
+   */
+  readonly settings?: Readonly<Record<string, string>>;
 }
 
 /** A running server. */
@@ -150,6 +156,12 @@ export async function start(options: StartOptions): Promise<LocalPostgres> {
   const serverLog = options.serverLog ?? `${dataDir}.log`;
   const log = options.log ?? (() => {});
   const port = options.port ?? (await freePort());
+  const settings = Object.entries(options.settings ?? {}).map(([name, value]) => {
+    if (!/^[a-z_][a-z0-9_.]*$/.test(name) || !/^[\w.:-]+$/.test(value)) {
+      throw new Error(`the server setting ${name}=${JSON.stringify(value)} is not a plain name and one plain word`);
+    }
+    return ` -c ${name}=${value}`;
+  });
 
   mkdirSync(path.dirname(dataDir), { recursive: true });
   const record: OwnerRecord = {
@@ -166,7 +178,7 @@ export async function start(options: StartOptions): Promise<LocalPostgres> {
     const started = Date.now();
     const code = await tool(tools, "pg_ctl", [
       "-D", dataDir,
-      "-o", `-p ${port} -c listen_addresses=127.0.0.1`,
+      "-o", `-p ${port} -c listen_addresses=127.0.0.1${settings.join("")}`,
       "-l", serverLog,
       "-w", "start",
     ]);

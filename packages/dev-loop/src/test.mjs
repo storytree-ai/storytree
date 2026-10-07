@@ -173,6 +173,8 @@ async function runHeavy(units) {
       serverLog,
       toolLog,
       owner: "a `pnpm test` run",
+      // Its data is thrown away, so no commit or CREATE DATABASE need wait on a disk flush.
+      settings: { fsync: "off", synchronous_commit: "off", full_page_writes: "off" },
       log: (message) => console.log(`test Postgres: ${message}`),
     });
   } catch (error) {

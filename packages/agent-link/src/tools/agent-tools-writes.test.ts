@@ -52,6 +52,30 @@ test("6.10 it sets a wait with a reason, and a claim on the waiting increment is
   });
 });
 
+test("6.40 it sets a wait for the owner or an outside event with a note, and a claim on it is refused naming the note; an event wait needs a check-back day; it clears the wait, and the claim succeeds", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const { arc } = await planned(agent);
+      const install = idOf(await agent.call("park_increment", { arc, title: "Real install", objective: "Install it for real", body: "On the old laptop" }));
+      const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+
+      const undated = await agent.call("set_wait", { waiter: install, for: "event", note: "the next release build" });
+      assert.equal(undated.isError, true);
+      assert.match(undated.text, /check-back day/);
+      assert.equal((await agent.call("set_wait", { waiter: install, for: "owner", note: "run the NSIS install on the old laptop" })).isError, false);
+      assert.equal((await agent.call("set_wait", { waiter: install, for: "event", note: "the next release build", check_back: tomorrow })).isError, false);
+      const refused = await agent.call("claim", { increment: install, reason: "driving it" });
+      assert.equal(refused.isError, true);
+      assert.ok(refused.text.includes("run the NSIS install on the old laptop") && refused.text.includes("the next release build"), refused.text);
+
+      assert.equal((await agent.call("clear_wait", { waiter: install, for: "owner" })).isError, false);
+      assert.equal((await agent.call("clear_wait", { waiter: install, for: "event" })).isError, false);
+      assert.deepEqual(await library.waitsFor(install), []);
+      assert.equal((await agent.call("claim", { increment: install, reason: "driving it" })).isError, false);
+    });
+  });
+});
+
 test("6.12 friction capture uses the calling folder's branch for the shared daily cap", async () => {
   await withProject(async ({ folder, library }) => {
     git(folder, "init", "-b", "fix/mail");

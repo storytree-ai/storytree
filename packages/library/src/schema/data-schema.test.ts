@@ -14,6 +14,7 @@
  */
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { isDeepStrictEqual } from "node:util";
 
 import { z } from "zod";
 
@@ -194,6 +195,9 @@ for (const backend of [memory, postgres]) {
     for (const [type, fields, field] of badlyFilled) {
       await assert.rejects(records.create(type, untyped(fields)), schemaError(type, [field]));
     }
+    // A list field given as text is marked so; a list holding a non-id is not.
+    await assert.rejects(records.create("arc", untyped({ ...MINIMAL.arc, stories: "story-1" })), (error) => error instanceof SchemaError && isDeepStrictEqual(error.lists, ["stories"]));
+    await assert.rejects(records.create("arc", untyped({ ...MINIMAL.arc, stories: ["story-1", 2] })), (error) => error instanceof SchemaError && isDeepStrictEqual(error.lists, []));
     assert.deepEqual(await transactions.history(), [], "none of them wrote anything");
 
     // Control: the same story with a title is saved.

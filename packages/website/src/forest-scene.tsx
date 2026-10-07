@@ -154,14 +154,15 @@ function Tags({ tags, controls, arrived }: { tags: readonly Tag[]; controls: Glo
     return () => cancelAnimationFrame(frame);
   }, [tags, controls, host, arrived]);
   if (!host) return null;
-  return createPortal(<>{tags.map((tag, index) => <div key={index} ref={node => { refs.current[index] = node; }} className="tour-tag away">
+  return createPortal(<>{tags.map((tag, index) => <div key={index} ref={node => { refs.current[index] = node; }} className="tour-tag away"
+    data-story={tag.target.kind === "story" ? tag.target.story : undefined}>
     <span className="tour-tag-ring" /><span className="tour-tag-text">{tag.text}</span>
   </div>)}</>, host);
 }
 
 /** Where the globe's middle sits: in the room the card (left) and any side panel (right) leave it. */
 function offsetFor(step: TourStep | undefined, width: number) {
-  if (!step || width <= 600) return 0;
+  if (!step || width <= 600) return step?.phone?.side ?? 0;
   const opening = step.kind === "beats" || step.kind === "statement" || step.kind === "fixes";
   // A chapter's lines start where the arrival's do (ADR-0890, amended 2026-10-05).
   const cardRight = Math.min(64, width * .04) + (opening ? Math.min(560, width * .46) : Math.min(400, width * .36));
@@ -330,7 +331,8 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
     const moved = !before || before.state.index !== state!.index || before.state.generation !== state!.generation || before.state.freePlay
       || before.state.holds.includes("exploring") || before.state.holds.includes("everything") || !camera.current.entered;
     const map = globe.map, overview = overviews[map], driftOrder = driftOrders[map];
-    const target = step.target ?? overview, framing = step.framing ?? restingFraming;
+    const view = (width > 600 ? step.laptop : step.phone) ?? step;
+    const target = view.target ?? overview, framing = view.framing ?? restingFraming;
     const speed = state!.speed, still = reduced();
     const go = (stop: { target: GlobeTarget; framing: number; duration: number }) => {
       const reached = controls.stop({ ...stop, sideOffset });

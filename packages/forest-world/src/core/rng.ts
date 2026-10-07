@@ -1,4 +1,4 @@
-// Deterministic pseudo-random — FNV-1a hash + a single mulberry32 step. Every
+// Capability 1 · Scene layout. Deterministic pseudo-random — FNV-1a hash + a single mulberry32 step. Every
 // "random" value in the forest world (tile growth, crown-blob jitter, road bows,
 // mesh jitter) is hashed from a STABLE id, never Math.random, so the world renders
 // identically every visit and ships as static output. Pure, browser-safe.

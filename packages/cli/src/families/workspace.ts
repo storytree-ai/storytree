@@ -1,5 +1,5 @@
-/** Capability 11 · Workspace: a terminal front door onto the agent link's claimed workspace and release. */
-import type { WorkspaceAnswer } from "@storytree/agent-link";
+/** Capability 11 · Workspace: a terminal front door onto the agent link's claimed workspace, claim and release. */
+import type { ClaimAnswer, WorkspaceAnswer } from "@storytree/agent-link";
 
 import { Refusal } from "../answer.js";
 import type { Family, Verb } from "../door.js";
@@ -52,6 +52,24 @@ const attach: Verb = {
   },
 };
 
+const claimOnly: Verb = {
+  name: "claim",
+  usage: "workspace claim <increment|capability> --reason <text>",
+  summary: "claim work for this agent session in the folder it is in, making no worktree (11.9)",
+  async act(args, context) {
+    const id = args.word(0, "the work's id", this.usage);
+    const reason = args.need("reason", this.usage).trim();
+    if (!reason) throw new Refusal(`this needs a non-empty --reason\nusage: storytree ${this.usage}`, { code: 2 });
+    const caller = await context.claimContext();
+    const { claim } = await import("@storytree/agent-link");
+    const answer = await claim(caller, id, reason);
+    if (!answer.ok) throw new Refusal(refusal(id, answer));
+    if (answer.alreadyHeld) return { text: `${caller.session} already holds ${id}: no worktree was made.` };
+    const taken = answer.takenOverFrom === undefined ? "" : `, taken over from session ${answer.takenOverFrom.session}, which had gone quiet`;
+    return { text: `${caller.session} holds ${id}${taken}: ${reason}\nNo worktree was made; work where you are.` };
+  },
+};
+
 const releaseClaim: Verb = {
   name: "release",
   usage: "workspace release <increment|capability>",
@@ -71,7 +89,7 @@ const releaseClaim: Verb = {
 };
 
 /** Present the owning story's refusal without making another claiming rule here. */
-function refusal(id: string, answer: Exclude<WorkspaceAnswer, { ok: true }>): string {
+function refusal(id: string, answer: Exclude<WorkspaceAnswer | ClaimAnswer, { ok: true }>): string {
   switch (answer.refused) {
     case "held":
       return `${id} is held by ${answer.holder.label} session ${answer.holder.session}: ${answer.holder.reason}. Pick other work.`;
@@ -92,7 +110,7 @@ function refusal(id: string, answer: Exclude<WorkspaceAnswer, { ok: true }>): st
 
 export const workspace: Family = {
   name: "workspace",
-  summary: "prepare or attach a workspace, or release this agent session's claim",
-  verbs: [attach, releaseClaim],
+  summary: "prepare or attach a workspace, or claim or release work for this agent session",
+  verbs: [attach, claimOnly, releaseClaim],
   bare: make,
 };

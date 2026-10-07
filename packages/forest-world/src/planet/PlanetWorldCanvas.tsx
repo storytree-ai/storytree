@@ -1,3 +1,4 @@
+/** Capability 6 · The planet. */
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Canvas, useFrame, useThree, type RootState } from '@react-three/fiber';
 import { Html, OrbitControls } from '@react-three/drei';

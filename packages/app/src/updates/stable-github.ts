@@ -1,4 +1,4 @@
-/** Contract 4.16: GitHub holds the channel's metadata history; each installer stays on its original release. */
+/** Capability 4 · Updates. Contract 4.16: GitHub holds the channel's metadata history; each installer stays on its original release. */
 import { execFileSync } from "node:child_process";
 import type { Library } from "@storytree/library";
 import { STABLE_BRANCH } from "./release-channel.js";

@@ -1,4 +1,4 @@
-/** The globe's growth clock (world 7.4): what the canvas and the host's marks read to draw a growth as it stands. */
+/** Capability 6 · The planet. The globe's growth clock (world 7.4): what the canvas and the host's marks read to draw a growth as it stands. */
 import { createContext, useContext, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { fileKey, growthMoment, growthProgress, type GrowthPlan } from './growth.js';

@@ -1,5 +1,5 @@
 /**
- * Opening at sign-in (lifecycle 1.12): the installed app registers itself to open when the user
+ * Capability 1 · Lifecycle. Opening at sign-in (lifecycle 1.12): the installed app registers itself to open when the user
  * signs in, straight to the tray (`--background`), so its release updater runs all day and the
  * hooks it installed follow each release. On by default; the gear's Updates section turns it off,
  * and that choice is kept in the app's home (`sign-in.json`) so the next start does not register

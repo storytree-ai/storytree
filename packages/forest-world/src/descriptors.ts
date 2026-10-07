@@ -1,4 +1,4 @@
-// descriptors.ts — the ground cells the globe draws, as the drawing engine hands them over.
+// Capability 1 · Scene layout. descriptors.ts — the ground cells the globe draws, as the drawing engine hands them over.
 //
 // Since ADR-0920 the engine builds only the ground under the globe's islands (`forest-ground.ts`):
 // one `cell-ground` descriptor per relaxed-mesh cell, carrying its capability's parcel and its

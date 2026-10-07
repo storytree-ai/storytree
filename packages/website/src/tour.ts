@@ -39,6 +39,10 @@ export type TourStep = {
    * until then (ADR-0891, amended 2026-10-05). */
   names?: readonly { said: string; story: string }[];
   target?: GlobeTarget; framing?: number; drift?: boolean;
+  /** A laptop's own view where a phone's would not fit its panels (wider than 600px). */
+  laptop?: { target: GlobeTarget; framing: number };
+  /** A phone's own view (600px wide or less), with the globe's middle `side` pixels right of the screen's. */
+  phone?: { target?: GlobeTarget; framing: number; side: number };
   /** A story selected so its dependency lanes draw on. */
   select?: string;
   panel?: "story" | "arcs" | "sessions" | "knowledge";
@@ -194,7 +198,8 @@ const meet = (a: Box, b: Box) => Math.max(0, Math.min(a.x + a.width, b.x + b.wid
  * clear allowing for rounding, and when taking sides first come, first served leaves a name over a ring, a name, a panel or
  * the room's edge, up to four names share the room instead: every choice of sides, a name above or below also flush with
  * its ring's left or right edge, is weighed and the one that covers least wins, the hard boxes first. A phone keeps the
- * first-come placement it was given (2.18).
+ * first-come placement it was given, a name beside its ring also trying a little higher or lower once the four sides are
+ * not clear (2.18).
  */
 export function placeTags(tags: readonly Box[], room: { width: number; height: number }, { keepOut = [], sides = ["right", "left"], previous = [], share = false }: { keepOut?: readonly (Box & { soft?: boolean })[]; sides?: readonly TagSide[]; previous?: readonly (TagSide | undefined)[]; share?: boolean } = {}): { side: TagSide; x: number; y: number }[] {
   const rings = tags.map(tag => ({ x: tag.x - ring, y: tag.y - ring, width: ring * 2, height: ring * 2 }));
@@ -209,7 +214,9 @@ export function placeTags(tags: readonly Box[], room: { width: number; height: n
     const order = [...new Set([previous[index], ...sides].filter((side): side is TagSide => !!side && sides.includes(side)))];
     // After the four sides, a name above or below may also sit flush with its ring's left or right edge rather than centred.
     const flush = !share ? [] : order.filter(side => side === "below" || side === "above").flatMap(side => [ring - tag.width, -ring].map(x => ({ side, x, y: offsets[side].y })));
-    return [...order.map(side => ({ side, ...offsets[side] })), ...flush].map(({ side, ...at }) => {
+    // On a phone, a name beside its ring may also slide up or down by up to half the ring, to clear an island's name.
+    const slid = share ? [] : order.filter(side => side === "right" || side === "left").flatMap(side => [-ring / 4, ring / 4, -ring / 2, ring / 2].map(y => ({ side, x: offsets[side].x, y: offsets[side].y + y })));
+    return [...order.map(side => ({ side, ...offsets[side] })), ...flush, ...slid].map(({ side, ...at }) => {
       const box = { x: tag.x + at.x, y: tag.y + at.y, width: tag.width, height: tag.height };
       const inside = tag.width * tag.height - meet(box, { x: margin, y: margin, width: room.width - margin * 2, height: room.height - margin * 2 });
       const outside = share ? Math.max(0, inside) : inside;

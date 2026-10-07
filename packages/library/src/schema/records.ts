@@ -228,8 +228,11 @@ function describeIssue(issue: z.core.$ZodIssue, fields: unknown): FieldProblem[]
   }
   const where = [`field ${quote(field)}`, ...rest.map((key) => `item ${String(key)}`)].join(" ");
   switch (issue.code) {
-    case "invalid_type":
-      return [{ field, problem: `${where} must be ${kindName(issue.expected)}, not ${kindOf(valueAt(fields, issue.path))}` }];
+    case "invalid_type": {
+      const given = valueAt(fields, issue.path);
+      const problem = `${where} must be ${kindName(issue.expected)}, not ${kindOf(given)}`;
+      return [rest.length === 0 && issue.expected === "array" && typeof given === "string" ? { field, problem, textForList: true } : { field, problem }];
+    }
     case "too_small":
       if (issue.origin === "string" && Number(issue.minimum) === 1) return [{ field, problem: `${where} must not be empty` }];
       break;

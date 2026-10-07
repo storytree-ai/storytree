@@ -1,5 +1,5 @@
 /**
- * What the preload script hands the page, as `window.storytree`: these functions and nothing else.
+ * Capability 1 · Lifecycle. What the preload script hands the page, as `window.storytree`: these functions and nothing else.
  * Each is answered by the main process, which alone holds the library (@storytree/app's pageReads).
  */
 import type { ContextReading, LinesSince, SessionWindow } from "@storytree/agent-link";

@@ -30,7 +30,7 @@ const PG_CONNECT_TIMEOUT = /timeout expired|timeout exceeded when trying to conn
  * `postgres` key. Refused before anything reaches the server when the address is not one, carries
  * a password, or no password is saved for it.
  */
-export function addressServer(address: string, connectTimeoutMs = TIMEOUT_MS): ServerAccess {
+export function addressServer(address: string, connectTimeoutMs = TIMEOUT_MS, statementTimeoutMs?: number): ServerAccess {
   const url = checkedAddress(address);
   const password = resolveKey(PASSWORD_KEY);
   if (password === undefined) {
@@ -42,7 +42,7 @@ export function addressServer(address: string, connectTimeoutMs = TIMEOUT_MS): S
   }
   const signedIn = new URL(url.href);
   signedIn.password = password;
-  const server = localServer(signedIn, connectTimeoutMs);
+  const server = localServer(signedIn, connectTimeoutMs, statementTimeoutMs);
   return { ...server, explain: (error) => explain(error, url, connectTimeoutMs) };
 }
 

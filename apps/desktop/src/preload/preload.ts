@@ -1,5 +1,5 @@
 /**
- * The preload script: exposes the bridge's functions (bridge.ts) to the page through the context
+ * Capability 1 · Lifecycle. The preload script: exposes the bridge's functions (bridge.ts) to the page through the context
  * bridge, and nothing else. The page runs sandboxed, with no Node and no Electron.
  */
 import { contextBridge, ipcRenderer } from "electron";

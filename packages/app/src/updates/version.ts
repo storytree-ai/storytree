@@ -1,4 +1,4 @@
-/** ADR-0753 D2: the command line reports the same 0.3.<n> for its build as the desktop app. */
+/** Capability 4 · Updates. ADR-0753 D2: the command line reports the same 0.3.<n> for its build as the desktop app. */
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";

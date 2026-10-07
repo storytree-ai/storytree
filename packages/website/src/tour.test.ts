@@ -272,6 +272,23 @@ test("2.18 · on a phone and on a laptop, each tag's name sits inside the screen
   assert.equal(placeTags([{ x: 896.0133401209908, y: 598.6357908097438, width: 187, height: 24 }], { width: 1280, height: 800 }, { share: true })[0]!.side, "right");
 });
 
+test("2.18 · on a phone, a tag beside its ring slides a little up or down to read clear of an island's name", () => {
+  // The parallel step at 390×844 reached from the claim step: Part 2's tag, centred beside Browsing's ring, touched the top
+  // of Browsing's own name by half a pixel; above, below and to the left have no room.
+  const room = { width: 390, height: 844 };
+  const tags = [{ x: 95, y: 376, width: 228.47, height: 24.125 }, { x: 68, y: 330, width: 216, height: 24.125 }, { x: 88, y: 271, width: 121, height: 24.125 }];
+  const names = [{ x: 55.12, y: 387.63, width: 78.59, height: 18.28 }, { x: 45, y: 342, width: 46, height: 18.28 }, { x: 48, y: 290, width: 80, height: 18.28 }];
+  const panels = [{ x: 10, y: 84, width: 370, height: 135 }, { x: 10, y: 409, width: 370, height: 289 }];
+  const placed = placeTags(tags, room, { keepOut: [...names.map(name => ({ ...name, soft: true })), ...panels], sides: ["right", "left", "below", "above"] });
+  const boxes = placed.map((at, index) => ({ x: tags[index]!.x + Math.round(at.x), y: tags[index]!.y + Math.round(at.y), width: tags[index]!.width, height: tags[index]!.height }));
+  const meets = (a: typeof boxes[number], b: typeof boxes[number]) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+  boxes.forEach((box, index) => {
+    for (const name of names) assert.ok(!meets(box, name), `tag ${index} is clear of the name ${JSON.stringify(name)}: ${JSON.stringify(box)}`);
+    for (const panel of panels) assert.ok(!meets(box, panel), `tag ${index} is clear of ${JSON.stringify(panel)}`);
+    for (const [other, label] of boxes.entries()) if (other !== index) assert.ok(!meets(box, label), `tag ${index} is clear of tag ${other}`);
+  });
+});
+
 test("2.18 · on a laptop, where the first-come sides leave a tag over a panel, the tags share the room so each reads clear", () => {
   // The parallel step at 1280×800 reached from the claim step: Browsing and the cart sit on the sessions list's top edge.
   // Part 2 taking the room above its ring left Part 3 none; Part 2 to the left (over an island's name) frees it.

@@ -63,6 +63,29 @@ const ids = z.array(z.string());
  */
 const waits = z.array(z.object({ on: z.string(), reason: nonEmpty }).strict()).optional();
 
+/** A day, YYYY-MM-DD, that is a real day. */
+const day = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "a day is YYYY-MM-DD")
+  .refine((text) => new Date(`${text}T00:00:00Z`).toISOString().startsWith(text), "a day is a real day");
+
+/**
+ * What an increment waits for outside the library (capability 11, ADR-0938 D1), at most one per
+ * releaser: an action of the owner's, with no day, or an outside event, with the day to check back.
+ */
+const waitsFor = z
+  .array(
+    z
+      .object({ releaser: z.enum(["owner", "event"]), note: nonEmpty, checkBack: day.optional() })
+      .strict()
+      .superRefine(({ releaser, checkBack }, context) => {
+        if (releaser === "event" && checkBack === undefined) context.addIssue({ code: "custom", path: ["checkBack"], message: "an event wait needs a check-back day" });
+        if (releaser === "owner" && checkBack !== undefined) context.addIssue({ code: "custom", path: ["checkBack"], message: "an owner wait takes no check-back day" });
+      }),
+  )
+  .refine((list) => new Set(list.map(({ releaser }) => releaser)).size === list.length, "at most one wait per releaser")
+  .optional();
+
 /**
  * What every one of the eight kinds carries (6-a): a title, a one-line description, and links to
  * the other artifacts it relates to, as every artifact has.
@@ -350,6 +373,7 @@ export const RECORD_SCHEMAS = {
       touches: ids.optional(),
       remedies: ids.optional(),
       waits,
+      waitsFor,
       /**
        * The questions this work is held on (capability 12): a link, never a reading. Whether it is
        * waiting on the owner is worked out from each question's lifecycle, so settling one releases

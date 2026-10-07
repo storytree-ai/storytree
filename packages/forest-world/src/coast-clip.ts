@@ -1,4 +1,4 @@
-// coast-clip.ts — the island's ANGULAR hex silhouette becomes the map's OWN smoothed, story-seeded
+// Capability 6 · The planet. coast-clip.ts — the island's ANGULAR hex silhouette becomes the map's OWN smoothed, story-seeded
 // coastline, on the SHIPPED side of the package.
 //
 // THE COMPONENT. `adopt-the-land-into-the-shipped-map-arc`'s approved treatment is six components,

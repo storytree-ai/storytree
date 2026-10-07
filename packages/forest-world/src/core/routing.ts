@@ -1,4 +1,4 @@
-// Deterministic cost-grid trail router (ADR-0169 §1). Every story edge routes
+// Capability 1 · Scene layout. Deterministic cost-grid trail router (ADR-0169 §1). Every story edge routes
 // over ONE shared scalar cost field on a coarse world grid: island discs
 // hard-blocked (inflated by a clearance margin), a soft falloff ring beyond it,
 // seeded value noise, a turn penalty — searched by 8-connected A* with stable

@@ -228,7 +228,7 @@ export async function verifyTour(browser, url, output) {
 // Website 2.6, 1.6 and 5.4: the chapter fills the viewport, its controls are reachable and tappable, free play is the desktop's.
 const overlap = (a, b) => Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
 // 2.18 at every width: the agents chapter's tags each read whole inside the screen, clear of one another, the other rings,
-// the card and the panels; on a phone the arcs drawer ends above the card.
+// the card and the panels, and the tagged islands' names read clear of them; on a phone the arcs drawer ends above the card.
 async function verifyAgentTags(page, width, height, output) {
   for (const id of ["agents-arcs", "agents-claim", "agents-parallel"]) {
     await goToStep(page, id);
@@ -253,9 +253,21 @@ async function verifyAgentTags(page, width, height, output) {
     tags.forEach((tag, index) => {
       assert.ok(tag.x >= 0 && tag.y >= 0 && tag.x + tag.width <= width && tag.y + tag.height <= height, `${tag.text} is inside the screen at ${width}px: ${JSON.stringify(tag)}`);
       for (const other of tags.slice(index + 1)) assert.equal(overlap(tag, other), 0, `${tag.text} is clear of ${other.text} at ${width}px`);
-      for (const panel of [card, ...panels]) assert.equal(overlap(tag, panel), 0, `${tag.text} is clear of the card and the panels at ${width}px`);
+      for (const panel of [card, ...panels]) assert.equal(overlap(tag, panel), 0, `${tag.text} is clear of the card and the panels on the ${id} step at ${width}px: ${JSON.stringify({ tag, panels })}`);
       rings.forEach((ring, other) => { if (other !== index) assert.equal(overlap(tag, ring), 0, `${tag.text} is clear of ring ${other} at ${width}px`); });
     });
+    // The tagged islands' own names read too, clear of the card, the panels and the tags, reached in order from the step before.
+    const named = await page.evaluate(() => [...document.querySelectorAll("#tour-tags .tour-tag:not(.away)[data-story]")].map(tag => {
+      const plate = document.querySelector(`.planet-nameplate[data-story-id="${tag.dataset.story}"]`);
+      const box = plate?.getBoundingClientRect();
+      return { story: tag.dataset.story, text: plate?.textContent, shown: !!plate && !plate.classList.contains("crowded") && box.width > 0, x: box?.x, y: box?.y, width: box?.width, height: box?.height };
+    }));
+    assert.equal(named.length, count, `every tag names its island at ${width}px`);
+    for (const plate of named) {
+      assert.ok(plate.shown, `${plate.text ?? plate.story}'s name is shown on the ${id} step at ${width}px`);
+      for (const panel of [card, ...panels]) assert.equal(overlap(plate, panel), 0, `${plate.text}'s name is clear of the card and the panels on the ${id} step at ${width}px: ${JSON.stringify({ plate, panel })}`);
+      for (const tag of tags) assert.equal(overlap(plate, tag), 0, `${plate.text}'s name is clear of ${tag.text} on the ${id} step at ${width}px: ${JSON.stringify({ plate, tag })}`);
+    }
     await page.screenshot({ path: path.join(output, `${id}-${width}.png`) });
   }
 }
@@ -284,8 +296,32 @@ async function verifyOneFormat(page, width, output) {
     assert.equal(look.bullets, 0, `${id} has no bullet points at ${width}px`);
     assert.ok(look.sizes.length && look.sizes.every(size => size < impact && size >= 16), `${id} is told in explain mode, smaller than the arrival's ${impact}px, at ${width}px: ${look.sizes}`);
     assert.ok(depth && depth.y >= look.last - 1, `${id}'s How and Why sit beneath its lines at ${width}px`);
-    assert.ok(look.overflow <= 1, `${id}'s lines and its How and Why fit their room without scrolling at ${width}px: ${look.overflow}px over`);
     await page.screenshot({ path: path.join(output, `format-${id}-${width}.png`) });
+  }
+  await verifyEveryStepFits(page, `${width}px`);
+}
+
+// 2.19's room: every step's lines and its How and Why fit without scrolling, the arrival's as well as the chapters'.
+async function verifyEveryStepFits(page, size) {
+  const over = [];
+  for (const id of await page.locator("#tour-pips [data-step]").evaluateAll(pips => pips.map(pip => pip.dataset.step))) {
+    await goToStep(page, id);
+    if (await page.locator("#tour-play").getAttribute("aria-label") === "Pause the tour") await page.locator("#tour-play").click();
+    const overflow = await page.locator("#tour-card").evaluate(card => card.scrollHeight - card.clientHeight);
+    if (overflow > 1) over.push(`${id} ${overflow}px`);
+  }
+  assert.deepEqual(over, [], `Every step's lines and its How and Why fit their room without scrolling at ${size}: ${over.join(", ")} over`);
+}
+
+// 2.19 on short phones: the room under the globe still holds every step.
+async function verifyShortPhones(browser, url) {
+  for (const [width, height] of [[320, 700], [320, 568]]) {
+    const page = await browser.newPage({ viewport: { width, height }, reducedMotion: "reduce" });
+    await page.addInitScript(() => localStorage.setItem("storytree-opening-seen", "yes"));
+    await page.goto(url);
+    await page.locator("#tour-play").click();
+    await verifyEveryStepFits(page, `${width}x${height}`);
+    await page.close();
   }
 }
 
@@ -392,6 +428,7 @@ export async function verifyImmersive(browser, url, output) {
     await page.screenshot({ path: path.join(output, `waitlist-${width}.png`), fullPage: true });
     await page.close();
   }
+  await verifyShortPhones(browser, url).catch(error => { error.contract = "2.19"; throw error; });
   await writeFile(path.join(output, "immersive-measurements.json"), JSON.stringify({ source: "Locally built unpublished working tree", viewports: measurements }, null, 2) + "\n");
   console.log(JSON.stringify(measurements));
 }

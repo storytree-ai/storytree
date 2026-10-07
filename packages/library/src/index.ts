@@ -30,6 +30,8 @@ export type {
   Hold,
   Holds,
   NewQuestion,
+  NoteWait,
+  WaitFor,
   QuestionLease,
   Settlement,
   IncrementEdit,

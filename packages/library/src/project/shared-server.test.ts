@@ -162,3 +162,19 @@ test("8.6 on a shared server, each of a library's connections names the machine 
     await dropTestDatabases([`storytree_${project}`]);
   }
 });
+
+test("8.7 a caller that may be cut off bounds each statement, and the server ends one still running at the bound, so a cut-off process's slot comes free", async () => {
+  const own = `${uniqueProjectName()}-bounded`;
+  const opened: Storytree[] = [];
+  try {
+    const storytree = await connect({ url: testServerUrl(), statementTimeoutMs: 200 });
+    opened.push(storytree);
+    const pool = await storytree.ownDatabase(own);
+
+    await assert.rejects(pool.query("SELECT pg_sleep(5)"), { code: "57014" });
+    assert.deepEqual((await pool.query<{ n: number }>("SELECT 1 AS n")).rows, [{ n: 1 }]);
+  } finally {
+    await Promise.allSettled(opened.map((storytree) => storytree.close()));
+    await dropTestDatabases([own]);
+  }
+});

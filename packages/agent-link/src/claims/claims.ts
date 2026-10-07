@@ -28,6 +28,8 @@ import type { Hold, Holds, IncrementStatus, Library, SchemaRecord, WriteOptions 
 import { thisMachine, type ActivityLog, type Line } from "../activity/index.js";
 import { attributeFrom, CLAIM_KINDS, claimOf, claimsFrom as readLines, held, LogFold, LONGEST_COMMAND_MS, partOf, type Attributed, type Claim, type ClaimsOptions, type Part, type Restart } from "../readings.js";
 import { idleAfterMs } from "../settings/settings.js";
+import { storytreeHome } from "../routing/routing.js";
+import { cancelClaimNotice, leaveNotice } from "./notices.js";
 
 export { attributeFrom } from "../readings.js";
 export type { Attributed, Claim, ClaimsOptions } from "../readings.js";
@@ -36,6 +38,8 @@ export type { Attributed, Claim, ClaimsOptions } from "../readings.js";
 export interface ClaimContext {
   readonly log: ActivityLog;
   readonly library: Library;
+  /** Where local claim notices wait. Defaults to this machine's storytree home. */
+  readonly home?: string;
   /** Request attribution and cancellation, when the claim came from a tool. */
   readonly writer?: WriteOptions;
   readonly project: string;
@@ -102,6 +106,9 @@ export type LandAnswer =
   | { ok: false; refused: "held"; holder: Claim }
   | { ok: false; refused: "unknown-capability"; capability: string };
 
+type ClaimOptions = { readonly moveBranch?: true; readonly file?: string };
+type EditClaimOptions = ClaimOptions & { readonly edit: Pick<Line, "seq" | "at">; readonly notice: string };
+
 /**
  * Claim `id`, a capability or an increment, for the context's session, with a one-line reason.
  * Refused if the library has no live capability or increment by that id, if it is a closed
@@ -109,8 +116,12 @@ export type LandAnswer =
  * past the quiet time is taken over. Claiming a proposed increment starts it, through the
  * library's own `advanceIncrement` (0.2's ADR-0386). Claiming what it already holds changes nothing,
  * unless `moveBranch` is given with a new branch: then it holds it on that branch from now on.
+ * An automatic edit claim returns undefined when the session already released that work after
+ * the edit; its announcement is kept under the same lock, so a release always cancels it.
  */
-export async function claim(context: ClaimContext, id: string, reason: string, options: { readonly moveBranch?: true; readonly file?: string } = {}): Promise<ClaimAnswer> {
+export function claim(context: ClaimContext, id: string, reason: string, options: EditClaimOptions): Promise<ClaimAnswer | undefined>;
+export function claim(context: ClaimContext, id: string, reason: string, options?: ClaimOptions): Promise<ClaimAnswer>;
+export async function claim(context: ClaimContext, id: string, reason: string, options: ClaimOptions | EditClaimOptions = {}): Promise<ClaimAnswer | undefined> {
   const file = options.file === undefined ? {} : { file: options.file };
   const tooLong = reasonRefusal(reason);
   if (tooLong !== undefined) return tooLong;
@@ -124,6 +135,12 @@ export async function claim(context: ClaimContext, id: string, reason: string, o
   const found = await claimable(context, id);
   if (!("part" in found)) return found;
   return context.log.locked(context.project, async (log) => {
+    if ("edit" in options) {
+      // Check under the same lock as release: delayed upkeep (or an offline edit uploaded later)
+      // cannot undo the session's explicit release. This is bounded to this edit's recent history.
+      const releases = await log.lines({ kinds: ["released"], sessions: [context.session], where: { capability: id }, since: options.edit.at, newest: 1 });
+      if (releases.some((line) => line.at > options.edit.at || line.seq > options.edit.seq)) return undefined;
+    }
     const current = (await heldNow(log, context)).get(id);
     const mine = current?.session === context.session;
     if (mine && current.holder === "live" && !(options.moveBranch && context.branch !== undefined && context.branch !== current.branch)) return { ok: true, claim: current, alreadyHeld: true };
@@ -146,6 +163,7 @@ export async function claim(context: ClaimContext, id: string, reason: string, o
       ...file,
     });
     const claimed: Claim = { ...claimOf(line.session, line.harness, found.part, reason, line.at, context.branch), holder: "live" } as Claim;
+    if ("edit" in options) leaveNotice(context.home ?? storytreeHome(), context.session, options.notice, id);
     return current === undefined || mine ? { ok: true, claim: claimed } : { ok: true, claim: claimed, takenOverFrom: current };
   });
 }
@@ -201,6 +219,7 @@ export async function release(context: ClaimContext, id: string): Promise<Releas
     const current = (await heldNow(log, context)).get(id);
     if (current?.session !== context.session) return current === undefined ? { ok: false, refused: "not-held" } : { ok: false, refused: "not-held", holder: current };
     await log.append({ ...who(context), kind: "released", ...partOf(current) });
+    cancelClaimNotice(context.home ?? storytreeHome(), context.session, id);
     return { ok: true };
   });
 }

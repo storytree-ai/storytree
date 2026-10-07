@@ -1,0 +1,3 @@
+FAIL 700: Cart0 / 2 landed's name reads whole inside the screen on the agents-claim step at 320px: {"story":"story_2de9e8f4db21","text":"Cart0 / 2 landed","shown":true,"x":-1.7666969299316406,"y":220.97125244140625,"width":75.59375,"height":37.96875}
+PASS 568
+FAIL 844: Cart0 / 2 landed's name reads whole inside the screen on the agents-claim step at 320px: {"story":"story_2de9e8f4db21","text":"Cart0 / 2 landed","shown":true,"x":-11.51531982421875,"y":349.189453125,"width":75.59375,"height":37.96875}

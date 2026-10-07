@@ -1,0 +1,35 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Phone controls and dated free play remain usable
++ actual - expected
+
++ [
++   '1.6: #tour-depth is shorter than 44px',
++   '1.6: .tour-back is shorter than 44px',
++   '1.6: #tour-depth is shorter than 44px',
++   '1.6: .tour-back is shorter than 44px',
++   '1.6: .tour-browse-toggle is shorter than 44px',
++   '2.6: phone free play hides its date and read-only status'
++ ]
+- []
+
+    at verifyRecordingFreeplay (file:///home/mickh/code/storytree03-wt/website-review-98771/packages/website/evidence/tour.mjs:487:10)
+    at async file:///home/mickh/code/storytree03-wt/website-review-98771/packages/website/evidence/capture.mjs:61:57 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: [
+    '1.6: #tour-depth is shorter than 44px',
+    '1.6: .tour-back is shorter than 44px',
+    '1.6: #tour-depth is shorter than 44px',
+    '1.6: .tour-back is shorter than 44px',
+    '1.6: .tour-browse-toggle is shorter than 44px',
+    '2.6: phone free play hides its date and read-only status'
+  ],
+  expected: [],
+  operator: 'deepStrictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.19.0

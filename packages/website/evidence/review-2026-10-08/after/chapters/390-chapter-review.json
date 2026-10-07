@@ -1,0 +1,177 @@
+[
+  {
+    "width": 390,
+    "height": 844,
+    "step": "pain",
+    "picture": "390-pain.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "step": "grow",
+    "picture": "390-grow.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "step": "value",
+    "picture": "390-value.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "step": "fixes",
+    "picture": "390-fixes.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "step": "map-empty",
+    "picture": "390-map-empty.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "step": "map-first",
+    "picture": "390-map-first.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "step": "map-together",
+    "picture": "390-map-together.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "step": "map-health",
+    "picture": "390-map-health.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "step": "agents-sessions",
+    "picture": "390-agents-sessions.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "step": "agents-arcs",
+    "picture": "390-agents-arcs.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "step": "agents-claim",
+    "picture": "390-agents-claim.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "step": "agents-parallel",
+    "picture": "390-agents-parallel.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "step": "agents-standdown",
+    "picture": "390-agents-standdown.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "step": "knowledge-inside",
+    "picture": "390-knowledge-inside.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "step": "knowledge-kinds",
+    "picture": "390-knowledge-kinds.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "step": "knowledge-shelves",
+    "picture": "390-knowledge-shelves.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "step": "knowledge-reads",
+    "picture": "390-knowledge-reads.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "step": "knowledge-compare",
+    "picture": "390-knowledge-compare.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "step": "everything",
+    "picture": "390-everything.png",
+    "overflow": 0,
+    "sideways": false,
+    "panelOverlap": false
+  },
+  {
+    "width": 390,
+    "errors": []
+  }
+]

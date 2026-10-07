@@ -93,8 +93,8 @@ test("1.4 the worklist finds related but unlinked neighbours for live notes writ
     const { cursor: beforeRead } = await library.changesSince(0);
 
     const report = await worklist(library, { since: cursor });
-    assert.deepEqual(report.rest?.related.map(({ source }) => source), [source.id, added.id]);
-    const related = report.rest?.related.find((result) => result.source === source.id);
+    assert.deepEqual(report.rest?.related?.map(({ source }) => source), [source.id, added.id]);
+    const related = report.rest?.related?.find((result) => result.source === source.id);
     assert.ok(related?.hits.some(({ id, score, linked }) => id === neighbour.id && score > 0 && !linked));
     assert.ok(related?.hits.every(({ id }) => ![source.id, incoming.id, outgoing.id, retired.id].includes(id)));
     assert.equal(related?.linkedCount, 2);
@@ -102,6 +102,6 @@ test("1.4 the worklist finds related but unlinked neighbours for live notes writ
 
     await link(library, source.id, neighbour.id);
     const linked = await worklist(library, { since: cursor });
-    assert.ok(!linked.rest?.related.find((result) => result.source === source.id)?.hits.some(({ id }) => id === neighbour.id));
+    assert.ok(!linked.rest?.related?.find((result) => result.source === source.id)?.hits.some(({ id }) => id === neighbour.id));
   });
 });

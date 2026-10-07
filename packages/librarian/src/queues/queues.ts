@@ -7,7 +7,7 @@
  * cannot drain by going anonymous. The routing judgement is the librarian's own (ADR-0644 D3, S).
  * Settling and retiring a question are the agent link's tools.
  */
-import type { FieldsOf, Library, SchemaRecord, WriteOptions } from "@storytree/library";
+import type { FieldsOf, Library, Note, SchemaRecord, WriteOptions } from "@storytree/library";
 
 import { allNotes, LibrarianRefusal } from "../notes.js";
 
@@ -28,8 +28,8 @@ export function openQuestions(library: Library, at?: Date): Promise<SchemaRecord
 }
 
 /** Three unrouted reports from other branches, most recurrences first and oldest first on ties. */
-export async function frictionDrain(library: Library, { branch }: { branch?: string }): Promise<SchemaRecord<"friction">[]> {
-  return (await allNotes(library))
+export async function frictionDrain(library: Library, { branch }: { branch?: string }, read: Promise<readonly Note[]> | readonly Note[] = allNotes(library)): Promise<SchemaRecord<"friction">[]> {
+  return (await read)
     .filter((note): note is SchemaRecord<"friction"> => note.type === "friction")
     .filter((report) => report.fields.route === undefined && (branch === undefined || report.fields.provenance?.branch !== branch))
     // allNotes is in creation order; stable sorting keeps that order when recurrence counts tie.

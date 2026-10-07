@@ -1,7 +1,7 @@
 /**
  * Capability 6 · Knowledge artifacts, grown by ADR-0654: contract 6.10 in the library story, the
- * related-but-unlinked search 0.2's librarian used for its Links round, run on BOTH backends, as
- * 6.1-6.7 are (knowledge-memory.test.ts).
+ * related-but-unlinked search 0.2's librarian used for its Links round, and 6.11, the same and search()
+ * asked many times from one reading, run on BOTH backends, as 6.1-6.7 are (knowledge-memory.test.ts).
  */
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -130,5 +130,38 @@ for (const backend of [memory, postgres]) {
     const story = await records.create("story", { title: "Mailgun sign-up" });
     assert.equal(await knowledge.related(story.id), null, "a story is not an artifact");
     assert.equal((await transactions.history()).length, history.length + 3, "only the three writes above were written: the reads wrote nothing");
+  });
+
+  contract("6.11", "searchEach and relatedEach answer as search and related would for each, in order, from one reading of the artifacts; relatedEach leaves out an id that is no live artifact", async ({ knowledge, records }) => {
+    const source = await knowledge.writeKnowledge("principle", { title: "Confirmation email bounces", description: "Mailgun bounces the confirmation email", statement: "An unverified mailgun domain bounces email", why: "No confirmation arrives", howToApply: "Verify the domain first" });
+    const other = await knowledge.recordDecision({ status: "accepted", title: "Verify the mailgun domain", text: "Unverified domains bounce every confirmation email." });
+    await knowledge.defineTerm({ term: "Planet", meaning: "The forest drawn as a globe" });
+    const story = await records.create("story", { title: "Mailgun sign-up" });
+
+    const list = records.list.bind(records);
+    let reads = 0;
+    records.list = ((...args: Parameters<typeof list>) => {
+      reads += 1;
+      return list(...args);
+    }) as typeof records.list;
+    await knowledge.search("mailgun");
+    const one = reads;
+
+    reads = 0;
+    const queries = ["mailgun", "globe", "nothing-holds-this", "verify domain"];
+    const found = await knowledge.searchEach(queries);
+    assert.equal(reads, one, "four searches read the artifacts once, as one search does");
+    records.list = list;
+    assert.deepEqual(found, await Promise.all(queries.map((query) => knowledge.search(query))));
+
+    records.list = ((...args: Parameters<typeof list>) => {
+      reads += 1;
+      return list(...args);
+    }) as typeof records.list;
+    reads = 0;
+    const related = await knowledge.relatedEach([source.id, story.id, other.id], { unlinked: true });
+    assert.equal(reads, one, "related for two artifacts reads them once");
+    records.list = list;
+    assert.deepEqual(related, [await knowledge.related(source.id, { unlinked: true }), await knowledge.related(other.id, { unlinked: true })], "in order, the story left out");
   });
 }

@@ -35,17 +35,19 @@ export async function retire(library: Library, id: string, reason: string, write
  * written, with the other live notes a plain search for any word of its title finds (words of four
  * letters or more; a memory's text stands for its title).
  */
-export async function newNotes(library: Library, cursor: number): Promise<NewNote[]> {
-  const notes = await allNotes(library);
+export async function newNotes(library: Library, cursor: number, read: Promise<readonly Note[]> | readonly Note[] = allNotes(library)): Promise<NewNote[]> {
+  const notes = await read;
   const created = new Set((await library.history({ since: cursor, types: typesOf(notes) })).filter((change) => change.action === "created").map((change) => change.recordId));
-  const listed: NewNote[] = [];
-  for (const note of notes.filter((candidate) => created.has(candidate.id))) {
-    const found = new Set<string>();
-    for (const word of titleWords(note)) for (const hit of await library.search(word)) found.add(hit.id);
+  const written = notes.filter((candidate) => created.has(candidate.id));
+  // Every title word of every new note searched from one reading of the notes, never one each (6.7).
+  const words = [...new Set(written.flatMap(titleWords))];
+  const searched = await library.searchEach(words);
+  const hits = new Map(words.map((word, at) => [word, searched[at]!]));
+  return written.map((note) => {
+    const found = new Set(titleWords(note).flatMap((word) => hits.get(word)!.map((hit) => hit.id)));
     found.delete(note.id);
-    listed.push({ note, lookalikes: notes.filter((other) => found.has(other.id)) });
-  }
-  return listed;
+    return { note, lookalikes: notes.filter((other) => found.has(other.id)) };
+  });
 }
 
 /** Every reference a live record makes to a note: the notes' own, increments' remedies, and questions' settling decisions. */

@@ -1,5 +1,5 @@
 /**
- * Capability 6 · Rounds: contracts 6.1-6.2 in the librarian story, each in a fresh project's
+ * Capability 6 · Rounds: contracts 6.1-6.2, 6.6 and 6.7 in the librarian story, each in a fresh project's
  * library on the real Postgres `pnpm test` provides; 6.5 against the librarian's subagent definition.
  * 6.3-6.4 are proven beside the agent link's server (packages/agent-link/src/tools/librarian-tools.test.ts).
  */
@@ -50,7 +50,7 @@ test("6.2 the worklist gathers each capability's list: graduation's and the fric
       assert.deepEqual(fired.graduation.map((item) => item.file), [memory]);
       assert.deepEqual(fired.rest?.links.map((decision) => decision.id), [spec.id]);
       assert.deepEqual(fired.rest?.health, []);
-      assert.ok(fired.rest?.catalogue.some(({ note }) => note.id === spec.id));
+      assert.ok(fired.rest?.catalogue?.some(({ note }) => note.id === spec.id));
       assert.deepEqual(fired.rest?.questions, []);
       assert.deepEqual(fired.friction.map((note) => note.id), [theirs.id]);
     } finally {
@@ -88,7 +88,7 @@ test("6.6 the worklist and land's next-line check take about as much from a libr
         assert.equal(await tools.landNext!("capability_x", call), "run the librarian's pass");
         const answer = await acts.get("worklist")!({ memoryFolders: [folder] }, call);
         const listed = answer.data?.worklist as Awaited<ReturnType<typeof worklist>>;
-        assert.deepEqual(listed.rest?.catalogue.map(({ note }) => note.id), [principle.id], "the note written since the session started, and nothing older");
+        assert.deepEqual(listed.rest?.catalogue?.map(({ note }) => note.id), [principle.id], "the note written since the session started, and nothing older");
         taken.push(received() - before);
       });
     }
@@ -97,6 +97,60 @@ test("6.6 the worklist and land's next-line check take about as much from a libr
   }
   assert.ok(history > 20_000_000, `the long history is weeks' worth: ${history} bytes`);
   assert.ok(taken[1]! - taken[0]! < 128 * 1024, `the calls took ${taken[0]} bytes from a short history and ${taken[1]} from one ${history} bytes longer: no more than 128 KiB apart`);
+});
+
+test("6.7 the worklist reads the live notes about once however many notes the session wrote, and with no recorded start leaves the catalogue and related lists unread, saying why, rather than reading every note's history", { timeout: 300_000 }, async () => {
+  const folder = mkdtempSync(path.join(tmpdir(), "storytree-librarian-"));
+  const principle = (n: number, title: string) => ({ title, description: `Lesson ${n}`, statement: `Lesson ${n} holds.`, why: `Learned the hard way, ${n}. `.repeat(40), howToApply: "Apply it." });
+  try {
+    await withCountedLibrary(async ({ library, project, received }) => {
+      // A library of some size, its notes each edited, before the session started.
+      for (let n = 0; n < 120; n += 1) {
+        const note = await library.writeKnowledge("principle", principle(n, `Older lesson number ${n}`));
+        await library.editNote(note.id, { statement: `Lesson ${n} holds, edited.` });
+      }
+      // The start just after the last older edit by the library's own clock, which a runner's may not match.
+      const [last] = await library.history({ newest: 1 });
+      const started = new Date(Date.parse(last!.at) + 1);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      let before = received();
+      await library.search("");
+      const once = received() - before;
+
+      const tools = librarianTools();
+      const acts = new Map<string, (args: unknown, call: ToolCall) => Promise<ToolAnswer>>();
+      tools.registerTools!((name, _description, _input, act) => {
+        acts.set(name, act as unknown as (args: unknown, call: ToolCall) => Promise<ToolAnswer>);
+      });
+      const callFor = (start: boolean): ToolCall => ({
+        library, project, folder, writer: {},
+        caller: { session: "s-1", harness: "claude-code" },
+        log: { lines: async () => (start ? [{ kind: "session-started", session: "s-1", harness: "claude-code", at: started.toISOString() }] : []) },
+      });
+      const take = async (start: boolean): Promise<{ bytes: number; listed: Awaited<ReturnType<typeof worklist>> & { rest?: { unread?: string } } }> => {
+        before = received();
+        const answer = await acts.get("worklist")!({ memoryFolders: [folder] }, callFor(start));
+        return { bytes: received() - before, listed: answer.data?.worklist as Awaited<ReturnType<typeof worklist>> };
+      };
+
+      await library.writeKnowledge("principle", principle(1000, "Graduate durable memory every landing"));
+      const one = await take(true);
+      for (let n = 1001; n < 1008; n += 1) await library.writeKnowledge("principle", principle(n, `Session lesson about worklists, phases and stalls ${n}`));
+      const eight = await take(true);
+      assert.equal(eight.listed.rest?.catalogue?.length, 8);
+      assert.equal(eight.listed.rest?.related?.length, 8);
+      assert.ok(eight.bytes - one.bytes < once, `one note written took ${one.bytes} bytes and eight took ${eight.bytes}: no more than one reading of the notes (${once}) apart`);
+
+      const unsure = await take(false);
+      assert.equal(unsure.listed.rest?.catalogue, undefined);
+      assert.equal(unsure.listed.rest?.related, undefined);
+      assert.match(unsure.listed.rest?.unread ?? "", /no session start/i);
+      assert.ok(Array.isArray(unsure.listed.rest?.links) && Array.isArray(unsure.listed.rest?.health) && Array.isArray(unsure.listed.rest?.questions), "every other list is still gathered");
+      assert.ok(unsure.bytes < eight.bytes, `with no start it took ${unsure.bytes} bytes, more than the ${eight.bytes} a known start took`);
+    });
+  } finally {
+    rmSync(folder, { recursive: true, force: true });
+  }
 });
 
 test("6.5 the librarian's subagent definition names every tool the librarian serves", () => {

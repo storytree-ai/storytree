@@ -255,3 +255,39 @@ test("11.4 a Claude Code session attaches the linked worktree the app started it
     }
   });
 });
+
+test("11.9 `workspace claim` claims the work for the calling agent session without making a worktree or branch, and is refused as the claim tool refuses it", async () => {
+  await inWorld(command, async (world) => {
+    const increment = await withRepository(world);
+    const library = await world.library();
+    const story = await library.addStory({ title: "Sign-up" });
+    const capability = await library.addCapability({ story: story.id, title: "Email form" });
+    const branches = git(world.folder, "branch", "--list");
+
+    const claimed = await world.run(["workspace", "claim", capability.id, "--reason", "building the form"], { CLAUDE_CODE_SESSION_ID: "claude-9" });
+    const started = await world.run(["workspace", "claim", increment, "--reason", "driving the form"], { CLAUDE_CODE_SESSION_ID: "claude-9" });
+
+    assert.equal(claimed.code, 0, claimed.stderr);
+    assert.equal(started.code, 0, started.stderr);
+    assert.match(claimed.stdout, /claude-9 holds/);
+    assert.equal(git(world.folder, "worktree", "list").trim().split(/\r?\n/).length, 1, "no worktree was made");
+    assert.equal(git(world.folder, "branch", "--list"), branches, "no branch was made");
+    const log = await openActivityLog(testServerUrl());
+    try {
+      const before = await log.since(world.project, 0);
+      const held = await world.run(["workspace", "claim", capability.id, "--reason", "me too"], { CODEX_THREAD_ID: "other" });
+      assert.equal(held.code, 1);
+      assert.match(held.stderr, /held by .* claude-9/);
+      const unknown = await world.run(["workspace", "claim", "capability_000000000000", "--reason", "x"], { CODEX_THREAD_ID: "other" });
+      assert.equal(unknown.code, 1);
+      assert.match(unknown.stderr, /no capability or increment/);
+      const person = await world.run(["workspace", "claim", capability.id, "--reason", "x"]);
+      assert.equal(person.code, 1);
+      assert.match(person.stderr, /agent/);
+      assert.deepEqual((await log.since(world.project, 0)).lines.filter((line) => line.kind === "claimed"), before.lines.filter((line) => line.kind === "claimed"), "refusals claim nothing");
+      assert.deepEqual((await readClaims(log, world.project)).map(({ session }) => session), ["claude-9", "claude-9"]);
+    } finally {
+      await log.close();
+    }
+  });
+});

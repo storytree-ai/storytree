@@ -41,8 +41,8 @@ tsx survey.mjs
 git -C <repo> worktree add --detach /tmp/rows-before origin/main && (cd /tmp/rows-before && pnpm install)
 node --import tsx build.mjs /tmp/rows-before before
 node --import tsx build.mjs <this checkout> after
-flock /tmp/storytree-heavy.lock node --import tsx capture.mjs before
-flock /tmp/storytree-heavy.lock node --import tsx capture.mjs after
+node "<checkout>/packages/dev-loop/src/heavy-lock.mjs" -- node --import tsx capture.mjs before
+node "<checkout>/packages/dev-loop/src/heavy-lock.mjs" -- node --import tsx capture.mjs after
 ```
 
 The scripts now provide seeds and views to the shared desktop capture runner.

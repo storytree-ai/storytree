@@ -1,6 +1,6 @@
 // Pictures for the owner's look at contract 7.8: a session row, collapsed and expanded to its worktrees and window files.
 // The actual desktop page, built by ../sessions-list/build.mjs; all activity here is synthetic.
-// Run both through flock /tmp/storytree-heavy.lock.
+// Run both through `node "<checkout>/packages/dev-loop/src/heavy-lock.mjs" --` (absolute checkout path).
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';

@@ -1,6 +1,6 @@
 // Picture for the owner's look at ADR-0749 D1/D2: every non-ended session shows, one works in two worktrees.
 // The actual desktop page, built by ../sessions-list/build.mjs; all activity here is synthetic.
-// Run both through flock /tmp/storytree-heavy.lock.
+// Run both through `node "<checkout>/packages/dev-loop/src/heavy-lock.mjs" --` (absolute checkout path).
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';

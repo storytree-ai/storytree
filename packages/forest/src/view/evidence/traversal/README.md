@@ -22,7 +22,7 @@ reduced motion (so the replay's finished picture is what is drawn). Seed: the ei
 `capture.mjs`: it reads a compacted file, opens a capability, an arc and an increment (the last two
 drawn nowhere), four more knowledge-core files, two notes, two forest files, a script no story
 owns, and one agent-link file. Run `node build.mjs`, then `node --import tsx capture.mjs`, under
-`flock /tmp/storytree-heavy.lock`. Full numbers are in [measurements.json](measurements.json).
+`node "<checkout>/packages/dev-loop/src/heavy-lock.mjs" --`. Full numbers are in [measurements.json](measurements.json).
 
 ## Measured before looking
 

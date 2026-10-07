@@ -1,5 +1,5 @@
 // Raw headless Chromium evidence of the actual seeded desktop page.
-// Run in the foreground under flock /tmp/storytree-heavy.lock.
+// Run in the foreground under `node "<checkout>/packages/dev-loop/src/heavy-lock.mjs" --` (absolute checkout path).
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { test } from 'node:test';

@@ -16,7 +16,7 @@ accepted (ADR-0794).
 Renderer: headless Chromium 148, ANGLE / Vulkan SwiftShader, 1440 x 960, dark theme, device scale 1.
 Seed: the same eight-story, 58-capability snapshot as [../territories](../territories/README.md), with
 `survey.json` regenerated here (`tsx survey.mjs`, `readCodeSurvey` over this checkout's **main** code)
-after the circles changed. Run `build.mjs`, then `capture.mjs`, under `flock /tmp/storytree-heavy.lock`.
+after the circles changed. Run `build.mjs`, then `capture.mjs`, under `node "<checkout>/packages/dev-loop/src/heavy-lock.mjs" --`.
 Full numbers, including per-circle detail for the largest, are in [measurements.json](measurements.json).
 
 ## After the fix (this capture)

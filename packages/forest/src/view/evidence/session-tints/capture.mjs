@@ -1,6 +1,6 @@
 // Seeded, repeatable capture of the actual desktop page (session claims, ADR-0923 narrowing ADR-0804 D9): same seed (the
 // knowledge-under-islands snapshot), the same agent log written out below, the page's clock fixed at NOW,
-// same 1440 x 960 viewport, same programmatic turns; nothing is hand-panned. Run under flock /tmp/storytree-heavy.lock after
+// same 1440 x 960 viewport, same programmatic turns; nothing is hand-panned. Run under `node "<checkout>/packages/dev-loop/src/heavy-lock.mjs" --` after
 // `node build.mjs`. Measures what can be counted before anyone looks, and writes measurements.json.
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';

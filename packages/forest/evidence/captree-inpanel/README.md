@@ -46,10 +46,15 @@ The look is his to accept.
 
 ## How to run
 
+Run from the checkout root. Keep the wrapper on the same `STORYTREE_HOME` as
+`pnpm gate`; apply the throwaway home only to the child command using `env` after
+`--`. Exporting the throwaway home for the wrapper would select a different lock.
+Only participating commands serialize; uncontrolled competing work still affects timings.
+
 ```sh
-export STORYTREE_HOME=$(mktemp -d)     # a FRESH home each run: a used one reopens differently
-node --import tsx scripts/restore-library.mjs ~/storytree-lanes/snapshots/2026-09-28T13-42-19-911Z.json --project storytree
-DISPLAY=:137 STORYTREE_EMBEDDER=off flock /tmp/storytree-heavy.lock \
+CAPTURE_STORYTREE_HOME=$(mktemp -d)     # a FRESH home each run: a used one reopens differently
+STORYTREE_HOME="$CAPTURE_STORYTREE_HOME" node --import tsx scripts/restore-library.mjs ~/storytree-lanes/snapshots/2026-09-28T13-42-19-911Z.json --project storytree
+DISPLAY=:137 STORYTREE_EMBEDDER=off node packages/dev-loop/src/heavy-lock.mjs -- env STORYTREE_HOME="$CAPTURE_STORYTREE_HOME" \
   node --import tsx packages/forest/evidence/captree-inpanel/electron-capture.mjs
 ```
 

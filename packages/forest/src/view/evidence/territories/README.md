@@ -19,7 +19,7 @@ Seed: the eight-story, 58-capability snapshot of `../knowledge-under-islands` (s
 seed's stories are named after real packages, and its capability titles carry their "N · " numbers,
 so real files land on real capabilities (every claimed capability id in the survey is one of the
 seed's). `readCodeSurvey` reads the repository's **main** checkout, not this worktree, so the code
-surveyed is main's. Run `build.mjs`, then `capture.mjs`, under `flock /tmp/storytree-heavy.lock`.
+surveyed is main's. Run `build.mjs`, then `capture.mjs`, under `node "<checkout>/packages/dev-loop/src/heavy-lock.mjs" --`.
 Full numbers are in [measurements.json](measurements.json).
 
 ## Measured before looking

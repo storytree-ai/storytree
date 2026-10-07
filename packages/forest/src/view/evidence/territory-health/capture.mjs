@@ -1,7 +1,7 @@
 // Seeded, repeatable capture of the actual desktop page (ADR-0825 D3, territory health): the knowledge-under-islands
 // snapshot with each capability given a word (below), the session-tints agent log at the fixed clock NOW, the same
 // 1440 x 960 viewport and the same programmatic turns; nothing is hand-panned. Run `node build.mjs`, then this, under
-// flock /tmp/storytree-heavy.lock. Measures what can be counted before anyone looks, and writes measurements.json.
+// `node "<checkout>/packages/dev-loop/src/heavy-lock.mjs" --`. Measures what can be counted before anyone looks, and writes measurements.json.
 // --smoke runs the page built by `node build.mjs smoke` and takes no pictures, so a test proves every wait below still
 // resolves in a real browser.
 import assert from 'node:assert/strict';

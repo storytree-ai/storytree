@@ -9,7 +9,7 @@
 import { resolveKey } from "@storytree/keys";
 
 import { ConnectionError, sqlState } from "./connection-error.js";
-import { localServer, type ServerAccess } from "./server.js";
+import { localServer, type ServerAccess, type WaitBounds } from "./server.js";
 
 /** The key a library reached by address takes its password from. */
 export const PASSWORD_KEY = "postgres";
@@ -30,7 +30,7 @@ const PG_CONNECT_TIMEOUT = /timeout expired|timeout exceeded when trying to conn
  * `postgres` key. Refused before anything reaches the server when the address is not one, carries
  * a password, or no password is saved for it.
  */
-export function addressServer(address: string, connectTimeoutMs = TIMEOUT_MS, statementTimeoutMs?: number): ServerAccess {
+export function addressServer(address: string, connectTimeoutMs = TIMEOUT_MS, bounds: WaitBounds = {}): ServerAccess {
   const url = checkedAddress(address);
   const password = resolveKey(PASSWORD_KEY);
   if (password === undefined) {
@@ -42,7 +42,7 @@ export function addressServer(address: string, connectTimeoutMs = TIMEOUT_MS, st
   }
   const signedIn = new URL(url.href);
   signedIn.password = password;
-  const server = localServer(signedIn, connectTimeoutMs, statementTimeoutMs);
+  const server = localServer(signedIn, connectTimeoutMs, bounds);
   return { ...server, explain: (error) => explain(error, url, connectTimeoutMs) };
 }
 

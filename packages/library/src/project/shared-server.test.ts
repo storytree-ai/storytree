@@ -178,3 +178,119 @@ test("8.7 a caller that may be cut off bounds each statement, and the server end
     await dropTestDatabases([own]);
   }
 });
+
+/**
+ * A project's database held to one connection, which a test client holds while `during` runs:
+ * Postgres refuses the library's own connections there (SQLSTATE 53300), as a full server does.
+ */
+async function withFullDatabase<T>(during: (url: string, project: string) => Promise<T>): Promise<T> {
+  const run = uniqueProjectName();
+  const lane = `${run}-lane@storytree.test`;
+  const project = `${run}-full`;
+  try {
+    await createTestRole(lane, { createdb: true });
+    const first = await connect({ url: as(lane) });
+    try {
+      await (await first.openProject(project)).addStory({ title: "Written before the rush", description: "Read back under it." });
+    } finally {
+      await first.close();
+    }
+    await withTestClient((client) => client.query(`ALTER DATABASE "storytree_${project}" CONNECTION LIMIT 1`));
+    return await during(as(lane), project);
+  } finally {
+    await dropTestDatabases([`storytree_${project}`]);
+    await dropTestRoles([lane]);
+  }
+}
+
+test("8.8 a library call kept waiting for a connection slot says once what it waits for, then goes on when one comes free", async () => {
+  await withFullDatabase(async (url, project) => {
+    const said: string[] = [];
+    const storytree = await connect({ url, onWait: (what) => said.push(what) });
+    try {
+      let reading: Promise<string[]> | undefined;
+      await withTestClient(async () => {
+        reading = storytree.openProject(project).then(async (library) => (await library.projectTree()).stories.map((story) => story.title));
+        reading.catch(() => {});
+        await new Promise((resolve) => setTimeout(resolve, 800));
+      }, `storytree_${project}`);
+
+      assert.deepEqual(await reading, ["Written before the rush"]);
+      assert.equal(said.length, 1, `said once: ${JSON.stringify(said)}`);
+      assert.match(said[0] ?? "", /connection slot/);
+      assert.match(said[0] ?? "", /too many connections/, "with the server's reason");
+    } finally {
+      await storytree.close();
+    }
+  });
+});
+
+test("8.8 a library call still refused a connection slot at its wait bound fails with the server's reason", async () => {
+  await withFullDatabase(async (url, project) => {
+    const said: string[] = [];
+    const storytree = await connect({ url, waitMs: 300, onWait: (what) => said.push(what) });
+    try {
+      await withTestClient(async () => {
+        const started = Date.now();
+        await assert.rejects(storytree.openProject(project), /too many connections/);
+        assert.ok(Date.now() - started < 3_000, "given up at the bound");
+      }, `storytree_${project}`);
+      assert.equal(said.length, 1);
+    } finally {
+      await storytree.close();
+    }
+  });
+});
+
+/** Run `during` while a test client holds `project`'s write lock, released when `during` ends. */
+async function withWriteLockHeld<T>(project: string, during: () => Promise<T>): Promise<T> {
+  return withTestClient(async (client) => {
+    await client.query("BEGIN");
+    await client.query("SELECT pg_advisory_xact_lock(hashtext('storytree.record-writes'))");
+    try {
+      return await during();
+    } finally {
+      await client.query("COMMIT");
+    }
+  }, `storytree_${project}`);
+}
+
+test("8.8 a write kept waiting for another session's write says what it waits for, then is written when that ends", async () => {
+  const project = `${uniqueProjectName()}-turns`;
+  const said: string[] = [];
+  const storytree = await connect({ url: testServerUrl(), onWait: (what) => said.push(what) });
+  try {
+    const library = await storytree.openProject(project);
+    let writing: Promise<unknown> | undefined;
+    await withWriteLockHeld(project, async () => {
+      writing = library.addStory({ title: "Written after its turn", description: "Waited for another write." });
+      writing.catch(() => {});
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    });
+    await writing;
+
+    assert.deepEqual((await library.projectTree()).stories.map((story) => story.title), ["Written after its turn"]);
+    assert.equal(said.length, 1, `said once: ${JSON.stringify(said)}`);
+    assert.match(said[0] ?? "", /another session is writing/);
+  } finally {
+    await storytree.close();
+    await dropTestDatabases([`storytree_${project}`]);
+  }
+});
+
+test("8.8 a write still kept waiting for another session's write at its wait bound fails with the reason and writes nothing", async () => {
+  const project = `${uniqueProjectName()}-stuck`;
+  const storytree = await connect({ url: testServerUrl(), waitMs: 300, onWait: () => {} });
+  try {
+    const library = await storytree.openProject(project);
+    await withWriteLockHeld(project, async () => {
+      const started = Date.now();
+      await assert.rejects(library.addStory({ title: "Never written", description: "Its turn never came." }), /writing.*lock timeout/s);
+      assert.ok(Date.now() - started < 3_000, "given up at the bound");
+    });
+    assert.deepEqual((await library.projectTree()).stories, []);
+  } finally {
+    await storytree.close();
+    await dropTestDatabases([`storytree_${project}`]);
+  }
+});

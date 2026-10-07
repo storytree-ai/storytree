@@ -4,6 +4,8 @@
  */
 import type { Pool, PoolClient } from "pg";
 
+import { sqlState } from "../project/connection-error.js";
+import { seconds, waitsOf } from "../project/server.js";
 import { check, listFilter, editedRecord, historyEntry, historyFilter, now, numbered, savedRecord } from "./records.js";
 import type {
   EditInput,
@@ -23,6 +25,26 @@ const RECORD_COLUMNS = "id, type, version, fields, created_at, updated_at";
  * database, so this is per project: writes to one project take turns, writes to two do not.
  */
 export const WRITE_LOCK = "SELECT pg_advisory_xact_lock(hashtext('storytree.record-writes'))";
+
+/**
+ * Take the project's write lock in `client`'s open transaction. When another session holds it, the
+ * caller hears so once, and waits for it at most `pool`'s wait bound: past that, the write fails
+ * with the server's reason, writing nothing (seen 2026-10-07: a close waited 13 minutes, silent,
+ * on one connection to a full storytree-pg). The bound holds for every lock the transaction meets.
+ */
+export async function takeWriteLock(client: PoolClient, pool: Pool): Promise<void> {
+  const { rows } = await client.query<{ taken: boolean }>("SELECT pg_try_advisory_xact_lock(hashtext('storytree.record-writes')) AS taken");
+  if (rows[0]?.taken === true) return;
+  const { waitMs, say } = waitsOf(pool);
+  say(`another session is writing to this project; waiting up to ${seconds(waitMs)} for it to finish`);
+  await client.query(`SET LOCAL lock_timeout = ${Math.max(1, Math.round(waitMs))}`);
+  try {
+    await client.query(WRITE_LOCK);
+  } catch (error) {
+    if (sqlState(error) !== "55P03") throw error;
+    throw new Error(`Another session kept writing to this project for ${seconds(waitMs)}, so nothing was written: ${(error as Error).message}. Try again.`, { cause: error });
+  }
+}
 
 interface RecordRow {
   id: string;
@@ -179,7 +201,7 @@ export class PgTransactions implements Transactions {
     let broken = false;
     try {
       await client.query("BEGIN");
-      await client.query(WRITE_LOCK);
+      await takeWriteLock(client, this.#pool);
       // Cancellation while queued writes nothing. Once admitted, finish the transaction and
       // its history normally: cancellation cannot undo a write that has already started.
       signal?.throwIfAborted();

@@ -69,7 +69,9 @@ function prepareGround(island: Island): PreparedGround {
   if (old) return old;
   const descriptors = forestDescriptors({ islands: [{ ...island, x: 0, z: 0 }] });
   const cells = clipToCoast(descriptors.filter((d): d is InstanceDescriptor => d.kind === 'cell-ground' && d.points !== undefined), SHIPPED_COAST);
-  const prepared = { descriptors, parcels: parcelSpots(descriptors), rings: rimLoops(cells.map(c => c.points!)) };
+  const parcels = parcelSpots(descriptors);
+  for (const { capability, x, z } of island.pathwayDestinations ?? []) parcels.set(capability, { x, z });
+  const prepared = { descriptors, parcels, rings: rimLoops(cells.map(c => c.points!)) };
   preparedGrounds.set(island, prepared);
   return prepared;
 }
@@ -77,6 +79,11 @@ function prepareGround(island: Island): PreparedGround {
 /** How far the island's coast reaches from its middle, in ground units: what the globe leaves room for (ADR-0804 D7). */
 export function islandCoastReach(island: Island): number {
   return Math.max(0, ...prepareGround(island).rings.flat().map(point => Math.hypot(point.x, point.z)));
+}
+
+/** The same local coast the plate draws, for the host to lay out its territories and destinations. */
+export function islandCoast(island: Island): readonly (readonly CoastPoint[])[] {
+  return prepareGround(island).rings;
 }
 
 const keyOf = (edge: TrailEdgeIn) => JSON.stringify([edge.from, edge.to]);

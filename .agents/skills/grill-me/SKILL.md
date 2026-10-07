@@ -43,7 +43,7 @@ Skip a part only when it truly adds nothing.
 - **My recommendation (non-binding):** the pick, one sentence why, and what would flip it.
 - **The ask, last line, bold:** "**A, B or C?**". Coded options let him answer "A for 2, NO for 4".
 
-Keep every option's description in the same message as the ask. When a question is reframed, split by a digression or followed by status updates, re-post all its options in one place before asking again. The picker (AskUserQuestion) is fine for a quick pick after the full text, never as the only place the options live; his free text always wins, and if he dismisses the picker, record nothing he did not say.
+Keep every option's description in the same message as the ask. When a question is reframed, split by a digression or followed by status updates, re-post all its options in one place before asking again. The available choice picker is fine for a quick pick after the full text, never as the only place the options live; his free text always wins, and if he dismisses the picker, record nothing he did not say.
 
 ### 3. Pace
 
@@ -93,7 +93,7 @@ The round is over when the refreshed question list holds nothing for him, or whe
 
 ## Surfaces
 
-Both front doors work (ADR-0793). Command line: `storytree question list | settle | retire | check`, `storytree arc list | show`, `storytree arc increment edit | close | new`, `storytree adr list --load-bearing | new`, `storytree resteer new`, `storytree friction new`, `storytree session close-out`. Agent link: `show_plan`, `settle_question`, `retire_question`, `correct_question`, `raise_question`, `edit_plan`, `record_resteer`, `close_out`. The Mint box: `ssh mint` and its lane launcher. AskUserQuestion for a quick pick after the full text. `gh pr list` to check what already landed.
+Both front doors work (ADR-0793). Command line: `storytree question list | settle | retire | check`, `storytree arc list | show`, `storytree arc increment edit | close | new`, `storytree adr list --load-bearing | new`, `storytree resteer new`, `storytree friction new`, `storytree session close-out`. Agent link: `show_plan`, `settle_question`, `retire_question`, `correct_question`, `raise_question`, `edit_plan`, `record_resteer`, `close_out`. The Mint box: `ssh mint` and its lane launcher. Use the available choice picker for a quick pick after the full text. `gh pr list` to check what already landed.
 
 ## Failure modes
 

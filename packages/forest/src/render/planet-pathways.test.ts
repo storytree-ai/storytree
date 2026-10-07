@@ -4,6 +4,8 @@ import test from 'node:test';
 import { Vector3 } from 'three';
 import { forestScene, growPlanet, PLANET_RADIUS, storyNodes } from '../index.js';
 import { workStates } from '@storytree/arc-surface';
+import { planetLayout } from '../view/planet-navigation.js';
+import { territories, territoryAt } from '../territories/territories.js';
 import type { InstanceDescriptor } from '@storytree/forest-world';
 import { buildPlanetPathways, clipToCoast, islandCoastReach, plateTransform, RIBBON_GROUND_SCALE, rimLoops, routeTrails, SHIPPED_COAST, trailFillWidth } from '@storytree/forest-world/geometry';
 
@@ -17,6 +19,29 @@ const tree = { arcs: [], stories: [
 const scene = forestScene(tree, [], workStates([]));
 const spots = growPlanet(storyNodes(tree, []).map(({ id, place }) => ({ story: id, place, reach: islandCoastReach(scene.islands.find(i => i.story === id)!) }))).spots;
 const links = tree.stories.flatMap(s => s.capabilities.flatMap(c => c.dependsOn.map(to => `${c.id}->${to}`))).sort();
+
+test('3.7 each routed endpoint lands inside its own visible capability territory, including after code shares change', () => {
+  for (const weights of [[900, 100], [100, 900]]) {
+    const surveyed = { ...scene, islands: scene.islands.map(island => ({ ...island,
+      land: { files: [], territories: island.trees.map((cap, i) => ({ capability: cap.capability!, lines: weights[i]! })) },
+    })) };
+    const layout = planetLayout(surveyed, new Map(storyNodes(tree, []).map(s => [s.id, s.place])));
+    const plan = buildPlanetPathways(layout.scene, layout.spots, layout.radius);
+    assert.deepEqual(plan.edges.map(e => `${e.from}->${e.to}`).sort(), links, 'every real link survives');
+    const segments = new Map(plan.segments.map(s => [s.id, s]));
+    for (const edge of plan.edges) for (const last of [false, true]) {
+      const cap = last ? edge.to : edge.from;
+      const island = layout.scene.islands.find(i => i.trees.some(t => t.capability === cap))!;
+      const ref = last ? edge.segments.at(-1)! : edge.segments[0]!;
+      const points = segments.get(ref.id)!.points;
+      const endpoint = last !== ref.reversed ? points.at(-1)! : points[0]!;
+      const transform = plateTransform(layout.spots.get(island.story)!, layout.radius);
+      const local = endpoint.clone().sub(new Vector3(...transform.position)).applyQuaternion(transform.quaternion.clone().invert());
+      const map = territories(island.land!.territories, plan.plates.get(island.story)!.coast);
+      assert.equal(territoryAt(map, local.x, local.z)?.capability, cap, `${cap} ends in its visible territory`);
+    }
+  }
+});
 
 test('3.6 every recorded builds-on link has one continuous trail chain, with shared trunks drawn once', () => {
   const plan = buildPlanetPathways(scene, spots, PLANET_RADIUS);

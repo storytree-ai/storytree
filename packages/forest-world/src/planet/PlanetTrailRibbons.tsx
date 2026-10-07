@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { BufferGeometry, DoubleSide, Float32BufferAttribute, type Vector3 } from 'three';
 import type { PlanetPathways } from './pathways.js';
-import { growthProgress, roadSegmentWindows, segmentDrawRange, type GrowthWindow } from './growth.js';
+import { growthProgress, linkKey, roadSegmentWindows, segmentDrawRange, type GrowthWindow } from './growth.js';
 import { usePlanetGrowth } from './PlanetGrowth.js';
 import { advanceLaneClock, laneDrawSeconds, laneProgress, laneRoutes, type LitLink } from './lanes.js';
 import { liveRoadProgress, nextLiveRoads } from './live-roads.js';
@@ -76,7 +76,14 @@ export function revealRibbon(geometry: BufferGeometry, progress: number, fromEnd
 const ignoreRay = () => {};
 
 /** The roads between islands: a recorded growth (7.4), or the live host's real arrivals (6.16). */
-export function Pathways({ plan, reveal, live = false }: { plan: PlanetPathways; reveal?: ReadonlyMap<string, GrowthWindow & { fromEnd: boolean }> | undefined; live?: boolean }) {
+export function Pathways({ plan, reveal, live = false, visible = true }: { plan: PlanetPathways; reveal?: ReadonlyMap<string, GrowthWindow & { fromEnd: boolean }> | undefined; live?: boolean; visible?: boolean }) {
+  // Showing a surface is independent of the host's arrival clock (6.17). Mounting an already
+  // visible globe keeps its usual view; only a hidden-to-visible transition starts this reveal.
+  const showing = useRef({ visible, elapsed: undefined as number | undefined, started: false, reduced: reducedMotion() });
+  if (showing.current.visible !== visible) showing.current = { visible, elapsed: visible ? 0 : undefined, started: false, reduced: reducedMotion() };
+  const show = showing.current;
+  const shownWindows = useMemo(() => roadSegmentWindows(plan,
+    new Map(plan.edges.map(edge => [linkKey(edge), { start: 0, seconds: 1 }]))), [plan]);
   const liveClock = useRef({ elapsed: 0, started: false, reduced: reducedMotion(), roads: new Map<string, GrowthWindow>() as ReadonlyMap<string, GrowthWindow> });
   const state = liveClock.current;
   if (live) {
@@ -102,9 +109,14 @@ export function Pathways({ plan, reveal, live = false }: { plan: PlanetPathways;
   useEffect(() => () => meshes.forEach(mesh => { mesh.geometry.dispose(); mesh.halo.dispose(); }), [meshes]);
   const growth = usePlanetGrowth();
   const { invalidate } = useThree();
-  useEffect(() => { if (live) invalidate(); }, [meshes, live, invalidate]);
+  useEffect(() => { if (live || visible) invalidate(); }, [meshes, live, visible, invalidate]);
   useFrame((_, delta) => {
-    if (windows === undefined) return;
+    if (!visible) { state.started = false; return; }
+    if (windows === undefined && show.elapsed === undefined) return;
+    if (show.elapsed !== undefined) {
+      if (show.started) show.elapsed = advanceLaneClock(show.elapsed, delta);
+      show.started = true;
+    }
     if (live) {
       if (state.started) state.elapsed = advanceLaneClock(state.elapsed, delta);
       state.started = true;
@@ -112,13 +124,17 @@ export function Pathways({ plan, reveal, live = false }: { plan: PlanetPathways;
     const now = live ? state.elapsed : growth.now();
     let drawing = false;
     for (const { route, geometry, halo } of meshes) {
-      const window = windows.get(route.id);
+      const window = windows?.get(route.id);
       // A segment no road schedules keeps painting whole.
-      const drawn = live ? liveRoadProgress(window, now, state.reduced) : growthProgress(window, now, false);
-      if (live) {
-        revealRibbon(geometry, drawn, window?.fromEnd);
-        revealRibbon(halo, drawn, window?.fromEnd);
-        drawing ||= drawn < 1;
+      const arrived = live ? liveRoadProgress(window, now, state.reduced) : growthProgress(window, now, false);
+      const shownWindow = shownWindows.get(route.id);
+      const shown = show.elapsed === undefined ? 1 : liveRoadProgress(shownWindow, show.elapsed, show.reduced);
+      const drawn = Math.min(arrived, shown);
+      if (live || show.elapsed !== undefined) {
+        const fromEnd = window?.fromEnd ?? shownWindow?.fromEnd;
+        revealRibbon(geometry, drawn, fromEnd);
+        revealRibbon(halo, drawn, fromEnd);
+        drawing ||= shown < 1 || (live && arrived < 1);
       } else {
         const range = segmentDrawRange((geometry.index?.count ?? 0) / 6, drawn, window?.fromEnd ?? false);
         geometry.setDrawRange(range.start, range.count);

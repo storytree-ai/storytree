@@ -44,7 +44,8 @@ export interface PlanetWorldCanvasProps {
   children?: ReactNode;
   /** False hides the sea and every plate, for looking inside the globe (the knowledge core, E1). */
   surface?: boolean;
-  /** Independent exterior switches, all true by default; surface=false still hides the whole exterior. */
+  /** Independent exterior switches, all true by default; showing hidden roads draws them on over a second.
+   * surface=false still hides the whole exterior. */
   surfaces?: Partial<PlanetSurfaceVisibility>;
   /** Drawn inside the turning globe, in its own coordinates: the knowledge core. */
   inside?: ReactNode;
@@ -164,7 +165,7 @@ export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1
         return <Plate key={island.story} island={island} spot={spot} radius={radius} plate={pathways.plates.get(island.story)!}
           visible={exterior.plates} grounds={exterior.grounds} children={plateChildren} />;
       })}
-      <group name="globe-roads" visible={exterior.roads}><Pathways plan={pathways} reveal={reveal} live={liveRoads && growth === undefined} /><SelectionLanes plan={pathways} lit={lanes} /></group>
+      <group name="globe-roads" visible={exterior.roads}><Pathways plan={pathways} reveal={reveal} live={liveRoads && growth === undefined} visible={exterior.roads} /><SelectionLanes plan={pathways} lit={lanes} /></group>
       {inside}
     </group>
     <OrbitControls makeDefault enablePan={false} enableRotate={orbit} minZoom={0.1} maxZoom={30} />

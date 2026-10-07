@@ -1,3 +1,4 @@
+/** Capability 3 · Sharing controls. */
 import type { JourneyBridge, JourneyState } from "./bridge.js";
 
 /** Story-owned surfaces; the app frame supplies only hosts and the local bridge. */

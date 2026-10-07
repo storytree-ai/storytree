@@ -1,3 +1,4 @@
+/** Capability 4 · Requested event deletion. */
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const unavailable = () => new Error("Journey event deletion unavailable");
 

@@ -1,4 +1,4 @@
-/** Data only: safe in the sandboxed renderer. Private deletion authorization never crosses IPC. */
+/** Capability 3 · Sharing controls. Data only: safe in the sandboxed renderer. Private deletion authorization never crosses IPC. */
 export interface JourneyState {
   consent: "pending" | "on" | "off";
   available: boolean;

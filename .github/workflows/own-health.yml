@@ -13,6 +13,8 @@ name: Own health
 # `automerge` dispatches this workflow on main once its merge has happened. It can also be run by
 # hand (Actions > Own health > Run workflow) to record main as it is now. A manual run looks for
 # successful main-push CI at its exact checkout; without that evidence it grants no Windows credit.
+# Run by hand with preflight ticked (gh workflow run own-health.yml -f preflight=true), it only
+# checks that the secrets below are not empty, and records nothing.
 #
 # Where it records (ADR-0928 D4). When the repository variable HEALTH_PG_ADDRESS is set (the
 # library on the Mint box, a postgres:// address without a password), the job joins the tailnet as
@@ -31,6 +33,11 @@ on:
     types: [completed]
     branches: [main]
   workflow_dispatch:
+    inputs:
+      preflight:
+        description: Only check that the secrets the library on the Mint box needs are set; record nothing
+        type: boolean
+        default: false
 
 # One recording at a time. A run in progress finishes; a newer one waits, replacing any older one
 # still waiting. A delayed CI completion for an older commit must not overwrite newer health:
@@ -43,13 +50,58 @@ permissions:
   contents: read
 
 jobs:
-  record:
-    name: record own health
+  # A secret set by name can still reach a job empty (a paste that sent nothing), and GitHub shows no
+  # value to check, so this names each empty one before the run needs it. It runs before every
+  # recording that connects by address, and alone when dispatched with preflight, which checks the
+  # Mint box's secrets whether or not HEALTH_PG_ADDRESS is set yet: run it right after setting one.
+  # Only whether each secret is empty enters the step, never its value.
+  secrets:
+    name: check required secrets
     if: >-
       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'push' &&
       github.event.workflow_run.head_branch == 'main' &&
       github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-latest
+    environment: own-health
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Check that the secrets this run needs are set
+        env:
+          NEEDED: ${{ (vars.HEALTH_PG_ADDRESS != '' || inputs.preflight == true) && 'yes' || 'no' }}
+          SET_TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID != '' }}
+          SET_TS_OAUTH_SECRET: ${{ secrets.TS_OAUTH_SECRET != '' }}
+          SET_HEALTH_PG_PASSWORD: ${{ secrets.HEALTH_PG_PASSWORD != '' }}
+        run: |
+          if [ "$NEEDED" != yes ]; then
+            echo "HEALTH_PG_ADDRESS is unset, so this run records to Cloud SQL and needs no secrets."
+            exit 0
+          fi
+          empty=0
+          for name in TS_OAUTH_CLIENT_ID TS_OAUTH_SECRET HEALTH_PG_PASSWORD; do
+            set_var="SET_$name"
+            where="--repo $GITHUB_REPOSITORY"
+            if [ "$name" = HEALTH_PG_PASSWORD ]; then where="$where --env own-health"; fi
+            if [ "${!set_var}" = true ]; then
+              echo "$name is set."
+            else
+              echo "::error title=$name is empty::The secret $name is empty or missing, in this repository and in the environment own-health. Set it again with: gh secret set $name $where (paste the value into the prompt), then rerun Own health with preflight ticked."
+              empty=1
+            fi
+          done
+          if [ "$empty" = 1 ]; then exit 1; fi
+          echo "Every secret the library on the Mint box needs is set. (This checks only that each is not empty, not that it is right.)"
+
+  record:
+    name: record own health
+    needs: secrets
+    if: >-
+      !inputs.preflight && (
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository))
     runs-on: ubuntu-latest
     environment: own-health
     timeout-minutes: 45

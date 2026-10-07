@@ -1,6 +1,6 @@
 /** Capability 3 · Arc surface. */
 import { logReading, type Line, type LogReading } from "@storytree/agent-link/readings";
-import type { ArcView, Hold } from "@storytree/library";
+import type { ArcView, Hold, NoteWait } from "@storytree/library";
 import { agentsOnBoard, type BoardAgent } from "../agents/agents.js";
 import { firstBriefing } from "../briefing/briefing.js";
 import { arcQueues, waitsOnBoard, type ArcQueue, type NamedWait, type WorkName } from "../waits/waits.js";
@@ -11,6 +11,8 @@ export interface BoardSnapshot {
   arcs: ArcView[];
   waits: Record<string, Hold[]>;
   heldOn: Record<string, string[]>;
+  /** Each open increment's waits for the owner or an event (ADR-0938); a board kept by an older build has none. */
+  waitsFor?: Record<string, NoteWait[]>;
 }
 export interface Bar {
   id: string;
@@ -18,7 +20,13 @@ export interface Bar {
   reading: IncrementReading;
   agents: BoardAgent[];
   waits: NamedWait[];
+  /** Its waits for the owner or an event, including one whose check-back has passed (it reads as no longer holding). */
+  noteWaits: NoteWait[];
   holdsUp: (WorkName & { reason: string })[];
+}
+/** A note wait that still holds, with the increment it holds. */
+export interface LaneNoteWait extends NoteWait {
+  increment: { id: string; title: string };
 }
 export interface Lane {
   id: string;
@@ -33,6 +41,8 @@ export interface Lane {
   count: string;
   lastActivity: number;
   waits: NamedWait[];
+  /** The waits for the owner or an event that still hold some increment, in bar order (ADR-0938). */
+  noteWaits: LaneNoteWait[];
   holdsUp: (WorkName & { reason: string })[];
 }
 export interface BoardView {
@@ -66,9 +76,10 @@ export function boardView(snapshot: BoardSnapshot, log: readonly Line[] | LogRea
     });
     const bars = ordered.map((increment): Bar => {
       const claim = agents.on(increment.id);
+      const noteWaits = snapshot.waitsFor?.[increment.id] ?? [];
       return { id: increment.id, title: increment.fields.title,
-        reading: incrementState(increment.fields, { waits: snapshot.waits[increment.id] ?? [], heldOn: snapshot.heldOn[increment.id] ?? [], ...(claim ? { claim } : {}) }),
-        agents: agents.onArc([increment]), waits: waits.on(increment.id), holdsUp: waits.heldUpBy(increment.id) };
+        reading: incrementState(increment.fields, { waits: snapshot.waits[increment.id] ?? [], heldOn: snapshot.heldOn[increment.id] ?? [], waitsFor: noteWaits, ...(claim ? { claim } : {}) }),
+        agents: agents.onArc([increment]), waits: waits.on(increment.id), noteWaits, holdsUp: waits.heldUpBy(increment.id) };
     });
     const state = arcState(view.state, { openQuestions: questions.filter(({ fields }) => fields.lifecycle === "open").length, waits: snapshot.waits[arc.id] ?? [], claims: holders, increments: bars.map(({ reading }) => reading) });
     const landed = bars.filter(({ reading }) => reading.state === "landed").length;
@@ -85,7 +96,8 @@ export function boardView(snapshot: BoardSnapshot, log: readonly Line[] | LogRea
     // A queued lane names what its increments wait on, once per blocker (ADR-0760 D1).
     const laneWaits = state !== "queued" ? waits.on(arc.id)
       : [...new Map(bars.flatMap((bar) => bar.waits).map((wait) => [wait.id, wait])).values()];
-    return { id: arc.id, title: arc.fields.title, view, bars, agents: holders, state, chip, ...(state === "ready" && idleHolders.length ? { idle: { chip: idleChip(idleHolders), agents: idleHolders } } : {}), count, lastActivity, waits: laneWaits, holdsUp: waits.heldUpBy(arc.id) };
+    const noteWaits = bars.flatMap((bar) => bar.noteWaits.filter(({ holds }) => holds).map((wait): LaneNoteWait => ({ ...wait, increment: { id: bar.id, title: bar.title } })));
+    return { id: arc.id, title: arc.fields.title, view, bars, agents: holders, state, chip, ...(state === "ready" && idleHolders.length ? { idle: { chip: idleChip(idleHolders), agents: idleHolders } } : {}), count, lastActivity, waits: laneWaits, noteWaits, holdsUp: waits.heldUpBy(arc.id) };
   }).sort((a, b) => rank[a.state] - rank[b.state] || b.lastActivity - a.lastActivity || a.id.localeCompare(b.id));
   return { scope, lanes, queues: arcQueues(lanes), selected: firstBriefing(lanes.map((lane) => ({ id: lane.id, parked: lane.view.state === "parked", questions: lane.view.questions }))) };
 }

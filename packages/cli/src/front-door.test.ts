@@ -125,17 +125,43 @@ test("1.15 a command kept waiting on the library, here for another session's wri
     const url = new URL(testServerUrl());
     url.pathname = `/storytree_${world.project}`;
     const other = new pg.Client({ connectionString: url.href });
+    const elsewhere = new pg.Client({ connectionString: testServerUrl() });
+    const unrelated = new pg.Client({ connectionString: testServerUrl() });
+    let waitingElsewhere: Promise<unknown> | undefined;
+    let running: ReturnType<typeof world.run> | undefined;
     await other.connect();
     try {
-      await other.query("BEGIN");
-      await other.query("SELECT pg_advisory_xact_lock(hashtext('storytree.record-writes'))");
-      const running = world.run(["library", "new", "definition", "--term", "Mailer", "--meaning", "Sends the mail."]);
-      // Its turn comes once the command is queued behind this lock.
+      await elsewhere.connect();
+      await unrelated.connect();
+      await elsewhere.query("BEGIN");
+      await elsewhere.query("SELECT pg_advisory_xact_lock(hashtext('storytree.record-writes'))");
+      const { rows: backends } = await unrelated.query<{ pid: number }>("SELECT pg_backend_pid() AS pid");
+      const pid = backends[0]!.pid;
+      waitingElsewhere = unrelated.query("SELECT pg_advisory_xact_lock(hashtext('storytree.record-writes'))")
+        .then(() => undefined, (error: unknown) => error);
+      // Keep the same lock key queued in another database, as concurrent CLI tests can.
+      let queuedElsewhere = false;
       for (let tries = 0; tries < 200; tries += 1) {
-        const { rows } = await other.query<{ n: number }>("SELECT count(*)::int AS n FROM pg_locks WHERE locktype = 'advisory' AND NOT granted");
-        if ((rows[0]?.n ?? 0) > 0) break;
+        const { rows } = await elsewhere.query("SELECT 1 FROM pg_locks WHERE pid = $1 AND locktype = 'advisory' AND NOT granted", [pid]);
+        if (rows.length > 0) { queuedElsewhere = true; break; }
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
+      assert.ok(queuedElsewhere, "the unrelated writer never queued");
+      await other.query("BEGIN");
+      await other.query("SELECT pg_advisory_xact_lock(hashtext('storytree.record-writes'))");
+      running = world.run(["library", "new", "definition", "--term", "Mailer", "--meaning", "Sends the mail."]);
+      // Only this world's command can queue behind this connection's project write lock.
+      // A waiter elsewhere on the shared test server must not release it early.
+      let queued = false;
+      for (let tries = 0; tries < 200; tries += 1) {
+        const { rows } = await other.query(`SELECT 1 FROM pg_locks
+          WHERE locktype = 'advisory' AND NOT granted
+            AND database = (SELECT oid FROM pg_database WHERE datname = current_database())
+            AND pg_backend_pid() = ANY(pg_blocking_pids(pid))`);
+        if (rows.length > 0) { queued = true; break; }
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      assert.ok(queued, "the command never queued behind this project's write lock");
       await other.query("COMMIT");
       const ran = await running;
 
@@ -143,6 +169,11 @@ test("1.15 a command kept waiting on the library, here for another session's wri
       assert.match(ran.stderr, /another session is writing to this project; waiting up to 30 s/);
     } finally {
       await other.end();
+      await elsewhere.end();
+      await waitingElsewhere;
+      await unrelated.end();
+      // Release the lock and reap the command even when observing its wait fails.
+      await running;
     }
   });
 });

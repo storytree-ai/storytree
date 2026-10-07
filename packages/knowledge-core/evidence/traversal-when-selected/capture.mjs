@@ -115,6 +115,12 @@ await runCapture({
     name: `${label}-one-selected`, ...(smoke ? { picture: false } : {}),
     prepare: async ({ page, settle }) => {
       const row = page.getByRole('complementary', { name: 'Running sessions', exact: true }).locator(`.session-row[data-session-id="${SELECTED}"]`);
+      // Pointing at the row lights its session's islands, the globe's first draw of that highlight, which compiles six new shaders
+      // (slow in software GL on a busy Windows runner). The click waits until that highlight is drawn, so its press and release
+      // do not queue behind the compile (a click timed out there, PR #764's Windows run).
+      await row.hover();
+      await page.waitForFunction(story => !!window.__globe.scene.getObjectByName(`session-highlight:${story}`), storyOfPackage['agent-link'], { timeout: 30000 });
+      await settle(page);
       await row.click();
       await page.waitForFunction(([want, hsl]) => {
         const lit = {}; window.__globe.scene.traverse(o => { if (o.name.startsWith('knowledge-point:') && o.userData.window) lit[o.userData.id] = o.userData.colour; });

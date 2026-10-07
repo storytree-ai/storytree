@@ -3,9 +3,10 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { BufferGeometry, DoubleSide, Float32BufferAttribute, type Vector3 } from 'three';
 import type { PlanetPathways } from './pathways.js';
-import { growthProgress, segmentDrawRange, type GrowthWindow } from './growth.js';
+import { growthProgress, roadSegmentWindows, segmentDrawRange, type GrowthWindow } from './growth.js';
 import { usePlanetGrowth } from './PlanetGrowth.js';
 import { advanceLaneClock, laneDrawSeconds, laneProgress, laneRoutes, type LitLink } from './lanes.js';
+import { liveRoadProgress, nextLiveRoads } from './live-roads.js';
 
 const ribbonShapes = new WeakMap<BufferGeometry, {
   position: Float32Array; distances: number[]; movedPair: number | undefined;
@@ -38,7 +39,7 @@ export function ribbon(route: { points: Vector3[]; width: number }, halo = false
 }
 
 /** Reveal physical distance, moving the last pair of vertices between route samples. */
-export function revealRibbon(geometry: BufferGeometry, progress: number): void {
+export function revealRibbon(geometry: BufferGeometry, progress: number, fromEnd = false): void {
   const shape = ribbonShapes.get(geometry)!;
   const position = geometry.getAttribute('position');
   const restore = shape.movedPair;
@@ -49,8 +50,8 @@ export function revealRibbon(geometry: BufferGeometry, progress: number): void {
   }
   const fraction = Math.max(0, Math.min(1, progress));
   const total = shape.distances.at(-1) ?? 0;
-  const distance = fraction * total;
-  geometry.userData.pathwayReveal = { progress: fraction, drawnLength: distance, totalLength: total };
+  const distance = (fromEnd ? 1 - fraction : fraction) * total;
+  geometry.userData.pathwayReveal = { progress: fraction, drawnLength: fraction * total, totalLength: total, fromEnd };
   if (fraction === 0 || total === 0) { geometry.setDrawRange(0, 0); return; }
   if (fraction === 1) { geometry.setDrawRange(0, geometry.index?.count ?? 0); return; }
   let lo = 1, hi = shape.distances.length - 1;
@@ -61,35 +62,70 @@ export function revealRibbon(geometry: BufferGeometry, progress: number): void {
   }
   const previous = shape.distances[lo - 1]!;
   const between = (distance - previous) / (shape.distances[lo]! - previous);
+  const frontPair = fromEnd ? lo - 1 : lo;
   for (let j = 0; j < 6; j++) {
     const start = shape.position[(lo - 1) * 6 + j]!;
-    position.array[lo * 6 + j] = start + (shape.position[lo * 6 + j]! - start) * between;
+    position.array[frontPair * 6 + j] = start + (shape.position[lo * 6 + j]! - start) * between;
   }
-  shape.movedPair = lo;
+  shape.movedPair = frontPair;
   position.needsUpdate = true;
-  geometry.setDrawRange(0, lo * 6);
+  geometry.setDrawRange(fromEnd ? frontPair * 6 : 0, fromEnd ? (geometry.index?.count ?? 0) - frontPair * 6 : lo * 6);
 }
 
 // Neither the road nor its light can occlude a name, claim marker or island selection ray.
 const ignoreRay = () => {};
 
-/** The roads between islands; under a growth (world 7.4) each segment draws on from the end its road enters. */
-export function Pathways({ plan, reveal }: { plan: PlanetPathways; reveal?: ReadonlyMap<string, GrowthWindow & { fromEnd: boolean }> | undefined }) {
+/** The roads between islands: a recorded growth (7.4), or the live host's real arrivals (6.16). */
+export function Pathways({ plan, reveal, live = false }: { plan: PlanetPathways; reveal?: ReadonlyMap<string, GrowthWindow & { fromEnd: boolean }> | undefined; live?: boolean }) {
+  const liveClock = useRef({ elapsed: 0, started: false, reduced: reducedMotion(), roads: new Map<string, GrowthWindow>() as ReadonlyMap<string, GrowthWindow> });
+  const state = liveClock.current;
+  if (live) {
+    const next = nextLiveRoads(state.roads, plan, state.elapsed);
+    if (next !== state.roads) {
+      // A new arrival gets an undrawn first frame even after a long idle interval.
+      if ([...next.keys()].some(key => !state.roads.has(key))) state.started = false;
+      state.roads = next;
+      state.reduced = reducedMotion();
+    }
+  }
+  const windows = useMemo(() => live ? roadSegmentWindows(plan, state.roads) : reveal, [plan, live, state.roads, reveal]);
   const meshes = useMemo(() => plan.segments.filter(segment => segment.island === undefined)
-    .map(route => ({ route, geometry: ribbon(route), halo: ribbon(route, true) })), [plan]);
+    .map(route => {
+      const geometry = ribbon(route), halo = ribbon(route, true);
+      if (live) {
+        const window = windows?.get(route.id), drawn = liveRoadProgress(window, state.elapsed, state.reduced);
+        revealRibbon(geometry, drawn, window?.fromEnd);
+        revealRibbon(halo, drawn, window?.fromEnd);
+      }
+      return { route, geometry, halo };
+    }), [plan, live]);
   useEffect(() => () => meshes.forEach(mesh => { mesh.geometry.dispose(); mesh.halo.dispose(); }), [meshes]);
   const growth = usePlanetGrowth();
-  useFrame(() => {
-    if (reveal === undefined) return;
-    const now = growth.now();
-    for (const { route, geometry, halo } of meshes) {
-      const window = reveal.get(route.id);
-      // A segment no road schedules keeps painting whole.
-      const drawn = window === undefined ? 1 : growthProgress(window, now, false);
-      const range = segmentDrawRange((geometry.index?.count ?? 0) / 6, drawn, window?.fromEnd ?? false);
-      geometry.setDrawRange(range.start, range.count);
-      halo.setDrawRange(range.start, range.count);
+  const { invalidate } = useThree();
+  useEffect(() => { if (live) invalidate(); }, [meshes, live, invalidate]);
+  useFrame((_, delta) => {
+    if (windows === undefined) return;
+    if (live) {
+      if (state.started) state.elapsed = advanceLaneClock(state.elapsed, delta);
+      state.started = true;
     }
+    const now = live ? state.elapsed : growth.now();
+    let drawing = false;
+    for (const { route, geometry, halo } of meshes) {
+      const window = windows.get(route.id);
+      // A segment no road schedules keeps painting whole.
+      const drawn = live ? liveRoadProgress(window, now, state.reduced) : growthProgress(window, now, false);
+      if (live) {
+        revealRibbon(geometry, drawn, window?.fromEnd);
+        revealRibbon(halo, drawn, window?.fromEnd);
+        drawing ||= drawn < 1;
+      } else {
+        const range = segmentDrawRange((geometry.index?.count ?? 0) / 6, drawn, window?.fromEnd ?? false);
+        geometry.setDrawRange(range.start, range.count);
+        halo.setDrawRange(range.start, range.count);
+      }
+    }
+    if (drawing) invalidate();
   });
   return <group name="pathways:cross-island" userData={{
     links: plan.edges.map(edge => ({ from: edge.from, to: edge.to })),

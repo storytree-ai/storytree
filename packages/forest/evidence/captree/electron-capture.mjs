@@ -1,7 +1,7 @@
 // Captures the capability tree's own space in the real `pnpm desktop:smoke` Electron window,
 // driven over CDP (the top-bars lane's route). No pixel editing. Run under the heavy lock with a
-// throwaway restored STORYTREE_HOME and a temporary X display:
-//   DISPLAY=:137 STORYTREE_EMBEDDER=off CAPTREE_SHOTS=panel,tree,panned flock /tmp/storytree-heavy.lock node --import tsx packages/forest/evidence/captree/electron-capture.mjs
+// throwaway restored home in CAPTURE_STORYTREE_HOME and a temporary X display (see README):
+//   DISPLAY=:137 STORYTREE_EMBEDDER=off CAPTREE_SHOTS=panel,tree,panned node packages/dev-loop/src/heavy-lock.mjs -- env STORYTREE_HOME="$CAPTURE_STORYTREE_HOME" node --import tsx packages/forest/evidence/captree/electron-capture.mjs
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';

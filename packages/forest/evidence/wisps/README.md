@@ -14,7 +14,7 @@ These pictures show the actual desktop renderer with synthetic sessions in headl
 - [Browser assertions and renderer](capture.json)
 
 ```sh
-flock /tmp/storytree-heavy.lock ~/.local/bin/blender -b --python packages/forest-world/assets/wisp.blend.py
-flock /tmp/storytree-heavy.lock node packages/forest/evidence/sessions-list/build.mjs
-flock /tmp/storytree-heavy.lock node --import tsx packages/forest/evidence/wisps/capture.mjs
+node packages/dev-loop/src/heavy-lock.mjs -- ~/.local/bin/blender -b --python packages/forest-world/assets/wisp.blend.py
+node packages/dev-loop/src/heavy-lock.mjs -- node packages/forest/evidence/sessions-list/build.mjs
+node packages/dev-loop/src/heavy-lock.mjs -- node --import tsx packages/forest/evidence/wisps/capture.mjs
 ```

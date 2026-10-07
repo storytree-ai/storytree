@@ -33,6 +33,8 @@ export type PlanetViewProps = {
   frame?: ForestScene | undefined;
   /** A recorded growth to replay (world 7): islands rise, their territories and file circles fill in behind them (3.30), and the core's notes appear. */
   growth?: PlanetGrowth | undefined;
+  /** The live desktop grows arriving ordinary roads, separately from recorded replay. */
+  liveRoads?: boolean | undefined;
   /** With a growth, the sessions recorded with each dated stage: they pass over the islands they held as the replay reaches them (5.7), in place of `wisps`. */
   recordedSessions?: readonly { at: string; wisps: readonly SessionWisp[] }[] | undefined;
   core: KnowledgeCore;
@@ -46,7 +48,7 @@ export type PlanetViewProps = {
   onNote: (note: string) => void;
 };
 
-export function PlanetView({ core, scene, places, wisps: live, selected, highlighted, onPick, onNote, mode = "forest", framing, sideOffset, surfaces, onControls, library = true, frame, growth, recordedSessions }: PlanetViewProps) {
+export function PlanetView({ core, scene, places, wisps: live, selected, highlighted, onPick, onNote, mode = "forest", framing, sideOffset, surfaces, onControls, library = true, frame, growth, liveRoads = false, recordedSessions }: PlanetViewProps) {
   // Zoomed in past the islands, or in the Library, only the glass and the core show (ADR-0919 D3, D4). The hidden
   // marks stay mounted, so guides can still locate them.
   const [past, setPast] = useState(false);
@@ -117,7 +119,7 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
   return <PlanetWorldCanvas scene={layout.scene} spots={layout.spots} radius={layout.radius}
     surface surfaces={shownSurfaces} framing={cameraFraming} sideOffset={cameraOffset} orbit={false}
     inside={<group name="globe-core" visible={library && shownSurfaces.knowledgeCore}><GrowingCore core={core} spots={layout.spots} radius={layout.radius} places={codePlaces} growing={growth !== undefined} /></group>}
-    rotation={rotation.toArray()} plateChildren={overlays} lanes={lanes} growth={growth}>
+    rotation={rotation.toArray()} plateChildren={overlays} lanes={lanes} growth={growth} liveRoads={liveRoads}>
     <Navigation islands={layout.islands} radius={layout.radius} titles={new Map(scene.islands.map(i => [i.story, i.title]))}
       rotation={rotation} onRotate={setRotation} onPose={setPose} onControls={onControls} onPick={onPick} onNote={onNote} mode={mode} onPast={setPast}
       showFailures={shownSurfaces.grounds || shownSurfaces.territories !== false || shownSurfaces.fileCircles || shownSurfaces.nameplates || shownSurfaces.roads} />

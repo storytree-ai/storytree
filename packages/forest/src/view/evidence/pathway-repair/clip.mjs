@@ -7,10 +7,12 @@ import { once } from 'node:events';
 import path from 'node:path';
 const folder = path.resolve(process.argv[2]);
 const ffmpeg = process.env.CAPTURE_FFMPEG ?? 'ffmpeg';
-const { screencast } = JSON.parse(readFileSync(path.join(folder, 'measurements.json'), 'utf8'));
+const live = process.argv.includes('--live');
+const destination = path.join(folder, live ? 'live-roads.webm' : 'normal-selection.webm');
+const { screencast } = JSON.parse(readFileSync(path.join(folder, live ? 'normal-measurements.json' : 'measurements.json'), 'utf8'));
 assert.ok(screencast.length > 1, 'capture compositor frames before encoding');
 const encoder = spawn(ffmpeg, ['-hide_banner', '-loglevel', 'warning', '-y', '-f', 'image2pipe', '-r', '25',
-  '-c:v', 'mjpeg', '-i', 'pipe:0', '-an', '-c:v', 'libvpx', '-b:v', '1600k', path.join(folder, 'normal-selection.webm')],
+  '-c:v', 'mjpeg', '-i', 'pipe:0', '-an', '-c:v', 'libvpx', '-b:v', '1600k', destination],
   { stdio: ['pipe', 'inherit', 'inherit'] });
 const completion = once(encoder, 'exit');
 const start = screencast[0].timestamp;
@@ -24,4 +26,4 @@ for (let frame = 0; start + frame / 25 < end; frame++) {
 encoder.stdin.end();
 const [code] = await completion;
 assert.equal(code, 0, 'ffmpeg completed');
-console.log(path.join(folder, 'normal-selection.webm'));
+console.log(destination);

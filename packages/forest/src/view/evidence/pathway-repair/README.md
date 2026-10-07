@@ -33,22 +33,15 @@ output folder to a scratch/evidence destination. `--retake` means that destinati
 is intentional; the default writes under `/tmp/storytree-captures`.
 
 ```sh
-capture_locked() {
-  node --import tsx --input-type=module -e '
-    import path from "node:path";
-    import { pathToFileURL } from "node:url";
-    import { acquireHeavyLock } from "./packages/dev-loop/src/heavy-lock.mjs";
-    const release = await acquireHeavyLock({ root: process.cwd(), what: "pathway evidence" });
-    try { await import(pathToFileURL(path.resolve(process.argv[1])).href); }
-    finally { release(); }
-  ' "$@"
-}
-capture_locked packages/forest/src/view/evidence/pathway-repair/build.mjs "$PWD" after
+node packages/dev-loop/src/heavy-lock.mjs -- node --import tsx \
+  packages/forest/src/view/evidence/pathway-repair/build.mjs "$PWD" after
 CAPTURE_CHROMIUM=/usr/bin/google-chrome \
 PATHWAY_CAPTURE_OUT=/home/mickh/storytree-lanes/pathway-repair-20261007/captures/after \
-capture_locked packages/forest/src/view/evidence/pathway-repair/capture.mjs after --retake
+node packages/dev-loop/src/heavy-lock.mjs -- node --import tsx \
+  packages/forest/src/view/evidence/pathway-repair/capture.mjs after --retake
 CAPTURE_FFMPEG=/home/mickh/.cache/ms-playwright/ffmpeg-1011/ffmpeg-linux \
-capture_locked packages/forest/src/view/evidence/pathway-repair/clip.mjs \
+node packages/dev-loop/src/heavy-lock.mjs -- node --import tsx \
+  packages/forest/src/view/evidence/pathway-repair/clip.mjs \
   /home/mickh/storytree-lanes/pathway-repair-20261007/captures/after
 ```
 
@@ -73,8 +66,9 @@ The recordings in `before/` and `endpoints/` used only the older outer
 `flock /tmp/storytree-heavy.lock`. That is a different file from the current
 gate/test lock, so those recordings cannot claim controlled isolation from other
 heavy machine work. Their frame timings describe those observed runs only.
-The documented command wrapper takes the current gate/test lock; an additional
-legacy outer `flock` is optional and does not replace that wrapper.
+The documented command wrapper takes the current gate/test lock. It coordinates
+participating commands only; uncontrolled competing work still prevents these
+timings from being controlled benchmarks.
 
 - Thirteen coloured lanes appear for the thirteen real cross-story links.
 - Twelve render submissions during selection include ten partially drawn frames.
@@ -184,7 +178,125 @@ front. The ordinary beige desktop roads still appear whole in this increment;
 selection-colour growth and website replay do not prove live-road growth.
 
 To repeat, point `PATHWAY_CAPTURE_DIST` at either preserved bundle and
-`PATHWAY_CAPTURE_OUT` at a fresh output folder, then use `capture_locked` above with
+`PATHWAY_CAPTURE_OUT` at a fresh output folder, then use the command wrapper above with
 the matching label. Rebuild from the intended checkout to capture changed product
 code. Keep the source bundle outside an automatically cleaned worktree if its exact
 baseline must survive the landing.
+
+## Live beige crossing roads, third increment
+
+This increment enables ordinary **cross-island beige ribbons** in the desktop to
+grow on the first display and when a dependency arrives through the live poll.
+It leaves inland wear unchanged. The earlier selection-colour captures do not
+stand in for this behavior.
+
+| Actual desktop view | Evidence |
+| --- | --- |
+| First display, roads still growing (opening camera) | [Initial partial compositor frame](after-live-first-display-mid.jpg) |
+| Same first display, completed | [Initial completion](after-live-first-display-complete.png) |
+| Settled 130-link graph, before restoring the dependency (camera faces the two islands) | [Before addition](after-live-before-addition.png) |
+| Restored beige crossing growing out of The library | [Addition partial compositor frame](after-live-addition-mid.jpg) |
+| All 131 saved links restored | [Addition completion](after-live-addition-complete.png) |
+| Live addition at the actual compositor timing | [Before repair](before-live.webm) · [After repair](after-live.webm) |
+
+The fixture removes only Agent tools' saved dependency on Library API before
+navigation, then restores its exact original dependency list through a normal
+capability-update record. The desktop's existing two-second poll rereads the tree.
+No dependency is invented; the restored graph is exactly the saved 131-link graph.
+The selected route has two new-only spans, including one 97.671-unit crossing, and
+26 shared spans, including two crossings. Classification uses the original
+capability-link identities, never segment-ID stability.
+
+The first-frame observer is installed through the shared kit's capture seam at
+Canvas creation, before the first `gl.render`. It records geometry submitted by
+the real renderer, without changing time or requesting animation frames. The
+probe waits for initial completion before moving the camera and before restoring
+the dependency. It again waits without invalidation for the new road to finish.
+The separate opening pictures set only the returning user's existing guide-dismissed
+preference, so Help does not cover the forest; the 130-link data and renderer are
+the same. Their compositor starts recording before page navigation.
+
+[Live measurements](live-measurements.json) includes the initial frame traces,
+physical addition fronts, renderer identity, bundle hashes and exact link identities.
+Both bundles remain outside the checkout in the lane's `captures/bundles/before-live`
+and `captures/bundles/after-live`; the baseline is clean commit
+`12dc3d9c834bab0f60343b1d3979e19495233c79`. Full traces are in `captures/before-live/`
+and `captures/after-live/`; opening compositor pictures are in
+`captures/after-live-initial/`.
+
+| Observed behavior, Chrome 151 / ANGLE Vulkan SwiftShader | Before | After |
+| --- | --- | --- |
+| First normal frame of the initial 130-link graph | All 28 crossing ribbons whole | All 28 undrawn |
+| Initial partial render frames | 0 | 10 |
+| First frame of the restored new-only crossing | Whole | Undrawn |
+| Partial render frames of that crossing | 0 | 4 |
+| Existing/shared crossings during restoration | Complete | Complete |
+| Final link identities | All 131 | All 131 |
+| Unrelated description update after completion | Complete | Complete |
+| Reduced-motion initial and addition first frames | Complete | Complete |
+
+The added strip's actual drawn vertex pairs advance from the Library end toward
+the shared trunk leading to Agent tools (`fromEnd: true` for this segment).
+Existing route geometry can move as the router rebuilds the plan; its completed
+roads remain drawn. Both normal animations finish on demand. No coloured selection
+lane is mounted, and both pages report zero errors.
+
+The numbered real-browser test
+[`desktop-renderer-smoke.test.ts`](../../desktop-renderer-smoke.test.ts) protects forest
+3.35. Against the immutable baseline it failed with “new-only beige spans begin
+undrawn; observed [1]”. The corrected product passes, including initial growth,
+in about 20 seconds on this machine. The smoke takes no pictures and retains its
+first-frame trace in the capture kit's scratch output. It uses the same real desktop
+bundle and browser as the full capture; CI's installed Chrome needs no download.
+
+The smoke uses a 640 × 480 viewport with the same 131-link scene and reads the real
+world-space geometry. It omits picture framing, Help interactions and camera
+settling; full captures remain 1440 × 960. CI previously passed in 46 seconds on
+Windows and 59 seconds on Linux, while macOS reached the old 80-second subprocess
+deadline. Its next run identified the initial roads' 15-second completion wait.
+Growth advances with rendered frames, so slow rendering stretches wall time: both
+real browser smokes passed together on one CPU core in 97.56 seconds, with initial
+roads advancing through 14 frames over 7.68 seconds and frame gaps up to 1.52 seconds.
+No local demand-render stall was reproduced. The initial completion allowance is
+now 30 seconds; the capture remains bounded at 120 seconds inside the test's
+155-second limit. Failed stages retain elapsed phase diagnostics and a bounded
+passive frame tail, including progress, redraw state, visibility and canvas size.
+The next macOS run completed every behavior check and both page closures, then
+exceeded the child deadline during capture cleanup. After all observations and
+pictures, the capture now cancels pending redraws and disposes its own renderer
+and WebGL context before closing each page. Shutdown phases distinguish browser
+disconnection from the capture server's cleanup. No observation or deadline is
+changed by this cleanup.
+
+A subsequent macOS failure trace showed all 28 initial roads complete across 15
+frames, with no pending redraw and a visible canvas, while the RAF-based state
+wait timed out. State predicates now poll every 100 ms, independently of rendering;
+they never invalidate the globe. The same complete raw observation is transferred
+as a JSON string and parsed in Node, avoiding recursive protocol serialization of
+every frame. macOS requires its CI rerun to verify the complete capture lifecycle.
+
+The unrelated-description check waits for an actual submitted frame whose territory
+mesh contains that exact updated description, then checks every intervening road
+frame stayed complete. A tree-read count plus a fixed half-second delay did not
+establish that rendering had consumed the update. Assertion diagnostics retain
+the motion mode, frame counts, consumption and progress; an empty trace cannot pass.
+
+The pathway and territory-health browser proofs live in that one test file so Node
+runs them sequentially. Separate files launched competing SwiftShader browsers
+inside one forest unit despite the shared lock around the whole test run. Both
+numbered behaviors retain their full fixtures, assertions and individual deadlines.
+
+Use the command wrapper from above, with `PATHWAY_CAPTURE_DIST` naming the intended
+bundle and `PATHWAY_CAPTURE_OUT` naming its output:
+
+```sh
+node packages/dev-loop/src/heavy-lock.mjs -- node --import tsx packages/forest/src/view/evidence/pathway-repair/live-capture.mjs after-live --retake
+node packages/dev-loop/src/heavy-lock.mjs -- node --import tsx packages/forest/src/view/evidence/pathway-repair/clip.mjs /path/to/after-live --live
+# Optional separate opening pictures, before the first road frame:
+node packages/dev-loop/src/heavy-lock.mjs -- node --import tsx packages/forest/src/view/evidence/pathway-repair/live-capture.mjs after-live-initial --initial-only --retake
+```
+
+Use a separate output folder for the optional opening run. Video encoding retains
+the observed compositor timing, including the poll delay, and holds real pictures
+between frames; it does not generate intermediate motion. The capture allows the
+software compositor to present the final submitted frame before stopping its video.

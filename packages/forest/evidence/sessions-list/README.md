@@ -53,8 +53,8 @@ seeded captures; they do not record owner acceptance.
 From the checkout root:
 
 ```sh
-flock /tmp/storytree-heavy.lock node --import tsx packages/forest/evidence/sessions-list/build.mjs
-flock /tmp/storytree-heavy.lock node --import tsx packages/forest/evidence/sessions-list/capture.mjs
+node packages/dev-loop/src/heavy-lock.mjs -- node --import tsx packages/forest/evidence/sessions-list/build.mjs
+node packages/dev-loop/src/heavy-lock.mjs -- node --import tsx packages/forest/evidence/sessions-list/capture.mjs
 ```
 
 The default writes to `/tmp/storytree-captures/packages/forest/evidence/sessions-list`.

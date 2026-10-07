@@ -1,7 +1,7 @@
 # Expandable session rows: worktrees and window files (contract 7.8)
 
 The real desktop page (built by `../sessions-list/build.mjs`), with synthetic activity and a stubbed
-window reading; run both through `flock /tmp/storytree-heavy.lock`.
+window reading; run both through `node "<checkout>/packages/dev-loop/src/heavy-lock.mjs" --` (use the absolute checkout path).
 
 - `collapsed.png`: every row has one expander; the row with a subagent shows it as "+1".
 - `expanded.png`: the first row expanded: its three worktrees under a "Worktrees" label, each by its folder name (full path on hover), then, under

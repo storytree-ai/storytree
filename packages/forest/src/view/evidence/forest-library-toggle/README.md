@@ -83,7 +83,7 @@ Reproduce from the checkout root (installed Playwright Chromium, or
 ```sh
 node --import tsx packages/forest/src/view/evidence/forest-library-toggle/measure.mjs
 node packages/forest/src/view/evidence/forest-library-toggle/build.mjs
-flock /tmp/storytree-heavy.lock node --import tsx packages/forest/src/view/evidence/forest-library-toggle/capture.mjs
+node packages/dev-loop/src/heavy-lock.mjs -- node --import tsx packages/forest/src/view/evidence/forest-library-toggle/capture.mjs
 ```
 
 The default capture writes into `/tmp/storytree-captures/`; `--retake` explicitly

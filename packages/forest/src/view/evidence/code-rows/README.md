@@ -35,8 +35,22 @@ get the same stand-in bridge, seed, survey, viewport and turns; nothing is hand-
 
 ## Rerun
 
+Run from this capture directory; replace `<checkout>` with the absolute path to
+an installed checkout that contains the shared wrapper. The wrapper preserves the
+working directory, so relative capture inputs and outputs keep their meanings.
+It takes `STORYTREE_HOME/heavy-run.lock` (default `~/.storytree/0.3/heavy-run.lock`),
+the same lock as `pnpm gate` and `pnpm test`. It names the holder while waiting,
+forwards interruption to the child process tree, preserves command failure status,
+and recovers stale holders. Pass the executable and its arguments after `--`;
+the wrapper does not run them through a shell. Choose `before` or `after` below
+rather than passing the `|` notation literally.
+
+This coordinates participating commands only. Timings collected with uncontrolled
+competing work are observations, not controlled benchmarks; the lock does not
+establish machine isolation.
+
 As ../rows/README.md: `tsx seed.mts`, `tsx survey.mjs`, `node --import tsx build.mjs <before checkout> before`,
-`node --import tsx build.mjs <this checkout> after`, then `flock /tmp/storytree-heavy.lock node --import tsx capture.mjs before|after`.
+`node --import tsx build.mjs <this checkout> after`, then `node "<checkout>/packages/dev-loop/src/heavy-lock.mjs" -- node --import tsx capture.mjs before|after`.
 
 ## Nudged within the rows' bands, and crowded nameplates give way
 
@@ -57,7 +71,7 @@ are its before; **nudged** is this branch, same seed, survey, viewport and turns
   they clear (the selected story's never is). Unturned, the local database sits edge-on at the rim behind
   the process ledger, so its plate gives way; turned as the app opens, both show.
 
-Rerun: `node --import tsx build.mjs <this checkout> nudged`, then `flock /tmp/storytree-heavy.lock node --import tsx capture.mjs nudged`.
+Rerun: `node --import tsx build.mjs <this checkout> nudged`, then `node "<checkout>/packages/dev-loop/src/heavy-lock.mjs" -- node --import tsx capture.mjs nudged`.
 
 The scripts now provide seeds and views to the shared desktop capture runner.
 Browser launch, bridge installation, the asset server, settling, output and cleanup

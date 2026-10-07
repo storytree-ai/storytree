@@ -82,21 +82,23 @@ From the repository root:
 
 ```sh
 node packages/forest/src/view/evidence/planet-pathways/build.mjs
-flock /tmp/storytree-heavy.lock node --import tsx packages/forest/src/view/evidence/planet-pathways/measure.mjs
-flock /tmp/storytree-heavy.lock node --import tsx packages/forest/src/view/evidence/planet-pathways/capture.mjs
+node packages/dev-loop/src/heavy-lock.mjs -- node --import tsx packages/forest/src/view/evidence/planet-pathways/measure.mjs
+node packages/dev-loop/src/heavy-lock.mjs -- node --import tsx packages/forest/src/view/evidence/planet-pathways/capture.mjs
 ```
 
 `PLANET_PLAYWRIGHT` and `PLANET_CHROMIUM` can override the installed Mint-box
 paths recorded in the capture script. Append `front` or `quarter-turn` to capture
 one view. Browser and HTTP server close in `finally`; export stops Postgres too.
 
-To deliberately replace the snapshot with a fresh isolated seed, whose generated
-IDs can produce different coast shapes:
+To deliberately replace the snapshot, use a fresh isolated seed; its generated
+IDs can produce different coast shapes. Keep the wrapper on gate/test's normal
+`STORYTREE_HOME`; `env` applies the isolated home only to its child so the lock
+stays shared:
 
 ```sh
-export STORYTREE_HOME="$PWD/packages/forest/src/view/evidence/planet-pathways/dist/home"
-flock /tmp/storytree-heavy.lock pnpm seed:library
-flock /tmp/storytree-heavy.lock node --import tsx packages/forest/src/view/evidence/planet-pathways/export.mjs
+CAPTURE_STORYTREE_HOME="$PWD/packages/forest/src/view/evidence/planet-pathways/dist/home"
+node packages/dev-loop/src/heavy-lock.mjs -- env STORYTREE_HOME="$CAPTURE_STORYTREE_HOME" pnpm seed:library
+node packages/dev-loop/src/heavy-lock.mjs -- env STORYTREE_HOME="$CAPTURE_STORYTREE_HOME" node --import tsx packages/forest/src/view/evidence/planet-pathways/export.mjs
 ```
 
 [export.mjs](export.mjs) requires `STORYTREE_HOME`, reads through the same

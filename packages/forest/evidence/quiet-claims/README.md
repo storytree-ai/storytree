@@ -51,9 +51,9 @@ From the repository root; `PLANET_PLAYWRIGHT` and `PLANET_CHROMIUM` can override
 capture's Mint-local defaults:
 
 ```sh
-flock /tmp/storytree-heavy.lock node packages/forest/evidence/quiet-claims/build.mjs
-flock /tmp/storytree-heavy.lock node --import tsx packages/forest/evidence/quiet-claims/capture.mjs
-flock /tmp/storytree-heavy.lock pnpm gate
+node packages/dev-loop/src/heavy-lock.mjs -- node packages/forest/evidence/quiet-claims/build.mjs
+node packages/dev-loop/src/heavy-lock.mjs -- node --import tsx packages/forest/evidence/quiet-claims/capture.mjs
+pnpm gate
 ```
 
 The bundle stays in ignored `dist/`. The capture checks forest contracts 5.1–5.3 and

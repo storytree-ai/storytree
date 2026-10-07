@@ -77,7 +77,7 @@ variables remain supported.
 ```sh
 node --import tsx packages/forest/src/view/evidence/library-dots-clickable/measure.mjs
 node packages/forest/src/view/evidence/library-dots-clickable/build.mjs
-flock /tmp/storytree-heavy.lock node --import tsx packages/forest/src/view/evidence/library-dots-clickable/capture.mjs
+node packages/dev-loop/src/heavy-lock.mjs -- node --import tsx packages/forest/src/view/evidence/library-dots-clickable/capture.mjs
 ```
 
 Default runs write to the temporary `storytree-captures/` folder. To refresh the

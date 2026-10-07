@@ -32,11 +32,10 @@ ignored `dist/`. From the repository root:
 
 ```sh
 node packages/forest/src/view/evidence/selection-lanes/build.mjs
-flock /tmp/storytree-heavy.lock node --import tsx packages/forest/src/view/evidence/selection-lanes/capture.mjs --retake
+node packages/dev-loop/src/heavy-lock.mjs -- node --import tsx packages/forest/src/view/evidence/selection-lanes/capture.mjs --retake
 ```
 
-The capture is a heavy run: like the other captures it does not take the lock itself (an evidence folder may not
-import another story's package), so run it under the machine's heavy-run lock from outside. Windows has no `flock`;
-a one-line wrapper that calls `acquireHeavyLock` from `packages/dev-loop/src/heavy-lock.mjs` and then spawns the
-command above does the same. Without `--retake` the output goes to a scratch folder. `PLANET_PLAYWRIGHT` and
+The command wrapper takes the same heavy-run lock as gate/test on Linux, macOS and Windows.
+The evidence script does not import another story's package. Without `--retake` the output
+goes to a scratch folder. `PLANET_PLAYWRIGHT` and
 `PLANET_CHROMIUM` can override the Playwright and Chromium paths.

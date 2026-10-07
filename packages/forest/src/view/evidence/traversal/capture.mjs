@@ -2,7 +2,7 @@
 // survey (survey.json), and one running session whose window (agent link 9.10) is fixed below: same seed,
 // same 1440 x 960 viewport, same programmatic turns and zoom; nothing is hand-panned. Reduced motion, so the
 // replay's finished picture is what is drawn. Measures what can be counted before anyone looks, writes
-// measurements.json. Run under flock /tmp/storytree-heavy.lock after `node build.mjs`.
+// measurements.json. Run under `node "<checkout>/packages/dev-loop/src/heavy-lock.mjs" --` after `node build.mjs`.
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';

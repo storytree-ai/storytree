@@ -1,3 +1,4 @@
+/** Capability 6 · The planet. */
 import type { OrthographicCamera } from 'three';
 
 /** The elevation the islands' light and tilt were signed at: the owner's 50° (ADR-0517 D2). */

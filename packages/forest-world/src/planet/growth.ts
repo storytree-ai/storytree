@@ -1,4 +1,4 @@
-/** The globe's growth (world contracts 7.1–7.4): a recorded sequence of plan states replayed as islands rising
+/** Capability 7 · Growth. The globe's growth (world contracts 7.1–7.4): a recorded sequence of plan states replayed as islands rising
  * and roads drawing on, choreographed the way 0.2's arrival was (ADR-0639: its behaviour, not its code). */
 import type { ForestScene } from '../scene.js';
 import { laneDrawSeconds } from './lanes.js';

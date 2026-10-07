@@ -1,4 +1,4 @@
-// The land's DECLARED CAMERA — ADR-0367 D1.
+// Capability 6 · The planet. The land's DECLARED CAMERA — ADR-0367 D1.
 //
 // ONE value, in degrees above the ground plane, read by BOTH the land's coordinate mapping and the
 // object sprites that stand on it. Before this module the land had NO camera at all: `hexCenter`

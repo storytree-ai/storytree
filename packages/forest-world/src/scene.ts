@@ -1,5 +1,5 @@
 /**
- * The forest a story's surface hands this engine to draw: its islands, one per story node, each with
+ * Capability 1 · Scene layout. The forest a story's surface hands this engine to draw: its islands, one per story node, each with
  * its capabilities (still typed as a grove of trees, 0.2's names), in world units. Since ADR-0804 D1
  * no tree is drawn: an island is a flat surface cut into capability territories, and a `PlacedTree`
  * is only a capability's record on it. The forest story (packages/forest) lays it out and imports these shapes

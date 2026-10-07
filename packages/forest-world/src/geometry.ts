@@ -1,4 +1,4 @@
-// @storytree/forest-world/geometry: the ground, coast and pathway geometry beneath the drawn
+// Capability 6 · The planet. @storytree/forest-world/geometry: the ground, coast and pathway geometry beneath the drawn
 // scene, for the forest to check what it draws against (ADR-0805 D1: the world is a story, so
 // no other package reaches into its files).
 export { parcelCellsFrom } from "./parcel-cells.js";

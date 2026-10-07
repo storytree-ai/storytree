@@ -211,7 +211,7 @@ export const steps: TourStep[] = [
   ], how: "Before writing, an agent claims the increment it will build and each part it will touch. A second claim on the same work is turned away.",
   why: "Two agents editing the same thing is how work gets lost. A claim says who is on what before anyone writes.",
   // Aimed past the cart so the island sits below the arcs drawer, both in view at once.
-  decisions: [], surfaces: lit(land), target: checkout, framing: .95, tags: [{ target: cart, text: "Part 3: cart page and side menu" }] },
+  decisions: [], surfaces: lit(land), target: checkout, framing: .95, phone: { target: checkout, framing: .95, side: -107 }, tags: [{ target: cart, text: "Part 3: cart page and side menu" }] },
   { id: "agents-parallel", explainer: "agents", ...shopMap, recorded: together, panel: "sessions", title: "Who is on what, at a glance.", lines: [
     "This means your agents can tell who is working on what just by looking at the map.",
     "Browsing, the cart and checkout, each built by its own session, at the same time.",

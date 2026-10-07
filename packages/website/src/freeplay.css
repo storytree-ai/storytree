@@ -51,5 +51,13 @@
  #chapter2[data-tour-mode="tour"] .arc-overlay { height:auto; min-height:0; max-height:136px; bottom:auto; }
  #chapter2[data-tour-mode="tour"] .arc-panes { grid-template-rows:minmax(0,1fr); }
  #chapter2[data-tour-mode="tour"] .arc-briefing { display:none; }
- #chapter2[data-tour-mode="tour"]:has(.tour-session-surface:not([hidden]), .tour-arc-surface:not([hidden])) .forest-drawing { top:104px; bottom:calc(52% - 32px); }
+ #chapter2[data-tour-mode="tour"]:has(.tour-session-surface:not([hidden]), .tour-arc-surface:not([hidden])) .forest-drawing { top:104px; bottom:max(calc(52% - 32px), calc(var(--tour-under) + 4px - 20px)); }
+}
+/* A short phone's long steps take room from the globe (2.19), so its globe's bottom follows the card up, and the band above
+   is won back: the sessions list rises over the heading, and the globe rises with the panel it sits under (2.18). */
+@media(max-width:600px) and (max-height:760px) {
+ #chapter2[data-tour-mode="tour"] .sessions-list { top:8px; }
+ #chapter2[data-tour-mode="tour"]:has(.tour-session-surface:not([hidden])) :is(.tour-heading, .tour-note) { visibility:hidden; }
+ #chapter2[data-tour-mode="tour"]:has(.tour-session-surface:not([hidden])) .forest-drawing { top:28px; }
+ #chapter2[data-tour-mode="tour"]:has(.tour-arc-surface:not([hidden])) .forest-drawing { top:64px; bottom:calc(max(calc(52% - 32px), calc(var(--tour-under) + 4px - 20px)) + 40px); }
 }

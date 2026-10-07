@@ -11,8 +11,7 @@
  * worklist (ADR-0825 D4), for the librarian pass to route.
  */
 import type { Claim } from "@storytree/agent-link";
-import { NOT_VERIFIED, wordAndWhy, type NodeHealth } from "@storytree/library";
-import { ghApi, gitIn, readProjectCi } from "@storytree/ci-health";
+import type { NodeHealth } from "@storytree/library";
 
 import { Refusal } from "../answer.js";
 import type { Family, Verb } from "../door.js";
@@ -46,6 +45,7 @@ const tree: Verb = {
     }
     if (stories.length === 0) return { text: "No stories yet.", next: [{ command: "storytree library new story --title <title>", why: "add one" }] };
     const claims = await context.claims();
+    const { NOT_VERIFIED, wordAndWhy } = await import("@storytree/library");
     const lines: string[] = [];
     const unverified = plan.unverified === true;
     for (const story of stories) {
@@ -89,6 +89,7 @@ const ci: Verb = {
   usage: "health ci",
   summary: "read this project's CI test results (its newest push run on GitHub) into its verified health",
   async act(_args, context) {
+    const { ghApi, gitIn, readProjectCi } = await import("@storytree/ci-health");
     const read = await readProjectCi({ library: await context.library(), git: gitIn(context.cwd), github: ghApi() });
     if (!read.written) return { text: read.why };
     return {

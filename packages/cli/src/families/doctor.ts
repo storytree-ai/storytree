@@ -20,7 +20,8 @@ import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 
-import { openActivityLog, ProjectFolderError, runSetupCheck, setUpProject, suggestProjectName, type SetupReport } from "@storytree/agent-link";
+import type { SetupReport } from "@storytree/agent-link";
+import { ProjectFolderError, setUpProject, suggestProjectName } from "@storytree/agent-link/routing";
 import type { ConnectOptions } from "@storytree/library";
 
 import { Refusal, type Answer } from "../answer.js";
@@ -86,6 +87,7 @@ function machineSaid(report: SetupReport): string[] {
 async function lastHook(library: ConnectOptions, project: string): Promise<string> {
   const { connect } = await import("@storytree/library");
   const storytree = await connect(library);
+  const { openActivityLog } = await import("@storytree/agent-link");
   const log = await openActivityLog(storytree).catch(async (error: unknown) => {
     await storytree.close();
     throw error;
@@ -106,6 +108,7 @@ const doctor: Verb = {
   summary: "check storytree's setup, fix what it can, and name the fix for the rest",
   async act(args, context): Promise<Answer> {
     const hook = hookBeside(context.script);
+    const { runSetupCheck } = await import("@storytree/agent-link");
     const report = await runSetupCheck({
       folder: context.cwd,
       ...(hook === undefined ? {} : { hook: { node: process.execPath, script: hook }, command: { path: process.env.PATH ?? process.env.Path ?? "", home: homedir() } }),

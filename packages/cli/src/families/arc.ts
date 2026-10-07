@@ -11,7 +11,6 @@
  * start` (starting is claiming, the agent tools'), no `increment ready` (ADR-0645 D5; ADR-0909 D4 retired the step, and the word is refused saying so), and no hand
  * close or re-open of an arc (the owner's R1). `arc list` reads list(kind), then each arc's view.
  */
-import { closed } from "@storytree/agent-link";
 import type { ArcView, Holds } from "@storytree/library";
 
 import { labelOf, Refusal, type Answer } from "../answer.js";
@@ -213,6 +212,7 @@ const incrementClose: Verb = {
     const outcome = closeOf(args);
     const done = await caller.library.closeIncrement(id, outcome, context.writer());
     if (done === null) throw new Refusal(`no increment "${id}" in this project`);
+    const { closed } = await import("@storytree/agent-link");
     await closed(caller, id, outcome.disposition);
     await context.journey?.().then((journey) => journey.incrementClosed(done.fields.outcome?.disposition)).catch(() => {});
     return { text: `Closed increment ${id}: ${done.fields.outcome?.disposition ?? ""}. Any claim on it has ended.`, next: [{ command: `storytree arc show ${done.fields.arc}`, why: "see the arc" }] };

@@ -1,8 +1,6 @@
 /** Capability 1 · Front door. A thin front door onto the agent link's per-user settings. */
-import { readSettings, setLibrary, setSetting, type LibraryReading, type SettingReading } from "@storytree/agent-link";
-import { readSurfaces, setSurface, type SurfaceReading } from "@storytree/app";
-import { arcSurfaces } from "@storytree/arc-surface/surfaces";
-import { forestSurfaces } from "@storytree/forest/surfaces";
+import type { LibraryReading, SettingReading } from "@storytree/agent-link";
+import type { SurfaceReading } from "@storytree/app";
 
 import { Refusal } from "../answer.js";
 import type { Family } from "../door.js";
@@ -16,9 +14,11 @@ export const settings: Family = {
     summary: "show each setting's value, type, default and meaning",
     async act(args) {
       if (args.words.length || args.names.length) throw new Refusal("usage: storytree settings show", { code: 2 });
+      const { readSettings } = await import("@storytree/agent-link");
+      const { readSurfaces } = await import("@storytree/app");
       const read = readSettings();
       const settings = Object.values(read).map((reading) => reading.name === "library" ? librarySaid(reading) : settingSaid(reading)).join("\n\n");
-      return { text: `${settings}\n\n${surfacesSaid(readSurfaces(SURFACES))}` };
+      return { text: `${settings}\n\n${surfacesSaid(readSurfaces(await surfaces()))}` };
     },
   }, {
     name: "set",
@@ -26,12 +26,14 @@ export const settings: Family = {
     summary: "save a setting for your user account",
     async act(args) {
       const usage = "settings set <name> <value>";
+      const { setLibrary, setSetting } = await import("@storytree/agent-link");
       if (args.words[0] === "library" && !args.names.length && args.words.length >= 2) {
         return { text: librarySaid(setLibrary(args.words.slice(1))), next: [{ command: "storytree settings show", why: "read your settings" }] };
       }
       if (args.words[0] === "surface" && !args.names.length && args.words.length >= 3) {
         const id = args.words[1];
-        const surface = setSurface(SURFACES, args.words.slice(1)).find((each) => each.id === id)!;
+        const { setSurface } = await import("@storytree/app");
+        const surface = setSurface(await surfaces(), args.words.slice(1)).find((each) => each.id === id)!;
         return { text: surfaceSaid(surface, ""), next: [{ command: "storytree settings show", why: "read your settings" }] };
       }
       if (args.words.length !== 2 || args.names.length) throw new Refusal(`usage: storytree ${usage}`, { code: 2 });
@@ -54,7 +56,10 @@ function librarySaid(reading: LibraryReading): string {
 }
 
 /** The app's surfaces, as each story declares them (ADR-0750), in the order the Surfaces menu lists them. */
-const SURFACES = [...forestSurfaces, ...arcSurfaces];
+async function surfaces() {
+  const [{ forestSurfaces }, { arcSurfaces }] = await Promise.all([import("@storytree/forest/surfaces"), import("@storytree/arc-surface/surfaces")]);
+  return [...forestSurfaces, ...arcSurfaces];
+}
 
 function surfacesSaid(surfaces: readonly SurfaceReading[]): string {
   return "Surfaces of the app (switch one with `storytree settings set surface <surface> on|off`):\n"

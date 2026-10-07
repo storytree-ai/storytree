@@ -8,7 +8,7 @@
  * `noticeboard log` shows the log's latest lines as the agent link writes them out, each with the
  * line that caused it or "cause not recorded" (ADR-0746 D2).
  */
-import { boardClaims, lineText, type Claim } from "@storytree/agent-link";
+import type { Claim } from "@storytree/agent-link";
 
 import { Refusal } from "../answer.js";
 import type { Family, Verb } from "../door.js";
@@ -30,6 +30,7 @@ const board: Verb = {
   async act(args, context) {
     const id = args.words[0];
     const { log: activity, project, folder, session, harness } = await context.activityContext();
+    const { boardClaims } = await import("@storytree/agent-link");
     const claims = await boardClaims({ log: activity, project, folder, session, ...(harness === undefined ? {} : { harness }), source: "tool" });
     if (id !== undefined) {
       const held = claims.find((claim) => claim.increment === id || claim.capability === id);
@@ -56,6 +57,7 @@ const log: Verb = {
     // The latest lines alone, never the whole log (agent link 2.7).
     const lines = await activity.lines(project, { ...(session === undefined ? {} : { sessions: [session] }), newest: limit });
     if (lines.length === 0) return { text: session === undefined ? "The activity log has no lines yet." : `The activity log has no lines for ${session}.` };
+    const { lineText } = await import("@storytree/agent-link");
     return { text: lines.map(lineText).join("\n") };
   },
 };

@@ -1,4 +1,4 @@
-/** Contract 4.16: a stable pin is release metadata, never a second build. */
+/** Capability 4 · Updates. Contract 4.16: a stable pin is release metadata, never a second build. */
 export interface LandedIncrement {
   id: string;
   fields: { title: string; status: string; outcome?: { disposition: string; pr?: string | undefined; note?: string | undefined } | undefined };

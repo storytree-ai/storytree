@@ -1,3 +1,4 @@
+/** Capability 3 · Surfaces. */
 import { mountDecisionRights, mountSettings, type SettingsBridge } from "@storytree/agent-link/view";
 import type { ProjectSelection } from "../projects/selection.js";
 import type { SurfacesBridge } from "../surfaces/bridge.js";

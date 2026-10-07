@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Updates 4.12: standalone so an acceptance runner can copy this one file beside its scripts.
+// Capability 4 · Updates. Updates 4.12: standalone so an acceptance runner can copy this one file beside its scripts.
 import { spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs";

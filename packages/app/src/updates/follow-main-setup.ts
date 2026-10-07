@@ -1,5 +1,5 @@
 /**
- * `pnpm app:follow-main`: set up the 0.3 app that follows merged main (ADR-0637 D2, the half for
+ * Capability 4 · Updates. `pnpm app:follow-main`: set up the 0.3 app that follows merged main (ADR-0637 D2, the half for
  * storytree 0.3's own development), and start it (capability 4 · Updates, the app story).
  *
  * It clones the repository into the app's runtime folder (~/.storytree/0.3/runtime, or under

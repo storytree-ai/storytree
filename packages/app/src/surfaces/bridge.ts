@@ -1,4 +1,4 @@
-/** The Surfaces menu's bridge to the main process (ADR-0750). Data only: safe for the page and preload. */
+/** Capability 3 · Surfaces. The Surfaces menu's bridge to the main process (ADR-0750). Data only: safe for the page and preload. */
 import type { SurfaceReading } from "./switches.js";
 
 export type SurfacesResult = { readonly ok: true; readonly value: readonly SurfaceReading[] } | { readonly ok: false; readonly error: string };

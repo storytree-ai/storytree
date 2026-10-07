@@ -1,4 +1,4 @@
-/** Browser-safe project-list refresh; the forest's own live reading is independent. */
+/** Capability 2 · Storytree projects. Browser-safe project-list refresh; the forest's own live reading is independent. */
 import type { ProjectSelection } from "./selection.js";
 
 export type { ProjectSelection } from "./selection.js";

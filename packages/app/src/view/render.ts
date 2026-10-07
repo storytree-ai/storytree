@@ -1,4 +1,4 @@
-/** The app story's controls; the desktop frame only mounts them. */
+/** Capability 3 · Surfaces. The app story's controls; the desktop frame only mounts them. */
 export function renderAppMenu(): string {
   return `<header class="app-bar"><button type="button" class="app-gear" aria-label="App menu" popovertarget="app-menu" aria-controls="app-menu" aria-expanded="false" title="App menu">
     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

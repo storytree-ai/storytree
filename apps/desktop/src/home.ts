@@ -1,5 +1,5 @@
 /**
- * The storytree 0.3 desktop app's home. Everything the app keeps lives in ~/.storytree/0.3/: its
+ * Capability 1 · Lifecycle. The storytree 0.3 desktop app's home. Everything the app keeps lives in ~/.storytree/0.3/: its
  * Postgres cluster in pgdata/ (with the server's logs and owner record beside it), Electron's own
  * files in electron/, and app.json, which records how the app was started so that an agent's
  * session start can open it again (the agent link's setup check), and runtime/, where the app that

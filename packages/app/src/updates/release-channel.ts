@@ -1,4 +1,4 @@
-/** Contract 4.15: channel identity belongs to the installation, outside replaceable app files. */
+/** Capability 4 · Updates. Contract 4.15: channel identity belongs to the installation, outside replaceable app files. */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 

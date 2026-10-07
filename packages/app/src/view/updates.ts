@@ -1,3 +1,4 @@
+/** Capability 4 · Updates. */
 import type { UpdateAction, UpdateState } from "../updates/main-updates.js";
 import { nextInstallAt, type InstallChoice, type InstallChoiceState } from "../updates/install-choice.js";
 

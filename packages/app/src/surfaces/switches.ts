@@ -1,5 +1,5 @@
 /**
- * The Surfaces menu's readings (the app story; ADR-0750): each surface the stories declare, read
+ * Capability 3 · Surfaces. The Surfaces menu's readings (the app story; ADR-0750): each surface the stories declare, read
  * against the choices saved in the settings file. Every surface is on and every setting at its
  * default until it is set; a surface that follows another is on only while that one is. The
  * declared list is handed in by whoever composes the stories, so this package depends on none.

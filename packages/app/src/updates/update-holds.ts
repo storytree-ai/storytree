@@ -1,4 +1,4 @@
-/** Updates 4.12: short-lived, per-run holds shared with the standalone hold-run.mjs wrapper. */
+/** Capability 4 · Updates. Updates 4.12: short-lived, per-run holds shared with the standalone hold-run.mjs wrapper. */
 import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 

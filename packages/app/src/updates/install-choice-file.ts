@@ -1,4 +1,4 @@
-/** Updates 4.13: the user's install choice, kept in the app's home (`install-choice.json`) by the main process. */
+/** Capability 4 · Updates. Updates 4.13: the user's install choice, kept in the app's home (`install-choice.json`) by the main process. */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 

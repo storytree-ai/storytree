@@ -1,4 +1,4 @@
-/** Contract 4.6: a release starts at successful CI for work that actually reached main. */
+/** Capability 4 · Updates. Contract 4.6: a release starts at successful CI for work that actually reached main. */
 interface Run {
   conclusion: string | null;
   event: string;

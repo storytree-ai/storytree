@@ -386,6 +386,7 @@ test("5.25 making a workspace for work that already has an open pull request is 
 
     assert.equal(refused.ok, false, JSON.stringify(refused));
     assert.ok(!refused.ok && refused.refused === "no-workspace");
+    assert.deepEqual(refused.openPulls, [{ number: 716, branch: `codex/${stem}-a1b2c3` }], "the pulls are data, not only wording");
     assert.match(refused.why, /#716/);
     assert.match(refused.why, new RegExp(`codex/${stem}-a1b2c3`));
     assert.doesNotMatch(refused.why, /#700/);

@@ -28,7 +28,13 @@ export interface WorkspaceAttachment {
 export type WorkspaceRefusal =
   | Exclude<ClaimAnswer, { ok: true }>
   | { ok: false; refused: "yours"; claim: Claim }
-  | { ok: false; refused: "no-workspace"; why: string };
+  | { ok: false; refused: "no-workspace"; why: string; openPulls?: readonly OpenPullForWork[] };
+
+/** An open pull request already made for the work, as a no-workspace refusal carries it (5.25). */
+export interface OpenPullForWork {
+  readonly number: number;
+  readonly branch: string;
+}
 
 export interface ClaimedWorkspace {
   ok: true;
@@ -167,6 +173,7 @@ async function openPullsRefusal(context: WorkspaceContext, id: string, watch: Me
     ok: false,
     refused: "no-workspace",
     why: `${id} already has open pull requests: ${named}. Carry one on (check its branch out into a worktree with git worktree add, then attach that folder) or close it, or make a workspace despite them`,
+    openPulls: forId.map(([branch, pull]) => ({ number: pull.number, branch })),
   };
 }
 

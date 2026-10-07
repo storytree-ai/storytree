@@ -1,0 +1,110 @@
+{
+  "browser": "148.0.7778.96",
+  "lanes": [
+    {
+      "title": "Mobile app",
+      "chip": "queued",
+      "marker": null,
+      "markerHover": null,
+      "waitsOn": "waits for an event: app store review (check back 2026-10-28)",
+      "waitsOnHover": "Ship the beta: waits for an event: app store review (check back 2026-10-28)",
+      "count": "1 open",
+      "bars": [
+        {
+          "id": "increment_a074ecd1695f",
+          "className": "arc-bar arc-yellow",
+          "passed": null,
+          "hover": "Ship the beta\nqueued · planned\nwaits for an event: app store review (check back 2026-10-28)"
+        }
+      ]
+    },
+    {
+      "title": "Cloud backups",
+      "chip": "queued",
+      "marker": null,
+      "markerHover": null,
+      "waitsOn": "waits for you: pick the backup region",
+      "waitsOnHover": "Move the archive: waits for you: pick the backup region",
+      "count": "1 landed · 1 open",
+      "bars": [
+        {
+          "id": "increment_330d285d5f7e",
+          "className": "arc-bar arc-green",
+          "passed": null,
+          "hover": "Restore drill\nlanded · landed\nClose: landed"
+        },
+        {
+          "id": "increment_e247c5b0c12c",
+          "className": "arc-bar arc-yellow",
+          "passed": null,
+          "hover": "Move the archive\nwaiting on you · planned\nwaits for you: pick the backup region"
+        }
+      ]
+    },
+    {
+      "title": "Docs refresh",
+      "chip": "ready · 2 to take",
+      "marker": null,
+      "markerHover": null,
+      "waitsOn": null,
+      "waitsOnHover": null,
+      "count": "2 open",
+      "bars": [
+        {
+          "id": "increment_615ab29f9d4a",
+          "className": "arc-bar arc-grey",
+          "passed": null,
+          "hover": "Rewrite the quick start\nopen · planned"
+        },
+        {
+          "id": "increment_c334e51b9e70",
+          "className": "arc-bar arc-grey arc-check-back",
+          "passed": "true",
+          "hover": "Publish the vendor comparison\nopen · planned\ncheck-back passed 2026-10-08: the vendor quote arrives"
+        }
+      ]
+    },
+    {
+      "title": "Website",
+      "chip": "ready · 2 to take",
+      "marker": "+2 waiting for approve the DNS cutover and 1 more",
+      "markerHover": "Switch the DNS: waits for you: approve the DNS cutover\nAdd card payments: waits for an event: payment provider review (check back 2026-10-21)",
+      "waitsOn": null,
+      "waitsOnHover": null,
+      "count": "1 landed · 4 open",
+      "bars": [
+        {
+          "id": "increment_93aca348b4ca",
+          "className": "arc-bar arc-green",
+          "passed": null,
+          "hover": "Pricing page\nlanded · landed\nClose: landed"
+        },
+        {
+          "id": "increment_1999b749d5b6",
+          "className": "arc-bar arc-grey",
+          "passed": null,
+          "hover": "Fix the footer links\nopen · planned"
+        },
+        {
+          "id": "increment_e60c1e6f71a8",
+          "className": "arc-bar arc-grey",
+          "passed": null,
+          "hover": "Fix the contact form\nopen · planned"
+        },
+        {
+          "id": "increment_7ae517fc41ce",
+          "className": "arc-bar arc-yellow",
+          "passed": null,
+          "hover": "Switch the DNS\nwaiting on you · planned\nwaits for you: approve the DNS cutover"
+        },
+        {
+          "id": "increment_7f1f7ce5c129",
+          "className": "arc-bar arc-yellow",
+          "passed": null,
+          "hover": "Add card payments\nqueued · planned\nwaits for an event: payment provider review (check back 2026-10-21)"
+        }
+      ]
+    }
+  ],
+  "errors": []
+}

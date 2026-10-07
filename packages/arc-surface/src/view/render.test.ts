@@ -85,3 +85,36 @@ test("3.3 a ready lane that also has idle claims keeps a small muted marker besi
   assert.match(row("only"), /arc-state-idle[^>]*>idle · 42 min</);
   assert.doesNotMatch(row("free"), /arc-idle-marker/);
 });
+
+test("3.3 a ready lane with open work held by a note wait says '+N waiting for <note>' beside its chip, and a lane held only by notes says what for", () => {
+  const work = (id: string, arcId: string) => record(id, "increment", { arc: arcId, title: `Build ${id}`, objective: id, body: id, status: "proposal" });
+  const arcs = ["ready", "owner", "events", "mixed"].map((id) => ({ arc: record(id, "arc", { title: `Arc ${id}`, intent: id, endState: "Done" }), state: "active" as const, questions: [],
+    increments: id === "ready" ? [work("r1", id), work("r2", id), work("r3", id), work("r4", id)] : id === "owner" ? [work("o1", id)] : id === "events" ? [work("e1", id)] : [work("m1", id), work("m2", id)] }));
+  const owner = { releaser: "owner" as const, note: "approve the spend", holds: true };
+  const event = { releaser: "event" as const, note: "vendor ships the part", checkBack: "2999-01-02", holds: true };
+  const html = renderBoard(boardView({ arcs, heldOn: {}, waits: { m1: [{ on: "o1", reason: "needs o1", forGood: false }] },
+    waitsFor: { r2: [owner], r3: [owner, event], r4: [event], o1: [owner], e1: [event], m2: [owner] } }, [], new Date()), "ready");
+  const row = (id: string) => html.split("<section").find((part) => part.includes(`data-arc-id="${id}"`))!;
+  assert.match(row("ready"), /arc-state-ready[^>]*>ready · 1 to take<\/span><span class="arc-chip arc-note-marker"[^>]*title="[^"]*Build r2: waits for you: approve the spend[^"]*Build r4: waits for an event: vendor ships the part \(check back 2999-01-02\)[^"]*"><span class="arc-note-text">\+3 waiting for approve the spend<\/span><span class="arc-note-more"> and 1 more<\/span><\/span>/);
+  assert.match(row("owner"), /class="arc-waits-on"[^>]*>waits for you: approve the spend</);
+  assert.match(row("events"), /class="arc-waits-on"[^>]*>waits for an event: vendor ships the part \(check back 2999-01-02\)</);
+  assert.match(row("mixed"), /class="arc-waits-on"[^>]*>waits on Build o1 · Arc owner<\/span><span class="arc-other-waits">\+1 other wait</);
+  assert.doesNotMatch(row("owner"), /arc-note-marker/, "a queued lane says it in its wait line, not a marker");
+  const single = renderBoard(boardView({ arcs: [arcs[0]!], heldOn: {}, waits: {}, waitsFor: { r2: [owner], r3: [owner] } }, [], new Date()), "ready");
+  assert.match(single, /\+2 waiting for approve the spend<\/span><\/span>/, "one note, two increments: no 'and more'");
+});
+
+test("3.3 each bar's hover names its note waits, and a bar whose check-back has passed says so", () => {
+  const work = (id: string) => record(id, "increment", { arc: "a", title: `Build ${id}`, objective: id, body: id, status: "proposal" });
+  const a = { arc: record("a", "arc", { title: "a", intent: "a", endState: "Done" }), state: "active" as const, questions: [], increments: [work("i1"), work("i2"), work("i3"), work("i4")] };
+  const html = renderBoard(boardView({ arcs: [a], heldOn: {}, waits: {}, waitsFor: {
+    i1: [{ releaser: "owner", note: "approve the spend", holds: true }],
+    i2: [{ releaser: "event", note: "vendor ships the part", checkBack: "2999-01-02", holds: true }],
+    i3: [{ releaser: "event", note: "the review window", checkBack: "2020-01-01", holds: false }] } }, [], new Date()), "a");
+  const bar = (id: string) => html.match(new RegExp(`<span class="arc-bar[^>]*data-increment-id="${id}"[^>]*>`))![0];
+  assert.match(bar("i1"), /arc-yellow[^>]*title="[^"]*waiting on you[^"]*\nwaits for you: approve the spend"/);
+  assert.match(bar("i2"), /arc-yellow[^>]*title="[^"]*queued[^"]*\nwaits for an event: vendor ships the part \(check back 2999-01-02\)"/);
+  assert.match(bar("i3"), /arc-grey arc-check-back"[^>]*data-check-back-passed="true"[^>]*title="[^"]*\ncheck-back passed 2020-01-01: the review window"/);
+  assert.doesNotMatch(bar("i4"), /check-back|waits for/);
+  assert.doesNotMatch(bar("i1") + bar("i2"), /data-check-back-passed/);
+});

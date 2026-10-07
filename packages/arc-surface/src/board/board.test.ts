@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { ArcView, FieldsOf } from "@storytree/library";
+import type { ArcView, FieldsOf, NoteWait } from "@storytree/library";
 import { record } from "../testing/records.js";
 import { boardView, type BoardSnapshot } from "./board.js";
 import { renderBoard } from "../view/render.js";
@@ -77,4 +77,39 @@ test("3.3 an idle claim does not hide free work: the lane reads ready with its i
   assert.deepEqual(lane("mixed").idle, { chip: "idle · 42 min", agents: [lane("mixed").agents[0]] });
   assert.equal(lane("mixed").idle?.agents[0]?.session, "s2");
   assert.equal(lane("free").idle, undefined);
+});
+
+const ownerWait: NoteWait = { releaser: "owner", note: "approve the spend", holds: true };
+const eventWait: NoteWait = { releaser: "event", note: "vendor ships the part", checkBack: "2999-01-01", holds: true };
+const passedWait: NoteWait = { releaser: "event", note: "the review window", checkBack: "2020-01-01", holds: false };
+const noted = (id: string, arcId: string) => record(id, "increment", { arc: arcId, title: `Build ${id}`, objective: id, body: id, status: "proposal" }, "2026-09-20");
+
+test("3.3 a ready lane's increments held by a note wait are not 'to take', and the lane names them (ADR-0938)", () => {
+  const ready = arc("ready"); ready.increments.push(noted("r1", "ready"), noted("r2", "ready"), noted("r3", "ready"), noted("r4", "ready"));
+  const board = boardView({ arcs: [ready], heldOn: {}, waits: {}, waitsFor: { r2: [ownerWait], r3: [eventWait], r4: [passedWait] } }, [], new Date());
+  const lane = board.lanes[0]!;
+  assert.deepEqual([lane.state, lane.chip], ["ready", "ready · 2 to take"], "the free increment and the one whose check-back passed");
+  assert.deepEqual(lane.bars.map(({ id, reading }) => [id, reading.state, reading.color]), [["r1", "open", "grey"], ["r2", "waiting-on-you", "yellow"], ["r3", "queued", "yellow"], ["r4", "open", "grey"]]);
+  assert.equal(lane.bars[3]?.reading.checkBackPassed, true);
+  assert.deepEqual(lane.bars.map(({ noteWaits }) => noteWaits), [[], [ownerWait], [eventWait], [passedWait]]);
+  assert.deepEqual(lane.noteWaits, [{ ...ownerWait, increment: { id: "r2", title: "Build r2" } }, { ...eventWait, increment: { id: "r3", title: "Build r3" } }], "only the waits that still hold");
+});
+
+test("3.3 a lane whose only open work waits for the owner or an event reads queued and names what for; a wait on work and a note wait both count", () => {
+  const owner = arc("owner"); owner.increments.push(noted("o1", "owner"));
+  const mixed = arc("mixed"); mixed.increments.push(noted("m1", "mixed"), noted("m2", "mixed"));
+  const board = boardView({ arcs: [owner, mixed], heldOn: {}, waits: { m1: [{ on: "o1", reason: "needs o1", forGood: false }] }, waitsFor: { o1: [ownerWait], m2: [eventWait] } }, [], new Date());
+  const lane = (id: string) => board.lanes.find((lane) => lane.id === id)!;
+  assert.deepEqual([lane("owner").state, lane("owner").chip], ["queued", "queued"]);
+  assert.deepEqual(lane("owner").waits, []);
+  assert.deepEqual(lane("owner").noteWaits.map(({ note }) => note), ["approve the spend"]);
+  assert.equal(lane("mixed").state, "queued");
+  assert.deepEqual(lane("mixed").waits.map(({ title }) => title), ["Build o1"]);
+  assert.deepEqual(lane("mixed").noteWaits.map(({ note }) => note), ["vendor ships the part"]);
+});
+
+test("3.3 a snapshot without note waits (a board kept by an older build) reads as before", () => {
+  const ready = arc("ready"); ready.increments.push(noted("r1", "ready"));
+  const lane = boardView({ arcs: [ready], heldOn: {}, waits: {} }, [], new Date()).lanes[0]!;
+  assert.deepEqual([lane.chip, lane.noteWaits, lane.bars[0]?.noteWaits], ["ready · 1 to take", [], []]);
 });

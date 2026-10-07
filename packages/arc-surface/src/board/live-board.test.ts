@@ -115,3 +115,14 @@ test("the board reads every arc's view in one ask, however many arcs the project
   assert.deepEqual(snapshot.arcs.map(({ arc }) => arc.id), ["arc_1", "arc_2", "arc_3"]);
   assert.deepEqual(asked, { arcView: 0, arcViews: 1 });
 });
+
+test("3.9 the board carries the library's waits for the owner or an event into its snapshot, and none is an empty reading (ADR-0938)", async () => {
+  const reads = (waitsFor?: Record<string, { releaser: "owner"; note: string; holds: boolean }[]>) => ({
+    changesSince: async () => ({ changes: [], cursor: 1 }), linesSince: async () => ({ lines: [], cursor: 0 }),
+    projectTree: async () => ({ stories: [], arcs: [] }) as never, arcView: async () => undefined as never, arcViews: async () => [],
+    holds: async () => ({ waits: {}, heldOn: {}, ...(waitsFor ? { waitsFor } : {}) }),
+  });
+  const wait = { releaser: "owner" as const, note: "approve the spend", holds: true };
+  assert.deepEqual((await readBoard("p", reads({ i1: [wait] }))).waitsFor, { i1: [wait] });
+  assert.deepEqual((await readBoard("p", reads())).waitsFor, {}, "a library built before waits with a note gives none");
+});

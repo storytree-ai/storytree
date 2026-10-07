@@ -13,6 +13,6 @@ export interface BoardReads extends LiveReads {
   idleAfterMs?(): Promise<number>;
 }
 export async function readBoard(project: string, reads: BoardReads): Promise<BoardSnapshot> {
-  const [arcs, { waits, heldOn }] = await Promise.all([reads.arcViews(project), reads.holds(project)]);
-  return { arcs: [...arcs], waits: { ...waits }, heldOn: { ...heldOn } };
+  const [arcs, { waits, heldOn, waitsFor }] = await Promise.all([reads.arcViews(project), reads.holds(project)]);
+  return { arcs: [...arcs], waits: { ...waits }, heldOn: { ...heldOn }, waitsFor: { ...waitsFor } };
 }

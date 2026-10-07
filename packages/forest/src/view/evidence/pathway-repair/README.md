@@ -248,7 +248,7 @@ roads remain drawn. Both normal animations finish on demand. No coloured selecti
 lane is mounted, and both pages report zero errors.
 
 The numbered real-browser test
-[`live-pathways-smoke.test.ts`](../../live-pathways-smoke.test.ts) protects forest
+[`desktop-renderer-smoke.test.ts`](../../desktop-renderer-smoke.test.ts) protects forest
 3.35. Against the immutable baseline it failed with “new-only beige spans begin
 undrawn; observed [1]”. The corrected product passes, including initial growth,
 in about 20 seconds on this machine. The smoke takes no pictures and retains its
@@ -280,6 +280,17 @@ wait timed out. State predicates now poll every 100 ms, independently of renderi
 they never invalidate the globe. The same complete raw observation is transferred
 as a JSON string and parsed in Node, avoiding recursive protocol serialization of
 every frame. macOS requires its CI rerun to verify the complete capture lifecycle.
+
+The unrelated-description check waits for an actual submitted frame whose territory
+mesh contains that exact updated description, then checks every intervening road
+frame stayed complete. A tree-read count plus a fixed half-second delay did not
+establish that rendering had consumed the update. Assertion diagnostics retain
+the motion mode, frame counts, consumption and progress; an empty trace cannot pass.
+
+The pathway and territory-health browser proofs live in that one test file so Node
+runs them sequentially. Separate files launched competing SwiftShader browsers
+inside one forest unit despite the shared lock around the whole test run. Both
+numbered behaviors retain their full fixtures, assertions and individual deadlines.
 
 Use `capture_locked` from above, with `PATHWAY_CAPTURE_DIST` naming the intended
 bundle and `PATHWAY_CAPTURE_OUT` naming its output:

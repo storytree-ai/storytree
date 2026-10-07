@@ -25,7 +25,7 @@ the 13-line agent log of `../session-tints` (sessions A and B live, C quiet), at
 verified column's (passing reads healthy, anything else untested), with four seeded so every word shows:
 Cloud connection and Hooks unhealthy, Storytree projects and Story nodes proposed. Run `node build.mjs`,
 then `node --import tsx capture.mjs`, under `flock /tmp/storytree-heavy.lock`. Full numbers: [measurements.json](measurements.json).
-`../../territory-health-smoke.test.ts` builds this page as `smoke` and runs `capture.mjs --smoke` in installed Chrome
+`../../desktop-renderer-smoke.test.ts` builds this page as `smoke` and runs `capture.mjs --smoke` in installed Chrome
 (`CAPTURE_CHANNEL`, default `chrome`): no pictures, so a scene target one of these waits names that the globe no longer
 draws fails that test on the changing branch. Measured on the Mint box, 2026-10-07: about 22 s green; with
 `territory-claim:` renamed it fails at the claim outlines' wait after its 30 s bound.

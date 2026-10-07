@@ -153,7 +153,11 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
               roads.push(item);
             });
             const links = (scene.getObjectByName('pathways:cross-island')?.userData.links ?? []).map(edge => `${edge.from}->${edge.to}`).sort();
-            const frame = { phase: window.liveEvidence.phase, at: performance.now(), observerMs: performance.now() - observedAt, links, roads, lanes };
+            const update = window.liveDescriptionUpdate;
+            const descriptionConsumed = update !== undefined
+              && scene.getObjectByName('territory:' + update.capability)?.userData.description === update.description;
+            const frame = { phase: window.liveEvidence.phase, at: performance.now(), observerMs: performance.now() - observedAt,
+              descriptionConsumed, links, roads, lanes };
             window.liveEvidence.frames.push(frame);
             window.liveEvidence.lastRender = { frame: window.liveEvidence.frames.length, startedAt: frame.at };
             const report = boundary => {
@@ -252,13 +256,16 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
         : window.liveSeed.tree.stories.find(story => story.title === 'The forest');
       const cap = restore ? story.capabilities.find(cap => cap.id === from) : story.capabilities.find(cap => cap.title.startsWith('3 '));
       if (restore) cap.dependsOn = [...window.savedDependencies];
-      else cap.description += ' Capture fixture: unrelated description update only.';
+      else {
+        cap.description += ' Capture fixture: unrelated description update only.';
+        window.liveDescriptionUpdate = { capability: cap.id, description: cap.description };
+      }
       const previous = [...window.liveSeed.changes.changes].reverse().find(change => change.recordId === cap.id)?.record;
       const at = new Date().toISOString(), seq = ++window.liveSeed.changes.cursor;
       const record = { id: cap.id, type: 'capability', version: (previous?.version ?? 0) + 1, createdAt: previous?.createdAt ?? at, updatedAt: at,
         fields: { ...previous?.fields, story: story.id, title: cap.title, description: cap.description, dependsOn: cap.dependsOn, proposed: cap.proposed } };
       window.liveSeed.changes.changes.push({ seq, recordId: cap.id, type: 'capability', action: 'updated', record });
-      return { reads: window.liveTreeReads, seq, at: performance.now() };
+      return { reads: window.liveTreeReads, seq, at: performance.now(), capability: cap.id, description: cap.description };
     }, { restore, from });
     phase(`${name}: restore saved dependency and wait for real poll`);
     const restored = await update(true);
@@ -274,7 +281,10 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
     phase(`${name}: update unrelated description and wait for real poll`);
     const unrelated = await update(false);
     await page.waitForFunction(reads => window.liveTreeReads > reads, unrelated.reads, { timeout: 15000, polling: 100 });
-    await page.waitForTimeout(500);
+    phase(`${name}: wait for a frame with the consumed description`);
+    await page.waitForFunction(() => window.liveEvidence.frames.some(frame =>
+      frame.phase === 'unrelated-description' && frame.links.length === 131 && frame.descriptionConsumed),
+    undefined, { timeout: 15000, polling: 100 });
     phase(`${name}: read submitted frames`);
     // The saved trace is plain JSON. Transfer it as one string rather than recursively walking
     // every frame/road object through Playwright's protocol, then retain the same full data.
@@ -299,7 +309,11 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
       oldSharedRoadsAlwaysWhole: additions.every(frame => frame.roads.filter(road => !road.fresh).every(road => road.fraction === 1)),
       dependencyToDependent: freshFrames.some(frame => frame.roads.some(road => road.fraction > 0 && road.fraction < 1))
         && freshFrames.every(frame => frame.roads.filter(road => road.fraction > 0 && road.fraction < 1).every(road => road.anchorNearerDependency)),
-      unrelatedUpdateKeepsRoadsWhole: poll.length > 0 && poll.every(frame => frame.roads.every(road => road.fraction === 1)),
+      unrelatedFrameCount: poll.length,
+      unrelatedDescriptionFrames: poll.filter(frame => frame.descriptionConsumed).length,
+      unrelatedFrameProgress: poll.map(frame => ({ at: frame.at, descriptionConsumed: frame.descriptionConsumed,
+        min: Math.min(...frame.roads.map(road => road.fraction)), max: Math.max(...frame.roads.map(road => road.fraction)) })),
+      unrelatedUpdateKeepsRoadsWhole: poll.some(frame => frame.descriptionConsumed) && poll.every(frame => frame.roads.every(road => road.fraction === 1)),
       colouredLanes: Math.max(0, ...observation.frames.map(frame => frame.lanes.length)), pageErrors: errors.length,
     };
     all.runs.push({ name, reduced, summary, errors, restored, unrelated, screencast, ...observation });

@@ -81,13 +81,18 @@ export function reasonRefusal(reason: string): Extract<ClaimAnswer, { refused: "
 
 /**
  * An increment that waits (ADR-0643 D2), and what still holds it: a blocker, as the library's
- * `waitHolds` names it, or an open question it is held on, as its `heldOnQuestion` names it, which
- * is waiting on the owner.
+ * `waitHolds` names it, an open question it is held on, as its `heldOnQuestion` names it, which
+ * is waiting on the owner, or a wait for the owner or an outside event that still holds, as its
+ * `waitsFor` reads it (ADR-0938 D1).
  */
 export interface Waiting extends Hold {
   readonly increment: string;
   /** Held on the owner's open question (`on` names it), not on other work. */
   readonly onOwner?: true;
+  /** Waits for the owner's action or an outside event: `on` says which in words, `reason` is its note. */
+  readonly waitsFor?: "owner" | "event";
+  /** An event wait's check-back day, from which it no longer holds. */
+  readonly checkBack?: string;
 }
 
 export type ReleaseAnswer = { ok: true } | { ok: false; refused: "not-held"; holder?: Claim };
@@ -264,6 +269,9 @@ async function waitingOn(library: Library, found: Found): Promise<Waiting[]> {
   const holding = (holds: Holds, increment: string): Waiting[] => [
     ...(holds.waits[increment] ?? []).map((hold): Waiting => ({ increment, ...hold })),
     ...(holds.heldOn[increment] ?? []).map((question): Waiting => ({ increment, on: question, reason: "waiting on the owner's answer", forGood: false, onOwner: true })),
+    ...(holds.waitsFor[increment] ?? []).filter((wait) => wait.holds).map(({ releaser, note, checkBack }): Waiting => ({
+      increment, on: releaser === "owner" ? "the owner" : "an outside event", reason: note, forGood: false, waitsFor: releaser, ...(checkBack === undefined ? {} : { checkBack }),
+    })),
   ];
   const { capability, increment } = found.part;
   if (increment !== undefined) return holding(await library.holds(), increment);

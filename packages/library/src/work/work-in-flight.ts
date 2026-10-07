@@ -165,14 +165,32 @@ export interface Hold {
   readonly forGood: boolean;
 }
 
+/** What an increment waits for outside the library, as stored (11.6, ADR-0938 D1). */
+export type WaitFor = NonNullable<FieldsOf<"increment">["waitsFor"]>[number];
+
+/**
+ * A wait for the owner or an outside event as read at one moment (11.6): an owner wait holds until
+ * it is cleared; an event wait holds until UTC midnight of its check-back day, and from then no
+ * longer holds, its check-back passed.
+ */
+export interface NoteWait {
+  readonly releaser: WaitFor["releaser"];
+  readonly note: string;
+  readonly checkBack?: string;
+  readonly holds: boolean;
+}
+
 /**
  * Every hold on a project's open work at once (11.5): each live arc's and open increment's wait holds,
- * and each open increment's owner holds, keyed by id, each as waitHolds and heldOnQuestion give it.
+ * each open increment's owner holds, and each open increment's waits for the owner or an event,
+ * keyed by id, each as waitHolds, heldOnQuestion and waitsFor give it.
  */
 export interface Holds {
   /** Closed increments have no holds and are omitted. */
   readonly waits: Readonly<Record<string, Hold[]>>;
   readonly heldOn: Readonly<Record<string, string[]>>;
+  /** An event wait whose check-back has passed is kept, reading as no longer holding. */
+  readonly waitsFor: Readonly<Record<string, NoteWait[]>>;
 }
 
 /**
@@ -342,6 +360,49 @@ export class WorkInFlight {
   }
 
   /**
+   * Make an open increment wait for the owner or an outside event, with a note (11.6, ADR-0938 D1).
+   * Waiting again for the same releaser replaces it. An event wait needs a check-back day, not
+   * before today (UTC); an owner wait takes none; a closed increment waits for nothing: each a
+   * RangeError, with nothing written. Null, with nothing written, if `id` is not a live increment.
+   */
+  addWaitFor(id: string, wait: WaitFor, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
+    return this.#serially(async () => {
+      const increment = await liveRecord(this.#records, id, ["increment"]);
+      if (increment === null) return null;
+      const { releaser, note, checkBack } = wait;
+      if (increment.fields.status === "closed") throw new RangeError(`increment ${JSON.stringify(id)} is closed, and waits for nothing`);
+      if (releaser === "event" && checkBack === undefined) throw new RangeError("an event wait needs a check-back day (YYYY-MM-DD)");
+      if (releaser === "owner" && checkBack !== undefined) throw new RangeError("an owner wait takes no check-back day: it holds until it is cleared");
+      if (checkBack !== undefined && checkBack < new Date().toISOString().slice(0, 10)) throw new RangeError(`check-back day ${checkBack} is before today`);
+      const written: WaitFor = { releaser, note, ...(checkBack === undefined ? {} : { checkBack }) };
+      const stored = increment.fields.waitsFor ?? [];
+      const waitsFor = stored.some((one) => one.releaser === releaser)
+        ? stored.map((one) => (one.releaser === releaser ? written : one))
+        : [...stored, written];
+      return (await this.#records.edit(id, { waitsFor }, options)) as SchemaRecord<"increment"> | null;
+    });
+  }
+
+  /** Stop an increment waiting for `releaser`. Null, with nothing written, if `id` is not a live increment. */
+  removeWaitFor(id: string, releaser: WaitFor["releaser"], options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
+    return this.#serially(async () => {
+      const increment = await liveRecord(this.#records, id, ["increment"]);
+      if (increment === null) return null;
+      const waitsFor = (increment.fields.waitsFor ?? []).filter((one) => one.releaser !== releaser);
+      return (await this.#records.edit(id, { waitsFor: waitsFor.length === 0 ? undefined : waitsFor }, options)) as SchemaRecord<"increment"> | null;
+    });
+  }
+
+  /**
+   * What an open increment waits for outside the library, read at `at` (11.6), in the order written:
+   * each with whether it still holds. Empty for a closed increment and for an id that is not a live one.
+   */
+  async waitsFor(id: string, at: Date = new Date()): Promise<NoteWait[]> {
+    const increment = await liveRecord(this.#records, id, ["increment"]);
+    return increment === null || increment.fields.status === "closed" ? [] : noteWaits(increment.fields.waitsFor, at);
+  }
+
+  /**
    * The blockers still holding `id`'s waits, in the order its waits were written, each with its
    * reason and whether it can never release. An increment wait holds until its blocker closes as
    * landed; an arc wait until that arc closes. An open increment is also held by its arc's waits,
@@ -355,16 +416,19 @@ export class WorkInFlight {
   }
 
   /**
-   * Every live arc's and open increment's wait holds, and every open increment's owner holds, from one
-   * reading of the project's work (11.5): what a surface showing all of it asks, in place of a
-   * waitHolds and a heldOnQuestion per id, each of which reads all the work again.
+   * Every live arc's and open increment's wait holds, and every open increment's owner holds and
+   * waits for the owner or an event (read at `at`), from one reading of the project's work (11.5):
+   * what a surface showing all of it asks, in place of a waitHolds, a heldOnQuestion and a waitsFor
+   * per id, each of which reads the work again.
    */
-  async holds(): Promise<Holds> {
+  async holds(at: Date = new Date()): Promise<Holds> {
     const work = await this.#snapshot();
     const live = [...work.arcs.values(), ...work.increments.values()];
+    const open = [...work.increments.values()];
     return {
       waits: Object.fromEntries(live.map((record) => [record.id, work.waitHolds(record)])),
-      heldOn: Object.fromEntries([...work.increments.values()].map((increment) => [increment.id, work.heldOn(increment)])),
+      heldOn: Object.fromEntries(open.map((increment) => [increment.id, work.heldOn(increment)])),
+      waitsFor: Object.fromEntries(open.map((increment) => [increment.id, noteWaits(increment.fields.waitsFor, at)])),
     };
   }
 
@@ -553,7 +617,7 @@ export class WorkInFlight {
   async #snapshot(): Promise<Snapshot> {
     const [arcs, increments, questions] = await Promise.all([
       this.#records.select("arc", ["waits", "parked", "parkedUntil"]),
-      this.#records.select("increment", ["arc", "status", "waits", "heldOn"], { not: { status: "closed" } }),
+      this.#records.select("increment", ["arc", "status", "waits", "waitsFor", "heldOn"], { not: { status: "closed" } }),
       this.#records.select("question", ["arc", "lifecycle"], { where: { lifecycle: "open" } }),
     ]);
     const hasIncrements = new Set(increments.map(({ fields }) => fields.arc));
@@ -639,7 +703,7 @@ function leaseOf(question: SchemaRecord<"question">, at: Date): QuestionLease {
 }
 
 type ArcFacts = Omit<SchemaRecord<"arc">, "fields"> & { fields: Pick<FieldsOf<"arc">, "waits" | "parked" | "parkedUntil"> };
-type IncrementFacts = Omit<SchemaRecord<"increment">, "fields"> & { fields: Pick<FieldsOf<"increment">, "arc" | "status" | "waits" | "heldOn"> };
+type IncrementFacts = Omit<SchemaRecord<"increment">, "fields"> & { fields: Pick<FieldsOf<"increment">, "arc" | "status" | "waits" | "waitsFor" | "heldOn"> };
 type QuestionFacts = Omit<SchemaRecord<"question">, "fields"> & { fields: Pick<FieldsOf<"question">, "arc" | "lifecycle"> };
 
 /** The live arcs, increments and questions at one moment, and how their waits read then. */
@@ -718,6 +782,16 @@ class Snapshot {
 function heldOnOpen(increment: IncrementFacts, questions: readonly QuestionFacts[]): string[] {
   const open = new Set(questions.filter((question) => question.fields.lifecycle === "open").map(({ id }) => id));
   return [...new Set(increment.fields.heldOn ?? [])].filter((id) => open.has(id));
+}
+
+/** Each wait for the owner or an event, read at `at`: an event's no longer holds from UTC midnight of its check-back day (11.6). */
+function noteWaits(waitsFor: readonly WaitFor[] | undefined, at: Date): NoteWait[] {
+  return (waitsFor ?? []).map(({ releaser, note, checkBack }) => ({
+    releaser,
+    note,
+    ...(checkBack === undefined ? {} : { checkBack }),
+    holds: checkBack === undefined || at.getTime() < Date.parse(`${checkBack}T00:00:00Z`),
+  }));
 }
 
 /** The holds among `waits`, in order: each wait that `hold` says still holds. */

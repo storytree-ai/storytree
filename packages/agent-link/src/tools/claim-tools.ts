@@ -212,7 +212,9 @@ async function refusalText(library: Library, id: string, answer: Exclude<ClaimAn
       return `${await titleOf(library, id)} is closed: there is nothing left to claim. Pick other work.`;
     case "waiting": {
       const waits = answer.waits.map((wait) =>
-        wait.onOwner === true ? `${wait.increment} is waiting on the owner: it is held on their open question ${wait.on}` : `${wait.increment} waits on ${wait.on} (${wait.reason})${wait.forGood ? ", which will never release" : ""}`,
+        wait.onOwner === true ? `${wait.increment} is waiting on the owner: it is held on their open question ${wait.on}`
+          : wait.waitsFor !== undefined ? `${wait.increment} waits for ${wait.on}: ${wait.reason}${wait.checkBack === undefined ? "" : ` (check back ${wait.checkBack})`}`
+          : `${wait.increment} waits on ${wait.on} (${wait.reason})${wait.forGood ? ", which will never release" : ""}`,
       );
       const yours = (answer.untouched ?? []).map((increment) => `${increment} is yours and its touches omit ${id}: list ${id} in its touches (arc increment edit ${increment} --touches …) and claim again`);
       return `${await titleOf(library, id)} is waiting work: ${waits.join("; ")}. ${yours.length === 0 ? "Pick other work until it releases." : `${yours.join("; ")}.`}`;

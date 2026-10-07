@@ -193,4 +193,32 @@ for (const backend of [memory, postgres]) {
     assert.equal(one.waits[done.id], undefined, "closed increments are omitted");
     assert.deepEqual(await flight.waitHolds(done.id), []);
   });
+
+  contract("11.6", "an increment waits for the owner or an outside event with a note: an owner wait holds until cleared, an event wait until its check-back day, then reads passed", async ({ work, flight, transactions }) => {
+    const arc = await work.createArc({ title: "Installer", ...ARC });
+    const install = await flight.addIncrement({ arc: arc.id, title: "Real install", ...WORK });
+    const day = (offset: number): string => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
+    const before = await transactions.history();
+    await assert.rejects(flight.addWaitFor(install.id, { releaser: "event", note: "the next failed-checks removal" }), /check-back day/, "no event wait without a day");
+    await assert.rejects(flight.addWaitFor(install.id, { releaser: "owner", note: "run it", checkBack: day(1) }), /owner/, "an owner wait takes no day");
+    await assert.rejects(flight.addWaitFor(install.id, { releaser: "event", note: "it happens", checkBack: day(-1) }), /before today/);
+    assert.deepEqual(await transactions.history(), before, "nothing written");
+
+    await flight.addWaitFor(install.id, { releaser: "owner", note: "power on the old laptop" });
+    await flight.addWaitFor(install.id, { releaser: "owner", note: "run the NSIS install on the old laptop" });
+    await flight.addWaitFor(install.id, { releaser: "event", note: "the next release build", checkBack: day(1) });
+    const owner = { releaser: "owner", note: "run the NSIS install on the old laptop", holds: true };
+    const event = { releaser: "event", note: "the next release build", checkBack: day(1) };
+    assert.deepEqual(await flight.waitsFor(install.id), [owner, { ...event, holds: true }], "one note per releaser, the latest");
+    assert.deepEqual((await flight.holds()).waitsFor[install.id], [owner, { ...event, holds: true }]);
+    const later = new Date(`${day(2)}T00:00:00Z`);
+    assert.deepEqual(await flight.waitsFor(install.id, later), [owner, { ...event, holds: false }], "from its check-back day an event wait no longer holds");
+    assert.deepEqual((await flight.holds(later)).waitsFor[install.id], [owner, { ...event, holds: false }]);
+
+    await flight.removeWaitFor(install.id, "owner");
+    assert.deepEqual(await flight.waitsFor(install.id), [{ ...event, holds: true }]);
+    await flight.closeIncrement(install.id, { pr: "#3", disposition: "landed" });
+    assert.deepEqual(await flight.waitsFor(install.id), [], "a closed increment waits for nothing");
+    assert.equal((await flight.holds()).waitsFor[install.id], undefined);
+  });
 }

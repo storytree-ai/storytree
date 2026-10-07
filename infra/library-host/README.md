@@ -5,9 +5,12 @@ switch the laptop, Mint lanes or CI. Cloud SQL stays live until the separate
 cutover increment. Run from the repository root with Node 24, installed workspace
 dependencies, PostgreSQL 16 clients and the existing Google Cloud SDK.
 
-Rollout status at this landing: roles and isolated settings are provisioned, and
-the local fixture restore passed. The four-database rehearsal is held on missing
-read permissions for 0.2. No verified bucket backups or timer are installed yet.
+The Mint library is the three 0.3 databases: `storytree_storytree`,
+`storytree-activity` and `storytree-trunks`. 0.2's frozen `storytree` database is
+out of scope (owner, 2026-10-07: "we dont need backups for 0.2"): it stays on Cloud
+SQL, is stopped with the instance at cutover, and gets one `gcloud sql export` to
+`archive/` before the instance is deleted. Nothing here copies, backs up, swaps or
+rolls it back.
 
 Every machine-changing script needs a read-only review and a dry run before its
 real run. Do not run `cutover.sh` or `rollback.sh` for real during rehearsal.
@@ -54,16 +57,20 @@ Passwords are generated on Mint, never supplied in argv or printed:
 - `~/.storytree/library-host/smoke-home`: isolated settings and a `postgres` key
   whose command reads the private client file. The real key store is untouched.
 
-Rehearsal refuses existing destination database names. It copies all four source
-databases (`storytree_storytree`, `storytree-activity`, `storytree-trunks`,
-`storytree`) through a dedicated loopback Cloud SQL proxy on port 55432 with
-automatic IAM authentication. It never changes the Cloud SQL instance. Attempt
-markers in `~/storytree-lanes/library-backups/cloud-dump-*` limit this increment
-to two full dump attempts; do not remove them to bypass that limit.
+Rehearsal refuses existing destination database names. It copies the three 0.3
+databases through a dedicated loopback Cloud SQL proxy on port 55432 with
+automatic IAM authentication, acting as each database's owner, and refuses before
+dumping if it may not. It never changes the Cloud SQL instance. Attempt markers in
+`~/storytree-lanes/library-backups/cloud-copy-*` limit this increment to two full
+copies; do not remove them to bypass that limit. The two older `cloud-dump-*`
+markers were retired by the owner's 2026-10-07 answer and stay as evidence.
+A full Cloud SQL refuses connections at connect time, before any data moves, so
+the copy and the Cloud scratch rehearsal wait for a slot (every 30 s, up to 20
+minutes) and write the attempt marker only after the inventory check succeeds.
 
 The transfer and cutover use `pg_dump -Fc`, not the library's project snapshot.
 The project snapshot covers records/history only; the server move must also
-preserve activity, trunks, 0.2, schemas, indexes, sequences and embedding caches.
+preserve activity, trunks, schemas, indexes, sequences and embedding caches.
 Each dump and its row counts share an exported repeatable-read snapshot.
 Restores use `--no-owner --no-acl --role=…`, mapping ownership to the destination
 owner, and stop on the first SQL error. CI grants are reapplied explicitly.
@@ -88,7 +95,7 @@ node infra/library-host/host.mjs backup
 node infra/library-host/host.mjs backup
 ```
 
-All four dumps must restore into new scratch databases and match their source
+All three dumps must restore into new scratch databases and match their source
 snapshot's per-table row counts before **any** upload. Scratch names are unique;
 only databases marked as created by this increment may be dropped. No forced
 disconnect or existing-database overwrite is used. A session advisory lock on
@@ -111,7 +118,7 @@ node infra/library-host/host.mjs rollback-rehearsal gs://storytree-498613-librar
 node infra/library-host/host.mjs rollback-rehearsal gs://storytree-498613-library-backups/backups/TIMESTAMP
 ```
 
-The local proof downloads all four dumps, verifies sizes/hashes and restores each
+The local proof downloads all three dumps, verifies sizes/hashes and restores each
 into scratch. The Cloud SQL proof restores the project backup only into
 `storytree_rollback_rehearsal`, checks it, then drops it. It refuses an existing
 scratch name. If Mint IAM lacks database-creation rights, the laptop owner must
@@ -164,8 +171,8 @@ bash infra/library-host/cutover.sh --execute-after-freeze /absolute/owner-freeze
 ```
 
 The script dumps the source, restores/checks new staging databases, retains every
-old database under a `st_previous_*` name and swaps all four names in one
-transaction. Originals are never dropped. Saved settings/auth, manifest and
+old database under a `st_previous_*` name and swaps the three names in one
+transaction. 0.2's `storytree` is never staged or renamed. Originals are never dropped. Saved settings/auth, manifest and
 `swap.json` stay in the private run directory. Failure before the swap leaves
 existing databases intact; failure after it leaves the freeze in force. Inspect
 `swap.json`, finish the settings/smoke step or reverse the name swaps under the
@@ -193,23 +200,14 @@ databases, retains originals, switches Mint back and smokes. The laptop switches
 itself and CI back before lifting the freeze. Neither script starts, stops,
 restarts or reconfigures an instance. The full multi-database transition still
 needs its cutover-window proof; the scratch rehearsal proves the restore path.
-
-**Known laptop step:** 0.2's `storytree` database is owned by `cloudsqlsuperuser`,
-which Mint IAM cannot assume. Mint IAM also lacks USAGE on its `events` schema:
-the second rehearsal attempt was refused before dumping any table. The owner
-must grant complete read access and explicitly authorize any further Cloud dump
-attempt; both of this increment's two attempt markers are retained. The full rollback script refuses this
-before dumping or staging. Before cutover, the laptop owner must arrange and
-review the privileged restore/name-swap for that frozen database, or explicitly
-settle a policy for retaining its unchanged original during rollback. Do not
-claim that the scratch rehearsal proves this privileged full rollback step.
+Rollback preflights that Mint IAM may act as each 0.3 database's owner on Cloud
+SQL and refuses before any dump if it may not.
 
 ## A week later
 
 The retirement increment requires seven days of verified uploads, another bucket
-restore and healthy CI. The owner makes a final archive/ export before deleting
-the cloud instance. 0.2's frozen CLI calls the Cloud SQL connector unconditionally
-(`packages/library/src/store/connection.ts` in the 0.2 checkout); its instance
-override is a Cloud SQL name, not a Postgres address. No address-only switch was
-found. Keep its restored Mint database and archived dump, and obtain the owner's
-decision on archived access before retiring Cloud SQL. Do not modify 0.2 here.
+restore and healthy CI. The owner makes a final archive/ export of every Cloud
+SQL database, 0.2's `storytree` included, before deleting the cloud instance.
+0.2's frozen CLI calls the Cloud SQL connector unconditionally
+(`packages/library/src/store/connection.ts` in the 0.2 checkout), so from cutover
+it reads nothing; the owner accepted that on 2026-10-07.

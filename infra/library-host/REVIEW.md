@@ -42,3 +42,33 @@ schemas, indexes, sequence state and bad-checksum refusal, then were dropped.
 This proof does not stand in for the blocked four-database rehearsal or bucket
 backups. Mint IAM lacks USAGE on 0.2's `events` schema; the migration increment
 remains held for owner action. No backup timer was installed.
+
+## Addendum — 2026-10-07: three 0.3 databases only
+
+The owner's answer to question_fa4243ccb8ef ("A - we dont need backups for 0.2")
+takes 0.2's frozen `storytree` database out of scope. `host.mjs` and
+`transition.mjs` now copy, back up, stage, swap and roll back exactly
+`storytree_storytree`, `storytree-activity` and `storytree-trunks`, and `dump`
+refuses any database whose owner it may not act as. The 0.2 read-access SQL above
+was never run and its files were removed. The two `cloud-dump-*` markers are
+retired; a fresh `cloud-copy-*` budget allows one copy and at most one more.
+
+A read-only reviewer approved the amendment with no blockers and three minor
+findings, all applied and re-approved: the rehearsal refuses existing local
+databases before writing its attempt marker or dumping, the rollback preflight
+requires all three databases on the target, and the Cloud scratch rehearsal
+prefers the project database's owner role.
+
+The first real copy then met a full Cloud SQL ("remaining connection slots are
+reserved"), after writing its attempt marker and before dumping anything. A
+reviewed change makes Cloud connections wait for a slot (refused at connect, so
+no data moves), writes the marker only after the inventory check, and, after a
+further review, retries scratch-database create, mark and drop the same way. The
+second copy, smoke, three verified backups, a bucket restore, the Cloud scratch
+rehearsal and the timer installation all ran at the hashes below, each after its
+dry run. They supersede the hashes above for `host.mjs` and `transition.mjs`:
+
+```text
+10e700f33c71ddadb3032a750e92bfe5eaefa44700d06f1b607e05c2efe6806d  host.mjs
+7e2a4bb5cce511f062f5e19e00e6c1017cfe99c06b58731e09b531fdb5549ed5  transition.mjs
+```

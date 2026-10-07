@@ -23,7 +23,9 @@ const LOCAL = { host: '/var/run/postgresql', port: 5432, user: 'mickh' };
 const OWNER = 'storytree_library';
 // Same name as Cloud SQL so the dump's RLS policies restore unchanged. Local SCRAM, not IAM.
 const CI = 'storytree-ci-health@storytree-498613.iam';
-const DBS = ['storytree_storytree', 'storytree-activity', 'storytree-trunks', 'storytree'];
+// The three 0.3 databases. 0.2's frozen `storytree` stays on Cloud SQL and is archived there by
+// `gcloud sql export` before the instance is deleted (owner, 2026-10-07: "we dont need backups for 0.2").
+const DBS = ['storytree_storytree', 'storytree-activity', 'storytree-trunks'];
 const MARK = 'storytree library-host increment_b3ccd17ff113';
 const PASSWORD = path.join(ROOT, 'postgres-password');
 const CI_PASSWORD = path.join(ROOT, 'ci-health-password');
@@ -32,6 +34,18 @@ const q = value => '"' + value.replaceAll('"', '""') + '"';
 const lit = value => "'" + value.replaceAll("'", "''") + "'";
 const stamp = () => new Date().toISOString().replaceAll(/[-:.]/g, '') + '-' + randomBytes(4).toString('hex');
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+// A full Cloud SQL refuses at connect (SQLSTATE 53300), before any data moves, so waiting costs no egress.
+const FULL = /remaining connection slots|too many clients/;
+async function patiently(work, minutes = 20) {
+  for (let waited = 0; ; waited += 30) {
+    try { return await work(); }
+    catch (error) {
+      if (!FULL.test(error.message) || waited >= minutes * 60) throw error;
+      console.log('Cloud SQL has no free connection slot; retrying in 30 s');
+      await pause(30000);
+    }
+  }
+}
 
 export function checkedCounts(source, restored) {
   const sorted = rows => JSON.stringify(Object.entries(rows).sort(([a], [b]) => a.localeCompare(b)));
@@ -126,7 +140,8 @@ async function withProxy(work) {
     for (let i = 0; i < 30; i++) {
       await pause(1000);
       if (error || exited) throw new Error('The dedicated Cloud SQL proxy did not start; check port 55432 and IAM access.');
-      try { await query(CLOUD, 'postgres', 'SELECT 1'); ready = true; break; } catch {}
+      // A full instance still proves the proxy is up; callers wait for a slot themselves.
+      try { await query(CLOUD, 'postgres', 'SELECT 1'); ready = true; break; } catch (e) { if (FULL.test(e.message)) { ready = true; break; } }
     }
     if (!ready) throw new Error('Cloud SQL proxy connection timed out');
     return await work();
@@ -152,31 +167,30 @@ async function dump(server, database, directory) {
     const ownership = (await client.query(`SELECT pg_get_userbyid(datdba) AS name,
       pg_has_role(session_user, datdba, 'SET') AS may FROM pg_database WHERE datname=current_database()`)).rows[0];
     const owner = ownership.name;
-    // 0.2's database belongs to cloudsqlsuperuser, which IAM cannot assume. Its table grants
-    // still permit a full dump. Never enable row security to work around insufficient rights.
-    if (ownership.may) await client.query(`SET ROLE ${q(owner)}`);
+    if (!ownership.may) throw new Error(`Cannot act as ${owner}, the owner of ${database}; refused before dumping`);
+    await client.query(`SET ROLE ${q(owner)}`);
+    // An error, never silently filtered rows, if row security would apply.
     await client.query('SET row_security = off');
     await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
     const version = (await client.query('SHOW server_version')).rows[0].server_version;
     const snapshot = (await client.query('SELECT pg_export_snapshot() AS id')).rows[0].id;
-    await run('pg_dump', ['-Fc', '--no-password', `--snapshot=${snapshot}`, ...(ownership.may ? [`--role=${owner}`] : []), '-f', path.join(directory, file)], { env: pgEnv(server, database) });
+    await run('pg_dump', ['-Fc', '--no-password', `--snapshot=${snapshot}`, `--role=${owner}`, '-f', path.join(directory, file)], { env: pgEnv(server, database) });
     const rows = await counts(client);
     await client.query('COMMIT');
     return { name: database, file, owner, version, snapshot, rows, bytes: (await stat(path.join(directory, file))).size, sha256: await sha256(path.join(directory, file)) };
   } finally { await client.end(); }
 }
 async function newDatabase(server, name, owner) {
-  await query(server, 'postgres', `CREATE DATABASE ${q(name)} OWNER ${q(owner)} TEMPLATE template0`);
-  await query(server, 'postgres', `COMMENT ON DATABASE ${q(name)} IS ${lit(MARK)}`);
+  await patiently(() => query(server, 'postgres', `CREATE DATABASE ${q(name)} OWNER ${q(owner)} TEMPLATE template0`));
+  await patiently(() => query(server, 'postgres', `COMMENT ON DATABASE ${q(name)} IS ${lit(MARK)}`));
 }
 async function ownedDatabase(server, name) {
   const rows = await query(server, 'postgres', `SELECT shobj_description(oid, 'pg_database') AS mark FROM pg_database WHERE datname=$1`, [name]);
   if (rows[0]?.mark !== MARK) throw new Error(`Refusing to alter unowned database ${name}`);
 }
 async function dropCreated(server, name) {
-  await ownedDatabase(server, name);
-  // No FORCE: never terminate another lane's connections.
-  await query(server, 'postgres', `DROP DATABASE ${q(name)}`);
+  // No FORCE: never terminate another lane's connections. The mark is rechecked on every try.
+  await patiently(async () => { await ownedDatabase(server, name); await query(server, 'postgres', `DROP DATABASE ${q(name)}`); });
 }
 async function restore(server, name, owner, directory, entry) {
   if (await sha256(path.join(directory, entry.file)) !== entry.sha256) throw new Error('Dump checksum mismatch');
@@ -222,18 +236,21 @@ async function grants() {
 async function rehearsal() {
   const directory = path.join(LOGS, 'rehearsal-' + stamp());
   await mkdir(directory, { mode: 0o700 });
-  const prior = (await readdir(LOGS)).filter(name => name.startsWith('cloud-dump-'));
-  if (prior.length >= 2) throw new Error('Both permitted Cloud SQL dump attempts have been used; no third dump');
-  // Count attempts before starting, including failed attempts, to bound egress.
-  await exclusive(path.join(LOGS, `cloud-dump-${stamp()}`), directory + '\n');
+  // The two earlier `cloud-dump-*` markers were retired by the owner's 2026-10-07 answer and stay as
+  // evidence. This budget allows one fresh copy and, only if it fails a check, one more.
+  const present = await query(LOCAL, 'postgres', 'SELECT datname FROM pg_database WHERE datname = ANY($1)', [DBS]);
+  if (present.length) throw new Error(`Local database(s) already exist: ${present.map(r => r.datname).join(', ')}; refused before any Cloud copy`);
+  const prior = (await readdir(LOGS)).filter(name => name.startsWith('cloud-copy-'));
+  if (prior.length >= 2) throw new Error('Both permitted Cloud SQL copies have been used; no third dump');
   const manifest = { format: 1, at: new Date().toISOString(), source: 'storytree-pg', databases: [] };
   await withProxy(async () => {
-    const actual = (await query(CLOUD, 'postgres', "SELECT datname FROM pg_database WHERE NOT datistemplate AND datname <> 'postgres' AND datname <> 'cloudsqladmin' ORDER BY datname")).map(r => r.datname);
-    if (JSON.stringify(actual.sort()) !== JSON.stringify([...DBS].sort())) throw new Error('Cloud database inventory differs from the four approved databases; refused before dumping');
-    // Check the frozen 0.2 store first: unlike 0.3, its IAM reader is not its database owner.
-    for (const name of ['storytree', ...DBS.filter(name => name !== 'storytree')]) {
+    const actual = (await patiently(() => query(CLOUD, 'postgres', 'SELECT datname FROM pg_database WHERE datname = ANY($1)', [DBS]))).map(r => r.datname);
+    if (actual.length !== DBS.length) throw new Error('A 0.3 database is missing on Cloud SQL; refused before dumping');
+    // Count the attempt before the first dump, including one that fails later, to bound egress.
+    await exclusive(path.join(LOGS, `cloud-copy-${stamp()}`), directory + '\n');
+    for (const name of DBS) {
       console.log(`Dumping ${name}`);
-      const entry = await dump(CLOUD, name, directory);
+      const entry = await patiently(() => dump(CLOUD, name, directory));
       manifest.databases.push(entry);
       await exclusive(path.join(directory, `${name}.manifest.json`), JSON.stringify(entry, null, 2));
     }
@@ -288,7 +305,9 @@ async function bucketRestore(prefix, cloud) {
   const { directory, manifest } = await download(prefix);
   if (cloud) await withProxy(async () => {
     // Only this scratch database may be created/dropped on Cloud SQL by this increment.
-    const roles = await query(CLOUD, 'postgres', `SELECT rolname FROM pg_roles WHERE rolcreatedb AND pg_has_role(session_user, oid, 'SET') ORDER BY rolname`);
+    // Prefer the role that owns the project database, so the rehearsal mirrors the real rollback.
+    const roles = await patiently(() => query(CLOUD, 'postgres', `SELECT rolname FROM pg_roles WHERE rolcreatedb AND pg_has_role(session_user, oid, 'SET')
+      ORDER BY (rolname = (SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname = 'storytree_storytree')) DESC, rolname`));
     if (!roles.length) throw new Error('Mint IAM cannot create Cloud SQL databases; laptop must do the rollback rehearsal');
     const role = roles[0].rolname;
     const server = { ...CLOUD, options: `-c role=${role}` };

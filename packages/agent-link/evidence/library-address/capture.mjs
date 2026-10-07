@@ -7,24 +7,21 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { build } from 'esbuild';
 import { settingsActions } from '@storytree/agent-link/settings';
+import { buildSettingsPanel } from './build.mjs';
 
 const { chromium } = await import(process.env.STORYTREE_PLAYWRIGHT ?? '/home/mickh/code/Storytree/node_modules/.pnpm/playwright-core@1.60.0/node_modules/playwright-core/index.mjs');
 const output = path.dirname(fileURLToPath(import.meta.url));
 const home = mkdtempSync(path.join(tmpdir(), 'storytree-library-address-'));
 const settings = settingsActions(home);
-const bundled = await build({
-  stdin: { contents: 'import { mountSettings } from "./src/view/index.ts"; window.mountSettings = mountSettings;', resolveDir: path.resolve(output, '../..'), loader: 'ts' },
-  bundle: true, write: false, format: 'iife', platform: 'browser',
-});
+const bundled = await buildSettingsPanel();
 const browser = await chromium.launch({ executablePath: process.env.STORYTREE_CHROMIUM ?? '/home/mickh/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell', headless: true, args: ['--no-sandbox'] });
 try {
   const page = await browser.newPage({ viewport: { width: 900, height: 560 }, colorScheme: 'dark', deviceScaleFactor: 1 });
   const errors = []; page.on('pageerror', (error) => errors.push(String(error)));
   await page.exposeFunction('settingsCall', (method, args) => settings[method](...args));
   await page.setContent(`<!doctype html><html><head><style>body { margin: 0; padding: 24px; background: #15181d; color: #e6e9ee; font: 14px system-ui, sans-serif; }</style></head><body><div id="host"></div><button id="gear" hidden>gear</button></body></html>`);
-  await page.addScriptTag({ content: bundled.outputFiles[0].text });
+  await page.addScriptTag({ content: bundled });
   await page.evaluate(() => {
     const bridge = { readSettings: () => window.settingsCall('readSettings', []), saveSetting: (...args) => window.settingsCall('saveSetting', args) };
     window.mountSettings(document.getElementById('host'), bridge, { returnFocus: document.getElementById('gear'), embedded: true, group: 'library' }).open();

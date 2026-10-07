@@ -4,19 +4,14 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createRequire } from 'node:module';
 import { settingsActions } from '@storytree/agent-link/settings';
+import { buildAppMenu } from './build.mjs';
 const here = path.dirname(fileURLToPath(import.meta.url));
-const root = path.resolve(here, '../../../..');
-const require = createRequire(path.join(root, 'packages/agent-link/package.json'));
-const { build } = require('esbuild');
 const { chromium } = await import(process.env.STORYTREE_PLAYWRIGHT ?? '/home/mickh/code/Storytree/node_modules/.pnpm/playwright-core@1.60.0/node_modules/playwright-core/index.mjs');
 const home = mkdtempSync(path.join(tmpdir(), 'idle-setting-capture-'));
 let browser;
 try {
-  const bundle = await build({ stdin: { contents: `import { mountAppMenu } from './packages/app/src/view/index.ts';
-    mountAppMenu(document.querySelector('#gear'), {background:document.querySelector('main'),chooseProject:async()=>{},onChosen:()=>{},onError:console.error,
-    mountHelp:()=>({open(){},close(){},stop(){}}),checkForUpdates:async()=>({phase:'unavailable',runningBuild:'preview'})});`, resolveDir:root }, bundle:true, platform:'browser', format:'iife',write:false });
+  const bundle = await buildAppMenu();
   browser = await chromium.launch({ executablePath: process.env.STORYTREE_CHROMIUM ?? '/home/mickh/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell', headless:true,args:['--no-sandbox'] });
   const page = await browser.newPage({ viewport:{width:1440,height:1000},colorScheme:'dark' });
   const errors=[];
@@ -26,7 +21,7 @@ try {
   await page.exposeFunction('saveSetting', (...args)=>bridge.saveSetting(...args));
   await page.setContent('<style>body{margin:0;background:#101418;color:#eceae3;font:14px system-ui}main{padding:100px 32px;color:#a9b0ba}</style><div id="gear"></div><main>Settings component preview</main>');
   await page.evaluate(()=>{window.storytree={readSettings:window.readSettings,saveSetting:window.saveSetting};});
-  await page.addScriptTag({content:bundle.outputFiles[0].text});
+  await page.addScriptTag({content:bundle});
   await page.getByRole('button',{name:'App menu',exact:true}).click();
   await page.getByRole('button',{name:'Settings',exact:true}).click();
   const row=page.locator('[data-setting="idle-after"]');

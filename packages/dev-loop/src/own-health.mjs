@@ -475,16 +475,19 @@ async function markNotChecked(library, id, verdict, writer) {
 export const CI_IDENTITY = ["HEALTH_WIF_PROVIDER", "HEALTH_SERVICE_ACCOUNT", "HEALTH_CLOUDSQL_INSTANCE"];
 
 /**
- * Where a run records verified health, and as whom. On CI (GITHUB_ACTIONS), the Cloud SQL library
- * the CI identity names, signed in as its service account, by a test run on CI at GITHUB_SHA; and
- * when any of that identity's repository variables is unset, nowhere, saying which. Run by hand,
- * the library the storytree setting names: the Cloud SQL instance, or the desktop app's own
- * (`"app"`).
- * @param {{ env: Record<string, string | undefined>, setting: { location: "local" } | { location: "cloudsql", instance: string, user: string } }} input
- * @returns {{ record: false, why: string } | { record: true, library: "app" | { cloudSql: { instance: string, user: string } }, writer: Writer }}
+ * Where a run records verified health, and as whom. On CI (GITHUB_ACTIONS), by a test run on CI at
+ * GITHUB_SHA: in the library at HEALTH_PG_ADDRESS when that is set (the Mint box over Tailscale,
+ * ADR-0928 D4; its password is PGPASSWORD), and otherwise in the Cloud SQL library the CI identity
+ * names, signed in as its service account; when any of that identity's repository variables is
+ * unset, nowhere, saying which. Run by hand, the library the storytree setting names: the Cloud SQL
+ * instance, a Postgres address, or the desktop app's own (`"app"`).
+ * @param {{ env: Record<string, string | undefined>, setting: { location: "local" } | { location: "cloudsql", instance: string, user: string } | { location: "postgres", address: string } }} input
+ * @returns {{ record: false, why: string } | { record: true, library: "app" | { cloudSql: { instance: string, user: string } } | { address: string }, writer: Writer }}
  */
 export function recordingTarget({ env, setting }) {
   if (env.GITHUB_ACTIONS === "true") {
+    const writer = { by: VERIFIED_BY_CI, ...optional("commit", env.GITHUB_SHA) };
+    if ((env.HEALTH_PG_ADDRESS ?? "") !== "") return { record: true, library: { address: env.HEALTH_PG_ADDRESS }, writer };
     const unset = CI_IDENTITY.filter((name) => (env[name] ?? "") === "");
     if (unset.length > 0) {
       return {
@@ -499,9 +502,10 @@ export function recordingTarget({ env, setting }) {
     return {
       record: true,
       library: { cloudSql: { instance: env.HEALTH_CLOUDSQL_INSTANCE, user } },
-      writer: { by: VERIFIED_BY_CI, ...optional("commit", env.GITHUB_SHA) },
+      writer,
     };
   }
+  if (setting.location === "postgres") return { record: true, library: { address: setting.address }, writer: { by: VERIFIED_BY } };
   if (setting.location === "cloudsql") {
     return { record: true, library: { cloudSql: { instance: setting.instance, user: setting.user } }, writer: { by: VERIFIED_BY } };
   }

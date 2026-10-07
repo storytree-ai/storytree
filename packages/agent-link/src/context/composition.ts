@@ -1,5 +1,5 @@
 /**
- * Contract 9.8 · what a Claude Code or Codex session's context is made of, in the four groups the owner
+ * Capability 9 · Context readings. Contract 9.8 · what a Claude Code or Codex session's context is made of, in the four groups the owner
  * named (arc_895e232031b0): Injected (what arrives unasked), Grounding (reading to understand),
  * Implementation (changing things, and every call the session authored), Other (the rest).
  *

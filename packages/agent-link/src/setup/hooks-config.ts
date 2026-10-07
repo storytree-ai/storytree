@@ -1,5 +1,5 @@
 /**
- * Registering storytree's hooks in each harness's own user-level settings, and taking them out
+ * Capability 8 · Setup check. Registering storytree's hooks in each harness's own user-level settings, and taking them out
  * again: only ever storytree's entries, recognised by the hook script they run
  * (`storytree-hook.mjs`), so every other setting is left exactly as it was.
  *

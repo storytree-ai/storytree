@@ -1,5 +1,5 @@
 /**
- * Where each project lives on each machine (ADR-0757): project > machine > trunk folder. The
+ * Capability 1 · Project routing. Where each project lives on each machine (ADR-0757): project > machine > trunk folder. The
  * library's server keeps, in a database of its own, one trunk folder per project per machine; the
  * plan, forest and claims stay one per project, shared by every machine. Worktrees are never
  * recorded: a folder in a git worktree of a trunk is in the trunk's project (routing finds it

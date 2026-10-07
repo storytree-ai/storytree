@@ -1,5 +1,5 @@
 /**
- * The line a hook makes just before a call to one of storytree's own tools (ADR-0629 D2): the
+ * Capability 3 · Hooks. The line a hook makes just before a call to one of storytree's own tools (ADR-0629 D2): the
  * harness's id for the call, and the agent asking for it. Claude Code and Codex send the same
  * fields, as recorded from Claude Code 2.1.283 and Codex 0.155: inside a subagent `agent_id` and
  * `agent_type` name it, and the orchestrator's input names nobody. The call's `tool_use_id` is the

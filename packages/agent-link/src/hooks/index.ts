@@ -1,3 +1,4 @@
+/** Capability 3 · Hooks. */
 export { ASK_SETUP, BACKGROUND, hookLines, runHook, UPKEEP } from "./hooks.js";
 export { codexHookTrust, noteCodexHookRan } from "./codex-trust.js";
 export type { CodexHookTrust, CodexHomes } from "./codex-trust.js";

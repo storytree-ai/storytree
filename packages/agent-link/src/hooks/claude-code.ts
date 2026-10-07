@@ -1,5 +1,5 @@
 /**
- * Claude Code's hook inputs, as recorded from Claude Code 2.1.212 (and 2.1.283 for storytree's own
+ * Capability 3 · Hooks. Claude Code's hook inputs, as recorded from Claude Code 2.1.212 (and 2.1.283 for storytree's own
  * tools and subagents): every event names the session (`session_id`), its working folder (`cwd`)
  * and itself (`hook_event_name`).
  *

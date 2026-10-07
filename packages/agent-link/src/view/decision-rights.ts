@@ -1,3 +1,4 @@
+/** Capability 7 · Instructions (the habits card). */
 /// <reference lib="dom" />
 import { decisionRights } from "../instructions/habits.js";
 import { decisionRightsStyles } from "./styles.js";

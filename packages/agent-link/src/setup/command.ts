@@ -1,5 +1,5 @@
 /**
- * The `storytree` command on the user's path (ADR-0643 D1, 8), and whether GitHub's `gh` is signed
+ * Capability 8 · Setup check. The `storytree` command on the user's path (ADR-0643 D1, 8), and whether GitHub's `gh` is signed
  * in, which release on merge needs (D3).
  *
  * - The command is a small launcher that runs the `storytree.mjs` built beside the hook and tool

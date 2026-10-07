@@ -1,5 +1,5 @@
 /**
- * How long a hook may run (capability 3 · Hooks), and how its connections to storytree keep to it.
+ * Capability 3 · Hooks. How long a hook may run (capability 3 · Hooks), and how its connections to storytree keep to it.
  * The hook command ends itself at its deadline, whatever it is waiting on; a statement it left
  * running would run on in the server, holding its connection, after the hook had gone (seen on
  * storytree-pg on 2026-10-07: hooks' reads still running minutes after their process ended). So the

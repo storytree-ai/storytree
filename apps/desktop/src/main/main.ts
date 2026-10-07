@@ -1,5 +1,5 @@
 /**
- * The storytree 0.3 desktop app's main process. It starts the app's own Postgres on its data
+ * Capability 1 · Lifecycle. The storytree 0.3 desktop app's main process. It starts the app's own Postgres on its data
  * directory (~/.storytree/0.3/pgdata) through local-postgres, or, when the user's library setting
  * names a Cloud SQL instance, starts none and uses the instance; connects the library through its
  * public API, opens the project asked for (`--project <name>`, else `storytree` if there is one,

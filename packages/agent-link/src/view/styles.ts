@@ -1,4 +1,4 @@
-// The forest controls' existing palette, including its warm selection accent.
+// Capability 10 · Settings. The forest controls' existing palette, including its warm selection accent.
 export const settingsStyles = `
 .settings-panel { box-sizing: border-box; width: min(760px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); padding: 28px; border: 1px solid #485159; border-radius: 12px; background: #101418; color: #eceae3; color-scheme: dark; font: 14px/1.5 "Segoe UI", system-ui, sans-serif; box-shadow: 0 8px 30px rgb(0 0 0 / .25); }
 .settings-panel::backdrop { background: rgb(0 0 0 / .25); }

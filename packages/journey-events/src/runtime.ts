@@ -1,3 +1,4 @@
+/** Capability 2 · PostHog delivery. */
 import { homedir } from "node:os";
 import path from "node:path";
 import { openJourney, type JourneyConfiguration, type JourneyTransport } from "./index.js";

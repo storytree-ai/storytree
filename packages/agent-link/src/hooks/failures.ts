@@ -1,5 +1,5 @@
 /**
- * What a hook that failed leaves on this machine (contract 3.23). A hook never breaks the agent, so a
+ * Capability 3 · Hooks. What a hook that failed leaves on this machine (contract 3.23). A hook never breaks the agent, so a
  * failure writes nothing to the log and says nothing; without a trace, a gap in a session's lines
  * cannot be read afterwards (2026-10-06: no `tool-requested` line for any storytree call on the
  * laptop for seven minutes, and no way to tell why). So a hook that throws, cannot reach storytree,

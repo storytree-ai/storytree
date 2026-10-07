@@ -1,5 +1,5 @@
 /**
- * The close-out reminder (ADR-0758 D4): when a Claude Code or Codex turn ends in a storytree project, on a
+ * Capability 3 · Hooks. The close-out reminder (ADR-0758 D4): when a Claude Code or Codex turn ends in a storytree project, on a
  * branch whose work has reached main, and the session has not closed out on this machine, the Stop
  * hook asks it to, once per session. Only a session ending a turn is asked: an idle or exited one
  * is never woken.

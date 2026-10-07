@@ -1,5 +1,5 @@
 /**
- * The app's command line: `--quit` asks the running app to quit, as its tray's Quit does, and starts
+ * Capability 1 · Lifecycle. The app's command line: `--quit` asks the running app to quit, as its tray's Quit does, and starts
  * nothing when none is running (ADR-0656 D1); `--project <name>` picks the project to open, `--smoke` runs the smoke
  * check (render, screenshot, print, quit), and `--screenshot <file>` says where the smoke check
  * saves its screenshot, `--start-check` starts the main process as far as its handlers and exits 0

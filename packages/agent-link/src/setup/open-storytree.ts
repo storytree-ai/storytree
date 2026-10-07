@@ -1,5 +1,5 @@
 /**
- * Opening storytree when it is closed. The storytree app records how it was started, in
+ * Capability 8 · Setup check. Opening storytree when it is closed. The storytree app records how it was started, in
  * `<storytree home>/app.json` (`{ "command": ..., "args": [...] }`), each time it starts; opening
  * storytree is starting that again, and waiting until its Postgres accepts connections.
  *

@@ -1,5 +1,5 @@
 /**
- * Contract 4.18 at desktop start: one storytree desktop app per machine (ADR-0940 D1). The app that
+ * Capability 4 · Updates. Contract 4.18 at desktop start: one storytree desktop app per machine (ADR-0940 D1). The app that
  * follows merged main (it runs from a runtime slot) refuses where the installed app is, and the
  * installed app refuses where the follow-main app is set up; a start from a development checkout is
  * neither, and checks nothing. @storytree/app's otherApp words the refusal; nothing here removes

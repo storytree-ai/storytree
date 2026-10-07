@@ -1,5 +1,5 @@
 /**
- * The artifact tools, on the library's knowledge entrances (ADR-0627): search artifacts, open a story or
+ * Capability 6 · Agent tools (the MCP server). The artifact tools, on the library's knowledge entrances (ADR-0627): search artifacts, open a story or
  * capability (its shelf of front covers, as spines) or an artifact (whole, with the titles of what it
  * links to and what links to it), and write an artifact.
  *

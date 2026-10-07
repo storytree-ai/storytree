@@ -1,3 +1,4 @@
+/** Capability 10 · Settings. */
 import type { SettingsResult } from "./bridge.js";
 import { readSettings, setLibrary, setSetting, type SettingsReading } from "./settings.js";
 

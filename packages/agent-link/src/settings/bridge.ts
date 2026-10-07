@@ -1,3 +1,4 @@
+/** Capability 10 · Settings. */
 import type { LibraryReading, SettingGroup, SettingsReading } from "./settings.js";
 
 /** Data only: safe to import into the sandboxed page or preload. */

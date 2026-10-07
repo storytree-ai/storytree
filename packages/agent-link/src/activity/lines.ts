@@ -1,5 +1,5 @@
 /**
- * The lines of the agent activity log (capability 2): one for each thing that happens, each about
+ * Capability 2 · Agent activity log. The lines of the agent activity log (capability 2): one for each thing that happens, each about
  * one agent session. A line is only ever added, never changed.
  */
 import { z } from "zod";

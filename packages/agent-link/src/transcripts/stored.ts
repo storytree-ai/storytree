@@ -1,5 +1,5 @@
 /**
- * Readings parsed from the shared log (ADR-0749 D3, D4): a session's context reading and window,
+ * Capability 9 · Context readings. Readings parsed from the shared log (ADR-0749 D3, D4): a session's context reading and window,
  * worked out by our own folds from the transcript records its hooks streamed in, so an app on any
  * machine reads every machine's sessions without opening a transcript file. Raw records expire
  * after RETAIN_MS; before they go, what was worked out from them is kept, and read from then on.

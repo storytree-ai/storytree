@@ -1,5 +1,5 @@
 /**
- * Streaming a session's transcript into the shared log (ADR-0749 D3), from the machine it runs on.
+ * Capability 9 · Context readings. Streaming a session's transcript into the shared log (ADR-0749 D3), from the machine it runs on.
  * Each hook ships what its session's transcript files gained since the last one: the session's own
  * file, and each subagent's (`<transcript without .jsonl>/subagents/agent-<id>.jsonl`), stored
  * under the parent session by the subagent's id. Only whole records go, each scrubbed (D4); a

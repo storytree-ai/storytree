@@ -1,3 +1,4 @@
+/** Capability 7 · Instructions (the habits card). */
 export { removeCodexInstructions, writeCodexInstructions } from "./codex-agents.js";
 export type { CodexInstructionsWrite } from "./codex-agents.js";
 export { decisionRights, habitsCard } from "./habits.js";

@@ -1,4 +1,4 @@
-/** Reading a harness transcript line by line: shared by the token reading (9.1-9.3) and the composition (9.8). */
+/** Capability 9 · Context readings. Reading a harness transcript line by line: shared by the token reading (9.1-9.3) and the composition (9.8). */
 
 export type JsonRecord = Record<string, unknown>;
 

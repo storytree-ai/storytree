@@ -153,6 +153,49 @@ test("6.7 the worklist reads the live notes about once however many notes the se
   }
 });
 
+test("6.8 a worklist call names each phase through the call's progress before it answers, and stops at its next phase once progress rejects, reading nothing more", { timeout: 120_000 }, async () => {
+  const folder = mkdtempSync(path.join(tmpdir(), "storytree-librarian-"));
+  try {
+    await withCountedLibrary(async ({ library, project, received }) => {
+      const [last] = await library.history({ newest: 1 });
+      const started = new Date((last === undefined ? Date.now() : Date.parse(last.at)) + 1);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      await library.writeKnowledge("principle", { title: "Edit first", description: "Edit before writing new.", statement: "Edit first.", why: "No near-copies.", howToApply: "Search first." });
+      const tools = librarianTools();
+      const acts = new Map<string, (args: unknown, call: ToolCall) => Promise<ToolAnswer>>();
+      tools.registerTools!((name, _description, _input, act) => {
+        acts.set(name, act as unknown as (args: unknown, call: ToolCall) => Promise<ToolAnswer>);
+      });
+      const callWith = (progress: (message: string) => Promise<void>): ToolCall => ({
+        library, project, folder, writer: {}, progress,
+        caller: { session: "s-1", harness: "claude-code" },
+        log: { lines: async () => [{ kind: "session-started", session: "s-1", harness: "claude-code", at: started.toISOString() }] },
+      });
+
+      const phases: string[] = [];
+      const answer = await acts.get("worklist")!({ memoryFolders: [folder], tools: ["worklist"] }, callWith(async (message) => {
+        phases.push(message);
+      }));
+      assert.ok(answer.data?.worklist);
+      assert.deepEqual(phases, ["graduation", "friction", "trigger", "links", "related", "health", "catalogue", "processes", "questions"]);
+
+      let atFirst = 0;
+      const cancelled = acts.get("worklist")!({ memoryFolders: [folder], tools: ["worklist"] }, callWith(async (message) => {
+        if (message === "graduation") {
+          atFirst = received();
+          return;
+        }
+        throw new Error("cancelled");
+      }));
+      await assert.rejects(cancelled, /cancelled/);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      assert.equal(received(), atFirst, "no phase after the first read the library");
+    });
+  } finally {
+    rmSync(folder, { recursive: true, force: true });
+  }
+});
+
 test("6.5 the librarian's subagent definition names every tool the librarian serves", () => {
   const served: string[] = [];
   librarianTools().registerTools!((name) => { served.push(name); });

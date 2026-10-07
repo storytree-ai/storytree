@@ -297,8 +297,32 @@ async function verifyOneFormat(page, width, output) {
     assert.equal(look.bullets, 0, `${id} has no bullet points at ${width}px`);
     assert.ok(look.sizes.length && look.sizes.every(size => size < impact && size >= 16), `${id} is told in explain mode, smaller than the arrival's ${impact}px, at ${width}px: ${look.sizes}`);
     assert.ok(depth && depth.y >= look.last - 1, `${id}'s How and Why sit beneath its lines at ${width}px`);
-    assert.ok(look.overflow <= 1, `${id}'s lines and its How and Why fit their room without scrolling at ${width}px: ${look.overflow}px over`);
     await page.screenshot({ path: path.join(output, `format-${id}-${width}.png`) });
+  }
+  await verifyEveryStepFits(page, `${width}px`);
+}
+
+// 2.19's room: every step's lines and its How and Why fit without scrolling, the arrival's as well as the chapters'.
+async function verifyEveryStepFits(page, size) {
+  const over = [];
+  for (const id of await page.locator("#tour-pips [data-step]").evaluateAll(pips => pips.map(pip => pip.dataset.step))) {
+    await goToStep(page, id);
+    if (await page.locator("#tour-play").getAttribute("aria-label") === "Pause the tour") await page.locator("#tour-play").click();
+    const overflow = await page.locator("#tour-card").evaluate(card => card.scrollHeight - card.clientHeight);
+    if (overflow > 1) over.push(`${id} ${overflow}px`);
+  }
+  assert.deepEqual(over, [], `Every step's lines and its How and Why fit their room without scrolling at ${size}: ${over.join(", ")} over`);
+}
+
+// 2.19 on short phones: the room under the globe still holds every step.
+async function verifyShortPhones(browser, url) {
+  for (const [width, height] of [[320, 700], [320, 568]]) {
+    const page = await browser.newPage({ viewport: { width, height }, reducedMotion: "reduce" });
+    await page.addInitScript(() => localStorage.setItem("storytree-opening-seen", "yes"));
+    await page.goto(url);
+    await page.locator("#tour-play").click();
+    await verifyEveryStepFits(page, `${width}x${height}`);
+    await page.close();
   }
 }
 
@@ -405,6 +429,7 @@ export async function verifyImmersive(browser, url, output) {
     await page.screenshot({ path: path.join(output, `waitlist-${width}.png`), fullPage: true });
     await page.close();
   }
+  await verifyShortPhones(browser, url).catch(error => { error.contract = "2.19"; throw error; });
   await writeFile(path.join(output, "immersive-measurements.json"), JSON.stringify({ source: "Locally built unpublished working tree", viewports: measurements }, null, 2) + "\n");
   console.log(JSON.stringify(measurements));
 }

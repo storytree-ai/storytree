@@ -18,8 +18,8 @@ export interface HookFailure {
   readonly event?: string;
   readonly session?: string;
   readonly toolUseId?: string;
-  /** Where in the hook it failed: reaching storytree, writing to its log, or anywhere else. */
-  readonly stage: "reach" | "write" | "hook";
+  /** Where in the hook it failed: reaching storytree, writing to its log, observing shell writes (3.22), or anywhere else. */
+  readonly stage: "reach" | "write" | "observe" | "hook";
   readonly error: { readonly class: string; readonly message: string };
 }
 

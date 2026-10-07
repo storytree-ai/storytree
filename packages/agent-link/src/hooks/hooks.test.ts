@@ -272,7 +272,9 @@ for (const harness of ["claude-code", "codex"] as const) test(`3.22 ${harness} s
     copyFileSync(`${testServerDataDir()}.owner.json`, path.join(home, "pgdata.owner.json"));
     await command("0"); // The next connected hook uploads the offline lines.
     const edits = (await linesOf(project)).filter((line) => line.kind === "file-edited");
-    assert.deepEqual(edits.map((line) => line.files.map((name) => path.relative(folder, path.resolve(folder, name)).split(path.sep).join("/")).sort()), expected);
+    // A missing edit says what the hooks traced (3.23), so a failure on a runner can be read afterwards.
+    const traced = existsSync(hookFailuresFile(home)) ? readFileSync(hookFailuresFile(home), "utf8") : "no hook failures traced";
+    assert.deepEqual(edits.map((line) => line.files.map((name) => path.relative(folder, path.resolve(folder, name)).split(path.sep).join("/")).sort()), expected, traced);
     assert.ok(edits.every((line) => line.session === session && line.folder === folder && line.branch === "shell-test"));
 
     const storytree = await connect({ url: testServerUrl() });

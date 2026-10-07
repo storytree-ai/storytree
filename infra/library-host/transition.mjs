@@ -14,7 +14,7 @@ if (!['cutover', 'rollback'].includes(direction) ||
 }
 if (args[0] === '--dry-run') {
   console.log(`DRY RUN ${direction}: require fresh owner freeze of laptop, Mint lanes, CI, and backup timer; refuse open client connections.`);
-  console.log('Dump all four source databases; restore and check into new staging databases; preserve old databases by renaming; atomically swap names.');
+  console.log('Dump the three 0.3 source databases (0.2\'s frozen `storytree` is left untouched on Cloud SQL); restore and check into new staging databases; preserve old databases by renaming; atomically swap names.');
   console.log('Save original Mint settings/auth privately; switch Mint settings and key; smoke. Laptop switches itself and controls Cloud SQL power.');
   console.log('No connection, subprocess or write. Never execute in the rehearsal increment.');
 } else {
@@ -52,6 +52,7 @@ async function execute() {
       if (direction === 'rollback') {
         const owners = await o.query(target, 'postgres', `SELECT datname, pg_get_userbyid(datdba) AS owner,
           pg_has_role(session_user, datdba, 'SET') AS may FROM pg_database WHERE datname=ANY($1)`, [o.DBS]);
+        if (owners.length !== o.DBS.length) throw new Error('A 0.3 database is missing on the rollback target; no dump started.');
         const denied = owners.filter(row => !row.may);
         if (denied.length) throw new Error(`Mint IAM cannot replace ${denied.map(row => row.datname).join(', ')}: laptop owner must perform that part of rollback under the freeze; no dump or restore started.`);
       }

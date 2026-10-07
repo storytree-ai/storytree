@@ -3,18 +3,33 @@ import { buildBins, buildLauncher, LAUNCHER_PROGRAM, stageNativeProbes } from "@
 import { NODE_VERSION, stageRuntime, windowsRuntime, writePayloadManifest } from "@storytree/app-setup/deliver";
 import { build } from "esbuild";
 import { execFileSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync, writeSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
+// Each step's time, for the Windows delivery proof's slow-step diagnosis. Written straight to stdout,
+// so a step still running when a deadline kills the process shows as started and not finished.
+function timed(name, run) {
+  const started = performance.now();
+  observe(`${name} START`);
+  const done = () => observe(`${name} done (${Math.round(performance.now() - started)} ms)`);
+  const result = run();
+  if (!(result instanceof Promise)) return done(), result;
+  return result.then((value) => (done(), value));
+}
+
+function observe(message) {
+  try { writeSync(1, `tools: ${message}\n`); } catch { console.log(`tools: ${message}`); }
+}
+
 export async function buildToolBundle(outdir, { platform = process.platform, arch = process.arch, release } = {}) {
   mkdirSync(outdir, { recursive: true });
   // stageTools builds each payload's own `storytree` launcher; the host's here would only be overwritten.
-  await buildBins(outdir, { release, launcher: false });
-  await build({
+  await timed("agent link commands (buildBins)", () => buildBins(outdir, { release, launcher: false }));
+  await timed("delivery helper bundle", () => build({
     stdin: {
       contents: 'import { runDeliveryCommand } from "@storytree/app-setup/deliver"; runDeliveryCommand().catch(error => { console.error(error.message); process.exitCode = 1; });',
       resolveDir: here,
@@ -24,8 +39,8 @@ export async function buildToolBundle(outdir, { platform = process.platform, arc
     bundle: true, platform: "node", format: "esm", target: "node24", logLevel: "warning",
     banner: { js: 'import { createRequire as __storytreeRequire } from "node:module"; const require = __storytreeRequire(import.meta.url);' },
     external: ["pg-native", "pg-cloudflare", "cloudflare:sockets", "@google-cloud/cloud-sql-connector", "@huggingface/transformers"],
-  });
-  stageEmbeddingRuntime(outdir, platform, arch);
+  }));
+  timed(`embedding runtime ${platform}/${arch}`, () => stageEmbeddingRuntime(outdir, platform, arch));
 }
 
 /** Copy the locked Node runtime, never model weights or another target's native libraries.
@@ -53,6 +68,8 @@ export function stageEmbeddingRuntime(outdir, platform = process.platform, arch 
       return;
     }
     const dest = path.join(modules, name);
+    const started = performance.now();
+    observe(`copy ${name} START`);
     rmSync(dest, { recursive: true, force: true });
     mkdirSync(dest, { recursive: true });
     const copy = (relative) => cpSync(path.join(source, relative), path.join(dest, relative), {
@@ -80,6 +97,7 @@ export function stageEmbeddingRuntime(outdir, platform = process.platform, arch 
       cpSync(path.join(here, "licenses", "onnxruntime-ThirdPartyNotices.txt"), path.join(dest, "ThirdPartyNotices.txt"));
     }
     staged.set(name, { version: manifest.version, bytes: directoryBytes(dest) });
+    observe(`copy ${name} done (${Math.round(performance.now() - started)} ms, ${staged.get(name).bytes} bytes)`);
     const dependencies = name === "@huggingface/transformers" ? ["onnxruntime-node", "onnxruntime-common", "sharp"]
       : name === "onnxruntime-node" ? ["onnxruntime-common"] // downloader dependencies are install-time only
       : Object.keys(manifest.dependencies ?? {});

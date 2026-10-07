@@ -256,6 +256,22 @@ test("11.4 a Claude Code session attaches the linked worktree the app started it
   });
 });
 
+test("11.10 work that waits for the owner or an outside event is refused naming what it waits for, its note and its check-back day", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const arc = await library.createArc({ title: "Launch", intent: "Ship sign-up", endState: "Visitors sign up" });
+    const increment = (await library.addIncrement({ arc: arc.id, title: "Ship to TestFlight", objective: "A build", body: "…" })).id;
+    await library.addWaitFor(increment, { releaser: "owner", note: "Sign the Apple developer agreement" });
+    await library.addWaitFor(increment, { releaser: "event", note: "Apple reviews build 12", checkBack: "2099-01-01" });
+
+    const ran = await world.run(["workspace", "claim", increment, "--reason", "shipping it"], { CLAUDE_CODE_SESSION_ID: "claude-9" });
+
+    assert.equal(ran.code, 1, ran.stdout);
+    assert.ok(ran.stderr.includes(`${increment} waits for the owner: Sign the Apple developer agreement`), ran.stderr);
+    assert.ok(ran.stderr.includes(`${increment} waits for an outside event: Apple reviews build 12 (check back 2099-01-01)`), ran.stderr);
+  });
+});
+
 test("11.9 `workspace claim` claims the work for the calling agent session without making a worktree or branch, and is refused as the claim tool refuses it", async () => {
   await inWorld(command, async (world) => {
     const increment = await withRepository(world);

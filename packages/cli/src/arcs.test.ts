@@ -83,6 +83,104 @@ test("4.8 `arc show` reads the arc's view once and every hold in one ask, howeve
   });
 });
 
+test("4.9 `arc increment wait --for` makes an increment wait for you, or for an outside event until a check-back day, with a note, and `unwait --for` clears it; a wrong wait is refused readably, with nothing written", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const increment = (await library.addIncrement({ arc: await anArc(world), title: "Ship to TestFlight", objective: "A build testers install", body: "…" })).id;
+
+    const owner = await world.run(["arc", "increment", "wait", increment, "--for", "owner", "--note", "Sign the Apple developer agreement"]);
+    assert.equal(owner.code, 0, owner.stderr);
+    const event = await world.run(["arc", "increment", "wait", increment, "--for", "event", "--note", "Apple reviews build 12", "--check-back", "2099-01-01"]);
+    assert.equal(event.code, 0, event.stderr);
+    assert.deepEqual(await library.waitsFor(increment), [
+      { releaser: "owner", note: "Sign the Apple developer agreement", holds: true },
+      { releaser: "event", note: "Apple reviews build 12", checkBack: "2099-01-01", holds: true },
+    ]);
+
+    const before = (await library.changesSince(0)).cursor;
+    for (const [words, code, said] of [
+      [["--for", "event", "--note", "DNS has propagated"], 1, /check-back day/],
+      [["--for", "owner"], 2, /--note[\s\S]*--for owner\|event --note <text\|@file> \[--check-back YYYY-MM-DD\]/],
+      [["--for", "owner", "--note", "Pay it", "--on", increment, "--reason", "why"], 2, /--on[\s\S]*--for/],
+      [["--for", "someone", "--note", "Pay it"], 2, /owner or event/],
+    ] as const) {
+      const ran = await world.run(["arc", "increment", "wait", increment, ...words]);
+      assert.equal(ran.code, code, `${words.join(" ")}: ${ran.stdout}${ran.stderr}`);
+      assert.match(ran.stderr, said);
+    }
+    assert.deepEqual((await library.changesSince(before)).changes, []);
+
+    const cleared = await world.run(["arc", "increment", "unwait", increment, "--for", "owner"]);
+    assert.equal(cleared.code, 0, cleared.stderr);
+    assert.deepEqual((await library.waitsFor(increment)).map(({ releaser }) => releaser), ["event"]);
+  });
+});
+
+test("4.4 `arc show` names each wait for you or an outside event under its increment, and an event whose check-back day has come", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const arc = await anArc(world);
+    const [sign, review, dns] = await Promise.all(["Ship to TestFlight", "Release", "Point the domain"].map((title) => library.addIncrement({ arc, title, objective: title, body: "…" })));
+    await library.addWaitFor(sign!.id, { releaser: "owner", note: "Sign the Apple developer agreement" });
+    await library.addWaitFor(review!.id, { releaser: "event", note: "Apple reviews build 12", checkBack: "2099-01-01" });
+    await library.addWaitFor(dns!.id, { releaser: "event", note: "DNS has propagated", checkBack: today() });
+
+    const ran = await world.run(["arc", "show", arc]);
+
+    assert.equal(ran.code, 0, ran.stderr);
+    const lines = ran.stdout.split(/\r?\n/);
+    const under = (id: string) => lines[lines.findIndex((line) => line.includes(id)) + 1]?.trim();
+    assert.equal(under(sign!.id), "waiting on you: Sign the Apple developer agreement", ran.stdout);
+    assert.equal(under(review!.id), "waits for an event: Apple reviews build 12 (check back 2099-01-01)", ran.stdout);
+    assert.equal(under(dns!.id), `check-back passed ${today()}: DNS has propagated`, ran.stdout);
+  });
+});
+
+test("4.10 `arc waits` lists every open increment's waits for you or an outside event across arcs, yours first, then events by check-back day with the overdue flagged, from one read of the holds and one of the arcs", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const verb = arcs.verbs.find((one) => one.name === "waits")!;
+    const none = await verb.act(parseArgs([], [], world.folder), { library: async () => library } as unknown as Context);
+    assert.equal(none.text, "No waits for you or an outside event.");
+
+    const launch = await anArc(world);
+    const docs = (await library.createArc({ title: "Docs site", intent: "Explain it", endState: "Readers find answers" })).id;
+    const release = await library.addIncrement({ arc: launch, title: "Release", objective: "On the store", body: "…" });
+    const dns = await library.addIncrement({ arc: docs, title: "Point the domain", objective: "docs.example", body: "…" });
+    const sign = await library.addIncrement({ arc: docs, title: "Ship to TestFlight", objective: "A build", body: "…" });
+    const gone = await library.addIncrement({ arc: launch, title: "Old plan", objective: "Dropped", body: "…" });
+    await library.addWaitFor(release.id, { releaser: "event", note: "Apple reviews build 12", checkBack: "2099-01-01" });
+    await library.addWaitFor(dns.id, { releaser: "event", note: "DNS has propagated", checkBack: today() });
+    await library.addWaitFor(sign.id, { releaser: "owner", note: "Sign the Apple developer agreement" });
+    await library.addWaitFor(gone.id, { releaser: "owner", note: "Never listed: its increment is closed" });
+    await library.closeIncrement(gone.id, { disposition: "withdrawn", note: "Folded in" });
+    const asked = { arcView: 0, arcViews: 0, holds: 0, waitsFor: 0 };
+    const counted = new Proxy(library, {
+      get(target, key) {
+        if (typeof key === "string" && key in asked) asked[key as keyof typeof asked]++;
+        const value = Reflect.get(target, key) as unknown;
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+
+    const answer = await verb.act(parseArgs([], [], world.folder), { library: async () => counted } as unknown as Context);
+
+    assert.deepEqual(answer.text.split("\n"), [
+      "3 waits for you or an outside event:",
+      `  - you    Sign the Apple developer agreement — ${sign.id}  Ship to TestFlight, on ${docs}  Docs site`,
+      `  - event  DNS has propagated — ${dns.id}  Point the domain, on ${docs}  Docs site; check back ${today()}, overdue`,
+      `  - event  Apple reviews build 12 — ${release.id}  Release, on ${launch}  Launch v1; check back 2099-01-01`,
+    ]);
+    assert.deepEqual(asked, { arcView: 0, arcViews: 1, holds: 1, waitsFor: 0 });
+    assert.ok(answer.next?.some((step) => step.command.startsWith("storytree arc increment unwait")), JSON.stringify(answer.next));
+  });
+});
+
+/** Today, as the library dates a check-back: YYYY-MM-DD in UTC. */
+function today(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
 /** An arc written straight into the library, for a test that is about something else. */
 async function anArc(world: World): Promise<string> {
   const arc = await (await world.library()).createArc({ title: "Launch v1", intent: "Ship sign-up", endState: "Visitors sign up" });

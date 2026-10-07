@@ -1,9 +1,11 @@
 /**
  * Capability 4 · Arcs and increments (the command line story): see one arc whole, its intent, end state,
  * increments and their states, the questions waiting on the owner, and what each waiting item
- * waits for. Create, edit, park or unpark an arc; park an increment, record a landing that was never
- * parked, close one with its outcome, move one to another arc keeping its id, and make an arc or
- * increment wait on another with a reason, or clear the wait. Closing an increment ends its claims through the agent link's `closed`.
+ * waits for; and every wait for the owner or an outside event across arcs. Create, edit, park or
+ * unpark an arc; park an increment, record a landing that was never parked, close one with its
+ * outcome, move one to another arc keeping its id, and make an arc or increment wait on another
+ * with a reason, or an increment wait for the owner or an outside event with a note (ADR-0938 D1),
+ * or clear the wait. Closing an increment ends its claims through the agent link's `closed`.
  *
  * Every rule is the library's (its capabilities 10, 11 and 12): an arc's intent and end state, a
  * close's note, the loop check, whether a wait holds (`waitHolds`) and whether work is held on the
@@ -11,7 +13,7 @@
  * start` (starting is claiming, the agent tools'), no `increment ready` (ADR-0645 D5; ADR-0909 D4 retired the step, and the word is refused saying so), and no hand
  * close or re-open of an arc (the owner's R1). `arc list` reads list(kind), then each arc's view.
  */
-import type { ArcView, Holds } from "@storytree/library";
+import type { ArcView, Holds, NoteWait, WaitFor } from "@storytree/library";
 
 import { labelOf, Refusal, type Answer } from "../answer.js";
 import { commaSeparatedIds, type Args } from "../args.js";
@@ -44,14 +46,24 @@ function closeOf(args: Args): { disposition: never; pr?: string; note?: string; 
   return given(args, ["disposition", "pr", "note", "date"]) as never;
 }
 
-/** Why an open increment cannot start yet, from one reading of every hold: the blockers holding it, and the owner's questions it is held on. */
+/**
+ * Why an open increment cannot start yet, from one reading of every hold: the blockers holding it,
+ * the owner's questions it is held on, and what it waits for outside the plan (ADR-0938 D1).
+ */
 function holdsOn(holds: Holds, id: string): string[] {
   const lines: string[] = [];
   for (const hold of holds.waits[id] ?? []) {
     lines.push(`waits on ${hold.on}: ${hold.reason}${hold.forGood ? " (never releases: the blocker did not land, or is gone)" : ""}`);
   }
   for (const question of holds.heldOn[id] ?? []) lines.push(`waiting on you: question ${question}`);
+  for (const wait of holds.waitsFor?.[id] ?? []) lines.push(waitSaid(wait));
   return lines;
+}
+
+/** A wait for the owner or an outside event, as `arc show` names it under its increment: an event's reads passed from its check-back day. */
+function waitSaid({ releaser, note, checkBack, holds }: NoteWait): string {
+  if (releaser === "owner") return `waiting on you: ${note}`;
+  return holds ? `waits for an event: ${note} (check back ${checkBack})` : `check-back passed ${checkBack}: ${note}`;
 }
 
 const show: Verb = {
@@ -140,15 +152,31 @@ function stateOf({ arc, state }: ArcView): string {
   return state === "parked" && arc.fields.parkedUntil !== undefined ? `parked until ${arc.fields.parkedUntil} (UTC)` : state;
 }
 
-/** Make an arc or increment wait on another, or clear the wait: the library's addWait and removeWait, which take either. */
-function waiting(family: string, what: string): Verb[] {
+/**
+ * Make an arc or increment wait on another, or clear the wait: the library's addWait and removeWait,
+ * which take either. An increment can instead wait for the owner or an outside event, with a note
+ * (`--for`): its addWaitFor and removeWaitFor, whose refusals are the library's (ADR-0938 D1).
+ */
+function waiting(family: string, what: "arc" | "increment"): Verb[] {
+  const outside = what === "increment";
   return [
     {
       name: "wait",
-      usage: `${family} wait <${what}> --on <${what}> --reason <why>`,
-      summary: `make an ${what} wait on another, with a reason`,
+      usage: `${family} wait <${what}> --on <${what}> --reason <why>${outside ? ", or --for owner|event --note <text|@file> [--check-back YYYY-MM-DD]" : ""}`,
+      summary: outside
+        ? "make an increment wait on another, with a reason; or for you, or an outside event until a check-back day, with a note"
+        : "make an arc wait on another, with a reason",
       async act(args, context) {
         const id = args.word(0, `the ${what}'s id`, this.usage);
+        const releaser = outside ? releaserOf(args, this.usage) : undefined;
+        if (releaser !== undefined) {
+          const note = args.need("note", this.usage).trim();
+          const checkBack = args.text("check-back");
+          const wait = { releaser, note, ...(checkBack === undefined ? {} : { checkBack }) };
+          const done = await (await context.library()).addWaitFor(id, wait, context.writer());
+          if (done === null) throw new Refusal(`no increment "${id}" in this project`);
+          return { text: `${id} now waits for ${releasedBy(releaser)}: ${note}${checkBack === undefined ? "" : ` (check back ${checkBack})`}.` };
+        }
         const on = args.need("on", this.usage);
         const done = await (await context.library()).addWait(id, on, args.need("reason", this.usage), context.writer());
         if (done === null) throw new Refusal(`no ${what} "${id}" in this project`);
@@ -157,10 +185,16 @@ function waiting(family: string, what: string): Verb[] {
     },
     {
       name: "unwait",
-      usage: `${family} unwait <${what}> --on <${what}>`,
+      usage: `${family} unwait <${what}> --on <${what}>${outside ? ", or --for owner|event" : ""}`,
       summary: "clear a wait",
       async act(args, context) {
         const id = args.word(0, `the ${what}'s id`, this.usage);
+        const releaser = outside ? releaserOf(args, this.usage) : undefined;
+        if (releaser !== undefined) {
+          const done = await (await context.library()).removeWaitFor(id, releaser, context.writer());
+          if (done === null) throw new Refusal(`no increment "${id}" in this project`);
+          return { text: `${id} no longer waits for ${releasedBy(releaser)}.` };
+        }
         const on = args.need("on", this.usage);
         const done = await (await context.library()).removeWait(id, on, context.writer());
         if (done === null) throw new Refusal(`no ${what} "${id}" in this project`);
@@ -168,6 +202,19 @@ function waiting(family: string, what: string): Verb[] {
       },
     },
   ];
+}
+
+/** What `--for` names an increment waiting for outside the plan, or undefined for a wait `--on` other work: exactly one of the two is given. */
+function releaserOf(args: Args, usage: string): WaitFor["releaser"] | undefined {
+  const releaser = args.text("for");
+  if (args.has("on") === (releaser !== undefined)) throw new Refusal(`give exactly one of --on and --for\nusage: storytree ${usage}`, { code: 2 });
+  if (releaser === undefined || releaser === "owner" || releaser === "event") return releaser;
+  throw new Refusal(`--for is owner or event, not "${releaser}"\nusage: storytree ${usage}`, { code: 2 });
+}
+
+/** Who releases a wait for something outside the plan, in words. */
+function releasedBy(releaser: WaitFor["releaser"]): string {
+  return releaser === "owner" ? "the owner" : "an outside event";
 }
 
 /** A new increment's fields, as given. */
@@ -269,10 +316,37 @@ const list: Verb = {
   },
 };
 
+const waits: Verb = {
+  name: "waits",
+  usage: "arc waits",
+  summary: "every open increment's waits for you or an outside event, across arcs: yours first, then events by check-back day",
+  async act(_args, context) {
+    const library = await context.library();
+    // Every hold in one ask and every arc in one more, never a read per increment (4.10).
+    const [views, holds] = await Promise.all([library.arcViews(), library.holds()]);
+    const found = views.flatMap(({ arc, increments }) =>
+      increments.flatMap((increment) => (holds.waitsFor?.[increment.id] ?? []).map((wait) => ({ wait, increment, arc }))));
+    if (found.length === 0) return { text: "No waits for you or an outside event." };
+    // An owner wait has no day, so it sorts before every event; the sort keeps arc order within a day.
+    found.sort((one, other) => (one.wait.checkBack ?? "").localeCompare(other.wait.checkBack ?? ""));
+    const lines = found.map(({ wait, increment, arc }) => {
+      const day = wait.releaser === "event" ? `; check back ${wait.checkBack}${wait.holds ? "" : ", overdue"}` : "";
+      return `  - ${wait.releaser === "owner" ? "you  " : "event"}  ${wait.note} — ${increment.id}  ${increment.fields.title}, on ${arc.id}  ${arc.fields.title}${day}`;
+    });
+    return {
+      text: [`${found.length} ${found.length === 1 ? "wait" : "waits"} for you or an outside event:`, ...lines].join("\n"),
+      next: [
+        { command: "storytree arc show <arc>", why: "see a wait's arc whole" },
+        { command: "storytree arc increment unwait <increment> --for owner|event", why: "clear a wait once it is done" },
+      ],
+    };
+  },
+};
+
 export const arcs: Family = {
   name: "arc",
   summary: "arcs, and the increments of their work",
-  verbs: [show, list, create, edit, parking("park"), parking("unpark"), ...waiting("arc", "arc")],
+  verbs: [show, list, waits, create, edit, parking("park"), parking("unpark"), ...waiting("arc", "arc")],
   families: [increment],
   guesses: { read: "arc show <arc>", get: "arc show <arc>", open: "arc show <arc>" },
 };

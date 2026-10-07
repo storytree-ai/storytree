@@ -154,6 +154,8 @@ export async function checkStory(library, story, writer, { root, windows, runTes
     for (const result of unmapped) log(`  ${result.status.padEnd(7)} ${result.name}`);
   }
 
+  // Without Windows evidence, a run elsewhere cannot re-run a Windows-only test: a Windows pass stands.
+  const windowsSeen = windows !== undefined || process.platform === "win32";
   log(`\nverified health of "${story.title}", by "${writer.by}"${writer.commit === undefined ? "" : ` at commit ${writer.commit}`}:`);
   for (const capability of story.capabilities) {
     log(`  ${capability.title}`);
@@ -164,13 +166,14 @@ export async function checkStory(library, story, writer, { root, windows, runTes
       let line = `    ${number.padEnd(5)} ${verdict.state.padEnd(12)} ${verdict.note ?? verdict.reason ?? ""}`;
       if (verdict.state === "not-checked") {
         const earlier = (await library.health(contract.id)).verified;
-        if (earlier.state !== "not-checked") line += `; its earlier entry (${earlier.state}, ${earlier.at}) is marked not re-run`;
+        if (!windowsSeen && verdict.skip === "platform:win32" && earlier.state === "passing") line += `; its earlier pass (${earlier.at}) stands: no Windows run to re-run it`;
+        else if (earlier.state !== "not-checked") line += `; its earlier entry (${earlier.state}, ${earlier.at}) is marked not re-run`;
         if (verdict.skip !== undefined) line += ` [skip: ${verdict.skip}]`;
       }
       log(line);
     }
   }
-  const written = await recordHealth(library, contractIds, verdicts, writer);
+  const written = await recordHealth(library, contractIds, verdicts, writer, { windowsSeen });
   log(
     `\nrecorded: ${written.passing} passing, ${written.failing} failing; ` +
       `${written.notChecked} not checked, ${written.marked} of them marked with a skip's kind or as not re-run. The reported column is untouched.`,

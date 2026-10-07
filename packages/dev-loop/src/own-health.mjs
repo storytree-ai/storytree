@@ -420,20 +420,23 @@ function optional(field, value) {
  * the kind of its skip, and any earlier passing or failing it did not reproduce, which it carries as
  * "not re-run at <commit>" (history keeps the old verdict). With no tests there is nothing to re-run,
  * and a verdict from elsewhere stands. One whose column already says the same is not written
- * again, so its note keeps the commit it was first not re-run at. The reported column is never
- * touched: that is what an agent says, and no agent has spoken here.
+ * again, so its note keeps the commit it was first not re-run at. A run that saw no Windows run
+ * (`windowsSeen` false: no Windows evidence, on another system) cannot re-run a Windows-only test
+ * either, so a passing verdict from elsewhere stands against its platform:win32 skip. The reported
+ * column is never touched: that is what an agent says, and no agent has spoken here.
  * @param {import("@storytree/library").Library} library
  * @param {Map<string, string>} contractIds contract number -> id
  * @param {Map<string, Verdict>} verdicts
  * @param {Writer} [writer]
+ * @param {{ windowsSeen?: boolean }} [options]
  */
-export async function recordHealth(library, contractIds, verdicts, writer = { by: VERIFIED_BY }) {
+export async function recordHealth(library, contractIds, verdicts, writer = { by: VERIFIED_BY }, { windowsSeen = true } = {}) {
   const written = { passing: 0, failing: 0, notChecked: 0, marked: 0 };
   for (const [number, verdict] of verdicts) {
     const id = contractIds.get(number);
     if (verdict.state === "not-checked") {
       written.notChecked++;
-      if (id !== undefined && (await markNotChecked(library, id, verdict, writer))) written.marked++;
+      if (id !== undefined && (await markNotChecked(library, id, verdict, writer, windowsSeen))) written.marked++;
       continue;
     }
     if (id === undefined) throw new Error(`there is no contract ${number} in the library to record its health on`);
@@ -450,11 +453,12 @@ export async function recordHealth(library, contractIds, verdicts, writer = { by
  * the earlier verdict it did not reproduce (carried over from a mark already standing). True if it
  * wrote.
  */
-async function markNotChecked(library, id, verdict, writer) {
+async function markNotChecked(library, id, verdict, writer, windowsSeen) {
   // Only a run that had tests for it, skipped or crashed, failed to reproduce a verdict: with none,
   // a verdict from elsewhere (an acceptance run, ADR-0825 D5) stands.
   if (verdict.skip === undefined && verdict.crashed !== true) return false;
   const earlier = (await library.health(id)).verified;
+  if (!windowsSeen && verdict.skip === "platform:win32" && earlier.state === "passing") return false;
   const was = earlier.state === "not-checked" ? earlier.was : { state: earlier.state, at: earlier.at };
   const same = earlier.state === "not-checked" && earlier.skip === verdict.skip && earlier.was?.state === was?.state && earlier.was?.at === was?.at;
   if (same) return false;

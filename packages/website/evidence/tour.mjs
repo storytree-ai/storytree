@@ -228,7 +228,7 @@ export async function verifyTour(browser, url, output) {
 // Website 2.6, 1.6 and 5.4: the chapter fills the viewport, its controls are reachable and tappable, free play is the desktop's.
 const overlap = (a, b) => Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
 // 2.18 at every width: the agents chapter's tags each read whole inside the screen, clear of one another, the other rings,
-// the card and the panels; on a phone the arcs drawer ends above the card.
+// the card and the panels, and the tagged islands' names read clear of them; on a phone the arcs drawer ends above the card.
 async function verifyAgentTags(page, width, height, output) {
   for (const id of ["agents-arcs", "agents-claim", "agents-parallel"]) {
     await goToStep(page, id);
@@ -256,8 +256,7 @@ async function verifyAgentTags(page, width, height, output) {
       for (const panel of [card, ...panels]) assert.equal(overlap(tag, panel), 0, `${tag.text} is clear of the card and the panels on the ${id} step at ${width}px: ${JSON.stringify({ tag, panels })}`);
       rings.forEach((ring, other) => { if (other !== index) assert.equal(overlap(tag, ring), 0, `${tag.text} is clear of ring ${other} at ${width}px`); });
     });
-    // On a laptop the tagged islands' own names read too, clear of the card and the panels, reached in order from the step before.
-    if (width > 600) {
+    // The tagged islands' own names read too, clear of the card, the panels and the tags, reached in order from the step before.
     const named = await page.evaluate(() => [...document.querySelectorAll("#tour-tags .tour-tag:not(.away)[data-story]")].map(tag => {
       const plate = document.querySelector(`.planet-nameplate[data-story-id="${tag.dataset.story}"]`);
       const box = plate?.getBoundingClientRect();
@@ -267,7 +266,7 @@ async function verifyAgentTags(page, width, height, output) {
     for (const plate of named) {
       assert.ok(plate.shown, `${plate.text ?? plate.story}'s name is shown on the ${id} step at ${width}px`);
       for (const panel of [card, ...panels]) assert.equal(overlap(plate, panel), 0, `${plate.text}'s name is clear of the card and the panels on the ${id} step at ${width}px: ${JSON.stringify({ plate, panel })}`);
-    }
+      for (const tag of tags) assert.equal(overlap(plate, tag), 0, `${plate.text}'s name is clear of ${tag.text} on the ${id} step at ${width}px: ${JSON.stringify({ plate, tag })}`);
     }
     await page.screenshot({ path: path.join(output, `${id}-${width}.png`) });
   }

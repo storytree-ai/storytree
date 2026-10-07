@@ -6,8 +6,11 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
+
+import { runHeavyCommand } from "./heavy-lock.mjs";
+import { killTree } from "./unit-run.mjs";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 
@@ -68,4 +71,144 @@ test("6.2 a lock whose holder has gone does not block the next run", async (t) =
   assert.equal(run.code, 0, run.output);
   assert.match(run.output, /gone-branch.*gone/);
   assert.equal(existsSync(path.join(home, "heavy-run.lock")), false, "the lock is released on exit");
+});
+
+function commandMachine(t) {
+  const dir = mkdtempSync(path.join(tmpdir(), "heavy-command-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const env = { ...process.env, STORYTREE_HOME: dir };
+  delete env.STORYTREE_HEAVY_LOCK_HOLDER;
+  const start = (args, extraEnv = {}) => {
+    const child = spawn(process.execPath, args, { cwd: dir, env: { ...env, ...extraEnv }, stdio: ["ignore", "pipe", "pipe"] });
+    let output = "";
+    child.stdout.on("data", chunk => { output += chunk; });
+    child.stderr.on("data", chunk => { output += chunk; });
+    const done = new Promise((resolve, reject) => {
+      child.once("error", reject);
+      child.once("close", code => resolve({ code, output }));
+    });
+    t.after(async () => { killTree(child); await done; });
+    return { child, done, output: () => output };
+  };
+  const wrapper = (...args) => start([path.join(root, "packages/dev-loop/src/heavy-lock.mjs"), "--", ...args]);
+  return { dir, start, wrapper };
+}
+
+async function until(check) {
+  for (let i = 0; i < 200; i++) {
+    if (check()) return;
+    await delay(25);
+  }
+  assert.fail("command did not reach the expected state within five seconds");
+}
+
+test("6.2 a browser evidence command waits behind the foreground gate, names its holder and starts after release", { timeout: 15_000 }, async (t) => {
+  const { dir, start, wrapper } = commandMachine(t);
+  // Hold the real gate in its typecheck step, without running another full test suite.
+  const manager = path.join(dir, "manager.mjs");
+  writeFileSync(manager, "console.log('typecheck holding'); setInterval(() => {}, 1000);");
+  // Windows kill(SIGINT) terminates Node outright; emit the gate's signal locally so its
+  // normal cancellation also stops the typecheck child before giving up the hold.
+  const cancel = path.join(dir, "cancel.mjs");
+  const stopFile = path.join(dir, "stop-gate");
+  writeFileSync(cancel, `
+    import { existsSync } from 'node:fs';
+    const timer = setInterval(() => {
+      if (existsSync(${JSON.stringify(stopFile)})) { clearInterval(timer); process.emit('SIGINT'); }
+    }, 25);
+    timer.unref();
+  `);
+  const gate = start(["--import", pathToFileURL(cancel).href, path.join(root, "packages/dev-loop/src/gate.mjs")], { npm_execpath: manager });
+  await until(() => gate.output().includes("typecheck holding"));
+  const capture = wrapper(process.execPath, "-e", "console.log('capture started')");
+  await until(() => /waiting for/.test(capture.output()));
+  assert.match(capture.output(), new RegExp(`pid ${gate.child.pid}`));
+  assert.doesNotMatch(capture.output(), /capture started/);
+  writeFileSync(stopFile, "stop");
+  assert.equal((await gate.done).code, 130);
+  const result = await capture.done;
+  assert.equal(result.code, 0, result.output);
+  assert.match(result.output, /capture started/);
+  assert.equal(existsSync(path.join(dir, "heavy-run.lock")), false);
+});
+
+test("6.2 a locked command preserves arguments, cwd and failure status, inherits its hold and takes over a stale holder", { timeout: 10_000 }, async (t) => {
+  const { dir, wrapper } = commandMachine(t);
+  const gone = spawnSync(process.execPath, ["-e", ""]).pid;
+  writeFileSync(path.join(dir, "heavy-run.lock"), JSON.stringify({ id: "gone", pid: gone, branch: "old-capture" }));
+  const script = path.join(dir, "capture with spaces.mjs");
+  writeFileSync(script, `
+    import { acquireHeavyLock } from ${JSON.stringify(new URL("./heavy-lock.mjs", import.meta.url).href)};
+    const release = await acquireHeavyLock({ root: process.cwd(), what: 'nested', waitMs: 0 });
+    console.log(JSON.stringify({ args: process.argv.slice(2), cwd: process.cwd() }));
+    release();
+    process.exitCode = 7;
+  `);
+  const args = ["--", "two words", 'a"b', "$literal", "a;b"];
+  const result = await wrapper(process.execPath, script, ...args).done;
+  assert.equal(result.code, 7, result.output);
+  assert.match(result.output, /old-capture.*gone/);
+  assert.deepEqual(JSON.parse(result.output.trim().split("\n").at(-1)), { args, cwd: dir });
+  assert.equal(existsSync(path.join(dir, "heavy-run.lock")), false);
+  const missing = await wrapper(path.join(dir, "missing-command")).done;
+  assert.equal(missing.code, 1, missing.output);
+  assert.match(missing.output, /ENOENT/);
+  assert.equal(existsSync(path.join(dir, "heavy-run.lock")), false);
+});
+
+test("6.2 cancelling a waiting capture starts no command and leaves the current holder alone", { timeout: 10_000, skip: process.platform === "win32" && "Windows cannot send a catchable signal to another Node process" }, async (t) => {
+  const { dir, start, wrapper } = commandMachine(t);
+  const holder = start(["--input-type=module", "-e", `
+    import { acquireHeavyLock } from ${JSON.stringify(new URL("./heavy-lock.mjs", import.meta.url).href)};
+    await acquireHeavyLock({ root: process.cwd(), what: 'holder' });
+    console.log('holding'); setInterval(() => {}, 1000);
+  `]);
+  await until(() => holder.output().includes("holding"));
+  const before = readFileSync(path.join(dir, "heavy-run.lock"), "utf8");
+  const capture = wrapper(process.execPath, "-e", "console.log('must not start')");
+  await until(() => /waiting for/.test(capture.output()));
+  capture.child.kill("SIGINT");
+  const result = await capture.done;
+  assert.equal(result.code, 130, result.output);
+  assert.doesNotMatch(result.output, /must not start/);
+  assert.equal(readFileSync(path.join(dir, "heavy-run.lock"), "utf8"), before);
+});
+
+test("6.2 cancelling a running capture stops its child tree before releasing the hold", { timeout: 15_000 }, async (t) => {
+  const { dir } = commandMachine(t);
+  const previous = process.env.STORYTREE_HOME;
+  const previousHolder = process.env.STORYTREE_HEAVY_LOCK_HOLDER;
+  process.env.STORYTREE_HOME = dir;
+  delete process.env.STORYTREE_HEAVY_LOCK_HOLDER;
+  const controller = new AbortController();
+  const pids = [];
+  t.after(() => {
+    controller.abort();
+    if (previous === undefined) delete process.env.STORYTREE_HOME;
+    else process.env.STORYTREE_HOME = previous;
+    if (previousHolder !== undefined) process.env.STORYTREE_HEAVY_LOCK_HOLDER = previousHolder;
+    for (const pid of pids) { try { process.kill(pid, "SIGKILL"); } catch {} }
+  });
+  writeFileSync(path.join(dir, "capture.mjs"), `
+    import { spawn } from 'node:child_process';
+    import { writeFileSync } from 'node:fs';
+    writeFileSync('capture.pid', String(process.pid));
+    spawn(process.execPath, ['browser.mjs'], { stdio: 'inherit' });
+    setInterval(() => {}, 1000);
+  `);
+  writeFileSync(path.join(dir, "browser.mjs"), `
+    import { writeFileSync } from 'node:fs';
+    writeFileSync('browser.pid', String(process.pid));
+    setInterval(() => {}, 1000);
+  `);
+  const running = runHeavyCommand(process.execPath, ["capture.mjs"], { root: dir, signal: controller.signal });
+  for (const file of ["capture.pid", "browser.pid"]) {
+    await until(() => existsSync(path.join(dir, file)));
+    pids.push(Number(readFileSync(path.join(dir, file), "utf8")));
+  }
+  controller.abort();
+  assert.equal(await running, 130);
+  const alive = pid => { try { process.kill(pid, 0); return true; } catch { return false; } };
+  await until(() => pids.every(pid => !alive(pid)));
+  assert.equal(existsSync(path.join(dir, "heavy-run.lock")), false);
 });

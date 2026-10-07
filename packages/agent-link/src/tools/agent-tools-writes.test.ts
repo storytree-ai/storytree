@@ -28,6 +28,42 @@ import { git } from "../testing/folders.js";
 import { testServerDataDir, uniqueProjectName } from "../testing/pg.js";
 import { FOUNDED, planned, TOOLS, withProject } from "../testing/tool-world.js";
 
+test("6.4 a held claim refusal explains the running command and dirty-main close-out disagreement", async () => {
+  await withProject(async ({ folder, log, project }) => {
+    await withAgent(folder, claudeCode("contender"), async (agent) => {
+      const { capability } = await planned(agent);
+      const own = { session: "holder", harness: "codex", source: "hook", folder, branch: "main", machine: "mint" } as const;
+      await log.append(project, { ...own, kind: "claimed", capability, reason: "unfinished work" });
+      await log.append(project, { ...own, kind: "command-started", call: "lost-finish", command: "pnpm test" });
+      await log.append(project, { ...own, kind: "file-edited", files: ["unfinished.ts"] });
+      await log.append(project, { ...own, kind: "main-state", of: folder, dirty: true });
+      await log.append(project, { ...own, kind: "closed-out", safe: true, why: "claimed done", running: 0 });
+      const refused = await agent.call("claim", { capability, reason: "next writer" });
+      assert.equal(refused.isError, true);
+      assert.match(refused.text, /session holder/);
+      assert.match(refused.text, /binds:.*command is still recorded as running/);
+      assert.match(refused.text, /worked on main/);
+    });
+  });
+});
+
+test("6.42 close_out reports the calling session's released claims, and a repeated call releases none", async () => {
+  await withProject(async ({ folder, log, project }) => {
+    await withAgent(folder, claudeCode("closing"), async (agent) => {
+      const { capability } = await planned(agent);
+      assert.equal((await agent.call("claim", { capability, reason: "finish work" })).isError, false);
+      const answer = await agent.call("close_out", { safe: false, why: "handoff" });
+      assert.equal(answer.isError, false, answer.text);
+      assert.match(answer.text, new RegExp(`Released claims: ${capability}`));
+      assert.deepEqual(answer.data?.released, [capability]);
+      assert.deepEqual(await readClaims(log, project), []);
+      const again = await agent.call("close_out", { safe: false, why: "already handed off" });
+      assert.deepEqual(again.data?.released, []);
+      assert.match(again.text, /No claims to release/);
+    });
+  });
+});
+
 test("6.10 it sets a wait with a reason, and a claim on the waiting increment is refused naming it; it clears the wait, and the claim succeeds; a wait that would close a loop gets the library's refusal as a readable answer", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {

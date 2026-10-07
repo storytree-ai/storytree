@@ -29,20 +29,21 @@ export function registerContextTools(define: Define, home?: string): void {
 
   define(
     "close_out",
-    "Close out your session when its work is done: say whether it is safe to close (safe) and why. The sessions list checks a yes against your branches and your own running work: a yes it bears out leaves the list; anything else stays there, marked as needing the owner.",
+    "Close out your session when its work is done: release all your claims and say whether it is safe to close (safe) and why. The reply lists released claims. The sessions list checks a yes against your branches and your own running work: a yes it bears out leaves the list; anything else stays there, marked as needing the owner.",
     z.object({
       safe: z.boolean().describe("true: every pull request merged, the working tree clean, nothing of yours left running"),
       why: z.string().min(1).describe("Why, in a few words"),
     }),
     async ({ safe, why }, { log, project, caller, folder }) => {
       const branch = currentBranch(folder);
-      const { running } = await closeOut(
+      const { running, released } = await closeOut(
         { log, project, ...lineOf(caller), folder, ...(branch === undefined ? {} : { branch }) },
         { safe, why },
-        { look: {}, ...(home === undefined ? {} : { home: path.join(home, "own") }) },
+        { look: {}, ...(home === undefined ? {} : { home: path.join(home, "own"), claimHome: home }) },
       );
       const counted = running === undefined ? "Your own running work could not be counted, so a yes will show as needing the owner." : running === 0 ? "Nothing of yours is running here." : `${running} of your runs still run here: stop them (stop_own_run) and close out again.`;
-      return { text: `Closed out: ${safe ? "safe to close" : "not safe to close"} (${why.trim()}). ${counted}`, data: { safe, ...(running === undefined ? {} : { running }) } };
+      const claims = released.length === 0 ? "No claims to release." : `Released claims: ${released.join(", ")}.`;
+      return { text: `Closed out: ${safe ? "safe to close" : "not safe to close"} (${why.trim()}). ${counted} ${claims}`, data: { safe, released, ...(running === undefined ? {} : { running }) } };
     },
   );
 

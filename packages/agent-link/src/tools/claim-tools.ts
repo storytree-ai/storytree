@@ -234,7 +234,7 @@ async function workspaceRefusalText(library: Library, id: string, answer: Worksp
 
 /** Who holds a claim, and why, as a sentence names them. */
 function holderOf(claim: Claim): string {
-  return `${claim.label} session ${claim.session} (${claim.reason})`;
+  return `${claim.label} session ${claim.session} (${claim.reason})${claim.binds === undefined ? "" : `; binds: ${claim.binds}`}`;
 }
 
 /** A capability's or an increment's title, quoted, or its id when the plan has no such thing. */

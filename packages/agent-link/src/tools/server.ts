@@ -25,6 +25,8 @@
  * - names that hook's line as the cause of its `tool-called` line and of the reads it records
  *   (ADR-0746 D2); a call no hook saw names none;
  * - ends each claim whose pull request has merged since it was taken (ADR-0643 D3);
+ * - can report each phase of its work as an MCP progress notification, when the client asked for
+ *   progress, and stops at its next phase once the client has cancelled it (6.41);
  * - turns a refusal from the library or the claims into a readable answer marked as an error,
  *   never a crash.
  */
@@ -120,6 +122,12 @@ export interface Call {
   /** The hook's `tool-requested` line for this call, by the harness's call id: the cause of the lines the call writes (ADR-0746 D2). */
   readonly request?: number;
   readonly journey?: JourneyMilestones;
+  /**
+   * Names the phase the call is starting, as a progress notification the client receives before
+   * the answer; nothing is sent when the client asked for no progress. Rejects once the client has
+   * cancelled the call, so a tool working in phases starts no further one (6.41).
+   */
+  progress(message: string): Promise<void>;
 }
 
 /** Registers one tool: its name, what it is for, its arguments, and what it does with them. */
@@ -185,6 +193,7 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
           agent: agentOf(lines, meta),
           ...(request === undefined ? {} : { request }),
           ...(options.journey === undefined ? {} : { journey: options.journey }),
+          progress: progressOf(context),
         }));
       } catch (error) {
         if (isUnreachable(error)) {
@@ -333,6 +342,17 @@ function threadAgent(meta: Readonly<Record<string, unknown>>): Agent | undefined
   const session = text(meta.sessionId);
   if (thread === undefined || session === undefined) return undefined;
   return thread === session ? "orchestrator" : { subagent: thread };
+}
+
+/** A call's progress reporter: a numbered notification per phase, under the token the client sent. */
+function progressOf(context: ServerContext): (message: string) => Promise<void> {
+  const token = context.mcpReq._meta?.progressToken;
+  let progress = 0;
+  return async (message) => {
+    context.mcpReq.signal.throwIfAborted();
+    if (token === undefined) return;
+    await context.mcpReq.notify({ method: "notifications/progress", params: { progressToken: token, progress: ++progress, message } });
+  };
 }
 
 /** What the harness sent with a call beside its arguments. */

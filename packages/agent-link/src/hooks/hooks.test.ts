@@ -1048,10 +1048,11 @@ test("3.24 a hook cut off at its deadline while a statement of its waits on the 
     // The lock is held in one connection's transaction, and looked at from another: a transaction sees the server's activity as it was when it began.
     const [holder, looker] = [new pg.Client({ connectionString: url.href }), new pg.Client({ connectionString: url.href })];
     await Promise.all([holder.connect(), looker.connect()]);
+    const holderPid = (await holder.query<{ pid: number }>("SELECT pg_backend_pid() AS pid")).rows[0]!.pid;
     const waiting = async () => {
       const { rows } = await looker.query<{ count: string }>(
         "SELECT count(*) FROM pg_stat_activity WHERE datname = 'storytree-activity' AND pid <> $1 AND state = 'active' AND query LIKE '%pg_advisory_xact_lock(hashtext(''storytree.activity''), hashtext($1))%'",
-        [holder.processID],
+        [holderPid],
       );
       return Number(rows[0]!.count);
     };

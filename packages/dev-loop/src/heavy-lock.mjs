@@ -5,12 +5,17 @@
 // holder (branch, pid, checkout, since); a waiter prints who it waits for, takes the lock over when
 // the holder's process has gone, and gives up after a bounded wait. A run started under a holder
 // (the gate's own test step) inherits it through STORYTREE_HEAVY_LOCK_HOLDER and takes nothing.
-import { execFileSync } from "node:child_process";
+// Browser evidence uses the same lock at the command boundary, from the checkout root:
+// node packages/dev-loop/src/heavy-lock.mjs -- node --import tsx <capture.mjs> [args...]
+// From a capture's directory, use the absolute path to this wrapper; it preserves cwd.
+// This serializes participating commands only: it does not establish machine isolation for timing.
+import { execFileSync, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from "node:fs";
-import { homedir } from "node:os";
+import { constants, homedir } from "node:os";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
+import { fileURLToPath } from "node:url";
 
 export const HOLDER_ENV = "STORYTREE_HEAVY_LOCK_HOLDER";
 export const WAIT_LIMIT_MS = 60 * 60 * 1000;
@@ -103,4 +108,61 @@ export async function acquireHeavyLock({ root, what, log = console.log, waitMs =
   };
   process.on("exit", release);
   return release;
+}
+
+/** Run a foreground command under the same hold as gate/test, passing arguments without a shell. */
+export async function runHeavyCommand(command, args, { root = process.cwd(), signal, forceSignal, log = console.log } = {}) {
+  const release = await acquireHeavyLock({ root, what: command, log, stopped: () => signal?.aborted });
+  try {
+    if (signal?.aborted) return 130;
+    return await new Promise((resolve, reject) => {
+      const windows = process.platform === "win32";
+      const child = spawn(command, args, { cwd: root, stdio: "inherit", detached: !windows });
+      const terminate = (sent) => {
+        if (!child.pid) return;
+        try {
+          if (windows) execFileSync("taskkill", ["/pid", String(child.pid), "/t", "/f"], { stdio: "ignore" });
+          else process.kill(-child.pid, sent);
+        } catch (error) {
+          if (error.code !== "ESRCH" && child.exitCode === null) child.kill(sent);
+        }
+      };
+      const stop = () => terminate("SIGINT");
+      const force = () => terminate("SIGKILL");
+      signal?.addEventListener("abort", stop, { once: true });
+      forceSignal?.addEventListener("abort", force, { once: true });
+      child.once("error", reject);
+      child.once("close", (code, endedBy) => {
+        if (signal?.aborted && !windows) force();
+        signal?.removeEventListener("abort", stop);
+        forceSignal?.removeEventListener("abort", force);
+        resolve(signal?.aborted ? 130 : code ?? (128 + (constants.signals[endedBy] ?? 1)));
+      });
+    });
+  } finally {
+    release();
+  }
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const args = process.argv.slice(2);
+  if (args[0] === "--") args.shift();
+  if (!args.length || args[0] === "--help") {
+    console.log("node packages/dev-loop/src/heavy-lock.mjs -- <executable> [args...]\nRuns a command in the current directory under the machine's gate/test lock.\nArguments pass literally, without a shell; use an executable such as node.\nCtrl-C cancels; a second interruption forces the command tree to stop.");
+    process.exitCode = args.length ? 0 : 1;
+  } else {
+    const controller = new AbortController();
+    const force = new AbortController();
+    const stop = () => controller.signal.aborted ? force.abort() : controller.abort();
+    const signals = ["SIGINT", "SIGTERM", "SIGHUP", "SIGBREAK"];
+    for (const signal of signals) process.on(signal, stop);
+    try {
+      process.exitCode = await runHeavyCommand(args[0], args.slice(1), { signal: controller.signal, forceSignal: force.signal });
+    } catch (error) {
+      console.error(`heavy-run command: ${error.message}`);
+      process.exitCode = controller.signal.aborted ? 130 : 1;
+    } finally {
+      for (const signal of signals) process.removeListener(signal, stop);
+    }
+  }
 }

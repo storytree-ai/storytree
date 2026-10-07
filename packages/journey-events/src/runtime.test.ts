@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { DatabaseSync } from "node:sqlite";
-import { createJourneyRuntime, releaseConfiguration } from "./runtime.js";
+import { createJourneyRuntime, formatDeletionRequest, formatJourneyState, releaseConfiguration } from "./runtime.js";
 import { journeyDefine } from "./release.js";
 import { createPostHogTransport } from "./posthog.js";
 
@@ -103,4 +103,37 @@ test("2.3 CLI shutdown awaits a bounded flush: a network that never answers cann
     assert.ok(Date.now() - started < 6_000, `shutdown took ${Date.now() - started} ms`);
     assert.equal((await reopened.readJourney()).queued, 1);
   } finally { await runtime.finish(); await reopened.finish(); rmSync(home, { recursive: true, force: true }); }
+});
+
+test("3.3 the command line's status, on, off and delete-request share the persisted controls, refuse on without configuration, wait for their flush and never print the project key", async () => {
+  const home = mkdtempSync(path.join(tmpdir(), "journey-runtime-"));
+  const configuration = { projectKey: "phc_never_printed", retention: "30 days", deletionContact: "privacy@example.test" };
+  const sent: string[] = [];
+  const transport = { send: async (event: { event: string }) => { sent.push(event.event); }, close: async () => {} };
+  // Each command is its own process: a fresh runtime over the same home, finished before it exits.
+  async function invoke(verb: "status" | "on" | "off" | "delete-request", configured: boolean): Promise<string> {
+    const runtime = createJourneyRuntime({ home, appVersion: "0.3.42", ...(configured ? { configuration, transport } : {}) });
+    try {
+      if (verb === "delete-request") return formatDeletionRequest(await runtime.prepareJourneyDeletion());
+      const state = verb === "status" ? await runtime.readJourney() : await runtime.chooseJourney(verb === "on");
+      if (verb === "on") runtime.projectCreated();
+      return formatJourneyState(state);
+    } finally { await runtime.finish(); }
+  }
+  try {
+    assert.match(await invoke("status", false), /not chosen \(off\).*not available/);
+    await assert.rejects(invoke("on", false), /not available/i);
+    assert.match(await invoke("status", false), /not chosen \(off\)/);
+
+    const outputs = [await invoke("on", true)];
+    assert.deepEqual(sent, ["first_project"], "the command waits for its flush before it exits");
+    outputs.push(await invoke("status", true));
+    assert.match(outputs[1]!, /Journey sharing: on\. PostHog US; retention: 30 days\. 0 queued events\./);
+    outputs.push(await invoke("off", true));
+    assert.match(await invoke("status", false), /Journey sharing: off\./, "off is persisted for the next invocation");
+    outputs.push(await invoke("delete-request", true));
+    assert.match(outputs[3]!, /Installation ID: [0-9a-f-]{36}\nAsk privacy@example\.test to delete events for this ID\./);
+    assert.match(outputs[3]!, /has not been requested or confirmed/);
+    for (const text of outputs) assert.doesNotMatch(text, /phc_never_printed/);
+  } finally { rmSync(home, { recursive: true, force: true }); }
 });

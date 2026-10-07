@@ -20,13 +20,14 @@ import { Client } from "@modelcontextprotocol/client";
 import { InMemoryTransport } from "@modelcontextprotocol/server";
 import { connect } from "@storytree/library";
 import pg from "pg";
+import { z } from "zod";
 
 import { readClaims } from "../claims/index.js";
 import { sessionsFrom } from "../readings.js";
 import { claudeCode, codex, idOf, withAgent } from "../testing/agent.js";
 import { git } from "../testing/folders.js";
 import { projectDatabase, testServerDataDir, testServerUrl } from "../testing/pg.js";
-import { createAgentTools } from "./index.js";
+import { createAgentTools, type ToolExtension } from "./index.js";
 import { protectionThrough, storytreeRef } from "../setup/pipeline.js";
 import { registerPlanTools } from "./plan-tools.js";
 import type { Call, Define } from "./server.js";
@@ -69,6 +70,66 @@ test("map 3.5: focus serves the current project with counts, dry_run, show and a
       assert.ok((refused.data.rowCount as number) > 200);
       assert.ok(refused.data.counts);
     });
+  });
+});
+
+test("6.41 a tool reports each phase as progress the client receives before the answer, and a cancelled call starts no further phase", async () => {
+  await withProject(async ({ folder }) => {
+    const started: string[] = [];
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    let reachedGate!: () => void;
+    const atGate = new Promise<void>((resolve) => { reachedGate = resolve; });
+    let ended: (outcome: string) => void = () => undefined;
+    const extension: ToolExtension = {
+      registerTools(define) {
+        define("phased", "Run in phases", z.object({ wait: z.boolean().optional() }), async ({ wait }, call) => {
+          try {
+            for (const phase of ["graduation", "friction", "catalogue"]) {
+              await call.progress(phase);
+              started.push(phase);
+              if (wait === true && phase === "graduation") { reachedGate(); await gate; }
+            }
+            ended("finished");
+            return { text: "All phases ran." };
+          } catch (error) {
+            ended("stopped");
+            throw error;
+          }
+        });
+      },
+    };
+    const tools = createAgentTools({ folder, dataDir: testServerDataDir(), env: { CLAUDE_CODE_SESSION_ID: "phased-caller" }, extensions: [extension] });
+    const [serverSide, clientSide] = InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: "claude-code", version: "test" });
+    try {
+      await tools.server.connect(serverSide);
+      await client.connect(clientSide);
+      const events: string[] = [];
+      const answer = await client.callTool({ name: "phased", arguments: {} }, { onprogress: ({ message }) => { events.push(`progress: ${message}`); } });
+      events.push("answer");
+      assert.notEqual(answer.isError, true, JSON.stringify(answer.content));
+      assert.deepEqual(events, ["progress: graduation", "progress: friction", "progress: catalogue", "answer"]);
+      // A client that asked for no progress gets the answer alone.
+      const quiet = await client.callTool({ name: "phased", arguments: {} });
+      assert.notEqual(quiet.isError, true, JSON.stringify(quiet.content));
+
+      started.length = 0;
+      const outcome = new Promise<string>((resolve) => { ended = resolve; });
+      const abort = new AbortController();
+      const pending = client.callTool({ name: "phased", arguments: { wait: true } }, { signal: abort.signal, onprogress: () => undefined });
+      const cancelled = assert.rejects(pending, /cancel/i);
+      await atGate;
+      abort.abort(new Error("cancel the phased call"));
+      await cancelled;
+      await client.ping(); // The server has processed the cancellation notice.
+      release();
+      assert.equal(await outcome, "stopped");
+      assert.deepEqual(started, ["graduation"], "no phase starts once the call is cancelled");
+    } finally {
+      await client.close();
+      await tools.close();
+    }
   });
 });
 

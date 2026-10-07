@@ -1,3 +1,4 @@
+/** Capability 6 · The planet. */
 import { BackSide, FrontSide, Mesh, Object3D, Quaternion, ShaderMaterial, Sphere, SphereGeometry, Vector3, type Intersection, type Raycaster, type Side } from 'three';
 import { SHIPPED_ELEVATION_DEG } from './camera.js';
 import { landHeightRange } from '../land-relief.js';

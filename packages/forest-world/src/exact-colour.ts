@@ -1,4 +1,4 @@
-// Exact-colour settings shared by the globe's React-Three-Fiber canvas and raw-renderer callers.
+// Capability 2 · Island ground. Exact-colour settings shared by the globe's React-Three-Fiber canvas and raw-renderer callers.
 // `planet/PlanetWorldCanvas.tsx` applies EXACT_COLOUR_CANVAS_PROPS on every configure pass.
 // Linear output, no tone curve and no input colour conversion preserve the authored RGB bytes.
 

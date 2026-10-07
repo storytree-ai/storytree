@@ -1,5 +1,5 @@
 /**
- * THE ROAD RIBBON'S ON-SCREEN WIDTH — the one rule for how wide the 3D land draws a road at a given
+ * Capability 5 · The canvas. THE ROAD RIBBON'S ON-SCREEN WIDTH — the one rule for how wide the 3D land draws a road at a given
  * zoom, so that a road SCALES WITH THE LAND and never thickens as you zoom out.
  *
  * The owner, 2026-09-25, looking at the new default map: "I also noticed that pathways get thicker

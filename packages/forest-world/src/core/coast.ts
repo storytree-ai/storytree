@@ -1,4 +1,4 @@
-// Smoothed organic coastline (Chaikin corner-cutting). Turn a territory's raw,
+// Capability 1 · Scene layout. Smoothed organic coastline (Chaikin corner-cutting). Turn a territory's raw,
 // jagged hex-edge boundary into a soft, blobby shoreline so each island reads as
 // ONE landmass with a sandy rim instead of loose hexes ringed by a hexagonal moat:
 // chain the per-tile-edge segments into ordered closed loop(s), outset a per-vertex

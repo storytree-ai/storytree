@@ -1,3 +1,4 @@
+/** Capability 6 · The planet. */
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { BufferGeometry, DoubleSide, Float32BufferAttribute, type Vector3 } from 'three';

@@ -1,4 +1,4 @@
-// parcel-cells.ts — the island's ground cells in the basis anything standing ON them works in,
+// Capability 6 · The planet. parcel-cells.ts — the island's ground cells in the basis anything standing ON them works in,
 // and the one route from the SHIPPED descriptor stream into it.
 //
 // ⚠ THE `y`-MEANS-`z` TRAP, and it is why the conversion happens in exactly one place. The relaxed

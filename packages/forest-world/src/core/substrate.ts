@@ -1,4 +1,4 @@
-// Relaxed substrate (Oskar Stålberg / Townscaper style) — swaps the regular
+// Capability 1 · Scene layout. Relaxed substrate (Oskar Stålberg / Townscaper style) — swaps the regular
 // hex-tile interiors for an irregular, relaxed grid so each island reads as ONE
 // organic landmass instead of a cluster of hexagons. `mesh` (the faithful
 // irregular-quad Townscaper mesh, a port of kchapelier/hexagrid-relaxing) is the

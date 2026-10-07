@@ -1,4 +1,4 @@
-/** An island as ADR-0804 D1 draws it: one flat, pale, see-through surface with a coast line (a thin band).
+/** Capability 6 · The planet. An island as ADR-0804 D1 draws it: one flat, pale, see-through surface with a coast line (a thin band).
  * No pines, plants or banded land colour. The surface is the island's coast filled in and bent onto
  * the globe's sphere (so it lies on the glass, not on a tangent plane that lifts off at its edges),
  * in the plate's local frame: origin at PLATE_CLEARANCE above the shell, +y out of the sphere.

@@ -1,4 +1,4 @@
-// The height bound of the ground relief the islands were once drawn with. The field itself
+// Capability 6 · The planet. The height bound of the ground relief the islands were once drawn with. The field itself
 // (`landHeight`, `landGradient`) went with the shore fall, its last reader (2026-10-06); the bound
 // stays because `planet/planet.ts` sizes PLATE_CLEARANCE by it, which sets where every island
 // surface sits above the shell.

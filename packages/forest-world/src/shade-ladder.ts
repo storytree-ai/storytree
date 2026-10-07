@@ -1,4 +1,4 @@
-// The authored light direction retained by the globe shell's highlight.
+// Capability 6 · The planet. The authored light direction retained by the globe shell's highlight.
 // `planet/planet.ts` rotates this into view space; the islands use unlit status colours.
 // The flat canvas's shade ladder was retired with its renderer (ADR-0920).
 

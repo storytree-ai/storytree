@@ -1,5 +1,5 @@
 /**
- * The one join between 0.3's forest and 0.2's drawing engine (the forest story, capability 3).
+ * Capability 1 · Scene layout. The one join between 0.3's forest and 0.2's drawing engine (the forest story, capability 3).
  *
  * 0.3 decides WHERE and WHAT: each story node's place (P1, `storyNodes`) and its capabilities, one
  * entry per capability in build order with its work-state form (`grove`), both carried by

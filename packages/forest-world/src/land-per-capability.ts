@@ -1,4 +1,4 @@
-// land-per-capability.ts — THE ISLAND'S SIZE COMES FROM A DECLARED LAND-PER-CAPABILITY RATIO.
+// Capability 1 · Scene layout. land-per-capability.ts — THE ISLAND'S SIZE COMES FROM A DECLARED LAND-PER-CAPABILITY RATIO.
 //
 // The owner, 2026-09-05, on the one-tree-per-capability sheet: *"i want one tree per a capability,
 // we need to scale the land size, can we build a ratio based on this as land should also scale per

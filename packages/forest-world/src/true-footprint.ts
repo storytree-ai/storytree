@@ -1,4 +1,4 @@
-// true-footprint.ts — THE PER-ISLAND AFFINE SCALE: every ground cell moved about ITS OWN island's
+// Capability 1 · Scene layout. true-footprint.ts — THE PER-ISLAND AFFINE SCALE: every ground cell moved about ITS OWN island's
 // centre (the mean of its ring vertices), by that island's own `(x, z)` pair. The arithmetic is
 // affine about a fixed centre, so an island's centre is invariant under it. `land-per-capability.ts`
 // is the caller: an island's SIZE from a declared land-per-capability ratio, or from its story's

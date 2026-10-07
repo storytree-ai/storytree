@@ -1,4 +1,4 @@
-// Hex grid (pointy-top, axial coordinates) — the lattice the forest world's
+// Capability 1 · Scene layout. Hex grid (pointy-top, axial coordinates) — the lattice the forest world's
 // territories grow on, plus the small SVG-path helpers the cells/coast render
 // from. Pure geometry, browser-safe; the constants here are the studio's
 // CANONICAL numbers (the studio wins every divergence from the website seed,

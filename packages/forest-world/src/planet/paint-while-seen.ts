@@ -1,4 +1,4 @@
-// World 6.10: the globe asks WebGL for frames only while some of its canvas is on screen. Kept apart from
+// Capability 6 · The planet. World 6.10: the globe asks WebGL for frames only while some of its canvas is on screen. Kept apart from
 // PlanetWorldCanvas.tsx so it is provable without a GPU (paint-while-seen.test.ts); evidence/planet/
 // counts the shipped canvas's frames in Chromium.
 import type { RootState } from '@react-three/fiber';

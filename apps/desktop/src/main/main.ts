@@ -80,6 +80,7 @@ import { parseArgs } from "./args.js";
 import { createTrayIcon } from "./tray-icon.js";
 import { startRefusal } from "./one-app.js";
 import { followReleases, installedApp } from "./releases.js";
+import { keepDrawingThroughGpuResets } from "./gpu-resets.js";
 import { checkedUpdate, finishStartCheck, runWhenReady, startsCleanly } from "./start-check.js";
 
 const args = parseArgs(process.argv);
@@ -91,6 +92,8 @@ const SMOKE_TIMEOUT_MS = 180_000;
 
 // Electron's own files (cache, local storage) live in the app's home too, apart from any other app.
 app.setPath("userData", home.electron);
+// The machine's GPU resets must not leave the globe white until a restart.
+keepDrawingThroughGpuResets(app);
 
 let postgres: LocalPostgres | undefined;
 let storytree: Storytree | undefined;

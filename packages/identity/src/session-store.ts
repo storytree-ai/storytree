@@ -1,5 +1,5 @@
 /** Capability 2 · Social sign-in and session. */
-import { spawn } from "node:child_process";
+import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { constants } from "node:fs";
 import { lstat, mkdir, open, rename, rm, writeFile } from "node:fs/promises";
@@ -7,7 +7,13 @@ import path from "node:path";
 import type { SessionStore } from "./client.js";
 
 interface StoreConfiguration { readonly directory: string; readonly clientId: string; readonly identityUrl: string }
-const storageError = () => new Error("Private session storage is unavailable. No session was exposed; check its permissions and try again.");
+class PrivateStorageError extends Error {
+  constructor(diagnostic?: string) {
+    super("Private session storage is unavailable. No session was exposed; check its permissions and try again.",
+      diagnostic === undefined ? undefined : { cause: new Error(diagnostic) });
+  }
+}
+const storageError = () => new PrivateStorageError();
 const missing = (error: unknown) => (error as NodeJS.ErrnoException)?.code === "ENOENT";
 
 /**
@@ -32,7 +38,8 @@ export async function withSessionStore<T>(config: StoreConfiguration, act: (stor
   try {
     await writeFile(path.join(lock, "pid"), String(process.pid), { mode: 0o600, flag: "wx" });
     const protect = async <V>(operation: () => Promise<V>): Promise<V> => {
-      try { return await operation(); } catch { throw storageError(); }
+      try { return await operation(); }
+      catch (error) { throw error instanceof PrivateStorageError ? error : storageError(); }
     };
     return await act({
       read: () => protect(async () => {
@@ -74,23 +81,60 @@ async function check(file: string, directory: boolean): Promise<void> {
 function dpapi(value: string, encrypt: boolean): Promise<string> {
   const script = `$ErrorActionPreference = 'Stop'; Add-Type -AssemblyName System.Security; `
     + `[Console]::InputEncoding = [Text.UTF8Encoding]::new($false); [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false); `
-    + `$inputValue = [Console]::In.ReadToEnd(); `
+    + `try { $inputValue = [Console]::In.ReadToEnd(); `
     + (encrypt
       ? `$bytes = [Text.Encoding]::UTF8.GetBytes($inputValue); [Console]::Out.Write([Convert]::ToBase64String([Security.Cryptography.ProtectedData]::Protect($bytes, $null, [Security.Cryptography.DataProtectionScope]::CurrentUser)))`
-      : `$bytes = [Convert]::FromBase64String($inputValue); [Console]::Out.Write([Text.Encoding]::UTF8.GetString([Security.Cryptography.ProtectedData]::Unprotect($bytes, $null, [Security.Cryptography.DataProtectionScope]::CurrentUser)))`);
+      : `$bytes = [Convert]::FromBase64String($inputValue); [Console]::Out.Write([Text.Encoding]::UTF8.GetString([Security.Cryptography.ProtectedData]::Unprotect($bytes, $null, [Security.Cryptography.DataProtectionScope]::CurrentUser)))`)
+    + ` } catch { exit 2 }`;
+  const started = Date.now();
+  // Windows CI failed near the old ten-second bound. Allow cold PowerShell startup
+  // a finite budget, and diagnose our deadline separately from process exit.
+  const timeoutMs = 30_000;
+  const errorCode = (error: unknown) => {
+    const code = (error as NodeJS.ErrnoException)?.code;
+    return code && ["ENOENT", "EACCES", "EPERM", "EAGAIN", "ENOMEM", "EPIPE"].includes(code) ? code : "unknown";
+  };
+  const failure = (reason: string, detail: string) => new PrivateStorageError(
+    `Windows protection ${encrypt ? "encrypt" : "decrypt"}: ${reason}; elapsedMs=${Date.now() - started}; ${detail}`);
   return new Promise((resolve, reject) => {
-    const child = spawn("powershell.exe", ["-NoLogo", "-NoProfile", "-NonInteractive", "-EncodedCommand", Buffer.from(script, "utf16le").toString("base64")], {
-      windowsHide: true, stdio: ["pipe", "pipe", "pipe"], timeout: 10_000,
-    });
+    let child: ChildProcessWithoutNullStreams;
+    try {
+      child = spawn("powershell.exe", ["-NoLogo", "-NoProfile", "-NonInteractive", "-EncodedCommand", Buffer.from(script, "utf16le").toString("base64")], {
+        windowsHide: true, stdio: ["pipe", "pipe", "pipe"],
+      });
+    } catch (error) { reject(failure("startup", `code=${errorCode(error)}`)); return; }
     let output = "";
+    let settled = false;
+    const fail = (reason: string, detail = "", terminate = false) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      output = "";
+      reject(failure(reason, detail));
+      if (terminate) {
+        child.kill();
+        child.stdin.destroy(); child.stdout.destroy(); child.stderr.destroy();
+      }
+    };
+    const timer = setTimeout(() => fail("timeout", `timeoutMs=${timeoutMs}`, true), timeoutMs);
     child.stdout.setEncoding("utf8").on("data", (chunk: string) => {
+      if (settled) return;
+      if (output.length + chunk.length > 128 * 1024) { fail("output-limit", "", true); return; }
       output += chunk;
-      if (output.length > 128 * 1024) child.kill();
     });
+    // PowerShell's stderr and Node's error message may contain input. Retain only
+    // our own category, elapsed time, an allowlisted OS code and numeric exit status.
     child.stderr.resume();
-    child.on("error", () => reject(storageError()));
-    child.stdin.on("error", () => reject(storageError()));
-    child.on("close", code => code === 0 && output ? resolve(output) : reject(storageError()));
+    child.on("error", error => fail("startup", `code=${errorCode(error)}`, true));
+    child.stdin.on("error", error => fail("input", `code=${errorCode(error)}`, true));
+    child.on("close", (code, signal) => {
+      if (settled) return;
+      if (code !== 0) { fail(code === 2 ? "dpapi" : "exit", `exitCode=${code}; signal=${signal ?? "none"}`); return; }
+      if (!output) { fail("empty-output"); return; }
+      settled = true;
+      clearTimeout(timer);
+      resolve(output);
+    });
     child.stdin.end(value);
   });
 }

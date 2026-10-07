@@ -6,8 +6,8 @@ import { createServer } from 'node:http';
 import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { build } from 'esbuild';
 import { chromium } from 'playwright-core';
+import { buildGrowthPage } from './build.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const out = path.join(here, 'out');
@@ -18,11 +18,7 @@ const SECONDS = 15;
 const VIEW = { width: 1440, height: 900 };
 let browser, server;
 try {
-  await build({
-    entryPoints: [path.join(here, 'page.tsx')], outfile: path.join(out, 'bundle.js'),
-    bundle: true, format: 'iife', platform: 'browser', jsx: 'automatic', loader: { '.json': 'json', '.glb': 'binary', '.png': 'file', '.webp': 'file' },
-    define: { 'process.env.NODE_ENV': '"production"' },
-  });
+  await buildGrowthPage(path.join(out, 'bundle.js'));
   server = createServer((req, res) => {
     const file = req.url.split('?')[0];
     if (file === '/bundle.js') { res.setHeader('Content-Type', 'text/javascript'); res.end(readFileSync(path.join(out, 'bundle.js'))); return; }

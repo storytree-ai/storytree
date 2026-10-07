@@ -1,3 +1,4 @@
+/** Capability 1 · Project libraries. */
 export { PASSWORD_KEY } from "./address.js";
 export { cloudSqlServer } from "./cloud-sql.js";
 export type { CloudSqlConfig, CloudSqlConnector, CloudSqlSeams } from "./cloud-sql.js";

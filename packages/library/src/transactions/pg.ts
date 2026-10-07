@@ -1,5 +1,5 @@
 /**
- * PgTransactions: a project's records in its own Postgres database (capability 1), in the tables
+ * Capability 2 · Library transactions. PgTransactions: a project's records in its own Postgres database (capability 1), in the tables
  * `record` (each record as it is now) and `record_event` (the append-only history).
  */
 import type { Pool, PoolClient } from "pg";

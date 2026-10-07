@@ -1,5 +1,5 @@
 /**
- * MemoryTransactions: the in-memory twin of PgTransactions. The behaviour suite runs unchanged on
+ * Capability 2 · Library transactions. MemoryTransactions: the in-memory twin of PgTransactions. The behaviour suite runs unchanged on
  * both, so later stories can test against this one without a database.
  */
 import { check, fieldAt, listFilter, pickFields, editedRecord, historyEntry, historyFilter, jsonCopy, now, numbered, savedRecord } from "./records.js";

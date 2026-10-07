@@ -1,5 +1,5 @@
 /**
- * SchemaRecords: capability 3's typed layer over any Transactions (capability 2), so it runs
+ * Capability 3 · Data schema. SchemaRecords: capability 3's typed layer over any Transactions (capability 2), so it runs
  * unchanged on the in-memory twin and on Postgres.
  *
  * - Every write is checked INSIDE the write, as the transactions' validate hook, on the record the

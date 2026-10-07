@@ -1,5 +1,5 @@
 /**
- * A project library's tables, as an ORDERED list of idempotent statements. An openProject that
+ * Capability 1 · Project libraries. A project library's tables, as an ORDERED list of idempotent statements. An openProject that
  * finds the project behind (library_meta's `schema`, the list's length when it was last applied, is
  * short of it) applies the whole list, in order, in one transaction, so a new project gets every
  * table and an existing one gets whatever was added since it was last opened. One that finds it

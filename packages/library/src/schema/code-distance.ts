@@ -1,3 +1,4 @@
+/** Capability 3 · Data schema. */
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 

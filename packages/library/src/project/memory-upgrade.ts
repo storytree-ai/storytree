@@ -1,4 +1,4 @@
-/** ADR-0650's one-time conversion. Called under the schema and writer locks on project open. */
+/** Capability 6 · Knowledge artifacts. ADR-0650's one-time conversion. Called under the schema and writer locks on project open. */
 import type { PoolClient } from "pg";
 
 import { RECORD_SCHEMAS, SCHEMA_VERSIONS } from "../schema/types.js";

@@ -1,6 +1,7 @@
 // Actual desktop initial frames and polled link restoration. Run under the README's heavy-lock wrapper.
 import assert from 'node:assert/strict';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
 import { gunzipSync } from 'node:zlib';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -23,6 +24,14 @@ const initialLinks = expected.filter(link => link !== restoredLink);
 const started = performance.now();
 let currentPhase;
 const phase = message => { currentPhase = message; console.error(`[live pathways +${Math.round(performance.now() - started)}ms] ${message}`); };
+
+// How much of a span the page's slow frames spent in its own scripts and rendering.
+const slowFrameTotals = (slowFrames, from, to) => {
+  if (!slowFrames) return undefined;
+  const within = slowFrames.filter(frame => frame.start + frame.duration >= from && frame.start <= to);
+  const sum = key => Math.round(within.reduce((total, frame) => total + frame[key], 0));
+  return { spanMs: Math.round(to - from), count: within.length, durationMs: sum('duration'), scriptMs: sum('script'), blockingMs: sum('blocking') };
+};
 
 phase('launch browser');
 await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => {
@@ -73,12 +82,15 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
             canvas: rect && { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
             renderer: window.liveEvidence?.renderer,
             frames: window.liveEvidence?.frames.length, lastRender: window.liveEvidence?.lastRender,
-            lastFrame: window.liveEvidence?.frames.at(-1) };
+            lastFrame: window.liveEvidence?.frames.at(-1), slowFrames: window.liveEvidence?.slowFrames };
         }).catch(readError => ({ readError: String(readError) })),
         new Promise(resolve => { timer = setTimeout(() => resolve({ readTimedOut: true }), 3000); }),
       ]);
       clearTimeout(timer);
-      const report = { stage, name, error: String(error), errors, waitWindow, firstFrameReports, frameReports, current };
+      const host = { loadAverage: os.loadavg(), cpus: os.availableParallelism() };
+      // Of the failed wait, the share the page's own work took; the rest waited on frame delivery.
+      const pageWork = waitWindow && current.at !== undefined ? slowFrameTotals(current.slowFrames, waitWindow.from, current.at) : undefined;
+      const report = { stage, name, error: String(error), errors, waitWindow, host, pageWork, firstFrameReports, frameReports, current };
       writeFileSync(path.join(out, `${name}-failure.json`), JSON.stringify(report, null, 2) + '\n');
       console.error(`live pathway failure: ${JSON.stringify(report)}`);
       throw error;
@@ -129,7 +141,18 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
           cursor: Math.max(cursor, window.liveSeed.changes.cursor) }),
       };
       const oldLinks = new Set(initialLinks);
-      window.liveEvidence = { phase: 'initial', frames: [] };
+      window.liveEvidence = { phase: 'initial', frames: [], slowFrames: [] };
+      // Frames the browser took over 50 ms to produce, split into the page's own script and
+      // rendering work: a gap they do not fill was spent waiting outside the page's main thread.
+      try {
+        new PerformanceObserver(list => {
+          for (const entry of list.getEntries()) {
+            window.liveEvidence.slowFrames.push({ start: entry.startTime, duration: entry.duration, blocking: entry.blockingDuration,
+              renderStart: entry.renderStart, script: entry.scripts.reduce((sum, script) => sum + script.duration, 0) });
+            if (window.liveEvidence.slowFrames.length > 40) window.liveEvidence.slowFrames.shift();
+          }
+        }).observe({ type: 'long-animation-frame', buffered: true });
+      } catch { window.liveEvidence.slowFrames = undefined; }
       // The build's existing seam is called at Canvas.onCreated, before its first submitted frame.
       // Intercept its assignment, then delegate its normal getter installation and observe gl.render.
       let install;
@@ -318,6 +341,7 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
       initialElapsedMs: initial.length ? initial.at(-1).at - initial[0].at : undefined,
       maxFrameGapMs: Math.max(0, ...initial.slice(1).map((frame, i) => frame.at - initial[i].at)),
       maxRenderMs: Math.max(0, ...observation.frames.map(frame => frame.renderMs)),
+      initialSlowFrames: initial.length > 1 ? slowFrameTotals(observation.slowFrames, initial[0].at, initial.at(-1).at) : undefined,
       initialFirstRoadFractions: first?.roads.map(road => road.fraction) ?? [], initialLinkCount: first?.links.length,
       initialPartialFrames: initial.filter(frame => frame.roads.some(road => road.fraction > 0 && road.fraction < 1)).length,
       initialCompletedWithoutCaptureInvalidation: initial.length > 0 && initial.at(-1).roads.every(road => road.fraction === 1),
@@ -338,7 +362,8 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
     };
     all.runs.push({ name, reduced, summary, errors, restored, unrelated, screencast, ...observation });
     phase(`${name}: submitted-frame timing ${JSON.stringify({ renderer: summary.renderer, initialFrames: summary.initialFrameCount,
-      initialElapsedMs: summary.initialElapsedMs, maxFrameGapMs: summary.maxFrameGapMs, maxRenderMs: summary.maxRenderMs })}`);
+      initialElapsedMs: summary.initialElapsedMs, maxFrameGapMs: summary.maxFrameGapMs, maxRenderMs: summary.maxRenderMs,
+      initialSlowFrames: summary.initialSlowFrames, loadAverage: os.loadavg() })}`);
     if (!smoke) writeFileSync(path.join(out, `${name}-measurements.json`), JSON.stringify(all.runs.at(-1), null, 2) + '\n');
     await closePage();
     phase(`${name}: complete`);

@@ -66,6 +66,9 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
     // advancing when a fixed 30 s wait gave up. So wait while frames keep coming, and fail only
     // when none arrives for STALL_MS, or at capMs overall. `done` reads page state alone.
     const STALL_MS = 15000;
+    // The app's own poll timer, not a frame, ends these waits; a loaded page fires it late (a 20x
+    // CPU throttle missed a 15 s bound), and only a slow run ever spends the extra.
+    const POLL_MS = 45000;
     const whileFramesAdvance = async (done, capMs) => {
       const cap = performance.now() + await startWait(capMs);
       for (;;) {
@@ -328,7 +331,7 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
     }, { restore, from });
     phase(`${name}: restore saved dependency and wait for real poll`);
     const restored = await update(true);
-    await page.waitForFunction(reads => window.liveTreeReads > reads, restored.reads, { timeout: 15000, polling: 100 });
+    await page.waitForFunction(reads => window.liveTreeReads > reads, restored.reads, { timeout: POLL_MS, polling: 100 });
     phase(`${name}: wait for new crossing to complete`);
     await whileFramesAdvance(() => {
       const frame = window.liveEvidence.frames.at(-1);
@@ -339,11 +342,11 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
     if (!smoke) await page.screenshot({ path: path.join(out, `${name}-complete.png`) });
     phase(`${name}: update unrelated description and wait for real poll`);
     const unrelated = await update(false);
-    await page.waitForFunction(reads => window.liveTreeReads > reads, unrelated.reads, { timeout: 15000, polling: 100 });
+    await page.waitForFunction(reads => window.liveTreeReads > reads, unrelated.reads, { timeout: POLL_MS, polling: 100 });
     phase(`${name}: wait for a frame with the consumed description`);
     await page.waitForFunction(() => window.liveEvidence.frames.some(frame =>
       frame.phase === 'unrelated-description' && frame.links.length === 131 && frame.descriptionConsumed),
-    undefined, { timeout: 15000, polling: 100 });
+    undefined, { timeout: POLL_MS, polling: 100 });
     phase(`${name}: read submitted frames`);
     // The saved trace is plain JSON. Transfer it as one string rather than recursively walking
     // every frame/road object through Playwright's protocol, then retain the same full data.

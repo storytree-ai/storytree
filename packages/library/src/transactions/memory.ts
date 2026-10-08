@@ -44,10 +44,14 @@ export class MemoryTransactions implements Transactions {
     return record === undefined ? null : jsonCopy(record);
   }
 
-  async list(type: string, filter: ListFilter = {}): Promise<RecordEnvelope[]> {
+  async list(type: string | readonly string[], filter: ListFilter = {}): Promise<RecordEnvelope[]> {
     filter = listFilter(filter);
     return [...this.#records.values()]
-      .filter((record) => record.type === type
+      .filter((record) => (typeof type === "string" ? record.type === type : type.includes(record.type))
+        && (filter.after === undefined || compareIds(record.id, filter.after) > 0)
+        && (filter.phrase === undefined || Object.entries(record.fields).some(([key, value]) =>
+          (filter.phrase!.fields === undefined || filter.phrase!.fields.includes(key))
+          && typeof value === "string" && value.includes(filter.phrase!.text)))
         && (filter.ids === undefined || filter.ids.includes(record.id))
         && Object.entries(filter.where ?? {}).every(([path, value]) => fieldAt(record.fields, path) === value)
         && Object.entries(filter.not ?? {}).every(([path, value]) => fieldAt(record.fields, path) !== value))
@@ -92,7 +96,9 @@ export class MemoryTransactions implements Transactions {
   #numbered(input: SaveInput): SaveInput {
     const field = input.sequence;
     if (field === undefined) return input;
-    const held = this.#history.filter((entry) => (input.sequenceNeverHeld || entry.type === input.type) && typeof entry.record.fields[field] === "number");
+    // Cross-type reservations retain legacy numbers, but health-only writers have no authority
+    // over that namespace. Use the event's type, not its freely supplied JSON fields.
+    const held = this.#history.filter((entry) => (input.sequenceNeverHeld ? entry.type !== "health" : entry.type === input.type) && typeof entry.record.fields[field] === "number");
     const highest = Math.max(0, ...held.map((entry) => entry.record.fields[field] as number));
     return numbered(input, highest, (number) => held.some((entry) => (input.sequenceNeverHeld || entry.recordId !== input.id) && entry.record.fields[field] === number));
   }

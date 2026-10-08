@@ -9,7 +9,7 @@ import { appendFile, mkdir, readFile, rename, rm, writeFile } from "node:fs/prom
 import path from "node:path";
 
 import type { ActivityLog, Line } from "../activity/index.js";
-import { contextReading, transcriptLines, type ContextReading, type TranscriptReader } from "../context/context.js";
+import { ContextFold, contextReading, transcriptLines, type ContextReading, type TranscriptReader } from "../context/context.js";
 import { sessionWindow, type SessionWindow } from "../context/window.js";
 
 /** How long raw transcript records are kept: 180 days (D4). */
@@ -47,6 +47,8 @@ const NOTHING: Held = { records: [], finish: 0 };
 export class TranscriptCache {
   readonly #dir: string | undefined;
   readonly #held = new Map<string, Promise<Held>>();
+  /** Each session's context reading so far, and how many of its held records it has taken (9.14). */
+  readonly #folds = new Map<string, { fold: ContextFold; taken: number }>();
 
   constructor(dir?: string) {
     this.#dir = dir;
@@ -54,17 +56,44 @@ export class TranscriptCache {
 
   /** `session`'s own transcript as stored in `project`'s log: what is held, and what was stored since. */
   async read(log: ActivityLog, project: string, session: string): Promise<string | undefined> {
+    const now = await this.#advance(log, project, session);
+    return now.records.length === 0 ? undefined : now.records.join("\n");
+  }
+
+  /**
+   * `session`'s context reading folded from its stored transcript, fed only the records stored since
+   * the last ask, so an ask over a long session costs what it gained (9.14); undefined while none is stored.
+   */
+  async fold(log: ActivityLog, project: string, session: string, harness: string | undefined): Promise<ContextFold | undefined> {
+    const key = `${project}\0${session}`;
+    const now = await this.#advance(log, project, session);
+    let kept = this.#folds.get(key);
+    if (kept === undefined || kept.fold.harness !== harness || kept.taken > now.records.length) kept = { fold: new ContextFold(harness), taken: 0 };
+    if (now.records.length > kept.taken) {
+      kept.fold.feed(now.records.slice(kept.taken).join("\n"));
+      kept.taken = now.records.length;
+    }
+    this.#folds.set(key, kept);
+    return now.records.length === 0 ? undefined : kept.fold;
+  }
+
+  /** How many lines of `session`'s stored transcript its context reading has parsed. */
+  parsed(project: string, session: string): number {
+    return this.#folds.get(`${project}\0${session}`)?.fold.parsed ?? 0;
+  }
+
+  #advance(log: ActivityLog, project: string, session: string): Promise<Held> {
     const key = `${project}\0${session}`;
     const before = this.#held.get(key) ?? this.#load(log, project, session);
     const after = before.then((had) => this.#add(log, project, session, had));
     this.#held.set(key, after.catch(() => before));
-    const now = await after;
-    return now.records.length === 0 ? undefined : now.records.join("\n");
+    return after;
   }
 
   /** Let `session` go, here and on disk: its raw records expired, and what was kept of them is read instead. */
   async forget(project: string, session: string): Promise<void> {
     this.#held.delete(`${project}\0${session}`);
+    this.#folds.delete(`${project}\0${session}`);
     const file = this.#file(project, session);
     if (file !== undefined) await rm(file, { force: true }).catch(() => {});
   }
@@ -167,7 +196,11 @@ export async function storedContextReading(log: ActivityLog, project: string, li
     await cache?.forget(project, session);
     return kept.context;
   }
-  return contextReading(lines, session, { ...(now === undefined ? {} : { now }), ...(home === undefined ? {} : { home }), read: storedReader(log, project, session, cache) });
+  return contextReading(lines, session, {
+    ...(now === undefined ? {} : { now }),
+    ...(home === undefined ? {} : { home }),
+    ...(cache === undefined ? { read: storedReader(log, project, session) } : { fold: (_transcript, harness) => cache.fold(log, project, session, harness) }),
+  });
 }
 
 /** `session`'s window, parsed from its stored records; what was kept, once they expired. */

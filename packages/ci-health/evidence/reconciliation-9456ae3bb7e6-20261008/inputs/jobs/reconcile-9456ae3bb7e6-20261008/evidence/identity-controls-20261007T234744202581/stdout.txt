@@ -1,0 +1,7 @@
+{"case":"valid-signed-token","reachedPersistenceBoundary":true,"providerSemanticsVerified":false}
+{"case":"illustrative-password-claim","reachedPersistenceBoundary":true,"providerSemanticsVerified":false}
+{"case":"arbitrary-nonempty-session","reachedPersistenceBoundary":true,"providerSemanticsVerified":false}
+{"case":"expired-control","reachedPersistenceBoundary":false,"providerSemanticsVerified":false}
+{"case":"wrong-audience-control","reachedPersistenceBoundary":false,"providerSemanticsVerified":false}
+{"case":"empty-session-control","reachedPersistenceBoundary":false,"providerSemanticsVerified":false}
+{"case":"requests","distinctPaths":["/sso/jwks/client_synthetic","/user_management/users/user_synthetic","/user_management/users/user_synthetic/identities"],"realWorkOSCalls":0,"realDatabaseCalls":0}

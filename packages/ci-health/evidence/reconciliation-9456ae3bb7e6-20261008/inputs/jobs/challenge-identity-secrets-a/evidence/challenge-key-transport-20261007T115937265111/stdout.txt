@@ -1,0 +1,2 @@
+{"label":"no-ssl-options","sslRequested":false,"passwordReceived":true,"passwordMatched":true,"connectionRejected":true}
+{"label":"verify-full-refused-by-peer","sslRequested":true,"passwordReceived":false,"passwordMatched":false,"connectionRejected":true}

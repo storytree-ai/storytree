@@ -62,4 +62,4 @@ export type {
   SkipKind,
 } from "./health/index.js";
 export { NOT_VERIFIED, wordAndWhy } from "./health/index.js";
-export type { DecisionNumberPlan, DecisionStatus, DecisionView, NewDecision, NewDefinition, NewKnowledge, Note, NoteEdit, NoteType, Ranked, RankOptions, Related, RelatedHit, RelatedOptions } from "./knowledge/index.js";
+export type { DecisionNumberPlan, DecisionStatus, DecisionView, NewDecision, NewDefinition, NewKnowledge, Note, NoteEdit, NoteType, PhraseKind, PhraseOptions, PhrasePage, Ranked, RankOptions, Related, RelatedHit, RelatedOptions } from "./knowledge/index.js";

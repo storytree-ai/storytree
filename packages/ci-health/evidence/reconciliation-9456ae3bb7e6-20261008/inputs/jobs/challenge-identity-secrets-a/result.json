@@ -1,0 +1,490 @@
+{
+  "summary": "Reviewed pinned commit 08124e6286ff09843500a35120a38a685806a646 independently. Confirmed identity-secrets-001 under its stated network preconditions; the other four candidates remain unverified. Three isolated synthetic probes passed. No product source was changed.",
+  "verdicts": [
+    {
+      "candidate_id": "identity-secrets-001",
+      "verdict": "confirmed",
+      "severity": "high, conditional on an unprotected remote connection and attacker control of its network path",
+      "rationale": "The complete chain is supported by static caller tracing and an independent runtime probe of the real addressServer and pool. With no SSL options, a synthetic peer requested cleartext authentication and received the complete synthetic password before authenticating itself. No change to the saved credential or configured destination is necessary for an attacker who can intercept or redirect that connection.",
+      "attacker_control": {
+        "established": true,
+        "reason": "Conditional on interception or DNS redirection, the attacker controls the unauthenticated peer's authentication request. The application permits password-bearing connections without requiring authenticated transport.",
+        "evidence": [
+          {
+            "path": "packages/agent-link/src/settings/settings.ts",
+            "line": 290,
+            "detail": "Address validation checks URL shape and embedded passwords but imposes no TLS requirement."
+          },
+          {
+            "path": "packages/library/src/project/address.ts",
+            "line": 50,
+            "detail": "Connection-time validation also accepts a hostname without SSL options."
+          },
+          {
+            "path": "evidence/challenge-key-transport-20261007T115937265111/stdout.txt",
+            "line": 1,
+            "detail": "The controlled peer received the matching synthetic password without an SSL request."
+          }
+        ]
+      },
+      "reachability": {
+        "established": true,
+        "reason": "Static chain: ordinary tree command -> Context.library/#server -> route/locateLibrary -> connect({address}) -> addressServer -> resolveKey -> localServer/newPool -> authentication handshake.",
+        "evidence": [
+          {
+            "path": "packages/cli/src/families/tree.ts",
+            "line": 41,
+            "detail": "An ordinary tree command requests the project library."
+          },
+          {
+            "path": "packages/cli/src/door.ts",
+            "line": 325,
+            "detail": "Context obtains the routed library options and passes them to connect."
+          },
+          {
+            "path": "packages/agent-link/src/routing/routing.ts",
+            "line": 231,
+            "detail": "The postgres setting becomes the connection address."
+          },
+          {
+            "path": "packages/library/src/project/storytree.ts",
+            "line": 174,
+            "detail": "The address branch invokes addressServer."
+          },
+          {
+            "path": "packages/library/src/project/address.ts",
+            "line": 35,
+            "detail": "The postgres credential is resolved and passed through the connection URL to localServer."
+          }
+        ]
+      },
+      "trust_boundary": {
+        "established": true,
+        "reason": "A locally resolved credential crosses to a network peer without mandatory server authentication.",
+        "evidence": [
+          {
+            "path": "packages/library/src/project/address.ts",
+            "line": 44,
+            "detail": "The resolved password is inserted into the connection URL."
+          },
+          {
+            "path": "packages/library/src/project/server.ts",
+            "line": 47,
+            "detail": "Pool creation forwards the connection string without adding authenticated TLS."
+          }
+        ]
+      },
+      "impact": {
+        "established": true,
+        "reason": "The peer obtains the complete reusable password even though authentication subsequently fails. Subsequent database access depends on the credential's privileges and network restrictions.",
+        "evidence": [
+          {
+            "path": "packages/library/src/project/server.ts",
+            "line": 124,
+            "detail": "The supplied configuration reaches the real pg pool."
+          },
+          {
+            "path": "evidence/challenge-key-transport-20261007T115937265111/stdout.txt",
+            "line": 1,
+            "detail": "passwordMatched=true and connectionRejected=true establish disclosure before successful database authentication."
+          }
+        ]
+      },
+      "counterevidence": [
+        "The library defaults to local operation: packages/agent-link/src/settings/settings.ts:44.",
+        "Explicit SSL options are preserved; existing routing tests exercise an address containing sslmode=require.",
+        "The independent verify-full control requested TLS and withheld the password when the peer refused TLS."
+      ],
+      "test_evidence": [
+        "key-transport-probe.ts imported the real saveKey and addressServer functions and used a bounded synthetic Postgres handshake inside isolation.",
+        "Exit code 0; stderr empty. Preserved script, exact isolated command, source commit and outputs: evidence/challenge-key-transport-20261007T115937265111/.",
+        "The exact submitter invocation is recorded in test-commands.txt."
+      ],
+      "test_limitations": [
+        "The peer ran on isolated loopback; real interception and DNS redirection were not performed.",
+        "CLI and routing reachability were established statically.",
+        "Deployed SSL settings, PGSSLMODE, tunnels and network controls were not inspected.",
+        "The negative control tested TLS refusal, not certificate-chain or hostname validation."
+      ],
+      "remediation": "Require certificate- and hostname-verified TLS before releasing passwords to remote Postgres peers. Make any local or externally authenticated transport exception explicit and narrowly scoped.",
+      "regression_test_recommendation": "Verify that an address without secure transport fails before password transmission. Retain the TLS-refusal control, add certificate and hostname rejection controls, and separately test any supported local exception."
+    },
+    {
+      "candidate_id": "identity-secrets-002",
+      "verdict": "unverified",
+      "severity": "unverified; potentially high with a demonstrated lower-privileged directory writer",
+      "rationale": "The unsafe-directory reuse and command-execution mechanism were reproduced. However, no separate, less-privileged principal's access to an affected key directory was established. Same-UID replacement proves the mechanism but does not establish the claimed privilege boundary. Missing permission validation alone is insufficient to confirm this candidate.",
+      "attacker_control": {
+        "established": false,
+        "reason": "The attack requires directory-entry replacement rights and ancestor traversal. The key-home path comes from trusted process configuration or the user's home; no ordinary untrusted-input path granting those filesystem rights was established.",
+        "evidence": [
+          {
+            "path": "packages/keys/src/keys.ts",
+            "line": 226,
+            "detail": "The default key home comes from STORYTREE_HOME or the user's home directory."
+          },
+          {
+            "path": "packages/keys/src/keys.ts",
+            "line": 132,
+            "detail": "A missing directory is requested with mode 0700; existing permissions are not checked."
+          },
+          {
+            "path": "packages/agent-link/src/settings/settings.ts",
+            "line": 206,
+            "detail": "Settings can pre-create the shared application home using the process umask, but this does not establish attacker access in a deployment."
+          }
+        ]
+      },
+      "reachability": {
+        "established": true,
+        "reason": "Static callers reach persistence and resolution during normal operations. A replacement command entry reaches the real execution sink when resolved.",
+        "evidence": [
+          {
+            "path": "packages/cli/src/families/auth.ts",
+            "line": 18,
+            "detail": "The registered auth-set command delegates persistence to saveKey."
+          },
+          {
+            "path": "packages/library/src/project/address.ts",
+            "line": 35,
+            "detail": "Normal address connections resolve the postgres key."
+          },
+          {
+            "path": "packages/keys/src/keys.ts",
+            "line": 88,
+            "detail": "A saved value beginning with ! is dispatched to run."
+          }
+        ]
+      },
+      "trust_boundary": {
+        "established": false,
+        "reason": "Reads do not validate filesystem trust, but the probe did not establish that the replacement came from a different security principal.",
+        "evidence": [
+          {
+            "path": "packages/keys/src/keys.ts",
+            "line": 116,
+            "detail": "The file is read without ownership, permission or symlink checks."
+          },
+          {
+            "path": "packages/keys/src/keys.ts",
+            "line": 122,
+            "detail": "Validation checks JSON structure, not the authority that supplied the file."
+          },
+          {
+            "path": "evidence/challenge-key-directory-20261007T115942778812/stdout.txt",
+            "line": 2,
+            "detail": "The replacement command executed, but separatePrincipalTested=false."
+          }
+        ]
+      },
+      "impact": {
+        "established": false,
+        "reason": "The harmless marker confirms shell execution. Unauthorized execution under a more privileged identity remains conditional on the unestablished filesystem access prerequisite.",
+        "evidence": [
+          {
+            "path": "packages/keys/src/keys.ts",
+            "line": 100,
+            "detail": "Stored commands execute through execSync under the Storytree process identity."
+          }
+        ]
+      },
+      "counterevidence": [
+        "The private-directory control created mode 0700 directories and mode 0600 files.",
+        "Owner-authorized command entries are intentional functionality, explicitly tested in packages/keys/src/keys.test.ts:95.",
+        "An inaccessible private ancestor prevents the proposed replacement even if a descendant has permissive mode bits.",
+        "No affected deployed directory, ACL or separate-user access was inspected."
+      ],
+      "test_evidence": [
+        "key-directory-probe.ts exercised real saveKey and resolveKey. An existing 0777 directory remained unchanged; replacing the original 0600 file with a command entry produced a harmless marker.",
+        "Exit code 0; stderr empty. Artifacts: evidence/challenge-key-directory-20261007T115942778812/. Exact submission recorded in test-commands.txt."
+      ],
+      "test_limitations": [
+        "All synthetic filesystem operations used one UID.",
+        "No cross-user replacement, ACL behavior or deployed directory access was demonstrated."
+      ],
+      "remediation": "Validate trusted ownership and effective write permissions for the key directory, relevant ancestors and key file before reading or updating. Reject unsafe symlinks and use exclusive temporary-file creation with appropriate private ACLs.",
+      "regression_test_recommendation": "Retain the private-directory control and require unsafe existing directories to fail closed. In an appropriately isolated multi-principal fixture, verify that a less-privileged writer cannot replace an entry and trigger owner-context execution."
+    },
+    {
+      "candidate_id": "identity-secrets-003",
+      "verdict": "unverified",
+      "severity": "unverified; potentially medium if unlinking revokes access and provider reassociation is possible",
+      "rationale": "Static SQL analysis supports the historical-mapping behavior. The proposed attack still requires unverified provider unlink/reassociation semantics, an intended revocation boundary and hosting integration. Provider subjects cannot simply be supplied by the caller.",
+      "attacker_control": {
+        "established": false,
+        "reason": "The attacker must obtain a valid session whose authoritative provider response contains the detached subject under another WorkOS user. That provider lifecycle was not established.",
+        "evidence": [
+          {
+            "path": "packages/identity/src/service.ts",
+            "line": 52,
+            "detail": "JWT signature, issuer, audience, expiry and required identity/session claims are checked."
+          },
+          {
+            "path": "packages/identity/src/service.ts",
+            "line": 66,
+            "detail": "Provider subjects come from the server-authenticated WorkOS identities API."
+          }
+        ]
+      },
+      "reachability": {
+        "established": false,
+        "reason": "The exported handler reaches resolve and remember, but source searches found no shipped hosting caller. A deployed attacker-reachable endpoint was not established.",
+        "evidence": [
+          {
+            "path": "packages/identity/src/http.ts",
+            "line": 17,
+            "detail": "The handler passes a bearer token to the supplied service."
+          },
+          {
+            "path": "packages/identity/src/service.ts",
+            "line": 72,
+            "detail": "Verified identity evidence is passed to remember."
+          },
+          {
+            "path": "packages/identity/README.md",
+            "line": 23,
+            "detail": "The package explicitly describes itself as not deployed and awaiting integration."
+          }
+        ]
+      },
+      "trust_boundary": {
+        "established": false,
+        "reason": "Historical evidence remains eligible for matching, but no defined unlink operation was shown to withdraw its Storytree authorization.",
+        "evidence": [
+          {
+            "path": "packages/identity/src/store.ts",
+            "line": 55,
+            "detail": "Any matching stored provider/subject selects an existing Storytree user."
+          },
+          {
+            "path": "packages/identity/src/store.ts",
+            "line": 67,
+            "detail": "Previously proved identities are retained; absent identities are not deactivated."
+          }
+        ]
+      },
+      "impact": {
+        "established": false,
+        "reason": "If reassociation is permitted, the SQL would reuse the existing UUID and first verified email. Actual unauthorized resolution and downstream authorization consequences remain unestablished.",
+        "evidence": [
+          {
+            "path": "packages/identity/src/store.ts",
+            "line": 65,
+            "detail": "A matching identity updates the existing user's WorkOS pointer."
+          },
+          {
+            "path": "packages/identity/src/store.ts",
+            "line": 77,
+            "detail": "The existing identity and first verified email are returned."
+          },
+          {
+            "path": "packages/identity/src/http.ts",
+            "line": 19,
+            "detail": "Successful HTTP resolution exposes only the selected UUID and first verified email."
+          }
+        ]
+      },
+      "counterevidence": [
+        "Durability across broker replacement is intentional and covered by packages/identity/src/identity.test.ts:94.",
+        "Evidence spanning two existing Storytree users is rejected at packages/identity/src/store.ts:59; unique conflicts also fail closed at line 80.",
+        "The independent probe rejected token-supplied identities when the authoritative identities response was empty."
+      ],
+      "test_evidence": [
+        "Historical retention and matching were reviewed statically; the unlink/reassociation persistence sequence was not executed.",
+        "identity-guards-probe.ts exercised the real handler and resolver and confirmed that caller token claims cannot replace authoritative provider identities.",
+        "Exit code 0; artifacts: evidence/challenge-identity-guards-20261007T120105916397/."
+      ],
+      "test_limitations": [
+        "No database persistence sequence or real provider lifecycle was tested.",
+        "The identity probe deliberately stopped at a persistence sentinel and did not return a resolved identity.",
+        "No deployed endpoint or downstream authorization integration was established."
+      ],
+      "remediation": "Define unlink, revocation and broker-migration semantics explicitly. Retain historical identifiers for audit without allowing revoked associations to authenticate unless an authorized relinking or migration operation reactivates them.",
+      "regression_test_recommendation": "Using real isolated persistence, establish A with G and H, explicitly revoke H, then present H under a new broker user B. Assert that B cannot obtain A's UUID. Separately preserve authorized migration and multi-user conflict controls."
+    },
+    {
+      "candidate_id": "identity-secrets-004",
+      "verdict": "unverified",
+      "severity": "unverified; low if immediate session revocation is required",
+      "rationale": "The resolver does not consult session status, but accepting signed access tokens until expiry can be intentional. Neither a deployed immediate-revocation requirement nor replay following actual provider revocation was established.",
+      "attacker_control": {
+        "established": false,
+        "reason": "A caller controls the bearer header but must possess a still-valid provider-signed victim token. The probe did not establish a stolen token surviving a real revocation event.",
+        "evidence": [
+          {
+            "path": "packages/identity/src/http.ts",
+            "line": 14,
+            "detail": "The endpoint accepts a bounded bearer-token string."
+          },
+          {
+            "path": "packages/identity/src/service.ts",
+            "line": 52,
+            "detail": "Cryptographic verification and expiry checks constrain usable attacker input."
+          }
+        ]
+      },
+      "reachability": {
+        "established": false,
+        "reason": "The exported handler-to-resolver chain exists, but no shipped hosting caller or deployed endpoint was established.",
+        "evidence": [
+          {
+            "path": "packages/identity/src/http.ts",
+            "line": 17,
+            "detail": "Bearer requests invoke service.resolve."
+          },
+          {
+            "path": "packages/identity/README.md",
+            "line": 23,
+            "detail": "Deployment and session lifecycle integration remain pending."
+          }
+        ]
+      },
+      "trust_boundary": {
+        "established": false,
+        "reason": "Session IDs are checked for presence rather than current validity. Whether this crosses an authorization boundary depends on the accepted access-token revocation window.",
+        "evidence": [
+          {
+            "path": "packages/identity/src/service.ts",
+            "line": 57,
+            "detail": "sid validation requires only a nonempty value."
+          },
+          {
+            "path": "packages/identity/src/service.ts",
+            "line": 61,
+            "detail": "Subsequent provider requests retrieve the user and identities, not session status."
+          }
+        ]
+      },
+      "impact": {
+        "established": false,
+        "reason": "Potential continued UUID/email resolution lasts until token expiry if user and identity evidence remain valid. Neither an actual revoked-session response nor broader account access was demonstrated.",
+        "evidence": [
+          {
+            "path": "packages/identity/src/service.ts",
+            "line": 72,
+            "detail": "Successful verification proceeds to identity persistence."
+          },
+          {
+            "path": "packages/identity/src/http.ts",
+            "line": 19,
+            "detail": "The endpoint's demonstrated output contract is UUID and first verified email."
+          }
+        ]
+      },
+      "counterevidence": [
+        "Signature, issuer, audience and expiry are enforced; the independent negative controls rejected invalid tokens before persistence.",
+        "The README explicitly states that local JWT verification does not establish immediate revocation.",
+        "Client status clears invalid refresh grants at packages/identity/src/client.ts:97, with corresponding coverage at packages/identity/src/client.test.ts:108. This does not itself protect direct bearer replay."
+      ],
+      "test_evidence": [
+        "The real handler/resolver accepted a synthetic nonempty sid through verification to a persistence sentinel without requesting session status.",
+        "Expired, missing-sid and blank-sid controls returned 401 before persistence.",
+        "Exit code 0; artifacts: evidence/challenge-identity-guards-20261007T120105916397/. Exact submission recorded in test-commands.txt."
+      ],
+      "test_limitations": [
+        "No actual provider session was revoked or replayed.",
+        "Successful verification cases returned intentional 503 responses from the persistence sentinel, not resolved identities.",
+        "Deployed token lifetimes and revocation policy were not inspected."
+      ],
+      "remediation": "Specify the accepted revocation window. If immediate revocation is required, consult authoritative session state or a revocation mechanism before resolution; otherwise document and constrain access-token lifetime.",
+      "regression_test_recommendation": "After defining the policy, test an active session and replay the same unexpired token after authoritative revocation. Require the policy-appropriate result and retain expiry, signature and missing-session controls."
+    },
+    {
+      "candidate_id": "identity-secrets-005",
+      "verdict": "unverified",
+      "severity": "unverified; low if a deployed social-only policy permits weaker provider authentication",
+      "rationale": "Linked social identities do not prove the current authentication method, and the resolver does not enforce that method. A bypass nevertheless requires a provider configuration that issues acceptable tokens through a disallowed method. That configuration and an independently enforced API policy were not established.",
+      "attacker_control": {
+        "established": false,
+        "reason": "An attacker cannot select arbitrary JWT claims without a valid provider signature. Whether a compromised non-social credential can obtain an acceptable token for a socially linked victim depends on unverified provider configuration.",
+        "evidence": [
+          {
+            "path": "packages/identity/src/service.ts",
+            "line": 52,
+            "detail": "The service verifies the trusted issuer's signature and configured audience."
+          },
+          {
+            "path": "packages/identity/README.md",
+            "line": 23,
+            "detail": "Hosted authentication methods must be restricted to the supported social providers."
+          }
+        ]
+      },
+      "reachability": {
+        "established": false,
+        "reason": "The handler and resolver are exported, but no shipped hosting caller or provider configuration enabling the proposed alternative login was established.",
+        "evidence": [
+          {
+            "path": "packages/identity/src/index.ts",
+            "line": 6,
+            "detail": "The HTTP handler is exported for integration."
+          },
+          {
+            "path": "packages/identity/src/http.ts",
+            "line": 17,
+            "detail": "A correctly formed bearer request reaches the supplied resolver."
+          },
+          {
+            "path": "packages/identity/README.md",
+            "line": 23,
+            "detail": "The sign-in service is not deployed by this package."
+          }
+        ]
+      },
+      "trust_boundary": {
+        "established": false,
+        "reason": "The resolver checks account linkage, not the current login method. A violated social-only boundary requires a policy and provider configuration beyond the established code behavior.",
+        "evidence": [
+          {
+            "path": "packages/identity/src/service.ts",
+            "line": 54,
+            "detail": "Required claims cover identity, session and token times without an authentication-method requirement."
+          },
+          {
+            "path": "packages/identity/src/service.ts",
+            "line": 86,
+            "detail": "socialIdentities validates linked OAuth providers and subjects."
+          }
+        ]
+      },
+      "impact": {
+        "established": false,
+        "reason": "A weaker-method token could resolve the victim's identity only if the provider issues it and the intended policy forbids accepting it. Neither premise nor resulting unauthorized identity resolution was demonstrated.",
+        "evidence": [
+          {
+            "path": "packages/identity/src/service.ts",
+            "line": 72,
+            "detail": "Verified account and linked-provider evidence proceeds to remember without a method check."
+          },
+          {
+            "path": "packages/identity/src/http.ts",
+            "line": 19,
+            "detail": "Successful resolution returns UUID and first verified email."
+          }
+        ]
+      },
+      "counterevidence": [
+        "Restricting authentication methods at the trusted provider prevents the proposed scenario.",
+        "The README explicitly documents that the resolver does not enforce which method minted a valid session.",
+        "Unsupported or absent authoritative social identities fail closed; caller-supplied identity claims do not substitute for them.",
+        "Wrong-signature and wrong-audience controls failed before persistence."
+      ],
+      "test_evidence": [
+        "The real handler/resolver reached a persistence sentinel with a valid synthetic token lacking method evidence and with an illustrative authentication_method=password claim.",
+        "Exit code 0; artifacts: evidence/challenge-identity-guards-20261007T120105916397/. Exact submission recorded in test-commands.txt."
+      ],
+      "test_limitations": [
+        "The illustrative method claim is not evidence of WorkOS's actual token format or minting behavior.",
+        "No non-social provider login, deployed policy violation or database identity result was demonstrated."
+      ],
+      "remediation": "Enforce and validate the intended methods at the provider. If the API must enforce them independently, use authoritative current-session authentication evidence supported by the provider rather than linked-account presence.",
+      "regression_test_recommendation": "Once the provider contract is established, test allowed and disallowed authentication methods for the same socially linked user. Require rejection of the disallowed method wherever social-only authentication is an API requirement."
+    }
+  ],
+  "limitations": [
+    "Review was limited to the pinned source and this job's evidence. Candidate-referenced reviewer artifacts were not accessed.",
+    "No live services, credentials, deployment configuration, provider lifecycle operations or host key-directory permissions were inspected.",
+    "All product execution used the required submitter and isolated broker. Exact submissions are preserved in test-commands.txt; each evidence directory contains the script, isolated command, source commit, exit code, stdout and stderr.",
+    "Existing repository tests were inspected as text only. No builds, full suites, database provisioning or product fixes were performed."
+  ]
+}

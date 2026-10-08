@@ -24,6 +24,7 @@ import { createHash } from "node:crypto";
 import { byCreation } from "../creation-order.js";
 import { checkReference, checkReferences, liveRecord, type Expected } from "../references.js";
 import type { SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.js";
+import { unstorable } from "../schema/records.js";
 import type { FieldsOf, KnowledgeKind } from "../schema/types.js";
 import { NumberTakenError, type HistoryEntry } from "../transactions/index.js";
 import { defaultEmbedder } from "./bge-small.js";
@@ -85,6 +86,23 @@ export interface Ranked<T extends SchemaRecord = Note> {
 export interface RankOptions {
   readonly limit?: number;
 }
+/** Literal lookup includes knowledge artifacts and the plan's work records. */
+export type PhraseKind = NoteType | PlanKind | "arc" | "increment" | "question";
+export interface PhraseOptions {
+  /** All PhraseKinds unless selected; an empty list matches nothing. */
+  readonly kinds?: readonly PhraseKind[];
+  /** Stored top-level string fields to match, all unless selected; an empty list matches nothing. */
+  readonly fields?: readonly string[];
+  /** Page size: 1–100, default 10. */
+  readonly limit?: number;
+  /** Last returned id, exclusive. Continue with the same phrase and selections. */
+  readonly after?: string;
+}
+export interface PhrasePage {
+  readonly records: SchemaRecord<PhraseKind>[];
+  /** Absent when complete; otherwise pass as after on the next call. */
+  readonly next?: string;
+}
 /** One embedder per process for every library not handed another, so the model loads once. */
 const SHARED_EMBEDDER = defaultEmbedder();
 
@@ -109,6 +127,7 @@ export const KNOWLEDGE_KINDS: readonly KnowledgeKind[] = [
 
 const NOTE_TYPES: readonly NoteType[] = ["decision", "definition", ...KNOWLEDGE_KINDS];
 const PLAN_KINDS: readonly PlanKind[] = ["story", "capability", "contract"];
+const PHRASE_KINDS: readonly PhraseKind[] = [...NOTE_TYPES, ...PLAN_KINDS, "arc", "increment", "question"];
 
 /**
  * The fields that name other artifacts rather than hold words: never searched. (`refs` sits inside an
@@ -222,7 +241,7 @@ export class Knowledge {
     this.#requireStorytree();
     const record = await liveRecord(this.#records, id, ["decision"]);
     if (record === null) throw new RangeError(`${id} is not a live decision`);
-    this.#checkNumber(record, number, await this.#records.history(), move);
+    this.#checkNumber(record, number, await this.#numberHistory(), move);
     const updated = await this.#records.edit(id, { number }, {
       ...options,
       sequence: "number",
@@ -241,7 +260,7 @@ export class Knowledge {
   async decisionNumberPlan(): Promise<DecisionNumberPlan[]> {
     this.#requireStorytree();
     const records = await this.#records.list("decision");
-    const history = await this.#records.history();
+    const history = await this.#numberHistory();
     const rows = records.filter((record) => {
       const target = fullRecordNumber(record.fields.text);
       return fullRecordLines(record.fields.text).length > 0 && (target === undefined || target !== record.fields.number);
@@ -296,7 +315,7 @@ export class Knowledge {
   async numberFoundingDecisions(options: WriteOptions & { readonly apply?: boolean } = {}): Promise<DecisionNumberPlan[]> {
     this.#requireStorytree();
     const records = await this.#records.list("decision");
-    const history = await this.#records.history();
+    const history = await this.#numberHistory();
     const { floor, seq } = this.#numberFloor(history);
     const originals = new Map<string, HistoryEntry>();
     for (const entry of history) {
@@ -316,6 +335,11 @@ export class Knowledge {
         }
       });
     return this.#applyNumberPlan(plan, "founding-books", options);
+  }
+
+  /** Match the write-time allocator: retain legacy reservations, exclude health-only input. */
+  async #numberHistory(): Promise<HistoryEntry[]> {
+    return (await this.#records.history()).filter((entry) => entry.type !== "health");
   }
 
   #foundingMoved(id: string, history: HistoryEntry[], floorSeq: number): boolean {
@@ -463,6 +487,29 @@ export class Knowledge {
       const lists = await Promise.all([this.#notes(), ...PLAN_KINDS.map((type) => this.#records.list(type))]);
       return lists.flat().sort(byCreation);
     }, query, options);
+  }
+
+  /**
+   * Exact, case-sensitive contiguous text inside one stored top-level string field, without
+   * tokenisation, wildcard syntax or whitespace normalisation. Filter and limit in the store;
+   * return whole current records in id byte order. Each page sees live state, not a snapshot:
+   * edits or insertions behind the cursor need a fresh sweep to be seen.
+   */
+  async findPhrase(phrase: string, options: PhraseOptions = {}): Promise<PhrasePage> {
+    if (phrase.length === 0 || unstorable(phrase) !== undefined) throw new RangeError("a phrase must be nonempty storable text");
+    const limit = options.limit ?? RANK_LIMIT;
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) throw new RangeError("phrase limit must be a whole number from 1 to 100");
+    const kinds = options.kinds ?? PHRASE_KINDS;
+    for (const kind of kinds) if (!PHRASE_KINDS.includes(kind)) throw new RangeError(`unknown phrase kind: ${kind}`);
+    if (options.after !== undefined && (options.after.length === 0 || unstorable(options.after) !== undefined)) throw new RangeError("phrase after must be a nonempty record id");
+    for (const field of options.fields ?? []) if (field.length === 0 || unstorable(field) !== undefined) throw new RangeError("phrase fields must be nonempty field names");
+    const found = await this.#records.list(kinds, {
+      phrase: { text: phrase, ...(options.fields === undefined ? {} : { fields: options.fields }) },
+      limit: limit + 1,
+      ...(options.after === undefined ? {} : { after: options.after }),
+    });
+    const records = found.slice(0, limit);
+    return { records, ...(found.length > limit ? { next: records.at(-1)!.id } : {}) };
   }
 
   async #rankAmong<T extends SchemaRecord>(read: () => Promise<T[]>, query: string, options: RankOptions): Promise<Ranked<T>> {

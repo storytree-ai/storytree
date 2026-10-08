@@ -20,11 +20,15 @@
     "@storytree/app-setup": "workspace:*",
     "@storytree/arc-surface": "workspace:^",
     "@storytree/forest": "workspace:^",
-    "@storytree/knowledge-core": "workspace:*",
+    "@storytree/identity": "workspace:*",
     "@storytree/journey-events": "workspace:*",
+    "@storytree/knowledge-core": "workspace:*",
     "@storytree/library": "workspace:*",
     "@storytree/local-postgres": "workspace:*",
     "@types/node": "^24.13.6",
+    "@workos-inc/node": "^10.4.0",
+    "@workos/authkit-electron": "0.1.2",
+    "@workos/authkit-session": "0.6.0",
     "electron": "44.4.5",
     "electron-builder": "26.15.3",
     "esbuild": "^0.28.2",
@@ -68,6 +72,14 @@
       }
     ],
     "npmRebuild": false,
+    "protocols": [
+      {
+        "name": "storytree sign-in",
+        "schemes": [
+          "storytree-auth"
+        ]
+      }
+    ],
     "publish": {
       "provider": "github",
       "owner": "storytree-ai",

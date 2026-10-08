@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
-import { execFileSync, spawnSync } from "node:child_process";
+import childProcess, { execFileSync, spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { chmodSync, linkSync, mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, linkSync, mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { createServer, type AddressInfo } from "node:net";
 import path from "node:path";
+import { syncBuiltinESMExports } from "node:module";
 import { test } from "node:test";
 
-import { findBinaries, start } from "@storytree/local-postgres";
+import { findBinaries } from "@storytree/local-postgres";
 import pg from "pg";
 
 import { setLibrary } from "../settings/settings.js";
@@ -15,48 +17,51 @@ import { locateApp, locateLibrary, locateStorytree, MARKER_FILE, NOT_RUNNING, ro
 // Synthetic credentials only. Punctuation pins URL encoding through a real SCRAM handshake.
 const password = "synthetic-local-password-:@/#?% with spaces";
 
-function powershell(script: string, file: string): void {
-  // Use .NET directly: a caller launched from PowerShell 7 can leave Windows PowerShell an
-  // incompatible PSModulePath, so even Get-Acl/Set-Acl may fail to load (PR #858's first CI run).
-  const aclFunctions = `
-    function Read-Acl($file) {
-      if ([System.IO.Directory]::Exists($file)) { return [System.IO.Directory]::GetAccessControl($file) }
-      return [System.IO.File]::GetAccessControl($file)
-    }
-    function Save-Acl($file, $acl) {
-      if ([System.IO.Directory]::Exists($file)) { [System.IO.Directory]::SetAccessControl($file, $acl) }
-      else { [System.IO.File]::SetAccessControl($file, $acl) }
-    }
-  `;
-  execFileSync(path.join(process.env.SystemRoot!, "System32", "WindowsPowerShell", "v1.0", "powershell.exe"),
-    ["-NoProfile", "-NonInteractive", "-EncodedCommand", Buffer.from(aclFunctions + script, "utf16le").toString("base64")],
-    { env: { ...process.env, STORYTREE_TEST_ACL_PATH: file }, stdio: "pipe", timeout: 10_000 });
+function windowsAcl(file: string, action: "private" | "expose" | "deny-read"): void {
+  // Fixture setup needs no PowerShell/.NET startup. Keep the previous ten-second bound
+  // across ALL native children in this operation, with no retry or timeout extension.
+  const started = performance.now();
+  const run = (stage: string, command: string, args: string[]) => {
+    const timeout = Math.floor(10_000 - (performance.now() - started));
+    const label = `discovery fixture ACL ${action}/${stage} ${path.basename(file)}`;
+    assert.ok(timeout > 0, `${label}: exhausted ten-second operation bound`);
+    console.info(`${label}: START (${Math.round(performance.now() - started)} ms)`);
+    const result = spawnSync(path.join(process.env.SystemRoot!, "System32", command), args, {
+      encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout, windowsHide: true,
+    });
+    const evidence = `${label}: pid=${result.pid} status=${result.status} signal=${result.signal} error=${result.error?.message ?? "none"} (${Math.round(performance.now() - started)} ms)`;
+    console.info(evidence);
+    assert.ok(!result.error && result.status === 0,
+      `${evidence}\n${result.stdout?.slice(-2000) ?? ""}\n${result.stderr?.slice(-2000) ?? ""}`);
+    return result.stdout;
+  };
+  if (action === "expose") {
+    run("grant-everyone", "icacls.exe", [file, "/grant", "*S-1-1-0:RX"]);
+    return;
+  }
+  // Parse only the numeric SID, never localized headings or account names.
+  const identity = run("current-user", "whoami.exe", ["/user", "/fo", "csv", "/nh"]);
+  const sid = identity.match(/,"(S-1-\d+(?:-\d+)+)"\s*$/)?.[1];
+  assert.ok(sid, "whoami did not return a current-user SID");
+  if (action === "deny-read") {
+    run("deny-current-user", "icacls.exe", [file, "/deny", `*${sid}:(RD)`]);
+    return;
+  }
+  run("owner", "icacls.exe", [file, "/setowner", `*${sid}`]);
+  // Reset removes explicit grants AND denies left by the adversarial cases; then remove
+  // inherited entries and grant only the current user. All files contain synthetic data.
+  run("reset", "icacls.exe", [file, "/reset"]);
+  run("private", "icacls.exe", [file, "/inheritance:r", "/grant:r", `*${sid}:F`]);
 }
 
 function privatePath(file: string, directory = false): void {
   if (process.platform !== "win32") return chmodSync(file, directory ? 0o700 : 0o600);
-  powershell(`
-    $ErrorActionPreference = 'Stop'
-    $sid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User
-    $acl = Read-Acl $env:STORYTREE_TEST_ACL_PATH
-    $acl.SetOwner($sid)
-    $acl.SetAccessRuleProtection($true, $false)
-    foreach ($rule in $acl.GetAccessRules($true, $true, [System.Security.Principal.SecurityIdentifier])) { [void]$acl.RemoveAccessRuleSpecific($rule) }
-    $rule = [System.Security.AccessControl.FileSystemAccessRule]::new($sid, 'FullControl', 'Allow')
-    $acl.AddAccessRule($rule)
-    Save-Acl $env:STORYTREE_TEST_ACL_PATH $acl
-  `, file);
+  windowsAcl(file, "private");
 }
 
 function expose(file: string, directory = false): void {
   if (process.platform !== "win32") return chmodSync(file, directory ? 0o755 : 0o644);
-  powershell(`
-    $ErrorActionPreference = 'Stop'
-    $acl = Read-Acl $env:STORYTREE_TEST_ACL_PATH
-    $sid = [System.Security.Principal.SecurityIdentifier]::new('S-1-1-0')
-    $acl.AddAccessRule([System.Security.AccessControl.FileSystemAccessRule]::new($sid, 'ReadAndExecute', 'Allow'))
-    Save-Acl $env:STORYTREE_TEST_ACL_PATH $acl
-  `, file);
+  windowsAcl(file, "expose");
 }
 
 function fixture(home: string, port = 54321) {
@@ -77,7 +82,7 @@ function fixture(home: string, port = 54321) {
   return { dataDir, directory, file, owner, credentials, save };
 }
 
-test("1.16 authenticated discovery connects to a disposable SCRAM cluster; wrong or absent passwords cannot read it", async () => {
+test("1.16 authenticated discovery connects to an independently provisioned SCRAM cluster; wrong or absent passwords cannot read it", async () => {
   await withTempDir(async (home) => {
     const dataDir = path.join(home, "pgdata");
     const pwfile = path.join(home, "init-password");
@@ -86,15 +91,26 @@ test("1.16 authenticated discovery connects to a disposable SCRAM cluster; wrong
     const initdb = path.join(findBinaries(), process.platform === "win32" ? "initdb.exe" : "initdb");
     execFileSync(initdb, ["-D", dataDir, "-U", "postgres", "-A", "scram-sha-256", "--pwfile", pwfile, "-E", "UTF8"], { stdio: "pipe", timeout: 60_000 });
     rmSync(pwfile);
-    // The production lifecycle engine owns startup/shutdown; only fixture provisioning is here.
-    const server = await start({ dataDir });
-    const originalOwner = readFileSync(`${dataDir}.owner.json`);
+    // This consumer fixture owns its server and credentials. The production launcher's
+    // untouched handoff is exercised by project-routing 1.4, including after it adopts auth.
+    const listener = createServer();
+    await new Promise<void>((resolve, reject) => {
+      listener.once("error", reject);
+      listener.listen(0, "127.0.0.1", resolve);
+    });
+    const { port } = listener.address() as AddressInfo;
+    await new Promise<void>((resolve, reject) => listener.close((error) => error ? reject(error) : resolve()));
+    const pgctl = path.join(findBinaries(), process.platform === "win32" ? "pg_ctl.exe" : "pg_ctl");
     try {
-      const f = fixture(home, server.port);
+      // No inherited pipes: Windows pg_ctl can leave their handles in the server's shell.
+      execFileSync(pgctl, ["-D", dataDir, "-o", `-p ${port} -c listen_addresses=127.0.0.1`,
+        "-l", path.join(home, "server.log"), "-w", "start"], { stdio: "ignore", timeout: 60_000 });
+      const f = fixture(home, port);
       const discovered = route(home, { home });
-      assert.equal(discovered.status, "routed");
+      assert.equal(discovered.status, "routed", discovered.status === "not-running" ? discovered.message : "project routing failed");
       if (discovered.status !== "routed") return;
       const connectionString = discovered.library.url;
+      assert.equal(connectionString, `postgres://postgres:${encodeURIComponent(password)}@127.0.0.1:${port}/postgres`);
       const client = new pg.Client({ connectionString, connectionTimeoutMillis: 3000 });
       try {
         await client.connect();
@@ -110,9 +126,49 @@ test("1.16 authenticated discovery connects to a disposable SCRAM cluster; wrong
       assert.equal(locateLibrary({ home }).found, true);
       assert.equal(locateStorytree({ dataDir: f.dataDir }).running, true);
     } finally {
-      // start.stop() releases only its own token.
-      writeFileSync(`${dataDir}.owner.json`, originalOwner);
-      await server.stop();
+      // Also stop a server whose startup timed out after creating its PID file.
+      if (existsSync(path.join(dataDir, "postmaster.pid"))) {
+        execFileSync(pgctl, ["-D", dataDir, "-m", "immediate", "-w", "stop"], { stdio: "ignore", timeout: 60_000 });
+      }
+    }
+  });
+});
+
+test("1.16 Windows privacy refusals explain the failed check without subprocess output or credentials", async (t) => {
+  await withTempDir((home) => {
+    fixture(home);
+    const platform = Object.getOwnPropertyDescriptor(process, "platform")!;
+    Object.defineProperty(process, "platform", { ...platform, value: "win32" });
+    let failure: unknown;
+    const child = t.mock.method(childProcess, "execFileSync", () => {
+      if (failure) throw failure;
+      return "unexpected private output";
+    });
+    syncBuiltinESMExports();
+    try {
+      for (const [details, reason] of [
+        [{ code: "ETIMEDOUT" }, "windows-acl-timeout"],
+        [{ code: "ENOENT" }, "windows-acl-process"],
+        [{ status: 11 }, "windows-acl-owner"],
+        [{ status: 12 }, "windows-acl-inheritance"],
+        [{ status: 13 }, "windows-acl-exposed"],
+        [{ status: 14 }, "windows-acl-no-owner-grant"],
+        [{ status: 1 }, "windows-acl-process"],
+        [undefined, "windows-acl-output"],
+      ] as const) {
+        failure = details && Object.assign(new Error(password), details, { stdout: password, stderr: password });
+        const result = route(home, { home });
+        assert.equal(result.status, "not-running");
+        if (result.status !== "not-running") continue;
+        assert.match(result.message, new RegExp(`\\(${reason}\\)$`));
+        assert.equal(JSON.stringify(result).includes(password), false);
+        assert.equal(JSON.stringify(result).includes(encodeURIComponent(password)), false);
+        assert.equal(JSON.stringify(result).includes(home), false);
+      }
+    } finally {
+      child.mock.restore();
+      syncBuiltinESMExports();
+      Object.defineProperty(process, "platform", platform);
     }
   });
 });
@@ -166,17 +222,13 @@ test("1.16 exposed credentials, linked files and insecure directories refuse on 
       expose(file, directory);
       assert.equal(locateStorytree({ dataDir: f.dataDir }).running, false);
       privatePath(file, directory);
+      assert.equal(locateStorytree({ dataDir: f.dataDir }).running, true);
     }
     if (process.platform === "win32") {
-      powershell(`
-        $ErrorActionPreference = 'Stop'
-        $acl = Read-Acl $env:STORYTREE_TEST_ACL_PATH
-        $sid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User
-        $acl.AddAccessRule([System.Security.AccessControl.FileSystemAccessRule]::new($sid, 'ReadData', 'Deny'))
-        Save-Acl $env:STORYTREE_TEST_ACL_PATH $acl
-      `, f.file);
+      windowsAcl(f.file, "deny-read");
       assert.equal(locateStorytree({ dataDir: f.dataDir }).running, false);
       privatePath(f.file);
+      assert.equal(locateStorytree({ dataDir: f.dataDir }).running, true);
     }
     if (process.platform === "darwin") {
       execFileSync("/bin/chmod", ["+a", "everyone allow read", f.file]);

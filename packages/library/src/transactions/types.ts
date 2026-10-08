@@ -63,7 +63,7 @@ export interface SaveInput {
   readonly sequenceFloor?: number;
   /** Refuse an id ever written, including retired records, under the project write lock. */
   readonly onlyIfNew?: boolean;
-  /** N1 repair: the supplied sequence number must be unused in ALL record history, including this record's. */
+  /** N1 repair: reserve all non-health history, including this record's and legacy types'. */
   readonly sequenceNeverHeld?: boolean;
 }
 
@@ -72,7 +72,7 @@ export interface EditInput {
   readonly signal?: AbortSignal;
   /** Check the merged record's number against history inside the write, as save does. */
   readonly sequence?: string;
-  /** N1 repair: check all record history, including this record's, under the write lock. */
+  /** N1 repair: check all non-health history, including this record's, under the write lock. */
   readonly sequenceNeverHeld?: boolean;
   readonly id: string;
   /** Merged shallowly onto the stored fields; a key whose value is `undefined` is removed. */
@@ -117,6 +117,10 @@ export interface HistoryFilter {
 
 /** Narrow current records before they leave the store. Predicates read STORED fields, before upgrades. */
 export interface ListFilter {
+  /** Only ids after this one, in the same byte order as the returned records. */
+  readonly after?: string;
+  /** Exact, case-sensitive substring in any selected stored top-level string field; omitted fields means all. */
+  readonly phrase?: { readonly text: string; readonly fields?: readonly string[] };
   /** Only these ids; an empty list keeps none. */
   readonly ids?: readonly string[];
   /** Each dot-separated field path must equal the given JSON scalar; missing is different from null. */
@@ -136,7 +140,7 @@ export interface Transactions {
   /** The current record, or `null` if it is missing or retired. */
   get(id: string): Promise<RecordEnvelope | null>;
   /** The current (not retired) records of one type, ordered by id. */
-  list(type: string, filter?: ListFilter): Promise<RecordEnvelope[]>;
+  list(type: string | readonly string[], filter?: ListFilter): Promise<RecordEnvelope[]>;
   /**
    * Change only the named fields, merged onto what is stored now. Returns `null`, and writes
    * nothing, if the record is missing or retired.

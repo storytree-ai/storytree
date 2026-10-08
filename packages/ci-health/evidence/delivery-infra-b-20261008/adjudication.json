@@ -1,0 +1,56 @@
+{
+  "adjudicated_at": "2026-10-08T01:02:24.484588+00:00",
+  "independent_result_sha256": "2e1ccfa8d42fc19949ef2fb32937b12be3eb46c63fb8ba363854d33e0d48ab04",
+  "independent_fixed_at": "2026-10-08T01:00:04.353749+00:00",
+  "independence_preserved": "A and reconciliation first read after independent-result.json was written and hashed. It remains byte-identical.",
+  "comparison_inputs": "comparison-inputs.json",
+  "prior_artifacts_checked": "prior-tests-checked.json",
+  "original_failed_b": "original-b-failure.json; original job still failed and not overwritten, relaunched or relabelled successful.",
+  "prior_failed_attempts": [
+    {
+      "artifact": "jobs/challenge-delivery-infra-a/evidence/graph-small-20261007T121927967579",
+      "exit_code": 1,
+      "stderr": "node:internal/modules/run_main:107\n    triggerUncaughtException(\n    ^\n\nAssertionError [ERR_ASSERTION]: real nested visit must appear in coverage\n    at <anonymous> (/case/graph-small.mts:37:14) {\n  generatedMessage: false,\n  code: 'ERR_ASSERTION',\n  actual: undefined,\n  expected: true,\n  operator: '==',\n  diff: 'simple'\n}\n\nNode.js v24.19.0\n"
+    },
+    {
+      "artifact": "jobs/challenge-delivery-infra-a/evidence/graph-small-v2-20261007T122002587088",
+      "exit_code": 1,
+      "stderr": "node:inspector:93\n              new ERR_INSPECTOR_COMMAND(parsed.error.code, parsed.error.message),\n              ^\n\nError [ERR_INSPECTOR_COMMAND]: Inspector error -32000: Debugger agent is not enabled\n    at #onMessage (node:inspector:93:15)\n    at Connection.<anonymous> (node:inspector:66:67)\n    at Session.post (node:inspector:139:22)\n    at <anonymous> (/case/graph-small.mts:12:11)\n    at new Promise (<anonymous>)\n    at post (/case/graph-small.mts:11:47)\n    at <anonymous> (/case/graph-small.mts:40:40) {\n  code: 'ERR_INSPECTOR_COMMAND'\n}\n\nNode.js v24.19.0\n"
+    }
+  ],
+  "dispositions": [
+    {
+      "id": "delivery-infra-001",
+      "classification": "confirmed",
+      "condition": "Authored health-role privileges plus attacker possession/connectivity. No actual deployment compromise asserted.",
+      "review_a": "confirmed (static authorization and query chain; pure allocator runtime only)",
+      "fresh_review_b": "confirmed-scoped-integrity-failure (real RLS + allocator queries and function)",
+      "prior_reconciliation": "unverified pending missing independent B; MemoryTransactions support only",
+      "adjudication": "Independent reviews agree. The fresh B obligation is now complete. PostgreSQL roles and unmodified grants substantiate the privilege-boundary mechanism and controls; full top-level product regression still belongs to remediation. Reconciliation provisional status can be promoted for this candidate without changing original evidence.",
+      "disagreements": "None in mechanism or limitations. Status changes because the missing fresh review is supplied, not because historical evidence was rewritten.",
+      "remediation": "increment_bcef77287a8d (packages/library); read-only review completion unblocks it. Preserve legitimate legacy number reservations and memory/Postgres agreement."
+    },
+    {
+      "id": "delivery-infra-002",
+      "classification": "unverified-security-impact; confirmed-performance-defect",
+      "review_a": "unverified security; real V8 coverage 4/5/6-node DAG counts 15/31/63",
+      "fresh_review_b": "unverified security; actual packageProblems with count-only instrumentation and unmodified-output controls, 4/8/12-node DAG counts 15/255/4095",
+      "prior_reconciliation": "unverified security; performance follow-up already parked",
+      "adjudication": "Same conclusion from independently authored probes. No demonstrated lower-trust operational consumer or outage beyond the check invocation. Do not elevate the security rating solely from more counts.",
+      "disagreements": "None. Instrumentation methods differ and counts overlap at 4 nodes. Original A instrumentation failures remain exit 1 and are excluded from proof.",
+      "remediation": "increment_f73e0a95b027 (packages/guardrails), correctness/performance work already routed."
+    },
+    {
+      "id": "delivery-infra-003",
+      "classification": "unverified-cross-user-disclosure; confirmed-manual-handler-path-escape",
+      "review_a": "unverified cross-user exposure; seven extracted handlers disclose adjacent and sibling-prefix fixtures, primary guard rejects",
+      "fresh_review_b": "unverified cross-user exposure; seven extracted handlers disclose adjacent synthetic fixture, primary guard rejects; plain parent normalization control gives 404",
+      "prior_reconciliation": "unverified: actual distinct-principal exposure absent",
+      "adjudication": "Both reviewers reproduce the implementation defect while preserving the missing lower-trust boundary. The historical helpers are not the deployed website. No protected host file, complete capture/browser startup, cross-UID request, symlink or browser-origin proof is claimed.",
+      "disagreements": "None. A includes a sibling-prefix fixture that B did not independently retest; neither is evidence of a real cross-user deployment.",
+      "remediation": "increment_6dc5e158e4cf: packages/website containment as correctness/hardening. Explicitly retired packages/forest-world helper is named conditional residue, not worth a separate session unless reused."
+    }
+  ],
+  "final_verification": "This closes only fresh review B. It does not close the parent reconciliation (other challenge may remain), any remediation, or increment_8862d4069e34. Final security verification needs separately landed remediation and independent merged-source evidence.",
+  "no_new_owner_gate": "No restriction encountered in this scoped review. Original safeguard refusal remains historical; no flagged request rerun, provider change, access purchase or live proof."
+}

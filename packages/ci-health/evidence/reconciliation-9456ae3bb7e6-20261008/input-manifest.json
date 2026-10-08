@@ -1,0 +1,764 @@
+[
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-delivery-infra-a/evidence/capture-handlers-20261007T122024655162/capture-handlers.mjs",
+    "archive": "inputs/jobs/challenge-delivery-infra-a/evidence/capture-handlers-20261007T122024655162/capture-handlers.mjs",
+    "sha256": "7149fe53b46ba195be43d442c5a71043a7caa80f10be72ad2fbefdf48e0b352b",
+    "bytes": 3788
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-delivery-infra-a/evidence/capture-handlers-20261007T122024655162/result.json",
+    "archive": "inputs/jobs/challenge-delivery-infra-a/evidence/capture-handlers-20261007T122024655162/result.json",
+    "sha256": "e1c94efd54395c8b29a64fde26b0b1c3e7ef36a3d8c4e5c7c43690950dd23e34",
+    "bytes": 2087
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-delivery-infra-a/evidence/capture-handlers-20261007T122024655162/stderr.txt",
+    "archive": "inputs/jobs/challenge-delivery-infra-a/evidence/capture-handlers-20261007T122024655162/stderr.txt",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-delivery-infra-a/evidence/capture-handlers-20261007T122024655162/stdout.txt",
+    "archive": "inputs/jobs/challenge-delivery-infra-a/evidence/capture-handlers-20261007T122024655162/stdout.txt",
+    "sha256": "1c3b53b54dd1ee044d6f26f714337bebf80e7e90ccfcbfed554af2def8219394",
+    "bytes": 2949
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-delivery-infra-a/evidence/graph-small-20261007T121927967579/graph-small.mts",
+    "archive": "inputs/jobs/challenge-delivery-infra-a/evidence/graph-small-20261007T121927967579/graph-small.mts",
+    "sha256": "e5f9ec9dffd38f22948f84c38a06eb288130b90a76f31c8fb597990029942cfa",
+    "bytes": 2597
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-delivery-infra-a/evidence/graph-small-20261007T121927967579/result.json",
+    "archive": "inputs/jobs/challenge-delivery-infra-a/evidence/graph-small-20261007T121927967579/result.json",
+    "sha256": "25623475ed3c4eacb26abebb4279904b6afb1c635acead21073036940a0dad52",
+    "bytes": 2133
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-delivery-infra-a/evidence/graph-small-20261007T121927967579/stderr.txt",
+    "archive": "inputs/jobs/challenge-delivery-infra-a/evidence/graph-small-20261007T121927967579/stderr.txt",
+    "sha256": "413fafb865ebfecb0993fb2781ef817b2d1a92c94f261024e2c64dcd536f5258",
+    "bytes": 343
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-delivery-infra-a/evidence/graph-small-20261007T121927967579/stdout.txt",
+    "archive": "inputs/jobs/challenge-delivery-infra-a/evidence/graph-small-20261007T121927967579/stdout.txt",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-delivery-infra-a/evidence/graph-small-v2-20261007T122002587088/graph-small.mts",
+    "archive": "inputs/jobs/challenge-delivery-infra-a/evidence/graph-small-v2-20261007T122002587088/graph-small.mts",
+    "sha256": "177559ddb7763d3dbac04bafbed7ec217b5bcf4c9b032828c0f8a2c5528533d4",
+    "bytes": 3224
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-delivery-infra-a/evidence/graph-small-v2-20261007T122002587088/result.json",
+    "archive": "inputs/jobs/challenge-delivery-infra-a/evidence/graph-small-v2-20261007T122002587088/result.json",
+    "sha256": "830132c19f41af95a27a21997fe4b594b82eaf88d44d46721f1fc2b06a20dc47",
+    "bytes": 2139
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-delivery-infra-a/evidence/graph-small-v2-20261007T122002587088/stderr.txt",
+    "archive": "inputs/jobs/challenge-delivery-infra-a/evidence/graph-small-v2-20261007T122002587088/stderr.txt",
+    "sha256": "a84bed326f4c8f548f4ff2b87ac9b44928d79b85077950427e48bfa4793b96eb",
+    "bytes": 567
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-delivery-infra-a/evidence/graph-small-v2-20261007T122002587088/stdout.txt",
+    "archive": "inputs/jobs/challenge-delivery-infra-a/evidence/graph-small-v2-20261007T122002587088/stdout.txt",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-delivery-infra-a/evidence/graph-small-v3-20261007T122010614540/graph-small.mts",
+    "archive": "inputs/jobs/challenge-delivery-infra-a/evidence/graph-small-v3-20261007T122010614540/graph-small.mts",
+    "sha256": "958416a710df0da534ec9e9552a1146379d86f8a3992f977e94d8f694112bd62",
+    "bytes": 3255
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-delivery-infra-a/evidence/graph-small-v3-20261007T122010614540/result.json",
+    "archive": "inputs/jobs/challenge-delivery-infra-a/evidence/graph-small-v3-20261007T122010614540/result.json",
+    "sha256": "c7c04d6d741d0eac44532b5afe365edbb3c18297dcfacb78ad50a2af019923a3",
+    "bytes": 2139
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-delivery-infra-a/evidence/graph-small-v3-20261007T122010614540/stderr.txt",
+    "archive": "inputs/jobs/challenge-delivery-infra-a/evidence/graph-small-v3-20261007T122010614540/stderr.txt",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-delivery-infra-a/evidence/graph-small-v3-20261007T122010614540/stdout.txt",
+    "archive": "inputs/jobs/challenge-delivery-infra-a/evidence/graph-small-v3-20261007T122010614540/stdout.txt",
+    "sha256": "083b1b03b7620379a3ac80f8ea6462f1b4db488d68af54a55cd75024d7803cef",
+    "bytes": 584
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-delivery-infra-a/evidence/numbering-primitives-20261007T121919433005/numbering-primitives.mts",
+    "archive": "inputs/jobs/challenge-delivery-infra-a/evidence/numbering-primitives-20261007T121919433005/numbering-primitives.mts",
+    "sha256": "d80fb09a6a58c3376b879ae262fa24943658c348c8119e2360d7f85a5977443d",
+    "bytes": 958
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-delivery-infra-a/evidence/numbering-primitives-20261007T121919433005/result.json",
+    "archive": "inputs/jobs/challenge-delivery-infra-a/evidence/numbering-primitives-20261007T121919433005/result.json",
+    "sha256": "32469533867ce42a0ac9408657e7da70af652bf3408cb167d5952c66151fd45d",
+    "bytes": 2160
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-delivery-infra-a/evidence/numbering-primitives-20261007T121919433005/stderr.txt",
+    "archive": "inputs/jobs/challenge-delivery-infra-a/evidence/numbering-primitives-20261007T121919433005/stderr.txt",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-delivery-infra-a/evidence/numbering-primitives-20261007T121919433005/stdout.txt",
+    "archive": "inputs/jobs/challenge-delivery-infra-a/evidence/numbering-primitives-20261007T121919433005/stdout.txt",
+    "sha256": "9516ae3dbbf1651393aaec8bdccf25e98351c225707b93ac96abfd1c97d71776",
+    "bytes": 138
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-delivery-infra-a/evidence/test-index.json",
+    "archive": "inputs/jobs/challenge-delivery-infra-a/evidence/test-index.json",
+    "sha256": "6431989df4102e5ef27f6fac43e9627318bb7015c570ca152262b274bfe885ef",
+    "bytes": 3363
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-delivery-infra-a/result.json",
+    "archive": "inputs/jobs/challenge-delivery-infra-a/result.json",
+    "sha256": "e1cf076dd9c1779b64c8ac5423b65529b023f2363e662563319e21e5dacffc31",
+    "bytes": 26240
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-desktop-install-a/evidence/backup-permissions-20261007T115938266755/backup-probe.mts",
+    "archive": "inputs/jobs/challenge-desktop-install-a/evidence/backup-permissions-20261007T115938266755/backup-probe.mts",
+    "sha256": "3ad1ec0f94ac21246e3f54eb8cf3e4511f2a450c271670bea475114e1bc33997",
+    "bytes": 3497
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-desktop-install-a/evidence/backup-permissions-20261007T115938266755/result.json",
+    "archive": "inputs/jobs/challenge-desktop-install-a/evidence/backup-permissions-20261007T115938266755/result.json",
+    "sha256": "4188aa8579e5978a4117826dcdeede2aefa8bf138550d286cd3cc721a4aba606",
+    "bytes": 2151
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-desktop-install-a/evidence/backup-permissions-20261007T115938266755/stderr.txt",
+    "archive": "inputs/jobs/challenge-desktop-install-a/evidence/backup-permissions-20261007T115938266755/stderr.txt",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-desktop-install-a/evidence/backup-permissions-20261007T115938266755/stdout.txt",
+    "archive": "inputs/jobs/challenge-desktop-install-a/evidence/backup-permissions-20261007T115938266755/stdout.txt",
+    "sha256": "0fff3cc8381a14fa36fae75df3326bc87278320ee0e43dca5cd76ff836c6a24d",
+    "bytes": 570
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-desktop-install-a/evidence/devhome-permissions-20261007T115938266743/devhome-probe.mts",
+    "archive": "inputs/jobs/challenge-desktop-install-a/evidence/devhome-permissions-20261007T115938266743/devhome-probe.mts",
+    "sha256": "36437c8772e868c8202815bcacebe258c3ab965b716baa1570cae49a6a0d31bf",
+    "bytes": 2857
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-desktop-install-a/evidence/devhome-permissions-20261007T115938266743/result.json",
+    "archive": "inputs/jobs/challenge-desktop-install-a/evidence/devhome-permissions-20261007T115938266743/result.json",
+    "sha256": "a57435c615ba08b2471e7ef4c282679d95d2547cc45c48edf8df5b743e43510d",
+    "bytes": 2154
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-desktop-install-a/evidence/devhome-permissions-20261007T115938266743/stderr.txt",
+    "archive": "inputs/jobs/challenge-desktop-install-a/evidence/devhome-permissions-20261007T115938266743/stderr.txt",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-desktop-install-a/evidence/devhome-permissions-20261007T115938266743/stdout.txt",
+    "archive": "inputs/jobs/challenge-desktop-install-a/evidence/devhome-permissions-20261007T115938266743/stdout.txt",
+    "sha256": "3dc5fe7821e5c3aeaa421beeaa3f8599b5a0239d70d3055281323f59626f853b",
+    "bytes": 447
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-desktop-install-a/result.json",
+    "archive": "inputs/jobs/challenge-desktop-install-a/result.json",
+    "sha256": "07c4700020d4610a22b2ca13ff33de2ad919209be5c6432ab0d884608601b9c8",
+    "bytes": 23509
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-desktop-install-b/evidence/challenge-b-backups-20261007T120012828713/backup_probe.mts",
+    "archive": "inputs/jobs/challenge-desktop-install-b/evidence/challenge-b-backups-20261007T120012828713/backup_probe.mts",
+    "sha256": "f30b63740f958360bdeb19b82dc3bf39ab713ea8f65cc8fd49220ed22f378203",
+    "bytes": 4354
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-desktop-install-b/evidence/challenge-b-backups-20261007T120012828713/result.json",
+    "archive": "inputs/jobs/challenge-desktop-install-b/evidence/challenge-b-backups-20261007T120012828713/result.json",
+    "sha256": "5e6ca20e79a4ceb43bd034863d9f232af0d491acb06218c7a7a93eefc9eb0ab3",
+    "bytes": 2153
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-desktop-install-b/evidence/challenge-b-backups-20261007T120012828713/stderr.txt",
+    "archive": "inputs/jobs/challenge-desktop-install-b/evidence/challenge-b-backups-20261007T120012828713/stderr.txt",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-desktop-install-b/evidence/challenge-b-backups-20261007T120012828713/stdout.txt",
+    "archive": "inputs/jobs/challenge-desktop-install-b/evidence/challenge-b-backups-20261007T120012828713/stdout.txt",
+    "sha256": "e30e099c50727d13168264eb303f8cdb3d06b763056864ee83f25419992a3e33",
+    "bytes": 918
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-desktop-install-b/evidence/challenge-b-devhome-20261007T120012826533/devhome_probe.mts",
+    "archive": "inputs/jobs/challenge-desktop-install-b/evidence/challenge-b-devhome-20261007T120012826533/devhome_probe.mts",
+    "sha256": "fdc4dc78a58115c7027a678a1acdc1ed4bbdbb9e21e5072124e11ef896f7a476",
+    "bytes": 2865
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-desktop-install-b/evidence/challenge-b-devhome-20261007T120012826533/result.json",
+    "archive": "inputs/jobs/challenge-desktop-install-b/evidence/challenge-b-devhome-20261007T120012826533/result.json",
+    "sha256": "1b8fbb63ed82ef09acc946cf3b69639f930fb033f39ee05d661156370b4fef58",
+    "bytes": 2154
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-desktop-install-b/evidence/challenge-b-devhome-20261007T120012826533/stderr.txt",
+    "archive": "inputs/jobs/challenge-desktop-install-b/evidence/challenge-b-devhome-20261007T120012826533/stderr.txt",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-desktop-install-b/evidence/challenge-b-devhome-20261007T120012826533/stdout.txt",
+    "archive": "inputs/jobs/challenge-desktop-install-b/evidence/challenge-b-devhome-20261007T120012826533/stdout.txt",
+    "sha256": "9f33187ca4f88e3699a70c91f7d395c5cd688bb5f5ceb9105d777c13fcce93bb",
+    "bytes": 656
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-desktop-install-b/result.json",
+    "archive": "inputs/jobs/challenge-desktop-install-b/result.json",
+    "sha256": "5703a48f3320a39d35d2cbd42c4cae6b275bb160dd776856a95744ad022cca81",
+    "bytes": 21271
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-identity-secrets-a/evidence/challenge-identity-guards-20261007T120105916397/identity-guards-probe.ts",
+    "archive": "inputs/jobs/challenge-identity-secrets-a/evidence/challenge-identity-guards-20261007T120105916397/identity-guards-probe.ts",
+    "sha256": "795859221da7f91b99a74b31e89badf17877808207986c385c0f381e2bef3884",
+    "bytes": 4384
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-identity-secrets-a/evidence/challenge-identity-guards-20261007T120105916397/result.json",
+    "archive": "inputs/jobs/challenge-identity-secrets-a/evidence/challenge-identity-guards-20261007T120105916397/result.json",
+    "sha256": "a536427c01a1a35134f373c48e08f1979567a50aca44065db0f4dd0525c30fe8",
+    "bytes": 2176
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-identity-secrets-a/evidence/challenge-identity-guards-20261007T120105916397/stderr.txt",
+    "archive": "inputs/jobs/challenge-identity-secrets-a/evidence/challenge-identity-guards-20261007T120105916397/stderr.txt",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-identity-secrets-a/evidence/challenge-identity-guards-20261007T120105916397/stdout.txt",
+    "archive": "inputs/jobs/challenge-identity-secrets-a/evidence/challenge-identity-guards-20261007T120105916397/stdout.txt",
+    "sha256": "9490ef5b3f71067fbeb74e035df7f10b93329ba20055f26a384e6834ad27a1cc",
+    "bytes": 1325
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-identity-secrets-a/evidence/challenge-key-directory-20261007T115942778812/key-directory-probe.ts",
+    "archive": "inputs/jobs/challenge-identity-secrets-a/evidence/challenge-key-directory-20261007T115942778812/key-directory-probe.ts",
+    "sha256": "b3d21532942bf44a6a5689556fc075b18e8a484f72aacb6a621b4e8ad8f556e0",
+    "bytes": 1684
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-identity-secrets-a/evidence/challenge-key-directory-20261007T115942778812/result.json",
+    "archive": "inputs/jobs/challenge-identity-secrets-a/evidence/challenge-key-directory-20261007T115942778812/result.json",
+    "sha256": "6e123990921ea7f3b821bf23070418c78d51b4ec9fbec6efd470bd2461f7f7ab",
+    "bytes": 2170
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-identity-secrets-a/evidence/challenge-key-directory-20261007T115942778812/stderr.txt",
+    "archive": "inputs/jobs/challenge-identity-secrets-a/evidence/challenge-key-directory-20261007T115942778812/stderr.txt",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-identity-secrets-a/evidence/challenge-key-directory-20261007T115942778812/stdout.txt",
+    "archive": "inputs/jobs/challenge-identity-secrets-a/evidence/challenge-key-directory-20261007T115942778812/stdout.txt",
+    "sha256": "25efcf826703070ff7804d99975a8b61613d03891723467357eaf09870f88eb5",
+    "bytes": 277
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-identity-secrets-a/evidence/challenge-key-transport-20261007T115937265111/key-transport-probe.ts",
+    "archive": "inputs/jobs/challenge-identity-secrets-a/evidence/challenge-key-transport-20261007T115937265111/key-transport-probe.ts",
+    "sha256": "84b26d8c0a3e239c2acef9de1ece17117059a4b207d53dbd595b8d818c52a309",
+    "bytes": 4018
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-identity-secrets-a/evidence/challenge-key-transport-20261007T115937265111/result.json",
+    "archive": "inputs/jobs/challenge-identity-secrets-a/evidence/challenge-key-transport-20261007T115937265111/result.json",
+    "sha256": "b7d1d15ae1c29d6423b5e189ac8a2539c71cc6ed533aa930938042af4c9924a2",
+    "bytes": 2170
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-identity-secrets-a/evidence/challenge-key-transport-20261007T115937265111/stderr.txt",
+    "archive": "inputs/jobs/challenge-identity-secrets-a/evidence/challenge-key-transport-20261007T115937265111/stderr.txt",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-identity-secrets-a/evidence/challenge-key-transport-20261007T115937265111/stdout.txt",
+    "archive": "inputs/jobs/challenge-identity-secrets-a/evidence/challenge-key-transport-20261007T115937265111/stdout.txt",
+    "sha256": "c24866d39f0ddc318d96c94606f651d785bd5a28321b3bb2289cffbcb9b7ec4f",
+    "bytes": 256
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-identity-secrets-a/result.json",
+    "archive": "inputs/jobs/challenge-identity-secrets-a/result.json",
+    "sha256": "c607c43b69f1a7c8cacb3b0bde9d273c4279e019dd870ad0f0c2c56239d98a64",
+    "bytes": 27674
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-identity-secrets-b-869dacdcb37c-20261008/adjudication.json",
+    "archive": "inputs/jobs/challenge-identity-secrets-b-869dacdcb37c-20261008/adjudication.json",
+    "sha256": "6609202fdcdf92dfc83c14f3b0a854c837a5bd6573204eb63fd3829cce95cd4c",
+    "bytes": 17640
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-identity-secrets-b-869dacdcb37c-20261008/evidence/directory-b-20261008T015814721365/directory-probe.ts",
+    "archive": "inputs/jobs/challenge-identity-secrets-b-869dacdcb37c-20261008/evidence/directory-b-20261008T015814721365/directory-probe.ts",
+    "sha256": "00c46116d0ac7da84bb0c67f4c179f9de45224761d263a03d53c53532b8461f3",
+    "bytes": 1388
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-identity-secrets-b-869dacdcb37c-20261008/evidence/directory-b-20261008T015814721365/result.json",
+    "archive": "inputs/jobs/challenge-identity-secrets-b-869dacdcb37c-20261008/evidence/directory-b-20261008T015814721365/result.json",
+    "sha256": "852025bf8e143d335a48c09a5f4afe35e27d252468fcf7de6b03a5d2136d5129",
+    "bytes": 2208
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-identity-secrets-b-869dacdcb37c-20261008/evidence/directory-b-20261008T015814721365/stderr.txt",
+    "archive": "inputs/jobs/challenge-identity-secrets-b-869dacdcb37c-20261008/evidence/directory-b-20261008T015814721365/stderr.txt",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-identity-secrets-b-869dacdcb37c-20261008/evidence/directory-b-20261008T015814721365/stdout.txt",
+    "archive": "inputs/jobs/challenge-identity-secrets-b-869dacdcb37c-20261008/evidence/directory-b-20261008T015814721365/stdout.txt",
+    "sha256": "6dfc0ac7e687521291ecbfa3d10ff33fbf8c2aed11c8ba7d0c7c6f51c5266cf1",
+    "bytes": 218
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-identity-secrets-b-869dacdcb37c-20261008/evidence/identity-b-20261008T015814717535/identity-probe.ts",
+    "archive": "inputs/jobs/challenge-identity-secrets-b-869dacdcb37c-20261008/evidence/identity-b-20261008T015814717535/identity-probe.ts",
+    "sha256": "a538a10cbcb1f3af1372d9c69be536e7fefcafac5efb2fa85f05ac422920cdf5",
+    "bytes": 3030
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-identity-secrets-b-869dacdcb37c-20261008/evidence/identity-b-20261008T015814717535/result.json",
+    "archive": "inputs/jobs/challenge-identity-secrets-b-869dacdcb37c-20261008/evidence/identity-b-20261008T015814717535/result.json",
+    "sha256": "aeb3999637b4279b5e016b2b0db7c671f7a08bd113f0113bd63d59c7d86f270f",
+    "bytes": 2205
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-identity-secrets-b-869dacdcb37c-20261008/evidence/identity-b-20261008T015814717535/stderr.txt",
+    "archive": "inputs/jobs/challenge-identity-secrets-b-869dacdcb37c-20261008/evidence/identity-b-20261008T015814717535/stderr.txt",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-identity-secrets-b-869dacdcb37c-20261008/evidence/identity-b-20261008T015814717535/stdout.txt",
+    "archive": "inputs/jobs/challenge-identity-secrets-b-869dacdcb37c-20261008/evidence/identity-b-20261008T015814717535/stdout.txt",
+    "sha256": "3c8c519dbc36f71b434d2cc6bb75f06892603a7f67bc0203e4b7b0df2ba83237",
+    "bytes": 668
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-identity-secrets-b-869dacdcb37c-20261008/evidence/transport-b-20261008T015814726986/result.json",
+    "archive": "inputs/jobs/challenge-identity-secrets-b-869dacdcb37c-20261008/evidence/transport-b-20261008T015814726986/result.json",
+    "sha256": "519ca6169491c2b189ae4b8db7c7db8430fdc6a2b8a1a3c1f1dbe1490cf8036f",
+    "bytes": 2208
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-identity-secrets-b-869dacdcb37c-20261008/evidence/transport-b-20261008T015814726986/stderr.txt",
+    "archive": "inputs/jobs/challenge-identity-secrets-b-869dacdcb37c-20261008/evidence/transport-b-20261008T015814726986/stderr.txt",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-identity-secrets-b-869dacdcb37c-20261008/evidence/transport-b-20261008T015814726986/stdout.txt",
+    "archive": "inputs/jobs/challenge-identity-secrets-b-869dacdcb37c-20261008/evidence/transport-b-20261008T015814726986/stdout.txt",
+    "sha256": "2e051c5a7a1b91593f48316e7143f4d7f01d9c7563b6a1cf13bb7462f2997899",
+    "bytes": 337
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-identity-secrets-b-869dacdcb37c-20261008/evidence/transport-b-20261008T015814726986/transport-probe.ts",
+    "archive": "inputs/jobs/challenge-identity-secrets-b-869dacdcb37c-20261008/evidence/transport-b-20261008T015814726986/transport-probe.ts",
+    "sha256": "1f9c911f7a9044c3591a9938c6feb8d95a15aee5531ee6fcfd42ca5608c967f6",
+    "bytes": 2434
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-identity-secrets-b-869dacdcb37c-20261008/independent-result.json",
+    "archive": "inputs/jobs/challenge-identity-secrets-b-869dacdcb37c-20261008/independent-result.json",
+    "sha256": "4b699de94522f691c64774a4e3c3b2376a620c86f2adf060fcc29bf40f88ff3f",
+    "bytes": 18612
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-identity-secrets-b-869dacdcb37c-20261008/independent-seal.json",
+    "archive": "inputs/jobs/challenge-identity-secrets-b-869dacdcb37c-20261008/independent-seal.json",
+    "sha256": "fc8c9f504b97e185234bc303bdf591abf14f44c52166f44deeeae95de8888917",
+    "bytes": 204
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-identity-secrets-b-869dacdcb37c-20261008/integrity-check.json",
+    "archive": "inputs/jobs/challenge-identity-secrets-b-869dacdcb37c-20261008/integrity-check.json",
+    "sha256": "531ccfae20ef702322074b0fd7670b7cb94cf120d4823d2c681575e00c524015",
+    "bytes": 1365
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-identity-secrets-b-869dacdcb37c-20261008/source-provenance.json",
+    "archive": "inputs/jobs/challenge-identity-secrets-b-869dacdcb37c-20261008/source-provenance.json",
+    "sha256": "31ac394f1f68d2a370faa42363b0dcd78febc454aa4d704e9f906b0d971875b0",
+    "bytes": 15711
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-storage-library-a/evidence/challenge-memory-20261007T120909505494/memory.mts",
+    "archive": "inputs/jobs/challenge-storage-library-a/evidence/challenge-memory-20261007T120909505494/memory.mts",
+    "sha256": "1524d7840bc9ae92bf94997efc2a31f5c677158400de74738efce065bbc6bf6e",
+    "bytes": 2805
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-storage-library-a/evidence/challenge-memory-20261007T120909505494/result.json",
+    "archive": "inputs/jobs/challenge-storage-library-a/evidence/challenge-memory-20261007T120909505494/result.json",
+    "sha256": "d833ebb2859f9b08e1e265a4d16498f092efd5a61c6615829b96ee9d1f423a57",
+    "bytes": 2148
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-storage-library-a/evidence/challenge-memory-20261007T120909505494/stderr.txt",
+    "archive": "inputs/jobs/challenge-storage-library-a/evidence/challenge-memory-20261007T120909505494/stderr.txt",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-storage-library-a/evidence/challenge-memory-20261007T120909505494/stdout.txt",
+    "archive": "inputs/jobs/challenge-storage-library-a/evidence/challenge-memory-20261007T120909505494/stdout.txt",
+    "sha256": "3c676466d17317e8a2f6290ede7340b34e32e04bdd37e5ad26db438b2ddda3a3",
+    "bytes": 448
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-storage-library-a/result.json",
+    "archive": "inputs/jobs/challenge-storage-library-a/result.json",
+    "sha256": "02df12cb22f62b3c28d1b8d328a4a010de5db2ad3f5bf3d20c8e5be96cb20077",
+    "bytes": 29301
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-storage-library-b/evidence/memory-challenge-20261007T121036713763/memory-challenge.mts",
+    "archive": "inputs/jobs/challenge-storage-library-b/evidence/memory-challenge-20261007T121036713763/memory-challenge.mts",
+    "sha256": "97d6b7b82394b22cbc3b9739d464263dc6a4944ff7598b22ed2c863c761e8bd9",
+    "bytes": 2432
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-storage-library-b/evidence/memory-challenge-20261007T121036713763/result.json",
+    "archive": "inputs/jobs/challenge-storage-library-b/evidence/memory-challenge-20261007T121036713763/result.json",
+    "sha256": "9794cdea4834ee9098963ee7d289e1f2075623f6b37bb31d90d6151b54c89361",
+    "bytes": 2151
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-storage-library-b/evidence/memory-challenge-20261007T121036713763/stderr.txt",
+    "archive": "inputs/jobs/challenge-storage-library-b/evidence/memory-challenge-20261007T121036713763/stderr.txt",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-storage-library-b/evidence/memory-challenge-20261007T121036713763/stdout.txt",
+    "archive": "inputs/jobs/challenge-storage-library-b/evidence/memory-challenge-20261007T121036713763/stdout.txt",
+    "sha256": "c0aa89357a7fdd97e1564835d358738fa9faf0dcfdd8daa844530d3aa910c9c9",
+    "bytes": 376
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-storage-library-b/result.json",
+    "archive": "inputs/jobs/challenge-storage-library-b/result.json",
+    "sha256": "782e8132b837762203b2079ea3a6b7ae47d63e72c126994e1216790f08c70c74",
+    "bytes": 27140
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-web-ui-a/evidence/challenge-map-20261007T120906496922/challenge-map.mts",
+    "archive": "inputs/jobs/challenge-web-ui-a/evidence/challenge-map-20261007T120906496922/challenge-map.mts",
+    "sha256": "d58542fee50ccd6e78e76f83a56a9e8b94acf9487b02abfdd50db639de21c089",
+    "bytes": 4888
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-web-ui-a/evidence/challenge-map-20261007T120906496922/result.json",
+    "archive": "inputs/jobs/challenge-web-ui-a/evidence/challenge-map-20261007T120906496922/result.json",
+    "sha256": "5b222954db7850b76d2cd180d7fa778b96aa9c399635ab7e42d275766122fef5",
+    "bytes": 2115
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-web-ui-a/evidence/challenge-map-20261007T120906496922/stderr.txt",
+    "archive": "inputs/jobs/challenge-web-ui-a/evidence/challenge-map-20261007T120906496922/stderr.txt",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-web-ui-a/evidence/challenge-map-20261007T120906496922/stdout.txt",
+    "archive": "inputs/jobs/challenge-web-ui-a/evidence/challenge-map-20261007T120906496922/stdout.txt",
+    "sha256": "4cc5b80d6a29ad94dc6af4f0414219739772ba52b2e500fbc0b8308316bb805f",
+    "bytes": 781
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-web-ui-a/evidence/challenge-publication-20261007T121006147313/challenge-publication.mts",
+    "archive": "inputs/jobs/challenge-web-ui-a/evidence/challenge-publication-20261007T121006147313/challenge-publication.mts",
+    "sha256": "b386dd18e929b43a8bd68996fa16c3e0556d79d0fbb91d7191adea8934d32c18",
+    "bytes": 4139
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-web-ui-a/evidence/challenge-publication-20261007T121006147313/result.json",
+    "archive": "inputs/jobs/challenge-web-ui-a/evidence/challenge-publication-20261007T121006147313/result.json",
+    "sha256": "6c061f8b3b261790c3197efa478268c05b18268dfb7682b3ddc3fe75e5a5971a",
+    "bytes": 2139
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-web-ui-a/evidence/challenge-publication-20261007T121006147313/stderr.txt",
+    "archive": "inputs/jobs/challenge-web-ui-a/evidence/challenge-publication-20261007T121006147313/stderr.txt",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-web-ui-a/evidence/challenge-publication-20261007T121006147313/stdout.txt",
+    "archive": "inputs/jobs/challenge-web-ui-a/evidence/challenge-publication-20261007T121006147313/stdout.txt",
+    "sha256": "7a1e702ca434083e9d03b11639eda959bb276aa2e28c90048f33adab2f1aa9c5",
+    "bytes": 543
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-web-ui-a/result.json",
+    "archive": "inputs/jobs/challenge-web-ui-a/result.json",
+    "sha256": "e5811b8217592d17986f05698df9f06ec3a3d1cbc8f460b92a5e182325dce7a6",
+    "bytes": 32363
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-web-ui-b/evidence/bounded-map-render-20261007T121824738654/bounded-map-render.mts",
+    "archive": "inputs/jobs/challenge-web-ui-b/evidence/bounded-map-render-20261007T121824738654/bounded-map-render.mts",
+    "sha256": "52996a410a1214e5b038524821383df3ffbbd384b68a5c9a111faa7aeb263089",
+    "bytes": 4252
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-web-ui-b/evidence/bounded-map-render-20261007T121824738654/result.json",
+    "archive": "inputs/jobs/challenge-web-ui-b/evidence/bounded-map-render-20261007T121824738654/result.json",
+    "sha256": "bd58f0e2629fc2fb66be9086c436ae2ddcdede30d5fb891b181633b4c1f89536",
+    "bytes": 2130
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-web-ui-b/evidence/bounded-map-render-20261007T121824738654/stderr.txt",
+    "archive": "inputs/jobs/challenge-web-ui-b/evidence/bounded-map-render-20261007T121824738654/stderr.txt",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-web-ui-b/evidence/bounded-map-render-20261007T121824738654/stdout.txt",
+    "archive": "inputs/jobs/challenge-web-ui-b/evidence/bounded-map-render-20261007T121824738654/stdout.txt",
+    "sha256": "84dba3f9afbfdaab0abf08af16ae633f8b27b47703c208e0ab1b6a85ac7f894d",
+    "bytes": 872
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-web-ui-b/evidence/bounded-snapshot-render-20261007T121918924911/bounded-snapshot-render.mts",
+    "archive": "inputs/jobs/challenge-web-ui-b/evidence/bounded-snapshot-render-20261007T121918924911/bounded-snapshot-render.mts",
+    "sha256": "842b9844e377b035f05139d20b12451586af5a06dafd9d8856f1e0c0bf98b9cf",
+    "bytes": 3245
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-web-ui-b/evidence/bounded-snapshot-render-20261007T121918924911/result.json",
+    "archive": "inputs/jobs/challenge-web-ui-b/evidence/bounded-snapshot-render-20261007T121918924911/result.json",
+    "sha256": "c5d4897af467d87924353f7ad3ff8a8dd976290a9f0b14e55e06f2a3ad3e66e6",
+    "bytes": 2145
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-web-ui-b/evidence/bounded-snapshot-render-20261007T121918924911/stderr.txt",
+    "archive": "inputs/jobs/challenge-web-ui-b/evidence/bounded-snapshot-render-20261007T121918924911/stderr.txt",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-web-ui-b/evidence/bounded-snapshot-render-20261007T121918924911/stdout.txt",
+    "archive": "inputs/jobs/challenge-web-ui-b/evidence/bounded-snapshot-render-20261007T121918924911/stdout.txt",
+    "sha256": "46bb52cc8ddc8900cfe9f0ebfa0970e30eba1fdbaadd34fc278ceff019ed6675",
+    "bytes": 597
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-web-ui-b/evidence/submitted-commands.txt",
+    "archive": "inputs/jobs/challenge-web-ui-b/evidence/submitted-commands.txt",
+    "sha256": "1bc15a46a9c5dbc09d507f0ca20fa9a2619e268a36764b915624fb8e1c8f2c16",
+    "bytes": 498
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-web-ui-b/result.json",
+    "archive": "inputs/jobs/challenge-web-ui-b/result.json",
+    "sha256": "1e4aebee56ffa62b4e15f2e51cc720855aa0c4de3bcccb60e96610146fe70995",
+    "bytes": 31485
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/reconcile-9456ae3bb7e6-20261008/evidence/identity-controls-20261007T234744202581/identity-controls.mts",
+    "archive": "inputs/jobs/reconcile-9456ae3bb7e6-20261008/evidence/identity-controls-20261007T234744202581/identity-controls.mts",
+    "sha256": "0851ea93c9cd42fb4e8a49ab15cc3e22f9e8036924071233272c823481689023",
+    "bytes": 2422
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/reconcile-9456ae3bb7e6-20261008/evidence/identity-controls-20261007T234744202581/result.json",
+    "archive": "inputs/jobs/reconcile-9456ae3bb7e6-20261008/evidence/identity-controls-20261007T234744202581/result.json",
+    "sha256": "8d966e86c25f15b37923d4136b2a9ccdd61cdd91c3ccaad05574b37e76faf11b",
+    "bytes": 2166
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/reconcile-9456ae3bb7e6-20261008/evidence/identity-controls-20261007T234744202581/stderr.txt",
+    "archive": "inputs/jobs/reconcile-9456ae3bb7e6-20261008/evidence/identity-controls-20261007T234744202581/stderr.txt",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/reconcile-9456ae3bb7e6-20261008/evidence/identity-controls-20261007T234744202581/stdout.txt",
+    "archive": "inputs/jobs/reconcile-9456ae3bb7e6-20261008/evidence/identity-controls-20261007T234744202581/stdout.txt",
+    "sha256": "118a4e4faf5c4dcd8296742324201e88cd390e158836970223da152dc1924f23",
+    "bytes": 812
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/reconcile-9456ae3bb7e6-20261008/evidence/numbering-20261007T234744202843/numbering.mts",
+    "archive": "inputs/jobs/reconcile-9456ae3bb7e6-20261008/evidence/numbering-20261007T234744202843/numbering.mts",
+    "sha256": "1ccea19d11f25a2b6ad115fc0021ab2aae2f72093a41ebeb60410da49c7df1de",
+    "bytes": 1454
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/reconcile-9456ae3bb7e6-20261008/evidence/numbering-20261007T234744202843/result.json",
+    "archive": "inputs/jobs/reconcile-9456ae3bb7e6-20261008/evidence/numbering-20261007T234744202843/result.json",
+    "sha256": "76ff8c918713974423874ea5048b6ff97da7876b3fa505b204eb05d75e983311",
+    "bytes": 2142
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/reconcile-9456ae3bb7e6-20261008/evidence/numbering-20261007T234744202843/stderr.txt",
+    "archive": "inputs/jobs/reconcile-9456ae3bb7e6-20261008/evidence/numbering-20261007T234744202843/stderr.txt",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/reconcile-9456ae3bb7e6-20261008/evidence/numbering-20261007T234744202843/stdout.txt",
+    "archive": "inputs/jobs/reconcile-9456ae3bb7e6-20261008/evidence/numbering-20261007T234744202843/stdout.txt",
+    "sha256": "1650fbcdab1d77066c504cec909635273ad574a44e66f54d5170321e8825c28b",
+    "bytes": 249
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/reconcile-9456ae3bb7e6-20261008/evidence/permissions-20261007T234527760945/permissions.mts",
+    "archive": "inputs/jobs/reconcile-9456ae3bb7e6-20261008/evidence/permissions-20261007T234527760945/permissions.mts",
+    "sha256": "a83308a757c2c398548c7793d442b30f0966c668ce6b4bc3f74122c35019b81e",
+    "bytes": 2707
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/reconcile-9456ae3bb7e6-20261008/evidence/permissions-20261007T234527760945/result.json",
+    "archive": "inputs/jobs/reconcile-9456ae3bb7e6-20261008/evidence/permissions-20261007T234527760945/result.json",
+    "sha256": "efa57ff5494aa3beb07cab3d0f72b3b8995a3eb32cfb422b158098fe441b787f",
+    "bytes": 2148
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/reconcile-9456ae3bb7e6-20261008/evidence/permissions-20261007T234527760945/stderr.txt",
+    "archive": "inputs/jobs/reconcile-9456ae3bb7e6-20261008/evidence/permissions-20261007T234527760945/stderr.txt",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/reconcile-9456ae3bb7e6-20261008/evidence/permissions-20261007T234527760945/stdout.txt",
+    "archive": "inputs/jobs/reconcile-9456ae3bb7e6-20261008/evidence/permissions-20261007T234527760945/stdout.txt",
+    "sha256": "599808c327abd9254a3a504efd12e98681d1f6d1e3f7b8084d310e9afd94484c",
+    "bytes": 662
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/reconcile-9456ae3bb7e6-20261008/evidence/transport-20261007T234548987343/result.json",
+    "archive": "inputs/jobs/reconcile-9456ae3bb7e6-20261008/evidence/transport-20261007T234548987343/result.json",
+    "sha256": "ce92f9daf862b5909f35d846716cd646c7c371a626eed6603ecc8855bce2fedb",
+    "bytes": 2142
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/reconcile-9456ae3bb7e6-20261008/evidence/transport-20261007T234548987343/stderr.txt",
+    "archive": "inputs/jobs/reconcile-9456ae3bb7e6-20261008/evidence/transport-20261007T234548987343/stderr.txt",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/reconcile-9456ae3bb7e6-20261008/evidence/transport-20261007T234548987343/stdout.txt",
+    "archive": "inputs/jobs/reconcile-9456ae3bb7e6-20261008/evidence/transport-20261007T234548987343/stdout.txt",
+    "sha256": "cc2c846d4f1c84fe3c418c6d09b4d8b9d18f735b12f23d8674ef3d781e9d4908",
+    "bytes": 237
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/reconcile-9456ae3bb7e6-20261008/evidence/transport-20261007T234548987343/transport.mts",
+    "archive": "inputs/jobs/reconcile-9456ae3bb7e6-20261008/evidence/transport-20261007T234548987343/transport.mts",
+    "sha256": "65cd9c6956f959fa9b404e7815eca0c0eb544ef9ba384b15fd858be46460f1b0",
+    "bytes": 2242
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/reconcile-9456ae3bb7e6-20261008/integrity-check.json",
+    "archive": "inputs/jobs/reconcile-9456ae3bb7e6-20261008/integrity-check.json",
+    "sha256": "248788da8a3c39f099087506c2fb63c7f74d0b4fd2804a07b68a71d924f1493d",
+    "bytes": 409
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/reconcile-9456ae3bb7e6-20261008/original-hashes.json",
+    "archive": "inputs/jobs/reconcile-9456ae3bb7e6-20261008/original-hashes.json",
+    "sha256": "3924249649eb017707bb84cd2ae96cb6184f80f069913c2bb7bfc5b4c085782b",
+    "bytes": 2097
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/reconcile-9456ae3bb7e6-20261008/provenance-checks.json",
+    "archive": "inputs/jobs/reconcile-9456ae3bb7e6-20261008/provenance-checks.json",
+    "sha256": "70ee8b1d4b75b7acda8ee75dc8426d9bb6b3f8b4c9dfe5be650740afe57b3656",
+    "bytes": 90354
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/reconcile-9456ae3bb7e6-20261008/result.json",
+    "archive": "inputs/jobs/reconcile-9456ae3bb7e6-20261008/result.json",
+    "sha256": "fa11a8ff957898e73bbc5ef43c18dfbab78206597ae7e1aca1d5e23aad7af102",
+    "bytes": 149921
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/reconcile-9456ae3bb7e6-20261008/source-comparison.json",
+    "archive": "inputs/jobs/reconcile-9456ae3bb7e6-20261008/source-comparison.json",
+    "sha256": "e8d63dbc7f80a8e695e06390fc991e7910bfdf71156b0577380bed76f4e4d37a",
+    "bytes": 16124
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/manifest.json",
+    "archive": "inputs/manifest.json",
+    "sha256": "1d269eafd7f0ddfee5e3cabdaf0f7fc0a2cf42cb04e4b8c9f69872cb74268482",
+    "bytes": 672823
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/report.json",
+    "archive": "inputs/report.json",
+    "sha256": "827468f4e45e5fd83f341ee42e27a07150ab7d23de28c5100f7bffec2d3d63ec",
+    "bytes": 346250
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-delivery-infra-b-6d02e377b3fa-20261008/independent-result.json",
+    "archive": "../delivery-infra-b-20261008/independent-result.json",
+    "sha256": "2e1ccfa8d42fc19949ef2fb32937b12be3eb46c63fb8ba363854d33e0d48ab04",
+    "bytes": 23715
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-delivery-infra-b-6d02e377b3fa-20261008/adjudication.json",
+    "archive": "../delivery-infra-b-20261008/adjudication.json",
+    "sha256": "59d10230561f7f0ec047a03a45e5ab44a681b8dddca353d87acdc65f9f5072a9",
+    "bytes": 5874
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-delivery-infra-b-6d02e377b3fa-20261008/original-b-failure.json",
+    "archive": "../delivery-infra-b-20261008/original-b-failure.json",
+    "sha256": "67759eaa400370bbaacf29406cabbc65f0f5673e9d9fd31bd8442134fa97716f",
+    "bytes": 966
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-delivery-infra-b-6d02e377b3fa-20261008/probe-20261008T005801Z.run.json",
+    "archive": "../delivery-infra-b-20261008/probe-20261008T005801Z.run.json",
+    "sha256": "7f8bb2ad0a0addd4c1ae12a14ef254c225f686a62ab83b5831e8a904bf55b1fc",
+    "bytes": 1526
+  },
+  {
+    "original": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-delivery-infra-b-6d02e377b3fa-20261008/probe-20261008T005801Z.stdout.jsonl",
+    "archive": "../delivery-infra-b-20261008/probe-20261008T005801Z.stdout.jsonl",
+    "sha256": "e4a6e21808f72c4b5df5c959338a47355b7e41746964c7eda6db0f6eeb860f8b",
+    "bytes": 61360
+  }
+]

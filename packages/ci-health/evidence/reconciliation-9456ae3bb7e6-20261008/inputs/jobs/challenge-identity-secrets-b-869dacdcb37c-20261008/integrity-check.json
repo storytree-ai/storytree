@@ -1,0 +1,42 @@
+{
+  "verified_at": "2026-10-08T02:07:43.535457+00:00",
+  "checks": [
+    {
+      "path": "jobs/challenge-identity-secrets-a/result.json",
+      "sha256": "c607c43b69f1a7c8cacb3b0bde9d273c4279e019dd870ad0f0c2c56239d98a64",
+      "unchanged": true
+    },
+    {
+      "path": "jobs/challenge-identity-secrets-b/events.jsonl",
+      "sha256": "bc16334703dcf083ff125128935d0d6f526afd813d65b5a5fb16854d53bc6ff0",
+      "unchanged": true
+    },
+    {
+      "path": "jobs/challenge-identity-secrets-b/stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "unchanged": true
+    },
+    {
+      "path": "jobs/reconcile-9456ae3bb7e6-20261008/result.json",
+      "sha256": "fa11a8ff957898e73bbc5ef43c18dfbab78206597ae7e1aca1d5e23aad7af102",
+      "unchanged": true
+    },
+    {
+      "path": "jobs/reconcile-9456ae3bb7e6-20261008/reconciliation.md",
+      "sha256": "a7403651e0c5223d88d4458fdc789316a03328d0deaae63684d1be1dce7d36e1",
+      "unchanged": true
+    },
+    {
+      "path": "report.json",
+      "sha256": "827468f4e45e5fd83f341ee42e27a07150ab7d23de28c5100f7bffec2d3d63ec",
+      "unchanged": true
+    },
+    {
+      "path": "independent-result.json",
+      "sha256": "4b699de94522f691c64774a4e3c3b2376a620c86f2adf060fcc29bf40f88ff3f",
+      "unchanged": true
+    }
+  ],
+  "own_test_results": 3,
+  "all_passed": true
+}

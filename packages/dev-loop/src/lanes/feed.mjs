@@ -1,12 +1,13 @@
 // Capability 11 · A Mint track keeps its lanes fed (ADR-0931 D1): when its queue empties it takes
 // the next ready increment in its fence from one library survey, under the manager's skip rules.
 // node packages/dev-loop/src/lanes/feed.mjs next <track>     (the box's lanes folder: LANES_DIR, else ~/storytree-lanes)
-import { existsSync } from "node:fs";
-import { appendFile, readFile, writeFile } from "node:fs/promises";
+import { appendFile, readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { setTimeout as wait } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
+
+import { runQueue } from "./queue.mjs";
 
 /** The website arc: its work is the laptop's (the manager's skip rule). */
 export const WEBSITE_ARC = "arc_e42da2528db8";
@@ -95,40 +96,37 @@ export async function readSurvey({ library, claims, sessions, now = Date.now(), 
   return { increments, holds, claims: held, laptopArcs: [...laptopArcs] };
 }
 
-async function queueLines(file) {
-  try { return (await readFile(file, "utf8")).split("\n").map((line) => line.trim()).filter(Boolean); }
-  catch (error) { if (error.code === "ENOENT") return []; throw error; }
-}
-
 /**
- * Run the track's queue a lane at a time; when it empties, refill it from one survey, and when nothing is
- * ready wait `intervalMs` and look again. Ends only on the stop file, or 75 (an engine failing at once),
- * which keeps that lane queued.
+ * Run the track's queue a lane at a time (queue.mjs's runQueue); when it empties, refill it from one survey,
+ * and when nothing is ready wait `intervalMs` and look again. Ends only on the stop file, or 75 (an engine
+ * failing at once), which keeps that lane queued.
  */
 export async function keepFed({ track, fences, queueFile, stopFile, survey, runLane, sleep = (ms) => wait(ms),
   intervalMs = 15 * 60_000, now = Date.now, say = console.log }) {
   const dated = (message) => say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} ${message}`);
   const attempts = new Map();
-  for (;;) {
-    if (existsSync(stopFile)) { dated("stopped by night-stop"); return 0; }
-    const [head] = await queueLines(queueFile);
-    if (head) {
-      attempts.set(head, { at: now() });
-      const code = await runLane(head);
-      if (code === 75) { dated(`track stopped: engine failing, ${head} kept at the head of the queue`); return 75; }
-      const rest = (await queueLines(queueFile)).slice(1);
-      await writeFile(queueFile, rest.length ? `${rest.join("\n")}\n` : "");
-      continue;
-    }
-    const { pick, skipped } = pickNext(await survey(), { track, fences, attempts });
-    if (pick) {
-      dated(`took ${pick} from the library (${skipped.length} skipped)`);
-      await appendFile(queueFile, `${pick}\n`);
-      continue;
-    }
-    dated(`nothing ready in track ${track}'s fence (${skipped.length} skipped); looking again in ${Math.round(intervalMs / 60_000)} min`);
-    await sleep(intervalMs);
-  }
+  return runQueue({
+    queueFile, stopFile, now, say,
+    runLane: (id) => { attempts.set(id, { at: now() }); return runLane(id); },
+    refill: async () => {
+      let found;
+      try { found = await survey(); }
+      catch (error) {
+        dated(`library survey failed (${String(error.message).split("\n")[0]}); looking again in ${Math.round(intervalMs / 60_000)} min`);
+        await sleep(intervalMs);
+        return true;
+      }
+      const { pick, skipped } = pickNext(found, { track, fences, attempts });
+      if (pick) {
+        dated(`took ${pick} from the library (${skipped.length} skipped)`);
+        await appendFile(queueFile, `${pick}\n`);
+      } else {
+        dated(`nothing ready in track ${track}'s fence (${skipped.length} skipped); looking again in ${Math.round(intervalMs / 60_000)} min`);
+        await sleep(intervalMs);
+      }
+      return true;
+    },
+  });
 }
 
 /** One survey of the shared library, where this computer's `library` setting says it is. */
@@ -149,7 +147,7 @@ export async function surveyLibrary(project = "storytree") {
 
 /**
  * `next <track>`: the increment the track's runner would take now, and why each other was skipped, from one
- * survey. The box's launch-night.sh moves onto keepFed when arc_08e1c7377c9a cuts it over (increment_232be418b68d).
+ * survey. The box's launch-night.sh runs keepFed through launch.mjs's `night <track>`.
  */
 export async function main(args, { lanesDir = process.env.LANES_DIR || join(homedir(), "storytree-lanes"), survey = surveyLibrary, say = console.log } = {}) {
   if (args[0] !== "next" || !/^[A-Z]$/.test(args[1] ?? "")) { say("usage: feed.mjs next <track>"); return 2; }

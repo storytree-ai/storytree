@@ -1,0 +1,469 @@
+{
+  "summary": "Confirmed storage-library-001, storage-library-002 and storage-library-003 under the explicit preconditions below. storage-library-004 remains unverified because unauthorized caller authority and security impact were not established. Three independent isolated probes passed; the Postgres finding is static.",
+  "verdicts": [
+    {
+      "candidate_id": "storage-library-001",
+      "verdict": "confirmed",
+      "severity": "High, conditional on an untrusted local OS account sharing loopback",
+      "rationale": "The default local startup chain initializes the postgres superuser with trust authentication and exposes it over loopback TCP. Another OS account sharing that network namespace can request this database identity without knowing a password or reading the owner's files. Confirmation covers unrestricted database access; operating-system command execution was not demonstrated.",
+      "attacker_control": {
+        "established": true,
+        "reason": "An unrelated local OS account can supply the PostgreSQL username and SQL through the loopback listener, provided host networking policy permits the connection.",
+        "evidence": [
+          {
+            "path": "packages/local-postgres/src/server.ts",
+            "line": 181,
+            "detail": "pg_ctl starts a TCP listener on 127.0.0.1 at the selected port."
+          },
+          {
+            "path": "packages/local-postgres/src/server.ts",
+            "line": 137,
+            "detail": "initdb receives -U postgres -A trust; authentication does not bind the requested database identity to the connecting OS account."
+          }
+        ]
+      },
+      "reachability": {
+        "established": true,
+        "reason": "Desktop startup reaches start(), then ensureCluster(), in the default local-library mode.",
+        "evidence": [
+          {
+            "path": "packages/agent-link/src/settings/settings.ts",
+            "line": 152,
+            "detail": "An absent settings file selects local mode."
+          },
+          {
+            "path": "apps/desktop/src/main/main.ts",
+            "line": 239,
+            "detail": "openAppLibrary receives a startLocal callback calling local-postgres.start with the application's data directory."
+          },
+          {
+            "path": "packages/app/src/lifecycle/open-where-set.ts",
+            "line": 64,
+            "detail": "The local branch starts Postgres and connects using its returned URL."
+          },
+          {
+            "path": "packages/local-postgres/src/server.ts",
+            "line": 176,
+            "detail": "start calls ensureCluster before launching pg_ctl."
+          }
+        ]
+      },
+      "trust_boundary": {
+        "established": true,
+        "reason": "TCP trust authentication promotes a connection from another OS account to the cluster's postgres superuser. Loopback restricts machines, not local user identities.",
+        "evidence": [
+          {
+            "path": "packages/local-postgres/src/server.ts",
+            "line": 137,
+            "detail": "The initial database superuser is postgres and the authentication method is trust."
+          },
+          {
+            "path": "packages/local-postgres/src/server.ts",
+            "line": 194,
+            "detail": "The returned connection URL uses postgres without a password."
+          },
+          {
+            "path": "packages/local-postgres/src/server.ts",
+            "line": 314,
+            "detail": "Postgres tools are spawned under the application's OS authority without a separate UID or network sandbox."
+          }
+        ]
+      },
+      "impact": {
+        "established": true,
+        "reason": "Static PostgreSQL semantics establish superuser access to read, modify or destroy project and activity databases in this cluster.",
+        "evidence": [
+          {
+            "path": "packages/local-postgres/src/server.ts",
+            "line": 137,
+            "detail": "The trusted identity is the initial cluster superuser."
+          },
+          {
+            "path": "packages/library/src/project/storytree.ts",
+            "line": 216,
+            "detail": "Project names select separate databases on this server, subsequently opened through its pool factory."
+          },
+          {
+            "path": "packages/agent-link/src/activity/activity-log.ts",
+            "line": 180,
+            "detail": "The activity log uses its own database on the same library server."
+          }
+        ]
+      },
+      "counterevidence": [
+        "The listener is loopback-only and normally uses a free ephemeral port (server.ts:158,181); ordinary remote access is excluded.",
+        "Cloud SQL and configured external-Postgres modes bypass local startup (open-where-set.ts:38,51).",
+        "Existing clusters are not reinitialized (server.ts:123); manually hardened authentication may therefore prevent exploitation.",
+        "Trust authentication is intentional and explicitly expected by local-postgres.test.ts:74, but that test does not distinguish local OS accounts."
+      ],
+      "test_evidence": [
+        "Static review of the complete startup chain and authentication configuration.",
+        "Read the existing cluster/authentication and startup tests at packages/local-postgres/src/local-postgres.test.ts:68 and :85; these tests were not executed."
+      ],
+      "test_limitations": [
+        "No PostgreSQL server, second-UID client, SQL operation or OS-command facility was exercised.",
+        "Live authentication rules, local-user exposure, firewall policy and network namespaces were not inspected."
+      ],
+      "remediation": "Replace TCP trust with SCRAM authentication using an owner-protected per-installation credential, or use an owner-restricted Unix socket with peer authentication where supported. Separate provisioning authority from the application role and migrate existing trust-authenticated clusters.",
+      "regression_test_recommendation": "In an authorized disposable environment, verify that a distinct OS account cannot authenticate as postgres without the application credential, while the intended application succeeds. Check both fresh initialization and existing-cluster migration, including TCP and socket authentication rules."
+    },
+    {
+      "candidate_id": "storage-library-002",
+      "verdict": "confirmed",
+      "severity": "Medium, conditional on consuming an attacker-controlled checkout",
+      "rationale": "Repository data can select another existing project using the victim's library connection without passing the deliberate-join and trunk checks applied during setup. The independent probe confirmed routing despite an explicit setup refusal. The downstream source establishes automatic activity misattribution and normal tool operations against the selected project. This does not establish data exfiltration to the repository contributor.",
+      "attacker_control": {
+        "established": true,
+        "reason": "A repository supplier or contributor controls the marker's project string and can omit identity. No attacker-authored executable code is needed.",
+        "evidence": [
+          {
+            "path": "packages/agent-link/src/routing/routing.ts",
+            "line": 303,
+            "detail": "markerAbove reads the nearest .storytree.json from the checkout or an ancestor."
+          },
+          {
+            "path": "packages/agent-link/src/routing/routing.ts",
+            "line": 316,
+            "detail": "projectIn accepts a nonempty project string and treats identity as optional."
+          }
+        ]
+      },
+      "reachability": {
+        "established": true,
+        "reason": "With Storytree enabled and its library reachable, installed session hooks route the harness's working directory; tool handlers independently route their configured checkout and open its selected project.",
+        "evidence": [
+          {
+            "path": "packages/agent-link/src/setup/hooks-config.ts",
+            "line": 214,
+            "detail": "Claude Code registers a SessionStart hook; Codex's equivalent is at line 237."
+          },
+          {
+            "path": "packages/agent-link/src/hooks/hooks.ts",
+            "line": 155,
+            "detail": "writeLines routes the folder supplied by the harness before opening the activity log."
+          },
+          {
+            "path": "packages/agent-link/src/tools/server.ts",
+            "line": 167,
+            "detail": "Each ordinary tool handler routes options.folder and reaches the resulting project."
+          },
+          {
+            "path": "packages/agent-link/src/tools/connections.ts",
+            "line": 46,
+            "detail": "Connections.reach calls openNamedProject with the routed project and optional identity."
+          }
+        ]
+      },
+      "trust_boundary": {
+        "established": true,
+        "reason": "Checkout-controlled metadata chooses which project receives the user's existing database authority. Trusted folder registration is not an authorization gate on this path.",
+        "evidence": [
+          {
+            "path": "packages/agent-link/src/routing/trunks.ts",
+            "line": 178,
+            "detail": "Explicit setup refuses a second trunk; line 182 also requires deliberate joining of an existing project."
+          },
+          {
+            "path": "packages/agent-link/src/routing/routing.ts",
+            "line": 111,
+            "detail": "Marker-based opening forwards the selected name with create:false, without a mandatory folder binding or identity."
+          },
+          {
+            "path": "packages/agent-link/src/tools/server.ts",
+            "line": 174,
+            "detail": "Trunk registration happens after reaching the project; errors are swallowed and a false result does not stop the tool."
+          },
+          {
+            "path": "packages/library/src/project/storytree.ts",
+            "line": 220,
+            "detail": "The opener checks database existence and a supplied identity, but does not require identity or a checkout authorization."
+          }
+        ]
+      },
+      "impact": {
+        "established": true,
+        "reason": "A normal session in the supplied checkout can contaminate the victim project's activity history. Subsequent legitimate tool calls can read or modify that project's records instead of the intended checkout's project.",
+        "evidence": [
+          {
+            "path": "packages/agent-link/src/hooks/hooks.ts",
+            "line": 199,
+            "detail": "The hook checks identity only when supplied, then appends under where.project at line 209."
+          },
+          {
+            "path": "packages/agent-link/src/activity/activity-log.ts",
+            "line": 426,
+            "detail": "The activity insertion persists the supplied project as a parameter; no folder authorization is checked."
+          },
+          {
+            "path": "packages/agent-link/src/tools/note-tools.ts",
+            "line": 42,
+            "detail": "search_notes searches the routed library."
+          },
+          {
+            "path": "packages/agent-link/src/tools/note-tools.ts",
+            "line": 92,
+            "detail": "correct_note writes through the routed library."
+          }
+        ]
+      },
+      "counterevidence": [
+        "The attacker must know an accessible target project name, and the victim must run an enabled session in the supplied checkout.",
+        "Project-name validation, create:false and supplied-identity checks prevent malformed names, missing-project creation and mismatched supplied identities.",
+        "Committed-marker portability and legacy identity-less markers are intentional (project-routing.test.ts:333). Explicitly approved marker-to-project associations are legitimate.",
+        "Database permissions remain effective; this redirects the victim's existing authority rather than bypassing PostgreSQL permissions.",
+        "Codex hooks require prior user trust in their registration (hooks/codex-trust.ts:2); trusting the installed hook does not independently approve a repository marker's target."
+      ],
+      "test_evidence": [
+        "The isolated challenge-marker probe exited 0 with empty stderr. Real refusal(), findProject(), route() and openNamedProject() showed explicit setup refusal followed by routing to victim-project and forwarding openProject('victim-project', {create:false}).",
+        "Controls passed for absent and malformed markers, and forwarding identity when supplied.",
+        "Artifacts: evidence/challenge-marker-20261007T120909505532 contains the preserved script, result.json, stdout.txt and stderr.txt. Exact submission command is recorded in evidence/submissions.json."
+      ],
+      "test_limitations": [
+        "openProject was an inert recording stub. Actual database opening, activity appends and tool reads/writes were established statically, not executed.",
+        "No installed hooks, MCP server, harness trust configuration or deployed database permissions were exercised."
+      ],
+      "remediation": "Require a trusted local binding between the canonical checkout and project before routing hooks or tools. Treat repository markers as suggestions until approved, preserve approved linked worktrees, and explicitly migrate legacy markers. A database identity alone is not authorization.",
+      "regression_test_recommendation": "Verify that an unapproved checkout cannot open a project or append activity using either an identity-less marker or a known valid identity. Keep positive controls for approved checkouts and linked worktrees, and ensure registration failure cannot permit operations."
+    },
+    {
+      "candidate_id": "storage-library-003",
+      "verdict": "confirmed",
+      "severity": "Medium, conditional on independently trusted databases or servers",
+      "rationale": "A source database/server that controls embedding bytes can populate the shared local cache with a false vector for known chunk text. A later search in a separately controlled project accepts that vector without requesting its correct database copy. The independent probe exercised real Knowledge.rank/rankAll and PgVectors and reversed the victim's ranking. Confirmation requires embedding-table or server-response control; ordinary note-editing authority is insufficient.",
+      "attacker_control": {
+        "established": true,
+        "reason": "Under the supplied stronger capability, an attacker controlling one database's embedding rows or its server responses chooses the vector bytes for a requested model and chunk hash. This does not require access to the victim database or local cache file.",
+        "evidence": [
+          {
+            "path": "packages/library/src/project/schema.ts",
+            "line": 44,
+            "detail": "The embedding table stores model, key and arbitrary bytea vector values."
+          },
+          {
+            "path": "packages/library/src/project/embeddings.ts",
+            "line": 39,
+            "detail": "PgVectors fetches vectors from its project's pool and accepts the returned bytes without recomputing their relationship to the chunk text."
+          },
+          {
+            "path": "packages/library/src/knowledge/embedding.ts",
+            "line": 80,
+            "detail": "Rendered headings include type and record ID, constraining which target text the attacker must know or share."
+          }
+        ]
+      },
+      "reachability": {
+        "established": true,
+        "reason": "Production ranked searches use project-specific pools with the same default machine-local cache path. Reading the malicious source before the target project provides the required cache-population sequence.",
+        "evidence": [
+          {
+            "path": "packages/library/src/project/storytree.ts",
+            "line": 198,
+            "detail": "Each default ServerConnection selects modelsFolder()/vectors.sqlite without a project or server component."
+          },
+          {
+            "path": "packages/library/src/project/storytree.ts",
+            "line": 432,
+            "detail": "Each project's Knowledge receives PgVectors with its own pool and the shared cache path."
+          },
+          {
+            "path": "packages/library/src/api/library.ts",
+            "line": 653,
+            "detail": "Public Library.rank forwards to the project's Knowledge.rank."
+          },
+          {
+            "path": "packages/library/src/knowledge/knowledge.ts",
+            "line": 480,
+            "detail": "Ranked search renders records and invokes rankByMeaning with those vectors."
+          }
+        ]
+      },
+      "trust_boundary": {
+        "established": true,
+        "reason": "An embedding supplied by source A becomes authoritative ranking input for separately controlled project/server B. The cache key authenticates neither source nor vector correctness.",
+        "evidence": [
+          {
+            "path": "packages/library/src/project/embeddings.ts",
+            "line": 29,
+            "detail": "Local lookup is keyed only by model and chunk key."
+          },
+          {
+            "path": "packages/library/src/project/embeddings.ts",
+            "line": 38,
+            "detail": "A complete local hit returns before consulting the current project's database."
+          },
+          {
+            "path": "packages/library/src/project/embeddings.ts",
+            "line": 47,
+            "detail": "Remotely fetched vectors are copied into the same local cache."
+          }
+        ]
+      },
+      "impact": {
+        "established": true,
+        "reason": "The attacker can change semantic ordering and consequently which records appear in limited search results, without changing the victim's records. The probe demonstrated this for both rank and rankAll.",
+        "evidence": [
+          {
+            "path": "packages/library/src/knowledge/embedding.ts",
+            "line": 153,
+            "detail": "Fetched or cached vectors directly determine scores and sorting."
+          },
+          {
+            "path": "packages/library/src/knowledge/knowledge.ts",
+            "line": 481,
+            "detail": "The sorted results are truncated to the requested limit."
+          },
+          {
+            "path": "packages/agent-link/src/tools/note-tools.ts",
+            "line": 42,
+            "detail": "The user-facing search_notes tool consumes rankAll results."
+          }
+        ]
+      },
+      "counterevidence": [
+        "There is no cross-authority violation when all source databases have the same trusted owner. The shared-server test models accounts intentionally sharing an owning role (shared-server.test.ts:24).",
+        "The documented CI health grants exclude embedding access (infra/ci-health/grants.sql:23); ordinary note editing does not expose arbitrary vector writes.",
+        "SHA-256 text keys and model separation prevent accidental reuse for unrelated chunks. The attack needs known/shared rendered text and a poison entry cached before the correct entry.",
+        "Custom embedders default to no disk cache (storytree.ts:182,198). An unavailable embedder falls back to word search (knowledge.ts:475).",
+        "Title-based promotion can override semantic ordering (knowledge.ts:601); the probe used a query without such a title match.",
+        "No record disclosure, record modification or code execution was established."
+      ],
+      "test_evidence": [
+        "The isolated challenge-cache probe exited 0 with empty stderr. Real Knowledge.rank/rankAll, rendering, hashing, PgVectors and SQLite changed the known shared record's score from 1 to -1, reversing the two-record order.",
+        "The victim pool was not queried for the poisoned key. Separate-cache and different-model controls preserved baseline ranking; a correct entry cached first resisted later poisoning.",
+        "Artifacts: evidence/challenge-cache-20261007T120909804443 contains the preserved script, result.json, stdout.txt and stderr.txt. Exact submission command is recorded in evidence/submissions.json."
+      ],
+      "test_limitations": [
+        "Record readers, database responses and the two-dimensional embedder were synthetic. No real database server or production embedding model was executed.",
+        "Default cache wiring and public entry points were verified statically; the probe explicitly supplied its disposable cache path.",
+        "No deployed mixture of independently trusted databases or attacker embedding privileges was inspected."
+      ],
+      "remediation": "Namespace remotely supplied cache entries by authenticated server and project/database identity, or globally share only embeddings computed locally from verified text. Invalidate existing unscoped entries during migration. Validate vector dimensions and finite values as additional hardening.",
+      "regression_test_recommendation": "Keep the two-project poisoning test and assert that the victim ranking matches an isolated-cache baseline after remediation. Cover different servers, recreated databases, model changes and same-project warm-cache reuse."
+    },
+    {
+      "candidate_id": "storage-library-004",
+      "verdict": "unverified",
+      "severity": "Unassigned; potentially Medium if restricted caller authority is established",
+      "rationale": "The file-access mechanisms are real: memory enumeration follows .md symlinks, and graduate deletes a caller-supplied existing path after a successful library write. However, the reviewed host intentionally supports external memory folders and exposes the tools to a local agent. Neither a caller restricted to selected roots nor disclosure to the repository attacker was established. Mechanism reproduction alone does not establish unauthorized access.",
+      "attacker_control": {
+        "established": true,
+        "reason": "A contributor can control a symlink entry in a repository folder, if the victim selects that folder for memory processing. Tool arguments also accept caller-chosen paths, but argument control does not establish that the caller has lesser filesystem authority.",
+        "evidence": [
+          {
+            "path": "packages/librarian/src/graduation/graduation.ts",
+            "line": 65,
+            "detail": "Enumeration accepts entries based on their .md filename without checking whether they are symlinks."
+          },
+          {
+            "path": "packages/librarian/src/rounds/tools.ts",
+            "line": 27,
+            "detail": "memoryFolders is a caller-supplied array of strings."
+          },
+          {
+            "path": "packages/librarian/src/rounds/tools.ts",
+            "line": 72,
+            "detail": "The graduate tool accepts the caller's memory path."
+          }
+        ]
+      },
+      "reachability": {
+        "established": true,
+        "reason": "The static tool-to-filesystem chain exists when librarian tools are enabled and the relevant folder/path is selected. Automatic selection of an attacker-controlled repository memory folder was not established.",
+        "evidence": [
+          {
+            "path": "packages/agent-link/src/tools/server.ts",
+            "line": 150,
+            "detail": "Default librarian registration requires a project lookup naming storytree; explicit host extensions can also register it."
+          },
+          {
+            "path": "packages/librarian/src/rounds/tools.ts",
+            "line": 35,
+            "detail": "Selected folders are resolved and passed into worklist."
+          },
+          {
+            "path": "packages/librarian/src/rounds/rounds.ts",
+            "line": 81,
+            "detail": "worklist invokes memoryWorklist on the supplied folders."
+          },
+          {
+            "path": "packages/librarian/src/rounds/tools.ts",
+            "line": 74,
+            "detail": "The graduate handler forwards the resolved path to graduate."
+          }
+        ]
+      },
+      "trust_boundary": {
+        "established": false,
+        "reason": "No enforced or documented selected-root security boundary, lower-authority deployed caller, or attacker-visible output channel was established. External paths are an intentional feature rather than necessarily an authorization bypass.",
+        "evidence": [
+          {
+            "path": "packages/librarian/src/rounds/tools.ts",
+            "line": 26,
+            "detail": "The tool explicitly supports naming other memory folders."
+          },
+          {
+            "path": "packages/librarian/src/graduation/graduation.ts",
+            "line": 51,
+            "detail": "The default Claude memory location is outside the project checkout."
+          },
+          {
+            "path": "packages/agent-link/src/bins/storytree-mcp.ts",
+            "line": 46,
+            "detail": "The standard tool host connects over local stdio; this does not establish a remotely accessible or filesystem-restricted caller."
+          }
+        ]
+      },
+      "impact": {
+        "established": false,
+        "reason": "Outside-file inclusion and non-memory-file deletion were reproduced, but unauthorized disclosure or deletion was not. The symlink target survives graduation of the symlink itself.",
+        "evidence": [
+          {
+            "path": "packages/librarian/src/graduation/graduation.ts",
+            "line": 67,
+            "detail": "readFileSync follows the selected entry's symlink and places its text in the memory item."
+          },
+          {
+            "path": "packages/librarian/src/rounds/rounds.ts",
+            "line": 155,
+            "detail": "The worklist view includes complete graduation items."
+          },
+          {
+            "path": "packages/librarian/src/graduation/graduation.ts",
+            "line": 97,
+            "detail": "graduate awaits the library write before invoking forget."
+          },
+          {
+            "path": "packages/librarian/src/graduation/graduation.ts",
+            "line": 116,
+            "detail": "forget removes the supplied path without requiring a memory extension."
+          }
+        ]
+      },
+      "counterevidence": [
+        "The default memory location is the agent's private memory folder, not a contributor-controlled repository folder.",
+        "A normal local agent may already possess equivalent filesystem authority; arbitrary path arguments alone then confer no additional authority.",
+        "The default librarian registration is limited, although its project-name check is marker-derived and should not be treated as an independent authorization boundary.",
+        "A rejected library write preserves the file, consistent with graduation.test.ts:86 and the independent probe.",
+        "Removing a symlink removes the link, not its target; the independent probe verified this.",
+        "No attacker receipt of the returned outside-file content was demonstrated."
+      ],
+      "test_evidence": [
+        "The isolated challenge-memory probe exited 0 with empty stderr. Real memoryWorklist, worklistView and graduate followed an outside-file symlink and deleted a supplied non-memory file after an inert successful write stub.",
+        "Positive and negative controls passed: ordinary memory processing, file retention on refused writes, and preservation of the target when graduating a symlink.",
+        "Artifacts: evidence/challenge-memory-20261007T120909505494 contains the preserved script, result.json, stdout.txt and stderr.txt. Exact submission command is recorded in evidence/submissions.json."
+      ],
+      "test_limitations": [
+        "The probe used disposable files and inert library stubs; it did not exercise the deployed tool host or a real library write.",
+        "Caller filesystem restrictions, intended root authorization and disclosure to an attacker remain unverified."
+      ],
+      "remediation": "First define the intended caller and memory-root authority. If roots are security boundaries, configure them in the trusted host, enforce canonical containment with race-resistant no-follow file handling, and require approved regular memory files before deletion. Preserve explicitly approved external roots.",
+      "regression_test_recommendation": "Add an integration test using an actually restricted caller. Verify refusal of unapproved absolute paths, traversal and outside symlinks, while approved external roots and ordinary graduation work. Retain the failed-write and symlink-target-preservation controls."
+    }
+  ],
+  "limitations": [
+    "Reviewed only the pinned source snapshot at commit 08124e6286ff09843500a35120a38a685806a646 and this job's independently generated evidence; supplied prior-review artifacts were not consulted.",
+    "No live services, credentials, host configuration, builds or full suites were accessed or executed. Repository tests were read, not reported as passing.",
+    "All executed product functions ran through the required submitter and isolated broker. Exact submission commands are preserved in evidence/submissions.json; each artifact directory preserves the script, isolated command, source commit, exit code, stdout and stderr.",
+    "Confirmed verdicts describe the stated conditional threat models, not verified exploitation or exposure of this Mint deployment."
+  ]
+}

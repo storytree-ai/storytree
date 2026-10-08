@@ -151,6 +151,48 @@ for (const backend of [memory, postgres]) {
     assert.equal(await flight.closeIncrement("increment_000000000000", { pr: "#6", disposition: "landed" }), null);
   });
 
+  contract("10.2", "a closed outcome can be corrected with a reason kept in history, without reopening it or losing its closure date", async ({ work, flight, records, transactions }) => {
+    const arc = await work.createArc(ARC);
+    const increment = await flight.addIncrement({ arc: arc.id, ...WORK });
+    const landed = { disposition: "landed" as const, pr: "#857" };
+    const reason = "Its own pull request merged; withdrawn was recorded by mistake";
+    for (const status of ["proposal", "active"] as const) {
+      if (status === "active") await flight.advanceIncrement(increment.id, status);
+      const before = await transactions.history();
+      await assert.rejects(flight.correctIncrementClosure(increment.id, landed, reason), /must be closed/);
+      assert.deepEqual(await transactions.history(), before, "correcting open work writes nothing");
+    }
+    const original = { date: "2026-10-01", disposition: "withdrawn" as const, note: "Mistaken for superseded work" };
+    const closed = await flight.closeIncrement(increment.id, original);
+    const before = await transactions.history();
+    for (const why of [undefined, "", "  \n  "]) {
+      await assert.rejects(flight.correctIncrementClosure(increment.id, landed, why as string), /reason/);
+    }
+    await assert.rejects(flight.correctIncrementClosure(increment.id, { disposition: "failed" }, reason), SchemaError);
+    await assert.rejects(flight.correctIncrementClosure(increment.id, { ...landed, disposition: "other" as never }, reason), SchemaError);
+    assert.equal(await flight.correctIncrementClosure("increment_000000000000", landed, reason), null);
+    assert.equal(await flight.correctIncrementClosure(arc.id, landed, reason), null);
+    assert.deepEqual(await transactions.history(), before, "every refused correction leaves history unchanged");
+
+    const corrected = await flight.correctIncrementClosure(increment.id, landed, reason, { actor: "session:correction" });
+    assert.deepEqual(corrected?.fields, { ...closed?.fields, outcome: { ...landed, date: original.date } });
+    assert.deepEqual(await records.get(increment.id), corrected);
+    assert.equal((await flight.arcView(arc.id))?.state, "closed");
+    const history = await transactions.history();
+    assert.deepEqual(history.slice(0, -1), before, "the original history remains intact");
+    assert.equal(history.length, before.length + 1, "one correction is one write");
+    assert.equal(history.at(-1)?.reason, reason);
+    assert.equal(history.at(-1)?.actor, "session:correction");
+    assert.deepEqual(history.at(-1)?.record.fields["outcome"], corrected?.fields.outcome);
+
+    const replacement = { disposition: "failed" as const, date: "2026-10-02", note: "The linked pull request belonged to other work" };
+    const revised = await flight.correctIncrementClosure(increment.id, replacement, "Correct the date and remove the unrelated pull request");
+    assert.deepEqual(revised?.fields.outcome, replacement, "an explicit date replaces the old one and an omitted PR is removed");
+    assert.equal(revised?.fields.status, "closed");
+    await assert.rejects(flight.closeIncrement(increment.id, landed), LifecycleError, "correction does not permit a second close");
+    await assert.rejects(flight.advanceIncrement(increment.id, "active"), LifecycleError, "correction does not reopen work");
+  });
+
   contract("10.7", "an increment stored as ready, a step ADR-0909 D4 retired, reads as a proposal keeping its parked date, and an edit stores it so", async ({ flight, records, transactions, work }) => {
     const arc = await work.createArc(ARC);
     const parked = "2026-10-01T06:26:04.938Z";

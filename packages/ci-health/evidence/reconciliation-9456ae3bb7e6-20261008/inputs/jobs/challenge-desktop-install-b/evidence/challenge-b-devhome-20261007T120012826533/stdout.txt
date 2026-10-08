@@ -1,0 +1,4 @@
+{"case":"synthetic-codex-selected","umask":"22","markerMode":"0644","directoryMode":"0755","copyMode":"0600","exactSyntheticDuplicate":true,"stoppedBeforeBuild":true}
+{"case":"synthetic-codex-selected","umask":"77","markerMode":"0600","directoryMode":"0700","copyMode":"0600","exactSyntheticDuplicate":true,"stoppedBeforeBuild":true}
+{"case":"no-codex-control","signInNotCopied":true}
+{"scope":"real-imported-makeDevHome-through-line-61","sourceDirectoryMode":"0700","sourceFileMode":"0600","secondIdentityRead":"not-attempted","ancestorModes":[{"file":"/","mode":"0755"},{"file":"/work","mode":"0700"},{"file":"/work/challenge-b-devhome","mode":"0700"}]}

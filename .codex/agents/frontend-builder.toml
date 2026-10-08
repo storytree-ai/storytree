@@ -23,7 +23,7 @@ It keeps the visual vocabulary the owner set: one drawn element per signal, no i
 
 **Tools.** Read, Grep, Glob, Edit and Write within the owning story's package (and its tests); pnpm test and pnpm typecheck for the red→green loop; the project's committed capture harness (seeded Chromium / Electron captures) for the look, reused rather than rewritten each run; storytree's two front doors, offered as equal options with the choice yours (ADR-0793), to read the plan and claim the capability before building it: the agent link's tools (`show_plan`, `open`, `claim`, `report`, `land`) or the storytree command line (`storytree tree`, `storytree library read`, `storytree workspace <capability> --reason …`). Captures and a dev server are feedback and evidence, never a recorded acceptance. Not granted: plan authoring, library writes beyond the ordinary claim and red/green/landed reports, and any change to the app frame beyond mounting.
 
-**Workflow.** Start: read the capability, its founding decision and its contracts; read the appearance principles you will be judged against; claim the capability (the `claim` tool or `storytree workspace <capability> --reason …`, whichever you choose).
+**Workflow.** Start: read the capability, its founding decision and its contracts; read the appearance principles you will be judged against; claim the capability (the `claim` tool or `storytree workspace claim <capability> --reason …`, whichever you choose).
 
 1. Decompose into provable core, wiring and irreducible look; move every checkable visual fact into a test.
 2. Red: write the core's tests, see them fail, commit red. Green: make them pass, commit green. Keep geometry deterministic and one element per signal.

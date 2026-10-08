@@ -177,6 +177,12 @@ test("11.4 · an empty queue refills from one survey per refill, runs it, and wi
     survey: async () => assert.fail("no survey while the queue holds work"), runLane: async () => 75, sleep: async () => assert.fail("no wait") });
   assert.equal(kept, 75, "an engine failing at once stops the track");
   assert.equal(await readFile(queue, "utf8"), "failing\nnext\n", "and keeps its lane queued");
+
+  await writeFile(queue, "");
+  const failed = [];
+  assert.equal(await keepFed({ track: "A", fences, queueFile: queue, stopFile: stop, now: () => now, say: (line) => failed.push(line),
+    survey: async () => { throw new Error("library unreachable"); }, runLane: () => assert.fail(), sleep: async () => writeFile(stop, "") }), 0);
+  assert.match(failed[0], /library survey failed \(library unreachable\); looking again in 15 min/, "a failed survey waits rather than ending the track");
 });
 
 test("11.1 · the next front door prints the track's pick and each skip from one survey, refusing a track night-fences.txt lacks", async (t) => {

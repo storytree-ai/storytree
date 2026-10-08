@@ -4,7 +4,7 @@
  * are written to the real activity log on the Postgres `pnpm test` provides.
  */
 import assert from "node:assert/strict";
-import { writeFileSync } from "node:fs";
+import { appendFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 
@@ -13,7 +13,7 @@ import pg from "pg";
 import { ACTIVITY_DATABASE, openActivityLog } from "../activity/index.js";
 import { withTempDir } from "../testing/folders.js";
 import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { pruneTranscripts, scrub, shipTranscript, storedContextReading, storedSessionWindow } from "./index.js";
+import { pruneTranscripts, scrub, shipTranscript, storedContextReading, storedSessionWindow, TranscriptCache } from "./index.js";
 
 // Fakes built at run time, so no scanner mistakes this file for a leak.
 const fake = (...parts: string[]) => parts.join("");
@@ -61,6 +61,50 @@ test("9.13 raw records older than 180 days are deleted by the retention pass, an
       assert.equal("tokens" in reading && reading.tokens, 4_000, "its reading remains");
       const window = await storedSessionWindow(log, project, [line], "old");
       assert.equal("absent" in window, false, "and so does its window");
+    });
+  } finally {
+    await log.close();
+  }
+});
+
+test("9.14 a reading asked again over a grown transcript parses only the records stored since, and reads as the whole does", async () => {
+  const project = uniqueProjectName();
+  const log = await openActivityLog(testServerUrl());
+  try {
+    await withTempDir(async (dir) => {
+      const asked = new Date("2026-10-08T00:00:00Z");
+      const claude = [
+        { type: "user", message: { content: "Read the file" } },
+        { type: "assistant", requestId: "r1", message: { model: "claude-opus-5-5", usage: { input_tokens: 9_000 }, content: [{ type: "tool_use", id: "t1", name: "Read", input: { file_path: "a.ts" } }] } },
+        { type: "user", message: { content: [{ type: "tool_result", tool_use_id: "t1", content: "r".repeat(4_000) }] } },
+        { type: "assistant", requestId: "r2", message: { model: "claude-opus-5-5", usage: { input_tokens: 12_000, cache_read_input_tokens: 3_000 }, content: [{ type: "text", text: "Done." }] } },
+      ];
+      // The user's prompt and the event naming it as the user's own land in different asks.
+      const codex = [
+        { type: "session_meta", payload: { id: "c", base_instructions: { text: "b".repeat(800) } } },
+        { type: "response_item", payload: { type: "message", role: "user", content: [{ type: "input_text", text: "Split the bars" }] } },
+        { type: "event_msg", payload: { type: "item_completed", item: { type: "UserMessage", content: [{ type: "text", text: "Split the bars" }] } } },
+        { type: "event_msg", payload: { type: "token_count", info: { last_token_usage: { input_tokens: 7_000 } } } },
+      ];
+      const sessions = [{ session: "claude", harness: "claude-code", records: claude }, { session: "codex", harness: "codex", records: codex }];
+      const cache = new TranscriptCache();
+      for (const { session, harness, records } of sessions) {
+        const transcript = path.join(dir, `${session}.jsonl`);
+        writeFileSync(transcript, records.slice(0, 2).map((record) => `${JSON.stringify(record)}\n`).join(""));
+        const line = await log.append(project, { session, harness, source: "hook", kind: "session-started", transcript });
+        await shipTranscript(log, project, session, transcript);
+        await storedContextReading(log, project, [line], session, { now: asked, cache });
+        assert.equal(cache.parsed(project, session), 2, `${session}: the first ask parses what is stored`);
+
+        appendFileSync(transcript, records.slice(2).map((record) => `${JSON.stringify(record)}\n`).join(""));
+        await shipTranscript(log, project, session, transcript);
+        const grown = await storedContextReading(log, project, [line], session, { now: asked, cache });
+        assert.equal(cache.parsed(project, session), 4, `${session}: a later ask parses only the records stored since`);
+        assert.deepEqual(grown, await storedContextReading(log, project, [line], session, { now: asked }), `${session}: and reads as the whole does`);
+
+        await storedContextReading(log, project, [line], session, { now: asked, cache });
+        assert.equal(cache.parsed(project, session), 4, `${session}: an ask with nothing new parses nothing`);
+      }
     });
   } finally {
     await log.close();

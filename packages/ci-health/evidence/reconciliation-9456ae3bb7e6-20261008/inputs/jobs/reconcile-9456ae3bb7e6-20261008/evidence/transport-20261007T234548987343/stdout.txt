@@ -1,0 +1,2 @@
+{"case":"default-address-handshake","sslRequested":false,"syntheticPasswordReceivedBeforeServerAuthentication":true}
+{"case":"verified-tls-refusal-control","sslRequested":true,"syntheticPasswordReceivedBeforeServerAuthentication":false}

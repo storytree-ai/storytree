@@ -23,6 +23,10 @@
  * as registering the main process's handlers and exits 0 without opening the library; a build that
  * cannot is never restarted into (./start-check.ts). A start that fails ends the app.
  *
+ * `--callback-check` holds the single-instance lock with no window and no library, and prints a line for each sign-in
+ * callback a later start hands it, saying whether it reached the sign-in session (./callback-check.ts): CI's proof that a
+ * deep link reaches the running app, with no live sign-in.
+ *
  * `--smoke` renders the project without showing a window, saves a screenshot to the file given
  * with `--screenshot <file>`, prints the page's text to stdout, and quits: exit 0 only if the
  * surface on show says it drew every story of the project and every one of its capabilities.
@@ -90,6 +94,7 @@ import { AuthKitCore, AuthOperations, sessionEncryption } from "@workos/authkit-
 import { CHANNELS } from "../bridge.js";
 import { APP_OWNER, appHome } from "../home.js";
 import { parseArgs } from "./args.js";
+import { routeCallback } from "./callback-check.js";
 import { createTrayIcon } from "./tray-icon.js";
 import { startRefusal } from "./one-app.js";
 import { followReleases, installedApp } from "./releases.js";
@@ -145,7 +150,7 @@ const lifecycle = background({
   relaunch,
 });
 // The app that follows merged main runs with no terminal, so what it says goes to a log beside its data.
-if (slot !== undefined && !args.smoke && !args.startCheck) logTo(path.join(home.dir, "app.log"));
+if (slot !== undefined && !args.smoke && !args.startCheck && !args.callbackCheck) logTo(path.join(home.dir, "app.log"));
 
 // One storytree app per machine (ADR-0940 D1): beside the other copy, say which and how to remove it, and start nothing.
 const refusal = args.smoke || args.startCheck ? undefined : startRefusal({ slot, installed: installedApp(), home: home.dir });
@@ -158,6 +163,18 @@ if (refusal !== undefined) {
   app.quit(); // the app is already open: that one is focused instead (or, with --quit, quits)
 } else if (args.quit) {
   app.exit(0); // asked to quit, and none is running: start nothing
+} else if (args.callbackCheck) {
+  // Hold the lock with no window or library, and report each callback a later start hands over; a later `--quit` ends it.
+  app.on("second-instance", (_event, argv) => {
+    for (const url of callbackUrls(argv)) deliverCallback(url);
+    if (parseArgs(argv).quit) app.exit(0);
+  });
+  app.on("open-url", (event, url) => {
+    event.preventDefault();
+    deliverCallback(url);
+  });
+  for (const signal of ["SIGINT", "SIGTERM"] as const) process.on(signal, () => app.exit(0));
+  void runWhenReady(app.whenReady(), checkCallbacks, fail);
 } else {
   // A second start shows the window; one that arrives while the app is quitting or restarting opens
   // it again once it has stopped, instead of being lost.
@@ -404,9 +421,14 @@ function startFeedbackIdentity(config: FeedbackIdentityConfig): ReturnType<typeo
 
 /** Hand a sign-in callback to the session, or keep it until the session is made; with no sign-in offered, drop it. */
 function deliverCallback(url: string): void {
-  if (identityConfig === undefined) return;
-  if (signInSession === undefined) earlyCallbacks.push(url);
-  else void signInSession.callback(url).catch((error: unknown) => console.error(`sign-in callback: ${error instanceof Error ? error.message : String(error)}`));
+  routeCallback(url, { offered: identityConfig !== undefined, session: signInSession, early: earlyCallbacks, report: args.callbackCheck ? console.log : undefined });
+}
+
+/** A `--callback-check` start once ready: make the sign-in session when this build offers one, then take callbacks. */
+async function checkCallbacks(): Promise<void> {
+  if (identityConfig !== undefined) startFeedbackIdentity(identityConfig);
+  console.log("callback check: waiting for sign-in callbacks");
+  for (const url of [...earlyCallbacks.splice(0), ...callbackUrls(process.argv)]) deliverCallback(url);
 }
 
 /** Bring the window forward, opening it again on the same project if it was closed. */

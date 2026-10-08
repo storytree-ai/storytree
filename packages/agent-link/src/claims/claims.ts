@@ -67,7 +67,7 @@ export type ClaimAnswer =
   | { ok: false; refused: "held"; holder: Claim }
   | { ok: false; refused: "unknown-capability"; capability: string }
   | { ok: false; refused: "closed"; increment: string }
-  | { ok: false; refused: "waiting"; waits: Waiting[]; untouched?: string[] }
+  | { ok: false; refused: "waiting"; waits: Waiting[] }
   | { ok: false; refused: "reason-too-long"; limit: number; length: number };
 
 /**
@@ -191,31 +191,14 @@ export async function claimRefusal(context: ClaimContext, id: string, reason?: s
   return { ok: false, refused: "held", holder: current };
 }
 
-/**
- * The live capability or increment `id`, when the library would let it be claimed; otherwise why
- * not. A capability refused as waiting names the session's own open increments whose touches omit
- * it (`untouched`): listing it there lets the claim stand (5.18).
- */
+/** The live capability or increment `id`, when the library would let it be claimed; otherwise why not. */
 async function claimable(context: ClaimContext, id: string): Promise<Found | Exclude<ClaimAnswer, { ok: true } | { refused: "held" }>> {
   const { library } = context;
   const found = await partNamed(library, id);
   if (found === undefined) return { ok: false, refused: "unknown-capability", capability: id };
   if (found.status === "closed") return { ok: false, refused: "closed", increment: id };
   const waits = await waitingOn(library, found);
-  if (waits.length === 0) return found;
-  const untouched = found.part.capability === undefined ? [] : await untouchedBy(context, found.part.capability);
-  return { ok: false, refused: "waiting", waits, ...(untouched.length === 0 ? {} : { untouched }) };
-}
-
-/** The open increments the context's session holds whose touches do not name `capability`. */
-async function untouchedBy(context: ClaimContext, capability: string): Promise<string[]> {
-  const held = (await readClaims(context.log, context.project, context)).flatMap((one) => (one.session === context.session && one.holder === "live" && one.increment !== undefined ? [one.increment] : []));
-  const untouched: string[] = [];
-  for (const increment of held) {
-    const record = (await context.library.get(increment)) as SchemaRecord<"increment"> | null | undefined;
-    if (record?.type === "increment" && record.fields.status !== "closed" && record.fields.touches?.includes(capability) !== true) untouched.push(increment);
-  }
-  return untouched;
+  return waits.length === 0 ? found : { ok: false, refused: "waiting", waits };
 }
 
 /** Release `id`, a capability or an increment, if the context's session holds it. */
@@ -297,34 +280,22 @@ export async function readAttribution(log: ActivityLog, project: string): Promis
 /**
  * The waits that refuse a claim on `found` (ADR-0643 D2, the owner's W2), from the library's own
  * two readings (ADR-0640 D5): whether a wait holds (`waitHolds`, which counts an increment's arc's
- * waits too), and whether an increment is held on an open question (`heldOnQuestion`):
- * - an increment's blockers still holding it, and the open questions it is held on;
- * - for a capability, those of every open increment naming it (its `touches`, ADR-0640 10-a), but
- *   only when every one of them waits: one that does not leaves the capability free, and a
- *   capability no open increment names is never refused.
- * The agent link keeps no copy of the rule for whether a wait holds.
+ * waits too), and whether an increment is held on an open question (`heldOnQuestion`). Only an
+ * increment waits: its blockers still holding it, and the open questions it is held on. A
+ * capability never does, whatever the increments naming it in their touches wait on, since touches
+ * is a plan, never a lock (ADR-0944 D2). The agent link keeps no copy of the rule for whether a wait holds.
  */
 async function waitingOn(library: Library, found: Found): Promise<Waiting[]> {
-  // Every hold from one reading of the work, never one reading per increment (5.23).
-  const holding = (holds: Holds, increment: string): Waiting[] => [
+  const { increment } = found.part;
+  if (increment === undefined) return [];
+  const holds = await library.holds();
+  return [
     ...(holds.waits[increment] ?? []).map((hold): Waiting => ({ increment, ...hold })),
     ...(holds.heldOn[increment] ?? []).map((question): Waiting => ({ increment, on: question, reason: "waiting on the owner's answer", forGood: false, onOwner: true })),
     ...(holds.waitsFor?.[increment] ?? []).filter((wait) => wait.holds).map(({ releaser, note, checkBack }): Waiting => ({
       increment, on: releaser === "owner" ? "the owner" : "an outside event", reason: note, forGood: false, waitsFor: releaser, ...(checkBack === undefined ? {} : { checkBack }),
     })),
   ];
-  const { capability, increment } = found.part;
-  if (increment !== undefined) return holding(await library.holds(), increment);
-  const naming = (await increments(library)).filter((one) => one.fields.status !== "closed" && one.fields.touches?.includes(capability) === true);
-  if (naming.length === 0) return [];
-  const holds = await library.holds();
-  const waits: Waiting[] = [];
-  for (const one of naming) {
-    const held = holding(holds, one.id);
-    if (held.length === 0) return [];
-    waits.push(...held);
-  }
-  return waits;
 }
 
 /** Who holds what right now, read under the project's lock, by the database's clock. */

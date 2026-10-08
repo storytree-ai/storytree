@@ -530,51 +530,18 @@ test("5.8 claiming an increment whose own wait holds, or whose arc's wait holds,
   });
 });
 
-test("5.9 a claim on a capability is refused when every open increment naming it is waiting, naming what they wait for; it succeeds when one of them is not waiting, and a capability no open increment names is never refused", async () => {
-  await withWorld(async ({ library, emailForm, passwordReset, as }) => {
+test("5.9 a capability claim is never refused because the open increments naming it in their touches wait: touches is a plan, never a lock (ADR-0944 D2)", async () => {
+  await withWorld(async ({ library, emailForm, as }) => {
     const { park } = await arcOf(library);
     const design = await park("design");
     const first = await park("form, first cut", [emailForm]);
     const second = await park("form, second cut", [emailForm]);
     await library.addWait(first, design, "the design comes first");
     await library.addWait(second, design, "the design comes first");
-    const done = await park("form, long ago", [emailForm]);
-    await library.closeIncrement(done, { pr: "#1", disposition: "landed" }); // a closed increment waits on nothing
 
-    const refused = await claim(as("A"), emailForm, "building the form");
-    assert.ok(!refused.ok && refused.refused === "waiting");
-    // Both waits are named; their order is not part of the promise (the two can be parked in one instant).
-    assert.deepEqual(
-      refused.waits.map(({ increment, on, reason }) => [increment, on, reason]).sort(),
-      [
-        [first, design, "the design comes first"],
-        [second, design, "the design comes first"],
-      ].sort(),
-    );
-
-    await library.removeWait(second, design);
-    assert.equal((await claim(as("A"), emailForm, "building the form")).ok, true, "one of them is not waiting");
-    assert.equal((await claim(as("B"), passwordReset, "building the reset")).ok, true, "no open increment names it");
-  });
-});
-
-test("5.18 a capability claim refused as waiting names the claiming session's open increment whose touches omit the capability; once that increment lists it, the claim stands", async () => {
-  await withWorld(async ({ library, emailForm, as }) => {
-    const { park } = await arcOf(library);
-    const design = await park("design");
-    const waiting = await park("form, waiting cut", [emailForm]);
-    await library.addWait(waiting, design, "the design comes first");
-    const mine = await park("form, my cut");
-    assert.equal((await claim(as("A"), mine, "driving my cut")).ok, true);
-
-    const refused = await claim(as("A"), emailForm, "building the form");
-    assert.ok(!refused.ok && refused.refused === "waiting");
-    assert.deepEqual(refused.untouched, [mine]);
-    const other = await claim(as("B"), emailForm, "building the form");
-    assert.ok(!other.ok && other.refused === "waiting" && other.untouched === undefined, "a session holding no increment is not told to edit one");
-
-    await library.editIncrement(mine, { touches: [emailForm] });
-    assert.equal((await claim(as("A"), emailForm, "building the form")).ok, true, "listing it in its touches lets the claim stand");
+    assert.equal((await claim(as("A"), emailForm, "building the form")).ok, true, "every increment naming it waits, and the claim stands");
+    const refused = await claim(as("B"), first, "driving the first cut");
+    assert.ok(!refused.ok && refused.refused === "waiting", "the waiting increment itself is still refused");
   });
 });
 
@@ -677,7 +644,7 @@ test("5.23 a claim takes from the library what deciding it needs and no more: on
       for (let n = 0; n < 150; n++) {
         await library.addIncrement({ arc, title: `Done ${n}`, objective: "Done", body: "x".repeat(3000), outcome: { disposition: "landed", pr: `#${n}` } });
       }
-      // Open increments naming the capability: all but the last wait, so a claim checks each of them.
+      // Open increments naming the capability, all but the last waiting: a capability claim reads none of them (ADR-0944 D2).
       const schema = await library.addIncrement({ arc, title: "Schema", objective: "Tables", body: "…" });
       for (let n = 0; n < naming; n++) {
         const part = await library.addIncrement({ arc, title: `Part ${n}`, objective: "A part", body: "…", touches: [emailForm] });

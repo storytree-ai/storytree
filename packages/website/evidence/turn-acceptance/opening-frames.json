@@ -1,0 +1,76 @@
+{
+  "viewport": [
+    1440,
+    900
+  ],
+  "renderer": "SwiftShader",
+  "ready": {
+    "frames": 148,
+    "elapsedMs": 2599.9000000000005,
+    "fps": 56.92526635639831,
+    "p95FrameMs": 16.80000000000001
+  },
+  "playing": {
+    "frames": 2089,
+    "elapsedMs": 40815.100000000006,
+    "fps": 51.1820380202425,
+    "p95FrameMs": 16.799999999999272
+  },
+  "swarm": {
+    "frames": 1917,
+    "elapsedMs": 33332.100000000006,
+    "fps": 57.51212794873409,
+    "p95FrameMs": 16.799999999995634
+  },
+  "quiet": {
+    "frames": 158,
+    "elapsedMs": 7149.699999999997,
+    "fps": 22.098829321510003,
+    "p95FrameMs": 216.60000000000582
+  },
+  "finaleMs": 40500.5,
+  "parkedAfterRunMs": 33351.10000000894,
+  "activatedAfterRunMs": null,
+  "beforeRun": {
+    "activations": 0,
+    "sceneRequested": false
+  },
+  "activationCount": 0,
+  "sceneRequested": false,
+  "mountedLayers": 0,
+  "forestState": "still",
+  "globeDraws": 0,
+  "handoverToActivateMs": 1530.4000000059605,
+  "loadMs": 6577.9000000059605,
+  "handoverToLiveMs": 8108.300000011921,
+  "painBeatMs": 15917,
+  "liveBeforeGrowth": true,
+  "painStallsMs": [
+    [
+      1545,
+      4745
+    ],
+    [
+      4928,
+      5112
+    ],
+    [
+      5178,
+      7928
+    ]
+  ],
+  "firstPainLineMs": 1512,
+  "exitToHandoverMs": 1161.3999999910593,
+  "globesBeforeGrowth": [
+    "own"
+  ],
+  "turnLongestFrameMs": 300,
+  "painLongestFramesMs": [
+    3199.800000000003,
+    2749.9000000000015,
+    183.29999999999563
+  ],
+  "painToFirstGrowthFrameMs": 15918.20000000298,
+  "growToFirstGrowthFrameMs": 1.2000000029802322,
+  "activationsAfterHandover": 1
+}

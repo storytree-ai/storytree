@@ -24,13 +24,15 @@ async function history(): Promise<{ capturedAt: string; tree: AnnotatedTree; cha
     if (saved.project !== project) throw new Error(`The record is of ${saved.project}, not ${project}.`);
     return saved;
   }
-  const { route, openNamedProject, openActivityLog } = await import("@storytree/agent-link");
+  const { route, requireApproval, openNamedProject, openActivityLog } = await import("@storytree/agent-link");
   const { connect } = await import("@storytree/library");
   const routed = route(process.cwd());
   if (routed.status !== "routed") throw new Error(routed.message);
   if (routed.project !== project) throw new Error(`This checkout routes to ${routed.project}, not ${project}.`);
   const server = await connect(routed.library);
   try {
+    // A marker alone names no project: the checkout must be approved as storytree's (ADR-0942 D1).
+    await requireApproval(server, routed.project, routed.folder);
     const library = await openNamedProject(server, routed.project, routed.identity);
     const activity = await openActivityLog(server);
     try {

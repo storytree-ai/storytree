@@ -74,14 +74,14 @@ export function pickNext(survey, { track, fences, attempts = new Map(), queued =
 
 /**
  * One survey of the library: every arc's increments with their holds (one `arcViews` and one `holds` read),
- * the standing claims, and the arcs a live laptop session (one whose folders are not under this box's `home`)
- * claimed work on and was seen in the last hour.
+ * the standing claims, and the arcs on which a live laptop session (one whose folders are not under this box's `home`),
+ * seen in the last hour, holds an increment.
  */
 export async function readSurvey({ library, claims, sessions, now = Date.now(), home = homedir() }) {
   const [views, holds, held] = await Promise.all([library.arcViews(), library.holds(), claims()]);
   const increments = views.flatMap((view) => view.increments.map((record) => ({
     id: record.id, arc: view.arc.id, arcState: view.state, title: record.fields.title, body: record.fields.body ?? "",
-    status: record.fields.status, parked: record.fields.parked ?? record.createdAt?.toISOString?.(), touches: record.fields.touches ?? [],
+    status: record.fields.status, parked: record.fields.parked ?? record.createdAt?.toISOString?.(),
   })));
   const standing = held.filter((claim) => claim.holder === "live");
   const seen = await sessions([...new Set(standing.map((claim) => claim.session))]);
@@ -89,10 +89,10 @@ export async function readSurvey({ library, claims, sessions, now = Date.now(), 
   const laptop = new Set(seen.filter((session) => now - Date.parse(session.lastSeenAt) <= HOUR
     && ![session.folder, ...session.worktrees].some((folder) => folder && onBox(folder))).map((session) => session.session));
   const laptopArcs = new Set();
-  for (const claim of standing.filter((one) => laptop.has(one.session))) {
-    for (const one of increments) {
-      if (one.id === claim.increment || (claim.capability && one.status !== "closed" && one.touches.includes(claim.capability))) laptopArcs.add(one.arc);
-    }
+  // An increment's touches is a plan hint, never a lock (ADR-0944 D2): only a claim on the increment marks its arc.
+  for (const claim of standing.filter((one) => laptop.has(one.session) && one.increment)) {
+    const one = increments.find((each) => each.id === claim.increment);
+    if (one) laptopArcs.add(one.arc);
   }
   return { increments, holds, claims: held, laptopArcs: [...laptopArcs] };
 }

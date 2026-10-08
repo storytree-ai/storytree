@@ -6,4 +6,5 @@ export type { CommandResult } from "./command.js";
 export { finishDelivery, runDeliveryCommand } from "./delivery.js";
 export { openUninstaller, uninstall, uninstallAsks } from "./uninstall.js";
 export type { LibraryChoice, UninstallReport } from "./uninstall.js";
-export { NODE_VERSION, stageRuntime, windowsRuntime } from "./runtime.js";
+export { macRuntime, NODE_VERSION, stageRuntime, windowsRuntime } from "./runtime.js";
+export type { Runtime } from "./runtime.js";

@@ -159,6 +159,30 @@ test("1.1: a payload cannot bless a missing entry point or a path outside its in
   } finally { f.close(); }
 });
 
+test("1.11: an Apple Silicon payload lives in the .app bundle, needs its node and no Windows launcher, and refuses a missing or damaged file", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "storytree mac payload "));
+  const bundle = path.join(dir, "Applications", "storytree-0.3.app");
+  const tools = toolPaths(bundle, "darwin");
+  try {
+    assert.equal(tools.dir, path.join(bundle, "Contents", "Resources", "agent-tools"));
+    assert.equal(tools.app, path.join(bundle, "Contents", "MacOS", "storytree-0.3"));
+    assert.equal(tools.node, path.join(tools.dir, "node"));
+    mkdirSync(path.join(tools.dir, "chunks"), { recursive: true });
+    mkdirSync(path.dirname(tools.app), { recursive: true });
+    for (const file of [tools.mcp, tools.hook, tools.setup, tools.cli, tools.deliver, tools.app]) writeFileSync(file, "a runnable fixture");
+    writeFileSync(path.join(tools.dir, "chunks", "shared.mjs"), "export const compatible = true;");
+    assert.throws(() => writePayloadManifest(tools.dir, "arm64", "24.21.0", "darwin"), /Missing payload file: node$/);
+    writeFileSync(tools.node, "a runnable fixture", { mode: 0o755 });
+    writePayloadManifest(tools.dir, "arm64", "24.21.0", "darwin");
+    assert.throws(() => writePayloadManifest(tools.dir, "arm64", "24.21.0", "win32"), /node\.exe/, "a Windows payload still needs its own runtime");
+    assert.deepEqual(verifyPayload(bundle, "arm64", "darwin"), tools);
+    writeFileSync(tools.node, "a damaged runtime");
+    assert.throws(() => verifyPayload(bundle, "arm64", "darwin"), /Damaged payload file: node$/);
+    rmSync(tools.node);
+    assert.throws(() => verifyPayload(bundle, "arm64", "darwin"), /node/);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
 test("1.6: a fresh shell runs the installed command with spaces and preserves its exit code", () => {
   const f = fixture();
   try {

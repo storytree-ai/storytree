@@ -28,7 +28,7 @@ async function installedMachine(t: { after(fn: () => void): void }) {
   const installDir = path.join(user, "AppData", "Local", "Programs", "storytree-0.3");
   const localAppData = path.join(user, "AppData", "Local");
   const home = path.join(user, ".storytree", "0.3");
-  const tools = toolPaths(installDir);
+  const tools = toolPaths(installDir, "win32");
   mkdirSync(tools.dir, { recursive: true });
   for (const file of [tools.node, tools.mcp, tools.hook]) writeFileSync(file, "installed");
   writeFileSync(path.join(installDir, "resources", "app-update.yml"), "provider: github\nupdaterCacheDirName: '@storytreedesktop-updater'\n");
@@ -63,7 +63,7 @@ async function installedMachine(t: { after(fn: () => void): void }) {
   const pathEntry = path.join(home, "bin");
   let userPath: string | undefined = `C:\\Windows;${pathEntry};C:\\Users\\me\\.local\\bin`;
   const effects = { readUserPath: () => userPath, writeUserPath: (value: string) => { userPath = value; } };
-  const options = { installDir, home, userHome: user, env, run, localAppData, effects };
+  const options = { installDir, home, userHome: user, env, run, localAppData, effects, platform: "win32" as const };
   return { user, installDir, home, cache, old, claude, codex, claudeFile, project, options, userPath: () => userPath };
 }
 

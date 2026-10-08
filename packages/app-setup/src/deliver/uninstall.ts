@@ -25,6 +25,8 @@ export interface UninstallOptions {
   readonly run?: RunHarness;
   readonly localAppData?: string;
   readonly effects?: UserPath;
+  /** The installation's layout (toolPaths); the host's by default. */
+  readonly platform?: NodeJS.Platform;
 }
 export interface UninstallReport {
   /** False when something storytree added is still there; `lines` says what and how to remove it. */
@@ -77,7 +79,7 @@ const remove = (target: string) => rmSync(target, { recursive: true, force: true
 export async function uninstall(options: UninstallOptions): Promise<UninstallReport> {
   const lines: string[] = [];
   let complete = true;
-  const tools = toolPaths(options.installDir);
+  const tools = toolPaths(options.installDir, options.platform);
   const connections = await removeConnections({
     installed: installedToolServerCommand(tools.node, tools.mcp),
     ...(options.userHome === undefined ? {} : { home: options.userHome }),

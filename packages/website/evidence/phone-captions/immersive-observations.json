@@ -1,0 +1,13 @@
+{
+  "story": "The website",
+  "commit": "unpublished local build",
+  "evidence": "packages/website/evidence/phone-captions",
+  "note": "Locally built website served from packages/website/dist",
+  "checks": [
+    {
+      "contract": "2.19",
+      "name": "Every chapter step is told in the arrival's format, at 1920, 1440, 1280, 390 and 320, and every step fits its room, on short phones too",
+      "observed": "pass"
+    }
+  ]
+}

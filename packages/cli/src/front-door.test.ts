@@ -91,7 +91,7 @@ test("1.7 a command it does not have answers with the real command for that job,
   await inWorld(command, async (world) => {
     const asked: [readonly string[], RegExp][] = [
       [["library", "show", "x"], /storytree library read <id>/],
-      [["question", "show", "x"], /storytree library read <id>/],
+      [["question", "read", "x"], /storytree question show <id>/],
       [["arc", "increment", "show", "x"], /storytree library read <id>/],
       [["arc", "increment", "ready", "x"], /ADR-0909 retired[^\n]*claiming a proposal starts it[\s\S]*storytree workspace <increment\b/],
       [["claim", "x"], /storytree workspace <increment\b/],

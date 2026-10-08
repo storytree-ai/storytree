@@ -232,7 +232,7 @@ export async function verifyTour(browser, url, output) {
 // Website 2.6, 1.6 and 5.4: the chapter fills the viewport, its controls are reachable and tappable, free play is the desktop's.
 const overlap = (a, b) => Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
 // 2.18 at every width: the agents chapter's tags each read whole inside the screen, clear of one another, the other rings,
-// the card and the panels, and the tagged islands' names read clear of them; on a phone the arcs drawer ends above the card.
+// the card and the panels, and the tagged islands' names read whole inside the screen, clear of them; on a phone the arcs drawer ends above the card.
 async function verifyAgentTags(page, width, height, output, size = `${width}`) {
   for (const id of ["agents-arcs", "agents-claim", "agents-parallel"]) {
     await goToStep(page, id);
@@ -269,11 +269,41 @@ async function verifyAgentTags(page, width, height, output, size = `${width}`) {
     assert.equal(named.length, count, `every tag names its island at ${width}px`);
     for (const plate of named) {
       assert.ok(plate.shown, `${plate.text ?? plate.story}'s name is shown on the ${id} step at ${width}px`);
+      assert.ok(plate.x >= 0 && plate.y >= 0 && plate.x + plate.width <= width && plate.y + plate.height <= height, `${plate.text}'s name reads whole inside the screen on the ${id} step at ${size}: ${JSON.stringify(plate)}`);
       for (const panel of [card, ...panels]) assert.equal(overlap(plate, panel), 0, `${plate.text}'s name is clear of the card and the panels on the ${id} step at ${width}px: ${JSON.stringify({ plate, panel })}`);
       for (const tag of tags) assert.equal(overlap(plate, tag), 0, `${plate.text}'s name is clear of ${tag.text} on the ${id} step at ${width}px: ${JSON.stringify({ plate, tag })}`);
     }
     await page.screenshot({ path: path.join(output, `${id}-${size}.png`) });
   }
+}
+
+// 2.18's framing, at every width: no island's name shown in the map chapter, as it plays through, hides under the heading or
+// the dated note above the globe.
+async function verifyNamesClearHeader(page, width, output) {
+  const map = ["map-empty", "map-first", "map-together", "map-health"];
+  await goToStep(page, map[0]);
+  await page.locator('#tour-bar [data-speed="1.5"]').evaluate(button => button.click());
+  if (await page.locator("#tour-play").getAttribute("aria-label") !== "Pause the tour") await page.locator("#tour-play").click();
+  const seen = new Set();
+  for (let step = await stepOf(page); map.includes(step); step = await stepOf(page)) {
+    const { header, plates } = await page.evaluate(() => {
+      const box = node => { const { x, y, width, height } = node.getBoundingClientRect(); return { x, y, width, height }; };
+      return {
+        header: [...document.querySelectorAll("#chapter2 :is(.tour-heading, .tour-note)")].filter(node => node.getBoundingClientRect().width).map(box),
+        plates: [...document.querySelectorAll("#website-forest .planet-nameplate[data-story-id]:not(.crowded)")]
+          .filter(node => getComputedStyle(node).visibility === "visible" && Number(getComputedStyle(node).opacity) > 0)
+          .map(node => ({ text: node.textContent, ...box(node) })).filter(plate => plate.width),
+      };
+    });
+    for (const plate of plates) for (const above of header) if (overlap(plate, above) > 0) {
+      await page.screenshot({ path: path.join(output, `names-${step}-${width}.png`) });
+      assert.fail(`${plate.text}'s name is clear of the heading on the ${step} step at ${width}px: ${JSON.stringify({ plate, above })}`);
+    }
+    if (!seen.has(step)) { seen.add(step); await page.screenshot({ path: path.join(output, `names-${step}-${width}.png`) }); }
+    await page.waitForTimeout(250);
+  }
+  assert.deepEqual([...seen], map, `the map chapter played through at ${width}px`);
+  await page.locator('#tour-bar [data-speed="0.75"]').evaluate(button => button.click());
 }
 
 // 2.19 at every width: a chapter step is told like the arrival's beats, as plain lines with no card and no bullet points,
@@ -329,13 +359,14 @@ async function verifyShortPhones(browser, url) {
   }
 }
 
-// 2.18 on short phones: the agents steps' tags still read clear where the words take room from the globe.
+// 2.18 on short phones: the agents steps' tags and the map's names still read clear where the words take room from the globe.
 async function verifyShortPhoneTags(browser, url, output) {
   for (const [width, height] of [[320, 700], [320, 568]]) {
     const page = await browser.newPage({ viewport: { width, height }, reducedMotion: "reduce" });
     await page.addInitScript(() => localStorage.setItem("storytree-opening-seen", "yes"));
     await page.goto(url);
     await page.locator("#tour-play").click();
+    await verifyNamesClearHeader(page, `${width}x${height}`, output);
     await verifyAgentTags(page, width, height, output, `${width}x${height}`);
     await page.close();
   }
@@ -390,6 +421,7 @@ export async function verifyImmersive(browser, url, output) {
     await page.screenshot({ path: path.join(output, `grow-${width}.png`) });
     await goToStep(page, "value");
     assert.equal(await recorded.isVisible(), false, "a step without a recording has no small print");
+    await verifyNamesClearHeader(page, width, output);
     await verifyAgentTags(page, width, height, output);
     // A failure here is 2.19's own, so its observation can say so (capture.mjs writes it).
     await verifyOneFormat(page, width, output).catch(error => { error.contract = "2.19"; throw error; });

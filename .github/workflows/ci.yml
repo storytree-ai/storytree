@@ -66,15 +66,18 @@ jobs:
           - system: Windows
             runner: windows-latest
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 25
+    # The merge queue runs on loaded runners, where a full Windows test step that takes 13 minutes
+    # unloaded ran past the old 21-minute deadline and ejected a green pull request
+    # (friction_214807bf5d9d, increment_3bd2b051ab67). A run that passes takes no longer for it.
+    timeout-minutes: 35
     steps:
-      # `pnpm test` ends itself by 21 minutes into the job (its deadline) and prints its table, or
-      # past that names where it stalled: a job the 25-minute limit cancels can lose its whole log,
+      # `pnpm test` ends itself by 31 minutes into the job (its deadline) and prints its table, or
+      # past that names where it stalled: a job the 35-minute limit cancels can lose its whole log,
       # so nobody can name what hung (increment_7f43f74526ab). Taken here, since checkout alone has
       # taken 12 minutes.
       - name: Set the test run's deadline
         shell: bash
-        run: echo "STORYTREE_TEST_DEADLINE=$(( $(date +%s) + 21 * 60 ))" >> "$GITHUB_ENV"
+        run: echo "STORYTREE_TEST_DEADLINE=$(( $(date +%s) + 31 * 60 ))" >> "$GITHUB_ENV"
       # The whole history, origin/main included: `pnpm test` runs only what the change can reach,
       # measured from merge-base(origin/main, HEAD), and runs everything if origin/main is missing.
       # On a push to main that merge-base is HEAD itself, so main's own runs are always full.
@@ -94,8 +97,12 @@ jobs:
       # skipped, visibly: CI holds no Google identity. Its first line is the `scope:` decision
       # (packages/dev-loop/src/test-scope.mjs, the same one a local run takes, ADR-0649 D4) and its last the
       # PASS / FAIL table per package.
+      # A fresh runner has no timing history, so every unit would get the fixed 3 minutes; on main
+      # Windows agent-link passed in 171.3 s and macOS forest in 170.0 s (run 37839884329), and
+      # loaded queue runners killed them. ADR-0785's own rule, twice the slowest pass, gives 6 min.
       - run: pnpm test
         env:
+          STORYTREE_UNIT_LIMIT_MS: 360000
           STORYTREE_TEST_EVIDENCE: ${{ matrix.system == 'Windows' && '.pgtest/windows-evidence' || matrix.system == 'macOS' && '.pgtest/macos-evidence' || '' }}
       # Exercise the distributable before merging packaging/updater changes. A source build
       # passing tests alone does not prove NSIS can unpack the app and its database binaries, or

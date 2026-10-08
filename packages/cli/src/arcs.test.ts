@@ -224,6 +224,46 @@ test("4.2 a close with no pull request needs a note", async () => {
   });
 });
 
+test("4.2 correct-closure requires a reason and corrects a closed outcome visibly in its history", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const arc = await anArc(world);
+    const increment = await library.addIncrement({ arc, title: "Schema", objective: "Tables", body: "…" });
+    const args = ["arc", "increment", "correct-closure", increment.id, "--disposition", "landed", "--pr", "857"];
+    const reason = "Its own pull request merged; withdrawn was a mistake";
+    const before = await library.history({ id: increment.id });
+    const open = await world.run([...args, "--reason", reason]);
+    assert.equal(open.code, 1, open.stderr);
+    assert.match(open.stderr, /must be closed/);
+    assert.deepEqual(await library.history({ id: increment.id }), before);
+    await library.closeIncrement(increment.id, { disposition: "withdrawn", date: "2026-10-01", note: "Already done" });
+    const closed = await library.history({ id: increment.id });
+    const bare = await world.run(args);
+    assert.equal(bare.code, 2, bare.stderr);
+    assert.match(bare.stderr, /--reason/);
+    const invalid = await world.run(["arc", "increment", "correct-closure", increment.id, "--disposition", "failed", "--reason", reason]);
+    assert.equal(invalid.code, 1, invalid.stderr);
+    assert.match(invalid.stderr, /note/);
+    assert.deepEqual(await library.history({ id: increment.id }), closed, "refused corrections write nothing");
+
+    const corrected = await world.run([...args, "--reason", reason]);
+    assert.equal(corrected.code, 0, corrected.stderr);
+    assert.match(corrected.stdout, /Corrected closure.*landed/);
+    const record = await library.get(increment.id);
+    assert.ok(record?.type === "increment");
+    assert.equal(record.fields.status, "closed");
+    assert.deepEqual(record.fields.outcome, { disposition: "landed", pr: "857", date: "2026-10-01" });
+    const history = await world.run(["library", "history", increment.id, "--fields"]);
+    assert.equal(history.code, 0, history.stderr);
+    assert.ok(history.stdout.includes(reason), history.stdout);
+    assert.match(history.stdout, /withdrawn/);
+    assert.match(history.stdout, /landed/);
+    const shown = await world.run(["arc", "show", arc]);
+    assert.equal(shown.code, 0, shown.stderr);
+    assert.match(shown.stdout, /2026-10-01\s+landed\s+857/);
+  });
+});
+
 test("4.3 a wait that would close a loop is refused, naming the loop, and nothing is written", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();

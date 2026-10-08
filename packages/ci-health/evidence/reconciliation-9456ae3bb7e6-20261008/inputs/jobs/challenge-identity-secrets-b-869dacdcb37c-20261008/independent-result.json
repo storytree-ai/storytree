@@ -1,0 +1,233 @@
+{
+  "schema": 1,
+  "reviewer": "Fresh Codex session 01a11938-5f64-73a2-b427-ef0d7858de3a; no subagents",
+  "increment": "increment_869dacdcb37c",
+  "dated_verdict_utc": "2026-10-08T02:01:18.441120+00:00",
+  "source_commit": "08124e6286ff09843500a35120a38a685806a646",
+  "fresh_main_commit": "22c74d14930229751b8eec1dc9219353ccc9baaa",
+  "independence": {
+    "read_before_fixing_verdict": [
+      "Assigned increment",
+      "Required owning arc",
+      "discover-identity-secrets/result.json",
+      "Repository sources and local pg dependency source",
+      "Identity arc with already-settled server deferral",
+      "Repository workflow guidance",
+      "Isolation helper source"
+    ],
+    "not_read_before_fixing_verdict": [
+      "Original identity challenge A output",
+      "Original identity challenge B error/output",
+      "Reconciliation packet or supporting tests",
+      "report.json"
+    ],
+    "incidental_exposure": "Required arc show names a provisional remote-Postgres remediation and its wait on this review. This disclosed a hypothesis label before the independent pass, not A's reasoning, results or the reconciler's adjudication. Discovery itself was an explicitly permitted input.",
+    "original_failure": "The increment states original B failed with a cybersecurity-safeguard error. That history is retained, not interpreted as either proof or refutation. No flagged request was relaunched; no safeguards, model or provider were changed. Three newly authored bounded synthetic probes ran through the unchanged disposable network-isolation helper."
+  },
+  "source_comparison": "source-provenance.json records git-show commands, source hashes and both commits; source-changes.diff records the only change among fourteen selected files: local-discovery routing changed, but the remote address branch remains. Transport, key-store and server-identity mechanisms are byte-identical. Identity session-store changes outside these mechanisms are not evidence of their remediation.",
+  "test_artifacts": [
+    {
+      "command": "python3 ../../run_isolated.py --runtime tsx --script transport-probe.ts --label transport-b",
+      "script_sha256": "1f9c911f7a9044c3591a9938c6feb8d95a15aee5531ee6fcfd42ca5608c967f6",
+      "evidence": "evidence/transport-b-20261008T015814726986",
+      "exit_code": 0,
+      "stderr": "empty"
+    },
+    {
+      "command": "python3 ../../run_isolated.py --runtime tsx --script directory-probe.ts --label directory-b",
+      "script_sha256": "00c46116d0ac7da84bb0c67f4c179f9de45224761d263a03d53c53532b8461f3",
+      "evidence": "evidence/directory-b-20261008T015814721365",
+      "exit_code": 0,
+      "stderr": "empty"
+    },
+    {
+      "command": "python3 ../../run_isolated.py --runtime tsx --script identity-probe.ts --label identity-b",
+      "script_sha256": "a538a10cbcb1f3af1372d9c69be536e7fefcafac5efb2fa85f05ac422920cdf5",
+      "evidence": "evidence/identity-b-20261008T015814717535",
+      "exit_code": 0,
+      "stderr": "empty"
+    }
+  ],
+  "test_provenance": "All commands ran from this job directory. Each evidence directory has the exact bwrap argv, copied script, script hash, source commit, stdout, stderr and exit code. bwrap used unshare-all, clearenv, dropped capabilities, read-only source/runtime, synthetic home and disposable work; no sockets or host credentials were mounted. Test artifacts are job-local evidence, not repository source citations.",
+  "failed_attempts": [
+    "Initial workspace request rejected a 72-character reason (exit 1); corrected to the required <=40 characters and successfully attached the available claim. This was not a refused ownership claim.",
+    "Fresh worktree provision --check exited 1 because dependencies were not installed; normal provision completed successfully. No synthetic test attempt failed and no security tool action was refused during this fresh pass."
+  ],
+  "candidates": [
+    {
+      "id": "identity-secrets-001",
+      "disposition": "confirmed_supported_configuration_failure; deployment exposure conditional",
+      "severity": "High if an attacker can intercept a configured unprotected remote connection; no live exposure severity measured",
+      "attacker_control": "Server-to-client PostgreSQL authentication bytes through an on-path or endpoint-redirection position, without modifying the owner's key store. Attacker position is a prerequisite, not something this test established.",
+      "reachable_callers_and_guards": "Normal CLI library use calls Context.#server -> route/locateLibrary -> connect({address}) -> addressServer -> localServer/newPool. Settings and address guards require a Postgres URL, user, host and no inline password. No TLS requirement is added; pg defaults SSL off when not configured. Credentials may come from an intentionally authorized !command or environment; those are sources, not privilege-escalation claims.",
+      "distinct_trust_boundary": "Owner-held reusable PostgreSQL password crosses into an unauthenticated network peer's control.",
+      "concrete_impact": "Real pg pool emitted the complete synthetic password after a cleartext authentication request, without requesting TLS. An attacker in that position can learn a reusable database password. Resulting database access depends on role privileges and network controls; no live compromise was tested.",
+      "source_citations": [
+        {
+          "path": "packages/agent-link/src/settings/settings.ts",
+          "lines": "285-303",
+          "commit": "22c74d14930229751b8eec1dc9219353ccc9baaa"
+        },
+        {
+          "path": "packages/agent-link/src/routing/routing.ts",
+          "lines": "236-242",
+          "commit": "22c74d14930229751b8eec1dc9219353ccc9baaa"
+        },
+        {
+          "path": "packages/cli/src/door.ts",
+          "lines": "325-335",
+          "commit": "22c74d14930229751b8eec1dc9219353ccc9baaa"
+        },
+        {
+          "path": "packages/library/src/project/storytree.ts",
+          "lines": "169-176",
+          "commit": "22c74d14930229751b8eec1dc9219353ccc9baaa"
+        },
+        {
+          "path": "packages/library/src/project/address.ts",
+          "lines": "33-63",
+          "commit": "22c74d14930229751b8eec1dc9219353ccc9baaa"
+        },
+        {
+          "path": "packages/library/src/project/server.ts",
+          "lines": "45-51",
+          "commit": "22c74d14930229751b8eec1dc9219353ccc9baaa"
+        }
+      ],
+      "test_evidence": [
+        "evidence/transport-b-20261008T015814726986/stdout.txt"
+      ],
+      "counterevidence": "The default library is local. Explicit verify-full requested TLS and withheld the synthetic password when the fake peer refused it. A correctly authenticated tunnel or TLS configuration can protect this path. The current-main local authentication handoff is a separate path and does not remove the remote-address failure.",
+      "unverified_prerequisites": "Whether any real user uses an unprotected remote address, attacker access to the path/DNS, environmental PGSSLMODE or tunnel configuration, actual certificate validation and resulting account privileges. No sockets, TLS handshake, DNS manipulation or database were exercised.",
+      "next_action": "The existing provisional transport increment is justified by the reachable supported configuration. Require authenticated remote transport before credentials leave the process, with explicitly bounded local exceptions and regression proof; this read-only lane does not implement it or attest remediation."
+    },
+    {
+      "id": "identity-secrets-002",
+      "disposition": "conditional_mechanism; lower_trust_exploitability_unverified",
+      "severity": "Potential high impact only with a demonstrated lower-trust directory writer; not confirmed as a deployed privilege escalation",
+      "attacker_control": "Would need write and traversal rights to the existing key directory or replacement authority over an ancestor, while otherwise lacking the Storytree user's authority. The probe has only the owner's synthetic UID.",
+      "reachable_callers_and_guards": "CLI auth set calls saveKey/update. mkdir with recursive mode 0700 does not repair an existing directory; new files are chmod 0600. resolveKey reads JSON shape, accepts a saved !command and executes it via execSync. The lock serializes cooperative writes, not a malicious directory writer. Normal same-user control of auth.json is intentionally authoritative.",
+      "distinct_trust_boundary": "Only if the prerequisite holds: a lower-trust filesystem writer supplies a command that executes under the Storytree owner. Same-user key-command control alone crosses no such boundary.",
+      "concrete_impact": "The synthetic pre-existing directory remained 0777, its original auth.json was 0600, and a harmless replacement command was accepted. This proves permissive-directory reuse and command interpretation. It does not prove another principal could reach that directory or establish a deployed privilege escalation.",
+      "source_citations": [
+        {
+          "path": "packages/cli/src/families/auth.ts",
+          "lines": "8-19",
+          "commit": "22c74d14930229751b8eec1dc9219353ccc9baaa"
+        },
+        {
+          "path": "packages/keys/src/keys.ts",
+          "lines": "48-56,83-100,113-140,225-228",
+          "commit": "22c74d14930229751b8eec1dc9219353ccc9baaa"
+        }
+      ],
+      "test_evidence": [
+        "evidence/directory-b-20261008T015814721365/stdout.txt"
+      ],
+      "counterevidence": "Fresh key directories are 0700 and written files 0600. A trusted private home or inaccessible ancestor blocks the hypothesized writer. Owner-created !commands are designed functionality, not arbitrary remote input.",
+      "unverified_prerequisites": "A distinct UID/principal, effective ancestor traversal, affected deployment directory ownership/permissions, symlink conditions and Windows ACLs. No host directories were inspected.",
+      "next_action": "Retain as conditional hardening evidence in the parent reconciliation. Do not relabel it a confirmed exploit solely from this one-UID probe, and do not inspect real credentials or hosts to fill that gap."
+    },
+    {
+      "id": "identity-secrets-003",
+      "disposition": "deferred_unverified_identity_lifecycle_hypothesis",
+      "severity": "No current deployed severity established",
+      "attacker_control": "A formerly linked provider subject, plus a valid WorkOS token for a different user whose authoritative provider list contains that subject. A caller cannot inject the provider list directly.",
+      "reachable_callers_and_guards": "Exported HTTP handler -> resolver verifies JWT -> fetches user and identities from fixed WorkOS origin -> remember matches stored provider/subject. No production hosting caller was found in the source scan. The settled identity arc defers the server and portable-id table. Multiple existing Storytree-user matches are refused; unique constraints also refuse conflicts.",
+      "distinct_trust_boundary": "If unlinking is meant to revoke authority and the provider permits reassociation, retained historical identity evidence could become new login authority to the old Storytree UUID.",
+      "concrete_impact": "Static code retains absent provider mappings and can select a saved user from any matching pair, then update its WorkOS pointer and return its first verified email. This describes the proposed identity-resolution impact, not a demonstrated takeover or downstream authorization bypass.",
+      "source_citations": [
+        {
+          "path": "packages/identity/src/service.ts",
+          "lines": "52-72,86-99",
+          "commit": "22c74d14930229751b8eec1dc9219353ccc9baaa"
+        },
+        {
+          "path": "packages/identity/src/store.ts",
+          "lines": "55-80",
+          "commit": "22c74d14930229751b8eec1dc9219353ccc9baaa"
+        },
+        {
+          "path": "packages/identity/src/http.ts",
+          "lines": "12-23",
+          "commit": "22c74d14930229751b8eec1dc9219353ccc9baaa"
+        },
+        {
+          "path": "packages/identity/README.md",
+          "lines": "19-23,59",
+          "commit": "22c74d14930229751b8eec1dc9219353ccc9baaa"
+        }
+      ],
+      "test_evidence": [],
+      "counterevidence": "Durable provider-subject retention deliberately supports broker replacement. Evidence comes from the trusted provider, collisions across established users fail, and the server is not deployed under the current owner decision.",
+      "unverified_prerequisites": "Actual unlink/reassignment behavior, intended revocation semantics, persistent sequence through SQL, hosted endpoint, and downstream reliance on returned UUID. No SQL, WorkOS calls or live unlinking attempted.",
+      "next_action": "Carry as an activation/lifecycle acceptance item if the deferred server returns. No new owner policy question is needed now."
+    },
+    {
+      "id": "identity-secrets-004",
+      "disposition": "deferred_policy_hypothesis; immediate_revocation_not_proven_required",
+      "severity": "No current deployed severity established",
+      "attacker_control": "A stolen, previously legitimate, still-unexpired bearer token after the provider session is revoked. The attacker cannot mint arbitrary signed tokens in production.",
+      "reachable_callers_and_guards": "Exported handler calls resolver; RS256, trusted issuer/JWKS origin, audience, sub/sid/iat/exp, user id, verified email and supported provider identities are checked. sid is nonempty but no current-session-status request follows. No shipped host for this server boundary was found.",
+      "distinct_trust_boundary": "Only under an immediate-revocation promise: stale bearer authority could outlive withdrawal of session authority until exp.",
+      "concrete_impact": "Synthetic signed token with an arbitrary nonempty sid reaches the persistence seam without a session-status request. Expired, wrong-audience and missing-sid controls are refused. This does not simulate actual WorkOS revocation or prove replay after it; UUID/email disclosure would require the hosting/policy prerequisites.",
+      "source_citations": [
+        {
+          "path": "packages/identity/src/service.ts",
+          "lines": "33-43,52-75",
+          "commit": "22c74d14930229751b8eec1dc9219353ccc9baaa"
+        },
+        {
+          "path": "packages/identity/src/http.ts",
+          "lines": "14-23",
+          "commit": "22c74d14930229751b8eec1dc9219353ccc9baaa"
+        },
+        {
+          "path": "packages/identity/README.md",
+          "lines": "23,51",
+          "commit": "22c74d14930229751b8eec1dc9219353ccc9baaa"
+        }
+      ],
+      "test_evidence": [
+        "evidence/identity-b-20261008T015814717535/stdout.txt"
+      ],
+      "counterevidence": "Expiry is enforced, accepted bearer lifetime can be intentional, refresh-path invalid grants have their own handling, the limitation is documented, and server hosting is deferred.",
+      "unverified_prerequisites": "Immediate revocation policy, real WorkOS post-revocation user/identity responses, token lifetime and deployed endpoint. No provider session was created or revoked.",
+      "next_action": "Retain the lifecycle limit for future hosted-server acceptance; do not classify it as a current confirmed defect or reopen the owner's server deferral."
+    },
+    {
+      "id": "identity-secrets-005",
+      "disposition": "deferred_configuration_hypothesis; current_authentication_bypass_not_established",
+      "severity": "No current deployed severity established",
+      "attacker_control": "A provider-enabled alternate authentication credential for a user with an existing social link, sufficient for WorkOS to issue a valid token. A token with a self-asserted method field is not sufficient without a trusted signature.",
+      "reachable_callers_and_guards": "Same guarded, unhosted server resolver; supported social identities come from authenticated provider API results, not JWT-controlled identities. The method that created a session is not checked by this resolver. The owner already chose Google/GitHub/Microsoft only; hosting configuration must enforce that choice.",
+      "distinct_trust_boundary": "Would be an assurance-policy boundary: a linked social account is not proof that the current session authenticated socially. It is not intrinsically a signature or identity-forgery boundary.",
+      "concrete_impact": "A synthetic otherwise-valid token with illustrative authentication_method=password reaches persistence for a socially linked user. That field is deliberately not asserted to match real WorkOS token semantics. No real alternate-method login or bypass was demonstrated.",
+      "source_citations": [
+        {
+          "path": "packages/identity/src/service.ts",
+          "lines": "52-72,86-99",
+          "commit": "22c74d14930229751b8eec1dc9219353ccc9baaa"
+        },
+        {
+          "path": "packages/identity/README.md",
+          "lines": "21-25",
+          "commit": "22c74d14930229751b8eec1dc9219353ccc9baaa"
+        }
+      ],
+      "test_evidence": [
+        "evidence/identity-b-20261008T015814717535/stdout.txt"
+      ],
+      "counterevidence": "WorkOS is the trusted issuer; restricting enabled authentication methods there prevents this scenario. README makes that prerequisite explicit. No deployed server was found and the owner deferred one.",
+      "unverified_prerequisites": "Actual WorkOS enabled methods and token/session method semantics, alternate credential control and hosting. No dashboard, credentials or provider configuration inspected.",
+      "next_action": "Keep the already-decided social-only restriction as future configuration acceptance. No current bypass finding and no new owner choice."
+    }
+  ],
+  "policy_evidence": "arc_f0642505cf9b settled question_10f89f734427 and question_b95e3f753824: owner chose client-side token verification with the portable-id server/table deferred (D its not that important right now). Read through storytree arc show before this independent result; this is not a new policy decision.",
+  "scope_limits": [
+    "Exactly the five assigned candidates; no whole-repository security certification",
+    "No implementation, capabilities marked built, production credential reads, services, cloud calls, live databases, deployment, purchases or host-data probes",
+    "Original snapshot is the runtime source; selected byte-identical current-main mechanisms support transfer of these limited observations",
+    "Final security verification still requires separately landed remediation and an independent check of the merged commit"
+  ]
+}

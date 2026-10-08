@@ -1,0 +1,13 @@
+import assert from "node:assert/strict";
+import { MemoryTransactions } from "/repo/packages/library/src/transactions/memory.ts";
+import { NumberTakenError } from "/repo/packages/library/src/transactions/records.ts";
+const store=new MemoryTransactions();
+await store.save({id:"synthetic-health",type:"health",fields:{number:5000}});
+const allocated=await store.save({id:"synthetic-decision",type:"decision",fields:{},sequence:"number",sequenceFloor:1000,sequenceNeverHeld:true});
+assert.equal(allocated.fields.number,5001);
+await assert.rejects(store.save({id:"synthetic-collision",type:"decision",fields:{number:5000},sequence:"number",sequenceNeverHeld:true}),NumberTakenError);
+const ordinary=await store.save({id:"synthetic-ordinary",type:"decision",fields:{},sequence:"number",sequenceFloor:1000});
+assert.equal(ordinary.fields.number,5002);
+const control=new MemoryTransactions();await control.save({id:"synthetic-health-control",type:"health",fields:{number:5000}});
+const unaffected=await control.save({id:"synthetic-control-decision",type:"decision",fields:{},sequence:"number",sequenceFloor:1000});assert.equal(unaffected.fields.number,1001);
+console.log(JSON.stringify({case:"cross-type-numbering",healthNumber:5000,nextReservedNumber:allocated.fields.number,explicitCollisionRefused:true,typeScopedControl:unaffected.fields.number,backend:"real MemoryTransactions",postgresRlsExecuted:false,postgresEquivalence:"static source review only"}));

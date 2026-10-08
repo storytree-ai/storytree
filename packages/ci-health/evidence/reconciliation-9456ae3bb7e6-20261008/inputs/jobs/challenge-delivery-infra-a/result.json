@@ -1,0 +1,386 @@
+{
+  "summary": "Reviewed all three candidates against commit 08124e6286ff09843500a35120a38a685806a646. delivery-infra-001 is confirmed statically under the authored grants. delivery-infra-002 and delivery-infra-003 have reproduced implementation defects, but their proposed security boundaries remain unverified. No source changes or live-service access occurred.",
+  "verdicts": [
+    {
+      "candidate_id": "delivery-infra-001",
+      "verdict": "confirmed",
+      "severity": "medium",
+      "rationale": "The complete authorization-boundary failure is established statically, assuming the grants are deployed and an attacker controls the limited SQL identity with database connectivity. A health history row under a fresh ID can contain an arbitrary numeric fields.number. Storytree decision allocation consumes that value without restricting eligible history types. This permits persistent number reservation and forward displacement of automatic numbering, without permission to write decisions directly.",
+      "attacker_control": {
+        "established": true,
+        "reason": "The limited role can directly insert history JSON. For a fresh record_id, a row with type='health', action='created' and record={\"type\":\"health\",\"fields\":{\"number\":20}} satisfies the authored policy and table constraints. Application schema validation does not mediate direct SQL.",
+        "evidence": [
+          {
+            "path": "infra/ci-health/grants.sql",
+            "line": 55,
+            "detail": "Grants SELECT and INSERT on record_event, with sequence usage granted immediately afterward."
+          },
+          {
+            "path": "infra/ci-health/grants.sql",
+            "line": 79,
+            "detail": "INSERT policy checks the two health type labels and absence of a current non-health record under the supplied ID; it does not restrict fields.number."
+          },
+          {
+            "path": "infra/library-host/grants.sql",
+            "line": 79,
+            "detail": "The local-host grants contain the same permissive history policy."
+          },
+          {
+            "path": "packages/library/src/project/schema.ts",
+            "line": 30,
+            "detail": "record_event stores arbitrary JSONB, permits action='created', and has no foreign key requiring a current record."
+          }
+        ]
+      },
+      "reachability": {
+        "established": true,
+        "reason": "A subsequent legitimate decision write reaches the PostgreSQL allocator. Automatic numbering requires the persisted storytree floor; explicit-number reservation does not require that floor.",
+        "evidence": [
+          {
+            "path": "packages/cli/src/families/adr.ts",
+            "line": 111,
+            "detail": "The adr creation command calls the library's recordDecision operation."
+          },
+          {
+            "path": "packages/library/src/project/storytree.ts",
+            "line": 428,
+            "detail": "The project constructs PgTransactions, SchemaRecords, and Knowledge with the actual project name."
+          },
+          {
+            "path": "packages/library/src/knowledge/knowledge.ts",
+            "line": 179,
+            "detail": "recordDecision enables sequenceNeverHeld for project storytree and forwards the numbering sequence and applicable floor."
+          },
+          {
+            "path": "packages/library/src/schema/records.ts",
+            "line": 70,
+            "detail": "SchemaRecords.create forwards the sequence options, including sequenceNeverHeld, into transactions.save."
+          },
+          {
+            "path": "packages/library/src/transactions/pg.ts",
+            "line": 83,
+            "detail": "PgTransactions.save calls numberedIn before validating and persisting the resulting decision."
+          }
+        ]
+      },
+      "trust_boundary": {
+        "established": true,
+        "reason": "Health-only SQL write authority influences owner-written decision identifiers. The history queries deliberately bypass type filtering when sequenceNeverHeld is true, allowing health data to participate in the decision namespace.",
+        "evidence": [
+          {
+            "path": "infra/ci-health/grants.sql",
+            "line": 70,
+            "detail": "Current-record INSERT and UPDATE policies restrict the limited role to health records."
+          },
+          {
+            "path": "packages/library/src/transactions/pg.ts",
+            "line": 242,
+            "detail": "The maximum query uses ($3::boolean OR type = $1); sequenceNeverHeld=true makes health history eligible."
+          },
+          {
+            "path": "packages/library/src/transactions/pg.ts",
+            "line": 250,
+            "detail": "The explicit-number lookup likewise searches all history types when sequenceNeverHeld=true."
+          },
+          {
+            "path": "packages/library/src/schema/types.ts",
+            "line": 182,
+            "detail": "The application health schema is strict and excludes number, but this protection is absent from the SQL entry point."
+          }
+        ]
+      },
+      "impact": {
+        "established": true,
+        "reason": "One accepted numeric health event can make an otherwise unused explicit decision number unavailable. With a valid persisted floor, a number above the existing maximum and floor forces the next automatic number above it. The queries depend on history rather than current health rows. Arbitrary decision-content modification and numeric-exhaustion effects are not established.",
+        "evidence": [
+          {
+            "path": "packages/library/src/transactions/records.ts",
+            "line": 157,
+            "detail": "Automatic allocation returns max(highest, sequenceFloor)+1; the next line rejects an explicit number reported as taken."
+          },
+          {
+            "path": "packages/library/src/transactions/pg.ts",
+            "line": 242,
+            "detail": "The maximum is computed directly from record_event without joining current records."
+          },
+          {
+            "path": "packages/library/src/schema/types.ts",
+            "line": 217,
+            "detail": "Positive integer decision numbers such as 1000001 satisfy the decision schema."
+          }
+        ]
+      },
+      "counterevidence": [
+        "Normal application health writes reject extra number fields. Exploitation requires direct use of the limited SQL identity.",
+        "The RLS policies block direct non-health current-record writes and health history filed under an existing non-health current ID.",
+        "infra/ci-health/main.tf:77 restricts OIDC issuance to the configured repository on main. .github/workflows/own-health.yml:100 also gates recording to main. No fork-PR credential acquisition or unauthenticated route was established.",
+        "packages/library/src/knowledge/knowledge.ts:204 refuses automatic storytree numbering without a valid persisted floor.",
+        "packages/library/src/project/ci-health.test.ts:26 uses a generated project name. Its direct-write denial checks do not exercise storytree's cross-type number allocation.",
+        "packages/library/src/knowledge/decision-log.test.ts:204 intentionally preserves legacy number reservations. Remediation must preserve that supported behavior."
+      ],
+      "test_evidence": [
+        "Isolated numbering-primitives probe passed, exit 0. The real imported numbered function allocated 6 for highest=3/floor=5, allocated 21 for highest=20, accepted an available explicit 20, and rejected a taken explicit 20.",
+        "Artifacts: evidence/numbering-primitives-20261007T121919433005/{numbering-primitives.mts,result.json,stdout.txt,stderr.txt}. Exact submission command is recorded in evidence/test-index.json."
+      ],
+      "test_limitations": [
+        "The authorization and PostgreSQL query chain is static proof. No SQL, RLS policy, database, or complete Knowledge.recordDecision operation was executed.",
+        "The allocator probe supplies highest/taken results directly; it does not independently prove that PostgreSQL accepts or selects the forged row.",
+        "Deployment, connectivity, credential compromise, and the actual persisted floor were not inspected."
+      ],
+      "remediation": "Restrict both maximum and explicit-reservation queries to decisions and explicitly supported legacy types, while preserving never-held semantics within that eligible set. Enforce health-history payload restrictions at the SQL boundary or replace broad table writes with a narrowly scoped writer function. Keep both grants copies synchronized.",
+      "regression_test_recommendation": "In a separately authorized disposable PostgreSQL harness, apply the real schema and each grants variant to owner and health roles. Exercise Knowledge with project name storytree, seed a small floor and decision maximum, verify legitimate health writes succeed and direct decision writes fail, then attempt a health history number above the maximum. Assert the insert is rejected or cannot change automatic allocation or explicit-number availability. Retain legacy-reservation coverage."
+    },
+    {
+      "candidate_id": "delivery-infra-002",
+      "verdict": "unverified",
+      "severity": "potential medium; security exposure unverified",
+      "rationale": "The exponential traversal defect is established by source and bounded execution of the real exported function. The missing obligation is a demonstrated lower-trust consumer boundary: the reviewed source provides checker entry points and a generated CI workflow, but does not establish an operational deployment where an attacker gains availability impact beyond an invocation already authorized to process or execute that repository.",
+      "attacker_control": {
+        "established": false,
+        "reason": "Manifest control is mechanically sufficient to construct the graph, without executable scripts. An actual lower-trust supplier whose manifests reach a protected checker remains a deployment assumption.",
+        "evidence": [
+          {
+            "path": "packages/guardrails/src/package-rule/package-rule.ts",
+            "line": 157,
+            "detail": "Reads package.json as JSON from the supplied root."
+          },
+          {
+            "path": "packages/guardrails/src/package-rule/package-rule.ts",
+            "line": 167,
+            "detail": "Builds internal edges from package names and dependencies, devDependencies, optionalDependencies, and peerDependencies."
+          },
+          {
+            "path": "packages/agent-link/src/setup/pipeline.ts",
+            "line": 63,
+            "detail": "The generated workflow supports pull_request execution, providing a plausible contributor-controlled input route, but no deployed consumer was verified."
+          }
+        ]
+      },
+      "reachability": {
+        "established": true,
+        "reason": "Both documented checker entry points reach packageProblems, which unconditionally invokes dependencyCycles on the manifest-derived graph. No graph-size bound or completed-node cache intervenes.",
+        "evidence": [
+          {
+            "path": "packages/cli/src/families/guardrails.ts",
+            "line": 15,
+            "detail": "Installed check command calls check(checkoutOf(context.cwd))."
+          },
+          {
+            "path": "packages/guardrails/src/check/run.ts",
+            "line": 11,
+            "detail": "Standalone main checks the supplied folder."
+          },
+          {
+            "path": "packages/guardrails/src/check/check.ts",
+            "line": 30,
+            "detail": "Runs packageProblems synchronously before allocation checking."
+          },
+          {
+            "path": "packages/guardrails/src/package-rule/package-rule.ts",
+            "line": 145,
+            "detail": "Calls dependencyCycles for the graph constructed from manifests."
+          }
+        ]
+      },
+      "trust_boundary": {
+        "established": false,
+        "reason": "A trusted installation inspecting lower-trust data would provide the proposed boundary. The generated workflow supports that architecture, but actual exposure and additional protected availability were not established. Storytree's own CI intentionally executes submitted repository code, so that example alone does not demonstrate a new boundary.",
+        "evidence": [
+          {
+            "path": "packages/agent-link/src/setup/pipeline.ts",
+            "line": 32,
+            "detail": "Generated commands obtain separate Storytree source, install checker dependencies with --ignore-scripts, and inspect another workspace."
+          },
+          {
+            "path": "packages/agent-link/src/setup/pipeline.ts",
+            "line": 67,
+            "detail": "The same generated workflow also includes a project test job running the project's supplied commands."
+          },
+          {
+            "path": ".github/workflows/ci.yml",
+            "line": 69,
+            "detail": "Storytree's own CI has a 25-minute outer deadline."
+          },
+          {
+            "path": ".github/workflows/ci.yml",
+            "line": 83,
+            "detail": "Its checkout undergoes package installation and subsequently pnpm test, intentionally executing repository-controlled code."
+          }
+        ]
+      },
+      "impact": {
+        "established": true,
+        "reason": "The implementation performs exponential work on a complete forward DAG: 2^n-1 recursive visits for n vertices and n(n-1)/2 edges. This establishes an invocation-level availability defect by static analysis, supported by small runtime counts. A security-significant outage or effect beyond that invocation was not established.",
+        "evidence": [
+          {
+            "path": "packages/guardrails/src/package-rule/package-rule.ts",
+            "line": 180,
+            "detail": "visit checks only membership in the current trail, not whether a descendant has already been fully examined."
+          },
+          {
+            "path": "packages/guardrails/src/package-rule/package-rule.ts",
+            "line": 189,
+            "detail": "Recursively revisits every outgoing path and starts traversal from every package at line 191."
+          },
+          {
+            "path": "packages/guardrails/src/check/check.ts",
+            "line": 30,
+            "detail": "Synchronous traversal must finish before subsequent checking and reporting."
+          }
+        ]
+      },
+      "counterevidence": [
+        "No hosted checking service or shared protected worker was established.",
+        "The generated separate-source checker is meaningful supporting evidence, so the security hypothesis cannot be rejected outright.",
+        "Existing package-rule tests cover a small cycle at packages/guardrails/src/package-rule/package-rule.test.ts:140; checker tests cover entry-point behavior at packages/guardrails/src/check/check.test.ts:69. Neither establishes adversarial deployment exposure or bounded graph work.",
+        "Where the repository is already trusted for arbitrary execution with equivalent authority, this is a performance defect rather than an additional security vulnerability."
+      ],
+      "test_evidence": [
+        "Isolated graph-small-v3 probe passed, exit 0, using the real unmodified packageProblems and in-process V8 coverage. Complete forward DAGs with 4, 5, and 6 vertices produced 15, 31, and 63 visit calls respectively.",
+        "A four-node chain and diamond each produced no reported cycle; a two-node cycle produced one cycle report.",
+        "Successful artifacts: evidence/graph-small-v3-20261007T122010614540/{graph-small.mts,result.json,stdout.txt,stderr.txt}.",
+        "Earlier probes failed with exit 1 on instrumentation: graph-small could not identify the unnamed arrow function; graph-small-v2 requested script text before enabling the Debugger agent. Their exact scripts and outputs remain in evidence/graph-small-20261007T121927967579 and evidence/graph-small-v2-20261007T122002587088.",
+        "All exact submission commands are recorded in evidence/test-index.json."
+      ],
+      "test_limitations": [
+        "At most six manifests and 63 recursive visits per case were exercised. No stress, timing, memory-exhaustion, or outage demonstration was performed.",
+        "The probe exercised packageProblems directly, not the CLI, standalone runner, or generated CI workflow.",
+        "No actual lower-trust consumer deployment was inspected."
+      ],
+      "remediation": "Replace path enumeration with a linear-time strongly connected components algorithm or equivalent bounded cycle detection. Report a bounded representative cycle per component. Keep a process deadline as a secondary safeguard.",
+      "regression_test_recommendation": "Exercise the exported packageProblems with chains, shared diamonds, small dense DAGs, and cycles. Use bounded operation-count instrumentation to assert work proportional to vertices and edges, alongside correct cycle reporting. Establish the intended untrusted-input deployment before assigning a security severity."
+    },
+    {
+      "candidate_id": "delivery-infra-003",
+      "verdict": "unverified",
+      "severity": "potential low; cross-account exposure unverified",
+      "rationale": "Encoded traversal is reproduced through the exact source-extracted handlers in all seven named helpers. The main capture handler blocks the same requests. The proposed confidentiality vulnerability still requires an affected manual helper to be running where a distinct, less-privileged principal can reach its loopback port and obtain files unavailable through its own filesystem permissions. That deployment boundary was not established.",
+      "attacker_control": {
+        "established": false,
+        "reason": "Any client reaching an affected port can supply the unauthenticated request target. Source inspection and isolated requests establish that input behavior, but do not establish a separate lower-privilege local attacker with access during a real capture.",
+        "evidence": [
+          {
+            "path": "packages/website/evidence/terminal.mjs",
+            "line": 18,
+            "detail": "Uses req.url directly through URL parsing and decodeURIComponent, with no authentication check."
+          },
+          {
+            "path": "packages/website/evidence/terminal.mjs",
+            "line": 23,
+            "detail": "Binds an ephemeral port on 127.0.0.1, limiting access to clients able to reach that loopback namespace."
+          }
+        ]
+      },
+      "reachability": {
+        "established": true,
+        "reason": "Each named standalone helper creates the unchecked HTTP handler and listens before browser capture. This establishes source-level reachability when the helper is invoked; it does not establish current use or deployed website exposure.",
+        "evidence": [
+          {
+            "path": "packages/website/evidence/terminal.mjs",
+            "line": 17,
+            "detail": "Creates the decode-resolve-read handler; listens at line 23."
+          },
+          {
+            "path": "packages/website/evidence/turn/capture.mjs",
+            "line": 12,
+            "detail": "Creates the same unchecked handler; listens at line 17."
+          },
+          {
+            "path": "packages/website/evidence/journey/capture.mjs",
+            "line": 14,
+            "detail": "Creates the unchecked handler; listens at line 20."
+          },
+          {
+            "path": "packages/website/evidence/arrival/capture.mjs",
+            "line": 22,
+            "detail": "Creates the unchecked handler; listens at line 28."
+          },
+          {
+            "path": "packages/website/evidence/nameplates-phone/capture.mjs",
+            "line": 16,
+            "detail": "Creates the unchecked handler; listens at line 22."
+          },
+          {
+            "path": "packages/website/evidence/warm-globe/measure.mjs",
+            "line": 11,
+            "detail": "Creates the unchecked handler; listens at line 17."
+          },
+          {
+            "path": "packages/forest-world/evidence/flat-canvas-retired/capture-website.mjs",
+            "line": 13,
+            "detail": "Historical helper creates the unchecked handler; listens at line 19."
+          }
+        ]
+      },
+      "trust_boundary": {
+        "established": false,
+        "reason": "The serving-directory boundary is demonstrably crossed. Crossing an OS-account confidentiality boundary remains conditional on distinct principals, filesystem permissions, shared loopback reachability, and an active helper. Same-authority local access alone does not establish the requested security impact.",
+        "evidence": [
+          {
+            "path": "packages/website/evidence/terminal.mjs",
+            "line": 19,
+            "detail": "Resolves the decoded path against dist without requiring the result to remain inside dist."
+          },
+          {
+            "path": "packages/website/evidence/terminal.mjs",
+            "line": 20,
+            "detail": "Reads the resolved file using the helper process's filesystem authority."
+          },
+          {
+            "path": "packages/website/evidence/terminal.mjs",
+            "line": 23,
+            "detail": "Loopback binding provides no per-OS-account authentication, but actual cross-account reachability is deployment-dependent."
+          }
+        ]
+      },
+      "impact": {
+        "established": true,
+        "reason": "The handlers return file contents outside the intended serving root. In isolated testing, /%2e%2e%2fmarker.txt returned an adjacent synthetic marker, and an encoded traversal into dist-extra returned a sibling-prefix marker. Disclosure of information otherwise inaccessible to a real attacker was not tested or established.",
+        "evidence": [
+          {
+            "path": "packages/website/evidence/terminal.mjs",
+            "line": 18,
+            "detail": "Decoding occurs after URL parsing, allowing the encoded parent segment plus separator to become /../marker.txt."
+          },
+          {
+            "path": "packages/website/evidence/terminal.mjs",
+            "line": 20,
+            "detail": "Successful readFile output is returned directly in the HTTP response."
+          },
+          {
+            "path": "packages/website/evidence/capture.mjs",
+            "line": 34,
+            "detail": "The main helper checks dist plus the path separator and rejects both tested escapes."
+          }
+        ]
+      },
+      "counterevidence": [
+        "These handlers belong to manual evidence and screenshot helpers, including one explicitly historical directory. No deployed website route using them was found in the inspected callers.",
+        "All seven bind ephemeral loopback ports.",
+        "packages/website/evidence/terminal.mjs:105 closes the server after capture, limiting its normal exposure window.",
+        "The main packages/website/evidence/capture.mjs handler already contains a directory-containment check and rejected the tested traversal requests.",
+        "No internet reachability, browser-origin bypass, or cross-account deployment was established.",
+        "Inspected website evidence-build tests exercise evidence builds, not these HTTP handlers; no applicable traversal regression was found."
+      ],
+      "test_evidence": [
+        "Isolated capture-handlers probe passed, exit 0. It executed exact server declarations extracted from the seven pinned helpers and the main capture helper, with synthetic serving roots.",
+        "All seven affected handlers returned HTTP 200 with both adjacent and sibling-prefix marker contents. Normal index requests returned 200; ordinary requests for the absent in-root marker returned 404. The main helper returned 403 for both escapes.",
+        "Artifacts: evidence/capture-handlers-20261007T122024655162/{capture-handlers.mjs,result.json,stdout.txt,stderr.txt}. Output includes hashes of each extracted declaration. The exact submission command is recorded in evidence/test-index.json."
+      ],
+      "test_limitations": [
+        "The exact handlers were extracted and executed with injected synthetic roots; complete capture modules and browser startup were not executed.",
+        "HTTP requests remained inside the broker's isolated network namespace. No live capture process or protected host file was accessed.",
+        "Client and server were not run as distinct OS accounts. Synthetic markers do not demonstrate a real cross-account permission bypass.",
+        "Symlink escape and browser-origin attack scenarios were not tested."
+      ],
+      "remediation": "Consolidate these helpers onto a shared static-file handler. Decode safely, resolve the requested path, and reject paths outside the serving root using a separator-aware containment check. If the serving tree can contain untrusted symlinks, also enforce containment after filesystem resolution. Retire unused helpers.",
+      "regression_test_recommendation": "Expose the shared handler for direct isolated tests. Serve a tiny synthetic directory with adjacent and sibling-prefix markers; assert normal assets succeed and encoded parent traversal cannot return either marker. Add malformed-encoding handling and, where supported by the threat model, symlink containment tests. Separately verify whether any supported capture deployment exposes the port across OS-account boundaries."
+    }
+  ],
+  "limitations": [
+    "Review scope was the read-only pinned snapshot. No credentials, host homes, live data, external services, installations, builds, full suites, deployments, or source fixes were used.",
+    "Confirmed status for delivery-infra-001 concerns the authored configuration; actual deployment and compromise of the limited identity remain assumptions.",
+    "Implementation behavior alone does not establish the missing lower-trust deployment boundaries for delivery-infra-002 and delivery-infra-003.",
+    "All product execution used the mandated submit_test.py broker. Exact commands, scripts, commit identifiers, exit codes, stdout, and stderr are preserved under this job's evidence directory, indexed by evidence/test-index.json."
+  ]
+}

@@ -1,0 +1,6 @@
+{"label":"valid-unchecked-session","reachedPersistence":true}
+{"label":"illustrative-password-claim","reachedPersistence":true}
+{"label":"expired","reachedPersistence":false}
+{"label":"wrong-audience","reachedPersistence":false}
+{"label":"missing-session","reachedPersistence":false}
+{"requests":["/sso/jwks/client_synthetic_B","/user_management/users/user_synthetic_B","/user_management/users/user_synthetic_B/identities","/user_management/users/user_synthetic_B","/user_management/users/user_synthetic_B/identities"],"limit":"Synthetic JWT and fetch seam; no SQL, WorkOS revocation, actual token-method semantics, hosting or downstream authorization demonstrated."}

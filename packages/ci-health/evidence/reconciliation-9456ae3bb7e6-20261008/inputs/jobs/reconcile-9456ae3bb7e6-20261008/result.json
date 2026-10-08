@@ -1,0 +1,2336 @@
+{
+  "increment": "increment_9456ae3bb7e6",
+  "arc": "arc_28e67e229273",
+  "session": "01a118be-7654-7a42-a59b-0458a9ade3d8",
+  "recorded_at": "2026-10-07T23:59:30.921925+00:00",
+  "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+  "reviewed_main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+  "original_report": {
+    "path": "report.json",
+    "sha256": "827468f4e45e5fd83f341ee42e27a07150ab7d23de28c5100f7bffec2d3d63ec",
+    "unchanged": true
+  },
+  "method": [
+    "Read-only additive evidence reconciliation. Original report and reviewer outputs remain unchanged; no hypothesis was implemented in this increment.",
+    "Identity/delivery supporting review is by a different session from discovery and original reviewer A, using newly authored bounded probes and direct source/caller review. It read original A evidence and is not the required fresh challenge. Both missing independent B passes remain open and are parked for the dispatcher; neither failed original job is relabelled successful.",
+    "Original identity-secrets-b and delivery-infra-b cybersecurity-safeguard failures stay recorded. No original blocked job was relaunched, no provider was switched, and no safeguard/access policy was changed. This lane used permitted source review and small disposable synthetic tests only.",
+    "Each confirmation is conditional on its explicit attacker/deployment assumptions. None attests live credentials, installed-host permissions, WorkOS settings or deployed grants.",
+    "New runtime probes use the existing run_isolated.py: bwrap unshare-all including network, read-only pinned source/runtime, private scratch/home/proc/dev, 512 MB Node heap and 60-second process-group bound. Only the transport test creates a socket, inside its private namespace.",
+    "Original four confirmed issue classes, duplicate database finding and interrupted agent-command discovery are outside this 15-candidate increment and remain on their existing arc work."
+  ],
+  "desktop_adjudication_correction": {
+    "cause": "review.py:106-109 treats every obligation citation as a SOURCE-relative path; reviewer B put its job-local stdout under each impact obligation. Both files exist and their lines, source commits, script hashes, exit codes and outputs were verified.",
+    "not_a_verdict_only_edit": "Source dev-home.ts:59 and backups.ts:46-52/snapshot.ts:85-90 substantiate the sink; original independent A/B runtime observations were inspected; new permissions.mts independently reproduced synthetic contents and 022/077 controls.",
+    "additional_provenance_issue": "The same source-only validator also rejects job-local citations in identity reviewer A. provenance-checks.json distinguishes source from reviewer artifact; artifact output is not passed off as repository source.",
+    "limitation": "All permission probes used one UID with a private /work ancestor. Conditional cross-account impact follows from the stated traversable-directory/POSIX permissions model, not a demonstrated second-account read."
+  },
+  "findings": [
+    {
+      "id": "desktop-install-002",
+      "title": "Developer-home marker duplicates sign-in data with potentially public permissions",
+      "original_classification": "unverified",
+      "classification": "confirmed",
+      "summary": "Conditional disclosure by the explicit developer-home utility. The two original independent reviewers agree; their actual isolated output and a new real-function probe substantiate the plaintext duplicate and permission behavior.",
+      "proof_obligations": {
+        "attacker_control": {
+          "established_under_stated_preconditions": true,
+          "reason": "A different local OS account can select the predictable marker path if all ancestors are traversable and effective ACLs permit a read."
+        },
+        "reachability": {
+          "established_under_stated_preconditions": true,
+          "reason": "The exposed developer command invokes makeDevHome with Codex selected; the marker is written before the injected build boundary."
+        },
+        "trust_boundary": {
+          "established_under_stated_preconditions": true,
+          "reason": "The protected sign-in file is duplicated into the marker without an explicit private mode. Under umask 022 the marker is 0644 and the home is 0755."
+        },
+        "impact": {
+          "established_under_stated_preconditions": true,
+          "reason": "The marker contains the complete synthetic sign-in string. Conditional confidentiality loss is established; usability of a real credential or account takeover is not."
+        }
+      },
+      "preconditions": "A developer invokes this utility with --codex, valid sign-in material exists, and the destination is under traversable parents with a permissive umask or ACL. Credential usability and actual host permissions were not tested.",
+      "counterevidence_and_limitations": [
+        "Private ancestors, umask 077 or restrictive ACLs block cross-user disclosure. This is not the ordinary installed-desktop path.",
+        "All probes used one UID in private /work. No second-identity read, host credentials, credential reuse or Windows ACL test."
+      ],
+      "original_reviewers": [
+        {
+          "job": "challenge-desktop-install-a",
+          "result_path": "jobs/challenge-desktop-install-a/result.json",
+          "sha256": "07c4700020d4610a22b2ca13ff33de2ad919209be5c6432ab0d884608601b9c8",
+          "verdict": "confirmed",
+          "test_evidence": [
+            "Executed: python3 /home/mickh/storytree-security-reviews/20261007-mint-08124e62/submit_test.py --runtime tsx --script /home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-desktop-install-a/devhome-probe.mts --label devhome-permissions",
+            "Exit 0, empty stderr. evidence/devhome-permissions-20261007T115938266743/stdout.txt:1 records synthetic duplication, source and direct-copy modes 0600, marker mode 0644, directory mode 0755, and the injected stop before build.",
+            "stdout.txt:2 records the umask-077 control: marker 0600 and directory 0700. Lines 3 and 4 record the no-Codex and missing-sign-in negative controls.",
+            "The same evidence directory contains the preserved script and result.json with the exact isolation command, script hash, exit status, and pinned source commit.",
+            "Inspected existing synthetic sign-in and refresh tests in packages/app-setup/src/connect/connect.test.ts:350 and :386; they do not assert marker confidentiality."
+          ],
+          "test_limitations": [
+            "The probe used only newly created synthetic sign-in data in disposable /work and stopped at the injected build boundary. No build, agent registration, or database operation ran.",
+            "No second OS identity, Windows ACL, deployed parent permissions, real credential, or credential replay was tested. Cross-user readability follows from POSIX mode semantics under the stated ancestor-access precondition."
+          ],
+          "counterevidence": [
+            "This requires explicit developer-utility use; it is not the normal installed-desktop startup path.",
+            "A private ancestor, restrictive ACL, or umask 077 prevents the described cross-user read.",
+            "Codex must be selected and its source sign-in file must exist. Independent negative controls confirmed no sign-in field otherwise.",
+            "The direct authentication-file copy is mode 0600.",
+            "Removal checks that the destination has this utility's marker before removing it: packages/app-setup/src/connect/dev-home.ts:91."
+          ]
+        },
+        {
+          "job": "challenge-desktop-install-b",
+          "result_path": "jobs/challenge-desktop-install-b/result.json",
+          "sha256": "5703a48f3320a39d35d2cbd42c4cae6b275bb160dd776856a95744ad022cca81",
+          "verdict": "confirmed",
+          "test_evidence": [
+            "Executed: python3 /home/mickh/storytree-security-reviews/20261007-mint-08124e62/submit_test.py --runtime tsx --script /home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-desktop-install-b/devhome_probe.mts --label challenge-b-devhome",
+            "Exit 0; empty stderr. The real imported makeDevHome reached an injected stop before the build. Umask 022 produced a 0644 marker and 0755 destination; umask 077 produced 0600 and 0700. The authentication copy remained 0600. The no-Codex control copied nothing.",
+            "Exact script, isolated command, source commit, script hash, exit status, stdout, and stderr are preserved under evidence/challenge-b-devhome-20261007T120012826533/."
+          ],
+          "test_limitations": [
+            "Only synthetic placeholder sign-in data was used. No host credential store or real credential was accessed.",
+            "No second-identity read or credential reuse was attempted; cross-user impact follows conditionally from the source and POSIX permission semantics.",
+            "The probe stopped before builds, installation, agent registration, or database work."
+          ],
+          "counterevidence": [
+            "This is an explicit developer utility, not the ordinary installed-desktop path.",
+            "A private ancestor, umask 077, or restrictive ACL prevents the cross-user disclosure.",
+            "Selecting no Codex harness avoids copying the sign-in data; the independent negative control passed.",
+            "Existing connection tests use mkdtemp-created private parent directories: packages/app-setup/src/connect/connect.test.ts:351. Those tests do not establish exposure across users.",
+            "The broker's /work and probe parent were mode 0700, so the probe itself did not expose data to another identity."
+          ]
+        }
+      ],
+      "source_evidence": [
+        {
+          "path": "packages/app-setup/package.json",
+          "line": 15,
+          "detail": "The dev-home script exposes the utility as a developer command.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "    \"dev-home\": \"node --import tsx src/connect/dev-home.ts\"",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 15,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/app-setup/src/connect/dev-home.ts",
+          "line": 55,
+          "detail": "Developer-home directories are created without explicit restrictive modes.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "  for (const folder of [codex, claude, storytree]) mkdirSync(folder, { recursive: true });",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 55,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/app-setup/src/connect/dev-home.ts",
+          "line": 57,
+          "detail": "The existing sign-in file is read when Codex is selected.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "  const copied = options.harnesses.includes(\"codex\") && existsSync(userAuth) ? readFileSync(userAuth, \"utf8\") : undefined;",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 57,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/app-setup/src/connect/dev-home.ts",
+          "line": 58,
+          "detail": "The direct authentication-file copy explicitly uses mode 0600.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "  if (copied !== undefined) writeFileSync(path.join(codex, \"auth.json\"), copied, { mode: 0o600 });",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 58,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/app-setup/src/connect/dev-home.ts",
+          "line": 59,
+          "detail": "The same contents are serialized into the marker without a mode option, before the build begins.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "  writeFileSync(path.join(dir, MARK), `${JSON.stringify({ made: new Date().toISOString(), ...(copied === undefined ? {} : { codexSignIn: { from: userAuth, copied } }) })}\\n`);",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 59,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/app-setup/src/connect/dev-home.ts",
+          "line": 99,
+          "detail": "The saved contents are used for equality comparison during removal; a digest could serve this purpose.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "      if (users === codexSignIn.copied) writeFileSync(codexSignIn.from, now, { mode: 0o600 });",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 99,
+          "source_anchor_unchanged": true
+        }
+      ],
+      "original_discovery_artifacts": [
+        {
+          "path": "jobs/discover-desktop-install/evidence/devhome-marker-permissions-esm-20261007T112812619099/stdout.txt",
+          "line": 1,
+          "detail": "Job-local broker evidence confirms synthetic duplication, marker mode 0644, directory mode 0755, and the stop before build. Line 2 records the restrictive-umask control.",
+          "sha256": "86330c8f7ade80b2dd21b3aa3f81944f682c18a4775285587d2f6b7de3d12d70"
+        }
+      ],
+      "new_runtime_evidence": [
+        {
+          "label": "permissions",
+          "result": "jobs/reconcile-9456ae3bb7e6-20261008/evidence/permissions-20261007T234527760945/result.json",
+          "stdout": "jobs/reconcile-9456ae3bb7e6-20261008/evidence/permissions-20261007T234527760945/stdout.txt",
+          "exit_code": 0,
+          "script_sha256": "a83308a757c2c398548c7793d442b30f0966c668ce6b4bc3f74122c35019b81e"
+        }
+      ],
+      "followup_increments": [
+        "increment_b7b94ebba925"
+      ]
+    },
+    {
+      "id": "desktop-install-003",
+      "title": "Automatic project backups can expose complete library records to other local users",
+      "original_classification": "unverified",
+      "classification": "confirmed",
+      "summary": "Conditional POSIX backup disclosure. Both original independent reviewers and a new real backUp probe substantiate default-permission snapshots, not universal installed-app exposure.",
+      "proof_obligations": {
+        "attacker_control": {
+          "established_under_stated_preconditions": true,
+          "reason": "A separate local user can select timestamped backup files where their effective permissions and every ancestor permit reading."
+        },
+        "reachability": {
+          "established_under_stated_preconditions": true,
+          "reason": "Successful desktop startup calls keepBackups; it enumerates projects and calls backUp. The real snapshot provider includes records and record-event history."
+        },
+        "trust_boundary": {
+          "established_under_stated_preconditions": true,
+          "reason": "Database-authorized data becomes plaintext filesystem data. backUp creates directories and partial files with default permissions before rename."
+        },
+        "impact": {
+          "established_under_stated_preconditions": true,
+          "reason": "Synthetic records and history survive in 0644 snapshots below 0755 directories under umask 022. A permitted filesystem reader can see the complete snapshot without database credentials."
+        }
+      },
+      "preconditions": "A successful backup contains non-public project data, and its ancestor directories and ACLs permit another OS user to traverse and read it. This is particularly relevant to POSIX development/follow-main installations or a shared STORYTREE_HOME. Actual host permissions were not inspected.",
+      "counterevidence_and_limitations": [
+        "The journey home creation requests 0700 only when creating that directory; it does not repair existing permissive homes and is not guaranteed before development backups.",
+        "Private ancestors, umask 077 or restrictive Windows ACLs prevent disclosure. No deployed home or Windows ACL was inspected.",
+        "The new probe calls backUp with an in-memory snapshot provider. Original independent probes also exercise keepBackups. Actual PostgreSQL reads and the deletion-time writer were inspected statically only."
+      ],
+      "original_reviewers": [
+        {
+          "job": "challenge-desktop-install-a",
+          "result_path": "jobs/challenge-desktop-install-a/result.json",
+          "sha256": "07c4700020d4610a22b2ca13ff33de2ad919209be5c6432ab0d884608601b9c8",
+          "verdict": "confirmed",
+          "test_evidence": [
+            "Executed: python3 /home/mickh/storytree-security-reviews/20261007-mint-08124e62/submit_test.py --runtime tsx --script /home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-desktop-install-a/backup-probe.mts --label backup-permissions",
+            "Exit 0, empty stderr. evidence/backup-permissions-20261007T115938266755/stdout.txt:1 records a real startup backup with application-home and backup-directory modes 0755, snapshot mode 0644, preserved synthetic current/history contents, and no remaining partial file.",
+            "stdout.txt:2 records the umask-077 control with directories 0700 and snapshot 0600. Line 3 records the private-ancestor mode control; line 4 records bounded retention of one intact snapshot.",
+            "The same evidence directory contains the preserved script and result.json with the exact isolation command, script hash, exit status, and pinned source commit.",
+            "Inspected backup scheduling, retention, update coordination, and deletion tests in packages/app/src/lifecycle/backups.test.ts, backups-updates.test.ts, and packages/app-setup/src/project/project.test.ts. These were not executed."
+          ],
+          "test_limitations": [
+            "The probe used an in-memory synthetic snapshot provider; it did not run Electron, query a database, or reproduce a full installed-desktop startup.",
+            "Production snapshot contents and the deletion-time path were established statically. The deletion operation was not executed.",
+            "No separate OS identity or actual deployment permissions were tested. The private-ancestor control verified modes, not a second-identity access attempt.",
+            "Confirmation assumes non-public project content, traversable ancestors, and permissive effective permissions. Windows ACL behavior remains unverified."
+          ],
+          "counterevidence": [
+            "Private ancestors, umask 077, or restrictive ACLs block the described cross-user disclosure; the probe included restrictive-umask and private-ancestor controls.",
+            "packages/journey-events/src/index.ts:31 creates the application home with mode 0700 when absent. This protects homes it creates, but does not change an existing directory's permissions.",
+            "Journey initialization is lazy, and development recording returns without opening it when release configuration is absent: packages/journey-events/src/runtime.ts:38 and :44.",
+            "The packaged installer targets Windows: apps/desktop/package.json:77. POSIX mode results do not prove effective Windows access.",
+            "Production snapshot calls validate project names before filesystem writing: packages/library/src/project/storytree.ts:281 and packages/library/src/project/names.ts:31. This finding does not depend on path traversal.",
+            "Deletion-time snapshots require confirmation, an existing project, no live claims, and the snapshot option: packages/app-setup/src/project/index.ts:174, :179, :183, and :188."
+          ]
+        },
+        {
+          "job": "challenge-desktop-install-b",
+          "result_path": "jobs/challenge-desktop-install-b/result.json",
+          "sha256": "5703a48f3320a39d35d2cbd42c4cae6b275bb160dd776856a95744ad022cca81",
+          "verdict": "confirmed",
+          "test_evidence": [
+            "Executed: python3 /home/mickh/storytree-security-reviews/20261007-mint-08124e62/submit_test.py --runtime tsx --script /home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-desktop-install-b/backup_probe.mts --label challenge-b-backups",
+            "Exit 0; empty stderr. Real imported backUp produced 0644 files and 0755 directories under umask 022, and 0600 files and 0700 directories under umask 077. Contents survived rename and partial files were absent.",
+            "Real keepBackups performed its startup backup with an in-memory synthetic snapshot provider. A bounded three-backup retention control kept the newest two snapshots and preserved an unrelated file.",
+            "Exact script, isolated command, source commit, script hash, exit status, stdout, and stderr are preserved under evidence/challenge-b-backups-20261007T120012828713/."
+          ],
+          "test_limitations": [
+            "The probe used an in-memory snapshot provider; it did not execute PostgreSQL snapshot queries, Electron startup, or project deletion.",
+            "No second-identity read occurred. The broker's /work and probe parent were mode 0700, so runtime results prove file behavior rather than cross-user exploitation.",
+            "Actual deployment ancestor permissions, ACLs, data sensitivity, and Windows access controls were not inspected."
+          ],
+          "counterevidence": [
+            "A mode-0700 ancestor or umask 077 prevents disclosure; both permission controls were covered by the independent probe.",
+            "openJourney requests mode 0700 for the application home at packages/journey-events/src/index.ts:31. This protects a newly created home, but does not change an existing directory's permissions.",
+            "Journey initialization is lazy, and development recording returns without opening it when configuration is absent: packages/journey-events/src/runtime.ts:38 and :44. Follow-main setup can previously create the home hierarchy with default permissions: packages/app/src/updates/follow-main.ts:43.",
+            "The packaged targets are Windows installers and portable builds: apps/desktop/package.json:77. POSIX modes do not establish effective Windows ACL access.",
+            "Production snapshots validate project names before filesystem writing: packages/library/src/project/storytree.ts:281 and packages/library/src/project/names.ts:31. No project-name traversal is claimed.",
+            "Deletion-time snapshots require an explicit snapshot choice and pass confirmation, in-use, and live-claim checks: packages/app-setup/src/project/index.ts:174. Their default-permission write at :192 is corroborating static evidence, not an attacker-controlled deletion path."
+          ]
+        }
+      ],
+      "source_evidence": [
+        {
+          "path": "apps/desktop/src/main/main.ts",
+          "line": 301,
+          "detail": "Normal desktop startup enables backups whenever the library opened successfully, including external-library configurations.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "    if (storytree !== undefined) backups = keepBackups({ storytree, dir: home.backups, log: line => console.log(line) });",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 304,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/app/src/lifecycle/backups.ts",
+          "line": 109,
+          "detail": "Automatic backup selection enumerates the library's projects.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "      const projects = await options.storytree.listProjects();",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 109,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/app/src/lifecycle/backups.ts",
+          "line": 48,
+          "detail": "Per-project backup directories are created without explicit restrictive permissions.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "    mkdirSync(folder, { recursive: true });",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 48,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/app/src/lifecycle/backups.ts",
+          "line": 51,
+          "detail": "Snapshots are serialized into files without a mode option, then renamed into place.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "    writeFileSync(`${file}.partial`, `${JSON.stringify(snapshot)}\\n`);",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 51,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/library/src/project/snapshot.ts",
+          "line": 85,
+          "detail": "Production snapshots include project records and the complete record-event history.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "      const records = await client.query<RecordRow>(",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 85,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/app-setup/src/project/index.ts",
+          "line": 192,
+          "detail": "Deletion-time snapshots likewise use writeFileSync without explicit restrictive permissions.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "      writeFileSync(snapshot, `${JSON.stringify(await storytree.snapshot(project))}\\n`);",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 192,
+          "source_anchor_unchanged": true
+        }
+      ],
+      "original_discovery_artifacts": [
+        {
+          "path": "jobs/discover-desktop-install/evidence/backup-file-permissions-20261007T113004275162/stdout.txt",
+          "line": 1,
+          "detail": "Job-local broker evidence confirms a preserved synthetic snapshot with file mode 0644 and directory mode 0755. Line 2 records the restrictive-umask control.",
+          "sha256": "85d6d1cae197d4d7ba172d7028f2c534e21fcc1f160c2731b9e324dbad0ced6a"
+        }
+      ],
+      "new_runtime_evidence": [
+        {
+          "label": "permissions",
+          "result": "jobs/reconcile-9456ae3bb7e6-20261008/evidence/permissions-20261007T234527760945/result.json",
+          "stdout": "jobs/reconcile-9456ae3bb7e6-20261008/evidence/permissions-20261007T234527760945/stdout.txt",
+          "exit_code": 0,
+          "script_sha256": "a83308a757c2c398548c7793d442b30f0966c668ce6b4bc3f74122c35019b81e"
+        }
+      ],
+      "followup_increments": [
+        "increment_2919b9771a37",
+        "increment_1fe174460a0d"
+      ]
+    },
+    {
+      "id": "identity-secrets-001",
+      "title": "Remote Postgres connections can disclose the resolved password before authenticating the server",
+      "original_classification": "unverified",
+      "classification": "unverified",
+      "summary": "Strong conditional source/runtime evidence for remote password disclosure, but fresh independent challenge B is still missing. This reconciler read A and cannot replace the original protocol's fresh challenger. The original failed B remains failed.",
+      "proof_obligations": {
+        "attacker_control": {
+          "established_under_stated_preconditions": true,
+          "reason": "Assume a remote address connection with no authenticated tunnel/TLS and an on-path or redirection adversary. The adversary controls peer authentication bytes without controlling the saved password."
+        },
+        "reachability": {
+          "established_under_stated_preconditions": true,
+          "reason": "Settings accept remote passwordless URLs; routing and the CLI pass address to library connect, addressServer resolves the postgres key, and localServer creates admin/project pools without adding authenticated TLS."
+        },
+        "trust_boundary": {
+          "established_under_stated_preconditions": true,
+          "reason": "A server endpoint can request cleartext authentication before proving its identity. The real pool sends the resolved synthetic password without an SSL request under default options."
+        },
+        "impact": {
+          "established_under_stated_preconditions": true,
+          "reason": "The new isolated peer received the exact synthetic password. A verify-full refusal control requested TLS and transmitted no password. No real interception or credential reuse is claimed."
+        }
+      },
+      "preconditions": "The user configures a remote address without authenticated TLS; no protective PGSSLMODE or external authenticated tunnel applies; the attacker can intercept or redirect a new connection. Deployed transport settings were not inspected.",
+      "counterevidence_and_limitations": [
+        "Local is the default; authenticated tunnels, PGSSLMODE and explicit verified TLS can prevent this chain. Deployed settings were not inspected.",
+        "The probe uses PGPASSWORD in a cleared synthetic environment, the real resolver/addressServer/admin pool and an isolated loopback peer. CLI reachability and project-pool equivalence are static.",
+        "The refusal control does not test a trusted certificate, a wrong hostname or a bad certificate chain; those belong to remediation regression criteria."
+      ],
+      "original_reviewers": [
+        {
+          "job": "challenge-identity-secrets-a",
+          "result_path": "jobs/challenge-identity-secrets-a/result.json",
+          "sha256": "c607c43b69f1a7c8cacb3b0bde9d273c4279e019dd870ad0f0c2c56239d98a64",
+          "verdict": "confirmed",
+          "test_evidence": [
+            "key-transport-probe.ts imported the real saveKey and addressServer functions and used a bounded synthetic Postgres handshake inside isolation.",
+            "Exit code 0; stderr empty. Preserved script, exact isolated command, source commit and outputs: evidence/challenge-key-transport-20261007T115937265111/.",
+            "The exact submitter invocation is recorded in test-commands.txt."
+          ],
+          "test_limitations": [
+            "The peer ran on isolated loopback; real interception and DNS redirection were not performed.",
+            "CLI and routing reachability were established statically.",
+            "Deployed SSL settings, PGSSLMODE, tunnels and network controls were not inspected.",
+            "The negative control tested TLS refusal, not certificate-chain or hostname validation."
+          ],
+          "counterevidence": [
+            "The library defaults to local operation: packages/agent-link/src/settings/settings.ts:44.",
+            "Explicit SSL options are preserved; existing routing tests exercise an address containing sslmode=require.",
+            "The independent verify-full control requested TLS and withheld the password when the peer refused TLS."
+          ]
+        },
+        {
+          "job": "challenge-identity-secrets-b",
+          "status": "original job failed; no result.json",
+          "failure_evidence": "jobs/challenge-identity-secrets-b/events.jsonl"
+        }
+      ],
+      "source_evidence": [
+        {
+          "path": "packages/agent-link/src/settings/settings.ts",
+          "line": 290,
+          "detail": "Address validation checks URL shape and absence of an embedded password but does not require TLS.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "function checkedAddress(address: unknown): string {",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 290,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/agent-link/src/routing/routing.ts",
+          "line": 227,
+          "detail": "The postgres setting becomes the library connection address.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "export function locateLibrary(options: LocateOptions = {}): { found: true; connect: ConnectOptions } | { found: false; message: string } {",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 227,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/cli/src/door.ts",
+          "line": 325,
+          "detail": "Normal CLI library access calls connect with the routed connection options.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "  #server(): Promise<Storytree> {",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 325,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/library/src/project/storytree.ts",
+          "line": 174,
+          "detail": "The address connection branch invokes addressServer.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "  if (options.address !== undefined) return new ServerConnection(addressServer(options.address, options.connectTimeoutMs, bounds), seams);",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 174,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/library/src/project/address.ts",
+          "line": 33,
+          "detail": "Resolves the postgres key, inserts it into the connection URL and passes it to localServer.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "export function addressServer(address: string, connectTimeoutMs = TIMEOUT_MS, bounds: WaitBounds = {}): ServerAccess {",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 33,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/library/src/project/server.ts",
+          "line": 45,
+          "detail": "Creates pg pools from the supplied connection string without adding authenticated TLS.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "export function localServer(url: URL, connectTimeoutMs = 3_000, bounds: WaitBounds = {}): ServerAccess {",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 45,
+          "source_anchor_unchanged": true
+        }
+      ],
+      "original_discovery_artifacts": [
+        {
+          "path": "jobs/discover-identity-secrets/evidence/key-transport-20261007T112741509062/stdout.txt",
+          "line": 1,
+          "detail": "Default options transmitted the matching synthetic password without SSL; verify-full requested SSL and transmitted no password.",
+          "sha256": "f412debd376af40938b9a887f1517c87a38175e347db1ddaab492d5bb2a27378"
+        }
+      ],
+      "new_runtime_evidence": [
+        {
+          "label": "transport",
+          "result": "jobs/reconcile-9456ae3bb7e6-20261008/evidence/transport-20261007T234548987343/result.json",
+          "stdout": "jobs/reconcile-9456ae3bb7e6-20261008/evidence/transport-20261007T234548987343/stdout.txt",
+          "exit_code": 0,
+          "script_sha256": "65cd9c6956f959fa9b404e7815eca0c0eb544ef9ba384b15fd858be46460f1b0"
+        }
+      ],
+      "followup_increments": [
+        "increment_084a8167540a"
+      ],
+      "missing_fresh_challenge": "increment_869dacdcb37c"
+    },
+    {
+      "id": "identity-secrets-002",
+      "title": "An existing writable key directory permits replacement of credentials with executable command entries",
+      "original_classification": "unverified",
+      "classification": "unverified",
+      "summary": "Unsafe existing-directory reuse is reproduced; a less-privileged attacker able to replace a real key file is not established. Do not equate same-UID command entries with escalation.",
+      "proof_obligations": {
+        "attacker_control": {
+          "established_under_stated_preconditions": false,
+          "reason": "The required independently writable and traversable non-sticky directory or replaceable ancestor has not been identified in a deployment."
+        },
+        "reachability": {
+          "established_under_stated_preconditions": true,
+          "reason": "saveKey uses recursive mkdir(mode 0700), which leaves an existing directory unchanged. resolveKey reads saved JSON and intentionally dispatches !command entries."
+        },
+        "trust_boundary": {
+          "established_under_stated_preconditions": false,
+          "reason": "The fresh probe retains an existing 0777 directory and creates a new one as 0700; its key files are 0600. It establishes no distinct-principal access."
+        },
+        "impact": {
+          "established_under_stated_preconditions": false,
+          "reason": "Original A reproduced harmless command execution through same-UID replacement. That mechanism does not establish unauthorized execution in the normal private home."
+        }
+      },
+      "preconditions": "An existing configured key directory or replaceable ancestor is writable by an attacker who otherwise lacks the owner's authority. Ancestor traversal must also be possible. No affected deployed directory was established.",
+      "counterevidence_and_limitations": [
+        "Fresh homes and private ancestors protect the normal layout. User-selected secret commands are intentional functionality.",
+        "No second account, deployed ACL, command execution or host key access in the new probe."
+      ],
+      "original_reviewers": [
+        {
+          "job": "challenge-identity-secrets-a",
+          "result_path": "jobs/challenge-identity-secrets-a/result.json",
+          "sha256": "c607c43b69f1a7c8cacb3b0bde9d273c4279e019dd870ad0f0c2c56239d98a64",
+          "verdict": "unverified",
+          "test_evidence": [
+            "key-directory-probe.ts exercised real saveKey and resolveKey. An existing 0777 directory remained unchanged; replacing the original 0600 file with a command entry produced a harmless marker.",
+            "Exit code 0; stderr empty. Artifacts: evidence/challenge-key-directory-20261007T115942778812/. Exact submission recorded in test-commands.txt."
+          ],
+          "test_limitations": [
+            "All synthetic filesystem operations used one UID.",
+            "No cross-user replacement, ACL behavior or deployed directory access was demonstrated."
+          ],
+          "counterevidence": [
+            "The private-directory control created mode 0700 directories and mode 0600 files.",
+            "Owner-authorized command entries are intentional functionality, explicitly tested in packages/keys/src/keys.test.ts:95.",
+            "An inaccessible private ancestor prevents the proposed replacement even if a descendant has permissive mode bits.",
+            "No affected deployed directory, ACL or separate-user access was inspected."
+          ]
+        },
+        {
+          "job": "challenge-identity-secrets-b",
+          "status": "original job failed; no result.json",
+          "failure_evidence": "jobs/challenge-identity-secrets-b/events.jsonl"
+        }
+      ],
+      "source_evidence": [
+        {
+          "path": "packages/cli/src/families/auth.ts",
+          "line": 18,
+          "detail": "The public auth-set command delegates credential persistence to saveKey.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "      saveKey(name, (await readSecret(`Key for ${name}: `)).trim());",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 18,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/keys/src/keys.ts",
+          "line": 130,
+          "detail": "Recursive mkdir requests mode 0700 but neither validates nor repairs an existing directory.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "function update(options: StoreOptions, change: (entries: Entries) => Entries): void {",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 130,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/keys/src/keys.ts",
+          "line": 113,
+          "detail": "Key reads validate JSON shape without checking filesystem ownership, permissions or symlinks.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "function read(file: string): Entries {",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 113,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/keys/src/keys.ts",
+          "line": 83,
+          "detail": "A saved value beginning with ! is dispatched to run.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "export function resolveKey(name: string, options: ResolveOptions = {}): string | undefined {",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 83,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/keys/src/keys.ts",
+          "line": 100,
+          "detail": "The stored command is executed through execSync.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "    printed = execSync(command, { encoding: \"utf8\", stdio: [\"ignore\", \"pipe\", \"pipe\"], windowsHide: true }).trim();",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 100,
+          "source_anchor_unchanged": true
+        }
+      ],
+      "original_discovery_artifacts": [
+        {
+          "path": "jobs/discover-identity-secrets/evidence/key-directory-20261007T112929752851/stdout.txt",
+          "line": 1,
+          "detail": "The reused directory remained 0777, the original file was 0600, and a replacement command entry was accepted.",
+          "sha256": "1f59c140e8d0664886896dd3cc85995c27109b394271bbc2c77074e41595df24"
+        }
+      ],
+      "new_runtime_evidence": [
+        {
+          "label": "permissions",
+          "result": "jobs/reconcile-9456ae3bb7e6-20261008/evidence/permissions-20261007T234527760945/result.json",
+          "stdout": "jobs/reconcile-9456ae3bb7e6-20261008/evidence/permissions-20261007T234527760945/stdout.txt",
+          "exit_code": 0,
+          "script_sha256": "a83308a757c2c398548c7793d442b30f0966c668ce6b4bc3f74122c35019b81e"
+        }
+      ],
+      "followup_increments": [],
+      "missing_fresh_challenge": "increment_869dacdcb37c"
+    },
+    {
+      "id": "identity-secrets-003",
+      "title": "Historical provider mappings may restore access after a provider identity is unlinked",
+      "original_classification": "unverified",
+      "classification": "unverified",
+      "summary": "Historical identity mappings persist in the optional server foundation, but unlink/reassociation and revocation semantics are unproven; no deployed server boundary is established.",
+      "proof_obligations": {
+        "attacker_control": {
+          "established_under_stated_preconditions": false,
+          "reason": "Provider subjects come from authenticated WorkOS user/identity API responses, not arbitrary caller fields. Reassociation under a second user remains an assumption."
+        },
+        "reachability": {
+          "established_under_stated_preconditions": false,
+          "reason": "remember matches a stored provider/subject and retains prior pairs. Static symbol search finds the server factory/handler exports but no non-test deployment caller."
+        },
+        "trust_boundary": {
+          "established_under_stated_preconditions": false,
+          "reason": "The standing durable-provider-subject contract deliberately survives broker replacement. Whether unlink must revoke a stored pair is not established by source."
+        },
+        "impact": {
+          "established_under_stated_preconditions": false,
+          "reason": "No provider unlink/reassociation sequence, resolved persistent victim identity or downstream authorization was demonstrated."
+        }
+      },
+      "preconditions": "The victim previously resolved with multiple linked identities, later removes the compromised identity, and WorkOS permits that subject to appear under another user. Unlinking must be intended to revoke access. Those provider semantics and a deployed endpoint remain unverified.",
+      "counterevidence_and_limitations": [
+        "A set spanning two established users is refused. Email is never the identity lookup key.",
+        "Owner-settled questions question_b95e3f753824 and question_10f89f734427 on arc_f0642505cf9b defer the server/user-id table: “D its not that important right now”. No fresh hosting/spend request is needed to restate that answer.",
+        "Any future server activation must revisit unlink/reassociation policy and provider evidence; this is a limitation, not a clean bill of health."
+      ],
+      "original_reviewers": [
+        {
+          "job": "challenge-identity-secrets-a",
+          "result_path": "jobs/challenge-identity-secrets-a/result.json",
+          "sha256": "c607c43b69f1a7c8cacb3b0bde9d273c4279e019dd870ad0f0c2c56239d98a64",
+          "verdict": "unverified",
+          "test_evidence": [
+            "Historical retention and matching were reviewed statically; the unlink/reassociation persistence sequence was not executed.",
+            "identity-guards-probe.ts exercised the real handler and resolver and confirmed that caller token claims cannot replace authoritative provider identities.",
+            "Exit code 0; artifacts: evidence/challenge-identity-guards-20261007T120105916397/."
+          ],
+          "test_limitations": [
+            "No database persistence sequence or real provider lifecycle was tested.",
+            "The identity probe deliberately stopped at a persistence sentinel and did not return a resolved identity.",
+            "No deployed endpoint or downstream authorization integration was established."
+          ],
+          "counterevidence": [
+            "Durability across broker replacement is intentional and covered by packages/identity/src/identity.test.ts:94.",
+            "Evidence spanning two existing Storytree users is rejected at packages/identity/src/store.ts:59; unique conflicts also fail closed at line 80.",
+            "The independent probe rejected token-supplied identities when the authoritative identities response was empty."
+          ]
+        },
+        {
+          "job": "challenge-identity-secrets-b",
+          "status": "original job failed; no result.json",
+          "failure_evidence": "jobs/challenge-identity-secrets-b/events.jsonl"
+        }
+      ],
+      "source_evidence": [
+        {
+          "path": "packages/identity/src/service.ts",
+          "line": 61,
+          "detail": "Current WorkOS user and identity evidence is fetched before persistence.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "        const user = object(await get(`users/${encodeURIComponent(workosUserId)}`));",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 61,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/identity/src/store.ts",
+          "line": 55,
+          "detail": "Any matching stored provider/subject selects an existing Storytree user.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "    const existing = await client.query<{ user_id: string }>(`",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 55,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/identity/src/store.ts",
+          "line": 65,
+          "detail": "A match updates the existing user's WorkOS pointer to the incoming user.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "      await client.query(\"UPDATE storytree_users SET workos_user_id = $2 WHERE id = $1\", [id, evidence.workosUserId]);",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 65,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/identity/src/store.ts",
+          "line": 67,
+          "detail": "Previously proved identities are retained; absent identities are not deactivated.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "    // Retain all previously proved identities so changing broker/email never loses a durable key.",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 67,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/identity/src/http.ts",
+          "line": 19,
+          "detail": "Successful resolution returns the selected user's UUID and first verified email.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "      return reply(200, { id: user.id, email: user.firstVerifiedEmail });",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 19,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/identity/README.md",
+          "line": 23,
+          "detail": "Documentation identifies deployment and identity lifecycle integration as unfinished.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "This package is not a deployed sign-in service. Its device-flow client, command handler, protected session store and HTTP boundary are ready for integration. The desktop SDK, public CLI registration, deployment and live staging acceptance remain on the identity increment. Hosted authentication methods must still be restricted to the three social providers: this identity resolver does not enforce which method minted an otherwise valid WorkOS session. Local JWT verification also does not establish immediate revocation; session lifecycle remains part of that pending work.",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 23,
+          "source_anchor_unchanged": true
+        }
+      ],
+      "original_discovery_artifacts": [],
+      "new_runtime_evidence": [],
+      "followup_increments": [],
+      "missing_fresh_challenge": "increment_869dacdcb37c"
+    },
+    {
+      "id": "identity-secrets-004",
+      "title": "Session revocation is not consulted when accepting an unexpired bearer JWT",
+      "original_classification": "unverified",
+      "classification": "unverified",
+      "summary": "The optional resolver does not check live session revocation. Whether accepting a signed access token until expiry violates a required boundary is unestablished.",
+      "proof_obligations": {
+        "attacker_control": {
+          "established_under_stated_preconditions": false,
+          "reason": "Possession of an actually revoked but unexpired token was not demonstrated."
+        },
+        "reachability": {
+          "established_under_stated_preconditions": false,
+          "reason": "Real resolver verification reaches a persistence sentinel for a synthetic nonempty sid. It requests JWKS, user and linked identities, with no session-status request."
+        },
+        "trust_boundary": {
+          "established_under_stated_preconditions": false,
+          "reason": "An immediate-revocation policy and a deployed endpoint requiring it remain absent. Signature, issuer, audience, required claims and expiry are enforced."
+        },
+        "impact": {
+          "established_under_stated_preconditions": false,
+          "reason": "No real provider revocation or replay against a deployed authorization endpoint occurred. The probe intentionally stops before database persistence."
+        }
+      },
+      "preconditions": "A valid token was obtained before revocation; its expiry has not passed; revocation does not remove the user or linked identities; deployed policy requires revocation to take effect sooner than access-token expiry. Deployment and policy were not verified.",
+      "counterevidence_and_limitations": [
+        "Expired, wrong-audience and empty-session controls fail before persistence. These controls are real synthetic JWT checks, not evidence of provider lifecycle semantics.",
+        "The server is deferred by the owner. A future server integration must name token lifetime/revocation semantics before claiming this boundary."
+      ],
+      "original_reviewers": [
+        {
+          "job": "challenge-identity-secrets-a",
+          "result_path": "jobs/challenge-identity-secrets-a/result.json",
+          "sha256": "c607c43b69f1a7c8cacb3b0bde9d273c4279e019dd870ad0f0c2c56239d98a64",
+          "verdict": "unverified",
+          "test_evidence": [
+            "The real handler/resolver accepted a synthetic nonempty sid through verification to a persistence sentinel without requesting session status.",
+            "Expired, missing-sid and blank-sid controls returned 401 before persistence.",
+            "Exit code 0; artifacts: evidence/challenge-identity-guards-20261007T120105916397/. Exact submission recorded in test-commands.txt."
+          ],
+          "test_limitations": [
+            "No actual provider session was revoked or replayed.",
+            "Successful verification cases returned intentional 503 responses from the persistence sentinel, not resolved identities.",
+            "Deployed token lifetimes and revocation policy were not inspected."
+          ],
+          "counterevidence": [
+            "Signature, issuer, audience and expiry are enforced; the independent negative controls rejected invalid tokens before persistence.",
+            "The README explicitly states that local JWT verification does not establish immediate revocation.",
+            "Client status clears invalid refresh grants at packages/identity/src/client.ts:97, with corresponding coverage at packages/identity/src/client.test.ts:108. This does not itself protect direct bearer replay."
+          ]
+        },
+        {
+          "job": "challenge-identity-secrets-b",
+          "status": "original job failed; no result.json",
+          "failure_evidence": "jobs/challenge-identity-secrets-b/events.jsonl"
+        }
+      ],
+      "source_evidence": [
+        {
+          "path": "packages/identity/src/service.ts",
+          "line": 52,
+          "detail": "JWT verification requires sid, but the subsequent sid validation checks only that it is nonempty.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "        const { payload } = await jwtVerify(accessToken, keys, {",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 52,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/identity/src/service.ts",
+          "line": 61,
+          "detail": "Post-verification requests retrieve user and identity records, not current session status.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "        const user = object(await get(`users/${encodeURIComponent(workosUserId)}`));",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 61,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/identity/src/client.ts",
+          "line": 96,
+          "detail": "The client refresh path handles invalid_grant; that protection does not cover direct bearer replay against the server handler.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "      const result = await post(\"authenticate\", { grant_type: \"refresh_token\", refresh_token: saved });",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 96,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/identity/README.md",
+          "line": 23,
+          "detail": "Immediate revocation is explicitly identified as unresolved lifecycle work.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "This package is not a deployed sign-in service. Its device-flow client, command handler, protected session store and HTTP boundary are ready for integration. The desktop SDK, public CLI registration, deployment and live staging acceptance remain on the identity increment. Hosted authentication methods must still be restricted to the three social providers: this identity resolver does not enforce which method minted an otherwise valid WorkOS session. Local JWT verification also does not establish immediate revocation; session lifecycle remains part of that pending work.",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 23,
+          "source_anchor_unchanged": true
+        }
+      ],
+      "original_discovery_artifacts": [
+        {
+          "path": "jobs/discover-identity-secrets/evidence/identity-boundary-20261007T112730985726/stdout.txt",
+          "line": 3,
+          "detail": "A synthetic nonempty session ID reached persistence; expired and missing-session controls were rejected.",
+          "sha256": "e54d22e35b539dbba14c50dd7fc9977d0cfd5b9101d307ef77570ac42208f759"
+        }
+      ],
+      "new_runtime_evidence": [
+        {
+          "label": "identity-controls",
+          "result": "jobs/reconcile-9456ae3bb7e6-20261008/evidence/identity-controls-20261007T234744202581/result.json",
+          "stdout": "jobs/reconcile-9456ae3bb7e6-20261008/evidence/identity-controls-20261007T234744202581/stdout.txt",
+          "exit_code": 0,
+          "script_sha256": "0851ea93c9cd42fb4e8a49ab15cc3e22f9e8036924071233272c823481689023"
+        }
+      ],
+      "followup_increments": [],
+      "missing_fresh_challenge": "increment_869dacdcb37c"
+    },
+    {
+      "id": "identity-secrets-005",
+      "title": "Having a linked social identity does not establish that the current session used social authentication",
+      "original_classification": "unverified",
+      "classification": "unverified",
+      "summary": "Linked social identities do not prove a session used social authentication; a provider-issued disallowed-method token and deployed policy violation remain unproven.",
+      "proof_obligations": {
+        "attacker_control": {
+          "established_under_stated_preconditions": false,
+          "reason": "The owner has selected social providers only, but no enabled non-social method capable of minting an accepted production token was established."
+        },
+        "reachability": {
+          "established_under_stated_preconditions": false,
+          "reason": "Real service.ts verifies signed claims and authoritative linked identities without a current-method restriction. A synthetic illustrative password claim reaches the persistence sentinel."
+        },
+        "trust_boundary": {
+          "established_under_stated_preconditions": false,
+          "reason": "Source permits the mechanism but does not establish WorkOS token format, hosted method settings or a deployed independent API restriction."
+        },
+        "impact": {
+          "established_under_stated_preconditions": false,
+          "reason": "No real password login, provider policy bypass or resolved persistent victim identity was demonstrated."
+        }
+      },
+      "preconditions": "A non-social authentication method is enabled and can mint a correctly signed token with the configured audience; the victim has a supported linked social identity and verified email; a social-only policy is intended. Provider configuration and actual authentication-method claim semantics were not verified.",
+      "counterevidence_and_limitations": [
+        "The README explicitly requires restricting hosted methods. Proper configuration prevents this premise.",
+        "authentication_method=password in the fixture is illustrative, not an assertion about WorkOS claims. The server is deferred on the owning identity arc."
+      ],
+      "original_reviewers": [
+        {
+          "job": "challenge-identity-secrets-a",
+          "result_path": "jobs/challenge-identity-secrets-a/result.json",
+          "sha256": "c607c43b69f1a7c8cacb3b0bde9d273c4279e019dd870ad0f0c2c56239d98a64",
+          "verdict": "unverified",
+          "test_evidence": [
+            "The real handler/resolver reached a persistence sentinel with a valid synthetic token lacking method evidence and with an illustrative authentication_method=password claim.",
+            "Exit code 0; artifacts: evidence/challenge-identity-guards-20261007T120105916397/. Exact submission recorded in test-commands.txt."
+          ],
+          "test_limitations": [
+            "The illustrative method claim is not evidence of WorkOS's actual token format or minting behavior.",
+            "No non-social provider login, deployed policy violation or database identity result was demonstrated."
+          ],
+          "counterevidence": [
+            "Restricting authentication methods at the trusted provider prevents the proposed scenario.",
+            "The README explicitly documents that the resolver does not enforce which method minted a valid session.",
+            "Unsupported or absent authoritative social identities fail closed; caller-supplied identity claims do not substitute for them.",
+            "Wrong-signature and wrong-audience controls failed before persistence."
+          ]
+        },
+        {
+          "job": "challenge-identity-secrets-b",
+          "status": "original job failed; no result.json",
+          "failure_evidence": "jobs/challenge-identity-secrets-b/events.jsonl"
+        }
+      ],
+      "source_evidence": [
+        {
+          "path": "packages/identity/src/service.ts",
+          "line": 52,
+          "detail": "Token checks cover signature and identity/session claims without an authentication-method restriction.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "        const { payload } = await jwtVerify(accessToken, keys, {",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 52,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/identity/src/service.ts",
+          "line": 86,
+          "detail": "socialIdentities validates linked provider identities, not the method that established the current session.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "function socialIdentities(value: unknown): ProviderIdentity[] {",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 86,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/identity/README.md",
+          "line": 23,
+          "detail": "Documentation states that hosted methods must be restricted and that the resolver does not enforce the minting method.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "This package is not a deployed sign-in service. Its device-flow client, command handler, protected session store and HTTP boundary are ready for integration. The desktop SDK, public CLI registration, deployment and live staging acceptance remain on the identity increment. Hosted authentication methods must still be restricted to the three social providers: this identity resolver does not enforce which method minted an otherwise valid WorkOS session. Local JWT verification also does not establish immediate revocation; session lifecycle remains part of that pending work.",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 23,
+          "source_anchor_unchanged": true
+        }
+      ],
+      "original_discovery_artifacts": [
+        {
+          "path": "jobs/discover-identity-secrets/evidence/identity-boundary-20261007T112730985726/stdout.txt",
+          "line": 2,
+          "detail": "The synthetic password-method token reached persistence with a supported linked social identity; wrong-audience and expired controls failed verification.",
+          "sha256": "e54d22e35b539dbba14c50dd7fc9977d0cfd5b9101d307ef77570ac42208f759"
+        }
+      ],
+      "new_runtime_evidence": [
+        {
+          "label": "identity-controls",
+          "result": "jobs/reconcile-9456ae3bb7e6-20261008/evidence/identity-controls-20261007T234744202581/result.json",
+          "stdout": "jobs/reconcile-9456ae3bb7e6-20261008/evidence/identity-controls-20261007T234744202581/stdout.txt",
+          "exit_code": 0,
+          "script_sha256": "0851ea93c9cd42fb4e8a49ab15cc3e22f9e8036924071233272c823481689023"
+        }
+      ],
+      "followup_increments": [],
+      "missing_fresh_challenge": "increment_869dacdcb37c"
+    },
+    {
+      "id": "storage-library-004",
+      "title": "Librarian memory paths can escape selected folders through symlinks or caller-supplied paths",
+      "original_classification": "unverified",
+      "classification": "unverified",
+      "summary": "Symlink reads and caller-selected graduation paths are real, but the reviewed local agent has no established narrower filesystem authority or attacker-readable return channel.",
+      "proof_obligations": {
+        "attacker_control": {
+          "established_under_stated_preconditions": true,
+          "reason": "A selected memory directory may contain contributor-supplied .md symlinks; a tool caller can supply memoryFolders and graduation paths."
+        },
+        "reachability": {
+          "established_under_stated_preconditions": true,
+          "reason": "memoryWorklist reads matching names with readFileSync; graduate performs a successful library write before forget removes the supplied path."
+        },
+        "trust_boundary": {
+          "established_under_stated_preconditions": false,
+          "reason": "External memory folders are intentional. Selected roots are not documented as a filesystem sandbox for this local agent, which may already have equivalent authority."
+        },
+        "impact": {
+          "established_under_stated_preconditions": false,
+          "reason": "Two independent synthetic probes reproduced outside reads/deletion, but not disclosure to a less-authorized recipient or deletion by a restricted caller."
+        }
+      },
+      "preconditions": "For disclosure, the user selects a memory folder containing attacker-controlled symlinks and the target is readable by the host. For unauthorized deletion, the librarian tools must be exposed to a caller whose intended authority excludes the target path, and the library write must succeed.",
+      "counterevidence_and_limitations": [
+        "Standard librarian registration is limited to the storytree project unless the host supplies an extension.",
+        "A refused library write preserves the file; removing a symlink preserves its target. Existing probes used inert library writes and synthetic files."
+      ],
+      "original_reviewers": [
+        {
+          "job": "challenge-storage-library-a",
+          "result_path": "jobs/challenge-storage-library-a/result.json",
+          "sha256": "02df12cb22f62b3c28d1b8d328a4a010de5db2ad3f5bf3d20c8e5be96cb20077",
+          "verdict": "unverified",
+          "test_evidence": [
+            "The isolated challenge-memory probe exited 0 with empty stderr. Real memoryWorklist, worklistView and graduate followed an outside-file symlink and deleted a supplied non-memory file after an inert successful write stub.",
+            "Positive and negative controls passed: ordinary memory processing, file retention on refused writes, and preservation of the target when graduating a symlink.",
+            "Artifacts: evidence/challenge-memory-20261007T120909505494 contains the preserved script, result.json, stdout.txt and stderr.txt. Exact submission command is recorded in evidence/submissions.json."
+          ],
+          "test_limitations": [
+            "The probe used disposable files and inert library stubs; it did not exercise the deployed tool host or a real library write.",
+            "Caller filesystem restrictions, intended root authorization and disclosure to an attacker remain unverified."
+          ],
+          "counterevidence": [
+            "The default memory location is the agent's private memory folder, not a contributor-controlled repository folder.",
+            "A normal local agent may already possess equivalent filesystem authority; arbitrary path arguments alone then confer no additional authority.",
+            "The default librarian registration is limited, although its project-name check is marker-derived and should not be treated as an independent authorization boundary.",
+            "A rejected library write preserves the file, consistent with graduation.test.ts:86 and the independent probe.",
+            "Removing a symlink removes the link, not its target; the independent probe verified this.",
+            "No attacker receipt of the returned outside-file content was demonstrated."
+          ]
+        },
+        {
+          "job": "challenge-storage-library-b",
+          "result_path": "jobs/challenge-storage-library-b/result.json",
+          "sha256": "782e8132b837762203b2079ea3a6b7ae47d63e72c126994e1216790f08c70c74",
+          "verdict": "unverified",
+          "test_evidence": [
+            "New isolated memory-challenge.mts probe passed with exit code 0 and empty stderr.",
+            "Real memoryWorklist returned synthetic outside text through a .md symlink and read an ordinary memory. Real park hid an unchanged reviewed memory.",
+            "Real graduate preserved a file after a refused stub write, deleted an ordinary memory after acceptance, preserved a symlink target when removing the link, and deleted an explicitly supplied non-memory file.",
+            "Exact script, command metadata and output: evidence/memory-challenge-20261007T121036713763/. Submission command: evidence/submissions.txt."
+          ],
+          "test_limitations": [
+            "Accepted/refused library responses were inert stubs; no real library write or tool server ran.",
+            "The probe establishes filesystem behavior only, not deployed caller authority or disclosure to a repository contributor."
+          ],
+          "counterevidence": [
+            "External memory roots are intentional, so simple project-directory containment would break supported behavior.",
+            "Default librarian registration is limited to the storytree project unless an extension is supplied.",
+            "A local agent with equivalent filesystem authority gains no additional authority from explicit-path operations.",
+            "Failed library writes preserve the file.",
+            "Graduating a symlink removes the link, not its target.",
+            "The existing graduation tests verify capture-before-delete behavior but establish no restricted-caller policy."
+          ]
+        }
+      ],
+      "source_evidence": [
+        {
+          "path": "packages/librarian/src/rounds/tools.ts",
+          "line": 35,
+          "detail": "Caller-supplied memory folders are resolved as paths and passed to the worklist without containment checks.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "          memoryFolders: args.memoryFolders?.map((folder) => path.resolve(call.folder, folder)) ?? [claudeCodeMemoryFolder(call.folder, homedir())],",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 35,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/librarian/src/graduation/graduation.ts",
+          "line": 65,
+          "detail": "Directory entries are filtered by filename extension, then read with readFileSync, which follows symlinks.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "    for (const name of readdirSync(folder).filter((entry) => entry.endsWith(\".md\") && entry !== INDEX).sort()) {",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 65,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/librarian/src/rounds/tools.ts",
+          "line": 74,
+          "detail": "The graduate tool passes the resolved caller-supplied memory path directly to graduate.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "        const note = await graduate(call.library, path.resolve(call.folder, memory), kind, fields, call.writer);",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 74,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/librarian/src/graduation/graduation.ts",
+          "line": 95,
+          "detail": "Graduation checks existence and completes a library write before forget; forget removes the supplied path at line 116.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "  if (!existsSync(file)) throw new LibrarianRefusal(`there is no memory ${file}`);",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 95,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/agent-link/src/tools/server.ts",
+          "line": 150,
+          "detail": "Default librarian registration is limited to the storytree project, an important reachability constraint.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "    ...(findProject(options.folder).project === \"storytree\" ? [librarianTools({ tools: () => servedTools })] : []),",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 150,
+          "source_anchor_unchanged": true
+        }
+      ],
+      "original_discovery_artifacts": [
+        {
+          "path": "jobs/discover-storage-library/evidence/graduation-boundary-20261007T113302116924/stdout.txt",
+          "line": 1,
+          "detail": "Passing isolated probe confirms outside-symlink reading, preservation on write refusal, and deletion of a synthetic non-memory file after an accepted stub write.",
+          "sha256": "f77c0906cf01c16912c877351c9b8a5957549543e126bda3663ffd1b786ec097"
+        }
+      ],
+      "new_runtime_evidence": [],
+      "followup_increments": []
+    },
+    {
+      "id": "web-ui-002",
+      "title": "Imported health-state strings survive publication filtering and become HTML",
+      "original_classification": "unverified",
+      "classification": "unverified",
+      "summary": "Malformed imported health state reaches an HTML attribute, but accepted attacker-supplied recordings and deployed script execution are not established.",
+      "proof_obligations": {
+        "attacker_control": {
+          "established_under_stated_preconditions": false,
+          "reason": "The missing premise is an accepted lower-trust supplier of the publisher-selected recording."
+        },
+        "reachability": {
+          "established_under_stated_preconditions": true,
+          "reason": "refresh-shop parses selected JSON; publicPlan retains health; the drill-down carries reported state into badge interpolation and the website uses the rendered HTML."
+        },
+        "trust_boundary": {
+          "established_under_stated_preconditions": false,
+          "reason": "Ordinary library health schema validates the enum. The observed local recording workflow does not establish adversarial publication authority."
+        },
+        "impact": {
+          "established_under_stated_preconditions": true,
+          "reason": "Both original independent real pipeline probes emit injected markup. Browser execution and deployed website CSP were not tested."
+        }
+      },
+      "preconditions": "The publisher must accept an attacker-supplied saved recording as data, include its public reading, and publish it. The visitor must open the affected story and capability. Deployment CSP is unknown.",
+      "counterevidence_and_limitations": [
+        "Free-text titles are escaped; ordinary health writes require one of the valid enum values.",
+        "The desktop CSP blocks inline handlers; no desktop code execution is claimed. Fresh main retains the relevant HTML sink despite unrelated website changes."
+      ],
+      "original_reviewers": [
+        {
+          "job": "challenge-web-ui-a",
+          "result_path": "jobs/challenge-web-ui-a/result.json",
+          "sha256": "e5811b8217592d17986f05698df9f06ec3a3d1cbc8f460b92a5e182325dce7a6",
+          "verdict": "unverified",
+          "test_evidence": [
+            "Executed: python3 /home/mickh/storytree-security-reviews/20261007-mint-08124e62/submit_test.py --runtime tsx --script /home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-web-ui-a/challenge-publication.mts --label challenge-publication",
+            "Exit 0. Real refreshGrowthSnapshot, growthReading, drillDown and renderStoryPanel retained the malformed state and emitted an img element string carrying an onerror attribute.",
+            "All three valid states rendered normally. Escaped-title, unselected-capability, absent-public-reading and schema-rejection controls passed.",
+            "Evidence: evidence/challenge-publication-20261007T121006147313/stdout.txt:1 and :2. Script, exact isolated command, source commit, status and stderr are preserved alongside it."
+          ],
+          "test_limitations": [
+            "The refresh CLI, build, publisher and browser were not executed.",
+            "The probe used synthetic JSON-derived data and a disposable snapshot file.",
+            "External supplier acceptance and deployed website CSP remain unknown."
+          ],
+          "counterevidence": [
+            "The real ordinary-health schema rejects the payload.",
+            "Free-text titles are escaped; that positive control passed.",
+            "The contract payload was absent when no capability was selected.",
+            "The snapshot has no public panel reading when arcs are omitted.",
+            "Desktop CSP at apps/desktop/src/renderer/index.html:5 excludes inline event handlers.",
+            "No external recording acceptance workflow was established."
+          ]
+        },
+        {
+          "job": "challenge-web-ui-b",
+          "result_path": "jobs/challenge-web-ui-b/result.json",
+          "sha256": "1e4aebee56ffa62b4e15f2e51cc720855aa0c4de3bcccb60e96610146fe70995",
+          "verdict": "unverified",
+          "test_evidence": [
+            "evidence/submitted-commands.txt:2 preserves the exact submission command.",
+            "evidence/bounded-snapshot-render-20261007T121918924911/stdout.txt:1 records malformed-state retention and emitted markup through refreshGrowthSnapshot, growthReading, drillDown and renderStoryPanel.",
+            "Controls passed for all three valid states, escaped free-text titles, an unselected capability and omission of the public reading.",
+            "The evidence directory preserves the executed script, exact isolated command, pinned commit, exit code 0 and empty stderr."
+          ],
+          "test_limitations": [
+            "The probe starts at refreshGrowthSnapshot using synthetic JSON; refresh-shop execution and publication were assessed statically.",
+            "No browser, deployment or CSP execution test was performed.",
+            "Acceptance of recordings from a lower-trust supplier remains unestablished."
+          ],
+          "counterevidence": [
+            "Normal reportHealth writes pass through SchemaRecords validation; arbitrary health text is not accepted through that route.",
+            "Titles and descriptions use escaping; the isolated escaped-title control passed.",
+            "Without arcs, refreshGrowthSnapshot omits the public reading. Without selecting the affected capability, the tested contract payload is absent.",
+            "Optional CI processing replaces verified health but preserves reported health, so it does not sanitize this particular field.",
+            "Desktop CSP at apps/desktop/src/renderer/index.html:5 excludes inline event handlers. Deployed website CSP is unknown."
+          ]
+        }
+      ],
+      "source_evidence": [
+        {
+          "path": "packages/website/src/refresh-shop.ts",
+          "line": 26,
+          "detail": "The imported JSON is checked for project equality but receives no runtime tree/health validation.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "    const saved = JSON.parse(await readFile(values.record, \"utf8\"));",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 26,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/website/src/refresh-shop.ts",
+          "line": 53,
+          "detail": "The imported tree and optional arcs are forwarded to refreshGrowthSnapshot.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "await refreshGrowthSnapshot(values.output ?? fileURLToPath(new URL(\"./shop-snapshot.json\", import.meta.url)), async () => ({",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 53,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/website/src/saved-growth.ts",
+          "line": 128,
+          "detail": "The public reading retains publicPlan(tree); the resulting snapshot then passes through scrub.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "      ...(input.arcs ? { reading: { tree: publicPlan(tree), arcs: input.arcs, holds: input.holds ?? { waits: {}, heldOn: {} }, recording: { window, lines: publicActivity(own, window) } } } : {}) };",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 128,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/website/src/tour-snapshot.ts",
+          "line": 44,
+          "detail": "Contract health objects are retained wholesale by publicPlan.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "      contracts: capability.contracts.map(contract => pick(contract, [\"id\", \"title\", \"description\", \"health\"])) })) })),",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 44,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/forest/src/drill-down/drill-down.ts",
+          "line": 149,
+          "detail": "The contract's reported health state is copied directly into the rendering model.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "    reported: contract.health.reported.state,",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 149,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/forest/src/view/story-panel.ts",
+          "line": 90,
+          "detail": "badge interpolates state into a quoted class attribute without escaping or runtime enum validation.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "  return `<span class=\"panel-badge badge-${state}\">${text(who)}: ${HEALTH[state]}</span>`;",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 90,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/website/src/forest-scene.tsx",
+          "line": 75,
+          "detail": "The public story-details component assigns the renderer output to innerHTML.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "    host.innerHTML = renderStoryPanel(panel, capability);",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 78,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/library/src/schema/types.ts",
+          "line": 186,
+          "detail": "Counterevidence: ordinary stored health writes require passing, failing, or not-checked.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "      state: z.enum([\"passing\", \"failing\", \"not-checked\"]),",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 186,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "apps/desktop/src/renderer/index.html",
+          "line": 5,
+          "detail": "Counterevidence: desktop script-src 'self' excludes inline event handlers.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "    <meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src blob: data:\" />",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 5,
+          "source_anchor_unchanged": true
+        }
+      ],
+      "original_discovery_artifacts": [
+        {
+          "path": "jobs/discover-web-ui/evidence/snapshot-render-boundary-20261007T114348297960/stdout.txt",
+          "line": 1,
+          "detail": "The real snapshot-to-render pipeline retained the malformed state and emitted injected markup; valid-state and escaped-title controls passed.",
+          "sha256": "91f21e12d0ae41aa5cade3031189a711aba0ad12f740ee805bc45d47137ce122"
+        }
+      ],
+      "new_runtime_evidence": [],
+      "followup_increments": []
+    },
+    {
+      "id": "web-ui-003",
+      "title": "Disk surveying follows source symlinks outside the checkout and exposes test titles",
+      "original_classification": "unverified",
+      "classification": "unverified",
+      "summary": "The disk survey follows a source symlink and exposes parsed metadata to its caller, but no unauthorized recipient or contributor return channel was established.",
+      "proof_obligations": {
+        "attacker_control": {
+          "established_under_stated_preconditions": true,
+          "reason": "A contributor can provide a symlink that resolves to a readable external source file on the reader's host."
+        },
+        "reachability": {
+          "established_under_stated_preconditions": true,
+          "reason": "filesUnder does not require entry.file, disk.file uses stat/read and follows the symlink, and focus output can retain extracted numbered test titles."
+        },
+        "trust_boundary": {
+          "established_under_stated_preconditions": false,
+          "reason": "The ordinary local agent may already read that file. Returning data to such a caller is not an escalation without an authority restriction."
+        },
+        "impact": {
+          "established_under_stated_preconditions": false,
+          "reason": "Two independent synthetic focus probes returned an external test title; neither established unauthorized disclosure."
+        }
+      },
+      "preconditions": "The symlink must resolve on the reader's machine, its target must be readable, and its contents must yield survey metadata. For confidentiality impact, results must reach a less-trusted agent or be shared with the contributor.",
+      "counterevidence_and_limitations": [
+        "The Git snapshot source excludes symlink modes and accepts only regular blobs, protecting the normal merged-code path from this route.",
+        "No protected host data, external recipient, directory junction or race was tested."
+      ],
+      "original_reviewers": [
+        {
+          "job": "challenge-web-ui-a",
+          "result_path": "jobs/challenge-web-ui-a/result.json",
+          "sha256": "e5811b8217592d17986f05698df9f06ec3a3d1cbc8f460b92a5e182325dce7a6",
+          "verdict": "unverified",
+          "test_evidence": [
+            "challenge-map.mts passed through the mandated submitter, exit 0.",
+            "A synthetic external file containing a numbered title appeared in real focusProject rows through a symlink. Removing the link made the selection absent; an ordinary-file control remained readable.",
+            "Evidence: evidence/challenge-map-20261007T120906496922/stdout.txt:2; exact command and preserved script are in the same directory."
+          ],
+          "test_limitations": [
+            "Both files were synthetic and readable inside isolation; recipient authorization was not simulated.",
+            "Git-mode exclusion was inspected statically.",
+            "Directory symlinks, Windows junctions and race conditions were not tested."
+          ],
+          "counterevidence": [
+            "Normal desktop origin/main surveying excludes symlink blobs.",
+            "An inaccessible origin with no fetched main fails instead of falling back to checkout content.",
+            "Only parseable survey metadata was recovered.",
+            "A caller already authorized to read the target gains no additional access.",
+            "No automatic network exfiltration or contributor-visible output channel was identified."
+          ]
+        },
+        {
+          "job": "challenge-web-ui-b",
+          "result_path": "jobs/challenge-web-ui-b/result.json",
+          "sha256": "1e4aebee56ffa62b4e15f2e51cc720855aa0c4de3bcccb60e96610146fe70995",
+          "verdict": "unverified",
+          "test_evidence": [
+            "Executed using the command preserved at evidence/submitted-commands.txt:1.",
+            "evidence/bounded-map-render-20261007T121824738654/stdout.txt:3 records the synthetic external title returned by real focusProject.",
+            "After removing the symlink, the external selection was not found. Ordinary source and test-file controls succeeded."
+          ],
+          "test_limitations": [
+            "The target was a small synthetic file inside isolated /work, outside the synthetic checkout.",
+            "No protected host file, distinct authorization identity or external recipient was used.",
+            "Git-snapshot exclusion was verified statically; platform junction behavior was not tested."
+          ],
+          "counterevidence": [
+            "The normal Git snapshot path accepts only regular blob modes at packages/map/src/code-survey/survey-source.ts:113, excluding symlinks.",
+            "Disk fallback applies to local-only or non-Git projects; an unavailable configured origin without cached main fails.",
+            "The target must exist, be readable and contain recognizable survey metadata.",
+            "An already-authorized local reader gains no additional authority from receiving the derived title."
+          ]
+        }
+      ],
+      "source_evidence": [
+        {
+          "path": "packages/map/src/code-survey/read-survey.ts",
+          "line": 113,
+          "detail": "filesUnder distinguishes directories but does not require entry.file before passing a matching filename to fileAt.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "      if (entry.directory) return SKIPPED.has(entry.name) ? [] : filesUnder(source, root, full, seen);",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 113,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/map/src/code-survey/survey-source.ts",
+          "line": 57,
+          "detail": "The disk reader uses stat, which follows symlinks, then reads the same path without a containment check.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "      const found = await stat(full).catch(() => undefined);",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 57,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/map/src/code-survey/code-survey.ts",
+          "line": 431,
+          "detail": "Survey output retains complete recognized numbered test titles.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "    titles: proofTitles(calls.get(file.path) ?? []),",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 431,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/map/src/graph.ts",
+          "line": 101,
+          "detail": "Test titles enter graph nodes as testTitles.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "      add({ id: fileId(file.path), kind: \"test\", title: pathname(file.path), path: pathname(file.path), story: story.id, health, testTitles: file.titles });",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 101,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/agent-link/src/tools/map-tools.ts",
+          "line": 26,
+          "detail": "The focus tool returns the answer, including requested rows, as response data.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "      return { text: formatFocus(answer), data: { ...answer }, refused: answer.refused };",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 26,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/map/src/code-survey/survey-source.ts",
+          "line": 113,
+          "detail": "Counterevidence: Git snapshot mode excludes symbolic-link blobs.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "    if ((mode !== \"100644\" && mode !== \"100755\") || type !== \"blob\" || !sha) continue;",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 113,
+          "source_anchor_unchanged": true
+        }
+      ],
+      "original_discovery_artifacts": [
+        {
+          "path": "jobs/discover-web-ui/evidence/map-boundaries-20261007T114114979593/stdout.txt",
+          "line": 2,
+          "detail": "The external synthetic title appeared in focus output with the symlink and disappeared after its removal.",
+          "sha256": "470054ec8640497c76137a8efc15b6ea87feba82acaf98d1fbf222a28c3d66ac"
+        }
+      ],
+      "new_runtime_evidence": [],
+      "followup_increments": []
+    },
+    {
+      "id": "web-ui-004",
+      "title": "A valid story title of Constructor disables the project's code survey",
+      "original_classification": "unverified",
+      "classification": "unverified",
+      "summary": "Confirmed correctness defect; security significance remains unverified. Constructor is a valid story title and resolves to an inherited object member instead of a package name.",
+      "proof_obligations": {
+        "attacker_control": {
+          "established_under_stated_preconditions": true,
+          "reason": "A project writer can create a nonempty story title such as Constructor through normal planning."
+        },
+        "reachability": {
+          "established_under_stated_preconditions": true,
+          "reason": "packageOf indexes an ordinary alias object without checking own membership; read-survey sends the returned function to path.join."
+        },
+        "trust_boundary": {
+          "established_under_stated_preconditions": false,
+          "reason": "No restricted writer role whose authority excludes equivalent project disruption is established."
+        },
+        "impact": {
+          "established_under_stated_preconditions": true,
+          "reason": "Two independent real reader/focus probes reject the entire survey for Constructor or The Constructor; ordinary and explicit-alias controls pass."
+        }
+      },
+      "preconditions": "The attacker must have story-creation or editing authority in a project read by another user. Security significance depends on that authority not already including unrestricted disruption of the shared project.",
+      "counterevidence_and_limitations": [
+        "This is neither prototype mutation nor code execution. Tree rendering is separate and may retain the previous survey.",
+        "No planning database write or Electron run was needed for the reproduced correctness defect."
+      ],
+      "original_reviewers": [
+        {
+          "job": "challenge-web-ui-a",
+          "result_path": "jobs/challenge-web-ui-a/result.json",
+          "sha256": "e5811b8217592d17986f05698df9f06ec3a3d1cbc8f460b92a5e182325dce7a6",
+          "verdict": "unverified",
+          "test_evidence": [
+            "challenge-map.mts passed, exit 0: packageOf returned a function for Constructor and The Constructor; a mixed project rejected with ERR_INVALID_ARG_TYPE in current and local-fallback modes.",
+            "Normal-title, explicit-alias and subsequent recovery controls passed.",
+            "challenge-publication.mts confirmed the real story schema accepts Constructor.",
+            "Evidence: evidence/challenge-map-20261007T120906496922/stdout.txt:3 and evidence/challenge-publication-20261007T121006147313/stdout.txt:3."
+          ],
+          "test_limitations": [
+            "No planning tool, database write or Electron application was executed.",
+            "Persistence reachability was inspected statically.",
+            "Restricted-writer permissions and affected multi-user deployment context remain unknown."
+          ],
+          "counterevidence": [
+            "This is inherited-property lookup, not prototype mutation or code execution.",
+            "The writer requires existing planning authority; no unauthenticated entry was found.",
+            "Desktop tree rendering does not wait for a successful fresh survey.",
+            "The reader recovered when the poisoned title was removed from the synthetic tree."
+          ]
+        },
+        {
+          "job": "challenge-web-ui-b",
+          "result_path": "jobs/challenge-web-ui-b/result.json",
+          "sha256": "1e4aebee56ffa62b4e15f2e51cc720855aa0c4de3bcccb60e96610146fe70995",
+          "verdict": "unverified",
+          "test_evidence": [
+            "Executed using the command preserved at evidence/submitted-commands.txt:1.",
+            "evidence/bounded-map-render-20261007T121824738654/stdout.txt:4 records failures for Constructor and The Constructor through the real reader and focusProject.",
+            "The ordinary survey and explicit command-line-to-cli alias controls passed."
+          ],
+          "test_limitations": [
+            "Planning persistence and desktop behavior were traced statically; no library writes or Electron execution occurred.",
+            "The deployment's project-writer privilege separation remains unknown."
+          ],
+          "counterevidence": [
+            "This is inherited-property confusion, not prototype mutation or code execution.",
+            "The tool server catches failures and returns a refusal at packages/agent-link/src/tools/server.ts:198.",
+            "Forest tree rendering proceeds with the previous survey; the title does not by itself prove desktop-wide failure.",
+            "Without a restricted writer or other lower-trust input source, this remains a project correctness defect."
+          ]
+        }
+      ],
+      "source_evidence": [
+        {
+          "path": "packages/agent-link/src/tools/plan-tools.ts",
+          "line": 15,
+          "detail": "Planning titles require only a nonempty string.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "const title = z.string().min(1).describe(\"What it is called: a short name\");",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 15,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/agent-link/src/tools/plan-tools.ts",
+          "line": 49,
+          "detail": "The supplied title reaches library.addStory.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "      const story = await library.addStory({ title: name, ...optional({ description: about }) }, writer);",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 49,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/map/src/code-survey/code-survey.ts",
+          "line": 82,
+          "detail": "The package alias table is an ordinary object with Object.prototype.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "const PACKAGE_NAMED_OTHERWISE: Readonly<Record<string, string>> = { \"command-line\": \"cli\", \"world\": \"forest-world\", \"local-database\": \"local-postgres\", \"process-ledger\": \"processes\" };",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 82,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/map/src/code-survey/code-survey.ts",
+          "line": 87,
+          "detail": "The lookup accepts inherited values; normalized constructor resolves to a function.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "  return PACKAGE_NAMED_OTHERWISE[name] ?? name;",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 87,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/map/src/code-survey/read-survey.ts",
+          "line": 138,
+          "detail": "The returned value is passed to path.join while surveying all stories.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "      const root = path.join(checkout, \"packages\", storyPackage);",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 138,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/forest/src/render/forest-reading.ts",
+          "line": 52,
+          "detail": "Counterevidence: rejected surveys are retried separately from tree rendering.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "    read().then(landed, () => { wanted = true; }).finally(() => { running = false; });",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 52,
+          "source_anchor_unchanged": true
+        }
+      ],
+      "original_discovery_artifacts": [
+        {
+          "path": "jobs/discover-web-ui/evidence/map-boundaries-20261007T114114979593/stdout.txt",
+          "line": 1,
+          "detail": "The real package resolver returned a function and the real reader rejected the poisoned title; the ordinary survey succeeded.",
+          "sha256": "470054ec8640497c76137a8efc15b6ea87feba82acaf98d1fbf222a28c3d66ac"
+        }
+      ],
+      "new_runtime_evidence": [],
+      "followup_increments": [
+        "increment_e589d2891eea"
+      ]
+    },
+    {
+      "id": "web-ui-005",
+      "title": "Imported story IDs matching inherited properties can prevent forest rendering",
+      "original_classification": "unverified",
+      "classification": "unverified",
+      "summary": "Inherited-key story IDs break the renderer with an ordinary empty survey, but an attacker-controlled snapshot acceptance workflow is unestablished.",
+      "proof_obligations": {
+        "attacker_control": {
+          "established_under_stated_preconditions": false,
+          "reason": "Normal planning generates story IDs and rejects an id field. The proposed attacker needs an owner to restore their supplied snapshot."
+        },
+        "reachability": {
+          "established_under_stated_preconditions": true,
+          "reason": "Static restore preserves record IDs. forestScene uses survey[story.id], then landOf expects a files array. Original real-function controls reproduce the exception."
+        },
+        "trust_boundary": {
+          "established_under_stated_preconditions": false,
+          "reason": "Restore is an authorized backup workflow restricted to an empty project; no accepted untrusted supplier was found."
+        },
+        "impact": {
+          "established_under_stated_preconditions": true,
+          "reason": "Original independent probes throw for __proto__, constructor and toString; ordinary IDs, own entries and null-prototype surveys render. A complete deployed import-to-outage path was not exercised."
+        }
+      },
+      "preconditions": "An authorized user or integration must restore an attacker-supplied snapshot into an empty project. The story must lack an own survey entry masking the inherited key. No ordinary planning route to attacker-chosen IDs was established.",
+      "counterevidence_and_limitations": [
+        "No database restore, untrusted snapshot integration or full desktop outage was demonstrated.",
+        "Keep as unverified security residue. Its renderer-hardening opportunity is bounded and can be considered when restore/import semantics are deliberately broadened."
+      ],
+      "original_reviewers": [
+        {
+          "job": "challenge-web-ui-a",
+          "result_path": "jobs/challenge-web-ui-a/result.json",
+          "sha256": "e5811b8217592d17986f05698df9f06ec3a3d1cbc8f460b92a5e182325dce7a6",
+          "verdict": "unverified",
+          "test_evidence": [
+            "challenge-map.mts passed, exit 0: real forestScene threw for __proto__, constructor and toString with an ordinary empty survey.",
+            "An ordinary ID, a null-prototype survey and explicit own survey entries all rendered successfully.",
+            "The real story-fields schema rejected an explicit id field in challenge-publication.mts.",
+            "Evidence: evidence/challenge-map-20261007T120906496922/stdout.txt:4 and evidence/challenge-publication-20261007T121006147313/stdout.txt:3."
+          ],
+          "test_limitations": [
+            "Restoration, database persistence and full desktop behavior were not executed.",
+            "The restoration-to-tree chain is static evidence.",
+            "External snapshot acceptance and supplier trust remain unknown."
+          ],
+          "counterevidence": [
+            "Normal planning does not expose caller-selected story IDs.",
+            "Restoration refuses nonempty projects, limiting the affected target.",
+            "The source identifies snapshots as backups; inspected restoration tests use owner-generated snapshots.",
+            "An own survey entry masks the inherited property; that control passed.",
+            "No prototype mutation or code execution was observed."
+          ]
+        },
+        {
+          "job": "challenge-web-ui-b",
+          "result_path": "jobs/challenge-web-ui-b/result.json",
+          "sha256": "1e4aebee56ffa62b4e15f2e51cc720855aa0c4de3bcccb60e96610146fe70995",
+          "verdict": "unverified",
+          "test_evidence": [
+            "Executed using the command preserved at evidence/submitted-commands.txt:1.",
+            "evidence/bounded-map-render-20261007T121824738654/stdout.txt:5 records real forestScene failures for __proto__, constructor and toString.",
+            "Ordinary-ID, null-prototype dictionary and own-survey-entry controls all passed."
+          ],
+          "test_limitations": [
+            "Restoration, database persistence and the full desktop were not executed.",
+            "The renderer probe does not establish acceptance of an external supplier's snapshot."
+          ],
+          "counterevidence": [
+            "Ordinary story fields reject an id field through the strict schema; normal generated IDs do not collide with these inherited names.",
+            "Restore requires an authorized caller and an empty project.",
+            "An own survey entry masks the inherited property; the reader constructs returned entries with Object.fromEntries.",
+            "Both null-prototype survey dictionaries and explicit own survey entries prevented the failure in the isolated controls."
+          ]
+        }
+      ],
+      "source_evidence": [
+        {
+          "path": "packages/library/src/project/storytree.ts",
+          "line": 291,
+          "detail": "The public restore implementation forwards the supplied snapshot to writeSnapshot.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "  async restore(name: string, snapshot: ProjectSnapshot): Promise<void> {",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 291,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/library/src/project/snapshot.ts",
+          "line": 154,
+          "detail": "Snapshot record IDs are copied directly into the restoration insert.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "          id: record.id, type: record.type, version: record.version, fields: record.fields, created_at: record.createdAt, updated_at: record.updatedAt,",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 154,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/library/src/schema/records.ts",
+          "line": 171,
+          "detail": "The current-record reader returns records without validating or normalizing their IDs.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "    return (version === record.version ? record : { ...record, version, fields }) as SchemaRecord;",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 171,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/forest/src/render/forest-scene.ts",
+          "line": 64,
+          "detail": "The renderer retrieves a survey with survey[story.id], including inherited properties.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "    const land = landOf(story.capabilities, survey[story.id], packageOf(story.title), tree.unverified !== true);",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 64,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/forest/src/render/forest-scene.ts",
+          "line": 104,
+          "detail": "A non-undefined inherited value reaches survey.files.length and throws.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "  if (survey === undefined || survey.files.length === 0) return !verified || capabilities.length === 0 ? undefined : {",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 104,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "apps/desktop/src/renderer/renderer.ts",
+          "line": 247,
+          "detail": "The desktop's live tree callback calls forestScene.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "      const scene = forestScene(tree, history(), states, survey);",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 247,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/library/src/work/work-model.ts",
+          "line": 92,
+          "detail": "Counterevidence: ordinary story creation generates IDs and refuses an ID in story fields.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "   * Add a story to the project. Its id is generated: an `id` in `story` is refused as an unknown",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 92,
+          "source_anchor_unchanged": true
+        }
+      ],
+      "original_discovery_artifacts": [
+        {
+          "path": "jobs/discover-web-ui/evidence/map-boundaries-20261007T114114979593/stdout.txt",
+          "line": 3,
+          "detail": "The synthetic ordinary ID rendered and __proto__ threw in real forestScene; import reachability was assessed separately by static reading.",
+          "sha256": "470054ec8640497c76137a8efc15b6ea87feba82acaf98d1fbf222a28c3d66ac"
+        }
+      ],
+      "new_runtime_evidence": [],
+      "followup_increments": []
+    },
+    {
+      "id": "delivery-infra-001",
+      "title": "Health-only database identity can poison decision numbering through history",
+      "original_classification": "unverified",
+      "classification": "unverified",
+      "summary": "Strong conditional static evidence that the authored health-only role can influence owner decision numbering, but fresh independent challenge B remains missing. This reconciler read A and cannot supply that fresh pass. No live deployment is asserted.",
+      "proof_obligations": {
+        "attacker_control": {
+          "established_under_stated_preconditions": true,
+          "reason": "Assume the authored grants are deployed and an attacker controls the restricted SQL identity with connectivity. This is not unauthenticated access or a fork-PR exploit."
+        },
+        "reachability": {
+          "established_under_stated_preconditions": true,
+          "reason": "Both grants files permit INSERT on record_event when the outer/embedded types are health and the chosen id is not an existing non-health record; fields.number is unrestricted and no current-record foreign key is required."
+        },
+        "trust_boundary": {
+          "established_under_stated_preconditions": true,
+          "reason": "Knowledge.recordDecision enables sequenceNeverHeld for project storytree. Both PgTransactions max and collision queries then accept history of all types, crossing from health-write authority to decision-number control."
+        },
+        "impact": {
+          "established_under_stated_preconditions": true,
+          "reason": "A fresh health history id can reserve a numeric value; allocation is displaced when its persisted floor allows. The new real MemoryTransactions probe reproduces displacement and explicit collision with small synthetic numbers; the PostgreSQL/RLS chain remains static proof."
+        }
+      },
+      "preconditions": "The grants must be deployed as authored; the attacker needs the limited SQL identity and database connectivity. The affected project must be storytree. Automatic numbering additionally requires its persisted numbering floor. Actual deployment and credential exposure were not inspected.",
+      "counterevidence_and_limitations": [
+        "Direct non-health writes are refused. Trusted workflow/OIDC restrictions limit ordinary issuance of the SQL identity.",
+        "No SQL, RLS policy, real database, credential compromise or deployment was exercised. The memory-backend test does not substitute for a PostgreSQL regression.",
+        "Existing grants tests use a generated project name rather than storytree's special numbering mode. Extreme-value availability impact is not claimed."
+      ],
+      "original_reviewers": [
+        {
+          "job": "challenge-delivery-infra-a",
+          "result_path": "jobs/challenge-delivery-infra-a/result.json",
+          "sha256": "e1cf076dd9c1779b64c8ac5423b65529b023f2363e662563319e21e5dacffc31",
+          "verdict": "confirmed",
+          "test_evidence": [
+            "Isolated numbering-primitives probe passed, exit 0. The real imported numbered function allocated 6 for highest=3/floor=5, allocated 21 for highest=20, accepted an available explicit 20, and rejected a taken explicit 20.",
+            "Artifacts: evidence/numbering-primitives-20261007T121919433005/{numbering-primitives.mts,result.json,stdout.txt,stderr.txt}. Exact submission command is recorded in evidence/test-index.json."
+          ],
+          "test_limitations": [
+            "The authorization and PostgreSQL query chain is static proof. No SQL, RLS policy, database, or complete Knowledge.recordDecision operation was executed.",
+            "The allocator probe supplies highest/taken results directly; it does not independently prove that PostgreSQL accepts or selects the forged row.",
+            "Deployment, connectivity, credential compromise, and the actual persisted floor were not inspected."
+          ],
+          "counterevidence": [
+            "Normal application health writes reject extra number fields. Exploitation requires direct use of the limited SQL identity.",
+            "The RLS policies block direct non-health current-record writes and health history filed under an existing non-health current ID.",
+            "infra/ci-health/main.tf:77 restricts OIDC issuance to the configured repository on main. .github/workflows/own-health.yml:100 also gates recording to main. No fork-PR credential acquisition or unauthenticated route was established.",
+            "packages/library/src/knowledge/knowledge.ts:204 refuses automatic storytree numbering without a valid persisted floor.",
+            "packages/library/src/project/ci-health.test.ts:26 uses a generated project name. Its direct-write denial checks do not exercise storytree's cross-type number allocation.",
+            "packages/library/src/knowledge/decision-log.test.ts:204 intentionally preserves legacy number reservations. Remediation must preserve that supported behavior."
+          ]
+        },
+        {
+          "job": "challenge-delivery-infra-b",
+          "status": "original job failed; no result.json",
+          "failure_evidence": "jobs/challenge-delivery-infra-b/events.jsonl"
+        }
+      ],
+      "source_evidence": [
+        {
+          "path": "infra/ci-health/grants.sql",
+          "line": 55,
+          "detail": "Grants the health identity INSERT on record_event.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "GRANT SELECT, INSERT ON record_event TO \"storytree-ci-health@storytree-498613.iam\";",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 55,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "infra/ci-health/grants.sql",
+          "line": 79,
+          "detail": "History policy checks health labels and absence of an existing non-health record, but does not constrain fields.number.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "CREATE POLICY ci_health_insert ON record_event FOR INSERT TO \"storytree-ci-health@storytree-498613.iam\"",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 79,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "infra/library-host/grants.sql",
+          "line": 79,
+          "detail": "The local-host grants contain the same policy; the two grants files are byte-identical.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "CREATE POLICY ci_health_insert ON record_event FOR INSERT TO \"storytree-ci-health@storytree-498613.iam\"",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 79,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/library/src/project/schema.ts",
+          "line": 30,
+          "detail": "record_event accepts arbitrary JSONB and has no foreign key requiring a current record for record_id.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "  `CREATE TABLE IF NOT EXISTS record_event (",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 30,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/library/src/knowledge/knowledge.ts",
+          "line": 179,
+          "detail": "recordDecision enables sequenceNeverHeld for project storytree.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "  async recordDecision(decision: NewDecision, options?: WriteOptions): Promise<SchemaRecord<\"decision\">> {",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 179,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/library/src/schema/records.ts",
+          "line": 79,
+          "detail": "Forwards sequenceNeverHeld to the transaction layer.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "      ...(options.sequenceNeverHeld === undefined ? {} : { sequenceNeverHeld: options.sequenceNeverHeld }),",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 79,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/library/src/transactions/pg.ts",
+          "line": 242,
+          "detail": "The true sequenceNeverHeld parameter bypasses type filtering in the maximum query; the explicit-number lookup at line 250 similarly spans types.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "    `SELECT COALESCE(MAX((record->'fields'->>$2::text)::numeric), 0) AS highest FROM record_event",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 242,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/library/src/transactions/records.ts",
+          "line": 157,
+          "detail": "Allocates max(highest, floor)+1 and rejects numbers reported as already taken.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "  if (given === undefined) return { ...input, fields: { ...input.fields, [field]: Math.max(highest, input.sequenceFloor ?? 0) + 1 } };",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 157,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/library/src/project/ci-health.test.ts",
+          "line": 26,
+          "detail": "Existing authorization regression uses a generated project name, leaving the storytree-only numbering behavior uncovered.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "  const run = uniqueProjectName();",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 26,
+          "source_anchor_unchanged": true
+        }
+      ],
+      "original_discovery_artifacts": [],
+      "new_runtime_evidence": [
+        {
+          "label": "numbering",
+          "result": "jobs/reconcile-9456ae3bb7e6-20261008/evidence/numbering-20261007T234744202843/result.json",
+          "stdout": "jobs/reconcile-9456ae3bb7e6-20261008/evidence/numbering-20261007T234744202843/stdout.txt",
+          "exit_code": 0,
+          "script_sha256": "1ccea19d11f25a2b6ad115fc0021ab2aae2f72093a41ebeb60410da49c7df1de"
+        }
+      ],
+      "followup_increments": [
+        "increment_bcef77287a8d"
+      ],
+      "missing_fresh_challenge": "increment_6d02e377b3fa"
+    },
+    {
+      "id": "delivery-infra-002",
+      "title": "Dependency-cycle detection enumerates exponentially many paths in acyclic workspaces",
+      "original_classification": "unverified",
+      "classification": "unverified",
+      "summary": "Confirmed bounded performance defect; an operational lower-trust consumer boundary is unestablished.",
+      "proof_obligations": {
+        "attacker_control": {
+          "established_under_stated_preconditions": false,
+          "reason": "Manifest dependency fields are controllable in a supplied workspace, but no deployed less-trusted input relationship was demonstrated."
+        },
+        "reachability": {
+          "established_under_stated_preconditions": true,
+          "reason": "CLI/standalone checker reaches packageProblems; dependencyCycles walks each edge recursively with only current-trail cycle detection and starts from every package."
+        },
+        "trust_boundary": {
+          "established_under_stated_preconditions": false,
+          "reason": "The reviewed own-repository CI already executes trusted/submitted code and has outer deadlines. That alone establishes no additional authority boundary."
+        },
+        "impact": {
+          "established_under_stated_preconditions": true,
+          "reason": "Original independent real packageProblems coverage measures 15,31,63 visits for 4,5,6-node forward DAGs. Static follow-up confirms repeated shared-descendant traversal."
+        }
+      },
+      "preconditions": "A trusted installation must inspect a lower-trust workspace as data. The attacker must control enough manifests to construct a dependency graph with many shared paths. Actual operational exposure and tolerable workspace sizes were not established.",
+      "counterevidence_and_limitations": [
+        "Only six manifests and 63 visits were used; no stress or outage test. Prior failed instrumentation attempts remain preserved and are not counted as proof.",
+        "The owning guardrails arc receives a correctness increment, not a confirmed security claim."
+      ],
+      "original_reviewers": [
+        {
+          "job": "challenge-delivery-infra-a",
+          "result_path": "jobs/challenge-delivery-infra-a/result.json",
+          "sha256": "e1cf076dd9c1779b64c8ac5423b65529b023f2363e662563319e21e5dacffc31",
+          "verdict": "unverified",
+          "test_evidence": [
+            "Isolated graph-small-v3 probe passed, exit 0, using the real unmodified packageProblems and in-process V8 coverage. Complete forward DAGs with 4, 5, and 6 vertices produced 15, 31, and 63 visit calls respectively.",
+            "A four-node chain and diamond each produced no reported cycle; a two-node cycle produced one cycle report.",
+            "Successful artifacts: evidence/graph-small-v3-20261007T122010614540/{graph-small.mts,result.json,stdout.txt,stderr.txt}.",
+            "Earlier probes failed with exit 1 on instrumentation: graph-small could not identify the unnamed arrow function; graph-small-v2 requested script text before enabling the Debugger agent. Their exact scripts and outputs remain in evidence/graph-small-20261007T121927967579 and evidence/graph-small-v2-20261007T122002587088.",
+            "All exact submission commands are recorded in evidence/test-index.json."
+          ],
+          "test_limitations": [
+            "At most six manifests and 63 recursive visits per case were exercised. No stress, timing, memory-exhaustion, or outage demonstration was performed.",
+            "The probe exercised packageProblems directly, not the CLI, standalone runner, or generated CI workflow.",
+            "No actual lower-trust consumer deployment was inspected."
+          ],
+          "counterevidence": [
+            "No hosted checking service or shared protected worker was established.",
+            "The generated separate-source checker is meaningful supporting evidence, so the security hypothesis cannot be rejected outright.",
+            "Existing package-rule tests cover a small cycle at packages/guardrails/src/package-rule/package-rule.test.ts:140; checker tests cover entry-point behavior at packages/guardrails/src/check/check.test.ts:69. Neither establishes adversarial deployment exposure or bounded graph work.",
+            "Where the repository is already trusted for arbitrary execution with equivalent authority, this is a performance defect rather than an additional security vulnerability."
+          ]
+        },
+        {
+          "job": "challenge-delivery-infra-b",
+          "status": "original job failed; no result.json",
+          "failure_evidence": "jobs/challenge-delivery-infra-b/events.jsonl"
+        }
+      ],
+      "source_evidence": [
+        {
+          "path": "packages/cli/src/families/guardrails.ts",
+          "line": 15,
+          "detail": "The installed command imports guardrails and checks context.cwd.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "    const { check, checkoutOf } = await import(\"@storytree/guardrails\");",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 15,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/guardrails/src/check/run.ts",
+          "line": 11,
+          "detail": "Provides the standalone checker entry point for a supplied folder.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "export async function main(folder: string, write: (text: string) => void): Promise<number> {",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 11,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/guardrails/src/check/check.ts",
+          "line": 30,
+          "detail": "Runs packageProblems synchronously before allocation checking.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "  const packageRule = packageProblems(root, declared);",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 30,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/guardrails/src/package-rule/package-rule.ts",
+          "line": 167,
+          "detail": "Builds the internal dependency graph from four manifest dependency fields.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "function workspaceDependencies(root: string, packages: readonly string[]): Map<string, string[]> {",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 167,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/guardrails/src/package-rule/package-rule.ts",
+          "line": 178,
+          "detail": "Only checks membership in the current trail; line 189 recursively revisits shared descendants and line 191 starts from every package.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "function dependencyCycles(deps: Map<string, string[]>): string[][] {",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 178,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/agent-link/src/setup/pipeline.ts",
+          "line": 31,
+          "detail": "Generated checking commands run the trusted guardrails source against a separate workspace.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "/** The shell lines that run storytree check on the checkout at `$workspace`, from storytree's source at `ref`. */",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 31,
+          "source_anchor_unchanged": true
+        }
+      ],
+      "original_discovery_artifacts": [],
+      "new_runtime_evidence": [],
+      "followup_increments": [
+        "increment_f73e0a95b027"
+      ],
+      "missing_fresh_challenge": "increment_6d02e377b3fa"
+    },
+    {
+      "id": "delivery-infra-003",
+      "title": "Evidence HTTP servers allow encoded traversal outside their serving directories",
+      "original_classification": "unverified",
+      "classification": "unverified",
+      "summary": "Encoded traversal exists in seven manual capture handlers, but a running helper reachable by a distinct less-privileged principal is unestablished.",
+      "proof_obligations": {
+        "attacker_control": {
+          "established_under_stated_preconditions": false,
+          "reason": "The required different OS account or restricted process must reach the helper's loopback port and lack direct read authority over the target. No such deployment was found or tested."
+        },
+        "reachability": {
+          "established_under_stated_preconditions": true,
+          "reason": "Seven named helpers decode a URL pathname, resolve it against dist and read without a containment check. They are manual evidence tools on ephemeral loopback ports."
+        },
+        "trust_boundary": {
+          "established_under_stated_preconditions": false,
+          "reason": "An exact-handler synthetic fixture does not establish that a real capture helper exposes a higher-authority filesystem to an attacker."
+        },
+        "impact": {
+          "established_under_stated_preconditions": true,
+          "reason": "Original independent A extracted the exact handlers and retrieved adjacent/sibling synthetic markers; the main capture helper refused with 403. This establishes path escape only."
+        }
+      },
+      "preconditions": "An affected helper must be running, with its loopback port reachable from a different account or comparably restricted process. The target file must be readable by the helper and unreadable to the attacker. Multi-user exposure and current use of these historical helpers were not verified.",
+      "counterevidence_and_limitations": [
+        "The helpers are not the deployed website server. Main capture has a containment guard and terminal closes its listener after capture.",
+        "No complete capture module/browser startup, separate UID, live helper or protected host file was exercised. Unrelated main changes retain the same handler logic."
+      ],
+      "original_reviewers": [
+        {
+          "job": "challenge-delivery-infra-a",
+          "result_path": "jobs/challenge-delivery-infra-a/result.json",
+          "sha256": "e1cf076dd9c1779b64c8ac5423b65529b023f2363e662563319e21e5dacffc31",
+          "verdict": "unverified",
+          "test_evidence": [
+            "Isolated capture-handlers probe passed, exit 0. It executed exact server declarations extracted from the seven pinned helpers and the main capture helper, with synthetic serving roots.",
+            "All seven affected handlers returned HTTP 200 with both adjacent and sibling-prefix marker contents. Normal index requests returned 200; ordinary requests for the absent in-root marker returned 404. The main helper returned 403 for both escapes.",
+            "Artifacts: evidence/capture-handlers-20261007T122024655162/{capture-handlers.mjs,result.json,stdout.txt,stderr.txt}. Output includes hashes of each extracted declaration. The exact submission command is recorded in evidence/test-index.json."
+          ],
+          "test_limitations": [
+            "The exact handlers were extracted and executed with injected synthetic roots; complete capture modules and browser startup were not executed.",
+            "HTTP requests remained inside the broker's isolated network namespace. No live capture process or protected host file was accessed.",
+            "Client and server were not run as distinct OS accounts. Synthetic markers do not demonstrate a real cross-account permission bypass.",
+            "Symlink escape and browser-origin attack scenarios were not tested."
+          ],
+          "counterevidence": [
+            "These handlers belong to manual evidence and screenshot helpers, including one explicitly historical directory. No deployed website route using them was found in the inspected callers.",
+            "All seven bind ephemeral loopback ports.",
+            "packages/website/evidence/terminal.mjs:105 closes the server after capture, limiting its normal exposure window.",
+            "The main packages/website/evidence/capture.mjs handler already contains a directory-containment check and rejected the tested traversal requests.",
+            "No internet reachability, browser-origin bypass, or cross-account deployment was established.",
+            "Inspected website evidence-build tests exercise evidence builds, not these HTTP handlers; no applicable traversal regression was found."
+          ]
+        },
+        {
+          "job": "challenge-delivery-infra-b",
+          "status": "original job failed; no result.json",
+          "failure_evidence": "jobs/challenge-delivery-infra-b/events.jsonl"
+        }
+      ],
+      "source_evidence": [
+        {
+          "path": "packages/website/evidence/terminal.mjs",
+          "line": 17,
+          "detail": "Decodes the request path, resolves it against dist and reads it without containment validation; line 23 binds loopback.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "const server = createServer(async (req, res) => {",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 17,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/website/evidence/turn/capture.mjs",
+          "line": 12,
+          "detail": "Contains the same unchecked decode-resolve-read handler.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "const server = createServer(async (req, res) => {",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 12,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/website/evidence/journey/capture.mjs",
+          "line": 14,
+          "detail": "Contains the same unchecked decode-resolve-read handler.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "const server = createServer(async (req, res) => {",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 14,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/website/evidence/arrival/capture.mjs",
+          "line": 22,
+          "detail": "Contains the same unchecked decode-resolve-read handler.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "const server = createServer(async (req, res) => {",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 22,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/website/evidence/nameplates-phone/capture.mjs",
+          "line": 16,
+          "detail": "Contains the same unchecked decode-resolve-read handler.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "const server = createServer(async (req, res) => {",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 16,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/website/evidence/warm-globe/measure.mjs",
+          "line": 11,
+          "detail": "Contains the same unchecked decode-resolve-read handler.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "const server = createServer(async (req, res) => {",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 11,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/forest-world/evidence/flat-canvas-retired/capture-website.mjs",
+          "line": 13,
+          "detail": "Historical capture helper contains the same unchecked handler.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "const server = createServer(async (req, res) => {",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 13,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/website/evidence/capture.mjs",
+          "line": 34,
+          "detail": "Counterexample: the main capture helper rejects resolved paths outside dist plus its path separator.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "  if (!file.startsWith(dist + path.sep)) { res.writeHead(403).end(); return; }",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 34,
+          "source_anchor_unchanged": true
+        },
+        {
+          "path": "packages/website/evidence/terminal.mjs",
+          "line": 105,
+          "detail": "Closes the affected server after capture, limiting the exposure window.",
+          "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "source_line": "server.close();",
+          "main_commit": "8aab1d47d3edfaa63e89dd84d3b3252fdc45b5ee",
+          "main_line": 105,
+          "source_anchor_unchanged": true
+        }
+      ],
+      "original_discovery_artifacts": [],
+      "new_runtime_evidence": [],
+      "followup_increments": [],
+      "missing_fresh_challenge": "increment_6d02e377b3fa"
+    }
+  ],
+  "counts": {
+    "confirmed_conditional": 2,
+    "unverified": 13,
+    "rejected": 0
+  },
+  "followups": [
+    {
+      "slug": "desktop-marker",
+      "arc": "arc_28e67e229273",
+      "title": "Keep developer-home sign-in data out of markers",
+      "objective": "Developer homes preserve refresh hand-back without readable plaintext credentials in their marker.",
+      "touches": [
+        "capability_01dc27eec57f"
+      ],
+      "bodyFile": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/reconcile-9456ae3bb7e6-20261008/desktop-marker.body.md",
+      "id": "increment_b7b94ebba925"
+    },
+    {
+      "slug": "automatic-backups",
+      "arc": "arc_28e67e229273",
+      "title": "Write automatic library backups privately",
+      "objective": "Automatic snapshots and their partial files remain owner-readable only under permissive umasks.",
+      "touches": [
+        "capability_076723ee3066"
+      ],
+      "bodyFile": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/reconcile-9456ae3bb7e6-20261008/automatic-backups.body.md",
+      "id": "increment_2919b9771a37"
+    },
+    {
+      "slug": "deletion-backups",
+      "arc": "arc_28e67e229273",
+      "title": "Write deletion-time project snapshots privately",
+      "objective": "A confirmed project deletion never creates a publicly readable plaintext backup.",
+      "touches": [
+        "capability_47e1fb495a56"
+      ],
+      "bodyFile": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/reconcile-9456ae3bb7e6-20261008/deletion-backups.body.md",
+      "id": "increment_1fe174460a0d"
+    },
+    {
+      "slug": "remote-transport",
+      "arc": "arc_28e67e229273",
+      "title": "Authenticate remote Postgres before sending its password",
+      "objective": "Address-based remote library connections authenticate their server before disclosing credentials.",
+      "touches": [
+        "capability_a6d2887aed63"
+      ],
+      "bodyFile": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/reconcile-9456ae3bb7e6-20261008/remote-transport.body.md",
+      "id": "increment_084a8167540a"
+    },
+    {
+      "slug": "health-numbering",
+      "arc": "arc_28e67e229273",
+      "title": "Keep health-only history out of decision numbering",
+      "objective": "The limited health SQL identity cannot reserve or displace decision numbers through health history.",
+      "touches": [
+        "capability_5a80222c88c4",
+        "capability_baaeecb42577",
+        "capability_78d6e026f902",
+        "capability_a954e1eb16f6"
+      ],
+      "bodyFile": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/reconcile-9456ae3bb7e6-20261008/health-numbering.body.md",
+      "id": "increment_bcef77287a8d"
+    },
+    {
+      "slug": "constructor-survey",
+      "arc": "arc_a22b361aa14f",
+      "title": "Survey stories named Constructor normally",
+      "objective": "A valid story title cannot make the complete project code survey reject.",
+      "touches": [
+        "capability_7aecfc858e32"
+      ],
+      "bodyFile": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/reconcile-9456ae3bb7e6-20261008/constructor-survey.body.md",
+      "id": "increment_e589d2891eea"
+    },
+    {
+      "slug": "guardrails-dag",
+      "arc": "arc_4b5defdde736",
+      "title": "Avoid revisiting acyclic dependency paths exponentially",
+      "objective": "A small shared dependency graph is checked without enumerating every acyclic path.",
+      "touches": [
+        "capability_12b3e9f74860"
+      ],
+      "bodyFile": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/reconcile-9456ae3bb7e6-20261008/guardrails-dag.body.md",
+      "id": "increment_f73e0a95b027"
+    }
+  ],
+  "final_verification": "increment_8862d4069e34 waits on all five security remediation increments as well as its existing dependencies. The remote-transport and health-numbering remediation increments are provisional and wait on their fresh independent B challenges. This parent increment remains open, waiting on both challenges. Two correctness increments are routed to their scoped map/guardrails arcs and retain unverified security status.",
+  "owner_gates": {
+    "new_questions": [],
+    "why_none": "No live service proof is authorized or needed to preserve a conditional/unverified disposition. The identity server and user-id table are already deferred by the owner on arc_f0642505cf9b; that settled decision is retained rather than re-asked. No new access restriction was encountered during permitted review."
+  },
+  "increment_state": "HELD: remains open on two fresh independent challenge increments; no source changes, commit or PR.",
+  "independent_followups": [
+    {
+      "slug": "identity-secrets-independent-b",
+      "title": "Independently challenge identity-secrets review B",
+      "bodyFile": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/reconcile-9456ae3bb7e6-20261008/identity-secrets-independent-b.body.md",
+      "objective": "Complete the missing fresh challenge for identity-secrets without self-attestation or bypassing the original safeguard.",
+      "id": "increment_869dacdcb37c"
+    },
+    {
+      "slug": "delivery-infra-independent-b",
+      "title": "Independently challenge delivery-infra review B",
+      "bodyFile": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/reconcile-9456ae3bb7e6-20261008/delivery-infra-independent-b.body.md",
+      "objective": "Complete the missing fresh challenge for delivery-infra without self-attestation or bypassing the original safeguard.",
+      "id": "increment_6d02e377b3fa"
+    }
+  ],
+  "residue": [
+    "Security remediations belong to app-setup, app and library and were parked for their owning fences; this lane makes no source changes to them. Remote transport and health numbering are provisional until fresh independent adjudication.",
+    "The identity-secrets-b and delivery-infra-b passes remain incomplete. The reconciler was required to read original results; it cannot count as the original protocol's fresh challenger afterwards. The lane forbids spawning agents, so the parent is held on dispatcher-assigned independent increments, with no owner question.",
+    "identity-secrets-002: retain unverified until a distinct-principal writable deployment is established; a same-user mechanism is insufficient.",
+    "identity-secrets-003/004/005: before any future server activation, resolve provider unlink/reassociation, revocation policy and effective social-only configuration through the owning identity arc; the current server is deferred.",
+    "storage-library-004 and web-ui-003: retain unverified until a narrower caller authority or attacker-readable return channel is established; no sandbox promise is invented.",
+    "web-ui-002 and web-ui-005: retain unverified until an accepted untrusted recording/restore workflow is established. Existing synthetic HTML/renderer failures remain preserved as correctness evidence; no adversarial publication/import workflow is introduced to prove them.",
+    "delivery-infra-003: retain unverified until a real affected helper and distinct-principal access boundary are established. Historical tools are not promoted into a deployed website surface.",
+    "Final independent remediation verification must use merged source, real targeted regression results and separate review; this triage and its probes are not remediation proof."
+  ]
+}

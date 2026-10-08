@@ -1,0 +1,18 @@
+{
+  "checked_at": "2026-10-08T05:40:21.069906+00:00",
+  "original_hashes_checked": 19,
+  "originals_unchanged": true,
+  "archived_or_preexisting_files_checked": 127,
+  "historical_source_anchors_checked": 93,
+  "fresh_identity_seal_matches": true,
+  "fresh_delivery_seal_matches": true,
+  "all_15_original_ids_present_once": true,
+  "counts": {
+    "candidates": 15,
+    "confirmed_conditional": 4,
+    "unverified": 11,
+    "rejected": 0
+  },
+  "new_runtime_security_probes": 0,
+  "limitation": "Mechanical byte/citation checks are provenance, not an independent security verdict or remediation test."
+}

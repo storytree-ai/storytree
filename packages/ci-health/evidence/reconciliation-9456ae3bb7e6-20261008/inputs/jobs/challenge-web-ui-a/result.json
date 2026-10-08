@@ -1,0 +1,612 @@
+{
+  "summary": "Independently reviewed all five candidates at commit 08124e6286ff09843500a35120a38a685806a646. Confirmed web-ui-001. The other four underlying defects reproduced, but their required attacker or authorization boundaries remain unverified. Both bounded isolated probes passed; no source fixes, live services, database writes, or exhaustion tests were performed.",
+  "verdicts": [
+    {
+      "candidate_id": "web-ui-001",
+      "verdict": "confirmed",
+      "severity": "medium",
+      "rationale": "A contributor-controlled test title reaches an uncapped synchronous expansion during ordinary text surveying. A short, accepted range can demand impractical CPU and memory before focus output limits apply. The complete denial-of-service chain is established statically; the runtime probe verified only small-range behavior and rejection controls.",
+      "attacker_control": {
+        "established": true,
+        "reason": "A contributor can place a numbered title in a test file belonging to an existing surveyed package. Surveying parses its text without executing that file.",
+        "evidence": [
+          {
+            "path": "packages/map/src/code-survey/read-survey.ts",
+            "line": 139,
+            "detail": "Reads source files beneath the package selected by the story title."
+          },
+          {
+            "path": "packages/map/src/code-survey/code-survey.ts",
+            "line": 110,
+            "detail": "calledTitles extracts call-argument strings from source text."
+          },
+          {
+            "path": "packages/map/src/code-survey/code-survey.ts",
+            "line": 145,
+            "detail": "The title grammar accepts numeric ranges with attacker-selected endpoints."
+          }
+        ]
+      },
+      "reachability": {
+        "established": true,
+        "reason": "The registered focus tool surveys the current checkout. Desktop surveying reaches the same parser through main-process IPC.",
+        "evidence": [
+          {
+            "path": "packages/agent-link/src/tools/map-tools.ts",
+            "line": 19,
+            "detail": "The focus handler invokes focusProject."
+          },
+          {
+            "path": "packages/map/src/read.ts",
+            "line": 10,
+            "detail": "readMap invokes codeSurveyReader with checkout current before building the graph; focusProject awaits readMap."
+          },
+          {
+            "path": "packages/map/src/code-survey/read-survey.ts",
+            "line": 190,
+            "detail": "The reader invokes surveyStory on loaded source text."
+          },
+          {
+            "path": "packages/map/src/code-survey/code-survey.ts",
+            "line": 431,
+            "detail": "Surveyed test titles are passed to proofTitles."
+          },
+          {
+            "path": "apps/desktop/src/main/main.ts",
+            "line": 224,
+            "detail": "The code-survey IPC handler invokes readCodeSurvey in the Electron main process."
+          }
+        ]
+      },
+      "trust_boundary": {
+        "established": true,
+        "reason": "Repository text, which need not be authorized for execution, controls synchronous work and allocation in the trusted survey process.",
+        "evidence": [
+          {
+            "path": "packages/map/src/code-survey/code-survey.ts",
+            "line": 153,
+            "detail": "Validation checks safe integers, equal capability numbers and ordering, but does not bound the span."
+          },
+          {
+            "path": "packages/map/src/code-survey/code-survey.ts",
+            "line": 154,
+            "detail": "An uninterrupted loop inserts one string per integer through the supplied endpoint."
+          }
+        ]
+      },
+      "impact": {
+        "established": true,
+        "reason": "Static proof establishes resource consumption proportional to the numeric span, despite a short input. Map requests cannot complete during expansion; the desktop path can block its main event loop. Process termination and exhaustion thresholds were not tested.",
+        "evidence": [
+          {
+            "path": "packages/map/src/code-survey/code-survey.ts",
+            "line": 156,
+            "detail": "The expanded Set is additionally converted into an array of proof objects."
+          },
+          {
+            "path": "packages/map/src/read.ts",
+            "line": 16,
+            "detail": "Focus runs only after the complete map read finishes."
+          },
+          {
+            "path": "packages/map/src/focus.ts",
+            "line": 126,
+            "detail": "The show ceiling is applied after surveying and graph construction."
+          },
+          {
+            "path": "apps/desktop/src/main/main.ts",
+            "line": 226,
+            "detail": "The main-process handler directly awaits the shared survey reader."
+          }
+        ]
+      },
+      "counterevidence": [
+        "Descending, cross-capability and unsafe-integer ranges are rejected.",
+        "Desktop main-mode surveying uses fetched origin/main when origin exists; unmerged checkout content reaches the current-checkout map path, not that normal desktop path.",
+        "Git deadlines and output limits bound subprocess work, not the subsequent JavaScript expansion.",
+        "The file must belong to a package selected by a project story."
+      ],
+      "test_evidence": [
+        "Executed: python3 /home/mickh/storytree-security-reviews/20261007-mint-08124e62/submit_test.py --runtime tsx --script /home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-web-ui-a/challenge-map.mts --label challenge-map",
+        "Exit 0. Real surveyStory expanded 3.1–3.3 into exactly three identities and rejected descending, cross-capability and unsafe-endpoint controls.",
+        "Evidence: evidence/challenge-map-20261007T120906496922/stdout.txt:1. Preserved script, exact isolated command, source commit, exit status and stderr accompany it in the same directory."
+      ],
+      "test_limitations": [
+        "No large accepted range, resource-exhaustion demonstration, Electron process or live map service was executed.",
+        "Large-span impact and desktop execution context are established statically."
+      ],
+      "remediation": "Apply a small expansion budget before entering the loop, including cumulative limits across a title or file, or represent ranges compactly. Skip oversized ranges without aborting unrelated surveys.",
+      "regression_test_recommendation": "Retain the small positive and rejection controls. After implementing a limit, verify that just-over-limit and very large safe-integer endpoints are rejected before enumeration, while unrelated files still survey."
+    },
+    {
+      "candidate_id": "web-ui-002",
+      "verdict": "unverified",
+      "severity": "medium if an untrusted recording supply path is established",
+      "rationale": "The real snapshot-to-render pipeline preserves malformed health strings and emits injected markup. However, the reviewed source establishes a local recording workflow, not an accepted external supplier route. Website script execution and deployed CSP are also unverified.",
+      "attacker_control": {
+        "established": false,
+        "reason": "Whoever supplies the selected record file controls its health strings, but an attacker’s ability to supply a recording accepted for publication was not established.",
+        "evidence": [
+          {
+            "path": "packages/website/src/refresh-shop.ts",
+            "line": 19,
+            "detail": "A local command selects the record file and repository."
+          },
+          {
+            "path": "packages/website/src/refresh-shop.ts",
+            "line": 26,
+            "detail": "JSON is parsed and checked for project equality, without runtime health validation."
+          },
+          {
+            "path": "packages/library/src/schema/types.ts",
+            "line": 186,
+            "detail": "Ordinary health records require passing, failing or not-checked."
+          }
+        ]
+      },
+      "reachability": {
+        "established": true,
+        "reason": "Conditional on selecting and publishing the recording with its public reading, the source connects the imported tree to the website panel without health-state validation.",
+        "evidence": [
+          {
+            "path": "packages/website/src/refresh-shop.ts",
+            "line": 53,
+            "detail": "The imported tree is forwarded to refreshGrowthSnapshot."
+          },
+          {
+            "path": "packages/website/src/saved-growth.ts",
+            "line": 128,
+            "detail": "When arcs are supplied, the snapshot includes publicPlan(tree), then passes through scrub."
+          },
+          {
+            "path": "packages/website/src/tour-snapshot.ts",
+            "line": 44,
+            "detail": "Contract health is retained wholesale."
+          },
+          {
+            "path": "packages/website/src/tour-reading.ts",
+            "line": 9,
+            "detail": "growthReading exposes the saved public tree to website surfaces."
+          },
+          {
+            "path": "packages/website/src/forest-scene.tsx",
+            "line": 75,
+            "detail": "StoryDetails assigns renderStoryPanel output to innerHTML."
+          }
+        ]
+      },
+      "trust_boundary": {
+        "established": false,
+        "reason": "The data-to-HTML transition is proven, but the preceding transition from a less-trusted supplier into authorized publication remains unestablished.",
+        "evidence": [
+          {
+            "path": "packages/forest/src/drill-down/drill-down.ts",
+            "line": 149,
+            "detail": "The contract’s reported state is copied directly into the rendering model."
+          },
+          {
+            "path": "packages/forest/src/view/story-panel.ts",
+            "line": 90,
+            "detail": "badge interpolates state into a quoted class attribute without escaping."
+          },
+          {
+            "path": "packages/website/src/publish-source.ts",
+            "line": 25,
+            "detail": "Publication source selection restricts accepted runs to successful repository main/merged sources; this is not a public recording-upload interface."
+          }
+        ]
+      },
+      "impact": {
+        "established": true,
+        "reason": "Markup injection is established in the real pipeline, with a static innerHTML sink. Page-content injection follows if the malformed recording is published and the capability opened. Browser event-handler execution, credential access and account compromise were not demonstrated.",
+        "evidence": [
+          {
+            "path": "packages/forest/src/view/story-panel.ts",
+            "line": 39,
+            "detail": "Selected capability contracts render their reported state through badge."
+          },
+          {
+            "path": "packages/forest/src/view/story-panel.ts",
+            "line": 90,
+            "detail": "An attribute-breaking state can terminate the span opening tag and introduce another element."
+          },
+          {
+            "path": "packages/website/src/forest-scene.tsx",
+            "line": 75,
+            "detail": "The generated string is consumed as HTML."
+          }
+        ]
+      },
+      "counterevidence": [
+        "The real ordinary-health schema rejects the payload.",
+        "Free-text titles are escaped; that positive control passed.",
+        "The contract payload was absent when no capability was selected.",
+        "The snapshot has no public panel reading when arcs are omitted.",
+        "Desktop CSP at apps/desktop/src/renderer/index.html:5 excludes inline event handlers.",
+        "No external recording acceptance workflow was established."
+      ],
+      "test_evidence": [
+        "Executed: python3 /home/mickh/storytree-security-reviews/20261007-mint-08124e62/submit_test.py --runtime tsx --script /home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-web-ui-a/challenge-publication.mts --label challenge-publication",
+        "Exit 0. Real refreshGrowthSnapshot, growthReading, drillDown and renderStoryPanel retained the malformed state and emitted an img element string carrying an onerror attribute.",
+        "All three valid states rendered normally. Escaped-title, unselected-capability, absent-public-reading and schema-rejection controls passed.",
+        "Evidence: evidence/challenge-publication-20261007T121006147313/stdout.txt:1 and :2. Script, exact isolated command, source commit, status and stderr are preserved alongside it."
+      ],
+      "test_limitations": [
+        "The refresh CLI, build, publisher and browser were not executed.",
+        "The probe used synthetic JSON-derived data and a disposable snapshot file.",
+        "External supplier acceptance and deployed website CSP remain unknown."
+      ],
+      "remediation": "Validate imported recordings at runtime before publication. Convert health/status values through explicit allowed-value mappings and escape attribute interpolations defensively.",
+      "regression_test_recommendation": "Reject malformed imported states or render them inertly. Preserve all valid-state and free-text escaping controls. Add a bounded browser test under the actual website CSP once that deployment context is available."
+    },
+    {
+      "candidate_id": "web-ui-003",
+      "verdict": "unverified",
+      "severity": "low to medium if unauthorized disclosure is established",
+      "rationale": "The current-checkout reader follows a source-file symlink and returns external test-title metadata through real focusProject output. A recipient lacking access to that external data, or an automatic return channel to the contributor, was not established.",
+      "attacker_control": {
+        "established": true,
+        "reason": "A repository contributor can supply a matching source-file symlink. Its target must resolve and be readable on the surveying machine.",
+        "evidence": [
+          {
+            "path": "packages/map/src/code-survey/read-survey.ts",
+            "line": 113,
+            "detail": "filesUnder checks directory status and filename extension but does not require entry.file."
+          },
+          {
+            "path": "packages/map/src/code-survey/survey-source.ts",
+            "line": 57,
+            "detail": "stat follows the symlink, and the resulting read uses the same path."
+          }
+        ]
+      },
+      "reachability": {
+        "established": true,
+        "reason": "Current-checkout focus reads use the vulnerable disk reader, retain parsed titles, and expose requested rows as structured tool data or CLI JSON.",
+        "evidence": [
+          {
+            "path": "packages/map/src/read.ts",
+            "line": 10,
+            "detail": "readMap explicitly selects checkout current."
+          },
+          {
+            "path": "packages/map/src/code-survey/read-survey.ts",
+            "line": 103,
+            "detail": "fileAt reads the selected filesystem content."
+          },
+          {
+            "path": "packages/map/src/graph.ts",
+            "line": 101,
+            "detail": "Test graph nodes retain file.titles as testTitles."
+          },
+          {
+            "path": "packages/agent-link/src/tools/map-tools.ts",
+            "line": 26,
+            "detail": "The focus answer, including requested rows, is returned as response data."
+          },
+          {
+            "path": "packages/agent-link/src/tools/answers.ts",
+            "line": 37,
+            "detail": "Response data is included in structuredContent."
+          }
+        ]
+      },
+      "trust_boundary": {
+        "established": false,
+        "reason": "Filesystem containment is bypassed, but containment is not itself proof of unauthorized disclosure. The supplied front door is a local stdio tool; no lower-authority recipient or contributor-accessible result channel was established.",
+        "evidence": [
+          {
+            "path": "packages/map/src/code-survey/survey-source.ts",
+            "line": 58,
+            "detail": "The disk reader performs no resolved-path containment check."
+          },
+          {
+            "path": "packages/agent-link/src/bins/storytree-mcp.ts",
+            "line": 46,
+            "detail": "The supplied MCP entry point serves the local caller through stdio."
+          },
+          {
+            "path": "packages/map/src/code-survey/survey-source.ts",
+            "line": 113,
+            "detail": "The Git snapshot reader excludes symbolic-link modes."
+          }
+        ]
+      },
+      "impact": {
+        "established": false,
+        "reason": "External metadata extraction reproduced, but unauthorized confidentiality loss did not. The demonstrated result contains recognized numbered test titles, not arbitrary complete file contents.",
+        "evidence": [
+          {
+            "path": "packages/map/src/code-survey/code-survey.ts",
+            "line": 431,
+            "detail": "Only recognized proof titles enter this metadata path."
+          },
+          {
+            "path": "packages/map/src/graph.ts",
+            "line": 101,
+            "detail": "Those titles are retained in structured graph data."
+          },
+          {
+            "path": "packages/map/src/focus.ts",
+            "line": 146,
+            "detail": "The default textual formatter does not print testTitles."
+          }
+        ]
+      },
+      "counterevidence": [
+        "Normal desktop origin/main surveying excludes symlink blobs.",
+        "An inaccessible origin with no fetched main fails instead of falling back to checkout content.",
+        "Only parseable survey metadata was recovered.",
+        "A caller already authorized to read the target gains no additional access.",
+        "No automatic network exfiltration or contributor-visible output channel was identified."
+      ],
+      "test_evidence": [
+        "challenge-map.mts passed through the mandated submitter, exit 0.",
+        "A synthetic external file containing a numbered title appeared in real focusProject rows through a symlink. Removing the link made the selection absent; an ordinary-file control remained readable.",
+        "Evidence: evidence/challenge-map-20261007T120906496922/stdout.txt:2; exact command and preserved script are in the same directory."
+      ],
+      "test_limitations": [
+        "Both files were synthetic and readable inside isolation; recipient authorization was not simulated.",
+        "Git-mode exclusion was inspected statically.",
+        "Directory symlinks, Windows junctions and race conditions were not tested."
+      ],
+      "remediation": "Reject source symlinks and symlinked directory components, or enforce resolved-path containment within explicit allowed roots. Preserve the intentional app/desktop source seam.",
+      "regression_test_recommendation": "Require omission or refusal of the synthetic external-file symlink while ordinary source still surveys. Add bounded package-root symlink and platform-junction cases, and verify Git-mode exclusion."
+    },
+    {
+      "candidate_id": "web-ui-004",
+      "verdict": "unverified",
+      "severity": "low; security significance depends on writer authority",
+      "rationale": "Constructor is valid planning input and reproducibly causes the complete project survey to reject. The security claim remains unverified because no restricted project-writer role distinct from trusted project-management authority was established.",
+      "attacker_control": {
+        "established": true,
+        "reason": "A caller with ordinary planning write access controls the story title. Constructor passes both the tool’s stated validation and the real story schema.",
+        "evidence": [
+          {
+            "path": "packages/agent-link/src/tools/plan-tools.ts",
+            "line": 15,
+            "detail": "Titles require only a nonempty string."
+          },
+          {
+            "path": "packages/agent-link/src/tools/plan-tools.ts",
+            "line": 49,
+            "detail": "plan_story forwards the supplied title to library.addStory."
+          },
+          {
+            "path": "packages/library/src/schema/types.ts",
+            "line": 158,
+            "detail": "The story schema accepts a nonempty title without reserving Constructor."
+          }
+        ]
+      },
+      "reachability": {
+        "established": true,
+        "reason": "The stored title is retained in projectTree and used by every project survey. Both current-checkout and local-fallback readers reproduced the rejection.",
+        "evidence": [
+          {
+            "path": "packages/library/src/work/work-model.ts",
+            "line": 328,
+            "detail": "nodeOf returns the stored title unchanged."
+          },
+          {
+            "path": "packages/library/src/health/health-record.ts",
+            "line": 244,
+            "detail": "Health annotation preserves the story fields."
+          },
+          {
+            "path": "packages/map/src/code-survey/read-survey.ts",
+            "line": 137,
+            "detail": "Every story title is passed to packageOf and its result to path.join."
+          },
+          {
+            "path": "apps/desktop/src/main/main.ts",
+            "line": 226,
+            "detail": "Desktop code surveying uses the same reader."
+          }
+        ]
+      },
+      "trust_boundary": {
+        "established": false,
+        "reason": "The invalid data-to-lookup transition is established. A security boundary between the title writer and an independently protected reader remains unverified; the supplied local planning interface gives its caller broad project-editing powers.",
+        "evidence": [
+          {
+            "path": "packages/map/src/code-survey/code-survey.ts",
+            "line": 82,
+            "detail": "The package alias table is an ordinary object."
+          },
+          {
+            "path": "packages/map/src/code-survey/code-survey.ts",
+            "line": 87,
+            "detail": "Normalized constructor resolves to the inherited Object constructor."
+          },
+          {
+            "path": "packages/agent-link/src/tools/plan-tools.ts",
+            "line": 89,
+            "detail": "The same planning interface permits editing existing plan records."
+          },
+          {
+            "path": "packages/agent-link/src/bins/storytree-mcp.ts",
+            "line": 46,
+            "detail": "The supplied tool server uses local stdio rather than establishing a separate restricted remote writer."
+          }
+        ]
+      },
+      "impact": {
+        "established": true,
+        "reason": "A single poisoned story makes the entire survey reject with ERR_INVALID_ARG_TYPE, preventing fresh map/survey results for that tree. A whole-desktop crash is not established.",
+        "evidence": [
+          {
+            "path": "packages/map/src/code-survey/read-survey.ts",
+            "line": 136,
+            "detail": "All stories are aggregated with Promise.all, so one path.join rejection rejects the project survey."
+          },
+          {
+            "path": "packages/map/src/read.ts",
+            "line": 16,
+            "detail": "Focus awaits the failed map read."
+          },
+          {
+            "path": "packages/forest/src/render/forest-reading.ts",
+            "line": 52,
+            "detail": "Survey failures are retried independently."
+          },
+          {
+            "path": "packages/forest/src/render/forest-reading.ts",
+            "line": 120,
+            "detail": "Tree rendering proceeds using the retained survey."
+          }
+        ]
+      },
+      "counterevidence": [
+        "This is inherited-property lookup, not prototype mutation or code execution.",
+        "The writer requires existing planning authority; no unauthenticated entry was found.",
+        "Desktop tree rendering does not wait for a successful fresh survey.",
+        "The reader recovered when the poisoned title was removed from the synthetic tree."
+      ],
+      "test_evidence": [
+        "challenge-map.mts passed, exit 0: packageOf returned a function for Constructor and The Constructor; a mixed project rejected with ERR_INVALID_ARG_TYPE in current and local-fallback modes.",
+        "Normal-title, explicit-alias and subsequent recovery controls passed.",
+        "challenge-publication.mts confirmed the real story schema accepts Constructor.",
+        "Evidence: evidence/challenge-map-20261007T120906496922/stdout.txt:3 and evidence/challenge-publication-20261007T121006147313/stdout.txt:3."
+      ],
+      "test_limitations": [
+        "No planning tool, database write or Electron application was executed.",
+        "Persistence reachability was inspected statically.",
+        "Restricted-writer permissions and affected multi-user deployment context remain unknown."
+      ],
+      "remediation": "Use a Map or an own-property lookup for aliases and guarantee that packageOf returns a string. Consider containing individual story survey failures.",
+      "regression_test_recommendation": "Verify Constructor and The Constructor resolve to string slugs, explicit aliases remain correct, and a mixed project containing those titles surveys successfully."
+    },
+    {
+      "candidate_id": "web-ui-005",
+      "verdict": "unverified",
+      "severity": "low if an untrusted restoration path is established",
+      "rationale": "Inherited story IDs reproducibly break forestScene with an ordinary empty survey, and static restoration code preserves such IDs. No attacker-controlled snapshot acceptance workflow was established; restoration is an authorized backup operation and refuses nonempty projects.",
+      "attacker_control": {
+        "established": false,
+        "reason": "A supplied snapshot can contain arbitrary string record IDs, but attacker influence over a snapshot selected for restoration was not established. Ordinary planning fields reject an explicit ID.",
+        "evidence": [
+          {
+            "path": "packages/library/src/project/snapshot.ts",
+            "line": 154,
+            "detail": "Restoration copies each supplied record.id directly into the insert payload."
+          },
+          {
+            "path": "packages/library/src/project/schema.ts",
+            "line": 22,
+            "detail": "The database record ID is a text primary key, without a reserved-name restriction."
+          },
+          {
+            "path": "packages/library/src/work/work-model.ts",
+            "line": 92,
+            "detail": "Ordinary story fields do not accept an id field."
+          },
+          {
+            "path": "packages/library/src/schema/records.ts",
+            "line": 203,
+            "detail": "Ordinary generated IDs use a type prefix and random hexadecimal suffix."
+          }
+        ]
+      },
+      "reachability": {
+        "established": true,
+        "reason": "Conditional on authorized restoration of such a snapshot, static source connects preserved IDs through projectTree to desktop forestScene. The renderer failure itself was executed.",
+        "evidence": [
+          {
+            "path": "packages/library/src/project/storytree.ts",
+            "line": 294,
+            "detail": "The public restore implementation forwards the snapshot to writeSnapshot."
+          },
+          {
+            "path": "packages/library/src/schema/records.ts",
+            "line": 98,
+            "detail": "Record listing maps records through current."
+          },
+          {
+            "path": "packages/library/src/schema/records.ts",
+            "line": 171,
+            "detail": "current preserves the record ID."
+          },
+          {
+            "path": "packages/library/src/work/work-model.ts",
+            "line": 328,
+            "detail": "The tree node receives record.id unchanged."
+          },
+          {
+            "path": "apps/desktop/src/renderer/renderer.ts",
+            "line": 247,
+            "detail": "The desktop tree callback invokes forestScene with the current survey."
+          }
+        ]
+      },
+      "trust_boundary": {
+        "established": false,
+        "reason": "The imported-ID-to-inherited-property transition is established, but a less-trusted snapshot supplier crossing into an authorized restore workflow remains hypothetical.",
+        "evidence": [
+          {
+            "path": "packages/library/src/project/snapshot.ts",
+            "line": 144,
+            "detail": "Restoration refuses a project already containing records or history."
+          },
+          {
+            "path": "packages/forest/src/render/forest-reading.ts",
+            "line": 102,
+            "detail": "The initial survey is an ordinary empty object."
+          },
+          {
+            "path": "packages/forest/src/render/forest-scene.ts",
+            "line": 64,
+            "detail": "survey[story.id] accepts inherited properties without an own-property check."
+          }
+        ]
+      },
+      "impact": {
+        "established": true,
+        "reason": "The real scene generator throws TypeError for inherited IDs when no own survey entry exists. This prevents that scene update; persistent full-desktop unavailability was not demonstrated.",
+        "evidence": [
+          {
+            "path": "packages/forest/src/render/forest-scene.ts",
+            "line": 104,
+            "detail": "A non-undefined inherited value reaches survey.files.length and throws."
+          },
+          {
+            "path": "apps/desktop/src/renderer/renderer.ts",
+            "line": 248,
+            "detail": "view.show is reached only after forestScene succeeds."
+          },
+          {
+            "path": "apps/desktop/src/renderer/renderer.ts",
+            "line": 233,
+            "detail": "Reader error handling can retain a previously displayed scene."
+          }
+        ]
+      },
+      "counterevidence": [
+        "Normal planning does not expose caller-selected story IDs.",
+        "Restoration refuses nonempty projects, limiting the affected target.",
+        "The source identifies snapshots as backups; inspected restoration tests use owner-generated snapshots.",
+        "An own survey entry masks the inherited property; that control passed.",
+        "No prototype mutation or code execution was observed."
+      ],
+      "test_evidence": [
+        "challenge-map.mts passed, exit 0: real forestScene threw for __proto__, constructor and toString with an ordinary empty survey.",
+        "An ordinary ID, a null-prototype survey and explicit own survey entries all rendered successfully.",
+        "The real story-fields schema rejected an explicit id field in challenge-publication.mts.",
+        "Evidence: evidence/challenge-map-20261007T120906496922/stdout.txt:4 and evidence/challenge-publication-20261007T121006147313/stdout.txt:3."
+      ],
+      "test_limitations": [
+        "Restoration, database persistence and full desktop behavior were not executed.",
+        "The restoration-to-tree chain is static evidence.",
+        "External snapshot acceptance and supplier trust remain unknown."
+      ],
+      "remediation": "Use own-property checks or Map-based survey lookups and safe empty dictionaries. Validate restored identifiers or ensure all readers safely handle arbitrary string IDs.",
+      "regression_test_recommendation": "Retain ordinary-ID, inherited-ID and own-entry controls. Require absent surveys to remain absent for __proto__, constructor and toString. Separately test restoration serialization through a mocked storage boundary without a live database."
+    }
+  ],
+  "limitations": [
+    "Review scope was the supplied source snapshot and this job’s newly generated evidence; candidate evidence and other reviewers’ outputs were not used.",
+    "Both probes used the mandated submitter and isolated real imports. Their result.json files preserve the pinned commit, exact execution command, script hash and exit status; stdout.txt and stderr.txt preserve output.",
+    "No large-input execution, full suites, builds, browser execution, database operations, network research or live services were used.",
+    "Deployment CSP, external recording/backup acceptance, recipient filesystem authorization and restricted project-writer roles could not be established from the reviewed source."
+  ]
+}

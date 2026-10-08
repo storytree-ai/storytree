@@ -1,0 +1,3 @@
+web-ui-002: real snapshot writer -> growthReading -> drillDown -> renderStoryPanel retained malformed health and emitted the injected img/event-handler markup. No browser or publisher CLI executed.
+web-ui-002 controls: all 3 valid health states rendered; free-text title escaped; contract injection absent without capability selection; no public reading without arcs; library health schema rejected payload.
+web-ui-004/005 schema controls: Constructor title accepted; explicit id in ordinary story fields rejected. No library writes executed.

@@ -1,0 +1,21 @@
+{
+  "report.json": "827468f4e45e5fd83f341ee42e27a07150ab7d23de28c5100f7bffec2d3d63ec",
+  "manifest.json": "1d269eafd7f0ddfee5e3cabdaf0f7fc0a2cf42cb04e4b8c9f69872cb74268482",
+  "review.py": "5fdbf355900f26dce4e7826da6c10e3a0eed1c320436dfa2c964fd36c786f6ee",
+  "jobs/challenge-delivery-infra-a/result.json": "e1cf076dd9c1779b64c8ac5423b65529b023f2363e662563319e21e5dacffc31",
+  "jobs/challenge-desktop-install-a/result.json": "07c4700020d4610a22b2ca13ff33de2ad919209be5c6432ab0d884608601b9c8",
+  "jobs/challenge-desktop-install-b/result.json": "5703a48f3320a39d35d2cbd42c4cae6b275bb160dd776856a95744ad022cca81",
+  "jobs/challenge-identity-secrets-a/result.json": "c607c43b69f1a7c8cacb3b0bde9d273c4279e019dd870ad0f0c2c56239d98a64",
+  "jobs/challenge-storage-library-a/result.json": "02df12cb22f62b3c28d1b8d328a4a010de5db2ad3f5bf3d20c8e5be96cb20077",
+  "jobs/challenge-storage-library-b/result.json": "782e8132b837762203b2079ea3a6b7ae47d63e72c126994e1216790f08c70c74",
+  "jobs/challenge-web-ui-a/result.json": "e5811b8217592d17986f05698df9f06ec3a3d1cbc8f460b92a5e182325dce7a6",
+  "jobs/challenge-web-ui-b/result.json": "1e4aebee56ffa62b4e15f2e51cc720855aa0c4de3bcccb60e96610146fe70995",
+  "jobs/discover-agent-command-followup-20261008-01a118ae/result.json": "99494da52bd4e1ee8f865c9673e124421ccd0ed0df2abc2fa55e56bed1f2af3a",
+  "jobs/discover-delivery-infra/result.json": "9841d8a9543a92bf6987ef78baad5a06d3c1cc90aebb24fab1b15cd722f43b87",
+  "jobs/discover-desktop-install/result.json": "b5b7877e282fd28b2547171d82b9aa5025bdacf7e8b7a32db0cdc70988fbc9f0",
+  "jobs/discover-identity-secrets/result.json": "03de6721b3802574afe6cd93a2013eeb9b59dc575850f91ea527ae823665f07a",
+  "jobs/discover-storage-library/result.json": "1299cdbe188c6105b2ee92287dd9a9ae669a121ca1d8add5e67ae4c821aeff2b",
+  "jobs/discover-web-ui/result.json": "831d726fcd3483d0268081c32a6c141d018ba83348bdd08046efd7fbb68c9e12",
+  "jobs/preflight/result.json": "287dec683640e98baf722f11e9e43c1fe59dd5742770ba117e159cbd14ecacf5",
+  "jobs/preflight-broker/result.json": "8bdb03b3ec04cf20a21393d862ba89387d93a33dc0660edaac1a327133f7c1c8"
+}

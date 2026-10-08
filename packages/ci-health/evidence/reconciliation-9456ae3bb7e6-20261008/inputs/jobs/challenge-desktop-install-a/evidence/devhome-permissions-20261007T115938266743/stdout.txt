@@ -1,0 +1,4 @@
+{"case":"codex-synthetic","umask":"22","sourceMode":"600","markerMode":"644","dirMode":"755","authCopyMode":"600","duplicatesSyntheticData":true,"stoppedBeforeBuild":true}
+{"case":"codex-synthetic","umask":"77","sourceMode":"600","markerMode":"600","dirMode":"700","authCopyMode":"600","duplicatesSyntheticData":true,"stoppedBeforeBuild":true}
+{"case":"codex-not-selected","containsSignIn":false}
+{"case":"no-sign-in-file","containsSignIn":false}

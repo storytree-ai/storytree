@@ -1,0 +1,9 @@
+{"label":"valid-token-without-current-method-evidence","status":503,"verificationReachedPersistence":true,"providerPaths":["/sso/jwks/client_synthetic_challenge","/user_management/users/user_synthetic","/user_management/users/user_synthetic/identities"]}
+{"label":"illustrative-password-method-claim","status":503,"verificationReachedPersistence":true,"providerPaths":["/user_management/users/user_synthetic","/user_management/users/user_synthetic/identities"]}
+{"label":"wrong-signature","status":401,"verificationReachedPersistence":false,"providerPaths":[]}
+{"label":"wrong-audience","status":401,"verificationReachedPersistence":false,"providerPaths":[]}
+{"label":"expired","status":401,"verificationReachedPersistence":false,"providerPaths":[]}
+{"label":"missing-session","status":401,"verificationReachedPersistence":false,"providerPaths":[]}
+{"label":"blank-session","status":401,"verificationReachedPersistence":false,"providerPaths":[]}
+{"label":"token-supplied-identities-do-not-replace-provider-evidence","status":401,"verificationReachedPersistence":false,"providerPaths":["/user_management/users/user_synthetic","/user_management/users/user_synthetic/identities"]}
+{"noSessionStatusRequestObserved":true,"actualRevocationTested":false,"actualProviderMintingMethodTested":false,"databasePersistenceTested":false}

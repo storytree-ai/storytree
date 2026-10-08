@@ -1,0 +1,3 @@
+{"case":"permissions","umask":"22","markerMode":"644","developerHomeMode":"755","authenticationCopyMode":"600","exactSyntheticDuplicate":true,"backupMode":"644","backupDirectoryMode":"755","snapshotPreserved":true,"secondIdentityRead":false}
+{"case":"permissions","umask":"77","markerMode":"600","developerHomeMode":"700","authenticationCopyMode":"600","exactSyntheticDuplicate":true,"backupMode":"600","backupDirectoryMode":"700","snapshotPreserved":true,"secondIdentityRead":false}
+{"case":"keys-directory-control","existingDirectoryMode":"777","freshDirectoryMode":"700","keyFileMode":"600","commandExecuted":false,"separatePrincipalAccessEstablished":false}

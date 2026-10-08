@@ -1,0 +1,4 @@
+{"case":"startup-backup","umask":"22","appHomeMode":"755","backupDirMode":"755","projectDirMode":"755","fileMode":"644","currentAndHistoricalDataPreserved":true,"partialFileRemaining":false}
+{"case":"startup-backup","umask":"77","appHomeMode":"700","backupDirMode":"700","projectDirMode":"700","fileMode":"600","currentAndHistoricalDataPreserved":true,"partialFileRemaining":false}
+{"case":"private-ancestor-control","ancestorMode":"700","fileMode":"644","otherUserTraversalBlockedByMode":true}
+{"case":"bounded-retention-control","retained":1,"snapshotPreserved":true}

@@ -1,0 +1,1 @@
+{"passed":true,"symlinkReadOutside":true,"normalMemoryRead":true,"parkHidesUnchangedMemory":true,"refusedWritePreservesFile":true,"ordinaryGraduationDeletesMemory":true,"symlinkGraduationPreservesTarget":true,"explicitNonMemoryPathDeleted":true,"limitation":"Accepted/refused library responses are inert stubs; no host caller authorization or real library write was tested."}

@@ -1,0 +1,447 @@
+{
+  "recorded_at": "2026-10-08T01:58:54.811421+00:00",
+  "snapshot_commit": "08124e6286ff09843500a35120a38a685806a646",
+  "fresh_main_commit": "22c74d14930229751b8eec1dc9219353ccc9baaa",
+  "sources": [
+    {
+      "path": "packages/library/src/project/address.ts",
+      "snapshot_sha256": "adecc6664c14a91d9fce710fb881eeb44fea01344f3e662186bebf26937af4d3",
+      "main_sha256": "adecc6664c14a91d9fce710fb881eeb44fea01344f3e662186bebf26937af4d3",
+      "unchanged": true
+    },
+    {
+      "path": "packages/library/src/project/server.ts",
+      "snapshot_sha256": "c82bb7747b7de3ab8f46ec5909b7ea0ffad7fc9fbb1dd3d4d08bf0ab0b20f1a4",
+      "main_sha256": "c82bb7747b7de3ab8f46ec5909b7ea0ffad7fc9fbb1dd3d4d08bf0ab0b20f1a4",
+      "unchanged": true
+    },
+    {
+      "path": "packages/library/src/project/storytree.ts",
+      "snapshot_sha256": "b5dc46ead4c11f09148813946082ecc2ac54ea360b632cece9741fda6e7da591",
+      "main_sha256": "b5dc46ead4c11f09148813946082ecc2ac54ea360b632cece9741fda6e7da591",
+      "unchanged": true
+    },
+    {
+      "path": "packages/keys/src/keys.ts",
+      "snapshot_sha256": "011551b37c4eb890ad301f4a14493e3515e8ce3883191676c718160e73024fa5",
+      "main_sha256": "011551b37c4eb890ad301f4a14493e3515e8ce3883191676c718160e73024fa5",
+      "unchanged": true
+    },
+    {
+      "path": "packages/identity/src/service.ts",
+      "snapshot_sha256": "53733a213caa795b4e0dcb7ffc0d99d30b9d126a60014f0fefdbeb1827d87691",
+      "main_sha256": "53733a213caa795b4e0dcb7ffc0d99d30b9d126a60014f0fefdbeb1827d87691",
+      "unchanged": true
+    },
+    {
+      "path": "packages/identity/src/store.ts",
+      "snapshot_sha256": "aa08d280bc3fde99e4330e79b4f6e7b07411ec20c2ca0916191f0b328e9b47e6",
+      "main_sha256": "aa08d280bc3fde99e4330e79b4f6e7b07411ec20c2ca0916191f0b328e9b47e6",
+      "unchanged": true
+    },
+    {
+      "path": "packages/identity/src/http.ts",
+      "snapshot_sha256": "db90b19116fc5123857b03b4d21edcf04d0ce9d901727cd9ccd26f5c055cf727",
+      "main_sha256": "db90b19116fc5123857b03b4d21edcf04d0ce9d901727cd9ccd26f5c055cf727",
+      "unchanged": true
+    },
+    {
+      "path": "packages/identity/src/client.ts",
+      "snapshot_sha256": "2cedcf44612bd0b21ccf27e2874f7644c0f09b2be55786a88008f61dfe1930b4",
+      "main_sha256": "2cedcf44612bd0b21ccf27e2874f7644c0f09b2be55786a88008f61dfe1930b4",
+      "unchanged": true
+    },
+    {
+      "path": "packages/identity/README.md",
+      "snapshot_sha256": "d96ab6ef50e0848c4b290ba78e8510552ccf1d319adb5f5d84b628205616d1c6",
+      "main_sha256": "d96ab6ef50e0848c4b290ba78e8510552ccf1d319adb5f5d84b628205616d1c6",
+      "unchanged": true
+    },
+    {
+      "path": "packages/agent-link/src/settings/settings.ts",
+      "snapshot_sha256": "7e4cbf5c6cd1f7db16b94a15f168cbd0c45bf2f1b02e980fb183af1c80180855",
+      "main_sha256": "7e4cbf5c6cd1f7db16b94a15f168cbd0c45bf2f1b02e980fb183af1c80180855",
+      "unchanged": true
+    },
+    {
+      "path": "packages/agent-link/src/routing/routing.ts",
+      "snapshot_sha256": "469334907ac837b688dd3d70652f227291e9c24a6ed208109541f8593529c6f2",
+      "main_sha256": "ffa55aa54ab4e371c3236de2d791abba10a7e78012e970b45d33a56b3a50f507",
+      "unchanged": false
+    },
+    {
+      "path": "packages/cli/src/door.ts",
+      "snapshot_sha256": "e328de97b73e175a29b87e738a94448f408d8af1a3ae550fbab0da54253c9c73",
+      "main_sha256": "e328de97b73e175a29b87e738a94448f408d8af1a3ae550fbab0da54253c9c73",
+      "unchanged": true
+    },
+    {
+      "path": "packages/cli/src/families/auth.ts",
+      "snapshot_sha256": "87a8264283dcf138736a5229fe1b4e20e608af905e2a98c40bb82a0a564fc45c",
+      "main_sha256": "87a8264283dcf138736a5229fe1b4e20e608af905e2a98c40bb82a0a564fc45c",
+      "unchanged": true
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "snapshot_sha256": "8c0e45df600434a601223024990e96f293eee97a400dd06060e6d57453ae23dc",
+      "main_sha256": "8c0e45df600434a601223024990e96f293eee97a400dd06060e6d57453ae23dc",
+      "unchanged": true
+    }
+  ],
+  "commands": [
+    {
+      "argv": [
+        "git",
+        "show",
+        "08124e6286ff09843500a35120a38a685806a646:packages/library/src/project/address.ts"
+      ],
+      "cwd": "/home/mickh/code/storytree03-wt/increment-869dacdcb37c-d37fec",
+      "exit_code": 0,
+      "stderr": "",
+      "stdout_sha256": "adecc6664c14a91d9fce710fb881eeb44fea01344f3e662186bebf26937af4d3"
+    },
+    {
+      "argv": [
+        "git",
+        "show",
+        "22c74d14930229751b8eec1dc9219353ccc9baaa:packages/library/src/project/address.ts"
+      ],
+      "cwd": "/home/mickh/code/storytree03-wt/increment-869dacdcb37c-d37fec",
+      "exit_code": 0,
+      "stderr": "",
+      "stdout_sha256": "adecc6664c14a91d9fce710fb881eeb44fea01344f3e662186bebf26937af4d3"
+    },
+    {
+      "argv": [
+        "git",
+        "show",
+        "08124e6286ff09843500a35120a38a685806a646:packages/library/src/project/server.ts"
+      ],
+      "cwd": "/home/mickh/code/storytree03-wt/increment-869dacdcb37c-d37fec",
+      "exit_code": 0,
+      "stderr": "",
+      "stdout_sha256": "c82bb7747b7de3ab8f46ec5909b7ea0ffad7fc9fbb1dd3d4d08bf0ab0b20f1a4"
+    },
+    {
+      "argv": [
+        "git",
+        "show",
+        "22c74d14930229751b8eec1dc9219353ccc9baaa:packages/library/src/project/server.ts"
+      ],
+      "cwd": "/home/mickh/code/storytree03-wt/increment-869dacdcb37c-d37fec",
+      "exit_code": 0,
+      "stderr": "",
+      "stdout_sha256": "c82bb7747b7de3ab8f46ec5909b7ea0ffad7fc9fbb1dd3d4d08bf0ab0b20f1a4"
+    },
+    {
+      "argv": [
+        "git",
+        "show",
+        "08124e6286ff09843500a35120a38a685806a646:packages/library/src/project/storytree.ts"
+      ],
+      "cwd": "/home/mickh/code/storytree03-wt/increment-869dacdcb37c-d37fec",
+      "exit_code": 0,
+      "stderr": "",
+      "stdout_sha256": "b5dc46ead4c11f09148813946082ecc2ac54ea360b632cece9741fda6e7da591"
+    },
+    {
+      "argv": [
+        "git",
+        "show",
+        "22c74d14930229751b8eec1dc9219353ccc9baaa:packages/library/src/project/storytree.ts"
+      ],
+      "cwd": "/home/mickh/code/storytree03-wt/increment-869dacdcb37c-d37fec",
+      "exit_code": 0,
+      "stderr": "",
+      "stdout_sha256": "b5dc46ead4c11f09148813946082ecc2ac54ea360b632cece9741fda6e7da591"
+    },
+    {
+      "argv": [
+        "git",
+        "show",
+        "08124e6286ff09843500a35120a38a685806a646:packages/keys/src/keys.ts"
+      ],
+      "cwd": "/home/mickh/code/storytree03-wt/increment-869dacdcb37c-d37fec",
+      "exit_code": 0,
+      "stderr": "",
+      "stdout_sha256": "011551b37c4eb890ad301f4a14493e3515e8ce3883191676c718160e73024fa5"
+    },
+    {
+      "argv": [
+        "git",
+        "show",
+        "22c74d14930229751b8eec1dc9219353ccc9baaa:packages/keys/src/keys.ts"
+      ],
+      "cwd": "/home/mickh/code/storytree03-wt/increment-869dacdcb37c-d37fec",
+      "exit_code": 0,
+      "stderr": "",
+      "stdout_sha256": "011551b37c4eb890ad301f4a14493e3515e8ce3883191676c718160e73024fa5"
+    },
+    {
+      "argv": [
+        "git",
+        "show",
+        "08124e6286ff09843500a35120a38a685806a646:packages/identity/src/service.ts"
+      ],
+      "cwd": "/home/mickh/code/storytree03-wt/increment-869dacdcb37c-d37fec",
+      "exit_code": 0,
+      "stderr": "",
+      "stdout_sha256": "53733a213caa795b4e0dcb7ffc0d99d30b9d126a60014f0fefdbeb1827d87691"
+    },
+    {
+      "argv": [
+        "git",
+        "show",
+        "22c74d14930229751b8eec1dc9219353ccc9baaa:packages/identity/src/service.ts"
+      ],
+      "cwd": "/home/mickh/code/storytree03-wt/increment-869dacdcb37c-d37fec",
+      "exit_code": 0,
+      "stderr": "",
+      "stdout_sha256": "53733a213caa795b4e0dcb7ffc0d99d30b9d126a60014f0fefdbeb1827d87691"
+    },
+    {
+      "argv": [
+        "git",
+        "show",
+        "08124e6286ff09843500a35120a38a685806a646:packages/identity/src/store.ts"
+      ],
+      "cwd": "/home/mickh/code/storytree03-wt/increment-869dacdcb37c-d37fec",
+      "exit_code": 0,
+      "stderr": "",
+      "stdout_sha256": "aa08d280bc3fde99e4330e79b4f6e7b07411ec20c2ca0916191f0b328e9b47e6"
+    },
+    {
+      "argv": [
+        "git",
+        "show",
+        "22c74d14930229751b8eec1dc9219353ccc9baaa:packages/identity/src/store.ts"
+      ],
+      "cwd": "/home/mickh/code/storytree03-wt/increment-869dacdcb37c-d37fec",
+      "exit_code": 0,
+      "stderr": "",
+      "stdout_sha256": "aa08d280bc3fde99e4330e79b4f6e7b07411ec20c2ca0916191f0b328e9b47e6"
+    },
+    {
+      "argv": [
+        "git",
+        "show",
+        "08124e6286ff09843500a35120a38a685806a646:packages/identity/src/http.ts"
+      ],
+      "cwd": "/home/mickh/code/storytree03-wt/increment-869dacdcb37c-d37fec",
+      "exit_code": 0,
+      "stderr": "",
+      "stdout_sha256": "db90b19116fc5123857b03b4d21edcf04d0ce9d901727cd9ccd26f5c055cf727"
+    },
+    {
+      "argv": [
+        "git",
+        "show",
+        "22c74d14930229751b8eec1dc9219353ccc9baaa:packages/identity/src/http.ts"
+      ],
+      "cwd": "/home/mickh/code/storytree03-wt/increment-869dacdcb37c-d37fec",
+      "exit_code": 0,
+      "stderr": "",
+      "stdout_sha256": "db90b19116fc5123857b03b4d21edcf04d0ce9d901727cd9ccd26f5c055cf727"
+    },
+    {
+      "argv": [
+        "git",
+        "show",
+        "08124e6286ff09843500a35120a38a685806a646:packages/identity/src/client.ts"
+      ],
+      "cwd": "/home/mickh/code/storytree03-wt/increment-869dacdcb37c-d37fec",
+      "exit_code": 0,
+      "stderr": "",
+      "stdout_sha256": "2cedcf44612bd0b21ccf27e2874f7644c0f09b2be55786a88008f61dfe1930b4"
+    },
+    {
+      "argv": [
+        "git",
+        "show",
+        "22c74d14930229751b8eec1dc9219353ccc9baaa:packages/identity/src/client.ts"
+      ],
+      "cwd": "/home/mickh/code/storytree03-wt/increment-869dacdcb37c-d37fec",
+      "exit_code": 0,
+      "stderr": "",
+      "stdout_sha256": "2cedcf44612bd0b21ccf27e2874f7644c0f09b2be55786a88008f61dfe1930b4"
+    },
+    {
+      "argv": [
+        "git",
+        "show",
+        "08124e6286ff09843500a35120a38a685806a646:packages/identity/README.md"
+      ],
+      "cwd": "/home/mickh/code/storytree03-wt/increment-869dacdcb37c-d37fec",
+      "exit_code": 0,
+      "stderr": "",
+      "stdout_sha256": "d96ab6ef50e0848c4b290ba78e8510552ccf1d319adb5f5d84b628205616d1c6"
+    },
+    {
+      "argv": [
+        "git",
+        "show",
+        "22c74d14930229751b8eec1dc9219353ccc9baaa:packages/identity/README.md"
+      ],
+      "cwd": "/home/mickh/code/storytree03-wt/increment-869dacdcb37c-d37fec",
+      "exit_code": 0,
+      "stderr": "",
+      "stdout_sha256": "d96ab6ef50e0848c4b290ba78e8510552ccf1d319adb5f5d84b628205616d1c6"
+    },
+    {
+      "argv": [
+        "git",
+        "show",
+        "08124e6286ff09843500a35120a38a685806a646:packages/agent-link/src/settings/settings.ts"
+      ],
+      "cwd": "/home/mickh/code/storytree03-wt/increment-869dacdcb37c-d37fec",
+      "exit_code": 0,
+      "stderr": "",
+      "stdout_sha256": "7e4cbf5c6cd1f7db16b94a15f168cbd0c45bf2f1b02e980fb183af1c80180855"
+    },
+    {
+      "argv": [
+        "git",
+        "show",
+        "22c74d14930229751b8eec1dc9219353ccc9baaa:packages/agent-link/src/settings/settings.ts"
+      ],
+      "cwd": "/home/mickh/code/storytree03-wt/increment-869dacdcb37c-d37fec",
+      "exit_code": 0,
+      "stderr": "",
+      "stdout_sha256": "7e4cbf5c6cd1f7db16b94a15f168cbd0c45bf2f1b02e980fb183af1c80180855"
+    },
+    {
+      "argv": [
+        "git",
+        "show",
+        "08124e6286ff09843500a35120a38a685806a646:packages/agent-link/src/routing/routing.ts"
+      ],
+      "cwd": "/home/mickh/code/storytree03-wt/increment-869dacdcb37c-d37fec",
+      "exit_code": 0,
+      "stderr": "",
+      "stdout_sha256": "469334907ac837b688dd3d70652f227291e9c24a6ed208109541f8593529c6f2"
+    },
+    {
+      "argv": [
+        "git",
+        "show",
+        "22c74d14930229751b8eec1dc9219353ccc9baaa:packages/agent-link/src/routing/routing.ts"
+      ],
+      "cwd": "/home/mickh/code/storytree03-wt/increment-869dacdcb37c-d37fec",
+      "exit_code": 0,
+      "stderr": "",
+      "stdout_sha256": "ffa55aa54ab4e371c3236de2d791abba10a7e78012e970b45d33a56b3a50f507"
+    },
+    {
+      "argv": [
+        "git",
+        "show",
+        "08124e6286ff09843500a35120a38a685806a646:packages/cli/src/door.ts"
+      ],
+      "cwd": "/home/mickh/code/storytree03-wt/increment-869dacdcb37c-d37fec",
+      "exit_code": 0,
+      "stderr": "",
+      "stdout_sha256": "e328de97b73e175a29b87e738a94448f408d8af1a3ae550fbab0da54253c9c73"
+    },
+    {
+      "argv": [
+        "git",
+        "show",
+        "22c74d14930229751b8eec1dc9219353ccc9baaa:packages/cli/src/door.ts"
+      ],
+      "cwd": "/home/mickh/code/storytree03-wt/increment-869dacdcb37c-d37fec",
+      "exit_code": 0,
+      "stderr": "",
+      "stdout_sha256": "e328de97b73e175a29b87e738a94448f408d8af1a3ae550fbab0da54253c9c73"
+    },
+    {
+      "argv": [
+        "git",
+        "show",
+        "08124e6286ff09843500a35120a38a685806a646:packages/cli/src/families/auth.ts"
+      ],
+      "cwd": "/home/mickh/code/storytree03-wt/increment-869dacdcb37c-d37fec",
+      "exit_code": 0,
+      "stderr": "",
+      "stdout_sha256": "87a8264283dcf138736a5229fe1b4e20e608af905e2a98c40bb82a0a564fc45c"
+    },
+    {
+      "argv": [
+        "git",
+        "show",
+        "22c74d14930229751b8eec1dc9219353ccc9baaa:packages/cli/src/families/auth.ts"
+      ],
+      "cwd": "/home/mickh/code/storytree03-wt/increment-869dacdcb37c-d37fec",
+      "exit_code": 0,
+      "stderr": "",
+      "stdout_sha256": "87a8264283dcf138736a5229fe1b4e20e608af905e2a98c40bb82a0a564fc45c"
+    },
+    {
+      "argv": [
+        "git",
+        "show",
+        "08124e6286ff09843500a35120a38a685806a646:pnpm-lock.yaml"
+      ],
+      "cwd": "/home/mickh/code/storytree03-wt/increment-869dacdcb37c-d37fec",
+      "exit_code": 0,
+      "stderr": "",
+      "stdout_sha256": "8c0e45df600434a601223024990e96f293eee97a400dd06060e6d57453ae23dc"
+    },
+    {
+      "argv": [
+        "git",
+        "show",
+        "22c74d14930229751b8eec1dc9219353ccc9baaa:pnpm-lock.yaml"
+      ],
+      "cwd": "/home/mickh/code/storytree03-wt/increment-869dacdcb37c-d37fec",
+      "exit_code": 0,
+      "stderr": "",
+      "stdout_sha256": "8c0e45df600434a601223024990e96f293eee97a400dd06060e6d57453ae23dc"
+    },
+    {
+      "argv": [
+        "git",
+        "diff",
+        "08124e6286ff09843500a35120a38a685806a646",
+        "22c74d14930229751b8eec1dc9219353ccc9baaa",
+        "--",
+        "packages/library/src/project/address.ts",
+        "packages/library/src/project/server.ts",
+        "packages/library/src/project/storytree.ts",
+        "packages/keys/src/keys.ts",
+        "packages/identity/src/service.ts",
+        "packages/identity/src/store.ts",
+        "packages/identity/src/http.ts",
+        "packages/identity/src/client.ts",
+        "packages/identity/README.md",
+        "packages/agent-link/src/settings/settings.ts",
+        "packages/agent-link/src/routing/routing.ts",
+        "packages/cli/src/door.ts",
+        "packages/cli/src/families/auth.ts",
+        "pnpm-lock.yaml"
+      ],
+      "cwd": "/home/mickh/code/storytree03-wt/increment-869dacdcb37c-d37fec",
+      "exit_code": 0,
+      "stderr": "",
+      "stdout_path": "source-changes.diff"
+    },
+    {
+      "argv": [
+        "rg",
+        "-n",
+        "createIdentityService|createIdentityHandler",
+        "packages",
+        "apps",
+        "--glob",
+        "!*.test.ts",
+        "--glob",
+        "!README.md"
+      ],
+      "cwd": "/home/mickh/code/storytree03-wt/increment-869dacdcb37c-d37fec",
+      "exit_code": 0,
+      "stderr": "",
+      "stdout_path": "identity-callers.stdout.txt"
+    }
+  ],
+  "helper_sha256": "1df4f59326ec26805672773374fea5d0a9dc2550a8fa5f1d720d432680259a6d",
+  "discovery_sha256": "03de6721b3802574afe6cd93a2013eeb9b59dc575850f91ea527ae823665f07a"
+}

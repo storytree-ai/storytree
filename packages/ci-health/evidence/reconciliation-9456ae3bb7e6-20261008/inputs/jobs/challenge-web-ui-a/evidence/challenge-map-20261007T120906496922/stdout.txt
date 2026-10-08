@@ -1,0 +1,4 @@
+web-ui-001: real surveyStory expanded exactly 3 identities; descending, cross-capability and unsafe endpoints rejected. No large range executed.
+web-ui-003: real focusProject returned synthetic external test title through a source-file symlink; after removal selection was absent; ordinary-file control passed. Recipient authorization was not simulated.
+web-ui-004: real packageOf returned inherited function; real reader rejected whole mixed project with ERR_INVALID_ARG_TYPE in current and local fallback modes; normal title and recovery controls passed.
+web-ui-005: real forestScene threw TypeError for __proto__, constructor, toString with empty ordinary-object survey; ordinary ID, null-prototype survey and own-entry controls rendered. Restore and desktop were not executed.

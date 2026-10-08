@@ -94,11 +94,18 @@ export class PgTransactions implements Transactions {
     return row === undefined ? null : recordOf(row);
   }
 
-  async list(type: string, filter: ListFilter = {}): Promise<RecordEnvelope[]> {
+  async list(type: string | readonly string[], filter: ListFilter = {}): Promise<RecordEnvelope[]> {
     filter = listFilter(filter);
     const params: unknown[] = [type];
     const bind = (value: unknown): string => { params.push(value); return `$${params.length}`; };
-    const clauses = ["type = $1"];
+    const clauses = [typeof type === "string" ? "type = $1" : "type = ANY($1::text[])"];
+    if (filter.after !== undefined) clauses.push(`id COLLATE "C" > ${bind(filter.after)}`);
+    if (filter.phrase !== undefined) {
+      const text = bind(filter.phrase.text);
+      const fields = filter.phrase.fields === undefined ? "" : ` AND key = ANY(${bind(filter.phrase.fields)}::text[])`;
+      clauses.push(`EXISTS (SELECT 1 FROM jsonb_each(fields) WHERE jsonb_typeof(value) = 'string'
+        AND strpos(value #>> '{}', ${text}) > 0${fields})`);
+    }
     if (filter.ids !== undefined) clauses.push(`id = ANY(${bind(filter.ids)}::text[])`);
     for (const [matches, operator] of [[filter.where, "="], [filter.not, "IS DISTINCT FROM"]] as const) {
       for (const [path, value] of Object.entries(matches ?? {})) {

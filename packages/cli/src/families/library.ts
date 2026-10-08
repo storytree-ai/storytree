@@ -15,7 +15,7 @@
  *   has no public editor yet, so that edit says what is missing.
  */
 import { isDeepStrictEqual } from "node:util";
-import { SchemaError, type KnowledgeKind, type Library, type RecordType, type WriteOptions } from "@storytree/library";
+import { SchemaError, type KnowledgeKind, type Library, type PhraseKind, type RecordType, type WriteOptions } from "@storytree/library";
 
 import { labelOf, Refusal, type Answer } from "../answer.js";
 import { commaSeparatedIds, type Args } from "../args.js";
@@ -103,6 +103,25 @@ const search: Verb = {
       text: [heading, ...lines].join("\n"),
       next: [{ command: "storytree library read <id>", why: "read one whole" }],
     };
+  },
+};
+
+const phrase: Verb = {
+  name: "phrase",
+  usage: 'library phrase <text|@file> [--kind <kind>] [--field <name>] [--limit <1-100>] [--after <id>]',
+  summary: "exact case-sensitive substring in stored top-level string fields; JSON records and next cursor, 10 per page; repeat kind/field to select (default: all artifacts, stories, capabilities, contracts, arcs, increments and questions); continue with the same query and selections; each page sees current state",
+  async act(args, context) {
+    const query = args.read(args.word(0, "one quoted literal phrase", this.usage));
+    if (args.words.length !== 1) throw new Refusal(`quote the phrase as one argument\nusage: storytree ${this.usage}`, { code: 2 });
+    const limit = args.text("limit");
+    const after = args.text("after");
+    const page = await (await context.library()).findPhrase(query, {
+      ...(args.has("kind") ? { kinds: args.texts("kind") as PhraseKind[] } : {}),
+      ...(args.has("field") ? { fields: args.texts("field") } : {}),
+      ...(limit === undefined ? {} : { limit: Number(limit) }),
+      ...(after === undefined ? {} : { after }),
+    });
+    return { text: JSON.stringify(page, null, 2) + "\n", raw: true };
   },
 };
 
@@ -274,6 +293,7 @@ export const library: Family = {
   guesses: { show: "library read <id>", get: "library read <id>", open: "library read <id>", view: "library read <id>", pull: "library read <id>", artifact: "library read <id>" },
   verbs: [
     search,
+    phrase,
     links,
     related,
     create,

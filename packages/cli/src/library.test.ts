@@ -18,6 +18,35 @@ const command = new BuiltCommand();
 before(() => command.build());
 after(() => command.remove());
 
+test("3.12 · phrase returns complete JSON records, selections and a continuation without trimming the phrase", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const phrase = "  Exact phrase  ";
+    const first = await library.defineTerm({ term: "First", meaning: phrase });
+    const second = await library.defineTerm({ term: "Second", meaning: phrase });
+    await library.defineTerm({ term: phrase, meaning: "Wrong field" });
+    await library.addStory({ title: phrase });
+    await library.defineTerm({ term: "Wrong spacing", meaning: phrase.trim() });
+    const args = ["library", "phrase", phrase, "--kind", "definition", "--kind", "decision", "--field", "meaning", "--field", "text", "--limit", "1"];
+    const ran = await world.run(args);
+    assert.equal(ran.code, 0, ran.stderr);
+    const page = JSON.parse(ran.stdout);
+    const expected = [first, second].sort((a, b) => a.id.localeCompare(b.id));
+    assert.deepEqual(page, { records: [expected[0]], next: expected[0]!.id });
+    const continued = await world.run([...args, "--after", page.next]);
+    assert.equal(continued.code, 0, continued.stderr);
+    assert.deepEqual(JSON.parse(continued.stdout), { records: [expected[1]] });
+    const absent = await world.run(["library", "phrase", "no such phrase"]);
+    assert.equal(absent.code, 0, absent.stderr);
+    assert.deepEqual(JSON.parse(absent.stdout), { records: [] });
+    for (const options of [["--limit", "101"], ["--limit", "1.5"], ["--kind", "bogus"]]) {
+      const refused = await world.run(["library", "phrase", phrase, ...options]);
+      assert.notEqual(refused.code, 0);
+      assert.match(refused.stderr, /limit|kind/);
+    }
+  });
+});
+
 test("3.1 `read` returns the whole body", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();

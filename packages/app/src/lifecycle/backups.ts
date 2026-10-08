@@ -9,6 +9,7 @@
  * BACKUPS_KEPT. A file there that is not a snapshot is never touched. A snapshot restores only into
  * an empty project (the library's `restore`), so it can never overwrite live edits.
  */
+import { execFileSync } from "node:child_process";
 import { chmodSync, closeSync, fstatSync, lstatSync, mkdirSync, openSync, readdirSync, readSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
@@ -46,11 +47,13 @@ export async function backUp({ storytree, projects, dir, now = new Date(), keep 
   for (const project of projects) {
     const snapshot = await storytree.snapshot(project);
     const folder = path.join(dir, project);
-    privateDirectory(dir);
-    privateDirectory(folder);
+    privateDirectories([dir, folder]);
     for (const stale of readdirSync(folder).filter((entry) => PARTIAL_FILE.test(entry))) rmSync(path.join(folder, stale));
     const file = path.join(folder, name);
-    writeFileSync(`${file}.partial`, `${JSON.stringify(snapshot)}\n`, { mode: 0o600, flag: "wx" });
+    // Windows creates the empty partial with an explicit DACL atomically. Opening it only after
+    // that succeeds never puts snapshot bytes in a file with permissive inherited permissions.
+    if (process.platform === "win32") windowsPermissions([{ file: `${file}.partial`, kind: "create" }]);
+    writeFileSync(`${file}.partial`, `${JSON.stringify(snapshot)}\n`, { mode: 0o600, flag: process.platform === "win32" ? "r+" : "wx" });
     renameSync(`${file}.partial`, file);
     written.push(file);
     const snapshots = readdirSync(folder).filter((entry) => SNAPSHOT_FILE.test(entry)).sort();
@@ -59,13 +62,14 @@ export async function backUp({ storytree, projects, dir, now = new Date(), keep 
   return written;
 }
 
-/** POSIX privacy belongs to the backup tree, independent of the application's home or umask.
- * Windows needs a separate ACL policy: Node's modes do not restrict readers there.
- */
-function privateDirectory(dir: string): void {
-  mkdirSync(dir, { recursive: true, mode: 0o700 });
-  if (!lstatSync(dir).isDirectory()) throw new Error(`Backup folder is not a directory: ${dir}`);
-  chmodSync(dir, 0o700);
+/** Privacy belongs to the backup tree, independent of the application's home or umask. */
+function privateDirectories(dirs: string[]): void {
+  for (const dir of dirs) {
+    mkdirSync(dir, { recursive: true, mode: 0o700 });
+    if (!lstatSync(dir).isDirectory()) throw new Error(`Backup folder is not a directory: ${dir}`);
+    if (process.platform !== "win32") chmodSync(dir, 0o700);
+  }
+  if (process.platform === "win32") windowsPermissions(dirs.map(file => ({ file, kind: "directory" })));
 }
 
 /** Repair before reusing a fresh snapshot, including retained projects no longer in the library.
@@ -76,17 +80,72 @@ function repairBackupPermissions(dir: string): void {
   const stat = lstatSync(dir, { throwIfNoEntry: false });
   if (stat === undefined) return;
   if (!stat.isDirectory()) throw new Error(`Backup folder is not a directory: ${dir}`);
-  chmodSync(dir, 0o700);
+  const entries: WindowsPermission[] = [];
+  const repair = (entry: WindowsPermission): void => {
+    if (process.platform === "win32") entries.push(entry);
+    else chmodSync(entry.file, entry.kind === "directory" ? 0o700 : 0o600);
+  };
+  repair({ file: dir, kind: "directory" });
   for (const project of readdirSync(dir, { withFileTypes: true })) {
     if (!project.isDirectory()) continue;
     const folder = path.join(dir, project.name);
-    chmodSync(folder, 0o700);
+    repair({ file: folder, kind: "directory" });
     for (const file of readdirSync(folder, { withFileTypes: true })) {
       if (file.isFile() && (SNAPSHOT_FILE.test(file.name) || PARTIAL_FILE.test(file.name))) {
-        chmodSync(path.join(folder, file.name), 0o600);
+        repair({ file: path.join(folder, file.name), kind: "file" });
       }
     }
   }
+  if (process.platform === "win32") windowsPermissions(entries);
+}
+
+type WindowsPermission = { file: string; kind: "directory" | "file" | "create" };
+
+/** Replace both inherited and explicit grants with the current user's SID alone. SetFileSecurity
+ * deliberately avoids propagating directory changes into unrelated children; every snapshot gets a
+ * protected DACL. Windows PowerShell's .NET Framework FileStream overload creates a partial exclusively with
+ * that DACL, before it can contain bytes. Any refusal aborts the backup; chmod is no ACL fallback.
+ */
+function windowsPermissions(entries: WindowsPermission[]): void {
+  const script = `
+$ErrorActionPreference = 'Stop'
+[Console]::InputEncoding = [Text.UTF8Encoding]::new($false)
+$entries = ConvertFrom-Json ([Console]::In.ReadToEnd())
+$owner = [Security.Principal.WindowsIdentity]::GetCurrent().User
+# SetAccessControl/SetNamedSecurityInfo propagate removal of inherited rules into unrelated files.
+# This supported legacy API changes only the named object (including its protected-DACL flag).
+# https://learn.microsoft.com/windows/win32/api/securitybaseapi/nf-securitybaseapi-setfilesecurityw
+Add-Type -TypeDefinition @'
+using System;
+using System.ComponentModel;
+using System.Runtime.InteropServices;
+public static class BackupPermissions {
+  [DllImport("advapi32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
+  static extern bool SetFileSecurityW(string name, uint information, byte[] descriptor);
+  public static void Set(string name, byte[] descriptor) {
+    // OWNER_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION | PROTECTED_DACL_SECURITY_INFORMATION
+    if (!SetFileSecurityW(name, 0x80000005, descriptor)) throw new Win32Exception(Marshal.GetLastWin32Error());
+  }
+}
+'@
+foreach ($entry in $entries) {
+  $acl = if ($entry.kind -eq 'directory') { [Security.AccessControl.DirectorySecurity]::new() } else { [Security.AccessControl.FileSecurity]::new() }
+  $acl.SetOwner($owner)
+  $acl.SetAccessRuleProtection($true, $false)
+  $acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new($owner, 'FullControl', 'Allow'))
+  if ($entry.kind -eq 'create') {
+    $stream = [IO.FileStream]::new($entry.file, [IO.FileMode]::CreateNew, [Security.AccessControl.FileSystemRights]::Write, [IO.FileShare]::None, 4096, [IO.FileOptions]::None, $acl)
+    $stream.Dispose()
+  } else {
+    [BackupPermissions]::Set($entry.file, $acl.GetSecurityDescriptorBinaryForm())
+  }
+}`;
+  const env = { ...process.env };
+  // A parent PowerShell 7's module path can break Windows PowerShell 5's built-in cmdlets.
+  for (const key of Object.keys(env)) if (key.toUpperCase() === "PSMODULEPATH") delete env[key];
+  execFileSync(path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe"),
+    ["-NoProfile", "-NonInteractive", "-EncodedCommand", Buffer.from(script, "utf16le").toString("base64")],
+    { input: JSON.stringify(entries), env, windowsHide: true, timeout: 30_000, stdio: ["pipe", "pipe", "pipe"] });
 }
 
 /** When a project's newest successful snapshot was taken, read from its file name; undefined when it has none. */

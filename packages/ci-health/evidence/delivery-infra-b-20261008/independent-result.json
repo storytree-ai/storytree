@@ -1,0 +1,516 @@
+{
+  "fixed_at": "2026-10-08T01:00:04.353749+00:00",
+  "increment": "increment_6d02e377b3fa",
+  "reviewer_session": "01a118ff-07a2-77d1-afd0-f9b25e285cf9",
+  "source_commits": {
+    "original": "08124e6286ff09843500a35120a38a685806a646",
+    "current": "a29b7f1b4f41dab3d99455bea0a3d1de679bd4be"
+  },
+  "independence": "Fresh review authored from discovery packet and source before reading challenge A or reconciliation outputs. Arc intent/end state read; remaining increment listing withheld until this file is fixed. This file will not be edited after comparison.",
+  "summary": "One demonstrated health-role integrity boundary failure; two demonstrated mechanisms whose security impact remains conditional on a lower-trust deployment. All three relevant mechanisms remain on freshly fetched main.",
+  "commands_and_provenance": {
+    "entry_command": [
+      "python3",
+      "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-delivery-infra-b-6d02e377b3fa-20261008/run-probe.py"
+    ],
+    "run_record": "probe-20261008T005801Z.run.json",
+    "exit_code": 0,
+    "script_hashes": {
+      "probe.mjs": "d3312e454fa713557a6cdbcfdfe3d2d04fb47e0f45c0ed9c9d3ff385b760efa2",
+      "run-probe.py": "db7b880edf754e15b2936442452954374d7a8bd7ceaed5ac60a2cff316902144"
+    },
+    "stdout": "probe-20261008T005801Z.stdout.jsonl",
+    "stderr": "probe-20261008T005801Z.stderr.txt",
+    "source_manifest": "source-manifest.json",
+    "source_comparison": "relevant-source-diff.run.json",
+    "isolation": "bwrap --unshare-all; read-only selected inputs; clear environment; disposable tmpfs; PostgreSQL listens only on disposable Unix socket. HTTP tests use namespace-private loopback.",
+    "database": "postgres (PostgreSQL) 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)",
+    "attempts": "One synthetic test run, exit 0. Six SQL policy-denial controls exited 3 as expected and retain exact SQL/stdout/stderr. No test attempt failed. Initial workspace command rejected an 88-character reason before claiming, then succeeded with a short reason; retained in orientation.json.",
+    "historical_refusal": "Original B failed with a cybersecurity-safeguard error per the brief; not relaunched. Exact historical record intentionally unread until after this independent result is fixed."
+  },
+  "candidates": [
+    {
+      "id": "delivery-infra-001",
+      "disposition": "confirmed-scoped-integrity-failure",
+      "severity": "medium, conditional on access as the restricted health SQL role; no exposed credential demonstrated",
+      "attacker_control": "A connected health-role principal can insert a fresh record_event row labelled health with arbitrary JSON fields.number, without a matching current record.",
+      "reachable_callers_and_guards": "Authored SQL grants INSERT on record_event. RLS verifies row type, embedded type and absence of an existing non-health current ID, but not number eligibility. Owner Knowledge.recordDecision for project storytree requests sequenceNeverHeld=true, forwarded by SchemaRecords to PgTransactions.save/numberedIn. Its history queries then include all types. Other projects keep type filtering; auto-numbering in storytree requires a persisted floor. Main-only workflow/OIDC conditions limit normal credential issuance.",
+      "trust_boundary": "Non-owner health-write authority changes an owner decision-number namespace despite direct non-health writes being denied. This is a distinct database-role boundary, established with separate nonsuperuser, non-BYPASSRLS SQL roles in the disposable cluster.",
+      "concrete_impact": "A synthetic decision maximum/floor of 10 yields 11 before the inserted health event and 701 after fields.number=700. Explicit 700 throws NumberTakenError; 699 remains available; the ordinary-project type-filtered path stays 11. The event has no current row and still influences allocation. Arbitrary decision-content modification, loss of stored decisions and broader availability impact are not established.",
+      "executed_proof": "Applied the actual complete PROJECT_SCHEMA and unmodified grants to PostgreSQL, using synthetic roles and database with the authored names. Legitimate health writes succeed. Direct decision row/history writes and health history under an existing decision ID fail RLS. Extracted unchanged numberedIn and exported numbered execute their actual SQL queries against owner connections; both original/current sources reproduce. The top-level Knowledge/SchemaRecords API was statically traced, not executed.",
+      "static_vs_executed": "RLS permissiveness and role separation are executed PostgreSQL evidence, not a simulated predicate. Full product API propagation remains source evidence. No live Cloud SQL policy or IAM state inspected.",
+      "counterevidence": [
+        "Direct decision writes remain refused.",
+        "Authored OIDC gates repository ID and main ref; own-health workflow also gates main and its environment.",
+        "Existing grants regression uses uniqueProjectName rather than storytree; it proves direct denials but not this all-types number path.",
+        "Compromise or authorized possession of the limited identity and connectivity are prerequisites, not established facts."
+      ],
+      "main_comparison": "Relevant grants, schema, allocator, callers and regression are byte-identical at both commits. own-health.yml changed its tailnet sign-in settings, not this SQL boundary.",
+      "source_citations": [
+        {
+          "source_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "path": "infra/ci-health/grants.sql",
+          "lines": [
+            48,
+            84
+          ],
+          "claim": "Privileges and RLS"
+        },
+        {
+          "source_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "path": "infra/library-host/grants.sql",
+          "lines": [
+            48,
+            84
+          ],
+          "claim": "Identical alternate grants"
+        },
+        {
+          "source_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "path": "packages/library/src/project/schema.ts",
+          "lines": [
+            21,
+            39
+          ],
+          "claim": "History JSONB has no current-row FK or fields schema"
+        },
+        {
+          "source_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "path": "packages/library/src/knowledge/knowledge.ts",
+          "lines": [
+            179,
+            209
+          ],
+          "claim": "Storytree-specific flag and floor guard"
+        },
+        {
+          "source_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "path": "packages/library/src/schema/records.ts",
+          "lines": [
+            68,
+            81
+          ],
+          "claim": "Forwarding"
+        },
+        {
+          "source_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "path": "packages/library/src/transactions/pg.ts",
+          "lines": [
+            76,
+            87
+          ],
+          "claim": "Save reaches allocator"
+        },
+        {
+          "source_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "path": "packages/library/src/transactions/pg.ts",
+          "lines": [
+            238,
+            255
+          ],
+          "claim": "All-types max and taken queries"
+        },
+        {
+          "source_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "path": "packages/library/src/transactions/records.ts",
+          "lines": [
+            153,
+            159
+          ],
+          "claim": "Next/taken calculation"
+        },
+        {
+          "source_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "path": "packages/library/src/project/ci-health.test.ts",
+          "lines": [
+            25,
+            62
+          ],
+          "claim": "Existing test scope"
+        },
+        {
+          "source_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "path": "infra/ci-health/main.tf",
+          "lines": [
+            63,
+            81
+          ],
+          "claim": "OIDC main guard"
+        },
+        {
+          "source_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "path": ".github/workflows/own-health.yml",
+          "lines": [
+            100,
+            112
+          ],
+          "claim": "Main/environment guard"
+        }
+      ],
+      "test_artifacts": [
+        {
+          "path": "probe-20261008T005801Z.stdout.jsonl",
+          "line": 29,
+          "kind": "job-local-test-output"
+        },
+        {
+          "path": "probe-20261008T005801Z.stdout.jsonl",
+          "line": 54,
+          "kind": "job-local-test-output"
+        }
+      ],
+      "remaining_proof": "Land a regression through the full product API for storytree and scope number reservations to owner-authorized decision/legacy namespaces without violating historical never-reuse requirements. Test both grants copies if changed. Independently reverify the merged remediation; deployed compromise is neither claimed nor needed to fix this boundary."
+    },
+    {
+      "id": "delivery-infra-002",
+      "disposition": "confirmed-complexity-defect; conditional-security-impact",
+      "severity": "performance defect confirmed; medium security availability rating not yet established",
+      "attacker_control": "Package names and four dependency maps in checked workspace manifests. No package script is needed to reach the walk.",
+      "reachable_callers_and_guards": "Installed CLI check and standalone guardrails main read a selected checkout through check -> packageProblems -> workspaceDependencies -> dependencyCycles. The walker prevents only cycles on the current trail; no completed-node memoization or work cap. checkoutOf has a git subprocess deadline, not a traversal deadline. Pipeline generation invokes trusted guardrails source on a separate workspace, showing architectural reachability but not a proven lower-trust operational deployment.",
+      "trust_boundary": "Potential repository-data-to-trusted-checker availability boundary. It is distinct only when the checkout is not already trusted for arbitrary execution. The generated test job itself runs project commands, so its mere existence does not prove this additional boundary.",
+      "concrete_impact": "Complete acyclic graphs with 4, 8 and 12 packages and 6, 28 and 66 edges produce 15, 255 and 4095 visit calls. This matches 2^n-1; traversal work grows exponentially despite quadratic input edges. The synchronous checker can be delayed with larger inputs, inferred from algorithm/counts; no hanging service, timing threshold or stress exhaustion was attempted.",
+      "executed_proof": "Actual exported packageProblems reads synthetic manifests. A count-only instrumentation at each visit, capped at 10000, is compared to the unmodified function output. Chain, diamond, cycle and three complete DAG controls pass on original and current sources. Maximum 12 vertices; no large graph test.",
+      "counterevidence": [
+        "No privilege escalation or hosted-service entry found.",
+        "CI can already execute submitted code and has outer limits; CI slowdown alone does not establish a distinct security failure.",
+        "No deployed trusted checker processing an attacker-controlled checkout as data only was verified."
+      ],
+      "main_comparison": "All cited implementation and entry-point files unchanged between source commits.",
+      "source_citations": [
+        {
+          "source_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "path": "packages/cli/src/families/guardrails.ts",
+          "lines": [
+            10,
+            18
+          ],
+          "claim": "Installed entry"
+        },
+        {
+          "source_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "path": "packages/guardrails/src/check/run.ts",
+          "lines": [
+            10,
+            18
+          ],
+          "claim": "Standalone entry"
+        },
+        {
+          "source_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "path": "packages/guardrails/src/check/check.ts",
+          "lines": [
+            19,
+            32
+          ],
+          "claim": "Git deadline versus synchronous package walk"
+        },
+        {
+          "source_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "path": "packages/guardrails/src/package-rule/package-rule.ts",
+          "lines": [
+            132,
+            148
+          ],
+          "claim": "Graph reaches cycle walk"
+        },
+        {
+          "source_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "path": "packages/guardrails/src/package-rule/package-rule.ts",
+          "lines": [
+            167,
+            193
+          ],
+          "claim": "Manifest fields and repeated DFS"
+        },
+        {
+          "source_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "path": "packages/agent-link/src/setup/pipeline.ts",
+          "lines": [
+            31,
+            40
+          ],
+          "claim": "Separate trusted checker source"
+        },
+        {
+          "source_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "path": "packages/agent-link/src/setup/pipeline.ts",
+          "lines": [
+            55,
+            88
+          ],
+          "claim": "Pipeline also runs project commands"
+        }
+      ],
+      "test_artifacts": [
+        {
+          "path": "probe-20261008T005801Z.stdout.jsonl",
+          "line": 57,
+          "kind": "job-local-test-output"
+        },
+        {
+          "path": "probe-20261008T005801Z.stdout.jsonl",
+          "line": 58,
+          "kind": "job-local-test-output"
+        },
+        {
+          "path": "probe-20261008T005801Z.stdout.jsonl",
+          "line": 59,
+          "kind": "job-local-test-output"
+        },
+        {
+          "path": "probe-20261008T005801Z.stdout.jsonl",
+          "line": 60,
+          "kind": "job-local-test-output"
+        },
+        {
+          "path": "probe-20261008T005801Z.stdout.jsonl",
+          "line": 61,
+          "kind": "job-local-test-output"
+        },
+        {
+          "path": "probe-20261008T005801Z.stdout.jsonl",
+          "line": 62,
+          "kind": "job-local-test-output"
+        },
+        {
+          "path": "probe-20261008T005801Z.stdout.jsonl",
+          "line": 63,
+          "kind": "job-local-test-output"
+        },
+        {
+          "path": "probe-20261008T005801Z.stdout.jsonl",
+          "line": 64,
+          "kind": "job-local-test-output"
+        },
+        {
+          "path": "probe-20261008T005801Z.stdout.jsonl",
+          "line": 65,
+          "kind": "job-local-test-output"
+        },
+        {
+          "path": "probe-20261008T005801Z.stdout.jsonl",
+          "line": 66,
+          "kind": "job-local-test-output"
+        },
+        {
+          "path": "probe-20261008T005801Z.stdout.jsonl",
+          "line": 67,
+          "kind": "job-local-test-output"
+        },
+        {
+          "path": "probe-20261008T005801Z.stdout.jsonl",
+          "line": 68,
+          "kind": "job-local-test-output"
+        }
+      ],
+      "remaining_proof": "Fix as bounded graph traversal in packages/guardrails with behavior/operation-count regressions. Keep the security rating conditional unless an actual lower-trust use is established; no owner action is needed for the performance repair."
+    },
+    {
+      "id": "delivery-infra-003",
+      "disposition": "confirmed-manual-handler-path-escape; conditional-cross-user-disclosure",
+      "severity": "conditional low local disclosure; not a deployed website vulnerability",
+      "attacker_control": "A raw HTTP request path to an active manual capture helper loopback port, provided a lower-trust local principal can reach it.",
+      "reachable_callers_and_guards": "Seven manual evidence scripts register a createServer callback, decode URL pathname, resolve against dist and read without containment. They listen on ephemeral 127.0.0.1 ports. The primary capture helper has a dist+separator containment guard. Existing scripts close servers after capture, although whole-script/browser startup and failure cleanup were not tested. Publishing uploads dist static assets, not these HTTP callbacks.",
+      "trust_boundary": "Potential lower-trust local client reads with the helper owner filesystem authority. Same-UID HTTP reproduction proves the handler mechanism only; it does not establish this cross-user authority boundary.",
+      "concrete_impact": "For all seven extracted callbacks, an encoded parent path returns an adjacent synthetic marker with HTTP 200; normal index succeeds. The guarded primary helper returns 403. Plain unencoded parent traversal normalizes in URL parsing and returns 404. No real protected file was accessed.",
+      "executed_proof": "Real HTTP requests and filesystem reads through each unchanged extracted callback, using only a namespace-private loopback port and /tmp synthetic files. Tested both commits. No complete capture script or browser was launched; no separate OS UID, browser-origin bypass or deployed host tested.",
+      "counterevidence": [
+        "Manual screenshot/evidence tools, including a retired forest-world helper, are not the deployed website server.",
+        "Loopback binding and short runtime restrict exposure; no internet reachability established.",
+        "The primary capture helper rejects the encoded path.",
+        "No evidence of a less-privileged caller currently reaching these helpers or of files readable by the helper but not that caller."
+      ],
+      "main_comparison": "Relevant callbacks are byte-identical. arrival and primary capture have unrelated capture changes; primary dist selection also gained WEBSITE_DIST. No removal of the demonstrated checks/escapes.",
+      "source_citations": [
+        {
+          "source_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "path": "packages/website/evidence/terminal.mjs",
+          "lines": [
+            17,
+            25
+          ],
+          "claim": "Unchecked handler and loopback"
+        },
+        {
+          "source_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "path": "packages/website/evidence/terminal.mjs",
+          "lines": [
+            105,
+            105
+          ],
+          "claim": "Closes server"
+        },
+        {
+          "source_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "path": "packages/website/evidence/turn/capture.mjs",
+          "lines": [
+            12,
+            18
+          ],
+          "claim": "Unchecked handler"
+        },
+        {
+          "source_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "path": "packages/website/evidence/journey/capture.mjs",
+          "lines": [
+            14,
+            23
+          ],
+          "claim": "Unchecked handler"
+        },
+        {
+          "source_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "path": "packages/website/evidence/arrival/capture.mjs",
+          "lines": [
+            22,
+            30
+          ],
+          "claim": "Unchecked handler"
+        },
+        {
+          "source_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "path": "packages/website/evidence/nameplates-phone/capture.mjs",
+          "lines": [
+            16,
+            24
+          ],
+          "claim": "Unchecked handler"
+        },
+        {
+          "source_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "path": "packages/website/evidence/warm-globe/measure.mjs",
+          "lines": [
+            11,
+            18
+          ],
+          "claim": "Unchecked handler"
+        },
+        {
+          "source_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "path": "packages/forest-world/evidence/flat-canvas-retired/capture-website.mjs",
+          "lines": [
+            13,
+            20
+          ],
+          "claim": "Retired manual helper"
+        },
+        {
+          "source_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "path": "packages/website/evidence/capture.mjs",
+          "lines": [
+            31,
+            43
+          ],
+          "claim": "Containment counterexample"
+        },
+        {
+          "source_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "path": "packages/website/publish-ci.mjs",
+          "lines": [
+            75,
+            83
+          ],
+          "claim": "Publishes dist"
+        },
+        {
+          "source_commit": "08124e6286ff09843500a35120a38a685806a646",
+          "path": "packages/website/src/publish.ts",
+          "lines": [
+            30,
+            67
+          ],
+          "claim": "Static build inventory and symlink refusal"
+        }
+      ],
+      "test_artifacts": [
+        {
+          "path": "probe-20261008T005801Z.stdout.jsonl",
+          "line": 69,
+          "kind": "job-local-test-output"
+        },
+        {
+          "path": "probe-20261008T005801Z.stdout.jsonl",
+          "line": 70,
+          "kind": "job-local-test-output"
+        },
+        {
+          "path": "probe-20261008T005801Z.stdout.jsonl",
+          "line": 71,
+          "kind": "job-local-test-output"
+        },
+        {
+          "path": "probe-20261008T005801Z.stdout.jsonl",
+          "line": 72,
+          "kind": "job-local-test-output"
+        },
+        {
+          "path": "probe-20261008T005801Z.stdout.jsonl",
+          "line": 73,
+          "kind": "job-local-test-output"
+        },
+        {
+          "path": "probe-20261008T005801Z.stdout.jsonl",
+          "line": 74,
+          "kind": "job-local-test-output"
+        },
+        {
+          "path": "probe-20261008T005801Z.stdout.jsonl",
+          "line": 75,
+          "kind": "job-local-test-output"
+        },
+        {
+          "path": "probe-20261008T005801Z.stdout.jsonl",
+          "line": 76,
+          "kind": "job-local-test-output"
+        },
+        {
+          "path": "probe-20261008T005801Z.stdout.jsonl",
+          "line": 77,
+          "kind": "job-local-test-output"
+        },
+        {
+          "path": "probe-20261008T005801Z.stdout.jsonl",
+          "line": 78,
+          "kind": "job-local-test-output"
+        },
+        {
+          "path": "probe-20261008T005801Z.stdout.jsonl",
+          "line": 79,
+          "kind": "job-local-test-output"
+        },
+        {
+          "path": "probe-20261008T005801Z.stdout.jsonl",
+          "line": 80,
+          "kind": "job-local-test-output"
+        },
+        {
+          "path": "probe-20261008T005801Z.stdout.jsonl",
+          "line": 81,
+          "kind": "job-local-test-output"
+        },
+        {
+          "path": "probe-20261008T005801Z.stdout.jsonl",
+          "line": 82,
+          "kind": "job-local-test-output"
+        },
+        {
+          "path": "probe-20261008T005801Z.stdout.jsonl",
+          "line": 83,
+          "kind": "job-local-test-output"
+        },
+        {
+          "path": "probe-20261008T005801Z.stdout.jsonl",
+          "line": 84,
+          "kind": "job-local-test-output"
+        }
+      ],
+      "remaining_proof": "Harden or retire the affected manual helpers in their owning packages, retaining synthetic path-containment controls. A cross-user deployment claim would require distinct lower-trust reachability evidence; it is not supplied by this test and no real host-data probe is warranted."
+    }
+  ],
+  "limits": [
+    "Only the three requested candidates reviewed.",
+    "Synthetic mechanism confirmation is not proof that a deployment is exposed.",
+    "No remediation shipped or verified by this review.",
+    "Original report and reviewer outputs left untouched. Comparison/adjudication follows in a separate additive artifact."
+  ]
+}

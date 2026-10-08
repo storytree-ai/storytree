@@ -6,7 +6,8 @@ import { lstat, mkdir, open, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { SessionStore } from "./client.js";
 
-interface StoreConfiguration { readonly directory: string; readonly clientId: string; readonly identityUrl: string }
+/** A session is bound to its WorkOS client only; status needs nothing else. */
+interface StoreConfiguration { readonly directory: string; readonly clientId: string }
 class PrivateStorageError extends Error {
   constructor(diagnostic?: string) {
     super("Private session storage is unavailable. No session was exposed; check its permissions and try again.",
@@ -53,12 +54,12 @@ export async function withSessionStore<T>(config: StoreConfiguration, act: (stor
         const plain = process.platform === "win32" ? await dpapi(value, false) : value;
         const data = JSON.parse(plain) as Record<string, unknown>;
         if (data.version !== 1 || typeof data.refreshToken !== "string" || !data.refreshToken || data.refreshToken.length > 16_384) throw storageError();
-        if (data.clientId !== config.clientId || data.identityUrl !== config.identityUrl) return undefined;
+        if (data.clientId !== config.clientId) return undefined;
         return data.refreshToken;
       }),
       write: refreshToken => protect(async () => {
         if (!refreshToken || refreshToken.length > 16_384 || /[\x00-\x20\x7f]/.test(refreshToken)) throw storageError();
-        const plain = JSON.stringify({ version: 1, clientId: config.clientId, identityUrl: config.identityUrl, refreshToken });
+        const plain = JSON.stringify({ version: 1, clientId: config.clientId, refreshToken });
         const value = process.platform === "win32" ? await dpapi(plain, true) : plain;
         const temporary = path.join(directory, `session-${randomUUID()}`);
         try {

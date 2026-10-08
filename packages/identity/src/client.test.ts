@@ -1,47 +1,60 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { exportJWK, generateKeyPair, SignJWT } from "jose";
 import { createIdentityClient, type SessionStore } from "./client.js";
 
-const identityUrl = "https://identity.example.test/v1/identity";
-const user = { id: "76c80829-6cfd-4f1e-95e8-9a9c781529ce", email: "first@example.test" };
 const clientId = "client_test";
-const credentials = { access_token: "access-private", refresh_token: "refresh-private" };
+const jwksUrl = `https://api.workos.com/sso/jwks/${clientId}`;
+const user = { id: "user_01FIRST", email: "first@example.test" };
+const account = { ...user, email_verified: true, first_name: "must-not-display", profile_picture_url: "private" };
+const { privateKey, publicKey } = await generateKeyPair("RS256");
+const { privateKey: strangerKey } = await generateKeyPair("RS256");
+const jwks = { keys: [{ ...(await exportJWK(publicKey)), kid: "k1", alg: "RS256", use: "sig" }] };
 const response = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
+
+/** A WorkOS access token as its JWT template stamps it, signed by the client's key unless told otherwise. */
+const token = (claims: Record<string, unknown> = {}, key = privateKey) => new SignJWT({ sid: "session_01", aud: "storytree-identity", ...claims })
+  .setProtectedHeader({ alg: "RS256", kid: "k1" }).setSubject(user.id).setIssuedAt().setExpirationTime("5m").sign(key);
+/** WorkOS's code and refresh exchanges answer with the tokens and the user they belong to. */
+const exchange = async (change: Record<string, unknown> = {}, claims: Record<string, unknown> = {}, key = privateKey) =>
+  response({ access_token: await token(claims, key), refresh_token: "refresh-private", user: account, ...change });
 
 function journey() {
   let saved: string | undefined;
   let time = 0;
-  let reads = 0;
-  let writes = 0;
   const waits: number[] = [];
   const shown: unknown[] = [];
   const requests: { url: string; init: RequestInit | undefined }[] = [];
+  const keyRequests: string[] = [];
   const answers: Response[] = [];
+  const keyAnswers: Response[] = [];
   const store: SessionStore = {
-    async read() { reads++; return saved; },
-    async write(value) { writes++; saved = value; },
+    async read() { return saved; },
+    async write(value) { saved = value; },
     async clear() { saved = undefined; },
   };
-  const open = () => createIdentityClient({ clientId, identityUrl, store,
+  const open = () => createIdentityClient({ clientId, store,
     now: () => time,
     wait: async (ms, signal) => { signal.throwIfAborted(); waits.push(ms); time += ms; },
     fetch: async (input, init) => {
-      requests.push({ url: String(input), init });
+      const url = input instanceof Request ? input.url : String(input);
+      if (url === jwksUrl) { keyRequests.push(url); return keyAnswers.shift() ?? response(jwks); }
+      requests.push({ url, init });
       assert.equal(init?.redirect, "error");
       return answers.shift() ?? response({ error: "unexpected_request" }, 500);
     },
   });
   const device = (change = {}) => response({ device_code: "device-private", user_code: "ABCD-EFGH",
     verification_uri: "https://example.authkit.app/device", expires_in: 300, interval: 5, ...change });
-  return { open, device, answers, waits, shown, requests, store,
+  return { open, device, answers, keyAnswers, waits, shown, requests, keyRequests, store,
     show: (value: unknown) => { shown.push(value); },
-    saved: () => saved, reads: () => reads, writes: () => writes,
+    saved: () => saved,
   };
 }
 
-test("2.2 device authorization exposes only the user code, obeys pending and slow_down, and waits for the Storytree identity", async () => {
+test("2.2 device authorization exposes only the user code, obeys pending and slow_down, and verifies WorkOS's token itself", async () => {
   const j = journey();
-  j.answers.push(j.device(), response({ error: "authorization_pending" }, 400), response({ error: "slow_down" }, 400), response(credentials), response({ ...user, workosUserId: "must-not-display", identities: ["private"] }));
+  j.answers.push(j.device(), response({ error: "authorization_pending" }, 400), response({ error: "slow_down" }, 400), await exchange());
   assert.deepEqual(await j.open().signIn(j.show), user);
   assert.deepEqual(j.shown, [{ userCode: "ABCD-EFGH", verificationUri: "https://example.authkit.app/device" }]);
   assert.deepEqual(j.waits, [5000, 5000, 10000]);
@@ -49,14 +62,15 @@ test("2.2 device authorization exposes only the user code, obeys pending and slo
   const first = j.requests[0]!;
   assert.equal(first.url, "https://api.workos.com/user_management/authorize/device");
   assert.equal(String(first.init?.body), "client_id=client_test");
-  for (const request of j.requests.slice(1, 4)) {
+  for (const request of j.requests.slice(1)) {
+    assert.equal(request.url, "https://api.workos.com/user_management/authenticate");
     const body = new URLSearchParams(String(request.init?.body));
     assert.equal(body.get("device_code"), "device-private");
     assert.equal(body.get("grant_type"), "urn:ietf:params:oauth:grant-type:device_code");
     assert.equal(body.has("client_secret"), false);
   }
-  assert.equal(j.requests[4]!.url, identityUrl);
-  assert.equal(new Headers(j.requests[4]!.init?.headers).get("authorization"), "Bearer access-private");
+  assert.equal(j.requests.length, 4, "no identity server is asked who the token belongs to");
+  assert.deepEqual(j.keyRequests, [jwksUrl], "checked against the client's own published keys");
 });
 
 test("2.2 denied, expired, cancelled, malformed or unverified device flows leave no saved session or leaked upstream text", async () => {
@@ -66,12 +80,6 @@ test("2.2 denied, expired, cancelled, malformed or unverified device flows leave
     await assert.rejects(j.open().signIn(j.show), (error: Error) => {
       assert.doesNotMatch(error.message, /private/); return true;
     });
-    assert.equal(j.saved(), undefined);
-  }
-  for (const answer of [response({ ...credentials, refresh_token: "" }), response(credentials)]) {
-    const j = journey();
-    j.answers.push(j.device(), answer, response({ error: "private" }, 401));
-    await assert.rejects(j.open().signIn(j.show));
     assert.equal(j.saved(), undefined);
   }
   const cancelled = journey();
@@ -91,21 +99,41 @@ test("2.2 denied, expired, cancelled, malformed or unverified device flows leave
   }
 });
 
+test("2.2 a token or user that does not verify never claims signed in and saves nothing", async () => {
+  const refusals = [
+    () => exchange({ refresh_token: "" }),
+    () => exchange({}, {}, strangerKey),
+    () => exchange({}, { aud: "someone-else" }),
+    () => exchange({}, { client_id: "client_other" }),
+    () => exchange({ user: { ...account, id: "user_01SOMEONEELSE" } }),
+    () => exchange({ user: { ...account, email_verified: false } }),
+    () => exchange({ user: { ...account, email: "private\nlog injection" } }),
+    () => exchange({ user: undefined }),
+    () => exchange({ access_token: "not-a-token" }),
+  ];
+  for (const refusal of refusals) {
+    const j = journey();
+    j.answers.push(j.device(), await refusal());
+    await assert.rejects(j.open().signIn(j.show), /could not be verified/i);
+    assert.equal(j.saved(), undefined);
+  }
+});
+
 test("2.4 status is account-free until sign-in, rotates a restarted session, and local sign-out removes it", async () => {
   const j = journey();
   assert.equal(await j.open().status(), null);
   assert.equal(j.requests.length, 0);
   await j.store.write("old-refresh");
-  j.answers.push(response(credentials), response(user));
+  j.answers.push(await exchange());
   assert.deepEqual(await j.open().status(), user);
   assert.equal(new URLSearchParams(String(j.requests[0]!.init?.body)).get("refresh_token"), "old-refresh");
   assert.equal(j.saved(), "refresh-private");
   await j.open().signOut();
   assert.equal(await j.open().status(), null);
-  assert.equal(j.requests.length, 2);
+  assert.equal(j.requests.length, 1);
 });
 
-test("2.4 revoked sessions are discarded; temporary failures keep the latest rotated refresh token without claiming signed in", async () => {
+test("2.4 revoked or unverifiable sessions are discarded; temporary failures keep the latest rotated refresh token without claiming signed in", async () => {
   const j = journey();
   await j.store.write("old-refresh");
   j.answers.push(response({ error: "invalid_grant", error_description: "private" }, 400));
@@ -115,22 +143,20 @@ test("2.4 revoked sessions are discarded; temporary failures keep the latest rot
   j.answers.push(response({ error: "private" }, 503));
   await assert.rejects(j.open().status(), /unavailable/i);
   assert.equal(j.saved(), "old-refresh");
-  j.answers.push(response(credentials), response({ error: "private" }, 503));
+  j.answers.push(await exchange());
+  j.keyAnswers.push(response({ error: "private" }, 503));
   await assert.rejects(j.open().status(), /unavailable/i);
-  assert.equal(j.saved(), "refresh-private");
-  j.answers.push(response({ ...credentials, refresh_token: "next-refresh" }), response({}, 401));
+  assert.equal(j.saved(), "refresh-private", "keys that could not be fetched keep the rotated session");
+  j.answers.push(await exchange({ refresh_token: "next-refresh" }, {}, strangerKey));
   assert.equal(await j.open().status(), null);
   assert.equal(j.saved(), undefined);
 });
 
-test("2.4 only an explicit HTTPS identity endpoint can receive access tokens; malformed identity responses never claim signed in", async () => {
+test("2.4 sign-in needs only a public WorkOS client ID; an identity endpoint, if still given, must be HTTPS and is never called", async () => {
   const j = journey();
+  for (const id of ["", "sk_live_secret"]) assert.throws(() => createIdentityClient({ clientId: id, store: j.store }));
   for (const url of ["http://localhost:1234/v1/identity", "https://user:password@identity.test", "https://identity.test/?token=a", "https://identity.test/#fragment"]) {
-    assert.throws(() => createIdentityClient({ clientId, identityUrl: url, store: j.store }));
+    assert.throws(() => createIdentityClient({ clientId, identityUrl: url, store: j.store }), /HTTPS identity endpoint/);
   }
-  for (const badUser of [{ ...user, id: "user_workos" }, { ...user, email: "private\nlog injection" }, {}]) {
-    j.answers.push(j.device(), response(credentials), response(badUser));
-    await assert.rejects(j.open().signIn(j.show));
-    assert.equal(j.saved(), undefined);
-  }
+  assert.doesNotThrow(() => createIdentityClient({ clientId, identityUrl: "https://identity.test/v1/identity", store: j.store }));
 });

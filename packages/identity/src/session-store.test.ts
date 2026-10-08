@@ -10,7 +10,7 @@ import { test, type TestContext } from "node:test";
 import { inspect } from "node:util";
 import { withSessionStore } from "./session-store.js";
 
-const context = { clientId: "client_test", identityUrl: "https://identity.example.test/v1/identity" };
+const context = { clientId: "client_test" };
 
 function windowsChild(t: TestContext) {
   const platform = Object.getOwnPropertyDescriptor(process, "platform")!;

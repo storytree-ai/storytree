@@ -24,8 +24,10 @@ The text above that marker is written by hand, and it counts toward the file's 4
 - 0.3's plan (arcs, increments, the owner's questions) lives only in the library, project
   `storytree`, which this checkout's `.storytree.json` names; 0.2's store holds none of it since
   cutover. The library is where your `library` setting says (`pnpm storytree settings show`): since
-  2026-09-28 storytree's own is on Cloud SQL, shared by the laptop and the Mint box, so the app need
-  not be running and a Mint lane claims and writes for itself, with no relaying.
+  2026-10-08 storytree's own is Postgres 16 on the Mint box (ADR-0928), shared by the laptop (over
+  Tailscale, at `mickh-a520i-ac:5432`) and the box itself (`127.0.0.1`), so the app need not be
+  running and a Mint lane claims and writes for itself, with no relaying. Cloud SQL (`storytree-pg`)
+  is stopped, kept only as the week's rollback.
 - Two front doors reach it, offered as equal options: which you use, step by step, is your choice
   (ADR-0793). The agent link's tools (`.mcp.json` registers its server for every session and worktree)
   or `pnpm storytree …`, 0.3's own command line: for example `show_plan` or `arc list` / `arc show`,

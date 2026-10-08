@@ -1,0 +1,49 @@
+name: Staging desktop build
+
+# The staging build: the Windows installer with feedback sign-in offered against WorkOS's staging
+# environment (app setup contract 5.6), for trying sign-in before production is set up. It is an
+# artifact of this run only; it never publishes a release, and release builds stay unstamped
+# (release.yml stamps no client ID). Run it by hand, or it runs on a change to its own definition.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/staging-desktop.yml
+      - apps/desktop/build.mjs
+
+concurrency:
+  group: staging-desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    env:
+      # WorkOS staging's public client ID (never a secret; the API key stays out of every build).
+      # Its sign-in redirects to storytree-auth://callback and its JWT template sets the audience
+      # storytree-identity, which the app's token check pins.
+      STORYTREE_WORKOS_CLIENT_ID: client_01M3YA74GXBT6Z64G671EDC3GW
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm desktop:dist
+      # The stamp reached the bundle: a build without it offers no sign-in, and would pass the install proof.
+      - name: The build carries the staging client ID
+        shell: bash
+        run: grep -q "\"$STORYTREE_WORKOS_CLIENT_ID\"" apps/desktop/dist/main.cjs
+      - run: node apps/desktop/check-install.mjs
+      - uses: actions/upload-artifact@v7
+        with:
+          name: storytree-staging-windows-${{ github.sha }}
+          path: apps/desktop/release/*-setup.exe
+          if-no-files-found: error
+          retention-days: 30

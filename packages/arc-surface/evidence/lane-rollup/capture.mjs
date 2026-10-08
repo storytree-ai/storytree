@@ -8,14 +8,17 @@ import { createServer } from 'node:http';
 import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { connect } from '@storytree/library';
 import { openActivityLog, claim } from '@storytree/agent-link';
 // The frame is reached through the desktop app, which mounts this surface: arc-surface itself never depends on it (ADR-0847).
-const { pageReads } = await import(createRequire(new URL('../../../../apps/desktop/package.json', import.meta.url)).resolve('@storytree/app'));
+const { pageReads } = await import(pathToFileURL(createRequire(new URL('../../../../apps/desktop/package.json', import.meta.url)).resolve('@storytree/app')).href);
 import { start } from '@storytree/local-postgres';
 import { captureOutput, fakeBridge, launch } from '../../../../apps/desktop/src/capture/index.ts';
 
+// The snapshot to restore is the first argument (or ARC_SNAPSHOT): no machine's folder is assumed.
+const snapshotPath = process.argv.slice(2).find(arg => !arg.startsWith('--')) ?? process.env.ARC_SNAPSHOT;
+if (!snapshotPath) throw new Error('usage: node capture.mjs <snapshot.json> (or set ARC_SNAPSHOT)');
 const here = path.dirname(fileURLToPath(import.meta.url));
 const output = captureOutput(here); // pictures and measurements: a scratch folder unless run with --retake
 const dist = path.resolve(here, '../../../../apps/desktop/dist/renderer');
@@ -25,7 +28,7 @@ try {
   postgres = await start({ dataDir: path.join(temporary, 'pgdata'), owner: 'lane roll-up capture' });
   store = await connect({ url: postgres.url }); log = await openActivityLog(postgres.url);
   const project = 'storytree';
-  const snapshot = JSON.parse(readFileSync(process.env.ARC_SNAPSHOT ?? '/home/mickh/storytree-lanes/snapshots/2026-09-27T12-40-59-713Z.json', 'utf8'));
+  const snapshot = JSON.parse(readFileSync(snapshotPath, 'utf8'));
   await store.restore(project, snapshot);
   const library = await store.openProject(project);
   const story = await library.addStory({ title: 'Understand the work' });
@@ -65,7 +68,7 @@ try {
   // The renderer's own reads (updates, setup) are answered as idle here; they are not under test.
   const pick = (names) => Object.fromEntries(names.map((name) => [name, reads[name]]));
   const bridge = fakeBridge({
-    ...pick(['listProjects', 'projectTree', 'changesSince', 'linesSince', 'frontCovers', 'relatedNotes', 'arcView', 'holds']),
+    ...pick(['listProjects', 'projectTree', 'changesSince', 'linesSince', 'frontCovers', 'relatedNotes', 'arcViews', 'holds']),
     projectSelection: async () => ({ current: project, projects: [project] }),
     readSurfaces: async () => undefined,
     agentConnections: async () => [],
@@ -94,6 +97,7 @@ try {
   await page.waitForSelector('[data-agent-label=Codex]');
   const chips = async () => page.locator('.arc-lanes > .arc-row').evaluateAll(rows => rows.map(row => [row.querySelector('.arc-title').textContent, row.querySelector('.arc-chip').textContent, row.querySelector('.arc-waits-on')?.textContent ?? '']));
   const top = await chips();
+  assert.ok(top.length > 0, 'the board has rows: an empty board is not pictured');
   assert.deepEqual(top.map(([title]) => title), ['Choose the release approach', 'Cloud backups', 'Arc surface', 'Trusted-circle distribution'], 'lamp and tips fold away; the question and the off-board wait stay on top');
   assert.deepEqual(top.find(([title]) => title === 'Trusted-circle distribution')?.[1], 'ready · 2 to take');
   assert.deepEqual(top.find(([title]) => title === 'Cloud backups')?.slice(1), ['queued', 'waits on Host the library · Hosted library later']);

@@ -54,7 +54,7 @@ Reuse the installed Playwright/Chromium through `STORYTREE_PLAYWRIGHT` and
 
 ```sh
 flock /tmp/storytree-heavy.lock node apps/desktop/build.mjs
-flock /tmp/storytree-heavy.lock node --import tsx packages/arc-surface/evidence/arc-bar/capture.mjs
+flock /tmp/storytree-heavy.lock node --import tsx packages/arc-surface/evidence/arc-bar/capture.mjs <snapshot.json>
 ```
 
 For native captures, restore into an empty throwaway home and supply a working X display:

@@ -25,8 +25,10 @@ export interface PinCandidate {
   draft: boolean;
   prerelease: boolean;
   installer: { url: string; sha256: string; sha512: string; size: number };
-  bootstrap: string;
+  /** The release's one-line installers: Windows' always, the Mac's once releases publish it. */
+  bootstrap: Bootstraps;
 }
+export interface Bootstraps { ps1: string; sh?: string }
 export interface PinPorts {
   previous(): Promise<{ ref: string; manifest: StableManifest } | undefined>;
   /** The adapter checks the release tag is on main and its version matches that commit. */
@@ -34,7 +36,7 @@ export interface PinPorts {
   pullRequests(commit: string): Promise<ReadonlySet<string>>;
   increments(): Promise<readonly LandedIncrement[]>;
   /** Publish atomically only while the channel still has the expected ref. */
-  publish(manifest: StableManifest, bootstrap: string, expectedRef?: string): Promise<void>;
+  publish(manifest: StableManifest, bootstrap: Bootstraps, expectedRef?: string): Promise<void>;
   now(): string;
 }
 
@@ -69,7 +71,7 @@ export async function pinStable(version: string, ports: PinPorts, preview = fals
   const installer = candidate.installer;
   const expectedUrl = `https://github.com/storytree-ai/storytree/releases/download/v${version}/storytree-0.3-${version}-setup.exe`;
   if (candidate.version !== version || candidate.draft || candidate.prerelease || candidate.channelSchema !== 1 ||
-      !/^[a-f0-9]{40}$/.test(candidate.commit) || !candidate.bootstrap || installer.url !== expectedUrl ||
+      !/^[a-f0-9]{40}$/.test(candidate.commit) || !candidate.bootstrap.ps1 || installer.url !== expectedUrl ||
       !/^[a-f0-9]{64}$/i.test(installer.sha256) || !/^[A-Za-z0-9+/]{86}==$/.test(installer.sha512) ||
       !Number.isSafeInteger(installer.size) || installer.size < 1) {
     throw new Error("The release is incomplete or does not support stable installation channels; pin a complete channel-aware release");

@@ -79,6 +79,21 @@ test("3.3 an idle claim does not hide free work: the lane reads ready with its i
   assert.equal(lane("free").idle, undefined);
 });
 
+test("2.1 a pip carries only its own increment's claim: capability claims mark no pip, and the lane still counts every holder (ADR-0944 D1)", () => {
+  const a = arc("a");
+  const touching = (id: string, status: FieldsOf<"increment">["status"], disposition?: "landed") => record(id, "increment", {
+    arc: "a", title: id, objective: id, body: id, status, parked: "2026-09-20", touches: ["c1", "c2"],
+    ...(disposition ? { outcome: { date: "2026-09-21", disposition } } : {}),
+  }, "2026-09-20");
+  a.increments.push(touching("done", "closed", "landed"), touching("open", "active"));
+  const claim = (seq: number, target: { increment: string } | { capability: string }) => ({ seq, project: "p", session: "s", harness: "claude-code", source: "hook" as const, kind: "claimed" as const, ...target, reason: "building", at: "2026-09-27T00:00:00Z" });
+  const board = boardView({ arcs: [a], waits: {}, heldOn: {} }, [claim(1, { increment: "open" }), claim(2, { capability: "c1" }), claim(3, { capability: "c2" })], new Date("2026-09-27T00:01:00Z"));
+  const bar = (id: string) => board.lanes[0]!.bars.find((bar) => bar.id === id)!;
+  assert.deepEqual(bar("done").agents, [], "a landed pip draws no mark for its capabilities' claims");
+  assert.deepEqual(bar("open").agents.map((agent) => agent.increment), ["open"], "one mark: the increment's own claim");
+  assert.equal(board.lanes[0]!.agents.length, 3);
+});
+
 const ownerWait: NoteWait = { releaser: "owner", note: "approve the spend", holds: true };
 const eventWait: NoteWait = { releaser: "event", note: "vendor ships the part", checkBack: "2999-01-01", holds: true };
 const passedWait: NoteWait = { releaser: "event", note: "the review window", checkBack: "2020-01-01", holds: false };

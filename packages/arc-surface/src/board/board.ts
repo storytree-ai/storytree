@@ -83,7 +83,7 @@ export function boardView(snapshot: BoardSnapshot, log: readonly Line[] | LogRea
       const behind = questionsBehind(increment.id, snapshot);
       const reading = incrementState(increment.fields, { waits: snapshot.waits[increment.id] ?? [], heldOn: snapshot.heldOn[increment.id] ?? [], waitsFor: noteWaits, behind, ...(claim ? { claim } : {}) });
       return { id: increment.id, title: increment.fields.title, reading,
-        agents: agents.onArc([increment]), waits: waits.on(increment.id), noteWaits,
+        agents: claim ? [claim] : [], waits: waits.on(increment.id), noteWaits,
         questionsBehind: (reading.behind ?? []).map((question) => questionTitles.get(question) ?? question), holdsUp: waits.heldUpBy(increment.id) };
     });
     const state = arcState(view.state, { openQuestions: questions.filter(({ fields }) => fields.lifecycle === "open").length, waits: snapshot.waits[arc.id] ?? [], claims: holders, increments: bars.map(({ reading }) => reading) });

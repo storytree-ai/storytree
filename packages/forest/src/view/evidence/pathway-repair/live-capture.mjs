@@ -15,7 +15,9 @@ const dist = path.resolve(process.env.PATHWAY_CAPTURE_DIST ?? path.join(here, 'd
 const folder = path.resolve(process.env.PATHWAY_CAPTURE_OUT ?? path.join(here, label));
 const seed = JSON.parse(gunzipSync(readFileSync(path.join(here, '../code-rows/seed.json.gz'))).toString());
 const survey = JSON.parse(readFileSync(path.join(here, '../code-rows/survey.json'), 'utf8'));
-const from = 'capability_11fe600afeda', to = 'capability_75d059640d9d';
+// The app setup's Connect an agent on The agent link's Setup check: on the refreshed survey (2026-10-09) one
+// of three links that alone own a crossing, and clear of The forest's capability 3, which the unrelated update edits.
+const from = 'capability_01dc27eec57f', to = 'capability_199d7af33d32';
 const restoredLink = `${from}->${to}`;
 const dependencyStory = seed.tree.stories.find(story => story.capabilities.some(cap => cap.id === to)).id;
 const dependentStory = seed.tree.stories.find(story => story.capabilities.some(cap => cap.id === from)).id;

@@ -125,6 +125,34 @@ beige roads also start whole. The first increment does not claim to repair motio
 Repeat this stage by passing `endpoints` in place of `after` to the build and
 capture commands and naming `captures/endpoints` as the output folder.
 
+### Refreshed survey, 2026-10-09
+
+The sixteen were code the survey had not credited, not code that was missing. After ADR-0925 (a
+file's declared capability counts) and PR #912 (the library's waits, owner questions, decision log
+and entrances got their own files), `code-rows/survey.json` was regenerated from `main` over the
+same seed. [`endpoint-diagnostic.mts`](endpoint-diagnostic.mts) builds the desktop's scene, layout and
+pathway plan from the saved seed and survey, then looks up each link end in its island's territories,
+as numbered test 3.7 does. It reproduces the reading above on the earlier survey (62 of 78) and, on
+the refreshed one ([endpoint-diagnostic.json](endpoint-diagnostic.json)), finds **76 of 78 linked
+capabilities with a territory, every one of them ending inside it**, across all 131 links. The two
+without are The world's 3 · Props and dressing and 4 · Hit targets. Both have been retired from
+the live plan since this seed was taken, and their code is credited to the world's current capabilities.
+On the live plan, every built, linked capability has credited code. They keep the fallback endpoint
+in this saved seed. The pictures above were taken with the earlier survey and are not retaken.
+
+The refreshed layout routes Agent tools' link to Library API entirely along roads other links
+already use, so restoring it no longer grows a road of its own. The live-road capture below, and
+its numbered test 3.35, now remove and restore The app setup's Connect an agent link to The agent
+link's Setup check instead: one of three links that alone own a crossing on the refreshed survey,
+and clear of The forest's capability 3, which the unrelated update edits. The capture otherwise runs
+as described below, with the same 130 and 131 link counts. Its committed pictures and measurements
+still show the earlier link.
+
+```sh
+npx tsx packages/forest/src/view/evidence/code-rows/survey.mjs
+npx tsx packages/forest/src/view/evidence/pathway-repair/endpoint-diagnostic.mts
+```
+
 ## Physical selection fronts and distinct shared colours, second increment
 
 | View | Endpoint-fixed baseline | Motion and shared lanes repaired |

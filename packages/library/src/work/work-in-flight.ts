@@ -298,6 +298,23 @@ export class WorkInFlight {
   }
 
   /**
+   * Replace a closed increment's outcome, keeping the correction and its nonblank reason in
+   * history (10.2). The closure date stays unless supplied; the other outcome fields are replaced.
+   * Open work is refused (RangeError), and the usual outcome validation still applies (SchemaError).
+   * Null, with nothing written, if `id` is not a live increment. Its lifecycle never changes.
+   */
+  correctIncrementClosure(id: string, close: CloseInput, reason: string, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
+    return this.#serially(async () => {
+      const increment = await liveRecord(this.#records, id, ["increment"]);
+      if (increment === null) return null;
+      if (increment.fields.status !== "closed") throw new RangeError(`increment ${JSON.stringify(id)} must be closed before its closure can be corrected`);
+      if (typeof reason !== "string" || reason.trim() === "") throw new RangeError("correcting an increment's closure requires a nonblank reason");
+      const outcome = outcomeOf({ ...close, date: close.date ?? increment.fields.outcome!.date });
+      return (await this.#records.edit(id, { outcome }, { ...options, reason })) as SchemaRecord<"increment"> | null;
+    });
+  }
+
+  /**
    * Move an increment to another arc, keeping its id, lifecycle, waits and claims; its history
    * records the move with `reason`. The arc must be live (MissingReferenceError otherwise). Open
    * work cannot move into a closed arc (ADR-0792 D2, RangeError), while completed history may move

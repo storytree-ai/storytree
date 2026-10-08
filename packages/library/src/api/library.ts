@@ -163,6 +163,8 @@ export interface Library {
    * request needs a note. Null if `id` is not a live increment.
    */
   closeIncrement(id: string, close: CloseInput, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null>;
+  /** Replace a closed outcome with a required reason in history; keep its date unless supplied. Refuse open work or an invalid outcome; null if not a live increment. */
+  correctIncrementClosure(id: string, close: CloseInput, reason: string, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null>;
   /**
    * Move an open increment to another live arc that is not closed, keeping its id, status, waits
    * and claims; its history records the move with `reason`. Null if `id` is not a live increment.
@@ -500,6 +502,10 @@ class LibraryHandle implements Library {
 
   closeIncrement(id: string, close: CloseInput, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
     return this.#project.flight.closeIncrement(id, close, options);
+  }
+
+  correctIncrementClosure(id: string, close: CloseInput, reason: string, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
+    return this.#project.flight.correctIncrementClosure(id, close, reason, options);
   }
 
   moveIncrement(id: string, arc: string, reason: string, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {

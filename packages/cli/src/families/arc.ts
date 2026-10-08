@@ -278,6 +278,22 @@ const incrementEdit: Verb = {
   },
 };
 
+const incrementCorrectClosure: Verb = {
+  name: "correct-closure",
+  usage: "arc increment correct-closure <increment> --disposition <landed|failed|withdrawn> --reason <why|@file> [--pr <ref>] [--note <text|@file>] [--date YYYY-MM-DD]",
+  summary: "replace a closed outcome with a reason in history; keep its date unless supplied; omitted PR and note are removed",
+  async act(args, context) {
+    const id = args.word(0, "the increment's id", this.usage);
+    const reason = args.need("reason", this.usage);
+    const done = await (await context.library()).correctIncrementClosure(id, closeOf(args), reason, context.writer());
+    if (done === null) throw new Refusal(`no increment "${id}" in this project`);
+    return {
+      text: `Corrected closure of increment ${id}: ${done.fields.outcome?.disposition ?? ""}. Its history keeps the correction and reason.`,
+      next: [{ command: `storytree library history ${id} --fields`, why: "see the original closure and its correction" }],
+    };
+  },
+};
+
 const incrementMove: Verb = {
   name: "move",
   usage: "arc increment move <increment> --to <arc> --reason <why>",
@@ -294,7 +310,7 @@ const incrementMove: Verb = {
 const increment: Family = {
   name: "increment",
   summary: "the increments of an arc's work",
-  verbs: [incrementNew, incrementAdd, incrementClose, incrementEdit, incrementMove, ...waiting("arc increment", "increment")],
+  verbs: [incrementNew, incrementAdd, incrementClose, incrementCorrectClosure, incrementEdit, incrementMove, ...waiting("arc increment", "increment")],
   guesses: { show: "library read <id>", read: "library read <id>", get: "library read <id>", open: "library read <id>" },
   retired: {
     ready: { why: "ADR-0909 retired the increment's ready step, and claiming a proposal starts it.", instead: "workspace <increment> --reason …" },

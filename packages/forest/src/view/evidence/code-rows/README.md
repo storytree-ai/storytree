@@ -31,6 +31,12 @@ get the same stand-in bridge, seed, survey, viewport and turns; nothing is hand-
   taken by `seed.mts` on 2026-10-02.
 - **Survey** (`survey.json`): `readCodeSurvey` over this branch with the seed's tree, by `survey.mjs`; the
   before build ignores its `dependsOn`.
+  **Refreshed 2026-10-09** from `main` after PR #912, same seed (increment_4fe7a4568ece): every file now
+  carries its declared capability and the numbered tests that reach it, and 76 of the 78 linked
+  capabilities have code (was 62). The two without, The world's 3 · Props and dressing and 4 · Hit targets,
+  have since been retired from the live plan; their code is credited to its current capabilities, which
+  this seed predates. The package edges it reads went from 36 to 40, so the rows can differ from the
+  pictures above, which were taken with the earlier survey. See ../pathway-repair/endpoint-diagnostic.json.
 - **Before** is `origin/main` built from a throwaway worktree; **after** is this branch.
 
 ## Rerun

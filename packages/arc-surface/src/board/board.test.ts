@@ -113,3 +113,17 @@ test("3.3 a snapshot without note waits (a board kept by an older build) reads a
   const lane = boardView({ arcs: [ready], heldOn: {}, waits: {} }, [], new Date()).lanes[0]!;
   assert.deepEqual([lane.chip, lane.noteWaits, lane.bars[0]?.noteWaits], ["ready · 1 to take", [], []]);
 });
+
+test("3.3 a bar waiting on work that is held on your question reads waiting on you, and its hover names the question", () => {
+  const mine = arc("mine"); mine.increments.push(noted("m1", "mine"), noted("m2", "mine"));
+  const middle = arc("middle"); middle.increments.push(noted("w1", "middle"));
+  const owner = arc("owner"); owner.increments.push(noted("o1", "owner"));
+  owner.questions.push(record("q1", "question", { arc: "owner", title: "Which vendor?", lifecycle: "open" } as never));
+  const on = (id: string) => [{ on: id, reason: `needs ${id}`, forGood: false }];
+  const board = boardView({ arcs: [mine, middle, owner], heldOn: { o1: ["q1"] }, waits: { m1: on("w1"), w1: on("o1") } }, [], new Date());
+  const lane = board.lanes.find((lane) => lane.id === "mine")!;
+  const bar = lane.bars[0]!;
+  assert.equal(lane.chip, "ready · 1 to take", "work behind your question is not to take");
+  assert.deepEqual([bar.reading.state, bar.reading.behind], ["waiting-on-you", ["q1"]]);
+  assert.match(renderBoard(board, "mine"), /data-increment-id="m1"[^>]*title="[^"]*waiting on you: Which vendor\?/);
+});

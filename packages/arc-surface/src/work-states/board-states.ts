@@ -12,6 +12,8 @@ export interface IncrementReading {
   close?: "landed" | "failed" | "withdrawn" | "unrecorded";
   /** An event wait's check-back day has passed, so it no longer holds the increment (ADR-0938). */
   checkBackPassed?: true;
+  /** The owner's questions its waits on other work end on, when they make it wait on you. */
+  behind?: string[];
 }
 export interface IncrementFacts {
   /** The library's heldOnQuestion reading, not the stored heldOn links. */
@@ -20,6 +22,8 @@ export interface IncrementFacts {
   waits?: readonly Hold[];
   /** The library's waitsFor reading (ADR-0938): its waits for the owner or an event, each with whether it still holds. */
   waitsFor?: readonly NoteWait[];
+  /** The owner's questions its waits on other work end on, however many hops away (questionsBehind). */
+  behind?: readonly string[];
   claim?: Claim;
 }
 export interface ArcFacts {
@@ -48,9 +52,28 @@ export function incrementState(increment: FieldsOf<"increment">, facts: Incremen
   const holding = noted.filter(({ holds }) => holds);
   const passed = noted.some(({ holds }) => !holds) ? { checkBackPassed: true as const } : {};
   if (facts.heldOn?.length || holding.some(({ releaser }) => releaser === "owner")) return { state: "waiting-on-you", color: "yellow", progress, ...passed };
+  // Work it waits on is held on the owner's question, so the owner, not the work, is what it waits for.
+  if (facts.behind?.length) return { state: "waiting-on-you", color: "yellow", progress, ...passed, behind: [...facts.behind] };
   if (facts.waits?.length || holding.length) return { state: "queued", color: "yellow", progress, ...passed };
   if (facts.claim) return { state: "held", color: "grey", progress, ...passed };
   return { state: "open", color: "grey", progress, ...passed };
+}
+
+/**
+ * The owner's questions holding the work `id` waits on, following waits through other work however
+ * many hops away; its own questions hold it directly and are not among them. A wait loop ends.
+ */
+export function questionsBehind(id: string, holds: { waits: Readonly<Record<string, readonly Hold[]>>; heldOn: Readonly<Record<string, readonly string[]>> }): string[] {
+  const seen = new Set([id]);
+  const questions = new Set<string>();
+  const next = [...(holds.waits[id] ?? [])].map(({ on }) => on);
+  for (let on = next.shift(); on !== undefined; on = next.shift()) {
+    if (seen.has(on)) continue;
+    seen.add(on);
+    for (const question of holds.heldOn[on] ?? []) questions.add(question);
+    next.push(...(holds.waits[on] ?? []).map((hold) => hold.on));
+  }
+  return [...questions];
 }
 
 export function arcState(lifecycle: Lifecycle, facts: ArcFacts = {}): ArcState {

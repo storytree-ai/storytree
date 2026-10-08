@@ -23,7 +23,7 @@ const laneNoteText = (wait: LaneNoteWait) => `${wait.increment.title}: ${noteTex
 function barText(bar: Bar): string {
   return [bar.title, `${bar.reading.state.replaceAll("-", " ")} · ${bar.reading.progress.replaceAll("-", " ")}`,
     ...(bar.reading.close ? [`Close: ${bar.reading.close}`] : []), ...bar.agents.map(agentText), ...bar.waits.map(waitText), ...bar.noteWaits.map(noteText),
-    ...bar.holdsUp.map((work) => `Holds up ${workText(work)}: ${work.reason}`)].join("\n");
+    ...bar.questionsBehind.map((question) => `waiting on you: ${question}`), ...bar.holdsUp.map((work) => `Holds up ${workText(work)}: ${work.reason}`)].join("\n");
 }
 function renderBar(bar: Bar): string {
   const title = barText(bar);

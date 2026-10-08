@@ -81,7 +81,7 @@ test("11.2 · skips owner actions, another machine's work, the website arc and a
   assert.match(why["laptop-arc"], /live laptop session/);
 });
 
-test("11.2 · the survey reads arcs once, and counts as laptop-touched only arcs a live off-box session claimed in the last hour", async () => {
+test("11.2 · the survey reads arcs once, and counts as laptop-touched only arcs where a live off-box session seen in the last hour holds an increment, never by touches (ADR-0944 D2)", async () => {
   let reads = 0;
   const record = (id, arc, body, extra = {}) => ({ id, createdAt: new Date(now - hour), fields: { arc, title: id, body, status: "proposal", parked: "2026-10-06T00:00:00Z", waits: [], ...extra } });
   const library = {
@@ -114,7 +114,7 @@ test("11.2 · the survey reads arcs once, and counts as laptop-touched only arcs
   const read = await readSurvey({ library, claims: async () => claims, sessions, now, home: "/home/mint" });
   assert.equal(reads, 1);
   assert.deepEqual([...asked].sort(), ["box", "laptop", "old"]);
-  assert.deepEqual(read.laptopArcs.sort(), ["arc_cap", "arc_laptop"]);
+  assert.deepEqual(read.laptopArcs.sort(), ["arc_laptop"]);
   assert.deepEqual(read.increments.map((one) => [one.id, one.arc, one.arcState, one.body]), [
     ["i1", "arc_laptop", "active", "a"], ["i2", "arc_laptop", "active", "b"], ["i3", "arc_cap", "active", "c"], ["i4", "arc_box", "parked", "d"], ["i5", "arc_stale", "active", "e"]]);
   assert.deepEqual(read.holds.waits.i1, [{ on: "z", reason: "r" }]);

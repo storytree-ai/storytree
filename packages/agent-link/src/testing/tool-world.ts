@@ -12,7 +12,7 @@ import { openActivityLog, type ActivityLog } from "../activity/index.js";
 import { MARKER_FILE } from "../routing/index.js";
 import { idOf, type Agent } from "./agent.js";
 import { withTempDir } from "./folders.js";
-import { dropTestProjects, testServerUrl, uniqueProjectName } from "./pg.js";
+import { approveCheckout, dropTestProjects, testServerUrl, uniqueProjectName } from "./pg.js";
 
 /** The toolbox: every tool the server offers. */
 export const TOOLS = [
@@ -78,6 +78,7 @@ export async function withProject(body: (world: World) => Promise<void>): Promis
     const folder = path.join(dir, "site");
     mkdirSync(folder);
     writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
+    await approveCheckout(folder, project);
     const storytree = await connect({ url: testServerUrl() });
     const log = await openActivityLog(testServerUrl());
     try {

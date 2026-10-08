@@ -25,7 +25,7 @@ import path from "node:path";
 import type { ConnectOptions } from "@storytree/library";
 
 import type { Line } from "../activity/index.js";
-import { openNamedProject, route } from "../routing/index.js";
+import { openNamedProject, requireApproval, route } from "../routing/index.js";
 import { idleAfterMs } from "../settings/settings.js";
 import { withDeadline } from "./deadlines.js";
 
@@ -40,7 +40,7 @@ export async function statusLine(input: string): Promise<string> {
     const where = route(folder);
     if (where.status === "not-a-project") return "";
     if (where.status === "not-running") return "storytree isn't running";
-    return (await withinTime(lineFor(where.library, where.project, session, folder, where.identity))) ?? "";
+    return (await withinTime(lineFor(where.library, where.project, session, folder, where.identity, where.folder))) ?? "";
   } catch {
     return "";
   }
@@ -54,7 +54,7 @@ function sessionIn(input: unknown): { session?: string; folder?: string } {
   return { ...(typeof session === "string" && session !== "" ? { session } : {}), ...(folder === undefined ? {} : { folder }) };
 }
 
-async function lineFor(where: ConnectOptions, project: string, session: string, folder: string, identity: string | undefined): Promise<string> {
+async function lineFor(where: ConnectOptions, project: string, session: string, folder: string, identity: string | undefined, checkout: string): Promise<string> {
   const [{ openActivityLog }, { connect }, { readClaims }, { readSessionStates }] = await Promise.all([
     import("../activity/index.js"),
     import("@storytree/library"),
@@ -62,6 +62,11 @@ async function lineFor(where: ConnectOptions, project: string, session: string, 
     import("../sessions/index.js"),
   ]);
   const storytree = await connect(withDeadline(where, WAIT_MS));
+  // An unapproved checkout reads nothing of the project its marker names (ADR-0942 D1): the refusal shows nothing.
+  await requireApproval(storytree, project, checkout).catch(async (error: unknown) => {
+    await storytree.close();
+    throw error;
+  });
   const log = await openActivityLog(storytree, { connectTimeoutMs: WAIT_MS });
   try {
     const now = Date.now();

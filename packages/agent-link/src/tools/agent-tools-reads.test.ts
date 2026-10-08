@@ -23,12 +23,12 @@ import { connect, type Library } from "@storytree/library";
 import { worklist } from "@storytree/librarian";
 import pg from "pg";
 
-import { type Line } from "../activity/index.js";
+import { openActivityLog, type Line } from "../activity/index.js";
 import { readClaims } from "../claims/index.js";
 import { MARKER_FILE } from "../routing/index.js";
 import { claudeCode, codex, idOf, withAgent } from "../testing/agent.js";
 import { git, withTempDir } from "../testing/folders.js";
-import { dropTestProjects, projectDatabase, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { approveCheckout, dropTestProjects, projectDatabase, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { NOT_RUNNING_ANSWER } from "./index.js";
 import { registerWorkTools } from "./work-tools.js";
 import type { Answer, Call, Define } from "./server.js";
@@ -69,6 +69,7 @@ test("in a folder whose project was deleted from the library, a tool says so and
     const folder = path.join(dir, "site");
     mkdirSync(folder);
     writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
+    await approveCheckout(folder, project);
     const storytree = await connect({ url: testServerUrl() });
     try {
       await (await storytree.openProject(project)).close();
@@ -97,6 +98,7 @@ test("in a folder whose project was deleted and a new project of its name set up
       const first = await storytree.openProject(project);
       await first.close();
       writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project, identity: first.identity })}\n`);
+      await approveCheckout(folder, project);
       await storytree.dropProject(project); // deleted from another computer; this folder still names it
       await (await storytree.openProject(project)).close(); // and a new project of that name set up elsewhere
       await withAgent(folder, claudeCode("claude-1"), async (agent) => {
@@ -106,6 +108,41 @@ test("in a folder whose project was deleted and a new project of its name set up
         assert.match(plan.text, /\.storytree\.json/);
       });
     } finally {
+      await storytree.close();
+      await dropTestProjects([project]);
+    }
+  });
+});
+
+test("6.43 a tool called from a checkout not approved for the project its marker names, even with the project's identity, is refused saying how to approve it, and writes no line; joining on purpose approves it (ADR-0942)", async () => {
+  const project = uniqueProjectName();
+  await withTempDir(async (dir) => {
+    const home = path.join(dir, "storytree-home");
+    mkdirSync(home);
+    copyFileSync(`${testServerDataDir()}.owner.json`, path.join(home, "pgdata.owner.json"));
+    const folder = path.join(dir, "download");
+    mkdirSync(folder);
+    const storytree = await connect({ url: testServerUrl() });
+    const log = await openActivityLog(testServerUrl());
+    try {
+      const existing = await storytree.openProject(project);
+      await existing.close();
+      writeFileSync(path.join(folder, MARKER_FILE), JSON.stringify({ project, identity: existing.identity }));
+      await withAgent(folder, claudeCode("downloaded", { dataDir: path.join(home, "pgdata"), setup: { homes: {}, storytreeHome: home } }), async (agent) => {
+        for (const [tool, args] of [["show_plan", {}], ["plan_story", { title: "Visitor can sign up", ...FOUNDED }], ["check_setup", {}]] as const) {
+          const refused = await agent.call(tool, args);
+          assert.equal(refused.isError, true, tool);
+          assert.match(refused.text, /not approved/, tool);
+          assert.match(refused.text, /storytree doctor --join/, tool);
+        }
+        assert.deepEqual(await log.lines(project, { sessions: ["downloaded"] }), [], "nothing is recorded in the project");
+
+        const joined = await agent.call("set_up_project", { name: project, join: true });
+        assert.equal(joined.isError, false, joined.text);
+        idOf(await agent.call("plan_story", { title: "Visitor can sign up", ...FOUNDED }));
+      });
+    } finally {
+      await log.close();
       await storytree.close();
       await dropTestProjects([project]);
     }
@@ -196,9 +233,10 @@ test("6.4 show_plan gives up on a stalled handshake within three seconds and a l
   });
   await new Promise<void>((resolve) => silent.listen(0, "127.0.0.1", resolve));
   try {
-    await withProject(async ({ folder }) => {
+    await withProject(async ({ folder, project }) => {
       const dataDir = path.join(folder, "pgdata");
       writeFileSync(`${dataDir}.owner.json`, JSON.stringify({ pid: process.pid, port: (silent.address() as AddressInfo).port, token: "stalled-db", owner: "test", startedAt: new Date().toISOString() }));
+      await approveCheckout(folder, project, folder);
       await withAgent(folder, claudeCode("stalled-db", { dataDir }), async (agent) => {
         const started = performance.now();
         const answer = await agent.call("show_plan");
@@ -371,6 +409,7 @@ test("6.8 after Claude Code's /clear, which gives the window a new session id th
     const storytreeHome = path.join(folder, "..", "storytree-home");
     mkdirSync(storytreeHome);
     copyFileSync(`${testServerDataDir()}.owner.json`, path.join(storytreeHome, "pgdata.owner.json"));
+    await approveCheckout(folder, project, storytreeHome);
     const setup = { dataDir: path.join(storytreeHome, "pgdata"), setup: { homes: {}, storytreeHome } };
     // The tool server was started before the /clear: its environment still names the old session.
     await withAgent(folder, claudeCode("claude-before-clear", setup), async (agent) => {

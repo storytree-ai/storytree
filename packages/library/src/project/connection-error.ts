@@ -28,7 +28,9 @@ export type ConnectionProblem =
   /** A library reached by address refused the password saved for it. */
   | "password"
   /** A library reached by address is at a host that cannot be reached, or did not answer in time. */
-  | "unreachable";
+  | "unreachable"
+  /** A library at a remote address did not prove who it is with a TLS certificate storytree checks, so it was not sent the password. */
+  | "untrusted-server";
 
 /** Storytree cannot reach or use the server as it is set up. The message says what to fix. */
 export class ConnectionError extends Error {

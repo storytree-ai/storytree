@@ -42,10 +42,9 @@ export interface ServerAccess {
  * check; other failures are left as they are. Database-creation privileges are explained where
  * databases are created, on either kind of server.
  */
-export function localServer(url: URL, connectTimeoutMs = 3_000, bounds: WaitBounds = {}): ServerAccess {
-  const local = ["127.0.0.1", "[::1]", "localhost"].includes(url.hostname);
+export function localServer(url: URL, connectTimeoutMs = 3_000, bounds: WaitBounds = {}, transport: Transport = loopbackTransport(url.hostname)): ServerAccess {
   const pool = (connectionString: string, role?: string) =>
-    newPool({ connectionString, ...(local ? { Client: LocalClient } : {}), connectionTimeoutMillis: connectTimeoutMs, ...statementBound(bounds), ...actingAs(role) });
+    newPool({ connectionString, ...transport, connectionTimeoutMillis: connectTimeoutMs, ...statementBound(bounds), ...actingAs(role) });
   return {
     kind: "postgres",
     admin: pool(url.href),
@@ -62,6 +61,19 @@ export function localServer(url: URL, connectTimeoutMs = 3_000, bounds: WaitBoun
     },
     close: () => {},
   };
+}
+
+/** How every connection to a server is made: its client and, for a server that must prove who it is, its TLS. */
+export type Transport = Pick<PoolConfig, "Client" | "ssl">;
+
+/** Whether `hostname`, as a URL writes it, is this machine's loopback. */
+export function isLoopback(hostname: string): boolean {
+  return ["127.0.0.1", "[::1]", "localhost"].includes(hostname);
+}
+
+/** The transport for a server at `hostname` that says nothing else: loopback's downgrade refusal, or pg's own. */
+function loopbackTransport(hostname: string): Transport {
+  return isLoopback(hostname) ? { Client: LocalClient } : {};
 }
 
 /**

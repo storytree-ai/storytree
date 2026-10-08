@@ -27,7 +27,7 @@ import { locateStorytree, MARKER_FILE } from "../routing/index.js";
 import { habitsCard } from "../instructions/index.js";
 import { claudeCode, codex, withAgent } from "../testing/agent.js";
 import { withTempDir } from "../testing/folders.js";
-import { dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { approveCheckout, dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { builtFromMain, CHECK_FILE, FIX_SENTENCES, ghState, launcherFile, machineState, putCommandOnPath, registerHooks, removeCommand, removeHooks, verifyHooks, type GhState, type HookCommand, type Homes } from "./index.js";
 
 const STUB_APP = fileURLToPath(new URL("../testing/stub-app.mjs", import.meta.url));
@@ -414,6 +414,7 @@ test("8.5 the agent fires a test of each hook, and the connection shows as verif
     const folder = path.join(dir, "site");
     mkdirSync(folder);
     writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
+    await approveCheckout(folder, project, home.storytreeHome);
     const setup = {
       dataDir: path.join(home.storytreeHome, "pgdata"),
       setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome },
@@ -465,6 +466,7 @@ test("journey-events 1.5: the hooks-verified milestone is reported only once che
     const folder = path.join(dir, "site");
     mkdirSync(folder);
     writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
+    await approveCheckout(folder, project, home.storytreeHome);
     let milestones = 0;
     const setup = {
       dataDir: path.join(home.storytreeHome, "pgdata"),
@@ -502,6 +504,7 @@ test("8.21 a Codex session that set its project up during the session, while Cod
     const folder = path.join(dir, "site");
     mkdirSync(folder);
     writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
+    await approveCheckout(folder, project, home.storytreeHome);
     const setup = { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome } };
     try {
       const server = await connect({ url: testServerUrl() });
@@ -1083,6 +1086,7 @@ test("8.19 in a project whose library holds the starter roles, the check names t
       mkdirSync(oldFolder);
       await (await storytree.openProject(older)).close();
       writeFileSync(path.join(oldFolder, MARKER_FILE), `${JSON.stringify({ project: older })}\n`);
+      await approveCheckout(oldFolder, older, home.storytreeHome);
       await withAgent(oldFolder, agentIn(oldFolder), async (agent) => {
         const checked = await agent.call("check_setup");
         assert.deepEqual(checked.data.starterRoles, []);
@@ -1103,6 +1107,7 @@ test("8.20 once storytree has received the session's edit of the check file, the
     const worktree = path.join(folder, ".claude", "worktrees", "a-worktree");
     mkdirSync(worktree, { recursive: true });
     writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
+    await approveCheckout(folder, project, home.storytreeHome);
     const setup = { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome } };
     try {
       const server = await connect({ url: testServerUrl() });
@@ -1129,6 +1134,7 @@ test("8.24 the check tells a session the hook failures this machine traced for i
     const folder = path.join(dir, "site");
     mkdirSync(folder);
     writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
+    await approveCheckout(folder, project, home.storytreeHome);
     const setup = { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome } };
     try {
       const server = await connect({ url: testServerUrl() });

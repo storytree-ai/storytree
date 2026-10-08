@@ -10,7 +10,7 @@ import { claimsFrom, sessionsFrom } from "../readings.js";
 import { readSessions } from "../sessions/index.js";
 import { claudeCode, withAgent } from "../testing/agent.js";
 import { withTempDir } from "../testing/folders.js";
-import { dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { approveCheckout, dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { setSetting } from "./settings.js";
 
 test("10.10 after 15 quiet minutes, the default keeps sessions and claims live; 10m makes them idle and permits takeover", async () => {
@@ -75,6 +75,7 @@ test("10.10 / 9.7 a running MCP server rereads idle-after without blocking indep
     const log = await openActivityLog(testServerUrl());
     try {
       writeFileSync(path.join(home, ".storytree.json"), JSON.stringify({ project }));
+      await approveCheckout(home, project, home);
       const library = await store.openProject(project);
       const story = await library.addStory({ title: "Idle setting" });
       const capability = await library.addCapability({ story: story.id, title: "Claimed work" });

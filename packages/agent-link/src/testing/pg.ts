@@ -10,8 +10,15 @@
  * them, so the few the agent link needs are restated here.
  */
 import { randomBytes } from "node:crypto";
+import { realpathSync } from "node:fs";
+import path from "node:path";
+
+import { connect } from "@storytree/library";
 
 import pg from "pg";
+
+import { requireApproval } from "../routing/routing.js";
+import { machineOf, registerTrunk } from "../routing/trunks.js";
 
 /** What uniqueProjectName() puts in every name; the only databases dropTestDatabases() will drop. */
 const TEST_TOKEN = /t-[0-9a-f]{8}/;
@@ -78,4 +85,21 @@ function required(name: string, how: string): string {
   const value = process.env[name];
   if (value === undefined || value === "") throw new Error(`${name} is not set: ${how}.`);
   return value;
+}
+
+/**
+ * Approve `folder` as `project`'s trunk on the machine whose storytree home is `home` (by default
+ * the test server's, where a test's tool server keeps its machine), as setting it up would
+ * (ADR-0942): for tests that write a project's marker by hand.
+ */
+export async function approveCheckout(folder: string, project: string, home: string = path.dirname(path.resolve(testServerDataDir()))): Promise<void> {
+  const machine = machineOf(home);
+  const storytree = await connect({ url: testServerUrl() });
+  try {
+    await registerTrunk(storytree, { project, machine: machine.id, machineName: machine.name, folder: realpathSync.native(folder) }, "test");
+    // Seen once, as a setup leaves it: the machine remembers it.
+    await requireApproval(storytree, project, folder, home);
+  } finally {
+    await storytree.close();
+  }
 }

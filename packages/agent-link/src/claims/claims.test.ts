@@ -20,7 +20,7 @@ import { MARKER_FILE } from "../routing/index.js";
 import { claudeCode, withAgent } from "../testing/agent.js";
 import { countingStore } from "../testing/egress.js";
 import { withTempDir } from "../testing/folders.js";
-import { dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { approveCheckout, dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { readSessions } from "../sessions/index.js";
 import { claim, claimRefusal, land, readAttribution, release, releaseFor, type ClaimContext, type MergedPull, type MergeWatch } from "./index.js";
 import { boardClaims, due, mergedPullsThrough } from "./merges.js";
@@ -329,6 +329,7 @@ test("5.10 a claim taken on branch feature/signup ends with a merged line once G
     await withTempDir(async (folder) => {
       writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}
 `);
+      await approveCheckout(folder, project);
       // GitHub, as `gh` would answer: the merged pull requests from each branch.
       const pulls = new Map<string, MergedPull[]>();
       const merges: MergeWatch = { mergedPulls: async (_folder, branch) => pulls.get(branch) ?? [], everyMs: 0 };

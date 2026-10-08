@@ -23,8 +23,8 @@ import pg from "pg";
 import { setLibrary } from "../settings/settings.js";
 import { git, withTempDir } from "../testing/folders.js";
 import { dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { setUpTrunks } from "./trunks.js";
-import { findProject, locateStorytree, MARKER_FILE, NOT_A_PROJECT, NOT_RUNNING, recordTrunkOnSight, route, setUpProject, suggestProjectName, type ProjectLookup } from "./index.js";
+import { machineOf, registerTrunk, setUpTrunks } from "./trunks.js";
+import { findProject, locateStorytree, MARKER_FILE, NOT_A_PROJECT, NOT_RUNNING, requireApproval, route, setUpProject, suggestProjectName, type ProjectLookup } from "./index.js";
 
 /** "Well under a second", as the tests hold it. */
 const QUICK_MS = 500;
@@ -353,8 +353,8 @@ test("1.11 another machine adds its checkout to an existing project only on purp
   });
 });
 
-test("1.12 a project set up before trunks were recorded keeps routing, and the first sight of it from a git worktree records its trunk on this machine, so a second trunk is then refused", async () => {
-  const project = uniqueProjectName();
+test("1.12 a marker alone reaches no project: with or without the project's identity it is refused until its trunk is approved, a trunk recorded before approval stays refused until it joins on purpose, and an approved trunk and its worktrees reach it", async () => {
+  const [project, victim] = [uniqueProjectName(), uniqueProjectName()];
   await withTempDir(async (dir) => {
     const { laptop } = machines(dir);
     const trunk = markedFolder(dir, "app");
@@ -364,11 +364,34 @@ test("1.12 a project set up before trunks were recorded keeps routing, and the f
     git(trunk, "commit", "-q", "-m", "first");
     const worktree = path.join(dir, "app-feature");
     git(trunk, "worktree", "add", "-q", "-b", "feature", worktree);
-    await withStorytree([project], async (storytree) => {
+    await withStorytree([project, victim], async (storytree) => {
+      const { identity } = await storytree.openProject(victim).then(async (library) => (await library.close(), library));
+      // A downloaded folder naming someone's existing project, by name and by its real identity.
+      const [bare, known] = [markedFolder(dir, "bare"), markedFolder(dir, "known")];
+      writeFileSync(path.join(bare, MARKER_FILE), JSON.stringify({ project: victim }));
+      writeFileSync(path.join(known, MARKER_FILE), JSON.stringify({ project: victim, identity }));
+      for (const folder of [bare, known]) {
+        assert.equal(route(folder).status !== "not-a-project", true, "the marker still names its project");
+        await assert.rejects(requireApproval(storytree, victim, folder, laptop), folderRefusal(victim, "not approved", "--join"));
+      }
+
+      // A trunk recorded before approval existed, as the agent link once recorded it on sight.
       await (await storytree.openProject(project)).close();
-      assert.deepEqual(named(findProject(worktree)), { project, folder: worktree }, "the committed marker routes the worktree as before");
-      assert.equal(await recordTrunkOnSight(storytree, project, worktree, laptop), true);
-      assert.equal(await recordTrunkOnSight(storytree, project, trunk, laptop), false, "seen again, nothing changes");
+      const machine = machineOf(laptop);
+      assert.equal(await registerTrunk(storytree, { project, machine: machine.id, machineName: machine.name, folder: trunk }), true);
+      await assert.rejects(requireApproval(storytree, project, trunk, laptop), folderRefusal(project, "not approved"), "nothing is grandfathered");
+      await assert.rejects(requireApproval(storytree, project, worktree, laptop), folderRefusal(project, "not approved"));
+
+      await setUpProject({ folder: trunk, project, storytree, storytreeHome: laptop, join: true });
+      await requireApproval(storytree, project, trunk, laptop);
+      // The approval is the trunk's record, not this home's memory of it: the same machine with nothing remembered finds it too.
+      const fresh = path.join(dir, "laptop-home-again");
+      mkdirSync(fresh);
+      writeFileSync(path.join(fresh, "machine.json"), readFileSync(path.join(laptop, "machine.json")));
+      await requireApproval(storytree, project, worktree, fresh);
+      await requireApproval(storytree, project, path.join(worktree), laptop);
+      await assert.rejects(requireApproval(storytree, victim, trunk, laptop), folderRefusal(victim), "an approved trunk is approved for its own project only");
+      await assert.rejects(requireApproval(storytree, project, worktree, machines(dir).box), folderRefusal(project), "approval is per machine");
       const second = path.join(dir, "copy");
       mkdirSync(second);
       await assert.rejects(setUpProject({ folder: second, project, storytree, storytreeHome: laptop, join: true }), folderRefusal(trunk));
@@ -376,7 +399,7 @@ test("1.12 a project set up before trunks were recorded keeps routing, and the f
   });
 });
 
-test("1.13 a trunk whose folder moved follows it on first sight, and one whose folder is gone gives way to a new folder joining; a live trunk is still never moved", async () => {
+test("1.13 a moved trunk is never adopted on sight: it reaches its project only once joined on purpose, and a deleted one gives way to a new folder joining; a live trunk is still never moved", async () => {
   const project = uniqueProjectName();
   await withTempDir(async (dir) => {
     const { laptop } = machines(dir);
@@ -385,8 +408,12 @@ test("1.13 a trunk whose folder moved follows it on first sight, and one whose f
     mkdirSync(path.dirname(moved));
     await withStorytree([project], async (storytree) => {
       await setUpProject({ folder: old, project, storytree, storytreeHome: laptop });
+      await requireApproval(storytree, project, old, laptop);
       renameSync(old, moved);
-      assert.equal(await recordTrunkOnSight(storytree, project, moved, laptop), true, "the moved folder, seen, becomes the trunk");
+      assert.deepEqual(named(findProject(moved)), { project, folder: moved }, "its marker moved with it");
+      await assert.rejects(requireApproval(storytree, project, moved, laptop), folderRefusal(project, "not approved"), "the moved folder is not adopted on sight");
+      await setUpProject({ folder: moved, project, storytree, storytreeHome: laptop, join: true });
+      await requireApproval(storytree, project, moved, laptop);
       const copy = path.join(dir, "copy");
       mkdirSync(copy);
       await assert.rejects(setUpProject({ folder: copy, project, storytree, storytreeHome: laptop, join: true }), folderRefusal(moved), "the trunk it moved to is live");
@@ -394,6 +421,40 @@ test("1.13 a trunk whose folder moved follows it on first sight, and one whose f
       rmSync(moved, { recursive: true });
       await setUpProject({ folder: copy, project, storytree, storytreeHome: laptop, join: true });
       assert.deepEqual(named(findProject(copy)), { project, folder: copy }, "a fresh folder joins in place of the deleted one");
+      await requireApproval(storytree, project, copy, laptop);
+    });
+  });
+});
+
+test("1.17 only a git worktree its trunk's repository registered inherits the trunk's project and approval; a forged .git file pointing at the trunk makes no worktree of it", async () => {
+  const project = uniqueProjectName();
+  await withTempDir(async (dir) => {
+    const { laptop } = machines(dir);
+    const trunk = path.join(dir, "app");
+    mkdirSync(trunk);
+    git(trunk, "init", "-q");
+    git(trunk, "commit", "-q", "--allow-empty", "-m", "first");
+    const worktree = path.join(dir, "app-feature");
+    git(trunk, "worktree", "add", "-q", "-b", "feature", worktree);
+    await withStorytree([project], async (storytree) => {
+      await setUpProject({ folder: trunk, project, storytree, storytreeHome: laptop });
+      assert.equal(named(findProject(worktree)).project, project);
+      await requireApproval(storytree, project, worktree, laptop);
+
+      // A downloaded folder carrying its own git directory whose commondir leads to the trunk's repository.
+      const forged = path.join(dir, "download");
+      const fake = path.join(forged, "fake-gitdir");
+      mkdirSync(fake, { recursive: true });
+      writeFileSync(path.join(forged, ".git"), "gitdir: fake-gitdir\n");
+      writeFileSync(path.join(fake, "commondir"), `${path.join(trunk, ".git")}\n`);
+      writeFileSync(path.join(fake, "gitdir"), `${path.join(forged, ".git")}\n`);
+      assert.deepEqual(findProject(forged), { project: undefined, message: NOT_A_PROJECT });
+      writeFileSync(path.join(forged, MARKER_FILE), JSON.stringify({ project }));
+      await assert.rejects(requireApproval(storytree, project, forged, laptop), folderRefusal(project, "not approved"));
+
+      // Pointing into the repository's own worktree records is no better: that record names another folder.
+      writeFileSync(path.join(forged, ".git"), `gitdir: ${path.join(trunk, ".git", "worktrees", path.basename(worktree))}\n`);
+      await assert.rejects(requireApproval(storytree, project, forged, laptop), folderRefusal(project, "not approved"));
     });
   });
 });

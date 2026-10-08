@@ -25,7 +25,7 @@ import { MARKER_FILE } from "../routing/index.js";
 import { claudeCode, codex, idOf, withAgent } from "../testing/agent.js";
 import { countingStore, longHistory } from "../testing/egress.js";
 import { git } from "../testing/folders.js";
-import { testServerDataDir, uniqueProjectName } from "../testing/pg.js";
+import { approveCheckout, testServerDataDir, uniqueProjectName } from "../testing/pg.js";
 import { FOUNDED, planned, TOOLS, withProject } from "../testing/tool-world.js";
 
 test("6.4 a held claim refusal explains the running command and dirty-main close-out disagreement", async () => {
@@ -770,6 +770,7 @@ test("6.39 a tool call's reads do not grow with the log's length: the same calls
           const dataDir = path.join(folder, "..", "counted", "pgdata");
           mkdirSync(path.dirname(dataDir), { recursive: true });
           writeFileSync(`${dataDir}.owner.json`, JSON.stringify({ ...owner, port: store.port }));
+          await approveCheckout(folder, project, path.dirname(dataDir));
           await withAgent(folder, claudeCode("cc-1", { dataDir }), async (agent) => {
             for (const [tool, args] of [["show_plan", {}], ["claim", { capability: emailForm, reason: "building it" }], ["read_context", {}], ["release", { capability: emailForm }]] as const) {
               const answer = await agent.call(tool, args);

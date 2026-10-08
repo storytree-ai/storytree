@@ -59,7 +59,7 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
       try {
         const found = findProject(folder);
         const identity = found.project === undefined ? undefined : found.identity;
-        const { library, log } = await connections.reach(report.storytree.library, report.project.name, identity);
+        const { library, log } = await connections.reach(report.storytree.library, report.project.name, identity, { folder: found.project === undefined ? folder : found.folder, home: setup.storytreeHome ?? storytreeHome() });
         // Seeded roles are read only when the agent is pointed at them (1.14, 8.19).
         const starterRoles = await starterRolesIn(library);
         if (starterRoles.length > 0) said.push(rolesSentence(starterRoles));
@@ -114,7 +114,8 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
     (async ({ name, join }: { name: string; join?: boolean }, context: ServerContext): Promise<CallToolResult> => {
       const caller = callerOf(context);
       const existing = findProject(folder);
-      if (existing.project !== undefined) return result({ text: `This folder is already storytree project ${quoted(existing.project)}.`, data: { project: existing.project } });
+      // Joining on purpose from the folder its marker names approves a trunk not approved yet (ADR-0942 D1).
+      if (existing.project !== undefined && !(join === true && existing.project === name)) return result({ text: `This folder is already storytree project ${quoted(existing.project)}.`, data: { project: existing.project } });
       const running = await openStorytree({
         ...(setup.storytreeHome === undefined ? {} : { home: setup.storytreeHome }),
         ...(setup.openWaitMs === undefined ? {} : { waitMs: setup.openWaitMs }),
@@ -128,7 +129,7 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
         if (join !== true) {
           try { journey?.projectCreated?.(); } catch { /* Observation cannot change a setup answer. */ }
         }
-        const { library, log } = await connections.reach(running.library, name);
+        const { library, log } = await connections.reach(running.library, name, undefined, { folder, home: setup.storytreeHome ?? storytreeHome() });
         await log.append(name, { ...lineOf(caller), source: "tool", folder, kind: "tool-called", tool: "set_up_project" });
         // The setup finishes here, with no second check_setup in this session (8.22): that check could verify none
         // of this session's hooks, which started before its folder was a project, and Codex's approval review

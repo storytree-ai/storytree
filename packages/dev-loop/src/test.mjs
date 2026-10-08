@@ -57,6 +57,13 @@
 //   pnpm run test --set-limit=cli=300 --reason="two gates at once on this laptop"
 //   pnpm run test --clear-limit=cli
 //
+// A run given a deadline (STORYTREE_TEST_DEADLINE, Unix seconds; CI sets its job's limit less room
+// to report, increment_7f43f74526ab) ends before the job limit cancels it, since a cancelled job can
+// lose its whole log: the unit running at the deadline is cut there and named like any killed unit,
+// the units after it are NOT RUN, and the table prints. Stalled outside any unit for
+// DEADLINE_GRACE_MS past it (waiting, starting or stopping Postgres, or not exiting), the run says
+// where it stalled and exits 1.
+//
 // One heavy run at a time on a machine (heavy-lock.mjs): past the scope decision, a run
 // takes the machine's heavy-run lock (heavy-run.lock in STORYTREE_HOME) and holds it until its
 // Postgres has stopped. While another session's run holds it, this one prints who holds it and
@@ -76,7 +83,7 @@ import { acquireHeavyLock } from "./heavy-lock.mjs";
 import { runtimeRefusal } from "./node-runtime.mjs";
 import { keepPreviousServerLog } from "./server-log.mjs";
 import { planRun, readWorkspace, resultsTable, scopeFor, scopeLine, unitGlobs } from "./test-scope.mjs";
-import { clearUnitLimit, recordTimings, runUnit, setUnitLimit, UNIT_LIMIT_MS, unitLimit, unitReason } from "./unit-run.mjs";
+import { clearUnitLimit, DEADLINE_GRACE_MS, killTree, recordTimings, runDeadline, runUnit, setUnitLimit, UNIT_LIMIT_MS, unitLimit, unitReason, withinDeadline } from "./unit-run.mjs";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 const work = path.join(root, ".pgtest");
@@ -102,6 +109,16 @@ const namedFiles = testArgs.some((arg) => !arg.startsWith("-"));
 
 let child; // the test run, while it runs
 let interrupted = false;
+let phase = "deciding the scope"; // where a run past its deadline says it stalled
+
+const deadline = runDeadline(process.env);
+if (deadline !== undefined) {
+  setTimeout(() => {
+    console.error(`\ntest harness: past the run's deadline (STORYTREE_TEST_DEADLINE, ${new Date(deadline).toISOString()}) while ${phase}; ending the run`);
+    if (child) killTree(child);
+    process.exit(1);
+  }, Math.max(0, deadline + DEADLINE_GRACE_MS - Date.now())).unref();
+}
 for (const signal of ["SIGINT", "SIGTERM", "SIGHUP", "SIGBREAK"]) {
   process.on(signal, () => {
     interrupted = true;
@@ -111,6 +128,7 @@ for (const signal of ["SIGINT", "SIGTERM", "SIGHUP", "SIGBREAK"]) {
 
 main().then(
   (code) => {
+    phase = "ending, its results printed, though its process did not exit";
     process.exitCode = interrupted ? 130 : code;
   },
   (error) => {
@@ -149,6 +167,7 @@ async function main() {
     }
     units = plan.units;
   }
+  phase = "waiting for the heavy-run lock";
   const release = await acquireHeavyLock({ root, what: "pnpm test", stopped: () => interrupted });
   try {
     return await runHeavy(units);
@@ -167,6 +186,7 @@ async function runHeavy(units) {
   const kept = keepPreviousServerLog(serverLog);
   if (kept !== undefined) console.log(`test Postgres: the previous run's server log is kept in ${path.relative(root, kept)}`);
   let server;
+  phase = "starting the test Postgres";
   try {
     server = await start({
       dataDir,
@@ -187,6 +207,7 @@ async function runHeavy(units) {
     if (interrupted) return 130;
     return await runTests({ ...process.env, STORYTREE_TEST_PG_URL: server.url, STORYTREE_TEST_PG_DATA: server.dataDir }, units);
   } finally {
+    phase = "stopping the test Postgres";
     await server.stop();
   }
 }
@@ -203,12 +224,17 @@ async function runTests(env, units) {
   const timings = {};
   for (const unit of units) {
     if (interrupted) break;
+    if (deadline !== undefined && Date.now() >= deadline) {
+      reasons[unit] = "not started: the run's deadline had passed";
+      continue;
+    }
+    phase = `running ${unit}`;
     console.log(`\n=== ${unit} ===`);
     const run = await runNodeTest(env, unitGlobs(unit), unit);
     if (interrupted) break; // Ctrl-C cut it short: it stays NOT RUN
     results[unit] = run.code === 0 ? "pass" : "fail";
     reasons[unit] = unitReason(run, root);
-    timings[unit] = { result: results[unit], ms: run.ms, timedOut: run.timedOut };
+    timings[unit] = { result: results[unit], ms: run.ms, timedOut: run.timedOut && !run.cut }; // a cut is the run's deadline, not the unit's
     if (run.timedOut || run.exitHung.length > 0) console.log(`\ntest harness: ${unit} ${reasons[unit]}`);
   }
   writeRecord(results);
@@ -222,13 +248,13 @@ async function runTests(env, units) {
 }
 
 async function runNodeTest(env, files, unit) {
-  const limit = unit === undefined ? namedFilesLimit() : unitLimit(unit);
+  const limit = withinDeadline(unit === undefined ? namedFilesLimit() : unitLimit(unit), deadline);
   try {
     // No test loads the embedding model, so no run, CI included, downloads it (ADR-0733 D6):
     // ranked search is tested with a fake embedder, and everything else ranks by words.
     const evidence = env.STORYTREE_TEST_EVIDENCE ? { directory: path.resolve(root, env.STORYTREE_TEST_EVIDENCE), unit: unit ?? "files" } : undefined;
     const run = await runUnit({ root, env: { ...env, STORYTREE_EMBEDDER: "off" }, args: testArgs, files, evidence, unitLimitMs: limit.ms, onSpawn: (spawned) => (child = spawned) });
-    return { ...run, limitSource: limit.source };
+    return { ...run, limitSource: limit.source, cut: limit.cut === true };
   } finally {
     child = undefined;
   }

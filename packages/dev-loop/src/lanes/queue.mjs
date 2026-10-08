@@ -28,12 +28,15 @@ export function countEngines(table) {
   return rows.filter((row) => engines.has(row.pid) && !engines.has(row.ppid)).length;
 }
 
-/** Wait, a minute at a time, until fewer than `max` engines run; say so once when it has to wait. */
+/**
+ * Wait, a minute at a time, until fewer than `max` engines run; say so once when it has to wait. `max` may be a
+ * reader of the cap, read on every poll, so a raised cap frees a waiting runner without a lane ending.
+ */
 export async function waitForSlot({ max, count, sleep, onWait }) {
   let waited = false;
   for (;;) {
     const running = await count();
-    if (running < max) return running;
+    if (running < (typeof max === "function" ? await max() : max)) return running;
     if (!waited) { onWait(running); waited = true; }
     await sleep(60_000);
   }

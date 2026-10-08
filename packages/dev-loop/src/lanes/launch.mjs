@@ -47,7 +47,7 @@ export async function withFlock(path, fn) {
 export async function laneOnce({ increment, brief, log, err, addDirs, repo, maxLanes, lock, count, prepare, sleep, runLane, now = Date.now, say }) {
   const dated = (message) => say(`${stamp(now)} ${message}`);
   await lock(async () => {
-    await waitForSlot({ max: await maxLanes(), count, sleep, onWait: (running) => dated(`waiting for a slot (${running} engines running) before ${increment}`) });
+    await waitForSlot({ max: maxLanes, count, sleep, onWait: (running) => dated(`waiting for a slot (${running} engines running) before ${increment}`) });
     try { await prepare(); }
     catch (error) { dated(`checkout update failed before ${increment} (${error.message.split("\n")[0]}); the lane runs on the checkout as it is`); }
   });

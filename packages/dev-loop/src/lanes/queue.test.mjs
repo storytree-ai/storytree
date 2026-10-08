@@ -43,6 +43,14 @@ test("12.1 · each running lane's engine counts once: not its wrapper or native 
   assert.equal(await waitForSlot({ max: 5, count: async () => 0, sleep: () => assert.fail(), onWait: () => assert.fail() }), 0);
 });
 
+test("12.1 · a waiting runner reads the cap on every poll, so a raised cap starts it with no lane ending", async () => {
+  let cap = 5, sleeps = 0;
+  const running = await waitForSlot({ max: async () => cap, count: async () => 5, onWait: () => {},
+    sleep: async () => { sleeps++; if (sleeps === 2) cap = 6; if (sleeps > 3) assert.fail("the raised cap was never read"); } });
+  assert.equal(running, 5, "five still run: the raised cap, not a lane ending, freed the slot");
+  assert.equal(sleeps, 2);
+});
+
 test("12.2 · a lane's line leaves the queue only when its lane ends, and it is the line naming that lane wherever a dispatcher moved it", async (t) => {
   const dir = await folder(t);
   const queue = join(dir, "night-queue-A.txt"), stop = join(dir, "night-stop");

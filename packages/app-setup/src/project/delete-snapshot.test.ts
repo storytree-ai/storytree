@@ -16,7 +16,7 @@ const snapshot: ProjectSnapshot = {
   records: [{ id: "term_synthetic", type: "term", version: 1, fields: { meaning: "private current text" }, createdAt: "now", updatedAt: "now" }],
   history: [{ seq: 1, recordId: "term_synthetic", type: "term", action: "created", record: { meaning: "private historical text" }, at: "then" }],
 };
-const posix = { skip: process.platform === "win32" ? "POSIX modes do not prove Windows ACL privacy" : false };
+const posix = { skip: process.platform === "win32" ? "platform:posix: POSIX modes do not prove Windows ACL privacy" : false };
 const mode = (file: string): number => fs.statSync(file).mode & 0o777;
 
 /** Only the library boundary is inert: the real deletion, claims and local removal paths run. */
@@ -126,7 +126,7 @@ test("3.6 · a linked backup folder cannot redirect the snapshot or change anoth
   }
 });
 
-const windowsOnly = { skip: process.platform !== "win32" ? "Windows Authz effective-access proof runs on Windows CI" : false };
+const windowsOnly = { skip: process.platform !== "win32" ? "platform:win32: Windows Authz effective-access proof runs on Windows CI" : false };
 
 for (const existing of [false, true]) {
   test(`3.6 · Windows excludes an unrelated user before the first deletion snapshot byte with ${existing ? "existing" : "new"} backup folders`, windowsOnly, async (t) => {

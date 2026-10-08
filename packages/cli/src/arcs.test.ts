@@ -304,6 +304,30 @@ test("4.4 `arc show` names what each waiting increment waits for", async () => {
   });
 });
 
+test("4.4 `arc show` reads a wait on work held on your question as waiting on you, naming the question however many hops away", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const arc = await anArc(world);
+    const held = await library.addIncrement({ arc, title: "Mailer", objective: "Mail", body: "…" });
+    const middle = await library.addIncrement({ arc, title: "Schema", objective: "Tables", body: "…" });
+    const far = await library.addIncrement({ arc, title: "Form", objective: "The form", body: "…" });
+    const question = await library.raiseQuestion({ arc, title: "Which mailer?", stakes: "s", statement: "q", context: "c", options: "o" });
+    await library.editIncrement(held.id, { heldOn: [question.id] });
+    await library.addWait(middle.id, held.id, "needs the mailer");
+    await library.addWait(far.id, middle.id, "needs the tables");
+
+    const ran = await world.run(["arc", "show", arc]);
+
+    assert.equal(ran.code, 0, ran.stderr);
+    const lines = ran.stdout.split(/\r?\n/);
+    const under = (id: string) => lines.slice(lines.findIndex((line) => line.includes(`- ${id}`)) + 1).join("\n").split("\n  - ")[0] ?? "";
+    const through = `waiting on you: question ${question.id} (through other work)`;
+    assert.ok(under(middle.id).includes(through), ran.stdout);
+    assert.ok(under(far.id).includes(through), ran.stdout);
+    assert.ok(!under(held.id).includes("through other work"), ran.stdout);
+  });
+});
+
 test("4.11 `arc show` names a stale wait: one whose blocker has landed, which no longer holds, with the command that clears it", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();

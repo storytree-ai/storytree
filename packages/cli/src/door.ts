@@ -20,7 +20,7 @@
  *   the door, which says what to do); 2 a command used wrongly, with its usage.
  */
 import type { ActivityLog, Claim, ClaimContext } from "@storytree/agent-link";
-import { openNamedProject, route } from "@storytree/agent-link/routing";
+import { openNamedProject, ProjectFolderError, requireApproval, route } from "@storytree/agent-link/routing";
 import { sourceVersion } from "@storytree/app/version";
 import type { ConnectOptions, Library, Storytree, WriteOptions } from "@storytree/library";
 
@@ -279,6 +279,7 @@ class Opened {
   /** Where a wait on the library is said as it starts (stderr), so a command never waits in silence. */
   readonly #say: (what: string) => void;
   #storytree: Promise<Storytree> | undefined;
+  #approved: Promise<Storytree> | undefined;
   #library: Promise<Library> | undefined;
   #log: Promise<ActivityLog> | undefined;
 
@@ -324,8 +325,24 @@ class Opened {
     return openNamedProject(await this.#server(), where.project, where.identity);
   }
 
-  /** The connection to the library where routing says it is: the app's local database, or the Cloud SQL instance the user set. */
+  /**
+   * The connection, once this folder is approved as its project's checkout on this machine (ADR-0942
+   * D1): a marker alone opens nothing, reads nothing and records nothing, as for hooks and tools.
+   */
   #server(): Promise<Storytree> {
+    return (this.#approved ??= this.#connection().then(async (storytree) => {
+      const where = this.#routed();
+      await requireApproval(storytree, where.project, where.folder).catch((error: unknown) => {
+        throw error instanceof ProjectFolderError
+          ? new Refusal(error.message, { next: [{ command: `storytree doctor --join ${where.project}`, why: `approve this folder as "${where.project}"'s checkout, if it is yours` }] })
+          : error;
+      });
+      return storytree;
+    }));
+  }
+
+  /** The connection to the library where routing says it is: the app's local database, or the Cloud SQL instance the user set. */
+  #connection(): Promise<Storytree> {
     return (this.#storytree ??= (async () => {
       const { connect } = await import("@storytree/library");
       return connect({ ...this.#routed().library, onWait: this.#say });
@@ -333,7 +350,7 @@ class Opened {
   }
 
   /** The project and where its library is, or the refusal saying why there are none. */
-  #routed(): { project: string; identity?: string; library: ConnectOptions } {
+  #routed(): { project: string; folder: string; identity?: string; library: ConnectOptions } {
     const where = route(this.#cwd);
     if (where.status === "not-a-project") {
       throw new Refusal(`${where.message}: no .storytree.json in ${this.#cwd} or any folder above it`, {

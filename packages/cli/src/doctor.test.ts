@@ -22,7 +22,7 @@ import { setTimeout as pause } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 
 import { probeProcess, readProcess, type ProcessIdentity } from "@storytree/processes";
-import { BuiltCommand, dropTestProjects, inWorld, placeHandoff, storytree, testServerDataDir, uniqueProjectName, type World } from "./testing/cli.js";
+import { BuiltCommand, dropTestProjects, inWorld, placeHandoff, placeTestServer, storytree, testServerDataDir, uniqueProjectName, type World } from "./testing/cli.js";
 
 const STUB_APP = fileURLToPath(new URL("./testing/stub-app.mjs", import.meta.url));
 
@@ -214,6 +214,35 @@ test("8.3 in a folder that is not a project, it creates nothing unless told to",
     } finally {
       await dropTestProjects([project]);
     }
+  });
+});
+
+test("1.16 a folder whose marker names a project, unapproved on this machine, is refused a read and a write until `doctor --join` approves it", async () => {
+  await inWorld(command, async (world) => {
+    const user = aUser(world);
+    // A downloaded copy of the project, on a machine where it was never set up or joined.
+    writeFileSync(path.join(world.elsewhere, ".storytree.json"), `${JSON.stringify({ project: world.project })}\n`);
+    const home = path.join(path.dirname(world.folder), "other-machine");
+    mkdirSync(home, { recursive: true });
+    placeTestServer(path.join(home, "pgdata"));
+    const run = (args: readonly string[]) => storytree(command.script, args, { cwd: world.elsewhere, home, env: user.env });
+    const write = ["library", "new", "definition", "--term", "Mailer", "--meaning", "Sends the mail."];
+
+    for (const args of [["arc", "list"], write]) {
+      const refused = await run(args);
+      assert.equal(refused.code, 1, refused.stdout);
+      assert.ok(refused.stderr.includes(`storytree doctor --join ${world.project}`), refused.stderr);
+    }
+    assert.equal((await (await world.library()).search("Mailer")).length, 0, "the refused write wrote nothing");
+    const told = await run(["doctor"]);
+    assert.match(told.stdout, /not approved/);
+
+    const joined = await run(["doctor", "--join", world.project]);
+    assert.equal(joined.code, 0, joined.stderr);
+    const listed = await run(["arc", "list"]);
+    assert.equal(listed.code, 0, listed.stderr);
+    const wrote = await run(write);
+    assert.equal(wrote.code, 0, wrote.stderr);
   });
 });
 

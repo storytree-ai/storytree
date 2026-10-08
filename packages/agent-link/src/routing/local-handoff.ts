@@ -1,4 +1,4 @@
-/** Capability 1.16 · Read the local-postgres producer's private connection handoff. */
+/** Capability 1 · Project routing. Read the local-postgres producer's private connection handoff (contract 1.16). */
 import { execFileSync } from "node:child_process";
 import { closeSync, constants, fstatSync, lstatSync, openSync, readSync, type Stats } from "node:fs";
 import path from "node:path";

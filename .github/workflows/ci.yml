@@ -98,19 +98,22 @@ jobs:
         env:
           STORYTREE_TEST_EVIDENCE: ${{ matrix.system == 'Windows' && '.pgtest/windows-evidence' || matrix.system == 'macOS' && '.pgtest/macos-evidence' || '' }}
       # Exercise the distributable before merging packaging/updater changes. A source build
-      # passing tests alone does not prove NSIS can unpack the app and its database binaries.
+      # passing tests alone does not prove NSIS can unpack the app and its database binaries, or
+      # that the signed Apple Silicon .app starts and runs its own Postgres and Node.
       - name: Does this change reach the installer?
-        if: matrix.system == 'Windows'
+        if: matrix.system != 'Linux'
         id: installer
         shell: bash
         run: |
           if ! git diff --quiet origin/main...HEAD -- apps/desktop packages/app pnpm-lock.yaml package.json .github/workflows; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
-      - if: matrix.system == 'Windows' && steps.installer.outputs.changed == 'true'
+      - if: matrix.system != 'Linux' && steps.installer.outputs.changed == 'true'
         run: pnpm desktop:dist
       - if: matrix.system == 'Windows' && steps.installer.outputs.changed == 'true'
         run: node apps/desktop/check-install.mjs
+      - if: matrix.system == 'macOS' && steps.installer.outputs.changed == 'true'
+        run: node --import tsx apps/desktop/check-install-mac.mjs
       # Reuse this Windows execution for own health. Each attempt keeps its own immutable
       # artifact; a failed Windows job publishes no evidence.
       - name: Preserve Windows test evidence

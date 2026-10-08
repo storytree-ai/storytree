@@ -37,6 +37,7 @@
     "typescript": "~7.0.2"
   },
   "optionalDependencies": {
+    "@embedded-postgres/darwin-arm64": "17.10.0-beta.17",
     "@embedded-postgres/windows-x64": "17.10.0-beta.17"
   },
   "build": {
@@ -57,10 +58,6 @@
       {
         "from": "dist/LICENSE",
         "to": "LICENSE"
-      },
-      {
-        "from": "node_modules/@embedded-postgres/windows-x64/native",
-        "to": "postgres"
       },
       {
         "from": "dist/agent-tools/${arch}",
@@ -87,6 +84,12 @@
       "releaseType": "release"
     },
     "win": {
+      "extraResources": [
+        {
+          "from": "node_modules/@embedded-postgres/windows-x64/native",
+          "to": "postgres"
+        }
+      ],
       "target": [
         {
           "target": "nsis",
@@ -103,6 +106,36 @@
         }
       ]
     },
+    "mac": {
+      "target": [
+        {
+          "target": "zip",
+          "arch": [
+            "arm64"
+          ]
+        },
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ],
+      "category": "public.app-category.developer-tools",
+      "hardenedRuntime": true,
+      "entitlements": "entitlements.mac.plist",
+      "entitlementsInherit": "entitlements.mac.plist",
+      "signIgnore": [
+        "/Contents/Resources/agent-tools/"
+      ],
+      "extraResources": [
+        {
+          "from": "node_modules/@embedded-postgres/darwin-arm64/native",
+          "to": "postgres"
+        }
+      ],
+      "artifactName": "storytree-0.3-${version}-mac-${arch}.${ext}"
+    },
     "nsis": {
       "artifactName": "storytree-0.3-${version}-setup.${ext}",
       "oneClick": true,
@@ -111,6 +144,9 @@
     },
     "portable": {
       "artifactName": "storytree-0.3-${version}-portable-${arch}.${ext}"
+    },
+    "dmg": {
+      "artifactName": "storytree-0.3-${version}-${arch}.${ext}"
     }
   }
 }

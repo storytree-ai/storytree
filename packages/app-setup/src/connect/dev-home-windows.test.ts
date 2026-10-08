@@ -11,7 +11,7 @@ const original = '{"refresh":"synthetic-original"}';
 const refreshed = '{"refresh":"synthetic-refreshed"}';
 const conflicting = '{"refresh":"synthetic-conflicting"}';
 const stopBeforeBuild = async () => { throw new Error("stopped before build"); };
-const windowsOnly = { skip: process.platform !== "win32" ? "Windows Authz effective-access proof runs on Windows CI" : false };
+const windowsOnly = { skip: process.platform !== "win32" ? "platform:win32: Windows Authz effective-access proof runs on Windows CI" : false };
 
 for (const permissive of [false, true]) {
   test(`2.8 · Windows developer-home sign-ins are private at first write under ${permissive ? "permissive" : "default"} parents`, windowsOnly, async (t) => {

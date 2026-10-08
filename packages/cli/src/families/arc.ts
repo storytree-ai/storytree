@@ -303,11 +303,17 @@ const incrementUnstart: Verb = {
 
 const incrementEdit: Verb = {
   name: "edit",
-  usage: "arc increment edit <increment> [--title …] [--objective …] [--body …] [--touches a,b] [--held-on q]",
-  summary: "change only the named fields",
+  usage: "arc increment edit <increment> [--title …] [--objective …] [--body …] [--touches a,b] [--remedies f,g] [--held-on q]",
+  summary: "change only the named fields; --remedies adds friction to those it already remedies",
   async act(args, context): Promise<Answer> {
     const id = args.word(0, "the increment's id", this.usage);
-    const edited = await (await context.library()).editIncrement(id, incrementOf(args) as never, context.writer());
+    const library = await context.library();
+    const fields = incrementOf(args);
+    if (fields.remedies !== undefined) {
+      const had = ((await library.get(id))?.fields as { remedies?: string[] } | undefined)?.remedies ?? [];
+      fields.remedies = [...new Set([...had, ...(fields.remedies as string[])])];
+    }
+    const edited = await library.editIncrement(id, fields as never, context.writer());
     if (edited === null) throw new Refusal(`no increment "${id}" in this project`);
     return { text: `Edited increment ${id}.` };
   },

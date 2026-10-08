@@ -120,7 +120,7 @@ test("1.8 an answer's next: offers only what opens a record it just named", asyn
   });
 });
 
-test("1.15 a command kept waiting on the library, here for another session's write, says so on stderr and goes on when it can", async () => {
+test("1.15 a command kept waiting on the library, here for another session's write, goes on when it can, saying nothing while its stderr is captured rather than a terminal", async () => {
   await inWorld(command, async (world) => {
     const url = new URL(testServerUrl());
     url.pathname = `/storytree_${world.project}`;
@@ -166,7 +166,8 @@ test("1.15 a command kept waiting on the library, here for another session's wri
       const ran = await running;
 
       assert.equal(ran.code, 0, ran.stderr);
-      assert.match(ran.stderr, /another session is writing to this project; waiting up to 30 s/);
+      // Windows PowerShell 5.1 reads any captured stderr as a failed command, and a truncated pipe ends it (seen 2026-10-08).
+      assert.doesNotMatch(ran.stderr, /another session is writing/);
     } finally {
       await other.end();
       await elsewhere.end();

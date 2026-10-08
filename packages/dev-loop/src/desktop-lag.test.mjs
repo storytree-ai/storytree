@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -13,9 +13,14 @@ test("8.3 pnpm lag:desktop --home starts cold on a new home and warm on one an e
   const home = path.join(mkdtempSync(path.join(tmpdir(), "lag-home-")), "run");
   try {
     writeFileSync(path.join(from, "settings.json"), '{"library":"cloud"}');
+    writeFileSync(path.join(from, "auth.json"), '{"postgres":{"key":"synthetic"}}', { mode: 0o600 });
     const cold = lagHome({ home, homeFrom: from });
     assert.deepEqual(cold, { home, warm: false });
     assert.equal(readFileSync(path.join(home, "settings.json"), "utf8"), '{"library":"cloud"}');
+    // The configured library's Postgres password (the `postgres` key in auth.json) comes too, readable by the user alone.
+    const auth = path.join(home, "auth.json");
+    assert.equal(readFileSync(auth, "utf8"), '{"postgres":{"key":"synthetic"}}');
+    if (process.platform !== "win32") assert.equal(statSync(auth).mode & 0o777, 0o600);
     // The app keeps its reading under the home's electron folder; a run that left one is reused untouched.
     mkdirSync(path.join(home, "electron"));
     writeFileSync(path.join(home, "settings.json"), '{"library":"kept"}');

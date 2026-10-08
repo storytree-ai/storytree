@@ -5,6 +5,8 @@ import { appendFileSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 
 import { releaseSource, versionAt } from "../../packages/app/src/updates/release-source.ts";
+import { INSTALL_COMMAND } from "./delivery-assets.mjs";
+import { hostPlatform, missingAssets, platformUploads, PLATFORMS } from "./release-assets.mjs";
 
 const repository = "storytree-ai/storytree";
 const git = (...args) => execFileSync("git", args, { encoding: "utf8" }).trim();
@@ -49,30 +51,36 @@ if (process.argv[2] === "source") {
       output("version", version);
     } else console.log(`${version} was already published or superseded.`);
   }
-} else if (process.argv[2] === "publish") {
+} else if (["draft", "upload", "publish"].includes(process.argv[2])) {
   const sha = process.env.RELEASE_SHA;
   const version = process.env.STORYTREE_RELEASE_VERSION;
   if (!/^[a-f0-9]{40}$/.test(sha) || !/^\d+\.\d+\.\d+$/.test(version)) throw new Error("Missing verified release identity");
   onMain(sha);
   if (newerThanPublished(version)) {
     const tag = `v${version}`;
-    const dir = "apps/desktop/release";
-    const delivery = ["install-storytree.ps1", "install-storytree.txt", "install-storytree-development.txt", "storytree-delivery.json"];
-    const files = readdirSync(dir).filter((name) => delivery.includes(name) || /\.(exe|blockmap|yml)$/.test(name) && name !== "builder-debug.yml" && name !== "builder-effective-config.yaml");
-    if (!files.includes("latest.yml") || !files.includes(`storytree-0.3-${version}-setup.exe`)) throw new Error("Missing release feed or installer");
-    if (delivery.some((name) => !files.includes(name))) throw new Error("Missing one-command delivery assets");
     // A draft keeps partially uploaded releases invisible to installed clients. Reruns can finish it.
-    const existing = spawnSync("gh", ["release", "view", tag, "--repo", repository, "--json", "isDraft,targetCommitish"], { encoding: "utf8" });
-    if (existing.status === 0) {
-      const release = JSON.parse(existing.stdout);
-      if (!release.isDraft || release.targetCommitish !== sha) throw new Error("Release identity already belongs to another publication");
+    // One job makes it before the platforms upload: two drafts can share a tag, so never race to create.
+    const existing = spawnSync("gh", ["release", "view", tag, "--repo", repository, "--json", "isDraft,targetCommitish,assets"], { encoding: "utf8" });
+    const release = existing.status === 0 ? JSON.parse(existing.stdout) : undefined;
+    if (release !== undefined && (!release.isDraft || release.targetCommitish !== sha)) throw new Error("Release identity already belongs to another publication");
+    if (process.argv[2] === "draft") {
+      if (release === undefined) gh("release", "create", tag, "--repo", repository, "--target", sha, "--draft", "--title", `storytree ${version}`, "--notes", notes(INSTALL_COMMAND.trim(), sha));
+    } else if (release === undefined) {
+      throw new Error(`No draft release ${tag} to ${process.argv[2]}`);
+    } else if (process.argv[2] === "upload") {
+      const platform = hostPlatform();
+      const dir = "apps/desktop/release";
+      const files = platformUploads(platform, readdirSync(dir));
+      const missing = PLATFORMS[platform].required(version).filter((name) => !files.includes(name));
+      if (missing.length > 0) throw new Error(`Missing ${platform} release assets: ${missing.join(", ")}`);
+      gh("release", "upload", tag, ...files.map((file) => path.join(dir, file)), "--repo", repository, "--clobber");
     } else {
-      gh("release", "create", tag, "--repo", repository, "--target", sha, "--draft", "--title", `storytree ${version}`, "--notes", notes(readFileSync(path.join(dir, "install-storytree.txt"), "utf8").trim(), sha));
+      const missing = missingAssets(release.assets.map((asset) => asset.name), version);
+      if (Object.keys(missing).length > 0) throw new Error(`Release ${tag} is incomplete: ${JSON.stringify(missing)}`);
+      gh("release", "edit", tag, "--repo", repository, "--draft=false", "--latest");
     }
-    gh("release", "upload", tag, ...files.map((file) => path.join(dir, file)), "--repo", repository, "--clobber");
-    gh("release", "edit", tag, "--repo", repository, "--draft=false", "--latest");
   }
-} else throw new Error("Use source or publish");
+} else throw new Error("Use source, draft, upload or publish");
 
 /** The release page's text: how to install first, since a first user may arrive here from anywhere. */
 function notes(command, sha) {
@@ -88,6 +96,8 @@ function notes(command, sha) {
     "It installs the app and opens it; Help → First-run guide in the app connects your agent.",
     "",
     `Windows x64 and arm64 installer, built from verified merged main ${sha}. First-user delivery follows only the owner's stable pin; it is unavailable until the first pin.`,
+    "",
+    "The macOS (Apple Silicon) zip and dmg are built and ad-hoc signed on the same commit, but not yet notarised: macOS refuses to open them until a release that is.",
     "",
     "Development installations follow every published build. To install development explicitly, use the command in install-storytree-development.txt. Existing installations retain their channel.",
   ].join("\n");

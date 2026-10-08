@@ -67,9 +67,44 @@ jobs:
       # A release is a complete artifact. Verify its exact merged commit, even if main moved.
       - run: pnpm test -- --full
 
-  publish:
+  # One draft per release, made once before any platform uploads: GitHub lets two drafts share a tag,
+  # so the platforms never race to create it. A draft stays invisible to installed apps.
+  draft:
     needs: [source, verify]
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    env:
+      STORYTREE_RELEASE_VERSION: ${{ needs.source.outputs.version }}
+      RELEASE_SHA: ${{ needs.source.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.source.outputs.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - run: node apps/desktop/release.mjs draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  # Each platform builds on its own runner, proves its build installs and starts, and uploads only
+  # its own assets (apps/desktop/release-assets.mjs) into the draft.
+  package:
+    needs: [source, draft]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - system: Windows
+            runner: windows-latest
+            check: node apps/desktop/check-install.mjs
+          - system: macOS
+            runner: macos-latest
+            check: node --import tsx apps/desktop/check-install-mac.mjs
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 25
     permissions:
       contents: write
@@ -90,11 +125,34 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # On Windows, desktop:dist also stages the PowerShell bootstrap, one-liner and installer checksum
+      # manifest beside NSIS; they upload with it, so first-run delivery never meets a partial release.
       - run: pnpm desktop:dist
-      - run: node apps/desktop/check-install.mjs
-      # desktop:dist stages the PowerShell bootstrap, one-liner and installer checksum manifest
-      # beside NSIS. Publish them together, so an incomplete release never reaches first run.
-      - name: Publish the complete feed and one-command delivery
+      - run: ${{ matrix.check }}
+      - name: Upload this platform's assets to the draft
+        run: node apps/desktop/release.mjs upload
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  # Published only when every platform's required assets are in the draft (contract 4.6).
+  publish:
+    needs: [source, package]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    env:
+      STORYTREE_RELEASE_VERSION: ${{ needs.source.outputs.version }}
+      RELEASE_SHA: ${{ needs.source.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.source.outputs.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Publish the release once every platform's assets are complete
         run: node apps/desktop/release.mjs publish
         env:
           GH_TOKEN: ${{ github.token }}

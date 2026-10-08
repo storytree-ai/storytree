@@ -20,7 +20,7 @@
  *   the door, which says what to do); 2 a command used wrongly, with its usage.
  */
 import type { ActivityLog, Claim, ClaimContext } from "@storytree/agent-link";
-import { openNamedProject, route } from "@storytree/agent-link/routing";
+import { openNamedProject, ProjectFolderError, requireApproval, route } from "@storytree/agent-link/routing";
 import { sourceVersion } from "@storytree/app/version";
 import type { ConnectOptions, Library, Storytree, WriteOptions } from "@storytree/library";
 
@@ -41,6 +41,12 @@ export interface Io {
   readonly handed?: readonly string[];
   /** The line the Windows launcher was handed, after its own name, when it started this command (./handed.ts). */
   readonly launched?: string;
+  /**
+   * Whether `err` reaches a person's terminal. Only then is a wait on the library said as it starts:
+   * Windows PowerShell 5.1 reads any captured stderr as a failed command, and a pipe cut short after
+   * that first line ends the command before it writes (seen 2026-10-08).
+   */
+  readonly terminal?: boolean;
   out(text: string): void;
   err(text: string): void;
 }
@@ -111,7 +117,7 @@ export async function run(argv: readonly string[], io: Io): Promise<number> {
     io.err(render({ text: `storytree did nothing: word ${requoted + 1} ("${preview(argv[requoted] ?? "")}") arrived with its double quotes changed, as Windows PowerShell 5.1 hands on a word that holds a space and a double quote. Put that text in a file and pass @<file> in its place, as in --answer @answer.txt, or write each double quote inside it as \\".` }));
     return 1;
   }
-  const opened = new Opened(io.cwd, (what) => io.err(`storytree: ${what}\n`));
+  const opened = new Opened(io.cwd, io.terminal === true ? (what) => io.err(`storytree: ${what}\n`) : () => {});
   let writer: WriteOptions | undefined;
   let journey: Promise<JourneyRuntime> | undefined;
   try {
@@ -276,9 +282,10 @@ function verbsOf(family: Family, path: string): Answer {
 /** The connection to storytree and the project's library, made on first use and closed at the end. */
 class Opened {
   readonly #cwd: string;
-  /** Where a wait on the library is said as it starts (stderr), so a command never waits in silence. */
+  /** Where a wait on the library is said as it starts (stderr, on a terminal), so a person never waits in silence. */
   readonly #say: (what: string) => void;
   #storytree: Promise<Storytree> | undefined;
+  #approved: Promise<Storytree> | undefined;
   #library: Promise<Library> | undefined;
   #log: Promise<ActivityLog> | undefined;
 
@@ -324,8 +331,24 @@ class Opened {
     return openNamedProject(await this.#server(), where.project, where.identity);
   }
 
-  /** The connection to the library where routing says it is: the app's local database, or the Cloud SQL instance the user set. */
+  /**
+   * The connection, once this folder is approved as its project's checkout on this machine (ADR-0942
+   * D1): a marker alone opens nothing, reads nothing and records nothing, as for hooks and tools.
+   */
   #server(): Promise<Storytree> {
+    return (this.#approved ??= this.#connection().then(async (storytree) => {
+      const where = this.#routed();
+      await requireApproval(storytree, where.project, where.folder).catch((error: unknown) => {
+        throw error instanceof ProjectFolderError
+          ? new Refusal(error.message, { next: [{ command: `storytree doctor --join ${where.project}`, why: `approve this folder as "${where.project}"'s checkout, if it is yours` }] })
+          : error;
+      });
+      return storytree;
+    }));
+  }
+
+  /** The connection to the library where routing says it is: the app's local database, or the Cloud SQL instance the user set. */
+  #connection(): Promise<Storytree> {
     return (this.#storytree ??= (async () => {
       const { connect } = await import("@storytree/library");
       return connect({ ...this.#routed().library, onWait: this.#say });
@@ -333,7 +356,7 @@ class Opened {
   }
 
   /** The project and where its library is, or the refusal saying why there are none. */
-  #routed(): { project: string; identity?: string; library: ConnectOptions } {
+  #routed(): { project: string; folder: string; identity?: string; library: ConnectOptions } {
     const where = route(this.#cwd);
     if (where.status === "not-a-project") {
       throw new Refusal(`${where.message}: no .storytree.json in ${this.#cwd} or any folder above it`, {

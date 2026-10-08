@@ -9,6 +9,6 @@ import { allocationProblems } from "./allocation.mjs";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 
-test("9.1 · this checkout leaves no source file of a story package unallocated", async () => {
+test("9.1 · this checkout leaves no source file of a story package unallocated, misdeclared or undeclared", async () => {
   assert.deepEqual(await allocationProblems(root), []);
 });

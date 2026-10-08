@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
 
-import { allocationProblems, misdeclaredCode, unallocatedCode } from "./allocation-rule.js";
+import { allocationProblems, misdeclaredCode, unallocatedCode, undeclaredCode } from "./allocation-rule.js";
 
 /** A checkout holding `files` (repo-relative path to text), removed after the test. */
 function plant(t: TestContext, files: Record<string, string>): string {
@@ -62,4 +62,27 @@ test("2.2 · a source file declaring a capability whose numbered tests do not re
   assert.deepEqual(await misdeclaredCode(plant(t, declaring("/** Capability 1 · Cart */")), ["shop"]), []);
   const measured = plant(t, { ...declaring("/** Capability 2 · Refunds */"), "packages/shop/survey-coverage.json": JSON.stringify({ "src/cart.ts": { 2: 1 } }) });
   assert.deepEqual(await misdeclaredCode(measured, ["shop"]), [], "the coverage map reaches it for capability 2");
+});
+
+test("2.3 · asked to, a source file whose opening comment declares no capability fails, naming the file and suggesting the capability the survey infers; declared, it passes, and unasked nothing changes", async (t: TestContext) => {
+  const reached = { ...SHOP, "packages/shop/src/refund.test.ts": 'import { test } from "node:test";\nimport { refund } from "./refund.js";\ntest("2.1 · refunds nothing", () => refund());\n' };
+  const undeclared = plant(t, reached);
+  assert.deepEqual(await undeclaredCode(undeclared, ["shop"]), [{ file: "packages/shop/src/cart.ts", suggested: 1 }, { file: "packages/shop/src/refund.ts", suggested: 2 }]);
+  assert.deepEqual(await allocationProblems(undeclared, ["shop"]), [], "a project that has not asked keeps working without the convention");
+  const said = await allocationProblems(undeclared, ["shop"], { undeclaredFails: true });
+  assert.equal(said.length, 2);
+  assert.match(said[0] ?? "", /packages\/shop\/src\/cart\.ts declares no capability/);
+  assert.match(said[0] ?? "", /"Capability 1 · /);
+  assert.match(said[1] ?? "", /"Capability 2 · /);
+
+  const declared = plant(t, {
+    ...reached,
+    "packages/shop/src/cart.ts": `#!/usr/bin/env node\n// Capability 1 · Cart\n${SHOP["packages/shop/src/cart.ts"]}`,
+    "packages/shop/src/refund.ts": `/** Capability 2 · Refunds */\n${SHOP["packages/shop/src/refund.ts"]}`,
+  });
+  assert.deepEqual(await allocationProblems(declared, ["shop"], { undeclaredFails: true }), []);
+  const unreached = plant(t, { ...SHOP, "packages/shop/src/cart.ts": `/** Capability 1 · Cart */\n${SHOP["packages/shop/src/cart.ts"]}` });
+  const [only = "", ...rest] = await allocationProblems(unreached, ["shop"], { undeclaredFails: true });
+  assert.deepEqual(rest, [], "a file nothing reaches is named once, as unallocated");
+  assert.match(only, /refund\.ts \(2 lines\) belongs to no capability/);
 });

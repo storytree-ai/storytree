@@ -1,0 +1,37 @@
+[
+  {
+    "artifact": "jobs/challenge-delivery-infra-a/evidence/capture-handlers-20261007T122024655162",
+    "exit_code": 0,
+    "script_sha256_verified": "7149fe53b46ba195be43d442c5a71043a7caa80f10be72ad2fbefdf48e0b352b",
+    "stdout": "{\"source\":\"packages/website/evidence/terminal.mjs\",\"declarationSha256\":\"f0bcd73816daded68a126d0f389907b5951ac13a3fed0bf60a739a20586abc63\",\"guarded\":false,\"normal\":{\"status\":200,\"body\":\"SYNTHETIC_INDEX\"},\"absent\":{\"status\":404,\"body\":\"\"},\"adjacent\":{\"status\":200,\"body\":\"SYNTHETIC_ADJACENT_MARKER\"},\"siblingPrefix\":{\"status\":200,\"body\":\"SYNTHETIC_PREFIX_MARKER\"}}\n{\"source\":\"packages/website/evidence/turn/capture.mjs\",\"declarationSha256\":\"951b54892dbed041f237abb81cb9b87724c106ff447eb38d59da11f823b4823b\",\"guarded\":false,\"normal\":{\"status\":200,\"body\":\"SYNTHETIC_INDEX\"},\"absent\":{\"status\":404,\"body\":\"\"},\"adjacent\":{\"status\":200,\"body\":\"SYNTHETIC_ADJACENT_MARKER\"},\"siblingPrefix\":{\"status\":200,\"body\":\"SYNTHETIC_PREFIX_MARKER\"}}\n{\"source\":\"packages/website/evidence/journey/capture.mjs\",\"declarationSha256\":\"f0bcd73816daded68a126d0f389907b5951ac13a3fed0bf60a739a20586abc63\",\"guarded\":false,\"normal\":{\"status\":200,\"body\":\"SYNTHETIC_INDEX\"},\"absent\":{\"status\":404,\"body\":\"\"},\"adjacent\":{\"status\":200,\"body\":\"SYNTHETIC_ADJACENT_MARKER\"},\"siblingPrefix\":{\"status\":200,\"body\":\"SYNTHETIC_PREFIX_MARKER\"}}\n{\"source\":\"packages/website/evidence/arrival/capture.mjs\",\"declarationSha256\":\"f0bcd73816daded68a126d0f389907b5951ac13a3fed0bf60a739a20586abc63\",\"guarded\":false,\"normal\":{\"status\":200,\"body\":\"SYNTHETIC_INDEX\"},\"absent\":{\"status\":404,\"body\":\"\"},\"adjacent\":{\"status\":200,\"body\":\"SYNTHETIC_ADJACENT_MARKER\"},\"siblingPrefix\":{\"status\":200,\"body\":\"SYNTHETIC_PREFIX_MARKER\"}}\n{\"source\":\"packages/website/evidence/nameplates-phone/capture.mjs\",\"declarationSha256\":\"f0bcd73816daded68a126d0f389907b5951ac13a3fed0bf60a739a20586abc63\",\"guarded\":false,\"normal\":{\"status\":200,\"body\":\"SYNTHETIC_INDEX\"},\"absent\":{\"status\":404,\"body\":\"\"},\"adjacent\":{\"status\":200,\"body\":\"SYNTHETIC_ADJACENT_MARKER\"},\"siblingPrefix\":{\"status\":200,\"body\":\"SYNTHETIC_PREFIX_MARKER\"}}\n{\"source\":\"packages/website/evidence/warm-globe/measure.mjs\",\"declarationSha256\":\"f0bcd73816daded68a126d0f389907b5951ac13a3fed0bf60a739a20586abc63\",\"guarded\":false,\"normal\":{\"status\":200,\"body\":\"SYNTHETIC_INDEX\"},\"absent\":{\"status\":404,\"body\":\"\"},\"adjacent\":{\"status\":200,\"body\":\"SYNTHETIC_ADJACENT_MARKER\"},\"siblingPrefix\":{\"status\":200,\"body\":\"SYNTHETIC_PREFIX_MARKER\"}}\n{\"source\":\"packages/forest-world/evidence/flat-canvas-retired/capture-website.mjs\",\"declarationSha256\":\"fbdf758ca918c6f12fb3e652c9a6dea2ec03c0d7f6356215ce10f0b92be7ea60\",\"guarded\":false,\"normal\":{\"status\":200,\"body\":\"SYNTHETIC_INDEX\"},\"absent\":{\"status\":404,\"body\":\"\"},\"adjacent\":{\"status\":200,\"body\":\"SYNTHETIC_ADJACENT_MARKER\"},\"siblingPrefix\":{\"status\":200,\"body\":\"SYNTHETIC_PREFIX_MARKER\"}}\n{\"source\":\"packages/website/evidence/capture.mjs\",\"declarationSha256\":\"d58a63193dd0c7c29e575555c3c73c2fa73fd631647ae5a3043a118aedb1bccb\",\"guarded\":true,\"normal\":{\"status\":200,\"body\":\"SYNTHETIC_INDEX\"},\"absent\":{\"status\":404,\"body\":\"SYNTHETIC_NOT_FOUND\"},\"adjacent\":{\"status\":403,\"body\":\"\"},\"siblingPrefix\":{\"status\":403,\"body\":\"\"}}\n",
+    "stderr": ""
+  },
+  {
+    "artifact": "jobs/challenge-delivery-infra-a/evidence/graph-small-20261007T121927967579",
+    "exit_code": 1,
+    "script_sha256_verified": "e5f9ec9dffd38f22948f84c38a06eb288130b90a76f31c8fb597990029942cfa",
+    "stdout": "",
+    "stderr": "node:internal/modules/run_main:107\n    triggerUncaughtException(\n    ^\n\nAssertionError [ERR_ASSERTION]: real nested visit must appear in coverage\n    at <anonymous> (/case/graph-small.mts:37:14) {\n  generatedMessage: false,\n  code: 'ERR_ASSERTION',\n  actual: undefined,\n  expected: true,\n  operator: '==',\n  diff: 'simple'\n}\n\nNode.js v24.19.0\n"
+  },
+  {
+    "artifact": "jobs/challenge-delivery-infra-a/evidence/graph-small-v2-20261007T122002587088",
+    "exit_code": 1,
+    "script_sha256_verified": "177559ddb7763d3dbac04bafbed7ec217b5bcf4c9b032828c0f8a2c5528533d4",
+    "stdout": "",
+    "stderr": "node:inspector:93\n              new ERR_INSPECTOR_COMMAND(parsed.error.code, parsed.error.message),\n              ^\n\nError [ERR_INSPECTOR_COMMAND]: Inspector error -32000: Debugger agent is not enabled\n    at #onMessage (node:inspector:93:15)\n    at Connection.<anonymous> (node:inspector:66:67)\n    at Session.post (node:inspector:139:22)\n    at <anonymous> (/case/graph-small.mts:12:11)\n    at new Promise (<anonymous>)\n    at post (/case/graph-small.mts:11:47)\n    at <anonymous> (/case/graph-small.mts:40:40) {\n  code: 'ERR_INSPECTOR_COMMAND'\n}\n\nNode.js v24.19.0\n"
+  },
+  {
+    "artifact": "jobs/challenge-delivery-infra-a/evidence/graph-small-v3-20261007T122010614540",
+    "exit_code": 0,
+    "script_sha256_verified": "958416a710df0da534ec9e9552a1146379d86f8a3992f977e94d8f694112bd62",
+    "stdout": "{\"case\":\"chain4\",\"vertices\":4,\"edges\":3,\"visitCalls\":10,\"problems\":[]}\n{\"case\":\"diamond4\",\"vertices\":4,\"edges\":4,\"visitCalls\":10,\"problems\":[]}\n{\"case\":\"dag4\",\"vertices\":4,\"edges\":6,\"visitCalls\":15,\"problems\":[]}\n{\"case\":\"dag5\",\"vertices\":5,\"edges\":10,\"visitCalls\":31,\"problems\":[]}\n{\"case\":\"dag6\",\"vertices\":6,\"edges\":15,\"visitCalls\":63,\"problems\":[]}\n{\"case\":\"cycle2\",\"vertices\":2,\"edges\":2,\"visitCalls\":6,\"problems\":[\"these packages depend on each other in a cycle: p0 \u2192 p1 \u2192 p0; a workspace links it into a folder loop that git clean never leaves, so drop one of its edges\"]}\n",
+    "stderr": ""
+  },
+  {
+    "artifact": "jobs/challenge-delivery-infra-a/evidence/numbering-primitives-20261007T121919433005",
+    "exit_code": 0,
+    "script_sha256_verified": "d80fb09a6a58c3376b879ae262fa24943658c348c8119e2360d7f85a5977443d",
+    "stdout": "{\"pureAllocator\":\"passed\",\"baseline\":6,\"suppliedHistoryMaximum\":20,\"allocated\":21,\"explicitTakenRejected\":true,\"sqlAndRlsExecuted\":false}\n",
+    "stderr": ""
+  }
+]

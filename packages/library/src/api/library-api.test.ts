@@ -94,6 +94,7 @@ const LIBRARY_API = [
   "searchEach",
   "rank",
   "rankAll",
+  "findPhrase",
   "relatedNotes",
   "related",
   "relatedEach",

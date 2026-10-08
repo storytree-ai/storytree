@@ -1,0 +1,20 @@
+[
+  {
+    "path": "jobs/challenge-delivery-infra-b/events.jsonl",
+    "line": 48,
+    "event": {
+      "type": "error",
+      "message": "This content was flagged for possible cybersecurity risk. If this seems wrong, try rephrasing your request. If you\u2019re doing authorized security work that requires more cyber permissive safeguards, apply for Daybreak access via https://platform.openai.com/settings/organization/status-and-access before retrying."
+    }
+  },
+  {
+    "path": "jobs/challenge-delivery-infra-b/events.jsonl",
+    "line": 49,
+    "event": {
+      "type": "turn.failed",
+      "error": {
+        "message": "This content was flagged for possible cybersecurity risk. If this seems wrong, try rephrasing your request. If you\u2019re doing authorized security work that requires more cyber permissive safeguards, apply for Daybreak access via https://platform.openai.com/settings/organization/status-and-access before retrying."
+      }
+    }
+  }
+]

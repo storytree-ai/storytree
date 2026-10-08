@@ -12,12 +12,16 @@
  * which write files of their own into the throwaway home.
  */
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
+import { once } from "node:events";
 import { chmodSync, copyFileSync, existsSync, linkSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
+import { setTimeout as pause } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 
+import { probeProcess, readProcess, type ProcessIdentity } from "@storytree/processes";
 import { BuiltCommand, dropTestProjects, inWorld, storytree, testServerUrl, uniqueProjectName, type World } from "./testing/cli.js";
 
 const STUB_APP = fileURLToPath(new URL("./testing/stub-app.mjs", import.meta.url));
@@ -111,29 +115,70 @@ function snapshot(...folders: string[]): Record<string, string> {
   return files;
 }
 
-test("8.1 with storytree closed, it opens it", async () => {
+for (const interrupted of [false, true]) test(`8.1 with storytree closed, it opens it; its test stand-in ends after ${interrupted ? "interruption" : "completion"}`, async () => {
   await inWorld(command, async (world) => {
     const user = aUser(world);
     const closedHome = world.stoppedHome;
     const dataDir = path.join(closedHome, "pgdata");
-    writeFileSync(path.join(closedHome, "app.json"), JSON.stringify({ command: process.execPath, args: [STUB_APP, dataDir, new URL(testServerUrl()).port] }));
+    // Run the proof in its own process, so killing it really skips its teardown. The real doctor
+    // launches the detached app; this owner must outlive that short-lived command.
+    const owner = spawn(process.execPath, ["--import", import.meta.resolve("tsx"), "--input-type=module", "-e", `
+      import { writeFileSync } from "node:fs";
+      import { storytree } from ${JSON.stringify(new URL("./testing/cli.ts", import.meta.url).href)};
+      const { script, stub, dataDir, port, options, parent } = JSON.parse(process.argv[1]);
+      setInterval(() => { try { process.kill(parent, 0); } catch { process.exit(); } }, 250);
+      process.on("message", () => process.exit());
+      writeFileSync(options.home + "/app.json", JSON.stringify({ command: process.execPath, args: [stub, dataDir, port, String(process.pid)] }));
+      process.send(await storytree(script, ["doctor"], options));
+    `, JSON.stringify({ script: command.script, stub: STUB_APP, dataDir, port: new URL(testServerUrl()).port,
+      options: { cwd: world.folder, home: closedHome, env: user.env }, parent: process.pid })], { stdio: ["ignore", "ignore", "pipe", "ipc"] });
+    let stderr = "";
+    owner.stderr!.on("data", (chunk: Buffer) => { stderr += chunk.toString(); });
+    const ownerExited = once(owner, "exit");
+    let app: ProcessIdentity | undefined;
     try {
-      const ran = await storytree(command.script, ["doctor"], { cwd: world.folder, home: closedHome, env: user.env });
+      const [ran] = await Promise.race([
+        once(owner, "message"),
+        ownerExited.then(() => { throw new Error(`Doctor test owner exited before its result: ${stderr}`); }),
+      ]);
 
       assert.equal(ran.code, 0, ran.stderr);
       assert.match(ran.stdout, /storytree was closed, so it has been opened/);
-      assert.ok(existsSync(`${dataDir}.owner.json`), "storytree is running now");
+      const { pid } = JSON.parse(readFileSync(`${dataDir}.owner.json`, "utf8")) as { pid: number };
+      const reading = await readProcess(pid);
+      assert.equal(reading.state, "live", "storytree is running after the doctor command exits");
+      if (reading.state !== "live") throw new Error("the stand-in did not stay alive");
+      app = reading.identity;
+
+      if (interrupted) owner.kill("SIGKILL");
+      else owner.send("done");
+      await ownerExited;
+      await appEnded(app);
+      assert.equal(existsSync(closedHome), false, "the stand-in removed its disposable home");
     } finally {
-      const record = `${dataDir}.owner.json`;
-      if (existsSync(record)) {
-        const { pid } = JSON.parse(readFileSync(record, "utf8")) as { pid: number };
-        try {
-          process.kill(pid);
-        } catch {}
+      if (owner.exitCode === null && owner.signalCode === null) owner.kill("SIGKILL");
+      await ownerExited;
+      // Clean even a failing proof, checking lifetime identity before killing a possibly reused PID.
+      if (app === undefined && existsSync(`${dataDir}.owner.json`)) {
+        const reading = await readProcess(JSON.parse(readFileSync(`${dataDir}.owner.json`, "utf8")).pid);
+        if (reading.state === "live") app = reading.identity;
+      }
+      if (app !== undefined && (await probeProcess(app)).state === "live") {
+        process.kill(app.pid, "SIGKILL");
+        await appEnded(app);
       }
     }
   });
 });
+
+async function appEnded(app: ProcessIdentity): Promise<void> {
+  const deadline = Date.now() + 5_000;
+  while (Date.now() < deadline) {
+    if ((await probeProcess(app)).state === "gone") return;
+    await pause(50);
+  }
+  assert.fail("the Doctor app stand-in outlived its test owner by five seconds");
+}
 
 test("8.2 with `gh` signed out, it notes what gh is for and names no fix for it", async () => {
   await inWorld(command, async (world) => {

@@ -241,7 +241,7 @@ export class Knowledge {
     this.#requireStorytree();
     const record = await liveRecord(this.#records, id, ["decision"]);
     if (record === null) throw new RangeError(`${id} is not a live decision`);
-    this.#checkNumber(record, number, await this.#records.history(), move);
+    this.#checkNumber(record, number, await this.#numberHistory(), move);
     const updated = await this.#records.edit(id, { number }, {
       ...options,
       sequence: "number",
@@ -260,7 +260,7 @@ export class Knowledge {
   async decisionNumberPlan(): Promise<DecisionNumberPlan[]> {
     this.#requireStorytree();
     const records = await this.#records.list("decision");
-    const history = await this.#records.history();
+    const history = await this.#numberHistory();
     const rows = records.filter((record) => {
       const target = fullRecordNumber(record.fields.text);
       return fullRecordLines(record.fields.text).length > 0 && (target === undefined || target !== record.fields.number);
@@ -315,7 +315,7 @@ export class Knowledge {
   async numberFoundingDecisions(options: WriteOptions & { readonly apply?: boolean } = {}): Promise<DecisionNumberPlan[]> {
     this.#requireStorytree();
     const records = await this.#records.list("decision");
-    const history = await this.#records.history();
+    const history = await this.#numberHistory();
     const { floor, seq } = this.#numberFloor(history);
     const originals = new Map<string, HistoryEntry>();
     for (const entry of history) {
@@ -335,6 +335,11 @@ export class Knowledge {
         }
       });
     return this.#applyNumberPlan(plan, "founding-books", options);
+  }
+
+  /** Match the write-time allocator: retain legacy reservations, exclude health-only input. */
+  async #numberHistory(): Promise<HistoryEntry[]> {
+    return (await this.#records.history()).filter((entry) => entry.type !== "health");
   }
 
   #foundingMoved(id: string, history: HistoryEntry[], floorSeq: number): boolean {

@@ -96,6 +96,45 @@ function measure(page) {
     if (!['error', 'warning'].includes(message.type())) return;
     (message.type() === 'warning' ? warnings : errors).push(message.text());
   });
+  const failedWait = async (stage, error) => {
+    // A ready page need not have mounted every seeded island. Read the actual scene, without
+    // invalidating it, and bound this extra read so a stuck renderer preserves the original error.
+    let timer;
+    const scene = await Promise.race([
+      page.evaluate(ids => {
+        const state = window.__globe;
+        const targets = ids.map(id => {
+          const planet = state?.scene.getObjectByName(`planet:${id}`);
+          return { id, planet: !!planet, ground: !!planet?.getObjectByName('island-ground'),
+            children: planet?.children.map(child => child.name || child.type) ?? [] };
+        });
+        const planets = [];
+        let objects = 0, grounds = 0, files = 0, outlines = 0;
+        state?.scene.traverse(object => {
+          objects++;
+          if (object.name.startsWith('planet:')) planets.push(object.name);
+          if (object.name === 'island-ground') grounds++;
+          if (object.name.startsWith('file:')) files++;
+          if (object.name.startsWith('territory-claim:')) outlines++;
+        });
+        const canvas = state?.gl.domElement;
+        const rect = canvas?.getBoundingClientRect();
+        return { state: document.body.dataset.state, empty: document.querySelector('.empty')?.innerText ?? '',
+          at: performance.now(), lastReadinessPollAt: window.__territoryHealthPollAt ?? null,
+          visibility: document.visibilityState, globe: !!state, navigation: !!window.__nav,
+          missingPlanets: targets.filter(target => !target.planet).map(target => target.id),
+          missingGround: targets.filter(target => target.planet && !target.ground).map(target => target.id),
+          targets, planets, objects, grounds, files, outlines,
+          frameloop: state?.frameloop, active: state?.internal.active, pendingFrames: state?.internal.frames,
+          contextLost: state?.gl.getContext().isContextLost(),
+          canvas: rect && { width: rect.width, height: rect.height, bufferWidth: canvas.width, bufferHeight: canvas.height } };
+      }, seed.tree.stories.map(story => story.id)).catch(readError => ({ readError: String(readError) })),
+      new Promise(resolve => { timer = setTimeout(() => resolve({ readTimedOut: true }), 3000); }),
+    ]);
+    clearTimeout(timer);
+    console.error(`territory-health failure: ${JSON.stringify({ stage, error: String(error), scene, errors, urls: failed, warnings: warnings.slice(0, 5) })}`);
+    throw error;
+  };
   // The shared stand-in bridge answers whatever the page asks beyond the answers below.
   const bridge = fakeBridge({});
   await bridge.install(page);
@@ -123,16 +162,14 @@ function measure(page) {
   await page.goto(`${origin}/index.html`, { timeout: 180000, waitUntil: 'domcontentloaded' });
   phase('wait for island meshes');
   await page.waitForFunction(ids => {
+    window.__territoryHealthPollAt = performance.now();
     const state = window.__globe;
     if (document.body.dataset.state !== 'ready' || !state || !window.__nav) return false;
     return ids.every(id => !!state.scene.getObjectByName(`planet:${id}`)?.getObjectByName('island-ground'));
-  }, seed.tree.stories.map(s => s.id), { timeout: 60000, polling: 100 }).catch(async error => {
-    console.error(JSON.stringify({ state: await page.evaluate(() => document.body.dataset.state + ' | ' + (document.querySelector('.empty')?.innerText ?? '')), errors, urls: failed, warnings: warnings.slice(0, 5) }));
-    throw error;
-  });
+  }, seed.tree.stories.map(s => s.id), { timeout: 60000, polling: 100 }).catch(error => failedWait('seeded islands', error));
   phase('wait for territory and claim meshes');
   // Territories arrive with the survey, and the claim outlines with the first read of the log: wait until both are drawn.
-  await page.waitForFunction(() => { let outlines = 0, files = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('territory-claim:')) outlines++; if (o.name.startsWith('file:')) files++; }); return outlines > 0 && files > 0; }, undefined, { timeout: 30000, polling: 100 });
+  await page.waitForFunction(() => { let outlines = 0, files = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('territory-claim:')) outlines++; if (o.name.startsWith('file:')) files++; }); return outlines > 0 && files > 0; }, undefined, { timeout: 30000, polling: 100 }).catch(error => failedWait('claim bands and file circles', error));
   await page.evaluate(() => { for (const menu of document.querySelectorAll('[popover]')) if (menu.matches(':popover-open')) menu.hidePopover(); });
   await settleView(page);
   const results = { now: new Date(NOW).toISOString(), sessions: SESSIONS, capabilities: CAP, logLines: lines.length };

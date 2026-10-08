@@ -75,6 +75,15 @@ export async function finishDelivery(options: DeliveryOptions, effects = { launc
   return { state: "ready", tools, command };
 }
 
+/** The helper runs only from its own payload's Node: Windows x64 or arm64, or an Apple Silicon Mac (install.sh). */
+export function runtimeProblem(arch: Architecture, runtime = { platform: process.platform, arch: process.arch, node: process.versions.node }): string | undefined {
+  if (runtime.platform === "darwin" && arch !== "arm64") return "storytree needs a Mac with Apple Silicon";
+  if ((runtime.platform !== "win32" && runtime.platform !== "darwin") || runtime.arch !== arch || runtime.node.split(".")[0] !== "24") {
+    return "The bundled Node runtime does not match this installation";
+  }
+  return undefined;
+}
+
 /** Installed delivery and connection commands. inspect has no side effects, including no app launch. */
 export async function runDeliveryCommand(args = process.argv.slice(2)): Promise<void> {
   if (args[0] === "connect" || args[0] === "disconnect") {
@@ -109,7 +118,8 @@ export async function runDeliveryCommand(args = process.argv.slice(2)): Promise<
   }
   const [action, installDir, arch] = args;
   if (!installDir || (arch !== "x64" && arch !== "arm64") || (action !== "inspect" && action !== "finish")) throw new Error("usage: storytree-deliver inspect|finish <installation directory> x64|arm64");
-  if (process.platform !== "win32" || process.arch !== arch || process.versions.node.split(".")[0] !== "24") throw new Error("The bundled Node runtime does not match this Windows installation");
+  const problem = runtimeProblem(arch);
+  if (problem) throw new Error(problem);
   const tools = verifyPayload(installDir, arch);
   const result = action === "inspect" ? { state: "usable", tools } : await finishDelivery({ installDir, arch, home: storytreeHome(), searchPath: process.env.PATH ?? "" });
   process.stdout.write(JSON.stringify(result) + "\n");

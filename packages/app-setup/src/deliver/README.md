@@ -1,6 +1,17 @@
 Capability 1 delivers the existing NSIS app and agent-link tool bundle. `install.ps1` is the
 published one-command entry point; the desktop packages it alongside the release feed.
 
+On an Apple Silicon Mac the one command is `install.sh` (contract 1.12), run as
+`curl -fsSL …/install-storytree.sh | sh`: POSIX sh, also run under bash and zsh, laid out by system
+and chip so the parked Linux arc adds a branch. It refuses an Intel Mac, Linux and Windows in plain
+words, chooses the channel as `install.ps1` does, reads the release's `storytree-delivery.json`
+(its `macos.arm64` entry: the zip's name, SHA-256 and size), refuses a checksum mismatch, unpacks the
+`.app` into `~/Applications/storytree-0.3.app` (or the folder `delivery.json` names), runs the same
+`finish`, and puts `~/.storytree/0.3/bin` on PATH through one line in `~/.zprofile`, marked so
+`setup uninstall`'s Mac twin can take it out. Its questions are read from `/dev/tty`, since the
+script itself arrives on standard input; with no terminal it skips them and says how to come back.
+Every step is a function and the last line runs them, so a download cut short runs nothing.
+
 The installed payload is `<installation>/resources/agent-tools/`: native Node 24, all four
 `buildBins` entry points, `chunks/**`, a delivery helper, Node's license and `payload.json`
 (architecture and SHA-256 inventory). The installation defaults to

@@ -18,6 +18,8 @@ rmSync(dist, { recursive: true, force: true });
 mkdirSync(path.join(dist, "renderer"), { recursive: true });
 
 const common = { bundle: true, logLevel: "warning", sourcemap: "linked", absWorkingDir: here };
+/** A public setting from the build's environment, as an esbuild define: its value, or undefined when it is not set. */
+const stamped = (name) => (process.env[name] ? JSON.stringify(process.env[name]) : "undefined");
 
 await build({
   ...common,
@@ -30,7 +32,13 @@ await build({
   // where they are; the app always tells it (main.ts: postgresBinaries), so that path is never taken.
   logOverride: { "empty-import-meta": "silent" },
   // A release build stamps in PostHog's public project token (never a private key); others share nothing.
-  define: journeyDefine(),
+  // A build offering sign-in for feedback stamps in WorkOS's public client ID and the identity endpoint (app setup contract 5.6);
+  // the app checks both and offers no sign-in without them. Neither is a secret.
+  define: {
+    ...journeyDefine(),
+    STORYTREE_WORKOS_CLIENT_ID: stamped("STORYTREE_WORKOS_CLIENT_ID"),
+    STORYTREE_IDENTITY_URL: stamped("STORYTREE_IDENTITY_URL"),
+  },
   external: [
     "electron",
     // Optional parts of pg that the app never uses: its native client and its Cloudflare sockets.

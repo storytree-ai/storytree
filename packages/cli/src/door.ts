@@ -41,6 +41,12 @@ export interface Io {
   readonly handed?: readonly string[];
   /** The line the Windows launcher was handed, after its own name, when it started this command (./handed.ts). */
   readonly launched?: string;
+  /**
+   * Whether `err` reaches a person's terminal. Only then is a wait on the library said as it starts:
+   * Windows PowerShell 5.1 reads any captured stderr as a failed command, and a pipe cut short after
+   * that first line ends the command before it writes (seen 2026-10-08).
+   */
+  readonly terminal?: boolean;
   out(text: string): void;
   err(text: string): void;
 }
@@ -111,7 +117,7 @@ export async function run(argv: readonly string[], io: Io): Promise<number> {
     io.err(render({ text: `storytree did nothing: word ${requoted + 1} ("${preview(argv[requoted] ?? "")}") arrived with its double quotes changed, as Windows PowerShell 5.1 hands on a word that holds a space and a double quote. Put that text in a file and pass @<file> in its place, as in --answer @answer.txt, or write each double quote inside it as \\".` }));
     return 1;
   }
-  const opened = new Opened(io.cwd, (what) => io.err(`storytree: ${what}\n`));
+  const opened = new Opened(io.cwd, io.terminal === true ? (what) => io.err(`storytree: ${what}\n`) : () => {});
   let writer: WriteOptions | undefined;
   let journey: Promise<JourneyRuntime> | undefined;
   try {
@@ -276,7 +282,7 @@ function verbsOf(family: Family, path: string): Answer {
 /** The connection to storytree and the project's library, made on first use and closed at the end. */
 class Opened {
   readonly #cwd: string;
-  /** Where a wait on the library is said as it starts (stderr), so a command never waits in silence. */
+  /** Where a wait on the library is said as it starts (stderr, on a terminal), so a person never waits in silence. */
   readonly #say: (what: string) => void;
   #storytree: Promise<Storytree> | undefined;
   #approved: Promise<Storytree> | undefined;

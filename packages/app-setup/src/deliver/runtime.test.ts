@@ -27,14 +27,14 @@ test("1.1 / 1.4: runtime acquisition verifies bytes before replacing a payload",
 });
 
 /** A Node release archive as nodejs.org publishes it: `<root>/bin/node` inside a gzipped tar. */
-function nodeArchive(dir: string, executable: Buffer): { bytes: Buffer; sha256: string } {
+function nodeArchive(dir: string, executable: Buffer): { bytes: Uint8Array<ArrayBuffer>; sha256: string } {
   const root = path.join(dir, "archive");
   mkdirSync(path.join(root, "node-fixture", "bin"), { recursive: true });
   writeFileSync(path.join(root, "node-fixture", "LICENSE"), "license");
   writeFileSync(path.join(root, "node-fixture", "bin", "node"), executable, { mode: 0o755 });
   const result = spawnSync("tar", ["-czf", "node.tar.gz", "node-fixture"], { cwd: root, env: { ...process.env, COPYFILE_DISABLE: "1" } });
   assert.equal(result.status, 0, String(result.stderr));
-  const bytes = readFileSync(path.join(root, "node.tar.gz"));
+  const bytes = new Uint8Array(readFileSync(path.join(root, "node.tar.gz")));
   return { bytes, sha256: sha256(bytes) };
 }
 const sha256 = (bytes: Uint8Array): string => createHash("sha256").update(bytes).digest("hex");

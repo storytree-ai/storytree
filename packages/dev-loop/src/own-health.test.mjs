@@ -14,7 +14,7 @@ import { connect } from "@storytree/library";
 import pg from "pg";
 
 import { checkStory } from "./check-own-health.mjs";
-import { contractsCoveredBy, contractsOf, judge, packageOf, parseJunit, readWindowsEvidence, recordHealth, recordingTarget } from "./own-health.mjs";
+import { contractsCoveredBy, contractsOf, judge, packageOf, parseJunit, readCiEvidence, recordHealth, recordingTarget } from "./own-health.mjs";
 
 test("parseJunit reads each test's name, the suites around it, its file, and whether it passed, failed or was skipped", () => {
   const results = parseJunit(JUNIT);
@@ -352,7 +352,7 @@ test("5.4 Windows CI at the same commit verifies Get storytree 1.9 and Front doo
           writeFileSync(path.join(directory, "unit-1", "result.json"), JSON.stringify(windows));
         }
         await checkStory(lib, planned, { by: "storytree test run on CI", commit }, {
-          root, ...quiet, windows: readWindowsEvidence(directory, { commit, run: windowsRun }), runTests: async () => ({ code: 0, results }),
+          root, ...quiet, evidence: [readCiEvidence(directory, { commit, run: windowsRun, platform: "win32" })], runTests: async () => ({ code: 0, results }),
         });
         return (await lib.health(contract.id)).verified;
       };
@@ -378,11 +378,54 @@ test("5.4 Windows CI at the same commit verifies Get storytree 1.9 and Front doo
       assert.equal((await record({ ...evidence, results: [{ ...test, status: "failed" }] })).state, "not-checked", "Windows evidence that does not prove it takes the pass away");
       mkdirSync(path.join(directory, "unit-2"));
       writeFileSync(path.join(directory, "unit-2", "result.json"), JSON.stringify({ ...evidence, unit: "other", results: [{ ...test, file: "packages/other/src/test.ts", status: "passed" }] }));
-      assert.equal(readWindowsEvidence(directory, { commit, run: windowsRun }).results.length, 2, "reads every unit, not only the last");
+      assert.equal(readCiEvidence(directory, { commit, run: windowsRun, platform: "win32" }).results.length, 2, "reads every unit, not only the last");
       writeFileSync(path.join(directory, "unit-2", "result.json"), "{incomplete");
-      assert.equal(readWindowsEvidence(directory, { commit, run: windowsRun }), undefined, "incomplete evidence grants no credit");
+      assert.equal(readCiEvidence(directory, { commit, run: windowsRun, platform: "win32" }), undefined, "incomplete evidence grants no credit");
     });
   }
+});
+
+test("5.4 macOS CI at the same commit verifies Get storytree 1.11's Apple Silicon test, naming its run; Windows evidence cannot credit it, macOS evidence cannot credit a Windows skip, and a run that saw no macOS leaves that pass standing", async (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "own-health-macos-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const commit = "c".repeat(40);
+  const ciRun = "https://github.com/storytree-ai/storytree/actions/runs/456/attempts/1";
+  const quiet = { log: () => {}, error: () => {} };
+  mkdirSync(path.join(root, "packages", "app-setup", "src"), { recursive: true });
+  await withLibrary(async (lib) => {
+    const story = await lib.addStory({ title: "The app setup" });
+    const capability = await lib.addCapability({ story: story.id, title: "1 · Get storytree" });
+    const contract = await lib.addContract({ capability: capability.id, title: "1.11 · Apple Silicon payload" });
+    const planned = (await lib.projectTree()).stories[0];
+    const test = { name: "1.11: the pinned darwin-arm64 runtime runs on an Apple Silicon Mac", suites: [], file: "packages/app-setup/src/deliver/runtime.test.ts" };
+    const skipped = { ...test, file: path.join(root, test.file), status: "skipped", message: "platform:darwin-arm64: only an Apple Silicon Mac can run Node's darwin-arm64 build" };
+    const passedHere = { ...test, name: "1.11: a Mac runtime is staged from Node's pinned darwin-arm64 archive", file: path.join(root, test.file), status: "passed" };
+    const mac = { platform: "darwin", commit, run: ciRun, unit: "app-setup", code: 0, results: [{ ...test, status: "passed" }] };
+    const directories = { darwin: path.join(root, "macos-evidence"), win32: path.join(root, "windows-evidence") };
+    const record = async (reports, results = [skipped, passedHere]) => {
+      for (const directory of Object.values(directories)) rmSync(directory, { recursive: true, force: true });
+      for (const report of reports) {
+        mkdirSync(path.join(directories[report.platform] ?? directories.darwin, "unit-1"), { recursive: true });
+        writeFileSync(path.join(directories[report.platform] ?? directories.darwin, "unit-1", "result.json"), JSON.stringify(report));
+      }
+      const evidence = Object.entries(directories).map(([platform, directory]) => readCiEvidence(directory, { commit, run: ciRun, platform }));
+      await checkStory(lib, planned, { by: "storytree test run on CI", commit }, { root, ...quiet, evidence, runTests: async () => ({ code: 0, results }) });
+      return (await lib.health(contract.id)).verified;
+    };
+    for (const reports of [[], [{ ...mac, platform: "win32" }], [{ ...mac, platform: "linux" }], [{ ...mac, results: [{ ...test, status: "skipped" }] }], [{ ...mac, commit: "d".repeat(40) }]]) {
+      const verified = await record(reports);
+      assert.equal(verified.state, "not-checked", JSON.stringify(reports));
+      assert.equal(verified.skip, "platform:darwin");
+    }
+    assert.equal((await record([mac], [{ ...skipped, message: "platform:win32: needs Windows" }])).state, "not-checked", "macOS evidence cannot credit a Windows skip");
+    const verified = await record([mac]);
+    assert.equal(verified.state, "passing");
+    assert.match(verified.note, /2\/2 tests passed; macOS: /);
+    assert.ok(verified.note.includes(ciRun), "names the actual macOS run");
+    assert.equal((await record([])).state, "passing", "a run without macOS evidence cannot re-run it, so the macOS pass stands");
+    assert.equal((await record([{ ...mac, platform: "win32", results: [{ ...test, status: "passed" }] }])).state, "passing", "Windows evidence alone does not take a macOS pass away");
+    assert.equal((await record([{ ...mac, results: [{ ...test, status: "failed" }] }])).state, "not-checked", "macOS evidence that does not prove it takes the pass away");
+  });
 });
 
 test("recordHealth writes each passing or failing verdict to the verified column, with who and how many tests, and nothing for not checked", async () => {

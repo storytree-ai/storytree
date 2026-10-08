@@ -1,10 +1,11 @@
-// Capability 12 · A Mint queue runs its lanes one at a time (ADR-0929 D3): one runner per queue, a line leaves
-// the queue only when its lane ends, the stop file ends the runner after its lane, and at most the box's cap of
-// engines runs at once. The box's launch-night.sh and launch-mintlib.sh are thin wrappers over launch.mjs, which
+// Capability 12 · A Mint queue runs its lanes one at a time (ADR-0929 D3), or a night track up to its lane limit
+// beside lanes writing other packages (ADR-0947): one runner per queue, a line leaves the queue only when its lane
+// ends, the stop file ends the runner after its running lanes, and at most the box's cap of engines runs at once. The box's launch-night.sh and launch-mintlib.sh are thin wrappers over launch.mjs, which
 // composes these.
 import { existsSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { basename, posix } from "node:path";
+import { setTimeout as wait } from "node:timers/promises";
 
 const ENGINES = [["codex", "exec"], ["codex", "e"], ["claude", "-p"], ["claude", "--print"]];
 
@@ -80,25 +81,71 @@ export async function holdRunner({ pidFile, pid = process.pid, marks, argsOf }) 
   return { held: true };
 }
 
+const LINE = /^[A-Za-z0-9_-]+$/;
+
 /**
- * Run the queue a lane at a time, from its head. A lane's line leaves only when the lane ends: 75 (an engine
- * failing at once) keeps it and stops the runner, and so does any failure when `stopOnFailure`. When the queue
- * empties, `refill` may add work (true: look again) or not (false: the runner ends).
+ * Run the queue from its head, up to `limit` lanes at once (a number, or a reader read on every look; ADR-0947). With no lane running the head starts; beside running lanes, `beside(queued, running)`
+ * names the queued line (or work it added to the queue) that may run with them, or nothing, and the runner
+ * then waits for a lane to end or `intervalMs` to look again. A lane's line leaves only when that lane ends:
+ * 75 (an engine failing at once) keeps it and stops the runner, and so does any failure when `stopOnFailure`;
+ * the stop file stops it too. A stopping runner starts no more lanes and ends once its running lanes end.
+ * When the queue empties with nothing running, `refill` may add work (true: look again) or not (false: end).
  */
 export async function runQueue({ queueFile, stopFile, runLane, stopOnFailure = false, refill = async () => false,
+  limit = 1, beside = async () => undefined, intervalMs = 15 * 60_000, sleep = (ms, options) => wait(ms, undefined, options),
   exists = async (path) => existsSync(path), now = Date.now, say = console.log }) {
   const dated = (message) => say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} ${message}`);
+  const running = new Map();
+  let ending, popping = Promise.resolve();
+  // Lanes ending together take their lines one after another, so neither rewrite of the file loses the other's.
+  const pop = (id) => (popping = popping.then(() => popRan(queueFile, id)));
+  // Settles when any lane ends after it was taken: a look that took it before awaiting the limit or the chooser
+  // still wakes for a lane that ended meanwhile.
+  let laneEnded, ended = new Promise((go) => { laneEnded = go; });
+  const start = (id) => running.set(id, (async () => {
+    try {
+      const code = await runLane(id);
+      if (code === 75) ending ??= { code: 75, message: `track stopped: engine failing, ${id} kept at the head of the queue` };
+      else if (stopOnFailure && code !== 0) ending ??= { code, message: `lane for ${id} failed: stopping with it still queued` };
+      else await pop(id);
+    } catch (error) { ending ??= { error }; }
+    finally {
+      running.delete(id);
+      laneEnded();
+      ended = new Promise((go) => { laneEnded = go; });
+    }
+  })());
+  const end = async (outcome) => {
+    await Promise.all(running.values());
+    const last = ending ?? outcome;
+    if (last.error) throw last.error;
+    if (last.message) dated(last.message);
+    return last.code;
+  };
   for (;;) {
-    if (await exists(stopFile)) { dated(`stopped by ${basename(stopFile)}`); return 0; }
-    const [head] = await queueLines(queueFile);
-    if (head) {
-      if (!/^[A-Za-z0-9_-]+$/.test(head)) { dated(`bad queue line '${head}': stopping`); return 1; }
-      const code = await runLane(head);
-      if (code === 75) { dated(`track stopped: engine failing, ${head} kept at the head of the queue`); return 75; }
-      if (stopOnFailure && code !== 0) { dated(`lane for ${head} failed: stopping with it still queued`); return code; }
-      await popRan(queueFile, head);
+    const anyEnds = ended;
+    if (ending) return end(ending);
+    if (await exists(stopFile)) return end({ code: 0, message: `stopped by ${basename(stopFile)}` });
+    const queued = (await queueLines(queueFile)).filter((line) => !running.has(line));
+    if (running.size === 0) {
+      if (ending) continue;
+      const [head] = queued;
+      if (!head) { if (!(await refill())) return 0; continue; }
+      if (!LINE.test(head)) { dated(`bad queue line '${head}': stopping`); return 1; }
+      start(head);
       continue;
     }
-    if (!(await refill())) return 0;
+    const free = running.size < (typeof limit === "function" ? await limit() : limit);
+    const next = free ? await beside(queued.filter((line) => LINE.test(line)), [...running.keys()]) : undefined;
+    if (next) {
+      // A lane may have ended while the limit and the chooser were awaited: a failed one keeps its line, so start
+      // the choice only if the runner is not ending and it is still queued and not running.
+      const still = await queueLines(queueFile);
+      if (!ending && !running.has(next) && still.includes(next)) start(next);
+      continue;
+    }
+    const look = new AbortController();
+    await Promise.race([anyEnds, ...(free ? [Promise.resolve(sleep(intervalMs, { signal: look.signal })).catch(() => {})] : [])]);
+    look.abort();
   }
 }

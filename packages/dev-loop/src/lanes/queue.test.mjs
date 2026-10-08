@@ -111,6 +111,82 @@ test("12.4 · the stop file stops the runner after its current lane, keeping the
   assert.deepEqual(lines, ["2026-10-08T04:00:00Z stopped by night-stop"]);
 });
 
+/**
+ * Waits on the runner without polling: the fakes `poke()` whenever they are called, and `until(label, ready)` settles
+ * once `ready()` holds; `settled(label, promise)` awaits a runner. Either fails after 15 s naming the step and `state()`.
+ */
+function watcher(state) {
+  const waiting = new Set();
+  const guard = (label, promise) => {
+    let timer;
+    const late = new Promise((_, fail) => { timer = setTimeout(() => fail(new Error(`stuck at ${label}: ${JSON.stringify(state())}`)), 15_000); });
+    return Promise.race([promise, late]).finally(() => clearTimeout(timer));
+  };
+  return {
+    poke: () => { for (const one of [...waiting]) if (one.ready()) { waiting.delete(one); one.go(); } },
+    until: (label, ready) => guard(label, ready() ? Promise.resolve() : new Promise((go) => waiting.add({ ready, go }))),
+    settled: guard,
+  };
+}
+const sleepUntilAborted = (ms, { signal } = {}) => new Promise((go) => signal?.addEventListener("abort", go));
+
+test("12.6 · a track runs lanes beside each other up to its limit, read on every look; each line leaves when its own lane ends", async (t) => {
+  const dir = await folder(t);
+  const queue = join(dir, "night-queue-A.txt"), stop = join(dir, "night-stop");
+  await writeFile(queue, "one\ntwo\nthree\nfour\n");
+  const started = [], done = {}, asked = [], ran = [], late = {}, ends = {}, last = {};
+  const { poke, until, settled } = watcher(() => ({ started, asked, ran, ends: Object.keys(ends), last: Object.keys(last) }));
+  let limit = 1;
+  const runner = runQueue({ queueFile: queue, stopFile: stop, now, say: () => {}, limit: async () => limit, sleep: sleepUntilAborted,
+    beside: async (lines, running) => { asked.push([lines, running]); poke(); return lines.find((line) => line !== "three"); },
+    runLane: (id) => { started.push(id); return new Promise((end) => { done[id] = end; poke(); }); } });
+  await until("one starts", () => started.length === 1);
+  await new Promise((go) => setTimeout(go, 5));
+  assert.deepEqual(asked, [], "at a limit of 1 it never looks for a lane to run beside");
+  limit = 2;
+  done.one(0);
+  await until("two and four start", () => started.length === 3);
+  assert.deepEqual(started, ["one", "two", "four"], "the raised limit is read at the next look, and a line the chooser passes over keeps its place");
+  assert.deepEqual(asked[0], [["three", "four"], ["two"]], "the chooser sees the queued lines not running, and the running lanes");
+  assert.equal(await readFile(queue, "utf8"), "two\nthree\nfour\n");
+  done.two(0);
+  await until("the chooser is offered three alone", () => asked.some(([lines]) => lines.join() === "three"));
+  assert.equal(started.length, 3, "nothing it may run beside: it waits for a lane to end or the next look");
+  done.four(0);
+  await until("three starts", () => started.length === 4);
+  done.three(0);
+  assert.equal(await settled("the first runner ends", runner), 0);
+  assert.equal(await readFile(queue, "utf8"), "");
+
+  await writeFile(queue, "early\nafter\n");
+  const woken = runQueue({ queueFile: queue, stopFile: stop, now, say: () => {}, limit: 2, sleep: sleepUntilAborted,
+    beside: async () => { late.early?.(0); await new Promise((go) => setTimeout(go, 20)); return undefined; },
+    runLane: (id) => { ran.push(id); return new Promise((end) => { late[id] = end; poke(); }); } });
+  await until("after starts once early ended during a look", () => ran.includes("after"));
+  late.after(0);
+  assert.equal(await settled("the woken runner ends", woken), 0, "a lane ending while the chooser looks still wakes the runner");
+
+  await writeFile(queue, "fails\nruns\nnext\n");
+  const lines = [];
+  const stopped = runQueue({ queueFile: queue, stopFile: stop, now, say: (line) => lines.push(line), limit: 2, sleep: sleepUntilAborted,
+    beside: async (queued) => queued[0], runLane: (id) => new Promise((end) => { ends[id] = end; poke(); }) });
+  await until("fails and runs start", () => ends.runs);
+  ends.fails(75);
+  await new Promise((go) => setTimeout(go, 5));
+  assert.equal(ends.next, undefined, "an engine failing at once starts no more lanes");
+  ends.runs(0);
+  assert.equal(await settled("the failing runner ends", stopped), 75);
+  assert.equal(await readFile(queue, "utf8"), "fails\nnext\n", "the failing lane stays queued; the lane beside it leaves");
+  assert.match(lines.at(-1), /track stopped: engine failing, fails kept/);
+
+  const halted = runQueue({ queueFile: queue, stopFile: stop, now, say: () => {}, limit: 2, sleep: sleepUntilAborted,
+    beside: async (queued) => queued[0], runLane: async (id) => { if (id === "next") await writeFile(stop, ""); return new Promise((end) => { last[id] = end; poke(); }); } });
+  await until("fails and next start", () => last.fails && last.next);
+  last.fails(0); last.next(0);
+  assert.equal(await settled("the stopped runner ends", halted), 0, "the stop file ends the runner once its running lanes end");
+  assert.equal(await readFile(queue, "utf8"), "", "both lanes' lines leave");
+});
+
 test("12.5 · a lane's brief is its header, the increment's notes when it has any, then the common brief", () => {
   const header = { title: "Overnight lane: track A, inc_1", intro: "Your increment: inc_1. Your track: A. Your write fence: packages/x." };
   assert.equal(composeBrief({ ...header, notes: "Notes for inc_1.\n\n", common: "Common rules.\n" }),

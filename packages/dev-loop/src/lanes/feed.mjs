@@ -24,6 +24,15 @@ export function parseFences(text) {
   return fences;
 }
 
+/** Why `writes` may not run beside the `running` lanes, or undefined when it shares no package with them. */
+function clash(writes, running) {
+  for (const lane of running) {
+    const path = sharedPath(writes, lane.writes);
+    if (path) return `shares ${path} with running ${lane.id}`;
+  }
+  return undefined;
+}
+
 function outsideFence(body, track, fences) {
   const named = /\btrack ([A-Z])\b/.exec(body)?.[1];
   if (named) return named === track ? undefined : `named for track ${named}`;
@@ -35,11 +44,26 @@ function outsideFence(body, track, fences) {
 }
 
 /**
+ * The package paths an increment writes: those in its body's "Write ownership" sentence, else those its body names,
+ * else (naming none) the whole `fence`, so it runs alone. Never its touches (ADR-0944 D2).
+ */
+export function writesOf(body, fence) {
+  const owned = /write ownership:(.*?)(?:\.\s|\.$|\n|$)/i.exec(body)?.[1]?.match(PATH) ?? body.match(PATH) ?? [];
+  return owned.length ? [...new Set(owned)] : fence;
+}
+
+/** The first of `writes` that equals or contains, or lies inside, one of `other`'s, or undefined when disjoint. */
+export function sharedPath(writes, other) {
+  return writes.find((path) => other.some((each) => path === each || path.startsWith(`${each}/`) || each.startsWith(`${path}/`)));
+}
+
+/**
  * The oldest ready increment of `survey` inside `track`'s fence, and why each other candidate was skipped.
+ * Beside `running` lanes ({ id, writes }) it skips work sharing a package with any of them.
  * `attempts` maps each increment this runner has run to when it started it; a live claim older than that
  * start refused the lane, which is retried once that claim clears, and never otherwise (it records the refusal in `attempts`).
  */
-export function pickNext(survey, { track, fences, attempts = new Map(), queued = new Map() }) {
+export function pickNext(survey, { track, fences, attempts = new Map(), queued = new Map(), running = [] }) {
   const skipped = [];
   const live = new Map(survey.claims.filter((claim) => claim.holder === "live" && claim.increment).map((claim) => [claim.increment, claim]));
   const laptopArcs = new Set(survey.laptopArcs);
@@ -64,7 +88,7 @@ export function pickNext(survey, { track, fences, attempts = new Map(), queued =
       const needs = (one.body.match(/\bneeds:[^\n]*/gi) ?? []).join("\n");
       if (/\bowner\b/i.test(needs) || /\bowner action\b/i.test(one.body)) return "needs an owner action";
       if (/\blaptop\b/i.test(needs)) return "needs another machine";
-      return outsideFence(one.body, track, fences);
+      return outsideFence(one.body, track, fences) ?? clash(writesOf(one.body, fences[track] ?? []), running);
     })();
     if (!why) return { pick: one.id, skipped };
     skipped.push({ id: one.id, why });
@@ -113,17 +137,39 @@ export async function queuedOnTracks(lanesDir) {
 }
 
 /**
- * Run the track's queue a lane at a time (queue.mjs's runQueue); when it empties, refill it from one survey,
- * skipping work any track has queued (`queued`), and when nothing is ready wait `intervalMs` and look again.
- * Ends only on the stop file, or 75 (an engine failing at once), which keeps that lane queued.
+ * Run the track's queue (queue.mjs's runQueue), up to `limit` lanes at once; when it empties, refill it from one
+ * survey, skipping work any track has queued (`queued`), and when nothing is ready wait `intervalMs` and look again.
+ * Beside running lanes it starts, from one survey, the first queued increment sharing no package with them, else
+ * one such increment from the library. Ends only on the stop file, or 75 (an engine failing at once), which keeps
+ * that lane queued.
  */
-export async function keepFed({ track, fences, queueFile, stopFile, survey, runLane, sleep = (ms) => wait(ms),
-  queued = async () => new Map(), intervalMs = 15 * 60_000, now = Date.now, say = console.log }) {
+export async function keepFed({ track, fences, queueFile, stopFile, survey, runLane, sleep = (ms, options) => wait(ms, undefined, options),
+  queued = async () => new Map(), limit = 1, intervalMs = 15 * 60_000, now = Date.now, say = console.log }) {
   const dated = (message) => say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} ${message}`);
   const attempts = new Map();
+  const minutes = Math.round(intervalMs / 60_000);
   return runQueue({
-    queueFile, stopFile, now, say,
+    queueFile, stopFile, now, say, limit, sleep, intervalMs,
     runLane: (id) => { attempts.set(id, { at: now() }); return runLane(id); },
+    beside: async (lines, ids) => {
+      let found;
+      try { found = await survey(); }
+      catch (error) { dated(`library survey failed (${String(error.message).split("\n")[0]}); looking again in ${minutes} min`); return undefined; }
+      const bodies = new Map(found.increments.map((one) => [one.id, one.body]));
+      const fence = fences[track] ?? [];
+      const running = ids.map((id) => ({ id, writes: writesOf(bodies.get(id) ?? "", fence) }));
+      const within = ids.join(", ");
+      const line = lines.find((id) => !clash(writesOf(bodies.get(id) ?? "", fence), running));
+      if (line) { dated(`start ${line} beside ${within}: no shared package`); return line; }
+      const { pick, skipped } = pickNext(found, { track, fences, attempts, queued: await queued(), running });
+      if (pick) {
+        dated(`took ${pick} from the library to run beside ${within} (${skipped.length} skipped)`);
+        await appendFile(queueFile, `${pick}\n`);
+        return pick;
+      }
+      dated(`nothing to run beside ${within} in track ${track}'s fence (${skipped.length} skipped); looking again in ${minutes} min`);
+      return undefined;
+    },
     refill: async () => {
       let found;
       try { found = await survey(); }

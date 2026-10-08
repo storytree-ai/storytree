@@ -94,12 +94,12 @@ const DESCRIPTOR_SCRIPT = `
 `;
 const SYSTEM = "S-1-5-18";
 const ADMINISTRATORS = "S-1-5-32-544";
-let currentSid: string | undefined;
 
 /** Check actual SIDs in the binary descriptors, not translated/localized icacls text or Windows' synthetic Unix mode. */
 function windowsPrivate(directory: string, file: string): void {
   const system32 = path.join(process.env.SystemRoot ?? "C:\\Windows", "System32");
   let scratch: string | undefined;
+  let currentSid: string | undefined;
   // One five-second deadline bounds both native children of an attempt.
   const check = () => {
     const started = performance.now();
@@ -109,8 +109,8 @@ function windowsPrivate(directory: string, file: string): void {
       return execFileSync(path.join(system32, command), args, { env, encoding: "utf8",
         stdio: ["ignore", "pipe", "pipe"], timeout, maxBuffer: 65_536, windowsHide: true });
     };
-    // Parse only the numeric SID, never localized account names. A process's user cannot change.
-    currentSid ??= run("whoami.exe", ["/user", "/fo", "csv", "/nh"]).match(/,"(S-1-\d+(?:-\d+)+)"\s*$/)?.[1];
+    // Parse only the numeric SID, never localized account names.
+    currentSid = run("whoami.exe", ["/user", "/fo", "csv", "/nh"]).match(/,"(S-1-\d+(?:-\d+)+)"\s*$/)?.[1];
     if (currentSid === undefined) throw new HandoffPrivacyError("windows-acl-output");
     return run("cscript.exe", ["//Nologo", "//B", "//E:JScript", path.join(scratch!, "descriptor.js")],
       { ...process.env, STORYTREE_HANDOFF_DIRECTORY: directory, STORYTREE_HANDOFF_FILE: file });

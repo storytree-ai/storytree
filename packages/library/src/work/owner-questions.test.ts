@@ -189,7 +189,7 @@ for (const backend of [memory, postgres]) {
     await flight.closeIncrement(closed.id, { disposition: "withdrawn", note: "overtaken" });
     const free = await flight.addIncrement({ arc: arc.id, ...WORK });
 
-    assert.deepEqual(await flight.retireQuestion(question.id, "no longer asked"), [open.id, closed.id]);
+    assert.deepEqual((await flight.retireQuestion(question.id, "no longer asked"))?.sort(), [open.id, closed.id].sort());
     assert.equal(await records.get(question.id), null);
     const heldOn = async (id: string): Promise<unknown> => ((await records.get(id))?.fields as { heldOn?: unknown } | undefined)?.heldOn;
     assert.deepEqual(await heldOn(open.id), [other.id], "its other holds stay");

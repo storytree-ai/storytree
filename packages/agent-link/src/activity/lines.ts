@@ -104,9 +104,10 @@ export const NEW_LINE = z.discriminatedUnion("kind", [
   /**
    * A claim taken, on the git branch its session's folder was on, when it was on one (ADR-0643 D3).
    * One storytree took because the session edited a file of the capability names that `file`, from
-   * the checkout's root (ADR-0924 D1).
+   * the checkout's root (ADR-0924 D1). A capability claim names the increment its session held
+   * when it took it, `under`: that session closing the increment ends it (ADR-0944 D5).
    */
-  z.object({ ...common, kind: z.literal("claimed"), ...part, reason: z.string().min(1), takenOverFrom: z.string().min(1).optional(), file: z.string().min(1).optional() }).strict().refine(onePart, ONE_PART),
+  z.object({ ...common, kind: z.literal("claimed"), ...part, reason: z.string().min(1), takenOverFrom: z.string().min(1).optional(), file: z.string().min(1).optional(), under: z.string().min(1).optional() }).strict().refine(onePart, ONE_PART),
   /** A claim turned away because another live session (`holder`) held the work: the reason the refused session gave, and the `file` whose edit asked for it (ADR-0924 D2). */
   z.object({ ...common, kind: z.literal("claim-refused"), ...part, holder: z.string().min(1), reason: z.string().min(1), file: z.string().min(1).optional() }).strict().refine(onePart, ONE_PART),
   /**

@@ -268,6 +268,8 @@ interface ClaimOn {
   holder: "live" | "idle";
   /** Why the holder still binds, when live, including any standing close-out disagreement. */
   binds?: string;
+  /** For a capability, the increment its holder held when it claimed it: the holder closing that increment ends it (ADR-0944 D5). */
+  under?: string;
 }
 
 /** An edit or command, and the capability and the increment it counts toward: both undefined for unplanned activity. */
@@ -321,7 +323,7 @@ export function claimFrom(lines: readonly Line[], id: string, options: ClaimsOpt
  * activity.
  */
 export function attributeFrom(lines: readonly Line[]): Attributed[] {
-  const holding = new Map<string, Part[]>(); // session → what it holds, in the order claimed
+  const holding = new Map<string, (Part & { under?: string })[]>(); // session → what it holds, in the order claimed
   const drop = (session: string, id: string) => {
     const held = holding.get(session);
     if (held !== undefined) holding.set(session, held.filter((other) => idOf(other) !== id));
@@ -331,7 +333,7 @@ export function attributeFrom(lines: readonly Line[]): Attributed[] {
     switch (line.kind) {
       case "claimed":
         for (const session of holding.keys()) drop(session, idOf(line)); // taken over, if it was held
-        holding.set(line.session, [...(holding.get(line.session) ?? []), partOf(line)]);
+        holding.set(line.session, [...(holding.get(line.session) ?? []), { ...partOf(line), ...(line.under === undefined ? {} : { under: line.under }) }]);
         break;
       case "released":
         drop(line.holder ?? line.session, idOf(line));
@@ -344,6 +346,7 @@ export function attributeFrom(lines: readonly Line[]): Attributed[] {
         break;
       case "closed":
         for (const session of holding.keys()) drop(session, line.increment);
+        holding.set(line.session, (holding.get(line.session) ?? []).filter((part) => part.under !== line.increment));
         break;
       case "session-ended":
         holding.delete(line.session);
@@ -777,7 +780,7 @@ export function logReading(log: readonly Line[] | LogReading): LogReading {
 function holding(holders: Map<string, Omit<Claim, "holder">>, line: Line): void {
   switch (line.kind) {
     case "claimed":
-      holders.set(idOf(line), claimOf(line.session, line.harness, partOf(line), line.reason, line.at, line.branch));
+      holders.set(idOf(line), { ...claimOf(line.session, line.harness, partOf(line), line.reason, line.at, line.branch), ...(line.under === undefined ? {} : { under: line.under }) });
       break;
     case "released":
       if (holders.get(idOf(line))?.session === (line.holder ?? line.session)) holders.delete(idOf(line));
@@ -790,6 +793,7 @@ function holding(holders: Map<string, Omit<Claim, "holder">>, line: Line): void 
       break;
     case "closed":
       holders.delete(line.increment);
+      for (const [id, holder] of holders) if (holder.session === line.session && holder.under === line.increment) holders.delete(id);
       break;
     case "session-ended":
       for (const [id, holder] of holders) if (holder.session === line.session) holders.delete(id);

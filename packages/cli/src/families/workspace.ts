@@ -16,10 +16,7 @@ const make: Verb = {
     const caller = await context.claimContext();
     const { makeWorkspace } = await import("@storytree/agent-link");
     const made = await makeWorkspace(caller, id, reason, {}, { despiteOpenPulls: args.has("despite-open-pulls") });
-    // The owning story words the open pull requests refusal; this door names its own way past them (5.25).
-    if (!made.ok) throw new Refusal(made.refused === "no-workspace" && made.why.includes("already has open pull requests")
-      ? `Workspace setup refused: ${made.why}: storytree workspace ${id} --reason <text> --despite-open-pulls.`
-      : refusal(id, made));
+    if (!made.ok) throw new Refusal(workspaceRefusalText(id, made));
     if (made.status === "prepared") {
       const { ref, name } = made;
       return { text: `Work is available; nothing is claimed yet. Call the Codex desktop app's create_worktree with ${JSON.stringify({ ref, name })}, from freshly fetched ${made.base}. Then run storytree workspace attach ${id} --folder <returned-directory> --ref ${ref} --name ${name} --reason <text>. Use the returned directory explicitly; creation does not change your cwd or permissions. If the app returns a directory with a registration error, attach it; do not create another. If create_worktree is unavailable (a headless lane), make it yourself: git worktree add --detach <folder> ${ref}, then run the same attach with that folder.` };
@@ -47,7 +44,7 @@ const attach: Verb = {
     const attachment = codex ? { folder, ref: args.need("ref", this.usage), name: args.need("name", this.usage) } : { folder };
     const { attachWorkspace } = await import("@storytree/agent-link");
     const attached = await attachWorkspace(caller, id, reason, attachment);
-    if (!attached.ok) throw new Refusal(`${refusal(id, attached)} The app's worktree is kept.`);
+    if (!attached.ok) throw new Refusal(`${workspaceRefusalText(id, attached)} The app's worktree is kept.`);
     return { text: `Attached workspace ${attached.folder}\nBranch: ${attached.branch}, at ${attached.base}.\n${caller.session} holds ${id}: ${reason}\nUse that directory explicitly for commands. Set it up as this project does at session start.` };
   },
 };
@@ -63,7 +60,7 @@ const claimOnly: Verb = {
     const caller = await context.claimContext();
     const { claim } = await import("@storytree/agent-link");
     const answer = await claim(caller, id, reason);
-    if (!answer.ok) throw new Refusal(refusal(id, answer));
+    if (!answer.ok) throw new Refusal(workspaceRefusalText(id, answer));
     if (answer.alreadyHeld) return { text: `${caller.session} already holds ${id}: no worktree was made.` };
     const taken = answer.takenOverFrom === undefined ? "" : `, taken over from session ${answer.takenOverFrom.session}, which had gone quiet`;
     return { text: `${caller.session} holds ${id}${taken}: ${reason}\nNo worktree was made; work where you are.` };
@@ -89,10 +86,10 @@ const releaseClaim: Verb = {
 };
 
 /** Present the owning story's refusal without making another claiming rule here. */
-function refusal(id: string, answer: Exclude<WorkspaceAnswer | ClaimAnswer, { ok: true }>): string {
+export function workspaceRefusalText(id: string, answer: Exclude<WorkspaceAnswer | ClaimAnswer, { ok: true }>): string {
   switch (answer.refused) {
     case "held":
-      return `${id} is held by ${answer.holder.label} session ${answer.holder.session}: ${answer.holder.reason}. Pick other work.`;
+      return `${id} is held by ${answer.holder.label} session ${answer.holder.session}: ${answer.holder.reason}${answer.holder.binds === undefined ? "" : `; binds: ${answer.holder.binds}`}. Pick other work.`;
     case "yours":
       return `You already hold ${id}${answer.claim.branch === undefined ? "" : ` on branch ${answer.claim.branch}`}. Work there, or release it first.`;
     case "waiting":
@@ -104,6 +101,10 @@ function refusal(id: string, answer: Exclude<WorkspaceAnswer | ClaimAnswer, { ok
     case "reason-too-long":
       return `--reason is ${answer.length} characters; it is the session's name in the sessions list, so keep it to ${answer.limit} or fewer.`;
     case "no-workspace":
+      // The owning story words the open pull requests refusal; this door names its own way past them (5.25).
+      if (answer.openPulls !== undefined) {
+        return `Workspace setup refused: ${answer.why}: storytree workspace ${id} --reason <text> --despite-open-pulls.`;
+      }
       return `Workspace setup refused: ${answer.why}.`;
   }
 }

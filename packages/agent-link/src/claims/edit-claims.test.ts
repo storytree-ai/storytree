@@ -13,6 +13,7 @@ import { connect, type Library } from "@storytree/library";
 
 import { openActivityLog, type ActivityLog } from "../activity/index.js";
 import { shellEdits } from "../hooks/shell-edits.js";
+import { closeOut } from "../sessions/index.js";
 import { git, withTempDir } from "../testing/folders.js";
 import { dropTestProjects, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { claimFromEdits, type CapabilityLookup } from "./edit-claims.js";
@@ -21,6 +22,24 @@ import { takeNotices } from "./notices.js";
 
 const EMAIL = "packages/sign-up/src/email.ts";
 const RESET = "packages/sign-up/src/reset.ts";
+
+test("5.20 close-out releases automatic claims and cancels notices; delayed edits cannot reopen it, but fresh edits can", async () => {
+  await withWorld(async ({ log, project, home, emailForm, edit, pass, as }) => {
+    await edit("A", EMAIL);
+    await pass();
+    await edit("A", EMAIL);
+    await edit("A", RESET); // no claim yet: upkeep has not seen this edit
+    const closed = await closeOut(as("A"), { safe: false, why: "handoff" }, { home, claimHome: home });
+    assert.deepEqual(closed.released, [emailForm]);
+    assert.deepEqual(takeNotices(home, "A"), []);
+    await pass();
+    assert.deepEqual(await readClaims(log, project), [], "old edits cannot undo close-out");
+    await edit("A", EMAIL);
+    await pass();
+    assert.deepEqual((await readClaims(log, project)).map((one) => one.capability), [emailForm]);
+    assert.equal(takeNotices(home, "A").length, 1);
+  });
+});
 
 interface World {
   log: ActivityLog;

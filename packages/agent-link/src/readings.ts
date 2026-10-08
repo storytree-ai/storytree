@@ -266,6 +266,8 @@ interface ClaimOn {
   branch?: string;
   /** Whether the holding session is live, or idle past the quiet time (and so can be taken over). */
   holder: "live" | "idle";
+  /** Why the holder still binds, when live, including any standing close-out disagreement. */
+  binds?: string;
 }
 
 /** An edit or command, and the capability and the increment it counts toward: both undefined for unplanned activity. */
@@ -689,13 +691,15 @@ export class LogFold {
     const quietMs = options.quietMs ?? QUIET_MS;
     // The same verified lifecycle fact that lets a session leave the list permits takeover.
     // Keep the claim standing: a prompt or admitted claim can put its holder back to work.
-    const finished = new Set(this.sessions({ now: new Date(now) }).filter((session) => session.closeOut?.verified).map((session) => session.session));
+    const sessions = new Map(this.sessions({ now: new Date(now) }).map((session) => [session.session, session]));
     return [...this.#holders.values()].map((holder) => {
       const seen = this.#lastSeen.get(holder.session) ?? holder.since;
       const running = [...(this.#sessions.get(holder.session)?.running.values() ?? [])].some(({ until }) => now <= until);
-      const idle = finished.has(holder.session) || (now - Date.parse(seen) > quietMs && !running)
+      const closeOut = sessions.get(holder.session)?.closeOut;
+      const idle = closeOut?.verified === true || (now - Date.parse(seen) > quietMs && !running)
         || diedIn(options.restarted, this.#machines.get(holder.session), seen) || this.#diedWithMachine(holder.session, seen);
-      return { ...holder, holder: idle ? "idle" : "live" } as Claim;
+      const binds = running ? "a command is still recorded as running" : "activity is within the claim quiet time";
+      return { ...holder, holder: idle ? "idle" : "live", ...(idle ? {} : { binds: `${binds}${closeOut?.needsYou === undefined ? "" : `; close-out ${closeOut.needsYou}`}` }) } as Claim;
     });
   }
 

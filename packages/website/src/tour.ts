@@ -211,7 +211,12 @@ export function placeTags(tags: readonly Box[], room: { width: number; height: n
     const flush = !share ? [] : order.filter(side => side === "below" || side === "above").flatMap(side => [ring - tag.width, -ring].map(x => ({ side, x, y: offsets[side].y })));
     // On a phone, a name beside its ring may also slide up or down by up to half the ring, to clear an island's name.
     const slid = share ? [] : order.filter(side => side === "right" || side === "left").flatMap(side => [-ring / 4, ring / 4, -ring / 2, ring / 2].map(y => ({ side, x: offsets[side].x, y: offsets[side].y + y })));
-    return [...order.map(side => ({ side, ...offsets[side] })), ...flush, ...slid].map(({ side, ...at }) => {
+    // A taller progress label can close the vertical gap. Move beside its edge, still within the screen, before covering it.
+    const beside = share ? [] : order.filter(side => side === "right" || side === "left").flatMap(side => keepOut.map(other => ({ side,
+      x: side === "right" ? Math.min(room.width - margin - tag.width - tag.x, Math.max(gap, other.x + other.width + margin - tag.x))
+        : Math.max(margin - tag.x, Math.min(-gap - tag.width, other.x - margin - tag.width - tag.x)), y: offsets[side].y })))
+      .filter(option => option.side === "right" ? option.x >= gap : option.x <= -gap - tag.width);
+    return [...order.map(side => ({ side, ...offsets[side] })), ...flush, ...slid, ...beside].map(({ side, ...at }) => {
       const box = { x: tag.x + at.x, y: tag.y + at.y, width: tag.width, height: tag.height };
       const inside = tag.width * tag.height - meet(box, { x: margin, y: margin, width: room.width - margin * 2, height: room.height - margin * 2 });
       const outside = share ? Math.max(0, inside) : inside;

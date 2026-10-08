@@ -47,18 +47,19 @@ const LOG_LINES = 20;
 
 const log: Verb = {
   name: "log",
-  usage: "noticeboard log [--session <id>] [--limit <n>]",
-  summary: "the activity log's latest lines, each with the line that caused it",
+  usage: "noticeboard log [--session <id>] [--limit <n>] [--full]",
+  summary: "the activity log's latest lines and their causes; --full keeps complete commands",
+  switches: ["full"],
   async act(args, context) {
     const session = args.text("session");
     const limit = Number(args.text("limit") ?? LOG_LINES);
-    if (!Number.isSafeInteger(limit) || limit < 1) throw new Refusal(`--limit takes a whole number, 1 or more\nusage: storytree noticeboard log [--session <id>] [--limit <n>]`, { code: 2 });
+    if (!Number.isSafeInteger(limit) || limit < 1) throw new Refusal(`--limit takes a whole number, 1 or more\nusage: storytree ${this.usage}`, { code: 2 });
     const { log: activity, project } = await context.activityContext();
     // The latest lines alone, never the whole log (agent link 2.7).
     const lines = await activity.lines(project, { ...(session === undefined ? {} : { sessions: [session] }), newest: limit });
     if (lines.length === 0) return { text: session === undefined ? "The activity log has no lines yet." : `The activity log has no lines for ${session}.` };
-    const { lineText } = await import("@storytree/agent-link");
-    return { text: lines.map(lineText).join("\n") };
+    const { fullLineText, lineText } = await import("@storytree/agent-link");
+    return { text: lines.map(args.has("full") ? fullLineText : lineText).join("\n") };
   },
 };
 

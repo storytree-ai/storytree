@@ -12,9 +12,56 @@ import { test } from "node:test";
 
 import type { AnnotatedTree } from "@storytree/library";
 
-import { codeSurveyReader } from "./read-survey.js";
+import { codeSurveyReader, offThreadSurveyReader, readCodeSurvey } from "./read-survey.js";
+import { focusProject } from "../read.js";
+// 8.16 runs this module on a worker thread; imported here, with no parent port, it answers nothing.
+import "./survey-worker.js";
 
 const tree = { arcs: [], stories: [{ id: "story-shop", title: "Shop", capabilities: [{ id: "cap-claims", title: "3 · Claims" }] }] } as unknown as AnnotatedTree;
+
+test("8.10 disk, fetched-main and focus surveys skip oversized titles and retain unrelated proof", async () => {
+  const folder = await mkdtemp(path.join(tmpdir(), "code-survey-bounds-"));
+  const plan = { ...tree, stories: [{ ...tree.stories[0], capabilities: [{ ...tree.stories[0]!.capabilities[0], dependsOn: [],
+    contracts: [{ id: "claim-proof", title: "3.1 a claim holds" }],
+  }] }] } as unknown as AnnotatedTree;
+  const git = (cwd: string, ...args: string[]) => execFileSync("git", args, { cwd, stdio: "pipe", windowsHide: true });
+  try {
+    for (const mode of ["disk", "git"]) {
+      const checkout = path.join(folder, mode);
+      const src = path.join(checkout, "packages/shop/src");
+      await mkdir(src, { recursive: true });
+      await writeFile(path.join(src, "claim.ts"), "export const claim = 1;");
+      await writeFile(path.join(src, "claim.test.ts"), 'import { claim } from "./claim.js";\ntest("3.1–3.2 ordinary proof", () => claim);');
+      await writeFile(path.join(src, "oversized.test.ts"), [
+        'throw new Error("source must never execute");',
+        'test("3.1–3.9007199254740991 oversized", () => {});',
+        'const TITLE = "shop 3.1–3.128, 3.129–3.257 cumulative";',
+        'test(TITLE, () => {});',
+        'test(`${TITLE} template`, () => {});',
+        'test("3.3 valid after refusal", () => {});',
+      ].join("\n"));
+      if (mode === "git") {
+        git(checkout, "init", "-b", "main");
+        git(checkout, "add", ".");
+        git(checkout, "-c", "user.name=Survey test", "-c", "user.email=survey@example.test", "-c", "commit.gpgsign=false", "commit", "-m", "fixture");
+        const origin = path.join(folder, "origin.git");
+        git(folder, "init", "--bare", origin);
+        git(checkout, "remote", "add", "origin", origin);
+        git(checkout, "push", "origin", "main");
+      }
+      const survey = (await readCodeSurvey(checkout, plan))["story-shop"]!;
+      assert.deepEqual(survey.files, [{ path: "src/claim.ts", lines: 1, capability: "cap-claims" }]);
+      assert.deepEqual(survey.tests?.find(file => file.path === "src/claim.test.ts")?.titles.map(title => title.number), ["3.1", "3.2"]);
+      assert.deepEqual(survey.tests?.find(file => file.path === "src/oversized.test.ts")?.titles, [{ number: "3.3", title: "3.3 valid after refusal" }]);
+      const focus = await focusProject({ projectTree: async () => plan }, checkout, { select: "promise:claim-proof", down: 1, mode: "show" });
+      assert.equal(focus.refused, false);
+      assert.ok(focus.rows?.some(row => row.id === "test:packages/shop/src/claim.test.ts"));
+      assert.equal(focus.rows?.some(row => row.id === "test:packages/shop/src/oversized.test.ts"), false);
+    }
+  } finally {
+    await rm(folder, { recursive: true, force: true });
+  }
+});
 
 /** The command lines of running processes that name `needle`. */
 function processesNaming(needle: string): string[] {
@@ -381,6 +428,34 @@ test("8.11 an unreachable origin with no fetched main fails instead of presentin
     git("remote", "add", "origin", path.join(folder, "missing.git"));
     await assert.rejects(codeSurveyReader().read(folder, tree), /merged.*origin\/main/i);
   } finally {
+    await rm(folder, { recursive: true, force: true });
+  }
+});
+
+test("8.16 a survey read on a worker thread answers what one read in place does, and the asking thread's event loop stays free", async () => {
+  const folder = await mkdtemp(path.join(tmpdir(), "code-survey-worker-"));
+  const reader = offThreadSurveyReader(new URL("./survey-worker.ts", import.meta.url), { execArgv: ["--import", "tsx"] });
+  try {
+    const root = path.join(folder, "packages", "shop");
+    await mkdir(path.join(root, "src"), { recursive: true });
+    await writeFile(path.join(root, "package.json"), JSON.stringify({ name: "@x/shop" }));
+    // Enough source that parsing it holds the asking thread for hundreds of milliseconds when read in place.
+    const body = Array.from({ length: 120 }, (_, n) => `export function step${n}(a: number): number { return a * ${n} + [${n}, ${n + 1}].reduce((x, y) => x + y, 0); }`).join("\n");
+    for (let n = 0; n < 300; n++) {
+      await writeFile(path.join(root, `src/part${n}.ts`), `${body}\n`);
+      await writeFile(path.join(root, `src/part${n}.test.ts`), `import { step0 } from "./part${n}.js";\ntest("3.${n + 1} part ${n} steps", () => step0(1));\n`);
+    }
+    let worst = 0;
+    let last = performance.now();
+    const ticker = setInterval(() => { const now = performance.now(); worst = Math.max(worst, now - last); last = now; }, 5);
+    const offThread = await reader.read(folder, tree);
+    clearInterval(ticker);
+    assert.deepEqual(offThread, await codeSurveyReader().read(folder, tree));
+    assert.equal(offThread["story-shop"]?.files?.length, 300);
+    // Read in place, the same survey held this thread 194 ms with half these files on the owner's laptop.
+    assert.ok(worst < 150, `the asking thread's timer waited at most ${worst.toFixed(0)} ms`);
+  } finally {
+    await reader.close();
     await rm(folder, { recursive: true, force: true });
   }
 });

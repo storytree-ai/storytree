@@ -142,7 +142,7 @@ export const steps: TourStep[] = [
     "These dependencies are shown as pathways.",
     // DRAFT.
     "Browsing, the cart and checkout all need signing in. With it built, three agents can build them at once.",
-  ], how: "The analogy breaks where organs depend on each other both ways: a pathway runs one way, and storytree refuses a loop. The cart and checkout also depend on browsing, built alongside them.",
+  ], how: "The analogy breaks where organs depend on each other both ways: a pathway runs one way, and storytree refuses a loop. The cart and checkout also depend on browsing, built alongside them. A coloured outline marks a capability claimed by a session, once its code is on the map.",
   why: "Pathways show what a story needs and where a change can reach. Agents can see which work can run in parallel.",
   decisions: [], surfaces: lit(files), lineSurfaces: { 2: lit({ ...files, roads: true }) }, target: browsing, framing: whole, phone: { target: browsing, framing: 1.5, side: 0 } },
   { id: "map-health", explainer: "map", ...shopMap, growth: { seconds: 11, stage: "pr4" }, title: "Health.", lines: [
@@ -179,16 +179,16 @@ export const steps: TourStep[] = [
   decisions: [], surfaces: lit(land), framing: 1.05 },
   { id: "agents-claim", explainer: "agents", ...shopMap, recorded: together, panel: "arcs", title: "A claim shows in both places.", lines: [
     "A session can stake its claim on the map as well as on the arc it's working on.",
-    "Part 3's session claimed the cart: its increment on the arc and its island on the map wear its colour.",
-    "The name on the island is the session's name in the list.",
-  ], how: "Before writing, an agent claims the increment it will build and each part it will touch. A second claim on the same work is turned away.",
+    "Part 3's session holds the cart's increment on the arc and claims its capabilities.",
+    "A claimed capability gets an outline in its session's colour once its code is on the map.",
+  ], how: "Before writing, an agent claims the increment it will build and each capability it will touch. A second claim on the same work is turned away. At this recorded moment, the cart's code has not been surveyed yet, so its claims have no outline.",
   why: "Two agents editing the same thing is how work gets lost. A claim says who is on what before anyone writes.",
   // Aimed past the cart so the island sits below the arcs drawer, both in view at once.
   decisions: [], surfaces: lit(land), target: checkout, framing: .95, phone: { target: checkout, framing: .95, side: -107 }, tags: [{ target: cart, text: "Part 3: cart page and side menu" }] },
   { id: "agents-parallel", explainer: "agents", ...shopMap, recorded: together, panel: "sessions", title: "Who is on what, at a glance.", lines: [
     "This means your agents can tell who is working on what just by looking at the map.",
     "Browsing, the cart and checkout, each built by its own session, at the same time.",
-  ], how: "Each claimed island wears its session's colour round its coast, and the list shows the same sessions in the same colours.",
+  ], how: "The list gives each session a colour. The map uses that colour to outline its claimed capabilities once their code is on the map. In this recording, these three sessions' claims have no surveyed code yet, so their colours appear only in the list.",
   why: "An agent that can see what is taken picks other work instead of colliding with it.",
   // A laptop aims at Browsing, the lowest of the three, so all three names sit above the sessions list whichever step came
   // before; a phone keeps the overview, which turns no further than the claim step left it, drawn back and moved left so the

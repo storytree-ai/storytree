@@ -66,9 +66,24 @@ const pageTimers: Timers = {
 /** The record types a project's tree is read from (the library's projectTree and its health): a change to any other leaves it as it was. */
 const TREE_TYPES: ReadonlySet<string> = new Set(["story", "capability", "contract", "arc", "health"]);
 
-/** Whether `news` changes the tree: a change to one of its records (7.24). */
-function changesTree(news: { readonly changes: readonly { readonly type: string }[] }): boolean {
-  return news.changes.some((change) => TREE_TYPES.has(change.type));
+/** A change as the page passes one on: its record's fields are read only for health. */
+type TreeNewsChange = { readonly type: string; readonly action?: string; readonly record?: { readonly fields?: unknown } };
+
+/**
+ * Whether `news` changes the tree: a change to one of its records (7.24), except a health record that re-records the
+ * state `last` already shows for its contract's column (7.27). Agents' test runs re-record health every few seconds,
+ * mostly unchanged; skipping those leaves only an entry's time and author stale (ADR-0836: stale before slow).
+ */
+function changesTree(news: { readonly changes: readonly TreeNewsChange[] }, last: AnnotatedTree): boolean {
+  let shown: Map<string, string> | undefined;
+  const unchangedHealth = (change: TreeNewsChange): boolean => {
+    if (change.type !== "health" || change.action === "retired") return false;
+    const { node, column, state } = (change.record?.fields ?? {}) as { node?: string; column?: string; state?: string };
+    shown ??= new Map(last.stories.flatMap((story) => story.capabilities.flatMap((capability) => capability.contracts.flatMap((contract) =>
+      Object.entries(contract.health ?? {}).map(([name, entry]) => [`${contract.id} ${name}`, (entry as { state?: string }).state ?? ""] as const)))));
+    return state !== undefined && shown.get(`${node} ${column}`) === state;
+  };
+  return news.changes.some((change) => TREE_TYPES.has(change.type) && !unchangedHealth(change));
 }
 
 /** Landed work can change the code without changing the plan (7.25). */
@@ -87,8 +102,8 @@ function landsCode(news: News): boolean {
  * forest's rule alike.
  */
 export async function treeAfter(reads: Pick<ForestReads, "projectTree">, project: string,
-  news: { readonly changes: readonly { readonly type: string }[] }, last: AnnotatedTree | undefined): Promise<AnnotatedTree> {
-  return last !== undefined && !changesTree(news) ? last : reads.projectTree(project);
+  news: { readonly changes: readonly TreeNewsChange[] }, last: AnnotatedTree | undefined): Promise<AnnotatedTree> {
+  return last !== undefined && !changesTree(news, last) ? last : reads.projectTree(project);
 }
 
 /**
@@ -111,7 +126,7 @@ export function forestReading({ project, reads, onTree, onError, onClock = () =>
   const stopHearing = (page ?? own!).subscribe({
     onNews: async (news) => {
       let refreshSurvey = landsCode(news);
-      if (tree === undefined || changesTree(news)) {
+      if (tree === undefined || changesTree(news, tree)) {
         tree = await reads.projectTree(project);
         refreshSurvey = true;
       }

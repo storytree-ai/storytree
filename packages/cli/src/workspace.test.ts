@@ -1,5 +1,5 @@
 /**
- * Capability 11 · Workspace (the command line story): each test runs the real,
+ * Capability 11 · Workspace (the command line story): integration tests run the real,
  * built `storytree` command in a project folder that is a git clone with an origin beside it. The
  * agent's session reaches the command as its shell does, in CLAUDE_CODE_SESSION_ID or
  * CODEX_THREAD_ID.
@@ -13,6 +13,7 @@ import { after, before, test } from "node:test";
 
 import { claim, openActivityLog, readClaims } from "@storytree/agent-link";
 
+import { workspaceRefusalText } from "./families/workspace.js";
 import { BuiltCommand, inWorld, testServerUrl, type World } from "./testing/cli.js";
 
 const command = new BuiltCommand();
@@ -78,12 +79,13 @@ test("11.1 from an agent's shell, `workspace <increment> --reason` makes a workt
   });
 });
 
-test("11.2 work another live session holds is refused naming its holder, and no worktree is made", async () => {
+test("11.2 work another live session holds is refused naming its holder and why it binds, and no worktree is made", async () => {
   await inWorld(command, async (world) => {
     const increment = await withRepository(world);
     const log = await openActivityLog(testServerUrl());
     try {
       await claim({ log, library: await world.library(), project: world.project, session: "codex-1", harness: "codex" }, increment, "wiring the form");
+      await log.append(world.project, { session: "codex-1", harness: "codex", source: "hook", kind: "command-started", call: "running", command: "pnpm test" });
     } finally {
       await log.close();
     }
@@ -92,6 +94,7 @@ test("11.2 work another live session holds is refused naming its holder, and no 
 
     assert.equal(ran.code, 1);
     assert.match(ran.stderr, /codex-1/);
+    assert.match(ran.stderr, /binds: a command is still recorded as running/);
     assert.equal(git(world.folder, "worktree", "list").trim().split(/\r?\n/).length, 1);
   });
 });
@@ -138,6 +141,24 @@ test("11.8 work with an open pull request is refused naming it and --despite-ope
       await log.close();
     }
   });
+});
+
+test("11.8 the CLI offers --despite-open-pulls from the refusal's pull data regardless of its wording", () => {
+  const increment = "increment_email";
+  const why = "Finish pull request #41 on claude/email first";
+  const refused = workspaceRefusalText(increment, {
+    ok: false,
+    refused: "no-workspace",
+    why,
+    openPulls: [{ number: 41, branch: "claude/email" }],
+  });
+  assert.ok(refused.includes(why), refused);
+  assert.ok(refused.includes(`storytree workspace ${increment} --reason <text> --despite-open-pulls`), refused);
+  assert.doesNotMatch(workspaceRefusalText(increment, {
+    ok: false,
+    refused: "no-workspace",
+    why: "Cannot check whether this work already has open pull requests",
+  }), /--despite-open-pulls/);
 });
 
 test("11.4 Codex prepares app creation then attaches its returned folder; an invalid directory and a person-only shell are refused", async () => {
@@ -294,6 +315,7 @@ test("11.9 `workspace claim` claims the work for the calling agent session witho
       const held = await world.run(["workspace", "claim", capability.id, "--reason", "me too"], { CODEX_THREAD_ID: "other" });
       assert.equal(held.code, 1);
       assert.match(held.stderr, /held by .* claude-9/);
+      assert.match(held.stderr, /binds: activity is within the claim quiet time/);
       const unknown = await world.run(["workspace", "claim", "capability_000000000000", "--reason", "x"], { CODEX_THREAD_ID: "other" });
       assert.equal(unknown.code, 1);
       assert.match(unknown.stderr, /no capability or increment/);

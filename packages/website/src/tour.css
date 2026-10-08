@@ -204,7 +204,8 @@ html:has(> body.immersive-home) { scroll-padding-top:0; }
   #chapter2 .tour-heading h1 { font-size:21px; }
   #chapter2 .tour-recorded { left:14px; bottom:calc(var(--bar-h) + 6px); max-width:calc(100% - 28px); font-size:10px; }
   #chapter2[data-tour-step="pain"][data-tour-mode="tour"] .tour-card { top:72px; justify-content:center; }
-  #chapter2 .tour-note { top:58px; left:14px; right:auto; max-width:none; text-align:left; font-size:10.5px; }
+  #chapter2 .tour-note { top:58px; left:14px; right:14px; max-width:none; text-align:left; font-size:10.5px; }
+  #chapter2[data-tour-mode="tour"] #tour-depth, #chapter2 .tour-back { min-height:44px; }
   /* The words under the globe keep the room their step needs (--tour-room, which the tour measures): on a short phone a long
      step's globe gives that room up, down to 31% of the chapter, rather than the words scrolling. */
   #chapter2 { --tour-under:calc(var(--bar-h) + 36px + var(--tour-room, 0px)); }
@@ -232,7 +233,7 @@ html:has(> body.immersive-home) { scroll-padding-top:0; }
   #chapter2 .tour-bar { gap:6px; padding:8px 10px; align-content:flex-start; }
   #chapter2 .tb-speed { display:none; }
   #chapter2 .tb-speed-cycle { display:inline-flex; min-width:46px; font-variant-numeric:tabular-nums; }
-  #chapter2 .tb-where { order:5; flex:1 1 100%; padding-right:150px; }
+  #chapter2 .tb-where { order:5; flex:1 1 100%; }
   #chapter2 #tour-everything { margin-left:auto; }
   /* The pips keep clear of the waitlist hatch beside them. */
   #chapter2 .tb-pips { flex:1 1 auto; gap:5px; margin-right:157px; }
@@ -242,6 +243,11 @@ html:has(> body.immersive-home) { scroll-padding-top:0; }
   #chapter2 .tb-btn { padding:6px 9px; }
   #chapter2 .tb-speed button { min-width:40px; }
   #chapter2 .tour-hatch { right:10px; bottom:8px; min-height:44px; padding:6px 12px; font-size:13px; }
+  /* Keep the saved date and read-only status visible beside the waitlist, above Replay. */
+  #chapter2[data-tour-mode="freeplay"] .tour-bar { right:168px; flex-direction:column; align-items:flex-start; justify-content:center; gap:4px; padding:6px 14px; }
+  #chapter2[data-tour-mode="freeplay"] .tb-where { order:0; }
+  #chapter2[data-tour-mode="freeplay"] .tb-label { display:block; white-space:normal; font-size:10px; line-height:1.3; }
+  #chapter2[data-tour-mode="freeplay"] #tour-replay { order:1; }
 }
 @media (max-width:600px) and (max-height:760px) {
   /* A short phone tells a chapter's lines a little tighter, so they and their How and Why fit below the globe. */
@@ -261,8 +267,13 @@ html:has(> body.immersive-home) { scroll-padding-top:0; }
   #chapter2 .tb-switch { gap:5px; padding:4px 8px 4px 5px; }
 }
 @media (max-width:600px) and (max-height:620px) {
+  /* Reclaim the room that thumb-sized depth controls need without shrinking the short phone's globe. */
+  #chapter2[data-tour-mode="tour"]:is([data-tour-kind="lines"], [data-tour-kind="compare"]) .tour-lines { gap:.2em; margin-bottom:0; }
+  #chapter2[data-tour-mode="tour"][data-tour-kind="fixes"] .tour-lines { margin-bottom:0; }
   /* The four-line story step uses the spare gap above the bar on the shortest phones. */
   #chapter2[data-tour-mode="tour"][data-tour-step="map-first"] .tour-card { bottom:calc(var(--bar-h) + 18px); }
+  /* In the agents chapter's small globe, leave room for the island names the narration and tags refer to. */
+  #chapter2[data-tour-mode="tour"][data-tour-step^="agents-"] .planet-progress { display:none; }
 }
 @media (prefers-reduced-motion:reduce) {
   #chapter2 .tour-card.is-in, #chapter2 .tour-line, #chapter2 .tour-tag-ring, #chapter2 .tb-play[data-state="waiting"], #chapter2 .chip-recording::before { animation:none !important; transition:none !important; }

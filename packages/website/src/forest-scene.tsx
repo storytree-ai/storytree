@@ -15,7 +15,7 @@ import { crossingLength, growthMoment, growthPlan, type GrowthPlan } from "@stor
 import { buildPlanetPathways } from "@storytree/forest-world/geometry";
 import type { GrowthSnapshot, TourSnapshot } from "./forest-data.js";
 import { aim, flight, globeOf, placeTags, replayMoment, type Box, type GlobeOn, type Hold, type Tag, type TagSide, type TourDetail, type TourStep } from "./tour.js";
-import { mapRecording, mapGrowthPlan, recordedScene } from "./map-recording.js";
+import { mapRecording, mapGrowthPlan, recordedFrame } from "./map-recording.js";
 import { growthReading, savedReading } from "./tour-reading.js";
 
 const snapshot = saved as unknown as TourSnapshot;
@@ -129,7 +129,9 @@ function Tags({ tags, controls, arrived }: { tags: readonly Tag[]; controls: Glo
         const x = at.x + canvas.left - stage.left, y = at.y + canvas.top - stage.top;
         node.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
         const label = node.lastElementChild as HTMLElement;
-        shown.push({ node, label, box: { x, y, width: label.offsetWidth, height: label.offsetHeight }, index });
+        const size = label.getBoundingClientRect();
+        // Score the rounded position we draw, with room for fractional text sizes and the label offset's rounding.
+        shown.push({ node, label, box: { x: Math.round(x), y: Math.round(y), width: Math.ceil(size.width), height: Math.ceil(size.height) }, index });
       });
       // Each name sits on whichever side of its ring has room, clear of the other names, the other rings, the islands' names,
       // the card and the panels, below or above the ring where the sides have no room (2.18). A phone keeps a name on its
@@ -439,7 +441,9 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   const growth = grown ? { plan: grown.plan(), at: moment ?? Infinity } : undefined;
   // A step narrowed to a few stories dims the rest (ADR-0890's three teaching stories).
   const focus = touring && !everything && globe.map === shownMap && "focus" in globe ? globe.focus : undefined;
-  const drawn = inMapChapter && moment !== undefined ? recordedScene(mapChapter.snapshot, mapChapter.plan(), moment) : grown?.snapshot.scene ?? snapshot.scene;
+  const datedFrame = grown && moment !== undefined && (inMapChapter || recordedAt) ? recordedFrame(grown.snapshot, grown.plan(), moment) : undefined;
+  const mapFrame = inMapChapter ? datedFrame : undefined;
+  const drawn = datedFrame?.scene ?? grown?.snapshot.scene ?? snapshot.scene;
   // Free play on the shop reads the shop's saved reading for its panels, arcs and sessions; everywhere else, storytree's.
   const onShop = free && shownMap === "shop" && shopView !== undefined;
   const shopAt = useMemo(() => recordedAt && shopSnapshot ? { recording: savedReading(shopSnapshot, { until: recordedAt }) } : undefined, [recordedAt]);
@@ -457,8 +461,8 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
         data-globe={shownMap} data-arrived={arrived} data-growth={grown ? moment === undefined ? "whole" : moment.toFixed(2) : undefined} data-focus={focus?.join(" ")}
         data-islands={drawn.islands.length} data-risen={growth ? [...growth.plan.islands.values()].filter(window => window.start <= growth.at).length : undefined} onPointerDown={explore} onWheel={explore}>
         <PlanetView core={grown ? growthCores[shownMap as Grown] : core} scene={drawn} places={grown?.places ?? places}
-          frame={grown?.snapshot.scene} growth={growth} recordedSessions={shopAt && shownMap === "shop" ? undefined : grown?.sessions}
-          wisps={shopAt && shownMap === "shop" ? wisps : grown ? [] : wisps} selected={selected}
+          frame={grown?.snapshot.scene} growth={growth} recordedSessions={mapFrame || (shopAt && shownMap === "shop") ? undefined : grown?.sessions}
+          wisps={mapFrame?.wisps ?? (shopAt && shownMap === "shop" ? wisps : grown ? [] : wisps)} selected={selected}
           highlighted={focus?.length === 0 ? ["planned-only"] : focus ?? highlight} onPick={pickStory} onNote={pickNote}
           onControls={onControls} surfaces={surfaces} framing={restingFraming} sideOffset={offsetFor(undefined, width)} mode={mode} />
       </div>

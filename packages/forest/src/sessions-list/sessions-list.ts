@@ -316,15 +316,23 @@ export function historyRows(tree: AnnotatedTree, log: readonly Line[] | LogReadi
   const questions = new Map(arcs.flatMap(arc => arc.questions).map(question => [question.id, question]));
   const stories = new Map(tree.stories.map(story => [story.id, story]));
   const storyOf = new Map(tree.stories.flatMap(story => [[story.id, story.id], ...story.capabilities.map(cap => [cap.id, story.id])] as [string, string][]));
-  const ordered = [...lines].sort((a, b) => a.seq - b.seq);
+  // Each line is placed once, by its session and by the holder of a merge, so a row costs its own lines (7.26).
+  const bySession = new Map<string, Line[]>();
+  const mergedFor = new Map<string, number[]>();
+  for (const line of [...lines].sort((a, b) => a.seq - b.seq)) {
+    const session = line.session;
+    if (bySession.has(session)) bySession.get(session)!.push(line);
+    else bySession.set(session, [line]);
+    if (line.kind === "merged") mergedFor.set(line.holder, [...(mergedFor.get(line.holder) ?? []), line.pr]);
+  }
   return fold.sessions(judged).filter(session => session.listing === "hidden" && !subagents.has(session.session) && active(session, range)).map((session): HistoryRow => {
-    const own = ordered.filter(line => line.session === session.session);
+    const own = bySession.get(session.session) ?? [];
     const claimed = own.flatMap(line => line.kind === "claimed" ? [line] : []);
     const held = claimed.flatMap(line => line.increment === undefined ? [] : [increments.get(line.increment)]).filter(inc => inc !== undefined);
     const touched = [...new Set(claimed.flatMap(line => line.capability !== undefined ? [line.capability] : increments.get(line.increment ?? "")?.fields.touches ?? [])
       .flatMap(id => storyOf.has(id) ? [storyOf.get(id)!] : []))];
     const prs = [...new Set([
-      ...ordered.flatMap(line => line.kind === "merged" && line.holder === session.session ? [line.pr] : []),
+      ...(mergedFor.get(session.session) ?? []),
       ...own.flatMap(line => line.kind === "closed" && line.disposition === "landed" ? [prNumber(increments.get(line.increment)?.fields.outcome?.pr)] : []),
     ].filter((pr): pr is number => pr !== undefined))];
     const ran = [Date.parse(session.startedAt), Date.parse(session.lastSeenAt)] as const;
@@ -336,7 +344,7 @@ export function historyRows(tree: AnnotatedTree, log: readonly Line[] | LogReadi
       : closedOut ? { kind: "closed-out" } : { kind: "no-close-out" };
     // Named as a live row is (7.18, 7.1, 7.14): its own name, its first claim's reason, its increment's title, its app's title, or where it worked.
     const label = (session.name === undefined ? undefined : fitted(session.name)) || claimed.find(line => line.reason.trim())?.reason.trim()
-      || held[0]?.fields.title || (session.title === undefined ? workingIn(session.label, lines, session.session, session.worktrees) : fitted(session.title));
+      || held[0]?.fields.title || (session.title === undefined ? workingIn(session.label, own, session.session, session.worktrees) : fitted(session.title));
     return { id: session.session, label, agent: session.label, startedAt: session.startedAt, lastSeenAt: session.lastSeenAt,
       ranMs: Math.max(0, ran[1] - ran[0]), stories: touched.map(id => ({ id, title: stories.get(id)!.title })), outcome };
   }).sort((a, b) => Date.parse(b.lastSeenAt) - Date.parse(a.lastSeenAt));

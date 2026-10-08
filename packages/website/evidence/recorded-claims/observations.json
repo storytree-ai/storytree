@@ -1,0 +1,538 @@
+{
+  "source": "Locally built website; existing globe capture seam; SwiftShader; 0.75x default speed",
+  "baseCommit": "260ad96103dd1029355c2d59829d92c679f6a4cb",
+  "checks": [
+    {
+      "contract": "2.16",
+      "observed": "pass"
+    },
+    {
+      "contract": "2.17",
+      "observed": "pass"
+    }
+  ],
+  "results": [
+    {
+      "width": 1440,
+      "stages": [
+        {
+          "id": "pr4-building",
+          "recorded": "2026-10-05T02:35:08.955Z",
+          "secondsIntoStep": 2.884615384615378,
+          "secondsAtDefaultSpeed": 3.8461538461538374
+        },
+        {
+          "id": "pr5-building",
+          "recorded": "2026-10-05T02:35:17.256Z",
+          "secondsIntoStep": 5.769230769230764,
+          "secondsAtDefaultSpeed": 7.692307692307685
+        },
+        {
+          "id": "pr3",
+          "recorded": "2026-10-05T02:40:02.942Z",
+          "secondsIntoStep": 8.653846153846143,
+          "secondsAtDefaultSpeed": 11.538461538461524
+        },
+        {
+          "id": "pr5",
+          "recorded": "2026-10-05T02:46:21.000Z",
+          "secondsIntoStep": 11.826923076923068,
+          "secondsAtDefaultSpeed": 15.769230769230758
+        },
+        {
+          "id": "pr4",
+          "recorded": "2026-10-05T02:46:51.304Z",
+          "secondsIntoStep": 15,
+          "secondsAtDefaultSpeed": 20
+        }
+      ],
+      "firstOutlinedFrame": {
+        "step": "map-together",
+        "at": 13.2,
+        "wallMs": 23467,
+        "claims": [
+          {
+            "capability": "capability_d37b7ec1b593",
+            "colour": "hsl(214, 80%, 68%)",
+            "material": "#6ca5ef",
+            "opacity": 0.95,
+            "near": true,
+            "triangles": 840
+          },
+          {
+            "capability": "capability_668ca101a358",
+            "colour": "hsl(214, 80%, 68%)",
+            "material": "#6ca5ef",
+            "opacity": 0.95,
+            "near": true,
+            "triangles": 2704
+          }
+        ],
+        "health": [
+          {
+            "capability": "capability_678463042156",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_ae20917d7a32",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_ff897f5c13aa",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_05589d74df4b",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_2466ec721a72",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_fb36c3db4690",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_9a6a5d648ba6",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_ed214990be99",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_276fa436dc33",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_d37b7ec1b593",
+            "word": "proposed",
+            "fill": "#f2d16b"
+          },
+          {
+            "capability": "capability_668ca101a358",
+            "word": "proposed",
+            "fill": "#f2d16b"
+          }
+        ]
+      },
+      "lastOutlinedFrame": {
+        "step": "map-together",
+        "at": 13.89,
+        "wallMs": 27477.59999999404,
+        "claims": [
+          {
+            "capability": "capability_d37b7ec1b593",
+            "colour": "hsl(214, 80%, 68%)",
+            "material": "#6ca5ef",
+            "opacity": 0.95,
+            "near": true,
+            "triangles": 840
+          },
+          {
+            "capability": "capability_668ca101a358",
+            "colour": "hsl(214, 80%, 68%)",
+            "material": "#6ca5ef",
+            "opacity": 0.95,
+            "near": true,
+            "triangles": 2704
+          }
+        ],
+        "health": [
+          {
+            "capability": "capability_678463042156",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_ae20917d7a32",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_ff897f5c13aa",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_05589d74df4b",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_2466ec721a72",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_fb36c3db4690",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_9a6a5d648ba6",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_ed214990be99",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_276fa436dc33",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_d37b7ec1b593",
+            "word": "proposed",
+            "fill": "#f2d16b"
+          },
+          {
+            "capability": "capability_668ca101a358",
+            "word": "proposed",
+            "fill": "#f2d16b"
+          }
+        ]
+      },
+      "observedSecondsAtDefaultSpeed": 4.2150360925222,
+      "outlinePixels": 510,
+      "released": {
+        "step": "map-together",
+        "at": 13.89,
+        "wallMs": 31675.29999999702,
+        "claims": [],
+        "health": [
+          {
+            "capability": "capability_678463042156",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_ae20917d7a32",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_ff897f5c13aa",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_05589d74df4b",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_2466ec721a72",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_fb36c3db4690",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_9a6a5d648ba6",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_ed214990be99",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_276fa436dc33",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_d37b7ec1b593",
+            "word": "untested",
+            "fill": "#f2d16b"
+          },
+          {
+            "capability": "capability_668ca101a358",
+            "word": "untested",
+            "fill": "#f2d16b"
+          }
+        ]
+      },
+      "frames": 701
+    },
+    {
+      "width": 390,
+      "stages": [
+        {
+          "id": "pr4-building",
+          "recorded": "2026-10-05T02:35:08.955Z",
+          "secondsIntoStep": 2.884615384615378,
+          "secondsAtDefaultSpeed": 3.8461538461538374
+        },
+        {
+          "id": "pr5-building",
+          "recorded": "2026-10-05T02:35:17.256Z",
+          "secondsIntoStep": 5.769230769230764,
+          "secondsAtDefaultSpeed": 7.692307692307685
+        },
+        {
+          "id": "pr3",
+          "recorded": "2026-10-05T02:40:02.942Z",
+          "secondsIntoStep": 8.653846153846143,
+          "secondsAtDefaultSpeed": 11.538461538461524
+        },
+        {
+          "id": "pr5",
+          "recorded": "2026-10-05T02:46:21.000Z",
+          "secondsIntoStep": 11.826923076923068,
+          "secondsAtDefaultSpeed": 15.769230769230758
+        },
+        {
+          "id": "pr4",
+          "recorded": "2026-10-05T02:46:51.304Z",
+          "secondsIntoStep": 15,
+          "secondsAtDefaultSpeed": 20
+        }
+      ],
+      "firstOutlinedFrame": {
+        "step": "map-together",
+        "at": 13.2,
+        "wallMs": 23187.29999999702,
+        "claims": [
+          {
+            "capability": "capability_d37b7ec1b593",
+            "colour": "hsl(214, 80%, 68%)",
+            "material": "#6ca5ef",
+            "opacity": 0.95,
+            "near": true,
+            "triangles": 840
+          },
+          {
+            "capability": "capability_668ca101a358",
+            "colour": "hsl(214, 80%, 68%)",
+            "material": "#6ca5ef",
+            "opacity": 0.95,
+            "near": true,
+            "triangles": 2704
+          }
+        ],
+        "health": [
+          {
+            "capability": "capability_678463042156",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_ae20917d7a32",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_ff897f5c13aa",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_05589d74df4b",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_2466ec721a72",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_fb36c3db4690",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_9a6a5d648ba6",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_ed214990be99",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_276fa436dc33",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_d37b7ec1b593",
+            "word": "proposed",
+            "fill": "#f2d16b"
+          },
+          {
+            "capability": "capability_668ca101a358",
+            "word": "proposed",
+            "fill": "#f2d16b"
+          }
+        ]
+      },
+      "lastOutlinedFrame": {
+        "step": "map-together",
+        "at": 13.89,
+        "wallMs": 27249.70000000298,
+        "claims": [
+          {
+            "capability": "capability_d37b7ec1b593",
+            "colour": "hsl(214, 80%, 68%)",
+            "material": "#6ca5ef",
+            "opacity": 0.95,
+            "near": true,
+            "triangles": 840
+          },
+          {
+            "capability": "capability_668ca101a358",
+            "colour": "hsl(214, 80%, 68%)",
+            "material": "#6ca5ef",
+            "opacity": 0.95,
+            "near": true,
+            "triangles": 2704
+          }
+        ],
+        "health": [
+          {
+            "capability": "capability_678463042156",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_ae20917d7a32",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_ff897f5c13aa",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_05589d74df4b",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_2466ec721a72",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_fb36c3db4690",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_9a6a5d648ba6",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_ed214990be99",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_276fa436dc33",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_d37b7ec1b593",
+            "word": "proposed",
+            "fill": "#f2d16b"
+          },
+          {
+            "capability": "capability_668ca101a358",
+            "word": "proposed",
+            "fill": "#f2d16b"
+          }
+        ]
+      },
+      "observedSecondsAtDefaultSpeed": 4.2150360925222,
+      "outlinePixels": 64,
+      "released": {
+        "step": "map-together",
+        "at": 13.89,
+        "wallMs": 31488.40000000596,
+        "claims": [],
+        "health": [
+          {
+            "capability": "capability_678463042156",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_ae20917d7a32",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_ff897f5c13aa",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_05589d74df4b",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_2466ec721a72",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_fb36c3db4690",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_9a6a5d648ba6",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_ed214990be99",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_276fa436dc33",
+            "word": "healthy",
+            "fill": "#97c459"
+          },
+          {
+            "capability": "capability_d37b7ec1b593",
+            "word": "untested",
+            "fill": "#f2d16b"
+          },
+          {
+            "capability": "capability_668ca101a358",
+            "word": "untested",
+            "fill": "#f2d16b"
+          }
+        ]
+      },
+      "frames": 1435
+    }
+  ]
+}

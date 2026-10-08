@@ -3,6 +3,7 @@
 // are copied beside it. Everything the app runs is in dist/, so a packaged app needs no
 // node_modules: the library, local-postgres and pg are bundled into main.cjs.
 import { cpSync, mkdirSync, rmSync } from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -44,6 +45,17 @@ await build({
     // Ranked search loads the embedding model runtime lazily, from node_modules (native ONNX Runtime).
     "@huggingface/transformers",
   ],
+});
+
+// The code survey's worker thread (map 8.16), resolved through the forest package the app mounts it from.
+const surveyWorker = createRequire(fileURLToPath(import.meta.resolve("@storytree/forest/code-survey"))).resolve("@storytree/map/code-survey/worker");
+await build({
+  ...common,
+  entryPoints: [surveyWorker],
+  outfile: path.join(dist, "survey-worker.cjs"),
+  platform: "node",
+  format: "cjs",
+  target: "node22",
 });
 
 await build({

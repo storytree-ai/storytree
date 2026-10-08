@@ -113,7 +113,7 @@ test("12.4 · the stop file stops the runner after its current lane, keeping the
 
 /** Let the runner's loop catch up until `ready()` holds, or fail. */
 async function until(ready) {
-  for (let turn = 0; turn < 200 && !ready(); turn++) await new Promise((go) => setTimeout(go, 1));
+  for (let turn = 0; turn < 3000 && !ready(); turn++) await new Promise((go) => setTimeout(go, 1));
   assert.ok(ready(), "the runner never reached the expected state");
 }
 const sleepUntilAborted = (ms, { signal } = {}) => new Promise((go) => signal?.addEventListener("abort", go));

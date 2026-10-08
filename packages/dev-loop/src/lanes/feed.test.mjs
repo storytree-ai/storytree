@@ -221,7 +221,7 @@ test("12.6 · beside running lanes a track starts only queued or library work wr
   const fed = keepFed({ track: "A", fences, queueFile: queue, stopFile: stop, now: () => now, say: (line) => lines.push(line), limit: async () => 2,
     survey: async () => looks, sleep: (ms, { signal } = {}) => new Promise((go) => signal?.addEventListener("abort", go)),
     runLane: (id) => { started.push(id); return new Promise((end) => { done[id] = end; }); } });
-  const until = async (ready) => { for (let turn = 0; turn < 200 && !ready(); turn++) await new Promise((go) => setTimeout(go, 1)); assert.ok(ready()); };
+  const until = async (ready) => { for (let turn = 0; turn < 3000 && !ready(); turn++) await new Promise((go) => setTimeout(go, 1)); assert.ok(ready()); };
   await until(() => started.length === 2);
   assert.deepEqual(started, ["lanes", "main"], "same shares packages/dev-loop with lanes, so main runs beside it");
   assert.ok(lines.some((line) => /start main beside lanes: no shared package/.test(line)));

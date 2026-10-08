@@ -1,0 +1,68 @@
+name: Rerun unrun
+
+# A `platforms` job GitHub never gave a hosted runner is rerun, once. GitHub can fail to find a
+# runner for a job ("The job was not acquired by Runner of type hosted even after multiple
+# attempts") and cancel it about 15 minutes later with no step run: `verify on macOS` on PR #926
+# (run 37808937222) and PR #930 (run 37815752769), 2026-10-08, with Linux and Windows green. Then
+# `verify` fails, the pull request is not landed, and before this workflow it waited until someone
+# ran `gh run rerun --failed` by hand, which recovered each.
+#
+# The run of CI that failed is rerun (its failed and cancelled jobs, `verify` and `automerge` with
+# them) when one of its jobs was cancelled with no step run and no runner named: a job that ran and
+# failed, or one the 25-minute limit cancelled, ran steps and is left as it is. A run superseded by
+# a newer push concludes cancelled as a whole, not failed, so it never reaches here. Bounded: only a
+# run's first attempt is rerun, so a runner that stays missing fails the second attempt and stays
+# failed. A pull request's run is rerun only while its head is still the commit the run checked; a
+# merge queue's run never is, since the queue has already taken the entry out (requeue.yml puts it
+# back). A pull request from a fork is never rerun.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  rerun:
+    name: rerun a job no runner took
+    if: >-
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.run_attempt == 1 &&
+      (github.event.workflow_run.event == 'pull_request' || github.event.workflow_run.event == 'push') &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write # to rerun the CI run
+      pull-requests: read
+    steps:
+      - name: Was a job cancelled before any runner took it?
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN: ${{ github.event.workflow_run.id }}
+          EVENT: ${{ github.event.workflow_run.event }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+          PR: ${{ github.event.workflow_run.pull_requests[0].number }}
+        run: |
+          unrun=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN/attempts/1/jobs?per_page=100" \
+            --jq '[.jobs[] | select(.conclusion == "cancelled" and (.steps | length) == 0 and (.runner_name // "") == "") | .name] | join(", ")')
+          if [ -z "$unrun" ]; then
+            echo "No job was cancelled unrun: every failure here ran. Left as it is."
+            exit 0
+          fi
+          echo "Cancelled with no runner and no step run: $unrun."
+          if [ "$EVENT" = pull_request ]; then
+            if [ -z "$PR" ]; then
+              echo "No pull request is named for this run: left as it is."
+              exit 0
+            fi
+            read -r state head <<< "$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json state,headRefOid --jq '"\(.state) \(.headRefOid)"')"
+            if [ "$state" != OPEN ] || [ "$head" != "$SHA" ]; then
+              echo "PR #$PR is $state at $head, not this run's $SHA: a newer run has it. Left as it is."
+              exit 0
+            fi
+          fi
+          echo "Rerunning run $RUN's failed jobs once."
+          gh run rerun "$RUN" --failed --repo "$GITHUB_REPOSITORY"

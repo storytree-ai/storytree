@@ -20,20 +20,25 @@ const scripts = ["storytree-mcp.mjs", "storytree-hook.mjs", "storytree-setup.mjs
 const launcher = "storytree-launcher.exe";
 const digest = (file: string): string => createHash("sha256").update(readFileSync(file)).digest("hex");
 
-/** Stable across NSIS updates: no versioned checkout, npm cache or portable extraction path. */
+/**
+ * Stable across updates: no versioned checkout, npm cache or portable extraction path.
+ * On macOS the installation is the .app bundle, whose resources and executable sit under Contents.
+ */
 export function toolPaths(installDir: string, platform: NodeJS.Platform = process.platform): InstalledTools {
-  const dir = path.join(path.resolve(installDir), "resources", "agent-tools");
+  const root = path.resolve(installDir);
+  const contents = platform === "darwin" ? path.join(root, "Contents") : root;
+  const dir = path.join(contents, platform === "darwin" ? "Resources" : "resources", "agent-tools");
   return {
-    dir, app: path.join(path.resolve(installDir), platform === "win32" ? "storytree-0.3.exe" : "storytree-0.3"),
+    dir, app: platform === "win32" ? path.join(root, "storytree-0.3.exe") : path.join(contents, platform === "darwin" ? "MacOS" : "", "storytree-0.3"),
     node: path.join(dir, platform === "win32" ? "node.exe" : "node"),
     mcp: path.join(dir, scripts[0]!), hook: path.join(dir, scripts[1]!), setup: path.join(dir, scripts[2]!),
     cli: path.join(dir, scripts[3]!), deliver: path.join(dir, scripts[4]!),
   };
 }
 
-/** Package the whole buildBins output, including lazy imported chunks. */
-export function writePayloadManifest(dir: string, arch: Architecture, nodeVersion: string): void {
-  for (const file of ["node.exe", launcher, ...scripts]) {
+/** Package the whole buildBins output, including lazy imported chunks: Windows needs its node.exe and command launcher, macOS its node. */
+export function writePayloadManifest(dir: string, arch: Architecture, nodeVersion: string, platform: NodeJS.Platform = "win32"): void {
+  for (const file of [...(platform === "win32" ? ["node.exe", launcher] : ["node"]), ...scripts]) {
     if (!existsSync(path.join(dir, file))) throw new Error(`Missing payload file: ${file}`);
   }
   const files: Record<string, string> = {};

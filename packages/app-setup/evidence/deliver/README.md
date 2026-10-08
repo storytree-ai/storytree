@@ -62,3 +62,18 @@ was published manually by this lane.
 No decision/question/claim/closure or live library write was made. All new code is inside
 the lane's file fence. Read-only review found the non-directory PATH entry issue; the fix and
 regression assertion are included. No owner-level fork or persistent friction item was needed.
+
+## Apple Silicon groundwork (contract 1.11, increment `increment_a2a60e7e8bcf`)
+
+- `runtime.test.ts` 1.11: `macRuntime("arm64")` pins Node 24.21.0's `darwin-arm64.tar.gz`
+  (archive SHA-256 from SHASUMS256.txt) and the SHA-256 of its `bin/node`, measured on the Mint
+  box on 2026-10-08 from that archive (a Mach-O 64-bit arm64 executable, 122,129,232 bytes).
+  Staging checks both hashes, extracts only `bin/node` with mode 755, keeps the previous runtime on
+  any refusal and reuses a verified one offline. Staging the real archive with this code on Linux
+  produced the pinned executable with mode 755; macOS CI's arm64 runner stages it from nodejs.org
+  and runs `node --version` (skipped with a named reason elsewhere).
+- `delivery.test.ts` 1.11: on macOS the installation is the `.app` bundle: tools under
+  `Contents/Resources/agent-tools`, the app at `Contents/MacOS/storytree-0.3`. A Mac manifest
+  needs `node` and no Windows launcher; verification refuses a damaged or missing runtime.
+- Not here: macOS packaging, the shell install, account connections and notarisation, which are
+  the arc's later increments.

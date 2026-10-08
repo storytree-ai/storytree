@@ -6,15 +6,18 @@ import { createServer } from 'node:http';
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { connect } from '@storytree/library';
 import { openActivityLog, claim } from '@storytree/agent-link';
 // The frame is reached through the desktop app, which mounts this surface: arc-surface itself never depends on it (ADR-0847).
-const { pageReads } = await import(createRequire(new URL('../../../apps/desktop/package.json', import.meta.url)).resolve('@storytree/app'));
+const { pageReads } = await import(pathToFileURL(createRequire(new URL('../../../apps/desktop/package.json', import.meta.url)).resolve('@storytree/app')).href);
 import { start } from '@storytree/local-postgres';
 import { smokeArcSurface } from '../src/index.ts';
 
 const { chromium } = await import(process.env.ARC_PLAYWRIGHT ?? '/home/mickh/code/Storytree/node_modules/.pnpm/playwright-core@1.60.0/node_modules/playwright-core/index.mjs');
+// The snapshot to restore is the first argument (or ARC_SNAPSHOT): no machine's folder is assumed.
+const snapshotPath = process.argv.slice(2).find(arg => !arg.startsWith('--')) ?? process.env.ARC_SNAPSHOT;
+if (!snapshotPath) throw new Error('usage: node capture.mjs <snapshot.json> (or set ARC_SNAPSHOT)');
 const here = path.dirname(fileURLToPath(import.meta.url));
 const output = path.join(here, 'drawer-shape');
 mkdirSync(output, { recursive: true });
@@ -27,7 +30,6 @@ try {
   const project = 'storytree';
   // The supplied snapshot predates plan cutover: real forest, no arcs/questions.
   // Restore it only into this throwaway database, then add the explicit arc fixture.
-  const snapshotPath = process.env.ARC_SNAPSHOT ?? '/home/mickh/storytree-lanes/snapshots/2026-09-27T12-40-59-713Z.json';
   const snapshot = JSON.parse(readFileSync(snapshotPath, 'utf8'));
   await store.restore(project, snapshot);
   const library = await store.openProject(project);
@@ -129,6 +131,7 @@ try {
   await page.mouse.click(720, 800);
   assert.equal(await page.evaluate(() => window.forestPointerCount), 1, 'forest receives pointer input below the open drawer');
   const rowHeights = await page.locator('.arc-lane').evaluateAll(rows => rows.map(row => row.getBoundingClientRect().height));
+  assert.ok(rowHeights.length > 0, 'the board has rows: an empty board is not pictured');
   assert.ok(rowHeights.every(height => height <= 65), `dense two-line rows: ${rowHeights}`);
   assert.equal(await page.locator(`[data-arc-select="${queued.id}"]`).count(), 0, 'queued arc starts behind the caret');
   const started = Date.now();

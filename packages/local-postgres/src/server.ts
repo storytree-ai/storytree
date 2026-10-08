@@ -3,6 +3,12 @@
  * initdb the first time, trusts local connections and listens on 127.0.0.1 only, and the server
  * runs on a free port unless one is asked for.
  *
+ * Asked for passwords (`password: true`), it instead asks every connection for the installation's
+ * password (SCRAM, see auth.ts), and a cluster made when local connections were trusted is given
+ * the password and its trust taken away before its server next starts, with no network open while
+ * that happens. That is opt-in only while some of storytree's own clients still sign in without
+ * the handoff (increment_428779c116fe); then it becomes the only way.
+ *
  * A data directory has at most one owner: the process that started its server and has not yet
  * stopped it. start() records the owner beside the directory (`<dataDir>.owner.json`), and stop()
  * removes the record. While the recorded process is alive, a start is refused with a
@@ -33,6 +39,18 @@ import { createServer } from "node:net";
 import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 
+import {
+  authDir,
+  authMarker,
+  connectionUrl,
+  ensureInstallation,
+  publishConnection,
+  scramVerifier,
+  withdrawConnection,
+  writePrivate,
+  type AuthMarker,
+  type Installation,
+} from "./auth.js";
 import { findBinaries } from "./binaries.js";
 
 export interface ClusterOptions {
@@ -42,6 +60,8 @@ export interface ClusterOptions {
   readonly toolLog?: string;
   /** Called with each step worth telling a person about. */
   readonly log?: (message: string) => void;
+  /** Ask every connection for the installation's password (SCRAM) instead of trusting local ones. */
+  readonly password?: boolean;
 }
 
 export interface StartOptions extends ClusterOptions {
@@ -63,7 +83,11 @@ export interface StartOptions extends ClusterOptions {
 
 /** A running server. */
 export interface LocalPostgres {
-  /** postgres://postgres@127.0.0.1:<port>/postgres */
+  /**
+   * postgres://postgres@127.0.0.1:<port>/postgres, or with `password`,
+   * postgres://postgres:<password>@127.0.0.1:<port>/postgres, which carries the installation's
+   * secret: connect with it, never show or log it.
+   */
   readonly url: string;
   readonly port: number;
   /** The data directory, as an absolute path. */
@@ -101,6 +125,8 @@ interface OwnerRecord {
   owner?: string;
   port: number;
   startedAt: string;
+  /** A client signs in through the private handoff this names (ADR-0941). */
+  auth?: AuthMarker;
 }
 
 /** Where the tools are and where their output goes. */
@@ -112,9 +138,23 @@ interface Tools {
 /** This process's token: a record carrying it was written by this very process. */
 const PROCESS_TOKEN = randomUUID();
 
+/** Every storytree cluster's pg_hba.conf: a password, from this machine only, for everyone. */
+const HBA = `# storytree: every connection signs in with a password (SCRAM), from this machine only
+local   all           all                    scram-sha-256
+host    all           all    127.0.0.1/32    scram-sha-256
+host    all           all    ::1/128         scram-sha-256
+local   replication   all                    scram-sha-256
+host    replication   all    127.0.0.1/32    scram-sha-256
+host    replication   all    ::1/128         scram-sha-256
+`;
+
+/** In the data directory, the installation whose password the cluster holds. */
+const SIGN_IN_MARKER = "storytree-sign-in";
+
 /**
  * Make the cluster in `dataDir` unless there is one: initdb as user `postgres`, trusting local
- * connections, UTF8, set to listen on 127.0.0.1 only. The cluster is made in a scratch directory
+ * connections (or with `password`, with the installation's password, signing in by password only),
+ * UTF8, set to listen on 127.0.0.1 only. The cluster is made in a scratch directory
  * and renamed into place once complete, so an interrupted first run never leaves half a cluster.
  * True if it was made now. A directory that holds something other than a cluster is refused.
  */
@@ -134,12 +174,24 @@ export async function ensureCluster(dataDir: string, options: ClusterOptions = {
   rmSync(scratch, { recursive: true, force: true });
   log(`creating the cluster in ${dir} (first run only; it can take minutes under x64 emulation)`);
   const started = Date.now();
-  const code = await tool(tools, "initdb", ["-D", scratch, "-U", "postgres", "-A", "trust", "-E", "UTF8"]);
-  if (code !== 0) throw new Error(`initdb failed with exit code ${code}; see ${tools.toolLog}`);
+  const installation = options.password === true ? ensureInstallation(dir) : undefined;
+  // initdb is given the password's verifier, never the password itself.
+  const pwfile = installation === undefined ? undefined : writePrivate(authDir(dir), scramVerifier(installation.password));
+  try {
+    const auth = pwfile === undefined ? ["-A", "trust"] : ["-A", "scram-sha-256", `--pwfile=${pwfile}`];
+    const code = await tool(tools, "initdb", ["-D", scratch, "-U", "postgres", ...auth, "-E", "UTF8"]);
+    if (code !== 0) throw new Error(`initdb failed with exit code ${code}; see ${tools.toolLog}`);
+  } finally {
+    if (pwfile !== undefined) rmSync(pwfile, { force: true });
+  }
   appendFileSync(
     path.join(scratch, "postgresql.conf"),
     "\n# storytree: this server is for this machine only\nlisten_addresses = '127.0.0.1'\n",
   );
+  if (installation !== undefined) {
+    writeFileSync(path.join(scratch, "pg_hba.conf"), HBA);
+    writeFileSync(path.join(scratch, SIGN_IN_MARKER), installation.installationId);
+  }
   await renameIntoPlace(scratch, dir);
   log(`cluster created in ${since(started)}`);
   return true;
@@ -164,16 +216,19 @@ export async function start(options: StartOptions): Promise<LocalPostgres> {
   });
 
   mkdirSync(path.dirname(dataDir), { recursive: true });
+  const installation = options.password === true ? ensureInstallation(dataDir) : undefined;
   const record: OwnerRecord = {
     pid: process.pid,
     token: PROCESS_TOKEN,
     ...(options.owner === undefined ? {} : { owner: options.owner }),
     port,
     startedAt: new Date().toISOString(),
+    ...(installation === undefined ? {} : { auth: authMarker(installation) }),
   };
   await claim(dataDir, record, tools, log);
   try {
-    await ensureCluster(dataDir, { ...tools, log });
+    const made = await ensureCluster(dataDir, { ...tools, log, password: installation !== undefined });
+    if (!made && installation !== undefined) await requirePasswords(dataDir, installation, tools, log);
     mkdirSync(path.dirname(serverLog), { recursive: true });
     const started = Date.now();
     const code = await tool(tools, "pg_ctl", [
@@ -184,6 +239,7 @@ export async function start(options: StartOptions): Promise<LocalPostgres> {
     ]);
     if (code !== 0) throw new Error(`pg_ctl start failed with exit code ${code}; see ${serverLog} and ${tools.toolLog}`);
     log(`listening on 127.0.0.1:${port} (started in ${since(started)})`);
+    if (installation !== undefined) publishConnection(dataDir, installation, PROCESS_TOKEN, port);
   } catch (error) {
     release(dataDir);
     throw error;
@@ -191,7 +247,7 @@ export async function start(options: StartOptions): Promise<LocalPostgres> {
 
   let stopping: Promise<void> | undefined;
   return {
-    url: `postgres://postgres@127.0.0.1:${port}/postgres`,
+    url: installation === undefined ? `postgres://postgres@127.0.0.1:${port}/postgres` : connectionUrl(installation, port),
     port,
     dataDir,
     stop() {
@@ -246,8 +302,51 @@ async function claim(dataDir: string, record: OwnerRecord, tools: Tools, log: (m
   }
 }
 
-/** Remove this process's owner record for `dataDir`. Anyone else's is left alone. */
+/**
+ * Make an existing cluster ask for the installation's password, unless it already does. A cluster
+ * whose password is another installation's, or none (one made when local connections were
+ * trusted), is given this one's in single-user mode, which opens no connection at all; then its
+ * pg_hba.conf is replaced, and the marker naming the installation written last. Interrupted at any
+ * step, the next start does it again; the server is never started before all of it is done. A
+ * pg_hba.conf line that lets anyone in without a password is replaced in the same way.
+ */
+async function requirePasswords(dataDir: string, installation: Installation, tools: Tools, log: (message: string) => void): Promise<void> {
+  const marker = path.join(dataDir, SIGN_IN_MARKER);
+  const hba = path.join(dataDir, "pg_hba.conf");
+  const signedIn = readText(marker) === installation.installationId;
+  if (signedIn && !readText(hba).split("\n").some(lacksPassword)) return;
+  if (!signedIn) {
+    log("giving the cluster this installation's password");
+    const input = `ALTER ROLE ${installation.user} WITH PASSWORD '${scramVerifier(installation.password)}';\n`;
+    const code = await tool(tools, "postgres", ["--single", "-D", dataDir, "postgres"], input);
+    if (code !== 0) {
+      throw new Error(
+        `could not give the Postgres cluster in ${dataDir} its password (exit code ${code}; see ${tools.toolLog})` +
+          (process.platform === "win32" ? "; on Windows, Postgres will not do this for a user running with administrator rights" : ""),
+      );
+    }
+  }
+  log("signing in by password only");
+  replaceFile(hba, HBA);
+  replaceFile(marker, installation.installationId);
+}
+
+/** A pg_hba.conf line that lets a connection in without the password (or includes rules unseen). */
+function lacksPassword(line: string): boolean {
+  const words = line.replace(/#.*/, "").trim().split(/\s+/).filter((word) => word !== "");
+  return words.length > 0 && !words.includes("scram-sha-256") && !words.includes("reject");
+}
+
+/** Replace `file` with `text` whole: written beside it, then renamed over it. */
+function replaceFile(file: string, text: string): void {
+  const scratch = `${file}.${process.pid}.${randomUUID()}`;
+  writeFileSync(scratch, text, { mode: 0o600 });
+  renameSync(scratch, file);
+}
+
+/** Withdraw this process's connection handoff and remove its owner record for `dataDir`. Anyone else's are left alone. */
 function release(dataDir: string): void {
+  withdrawConnection(dataDir, PROCESS_TOKEN);
   const file = ownerFile(dataDir);
   const holder = parseRecord(readText(file));
   if (holder?.pid === process.pid && holder.token === PROCESS_TOKEN) rmSync(file, { force: true });
@@ -304,15 +403,16 @@ function toolsFor(dataDir: string, options: ClusterOptions): Tools {
 }
 
 /** Run one Postgres tool to completion, appending its output to the tool log. Resolves to its exit code. */
-function tool(tools: Tools, name: string, args: readonly string[]): Promise<number> {
+function tool(tools: Tools, name: string, args: readonly string[], input?: string): Promise<number> {
   mkdirSync(path.dirname(tools.toolLog), { recursive: true });
   const out = openSync(tools.toolLog, "a");
   writeSync(out, `\n[${new Date().toISOString()}] ${name} ${args.join(" ")}\n`);
   const executable = path.join(tools.bin, process.platform === "win32" ? `${name}.exe` : name);
   return new Promise<number>((resolve, reject) => {
     // windowsHide: started from a GUI app, the tools and the server get a hidden console, not a window.
-    const child = spawn(executable, args, { stdio: ["ignore", out, out], windowsHide: true });
+    const child = spawn(executable, args, { stdio: [input === undefined ? "ignore" : "pipe", out, out], windowsHide: true });
     child.on("error", reject);
+    child.stdin?.end(input);
     child.on("exit", (code) => resolve(code ?? 1));
   }).finally(() => closeSync(out));
 }

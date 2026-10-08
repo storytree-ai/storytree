@@ -28,7 +28,7 @@ export interface AppLibrary<P extends StartedPostgres = StartedPostgres> {
   readonly storytree: Storytree;
   /** The app's own Postgres, when the library is local; undefined on Cloud SQL or a Postgres address. */
   readonly postgres: P | undefined;
-  /** Where the library is, for the app's log. */
+  /** Where the library is, for the app's log: never the local url's password. */
   readonly where: string;
 }
 
@@ -63,9 +63,16 @@ export async function openAppLibrary<P extends StartedPostgres>(options: AppLibr
   }
   const postgres = await options.startLocal();
   try {
-    return { storytree: await options.connect({ url: postgres.url }), postgres, where: postgres.url };
+    return { storytree: await options.connect({ url: postgres.url }), postgres, where: withoutPassword(postgres.url) };
   } catch (error) {
     await postgres.stop().catch(() => {});
     throw error;
   }
+}
+
+/** The url as it may be shown or logged: the installation's password taken out. */
+function withoutPassword(url: string): string {
+  const shown = new URL(url);
+  shown.password = "";
+  return shown.href;
 }

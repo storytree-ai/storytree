@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
-import { execFileSync, spawnSync } from "node:child_process";
+import childProcess, { execFileSync, spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { chmodSync, existsSync, linkSync, mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { createServer, type AddressInfo } from "node:net";
 import path from "node:path";
+import { syncBuiltinESMExports } from "node:module";
 import { test } from "node:test";
 
 import { findBinaries } from "@storytree/local-postgres";
@@ -106,7 +107,7 @@ test("1.16 authenticated discovery connects to an independently provisioned SCRA
         "-l", path.join(home, "server.log"), "-w", "start"], { stdio: "ignore", timeout: 60_000 });
       const f = fixture(home, port);
       const discovered = route(home, { home });
-      assert.equal(discovered.status, "routed");
+      assert.equal(discovered.status, "routed", discovered.status === "not-running" ? discovered.message : "project routing failed");
       if (discovered.status !== "routed") return;
       const connectionString = discovered.library.url;
       assert.equal(connectionString, `postgres://postgres:${encodeURIComponent(password)}@127.0.0.1:${port}/postgres`);
@@ -129,6 +130,45 @@ test("1.16 authenticated discovery connects to an independently provisioned SCRA
       if (existsSync(path.join(dataDir, "postmaster.pid"))) {
         execFileSync(pgctl, ["-D", dataDir, "-m", "immediate", "-w", "stop"], { stdio: "ignore", timeout: 60_000 });
       }
+    }
+  });
+});
+
+test("1.16 Windows privacy refusals explain the failed check without subprocess output or credentials", async (t) => {
+  await withTempDir((home) => {
+    fixture(home);
+    const platform = Object.getOwnPropertyDescriptor(process, "platform")!;
+    Object.defineProperty(process, "platform", { ...platform, value: "win32" });
+    let failure: unknown;
+    const child = t.mock.method(childProcess, "execFileSync", () => {
+      if (failure) throw failure;
+      return "unexpected private output";
+    });
+    syncBuiltinESMExports();
+    try {
+      for (const [details, reason] of [
+        [{ code: "ETIMEDOUT" }, "windows-acl-timeout"],
+        [{ code: "ENOENT" }, "windows-acl-process"],
+        [{ status: 11 }, "windows-acl-owner"],
+        [{ status: 12 }, "windows-acl-inheritance"],
+        [{ status: 13 }, "windows-acl-exposed"],
+        [{ status: 14 }, "windows-acl-no-owner-grant"],
+        [{ status: 1 }, "windows-acl-process"],
+        [undefined, "windows-acl-output"],
+      ] as const) {
+        failure = details && Object.assign(new Error(password), details, { stdout: password, stderr: password });
+        const result = route(home, { home });
+        assert.equal(result.status, "not-running");
+        if (result.status !== "not-running") continue;
+        assert.match(result.message, new RegExp(`\\(${reason}\\)$`));
+        assert.equal(JSON.stringify(result).includes(password), false);
+        assert.equal(JSON.stringify(result).includes(encodeURIComponent(password)), false);
+        assert.equal(JSON.stringify(result).includes(home), false);
+      }
+    } finally {
+      child.mock.restore();
+      syncBuiltinESMExports();
+      Object.defineProperty(process, "platform", platform);
     }
   });
 });

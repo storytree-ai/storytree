@@ -164,9 +164,9 @@ function parking(name: "park" | "unpark"): Verb {
   };
 }
 
-/** An arc's state as said: "parked until <day>" while a dated park holds, its state otherwise. */
-function stateOf({ arc, state }: ArcView): string {
-  return state === "parked" && arc.fields.parkedUntil !== undefined ? `parked until ${arc.fields.parkedUntil} (UTC)` : state;
+/** An arc's state as said: "parked until <day>" while a dated park holds (the owner's, or its work's check-back), its state otherwise. */
+function stateOf({ state, wakes }: ArcView): string {
+  return state === "parked" && wakes !== undefined ? `parked until ${wakes} (UTC)` : state;
 }
 
 /**

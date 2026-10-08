@@ -270,6 +270,38 @@ for (const backend of [memory, postgres]) {
     await assert.rejects(flight.parkArc(arc.id, { until: "next week" }));
   });
 
+  contract("10.10", "an arc whose every open increment waits only on a dated event, or on its own work so held, reads parked until the earliest check-back day, worked out on read; free work, an owner wait or an open question keeps it active", async ({ work, flight }) => {
+    const day = (offset: number): string => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
+    const arc = await work.createArc(ARC);
+    const view = async (instant?: string) => flight.arcView(arc.id, instant === undefined ? undefined : new Date(instant));
+    const later = await flight.addIncrement({ arc: arc.id, ...WORK });
+    await flight.addWaitFor(later.id, { releaser: "event", note: "the rollback week ends", checkBack: day(9) });
+    const sooner = await flight.addIncrement({ arc: arc.id, ...WORK });
+    await flight.addWaitFor(sooner.id, { releaser: "event", note: "deletion finishes", checkBack: day(4) });
+    const after = await flight.addIncrement({ arc: arc.id, ...WORK });
+    await flight.addWait(after.id, sooner.id, "needs the deletion confirmed");
+    assert.equal((await view())?.state, "parked", "every open increment waits on a date, directly or through its own arc's work");
+    assert.equal((await view())?.wakes, day(4), "it wakes on the earliest check-back day");
+    assert.equal((await view())?.arc.fields.parked, undefined, "nothing is stored");
+    assert.equal((await view(`${day(4)}T00:00:00Z`))?.state, "active", "from that day it is active again, with no write in between");
+
+    const free = await flight.addIncrement({ arc: arc.id, ...WORK });
+    assert.equal((await view())?.state, "active", "free work keeps it on the active board");
+    await flight.closeIncrement(free.id, { note: "Not needed", disposition: "withdrawn" });
+    assert.equal((await view())?.state, "parked");
+
+    await flight.addWaitFor(later.id, { releaser: "owner", note: "sign in on the staging build" });
+    assert.equal((await view())?.state, "active", "an owner wait keeps it active");
+    await flight.removeWaitFor(later.id, "owner");
+    await flight.advanceIncrement(sooner.id, "active");
+    assert.equal((await view())?.state, "active", "claimed work keeps it active");
+    await flight.returnIncrement(sooner.id);
+    assert.equal((await view())?.state, "parked");
+
+    await flight.raiseQuestion({ arc: arc.id, title: "Archive?", stakes: "Deletes data", statement: "Which?", context: "None", options: "A or B" });
+    assert.equal((await view())?.state, "active", "an open question keeps it active");
+  });
+
   contract("7.8", "arcViews() answers every live arc's view as arcView does, in a bounded number of reads whatever the number of arcs", async ({ work, flight, records }) => {
     const arcs = [];
     for (let i = 0; i < 4; i++) {

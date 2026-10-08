@@ -9,7 +9,7 @@ import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 
-import { clearUnitLimit, recordTimings, runUnit, setUnitLimit, UNIT_LIMIT_CEILING_MS, UNIT_LIMIT_FLOOR_MS, UNIT_LIMIT_MS, unitLimit, unitReason } from "./unit-run.mjs";
+import { clearUnitLimit, DEADLINE_GRACE_MS, recordTimings, runUnit, setUnitLimit, UNIT_LIMIT_CEILING_MS, UNIT_LIMIT_FLOOR_MS, UNIT_LIMIT_MS, unitLimit, unitReason } from "./unit-run.mjs";
 
 function fixture(t, files) {
   // Its real path: on macOS the temporary folder is a link, and node names test files by their real one.
@@ -273,4 +273,35 @@ test("6.1 a run of named files past its deadline says it was killed, naming the 
   const output = `${run.stdout}${run.stderr}`;
   assert.equal(run.status, 1, output);
   assert.match(output, /test harness: .*timed out after .*limit 3(\.0)? s.*killed; still running: .*hangs\.test\.mjs › never ends/);
+});
+
+// increment_7f43f74526ab: CI's job limit cancelled a macOS run and its whole log was lost, so nobody
+// could name what stalled. Given STORYTREE_TEST_DEADLINE, a run ends itself first and says where.
+function harnessRun(t, files, { deadline, home }) {
+  const dir = fixture(t, files);
+  const repo = fileURLToPath(new URL("../../..", import.meta.url));
+  const env = { ...process.env, STORYTREE_HOME: home ?? path.join(dir, "home"), STORYTREE_TEST_PG_URL: "postgres://unused", STORYTREE_TEST_DEADLINE: String(deadline) };
+  delete env.STORYTREE_HEAVY_LOCK_HOLDER; // this suite itself runs under the outer run's lock
+  delete env.NODE_TEST_CONTEXT;
+  const files_ = Object.keys(files).map((name) => path.join(dir, name));
+  const run = spawnSync(process.execPath, ["--import", "tsx", "packages/dev-loop/src/test.mjs", ...files_], { cwd: repo, env, encoding: "utf8", timeout: 40_000 });
+  return { status: run.status, output: `${run.stdout}${run.stderr}` };
+}
+
+test("6.1 a run given a deadline cuts the unit it is running to the time left, naming the test still running", (t) => {
+  const run = harnessRun(t, {
+    "hangs.test.mjs": `import { test } from "node:test";\ntest("never ends", () => new Promise(() => { setInterval(() => {}, 1000); }));`,
+  }, { deadline: Math.ceil(Date.now() / 1000) + 4 });
+  assert.equal(run.status, 1, run.output);
+  assert.match(run.output, /test harness: .*timed out after .*cut to the run's deadline\), killed; still running: .*hangs\.test\.mjs › never ends/);
+});
+
+test("6.1 a run stalled outside any unit past its deadline names where it stalled and ends", (t) => {
+  const home = mkdtempSync(path.join(tmpdir(), "unit-run-home-"));
+  t.after(() => rmSync(home, { recursive: true, force: true }));
+  // A live holder (this process) that never lets go: the run waits on the lock until its deadline.
+  writeFileSync(path.join(home, "heavy-run.lock"), JSON.stringify({ id: "held", pid: process.pid, branch: "another run", since: new Date().toISOString() }));
+  const run = harnessRun(t, { "passes.test.mjs": `import { test } from "node:test";\ntest("passes", () => {});` }, { deadline: Math.floor((Date.now() - DEADLINE_GRACE_MS) / 1000) + 2, home });
+  assert.equal(run.status, 1, run.output);
+  assert.match(run.output, /test harness: past the run's deadline .* while waiting for the heavy-run lock; ending the run/);
 });

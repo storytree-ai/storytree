@@ -68,6 +68,13 @@ jobs:
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 25
     steps:
+      # `pnpm test` ends itself by 21 minutes into the job (its deadline) and prints its table, or
+      # past that names where it stalled: a job the 25-minute limit cancels can lose its whole log,
+      # so nobody can name what hung (increment_7f43f74526ab). Taken here, since checkout alone has
+      # taken 12 minutes.
+      - name: Set the test run's deadline
+        shell: bash
+        run: echo "STORYTREE_TEST_DEADLINE=$(( $(date +%s) + 21 * 60 ))" >> "$GITHUB_ENV"
       # The whole history, origin/main included: `pnpm test` runs only what the change can reach,
       # measured from merge-base(origin/main, HEAD), and runs everything if origin/main is missing.
       # On a push to main that merge-base is HEAD itself, so main's own runs are always full.

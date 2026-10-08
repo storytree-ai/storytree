@@ -26,6 +26,7 @@ export const UNIT_LIMIT_MS = 180_000;
 export const EXIT_GRACE_MS = 20_000; // a root after() hook or coverage written at exit fits well inside
 export const UNIT_LIMIT_FLOOR_MS = 60_000;
 export const UNIT_LIMIT_CEILING_MS = 900_000;
+export const DEADLINE_GRACE_MS = 30_000; // past the run's deadline, longer than a cut unit takes to be killed and tabled
 const LEARN_FROM_PASSES = 5; // fewer passes than this on this machine: the fixed deadline
 const RECENT_PASSES = 20;
 const defaultHome = () => process.env.STORYTREE_HOME || path.join(homedir(), ".storytree", "0.3");
@@ -218,6 +219,18 @@ export function unitLimit(unit, { home = defaultHome(), platform = process.platf
   const kills = rows.slice(lastPass + 1).filter((row) => row.timedOut).length;
   if (kills === 0) return { ms, source };
   return { ms: Math.min(UNIT_LIMIT_CEILING_MS, ms * 2 ** kills), source: `${source}, grown after ${kills} kill${kills === 1 ? "" : "s"}` };
+}
+
+/** The run's deadline, from STORYTREE_TEST_DEADLINE (Unix seconds) when set: CI's job limit less room to report. */
+export function runDeadline(env) {
+  const seconds = Number(env.STORYTREE_TEST_DEADLINE);
+  return env.STORYTREE_TEST_DEADLINE && Number.isFinite(seconds) ? seconds * 1000 : undefined;
+}
+
+/** A unit's limit cut to the time left before the run's deadline, saying so when it is. */
+export function withinDeadline(limit, deadline, now = Date.now()) {
+  if (deadline === undefined || deadline - now >= limit.ms) return limit;
+  return { ms: Math.max(0, deadline - now), source: "cut to the run's deadline", cut: true };
 }
 
 /** Set a unit's deadline on this machine, with the reason any later run shows beside it. */

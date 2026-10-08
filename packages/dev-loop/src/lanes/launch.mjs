@@ -12,7 +12,7 @@ import { setTimeout as wait } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
-import { keepFed, parseFences, queuedOnTracks, surveyLibrary } from "./feed.mjs";
+import { keepFed, markQueueInLibrary, parseFences, queuedOnTracks, surveyLibrary } from "./feed.mjs";
 import { composeBrief, countEngines, holdRunner, runQueue, waitForSlot } from "./queue.mjs";
 import { runLane as runEngineLane } from "./runner.mjs";
 
@@ -80,7 +80,7 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
     count: async () => countEngines((await run("ps", ["-eo", "pid=,ppid=,args="], { maxBuffer: 64 * 1024 * 1024 })).stdout),
     lock: (fn) => withFlock(join(lanesDir, "night-checkout.lock"), fn),
     prepare: () => prepareCheckout({ repo }),
-    sleep: (ms, options) => wait(ms, undefined, options), argsOf, runLane: runEngineLane, survey: surveyLibrary, now: Date.now,
+    sleep: (ms, options) => wait(ms, undefined, options), argsOf, runLane: runEngineLane, survey: surveyLibrary, markQueue: (marks) => markQueueInLibrary(marks), now: Date.now,
   };
 }
 
@@ -119,7 +119,7 @@ export async function main(args, box = {}) {
     if (!fence) { dated(`night-fences.txt has no track ${name}: not starting`); return 1; }
     const code = await keepFed({
       track: name, fences: parseFences(fencesText), queueFile: join(L, `night-queue-${name}.txt`), stopFile: join(L, "night-stop"),
-      survey: b.survey, queued: () => queuedOnTracks(L), sleep: b.sleep, now: b.now, say,
+      survey: b.survey, queued: () => queuedOnTracks(L), markQueue: b.markQueue, sleep: b.sleep, now: b.now, say,
       limit: async () => laneLimit(await readFile(join(L, "night-lanes-per-track"), "utf8").catch(() => ""), name),
       runLane: async (increment) => lane(increment, {
         title: `Overnight lane: track ${name}, ${increment}`,

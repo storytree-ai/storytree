@@ -102,9 +102,10 @@ export async function runQueue({ queueFile, stopFile, runLane, stopOnFailure = f
   // Settles when any lane ends after it was taken: a look that took it before awaiting the limit or the chooser
   // still wakes for a lane that ended meanwhile.
   let laneEnded, ended = new Promise((go) => { laneEnded = go; });
-  const start = (id) => running.set(id, (async () => {
+  // Each lane is told the lanes already running beside it.
+  const start = (id, beside = [...running.keys()]) => running.set(id, (async () => {
     try {
-      const code = await runLane(id);
+      const code = await runLane(id, beside);
       if (code === 75) ending ??= { code: 75, message: `track stopped: engine failing, ${id} kept at the head of the queue` };
       else if (stopOnFailure && code !== 0) ending ??= { code, message: `lane for ${id} failed: stopping with it still queued` };
       else await pop(id);

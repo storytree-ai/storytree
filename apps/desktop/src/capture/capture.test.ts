@@ -117,6 +117,13 @@ test("a capture launches an installed browser channel when one is named, and a C
   assert.equal(named.channel, undefined);
 });
 
+// Under 3-CPU contention like macOS CI's, a separate GPU process stretched live-road frame gaps to 10 s;
+// in the browser process they stayed under 0.6 s (increment_65eec6275207).
+test("a software-GL capture keeps GPU work in the browser process, and a hardware capture leaves it to Chromium", () => {
+  assert.ok(launchPlan({ env: {}, platform: "darwin" }).options.args?.includes("--in-process-gpu"));
+  assert.ok(!launchPlan({ env: {}, platform: "darwin" }, { softwareGL: false }).options.args?.includes("--in-process-gpu"));
+});
+
 test("seeding a capability landed makes the work states read it landed", async () => {
   const lines: Line[] = [];
   const log = { append: async (project: string, line: NewLine) => { const kept = { ...line, project, seq: lines.length + 1, at: new Date().toISOString() } as Line; lines.push(kept); return kept; } };

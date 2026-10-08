@@ -1,7 +1,8 @@
 // Capability 8 · Lag instruments. `pnpm lag:desktop`: what a user's clicks cost in the desktop app (ADR-0836), measured the same way by
 // every re-measure (capability 8, Lag instruments). It launches a second copy of the built desktop app
-// with a throwaway STORYTREE_HOME holding copies of the real home's settings.json, machine.json and
-// project-choice.json, so it reads the same library while the running app is left alone, and records,
+// with a throwaway STORYTREE_HOME holding copies of the real home's settings.json, machine.json,
+// project-choice.json and auth.json (the keys, among them the library's Postgres password, kept readable
+// by the user alone), so it reads the same library while the running app is left alone, and records,
 // over a scripted run (12 s idle, a hover sweep over the globe, a 5 x 5 grid of globe clicks, the story
 // panel's rows, the sessions list and the forest/library toggle):
 // - in the main process, each IPC handler's time and answer size, and event-loop lag over 20 ms;
@@ -22,14 +23,14 @@
 // home to copy settings from (default: STORYTREE_HOME, else ~/.storytree/0.3); `none` starts the app
 // on an empty home.
 
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { homedir, tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
-const SETTINGS = ["settings.json", "machine.json", "project-choice.json"];
+const SETTINGS = ["settings.json", "machine.json", "project-choice.json", "auth.json"];
 
 function option(args, name, fallback) {
   const at = args.indexOf(`--${name}`);
@@ -48,6 +49,7 @@ export function lagHome({ home, homeFrom }) {
   const made = home ?? mkdtempSync(path.join(tmpdir(), "lag-desktop-home-"));
   mkdirSync(made, { recursive: true });
   if (homeFrom !== "none") for (const file of SETTINGS) if (existsSync(path.join(homeFrom, file))) cpSync(path.join(homeFrom, file), path.join(made, file));
+  if (existsSync(path.join(made, "auth.json"))) chmodSync(path.join(made, "auth.json"), 0o600);
   return { home: made, warm: false };
 }
 

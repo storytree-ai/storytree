@@ -18,6 +18,7 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSy
 import { tmpdir } from "node:os";
 import path from "node:path";
 
+import { setUpProject } from "@storytree/agent-link/routing";
 import { connect, type Library } from "@storytree/library";
 import pg from "pg";
 
@@ -217,11 +218,14 @@ export async function inWorld(command: BuiltCommand, body: (world: World) => Pro
     const home = path.join(dir, "home");
     const stoppedHome = path.join(dir, "stopped-home");
     for (const made of [folder, elsewhere, home, stoppedHome]) mkdirSync(made, { recursive: true });
-    writeFileSync(path.join(folder, ".storytree.json"), `${JSON.stringify({ project })}\n`);
     placeTestServer(path.join(home, "pgdata"));
     // The folder names a project that is set up: a folder never makes its project by being opened.
     const opened: Promise<Library> = storytreeServer.openProject(project);
     await opened;
+    // And it is the project's approved checkout on this home's machine, as joining makes it (ADR-0942 D1).
+    await setUpProject({ folder, project, storytree: storytreeServer, storytreeHome: home, join: true });
+    // Joining also makes it the app's shown project; the world starts with none chosen.
+    rmSync(path.join(home, "project-choice.json"), { force: true });
     await body({
       project,
       folder,

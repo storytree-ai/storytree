@@ -275,6 +275,9 @@ importers:
       '@storytree/guardrails':
         specifier: workspace:*
         version: link:../guardrails
+      '@storytree/identity':
+        specifier: workspace:*
+        version: link:../identity
       '@storytree/journey-events':
         specifier: workspace:*
         version: link:../journey-events

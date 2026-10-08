@@ -10,7 +10,9 @@
  *
  * A source file that declares its capability in its opening comment ("Capability N · <title>", ADR-0925 D1)
  * is checked against the same reach (D2): it fails when capability N's numbered tests and coverage map do not
- * reach it while another's do, named with the capabilities that do.
+ * reach it while another's do, named with the capabilities that do. Asked to, as storytree's own dev loop asks
+ * since every one of its source files declares, it also fails an undeclared file, suggesting the capability the
+ * survey infers for it (D2's last clause); a user's project is not asked, and works without the convention (D3).
  */
 import path from "node:path";
 
@@ -51,6 +53,22 @@ const unallocatedOf = (files: readonly SurveyedFile[]): Unallocated[] =>
 const misdeclaredOf = (files: readonly SurveyedFile[]): Misdeclared[] =>
   files.flatMap(({ path: file, declared, reachedBy = [] }) => declared === undefined || reachedBy.length === 0 || reachedBy.includes(declared) ? [] : [{ file, declared, reachedBy }]);
 
+/** A reached source file whose opening comment declares no capability, with the capability number the survey infers for it. */
+export interface Undeclared {
+  readonly file: string;
+  readonly suggested: number;
+}
+
+/** What the rule is asked to fail beyond unallocated and misdeclared files. */
+export interface AllocationOptions {
+  /** Fail a reached file that declares no capability (ADR-0925 D2), for a project whose every source file declares. */
+  readonly undeclaredFails?: boolean;
+}
+
+/** A reached file with no declaration; a file nothing reaches is unallocated instead. */
+const undeclaredOf = (files: readonly SurveyedFile[]): Undeclared[] =>
+  files.flatMap(({ path: file, declared, capability }) => declared !== undefined || !capability ? [] : [{ file, suggested: Number(capability.slice(capability.lastIndexOf("#") + 1)) }]);
+
 /** Each source file of the `stories` packages (packages/<id>) at `root` that no numbered test reaches; by default, of every package under packages/. */
 export async function unallocatedCode(root: string, stories: readonly string[] = storiesOf(root)): Promise<Unallocated[]> {
   return unallocatedOf(await surveyed(root, stories));
@@ -61,13 +79,20 @@ export async function misdeclaredCode(root: string, stories: readonly string[] =
   return misdeclaredOf(await surveyed(root, stories));
 }
 
-/** One sentence per unallocated or misdeclared source file, each with its ways out; empty when every file is allocated as it says. */
-export async function allocationProblems(root: string, stories: readonly string[] = storiesOf(root)): Promise<string[]> {
+/** Each reached source file of the `stories` packages at `root` whose opening comment declares no capability, with the survey's suggestion. */
+export async function undeclaredCode(root: string, stories: readonly string[] = storiesOf(root)): Promise<Undeclared[]> {
+  return undeclaredOf(await surveyed(root, stories));
+}
+
+/** One sentence per unallocated, misdeclared or (asked to) undeclared source file, each with its ways out; empty when every file is allocated as it says. */
+export async function allocationProblems(root: string, stories: readonly string[] = storiesOf(root), options: AllocationOptions = {}): Promise<string[]> {
   const files = await surveyed(root, stories);
   return [
     ...unallocatedOf(files).map(({ file, lines }) =>
       `${file} (${lines} lines) belongs to no capability: no numbered test reaches it (ADR-0838 D5). Three ways out: number a test that reaches it ("N.M · …" for capability N), plan a contract for its behaviour and write that test, or delete it if nothing needs it.`),
     ...misdeclaredOf(files).map(({ file, declared, reachedBy }) =>
       `${file} declares capability ${declared} in its opening comment, but no numbered test of capability ${declared} reaches it (ADR-0925 D2). The capabilities whose tests reach it: ${reachedBy.join(", ")}. Declare one of those, or number a test of capability ${declared} that reaches it.`),
+    ...(options.undeclaredFails ? undeclaredOf(files) : []).map(({ file, suggested }) =>
+      `${file} declares no capability (ADR-0925 D2). Begin its opening comment with "Capability ${suggested} · <title>", the capability the survey infers for it, or another whose numbered tests reach it.`),
   ];
 }

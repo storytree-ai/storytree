@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -10,6 +10,7 @@ import { promisify } from "node:util";
 import { openActivityLog, setUpProject } from "@storytree/agent-link";
 import { connect } from "@storytree/library";
 import type { TourSnapshot } from "./forest-data.js";
+import { placeTestServer } from "./testing/pg.js";
 
 test("3.1, 3.2, 3.3 · refresh command saves the selected public recording, only from an approved checkout, and keeps it when the next refresh is refused", async t => {
   const url = process.env.STORYTREE_TEST_PG_URL;
@@ -21,7 +22,7 @@ test("3.1, 3.2, 3.3 · refresh command saves the selected public recording, only
   const src = path.join(directory, "packages", "example", "src");
   await mkdir(home);
   await mkdir(src, { recursive: true });
-  await copyFile(`${data}.owner.json`, path.join(home, "pgdata.owner.json"));
+  placeTestServer(path.join(home, "pgdata"));
   const project = `t-${randomBytes(4).toString("hex")}`;
   await writeFile(path.join(directory, ".storytree.json"), JSON.stringify({ project }));
   await writeFile(path.join(src, "answer.ts"), "export const answer = 42;\n");

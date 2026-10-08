@@ -1,5 +1,5 @@
 /**
- * The refusal to connect (capability 8 · Cloud connection, contract 8.2 in the library story). A
+ * Capability 8 · Cloud connection (GCP): the refusal to connect (contract 8.2 in the library story). A
  * server storytree cannot reach or use as it is set up is refused with a message saying what to
  * fix: never a hang, and never a driver's raw error. It is one class, so a caller catches every
  * such refusal the same way, and its `problem` says which one it is.

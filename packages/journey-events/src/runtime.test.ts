@@ -94,7 +94,10 @@ test("2.3 CLI shutdown awaits a bounded flush: a network that never answers cann
   const configuration = { projectKey: "phc_test", retention: "30 days", deletionContact: "privacy@example.test" };
   const transport = createPostHogTransport({ projectKey: "phc_test", permitted: () => true, fetch: () => new Promise<Response>(() => {}) });
   const runtime = createJourneyRuntime({ home, appVersion: "0.3.42", configuration, transport });
-  const reopened = createJourneyRuntime({ home, appVersion: "0.3.42", configuration });
+  // The next invocation, still offline. Its finish flushes too: left to the real transport, the test
+  // posted to PostHog, and on Windows ARM process.exit with that connection closing aborts in libuv.
+  const offline = { send: async () => { throw new Error("offline"); }, close: async () => {} };
+  const reopened = createJourneyRuntime({ home, appVersion: "0.3.42", configuration, transport: offline });
   try {
     await runtime.chooseJourney(true);
     runtime.projectCreated();

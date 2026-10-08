@@ -35,7 +35,7 @@ import { appendFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { format } from "node:util";
 import path from "node:path";
 
-import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeTheme, powerMonitor, shell, Tray } from "electron";
+import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeTheme, powerMonitor, safeStorage, shell, Tray } from "electron";
 
 import {
   agentActiveAt,
@@ -73,6 +73,19 @@ import { JOURNEY_CHANNELS } from "@storytree/journey-events/bridge";
 import { sourceVersion } from "@storytree/app/version";
 import { connect, type AnnotatedTree, type Storytree } from "@storytree/library";
 import { DataDirInUseError, findBinaries, start, type LocalPostgres } from "@storytree/local-postgres";
+import {
+  AUTH_CALLBACK,
+  AUTH_SCHEME,
+  callbackSession,
+  callbackUrls,
+  createFeedbackIdentity,
+  feedbackIdentityConfig,
+  type CallbackSession,
+  type FeedbackIdentityConfig,
+} from "@storytree/identity/desktop";
+import { createDefaultStorage } from "@workos/authkit-electron";
+import { createCeremony, createPublicWorkOS, createSessionManager, registerProtocol, toAuthKitConfig } from "@workos/authkit-electron/internals";
+import { AuthKitCore, AuthOperations, sessionEncryption } from "@workos/authkit-session";
 
 import { CHANNELS } from "../bridge.js";
 import { APP_OWNER, appHome } from "../home.js";
@@ -82,6 +95,10 @@ import { startRefusal } from "./one-app.js";
 import { followReleases, installedApp } from "./releases.js";
 import { keepDrawingThroughGpuResets } from "./gpu-resets.js";
 import { checkedUpdate, finishStartCheck, runWhenReady, startsCleanly } from "./start-check.js";
+
+// A build that offers sign-in for feedback stamps in its public WorkOS client ID and identity endpoint (build.mjs); others stamp neither.
+declare const STORYTREE_WORKOS_CLIENT_ID: string | undefined;
+declare const STORYTREE_IDENTITY_URL: string | undefined;
 
 const args = parseArgs(process.argv);
 const home = appHome();
@@ -94,6 +111,12 @@ const SMOKE_TIMEOUT_MS = 180_000;
 app.setPath("userData", home.electron);
 // The machine's GPU resets must not leave the globe white until a restart.
 keepDrawingThroughGpuResets(app);
+
+/** Sign-in for feedback (app setup contract 5.6): offered only when this build carries both public settings. */
+const identityConfig = feedbackIdentityConfig(STORYTREE_WORKOS_CLIENT_ID, STORYTREE_IDENTITY_URL);
+let signInSession: CallbackSession | undefined;
+/** Sign-in callbacks that arrived before the session was made (macOS delivers a cold start's before ready). */
+const earlyCallbacks: string[] = [];
 
 let postgres: LocalPostgres | undefined;
 let storytree: Storytree | undefined;
@@ -140,7 +163,14 @@ if (refusal !== undefined) {
   // A second start shows the window; one that arrives while the app is quitting or restarting opens
   // it again once it has stopped, instead of being lost.
   app.on("second-instance", (_event, argv) => {
+    // On Windows and Linux a sign-in's callback deep link arrives as a second start's argument.
+    for (const url of callbackUrls(argv)) deliverCallback(url);
     if (lifecycle.secondStart({ quit: parseArgs(argv).quit }) === "show") showWindow();
+  });
+  // On macOS it arrives as open-url, before the app is ready when it started the app.
+  app.on("open-url", (event, url) => {
+    event.preventDefault();
+    deliverCallback(url);
   });
   app.on("activate", () => showWindow());
   // Closing the last window leaves the app, and its database, running in the background.
@@ -197,6 +227,18 @@ async function run(): Promise<void> {
   ipcMain.handle(CHANNELS.deleteProject, (_event, name: unknown, typed: unknown, snapshot: unknown) => help.deleteProject(name, typed, snapshot));
   ipcMain.handle(CHANNELS.openFeedbackDraft, (_event, draft: unknown) => help.openFeedbackDraft(draft));
   ipcMain.handle(CHANNELS.copyHelpText, (_event, text: string) => help.copyHelpText(text));
+  // Sign-in for feedback, when this build offers it: the page asks for it before it loads, and gets only an id and an email.
+  const feedbackIdentity = identityConfig === undefined ? undefined : startFeedbackIdentity(identityConfig);
+  ipcMain.on(CHANNELS.feedbackIdentityOffered, (event) => { event.returnValue = feedbackIdentity !== undefined; });
+  if (feedbackIdentity !== undefined) {
+    ipcMain.handle(CHANNELS.feedbackIdentityStatus, () => feedbackIdentity.status());
+    ipcMain.handle(CHANNELS.feedbackIdentitySignIn, () => feedbackIdentity.signIn());
+    ipcMain.handle(CHANNELS.feedbackIdentitySignOut, () => feedbackIdentity.signOut());
+    if (!args.smoke && !args.startCheck) {
+      registerProtocol(AUTH_SCHEME);
+      for (const url of [...earlyCallbacks.splice(0), ...callbackUrls(process.argv)]) deliverCallback(url);
+    }
+  }
 
   ipcMain.handle(CHANNELS.arcViews, (_event, name: unknown) => open().arcViews(name));
   ipcMain.handle(CHANNELS.holds, (_event, name: unknown) => open().holds(name));
@@ -334,6 +376,38 @@ function showTray(): void {
   const actions = { show: showWindow, quit: () => app.quit() };
   tray.setContextMenu(Menu.buildFromTemplate(TRAY_MENU.map((item) => ({ label: item.label, click: actions[item.id] }))));
   tray.on("click", showWindow);
+}
+
+/**
+ * Sign-in for feedback through WorkOS's official Electron SDK (app setup contract 5.6, identity 2.5): its session manager, protected storage
+ * and system-browser PKCE ceremony, composed here without the SDK's own page bridge, so no token reaches the page. The
+ * storytree-auth callback is completed by this app's own deep-link handling, under its own single-instance lock.
+ */
+function startFeedbackIdentity(config: FeedbackIdentityConfig): ReturnType<typeof createFeedbackIdentity> {
+  const authKit = { clientId: config.clientId, redirectUri: AUTH_CALLBACK };
+  const storage = createDefaultStorage({ name: "feedback-sign-in" });
+  const authKitConfig = toAuthKitConfig(authKit, () => storage.getOrCreateCookiePassword());
+  const client = createPublicWorkOS(config.clientId);
+  const core = new AuthKitCore(authKitConfig, client, sessionEncryption);
+  const operations = new AuthOperations(core, client, authKitConfig, sessionEncryption);
+  const manager = createSessionManager({ core, operations, storage, client, clientId: config.clientId, ceremony: createCeremony(authKit) });
+  signInSession = callbackSession(
+    {
+      beginSignIn: () => manager.beginSignIn(),
+      completeCallback: (code, state) => manager.completeCallback(code, state),
+      getAccessToken: () => manager.getAccessToken(),
+      signOut: () => manager.signOut(),
+    },
+    () => safeStorage.isEncryptionAvailable(),
+  );
+  return createFeedbackIdentity({ identityUrl: config.identityUrl, session: signInSession });
+}
+
+/** Hand a sign-in callback to the session, or keep it until the session is made; with no sign-in offered, drop it. */
+function deliverCallback(url: string): void {
+  if (identityConfig === undefined) return;
+  if (signInSession === undefined) earlyCallbacks.push(url);
+  else void signInSession.callback(url).catch((error: unknown) => console.error(`sign-in callback: ${error instanceof Error ? error.message : String(error)}`));
 }
 
 /** Bring the window forward, opening it again on the same project if it was closed. */

@@ -95,13 +95,35 @@ export const CHANNELS = {
   relatedNotes: "storytree:related-notes",
   standingDelegations: "storytree:standing-delegations",
   codeSurvey: "storytree:code-survey",
+  feedbackIdentityOffered: "storytree:feedback-identity-offered",
+  feedbackIdentityStatus: "storytree:feedback-identity-status",
+  feedbackIdentitySignIn: "storytree:feedback-identity-sign-in",
+  feedbackIdentitySignOut: "storytree:feedback-identity-sign-out",
 } as const;
 
-/** Build the page bridge over the preload's IPC invocation. */
+/** What the main process told the preload about the bridge: whether this build offers sign-in for feedback (app setup contract 5.6). */
+export interface BridgeOptions {
+  feedbackIdentity?: boolean;
+}
+
+/**
+ * Build the page bridge over the preload's IPC invocation. Sign-in for feedback is there only when the build offers it;
+ * its answers are the main process's (an id and an email, never a token).
+ */
 export function createBridge(
   invoke: (channel: string, ...args: unknown[]) => Promise<unknown>,
+  options: BridgeOptions = {},
 ): StorytreeBridge & SettingsBridge & SurfacesBridge {
+  type Identity = NonNullable<StorytreeBridge["feedbackIdentity"]>;
+  const feedbackIdentity: Identity | undefined = options.feedbackIdentity === true
+    ? {
+        status: () => invoke(CHANNELS.feedbackIdentityStatus) as ReturnType<Identity["status"]>,
+        signIn: () => invoke(CHANNELS.feedbackIdentitySignIn) as ReturnType<Identity["signIn"]>,
+        signOut: () => invoke(CHANNELS.feedbackIdentitySignOut) as ReturnType<Identity["signOut"]>,
+      }
+    : undefined;
   return {
+    ...(feedbackIdentity === undefined ? {} : { feedbackIdentity }),
     readJourney: () => invoke(JOURNEY_CHANNELS.readJourney) as ReturnType<JourneyBridge["readJourney"]>,
     chooseJourney: (on) => invoke(JOURNEY_CHANNELS.chooseJourney, on) as ReturnType<JourneyBridge["chooseJourney"]>,
     prepareJourneyDeletion: () => invoke(JOURNEY_CHANNELS.prepareJourneyDeletion) as ReturnType<JourneyBridge["prepareJourneyDeletion"]>,

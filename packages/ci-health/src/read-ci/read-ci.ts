@@ -8,6 +8,8 @@
  *   sign-in, so the user sets nothing up.
  * - The run's commit (`head_sha`) is the commit every verdict is for: the tests' titles are read from
  *   the files at that commit, in the project's own clone, and the commit is written in each note.
+ * - A cancelled run is passed over: on a busy branch a newer push cancels the run before it, often before its slowest
+ *   job (Windows) has run its tests, so the newest finished run that ran to its end is read.
  * - A skipped job is passed over; a cancelled job's log is read if available, passed over only on 404.
  * - Each job's results are its platform's, read from its runner labels or its name, so a test one platform skips
  *   for another is credited from the jobs of the platform it needs.
@@ -26,6 +28,9 @@ export type GitHub = { json(route: string): Promise<any>; text(route: string): P
 
 /** git, run in the project's folder: its output. */
 export type Git = (args: string[]) => Promise<string>;
+
+/** How many of the newest finished push runs are looked through for one that was not cancelled. */
+const RUNS_LOOKED_AT = 20;
 
 /** Who writes a verdict read from a user's CI. */
 export const VERIFIED_BY_PROJECT_CI = "the project's CI";
@@ -89,9 +94,12 @@ export async function readProjectCi({ library, git, github }: { library: Library
   if (repository === undefined) return { written: false, why: "This project has no GitHub origin, so storytree has no CI results to read; its health stays not checked." };
 
   const branch: string = (await github.json(`repos/${repository}`)).default_branch;
-  const query = new URLSearchParams({ branch, event: "push", status: "completed", per_page: "1" });
-  const [run] = (await github.json(`repos/${repository}/actions/runs?${query}`)).workflow_runs ?? [];
-  if (run === undefined) return { written: false, why: `${repository} has no finished push run on ${branch}, so there are no CI results to read; its health stays not checked.` };
+  const query = new URLSearchParams({ branch, event: "push", status: "completed", per_page: String(RUNS_LOOKED_AT) });
+  const finished: { id: number; conclusion?: string; head_sha: string; html_url: string }[] = (await github.json(`repos/${repository}/actions/runs?${query}`)).workflow_runs ?? [];
+  if (finished.length === 0) return { written: false, why: `${repository} has no finished push run on ${branch}, so there are no CI results to read; its health stays not checked.` };
+  // A newer push cancels the run before it, often before its slowest job ran its tests: read the newest that ran to its end.
+  const run = finished.find(({ conclusion }) => conclusion !== "cancelled");
+  if (run === undefined) return { written: false, why: `${repository}'s last ${finished.length} finished push runs on ${branch} were all cancelled before they ran to their end, so there are no whole CI results to read; its health stands as it was.` };
 
   const commit: string = run.head_sha;
   // A job the run skipped ran nothing and has no log: GitHub answers its log with 404.

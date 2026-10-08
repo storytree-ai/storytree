@@ -218,3 +218,22 @@ test("3.7 each job's results are read as its platform's: a test skipped on Windo
   assert.equal(second!.verified.state, "not-checked");
   assert.equal(second!.verified.skip, "owner", "the skip's kind is recorded, so the worklist says who moves it");
 });
+
+test("3.8 a cancelled push run, superseded before its slowest job finished, is passed over: the newest finished push run that ran to its end is read, and a branch whose every finished run was cancelled writes nothing and says why", async (t) => {
+  const { library, contracts } = await shopLibrary(t);
+  const { folder, commit } = projectFolder(t);
+  const runs = (conclusions: string[]) => (query: URLSearchParams) =>
+    pushRunsOnTrunk(commit)(query).length === 0 ? [] : conclusions.map((conclusion, at) => ({ id: at === conclusions.length - 1 ? 7 : 90 + at, conclusion, head_sha: commit, html_url: `https://github.com/acme/shop/actions/runs/${at === conclusions.length - 1 ? 7 : 90 + at}` }));
+  const asked = github(runs(["cancelled", "cancelled", "success"]), tap("ok"));
+  const read = await readProjectCi({ library, git: gitIn(folder), github: asked });
+  assert.equal(read.written, true, read.written ? "" : read.why);
+  assert.equal(read.written && read.run, "https://github.com/acme/shop/actions/runs/7", "the run that ran to its end is read");
+  assert.equal(asked.asked.some((route) => /runs\/9\d\/jobs/.test(route)), false, "no cancelled run's jobs are asked for");
+  for (const id of contracts) assert.equal((await library.health(id)).verified.state, "passing");
+
+  const { library: other, contracts: untouched } = await shopLibrary(t);
+  const none = await readProjectCi({ library: other, git: gitIn(folder), github: github(runs(["cancelled", "cancelled"]), tap("ok")) });
+  assert.equal(none.written, false);
+  assert.match(none.written ? "" : none.why, /cancelled/);
+  for (const id of untouched) assert.equal((await other.health(id)).verified.state, "not-checked");
+});

@@ -331,6 +331,14 @@ export class WorkInFlight {
   }
 
   /**
+   * Retire question `id`, taking it off every increment held on it in the same step (12.9): the
+   * increments released, or null, with nothing written, if it is not a live question.
+   */
+  retireQuestion(id: string, reason: string, options?: WriteOptions): Promise<string[] | null> {
+    return this.#serially(() => questions.retireQuestion(this.#records, id, reason, options));
+  }
+
+  /**
    * Retire a record, as capability 2's retire does, except a question an increment is held on or
    * a capability with live dependents, refused (RetireRefusedError) with nothing written.
    */

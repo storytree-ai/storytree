@@ -1,7 +1,8 @@
 /**
  * Capability 12 · Owner questions (the library story): a question is raised on an arc and settled
  * with the owner's answer, which stays on it. An open increment held on an open question is waiting
- * on him, and heldOnQuestion is the one answer to that. A question work is held on cannot be retired.
+ * on him, and heldOnQuestion is the one answer to that. A question work is held on cannot be retired,
+ * except by retireQuestion, which releases its holders in the same step.
  * An open question carries a review lease (12-a, restored by ADR-0654): the day it was last checked to
  * still hold and how many days that is trusted for, 7 unless given. checkQuestion reads it fresh or
  * lapsed, renewQuestion re-stamps it, refusing a settled question, and lapsedQuestions is the
@@ -197,6 +198,22 @@ export async function heldOnQuestion(records: SchemaRecords, incrementId: string
 export async function refuseRetiringHeld(records: SchemaRecords, id: string): Promise<void> {
   const heldBy = (await records.list("increment")).filter((increment) => increment.fields.heldOn?.includes(id) === true);
   if (heldBy.length > 0) throw new RetireRefusedError(id, heldBy.sort(byCreation).map((increment) => increment.id));
+}
+
+/**
+ * Retire question `id` with `reason`, first taking it off the heldOn of every increment that names
+ * it, open or closed, so an owner-retired question goes in one step (12.9). Returns the increments
+ * released, oldest first; null, with nothing written, if `id` is not a live question.
+ */
+export async function retireQuestion(records: SchemaRecords, id: string, reason: string, options?: WriteOptions): Promise<string[] | null> {
+  if ((await liveRecord(records, id, ["question"])) === null) return null;
+  const heldBy = (await records.list("increment")).filter((increment) => increment.fields.heldOn?.includes(id) === true).sort(byCreation);
+  for (const increment of heldBy) {
+    const rest = (increment.fields.heldOn ?? []).filter((held) => held !== id);
+    await records.edit(increment.id, { heldOn: rest.length === 0 ? undefined : rest }, options);
+  }
+  await records.retire(id, reason, options);
+  return heldBy.map((increment) => increment.id);
 }
 
 /** The open questions among those `increment` names, in its order, each once. */

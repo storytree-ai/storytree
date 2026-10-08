@@ -19,6 +19,38 @@ import "./survey-worker.js";
 
 const tree = { arcs: [], stories: [{ id: "story-shop", title: "Shop", capabilities: [{ id: "cap-claims", title: "3 · Claims" }] }] } as unknown as AnnotatedTree;
 
+test("8.1, 8.5 Constructor stories survey alongside ordinary stories and package aliases", async () => {
+  const folder = await mkdtemp(path.join(tmpdir(), "code-survey-titles-"));
+  const fixtures = [["Shop", "shop"], ["The command line", "cli"], ["The world", "forest-world"], ["Constructor", "constructor"]] as const;
+  const stories = fixtures.map(([title, name]) => ({ id: `story-${name}`, title, capabilities: [{ id: `cap-${name}`, title: "1 · Value" }] }));
+  const ordinary = { arcs: [], stories: stories.slice(0, -1) } as unknown as AnnotatedTree;
+  const reader = codeSurveyReader();
+  try {
+    for (const [, name] of fixtures) {
+      const src = path.join(folder, "packages", name, "src");
+      await mkdir(src, { recursive: true });
+      await writeFile(path.join(src, "value.ts"), "export const value = 1;\n");
+      await writeFile(path.join(src, "value.test.ts"), 'import { value } from "./value.js";\ntest("1.1 a value", () => value);\n');
+    }
+    const before = await reader.read(folder, ordinary);
+    for (const title of ["Constructor", "The Constructor"]) {
+      const plan = { arcs: [], stories: stories.map(story => story.id === "story-constructor" ? { ...story, title } : story) } as unknown as AnnotatedTree;
+      const survey = await reader.read(folder, plan);
+      assert.deepEqual(Object.keys(survey).sort(), stories.map(story => story.id).sort());
+      for (const [, name] of fixtures) {
+        assert.deepEqual(survey[`story-${name}`]?.files, [{ path: "src/value.ts", lines: 1, capability: `cap-${name}` }]);
+      }
+    }
+    await writeFile(path.join(folder, "packages/shop/src/value.ts"), "export const value = 1;\nexport const another = 2;\n");
+    const after = await reader.read(folder, ordinary);
+    assert.equal(after["story-shop"]?.files[0]?.lines, 2);
+    assert.equal(after["story-constructor"], undefined);
+    assert.equal(after["story-cli"], before["story-cli"]);
+  } finally {
+    await rm(folder, { recursive: true, force: true });
+  }
+});
+
 test("8.10 disk, fetched-main and focus surveys skip oversized titles and retain unrelated proof", async () => {
   const folder = await mkdtemp(path.join(tmpdir(), "code-survey-bounds-"));
   const plan = { ...tree, stories: [{ ...tree.stories[0], capabilities: [{ ...tree.stories[0]!.capabilities[0], dependsOn: [],

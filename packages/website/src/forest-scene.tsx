@@ -170,7 +170,10 @@ function Tags({ tags, controls, arrived }: { tags: readonly Tag[]; controls: Glo
 
 /** Where the globe's middle sits: in the room the card (left) and any side panel (right) leave it. */
 function offsetFor(step: TourStep | undefined, width: number) {
-  if (!step || width <= 600) return step?.phone?.side ?? 0;
+  if (!step || width <= 600) {
+    const { side = 0, narrow = side } = step?.phone ?? {};
+    return Math.round(side + (narrow - side) * Math.min(1, Math.max(0, (390 - width) / 70)));
+  }
   const opening = step.kind === "beats" || step.kind === "statement" || step.kind === "fixes";
   // A chapter's lines start where the arrival's do (ADR-0890, amended 2026-10-05).
   const cardRight = Math.min(64, width * .04) + (opening ? Math.min(560, width * .46) : Math.min(400, width * .36));

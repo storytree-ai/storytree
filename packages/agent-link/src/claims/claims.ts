@@ -101,6 +101,8 @@ export interface Waiting extends Hold {
 
 export type ReleaseAnswer = { ok: true } | { ok: false; refused: "not-held"; holder?: Claim };
 
+export type ReleaseForAnswer = { ok: true } | { ok: false; refused: "not-held" | "live"; holder?: Claim };
+
 export type LandAnswer =
   | { ok: true; line: Line }
   | { ok: false; refused: "held"; holder: Claim }
@@ -223,6 +225,22 @@ export async function release(context: ClaimContext, id: string): Promise<Releas
     if (current?.session !== context.session) return current === undefined ? { ok: false, refused: "not-held" } : { ok: false, refused: "not-held", holder: current };
     await log.append({ ...who(context), kind: "released", ...partOf(current) });
     cancelClaimNotice(context.home ?? storytreeHome(), context.session, id);
+    return { ok: true };
+  });
+}
+
+/**
+ * The session manager's release (ADR-0944 D7): end `holder`'s claim on `id` for it, after messaging a quiet
+ * holder, writing a "released" line that names the holder and `reason`. Only the session manager does this;
+ * every other session still never releases another's claims (ADR-0931 D2). Refused, writing nothing, when
+ * `holder` does not hold `id`, or holds it and still reads live.
+ */
+export async function releaseFor(context: ClaimContext, id: string, holder: string, reason: string): Promise<ReleaseForAnswer> {
+  return context.log.locked(context.project, async (log) => {
+    const current = (await heldNow(log, context)).get(id);
+    if (current?.session !== holder) return current === undefined ? { ok: false, refused: "not-held" } : { ok: false, refused: "not-held", holder: current };
+    if (current.holder === "live") return { ok: false, refused: "live", holder: current };
+    await log.append({ ...who(context), kind: "released", ...partOf(current), holder, reason });
     return { ok: true };
   });
 }

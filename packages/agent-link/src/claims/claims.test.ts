@@ -22,7 +22,7 @@ import { countingStore } from "../testing/egress.js";
 import { withTempDir } from "../testing/folders.js";
 import { dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { readSessions } from "../sessions/index.js";
-import { claim, claimRefusal, land, readAttribution, release, type ClaimContext, type MergedPull, type MergeWatch } from "./index.js";
+import { claim, claimRefusal, land, readAttribution, release, releaseFor, type ClaimContext, type MergedPull, type MergeWatch } from "./index.js";
 import { boardClaims, due, mergedPullsThrough } from "./merges.js";
 
 interface World {
@@ -175,6 +175,28 @@ test('5.3 when A reports it landed, the claim ends and a "landed" line is writte
     assert.equal((await claim(as("A"), emailForm, "and another")).ok, true);
     await log.append(project, { session: "A", harness: "claude-code", source: "hook", kind: "session-ended", reason: "other" });
     assert.deepEqual(await readClaims(log, project), [], "A's session ending ended it");
+  });
+});
+
+test("5.26 the session manager ends a quiet session's claim with a release naming the holder and why, in every reading; a live holder's claim, or one the named session does not hold, is refused and nothing is written", async () => {
+  await withWorld(async ({ log, project, emailForm, as }) => {
+    const quietMs = 1_000;
+    assert.equal((await claim(as("A"), emailForm, "building the email form")).ok, true);
+
+    const live = await releaseFor(as("B", { quietMs }), emailForm, "A", "quiet four hours, messaged");
+    assert.ok(!live.ok && live.refused === "live" && live.holder?.session === "A", JSON.stringify(live));
+    const notHeld = await releaseFor(as("B", { quietMs }), emailForm, "C", "no such holder");
+    assert.ok(!notHeld.ok && notHeld.refused === "not-held", JSON.stringify(notHeld));
+    assert.deepEqual((await log.since(project, 0)).lines.filter((line) => line.kind === "released"), [], "a refusal writes nothing");
+
+    await sleep(quietMs + 300); // A says nothing for longer than the quiet time
+    assert.deepEqual(await releaseFor(as("B", { quietMs }), emailForm, "A", "quiet 24 hours after the manager's message"), { ok: true });
+    const [line] = (await log.since(project, 0)).lines.filter((one) => one.kind === "released");
+    assert.ok(line?.kind === "released");
+    assert.deepEqual({ session: line.session, holder: line.holder, reason: line.reason, capability: line.capability },
+      { session: "B", holder: "A", reason: "quiet 24 hours after the manager's message", capability: emailForm });
+    assert.deepEqual(await readClaims(log, project, { quietMs }), [], "the bounded reading no longer shows A's claim");
+    assert.deepEqual(claimsFrom((await log.since(project, 0)).lines, { quietMs }), [], "nor does the fold of the whole log");
   });
 });
 

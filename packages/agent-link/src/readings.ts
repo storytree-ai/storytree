@@ -334,6 +334,8 @@ export function attributeFrom(lines: readonly Line[]): Attributed[] {
         holding.set(line.session, [...(holding.get(line.session) ?? []), partOf(line)]);
         break;
       case "released":
+        drop(line.holder ?? line.session, idOf(line));
+        break;
       case "landed":
         drop(line.session, idOf(line));
         break;
@@ -778,6 +780,8 @@ function holding(holders: Map<string, Omit<Claim, "holder">>, line: Line): void 
       holders.set(idOf(line), claimOf(line.session, line.harness, partOf(line), line.reason, line.at, line.branch));
       break;
     case "released":
+      if (holders.get(idOf(line))?.session === (line.holder ?? line.session)) holders.delete(idOf(line));
+      break;
     case "landed":
       if (holders.get(idOf(line))?.session === line.session) holders.delete(idOf(line));
       break;

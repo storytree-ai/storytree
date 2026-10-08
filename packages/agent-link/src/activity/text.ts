@@ -16,8 +16,9 @@ function about(line: Line, full: boolean): string {
     case "note-read":
       return ` ${line.note} (${line.read}, found by ${line.found})`;
     case "claimed":
-    case "released":
       return ` ${line.increment ?? line.capability}`;
+    case "released":
+      return ` ${line.increment ?? line.capability}${line.holder === undefined ? "" : ` for ${line.holder}${line.reason === undefined ? "" : `: ${line.reason}`}`}`;
     case "landed":
       return ` ${line.capability}`;
     case "closed":

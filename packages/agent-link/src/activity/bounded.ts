@@ -112,7 +112,8 @@ WITH latest AS (
 ), standing AS (
   SELECT l.id, l.session FROM latest l WHERE NOT EXISTS (
     SELECT 1 FROM endings e WHERE e.seq > l.seq AND (
-      (e.kind IN ('released', 'landed') AND e.session = l.session AND e.id = l.id)
+      (e.kind = 'released' AND coalesce(e.holder, e.session) = l.session AND e.id = l.id)
+      OR (e.kind = 'landed' AND e.session = l.session AND e.id = l.id)
       OR (e.kind = 'merged' AND e.holder = l.session AND e.id = l.id)
       OR (e.kind = 'closed' AND e.id = l.id)
       OR (e.kind = 'session-ended' AND e.session = l.session)))

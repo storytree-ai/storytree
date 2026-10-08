@@ -117,7 +117,9 @@ try {
   const databasePid = Number(databaseRecord[0]);
   const { Client } = createRequire(path.join(root, "package.json"))("pg");
   const queryDatabase = async () => {
-    const client = new Client({ connectionString: `postgres://postgres@127.0.0.1:${databaseRecord[3]}/postgres` });
+    // The app's database asks for its password, handed over privately while it runs (ADR-0941).
+    const handoff = JSON.parse(await readFile(path.join(home, "pgdata.auth/connection.json"), "utf8"));
+    const client = new Client({ host: "127.0.0.1", port: Number(databaseRecord[3]), user: handoff.user, password: handoff.password, database: "postgres" });
     await client.connect();
     try { assert.equal((await client.query("select 1 as alive")).rows[0].alive, 1); }
     finally { await client.end(); }

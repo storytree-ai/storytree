@@ -44,14 +44,16 @@ test("1.9 with the library set to Cloud SQL, the app starts no local Postgres an
 
   // Local, the app starts its own Postgres and connects to it, as before.
   setLibrary(["local"], home);
+  // Its url carries the installation's password: connect() is given it, the log's where never is.
   const local = await openAppLibrary({
     home,
-    startLocal: async () => { started += 1; return { url: "postgres://postgres@127.0.0.1:1/postgres", stop: async () => {} }; },
+    startLocal: async () => { started += 1; return { url: "postgres://postgres:s3cret-pass@127.0.0.1:1/postgres", stop: async () => {} }; },
     connect: async (options) => { asked.push(options); return connected; },
   });
   assert.equal(started, 1);
-  assert.deepEqual(asked.at(-1), { url: "postgres://postgres@127.0.0.1:1/postgres" } satisfies ConnectOptions);
+  assert.deepEqual(asked.at(-1), { url: "postgres://postgres:s3cret-pass@127.0.0.1:1/postgres" } satisfies ConnectOptions);
   assert.ok(local.postgres !== undefined);
+  assert.equal(local.where, "postgres://postgres@127.0.0.1:1/postgres");
 }));
 
 test("1.10 an unreachable Cloud SQL library is said in the refusal's own words, and the local library is never opened instead", withHome(async (home) => {

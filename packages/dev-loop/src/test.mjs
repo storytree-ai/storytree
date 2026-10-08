@@ -19,6 +19,9 @@
 //   pnpm run test --rerun-failed     run what the last run in this checkout failed or never reached
 //   pnpm run test <files>            run just those files, as one unit under UNIT_LIMIT_MS (or
 //                                    STORYTREE_UNIT_LIMIT_MS); killed there, it says so
+//   pnpm run test --help             print the usage (TEST_USAGE) and run nothing
+//
+// An unknown flag is refused, naming the known ones, before the heavy-run lock or a Postgres is taken.
 //
 // Give flags as `pnpm run test --flag`: `pnpm run` passes what follows the script name to it in
 // every shell. Windows PowerShell 5.1 drops a bare `--` before pnpm sees it, so the older
@@ -37,9 +40,9 @@
 // is refused while another live run holds .pgtest/data, and a server that an interrupted run left
 // running is stopped before this one starts.
 //
-// Other arguments go to `node --test`, in every unit: `pnpm run test <file>` runs just that file,
-// with no scope and no record. Give options in --name=value form, so that a value is never mistaken
-// for a file.
+// Files and node's own --test-* options go to `node --test`, in every unit: `pnpm run test <file>`
+// runs just that file, with no scope and no record. Give options in --name=value form, so that a
+// value is never mistaken for a file.
 //
 // On Windows, a Node.js whose libuv can end the process on a TCP connect is refused before anything
 // starts, with the release to install instead (node-runtime.mjs): under it, a test file now
@@ -82,7 +85,7 @@ import { DataDirInUseError, start } from "@storytree/local-postgres";
 import { acquireHeavyLock } from "./heavy-lock.mjs";
 import { runtimeRefusal } from "./node-runtime.mjs";
 import { keepPreviousServerLog } from "./server-log.mjs";
-import { planRun, readWorkspace, resultsTable, scopeFor, scopeLine, unitGlobs } from "./test-scope.mjs";
+import { parseTestArgs, planRun, readWorkspace, resultsTable, scopeFor, scopeLine, TEST_USAGE, unitGlobs } from "./test-scope.mjs";
 import { clearUnitLimit, DEADLINE_GRACE_MS, killTree, recordTimings, runDeadline, runUnit, setUnitLimit, UNIT_LIMIT_MS, unitLimit, unitReason, withinDeadline } from "./unit-run.mjs";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
@@ -92,18 +95,12 @@ const serverLog = path.join(work, "pg.log");
 const toolLog = path.join(work, "tools.log");
 const recordFile = path.join(work, "last-run.json");
 
-const flags = { full: false, scope: false, rerunFailed: false, only: [], setLimit: undefined, clearLimit: undefined, reason: undefined };
-const testArgs = [];
-for (const arg of process.argv.slice(2)) {
-  if (arg === "--") continue;
-  else if (arg === "--full") flags.full = true;
-  else if (arg === "--scope") flags.scope = true;
-  else if (arg === "--rerun-failed") flags.rerunFailed = true;
-  else if (arg.startsWith("--only=")) flags.only.push(...arg.slice("--only=".length).split(",").filter(Boolean));
-  else if (arg.startsWith("--set-limit=")) flags.setLimit = arg.slice("--set-limit=".length);
-  else if (arg.startsWith("--clear-limit=")) flags.clearLimit = arg.slice("--clear-limit=".length);
-  else if (arg.startsWith("--reason=")) flags.reason = arg.slice("--reason=".length);
-  else testArgs.push(arg);
+const { flags, testArgs, help, refusal: flagRefusal } = parseTestArgs(process.argv.slice(2));
+if (help || flagRefusal !== undefined) {
+  // Before the lock or a Postgres: asking how to run the tests never runs them.
+  if (flagRefusal !== undefined) console.error(`test harness: ${flagRefusal}\n`);
+  (help ? console.log : console.error)(TEST_USAGE);
+  process.exit(help ? 0 : 2);
 }
 const namedFiles = testArgs.some((arg) => !arg.startsWith("-"));
 

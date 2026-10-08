@@ -327,6 +327,31 @@ pixel work while retaining all territory/claim geometry and both failure markers
 full picture captures remain 1440 × 960. No behavior assertion or existing timeout
 was removed or enlarged.
 
+### Unfinished frames after the budget repair
+
+[PR #857's first merge-queue run](https://github.com/storytree-ai/storytree/actions/runs/37708998503)
+isolated another slow-delivery failure on macOS. Forest finished in 124.9 seconds,
+inside its 180-second package budget, but initial roads exceeded their 30-second
+wait. Ten frames were submitted. The last completed at page time 33,731 ms;
+at 40,566 ms the visible 320 × 144 canvas remained active with a redraw pending
+and unfinished roads. Observing a frame cost 0.5–4.1 ms, while gaps between
+submitted frames reached 8.6 seconds. The capture was reading unfinished geometry,
+not missing an already completed frame. The product continued to request redraws.
+
+The capture launcher now selects Chromium's
+[WebGL-only SwiftShader mode](https://chromium.googlesource.com/chromium/src/+/HEAD/docs/gpu/swiftshader.md)
+instead of making SwiftShader the OpenGL ES driver for the entire page. This keeps
+the globe on software WebGL and uses Chromium's software compositor. It changes
+neither the scene nor its clock, and preserves all assertions and deadlines. Mint's
+single-proof comparison passed in both modes (17.4 and 17.3 seconds); native macOS
+PR and merge-queue runs supply the platform-specific verification.
+
+Successful captures now stream the WebGL renderer, initial frame count and elapsed
+time, largest initial frame gap, and largest synchronous render duration. Failure
+reports retain the renderer identity alongside their passive frame and scheduling
+state. These readings distinguish frame delivery from observation and render work
+without requesting frames or advancing the animation.
+
 Use the command wrapper from above, with `PATHWAY_CAPTURE_DIST` naming the intended
 bundle and `PATHWAY_CAPTURE_OUT` naming its output:
 

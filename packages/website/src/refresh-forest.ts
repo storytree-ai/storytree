@@ -1,7 +1,7 @@
 // Capability 3 · Saved snapshot. From the checkout root: node --import tsx packages/website/src/refresh-forest.ts --from <ISO> --to <ISO> [--output <file>]
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
-import { route, openNamedProject, openActivityLog } from "@storytree/agent-link";
+import { route, requireApproval, openNamedProject, openActivityLog } from "@storytree/agent-link";
 import { connect } from "@storytree/library";
 import { readCodeSurvey } from "@storytree/forest/code-survey";
 import { refreshTourSnapshot } from "./tour-snapshot.js";
@@ -14,6 +14,8 @@ const routed = route(process.cwd());
 if (routed.status !== "routed") throw new Error(routed.message);
 const server = await connect(routed.library);
 try {
+  // A marker alone names no project: the checkout must be approved as its project's (ADR-0942 D1).
+  await requireApproval(server, routed.project, routed.folder);
   const library = await openNamedProject(server, routed.project, routed.identity);
   const activity = await openActivityLog(server);
   try {

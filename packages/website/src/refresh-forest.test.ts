@@ -7,11 +7,11 @@ import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import { openActivityLog } from "@storytree/agent-link";
+import { openActivityLog, setUpProject } from "@storytree/agent-link";
 import { connect } from "@storytree/library";
 import type { TourSnapshot } from "./forest-data.js";
 
-test("3.1, 3.2, 3.3 · refresh command saves the selected public recording and keeps it when the next refresh is refused", async t => {
+test("3.1, 3.2, 3.3 · refresh command saves the selected public recording, only from an approved checkout, and keeps it when the next refresh is refused", async t => {
   const url = process.env.STORYTREE_TEST_PG_URL;
   const data = process.env.STORYTREE_TEST_PG_DATA;
   assert.ok(url && data, "Run through pnpm test for an isolated test Postgres");
@@ -56,6 +56,9 @@ test("3.1, 3.2, 3.3 · refresh command saves the selected public recording and k
       cwd: directory, timeout: 20_000,
       env: { ...process.env, STORYTREE_HOME: home, STORYTREE_EMBEDDER: "off", CLAUDE_CODE_SESSION_ID: "", CODEX_THREAD_ID: "" },
     });
+  // A marker alone names no project: the checkout is refused until it is approved on purpose (ADR-0942 D1).
+  await assert.rejects(run(), /not approved as/);
+  await setUpProject({ folder: directory, project, storytree: server, storytreeHome: home, join: true });
   const started = Date.now();
   const ran = await run();
   assert.match(ran.stdout, /Saved scrubbed tour records/);

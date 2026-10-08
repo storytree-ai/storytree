@@ -4,6 +4,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./board-states": "./src/work-states/board-states.ts",
     "./surfaces": "./src/surfaces/surfaces.ts",
     "./view": "./src/view/index.ts",
     "./view/styles.css": "./src/view/styles.css"

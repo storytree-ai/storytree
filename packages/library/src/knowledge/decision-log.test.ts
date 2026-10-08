@@ -203,10 +203,12 @@ for (const backend of [memory, postgres]) {
 
     await transactions.save({ id: "foreign", type: "legacy", fields: { number: 710 } });
     await transactions.retire({ id: "foreign", reason: "number remains reserved" });
+    await transactions.save({ id: "health-number", type: "health", fields: { number: 5000 } });
     const raced = await Promise.all([own.recordDecision(DECIDE), other.recordDecision(DECIDE)]);
     assert.deepEqual(raced.map((record) => record.fields.number).sort(), [711, 712]);
     await assert.rejects(own.recordDecision({ ...DECIDE, number: 710 }), NumberTakenError);
     assert.equal((await own.recordDecision({ ...DECIDE, number: 659 })).fields.number, 659, "explicit free numbers still work");
+    assert.equal((await own.recordDecision({ ...DECIDE, number: 5000 })).fields.number, 5000, "health never reserves a decision number");
   });
 
   contract("13.8", "founding books preview in creation order, preserve history, skip Full record decisions and finish once", async ({ records, transactions, knowledge }) => {
@@ -220,6 +222,7 @@ for (const backend of [memory, postgres]) {
     await own.numberDecision(imported.id, 621);
     await transactions.save({ id: "reserved", type: "legacy", fields: { number: 670 } });
     await transactions.retire({ id: "reserved", reason: "still reserved" });
+    await transactions.save({ id: "health-number", type: "health", fields: { number: 5000 } });
     const before = await transactions.history();
     await assert.rejects(own.numberFoundingDecisions(), /floor.*unset/i);
     await assert.rejects(knowledge.numberFoundingDecisions({ apply: true }), /storytree project/);
@@ -290,7 +293,16 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await transactions.history(), after, "repeat apply writes nothing");
   });
 
-  contract("13.5", "repair refuses numbers any record ever held, including a collision arriving after preview", async ({ records, transactions }) => {
+  contract("13.5", "health history cannot reserve a Full record repair in preview or under the write lock", async ({ records, transactions }) => {
+    const own = new Knowledge(records, "storytree");
+    const imported = await records.create("decision", { ...DECIDE, number: 1, text: "Full record: ADR-0621" });
+    await transactions.save({ id: "health-number", type: "health", fields: { number: 621 } });
+    assert.deepEqual(await own.decisionNumberPlan(), [{ id: imported.id, oldNumber: 1, number: 621 }]);
+    assert.equal((await own.numberDecision(imported.id, 621)).fields.number, 621);
+    await assert.rejects(own.recordDecision({ ...DECIDE, number: 1 }), NumberTakenError, "the repaired decision's old number remains reserved");
+  });
+
+  contract("13.5", "repair refuses numbers non-health records ever held, including a collision arriving after preview", async ({ records, transactions }) => {
     const own = new Knowledge(records, "storytree");
     const imported = await records.create("decision", { ...DECIDE, number: 1, text: "Full record: ADR-0621" });
     // Transaction history may contain old or foreign schemas; every record counts.

@@ -245,16 +245,21 @@ async function lockCurrent(client: PoolClient, id: string): Promise<RecordEnvelo
 async function numberedIn(client: PoolClient, input: SaveInput): Promise<SaveInput> {
   const field = input.sequence;
   if (field === undefined) return input;
+  // Keep every non-health legacy reservation. RLS constrains the event type for health-only
+  // writers, but permits arbitrary JSON fields, which cannot grant numbering authority.
   const { rows } = await client.query<{ highest: string }>(
     `SELECT COALESCE(MAX((record->'fields'->>$2::text)::numeric), 0) AS highest FROM record_event
-     WHERE ($3::boolean OR type = $1) AND jsonb_typeof(record->'fields'->$2::text) = 'number'`,
+     WHERE (CASE WHEN $3::boolean THEN type <> 'health' ELSE type = $1 END)
+       AND jsonb_typeof(record->'fields'->$2::text) = 'number'`,
     [input.type, field, input.sequenceNeverHeld === true],
   );
   const given = input.fields[field];
   let taken = false;
   if (typeof given === "number") {
     const found = await client.query(
-      `SELECT 1 FROM record_event WHERE ($5::boolean OR (type = $1 AND record_id <> $3)) AND record->'fields'->$2::text = to_jsonb($4::numeric) LIMIT 1`,
+      `SELECT 1 FROM record_event
+       WHERE (CASE WHEN $5::boolean THEN type <> 'health' ELSE type = $1 AND record_id <> $3 END)
+         AND record->'fields'->$2::text = to_jsonb($4::numeric) LIMIT 1`,
       [input.type, field, input.id, given, input.sequenceNeverHeld === true],
     );
     taken = found.rows.length > 0;

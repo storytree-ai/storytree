@@ -63,7 +63,7 @@ export interface SaveInput {
   readonly sequenceFloor?: number;
   /** Refuse an id ever written, including retired records, under the project write lock. */
   readonly onlyIfNew?: boolean;
-  /** N1 repair: the supplied sequence number must be unused in ALL record history, including this record's. */
+  /** N1 repair: reserve all non-health history, including this record's and legacy types'. */
   readonly sequenceNeverHeld?: boolean;
 }
 
@@ -72,7 +72,7 @@ export interface EditInput {
   readonly signal?: AbortSignal;
   /** Check the merged record's number against history inside the write, as save does. */
   readonly sequence?: string;
-  /** N1 repair: check all record history, including this record's, under the write lock. */
+  /** N1 repair: check all non-health history, including this record's, under the write lock. */
   readonly sequenceNeverHeld?: boolean;
   readonly id: string;
   /** Merged shallowly onto the stored fields; a key whose value is `undefined` is removed. */

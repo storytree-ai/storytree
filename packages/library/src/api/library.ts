@@ -224,6 +224,12 @@ export interface Library {
    * Null if `id` is not a live question.
    */
   settleQuestion(id: string, settlement: Settlement, options?: WriteOptions): Promise<SchemaRecord<"question"> | null>;
+  /**
+   * Retire a question that was wrong to ask, taking it off the heldOn of every increment held on it,
+   * open or closed, in the same step. The increments released, oldest first; null, with nothing
+   * written, if `id` is not a live question.
+   */
+  retireQuestion(id: string, reason: string, options?: WriteOptions): Promise<string[] | null>;
   /** The questions on arc `arcId`, open and settled, oldest first. */
   questions(arcId: string): Promise<SchemaRecord<"question">[]>;
   /** The open questions an open increment is held on: the one answer to whether it waits on the owner. */
@@ -556,6 +562,11 @@ class LibraryHandle implements Library {
 
   settleQuestion(id: string, settlement: Settlement, options?: WriteOptions): Promise<SchemaRecord<"question"> | null> {
     return this.#project.flight.settleQuestion(id, settlement, options);
+  }
+
+  async retireQuestion(id: string, reason: string, options?: WriteOptions): Promise<string[] | null> {
+    if (!couldBeId(id)) return null;
+    return this.#project.flight.retireQuestion(id, reason, options);
   }
 
   questions(arcId: string): Promise<SchemaRecord<"question">[]> {

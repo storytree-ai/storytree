@@ -1,5 +1,5 @@
 /**
- * Capability 12 · Owner questions (ADR-0640): one test per contract 12.1-12.4 in the library story,
+ * Capability 12 · Owner questions (ADR-0640): one test per contract 12.1-12.9 in the library story,
  * and the half of 10.3 that waits for questions, each run on BOTH backends: a WorkModel, a
  * WorkInFlight and a Knowledge over a fresh MemoryTransactions, and those of a fresh Postgres
  * project, dropped afterwards, pass or fail.
@@ -178,6 +178,28 @@ for (const backend of [memory, postgres]) {
     await flight.editIncrement(held.id, { heldOn: undefined });
     await flight.retire(question.id, "no longer asked");
     assert.equal(await records.get(question.id), null, "with nothing held on it, it retires");
+  });
+
+  contract("12.9", "retiring a question releases every increment held on it, open or closed, and retires it in one step", async ({ work, flight, records, transactions }) => {
+    const arc = await work.createArc(ARC);
+    const question = await flight.raiseQuestion({ arc: arc.id, ...ASK });
+    const other = await flight.raiseQuestion({ arc: arc.id, ...ASK });
+    const open = await flight.addIncrement({ arc: arc.id, ...WORK, heldOn: [question.id, other.id] });
+    const closed = await flight.addIncrement({ arc: arc.id, ...WORK, heldOn: [question.id] });
+    await flight.closeIncrement(closed.id, { disposition: "withdrawn", note: "overtaken" });
+    const free = await flight.addIncrement({ arc: arc.id, ...WORK });
+
+    assert.deepEqual(await flight.retireQuestion(question.id, "no longer asked"), [open.id, closed.id]);
+    assert.equal(await records.get(question.id), null);
+    const heldOn = async (id: string): Promise<unknown> => ((await records.get(id))?.fields as { heldOn?: unknown } | undefined)?.heldOn;
+    assert.deepEqual(await heldOn(open.id), [other.id], "its other holds stay");
+    assert.equal(await heldOn(closed.id), undefined);
+    assert.equal(await heldOn(free.id), undefined);
+
+    const history = await transactions.history();
+    assert.equal(await flight.retireQuestion(question.id, "again"), null, "a retired question is not live");
+    assert.equal(await flight.retireQuestion(open.id, "not a question"), null);
+    assert.deepEqual(await transactions.history(), history, "nothing was written");
   });
 
   contract("12.8", "a question raised on a parked arc is refused, naming the arc, and nothing is written; once its wake day passes, it is raised", async ({ work, flight, transactions }) => {

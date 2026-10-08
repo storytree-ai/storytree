@@ -191,7 +191,7 @@ test("5.10 unsupported question new flags are refused before any write, naming -
   });
 });
 
-test("5.4 question retire only retires questions; either door refuses a question an increment is held on", async () => {
+test("5.4 question retire only retires questions, releasing every increment held on it in the same step; library retire still refuses a held one", async () => {
   await inWorld(command, async (world) => {
     const { arc, increment } = await arcWithWork(world);
     const library = await world.library();
@@ -199,13 +199,10 @@ test("5.4 question retire only retires questions; either door refuses a question
     await library.editIncrement(increment, { heldOn: [question.id] });
 
     const { cursor } = await library.changesSince(0);
-    for (const family of ["question", "library"]) {
-      const ran = await world.run([family, "retire", question.id, "--reason", "asked wrongly"]);
-      assert.equal(ran.code, 1);
-      assert.match(ran.stderr, new RegExp(increment));
-      assert.deepEqual((await library.changesSince(cursor)).changes, []);
-    }
-    assert.deepEqual((await library.questions(arc)).map((one) => one.id), [question.id]);
+    const refused = await world.run(["library", "retire", question.id, "--reason", "asked wrongly"]);
+    assert.equal(refused.code, 1);
+    assert.match(refused.stderr, new RegExp(increment));
+    assert.deepEqual((await library.changesSince(cursor)).changes, []);
 
     const wrongKind = await world.run(["question", "retire", increment, "--reason", "asked wrongly"]);
     assert.equal(wrongKind.code, 1);
@@ -213,11 +210,41 @@ test("5.4 question retire only retires questions; either door refuses a question
     assert.ok(wrongKind.stderr.includes(`storytree library retire ${increment}`), wrongKind.stderr);
     assert.deepEqual((await library.changesSince(cursor)).changes, []);
 
-    await library.editIncrement(increment, { heldOn: [] });
     const retired = await world.run(["question", "retire", question.id, "--reason", "asked wrongly"]);
     assert.equal(retired.code, 0, retired.stderr);
+    assert.ok(retired.stdout.includes(`Released ${increment}`), retired.stdout);
     assert.equal(await library.get(question.id), null);
+    assert.equal(((await library.get(increment))?.fields as { heldOn?: unknown } | undefined)?.heldOn, undefined);
     assert.equal((await library.history({ id: question.id })).at(-1)?.reason, "asked wrongly");
+  });
+});
+
+test("5.11 `question show` reads one question whole: what it asks, its answer once settled, and the open work held on it", async () => {
+  await inWorld(command, async (world) => {
+    const { arc, increment } = await arcWithWork(world);
+    const library = await world.library();
+    const question = await library.raiseQuestion({ arc, title: "Which mailer?", stakes: "Sign-up waits", statement: "Which one?", context: "Two in reach", options: "Mailgun or SES", analogy: "Like a post office" });
+    await library.editIncrement(increment, { heldOn: [question.id] });
+
+    const open = await world.run(["question", "show", question.id]);
+    assert.equal(open.code, 0, open.stderr);
+    for (const text of ["Which mailer?", arc, "open", "Sign-up waits", "Which one?", "Two in reach", "Mailgun or SES", "Like a post office", `Holding: ${increment}`]) {
+      assert.ok(open.stdout.includes(text), `${text}: ${open.stdout}`);
+    }
+
+    await library.settleQuestion(question.id, { answer: "Mailgun" });
+    const settled = await world.run(["question", "show", question.id]);
+    assert.equal(settled.code, 0, settled.stderr);
+    assert.match(settled.stdout, /settled/);
+    assert.match(settled.stdout, /Answer:\nMailgun/);
+    assert.ok(!settled.stdout.includes("Holding:"), settled.stdout);
+
+    const wrongKind = await world.run(["question", "show", increment]);
+    assert.equal(wrongKind.code, 1);
+    assert.match(wrongKind.stderr, /not a question/);
+    const missing = await world.run(["question", "show", "question_000000000000"]);
+    assert.equal(missing.code, 1);
+    assert.match(missing.stderr, /no question/);
   });
 });
 

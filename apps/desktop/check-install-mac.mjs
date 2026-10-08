@@ -1,6 +1,7 @@
 // macOS packaging proof, the Apple Silicon twin of check-install.mjs: verify the built .app's signature,
 // start the app's own main once (4.17's start check), run its Postgres binaries, verify the shipped
-// license (app setup 4.2) and run the bundled Node, commands and MCP from the app (app setup 1.1).
+// license (app setup 4.2), check it declares the sign-in callback scheme (identity 2.5) and run the
+// bundled Node, commands and MCP from the app (app setup 1.1).
 // No real app data, update feed or release is used. Run with tsx, from the checkout's root: the
 // release workflow runs it before the Mac assets are uploaded, so an app that cannot start never ships.
 import assert from "node:assert/strict";
@@ -9,6 +10,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync }
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { toolPaths, verifyPayload } from "@storytree/app-setup/deliver";
+import { AUTH_SCHEME } from "@storytree/identity/desktop";
 import { checkTools } from "./check-tools.mjs";
 import { startsCleanly } from "./src/main/start-check.ts";
 
@@ -33,6 +35,9 @@ try {
   else execFileSync("spctl", ["--assess", "--type", "execute", "--verbose=2", app], { stdio: "inherit" });
 
   const resources = path.join(app, "Contents", "Resources");
+  // macOS hands a sign-in's storytree-auth callback only to an app whose Info.plist declares the scheme (identity 2.5).
+  const urlTypes = JSON.parse(execFileSync("plutil", ["-extract", "CFBundleURLTypes", "json", "-o", "-", path.join(app, "Contents", "Info.plist")], { encoding: "utf8" }));
+  assert.ok(urlTypes.some((type) => type.CFBundleURLSchemes?.includes(AUTH_SCHEME)), `the app's Info.plist does not declare ${AUTH_SCHEME}: ${JSON.stringify(urlTypes)}`);
   assert.deepEqual(readFileSync(path.join(resources, "LICENSE")), readFileSync("LICENSE"), "the app carries the repository license unchanged");
   const update = readFileSync(path.join(resources, "app-update.yml"), "utf8");
   assert.match(update, /provider: github/);
@@ -63,6 +68,7 @@ try {
   assert.match(readFileSync(path.join(release, "latest-mac.yml"), "utf8"), new RegExp(`version: ${version.replaceAll(".", "\\.")}(?:\\s|$)`));
   console.log(`4.4 PASS (macOS arm64): built ${version} as a zip and dmg; its Electron, Postgres and update configuration work; signature ${adHoc ? "ad-hoc" : "Developer ID"}, hardened runtime, verified deep and strict`);
   console.log("4.17 PASS (macOS arm64): the app's main process started with a throwaway home, reached its handlers and exited 0");
+  console.log(`identity 2.5 PASS (macOS arm64): the app's Info.plist declares the ${AUTH_SCHEME} scheme, so sign-in callbacks reach it`);
   console.log("app setup 4.2 PASS (macOS arm64): the app carries the repository license");
   console.log("app setup 1.1 PASS (macOS arm64): bundled Node, CLI, hook, setup and MCP run from the app's verified payload");
 } finally {

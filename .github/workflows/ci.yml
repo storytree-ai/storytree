@@ -12,6 +12,7 @@ name: CI
 # requests that each passed alone cannot together leave main red. While no queue is required on
 # main, `automerge` merges directly, as before the queue. A pull request the queue takes out because
 # its queue run failed, while its own `verify` passed, goes back in once (requeue.yml).
+# A `platforms` job GitHub cancelled before any hosted runner took it is rerun once (rerun-unrun.yml).
 #
 # The product ships for Windows first, on x64 and arm64; the Windows run here is x64. The macOS run
 # keeps the code working on a Mac from the day each line is written, so that Mac support later is

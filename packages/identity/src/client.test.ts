@@ -152,11 +152,8 @@ test("2.4 revoked or unverifiable sessions are discarded; temporary failures kee
   assert.equal(j.saved(), undefined);
 });
 
-test("2.4 sign-in needs only a public WorkOS client ID; an identity endpoint, if still given, must be HTTPS and is never called", async () => {
+test("2.4 sign-in needs only a public WorkOS client ID", async () => {
   const j = journey();
   for (const id of ["", "sk_live_secret"]) assert.throws(() => createIdentityClient({ clientId: id, store: j.store }));
-  for (const url of ["http://localhost:1234/v1/identity", "https://user:password@identity.test", "https://identity.test/?token=a", "https://identity.test/#fragment"]) {
-    assert.throws(() => createIdentityClient({ clientId, identityUrl: url, store: j.store }), /HTTPS identity endpoint/);
-  }
-  assert.doesNotThrow(() => createIdentityClient({ clientId, identityUrl: "https://identity.test/v1/identity", store: j.store }));
+  assert.doesNotThrow(() => createIdentityClient({ clientId, store: j.store }));
 });

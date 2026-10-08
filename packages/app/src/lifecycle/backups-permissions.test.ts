@@ -7,7 +7,7 @@ import { test } from "node:test";
 import type { ProjectSnapshot } from "@storytree/library";
 import { backUp, keepBackups } from "./backups.js";
 
-const posix = { skip: process.platform === "win32" ? "POSIX modes do not prove Windows ACL privacy" : false };
+const posix = { skip: process.platform === "win32" ? "platform:posix: POSIX modes do not prove Windows ACL privacy" : false };
 const mode = (file: string): number => fs.statSync(file).mode & 0o777;
 const stamp = "2026-10-08T00-00-00-000Z.json";
 const snapshot: ProjectSnapshot = {

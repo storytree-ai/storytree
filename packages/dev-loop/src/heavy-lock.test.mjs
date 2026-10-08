@@ -156,7 +156,7 @@ test("6.2 a locked command preserves arguments, cwd and failure status, inherits
   assert.equal(existsSync(path.join(dir, "heavy-run.lock")), false);
 });
 
-test("6.2 cancelling a waiting capture starts no command and leaves the current holder alone", { timeout: 10_000, skip: process.platform === "win32" && "Windows cannot send a catchable signal to another Node process" }, async (t) => {
+test("6.2 cancelling a waiting capture starts no command and leaves the current holder alone", { timeout: 10_000, skip: process.platform === "win32" && "platform:posix: Windows cannot send a catchable signal to another Node process" }, async (t) => {
   const { dir, start, wrapper } = commandMachine(t);
   const holder = start(["--input-type=module", "-e", `
     import { acquireHeavyLock } from ${JSON.stringify(new URL("./heavy-lock.mjs", import.meta.url).href)};

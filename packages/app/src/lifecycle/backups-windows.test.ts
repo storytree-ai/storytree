@@ -14,7 +14,7 @@ const snapshot: ProjectSnapshot = {
   history: [{ seq: 1, recordId: "term_private", type: "term", action: "created", record: { meaning: "private historical text" }, at: "then" }],
 };
 const stamp = "2026-10-08T00-00-00-000Z.json";
-const windowsOnly = { skip: process.platform !== "win32" ? "Windows Authz effective-access proof runs on Windows CI" : false };
+const windowsOnly = { skip: process.platform !== "win32" ? "platform:win32: Windows Authz effective-access proof runs on Windows CI" : false };
 
 for (const existing of [false, true]) {
   test(`1.8 · Windows excludes an unrelated user before the first snapshot byte with ${existing ? "existing" : "new"} backup folders`, windowsOnly, async (t) => {

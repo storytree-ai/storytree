@@ -4,7 +4,7 @@ import type { ArcView, Hold, NoteWait } from "@storytree/library";
 import { agentsOnBoard, type BoardAgent } from "../agents/agents.js";
 import { firstBriefing } from "../briefing/briefing.js";
 import { arcQueues, waitsOnBoard, type ArcQueue, type NamedWait, type WorkName } from "../waits/waits.js";
-import { arcState, incrementState, type ArcState, type IncrementReading } from "../work-states/board-states.js";
+import { arcState, incrementState, questionsBehind, type ArcState, type IncrementReading } from "../work-states/board-states.js";
 
 export type BoardScope = "active" | "parked" | "closed";
 export interface BoardSnapshot {
@@ -22,6 +22,8 @@ export interface Bar {
   waits: NamedWait[];
   /** Its waits for the owner or an event, including one whose check-back has passed (it reads as no longer holding). */
   noteWaits: NoteWait[];
+  /** The titles of the owner's questions its waits on other work end on (its reading's `behind`). */
+  questionsBehind: string[];
   holdsUp: (WorkName & { reason: string })[];
 }
 /** A note wait that still holds, with the increment it holds. */
@@ -64,6 +66,7 @@ export function boardView(snapshot: BoardSnapshot, log: readonly Line[] | LogRea
     ...increments.map((increment) => ({ id: increment.id, title: increment.fields.title, arc: { id: arc.id, title: arc.fields.title } })),
   ]);
   const waits = waitsOnBoard(names, new Map(Object.entries(snapshot.waits)));
+  const questionTitles = new Map(snapshot.arcs.flatMap(({ questions }) => questions.map((question): [string, string] => [question.id, question.fields.title])));
   const lanes = snapshot.arcs.filter(({ state }) => state === scope).map((view): Lane => {
     const { arc, increments, questions } = view;
     const holders = agents.onArc(increments);
@@ -77,9 +80,11 @@ export function boardView(snapshot: BoardSnapshot, log: readonly Line[] | LogRea
     const bars = ordered.map((increment): Bar => {
       const claim = agents.on(increment.id);
       const noteWaits = snapshot.waitsFor?.[increment.id] ?? [];
-      return { id: increment.id, title: increment.fields.title,
-        reading: incrementState(increment.fields, { waits: snapshot.waits[increment.id] ?? [], heldOn: snapshot.heldOn[increment.id] ?? [], waitsFor: noteWaits, ...(claim ? { claim } : {}) }),
-        agents: agents.onArc([increment]), waits: waits.on(increment.id), noteWaits, holdsUp: waits.heldUpBy(increment.id) };
+      const behind = questionsBehind(increment.id, snapshot);
+      const reading = incrementState(increment.fields, { waits: snapshot.waits[increment.id] ?? [], heldOn: snapshot.heldOn[increment.id] ?? [], waitsFor: noteWaits, behind, ...(claim ? { claim } : {}) });
+      return { id: increment.id, title: increment.fields.title, reading,
+        agents: agents.onArc([increment]), waits: waits.on(increment.id), noteWaits,
+        questionsBehind: (reading.behind ?? []).map((question) => questionTitles.get(question) ?? question), holdsUp: waits.heldUpBy(increment.id) };
     });
     const state = arcState(view.state, { openQuestions: questions.filter(({ fields }) => fields.lifecycle === "open").length, waits: snapshot.waits[arc.id] ?? [], claims: holders, increments: bars.map(({ reading }) => reading) });
     const landed = bars.filter(({ reading }) => reading.state === "landed").length;

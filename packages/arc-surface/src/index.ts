@@ -9,7 +9,7 @@ export { joinedReads, pageReading } from "./live-reading/page-reading.js";
 export type { KeptReading, NewsListener, PageReading, PageReadingOptions } from "./live-reading/page-reading.js";
 export { pageKept, pageKeptReading } from "./live-reading/kept.js";
 export type { Kept, PageStorage } from "./live-reading/kept.js";
-export { arcState, incrementState } from "./work-states/board-states.js";
+export { arcState, incrementState, questionsBehind } from "./work-states/board-states.js";
 export type { ArcFacts, ArcState, IncrementFacts, IncrementReading, IncrementState } from "./work-states/board-states.js";
 export { agentsOnBoard } from "./agents/agents.js";
 export type { ArcWork, BoardAgent, BoardAgents } from "./agents/agents.js";

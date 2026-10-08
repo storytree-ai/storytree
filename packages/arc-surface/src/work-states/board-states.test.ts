@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Claim } from "@storytree/agent-link";
 import type { FieldsOf, Hold, NoteWait } from "@storytree/library";
-import { arcState, incrementState } from "./board-states.js";
+import { arcState, incrementState, questionsBehind } from "./board-states.js";
 
 const open: FieldsOf<"increment"> = { arc: "a", title: "Build", objective: "Build it", body: "Build it", status: "proposal" };
 const held: Claim = { increment: "i", session: "s", label: "Codex", reason: "building", since: "2026-09-27T00:00:00Z", holder: "idle" };
@@ -30,6 +30,19 @@ test("1.5 waiting on you precedes queued, held, open; a proposal waits on you on
   assert.deepEqual(incrementState(proposal), { state: "open", color: "grey", progress: "planned" });
   assert.deepEqual(incrementState(proposal, { heldOn: ["q"] }), { state: "waiting-on-you", color: "yellow", progress: "planned" });
   assert.equal(incrementState(open, { waits }).color, "yellow");
+});
+
+test("1.5 a wait on work held on your question reads waiting on you and names the question, however many hops away", () => {
+  const on = (id: string): Hold[] => [{ on: id, reason: "needs it", forGood: false }];
+  const holds = { waits: { a: on("b"), b: on("c"), d: on("a"), x: on("y"), y: on("x"), free: on("open") }, heldOn: { c: ["q"] } };
+  assert.deepEqual(questionsBehind("b", holds), ["q"]);
+  assert.deepEqual(questionsBehind("a", holds), ["q"], "two hops from the question");
+  assert.deepEqual(questionsBehind("d", holds), ["q"]);
+  assert.deepEqual(questionsBehind("c", holds), [], "its own questions hold it directly");
+  assert.deepEqual(questionsBehind("x", holds), [], "a loop ends");
+  assert.deepEqual(questionsBehind("free", holds), []);
+  assert.deepEqual(incrementState(open, { waits, behind: ["q"], claim: held }), { state: "waiting-on-you", color: "yellow", progress: "planned", behind: ["q"] });
+  assert.deepEqual(incrementState(open, { waits, behind: [] }), { state: "queued", color: "yellow", progress: "planned" });
 });
 
 const owner: NoteWait = { releaser: "owner", note: "approve the spend", holds: true };

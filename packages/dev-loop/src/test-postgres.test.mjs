@@ -13,15 +13,23 @@ import pg from "pg";
 
 import { startTestPostgres } from "./test-postgres.mjs";
 
-test("6.9 a passwordless run given a cluster that demands a password makes a fresh one, and its tests connect", { timeout: 120_000 }, async (t) => {
+/** A scratch data directory, removed after the test once every server stopLater was given has stopped (Windows holds a live cluster's files). */
+function scratchCluster(t) {
   const dir = mkdtempSync(path.join(tmpdir(), "st-test-postgres-"));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
-  const dataDir = path.join(dir, "data");
+  const servers = [];
+  t.after(async () => {
+    for (const server of servers) await server.stop();
+    rmSync(dir, { recursive: true, force: true });
+  });
+  return { dataDir: path.join(dir, "data"), stopLater: (server) => (servers.push(server), server) };
+}
+
+test("6.9 a passwordless run given a cluster that demands a password makes a fresh one, and its tests connect", { timeout: 120_000 }, async (t) => {
+  const { dataDir, stopLater } = scratchCluster(t);
   await (await start({ dataDir, password: true })).stop();
 
   const said = [];
-  const server = await startTestPostgres({ dataDir, log: (line) => said.push(line) });
-  t.after(() => server.stop());
+  const server = stopLater(await startTestPostgres({ dataDir, log: (line) => said.push(line) }));
   const client = new pg.Client({ connectionString: server.url });
   await client.connect();
   try {
@@ -33,9 +41,7 @@ test("6.9 a passwordless run given a cluster that demands a password makes a fre
 });
 
 test("6.9 a passwordless run keeps a cluster that trusts it", { timeout: 120_000 }, async (t) => {
-  const dir = mkdtempSync(path.join(tmpdir(), "st-test-postgres-"));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
-  const dataDir = path.join(dir, "data");
+  const { dataDir, stopLater } = scratchCluster(t);
   const first = await start({ dataDir });
   const client = new pg.Client({ connectionString: first.url });
   await client.connect();
@@ -44,8 +50,7 @@ test("6.9 a passwordless run keeps a cluster that trusts it", { timeout: 120_000
   await first.stop();
 
   const said = [];
-  const server = await startTestPostgres({ dataDir, log: (line) => said.push(line) });
-  t.after(() => server.stop());
+  const server = stopLater(await startTestPostgres({ dataDir, log: (line) => said.push(line) }));
   const again = new pg.Client({ connectionString: server.url });
   await again.connect();
   try {

@@ -30,7 +30,9 @@ export function launchPlan({ env, platform }: Machine = THIS_MACHINE, { software
   const module = playwright === undefined ? "playwright-core" : playwright.startsWith("file:") ? playwright : pathToFileURL(playwright, { windows: platform === "win32" }).href;
   const options: LaunchOptions = {
     headless: true,
-    args: ["--no-sandbox", "--disable-dev-shm-usage", ...(softwareGL ? ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"] : [])],
+    // Keep SwiftShader on WebGL with Chromium's ordinary software compositor.
+    // Driver mode also puts page compositing through SwiftShader.
+    args: ["--no-sandbox", "--disable-dev-shm-usage", ...(softwareGL ? ["--use-gl=angle", "--use-angle=swiftshader-webgl", "--enable-unsafe-swiftshader"] : [])],
     ...(executablePath === undefined ? {} : { executablePath }),
     ...(channel === undefined ? {} : { channel }),
   };

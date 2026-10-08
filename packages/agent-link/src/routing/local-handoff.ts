@@ -78,7 +78,8 @@ function windowsPrivate(directory: string, file: string): void {
     $sid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
     $allowed = @($sid, 'S-1-5-18', 'S-1-5-32-544')
     foreach ($item in @($env:STORYTREE_HANDOFF_DIRECTORY, $env:STORYTREE_HANDOFF_FILE)) {
-      $acl = Get-Acl -LiteralPath $item
+      if ([System.IO.Directory]::Exists($item)) { $acl = [System.IO.Directory]::GetAccessControl($item) }
+      else { $acl = [System.IO.File]::GetAccessControl($item) }
       if ($acl.GetOwner([System.Security.Principal.SecurityIdentifier]).Value -ne $sid) { exit 1 }
       if (-not $acl.AreAccessRulesProtected) { exit 1 }
       $own = $false
@@ -90,7 +91,7 @@ function windowsPrivate(directory: string, file: string): void {
       }
       if (-not $own) { exit 1 }
     }
-    Write-Output 'private'
+    [Console]::WriteLine('private')
   `;
   const output = execFileSync(path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe"),
     ["-NoProfile", "-NonInteractive", "-EncodedCommand", Buffer.from(script, "utf16le").toString("base64")],

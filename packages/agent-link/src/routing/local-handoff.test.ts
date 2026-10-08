@@ -16,8 +16,20 @@ import { locateApp, locateLibrary, locateStorytree, MARKER_FILE, NOT_RUNNING, ro
 const password = "synthetic-local-password-:@/#?% with spaces";
 
 function powershell(script: string, file: string): void {
+  // Use .NET directly: a caller launched from PowerShell 7 can leave Windows PowerShell an
+  // incompatible PSModulePath, so even Get-Acl/Set-Acl may fail to load (PR #858's first CI run).
+  const aclFunctions = `
+    function Read-Acl($file) {
+      if ([System.IO.Directory]::Exists($file)) { return [System.IO.Directory]::GetAccessControl($file) }
+      return [System.IO.File]::GetAccessControl($file)
+    }
+    function Save-Acl($file, $acl) {
+      if ([System.IO.Directory]::Exists($file)) { [System.IO.Directory]::SetAccessControl($file, $acl) }
+      else { [System.IO.File]::SetAccessControl($file, $acl) }
+    }
+  `;
   execFileSync(path.join(process.env.SystemRoot!, "System32", "WindowsPowerShell", "v1.0", "powershell.exe"),
-    ["-NoProfile", "-NonInteractive", "-EncodedCommand", Buffer.from(script, "utf16le").toString("base64")],
+    ["-NoProfile", "-NonInteractive", "-EncodedCommand", Buffer.from(aclFunctions + script, "utf16le").toString("base64")],
     { env: { ...process.env, STORYTREE_TEST_ACL_PATH: file }, stdio: "pipe", timeout: 10_000 });
 }
 
@@ -26,13 +38,13 @@ function privatePath(file: string, directory = false): void {
   powershell(`
     $ErrorActionPreference = 'Stop'
     $sid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User
-    $acl = Get-Acl -LiteralPath $env:STORYTREE_TEST_ACL_PATH
+    $acl = Read-Acl $env:STORYTREE_TEST_ACL_PATH
     $acl.SetOwner($sid)
     $acl.SetAccessRuleProtection($true, $false)
-    foreach ($rule in @($acl.Access)) { [void]$acl.RemoveAccessRuleSpecific($rule) }
+    foreach ($rule in $acl.GetAccessRules($true, $true, [System.Security.Principal.SecurityIdentifier])) { [void]$acl.RemoveAccessRuleSpecific($rule) }
     $rule = [System.Security.AccessControl.FileSystemAccessRule]::new($sid, 'FullControl', 'Allow')
     $acl.AddAccessRule($rule)
-    Set-Acl -LiteralPath $env:STORYTREE_TEST_ACL_PATH -AclObject $acl
+    Save-Acl $env:STORYTREE_TEST_ACL_PATH $acl
   `, file);
 }
 
@@ -40,10 +52,10 @@ function expose(file: string, directory = false): void {
   if (process.platform !== "win32") return chmodSync(file, directory ? 0o755 : 0o644);
   powershell(`
     $ErrorActionPreference = 'Stop'
-    $acl = Get-Acl -LiteralPath $env:STORYTREE_TEST_ACL_PATH
+    $acl = Read-Acl $env:STORYTREE_TEST_ACL_PATH
     $sid = [System.Security.Principal.SecurityIdentifier]::new('S-1-1-0')
     $acl.AddAccessRule([System.Security.AccessControl.FileSystemAccessRule]::new($sid, 'ReadAndExecute', 'Allow'))
-    Set-Acl -LiteralPath $env:STORYTREE_TEST_ACL_PATH -AclObject $acl
+    Save-Acl $env:STORYTREE_TEST_ACL_PATH $acl
   `, file);
 }
 
@@ -158,10 +170,10 @@ test("1.16 exposed credentials, linked files and insecure directories refuse on 
     if (process.platform === "win32") {
       powershell(`
         $ErrorActionPreference = 'Stop'
-        $acl = Get-Acl -LiteralPath $env:STORYTREE_TEST_ACL_PATH
+        $acl = Read-Acl $env:STORYTREE_TEST_ACL_PATH
         $sid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User
         $acl.AddAccessRule([System.Security.AccessControl.FileSystemAccessRule]::new($sid, 'ReadData', 'Deny'))
-        Set-Acl -LiteralPath $env:STORYTREE_TEST_ACL_PATH -AclObject $acl
+        Save-Acl $env:STORYTREE_TEST_ACL_PATH $acl
       `, f.file);
       assert.equal(locateStorytree({ dataDir: f.dataDir }).running, false);
       privatePath(f.file);

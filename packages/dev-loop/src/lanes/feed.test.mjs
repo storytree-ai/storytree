@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 
-import { keepFed, main, parseFences, pickNext, readSurvey, WEBSITE_ARC } from "./feed.mjs";
+import { keepFed, main, parseFences, pickNext, queuedOnTracks, readSurvey, WEBSITE_ARC } from "./feed.mjs";
 
 const fences = parseFences(`L=packages/library, packages/librarian, packages/cli
 A=packages/agent-link, packages/app, apps/desktop/src/main, packages/dev-loop
@@ -197,4 +197,24 @@ test("11.1 · the next front door prints the track's pick and each skip from one
   assert.equal(surveys, 1);
   assert.equal(await main(["next", "Z"], options), 2);
   assert.equal(await main(["run", "A"], options), 2);
+});
+
+test("11.5 · a refill skips an increment queued or running on any track's queue", async (t) => {
+  const work = survey([increment("taken", "packages/dev-loop", { parked: "2026-10-01T00:00:00Z" }), increment("free", "packages/dev-loop")]);
+  const { pick, skipped } = pickNext(work, { track: "A", fences, queued: new Map([["taken", "G"]]) });
+  assert.equal(pick, "free");
+  assert.deepEqual(skipped, [{ id: "taken", why: "queued on track G" }]);
+
+  const dir = await mkdtemp(join(tmpdir(), "lane-feed-"));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const queue = join(dir, "night-queue-A.txt"), stop = join(dir, "night-stop");
+  await writeFile(queue, "");
+  await writeFile(join(dir, "night-queue-G.txt"), "taken\n");
+  await writeFile(join(dir, "night-queue-G.txt.bak-20261007"), "free\n");
+  const ran = [];
+  await keepFed({ track: "A", fences, queueFile: queue, stopFile: stop, now: () => now, say: () => {},
+    queued: () => queuedOnTracks(dir), survey: async () => work,
+    runLane: async (id) => { ran.push(id); await writeFile(stop, ""); return 0; }, sleep: () => assert.fail("no wait") });
+  assert.deepEqual(ran, ["free"]);
+  assert.deepEqual([...(await queuedOnTracks(dir))], [["taken", "G"]], "only live queue files count, not backups");
 });

@@ -21,7 +21,7 @@ Reproduce from the repository root:
 
 ```sh
 flock /tmp/storytree-heavy.lock node apps/desktop/build.mjs
-flock /tmp/storytree-heavy.lock node --import tsx packages/arc-surface/evidence/lane-rollup/capture.mjs
+flock /tmp/storytree-heavy.lock node --import tsx packages/arc-surface/evidence/lane-rollup/capture.mjs <snapshot.json>
 ```
 
 The renderer now also reads its surfaces setting and opens its app menu when the app's own reads

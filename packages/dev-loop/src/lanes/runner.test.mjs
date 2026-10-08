@@ -87,6 +87,19 @@ test("10.7 · a completed or externally stopped Codex turn is not handed over, e
   }
 });
 
+test("10.8 · a lane stopped by a signal to its runner exits 75, so its queue keeps it, and is not handed over", async (t) => {
+  const options = await lane(t);
+  options.env.FAST_FAIL_S = "0";
+  await writeFile(join(options.lanesDir, "engine-override"), "codex");
+  options.commands.codex = command("console.log('started'); setTimeout(() => {}, 60_000);");
+  const running = runLane(options);
+  while (!(await readFile(options.log, "utf8").catch(() => "")).includes("started")) await new Promise((wake) => setTimeout(wake, 50));
+  process.emit("SIGTERM", "SIGTERM");
+  assert.equal(await running, 75);
+  assert.match(options.lines.at(-1), /stopped by a signal: exit 75 so the runner keeps this lane queued$/);
+  await assert.rejects(readFile(join(options.lanesDir, "lane.claude.log")), { code: "ENOENT" });
+});
+
 test("10.8 · the last engine's failure is 75 only before FAST_FAIL_S, defaulting to 120 seconds", async (t) => {
   const options = await lane(t);
   for (const [exit, seconds, threshold, expected] of [[0, 0, undefined, 0], [2, 119, undefined, 75], [2, 120, undefined, 2], [2, 4, "5", 75], [2, 5, "5", 2], [2, 0, "0", 2]]) {
@@ -144,9 +157,31 @@ test("10.6 · the command front door runs a brief, refuses empty input and suppo
   assert.equal(await main(["run"], options), 2);
   assert.equal(await main(["unknown"], options), 2);
   await writeFile(options.brief, "");
-  assert.equal(await main(["run", options.brief, options.log, options.err], options), 2);
+  assert.equal(await main(["run", options.brief, options.log, options.err], options), 75, "a lane that cannot start stays queued");
   const runner = fileURLToPath(new URL("./runner.mjs", import.meta.url));
   const result = await exec(process.execPath, [runner, "status"], { cwd: options.cwd, env: { ...options.env, HOME: options.home, USERPROFILE: options.home } });
   assert.match(result.stdout, /latest reading: none/);
   assert.match(result.stdout, /next lane: codex/);
+});
+
+test("10.10 · a lane whose newest reading is stale and spent runs one Codex probe for a fresh reading, then picks from it", async (t) => {
+  const options = await lane(t);
+  const day = join(options.home, ".codex", "sessions", "2026", "10", "06");
+  await mkdir(day, { recursive: true });
+  const event = (at, used) => JSON.stringify({ timestamp: new Date(at).toISOString(), payload: { rate_limits: { secondary: { used_percent: used, window_minutes: 10080, resets_at: start / 1000 + 86400 } } } });
+  await writeFile(join(day, "rollout-old.jsonl"), event(start - 3 * 3_600_000, 97));
+  const fresh = join(day, "rollout-fresh.jsonl");
+  options.commands.codex = command(`const fs=require('node:fs'); if (process.argv.some(a=>a.startsWith('Reply with the single word OK.'))) fs.writeFileSync(${JSON.stringify(fresh)}, ${JSON.stringify(event(start, 1))}); else console.log('lane ran');`);
+  options.commands.claude = command("process.exit(9)");
+  assert.equal(await runLane(options), 0);
+  assert.match(options.lines[0], /engine codex Codex weekly allowance 1% used, resets .* \(refreshed a reading 3h old\)$/);
+  assert.equal((await readFile(options.log, "utf8")).trim(), "lane ran");
+  await assert.doesNotReject(readFile(options.log.replace(/\.log$/, ".probe.log")));
+  options.lines.length = 0;
+  await main(["status"], options);
+  assert.doesNotMatch(options.lines.join("\n"), /over an hour old/, "a fresh Codex reading needs no refresh");
+  await writeFile(fresh, event(start - 2 * 3_600_000, 98));
+  options.lines.length = 0;
+  await main(["status"], options);
+  assert.match(options.lines.at(-1), /next lane: claude .*the next lane takes a fresh one first$/);
 });

@@ -6,7 +6,7 @@ import { open, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { assessAllowance, detectLimitHit, engineControls, iso, laneSettings, pickEngine, readLatestAllowance, readOptional } from "./engine.mjs";
+import { assessAllowance, detectLimitHit, engineControls, iso, laneSettings, pickEngine, pickFresh, readLatestAllowance, readOptional } from "./engine.mjs";
 
 async function loginEnvironment(home, env) {
   const login = { ...env };
@@ -52,6 +52,21 @@ async function runEngine(command, args, { cwd, env, log, err }) {
   } finally { await output.close(); await errors?.close(); }
 }
 
+const PROBE = "Reply with the single word OK. Do not run any command or read any file.";
+
+/** One tiny Codex turn, so Codex writes a fresh allowance reading into its session files. */
+async function probeCodex(command, { cwd, env, log, timeoutMs = 180_000 }) {
+  const output = await open(log, "w");
+  try {
+    await new Promise((done, fail) => {
+      const child = spawn(command[0], [...command.slice(1), ...argumentsFor("codex", PROBE, [])], { cwd, env, stdio: ["ignore", output.fd, output.fd] });
+      const timer = setTimeout(() => child.kill("SIGTERM"), timeoutMs);
+      child.on("error", (error) => { clearTimeout(timer); fail(error); });
+      child.on("close", () => { clearTimeout(timer); done(); });
+    });
+  } finally { await output.close(); }
+}
+
 function handoverBrief(log, original) {
   return `# Handover: Codex's weekly allowance ran out mid-lane
 
@@ -72,8 +87,8 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
   const settings = laneSettings({ home, env });
   const login = await loginEnvironment(home, env);
   const dated = (message) => say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} ${message}`);
-  const reading = await readLatestAllowance(settings.sessionsDir);
-  const picked = await pickEngine({ ...settings, reading, now: now() / 1000 });
+  const refresh = () => probeCodex(commands.codex, { cwd, env: login, log: `${log.replace(/\.log$/, "")}.probe.log` });
+  const picked = await pickFresh({ ...settings, now: now() / 1000, refresh });
   dated(`engine ${picked.engine} ${picked.reason}`);
   let started = now();
   let result = await runEngine(commands[picked.engine], argumentsFor(picked.engine, original, addDirs), { cwd, env: login, log, err });
@@ -90,6 +105,10 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
       cwd, env: login, log: `${base}.claude.log`, err: `${base}.claude.err`,
     });
     dated(`engine claude exit ${result.code}`);
+  }
+  if (result.interrupted) {
+    dated(`lane runner stopped by a signal: exit 75 so the runner keeps this lane queued`);
+    return 75;
   }
   const fastFail = Number(env.FAST_FAIL_S ?? 120);
   if (result.code !== 0 && (now() - started) / 1000 < fastFail) {
@@ -116,7 +135,8 @@ async function showStatus({ home, env, now = Date.now, say = console.log }) {
     say(`latest reading: ${reading.at} ${windows}; live used ${live.used} resets ${live.resets === null ? "?" : iso(live.resets)} reached ${live.reached} (${reading.rate_limit_reached_type ?? "none"}) credits ${JSON.stringify(reading.credits ?? null)}`);
   }
   const picked = await pickEngine({ ...settings, reading, now: seconds });
-  say(`next lane: ${picked.engine} (${picked.reason}); switch at ${settings.stopAt}%`);
+  const stale = picked.basis === "reading" && picked.engine === "claude" && !reading.rate_limit_reached_type && seconds - Date.parse(reading.at) / 1000 > 3600;
+  say(`next lane: ${picked.engine} (${picked.reason}); switch at ${settings.stopAt}%${stale ? "; the reading is over an hour old, so the next lane takes a fresh one first" : ""}`);
 }
 
 export async function main(args, options = {}) {
@@ -128,7 +148,11 @@ export async function main(args, options = {}) {
       return 2;
     }
     return await runLane({ ...options, brief: args[1], log: args[2], err: args[3], addDirs: args.slice(4) });
-  } catch (error) { complain(`lane runner: ${error.message}`); return 2; }
+  } catch (error) {
+    // A lane that could not start (an empty brief, unreadable login settings) stays queued: 75 stops its runner.
+    complain(`lane runner: ${error.message}; exit 75 so the runner keeps this lane queued`);
+    return 75;
+  }
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

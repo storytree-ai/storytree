@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 
-import { assessAllowance, detectLimitHit, laneSettings, pickEngine, readLatestAllowance } from "./engine.mjs";
+import { assessAllowance, detectLimitHit, laneSettings, pickEngine, pickFresh, readLatestAllowance } from "./engine.mjs";
 
 const now = Date.parse("2026-10-06T00:00:00Z") / 1000;
 const reading = (used, extra = {}) => ({
@@ -116,4 +116,36 @@ test("10.5 · only Codex's own usage-limit stop writes a marker, using the reset
     [[{ type: "turn.started" }], "", reading(100)],
     [[{ type: "error", message: "Rate limit reached (429)" }], "Rate limit reached", reading(77)],
   ]) assert.equal(await run(events, stderr, allowance), false);
+});
+
+test("10.10 · a Claude pick resting on a reading over an hour old takes a fresh reading first; a reached limit is never probed", async (t) => {
+  const home = await folder(t);
+  const lanesDir = join(home, "lanes"), sessionsDir = join(home, "sessions"), day = join(sessionsDir, "2026", "10", "06");
+  await mkdir(lanesDir); await mkdir(day, { recursive: true });
+  const write = (name, at, used, extra = {}) => writeFile(join(day, `rollout-${name}.jsonl`), JSON.stringify({ timestamp: new Date(at * 1000).toISOString(),
+    payload: { rate_limits: { secondary: { used_percent: used, window_minutes: 10080, resets_at: now + 86400 }, ...extra } } }));
+  let probes = 0;
+  const pick = (refresh) => pickFresh({ lanesDir, sessionsDir, now, refresh: async () => { probes++; await refresh?.(); } });
+
+  await write("old", now - 2 * 3600, 96);
+  const fresh = await pick(() => write("fresh", now, 0));
+  assert.equal(fresh.engine, "codex", "an early reset is seen");
+  assert.match(fresh.reason, /Codex weekly allowance 0% used.*\(refreshed a reading 2h old\)/);
+  assert.equal(probes, 1);
+
+  await rm(join(day, "rollout-fresh.jsonl"));
+  const silent = await pick();
+  assert.equal(silent.engine, "claude");
+  assert.match(silent.reason, /no fresh reading came back/);
+  assert.equal((await pickFresh({ lanesDir, sessionsDir, now, refresh: async () => { throw new Error("codex missing"); } })).engine, "claude");
+
+  probes = 0;
+  for (const [at, used, extra] of [[now - 600, 96, {}], [now - 2 * 3600, 50, {}], [now - 2 * 3600, 100, { rate_limit_reached_type: "weekly" }]]) {
+    await write("old", at, used, extra);
+    await pick(() => assert.fail("no probe"));
+  }
+  await write("old", now - 2 * 3600, 96);
+  await writeFile(join(lanesDir, "codex-exhausted-until"), String(now + 600));
+  assert.equal((await pick()).engine, "claude", "the exhausted marker holds Claude without a probe");
+  assert.equal(probes, 0);
 });

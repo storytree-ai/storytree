@@ -1,4 +1,5 @@
-// Capability 12 · A Mint queue runs its lanes one at a time. The box's queue runners, which its wrappers exec:
+// Capability 12 · A Mint queue runs its lanes one at a time, or a night track up to its line in
+// night-lanes-per-track beside lanes writing other packages. The box's queue runners, which its wrappers exec:
 // node --import tsx packages/dev-loop/src/lanes/launch.mjs night <track>   (launch-night.sh run <track>: night-queue-<T>.txt, refilled from the library)
 // node --import tsx packages/dev-loop/src/lanes/launch.mjs mintlib         (launch-mintlib.sh run: mintlib-queue.txt, stops on a failed lane)
 // node packages/dev-loop/src/lanes/launch.mjs slots                       (engines running now, and the cap)
@@ -60,6 +61,12 @@ export async function laneOnce({ increment, brief, log, err, addDirs, repo, maxL
   return code;
 }
 
+/** A track's lane limit from night-lanes-per-track's `T=N` lines: N when it is a whole number of at least 1, else 1. */
+export function laneLimit(text, track) {
+  const value = text.split("\n").map((line) => line.trim()).find((line) => line.startsWith(`${track}=`))?.slice(2).trim();
+  return /^[1-9]\d*$/.test(value ?? "") ? Number(value) : 1;
+}
+
 async function argsOf(pid) {
   return (await readFile(`/proc/${pid}/cmdline`, "utf8").catch(() => "")).split("\0").join(" ").trim();
 }
@@ -73,7 +80,7 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
     count: async () => countEngines((await run("ps", ["-eo", "pid=,ppid=,args="], { maxBuffer: 64 * 1024 * 1024 })).stdout),
     lock: (fn) => withFlock(join(lanesDir, "night-checkout.lock"), fn),
     prepare: () => prepareCheckout({ repo }),
-    sleep: (ms) => wait(ms), argsOf, runLane: runEngineLane, survey: surveyLibrary, now: Date.now,
+    sleep: (ms, options) => wait(ms, undefined, options), argsOf, runLane: runEngineLane, survey: surveyLibrary, now: Date.now,
   };
 }
 
@@ -113,6 +120,7 @@ export async function main(args, box = {}) {
     const code = await keepFed({
       track: name, fences: parseFences(fencesText), queueFile: join(L, `night-queue-${name}.txt`), stopFile: join(L, "night-stop"),
       survey: b.survey, queued: () => queuedOnTracks(L), sleep: b.sleep, now: b.now, say,
+      limit: async () => laneLimit(await readFile(join(L, "night-lanes-per-track"), "utf8").catch(() => ""), name),
       runLane: async (increment) => lane(increment, {
         title: `Overnight lane: track ${name}, ${increment}`,
         intro: `Your increment: ${increment}. Your track: ${name}. Your write fence: ${fence}.`,

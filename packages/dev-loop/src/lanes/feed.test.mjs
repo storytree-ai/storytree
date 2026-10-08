@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 
-import { keepFed, main, parseFences, pickNext, queuedOnTracks, readSurvey, WEBSITE_ARC } from "./feed.mjs";
+import { keepFed, main, parseFences, pickNext, queuedOnTracks, readSurvey, WEBSITE_ARC, writesOf } from "./feed.mjs";
 
 const fences = parseFences(`L=packages/library, packages/librarian, packages/cli
 A=packages/agent-link, packages/app, apps/desktop/src/main, packages/dev-loop
@@ -197,6 +197,42 @@ test("11.1 · the next front door prints the track's pick and each skip from one
   assert.equal(surveys, 1);
   assert.equal(await main(["next", "Z"], options), 2);
   assert.equal(await main(["run", "A"], options), 2);
+});
+
+test("12.6 · beside running lanes a track starts only queued or library work writing other packages; unknown ownership runs alone", async (t) => {
+  assert.deepEqual(writesOf("Write ownership: packages/dev-loop (src/lanes). Reads packages/cli.", fences.A), ["packages/dev-loop"], "the Write ownership line wins");
+  assert.deepEqual(writesOf("Change packages/agent-link and apps/desktop/src/main/x.ts.", fences.A), ["packages/agent-link", "apps/desktop/src/main"]);
+  assert.deepEqual(writesOf("Needs: Mint (track A)", fences.A), fences.A, "naming no package, it writes the whole fence");
+
+  const running = [{ id: "busy", writes: ["packages/dev-loop"] }];
+  const work = survey([increment("clash", "packages/dev-loop/src/lanes", { parked: "2026-10-01T00:00:00Z" }),
+    increment("unknown", "Needs: Mint (track A)", { parked: "2026-10-02T00:00:00Z" }), increment("free", "packages/agent-link")]);
+  const { pick, skipped } = pickNext(work, { track: "A", fences, running });
+  assert.equal(pick, "free");
+  assert.deepEqual(skipped, [{ id: "clash", why: "shares packages/dev-loop with running busy" }, { id: "unknown", why: "shares packages/dev-loop with running busy" }]);
+
+  const dir = await mkdtemp(join(tmpdir(), "lane-beside-"));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const queue = join(dir, "night-queue-A.txt"), stop = join(dir, "night-stop");
+  await writeFile(queue, "lanes\nsame\nmain\n");
+  const looks = survey([increment("lanes", "Write ownership: packages/dev-loop (src/lanes)"), increment("same", "packages/dev-loop/src/gate.mjs"),
+    increment("main", "Write ownership: apps/desktop/src/main"), increment("library", "packages/agent-link")]);
+  const started = [], done = {}, lines = [];
+  const fed = keepFed({ track: "A", fences, queueFile: queue, stopFile: stop, now: () => now, say: (line) => lines.push(line), limit: async () => 2,
+    survey: async () => looks, sleep: (ms, { signal } = {}) => new Promise((go) => signal?.addEventListener("abort", go)),
+    runLane: (id) => { started.push(id); return new Promise((end) => { done[id] = end; }); } });
+  const until = async (ready) => { for (let turn = 0; turn < 200 && !ready(); turn++) await new Promise((go) => setTimeout(go, 1)); assert.ok(ready()); };
+  await until(() => started.length === 2);
+  assert.deepEqual(started, ["lanes", "main"], "same shares packages/dev-loop with lanes, so main runs beside it");
+  assert.ok(lines.some((line) => /start main beside lanes: no shared package/.test(line)));
+  done.main(0);
+  await until(() => started.length === 3);
+  assert.equal(started[2], "library", "with no queued line it may run beside, it takes disjoint work from the library");
+  assert.equal(await readFile(queue, "utf8"), "lanes\nsame\nlibrary\n");
+  await writeFile(stop, "");
+  done.lanes(0); done.library(0);
+  assert.equal(await fed, 0);
+  assert.deepEqual(started, ["lanes", "main", "library"]);
 });
 
 test("11.5 · a refill skips an increment queued or running on any track's queue", async (t) => {

@@ -26,7 +26,7 @@ export const VERIFIED_BY_CI = "storytree test run on CI";
 // --- a test run -------------------------------------------------------------------------------
 
 /**
- * @typedef {{ name: string, suites: string[], file: string, status: "passed" | "failed" | "skipped", message?: string, windowsRun?: string }} TestResult
+ * @typedef {{ name: string, suites: string[], file: string, status: "passed" | "failed" | "skipped", message?: string, ciRun?: string }} TestResult
  */
 
 /**
@@ -72,20 +72,23 @@ export function parseJunit(xml) {
   return results;
 }
 
-/** Read only the downloaded Windows run/attempt for the exact recording commit; bad or absent evidence proves nothing. */
-export function readWindowsEvidence(directory, { commit, run }) {
-  if (!directory || !commit || !run) return undefined;
+/** The CI systems whose evidence credits a `platform:<os>` skip, by Node's platform name. */
+export const CI_PLATFORMS = { win32: "Windows", darwin: "macOS" };
+
+/** Read only the downloaded `platform` run/attempt for the exact recording commit; bad or absent evidence proves nothing. */
+export function readCiEvidence(directory, { commit, run, platform }) {
+  if (!directory || !commit || !run || !Object.hasOwn(CI_PLATFORMS, platform)) return undefined;
   try {
     const reports = readdirSync(directory).map((entry) => JSON.parse(readFileSync(path.join(directory, entry, "result.json"), "utf8")));
-    if (reports.length === 0 || reports.some((report) => report.run !== run || !validWindowsEvidence(report, commit))) return undefined;
-    return { platform: "win32", commit, run, code: 0, results: reports.flatMap((report) => report.results) };
+    if (reports.length === 0 || reports.some((report) => report.run !== run || !validEvidence(report, commit, platform))) return undefined;
+    return { platform, commit, run, code: 0, results: reports.flatMap((report) => report.results) };
   } catch {
     return undefined;
   }
 }
 
-function validWindowsEvidence(evidence, commit) {
-  return /^[a-f0-9]{40}$/.test(commit ?? "") && evidence?.commit === commit && evidence.platform === "win32" && evidence.code === 0 &&
+function validEvidence(evidence, commit, platform = evidence?.platform) {
+  return /^[a-f0-9]{40}$/.test(commit ?? "") && evidence?.commit === commit && Object.hasOwn(CI_PLATFORMS, platform) && evidence.platform === platform && evidence.code === 0 &&
     /^https:\/\/[^/]+\/[^/]+\/[^/]+\/actions\/runs\/\d+\/attempts\/\d+$/.test(evidence.run ?? "") &&
     Array.isArray(evidence.results) && evidence.results.every((test) =>
       typeof test.name === "string" && Array.isArray(test.suites) && test.suites.every((suite) => typeof suite === "string") &&
@@ -93,20 +96,32 @@ function validWindowsEvidence(evidence, commit) {
       ["passed", "failed", "skipped"].includes(test.status));
 }
 
-/** Replace only the local Windows skip whose complete test identity passed in the matching run. */
-export function creditWindows(results, windows, { root, commit }) {
-  if (!validWindowsEvidence(windows, commit)) return results;
+/** Replace only a local `platform:<os>` skip whose complete test identity passed in that system's matching run. */
+export function creditPlatforms(results, evidence, { root, commit }) {
   const key = (test, file = test.file) => JSON.stringify([file, test.suites, test.name]);
-  const byTest = new Map();
-  for (const test of windows.results) {
-    const id = key(test);
-    byTest.set(id, [...(byTest.get(id) ?? []), test]);
+  const byPlatform = new Map();
+  for (const run of evidence) {
+    if (run === undefined || !validEvidence(run, commit)) continue;
+    const byTest = new Map();
+    for (const test of run.results) {
+      const id = key(test);
+      byTest.set(id, [...(byTest.get(id) ?? []), test]);
+    }
+    byPlatform.set(run.platform, { run: run.run, byTest });
   }
   return results.map((test) => {
-    if (test.status !== "skipped" || !/^platform:win32(?:\s|:|$)/.test(test.message ?? "")) return test;
-    const matches = byTest.get(key(test, path.relative(root, path.resolve(root, test.file)).replaceAll("\\", "/")));
-    return matches?.length && matches.every((match) => match.status === "passed") ? { ...test, status: "passed", windowsRun: windows.run } : test;
+    const platform = test.status === "skipped" ? /^platform:([a-z0-9]+)(?:[-\s:]|$)/.exec(test.message ?? "")?.[1] : undefined;
+    const proof = platform === undefined ? undefined : byPlatform.get(platform);
+    if (proof === undefined) return test;
+    const matches = proof.byTest.get(key(test, path.relative(root, path.resolve(root, test.file)).replaceAll("\\", "/")));
+    return matches?.length && matches.every((match) => match.status === "passed") ? { ...test, status: "passed", ciRun: `${CI_PLATFORMS[platform]}: ${proof.run}` } : test;
   });
+}
+
+/** Whether `skip` is a CI platform's whose evidence this run did not see, so it could not re-run that platform's tests. */
+export function unseenPlatform(skip, platformsSeen) {
+  const platform = /^platform:(.+)$/.exec(skip ?? "")?.[1];
+  return platformsSeen !== undefined && platform !== undefined && Object.hasOwn(CI_PLATFORMS, platform) && !platformsSeen.has(platform);
 }
 
 /** A tag's attributes, decoded. */
@@ -282,8 +297,8 @@ export function judge({ contracts, results, coverage, show = (file) => file, pre
       skipped: own.filter(({ status }) => status === "skipped").length,
       total: own.length,
     };
-    const windowsRuns = [...new Set(own.map((test) => test.windowsRun).filter(Boolean))];
-    const tally = `${counts.passed}/${counts.total} tests passed${windowsRuns.length ? `; Windows: ${windowsRuns.join(", ")}` : ""}`;
+    const ciRuns = [...new Set(own.map((test) => test.ciRun).filter(Boolean))];
+    const tally = `${counts.passed}/${counts.total} tests passed${ciRuns.map((run) => `; ${run}`).join("")}`;
     const skipReasons = [...new Set(own.filter(({ status }) => status === "skipped").map(({ message }) => message).filter(Boolean))];
     /** @type {Verdict} */
     let verdict;
@@ -420,23 +435,23 @@ function optional(field, value) {
  * the kind of its skip, and any earlier passing or failing it did not reproduce, which it carries as
  * "not re-run at <commit>" (history keeps the old verdict). With no tests there is nothing to re-run,
  * and a verdict from elsewhere stands. One whose column already says the same is not written
- * again, so its note keeps the commit it was first not re-run at. A run that saw no Windows run
- * (`windowsSeen` false: no Windows evidence) cannot re-run a Windows-only test it skipped
- * either, so a passing verdict from elsewhere stands against its platform:win32 skip. The reported
+ * again, so its note keeps the commit it was first not re-run at. A run that saw no CI evidence for
+ * a platform (one missing from `platformsSeen`) cannot re-run a test that only runs there either,
+ * so a passing verdict from elsewhere stands against its `platform:<os>` skip. The reported
  * column is never touched: that is what an agent says, and no agent has spoken here.
  * @param {import("@storytree/library").Library} library
  * @param {Map<string, string>} contractIds contract number -> id
  * @param {Map<string, Verdict>} verdicts
  * @param {Writer} [writer]
- * @param {{ windowsSeen?: boolean }} [options]
+ * @param {{ platformsSeen?: Set<string> }} [options] the platforms whose CI evidence the run read; all, when absent
  */
-export async function recordHealth(library, contractIds, verdicts, writer = { by: VERIFIED_BY }, { windowsSeen = true } = {}) {
+export async function recordHealth(library, contractIds, verdicts, writer = { by: VERIFIED_BY }, { platformsSeen } = {}) {
   const written = { passing: 0, failing: 0, notChecked: 0, marked: 0 };
   for (const [number, verdict] of verdicts) {
     const id = contractIds.get(number);
     if (verdict.state === "not-checked") {
       written.notChecked++;
-      if (id !== undefined && (await markNotChecked(library, id, verdict, writer, windowsSeen))) written.marked++;
+      if (id !== undefined && (await markNotChecked(library, id, verdict, writer, platformsSeen))) written.marked++;
       continue;
     }
     if (id === undefined) throw new Error(`there is no contract ${number} in the library to record its health on`);
@@ -453,12 +468,12 @@ export async function recordHealth(library, contractIds, verdicts, writer = { by
  * the earlier verdict it did not reproduce (carried over from a mark already standing). True if it
  * wrote.
  */
-async function markNotChecked(library, id, verdict, writer, windowsSeen) {
+async function markNotChecked(library, id, verdict, writer, platformsSeen) {
   // Only a run that had tests for it, skipped or crashed, failed to reproduce a verdict: with none,
   // a verdict from elsewhere (an acceptance run, ADR-0825 D5) stands.
   if (verdict.skip === undefined && verdict.crashed !== true) return false;
   const earlier = (await library.health(id)).verified;
-  if (!windowsSeen && verdict.skip === "platform:win32" && earlier.state === "passing") return false;
+  if (unseenPlatform(verdict.skip, platformsSeen) && earlier.state === "passing") return false;
   const was = earlier.state === "not-checked" ? earlier.was : { state: earlier.state, at: earlier.at };
   const same = earlier.state === "not-checked" && earlier.skip === verdict.skip && earlier.was?.state === was?.state && earlier.was?.at === was?.at;
   if (same) return false;

@@ -39,7 +39,7 @@ import { connect } from "@storytree/library";
 
 import { appHome } from "../../../apps/desktop/src/home.ts";
 import { appLibraryServer } from "./library-server.mjs";
-import { contractsCoveredBy, contractsOf, creditWindows, dependantTestsNaming, judge, packageOf, parseJunit, readWindowsEvidence, recordHealth, recordingTarget, sourcesOf } from "./own-health.mjs";
+import { contractsCoveredBy, contractsOf, creditPlatforms, dependantTestsNaming, judge, packageOf, parseJunit, readCiEvidence, recordHealth, unseenPlatform, recordingTarget, sourcesOf } from "./own-health.mjs";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 const PROJECT = "storytree";
@@ -72,7 +72,11 @@ async function main() {
   }
   // workflow_run's GITHUB_SHA names the default branch, not necessarily the checked-out CI commit.
   target.writer.commit = execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
-  const windows = readWindowsEvidence(process.env.STORYTREE_WINDOWS_EVIDENCE, { commit: target.writer.commit, run: process.env.STORYTREE_WINDOWS_RUN });
+  const { commit } = target.writer;
+  const evidence = [
+    readCiEvidence(process.env.STORYTREE_WINDOWS_EVIDENCE, { commit, run: process.env.STORYTREE_WINDOWS_RUN, platform: "win32" }),
+    readCiEvidence(process.env.STORYTREE_MACOS_EVIDENCE, { commit, run: process.env.STORYTREE_MACOS_RUN, platform: "darwin" }),
+  ];
   let where;
   if (target.library === "app") {
     console.log(`the app's library: ${home.pgdata}`);
@@ -97,7 +101,7 @@ async function main() {
     try {
       let code = 0;
       for (const story of (await library.projectTree()).stories) {
-        if (!(await checkStory(library, story, target.writer, { root, windows }))) code = 1;
+        if (!(await checkStory(library, story, target.writer, { root, evidence }))) code = 1;
       }
       return code;
     } finally {
@@ -114,7 +118,7 @@ async function main() {
  * its contracts' verified health from what they showed. False if the run produced no report, so no
  * health could be recorded.
  */
-export async function checkStory(library, story, writer, { root, windows, runTests = runStoryTests, log = (line) => console.log(line), error = (line) => console.error(line) }) {
+export async function checkStory(library, story, writer, { root, evidence = [], runTests = runStoryTests, log = (line) => console.log(line), error = (line) => console.error(line) }) {
   const { numbers, contractIds } = contractsOf(story);
   const name = packageOf(story.title);
   const sources = sourcesOf(name).map((dir) => path.join(root, dir));
@@ -137,7 +141,7 @@ export async function checkStory(library, story, writer, { root, windows, runTes
 
   const { verdicts, unmapped, crashedFiles } = judge({
     contracts: numbers,
-    results: creditWindows(run.results, windows, { root, commit: writer.commit }),
+    results: creditPlatforms(run.results, evidence, { root, commit: writer.commit }),
     coverage: (test) => (dependant(test) ? contractsCoveredBy(test, { root: path.join(root, "packages"), prefix: name }) : contractsCoveredBy(test, { root: sourceOf(test) })),
     show: (test) => path.relative(root, test),
     prefix: name,
@@ -154,8 +158,8 @@ export async function checkStory(library, story, writer, { root, windows, runTes
     for (const result of unmapped) log(`  ${result.status.padEnd(7)} ${result.name}`);
   }
 
-  // Without Windows evidence, a run cannot re-run a test that skips off Windows: a Windows pass stands.
-  const windowsSeen = windows !== undefined;
+  // Without a CI system's evidence, a run cannot re-run a test that only runs there: that system's pass stands.
+  const platformsSeen = new Set(evidence.filter(Boolean).map(({ platform }) => platform));
   log(`\nverified health of "${story.title}", by "${writer.by}"${writer.commit === undefined ? "" : ` at commit ${writer.commit}`}:`);
   for (const capability of story.capabilities) {
     log(`  ${capability.title}`);
@@ -166,14 +170,14 @@ export async function checkStory(library, story, writer, { root, windows, runTes
       let line = `    ${number.padEnd(5)} ${verdict.state.padEnd(12)} ${verdict.note ?? verdict.reason ?? ""}`;
       if (verdict.state === "not-checked") {
         const earlier = (await library.health(contract.id)).verified;
-        if (!windowsSeen && verdict.skip === "platform:win32" && earlier.state === "passing") line += `; its earlier pass (${earlier.at}) stands: no Windows run to re-run it`;
+        if (unseenPlatform(verdict.skip, platformsSeen) && earlier.state === "passing") line += `; its earlier pass (${earlier.at}) stands: no ${verdict.skip} CI run to re-run it`;
         else if (earlier.state !== "not-checked") line += `; its earlier entry (${earlier.state}, ${earlier.at}) is marked not re-run`;
         if (verdict.skip !== undefined) line += ` [skip: ${verdict.skip}]`;
       }
       log(line);
     }
   }
-  const written = await recordHealth(library, contractIds, verdicts, writer, { windowsSeen });
+  const written = await recordHealth(library, contractIds, verdicts, writer, { platformsSeen });
   log(
     `\nrecorded: ${written.passing} passing, ${written.failing} failing; ` +
       `${written.notChecked} not checked, ${written.marked} of them marked with a skip's kind or as not re-run. The reported column is untouched.`,

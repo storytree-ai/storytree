@@ -1,0 +1,17 @@
+{
+ "links": 131,
+ "linkedCapabilities": 78,
+ "withTerritory": 76,
+ "endingInside": 76,
+ "withoutTerritory": [
+  {
+   "id": "capability_660c49dca74b",
+   "title": "The world / 3 · Props and dressing"
+  },
+  {
+   "id": "capability_e92b424b2d70",
+   "title": "The world / 4 · Hit targets"
+  }
+ ],
+ "outsideTheirTerritory": []
+}

@@ -12,6 +12,9 @@
  *   anywhere else, the doctor says so rather than registering something else.
  * - Setting a folder up is the agent link's `setUpProject`, called only for `--set-up <name>`, or
  *   `--join <name>` to add this machine's checkout to a project that already exists (ADR-0757 D4).
+ * - A folder whose marker names a project is read only once it is approved as that project's
+ *   checkout on this machine (ADR-0942 D1); until then the doctor says so, and `--join <name>` run
+ *   there approves it on purpose.
  * - The hooks last seen firing is the latest hook line in the project's activity log.
  * - `storytree setup install | remove` stays the agent link's own command, run from beside this one.
  */
@@ -21,7 +24,7 @@ import { homedir } from "node:os";
 import path from "node:path";
 
 import type { SetupReport } from "@storytree/agent-link";
-import { ProjectFolderError, setUpProject, suggestProjectName } from "@storytree/agent-link/routing";
+import { findProject, ProjectFolderError, requireApproval, setUpProject, suggestProjectName } from "@storytree/agent-link/routing";
 import type { ConnectOptions } from "@storytree/library";
 
 import { Refusal, type Answer } from "../answer.js";
@@ -102,6 +105,35 @@ async function lastHook(library: ConnectOptions, project: string): Promise<strin
   }
 }
 
+/** Join `project` from `folder`, the folder its marker already names: how a recorded checkout is approved (ADR-0942 D1). */
+async function joinHere(folder: string, project: string, library: ConnectOptions): Promise<void> {
+  const { connect } = await import("@storytree/library");
+  const storytree = await connect(library);
+  try {
+    // Joining approves the checkout from its own top folder, where the marker is.
+    const at = findProject(folder);
+    await setUpProject({ folder: at.project === undefined ? folder : at.folder, project, storytree, join: true }).catch((error: unknown) => {
+      throw error instanceof ProjectFolderError ? new Refusal(error.message) : error;
+    });
+  } finally {
+    await storytree.close();
+  }
+}
+
+/** Whether `folder` is approved as `project`'s checkout on this machine. */
+async function approvedHere(folder: string, project: string, library: ConnectOptions): Promise<boolean> {
+  const { connect } = await import("@storytree/library");
+  const storytree = await connect(library);
+  try {
+    return await requireApproval(storytree, project, folder).then(() => true, (error: unknown) => {
+      if (error instanceof ProjectFolderError) return false;
+      throw error;
+    });
+  } finally {
+    await storytree.close();
+  }
+}
+
 const doctor: Verb = {
   name: "doctor",
   usage: "doctor [--set-up <project> | --join <project>]",
@@ -125,8 +157,15 @@ const doctor: Verb = {
     const setUp = args.text("set-up");
     const join = args.text("join");
     if (report.project.status === "set up") {
-      said.push(`This folder is storytree project "${report.project.name}".`);
-      said.push(await lastHook(library, report.project.name));
+      const project = report.project.name;
+      if (join === project) await joinHere(context.cwd, project, library);
+      if (await approvedHere(context.cwd, project, library)) {
+        said.push(join === project ? `This folder is storytree project "${project}"'s checkout on this machine now.` : `This folder is storytree project "${project}".`);
+        said.push(await lastHook(library, project));
+      } else {
+        said.push(`This folder names storytree project "${project}", but it is not approved as "${project}"'s checkout on this machine, so storytree opens nothing and records nothing here.`);
+        next.push({ command: `storytree doctor --join ${project}`, why: `approve this folder as "${project}"'s checkout, if it is yours` });
+      }
     } else {
       const { connect } = await import("@storytree/library");
       const storytree = await connect(library);

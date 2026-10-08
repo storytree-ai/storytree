@@ -98,12 +98,13 @@ export function selectLines(project: string, filter: LineFilter): { text: string
 /**
  * The claim lines that decide who holds what now (capability 5): for each capability or increment
  * whose latest claim no later line ended, every claim line on it and the end lines of the sessions
- * that claimed it. Folded in order they give the standing claims, in the order a fold of the whole
+ * that claimed it. Its holder closing the increment a capability claim names as `under` ends it too
+ * (ADR-0944 D5). Folded in order they give the standing claims, in the order a fold of the whole
  * log gives them; ended claims, however many, send nothing.
  */
 export const STANDING_CLAIMS = `
 WITH latest AS (
-  SELECT DISTINCT ON (coalesce(detail->>'increment', detail->>'capability')) seq, session, coalesce(detail->>'increment', detail->>'capability') AS id
+  SELECT DISTINCT ON (coalesce(detail->>'increment', detail->>'capability')) seq, session, coalesce(detail->>'increment', detail->>'capability') AS id, detail->>'under' AS under
   FROM activity WHERE project = $1 AND kind = 'claimed'
   ORDER BY coalesce(detail->>'increment', detail->>'capability'), seq DESC
 ), endings AS (
@@ -115,7 +116,7 @@ WITH latest AS (
       (e.kind = 'released' AND coalesce(e.holder, e.session) = l.session AND e.id = l.id)
       OR (e.kind = 'landed' AND e.session = l.session AND e.id = l.id)
       OR (e.kind = 'merged' AND e.holder = l.session AND e.id = l.id)
-      OR (e.kind = 'closed' AND e.id = l.id)
+      OR (e.kind = 'closed' AND (e.id = l.id OR (e.session = l.session AND e.id = l.under)))
       OR (e.kind = 'session-ended' AND e.session = l.session)))
 ), claimers AS (
   SELECT DISTINCT session FROM activity

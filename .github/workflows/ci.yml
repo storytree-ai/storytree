@@ -96,7 +96,7 @@ jobs:
       # PASS / FAIL table per package.
       - run: pnpm test
         env:
-          STORYTREE_TEST_EVIDENCE: ${{ matrix.system == 'Windows' && '.pgtest/windows-evidence' || '' }}
+          STORYTREE_TEST_EVIDENCE: ${{ matrix.system == 'Windows' && '.pgtest/windows-evidence' || matrix.system == 'macOS' && '.pgtest/macos-evidence' || '' }}
       # Exercise the distributable before merging packaging/updater changes. A source build
       # passing tests alone does not prove NSIS can unpack the app and its database binaries.
       - name: Does this change reach the installer?
@@ -119,6 +119,15 @@ jobs:
         with:
           name: windows-test-evidence-${{ github.run_attempt }}
           path: .pgtest/windows-evidence
+          include-hidden-files: true
+          if-no-files-found: error
+      # The same for macOS: own health credits a platform:darwin skip only from this run (contract 1.11).
+      - name: Preserve macOS test evidence
+        if: matrix.system == 'macOS'
+        uses: actions/upload-artifact@v7
+        with:
+          name: macos-test-evidence-${{ github.run_attempt }}
+          path: .pgtest/macos-evidence
           include-hidden-files: true
           if-no-files-found: error
 

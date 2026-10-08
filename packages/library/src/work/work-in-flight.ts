@@ -6,16 +6,9 @@
  * closed when none is open, active otherwise or while it has none, and parked, the one state that
  * is stored, while the owner has parked it (10-b). New work parked on a closed arc reopens it (R1).
  *
- * Capability 11 · Waits: an arc waits on an arc, and an increment on an increment on any arc, each
- * with a reason, and a wait that would close a loop across both kinds is refused when it is written.
- * waitHolds is the one answer to whether a wait still holds.
- *
- * Capability 12 · Owner questions: a question is raised on an arc and settled with the owner's
- * answer, which stays on it. An open increment held on an open question is waiting on him, and
- * heldOnQuestion is the one answer to that. A question work is held on cannot be retired. An open
- * question carries a review lease (12-a, restored by ADR-0654): the day it was last checked to still
- * hold and how many days that is trusted for, 7 unless given. checkQuestion reads it fresh or lapsed,
- * renewQuestion re-stamps it, refusing a settled question, and lapsedQuestions is the librarian's drain.
+ * WorkInFlight is also the one door to waits (capability 11, waits.ts) and owner questions
+ * (capability 12, owner-questions.ts): it queues their writes behind its own, and reads the
+ * project's open work once for each.
  *
  * The increment's shape and the rules across its fields (a proposal carries when it was parked; a
  * closed increment its outcome; a close with no pull request a note) are capability 3's, checked
@@ -27,6 +20,10 @@ import { byCreation } from "../creation-order.js";
 import { checkReference, checkReferences, liveRecord, type Expected } from "../references.js";
 import type { SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.js";
 import { INCREMENT_STATUSES, type FieldsOf } from "../schema/types.js";
+import * as questions from "./owner-questions.js";
+import { heldOnOpen, type NewQuestion, type QuestionEdit, type QuestionLease, type Settlement } from "./owner-questions.js";
+import * as waits from "./waits.js";
+import { arcHold, holdsOf, incrementHold, noteWaits, type Hold, type Holds, type NoteWait, type Wait, type WaitFor } from "./waits.js";
 
 /** Where an increment is in its lifecycle. */
 export type IncrementStatus = (typeof INCREMENT_STATUSES)[number];
@@ -74,49 +71,6 @@ export interface IncrementEdit {
   readonly heldOn?: string[] | undefined;
 }
 
-/** A new question for the owner, on a live arc (capability 12). */
-export type NewQuestion = Omit<FieldsOf<"question">, "lifecycle" | "answer" | "settledAt" | "settledBy" | "verifiedAt">;
-
-/**
- * A correction to an open question's wording (12.7): any of the fields it was raised with that say
- * what is asked. An optional one set to undefined is removed.
- */
-export interface QuestionEdit {
-  readonly title?: string;
-  readonly stakes?: string;
-  readonly statement?: string;
-  readonly context?: string;
-  readonly options?: string;
-  readonly analogy?: string | undefined;
-  readonly diagram?: string | undefined;
-  readonly recommendation?: string | undefined;
-}
-
-/** How a question is settled: the owner's answer, and the decision that carried it, if one did. */
-export interface Settlement {
-  readonly answer: string;
-  /** A live decision. */
-  readonly decision?: string;
-}
-
-/** How long a question's review is trusted for, in days, unless it is raised with its own (12-a). */
-export const DEFAULT_QUESTION_LEASE_DAYS = 7;
-
-/** A question's review lease as read at one moment (12-a). */
-export interface QuestionLease {
-  readonly id: string;
-  /**
-   * Fresh while its lease runs, lapsed once it has run out (or it was never stamped), and settled
-   * once the owner has answered it: a settled question's lease no longer applies.
-   */
-  readonly state: "fresh" | "lapsed" | "settled";
-  /** When it was last checked to still hold (ISO 8601), if it ever was. */
-  readonly verifiedAt?: string;
-  readonly leaseDays: number;
-  /** When its lease runs out (ISO 8601): verifiedAt plus leaseDays. Absent if it was never stamped. */
-  readonly lapsesAt?: string;
-}
-
 /** How to park an arc: a write's options, and the day it wakes (YYYY-MM-DD, UTC), if it has one. */
 export interface ParkOptions extends WriteOptions {
   readonly until?: string;
@@ -153,95 +107,8 @@ export class LifecycleError extends Error {
   }
 }
 
-/** A blocker still holding a wait (capability 11). */
-export interface Hold {
-  /** The arc or increment waited on. */
-  readonly on: string;
-  readonly reason: string;
-  /**
-   * True when it can never release: the blocking increment closed without landing (failed or
-   * withdrawn), or the blocker is missing or retired (11-a).
-   */
-  readonly forGood: boolean;
-}
-
-/** What an increment waits for outside the library, as stored (11.6, ADR-0938 D1). */
-export type WaitFor = NonNullable<FieldsOf<"increment">["waitsFor"]>[number];
-
-/**
- * A wait for the owner or an outside event as read at one moment (11.6): an owner wait holds until
- * it is cleared; an event wait holds until UTC midnight of its check-back day, and from then no
- * longer holds, its check-back passed.
- */
-export interface NoteWait {
-  readonly releaser: WaitFor["releaser"];
-  readonly note: string;
-  readonly checkBack?: string;
-  readonly holds: boolean;
-}
-
-/**
- * Every hold on a project's open work at once (11.5): each live arc's and open increment's wait holds,
- * each open increment's owner holds, and each open increment's waits for the owner or an event,
- * keyed by id, each as waitHolds, heldOnQuestion and waitsFor give it.
- */
-export interface Holds {
-  /** Closed increments have no holds and are omitted. */
-  readonly waits: Readonly<Record<string, Hold[]>>;
-  readonly heldOn: Readonly<Record<string, string[]>>;
-  /**
-   * An event wait whose check-back has passed is kept, reading as no longer holding. The library
-   * always gives it; it is optional so a reader built before it (or a stand-in) still fits.
-   */
-  readonly waitsFor?: Readonly<Record<string, NoteWait[]>>;
-}
-
-/**
- * A wait would close a loop: the work would wait on itself, directly or through other arcs and
- * increments. The message names the loop, from the work the loop was found at back round to it.
- */
-export class WaitLoopError extends Error {
-  /** The arc and increment ids around the loop, starting and ending with the same one. */
-  readonly path: readonly string[];
-
-  constructor(path: readonly string[]) {
-    super(`wait loop: ${path.join(" → ")} (work may not wait on itself, directly or through other arcs and increments)`);
-    this.name = "WaitLoopError";
-    this.path = [...path];
-  }
-}
-
-/**
- * A question some increment is held on (12.4), or a capability another depends on (4.9), cannot
- * be retired: the message names the live records whose links must be dealt with first.
- */
-export class RetireRefusedError extends Error {
-  readonly id: string;
-  /** The increments held on the question, or capabilities depending on the capability. */
-  readonly heldBy: readonly string[];
-
-  constructor(id: string, heldBy: readonly string[], field: "heldOn" | "dependsOn" = "heldOn") {
-    super(
-      `${field === "heldOn" ? "question" : "capability"} ${JSON.stringify(id)} cannot be retired: ` +
-        `${heldBy.map((held) => JSON.stringify(held)).join(", ")} ` +
-        (field === "heldOn"
-          ? "hold on it (take it off their heldOn first, or settle it instead)"
-          : "depend on it (take it off their dependsOn first)"),
-    );
-    this.name = "RetireRefusedError";
-    this.id = id;
-    this.heldBy = [...heldBy];
-  }
-}
-
-/** One wait, as an arc or increment stores it. */
-type Wait = { readonly on: string; readonly reason: string };
-
 const TOUCHABLE: Expected = { name: "story or capability", types: ["story", "capability"] };
 const EDITABLE: ReadonlySet<string> = new Set(["title", "objective", "body", "touches", "remedies", "heldOn"]);
-
-/** The fields editQuestion changes: a question's wording (12.7). */
-const QUESTION_WORDING: ReadonlySet<string> = new Set(["title", "stakes", "statement", "context", "options", "analogy", "diagram", "recommendation"]);
 
 export class WorkInFlight {
   readonly #records: SchemaRecords;
@@ -366,76 +233,31 @@ export class WorkInFlight {
   }
 
   /**
-   * Make `waiter` wait on `blocker`, with a reason: an arc on a live arc, an increment on a live
-   * increment on any arc (MissingReferenceError otherwise). Waiting again on the same blocker
-   * replaces the reason. A wait that would close a loop across arcs and increments is refused with
-   * a WaitLoopError naming it. Null, with nothing written, if `waiter` is not a live arc or increment.
+   * Make `waiter` wait on `blocker`, with a reason (capability 11): an arc on a live arc, an increment
+   * on a live increment on any arc. A wait that would close a loop is refused (WaitLoopError).
    */
   addWait(waiter: string, blocker: string, reason: string, options?: WriteOptions): Promise<SchemaRecord<"arc" | "increment"> | null> {
-    return this.#serially(async () => {
-      const record = await liveRecord(this.#records, waiter, ["arc", "increment"]);
-      if (record === null) return null;
-      await checkReference(this.#records, "on", blocker, record.type);
-      const stored: readonly Wait[] = record.fields.waits ?? [];
-      const waits = stored.some((wait) => wait.on === blocker)
-        ? stored.map((wait) => (wait.on === blocker ? { on: blocker, reason } : wait))
-        : [...stored, { on: blocker, reason }];
-      await this.#refuseLoop(waiter, waits);
-      return (await this.#records.edit(waiter, { waits }, options)) as SchemaRecord<"arc" | "increment"> | null;
-    });
+    return this.#serially(() => waits.addWait(this.#records, () => this.#snapshot(), waiter, blocker, reason, options));
   }
 
-  /** Stop `waiter` waiting on `blocker`. Null, with nothing written, if `waiter` is not a live arc or increment. */
+  /** Stop `waiter` waiting on `blocker` (capability 11). */
   removeWait(waiter: string, blocker: string, options?: WriteOptions): Promise<SchemaRecord<"arc" | "increment"> | null> {
-    return this.#serially(async () => {
-      const record = await liveRecord(this.#records, waiter, ["arc", "increment"]);
-      if (record === null) return null;
-      const waits = (record.fields.waits ?? []).filter((wait) => wait.on !== blocker);
-      return (await this.#records.edit(waiter, { waits: waits.length === 0 ? undefined : waits }, options)) as SchemaRecord<"arc" | "increment"> | null;
-    });
+    return this.#serially(() => waits.removeWait(this.#records, waiter, blocker, options));
   }
 
-  /**
-   * Make an open increment wait for the owner or an outside event, with a note (11.6, ADR-0938 D1).
-   * Waiting again for the same releaser replaces it. An event wait needs a check-back day, not
-   * before today (UTC); an owner wait takes none; a closed increment waits for nothing: each a
-   * RangeError, with nothing written. Null, with nothing written, if `id` is not a live increment.
-   */
+  /** Make an open increment wait for the owner or an outside event, with a note (11.6). */
   addWaitFor(id: string, wait: WaitFor, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
-    return this.#serially(async () => {
-      const increment = await liveRecord(this.#records, id, ["increment"]);
-      if (increment === null) return null;
-      const { releaser, note, checkBack } = wait;
-      if (increment.fields.status === "closed") throw new RangeError(`increment ${JSON.stringify(id)} is closed, and waits for nothing`);
-      if (releaser === "event" && checkBack === undefined) throw new RangeError("an event wait needs a check-back day (YYYY-MM-DD)");
-      if (releaser === "owner" && checkBack !== undefined) throw new RangeError("an owner wait takes no check-back day: it holds until it is cleared");
-      if (checkBack !== undefined && checkBack < new Date().toISOString().slice(0, 10)) throw new RangeError(`check-back day ${checkBack} is before today`);
-      const written: WaitFor = { releaser, note, ...(checkBack === undefined ? {} : { checkBack }) };
-      const stored = increment.fields.waitsFor ?? [];
-      const waitsFor = stored.some((one) => one.releaser === releaser)
-        ? stored.map((one) => (one.releaser === releaser ? written : one))
-        : [...stored, written];
-      return (await this.#records.edit(id, { waitsFor }, options)) as SchemaRecord<"increment"> | null;
-    });
+    return this.#serially(() => waits.addWaitFor(this.#records, id, wait, options));
   }
 
-  /** Stop an increment waiting for `releaser`. Null, with nothing written, if `id` is not a live increment. */
+  /** Stop an increment waiting for `releaser` (11.6). */
   removeWaitFor(id: string, releaser: WaitFor["releaser"], options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
-    return this.#serially(async () => {
-      const increment = await liveRecord(this.#records, id, ["increment"]);
-      if (increment === null) return null;
-      const waitsFor = (increment.fields.waitsFor ?? []).filter((one) => one.releaser !== releaser);
-      return (await this.#records.edit(id, { waitsFor: waitsFor.length === 0 ? undefined : waitsFor }, options)) as SchemaRecord<"increment"> | null;
-    });
+    return this.#serially(() => waits.removeWaitFor(this.#records, id, releaser, options));
   }
 
-  /**
-   * What an open increment waits for outside the library, read at `at` (11.6), in the order written:
-   * each with whether it still holds. Empty for a closed increment and for an id that is not a live one.
-   */
-  async waitsFor(id: string, at: Date = new Date()): Promise<NoteWait[]> {
-    const increment = await liveRecord(this.#records, id, ["increment"]);
-    return increment === null || increment.fields.status === "closed" ? [] : noteWaits(increment.fields.waitsFor, at);
+  /** What an open increment waits for outside the library, read at `at` (11.6). */
+  waitsFor(id: string, at: Date = new Date()): Promise<NoteWait[]> {
+    return waits.waitsFor(this.#records, id, at);
   }
 
   /**
@@ -468,105 +290,34 @@ export class WorkInFlight {
     };
   }
 
-  /**
-   * Raise a question for the owner on a live arc (MissingReferenceError otherwise) that is not parked
-   * (RangeError, with nothing written: a parked arc raises no questions, ADR-0835 D1). It is open, and
-   * stamped as verified now: the start of its review lease (12-a).
-   */
+  /** Raise a question for the owner on a live arc that is not parked (capability 12). */
   raiseQuestion(question: NewQuestion, options?: WriteOptions): Promise<SchemaRecord<"question">> {
-    return this.#serially(async () => {
-      await checkReference(this.#records, "arc", question.arc, "arc");
-      const arc = await liveRecord(this.#records, question.arc, ["arc"]);
-      if (arc !== null && isParked(arc)) {
-        throw new RangeError(
-          `arc ${JSON.stringify(question.arc)} is parked, so it raises no questions (ADR-0835): write what you would ask into the arc's residue, its owning increment's body, to be raised when the arc is unparked`,
-        );
-      }
-      return this.#records.create(
-        "question",
-        { ...question, lifecycle: "open", verifiedAt: new Date().toISOString(), leaseDays: question.leaseDays ?? DEFAULT_QUESTION_LEASE_DAYS },
-        options,
-      );
-    });
+    return this.#serially(() => questions.raiseQuestion(this.#records, (arc) => isParked(arc), question, options));
   }
 
-  /**
-   * Question `id`'s review lease as it reads at `at` (now, unless given): fresh, lapsed or settled
-   * (12-a). Null if `id` is not a live question. A read: it writes nothing.
-   */
-  async checkQuestion(id: string, at: Date = new Date()): Promise<QuestionLease | null> {
-    const question = await liveRecord(this.#records, id, ["question"]);
-    return question === null ? null : leaseOf(question, at);
+  /** Question `id`'s review lease as it reads at `at` (12-a). */
+  checkQuestion(id: string, at: Date = new Date()): Promise<QuestionLease | null> {
+    return questions.checkQuestion(this.#records, id, at);
   }
 
-  /**
-   * Stamp open question `id` as checked to still hold, now: its lease starts again, as long as it was.
-   * Renewing a settled question is refused (RangeError), with nothing written: it has its answer, and
-   * re-stamping it would only make an answered question look live (0.2's date-only renewals).
-   * Null, with nothing written, if `id` is not a live question.
-   */
+  /** Stamp open question `id` as checked to still hold, now (12-a). */
   renewQuestion(id: string, options?: WriteOptions): Promise<SchemaRecord<"question"> | null> {
-    return this.#serially(async () => {
-      const question = await liveRecord(this.#records, id, ["question"]);
-      if (question === null) return null;
-      if (question.fields.lifecycle === "settled") {
-        throw new RangeError(`question ${JSON.stringify(id)} is settled, so there is nothing to renew: its answer stands`);
-      }
-      return (await this.#records.edit(id, { verifiedAt: new Date().toISOString() }, options)) as SchemaRecord<"question"> | null;
-    });
+    return this.#serially(() => questions.renewQuestion(this.#records, id, options));
   }
 
-  /**
-   * Correct open question `id`'s wording in place (12.7): only the named fields change. Anything but
-   * its wording (its arc, lifecycle, answer or lease) is refused (RangeError), and so is editing a
-   * settled question, both with nothing written: its answer stands, answered to the words it had.
-   * Null, with nothing written, if `id` is not a live question.
-   */
+  /** Correct open question `id`'s wording in place (12.7). */
   editQuestion(id: string, fields: QuestionEdit, options?: WriteOptions): Promise<SchemaRecord<"question"> | null> {
-    return this.#serially(async () => {
-      const other = Object.keys(fields).find((key) => !QUESTION_WORDING.has(key));
-      if (other !== undefined) {
-        throw new RangeError(`editQuestion changes ${[...QUESTION_WORDING].join(", ")}, not ${JSON.stringify(other)}: a question's arc, answer and lease move through their own verbs`);
-      }
-      const question = await liveRecord(this.#records, id, ["question"]);
-      if (question === null) return null;
-      if (question.fields.lifecycle === "settled") {
-        throw new RangeError(`question ${JSON.stringify(id)} is settled, so its wording cannot change: its answer stands`);
-      }
-      return (await this.#records.edit(id, fields, options)) as SchemaRecord<"question"> | null;
-    });
+    return this.#serially(() => questions.editQuestion(this.#records, id, fields, options));
   }
 
-  /**
-   * The open questions whose lease has lapsed at `at` (now, unless given), across every arc, longest
-   * lapsed first (one never stamped before any): the librarian's Queues drain (12-a).
-   */
-  async lapsedQuestions(at: Date = new Date()): Promise<SchemaRecord<"question">[]> {
-    const lapsed = (await this.#records.list("question"))
-      .map((question) => ({ question, lease: leaseOf(question, at) }))
-      .filter(({ lease }) => lease.state === "lapsed");
-    const runOut = (lease: QuestionLease): number => (lease.lapsesAt === undefined ? -Infinity : Date.parse(lease.lapsesAt));
-    return lapsed.sort((a, b) => runOut(a.lease) - runOut(b.lease) || byCreation(a.question, b.question)).map(({ question }) => question);
+  /** The open questions whose lease has lapsed at `at`, longest lapsed first (12-a). */
+  lapsedQuestions(at: Date = new Date()): Promise<SchemaRecord<"question">[]> {
+    return questions.lapsedQuestions(this.#records, at);
   }
 
-  /**
-   * Settle a question with the owner's answer, kept on it with when and the decision that carried
-   * it, which must be a live decision. A settlement with no answer is refused (SchemaError), and so
-   * is settling a settled question. Null, with nothing written, if `id` is not a live question.
-   */
+  /** Settle a question with the owner's answer (capability 12). */
   settleQuestion(id: string, settlement: Settlement, options?: WriteOptions): Promise<SchemaRecord<"question"> | null> {
-    return this.#serially(async () => {
-      const question = await liveRecord(this.#records, id, ["question"]);
-      if (question === null) return null;
-      if (question.fields.lifecycle === "settled") throw new RangeError(`question ${JSON.stringify(id)} is already settled`);
-      await checkReference(this.#records, "decision", settlement.decision, "decision");
-      return (await this.#records.edit(id, {
-        lifecycle: "settled",
-        answer: settlement.answer,
-        settledAt: new Date().toISOString(),
-        settledBy: settlement.decision,
-      }, options)) as SchemaRecord<"question"> | null;
-    });
+    return this.#serially(() => questions.settleQuestion(this.#records, id, settlement, options));
   }
 
   /** The questions raised on arc `arcId`, open and settled, oldest first. */
@@ -574,15 +325,9 @@ export class WorkInFlight {
     return (await this.#records.list("question", { where: { arc: arcId } })).sort(byCreation);
   }
 
-  /**
-   * The open questions an increment is held on, in the order it names them: the one answer to
-   * whether it is waiting on the owner. Empty when it is not: it is closed, it names none, each it
-   * names is settled, or names no question at all (11-a: a missing question holds nothing).
-   */
-  async heldOnQuestion(incrementId: string): Promise<string[]> {
-    const increment = await liveRecord(this.#records, incrementId, ["increment"]);
-    if (increment === null || increment.fields.status === "closed") return [];
-    return heldOnOpen(increment, await this.#records.list("question"));
+  /** The open questions an increment is held on: the one answer to whether it waits on the owner (capability 12). */
+  heldOnQuestion(incrementId: string): Promise<string[]> {
+    return questions.heldOnQuestion(this.#records, incrementId);
   }
 
   /**
@@ -592,18 +337,16 @@ export class WorkInFlight {
   retire(id: string, reason: string, options?: WriteOptions): Promise<void> {
     return this.#serially(async () => {
       const record = await liveRecord(this.#records, id, ["question", "capability"]);
-      if (record?.type === "question") {
-        const heldBy = (await this.#records.list("increment")).filter((increment) => increment.fields.heldOn?.includes(id) === true);
-        if (heldBy.length > 0) throw new RetireRefusedError(id, heldBy.sort(byCreation).map((increment) => increment.id));
-      }
+      if (record?.type === "question") await questions.refuseRetiringHeld(this.#records, id);
       if (record?.type === "capability") {
         const dependents = (await this.#records.select("capability", ["dependsOn"]))
           .filter((capability) => capability.fields.dependsOn?.includes(id) === true);
-        if (dependents.length > 0) throw new RetireRefusedError(id, dependents.map((capability) => capability.id), "dependsOn");
+        if (dependents.length > 0) throw new questions.RetireRefusedError(id, dependents.map((capability) => capability.id), "dependsOn");
       }
       await this.#records.retire(id, reason, options);
     });
   }
+
 
   /**
    * Park an arc: it reads parked, whatever its work, until unparked, or, given `until` (a day,
@@ -672,30 +415,6 @@ export class WorkInFlight {
     return new Snapshot(arcs, increments, questions, hasIncrements, new Set(landed.map(({ id }) => id)));
   }
 
-  /**
-   * Throw a WaitLoopError if `waiter` waiting on `waits` would close a loop. The graph is arc and
-   * increment waits as one (11-b): an arc waits on the arcs it names, and cannot close until each
-   * of its open increments has; an open increment waits on the increments it names, and on the
-   * arcs its arc waits on. A closed increment waits on nothing and holds up nothing, and it never
-   * reopens, so it can be in no loop. The loop is looked for from the waiter, and, for an arc, from
-   * each of its open increments, oldest first, since their waits change with it.
-   */
-  async #refuseLoop(waiter: string, waits: readonly Wait[]): Promise<void> {
-    const work = await this.#snapshot();
-    const waitsOf = (id: string): readonly Wait[] =>
-      id === waiter ? waits : (work.arcs.get(id)?.fields.waits ?? work.increments.get(id)?.fields.waits ?? []);
-    const next = (id: string): string[] => {
-      if (work.arcs.has(id)) return [...waitsOf(id).map(({ on }) => on), ...work.openIncrementsOf(id).map((open) => open.id)];
-      const increment = work.increments.get(id);
-      if (increment === undefined || increment.fields.status === "closed") return [];
-      return [...waitsOf(id), ...waitsOf(increment.fields.arc)].map(({ on }) => on);
-    };
-    const starts = [waiter, ...(work.arcs.has(waiter) ? work.openIncrementsOf(waiter).map((open) => open.id) : [])];
-    for (const start of starts) {
-      const loop = loopThrough(start, next);
-      if (loop !== undefined) throw new WaitLoopError(loop);
-    }
-  }
 
   #setParked(id: string, parked: true | undefined, options?: ParkOptions): Promise<SchemaRecord<"arc"> | null> {
     return this.#serially(async () => {
@@ -721,21 +440,6 @@ export class WorkInFlight {
     this.#lastWrite = result.catch(() => undefined);
     return result;
   }
-}
-
-/** A question's review lease at `at` (12-a): an unparseable stamp reads as never stamped. */
-function leaseOf(question: SchemaRecord<"question">, at: Date): QuestionLease {
-  const { verifiedAt, leaseDays = DEFAULT_QUESTION_LEASE_DAYS, lifecycle } = question.fields;
-  const stamped = verifiedAt === undefined ? Number.NaN : Date.parse(verifiedAt);
-  const lapsesAt = Number.isNaN(stamped) ? undefined : stamped + leaseDays * 86_400_000;
-  const state = lifecycle === "settled" ? "settled" : lapsesAt !== undefined && at.getTime() < lapsesAt ? "fresh" : "lapsed";
-  return {
-    id: question.id,
-    state,
-    ...(verifiedAt === undefined ? {} : { verifiedAt }),
-    leaseDays,
-    ...(lapsesAt === undefined ? {} : { lapsesAt: new Date(lapsesAt).toISOString() }),
-  };
 }
 
 type ArcFacts = Omit<SchemaRecord<"arc">, "fields"> & { fields: Pick<FieldsOf<"arc">, "waits" | "parked" | "parkedUntil"> };
@@ -796,68 +500,19 @@ class Snapshot {
     return (this.#byArc.get(arc) ?? []).filter((increment) => increment.fields.status !== "closed");
   }
 
-  /** An arc wait holds until the arc closes, and for good if the arc is missing (11.2, 11-a). */
+  /** Whether an arc wait holds, as capability 11 reads the arc's state now. */
   arcHold(wait: Wait): Hold | undefined {
     const arc = this.arcs.get(wait.on);
-    if (arc === undefined) return { ...wait, forGood: true };
-    const state = arcState(arc, this.#byArc.get(arc.id) ?? [], this.#questionsByArc.get(arc.id) ?? [], new Date(), this.hasIncrements.has(arc.id));
-    return state === "closed" ? undefined : { ...wait, forGood: false };
+    const closed = arc === undefined
+      ? undefined
+      : arcState(arc, this.#byArc.get(arc.id) ?? [], this.#questionsByArc.get(arc.id) ?? [], new Date(), this.hasIncrements.has(arc.id)) === "closed";
+    return arcHold(wait, closed);
   }
 
-  /**
-   * An increment wait holds until the blocker closes as landed, and for good if it closed any
-   * other way or is missing (11.1, 11-a).
-   */
+  /** Whether an increment wait holds, as capability 11 reads its blocker. */
   incrementHold(wait: Wait): Hold | undefined {
-    if (this.landed.has(wait.on)) return undefined;
-    return { ...wait, forGood: !this.increments.has(wait.on) };
+    return incrementHold(wait, this.landed.has(wait.on), this.increments.has(wait.on));
   }
-}
-
-/** The open questions among those `increment` names, in its order, each once. */
-function heldOnOpen(increment: IncrementFacts, questions: readonly QuestionFacts[]): string[] {
-  const open = new Set(questions.filter((question) => question.fields.lifecycle === "open").map(({ id }) => id));
-  return [...new Set(increment.fields.heldOn ?? [])].filter((id) => open.has(id));
-}
-
-/** Each wait for the owner or an event, read at `at`: an event's no longer holds from UTC midnight of its check-back day (11.6). */
-function noteWaits(waitsFor: readonly WaitFor[] | undefined, at: Date): NoteWait[] {
-  return (waitsFor ?? []).map(({ releaser, note, checkBack }) => ({
-    releaser,
-    note,
-    ...(checkBack === undefined ? {} : { checkBack }),
-    holds: checkBack === undefined || at.getTime() < Date.parse(`${checkBack}T00:00:00Z`),
-  }));
-}
-
-/** The holds among `waits`, in order: each wait that `hold` says still holds. */
-function holdsOf(waits: readonly Wait[] | undefined, hold: (wait: Wait) => Hold | undefined): Hold[] {
-  return (waits ?? []).flatMap((wait) => {
-    const held = hold(wait);
-    return held === undefined ? [] : [{ on: held.on, reason: held.reason, forGood: held.forGood }];
-  });
-}
-
-/**
- * A path along `next`'s edges from `start` back round to `start`, or undefined if there is none.
- * Depth-first, following each node's edges in order, so the same loop is reported every time;
- * iterative, so a long chain cannot overflow the stack.
- */
-function loopThrough(start: string, next: (id: string) => readonly string[]): string[] | undefined {
-  const path = [{ id: start, next: next(start).values() }];
-  const reached = new Set([start]);
-  for (let step = path.at(-1); step !== undefined; step = path.at(-1)) {
-    const edge = step.next.next();
-    if (edge.done === true) {
-      path.pop();
-      continue;
-    }
-    if (edge.value === start) return [...path.map(({ id }) => id), start];
-    if (reached.has(edge.value)) continue;
-    reached.add(edge.value);
-    path.push({ id: edge.value, next: next(edge.value).values() });
-  }
-  return undefined;
 }
 
 /**

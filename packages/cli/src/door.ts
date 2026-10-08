@@ -50,6 +50,8 @@ export interface Context {
   readonly cwd: string;
   /** The command's own script, when known. */
   readonly script?: string;
+  /** Say something before the answer, as a command that waits on the person (a sign-in code) must. */
+  out(text: string): void;
   /** The project's library: the project the folder belongs to, on the running storytree. */
   library(): Promise<Library>;
   /** The writer to pass to every write; using it also names that writer in the answer. */
@@ -116,6 +118,7 @@ export async function run(argv: readonly string[], io: Io): Promise<number> {
     const answer = await dispatch(argv, {
       cwd: io.cwd,
       ...(io.script === undefined ? {} : { script: io.script }),
+      out: (text) => io.out(render({ text })),
       library: () => opened.library(),
       claims: () => opened.claims(),
       activityContext: () => opened.activityContext(),

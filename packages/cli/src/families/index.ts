@@ -11,6 +11,7 @@ import { capabilities } from "./capability.js";
 import { friction, resteer } from "./capture.js";
 import { contextFamily } from "./context.js";
 import { doctorFamily, setupFamily } from "./doctor.js";
+import { accountStatus, signIn, signOut } from "./identity.js";
 import { library } from "./library.js";
 import { journeyFamily } from "./journey.js";
 import { questions } from "./question.js";
@@ -56,6 +57,9 @@ export const FAMILIES: readonly Family[] = [
   settings,
   journeyFamily,
   auth,
+  signIn,
+  accountStatus,
+  signOut,
   contextFamily,
   session,
 ];

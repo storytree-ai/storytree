@@ -1,6 +1,6 @@
 /** Contract 10.10: the user's idle duration controls both liveness and claim takeover. */
 import assert from "node:assert/strict";
-import { copyFileSync, writeFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 import { connect } from "@storytree/library";
@@ -10,7 +10,7 @@ import { claimsFrom, sessionsFrom } from "../readings.js";
 import { readSessions } from "../sessions/index.js";
 import { claudeCode, withAgent } from "../testing/agent.js";
 import { withTempDir } from "../testing/folders.js";
-import { approveCheckout, dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { approveCheckout, dropTestProjects, placeTestServer, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { setSetting } from "./settings.js";
 
 test("10.10 after 15 quiet minutes, the default keeps sessions and claims live; 10m makes them idle and permits takeover", async () => {
@@ -83,7 +83,7 @@ test("10.10 / 9.7 a running MCP server rereads idle-after without blocking indep
       const activity = await store.ownDatabase(ACTIVITY_DATABASE);
       await activity.query("UPDATE activity SET at = now() - interval '15 minutes' WHERE project = $1", [project]);
       const dataDir = path.join(home, "pgdata");
-      copyFileSync(`${testServerDataDir()}.owner.json`, `${dataDir}.owner.json`);
+      placeTestServer(dataDir);
       await withAgent(home, claudeCode("B", { dataDir }), async (agent) => {
         const before = await agent.call("show_plan");
         assert.equal(before.isError, false, before.text);

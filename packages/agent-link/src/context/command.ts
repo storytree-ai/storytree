@@ -6,7 +6,7 @@
  */
 import path from "node:path";
 
-import { route, type LocateOptions } from "../routing/index.js";
+import { ProjectFolderError, requireApproval, route, storytreeHome, type LocateOptions } from "../routing/index.js";
 import { readContext, type ContextReading } from "./context.js";
 import { guidanceSentence } from "./guidance.js";
 
@@ -34,8 +34,14 @@ export async function contextCommand({ folder, env, json = false, locate }: Cont
   const [{ openActivityLog }, { connect }] = await Promise.all([import("../activity/index.js"), import("@storytree/library")]);
   const storytree = await connect(where.library);
   try {
-    const log = await openActivityLog(storytree);
     const home = locate?.home ?? (locate?.dataDir === undefined ? undefined : path.dirname(path.resolve(locate.dataDir)));
+    try {
+      await requireApproval(storytree, where.project, where.folder, home ?? storytreeHome());
+    } catch (error) {
+      if (error instanceof ProjectFolderError) return said(json, `No context reading: ${error.message}`);
+      throw error;
+    }
+    const log = await openActivityLog(storytree);
     const reading = await readContext(log, where.project, session, home === undefined ? {} : { home });
     await log.close();
     return { text: json ? JSON.stringify(reading) : sentence(reading), code: 0 };

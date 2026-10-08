@@ -1,5 +1,5 @@
 /** Capability 1 · Project routing. */
-export { findProject, locateApp, locateLibrary, locateStorytree, MARKER_FILE, NOT_A_PROJECT, NOT_RUNNING, route, inMainCheckout, recordTrunkOnSight, setUpProject, storytreeHome, suggestedName, suggestProjectName, notAProjectYet, openNamedProject, withConnectTimeout } from "./routing.js";
+export { findProject, locateApp, locateLibrary, locateStorytree, MARKER_FILE, NOT_A_PROJECT, NOT_RUNNING, route, inMainCheckout, requireApproval, setUpProject, storytreeHome, suggestedName, suggestProjectName, notAProjectYet, openNamedProject, withConnectTimeout } from "./routing.js";
 export type { LocateOptions, ProjectLookup, Route, SetUpOptions, StorytreeAddress } from "./routing.js";
 export { forgetTrunk, machineOf, ProjectFolderError, TRUNKS_DATABASE, trunksOn, unusedName } from "./trunks.js";
 export type { Machine, Trunk } from "./trunks.js";

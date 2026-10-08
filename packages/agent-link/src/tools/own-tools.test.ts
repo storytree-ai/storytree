@@ -15,7 +15,7 @@ import { openActivityLog } from '../activity/index.js';
 import { removeTempDir } from '../testing/folders.js';
 import { connect, ConnectionError } from '@storytree/library';
 import { libraryDown } from './answers.js';
-import { testServerDataDir, testServerUrl, uniqueProjectName, dropTestProjects } from '../testing/pg.js';
+import { approveCheckout, testServerDataDir, testServerUrl, uniqueProjectName, dropTestProjects } from '../testing/pg.js';
 
 for (const installed of [false, true]) test(`processes 3.4/3.6/4.1/5.1: own tools, ${installed ? 'installed' : 'source'} MCP reads and clears the offline ledger and stops only its caller scope`, async t => {
   const home = await mkdtemp(path.join(tmpdir(), 'own-tools-'));
@@ -146,6 +146,7 @@ test('processes 3.6/4.1: own tools online, Claude hook identity selects only its
     }
   });
   await writeFile(path.join(home, '.storytree.json'), JSON.stringify({ project }));
+  await approveCheckout(home, project, home);
   await copyFile(`${testServerDataDir()}.owner.json`, path.join(home, 'pgdata.owner.json'));
   const server = await connect({ url: testServerUrl() });
   await (await server.openProject(project)).close().finally(() => server.close()); // set up, as a marked folder's project is

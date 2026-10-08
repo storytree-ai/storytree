@@ -43,7 +43,7 @@ import type { z } from "zod";
 import type { ActivityLog, Agent, Line } from "../activity/index.js";
 import { endMergedClaims, type MergeWatch } from "../claims/index.js";
 import { habitsCard } from "../instructions/index.js";
-import { findProject, locateStorytree, recordTrunkOnSight, route } from "../routing/index.js";
+import { findProject, locateStorytree, route, storytreeHome } from "../routing/index.js";
 import { idleAfterMs } from "../settings/settings.js";
 import type { SetupOptions } from "../setup/index.js";
 import type { ProtectionReader } from "../setup/pipeline.js";
@@ -158,8 +158,8 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
   const ownSession = `storytree-mcp-${randomUUID()}`;
   const locate = options.dataDir === undefined ? {} : { dataDir: options.dataDir };
   const callerOf = (context: ServerContext): Caller => callerFrom(server, context, env, ownSession);
-  // The first call that reaches the library records where the project lives on this machine (ADR-0757).
-  let sighted: Promise<unknown> | undefined;
+  // The machine whose approved trunks let this folder reach its project (ADR-0942): the home setup records them in.
+  const home = options.setup?.storytreeHome ?? (options.dataDir === undefined ? storytreeHome() : path.dirname(path.resolve(options.dataDir)));
 
   const define: Define = (name, description, input, act) => {
     servedTools.push(name);
@@ -170,8 +170,7 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
       const meta = metaOf(context);
       try {
         let quietMs = options.quietMs;
-        const { library, log } = await connections.reach(where.library, where.project, where.identity);
-        await (sighted ??= connections.server(where.library).then((storytree) => recordTrunkOnSight(storytree, where.project, where.folder, options.setup?.storytreeHome, where.identity)).catch(() => undefined));
+        const { library, log } = await connections.reach(where.library, where.project, where.identity, { folder: where.folder, home });
         // What the hooks wrote of this very call, the one run just before it (ADR-0629 D2): only those lines (contract 2.7).
         const lines = await callLines(log, where.project, meta);
         const caller = seenCaller(lines, callerOf(context), meta);
@@ -229,7 +228,7 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
       const where = route(options.folder, locate);
       if (where.status === 'routed') {
         try {
-          const { log } = await connections.reach(where.library, where.project, where.identity);
+          const { log } = await connections.reach(where.library, where.project, where.identity, { folder: where.folder, home });
           const lines = await callLines(log, where.project, meta);
           caller = seenCaller(lines, caller, meta);
           agent = requestOf(lines, meta) || caller.harness === 'codex' ? agentOf(lines, meta) : 'unknown';

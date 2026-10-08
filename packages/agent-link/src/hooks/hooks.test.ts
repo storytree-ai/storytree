@@ -43,7 +43,7 @@ import { readSettings, setSetting } from "../settings/settings.js";
 import { registerHooks } from "../setup/hooks-config.js";
 import { countingStore, longHistory } from "../testing/egress.js";
 import { git, withTempDir } from "../testing/folders.js";
-import { dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { approveCheckout, dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 
 const FIXTURES = fileURLToPath(new URL("./fixtures/", import.meta.url));
 /** The name of the machine the tests run on, as every line a hook writes names it. */
@@ -116,11 +116,12 @@ function storytreeHome(dir: string, running: boolean): string {
   return home;
 }
 
-/** A folder under `dir` set up as `project`. */
-function projectFolder(dir: string, project: string): string {
+/** A folder under `dir` set up as `project`, approved on the machine of `dir`'s storytree home (ADR-0942), or of `home`. */
+async function projectFolder(dir: string, project: string, home: string = path.join(dir, "storytree-home")): Promise<string> {
   const folder = path.join(dir, "site");
   mkdirSync(folder, { recursive: true });
   writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
+  await approveCheckout(folder, project, home);
   return folder;
 }
 
@@ -157,7 +158,7 @@ function written(line: Line): Omit<Line, "seq" | "at" | "transcript"> {
 test("3.1 recorded Claude Code hook inputs (a start, a file edit, a shell command, an end) make four lines on that session, carrying the file path, the command and the machine's name; the first of them also records when the machine started, once (4.29)", async () => {
   const project = uniqueProjectName();
   await withTempDir(async (dir) => {
-    const folder = projectFolder(dir, project);
+    const folder = await projectFolder(dir, project);
     const home = storytreeHome(dir, true);
     for (const name of ["session-start-startup", "post-tool-use-write", "post-tool-use-bash", "session-end"]) {
       const ran = await runHook("claude-code", recorded("claude-code", name, folder), home);
@@ -180,7 +181,7 @@ test("3.1 recorded Claude Code hook inputs (a start, a file edit, a shell comman
 test("3.2 recorded Codex hook inputs make the same four lines, with the edited files read out of its patch text", async () => {
   const project = uniqueProjectName();
   await withTempDir(async (dir) => {
-    const folder = projectFolder(dir, project);
+    const folder = await projectFolder(dir, project);
     const home = storytreeHome(dir, true);
     for (const name of ["session-start-startup", "post-tool-use-apply-patch", "post-tool-use-bash", "session-end"]) {
       const ran = await runHook("codex", recorded("codex", name, folder), home);
@@ -212,7 +213,7 @@ test("3.2 recorded Codex hook inputs make the same four lines, with the edited f
 for (const harness of ["claude-code", "codex"] as const) test(`3.22 ${harness} shell writes survive offline hooks and claim their capability, without attributing existing dirt or read-only commands`, async () => {
   const project = uniqueProjectName();
   await withTempDir(async (dir) => {
-    const folder = projectFolder(dir, project);
+    const folder = await projectFolder(dir, project);
     const home = storytreeHome(dir, false);
     const session = `shell-${project}`;
     const file = "packages/sign-up/src/email.ts";
@@ -296,7 +297,7 @@ for (const harness of ["claude-code", "codex"] as const) test(`3.22 ${harness} s
 test("3.3 with storytree stopped, with garbage input, or outside a storytree project, the command exits cleanly in under half a second and writes nothing", async () => {
   const project = uniqueProjectName();
   await withTempDir(async (dir) => {
-    const folder = projectFolder(dir, project);
+    const folder = await projectFolder(dir, project);
     const outside = path.join(dir, "not-a-project");
     mkdirSync(outside);
     const stopped = storytreeHome(path.join(dir, "stopped"), false);
@@ -365,7 +366,7 @@ test("3.4 it runs on Windows without a Unix shell, and it never prints anything 
   await new Promise<void>((resolve) => silent.listen(0, "127.0.0.1", resolve));
   try {
     await withTempDir(async (dir) => {
-      const folder = projectFolder(dir, project);
+      const folder = await projectFolder(dir, project);
       const home = path.join(dir, "unanswering-home");
       mkdirSync(home);
       const { port } = silent.address() as AddressInfo;
@@ -383,7 +384,7 @@ test("3.4 it runs on Windows without a Unix shell, and it never prints anything 
 test("3.5 recorded inputs for starting a subagent, for a storytree tool call inside it and for one by the orchestrator make three lines: the subagent's id, type and task, and who asked for each call, by the call's id, for Claude Code and Codex alike", async () => {
   const project = uniqueProjectName();
   await withTempDir(async (dir) => {
-    const folder = projectFolder(dir, project);
+    const folder = await projectFolder(dir, project);
     const home = storytreeHome(dir, true);
     for (const [harness, started] of [
       ["claude-code", "post-tool-use-agent"],
@@ -431,7 +432,7 @@ test("3.6 where Claude Code's limit on a command is raised (BASH_MAX_TIMEOUT_MS,
 test("3.6 recorded inputs from before a shell command, after one that failed, and at the end of a turn make three lines: the command started, and finished, under the call's id, and the turn ended; for Codex, which waits for its hooks, the hook hands its line to one in the background", async () => {
   const project = uniqueProjectName();
   await withTempDir(async (dir) => {
-    const folder = projectFolder(dir, project);
+    const folder = await projectFolder(dir, project);
     const home = storytreeHome(dir, true);
     for (const name of ["pre-tool-use-bash", "post-tool-use-failure-bash", "stop"]) {
       const ran = await runHook("claude-code", recorded("claude-code", name, folder), home);
@@ -488,7 +489,7 @@ function prompted(harness: "claude-code" | "codex", folder: string, prompt: stri
 
 test("3.20 at a session's next prompt, the prompt hook adds what storytree left it about claims made from edits, each once, for Claude Code and Codex alike, read from this machine with storytree stopped; another session gets none of it", async () => {
   await withTempDir(async (dir) => {
-    const folder = projectFolder(dir, uniqueProjectName());
+    const folder = await projectFolder(dir, uniqueProjectName());
     const home = storytreeHome(dir, false);
     leaveNotice(home, "cc-edits", "[storytree] Your edit claimed \"Email form\" for you.");
     leaveNotice(home, "cx-edits", "[storytree] Claude Code session cc-edits edited a file you hold.");
@@ -516,7 +517,7 @@ test("3.7 at each prompt, every matching project definition is added for the age
     const frontMeaning = "A decision that is the way into a story's knowledge. ".repeat(5);
     const front = await define("Front cover", frontMeaning);
     await withTempDir(async (dir) => {
-      const folder = projectFolder(dir, project);
+      const folder = await projectFolder(dir, project);
       const home = storytreeHome(dir, true);
       // Sessions named for this run: what each has been given is kept between runs of the hook.
       const ask = async (harness: "claude-code" | "codex", prompt: string, session: string, where = home) => {
@@ -562,7 +563,7 @@ test("9.9 past context guidance, the Claude Code prompt hook advises handing off
     const library = await storytree.openProject(project);
     await library.defineTerm({ term: "Claim", meaning: "Holding a capability while you build it." });
     await withTempDir(async (dir) => {
-      const folder = projectFolder(dir, project);
+      const folder = await projectFolder(dir, project);
       const home = storytreeHome(dir, true);
       const transcript = path.join(dir, "session.jsonl");
       const writeTokens = (tokens: number, harness: "claude-code" | "codex" = "claude-code") => writeFileSync(transcript, JSON.stringify(harness === "codex"
@@ -654,7 +655,7 @@ test("3.8 the status line shows what this session holds, how many other agents a
     const story = await library.addStory({ title: "Visitor can sign up" });
     const emailForm = await library.addCapability({ title: "Email form", story: story.id });
     await withTempDir(async (dir) => {
-      const folder = projectFolder(dir, project);
+      const folder = await projectFolder(dir, project);
       const home = storytreeHome(dir, true);
       const status = async (cwd: string, where = home) => {
         const input = JSON.stringify({ hook_event_name: "Status", session_id: "cc-1", cwd, workspace: { current_dir: cwd, project_dir: cwd } });
@@ -696,7 +697,7 @@ test("3.12 recorded Claude Code and Codex hook inputs record on their session th
     await withTempDir(async (dir) => {
       const home = storytreeHome(dir, true);
       // Worktree B is the project folder the session now works in; its transcripts sit elsewhere.
-      const worktreeB = projectFolder(dir, project);
+      const worktreeB = await projectFolder(dir, project);
       const usage = (tokens: number) => `${JSON.stringify({ type: "assistant", requestId: `req_${tokens}`, message: { model: "claude-opus-5-5", usage: { input_tokens: tokens, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } } })}
 `;
       const transcriptIn = (folder: string, name: string, text: string): string => {
@@ -750,7 +751,7 @@ test("3.14 lines a hook writes while storytree cannot be reached wait on this ma
   try {
     await withTempDir(async (dir) => {
       const home = storytreeHome(dir, false);
-      const folder = projectFolder(dir, project);
+      const folder = await projectFolder(dir, project);
       const session = `${project}-queued`;
       const hookRun = async (name: string) => {
         const input = { ...JSON.parse(recorded("claude-code", name, folder)), session_id: session };
@@ -775,11 +776,46 @@ test("3.14 lines a hook writes while storytree cannot be reached wait on this ma
   }
 });
 
+test("3.25 a hook in a checkout not approved for the project its marker names writes nothing to that project's log, queues nothing that is ever uploaded, and the status line shows nothing; the approved checkout's lines still arrive (ADR-0942)", async () => {
+  const project = uniqueProjectName();
+  try {
+    await withTempDir(async (dir) => {
+      const home = storytreeHome(dir, false);
+      const folder = await projectFolder(dir, project);
+      // A downloaded folder whose marker names the same project: a claim, not an approval.
+      const download = path.join(dir, "download");
+      mkdirSync(download);
+      writeFileSync(path.join(download, MARKER_FILE), JSON.stringify({ project }));
+      const hookRun = async (name: string, from: string, session: string) => {
+        const ran = await runHook("claude-code", JSON.stringify({ ...JSON.parse(recorded("claude-code", name, from)), session_id: session }), home);
+        assert.deepEqual({ code: ran.code, stdout: ran.stdout, stderr: ran.stderr }, { code: 0, stdout: "", stderr: "" }, name);
+      };
+      const [mine, theirs] = [`${project}-mine`, `${project}-theirs`];
+      // While storytree is stopped, both wait on this machine: nothing can ask the folder's approval yet.
+      await hookRun("session-start-startup", download, theirs);
+      await hookRun("session-start-startup", folder, mine);
+
+      copyFileSync(`${testServerDataDir()}.owner.json`, path.join(home, "pgdata.owner.json")); // storytree is back
+      await hookRun("post-tool-use-bash", download, theirs);
+      assert.equal(await linesAnywhereFor(theirs), 0, "the unapproved checkout writes nothing, waiting or new");
+      const status = await runHook("statusline", JSON.stringify({ hook_event_name: "Status", session_id: theirs, cwd: download, workspace: { current_dir: download } }), home);
+      assert.equal(status.stdout, "", "and reads nothing of the project");
+
+      await hookRun("stop", folder, mine);
+      assert.deepEqual((await linesOf(project)).map((line) => [line.session, line.kind]), [[mine, "session-started"], [mine, "turn-ended"]], "the approved checkout's waiting line and its own arrive");
+      assert.equal(await linesAnywhereFor(theirs), 0, "what the unapproved checkout queued is never uploaded");
+      assert.deepEqual(readdirSync(queueFolder(home)).filter((name) => name.endsWith(".jsonl")), [], "nor kept waiting");
+    });
+  } finally {
+    await dropTestProjects([project]);
+  }
+});
+
 test("3.23 a hook whose writing throws, or that cannot reach storytree, leaves one local trace of why (harness, event, session, tool call, error), still silent and exiting cleanly; a healthy hook leaves none (regression: the laptop's storytree tool calls went unrecorded for seven minutes with no evidence why, 2026-10-06)", async () => {
   const project = uniqueProjectName();
   try {
     await withTempDir(async (dir) => {
-      const folder = projectFolder(dir, project);
+      const folder = await projectFolder(dir, project, path.join(dir, "healthy", "storytree-home"));
       const call = (session: string) => JSON.stringify({ ...JSON.parse(recorded("claude-code", "pre-tool-use-storytree", folder)), session_id: session });
       const traced = (home: string, session: string) => hookFailures(home, session).map(({ harness, event, session, toolUseId, stage, error }) => ({ harness, event, session, toolUseId, stage, class: error.class }));
       const silent = (ran: Ran, what: string) => assert.deepEqual({ code: ran.code, stdout: ran.stdout, stderr: ran.stderr }, { code: 0, stdout: "", stderr: "" }, what);
@@ -827,7 +863,7 @@ test("3.13 each hook streams its session's new transcript records, and each suba
   try {
     await withTempDir(async (dir) => {
       const home = storytreeHome(dir, true);
-      const folder = projectFolder(dir, project);
+      const folder = await projectFolder(dir, project);
       const session = `${project}-streamed`;
       const transcript = path.join(dir, "claude", `${session}.jsonl`);
       mkdirSync(path.join(dir, "claude", session, "subagents"), { recursive: true });
@@ -862,7 +898,7 @@ test("3.13 each hook streams its session's new transcript records, and each suba
 test("3.15 recorded prompt inputs make a prompt line on their session, for Claude Code and Codex alike, and a Claude Code turn that ends with background tasks still running writes its end line with how many (ADR-0754 D5)", async () => {
   const project = uniqueProjectName();
   await withTempDir(async (dir) => {
-    const folder = projectFolder(dir, project);
+    const folder = await projectFolder(dir, project);
     const home = storytreeHome(dir, true);
     for (const harness of ["claude-code", "codex"] as const) {
       const ran = await runHook(harness, recorded(harness, "user-prompt-submit", folder), home);
@@ -882,7 +918,7 @@ test("3.15 recorded prompt inputs make a prompt line on their session, for Claud
 test("3.16 every line a hook writes records the git branch its folder is on, beside the folder; a folder on no branch records none (ADR-0754 D4)", async () => {
   const project = uniqueProjectName();
   await withTempDir(async (dir) => {
-    const folder = projectFolder(dir, project);
+    const folder = await projectFolder(dir, project);
     const home = storytreeHome(dir, true);
     const git = (...args: string[]) => execFileSync("git", args, { cwd: folder, stdio: "ignore" });
     git("init", "-q", "-b", "claude/fix-login");
@@ -901,7 +937,7 @@ test("3.16 every line a hook writes records the git branch its folder is on, bes
 test("4.22 a hook run from a subfolder of a worktree records the worktree's root as its folder, so a session lists each worktree once (regression, 2026-10-02: package subfolders listed as worktrees)", async () => {
   const project = uniqueProjectName();
   await withTempDir(async (dir) => {
-    const folder = projectFolder(dir, project);
+    const folder = await projectFolder(dir, project);
     const home = storytreeHome(dir, true);
     execFileSync("git", ["init", "-q", "-b", "claude/fix-login"], { cwd: folder, stdio: "ignore" });
     const inPackage = path.join(folder, "packages", "forest");
@@ -933,9 +969,8 @@ test("3.19 a Claude Code session's end is recorded though Claude Code stops its 
   await new Promise<void>((resolve) => slow.listen(0, "127.0.0.1", resolve));
   try {
     await withTempDir(async (dir) => {
-      const folder = projectFolder(dir, project);
       const home = path.join(dir, "slow-home");
-      mkdirSync(home);
+      const folder = await projectFolder(dir, project, home);
       writeFileSync(path.join(home, "pgdata.owner.json"), JSON.stringify({ ...owner, port: (slow.address() as AddressInfo).port }));
       const claude = path.join(dir, "claude-home");
       mkdirSync(claude);
@@ -964,7 +999,7 @@ test("3.19 a Claude Code session's end is recorded though Claude Code stops its 
 test("4.10 a pull request's merge is recorded on its branch by the hooks though GitHub takes longer to answer than a hook may run (regression: no hook had ever recorded one, 2026-09-30)", { skip: process.platform === "win32" && "platform:posix: a stand-in gh on PATH must be an .exe on Windows", timeout: 30_000 }, async () => {
   const project = uniqueProjectName();
   await withTempDir(async (dir) => {
-    const folder = projectFolder(dir, project);
+    const folder = await projectFolder(dir, project);
     const home = storytreeHome(dir, true);
     const git = (...args: string[]) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t.invalid", ...args], { cwd: folder, stdio: "ignore" });
     git("init", "-q", "-b", "main");
@@ -994,7 +1029,7 @@ test("3.21 a hook's reads do not grow with the log's length: the same hooks (a c
     let history = 0;
     for (const project of [short, long]) {
       await withTempDir(async (dir) => {
-        const folder = projectFolder(dir, project);
+        const folder = await projectFolder(dir, project, path.join(dir, "counted-home"));
         // The same last hour in both: two sessions working, one of them editing files.
         for (const session of ["now-1", "now-2"]) {
           const write = (line: Record<string, unknown>) => log.append(project, { session, harness: "claude-code", source: "hook", folder, ...line } as NewLine);
@@ -1010,7 +1045,6 @@ test("3.21 a hook's reads do not grow with the log's length: the same hooks (a c
         const store = await countingStore();
         try {
           const home = path.join(dir, "counted-home");
-          mkdirSync(home);
           writeFileSync(path.join(home, "pgdata.owner.json"), JSON.stringify({ ...owner, port: store.port }));
           const status = JSON.stringify({ hook_event_name: "Status", session_id: "now-1", cwd: folder, workspace: { current_dir: folder, project_dir: folder } });
           for (const ran of [
@@ -1040,7 +1074,7 @@ test("3.24 a hook cut off at its deadline while a statement of its waits on the 
   const project = uniqueProjectName();
   await withTempDir(async (dir) => {
     const home = storytreeHome(dir, true);
-    const folder = projectFolder(dir, project);
+    const folder = await projectFolder(dir, project);
     const url = new URL(testServerUrl());
     url.pathname = "/storytree-activity";
     // The log is opened once first, so its tables are there; then the project's write lock is held, and the hook's write waits on it.

@@ -10,6 +10,10 @@
  *   belongs to the project of the nearest marker at or above it. A git worktree kept outside its
  *   folder has no marker of its own unless the marker was committed, so a worktree is also looked
  *   up in the folder it is a worktree of.
+ * - A marker is a claim, not a key (ADR-0942): a checkout reaches its project's hooks and tools only
+ *   once its trunk is approved on this machine (requireApproval), checked before anything is opened,
+ *   appended or read. Setting the folder up approves it, and so does joining on purpose, which is
+ *   also how a trunk recorded before approval, or one that moved, is approved.
  * - Where storytree is: the running 0.3 app's Postgres, found from the owner record
  *   @storytree/local-postgres keeps beside the app's data directory (`<dataDir>.owner.json`, holding
  *   the owner's pid and the server's port) while the app holds it. Authenticated installations
@@ -26,7 +30,7 @@
  * Discovery is synchronous and uses no network. Stale owners refuse before credentials are read;
  * authenticated Windows discovery also checks the handoff's filesystem ACLs through PowerShell.
  */
-import { existsSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 
@@ -35,7 +39,7 @@ import type { ConnectOptions, Library, Storytree } from "@storytree/library";
 import { readLibrary } from "../settings/settings.js";
 
 import { keepOnThisComputer, recordProjectChoice } from "./project-choice.js";
-import { forgetTrunk, machineOf, ProjectFolderError, refusal, registerTrunk, type Trunk, trunksOn, unusedName } from "./trunks.js";
+import { approvedTrunk, approveTrunk, forgetTrunk, machineOf, ProjectFolderError, refusal, registerTrunk, type Trunk, trunksOn, unusedName } from "./trunks.js";
 import { seedStarterPack } from "./starter-pack.js";
 import { authenticatedLocalUrl, HANDOFF_UNAVAILABLE, HandoffPrivacyError, type LocalOwner } from "./local-handoff.js";
 
@@ -126,12 +130,15 @@ export async function openNamedProject(storytree: Pick<Storytree, "openProject">
  * the project's trunk on this machine, leave the marker, and record the user's choice for the app.
  * A refused folder (ProjectFolderError) or name (ProjectNameError, judged by the library before
  * anything touches the server) leaves nothing behind. `join` adds this machine's checkout to a
- * project that already exists; without it, an existing project's name is refused.
+ * project that already exists; without it, an existing project's name is refused. Either approves
+ * the trunk (ADR-0942 D1), and joining from a project's own recorded trunk approves it in place.
  */
 export async function setUpProject({ folder, project, storytree, storytreeHome: home = storytreeHome(), join = false }: SetUpOptions): Promise<{ project: string; marker: string }> {
   const at = canonical(path.resolve(folder));
   const existing = findProject(at);
-  if (existing.project !== undefined) throw new ProjectFolderError(`${at} is already part of storytree project "${existing.project}" (its folder is ${existing.folder}).`);
+  // Joining on purpose from the folder its marker already names is how an unapproved trunk is approved (ADR-0942 D1).
+  const rejoining = join && existing.project === project && existing.folder === at;
+  if (existing.project !== undefined && !rejoining) throw new ProjectFolderError(`${at} is already part of storytree project "${existing.project}" (its folder is ${existing.folder}).`);
   const machine = machineOf(home);
   const [projects, trunks] = await Promise.all([storytree.listProjects(), liveTrunks(storytree, machine.id)]);
   const refused = refusal({ folder: at, inMain: inMainCheckout(at), project, join, projects, trunks, suggestion: unusedName(suggestedName(at), projects) });
@@ -141,8 +148,11 @@ export async function setUpProject({ folder, project, storytree, storytreeHome: 
   try {
     // A new project inherits no lines written under its name before it: an older install's hooks, in a deleted project's folder.
     if (!join) await (await import("../activity/index.js")).forgetProjectActivity(storytree, project);
-    const registered = trunks.some((trunk) => trunk.project === project) || (await registerTrunk(storytree, { project, machine: machine.id, machineName: machine.name, folder: at }));
+    const own = trunks.find((trunk) => trunk.project === project);
+    const by = join ? "join" : "setup";
+    const registered = own === undefined ? await registerTrunk(storytree, { project, machine: machine.id, machineName: machine.name, folder: at }, by) : own.approvedBy !== undefined || (await approveTrunk(storytree, own, by));
     if (!registered) throw new ProjectFolderError(`${at} or project "${project}" was set up on this machine a moment ago by something else; check it again before setting it up.`);
+    rememberApproval(home, machine.id, own ?? { project, folder: at });
     // A new project's library starts with the starter pack; one joined was seeded where it was set up.
     if (!join) await seedStarterPack(library);
   } finally {
@@ -166,20 +176,19 @@ export async function setUpProject({ folder, project, storytree, storytreeHome: 
 }
 
 /**
- * Record where `project` lives on this machine the first time it is seen from `folder` (a folder
- * routed to it): the main checkout, when `folder` is in a git worktree. A project set up before
- * trunks were recorded (ADR-0757) keeps working and gains its record, and a project whose folder
- * moved follows it. It never refuses and never moves a live trunk: true only when it recorded one.
+ * Refuse unless `folder` (a git worktree's main checkout standing for it) is in `project`'s approved
+ * trunk on this machine (ADR-0942 D1, D2): a marker, a known identity or a folder's name approves
+ * nothing. Every hook and tool asks this before it opens the project, appends to its activity or
+ * reads it. The refusal (a ProjectFolderError) says how to approve the folder on purpose.
  */
-export async function recordTrunkOnSight(storytree: Storytree, project: string, folder: string, home: string = storytreeHome(), identity?: string): Promise<boolean> {
-  // A folder whose marker names a deleted project's database is not the trunk of a new one of its name.
-  if (identity !== undefined && (await storytree.projectIdentities())[project] !== identity) return false;
+export async function requireApproval(storytree: Storytree, project: string, folder: string, home: string = storytreeHome()): Promise<void> {
   const machine = machineOf(home);
-  const trunk = { project, machine: machine.id, machineName: machine.name, folder: canonical(inMainCheckout(canonical(folder))) };
-  if (await registerTrunk(storytree, trunk)) return true;
-  const trunks = await trunksOn(storytree, machine.id);
-  if (!(await forgetStale(storytree, trunks))) return false;
-  return registerTrunk(storytree, trunk);
+  const at = canonical(inMainCheckout(canonical(path.resolve(folder))));
+  // A hook runs at every step: an approval this machine has seen is remembered, so the trunks are asked once.
+  if (remembered(home, machine.id).some((trunk) => trunk.project === project && within(at, trunk.folder))) return;
+  const trunk = await approvedTrunk(storytree, project, machine.id, at);
+  if (trunk !== undefined) return rememberApproval(home, machine.id, trunk);
+  throw new ProjectFolderError(`${at} names storytree project "${project}", but it is not approved as "${project}"'s checkout on this machine, so storytree opens nothing and records nothing here. If this is your checkout of "${project}", approve it on purpose: \`storytree doctor --join ${project}\` in a terminal there, or ask your agent to join it.`);
 }
 
 /**
@@ -306,6 +315,41 @@ function defaultDataDir(): string {
   return path.join(storytreeHome(), "pgdata");
 }
 
+/** Where this machine remembers the approved trunks it has seen (ADR-0942), in its storytree home. */
+const APPROVALS_FILE = "approved-trunks.json";
+
+/** The approved trunks this machine remembers, as `machine` (its id) saw them. */
+function remembered(home: string, machine: string): { project: string; folder: string }[] {
+  try {
+    const kept = JSON.parse(readFileSync(path.join(home, APPROVALS_FILE), "utf8")) as { machine?: unknown; trunks?: unknown };
+    if (kept.machine !== machine || !Array.isArray(kept.trunks)) return [];
+    return kept.trunks.filter((trunk): trunk is { project: string; folder: string } => typeof trunk?.project === "string" && typeof trunk?.folder === "string");
+  } catch {
+    return [];
+  }
+}
+
+/** Remember `trunk` as approved on `machine`, in place of what was remembered for its project; a failure to write only costs a later ask. */
+function rememberApproval(home: string, machine: string, trunk: { project: string; folder: string }): void {
+  try {
+    const trunks = [...remembered(home, machine).filter((kept) => kept.project !== trunk.project), { project: trunk.project, folder: trunk.folder }];
+    mkdirSync(home, { recursive: true });
+    const file = path.join(home, APPROVALS_FILE);
+    const temp = `${file}.${process.pid}.tmp`;
+    writeFileSync(temp, `${JSON.stringify({ machine, trunks }, null, 2)}\n`);
+    renameSync(temp, file);
+  } catch {
+    // Asked again next time.
+  }
+}
+
+/** Whether `folder` is `root` or inside it; Windows paths ignore case. */
+function within(folder: string, root: string): boolean {
+  const key = (file: string) => (process.platform === "win32" ? file.toLowerCase() : file);
+  const relative = path.relative(key(root), key(folder));
+  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+}
+
 /**
  * The nearest marker at or above `start`. A marker that cannot be read, or names no project, stops
  * the search: the folder claims to be a project, and a guess at another would route it wrongly.
@@ -349,6 +393,12 @@ function linkedWorktree(start: string): { root: string; main: string } | undefin
       if (common === "") return undefined; // a submodule: its git directory has no commondir
       const commonDir = path.resolve(ownGitDir, common);
       if (path.basename(commonDir) !== ".git") return undefined; // a bare repository has no main worktree
+      // Only a worktree the repository itself registered counts (ADR-0942 D2): its git directory is one
+      // of the repository's worktrees, and that one names this folder's .git back. A copied or forged
+      // .git file pointing at a trunk is no worktree of it.
+      if (canonical(path.dirname(ownGitDir)) !== canonical(path.join(commonDir, "worktrees"))) return undefined;
+      const back = readText(path.join(ownGitDir, "gitdir")).trim();
+      if (back === "" || canonical(path.resolve(ownGitDir, back)) !== canonical(dotGit)) return undefined;
       return { root: dir, main: canonical(path.dirname(commonDir)) };
     }
     if (path.dirname(dir) === dir) return undefined;

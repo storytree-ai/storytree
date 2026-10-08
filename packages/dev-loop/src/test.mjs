@@ -54,7 +54,8 @@
 // file, when a file's tests have all ended but its process does not exit), and the run goes on to the next
 // unit. Each unit's time is added to the machine's history (test-timings.jsonl in STORYTREE_HOME,
 // default ~/.storytree/0.3), and its deadline is learned from that history: twice its slowest recent
-// pass, 3 min until it has five, doubled after each kill since it last passed, at most 15 min. Each
+// pass, until it has five the run's default (STORYTREE_UNIT_LIMIT_MS when set, as CI sets it, else
+// 3 min), doubled after each kill since it last passed, at most 15 min. Each
 // row gives the unit's time, its deadline and where the deadline came from. Any agent may set a
 // unit's deadline on this machine, and clear it again:
 //
@@ -88,7 +89,7 @@ import { runtimeRefusal } from "./node-runtime.mjs";
 import { keepPreviousServerLog } from "./server-log.mjs";
 import { startTestPostgres } from "./test-postgres.mjs";
 import { parseTestArgs, planRun, readWorkspace, resultsTable, scopeFor, scopeLine, TEST_USAGE, unitGlobs } from "./test-scope.mjs";
-import { clearUnitLimit, DEADLINE_GRACE_MS, killTree, recordTimings, runDeadline, runUnit, setUnitLimit, UNIT_LIMIT_MS, unitLimit, unitReason, withinDeadline } from "./unit-run.mjs";
+import { clearUnitLimit, DEADLINE_GRACE_MS, defaultUnitLimit, killTree, recordTimings, runDeadline, runUnit, setUnitLimit, unitLimit, unitReason, withinDeadline } from "./unit-run.mjs";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 const work = path.join(root, ".pgtest");
@@ -247,7 +248,7 @@ async function runTests(env, units) {
 }
 
 async function runNodeTest(env, files, unit) {
-  const limit = withinDeadline(unit === undefined ? namedFilesLimit() : unitLimit(unit), deadline);
+  const limit = withinDeadline(unit === undefined ? defaultUnitLimit() : unitLimit(unit), deadline);
   try {
     // No test loads the embedding model, so no run, CI included, downloads it (ADR-0733 D6):
     // ranked search is tested with a fake embedder, and everything else ranks by words.
@@ -257,12 +258,6 @@ async function runNodeTest(env, files, unit) {
   } finally {
     child = undefined;
   }
-}
-
-/** The named files' deadline: UNIT_LIMIT_MS, or STORYTREE_UNIT_LIMIT_MS when set (a slow machine, a test of the deadline). */
-function namedFilesLimit() {
-  const ms = Number(process.env.STORYTREE_UNIT_LIMIT_MS);
-  return Number.isFinite(ms) && ms > 0 ? { ms, source: "STORYTREE_UNIT_LIMIT_MS" } : { ms: UNIT_LIMIT_MS, source: "default" };
 }
 
 /** --set-limit=<unit>=<seconds> --reason=… or --clear-limit=<unit>: change a unit's deadline on this machine. */

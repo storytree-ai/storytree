@@ -7,7 +7,7 @@ function fixture() {
   let current: { ref: string; manifest: StableManifest } | undefined;
   const installer = { url: "https://github.com/storytree-ai/storytree/releases/download/v0.3.2/storytree-0.3-0.3.2-setup.exe", sha256: "a".repeat(64), sha512: Buffer.alloc(64, 1).toString("base64"), size: 128 };
   const state = {
-    candidate: { version: "0.3.2", commit: "a".repeat(40), channelSchema: 1, draft: false, prerelease: false, installer, bootstrap: "published bootstrap" },
+    candidate: { version: "0.3.2", commit: "a".repeat(40), channelSchema: 1, draft: false, prerelease: false, installer, bootstrap: { ps1: "published bootstrap" } },
     increments: [
       { id: "one", fields: { title: "Choose update timing", status: "closed", outcome: { disposition: "landed", pr: "531", note: "Quiet hours and manual installs." } } },
       { id: "future", fields: { title: "Unreleased work", status: "closed", outcome: { disposition: "landed", pr: "600" } } },
@@ -22,7 +22,7 @@ function fixture() {
     pullRequests: async () => new Set(["531", "532"]),
     increments: async () => state.increments,
     publish: async (manifest, bootstrap, expected) => {
-      assert.equal(bootstrap, "published bootstrap");
+      assert.deepEqual(bootstrap, { ps1: "published bootstrap" });
       if (state.race || expected !== current?.ref) throw new Error("Stable pin moved; retry from the new pin");
       state.published.push(manifest);
       current = { ref: String(state.published.length), manifest };
@@ -95,12 +95,15 @@ test("4.16 competing publishers expose one complete feed and bootstrap, with the
     return {};
   };
   const results = await Promise.allSettled([
-    publishStable(manifest, "the published bootstrap", "base", api),
-    publishStable({ ...manifest, version: "0.3.3" }, "the published bootstrap", "base", api),
+    publishStable(manifest, { ps1: "the published bootstrap", sh: "the Mac's bootstrap" }, "base", api),
+    publishStable({ ...manifest, version: "0.3.3" }, { ps1: "the published bootstrap" }, "base", api),
   ]);
   assert.equal(results.filter(r => r.status === "fulfilled").length, 1);
   assert.equal(results.filter(r => r.status === "rejected").length, 1);
   const tree = trees.get(commits.get(head)!.tree)!.tree;
   assert.deepEqual(JSON.parse(tree.find(f => f.path === "latest.yml")!.content), manifest);
   assert.equal(tree.find(f => f.path === "install-storytree.ps1")!.content, "the published bootstrap");
+  // A release that carries the Mac's one-liner pins it beside the Windows one; one that does not, pins none.
+  const mac = tree.find(f => f.path === "install-storytree.sh")?.content;
+  assert.equal(mac, results[0]!.status === "fulfilled" ? "the Mac's bootstrap" : undefined);
 });

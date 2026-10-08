@@ -11,7 +11,7 @@
  * the library's retireQuestion, which takes it off every increment held on it first, so an owner-
  * retired question goes in one step; `library retire` still refuses a held one. `show` reads one
  * question whole, with the open increments held on it. Listing the open
- * questions uses list(kind); `--arc` reads one arc's questions. `check` reads a question's review
+ * questions uses list(kind); `--arc` reads one arc's questions, naming a parked arc's as parked with it. `check` reads a question's review
  * lease through the library's checkQuestion, and `renew` re-stamps it through renewQuestion, which
  * refuses a settled question (ADR-0654).
  */
@@ -119,7 +119,7 @@ const show: Verb = {
 const list: Verb = {
   name: "list",
   usage: "question list [--arc <arc>]",
-  summary: "the open questions across arcs, or on one arc; a parked arc's wait until it is unparked",
+  summary: "the open questions across arcs, or on one arc; a parked arc's wait until it is unparked, named by its own listing",
   async act(args, context) {
     const arc = args.text("arc");
     const library = await context.library();
@@ -128,11 +128,19 @@ const list: Verb = {
     const views = arc === undefined ? await library.arcViews() : [await library.arcView(arc)];
     const parkedArcs = new Set(views.flatMap((view) => (view?.state === "parked" ? [view.arc.id] : [])));
     const waiting = open.filter((question) => !parkedArcs.has(question.fields.arc));
-    const parked = open.length - waiting.length;
+    const parked = open.filter((question) => parkedArcs.has(question.fields.arc));
+    const line = (question: (typeof open)[number]) => `  - ${question.id}  [${question.fields.arc}]  ${labelOf(question.fields)}`;
     const where = arc === undefined ? "across arcs" : `on ${arc}`;
-    const aside = parked === 0 ? [] : [`${parked} more ${parked === 1 ? "waits" : "wait"} on a parked arc until it is unparked.`];
+    // Across arcs they stay off the list, but the arcs that hold them are named; one arc's own listing names them.
+    const holding = [...new Set(parked.map((question) => question.fields.arc))];
+    const aside =
+      parked.length === 0
+        ? []
+        : arc === undefined
+          ? [`${parked.length} more ${parked.length === 1 ? "waits" : "wait"} on a parked arc until it is unparked: ${holding.join(", ")} (storytree question list --arc <arc> names them).`]
+          : [`${parked.length} parked with the arc until it is unparked:`, ...parked.map(line)];
     if (waiting.length === 0) return { text: [`No question ${where} waits on the owner.`, ...aside].join("\n") };
-    return { text: [`${waiting.length} open ${where}:`, ...waiting.map((question) => `  - ${question.id}  [${question.fields.arc}]  ${labelOf(question.fields)}`), ...aside].join("\n") };
+    return { text: [`${waiting.length} open ${where}:`, ...waiting.map(line), ...aside].join("\n") };
   },
 };
 

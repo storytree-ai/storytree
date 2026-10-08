@@ -61,6 +61,34 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
       waitWindow = { from, deadline: from + timeout };
       return timeout;
     };
+    // Growth is paced by frames, and a loaded runner delivers them seconds apart: queue run
+    // 37818634822 (macOS, load 23.7 on 3 CPUs) drew a frame every 1-6 s and its roads were still
+    // advancing when a fixed 30 s wait gave up. So wait while frames keep coming, and fail only
+    // when none arrives for STALL_MS, or at capMs overall. `until` names which roads must be whole:
+    // the predicate is a function, never a string, since the page's CSP forbids eval.
+    const STALL_MS = 15000;
+    // The app's own poll timer, not a frame, ends these waits; a loaded page fires it late (a 20x
+    // CPU throttle missed a 15 s bound), and only a slow run ever spends the extra.
+    const POLL_MS = 45000;
+    const whileFramesAdvance = async (until, capMs) => {
+      const cap = performance.now() + await startWait(capMs);
+      for (;;) {
+        const seen = await page.evaluate(() => window.liveEvidence.frames.length);
+        const left = cap - performance.now();
+        if (left <= 0) throw new Error(`still incomplete after ${capMs} ms, though frames kept arriving`);
+        const state = await page.waitForFunction(({ until, seen }) => {
+          const frames = window.liveEvidence.frames, frame = frames.at(-1);
+          const whole = frame?.roads.length > 0 && frame.roads.every(road => road.fraction >= 1 - 1e-8);
+          const done = until === 'initial' ? whole && frame.links.length === 130
+            : whole && frame.phase === 'restored-link' && frame.links.length === 131 && frame.roads.some(road => road.fresh);
+          return done ? 'done' : frames.length > seen ? 'advanced' : false;
+        }, { until, seen }, { timeout: Math.min(STALL_MS, left), polling: 100 }).then(handle => handle.jsonValue(), error => {
+          if (error.name !== 'TimeoutError' || left <= STALL_MS) throw error;
+          throw new Error(`no new frame for ${STALL_MS} ms (${seen} frames drawn): rendering stalled`);
+        });
+        if (state === 'done') return;
+      }
+    };
     page.on('pageerror', error => errors.push(String(error)));
     page.on('console', message => {
       if (message.type() === 'error') errors.push(message.text());
@@ -244,10 +272,7 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
       [dependencyStory, dependentStory], { timeout: 60000, polling: 100 });
     // Observe initial growth to completion before any camera settling or later dependency addition.
     phase(`${name}: wait for initial 130-link roads to complete`);
-    await page.waitForFunction(() => {
-      const frame = window.liveEvidence.frames.at(-1);
-      return frame?.links.length === 130 && frame.roads.length > 0 && frame.roads.every(road => road.fraction >= 1 - 1e-8);
-    }, undefined, { timeout: await startWait(30000), polling: 100 });
+    await whileFramesAdvance('initial', 90000);
     if (initialOnly) {
       await page.waitForTimeout(500);
       await initialCdp.send('Page.stopScreencast');
@@ -309,22 +334,19 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
     }, { restore, from });
     phase(`${name}: restore saved dependency and wait for real poll`);
     const restored = await update(true);
-    await page.waitForFunction(reads => window.liveTreeReads > reads, restored.reads, { timeout: 15000, polling: 100 });
+    await page.waitForFunction(reads => window.liveTreeReads > reads, restored.reads, { timeout: POLL_MS, polling: 100 });
     phase(`${name}: wait for new crossing to complete`);
-    await page.waitForFunction(() => {
-      const frame = window.liveEvidence.frames.at(-1);
-      return frame?.phase === 'restored-link' && frame.links.length === 131 && frame.roads.some(road => road.fresh) && frame.roads.every(road => road.fraction >= 1 - 1e-8);
-    }, undefined, { timeout: await startWait(15000), polling: 100 });
+    await whileFramesAdvance('restored-link', 60000);
     // gl.render submits work before the software compositor presents it. Let its final picture arrive.
     if (cdp) { await page.waitForTimeout(500); await cdp.send('Page.stopScreencast'); }
     if (!smoke) await page.screenshot({ path: path.join(out, `${name}-complete.png`) });
     phase(`${name}: update unrelated description and wait for real poll`);
     const unrelated = await update(false);
-    await page.waitForFunction(reads => window.liveTreeReads > reads, unrelated.reads, { timeout: 15000, polling: 100 });
+    await page.waitForFunction(reads => window.liveTreeReads > reads, unrelated.reads, { timeout: POLL_MS, polling: 100 });
     phase(`${name}: wait for a frame with the consumed description`);
     await page.waitForFunction(() => window.liveEvidence.frames.some(frame =>
       frame.phase === 'unrelated-description' && frame.links.length === 131 && frame.descriptionConsumed),
-    undefined, { timeout: 15000, polling: 100 });
+    undefined, { timeout: POLL_MS, polling: 100 });
     phase(`${name}: read submitted frames`);
     // The saved trace is plain JSON. Transfer it as one string rather than recursively walking
     // every frame/road object through Playwright's protocol, then retain the same full data.

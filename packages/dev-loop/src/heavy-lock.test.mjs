@@ -2,7 +2,7 @@
 // lock in STORYTREE_HOME, taken by the test harness itself, instead of saturating the machine.
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -211,4 +211,78 @@ test("6.2 cancelling a running capture stops its child tree before releasing the
   const alive = pid => { try { process.kill(pid, 0); return true; } catch { return false; } };
   await until(() => pids.every(pid => !alive(pid)));
   assert.equal(existsSync(path.join(dir, "heavy-run.lock")), false);
+});
+
+// increment_b280164800d5: waiters are admitted in arrival order, so an older live waiter is never
+// passed over by later runs, and a waiter that died or gave up never wedges the ones behind it.
+function queueMachine(t) {
+  const { dir, start } = commandMachine(t);
+  const order = path.join(dir, "order.log");
+  const runner = path.join(dir, "runner.mjs");
+  writeFileSync(runner, `
+    import { appendFileSync, existsSync } from 'node:fs';
+    import { acquireHeavyLock } from ${JSON.stringify(new URL("./heavy-lock.mjs", import.meta.url).href)};
+    const [name, pollMs, waitMs] = process.argv.slice(2);
+    let release;
+    try {
+      release = await acquireHeavyLock({ root: process.cwd(), what: name, pollMs: Number(pollMs), waitMs: Number(waitMs) });
+    } catch (error) { console.log('gave up: ' + error.message); process.exit(3); }
+    appendFileSync(${JSON.stringify(order)}, name + '\\n');
+    console.log('holding ' + name);
+    const timer = setInterval(() => { if (existsSync('stop-' + name)) { clearInterval(timer); release(); } }, 25);
+  `);
+  const run = (name, { pollMs = 25, waitMs = 60_000 } = {}) => start([runner, name, String(pollMs), String(waitMs)]);
+  const admitted = () => (existsSync(order) ? readFileSync(order, "utf8").trim().split("\n") : []);
+  const stop = (name) => writeFileSync(path.join(dir, `stop-${name}`), "");
+  return { dir, run, admitted, stop };
+}
+
+test("6.2 an older waiter takes the lock before a later arrival, however often the later one polls", { timeout: 20_000 }, async (t) => {
+  const { run, admitted, stop } = queueMachine(t);
+  const holder = run("holder");
+  await until(() => holder.output().includes("holding holder"));
+  // The older waiter polls slowly and the later one fast: a race would go to the later one.
+  const older = run("older", { pollMs: 1500 });
+  await until(() => /waiting for/.test(older.output()));
+  const later = run("later", { pollMs: 10 });
+  await until(() => /waiting for/.test(later.output()));
+  stop("holder");
+  await until(() => admitted().length === 2);
+  assert.deepEqual(admitted(), ["holder", "older"]);
+  stop("older");
+  await until(() => admitted().length === 3);
+  assert.deepEqual(admitted(), ["holder", "older", "later"]);
+  stop("later");
+  for (const child of [holder, older, later]) assert.equal((await child.done).code, 0, child.output());
+});
+
+test("6.2 waiters that died or gave up do not hold back the runs that came after them", { timeout: 20_000 }, async (t) => {
+  const { dir, run, admitted, stop } = queueMachine(t);
+  const holder = run("holder");
+  await until(() => holder.output().includes("holding holder"));
+  // A waiter from a process that has gone, queued before anyone here.
+  const gone = spawnSync(process.execPath, ["-e", ""]).pid;
+  const queue = path.join(dir, "heavy-run.queue");
+  mkdirSync(queue, { recursive: true });
+  writeFileSync(path.join(queue, "0000000000001-ghost.json"), JSON.stringify({ id: "ghost", pid: gone }));
+  // One whose pid now names a live process, but that its waiter stopped refreshing long ago.
+  const reused = path.join(queue, "0000000000002-reused.json");
+  writeFileSync(reused, JSON.stringify({ id: "reused", pid: process.pid }));
+  const longAgo = new Date(Date.now() - 10 * 60_000);
+  utimesSync(reused, longAgo, longAgo);
+  const killed = run("killed");
+  await until(() => /waiting for/.test(killed.output()));
+  const impatient = run("impatient", { waitMs: 200 });
+  const late = run("late");
+  await until(() => /waiting for/.test(late.output()));
+  killed.child.kill("SIGKILL");
+  await killed.done;
+  assert.equal((await impatient.done).code, 3, impatient.output());
+  stop("holder");
+  await until(() => admitted().length === 2);
+  assert.deepEqual(admitted(), ["holder", "late"]);
+  stop("late");
+  assert.equal((await late.done).code, 0, late.output());
+  await until(() => !existsSync(path.join(dir, "heavy-run.lock")));
+  assert.deepEqual(readdirSync(queue), [], "every ticket is gone once its run is");
 });

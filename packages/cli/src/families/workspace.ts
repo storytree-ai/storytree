@@ -74,12 +74,19 @@ const releaseClaim: Verb = {
   async act(args, context) {
     const id = args.word(0, "the work's id", this.usage);
     const { release } = await import("@storytree/agent-link");
-    const answer = await release(await context.claimContext(), id);
+    const caller = await context.claimContext();
+    const answer = await release(caller, id);
     if (!answer.ok) {
       const holder = answer.holder;
       throw new Refusal(holder === undefined
         ? `You don't hold ${id}, and nobody else does.`
         : `You don't hold ${id}: ${holder.label} session ${holder.session} (${holder.reason}) does.`);
+    }
+    // An increment released without closing is nobody's work in progress: it is a proposal again (11.11).
+    const work = await caller.library.get(id);
+    if (work?.type === "increment" && (work.fields as { status: string }).status === "active") {
+      await caller.library.returnIncrement(id, context.writer());
+      return { text: `You released ${id}; nobody holds it, so it is a proposal again.` };
     }
     return { text: `You released ${id}.` };
   },

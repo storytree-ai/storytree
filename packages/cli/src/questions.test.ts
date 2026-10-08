@@ -38,7 +38,7 @@ test("5.5 `question list` lists open questions across arcs, or on one arc", asyn
   });
 });
 
-test("5.8 `question list` leaves out a parked arc's open questions and says how many wait there until it is unparked", async () => {
+test("5.8 `question list` leaves out a parked arc's open questions, says how many wait there and on which arc, and that arc's own listing names them as parked with it", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();
     const active = await arcWithWork(world);
@@ -52,10 +52,12 @@ test("5.8 `question list` leaves out a parked arc's open questions and says how 
     assert.ok(all.stdout.includes(shown.id), all.stdout);
     assert.ok(!all.stdout.includes(hidden.id), all.stdout);
     assert.match(all.stdout, /1 more waits? on a parked arc/, "it says what it left out");
+    assert.ok(all.stdout.includes(parked.arc), "it names the parked arc to list them from");
     const one = await world.run(["question", "list", "--arc", parked.arc]);
     assert.equal(one.code, 0, one.stderr);
-    assert.ok(!one.stdout.includes(hidden.id), one.stdout);
-    assert.match(one.stdout, /parked/, one.stdout);
+    assert.ok(one.stdout.includes(hidden.id), "the parked arc's own listing names its question");
+    assert.match(one.stdout, /parked with the arc/, one.stdout);
+    assert.doesNotMatch(one.stdout, /^1 open/m, "it is not listed as waiting on the owner");
     await library.unparkArc(parked.arc);
     const back = await world.run(["question", "list"]);
     assert.ok(back.stdout.includes(hidden.id), "unparked, its question is back on the list");

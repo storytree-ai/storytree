@@ -136,7 +136,13 @@ export async function runQueue({ queueFile, stopFile, runLane, stopOnFailure = f
     }
     const free = running.size < (typeof limit === "function" ? await limit() : limit);
     const next = free ? await beside(queued.filter((line) => LINE.test(line)), [...running.keys()]) : undefined;
-    if (next && !running.has(next)) { start(next); continue; }
+    if (next) {
+      // A lane may have ended while the limit and the chooser were awaited: a failed one keeps its line, so start
+      // the choice only if the runner is not ending and it is still queued and not running.
+      const still = await queueLines(queueFile);
+      if (!ending && !running.has(next) && still.includes(next)) start(next);
+      continue;
+    }
     const look = new AbortController();
     await Promise.race([anyEnds, ...(free ? [Promise.resolve(sleep(intervalMs, { signal: look.signal })).catch(() => {})] : [])]);
     look.abort();

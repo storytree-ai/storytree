@@ -11,7 +11,7 @@ import { setTimeout as wait } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
-import { keepFed, parseFences, surveyLibrary } from "./feed.mjs";
+import { keepFed, parseFences, queuedOnTracks, surveyLibrary } from "./feed.mjs";
 import { composeBrief, countEngines, holdRunner, runQueue, waitForSlot } from "./queue.mjs";
 import { runLane as runEngineLane } from "./runner.mjs";
 
@@ -112,7 +112,7 @@ export async function main(args, box = {}) {
     if (!fence) { dated(`night-fences.txt has no track ${name}: not starting`); return 1; }
     const code = await keepFed({
       track: name, fences: parseFences(fencesText), queueFile: join(L, `night-queue-${name}.txt`), stopFile: join(L, "night-stop"),
-      survey: b.survey, sleep: b.sleep, now: b.now, say,
+      survey: b.survey, queued: () => queuedOnTracks(L), sleep: b.sleep, now: b.now, say,
       runLane: async (increment) => lane(increment, {
         title: `Overnight lane: track ${name}, ${increment}`,
         intro: `Your increment: ${increment}. Your track: ${name}. Your write fence: ${fence}.`,

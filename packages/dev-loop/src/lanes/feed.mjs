@@ -1,7 +1,7 @@
 // Capability 11 · A Mint track keeps its lanes fed (ADR-0931 D1): when its queue empties it takes
 // the next ready increment in its fence from one library survey, under the manager's skip rules.
 // node packages/dev-loop/src/lanes/feed.mjs next <track>     (the box's lanes folder: LANES_DIR, else ~/storytree-lanes)
-import { appendFile, readFile } from "node:fs/promises";
+import { appendFile, readdir, readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { setTimeout as wait } from "node:timers/promises";
@@ -39,7 +39,7 @@ function outsideFence(body, track, fences) {
  * `attempts` maps each increment this runner has run to when it started it; a live claim older than that
  * start refused the lane, which is retried once that claim clears, and never otherwise (it records the refusal in `attempts`).
  */
-export function pickNext(survey, { track, fences, attempts = new Map() }) {
+export function pickNext(survey, { track, fences, attempts = new Map(), queued = new Map() }) {
   const skipped = [];
   const live = new Map(survey.claims.filter((claim) => claim.holder === "live" && claim.increment).map((claim) => [claim.increment, claim]));
   const laptopArcs = new Set(survey.laptopArcs);
@@ -54,6 +54,7 @@ export function pickNext(survey, { track, fences, attempts = new Map() }) {
         return `held by live session ${claim.session}`;
       }
       if (attempt && !attempt.refusedBy) return "already run by this runner";
+      if (queued.has(one.id)) return `queued on track ${queued.get(one.id)}`;
       const waits = survey.holds.waits[one.id] ?? [];
       if (waits.length) return `waits on ${waits.map((hold) => hold.on).join(", ")}`;
       const questions = survey.holds.heldOn[one.id] ?? [];
@@ -97,12 +98,27 @@ export async function readSurvey({ library, claims, sessions, now = Date.now(), 
 }
 
 /**
+ * Each increment named in a track's queue file (night-queue-<T>.txt) in `lanesDir`, with its track: work another
+ * track has queued or is running carries no claim until its lane claims it, so a refill must not take it too.
+ */
+export async function queuedOnTracks(lanesDir) {
+  const queued = new Map();
+  for (const name of (await readdir(lanesDir)).sort()) {
+    const track = /^night-queue-([A-Z])\.txt$/.exec(name)?.[1];
+    if (!track) continue;
+    const text = await readFile(join(lanesDir, name), "utf8").catch(() => "");
+    for (const line of text.split("\n").map((one) => one.trim()).filter(Boolean)) if (!queued.has(line)) queued.set(line, track);
+  }
+  return queued;
+}
+
+/**
  * Run the track's queue a lane at a time (queue.mjs's runQueue); when it empties, refill it from one survey,
- * and when nothing is ready wait `intervalMs` and look again. Ends only on the stop file, or 75 (an engine
- * failing at once), which keeps that lane queued.
+ * skipping work any track has queued (`queued`), and when nothing is ready wait `intervalMs` and look again.
+ * Ends only on the stop file, or 75 (an engine failing at once), which keeps that lane queued.
  */
 export async function keepFed({ track, fences, queueFile, stopFile, survey, runLane, sleep = (ms) => wait(ms),
-  intervalMs = 15 * 60_000, now = Date.now, say = console.log }) {
+  queued = async () => new Map(), intervalMs = 15 * 60_000, now = Date.now, say = console.log }) {
   const dated = (message) => say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} ${message}`);
   const attempts = new Map();
   return runQueue({
@@ -116,7 +132,7 @@ export async function keepFed({ track, fences, queueFile, stopFile, survey, runL
         await sleep(intervalMs);
         return true;
       }
-      const { pick, skipped } = pickNext(found, { track, fences, attempts });
+      const { pick, skipped } = pickNext(found, { track, fences, attempts, queued: await queued() });
       if (pick) {
         dated(`took ${pick} from the library (${skipped.length} skipped)`);
         await appendFile(queueFile, `${pick}\n`);
@@ -153,7 +169,7 @@ export async function main(args, { lanesDir = process.env.LANES_DIR || join(home
   if (args[0] !== "next" || !/^[A-Z]$/.test(args[1] ?? "")) { say("usage: feed.mjs next <track>"); return 2; }
   const fences = parseFences(await readFile(join(lanesDir, "night-fences.txt"), "utf8"));
   if (!fences[args[1]]) { say(`feed: night-fences.txt has no track ${args[1]}`); return 2; }
-  const { pick, skipped } = pickNext(await survey(), { track: args[1], fences });
+  const { pick, skipped } = pickNext(await survey(), { track: args[1], fences, queued: await queuedOnTracks(lanesDir) });
   for (const skip of skipped) say(`skip ${skip.id}: ${skip.why}`);
   say(pick ? `next: ${pick}` : `next: none ready in track ${args[1]}'s fence`);
   return 0;

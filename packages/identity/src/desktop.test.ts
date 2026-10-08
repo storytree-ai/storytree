@@ -1,30 +1,42 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { exportJWK, generateKeyPair, SignJWT } from "jose";
 import { callbackSession, callbackUrls, createFeedbackIdentity, feedbackIdentityConfig, type DesktopSession, type SignInEngine } from "./desktop.js";
 
-const identityUrl = "https://identity.example.test/v1/identity";
-const user = { id: "76c80829-6cfd-4f1e-95e8-9a9c781529ce", email: "first@example.test" };
-const response = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
+const clientId = "client_01DESKTOP";
+const jwksUrl = `https://api.workos.com/sso/jwks/${clientId}`;
+const account = { id: "user_01FIRST", email: "first@example.test", emailVerified: true };
+const user = { id: account.id, email: account.email };
+const { privateKey, publicKey } = await generateKeyPair("RS256");
+const { privateKey: strangerKey } = await generateKeyPair("RS256");
+const jwks = { keys: [{ ...(await exportJWK(publicKey)), kid: "k1", alg: "RS256", use: "sig" }] };
+
+/** A WorkOS access token as its JWT template stamps it, signed by the client's key unless told otherwise. */
+const token = (claims: Record<string, unknown> = {}, key = privateKey) => new SignJWT({ sid: "session_01", aud: "storytree-identity", ...claims })
+  .setProtectedHeader({ alg: "RS256", kid: "k1" }).setSubject(account.id)
+  .setIssuedAt().setExpirationTime("5m").sign(key);
 
 /** Stands in for the official desktop SDK: it owns PKCE, the deep link and protected token storage. */
 function desktop(protectedStorage = true) {
-  let token: string | undefined;
-  const requests: { url: string; authorization: string | null }[] = [];
-  const answers: Response[] = [];
+  let signedIn: { accessToken: string; user: typeof account } | undefined;
+  let next: () => Promise<{ accessToken: string; user: typeof account }> = async () => ({ accessToken: await token(), user: account });
+  const requests: string[] = [];
+  const keyAnswers: Response[] = [];
+  let reads = 0;
   const session: DesktopSession = {
     storageProtected: () => protectedStorage,
-    async accessToken() { return token; },
-    async signIn() { token = "access-private"; },
-    async signOut() { token = undefined; },
+    async current() { reads++; return signedIn; },
+    async signIn() { signedIn = await next(); },
+    async signOut() { signedIn = undefined; },
   };
-  const open = () => createFeedbackIdentity({ identityUrl, session,
-    fetch: async (input, init) => {
-      requests.push({ url: String(input), authorization: new Headers(init?.headers).get("Authorization") });
-      assert.equal(init?.redirect, "error");
-      return answers.shift() ?? response({ error: "unexpected_request" }, 500);
+  const open = () => createFeedbackIdentity({ clientId, session,
+    fetch: async (input) => {
+      requests.push(String(input));
+      return keyAnswers.shift() ?? Response.json(jwks);
     },
   });
-  return { open, answers, requests, token: () => token };
+  return { open, requests, keyAnswers, reads: () => reads, signedIn: () => signedIn,
+    signInAs: (make: typeof next) => { next = make; } };
 }
 
 test("2.3 a restarted desktop restores its verified account for feedback with only id and email, and sign-out leaves status signed out", async () => {
@@ -32,40 +44,45 @@ test("2.3 a restarted desktop restores its verified account for feedback with on
   assert.equal(await app.open().status(), null, "signed out until the user chooses to sign in");
   assert.equal(app.requests.length, 0, "no account, no network");
 
-  app.answers.push(response({ ...user, provider: "github", subject: "private" }));
   assert.deepEqual(await app.open().signIn(), user);
-  assert.deepEqual(app.requests, [{ url: identityUrl, authorization: "Bearer access-private" }]);
+  assert.deepEqual(app.requests, [jwksUrl], "verified against the client's own published keys, with no identity server");
 
-  app.answers.push(response(user));
   const restarted = await app.open().status();
   assert.deepEqual(restarted, user);
   assert.deepEqual(Object.keys(restarted ?? {}).sort(), ["email", "id"], "no token crosses into feedback");
 
   await app.open().signOut();
-  assert.equal(app.token(), undefined);
+  assert.equal(app.signedIn(), undefined);
   assert.equal(await app.open().status(), null);
 });
 
-test("2.3 unprotected storage refuses sign-in and reads no token; a refused identity signs the desktop out", async () => {
+test("2.3 unprotected storage refuses sign-in and reads no token; a token or account that does not verify signs the desktop out", async () => {
   const exposed = desktop(false);
   await assert.rejects(exposed.open().signIn(), /cannot protect/i);
-  assert.equal(exposed.token(), undefined);
   assert.equal(await exposed.open().status(), null);
+  assert.equal(exposed.reads(), 0, "no saved token is read");
   assert.equal(exposed.requests.length, 0);
 
-  const app = desktop();
-  app.answers.push(response({ error: "revoked" }, 401));
-  await assert.rejects(app.open().signIn(), /could not be verified/i);
-  assert.equal(app.token(), undefined, "a refused sign-in keeps no session");
+  const refusals: Array<() => Promise<{ accessToken: string; user: typeof account }>> = [
+    async () => ({ accessToken: await token({}, strangerKey), user: account }),
+    async () => ({ accessToken: await token({ aud: "someone-else" }), user: account }),
+    async () => ({ accessToken: await token({ client_id: "client_01OTHER" }), user: account }),
+    async () => ({ accessToken: await token(), user: { ...account, id: "user_01SOMEONEELSE" } }),
+    async () => ({ accessToken: await token(), user: { ...account, emailVerified: false } }),
+    async () => ({ accessToken: "not-a-token", user: account }),
+  ];
+  for (const refusal of refusals) {
+    const app = desktop();
+    app.signInAs(refusal);
+    await assert.rejects(app.open().signIn(), /could not be verified/i);
+    assert.equal(app.signedIn(), undefined, "a refused sign-in keeps no session");
+  }
 
-  app.answers.push(response(user));
+  const app = desktop();
   await app.open().signIn();
-  app.answers.push(response({ error: "down" }, 503));
+  app.keyAnswers.push(new Response("down", { status: 503 }));
   await assert.rejects(app.open().status(), /temporarily unavailable/i);
-  assert.equal(app.token(), "access-private", "a temporary failure keeps the session");
-  app.answers.push(response({ id: "not-a-user", email: "x" }));
-  assert.equal(await app.open().status(), null);
-  assert.equal(app.token(), undefined, "a malformed identity never claims signed in");
+  assert.notEqual(app.signedIn(), undefined, "keys that could not be fetched keep the session");
 });
 
 /** Stands in for the official SDK's main-process session manager. */
@@ -80,21 +97,17 @@ function fakeEngine(): SignInEngine & { calls: string[]; token: string | null; f
       if (engine.failExchange) throw new Error("exchange refused");
       engine.token = "access-token";
     },
-    getAccessToken: async () => engine.token,
+    getUser: async () => engine.token === null ? { user: null } : { user: account, accessToken: engine.token },
     signOut: async () => { engine.calls.push("sign-out"); engine.token = null; },
   };
   return engine;
 }
 
-test("2.5 desktop sign-in is offered only with a public client ID and an explicit HTTPS identity endpoint", () => {
-  assert.deepEqual(feedbackIdentityConfig("client_01ABC", "https://identity.example/me"), { clientId: "client_01ABC", identityUrl: "https://identity.example/me" });
-  assert.equal(feedbackIdentityConfig(undefined, undefined), undefined);
-  assert.equal(feedbackIdentityConfig("client_01ABC", undefined), undefined);
-  assert.equal(feedbackIdentityConfig(undefined, "https://identity.example/me"), undefined);
-  assert.equal(feedbackIdentityConfig("", "https://identity.example/me"), undefined);
-  assert.equal(feedbackIdentityConfig("sk_live_secret", "https://identity.example/me"), undefined);
-  assert.equal(feedbackIdentityConfig("client_01ABC", "http://identity.example/me"), undefined);
-  assert.equal(feedbackIdentityConfig("client_01ABC", "not a url"), undefined);
+test("2.5 desktop sign-in is offered only with a public WorkOS client ID, and needs no identity server", () => {
+  assert.deepEqual(feedbackIdentityConfig("client_01ABC"), { clientId: "client_01ABC" });
+  assert.equal(feedbackIdentityConfig(undefined), undefined);
+  assert.equal(feedbackIdentityConfig(""), undefined);
+  assert.equal(feedbackIdentityConfig("sk_live_secret"), undefined);
 });
 
 test("2.5 a desktop sign-in waits for the storytree-auth callback and completes on it; the token stays with the session", async () => {
@@ -110,7 +123,7 @@ test("2.5 a desktop sign-in waits for the storytree-auth callback and completes 
   await signingIn;
   await again;
   assert.deepEqual(engine.calls, ["begin", "complete abc xyz"]);
-  assert.equal(await session.accessToken(), "access-token");
+  assert.equal((await session.current())?.accessToken, "access-token");
 });
 
 test("2.5 a refused or failed callback refuses the desktop sign-in, and a stray link is ignored", async () => {
@@ -127,7 +140,7 @@ test("2.5 a refused or failed callback refuses the desktop sign-in, and a stray 
   const failed = session.signIn();
   await session.callback("storytree-auth://callback?code=bad&state=s");
   await assert.rejects(failed, /could not be completed: exchange refused/);
-  assert.equal(await session.accessToken(), undefined);
+  assert.equal(await session.current(), undefined);
 });
 
 test("2.5 a desktop sign-in the browser never returns from is given up; sign-out ends a pending one and the session", async () => {
@@ -147,6 +160,6 @@ test("2.5 a callback that started the desktop is completed with no sign-in waiti
   const engine = fakeEngine();
   const session = callbackSession(engine, () => false);
   await session.callback("storytree-auth://callback?code=c&state=s");
-  assert.equal(await session.accessToken(), "access-token");
+  assert.equal((await session.current())?.accessToken, "access-token");
   assert.equal(session.storageProtected(), false);
 });

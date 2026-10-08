@@ -35,6 +35,37 @@ through the shared stand-in bridge (`fakeBridge`), as `../session-tints` does: i
 behind the page, which then listed no sessions. Re-run that day into the scratch folder, not re-taken: the
 same four outlines as below, no page errors.
 
+## Readiness timeout investigation (2026-10-08)
+
+[PR #834's Windows job](https://github.com/storytree-ai/storytree/actions/runs/37632040647/job/112828583187)
+timed out waiting for seeded island ground while the page reported `ready`, without page errors. Its
+unchanged retry passed. [PR #833](https://github.com/storytree-ai/storytree/pull/833) subsequently put
+both desktop browser proofs in one file so they run sequentially; Windows CI also passed on current
+main ([PR #843](https://github.com/storytree-ai/storytree/pull/843)). These observations do not establish
+the original cause or prove that the intermittent failure cannot recur. The unmodified territory
+proof passed on Mint in 13.5 seconds in this investigation; this is one run, not a performance bound.
+
+If the seeded-island or claim/file wait fails, `capture.mjs` now prints the failing stage, missing
+planet IDs separately from planets missing ground, each seed's actual children, scene object counts,
+globe/navigation hook presence, canvas dimensions, WebGL context-loss state, and the renderer's
+active/pending-frame state. The last readiness-poll time can be compared with the passive diagnostic
+read. That read has its own three-second bound and rethrows the original timeout even if the read
+fails. It neither redraws the scene nor retries the proof; the 60-second island wait, 30-second
+claim/file wait, word-fill assertions, claim-band assertions and rim-marker assertions remain.
+
+Controlled check: rename `ground.name = "island-ground"` only in the ignored smoke bundle, then run
+the existing capture. Before the diagnostic change, it failed after 60 seconds with only `ready`.
+Afterward, the same failure named all eight seeded stories as missing ground, none as missing a
+planet, both hooks present, 258 file marks, four claim bands, no pending frames, and no lost context.
+This deliberately broken observation target tests the diagnostic; it does not reproduce or diagnose
+the original Windows incident. Rebuild `node build.mjs smoke` to restore the generated bundle before
+running the normal proof.
+
+Resumed after [PR #840](https://github.com/storytree-ai/storytree/pull/840) landed: the diagnostic
+coexists with its elapsed phase messages, 100 ms readiness polling, smaller smoke viewport,
+omission of picture-only tours in smoke, and renderer cleanup. Those changes belong to the separate
+macOS browser-proof repair; the original Windows readiness incident still has no established cause.
+
 ## Measured before looking
 
 - Fills drawn (word, colour, opacity), every island: healthy `#97c459` 0.8, unhealthy `#e24b4a` 0.85,

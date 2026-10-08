@@ -1,4 +1,4 @@
-/** What startup asks of Electron's app so the window keeps drawing through the machine's GPU resets. */
+/** Capability 1 · Lifecycle. What startup asks of Electron's app so the window keeps drawing through the machine's GPU resets. */
 export interface GpuResetsApp {
   disableDomainBlockingFor3DAPIs(): void;
   readonly commandLine: { appendSwitch(name: string): void };

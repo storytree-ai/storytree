@@ -112,6 +112,26 @@ test("15.1 a library at a Postgres address, its password the postgres key, opens
   }
 });
 
+test("1.14 a local password URL still opens admin and project connections through SCRAM", async () => {
+  const run = uniqueProjectName();
+  const [role, project] = [`${run}-local`, `${run}-scram`];
+  let storytree: Storytree | undefined;
+  try {
+    await createPasswordRole(role, "synthetic-local-secret");
+    const url = new URL(address(role));
+    url.password = "synthetic-local-secret";
+    storytree = await connect({ url: url.href });
+    const library = await storytree.openProject(project);
+    await library.addStory({ title: "Authenticated locally", description: "SCRAM on both pools." });
+    assert.ok((await storytree.listProjects()).includes(project));
+    assert.deepEqual((await library.projectTree()).stories.map((story) => story.title), ["Authenticated locally"]);
+  } finally {
+    await storytree?.close();
+    await dropTestDatabases([`storytree_${project}`]);
+    await dropTestRoles([role]);
+  }
+});
+
 test("15.2 with no password saved for the library, connecting is refused saying how to save one, before reaching the server", async () => {
   const keys = home();
   try {

@@ -43,8 +43,9 @@ export interface ServerAccess {
  * databases are created, on either kind of server.
  */
 export function localServer(url: URL, connectTimeoutMs = 3_000, bounds: WaitBounds = {}): ServerAccess {
+  const local = ["127.0.0.1", "[::1]", "localhost"].includes(url.hostname);
   const pool = (connectionString: string, role?: string) =>
-    newPool({ connectionString, connectionTimeoutMillis: connectTimeoutMs, ...statementBound(bounds), ...actingAs(role) });
+    newPool({ connectionString, ...(local ? { Client: LocalClient } : {}), connectionTimeoutMillis: connectTimeoutMs, ...statementBound(bounds), ...actingAs(role) });
   return {
     kind: "postgres",
     admin: pool(url.href),
@@ -61,6 +62,25 @@ export function localServer(url: URL, connectTimeoutMs = 3_000, bounds: WaitBoun
     },
     close: () => {},
   };
+}
+
+/**
+ * A loopback port does not authenticate its listener. A replacement listener must never get the
+ * installation password by asking for cleartext or an MD5 response. pg's Pool supports a custom
+ * Client, but pg 8 has no authentication-method allowlist: override its two password handlers,
+ * before either can resolve or send a password. Real SCRAM stays with pg, including its server
+ * proof check. Passwordless legacy/test servers send no credential and remain usable.
+ */
+class LocalClient extends pg.Client {
+  _handleAuthCleartextPassword(): void { this.#refuseDowngrade(); }
+  _handleAuthMD5Password(): void { this.#refuseDowngrade(); }
+
+  #refuseDowngrade(): void {
+    this.connection.stream.destroy(new ConnectionError(
+      "config",
+      "The local database requested unsafe password authentication; SCRAM-SHA-256 is required to send credentials. Restart the storytree app and check its database authentication settings.",
+    ));
+  }
 }
 
 /** How a caller bounds its connections' waits, and hears of them (ConnectOptions says each). */

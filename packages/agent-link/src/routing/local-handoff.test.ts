@@ -15,48 +15,51 @@ import { locateApp, locateLibrary, locateStorytree, MARKER_FILE, NOT_RUNNING, ro
 // Synthetic credentials only. Punctuation pins URL encoding through a real SCRAM handshake.
 const password = "synthetic-local-password-:@/#?% with spaces";
 
-function powershell(script: string, file: string): void {
-  // Use .NET directly: a caller launched from PowerShell 7 can leave Windows PowerShell an
-  // incompatible PSModulePath, so even Get-Acl/Set-Acl may fail to load (PR #858's first CI run).
-  const aclFunctions = `
-    function Read-Acl($file) {
-      if ([System.IO.Directory]::Exists($file)) { return [System.IO.Directory]::GetAccessControl($file) }
-      return [System.IO.File]::GetAccessControl($file)
-    }
-    function Save-Acl($file, $acl) {
-      if ([System.IO.Directory]::Exists($file)) { [System.IO.Directory]::SetAccessControl($file, $acl) }
-      else { [System.IO.File]::SetAccessControl($file, $acl) }
-    }
-  `;
-  execFileSync(path.join(process.env.SystemRoot!, "System32", "WindowsPowerShell", "v1.0", "powershell.exe"),
-    ["-NoProfile", "-NonInteractive", "-EncodedCommand", Buffer.from(aclFunctions + script, "utf16le").toString("base64")],
-    { env: { ...process.env, STORYTREE_TEST_ACL_PATH: file }, stdio: "pipe", timeout: 10_000 });
+function windowsAcl(file: string, action: "private" | "expose" | "deny-read"): void {
+  // Fixture setup needs no PowerShell/.NET startup. Keep the previous ten-second bound
+  // across ALL native children in this operation, with no retry or timeout extension.
+  const started = performance.now();
+  const run = (stage: string, command: string, args: string[]) => {
+    const timeout = Math.floor(10_000 - (performance.now() - started));
+    const label = `discovery fixture ACL ${action}/${stage} ${path.basename(file)}`;
+    assert.ok(timeout > 0, `${label}: exhausted ten-second operation bound`);
+    console.info(`${label}: START (${Math.round(performance.now() - started)} ms)`);
+    const result = spawnSync(path.join(process.env.SystemRoot!, "System32", command), args, {
+      encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout, windowsHide: true,
+    });
+    const evidence = `${label}: pid=${result.pid} status=${result.status} signal=${result.signal} error=${result.error?.message ?? "none"} (${Math.round(performance.now() - started)} ms)`;
+    console.info(evidence);
+    assert.ok(!result.error && result.status === 0,
+      `${evidence}\n${result.stdout?.slice(-2000) ?? ""}\n${result.stderr?.slice(-2000) ?? ""}`);
+    return result.stdout;
+  };
+  if (action === "expose") {
+    run("grant-everyone", "icacls.exe", [file, "/grant", "*S-1-1-0:RX"]);
+    return;
+  }
+  // Parse only the numeric SID, never localized headings or account names.
+  const identity = run("current-user", "whoami.exe", ["/user", "/fo", "csv", "/nh"]);
+  const sid = identity.match(/,"(S-1-\d+(?:-\d+)+)"\s*$/)?.[1];
+  assert.ok(sid, "whoami did not return a current-user SID");
+  if (action === "deny-read") {
+    run("deny-current-user", "icacls.exe", [file, "/deny", `*${sid}:(RD)`]);
+    return;
+  }
+  run("owner", "icacls.exe", [file, "/setowner", `*${sid}`]);
+  // Reset removes explicit grants AND denies left by the adversarial cases; then remove
+  // inherited entries and grant only the current user. All files contain synthetic data.
+  run("reset", "icacls.exe", [file, "/reset"]);
+  run("private", "icacls.exe", [file, "/inheritance:r", "/grant:r", `*${sid}:F`]);
 }
 
 function privatePath(file: string, directory = false): void {
   if (process.platform !== "win32") return chmodSync(file, directory ? 0o700 : 0o600);
-  powershell(`
-    $ErrorActionPreference = 'Stop'
-    $sid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User
-    $acl = Read-Acl $env:STORYTREE_TEST_ACL_PATH
-    $acl.SetOwner($sid)
-    $acl.SetAccessRuleProtection($true, $false)
-    foreach ($rule in $acl.GetAccessRules($true, $true, [System.Security.Principal.SecurityIdentifier])) { [void]$acl.RemoveAccessRuleSpecific($rule) }
-    $rule = [System.Security.AccessControl.FileSystemAccessRule]::new($sid, 'FullControl', 'Allow')
-    $acl.AddAccessRule($rule)
-    Save-Acl $env:STORYTREE_TEST_ACL_PATH $acl
-  `, file);
+  windowsAcl(file, "private");
 }
 
 function expose(file: string, directory = false): void {
   if (process.platform !== "win32") return chmodSync(file, directory ? 0o755 : 0o644);
-  powershell(`
-    $ErrorActionPreference = 'Stop'
-    $acl = Read-Acl $env:STORYTREE_TEST_ACL_PATH
-    $sid = [System.Security.Principal.SecurityIdentifier]::new('S-1-1-0')
-    $acl.AddAccessRule([System.Security.AccessControl.FileSystemAccessRule]::new($sid, 'ReadAndExecute', 'Allow'))
-    Save-Acl $env:STORYTREE_TEST_ACL_PATH $acl
-  `, file);
+  windowsAcl(file, "expose");
 }
 
 function fixture(home: string, port = 54321) {
@@ -166,17 +169,13 @@ test("1.16 exposed credentials, linked files and insecure directories refuse on 
       expose(file, directory);
       assert.equal(locateStorytree({ dataDir: f.dataDir }).running, false);
       privatePath(file, directory);
+      assert.equal(locateStorytree({ dataDir: f.dataDir }).running, true);
     }
     if (process.platform === "win32") {
-      powershell(`
-        $ErrorActionPreference = 'Stop'
-        $acl = Read-Acl $env:STORYTREE_TEST_ACL_PATH
-        $sid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User
-        $acl.AddAccessRule([System.Security.AccessControl.FileSystemAccessRule]::new($sid, 'ReadData', 'Deny'))
-        Save-Acl $env:STORYTREE_TEST_ACL_PATH $acl
-      `, f.file);
+      windowsAcl(f.file, "deny-read");
       assert.equal(locateStorytree({ dataDir: f.dataDir }).running, false);
       privatePath(f.file);
+      assert.equal(locateStorytree({ dataDir: f.dataDir }).running, true);
     }
     if (process.platform === "darwin") {
       execFileSync("/bin/chmod", ["+a", "everyone allow read", f.file]);

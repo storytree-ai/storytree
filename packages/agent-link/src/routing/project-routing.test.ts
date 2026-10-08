@@ -136,13 +136,36 @@ test("1.3 a project name the library would refuse is refused when setting a fold
 
 test("1.4 with the app's database stopped, asking where to send activity answers \"storytree isn't running\" in well under a second", async () => {
   // test-removed: the message's exact wording (ADR-0623): the answer is checked by its status below.
-  await withTempDir((dir) => {
+  await withTempDir(async (dir) => {
     const folder = markedFolder(dir, "site");
 
     // Running: the test server's own owner record says where it listens.
     const running = { dataDir: testServerDataDir() };
-    assert.deepEqual(locateStorytree(running), { running: true, url: testServerUrl() });
+    const discovered = locateStorytree(running);
+    assert.deepEqual(discovered, { running: true, url: testServerUrl() });
     assert.deepEqual(route(path.join(folder, "src"), running), { status: "routed", project: "site", folder, library: { url: testServerUrl() } });
+    assert.ok(discovered.running);
+    const client = new pg.Client({ connectionString: discovered.url, connectionTimeoutMillis: 3000 });
+    try {
+      await client.connect();
+      assert.deepEqual((await client.query("SELECT 42 AS synthetic")).rows, [{ synthetic: 42 }]);
+    } finally { await client.end(); }
+
+    // Explicit staging: today's legacy launcher has neither auth marker. Once either
+    // marker exists, discovery must use producer credentials; no fixture replaces them.
+    const owner = JSON.parse(readFileSync(`${running.dataDir}.owner.json`, "utf8"));
+    const url = new URL(discovered.url);
+    if (Object.hasOwn(owner, "auth") || existsSync(`${running.dataDir}.auth`)) {
+      assert.ok(url.password, "an authenticated launcher must supply its password through discovery");
+      for (const bad of ["", "incorrect-synthetic-password"]) {
+        const rejectedUrl = new URL(discovered.url);
+        rejectedUrl.password = bad;
+        const rejected = new pg.Client({ connectionString: rejectedUrl.href, password: () => bad, connectionTimeoutMillis: 3000 });
+        try { await assert.rejects(rejected.connect()); } finally { await rejected.end(); }
+      }
+    } else {
+      assert.equal(url.password, "", "only a legacy installation has a passwordless URL");
+    }
 
     // Stopped: a stopped server leaves no owner record.
     const stopped = { dataDir: path.join(dir, "home", "pgdata") };

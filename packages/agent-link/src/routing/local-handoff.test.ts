@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { chmodSync, linkSync, mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, linkSync, mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { createServer, type AddressInfo } from "node:net";
 import path from "node:path";
 import { test } from "node:test";
 
-import { findBinaries, start } from "@storytree/local-postgres";
+import { findBinaries } from "@storytree/local-postgres";
 import pg from "pg";
 
 import { setLibrary } from "../settings/settings.js";
@@ -80,7 +81,7 @@ function fixture(home: string, port = 54321) {
   return { dataDir, directory, file, owner, credentials, save };
 }
 
-test("1.16 authenticated discovery connects to a disposable SCRAM cluster; wrong or absent passwords cannot read it", async () => {
+test("1.16 authenticated discovery connects to an independently provisioned SCRAM cluster; wrong or absent passwords cannot read it", async () => {
   await withTempDir(async (home) => {
     const dataDir = path.join(home, "pgdata");
     const pwfile = path.join(home, "init-password");
@@ -89,15 +90,26 @@ test("1.16 authenticated discovery connects to a disposable SCRAM cluster; wrong
     const initdb = path.join(findBinaries(), process.platform === "win32" ? "initdb.exe" : "initdb");
     execFileSync(initdb, ["-D", dataDir, "-U", "postgres", "-A", "scram-sha-256", "--pwfile", pwfile, "-E", "UTF8"], { stdio: "pipe", timeout: 60_000 });
     rmSync(pwfile);
-    // The production lifecycle engine owns startup/shutdown; only fixture provisioning is here.
-    const server = await start({ dataDir });
-    const originalOwner = readFileSync(`${dataDir}.owner.json`);
+    // This consumer fixture owns its server and credentials. The production launcher's
+    // untouched handoff is exercised by project-routing 1.4, including after it adopts auth.
+    const listener = createServer();
+    await new Promise<void>((resolve, reject) => {
+      listener.once("error", reject);
+      listener.listen(0, "127.0.0.1", resolve);
+    });
+    const { port } = listener.address() as AddressInfo;
+    await new Promise<void>((resolve, reject) => listener.close((error) => error ? reject(error) : resolve()));
+    const pgctl = path.join(findBinaries(), process.platform === "win32" ? "pg_ctl.exe" : "pg_ctl");
     try {
-      const f = fixture(home, server.port);
+      // No inherited pipes: Windows pg_ctl can leave their handles in the server's shell.
+      execFileSync(pgctl, ["-D", dataDir, "-o", `-p ${port} -c listen_addresses=127.0.0.1`,
+        "-l", path.join(home, "server.log"), "-w", "start"], { stdio: "ignore", timeout: 60_000 });
+      const f = fixture(home, port);
       const discovered = route(home, { home });
       assert.equal(discovered.status, "routed");
       if (discovered.status !== "routed") return;
       const connectionString = discovered.library.url;
+      assert.equal(connectionString, `postgres://postgres:${encodeURIComponent(password)}@127.0.0.1:${port}/postgres`);
       const client = new pg.Client({ connectionString, connectionTimeoutMillis: 3000 });
       try {
         await client.connect();
@@ -113,9 +125,10 @@ test("1.16 authenticated discovery connects to a disposable SCRAM cluster; wrong
       assert.equal(locateLibrary({ home }).found, true);
       assert.equal(locateStorytree({ dataDir: f.dataDir }).running, true);
     } finally {
-      // start.stop() releases only its own token.
-      writeFileSync(`${dataDir}.owner.json`, originalOwner);
-      await server.stop();
+      // Also stop a server whose startup timed out after creating its PID file.
+      if (existsSync(path.join(dataDir, "postmaster.pid"))) {
+        execFileSync(pgctl, ["-D", dataDir, "-m", "immediate", "-w", "stop"], { stdio: "ignore", timeout: 60_000 });
+      }
     }
   });
 });

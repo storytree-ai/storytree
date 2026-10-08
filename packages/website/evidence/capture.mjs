@@ -46,14 +46,22 @@ try {
   browser = await chromium.launch({ headless: true, args: ["--no-sandbox", ...(verifyOpeningFramesRequested ? ["--enable-unsafe-swiftshader", "--use-angle=swiftshader"] : [])] });
   const url = `http://127.0.0.1:${server.address().port}/`;
   if (verifyOpeningFramesRequested) {
-    const check = { contract: "2.10", name: "After Run the turn lands on a live globe that drew nothing in chapter 1", observed: "not-observed" };
-    try { await verifyOpeningFrames(browser, url, output); check.observed = "pass"; }
-    catch (error) { check.observed = "fail"; check.detail = error.message; throw error; }
+    // One journey checks both contracts; a failure fails the contract its assertion names, leaving the other not observed.
+    const checks = [
+      { contract: "1.9", name: "Act 1's turn hands over to Act 2 in about the time it is drawn to take, drawing frames throughout", observed: "not-observed" },
+      { contract: "2.10", name: "After Run the turn lands on a live globe that drew nothing in chapter 1", observed: "not-observed" },
+    ];
+    try { await verifyOpeningFrames(browser, url, output); for (const check of checks) check.observed = "pass"; }
+    catch (error) {
+      const check = checks.find(({ contract }) => error.message.includes(`website ${contract}:`));
+      if (check) { check.observed = "fail"; check.detail = error.message; }
+      throw error;
+    }
     finally {
       await writeFile(path.join(output, "opening-frames-observations.json"), JSON.stringify({
         story: "The website", commit: (await readFile(path.join(dist, "version.txt"), "utf8")).trim(),
         evidence: path.relative(path.resolve(here, "../../.."), output).split(path.sep).join("/"),
-        note: "Locally built website served from packages/website/dist, SwiftShader", checks: [check],
+        note: "Locally built website served from packages/website/dist, SwiftShader", checks,
       }, null, 2) + "\n");
     }
   }

@@ -92,8 +92,10 @@ export class SchemaRecords {
    * The current records of `type`, upgraded, ordered by id. An unknown type is refused, and so is
    * the whole list if any record in it cannot be interpreted.
    */
-  async list<T extends RecordType>(type: T, filter?: Omit<ListFilter, "projection">): Promise<SchemaRecord<T>[]> {
-    if (!this.#isRecordType(type)) throw new UnknownTypeError(type);
+  async list<T extends RecordType>(type: T | readonly T[], filter?: Omit<ListFilter, "projection">): Promise<SchemaRecord<T>[]> {
+    for (const kind of typeof type === "string" ? [type] : type) {
+      if (!this.#isRecordType(kind)) throw new UnknownTypeError(kind);
+    }
     const records = await this.#transactions.list(type, filter);
     return records.map((record) => this.current(record) as SchemaRecord<T>);
   }

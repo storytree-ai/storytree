@@ -62,6 +62,7 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
           return { at: performance.now(), visibility: document.visibilityState, frameloop: state?.frameloop,
             pendingFrames: state?.internal.frames, active: state?.internal.active,
             canvas: rect && { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+            renderer: window.liveEvidence?.renderer,
             frames: window.liveEvidence?.frames.length, lastRender: window.liveEvidence?.lastRender,
             lastFrame: window.liveEvidence?.frames.at(-1) };
         }).catch(readError => ({ readError: String(readError) })),
@@ -128,6 +129,8 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
         get() { return get => {
           install(get);
           const state = get(), render = state.gl.render;
+          const context = state.gl.getContext(), debug = context.getExtension('WEBGL_debug_renderer_info');
+          window.liveEvidence.renderer = debug ? context.getParameter(debug.UNMASKED_RENDERER_WEBGL) : context.getParameter(context.RENDERER);
           state.gl.render = function (...args) {
             const observedAt = performance.now();
             const { scene } = get();
@@ -174,6 +177,7 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
             if (telemetry) report('before render');
             const result = render.apply(this, args);
             window.liveEvidence.lastRender.completedAt = performance.now();
+            frame.renderMs = window.liveEvidence.lastRender.completedAt - frame.at;
             if (telemetry) report('after render');
             return result;
           };
@@ -300,6 +304,11 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
     const poll = observation.frames.filter(frame => frame.phase === 'unrelated-description' && frame.links.length === 131);
     const freshFrames = additions.map(frame => ({ at: frame.at, roads: frame.roads.filter(road => road.fresh) }));
     const summary = {
+      renderer: observation.renderer,
+      initialFrameCount: initial.length,
+      initialElapsedMs: initial.length ? initial.at(-1).at - initial[0].at : undefined,
+      maxFrameGapMs: Math.max(0, ...initial.slice(1).map((frame, i) => frame.at - initial[i].at)),
+      maxRenderMs: Math.max(0, ...observation.frames.map(frame => frame.renderMs)),
       initialFirstRoadFractions: first?.roads.map(road => road.fraction) ?? [], initialLinkCount: first?.links.length,
       initialPartialFrames: initial.filter(frame => frame.roads.some(road => road.fraction > 0 && road.fraction < 1)).length,
       initialCompletedWithoutCaptureInvalidation: initial.length > 0 && initial.at(-1).roads.every(road => road.fraction === 1),
@@ -319,6 +328,8 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
       colouredLanes: Math.max(0, ...observation.frames.map(frame => frame.lanes.length)), pageErrors: errors.length,
     };
     all.runs.push({ name, reduced, summary, errors, restored, unrelated, screencast, ...observation });
+    phase(`${name}: submitted-frame timing ${JSON.stringify({ renderer: summary.renderer, initialFrames: summary.initialFrameCount,
+      initialElapsedMs: summary.initialElapsedMs, maxFrameGapMs: summary.maxFrameGapMs, maxRenderMs: summary.maxRenderMs })}`);
     if (!smoke) writeFileSync(path.join(out, `${name}-measurements.json`), JSON.stringify(all.runs.at(-1), null, 2) + '\n');
     await closePage();
     phase(`${name}: complete`);

@@ -26,7 +26,7 @@ import { WorkInFlight } from "../work/work-in-flight.js";
 import { WorkModel } from "../work/work-model.js";
 import { addressServer } from "./address.js";
 import { cloudSqlServer, type CloudSqlConfig, type CloudSqlSeams } from "./cloud-sql.js";
-import { PgVectors } from "./embeddings.js";
+import { PgVectors, vectorServerIdentity, type VectorDomain } from "./embeddings.js";
 import { cannotCreateDatabases, cannotSetUpProject, ConnectionError, isInsufficientPrivilege, sqlState } from "./connection-error.js";
 import { assertProjectName, PROJECT_DATABASE_PREFIX, ProjectGoneError, projectDatabase } from "./names.js";
 import { pendingMemories, upgradeMemories } from "./memory-upgrade.js";
@@ -173,7 +173,7 @@ export async function connect(options: ConnectOptions, seams: ProjectSeams = {})
   const bounds: WaitBounds = options;
   if (options.address !== undefined) return new ServerConnection(addressServer(options.address, options.connectTimeoutMs, bounds), seams);
   if (options.cloudSql === undefined) return new ServerConnection(localServer(new URL(options.url), options.connectTimeoutMs, bounds), seams);
-  return new ServerConnection(await cloudSqlServer(options.cloudSql, seams, bounds), seams);
+  return new ServerConnection(await cloudSqlServer(options.cloudSql, seams, bounds), seams, options.cloudSql.instance);
 }
 
 /** What tests may hand connect() in place of the real thing: the Cloud SQL connector, and the embedder. */
@@ -190,11 +190,13 @@ class ServerConnection implements Storytree {
   readonly #own = new Map<string, Promise<Pool>>();
   readonly #embedder: EmbedderSource | undefined;
   readonly #vectorCache: string | null;
+  readonly #cloudInstance: string | undefined;
   #closing: Promise<void> | undefined;
 
-  constructor(server: ServerAccess, seams: ProjectSeams) {
+  constructor(server: ServerAccess, seams: ProjectSeams, cloudInstance?: string) {
     this.#server = server;
     this.#embedder = seams.embedder;
+    this.#cloudInstance = cloudInstance;
     this.#vectorCache = seams.vectorCache === undefined
       ? (seams.embedder === undefined ? path.join(modelsFolder(), "vectors.sqlite") : null)
       : seams.vectorCache;
@@ -225,7 +227,8 @@ class ServerConnection implements Storytree {
         await pool.end();
         throw error;
       }
-      const project = new ProjectLibrary(name, identity, pool, () => this.#projects.delete(project), this.#vectorCache, this.#embedder);
+      const domain = { server: vectorServerIdentity(pool, this.#cloudInstance), database, identity };
+      const project = new ProjectLibrary(name, identity, pool, () => this.#projects.delete(project), this.#vectorCache, domain, this.#embedder);
       this.#projects.add(project);
       return project;
     } catch (error) {
@@ -421,7 +424,7 @@ class ProjectLibrary implements Project {
   readonly #forget: () => void;
   #closing: Promise<void> | undefined;
 
-  constructor(name: string, identity: string, pool: Pool, forget: () => void, vectorCache: string | null, embedder?: EmbedderSource) {
+  constructor(name: string, identity: string, pool: Pool, forget: () => void, vectorCache: string | null, domain: VectorDomain, embedder?: EmbedderSource) {
     this.name = name;
     this.identity = identity;
     this.pool = pool;
@@ -429,7 +432,7 @@ class ProjectLibrary implements Project {
     this.records = new SchemaRecords(this.transactions);
     this.work = new WorkModel(this.records);
     this.flight = new WorkInFlight(this.records);
-    this.knowledge = new Knowledge(this.records, name, { vectors: new PgVectors(pool, vectorCache), ...(embedder === undefined ? {} : { embedder }) });
+    this.knowledge = new Knowledge(this.records, name, { vectors: new PgVectors(pool, vectorCache, domain), ...(embedder === undefined ? {} : { embedder }) });
     this.health = new HealthRecord(this.records, this.work);
     this.#forget = forget;
   }

@@ -96,9 +96,8 @@ import { followReleases, installedApp } from "./releases.js";
 import { keepDrawingThroughGpuResets } from "./gpu-resets.js";
 import { checkedUpdate, finishStartCheck, runWhenReady, startsCleanly } from "./start-check.js";
 
-// A build that offers sign-in for feedback stamps in its public WorkOS client ID and identity endpoint (build.mjs); others stamp neither.
+// A build that offers sign-in for feedback stamps in its public WorkOS client ID (build.mjs); others stamp none.
 declare const STORYTREE_WORKOS_CLIENT_ID: string | undefined;
-declare const STORYTREE_IDENTITY_URL: string | undefined;
 
 const args = parseArgs(process.argv);
 const home = appHome();
@@ -113,7 +112,7 @@ app.setPath("userData", home.electron);
 keepDrawingThroughGpuResets(app);
 
 /** Sign-in for feedback (app setup contract 5.6): offered only when this build carries both public settings. */
-const identityConfig = feedbackIdentityConfig(STORYTREE_WORKOS_CLIENT_ID, STORYTREE_IDENTITY_URL);
+const identityConfig = feedbackIdentityConfig(STORYTREE_WORKOS_CLIENT_ID);
 let signInSession: CallbackSession | undefined;
 /** Sign-in callbacks that arrived before the session was made (macOS delivers a cold start's before ready). */
 const earlyCallbacks: string[] = [];
@@ -395,12 +394,12 @@ function startFeedbackIdentity(config: FeedbackIdentityConfig): ReturnType<typeo
     {
       beginSignIn: () => manager.beginSignIn(),
       completeCallback: (code, state) => manager.completeCallback(code, state),
-      getAccessToken: () => manager.getAccessToken(),
+      getUser: () => manager.getUser(),
       signOut: () => manager.signOut(),
     },
     () => safeStorage.isEncryptionAvailable(),
   );
-  return createFeedbackIdentity({ identityUrl: config.identityUrl, session: signInSession });
+  return createFeedbackIdentity({ clientId: config.clientId, session: signInSession });
 }
 
 /** Hand a sign-in callback to the session, or keep it until the session is made; with no sign-in offered, drop it. */

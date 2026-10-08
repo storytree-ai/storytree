@@ -1,5 +1,9 @@
 /** Capability 2 · Social sign-in and session. */
-import { isRefused, verifiedUser, type SignedInUser } from "./client.js";
+import { createRemoteJWKSet, customFetch, jwtVerify } from "jose";
+import type { SignedInUser } from "./client.js";
+
+/** The user a sign-in returned, as WorkOS's code exchange gave it to the SDK's session. */
+export interface DesktopAccount { readonly id: string; readonly email: string; readonly emailVerified: boolean }
 
 /**
  * What the desktop's main process gets from the official WorkOS desktop SDK, which owns system-browser
@@ -8,28 +12,60 @@ import { isRefused, verifiedUser, type SignedInUser } from "./client.js";
 export interface DesktopSession {
   /** False when the platform cannot encrypt saved tokens (Electron's safeStorage unavailable). */
   storageProtected(): boolean | Promise<boolean>;
-  /** A current access token, refreshed by the SDK, or undefined when signed out. */
-  accessToken(): Promise<string | undefined>;
+  /** The current access token, refreshed by the SDK, with the user its sign-in returned; undefined when signed out. */
+  current(): Promise<{ readonly accessToken: string; readonly user: DesktopAccount } | undefined>;
   signIn(): Promise<void>;
   signOut(): Promise<void>;
 }
 export interface DesktopIdentityConfiguration {
-  /** Full, explicitly configured server endpoint; never learned from an access token. */
-  readonly identityUrl: string;
+  /** The public WorkOS client whose published keys sign this app's access tokens. */
+  readonly clientId: string;
   readonly session: DesktopSession;
   readonly fetch?: typeof fetch;
 }
 
-/** The feedback bridge's account calls: optional, verified by the identity server, only id and email out. */
+/** The audience WorkOS's JWT template stamps on Storytree's access tokens. */
+export const IDENTITY_AUDIENCE = "storytree-identity";
+
+class Refused extends Error {}
+// jose's codes for a token that can never verify, as opposed to keys that could not be fetched.
+const REFUSED_CODES = new Set([
+  "ERR_JWS_SIGNATURE_VERIFICATION_FAILED", "ERR_JWS_INVALID", "ERR_JWT_INVALID", "ERR_JWT_EXPIRED",
+  "ERR_JWT_CLAIM_VALIDATION_FAILED", "ERR_JWKS_NO_MATCHING_KEY", "ERR_JOSE_ALG_NOT_ALLOWED", "ERR_JOSE_NOT_SUPPORTED",
+]);
+
+/**
+ * The feedback bridge's account calls: optional, only id and email out. With no identity server yet (question
+ * D), the desktop checks WorkOS's access token itself against the client's published keys, and takes the email
+ * from the user that same sign-in returned, only when it is that token's subject and its email is verified.
+ */
 export function createFeedbackIdentity(config: DesktopIdentityConfiguration) {
   const { session } = config;
+  // Neither the key URL nor the audience comes from the token.
+  const keys = createRemoteJWKSet(new URL(`https://api.workos.com/sso/jwks/${config.clientId}`), {
+    ...(config.fetch ? { [customFetch]: config.fetch } : {}), timeoutDuration: 10_000,
+  });
   const verify = async (): Promise<SignedInUser | null> => {
-    const token = await session.accessToken();
-    if (token === undefined) return null;
-    try { return await verifiedUser(config.identityUrl, token, config.fetch); }
-    catch (error) {
-      if (isRefused(error)) { await session.signOut(); return null; }
-      throw error;
+    const signedIn = await session.current();
+    if (signedIn === undefined) return null;
+    try {
+      const { payload } = await jwtVerify(signedIn.accessToken, keys, {
+        audience: IDENTITY_AUDIENCE, algorithms: ["RS256"], requiredClaims: ["sub", "sid", "iat", "exp"],
+      });
+      const { user } = signedIn;
+      if (typeof payload.sub !== "string" || !/^user_[A-Za-z0-9_-]+$/.test(payload.sub) || payload.sub !== user.id
+        || (payload.client_id !== undefined && payload.client_id !== config.clientId)
+        || user.emailVerified !== true || typeof user.email !== "string" || user.email.trim() === "") {
+        throw new Refused();
+      }
+      return { id: user.id, email: user.email };
+    } catch (error) {
+      if (error instanceof Refused || REFUSED_CODES.has(String((error as { code?: unknown }).code))) {
+        await session.signOut();
+        return null;
+      }
+      // The keys could not be fetched: keep the session for the next try.
+      throw new Error("Sign-in is temporarily unavailable. Try again later; Storytree still works without an account.");
     }
   };
   return {
@@ -50,8 +86,7 @@ export function createFeedbackIdentity(config: DesktopIdentityConfiguration) {
 
 /**
  * Capability 2 · Social sign-in and session, contract 2.5: the desktop's sign-in through WorkOS's official Electron SDK.
- * Offered only when a build carries both a public WorkOS client ID and an explicit HTTPS identity endpoint; otherwise
- * there is no sign-in at all. Sign-in goes through the system browser and returns on the storytree-auth://callback deep
+ * Offered only when a build carries a public WorkOS client ID; otherwise there is no sign-in at all. Sign-in goes through the system browser and returns on the storytree-auth://callback deep
  * link, which callbackSession completes. Every token stays in the main process with the SDK's session manager.
  */
 
@@ -64,21 +99,12 @@ export const SIGN_IN_TIMEOUT_MS = 10 * 60 * 1000;
 
 export interface FeedbackIdentityConfig {
   readonly clientId: string;
-  readonly identityUrl: string;
 }
 
-/** The build's public sign-in settings, or undefined (no sign-in offered) unless both are present and well formed. */
-export function feedbackIdentityConfig(clientId: string | undefined, identityUrl: string | undefined): FeedbackIdentityConfig | undefined {
-  if (clientId === undefined || identityUrl === undefined) return undefined;
-  if (!/^client_[A-Za-z0-9]+$/.test(clientId)) return undefined;
-  let url: URL;
-  try {
-    url = new URL(identityUrl);
-  } catch {
-    return undefined;
-  }
-  if (url.protocol !== "https:") return undefined;
-  return { clientId, identityUrl };
+/** The build's public sign-in settings, or undefined (no sign-in offered) unless its client ID is present and well formed. */
+export function feedbackIdentityConfig(clientId: string | undefined): FeedbackIdentityConfig | undefined {
+  if (clientId === undefined || !/^client_[A-Za-z0-9]+$/.test(clientId)) return undefined;
+  return { clientId };
 }
 
 /** The sign-in callbacks among a start's arguments (a Windows or Linux deep link arrives as one). */
@@ -90,7 +116,8 @@ export function callbackUrls(argv: readonly string[]): string[] {
 export interface SignInEngine {
   beginSignIn(): Promise<void>;
   completeCallback(code: string, state: string | undefined): Promise<unknown>;
-  getAccessToken(): Promise<string | null>;
+  /** The SDK's validated, refreshed session: its user and access token, or no user when signed out. */
+  getUser(): Promise<{ user: null } | { user: DesktopAccount; accessToken: string }>;
   signOut(): Promise<unknown>;
 }
 
@@ -120,7 +147,10 @@ export function callbackSession(
 
   return {
     storageProtected,
-    accessToken: async () => (await engine.getAccessToken()) ?? undefined,
+    current: async () => {
+      const auth = await engine.getUser();
+      return auth.user === null ? undefined : { accessToken: auth.accessToken, user: auth.user };
+    },
     signOut: async () => {
       settle(new Error("Signed out before the sign-in finished"));
       await engine.signOut();

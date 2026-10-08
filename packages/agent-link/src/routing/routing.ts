@@ -12,8 +12,10 @@
  *   up in the folder it is a worktree of.
  * - Where storytree is: the running 0.3 app's Postgres, found from the owner record
  *   @storytree/local-postgres keeps beside the app's data directory (`<dataDir>.owner.json`, holding
- *   the owner's pid and the server's port) while the app holds it. Its server is always
- *   `postgres@127.0.0.1:<port>`, trusting local connections. A record whose process has ended is a
+ *   the owner's pid and the server's port) while the app holds it. Authenticated installations
+ *   hand credentials over separately in a private `<dataDir>.auth/connection.json`; only old
+ *   installations with no authentication metadata keep the legacy passwordless URL during staging.
+ *   A record whose process has ended is a
  *   crashed app's leftover, and counts as not running: its address is never tried, so nothing
  *   waits on it.
  * - Unless the user's `library` setting (capability 10, ADR-0734/0735) names a Google Cloud SQL
@@ -21,8 +23,8 @@
  *   app's local database is doing, and no local address is looked up at all. What a routed project
  *   carries is the library's own connect() options, so every caller reaches the same place.
  *
- * Everything here but setting a folder up is synchronous and touches only the file system, so an
- * answer, "not running" included, comes back in milliseconds.
+ * Discovery is synchronous and uses no network. Stale owners refuse before credentials are read;
+ * authenticated Windows discovery also checks the handoff's filesystem ACLs through PowerShell.
  */
 import { existsSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -35,6 +37,7 @@ import { readLibrary } from "../settings/settings.js";
 import { keepOnThisComputer, recordProjectChoice } from "./project-choice.js";
 import { forgetTrunk, machineOf, ProjectFolderError, refusal, registerTrunk, type Trunk, trunksOn, unusedName } from "./trunks.js";
 import { seedStarterPack } from "./starter-pack.js";
+import { authenticatedLocalUrl, HANDOFF_UNAVAILABLE, type LocalOwner } from "./local-handoff.js";
 
 /** The marker a folder set up as a storytree project holds. */
 export const MARKER_FILE = ".storytree.json";
@@ -214,9 +217,15 @@ export function inMainCheckout(folder: string): string {
 
 /** Where the running storytree's database listens, from the app's owner record, or that it isn't running. */
 export function locateStorytree(options: LocateOptions = {}): StorytreeAddress {
-  const record = ownerRecord(options.dataDir ?? defaultDataDir());
+  const dataDir = options.dataDir ?? defaultDataDir();
+  const record = ownerRecord(dataDir);
   if (record === undefined || !isAlive(record.pid)) return { running: false, message: NOT_RUNNING };
-  return { running: true, url: `postgres://postgres@127.0.0.1:${record.port}/postgres` };
+  try {
+    return { running: true, url: authenticatedLocalUrl(dataDir, record) ?? `postgres://postgres@127.0.0.1:${record.port}/postgres` };
+  } catch {
+    // Never forward filesystem, JSON or subprocess errors: they can carry credential contents.
+    return { running: false, message: HANDOFF_UNAVAILABLE };
+  }
 }
 
 /**
@@ -240,7 +249,8 @@ export function locateLibrary(options: LocateOptions = {}): { found: true; conne
  * the launch record is the only sign of it (app lifecycle 1.11).
  */
 export function locateApp(home: string = storytreeHome()): { running: boolean } {
-  if (locateStorytree({ dataDir: path.join(home, "pgdata") }).running) return { running: true };
+  const owner = ownerRecord(path.join(home, "pgdata"));
+  if (owner !== undefined && isAlive(owner.pid)) return { running: true };
   try {
     const { pid } = JSON.parse(readFileSync(path.join(home, "app.json"), "utf8")) as { pid?: unknown };
     return { running: typeof pid === "number" && Number.isInteger(pid) && pid > 0 && isAlive(pid) };
@@ -346,11 +356,11 @@ function linkedWorktree(start: string): { root: string; main: string } | undefin
 }
 
 /** The owner record beside `dataDir`, if there is one that names a process and a port. */
-function ownerRecord(dataDir: string): { pid: number; port: number } | undefined {
+function ownerRecord(dataDir: string): LocalOwner | undefined {
   try {
-    const { pid, port } = JSON.parse(readFileSync(`${path.resolve(dataDir)}.owner.json`, "utf8")) as { pid?: unknown; port?: unknown };
-    if (!Number.isSafeInteger(pid) || !Number.isSafeInteger(port)) return undefined;
-    return { pid: pid as number, port: port as number };
+    const record = JSON.parse(readFileSync(`${path.resolve(dataDir)}.owner.json`, "utf8")) as LocalOwner;
+    if (!Number.isSafeInteger(record.pid) || record.pid <= 0 || !Number.isSafeInteger(record.port) || record.port < 1 || record.port > 65535) return undefined;
+    return record;
   } catch {
     return undefined;
   }

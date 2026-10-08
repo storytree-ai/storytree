@@ -13,6 +13,14 @@ export interface LocalOwner {
 /** A connection failure only: callers must not confuse this with app liveness. No material is echoed. */
 export const HANDOFF_UNAVAILABLE = "storytree's local database credentials are unavailable or invalid; restart the storytree app to repair its connection handoff";
 
+type WindowsRefusal = "windows-acl-timeout" | "windows-acl-process" | "windows-acl-owner" |
+  "windows-acl-inheritance" | "windows-acl-exposed" | "windows-acl-no-owner-grant" | "windows-acl-output";
+
+/** Only fixed reason codes cross discovery's error boundary; never attach the original cause. */
+export class HandoffPrivacyError extends Error {
+  constructor(reason: WindowsRefusal) { super(`${HANDOFF_UNAVAILABLE} (${reason})`); }
+}
+
 /**
  * Undefined means an old installation with neither auth metadata nor an auth directory. Any
  * evidence of authentication commits the reader to that path: failures never become legacy URLs.
@@ -80,23 +88,35 @@ function windowsPrivate(directory: string, file: string): void {
     foreach ($item in @($env:STORYTREE_HANDOFF_DIRECTORY, $env:STORYTREE_HANDOFF_FILE)) {
       if ([System.IO.Directory]::Exists($item)) { $acl = [System.IO.Directory]::GetAccessControl($item) }
       else { $acl = [System.IO.File]::GetAccessControl($item) }
-      if ($acl.GetOwner([System.Security.Principal.SecurityIdentifier]).Value -ne $sid) { exit 1 }
-      if (-not $acl.AreAccessRulesProtected) { exit 1 }
+      if ($acl.GetOwner([System.Security.Principal.SecurityIdentifier]).Value -ne $sid) { exit 11 }
+      if (-not $acl.AreAccessRulesProtected) { exit 12 }
       $own = $false
       foreach ($rule in $acl.GetAccessRules($true, $true, [System.Security.Principal.SecurityIdentifier])) {
         if ($rule.AccessControlType -eq 'Allow') {
-          if ($rule.IdentityReference.Value -notin $allowed) { exit 1 }
+          if ($rule.IdentityReference.Value -notin $allowed) { exit 13 }
           if ($rule.IdentityReference.Value -eq $sid -and -not ($rule.PropagationFlags -band 2)) { $own = $true }
         }
       }
-      if (-not $own) { exit 1 }
+      if (-not $own) { exit 14 }
     }
     [Console]::WriteLine('private')
   `;
-  const output = execFileSync(path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe"),
-    ["-NoProfile", "-NonInteractive", "-EncodedCommand", Buffer.from(script, "utf16le").toString("base64")],
-    { env: { ...process.env, STORYTREE_HANDOFF_DIRECTORY: directory, STORYTREE_HANDOFF_FILE: file }, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 5000 });
-  if (output.trim() !== "private") throw new Error(HANDOFF_UNAVAILABLE);
+  let output: string;
+  try {
+    output = execFileSync(path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe"),
+      ["-NoProfile", "-NonInteractive", "-EncodedCommand", Buffer.from(script, "utf16le").toString("base64")],
+      { env: { ...process.env, STORYTREE_HANDOFF_DIRECTORY: directory, STORYTREE_HANDOFF_FILE: file }, encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"], timeout: 5000, maxBuffer: 4096, windowsHide: true });
+  } catch (error) {
+    const failure = error as { code?: unknown; status?: unknown } | null;
+    const reason: WindowsRefusal = failure?.code === "ETIMEDOUT" ? "windows-acl-timeout" :
+      failure?.status === 11 ? "windows-acl-owner" :
+      failure?.status === 12 ? "windows-acl-inheritance" :
+      failure?.status === 13 ? "windows-acl-exposed" :
+      failure?.status === 14 ? "windows-acl-no-owner-grant" : "windows-acl-process";
+    throw new HandoffPrivacyError(reason);
+  }
+  if (output.trim() !== "private") throw new HandoffPrivacyError("windows-acl-output");
 }
 
 function object(value: unknown): value is Record<string, unknown> {

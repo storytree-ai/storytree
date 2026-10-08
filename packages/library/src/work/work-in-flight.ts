@@ -284,6 +284,22 @@ export class WorkInFlight {
   }
 
   /**
+   * Return an active increment to proposal, keeping the day it was parked: the one step back, for
+   * work whose last claim ended without closing it (10.9). Whether anyone still holds it is the
+   * caller's to know. Anything but active is refused (LifecycleError). Null, with nothing written, if
+   * `id` is not a live increment.
+   */
+  returnIncrement(id: string, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
+    return this.#serially(async () => {
+      const increment = await liveRecord(this.#records, id, ["increment"]);
+      if (increment === null) return null;
+      if (increment.fields.status !== "active") throw new LifecycleError(id, increment.fields.status, "proposal");
+      const parked = increment.fields.parked ?? new Date().toISOString();
+      return (await this.#records.edit(id, { status: "proposal", parked }, options)) as SchemaRecord<"increment"> | null;
+    });
+  }
+
+  /**
    * Close an increment, recording the day, its pull request, its note and what the close meant. A
    * close with no pull request needs a note (SchemaError); closing a closed one is refused
    * (LifecycleError). Null, with nothing written, if `id` is not a live increment.

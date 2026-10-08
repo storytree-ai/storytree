@@ -219,12 +219,32 @@ test("11.5 `workspace release` ends the calling session's increment or capabilit
         assert.equal(ran.code, 0, ran.stderr);
         assert.ok(ran.stdout.includes(id), ran.stdout);
         assert.deepEqual(await readClaims(log, world.project), []);
-        assert.deepEqual(await library.history({ id }), history, "releasing changes no library record");
+        if (id === capability.id) assert.deepEqual(await library.history({ id }), history, "releasing a capability changes no library record");
         const line = (await log.since(world.project, 0)).lines.at(-1);
         assert.equal(line?.kind, "released");
         if (line?.kind === "released") assert.deepEqual([line.increment ?? line.capability, line.session], [id, session]);
       }
-      assert.equal((await library.arcView(arc.id))?.increments[0]?.fields.status, "active");
+      assert.equal((await library.arcView(arc.id))?.increments[0]?.fields.status, "proposal", "released, not closed (11.11)");
+    } finally {
+      await log.close();
+    }
+  });
+});
+
+test("11.11 `workspace release` of an increment's last claim returns the unclosed increment to proposal, keeping its parked date", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const arc = await library.createArc({ title: "Launch", intent: "Ship sign-up", endState: "Visitors sign up" });
+    const increment = await library.addIncrement({ arc: arc.id, title: "Email form", objective: "Build it", body: "…" });
+    const log = await openActivityLog(testServerUrl());
+    try {
+      assert.equal((await claim({ log, library, project: world.project, session: "claude-release", harness: "claude-code" }, increment.id, "building the form")).ok, true);
+      const fieldsOf = async () => (await library.get(increment.id))?.fields as { status?: string; parked?: string } | undefined;
+      assert.equal((await fieldsOf())?.status, "active", "claiming started it");
+      const ran = await world.run(["workspace", "release", increment.id], { CLAUDE_CODE_SESSION_ID: "claude-release" });
+      assert.equal(ran.code, 0, ran.stderr);
+      assert.match(ran.stdout, /proposal/);
+      assert.deepEqual(await fieldsOf(), { ...(await fieldsOf()), status: "proposal", parked: increment.fields.parked });
     } finally {
       await log.close();
     }

@@ -208,6 +208,26 @@ for (const backend of [memory, postgres]) {
     assert.equal((await flight.advanceIncrement("increment-ready", "active"))?.fields.status, "active", "claiming it starts it");
   });
 
+  contract("10.9", "an active increment returns to proposal keeping its parked date; a proposal or closed one is refused with nothing written", async ({ work, flight, transactions }) => {
+    const arc = await work.createArc(ARC);
+    const increment = await flight.addIncrement({ arc: arc.id, ...WORK });
+    const history = await transactions.history();
+    await assert.rejects(flight.returnIncrement(increment.id), LifecycleError, "a proposal is already one");
+    assert.deepEqual(await transactions.history(), history, "nothing was written");
+
+    await flight.advanceIncrement(increment.id, "active");
+    const returned = await flight.returnIncrement(increment.id);
+    assert.equal(returned?.fields.status, "proposal");
+    assert.equal(returned?.fields.parked, increment.fields.parked, "keeps the day it was parked");
+    assert.equal((await flight.advanceIncrement(increment.id, "active"))?.fields.status, "active", "claiming it starts it again");
+
+    await flight.closeIncrement(increment.id, { pr: "#7", disposition: "landed" });
+    const closed = await transactions.history();
+    await assert.rejects(flight.returnIncrement(increment.id), LifecycleError, "closed is final");
+    assert.deepEqual(await transactions.history(), closed, "nothing was written");
+    assert.equal(await flight.returnIncrement("increment_000000000000"), null);
+  });
+
   contract("10.3", "an arc reads closed exactly when none of its increments is open, active otherwise or with none, and parked until unparked", async ({ work, flight, records }) => {
     // (Its other half, "and none of its questions waits on the owner", is proved with capability 12.)
     const arc = await work.createArc(ARC);

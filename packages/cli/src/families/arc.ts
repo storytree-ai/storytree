@@ -5,7 +5,9 @@
  * unpark an arc; park an increment, record a landing that was never parked, close one with its
  * outcome, move one to another arc keeping its id, and make an arc or increment wait on another
  * with a reason, or an increment wait for the owner or an outside event with a note (ADR-0938 D1),
- * or clear the wait. Closing an increment ends its claims through the agent link's `closed`.
+ * or clear the wait; `arc show` also names a stale wait, one whose blocker has closed, with the command
+ * that clears it. Return active work nobody holds to proposal (`increment unstart`). Closing an
+ * increment ends its claims through the agent link's `closed`.
  *
  * Every rule is the library's (its capabilities 10, 11 and 12): an arc's intent and end state, a
  * close's note, the loop check, whether a wait holds (`waitHolds`) and whether work is held on the
@@ -60,6 +62,17 @@ function holdsOn(holds: Holds, id: string): string[] {
   return lines;
 }
 
+/**
+ * The waits `record` still stores that no longer hold: its blocker landed (an increment) or closed
+ * (an arc), so the wait is stale and only clutters the record, each with the command that clears it.
+ */
+function staleWaits(holds: Holds, record: { readonly id: string; readonly fields: { readonly waits?: readonly { readonly on: string }[] | undefined } }, family: string): string[] {
+  const holding = new Set((holds.waits[record.id] ?? []).map((hold) => hold.on));
+  return (record.fields.waits ?? [])
+    .filter((wait) => !holding.has(wait.on))
+    .map(({ on }) => `waited on ${on}, which ${on.startsWith("arc_") ? "closed" : "landed"}: a stale wait, cleared by storytree ${family} unwait ${record.id} --on ${on}`);
+}
+
 /** A wait for the owner or an outside event, as `arc show` names it under its increment: an event's reads passed from its check-back day. */
 function waitSaid({ releaser, note, checkBack, holds }: NoteWait): string {
   if (releaser === "owner") return `waiting on you: ${note}`;
@@ -78,14 +91,14 @@ const show: Verb = {
     if (view === null) throw new Refusal(`no arc "${id}" in this project`);
     const { arc, state, increments, questions } = view;
     const lines = [`${arc.fields.title}  [${arc.id}]  ${stateOf(view)}`, "", `Intent: ${arc.fields.intent}`, `End state: ${arc.fields.endState}`];
-    for (const line of holdsOn(holds, arc.id)) lines.push(`This arc ${line}`);
+    for (const line of [...holdsOn(holds, arc.id), ...staleWaits(holds, arc, "arc")]) lines.push(`This arc ${line}`);
     const open = increments.filter((increment) => increment.fields.status !== "closed");
     const closed = increments.filter((increment) => increment.fields.status === "closed");
     lines.push("", `Work (${open.length} open)`);
     if (open.length === 0) lines.push("  (none)");
     for (const increment of open) {
       lines.push(`  - ${increment.id}  [${increment.fields.status}]  ${increment.fields.title}`);
-      for (const line of holdsOn(holds, increment.id)) lines.push(`      ${line}`);
+      for (const line of [...holdsOn(holds, increment.id), ...staleWaits(holds, increment, "arc increment")]) lines.push(`      ${line}`);
     }
     const waiting = questions.filter((question) => question.fields.lifecycle === "open");
     // A parked arc's questions are parked with it until it is unparked (ADR-0835 D2).
@@ -266,6 +279,24 @@ const incrementClose: Verb = {
   },
 };
 
+const incrementUnstart: Verb = {
+  name: "unstart",
+  usage: "arc increment unstart <increment>",
+  summary: "return an active increment nobody holds to proposal, keeping its parked date",
+  async act(args, context) {
+    const id = args.word(0, "the increment's id", this.usage);
+    const library = await context.library();
+    const increment = await library.get(id);
+    if (increment?.type !== "increment") throw new Refusal(`no increment "${id}" in this project`);
+    const status = (increment.fields as { status: string }).status;
+    if (status !== "active") throw new Refusal(`${id} is ${status}, not active: only active work returns to proposal.`);
+    const holder = (await context.claims()).find((claim) => claim.increment === id);
+    if (holder !== undefined) throw new Refusal(`${id} is held by ${holder.label} session ${holder.session} (${holder.reason}): it is work in progress. Its holder releases it, which returns it to proposal.`);
+    await library.returnIncrement(id, context.writer());
+    return { text: `${id} is a proposal again: nobody holds it.`, next: [{ command: `storytree arc show ${(increment.fields as { arc: string }).arc}`, why: "see the arc" }] };
+  },
+};
+
 const incrementEdit: Verb = {
   name: "edit",
   usage: "arc increment edit <increment> [--title …] [--objective …] [--body …] [--touches a,b] [--held-on q]",
@@ -310,7 +341,7 @@ const incrementMove: Verb = {
 const increment: Family = {
   name: "increment",
   summary: "the increments of an arc's work",
-  verbs: [incrementNew, incrementAdd, incrementClose, incrementCorrectClosure, incrementEdit, incrementMove, ...waiting("arc increment", "increment")],
+  verbs: [incrementNew, incrementAdd, incrementClose, incrementCorrectClosure, incrementEdit, incrementUnstart, incrementMove, ...waiting("arc increment", "increment")],
   guesses: { show: "library read <id>", read: "library read <id>", get: "library read <id>", open: "library read <id>" },
   retired: {
     ready: { why: "ADR-0909 retired the increment's ready step, and claiming a proposal starts it.", instead: "workspace <increment> --reason …" },

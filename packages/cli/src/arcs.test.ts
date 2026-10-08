@@ -304,6 +304,56 @@ test("4.4 `arc show` names what each waiting increment waits for", async () => {
   });
 });
 
+test("4.11 `arc show` names a stale wait: one whose blocker has landed, which no longer holds, with the command that clears it", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const arc = await anArc(world);
+    const first = await library.addIncrement({ arc, title: "Schema", objective: "Tables", body: "…" });
+    const second = await library.addIncrement({ arc, title: "Form", objective: "The form", body: "…" });
+    await library.addWait(second.id, first.id, "needs the tables");
+    await library.closeIncrement(first.id, { pr: "#1", disposition: "landed" });
+
+    const ran = await world.run(["arc", "show", arc]);
+
+    assert.equal(ran.code, 0, ran.stderr);
+    const lines = ran.stdout.split(/\r?\n/);
+    const form = lines.findIndex((line) => line.includes(second.id));
+    const block = lines.slice(form, form + 3).join("\n");
+    assert.ok(block.includes(first.id) && /landed/.test(block) && /stale/.test(block), `no stale wait under ${second.id}:\n${ran.stdout}`);
+    assert.ok(block.includes(`storytree arc increment unwait ${second.id} --on ${first.id}`), block);
+  });
+});
+
+test("4.12 `arc increment unstart` returns an active increment nobody holds to proposal; a held, proposed or closed one is refused, naming why, with nothing written", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const arc = await anArc(world);
+    const log = await openActivityLog(testServerUrl());
+    try {
+      const held = await library.addIncrement({ arc, title: "Email form", objective: "Build it", body: "…" });
+      assert.equal((await claim({ log, library, project: world.project, session: "holder", harness: "claude-code" }, held.id, "building the form")).ok, true);
+      const proposal = await library.addIncrement({ arc, title: "Copy", objective: "Write it", body: "…" });
+      const closed = await library.addIncrement({ arc, title: "Done", objective: "Done", body: "…", outcome: { pr: "#2", disposition: "landed" } });
+      for (const [id, why] of [[held.id, /holder/], [proposal.id, /proposal/], [closed.id, /closed/]] as const) {
+        const history = await library.history({ id });
+        const refused = await world.run(["arc", "increment", "unstart", id]);
+        assert.equal(refused.code, 1, refused.stdout);
+        assert.match(refused.stderr, why);
+        assert.deepEqual(await library.history({ id }), history, "nothing was written");
+      }
+
+      const stranded = await library.addIncrement({ arc, title: "Stranded", objective: "Left active", body: "…" });
+      await library.advanceIncrement(stranded.id, "active");
+      const ran = await world.run(["arc", "increment", "unstart", stranded.id]);
+      assert.equal(ran.code, 0, ran.stderr);
+      assert.match(ran.stdout, /proposal/);
+      assert.equal((await library.arcView(arc))?.increments.find(({ id }) => id === stranded.id)?.fields.status, "proposal");
+    } finally {
+      await log.close();
+    }
+  });
+});
+
 test("4.6 closing an increment ends its claim for any holder and outcome; a refused close leaves it held", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();

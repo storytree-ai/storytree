@@ -12,7 +12,8 @@
  *   pnpm --filter @storytree/app-setup dev-home <dir> --remove
  */
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -24,6 +25,12 @@ import { installCommand } from "../deliver/command.js";
 import { connectAgents, installedToolServerCommand, type ConnectionResult, type Harness, type RunHarness } from "./index.js";
 
 const MARK = "storytree-dev-home.json";
+const signInDigest = (contents: string): string => createHash("sha256").update(contents).digest("hex");
+
+interface DevHomeMarker {
+  made: string;
+  codexSignIn?: { from: string } & ({ copiedSha256: string } | { copied: string });
+}
 
 export interface DevHomeOptions {
   readonly dir: string;
@@ -52,11 +59,11 @@ export async function makeDevHome(options: DevHomeOptions): Promise<DevHome> {
   const codex = path.join(home, ".codex");
   const claude = path.join(home, ".claude");
   const storytree = path.join(home, ".storytree", "0.3");
-  for (const folder of [codex, claude, storytree]) mkdirSync(folder, { recursive: true });
+  for (const folder of [codex, claude, storytree]) mkdirSync(folder, { recursive: true, mode: 0o700 });
   const userAuth = path.join(options.signedIn?.codex ?? path.join(homedir(), ".codex"), "auth.json");
   const copied = options.harnesses.includes("codex") && existsSync(userAuth) ? readFileSync(userAuth, "utf8") : undefined;
   if (copied !== undefined) writeFileSync(path.join(codex, "auth.json"), copied, { mode: 0o600 });
-  writeFileSync(path.join(dir, MARK), `${JSON.stringify({ made: new Date().toISOString(), ...(copied === undefined ? {} : { codexSignIn: { from: userAuth, copied } }) })}\n`);
+  writeFileSync(path.join(dir, MARK), `${JSON.stringify({ made: new Date().toISOString(), ...(copied === undefined ? {} : { codexSignIn: { from: userAuth, copiedSha256: signInDigest(copied) } }) })}\n`, { mode: 0o600 });
 
   const bins = await (options.build ?? buildBins)(tools);
 
@@ -89,14 +96,29 @@ export async function makeDevHome(options: DevHomeOptions): Promise<DevHome> {
 export async function removeDevHome(dir: string): Promise<void> {
   if (!existsSync(dir)) return;
   if (!existsSync(path.join(dir, MARK))) throw new Error(`${dir} exists and is not a dev home made by this command: choose a new folder.`);
-  const { codexSignIn } = JSON.parse(readFileSync(path.join(dir, MARK), "utf8")) as { codexSignIn?: { from: string; copied: string } };
+  // Tighten an older home's permissions before handling its plaintext marker. A refused
+  // hand-back must still leave no plaintext behind. POSIX modes do not assert Windows ACLs.
+  chmodSync(dir, 0o700);
+  const markerFile = path.join(dir, MARK);
+  chmodSync(markerFile, 0o600);
+  const marker = JSON.parse(readFileSync(markerFile, "utf8")) as DevHomeMarker;
+  let codexSignIn = marker.codexSignIn;
+  if (codexSignIn !== undefined && "copied" in codexSignIn) {
+    codexSignIn = { from: codexSignIn.from, copiedSha256: signInDigest(codexSignIn.copied) };
+    marker.codexSignIn = codexSignIn;
+    writeFileSync(markerFile, `${JSON.stringify(marker)}\n`, { mode: 0o600 });
+  }
   const inside = path.join(dir, "home", ".codex", "auth.json");
   if (codexSignIn !== undefined && existsSync(inside)) {
     const now = readFileSync(inside, "utf8");
     const users = existsSync(codexSignIn.from) ? readFileSync(codexSignIn.from, "utf8") : undefined;
-    if (now !== codexSignIn.copied) {
+    if (signInDigest(now) !== codexSignIn.copiedSha256) {
       // Refreshed inside, so the user's copy is spent. Theirs changed too only if they signed in again meanwhile: keep theirs.
-      if (users === codexSignIn.copied) writeFileSync(codexSignIn.from, now, { mode: 0o600 });
+      if (users !== undefined && signInDigest(users) === codexSignIn.copiedSha256) {
+        // writeFile's mode only applies to creation, not an existing sign-in file.
+        chmodSync(codexSignIn.from, 0o600);
+        writeFileSync(codexSignIn.from, now, { mode: 0o600 });
+      }
       else throw new Error(`Codex refreshed its sign-in inside ${dir}, and ${codexSignIn.from} changed meanwhile: check that codex login status works, then remove ${dir} by hand.`);
     }
   }

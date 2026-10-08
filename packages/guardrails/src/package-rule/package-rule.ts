@@ -176,6 +176,11 @@ function workspaceDependencies(root: string, packages: readonly string[]): Map<s
 
 /** Each cycle among the workspace packages' dependencies, once, as names from and back to its least. */
 function dependencyCycles(deps: Map<string, string[]>): string[][] {
+  // A cycle stays inside one strongly connected component. Discover those in O(V + E)
+  // before enumerating cycles, so shared acyclic paths (even paths into a cycle) are
+  // never enumerated. Keep every distinct cycle, rather than just DFS back edges.
+  const components = dependencyComponents(deps);
+  const within = new Map([...deps].map(([name, next]) => [name, next.filter((to) => components.get(name) === components.get(to))]));
   const cycles = new Map<string, string[]>();
   const visit = (name: string, trail: string[]): void => {
     const at = trail.indexOf(name);
@@ -186,10 +191,44 @@ function dependencyCycles(deps: Map<string, string[]>): string[][] {
       cycles.set(cycle.join(" "), [...cycle, cycle[0]!]);
       return;
     }
-    for (const next of deps.get(name) ?? []) visit(next, [...trail, name]);
+    for (const next of within.get(name) ?? []) visit(next, [...trail, name]);
   };
-  for (const name of deps.keys()) visit(name, []);
+  for (const [name, next] of within) if (next.length > 0) visit(name, []);
   return [...cycles.values()];
+}
+
+/** Tarjan's traversal: each package maps to the root of its strongly connected component. */
+function dependencyComponents(deps: Map<string, string[]>): Map<string, string> {
+  const order = new Map<string, number>();
+  const low = new Map<string, number>();
+  const stack: string[] = [];
+  const active = new Set<string>();
+  const components = new Map<string, string>();
+  const visit = (name: string): void => {
+    const index = order.size;
+    order.set(name, index);
+    low.set(name, index);
+    stack.push(name);
+    active.add(name);
+    for (const next of deps.get(name) ?? []) {
+      if (!order.has(next)) {
+        visit(next);
+        low.set(name, Math.min(low.get(name)!, low.get(next)!));
+      } else if (active.has(next)) {
+        low.set(name, Math.min(low.get(name)!, order.get(next)!));
+      }
+    }
+    if (low.get(name) === index) {
+      let member: string;
+      do {
+        member = stack.pop()!;
+        active.delete(member);
+        components.set(member, name);
+      } while (member !== name);
+    }
+  };
+  for (const name of deps.keys()) if (!order.has(name)) visit(name);
+  return components;
 }
 
 /** The story whose files `specifier`, imported from `file` in package `dir`, reaches into; else undefined. */

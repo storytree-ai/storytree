@@ -1,8 +1,8 @@
 /** Capability 11 · Workspace: a terminal front door onto the agent link's claimed workspace, claim and release. */
-import type { ClaimAnswer, WorkspaceAnswer } from "@storytree/agent-link";
+import type { ClaimAnswer, ClaimContext, WorkspaceAnswer } from "@storytree/agent-link";
 
 import { Refusal } from "../answer.js";
-import type { Family, Verb } from "../door.js";
+import type { Context, Family, Verb } from "../door.js";
 
 const make: Verb = {
   name: "workspace",
@@ -69,12 +69,26 @@ const claimOnly: Verb = {
 
 const releaseClaim: Verb = {
   name: "release",
-  usage: "workspace release <increment|capability>",
-  summary: "release a claim this agent session holds, without closing or landing the work",
+  usage: "workspace release <increment|capability> [--holder <session> --reason <why>]",
+  summary: "release a claim this agent session holds, without closing or landing the work; with --holder, the session manager's release of a quiet session's claim (ADR-0944 D7)",
   async act(args, context) {
     const id = args.word(0, "the work's id", this.usage);
-    const { release } = await import("@storytree/agent-link");
+    const { release, releaseFor } = await import("@storytree/agent-link");
     const caller = await context.claimContext();
+    const holder = args.text("holder");
+    if (holder !== undefined) {
+      const reason = args.need("reason", this.usage).trim();
+      if (!reason) throw new Refusal(`this needs a non-empty --reason
+usage: storytree ${this.usage}`, { code: 2 });
+      const answer = await releaseFor(caller, id, holder, reason);
+      if (!answer.ok) {
+        const current = answer.holder;
+        throw new Refusal(answer.refused === "live"
+          ? `${holder} still reads live on ${id}: message it, and release only once it has stayed quiet.`
+          : current === undefined ? `${holder} doesn't hold ${id}, and nobody else does.` : `${holder} doesn't hold ${id}: ${current.label} session ${current.session} (${current.reason}) does.`);
+      }
+      return { text: `Released ${id} for ${holder}: ${reason}${await returnedToProposal(caller, id, context)}` };
+    }
     const answer = await release(caller, id);
     if (!answer.ok) {
       const holder = answer.holder;
@@ -82,15 +96,17 @@ const releaseClaim: Verb = {
         ? `You don't hold ${id}, and nobody else does.`
         : `You don't hold ${id}: ${holder.label} session ${holder.session} (${holder.reason}) does.`);
     }
-    // An increment released without closing is nobody's work in progress: it is a proposal again (11.11).
-    const work = await caller.library.get(id);
-    if (work?.type === "increment" && (work.fields as { status: string }).status === "active") {
-      await caller.library.returnIncrement(id, context.writer());
-      return { text: `You released ${id}; nobody holds it, so it is a proposal again.` };
-    }
-    return { text: `You released ${id}.` };
+    return { text: `You released ${id}${await returnedToProposal(caller, id, context)}` };
   },
 };
+
+/** An increment released without closing is nobody's work in progress: it is a proposal again (11.11). Says so, or ends the sentence. */
+async function returnedToProposal(caller: ClaimContext, id: string, context: Context): Promise<string> {
+  const work = await caller.library.get(id);
+  if (work?.type !== "increment" || (work.fields as { status: string }).status !== "active") return ".";
+  await caller.library.returnIncrement(id, context.writer());
+  return "; nobody holds it, so it is a proposal again.";
+}
 
 /** Present the owning story's refusal without making another claiming rule here. */
 export function workspaceRefusalText(id: string, answer: Exclude<WorkspaceAnswer | ClaimAnswer, { ok: true }>): string {

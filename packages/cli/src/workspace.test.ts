@@ -277,6 +277,34 @@ test("11.6 `workspace release` refuses another session's claim, an unheld target
   });
 });
 
+test("11.12 `workspace release --holder <session> --reason` is the session manager's release of a quiet session's claim; a live holder's claim is refused", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const arc = await library.createArc({ title: "Launch", intent: "Ship sign-up", endState: "Visitors sign up" });
+    const increment = await library.addIncrement({ arc: arc.id, title: "Email form", objective: "Build it", body: "…" });
+    const log = await openActivityLog(testServerUrl());
+    try {
+      assert.equal((await world.run(["settings", "set", "idle-after", "1s"])).code, 0);
+      assert.equal((await claim({ log, library, project: world.project, session: "quiet", harness: "claude-code", quietMs: 1_000 }, increment.id, "building the form")).ok, true);
+      const before = await log.since(world.project, 0);
+      const live = await world.run(["workspace", "release", increment.id, "--holder", "quiet", "--reason", "quiet, messaged"], { CLAUDE_CODE_SESSION_ID: "manager" });
+      assert.equal(live.code, 1);
+      assert.match(live.stderr, /quiet.*live/);
+      assert.deepEqual(await log.since(world.project, 0), before, "a refusal writes nothing");
+
+      await new Promise((done) => setTimeout(done, 1_300)); // the holder says nothing for longer than idle-after
+      const ran = await world.run(["workspace", "release", increment.id, "--holder", "quiet", "--reason", "quiet 24h after the manager's message"], { CLAUDE_CODE_SESSION_ID: "manager" });
+      assert.equal(ran.code, 0, ran.stderr);
+      assert.match(ran.stdout, /quiet/);
+      assert.match(ran.stdout, /proposal/);
+      assert.deepEqual(await readClaims(log, world.project), []);
+      assert.equal(((await library.get(increment.id))?.fields as { status?: string } | undefined)?.status, "proposal");
+    } finally {
+      await log.close();
+    }
+  });
+});
+
 test("11.4 a Claude Code session attaches the linked worktree the app started it in, with no --ref or --name, and holds its work on that worktree's branch", async () => {
   await inWorld(command, async (world) => {
     const increment = await withRepository(world);

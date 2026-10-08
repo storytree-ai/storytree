@@ -109,7 +109,11 @@ export const NEW_LINE = z.discriminatedUnion("kind", [
   z.object({ ...common, kind: z.literal("claimed"), ...part, reason: z.string().min(1), takenOverFrom: z.string().min(1).optional(), file: z.string().min(1).optional() }).strict().refine(onePart, ONE_PART),
   /** A claim turned away because another live session (`holder`) held the work: the reason the refused session gave, and the `file` whose edit asked for it (ADR-0924 D2). */
   z.object({ ...common, kind: z.literal("claim-refused"), ...part, holder: z.string().min(1), reason: z.string().min(1), file: z.string().min(1).optional() }).strict().refine(onePart, ONE_PART),
-  z.object({ ...common, kind: z.literal("released"), ...part }).strict().refine(onePart, ONE_PART),
+  /**
+   * A claim let go. Written by its holder, it names no `holder`; written by the session manager for a quiet
+   * session after messaging it (ADR-0944 D7), it names the `holder` whose claim it ends and the `reason`.
+   */
+  z.object({ ...common, kind: z.literal("released"), ...part, holder: z.string().min(1).optional(), reason: z.string().min(1).optional() }).strict().refine(onePart, ONE_PART),
   z.object({ ...common, kind: z.literal("landed"), capability: z.string().min(1) }).strict(),
   /** An increment closed through storytree, with what the close meant: it ends any claim on it (ADR-0643 D1, 6). */
   z.object({ ...common, kind: z.literal("closed"), increment: z.string().min(1), disposition: z.enum(["landed", "failed", "withdrawn"]) }).strict(),

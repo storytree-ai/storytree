@@ -282,7 +282,7 @@ async function upkeep(made: HookLines, merges: MergeWatch | undefined, locate: L
   }
 }
 
-/** Whether each session's branches still hold open work (ADR-0754 D4), worktrees to reap (ADR-0790), and the sessions the apps keep, each at most once a minute unless `watch` says otherwise. */
+/** Whether each session's branches still hold open work (ADR-0754 D4), worktrees to reap (ADR-0790), the sessions the apps keep, and gone holders' claims, each at most once a minute unless `watch` says otherwise. */
 async function lookAround(watcher: MergeContext, watch: MergeWatch | undefined): Promise<void> {
   const { resolveBranches } = await import("../sessions/branch-states.js");
   await resolveBranches(watcher, watch).catch(() => []);
@@ -292,6 +292,9 @@ async function lookAround(watcher: MergeContext, watch: MergeWatch | undefined):
   // Which sessions the Claude desktop app and Codex keep on this machine, and whether each is archived there.
   const { recordAppStates } = await import("../sessions/app-records.js");
   await recordAppStates(watcher, watch?.everyMs === undefined ? {} : { everyMs: watch.everyMs }).catch(() => []);
+  // Claims of sessions that read gone, crashed or abandoned without an end line, end now (ADR-0944 D6).
+  const [{ due }, { endGoneClaims }] = await Promise.all([import("../claims/merges.js"), import("../claims/claims.js")]);
+  if (due(`${watcher.project}-gone`, watch?.everyMs ?? UPKEEP_EVERY_MS)) await endGoneClaims(watcher).catch(() => []);
 }
 
 /** The prompt in a prompt hook's input from `harness`, or undefined for any other input. */

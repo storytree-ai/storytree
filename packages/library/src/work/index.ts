@@ -1,6 +1,10 @@
 /** Capability 4 · Work model. */
-export { LifecycleError, RetireRefusedError, WaitLoopError, WorkInFlight } from "./work-in-flight.js";
-export type { ArcState, ArcView, CloseInput, Disposition, Hold, Holds, IncrementEdit, IncrementStatus, NewIncrement, NewQuestion, NoteWait, ParkOptions, QuestionEdit, QuestionLease, Settlement, WaitFor } from "./work-in-flight.js";
+export { LifecycleError, WorkInFlight } from "./work-in-flight.js";
+export type { ArcState, ArcView, CloseInput, Disposition, IncrementEdit, IncrementStatus, NewIncrement, ParkOptions } from "./work-in-flight.js";
+export { RetireRefusedError } from "./owner-questions.js";
+export type { NewQuestion, QuestionEdit, QuestionLease, Settlement } from "./owner-questions.js";
+export { WaitLoopError } from "./waits.js";
+export type { Hold, Holds, NoteWait, WaitFor } from "./waits.js";
 export { WorkModel } from "./work-model.js";
 export type {
   ArcEdit,

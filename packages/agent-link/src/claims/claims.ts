@@ -16,6 +16,8 @@
  *   recently of those it still holds; an edit or command from a session holding nothing is
  *   unplanned activity.
  * - An increment's claim also ends when the increment is closed through storytree: a "closed" line.
+ *   So do the closing session's capability claims taken while it held that increment, which their
+ *   claimed lines name as `under` (ADR-0944 D5).
  * - A claim also ends when a pull request from the branch it was taken on merges after it was
  *   taken (ADR-0643 D3): a "merged" line, which merges.ts writes when GitHub shows one.
  * - Claims work on trust: storytree refuses a second claim, but cannot stop an agent that never asks.
@@ -146,7 +148,8 @@ export async function claim(context: ClaimContext, id: string, reason: string, o
       const closed = await log.lines({ kinds: ["closed-out"], sessions: [context.session], since: options.edit.at, newest: 1 });
       if ([...releases, ...closed].some((line) => line.at > options.edit.at || line.seq > options.edit.seq)) return undefined;
     }
-    const current = (await heldNow(log, context)).get(id);
+    const standing = await heldNow(log, context);
+    const current = standing.get(id);
     const mine = current?.session === context.session;
     if (mine && current.holder === "live" && !(options.moveBranch && context.branch !== undefined && context.branch !== current.branch)) return { ok: true, claim: current, alreadyHeld: true };
     if (!mine && current?.holder === "live") {
@@ -166,6 +169,7 @@ export async function claim(context: ClaimContext, id: string, reason: string, o
       ...(current === undefined || mine ? {} : { takenOverFrom: current.session }),
       ...(context.branch === undefined ? {} : { branch: context.branch }),
       ...file,
+      ...underOf(standing, context.session, found.part),
     });
     const claimed: Claim = { ...claimOf(line.session, line.harness, found.part, reason, line.at, context.branch), holder: "live" } as Claim;
     if ("edit" in options) leaveNotice(context.home ?? storytreeHome(), context.session, options.notice, id);
@@ -296,6 +300,13 @@ async function waitingOn(library: Library, found: Found): Promise<Waiting[]> {
       increment, on: releaser === "owner" ? "the owner" : "an outside event", reason: note, forGood: false, waitsFor: releaser, ...(checkBack === undefined ? {} : { checkBack }),
     })),
   ];
+}
+
+/** For a capability claim, the increment `session` holds that it was claimed most recently of, which closing ends it with (ADR-0944 D5). */
+function underOf(standing: ReadonlyMap<string, Claim>, session: string, part: Part): { under?: string } {
+  if (part.capability === undefined) return {};
+  const under = [...standing.values()].filter((claim) => claim.session === session && claim.increment !== undefined).sort((a, b) => a.since.localeCompare(b.since)).at(-1)?.increment;
+  return under === undefined ? {} : { under };
 }
 
 /** Who holds what right now, read under the project's lock, by the database's clock. */

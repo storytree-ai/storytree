@@ -22,7 +22,7 @@ import { countingStore } from "../testing/egress.js";
 import { withTempDir } from "../testing/folders.js";
 import { approveCheckout, dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { readSessions } from "../sessions/index.js";
-import { claim, claimRefusal, land, readAttribution, release, releaseFor, type ClaimContext, type MergedPull, type MergeWatch } from "./index.js";
+import { claim, claimRefusal, closed, land, readAttribution, release, releaseFor, type ClaimContext, type MergedPull, type MergeWatch } from "./index.js";
 import { boardClaims, due, mergedPullsThrough } from "./merges.js";
 
 interface World {
@@ -456,6 +456,30 @@ test("5.11 the public readings list current capability and increment claims and 
     await release(as("B"), increment);
     assert.equal(await readClaim(log, project, increment), undefined, "released work has no holder");
     assert.equal(await readClaim(log, `${project}-other`, emailForm), undefined, "another project has no holder");
+  });
+});
+
+test("5.27 closing an increment ends the closing session's capability claims taken while it held that increment, in every reading; one it held before, and another session's, stand (ADR-0944 D5)", async () => {
+  await withWorld(async ({ log, project, library, emailForm, passwordReset, as }) => {
+    const { park } = await arcOf(library);
+    const increment = await park("email form");
+    assert.equal((await claim(as("A"), passwordReset, "fixing the reset link")).ok, true);
+    assert.equal((await claim(as("A"), increment, "driving the email form")).ok, true);
+    assert.equal((await claim(as("A"), emailForm, "building the email form")).ok, true);
+    await closed(as("A"), increment, "landed");
+    await log.append(project, { session: "A", harness: "claude-code", source: "hook", kind: "file-edited", files: ["src/reset.ts"] });
+
+    const { lines } = await log.since(project, 0);
+    const claims = await readClaims(log, project);
+    assert.deepEqual(claims.map(({ capability, increment: on, session }) => [capability ?? on, session]), [[passwordReset, "A"]]);
+    assert.deepEqual(claimsFrom(lines), claims, "the whole log and the standing claims agree");
+    assert.equal((await readAttribution(log, project)).at(-1)?.capability, passwordReset, "edits after the close count toward what A still holds");
+
+    const other = await park("welcome email");
+    assert.equal((await claim(as("B"), other, "driving the welcome email")).ok, true);
+    assert.equal((await claim(as("B"), emailForm, "building the email form")).ok, true, "the closed increment's capability is free");
+    await closed(as("A"), other, "withdrawn");
+    assert.equal((await readClaim(log, project, emailForm))?.session, "B", "another session's close ends only the increment's own claim");
   });
 });
 

@@ -5,16 +5,16 @@
  * `pnpm test` (packages/dev-loop/src/test.mjs) starts a throwaway local server through @storytree/local-postgres
  * and hands it to the tests as STORYTREE_TEST_PG_URL, with its data directory as
  * STORYTREE_TEST_PG_DATA. "Storytree running" is that server: a throwaway storytree home holds a
- * copy of its owner record, where the app's would be. A Postgres test must never skip silently, so
+ * copy of its owner record (and its sign-in handoff, when it asks for a password), where the app's would be. A Postgres test must never skip silently, so
  * asking for either variable when it is missing throws.
  *
  * The agent link keeps its test helpers inside its package, so the few these tests need are
  * restated here, as it restates the library's.
  */
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { copyFileSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -37,6 +37,45 @@ export function testServerUrl(): string {
 /** The test server's data directory, beside which its owner record is kept. Throws when there is none. */
 export function testServerDataDir(): string {
   return required("STORYTREE_TEST_PG_DATA", "run the tests via `pnpm test`, which starts the test Postgres through @storytree/local-postgres");
+}
+
+/**
+ * Make `dataDir` look like the test server's, as a fake storytree home's `pgdata` does: a copy of
+ * its owner record at `<dataDir>.owner.json` and, when the server asks for a password, of its
+ * private sign-in handoff at `<dataDir>.auth/connection.json` (ADR-0941), private as discovery
+ * checks it. A passwordless server has no handoff: only the record is copied. Restated from the
+ * agent link's test helper.
+ */
+export function placeTestServer(dataDir: string): void {
+  writeFileSync(`${dataDir}.owner.json`, readFileSync(`${testServerDataDir()}.owner.json`));
+  placeHandoff(dataDir);
+}
+
+/** Only the sign-in handoff of placeTestServer(), for a home whose owner record a stand-in app writes. */
+export function placeHandoff(dataDir: string): void {
+  const handoff = path.join(`${testServerDataDir()}.auth`, "connection.json");
+  if (!existsSync(handoff)) return;
+  const directory = `${dataDir}.auth`;
+  const file = path.join(directory, "connection.json");
+  mkdirSync(directory, { recursive: true, mode: 0o700 });
+  privatePath(directory, true);
+  writeFileSync(file, readFileSync(handoff), { mode: 0o600 });
+  privatePath(file, false);
+}
+
+/** Owned by this user and readable by it alone: 0700/0600 on POSIX, a protected access list granting only this user on Windows. */
+function privatePath(file: string, directory: boolean): void {
+  if (process.platform !== "win32") return chmodSync(file, directory ? 0o700 : 0o600);
+  const run = (command: string, args: string[]) => {
+    const ran = spawnSync(path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", command), args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 10_000, windowsHide: true });
+    if (ran.error !== undefined || ran.status !== 0) throw new Error(`${command} ${args.join(" ")} failed: ${ran.error?.message ?? ran.stderr}`);
+    return ran.stdout;
+  };
+  // The numeric SID only, never localized account names.
+  const sid = run("whoami.exe", ["/user", "/fo", "csv", "/nh"]).match(/,"(S-1-\d+(?:-\d+)+)"\s*$/)?.[1];
+  if (sid === undefined) throw new Error("whoami did not return the current user's SID");
+  run("icacls.exe", [file, "/setowner", `*${sid}`]);
+  run("icacls.exe", [file, "/inheritance:r", "/grant:r", `*${sid}:F`]);
 }
 
 /** A project name no other test, and no earlier run, is using: `t-` and 8 random hex digits. */
@@ -179,7 +218,7 @@ export async function inWorld(command: BuiltCommand, body: (world: World) => Pro
     const stoppedHome = path.join(dir, "stopped-home");
     for (const made of [folder, elsewhere, home, stoppedHome]) mkdirSync(made, { recursive: true });
     writeFileSync(path.join(folder, ".storytree.json"), `${JSON.stringify({ project })}\n`);
-    copyFileSync(`${testServerDataDir()}.owner.json`, path.join(home, "pgdata.owner.json"));
+    placeTestServer(path.join(home, "pgdata"));
     // The folder names a project that is set up: a folder never makes its project by being opened.
     const opened: Promise<Library> = storytreeServer.openProject(project);
     await opened;

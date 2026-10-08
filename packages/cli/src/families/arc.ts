@@ -15,6 +15,7 @@
  * start` (starting is claiming, the agent tools'), no `increment ready` (ADR-0645 D5; ADR-0909 D4 retired the step, and the word is refused saying so), and no hand
  * close or re-open of an arc (the owner's R1). `arc list` reads list(kind), then each arc's view.
  */
+import { questionsBehind } from "@storytree/arc-surface";
 import type { ArcView, Holds, NoteWait, WaitFor } from "@storytree/library";
 
 import { labelOf, Refusal, type Answer } from "../answer.js";
@@ -50,7 +51,8 @@ function closeOf(args: Args): { disposition: never; pr?: string; note?: string; 
 
 /**
  * Why an open increment cannot start yet, from one reading of every hold: the blockers holding it,
- * the owner's questions it is held on, and what it waits for outside the plan (ADR-0938 D1).
+ * the owner's questions it is held on or its waits on other work end on, and what it waits for
+ * outside the plan (ADR-0938 D1).
  */
 function holdsOn(holds: Holds, id: string): string[] {
   const lines: string[] = [];
@@ -58,6 +60,8 @@ function holdsOn(holds: Holds, id: string): string[] {
     lines.push(`waits on ${hold.on}: ${hold.reason}${hold.forGood ? " (never releases: the blocker did not land, or is gone)" : ""}`);
   }
   for (const question of holds.heldOn[id] ?? []) lines.push(`waiting on you: question ${question}`);
+  // Work it waits on is held on your question, however many hops away, so it waits on you too.
+  for (const question of questionsBehind(id, holds)) lines.push(`waiting on you: question ${question} (through other work)`);
   for (const wait of holds.waitsFor?.[id] ?? []) lines.push(waitSaid(wait));
   return lines;
 }

@@ -152,6 +152,50 @@ test("1.4 · packages that depend on each other, even for development only, are 
   assert.match(problems[0]!, /@storytree\/forest → @storytree\/forest-world → @storytree\/forest/);
 });
 
+for (const size of [4, 5, 6]) {
+  for (const cyclicTail of [false, true]) {
+    test(`1.4 · a ${size}-package forward DAG is checked without enumerating its paths${cyclicTail ? ", even when they lead to a cycle" : ""}`, (t: TestContext) => {
+      const names = Array.from({ length: size }, (_, i) => `dag-${i}`);
+      const files = Object.fromEntries(names.map((name, i) => [
+        `packages/${name}/package.json`,
+        pkg(name, undefined, { dependencies: Object.fromEntries(names.slice(i + 1).map((next) => [`@storytree/${next}`, "workspace:*"])) }),
+      ]));
+      if (cyclicTail) files[`packages/${names.at(-1)}/package.json`] = pkg(names.at(-1)!, undefined, { peerDependencies: { [`@storytree/${names.at(-1)}`]: "workspace:*" } });
+      const root = plant(t, files);
+      // Count dependency-list reads in the real checker, not elapsed time or a copied walker.
+      // Fixture names keep other maps used while reading the checkout out of the count.
+      const get = Map.prototype.get;
+      let reads = 0;
+      const probe = t.mock.method(Map.prototype, "get", function (this: Map<unknown, unknown>, key: unknown): unknown {
+        const value = get.call(this, key);
+        if (typeof key === "string" && key.startsWith("@storytree/dag-") && Array.isArray(value)) reads++;
+        return value;
+      });
+      let problems: string[];
+      try { problems = packageProblems(root, { frames: DECLARED.frames ?? [] }); }
+      finally { probe.mock.restore(); }
+      assert.equal(problems.length, cyclicTail ? 1 : 0, problems.join("\n"));
+      if (cyclicTail) assert.ok(problems[0]!.includes(`@storytree/${names.at(-1)} → @storytree/${names.at(-1)}`));
+      const edges = size * (size - 1) / 2 + Number(cyclicTail);
+      assert.ok(reads <= 2 * size + edges, `${reads} dependency-list reads for ${size} packages and ${edges} edges`);
+    });
+  }
+}
+
+test("1.4 · a diamond is acyclic and overlapping cycles, downstream cycles and self-loops are each reported once", (t: TestContext) => {
+  const graph = (edges: Record<string, string[]>): Record<string, string> => Object.fromEntries(Object.entries(edges).map(([name, tos]) => [
+    `packages/${name}/package.json`,
+    pkg(name, undefined, { optionalDependencies: Object.fromEntries(tos.map((to) => [`@storytree/${to}`, "workspace:*"])) }),
+  ]));
+  assert.deepEqual(packageProblems(plant(t, graph({ a: ["b", "c"], b: ["d"], c: ["d"], d: [] })), { frames: DECLARED.frames ?? [] }), []);
+  const problems = packageProblems(plant(t, graph({
+    a: ["b", "c"], b: ["a", "c"], c: ["a", "b", "d", "f"], d: ["e"], e: ["d"], f: [], loop: ["loop"],
+  })), { frames: DECLARED.frames ?? [] });
+  assert.deepEqual(problems.map((problem) => problem.match(/in a cycle: (.*); a workspace/)?.[1]).sort(), [
+    "a → b → a", "a → b → c → a", "a → c → a", "a → c → b → a", "b → c → b", "d → e → d", "loop → loop",
+  ].map((cycle) => cycle.split(" → ").map((name) => `@storytree/${name}`).join(" → ")).sort());
+});
+
 test("1.5 · a story depending on the frame or the front door is refused, naming the edge, unless the owner sanctioned it; any other one-way edge needs no listing", (t: TestContext) => {
   const root = plant(t, {
     "packages/forest/package.json": pkg("forest", undefined, { dependencies: { "@storytree/forest-world": "workspace:*" }, devDependencies: { "@storytree/app": "workspace:*" } }),

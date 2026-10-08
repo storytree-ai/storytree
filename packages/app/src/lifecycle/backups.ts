@@ -9,7 +9,7 @@
  * BACKUPS_KEPT. A file there that is not a snapshot is never touched. A snapshot restores only into
  * an empty project (the library's `restore`), so it can never overwrite live edits.
  */
-import { closeSync, fstatSync, mkdirSync, openSync, readdirSync, readSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, closeSync, fstatSync, lstatSync, mkdirSync, openSync, readdirSync, readSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import type { Storytree } from "@storytree/library";
@@ -40,21 +40,53 @@ export interface BackUpOptions {
 
 /** Write a snapshot of each project and prune each project's folder to its newest `keep`. The files written, in project order. */
 export async function backUp({ storytree, projects, dir, now = new Date(), keep = BACKUPS_KEPT }: BackUpOptions): Promise<string[]> {
+  repairBackupPermissions(dir);
   const name = `${now.toISOString().replace(/[:.]/g, "-")}.json`;
   const written: string[] = [];
   for (const project of projects) {
     const snapshot = await storytree.snapshot(project);
     const folder = path.join(dir, project);
-    mkdirSync(folder, { recursive: true });
+    privateDirectory(dir);
+    privateDirectory(folder);
     for (const stale of readdirSync(folder).filter((entry) => PARTIAL_FILE.test(entry))) rmSync(path.join(folder, stale));
     const file = path.join(folder, name);
-    writeFileSync(`${file}.partial`, `${JSON.stringify(snapshot)}\n`);
+    writeFileSync(`${file}.partial`, `${JSON.stringify(snapshot)}\n`, { mode: 0o600, flag: "wx" });
     renameSync(`${file}.partial`, file);
     written.push(file);
     const snapshots = readdirSync(folder).filter((entry) => SNAPSHOT_FILE.test(entry)).sort();
     for (const old of snapshots.slice(0, Math.max(0, snapshots.length - keep))) rmSync(path.join(folder, old));
   }
   return written;
+}
+
+/** POSIX privacy belongs to the backup tree, independent of the application's home or umask.
+ * Windows needs a separate ACL policy: Node's modes do not restrict readers there.
+ */
+function privateDirectory(dir: string): void {
+  mkdirSync(dir, { recursive: true, mode: 0o700 });
+  if (!lstatSync(dir).isDirectory()) throw new Error(`Backup folder is not a directory: ${dir}`);
+  chmodSync(dir, 0o700);
+}
+
+/** Repair before reusing a fresh snapshot, including retained projects no longer in the library.
+ * Only real project folders and our snapshot/partial files belong to this lifecycle; no symlinks
+ * are followed and unrelated files keep their permissions and contents.
+ */
+function repairBackupPermissions(dir: string): void {
+  const stat = lstatSync(dir, { throwIfNoEntry: false });
+  if (stat === undefined) return;
+  if (!stat.isDirectory()) throw new Error(`Backup folder is not a directory: ${dir}`);
+  chmodSync(dir, 0o700);
+  for (const project of readdirSync(dir, { withFileTypes: true })) {
+    if (!project.isDirectory()) continue;
+    const folder = path.join(dir, project.name);
+    chmodSync(folder, 0o700);
+    for (const file of readdirSync(folder, { withFileTypes: true })) {
+      if (file.isFile() && (SNAPSHOT_FILE.test(file.name) || PARTIAL_FILE.test(file.name))) {
+        chmodSync(path.join(folder, file.name), 0o600);
+      }
+    }
+  }
 }
 
 /** When a project's newest successful snapshot was taken, read from its file name; undefined when it has none. */
@@ -106,6 +138,7 @@ export function keepBackups(options: {
     clearInterval(timer);
     let wait = BACKUP_EVERY_MS;
     try {
+      repairBackupPermissions(options.dir);
       const projects = await options.storytree.listProjects();
       const now = Date.now();
       const due = projects.filter((project) => (newestSnapshot(options.dir, project)?.getTime() ?? -Infinity) + BACKUP_EVERY_MS <= now);

@@ -11,9 +11,9 @@ const command = new BuiltCommand();
 before(() => command.build());
 after(() => command.remove());
 
-const unconfigured = { STORYTREE_WORKOS_CLIENT_ID: "", STORYTREE_IDENTITY_URL: "" };
+const unconfigured = { STORYTREE_WORKOS_CLIENT_ID: "", STORYTREE_IDENTITY_URL: "https://identity.invalid/v1/identity" };
 
-test("identity 2.4: unconfigured, sign-in, status and sign-out each say sign-in is not configured and exit cleanly, outside any project", async (t) => {
+test("identity 2.4: without a client ID, sign-in, status and sign-out each say sign-in is not configured and exit cleanly, outside any project", async (t) => {
   const dir = mkdtempSync(path.join(tmpdir(), "storytree-identity-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const home = path.join(dir, "home");
@@ -28,11 +28,11 @@ test("identity 2.4: unconfigured, sign-in, status and sign-out each say sign-in 
   assert.equal((await storytree(command.script, ["status", "extra"], { cwd: dir, home, env: unconfigured })).code, 2);
 });
 
-test("identity 2.4: configured, status and sign-out reach identity's private session store under the storytree home, signed out; a malformed configuration is refused", async (t) => {
+test("identity 2.4: configured by the client ID alone, status and sign-out reach identity's private session store under the storytree home, signed out; a malformed configuration is refused", async (t) => {
   const dir = mkdtempSync(path.join(tmpdir(), "storytree-identity-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const home = path.join(dir, "home");
-  const env = { STORYTREE_WORKOS_CLIENT_ID: "client_test", STORYTREE_IDENTITY_URL: "https://identity.invalid/v1/identity" };
+  const env = { STORYTREE_WORKOS_CLIENT_ID: "client_test", STORYTREE_IDENTITY_URL: "" };
   const status = await storytree(command.script, ["status"], { cwd: dir, home, env });
   assert.equal(status.code, 0, status.stderr);
   assert.equal(status.stdout, "Signed out. Storytree works without an account.\n");
@@ -41,7 +41,7 @@ test("identity 2.4: configured, status and sign-out reach identity's private ses
   assert.equal(signedOut.code, 0, signedOut.stderr);
   assert.match(signedOut.stdout, /^Signed out on this computer/);
 
-  const plain = await storytree(command.script, ["status"], { cwd: dir, home, env: { ...env, STORYTREE_IDENTITY_URL: "http://identity.invalid/v1/identity" } });
-  assert.equal(plain.code, 1);
-  assert.match(plain.stderr, /HTTPS identity endpoint/);
+  const malformed = await storytree(command.script, ["status"], { cwd: dir, home, env: { ...env, STORYTREE_WORKOS_CLIENT_ID: "not-a-client" } });
+  assert.equal(malformed.code, 1);
+  assert.match(malformed.stderr, /public WorkOS client ID/);
 });

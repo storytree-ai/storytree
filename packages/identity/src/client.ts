@@ -13,11 +13,6 @@ export interface SessionStore {
 export interface DevicePrompt { readonly userCode: string; readonly verificationUri: string }
 export interface ClientConfiguration {
   readonly clientId: string;
-  /**
-   * No longer called: WorkOS's tokens are verified here (question D). Still refused when not HTTPS, until the
-   * command line stops passing STORYTREE_IDENTITY_URL.
-   */
-  readonly identityUrl?: string;
   readonly store: SessionStore;
   readonly fetch?: typeof fetch;
   readonly now?: () => number;
@@ -34,7 +29,6 @@ const api = "https://api.workos.com/user_management/";
 /** Public-client device authorization. No API key, provider secret, or unverified identity is accepted. */
 export function createIdentityClient(config: ClientConfiguration) {
   if (!/^client_[A-Za-z0-9_-]+$/.test(config.clientId)) throw new Error("Sign-in needs a public WorkOS client ID.");
-  if (config.identityUrl !== undefined && !httpsUrl(config.identityUrl)) throw new Error("Sign-in needs an explicit HTTPS identity endpoint.");
   const request = config.fetch ?? fetch;
   const now = config.now ?? Date.now;
   const wait = config.wait ?? ((ms, signal) => setTimeout(ms, undefined, { signal }));

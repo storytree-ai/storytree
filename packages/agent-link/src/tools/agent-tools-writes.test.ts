@@ -11,7 +11,7 @@
  * What the tests check is read back through the library and the activity log themselves.
  */
 import assert from "node:assert/strict";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { hostname } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -25,7 +25,7 @@ import { MARKER_FILE } from "../routing/index.js";
 import { claudeCode, codex, idOf, withAgent } from "../testing/agent.js";
 import { countingStore, longHistory } from "../testing/egress.js";
 import { git } from "../testing/folders.js";
-import { approveCheckout, testServerDataDir, uniqueProjectName } from "../testing/pg.js";
+import { approveCheckout, placeTestServer, uniqueProjectName } from "../testing/pg.js";
 import { FOUNDED, planned, TOOLS, withProject } from "../testing/tool-world.js";
 
 test("6.4 a held claim refusal explains the running command and dirty-main close-out disagreement", async () => {
@@ -746,7 +746,6 @@ test("6.28 move_increment moves open work with its claim and completed history w
 });
 
 test("6.39 a tool call's reads do not grow with the log's length: the same calls (show the plan, claim, read the context, release) take about as much from the store in a project whose log holds weeks of history as in one whose log holds an hour's", { timeout: 120_000 }, async (t) => {
-  const owner = JSON.parse(readFileSync(`${testServerDataDir()}.owner.json`, "utf8")) as Record<string, unknown>;
   const taken: number[] = [];
   let history = 0;
   for (const long of [false, true]) {
@@ -769,7 +768,7 @@ test("6.39 a tool call's reads do not grow with the log's length: the same calls
         await t.test(`${which}: the calls answer through a counting store`, async () => {
           const dataDir = path.join(folder, "..", "counted", "pgdata");
           mkdirSync(path.dirname(dataDir), { recursive: true });
-          writeFileSync(`${dataDir}.owner.json`, JSON.stringify({ ...owner, port: store.port }));
+          placeTestServer(dataDir, { port: store.port });
           await approveCheckout(folder, project, path.dirname(dataDir));
           await withAgent(folder, claudeCode("cc-1", { dataDir }), async (agent) => {
             for (const [tool, args] of [["show_plan", {}], ["claim", { capability: emailForm, reason: "building it" }], ["read_context", {}], ["release", { capability: emailForm }]] as const) {

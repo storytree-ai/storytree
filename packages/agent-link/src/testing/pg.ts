@@ -9,8 +9,9 @@
  * The library keeps its own test helpers inside its package, where nothing outside it can import
  * them, so the few the agent link needs are restated here.
  */
+import { spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { realpathSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { connect } from "@storytree/library";
@@ -37,6 +38,46 @@ export function testServerUrl(): string {
  */
 export function testServerDataDir(): string {
   return required("STORYTREE_TEST_PG_DATA", "run the tests via `pnpm test`, which starts the test Postgres through @storytree/local-postgres");
+}
+
+/**
+ * Make `dataDir` look like the test server's, as a fake storytree home's `pgdata` does: a copy of
+ * its owner record at `<dataDir>.owner.json` and, when the server asks for a password, of its
+ * private sign-in handoff at `<dataDir>.auth/connection.json` (ADR-0941), private as discovery
+ * checks it. `port` fakes another endpoint (a stand-in in front of the server, or a closed port),
+ * written into both so they still agree. A passwordless server has no handoff: only the record is copied.
+ * Returns the record as written.
+ */
+export function placeTestServer(dataDir: string, { port }: { port?: number } = {}): Record<string, unknown> {
+  const server = testServerDataDir();
+  const copied = JSON.parse(readFileSync(`${server}.owner.json`, "utf8")) as { port: number };
+  const owner = { ...copied, port: port ?? copied.port };
+  writeFileSync(`${dataDir}.owner.json`, JSON.stringify(owner));
+  const handoff = path.join(`${server}.auth`, "connection.json");
+  if (!existsSync(handoff)) return owner;
+  const directory = `${dataDir}.auth`;
+  const file = path.join(directory, "connection.json");
+  mkdirSync(directory, { recursive: true, mode: 0o700 });
+  privatePath(directory, true);
+  const credentials = JSON.parse(readFileSync(handoff, "utf8")) as { port: number };
+  writeFileSync(file, JSON.stringify({ ...credentials, port: port ?? credentials.port }), { mode: 0o600 });
+  privatePath(file, false);
+  return owner;
+}
+
+/** Owned by this user and readable by it alone: 0700/0600 on POSIX, a protected access list granting only this user on Windows. */
+function privatePath(file: string, directory: boolean): void {
+  if (process.platform !== "win32") return chmodSync(file, directory ? 0o700 : 0o600);
+  const run = (command: string, args: string[]) => {
+    const ran = spawnSync(path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", command), args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 10_000, windowsHide: true });
+    if (ran.error !== undefined || ran.status !== 0) throw new Error(`${command} ${args.join(" ")} failed: ${ran.error?.message ?? ran.stderr}`);
+    return ran.stdout;
+  };
+  // The numeric SID only, never localized account names.
+  const sid = run("whoami.exe", ["/user", "/fo", "csv", "/nh"]).match(/,"(S-1-\d+(?:-\d+)+)"\s*$/)?.[1];
+  if (sid === undefined) throw new Error("whoami did not return the current user's SID");
+  run("icacls.exe", [file, "/setowner", `*${sid}`]);
+  run("icacls.exe", [file, "/inheritance:r", "/grant:r", `*${sid}:F`]);
 }
 
 /** A project name no other test, and no earlier run, is using: `t-` and 8 random hex digits. */

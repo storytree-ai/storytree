@@ -11,7 +11,7 @@
  * What the tests check is read back through the library and the activity log themselves.
  */
 import assert from "node:assert/strict";
-import { appendFileSync, copyFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { hostname } from "node:os";
 import { createServer, connect as openSocket, type AddressInfo, type Socket } from "node:net";
 import path from "node:path";
@@ -28,7 +28,7 @@ import { readClaims } from "../claims/index.js";
 import { MARKER_FILE } from "../routing/index.js";
 import { claudeCode, codex, idOf, withAgent } from "../testing/agent.js";
 import { git, withTempDir } from "../testing/folders.js";
-import { approveCheckout, dropTestProjects, projectDatabase, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { approveCheckout, dropTestProjects, placeTestServer, projectDatabase, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { NOT_RUNNING_ANSWER } from "./index.js";
 import { registerWorkTools } from "./work-tools.js";
 import type { Answer, Call, Define } from "./server.js";
@@ -119,7 +119,7 @@ test("6.43 a tool called from a checkout not approved for the project its marker
   await withTempDir(async (dir) => {
     const home = path.join(dir, "storytree-home");
     mkdirSync(home);
-    copyFileSync(`${testServerDataDir()}.owner.json`, path.join(home, "pgdata.owner.json"));
+    placeTestServer(path.join(home, "pgdata"));
     const folder = path.join(dir, "download");
     mkdirSync(folder);
     const storytree = await connect({ url: testServerUrl() });
@@ -235,7 +235,7 @@ test("6.4 show_plan gives up on a stalled handshake within three seconds and a l
   try {
     await withProject(async ({ folder, project }) => {
       const dataDir = path.join(folder, "pgdata");
-      writeFileSync(`${dataDir}.owner.json`, JSON.stringify({ pid: process.pid, port: (silent.address() as AddressInfo).port, token: "stalled-db", owner: "test", startedAt: new Date().toISOString() }));
+      placeTestServer(dataDir, { port: (silent.address() as AddressInfo).port });
       await approveCheckout(folder, project, folder);
       await withAgent(folder, claudeCode("stalled-db", { dataDir }), async (agent) => {
         const started = performance.now();
@@ -408,7 +408,7 @@ test("6.8 after Claude Code's /clear, which gives the window a new session id th
     // check_setup finds storytree through a storytree home: here, one saying where the test Postgres listens.
     const storytreeHome = path.join(folder, "..", "storytree-home");
     mkdirSync(storytreeHome);
-    copyFileSync(`${testServerDataDir()}.owner.json`, path.join(storytreeHome, "pgdata.owner.json"));
+    placeTestServer(path.join(storytreeHome, "pgdata"));
     await approveCheckout(folder, project, storytreeHome);
     const setup = { dataDir: path.join(storytreeHome, "pgdata"), setup: { homes: {}, storytreeHome } };
     // The tool server was started before the /clear: its environment still names the old session.

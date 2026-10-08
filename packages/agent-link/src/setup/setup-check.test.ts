@@ -27,7 +27,7 @@ import { locateStorytree, MARKER_FILE } from "../routing/index.js";
 import { habitsCard } from "../instructions/index.js";
 import { claudeCode, codex, withAgent } from "../testing/agent.js";
 import { withTempDir } from "../testing/folders.js";
-import { approveCheckout, dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { approveCheckout, dropTestProjects, placeTestServer, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { builtFromMain, CHECK_FILE, FIX_SENTENCES, ghState, launcherFile, machineState, putCommandOnPath, registerHooks, removeCommand, removeHooks, verifyHooks, type GhState, type HookCommand, type Homes } from "./index.js";
 
 const STUB_APP = fileURLToPath(new URL("../testing/stub-app.mjs", import.meta.url));
@@ -82,7 +82,7 @@ function throwawayHome(dir: string): Home {
   for (const folder of [claude, codexHome, storytreeHome]) mkdirSync(folder, { recursive: true });
   writeFileSync(path.join(claude, "settings.json"), `${JSON.stringify(CLAUDE_SETTINGS, null, 2)}\n`);
   writeFileSync(path.join(codexHome, "config.toml"), CODEX_CONFIG);
-  copyFileSync(`${testServerDataDir()}.owner.json`, path.join(storytreeHome, "pgdata.owner.json"));
+  placeTestServer(path.join(storytreeHome, "pgdata"));
   return {
     homes: { claude, codex: codexHome },
     claudeSettings: path.join(claude, "settings.json"),
@@ -279,9 +279,11 @@ test("8.3 with storytree closed, a session start opens it", async () => {
     const storytreeHome = path.join(dir, "storytree-home");
     mkdirSync(storytreeHome);
     const dataDir = path.join(storytreeHome, "pgdata");
-    // How to open storytree, as the app records it: here, a stand-in that says where the test Postgres listens.
-    const port = new URL(testServerUrl()).port;
-    writeFileSync(path.join(storytreeHome, "app.json"), JSON.stringify({ command: process.execPath, args: [STUB_APP, dataDir, port] }));
+    // How to open storytree, as the app records it: here, a stand-in that says where the test Postgres listens,
+    // handing over its sign-in as the app does (the handoff waits beside a record the stand-in writes).
+    const { port, token, auth } = placeTestServer(dataDir);
+    rmSync(`${dataDir}.owner.json`);
+    writeFileSync(path.join(storytreeHome, "app.json"), JSON.stringify({ command: process.execPath, args: [STUB_APP, dataDir, String(port), JSON.stringify({ token, auth })] }));
     assert.equal(locateStorytree({ dataDir }).running, false, "closed to begin with");
     try {
       const report = await runSetupCheck({ ...ANSWERED, folder: dir, homes: {}, storytreeHome, openWaitMs: 20_000 });

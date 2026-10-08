@@ -7,7 +7,7 @@
  */
 import { connect, ConnectionError, type ConnectOptions, type Library, type Storytree } from "@storytree/library";
 
-import { openNamedProject, withConnectTimeout } from "../routing/index.js";
+import { openNamedProject, requireApproval, withConnectTimeout } from "../routing/index.js";
 
 import { currentBranch, openActivityLog, thisMachine, type ActivityLog } from "../activity/index.js";
 
@@ -24,6 +24,8 @@ export class Connections {
   #storytree: Promise<Storytree> | undefined;
   #log: Promise<ActivityLog> | undefined;
   readonly #libraries = new Map<string, Promise<Library>>();
+  /** Each checkout found approved for its project (ADR-0942), so each is asked once while connected. */
+  readonly #approved = new Set<string>();
 
   /** The connection to the library where `library` says: its server, where projects are opened. */
   async server(library: ConnectOptions): Promise<Storytree> {
@@ -35,9 +37,18 @@ export class Connections {
     return (this.#storytree ??= forgetOnFailure(connect(withConnectTimeout(library, CONNECT_TIMEOUT_MS)), () => (this.#storytree = undefined)));
   }
 
-  /** The library of `project` and the activity log, where `library` says. */
-  async reach(library: ConnectOptions, project: string, identity?: string): Promise<Reached> {
+  /**
+   * The library of `project` and the activity log, where `library` says, for the checkout `folder`
+   * on the machine kept in `home`: refused (a ProjectFolderError) before either is opened unless the
+   * checkout's trunk is approved for `project` (ADR-0942 D1).
+   */
+  async reach(library: ConnectOptions, project: string, identity: string | undefined, checkout: { folder: string; home: string }): Promise<Reached> {
     const storytree = await this.server(library);
+    const asked = JSON.stringify([project, checkout.folder, checkout.home]);
+    if (!this.#approved.has(asked)) {
+      await requireApproval(storytree, project, checkout.folder, checkout.home);
+      this.#approved.add(asked);
+    }
     const machine = thisMachine();
     const opened = () => openActivityLog(storytree, { connectTimeoutMs: CONNECT_TIMEOUT_MS, branchOf: currentBranch, ...(machine === undefined ? {} : { machine }) });
     const log = (this.#log ??= forgetOnFailure(opened(), () => (this.#log = undefined)));
@@ -69,6 +80,7 @@ export class Connections {
     this.#storytree = undefined;
     this.#log = undefined;
     this.#libraries.clear();
+    this.#approved.clear();
     this.#where = undefined;
     await Promise.allSettled([log?.then((opened) => opened.close())]);
     await Promise.allSettled([storytree?.then((server) => server.close())]);

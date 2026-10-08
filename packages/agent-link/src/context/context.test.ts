@@ -14,7 +14,7 @@ import { openActivityLog, type ActivityLog } from "../activity/index.js";
 import { MARKER_FILE } from "../routing/index.js";
 import { setSetting } from "../settings/settings.js";
 import { withTempDir } from "../testing/folders.js";
-import { testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { approveCheckout, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { claudeCodeTokens, codexTokens, contextCommand, contextReading, readContext } from "./index.js";
 
 /** One Claude Code assistant line: a request's usage, as the harness records it. */
@@ -114,6 +114,7 @@ test("9.6 `storytree context` prints this session's tokens used, worked out at t
     const folder = path.join(dir, "site");
     mkdirSync(folder);
     writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
+    await approveCheckout(folder, project, dir);
     const transcript = path.join(dir, "S.jsonl");
     writeFileSync(transcript, jsonl(claudeLine("req_1", { input: 2_000, read: 480_000, created: 12_345 })));
     await log.append(project, { session: "S", harness: "claude-code", source: "hook", folder, kind: "session-started", transcript });
@@ -184,6 +185,7 @@ test("9.7 a reading states fresh default or set guidance, including under, at an
 test("9.7 the context command states guidance and its source, exits 0 under and past it, and includes it in JSON", async () => {
   await withProject(async (log, project, home) => {
     writeFileSync(path.join(home, MARKER_FILE), JSON.stringify({ project }));
+    await approveCheckout(home, project, home);
     const transcript = path.join(home, "S.jsonl");
     await log.append(project, { session: "S", harness: "claude-code", source: "hook", folder: home, kind: "session-started", transcript });
     const options = { folder: home, env: { CLAUDE_CODE_SESSION_ID: "S" }, locate: { dataDir: testServerDataDir(), home } };

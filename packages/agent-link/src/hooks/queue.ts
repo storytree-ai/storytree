@@ -45,9 +45,19 @@ export function enqueue(home: string, project: string, lines: readonly NewLine[]
 /**
  * Upload every waiting line to `log`, oldest first, each once, and forget each file once all its
  * lines are in. A file that cannot be read as lines is set aside (renamed `.unreadable`), never
- * retried for ever. Stops at the first failure, leaving the rest for the next hook.
+ * retried for ever. Stops at the first failure, leaving the rest for the next hook. A line waits
+ * only while storytree is out of reach, before its folder's approval could be asked, so it is
+ * uploaded only if `admits` its project and folder now (ADR-0942 D1); one it does not is dropped.
  */
-export async function uploadQueued(home: string, log: ActivityLog): Promise<void> {
+export async function uploadQueued(home: string, log: ActivityLog, admits: (project: string, folder: string) => Promise<boolean>): Promise<void> {
+  const answers = new Map<string, Promise<boolean>>();
+  const admitted = (project: string, folder: string | undefined): Promise<boolean> => {
+    if (folder === undefined) return Promise.resolve(false);
+    const asked = JSON.stringify([project, folder]);
+    let answer = answers.get(asked);
+    if (answer === undefined) answers.set(asked, (answer = admits(project, folder)));
+    return answer;
+  };
   const folder = queueFolder(home);
   let names: string[];
   try {
@@ -66,7 +76,7 @@ export async function uploadQueued(home: string, log: ActivityLog): Promise<void
       renameSync(file, `${file}.unreadable`);
       continue;
     }
-    for (const { project, at, line } of waiting) await log.append(project, line, { at, once: true });
+    for (const { project, at, line } of waiting) if (await admitted(project, line.folder)) await log.append(project, line, { at, once: true });
     rmSync(file, { force: true });
   }
 }

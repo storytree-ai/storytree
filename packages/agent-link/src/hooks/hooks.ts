@@ -41,9 +41,11 @@
 import { homedir } from "node:os";
 import path from "node:path";
 
+import type { Storytree } from "@storytree/library";
+
 import type { NewLine } from "../activity/index.js";
 import type { MergeContext, MergeWatch } from "../claims/index.js";
-import { openNamedProject, route, storytreeHome, type LocateOptions } from "../routing/index.js";
+import { openNamedProject, ProjectFolderError, requireApproval, route, storytreeHome, type LocateOptions } from "../routing/index.js";
 import { claudeCodeLines } from "./claude-code.js";
 import { takeNotices } from "../claims/notices.js";
 import { CLOSE_OUT_REMINDER, closeOutReminder } from "./close-out-reminder.js";
@@ -182,12 +184,17 @@ async function writeLines(harness: string, input: string, flags: readonly string
     let opened;
     try {
       const storytree = await connect(withDeadline(where.library, CONNECT_TIMEOUT_MS));
-      const log = await openActivityLog(storytree, { connectTimeoutMs: CONNECT_TIMEOUT_MS, branchOf: currentBranch, ...(machine === undefined ? {} : { machine }) }).catch(async (error: unknown) => {
+      const log = await (async () => {
+        // A checkout whose trunk is not approved writes nothing, not even what waited (ADR-0942 D1).
+        await requireApproval(storytree, where.project, where.folder, homeOf(locate));
+        return openActivityLog(storytree, { connectTimeoutMs: CONNECT_TIMEOUT_MS, branchOf: currentBranch, ...(machine === undefined ? {} : { machine }) });
+      })().catch(async (error: unknown) => {
         await storytree.close();
         throw error;
       });
       opened = { storytree, log };
     } catch (error) {
+      if (error instanceof ProjectFolderError) return;
       failed("reach", error);
       enqueue(home, where.project, made.lines);
       return;
@@ -198,7 +205,7 @@ async function writeLines(harness: string, input: string, flags: readonly string
       // A folder whose marker names a deleted project's database writes nothing, under its name or into a new project of it (ADR-0831).
       if (where.identity !== undefined && (await storytree.projectIdentities())[where.project] !== where.identity) return;
       // Lines that waited go first, so the log keeps each session's lines in the order they happened.
-      await uploadQueued(home, log);
+      await uploadQueued(home, log, (project, folder) => approved(storytree, project, folder, homeOf(locate)));
       // The first hook to reach the log since this machine started says so, once: sessions it outlived read gone everywhere (4.29).
       const [by] = made.lines;
       if (by !== undefined) {
@@ -255,6 +262,7 @@ async function upkeep(made: HookLines, merges: MergeWatch | undefined, locate: L
   const machine = thisMachine();
   const storytree = await connect(withDeadline(where.library, CONNECT_TIMEOUT_MS, UPKEEP_DEADLINE_MS));
   try {
+    if (!(await approved(storytree, where.project, where.folder, homeOf(locate)))) return;
     const log = await openActivityLog(storytree, { connectTimeoutMs: CONNECT_TIMEOUT_MS, branchOf: currentBranch, ...(machine === undefined ? {} : { machine }) });
     try {
       // The hook that handed it on found it due: each look is taken now, and this machine's recent edits claim their capabilities (ADR-0924).
@@ -312,6 +320,7 @@ async function contextForPrompt({ harness, session, folder, prompt }: Prompted):
   const { connect } = await import("@storytree/library");
   const storytree = await connect(withDeadline(where.library, CONNECT_TIMEOUT_MS));
   try {
+    if (!(await approved(storytree, where.project, where.folder, storytreeHome()))) return undefined;
     const library = await openNamedProject(storytree, where.project, where.identity);
     const named = definitionsNamedIn(prompt, (await library.definitions()).map(({ id, fields }) => ({ id, ...fields })));
     const fresh = notYetGiven(session, named);
@@ -320,6 +329,22 @@ async function contextForPrompt({ harness, session, folder, prompt }: Prompted):
     return context.length === 0 ? undefined : context;
   } finally {
     await storytree.close();
+  }
+}
+
+/** The storytree home routing reads for `locate`, whose machine's approved trunks a hook is held to (ADR-0942). */
+function homeOf(locate: LocateOptions | undefined): string {
+  return locate?.home ?? (locate?.dataDir === undefined ? storytreeHome() : path.dirname(path.resolve(locate.dataDir)));
+}
+
+/** Whether `folder` is in `project`'s approved trunk on this machine (ADR-0942); any other failure is thrown. */
+async function approved(storytree: Storytree, project: string, folder: string, home: string): Promise<boolean> {
+  try {
+    await requireApproval(storytree, project, folder, home);
+    return true;
+  } catch (error) {
+    if (error instanceof ProjectFolderError) return false;
+    throw error;
   }
 }
 

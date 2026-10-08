@@ -36,6 +36,8 @@ export interface Trunk {
   readonly machine: string;
   readonly machineName: string;
   readonly folder: string;
+  /** What approved it (ADR-0942): "setup", "join", or the authority an approval command cited; absent while unapproved. */
+  readonly approvedBy?: string;
 }
 
 /** Why a folder cannot be set up as the project asked for. */
@@ -72,13 +74,24 @@ const SCHEMA = `CREATE TABLE IF NOT EXISTS trunks (
   machine_name text NOT NULL,
   folder       text NOT NULL,
   at           timestamptz NOT NULL DEFAULT now(),
+  approved_at  timestamptz,
+  approved_by  text,
   PRIMARY KEY (project, machine),
   UNIQUE (machine, folder)
 )`;
 
+/** A trunks table made before approval (ADR-0942) gains it, every record unapproved: nothing is grandfathered (D3). */
+const APPROVAL = "ALTER TABLE trunks ADD COLUMN IF NOT EXISTS approved_at timestamptz, ADD COLUMN IF NOT EXISTS approved_by text";
+
+/** Pools whose trunks table this process has already set up. */
+const ready = new WeakSet<Pool>();
+
 async function trunksPool(storytree: Storytree): Promise<Pool> {
   const pool = await storytree.ownDatabase(TRUNKS_DATABASE);
-  await setUpTrunks(pool);
+  if (!ready.has(pool)) {
+    await setUpTrunks(pool);
+    ready.add(pool);
+  }
   return pool;
 }
 
@@ -94,6 +107,7 @@ export async function setUpTrunks(pool: Pool): Promise<void> {
     await client.query("BEGIN");
     await client.query("SELECT pg_advisory_xact_lock(hashtext('storytree.trunks-schema'))");
     await client.query(SCHEMA);
+    await client.query(APPROVAL);
     await client.query("COMMIT");
   } catch (error) {
     failed = true;
@@ -107,24 +121,44 @@ export async function setUpTrunks(pool: Pool): Promise<void> {
 /** Every project's trunk on `machine`. */
 export async function trunksOn(storytree: Storytree, machine: string): Promise<Trunk[]> {
   const pool = await trunksPool(storytree);
-  const { rows } = await pool.query<{ project: string; machine: string; machine_name: string; folder: string }>(
-    "SELECT project, machine, machine_name, folder FROM trunks WHERE machine = $1 ORDER BY project",
+  const { rows } = await pool.query<{ project: string; machine: string; machine_name: string; folder: string; approved_by: string | null }>(
+    "SELECT project, machine, machine_name, folder, CASE WHEN approved_at IS NULL THEN NULL ELSE coalesce(approved_by, '') END AS approved_by FROM trunks WHERE machine = $1 ORDER BY project",
     [machine],
   );
-  return rows.map((row) => ({ project: row.project, machine: row.machine, machineName: row.machine_name, folder: row.folder }));
+  return rows.map((row) => ({ project: row.project, machine: row.machine, machineName: row.machine_name, folder: row.folder, ...(row.approved_by === null ? {} : { approvedBy: row.approved_by }) }));
 }
 
 /**
- * Record `trunk`, unless its project already has one on its machine or its folder is already some
- * project's there: then nothing is written, and false says so.
+ * Record `trunk`, approved by `approvedBy` when given, unless its project already has one on its
+ * machine or its folder is already some project's there: then nothing is written, and false says so.
  */
-export async function registerTrunk(storytree: Storytree, trunk: Trunk): Promise<boolean> {
+export async function registerTrunk(storytree: Storytree, trunk: Trunk, approvedBy?: string): Promise<boolean> {
   const pool = await trunksPool(storytree);
   const { rowCount } = await pool.query(
-    "INSERT INTO trunks (project, machine, machine_name, folder) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING",
-    [trunk.project, trunk.machine, trunk.machineName, trunk.folder],
+    "INSERT INTO trunks (project, machine, machine_name, folder, approved_at, approved_by) VALUES ($1, $2, $3, $4, CASE WHEN $5::text IS NULL THEN NULL ELSE now() END, $5) ON CONFLICT DO NOTHING",
+    [trunk.project, trunk.machine, trunk.machineName, trunk.folder, approvedBy ?? null],
   );
   return rowCount === 1;
+}
+
+/**
+ * Approve the trunk recorded for `project` on `machine` at `folder` (exactly as recorded), citing
+ * `by`: a deliberate join, or the authority an approval command names (ADR-0942 D1). False when no
+ * such trunk is recorded: approval never makes a trunk.
+ */
+export async function approveTrunk(storytree: Storytree, { project, machine, folder }: { project: string; machine: string; folder: string }, by: string): Promise<boolean> {
+  const pool = await trunksPool(storytree);
+  const { rowCount } = await pool.query(
+    "UPDATE trunks SET approved_at = now(), approved_by = $4 WHERE project = $1 AND machine = $2 AND folder = $3",
+    [project, machine, folder, by],
+  );
+  return rowCount === 1;
+}
+
+/** `project`'s approved trunk on `machine` when `folder` (canonical, in its main checkout) is it or inside it; else undefined. */
+export async function approvedTrunk(storytree: Storytree, project: string, machine: string, folder: string): Promise<Trunk | undefined> {
+  const own = (await trunksOn(storytree, machine)).find((trunk) => trunk.project === project);
+  return own?.approvedBy !== undefined && within(folder, own.folder) ? own : undefined;
 }
 
 /** Forget `project`'s trunk on `machine`, as when the project is removed from it, or on every machine when none is named, as when it is deleted; false when there was none. */

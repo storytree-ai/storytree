@@ -5,6 +5,8 @@
  * Storytree never creates or removes a Codex folder. App creation does not change the agent's cwd.
  * A Claude Code session the Claude desktop app started in its own linked worktree attaches that
  * worktree the same way, on the branch it is on, rather than making a second one it never uses.
+ * An increment asked for from inside a linked worktree is refused with the claim that takes it
+ * there, so no old or queued branch is adopted silently and no second worktree is made (5.19).
  */
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
@@ -66,7 +68,17 @@ const NAME_PART_MAX = 32;
 export async function makeWorkspace(context: WorkspaceContext, id: string, reason: string, watch: MergeWatch = {}, options: WorkspaceOptions = {}): Promise<WorkspaceAnswer> {
   const refused = reasonRefusal(reason) ?? await workspaceRefusal(context, id, reason, watch);
   if (refused !== undefined) return refused;
-  const here = await worktreeHoldingWork(context, id);
+  const linked = linkedWorktree(context.folder);
+  const capability = linked !== undefined && (await context.library.get(id))?.type === "capability";
+  if (linked !== undefined && !capability) {
+    const at = linked.branch ? `on branch ${linked.branch}` : "on a detached HEAD";
+    return {
+      ok: false,
+      refused: "no-workspace",
+      why: `you are in the linked worktree ${linked.folder}, ${at}: claim ${id} here with \`storytree workspace claim ${id} --reason …\` (the claim tool), or ask from the main checkout for a fresh workspace`,
+    };
+  }
+  const here = capability ? await worktreeHoldingWork(context, linked) : undefined;
   if (here !== undefined) {
     const claimed = await claim({ ...context, ...here }, id, reason);
     if (!claimed.ok) return claimed;
@@ -177,26 +189,27 @@ async function openPullsRefusal(context: WorkspaceContext, id: string, watch: Me
   };
 }
 
-/**
- * The linked worktree the context's folder is in, and its branch, when `id` is a capability and
- * this session already holds work on that branch: a capability claimed from inside it is claimed
- * there, never given a second worktree (5.19). Undefined otherwise, as from the main checkout.
- */
-async function worktreeHoldingWork(context: WorkspaceContext, id: string): Promise<{ folder: string; branch: string } | undefined> {
-  if ((await context.library.get(id))?.type !== "capability") return undefined;
-  let folder: string;
-  let branch: string;
+/** The linked worktree `folder` is in, and its branch (empty when detached); undefined in the main checkout or outside git. */
+function linkedWorktree(folder: string): { folder: string; branch: string } | undefined {
   try {
-    const absolute = (flag: string) => realpathSync(run(context.folder, ["rev-parse", "--path-format=absolute", flag]).trim());
+    const absolute = (flag: string) => realpathSync(run(folder, ["rev-parse", "--path-format=absolute", flag]).trim());
     if (absolute("--absolute-git-dir") === absolute("--git-common-dir")) return undefined; // the main checkout
-    folder = absolute("--show-toplevel");
-    branch = run(folder, ["branch", "--show-current"]).trim();
+    const root = absolute("--show-toplevel");
+    return { folder: root, branch: run(root, ["branch", "--show-current"]).trim() };
   } catch {
     return undefined;
   }
-  if (!branch) return undefined;
-  const held = (await readClaims(context.log, context.project)).some((one) => one.session === context.session && one.branch === branch);
-  return held ? { folder, branch } : undefined;
+}
+
+/**
+ * The linked worktree the context's folder is in, `linked`, when a capability is asked for and
+ * this session already holds work on its branch: a capability claimed from inside it is claimed
+ * there, never given a second worktree (5.19). Undefined otherwise, as from the main checkout.
+ */
+async function worktreeHoldingWork(context: WorkspaceContext, linked: { folder: string; branch: string }): Promise<{ folder: string; branch: string } | undefined> {
+  if (!linked.branch) return undefined;
+  const held = (await readClaims(context.log, context.project)).some((one) => one.session === context.session && one.branch === linked.branch);
+  return held ? linked : undefined;
 }
 
 /** The main checkout of the repository `folder` is in, or why there is none to make a workspace from. */

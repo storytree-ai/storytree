@@ -152,6 +152,35 @@ test("5.19 making a workspace for a capability from inside a worktree whose bran
   });
 });
 
+test("5.19 asking for a workspace for an available increment from inside a linked worktree, named or detached, from a subfolder, in either harness, is refused with the command that claims it there, and nothing is fetched, made, prepared, claimed or started; held work is still refused as held", async () => {
+  await withWorld(async ({ dir, log, library, project, site, park, as }) => {
+    const increment = await park("email form");
+    const named = path.join(dir, "named");
+    const detached = path.join(dir, "detached");
+    git(site, "worktree", "add", "-b", "claude/older", named, "main");
+    git(site, "worktree", "add", "--detach", detached, "main");
+    const subfolder = path.join(named, "deep");
+    mkdirSync(subfolder);
+    const [before, branchesBefore, seen] = [worktrees(site), branches(site), git(site, "rev-parse", "refs/remotes/origin/main").trim()];
+
+    for (const [session, folder] of [["A", named], ["A", detached], ["A", subfolder], ["B", named], ["B", detached]] as const) {
+      const refused = await makeWorkspace(as(session, folder), increment, "build form");
+
+      assert.ok(!refused.ok && refused.refused === "no-workspace", `${session} in ${folder}: ${JSON.stringify(refused)}`);
+      assert.match(refused.why, new RegExp(`storytree workspace claim ${increment}`));
+      assert.deepEqual(worktrees(site), before, "no worktree is made");
+      assert.deepEqual(branches(site), branchesBefore, "no branch is cut");
+      assert.equal(git(site, "rev-parse", "refs/remotes/origin/main").trim(), seen, "main is not fetched");
+      assert.deepEqual(await readClaims(log, project), [], "nothing is claimed");
+      assert.equal(await statusOf(library, increment), "proposal", "not started");
+    }
+
+    assert.equal((await claim({ ...as("B"), branch: "codex/form" }, increment, "wiring the form")).ok, true);
+    const held = await makeWorkspace(as("A", named), increment, "build form");
+    assert.ok(!held.ok && held.refused === "held", JSON.stringify(held));
+  });
+});
+
 test("4.22 a workspace made from the main checkout places its branch under the workspace's folder, not the main checkout's (regression, 2026-10-02: the main checkout labelled unmerged)", async () => {
   await withWorld(async ({ log, project, site, park, as }) => {
     await log.append(project, { session: "A", harness: "claude-code", source: "hook", folder: site, branch: "main", kind: "session-started", how: "startup" });

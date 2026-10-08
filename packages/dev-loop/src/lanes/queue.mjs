@@ -99,6 +99,9 @@ export async function runQueue({ queueFile, stopFile, runLane, stopOnFailure = f
   let ending, popping = Promise.resolve();
   // Lanes ending together take their lines one after another, so neither rewrite of the file loses the other's.
   const pop = (id) => (popping = popping.then(() => popRan(queueFile, id)));
+  // Settles when any lane ends after it was taken: a look that took it before awaiting the limit or the chooser
+  // still wakes for a lane that ended meanwhile.
+  let laneEnded, ended = new Promise((go) => { laneEnded = go; });
   const start = (id) => running.set(id, (async () => {
     try {
       const code = await runLane(id);
@@ -106,7 +109,11 @@ export async function runQueue({ queueFile, stopFile, runLane, stopOnFailure = f
       else if (stopOnFailure && code !== 0) ending ??= { code, message: `lane for ${id} failed: stopping with it still queued` };
       else await pop(id);
     } catch (error) { ending ??= { error }; }
-    finally { running.delete(id); }
+    finally {
+      running.delete(id);
+      laneEnded();
+      ended = new Promise((go) => { laneEnded = go; });
+    }
   })());
   const end = async (outcome) => {
     await Promise.all(running.values());
@@ -116,6 +123,7 @@ export async function runQueue({ queueFile, stopFile, runLane, stopOnFailure = f
     return last.code;
   };
   for (;;) {
+    const anyEnds = ended;
     if (ending) return end(ending);
     if (await exists(stopFile)) return end({ code: 0, message: `stopped by ${basename(stopFile)}` });
     const queued = (await queueLines(queueFile)).filter((line) => !running.has(line));
@@ -130,7 +138,7 @@ export async function runQueue({ queueFile, stopFile, runLane, stopOnFailure = f
     const next = free ? await beside(queued.filter((line) => LINE.test(line)), [...running.keys()]) : undefined;
     if (next && !running.has(next)) { start(next); continue; }
     const look = new AbortController();
-    await Promise.race([...running.values(), ...(free ? [Promise.resolve(sleep(intervalMs, { signal: look.signal })).catch(() => {})] : [])]);
+    await Promise.race([anyEnds, ...(free ? [Promise.resolve(sleep(intervalMs, { signal: look.signal })).catch(() => {})] : [])]);
     look.abort();
   }
 }

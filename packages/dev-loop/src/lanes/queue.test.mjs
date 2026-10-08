@@ -145,6 +145,15 @@ test("12.6 · a track runs lanes beside each other up to its limit, read on ever
   assert.equal(await runner, 0);
   assert.equal(await readFile(queue, "utf8"), "");
 
+  await writeFile(queue, "early\nafter\n");
+  const late = {}, ran = [];
+  const woken = runQueue({ queueFile: queue, stopFile: stop, now, say: () => {}, limit: 2, sleep: sleepUntilAborted,
+    beside: async () => { late.early?.(0); await new Promise((go) => setTimeout(go, 20)); return undefined; },
+    runLane: (id) => { ran.push(id); return new Promise((end) => { late[id] = end; }); } });
+  await until(() => ran.includes("after"));
+  late.after(0);
+  assert.equal(await woken, 0, "a lane ending while the chooser looks still wakes the runner");
+
   await writeFile(queue, "fails\nruns\nnext\n");
   const ends = {}, lines = [];
   const stopped = runQueue({ queueFile: queue, stopFile: stop, now, say: (line) => lines.push(line), limit: 2, sleep: sleepUntilAborted,

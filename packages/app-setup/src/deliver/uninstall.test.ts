@@ -101,9 +101,12 @@ test("1.8: keeping the library leaves only the library behind", async (t) => {
   for (const file of ["releases.log", "pgdata.log", "app.json"]) writeFileSync(path.join(m.home, file), "the app's");
   // What finds the library again: this machine's identity (its projects' folders are recorded under it) and the chosen project.
   for (const file of ["machine.json", "project-choice.json"]) writeFileSync(path.join(m.home, file), "{}");
+  // And what signs in to it: the database's password, in its private directory beside it.
+  mkdirSync(path.join(m.home, "pgdata.auth"));
+  writeFileSync(path.join(m.home, "pgdata.auth", "installation.json"), "{}");
   const report = await uninstall({ ...m.options, library: "keep" });
   assert.equal(report.complete, true, report.lines.join("\n"));
-  assert.deepEqual(readdirSync(m.home).sort(), ["machine.json", "pgdata", "project-choice.json"]);
+  assert.deepEqual(readdirSync(m.home).sort(), ["machine.json", "pgdata", "pgdata.auth", "project-choice.json"]);
   assert.equal(readFileSync(path.join(m.home, "pgdata", "PG_VERSION"), "utf8"), "17");
   assert.equal(m.userPath(), "C:\\Windows;C:\\Users\\me\\.local\\bin");
   assert.equal(JSON.parse(readFileSync(m.claudeFile, "utf8")).mcpServers.storytree, undefined);

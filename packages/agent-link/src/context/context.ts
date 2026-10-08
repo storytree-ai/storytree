@@ -16,9 +16,9 @@
 import { readFile } from "node:fs/promises";
 
 import type { ActivityLog, Line } from "../activity/index.js";
-import { claudeCodeComposition, codexComposition, type Composition } from "./composition.js";
+import { claudeCodeCompositionFold, codexCompositionFold, type Composition, type CompositionFold } from "./composition.js";
 import { contextGuidance, type ContextGuidance } from "./guidance.js";
-import { isCount, isRecord, jsonLines, SYNTHETIC } from "./transcript.js";
+import { isCount, isRecord, SYNTHETIC, type JsonRecord } from "./transcript.js";
 
 /** Tokens a transcript's latest own request held, or why there is no figure. Never a 0 standing in for an absence. */
 export type TokenCount = { readonly tokens: number } | { readonly absent: string };
@@ -46,32 +46,85 @@ export type ContextReading = {
  * and `<synthetic>` lines are not the session's own window, so they never change the figure.
  */
 export function claudeCodeTokens(text: string): TokenCount {
-  const records = jsonLines(text);
-  if (records === "empty") return { absent: "the transcript is empty" };
-  if (records.length === 0) return { absent: "the transcript holds no line storytree can read" };
-  let latest: number | undefined;
-  for (const record of records) {
-    const message = record.message;
-    if (!isRecord(message) || !isRecord(message.usage) || record.isSidechain === true || message.model === SYNTHETIC) continue;
-    const { input_tokens: input, cache_read_input_tokens: read, cache_creation_input_tokens: created } = message.usage;
-    if (!isCount(input)) continue;
-    latest = input + (isCount(read) ? read : 0) + (isCount(created) ? created : 0);
-  }
-  return latest === undefined ? { absent: "the transcript holds only subagent or synthetic requests" } : { tokens: latest };
+  return new ContextFold("claude-code").feed(text).count();
 }
 
 /** A Codex rollout's figure: its last token count's `input_tokens` (Codex counts its cached input within it). */
 export function codexTokens(text: string): TokenCount {
-  const records = jsonLines(text);
-  if (records === "empty") return { absent: "the rollout is empty" };
-  let latest: number | undefined;
-  for (const record of records) {
-    const payload = record.payload;
-    if (record.type !== "event_msg" || !isRecord(payload) || payload.type !== "token_count" || !isRecord(payload.info)) continue;
-    const usage = payload.info.last_token_usage;
-    if (isRecord(usage) && isCount(usage.input_tokens)) latest = usage.input_tokens;
+  return new ContextFold("codex").feed(text).count();
+}
+
+/**
+ * A transcript's figure and composition, worked out a piece at a time: fed the transcript in pieces
+ * that end on whole lines, it reads as the whole would, so a reader that asks again and again (the
+ * app, every 10 seconds) parses only what the transcript gained since (9.14).
+ */
+export class ContextFold {
+  readonly harness: string | undefined;
+  readonly #codex: boolean;
+  readonly #composition: CompositionFold;
+  #lines = 0;
+  #records = 0;
+  #latest: number | undefined;
+
+  constructor(harness: string | undefined) {
+    this.harness = harness;
+    this.#codex = harness === "codex";
+    this.#composition = this.#codex ? codexCompositionFold() : claudeCodeCompositionFold();
   }
-  return latest === undefined ? { absent: "the rollout holds no token count" } : { tokens: latest };
+
+  /** Take the next piece of the transcript: whole lines, following the last piece fed. */
+  feed(text: string): this {
+    for (const line of text.split("\n")) {
+      if (line.trim() === "") continue;
+      this.#lines += 1;
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(line);
+      } catch {
+        continue; // A line cut short while the harness writes it, or one that is not JSON: not a reading.
+      }
+      if (!isRecord(parsed)) continue;
+      this.#records += 1;
+      this.#take(parsed);
+      this.#composition.add(parsed);
+    }
+    return this;
+  }
+
+  /** How many lines it has parsed. */
+  get parsed(): number {
+    return this.#lines;
+  }
+
+  count(): TokenCount {
+    if (this.#codex) {
+      if (this.#lines === 0) return { absent: "the rollout is empty" };
+      return this.#latest === undefined ? { absent: "the rollout holds no token count" } : { tokens: this.#latest };
+    }
+    if (this.#lines === 0) return { absent: "the transcript is empty" };
+    if (this.#records === 0) return { absent: "the transcript holds no line storytree can read" };
+    return this.#latest === undefined ? { absent: "the transcript holds only subagent or synthetic requests" } : { tokens: this.#latest };
+  }
+
+  composition(): Composition | undefined {
+    return this.#lines === 0 ? undefined : this.#composition.composition();
+  }
+
+  #take(record: JsonRecord): void {
+    if (this.#codex) {
+      const payload = record.payload;
+      if (record.type !== "event_msg" || !isRecord(payload) || payload.type !== "token_count" || !isRecord(payload.info)) return;
+      const usage = payload.info.last_token_usage;
+      if (isRecord(usage) && isCount(usage.input_tokens)) this.#latest = usage.input_tokens;
+      return;
+    }
+    const message = record.message;
+    if (!isRecord(message) || !isRecord(message.usage) || record.isSidechain === true || message.model === SYNTHETIC) return;
+    const { input_tokens: input, cache_read_input_tokens: read, cache_creation_input_tokens: created } = message.usage;
+    if (!isCount(input)) return;
+    this.#latest = input + (isCount(read) ? read : 0) + (isCount(created) ? created : 0);
+  }
 }
 
 /** The transcript last recorded for `session`, and its harness: what a hook named, never a folder's guess. */
@@ -93,24 +146,38 @@ export const readTranscriptFile: TranscriptReader = (transcript) => readFile(tra
 /** Why a transcript `read` gave nothing: none of its records has reached the shared log. */
 export const NOTHING_STORED = "none of this session's transcript has reached the shared log yet";
 
-/** `session`'s reading from `lines`, its transcript read now: from its file, unless `read` says otherwise. */
+/**
+ * A transcript's reading kept up to date by whoever holds it (9.14): the fold of everything stored
+ * of `transcript` so far, or undefined when none of it is there yet.
+ */
+export type TranscriptFolder = (transcript: string, harness: string | undefined) => Promise<ContextFold | undefined>;
+
+/**
+ * `session`'s reading from `lines`, its transcript read now: from its file, unless `read` says
+ * otherwise, or from the fold `fold` keeps of it.
+ */
 export async function contextReading(lines: readonly Line[], session: string,
-  { now = new Date(), home, read = readTranscriptFile }: { now?: Date; home?: string; read?: TranscriptReader } = {}): Promise<ContextReading> {
+  { now = new Date(), home, read = readTranscriptFile, fold }: { now?: Date; home?: string; read?: TranscriptReader; fold?: TranscriptFolder } = {}): Promise<ContextReading> {
   const at = now.toISOString();
   const named = transcriptOf(lines, session);
   if (named === undefined) return { session, absent: "no hook has named this session's transcript", at };
   const { transcript, harness } = named;
   const who = harness === undefined ? { session } : { session, harness };
-  let text: string | undefined;
+  let folded: ContextFold | undefined;
   try {
-    text = await read(transcript);
+    if (fold !== undefined) {
+      folded = await fold(transcript, harness);
+    } else {
+      const text = await read(transcript);
+      folded = text === undefined ? undefined : new ContextFold(harness).feed(text);
+    }
   } catch {
     return { ...who, absent: "the transcript named for this session cannot be read", at, source: transcript };
   }
-  if (text === undefined) return { ...who, absent: NOTHING_STORED, at, source: transcript };
-  const count = harness === "codex" ? codexTokens(text) : claudeCodeTokens(text);
+  if (folded === undefined) return { ...who, absent: NOTHING_STORED, at, source: transcript };
+  const count = folded.count();
   if ("absent" in count) return { ...who, ...count, at, source: transcript };
-  const composition = harness === "codex" ? codexComposition(text) : claudeCodeComposition(text);
+  const composition = folded.composition();
   return { ...who, tokens: count.tokens, composition: composition ?? { absent: "the transcript holds no own request to sort" }, guidance: contextGuidance(count.tokens, home), at, source: transcript };
 }
 

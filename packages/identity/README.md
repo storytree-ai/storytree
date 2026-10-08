@@ -38,7 +38,6 @@ import { identityCommand } from "@storytree/identity/command";
 
 const answer = await identityCommand("sign-in", {
   clientId, // public, configured for this environment
-  identityUrl, // explicitly configured HTTPS /v1/identity endpoint
   directory, // identity-owned subdirectory beneath the user's private Storytree home
   out: text => process.stdout.write(text + "\n"),
   signal, // abort on the CLI's cancellation signal
@@ -46,11 +45,11 @@ const answer = await identityCommand("sign-in", {
 process.stdout.write(answer + "\n");
 ```
 
-The device flow shows the user code and verification URL, waits at least the server's interval, adds five seconds after `slow_down` per RFC 8628, and stops on denial, expiry or cancellation. It reports a user only after the configured identity server verifies the access token. Errors suppress upstream text. Neither device codes nor tokens enter command output.
+The device flow shows the user code and verification URL, waits at least the server's interval, adds five seconds after `slow_down` per RFC 8628, and stops on denial, expiry or cancellation. It reports a user only after WorkOS's access token verifies against the client's published keys (RS256, audience `storytree-identity`, a `user_` subject equal to the exchange's user), and takes the email from that exchange only when it is verified. There is no identity server yet (question D). Errors suppress upstream text. Neither device codes nor tokens enter command output.
 
-Status exchanges the saved refresh token, replaces it after rotation, and asks the identity server again. Revoked sessions are discarded; transient failures do not claim a signed-in user and retain the latest rotated refresh token. Local sign-out deletes the saved session; it does not claim to revoke the browser's hosted WorkOS session. Opening a client makes no network request. A signed-out status makes none either. Installation, first run and the agent link remain account-free.
+Status exchanges the saved refresh token, replaces it after rotation, and verifies the new access token the same way; keys that cannot be fetched keep the rotated session. Revoked sessions are discarded; transient failures do not claim a signed-in user and retain the latest rotated refresh token. Local sign-out deletes the saved session; it does not claim to revoke the browser's hosted WorkOS session. Opening a client makes no network request. A signed-out status makes none either. Installation, first run and the agent link remain account-free.
 
-`withSessionStore` serializes the complete command across processes. On Linux/macOS the directory must belong to the current user with no group/other permissions, and the session file is mode 0600. These platforms protect the file with permissions, not encryption. On Windows the payload uses CurrentUser DPAPI through PowerShell; there is no plaintext fallback. Only the refresh token and its environment binding are persisted. Access tokens stay in memory. The frame must place the directory under the user's trusted private home.
+`withSessionStore` serializes the complete command across processes. On Linux/macOS the directory must belong to the current user with no group/other permissions, and the session file is mode 0600. These platforms protect the file with permissions, not encryption. On Windows the payload uses CurrentUser DPAPI through PowerShell; there is no plaintext fallback. Only the refresh token and its WorkOS client are persisted. Access tokens stay in memory. The frame must place the directory under the user's trusted private home.
 
 An interrupted process may leave `command-lock/pid`. Inspect that PID before removing its lock directory; never remove a live command's lock. Sign-in is bounded to the provider's expiry (at most one hour). A competing status/sign-out is refused while it is running, so a late sign-in cannot recreate a session after a successful sign-out.
 

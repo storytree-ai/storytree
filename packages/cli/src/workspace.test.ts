@@ -6,7 +6,7 @@
  */
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { copyFileSync, linkSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { copyFileSync, linkSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
@@ -14,7 +14,7 @@ import { after, before, test } from "node:test";
 import { claim, openActivityLog, readClaims } from "@storytree/agent-link";
 
 import { workspaceRefusalText } from "./families/workspace.js";
-import { BuiltCommand, inWorld, testServerUrl, type World } from "./testing/cli.js";
+import { BuiltCommand, inWorld, storytree, testServerUrl, type World } from "./testing/cli.js";
 
 const command = new BuiltCommand();
 /** A folder holding a `gh` that is a copy of Node: `gh api …` runs the project folder's `api` script. */
@@ -372,6 +372,42 @@ test("11.9 `workspace claim` claims the work for the calling agent session witho
       assert.match(person.stderr, /agent/);
       assert.deepEqual((await log.since(world.project, 0)).lines.filter((line) => line.kind === "claimed"), before.lines.filter((line) => line.kind === "claimed"), "refusals claim nothing");
       assert.deepEqual((await readClaims(log, world.project)).map(({ session }) => session), ["claude-9", "claude-9"]);
+    } finally {
+      await log.close();
+    }
+  });
+});
+
+test("11.13 from a linked worktree or a folder inside one, `workspace <increment>` is refused with the hint to claim it there, making no worktree or branch and claiming or starting nothing, from Claude Code's and Codex's shells; `workspace claim` then takes it in place", async () => {
+  await inWorld(command, async (world) => {
+    const increment = await withRepository(world);
+    const named = path.join(path.dirname(world.folder), "named worktree");
+    const detached = path.join(path.dirname(world.folder), "detached worktree");
+    git(world.folder, "worktree", "add", "-b", "claude/older-work", named, "main");
+    git(world.folder, "worktree", "add", "--detach", detached, "main");
+    const nested = path.join(named, "deep", "folder");
+    mkdirSync(nested, { recursive: true });
+    const counts = () => [git(world.folder, "worktree", "list"), git(world.folder, "branch", "--list")];
+    const before = counts();
+    const statusOf = async () => ((await (await world.library()).get(increment))?.fields as { status?: string } | undefined)?.status;
+    const log = await openActivityLog(testServerUrl());
+    try {
+      for (const cwd of [named, nested, detached]) {
+        for (const env of [{ CLAUDE_CODE_SESSION_ID: "claude-in-worktree" }, { CODEX_THREAD_ID: "codex-in-worktree" }]) {
+          const ran = await storytree(command.script, ["workspace", increment, "--reason", "build form"], { cwd, home: world.home, env });
+          assert.equal(ran.code, 1, ran.stdout);
+          assert.ok(ran.stderr.includes(`storytree workspace claim ${increment} --reason`), ran.stderr);
+          assert.match(ran.stderr, cwd === detached ? /detached HEAD/ : /on branch claude\/older-work/);
+        }
+      }
+      assert.deepEqual(counts(), before, "no worktree or branch was made");
+      assert.deepEqual(await readClaims(log, world.project), []);
+      assert.equal(await statusOf(), "proposal", "nothing was started");
+
+      const claimed = await storytree(command.script, ["workspace", "claim", increment, "--reason", "build form"], { cwd: nested, home: world.home, env: { CLAUDE_CODE_SESSION_ID: "claude-in-worktree" } });
+      assert.equal(claimed.code, 0, claimed.stderr);
+      assert.deepEqual((await readClaims(log, world.project)).map(({ session, increment: held }) => ({ session, held })), [{ session: "claude-in-worktree", held: increment }]);
+      assert.deepEqual(counts(), before, "claimed in place");
     } finally {
       await log.close();
     }

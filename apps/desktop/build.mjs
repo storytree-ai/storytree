@@ -32,12 +32,11 @@ await build({
   // where they are; the app always tells it (main.ts: postgresBinaries), so that path is never taken.
   logOverride: { "empty-import-meta": "silent" },
   // A release build stamps in PostHog's public project token (never a private key); others share nothing.
-  // A build offering sign-in for feedback stamps in WorkOS's public client ID and the identity endpoint (app setup contract 5.6);
-  // the app checks both and offers no sign-in without them. Neither is a secret.
+  // A build offering sign-in for feedback (the staging build) stamps in WorkOS's public client ID (app setup contract 5.6);
+  // the app checks its token itself and offers no sign-in without the ID. It is not a secret.
   define: {
     ...journeyDefine(),
     STORYTREE_WORKOS_CLIENT_ID: stamped("STORYTREE_WORKOS_CLIENT_ID"),
-    STORYTREE_IDENTITY_URL: stamped("STORYTREE_IDENTITY_URL"),
   },
   external: [
     "electron",

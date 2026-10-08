@@ -18,7 +18,7 @@
  */
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { connect as connectTcp, createServer, type AddressInfo } from "node:net";
 import { hostname, tmpdir } from "node:os";
 import path from "node:path";
@@ -43,7 +43,7 @@ import { readSettings, setSetting } from "../settings/settings.js";
 import { registerHooks } from "../setup/hooks-config.js";
 import { countingStore, longHistory } from "../testing/egress.js";
 import { git, withTempDir } from "../testing/folders.js";
-import { approveCheckout, dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { approveCheckout, dropTestProjects, placeTestServer, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 
 const FIXTURES = fileURLToPath(new URL("./fixtures/", import.meta.url));
 /** The name of the machine the tests run on, as every line a hook writes names it. */
@@ -112,7 +112,7 @@ function runNode(): Promise<number> {
 function storytreeHome(dir: string, running: boolean): string {
   const home = path.join(dir, "storytree-home");
   mkdirSync(home, { recursive: true });
-  if (running) copyFileSync(`${testServerDataDir()}.owner.json`, path.join(home, "pgdata.owner.json"));
+  if (running) placeTestServer(path.join(home, "pgdata"));
   return home;
 }
 
@@ -270,7 +270,7 @@ for (const harness of ["claude-code", "codex"] as const) test(`3.22 ${harness} s
     // A command may write and commit before its after-hook; it is still an edit.
     await command(write(file, "export const email = 6;\n") + "const {execFileSync:g}=require('node:child_process');g('git',['add','.']);g('git',['-c','user.name=test','-c','user.email=test@storytree.invalid','commit','-m','write and commit']);"); expected.push([file]);
 
-    copyFileSync(`${testServerDataDir()}.owner.json`, path.join(home, "pgdata.owner.json"));
+    placeTestServer(path.join(home, "pgdata"));
     await command("0"); // The next connected hook uploads the offline lines.
     const edits = (await linesOf(project)).filter((line) => line.kind === "file-edited");
     // A missing edit says what the hooks traced (3.23), so a failure on a runner can be read afterwards.
@@ -763,7 +763,7 @@ test("3.14 lines a hook writes while storytree cannot be reached wait on this ma
       assert.equal(await linesAnywhereFor(session), 0, "nothing reaches the log while storytree is stopped");
       const back = new Date();
 
-      copyFileSync(`${testServerDataDir()}.owner.json`, path.join(home, "pgdata.owner.json")); // storytree is back
+      placeTestServer(path.join(home, "pgdata")); // storytree is back
       await hookRun("stop");
       await hookRun("stop");
       const lines = await linesOf(project);
@@ -795,7 +795,7 @@ test("3.25 a hook in a checkout not approved for the project its marker names wr
       await hookRun("session-start-startup", download, theirs);
       await hookRun("session-start-startup", folder, mine);
 
-      copyFileSync(`${testServerDataDir()}.owner.json`, path.join(home, "pgdata.owner.json")); // storytree is back
+      placeTestServer(path.join(home, "pgdata")); // storytree is back
       await hookRun("post-tool-use-bash", download, theirs);
       assert.equal(await linesAnywhereFor(theirs), 0, "the unapproved checkout writes nothing, waiting or new");
       const status = await runHook("statusline", JSON.stringify({ hook_event_name: "Status", session_id: theirs, cwd: download, workspace: { current_dir: download } }), home);
@@ -836,8 +836,7 @@ test("3.23 a hook whose writing throws, or that cannot reach storytree, leaves o
 
       // Storytree's database does not answer: the line waits on this machine, and why is traced.
       const unreachable = storytreeHome(path.join(dir, "unreachable"), true);
-      const record = path.join(unreachable, "pgdata.owner.json");
-      writeFileSync(record, JSON.stringify({ ...JSON.parse(readFileSync(record, "utf8")), port: await closedPort() }));
+      placeTestServer(path.join(unreachable, "pgdata"), { port: await closedPort() });
       silent(await runHook("claude-code", call(`${project}-unreachable`), unreachable), "unreachable");
       assert.deepEqual(traced(unreachable, `${project}-unreachable`).map(({ stage, session }) => ({ stage, session })), [{ stage: "reach", session: `${project}-unreachable` }]);
       assert.equal(readdirSync(queueFolder(unreachable)).length, 1, "the line waits for the next hook");
@@ -971,7 +970,7 @@ test("3.19 a Claude Code session's end is recorded though Claude Code stops its 
     await withTempDir(async (dir) => {
       const home = path.join(dir, "slow-home");
       const folder = await projectFolder(dir, project, home);
-      writeFileSync(path.join(home, "pgdata.owner.json"), JSON.stringify({ ...owner, port: (slow.address() as AddressInfo).port }));
+      placeTestServer(path.join(home, "pgdata"), { port: (slow.address() as AddressInfo).port });
       const claude = path.join(dir, "claude-home");
       mkdirSync(claude);
       registerHooks({ claude }, { node: process.execPath, script: hook });
@@ -1022,7 +1021,6 @@ test("4.10 a pull request's merge is recorded on its branch by the hooks though 
 
 test("3.21 a hook's reads do not grow with the log's length: the same hooks (a command's finish, which also hands on the look around the machine, a prompt, and the status line) take about as much from the store in a project whose log holds weeks of history as in one whose log holds an hour's", { timeout: 120_000 }, async () => {
   const [short, long] = [uniqueProjectName(), uniqueProjectName()];
-  const owner = JSON.parse(readFileSync(`${testServerDataDir()}.owner.json`, "utf8")) as Record<string, unknown>;
   const log = await openActivityLog(testServerUrl());
   try {
     const taken: Record<string, number> = {};
@@ -1045,7 +1043,7 @@ test("3.21 a hook's reads do not grow with the log's length: the same hooks (a c
         const store = await countingStore();
         try {
           const home = path.join(dir, "counted-home");
-          writeFileSync(path.join(home, "pgdata.owner.json"), JSON.stringify({ ...owner, port: store.port }));
+          placeTestServer(path.join(home, "pgdata"), { port: store.port });
           const status = JSON.stringify({ hook_event_name: "Status", session_id: "now-1", cwd: folder, workspace: { current_dir: folder, project_dir: folder } });
           for (const ran of [
             await runHook("claude-code", recorded("claude-code", "post-tool-use-bash", folder), home),

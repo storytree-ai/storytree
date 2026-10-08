@@ -8,11 +8,18 @@ name: Requeue
 # This workflow puts it back through land.yml, at the exact head commit whose latest `verify`
 # passed, and land.yml reads again whether it is held (a draft, the `hold` label, closed).
 #
-# Bounded: one re-enqueue per verified head. It counts the queue's `failed_checks` removals since
-# that head's latest `verify` finished; the first is re-enqueued, a second is left out, with an
-# error saying so, so a pull request that really breaks main on top of the queue never loops. A
-# push gives the head a new `verify`, and the count starts again. Any other removal (merged, a
-# push, a conflict, taken out by hand) is left as it is. A pull request from a fork is never landed.
+# The queue can also take one out with reason `branch_protection_failure` after its own run passed:
+# PR #919 was removed at 15:22:40 on 2026-10-08, two seconds after `verify` passed on its queue
+# commit, with `verify` (main's only required check) green on that commit and on its head. GitHub
+# says no more than the reason, so such a removal goes back in too, but only when `verify` passed
+# on the queue commit it was removed from (the removal's `beforeCommit`).
+#
+# Bounded: one re-enqueue per reason per verified head. It counts the queue's removals for that
+# reason since the head's latest `verify` finished; the first is re-enqueued, a second is left out,
+# with an error saying so, so a pull request that really breaks main on top of the queue never
+# loops. A push gives the head a new `verify`, and the count starts again. Any other removal
+# (merged, a push, a conflict, taken out by hand) is left as it is. A pull request from a fork is
+# never landed.
 
 on:
   pull_request:
@@ -27,7 +34,7 @@ permissions:
 
 jobs:
   decide:
-    name: removed for failed checks, head verified?
+    name: removed after a failed or passed queue run, head verified?
     if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -37,7 +44,7 @@ jobs:
     outputs:
       requeue: ${{ steps.decide.outputs.requeue }}
     steps:
-      - name: Count failed-checks removals since the head's verify
+      - name: Count the queue's removals since the head's verify
         id: decide
         env:
           GH_TOKEN: ${{ github.token }}
@@ -52,23 +59,31 @@ jobs:
           if [ "$status $conclusion" != "completed success" ]; then
             echo "The head's own verify has not passed: not re-enqueued. A push, or \`gh pr ready\`, runs it."
           else
-            # The queue's removals since verify passed this head, oldest first: their reasons.
-            reasons=$(gh api graphql -f owner="${GITHUB_REPOSITORY%/*}" -f name="${GITHUB_REPOSITORY#*/}" -F pr="$PR" \
-              -f query='query($owner: String!, $name: String!, $pr: Int!) { repository(owner: $owner, name: $name) { pullRequest(number: $pr) { timelineItems(itemTypes: [REMOVED_FROM_MERGE_QUEUE_EVENT], last: 50) { nodes { ... on RemovedFromMergeQueueEvent { createdAt reason } } } } } }' \
-              --jq "[.data.repository.pullRequest.timelineItems.nodes[] | select(.createdAt > \"$verified_at\") | .reason] | join(\" \")")
-            last=${reasons##* }
-            failed=0
-            for reason in $reasons; do
-              if [ "$reason" = failed_checks ]; then failed=$((failed + 1)); fi
-            done
-            echo "Removed from the queue since verify passed at $verified_at: ${reasons:-none}."
-            if [ "$last" != failed_checks ]; then
-              echo "The latest removal was not for failed checks: left as it is."
-            elif [ "$failed" -gt 1 ]; then
-              echo "::error::The merge queue's run failed for $SHA $failed times, although its own verify passed: not re-enqueued again. Read the queue run's log; a push re-verifies and lets it back in."
+            # The queue's removals since verify passed this head, oldest first: "<reason> <queue commit>".
+            removals=$(gh api graphql -f owner="${GITHUB_REPOSITORY%/*}" -f name="${GITHUB_REPOSITORY#*/}" -F pr="$PR" \
+              -f query='query($owner: String!, $name: String!, $pr: Int!) { repository(owner: $owner, name: $name) { pullRequest(number: $pr) { timelineItems(itemTypes: [REMOVED_FROM_MERGE_QUEUE_EVENT], last: 50) { nodes { ... on RemovedFromMergeQueueEvent { createdAt reason beforeCommit { oid } } } } } } }' \
+              --jq ".data.repository.pullRequest.timelineItems.nodes[] | select(.createdAt > \"$verified_at\") | \"\(.reason) \(.beforeCommit.oid // \"none\")\"")
+            echo "Removed from the queue since verify passed at $verified_at: $(echo "${removals:-none}" | cut -d' ' -f1 | paste -sd' ')."
+            read -r last queued <<< "$(echo "$removals" | tail -n 1)"
+            count=$(echo "$removals" | grep -c "^$last " || true)
+            if [ "$last" = branch_protection_failure ]; then
+              # Only a queue run that passed: a failed one was the pull request's own doing.
+              queue_verify=none
+              if [ "$queued" != none ]; then
+                queue_verify=$(gh api "repos/$GITHUB_REPOSITORY/commits/$queued/check-runs?check_name=verify&per_page=100" \
+                  --jq '.check_runs | sort_by(.started_at) | last | if . == null then "none" else "\(.status) \(.conclusion)" end')
+              fi
+              echo "verify on the queue commit $queued: $queue_verify"
+            fi
+            if [ "$last" != failed_checks ] && [ "$last" != branch_protection_failure ]; then
+              echo "The latest removal was not for failed checks or branch protection: left as it is."
+            elif [ "$last" = branch_protection_failure ] && [ "$queue_verify" != "completed success" ]; then
+              echo "Removed for branch protection without a passing queue run: left as it is."
+            elif [ "$count" -gt 1 ]; then
+              echo "::error::The merge queue removed $SHA for $last $count times, although its own verify passed: not re-enqueued again. Read the queue run's log; a push re-verifies and lets it back in."
             else
               requeue=true
-              echo "Removed after a failed queue run, with its own verify passed: re-enqueuing $SHA once."
+              echo "Removed for $last, with its own verify passed: re-enqueuing $SHA once."
             fi
           fi
           echo "requeue=$requeue" >> "$GITHUB_OUTPUT"

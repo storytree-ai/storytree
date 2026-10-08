@@ -1,6 +1,7 @@
 // Build first, then: node packages/website/evidence/capture.mjs [evidence subfolder]
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
+import { capturePath } from "./capture-path.mjs";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -29,9 +30,8 @@ if (verifyOpeningRequested) {
 }
 const types = { ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".png": "image/png", ".webp": "image/webp", ".svg": "image/svg+xml", ".json": "application/json" };
 const server = createServer(async (req, res) => {
-  const pathname = decodeURIComponent(new URL(req.url, "http://localhost").pathname);
-  const file = path.resolve(dist, `.${pathname === "/" ? "/index.html" : pathname}`);
-  if (!file.startsWith(dist + path.sep)) { res.writeHead(403).end(); return; }
+  const { file, status } = capturePath(dist, req.url);
+  if (status) { res.writeHead(status).end(); return; }
   try {
     res.setHeader("Content-Type", types[path.extname(file)] ?? "application/octet-stream");
     res.end(await readFile(file));

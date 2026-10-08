@@ -2,6 +2,7 @@
 // Seeded, repeatable pictures of chapter 1 (the green-phosphor terminal, ADR-0879 D6): the same page, the same
 // timers, the same viewports every run. The CRT collapse is photographed by pausing its animations at fixed times.
 import { createServer } from "node:http";
+import { capturePath } from "./capture-path.mjs";
 import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -15,8 +16,8 @@ const dist = path.resolve(here, "../dist");
 await mkdir(output, { recursive: true });
 const types = { ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".png": "image/png", ".webp": "image/webp", ".svg": "image/svg+xml", ".json": "application/json" };
 const server = createServer(async (req, res) => {
-  const pathname = decodeURIComponent(new URL(req.url, "http://localhost").pathname);
-  const file = path.resolve(dist, `.${pathname === "/" ? "/index.html" : pathname}`);
+  const { file, status } = capturePath(dist, req.url);
+  if (status) { res.writeHead(status).end(); return; }
   try { res.setHeader("Content-Type", types[path.extname(file)] ?? "application/octet-stream"); res.end(await readFile(file)); }
   catch { res.writeHead(404).end(); }
 });

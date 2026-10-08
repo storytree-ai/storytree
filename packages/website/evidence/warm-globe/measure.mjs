@@ -2,6 +2,7 @@
 // the turn, with the instrumentation of ../opening.mjs (verifyOpeningFrames), measuring only, so it can read any build,
 // including ones that journey would fail. SwiftShader at 1440x900; one JSON line on stdout.
 import { createServer } from "node:http";
+import { capturePath } from "../capture-path.mjs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { chromium } from "playwright-core";
@@ -9,8 +10,8 @@ import { chromium } from "playwright-core";
 const [dist, label] = [path.resolve(process.argv[2]), process.argv[3]];
 const types = { ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".png": "image/png", ".webp": "image/webp", ".svg": "image/svg+xml", ".json": "application/json" };
 const server = createServer(async (req, res) => {
-  const pathname = decodeURIComponent(new URL(req.url, "http://localhost").pathname);
-  const file = path.resolve(dist, `.${pathname === "/" ? "/index.html" : pathname}`);
+  const { file, status } = capturePath(dist, req.url);
+  if (status) { res.writeHead(status).end(); return; }
   try { res.setHeader("Content-Type", types[path.extname(file)] ?? "application/octet-stream"); res.end(await readFile(file)); }
   catch { res.writeHead(404).end(); }
 });

@@ -2,6 +2,7 @@
 // value, fixes) is pictured by ../arrival/capture.mjs.
 // pnpm --filter @storytree/website build && node packages/website/evidence/journey/capture.mjs [--only <name>]
 import { createServer } from "node:http";
+import { capturePath } from "../capture-path.mjs";
 import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -12,8 +13,8 @@ const dist = path.resolve(here, "../../dist");
 const only = process.argv.includes("--only") ? process.argv[process.argv.indexOf("--only") + 1] : undefined;
 const types = { ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".png": "image/png", ".json": "application/json" };
 const server = createServer(async (req, res) => {
-  const pathname = decodeURIComponent(new URL(req.url, "http://localhost").pathname);
-  const file = path.resolve(dist, `.${pathname === "/" ? "/index.html" : pathname}`);
+  const { file, status } = capturePath(dist, req.url);
+  if (status) { res.writeHead(status).end(); return; }
   try { res.setHeader("Content-Type", types[path.extname(file)] ?? "application/octet-stream"); res.end(await readFile(file)); }
   catch { res.writeHead(404).end(); }
 });

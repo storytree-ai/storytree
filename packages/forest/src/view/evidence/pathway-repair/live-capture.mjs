@@ -42,13 +42,22 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
     const page = await browser.newPage({ viewport: smoke ? { width: 320, height: 240 } : { width: 1440, height: 960 }, deviceScaleFactor: 1,
       colorScheme: 'dark', reducedMotion: reduced ? 'reduce' : 'no-preference' });
     const errors = [];
-    const frameReports = [];
+    const frameReports = [], firstFrameReports = [];
+    // Page time at which a frame-paced wait began, so a late completion reads against its deadline.
+    let waitWindow;
+    const startWait = async timeout => {
+      const from = await page.evaluate(() => performance.now());
+      waitWindow = { from, deadline: from + timeout };
+      return timeout;
+    };
     page.on('pageerror', error => errors.push(String(error)));
     page.on('console', message => {
       if (message.type() === 'error') errors.push(message.text());
       if (message.text().startsWith('live-pathway-frame:')) {
-        frameReports.push(JSON.parse(message.text().slice('live-pathway-frame:'.length)));
-        if (frameReports.length > 24) frameReports.shift();
+        const report = JSON.parse(message.text().slice('live-pathway-frame:'.length));
+        // Keep the first frames as well as the tail: together they say when growth began and ended.
+        if (firstFrameReports.length < 6) firstFrameReports.push(report);
+        else { frameReports.push(report); if (frameReports.length > 24) frameReports.shift(); }
       }
     });
     const failedWait = async (stage, error) => {
@@ -69,7 +78,7 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
         new Promise(resolve => { timer = setTimeout(() => resolve({ readTimedOut: true }), 3000); }),
       ]);
       clearTimeout(timer);
-      const report = { stage, name, error: String(error), errors, frameReports, current };
+      const report = { stage, name, error: String(error), errors, waitWindow, firstFrameReports, frameReports, current };
       writeFileSync(path.join(out, `${name}-failure.json`), JSON.stringify(report, null, 2) + '\n');
       console.error(`live pathway failure: ${JSON.stringify(report)}`);
       throw error;
@@ -213,7 +222,7 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
     await page.waitForFunction(() => {
       const frame = window.liveEvidence.frames.at(-1);
       return frame?.links.length === 130 && frame.roads.length > 0 && frame.roads.every(road => road.fraction >= 1 - 1e-8);
-    }, undefined, { timeout: 30000, polling: 100 });
+    }, undefined, { timeout: await startWait(30000), polling: 100 });
     if (initialOnly) {
       await page.waitForTimeout(500);
       await initialCdp.send('Page.stopScreencast');
@@ -280,7 +289,7 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
     await page.waitForFunction(() => {
       const frame = window.liveEvidence.frames.at(-1);
       return frame?.phase === 'restored-link' && frame.links.length === 131 && frame.roads.some(road => road.fresh) && frame.roads.every(road => road.fraction >= 1 - 1e-8);
-    }, undefined, { timeout: 15000, polling: 100 });
+    }, undefined, { timeout: await startWait(15000), polling: 100 });
     // gl.render submits work before the software compositor presents it. Let its final picture arrive.
     if (cdp) { await page.waitForTimeout(500); await cdp.send('Page.stopScreencast'); }
     if (!smoke) await page.screenshot({ path: path.join(out, `${name}-complete.png`) });

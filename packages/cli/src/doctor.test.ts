@@ -22,7 +22,7 @@ import { setTimeout as pause } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 
 import { probeProcess, readProcess, type ProcessIdentity } from "@storytree/processes";
-import { BuiltCommand, dropTestProjects, inWorld, storytree, testServerUrl, uniqueProjectName, type World } from "./testing/cli.js";
+import { BuiltCommand, dropTestProjects, inWorld, placeHandoff, storytree, testServerDataDir, uniqueProjectName, type World } from "./testing/cli.js";
 
 const STUB_APP = fileURLToPath(new URL("./testing/stub-app.mjs", import.meta.url));
 
@@ -120,17 +120,19 @@ for (const interrupted of [false, true]) test(`8.1 with storytree closed, it ope
     const user = aUser(world);
     const closedHome = world.stoppedHome;
     const dataDir = path.join(closedHome, "pgdata");
+    // The stand-in writes the owner record; the sign-in handoff the app would keep beside it is placed now.
+    placeHandoff(dataDir);
     // Run the proof in its own process, so killing it really skips its teardown. The real doctor
     // launches the detached app; this owner must outlive that short-lived command.
     const owner = spawn(process.execPath, ["--import", import.meta.resolve("tsx"), "--input-type=module", "-e", `
       import { writeFileSync } from "node:fs";
       import { storytree } from ${JSON.stringify(new URL("./testing/cli.ts", import.meta.url).href)};
-      const { script, stub, dataDir, port, options, parent } = JSON.parse(process.argv[1]);
+      const { script, stub, dataDir, server, options, parent } = JSON.parse(process.argv[1]);
       setInterval(() => { try { process.kill(parent, 0); } catch { process.exit(); } }, 250);
       process.on("message", () => process.exit());
-      writeFileSync(options.home + "/app.json", JSON.stringify({ command: process.execPath, args: [stub, dataDir, port, String(process.pid)] }));
+      writeFileSync(options.home + "/app.json", JSON.stringify({ command: process.execPath, args: [stub, dataDir, server, String(process.pid)] }));
       process.send(await storytree(script, ["doctor"], options));
-    `, JSON.stringify({ script: command.script, stub: STUB_APP, dataDir, port: new URL(testServerUrl()).port,
+    `, JSON.stringify({ script: command.script, stub: STUB_APP, dataDir, server: testServerDataDir(),
       options: { cwd: world.folder, home: closedHome, env: user.env }, parent: process.pid })], { stdio: ["ignore", "ignore", "pipe", "ipc"] });
     let stderr = "";
     owner.stderr!.on("data", (chunk: Buffer) => { stderr += chunk.toString(); });

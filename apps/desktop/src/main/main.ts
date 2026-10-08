@@ -364,7 +364,7 @@ async function run(): Promise<void> {
           ...(agent === undefined ? {} : { agentActiveAt: agent }),
         }) === "now";
       },
-    }, home.dir);
+    }, home.dir, () => installing.read().choice);
   }
 }
 

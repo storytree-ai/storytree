@@ -1,10 +1,11 @@
 /** Capability 4 · Updates. Installed-app updates; development slots keep their own follow-main updater. */
-import { appendFileSync, existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { format } from "node:util";
 
 import { app } from "electron";
-import { ReleaseUpdater, releaseChannel, type ReleaseOptions } from "@storytree/app";
+import { ReleaseUpdater, releaseChannel, type InstallChoice, type ReleaseOptions } from "@storytree/app";
+
+import { releasesLog, waitingLine } from "./releases-log.js";
 
 /**
  * Whether this is the app the installer put here. The installer writes a marker; unpacked
@@ -17,20 +18,16 @@ export function installedApp(): boolean {
 }
 
 /** The updater, for the gear's Updates panel; undefined where the app does not update from releases. */
-export function followReleases(options: ReleaseOptions, home: string): ReleaseUpdater | undefined {
+export function followReleases(options: ReleaseOptions, home: string, choice: () => InstallChoice): ReleaseUpdater | undefined {
   if (!installedApp()) return undefined;
 
   const updater = new ReleaseUpdater({ ...options, home, releaseChannel: () => releaseChannel(home, readFileSync(path.join(process.resourcesPath, "storytree-installed"), "utf8")) });
-  const log = (...parts: unknown[]): void => {
-    const message = format(...parts);
-    console.log(`releases: ${message}`);
-    try { appendFileSync(path.join(home, "releases.log"), `${new Date().toISOString()} ${message}\n`); } catch { /* logging cannot stop the app */ }
-  };
-  updater.logger = { info: log, warn: log, error: log, debug: log };
+  const log = releasesLog(path.join(home, "releases.log"));
+  updater.logger = log;
   const check = async (): Promise<void> => {
     try {
-      if (await updater.check() === "waiting") log("downloaded; waiting for a quiet moment (no seed writing, no one using the window or an agent working) or the user's say-so");
-    } catch (error) { log(error); }
+      if (await updater.check() === "waiting") log.info(waitingLine(choice()));
+    } catch (error) { log.error(error); }
   };
   const timer = setInterval(() => void check(), 3 * 60_000);
   timer.unref();

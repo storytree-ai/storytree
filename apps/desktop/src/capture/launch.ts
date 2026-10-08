@@ -31,8 +31,10 @@ export function launchPlan({ env, platform }: Machine = THIS_MACHINE, { software
   const options: LaunchOptions = {
     headless: true,
     // Keep SwiftShader on WebGL with Chromium's ordinary software compositor.
-    // Driver mode also puts page compositing through SwiftShader.
-    args: ["--no-sandbox", "--disable-dev-shm-usage", ...(softwareGL ? ["--use-gl=angle", "--use-angle=swiftshader-webgl", "--enable-unsafe-swiftshader"] : [])],
+    // Driver mode also puts page compositing through SwiftShader. Run it in the browser process:
+    // on a CPU-starved runner each hop to a separate GPU process waits its turn, stretching frames to seconds.
+    args: ["--no-sandbox", "--disable-dev-shm-usage",
+      ...(softwareGL ? ["--use-gl=angle", "--use-angle=swiftshader-webgl", "--enable-unsafe-swiftshader", "--in-process-gpu"] : [])],
     ...(executablePath === undefined ? {} : { executablePath }),
     ...(channel === undefined ? {} : { channel }),
   };

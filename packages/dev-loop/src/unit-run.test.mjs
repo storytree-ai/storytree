@@ -217,13 +217,24 @@ function history(t, rows = []) {
   if (lines.length > 0) writeFileSync(path.join(home, "test-timings.jsonl"), `${lines.join("\n")}\n`);
   return home;
 }
-const machine = { platform: "win32", arch: "arm64" };
+const machine = { platform: "win32", arch: "arm64", env: {} }; // not this run's own STORYTREE_UNIT_LIMIT_MS (CI sets one)
 const passes = (unit, ...ms) => ms.map((each) => [unit, "pass", each]);
 
 test("a unit with too little history on this machine keeps the fixed deadline", (t) => {
   const home = history(t, [...passes("cli", 40_000, 50_000), ...passes("forest", 1_000, 1_000, 1_000, 1_000, 1_000)]);
   assert.deepEqual(unitLimit("cli", { home, ...machine }), { ms: UNIT_LIMIT_MS, source: "default" });
-  assert.equal(unitLimit("forest", { home, platform: "linux", arch: "x64" }).source, "default", "another machine's times are not this one's");
+  assert.equal(unitLimit("forest", { home, platform: "linux", arch: "x64", env: {} }).source, "default", "another machine's times are not this one's");
+});
+
+// increment_3bd2b051ab67: CI's fresh runners never have history, so the run itself says how long a
+// unit there may take: Windows agent-link passed main at 171.3 s, 9 s under the fixed 3 minutes.
+test("a unit with too little history takes the run's own default deadline when it gives one", (t) => {
+  const home = history(t, passes("cli", 40_000));
+  const env = { STORYTREE_UNIT_LIMIT_MS: "360000" };
+  assert.deepEqual(unitLimit("cli", { home, ...machine, env }), { ms: 360_000, source: "STORYTREE_UNIT_LIMIT_MS" });
+  assert.deepEqual(unitLimit("cli", { home, ...machine }), { ms: UNIT_LIMIT_MS, source: "default" });
+  const learned = history(t, passes("cli", 50_000, 50_000, 50_000, 50_000, 50_000));
+  assert.deepEqual(unitLimit("cli", { home: learned, ...machine, env }), { ms: 100_000, source: "learned" }, "a learned deadline still wins");
 });
 
 test("with enough passes, a unit's deadline is twice its slowest recent pass, never under the floor", (t) => {

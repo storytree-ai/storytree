@@ -12,7 +12,8 @@
 // Linux, macOS and Windows x64: 22.4 s); a test that needs longer passes its own `timeout` option.
 // Each unit's deadline is learned from this machine's history (unitLimit, ADR-0785):
 // twice its slowest recent pass, doubled after each kill since it last passed, or what an agent set
-// for it here with a reason. UNIT_LIMIT_MS is the deadline until a unit has enough history.
+// for it here with a reason. Until a unit has enough history its deadline is the run's default:
+// STORYTREE_UNIT_LIMIT_MS when given (CI gives one, as its runners never have history), else UNIT_LIMIT_MS.
 import { execFileSync, spawn } from "node:child_process";
 import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
@@ -202,17 +203,26 @@ function stillRunning(runningFile) {
 }
 
 /**
- * A unit's deadline on this machine and where it came from: what an agent set for it here, else
- * twice its slowest recent pass once it has enough, else UNIT_LIMIT_MS; then doubled for each kill
- * since it last passed (a killed run never enters the passes, so without this it could never
- * recover), never over UNIT_LIMIT_CEILING_MS.
+ * The deadline for a unit with too little history (and for named files): STORYTREE_UNIT_LIMIT_MS
+ * when the run gives one, else UNIT_LIMIT_MS. CI gives one, since its fresh runners never have
+ * history (increment_3bd2b051ab67); so does a test of the deadline itself.
  */
-export function unitLimit(unit, { home = defaultHome(), platform = process.platform, arch = process.arch } = {}) {
+export function defaultUnitLimit(env = process.env) {
+  const ms = Number(env.STORYTREE_UNIT_LIMIT_MS);
+  return env.STORYTREE_UNIT_LIMIT_MS && Number.isFinite(ms) && ms > 0 ? { ms, source: "STORYTREE_UNIT_LIMIT_MS" } : { ms: UNIT_LIMIT_MS, source: "default" };
+}
+
+/**
+ * A unit's deadline on this machine and where it came from: what an agent set for it here, else
+ * twice its slowest recent pass once it has enough, else the run's default (defaultUnitLimit); then
+ * doubled for each kill since it last passed (a killed run never enters the passes, so without this
+ * it could never recover), never over UNIT_LIMIT_CEILING_MS.
+ */
+export function unitLimit(unit, { home = defaultHome(), platform = process.platform, arch = process.arch, env = process.env } = {}) {
   const rows = readJsonLines(path.join(home, "test-timings.jsonl")).filter((row) => row.unit === unit && row.platform === platform && row.arch === arch);
   const set = readLimits(home)[unit];
   const passes = rows.filter((row) => row.result === "pass").slice(-RECENT_PASSES);
-  let ms = UNIT_LIMIT_MS;
-  let source = "default";
+  let { ms, source } = defaultUnitLimit(env);
   if (set) [ms, source] = [set.ms, `set: ${set.reason}`];
   else if (passes.length >= LEARN_FROM_PASSES) [ms, source] = [Math.max(UNIT_LIMIT_FLOOR_MS, Math.ceil((2 * Math.max(...passes.map((row) => row.ms))) / 1000) * 1000), "learned"];
   const lastPass = rows.findLastIndex((row) => row.result === "pass");

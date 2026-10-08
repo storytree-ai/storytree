@@ -1,9 +1,10 @@
-// Packaging adapter: reuse the agent link's build, then stage both native Windows runtimes.
+// Packaging adapter: reuse the agent link's build, then stage the host platform's native runtimes:
+// both Windows architectures on Windows, Apple Silicon on macOS.
 import { buildBins, buildLauncher, LAUNCHER_PROGRAM, stageNativeProbes } from "@storytree/agent-link/bins";
-import { NODE_VERSION, stageRuntime, windowsRuntime, writePayloadManifest } from "@storytree/app-setup/deliver";
+import { macRuntime, NODE_VERSION, stageRuntime, windowsRuntime, writePayloadManifest } from "@storytree/app-setup/deliver";
 import { build } from "esbuild";
 import { execFileSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync, writeSync } from "node:fs";
+import { closeSync, cpSync, existsSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync, writeSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -123,29 +124,63 @@ function directoryBytes(dir) {
   }, 0);
 }
 
-export async function stageTools() {
+export async function stageTools(platform = process.platform) {
   const root = path.join(here, "dist", "agent-tools");
   const common = path.join(root, "common");
   rmSync(root, { recursive: true, force: true });
   // A release's packaging (dist.mjs, with STORYTREE_RELEASE_VERSION) stamps its 0.3.<n> into the installed command.
   const version = process.env.STORYTREE_RELEASE_VERSION;
   const release = version === undefined ? undefined : { version, commit: execFileSync("git", ["-C", here, "rev-parse", "--short=7", "HEAD"], { encoding: "utf8" }).trim() };
-  await buildToolBundle(common, { platform: "win32", arch: "x64", release });
-  for (const arch of ["x64", "arm64"]) {
+  // Apple Silicon only (decision_dfb6e40aa9f7); sharp's darwin binaries install only on a Mac, so a Mac payload is staged there.
+  const archs = { win32: ["x64", "arm64"], darwin: ["arm64"] }[platform];
+  if (!archs) throw new Error(`No desktop tool payload for ${platform}`);
+  await buildToolBundle(common, { platform, arch: archs[0], release });
+  for (const arch of archs) {
     const dir = path.join(root, arch);
     cpSync(common, dir, { recursive: true });
-    if (arch !== "x64") stageEmbeddingRuntime(dir, "win32", arch);
-    await stageNativeProbes(dir, "win32", arch);
-    // The `storytree` command for this architecture: a program of its own (ADR-0854).
-    buildLauncher(path.join(dir, LAUNCHER_PROGRAM), arch);
-    await stageRuntime(path.join(dir, "node.exe"), windowsRuntime(arch));
+    if (arch !== archs[0]) stageEmbeddingRuntime(dir, platform, arch);
+    await stageNativeProbes(dir, platform, arch);
+    if (platform === "win32") {
+      // The `storytree` command for this architecture: a program of its own (ADR-0854).
+      buildLauncher(path.join(dir, LAUNCHER_PROGRAM), arch);
+      await stageRuntime(path.join(dir, "node.exe"), windowsRuntime(arch));
+    } else await stageRuntime(path.join(dir, "node"), macRuntime(arch));
     const license = await fetch(`https://raw.githubusercontent.com/nodejs/node/v${NODE_VERSION}/LICENSE`, { signal: AbortSignal.timeout(30_000) });
     if (!license.ok) throw new Error(`Could not download the Node ${NODE_VERSION} license`);
     writeFileSync(path.join(dir, "NODE-LICENSE"), await license.text());
-    writePayloadManifest(dir, arch, NODE_VERSION);
-    console.log(`staged ${arch}: Node ${NODE_VERSION} (SHA-256 verified), licenses, complete buildBins output, target Koffi probes, command launcher, embedding runtime and delivery helper`);
+    if (platform === "darwin") signMachO(dir);
+    writePayloadManifest(dir, arch, NODE_VERSION, platform);
+    console.log(`staged ${platform} ${arch}: Node ${NODE_VERSION} (SHA-256 verified), licenses, complete buildBins output, target Koffi probes, ${platform === "win32" ? "command launcher, " : ""}embedding runtime and delivery helper`);
   }
   rmSync(common, { recursive: true, force: true });
+}
+
+/**
+ * Sign every Mach-O file in a Mac payload here, before its manifest records their digests: signing
+ * rewrites a binary, so electron-builder leaves agent-tools alone (package.json's mac.signIgnore).
+ * Hardened runtime with the app's entitlements, as notarisation requires of every binary. Ad-hoc ("-")
+ * until a Developer ID is configured (increment_9d05fb8a164b), named by STORYTREE_MAC_IDENTITY.
+ */
+export function signMachO(dir, identity = process.env.STORYTREE_MAC_IDENTITY ?? "-") {
+  const entitlements = path.join(here, "entitlements.mac.plist");
+  const visit = (folder) => {
+    for (const entry of readdirSync(folder, { withFileTypes: true })) {
+      const file = path.join(folder, entry.name);
+      if (entry.isDirectory()) visit(file);
+      else if (entry.isFile() && isMachO(file)) {
+        execFileSync("codesign", ["--force", "--sign", identity, "--options", "runtime", "--entitlements", entitlements, ...(identity === "-" ? [] : ["--timestamp"]), file], { stdio: "inherit" });
+      }
+    }
+  };
+  timed(`sign Mach-O files (${identity === "-" ? "ad-hoc" : identity})`, () => visit(dir));
+}
+
+function isMachO(file) {
+  const header = Buffer.alloc(4);
+  const fd = openSync(file, "r");
+  try { if (readSync(fd, header, 0, 4, 0) < 4) return false; } finally { closeSync(fd); }
+  // 64-bit Mach-O in either byte order, or a universal (fat) binary.
+  return [0xfeedfacf, 0xcffaedfe, 0xcafebabe, 0xbebafeca].includes(header.readUInt32BE(0));
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await stageTools();

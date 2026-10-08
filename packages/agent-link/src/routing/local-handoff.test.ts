@@ -173,6 +173,38 @@ test("1.16 Windows privacy refusals explain the failed check without subprocess 
   });
 });
 
+test("1.16 a Windows privacy check that stalls once is retried once; a second stall still refuses", async (t) => {
+  await withTempDir((home) => {
+    const f = fixture(home);
+    const platform = Object.getOwnPropertyDescriptor(process, "platform")!;
+    Object.defineProperty(process, "platform", { ...platform, value: "win32" });
+    // A cold PowerShell start once exceeded the deadline on a loaded Windows runner (run 37750433353).
+    let stalls = 0;
+    let calls = 0;
+    const child = t.mock.method(childProcess, "execFileSync", () => {
+      calls += 1;
+      if (calls <= stalls) throw Object.assign(new Error("stalled"), { code: "ETIMEDOUT" });
+      return "private\r\n";
+    });
+    syncBuiltinESMExports();
+    try {
+      stalls = 1;
+      assert.equal(locateStorytree({ dataDir: f.dataDir }).running, true);
+      assert.equal(calls, 2);
+      calls = 0;
+      stalls = 2;
+      const refused = locateStorytree({ dataDir: f.dataDir });
+      assert.equal(refused.running, false);
+      if (!refused.running) assert.match(refused.message, /\(windows-acl-timeout\)$/);
+      assert.equal(calls, 2);
+    } finally {
+      child.mock.restore();
+      syncBuiltinESMExports();
+      Object.defineProperty(process, "platform", platform);
+    }
+  });
+});
+
 test("1.16 authenticated metadata errors refuse without secrets or a passwordless fallback", async () => {
   await withTempDir((home) => {
     const f = fixture(home);

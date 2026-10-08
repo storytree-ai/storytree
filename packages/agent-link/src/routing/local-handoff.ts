@@ -101,12 +101,18 @@ function windowsPrivate(directory: string, file: string): void {
     }
     [Console]::WriteLine('private')
   `;
+  const check = () => execFileSync(path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe"),
+    ["-NoProfile", "-NonInteractive", "-EncodedCommand", Buffer.from(script, "utf16le").toString("base64")],
+    { env: { ...process.env, STORYTREE_HANDOFF_DIRECTORY: directory, STORYTREE_HANDOFF_FILE: file }, encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"], timeout: 5000, maxBuffer: 4096, windowsHide: true });
   let output: string;
   try {
-    output = execFileSync(path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe"),
-      ["-NoProfile", "-NonInteractive", "-EncodedCommand", Buffer.from(script, "utf16le").toString("base64")],
-      { env: { ...process.env, STORYTREE_HANDOFF_DIRECTORY: directory, STORYTREE_HANDOFF_FILE: file }, encoding: "utf8",
-        stdio: ["ignore", "pipe", "pipe"], timeout: 5000, maxBuffer: 4096, windowsHide: true });
+    // A warm check takes about 300 ms; a cold PowerShell start on a loaded machine once took over
+    // five seconds. Retry a timeout once, keeping each attempt's deadline: a second stall refuses.
+    try { output = check(); } catch (error) {
+      if ((error as { code?: unknown } | null)?.code !== "ETIMEDOUT") throw error;
+      output = check();
+    }
   } catch (error) {
     const failure = error as { code?: unknown; status?: unknown } | null;
     const reason: WindowsRefusal = failure?.code === "ETIMEDOUT" ? "windows-acl-timeout" :

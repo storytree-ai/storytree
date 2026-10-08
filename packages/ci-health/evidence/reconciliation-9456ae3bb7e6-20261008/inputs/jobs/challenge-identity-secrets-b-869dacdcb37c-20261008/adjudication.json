@@ -1,0 +1,300 @@
+{
+  "recorded_at": "2026-10-08T02:03:42.560485+00:00",
+  "increment": "increment_869dacdcb37c",
+  "parent_increment": "increment_9456ae3bb7e6",
+  "independent_seal": {
+    "sealed_at": "2026-10-08T02:01:18.441479+00:00",
+    "sha256": "4b699de94522f691c64774a4e3c3b2376a620c86f2adf060fcc29bf40f88ff3f",
+    "path": "independent-result.json",
+    "prior_reviews_opened": false
+  },
+  "original_input_hashes": [
+    {
+      "path": "jobs/challenge-identity-secrets-a/result.json",
+      "sha256": "c607c43b69f1a7c8cacb3b0bde9d273c4279e019dd870ad0f0c2c56239d98a64"
+    },
+    {
+      "path": "jobs/challenge-identity-secrets-b/events.jsonl",
+      "sha256": "bc16334703dcf083ff125128935d0d6f526afd813d65b5a5fb16854d53bc6ff0"
+    },
+    {
+      "path": "jobs/challenge-identity-secrets-b/stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "jobs/reconcile-9456ae3bb7e6-20261008/result.json",
+      "sha256": "fa11a8ff957898e73bbc5ef43c18dfbab78206597ae7e1aca1d5e23aad7af102"
+    },
+    {
+      "path": "jobs/reconcile-9456ae3bb7e6-20261008/reconciliation.md",
+      "sha256": "a7403651e0c5223d88d4458fdc789316a03328d0deaae63684d1be1dce7d36e1"
+    },
+    {
+      "path": "report.json",
+      "sha256": "827468f4e45e5fd83f341ee42e27a07150ab7d23de28c5100f7bffec2d3d63ec"
+    }
+  ],
+  "original_b_failure": [
+    {
+      "type": "error",
+      "message": "This content was flagged for possible cybersecurity risk. If this seems wrong, try rephrasing your request. If you\u2019re doing authorized security work that requires more cyber permissive safeguards, apply for Daybreak access via https://platform.openai.com/settings/organization/status-and-access before retrying."
+    },
+    {
+      "type": "turn.failed",
+      "error": {
+        "message": "This content was flagged for possible cybersecurity risk. If this seems wrong, try rephrasing your request. If you\u2019re doing authorized security work that requires more cyber permissive safeguards, apply for Daybreak access via https://platform.openai.com/settings/organization/status-and-access before retrying."
+      }
+    }
+  ],
+  "original_b_note": "No original result.json exists. Original draft scripts, events and refusal remain untouched. This is an additive permitted source review with new bounded synthetic tests, not a retry of the flagged request. No paid access or provider switch was sought.",
+  "findings": [
+    {
+      "id": "identity-secrets-001",
+      "reviewer_a": "confirmed",
+      "sealed_fresh_b": "confirmed_supported_configuration_failure; deployment exposure conditional",
+      "prior_reconciliation": "unverified",
+      "final_classification": "confirmed",
+      "adjudication": "A used isolated loopback and a saved key; fresh B used an in-memory stream with synthetic PGPASSWORD. Both exercise real addressServer and pg. Neither proves deployed interception or certificate validation. Prior reconciliation withheld confirmation solely for the missing independent B; this additive adjudication now resolves that protocol gap.",
+      "disagreement": null,
+      "source_evidence": [
+        {
+          "path": "packages/agent-link/src/settings/settings.ts",
+          "lines": "285-303",
+          "commit": "22c74d14930229751b8eec1dc9219353ccc9baaa"
+        },
+        {
+          "path": "packages/agent-link/src/routing/routing.ts",
+          "lines": "236-242",
+          "commit": "22c74d14930229751b8eec1dc9219353ccc9baaa"
+        },
+        {
+          "path": "packages/cli/src/door.ts",
+          "lines": "325-335",
+          "commit": "22c74d14930229751b8eec1dc9219353ccc9baaa"
+        },
+        {
+          "path": "packages/library/src/project/storytree.ts",
+          "lines": "169-176",
+          "commit": "22c74d14930229751b8eec1dc9219353ccc9baaa"
+        },
+        {
+          "path": "packages/library/src/project/address.ts",
+          "lines": "33-63",
+          "commit": "22c74d14930229751b8eec1dc9219353ccc9baaa"
+        },
+        {
+          "path": "packages/library/src/project/server.ts",
+          "lines": "45-51",
+          "commit": "22c74d14930229751b8eec1dc9219353ccc9baaa"
+        }
+      ],
+      "test_artifacts": [
+        "evidence/transport-b-20261008T015814726986/stdout.txt"
+      ],
+      "limits": "Whether any real user uses an unprotected remote address, attacker access to the path/DNS, environmental PGSSLMODE or tunnel configuration, actual certificate validation and resulting account privileges. No sockets, TLS handshake, DNS manipulation or database were exercised.",
+      "followup": "increment_084a8167540a"
+    },
+    {
+      "id": "identity-secrets-002",
+      "reviewer_a": "unverified",
+      "sealed_fresh_b": "conditional_mechanism; lower_trust_exploitability_unverified",
+      "prior_reconciliation": "unverified",
+      "final_classification": "unverified",
+      "adjudication": "No substantive disagreement. Both A and B preserve the one-UID limitation. B executes a harmless replacement command; reconciliation reproduced permission retention but did not execute a replacement command. No distinct-principal trust boundary is inferred.",
+      "disagreement": null,
+      "source_evidence": [
+        {
+          "path": "packages/cli/src/families/auth.ts",
+          "lines": "8-19",
+          "commit": "22c74d14930229751b8eec1dc9219353ccc9baaa"
+        },
+        {
+          "path": "packages/keys/src/keys.ts",
+          "lines": "48-56,83-100,113-140,225-228",
+          "commit": "22c74d14930229751b8eec1dc9219353ccc9baaa"
+        }
+      ],
+      "test_artifacts": [
+        "evidence/directory-b-20261008T015814721365/stdout.txt"
+      ],
+      "limits": "A distinct UID/principal, effective ancestor traversal, affected deployment directory ownership/permissions, symlink conditions and Windows ACLs. No host directories were inspected.",
+      "followup": "Named conditional residue retained on parent increment_9456ae3bb7e6; server-activation conditions also belong to existing identity arc_f0642505cf9b."
+    },
+    {
+      "id": "identity-secrets-003",
+      "reviewer_a": "unverified",
+      "sealed_fresh_b": "deferred_unverified_identity_lifecycle_hypothesis",
+      "prior_reconciliation": "unverified",
+      "final_classification": "unverified",
+      "adjudication": "No substantive disagreement. Historical-mapping SQL remains static evidence. A additionally tested that token-supplied identities cannot replace authoritative provider evidence. Fresh B does not claim to have rerun that control. Settled server deferral means no current owner hosting/policy question.",
+      "disagreement": null,
+      "source_evidence": [
+        {
+          "path": "packages/identity/src/service.ts",
+          "lines": "52-72,86-99",
+          "commit": "22c74d14930229751b8eec1dc9219353ccc9baaa"
+        },
+        {
+          "path": "packages/identity/src/store.ts",
+          "lines": "55-80",
+          "commit": "22c74d14930229751b8eec1dc9219353ccc9baaa"
+        },
+        {
+          "path": "packages/identity/src/http.ts",
+          "lines": "12-23",
+          "commit": "22c74d14930229751b8eec1dc9219353ccc9baaa"
+        },
+        {
+          "path": "packages/identity/README.md",
+          "lines": "19-23,59",
+          "commit": "22c74d14930229751b8eec1dc9219353ccc9baaa"
+        }
+      ],
+      "test_artifacts": [],
+      "limits": "Actual unlink/reassignment behavior, intended revocation semantics, persistent sequence through SQL, hosted endpoint, and downstream reliance on returned UUID. No SQL, WorkOS calls or live unlinking attempted.",
+      "followup": "Named conditional residue retained on parent increment_9456ae3bb7e6; server-activation conditions also belong to existing identity arc_f0642505cf9b."
+    },
+    {
+      "id": "identity-secrets-004",
+      "reviewer_a": "unverified",
+      "sealed_fresh_b": "deferred_policy_hypothesis; immediate_revocation_not_proven_required",
+      "prior_reconciliation": "unverified",
+      "final_classification": "unverified",
+      "adjudication": "No substantive disagreement. B tests resolver-level expiry, audience and missing sid; A additionally tests handler status, blank sid and wrong signature. Both stop before persistence and neither proves real revocation.",
+      "disagreement": null,
+      "source_evidence": [
+        {
+          "path": "packages/identity/src/service.ts",
+          "lines": "33-43,52-75",
+          "commit": "22c74d14930229751b8eec1dc9219353ccc9baaa"
+        },
+        {
+          "path": "packages/identity/src/http.ts",
+          "lines": "14-23",
+          "commit": "22c74d14930229751b8eec1dc9219353ccc9baaa"
+        },
+        {
+          "path": "packages/identity/README.md",
+          "lines": "23,51",
+          "commit": "22c74d14930229751b8eec1dc9219353ccc9baaa"
+        }
+      ],
+      "test_artifacts": [
+        "evidence/identity-b-20261008T015814717535/stdout.txt"
+      ],
+      "limits": "Immediate revocation policy, real WorkOS post-revocation user/identity responses, token lifetime and deployed endpoint. No provider session was created or revoked.",
+      "followup": "Named conditional residue retained on parent increment_9456ae3bb7e6; server-activation conditions also belong to existing identity arc_f0642505cf9b."
+    },
+    {
+      "id": "identity-secrets-005",
+      "reviewer_a": "unverified",
+      "sealed_fresh_b": "deferred_configuration_hypothesis; current_authentication_bypass_not_established",
+      "prior_reconciliation": "unverified",
+      "final_classification": "unverified",
+      "adjudication": "No substantive disagreement. Both identify the distinction between linked identities and current method without asserting that the illustrative password claim is a real WorkOS claim. Social-only choice is already settled; effective provider configuration remains unverified.",
+      "disagreement": null,
+      "source_evidence": [
+        {
+          "path": "packages/identity/src/service.ts",
+          "lines": "52-72,86-99",
+          "commit": "22c74d14930229751b8eec1dc9219353ccc9baaa"
+        },
+        {
+          "path": "packages/identity/README.md",
+          "lines": "21-25",
+          "commit": "22c74d14930229751b8eec1dc9219353ccc9baaa"
+        }
+      ],
+      "test_artifacts": [
+        "evidence/identity-b-20261008T015814717535/stdout.txt"
+      ],
+      "limits": "Actual WorkOS enabled methods and token/session method semantics, alternate credential control and hosting. No dashboard, credentials or provider configuration inspected.",
+      "followup": "Named conditional residue retained on parent increment_9456ae3bb7e6; server-activation conditions also belong to existing identity arc_f0642505cf9b."
+    }
+  ],
+  "original_runtime_evidence_inspected": [
+    {
+      "result_path": "jobs/challenge-identity-secrets-a/evidence/challenge-key-directory-20261007T115942778812/result.json",
+      "result_sha256": "6e123990921ea7f3b821bf23070418c78d51b4ec9fbec6efd470bd2461f7f7ab",
+      "exit_code": 0,
+      "source_commit": "08124e6286ff09843500a35120a38a685806a646",
+      "script_hash_matches": [
+        {
+          "path": "key-directory-probe.ts",
+          "matches": true
+        }
+      ],
+      "stdout": "{\"case\":\"new-private-home\",\"directoryMode\":\"0700\",\"fileMode\":\"0600\",\"literalResolved\":true}\n{\"case\":\"existing-shared-home\",\"directoryModeAfterSave\":\"0777\",\"originalFileMode\":\"0600\",\"replacementFileMode\":\"0644\",\"replacementCommandExecuted\":true,\"separatePrincipalTested\":false}\n",
+      "stderr": "",
+      "stdout_sha256": "25efcf826703070ff7804d99975a8b61613d03891723467357eaf09870f88eb5"
+    },
+    {
+      "result_path": "jobs/challenge-identity-secrets-a/evidence/challenge-identity-guards-20261007T120105916397/result.json",
+      "result_sha256": "a536427c01a1a35134f373c48e08f1979567a50aca44065db0f4dd0525c30fe8",
+      "exit_code": 0,
+      "source_commit": "08124e6286ff09843500a35120a38a685806a646",
+      "script_hash_matches": [
+        {
+          "path": "identity-guards-probe.ts",
+          "matches": true
+        }
+      ],
+      "stdout": "{\"label\":\"valid-token-without-current-method-evidence\",\"status\":503,\"verificationReachedPersistence\":true,\"providerPaths\":[\"/sso/jwks/client_synthetic_challenge\",\"/user_management/users/user_synthetic\",\"/user_management/users/user_synthetic/identities\"]}\n{\"label\":\"illustrative-password-method-claim\",\"status\":503,\"verificationReachedPersistence\":true,\"providerPaths\":[\"/user_management/users/user_synthetic\",\"/user_management/users/user_synthetic/identities\"]}\n{\"label\":\"wrong-signature\",\"status\":401,\"verificationReachedPersistence\":false,\"providerPaths\":[]}\n{\"label\":\"wrong-audience\",\"status\":401,\"verificationReachedPersistence\":false,\"providerPaths\":[]}\n{\"label\":\"expired\",\"status\":401,\"verificationReachedPersistence\":false,\"providerPaths\":[]}\n{\"label\":\"missing-session\",\"status\":401,\"verificationReachedPersistence\":false,\"providerPaths\":[]}\n{\"label\":\"blank-session\",\"status\":401,\"verificationReachedPersistence\":false,\"providerPaths\":[]}\n{\"label\":\"token-supplied-identities-do-not-replace-provider-evidence\",\"status\":401,\"verificationReachedPersistence\":false,\"providerPaths\":[\"/user_management/users/user_synthetic\",\"/user_management/users/user_synthetic/identities\"]}\n{\"noSessionStatusRequestObserved\":true,\"actualRevocationTested\":false,\"actualProviderMintingMethodTested\":false,\"databasePersistenceTested\":false}\n",
+      "stderr": "",
+      "stdout_sha256": "9490ef5b3f71067fbeb74e035df7f10b93329ba20055f26a384e6834ad27a1cc"
+    },
+    {
+      "result_path": "jobs/challenge-identity-secrets-a/evidence/challenge-key-transport-20261007T115937265111/result.json",
+      "result_sha256": "b7d1d15ae1c29d6423b5e189ac8a2539c71cc6ed533aa930938042af4c9924a2",
+      "exit_code": 0,
+      "source_commit": "08124e6286ff09843500a35120a38a685806a646",
+      "script_hash_matches": [
+        {
+          "path": "key-transport-probe.ts",
+          "matches": true
+        }
+      ],
+      "stdout": "{\"label\":\"no-ssl-options\",\"sslRequested\":false,\"passwordReceived\":true,\"passwordMatched\":true,\"connectionRejected\":true}\n{\"label\":\"verify-full-refused-by-peer\",\"sslRequested\":true,\"passwordReceived\":false,\"passwordMatched\":false,\"connectionRejected\":true}\n",
+      "stderr": "",
+      "stdout_sha256": "c24866d39f0ddc318d96c94606f651d785bd5a28321b3bb2289cffbcb9b7ec4f"
+    },
+    {
+      "result_path": "jobs/reconcile-9456ae3bb7e6-20261008/evidence/transport-20261007T234548987343/result.json",
+      "result_sha256": "ce92f9daf862b5909f35d846716cd646c7c371a626eed6603ecc8855bce2fedb",
+      "exit_code": 0,
+      "source_commit": "08124e6286ff09843500a35120a38a685806a646",
+      "script_hash_matches": [
+        {
+          "path": "transport.mts",
+          "matches": true
+        }
+      ],
+      "stdout": "{\"case\":\"default-address-handshake\",\"sslRequested\":false,\"syntheticPasswordReceivedBeforeServerAuthentication\":true}\n{\"case\":\"verified-tls-refusal-control\",\"sslRequested\":true,\"syntheticPasswordReceivedBeforeServerAuthentication\":false}\n",
+      "stderr": "",
+      "stdout_sha256": "cc2c846d4f1c84fe3c418c6d09b4d8b9d18f735b12f23d8674ef3d781e9d4908"
+    },
+    {
+      "result_path": "jobs/reconcile-9456ae3bb7e6-20261008/evidence/identity-controls-20261007T234744202581/result.json",
+      "result_sha256": "8d966e86c25f15b37923d4136b2a9ccdd61cdd91c3ccaad05574b37e76faf11b",
+      "exit_code": 0,
+      "source_commit": "08124e6286ff09843500a35120a38a685806a646",
+      "script_hash_matches": [
+        {
+          "path": "identity-controls.mts",
+          "matches": true
+        }
+      ],
+      "stdout": "{\"case\":\"valid-signed-token\",\"reachedPersistenceBoundary\":true,\"providerSemanticsVerified\":false}\n{\"case\":\"illustrative-password-claim\",\"reachedPersistenceBoundary\":true,\"providerSemanticsVerified\":false}\n{\"case\":\"arbitrary-nonempty-session\",\"reachedPersistenceBoundary\":true,\"providerSemanticsVerified\":false}\n{\"case\":\"expired-control\",\"reachedPersistenceBoundary\":false,\"providerSemanticsVerified\":false}\n{\"case\":\"wrong-audience-control\",\"reachedPersistenceBoundary\":false,\"providerSemanticsVerified\":false}\n{\"case\":\"empty-session-control\",\"reachedPersistenceBoundary\":false,\"providerSemanticsVerified\":false}\n{\"case\":\"requests\",\"distinctPaths\":[\"/sso/jwks/client_synthetic\",\"/user_management/users/user_synthetic\",\"/user_management/users/user_synthetic/identities\"],\"realWorkOSCalls\":0,\"realDatabaseCalls\":0}\n",
+      "stderr": "",
+      "stdout_sha256": "118a4e4faf5c4dcd8296742324201e88cd390e158836970223da152dc1924f23"
+    }
+  ],
+  "counts": {
+    "confirmed_under_stated_preconditions": 1,
+    "unverified": 4,
+    "substantive_disagreements": 0
+  },
+  "provenance_correction": "Repository source citations and job-local runtime stdout are separate fields; original aggregator path assumptions do not invalidate the actual preserved outputs. Existence/hash alone is not proof: source chains were read and new probes supply independent bounded evidence.",
+  "remediation_state": "The existing transport increment is supported after this child closes. No remediation is performed or verified by this review. Final increment_8862d4069e34 still requires separately landed remediations and independent verification.",
+  "scope": "Only five identity/secrets candidates adjudicated. Parent reconciliation and its other child are not closed by this lane."
+}

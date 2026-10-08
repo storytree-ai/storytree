@@ -1,0 +1,11 @@
+{
+  "passed": true,
+  "outsideSymlinkContentReturned": true,
+  "nonMemoryPathDeletedAfterStubWrite": true,
+  "controls": [
+    "ordinary memory returned and graduated",
+    "failed write preserved file",
+    "symlink graduation preserved target"
+  ],
+  "scope": "Real memoryWorklist, worklistView and graduate; disposable synthetic files and inert library stubs. No tool host, authorization boundary or attacker receipt of content demonstrated."
+}

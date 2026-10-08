@@ -1,0 +1,6 @@
+{"case":"direct-backup","umask":"22","fileMode":"0644","projectDirectoryMode":"0755","backupRootMode":"0755","exactSyntheticSnapshotPreserved":true,"partialFileAbsent":true}
+{"case":"direct-backup","umask":"77","fileMode":"0600","projectDirectoryMode":"0700","backupRootMode":"0700","exactSyntheticSnapshotPreserved":true,"partialFileAbsent":true}
+{"case":"private-ancestor-control","ancestorMode":"0700","fileMode":"0644","ancestorBlocksOtherUsersByPosixMode":true}
+{"case":"real-keepBackups-startup","fileMode":"0644","exactSyntheticSnapshotPreserved":true,"timerStopped":true}
+{"case":"bounded-retention-control","newestTwoRetained":true,"unrelatedFilePreserved":true}
+{"scope":"real-imported-backUp-and-keepBackups-with-in-memory-snapshot-provider","secondIdentityRead":"not-attempted","ancestorModes":[{"file":"/","mode":"0755"},{"file":"/work","mode":"0700"},{"file":"/work/challenge-b-backups","mode":"0700"}]}

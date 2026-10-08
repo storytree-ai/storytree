@@ -1,0 +1,13 @@
+{
+  "original_files_unchanged": 19,
+  "candidate_ids_complete": 15,
+  "four_obligations_each": true,
+  "probe_result_and_script_hash_checks": "PASS",
+  "classification_counts": {
+    "confirmed_conditional": 2,
+    "unverified": 13,
+    "rejected": 0
+  },
+  "source_files_compared": 61,
+  "limitations": "This bookkeeping check is not independent security adjudication. Fresh B challenges remain required."
+}

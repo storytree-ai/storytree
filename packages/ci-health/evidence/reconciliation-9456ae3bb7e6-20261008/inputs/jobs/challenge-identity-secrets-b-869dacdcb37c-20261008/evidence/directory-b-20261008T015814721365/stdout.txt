@@ -1,0 +1,1 @@
+{"directoryMode":"777","fileMode":"600","replacementCommandAccepted":true,"freshDirectoryMode":"700","limit":"Single synthetic UID; no lower-trust writer, ancestor accessibility, host directory or Windows ACL proof."}

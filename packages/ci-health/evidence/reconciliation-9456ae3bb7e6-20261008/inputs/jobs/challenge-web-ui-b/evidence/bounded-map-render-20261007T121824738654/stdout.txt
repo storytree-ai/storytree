@@ -1,0 +1,5 @@
+{"candidate":"web-ui-001","boundedRange":3,"rejectedControls":["descending","cross-capability","unsafe-integer"],"largeRangeExecuted":false}
+{"candidate":"web-ui-001","actualFocusReturnedRange":[{"number":"1.1","title":"1.1–1.3 bounded span"},{"number":"1.2","title":"1.1–1.3 bounded span"},{"number":"1.3","title":"1.1–1.3 bounded span"}]}
+{"candidate":"web-ui-003","disclosed":[{"number":"1.4","title":"1.4 SYNTHETIC_EXTERNAL_TITLE"}],"removalControl":"not found","authorizationBoundaryTested":false}
+{"candidate":"web-ui-004","ordinarySurvey":"passed","titles":["Constructor","The Constructor"],"mixedProjectAndFocus":"ERR_INVALID_ARG_TYPE","aliasControl":"cli"}
+{"candidate":"web-ui-005","ordinaryId":"passed","inheritedKeys":["__proto__","constructor","toString"],"absentSurvey":"TypeError","nullPrototypeAndOwnSurveyControls":"passed","restoreExecuted":false}

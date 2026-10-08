@@ -1,0 +1,331 @@
+{
+  "summary": "Confirmed desktop-install-001 by static analysis. Confirmed desktop-install-002 and desktop-install-003 conditionally for POSIX installations with traversable ancestors and permissive permissions. Two independent isolated probes passed. Actual deployment exposure, credential reuse, and Windows ACL behavior were not established.",
+  "verdicts": [
+    {
+      "candidate_id": "desktop-install-001",
+      "verdict": "confirmed",
+      "severity": "high",
+      "rationale": "The ordinary local-library startup initializes PostgreSQL with trust authentication and the bootstrap superuser postgres, then exposes it over loopback TCP. Another OS account sharing that network namespace can authenticate as postgres without possessing the desktop owner's credentials. This is a complete static chain under standard PostgreSQL semantics; it does not depend on the owner executing attacker-supplied code.",
+      "attacker_control": {
+        "established": true,
+        "reason": "A separate local account can choose the PostgreSQL username and SQL sent to the loopback listener. This assumes shared loopback reachability and knowledge or discovery of the selected port.",
+        "evidence": [
+          {
+            "path": "packages/local-postgres/src/server.ts",
+            "line": 181,
+            "detail": "Starts PostgreSQL listening on 127.0.0.1 at the selected port."
+          },
+          {
+            "path": "packages/local-postgres/src/server.ts",
+            "line": 194,
+            "detail": "Returns a postgres-user connection URL without a password."
+          }
+        ]
+      },
+      "reachability": {
+        "established": true,
+        "reason": "Missing library settings select local storage, and ordinary desktop startup invokes the vulnerable server initializer.",
+        "evidence": [
+          {
+            "path": "packages/agent-link/src/settings/settings.ts",
+            "line": 152,
+            "detail": "Absent settings select the local library."
+          },
+          {
+            "path": "apps/desktop/src/main/main.ts",
+            "line": 241,
+            "detail": "Supplies local-postgres.start as the local-library startup function."
+          },
+          {
+            "path": "packages/app/src/lifecycle/open-where-set.ts",
+            "line": 64,
+            "detail": "The local branch starts PostgreSQL and connects using its returned URL."
+          },
+          {
+            "path": "packages/local-postgres/src/server.ts",
+            "line": 176,
+            "detail": "start calls ensureCluster before starting the listener."
+          }
+        ]
+      },
+      "trust_boundary": {
+        "established": true,
+        "reason": "PostgreSQL trust authentication authorizes the requested database identity without authenticating the connecting OS account. Loopback binding does not enforce a desktop-user boundary.",
+        "evidence": [
+          {
+            "path": "packages/local-postgres/src/server.ts",
+            "line": 137,
+            "detail": "initdb receives -U postgres -A trust."
+          },
+          {
+            "path": "packages/local-postgres/src/server.ts",
+            "line": 217,
+            "detail": "The ownership mechanism controls competing server starts; it does not authenticate incoming database clients."
+          }
+        ]
+      },
+      "impact": {
+        "established": true,
+        "reason": "Static analysis establishes unauthorized database-superuser access, allowing disclosure, modification, and deletion of library databases. PostgreSQL file/program capabilities are additionally subject to the server process's OS permissions and confinement; they were not exercised.",
+        "evidence": [
+          {
+            "path": "packages/local-postgres/src/server.ts",
+            "line": 137,
+            "detail": "The trusted login is the cluster's bootstrap superuser."
+          },
+          {
+            "path": "packages/library/src/project/server.ts",
+            "line": 51,
+            "detail": "Project pools use the same server URL with the project database substituted."
+          },
+          {
+            "path": "packages/local-postgres/src/server.ts",
+            "line": 314,
+            "detail": "Database tools are spawned without an alternate OS identity."
+          }
+        ]
+      },
+      "counterevidence": [
+        "Binding to 127.0.0.1 excludes ordinary remote-network connections.",
+        "Cloud SQL and configured PostgreSQL-address branches return before starting local PostgreSQL: packages/app/src/lifecycle/open-where-set.ts:38 and :51.",
+        "Existing clusters skip initialization and may already have stronger authentication: packages/local-postgres/src/server.ts:123.",
+        "Filesystem privacy, random port selection, single-instance checks, and intended same-user agent access do not authenticate another account's TCP connection.",
+        "A deployment-specific firewall or separate network namespace could block the assumed attacker."
+      ],
+      "test_evidence": [
+        "Static verification only. The inspected repository test explicitly expects a loopback host-all/all trust rule at packages/local-postgres/src/local-postgres.test.ts:74 and passwordless connectivity at :88. Those tests were not executed."
+      ],
+      "test_limitations": [
+        "No PostgreSQL cluster, database client, SQL, file access through PostgreSQL, or program execution was run.",
+        "Actual cluster configuration, firewall rules, network namespaces, and OS confinement were not inspected."
+      ],
+      "remediation": "Require authenticated local connections using a protected per-installation secret and SCRAM, or a private Unix socket with appropriate peer authentication. Preserve intended same-user agent access without granting access to every local account. Reduce application privileges and migrate existing trust-authenticated clusters.",
+      "regression_test_recommendation": "In a separately authorized isolated synthetic-cluster test, verify that another identity cannot connect as postgres without credentials, the application can connect, and upgrades remove legacy trust access."
+    },
+    {
+      "candidate_id": "desktop-install-002",
+      "verdict": "confirmed",
+      "severity": "medium (conditional; developer utility)",
+      "rationale": "The real function copies the complete sign-in file into a marker created with default permissions, despite protecting the direct authentication copy with mode 0600. Under umask 022 and traversable ancestors, an independent local reader can obtain that material. Confirmation is limited to conditional credential disclosure; account takeover and installed-desktop exposure were not demonstrated.",
+      "attacker_control": {
+        "established": true,
+        "reason": "A separate local account can request a filesystem read of the predictable marker pathname. It need not control the sign-in contents or execute code as the developer. Successful access requires traversable ancestors and no denying ACL or other access control.",
+        "evidence": [
+          {
+            "path": "packages/app-setup/src/connect/dev-home.ts",
+            "line": 26,
+            "detail": "Defines the predictable storytree-dev-home.json marker name."
+          },
+          {
+            "path": "packages/app-setup/src/connect/dev-home.ts",
+            "line": 55,
+            "detail": "Creates the developer-home directory hierarchy without restrictive mode options."
+          },
+          {
+            "path": "packages/app-setup/src/connect/dev-home.ts",
+            "line": 59,
+            "detail": "Creates the marker without an explicit mode."
+          }
+        ]
+      },
+      "reachability": {
+        "established": true,
+        "reason": "The documented developer command accepts a destination and --codex, then invokes makeDevHome. The sensitive writes occur before building or registering agents.",
+        "evidence": [
+          {
+            "path": "packages/app-setup/package.json",
+            "line": 15,
+            "detail": "Exposes the dev-home command."
+          },
+          {
+            "path": "packages/app-setup/src/connect/dev-home.ts",
+            "line": 155,
+            "detail": "Parses --codex into the selected harnesses."
+          },
+          {
+            "path": "packages/app-setup/src/connect/dev-home.ts",
+            "line": 165,
+            "detail": "The command invokes makeDevHome with the selected destination and harnesses."
+          },
+          {
+            "path": "packages/app-setup/src/connect/dev-home.ts",
+            "line": 57,
+            "detail": "Reads existing sign-in contents when Codex is selected."
+          }
+        ]
+      },
+      "trust_boundary": {
+        "established": true,
+        "reason": "Authentication material protected in one file is duplicated into a file whose POSIX permissions can permit unrelated users to read it.",
+        "evidence": [
+          {
+            "path": "packages/app-setup/src/connect/dev-home.ts",
+            "line": 58,
+            "detail": "The direct authentication-file copy explicitly requests mode 0600."
+          },
+          {
+            "path": "packages/app-setup/src/connect/dev-home.ts",
+            "line": 59,
+            "detail": "Serializes the identical contents as codexSignIn.copied without restrictive permissions."
+          }
+        ]
+      },
+      "impact": {
+        "established": true,
+        "reason": "The marker discloses the complete copied authentication contents under the stated filesystem conditions. Whether those contents permit account access depends on their type, validity, and subsequent refresh or revocation.",
+        "evidence": [
+          {
+            "path": "packages/app-setup/src/connect/dev-home.ts",
+            "line": 59,
+            "detail": "Stores the entire original string, rather than a digest or nonsensitive indicator."
+          },
+          {
+            "path": "evidence/challenge-b-devhome-20261007T120012826533/stdout.txt",
+            "line": 1,
+            "detail": "Independent real-function probe verified exact synthetic duplication, a 0644 marker, a 0755 destination, and a 0600 authentication copy."
+          }
+        ]
+      },
+      "counterevidence": [
+        "This is an explicit developer utility, not the ordinary installed-desktop path.",
+        "A private ancestor, umask 077, or restrictive ACL prevents the cross-user disclosure.",
+        "Selecting no Codex harness avoids copying the sign-in data; the independent negative control passed.",
+        "Existing connection tests use mkdtemp-created private parent directories: packages/app-setup/src/connect/connect.test.ts:351. Those tests do not establish exposure across users.",
+        "The broker's /work and probe parent were mode 0700, so the probe itself did not expose data to another identity."
+      ],
+      "test_evidence": [
+        "Executed: python3 /home/mickh/storytree-security-reviews/20261007-mint-08124e62/submit_test.py --runtime tsx --script /home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-desktop-install-b/devhome_probe.mts --label challenge-b-devhome",
+        "Exit 0; empty stderr. The real imported makeDevHome reached an injected stop before the build. Umask 022 produced a 0644 marker and 0755 destination; umask 077 produced 0600 and 0700. The authentication copy remained 0600. The no-Codex control copied nothing.",
+        "Exact script, isolated command, source commit, script hash, exit status, stdout, and stderr are preserved under evidence/challenge-b-devhome-20261007T120012826533/."
+      ],
+      "test_limitations": [
+        "Only synthetic placeholder sign-in data was used. No host credential store or real credential was accessed.",
+        "No second-identity read or credential reuse was attempted; cross-user impact follows conditionally from the source and POSIX permission semantics.",
+        "The probe stopped before builds, installation, agent registration, or database work."
+      ],
+      "remediation": "Replace codexSignIn.copied with a digest suitable for the later equality checks. Create developer homes privately and explicitly restrict sensitive marker files. Remove plaintext authentication contents from existing markers.",
+      "regression_test_recommendation": "Exercise the real function with synthetic data under umasks 022 and 077. Assert that markers exclude the original authentication contents and sensitive paths remain private. Retain the no-Codex control and add an authorized second-identity read-denial test where supported."
+    },
+    {
+      "candidate_id": "desktop-install-003",
+      "verdict": "confirmed",
+      "severity": "medium (conditional; POSIX filesystem exposure)",
+      "rationale": "Automatic backups serialize complete project records and history into files created with default permissions. A POSIX development or existing installation with traversable ancestors and umask 022 exposes those snapshots to another local account. Source inspection found a partial 0700-home guard, so this is not a universal installation finding and does not establish exposure on Windows.",
+      "attacker_control": {
+        "established": true,
+        "reason": "Another local account can choose generated backup paths for filesystem reads without library credentials. The chain requires non-public project contents, traversable ancestors, readable files, and no additional denying access control.",
+        "evidence": [
+          {
+            "path": "apps/desktop/src/home.ts",
+            "line": 38,
+            "detail": "Selects the user-home location or STORYTREE_HOME; backups are beneath that location."
+          },
+          {
+            "path": "packages/app/src/lifecycle/backups.ts",
+            "line": 43,
+            "detail": "Uses timestamp-based names beneath per-project directories."
+          },
+          {
+            "path": "packages/app/src/lifecycle/backups.ts",
+            "line": 51,
+            "detail": "Creates snapshot files without an explicit restrictive mode."
+          }
+        ]
+      },
+      "reachability": {
+        "established": true,
+        "reason": "Successful ordinary desktop startup enables backups independently of library location. keepBackups immediately enumerates projects and writes due snapshots through backUp.",
+        "evidence": [
+          {
+            "path": "apps/desktop/src/main/main.ts",
+            "line": 301,
+            "detail": "Enables backups whenever the library opened successfully."
+          },
+          {
+            "path": "packages/app/src/lifecycle/backups.ts",
+            "line": 109,
+            "detail": "Enumerates projects and passes due projects to backUp."
+          },
+          {
+            "path": "packages/app/src/lifecycle/backups.ts",
+            "line": 125,
+            "detail": "Starts the first backup pass immediately."
+          },
+          {
+            "path": "packages/library/src/project/storytree.ts",
+            "line": 285,
+            "detail": "The production snapshot implementation calls readSnapshot on the project's pool."
+          }
+        ]
+      },
+      "trust_boundary": {
+        "established": true,
+        "reason": "Data read using the application's database authority becomes a plaintext filesystem artifact accessible under independent OS permissions. With permissive ancestors and umask, those permissions admit users lacking database access.",
+        "evidence": [
+          {
+            "path": "packages/app/src/lifecycle/backups.ts",
+            "line": 46,
+            "detail": "Obtains the snapshot through the authorized library object."
+          },
+          {
+            "path": "packages/app/src/lifecycle/backups.ts",
+            "line": 48,
+            "detail": "Creates backup directories with default permissions."
+          },
+          {
+            "path": "packages/app/src/lifecycle/backups.ts",
+            "line": 51,
+            "detail": "Writes plaintext JSON to a default-permission partial file and renames it into place."
+          }
+        ]
+      },
+      "impact": {
+        "established": true,
+        "reason": "A permitted filesystem reader obtains complete project records and historical record contents from retained snapshots, including while the application is stopped. This is conditional confidentiality loss, not demonstrated unauthorized project deletion.",
+        "evidence": [
+          {
+            "path": "packages/library/src/project/snapshot.ts",
+            "line": 85,
+            "detail": "Reads all project records, including their fields."
+          },
+          {
+            "path": "packages/library/src/project/snapshot.ts",
+            "line": 90,
+            "detail": "Reads the complete record-event history, including historical record contents, reasons, and actors."
+          },
+          {
+            "path": "evidence/challenge-b-backups-20261007T120012828713/stdout.txt",
+            "line": 1,
+            "detail": "Independent real-function probe preserved synthetic records and history in a 0644 file within 0755 backup directories under umask 022."
+          }
+        ]
+      },
+      "counterevidence": [
+        "A mode-0700 ancestor or umask 077 prevents disclosure; both permission controls were covered by the independent probe.",
+        "openJourney requests mode 0700 for the application home at packages/journey-events/src/index.ts:31. This protects a newly created home, but does not change an existing directory's permissions.",
+        "Journey initialization is lazy, and development recording returns without opening it when configuration is absent: packages/journey-events/src/runtime.ts:38 and :44. Follow-main setup can previously create the home hierarchy with default permissions: packages/app/src/updates/follow-main.ts:43.",
+        "The packaged targets are Windows installers and portable builds: apps/desktop/package.json:77. POSIX modes do not establish effective Windows ACL access.",
+        "Production snapshots validate project names before filesystem writing: packages/library/src/project/storytree.ts:281 and packages/library/src/project/names.ts:31. No project-name traversal is claimed.",
+        "Deletion-time snapshots require an explicit snapshot choice and pass confirmation, in-use, and live-claim checks: packages/app-setup/src/project/index.ts:174. Their default-permission write at :192 is corroborating static evidence, not an attacker-controlled deletion path."
+      ],
+      "test_evidence": [
+        "Executed: python3 /home/mickh/storytree-security-reviews/20261007-mint-08124e62/submit_test.py --runtime tsx --script /home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-desktop-install-b/backup_probe.mts --label challenge-b-backups",
+        "Exit 0; empty stderr. Real imported backUp produced 0644 files and 0755 directories under umask 022, and 0600 files and 0700 directories under umask 077. Contents survived rename and partial files were absent.",
+        "Real keepBackups performed its startup backup with an in-memory synthetic snapshot provider. A bounded three-backup retention control kept the newest two snapshots and preserved an unrelated file.",
+        "Exact script, isolated command, source commit, script hash, exit status, stdout, and stderr are preserved under evidence/challenge-b-backups-20261007T120012828713/."
+      ],
+      "test_limitations": [
+        "The probe used an in-memory snapshot provider; it did not execute PostgreSQL snapshot queries, Electron startup, or project deletion.",
+        "No second-identity read occurred. The broker's /work and probe parent were mode 0700, so runtime results prove file behavior rather than cross-user exploitation.",
+        "Actual deployment ancestor permissions, ACLs, data sensitivity, and Windows access controls were not inspected."
+      ],
+      "remediation": "Create backup directories privately and snapshot files with explicit owner-only permissions, including partial files and deletion-time snapshots. Correct existing backup permissions and use equivalent ACL restrictions on Windows rather than relying on an unrelated component to create a private ancestor.",
+      "regression_test_recommendation": "Test real automatic and deletion-time backup writers with synthetic dependencies under permissive and restrictive umasks, including pre-existing traversable application homes. Assert private temporary and final files, intact contents, and safe retention. Add authorized cross-identity read-denial and Windows ACL tests where supported."
+    }
+  ],
+  "limitations": [
+    "Review scope was the supplied snapshot at commit 08124e6286ff09843500a35120a38a685806a646. Candidate-provided reviewer evidence was not treated as proof or read from other jobs.",
+    "All executed product functions ran through the mandated submitter and isolated broker. No live services, real credentials, builds, installations, or source modifications were used.",
+    "Conditional confirmations establish vulnerable behavior under the stated deployment conditions; they do not assert that this machine or every supported installation is exposed."
+  ]
+}

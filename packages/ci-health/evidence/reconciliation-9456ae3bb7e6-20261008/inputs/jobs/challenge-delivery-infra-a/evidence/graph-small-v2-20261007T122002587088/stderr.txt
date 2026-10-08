@@ -1,0 +1,16 @@
+node:inspector:93
+              new ERR_INSPECTOR_COMMAND(parsed.error.code, parsed.error.message),
+              ^
+
+Error [ERR_INSPECTOR_COMMAND]: Inspector error -32000: Debugger agent is not enabled
+    at #onMessage (node:inspector:93:15)
+    at Connection.<anonymous> (node:inspector:66:67)
+    at Session.post (node:inspector:139:22)
+    at <anonymous> (/case/graph-small.mts:12:11)
+    at new Promise (<anonymous>)
+    at post (/case/graph-small.mts:11:47)
+    at <anonymous> (/case/graph-small.mts:40:40) {
+  code: 'ERR_INSPECTOR_COMMAND'
+}
+
+Node.js v24.19.0

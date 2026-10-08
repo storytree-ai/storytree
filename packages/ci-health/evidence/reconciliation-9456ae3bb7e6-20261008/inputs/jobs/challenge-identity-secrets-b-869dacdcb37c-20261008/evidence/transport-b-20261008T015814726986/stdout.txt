@@ -1,0 +1,1 @@
+{"plain":{"sslRequested":false,"passwordEmitted":true,"outcome":"Connection terminated unexpectedly"},"verified":{"sslRequested":true,"passwordEmitted":false,"outcome":"The server does not support SSL connections"},"limit":"In-memory handshake only; no on-path position, deployment settings, TLS certificate or live credential tested."}

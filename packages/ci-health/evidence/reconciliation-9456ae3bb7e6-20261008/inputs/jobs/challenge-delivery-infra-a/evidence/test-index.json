@@ -1,0 +1,43 @@
+{
+  "source_commit": "08124e6286ff09843500a35120a38a685806a646",
+  "submission_cwd": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-delivery-infra-a",
+  "shell_login": false,
+  "artifact_contents": "Each artifact directory preserves the executed script, result.json with exact isolated command and script hash, stdout.txt, and stderr.txt.",
+  "tests": [
+    {
+      "candidate_id": "delivery-infra-001",
+      "command": "python3 /home/mickh/storytree-security-reviews/20261007-mint-08124e62/submit_test.py --runtime tsx --script /home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-delivery-infra-a/numbering-primitives.mts --label numbering-primitives",
+      "artifact": "evidence/numbering-primitives-20261007T121919433005",
+      "exit_code": 0,
+      "scope": "Real imported pure numbered function only; no SQL, RLS, database or Knowledge.recordDecision execution."
+    },
+    {
+      "candidate_id": "delivery-infra-002",
+      "command": "python3 /home/mickh/storytree-security-reviews/20261007-mint-08124e62/submit_test.py --runtime tsx --script /home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-delivery-infra-a/graph-small.mts --label graph-small",
+      "artifact": "evidence/graph-small-20261007T121927967579",
+      "exit_code": 1,
+      "scope": "Instrumentation assertion failed: nested arrow function was not named visit in V8 coverage. Not a successful regression."
+    },
+    {
+      "candidate_id": "delivery-infra-002",
+      "command": "python3 /home/mickh/storytree-security-reviews/20261007-mint-08124e62/submit_test.py --runtime tsx --script /home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-delivery-infra-a/graph-small.mts --label graph-small-v2",
+      "artifact": "evidence/graph-small-v2-20261007T122002587088",
+      "exit_code": 1,
+      "scope": "Instrumentation failed: Debugger agent was not enabled before requesting loaded script text. Not a successful regression."
+    },
+    {
+      "candidate_id": "delivery-infra-002",
+      "command": "python3 /home/mickh/storytree-security-reviews/20261007-mint-08124e62/submit_test.py --runtime tsx --script /home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-delivery-infra-a/graph-small.mts --label graph-small-v3",
+      "artifact": "evidence/graph-small-v3-20261007T122010614540",
+      "exit_code": 0,
+      "scope": "Real imported unmodified packageProblems; V8 coverage reports visit calls for chain4=10, diamond4=10, dag4=15, dag5=31, dag6=63, cycle2=6. At most six manifests; no exhaustion or timing test."
+    },
+    {
+      "candidate_id": "delivery-infra-003",
+      "command": "python3 /home/mickh/storytree-security-reviews/20261007-mint-08124e62/submit_test.py --runtime node --script /home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-delivery-infra-a/capture-handlers.mjs --label capture-handlers",
+      "artifact": "evidence/capture-handlers-20261007T122024655162",
+      "exit_code": 0,
+      "scope": "Exact source-extracted server declarations from seven named helpers and main capture helper, with synthetic roots and isolated HTTP. Seven return adjacent markers; main returns 403. No whole-script startup, browsers, distinct OS accounts, protected host files or deployed services tested."
+    }
+  ]
+}

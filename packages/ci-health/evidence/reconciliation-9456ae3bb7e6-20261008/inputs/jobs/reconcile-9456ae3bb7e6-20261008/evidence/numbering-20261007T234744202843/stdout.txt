@@ -1,0 +1,1 @@
+{"case":"cross-type-numbering","healthNumber":5000,"nextReservedNumber":5001,"explicitCollisionRefused":true,"typeScopedControl":1001,"backend":"real MemoryTransactions","postgresRlsExecuted":false,"postgresEquivalence":"static source review only"}

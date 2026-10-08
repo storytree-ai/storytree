@@ -1,0 +1,1 @@
+{"pureAllocator":"passed","baseline":6,"suppliedHistoryMaximum":20,"allocated":21,"explicitTakenRejected":true,"sqlAndRlsExecuted":false}

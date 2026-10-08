@@ -1,0 +1,36 @@
+{
+  "identity-secrets": {
+    "original_event_file": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-identity-secrets-b/events.jsonl",
+    "sha256": "bc16334703dcf083ff125128935d0d6f526afd813d65b5a5fb16854d53bc6ff0",
+    "result_exists": false,
+    "errors": [
+      {
+        "type": "error",
+        "message": "This content was flagged for possible cybersecurity risk. If this seems wrong, try rephrasing your request. If you’re doing authorized security work that requires more cyber permissive safeguards, apply for Daybreak access via https://platform.openai.com/settings/organization/status-and-access before retrying."
+      },
+      {
+        "type": "turn.failed",
+        "error": {
+          "message": "This content was flagged for possible cybersecurity risk. If this seems wrong, try rephrasing your request. If you’re doing authorized security work that requires more cyber permissive safeguards, apply for Daybreak access via https://platform.openai.com/settings/organization/status-and-access before retrying."
+        }
+      }
+    ]
+  },
+  "delivery-infra": {
+    "original_event_file": "/home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-delivery-infra-b/events.jsonl",
+    "sha256": "06849ab8ef6699304aae645906d31015acb9128f563d2bbc53ee75b27b866fb9",
+    "result_exists": false,
+    "errors": [
+      {
+        "type": "error",
+        "message": "This content was flagged for possible cybersecurity risk. If this seems wrong, try rephrasing your request. If you’re doing authorized security work that requires more cyber permissive safeguards, apply for Daybreak access via https://platform.openai.com/settings/organization/status-and-access before retrying."
+      },
+      {
+        "type": "turn.failed",
+        "error": {
+          "message": "This content was flagged for possible cybersecurity risk. If this seems wrong, try rephrasing your request. If you’re doing authorized security work that requires more cyber permissive safeguards, apply for Daybreak access via https://platform.openai.com/settings/organization/status-and-access before retrying."
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,2 @@
+python3 /home/mickh/storytree-security-reviews/20261007-mint-08124e62/submit_test.py --runtime tsx --script /home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-web-ui-b/bounded-map-render.mts --label bounded-map-render
+python3 /home/mickh/storytree-security-reviews/20261007-mint-08124e62/submit_test.py --runtime tsx --script /home/mickh/storytree-security-reviews/20261007-mint-08124e62/jobs/challenge-web-ui-b/bounded-snapshot-render.mts --label bounded-snapshot-render

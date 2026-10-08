@@ -1,0 +1,2 @@
+{"case":"new-private-home","directoryMode":"0700","fileMode":"0600","literalResolved":true}
+{"case":"existing-shared-home","directoryModeAfterSave":"0777","originalFileMode":"0600","replacementFileMode":"0644","replacementCommandExecuted":true,"separatePrincipalTested":false}

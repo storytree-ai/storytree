@@ -1,0 +1,113 @@
+{
+  "first_read_after_fixed_verdict": "2026-10-08T01:00:33.504655+00:00",
+  "inputs": [
+    {
+      "path": "jobs/challenge-delivery-infra-a/result.json",
+      "sha256": "e1cf076dd9c1779b64c8ac5423b65529b023f2363e662563319e21e5dacffc31"
+    },
+    {
+      "path": "jobs/challenge-delivery-infra-a/evidence/test-index.json",
+      "sha256": "6431989df4102e5ef27f6fac43e9627318bb7015c570ca152262b274bfe885ef"
+    },
+    {
+      "path": "jobs/challenge-delivery-infra-b/events.jsonl",
+      "sha256": "06849ab8ef6699304aae645906d31015acb9128f563d2bbc53ee75b27b866fb9"
+    },
+    {
+      "path": "jobs/challenge-delivery-infra-b/stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "jobs/reconcile-9456ae3bb7e6-20261008/result.json",
+      "sha256": "fa11a8ff957898e73bbc5ef43c18dfbab78206597ae7e1aca1d5e23aad7af102"
+    },
+    {
+      "path": "jobs/reconcile-9456ae3bb7e6-20261008/evidence/numbering-20261007T234744202843/stdout.txt",
+      "sha256": "1650fbcdab1d77066c504cec909635273ad574a44e66f54d5170321e8825c28b"
+    },
+    {
+      "path": "jobs/reconcile-9456ae3bb7e6-20261008/evidence/numbering-20261007T234744202843/numbering.mts",
+      "sha256": "1ccea19d11f25a2b6ad115fc0021ab2aae2f72093a41ebeb60410da49c7df1de"
+    },
+    {
+      "path": "jobs/challenge-delivery-infra-a/evidence/capture-handlers-20261007T122024655162/capture-handlers.mjs",
+      "sha256": "7149fe53b46ba195be43d442c5a71043a7caa80f10be72ad2fbefdf48e0b352b"
+    },
+    {
+      "path": "jobs/challenge-delivery-infra-a/evidence/capture-handlers-20261007T122024655162/result.json",
+      "sha256": "e1c94efd54395c8b29a64fde26b0b1c3e7ef36a3d8c4e5c7c43690950dd23e34"
+    },
+    {
+      "path": "jobs/challenge-delivery-infra-a/evidence/capture-handlers-20261007T122024655162/stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "jobs/challenge-delivery-infra-a/evidence/capture-handlers-20261007T122024655162/stdout.txt",
+      "sha256": "1c3b53b54dd1ee044d6f26f714337bebf80e7e90ccfcbfed554af2def8219394"
+    },
+    {
+      "path": "jobs/challenge-delivery-infra-a/evidence/graph-small-20261007T121927967579/graph-small.mts",
+      "sha256": "e5f9ec9dffd38f22948f84c38a06eb288130b90a76f31c8fb597990029942cfa"
+    },
+    {
+      "path": "jobs/challenge-delivery-infra-a/evidence/graph-small-20261007T121927967579/result.json",
+      "sha256": "25623475ed3c4eacb26abebb4279904b6afb1c635acead21073036940a0dad52"
+    },
+    {
+      "path": "jobs/challenge-delivery-infra-a/evidence/graph-small-20261007T121927967579/stderr.txt",
+      "sha256": "413fafb865ebfecb0993fb2781ef817b2d1a92c94f261024e2c64dcd536f5258"
+    },
+    {
+      "path": "jobs/challenge-delivery-infra-a/evidence/graph-small-20261007T121927967579/stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "jobs/challenge-delivery-infra-a/evidence/graph-small-v2-20261007T122002587088/graph-small.mts",
+      "sha256": "177559ddb7763d3dbac04bafbed7ec217b5bcf4c9b032828c0f8a2c5528533d4"
+    },
+    {
+      "path": "jobs/challenge-delivery-infra-a/evidence/graph-small-v2-20261007T122002587088/result.json",
+      "sha256": "830132c19f41af95a27a21997fe4b594b82eaf88d44d46721f1fc2b06a20dc47"
+    },
+    {
+      "path": "jobs/challenge-delivery-infra-a/evidence/graph-small-v2-20261007T122002587088/stderr.txt",
+      "sha256": "a84bed326f4c8f548f4ff2b87ac9b44928d79b85077950427e48bfa4793b96eb"
+    },
+    {
+      "path": "jobs/challenge-delivery-infra-a/evidence/graph-small-v2-20261007T122002587088/stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "jobs/challenge-delivery-infra-a/evidence/graph-small-v3-20261007T122010614540/graph-small.mts",
+      "sha256": "958416a710df0da534ec9e9552a1146379d86f8a3992f977e94d8f694112bd62"
+    },
+    {
+      "path": "jobs/challenge-delivery-infra-a/evidence/graph-small-v3-20261007T122010614540/result.json",
+      "sha256": "c7c04d6d741d0eac44532b5afe365edbb3c18297dcfacb78ad50a2af019923a3"
+    },
+    {
+      "path": "jobs/challenge-delivery-infra-a/evidence/graph-small-v3-20261007T122010614540/stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "jobs/challenge-delivery-infra-a/evidence/graph-small-v3-20261007T122010614540/stdout.txt",
+      "sha256": "083b1b03b7620379a3ac80f8ea6462f1b4db488d68af54a55cd75024d7803cef"
+    },
+    {
+      "path": "jobs/challenge-delivery-infra-a/evidence/numbering-primitives-20261007T121919433005/numbering-primitives.mts",
+      "sha256": "d80fb09a6a58c3376b879ae262fa24943658c348c8119e2360d7f85a5977443d"
+    },
+    {
+      "path": "jobs/challenge-delivery-infra-a/evidence/numbering-primitives-20261007T121919433005/result.json",
+      "sha256": "32469533867ce42a0ac9408657e7da70af652bf3408cb167d5952c66151fd45d"
+    },
+    {
+      "path": "jobs/challenge-delivery-infra-a/evidence/numbering-primitives-20261007T121919433005/stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "jobs/challenge-delivery-infra-a/evidence/numbering-primitives-20261007T121919433005/stdout.txt",
+      "sha256": "9516ae3dbbf1651393aaec8bdccf25e98351c225707b93ac96abfd1c97d71776"
+    }
+  ]
+}

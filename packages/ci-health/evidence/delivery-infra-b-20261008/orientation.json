@@ -1,0 +1,20 @@
+{
+  "created_at": "2026-10-08T00:55:41.265285+00:00",
+  "session": "01a118ff-07a2-77d1-afd0-f9b25e285cf9",
+  "increment": "increment_6d02e377b3fa",
+  "commits": {
+    "original": "08124e6286ff09843500a35120a38a685806a646",
+    "current": "a29b7f1b4f41dab3d99455bea0a3d1de679bd4be"
+  },
+  "discovery_packet_sha256": "9841d8a9543a92bf6987ef78baad5a06d3c1cc90aebb24fab1b15cd722f43b87",
+  "independence": "Only discovery packet, source, increment brief and arc intent/end state read. Other arc increment listings deliberately withheld. No A output or reconciliation output read. No authoring of original candidates.",
+  "setup_attempts": [
+    {
+      "command": "pnpm storytree workspace increment_6d02e377b3fa --reason <88-character reason>",
+      "exit_code": 1,
+      "stderr": "--reason is 88 characters; it is the session name; keep to 40 or fewer.",
+      "resolution": "Retried with Challenge delivery-infra B; available, then manually created and attached returned headless worktree as instructed."
+    }
+  ],
+  "original_B_failure": "The increment states original B failed with a cybersecurity-safeguard error. The request has not been relaunched; exact historical output will only be read after independent verdict is fixed."
+}

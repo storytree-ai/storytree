@@ -117,6 +117,10 @@ export interface HistoryFilter {
 
 /** Narrow current records before they leave the store. Predicates read STORED fields, before upgrades. */
 export interface ListFilter {
+  /** Only ids after this one, in the same byte order as the returned records. */
+  readonly after?: string;
+  /** Exact, case-sensitive substring in any selected stored top-level string field; omitted fields means all. */
+  readonly phrase?: { readonly text: string; readonly fields?: readonly string[] };
   /** Only these ids; an empty list keeps none. */
   readonly ids?: readonly string[];
   /** Each dot-separated field path must equal the given JSON scalar; missing is different from null. */
@@ -136,7 +140,7 @@ export interface Transactions {
   /** The current record, or `null` if it is missing or retired. */
   get(id: string): Promise<RecordEnvelope | null>;
   /** The current (not retired) records of one type, ordered by id. */
-  list(type: string, filter?: ListFilter): Promise<RecordEnvelope[]>;
+  list(type: string | readonly string[], filter?: ListFilter): Promise<RecordEnvelope[]>;
   /**
    * Change only the named fields, merged onto what is stored now. Returns `null`, and writes
    * nothing, if the record is missing or retired.

@@ -6,7 +6,7 @@
  * removed from it), and a folder the check refuses is said with why.
  */
 import { execFileSync } from "node:child_process";
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, lstatSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { findProject, forgetProjectActivity, forgetTrunk, keepOnThisComputer, machineOf, MARKER_FILE, openActivityLog, openStorytree, ProjectFolderError, readClaims, readLibrary, readProjectChoice, recordRemovedProjects, removedProjects, setUpProject, storytreeHome, suggestProjectName, trunksOn, unusedName } from "@storytree/agent-link";
 import type { Storytree } from "@storytree/library";
@@ -186,10 +186,15 @@ export async function deleteProject(project: string, options: DeleteProjectOptio
     }
     let snapshot: string | undefined;
     if (options.snapshot) {
-      const folder = path.join(home, "backups", project);
-      mkdirSync(folder, { recursive: true });
+      const backups = path.join(home, "backups"), folder = path.join(backups, project);
+      // Protect new and existing POSIX folders before writing; Windows reader privacy needs ACLs.
+      for (const dir of [backups, folder]) {
+        mkdirSync(dir, { recursive: true, mode: 0o700 });
+        if (!lstatSync(dir).isDirectory()) throw new Error(`Backup folder is not a directory: ${dir}`);
+        chmodSync(dir, 0o700);
+      }
       snapshot = path.join(folder, `${(options.now ?? new Date()).toISOString().replace(/[:.]/g, "-")}.json`);
-      writeFileSync(snapshot, `${JSON.stringify(await storytree.snapshot(project))}\n`);
+      writeFileSync(snapshot, `${JSON.stringify(await storytree.snapshot(project))}\n`, { mode: 0o600, flag: "wx" });
     }
     const { freed, kept } = await freeOnThisComputer(storytree, project, home);
     await storytree.dropProject(project);

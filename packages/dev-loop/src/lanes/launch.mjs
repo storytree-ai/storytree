@@ -1,7 +1,7 @@
 // Capability 12 · A Mint queue runs its lanes one at a time. The box's queue runners, which its wrappers exec:
-// node packages/dev-loop/src/lanes/launch.mjs night <track>   (launch-night.sh run <track>: night-queue-<T>.txt, refilled from the library)
-// node packages/dev-loop/src/lanes/launch.mjs mintlib         (launch-mintlib.sh run: mintlib-queue.txt, stops on a failed lane)
-// node packages/dev-loop/src/lanes/launch.mjs slots           (engines running now, and the cap)
+// node --import tsx packages/dev-loop/src/lanes/launch.mjs night <track>   (launch-night.sh run <track>: night-queue-<T>.txt, refilled from the library)
+// node --import tsx packages/dev-loop/src/lanes/launch.mjs mintlib         (launch-mintlib.sh run: mintlib-queue.txt, stops on a failed lane)
+// node packages/dev-loop/src/lanes/launch.mjs slots                       (engines running now, and the cap)
 import { execFile, spawn } from "node:child_process";
 import { appendFileSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
@@ -55,7 +55,7 @@ export async function laneOnce({ increment, brief, log, err, addDirs, repo, maxL
   dated(`start ${increment}`);
   let code;
   try { code = await runLane({ brief: brief.path, log, err, addDirs, cwd: repo, say }); }
-  catch (error) { dated(`lane runner: ${error.message}`); code = 2; }
+  catch (error) { dated(`lane runner: ${error.message}; exit 75 so this lane stays queued`); code = 75; }
   dated(`end ${increment} exit ${code}`);
   return code;
 }

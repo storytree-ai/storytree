@@ -87,6 +87,19 @@ test("10.7 · a completed or externally stopped Codex turn is not handed over, e
   }
 });
 
+test("10.8 · a lane stopped by a signal to its runner exits 75, so its queue keeps it, and is not handed over", async (t) => {
+  const options = await lane(t);
+  options.env.FAST_FAIL_S = "0";
+  await writeFile(join(options.lanesDir, "engine-override"), "codex");
+  options.commands.codex = command("console.log('started'); setTimeout(() => {}, 60_000);");
+  const running = runLane(options);
+  while (!(await readFile(options.log, "utf8").catch(() => "")).includes("started")) await new Promise((wake) => setTimeout(wake, 50));
+  process.emit("SIGTERM", "SIGTERM");
+  assert.equal(await running, 75);
+  assert.match(options.lines.at(-1), /stopped by a signal: exit 75 so the runner keeps this lane queued$/);
+  await assert.rejects(readFile(join(options.lanesDir, "lane.claude.log")), { code: "ENOENT" });
+});
+
 test("10.8 · the last engine's failure is 75 only before FAST_FAIL_S, defaulting to 120 seconds", async (t) => {
   const options = await lane(t);
   for (const [exit, seconds, threshold, expected] of [[0, 0, undefined, 0], [2, 119, undefined, 75], [2, 120, undefined, 2], [2, 4, "5", 75], [2, 5, "5", 2], [2, 0, "0", 2]]) {
@@ -144,7 +157,7 @@ test("10.6 · the command front door runs a brief, refuses empty input and suppo
   assert.equal(await main(["run"], options), 2);
   assert.equal(await main(["unknown"], options), 2);
   await writeFile(options.brief, "");
-  assert.equal(await main(["run", options.brief, options.log, options.err], options), 2);
+  assert.equal(await main(["run", options.brief, options.log, options.err], options), 75, "a lane that cannot start stays queued");
   const runner = fileURLToPath(new URL("./runner.mjs", import.meta.url));
   const result = await exec(process.execPath, [runner, "status"], { cwd: options.cwd, env: { ...options.env, HOME: options.home, USERPROFILE: options.home } });
   assert.match(result.stdout, /latest reading: none/);

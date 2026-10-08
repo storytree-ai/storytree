@@ -106,6 +106,10 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
     });
     dated(`engine claude exit ${result.code}`);
   }
+  if (result.interrupted) {
+    dated(`lane runner stopped by a signal: exit 75 so the runner keeps this lane queued`);
+    return 75;
+  }
   const fastFail = Number(env.FAST_FAIL_S ?? 120);
   if (result.code !== 0 && (now() - started) / 1000 < fastFail) {
     dated(`engine failed within ${fastFail}s: exit 75 so the runner keeps this lane queued`);
@@ -144,7 +148,11 @@ export async function main(args, options = {}) {
       return 2;
     }
     return await runLane({ ...options, brief: args[1], log: args[2], err: args[3], addDirs: args.slice(4) });
-  } catch (error) { complain(`lane runner: ${error.message}`); return 2; }
+  } catch (error) {
+    // A lane that could not start (an empty brief, unreadable login settings) stays queued: 75 stops its runner.
+    complain(`lane runner: ${error.message}; exit 75 so the runner keeps this lane queued`);
+    return 75;
+  }
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

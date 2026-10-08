@@ -5,13 +5,18 @@
 // holder (branch, pid, checkout, since); a waiter prints who it waits for, takes the lock over when
 // the holder's process has gone, and gives up after a bounded wait. A run started under a holder
 // (the gate's own test step) inherits it through STORYTREE_HEAVY_LOCK_HOLDER and takes nothing.
+// Waiters queue in arrival order (increment_b280164800d5): each leaves a ticket in heavy-run.queue,
+// named by when it arrived, and only the oldest live ticket may take a free lock, so a later run
+// cannot pass an older one. A ticket goes when its waiter takes the lock, gives up or is cancelled;
+// one whose process has gone, or that its waiter stopped refreshing (its pid reused), is cleared
+// by whoever reads it.
 // Browser evidence uses the same lock at the command boundary, from the checkout root:
 // node packages/dev-loop/src/heavy-lock.mjs -- node --import tsx <capture.mjs> [args...]
 // From a capture's directory, use the absolute path to this wrapper; it preserves cwd.
 // This serializes participating commands only: it does not establish machine isolation for timing.
 import { execFileSync, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { mkdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, renameSync, statSync, unlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { constants, homedir } from "node:os";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
@@ -55,6 +60,38 @@ function branchOf(root) {
   }
 }
 
+const STALE_TICKET_MS = 30_000;
+
+// The queue's live tickets, oldest first, clearing those whose waiter has gone.
+function liveTickets(queue, log) {
+  let names;
+  try {
+    names = readdirSync(queue).filter((name) => name.endsWith(".json")).sort();
+  } catch (error) {
+    if (error.code === "ENOENT") return [];
+    throw error;
+  }
+  const live = [];
+  for (const name of names) {
+    const ticket = readHolder(path.join(queue, name));
+    if (ticket === undefined) continue;
+    let refreshed = Date.now();
+    try {
+      refreshed = statSync(path.join(queue, name)).mtimeMs;
+    } catch {}
+    const stale = Date.now() - refreshed > Math.max(STALE_TICKET_MS, 20 * (ticket.pollMs ?? 0));
+    if (!stale && alive(ticket)) {
+      live.push({ ...ticket, name });
+      continue;
+    }
+    log(`heavy-run lock: ${describe(ticket)}, waiting ahead, is gone; clearing its place in the queue`);
+    try {
+      unlinkSync(path.join(queue, name));
+    } catch {}
+  }
+  return live;
+}
+
 const describe = (holder) => `${holder.branch ?? "an unknown run"} (pid ${holder.pid}${holder.root ? `, ${holder.root}` : ""}, since ${holder.since})`;
 
 /**
@@ -66,34 +103,58 @@ export async function acquireHeavyLock({ root, what, log = console.log, waitMs =
   const inherited = process.env[HOLDER_ENV];
   if (inherited && readHolder(file)?.id === inherited) return () => {};
   const me = { id: randomUUID(), pid: process.pid, branch: branchOf(root), root, what, since: new Date().toISOString() };
-  mkdirSync(path.dirname(file), { recursive: true });
+  const queued = { ...me, pollMs };
+  const queue = path.join(path.dirname(file), "heavy-run.queue");
+  mkdirSync(queue, { recursive: true });
+  // Named by arrival time, then id, so sorting the names is the queue's order. Written whole, then
+  // renamed into place, so no reader sees half a ticket.
+  const ticket = path.join(queue, `${String(Date.now()).padStart(15, "0")}-${me.id}.json`);
+  writeFileSync(`${ticket}.tmp`, JSON.stringify(queued));
+  renameSync(`${ticket}.tmp`, ticket);
+  const leave = () => {
+    try {
+      unlinkSync(ticket);
+    } catch {}
+  };
   const deadline = Date.now() + waitMs;
   let waitingFor;
-  for (;;) {
-    try {
-      writeFileSync(file, JSON.stringify(me), { flag: "wx" });
-      break;
-    } catch (error) {
-      if (error.code !== "EEXIST") throw error;
-    }
-    const holder = readHolder(file);
-    if (holder === undefined) continue;
-    if (!alive(holder)) {
-      log(`heavy-run lock: ${describe(holder)} is gone; taking the lock over`);
-      if (readHolder(file)?.id === holder.id) {
+  try {
+    for (;;) {
+      try {
+        utimesSync(ticket, new Date(), new Date()); // still waiting
+      } catch {}
+      const ahead = liveTickets(queue, log).filter((other) => other.name < path.basename(ticket));
+      if (ahead.length === 0) {
         try {
-          unlinkSync(file);
-        } catch {}
+          writeFileSync(file, JSON.stringify(me), { flag: "wx" });
+          break;
+        } catch (error) {
+          if (error.code !== "EEXIST") throw error;
+        }
       }
-      continue;
+      const holder = readHolder(file);
+      if (holder !== undefined && !alive(holder)) {
+        log(`heavy-run lock: ${describe(holder)} is gone; taking the lock over`);
+        if (readHolder(file)?.id === holder.id) {
+          try {
+            unlinkSync(file);
+          } catch {}
+        }
+        continue;
+      }
+      const blocker = holder ?? ahead[0];
+      if (blocker === undefined) continue;
+      if (blocker.id !== waitingFor) {
+        waitingFor = blocker.id;
+        const behind = ahead.length ? `, ${ahead.length} run${ahead.length === 1 ? "" : "s"} queued ahead` : "";
+        log(`heavy-run lock: waiting for ${describe(blocker)} to finish${behind} (${file})`);
+      }
+      if (stopped()) throw new Error("interrupted while waiting for the heavy-run lock");
+      if (Date.now() >= deadline) throw new Error(`gave up after ${Math.round(waitMs / 60000)} min waiting for the heavy-run lock held by ${describe(blocker)}; if it is not running, delete ${file}`);
+      await delay(pollMs);
     }
-    if (holder.id !== waitingFor) {
-      waitingFor = holder.id;
-      log(`heavy-run lock: waiting for ${describe(holder)} to finish (${file})`);
-    }
-    if (stopped()) throw new Error("interrupted while waiting for the heavy-run lock");
-    if (Date.now() >= deadline) throw new Error(`gave up after ${Math.round(waitMs / 60000)} min waiting for the heavy-run lock held by ${describe(holder)}; if it is not running, delete ${file}`);
-    await delay(pollMs);
+  } finally {
+    leave();
   }
   process.env[HOLDER_ENV] = me.id; // children (the gate's test step) run under this hold
   let released = false;

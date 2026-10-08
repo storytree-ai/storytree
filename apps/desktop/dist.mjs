@@ -21,7 +21,9 @@ if (version !== undefined && !/^\d+\.\d+\.\d+$/.test(version)) throw new Error("
 const mac = process.platform === "darwin";
 await stageTools();
 // Without a Developer ID, sign ad-hoc rather than not at all: Apple Silicon runs no unsigned code.
+// Ad-hoc signing holds no secret, so a pull request's build signs too and CI proves the signature.
 const identity = mac && !process.env.CSC_LINK ? { mac: { identity: "-", notarize: false } } : {};
+if (identity.mac) process.env.CSC_FOR_PULL_REQUEST = "true";
 await build({
   ...(mac ? { mac: [] } : { win: [] }), // use package.json's per-target architectures
   publish: "never",

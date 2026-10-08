@@ -14,6 +14,7 @@ process.exitCode = await run(process.argv.slice(2), {
   ...(process.argv[1] === undefined ? {} : { script: process.argv[1] }),
   ...(handed === undefined ? {} : { handed }),
   ...(launched === undefined ? {} : { launched }),
+  terminal: process.stderr.isTTY === true,
   out: (text) => process.stdout.write(text),
   err: (text) => process.stderr.write(text),
 });

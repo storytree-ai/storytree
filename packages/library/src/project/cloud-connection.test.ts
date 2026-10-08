@@ -30,9 +30,11 @@ import type { Duplex } from "node:stream";
 import { after, before, describe, mock, test, type TestContext } from "node:test";
 
 import {
+  cloudSqlStandIn,
   createTestRole,
   dropTestDatabases,
   dropTestRoles,
+  testRoleUrl,
   testServerUrl,
   uniqueProjectName,
   withTestClient,
@@ -332,9 +334,7 @@ test("8.2 on the local path too, opening a new project as a server user that may
   let readOnly: Storytree | undefined;
   try {
     await createTestRole(role, { createdb: false });
-    const url = new URL(testServerUrl());
-    url.username = role;
-    storytree = await connect({ url: url.href });
+    storytree = await connect({ url: testRoleUrl(role) });
 
     const refused = await refusalOf(storytree.openProject(run), "create-database");
     assert.equal(
@@ -358,8 +358,7 @@ test("8.2 on the local path too, opening a new project as a server user that may
     // told the server's own reason: a grant would fix nothing.
     await createTestRole(reader, { createdb: true });
     await withTestClient((client) => client.query(`ALTER ROLE "${reader}" SET default_transaction_read_only = on`));
-    url.username = reader;
-    readOnly = await connect({ url: url.href });
+    readOnly = await connect({ url: testRoleUrl(reader) });
     await assert.rejects(readOnly.openProject(`${run}-replica`), (error: unknown) => {
       assert.ok(!(error instanceof ConnectionError), `not a ConnectionError: ${String(error)}`);
       assert.equal(codeOf(error), "25006", "Postgres's own read-only refusal");
@@ -526,9 +525,7 @@ test("8.1 robustness, offline: on either path, a user that may not create databa
     await withTestClient((client) => client.query(`GRANT "${creator}" TO "${user}"`));
     const cloud = await connect({ cloudSql: { instance: INSTANCE, user } }, { connector: fakeGoogle(toTestServer).make });
     opened.push(cloud);
-    const url = new URL(testServerUrl());
-    url.username = user;
-    const local = await connect({ url: url.href });
+    const local = await connect({ url: testRoleUrl(user) });
     opened.push(local);
 
     await assertBorrowed(await cloud.openProject(onCloud), user, creator);
@@ -776,12 +773,13 @@ function fakeGoogle(signIn: () => Promise<{ stream: () => Duplex }>): FakeGoogle
 }
 
 /**
- * A sign-in that succeeds as nobody, with the local test server in place of the instance: every
- * socket the stream opens goes there, and the server answers for the user connect() was given.
+ * A sign-in that succeeds, with the local test server in place of the instance: every socket the
+ * stream opens goes there through cloudSqlStandIn(), already signed in, as Google's are, as the
+ * user connect() was given, and the server answers for that user.
  */
 async function toTestServer(): Promise<{ stream: () => Duplex }> {
-  const server = new URL(testServerUrl());
-  return { stream: () => connectingSocket(Number(server.port || 5432), server.hostname) };
+  const { host, port } = await cloudSqlStandIn();
+  return { stream: () => connectingSocket(port, host) };
 }
 
 /**

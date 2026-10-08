@@ -16,15 +16,9 @@ import { connect } from "@storytree/library";
 import { Knowledge } from "../knowledge/index.js";
 import { connect as connectProjects } from "./index.js";
 import { NumberTakenError } from "../transactions/index.js";
-import { createTestRole, dropTestDatabases, dropTestRoles, testServerUrl, uniqueProjectName, withTestClient, withTestClientAs } from "../testing/pg.js";
+import { createTestRole, dropTestDatabases, dropTestRoles, testRoleUrl as as, uniqueProjectName, withTestClient, withTestClientAs } from "../testing/pg.js";
 
 const GRANTS_FILES = ["ci-health", "library-host"];
-
-function as(user: string): string {
-  const url = new URL(testServerUrl());
-  url.username = user;
-  return url.href;
-}
 
 for (const source of GRANTS_FILES) test(`8.4 CI's health account (${source}/grants.sql) writes health without controlling storytree decision numbers`, async () => {
   const run = uniqueProjectName();

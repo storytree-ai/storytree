@@ -11,7 +11,7 @@ import pg from "pg";
 import { Knowledge } from "../knowledge/knowledge.js";
 import { chunksOf, renderNote } from "../knowledge/embedding.js";
 import type { SchemaRecord } from "../schema/index.js";
-import { createTestRole, dropTestDatabases, dropTestRoles, testServerUrl, uniqueProjectName, withCountedProject } from "../testing/pg.js";
+import { cloudSqlStandIn, createTestRole, dropTestDatabases, dropTestRoles, testRoleUrl, uniqueProjectName, withTestClient } from "../testing/pg.js";
 import { PgVectors, vectorServerIdentity } from "./embeddings.js";
 import { connect, type Storytree } from "./storytree.js";
 
@@ -152,54 +152,54 @@ test("14.10 · server domains follow pg endpoint overrides, user, TLS trust and 
 
 test("1.4, 14.10 · opened projects isolate identical restored chunks and a recreated database, while a reopened project stays warm", async () => {
   const folder = await mkdtemp(path.join(tmpdir(), "storytree-vector-projects-"));
+  const [name, other] = [uniqueProjectName(), uniqueProjectName()];
+  const role = `${name}-rotating`;
   try {
-    await withCountedProject(async (project) => {
-      const file = path.join(folder, "vectors.sqlite");
-      const url = new URL(project.pool.options.connectionString!);
-      url.pathname = "/postgres";
-      url.password = "synthetic-secret-before-rotation"; // The disposable test server uses trust authentication.
-      const model = "test/projects";
-      const seams = { vectorCache: file, embedder: async () => ({ model, async embed(texts: readonly string[]) {
-        return texts.map(text => text.includes("# Beta") ? Float32Array.of(0, 1) : Float32Array.of(1, 0));
-      } }) };
-      let server = await connect({ url: url.href }, seams);
-      const other = uniqueProjectName();
-      try {
-        const attacker = await server.openProject(project.name);
-        const a = await attacker.knowledge.defineTerm({ term: "Alpha", meaning: "Shared words." });
-        const b = await attacker.knowledge.defineTerm({ term: "Beta", meaning: "Other words." });
-        const saved = await server.snapshot(project.name);
-        await new PgVectors(attacker.pool).put(model, new Map([[key(a), Float32Array.of(-1, 0)]]));
-        const poisoned = await attacker.knowledge.rank("question");
-        assert.equal(poisoned.hits.find(hit => hit.note.id === a.id)!.score, -1);
-        await server.restore(other, saved);
-        const victim = await server.openProject(other);
-        const cold = await victim.knowledge.rankAll("question");
-        assert.deepEqual(cold.hits.map(({ note, score }) => [note.id, score]), [[a.id, 1], [b.id, 0]]);
-        await victim.pool.query("UPDATE embedding SET vector = $1 WHERE model = $2 AND key = $3",
-          [Buffer.from(Float32Array.of(-1, 0).buffer), model, key(a)]);
-        await server.close();
+    await createTestRole(role, { createdb: true, password: "synthetic-secret-before-rotation" });
+    const file = path.join(folder, "vectors.sqlite");
+    const url = new URL(testRoleUrl(role, "postgres"));
+    const model = "test/projects";
+    const seams = { vectorCache: file, embedder: async () => ({ model, async embed(texts: readonly string[]) {
+      return texts.map(text => text.includes("# Beta") ? Float32Array.of(0, 1) : Float32Array.of(1, 0));
+    } }) };
+    let server = await connect({ url: url.href }, seams);
+    try {
+      const attacker = await server.openProject(name);
+      const a = await attacker.knowledge.defineTerm({ term: "Alpha", meaning: "Shared words." });
+      const b = await attacker.knowledge.defineTerm({ term: "Beta", meaning: "Other words." });
+      const saved = await server.snapshot(name);
+      await new PgVectors(attacker.pool).put(model, new Map([[key(a), Float32Array.of(-1, 0)]]));
+      const poisoned = await attacker.knowledge.rank("question");
+      assert.equal(poisoned.hits.find(hit => hit.note.id === a.id)!.score, -1);
+      await server.restore(other, saved);
+      const victim = await server.openProject(other);
+      const cold = await victim.knowledge.rankAll("question");
+      assert.deepEqual(cold.hits.map(({ note, score }) => [note.id, score]), [[a.id, 1], [b.id, 0]]);
+      await victim.pool.query("UPDATE embedding SET vector = $1 WHERE model = $2 AND key = $3",
+        [Buffer.from(Float32Array.of(-1, 0).buffer), model, key(a)]);
+      await server.close();
 
-        // Rotating a password must not invalidate this database's cache or persist either secret.
-        url.password = "synthetic-secret-after-rotation";
-        server = await connect({ url: url.href }, seams);
-        const reopened = await server.openProject(other);
-        assert.deepEqual(await reopened.knowledge.rankAll("question"), cold, "a fresh connection reuses this project's kept vector, despite the later remote mutation");
+      // Rotating a password must not invalidate this database's cache or persist either secret.
+      await withTestClient((client) => client.query(`ALTER ROLE "${role}" PASSWORD 'synthetic-secret-after-rotation'`));
+      url.password = "synthetic-secret-after-rotation";
+      server = await connect({ url: url.href }, seams);
+      const reopened = await server.openProject(other);
+      assert.deepEqual(await reopened.knowledge.rankAll("question"), cold, "a fresh connection reuses this project's kept vector, despite the later remote mutation");
 
-        const oldIdentity = attacker.identity;
-        await server.dropProject(project.name);
-        await server.restore(project.name, saved);
-        const recreated = await server.openProject(project.name);
-        assert.notEqual(recreated.identity, oldIdentity);
-        assert.deepEqual(await recreated.knowledge.rank("question"), cold, "a recreated database cannot reuse its predecessor's poisoned vector");
-        const bytes = await readFile(file);
-        assert.equal(bytes.includes(Buffer.from("synthetic-secret")), false);
-      } finally {
-        await server.dropProject(other).catch(() => {});
-        await server.close();
-      }
-    });
+      const oldIdentity = attacker.identity;
+      await server.dropProject(name);
+      await server.restore(name, saved);
+      const recreated = await server.openProject(name);
+      assert.notEqual(recreated.identity, oldIdentity);
+      assert.deepEqual(await recreated.knowledge.rank("question"), cold, "a recreated database cannot reuse its predecessor's poisoned vector");
+      const bytes = await readFile(file);
+      assert.equal(bytes.includes(Buffer.from("synthetic-secret")), false);
+    } finally {
+      await server.close();
+    }
   } finally {
+    await dropTestDatabases([`storytree_${name}`, `storytree_${other}`]);
+    await dropTestRoles([role]);
     await rm(folder, { recursive: true, force: true });
   }
 });
@@ -210,17 +210,17 @@ test("14.10 · Cloud SQL project openings scope the cache to the authenticated i
   const opened: Storytree[] = [];
   try {
     await createTestRole(user, { createdb: true });
-    const upstream = new URL(testServerUrl());
+    const standIn = await cloudSqlStandIn();
     const model = "test/cloud-isolation";
     const open = async (instance: string) => {
       const server = await connect({ cloudSql: { instance: `synthetic:region:${instance}`, user } }, {
         vectorCache: path.join(folder, "vectors.sqlite"),
         embedder: async () => ({ model, async embed(texts) { return texts.map(() => Float32Array.of(1, 0)); } }),
         // Both synthetic instances reach the disposable server, deliberately giving them the
-        // same database name, OID and records. Nothing contacts Google or performs a sign-in.
+        // same database name, OID and records. Nothing contacts Google: the stand-in signs each socket in.
         connector: async () => ({
           async getOptions() { return { stream: () => {
-            const socket = openSocket(Number(upstream.port), upstream.hostname);
+            const socket = openSocket(standIn.port, standIn.host);
             socket.connect = () => socket;
             return socket;
           } }; },

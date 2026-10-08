@@ -8,8 +8,8 @@
 // origin/main that cannot be read. The decision is printed as one `scope:` line, CI takes the same
 // one, and a run reports each package as PASS or FAIL and can rerun only the failures.
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync, spawnSync } from "node:child_process";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -18,6 +18,7 @@ import { fileURLToPath } from "node:url";
 import {
   changedFiles,
   classify,
+  parseTestArgs,
   planRun,
   readWorkspace,
   resultsTable,
@@ -254,6 +255,33 @@ test("1.3 --full forces everything, --only names units, and --rerun-failed runs 
   const nothing = planRun({ root, workspace: ws, decision, flags: { rerunFailed: true }, record: undefined });
   assert.deepEqual(nothing.units, []);
   assert.match(nothing.decision.reason, /no earlier run/);
+});
+
+test("1.3 --help prints the runner's usage, and an unknown flag is refused naming the known ones, before any lock or Postgres", (t) => {
+  assert.equal(parseTestArgs(["--help"]).help, true);
+  assert.equal(parseTestArgs(["-h"]).help, true);
+  assert.match(parseTestArgs(["--bogus"]).refusal, /--bogus/);
+  assert.match(parseTestArgs(["--bogus"]).refusal, /--full.*--scope.*--only.*--rerun-failed/s);
+  const passed = parseTestArgs(["--", "--full", "--only=cli", "--test-name-pattern=x", "a.test.mjs"]);
+  assert.equal(passed.refusal, undefined);
+  assert.equal(passed.flags.full, true);
+  assert.deepEqual(passed.flags.only, ["cli"]);
+  assert.deepEqual(passed.testArgs, ["--test-name-pattern=x", "a.test.mjs"]);
+
+  const home = mkdtempSync(path.join(tmpdir(), "test-help-"));
+  t.after(() => rmSync(home, { recursive: true, force: true }));
+  const env = { ...process.env, STORYTREE_HOME: home };
+  delete env.STORYTREE_HEAVY_LOCK_HOLDER; // this suite itself runs under the outer run's lock
+  const run = (arg) => spawnSync(process.execPath, ["--import", "tsx", "packages/dev-loop/src/test.mjs", arg], { cwd: repoRoot, env, encoding: "utf8" });
+  const help = run("--help");
+  assert.equal(help.status, 0, help.stderr);
+  assert.match(help.stdout, /pnpm run test --rerun-failed/);
+  assert.doesNotMatch(help.stdout + help.stderr, /^scope:|test Postgres/m);
+  const unknown = run("--bogus");
+  assert.equal(unknown.status, 2);
+  assert.match(unknown.stderr, /--bogus/);
+  assert.doesNotMatch(unknown.stdout + unknown.stderr, /^scope:|test Postgres/m);
+  assert.equal(existsSync(path.join(home, "heavy-run.lock")), false, "no heavy-run lock was taken");
 });
 
 test("the results table shows each unit PASS, FAIL or NOT RUN, and how to rerun the failures", () => {

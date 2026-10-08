@@ -173,6 +173,47 @@ export function scopeLine(decision) {
   return `scope: ${decision.mode} — ${what} — ${decision.reason}`;
 }
 
+/** What `pnpm run test --help` prints: the runner's flags, and what else it takes. */
+export const TEST_USAGE = `pnpm test: run the tests this branch's changes can reach, against a throwaway Postgres.
+
+  pnpm test                        run what the branch's changes can reach (the first line, scope:, says what)
+  pnpm run test --scope            print the decision and the units, and run nothing
+  pnpm run test --full             run everything, whatever changed
+  pnpm run test --only=cli,forest  run the named packages (dir, dir name or package name)
+  pnpm run test --rerun-failed     run what the last run in this checkout failed or never reached
+  pnpm run test <files>            run just those files, as one unit
+  pnpm run test --set-limit=<unit>=<seconds> --reason="..."   set a unit's deadline on this machine
+  pnpm run test --clear-limit=<unit>                          clear it again
+  pnpm run test --help             print this
+
+node --test's own options (--test-name-pattern=..., --test-only, ...) go to every unit; give them in --name=value form.`;
+
+/**
+ * The runner's command line: its own flags, and what goes on to `node --test` (files, and node's
+ * --test-* options). `help` asks for the usage; `refusal` names an unknown flag and the known ones.
+ * Both end the run before the heavy-run lock or a Postgres is taken.
+ */
+export function parseTestArgs(argv) {
+  const flags = { full: false, scope: false, rerunFailed: false, only: [], setLimit: undefined, clearLimit: undefined, reason: undefined };
+  const testArgs = [];
+  let help = false;
+  let refusal;
+  for (const arg of argv) {
+    if (arg === "--") continue;
+    else if (arg === "--help" || arg === "-h") help = true;
+    else if (arg === "--full") flags.full = true;
+    else if (arg === "--scope") flags.scope = true;
+    else if (arg === "--rerun-failed") flags.rerunFailed = true;
+    else if (arg.startsWith("--only=")) flags.only.push(...arg.slice("--only=".length).split(",").filter(Boolean));
+    else if (arg.startsWith("--set-limit=")) flags.setLimit = arg.slice("--set-limit=".length);
+    else if (arg.startsWith("--clear-limit=")) flags.clearLimit = arg.slice("--clear-limit=".length);
+    else if (arg.startsWith("--reason=")) flags.reason = arg.slice("--reason=".length);
+    else if (!arg.startsWith("-") || /^--(experimental-)?test-/.test(arg)) testArgs.push(arg);
+    else refusal ??= `unknown flag ${arg}; the known ones are --full, --scope, --only=<packages>, --rerun-failed, --set-limit=, --clear-limit=, --reason=, --help, and node --test's --test-* options`;
+  }
+  return { flags, testArgs, help, refusal };
+}
+
 /**
  * The units a run executes, after the flags: `full` forces everything, `only` names packages (by
  * dir, dir name or package name), and `rerunFailed` takes the units the last recorded

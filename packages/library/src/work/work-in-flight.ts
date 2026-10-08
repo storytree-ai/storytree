@@ -80,6 +80,8 @@ export interface ParkOptions extends WriteOptions {
 export interface ArcView {
   readonly arc: SchemaRecord<"arc">;
   readonly state: ArcState;
+  /** While it reads parked until a day, that day: the owner's (10.6), or the earliest check-back its work waits for (10.10). */
+  readonly wakes?: string;
   readonly increments: SchemaRecord<"increment">[];
   /** Its questions, open and settled. */
   readonly questions: SchemaRecord<"question">[];
@@ -368,7 +370,7 @@ export class WorkInFlight {
     if (arc === null) return null;
     const increments = (await this.#records.list("increment", { where: { arc: id } })).sort(byCreation);
     const questions = await this.questions(id);
-    return { arc, state: arcState(arc, increments, questions, at), increments, questions };
+    return arcViewOf(arc, increments, questions, at);
   }
 
   /** Every live arc's view, oldest arc first, as arcView answers each, read in three lists however many arcs there are. */
@@ -386,9 +388,7 @@ export class WorkInFlight {
     const incrementsOf = byArc([...increments].sort(byCreation));
     const questionsOf = byArc([...questions].sort(byCreation));
     return [...arcs].sort(byCreation).map((arc) => {
-      const its = incrementsOf.get(arc.id) ?? [];
-      const asked = questionsOf.get(arc.id) ?? [];
-      return { arc, state: arcState(arc, its, asked, at), increments: its, questions: asked };
+      return arcViewOf(arc, incrementsOf.get(arc.id) ?? [], questionsOf.get(arc.id) ?? [], at);
     });
   }
 
@@ -396,7 +396,7 @@ export class WorkInFlight {
   async #snapshot(): Promise<Snapshot> {
     const [arcs, increments, questions] = await Promise.all([
       this.#records.select("arc", ["waits", "parked", "parkedUntil"]),
-      this.#records.select("increment", ["arc", "status", "waits", "waitsFor", "heldOn"], { not: { status: "closed" } }),
+      this.#records.select("increment", ["arc", "status", "waits", "waitsFor", "heldOn", "outcome"], { not: { status: "closed" } }),
       this.#records.select("question", ["arc", "lifecycle"], { where: { lifecycle: "open" } }),
     ]);
     const hasIncrements = new Set(increments.map(({ fields }) => fields.arc));
@@ -443,7 +443,7 @@ export class WorkInFlight {
 }
 
 type ArcFacts = Omit<SchemaRecord<"arc">, "fields"> & { fields: Pick<FieldsOf<"arc">, "waits" | "parked" | "parkedUntil"> };
-type IncrementFacts = Omit<SchemaRecord<"increment">, "fields"> & { fields: Pick<FieldsOf<"increment">, "arc" | "status" | "waits" | "waitsFor" | "heldOn"> };
+type IncrementFacts = Omit<SchemaRecord<"increment">, "fields"> & { fields: Pick<FieldsOf<"increment">, "arc" | "status" | "waits" | "waitsFor" | "heldOn" | "outcome"> };
 type QuestionFacts = Omit<SchemaRecord<"question">, "fields"> & { fields: Pick<FieldsOf<"question">, "arc" | "lifecycle"> };
 
 /** The live arcs, increments and questions at one moment, and how their waits read then. */
@@ -531,8 +531,51 @@ function arcState(
 ): ArcState {
   if (isParked(arc, at)) return "parked";
   if (!hasIncrements) return "active";
-  if (increments.some((increment) => increment.fields.status !== "closed")) return "active";
+  if (increments.some((increment) => increment.fields.status !== "closed")) return asleepUntil(arc, increments, questions, at) === undefined ? "active" : "parked";
   return questions.some((question) => question.fields.lifecycle === "open") ? "active" : "closed";
+}
+
+/** An arc's view at `at`: its state, and the day a dated park ends while one holds. */
+function arcViewOf(arc: SchemaRecord<"arc">, increments: SchemaRecord<"increment">[], questions: SchemaRecord<"question">[], at: Date): ArcView {
+  const state = arcState(arc, increments, questions, at);
+  const wakes = state !== "parked" ? undefined : isParked(arc, at) ? arc.fields.parkedUntil : asleepUntil(arc, increments, questions, at);
+  return { arc, state, ...(wakes === undefined ? {} : { wakes }), increments, questions };
+}
+
+/**
+ * The day an arc's open work sleeps until (10.10, ADR-0938 narrowed by the owner, 2026-10-09), or
+ * undefined if any of it can move before then. It sleeps when it has open work, waits on no arc and
+ * has no open question, and every open increment is a proposal with no owner wait and no open held-on
+ * question, held by an event wait before its check-back day, or by waits only on its own arc's work
+ * that sleeps, or has landed. It sleeps until the earliest of those days. A wait on any other work
+ * keeps it awake, so it folds under that work instead (ADR-0760 D1).
+ */
+function asleepUntil(arc: ArcFacts, increments: readonly IncrementFacts[], questions: readonly QuestionFacts[], at: Date): string | undefined {
+  if ((arc.fields.waits ?? []).length > 0 || questions.some((question) => question.fields.lifecycle === "open")) return undefined;
+  const settled = new Set(questions.filter((question) => question.fields.lifecycle !== "open").map(({ id }) => id));
+  const byId = new Map(increments.map((increment) => [increment.id, increment]));
+  const days = new Map<string, string | undefined>();
+  const until = (increment: IncrementFacts): string | undefined => {
+    if (days.has(increment.id)) return days.get(increment.id);
+    days.set(increment.id, undefined); // a loop never sleeps (and capability 11 refuses one)
+    const { status, waitsFor, waits, heldOn } = increment.fields;
+    const notes = noteWaits(waitsFor, at).filter(({ holds }) => holds);
+    if (status !== "proposal" || notes.some(({ releaser }) => releaser === "owner") || (heldOn ?? []).some((id) => !settled.has(id))) return undefined;
+    const candidates = notes.flatMap(({ checkBack }) => (checkBack === undefined ? [] : [checkBack]));
+    for (const { on } of waits ?? []) {
+      const blocker = byId.get(on);
+      if (blocker?.fields.status === "closed" && blocker.fields.outcome?.disposition === "landed") continue;
+      const day = blocker === undefined || blocker.fields.status === "closed" ? undefined : until(blocker);
+      if (day === undefined) return undefined;
+      candidates.push(day);
+    }
+    const day = candidates.sort()[0];
+    days.set(increment.id, day);
+    return day;
+  };
+  const open = increments.filter((increment) => increment.fields.status !== "closed");
+  const each = open.map(until);
+  return each.some((day) => day === undefined) ? undefined : (each as string[]).sort()[0];
 }
 
 /** Whether the owner has `arc` parked at `at`: parked, and, parked until a day, only before UTC midnight of that day (10.6). */

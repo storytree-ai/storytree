@@ -128,6 +128,7 @@ export async function runQueue({ queueFile, stopFile, runLane, stopOnFailure = f
     if (await exists(stopFile)) return end({ code: 0, message: `stopped by ${basename(stopFile)}` });
     const queued = (await queueLines(queueFile)).filter((line) => !running.has(line));
     if (running.size === 0) {
+      if (ending) continue;
       const [head] = queued;
       if (!head) { if (!(await refill())) return 0; continue; }
       if (!LINE.test(head)) { dated(`bad queue line '${head}': stopping`); return 1; }

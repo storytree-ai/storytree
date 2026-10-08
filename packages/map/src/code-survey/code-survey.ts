@@ -139,19 +139,34 @@ function calledTitles(file: SourceFile): readonly string[] {
   return titles.sort((a, b) => a.at - b.at).map(({ title }) => title);
 }
 
-/** ADR-0845 proof identities: an optional package, then the leading contract list used by own-health. */
+// 8.10: generous for contract lists (the repository's existing ranges span at most six), but finite
+// before allocation. Charge repeated/overlapping entries too: deduplication cannot budget loop work.
+const TITLE_PROOF_BUDGET = 256;
+const FILE_PROOF_BUDGET = 4096;
+
+/** ADR-0845 proof identities, bounded per title and surveyed file, including inherited suite titles. */
 function proofTitles(titles: readonly string[]): SurveyedTest["titles"] {
+  let remaining = FILE_PROOF_BUDGET;
   return titles.flatMap(title => {
     const lead = /^(?:([a-z][a-z0-9-]*)\s+)?(\d+\.\d+(?:–\d+\.\d+)?(?:(?:\s*[,/]\s*|\s+and\s+)\d+\.\d+(?:–\d+\.\d+)?)*):?(?=\s|$)/.exec(title!);
     if (!lead) return [];
-    const numbers = new Set<string>();
+    const ranges: { first: string; capability: string; start: number; width: number }[] = [];
+    let count = 0;
     for (const [, first, last] of lead[2]!.matchAll(/(\d+\.\d+)(?:–(\d+\.\d+))?/g)) {
-      numbers.add(first!);
-      if (last === undefined) continue;
       const [capability, start] = first!.split(".");
-      const [endCapability, end] = last.split(".");
-      if (capability !== endCapability || !Number.isSafeInteger(Number(start)) || !Number.isSafeInteger(Number(end)) || Number(end) < Number(start)) return [];
-      for (let number = Number(start) + 1; number <= Number(end); number++) numbers.add(`${capability}.${number}`);
+      const [endCapability, end] = (last ?? first!).split(".");
+      if (capability !== endCapability || !Number.isSafeInteger(Number(capability)) || !Number.isSafeInteger(Number(start)) || !Number.isSafeInteger(Number(end)) || Number(end) < Number(start)) return [];
+      const width = Number(end) - Number(start) + 1;
+      count += width;
+      if (count > TITLE_PROOF_BUDGET || count > remaining) return [];
+      ranges.push({ first: first!, capability: capability!, start: Number(start), width });
+    }
+    // Validate the complete list first: a bad suffix must not expand even a valid prefix.
+    remaining -= count;
+    const numbers = new Set<string>();
+    for (const { first, capability, start, width } of ranges) {
+      numbers.add(first);
+      for (let offset = 1; offset < width; offset++) numbers.add(`${capability}.${start + offset}`);
     }
     return [...numbers].map(number => ({ number, title: title!, ...(lead[1] === undefined ? {} : { package: lead[1] }) }));
   });

@@ -176,6 +176,42 @@ test("8.10 prefixed proof retains its package and contract list without assignin
   assert.equal(surveyed.files.find(file => file.path === "src/self.ts")?.capability, "local-capability");
 });
 
+test("8.10 proof ranges validate the whole title before expanding at most 256 entries", () => {
+  const cases: [string, string[]][] = [
+    ["3.2–3.4 / 3.3 and 4.1", ["3.2", "3.3", "3.4", "4.1"]],
+    ["3.1–3.256", Array.from({ length: 256 }, (_, n) => `3.${n + 1}`)],
+    ["3.1–3.257", []],
+    ["3.1–3.128, 3.129–3.257", []],
+    ["3.1–3.128, 3.1–3.128 and 3.1", []],
+    ["3.1–3.2, 3.4–3.3", []],
+    ["3.1–4.2", []],
+    ["3.9007199254740992–3.9007199254740992", []],
+    // Large endpoints are exercised only after the pre-expansion guard exists.
+    ["3.1–3.9007199254740991", []],
+    ["3.1–3.2, 3.3–3.9007199254740991", []],
+    ["3.9007199254740990–3.9007199254740991", ["3.9007199254740990", "3.9007199254740991"]],
+  ];
+  for (const [list, expected] of cases) {
+    const title = `map ${list}: proof`;
+    const surveyed = surveyStory([{ path: "src/proof.test.ts", text: `test(${JSON.stringify(title)}, () => {});` }], []);
+    assert.deepEqual(surveyed.tests?.[0]?.titles, expected.map(number => ({ package: "map", number, title })), list);
+  }
+});
+
+test("8.10 each file has a cumulative 4096-entry expansion budget, including inherited suites", () => {
+  const title = "3.1–3.256 proof";
+  const full = Array.from({ length: 16 }, () => `test(${JSON.stringify(title)}, () => {});`).join("\n");
+  const surveyed = surveyStory([
+    { path: "src/testing/suite.ts", text: `import { test } from "node:test";\n${full}\ntest("3.257 overflow", () => {});` },
+    { path: "src/proof.test.ts", text: 'import "./testing/suite.js";' },
+    { path: "src/other.test.ts", text: 'test("3.258 unrelated", () => {});' },
+  ], []);
+  const expected = Array.from({ length: 16 }, () => Array.from({ length: 256 }, (_, n) => ({ number: `3.${n + 1}`, title }))).flat();
+  assert.deepEqual(surveyed.tests?.find(file => file.path === "src/testing/suite.ts")?.titles, expected);
+  assert.deepEqual(surveyed.tests?.find(file => file.path === "src/proof.test.ts")?.titles, expected);
+  assert.deepEqual(surveyed.tests?.find(file => file.path === "src/other.test.ts")?.titles, [{ number: "3.258", title: "3.258 unrelated" }]);
+});
+
 test("8.10 regex literals neither hide later numbered proofs nor supply fake titles", () => {
   for (const pattern of ['/"/', '/["\']/g', '/test("5.2 fake",)/']) {
     for (const unfinished of ["", "function pending() {"]) {

@@ -12,11 +12,56 @@ import { test } from "node:test";
 
 import type { AnnotatedTree } from "@storytree/library";
 
-import { codeSurveyReader, offThreadSurveyReader } from "./read-survey.js";
+import { codeSurveyReader, offThreadSurveyReader, readCodeSurvey } from "./read-survey.js";
+import { focusProject } from "../read.js";
 // 8.16 runs this module on a worker thread; imported here, with no parent port, it answers nothing.
 import "./survey-worker.js";
 
 const tree = { arcs: [], stories: [{ id: "story-shop", title: "Shop", capabilities: [{ id: "cap-claims", title: "3 · Claims" }] }] } as unknown as AnnotatedTree;
+
+test("8.10 disk, fetched-main and focus surveys skip oversized titles and retain unrelated proof", async () => {
+  const folder = await mkdtemp(path.join(tmpdir(), "code-survey-bounds-"));
+  const plan = { ...tree, stories: [{ ...tree.stories[0], capabilities: [{ ...tree.stories[0]!.capabilities[0], dependsOn: [],
+    contracts: [{ id: "claim-proof", title: "3.1 a claim holds" }],
+  }] }] } as unknown as AnnotatedTree;
+  const git = (cwd: string, ...args: string[]) => execFileSync("git", args, { cwd, stdio: "pipe", windowsHide: true });
+  try {
+    for (const mode of ["disk", "git"]) {
+      const checkout = path.join(folder, mode);
+      const src = path.join(checkout, "packages/shop/src");
+      await mkdir(src, { recursive: true });
+      await writeFile(path.join(src, "claim.ts"), "export const claim = 1;");
+      await writeFile(path.join(src, "claim.test.ts"), 'import { claim } from "./claim.js";\ntest("3.1–3.2 ordinary proof", () => claim);');
+      await writeFile(path.join(src, "oversized.test.ts"), [
+        'throw new Error("source must never execute");',
+        'test("3.1–3.9007199254740991 oversized", () => {});',
+        'const TITLE = "shop 3.1–3.128, 3.129–3.257 cumulative";',
+        'test(TITLE, () => {});',
+        'test(`${TITLE} template`, () => {});',
+        'test("3.3 valid after refusal", () => {});',
+      ].join("\n"));
+      if (mode === "git") {
+        git(checkout, "init", "-b", "main");
+        git(checkout, "add", ".");
+        git(checkout, "-c", "user.name=Survey test", "-c", "user.email=survey@example.test", "-c", "commit.gpgsign=false", "commit", "-m", "fixture");
+        const origin = path.join(folder, "origin.git");
+        git(folder, "init", "--bare", origin);
+        git(checkout, "remote", "add", "origin", origin);
+        git(checkout, "push", "origin", "main");
+      }
+      const survey = (await readCodeSurvey(checkout, plan))["story-shop"]!;
+      assert.deepEqual(survey.files, [{ path: "src/claim.ts", lines: 1, capability: "cap-claims" }]);
+      assert.deepEqual(survey.tests?.find(file => file.path === "src/claim.test.ts")?.titles.map(title => title.number), ["3.1", "3.2"]);
+      assert.deepEqual(survey.tests?.find(file => file.path === "src/oversized.test.ts")?.titles, [{ number: "3.3", title: "3.3 valid after refusal" }]);
+      const focus = await focusProject({ projectTree: async () => plan }, checkout, { select: "promise:claim-proof", down: 1, mode: "show" });
+      assert.equal(focus.refused, false);
+      assert.ok(focus.rows?.some(row => row.id === "test:packages/shop/src/claim.test.ts"));
+      assert.equal(focus.rows?.some(row => row.id === "test:packages/shop/src/oversized.test.ts"), false);
+    }
+  } finally {
+    await rm(folder, { recursive: true, force: true });
+  }
+});
 
 /** The command lines of running processes that name `needle`. */
 function processesNaming(needle: string): string[] {

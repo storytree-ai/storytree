@@ -12,14 +12,9 @@ import { hostname } from "node:os";
 import { test } from "node:test";
 
 import { connect, type Storytree } from "@storytree/library";
+import pg from "pg";
 
-import { createTestRole, dropTestDatabases, dropTestRoles, testServerUrl, uniqueProjectName, withTestClient } from "../testing/pg.js";
-
-function as(user: string): string {
-  const url = new URL(testServerUrl());
-  url.username = user;
-  return url.href;
-}
+import { createTestRole, dropTestDatabases, dropTestRoles, testRoleUrl as as, testServerUrl, uniqueProjectName, withTestClient } from "../testing/pg.js";
 
 test("8.3 two accounts sharing the creator role both open, write and read one project, and one's own database, on one server", async () => {
   const run = uniqueProjectName();
@@ -35,6 +30,12 @@ test("8.3 two accounts sharing the creator role both open, write and read one pr
       await client.query(`GRANT "${creator}" TO "${laptop}"`);
       await client.query(`GRANT "${creator}" TO "${mint}"`);
     });
+    // Each account is let in only with its own password: the server refuses the other's.
+    const borrowed = new URL(as(laptop));
+    borrowed.password = new URL(as(mint)).password;
+    const refused = new pg.Client({ connectionString: borrowed.href });
+    await assert.rejects(refused.connect(), (error: unknown) => (error as { code?: unknown }).code === "28P01");
+    await refused.end().catch(() => {});
     const first = await connect({ url: as(laptop) });
     opened.push(first);
     const onLaptop = await first.openProject(project);

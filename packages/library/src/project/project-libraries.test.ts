@@ -8,7 +8,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { createTestRole, dropTestDatabases, dropTestRoles, testServerUrl, uniqueProjectName, withTestClient } from "../testing/pg.js";
+import { createTestRole, dropTestDatabases, dropTestRoles, testRoleUrl as as, testServerUrl, uniqueProjectName, withTestClient } from "../testing/pg.js";
 import { ConnectionError, ProjectGoneError, connect, type Project, type Storytree } from "./index.js";
 
 /** The spec's naming, restated here rather than taken from the code: project `x` is database `storytree_x`. */
@@ -367,12 +367,6 @@ async function createReader(role: string, database: string): Promise<void> {
     (client) => client.query(`GRANT USAGE ON SCHEMA public TO "${role}"; GRANT SELECT ON library_meta, record, record_event TO "${role}"`),
     database,
   );
-}
-
-function as(user: string): string {
-  const url = new URL(testServerUrl());
-  url.username = user;
-  return url.href;
 }
 
 test("1.10 opening a project whose tables are current runs no table setup, so it needs no owner's rights", async () => {

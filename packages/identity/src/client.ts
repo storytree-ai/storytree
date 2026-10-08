@@ -1,5 +1,6 @@
 /** Capability 2 · Social sign-in and session. */
 import { setTimeout } from "node:timers/promises";
+import { TokenRefused, workosTokenVerifier } from "./workos-token.js";
 
 /** Only this reviewed identity crosses into a CLI answer or feedback draft. */
 export interface SignedInUser { readonly id: string; readonly email: string }
@@ -12,8 +13,11 @@ export interface SessionStore {
 export interface DevicePrompt { readonly userCode: string; readonly verificationUri: string }
 export interface ClientConfiguration {
   readonly clientId: string;
-  /** Full, explicitly configured server endpoint; never learned from an access token. */
-  readonly identityUrl: string;
+  /**
+   * No longer called: WorkOS's tokens are verified here (question D). Still refused when not HTTPS, until the
+   * command line stops passing STORYTREE_IDENTITY_URL.
+   */
+  readonly identityUrl?: string;
   readonly store: SessionStore;
   readonly fetch?: typeof fetch;
   readonly now?: () => number;
@@ -29,9 +33,8 @@ const api = "https://api.workos.com/user_management/";
 
 /** Public-client device authorization. No API key, provider secret, or unverified identity is accepted. */
 export function createIdentityClient(config: ClientConfiguration) {
-  if (!/^client_[A-Za-z0-9_-]+$/.test(config.clientId) || !httpsUrl(config.identityUrl)) {
-    throw new Error("Sign-in needs a WorkOS client ID and an explicit HTTPS identity endpoint.");
-  }
+  if (!/^client_[A-Za-z0-9_-]+$/.test(config.clientId)) throw new Error("Sign-in needs a public WorkOS client ID.");
+  if (config.identityUrl !== undefined && !httpsUrl(config.identityUrl)) throw new Error("Sign-in needs an explicit HTTPS identity endpoint.");
   const request = config.fetch ?? fetch;
   const now = config.now ?? Date.now;
   const wait = config.wait ?? ((ms, signal) => setTimeout(ms, undefined, { signal }));
@@ -40,7 +43,16 @@ export function createIdentityClient(config: ClientConfiguration) {
     method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
     body: new URLSearchParams({ client_id: config.clientId, ...fields }),
   }, signal);
-  const resolve = (accessToken: string, signal?: AbortSignal) => verifiedUser(config.identityUrl, accessToken, request, signal);
+  const check = workosTokenVerifier(config.clientId, request);
+  /** The exchange's user, only once its access token verifies against the client's published keys. */
+  const resolve = async (data: Record<string, unknown>): Promise<SignedInUser> => {
+    const account = data.user;
+    if (typeof account !== "object" || account === null) throw refused();
+    const { id, email, email_verified: emailVerified } = account as Record<string, unknown>;
+    if (typeof id !== "string" || typeof email !== "string" || typeof emailVerified !== "boolean") throw refused();
+    try { return await check(String(data.access_token), { id, email, emailVerified }); }
+    catch (error) { throw error instanceof TokenRefused ? refused() : unavailable(); }
+  };
   // Serialize one instance; a CLI host uses withSessionStore to serialize across processes too.
   let active = false;
   const exclusive = async <T>(act: () => Promise<T>) => {
@@ -71,8 +83,8 @@ export function createIdentityClient(config: ClientConfiguration) {
           if (pending.aborted || now() >= deadline) throw expired();
           const result = await post("authenticate", { grant_type: "urn:ietf:params:oauth:grant-type:device_code", device_code: deviceCode }, pending);
           if (result.ok) {
-            const { accessToken, refreshToken } = tokens(result.data);
-            const user = await resolve(accessToken, pending);
+            const { refreshToken } = tokens(result.data);
+            const user = await resolve(result.data);
             pending.throwIfAborted();
             await config.store.write(refreshToken);
             return user;
@@ -96,10 +108,10 @@ export function createIdentityClient(config: ClientConfiguration) {
       const result = await post("authenticate", { grant_type: "refresh_token", refresh_token: saved });
       if (result.data.error === "invalid_grant" && result.status === 400) { await config.store.clear(); return null; }
       if (!result.ok) throw unavailable();
-      const { accessToken, refreshToken } = tokens(result.data);
-      // Refresh tokens rotate: keep the replacement even if the identity server is temporarily down.
+      const { refreshToken } = tokens(result.data);
+      // Refresh tokens rotate: keep the replacement even if WorkOS's keys are temporarily unreachable.
       await config.store.write(refreshToken);
-      try { return await resolve(accessToken); }
+      try { return await resolve(result.data); }
       catch (error) {
         if (isRefused(error)) { await config.store.clear(); return null; }
         throw error;
@@ -122,16 +134,8 @@ function caller(request: typeof fetch) {
     }
   };
 }
-/** Asks the explicitly configured Storytree identity endpoint who an access token belongs to. */
-export async function verifiedUser(identityUrl: string, accessToken: string, request: typeof fetch = fetch, signal?: AbortSignal): Promise<SignedInUser> {
-  if (!httpsUrl(identityUrl)) throw new Error("Sign-in needs an explicit HTTPS identity endpoint.");
-  const response = await caller(request)(identityUrl, { headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" } }, signal);
-  if (response.status >= 500 || response.status === 429) throw unavailable();
-  if (!response.ok) throw refused();
-  return signedInUser(response.data);
-}
-/** True when the identity server refused the session, as opposed to being unreachable. */
-export function isRefused(error: unknown): boolean { return error instanceof SignInError && error.message === refused().message; }
+/** True when the session was refused, as opposed to WorkOS being unreachable. */
+function isRefused(error: unknown): boolean { return error instanceof SignInError && error.message === refused().message; }
 
 function object(value: unknown): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) throw refused();
@@ -149,10 +153,4 @@ function httpsUrl(value: unknown, query = false): value is string {
 function tokens(data: Record<string, unknown>): { accessToken: string; refreshToken: string } {
   if (!text(data.access_token) || !text(data.refresh_token)) throw refused();
   return { accessToken: data.access_token, refreshToken: data.refresh_token };
-}
-export function signedInUser(value: unknown): SignedInUser {
-  const data = object(value);
-  if (typeof data.id !== "string" || !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(data.id)
-    || !text(data.email) || !data.email.includes("@")) throw refused();
-  return { id: data.id, email: data.email };
 }

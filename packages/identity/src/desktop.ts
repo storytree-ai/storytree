@@ -1,9 +1,11 @@
 /** Capability 2 · Social sign-in and session. */
-import { createRemoteJWKSet, customFetch, jwtVerify } from "jose";
 import type { SignedInUser } from "./client.js";
+import { TokenRefused, workosTokenVerifier, type WorkosAccount } from "./workos-token.js";
+
+export { IDENTITY_AUDIENCE } from "./workos-token.js";
 
 /** The user a sign-in returned, as WorkOS's code exchange gave it to the SDK's session. */
-export interface DesktopAccount { readonly id: string; readonly email: string; readonly emailVerified: boolean }
+export type DesktopAccount = WorkosAccount;
 
 /**
  * What the desktop's main process gets from the official WorkOS desktop SDK, which owns system-browser
@@ -24,48 +26,22 @@ export interface DesktopIdentityConfiguration {
   readonly fetch?: typeof fetch;
 }
 
-/** The audience WorkOS's JWT template stamps on Storytree's access tokens. */
-export const IDENTITY_AUDIENCE = "storytree-identity";
-
-class Refused extends Error {}
-// jose's codes for a token that can never verify, as opposed to keys that could not be fetched.
-const REFUSED_CODES = new Set([
-  "ERR_JWS_SIGNATURE_VERIFICATION_FAILED", "ERR_JWS_INVALID", "ERR_JWT_INVALID", "ERR_JWT_EXPIRED",
-  "ERR_JWT_CLAIM_VALIDATION_FAILED", "ERR_JWKS_NO_MATCHING_KEY", "ERR_JOSE_ALG_NOT_ALLOWED", "ERR_JOSE_NOT_SUPPORTED",
-]);
-
-/**
- * The feedback bridge's account calls: optional, only id and email out. With no identity server yet (question
- * D), the desktop checks WorkOS's access token itself against the client's published keys, and takes the email
- * from the user that same sign-in returned, only when it is that token's subject and its email is verified.
- */
+/** The feedback bridge's account calls: optional, only id and email out, checked by workosTokenVerifier. */
 export function createFeedbackIdentity(config: DesktopIdentityConfiguration) {
   const { session } = config;
-  // Neither the key URL nor the audience comes from the token.
-  const keys = createRemoteJWKSet(new URL(`https://api.workos.com/sso/jwks/${config.clientId}`), {
-    ...(config.fetch ? { [customFetch]: config.fetch } : {}), timeoutDuration: 10_000,
-  });
+  const check = workosTokenVerifier(config.clientId, config.fetch);
   const verify = async (): Promise<SignedInUser | null> => {
     const signedIn = await session.current();
     if (signedIn === undefined) return null;
     try {
-      const { payload } = await jwtVerify(signedIn.accessToken, keys, {
-        audience: IDENTITY_AUDIENCE, algorithms: ["RS256"], requiredClaims: ["sub", "sid", "iat", "exp"],
-      });
-      const { user } = signedIn;
-      if (typeof payload.sub !== "string" || !/^user_[A-Za-z0-9_-]+$/.test(payload.sub) || payload.sub !== user.id
-        || (payload.client_id !== undefined && payload.client_id !== config.clientId)
-        || user.emailVerified !== true || typeof user.email !== "string" || user.email.trim() === "") {
-        throw new Refused();
-      }
-      return { id: user.id, email: user.email };
+      return await check(signedIn.accessToken, signedIn.user);
     } catch (error) {
-      if (error instanceof Refused || REFUSED_CODES.has(String((error as { code?: unknown }).code))) {
-        await session.signOut();
-        return null;
+      if (!(error instanceof TokenRefused)) {
+        // The keys could not be fetched: keep the session for the next try.
+        throw new Error("Sign-in is temporarily unavailable. Try again later; Storytree still works without an account.", { cause: error });
       }
-      // The keys could not be fetched: keep the session for the next try.
-      throw new Error("Sign-in is temporarily unavailable. Try again later; Storytree still works without an account.");
+      await session.signOut();
+      return null;
     }
   };
   return {

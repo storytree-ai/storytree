@@ -109,12 +109,32 @@ export async function engineControls(lanesDir, now) {
 export async function pickEngine({ lanesDir, reading, now, stopAt = 95 }) {
   const { override, until } = await engineControls(lanesDir, now);
   const forced = override.toLowerCase();
-  if (["codex", "claude"].includes(forced)) return { engine: forced, reason: `forced by ${join(lanesDir, "engine-override")}` };
-  if (until !== null) return { engine: "claude", reason: `Codex stopped on its usage limit; Codex is tried again from ${iso(until)}` };
-  if (!reading) return { engine: "codex", reason: "no Codex allowance reading yet" };
+  if (["codex", "claude"].includes(forced)) return { engine: forced, basis: "override", reason: `forced by ${join(lanesDir, "engine-override")}` };
+  if (until !== null) return { engine: "claude", basis: "marker", reason: `Codex stopped on its usage limit; Codex is tried again from ${iso(until)}` };
+  if (!reading) return { engine: "codex", basis: "none", reason: "no Codex allowance reading yet" };
   const { used, resets, reached } = assessAllowance(reading, now);
-  if (used === null) return { engine: "codex", reason: "no live Codex window in the last reading (reset since, or undated)" };
-  return { engine: reached || used >= stopAt ? "claude" : "codex", reason: `Codex weekly allowance ${used}% used, resets ${iso(resets)}` };
+  if (used === null) return { engine: "codex", basis: "none", reason: "no live Codex window in the last reading (reset since, or undated)" };
+  return { engine: reached || used >= stopAt ? "claude" : "codex", basis: "reading", reason: `Codex weekly allowance ${used}% used, resets ${iso(resets)}` };
+}
+
+/**
+ * Pick from the newest reading, but check a Claude pick that rests only on a reading older than `staleAfter`
+ * seconds against a fresh one first: no Codex run writes a reading while lanes run on Claude, so an early reset
+ * would otherwise go unseen until the old reading's reset time (increment_892b871d0b7d). A reading that says the
+ * limit was reached is never probed, so Codex credits are never touched.
+ */
+export async function pickFresh({ lanesDir, sessionsDir, stopAt = 95, now, refresh, staleAfter = 3600 }) {
+  const reading = await readLatestAllowance(sessionsDir);
+  const picked = await pickEngine({ lanesDir, reading, now, stopAt });
+  const age = now - Date.parse(reading?.at) / 1000;
+  if (picked.basis !== "reading" || picked.engine !== "claude" || !(age > staleAfter) || reading.rate_limit_reached_type || !refresh) return { ...picked, reading };
+  const hours = `${Math.round(age / 360) / 10}h`;
+  try { await refresh(); }
+  catch (error) { return { ...picked, reason: `${picked.reason} (a fresh reading for one ${hours} old failed: ${error.message})`, reading }; }
+  const fresh = await readLatestAllowance(sessionsDir);
+  if (!fresh || fresh.at === reading.at) return { ...picked, reason: `${picked.reason} (no fresh reading came back for one ${hours} old)`, reading };
+  const again = await pickEngine({ lanesDir, reading: fresh, now, stopAt });
+  return { ...again, reason: `${again.reason} (refreshed a reading ${hours} old)`, reading: fresh };
 }
 
 async function stderrTail(path) {

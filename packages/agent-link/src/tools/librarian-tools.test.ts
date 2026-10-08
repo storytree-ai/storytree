@@ -16,7 +16,7 @@ import { librarianTools } from "@storytree/librarian";
 import { connect, type Library } from "@storytree/library";
 
 import { openActivityLog, type ActivityLog } from "../activity/index.js";
-import { dropTestProjects, testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { approveCheckout, dropTestProjects, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { createAgentTools } from "./index.js";
 
 const VERBS = ["worklist", "link", "supersede", "correct", "annotate", "retire", "park", "graduate", "route"];
@@ -42,6 +42,7 @@ async function withClient(body: (world: { client: Client; library: Library; log:
   await withLibrary(async (library) => {
     const folder = mkdtempSync(path.join(tmpdir(), "librarian-tools-"));
     writeFileSync(path.join(folder, ".storytree.json"), JSON.stringify({ project: library.name }));
+    await approveCheckout(folder, library.name);
     const log = await openActivityLog(testServerUrl());
     const tools = createAgentTools({
       folder, dataDir: process.env.STORYTREE_TEST_PG_DATA!, env: {},

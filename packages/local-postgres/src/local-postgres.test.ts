@@ -9,8 +9,8 @@
  */
 import assert from "node:assert/strict";
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
-import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { createServer } from "node:net";
+import { appendFileSync, chmodSync, cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { connect, createServer, type Server } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createInterface } from "node:readline";
@@ -168,6 +168,87 @@ test("2.4 a server left running by a process that died is stopped and replaced, 
   await stopped(recovered);
 });
 
+test("2.6 the server lets in only a client with the installation's password, which it hands over privately while it runs", async () => {
+  const dataDir = path.join(root, "password");
+  const server = await started({ dataDir, password: true });
+  const password = decodeURIComponent(new URL(server.url).password);
+  assert.ok(password.length >= 32, "a generated secret");
+  assert.deepEqual(await query(server.url, "SELECT 1 AS one"), [{ one: 1 }], "the url handed back signs in");
+
+  // Without a password nobody gets in, postgres included: the server asks for one (SASL, code 10) and never says ok (0).
+  for (const user of ["postgres", "someone_else"]) assert.equal(await firstAuthentication(server.port, user), 10, user);
+  const wrong = new URL(server.url);
+  wrong.password = "x".repeat(43);
+  await assert.rejects(query(wrong.href, "SELECT 1"), { code: "28P01" }, "a wrong password is refused");
+  assert.doesNotMatch(readFileSync(path.join(dataDir, "pg_hba.conf"), "utf8"), /trust/);
+
+  // The owner record says a handoff is due and carries no secret; the handoff names this very launch.
+  const ownerText = readFileSync(`${dataDir}.owner.json`, "utf8");
+  assert.equal(ownerText.includes(password), false);
+  const owner = JSON.parse(ownerText) as { token: string; port: number; auth: { version: number; method: string; installationId: string } };
+  assert.equal(owner.auth.version, 1);
+  assert.equal(owner.auth.method, "scram-sha-256");
+  const handoff = path.join(`${dataDir}.auth`, "connection.json");
+  assert.deepEqual(JSON.parse(readFileSync(handoff, "utf8")), {
+    version: 1, installationId: owner.auth.installationId, ownerToken: owner.token, port: server.port, user: "postgres", password,
+  });
+  if (process.platform !== "win32") {
+    assert.equal(lstatSync(`${dataDir}.auth`).mode & 0o777, 0o700, "only this user may enter the directory");
+    assert.equal(lstatSync(handoff).mode & 0o777, 0o600, "only this user may read the handoff");
+  }
+
+  // Stopped, the handoff is withdrawn and the sign-in kept: started again, it is the same password on the new port.
+  await stopped(server);
+  assert.equal(existsSync(handoff), false);
+  const again = await started({ dataDir, password: true, port: await freePort() });
+  assert.equal(decodeURIComponent(new URL(again.url).password), password);
+  assert.equal((JSON.parse(readFileSync(handoff, "utf8")) as { port: number }).port, again.port);
+  await stopped(again);
+});
+
+test("2.7 a cluster made when local connections were trusted is given the password before its server starts again, keeping its data, and an interrupted start never reopens it", async (t) => {
+  const dataDir = path.join(root, "legacy");
+  assert.equal(tool("initdb", ["-D", dataDir, "-U", "postgres", "-A", "trust", "-E", "UTF8"]), 0);
+  appendFileSync(path.join(dataDir, "postgresql.conf"), "\nlisten_addresses = '127.0.0.1'\n");
+  const oldPort = await freePort();
+  assert.equal(pgCtl(["-D", dataDir, "-o", `-p ${oldPort}`, "-l", `${dataDir}.log`, "-w", "start"]), 0);
+  const passwordless = `postgres://postgres@127.0.0.1:${oldPort}/postgres`;
+  await query(passwordless, "CREATE TABLE kept (note text); INSERT INTO kept VALUES ('from before passwords')");
+  assert.equal(pgCtl(["-D", dataDir, "-m", "fast", "-w", "stop"]), 0);
+
+  // A start that fails after the change (its port is taken) leaves the cluster asking for the password, and the sign-in in place.
+  const taken = await occupy();
+  const failed: unknown = await start({ dataDir, password: true, port: (taken.address() as { port: number }).port }).then(
+    (server) => (servers.add(server), undefined),
+    (error: unknown) => error,
+  );
+  await new Promise((resolve) => taken.close(resolve));
+  if (failed instanceof Error && /administrator rights/.test(failed.message)) {
+    t.skip("NOT RUN: Postgres refuses single-user mode to a Windows administrator, as this runner is");
+    return;
+  }
+  assert.ok(failed instanceof Error, "the start on a taken port failed");
+  assert.doesNotMatch(readFileSync(path.join(dataDir, "pg_hba.conf"), "utf8"), /trust/, "no trust survives the failed start");
+  assert.equal(existsSync(`${dataDir}.owner.json`), false);
+  assert.ok(existsSync(path.join(`${dataDir}.auth`, "installation.json")), "the sign-in is kept for the retry");
+
+  // The retry starts it, the data is there, and only the password lets anyone in.
+  const server = await started({ dataDir, password: true });
+  assert.deepEqual(await query(server.url, "SELECT note FROM kept"), [{ note: "from before passwords" }]);
+  assert.equal(await firstAuthentication(server.port, "postgres"), 10);
+  const wrong = new URL(server.url);
+  wrong.password = "x".repeat(43);
+  await assert.rejects(query(wrong.href, "SELECT 1"), { code: "28P01" });
+  await stopped(server);
+
+  // A trust line added since is taken away again at the next start; the password stays the same.
+  appendFileSync(path.join(dataDir, "pg_hba.conf"), "host all all 127.0.0.1/32 trust\n");
+  const again = await started({ dataDir, password: true });
+  assert.equal(again.url.replace(/:\d+\//, "/"), server.url.replace(/:\d+\//, "/"));
+  assert.equal(await firstAuthentication(again.port, "postgres"), 10);
+  await stopped(again);
+});
+
 // --- helpers ---------------------------------------------------------------------------------
 
 /**
@@ -255,8 +336,44 @@ async function query(url: string, sql: string): Promise<unknown[]> {
 
 /** Run pg_ctl directly: the tests' own view of the server, independent of the code under test. */
 function pgCtl(args: string[]): number {
-  const result = spawnSync(path.join(findBinaries(), exe("pg_ctl")), args, { stdio: "ignore" });
+  return tool("pg_ctl", args);
+}
+
+function tool(name: string, args: string[]): number {
+  const result = spawnSync(path.join(findBinaries(), exe(name)), args, { stdio: "ignore" });
   return result.status ?? 1;
+}
+
+/**
+ * The server's first answer to a client that brings no password: the authentication request code
+ * of its first message (0 is "come in", 10 is "sign in with SASL"), or -1 for an error.
+ */
+function firstAuthentication(port: number, user: string): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const socket = connect(port, "127.0.0.1");
+    const parameters = Buffer.from(`user\0${user}\0database\0postgres\0\0`);
+    const header = Buffer.alloc(8);
+    header.writeInt32BE(8 + parameters.length, 0);
+    header.writeInt32BE(196608, 4); // protocol 3.0
+    let received = Buffer.alloc(0);
+    socket.on("connect", () => socket.write(Buffer.concat([header, parameters])));
+    socket.on("data", (chunk) => {
+      received = Buffer.concat([received, chunk]);
+      if (received.length < 9) return;
+      socket.destroy();
+      resolve(received[0] === 0x52 ? received.readInt32BE(5) : -1);
+    });
+    socket.on("error", reject);
+  });
+}
+
+/** A port held by something else, so a server cannot listen there. */
+function occupy(): Promise<Server> {
+  return new Promise((resolve, reject) => {
+    const server = createServer();
+    server.on("error", reject);
+    server.listen(0, "127.0.0.1", () => resolve(server));
+  });
 }
 
 function serverRunning(dataDir: string): boolean {

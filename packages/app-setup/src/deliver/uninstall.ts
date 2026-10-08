@@ -68,11 +68,11 @@ function updaterCache(installDir: string, localAppData: string | undefined): str
 }
 
 /**
- * The library, and what lets a reinstall find it again: its database and backups, its location
+ * The library, and what lets a reinstall find it again: its database, its sign-in and backups, its location
  * setting, this machine's identity (its projects' folders are recorded under it), the chosen project,
  * and hook lines queued for it while storytree was not running. The rest of the home is the app's.
  */
-const library = new Set(["pgdata", "pgdata.owner.json", "backups", "settings.json", "machine.json", "project-choice.json", "queued-lines"]);
+const library = new Set(["pgdata", "pgdata.owner.json", "pgdata.auth", "backups", "settings.json", "machine.json", "project-choice.json", "queued-lines"]);
 
 const remove = (target: string) => rmSync(target, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 });
 

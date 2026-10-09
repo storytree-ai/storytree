@@ -66,7 +66,7 @@ const NAME_PART_MAX = 32;
 
 /** Create and claim for Claude Code; for Codex return the app's creation arguments without a claim. */
 export async function makeWorkspace(context: WorkspaceContext, id: string, reason: string, watch: MergeWatch = {}, options: WorkspaceOptions = {}): Promise<WorkspaceAnswer> {
-  const refused = reasonRefusal(reason) ?? await workspaceRefusal(context, id, reason, watch, context.harness !== "codex");
+  const refused = reasonRefusal(reason) ?? await workspaceRefusal(context, id, reason, watch);
   if (refused !== undefined) return refused;
   const linked = linkedWorktree(context.folder);
   const capability = linked !== undefined && (await context.library.get(id))?.type === "capability";
@@ -143,7 +143,10 @@ export async function attachWorkspace(context: WorkspaceContext, id: string, rea
   }
 
   const branch = existingBranch || `codex/${attachment.name}`; // Only Codex's may be detached.
-  const claimed = await claim({ ...context, folder, branch }, id, reason);
+  // A claim this session held from the main checkout before attaching (workspaceRefusal) moves onto the attached branch.
+  const before = await readClaim(context.log, context.project, id);
+  const moving = before?.session === context.session && before.holder === "live";
+  const claimed = await claim({ ...context, folder, branch }, id, reason, moving ? { moveBranch: true } : {});
   if (!claimed.ok) return claimed; // Another session may have claimed since preparation.
   // A claim this session took elsewhere while checking must not be retargeted or released.
   if (claimed.alreadyHeld) return { ok: false, refused: "yours", claim: claimed.claim };
@@ -153,6 +156,11 @@ export async function attachWorkspace(context: WorkspaceContext, id: string, rea
     }
     if (!existingBranch) run(folder, ["switch", "-c", branch]);
   } catch (error) {
+    // A claim the session held before goes back to its branch; one taken here is let go.
+    if (moving && before.branch !== undefined) {
+      await claim({ ...context, branch: before.branch }, id, before.reason, { moveBranch: true });
+      return { ok: false, refused: "no-workspace", why: `could not attach the app worktree; the claim went back to ${before.branch}: ${firstLine(error)}` };
+    }
     await release(context, id);
     return { ok: false, refused: "no-workspace", why: `could not attach the app worktree; the claim was released: ${firstLine(error)}` };
   }
@@ -162,13 +170,13 @@ export async function attachWorkspace(context: WorkspaceContext, id: string, rea
 /**
  * Why this session may not have a workspace for `id`. A claim it holds on a branch that has since
  * merged is ended first, and one on a branch waiting in the merge queue, which can take no more
- * commits, is not pointed back at either. When `movable`, neither is one held, from the main
- * checkout, on a branch no linked worktree has checked out (as main): there is nowhere to work there.
+ * commits, is not pointed back at either, nor is one held, from the main checkout, on a branch no
+ * linked worktree has checked out (as main): there is nowhere to work there, so the workspace takes it.
  */
-async function workspaceRefusal(context: WorkspaceContext, id: string, reason: string, watch: MergeWatch, movable = false): Promise<WorkspaceRefusal | undefined> {
+async function workspaceRefusal(context: WorkspaceContext, id: string, reason: string, watch: MergeWatch): Promise<WorkspaceRefusal | undefined> {
   const mine = await readClaim(context.log, context.project, id);
   if (mine?.session === context.session && !(await endIfMerged({ ...context, source: "tool" }, mine, watch)) && !(await inMergeQueue(context.folder, mine, watch))
-    && !(movable && linkedWorktree(context.folder) === undefined && !linkedBranches(context.folder).has(mine.branch ?? ""))) {
+    && !(linkedWorktree(context.folder) === undefined && !linkedBranches(context.folder).has(mine.branch ?? ""))) {
     return { ok: false, refused: "yours", claim: mine };
   }
   return claimRefusal(context, id, reason);

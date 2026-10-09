@@ -808,6 +808,30 @@ test("8.11 a Codex installed only as its desktop app, off the PATH, is found whe
   });
 });
 
+test("8.11 on a Mac, a Codex installed only as its desktop app is found inside the Codex or ChatGPT app bundle, in each layout the app has shipped (increment_ebe913930972)", {
+  skip: process.platform === "win32" && "platform:win32: the bundle's CLI is a bare `codex`, which Windows runs only as an .exe",
+}, async () => {
+  await withTempDir(async (dir) => {
+    const bin = path.join(dir, "bin");
+    const codexHome = path.join(dir, ".codex");
+    for (const folder of [bin, codexHome]) mkdirSync(folder, { recursive: true });
+    const options = { path: bin, waitMs: 10_000, codexHome, localAppData: path.join(dir, "Local") };
+    const layouts = [
+      ["Codex.app", "Contents", "Resources", "codex"],
+      ["ChatGPT.app", "Contents", "Resources", "codex-cli", "bin", "codex"],
+      ["ChatGPT.app", "Contents", "Resources", "codex-cli", "CodexCLI.app", "Contents", "MacOS", "codex"],
+    ];
+    for (const [index, layout] of layouts.entries()) {
+      const applications = path.join(dir, `Applications-${index}`);
+      assert.equal((await machineState({ ...options, applications: [applications] })).codex, "missing", layout.join("/"));
+      const file = path.join(applications, ...layout);
+      mkdirSync(path.dirname(file), { recursive: true });
+      symlinkSync(process.execPath, file);
+      assert.equal((await machineState({ ...options, applications: [path.join(dir, "elsewhere"), applications] })).codex, "signed out", layout.join("/"));
+    }
+  });
+});
+
 test("8.23 the check's codex-server line judges the tool server a Codex session in this folder starts: missing where none is named, ok from the project's own .codex/config.toml, and not ok where Codex's entry names a removed install (regression: the owner's Windows laptop and the Mint box, 2026-09-29 and 2026-10-05)", async () => {
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);

@@ -8,7 +8,7 @@
  * check never hangs on one (a sign-in prompt, a stuck update, a network wait).
  */
 import { spawn } from "node:child_process";
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 
@@ -43,6 +43,8 @@ export interface MachineOptions {
   readonly codexHome?: string;
   /** Where Windows keeps a user's apps (%LOCALAPPDATA%), under which the Codex desktop app installs its CLI. By default, LOCALAPPDATA. */
   readonly localAppData?: string;
+  /** Where macOS keeps apps, in which the Codex or ChatGPT app bundles its CLI. By default, /Applications and ~/Applications on a Mac, none elsewhere. */
+  readonly applications?: readonly string[];
 }
 
 export type Answer = { readonly answered: false } | { readonly answered: true; readonly code: number; readonly out: string };
@@ -112,9 +114,10 @@ async function agentCli(command: string, signIn: readonly string[], env: NodeJS.
 /**
  * Where a Codex off the PATH may be: the Codex desktop app puts its CLI at
  * %LOCALAPPDATA%\OpenAI\Codex\bin\<hash>\codex.exe and names it as CODEX_CLI_PATH in Codex's
- * config.toml, and puts neither on the PATH (increment_820b7d460eb9).
+ * config.toml, and puts neither on the PATH (increment_820b7d460eb9). On a Mac the Codex app, or the
+ * ChatGPT app it merged into, bundles it in one of {@link BUNDLED_CODEX}'s places (increment_ebe913930972).
  */
-function desktopCodex(codexHome: string, localAppData: string | undefined): string[] {
+function desktopCodex(codexHome: string, localAppData: string | undefined, applications: readonly string[]): string[] {
   const found: string[] = [];
   try {
     const named = /^\s*CODEX_CLI_PATH\s*=\s*("(?:[^"\\]|\\.)*"|'[^']*')/m.exec(readFileSync(path.join(codexHome, "config.toml"), "utf8"))?.[1];
@@ -130,18 +133,40 @@ function desktopCodex(codexHome: string, localAppData: string | undefined): stri
       // No desktop app here.
     }
   }
+  for (const folder of applications) {
+    for (const app of ["Codex.app", "ChatGPT.app"]) {
+      for (const layout of BUNDLED_CODEX) {
+        const file = path.join(folder, app, "Contents", "Resources", ...layout);
+        if (existsSync(file)) found.push(file);
+      }
+    }
+  }
   return found;
 }
 
-/** Codex on the PATH, else the desktop app's own CLI, an .exe asked with no shell (its path may hold spaces). */
+/**
+ * Where a Mac app bundle has kept Codex's CLI under Contents/Resources, newest first: codex-cli's
+ * bin/codex and CodexCLI.app since app 26.924 moved it (openai/codex#48214), a bare codex before.
+ */
+const BUNDLED_CODEX: readonly (readonly string[])[] = [
+  ["codex-cli", "bin", "codex"],
+  ["codex-cli", "CodexCLI.app", "Contents", "MacOS", "codex"],
+  ["codex"],
+];
+
+/** Codex on the PATH, else the desktop app's own CLI, asked with no shell (its path may hold spaces). */
 async function codexCli(env: NodeJS.ProcessEnv, waitMs: number, options: MachineOptions): Promise<AgentCliState> {
   const onPath = await agentCli("codex", ["login", "status"], env, waitMs);
   if (onPath !== "missing") return onPath;
-  for (const file of desktopCodex(options.codexHome ?? (process.env.CODEX_HOME || path.join(homedir(), ".codex")), options.localAppData ?? process.env.LOCALAPPDATA)) {
+  for (const file of desktopCodex(options.codexHome ?? (process.env.CODEX_HOME || path.join(homedir(), ".codex")), options.localAppData ?? process.env.LOCALAPPDATA, options.applications ?? macApplications())) {
     const state = await agentCli(file, ["login", "status"], env, waitMs, false);
     if (state !== "missing") return state;
   }
   return "missing";
+}
+
+function macApplications(): string[] {
+  return process.platform === "darwin" ? ["/Applications", path.join(homedir(), "Applications")] : [];
 }
 
 async function git(env: NodeJS.ProcessEnv, waitMs: number): Promise<ToolState> {

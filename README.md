@@ -12,6 +12,15 @@ installed and signed in. In Windows PowerShell (5.1+) or PowerShell 7, run:
 It installs the app and opens it. Then open **Help → First-run guide** in the app to connect your
 agent. What the command does and checks: [apps/desktop/README.md](apps/desktop/README.md).
 
+This release is unsigned. If Windows shows a SmartScreen warning and you trust the download, use
+**More info → Run anyway**. If Windows says **Smart App Control** blocked it and offers no Run
+anyway, that is Windows 11's reputation check on unsigned apps. See whether it is on in Windows
+Security → App & browser control → Smart App Control settings. Turning it off there lets storytree
+install, but Smart App Control then stops checking every app on the computer (Defender antivirus
+keeps running). On Windows 11 with the April 2026 update or later you can turn it back on from the
+same page; before that update, turning it back on needs a reset or reinstall of Windows. If you
+would rather keep it on, wait for a signed release.
+
 **Storytree 0.3.** Storytree is the observability layer beside your coding agent. You build a
 project with Claude Code or Codex, and storytree shows you what is being built: each project as a
 forest that grows as stories land, an arc surface for what is planned, in progress and done, and a

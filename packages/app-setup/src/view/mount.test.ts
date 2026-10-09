@@ -102,6 +102,22 @@ test("3.4 Add project asks the picker bridge, shows the chosen project and leave
   } finally { mounted.stop(); }
 });
 
+test("3.8 the mounted guide explains a Smart App Control block: what it is, where to see it, how to turn it off and what that costs", () => {
+  const mounted = mountSetupHelp(document.body, helpBridge());
+  try {
+    const step = [...document.querySelectorAll("#setup-help-panel details")]
+      .find((details) => /Smart App Control/.test(details.querySelector("summary")!.textContent!));
+    assert.ok(step, "a Smart App Control step beside the SmartScreen one");
+    const text = step.textContent!;
+    assert.match(text, /no Run anyway/);
+    assert.match(text, /unsigned/);
+    assert.match(text, /Windows Security → App & browser control → Smart App Control/);
+    assert.match(text, /turn it off/i);
+    assert.match(text, /April 2026/);
+    assert.match(text, /reset/i);
+  } finally { mounted.stop(); }
+});
+
 test("5.5 feedback sign-in is optional and only explicitly added identity enters the editable draft", async () => {
   let statuses = 0;
   let signIns = 0;

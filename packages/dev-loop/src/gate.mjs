@@ -6,6 +6,8 @@
 // sees it, so `pnpm gate -- --guidance` fails there; `pnpm run` passes them on in every shell.
 // check:plan-edges (ADR-0840 D2) reads the plan from the library, which CI cannot, so it runs here every time.
 // It fails only on edges between stories whose packages the branch changes; others it prints as notes.
+// check:capability-list (ADR-0949 D3) fails a branch that changes a capability its increment does not list; a
+// branch whose name carries no increment is NOT RUN with that reason.
 // The gate holds the machine's heavy-run lock (packages/dev-loop/src/heavy-lock.mjs) for its whole run, so
 // concurrent sessions' gates queue; its test step runs under that hold.
 import { execFileSync, spawn } from "node:child_process";
@@ -13,6 +15,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { capabilityListFor } from "./capability-list.mjs";
 import { acquireHeavyLock } from "./heavy-lock.mjs";
 import { REGION_START, REGION_END, ROLE_DIRS } from "./guidance.mjs";
 import { changedFiles, resultsTable } from "./test-scope.mjs";
@@ -50,11 +53,14 @@ function generatedRegion(text) {
 /** Continue after ordinary failures, but never report an interrupted check as a pass. */
 export async function runGate({ root = repoRoot, guidance = false, signal, forceSignal, log = console.log, run = runCheck } = {}) {
   const decision = guidanceFor(root, guidance);
-  const results = { typecheck: "not run", test: "not run", "check:guidance": "not run", "check:plan-edges": "not run" };
-  const reasons = { "check:guidance": decision.reason };
+  // The gate runs in a checkout, whose branch Git knows; CI's own run of the check reads its pull request's.
+  const listed = capabilityListFor(root, {});
+  const results = { typecheck: "not run", test: "not run", "check:guidance": "not run", "check:plan-edges": "not run", "check:capability-list": "not run" };
+  const reasons = { "check:guidance": decision.reason, "check:capability-list": listed.reason };
   for (const step of Object.keys(results)) {
     if (signal?.aborted) break;
     if (step === "check:guidance" && !decision.run) continue;
+    if (step === "check:capability-list" && !listed.run) continue;
     log(`\n=== ${step} ===`);
     try {
       const code = await run(step, { root, signal, forceSignal });
@@ -87,6 +93,7 @@ function runCheck(step, { root, signal, forceSignal }) {
   if (step === "test") args = ["--import", "tsx", "packages/dev-loop/src/test.mjs"];
   else if (step === "check:guidance") args = ["--import", "tsx", "packages/dev-loop/src/build-guidance.mjs", "--check"];
   else if (step === "check:plan-edges") args = ["--import", "tsx", "packages/dev-loop/src/plan-edges.mjs"];
+  else if (step === "check:capability-list") args = ["--import", "tsx", "packages/dev-loop/src/capability-list.mjs"];
   else if (process.env.npm_execpath) args = [process.env.npm_execpath, "run", "typecheck"];
   else {
     command = "pnpm";
@@ -131,7 +138,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     console.error(`gate: unknown argument ${unknown}; use pnpm run gate --help`);
     process.exitCode = 1;
   } else if (args.includes("--help")) {
-    console.log("pnpm run gate [--guidance]\nRuns typecheck, scoped tests and guidance when generated roles changed.\nUse --guidance after editing a role or a note in the library, even if Git has no diff.");
+    console.log("pnpm run gate [--guidance]\nRuns typecheck, scoped tests, guidance when generated roles changed, plan edges, and the capability list when the branch names an increment.\nUse --guidance after editing a role or a note in the library, even if Git has no diff.");
   } else {
     const controller = new AbortController();
     const force = new AbortController();

@@ -8,6 +8,7 @@
     "@storytree/guardrails": "workspace:*",
     "@storytree/library": "workspace:*",
     "@storytree/local-postgres": "workspace:*",
+    "@storytree/map": "workspace:*",
     "pg": "^8.23.0",
     "playwright-core": "1.60.0",
     "tsx": "^4.23.15"

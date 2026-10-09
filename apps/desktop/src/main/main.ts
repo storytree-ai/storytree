@@ -94,7 +94,7 @@ import { AuthKitCore, AuthOperations, sessionEncryption } from "@workos/authkit-
 import { CHANNELS } from "../bridge.js";
 import { APP_OWNER, appHome } from "../home.js";
 import { parseArgs } from "./args.js";
-import { routeCallback } from "./callback-check.js";
+import { registersSignInScheme, routeCallback } from "./callback-check.js";
 import { createTrayIcon } from "./tray-icon.js";
 import { startRefusal } from "./one-app.js";
 import { followReleases, installedApp } from "./releases.js";
@@ -250,7 +250,7 @@ async function run(): Promise<void> {
     ipcMain.handle(CHANNELS.feedbackIdentityStatus, () => feedbackIdentity.status());
     ipcMain.handle(CHANNELS.feedbackIdentitySignIn, () => feedbackIdentity.signIn());
     ipcMain.handle(CHANNELS.feedbackIdentitySignOut, () => feedbackIdentity.signOut());
-    if (!args.smoke && !args.startCheck) {
+    if (registersSignInScheme(args, true)) {
       registerProtocol(AUTH_SCHEME);
       for (const url of [...earlyCallbacks.splice(0), ...callbackUrls(process.argv)]) deliverCallback(url);
     }
@@ -427,6 +427,8 @@ function deliverCallback(url: string): void {
 /** A `--callback-check` start once ready: make the sign-in session when this build offers one, then take callbacks. */
 async function checkCallbacks(): Promise<void> {
   if (identityConfig !== undefined) startFeedbackIdentity(identityConfig);
+  // Claim the scheme as a normal start does, so a callback opened through the OS's protocol handler reaches this app.
+  if (registersSignInScheme(args, identityConfig !== undefined)) registerProtocol(AUTH_SCHEME);
   console.log("callback check: waiting for sign-in callbacks");
   for (const url of [...earlyCallbacks.splice(0), ...callbackUrls(process.argv)]) deliverCallback(url);
 }

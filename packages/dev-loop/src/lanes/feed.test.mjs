@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 
-import { keepFed, main, parseFences, pickNext, queuedOnTracks, readSurvey, WEBSITE_ARC, writesOf } from "./feed.mjs";
+import { keepFed, main, markQueue, parseFences, pickNext, queuedOnTracks, readSurvey, WEBSITE_ARC, writesOf } from "./feed.mjs";
 
 const fences = parseFences(`L=packages/library, packages/librarian, packages/cli
 A=packages/agent-link, packages/app, apps/desktop/src/main, packages/dev-loop
@@ -233,6 +233,50 @@ test("12.6 · beside running lanes a track starts only queued or library work wr
   done.lanes(0); done.library(0);
   assert.equal(await fed, 0);
   assert.deepEqual(started, ["lanes", "main", "library"]);
+});
+
+test("11.6 · work in a track's queue carries the runner's event wait, which comes off before its lane starts; a wait someone else wrote is left alone", async (t) => {
+  const calls = [];
+  const library = {
+    holds: async () => ({ waits: {}, heldOn: {}, waitsFor: {
+      starting: [{ releaser: "event", note: "queued on Mint track A, behind x", checkBack: "2026-10-08", holds: true }],
+      theirs: [{ releaser: "event", note: "waits for the deploy", checkBack: "2026-10-09", holds: true }],
+      second: [{ releaser: "event", note: "queued on Mint track A, behind old", checkBack: "2026-10-07", holds: false }],
+    } }),
+    addWaitFor: async (id, wait, options) => { calls.push(["add", id, wait.releaser, wait.note, wait.checkBack, options.actor]); },
+    removeWaitFor: async (id, releaser, options) => { calls.push(["remove", id, releaser, options.actor]); },
+  };
+  await markQueue({ library, track: "A", starting: "starting", running: ["other"], queued: ["second", "theirs", "third"], now });
+  assert.deepEqual(calls, [
+    ["remove", "starting", "event", "runner:mint-track-A"],
+    ["add", "second", "event", "queued on Mint track A, behind other, starting", "2026-10-08", "runner:mint-track-A"],
+    ["add", "third", "event", "queued on Mint track A, behind theirs", "2026-10-08", "runner:mint-track-A"],
+  ]);
+  calls.length = 0;
+  await markQueue({ library, track: "A", starting: "theirs", queued: [], now });
+  assert.deepEqual(calls, [], "a starting increment's wait someone else wrote stays");
+
+  const held = survey([increment("evented", "packages/dev-loop", { parked: "2026-10-01T00:00:00Z" }), increment("owned", "packages/dev-loop", { parked: "2026-10-02T00:00:00Z" }),
+    increment("lapsed", "packages/dev-loop", { parked: "2026-10-03T00:00:00Z" })], { holds: { waits: {}, heldOn: {}, waitsFor: {
+    evented: [{ releaser: "event", note: "the deploy", holds: true }], owned: [{ releaser: "owner", note: "sign-in", holds: true }],
+    lapsed: [{ releaser: "event", note: "queued on Mint track B, behind y", holds: false }] } } });
+  const { pick, skipped } = pickNext(held, { track: "A", fences });
+  assert.equal(pick, "lapsed", "a wait past its check-back day holds nothing");
+  assert.deepEqual(skipped, [{ id: "evented", why: "waits for an event: the deploy" }, { id: "owned", why: "waits for the owner: sign-in" }]);
+
+  const dir = await mkdtemp(join(tmpdir(), "lane-marks-"));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const queue = join(dir, "night-queue-A.txt"), stop = join(dir, "night-stop");
+  await writeFile(queue, "first\nsecond\n");
+  const order = [];
+  await keepFed({ track: "A", fences, queueFile: queue, stopFile: stop, now: () => now, say: (line) => order.push(line),
+    survey: async () => survey([]), sleep: () => assert.fail("no wait"),
+    markQueue: async (marks) => { order.push(["mark", marks]); if (marks.starting === "second") throw new Error("library unreachable"); },
+    runLane: async (id) => { order.push(["lane", id]); if (id === "second") await writeFile(stop, ""); return 0; } });
+  assert.deepEqual(order.filter((one) => Array.isArray(one)), [
+    ["mark", { track: "A", starting: "first", running: [], queued: ["second"] }], ["lane", "first"],
+    ["mark", { track: "A", starting: "second", running: [], queued: [] }], ["lane", "second"]]);
+  assert.ok(order.some((line) => /queue waits not written \(library unreachable\); the lane runs anyway/.test(line)));
 });
 
 test("11.5 · a refill skips an increment queued or running on any track's queue", async (t) => {

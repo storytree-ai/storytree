@@ -7,7 +7,7 @@ import { join, resolve } from "node:path";
 import { setTimeout as wait } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 
-import { runQueue } from "./queue.mjs";
+import { queueLines, runQueue } from "./queue.mjs";
 
 /** The website arc: its work is the laptop's (the manager's skip rule). */
 export const WEBSITE_ARC = "arc_e42da2528db8";
@@ -81,6 +81,8 @@ export function pickNext(survey, { track, fences, attempts = new Map(), queued =
       if (queued.has(one.id)) return `queued on track ${queued.get(one.id)}`;
       const waits = survey.holds.waits[one.id] ?? [];
       if (waits.length) return `waits on ${waits.map((hold) => hold.on).join(", ")}`;
+      const notes = (survey.holds.waitsFor?.[one.id] ?? []).filter((hold) => hold.holds);
+      if (notes.length) return notes.map((hold) => `waits for ${hold.releaser === "owner" ? "the owner" : "an event"}: ${hold.note}`).join("; ");
       const questions = survey.holds.heldOn[one.id] ?? [];
       if (questions.length) return `held on ${questions.join(", ")}`;
       if (one.arc === WEBSITE_ARC) return "on the website arc";
@@ -140,17 +142,25 @@ export async function queuedOnTracks(lanesDir) {
  * Run the track's queue (queue.mjs's runQueue), up to `limit` lanes at once; when it empties, refill it from one
  * survey, skipping work any track has queued (`queued`), and when nothing is ready wait `intervalMs` and look again.
  * Beside running lanes it starts, from one survey, the first queued increment sharing no package with them, else
- * one such increment from the library. Ends only on the stop file, or 75 (an engine failing at once), which keeps
- * that lane queued.
+ * one such increment from the library. As each lane starts, `markQueue` keeps the queue's event waits (markQueue
+ * below); a failure to write them is said and the lane runs anyway. Ends only on the stop file, or 75 (an engine
+ * failing at once), which keeps that lane queued.
  */
 export async function keepFed({ track, fences, queueFile, stopFile, survey, runLane, sleep = (ms, options) => wait(ms, undefined, options),
-  queued = async () => new Map(), limit = 1, intervalMs = 15 * 60_000, now = Date.now, say = console.log }) {
+  queued = async () => new Map(), markQueue: mark = async () => {}, limit = 1, intervalMs = 15 * 60_000, now = Date.now, say = console.log }) {
   const dated = (message) => say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} ${message}`);
   const attempts = new Map();
   const minutes = Math.round(intervalMs / 60_000);
   return runQueue({
     queueFile, stopFile, now, say, limit, sleep, intervalMs,
-    runLane: (id) => { attempts.set(id, { at: now() }); return runLane(id); },
+    runLane: async (id, running = []) => {
+      attempts.set(id, { at: now() });
+      try {
+        const waiting = (await queueLines(queueFile)).filter((line) => line !== id && !running.includes(line));
+        await mark({ track, starting: id, running, queued: waiting });
+      } catch (error) { dated(`queue waits not written (${String(error.message).split("\n")[0]}); the lane runs anyway`); }
+      return runLane(id);
+    },
     beside: async (lines, ids) => {
       let found;
       try { found = await survey(); }
@@ -191,20 +201,55 @@ export async function keepFed({ track, fences, queueFile, stopFile, survey, runL
   });
 }
 
-/** One survey of the shared library, where this computer's `library` setting says it is. */
-export async function surveyLibrary(project = "storytree") {
-  const { locateLibrary, openActivityLog, readClaims, readSessions } = await import("@storytree/agent-link");
+/** The note a track's runner writes on the event wait of work in its queue; an event wait with another note is never touched. */
+const QUEUED = /^queued on Mint track [A-Z]\b/;
+
+/**
+ * Keep the board's reading of a track's queue true (increment_8fff1a33a371): the increment about to start loses the
+ * runner's event wait first, since a holding wait refuses the lane's own claim; every other queued line gets or
+ * refreshes one ("queued on Mint track T, behind X", checking back tomorrow), so the board reads it queued rather than
+ * ready to take and other sessions' claims on it are refused while it waits. An event wait someone else wrote is left
+ * alone; one left by a dropped queue stops holding on its check-back day.
+ */
+export async function markQueue({ library, track, starting, running = [], queued, now = Date.now(), actor = `runner:mint-track-${track}` }) {
+  const waitsFor = (await library.holds()).waitsFor ?? {};
+  const events = (id) => (waitsFor[id] ?? []).filter((wait) => wait.releaser === "event");
+  if (events(starting).some((wait) => QUEUED.test(wait.note))) await library.removeWaitFor(starting, "event", { actor });
+  const checkBack = new Date(now + 86_400_000).toISOString().slice(0, 10);
+  let behind = [...running, starting].join(", ");
+  for (const id of queued) {
+    if (events(id).every((wait) => QUEUED.test(wait.note))) {
+      await library.addWaitFor(id, { releaser: "event", note: `queued on Mint track ${track}, behind ${behind}`, checkBack }, { actor });
+    }
+    behind = id;
+  }
+}
+
+/** markQueue against the shared library, where this computer's `library` setting says it is. */
+export async function markQueueInLibrary(marks, project = "storytree") {
+  return withLibrary(project, (library) => markQueue({ library, ...marks }));
+}
+
+async function withLibrary(project, use) {
+  const { locateLibrary } = await import("@storytree/agent-link");
   const { connect } = await import("@storytree/library");
   const where = locateLibrary();
   if (!where.found) throw new Error(where.message);
   const storytree = await connect(where.connect);
   try {
     const library = await storytree.openProject(project);
-    try {
-      const log = await openActivityLog(storytree);
-      return await readSurvey({ library, claims: () => readClaims(log, project), sessions: (of) => readSessions(log, project, { of }) });
-    } finally { await library.close(); }
+    try { return await use(library, storytree); }
+    finally { await library.close(); }
   } finally { await storytree.close(); }
+}
+
+/** One survey of the shared library, where this computer's `library` setting says it is. */
+export async function surveyLibrary(project = "storytree") {
+  const { openActivityLog, readClaims, readSessions } = await import("@storytree/agent-link");
+  return withLibrary(project, async (library, storytree) => {
+    const log = await openActivityLog(storytree);
+    return readSurvey({ library, claims: () => readClaims(log, project), sessions: (of) => readSessions(log, project, { of }) });
+  });
 }
 
 /**

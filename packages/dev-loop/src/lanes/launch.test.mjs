@@ -20,10 +20,11 @@ async function box(t, extra = {}) {
   const lanesDir = await folder(t);
   await writeFile(join(lanesDir, "night-fences.txt"), "A=packages/dev-loop, apps/desktop/src/main\nB=packages/app\n");
   await writeFile(join(lanesDir, "night-common.md"), "Common rules.\n");
-  const events = [], lines = [], briefs = [];
+  const events = [], lines = [], briefs = [], marks = [];
   const counts = [5, 4];
   return {
-    lanesDir, events, lines, briefs, repo: join(lanesDir, "repo"), addDirs: ["/wt", lanesDir], pid: 4242, now,
+    lanesDir, events, lines, briefs, marks, repo: join(lanesDir, "repo"), addDirs: ["/wt", lanesDir], pid: 4242, now,
+    markQueue: async (one) => { marks.push(one); },
     say: (line) => lines.push(line), argsOf: async () => "", maxLanes: async () => 5,
     count: async () => { events.push("count"); return counts.length ? counts.shift() : 0; },
     lock: async (fn) => { events.push("lock"); await fn(); events.push("unlock"); },
@@ -52,6 +53,7 @@ test("12.5 · each lane waits for a slot and updates the checkout under the shar
   assert.equal(await readFile(join(b.lanesDir, "night-A-increment_one-brief.md"), "utf8"), b.briefs[0]);
   assert.equal(await readFile(join(b.lanesDir, "night-queue-A.txt"), "utf8"), "");
   assert.equal((await readFile(join(b.lanesDir, "night-A.pid"), "utf8")).trim(), "4242");
+  assert.deepEqual(b.marks, [{ track: "A", starting: "increment_one", running: [], queued: [] }], "the track's queue waits are kept as its lane starts");
   const status = b.lines.join("\n");
   for (const line of ["waiting for a slot (5 engines running) before increment_one", "start increment_one", "engine codex Codex weekly allowance 77% used",
     "end increment_one exit 0", "nothing ready in track A's fence", "stopped by night-stop", "track done"]) assert.ok(status.includes(line), line);

@@ -191,8 +191,8 @@ test("4.22 a workspace made from the main checkout places its branch under the w
   });
 });
 
-test("5.13 making a workspace for work another live session holds, or for waiting work, is refused naming the holder or the blocker, and no folder, branch or claim is made, only a claim-refused line for the held work; for work the session already holds it is refused naming the branch it holds it on", async () => {
-  await withWorld(async ({ log, library, project, site, park, as }) => {
+test("5.13 making a workspace for work another live session holds, or for waiting work, is refused naming the holder or the blocker, and no folder, branch or claim is made, only a claim-refused line for the held work; for work the session already holds on a live worktree's branch it is refused naming that branch", async () => {
+  await withWorld(async ({ dir, log, library, project, site, park, as }) => {
     const form = await park("email form");
     const confirm = await park("confirmation email");
     await library.addWait(confirm, form, "it sends what the form collects");
@@ -212,9 +212,11 @@ test("5.13 making a workspace for work another live session holds, or for waitin
       [["A", form, "B"]], "only the refusal of held work was written");
     assert.equal(await statusOf(library, confirm), "proposal", "not started");
 
+    const live = path.join(dir, "codex-form");
+    git(site, "worktree", "add", "-b", "codex/form", live, "main");
     const mine = await makeWorkspace(as("B"), form, "again");
     assert.ok(!mine.ok && mine.refused === "yours" && mine.claim.branch === "codex/form", JSON.stringify(mine));
-    assert.deepEqual(worktrees(site), [path.resolve(site)]);
+    assert.deepEqual(worktrees(site), [path.resolve(site), path.resolve(live)]);
   });
 });
 
@@ -273,7 +275,7 @@ test("5.12 Codex prepares without creating or claiming, then attaches the app's 
   });
 });
 
-test("5.13 Codex checks held, waiting and already-owned work before creation, and refuses a claim lost before attachment without changing the app worktree, recording only each refusal of held work", async () => {
+test("5.13 Codex checks held and waiting work before creation, and refuses a claim lost before attachment without changing the app worktree, recording only each refusal of held work", async () => {
   await withWorld(async ({ dir, log, library, project, site, park, as }) => {
     const increment = await park("email form");
     const waiting = await park("confirmation");
@@ -288,8 +290,6 @@ test("5.13 Codex checks held, waiting and already-owned work before creation, an
     assert.ok(!held.ok && held.refused === "held");
     const blocked = await makeWorkspace(as("B"), waiting, "send confirmation");
     assert.ok(!blocked.ok && blocked.refused === "waiting");
-    const yours = await makeWorkspace({ ...as("A"), harness: "codex" }, increment, "again");
-    assert.ok(!yours.ok && yours.refused === "yours" && yours.claim.branch === "claude/winner");
 
     const refused = await workspace.attachWorkspace(as("B"), increment, "build form", { folder, ref: prepared.ref, name: prepared.name });
     assert.ok(!refused.ok && refused.refused === "held" && refused.holder.session === "A", JSON.stringify(refused));
@@ -404,6 +404,35 @@ test("5.13 a Claude Code session that holds work on the main checkout's branch g
     assert.ok(!again.ok && again.refused === "yours" && again.claim.branch === made.branch, JSON.stringify(again));
     const fromMain = await makeWorkspace(as("A"), increment, "again", { mergedPulls: async () => [], queuedPulls: async () => [] });
     assert.ok(!fromMain.ok && fromMain.refused === "yours" && fromMain.claim.branch === made.branch, JSON.stringify(fromMain));
+  });
+});
+
+test("5.13 a Codex session that holds work on the main checkout's branch has its workspace prepared and attached, and its claim moves onto the attached branch without ever being released; if attaching fails it goes back", async () => {
+  await withWorld(async ({ dir, log, project, site, park, as }) => {
+    const watch = { mergedPulls: async () => [], queuedPulls: async () => [], allOpenPulls: async () => new Map() };
+    const increment = await park("email form");
+    assert.equal((await claim({ ...as("B"), branch: "main" }, increment, "claimed from the main checkout")).ok, true);
+    const lines = (await log.since(project, 0)).lines.length;
+
+    const prepared = await makeWorkspace(as("B"), increment, "building the email form", watch);
+    assert.ok(prepared.ok && prepared.status === "prepared", JSON.stringify(prepared));
+    const broken = path.join(dir, "broken-worktree");
+    git(site, "worktree", "add", "--detach", broken, prepared.ref);
+    git(site, "branch", `codex/${prepared.name}`, prepared.ref);
+    const failed = await workspace.attachWorkspace(as("B"), increment, "building the email form", { folder: broken, ref: prepared.ref, name: prepared.name }, watch);
+    assert.ok(!failed.ok && failed.refused === "no-workspace", JSON.stringify(failed));
+    assert.deepEqual((await readClaims(log, project)).map(({ session, branch }) => ({ session, branch })), [{ session: "B", branch: "main" }]);
+    git(site, "branch", "-D", `codex/${prepared.name}`);
+
+    const folder = path.join(dir, "app-worktree");
+    git(site, "worktree", "add", "--detach", folder, prepared.ref);
+    const attached = await workspace.attachWorkspace(as("B"), increment, "building the email form", { folder, ref: prepared.ref, name: prepared.name }, watch);
+
+    assert.ok(attached.ok, JSON.stringify(attached));
+    assert.deepEqual((await readClaims(log, project)).map(({ session, increment, branch }) => ({ session, increment, branch })), [{ session: "B", increment, branch: attached.branch }]);
+    assert.deepEqual((await log.since(project, 0)).lines.slice(lines).filter((line) => line.kind === "released"), [], "no moment releases it");
+    const again = await makeWorkspace(as("B"), increment, "again", watch);
+    assert.ok(!again.ok && again.refused === "yours" && again.claim.branch === attached.branch, JSON.stringify(again));
   });
 });
 

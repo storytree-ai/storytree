@@ -408,7 +408,7 @@ function uniqueProjectName(): string {
 
 /** Drop these projects' libraries, if there are any: the library keeps project `name` in the database `storytree_<name>`. */
 async function dropLibraries(projects: readonly string[]): Promise<void> {
-  const client = new pg.Client({ connectionString: testServerUrl() });
+  const client = new pg.Client({ connectionString: process.env["STORYTREE_TEST_PG_ADMIN_URL"] || testServerUrl() });
   await client.connect();
   try {
     for (const name of projects) await client.query(`DROP DATABASE IF EXISTS "storytree_${name}" WITH (FORCE)`);

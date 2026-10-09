@@ -21,7 +21,7 @@ test("3.3 a project added from the app and one set up in its folder (by the term
   const library = await connect({ url });
   t.after(async () => {
     await library.close();
-    const client = new pg.Client({ connectionString: url });
+    const client = new pg.Client({ connectionString: process.env["STORYTREE_TEST_PG_ADMIN_URL"] || url });
     await client.connect();
     try {
       for (const name of [fromApp, inFolder]) await client.query(`DROP DATABASE IF EXISTS "storytree_${name}" WITH (FORCE)`);

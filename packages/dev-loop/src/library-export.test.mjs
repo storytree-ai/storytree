@@ -132,7 +132,7 @@ async function withLibrary(body) {
     }
   } finally {
     await storytree.close();
-    const admin = new pg.Client({ connectionString: url });
+    const admin = new pg.Client({ connectionString: process.env.STORYTREE_TEST_PG_ADMIN_URL || url });
     await admin.connect();
     try {
       await admin.query(`DROP DATABASE IF EXISTS "storytree_${name}" WITH (FORCE)`);

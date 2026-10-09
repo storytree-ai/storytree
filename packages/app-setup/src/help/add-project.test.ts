@@ -21,7 +21,7 @@ test("3.4 Add project: the picked folder becomes a project under its own name (k
   const library = await connect({ url });
   t.after(async () => {
     await library.close();
-    const client = new pg.Client({ connectionString: url });
+    const client = new pg.Client({ connectionString: process.env["STORYTREE_TEST_PG_ADMIN_URL"] || url });
     await client.connect();
     try {
       for (const name of [blog, site, `${site}-2`]) await client.query(`DROP DATABASE IF EXISTS "storytree_${name}" WITH (FORCE)`);

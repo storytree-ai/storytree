@@ -39,5 +39,8 @@ function privatePath(file: string, directory: boolean): void {
   const sid = run("whoami.exe", ["/user", "/fo", "csv", "/nh"]).match(/,"(S-1-\d+(?:-\d+)+)"\s*$/)?.[1];
   if (sid === undefined) throw new Error("whoami did not return the current user's SID");
   run("icacls.exe", [file, "/setowner", `*${sid}`]);
+  // Reset first: a file made in a folder with nothing to inherit takes the creating token's default
+  // entries (SYSTEM, a logon session), which removing inheritance alone would leave in place.
+  run("icacls.exe", [file, "/reset"]);
   run("icacls.exe", [file, "/inheritance:r", "/grant:r", `*${sid}:F`]);
 }

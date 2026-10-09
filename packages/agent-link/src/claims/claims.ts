@@ -16,8 +16,8 @@
  *   recently of those it still holds; an edit or command from a session holding nothing is
  *   unplanned activity.
  * - An increment's claim also ends when the increment is closed through storytree: a "closed" line.
- *   So do the closing session's capability claims taken while it held that increment, which their
- *   claimed lines name as `under` (ADR-0944 D5).
+ *   Closing or releasing an increment also ends every capability claim taken while it was held, which
+ *   their claimed lines name as `under`, whoever closes it and whatever the disposition (ADR-0944 D5, ADR-0949 D4).
  * - A claim also ends when a pull request from the branch it was taken on merges after it was
  *   taken (ADR-0643 D3): a "merged" line, which merges.ts writes when GitHub shows one.
  * - A claim also ends when its holder reads gone, crashed or abandoned with no end line: a "released"
@@ -380,7 +380,7 @@ async function waitingOn(library: Library, found: Found): Promise<Waiting[]> {
   ];
 }
 
-/** For a capability claim, the increment `session` holds that it was claimed most recently of, which closing ends it with (ADR-0944 D5). */
+/** For a capability claim, the increment `session` holds that it was claimed most recently of, which closing or releasing ends it with (ADR-0949 D4). */
 function underOf(standing: ReadonlyMap<string, Claim>, session: string, part: Part): { under?: string } {
   if (part.capability === undefined) return {};
   const under = [...standing.values()].filter((claim) => claim.session === session && claim.increment !== undefined).sort((a, b) => a.since.localeCompare(b.since)).at(-1)?.increment;

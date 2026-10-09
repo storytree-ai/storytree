@@ -485,7 +485,7 @@ test("5.11 the public readings list current capability and increment claims and 
   });
 });
 
-test("5.27 closing an increment ends the closing session's capability claims taken while it held that increment, in every reading; one it held before, and another session's, stand (ADR-0944 D5)", async () => {
+test("5.27 closing or releasing an increment ends every capability claim taken while it was held, whoever closes it and whatever the disposition, in every reading; one claimed before it stands (ADR-0944 D5, ADR-0949 D4)", async () => {
   await withWorld(async ({ log, project, library, emailForm, passwordReset, as }) => {
     const { park } = await arcOf(library);
     const increment = await park("email form");
@@ -505,7 +505,15 @@ test("5.27 closing an increment ends the closing session's capability claims tak
     assert.equal((await claim(as("B"), other, "driving the welcome email")).ok, true);
     assert.equal((await claim(as("B"), emailForm, "building the email form")).ok, true, "the closed increment's capability is free");
     await closed(as("A"), other, "withdrawn");
-    assert.equal((await readClaim(log, project, emailForm))?.session, "B", "another session's close ends only the increment's own claim");
+    assert.equal(await readClaim(log, project, emailForm), undefined, "another session's close of B's increment ends B's claims under it too");
+
+    const third = await park("password reset");
+    assert.equal((await claim(as("B"), third, "driving the reset")).ok, true);
+    assert.equal((await claim(as("B"), emailForm, "building the email form")).ok, true);
+    assert.equal((await release(as("B"), third)).ok, true);
+    const after = await readClaims(log, project);
+    assert.deepEqual(after.map(({ capability, increment: on, session }) => [capability ?? on, session]), [[passwordReset, "A"]], "releasing the increment ends the claims under it");
+    assert.deepEqual(claimsFrom((await log.since(project, 0)).lines), after, "the whole log and the standing claims agree");
   });
 });
 
@@ -541,8 +549,8 @@ test("5.29 releasing an active increment without closing it, by release, the ses
   await withWorld(async ({ library, emailForm, as }) => {
     const { arc, park } = await arcOf(library);
     const released = await park("email form");
-    assert.equal((await claim(as("A"), released, "driving the email form")).ok, true);
     assert.equal((await claim(as("A"), emailForm, "building the email form")).ok, true);
+    assert.equal((await claim(as("A"), released, "driving the email form")).ok, true);
     assert.deepEqual(await release(as("A"), released), { ok: true, returned: true });
     assert.equal(await statusOf(library, arc, released), "proposal", "released, nobody holds it: a proposal again");
     assert.ok(((await library.get(released))?.fields as { parked?: string } | undefined)?.parked, "it keeps the day it was parked");

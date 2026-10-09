@@ -1,0 +1,142 @@
+{
+  "label": "before",
+  "trunk": {
+    "road": "pathway:cross:tj3cl6g",
+    "lit": 17,
+    "both": false,
+    "at": [
+      -192.20441645539077,
+      206.68604557339862,
+      86.15062605656377
+    ]
+  },
+  "lanes": [
+    {
+      "name": "lane:up:capability_a6d2887aed63->capability_88a6aaa1fa93",
+      "colour": "#0d8fb0",
+      "drawn": true,
+      "startToNearestRoadEnd": 19.436,
+      "endToNearestRoadEnd": 33.032
+    },
+    {
+      "name": "lane:down:capability_11fe600afeda->capability_75d059640d9d",
+      "colour": "#6a5fee",
+      "drawn": true,
+      "startToNearestRoadEnd": 41.918,
+      "endToNearestRoadEnd": 34.935
+    },
+    {
+      "name": "lane:down:capability_7b7421be1a1b->capability_75d059640d9d",
+      "colour": "#6a5fee",
+      "drawn": true,
+      "startToNearestRoadEnd": 41.918,
+      "endToNearestRoadEnd": 103.4
+    },
+    {
+      "name": "lane:down:capability_ab59a8461dd7->capability_5a80222c88c4",
+      "colour": "#6a5fee",
+      "drawn": true,
+      "startToNearestRoadEnd": 73.548,
+      "endToNearestRoadEnd": 63.074
+    },
+    {
+      "name": "lane:down:capability_ab59a8461dd7->capability_a1d4fadbec3e",
+      "colour": "#6a5fee",
+      "drawn": true,
+      "startToNearestRoadEnd": 71.92,
+      "endToNearestRoadEnd": 63.074
+    },
+    {
+      "name": "lane:down:capability_ab59a8461dd7->capability_baaeecb42577",
+      "colour": "#6a5fee",
+      "drawn": true,
+      "startToNearestRoadEnd": 50.824,
+      "endToNearestRoadEnd": 63.074
+    },
+    {
+      "name": "lane:down:capability_ab59a8461dd7->capability_75d059640d9d",
+      "colour": "#6a5fee",
+      "drawn": true,
+      "startToNearestRoadEnd": 41.918,
+      "endToNearestRoadEnd": 63.074
+    },
+    {
+      "name": "lane:down:capability_ab59a8461dd7->capability_13b04e769a4b",
+      "colour": "#6a5fee",
+      "drawn": true,
+      "startToNearestRoadEnd": 60.04,
+      "endToNearestRoadEnd": 63.074
+    },
+    {
+      "name": "lane:down:capability_81ad90bacdbc->capability_a7f068502213",
+      "colour": "#6a5fee",
+      "drawn": true,
+      "startToNearestRoadEnd": 18.955,
+      "endToNearestRoadEnd": 67.199
+    },
+    {
+      "name": "lane:down:capability_81ad90bacdbc->capability_d632ff0454c0",
+      "colour": "#6a5fee",
+      "drawn": true,
+      "startToNearestRoadEnd": 43.334,
+      "endToNearestRoadEnd": 67.199
+    },
+    {
+      "name": "lane:down:capability_81ad90bacdbc->capability_5f1ce148e63a",
+      "colour": "#6a5fee",
+      "drawn": true,
+      "startToNearestRoadEnd": 29.273,
+      "endToNearestRoadEnd": 67.199
+    },
+    {
+      "name": "lane:down:capability_bfc6fa737f09->capability_5f1ce148e63a",
+      "colour": "#6a5fee",
+      "drawn": true,
+      "startToNearestRoadEnd": 29.273,
+      "endToNearestRoadEnd": 78.167
+    },
+    {
+      "name": "lane:down:capability_562b2527ebca->capability_78d6e026f902",
+      "colour": "#6a5fee",
+      "drawn": true,
+      "startToNearestRoadEnd": 19.482,
+      "endToNearestRoadEnd": 81.517
+    },
+    {
+      "name": "lane:down:capability_f874f7de8110->capability_dd486ffa5b02",
+      "colour": "#6a5fee",
+      "drawn": true,
+      "startToNearestRoadEnd": 79.737,
+      "endToNearestRoadEnd": 38.111
+    },
+    {
+      "name": "lane:down:capability_f874f7de8110->capability_f27ac2abb10b",
+      "colour": "#6a5fee",
+      "drawn": true,
+      "startToNearestRoadEnd": 62.05,
+      "endToNearestRoadEnd": 38.111
+    },
+    {
+      "name": "lane:down:capability_f874f7de8110->capability_75d059640d9d",
+      "colour": "#6a5fee",
+      "drawn": true,
+      "startToNearestRoadEnd": 41.918,
+      "endToNearestRoadEnd": 38.111
+    },
+    {
+      "name": "lane:down:capability_7889e605384c->capability_78d6e026f902",
+      "colour": "#6a5fee",
+      "drawn": true,
+      "startToNearestRoadEnd": 19.482,
+      "endToNearestRoadEnd": 44.396
+    },
+    {
+      "name": "lane:down:capability_5fa5cdb5b3c0->capability_dd486ffa5b02",
+      "colour": "#6a5fee",
+      "drawn": true,
+      "startToNearestRoadEnd": 79.737,
+      "endToNearestRoadEnd": 80.483
+    }
+  ],
+  "marks": []
+}

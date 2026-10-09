@@ -3,7 +3,7 @@ import test from 'node:test';
 import { Vector3 } from 'three';
 import type { ForestScene, Island } from '../scene.js';
 import { buildPlanetPathways, laneDrawSeconds, laneProgress, laneRoutes, LANE_COLOUR } from '../geometry.js';
-import { advanceLaneClock } from './lanes.js';
+import { advanceLaneClock, entranceShown, laneEntrances } from './lanes.js';
 import type { PlanetPathways } from './pathways.js';
 
 const R = 218;
@@ -15,20 +15,25 @@ const scene: ForestScene = { islands: [island('a', ['a1', 'a2']), island('b', ['
   links: [{ from: 'a2', to: 'a1' }, { from: 'b1', to: 'a1' }, { from: 'b2', to: 'b1' }, { from: 'b2', to: 'a2' }] };
 const spots = new Map([['a', { x: R * Math.sin(0.3), y: 0, z: R * Math.cos(0.3) }], ['b', { x: -R * Math.sin(0.3), y: 0, z: R * Math.cos(0.3) }]]);
 
-test('6.8 a lit link\'s lane is one unbroken strip along its trail, from the capability built on to the one building on it, narrower than its road', () => {
+test('6.8 a lit link\'s lane is one unbroken strip between islands, from the dock of the island built on to the dock of the island building on it, narrower than its road', () => {
   const plan = buildPlanetPathways(scene, spots, R);
-  const lanes = laneRoutes(plan, [{ from: 'b1', to: 'a1', dir: 'down' }, { from: 'b2', to: 'a2', dir: 'up' }]);
-  assert.deepEqual(lanes.map(l => [l.from, l.to, l.colour]), [['b1', 'a1', LANE_COLOUR.down], ['b2', 'a2', LANE_COLOUR.up]]);
+  const lanes = laneRoutes(plan, [{ from: 'b1', to: 'a1', dir: 'down' }, { from: 'b2', to: 'a2', dir: 'up' }, { from: 'a2', to: 'a1', dir: 'up' }]);
+  assert.deepEqual(lanes.map(l => [l.from, l.to, l.colour]), [['b1', 'a1', LANE_COLOUR.down], ['b2', 'a2', LANE_COLOUR.up]],
+    'a link within one island lights nothing');
   const segments = new Map(plan.segments.map(s => [s.id, s]));
+  const dock = (story: string, link: string) => plan.docks.find(d => d.story === story && d.links.includes(link))!.point;
   for (const lane of lanes) {
     const edge = plan.edges.find(e => e.from === lane.from && e.to === lane.to)!;
-    const road = edge.segments.map(ref => segments.get(ref.id)!);
-    const trail = edge.segments.flatMap(ref => { const p = segments.get(ref.id)!.points; return ref.reversed ? [...p].reverse() : p; });
-    // The lane follows the whole trail back from the capability built on, keeping the road's rim.
+    // Only the chain's roads between islands: nothing inland on either island.
+    const cross = edge.segments.filter(ref => segments.get(ref.id)!.island === undefined);
+    assert.ok(cross.length > 0 && cross.length < edge.segments.length);
+    const road = cross.map(ref => segments.get(ref.id)!);
+    const trail = cross.flatMap(ref => { const p = segments.get(ref.id)!.points; return ref.reversed ? [...p].reverse() : p; });
     const back = trail.reverse().filter((p, i, all) => i === 0 || p.distanceTo(all[i - 1]!) > 1e-9);
     assert.equal(lane.points.length, back.length);
-    assert.ok(lane.points[0]!.distanceTo(back[0]!) < 1e-9, 'starts at its dependency');
-    assert.ok(lane.points.at(-1)!.distanceTo(back.at(-1)!) < 1e-9, 'ends at its dependent');
+    const link = `${lane.from}->${lane.to}`;
+    assert.ok(lane.points[0]!.distanceTo(dock('a', link)) < 1e-9, 'starts on the dock of the island built on');
+    assert.ok(lane.points.at(-1)!.distanceTo(dock('b', link)) < 1e-9, 'ends on the dock of the island building on it');
     lane.points.forEach((p, i) => {
       const margin = Math.min(...road.filter(segment => segment.points.some(q => q.distanceTo(back[i]!) < 1e-9)).map(segment => segment.width / 2));
       assert.ok(p.distanceTo(back[i]!) + lane.width / 2 < margin, `inside its road at point ${i}`);
@@ -37,6 +42,33 @@ test('6.8 a lit link\'s lane is one unbroken strip along its trail, from the cap
     for (const segment of road) assert.ok(lane.width < segment.width, `narrower than road ${segment.id}`);
   }
   assert.deepEqual(laneRoutes(plan, [{ from: 'x', to: 'y', dir: 'up' }]), [], 'a link with no trail lights nothing');
+});
+
+test('6.8 a lane marks each dock it uses in its colour, both colours side by side where an up and a down lane share one, shown once its front leaves or reaches it', () => {
+  const plan = buildPlanetPathways(scene, spots, R);
+  const lanes = laneRoutes(plan, [{ from: 'b1', to: 'a1', dir: 'down' }, { from: 'b2', to: 'a2', dir: 'up' }]);
+  const marks = laneEntrances(lanes);
+  // Both links cross between the same two docks, so each dock carries one mark per colour.
+  assert.equal(marks.length, 4);
+  for (const story of ['a', 'b']) {
+    const dock = plan.docks.find(d => d.story === story)!.point;
+    const here = marks.filter(mark => mark.point.distanceTo(dock) < mark.radius * 2);
+    assert.deepEqual(here.map(mark => mark.colour).sort(), [LANE_COLOUR.up, LANE_COLOUR.down].sort());
+    const [one, two] = here;
+    assert.ok(one!.point.distanceTo(two!.point) >= one!.radius + two!.radius - 1e-9, 'the two colours do not cover each other');
+    for (const mark of here) {
+      assert.ok(Math.abs(mark.point.length() - dock.length()) < 1e-9, 'lying on the coast at the dock\'s height');
+      assert.ok(mark.radius > lanes[0]!.width && mark.radius < lanes[0]!.width * 2, 'a small pip, wider than its lane');
+      assert.deepEqual(mark.lanes, [{ from: mark.dir === 'down' ? 'b1' : 'b2', to: mark.dir === 'down' ? 'a1' : 'a2', at: story === 'a' ? 'start' : 'end' }]);
+    }
+  }
+  const alone = laneEntrances(lanes.slice(0, 1));
+  assert.equal(alone.length, 2);
+  assert.ok(alone.every(mark => plan.docks.some(d => d.point.distanceTo(mark.point) < 1e-9)), 'a lone colour sits on the dock itself');
+  assert.equal(entranceShown('start', 0), false, 'not before its front leaves');
+  assert.equal(entranceShown('start', 0.01), true);
+  assert.equal(entranceShown('end', 0.99), false, 'not before its front arrives');
+  assert.equal(entranceShown('end', 1), true);
 });
 
 test('6.8 opposite colours stay distinct on a shared trunk even when their links travel it in opposite directions, and join their exact endpoints continuously', () => {

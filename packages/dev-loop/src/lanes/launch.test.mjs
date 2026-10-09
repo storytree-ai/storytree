@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { promisify } from "node:util";
 
-import { laneLimit, main, prepareCheckout, PUSH_URL } from "./launch.mjs";
+import { laneLimit, main, poolRules, prepareCheckout, PUSH_URL, runPool } from "./launch.mjs";
 
 const run = promisify(execFile);
 const now = () => Date.parse("2026-10-08T04:00:00Z");
@@ -136,4 +136,63 @@ test("12.5 · the prepared checkout is at origin/main and pushes over SSH, leavi
   assert.equal((await readFile(join(repo, "a.txt"), "utf8")).trim(), "two");
   assert.equal((await git(repo, "remote", "get-url", "--push", "origin")).stdout.trim(), PUSH_URL);
   assert.equal((await git(repo, "remote", "get-url", "origin")).stdout.trim(), origin);
+});
+
+function poolWork(ids, extra = {}) {
+  return {
+    increments: ids.map((id, at) => ({ id, arc: `arc_${id}`, arcState: "active", title: id, body: extra.bodies?.[id] ?? "", status: "proposal", parked: `2026-10-0${at + 1}T00:00:00Z` })),
+    holds: { waits: {}, heldOn: {} }, claims: extra.claims ?? [], laptopArcs: [],
+  };
+}
+
+test("12.8 · the dispatcher fills free slots up to the cap and no further, never starts one increment twice, and retries a refused one only once its claim clears", async () => {
+  const lines = [], started = [], ends = new Map();
+  let engines = 1, looks = 0, stop = false;
+  let claims = [];
+  const code = await runPool({
+    survey: async () => poolWork(["a", "b", "c", "d"], { claims }), maxLanes: async () => 3, count: async () => engines,
+    stopFile: "/lanes/pool-stop", exists: async () => stop, now, say: (line) => lines.push(line),
+    launch: (one, { engineUp }) => new Promise((done) => { started.push(one.id); engines += 1; engineUp(); ends.set(one.id, done); }),
+    sleep: async () => {
+      looks += 1;
+      await new Promise((go) => setImmediate(go));
+      if (looks === 2) {
+        assert.deepEqual(started, ["a", "b"], "two free slots beside one engine: two started, no more");
+        claims = [{ increment: "c", session: "other", holder: "live", since: "2026-10-08T03:00:00Z" }];
+        engines -= 1; ends.get("a")(0);
+      } else if (looks === 4) {
+        assert.deepEqual(started, ["a", "b", "d"], "c is claimed by a live session, a already ran: d fills the freed slot");
+        engines -= 1; ends.get("b")(0);
+      } else if (looks === 6) {
+        claims = [];
+      } else if (looks === 8) {
+        stop = true;
+        for (const id of ["c", "d"]) { engines -= 1; ends.get(id)?.(0); }
+      }
+    },
+  });
+  assert.equal(code, 0);
+  assert.deepEqual(started, ["a", "b", "d", "c"], "c ran once its claim cleared");
+  assert.ok(lines.some((line) => /nothing ready for 1 free slot/.test(line)));
+  assert.match(lines.at(-1), /stopped by/);
+});
+
+test("12.9 · `pool` starts each ready increment under the shared lock with the repository's pool brief, read-only work with the read-only rules", async (t) => {
+  const b = await box(t, {
+    survey: async () => poolWork(["increment_build", "increment_review"], { bodies: { increment_review: "needs: read-only, blind" } }),
+    count: async () => 0, maxLanes: async () => 2,
+  });
+  const ran = [];
+  b.runLane = async (options) => { ran.push(await readFile(options.brief, "utf8")); options.say("2026-10-08T04:00:00Z engine claude allowance used"); return 0; };
+  b.sleep = async () => { await new Promise((go) => setImmediate(go)); if (ran.length === 2) await writeFile(join(b.lanesDir, "pool-stop"), ""); };
+  assert.equal(await main(["pool"], b), 0);
+  const build = ran.find((brief) => brief.startsWith("# Pool lane: increment_build"));
+  const review = ran.find((brief) => brief.startsWith("# Pool lane: increment_review"));
+  assert.ok(build.includes(await poolRules("")) && /no write fence/i.test(build));
+  assert.ok(review.includes(await poolRules("needs: read-only")) && /blind reviewer/.test(review));
+  assert.ok(b.lines.some((line) => /start increment_build/.test(line)) && b.lines.some((line) => /end increment_review exit 0/.test(line)));
+  assert.equal(b.events.filter((one) => one === "lock").length, 2);
+  b.argsOf = async () => "node launch.mjs pool";
+  await writeFile(join(b.lanesDir, "pool.pid"), "99\n");
+  assert.equal(await main(["pool"], b), 1, "one dispatcher at a time");
 });

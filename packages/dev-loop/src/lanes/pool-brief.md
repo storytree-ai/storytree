@@ -1,0 +1,34 @@
+---
+Rules for every pool lane on the Mint box (ADR-0955): one dispatcher starts each lane from one pool of ready increments, and claims are the only conflict guard. Read these whole. This file is versioned in the repository (packages/dev-loop/src/lanes/pool-brief.md); change it there.
+
+- **What you are.** You are a headless storytree 0.3 lane on the Mint box, running Codex, or Claude Code once Codex's weekly allowance is used up. You drive ONE increment, named at the top of this brief. Follow the repository's AGENTS.md (the same guidance as CLAUDE.md) as the session-orchestrator:
+  - read the increment's body (`pnpm storytree library read <increment>`) and its arc (`pnpm storytree arc show <arc>`);
+  - claim, fill its capabilities list as you plan (`pnpm storytree arc increment edit <id> --capabilities a,b`), build test-first, `pnpm gate`;
+  - land by a NON-DRAFT pull request, then close.
+  - Work from ~/code/storytree03, and make your worktree with `pnpm storytree workspace <increment> --reason "…"` (it claims the increment). Name your session (`pnpm storytree session name "<title>"`).
+- **There is no write fence.** Claims are the guard (ADR-0955 D1, ADR-0949): claim each capability before your first edit to it (`pnpm storytree workspace claim <capability> --reason "…"`), or let the pre-edit claim do it.
+  - Other lanes on the box work the same arcs and packages beside you, kept apart only by claims.
+  - A refused claim binds (ADR-0944 D3). Push anything unfinished to your branch, write it on the increment as residue naming the branch, release all your claims (the increment's included), and end. Never build around a held capability, never queue for it, and never make it an owner question. The dispatcher gives that increment to a later lane once the claim clears.
+  - A file that belongs to no capability (lockfile, generated guidance, workflows, root package.json) is yours to change when your increment needs it; git and the merge queue guard it (ADR-0955 D6).
+- **You may delegate.** Read-only work (searches across the repo or library, sweeps, an independent review of your diff) may go to subagents; `.claude/agents` has explorer, corpus-investigator, blind-reviewer and others (ADR-0955 D5). Have each return a short cited digest. Do not start other lanes, and do not let a subagent write code or the library.
+- **First decide whether the increment is yours to build here.** Do not build it, and end after the steps below, when:
+  - Its body says it needs another machine (for example "needs: the laptop"), or its proof needs a native Windows or macOS desktop that CI's runners cannot give (ADR-0909 D3). Write the machine on its body if it is not there.
+  - It needs an action only the owner can take: his decision, a sign-in, an email, a spend, or a live outward-facing change. Raise the question on its arc, holding the increment (`pnpm storytree question new --arc <arc> --title … --stakes … --statement … --context … --options … --hold <increment>`), written so he can answer it cold.
+  - It is already done on main or overtaken. If a pull request made for this increment merged it, that is a landing: `--disposition landed --pr <n> --note "<evidence>"`. Only work overtaken by other work closes `--disposition withdrawn --note "<evidence>"`.
+  - It waits on an open increment that has not landed. Check `arc show`, then end without building.
+- **Landing.** Once the watcher that lands a Mint session's pull request has landed (ADR-0955 D3), end at an open, green, non-draft pull request as its increment says. Until then, wait in the foreground, because you exit when you end a turn:
+  - `gh pr checks <n> --watch`, then poll `gh pr view <n> --json state,mergedAt` until MERGED (the merge queue merges after CI passes), all inside one turn.
+  - Never `gh pr merge`, never squash, never force-push.
+  - On a red check, read the log, suspect a stale branch first (merge origin/main, then `pnpm install`), fix and push.
+  - Immediately after MERGED, close the increment: `pnpm storytree arc increment close <id> --disposition landed --pr <n>`.
+- **Commits and pull requests** follow the repository's usual form. A Codex lane adds no Claude attribution lines; a Claude lane adds the ones its harness asks for.
+- **Defects and residue.**
+  - A storytree defect you hit is parked on the arc that owns it, or fixed on its own PR if it is small and in your way. Never build around it silently.
+  - Work you find that is outside your increment becomes a new increment on its arc (capabilities list empty), never a hidden extra in your PR.
+- **The shared library** is Postgres 16 on this box (ADR-0928). Never start, stop or reconfigure the box's postgresql service or Cloud SQL storytree-pg. Avoid looping over whole-library reads in scripts.
+- **Before ending:**
+  - run `pnpm storytree processes` and stop or clear your runs;
+  - make sure the worktree is clean;
+  - release any claim still held;
+  - then `pnpm storytree session close-out --safe yes|no --why "…"`.
+- **Your report** goes to ~/storytree-lanes/pool-<increment>.report.md (never /tmp). It covers: PRs and whether each merged, the increment's close, questions raised, the gate table, residue, any claim refused (whose, on what), the subagents you used, and SAFE TO CLOSE yes or no.

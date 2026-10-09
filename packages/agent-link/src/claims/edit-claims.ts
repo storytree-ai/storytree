@@ -131,38 +131,15 @@ function byFolder(edits: readonly Extract<Line, { kind: "file-edited" }>[]): Map
 }
 
 /**
- * ADR-0925 D4's lookup, over the plan `planOf` reads: each file's own declaration, read from the checkout
- * the edit was made in, then the code survey's inference of that checkout for the files that declare none.
+ * ADR-0925 D4's lookup, over the plan `planOf` reads: the map's shared one (`capabilitiesOfFiles`), so edit
+ * claims and the gate place a file the same way, read from the checkout the edit was made in.
  */
 function declaredFirstLookup(planOf: () => Promise<AnnotatedTree>): CapabilityLookup {
   return async (checkout, files) => {
-    const [{ codeSurveyReader, declaredNumberOf, packageOf }, tree] = await Promise.all([import("@storytree/map/code-survey"), planOf()]);
-    const owners = new Map<string, Owner>();
-    const undeclared: string[] = [];
-    for (const file of files) {
-      const relative = path.relative(checkout, file).split(path.sep).join("/");
-      const story = tree.stories.find(({ title }) => relative.startsWith(`packages/${packageOf(title)}/`) || (packageOf(title) === "app" && relative.startsWith("apps/desktop/")));
-      if (story === undefined) continue;
-      let text: string;
-      try {
-        text = readFileSync(file, "utf8");
-      } catch {
-        continue;
-      }
-      const number = declaredNumberOf({ path: relative, text }, packageOf(story.title));
-      const declared = number === undefined ? undefined : story.capabilities.find(({ title }) => Number(/^\s*(\d+)\s*·/.exec(title)?.[1]) === number);
-      if (declared === undefined) undeclared.push(file);
-      else owners.set(file, { capability: declared.id, inferred: false });
-    }
-    if (undeclared.length === 0) return owners;
-    const survey = await codeSurveyReader({ checkout: "current" }).read(checkout, tree);
-    const inferred = new Map<string, string>();
-    for (const story of tree.stories) {
-      const root = path.join(checkout, "packages", packageOf(story.title));
-      for (const file of survey[story.id]?.files ?? []) if (file.capability !== undefined) inferred.set(path.resolve(root, file.path), file.capability);
-    }
-    for (const file of undeclared) if (inferred.has(file)) owners.set(file, { capability: inferred.get(file)!, inferred: true });
-    return owners;
+    const [{ capabilitiesOfFiles }, tree] = await Promise.all([import("@storytree/map/code-survey"), planOf()]);
+    const relative = new Map(files.map((file) => [path.relative(checkout, file).split(path.sep).join("/"), file] as const));
+    const placed = await capabilitiesOfFiles(checkout, [...relative.keys()], tree);
+    return new Map([...placed].map(([file, owner]) => [relative.get(file)!, owner] as const));
   };
 }
 

@@ -10,6 +10,7 @@ import { test } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { removeTempDir } from "../testing/folders.js";
+import { shutdownOnce } from "./shutdown.js";
 
 test("6.45 the tool server exits with code 0 when a delivery ran during its shutdown", async (t) => {
   // A response with many headers makes fetch's WebAssembly parser tier up in the background just
@@ -31,8 +32,8 @@ test("6.45 the tool server exits with code 0 when a delivery ran during its shut
   const child = path.join(folder, "server.ts");
   const shutdown = pathToFileURL(fileURLToPath(new URL("./shutdown.ts", import.meta.url))).href;
   await writeFile(child, [
-    `import { shutdownOnce } from ${JSON.stringify(shutdown)};`,
-    `const stop = shutdownOnce({ input: process.stdin, work: () => [(async () => {`,
+    `import { ${shutdownOnce.name} } from ${JSON.stringify(shutdown)};`,
+    `const stop = ${shutdownOnce.name}({ input: process.stdin, work: () => [(async () => {`,
     `  const response = await fetch(process.argv[2], { method: "POST", body: "{}" });`,
     `  await response.text();`,
     `  process.stdout.write("delivered");`,

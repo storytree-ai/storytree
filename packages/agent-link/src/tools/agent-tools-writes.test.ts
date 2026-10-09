@@ -314,6 +314,43 @@ test("6.11 it raises a question on an arc and holds an increment on it, which a 
   });
 });
 
+test("6.44 raising a question held on an increment the session holds, or a wait for the owner on it, releases its claims on it and the capabilities it took for it, and says so; claims on other work stand, and a question on another arc releases nothing (ADR-0944 D4)", async () => {
+  await withProject(async ({ folder, library, log, project }) => {
+    await withAgent(folder, claudeCode("asking"), async (agent) => {
+      const { story, arc, capability } = await planned(agent);
+      const other = idOf(await agent.call("plan_capability", { story, title: "Password reset", ...FOUNDED }));
+      const elsewhere = idOf(await agent.call("plan_arc", { title: "Launch v2", intent: "Ship more", end_state: "More ships", stories: [story] }));
+      const park = async (title: string) => idOf(await agent.call("park_increment", { arc, title, objective: `Build ${title}`, body: `${title}, red then green` }));
+      const welcome = await park("Welcome email");
+      const install = await park("Installer");
+      const held = async () => (await readClaims(log, project)).map((one) => one.capability ?? one.increment).sort();
+      for (const [kind, id] of [["capability", other], ["increment", welcome], ["capability", capability], ["increment", install]] as const) {
+        assert.equal((await agent.call("claim", { [kind]: id, reason: "building it" })).isError, false);
+      }
+      const asked = { title: "Which mailer?", stakes: "Cost", statement: "Mailgun or SES?", context: "Both work here", options: "Mailgun; SES" };
+
+      const away = await agent.call("raise_question", { ...asked, arc: elsewhere, holds: [welcome] });
+      assert.equal(away.isError, false, away.text);
+      assert.deepEqual(away.data?.released, [], "a question on another arc releases nothing");
+      assert.deepEqual(await held(), [capability, other, welcome, install].sort());
+
+      const raised = await agent.call("raise_question", { ...asked, arc, holds: [welcome] });
+      assert.equal(raised.isError, false, raised.text);
+      assert.deepEqual(raised.data?.released, [welcome, capability]);
+      assert.match(raised.text, new RegExp(`Released your claims on ${welcome}, ${capability}`));
+      assert.deepEqual(await held(), [other, install].sort(), "claims on other work stand");
+      const refused = await agent.call("claim", { increment: welcome, reason: "back to it" });
+      assert.match(refused.text, /waiting on the owner/, "it reads held on the owner, with no claim");
+
+      const waited = await agent.call("set_wait", { waiter: install, for: "owner", note: "run the installer on the old laptop" });
+      assert.deepEqual(waited.data?.released, [install]);
+      assert.match(waited.text, new RegExp(`Released your claims on ${install}`));
+      assert.deepEqual(await held(), [other]);
+      assert.equal(((await library.get(install))?.fields as { status?: string } | undefined)?.status, "proposal", "nobody's work in progress");
+    });
+  });
+});
+
 test("6.15 reinforce appends dated concrete evidence to the existing friction, preserving its route, and refuses invalid recurrences", async () => {
   await withProject(async ({ folder, library }) => {
     const friction = await recordFriction(library, { title: "Slow mail", description: "Mail takes too long", statement: "The mailer timed out", evidence: "src/mail.ts: TimeoutError", impact: "Signup was delayed" });
@@ -433,7 +470,8 @@ test("6.16 every library write from a tool names the calling session, including 
       await write("set_wait", { waiter: increment, on: blocker, reason: "Needs mail" });
       await write("clear_wait", { waiter: increment, on: blocker });
       const questionArgs = { arc, title: "Mailer?", stakes: "Delivery", statement: "Which?", context: "Signup", options: "Mailgun or SES" };
-      const question = await write("raise_question", { ...questionArgs, holds: [increment] }, 2);
+      // Holding the writer's own increment releases it, returning it to proposal: a third record (6.44).
+      const question = await write("raise_question", { ...questionArgs, holds: [increment] }, 3);
       await write("correct_question", { question, stakes: "Cost and deliverability" });
       await write("settle_question", { question, answer: "Mailgun" });
       const mistaken = await write("raise_question", questionArgs);

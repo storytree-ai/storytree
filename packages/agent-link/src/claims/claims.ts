@@ -221,6 +221,29 @@ export async function release(context: ClaimContext, id: string): Promise<Releas
 }
 
 /**
+ * Asking the owner about `increment` releases the work it holds (ADR-0944 D4): when the context's session holds it,
+ * its claim ends, and so do the session's capability claims taken under it; an active increment is a proposal again,
+ * as any release returns it (5.29), and reads held on the owner. Claims on other work stand, and an increment the
+ * session does not hold releases nothing. The ids released, the increment first.
+ */
+export async function releaseAsked(context: ClaimContext, increment: string): Promise<string[]> {
+  return context.log.locked(context.project, async (log) => {
+    const standing = await heldNow(log, context);
+    if (standing.get(increment)?.session !== context.session) return [];
+    const taken = [...standing.values()].filter((claim) => claim.session === context.session && claim.under === increment);
+    await returnUnclosed(context, increment);
+    const released: string[] = [];
+    for (const claim of [standing.get(increment)!, ...taken]) {
+      await log.append({ ...who(context), kind: "released", ...partOf(claim) });
+      const id = claim.increment ?? claim.capability!;
+      cancelClaimNotice(context.home ?? storytreeHome(), context.session, id);
+      released.push(id);
+    }
+    return released;
+  });
+}
+
+/**
  * An increment whose last claim ends without closing it is nobody's work in progress: when it is
  * active, it is a proposal again (5.29), through the library's own `returnIncrement`. Called under
  * the activity log's lock before the "released" line, as a claim's activation is before its

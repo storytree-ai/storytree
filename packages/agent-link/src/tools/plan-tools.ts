@@ -9,6 +9,7 @@ import { z } from "zod";
 
 import { readClaims } from "../claims/index.js";
 import { readSessions } from "../sessions/index.js";
+import { testedNumbers } from "./claim-tools.js";
 import type { Answer, Call, Define } from "./server.js";
 import { quoted } from "./text.js";
 
@@ -77,10 +78,11 @@ export function registerPlanTools(define: Define): void {
 
   define(
     "plan_contract",
-    "Plan a contract: one testable promise a capability makes. Leave its number off the title: it is given the capability's next free one, and a number another contract of the capability carries is refused. Write its test, see it fail, and report it red.",
+    "Plan a contract: one testable promise a capability makes. Leave its number off the title: it is given the capability's next free one, past the numbers its contracts and its story package's numbered tests carry, and a number another contract of the capability carries is refused. Write its test, see it fail, and report it red.",
     z.object({ capability: id("capability it belongs to"), title, description }),
-    async ({ capability, title: name, description: about }, { library, writer }) => {
-      const contract = await library.addContract({ title: name, capability, ...optional({ description: about }) }, writer);
+    async ({ capability, title: name, description: about }, call) => {
+      const options = { ...call.writer, testedNumbers: await testedNumbers(call, capability) };
+      const contract = await call.library.addContract({ title: name, capability, ...optional({ description: about }) }, options);
       return { text: `Planned contract ${quoted(contract.fields.title)} (${contract.id}). Write its test, see it fail, and report it red.`, data: { id: contract.id } };
     },
   );

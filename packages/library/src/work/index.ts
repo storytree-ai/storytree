@@ -12,6 +12,7 @@ export type {
   CapabilityEdit,
   CapabilityNode,
   ContractEdit,
+  ContractWriteOptions,
   ContractNode,
   NewArc,
   NewCapability,

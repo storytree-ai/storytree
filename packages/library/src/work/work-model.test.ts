@@ -1,5 +1,5 @@
 /**
- * Capability 4 · Work model: one test per contract 4.1-4.7 in the library story, each run on
+ * Capability 4 · Work model: one test per contract 4.1-4.10 (4.9 is in library-api.test.ts) in the library story, each run on
  * BOTH backends, as capabilities 2 and 3 are:
  *
  * - memory: a WorkModel over SchemaRecords over a fresh MemoryTransactions;
@@ -516,6 +516,16 @@ for (const backend of [memory, postgres]) {
     assert.equal((await work.addContract({ title: "The read is delayed", capability: fresh.id })).fields.title, "6.1 · The read is delayed");
     const elsewhere = await work.addStory({ title: "Visitor can sign in" });
     assert.equal((await work.addCapability({ title: "Password form", story: elsewhere.id })).fields.title, "1 · Password form", "each story numbers its own");
+  });
+
+  contract("4.10", "a contract planned without a number skips the numbers the capability's tests already carry; a number given is kept", async ({ work }) => {
+    const story = await work.addStory({ title: "Visitor can sign up" });
+    const form = await work.addCapability({ title: "3 · Email form", story: story.id });
+    await work.addContract({ title: "Rejects a bad email", capability: form.id });
+    const tested = { testedNumbers: ["3.1", "3.4", "7.9"] };
+    assert.equal((await work.addContract({ title: "Trims spaces", capability: form.id }, tested)).fields.title, "3.5 · Trims spaces", "past the highest a test carries");
+    assert.equal((await work.addContract({ title: "3.4 · Accepts a plus address", capability: form.id }, tested)).fields.title, "3.4 · Accepts a plus address", "a landed test's own number is kept");
+    assert.equal((await work.addContract({ title: "Lowercases the domain", capability: form.id })).fields.title, "3.6 · Lowercases the domain", "with no tests named, the plan alone numbers");
   });
 }
 

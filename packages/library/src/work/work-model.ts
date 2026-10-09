@@ -31,6 +31,10 @@ export type CapabilityEdit = { [F in keyof FieldsOf<"capability">]?: FieldsOf<"c
 export type StoryEdit = { [F in keyof FieldsOf<"story">]?: FieldsOf<"story">[F] | undefined };
 /** An edit of a contract: some of its fields. A field set to undefined is removed. */
 export type ContractEdit = { [F in keyof FieldsOf<"contract">]?: FieldsOf<"contract">[F] | undefined };
+/** How a contract is added: as any write, and skipping the contract numbers `testedNumbers` (its capability's tests) carry. */
+export interface ContractWriteOptions extends WriteOptions {
+  readonly testedNumbers?: readonly string[];
+}
 /** An edit of an arc: some of its fields. A field set to undefined is removed. */
 export type ArcEdit = { [F in keyof NewArc]?: NewArc[F] | undefined };
 
@@ -156,11 +160,14 @@ export class WorkModel {
    * without a number gets the capability's next free one, after the highest its live contracts
    * carry, and a title whose number another live contract of the capability carries is refused
    * with a SchemaError on `title`, nothing written. A capability with no number numbers nothing.
+   * `testedNumbers`, the contract numbers the capability's tests already carry, are skipped too, so
+   * the next free number is past them; a number given is kept, which is how a landed test's
+   * contract gets planned.
    */
-  addContract(contract: NewContract, options?: WriteOptions): Promise<SchemaRecord<"contract">> {
+  addContract(contract: NewContract, options?: ContractWriteOptions): Promise<SchemaRecord<"contract">> {
     return this.#serially(async () => {
       await checkReference(this.#records, "capability", contract.capability, "capability");
-      const title = await this.#numbered(contract.title, contract.capability);
+      const title = await this.#numbered(contract.title, contract.capability, options?.testedNumbers ?? []);
       return this.#records.create("contract", { ...contract, title }, options);
     });
   }
@@ -246,7 +253,7 @@ export class WorkModel {
    * `title` as a new contract of `capability` carries it: refused if its number is taken there, and
    * given the next free number when it has none and the capability has one.
    */
-  async #numbered(title: string, capability: string): Promise<string> {
+  async #numbered(title: string, capability: string, tested: readonly string[]): Promise<string> {
     if (typeof title !== "string" || !couldBeId(capability)) return title; // the schema refuses it in the write
     if (contractNumber(title) !== undefined) {
       await this.#refuseTakenNumber(title, capability);
@@ -254,10 +261,8 @@ export class WorkModel {
     }
     const prefix = /^(\d+) · /.exec((await this.#titleOf(capability)) ?? "")?.[1];
     if (prefix === undefined) return title;
-    const taken = (await this.#contractsOf(capability)).flatMap((contract) => {
-      const number = contractNumber(contract.fields.title);
-      return number?.startsWith(`${prefix}.`) ? [Number(number.slice(prefix.length + 1))] : [];
-    });
+    const numbers = [...(await this.#contractsOf(capability)).map((contract) => contractNumber(contract.fields.title)), ...tested];
+    const taken = numbers.flatMap((number) => (number?.startsWith(`${prefix}.`) ? [Number(number.slice(prefix.length + 1))] : []));
     return `${prefix}.${Math.max(0, ...taken) + 1} · ${title}`;
   }
 

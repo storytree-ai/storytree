@@ -100,6 +100,25 @@ usage: storytree ${this.usage}`, { code: 2 });
   },
 };
 
+const stale: Verb = {
+  name: "stale",
+  usage: "workspace stale",
+  summary: "the session manager's stale-claim worklist: claimed increments whose holder is quiet, with no command running and no open pull request, each with its route (ADR-0953 D4)",
+  async act(_args, context) {
+    const caller = await context.activityContext();
+    const { staleClaims } = await import("@storytree/agent-link");
+    const { claims, pullsUnread } = await staleClaims(caller, caller.quietMs === undefined ? {} : { quietMs: caller.quietMs });
+    const unread = pullsUnread ? ["GitHub could not be asked which pull requests are open: check each branch before releasing."] : [];
+    if (claims.length === 0) return { text: ["No claimed increment is stale.", ...unread].join("\n") };
+    const rows = claims.map((claim) =>
+      `- ${claim.increment}: ${claim.label} session ${claim.holder} (${claim.reason}), last seen ${claim.lastSeenAt}${claim.branch === undefined ? "" : `, on ${claim.branch}`}. ${
+        claim.route === "release"
+          ? `Gone: storytree workspace release ${claim.increment} --holder ${claim.holder} --reason <why>.`
+          : "Quiet: ask its holder first, and release it only once it stays quiet."}`);
+    return { text: [`${claims.length} claimed increment${claims.length === 1 ? " is" : "s are"} stale:`, ...rows, ...unread].join("\n") };
+  },
+};
+
 /**
  * Asking the owner about an increment releases the work the caller holds for it, through the agent
  * link's releaseAsked (ADR-0944 D4): the question's `--hold` and an owner wait both say so here. A
@@ -152,7 +171,7 @@ function waitSaid(wait: Waiting): string {
 
 export const workspace: Family = {
   name: "workspace",
-  summary: "prepare or attach a workspace, or claim or release work for this agent session",
-  verbs: [attach, claimOnly, releaseClaim],
+  summary: "prepare or attach a workspace, claim or release work for this agent session, or list stale claims",
+  verbs: [attach, claimOnly, releaseClaim, stale],
   bare: make,
 };

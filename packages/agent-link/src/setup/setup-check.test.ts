@@ -165,10 +165,13 @@ test("8.1 in a throwaway home with only the tool server installed, the first ses
       }
 
       // The harness waits for the hook before a storytree tool, so its line is written before the
-      // call reaches the tool server; the one before a shell command never makes the agent wait.
+      // call reaches the tool server; the one before a shell command never makes the agent wait; and it
+      // waits for the one before a file edit, whose answer may refuse the edit (ADR-0949 D3).
       const before = events.PreToolUse ?? [];
-      assert.equal(before.length, 2, `${harness}: two hooks before a tool`);
-      const [tools, shell] = [before.find((entry) => !entry.background), before.find((entry) => entry.background)];
+      assert.equal(before.length, 3, `${harness}: three hooks before a tool`);
+      const [tools, shell, edit] = [before[0], before.find((entry) => entry.background), before[2]];
+      const edited = harness === "claude-code" ? ["Write", "Edit", "MultiEdit", "NotebookEdit"] : ["apply_patch"];
+      assert.ok(edit?.background === false && edited.every((tool) => runsFor(edit, tool, anchored)) && !runsFor(edit, "Bash", anchored), `${harness}: in the foreground before a file edit, and no other`);
       assert.ok(runsFor(tools, "mcp__storytree__open", anchored) && !runsFor(tools, "Bash", anchored), `${harness}: in the foreground before a storytree tool, and no other`);
       assert.ok(runsFor(shell, "Bash", anchored) && !runsFor(shell, "mcp__storytree__open", anchored), `${harness}: in the background before a shell command, and no other`);
       assert.equal(events.Stop?.[0]?.background, true, `${harness}: in the background at the end of a turn`);

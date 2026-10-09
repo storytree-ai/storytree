@@ -41,7 +41,7 @@
 import { homedir } from "node:os";
 import path from "node:path";
 
-import type { Storytree } from "@storytree/library";
+import type { Library, Storytree } from "@storytree/library";
 
 import type { NewLine } from "../activity/index.js";
 import type { MergeContext, MergeWatch } from "../claims/index.js";
@@ -234,7 +234,7 @@ async function writeLines(harness: string, input: string, flags: readonly string
           const { shipTranscript } = await import("../transcripts/index.js");
           await shipTranscript(log, where.project, first.session, first.transcript);
         }
-        if (looks && handOff === undefined) await lookAround(watcher, merges);
+        if (looks && handOff === undefined) await lookAround(watcher, merges, () => openNamedProject(storytree, where.project, where.identity));
       }
     } catch (error) {
       // The log went away mid-hook: what it did not take waits for the next hook.
@@ -271,7 +271,9 @@ async function upkeep(made: HookLines, merges: MergeWatch | undefined, locate: L
         await claimFromEdits({ log, library, project: where.project, home: storytreeHome(), ...(machine === undefined ? {} : { machine }) });
       };
       await Promise.all([
-        lookAround({ log, project: where.project, folder: made.folder, session: first.session, ...(first.harness === undefined ? {} : { harness: first.harness }), source: "hook" }, { ...merges, everyMs: 0 }),
+        lookAround({ log, project: where.project, folder: made.folder, session: first.session, ...(first.harness === undefined ? {} : { harness: first.harness }), source: "hook" }, { ...merges, everyMs: 0 }, () =>
+          openNamedProject(storytree, where.project, where.identity),
+        ),
         claimingFromEdits().catch(() => undefined),
       ]);
     } finally {
@@ -282,8 +284,8 @@ async function upkeep(made: HookLines, merges: MergeWatch | undefined, locate: L
   }
 }
 
-/** Whether each session's branches still hold open work (ADR-0754 D4), worktrees to reap (ADR-0790), the sessions the apps keep, and gone holders' claims, each at most once a minute unless `watch` says otherwise. */
-async function lookAround(watcher: MergeContext, watch: MergeWatch | undefined): Promise<void> {
+/** Whether each session's branches still hold open work (ADR-0754 D4), worktrees to reap (ADR-0790), the sessions the apps keep, and gone holders' claims, each at most once a minute unless `watch` says otherwise; `openLibrary` opens the project's library for a gone holder's unclosed increment (5.30). */
+async function lookAround(watcher: MergeContext, watch: MergeWatch | undefined, openLibrary: () => Promise<Library>): Promise<void> {
   const { resolveBranches } = await import("../sessions/branch-states.js");
   await resolveBranches(watcher, watch).catch(() => []);
   // Worktrees whose sessions have left and whose work is in main are removed (ADR-0790).
@@ -294,7 +296,7 @@ async function lookAround(watcher: MergeContext, watch: MergeWatch | undefined):
   await recordAppStates(watcher, watch?.everyMs === undefined ? {} : { everyMs: watch.everyMs }).catch(() => []);
   // Claims of sessions that read gone, crashed or abandoned without an end line, end now (ADR-0944 D6).
   const [{ due }, { endGoneClaims }] = await Promise.all([import("../claims/merges.js"), import("../claims/claims.js")]);
-  if (due(`${watcher.project}-gone`, watch?.everyMs ?? UPKEEP_EVERY_MS)) await endGoneClaims(watcher).catch(() => []);
+  if (due(`${watcher.project}-gone`, watch?.everyMs ?? UPKEEP_EVERY_MS)) await endGoneClaims({ ...watcher, openLibrary }).catch(() => []);
 }
 
 /** The prompt in a prompt hook's input from `harness`, or undefined for any other input. */

@@ -5,7 +5,7 @@
   "type": "module",
   "packageManager": "pnpm@9.15.0",
   "engines": {
-    "node": ">=24"
+    "node": ">=24.20.0"
   },
   "scripts": {
     "storytree": "node packages/dev-loop/src/provision-worktree.mjs --check && node --import tsx packages/cli/src/bins/storytree.ts",

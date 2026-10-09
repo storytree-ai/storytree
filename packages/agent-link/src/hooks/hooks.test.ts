@@ -135,12 +135,17 @@ async function linesOf(project: string, { starts = false } = {}): Promise<Line[]
   }
 }
 
-/** How many lines any project's log holds for `session`: none, for a hook that wrote nothing. */
+/** How many lines any project's log holds for `session`: none, for a hook that wrote nothing, nor before any log exists on the server. */
 async function linesAnywhereFor(session: string): Promise<number> {
   const url = new URL(testServerUrl());
   url.pathname = "/storytree-activity";
   const client = new pg.Client({ connectionString: url.href });
-  await client.connect();
+  try {
+    await client.connect();
+  } catch (error) {
+    if ((error as { code?: string }).code === "3D000") return 0; // no activity database yet: nothing was written
+    throw error;
+  }
   try {
     const { rows } = await client.query<{ count: string }>("SELECT count(*) FROM activity WHERE session = $1", [session]);
     return Number(rows[0]!.count);

@@ -1,5 +1,5 @@
-// increment_36281861bfe6: the tests connect with one url and make roles in their setup with
-// another, the superuser's, so that one day they can connect as the ordinary role.
+// increment_36281861bfe6: the tests connect as the ordinary role and make roles in their setup
+// with another url, the superuser's.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -37,13 +37,14 @@ test("urls", () => console.log("URLS " + JSON.stringify([process.env.STORYTREE_T
   return JSON.parse(/URLS (.*)/.exec(out.stdout)[1]);
 }
 
-test("6.9 · the tests are handed the superuser's url for their setup, beside the url they connect with", async () => {
+test("6.9 · the tests connect as the ordinary role, and are handed the superuser's url for their setup", async () => {
   const url = process.env.STORYTREE_TEST_PG_URL;
   const admin = process.env.STORYTREE_TEST_PG_ADMIN_URL;
   assert.ok(url, "run these tests through `pnpm test`");
   assert.ok(admin, "`pnpm test` hands the tests STORYTREE_TEST_PG_ADMIN_URL");
   assert.equal(new URL(admin).port, new URL(url).port, "both sign in to the same server");
   assert.equal(await superuser(admin), true, "the admin url can make roles");
+  assert.equal(await superuser(url), false, "the url they connect with is the ordinary role's");
 });
 
 test("6.9 · a run given a server's url hands that url for setup too, unless it is given an admin url as well", (t) => {

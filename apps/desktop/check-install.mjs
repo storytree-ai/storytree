@@ -106,7 +106,8 @@ async function checkCallbackDelivery(env) {
       : spawnSync(exe, [callback], { env, windowsHide: true, timeout: 60_000, encoding: "utf8" });
     assert.equal(second.status, 0, `${offered ? "the shell opens the callback" : "the second start hands its callback over and exits"}: ${second.error ?? ""}${second.stdout}${second.stderr}`);
     const outcome = offered ? "reached the sign-in session" : "this build offers no sign-in";
-    await heard(new RegExp(`sign-in callback received: storytree-auth://callback; ${outcome}`), `the callback (${outcome})`);
+    // The shell hands the callback over normalised, as storytree-auth://callback/?code=…
+    await heard(new RegExp(`sign-in callback received: storytree-auth://callback/?; ${outcome}`), `the callback (${outcome})`);
     assert.ok(!said.includes(code), "the report never prints the callback's code");
     const quit = spawnSync(exe, ["--quit"], { env, windowsHide: true, timeout: 60_000 });
     assert.equal(quit.status, 0, "a --quit start reaches the running app");

@@ -64,6 +64,8 @@ export function placeHandoff(dataDir: string): void {
   privatePath(file, false);
 }
 
+let currentSid: string | undefined;
+
 /** Owned by this user and readable by it alone: 0700/0600 on POSIX, a protected access list granting only this user on Windows. */
 function privatePath(file: string, directory: boolean): void {
   if (process.platform !== "win32") return chmodSync(file, directory ? 0o700 : 0o600);
@@ -72,8 +74,8 @@ function privatePath(file: string, directory: boolean): void {
     if (ran.error !== undefined || ran.status !== 0) throw new Error(`${command} ${args.join(" ")} failed: ${ran.error?.message ?? ran.stderr}`);
     return ran.stdout;
   };
-  // The numeric SID only, never localized account names.
-  const sid = run("whoami.exe", ["/user", "/fo", "csv", "/nh"]).match(/,"(S-1-\d+(?:-\d+)+)"\s*$/)?.[1];
+  // The numeric SID only, never localized account names, resolved once per process.
+  const sid = currentSid ??= run("whoami.exe", ["/user", "/fo", "csv", "/nh"]).match(/,"(S-1-\d+(?:-\d+)+)"\s*$/)?.[1];
   if (sid === undefined) throw new Error("whoami did not return the current user's SID");
   run("icacls.exe", [file, "/setowner", `*${sid}`]);
   run("icacls.exe", [file, "/inheritance:r", "/grant:r", `*${sid}:F`]);

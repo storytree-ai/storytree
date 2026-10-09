@@ -103,8 +103,15 @@ test("1.14 a local password URL refuses a listener that skips authentication, se
     }
     assert.equal(Buffer.concat(received).toString().includes("SELECT 42"), false, "the impostor must receive no query");
     // With no password configured there is nothing to protect: the passwordless test harness still connects.
-    const client = await passwordless.admin.connect();
-    client.release();
+    // pg falls back to PGPASSWORD (GitHub's Windows image sets one), which would be a password to protect.
+    const pgPassword = process.env.PGPASSWORD;
+    delete process.env.PGPASSWORD;
+    try {
+      const client = await passwordless.admin.connect();
+      client.release();
+    } finally {
+      if (pgPassword !== undefined) process.env.PGPASSWORD = pgPassword;
+    }
   } finally {
     await Promise.all([withPassword.admin.end(), project.end(), passwordless.admin.end()]);
     for (const socket of sockets) socket.destroy();

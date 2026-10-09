@@ -91,7 +91,8 @@ interface PgClientInternals {
  * before either can resolve or send a password. Real SCRAM stays with pg, including its server
  * proof check. Nor may a listener skip authentication: with a password configured, the connection
  * is refused at ReadyForQuery, before any query is sent, unless SCRAM completed with a verified
- * server signature. Only a URL with no password (the test harness) reaches a passwordless server.
+ * server signature. Only a URL with no password, and no PGPASSWORD to fall back on (the test harness), reaches a
+ * passwordless server.
  */
 class LocalClient extends (pg.Client as unknown as new (...args: ConstructorParameters<typeof pg.Client>) => pg.Client & PgClientInternals) {
   #scramVerified = false;

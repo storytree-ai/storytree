@@ -1,6 +1,6 @@
 // Capability 7 · The gate. Whether a branch changes only the capabilities its increment lists (ADR-0949 D3): each
-// changed file is mapped to its capability by the edit claims' seam (ADR-0925 D4, as
-// packages/agent-link/src/claims/edit-claims.ts reads it): a file's own declaration (a source file's
+// changed file is mapped to its capability by the lookup edit claims share (ADR-0925 D4,
+// @storytree/map/code-survey's capabilitiesOfFiles): a file's own declaration (a source file's
 // opening "Capability N · <title>", a test file's one numbered capability), else the code survey's
 // inference. A file none of these places changes no capability. The branch's increment is the one its
 // name carries (a workspace's branch is claude/increment-<id>-<suffix>); a branch naming none is not
@@ -38,36 +38,14 @@ export function capabilityListFor(root, env = process.env) {
 
 /**
  * Which capability each of `files` (repo-relative) belongs to, over `tree` (the library's projectTree()):
- * a Map of file to capability id, without the files that belong to none. `readText` reads a file's text
- * (undefined when there is none); `survey` infers the undeclared ones' as the code survey does.
+ * a Map of file to capability id, without the files that belong to none. It is the map's shared lookup
+ * (ADR-0925 D4), so the gate and edit claims never place a file differently; `readText` and `survey`
+ * pass through to it.
  */
-export async function capabilitiesOf(root, files, tree, { readText = (file) => readFileSync(path.join(root, file), "utf8"), survey } = {}) {
-  const { codeSurveyReader, declaredNumberOf, packageOf } = await import("@storytree/map/code-survey");
-  const owners = new Map();
-  const undeclared = [];
-  for (const raw of files) {
-    const file = raw.replaceAll("\\", "/");
-    const story = tree.stories.find(({ title }) => file.startsWith(`packages/${packageOf(title)}/`) || (packageOf(title) === "app" && file.startsWith("apps/desktop/")));
-    if (story === undefined) continue;
-    let text;
-    try {
-      text = readText(file);
-    } catch {}
-    if (text === undefined) continue;
-    const number = declaredNumberOf({ path: file, text }, packageOf(story.title));
-    const declared = number === undefined ? undefined : story.capabilities.find(({ title }) => Number(/^\s*(\d+)\s*·/.exec(title)?.[1]) === number);
-    if (declared === undefined) undeclared.push(file);
-    else owners.set(file, declared.id);
-  }
-  if (undeclared.length === 0) return owners;
-  const surveyed = await (survey ?? ((tree) => codeSurveyReader({ checkout: "current" }).read(root, tree)))(tree);
-  const inferred = new Map();
-  for (const story of tree.stories) {
-    const base = `packages/${packageOf(story.title)}`;
-    for (const found of surveyed[story.id]?.files ?? []) if (found.capability !== undefined) inferred.set(path.posix.join(base, found.path), found.capability);
-  }
-  for (const file of undeclared) if (inferred.has(file)) owners.set(file, inferred.get(file));
-  return owners;
+export async function capabilitiesOf(root, files, tree, options = {}) {
+  const { capabilitiesOfFiles } = await import("@storytree/map/code-survey");
+  const owners = await capabilitiesOfFiles(root, files, tree, options);
+  return new Map([...owners].map(([file, { capability }]) => [file, capability]));
 }
 
 /**

@@ -37,7 +37,7 @@ test("urls", () => console.log("URLS " + JSON.stringify([process.env.STORYTREE_T
   return JSON.parse(/URLS (.*)/.exec(out.stdout)[1]);
 }
 
-test("6.9 the tests are handed the superuser's url for their setup, beside the url they connect with", async () => {
+test("6.9 · the tests are handed the superuser's url for their setup, beside the url they connect with", async () => {
   const url = process.env.STORYTREE_TEST_PG_URL;
   const admin = process.env.STORYTREE_TEST_PG_ADMIN_URL;
   assert.ok(url, "run these tests through `pnpm test`");
@@ -46,7 +46,7 @@ test("6.9 the tests are handed the superuser's url for their setup, beside the u
   assert.equal(await superuser(admin), true, "the admin url can make roles");
 });
 
-test("6.9 a run given a server's url hands that url for setup too, unless it is given an admin url as well", (t) => {
+test("6.9 · a run given a server's url hands that url for setup too, unless it is given an admin url as well", (t) => {
   assert.deepEqual(handed(t, { STORYTREE_TEST_PG_URL: "postgres://client@127.0.0.1:1/postgres" }),
     ["postgres://client@127.0.0.1:1/postgres", "postgres://client@127.0.0.1:1/postgres"]);
   assert.deepEqual(handed(t, { STORYTREE_TEST_PG_URL: "postgres://client@127.0.0.1:1/postgres", STORYTREE_TEST_PG_ADMIN_URL: "postgres://admin@127.0.0.1:1/postgres" }),

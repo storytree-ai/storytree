@@ -1,5 +1,5 @@
 // Windows packaging proof: install the built NSIS payload, start the installed app's own main once
-// (4.17's start check), prove a sign-in callback reaches it as a second start (1.15), run its Postgres binaries, verify the shipped license (app setup 4.2), and
+// (4.17's start check), prove a sign-in callback reaches it (1.15: through the shell when the build offers sign-in), run its Postgres binaries, verify the shipped license (app setup 4.2), and
 // uninstall. No real app data, update feed or release is used. The release workflow runs it before
 // it publishes, so a release whose installed app cannot start never publishes.
 import assert from "node:assert/strict";
@@ -76,13 +76,16 @@ function throwawayUser(name) {
 
 /**
  * Lifecycle 1.15, in the installed app: under `--callback-check` the first start holds the single-instance
- * lock, and a second start carrying a fabricated storytree-auth callback (how Windows hands a deep link to
- * the app) exits and hands it to the first, which reports it and where it went. A build stamped with a
- * WorkOS client ID routes it to the sign-in session; an unstamped one has none to take it. No live sign-in.
+ * lock and reports each sign-in callback a later start hands it, and where it went. A build stamped with a
+ * WorkOS client ID offers sign-in, so the first start registers the storytree-auth scheme and the callback
+ * is opened through the shell (`start storytree-auth://…`, as a browser's redirect reaches the app); it must
+ * reach the sign-in session. An unstamped build registers no scheme, so a second start carries the callback
+ * as its argument and the first reports that no sign-in takes it. No live sign-in.
  */
 async function checkCallbackDelivery(env) {
   const exe = path.join(installed, "storytree-0.3.exe");
   const code = "fabricated-code-0f3a";
+  const offered = Boolean(process.env.STORYTREE_WORKOS_CLIENT_ID);
   const first = spawn(exe, ["--callback-check"], { env, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
   let said = "";
   const heard = (pattern, what) => new Promise((resolve, reject) => {
@@ -96,9 +99,13 @@ async function checkCallbackDelivery(env) {
   const exited = new Promise((resolve) => first.on("exit", (status) => resolve(status)));
   try {
     await heard(/callback check: waiting for sign-in callbacks/, "that it was waiting for callbacks");
-    const second = spawnSync(exe, [`storytree-auth://callback?code=${code}&state=x`], { env, windowsHide: true, timeout: 60_000, encoding: "utf8" });
-    assert.equal(second.status, 0, `the second start hands its callback over and exits: ${second.error ?? ""}${second.stdout}${second.stderr}`);
-    const outcome = process.env.STORYTREE_WORKOS_CLIENT_ID ? "reached the sign-in session" : "this build offers no sign-in";
+    const callback = `storytree-auth://callback?code=${code}&state=x`;
+    // cmd.exe /d /s /c "start "" "<callback>"": the quotes keep the callback's & from cmd.
+    const second = offered
+      ? spawnSync(`start "" "${callback}"`, { env, shell: true, windowsHide: true, timeout: 60_000, encoding: "utf8" })
+      : spawnSync(exe, [callback], { env, windowsHide: true, timeout: 60_000, encoding: "utf8" });
+    assert.equal(second.status, 0, `${offered ? "the shell opens the callback" : "the second start hands its callback over and exits"}: ${second.error ?? ""}${second.stdout}${second.stderr}`);
+    const outcome = offered ? "reached the sign-in session" : "this build offers no sign-in";
     await heard(new RegExp(`sign-in callback received: storytree-auth://callback; ${outcome}`), `the callback (${outcome})`);
     assert.ok(!said.includes(code), "the report never prints the callback's code");
     const quit = spawnSync(exe, ["--quit"], { env, windowsHide: true, timeout: 60_000 });
@@ -107,7 +114,7 @@ async function checkCallbackDelivery(env) {
   } finally {
     if (first.exitCode === null) first.kill();
   }
-  console.log(`1.15 PASS (Windows x64): a second start's storytree-auth callback reached the installed app's running instance, which reported it (${process.env.STORYTREE_WORKOS_CLIENT_ID ? "routed to the sign-in session" : "no sign-in offered by this build"})`);
+  console.log(`1.15 PASS (Windows x64): ${offered ? "a storytree-auth callback opened through the shell" : "a second start's storytree-auth callback"} reached the installed app's running instance, which reported it (${offered ? "routed to the sign-in session" : "no sign-in offered by this build"})`);
 }
 
 try {

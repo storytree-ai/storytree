@@ -44,7 +44,7 @@ export function authenticatedLocalUrl(dataDir: string, owner: LocalOwner): strin
   const dirStat = lstatSync(directory);
   const fileStat = lstatSync(file);
   if (!dirStat.isDirectory() || !fileStat.isFile() || fileStat.nlink !== 1) throw new Error(HANDOFF_UNAVAILABLE);
-  if (process.platform === "win32") windowsPrivate(directory, file);
+  if (process.platform === "win32") windowsPrivate(directory, file, dirStat, fileStat);
   else {
     posixPrivate(dirStat, true);
     posixPrivate(fileStat, false);
@@ -95,11 +95,22 @@ const DESCRIPTOR_SCRIPT = `
 const SYSTEM = "S-1-5-18";
 const ADMINISTRATORS = "S-1-5-32-544";
 
+// A process's user never changes, so whoami runs at most once per process.
+let processSid: string | undefined;
+// The identity of each handoff last proven private, by its directory. Changing a file's content or
+// access list moves its change time, and replacing it moves its file id, so an equal identity is the
+// same private pair and is not checked again. Only passes are kept: every refusal is re-checked.
+const provenPrivate = new Map<string, string>();
+const identity = (...stats: Stats[]) => stats.map((s) => `${s.dev}:${s.ino}:${s.size}:${s.mtimeMs}:${s.ctimeMs}:${s.birthtimeMs}`).join("|");
+
 /** Check actual SIDs in the binary descriptors, not translated/localized icacls text or Windows' synthetic Unix mode. */
-function windowsPrivate(directory: string, file: string): void {
+function windowsPrivate(directory: string, file: string, dirStat: Stats, fileStat: Stats): void {
+  const proven = identity(dirStat, fileStat);
+  if (provenPrivate.get(directory) === proven) return;
+  provenPrivate.delete(directory);
   const system32 = path.join(process.env.SystemRoot ?? "C:\\Windows", "System32");
   let scratch: string | undefined;
-  let currentSid: string | undefined;
+  let currentSid = processSid;
   // One five-second deadline bounds both native children of an attempt.
   const check = () => {
     const started = performance.now();
@@ -110,8 +121,9 @@ function windowsPrivate(directory: string, file: string): void {
         stdio: ["ignore", "pipe", "pipe"], timeout, maxBuffer: 65_536, windowsHide: true });
     };
     // Parse only the numeric SID, never localized account names.
-    currentSid = run("whoami.exe", ["/user", "/fo", "csv", "/nh"]).match(/,"(S-1-\d+(?:-\d+)+)"\s*$/)?.[1];
+    currentSid ??= run("whoami.exe", ["/user", "/fo", "csv", "/nh"]).match(/,"(S-1-\d+(?:-\d+)+)"\s*$/)?.[1];
     if (currentSid === undefined) throw new HandoffPrivacyError("windows-acl-output");
+    processSid = currentSid;
     return run("cscript.exe", ["//Nologo", "//B", "//E:JScript", path.join(scratch!, "descriptor.js")],
       { ...process.env, STORYTREE_HANDOFF_DIRECTORY: directory, STORYTREE_HANDOFF_FILE: file });
   };
@@ -139,6 +151,7 @@ function windowsPrivate(directory: string, file: string): void {
     const refusal = descriptorRefusal(hex.trim(), currentSid!);
     if (refusal) throw new HandoffPrivacyError(refusal);
   }
+  provenPrivate.set(directory, proven);
 }
 
 /** Owner, protected DACL, no foreign allow, and a non-inherit-only grant to the owner, in that order. */

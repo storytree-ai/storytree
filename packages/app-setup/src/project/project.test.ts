@@ -17,7 +17,7 @@ async function testLibrary(t: { after(fn: () => Promise<void>): void }, projects
   const storytree = await connect({ url });
   t.after(async () => {
     await storytree.close();
-    const client = new pg.Client({ connectionString: url });
+    const client = new pg.Client({ connectionString: process.env["STORYTREE_TEST_PG_ADMIN_URL"] || url });
     await client.connect();
     try {
       for (const name of projects) await client.query(`DROP DATABASE IF EXISTS "storytree_${name}" WITH (FORCE)`);

@@ -123,7 +123,7 @@ export async function healthHistory(project: string, entries: number, at: Date):
 
 async function dropTestProject(name: string): Promise<void> {
   if (!TEST_TOKEN.test(name)) throw new Error(`refusing to drop project ${JSON.stringify(name)}: it is not a test project`);
-  const client = new pg.Client({ connectionString: testServerUrl() });
+  const client = new pg.Client({ connectionString: process.env["STORYTREE_TEST_PG_ADMIN_URL"] || testServerUrl() });
   await client.connect();
   try {
     await client.query(`DROP DATABASE IF EXISTS "storytree_${name}" WITH (FORCE)`);

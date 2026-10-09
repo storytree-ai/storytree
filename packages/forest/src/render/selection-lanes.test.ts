@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { ForestScene, Island } from '../index.js';
-import { ringPulse, selectionLanes, selectionNeighbours } from '../index.js';
+import { reachedNeighbour, ringPulse, selectionLanes, selectionNeighbours } from '../index.js';
 
 const island = (story: string, capabilities: string[]): Island => ({
   story, title: story, x: 0, z: 0, key: story,
@@ -27,7 +27,7 @@ test('3.26 selecting a story lights its links to other stories, up where it buil
   assert.deepEqual(selectionLanes(scene, 'nowhere'), []);
 });
 
-test('3.27 a selected story\'s neighbours are ringed by relation, violet when both, pulsing in once', () => {
+test('3.27 a selected story\'s neighbours are ringed by relation, violet when both, each pulsing in once as a lane\'s front reaches its dock', () => {
   assert.deepEqual([...selectionNeighbours(scene, 'b')], [['a', 'up'], ['c', 'down']]);
   const cycle: ForestScene = { ...scene, links: [...scene.links!, { from: 'a1', to: 'c1' }] };
   assert.deepEqual([...selectionNeighbours(cycle, 'c')], [['b', 'up'], ['a', 'down']], 'a story on both sides reads as building on it');
@@ -37,4 +37,9 @@ test('3.27 a selected story\'s neighbours are ringed by relation, violet when bo
   assert.deepEqual(ringPulse(5, false), settled);
   assert.deepEqual(ringPulse(0, true), settled);
   assert.equal(settled.opacity, 1);
+  // b builds on a (an up lane, setting out from a's dock); c builds on b (a down lane, arriving at c's dock).
+  assert.equal(reachedNeighbour(scene, { from: 'b1', to: 'a1', dir: 'up' }, 'start'), 'a', 'an up lane leaves its neighbour');
+  assert.equal(reachedNeighbour(scene, { from: 'b1', to: 'a1', dir: 'up' }, 'end'), undefined, 'and ends on the selected island');
+  assert.equal(reachedNeighbour(scene, { from: 'c1', to: 'b1', dir: 'down' }, 'start'), undefined, 'a down lane leaves the selected island');
+  assert.equal(reachedNeighbour(scene, { from: 'c1', to: 'b1', dir: 'down' }, 'end'), 'c', 'and arrives at its neighbour');
 });

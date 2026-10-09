@@ -12,12 +12,19 @@ export interface LaneRoute extends LitLink {
   /** From the dock of the island built on (`to`'s) to the dock of the island building on it (`from`'s): dependency order. */
   points: Vector3[];
   length: number;
-  /** Narrower than a one-link road, so every road it rides keeps a rim. */
+  /** Across the lane at each point: its road's width, or just under half where an up and a down lane share the road. */
+  widths: number[];
+  /** The narrowest of `widths`. */
   width: number;
   colour: string;
 }
 
-const LANE_WIDTH = 0.6 * trailFillWidth(1) * RIBBON_GROUND_SCALE;
+/** Each of two colours sharing a road takes just under half of it, so a hairline of road parts them. */
+const SHARED_WIDTH = 0.48;
+/** A lane's glow spreads this many times its width, beyond the road's edge. */
+export const LANE_GLOW = 2.6;
+/** A dock's mark: about twice a one-link road across. */
+const PIP_RADIUS = 0.96 * trailFillWidth(1) * RIBBON_GROUND_SCALE;
 
 /** Choose the side in the segment's stored orientation, before walking it in either direction.
  * Meeting the centreline smoothly at each junction leaves every connecting strip unbroken. */
@@ -50,20 +57,20 @@ export function laneRoutes(plan: PlanetPathways, lit: readonly LitLink[]): LaneR
     colours.set(ref.id, (colours.get(ref.id) ?? 0) | (link.dir === 'up' ? 1 : 2));
   }
   return selected.map(({ link, chain }): LaneRoute => {
-    const points: Vector3[] = [];
-    // Two strips occupy at most 84% of the road and keep a visible gap between their inks.
-    const width = Math.min(LANE_WIDTH, ...chain.filter(ref => colours.get(ref.id) === 3)
-      .map(ref => segments.get(ref.id)!.width * 0.42));
+    const points: Vector3[] = [], widths: number[] = [];
     // The chain runs from the building capability to the one built on; the lane runs back along it.
     for (const ref of [...chain].reverse()) {
-      const segment = segments.get(ref.id)!;
-      const along = colours.get(ref.id) === 3 ? sharedStrip(segment, link.dir) : segment.points;
+      const segment = segments.get(ref.id)!, shared = colours.get(ref.id) === 3;
+      const along = shared ? sharedStrip(segment, link.dir) : segment.points;
       for (const point of ref.reversed ? along : [...along].reverse()) {
-        if (points.length === 0 || points.at(-1)!.distanceTo(point) > 1e-9) points.push(point);
+        if (points.length === 0 || points.at(-1)!.distanceTo(point) > 1e-9) {
+          points.push(point);
+          widths.push(segment.width * (shared ? SHARED_WIDTH : 1));
+        }
       }
     }
     const length = points.slice(1).reduce((sum, point, i) => sum + point.distanceTo(points[i]!), 0);
-    return { ...link, points, length, width, colour: LANE_COLOUR[link.dir] };
+    return { ...link, points, length, widths, width: Math.min(...widths), colour: LANE_COLOUR[link.dir] };
   });
 }
 
@@ -88,8 +95,8 @@ export function laneEntrances(lanes: readonly LaneRoute[]): LaneEntrance[] {
     // Seen from the dock, a lane leaving and one arriving both head out to sea.
     dock.heading.add(heading.lengthSq() > 0 ? heading.normalize() : heading);
     const mark = dock.marks.get(lane.dir) ?? { dir: lane.dir, colour: lane.colour, point, radius: 0, lanes: [] };
-    // About twice a one-link road across: a pip that reads as the lane's end at the globe's opening scale.
-    mark.radius = Math.max(mark.radius, lane.width * 1.6);
+    // A pip that reads as the lane's end at the globe's opening scale.
+    mark.radius = PIP_RADIUS;
     mark.lanes.push({ from: lane.from, to: lane.to, at });
     dock.marks.set(lane.dir, mark);
   }
@@ -107,9 +114,9 @@ export function entranceShown(at: 'start' | 'end', progress: number): boolean {
   return at === 'start' ? progress > 0 : progress >= 1;
 }
 
-/** Constant speed between 0.2's bounds: a short lane still reads as motion, a long one never drags. */
+/** Longer lanes take longer, between 0.8 and 1.8 seconds: slow enough to follow, never dragging. */
 export function laneDrawSeconds(length: number): number {
-  return Math.min(1.2, Math.max(0.28, 0.15 + length / 600));
+  return Math.min(1.8, Math.max(0.8, 0.6 + length / 300));
 }
 
 /** Rendered time keeps slow frames from swallowing a lane's whole growth in one jump. */
@@ -117,8 +124,38 @@ export function advanceLaneClock(elapsed: number, delta: number): number {
   return elapsed + Math.max(0, Math.min(0.08, delta));
 }
 
-/** The physical fraction drawn after `elapsed` rendered seconds; all at once under reduced motion. */
-export function laneProgress(elapsed: number, seconds: number, reducedMotion: boolean): number {
+/** Seconds after selection each lane starts, in the order given: up lanes, then down lanes, each shortest first,
+ * 0.1 s apart, the whole spread kept within 1.2 s however many lanes light. */
+export function laneDelays(lanes: readonly { dir: LitLink['dir']; length: number }[]): number[] {
+  const order = lanes.map((lane, i) => ({ lane, i }))
+    .sort((a, b) => (a.lane.dir === b.lane.dir ? 0 : a.lane.dir === 'up' ? -1 : 1) || a.lane.length - b.lane.length || a.i - b.i);
+  const step = Math.min(0.1, 1.2 / Math.max(1, lanes.length - 1));
+  const delays = lanes.map(() => 0);
+  order.forEach(({ i }, rank) => { delays[i] = rank * step; });
+  return delays;
+}
+
+/** The physical fraction drawn `elapsed` rendered seconds after selection, easing out to a stop; all at once under reduced motion. */
+export function laneProgress(elapsed: number, seconds: number, reducedMotion: boolean, delay = 0): number {
+  if (reducedMotion) return 1;
+  const t = Math.min(1, Math.max(0, (elapsed - delay) / seconds));
+  return 1 - (1 - t) ** 2;
+}
+
+/** How bright the lane's head shows: whole while the lane draws, fading over 0.4 s once it is whole; never under reduced motion. */
+export function laneHead(elapsed: number, seconds: number, reducedMotion: boolean, delay = 0): number {
+  if (reducedMotion || elapsed <= delay) return 0;
+  return Math.min(1, Math.max(0, 1 - (elapsed - delay - seconds) / 0.4));
+}
+
+/** A road's own draw-on (6.16, 6.17, 7.4): constant speed between 0.2's bounds, so a short road still reads as motion
+ * and a long one never drags. */
+export function roadDrawSeconds(length: number): number {
+  return Math.min(1.2, Math.max(0.28, 0.15 + length / 600));
+}
+
+/** The physical fraction of a road drawn after `elapsed` rendered seconds, at constant speed; all at once under reduced motion. */
+export function roadProgress(elapsed: number, seconds: number, reducedMotion: boolean): number {
   if (reducedMotion) return 1;
   return Math.min(1, Math.max(0, elapsed / seconds));
 }

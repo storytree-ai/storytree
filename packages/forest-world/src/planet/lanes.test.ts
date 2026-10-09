@@ -3,7 +3,7 @@ import test from 'node:test';
 import { Vector3 } from 'three';
 import type { ForestScene, Island } from '../scene.js';
 import { buildPlanetPathways, laneDrawSeconds, laneProgress, laneRoutes, LANE_COLOUR } from '../geometry.js';
-import { advanceLaneClock, entranceShown, laneEntrances } from './lanes.js';
+import { advanceLaneClock, entranceShown, laneDelays, laneEntrances, laneHead, LANE_GLOW } from './lanes.js';
 import type { PlanetPathways } from './pathways.js';
 
 const R = 218;
@@ -15,7 +15,7 @@ const scene: ForestScene = { islands: [island('a', ['a1', 'a2']), island('b', ['
   links: [{ from: 'a2', to: 'a1' }, { from: 'b1', to: 'a1' }, { from: 'b2', to: 'b1' }, { from: 'b2', to: 'a2' }] };
 const spots = new Map([['a', { x: R * Math.sin(0.3), y: 0, z: R * Math.cos(0.3) }], ['b', { x: -R * Math.sin(0.3), y: 0, z: R * Math.cos(0.3) }]]);
 
-test('6.8 a lit link\'s lane is one unbroken strip between islands, from the dock of the island built on to the dock of the island building on it, narrower than its road', () => {
+test('6.8 a lit link\'s lane is one unbroken strip between islands, from the dock of the island built on to the dock of the island building on it, filling its road with a glow beyond', () => {
   const plan = buildPlanetPathways(scene, spots, R);
   const lanes = laneRoutes(plan, [{ from: 'b1', to: 'a1', dir: 'down' }, { from: 'b2', to: 'a2', dir: 'up' }, { from: 'a2', to: 'a1', dir: 'up' }]);
   assert.deepEqual(lanes.map(l => [l.from, l.to, l.colour]), [['b1', 'a1', LANE_COLOUR.down], ['b2', 'a2', LANE_COLOUR.up]],
@@ -34,13 +34,18 @@ test('6.8 a lit link\'s lane is one unbroken strip between islands, from the doc
     const link = `${lane.from}->${lane.to}`;
     assert.ok(lane.points[0]!.distanceTo(dock('a', link)) < 1e-9, 'starts on the dock of the island built on');
     assert.ok(lane.points.at(-1)!.distanceTo(dock('b', link)) < 1e-9, 'ends on the dock of the island building on it');
+    assert.equal(lane.widths.length, lane.points.length);
     lane.points.forEach((p, i) => {
       const margin = Math.min(...road.filter(segment => segment.points.some(q => q.distanceTo(back[i]!) < 1e-9)).map(segment => segment.width / 2));
-      assert.ok(p.distanceTo(back[i]!) + lane.width / 2 < margin, `inside its road at point ${i}`);
+      assert.ok(p.distanceTo(back[i]!) + lane.widths[i]! / 2 <= margin + 1e-9, `inside its road at point ${i}`);
+      assert.ok(lane.widths[i]! >= 0.95 * margin, `at least half its road at point ${i}`);
     });
     assert.ok(Math.abs(lane.length - lane.points.slice(1).reduce((sum, p, i) => sum + p.distanceTo(lane.points[i]!), 0)) < 1e-6);
-    for (const segment of road) assert.ok(lane.width < segment.width, `narrower than road ${segment.id}`);
   }
+  const [alone] = laneRoutes(plan, [{ from: 'b1', to: 'a1', dir: 'down' }]);
+  const road = (p: Vector3) => Math.max(...plan.segments.filter(s => s.points.some(q => q.distanceTo(p) < 1e-9)).map(s => s.width));
+  alone!.points.forEach((p, i) => assert.ok(Math.abs(alone!.widths[i]! - road(p)) < 1e-9, `a lone lane fills its road at point ${i}`));
+  assert.ok(LANE_GLOW > 1.5, 'its glow reaches beyond the road\'s edge');
   assert.deepEqual(laneRoutes(plan, [{ from: 'x', to: 'y', dir: 'up' }]), [], 'a link with no trail lights nothing');
 });
 
@@ -58,7 +63,7 @@ test('6.8 a lane marks each dock it uses in its colour, both colours side by sid
     assert.ok(one!.point.distanceTo(two!.point) >= one!.radius + two!.radius - 1e-9, 'the two colours do not cover each other');
     for (const mark of here) {
       assert.ok(Math.abs(mark.point.length() - dock.length()) < 1e-9, 'lying on the coast at the dock\'s height');
-      assert.ok(mark.radius > lanes[0]!.width && mark.radius < lanes[0]!.width * 2, 'a small pip, wider than its lane');
+      assert.ok(mark.radius > 0.75 && mark.radius < 2, 'a small pip, about twice a one-link road across');
       assert.deepEqual(mark.lanes, [{ from: mark.dir === 'down' ? 'b1' : 'b2', to: mark.dir === 'down' ? 'a1' : 'a2', at: story === 'a' ? 'start' : 'end' }]);
     }
   }
@@ -71,7 +76,7 @@ test('6.8 a lane marks each dock it uses in its colour, both colours side by sid
   assert.equal(entranceShown('end', 1), true);
 });
 
-test('6.8 opposite colours stay distinct on a shared trunk even when their links travel it in opposite directions, and join their exact endpoints continuously', () => {
+test('6.8 opposite colours share a trunk side by side, each just under half of it, even when their links travel it in opposite directions, and join their exact endpoints continuously', () => {
   const point = (x: number, y: number) => new Vector3(x, y, R);
   const line = (id: string, from: [number, number], to: [number, number], links: string[]) => ({
     id, width: 2, links, points: Array.from({ length: 21 }, (_, i) => point(from[0], from[1]).lerp(point(to[0], to[1]), i / 20)),
@@ -99,28 +104,50 @@ test('6.8 opposite colours stay distinct on a shared trunk even when their links
     assert.ok(lane.points.every(p => Number.isFinite(p.length())));
     assert.ok(lane.points.slice(1).every((p, i) => p.distanceTo(lane.points[i]!) < 1.5), 'the lane never jumps at a trunk junction');
     for (const p of lane.points.filter(p => Math.abs(p.x) < 9)) {
-      assert.ok(Math.hypot(p.y, p.z - R) + lane.width / 2 < 1, 'both strips retain a road rim');
+      assert.ok(Math.hypot(p.y, p.z - R) + lane.width / 2 < 1, 'both strips lie within their road');
+    }
+    for (const p of lane.points.filter(p => Math.abs(p.x) < 6)) {
+      assert.ok(Math.hypot(p.y, p.z - R) + lane.width / 2 > 0.95, 'side by side, the two strips fill their road');
     }
   }
   const alone = laneRoutes(plan, [{ from: 'b1', to: 'a1', dir: 'down' }])[0]!;
   assert.ok(alone.points.every(p => Math.abs(p.x) >= 10 || p.y === 0), 'a single colour uses the centre of its road');
 });
 
-test('6.9 a lane draws on at constant speed in 0.28 to 1.2 seconds, and whole at once under reduced motion', () => {
-  assert.equal(laneDrawSeconds(0), 0.28);
-  assert.equal(laneDrawSeconds(100_000), 1.2);
-  const a = laneDrawSeconds(200), b = laneDrawSeconds(300), c = laneDrawSeconds(400);
-  assert.ok(a > 0.28 && c < 1.2, 'mid-length lanes sit between the bounds');
-  assert.ok(Math.abs((b - a) - (c - b)) < 1e-9, 'equal extra length takes equal extra time');
-  assert.equal(laneProgress(0, 0.5, false), 0);
-  assert.equal(laneProgress(0.5, 0.5, false), 1);
-  assert.equal(laneProgress(9, 0.5, false), 1);
-  assert.equal(laneProgress(0.25, 0.5, false), 0.5, 'half the time reveals half the physical route');
-  assert.equal(laneProgress(0.125, 0.5, false), 0.25, 'equal time steps reveal equal distances');
-  assert.equal(laneProgress(0, 0.5, true), 1);
+test('6.9 a lane draws on in 0.8 to 1.8 seconds by its length, easing out to a stop, and whole at once under reduced motion', () => {
+  assert.equal(laneDrawSeconds(0), 0.8);
+  assert.equal(laneDrawSeconds(100_000), 1.8);
+  const a = laneDrawSeconds(150), b = laneDrawSeconds(250);
+  assert.ok(a > 0.8 && b < 1.8 && b > a, 'a longer lane takes longer');
+  assert.equal(laneProgress(0, 1, false), 0);
+  assert.equal(laneProgress(1, 1, false), 1);
+  assert.equal(laneProgress(9, 1, false), 1);
+  const early = laneProgress(0.25, 1, false) - laneProgress(0, 1, false), late = laneProgress(1, 1, false) - laneProgress(0.75, 1, false);
+  assert.ok(laneProgress(0.5, 1, false) > 0.5 && early > 2 * late, 'quick away from the dock, slowing as it arrives');
+  assert.equal(laneProgress(0.3, 1, false, 0.3), 0, 'nothing drawn before its own start');
+  assert.equal(laneProgress(1.3, 1, false, 0.3), 1);
+  assert.equal(laneProgress(0, 1, true, 0.3), 1);
 });
 
-test('6.9 slow rendered frames leave visible intermediate lane growth, while normal frame steps keep constant speed', () => {
+test('6.9 lit lanes start apart, up lanes then down lanes, each shortest first, the spread bounded', () => {
+  const lanes = [{ dir: 'down', length: 50 }, { dir: 'up', length: 90 }, { dir: 'down', length: 20 }, { dir: 'up', length: 40 }] as const;
+  const delays = laneDelays(lanes);
+  assert.deepEqual(delays.map(d => Math.round(d * 1000)), [300, 100, 200, 0]);
+  assert.deepEqual(laneDelays(lanes), delays, 'the same lanes start in the same order');
+  const many = laneDelays(Array.from({ length: 40 }, (_, i) => ({ dir: 'down' as const, length: i })));
+  assert.ok(Math.max(...many) <= 1.2 + 1e-9 && new Set(many).size === 40, 'never all in one frame, never a long queue');
+});
+
+test('6.9 a lane\'s head shows while it draws and fades once the lane is whole, never under reduced motion', () => {
+  assert.equal(laneHead(0, 1, false), 0, 'no head before it sets out');
+  assert.equal(laneHead(0.5, 1, false), 1);
+  assert.equal(laneHead(1, 1, false), 1);
+  assert.ok(laneHead(1.2, 1, false) > 0 && laneHead(1.2, 1, false) < 1, 'fading once whole');
+  assert.equal(laneHead(1.5, 1, false), 0);
+  assert.equal(laneHead(0.2, 1, false, 0.3), 0, 'not before its own start');
+  assert.equal(laneHead(0.5, 1, true), 0);
+});
+test('6.9 slow rendered frames leave visible intermediate lane growth, while normal frame steps keep their real time', () => {
   let elapsed = 0;
   for (let i = 0; i < 4; i++) {
     const next = advanceLaneClock(elapsed, 0.016);

@@ -43,7 +43,7 @@ import { queueFolder } from "./queue.js";
 import { readSettings, setSetting } from "../settings/settings.js";
 import { registerHooks } from "../setup/hooks-config.js";
 import { countingStore, longHistory } from "../testing/egress.js";
-import { git, withTempDir } from "../testing/folders.js";
+import { git, removeTempDir, withTempDir } from "../testing/folders.js";
 import { approveCheckout, dropTestProjects, placeTestServer, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 
 const FIXTURES = fileURLToPath(new URL("./fixtures/", import.meta.url));
@@ -928,7 +928,7 @@ test("3.16 every line a hook writes records the git branch its folder is on, bes
     const git = (...args: string[]) => execFileSync("git", args, { cwd: folder, stdio: "ignore" });
     git("init", "-q", "-b", "claude/fix-login");
     for (const name of ["session-start-startup", "post-tool-use-bash"]) await runHook("claude-code", recorded("claude-code", name, folder), home);
-    rmSync(path.join(folder, ".git"), { recursive: true, force: true });
+    await removeTempDir(path.join(folder, ".git"));
     await runHook("claude-code", recorded("claude-code", "session-end", folder), home);
     // The look around the machine a hook hands on (4.10) writes at its own time what it finds of the branch: not a line of the hooks'.
     assert.deepEqual((await linesOf(project)).filter((line) => line.kind !== "branch-state").map((line) => [line.kind, line.branch]), [

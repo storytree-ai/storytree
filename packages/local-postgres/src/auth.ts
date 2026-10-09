@@ -6,6 +6,12 @@
  * connection handoff of ADR-0941 (`<dataDir>.auth/connection.json`), published once the server
  * listens and withdrawn when it stops.
  *
+ * Two roles sign in (ADR-0948). The cluster's superuser, `postgres`, is the launcher's own: it makes
+ * the cluster, gives it its passwords and hands its databases over, and its password never leaves
+ * `installation.json`. Clients get an ordinary role, `storytree`, which may create databases and
+ * owns every one storytree keeps, and nothing more: its sign-in is `client.json`, and it is the one
+ * the handoff carries.
+ *
  * Private means: on POSIX the directory is mode 0700 and each file 0600, owned by this user; on
  * Windows each carries a protected access list (no inheritance) granting this user's SID alone,
  * set through the built-in .NET access-control API, since Windows mode bits prove nothing.
@@ -15,9 +21,15 @@ import { createHash, createHmac, pbkdf2Sync, randomBytes, randomUUID } from "nod
 import { chmodSync, linkSync, lstatSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-/** The installation's sign-in, kept in `<dataDir>.auth/installation.json`. */
+/** The installation's sign-in, kept in `<dataDir>.auth/installation.json`: the superuser's, the launcher's alone. */
 export interface Installation {
   readonly installationId: string;
+  readonly user: string;
+  readonly password: string;
+}
+
+/** A role and its password: whom a connection signs in as. */
+export interface SignIn {
   readonly user: string;
   readonly password: string;
 }
@@ -29,8 +41,11 @@ export interface AuthMarker {
   readonly installationId: string;
 }
 
-/** The superuser every storytree cluster is made with, as its clients sign in. */
+/** The superuser every storytree cluster is made with: the launcher signs in as it, never a client. */
 const USER = "postgres";
+
+/** The ordinary role clients sign in as. */
+export const CLIENT_USER = "storytree";
 
 export function authDir(dataDir: string): string {
   return `${dataDir}.auth`;
@@ -40,9 +55,9 @@ export function authMarker(installation: Installation): AuthMarker {
   return { version: 1, method: "scram-sha-256", installationId: installation.installationId };
 }
 
-/** The connection url for `installation` on `port`, its password included. */
-export function connectionUrl(installation: Installation, port: number): string {
-  return `postgres://${encodeURIComponent(installation.user)}:${encodeURIComponent(installation.password)}@127.0.0.1:${port}/postgres`;
+/** The connection url for `signIn` on `port`, its password included, to `database` (by default `postgres`). */
+export function connectionUrl(signIn: SignIn, port: number, database = "postgres"): string {
+  return `postgres://${encodeURIComponent(signIn.user)}:${encodeURIComponent(signIn.password)}@127.0.0.1:${port}/${encodeURIComponent(database)}`;
 }
 
 /**
@@ -51,17 +66,30 @@ export function connectionUrl(installation: Installation, port: number): string 
  * private, or refused when it is not this user's own real directory.
  */
 export function ensureInstallation(dataDir: string): Installation {
+  return ensureSignInFile(dataDir, "installation.json", () => ({ installationId: randomUUID(), user: USER, password: newPassword() }), readInstallation);
+}
+
+/** The ordinary role's sign-in, which clients are handed: read from `client.json` beside the installation's, or made there the first time, as that is. */
+export function ensureClientSignIn(dataDir: string): SignIn {
+  return ensureSignInFile(dataDir, "client.json", () => ({ user: CLIENT_USER, password: newPassword() }), readClientSignIn);
+}
+
+function newPassword(): string {
+  return randomBytes(32).toString("base64url");
+}
+
+function ensureSignInFile<T extends object>(dataDir: string, name: string, make: () => T, read: (file: string) => T | undefined): T {
   const dir = privateDir(dataDir);
-  const file = path.join(dir, "installation.json");
-  const existing = readInstallation(file);
+  const file = path.join(dir, name);
+  const existing = read(file);
   if (existing !== undefined) return existing;
-  const made: Installation = { installationId: randomUUID(), user: USER, password: randomBytes(32).toString("base64url") };
+  const made = make();
   const scratch = writePrivate(dir, JSON.stringify({ version: 1, ...made }));
   try {
     linkSync(scratch, file);
   } catch (error) {
     if (!isCode(error, "EEXIST")) throw error;
-    const theirs = readInstallation(file);
+    const theirs = read(file);
     if (theirs === undefined) throw new Error(`${file} is not a storytree sign-in; remove ${dir} to make a new one`);
     return theirs;
   } finally {
@@ -70,10 +98,10 @@ export function ensureInstallation(dataDir: string): Installation {
   return made;
 }
 
-/** Publish the handoff a client reads for the server this process owns: whole, private, and replacing any earlier one. */
-export function publishConnection(dataDir: string, installation: Installation, ownerToken: string, port: number): void {
+/** Publish the handoff a client reads for the server this process owns, signing in as `signIn`: whole, private, and replacing any earlier one. */
+export function publishConnection(dataDir: string, installation: Installation, signIn: SignIn, ownerToken: string, port: number): void {
   const dir = privateDir(dataDir);
-  const handoff = { version: 1, installationId: installation.installationId, ownerToken, port, user: installation.user, password: installation.password };
+  const handoff = { version: 1, installationId: installation.installationId, ownerToken, port, user: signIn.user, password: signIn.password };
   const scratch = writePrivate(dir, JSON.stringify(handoff));
   try {
     renameSync(scratch, path.join(dir, "connection.json"));
@@ -143,6 +171,25 @@ function privateDir(dataDir: string): string {
 }
 
 function readInstallation(file: string): Installation | undefined {
+  const value = readSignInFile(file);
+  if (value === undefined) return undefined;
+  if (typeof value.installationId === "string" && typeof value.user === "string" && typeof value.password === "string") {
+    return { installationId: value.installationId, user: value.user, password: value.password };
+  }
+  throw notASignIn(file);
+}
+
+function readClientSignIn(file: string): SignIn | undefined {
+  const value = readSignInFile(file);
+  if (value === undefined) return undefined;
+  if (typeof value.user === "string" && /^[a-z_][a-z0-9_]{0,62}$/.test(value.user) && value.user !== USER && typeof value.password === "string") {
+    return { user: value.user, password: value.password };
+  }
+  throw notASignIn(file);
+}
+
+/** A version 1 sign-in file's fields, or undefined when there is no file. */
+function readSignInFile(file: string): Record<string, unknown> | undefined {
   let text: string;
   try {
     text = readFileSync(file, "utf8");
@@ -151,14 +198,16 @@ function readInstallation(file: string): Installation | undefined {
     throw error;
   }
   try {
-    const value = JSON.parse(text) as Partial<Installation> & { version?: unknown };
-    if (value.version === 1 && typeof value.installationId === "string" && typeof value.user === "string" && typeof value.password === "string") {
-      return { installationId: value.installationId, user: value.user, password: value.password };
-    }
+    const value = JSON.parse(text) as unknown;
+    if (typeof value === "object" && value !== null && (value as { version?: unknown }).version === 1) return value as Record<string, unknown>;
   } catch {
     // not JSON: refused below
   }
-  throw new Error(`${file} is not a storytree sign-in; remove ${path.dirname(file)} to make a new one`);
+  throw notASignIn(file);
+}
+
+function notASignIn(file: string): Error {
+  return new Error(`${file} is not a storytree sign-in; remove ${path.dirname(file)} to make a new one`);
 }
 
 /**

@@ -39,7 +39,8 @@
 // on a free port, and is ALWAYS stopped again: after a pass, after a failure, and on Ctrl-C. A run
 // is refused while another live run holds .pgtest/data, and a server that an interrupted run left
 // running is stopped before this one starts. Like every cluster local-postgres runs, it asks for
-// a password, which the url handed to the tests carries.
+// a password, which the url handed to the tests carries. Unlike the app's, it hands the tests the
+// superuser's, since they make roles of their own (a client of the app's gets an ordinary role).
 //
 // Files and node's own --test-* options go to `node --test`, in every unit: `pnpm run test <file>`
 // runs just that file, with no scope and no record. Give options in --name=value form, so that a
@@ -192,6 +193,7 @@ async function runHeavy(units) {
       serverLog,
       toolLog,
       owner: "a `pnpm test` run",
+      signIn: "superuser",
       // Its data is thrown away, so no commit or CREATE DATABASE need wait on a disk flush.
       settings: { fsync: "off", synchronous_commit: "off", full_page_writes: "off" },
       log: (message) => console.log(`test Postgres: ${message}`),

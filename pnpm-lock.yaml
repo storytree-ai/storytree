@@ -628,6 +628,10 @@ importers:
         version: 7.0.2
 
   packages/local-postgres:
+    dependencies:
+      pg:
+        specifier: ^8.23.0
+        version: 8.23.0
     optionalDependencies:
       '@embedded-postgres/darwin-arm64':
         specifier: 17.10.0-beta.17
@@ -651,9 +655,6 @@ importers:
       '@types/pg':
         specifier: ^8.23.1
         version: 8.23.1
-      pg:
-        specifier: ^8.23.0
-        version: 8.23.0
       tsx:
         specifier: ^4.23.15
         version: 4.23.15

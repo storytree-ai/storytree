@@ -128,6 +128,7 @@ for (const crashed of [false, true]) {
     const home = made.env.STORYTREE_HOME!;
     const dataDir = path.join(home, "pgdata");
     const ownerFile = `${dataDir}.owner.json`;
+    const handoffFile = path.join(`${dataDir}.auth`, "connection.json");
     const pgCtl = (...args: string[]) => spawnSync(
       path.join(findBinaries(), process.platform === "win32" ? "pg_ctl.exe" : "pg_ctl"),
       ["-D", dataDir, ...args], { encoding: "utf8", timeout: 15_000, windowsHide: true },
@@ -154,10 +155,12 @@ for (const crashed of [false, true]) {
     });
     for (let attempt = 0; attempt < 300; attempt++) {
       assert.equal(child.exitCode, null, stderr);
-      if (existsSync(ownerFile)) {
+      if (existsSync(ownerFile) && existsSync(handoffFile)) {
         const owner = JSON.parse(readFileSync(ownerFile, "utf8")) as { pid: number; port: number };
         assert.equal(owner.pid, child.pid);
-        const candidate = new pg.Client({ host: "127.0.0.1", port: owner.port, user: "postgres", database: "postgres", connectionTimeoutMillis: 500 });
+        // The home's database asks for its password, which it hands over privately while it runs.
+        const handoff = JSON.parse(readFileSync(handoffFile, "utf8")) as { user: string; password: string };
+        const candidate = new pg.Client({ host: "127.0.0.1", port: owner.port, user: handoff.user, password: handoff.password, database: "postgres", connectionTimeoutMillis: 500 });
         try {
           await candidate.connect();
           assert.deepEqual((await candidate.query("SELECT 1 AS ready")).rows, [{ ready: 1 }]);

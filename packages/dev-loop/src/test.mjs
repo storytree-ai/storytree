@@ -38,8 +38,8 @@
 // cluster lives in .pgtest/data and is created on first use. The server listens on 127.0.0.1 only,
 // on a free port, and is ALWAYS stopped again: after a pass, after a failure, and on Ctrl-C. A run
 // is refused while another live run holds .pgtest/data, and a server that an interrupted run left
-// running is stopped before this one starts. A cluster that asks for a password (one a run with
-// local-postgres's `password: true` converted) is replaced by a fresh one (test-postgres.mjs).
+// running is stopped before this one starts. Like every cluster local-postgres runs, it asks for
+// a password, which the url handed to the tests carries.
 //
 // Files and node's own --test-* options go to `node --test`, in every unit: `pnpm run test <file>`
 // runs just that file, with no scope and no record. Give options in --name=value form, so that a
@@ -82,12 +82,11 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { DataDirInUseError } from "@storytree/local-postgres";
+import { DataDirInUseError, start } from "@storytree/local-postgres";
 
 import { acquireHeavyLock } from "./heavy-lock.mjs";
 import { runtimeRefusal } from "./node-runtime.mjs";
 import { keepPreviousServerLog } from "./server-log.mjs";
-import { startTestPostgres } from "./test-postgres.mjs";
 import { parseTestArgs, planRun, readWorkspace, resultsTable, scopeFor, scopeLine, TEST_USAGE, unitGlobs } from "./test-scope.mjs";
 import { clearUnitLimit, DEADLINE_GRACE_MS, defaultUnitLimit, killTree, recordTimings, runDeadline, runUnit, setUnitLimit, unitLimit, unitReason, withinDeadline } from "./unit-run.mjs";
 
@@ -188,7 +187,7 @@ async function runHeavy(units) {
   let server;
   phase = "starting the test Postgres";
   try {
-    server = await startTestPostgres({
+    server = await start({
       dataDir,
       serverLog,
       toolLog,

@@ -65,13 +65,16 @@ test("1.1, 1.2 the binaries come from this machine's @embedded-postgres package,
   assert.throws(() => findBinaries({ dir: empty }), (error: Error) => error.message.includes(empty));
 });
 
-test("2.1 ensureCluster makes a cluster only when there is none: trusting local connections, and listening on 127.0.0.1 only", async () => {
+test("2.1 ensureCluster makes a cluster only when there is none: asking every connection for the installation's password, and listening on 127.0.0.1 only", async () => {
   const dataDir = path.join(root, "made");
   assert.equal(await ensureCluster(dataDir), true, "made the first time");
   assert.ok(existsSync(path.join(dataDir, "PG_VERSION")), "a Postgres cluster");
   assert.equal(existsSync(`${dataDir}.initdb`), false, "no scratch directory is left behind");
   assert.match(readFileSync(path.join(dataDir, "postgresql.conf"), "utf8"), /^listen_addresses = '127\.0\.0\.1'/m);
-  assert.match(readFileSync(path.join(dataDir, "pg_hba.conf"), "utf8"), /^host\s+all\s+all\s+127\.0\.0\.1\/32\s+trust\s*$/m);
+  const hba = readFileSync(path.join(dataDir, "pg_hba.conf"), "utf8");
+  assert.match(hba, /^host\s+all\s+all\s+127\.0\.0\.1\/32\s+scram-sha-256\s*$/m);
+  assert.doesNotMatch(hba, /trust/, "no connection is let in without the password");
+  assert.ok(existsSync(path.join(`${dataDir}.auth`, "installation.json")), "the password is kept beside it, privately");
   assert.equal(await ensureCluster(dataDir), false, "left as it is the second time");
 
   // A directory holding something that is not a cluster is never initialised over.
@@ -85,7 +88,11 @@ test("2.1 ensureCluster makes a cluster only when there is none: trusting local 
 test("2.2 start runs the server on the data directory, it answers SELECT 1 at the url handed back, and stop stops it", async () => {
   const dataDir = await freshCluster("start-stop");
   const server = await started({ dataDir });
-  assert.equal(server.url, `postgres://postgres@127.0.0.1:${server.port}/postgres`);
+  const url = new URL(server.url);
+  assert.equal(url.username, "postgres");
+  assert.ok(url.password.length >= 32, "the url carries the installation's password");
+  assert.equal(url.host, `127.0.0.1:${server.port}`);
+  assert.equal(url.pathname, "/postgres");
   assert.equal(server.dataDir, dataDir);
   assert.deepEqual(await query(server.url, "SELECT 1 AS one"), [{ one: 1 }]);
   assert.deepEqual(await query(server.url, "SHOW listen_addresses"), [{ listen_addresses: "127.0.0.1" }]);
@@ -170,7 +177,7 @@ test("2.4 a server left running by a process that died is stopped and replaced, 
 
 test("2.6 the server lets in only a client with the installation's password, which it hands over privately while it runs", async () => {
   const dataDir = path.join(root, "password");
-  const server = await started({ dataDir, password: true });
+  const server = await started({ dataDir });
   const password = decodeURIComponent(new URL(server.url).password);
   assert.ok(password.length >= 32, "a generated secret");
   assert.deepEqual(await query(server.url, "SELECT 1 AS one"), [{ one: 1 }], "the url handed back signs in");
@@ -200,7 +207,7 @@ test("2.6 the server lets in only a client with the installation's password, whi
   // Stopped, the handoff is withdrawn and the sign-in kept: started again, it is the same password on the new port.
   await stopped(server);
   assert.equal(existsSync(handoff), false);
-  const again = await started({ dataDir, password: true, port: await freePort() });
+  const again = await started({ dataDir, port: await freePort() });
   assert.equal(decodeURIComponent(new URL(again.url).password), password);
   assert.equal((JSON.parse(readFileSync(handoff, "utf8")) as { port: number }).port, again.port);
   await stopped(again);
@@ -218,7 +225,7 @@ test("2.7 a cluster made when local connections were trusted is given the passwo
 
   // A start that fails after the change (its port is taken) leaves the cluster asking for the password, and the sign-in in place.
   const taken = await occupy();
-  const failed: unknown = await start({ dataDir, password: true, port: (taken.address() as { port: number }).port }).then(
+  const failed: unknown = await start({ dataDir, port: (taken.address() as { port: number }).port }).then(
     (server) => (servers.add(server), undefined),
     (error: unknown) => error,
   );
@@ -233,7 +240,7 @@ test("2.7 a cluster made when local connections were trusted is given the passwo
   assert.ok(existsSync(path.join(`${dataDir}.auth`, "installation.json")), "the sign-in is kept for the retry");
 
   // The retry starts it, the data is there, and only the password lets anyone in.
-  const server = await started({ dataDir, password: true });
+  const server = await started({ dataDir });
   assert.deepEqual(await query(server.url, "SELECT note FROM kept"), [{ note: "from before passwords" }]);
   assert.equal(await firstAuthentication(server.port, "postgres"), 10);
   const wrong = new URL(server.url);
@@ -243,7 +250,7 @@ test("2.7 a cluster made when local connections were trusted is given the passwo
 
   // A trust line added since is taken away again at the next start; the password stays the same.
   appendFileSync(path.join(dataDir, "pg_hba.conf"), "host all all 127.0.0.1/32 trust\n");
-  const again = await started({ dataDir, password: true });
+  const again = await started({ dataDir });
   assert.equal(again.url.replace(/:\d+\//, "/"), server.url.replace(/:\d+\//, "/"));
   assert.equal(await firstAuthentication(again.port, "postgres"), 10);
   await stopped(again);
@@ -252,10 +259,11 @@ test("2.7 a cluster made when local connections were trusted is given the passwo
 // --- helpers ---------------------------------------------------------------------------------
 
 /**
- * A cluster of its own for one test, copied from one made once by ensureCluster. cpSync makes the
- * directories it copies with the default mode (0755 under the usual umask), not the source's, and
- * outside Windows Postgres will not start on a data directory other users can read, so the copy is
- * given back initdb's 0700.
+ * A cluster of its own for one test, copied from one made once by ensureCluster, with its sign-in
+ * beside it (so the copy holds the password it is started with). cpSync makes the directories it
+ * copies with the default mode (0755 under the usual umask), not the source's, and outside Windows
+ * Postgres will not start on a data directory other users can read, so the copy is given back
+ * initdb's 0700, and the sign-in its 0700 and 0600.
  */
 async function freshCluster(name: string): Promise<string> {
   const template = path.join(root, "template");
@@ -263,6 +271,9 @@ async function freshCluster(name: string): Promise<string> {
   const dataDir = path.join(root, name);
   cpSync(template, dataDir, { recursive: true });
   chmodSync(dataDir, 0o700);
+  cpSync(`${template}.auth`, `${dataDir}.auth`, { recursive: true });
+  chmodSync(`${dataDir}.auth`, 0o700);
+  chmodSync(path.join(`${dataDir}.auth`, "installation.json"), 0o600);
   return dataDir;
 }
 

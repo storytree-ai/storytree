@@ -50,7 +50,9 @@ for (const signal of ["SIGTERM", "SIGINT"] as const) {
     assert.deepEqual(ready, ["ready", undefined]);
     const owner = JSON.parse(readFileSync(ownerFile, "utf8")) as { pid: number; port: number };
     assert.equal(owner.pid, child.pid);
-    const client = new pg.Client({ host: "127.0.0.1", port: owner.port, user: "postgres", database: "postgres", connectionTimeoutMillis: 5_000 });
+    // It asks for the home's password, which it hands over privately while it runs.
+    const handoff = JSON.parse(readFileSync(path.join(`${dataDir}.auth`, "connection.json"), "utf8")) as { user: string; password: string };
+    const client = new pg.Client({ host: "127.0.0.1", port: owner.port, user: handoff.user, password: handoff.password, database: "postgres", connectionTimeoutMillis: 5_000 });
     try {
       await client.connect();
       assert.deepEqual((await client.query("SELECT 1 AS ready")).rows, [{ ready: 1 }]);

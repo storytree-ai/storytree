@@ -5,11 +5,13 @@
  * STORYTREE_TEST_PG_URL; set that variable yourself to test against another server. A Postgres
  * test must never skip silently, so asking for the server when there is none throws.
  *
- * Two kinds of sign-in reach it, and a test never mixes them up:
- * - The harness's authority: STORYTREE_TEST_PG_URL itself, a superuser, carrying its password when
- *   the server asks for one. Only these helpers use it, to create and drop test databases and roles,
- *   grant memberships and read the server's state (withTestClient). Nothing is reached as that user
- *   by the code under test except where a test says the admin's own sign-in is its subject.
+ * Three kinds of sign-in reach it, and a test never mixes them up:
+ * - The client's: STORYTREE_TEST_PG_URL itself, as the app's own clients sign in (`pnpm test` hands
+ *   it the server's ordinary role). The code under test connects with it (testServerUrl).
+ * - The harness's authority: STORYTREE_TEST_PG_ADMIN_URL, a superuser, carrying its password when
+ *   the server asks for one (STORYTREE_TEST_PG_URL when it is unset). Only these helpers use it, to
+ *   create and drop test databases and roles, grant memberships, end backends and read the server's
+ *   state (withTestClient). Nothing is reached as that user by the code under test.
  * - Ordinary test roles: createTestRole() gives each login role a fresh synthetic password, and a
  *   test reaches one only through testRoleUrl() or withTestClientAs(), or, on the Cloud SQL path,
  *   through a socket from cloudSqlStandIn(), never by writing a role's name into a URL itself.
@@ -51,6 +53,15 @@ export function testServerUrl(): string {
   return url;
 }
 
+/**
+ * The test server signed in with the harness's authority: STORYTREE_TEST_PG_ADMIN_URL, or the
+ * client's url when that is unset. Only these helpers' setup uses it.
+ */
+function testAdminUrl(): string {
+  const url = process.env.STORYTREE_TEST_PG_ADMIN_URL;
+  return url === undefined || url === "" ? testServerUrl() : url;
+}
+
 /** A project name no other test, and no earlier run, is using: `t-` and 8 random hex digits. */
 export function uniqueProjectName(): string {
   return `t-${randomBytes(4).toString("hex")}`;
@@ -85,7 +96,7 @@ async function withClient<T>(
   fn: (client: Client) => Promise<T>,
   database: string | undefined,
 ): Promise<T> {
-  const url = new URL(role === undefined ? testServerUrl() : testRoleUrl(role));
+  const url = new URL(role === undefined ? testAdminUrl() : testRoleUrl(role));
   if (database !== undefined) url.pathname = `/${encodeURIComponent(database)}`;
   const client = new pg.Client({ connectionString: url.href });
   await client.connect();

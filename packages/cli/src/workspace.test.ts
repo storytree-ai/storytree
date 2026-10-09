@@ -413,3 +413,29 @@ test("11.13 from a linked worktree or a folder inside one, `workspace <increment
     }
   });
 });
+
+test("11.14 `workspace claim` from the main checkout, then `workspace <increment>` by the same Claude Code session, makes the worktree and keeps the claim, moved onto the new branch with no release between", async () => {
+  await inWorld(command, async (world) => {
+    const increment = await withRepository(world);
+    const claimed = await world.run(["workspace", "claim", increment, "--reason", "keeping it off the refill"], { CLAUDE_CODE_SESSION_ID: "claude-9" });
+    assert.equal(claimed.code, 0, claimed.stderr);
+    const log = await openActivityLog(testServerUrl());
+    try {
+      const lines = (await log.since(world.project, 0)).lines.length;
+
+      const ran = await world.run(["workspace", increment, "--reason", "building the email form"], { CLAUDE_CODE_SESSION_ID: "claude-9" });
+
+      assert.equal(ran.code, 0, ran.stderr);
+      const [held, ...more] = await readClaims(log, world.project);
+      assert.deepEqual(more, []);
+      assert.equal(held?.session, "claude-9");
+      assert.notEqual(held?.branch, "main");
+      const workspace = path.join(world.folder, ".claude", "worktrees", path.basename(held!.branch!));
+      assert.ok(ran.stdout.includes(workspace), ran.stdout);
+      assert.equal(git(workspace, "rev-parse", "--abbrev-ref", "HEAD").trim(), held?.branch);
+      assert.deepEqual((await log.since(world.project, 0)).lines.slice(lines).filter((line) => line.kind === "released"), [], "no moment releases it");
+    } finally {
+      await log.close();
+    }
+  });
+});

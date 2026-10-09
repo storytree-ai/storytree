@@ -18,3 +18,9 @@ export function liveRoadProgress(window: GrowthWindow | undefined, elapsed: numb
   if (elapsed <= window.start) return 0;
   return window.seconds > 0 ? laneProgress(elapsed - window.start, window.seconds, false) : 1;
 }
+
+/** Whether any arrival's own time is still running. Spans an earlier road shares draw whole before a later road's
+ * time ends, so the clock must not stop on drawn spans alone: a reroute can split its tail off, still to draw. */
+export function liveRoadsGrowing(roads: ReadonlyMap<string, GrowthWindow>, elapsed: number, reducedMotion: boolean): boolean {
+  return !reducedMotion && [...roads.values()].some(road => elapsed < road.start + road.seconds);
+}

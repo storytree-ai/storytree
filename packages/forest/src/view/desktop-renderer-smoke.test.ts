@@ -67,7 +67,8 @@ test('3.35 · live desktop roads grow on first display and on a polled dependenc
     assert.equal(reading.finalLinkCount, 131);
     assert.equal(reading.finalLinkIdentitiesPreserved, true);
     assert.ok(reading.newOnlyCrossSpans > 0);
-    assert.equal(reading.oldSharedRoadsAlwaysWhole, true);
+    assert.equal(reading.oldSharedRoadsAlwaysWhole, true, `${motion}: an old road drew partial after the restore; ${JSON.stringify({
+      partial: reading.oldSharedPartial, linkCounts: reading.restoredLinkCounts, hidden: reading.roadsHiddenFrames })}`);
     assert.equal(reading.completedWithoutCaptureInvalidation, true);
     assert.equal(reading.unrelatedUpdateKeepsRoadsWhole, true,
       `${motion}: the consumed description preserves every intervening road frame; ${JSON.stringify({

@@ -16,8 +16,11 @@ async function shopLibrary(t: { after(fn: () => Promise<void>): void }): Promise
   const name = `t-${randomBytes(4).toString("hex")}`;
   const library = await storytree.openProject(name);
   t.after(async () => {
-    await storytree.dropProject(name);
-    await storytree.close();
+    try {
+      await dropRetryingRefusedTerminate(() => storytree.dropProject(name));
+    } finally {
+      await storytree.close();
+    }
   });
   const story = await library.addStory({ title: "Check out" });
   const capability = await library.addCapability({ title: "1 · Checkout pages", story: story.id, proposed: false });
@@ -28,6 +31,22 @@ async function shopLibrary(t: { after(fn: () => Promise<void>): void }): Promise
     contracts.push(contract.id);
   }
   return { library, capability: capability.id, contracts };
+}
+
+/**
+ * Drop a test project, retrying while Postgres refuses to end another connection to it (42501,
+ * "permission denied to terminate process"): the tests sign in as an ordinary role (ADR-0948), which
+ * may not end a backend it does not own, such as an autovacuum worker, and that worker ends by itself.
+ */
+async function dropRetryingRefusedTerminate(drop: () => Promise<void>): Promise<void> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await drop();
+    } catch (error) {
+      if ((error as { code?: unknown }).code !== "42501" || attempt >= 20) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+  }
 }
 
 /** The project's folder: a git repository whose one commit holds the story's tests (in its package's `tests`, `src` by default), with a GitHub origin unless told otherwise. */

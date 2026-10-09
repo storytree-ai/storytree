@@ -79,10 +79,10 @@ Library edits need no worktree.
 
 He asks for this in most rounds: send everything safe and ready, not only what his answer unblocked.
 
-1. After each answer, or each arc, have a subagent list ready increments: open, unclaimed, not waiting, needing neither the laptop nor him (`storytree arc list`, `arc show`).
-2. Check what already runs on the Mint box and which claims other sessions hold, so two dispatchers never feed it the same increment.
-3. Launch each lane with a self-contained brief and a file fence that keeps it out of running lanes' files; queue a lane that overlaps behind the one it collides with.
-4. Confirm each lane claimed its increment, then tell him in a short table: lane, work, state. Laptop-only work (Windows app checks, his live attestations) is listed as his, not dispatched.
+1. After each answer, or each arc, have a subagent list ready increments: open, unclaimed, not waiting, needing neither the laptop nor him (`storytree arc list`, `arc show`). Make sure what his answer unblocked really is ready: question settled, wait cleared (`arc increment unwait`).
+2. The Mint box runs one dispatcher over one pool (ADR-0955): it takes ready increments on active arcs itself, oldest first, into free engine slots, so ready work needs no hand launch. Check it is running and what it runs (`ssh mint`, `~/storytree-lanes/pool.status`).
+3. Launch a lane by hand (`~/storytree-lanes/run-lane.sh` with a self-contained brief) only for work the dispatcher will not take. Claims, not file fences, keep lanes apart (ADR-0955 D1): a lane claims its increment and each capability before editing, and a refused claim ends it cheaply; never queue it behind the holder.
+4. Tell him in a short table: work, who runs it (dispatcher, hand lane, or waiting on what), state. Laptop-only work (Windows app checks, his live attestations) is listed as his, not dispatched.
 
 ### 7. Owner-only actions (credentials, applies, spend)
 
@@ -91,7 +91,6 @@ Before asking him to act, find every requirement first (org policy, every permis
 ### 8. Ending the round
 
 The round is over when the refreshed question list and `storytree arc waits` hold nothing for him that was not shown, or when he stops it. Re-check both, then a short summary: each question, his answer and what it became (settled, decision number, increment, lane), what is still waiting on him, and what is running. Close out per the session role: friction for what fought you, claims released, `storytree processes` clean, `storytree session close-out --safe yes|no --why …`.
-
 
 ## Surfaces
 

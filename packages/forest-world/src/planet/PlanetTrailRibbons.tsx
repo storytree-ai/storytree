@@ -213,7 +213,7 @@ export function SelectionLanes({ plan, lit }: { plan: PlanetPathways; lit: reado
     </mesh>)}
     {entrances.map(({ mark, position, quaternion }, i) => <mesh key={`${mark.dir}:${i}`} name={`lane-entrance:${mark.dir}:${i}`}
       ref={mesh => { marks.current[i] = mesh; }} geometry={pip} position={position} quaternion={quaternion}
-      scale={mark.radius} visible={initially[i]} raycast={ignoreRay} renderOrder={3} userData={{ dir: mark.dir, lanes: mark.lanes }}>
+      scale={mark.radius} visible={initially[i] === true} raycast={ignoreRay} renderOrder={3} userData={{ dir: mark.dir, lanes: mark.lanes }}>
       <meshBasicMaterial color={mark.colour} transparent opacity={0.95} depthWrite={false} side={DoubleSide}
         polygonOffset polygonOffsetFactor={-3} polygonOffsetUnits={-3} />
     </mesh>)}

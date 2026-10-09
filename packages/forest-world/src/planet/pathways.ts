@@ -1,10 +1,10 @@
-/** Capability 6 · The planet. Capability trails on tangent islands and the glass between them (forest contracts 3.6–3.7).
+/** Capability 6 · The planet. Capability trails over the glass between tangent islands, dock to dock (forest contracts 3.6–3.7).
  * The existing cost-grid router owns routing, merging and width; this adapter only changes spaces. */
 import type { ForestScene, Island } from '../scene.js';
 import { Quaternion, Vector3 } from 'three';
 import { clipToCoast, rimLoops, SHIPPED_COAST, type CoastPoint } from '../coast-clip.js';
 import { routeTrails, trailFillWidth, type TrailEdgeIn, type TrailEdgeOut, type TrailNetwork, type TrailSegment } from '../core/routing.js';
-import { forestDescriptors, parcelSpots } from '../forest-ground/forest-ground.js';
+import { forestDescriptors } from '../forest-ground/forest-ground.js';
 import { RIBBON_GROUND_SCALE } from '../trail-ribbon-width.js';
 import type { Descriptor3D, InstanceDescriptor } from '../descriptors.js';
 import { onIslandSurface } from './island-surface.js';
@@ -12,15 +12,12 @@ import { plateTransform, type PlanetSpot } from './planet.js';
 
 export interface PlanetPathwayPlate {
   descriptors: Descriptor3D[];
-  paths: Map<string, CoastPoint[][]>;
   /** The island's coast loops in the plate's local ground coordinates: the outline of its flat surface. */
   coast: CoastPoint[][];
 }
 
 export interface PlanetPathwaySegment {
   id: string;
-  /** Present only for a route on that island; the cross-island ribbon draws the others. */
-  island?: string;
   points: Vector3[];
   /** Physical ground units, from the original capability links sharing this segment. */
   width: number;
@@ -42,8 +39,9 @@ interface Point { x: number; y: number }
 interface ChartPoint extends Point { local: CoastPoint }
 interface PreparedGround {
   descriptors: Descriptor3D[];
-  parcels: Map<string, CoastPoint>;
   rings: CoastPoint[][];
+  /** Kept with the ground, so a status change on another island does not rebuild this island's ground texture. */
+  plate: PlanetPathwayPlate;
 }
 interface Ground extends PreparedGround {
   id: string;
@@ -55,23 +53,19 @@ interface Ground extends PreparedGround {
   r: number;
 }
 interface Link extends TrailEdgeIn { source: string; target: string }
-interface Dock { id: string; story: string; local: CoastPoint; point: Vector3; links: Set<string> }
+interface Dock { story: string; local: CoastPoint; point: Vector3; links: Set<string> }
 
 // Polls preserve unchanged island objects; retain their ground input and relief through routing.
 const preparedGrounds = new WeakMap<Island, PreparedGround>();
-const pathwayPlates = new WeakMap<Descriptor3D[], { key: string; plate: PlanetPathwayPlate }>();
-// Routing is the costly part (ADR-0836 D1): an island's own routes are kept while its ground and docks are,
-// and the routes between islands while every island's place and size are.
-const localRoutes = new WeakMap<Descriptor3D[], { key: string; network: TrailNetwork }>();
+// Routing is the costly part (ADR-0836 D1): the routes between islands are kept while every island's place and size are.
 let crossRoutes: { key: string; network: TrailNetwork } | undefined;
 function prepareGround(island: Island): PreparedGround {
   const old = preparedGrounds.get(island);
   if (old) return old;
   const descriptors = forestDescriptors({ islands: [{ ...island, x: 0, z: 0 }] });
   const cells = clipToCoast(descriptors.filter((d): d is InstanceDescriptor => d.kind === 'cell-ground' && d.points !== undefined), SHIPPED_COAST);
-  const parcels = parcelSpots(descriptors);
-  for (const { capability, x, z } of island.pathwayDestinations ?? []) parcels.set(capability, { x, z });
-  const prepared = { descriptors, parcels, rings: rimLoops(cells.map(c => c.points!)) };
+  const rings = rimLoops(cells.map(c => c.points!));
+  const prepared = { descriptors, rings, plate: { descriptors, coast: rings } };
   preparedGrounds.set(island, prepared);
   return prepared;
 }
@@ -81,7 +75,7 @@ export function islandCoastReach(island: Island): number {
   return Math.max(0, ...prepareGround(island).rings.flat().map(point => Math.hypot(point.x, point.z)));
 }
 
-/** The same local coast the plate draws, for the host to lay out its territories and destinations. */
+/** The same local coast the plate draws, for the host to lay out its territories. */
 export function islandCoast(island: Island): readonly (readonly CoastPoint[])[] {
   return prepareGround(island).rings;
 }
@@ -89,7 +83,6 @@ export function islandCoast(island: Island): readonly (readonly CoastPoint[])[] 
 const keyOf = (edge: TrailEdgeIn) => JSON.stringify([edge.from, edge.to]);
 const displayKey = (edge: TrailEdgeIn) => `${edge.from}->${edge.to}`;
 const refPrefix = (prefix: string, edge: TrailEdgeOut) => edge.segments.map(ref => ({ ...ref, id: prefix + ref.id }));
-const reverseChain = (chain: TrailEdgeOut['segments']) => [...chain].reverse().map(ref => ({ id: ref.id, reversed: !ref.reversed }));
 
 /** Evaluate the router's actual cubic curve, not its angular control polygon. */
 function spline(segment: TrailSegment): Point[] {
@@ -114,15 +107,6 @@ function spline(segment: TrailSegment): Point[] {
   out[0] = { ...segment.points[0]! };
   out[out.length - 1] = { ...segment.points.at(-1)! };
   return out;
-}
-
-function inside(p: Point, rings: readonly (readonly Point[])[]): boolean {
-  let yes = false;
-  for (const ring of rings) for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-    const a = ring[i]!, b = ring[j]!;
-    if ((a.y > p.y) !== (b.y > p.y) && p.x < (b.x - a.x) * (p.y - a.y) / (b.y - a.y) + a.x) yes = !yes;
-  }
-  return yes;
 }
 
 /** Snap to the actual clipped coast; retain its local coordinates through chart projection. */
@@ -184,9 +168,9 @@ function alongTheGlobe(points: readonly Vector3[]): Vector3[] {
   return out;
 }
 
-function requireNetwork(network: TrailNetwork, where: string, cross = false): void {
-  if (network.dropped.length || (cross && (network.caves.length || network.segments.some(s => s.hidden)))) {
-    throw new Error(`Cannot draw all pathways ${where}: ${JSON.stringify({ dropped: network.dropped, caves: network.caves })}`);
+function requireNetwork(network: TrailNetwork): void {
+  if (network.dropped.length || network.caves.length || network.segments.some(s => s.hidden)) {
+    throw new Error(`Cannot draw all pathways between islands: ${JSON.stringify({ dropped: network.dropped, caves: network.caves })}`);
   }
 }
 
@@ -214,8 +198,9 @@ function chartPole(islands: readonly { at: Vector3; reach: number }[]): Vector3 
   return best;
 }
 
-/** One ordered chain per recorded capability edge, including its two shore connections. Routes between islands
- * are planned on an azimuthal chart about the islands' own middle (`chartPole`). */
+/** One ordered chain per recorded capability edge between islands, from dock to dock; a link within an island has
+ * none, since nothing draws it (ADR-0951 D3). Routes are planned on an azimuthal chart about the islands' own middle
+ * (`chartPole`). */
 export function buildPlanetPathways(scene: ForestScene, spots: ReadonlyMap<string, PlanetSpot>, radius: number, route: typeof routeTrails = routeTrails): PlanetPathways {
   const plan: PlanetPathways = { plates: new Map(), segments: [], edges: [], docks: [] };
   const pole = chartPole(scene.islands.flatMap(island => {
@@ -267,7 +252,7 @@ export function buildPlanetPathways(scene: ForestScene, spots: ReadonlyMap<strin
   const network = crossRoutes?.key === crossKey ? crossRoutes.network
     : route(nodes, pairs, 'globe-pathways-real-seed', { cellSize: 2, clearance: maxWidth / 2 + 1, falloff: maxWidth, meanderAmp: 0.4 });
   crossRoutes = { key: crossKey, network };
-  requireNetwork(network, 'between islands', true);
+  requireNetwork(network);
   const crossSegments = new Map(network.segments.map(segment => [segment.id, segment]));
   const crossEdges = new Map(network.edges.map(edge => [keyOf(edge), edge]));
   const docks = new Map<string, Dock>();
@@ -283,7 +268,7 @@ export function buildPlanetPathways(scene: ForestScene, spots: ReadonlyMap<strin
       if (old) return old;
       const g = grounds.get(story)!;
       const snap = nearest(segment.points[end]!, g.chartRings);
-      const dock = { id: `dock:${key}`, story, local: snap.local, point: onGround(g, snap.local), links: new Set<string>() };
+      const dock = { story, local: snap.local, point: onGround(g, snap.local), links: new Set<string>() };
       docks.set(key, dock);
       return dock;
     };
@@ -325,56 +310,14 @@ export function buildPlanetPathways(scene: ForestScene, spots: ReadonlyMap<strin
     plan.segments.push({ id: `cross:${segment.id}`, points: alongTheGlobe(world), width: 0, links: [], unrouted });
   }
 
-  const localEdges = new Map<string, Map<string, TrailEdgeOut>>();
-  for (const g of grounds.values()) {
-    const endpoints = [...g.parcels].map(([id, p]) => ({ id, x: p.x, y: p.z, r: 0.2 }));
-    const input: TrailEdgeIn[] = links.filter(link => link.source === g.id && link.target === g.id);
-    for (const link of cross.filter(link => link.source === g.id || link.target === g.id)) {
-      const pair = pairDocks.get(keyOf({ from: link.source, to: link.target }));
-      if (!pair) throw new Error(`Missing cross-island route for ${displayKey(link)}`);
-      const dock = link.source === g.id ? pair.source : pair.target;
-      dock.links.add(displayKey(link));
-      if (!endpoints.some(p => p.id === dock.id)) endpoints.push({ id: dock.id, x: dock.local.x, y: dock.local.z, r: 0 });
-      input.push({ from: link.source === g.id ? link.from : link.to, to: dock.id });
-    }
-    const localKey = JSON.stringify([g.id, endpoints, input]), kept = localRoutes.get(g.descriptors);
-    const local = kept?.key === localKey ? kept.network : route(endpoints, input, `island:${g.id}`, { cellSize: 1, clearance: 0.3, falloff: 1,
-      falloffCost: 2, meanderAmp: 0.1, meanderWavelength: 5, reclusterOnApproach: false,
-      dockMergeGap: 0, dockMergeSpan: 0, junctionWeld: 0 });
-    localRoutes.set(g.descriptors, { key: localKey, network: local });
-    requireNetwork(local, `on island ${g.id}`);
-    const rings = g.rings.map(ring => ring.map(local => ({ x: local.x, y: local.z, local })));
-    const paths: CoastPoint[][] = [];
-    const prefix = `island:${g.id}:`;
-    for (const segment of local.segments) {
-      const path = spline(segment).map(p => inside(p, rings) ? { x: p.x, z: p.y } : nearest(p, rings).local);
-      paths.push(path);
-      plan.segments.push({ id: prefix + segment.id, island: g.id, points: path.map(p => onGround(g, p)), width: 0, links: [] });
-    }
-    // A status change on another island must not rebuild this island's ground texture.
-    // Routing can run again while the unchanged local wear keeps its previous identity.
-    const pathKey = JSON.stringify(paths), old = pathwayPlates.get(g.descriptors);
-    const plate = old?.key === pathKey ? old.plate
-      : { descriptors: g.descriptors, paths: new Map([[g.id, paths]]), coast: g.rings };
-    if (plate !== old?.plate) pathwayPlates.set(g.descriptors, { key: pathKey, plate });
-    plan.plates.set(g.id, plate);
-    localEdges.set(g.id, new Map(local.edges.map(edge => [keyOf(edge), { ...edge, segments: refPrefix(prefix, edge) }])));
-  }
-  const localChain = (story: string, from: string, to: string) => {
-    const edge = localEdges.get(story)?.get(keyOf({ from, to }));
-    if (!edge?.segments.length) throw new Error(`Missing pathway on ${story}: ${from}->${to}`);
-    return edge.segments;
-  };
-  for (const link of links) {
-    let chain: TrailEdgeOut['segments'];
-    if (link.source === link.target) chain = localChain(link.source, link.from, link.to);
-    else {
-      const pairKey = keyOf({ from: link.source, to: link.target });
-      const pair = pairDocks.get(pairKey)!, edge = crossEdges.get(pairKey)!;
-      chain = [...localChain(link.source, link.from, pair.source.id), ...refPrefix('cross:', edge),
-        ...reverseChain(localChain(link.target, link.to, pair.target.id))];
-    }
-    plan.edges.push({ from: link.from, to: link.to, segments: chain });
+  for (const g of grounds.values()) plan.plates.set(g.id, g.plate);
+  for (const link of cross) {
+    const pairKey = keyOf({ from: link.source, to: link.target });
+    const pair = pairDocks.get(pairKey), edge = crossEdges.get(pairKey);
+    if (!pair || !edge) throw new Error(`Missing cross-island route for ${displayKey(link)}`);
+    pair.source.links.add(displayKey(link));
+    pair.target.links.add(displayKey(link));
+    plan.edges.push({ from: link.from, to: link.to, segments: refPrefix('cross:', edge) });
   }
   const segmentById = new Map(plan.segments.map(segment => [segment.id, segment]));
   for (const edge of plan.edges) for (const ref of edge.segments) {

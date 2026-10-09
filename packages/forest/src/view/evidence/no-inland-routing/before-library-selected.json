@@ -1,0 +1,25 @@
+{
+  "label": "before",
+  "selected": "The library",
+  "roads": 37,
+  "lanes": [
+    "lane:down:capability_11fe600afeda->capability_75d059640d9d",
+    "lane:down:capability_562b2527ebca->capability_78d6e026f902",
+    "lane:down:capability_5fa5cdb5b3c0->capability_dd486ffa5b02",
+    "lane:down:capability_7889e605384c->capability_78d6e026f902",
+    "lane:down:capability_7b7421be1a1b->capability_75d059640d9d",
+    "lane:down:capability_81ad90bacdbc->capability_5f1ce148e63a",
+    "lane:down:capability_81ad90bacdbc->capability_a7f068502213",
+    "lane:down:capability_81ad90bacdbc->capability_d632ff0454c0",
+    "lane:down:capability_ab59a8461dd7->capability_13b04e769a4b",
+    "lane:down:capability_ab59a8461dd7->capability_5a80222c88c4",
+    "lane:down:capability_ab59a8461dd7->capability_75d059640d9d",
+    "lane:down:capability_ab59a8461dd7->capability_a1d4fadbec3e",
+    "lane:down:capability_ab59a8461dd7->capability_baaeecb42577",
+    "lane:down:capability_bfc6fa737f09->capability_5f1ce148e63a",
+    "lane:down:capability_f874f7de8110->capability_75d059640d9d",
+    "lane:down:capability_f874f7de8110->capability_dd486ffa5b02",
+    "lane:down:capability_f874f7de8110->capability_f27ac2abb10b",
+    "lane:up:capability_a6d2887aed63->capability_88a6aaa1fa93"
+  ]
+}

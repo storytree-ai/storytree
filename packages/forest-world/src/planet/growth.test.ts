@@ -76,8 +76,8 @@ test('7.2 a road draws on at constant speed from its built-on end, split by leng
   const segments = new Map(pathways.segments.map(s => [s.id, s]));
   const length = (id: string) => segments.get(id)!.points.slice(1).reduce((sum, p, i) => sum + p.distanceTo(segments.get(id)!.points[i]!), 0);
   const edge = pathways.edges.find(e => e.from === 'b1')!;
-  // Walked from the capability built on: the chain reversed, only the segments drawn across the glass.
-  const walk = [...edge.segments].reverse().filter(ref => segments.get(ref.id)!.island === undefined);
+  // Walked from the capability built on: the chain reversed, every segment of it drawn across the glass.
+  const walk = [...edge.segments].reverse();
   assert.ok(walk.length > 0);
   const total = walk.reduce((sum, ref) => sum + length(ref.id), 0);
   let at = 1;
@@ -88,7 +88,7 @@ test('7.2 a road draws on at constant speed from its built-on end, split by leng
     assert.equal(w.fromEnd, !ref.reversed, 'drawn from the end the road enters');
     at += w.seconds;
   }
-  const shared = pathways.segments.filter(s => s.island === undefined && s.links.includes('b1->a1') && s.links.includes('b2->a2'));
+  const shared = pathways.segments.filter(s => s.links.includes('b1->a1') && s.links.includes('b2->a2'));
   assert.ok(shared.length > 0, 'the two roads share the glass between the islands');
   for (const s of shared) assert.ok(windows.get(s.id)!.start < 3, 'a shared segment keeps its earliest road');
 });

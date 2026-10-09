@@ -18,9 +18,8 @@
  * status (`statusOf`), which nothing draws; the globe fills a territory by its capability's verified
  * word instead (ADR-0825 D3).
  *
- * This first pass builds land. The globe's `buildPlanetPathways` joins recorded capability links
- * to these actual clipped coasts and parcel centres, then feeds the ground's worn paths and the
- * cross-island ribbon from one shared network (ADR-0169, ADR-0655 D3).
+ * This first pass builds land. The globe's `buildPlanetPathways` docks the roads between islands
+ * on these actual clipped coasts (ADR-0951 D3).
  */
 import { PLACE_WIDTH, type ForestScene, type Island, type TreeForm } from "../scene.js";
 

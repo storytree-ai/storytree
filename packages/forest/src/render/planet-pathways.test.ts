@@ -1,4 +1,4 @@
-/** Story node render 3.6/3.7: real capability edges survive the join, with continuous shore docks. */
+/** Story node render 3.6/3.7: real capability edges between stories survive the join, as continuous roads between shore docks. */
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { Vector3 } from 'three';
@@ -18,32 +18,11 @@ const tree = { arcs: [], stories: [
 ] };
 const scene = forestScene(tree, [], workStates([]));
 const spots = growPlanet(storyNodes(tree, []).map(({ id, place }) => ({ story: id, place, reach: islandCoastReach(scene.islands.find(i => i.story === id)!) }))).spots;
-const links = tree.stories.flatMap(s => s.capabilities.flatMap(c => c.dependsOn.map(to => `${c.id}->${to}`))).sort();
+const owner = new Map(tree.stories.flatMap(s => s.capabilities.map(c => [c.id, s.id])));
+// Links between stories; a link within one story has no road (3.26 never lights one, and nothing else draws it).
+const links = tree.stories.flatMap(s => s.capabilities.flatMap(c => c.dependsOn.filter(to => owner.get(to) !== s.id).map(to => `${c.id}->${to}`))).sort();
 
-test('3.7 each routed endpoint lands inside its own visible capability territory, including after code shares change', () => {
-  for (const weights of [[900, 100], [100, 900]]) {
-    const surveyed = { ...scene, islands: scene.islands.map(island => ({ ...island,
-      land: { files: [], territories: island.trees.map((cap, i) => ({ capability: cap.capability!, lines: weights[i]! })) },
-    })) };
-    const layout = planetLayout(surveyed, new Map(storyNodes(tree, []).map(s => [s.id, s.place])));
-    const plan = buildPlanetPathways(layout.scene, layout.spots, layout.radius);
-    assert.deepEqual(plan.edges.map(e => `${e.from}->${e.to}`).sort(), links, 'every real link survives');
-    const segments = new Map(plan.segments.map(s => [s.id, s]));
-    for (const edge of plan.edges) for (const last of [false, true]) {
-      const cap = last ? edge.to : edge.from;
-      const island = layout.scene.islands.find(i => i.trees.some(t => t.capability === cap))!;
-      const ref = last ? edge.segments.at(-1)! : edge.segments[0]!;
-      const points = segments.get(ref.id)!.points;
-      const endpoint = last !== ref.reversed ? points.at(-1)! : points[0]!;
-      const transform = plateTransform(layout.spots.get(island.story)!, layout.radius);
-      const local = endpoint.clone().sub(new Vector3(...transform.position)).applyQuaternion(transform.quaternion.clone().invert());
-      const map = territories(island.land!.territories, plan.plates.get(island.story)!.coast);
-      assert.equal(territoryAt(map, local.x, local.z)?.capability, cap, `${cap} ends in its visible territory`);
-    }
-  }
-});
-
-test('3.6 every recorded builds-on link has one continuous trail chain, with shared trunks drawn once', () => {
+test('3.6 every recorded builds-on link between stories has one continuous trail chain, with shared trunks drawn once', () => {
   const plan = buildPlanetPathways(scene, spots, PLANET_RADIUS);
   assert.deepEqual(plan.edges.map(e => `${e.from}->${e.to}`).sort(), links);
   const segments = new Map(plan.segments.map(s => [s.id, s]));
@@ -70,10 +49,9 @@ test('3.6 every recorded builds-on link has one continuous trail chain, with sha
   assert.equal(buildPlanetPathways(forestScene({ arcs: [], stories: [] }, [], workStates([])), new Map(), PLANET_RADIUS).edges.length, 0);
 });
 
-test('3.7 cross-story chains land at both actual clipped shores and continue into their capability parcels', () => {
+test('3.7 cross-story chains land at both actual clipped shores', () => {
   const plan = buildPlanetPathways(scene, spots, PLANET_RADIUS);
-  const owner = new Map(tree.stories.flatMap(s => s.capabilities.map(c => [c.id, s.id])));
-  for (const edge of plan.edges.filter(e => owner.get(e.from) !== owner.get(e.to))) {
+  for (const edge of plan.edges) {
     const key = `${edge.from}->${edge.to}`;
     const docks = plan.docks.filter(d => d.links.includes(key));
     assert.deepEqual(docks.map(d => d.story).sort(), [owner.get(edge.from), owner.get(edge.to)].sort());
@@ -92,9 +70,8 @@ test('3.7 cross-story chains land at both actual clipped shores and continue int
       const transform = plateTransform(spots.get(dock.story)!, PLANET_RADIUS);
       const local = dock.point.clone().sub(new Vector3(...transform.position)).applyQuaternion(transform.quaternion.clone().invert());
       assert.ok(Math.hypot(local.x-dock.local.x, local.z-dock.local.z) < 1e-7);
-      const cross = plan.segments.filter(s => s.island === undefined && s.links.includes(key));
+      const cross = plan.segments.filter(s => s.links.includes(key));
       assert.ok(cross.some(s => [s.points[0]!, s.points.at(-1)!].some(p => p.distanceTo(dock.point) < 1e-7)));
-      assert.ok((plate.paths.get(dock.story)?.length ?? 0) > 0, 'the worn trail continues onto the island');
     }
   }
 });
@@ -111,7 +88,7 @@ test('3.6 routing failure is visible while every island and its failing trees st
   assert.equal(drawing.plan.edges.length, 0, 'the failure must not invent a completed trail');
 });
 
-test('3.6 a change on one island routes that island\'s pathways again, and nothing else (ADR-0836 D1)', () => {
+test('3.6 a change on one island routes nothing again (ADR-0836 D1)', () => {
   const routed: string[] = [];
   const route: typeof routeTrails = (...args) => { routed.push(args[2]); return routeTrails(...args); };
   const before = buildPlanetPathways(scene, spots, PLANET_RADIUS, route);
@@ -122,6 +99,6 @@ test('3.6 a change on one island routes that island\'s pathways again, and nothi
   assert.notEqual(next.islands[2], scene.islands[2], 'island c changed');
   routed.length = 0;
   const after = buildPlanetPathways(next, spots, PLANET_RADIUS, route);
-  assert.deepEqual(routed, ['island:c']);
+  assert.deepEqual(routed, []);
   assert.deepEqual(after.edges, before.edges, 'the same pathways are drawn');
 });

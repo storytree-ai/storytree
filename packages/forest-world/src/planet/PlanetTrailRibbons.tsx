@@ -161,7 +161,7 @@ export function Pathways({ plan, reveal, live = false, visible = true }: { plan:
     }
   }
   const windows = useMemo(() => live ? roadSegmentWindows(plan, state.roads) : reveal, [plan, live, state.roads, reveal]);
-  const meshes = useMemo(() => plan.segments.filter(segment => segment.island === undefined)
+  const meshes = useMemo(() => plan.segments
     .map(route => {
       const geometry = ribbon(route), halo = ribbon(route, true);
       if (live) {
@@ -213,7 +213,6 @@ export function Pathways({ plan, reveal, live = false, visible = true }: { plan:
   return <group name="pathways:cross-island" userData={{
     links: plan.edges.map(edge => ({ from: edge.from, to: edge.to })),
     segmentCount: plan.segments.length,
-    localSegmentCount: plan.segments.filter(segment => segment.island !== undefined).length,
   }}>{meshes.map(({ route, geometry, halo }) => <group key={route.id}>
     <mesh name={`pathway:${route.id}`} geometry={geometry} raycast={ignoreRay}
       userData={{ links: route.links, widthGround: route.width, unrouted: route.unrouted }}>

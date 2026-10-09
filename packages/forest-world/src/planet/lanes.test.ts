@@ -24,9 +24,9 @@ test('6.8 a lit link\'s lane is one unbroken strip between islands, from the doc
   const dock = (story: string, link: string) => plan.docks.find(d => d.story === story && d.links.includes(link))!.point;
   for (const lane of lanes) {
     const edge = plan.edges.find(e => e.from === lane.from && e.to === lane.to)!;
-    // Only the chain's roads between islands: nothing inland on either island.
-    const cross = edge.segments.filter(ref => segments.get(ref.id)!.island === undefined);
-    assert.ok(cross.length > 0 && cross.length < edge.segments.length);
+    // The chain is its roads between islands: nothing inland on either island.
+    const cross = edge.segments;
+    assert.ok(cross.length > 0);
     const road = cross.map(ref => segments.get(ref.id)!);
     const trail = cross.flatMap(ref => { const p = segments.get(ref.id)!.points; return ref.reversed ? [...p].reverse() : p; });
     const back = trail.reverse().filter((p, i, all) => i === 0 || p.distanceTo(all[i - 1]!) > 1e-9);

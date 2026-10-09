@@ -168,7 +168,7 @@ export function roadSegmentWindows(pathways: PlanetPathways, roads: ReadonlyMap<
     const road = roads.get(linkKey(edge));
     if (road === undefined) continue;
     // The chain runs from the building capability to the one built on; the road draws back along it.
-    const walk = [...edge.segments].reverse().filter(ref => segments.get(ref.id)?.island === undefined);
+    const walk = [...edge.segments].reverse();
     const total = walk.reduce((sum, ref) => sum + length(ref.id), 0);
     let at = road.start;
     for (const ref of walk) {
@@ -194,6 +194,6 @@ export function crossingLength(pathways: PlanetPathways, link: string): number {
   const segments = new Map(pathways.segments.map(s => [s.id, s]));
   return edge.segments.reduce((sum, ref) => {
     const s = segments.get(ref.id);
-    return s === undefined || s.island !== undefined ? sum : sum + s.points.slice(1).reduce((d, q, i) => d + q.distanceTo(s.points[i]!), 0);
+    return s === undefined ? sum : sum + s.points.slice(1).reduce((d, q, i) => d + q.distanceTo(s.points[i]!), 0);
   }, 0);
 }

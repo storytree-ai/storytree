@@ -63,8 +63,9 @@ test('3.35 · live desktop roads grow on first display and on a polled dependenc
   assert.ok(summary.reduced.initialFirstRoadFractions.every((fraction: number) => fraction === 1), 'reduced motion makes initial roads complete immediately');
   for (const [motion, reading] of [['normal', summary.normal], ['reduced', summary.reduced]] as const) {
     assert.equal(reading.initialCompletedWithoutCaptureInvalidation, true);
-    assert.equal(reading.initialLinkCount, 130);
-    assert.equal(reading.finalLinkCount, 131);
+    // The seed's 131 links, 37 of them between stories: only those have roads (ADR-0951 D3); the restored one is among them.
+    assert.equal(reading.initialLinkCount, 36);
+    assert.equal(reading.finalLinkCount, 37);
     assert.equal(reading.finalLinkIdentitiesPreserved, true);
     assert.ok(reading.newOnlyCrossSpans > 0);
     assert.equal(reading.oldSharedRoadsAlwaysWhole, true, `${motion}: an old road drew partial after the restore; ${JSON.stringify({

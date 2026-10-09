@@ -14,22 +14,16 @@ const links = [{ from: 'a2', to: 'a1' }, { from: 'b1', to: 'a1' }, { from: 'b2',
 const scene: ForestScene = { islands: [island('a', ['a1', 'a2']), island('b', ['b1', 'b2'])], links };
 const spots = new Map([['a', { x: R * Math.sin(0.3), y: 0, z: R * Math.cos(0.3) }], ['b', { x: -R * Math.sin(0.3), y: 0, z: R * Math.cos(0.3) }]]);
 
-test('6.4 every recorded capability link on the globe is one unbroken trail, within an island or across the glass', () => {
+test('6.4 every recorded capability link between islands is one unbroken road from dock to dock; a link within an island has none', () => {
   const plan = buildPlanetPathways(scene, spots, R);
-  assert.deepEqual(plan.edges.map(e => `${e.from}->${e.to}`).sort(), links.map(l => `${l.from}->${l.to}`).sort());
+  assert.deepEqual(plan.edges.map(e => `${e.from}->${e.to}`), ['b1->a1'], 'a2->a1 and b2->b1 stay on their islands');
   const segments = new Map(plan.segments.map(s => [s.id, s]));
-  for (const edge of plan.edges) {
-    assert.ok(edge.segments.length > 0, `${edge.from}->${edge.to} has a trail`);
-    let end;
-    for (const ref of edge.segments) {
-      const segment = segments.get(ref.id)!;
-      const points = ref.reversed ? [...segment.points].reverse() : segment.points;
-      if (end) assert.ok(end.distanceTo(points[0]!) < 0.05, `${edge.from}->${edge.to} breaks at ${ref.id}`);
-      end = points.at(-1)!;
-    }
-  }
-  const crossing = plan.edges.find(e => e.from === 'b1')!;
-  assert.ok(crossing.segments.some(ref => segments.get(ref.id)!.island === undefined), 'the link between islands crosses the glass');
+  const [edge] = plan.edges;
+  const points = edge!.segments.flatMap(ref => ref.reversed ? [...segments.get(ref.id)!.points].reverse() : segments.get(ref.id)!.points);
+  for (let i = 1; i < points.length; i++) assert.ok(points[i - 1]!.distanceTo(points[i]!) < 1.5, `b1->a1 breaks at point ${i}`);
+  const dock = (story: string) => plan.docks.find(d => d.story === story && d.links.includes('b1->a1'))!.point;
+  assert.ok(points[0]!.distanceTo(dock('b')) < 1e-6, 'it starts at b\'s dock');
+  assert.ok(points.at(-1)!.distanceTo(dock('a')) < 1e-6, 'it ends at a\'s dock');
 });
 
 test('6.12 a road between islands follows the globe\'s surface, however far round the globe its islands sit', () => {
@@ -40,7 +34,7 @@ test('6.12 a road between islands follows the globe\'s surface, however far roun
   const spots = new Map([['a', at(0.3)], ['near', at(0.42)], ['far', at(-2.3)]]);
   const plan = buildPlanetPathways({ islands: [island('a', ['a1']), island('near', ['near1']), far],
     links: [{ from: 'far1', to: 'a1' }, { from: 'near1', to: 'a1' }] }, spots, R);
-  const roads = plan.segments.filter(segment => segment.island === undefined);
+  const roads = plan.segments;
   assert.ok(roads.some(road => road.points.at(-1)!.distanceTo(road.points[0]!) < 16), 'a short road between neighbours');
   for (const road of roads) for (let i = 1; i < road.points.length; i++) {
     const a = road.points[i - 1]!, b = road.points[i]!, ab = b.clone().sub(a);
@@ -67,7 +61,7 @@ test('6.14 a road to an island far round the globe is routed all the way to its 
   const at = (angle: number) => ({ x: R * Math.sin(angle), y: 0, z: R * Math.cos(angle) });
   const plan = buildPlanetPathways({ islands: [island('a', ['a1']), far], links: [{ from: 'far1', to: 'a1' }] },
     new Map([['a', at(0.3)], ['far', at(-2.3)]]), R);
-  const roads = plan.segments.filter(segment => segment.island === undefined);
+  const roads = plan.segments;
   assert.ok(roads.length > 0);
   for (const road of roads) assert.ok(road.unrouted! <= 1, `${road.id} runs ${road.unrouted!.toFixed(1)} units the router never planned`);
 });
@@ -80,7 +74,7 @@ test('6.14 a road to an island whose coast is not round is routed to that coast,
     const angle = side * Math.PI / 4;
     const plan = buildPlanetPathways({ islands: [island('a', ['a1']), ell], links: [{ from: 'ell0', to: 'a1' }] },
       new Map([['ell', { x: 0, y: 0, z: R }], ['a', { x: R * Math.sin(0.3) * Math.cos(angle), y: R * Math.sin(0.3) * Math.sin(angle), z: R * Math.cos(0.3) }]]), R);
-    for (const road of plan.segments.filter(segment => segment.island === undefined)) {
+    for (const road of plan.segments) {
       assert.ok(road.unrouted! <= 1, `from side ${side}, ${road.id} runs ${road.unrouted!.toFixed(1)} units the router never planned`);
     }
   }
@@ -90,7 +84,7 @@ test('6.13 a link naming a capability on no island is left out on its own: every
   // A capability still depending on one that was retired (ADR-0920 left "5 · The canvas" depending on a retired one).
   const stray = { from: 'b2', to: 'retired' };
   const drawing = planetPathwayDrawing({ ...scene, links: [...links, stray] }, spots, R);
-  assert.deepEqual(drawing.plan.edges.map(e => `${e.from}->${e.to}`).sort(), links.map(l => `${l.from}->${l.to}`).sort(), 'every other link keeps its road');
-  assert.ok(drawing.plan.segments.some(segment => segment.island === undefined), 'the road between the islands is drawn');
+  assert.deepEqual(drawing.plan.edges.map(e => `${e.from}->${e.to}`), ['b1->a1'], 'the link between the islands keeps its road');
+  assert.ok(drawing.plan.segments.length > 0, 'the road between the islands is drawn');
   assert.match(drawing.issue ?? '', /b2.*retired/, 'the notice names the link left out');
 });

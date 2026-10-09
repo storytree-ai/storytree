@@ -21,7 +21,10 @@ const from = 'capability_01dc27eec57f', to = 'capability_199d7af33d32';
 const restoredLink = `${from}->${to}`;
 const dependencyStory = seed.tree.stories.find(story => story.capabilities.some(cap => cap.id === to)).id;
 const dependentStory = seed.tree.stories.find(story => story.capabilities.some(cap => cap.id === from)).id;
-const expected = seed.tree.stories.flatMap(story => story.capabilities.flatMap(cap => cap.dependsOn.map(to => `${cap.id}->${to}`))).sort();
+// Only a link between two stories has a road (ADR-0951 D3): 37 of the seed's 131, 36 before the restore.
+const storyOf = new Map(seed.tree.stories.flatMap(story => story.capabilities.map(cap => [cap.id, story.id])));
+const expected = seed.tree.stories.flatMap(story => story.capabilities.flatMap(cap => cap.dependsOn
+  .filter(to => storyOf.get(to) !== story.id).map(to => `${cap.id}->${to}`))).sort();
 const initialLinks = expected.filter(link => link !== restoredLink);
 const started = performance.now();
 let currentPhase;
@@ -76,13 +79,13 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
         const seen = await page.evaluate(() => window.liveEvidence.frames.length);
         const left = cap - performance.now();
         if (left <= 0) throw new Error(`still incomplete after ${capMs} ms, though frames kept arriving`);
-        const state = await page.waitForFunction(({ until, seen }) => {
+        const state = await page.waitForFunction(({ until, seen, initial, final }) => {
           const frames = window.liveEvidence.frames, frame = frames.at(-1);
           const whole = frame?.roads.length > 0 && frame.roads.every(road => road.fraction >= 1 - 1e-8);
-          const done = until === 'initial' ? whole && frame.links.length === 130
-            : whole && frame.phase === 'restored-link' && frame.links.length === 131 && frame.roads.some(road => road.fresh);
+          const done = until === 'initial' ? whole && frame.links.length === initial
+            : whole && frame.phase === 'restored-link' && frame.links.length === final && frame.roads.some(road => road.fresh);
           return done ? 'done' : frames.length > seen ? 'advanced' : false;
-        }, { until, seen }, { timeout: Math.min(STALL_MS, left), polling: 100 }).then(handle => handle.jsonValue(), error => {
+        }, { until, seen, initial: initialLinks.length, final: expected.length }, { timeout: Math.min(STALL_MS, left), polling: 100 }).then(handle => handle.jsonValue(), error => {
           if (error.name !== 'TimeoutError' || left <= STALL_MS) throw error;
           throw new Error(`no new frame for ${STALL_MS} ms (${seen} frames drawn): rendering stalled`);
         });
@@ -273,7 +276,7 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
     await page.waitForFunction(ids => window.__globe && window.__nav && ids.every(id => window.__globe.scene.getObjectByName('planet:' + id)?.getObjectByName('island-ground')),
       [dependencyStory, dependentStory], { timeout: 60000, polling: 100 });
     // Observe initial growth to completion before any camera settling or later dependency addition.
-    phase(`${name}: wait for initial 130-link roads to complete`);
+    phase(`${name}: wait for initial ${initialLinks.length}-link roads to complete`);
     await whileFramesAdvance('initial', 90000);
     if (initialOnly) {
       await page.waitForTimeout(500);
@@ -346,9 +349,9 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
     const unrelated = await update(false);
     await page.waitForFunction(reads => window.liveTreeReads > reads, unrelated.reads, { timeout: POLL_MS, polling: 100 });
     phase(`${name}: wait for a frame with the consumed description`);
-    await page.waitForFunction(() => window.liveEvidence.frames.some(frame =>
-      frame.phase === 'unrelated-description' && frame.links.length === 131 && frame.descriptionConsumed),
-    undefined, { timeout: POLL_MS, polling: 100 });
+    await page.waitForFunction(final => window.liveEvidence.frames.some(frame =>
+      frame.phase === 'unrelated-description' && frame.links.length === final && frame.descriptionConsumed),
+    expected.length, { timeout: POLL_MS, polling: 100 });
     phase(`${name}: read submitted frames`);
     // The saved trace is plain JSON. Transfer it as one string rather than recursively walking
     // every frame/road object through Playwright's protocol, then retain the same full data.
@@ -358,8 +361,8 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
     }));
     const first = observation.frames.find(frame => frame.roads.length > 0);
     const initial = observation.frames.filter(frame => frame.phase === 'initial' && frame.roads.length > 0);
-    const additions = observation.frames.filter(frame => frame.phase === 'restored-link' && frame.links.length === 131 && frame.roads.some(road => road.fresh));
-    const poll = observation.frames.filter(frame => frame.phase === 'unrelated-description' && frame.links.length === 131);
+    const additions = observation.frames.filter(frame => frame.phase === 'restored-link' && frame.links.length === expected.length && frame.roads.some(road => road.fresh));
+    const poll = observation.frames.filter(frame => frame.phase === 'unrelated-description' && frame.links.length === expected.length);
     const freshFrames = additions.map(frame => ({ at: frame.at, roads: frame.roads.filter(road => road.fresh) }));
     const summary = {
       renderer: observation.renderer,

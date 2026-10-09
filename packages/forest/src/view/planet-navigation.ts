@@ -1,8 +1,7 @@
 /** Capability 3 · Story node render. The desktop's joins between permanent story places, lane C's turns, and Three's camera. */
 import { Euler, Quaternion, Raycaster, Vector2, Vector3, type Camera, type Object3D } from "three";
 import { edgeMarkers, growPlanet, turnToIsland, type FacingIsland, type ForestScene, type GlobeTurn } from "@storytree/forest";
-import { islandCoast, islandCoastReach } from "@storytree/forest-world/geometry";
-import { territories, territoryDestinations } from "../territories/territories.js";
+import { islandCoastReach } from "@storytree/forest-world/geometry";
 import { pickProjectedNote, type ProjectedNote } from "./globe-picking.js";
 import type { Selection } from "./panel-selection.js";
 import type { GlobeOpening } from "../surfaces/surfaces.js";
@@ -48,7 +47,6 @@ export function globeFraming(choice: GlobeOpening): number {
  * room, and the globe's radius, which grows when nudging cannot make room. Every drawing takes `radius` from here.
  */
 export function planetLayout(scene: ForestScene, places: ReadonlyMap<string, number>, before?: { spots: ReadonlyMap<string, FacingIsland["spot"]> }, frame?: ForestScene) {
-  scene = { ...scene, islands: scene.islands.map(pathwayIsland) };
   // A plan still growing, framed by its full plan, keeps every island where the full plan puts it (3.28).
   const grown = growPlanet((frame ?? scene).islands.map(island => {
     const place = places.get(island.story);
@@ -64,17 +62,6 @@ export function planetLayout(scene: ForestScene, places: ReadonlyMap<string, num
   const spots = new Map(islands.map(i => [i.story, i.spot]));
   const same = before !== undefined && before.spots.size === spots.size && [...spots].every(([story, spot]) => before.spots.get(story) === spot);
   return { scene, islands, spots: same ? before.spots : spots, radius: grown.radius };
-}
-
-const pathwayIslands = new WeakMap<ForestScene["islands"][number], ForestScene["islands"][number]>();
-/** Forest owns the visible partition; the world receives only its destinations, with no dependency back to forest. */
-function pathwayIsland(island: ForestScene["islands"][number]): ForestScene["islands"][number] {
-  if (island.land === undefined) return island;
-  const kept = pathwayIslands.get(island);
-  if (kept) return kept;
-  const mapped = { ...island, pathwayDestinations: territoryDestinations(territories(island.land.territories, islandCoast(island))) };
-  pathwayIslands.set(island, mapped);
-  return mapped;
 }
 
 /** How far the globe tilts toward either pole: just short of it, so north always stays up on screen. */

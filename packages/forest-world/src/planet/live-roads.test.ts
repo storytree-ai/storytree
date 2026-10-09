@@ -33,7 +33,7 @@ test('6.16 live roads grow initially, then adding a real dependency preserves co
   assert.deepEqual([...next.keys()].sort(), ['b1->a1', 'c1->a1']);
   assert.equal(next.get('b1->a1'), original, 'a real link keeps its arrival when routing changes');
   assert.equal(next.get('c1->a1')!.start, arrival);
-  const cross = added.segments.filter(segment => segment.island === undefined);
+  const cross = added.segments;
   assert.ok(cross.every(segment => !initial.segments.some(old => old.id === segment.id)), 'the real router rebuilt these segment IDs');
   const shared = cross.filter(segment => segment.links.length > 1);
   const fresh = cross.filter(segment => segment.links.length === 1 && segment.links.includes('c1->a1'));
@@ -85,7 +85,7 @@ test("6.16 the live clock runs until every arrival's own time ends, so a reroute
   assert.equal(liveRoadsGrowing(roads, end, false), false);
   assert.equal(liveRoadsGrowing(roads, 0, true), false, 'reduced motion draws every road whole at once');
   const rerouted = roadSegmentWindows(initial, nextLiveRoads(roads, initial, end));
-  for (const segment of initial.segments.filter(segment => segment.island === undefined)) {
+  for (const segment of initial.segments) {
     assert.equal(liveRoadProgress(rerouted.get(segment.id), end, false), 1, 'every span of a road whose time has ended is whole');
   }
 });

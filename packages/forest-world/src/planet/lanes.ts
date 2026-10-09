@@ -44,12 +44,12 @@ function sharedStrip(segment: PlanetPathwaySegment, dir: LitLink['dir']): Vector
 }
 
 /** Each lit link's road between islands as one strip, dock to dock in dependency order; a link with no road between
- * islands (no trail, or one within an island) lights nothing. The island routes stay built; a lane does not ride them. */
+ * islands (no trail, or one within an island) lights nothing. */
 export function laneRoutes(plan: PlanetPathways, lit: readonly LitLink[]): LaneRoute[] {
   const segments = new Map(plan.segments.map(segment => [segment.id, segment]));
   const selected = lit.flatMap(link => {
     const edge = plan.edges.find(e => e.from === link.from && e.to === link.to);
-    const chain = edge?.segments.filter(ref => segments.get(ref.id)!.island === undefined) ?? [];
+    const chain = edge?.segments ?? [];
     return chain.length === 0 ? [] : [{ link, chain }];
   });
   const colours = new Map<string, number>();

@@ -36,8 +36,6 @@ export interface Island {
   trees: PlacedTree[];
   /** The island's territories, in its own flat coordinates about its middle; files stay empty before its code is surveyed. */
   land?: IslandLand;
-  /** Routing destinations supplied by the host's visible territory layout, in local ground coordinates. */
-  pathwayDestinations?: readonly { capability: string; x: number; z: number }[];
   /** The island's land in ground units², when its story's code sets it (ADR-0804 D3, D7); absent, the land follows its capability count. */
   area?: number;
   /** Changes only when something drawn on the island changes. */

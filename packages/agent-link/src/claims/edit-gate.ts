@@ -83,22 +83,17 @@ export function refusalMessage(refusal: EditRefusal): string {
 
 /** The capability each of `files` declares, in the plan's stories, in order; a file that declares none is left out. */
 async function declaredOwners(library: Library, checkout: string, files: readonly (EditedFile & { relative: string })[]): Promise<{ capability: string; title: string; file: string }[]> {
-  const [{ declaredNumberOf, packageOf }, tree] = await Promise.all([import("@storytree/map/code-survey"), library.projectTree()]);
+  const [{ capabilitiesOfFiles }, tree] = await Promise.all([import("@storytree/map/code-survey"), library.projectTree()]);
+  const texts = new Map(files.map((file) => [file.relative, file.text] as const));
+  // The map's shared lookup, its declared half only: the survey's inference is never read here.
+  const placed = await capabilitiesOfFiles(checkout, [...texts.keys()], tree, {
+    readText: (file) => texts.get(file) ?? readFileSync(path.join(checkout, file), "utf8"),
+    survey: async () => ({}),
+  });
+  const titles = new Map(tree.stories.flatMap((story) => story.capabilities.map(({ id, title }) => [id, title] as const)));
   const owners: { capability: string; title: string; file: string }[] = [];
-  for (const file of files) {
-    const story = tree.stories.find(({ title }) => file.relative.startsWith(`packages/${packageOf(title)}/`) || (packageOf(title) === "app" && file.relative.startsWith("apps/desktop/")));
-    if (story === undefined) continue;
-    let text = file.text;
-    if (text === undefined) {
-      try {
-        text = readFileSync(path.resolve(checkout, file.path), "utf8");
-      } catch {
-        continue;
-      }
-    }
-    const number = declaredNumberOf({ path: file.relative, text }, packageOf(story.title));
-    const declared = number === undefined ? undefined : story.capabilities.find(({ title }) => Number(/^\s*(\d+)\s*·/.exec(title)?.[1]) === number);
-    if (declared !== undefined && !owners.some(({ capability }) => capability === declared.id)) owners.push({ capability: declared.id, title: declared.title, file: file.relative });
+  for (const [file, { capability, inferred }] of placed) {
+    if (!inferred && !owners.some((owner) => owner.capability === capability)) owners.push({ capability, title: titles.get(capability)!, file });
   }
   return owners;
 }

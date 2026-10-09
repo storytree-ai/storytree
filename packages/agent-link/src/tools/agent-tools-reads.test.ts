@@ -172,6 +172,7 @@ test('6.4 a bad call gets a readable refusal rather than a crash, and with story
         ["show_plan", {}],
         ["focus", { select: "story:Example" }],
         ["health_worklist", {}],
+        ["stale_claims", {}],
         ["claim", { capability: "capability_000000000000", reason: "building it" }],
         ["release", { capability: "capability_000000000000" }],
         ["make_workspace", { increment: "increment_000000000000", reason: "building it" }],
@@ -656,6 +657,27 @@ test("6.30 health_worklist gives the oldest three capabilities on the health wor
       assert.match(listed.text, /Password rules[^\n]*proposed — not built, the agent's to move/);
       assert.match(listed.text, /1 more wait/);
       assert.ok(!listed.text.includes(routed), listed.text);
+    });
+  });
+});
+
+test("6.49 stale_claims gives the session manager each claimed increment whose holder is quiet, with its holder and route; reading it ends nothing", async () => {
+  await withProject(async ({ folder, project, log }) => {
+    const pulls = { allOpenPulls: async () => new Map() };
+    await withAgent(folder, claudeCode("claude-1", { quietMs: 500, merges: pulls }), async (agent) => {
+      assert.match((await agent.call("stale_claims")).text, /No claimed increment is stale/);
+      const { arc } = await planned(agent);
+      const increment = idOf(await agent.call("park_increment", { arc, title: "Email form", objective: "Build it", body: "Red then green" }));
+      assert.equal((await agent.call("claim", { increment, reason: "driving it" })).isError, false);
+      await delay(800);
+      await withAgent(folder, codex("codex-1", { quietMs: 500, merges: pulls }), async (manager) => {
+        const listed = await manager.call("stale_claims");
+        assert.equal(listed.isError, false, listed.text);
+        assert.deepEqual((listed.data.claims as { increment: string; holder: string; route: string }[]).map(({ increment, holder, route }) => [increment, holder, route]),
+          [[increment, "claude-1", "ask"]]);
+        assert.match(listed.text, /Email form[^\n]*claude-1 \(driving it\)[^\n]*ask its holder/);
+      });
+      assert.deepEqual((await readClaims(log, project, { quietMs: 500 })).map(({ increment }) => increment), [increment], "reading it ended nothing");
     });
   });
 });

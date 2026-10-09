@@ -12,7 +12,7 @@ import type { Library } from "@storytree/library";
 import { codeSurveyReader, packageOf } from "@storytree/map/code-survey";
 import { z } from "zod";
 
-import { attachWorkspace, claim, CLAIM_REASON_LIMIT, currentBranch, increments, land, makeWorkspace, release, type Claim, type ClaimAnswer, type ClaimContext, type WorkspaceRefusal } from "../claims/index.js";
+import { attachWorkspace, claim, CLAIM_REASON_LIMIT, currentBranch, increments, land, makeWorkspace, release, staleClaims, type Claim, type ClaimAnswer, type ClaimContext, type MergeWatch, type WorkspaceRefusal } from "../claims/index.js";
 import { refusalOf } from "./answers.js";
 import { lineOf, type Call, type Define, type ToolExtension } from "./server.js";
 import { quoted } from "./text.js";
@@ -25,7 +25,7 @@ const part = {
 };
 const ONE_PART = "Name a capability or an increment to claim, exactly one.";
 
-export function registerClaimTools(define: Define, extensions: readonly ToolExtension[] = []): void {
+export function registerClaimTools(define: Define, extensions: readonly ToolExtension[] = [], merges: MergeWatch = {}): void {
   define(
     "claim",
     "Pass exactly one target per call: capability or increment, never both. To claim an increment and a capability, call claim twice, once for each target. Claim a capability before you build it, or the increment you drive, with a one-line reason: your edits then count toward it, and claiming an increment starts it. If another live session holds it you are told who, and if it waits on other work you are told what; either way, pick other work.",
@@ -110,6 +110,24 @@ export function registerClaimTools(define: Define, extensions: readonly ToolExte
       refused: true,
     };
   });
+
+  define(
+    "stale_claims",
+    "For the session manager: the claimed increments whose holder is quiet, with no command running and no open pull request, oldest first, each with its route (ADR-0953 D4). Release a gone holder's with `storytree workspace release <increment> --holder <session> --reason …`; ask a quiet holder first. Reading it ends nothing.",
+    z.object({}),
+    async (_args, call) => {
+      const { claims, pullsUnread } = await staleClaims({ log: call.log, project: call.project, folder: call.folder }, {
+        quietMs: call.quietMs,
+        ...(merges.allOpenPulls === undefined ? {} : { allOpenPulls: merges.allOpenPulls }),
+      });
+      const unread = pullsUnread ? ["GitHub could not be asked which pull requests are open: check each branch before releasing."] : [];
+      if (claims.length === 0) return { text: ["No claimed increment is stale.", ...unread].join("\n"), data: { claims, ...(pullsUnread ? { pullsUnread } : {}) } };
+      const rows = await Promise.all(claims.map(async (stale) =>
+        `- ${await titleOf(call.library, stale.increment)}: ${stale.label} session ${stale.holder} (${stale.reason}), last seen ${stale.lastSeenAt}${stale.branch === undefined ? "" : `, on ${stale.branch}`}. ${
+          stale.route === "release" ? `Gone: release it for its holder (--holder ${stale.holder}).` : "Quiet: ask its holder, and release it only once it stays quiet."}`));
+      return { text: [`${claims.length} claimed increment${claims.length === 1 ? " is" : "s are"} stale:`, ...rows, ...unread].join("\n"), data: { claims, ...(pullsUnread ? { pullsUnread } : {}) } };
+    },
+  );
 
   define(
     "report",

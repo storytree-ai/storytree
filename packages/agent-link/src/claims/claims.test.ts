@@ -22,8 +22,9 @@ import { countingStore } from "../testing/egress.js";
 import { withTempDir } from "../testing/folders.js";
 import { approveCheckout, dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { closeOut, readSessions } from "../sessions/index.js";
-import { claim, claimRefusal, closed, endGoneClaims, land, readAttribution, release, releaseFor, type ClaimContext, type MergedPull, type MergeWatch } from "./index.js";
-import { boardClaims, due, mergedPullsThrough, projectTempFile } from "./merges.js";
+import { claim, claimRefusal, closed, land, readAttribution, release, releaseFor, type ClaimContext, type MergedPull, type MergeWatch } from "./index.js";
+import { boardClaims, due, mergedPullsThrough, projectTempFile, type OpenPull } from "./merges.js";
+import { staleClaims } from "./stale-claims.js";
 
 interface World {
   log: ActivityLog;
@@ -34,7 +35,7 @@ interface World {
   /** The capability "Password reset". */
   passwordReset: string;
   /** Session A (Claude Code), or B (Codex), claiming in this project. */
-  as(session: "A" | "B", options?: { quietMs?: number; log?: ActivityLog; branch?: string }): ClaimContext;
+  as(session: "A" | "B" | "C" | "D", options?: { quietMs?: number; log?: ActivityLog; branch?: string }): ClaimContext;
 }
 
 /** Run `body` with a fresh project planned with two capabilities, and the log open on the test server. */
@@ -47,7 +48,7 @@ async function withWorld(body: (world: World) => Promise<void>): Promise<void> {
     const story = await library.addStory({ title: "Visitor can sign up" });
     const emailForm = (await library.addCapability({ title: "Email form", story: story.id })).id;
     const passwordReset = (await library.addCapability({ title: "Password reset", story: story.id })).id;
-    const harnessOf = { A: "claude-code", B: "codex" } as const;
+    const harnessOf = { A: "claude-code", B: "codex", C: "claude-code", D: "codex" } as const;
     await body({
       log,
       library,
@@ -175,32 +176,6 @@ test('5.3 when A reports it landed, the claim ends and a "landed" line is writte
     assert.equal((await claim(as("A"), emailForm, "and another")).ok, true);
     await log.append(project, { session: "A", harness: "claude-code", source: "hook", kind: "session-ended", reason: "other" });
     assert.deepEqual(await readClaims(log, project), [], "A's session ending ended it");
-  });
-});
-
-test("5.28 a gone holder's claims end with a release naming it, written by whoever notices; a holder that is only quiet, or live, keeps its claim", async () => {
-  await withWorld(async ({ log, project, emailForm, passwordReset, as }) => {
-    const quietMs = 1_000;
-    assert.equal((await claim(as("A"), emailForm, "building the email form")).ok, true);
-    await sleep(quietMs + 300); // A is quiet, waiting, not gone
-    assert.deepEqual(await endGoneClaims(as("B", { quietMs })), [], "a quiet holder is the session manager's, never expired");
-
-    // A's window crashed: no line from it for longer than a command may run, and no session-ended.
-    const store = await connect({ url: testServerUrl() });
-    try {
-      const activity = await store.ownDatabase(ACTIVITY_DATABASE);
-      await activity.query("UPDATE activity SET at = at - interval '13 hours' WHERE project = $1 AND session = 'A'", [project]);
-    } finally {
-      await store.close();
-    }
-    assert.equal((await claim(as("B"), passwordReset, "building the reset")).ok, true);
-
-    const ended = await endGoneClaims(as("B", { quietMs }));
-    assert.deepEqual(ended.map((line) => line.kind === "released" && [line.session, line.holder, line.capability]), [["B", "A", emailForm]]);
-    assert.match((ended[0]?.kind === "released" && ended[0].reason) || "", /^gone: no line since /);
-    assert.deepEqual((await readClaims(log, project)).map(({ session, capability }) => [session, capability]), [["B", passwordReset]], "A's claim is free; B's stands");
-    assert.deepEqual(claimsFrom((await log.since(project, 0)).lines).map(({ session }) => session), ["B"], "the fold of the whole log agrees");
-    assert.deepEqual(await endGoneClaims(as("B", { quietMs })), [], "noticing again writes nothing");
   });
 });
 
@@ -576,29 +551,6 @@ test("5.29 releasing an active increment without closing it, by release, the ses
   });
 });
 
-test("5.30 a gone holder's ended increment claim returns the unclosed increment to proposal, and a closed one stays closed", async () => {
-  await withWorld(async ({ library, project, as }) => {
-    const { arc, park } = await arcOf(library);
-    const left = await park("email form");
-    const finished = await park("old form");
-    assert.equal((await claim(as("A"), left, "driving the email form")).ok, true);
-    assert.equal((await claim(as("A"), finished, "finishing the old form")).ok, true);
-    await library.closeIncrement(finished, { pr: "#3", disposition: "landed" });
-    // A's window crashed: no line from it for longer than a command may run, and no session-ended.
-    const store = await connect({ url: testServerUrl() });
-    try {
-      await (await store.ownDatabase(ACTIVITY_DATABASE)).query("UPDATE activity SET at = at - interval '13 hours' WHERE project = $1 AND session = 'A'", [project]);
-    } finally {
-      await store.close();
-    }
-    const { library: _, ...noticer } = as("B", { quietMs: 1_000 });
-    const ended = await endGoneClaims({ ...noticer, openLibrary: async () => library });
-    assert.deepEqual(ended.map((line) => line.kind === "released" && line.increment).sort(), [left, finished].sort(), "both of A's claims end");
-    assert.equal(await statusOf(library, arc, left), "proposal", "nobody holds it: a proposal again");
-    assert.equal(await statusOf(library, arc, finished), "closed", "a closed one stays closed");
-  });
-});
-
 test("5.8 claiming an increment whose own wait holds, or whose arc's wait holds, is refused naming each blocker and its reason, and one held on an open question is refused as waiting on the owner; nothing is written and it is not started; once the wait releases the claim succeeds", async () => {
   await withWorld(async ({ log, project, library, as }) => {
     const { arc, park } = await arcOf(library);
@@ -808,5 +760,44 @@ test("5.32 a project text that is not a plain name never writes a temp-file stam
         else process.env[key] = value;
       }
     }
+  });
+});
+
+test("5.33 the session manager's worklist lists claimed increments whose holder is quiet, with no running command and no open pull request, routing a gone holder's to release and a quiet one's to ask; nothing is ended until the manager releases", async () => {
+  await withWorld(async ({ log, project, library, emailForm, as }) => {
+    const quietMs = 1_000;
+    const { arc, park } = await arcOf(library);
+    const [crashed, waiting, reviewed, busy] = [await park("crashed"), await park("waiting"), await park("reviewed"), await park("busy")];
+    assert.equal((await claim(as("C"), crashed, "driving it")).ok, true);
+    assert.equal((await claim(as("A", { branch: "a-branch" }), waiting, "driving it")).ok, true);
+    assert.equal((await claim(as("A"), emailForm, "building the form")).ok, true);
+    assert.equal((await claim(as("D", { branch: "d-branch" }), reviewed, "driving it")).ok, true);
+    // C's window crashed: no line from it for longer than a command may run, and no session-ended.
+    const store = await connect({ url: testServerUrl() });
+    try {
+      await (await store.ownDatabase(ACTIVITY_DATABASE)).query("UPDATE activity SET at = at - interval '13 hours' WHERE project = $1 AND session = 'C'", [project]);
+    } finally {
+      await store.close();
+    }
+    await sleep(quietMs + 300); // A and D are quiet, waiting
+    assert.equal((await claim(as("B"), busy, "driving it")).ok, true);
+    await log.append(project, { session: "B", harness: "codex", source: "hook", kind: "command-started", command: "pnpm test", call: "c1" });
+
+    const open: OpenPull = { number: 7, draft: false, queued: false };
+    const pulls = async () => new Map([["d-branch", open]]);
+    const worklist = await staleClaims({ log, project, folder: "." }, { quietMs, allOpenPulls: pulls });
+    assert.deepEqual(worklist.claims.map(({ increment, holder, route }) => [increment, holder, route]), [[crashed, "C", "release"], [waiting, "A", "ask"]],
+      "B is busy, D's branch has an open pull request, and A's capability claim is no increment");
+    assert.equal(worklist.pullsUnread, undefined);
+    assert.equal(worklist.claims[1]?.branch, "a-branch");
+    assert.deepEqual((await log.since(project, 0)).lines.filter((line) => line.kind === "released"), [], "reading the worklist ends nothing");
+    assert.equal(await statusOf(library, arc, crashed), "active", "the gone holder's increment stays active until released");
+
+    assert.deepEqual(await releaseFor(as("B", { quietMs }), crashed, "C", "gone: no line for 13 hours"), { ok: true, returned: true });
+    assert.deepEqual((await staleClaims({ log, project, folder: "." }, { quietMs, allOpenPulls: pulls })).claims.map(({ increment }) => increment), [waiting]);
+
+    const unread = await staleClaims({ log, project, folder: "." }, { quietMs, allOpenPulls: async () => undefined });
+    assert.equal(unread.pullsUnread, true, "a GitHub that cannot be asked is said, never read as no pull request");
+    assert.deepEqual(unread.claims.map(({ increment }) => increment), [waiting, reviewed]);
   });
 });

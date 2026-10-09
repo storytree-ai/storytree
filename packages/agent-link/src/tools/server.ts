@@ -246,7 +246,7 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
       return [appDatabaseWork(locateStorytree(locate).running)];
     },
   });
-  registerClaimTools(define, extensions);
+  registerClaimTools(define, extensions, options.merges);
   registerWorkTools(define);
   registerNoteTools(define);
   registerPipelineTools(define, options.protection);

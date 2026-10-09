@@ -65,3 +65,56 @@ for (const method of ["cleartext", "MD5"] as const) {
     }
   });
 }
+
+test("1.14 a local password URL refuses a listener that skips authentication, sending it no query", async () => {
+  const sockets = new Set<Socket>();
+  const received: Buffer[] = [];
+  const peer = createServer((socket) => {
+    sockets.add(socket);
+    socket.on("close", () => sockets.delete(socket));
+    socket.on("error", () => {});
+    let startup = Buffer.alloc(0);
+    let answered = false;
+    socket.on("data", (chunk: Buffer) => {
+      if (answered) {
+        received.push(chunk);
+        socket.end();
+        return;
+      }
+      startup = Buffer.concat([startup, chunk]);
+      if (startup.length < 4 || startup.length < startup.readInt32BE(0)) return;
+      answered = true;
+      // PostgreSQL AuthenticationOk (R, 0) then ReadyForQuery (Z, idle): no authentication at all.
+      socket.write(Buffer.from([0x52, 0, 0, 0, 8, 0, 0, 0, 0, 0x5a, 0, 0, 0, 5, 0x49]));
+    });
+  });
+  await new Promise<void>((resolve) => peer.listen(0, "127.0.0.1", resolve));
+  const port = (peer.address() as { port: number }).port;
+  const withPassword = localServer(new URL(`postgres://postgres:${encodeURIComponent(password)}@127.0.0.1:${port}/postgres`));
+  const project = withPassword.pool("storytree_synthetic");
+  const passwordless = localServer(new URL(`postgres://postgres@127.0.0.1:${port}/postgres`));
+  try {
+    for (const pool of [withPassword.admin, project]) {
+      const error = await pool.query("SELECT 42").then(() => undefined, (error: unknown) => error);
+      assert.ok(error instanceof ConnectionError, String(error));
+      assert.equal(error.problem, "config");
+      assert.match(error.message, /local database.*without.*SCRAM/i);
+      assert.equal(error.message.includes(password), false);
+    }
+    assert.equal(Buffer.concat(received).toString().includes("SELECT 42"), false, "the impostor must receive no query");
+    // With no password configured there is nothing to protect: the passwordless test harness still connects.
+    // pg falls back to PGPASSWORD (GitHub's Windows image sets one), which would be a password to protect.
+    const pgPassword = process.env.PGPASSWORD;
+    delete process.env.PGPASSWORD;
+    try {
+      const client = await passwordless.admin.connect();
+      client.release();
+    } finally {
+      if (pgPassword !== undefined) process.env.PGPASSWORD = pgPassword;
+    }
+  } finally {
+    await Promise.all([withPassword.admin.end(), project.end(), passwordless.admin.end()]);
+    for (const socket of sockets) socket.destroy();
+    await new Promise<void>((resolve) => peer.close(() => resolve()));
+  }
+});

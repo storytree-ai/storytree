@@ -76,21 +76,45 @@ function loopbackTransport(hostname: string): Transport {
   return isLoopback(hostname) ? { Client: LocalClient } : {};
 }
 
+/** The pg 8 Client internals LocalClient hooks, which pg's types leave out. */
+interface PgClientInternals {
+  readonly _connecting: boolean;
+  readonly saslSession: unknown;
+  _handleAuthSASLFinal(msg: unknown): void;
+  _handleReadyForQuery(msg: unknown): void;
+}
+
 /**
  * A loopback port does not authenticate its listener. A replacement listener must never get the
  * installation password by asking for cleartext or an MD5 response. pg's Pool supports a custom
  * Client, but pg 8 has no authentication-method allowlist: override its two password handlers,
  * before either can resolve or send a password. Real SCRAM stays with pg, including its server
- * proof check. Passwordless legacy/test servers send no credential and remain usable.
+ * proof check. Nor may a listener skip authentication: with a password configured, the connection
+ * is refused at ReadyForQuery, before any query is sent, unless SCRAM completed with a verified
+ * server signature. Only a URL with no password, and no PGPASSWORD to fall back on (the test harness), reaches a
+ * passwordless server.
  */
-class LocalClient extends pg.Client {
-  _handleAuthCleartextPassword(): void { this.#refuseDowngrade(); }
-  _handleAuthMD5Password(): void { this.#refuseDowngrade(); }
+class LocalClient extends (pg.Client as unknown as new (...args: ConstructorParameters<typeof pg.Client>) => pg.Client & PgClientInternals) {
+  #scramVerified = false;
 
-  #refuseDowngrade(): void {
+  _handleAuthCleartextPassword(): void { this.#refuse("requested unsafe password authentication"); }
+  _handleAuthMD5Password(): void { this.#refuse("requested unsafe password authentication"); }
+
+  _handleAuthSASLFinal(msg: unknown): void {
+    super._handleAuthSASLFinal(msg);
+    // pg clears its session only once the server's signature checks out.
+    this.#scramVerified = this.saslSession === null;
+  }
+
+  _handleReadyForQuery(msg: unknown): void {
+    if (this._connecting && this.password && !this.#scramVerified) return this.#refuse("accepted the connection without SCRAM authentication");
+    super._handleReadyForQuery(msg);
+  }
+
+  #refuse(what: string): void {
     this.connection.stream.destroy(new ConnectionError(
       "config",
-      "The local database requested unsafe password authentication; SCRAM-SHA-256 is required to send credentials. Restart the storytree app and check its database authentication settings.",
+      `The local database ${what}; SCRAM-SHA-256 is required with a password. Restart the storytree app and check its database authentication settings.`,
     ));
   }
 }

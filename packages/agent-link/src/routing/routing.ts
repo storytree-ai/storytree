@@ -30,8 +30,7 @@
  * Discovery is synchronous and uses no network. Stale owners refuse before credentials are read;
  * authenticated Windows discovery also checks the handoff's filesystem ACLs through PowerShell.
  */
-import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { homedir } from "node:os";
+import { existsSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import type { ConnectOptions, Library, Storytree } from "@storytree/library";
@@ -39,8 +38,10 @@ import type { ConnectOptions, Library, Storytree } from "@storytree/library";
 import { readLibrary } from "../settings/settings.js";
 
 import { keepOnThisComputer, recordProjectChoice } from "./project-choice.js";
-import { approvedTrunk, approveTrunk, forgetTrunk, machineOf, ProjectFolderError, refusal, registerTrunk, type Trunk, trunksOn, unusedName } from "./trunks.js";
+import { approvedTrunk, approveTrunk, forgetTrunk, machineOf, ProjectFolderError, refusal, registerTrunk, remembered, rememberApproval, storytreeHome, type Trunk, trunksOn, unusedName } from "./trunks.js";
 import { seedStarterPack } from "./starter-pack.js";
+
+export { storytreeHome };
 import { authenticatedLocalUrl, HANDOFF_UNAVAILABLE, HandoffPrivacyError, type LocalOwner } from "./local-handoff.js";
 
 /** The marker a folder set up as a storytree project holds. */
@@ -119,8 +120,12 @@ export async function openNamedProject(storytree: Pick<Storytree, "openProject">
   } catch (error) {
     // By name: the hooks load the library only when they need it.
     if (!(error instanceof Error && error.name === "ProjectGoneError")) throw error;
-    throw new ProjectFolderError(`This folder names project "${project}" in its ${MARKER_FILE}, but the library has no such project: it was deleted, perhaps from another computer. Delete ${MARKER_FILE} to free the folder; to start a project here, set it up again.`);
+    throw goneProject(project);
   }
+}
+
+function goneProject(project: string): ProjectFolderError {
+  return new ProjectFolderError(`This folder names project "${project}" in its ${MARKER_FILE}, but the library has no such project: it was deleted, perhaps from another computer. Delete ${MARKER_FILE} to free the folder; to start a project here, set it up again.`);
 }
 
 /**
@@ -140,7 +145,7 @@ export async function setUpProject({ folder, project, storytree, storytreeHome: 
   const rejoining = join && existing.project === project && existing.folder === at;
   if (existing.project !== undefined && !rejoining) throw new ProjectFolderError(`${at} is already part of storytree project "${existing.project}" (its folder is ${existing.folder}).`);
   const machine = machineOf(home);
-  const [projects, trunks] = await Promise.all([storytree.listProjects(), liveTrunks(storytree, machine.id)]);
+  const [projects, trunks] = await Promise.all([storytree.listProjects(), liveTrunks(storytree, machine.id, home)]);
   const refused = refusal({ folder: at, inMain: inMainCheckout(at), project, join, projects, trunks, suggestion: unusedName(suggestedName(at), projects) });
   if (refused !== undefined) throw refused;
   const library = await storytree.openProject(project);
@@ -188,6 +193,8 @@ export async function requireApproval(storytree: Storytree, project: string, fol
   if (remembered(home, machine.id).some((trunk) => trunk.project === project && within(at, trunk.folder))) return;
   const trunk = await approvedTrunk(storytree, project, machine.id, at);
   if (trunk !== undefined) return rememberApproval(home, machine.id, trunk);
+  // A project deleted, perhaps from another computer, took its trunks with it: say that, not "approve it".
+  if (!(await storytree.listProjects()).includes(project)) throw goneProject(project);
   throw new ProjectFolderError(`${at} names storytree project "${project}", but it is not approved as "${project}"'s checkout on this machine, so storytree opens nothing and records nothing here. If this is your checkout of "${project}", approve it on purpose: \`storytree doctor --join ${project}\` in a terminal there, or ask your agent to join it.`);
 }
 
@@ -196,16 +203,16 @@ export async function requireApproval(storytree: Storytree, project: string, fol
  * deleted) is forgotten, so the project can be joined or seen at its new folder. A folder that is
  * there keeps its trunk even with its marker gone: the record, not the marker, holds it (1.8).
  */
-async function liveTrunks(storytree: Storytree, machine: string): Promise<Trunk[]> {
+async function liveTrunks(storytree: Storytree, machine: string, home: string): Promise<Trunk[]> {
   const trunks = await trunksOn(storytree, machine);
-  await forgetStale(storytree, trunks);
+  await forgetStale(storytree, trunks, home);
   return trunks.filter((trunk) => existsSync(trunk.folder));
 }
 
 /** Forget each of `trunks` whose folder is gone; true when any was. */
-async function forgetStale(storytree: Storytree, trunks: readonly Trunk[]): Promise<boolean> {
+async function forgetStale(storytree: Storytree, trunks: readonly Trunk[], home: string): Promise<boolean> {
   const stale = trunks.filter((trunk) => !existsSync(trunk.folder));
-  for (const trunk of stale) await forgetTrunk(storytree, trunk);
+  for (const trunk of stale) await forgetTrunk(storytree, trunk, home);
   return stale.length > 0;
 }
 
@@ -305,42 +312,8 @@ export function notAProjectYet(folder: string, name: string = suggestedName(fold
   return `This folder is not a storytree project, so storytree records nothing here; carry on with the user's request. The user can add it as a project: Add project in the storytree app, \`storytree doctor --set-up ${name}\` in a terminal here, or by asking you to set it up.`;
 }
 
-/** The storytree 0.3 home: STORYTREE_HOME, else ~/.storytree/0.3, where the desktop app keeps its Postgres. */
-export function storytreeHome(): string {
-  const home = process.env.STORYTREE_HOME;
-  return home !== undefined && home !== "" ? path.resolve(home) : path.join(homedir(), ".storytree", "0.3");
-}
-
 function defaultDataDir(): string {
   return path.join(storytreeHome(), "pgdata");
-}
-
-/** Where this machine remembers the approved trunks it has seen (ADR-0942), in its storytree home. */
-const APPROVALS_FILE = "approved-trunks.json";
-
-/** The approved trunks this machine remembers, as `machine` (its id) saw them. */
-function remembered(home: string, machine: string): { project: string; folder: string }[] {
-  try {
-    const kept = JSON.parse(readFileSync(path.join(home, APPROVALS_FILE), "utf8")) as { machine?: unknown; trunks?: unknown };
-    if (kept.machine !== machine || !Array.isArray(kept.trunks)) return [];
-    return kept.trunks.filter((trunk): trunk is { project: string; folder: string } => typeof trunk?.project === "string" && typeof trunk?.folder === "string");
-  } catch {
-    return [];
-  }
-}
-
-/** Remember `trunk` as approved on `machine`, in place of what was remembered for its project; a failure to write only costs a later ask. */
-function rememberApproval(home: string, machine: string, trunk: { project: string; folder: string }): void {
-  try {
-    const trunks = [...remembered(home, machine).filter((kept) => kept.project !== trunk.project), { project: trunk.project, folder: trunk.folder }];
-    mkdirSync(home, { recursive: true });
-    const file = path.join(home, APPROVALS_FILE);
-    const temp = `${file}.${process.pid}.tmp`;
-    writeFileSync(temp, `${JSON.stringify({ machine, trunks }, null, 2)}\n`);
-    renameSync(temp, file);
-  } catch {
-    // Asked again next time.
-  }
 }
 
 /** Whether `folder` is `root` or inside it; Windows paths ignore case. */

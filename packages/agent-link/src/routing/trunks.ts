@@ -15,7 +15,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
-import { hostname } from "node:os";
+import { homedir, hostname } from "node:os";
 import path from "node:path";
 
 import type { Storytree } from "@storytree/library";
@@ -161,13 +161,68 @@ export async function approvedTrunk(storytree: Storytree, project: string, machi
   return own?.approvedBy !== undefined && within(folder, own.folder) ? own : undefined;
 }
 
-/** Forget `project`'s trunk on `machine`, as when the project is removed from it, or on every machine when none is named, as when it is deleted; false when there was none. */
-export async function forgetTrunk(storytree: Storytree, { project, machine }: { project: string; machine?: string }): Promise<boolean> {
+/**
+ * Forget `project`'s trunk on `machine`, as when the project is removed from it, or on every machine
+ * when none is named, as when it is deleted; false when there was none. The approval `home` remembers
+ * for it on that machine goes with it, so a folder later at the same place is asked about afresh.
+ */
+export async function forgetTrunk(storytree: Storytree, { project, machine }: { project: string; machine?: string }, home: string = storytreeHome()): Promise<boolean> {
   const pool = await trunksPool(storytree);
   const { rowCount } = machine === undefined
     ? await pool.query("DELETE FROM trunks WHERE project = $1", [project])
     : await pool.query("DELETE FROM trunks WHERE project = $1 AND machine = $2", [project, machine]);
+  forgetApproval(home, project, machine);
   return (rowCount ?? 0) > 0;
+}
+
+/** The storytree 0.3 home: STORYTREE_HOME, else ~/.storytree/0.3, where the desktop app keeps its Postgres. */
+export function storytreeHome(): string {
+  const home = process.env.STORYTREE_HOME;
+  return home !== undefined && home !== "" ? path.resolve(home) : path.join(homedir(), ".storytree", "0.3");
+}
+
+/** Where this machine remembers the approved trunks it has seen (ADR-0942), in its storytree home. */
+const APPROVALS_FILE = "approved-trunks.json";
+
+/** The approved trunks `home` remembers and the machine (its id) that saw them; none when unreadable. */
+function kept(home: string): { machine: unknown; trunks: { project: string; folder: string }[] } {
+  try {
+    const { machine, trunks } = JSON.parse(readFileSync(path.join(home, APPROVALS_FILE), "utf8")) as { machine?: unknown; trunks?: unknown };
+    if (!Array.isArray(trunks)) return { machine, trunks: [] };
+    return { machine, trunks: trunks.filter((trunk): trunk is { project: string; folder: string } => typeof trunk?.project === "string" && typeof trunk?.folder === "string") };
+  } catch {
+    return { machine: undefined, trunks: [] };
+  }
+}
+
+/** The approved trunks this machine remembers, as `machine` (its id) saw them. */
+export function remembered(home: string, machine: string): { project: string; folder: string }[] {
+  const { machine: saw, trunks } = kept(home);
+  return saw === machine ? trunks : [];
+}
+
+/** Remember `trunk` as approved on `machine`, in place of what was remembered for its project; a failure to write only costs a later ask. */
+export function rememberApproval(home: string, machine: string, trunk: { project: string; folder: string }): void {
+  keep(home, machine, [...remembered(home, machine).filter((kept) => kept.project !== trunk.project), { project: trunk.project, folder: trunk.folder }]);
+}
+
+/** Stop remembering `project`'s approval, when `home` saw it on `machine` (on any machine when none is named). */
+function forgetApproval(home: string, project: string, machine?: string): void {
+  const { machine: saw, trunks } = kept(home);
+  if (typeof saw !== "string" || (machine !== undefined && saw !== machine) || !trunks.some((trunk) => trunk.project === project)) return;
+  keep(home, saw, trunks.filter((trunk) => trunk.project !== project));
+}
+
+function keep(home: string, machine: string, trunks: readonly { project: string; folder: string }[]): void {
+  try {
+    mkdirSync(home, { recursive: true });
+    const file = path.join(home, APPROVALS_FILE);
+    const temp = `${file}.${process.pid}.tmp`;
+    writeFileSync(temp, `${JSON.stringify({ machine, trunks }, null, 2)}\n`);
+    renameSync(temp, file);
+  } catch {
+    // A lost write leaves the file as it was: a remembering is asked again next time.
+  }
 }
 
 /** `name`, or the first of `name-2`, `name-3`… that is no project yet, within the project-name length. */

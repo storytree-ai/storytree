@@ -116,6 +116,35 @@ test("4.9 `arc increment wait --for` makes an increment wait for you, or for an 
   });
 });
 
+test("4.14 `arc increment wait --for owner` releases the waiting session's claims on the increment and the capability claims taken under it; `--for event` releases nothing", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const arc = await anArc(world);
+    const increment = (await library.addIncrement({ arc, title: "Ship to TestFlight", objective: "A build testers install", body: "…" })).id;
+    const other = (await library.addIncrement({ arc, title: "Store listing", objective: "Write it", body: "…" })).id;
+    const story = await library.addStory({ title: "Release" });
+    const capability = (await library.addCapability({ story: story.id, title: "TestFlight upload" })).id;
+    const log = await openActivityLog(testServerUrl());
+    try {
+      const waiter = { log, library, project: world.project, session: "codex-wait", harness: "codex" } as const;
+      for (const id of [other, increment, capability]) assert.equal((await claim(waiter, id, "shipping")).ok, true, id);
+      const held = async () => (await readClaims(log, world.project)).map((one) => one.increment ?? one.capability);
+
+      const event = await world.run(["arc", "increment", "wait", increment, "--for", "event", "--note", "Apple reviews build 12", "--check-back", "2099-01-01"], { CODEX_THREAD_ID: "codex-wait" });
+      assert.equal(event.code, 0, event.stderr);
+      assert.doesNotMatch(event.stdout, /Released/);
+      assert.deepEqual((await held()).sort(), [other, increment, capability].sort());
+
+      const owner = await world.run(["arc", "increment", "wait", increment, "--for", "owner", "--note", "Sign the Apple developer agreement"], { CODEX_THREAD_ID: "codex-wait" });
+      assert.equal(owner.code, 0, owner.stderr);
+      assert.match(owner.stdout, new RegExp(`Released your claims on ${increment}, ${capability}`));
+      assert.deepEqual(await held(), [other]);
+    } finally {
+      await log.close();
+    }
+  });
+});
+
 test("4.4 `arc show` names each wait for you or an outside event under its increment, and an event whose check-back day has come", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();

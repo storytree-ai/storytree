@@ -5,10 +5,12 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 
+import { claim, openActivityLog, readClaims } from "@storytree/agent-link";
+
 import { parseArgs } from "./args.js";
 import type { Context } from "./door.js";
 import { questions } from "./families/question.js";
-import { BuiltCommand, inWorld, type World } from "./testing/cli.js";
+import { BuiltCommand, inWorld, testServerUrl, type World } from "./testing/cli.js";
 
 const command = new BuiltCommand();
 
@@ -173,6 +175,30 @@ test("5.3 a held increment reads as waiting on you until its question is settled
     await world.run(["question", "settle", question, "--answer", "Mailgun"]);
     const released = await world.run(["arc", "show", arc]);
     assert.doesNotMatch(released.stdout, /waiting on you: question/);
+  });
+});
+
+test("5.12 `question new --hold` releases the asking session's claims on the held increment and the capability claims taken under it; an unrelated claim stands", async () => {
+  await inWorld(command, async (world) => {
+    const { arc, increment } = await arcWithWork(world);
+    const library = await world.library();
+    const other = await library.addIncrement({ arc, title: "Pricing page", objective: "Build it", body: "…" });
+    const story = await library.addStory({ title: "Sign-up" });
+    const capability = await library.addCapability({ story: story.id, title: "Email form" });
+    const log = await openActivityLog(testServerUrl());
+    try {
+      const asker = { log, library, project: world.project, session: "claude-ask", harness: "claude-code" } as const;
+      for (const id of [other.id, increment, capability.id]) assert.equal((await claim(asker, id, "building")).ok, true, id);
+
+      const raised = await world.run(["question", "new", ...questionFlags(arc), "--hold", increment], { CLAUDE_CODE_SESSION_ID: "claude-ask" });
+      assert.equal(raised.code, 0, raised.stderr);
+      assert.match(raised.stdout, new RegExp(`Released your claims on ${increment}, ${capability.id}`));
+      assert.deepEqual((await readClaims(log, world.project)).map((held) => held.increment ?? held.capability), [other.id]);
+      const shown = await world.run(["arc", "show", arc]);
+      assert.match(shown.stdout, /waiting on you: question/);
+    } finally {
+      await log.close();
+    }
   });
 });
 

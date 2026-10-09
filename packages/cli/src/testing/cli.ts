@@ -78,6 +78,9 @@ function privatePath(file: string, directory: boolean): void {
   const sid = currentSid ??= run("whoami.exe", ["/user", "/fo", "csv", "/nh"]).match(/,"(S-1-\d+(?:-\d+)+)"\s*$/)?.[1];
   if (sid === undefined) throw new Error("whoami did not return the current user's SID");
   run("icacls.exe", [file, "/setowner", `*${sid}`]);
+  // Reset first: a file made in a folder with nothing to inherit takes the creating token's default
+  // entries (SYSTEM, a logon session), which removing inheritance alone would leave in place.
+  run("icacls.exe", [file, "/reset"]);
   run("icacls.exe", [file, "/inheritance:r", "/grant:r", `*${sid}:F`]);
 }
 
@@ -97,7 +100,9 @@ export async function dropTestProjects(projects: Iterable<string>): Promise<void
     if (!TEST_TOKEN.test(name)) throw new Error(`refusing to drop project ${JSON.stringify(name)}: test projects are named with uniqueProjectName()`);
   }
   if (names.length === 0) return;
-  const client = new pg.Client({ connectionString: testServerUrl() });
+  // As the harness's superuser when it gave one: the ordinary role cannot end a backend another role
+  // holds on the database, and FORCE then refuses ("permission denied to terminate process").
+  const client = new pg.Client({ connectionString: process.env["STORYTREE_TEST_PG_ADMIN_URL"] || testServerUrl() });
   await client.connect();
   try {
     for (const name of names) await client.query(`DROP DATABASE IF EXISTS "storytree_${name}" WITH (FORCE)`);

@@ -40,7 +40,7 @@ for (const backend of ["memory", "postgres", "public postgres"] as const) {
         const contract = await work.addContract({ title: "Reject a bad email", capability: capability.id }, options);
         await work.editContract(contract.id, { title: "Reject an email without @" }, options);
         const increment = await flight.addIncrement({ arc: arc.id, title: "Form", objective: "Build it", body: "Form and checks" }, options);
-        await flight.editIncrement(increment.id, { touches: [capability.id] }, options);
+        await flight.editIncrement(increment.id, { capabilities: [capability.id] }, options);
         await flight.advanceIncrement(increment.id, "active", options);
         await flight.closeIncrement(increment.id, { disposition: "landed", pr: "#12" }, options);
         await flight.parkArc(arc.id, options);

@@ -251,10 +251,10 @@ export class HealthRecord {
    * The health worklist (ADR-0825 D4): every capability that is not healthy, with its reason, who
    * moves it and since when, oldest first (the plan's order on a tie). Since is when its reason was
    * recorded, or, where nothing was (not built, no test names it), when the capability was. One an
-   * increment not yet closed touches is routed, and is left off until that increment closes.
+   * increment not yet closed lists among its capabilities is routed (ADR-0949 D2), and is left off until that increment closes.
    */
   async worklist(): Promise<HealthWorkItem[]> {
-    const routed = new Set((await this.#records.list("increment")).filter(({ fields }) => fields.status !== "closed").flatMap(({ fields }) => fields.touches ?? []));
+    const routed = new Set((await this.#records.list("increment")).filter(({ fields }) => fields.status !== "closed").flatMap(({ fields }) => fields.capabilities ?? []));
     const recorded = new Map((await this.#records.list("capability")).map(({ id, createdAt }) => [id, createdAt]));
     return (await this.annotate()).stories
       .flatMap((story) => story.capabilities.flatMap(({ id, title, status, why }) =>

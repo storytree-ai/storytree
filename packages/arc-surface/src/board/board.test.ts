@@ -82,7 +82,7 @@ test("3.3 an idle claim does not hide free work: the lane reads ready with its i
 test("2.1 a pip carries only its own increment's claim: capability claims mark no pip, and the lane still counts every holder (ADR-0944 D1)", () => {
   const a = arc("a");
   const touching = (id: string, status: FieldsOf<"increment">["status"], disposition?: "landed") => record(id, "increment", {
-    arc: "a", title: id, objective: id, body: id, status, parked: "2026-09-20", touches: ["c1", "c2"],
+    arc: "a", title: id, objective: id, body: id, status, parked: "2026-09-20", capabilities: ["c1", "c2"],
     ...(disposition ? { outcome: { date: "2026-09-21", disposition } } : {}),
   }, "2026-09-20");
   a.increments.push(touching("done", "closed", "landed"), touching("open", "active"));

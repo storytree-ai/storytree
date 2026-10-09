@@ -449,8 +449,8 @@ async function arcOf(library: Library, title = "Launch sign-up") {
   const arc = await library.createArc({ title, intent: "Ship sign-up", endState: "Visitors sign up", stories: [story!.id] });
   return {
     arc: arc.id,
-    park: async (name: string, touches: string[] = []) =>
-      (await library.addIncrement({ arc: arc.id, title: name, objective: `Build ${name}`, body: `${name}, red then green`, touches })).id,
+    park: async (name: string, capabilities: string[] = []) =>
+      (await library.addIncrement({ arc: arc.id, title: name, objective: `Build ${name}`, body: `${name}, red then green`, capabilities })).id,
   };
 }
 
@@ -634,7 +634,7 @@ test("5.8 claiming an increment whose own wait holds, or whose arc's wait holds,
   });
 });
 
-test("5.9 a capability claim is never refused because the open increments naming it in their touches wait: touches is a plan, never a lock (ADR-0944 D2)", async () => {
+test("5.9 a capability claim is never refused because the open increments listing it among their capabilities wait: the list is a plan, never a lock (ADR-0944 D2)", async () => {
   await withWorld(async ({ library, emailForm, as }) => {
     const { park } = await arcOf(library);
     const design = await park("design");
@@ -751,7 +751,7 @@ test("5.23 a claim takes from the library what deciding it needs and no more: on
       // Open increments naming the capability, all but the last waiting: a capability claim reads none of them (ADR-0944 D2).
       const schema = await library.addIncrement({ arc, title: "Schema", objective: "Tables", body: "…" });
       for (let n = 0; n < naming; n++) {
-        const part = await library.addIncrement({ arc, title: `Part ${n}`, objective: "A part", body: "…", touches: [emailForm] });
+        const part = await library.addIncrement({ arc, title: `Part ${n}`, objective: "A part", body: "…", capabilities: [emailForm] });
         if (n < naming - 1) await library.addWait(part.id, schema.id, "needs the tables");
       }
       const context: ClaimContext = { log, library, project, session: "A", harness: "claude-code" };

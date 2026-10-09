@@ -18,7 +18,7 @@ const child = { session: "child", harness: "codex", source: "hook" } as const;
 const off = { session: "off", harness: "codex", source: "hook" } as const;
 const claimed = (capability: string, reason: string): NewLine => ({ ...parent, kind: "claimed", capability, reason });
 const arc = { arc: { id: "arc", fields: { title: "Build" } }, state: "active",
-  increments: [{ id: "inc", fields: { title: "Finish signup", status: "active", touches: ["cap-two"] } }],
+  increments: [{ id: "inc", fields: { title: "Finish signup", status: "active", capabilities: ["cap-two"] } }],
   questions: [{ id: "q", fields: { title: "Choose wording", lifecycle: "open" } }] } as ArcView;
 
 test("one row per non-ended claiming session, plain idle, reason and held islands follow standing claims", () => {
@@ -36,9 +36,9 @@ test("one row per non-ended claiming session, plain idle, reason and held island
   assert.deepEqual(sessionRows(tree, lines, [], now)[0]!.stories, ["two"]);
 });
 
-test("7.4 a row's islands come only from capabilities it claimed: an increment claim's touches light none (ADR-0923 D2)", () => {
+test("7.4 a row's islands come only from capabilities it claimed: an increment claim's capabilities list lights none (ADR-0923 D2)", () => {
   const lines = log({ ...off, kind: "claimed", increment: "inc", reason: "Finish signup" });
-  assert.deepEqual(sessionRows(tree, lines, [arc], now)[0]!.stories, [], "the increment touches cap-two, but touching is not claiming");
+  assert.deepEqual(sessionRows(tree, lines, [arc], now)[0]!.stories, [], "the increment lists cap-two, but listing is not claiming");
   lines.push(...log({ ...off, kind: "claimed", capability: "cap-two", reason: "Finish signup" }).map(line => ({ ...line, seq: 2 })));
   assert.deepEqual(sessionRows(tree, lines, [arc], now)[0]!.stories, ["two"]);
 });
@@ -291,8 +291,8 @@ function describe7_21(): void {
   ].map((line, index) => ({ project: "demo", seq: index + 1, ...line }) as Line);
   const arcs = [{ arc: { id: "arc", fields: { title: "Build" } }, state: "active",
     increments: [
-      { id: "inc-a", fields: { title: "Finish signup", status: "closed", touches: ["cap-one"], outcome: { date: "2026-10-03", disposition: "landed", pr: "#13" } } },
-      { id: "inc-b", fields: { title: "Tabs", status: "ready", touches: ["two"], heldOn: ["q-old", "q-new"] } },
+      { id: "inc-a", fields: { title: "Finish signup", status: "closed", capabilities: ["cap-one"], outcome: { date: "2026-10-03", disposition: "landed", pr: "#13" } } },
+      { id: "inc-b", fields: { title: "Tabs", status: "ready", capabilities: ["two"], heldOn: ["q-old", "q-new"] } },
     ],
     questions: [
       { id: "q-old", createdAt: day("1T00:00:00Z"), fields: { title: "Asked before it ran", lifecycle: "settled" } },

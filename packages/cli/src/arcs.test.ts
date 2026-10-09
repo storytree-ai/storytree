@@ -429,6 +429,33 @@ test("4.13 `arc increment edit --remedies` adds live friction to an increment's 
   });
 });
 
+test("4.15 `arc increment new` and `edit` take --capabilities and --links, edit replacing each list; a story as a capability, or the retired --touches, is refused with nothing written (ADR-0949 D2)", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const arc = await anArc(world);
+    const story = await library.addStory({ title: "Sign up" });
+    const [form, page] = await Promise.all(["Form", "Page"].map((title) => library.addCapability({ story: story.id, title })));
+    const parked = await world.run(["arc", "increment", "new", "--arc", arc, "--title", "Form", "--objective", "Enter", "--body", "Build it", "--capabilities", form!.id, "--links", story.id]);
+    assert.equal(parked.code, 0, parked.stderr);
+    const id = /increment_[0-9a-f]+/.exec(parked.stdout)![0];
+    const fieldsOf = async () => (await library.get(id))?.fields as { capabilities?: string[]; links?: string[] };
+    assert.deepEqual([(await fieldsOf()).capabilities, (await fieldsOf()).links], [[form!.id], [story.id]]);
+
+    const before = (await library.changesSince(0)).cursor;
+    for (const flags of [["--capabilities", story.id], ["--touches", form!.id]]) {
+      const refused = await world.run(["arc", "increment", "edit", id, ...flags]);
+      assert.notEqual(refused.code, 0, refused.stdout);
+    }
+    const touched = await world.run(["arc", "increment", "new", "--arc", arc, "--title", "Old", "--objective", "Old", "--body", "Old", "--touches", form!.id]);
+    assert.match(touched.stderr, /--touches is retired/);
+    assert.deepEqual((await library.changesSince(before)).changes, [], "nothing was written");
+
+    const edited = await world.run(["arc", "increment", "edit", id, "--capabilities", `${form!.id},${page!.id}`]);
+    assert.equal(edited.code, 0, edited.stderr);
+    assert.deepEqual([(await fieldsOf()).capabilities, (await fieldsOf()).links], [[form!.id, page!.id], [story.id]], "the list is replaced, the links kept");
+  });
+});
+
 test("4.6 closing an increment ends its claim for any holder and outcome; a refused close leaves it held", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();

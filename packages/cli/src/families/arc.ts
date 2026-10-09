@@ -34,7 +34,7 @@ function given(args: Args, names: readonly string[]): Record<string, string> {
   return fields;
 }
 
-/** A list flag: `--touches a,b` or `--touches '["a","b"]'`, or undefined when not given. */
+/** A list flag: `--capabilities a,b` or `--capabilities '["a","b"]'`, or undefined when not given. */
 function listOf(args: Args, name: string): string[] | undefined {
   const value = args.text(name);
   if (value === undefined) return undefined;
@@ -237,24 +237,27 @@ function releasedBy(releaser: WaitFor["releaser"]): string {
   return releaser === "owner" ? "the owner" : "an outside event";
 }
 
-/** A new increment's fields, as given. */
-function incrementOf(args: Args): Record<string, unknown> {
+/** A new increment's fields, as given. `--touches` is retired (ADR-0949 D2), and refused rather than ignored. */
+function incrementOf(args: Args, usage: string): Record<string, unknown> {
+  if (args.has("touches")) {
+    throw new Refusal(`--touches is retired (ADR-0949 D2): name the capabilities it changes with --capabilities, and cite its stories or anything else with --links\nusage: storytree ${usage}`, { code: 2 });
+  }
   const fields: Record<string, unknown> = given(args, ["arc", ...INCREMENT_FIELDS]);
-  for (const [flag, field] of [["touches", "touches"], ["remedies", "remedies"], ["held-on", "heldOn"]] as const) {
+  for (const [flag, field] of [["capabilities", "capabilities"], ["links", "links"], ["remedies", "remedies"], ["held-on", "heldOn"]] as const) {
     const list = listOf(args, flag);
     if (list !== undefined) fields[field] = list;
   }
   return fields;
 }
 
-const INCREMENT_USAGE = "--arc <arc> --title <t> --objective <o> --body <text|@file> [--touches a,b] [--remedies a,b] [--held-on q]";
+const INCREMENT_USAGE = "--arc <arc> --title <t> --objective <o> --body <text|@file> [--capabilities a,b] [--links a,b] [--remedies a,b] [--held-on q]";
 
 const incrementNew: Verb = {
   name: "new",
   usage: `arc increment new ${INCREMENT_USAGE}`,
   summary: "park an increment on an arc, as a proposal",
   async act(args, context) {
-    const increment = await (await context.library()).addIncrement(incrementOf(args) as never, context.writer());
+    const increment = await (await context.library()).addIncrement(incrementOf(args, this.usage) as never, context.writer());
     return { text: `Parked increment ${increment.id} on ${increment.fields.arc}.`, next: [{ command: `storytree arc show ${increment.fields.arc}`, why: "see the arc whole" }] };
   },
 };
@@ -264,7 +267,7 @@ const incrementAdd: Verb = {
   usage: `arc increment add ${INCREMENT_USAGE} --disposition <landed|failed|withdrawn> [--pr <ref>] [--note <why>]`,
   summary: "record a landing that was never parked: an increment born closed",
   async act(args, context) {
-    const increment = await (await context.library()).addIncrement({ ...incrementOf(args), outcome: closeOf(args) } as never, context.writer());
+    const increment = await (await context.library()).addIncrement({ ...incrementOf(args, this.usage), outcome: closeOf(args) } as never, context.writer());
     return { text: `Recorded increment ${increment.id} on ${increment.fields.arc}, closed.`, next: [{ command: `storytree arc show ${increment.fields.arc}`, why: "see its log" }] };
   },
 };
@@ -306,12 +309,12 @@ const incrementUnstart: Verb = {
 
 const incrementEdit: Verb = {
   name: "edit",
-  usage: "arc increment edit <increment> [--title …] [--objective …] [--body …] [--touches a,b] [--remedies f,g] [--held-on q]",
-  summary: "change only the named fields; --remedies adds friction to those it already remedies",
+  usage: "arc increment edit <increment> [--title …] [--objective …] [--body …] [--capabilities a,b] [--links a,b] [--remedies f,g] [--held-on q]",
+  summary: "change only the named fields; --capabilities and --links replace the lists, --remedies adds friction to those it already remedies",
   async act(args, context): Promise<Answer> {
     const id = args.word(0, "the increment's id", this.usage);
     const library = await context.library();
-    const fields = incrementOf(args);
+    const fields = incrementOf(args, this.usage);
     if (fields.remedies !== undefined) {
       const had = ((await library.get(id))?.fields as { remedies?: string[] } | undefined)?.remedies ?? [];
       fields.remedies = [...new Set([...had, ...(fields.remedies as string[])])];

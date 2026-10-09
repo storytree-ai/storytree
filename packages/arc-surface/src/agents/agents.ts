@@ -10,7 +10,7 @@ export type BoardAgent = Claim & {
 };
 export interface ArcWork {
   id: string;
-  fields: { touches?: readonly string[] | undefined };
+  fields: { capabilities?: readonly string[] | undefined };
 }
 export interface BoardAgents {
   all: BoardAgent[];
@@ -41,7 +41,7 @@ export function agentsOnBoard(log: readonly Line[] | LogReading, now: Date = new
     all,
     on: (id) => all.find((agent) => (agent.increment ?? agent.capability) === id),
     onArc(increments) {
-      const own = new Set(increments.flatMap((increment) => [increment.id, ...(increment.fields.touches ?? [])]));
+      const own = new Set(increments.flatMap((increment) => [increment.id, ...(increment.fields.capabilities ?? [])]));
       return all.filter((agent) => own.has(agent.increment ?? agent.capability));
     },
   };

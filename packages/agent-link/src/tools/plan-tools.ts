@@ -87,9 +87,9 @@ export function registerPlanTools(define: Define): void {
 
   define(
     "edit_plan",
-    "Correct an arc, story, capability or contract in place: change only the fields you give.",
+    "Correct an arc, story, capability, contract or increment in place: change only the fields you give. An increment's capabilities list is filled here by the session that claims it, as it plans (ADR-0949 D2).",
     z.object({
-      id: id("arc, story, capability or contract to correct"),
+      id: id("arc, story, capability, contract or increment to correct"),
       title: title.optional(),
       description,
       story: z.string().min(1).optional().describe("A capability's story, to move it"),
@@ -98,6 +98,8 @@ export function registerPlanTools(define: Define): void {
       stories: z.array(z.string().min(1)).optional().describe("An arc's stories, replacing them"),
       intent: intent.optional(),
       end_state: endState.optional(),
+      capabilities: z.array(z.string().min(1)).optional().describe("An increment's capabilities, replacing them: the ones it changes, and nothing else"),
+      links: z.array(z.string().min(1)).optional().describe("An increment's links, replacing them: its stories, notes or decisions"),
     }),
     async ({ id: target, ...changes }, call) => editPlan(target, changes, call),
   );
@@ -134,7 +136,7 @@ export function registerPlanTools(define: Define): void {
 
   define(
     "health_worklist",
-    "See the oldest three capabilities that are not healthy, each with its reason, who moves it and since when, and how many more wait. One an open increment touches is already routed and not offered (ADR-0825 D4).",
+    "See the oldest three capabilities that are not healthy, each with its reason, who moves it and since when, and how many more wait. One an open increment lists among its capabilities is already routed and not offered (ADR-0825 D4).",
     z.object({}),
     async (_args, { library }) => {
       const listed = await library.healthWorklist();
@@ -159,6 +161,8 @@ interface Changes {
   stories?: string[] | undefined;
   intent?: string | undefined;
   end_state?: string | undefined;
+  capabilities?: string[] | undefined;
+  links?: string[] | undefined;
 }
 
 /** The fields each kind of plan record can have corrected, as the tool names them. */
@@ -167,10 +171,11 @@ const EDITABLE = {
   capability: ["title", "description", "story", "depends_on"],
   contract: ["title", "description", "capability"],
   arc: ["title", "description", "stories", "intent", "end_state"],
+  increment: ["title", "capabilities", "links"],
 } as const;
 
 async function editPlan(target: string, changes: Changes, { library, writer }: Call): Promise<Answer> {
-  const kind = kindOf(await library.projectTree(), target);
+  const kind = kindOf(await library.projectTree(), target) ?? ((await library.get(target))?.type === "increment" ? "increment" : undefined);
   if (kind === undefined) return { text: `Nothing in the plan has the id ${target}; show_plan lists every id.`, refused: true };
   const given = Object.entries(changes).filter(([, value]) => value !== undefined);
   const allowed: readonly string[] = EDITABLE[kind];
@@ -186,7 +191,9 @@ async function editPlan(target: string, changes: Changes, { library, writer }: C
         ? await library.editCapability(target, fields, writer)
         : kind === "contract"
           ? await library.editContract(target, fields, writer)
-          : await library.editArc(target, fields, writer);
+          : kind === "increment"
+            ? await library.editIncrement(target, fields, writer)
+            : await library.editArc(target, fields, writer);
   if (edited === null) return { text: `Nothing in the plan has the id ${target} any more.`, refused: true };
   return { text: `Corrected ${kind} ${quoted(edited.fields.title)} (${target}).`, data: { id: target } };
 }

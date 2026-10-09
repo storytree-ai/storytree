@@ -475,7 +475,7 @@ test("6.9 it parks an increment, starts it by claiming it, and closes it landed 
       const { arc, capability } = await planned(agent);
       const incrementOf = async (id: string) => (await library.arcView(arc))?.increments.find((one) => one.id === id)?.fields;
 
-      const increment = idOf(await agent.call("park_increment", { arc, title: "Email form", objective: "Build the email form", body: "Red then green, contract by contract", touches: [capability] }));
+      const increment = idOf(await agent.call("park_increment", { arc, title: "Email form", objective: "Build the email form", body: "Red then green, contract by contract", capabilities: [capability] }));
       assert.equal((await incrementOf(increment))?.status, "proposal");
       const claimed = await agent.call("claim", { increment, reason: "driving the email form" });
       assert.equal(claimed.isError, false, claimed.text);
@@ -628,7 +628,7 @@ test("6.29 show_plan gives each capability's word, and for one not healthy its r
   });
 });
 
-test("6.30 health_worklist gives the oldest three capabilities on the health worklist, each with its reason, who moves it, the contracts carrying it and since when, and how many more wait; a capability an open increment touches is not offered", async () => {
+test("6.30 health_worklist gives the oldest three capabilities on the health worklist, each with its reason, who moves it, the contracts carrying it and since when, and how many more wait; a capability an open increment lists among its capabilities is not offered", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       assert.match((await agent.call("health_worklist")).text, /nothing waits/i);
@@ -644,7 +644,7 @@ test("6.30 health_worklist gives the oldest three capabilities on the health wor
         later.push(idOf(await agent.call("plan_capability", { story, title, ...FOUNDED })));
       }
       const routed = later[0]!;
-      await agent.call("park_increment", { arc, title: "Thank-you page", objective: "Build it", body: "Red then green", touches: [routed] });
+      await agent.call("park_increment", { arc, title: "Thank-you page", objective: "Build it", body: "Red then green", capabilities: [routed] });
 
       const listed = await agent.call("health_worklist");
       assert.equal(listed.isError, false, listed.text);

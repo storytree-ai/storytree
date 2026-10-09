@@ -39,7 +39,7 @@ try {
   const makeArc = (title, intent) => library.createArc({ title, intent, endState: 'The work is complete.', stories: [story.id] });
   const build = await makeArc('Arc surface', 'See what has landed, what agents are building, and what is waiting.');
   const landed = await library.addIncrement({ arc: build.id, title: 'Work states', objective: 'Read work states', body: 'Work states', outcome: { disposition: 'landed', pr: '101' } });
-  const held = await library.addIncrement({ arc: build.id, title: 'Draw the overlay', objective: 'Draw', body: 'Draw', touches: [part.id] });
+  const held = await library.addIncrement({ arc: build.id, title: 'Draw the overlay', objective: 'Draw', body: 'Draw', capabilities: [part.id] });
   const decision = await makeArc('Choose the release approach', 'Keep the first release small enough to review and use.');
   const question = await library.raiseQuestion({ arc: decision.id, title: 'Which release should go first?', statement: 'Should the first release cover one project or several?', stakes: 'This determines how much work comes before the first useful release.', context: 'A single project is easier to review. Several projects exercise the switcher before release.', options: 'A. One project first. FOR: a smaller first release. AGAINST: switching waits.\n\nB. Several projects. FOR: switching is exercised. AGAINST: a larger first release.', diagram: 'One project → feedback → more projects', analogy: 'Like opening one room of a house before the whole house. Software is easier to revise than a room.', recommendation: 'One project first, with switching next.' });
   const waiting = await library.addIncrement({ arc: decision.id, title: 'Prepare the release', objective: 'Release', body: 'Release', heldOn: [question.id] });

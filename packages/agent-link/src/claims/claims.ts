@@ -364,8 +364,8 @@ export async function readAttribution(log: ActivityLog, project: string): Promis
  * two readings (ADR-0640 D5): whether a wait holds (`waitHolds`, which counts an increment's arc's
  * waits too), and whether an increment is held on an open question (`heldOnQuestion`). Only an
  * increment waits: its blockers still holding it, and the open questions it is held on. A
- * capability never does, whatever the increments naming it in their touches wait on, since touches
- * is a plan, never a lock (ADR-0944 D2). The agent link keeps no copy of the rule for whether a wait holds.
+ * capability never does, whatever the increments listing it among their capabilities wait on, since
+ * that list does not refuse a capability claim (ADR-0944 D2). The agent link keeps no copy of the rule for whether a wait holds.
  */
 async function waitingOn(library: Library, found: Found): Promise<Waiting[]> {
   const { increment } = found.part;

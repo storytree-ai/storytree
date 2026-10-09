@@ -14,7 +14,7 @@ import { test } from "node:test";
 
 import { connect } from "../project/index.js";
 import { MissingReferenceError } from "../references.js";
-import { SchemaError, SchemaRecords } from "../schema/index.js";
+import { SCHEMA_VERSIONS, SchemaError, SchemaRecords, type SchemaRecord } from "../schema/index.js";
 import { dropTestDatabases, testServerUrl, uniqueProjectName, withCountedProject } from "../testing/pg.js";
 import { MemoryTransactions, type Transactions } from "../transactions/index.js";
 import { LifecycleError, WorkInFlight, WorkModel, type ArcView, type NewIncrement } from "./index.js";
@@ -96,7 +96,7 @@ for (const backend of [memory, postgres]) {
     assert.match(landed.fields.outcome?.date ?? "", TODAY);
     assert.deepEqual({ ...landed.fields.outcome, date: undefined }, { date: undefined, pr: "#12", disposition: "landed" });
 
-    // An increment's arc must be a live arc; the parts it touches must be live stories or capabilities.
+    // An increment's arc must be a live arc.
     const story = await work.addStory({ title: "Visitor can sign up" });
     const retired = await work.createArc(ARC);
     await records.retire(retired.id, "withdrawn");
@@ -105,7 +105,6 @@ for (const backend of [memory, postgres]) {
       [{ arc: "arc_000000000000", ...WORK }, "arc"],
       [{ arc: story.id, ...WORK }, "arc"],
       [{ arc: retired.id, ...WORK }, "arc"],
-      [{ arc: arc.id, ...WORK, touches: ["capability_000000000000"] }, "touches"],
       [{ arc: arc.id, ...WORK, remedies: [story.id] }, "remedies"],
     ] as Array<[NewIncrement, string]>) {
       await assert.rejects(flight.addIncrement(fields), (error: unknown) => error instanceof MissingReferenceError && error.field === field);
@@ -198,14 +197,47 @@ for (const backend of [memory, postgres]) {
     const parked = "2026-10-01T06:26:04.938Z";
     await transactions.save({ id: "increment-ready", type: "increment", version: 1, fields: { arc: arc.id, ...WORK, status: "ready", parked } });
     const upgraded = await records.get("increment-ready");
-    assert.equal(upgraded?.version, 2);
+    assert.equal(upgraded?.version, SCHEMA_VERSIONS.increment);
     assert.deepEqual(upgraded?.fields, { arc: arc.id, ...WORK, status: "proposal", parked });
     assert.deepEqual((await flight.arcView(arc.id))?.increments.map(({ fields }) => fields.status), ["proposal"]);
     await flight.editIncrement("increment-ready", { title: "Renamed" });
     const stored = await transactions.get("increment-ready");
-    assert.equal(stored?.version, 2, "an edit stores it upgraded, in place");
+    assert.equal(stored?.version, SCHEMA_VERSIONS.increment, "an edit stores it upgraded, in place");
     assert.equal(stored?.fields["status"], "proposal");
     assert.equal((await flight.advanceIncrement("increment-ready", "active"))?.fields.status, "active", "claiming it starts it");
+  });
+
+  contract("10.11", "an increment carries a capabilities list naming live capabilities only, empty by default and editable after parking, and cites anything else through links; one stored with touches reads them split, and an edit stores it so", async ({ work, flight, records, transactions }) => {
+    const arc = await work.createArc(ARC);
+    const story = await work.addStory({ title: "Visitor can sign up" });
+    const capability = await work.addCapability({ title: "Email form", story: story.id });
+    const parked = await flight.addIncrement({ arc: arc.id, ...WORK });
+    assert.equal(parked.fields.capabilities, undefined, "parked with the list empty");
+
+    const history = await transactions.history();
+    for (const [fields, field] of [
+      [{ capabilities: [story.id] }, "capabilities"],
+      [{ capabilities: ["capability_000000000000"] }, "capabilities"],
+      [{ links: ["decision_000000000000"] }, "links"],
+    ] as Array<[{ capabilities?: string[]; links?: string[] }, string]>) {
+      await assert.rejects(flight.addIncrement({ arc: arc.id, ...WORK, ...fields }), (error: unknown) => error instanceof MissingReferenceError && error.field === field);
+      await assert.rejects(flight.editIncrement(parked.id, fields), (error: unknown) => error instanceof MissingReferenceError && error.field === field);
+    }
+    await assert.rejects(flight.addIncrement({ arc: arc.id, ...WORK, touches: [capability.id] } as NewIncrement), SchemaError, "touches is retired");
+    assert.deepEqual(await transactions.history(), history, "nothing was written");
+
+    await flight.advanceIncrement(parked.id, "active");
+    const filled = await flight.editIncrement(parked.id, { capabilities: [capability.id], links: [story.id] });
+    assert.deepEqual([filled?.fields.capabilities, filled?.fields.links], [[capability.id], [story.id]], "the claiming session fills it");
+
+    await transactions.save({ id: "increment-touches", type: "increment", version: 2, fields: { arc: arc.id, ...WORK, status: "proposal", parked: "2026-10-01T06:26:04.938Z", touches: [story.id, capability.id] } });
+    const upgraded = (await records.get("increment-touches")) as SchemaRecord<"increment"> | null;
+    assert.equal(upgraded?.version, 3);
+    assert.deepEqual([upgraded?.fields.capabilities, upgraded?.fields.links, (upgraded?.fields as Record<string, unknown>)["touches"]], [[capability.id], [story.id], undefined]);
+    await flight.editIncrement("increment-touches", { title: "Renamed" });
+    const stored = await transactions.get("increment-touches");
+    assert.equal(stored?.version, 3, "an edit stores it upgraded, in place");
+    assert.deepEqual([stored?.fields["capabilities"], stored?.fields["links"], stored?.fields["touches"]], [[capability.id], [story.id], undefined]);
   });
 
   contract("10.9", "an active increment returns to proposal keeping its parked date; a proposal or closed one is refused with nothing written", async ({ work, flight, transactions }) => {

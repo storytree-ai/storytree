@@ -27,23 +27,25 @@ const releasedBy = (releaser: "owner" | "event"): string => (releaser === "owner
 export function registerWorkTools(define: Define): void {
   define(
     "park_increment",
-    "Park an increment of work on an arc, as a proposal: what it is, its objective, and its breakdown in the body. Name the stories and capabilities it touches. To record work that landed without ever being parked, give its outcome, and it is born closed. Parking work on a closed arc re-opens it.",
+    "Park an increment of work on an arc, as a proposal: what it is, its objective, and its breakdown in the body. Leave its capabilities empty unless you know them: the session that claims it fills them in as it plans (ADR-0949 D2); cite its stories, notes or decisions as links. To record work that landed without ever being parked, give its outcome, and it is born closed. Parking work on a closed arc re-opens it.",
     z.object({
       arc: id("arc"),
       title: z.string().min(1).describe("What it is called: a short name"),
       objective: z.string().min(1).describe("What it delivers, in a sentence"),
       body: z.string().min(1).describe("The increment itself: how the work breaks down"),
-      touches: z.array(z.string().min(1)).optional().describe("The ids of the stories and capabilities it touches"),
+      capabilities: z.array(z.string().min(1)).optional().describe("The ids of the capabilities it changes, and nothing else: its lock list"),
+      links: z.array(z.string().min(1)).optional().describe("The ids of anything else it cites: its stories, notes or decisions"),
       outcome: z.object({ disposition, pr, note }).optional().describe("Only for work that already landed without being parked: how it closed"),
     }),
-    async ({ arc, title, objective, body, touches, outcome }, { library, writer }) => {
+    async ({ arc, title, objective, body, capabilities, links, outcome }, { library, writer }) => {
       const before = (await library.arcView(arc))?.state;
       const increment = await library.addIncrement({
         arc,
         title,
         objective,
         body,
-        ...(touches === undefined ? {} : { touches }),
+        ...(capabilities === undefined ? {} : { capabilities }),
+        ...(links === undefined ? {} : { links }),
         ...(outcome === undefined ? {} : { outcome: defined(outcome) }),
       }, writer);
       const said = outcome === undefined ? `Parked ${quoted(title)} (${increment.id}) as a proposal. Claim it to start it.` : `Recorded ${quoted(title)} (${increment.id}), ${outcome.disposition}.`;

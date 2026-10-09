@@ -81,15 +81,15 @@ test("11.2 · skips owner actions, another machine's work, the website arc and a
   assert.match(why["laptop-arc"], /live laptop session/);
 });
 
-test("11.2 · the survey reads arcs once, and counts as laptop-touched only arcs where a live off-box session seen in the last hour holds an increment, never by touches (ADR-0944 D2)", async () => {
+test("11.2 · the survey reads arcs once, and counts as laptop-touched only arcs where a live off-box session seen in the last hour holds an increment, never by an increment's capabilities list (ADR-0944 D2)", async () => {
   let reads = 0;
   const record = (id, arc, body, extra = {}) => ({ id, createdAt: new Date(now - hour), fields: { arc, title: id, body, status: "proposal", parked: "2026-10-06T00:00:00Z", waits: [], ...extra } });
   const library = {
     arcViews: async () => {
       reads++;
       return [
-        { arc: { id: "arc_laptop" }, state: "active", increments: [record("i1", "arc_laptop", "a"), record("i2", "arc_laptop", "b", { touches: ["capability_x"] })] },
-        { arc: { id: "arc_cap" }, state: "active", increments: [record("i3", "arc_cap", "c", { touches: ["capability_x"] })] },
+        { arc: { id: "arc_laptop" }, state: "active", increments: [record("i1", "arc_laptop", "a"), record("i2", "arc_laptop", "b", { capabilities: ["capability_x"] })] },
+        { arc: { id: "arc_cap" }, state: "active", increments: [record("i3", "arc_cap", "c", { capabilities: ["capability_x"] })] },
         { arc: { id: "arc_box" }, state: "parked", increments: [record("i4", "arc_box", "d")] },
         { arc: { id: "arc_stale" }, state: "active", increments: [record("i5", "arc_stale", "e")] },
       ];

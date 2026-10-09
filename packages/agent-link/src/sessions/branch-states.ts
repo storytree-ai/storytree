@@ -28,12 +28,11 @@
  *   hook: `gh` or git missing, slow or refusing means nothing is learned this time.
  */
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { thisMachine, type ActivityLog, type BranchFacts, type Line, type NewLine } from "../activity/index.js";
 import { ask, type Answer } from "../setup/machine.js";
-import { due, ghAllMergedPulls, ghAllOpenPulls, type AllMergedPulls, type AllOpenPulls, type MergeContext, type MergedPull, type OpenPull } from "../claims/merges.js";
+import { due, ghAllMergedPulls, projectTempFile, ghAllOpenPulls, type AllMergedPulls, type AllOpenPulls, type MergeContext, type MergedPull, type OpenPull } from "../claims/merges.js";
 
 /** How branches are watched. */
 export interface BranchWatch {
@@ -329,5 +328,5 @@ function remember(project: string, looked: Record<string, number>): void {
 }
 
 function lookedFile(project: string): string {
-  return path.join(tmpdir(), `storytree-branches-${project}.json`);
+  return projectTempFile("storytree-branches-", project, ".json");
 }

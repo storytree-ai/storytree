@@ -222,10 +222,19 @@ export const ghAllOpenPulls: AllOpenPulls = async (folder) => {
   }
 };
 
+/**
+ * A file in the temp directory named for `project`. An approved project name is used as it is; any
+ * other text is encoded, so no separator in it can reach a folder outside the temp directory.
+ */
+export function projectTempFile(prefix: string, project: string, suffix: string): string {
+  const name = /^[A-Za-z0-9._-]+$/.test(project) ? project : encodeURIComponent(project).replaceAll("*", "%2A");
+  return path.join(tmpdir(), `${prefix}${name}${suffix}`);
+}
+
 /** Whether `project` is due to be asked about again, and if so, mark it asked now. */
 export function due(project: string, everyMs: number): boolean {
   if (everyMs <= 0) return true;
-  const stamp = path.join(tmpdir(), `storytree-merges-${project}.stamp`);
+  const stamp = projectTempFile("storytree-merges-", project, ".stamp");
   try {
     if (Date.now() - statSync(stamp).mtimeMs < everyMs) return false;
   } catch {

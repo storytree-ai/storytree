@@ -19,10 +19,9 @@
  */
 import { execFileSync, spawn } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { due, type MergeContext } from "../claims/merges.js";
+import { due, projectTempFile, type MergeContext } from "../claims/merges.js";
 import { registeredHookScripts } from "../setup/hooks-config.js";
 import { readSessions } from "./sessions.js";
 
@@ -164,7 +163,7 @@ function remember(project: string, looked: Record<string, number>, trees: readon
 }
 
 function lookedFile(project: string): string {
-  return path.join(tmpdir(), `storytree-worktrees-${project}.json`);
+  return projectTempFile("storytree-worktrees-", project, ".json");
 }
 
 /** Empty `trash` in a process that outlives the hook. */

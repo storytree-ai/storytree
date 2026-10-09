@@ -9,7 +9,7 @@ export const LANE_COLOUR = { up: '#0d8fb0', down: '#6a5fee' } as const;
 
 export interface LitLink { from: string; to: string; dir: 'up' | 'down' }
 export interface LaneRoute extends LitLink {
-  /** From the capability built on (`to`) to the one building on it (`from`): dependency order. */
+  /** From the dock of the island built on (`to`'s) to the dock of the island building on it (`from`'s): dependency order. */
   points: Vector3[];
   length: number;
   /** Narrower than a one-link road, so every road it rides keeps a rim. */
@@ -36,24 +36,26 @@ function sharedStrip(segment: PlanetPathwaySegment, dir: LitLink['dir']): Vector
   });
 }
 
-/** Each lit link's trail as one strip, in dependency order; a link with no trail lights nothing. */
+/** Each lit link's road between islands as one strip, dock to dock in dependency order; a link with no road between
+ * islands (no trail, or one within an island) lights nothing. The island routes stay built; a lane does not ride them. */
 export function laneRoutes(plan: PlanetPathways, lit: readonly LitLink[]): LaneRoute[] {
   const segments = new Map(plan.segments.map(segment => [segment.id, segment]));
   const selected = lit.flatMap(link => {
     const edge = plan.edges.find(e => e.from === link.from && e.to === link.to);
-    return edge === undefined ? [] : [{ link, edge }];
+    const chain = edge?.segments.filter(ref => segments.get(ref.id)!.island === undefined) ?? [];
+    return chain.length === 0 ? [] : [{ link, chain }];
   });
   const colours = new Map<string, number>();
-  for (const { link, edge } of selected) for (const ref of edge.segments) {
+  for (const { link, chain } of selected) for (const ref of chain) {
     colours.set(ref.id, (colours.get(ref.id) ?? 0) | (link.dir === 'up' ? 1 : 2));
   }
-  return selected.map(({ link, edge }): LaneRoute => {
+  return selected.map(({ link, chain }): LaneRoute => {
     const points: Vector3[] = [];
     // Two strips occupy at most 84% of the road and keep a visible gap between their inks.
-    const width = Math.min(LANE_WIDTH, ...edge.segments.filter(ref => colours.get(ref.id) === 3)
+    const width = Math.min(LANE_WIDTH, ...chain.filter(ref => colours.get(ref.id) === 3)
       .map(ref => segments.get(ref.id)!.width * 0.42));
     // The chain runs from the building capability to the one built on; the lane runs back along it.
-    for (const ref of [...edge.segments].reverse()) {
+    for (const ref of [...chain].reverse()) {
       const segment = segments.get(ref.id)!;
       const along = colours.get(ref.id) === 3 ? sharedStrip(segment, link.dir) : segment.points;
       for (const point of ref.reversed ? along : [...along].reverse()) {
@@ -63,6 +65,46 @@ export function laneRoutes(plan: PlanetPathways, lit: readonly LitLink[]): LaneR
     const length = points.slice(1).reduce((sum, point, i) => sum + point.distanceTo(points[i]!), 0);
     return { ...link, points, length, width, colour: LANE_COLOUR[link.dir] };
   });
+}
+
+export interface LaneEntrance {
+  dir: LitLink['dir'];
+  colour: string;
+  /** On the coast at its dock's height; beside the other colour's mark where both use the dock. */
+  point: Vector3;
+  radius: number;
+  /** The lanes it marks, and whether each leaves (`start`) or reaches (`end`) this dock. */
+  lanes: { from: string; to: string; at: 'start' | 'end' }[];
+}
+
+/** One mark per colour at each dock a lane uses: an up and a down mark sharing a dock sit side by side across it. */
+export function laneEntrances(lanes: readonly LaneRoute[]): LaneEntrance[] {
+  const docks: { point: Vector3; heading: Vector3; marks: Map<LitLink['dir'], LaneEntrance> }[] = [];
+  for (const lane of lanes) for (const at of ['start', 'end'] as const) {
+    const points = at === 'start' ? lane.points : [...lane.points].reverse();
+    const point = points[0]!, heading = points[Math.min(1, points.length - 1)]!.clone().sub(point);
+    let dock = docks.find(d => d.point.distanceTo(point) < 1e-6);
+    if (!dock) docks.push(dock = { point, heading: heading.clone().multiplyScalar(0), marks: new Map() });
+    // Seen from the dock, a lane leaving and one arriving both head out to sea.
+    dock.heading.add(heading.lengthSq() > 0 ? heading.normalize() : heading);
+    const mark = dock.marks.get(lane.dir) ?? { dir: lane.dir, colour: lane.colour, point, radius: 0, lanes: [] };
+    // About twice a one-link road across: a pip that reads as the lane's end at the globe's opening scale.
+    mark.radius = Math.max(mark.radius, lane.width * 1.6);
+    mark.lanes.push({ from: lane.from, to: lane.to, at });
+    dock.marks.set(lane.dir, mark);
+  }
+  return docks.flatMap(({ point, heading, marks }) => {
+    if (marks.size === 1) return [...marks.values()];
+    const side = point.clone().normalize().cross(heading).normalize();
+    return [...marks.values()].map(mark => ({ ...mark,
+      // The same sides as a shared trunk's strips, a hair apart, kept at the dock's height over the globe.
+      point: point.clone().addScaledVector(side, mark.radius * 1.15 * (mark.dir === 'up' ? 1 : -1)).normalize().multiplyScalar(point.length()) }));
+  });
+}
+
+/** A mark appears when its lane's front leaves the dock (`start`) or reaches it (`end`), not before. */
+export function entranceShown(at: 'start' | 'end', progress: number): boolean {
+  return at === 'start' ? progress > 0 : progress >= 1;
 }
 
 /** Constant speed between 0.2's bounds: a short lane still reads as motion, a long one never drags. */

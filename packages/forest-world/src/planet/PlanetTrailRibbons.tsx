@@ -6,7 +6,7 @@ import type { PlanetPathways } from './pathways.js';
 import { growthProgress, linkKey, roadSegmentWindows, segmentDrawRange, type GrowthWindow } from './growth.js';
 import { usePlanetGrowth } from './PlanetGrowth.js';
 import { advanceLaneClock, laneDrawSeconds, laneProgress, laneRoutes, type LitLink } from './lanes.js';
-import { liveRoadProgress, nextLiveRoads } from './live-roads.js';
+import { liveRoadProgress, liveRoadsGrowing, nextLiveRoads } from './live-roads.js';
 
 const ribbonShapes = new WeakMap<BufferGeometry, {
   position: Float32Array; distances: number[]; movedPair: number | undefined;
@@ -141,6 +141,8 @@ export function Pathways({ plan, reveal, live = false, visible = true }: { plan:
         halo.setDrawRange(range.start, range.count);
       }
     }
+    // Run the clock until every arrival's own time ends, not only until its spans draw whole (6.16).
+    if (live) drawing ||= liveRoadsGrowing(state.roads, now, state.reduced);
     if (drawing) invalidate();
   });
   return <group name="pathways:cross-island" userData={{

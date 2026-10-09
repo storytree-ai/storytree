@@ -3,7 +3,7 @@ import test from 'node:test';
 import type { ForestScene, Island } from '../scene.js';
 import { crossingLength, linkKey, roadSegmentWindows, type GrowthWindow } from './growth.js';
 import { laneDrawSeconds } from './lanes.js';
-import { liveRoadProgress, nextLiveRoads } from './live-roads.js';
+import { liveRoadProgress, liveRoadsGrowing, nextLiveRoads } from './live-roads.js';
 import { buildPlanetPathways } from './pathways.js';
 
 const R = 218;
@@ -74,6 +74,20 @@ test('6.16 a link removed then added again has a fresh arrival, while an additio
   assert.equal(returned.get('b1->a1'), original);
   assert.equal(returned.get('c1->a1')!.start, 3);
   assert.notEqual(returned.get('c1->a1'), during.get('c1->a1'));
+});
+
+test("6.16 the live clock runs until every arrival's own time ends, so a reroute that splits off a road's tail finds it whole", () => {
+  // A road whose spans all draw whole early, because an earlier road shares them, has still not ended its own time:
+  // stopping the clock there left a tail the next reroute split off undrawn (3.35 on macOS CI, run 37857380271).
+  const roads = nextLiveRoads(new Map(), added, 0);
+  const end = Math.max(...[...roads.values()].map(road => road.start + road.seconds));
+  assert.equal(liveRoadsGrowing(roads, end - 0.01, false), true);
+  assert.equal(liveRoadsGrowing(roads, end, false), false);
+  assert.equal(liveRoadsGrowing(roads, 0, true), false, 'reduced motion draws every road whole at once');
+  const rerouted = roadSegmentWindows(initial, nextLiveRoads(roads, initial, end));
+  for (const segment of initial.segments.filter(segment => segment.island === undefined)) {
+    assert.equal(liveRoadProgress(rerouted.get(segment.id), end, false), 1, 'every span of a road whose time has ended is whole');
+  }
 });
 
 test('6.16 reduced motion and unscheduled roads are whole immediately; normal live-road progress is bounded and linear', () => {

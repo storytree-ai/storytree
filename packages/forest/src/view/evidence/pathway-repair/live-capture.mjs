@@ -223,8 +223,10 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
             const update = window.liveDescriptionUpdate;
             const descriptionConsumed = update !== undefined
               && scene.getObjectByName('territory:' + update.capability)?.userData.description === update.description;
+            // Whether the road layer is shown: hiding and showing it again draws every road on afresh.
+            const roadsVisible = scene.getObjectByName('globe-roads')?.visible;
             const frame = { phase: window.liveEvidence.phase, at: performance.now(), observerMs: performance.now() - observedAt,
-              descriptionConsumed, links, roads, lanes };
+              descriptionConsumed, links, roads, lanes, roadsVisible };
             window.liveEvidence.frames.push(frame);
             window.liveEvidence.lastRender = { frame: window.liveEvidence.frames.length, startedAt: frame.at };
             const report = boundary => {
@@ -375,6 +377,12 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
       partialFrames: freshFrames.filter(frame => frame.roads.some(road => road.fraction > 0 && road.fraction < 1)).length,
       completedWithoutCaptureInvalidation: freshFrames.length > 0 && freshFrames.at(-1).roads.every(road => road.fraction === 1),
       oldSharedRoadsAlwaysWhole: additions.every(frame => frame.roads.filter(road => !road.fresh).every(road => road.fraction === 1)),
+      // Which old roads drew partial, and what the restore did to the link count and the road layer, for a failure to name its cause.
+      oldSharedPartial: additions.flatMap(frame => frame.roads.filter(road => !road.fresh && road.fraction < 1).map(road => ({
+        frame: observation.frames.indexOf(frame), at: Math.round(frame.at), name: road.name, fraction: road.fraction, links: road.links.length }))).slice(0, 8),
+      restoredLinkCounts: observation.frames.filter(frame => frame.phase === 'restored-link').map(frame => frame.links.length)
+        .filter((count, i, counts) => i === 0 || count !== counts[i - 1]),
+      roadsHiddenFrames: observation.frames.filter(frame => frame.roadsVisible === false).map(frame => ({ phase: frame.phase, at: Math.round(frame.at) })).slice(0, 8),
       dependencyToDependent: freshFrames.some(frame => frame.roads.some(road => road.fraction > 0 && road.fraction < 1))
         && freshFrames.every(frame => frame.roads.filter(road => road.fraction > 0 && road.fraction < 1).every(road => road.anchorNearerDependency)),
       unrelatedFrameCount: poll.length,

@@ -348,6 +348,9 @@ importers:
       '@storytree/local-postgres':
         specifier: workspace:*
         version: link:../local-postgres
+      '@storytree/map':
+        specifier: workspace:*
+        version: link:../map
       pg:
         specifier: ^8.23.0
         version: 8.23.0

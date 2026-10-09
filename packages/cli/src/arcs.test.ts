@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { userInfo } from "node:os";
 import { after, before, test } from "node:test";
 
-import { claim, openActivityLog, readClaims, recordFriction } from "@storytree/agent-link";
+import { claim, openActivityLog, readClaims, recordFriction, release } from "@storytree/agent-link";
 
 import { parseArgs } from "./args.js";
 import type { Context } from "./door.js";
@@ -453,6 +453,39 @@ test("4.15 `arc increment new` and `edit` take --capabilities and --links, edit 
     const edited = await world.run(["arc", "increment", "edit", id, "--capabilities", `${form!.id},${page!.id}`]);
     assert.equal(edited.code, 0, edited.stderr);
     assert.deepEqual([(await fieldsOf()).capabilities, (await fieldsOf()).links], [[form!.id, page!.id], [story.id]], "the list is replaced, the links kept");
+  });
+});
+
+test("4.16 `arc increment edit --capabilities` refuses a capability already on the list of another live session's claimed increment, naming that increment and its holder, with nothing written; the caller's own lists, and a released increment's, are not refused (ADR-0949 D2)", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const arc = await anArc(world);
+    const story = await library.addStory({ title: "Sign up" });
+    const form = await library.addCapability({ story: story.id, title: "Form" });
+    const log = await openActivityLog(testServerUrl());
+    try {
+      const holder = { log, library, project: world.project, session: "holder", harness: "claude-code" } as const;
+      const caller = { log, library, project: world.project, session: "caller", harness: "claude-code" } as const;
+      const as = { CLAUDE_CODE_SESSION_ID: "caller" };
+      const theirs = await library.addIncrement({ arc, title: "Email form", objective: "Build it", body: "…", capabilities: [form.id] } as never);
+      assert.equal((await claim(holder, theirs.id, "driving the email form")).ok, true);
+      const mine = await library.addIncrement({ arc, title: "Form copy", objective: "Reword it", body: "…" });
+      const own = await library.addIncrement({ arc, title: "Form polish", objective: "Polish it", body: "…", capabilities: [form.id] } as never);
+      for (const id of [mine.id, own.id]) assert.equal((await claim(caller, id, "rewording the form")).ok, true);
+
+      const history = await library.history({ id: mine.id });
+      const refused = await world.run(["arc", "increment", "edit", mine.id, "--capabilities", form.id], as);
+      assert.equal(refused.code, 1, refused.stdout);
+      assert.ok(refused.stderr.includes(form.id) && refused.stderr.includes(theirs.id) && refused.stderr.includes("holder"), refused.stderr);
+      assert.deepEqual(await library.history({ id: mine.id }), history, "nothing was written");
+
+      assert.equal((await release(holder, theirs.id)).ok, true);
+      const edited = await world.run(["arc", "increment", "edit", mine.id, "--capabilities", form.id], as);
+      assert.equal(edited.code, 0, `${edited.stderr}: the caller's own list, and a released one's, may share`);
+      assert.deepEqual(((await library.get(mine.id))?.fields as { capabilities?: string[] }).capabilities, [form.id]);
+    } finally {
+      await log.close();
+    }
   });
 });
 

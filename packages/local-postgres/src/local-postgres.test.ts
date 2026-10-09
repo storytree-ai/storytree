@@ -89,7 +89,7 @@ test("2.2 start runs the server on the data directory, it answers SELECT 1 at th
   const dataDir = await freshCluster("start-stop");
   const server = await started({ dataDir });
   const url = new URL(server.url);
-  assert.equal(url.username, "postgres");
+  assert.equal(url.username, "storytree");
   assert.ok(url.password.length >= 32, "the url carries the installation's password");
   assert.equal(url.host, `127.0.0.1:${server.port}`);
   assert.equal(url.pathname, "/postgres");
@@ -183,7 +183,7 @@ test("2.6 the server lets in only a client with the installation's password, whi
   assert.deepEqual(await query(server.url, "SELECT 1 AS one"), [{ one: 1 }], "the url handed back signs in");
 
   // Without a password nobody gets in, postgres included: the server asks for one (SASL, code 10) and never says ok (0).
-  for (const user of ["postgres", "someone_else"]) assert.equal(await firstAuthentication(server.port, user), 10, user);
+  for (const user of ["postgres", "storytree", "someone_else"]) assert.equal(await firstAuthentication(server.port, user), 10, user);
   const wrong = new URL(server.url);
   wrong.password = "x".repeat(43);
   await assert.rejects(query(wrong.href, "SELECT 1"), { code: "28P01" }, "a wrong password is refused");
@@ -197,7 +197,7 @@ test("2.6 the server lets in only a client with the installation's password, whi
   assert.equal(owner.auth.method, "scram-sha-256");
   const handoff = path.join(`${dataDir}.auth`, "connection.json");
   assert.deepEqual(JSON.parse(readFileSync(handoff, "utf8")), {
-    version: 1, installationId: owner.auth.installationId, ownerToken: owner.token, port: server.port, user: "postgres", password,
+    version: 1, installationId: owner.auth.installationId, ownerToken: owner.token, port: server.port, user: "storytree", password,
   });
   if (process.platform !== "win32") {
     assert.equal(lstatSync(`${dataDir}.auth`).mode & 0o777, 0o700, "only this user may enter the directory");
@@ -254,6 +254,53 @@ test("2.7 a cluster made when local connections were trusted is given the passwo
   assert.equal(again.url.replace(/:\d+\//, "/"), server.url.replace(/:\d+\//, "/"));
   assert.equal(await firstAuthentication(again.port, "postgres"), 10);
   await stopped(again);
+});
+
+test("2.8 clients sign in as an ordinary role that owns storytree's databases, never as the superuser, and a cluster's earlier databases are handed to it", async () => {
+  const dataDir = await freshCluster("client-role");
+  // Before: the superuser made a database with a table, a sequence of its own and a view, as a cluster from before this did.
+  const before = await started({ dataDir, signIn: "superuser" });
+  assert.equal(new URL(before.url).username, "postgres", "a throwaway test server may be asked for the superuser");
+  assert.deepEqual(await query(before.url, "SELECT rolsuper FROM pg_roles WHERE rolname = current_user"), [{ rolsuper: true }]);
+  await query(before.url, "CREATE DATABASE earlier");
+  const earlier = new URL(before.url);
+  earlier.pathname = "/earlier";
+  await query(earlier.href, "CREATE SCHEMA notes; CREATE TABLE notes.kept (id serial PRIMARY KEY, note text); INSERT INTO notes.kept (note) VALUES ('from before'); CREATE SEQUENCE counter; CREATE VIEW notes.seen AS SELECT note FROM notes.kept");
+  await stopped(before);
+
+  const server = await started({ dataDir });
+  const url = new URL(server.url);
+  assert.equal(url.username, "storytree");
+  const handoff = JSON.parse(readFileSync(path.join(`${dataDir}.auth`, "connection.json"), "utf8")) as { user: string; password: string };
+  assert.equal(handoff.user, "storytree", "the handoff carries the ordinary role too");
+  assert.deepEqual(await query(server.url, "SELECT rolsuper, rolcreaterole, rolcreatedb, rolreplication, rolbypassrls FROM pg_roles WHERE rolname = current_user"),
+    [{ rolsuper: false, rolcreaterole: false, rolcreatedb: true, rolreplication: false, rolbypassrls: false }]);
+  await assert.rejects(query(server.url, "CREATE ROLE t_intruder SUPERUSER"), { code: "42501" }, "it makes no roles");
+  await assert.rejects(query(server.url, "SELECT pg_read_file('postgresql.conf')"), { code: "42501" }, "it reads no server files");
+
+  // Its password is not the superuser's, and the superuser's never reaches a client.
+  const asSuperuser = new URL(server.url);
+  asSuperuser.username = "postgres";
+  await assert.rejects(query(asSuperuser.href, "SELECT 1"), { code: "28P01" });
+  assert.equal(readFileSync(path.join(`${dataDir}.auth`, "connection.json"), "utf8").includes(decodeURIComponent(new URL(before.url).password)), false);
+
+  // Every database is its own, with what the superuser made in it, and it carries on writing there.
+  assert.deepEqual(await query(server.url, "SELECT datname, pg_get_userbyid(datdba) AS owner FROM pg_database WHERE NOT datistemplate ORDER BY datname"),
+    [{ datname: "earlier", owner: "storytree" }, { datname: "postgres", owner: "storytree" }]);
+  const mine = new URL(server.url);
+  mine.pathname = "/earlier";
+  await query(mine.href, "INSERT INTO notes.kept (note) VALUES ('after'); SELECT nextval('counter'); CREATE TABLE notes.more (note text); DROP VIEW notes.seen");
+  assert.deepEqual(await query(mine.href, "SELECT note FROM notes.kept ORDER BY id"), [{ note: "from before" }, { note: "after" }]);
+  assert.deepEqual(await query(mine.href, "SELECT count(*)::int AS left FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname IN ('public', 'notes') AND pg_get_userbyid(c.relowner) <> 'storytree'"),
+    [{ left: 0 }], "nothing there is the superuser's any more");
+
+  // It makes databases of its own, as a new project needs.
+  await query(server.url, "CREATE DATABASE t_project");
+  const project = new URL(server.url);
+  project.pathname = "/t_project";
+  await query(project.href, "CREATE TABLE things (id int); INSERT INTO things VALUES (1)");
+  assert.deepEqual(await query(project.href, "SELECT count(*)::int AS n FROM things"), [{ n: 1 }]);
+  await stopped(server);
 });
 
 // --- helpers ---------------------------------------------------------------------------------

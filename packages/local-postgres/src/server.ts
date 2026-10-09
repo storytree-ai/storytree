@@ -5,6 +5,13 @@
  * for. A cluster made when local connections were trusted is given the password and its trust
  * taken away before its server next starts, with no network open while that happens.
  *
+ * Clients sign in as an ordinary role, never the superuser (ADR-0948): once the server listens, and
+ * before any client is handed a way in, start() makes sure the role `storytree` exists with its
+ * password, may create databases and nothing more, and owns every database in the cluster (but the
+ * two templates), with everything in them. A cluster from before this, whose databases and tables
+ * are the superuser's, is handed over then; each database is given away last, so an interrupted
+ * start does it again.
+ *
  * A data directory has at most one owner: the process that started its server and has not yet
  * stopped it. start() records the owner beside the directory (`<dataDir>.owner.json`), and stop()
  * removes the record. While the recorded process is alive, a start is refused with a
@@ -35,10 +42,13 @@ import { createServer } from "node:net";
 import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 
+import pg from "pg";
+
 import {
   authDir,
   authMarker,
   connectionUrl,
+  ensureClientSignIn,
   ensureInstallation,
   publishConnection,
   scramVerifier,
@@ -46,6 +56,7 @@ import {
   writePrivate,
   type AuthMarker,
   type Installation,
+  type SignIn,
 } from "./auth.js";
 import { findBinaries } from "./binaries.js";
 
@@ -73,13 +84,20 @@ export interface StartOptions extends ClusterOptions {
    * server never is.
    */
   readonly settings?: Readonly<Record<string, string>>;
+  /**
+   * Whom the url and the handoff sign in as: the ordinary role `storytree` (by default), or the
+   * superuser, for a throwaway test server whose tests make roles of their own. The app's own
+   * server never hands out the superuser.
+   */
+  readonly signIn?: "client" | "superuser";
 }
 
 /** A running server. */
 export interface LocalPostgres {
   /**
-   * postgres://postgres:<password>@127.0.0.1:<port>/postgres, which carries the installation's
-   * secret: connect with it, never show or log it.
+   * postgres://storytree:<password>@127.0.0.1:<port>/postgres (postgres:… when started with
+   * signIn "superuser"), which carries the installation's secret: connect with it, never show or
+   * log it.
    */
   readonly url: string;
   readonly port: number;
@@ -206,6 +224,8 @@ export async function start(options: StartOptions): Promise<LocalPostgres> {
 
   mkdirSync(path.dirname(dataDir), { recursive: true });
   const installation = ensureInstallation(dataDir);
+  const client = ensureClientSignIn(dataDir);
+  const signIn = options.signIn === "superuser" ? installation : client;
   const record: OwnerRecord = {
     pid: process.pid,
     token: PROCESS_TOKEN,
@@ -228,7 +248,13 @@ export async function start(options: StartOptions): Promise<LocalPostgres> {
     ]);
     if (code !== 0) throw new Error(`pg_ctl start failed with exit code ${code}; see ${serverLog} and ${tools.toolLog}`);
     log(`listening on 127.0.0.1:${port} (started in ${since(started)})`);
-    publishConnection(dataDir, installation, PROCESS_TOKEN, port);
+    try {
+      await provisionClient(installation, client, port, log);
+    } catch (error) {
+      await stopServer(dataDir, tools, log).catch(() => {});
+      throw error;
+    }
+    publishConnection(dataDir, installation, signIn, PROCESS_TOKEN, port);
   } catch (error) {
     release(dataDir);
     throw error;
@@ -236,7 +262,7 @@ export async function start(options: StartOptions): Promise<LocalPostgres> {
 
   let stopping: Promise<void> | undefined;
   return {
-    url: connectionUrl(installation, port),
+    url: connectionUrl(signIn, port),
     port,
     dataDir,
     stop() {
@@ -318,6 +344,81 @@ async function requirePasswords(dataDir: string, installation: Installation, too
   log("signing in by password only");
   replaceFile(hba, HBA);
   replaceFile(marker, installation.installationId);
+}
+
+/**
+ * Make the ordinary role clients sign in as, signed in as the superuser: it exists, logs in with
+ * `client`'s password, may create databases, and is no superuser, makes no roles, replicates
+ * nothing and bypasses no row security, whatever it was before. Then every database not yet its
+ * own (the templates aside) is handed to it, with the schemas, tables, views, sequences,
+ * functions and types in it that are the superuser's; the database itself goes last.
+ */
+async function provisionClient(installation: Installation, client: SignIn, port: number, log: (message: string) => void): Promise<void> {
+  const role = quoteIdentifier(client.user);
+  const handOver: string[] = await withClient(connectionUrl(installation, port), async (admin) => {
+    const exists = (await admin.query("SELECT 1 FROM pg_roles WHERE rolname = $1", [client.user])).rows.length > 0;
+    if (!exists) log(`making the role ${client.user}, which clients sign in as`);
+    await admin.query(`${exists ? "ALTER" : "CREATE"} ROLE ${role} WITH LOGIN CREATEDB NOSUPERUSER NOCREATEROLE NOREPLICATION NOBYPASSRLS ` +
+      `PASSWORD '${scramVerifier(client.password)}'`);
+    const { rows } = await admin.query<{ datname: string }>(
+      "SELECT datname FROM pg_database WHERE NOT datistemplate AND datallowconn AND datdba <> (SELECT oid FROM pg_roles WHERE rolname = $1) ORDER BY datname",
+      [client.user],
+    );
+    return rows.map((row) => row.datname);
+  });
+  for (const database of handOver) {
+    log(`handing the database ${database} to ${client.user}`);
+    await withClient(connectionUrl(installation, port, database), async (admin) => {
+      await admin.query(handOverObjects(role));
+      await admin.query(`ALTER DATABASE ${quoteIdentifier(database)} OWNER TO ${role}`);
+    });
+  }
+}
+
+/**
+ * Give `role` what the superuser owns in the connected database, outside the system's own
+ * schemas. A table takes its indexes, its column sequences and its row type with it, so sequences
+ * and types are looked for after the tables.
+ */
+function handOverObjects(role: string): string {
+  const user = "(SELECT oid FROM pg_roles WHERE rolname = current_user)";
+  const ours = (namespace: string): string => `${namespace} IN (SELECT oid FROM pg_namespace WHERE nspname <> 'information_schema' AND nspname NOT LIKE 'pg\_%')`;
+  return `DO $$
+DECLARE item record;
+BEGIN
+  FOR item IN SELECT nspname FROM pg_namespace WHERE nspowner = ${user} AND ${ours("oid")} LOOP
+    EXECUTE format('ALTER SCHEMA %I OWNER TO ${role}', item.nspname);
+  END LOOP;
+  FOR item IN SELECT oid::regclass AS name, relkind FROM pg_class WHERE relowner = ${user} AND relkind IN ('r', 'p', 'f', 'v', 'm') AND ${ours("relnamespace")} LOOP
+    EXECUTE format('ALTER %s %s OWNER TO ${role}',
+      CASE item.relkind WHEN 'v' THEN 'VIEW' WHEN 'm' THEN 'MATERIALIZED VIEW' WHEN 'f' THEN 'FOREIGN TABLE' ELSE 'TABLE' END, item.name);
+  END LOOP;
+  FOR item IN SELECT oid::regclass AS name FROM pg_class WHERE relowner = ${user} AND relkind = 'S' AND ${ours("relnamespace")} LOOP
+    EXECUTE format('ALTER SEQUENCE %s OWNER TO ${role}', item.name);
+  END LOOP;
+  FOR item IN SELECT oid::regprocedure AS name FROM pg_proc WHERE proowner = ${user} AND ${ours("pronamespace")} LOOP
+    EXECUTE format('ALTER ROUTINE %s OWNER TO ${role}', item.name);
+  END LOOP;
+  FOR item IN SELECT oid::regtype AS name, typtype FROM pg_type
+      WHERE typowner = ${user} AND ${ours("typnamespace")} AND typtype IN ('c', 'd', 'e', 'r')
+        AND (typrelid = 0 OR (SELECT relkind FROM pg_class WHERE oid = typrelid) = 'c') LOOP
+    EXECUTE format('ALTER %s %s OWNER TO ${role}', CASE item.typtype WHEN 'd' THEN 'DOMAIN' ELSE 'TYPE' END, item.name);
+  END LOOP;
+END $$`;
+}
+
+async function withClient<T>(url: string, use: (client: pg.Client) => Promise<T>): Promise<T> {
+  const client = new pg.Client({ connectionString: url, connectionTimeoutMillis: 30_000 });
+  await client.connect();
+  try {
+    return await use(client);
+  } finally {
+    await client.end();
+  }
+}
+
+function quoteIdentifier(name: string): string {
+  return `"${name.replaceAll('"', '""')}"`;
 }
 
 /** A pg_hba.conf line that lets a connection in without the password (or includes rules unseen). */

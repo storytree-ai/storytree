@@ -16,7 +16,9 @@ function about(line: Line, full: boolean): string {
     case "note-read":
       return ` ${line.note} (${line.read}, found by ${line.found})`;
     case "claimed":
-      return ` ${line.increment ?? line.capability}`;
+      return ` ${line.increment ?? line.capability}${line.file === undefined ? "" : `, editing ${line.file}`}${line.takenOverFrom === undefined ? "" : `, taken over from ${line.takenOverFrom}`}`;
+    case "claim-refused":
+      return ` ${line.increment ?? line.capability} held by ${line.holder}${line.file === undefined ? "" : `, editing ${line.file}`}: ${line.reason}`;
     case "released":
       return ` ${line.increment ?? line.capability}${line.holder === undefined ? "" : ` for ${line.holder}${line.reason === undefined ? "" : `: ${line.reason}`}`}`;
     case "landed":

@@ -568,6 +568,29 @@ test("5.29 releasing an active increment without closing it, by release, the ses
   });
 });
 
+test("5.30 a gone holder's ended increment claim returns the unclosed increment to proposal, and a closed one stays closed", async () => {
+  await withWorld(async ({ library, project, as }) => {
+    const { arc, park } = await arcOf(library);
+    const left = await park("email form");
+    const finished = await park("old form");
+    assert.equal((await claim(as("A"), left, "driving the email form")).ok, true);
+    assert.equal((await claim(as("A"), finished, "finishing the old form")).ok, true);
+    await library.closeIncrement(finished, { pr: "#3", disposition: "landed" });
+    // A's window crashed: no line from it for longer than a command may run, and no session-ended.
+    const store = await connect({ url: testServerUrl() });
+    try {
+      await (await store.ownDatabase(ACTIVITY_DATABASE)).query("UPDATE activity SET at = at - interval '13 hours' WHERE project = $1 AND session = 'A'", [project]);
+    } finally {
+      await store.close();
+    }
+    const { library: _, ...noticer } = as("B", { quietMs: 1_000 });
+    const ended = await endGoneClaims({ ...noticer, openLibrary: async () => library });
+    assert.deepEqual(ended.map((line) => line.kind === "released" && line.increment).sort(), [left, finished].sort(), "both of A's claims end");
+    assert.equal(await statusOf(library, arc, left), "proposal", "nobody holds it: a proposal again");
+    assert.equal(await statusOf(library, arc, finished), "closed", "a closed one stays closed");
+  });
+});
+
 test("5.8 claiming an increment whose own wait holds, or whose arc's wait holds, is refused naming each blocker and its reason, and one held on an open question is refused as waiting on the owner; nothing is written and it is not started; once the wait releases the claim succeeds", async () => {
   await withWorld(async ({ log, project, library, as }) => {
     const { arc, park } = await arcOf(library);

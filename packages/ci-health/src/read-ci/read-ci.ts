@@ -9,7 +9,9 @@
  * - The run's commit (`head_sha`) is the commit every verdict is for: the tests' titles are read from
  *   the files at that commit, in the project's own clone, and the commit is written in each note.
  * - A cancelled run is passed over: on a busy branch a newer push cancels the run before it, often before its slowest
- *   job (Windows) has run its tests, so the newest finished run that ran to its end is read.
+ *   job (Windows) has run its tests, so the newest finished run that ran to its end is read. So is a run that concludes
+ *   failure only because its test jobs were cancelled (an aggregate job failing on them): one with a cancelled job and
+ *   no whole job holding test results.
  * - A skipped job is passed over; a cancelled job's log is read if available, passed over only on 404.
  * - Each job's results are its platform's, read from its runner labels or its name, so a test one platform skips
  *   for another is credited from the jobs of the platform it needs.
@@ -87,6 +89,25 @@ async function filesAt(git: Git, commit: string): Promise<{ path: string; text: 
   return Promise.all(paths.map(async (file) => ({ path: file, text: await git(["show", `${commit}:${file}`]) })));
 }
 
+/** Each job a run did not skip, with its conclusion and the test results its log holds, as its platform's. */
+async function jobResults(github: GitHub, repository: string, run: number): Promise<{ conclusion: string | undefined; results: ReturnType<typeof parseTestLog> }[]> {
+  // A job the run skipped ran nothing and has no log: GitHub answers its log with 404.
+  const jobs: { id: number; conclusion?: string; name?: string; labels?: string[] }[] = ((await github.json(`repos/${repository}/actions/runs/${run}/jobs`)).jobs ?? [])
+    .filter((job: { conclusion?: string }) => job.conclusion !== "skipped");
+  return Promise.all(jobs.map(async (job) => {
+    const platform = platformOfJob(job);
+    const onPlatform = (log: string) => parseTestLog(log).map((result) => (platform === undefined ? result : { ...result, platform }));
+    try {
+      return { conclusion: job.conclusion, results: onPlatform(await github.text(`repos/${repository}/actions/jobs/${job.id}/logs`)) };
+    } catch (error) {
+      // Cancellation can leave no log, but a job that started may still hold test evidence.
+      const said = String((error as { stderr?: string })?.stderr ?? error);
+      if (job.conclusion === "cancelled" && /\bHTTP 404\b/.test(said)) return { conclusion: job.conclusion, results: [] };
+      throw error;
+    }
+  }));
+}
+
 /** Read the project's CI into its library's verified column. */
 export async function readProjectCi({ library, git, github }: { library: Library; git: Git; github: GitHub }): Promise<CiReading> {
   const remote = await git(["remote", "get-url", "origin"]).catch(() => "");
@@ -98,26 +119,18 @@ export async function readProjectCi({ library, git, github }: { library: Library
   const finished: { id: number; conclusion?: string; head_sha: string; html_url: string }[] = (await github.json(`repos/${repository}/actions/runs?${query}`)).workflow_runs ?? [];
   if (finished.length === 0) return { written: false, why: `${repository} has no finished push run on ${branch}, so there are no CI results to read; its health stays not checked.` };
   // A newer push cancels the run before it, often before its slowest job ran its tests: read the newest that ran to its end.
-  const run = finished.find(({ conclusion }) => conclusion !== "cancelled");
-  if (run === undefined) return { written: false, why: `${repository}'s last ${finished.length} finished push runs on ${branch} were all cancelled before they ran to their end, so there are no whole CI results to read; its health stands as it was.` };
+  // A run can conclude failure for that alone (an aggregate job failing on its cancelled ones), so it is judged by its jobs too.
+  let read: { run: (typeof finished)[number]; results: ReturnType<typeof parseTestLog> } | undefined;
+  for (const run of finished.filter(({ conclusion }) => conclusion !== "cancelled")) {
+    const jobs = await jobResults(github, repository, run.id);
+    if (jobs.some(({ conclusion }) => conclusion === "cancelled") && !jobs.some(({ conclusion, results }) => conclusion !== "cancelled" && results.length > 0)) continue;
+    read = { run, results: jobs.flatMap(({ results }) => results) };
+    break;
+  }
+  if (read === undefined) return { written: false, why: `${repository}'s last ${finished.length} finished push runs on ${branch} were all cancelled before they ran to their end, so there are no whole CI results to read; its health stands as it was.` };
+  const { run, results } = read;
 
   const commit: string = run.head_sha;
-  // A job the run skipped ran nothing and has no log: GitHub answers its log with 404.
-  const jobs: { id: number; conclusion?: string; name?: string; labels?: string[] }[] = ((await github.json(`repos/${repository}/actions/runs/${run.id}/jobs`)).jobs ?? [])
-    .filter((job: { conclusion?: string }) => job.conclusion !== "skipped");
-  const results = (await Promise.all(jobs.map(async (job) => {
-    const platform = platformOfJob(job);
-    const onPlatform = (log: string) => parseTestLog(log).map((result) => (platform === undefined ? result : { ...result, platform }));
-    try {
-      return onPlatform(await github.text(`repos/${repository}/actions/jobs/${job.id}/logs`));
-    } catch (error) {
-      // Cancellation can leave no log, but a job that started may still hold test evidence.
-      const said = String((error as { stderr?: string })?.stderr ?? error);
-      if (job.conclusion === "cancelled" && /\bHTTP 404\b/.test(said)) return [];
-      throw error;
-    }
-  }))).flat();
-
   let files;
   try {
     files = await filesAt(git, commit);

@@ -168,11 +168,14 @@ test("3.6 a cancelled job without a log leaves available results readable and co
   assert.equal((await library.health(contracts[1]!)).verified.state, "not-checked", "no result must not become a pass");
 });
 
-test("3.6 available test results in a cancelled job still count, including failures", async (t) => {
+test("3.6 available test results in a cancelled job beside a whole one still count, including failures", async (t) => {
   const { library, contracts } = await shopLibrary(t);
   const { folder, commit } = projectFolder(t);
-  const read = await readProjectCi({ library, git: gitIn(folder), github: github(pushRunsOnTrunk(commit), tap("not ok"), [{ id: 70, conclusion: "cancelled" }]) });
-  assert.equal(read.written && read.tests, 2);
+  const asked = github(pushRunsOnTrunk(commit), tap("not ok"), [{ id: 70, conclusion: "cancelled" }, { id: 72, conclusion: "success" }]);
+  const readLog = asked.text;
+  asked.text = async (route) => (route.endsWith("/72/logs") ? "ok 1 - 1.1 your information page shows the form" : readLog(route));
+  const read = await readProjectCi({ library, git: gitIn(folder), github: asked });
+  assert.equal(read.written && read.tests, 3);
   assert.equal((await library.health(contracts[0]!)).verified.state, "passing");
   assert.equal((await library.health(contracts[1]!)).verified.state, "failing");
 });
@@ -233,6 +236,44 @@ test("3.8 a cancelled push run, superseded before its slowest job finished, is p
 
   const { library: other, contracts: untouched } = await shopLibrary(t);
   const none = await readProjectCi({ library: other, git: gitIn(folder), github: github(runs(["cancelled", "cancelled"]), tap("ok")) });
+  assert.equal(none.written, false);
+  assert.match(none.written ? "" : none.why, /cancelled/);
+  for (const id of untouched) assert.equal((await other.health(id)).verified.state, "not-checked");
+});
+
+test("3.8 a push run that concludes failure only because a newer push cancelled the jobs that ran its tests is passed over like a cancelled run: the next run back is read, while a run with one whole test job beside a cancelled one is read", async (t) => {
+  const { library, contracts } = await shopLibrary(t);
+  const { folder, commit } = projectFolder(t);
+  // storytree's own CI (run 37794283051): every platform job cancelled mid-tests, the aggregate verify job failed on that.
+  const jobsOf: Record<number, { id: number; conclusion: string; name: string }[]> = {
+    91: [{ id: 80, conclusion: "cancelled", name: "verify on Linux" }, { id: 81, conclusion: "cancelled", name: "verify on Windows" }, { id: 82, conclusion: "failure", name: "verify" }],
+    7: [{ id: 70, conclusion: "success", name: "verify on Linux" }, { id: 72, conclusion: "success", name: "verify" }],
+  };
+  const logs: Record<number, string> = { 80: tap("not ok").split("\n").slice(0, 2).join("\n"), 81: "", 82: "verify on Linux: cancelled", 70: tap("ok"), 72: "all platforms passed" };
+  const run = (id: number, conclusion: string) => ({ id, conclusion, head_sha: commit, html_url: `https://github.com/acme/shop/actions/runs/${id}` });
+  const fake = (runs: object[]) => {
+    const asked = github((query) => (pushRunsOnTrunk(commit)(query).length === 0 ? [] : runs), "");
+    const json = asked.json;
+    asked.json = async (route) => {
+      const id = /actions\/runs\/(\d+)\/jobs$/.exec(route)?.[1];
+      return id === undefined ? json(route) : { jobs: jobsOf[Number(id)] ?? [] };
+    };
+    asked.text = async (route) => logs[Number(/jobs\/(\d+)\/logs$/.exec(route)?.[1])] ?? "";
+    return asked;
+  };
+
+  const read = await readProjectCi({ library, git: gitIn(folder), github: fake([run(91, "failure"), run(7, "success")]) });
+  assert.equal(read.written, true, read.written ? "" : read.why);
+  assert.equal(read.written && read.run, "https://github.com/acme/shop/actions/runs/7", "the run whose test jobs were cancelled is passed over");
+  for (const id of contracts) assert.equal((await library.health(id)).verified.state, "passing");
+
+  // One platform's job ran whole beside a cancelled one: that run is read.
+  jobsOf[92] = [{ id: 70, conclusion: "success", name: "verify on Linux" }, { id: 81, conclusion: "cancelled", name: "verify on Windows" }, { id: 82, conclusion: "failure", name: "verify" }];
+  const partly = await readProjectCi({ library, git: gitIn(folder), github: fake([run(92, "failure"), run(7, "success")]) });
+  assert.equal(partly.written && partly.run, "https://github.com/acme/shop/actions/runs/92");
+
+  const { library: other, contracts: untouched } = await shopLibrary(t);
+  const none = await readProjectCi({ library: other, git: gitIn(folder), github: fake([run(91, "failure")]) });
   assert.equal(none.written, false);
   assert.match(none.written ? "" : none.why, /cancelled/);
   for (const id of untouched) assert.equal((await other.health(id)).verified.state, "not-checked");

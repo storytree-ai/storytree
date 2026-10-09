@@ -1,11 +1,12 @@
 // GitHub Actions' release front door. No builds or publication happen on import.
 // Source selection runs from main; the verified commit is then checked out in the build jobs.
 import { execFileSync, spawnSync } from "node:child_process";
-import { appendFileSync, readFileSync, readdirSync } from "node:fs";
+import { appendFileSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { releaseSource, versionAt } from "../../packages/app/src/updates/release-source.ts";
-import { INSTALL_COMMAND } from "./delivery-assets.mjs";
+import { INSTALL_COMMAND, MAC_INSTALL_COMMAND, mergeDelivery } from "./delivery-assets.mjs";
 import { hostPlatform, missingAssets, platformUploads, PLATFORMS } from "./release-assets.mjs";
 
 const repository = "storytree-ai/storytree";
@@ -64,7 +65,7 @@ if (process.argv[2] === "source") {
     const release = existing.status === 0 ? JSON.parse(existing.stdout) : undefined;
     if (release !== undefined && (!release.isDraft || release.targetCommitish !== sha)) throw new Error("Release identity already belongs to another publication");
     if (process.argv[2] === "draft") {
-      if (release === undefined) gh("release", "create", tag, "--repo", repository, "--target", sha, "--draft", "--title", `storytree ${version}`, "--notes", notes(INSTALL_COMMAND.trim(), sha));
+      if (release === undefined) gh("release", "create", tag, "--repo", repository, "--target", sha, "--draft", "--title", `storytree ${version}`, "--notes", notes(INSTALL_COMMAND.trim(), MAC_INSTALL_COMMAND.trim(), sha));
     } else if (release === undefined) {
       throw new Error(`No draft release ${tag} to ${process.argv[2]}`);
     } else if (process.argv[2] === "upload") {
@@ -77,13 +78,19 @@ if (process.argv[2] === "source") {
     } else {
       const missing = missingAssets(release.assets.map((asset) => asset.name), version);
       if (Object.keys(missing).length > 0) throw new Error(`Release ${tag} is incomplete: ${JSON.stringify(missing)}`);
+      // Only the Mac runner has the zip, so its manifest entry joins Windows' manifest here, before anyone can read it.
+      const dir = mkdtempSync(path.join(tmpdir(), "storytree-delivery-"));
+      gh("release", "download", tag, "--repo", repository, "--dir", dir, "--pattern", "storytree-delivery.json", "--pattern", "storytree-delivery-mac.json");
+      const read = (name) => JSON.parse(readFileSync(path.join(dir, name), "utf8"));
+      writeFileSync(path.join(dir, "storytree-delivery.json"), JSON.stringify(mergeDelivery(read("storytree-delivery.json"), read("storytree-delivery-mac.json")), null, 2) + "\n");
+      gh("release", "upload", tag, path.join(dir, "storytree-delivery.json"), "--repo", repository, "--clobber");
       gh("release", "edit", tag, "--repo", repository, "--draft=false", "--latest");
     }
   }
 } else throw new Error("Use source, draft, upload or publish");
 
 /** The release page's text: how to install first, since a first user may arrive here from anywhere. */
-function notes(command, sha) {
+function notes(command, macCommand, sha) {
   return [
     "## Install",
     "",
@@ -93,12 +100,18 @@ function notes(command, sha) {
     command,
     "```",
     "",
+    "On an Apple Silicon Mac, in Terminal, run:",
+    "",
+    "```sh",
+    macCommand,
+    "```",
+    "",
     "It installs the app and opens it; Help → First-run guide in the app connects your agent.",
     "",
     `Windows x64 and arm64 installer, built from verified merged main ${sha}. First-user delivery follows only the owner's stable pin; it is unavailable until the first pin.`,
     "",
     "The macOS (Apple Silicon) zip and dmg are built and ad-hoc signed on the same commit, but not yet notarised: macOS refuses to open them until a release that is.",
     "",
-    "Development installations follow every published build. To install development explicitly, use the command in install-storytree-development.txt. Existing installations retain their channel.",
+    "Development installations follow every published build. To install development explicitly, use the command in install-storytree-development.txt (Windows) or install-storytree-mac-development.txt (Mac). Existing installations retain their channel.",
   ].join("\n");
 }

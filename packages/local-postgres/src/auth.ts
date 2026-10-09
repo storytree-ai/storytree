@@ -18,7 +18,7 @@
  */
 import { execFileSync } from "node:child_process";
 import { createHash, createHmac, pbkdf2Sync, randomBytes, randomUUID } from "node:crypto";
-import { chmodSync, linkSync, lstatSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, linkSync, lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 /** The installation's sign-in, kept in `<dataDir>.auth/installation.json`: the superuser's, the launcher's alone. */
@@ -162,7 +162,9 @@ function privateDir(dataDir: string): string {
   const stat = lstatSync(dir);
   if (!stat.isDirectory()) throw new Error(`${dir} is not a directory, so storytree will not keep its database sign-in there`);
   if (process.platform === "win32") {
-    if (made) protectWindows([dir]);
+    // Protected while it holds no sign-in yet, not only when made here: a first run whose protection
+    // failed leaves the folder behind open, and a later run must close it before writing into it (2.11).
+    if (made || !readdirSync(dir).some((name) => name.endsWith(".json"))) protectWindows([dir]);
   } else {
     if (stat.uid !== process.getuid!()) throw new Error(`${dir} belongs to another user, so storytree will not keep its database sign-in there`);
     if ((stat.mode & 0o777) !== 0o700) chmodSync(dir, 0o700);
@@ -212,7 +214,10 @@ function notASignIn(file: string): Error {
 
 /**
  * Give each path a protected access list granting this user's SID alone, owned by it. Paths go to
- * PowerShell as environment data; no secret does.
+ * PowerShell as environment data; no secret does. The owner is written only when it is someone
+ * else: writing it at all needs the right to take ownership, which a folder granting only Modify
+ * (a checkout under C:\code) withholds even from the owner, while the access list needs only the
+ * owner's own right to change it (2.10).
  */
 function protectWindows(paths: readonly string[]): void {
   const script = `
@@ -220,13 +225,15 @@ function protectWindows(paths: readonly string[]): void {
     $sid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User
     foreach ($item in $env:STORYTREE_PRIVATE_PATHS.Split([char]10)) {
       if ([System.IO.Directory]::Exists($item)) {
+        $owner = [System.IO.Directory]::GetAccessControl($item, 'Owner').GetOwner([System.Security.Principal.SecurityIdentifier])
         $acl = New-Object System.Security.AccessControl.DirectorySecurity
         $rule = New-Object System.Security.AccessControl.FileSystemAccessRule($sid, 'FullControl', 'ContainerInherit,ObjectInherit', 'None', 'Allow')
       } else {
+        $owner = [System.IO.File]::GetAccessControl($item, 'Owner').GetOwner([System.Security.Principal.SecurityIdentifier])
         $acl = New-Object System.Security.AccessControl.FileSecurity
         $rule = New-Object System.Security.AccessControl.FileSystemAccessRule($sid, 'FullControl', 'Allow')
       }
-      $acl.SetOwner($sid)
+      if ($owner -ne $sid) { $acl.SetOwner($sid) }
       $acl.SetAccessRuleProtection($true, $false)
       $acl.AddAccessRule($rule)
       if ([System.IO.Directory]::Exists($item)) { [System.IO.Directory]::SetAccessControl($item, $acl) }

@@ -320,7 +320,7 @@ async function claim(dataDir: string, record: OwnerRecord, tools: Tools, log: (m
 /**
  * Make an existing cluster ask for the installation's password, unless it already does. A cluster
  * whose password is another installation's, or none (one made when local connections were
- * trusted), is given this one's in single-user mode, which opens no connection at all; then its
+ * trusted), is given this one's in single-user mode (singleUser()), which opens no connection at all; then its
  * pg_hba.conf is replaced, and the marker naming the installation written last. Interrupted at any
  * step, the next start does it again; the server is never started before all of it is done. A
  * pg_hba.conf line that lets anyone in without a password is replaced in the same way.
@@ -333,11 +333,11 @@ async function requirePasswords(dataDir: string, installation: Installation, too
   if (!signedIn) {
     log("giving the cluster this installation's password");
     const input = `ALTER ROLE ${installation.user} WITH PASSWORD '${scramVerifier(installation.password)}';\n`;
-    const code = await tool(tools, "postgres", ["--single", "-D", dataDir, "postgres"], input);
+    const code = await singleUser(dataDir, tools, input);
     if (code !== 0) {
       throw new Error(
-        `could not give the Postgres cluster in ${dataDir} its password (exit code ${code}; see ${tools.toolLog})` +
-          (process.platform === "win32" ? "; on Windows, Postgres will not do this for a user running with administrator rights" : ""),
+        `could not give the Postgres cluster in ${dataDir} its password (exit code ${code}; see ${tools.toolLog}` +
+          (process.platform === "win32" ? ` and ${singleUserLog(dataDir)})` : ")"),
       );
     }
   }
@@ -345,6 +345,61 @@ async function requirePasswords(dataDir: string, installation: Installation, too
   replaceFile(hba, HBA);
   replaceFile(marker, installation.installationId);
 }
+
+/**
+ * Run `input` through the cluster's server in single-user mode, which opens no connection at all.
+ * Resolves to its exit code.
+ *
+ * Postgres will not run for a Windows user with administrator rights, and single-user mode has
+ * no way to give them up, so on Windows pg_ctl starts it: pg_ctl starts what it runs with those
+ * rights taken out of its token, whoever runs pg_ctl. What it is given to run (`-p`) is a script
+ * in the private sign-in directory that runs single-user mode on the input and writes down its
+ * exit code; pg_ctl hands back at once (`-W`), so that exit code is waited for.
+ */
+async function singleUser(dataDir: string, tools: Tools, input: string): Promise<number> {
+  if (process.platform !== "win32") return tool(tools, "postgres", ["--single", "-D", dataDir, "postgres"], input);
+  const dir = authDir(dataDir);
+  const inputFile = writePrivate(dir, input);
+  const written = writePrivate(dir, SINGLE_USER_SCRIPT);
+  const script = `${written}.cmd`; // cmd runs a script by its extension
+  renameSync(written, script);
+  const exitFile = `${inputFile}.exit`;
+  try {
+    const code = await tool(tools, "pg_ctl", ["-D", dataDir, "-p", script, "-l", singleUserLog(dataDir), "-W", "start"], undefined, {
+      STORYTREE_SINGLE_POSTGRES: path.join(tools.bin, "postgres.exe"),
+      STORYTREE_SINGLE_DATA: dataDir,
+      STORYTREE_SINGLE_INPUT: inputFile,
+      STORYTREE_SINGLE_EXIT: exitFile,
+    });
+    if (code !== 0) return code;
+    const deadline = Date.now() + 10 * 60_000;
+    for (;;) {
+      const exitCode = readText(exitFile).trim();
+      if (/^\d+$/.test(exitCode)) return Number(exitCode);
+      if (Date.now() > deadline) throw new Error(`single-user mode on ${dataDir} did not finish in ten minutes; see ${singleUserLog(dataDir)}`);
+      await sleep(100);
+    }
+  } finally {
+    for (const file of [inputFile, script, exitFile, `${exitFile}.tmp`]) rmSync(file, { force: true });
+  }
+}
+
+/** Where single-user mode's output goes on Windows. */
+function singleUserLog(dataDir: string): string {
+  return `${dataDir}.single-user.log`;
+}
+
+/**
+ * The script pg_ctl runs for singleUser() on Windows, given everything by its environment. Its
+ * exit code is written beside, then renamed into place, so it is never read half written.
+ */
+const SINGLE_USER_SCRIPT = [
+  "@echo off",
+  '"%STORYTREE_SINGLE_POSTGRES%" --single -D "%STORYTREE_SINGLE_DATA%" postgres < "%STORYTREE_SINGLE_INPUT%"',
+  '>"%STORYTREE_SINGLE_EXIT%.tmp" echo %ERRORLEVEL%',
+  'move /y "%STORYTREE_SINGLE_EXIT%.tmp" "%STORYTREE_SINGLE_EXIT%" >nul',
+  "",
+].join("\r\n");
 
 /**
  * Make the ordinary role clients sign in as, signed in as the superuser: it exists, logs in with
@@ -493,14 +548,18 @@ function toolsFor(dataDir: string, options: ClusterOptions): Tools {
 }
 
 /** Run one Postgres tool to completion, appending its output to the tool log. Resolves to its exit code. */
-function tool(tools: Tools, name: string, args: readonly string[], input?: string): Promise<number> {
+function tool(tools: Tools, name: string, args: readonly string[], input?: string, env?: Readonly<Record<string, string>>): Promise<number> {
   mkdirSync(path.dirname(tools.toolLog), { recursive: true });
   const out = openSync(tools.toolLog, "a");
   writeSync(out, `\n[${new Date().toISOString()}] ${name} ${args.join(" ")}\n`);
   const executable = path.join(tools.bin, process.platform === "win32" ? `${name}.exe` : name);
   return new Promise<number>((resolve, reject) => {
     // windowsHide: started from a GUI app, the tools and the server get a hidden console, not a window.
-    const child = spawn(executable, args, { stdio: [input === undefined ? "ignore" : "pipe", out, out], windowsHide: true });
+    const child = spawn(executable, args, {
+      stdio: [input === undefined ? "ignore" : "pipe", out, out],
+      windowsHide: true,
+      ...(env === undefined ? {} : { env: { ...process.env, ...env } }),
+    });
     child.on("error", reject);
     child.stdin?.end(input);
     child.on("exit", (code) => resolve(code ?? 1));

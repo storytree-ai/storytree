@@ -213,7 +213,7 @@ test("2.6 the server lets in only a client with the installation's password, whi
   await stopped(again);
 });
 
-test("2.7 a cluster made when local connections were trusted is given the password before its server starts again, keeping its data, and an interrupted start never reopens it", async (t) => {
+test("2.7 a cluster made when local connections were trusted is given the password before its server starts again, keeping its data, and an interrupted start never reopens it, even for a Windows administrator", async () => {
   const dataDir = path.join(root, "legacy");
   assert.equal(tool("initdb", ["-D", dataDir, "-U", "postgres", "-A", "trust", "-E", "UTF8"]), 0);
   appendFileSync(path.join(dataDir, "postgresql.conf"), "\nlisten_addresses = '127.0.0.1'\n");
@@ -230,10 +230,6 @@ test("2.7 a cluster made when local connections were trusted is given the passwo
     (error: unknown) => error,
   );
   await new Promise((resolve) => taken.close(resolve));
-  if (failed instanceof Error && /administrator rights/.test(failed.message)) {
-    t.skip("NOT RUN: Postgres refuses single-user mode to a Windows administrator, as this runner is");
-    return;
-  }
   assert.ok(failed instanceof Error, "the start on a taken port failed");
   assert.doesNotMatch(readFileSync(path.join(dataDir, "pg_hba.conf"), "utf8"), /trust/, "no trust survives the failed start");
   assert.equal(existsSync(`${dataDir}.owner.json`), false);

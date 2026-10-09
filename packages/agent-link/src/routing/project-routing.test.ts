@@ -23,7 +23,7 @@ import pg from "pg";
 import { setLibrary } from "../settings/settings.js";
 import { git, withTempDir } from "../testing/folders.js";
 import { dropTestProjects, placeTestServer, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { machineOf, registerTrunk, setUpTrunks } from "./trunks.js";
+import { forgetTrunk, machineOf, registerTrunk, setUpTrunks } from "./trunks.js";
 import { findProject, locateStorytree, MARKER_FILE, NOT_A_PROJECT, NOT_RUNNING, requireApproval, route, setUpProject, suggestProjectName, type ProjectLookup } from "./index.js";
 
 /** "Well under a second", as the tests hold it. */
@@ -417,6 +417,32 @@ test("1.13 a moved trunk is never adopted on sight: it reaches its project only 
       await setUpProject({ folder: copy, project, storytree, storytreeHome: laptop, join: true });
       assert.deepEqual(named(findProject(copy)), { project, folder: copy }, "a fresh folder joins in place of the deleted one");
       await requireApproval(storytree, project, copy, laptop);
+    });
+  });
+});
+
+test("1.18 a forgotten trunk's approval is forgotten on this machine too: its folder, still there or cloned again at the same place, is refused", async () => {
+  const project = uniqueProjectName();
+  await withTempDir(async (dir) => {
+    const { laptop } = machines(dir);
+    const trunk = path.join(dir, "app");
+    mkdirSync(trunk);
+    await withStorytree([project], async (storytree) => {
+      await setUpProject({ folder: trunk, project, storytree, storytreeHome: laptop });
+      await requireApproval(storytree, project, trunk, laptop);
+      // Removed from this machine: the folder and its marker are still there, the trunk is not.
+      await forgetTrunk(storytree, { project, machine: machineOf(laptop).id }, laptop);
+      await assert.rejects(requireApproval(storytree, project, trunk, laptop), folderRefusal(project, "not approved"));
+
+      // The project deleted, so its trunk forgotten on every machine; the checkout deleted and cloned again at the same place.
+      await setUpProject({ folder: trunk, project, storytree, storytreeHome: laptop, join: true });
+      await requireApproval(storytree, project, trunk, laptop);
+      const marker = readFileSync(path.join(trunk, MARKER_FILE));
+      await forgetTrunk(storytree, { project }, laptop);
+      rmSync(trunk, { recursive: true });
+      mkdirSync(trunk);
+      writeFileSync(path.join(trunk, MARKER_FILE), marker);
+      await assert.rejects(requireApproval(storytree, project, trunk, laptop), folderRefusal(project, "not approved"));
     });
   });
 });

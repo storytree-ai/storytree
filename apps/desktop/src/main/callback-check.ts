@@ -2,8 +2,12 @@
  * Capability 1 · Lifecycle. Where a sign-in callback deep link goes once it reaches the running app (contract 1.15):
  * with no sign-in offered it is dropped, before the sign-in session is made it is kept for it, and after, the session
  * gets it. Under `--callback-check`, each one is reported on a line, so CI can see that a later start's callback reached
- * the first instance without a live sign-in; the line names the link's scheme and path, never its code.
+ * the first instance without a live sign-in; the line names the link's scheme and path, never its code. A
+ * `--callback-check` start registers the sign-in scheme as a normal start does, so CI can also open a callback through
+ * the OS's protocol handler.
  */
+import type { AppArgs } from "./args.js";
+
 export type CallbackRoute = "dropped" | "kept" | "delivered";
 
 export interface CallbackRouting {
@@ -36,4 +40,9 @@ const OUTCOME: Record<CallbackRoute, string> = {
 function withoutQuery(url: string): string {
   const end = url.search(/[?#]/);
   return end === -1 ? url : url.slice(0, end);
+}
+
+/** Whether this start claims the sign-in scheme from the OS: when sign-in is offered, on any start but the smoke and start checks. */
+export function registersSignInScheme(args: Pick<AppArgs, "smoke" | "startCheck">, offered: boolean): boolean {
+  return offered && !args.smoke && !args.startCheck;
 }

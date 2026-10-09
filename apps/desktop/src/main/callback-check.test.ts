@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { parseArgs } from "./args.js";
-import { routeCallback } from "./callback-check.js";
+import { registersSignInScheme, routeCallback } from "./callback-check.js";
 
 test("1.15 under --callback-check, each sign-in callback handed to the app is reported, saying whether it reached the sign-in session", async () => {
   assert.equal(parseArgs(["--callback-check"]).callbackCheck, true);
@@ -37,4 +37,16 @@ test("1.15 under --callback-check, each sign-in callback handed to the app is re
   // Without the check, nothing is reported.
   assert.equal(routeCallback(url, { offered: false, session: undefined, early: [] }), "dropped");
   assert.equal(lines.length, 3);
+});
+
+test("1.15 a --callback-check start registers the sign-in scheme as a normal start does, so the OS can open a callback in it", () => {
+  const start = (argv: string[]) => parseArgs(argv);
+  // With sign-in offered, a normal start and a --callback-check start both claim the scheme from the OS.
+  assert.equal(registersSignInScheme(start([]), true), true);
+  assert.equal(registersSignInScheme(start(["--callback-check"]), true), true);
+  // The smoke check and the updater's start check never do, and a build with no sign-in has no scheme to claim.
+  assert.equal(registersSignInScheme(start(["--smoke"]), true), false);
+  assert.equal(registersSignInScheme(start(["--start-check"]), true), false);
+  assert.equal(registersSignInScheme(start(["--callback-check"]), false), false);
+  assert.equal(registersSignInScheme(start([]), false), false);
 });

@@ -40,6 +40,7 @@ jobs:
       - name: The build carries the staging client ID
         shell: bash
         run: grep -q "\"$STORYTREE_WORKOS_CLIENT_ID\"" apps/desktop/dist/main.cjs
+      # With the client ID stamped, its 1.15 check proves a second start's callback reaches the sign-in session.
       - run: node apps/desktop/check-install.mjs
       - uses: actions/upload-artifact@v7
         with:

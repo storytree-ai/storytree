@@ -20,8 +20,9 @@ import type { ArcView, Holds, NoteWait, WaitFor } from "@storytree/library";
 
 import { labelOf, Refusal, type Answer } from "../answer.js";
 import { commaSeparatedIds, type Args } from "../args.js";
-import type { Family, Verb } from "../door.js";
+import type { Context, Family, Verb } from "../door.js";
 import { valueOf } from "./library.js";
+import { commandSession } from "../writer.js";
 import { releasedAsking } from "./workspace.js";
 
 /** The given flags among `names`, each as the library field it names (`--end-state` is `endState`), kept as the text given (`--pr 132` is "132", not a number). */
@@ -319,11 +320,28 @@ const incrementEdit: Verb = {
       const had = ((await library.get(id))?.fields as { remedies?: string[] } | undefined)?.remedies ?? [];
       fields.remedies = [...new Set([...had, ...(fields.remedies as string[])])];
     }
+    if (fields.capabilities !== undefined) await refuseShared(id, fields.capabilities as string[], context);
     const edited = await library.editIncrement(id, fields as never, context.writer());
     if (edited === null) throw new Refusal(`no increment "${id}" in this project`);
     return { text: `Edited increment ${id}.` };
   },
 };
+
+/**
+ * Refuses `capabilities` as `target`'s list when one is on the list of an increment another live
+ * session holds: two sessions never plan changes to the same capability (ADR-0949 D2), as edit_plan refuses.
+ */
+async function refuseShared(target: string, capabilities: readonly string[], context: Context): Promise<void> {
+  const caller = commandSession()?.session;
+  const others = (await context.claims()).filter((claim) => claim.session !== caller && claim.holder === "live" && claim.increment !== undefined && claim.increment !== target);
+  const library = await context.library();
+  for (const claim of others) {
+    const listed = ((await library.get(claim.increment!))?.fields as { capabilities?: string[] } | undefined)?.capabilities ?? [];
+    const capability = capabilities.find((id) => listed.includes(id));
+    if (capability !== undefined)
+      throw new Refusal(`${capability} is already on the capabilities list of ${claim.increment}, which ${claim.label} session ${claim.session} holds (${claim.reason}): two sessions never plan changes to the same capability (ADR-0949 D2). Leave it off this list, or take other work.`);
+  }
+}
 
 const incrementCorrectClosure: Verb = {
   name: "correct-closure",

@@ -19,6 +19,7 @@ import { fileURLToPath } from "node:url";
 
 import pg from "pg";
 
+import { ensureClientSignIn } from "./auth.js";
 import { binaryPackages, DataDirInUseError, ensureCluster, findBinaries, start, type LocalPostgres } from "./index.js";
 
 const packageDir = fileURLToPath(new URL("..", import.meta.url));
@@ -297,6 +298,25 @@ test("2.8 clients sign in as an ordinary role that owns storytree's databases, n
   await query(project.href, "CREATE TABLE things (id int); INSERT INTO things VALUES (1)");
   assert.deepEqual(await query(project.href, "SELECT count(*)::int AS n FROM things"), [{ n: 1 }]);
   await stopped(server);
+});
+
+test("2.10 on Windows the sign-in is kept private beside a data directory whose folder lets this user change files but not take ownership, as a checkout under C:\\code does", { skip: process.platform !== "win32" && "a Windows access list" }, () => {
+  // A folder granting this user Modify alone, inherited, as C:\code grants Authenticated Users: no right to change an owner.
+  const parent = path.join(root, "modify-only");
+  mkdirSync(parent);
+  const user = `${process.env["USERDOMAIN"]}\\${process.env["USERNAME"]}`;
+  const icacls = (target: string, ...args: string[]): string => {
+    const ran = spawnSync("icacls", [target, ...args], { encoding: "utf8", windowsHide: true });
+    assert.equal(ran.status, 0, `${ran.stdout}${ran.stderr}`);
+    return ran.stdout;
+  };
+  icacls(parent, "/inheritance:r", "/grant:r", `${user}:(OI)(CI)M`);
+
+  const dataDir = path.join(parent, "data");
+  assert.equal(ensureClientSignIn(dataDir).user, "storytree");
+  const granted = icacls(`${dataDir}.auth`);
+  assert.match(granted, /:\(OI\)\(CI\)\(F\)/, "this user holds the private directory whole");
+  assert.doesNotMatch(granted, /\(I\)/, "nothing inherited from the folder");
 });
 
 test("2.9 a throwaway test server can hand back the superuser's url beside its client's, for tests' setup, while its clients and handoff stay the ordinary role", async () => {

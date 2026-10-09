@@ -143,6 +143,7 @@ test("13.5 · a hand-off parks the increment on an event wait and starts the wat
   assert.equal(b.calls.length, 1);
   assert.deepEqual(b.calls[0].slice(0, 6), ["arc", "increment", "wait", "increment_one", "--for", "event"]);
   assert.match(b.calls[0][7], /PR #41/);
+  assert.deepEqual(b.calls[0].slice(8), ["--check-back", minutes(3 * 24 * 60).slice(0, 10)], "an event wait needs its check-back day");
   assert.equal(started, 1);
   const record = await saved(b);
   assert.equal(record.pr, 41); assert.equal(record.increment, "increment_one"); assert.equal(record.session, SESSION);

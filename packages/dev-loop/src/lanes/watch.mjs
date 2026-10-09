@@ -70,14 +70,15 @@ async function records(dir) {
 }
 
 /**
- * Hand a pull request to the watcher: park the increment on an event wait so no session claims it while it lands,
- * record the hand-off (one per pull request; handing back keeps its fix sessions), and start the watcher.
+ * Hand a pull request to the watcher: park the increment on an event wait so no session claims it while it lands
+ * (checking back in three days, after which the pool may take it again: an event wait needs that day), record the hand-off (one per pull request; handing back keeps its fix sessions), and start the watcher.
  */
 export async function hand({ dir, pr, increment, session, storytree, startWatcher, now = Date.now }) {
   await mkdir(dir, { recursive: true });
   const old = (await records(dir)).find((record) => record.pr === pr);
   await storytree(["arc", "increment", "wait", increment, "--for", "event", "--note",
-    `PR #${pr} is open and green and handed to the Mint box's watcher, which closes this on its merge or starts a fix session on a red.`]);
+    `PR #${pr} is open and green and handed to the Mint box's watcher, which closes this on its merge or starts a fix session on a red.`,
+    "--check-back", new Date(now() + 3 * 86_400_000).toISOString().slice(0, 10)]);
   await save(dir, { fixes: [], fixing: null, ...old, pr, increment, session, handedAt: new Date(now()).toISOString() });
   await startWatcher();
 }

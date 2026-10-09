@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import childProcess, { execFileSync, spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { chmodSync, existsSync, linkSync, mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, linkSync, mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { createServer, type AddressInfo } from "node:net";
 import path from "node:path";
 import { syncBuiltinESMExports } from "node:module";
@@ -16,6 +16,8 @@ import { locateApp, locateLibrary, locateStorytree, MARKER_FILE, NOT_RUNNING, ro
 
 // Synthetic credentials only. Punctuation pins URL encoding through a real SCRAM handshake.
 const password = "synthetic-local-password-:@/#?% with spaces";
+
+let fixtureSid: string | undefined;
 
 function windowsAcl(file: string, action: "private" | "expose" | "deny-read"): void {
   // Fixture setup needs no PowerShell/.NET startup. Keep the previous ten-second bound
@@ -39,9 +41,9 @@ function windowsAcl(file: string, action: "private" | "expose" | "deny-read"): v
     run("grant-everyone", "icacls.exe", [file, "/grant", "*S-1-1-0:RX"]);
     return;
   }
-  // Parse only the numeric SID, never localized headings or account names.
-  const identity = run("current-user", "whoami.exe", ["/user", "/fo", "csv", "/nh"]);
-  const sid = identity.match(/,"(S-1-\d+(?:-\d+)+)"\s*$/)?.[1];
+  // Parse only the numeric SID, never localized headings or account names; once per process.
+  fixtureSid ??= run("current-user", "whoami.exe", ["/user", "/fo", "csv", "/nh"]).match(/,"(S-1-\d+(?:-\d+)+)"\s*$/)?.[1];
+  const sid = fixtureSid;
   assert.ok(sid, "whoami did not return a current-user SID");
   if (action === "deny-read") {
     run("deny-current-user", "icacls.exe", [file, "/deny", `*${sid}:(RD)`]);
@@ -52,6 +54,13 @@ function windowsAcl(file: string, action: "private" | "expose" | "deny-read"): v
   // inherited entries and grant only the current user. All files contain synthetic data.
   run("reset", "icacls.exe", [file, "/reset"]);
   run("private", "icacls.exe", [file, "/inheritance:r", "/grant:r", `*${sid}:F`]);
+}
+
+/** Move a file's modification time on, as a change to it or its access list moves its change time. */
+let touches = 0;
+function touch(file: string): void {
+  touches += 1;
+  utimesSync(file, new Date(), new Date(Date.now() + touches * 1000));
 }
 
 function privatePath(file: string, directory = false): void {
@@ -135,7 +144,12 @@ test("1.16 authenticated discovery connects to an independently provisioned SCRA
 });
 
 // A self-relative security descriptor as Windows' ADSI security utility returns it in hex.
-const me = "S-1-5-21-1111111111-2222222222-3333333333-1001";
+// Discovery resolves the user once per process, so on Windows, where a real discovery may run first,
+// the synthetic descriptors are the real user's.
+const me = process.platform === "win32"
+  ? execFileSync(path.join(process.env.SystemRoot!, "System32", "whoami.exe"), ["/user", "/fo", "csv", "/nh"], { encoding: "utf8", windowsHide: true })
+    .match(/,"(S-1-\d+(?:-\d+)+)"\s*$/)![1]!
+  : "S-1-5-21-1111111111-2222222222-3333333333-1001";
 function sidBytes(sid: string): Buffer {
   const [, , authority, ...subs] = sid.split("-");
   const bytes = Buffer.alloc(8 + 4 * subs.length);
@@ -185,7 +199,7 @@ const whoami = `"synthetic\\user","${me}"\r\n`;
 
 test("1.16 the Windows privacy check reads owner, inheritance and grants from security descriptors without PowerShell", async (t) => {
   await withTempDir((home) => {
-    fixture(home);
+    const f = fixture(home);
     let directory = descriptor();
     let file = descriptor();
     const commands: string[] = [];
@@ -210,6 +224,7 @@ test("1.16 the Windows privacy check reads owner, inheritance and grants from se
         [descriptor(), "not a descriptor", "windows-acl-output"],
       ] as const) {
         [directory, file] = [dir, leaf];
+        touch(f.file);
         const result = route(home, { home });
         assert.equal(result.status, "not-running", reason);
         if (result.status === "not-running") assert.match(result.message, new RegExp(`\\(${reason}\\)$`));
@@ -217,6 +232,7 @@ test("1.16 the Windows privacy check reads owner, inheritance and grants from se
       // SYSTEM and Administrators may hold grants; a deny for anyone narrows access.
       [directory, file] = [descriptor(), descriptor({ aces: [{ type: 1, flags: 0, sid: "S-1-1-0" }, { type: 0, flags: 0x10, sid: me },
         { type: 0, flags: 0, sid: "S-1-5-18" }, { type: 0, flags: 0, sid: "S-1-5-32-544" }] })];
+      touch(f.file);
       assert.equal(route(home, { home }).status, "routed");
     } finally { restore(); }
   });
@@ -267,10 +283,49 @@ test("1.16 a Windows privacy check that stalls once is retried once; a second st
       assert.equal(reads, 2);
       reads = 0;
       stalls = 2;
+      touch(f.file);
       const refused = locateStorytree({ dataDir: f.dataDir });
       assert.equal(refused.running, false);
       if (!refused.running) assert.match(refused.message, /\(windows-acl-timeout\)$/);
       assert.equal(reads, 2);
+    } finally { restore(); }
+  });
+});
+
+test("1.16 a Windows discovery of an unchanged private handoff spawns no second check; a changed or refused one is checked again", async (t) => {
+  await withTempDir((home) => {
+    const f = fixture(home);
+    let directory = descriptor();
+    const commands: string[] = [];
+    const restore = mockWindows(t, (command) => {
+      commands.push(command);
+      return command === "whoami.exe" ? whoami : `${directory}\r\n${descriptor()}\r\n`;
+    });
+    const reads = () => commands.filter((command) => command === "cscript.exe").length;
+    try {
+      assert.equal(route(home, { home }).status, "routed");
+      assert.equal(reads(), 1);
+      assert.equal(route(home, { home }).status, "routed");
+      assert.equal(locateStorytree({ dataDir: f.dataDir }).running, true);
+      assert.equal(reads(), 1, "an unchanged handoff is not checked again");
+      // The user is resolved once per process.
+      assert.equal(commands.filter((command) => command === "whoami.exe").length <= 1, true);
+      // Changing the access list changes the file's change time: the next discovery checks it.
+      directory = descriptor({ protect: false });
+      touch(f.file);
+      assert.equal(route(home, { home }).status, "not-running");
+      assert.equal(reads(), 2);
+      // A refusal is never remembered as a pass, nor a pass kept past one.
+      assert.equal(route(home, { home }).status, "not-running");
+      assert.equal(reads(), 3);
+      directory = descriptor();
+      assert.equal(route(home, { home }).status, "routed");
+      assert.equal(reads(), 4);
+      // A replaced file is a new identity, checked again.
+      writeFileSync(`${f.file}.new`, readFileSync(f.file), { mode: 0o600 });
+      renameSync(`${f.file}.new`, f.file);
+      assert.equal(route(home, { home }).status, "routed");
+      assert.equal(reads(), 5);
     } finally { restore(); }
   });
 });

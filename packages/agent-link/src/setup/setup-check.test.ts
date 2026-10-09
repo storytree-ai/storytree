@@ -309,8 +309,10 @@ test("opening storytree waits until it accepts connections, not only until it ha
     mkdirSync(storytreeHome);
     const dataDir = path.join(storytreeHome, "pgdata");
     const port = await freePort();
-    // The stand-in says where it listens at once, and starts listening only 1.5 s later.
-    writeFileSync(path.join(storytreeHome, "app.json"), JSON.stringify({ command: process.execPath, args: [STUB_APP, dataDir, String(port), "1500"] }));
+    // The stand-in says where it listens at once, and starts listening only 1.5 s later, handing over its sign-in as the app does.
+    const { token, auth } = placeTestServer(dataDir, { port });
+    rmSync(`${dataDir}.owner.json`);
+    writeFileSync(path.join(storytreeHome, "app.json"), JSON.stringify({ command: process.execPath, args: [STUB_APP, dataDir, String(port), "1500", JSON.stringify({ token, auth })] }));
     try {
       const report = await runSetupCheck({ ...ANSWERED, folder: dir, homes: {}, storytreeHome, openWaitMs: 20_000 });
       assert.equal(report.storytree.state, "opened");

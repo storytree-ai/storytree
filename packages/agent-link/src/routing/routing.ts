@@ -230,7 +230,7 @@ export function locateStorytree(options: LocateOptions = {}): StorytreeAddress {
   const record = ownerRecord(dataDir);
   if (record === undefined || !isAlive(record.pid)) return { running: false, message: NOT_RUNNING };
   try {
-    return { running: true, url: authenticatedLocalUrl(dataDir, record) ?? `postgres://postgres@127.0.0.1:${record.port}/postgres` };
+    return { running: true, url: authenticatedLocalUrl(dataDir, record) };
   } catch (error) {
     // Never forward filesystem, JSON or subprocess errors: they can carry credential contents.
     return { running: false, message: error instanceof HandoffPrivacyError ? error.message : HANDOFF_UNAVAILABLE };

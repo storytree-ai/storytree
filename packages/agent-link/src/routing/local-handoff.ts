@@ -23,19 +23,12 @@ export class HandoffPrivacyError extends Error {
 }
 
 /**
- * Undefined means an old installation with neither auth metadata nor an auth directory. Any
- * evidence of authentication commits the reader to that path: failures never become legacy URLs.
- * See contract 1.16 and the increment's producer handoff in the library.
+ * The signed-in url the producer's private handoff gives. Every local cluster asks for a password
+ * (ADR-0941, ADR-0948), so a record without auth metadata is a missing handoff and refused like
+ * any other: no failure becomes a passwordless url. See contract 1.16.
  */
-export function authenticatedLocalUrl(dataDir: string, owner: LocalOwner): string | undefined {
+export function authenticatedLocalUrl(dataDir: string, owner: LocalOwner): string {
   const directory = `${path.resolve(dataDir)}.auth`;
-  if (!Object.hasOwn(owner, "auth")) {
-    try { lstatSync(directory); } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
-      throw new Error(HANDOFF_UNAVAILABLE);
-    }
-    throw new Error(HANDOFF_UNAVAILABLE);
-  }
   const auth = owner.auth;
   if (!object(auth) || auth.version !== 1 || auth.method !== "scram-sha-256" || !identifier(auth.installationId) || !identifier(owner.token)) {
     throw new Error(HANDOFF_UNAVAILABLE);

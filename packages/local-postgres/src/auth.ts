@@ -18,7 +18,7 @@
  */
 import { execFileSync } from "node:child_process";
 import { createHash, createHmac, pbkdf2Sync, randomBytes, randomUUID } from "node:crypto";
-import { chmodSync, linkSync, lstatSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, linkSync, lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 /** The installation's sign-in, kept in `<dataDir>.auth/installation.json`: the superuser's, the launcher's alone. */
@@ -162,7 +162,9 @@ function privateDir(dataDir: string): string {
   const stat = lstatSync(dir);
   if (!stat.isDirectory()) throw new Error(`${dir} is not a directory, so storytree will not keep its database sign-in there`);
   if (process.platform === "win32") {
-    if (made) protectWindows([dir]);
+    // Protected while it holds no sign-in yet, not only when made here: a first run whose protection
+    // failed leaves the folder behind open, and a later run must close it before writing into it (2.11).
+    if (made || !readdirSync(dir).some((name) => name.endsWith(".json"))) protectWindows([dir]);
   } else {
     if (stat.uid !== process.getuid!()) throw new Error(`${dir} belongs to another user, so storytree will not keep its database sign-in there`);
     if ((stat.mode & 0o777) !== 0o700) chmodSync(dir, 0o700);

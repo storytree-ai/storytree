@@ -319,6 +319,17 @@ test("2.10 on Windows the sign-in is kept private beside a data directory whose 
   assert.doesNotMatch(granted, /\(I\)/, "nothing inherited from the folder");
 });
 
+test("2.11 on Windows a sign-in folder a failed first run left behind is made private before any sign-in goes into it", { skip: process.platform !== "win32" && "a Windows access list" }, () => {
+  // A first run that made <dataDir>.auth but failed to protect it leaves the folder open to what its parent grants.
+  const dataDir = path.join(root, "left-open", "data");
+  mkdirSync(`${dataDir}.auth`, { recursive: true });
+
+  assert.equal(ensureClientSignIn(dataDir).user, "storytree");
+  const granted = spawnSync("icacls", [`${dataDir}.auth`], { encoding: "utf8", windowsHide: true }).stdout;
+  assert.match(granted, /:\(OI\)\(CI\)\(F\)/, "this user holds the private directory whole");
+  assert.doesNotMatch(granted, /\(I\)/, "nothing inherited from the folder");
+});
+
 test("2.9 a throwaway test server can hand back the superuser's url beside its client's, for tests' setup, while its clients and handoff stay the ordinary role", async () => {
   const dataDir = await freshCluster("superuser-beside");
   const server = await started({ dataDir, superuserUrl: true });

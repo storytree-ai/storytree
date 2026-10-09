@@ -305,6 +305,34 @@ test("11.12 `workspace release --holder <session> --reason` is the session manag
   });
 });
 
+test("11.15 `workspace stale` lists each claimed increment whose holder is quiet, with its holder, last seen and route, and says when none is stale", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const arc = await library.createArc({ title: "Launch", intent: "Ship sign-up", endState: "Visitors sign up" });
+    const increment = await library.addIncrement({ arc: arc.id, title: "Email form", objective: "Build it", body: "…" });
+    const log = await openActivityLog(testServerUrl());
+    try {
+      assert.equal((await world.run(["settings", "set", "idle-after", "1s"])).code, 0);
+      const none = await world.run(["workspace", "stale"]);
+      assert.equal(none.code, 0, none.stderr);
+      assert.match(none.stdout, /No claimed increment is stale/);
+
+      assert.equal((await claim({ log, library, project: world.project, session: "quiet", harness: "claude-code", quietMs: 1_000 }, increment.id, "building the form")).ok, true);
+      await new Promise((done) => setTimeout(done, 1_300)); // the holder says nothing for longer than idle-after
+      const before = await log.since(world.project, 0);
+      const ran = await world.run(["workspace", "stale"]);
+      assert.equal(ran.code, 0, ran.stderr);
+      assert.match(ran.stdout, new RegExp(`${increment.id}.*quiet.*building the form`));
+      assert.match(ran.stdout, /last seen \d{4}-/);
+      assert.match(ran.stdout, /ask its holder/);
+      assert.deepEqual(await log.since(world.project, 0), before, "reading the worklist writes nothing");
+      assert.equal((await readClaims(log, world.project)).length, 1, "and ends no claim");
+    } finally {
+      await log.close();
+    }
+  });
+});
+
 test("11.4 a Claude Code session attaches the linked worktree the app started it in, with no --ref or --name, and holds its work on that worktree's branch", async () => {
   await inWorld(command, async (world) => {
     const increment = await withRepository(world);

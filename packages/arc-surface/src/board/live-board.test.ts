@@ -36,11 +36,11 @@ test("3.5 the public watched board ages a holder at the user's idle-after settin
     onState: (next) => { state = next; } });
   try {
     await until(() => state?.board?.lanes[0]?.agents.length === 1);
-    assert.equal(state?.board?.lanes[0]?.state, "claimed");
+    assert.equal(state?.board?.lanes[0]?.state, "in-progress");
     now = start + 15 * 60_000;
     ticks.get(CLOCK_EVERY_MS)!();
     assert.equal(state?.board?.lanes[0]?.state, "idle");
-    assert.equal(state?.board?.lanes[0]?.chip, "idle · 15 min");
+    assert.equal(state?.board?.lanes[0]?.chip, "in progress · idle 15 min");
   } finally {
     watcher.stop();
   }

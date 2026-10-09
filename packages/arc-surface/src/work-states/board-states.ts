@@ -3,8 +3,8 @@
 import type { Claim } from "@storytree/agent-link";
 import type { ArcState as Lifecycle, FieldsOf, Hold, NoteWait } from "@storytree/library";
 
-export type IncrementState = "landed" | "not-completed" | "waiting-on-you" | "queued" | "held" | "open";
-export type ArcState = "closed" | "parked" | "waiting" | "blocked" | "queued" | "claimed" | "idle" | "ready" | "quiet";
+export type IncrementState = "landed" | "not-completed" | "waiting-on-you" | "queued" | "blocked" | "held" | "open";
+export type ArcState = "closed" | "parked" | "waiting" | "blocked" | "queued" | "in-progress" | "idle" | "ready" | "quiet";
 export interface IncrementReading {
   state: IncrementState;
   color: "green" | "red" | "yellow" | "grey";
@@ -14,6 +14,8 @@ export interface IncrementReading {
   checkBackPassed?: true;
   /** The owner's questions its waits on other work end on, when they make it wait on you. */
   behind?: string[];
+  /** The increment holding a capability its list names, when it reads blocked (ADR-0949 D3). */
+  blockedBy?: string;
 }
 export interface IncrementFacts {
   /** The library's heldOnQuestion reading, not the stored heldOn links. */
@@ -25,6 +27,8 @@ export interface IncrementFacts {
   /** The owner's questions its waits on other work end on, however many hops away (questionsBehind). */
   behind?: readonly string[];
   claim?: Claim;
+  /** Another increment a live session holds that holds a capability this one's list names (ADR-0949 D3). */
+  blockedBy?: string;
 }
 export interface ArcFacts {
   openQuestions?: number;
@@ -56,6 +60,7 @@ export function incrementState(increment: FieldsOf<"increment">, facts: Incremen
   if (facts.behind?.length) return { state: "waiting-on-you", color: "yellow", progress, ...passed, behind: [...facts.behind] };
   if (facts.waits?.length || holding.length) return { state: "queued", color: "yellow", progress, ...passed };
   if (facts.claim) return { state: "held", color: "grey", progress, ...passed };
+  if (facts.blockedBy) return { state: "blocked", color: "yellow", progress, ...passed, blockedBy: facts.blockedBy };
   return { state: "open", color: "grey", progress, ...passed };
 }
 
@@ -81,8 +86,8 @@ export function arcState(lifecycle: Lifecycle, facts: ArcFacts = {}): ArcState {
   if (facts.openQuestions) return "waiting";
   if (facts.waits?.length) return "blocked";
   const open = (facts.increments ?? []).filter(({ state }) => state !== "landed" && state !== "not-completed");
-  if (open.length && open.every(({ state }) => state === "queued" || state === "waiting-on-you")) return "queued";
-  if (facts.claims?.some((claim) => claim.holder === "live")) return "claimed";
+  if (open.length && open.every(({ state }) => state === "queued" || state === "waiting-on-you" || state === "blocked")) return "queued";
+  if (facts.claims?.some((claim) => claim.holder === "live")) return "in-progress";
   // ADR-0938 D3: an idle claim does not hide free work.
   if (open.some(({ state }) => state === "open")) return "ready";
   return facts.claims?.length ? "idle" : "quiet";

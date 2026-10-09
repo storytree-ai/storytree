@@ -22,7 +22,7 @@ const noteText = (wait: NoteWait) => !wait.holds ? `check-back passed ${wait.che
 const laneNoteText = (wait: LaneNoteWait) => `${wait.increment.title}: ${noteText(wait)}`;
 function barText(bar: Bar): string {
   return [bar.title, `${bar.reading.state.replaceAll("-", " ")} · ${bar.reading.progress.replaceAll("-", " ")}`,
-    ...(bar.reading.close ? [`Close: ${bar.reading.close}`] : []), ...bar.agents.map(agentText), ...bar.waits.map(waitText), ...bar.noteWaits.map(noteText),
+    ...(bar.reading.close ? [`Close: ${bar.reading.close}`] : []), ...(bar.blockedBy ? [`Blocked by ${workText(bar.blockedBy)}, which holds a capability it lists`] : []), ...bar.agents.map(agentText), ...bar.waits.map(waitText), ...bar.noteWaits.map(noteText),
     ...bar.questionsBehind.map((question) => `waiting on you: ${question}`), ...bar.holdsUp.map((work) => `Holds up ${workText(work)}: ${work.reason}`)].join("\n");
 }
 function renderBar(bar: Bar): string {

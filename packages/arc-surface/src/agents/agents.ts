@@ -10,7 +10,7 @@ export type BoardAgent = Claim & {
 };
 export interface ArcWork {
   id: string;
-  fields: { capabilities?: readonly string[] | undefined };
+  fields: { status: string; capabilities?: readonly string[] | undefined };
 }
 export interface BoardAgents {
   all: BoardAgent[];
@@ -40,9 +40,10 @@ export function agentsOnBoard(log: readonly Line[] | LogReading, now: Date = new
   return {
     all,
     on: (id) => all.find((agent) => (agent.increment ?? agent.capability) === id),
+    // ADR-0949 D1: only its open increments' claims, a capability claim counting toward the increment it was taken under.
     onArc(increments) {
-      const own = new Set(increments.flatMap((increment) => [increment.id, ...(increment.fields.capabilities ?? [])]));
-      return all.filter((agent) => own.has(agent.increment ?? agent.capability));
+      const open = new Set(increments.filter(({ fields }) => fields.status !== "closed").map(({ id }) => id));
+      return all.filter((agent) => open.has(agent.increment ?? agent.under ?? ""));
     },
   };
 }

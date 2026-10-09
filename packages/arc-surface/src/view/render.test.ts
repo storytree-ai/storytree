@@ -80,9 +80,9 @@ test("3.3 a ready lane that also has idle claims keeps a small muted marker besi
   const claim = (seq: number, session: string, increment: string) => ({ seq, project: "p", session, harness: "claude-code", source: "hook" as const, kind: "claimed" as const, increment, reason: "Fix the footer", at: "2026-09-27T00:00:00Z" });
   const html = renderBoard(boardView({ arcs, heldOn: {}, waits: {} }, [claim(1, "s1", "o1"), claim(2, "s2", "m1")], new Date("2026-09-27T00:42:00Z")), "mixed");
   const row = (id: string) => html.split("<section").find((part) => part.includes(`data-arc-id="${id}"`))!;
-  assert.match(row("mixed"), /arc-state-ready[^>]*>ready · 2 to take<\/span><span class="arc-chip arc-idle-marker"[^>]*title="[^"]*Fix the footer[^"]*idle for 42 min[^"]*"[^>]*>idle · 42 min<\/span>/);
+  assert.match(row("mixed"), /arc-state-ready[^>]*>ready · 2 to take<\/span><span class="arc-chip arc-idle-marker"[^>]*title="[^"]*Fix the footer[^"]*idle for 42 min[^"]*"[^>]*>in progress · idle 42 min<\/span>/);
   assert.equal((row("only").match(/arc-chip/g) ?? []).length, 1, "an idle lane has only its own chip");
-  assert.match(row("only"), /arc-state-idle[^>]*>idle · 42 min</);
+  assert.match(row("only"), /arc-state-idle[^>]*>in progress · idle 42 min</);
   assert.doesNotMatch(row("free"), /arc-idle-marker/);
 });
 

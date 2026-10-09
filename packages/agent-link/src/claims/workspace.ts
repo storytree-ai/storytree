@@ -66,7 +66,7 @@ const NAME_PART_MAX = 32;
 
 /** Create and claim for Claude Code; for Codex return the app's creation arguments without a claim. */
 export async function makeWorkspace(context: WorkspaceContext, id: string, reason: string, watch: MergeWatch = {}, options: WorkspaceOptions = {}): Promise<WorkspaceAnswer> {
-  const refused = reasonRefusal(reason) ?? await workspaceRefusal(context, id, reason, watch);
+  const refused = reasonRefusal(reason) ?? await workspaceRefusal(context, id, reason, watch, context.harness !== "codex");
   if (refused !== undefined) return refused;
   const linked = linkedWorktree(context.folder);
   const capability = linked !== undefined && (await context.library.get(id))?.type === "capability";
@@ -98,15 +98,19 @@ export async function makeWorkspace(context: WorkspaceContext, id: string, reaso
   }
 
   const where = placeFor(repository, id);
-  // A claim this session still holds is on a branch in the merge queue (workspaceRefusal): it moves to the new one.
-  // Its line names the workspace's folder, where the branch lives, not the caller's (4.22).
+  // A claim this session still holds is on a branch in the merge queue, or one no worktree of its own has checked out,
+  // as main (workspaceRefusal): it moves to the new one. Its line names the workspace's folder, where the branch lives,
+  // not the caller's (4.22).
+  const before = await readClaim(context.log, context.project, id);
   const claimed = await claim({ ...context, folder: where.folder, branch: where.branch }, id, reason, { moveBranch: true });
   if (!claimed.ok) return claimed;
   try {
     mkdirSync(path.dirname(where.folder), { recursive: true });
     run(repository, ["worktree", "add", "-b", where.branch, where.folder, `refs/remotes/${base}`]);
   } catch (error) {
-    await release(context, id);
+    // A claim the session held before goes back to its branch; one taken here is let go.
+    if (before?.session === context.session && before.branch !== undefined) await claim({ ...context, branch: before.branch }, id, before.reason, { moveBranch: true });
+    else await release(context, id);
     return { ok: false, refused: "no-workspace", why: `git could not make the worktree: ${firstLine(error)}` };
   }
   return { ok: true, status: "ready", claim: claimed.claim, ...where, base, ...(claimed.takenOverFrom === undefined ? {} : { takenOverFrom: claimed.takenOverFrom }) };
@@ -158,11 +162,13 @@ export async function attachWorkspace(context: WorkspaceContext, id: string, rea
 /**
  * Why this session may not have a workspace for `id`. A claim it holds on a branch that has since
  * merged is ended first, and one on a branch waiting in the merge queue, which can take no more
- * commits, is not pointed back at either.
+ * commits, is not pointed back at either. When `movable`, neither is one held, from the main
+ * checkout, on a branch no linked worktree has checked out (as main): there is nowhere to work there.
  */
-async function workspaceRefusal(context: WorkspaceContext, id: string, reason: string, watch: MergeWatch): Promise<WorkspaceRefusal | undefined> {
+async function workspaceRefusal(context: WorkspaceContext, id: string, reason: string, watch: MergeWatch, movable = false): Promise<WorkspaceRefusal | undefined> {
   const mine = await readClaim(context.log, context.project, id);
-  if (mine?.session === context.session && !(await endIfMerged({ ...context, source: "tool" }, mine, watch)) && !(await inMergeQueue(context.folder, mine, watch))) {
+  if (mine?.session === context.session && !(await endIfMerged({ ...context, source: "tool" }, mine, watch)) && !(await inMergeQueue(context.folder, mine, watch))
+    && !(movable && linkedWorktree(context.folder) === undefined && !linkedBranches(context.folder).has(mine.branch ?? ""))) {
     return { ok: false, refused: "yours", claim: mine };
   }
   return claimRefusal(context, id, reason);
@@ -198,6 +204,16 @@ function linkedWorktree(folder: string): { folder: string; branch: string } | un
     return { folder: root, branch: run(root, ["branch", "--show-current"]).trim() };
   } catch {
     return undefined;
+  }
+}
+
+/** The branches the repository's linked worktrees have checked out (not the main checkout's). */
+function linkedBranches(folder: string): Set<string> {
+  try {
+    const entries = run(folder, ["worktree", "list", "--porcelain"]).split(/\r?\n\r?\n/).slice(1);
+    return new Set(entries.flatMap((entry) => entry.split(/\r?\n/).filter((line) => line.startsWith("branch refs/heads/")).map((line) => line.slice("branch refs/heads/".length))));
+  } catch {
+    return new Set();
   }
 }
 

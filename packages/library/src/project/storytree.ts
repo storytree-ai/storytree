@@ -304,10 +304,17 @@ class ServerConnection implements Storytree {
     assertProjectName(name); // before anything touches the server
     if (!(await this.listProjects()).includes(name)) throw new Error(`There is no project "${name}" to delete.`);
     await Promise.all([...this.#projects].filter((project) => project.name === name).map((project) => project.close()));
-    try {
-      await this.#server.admin.query(`DROP DATABASE IF EXISTS ${quoteIdentifier(projectDatabase(name))} WITH (FORCE)`);
-    } catch (error) {
-      throw this.#server.explain(error);
+    // An ordinary role may not end a backend it does not own, such as an autovacuum worker or a
+    // superuser's connection (42501, "permission denied to terminate process"); that backend ends
+    // by itself moments later, so the drop is retried briefly before the refusal stands.
+    for (let attempt = 1; ; attempt++) {
+      try {
+        await this.#server.admin.query(`DROP DATABASE IF EXISTS ${quoteIdentifier(projectDatabase(name))} WITH (FORCE)`);
+        return;
+      } catch (error) {
+        if ((error as { code?: unknown }).code !== "42501" || attempt >= 20) throw this.#server.explain(error);
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      }
     }
   }
 

@@ -269,6 +269,23 @@ test("1.12 dropProject deletes a project's database and every record in it; it i
   });
 });
 
+test("1.12 dropProject waits out a connection to the project it may not end, and deletes the project once that connection has gone", async () => {
+  const site = uniqueProjectName();
+  await withStorytree([databaseOf(site)], async (storytree) => {
+    await storytree.openProject(site);
+    let dropped: Promise<unknown> = Promise.resolve();
+    // A superuser's connection, as an autovacuum worker's would be: the client's ordinary role may
+    // not end it (42501), and it ends by itself moments later.
+    await withTestClient(async () => {
+      dropped = storytree.dropProject(site).then(() => undefined, (error: unknown) => error);
+      await new Promise((resolve) => setTimeout(resolve, 600));
+    }, databaseOf(site));
+
+    assert.equal(await dropped, undefined);
+    assert.deepEqual(await databasesContaining(site.slice("t-".length)), []);
+  });
+});
+
 test("1.12 a project once deleted is not made again by an open that only reaches an existing project: it is refused as gone, and no database appears", async () => {
   const run = uniqueProjectName();
   const site = `${run}-site`;

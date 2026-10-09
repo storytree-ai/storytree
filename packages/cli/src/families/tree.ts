@@ -80,7 +80,7 @@ const worklist: Verb = {
       `${title}  [${capability}]  ${status} — ${why.reason}, the ${why.mover}'s to move${why.contracts.length === 0 ? "" : `: ${why.contracts.join(", ")}`}; since ${since.slice(0, 10)}`,
     );
     if (listed.length > shown.length) lines.push(`${listed.length - shown.length} more wait.`);
-    return { text: lines.join("\n"), next: [{ command: "storytree arc increment new --arc <arc> --title <t> --objective <o> --body <text> --touches <capability> [--held-on <question>]", why: "route one: an increment that touches it, held on a question when it needs the owner" }] };
+    return { text: lines.join("\n"), next: [{ command: "storytree arc increment new --arc <arc> --title <t> --objective <o> --body <text> --capabilities <capability> [--held-on <question>]", why: "route one: an increment whose capabilities list names it, held on a question when it needs the owner" }] };
   },
 };
 

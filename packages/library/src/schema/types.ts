@@ -357,9 +357,12 @@ export const RECORD_SCHEMAS = {
     .strict(),
   /**
    * One increment of an arc's work (capability 10), from the moment it is decided until it closes;
-   * closed, it is the arc's log entry. It names the stories and capabilities it `touches` and the
-   * friction it `remedies` (10-a). The planning breakdown is written in `body`: 0.2's plan anchor
-   * did not last there and is not brought over (ADR-0639 D4).
+   * closed, it is the arc's log entry. It names the `capabilities` it changes, the lock list a claim
+   * on it lights (ADR-0949 D2), parked empty and filled by the session that claims it; it cites
+   * anything else (stories, notes, decisions) through `links`, and the friction it `remedies`
+   * (10-a). Version 3 retired `touches`, which held stories and capabilities alike. The planning
+   * breakdown is written in `body`: 0.2's plan anchor did not last there and is not brought over
+   * (ADR-0639 D4).
    */
   increment: z
     .object({
@@ -370,7 +373,8 @@ export const RECORD_SCHEMAS = {
       status: z.enum(INCREMENT_STATUSES),
       /** When it was parked as a proposal (an ISO 8601 timestamp); absent on one born closed. */
       parked: nonEmpty.optional(),
-      touches: ids.optional(),
+      capabilities: ids.optional(),
+      links: ids.optional(),
       remedies: ids.optional(),
       waits,
       waitsFor,
@@ -470,7 +474,7 @@ export const SCHEMA_VERSIONS: Readonly<Record<RecordType, number>> = {
   friction: 1,
   resteer: 1,
   techstack: 1,
-  increment: 2,
+  increment: 3,
   question: 1,
 };
 

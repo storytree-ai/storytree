@@ -153,7 +153,7 @@ export interface Library {
 
   /**
    * Add an increment to a live arc: a proposal, stamped with when it was parked, or, given an
-   * `outcome`, born closed. Everything it touches or remedies must be live.
+   * `outcome`, born closed. Every capability, link and friction it names must be live.
    */
   addIncrement(increment: NewIncrement, options?: WriteOptions): Promise<SchemaRecord<"increment">>;
   /** Start an increment: move it on to active, only forward (LifecycleError otherwise). Null if `id` is not a live increment. */
@@ -172,7 +172,7 @@ export interface Library {
    * and claims; its history records the move with `reason`. Null if `id` is not a live increment.
    */
   moveIncrement(id: string, arc: string, reason: string, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null>;
-  /** Change an increment's title, objective, body, or what it touches and remedies. Null if `id` is not a live increment. */
+  /** Change an increment's title, objective, body, capabilities, links or remedies. Null if `id` is not a live increment. */
   editIncrement(id: string, fields: IncrementEdit, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null>;
   /** Park an arc: it reads parked until unparked, or, given `until` (YYYY-MM-DD), until UTC midnight of that day. Null if `id` is not a live arc. */
   parkArc(id: string, options?: ParkOptions): Promise<SchemaRecord<"arc"> | null>;
@@ -263,7 +263,7 @@ export interface Library {
   healthHistory(contractId: string): Promise<HealthEntry[]>;
   /**
    * The health worklist (ADR-0825 D4): every capability that is not healthy, with its reason, who
-   * moves it and since when, oldest first, leaving off one an increment not yet closed touches.
+   * moves it and since when, oldest first, leaving off one an increment not yet closed lists among its capabilities.
    */
   healthWorklist(): Promise<HealthWorkItem[]>;
 

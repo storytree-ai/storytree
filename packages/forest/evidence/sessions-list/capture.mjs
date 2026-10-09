@@ -59,7 +59,7 @@ seed.arcView = {
   arc: record(ids.arc, 'arc', { title: 'Running sessions', description: 'Synthetic browser evidence', stories: [forest.id, app.id] }),
   state: 'active',
   increments: [record(ids.increment, 'increment', { arc: ids.arc, title: 'Running sessions list', objective: 'Readable current sessions',
-    body: 'Synthetic browser evidence', status: 'active', touches: [forest.capabilities[0].id, app.capabilities[0].id], heldOn: [ids.question] })],
+    body: 'Synthetic browser evidence', status: 'active', capabilities: [forest.capabilities[0].id, app.capabilities[0].id], heldOn: [ids.question] })],
   questions: [record(ids.question, 'question', { arc: ids.arc, title: 'Read this list at a glance', stakes: 'Readability', statement: 'Does the list read clearly?',
     context: 'Synthetic browser evidence', options: 'Look at the running sessions', lifecycle: 'open' })],
 };

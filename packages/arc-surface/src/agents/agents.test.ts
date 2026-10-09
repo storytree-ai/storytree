@@ -22,7 +22,7 @@ test("2.1–2.4 the board names each window, reason, quiet age and missing hooks
   assert.equal(board.on("i")?.activity, "live");
   assert.equal(board.on("elsewhere")?.label, "Codex");
   assert.equal(board.on("elsewhere")?.activity, "hooks not running");
-  assert.deepEqual(board.onArc([{ id: "i", fields: { touches: ["part"] } }]).map((agent) => agent.session), ["s1", "s2"]);
+  assert.deepEqual(board.onArc([{ id: "i", fields: { capabilities: ["part"] } }]).map((agent) => agent.session), ["s1", "s2"]);
   assert.deepEqual(board.onArc([]), []);
   const idle = agentsOnBoard(lines, at(42)).on("i")!;
   assert.equal(idle.holder, "idle");

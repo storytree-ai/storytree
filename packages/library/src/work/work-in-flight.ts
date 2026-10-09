@@ -13,11 +13,11 @@
  * The increment's shape and the rules across its fields (a proposal carries when it was parked; a
  * closed increment its outcome; a close with no pull request a note) are capability 3's, checked
  * inside every write (schema/types.ts). What this layer checks before writing is what a schema
- * cannot see: that the arc, and every story, capability and friction an increment names, is live,
+ * cannot see: that the arc, and every capability, link and friction an increment names, is live,
  * and that an increment moves only forward. A refusal throws with nothing written.
  */
 import { byCreation } from "../creation-order.js";
-import { checkReference, checkReferences, liveRecord, type Expected } from "../references.js";
+import { checkReference, checkReferences, liveRecord } from "../references.js";
 import type { SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.js";
 import { INCREMENT_STATUSES, type FieldsOf } from "../schema/types.js";
 import * as questions from "./owner-questions.js";
@@ -43,7 +43,8 @@ export interface CloseInput {
 }
 
 /**
- * A new increment: the live arc it belongs to, what it is, and what it touches and remedies. With
+ * A new increment: the live arc it belongs to, what it is, the capabilities it changes (parked
+ * empty by default, ADR-0949 D2), what it links to and what it remedies. With
  * `outcome` it is born closed, a log entry for work already done; without, it is a proposal.
  */
 export interface NewIncrement {
@@ -52,8 +53,10 @@ export interface NewIncrement {
   readonly objective: string;
   /** The increment itself: its breakdown, in prose. */
   readonly body: string;
-  /** The stories and capabilities it touches: each must be live. */
-  readonly touches?: string[];
+  /** The capabilities it changes, its lock list (ADR-0949 D2): each must be a live capability. */
+  readonly capabilities?: string[];
+  /** Anything else it cites, such as its stories, notes or decisions: each must be live. */
+  readonly links?: string[];
   /** The friction it remedies: each must be live. */
   readonly remedies?: string[];
   /** The open questions it is held on (capability 12): each must be a live question. */
@@ -66,7 +69,8 @@ export interface IncrementEdit {
   readonly title?: string;
   readonly objective?: string;
   readonly body?: string;
-  readonly touches?: string[] | undefined;
+  readonly capabilities?: string[] | undefined;
+  readonly links?: string[] | undefined;
   readonly remedies?: string[] | undefined;
   readonly heldOn?: string[] | undefined;
 }
@@ -109,8 +113,7 @@ export class LifecycleError extends Error {
   }
 }
 
-const TOUCHABLE: Expected = { name: "story or capability", types: ["story", "capability"] };
-const EDITABLE: ReadonlySet<string> = new Set(["title", "objective", "body", "touches", "remedies", "heldOn"]);
+const EDITABLE: ReadonlySet<string> = new Set(["title", "objective", "body", "capabilities", "links", "remedies", "heldOn"]);
 
 export class WorkInFlight {
   readonly #records: SchemaRecords;
@@ -122,7 +125,7 @@ export class WorkInFlight {
   }
 
   /**
-   * Add an increment to a live arc (MissingReferenceError otherwise, as for anything it touches or
+   * Add an increment to a live arc (MissingReferenceError otherwise, as for any capability, link or
    * remedies that is not live). It is a proposal, stamped with when it was parked, or, given an
    * `outcome`, born closed.
    */
@@ -219,7 +222,7 @@ export class WorkInFlight {
   }
 
   /**
-   * Change what an increment is: its title, objective, body, or what it touches and remedies, each
+   * Change what an increment is: its title, objective, body, capabilities, links or remedies, each
    * checked as addIncrement checks it. Null, with nothing written, if `id` is not a live increment.
    */
   editIncrement(id: string, fields: IncrementEdit, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
@@ -433,11 +436,13 @@ export class WorkInFlight {
   }
 
   /**
-   * What an increment touches must be live stories or capabilities, what it remedies live friction
-   * (10-a), and what it is held on live questions (12).
+   * What an increment lists as its capabilities must be live capabilities, and nothing else
+   * (ADR-0949 D2); what it links to any live records; what it remedies live friction (10-a); and
+   * what it is held on live questions (12).
    */
-  async #checkNames(fields: { readonly touches?: unknown; readonly remedies?: unknown; readonly heldOn?: unknown }): Promise<void> {
-    await checkReferences(this.#records, "touches", fields.touches, TOUCHABLE);
+  async #checkNames(fields: { readonly capabilities?: unknown; readonly links?: unknown; readonly remedies?: unknown; readonly heldOn?: unknown }): Promise<void> {
+    await checkReferences(this.#records, "capabilities", fields.capabilities, "capability");
+    await checkReferences(this.#records, "links", fields.links, "record");
     await checkReferences(this.#records, "remedies", fields.remedies, "friction");
     await checkReferences(this.#records, "heldOn", fields.heldOn, "question");
   }

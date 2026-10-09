@@ -51,9 +51,9 @@ seed.lines = { lines, cursor: lines.length };
 seed.tree.arcs = [];
 const arcViews = [{ arc: { id: 'arc-strip', type: 'arc', fields: { title: 'The sessions list' } }, state: 'active',
   increments: [
-    { id: 'inc-names', type: 'increment', createdAt: at(1, 1), fields: { arc: 'arc-strip', title: 'Near-side names', status: 'closed', touches: [stories[3 % stories.length].id],
+    { id: 'inc-names', type: 'increment', createdAt: at(1, 1), fields: { arc: 'arc-strip', title: 'Near-side names', status: 'closed', links: [stories[3 % stories.length].id],
       outcome: { date: '2026-10-02', disposition: 'landed', pr: '523' } } },
-    { id: 'inc-tabs', type: 'increment', createdAt: at(2, 1), fields: { arc: 'arc-strip', title: 'Tabs', status: 'ready', touches: [stories[4 % stories.length].id], heldOn: ['q-tabs'] } },
+    { id: 'inc-tabs', type: 'increment', createdAt: at(2, 1), fields: { arc: 'arc-strip', title: 'Tabs', status: 'ready', links: [stories[4 % stories.length].id], heldOn: ['q-tabs'] } },
   ],
   questions: [{ id: 'q-tabs', type: 'question', createdAt: at(1, 14.5), fields: { arc: 'arc-strip', title: 'Which tab opens first?', lifecycle: 'open' } }] }];
 

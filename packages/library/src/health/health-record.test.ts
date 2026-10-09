@@ -542,7 +542,7 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(verified.capability.why, { reason: "no test names it", mover: "agent", contracts: [sibling.id] }, "once something verifies the project, today's reasons");
   });
 
-  contract("5.9", "the health worklist lists each capability not healthy with its reason and since when, oldest first, leaving off one an open increment touches", async ({ health, work, flight }) => {
+  contract("5.9", "the health worklist lists each capability not healthy with its reason and since when, oldest first, leaving off one an open increment lists among its capabilities", async ({ health, work, flight }) => {
     const story = await work.addStory({ title: "Visitor can sign up" });
     const untested = await work.addCapability({ title: "Thank-you page", story: story.id });
     const failing = await work.addCapability({ title: "Email form", story: story.id });
@@ -558,7 +558,7 @@ for (const backend of [memory, postgres]) {
     await later();
     const failed = await health.recordVerified(check.id, "failing");
     const arc = await work.createArc({ title: "Launch v1", intent: "An intent", endState: "An end state", stories: [story.id] });
-    const fix = await flight.addIncrement({ arc: arc.id, title: "Send the welcome email", objective: "Test it", body: "Red then green", touches: [routed.id] });
+    const fix = await flight.addIncrement({ arc: arc.id, title: "Send the welcome email", objective: "Test it", body: "Red then green", capabilities: [routed.id] });
 
     const listed = await health.worklist();
     assert.deepEqual(listed.map(({ capability, title, story: of, status, why, since }) => ({ capability, title, story: of, status, reason: why.reason, mover: why.mover, since })), [

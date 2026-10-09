@@ -91,7 +91,7 @@ export function boardView(snapshot: BoardSnapshot, log: readonly Line[] | LogRea
     const failed = bars.filter(({ reading }) => reading.state === "not-completed").length;
     const open = bars.length - landed - failed;
     const count = [[landed, "landed"], [failed, "not completed"], [open, "open"]].filter(([n]) => n).map(([n, label]) => `${n} ${label}`).join(" · ") || "No increments";
-    const work = new Set(increments.flatMap((increment) => [increment.id, ...(increment.fields.touches ?? [])]));
+    const work = new Set(increments.flatMap((increment) => [increment.id, ...(increment.fields.capabilities ?? [])]));
     const workLines = lines.filter((line) => ("increment" in line && work.has(line.increment ?? "")) || ("capability" in line && work.has(line.capability ?? "")));
     const lastActivity = Math.max(time(arc.updatedAt), ...increments.map((i) => time(i.updatedAt)), ...questions.map((q) => time(q.updatedAt)), ...holders.map((h) => time(h.lastSeenAt)), ...workLines.map((line) => time(line.at)));
     const idleChip = (agents: readonly BoardAgent[]) => `idle · ${Math.min(...agents.map(({ quietMinutes }) => quietMinutes))} min`;

@@ -807,6 +807,29 @@ test("6.46 add_remedies adds live friction to a parked increment's remedies, kee
   });
 });
 
+test("6.47 park_increment takes an increment's capabilities and links, and edit_plan replaces either after parking; a story given as a capability is refused with nothing written (ADR-0949 D2)", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const { arc, story, capability } = await planned(agent);
+      const fieldsOf = async (id: string) => (await library.get(id))?.fields as { capabilities?: string[]; links?: string[] };
+      const parked = await agent.call("park_increment", { arc, title: "Email form", objective: "Build it", body: "Red then green", links: [story] });
+      assert.equal(parked.isError, false, parked.text);
+      const increment = idOf(parked);
+      assert.deepEqual([(await fieldsOf(increment)).capabilities, (await fieldsOf(increment)).links], [undefined, [story]], "parked with the list empty");
+
+      const history = await library.history({ id: increment });
+      const refused = await agent.call("edit_plan", { id: increment, capabilities: [story] });
+      assert.equal(refused.isError, true, refused.text);
+      assert.equal((await agent.call("park_increment", { arc, title: "Bad", objective: "Bad", body: "Bad", capabilities: [story] })).isError, true);
+      assert.deepEqual(await library.history({ id: increment }), history, "nothing was written");
+
+      const filled = await agent.call("edit_plan", { id: increment, capabilities: [capability] });
+      assert.equal(filled.isError, false, filled.text);
+      assert.deepEqual([(await fieldsOf(increment)).capabilities, (await fieldsOf(increment)).links], [[capability], [story]], "the claiming session fills it; the links stay");
+    });
+  });
+});
+
 test("6.39 a tool call's reads do not grow with the log's length: the same calls (show the plan, claim, read the context, release) take about as much from the store in a project whose log holds weeks of history as in one whose log holds an hour's", { timeout: 120_000 }, async (t) => {
   const taken: number[] = [];
   let history = 0;

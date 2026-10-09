@@ -49,7 +49,7 @@ test("5.1 a claim outlines that capability's territory in its session's colour, 
   assert.deepEqual(outlined(log, 3).map(([capability]) => capability), ["email_form", "password", "invoice"], "a second island's claim is outlined too");
   assert.deepEqual(Object.keys(claimTints(wisps(log, 3)).get("invoice")!).filter(key => /label|reason|agent|name/i.test(key)), [], "no agent name or reason text");
   const arcs = [{ arc: { id: "arc", fields: { title: "Billing" } }, state: "active", questions: [],
-    increments: [{ id: "inc", fields: { title: "Invoices", status: "active", touches: ["invoice"] } }] }] as unknown as ArcView[];
+    increments: [{ id: "inc", fields: { title: "Invoices", status: "active", capabilities: ["invoice"] } }] }] as unknown as ArcView[];
   const driving = new Log().add(0, { kind: "session-started", session: "E", harness: "codex", source: "hook" })
     .add(1, { kind: "claimed", session: "E", harness: "codex", source: "tool", increment: "inc", reason: "invoices" });
   assert.deepEqual([...claimTints(sessionWisps(sessionRows(tree, driving.lines, arcs, at(2)), driving.lines, at(2)))], [], "touching is not claiming");

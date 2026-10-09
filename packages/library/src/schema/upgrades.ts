@@ -48,6 +48,23 @@ export const UPGRADES: readonly UpgradeStep[] = [
     name: "increment-ready-retired",
     up: (fields) => (fields["status"] === "ready" ? { ...fields, status: "proposal" } : fields),
   },
+  {
+    // Capability 10 (ADR-0949 D2): an increment's `touches`, stories and capabilities alike, is
+    // retired for a capabilities-only list. Its capabilities move to that list, in order, and
+    // everything else it named (its stories) to its links, kept after any links it had. An id's
+    // type is its prefix, as every stored id carries one.
+    type: "increment",
+    from: 2,
+    name: "increment-capabilities-list",
+    up: ({ touches, ...fields }) => {
+      if (!Array.isArray(touches)) return fields;
+      const named = touches.filter((id): id is string => typeof id === "string");
+      const capabilities = named.filter((id) => id.startsWith("capability_"));
+      const others = named.filter((id) => !id.startsWith("capability_"));
+      const links = [...new Set([...(Array.isArray(fields["links"]) ? (fields["links"] as string[]) : []), ...others])];
+      return { ...fields, ...(capabilities.length === 0 ? {} : { capabilities }), ...(links.length === 0 ? {} : { links }) };
+    },
+  },
 ];
 
 /** The schema the library runs on. */

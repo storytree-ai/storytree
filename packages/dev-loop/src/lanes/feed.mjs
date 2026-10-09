@@ -61,7 +61,7 @@ function outsideFence(body, track, fences) {
 
 /**
  * The package paths an increment writes: those in its body's "Write ownership" sentence, else those its body names,
- * else (naming none) the whole `fence`, so it runs alone; read-only work writes none. Never its touches (ADR-0944 D2).
+ * else (naming none) the whole `fence`, so it runs alone; read-only work writes none. Never its capabilities list (ADR-0944 D2).
  */
 export function writesOf(body, fence) {
   if (readOnly(body)) return [];
@@ -132,7 +132,7 @@ export async function readSurvey({ library, claims, sessions, now = Date.now(), 
   const laptop = new Set(seen.filter((session) => now - Date.parse(session.lastSeenAt) <= HOUR
     && ![session.folder, ...session.worktrees].some((folder) => folder && onBox(folder))).map((session) => session.session));
   const laptopArcs = new Set();
-  // An increment's touches is a plan hint, never a lock (ADR-0944 D2): only a claim on the increment marks its arc.
+  // An increment's capabilities list is a plan hint here, never a lock (ADR-0944 D2): only a claim on the increment marks its arc.
   for (const claim of standing.filter((one) => laptop.has(one.session) && one.increment)) {
     const one = increments.find((each) => each.id === claim.increment);
     if (one) laptopArcs.add(one.arc);

@@ -98,7 +98,7 @@ export function sessionRows(tree: AnnotatedTree, log: readonly Line[] | LogReadi
     if (ended.has(session.session)) continue;
     const own = claims.filter(claim => claim.session === session.session);
     const heldIncrements = increments.filter(inc => own.some(claim => claim.increment === inc.id));
-    // A row's islands are only its claimed capabilities': an increment's touches are a plan, not a claim (ADR-0923 D2).
+    // A row's islands are only its claimed capabilities': an increment's capabilities list is a plan, not a claim (ADR-0923 D2).
     const held = new Set(own.flatMap(claim => claim.capability ? [claim.capability] : []));
     const detail = details.get(session.session);
     if (detail?.parentSession) parents.set(session.session, detail.parentSession);
@@ -329,7 +329,7 @@ export function historyRows(tree: AnnotatedTree, log: readonly Line[] | LogReadi
     const own = bySession.get(session.session) ?? [];
     const claimed = own.flatMap(line => line.kind === "claimed" ? [line] : []);
     const held = claimed.flatMap(line => line.increment === undefined ? [] : [increments.get(line.increment)]).filter(inc => inc !== undefined);
-    const touched = [...new Set(claimed.flatMap(line => line.capability !== undefined ? [line.capability] : increments.get(line.increment ?? "")?.fields.touches ?? [])
+    const touched = [...new Set(claimed.flatMap(line => line.capability !== undefined ? [line.capability] : increments.get(line.increment ?? "")?.fields.capabilities ?? [])
       .flatMap(id => storyOf.has(id) ? [storyOf.get(id)!] : []))];
     const prs = [...new Set([
       ...(mergedFor.get(session.session) ?? []),

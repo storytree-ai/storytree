@@ -123,24 +123,26 @@ jobs:
       - if: matrix.system == 'macOS' && steps.installer.outputs.changed == 'true'
         run: node --import tsx apps/desktop/check-install-mac.mjs
       # Reuse this Windows execution for own health. Each attempt keeps its own immutable
-      # artifact; a failed Windows job publishes no evidence.
+      # artifact. A failed job uploads too (always()), so its own run can be diagnosed; own health
+      # downloads only from a passing run, so a failed attempt's evidence earns no credit. A job
+      # that failed before its tests wrote any only warns about the missing folder.
       - name: Preserve Windows test evidence
-        if: matrix.system == 'Windows'
+        if: always() && matrix.system == 'Windows'
         uses: actions/upload-artifact@v7
         with:
           name: windows-test-evidence-${{ github.run_attempt }}
           path: .pgtest/windows-evidence
           include-hidden-files: true
-          if-no-files-found: error
+          if-no-files-found: ${{ job.status == 'success' && 'error' || 'warn' }}
       # The same for macOS: own health credits a platform:darwin skip only from this run (contract 1.11).
       - name: Preserve macOS test evidence
-        if: matrix.system == 'macOS'
+        if: always() && matrix.system == 'macOS'
         uses: actions/upload-artifact@v7
         with:
           name: macos-test-evidence-${{ github.run_attempt }}
           path: .pgtest/macos-evidence
           include-hidden-files: true
-          if-no-files-found: error
+          if-no-files-found: ${{ job.status == 'success' && 'error' || 'warn' }}
 
   # The check branch protection on main requires, and the one `automerge` waits for; it reports on
   # the merge queue's runs too, so the queue can merge on it. It passes only

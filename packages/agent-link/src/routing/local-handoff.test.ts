@@ -368,6 +368,11 @@ test("1.16 authenticated metadata errors refuse without secrets or a passwordles
     f.save();
     rmSync(f.directory, { recursive: true });
     refused();
+    // Every local cluster asks for a password (ADR-0941, ADR-0948): a record with neither marker
+    // is a missing handoff, never a passwordless installation.
+    writeFileSync(`${f.dataDir}.owner.json`, JSON.stringify(legacy));
+    refused();
+    assert.deepEqual(locateStorytree({ dataDir: f.dataDir }), { running: false, message: "storytree's local database credentials are unavailable or invalid; restart the storytree app to repair its connection handoff" });
   });
 });
 

@@ -45,7 +45,7 @@ export function testServerDataDir(): string {
  * its owner record at `<dataDir>.owner.json` and, when the server asks for a password, of its
  * private sign-in handoff at `<dataDir>.auth/connection.json` (ADR-0941), private as discovery
  * checks it. `port` fakes another endpoint (a stand-in in front of the server, or a closed port),
- * written into both so they still agree. A passwordless server has no handoff: only the record is copied.
+ * written into both so they still agree. A server with no handoff gets only the record, which discovery refuses.
  * Returns the record as written.
  */
 export function placeTestServer(dataDir: string, { port }: { port?: number } = {}): Record<string, unknown> {

@@ -22,7 +22,7 @@ import pg from "pg";
 
 import { setLibrary } from "../settings/settings.js";
 import { git, withTempDir } from "../testing/folders.js";
-import { dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { dropTestProjects, placeTestServer, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { machineOf, registerTrunk, setUpTrunks } from "./trunks.js";
 import { findProject, locateStorytree, MARKER_FILE, NOT_A_PROJECT, NOT_RUNNING, requireApproval, route, setUpProject, suggestProjectName, type ProjectLookup } from "./index.js";
 
@@ -151,20 +151,13 @@ test("1.4 with the app's database stopped, asking where to send activity answers
       assert.deepEqual((await client.query("SELECT 42 AS synthetic")).rows, [{ synthetic: 42 }]);
     } finally { await client.end(); }
 
-    // Explicit staging: today's legacy launcher has neither auth marker. Once either
-    // marker exists, discovery must use producer credentials; no fixture replaces them.
-    const owner = JSON.parse(readFileSync(`${running.dataDir}.owner.json`, "utf8"));
-    const url = new URL(discovered.url);
-    if (Object.hasOwn(owner, "auth") || existsSync(`${running.dataDir}.auth`)) {
-      assert.ok(url.password, "an authenticated launcher must supply its password through discovery");
-      for (const bad of ["", "incorrect-synthetic-password"]) {
-        const rejectedUrl = new URL(discovered.url);
-        rejectedUrl.password = bad;
-        const rejected = new pg.Client({ connectionString: rejectedUrl.href, password: () => bad, connectionTimeoutMillis: 3000 });
-        try { await assert.rejects(rejected.connect()); } finally { await rejected.end(); }
-      }
-    } else {
-      assert.equal(url.password, "", "only a legacy installation has a passwordless URL");
+    // Every local cluster asks for a password (ADR-0941): discovery supplies it, and none other signs in.
+    assert.ok(new URL(discovered.url).password, "an authenticated launcher must supply its password through discovery");
+    for (const bad of ["", "incorrect-synthetic-password"]) {
+      const rejectedUrl = new URL(discovered.url);
+      rejectedUrl.password = bad;
+      const rejected = new pg.Client({ connectionString: rejectedUrl.href, password: () => bad, connectionTimeoutMillis: 3000 });
+      try { await assert.rejects(rejected.connect()); } finally { await rejected.end(); }
     }
 
     // Stopped: a stopped server leaves no owner record.
@@ -218,12 +211,14 @@ test("1.6 with the library set to Cloud SQL, a project routes to that instance w
       const stopped = timed(() => route(folder, { dataDir }));
       assert.deepEqual(stopped.result, { status: "routed", project: "site", folder, library: { cloudSql } });
       assert.ok(stopped.ms < QUICK_MS, `answered in ${stopped.ms.toFixed(0)} ms`);
-      writeOwnerRecord(dataDir, { pid: process.pid, port });
+      placeTestServer(dataDir, { port });
       assert.deepEqual(route(folder, { dataDir }), { status: "routed", project: "site", folder, library: { cloudSql } });
 
-      // Set back to local, routing follows the app's owner record again.
+      // Set back to local, routing follows the app's owner record and its handoff again.
       setLibrary(["local"], home);
-      assert.deepEqual(route(folder, { dataDir }), { status: "routed", project: "site", folder, library: { url: `postgres://postgres@127.0.0.1:${port}/postgres` } });
+      const local = route(folder, { dataDir });
+      assert.equal(local.status, "routed");
+      assert.equal(local.status === "routed" && new URL(local.library.url!).port, String(port));
     });
   } finally {
     silent.close();

@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { promisify } from "node:util";
 
-import { laneLimit, main, poolRules, prepareCheckout, PUSH_URL, runPool } from "./launch.mjs";
+import { main, poolRules, prepareCheckout, PUSH_URL, runPool } from "./launch.mjs";
 
 const run = promisify(execFile);
 const now = () => Date.parse("2026-10-08T04:00:00Z");
@@ -18,19 +18,16 @@ async function folder(t) {
 
 async function box(t, extra = {}) {
   const lanesDir = await folder(t);
-  await writeFile(join(lanesDir, "night-fences.txt"), "A=packages/dev-loop, apps/desktop/src/main\nB=packages/app\n");
-  await writeFile(join(lanesDir, "night-common.md"), "Common rules.\n");
-  const events = [], lines = [], briefs = [], marks = [];
+  const events = [], lines = [], briefs = [];
   const counts = [5, 4];
   return {
-    lanesDir, events, lines, briefs, marks, repo: join(lanesDir, "repo"), addDirs: ["/wt", lanesDir], pid: 4242, now,
-    markQueue: async (one) => { marks.push(one); },
+    lanesDir, events, lines, briefs, repo: join(lanesDir, "repo"), addDirs: ["/wt", lanesDir], pid: 4242, now,
     say: (line) => lines.push(line), argsOf: async () => "", maxLanes: async () => 5,
     count: async () => { events.push("count"); return counts.length ? counts.shift() : 0; },
     lock: async (fn) => { events.push("lock"); await fn(); events.push("unlock"); },
     prepare: async () => { events.push("prepare"); },
-    sleep: async () => { events.push("sleep"); if (events.filter((one) => one === "sleep").length === 2) await writeFile(join(lanesDir, "night-stop"), ""); },
-    survey: async () => ({ increments: [], holds: { waits: {}, heldOn: {} }, claims: [], laptopArcs: [] }),
+    sleep: async () => { events.push("sleep"); if (events.filter((one) => one === "sleep").length === 2) await writeFile(join(lanesDir, "pool-stop"), ""); },
+    survey: async () => ({ increments: [], holds: { waits: {}, heldOn: {} }, claims: [] }),
     runLane: async (options) => {
       events.push("lane");
       briefs.push(await readFile(options.brief, "utf8"));
@@ -44,71 +41,23 @@ async function box(t, extra = {}) {
 }
 
 test("12.5 · each lane waits for a slot and updates the checkout under the shared lock, then runs its brief through the lane runner", async (t) => {
-  const b = await box(t);
-  await writeFile(join(b.lanesDir, "night-queue-A.txt"), "increment_one\n");
-  await writeFile(join(b.lanesDir, "night-notes-increment_one.md"), "Notes for one.\n");
-  assert.equal(await main(["night", "A"], b), 0);
-  assert.deepEqual(b.events, ["lock", "count", "sleep", "count", "prepare", "unlock", "lane", "sleep"]);
-  assert.equal(b.briefs[0], "# Overnight lane: track A, increment_one\n\nYour increment: increment_one. Your track: A. Your write fence: packages/dev-loop, apps/desktop/src/main.\n\nNotes for one.\n\nCommon rules.\n");
-  assert.equal(await readFile(join(b.lanesDir, "night-A-increment_one-brief.md"), "utf8"), b.briefs[0]);
-  assert.equal(await readFile(join(b.lanesDir, "night-queue-A.txt"), "utf8"), "");
-  assert.equal((await readFile(join(b.lanesDir, "night-A.pid"), "utf8")).trim(), "4242");
-  assert.deepEqual(b.marks, [{ track: "A", starting: "increment_one", running: [], queued: [] }], "the track's queue waits are kept as its lane starts");
+  let locked = false, waited = false;
+  const b = await box(t, {
+    survey: async () => poolWork(["increment_one"]), rules: async () => "Pool rules.\n",
+    lock: async (fn) => { b.events.push("lock"); locked = true; await fn(); locked = false; b.events.push("unlock"); },
+    count: async () => { if (!locked || waited) return 0; waited = true; return 5; },
+    sleep: async () => { b.events.push("sleep"); await new Promise((go) => setImmediate(go)); if (b.briefs.length) await writeFile(join(b.lanesDir, "pool-stop"), ""); },
+  });
+  await writeFile(join(b.lanesDir, "pool-notes-increment_one.md"), "Notes for one.\n");
+  assert.equal(await main(["pool"], b), 0);
+  assert.deepEqual(b.events.filter((one) => one !== "sleep"), ["lock", "prepare", "unlock", "lane"]);
+  assert.equal(b.briefs[0], "# Pool lane: increment_one\n\nYour increment: increment_one.\n\nNotes for one.\n\nPool rules.\n");
+  assert.equal(await readFile(join(b.lanesDir, "pool-increment_one-brief.md"), "utf8"), b.briefs[0]);
+  assert.equal((await readFile(join(b.lanesDir, "pool.pid"), "utf8")).trim(), "4242");
   const status = b.lines.join("\n");
   for (const line of ["waiting for a slot (5 engines running) before increment_one", "start increment_one", "engine codex Codex weekly allowance 77% used",
-    "end increment_one exit 0", "nothing ready in track A's fence", "stopped by night-stop", "track done"]) assert.ok(status.includes(line), line);
-
-  const refused = await box(t, { argsOf: async () => "bash /home/m/storytree-lanes/launch-night.sh run A" });
-  await writeFile(join(refused.lanesDir, "night-A.pid"), "77\n");
-  assert.equal(await main(["night", "A"], refused), 1);
-  assert.deepEqual(refused.events, []);
-  assert.match(refused.lines[0], /runner 4242 not started: runner 77 still drives track A/);
-  assert.equal(await main(["night", "Z"], await box(t)), 1, "a track night-fences.txt lacks does not start");
-  assert.equal(await main(["nonsense"], { ...(await box(t)), out: () => {} }), 2);
-});
-
-test("12.6 · a track's lane limit is its line in night-lanes-per-track, else 1, and two lanes writing different packages run at once", async (t) => {
-  assert.equal(laneLimit("A=2\nB=3\n", "A"), 2);
-  assert.equal(laneLimit("A=2\n", "B"), 1, "a track not named runs one lane");
-  for (const bad of ["A=0", "A=two", "A=1.5", ""]) assert.equal(laneLimit(bad, "A"), 1, bad);
-
-  const looks = { increments: [
-    { id: "inc_lanes", arc: "arc_a", arcState: "active", body: "Write ownership: packages/dev-loop", status: "proposal", parked: "2026-10-06T00:00:00Z" },
-    { id: "inc_main", arc: "arc_a", arcState: "active", body: "Write ownership: apps/desktop/src/main", status: "proposal", parked: "2026-10-06T00:00:00Z" },
-  ], holds: { waits: {}, heldOn: {} }, claims: [], laptopArcs: [] };
-  let at = 0, most = 0;
-  const b = await box(t, { count: async () => 0, survey: async () => looks, sleep: async () => { await writeFile(join(b.lanesDir, "night-stop"), ""); },
-    runLane: async () => { most = Math.max(most, ++at); await new Promise((go) => setTimeout(go, 20)); at--; return 0; } });
-  await writeFile(join(b.lanesDir, "night-queue-A.txt"), "inc_lanes\ninc_main\n");
-  await writeFile(join(b.lanesDir, "night-lanes-per-track"), "A=2\n");
-  assert.equal(await main(["night", "A"], b), 0);
-  assert.equal(most, 2, "both lanes ran at once");
-  assert.equal(await readFile(join(b.lanesDir, "night-queue-A.txt"), "utf8"), "");
-});
-
-test("12.7 · a track with its own common brief composes its lanes from it; other tracks keep night-common.md", async (t) => {
-  const briefs = [];
-  for (const [track, increment] of [["R", "increment_review"], ["A", "increment_build"]]) {
-    const b = await box(t);
-    await writeFile(join(b.lanesDir, "night-fences.txt"), "A=packages/dev-loop\nR=read-only: reviews that write no package\n");
-    await writeFile(join(b.lanesDir, "night-common-R.md"), "Read-only rules.\n");
-    await writeFile(join(b.lanesDir, `night-queue-${track}.txt`), `${increment}\n`);
-    assert.equal(await main(["night", track], b), 0);
-    briefs.push(...b.briefs);
-  }
-  assert.equal(briefs[0], "# Overnight lane: track R, increment_review\n\nYour increment: increment_review. Your track: R. Your write fence: read-only: reviews that write no package.\n\nRead-only rules.\n");
-  assert.match(briefs[1], /\n\nCommon rules\.\n$/, "a track without its own common brief keeps night-common.md");
-});
-
-test("12.2 ·the mintlib queue stops on a failed lane, keeping it queued, and refuses to start without its common brief", async (t) => {
-  const b = await box(t, { runLane: async () => 1 });
-  await writeFile(join(b.lanesDir, "mintlib-queue.txt"), "increment_lib\nincrement_after\n");
-  assert.equal(await main(["mintlib"], b), 1, "missing mintlib-common.md");
-  await writeFile(join(b.lanesDir, "mintlib-common.md"), "Library rules.\n");
-  assert.equal(await main(["mintlib"], b), 1);
-  assert.equal(await readFile(join(b.lanesDir, "mintlib-queue.txt"), "utf8"), "increment_lib\nincrement_after\n");
-  assert.match(await readFile(join(b.lanesDir, "mintlib-increment_lib-brief.md"), "utf8"), /^# Lane: arc_34390ae9d2e1, increment_lib\n\nYour increment: increment_lib\. Your write fence: .*\n\nLibrary rules\.\n$/);
-  assert.ok(b.lines.some((line) => line.endsWith("lane for increment_lib failed: stopping with it still queued")));
+    "end increment_one exit 0", "stopped by pool-stop", "dispatcher ended"]) assert.ok(status.includes(line), line);
+  assert.equal(await main(["nonsense"], { ...b, out: () => {} }), 2);
   const slots = [];
   assert.equal(await main(["slots"], { ...b, count: async () => 3, out: (line) => slots.push(line) }), 0);
   assert.deepEqual(slots, ["3 engines running, cap 5"]);
@@ -141,7 +90,7 @@ test("12.5 · the prepared checkout is at origin/main and pushes over SSH, leavi
 function poolWork(ids, extra = {}) {
   return {
     increments: ids.map((id, at) => ({ id, arc: `arc_${id}`, arcState: "active", title: id, body: extra.bodies?.[id] ?? "", status: "proposal", parked: `2026-10-0${at + 1}T00:00:00Z` })),
-    holds: { waits: {}, heldOn: {} }, claims: extra.claims ?? [], laptopArcs: [],
+    holds: { waits: {}, heldOn: {} }, claims: extra.claims ?? [],
   };
 }
 

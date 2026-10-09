@@ -5,7 +5,7 @@
  * activity log, as sessions A (Claude Code) and B (Codex) would.
  */
 import assert from "node:assert/strict";
-import { readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { test } from "node:test";
@@ -23,7 +23,7 @@ import { withTempDir } from "../testing/folders.js";
 import { approveCheckout, dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { closeOut, readSessions } from "../sessions/index.js";
 import { claim, claimRefusal, closed, endGoneClaims, land, readAttribution, release, releaseFor, type ClaimContext, type MergedPull, type MergeWatch } from "./index.js";
-import { boardClaims, due, mergedPullsThrough } from "./merges.js";
+import { boardClaims, due, mergedPullsThrough, projectTempFile } from "./merges.js";
 
 interface World {
   log: ActivityLog;
@@ -783,4 +783,30 @@ test("5.23 a claim takes from the library what deciding it needs and no more: on
   const report = JSON.stringify(Object.fromEntries(taken));
   assert.ok(taken.get("again, 5 naming it")! < 32 * 1024, `a claim already held takes almost nothing: ${report}`);
   assert.ok(taken.get("first, 5 naming it")! - taken.get("first, 1 naming it")! < 128 * 1024, `five open increments naming it take about as much as one: ${report}`);
+});
+
+test("5.32 a project text that is not a plain name never writes a temp-file stamp or cache outside the temp directory, and an approved name's stamp still holds off the next ask", async () => {
+  await withTempDir((folder) => {
+    const inner = path.join(folder, "a", "b");
+    mkdirSync(inner, { recursive: true });
+    const saved = { TMPDIR: process.env.TMPDIR, TEMP: process.env.TEMP, TMP: process.env.TMP };
+    process.env.TMPDIR = process.env.TEMP = process.env.TMP = inner;
+    try {
+      for (const project of ["../../escape", "..\\..\\escape", "x/../../../escape"]) {
+        assert.equal(path.dirname(projectTempFile("storytree-branches-", project, ".json")), inner, `${project} names a file in the temp directory`);
+        assert.equal(due(project, 60_000), true);
+        assert.equal(due(project, 60_000), false, `${project}'s stamp is kept, encoded`);
+      }
+      assert.equal(due("my-site", 60_000), true);
+      assert.equal(due("my-site", 60_000), false, "an approved name's stamp still holds off the next ask");
+      assert.ok(readdirSync(inner).includes("storytree-merges-my-site.stamp"), "an approved name is used as it is");
+      assert.deepEqual(readdirSync(folder), ["a"], "nothing is written above the temp directory");
+      assert.deepEqual(readdirSync(path.join(folder, "a")), ["b"]);
+    } finally {
+      for (const [key, value] of Object.entries(saved)) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+    }
+  });
 });

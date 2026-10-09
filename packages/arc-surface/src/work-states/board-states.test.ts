@@ -68,19 +68,26 @@ test("1.5 an event wait whose check-back has passed no longer holds the incremen
   assert.equal("checkBackPassed" in incrementState(open, { waitsFor: [owner, event] }), false, "a wait still holding is not a passed check-back");
 });
 
+test("1.5 an unclaimed increment listing a capability another live increment holds reads blocked by that increment; its own claim or a wait outranks it (ADR-0949 D3)", () => {
+  assert.deepEqual(incrementState(open, { blockedBy: "other" }), { state: "blocked", color: "yellow", progress: "planned", blockedBy: "other" });
+  assert.equal(incrementState(open, { blockedBy: "other", claim: held }).state, "held");
+  assert.equal(incrementState(open, { blockedBy: "other", waits }).state, "queued");
+  assert.equal(arcState("active", { increments: [incrementState(open, { blockedBy: "other" })] }), "queued", "an arc whose only open work is blocked has nothing to take");
+});
+
 test("1.6 a lane held only by note waits reads queued; a free increment beside them reads ready", () => {
   const reading = (waitsFor: NoteWait[]) => incrementState(open, { waitsFor });
   assert.equal(arcState("active", { increments: [reading([owner]), reading([event])] }), "queued");
   assert.equal(arcState("active", { increments: [reading([owner]), reading([passed])] }), "ready", "a passed check-back leaves the work free to take");
 });
 
-test("1.6 the arc reads closed/parked, waiting, blocked, queued, claimed, ready, idle, quiet in that order", () => {
+test("1.6 the arc reads closed/parked, waiting, blocked, queued, in progress, ready, idle, quiet in that order", () => {
   const all = { openQuestions: 1, waits, claims: [held, { ...held, holder: "live" as const }] };
   assert.equal(arcState("closed", all), "closed");
   assert.equal(arcState("parked", all), "parked");
   assert.equal(arcState("active", all), "waiting");
   assert.equal(arcState("active", { ...all, openQuestions: 0 }), "blocked");
-  assert.equal(arcState("active", { claims: all.claims }), "claimed");
+  assert.equal(arcState("active", { claims: all.claims }), "in-progress");
   assert.equal(arcState("active", { claims: [held] }), "idle");
   assert.equal(arcState("active"), "quiet");
 });
@@ -90,18 +97,18 @@ test("1.6 the arc rolls up its open increments: every one held reads queued, any
   const queued = reading({ waits }), ownerHeld = reading({ heldOn: ["q"] }), free = reading({}), claimed = reading({ claim: held });
   const landed = incrementState({ ...open, status: "closed", outcome: { date: "2026-09-27", disposition: "landed" } });
   assert.equal(arcState("active", { increments: [landed, queued, ownerHeld] }), "queued");
-  assert.equal(arcState("active", { increments: [queued], claims: [{ ...held, holder: "live" }] }), "queued", "queued sorts above claimed");
+  assert.equal(arcState("active", { increments: [queued], claims: [{ ...held, holder: "live" }] }), "queued", "queued sorts above in progress");
   assert.equal(arcState("active", { increments: [queued], waits }), "blocked");
   assert.equal(arcState("active", { increments: [queued], openQuestions: 1 }), "waiting");
   assert.equal(arcState("active", { increments: [queued, free, free] }), "ready");
-  assert.equal(arcState("active", { increments: [free, claimed], claims: [{ ...held, holder: "live" }] }), "claimed");
+  assert.equal(arcState("active", { increments: [free, claimed], claims: [{ ...held, holder: "live" }] }), "in-progress");
   assert.equal(arcState("active", { increments: [landed] }), "quiet", "nothing open is not work to take");
 });
 
-test("1.6 an idle claim does not hide free work: free work reads ready beside it, a live holder still reads claimed, nothing free still reads idle (ADR-0938 D3)", () => {
+test("1.6 an idle claim does not hide free work: free work reads ready beside it, a live holder still reads in progress, nothing free still reads idle (ADR-0938 D3)", () => {
   const free = incrementState(open), claimed = incrementState(open, { claim: held });
   assert.equal(arcState("active", { increments: [free, claimed], claims: [held] }), "ready", "an idle claim leaves the free increment to take");
-  assert.equal(arcState("active", { increments: [free, claimed], claims: [{ ...held, holder: "live" }] }), "claimed", "a live holder still outranks free work");
+  assert.equal(arcState("active", { increments: [free, claimed], claims: [{ ...held, holder: "live" }] }), "in-progress", "a live holder still outranks free work");
   assert.equal(arcState("active", { increments: [claimed], claims: [held] }), "idle", "only idle-claimed work and nothing free reads idle");
   assert.equal(arcState("active", { increments: [incrementState(open, { waits })], claims: [held] }), "queued", "queued still outranks idle");
 });

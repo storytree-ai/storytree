@@ -25,6 +25,8 @@ export interface Bar {
   /** The titles of the owner's questions its waits on other work end on (its reading's `behind`). */
   questionsBehind: string[];
   holdsUp: (WorkName & { reason: string })[];
+  /** The increment holding a capability its list names, when it reads blocked (ADR-0949 D3). */
+  blockedBy?: WorkName;
 }
 /** A note wait that still holds, with the increment it holds. */
 export interface LaneNoteWait extends NoteWait {
@@ -53,8 +55,9 @@ export interface BoardView {
   queues: ArcQueue[];
   selected: string | undefined;
 }
-const rank: Record<ArcState, number> = { waiting: 0, blocked: 1, queued: 1, claimed: 2, idle: 3, ready: 4, quiet: 5, parked: 6, closed: 7 };
+const rank: Record<ArcState, number> = { waiting: 0, blocked: 1, queued: 1, "in-progress": 2, idle: 3, ready: 4, quiet: 5, parked: 6, closed: 7 };
 const time = (at: string) => Date.parse(at) || 0;
+const withBlocker = (holder: string | undefined) => (holder === undefined ? {} : { blockedBy: holder });
 
 /** The log is the lines themselves, or a reading that holds its claims folded and keeps its claim lines. */
 export function boardView(snapshot: BoardSnapshot, log: readonly Line[] | LogReading, now: Date, scope: BoardScope = "active", quietMs?: number): BoardView {
@@ -66,6 +69,14 @@ export function boardView(snapshot: BoardSnapshot, log: readonly Line[] | LogRea
     ...increments.map((increment) => ({ id: increment.id, title: increment.fields.title, arc: { id: arc.id, title: arc.fields.title } })),
   ]);
   const waits = waitsOnBoard(names, new Map(Object.entries(snapshot.waits)));
+  // ADR-0949 D3: each capability a live session holds for an open increment, by that increment: its own claim lights its list, a capability claim counts for the increment it was taken under.
+  const openWork = snapshot.arcs.flatMap(({ increments }) => increments).filter(({ fields }) => fields.status !== "closed");
+  const live = agents.all.filter(({ holder }) => holder === "live");
+  const holding = new Map<string, string>([
+    ...openWork.filter(({ id }) => live.some((agent) => agent.increment === id)).flatMap(({ id, fields }) => (fields.capabilities ?? []).map((capability): [string, string] => [capability, id])),
+    ...live.flatMap(({ capability, under }): [string, string][] => capability !== undefined && under !== undefined && openWork.some(({ id }) => id === under) ? [[capability, under]] : []),
+  ]);
+  const blockedBy = (increment: ArcView["increments"][number]) => (increment.fields.capabilities ?? []).map((capability) => holding.get(capability)).find((holder) => holder !== undefined && holder !== increment.id);
   const questionTitles = new Map(snapshot.arcs.flatMap(({ questions }) => questions.map((question): [string, string] => [question.id, question.fields.title])));
   const lanes = snapshot.arcs.filter(({ state }) => state === scope).map((view): Lane => {
     const { arc, increments, questions } = view;
@@ -81,10 +92,11 @@ export function boardView(snapshot: BoardSnapshot, log: readonly Line[] | LogRea
       const claim = agents.on(increment.id);
       const noteWaits = snapshot.waitsFor?.[increment.id] ?? [];
       const behind = questionsBehind(increment.id, snapshot);
-      const reading = incrementState(increment.fields, { waits: snapshot.waits[increment.id] ?? [], heldOn: snapshot.heldOn[increment.id] ?? [], waitsFor: noteWaits, behind, ...(claim ? { claim } : {}) });
+      const reading = incrementState(increment.fields, { waits: snapshot.waits[increment.id] ?? [], heldOn: snapshot.heldOn[increment.id] ?? [], waitsFor: noteWaits, behind, ...(claim ? { claim } : {}), ...(increment.fields.status === "closed" ? {} : withBlocker(blockedBy(increment))) });
       return { id: increment.id, title: increment.fields.title, reading,
         agents: claim ? [claim] : [], waits: waits.on(increment.id), noteWaits,
-        questionsBehind: (reading.behind ?? []).map((question) => questionTitles.get(question) ?? question), holdsUp: waits.heldUpBy(increment.id) };
+        questionsBehind: (reading.behind ?? []).map((question) => questionTitles.get(question) ?? question), holdsUp: waits.heldUpBy(increment.id),
+        ...(reading.blockedBy ? { blockedBy: names.find(({ id }) => id === reading.blockedBy) ?? { id: reading.blockedBy, title: reading.blockedBy } } : {}) };
     });
     const state = arcState(view.state, { openQuestions: questions.filter(({ fields }) => fields.lifecycle === "open").length, waits: snapshot.waits[arc.id] ?? [], claims: holders, increments: bars.map(({ reading }) => reading) });
     const landed = bars.filter(({ reading }) => reading.state === "landed").length;
@@ -94,10 +106,10 @@ export function boardView(snapshot: BoardSnapshot, log: readonly Line[] | LogRea
     const work = new Set(increments.flatMap((increment) => [increment.id, ...(increment.fields.capabilities ?? [])]));
     const workLines = lines.filter((line) => ("increment" in line && work.has(line.increment ?? "")) || ("capability" in line && work.has(line.capability ?? "")));
     const lastActivity = Math.max(time(arc.updatedAt), ...increments.map((i) => time(i.updatedAt)), ...questions.map((q) => time(q.updatedAt)), ...holders.map((h) => time(h.lastSeenAt)), ...workLines.map((line) => time(line.at)));
-    const idleChip = (agents: readonly BoardAgent[]) => `idle · ${Math.min(...agents.map(({ quietMinutes }) => quietMinutes))} min`;
+    const idleChip = (agents: readonly BoardAgent[]) => `in progress · idle ${Math.min(...agents.map(({ quietMinutes }) => quietMinutes))} min`;
     const idleHolders = holders.filter(({ holder }) => holder === "idle");
     const chip = state === "idle" ? idleChip(holders)
-      : state === "ready" ? `ready · ${bars.filter(({ reading }) => reading.state === "open").length} to take` : state;
+      : state === "ready" ? `ready · ${bars.filter(({ reading }) => reading.state === "open").length} to take` : state.replaceAll("-", " ");
     // A queued lane names what its increments wait on, once per blocker (ADR-0760 D1).
     const laneWaits = state !== "queued" ? waits.on(arc.id)
       : [...new Map(bars.flatMap((bar) => bar.waits).map((wait) => [wait.id, wait])).values()];

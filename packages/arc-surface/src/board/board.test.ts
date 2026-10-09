@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import type { Line } from "@storytree/agent-link";
 import type { ArcView, FieldsOf, NoteWait } from "@storytree/library";
 import { record } from "../testing/records.js";
 import { boardView, type BoardSnapshot } from "./board.js";
@@ -26,7 +27,7 @@ test("3.2 lanes show finished bars first, then oldest open work, with named coun
   assert.doesNotMatch(html, /NaN|undefined/);
 });
 
-test("3.3 lanes sort waiting, blocked, claimed, idle, quiet then recent activity; scopes partition arcs and idle age is on the chip", () => {
+test("3.3 lanes sort waiting, blocked, in progress, idle, quiet then recent activity; scopes partition arcs, an in-progress chip never says claimed, and idle age is on it", () => {
   const quiet = arc("quiet", "active", "2026-09-20");
   const recent = arc("recent");
   const idle = arc("idle"); idle.increments.push(record("i", "increment", { arc: "idle", title: "Build", objective: "Build", body: "Build", status: "active" }));
@@ -40,7 +41,8 @@ test("3.3 lanes sort waiting, blocked, claimed, idle, quiet then recent activity
   const now = new Date("2026-09-27T00:42:00Z");
   const board = boardView(snapshot, lines, now);
   assert.deepEqual(board.lanes.map(({ id }) => id), ["waiting", "blocked", "claimed", "idle", "recent", "quiet"]);
-  assert.equal(board.lanes.find(({ id }) => id === "idle")?.chip, "idle · 42 min");
+  assert.equal(board.lanes.find(({ id }) => id === "idle")?.chip, "in progress · idle 42 min");
+  assert.equal(board.lanes.find(({ id }) => id === "claimed")?.chip, "in progress");
   assert.equal(board.selected, "waiting");
   assert.deepEqual(boardView(snapshot, lines, now, "parked").lanes.map(({ id }) => id), ["parked"]);
   assert.deepEqual(boardView(snapshot, lines, now, "closed").lanes.map(({ id }) => id), ["closed"]);
@@ -55,7 +57,7 @@ test("3.3 a lane whose open work all waits reads queued, ranks with blocked and 
     waits: { blocked: [{ on: "missing", reason: "needs it", forGood: true }], q1: [{ on: "r1", reason: "needs r1", forGood: false }] } };
   const lines = [{ seq: 1, project: "p", session: "s", harness: "codex", source: "hook" as const, kind: "claimed" as const, increment: "c1", reason: "building", at: "2026-09-27T00:40:00Z" }];
   const board = boardView(snapshot, lines, new Date("2026-09-27T00:42:00Z"));
-  assert.deepEqual(board.lanes.map(({ id, state }) => [id, state]), [["queued", "queued"], ["blocked", "blocked"], ["claimed", "claimed"], ["ready", "ready"]]);
+  assert.deepEqual(board.lanes.map(({ id, state }) => [id, state]), [["queued", "queued"], ["blocked", "blocked"], ["claimed", "in-progress"], ["ready", "ready"]]);
   const lane = (id: string) => board.lanes.find((lane) => lane.id === id)!;
   assert.equal(lane("ready").chip, "ready · 2 to take");
   assert.deepEqual(lane("queued").waits.map(({ title, arc }) => [title, arc?.title]), [["Build r1", "ready"]]);
@@ -71,10 +73,10 @@ test("3.3 an idle claim does not hide free work: the lane reads ready with its i
   const board = boardView(snapshot, [claim(1, "s1", "o1"), claim(2, "s2", "m1")], new Date("2026-09-27T00:42:00Z"));
   assert.deepEqual(board.lanes.map(({ id, state }) => [id, state]), [["only", "idle"], ["mixed", "ready"], ["free", "ready"]]);
   const lane = (id: string) => board.lanes.find((lane) => lane.id === id)!;
-  assert.equal(lane("only").chip, "idle · 42 min");
+  assert.equal(lane("only").chip, "in progress · idle 42 min");
   assert.equal(lane("only").idle, undefined, "an idle lane's own chip says it; there is no beside-marker");
   assert.equal(lane("mixed").chip, "ready · 2 to take");
-  assert.deepEqual(lane("mixed").idle, { chip: "idle · 42 min", agents: [lane("mixed").agents[0]] });
+  assert.deepEqual(lane("mixed").idle, { chip: "in progress · idle 42 min", agents: [lane("mixed").agents[0]] });
   assert.equal(lane("mixed").idle?.agents[0]?.session, "s2");
   assert.equal(lane("free").idle, undefined);
 });
@@ -86,12 +88,32 @@ test("2.1 a pip carries only its own increment's claim: capability claims mark n
     ...(disposition ? { outcome: { date: "2026-09-21", disposition } } : {}),
   }, "2026-09-20");
   a.increments.push(touching("done", "closed", "landed"), touching("open", "active"));
-  const claim = (seq: number, target: { increment: string } | { capability: string }) => ({ seq, project: "p", session: "s", harness: "claude-code", source: "hook" as const, kind: "claimed" as const, ...target, reason: "building", at: "2026-09-27T00:00:00Z" });
-  const board = boardView({ arcs: [a], waits: {}, heldOn: {} }, [claim(1, { increment: "open" }), claim(2, { capability: "c1" }), claim(3, { capability: "c2" })], new Date("2026-09-27T00:01:00Z"));
+  const claim = (seq: number, target: { increment: string } | { capability: string; under?: string }) => ({ seq, project: "p", session: "s", harness: "claude-code", source: "hook" as const, kind: "claimed" as const, ...target, reason: "building", at: "2026-09-27T00:00:00Z" });
+  const board = boardView({ arcs: [a], waits: {}, heldOn: {} }, [claim(1, { increment: "open" }), claim(2, { capability: "c1", under: "open" }), claim(3, { capability: "c2", under: "open" })], new Date("2026-09-27T00:01:00Z"));
   const bar = (id: string) => board.lanes[0]!.bars.find((bar) => bar.id === id)!;
   assert.deepEqual(bar("done").agents, [], "a landed pip draws no mark for its capabilities' claims");
   assert.deepEqual(bar("open").agents.map((agent) => agent.increment), ["open"], "one mark: the increment's own claim");
   assert.equal(board.lanes[0]!.agents.length, 3);
+});
+
+test("3.3 an unclaimed increment listing a capability another live increment holds reads blocked by it until that one closes or releases (ADR-0949 D3)", () => {
+  const work = (id: string, arcId: string, capabilities: string[], status: FieldsOf<"increment">["status"] = "proposal") => record(id, "increment", { arc: arcId, title: `Build ${id}`, objective: id, body: id, status, capabilities }, "2026-09-20");
+  const mine = arc("mine"); mine.increments.push(work("waits", "mine", ["shared"]), work("free", "mine", ["own"]));
+  const theirs = arc("theirs"); theirs.increments.push(work("holder", "theirs", ["shared"], "active"));
+  const snapshot: BoardSnapshot = { arcs: [mine, theirs], waits: {}, heldOn: {} };
+  const line = (seq: number, kind: "claimed" | "closed" | "released", extra: object = {}) => ({ seq, project: "p", session: "s", harness: "claude-code", source: "tool", kind, increment: "holder", reason: "building", at: "2026-09-27T00:00:00Z", ...extra }) as Line;
+  const now = new Date("2026-09-27T00:01:00Z");
+  const bar = (lines: Line[], id: string) => boardView(snapshot, lines, now).lanes.flatMap(({ bars }) => bars).find((bar) => bar.id === id)!.reading;
+  assert.deepEqual([bar([line(1, "claimed")], "waits").state, bar([line(1, "claimed")], "waits").blockedBy], ["blocked", "holder"]);
+  assert.equal(bar([line(1, "claimed")], "free").state, "open");
+  assert.equal(bar([line(1, "claimed"), line(2, "released")], "waits").state, "open", "released, it holds nothing");
+  assert.equal(bar([line(1, "claimed"), line(2, "closed", { disposition: "landed" })], "waits").state, "open", "closed, it holds nothing");
+  const byCapability = [{ ...line(1, "claimed", { increment: undefined, capability: "shared", under: "holder" }) }];
+  assert.equal(bar(byCapability, "waits").blockedBy, "holder", "a capability claim blocks on behalf of the increment it was taken under");
+  const blocked = boardView(snapshot, [line(1, "claimed")], now).lanes.find(({ id }) => id === "mine")!;
+  assert.equal(blocked.state, "ready", "the free increment beside it is still to take");
+  assert.equal(blocked.chip, "ready · 1 to take");
+  assert.match(renderBoard(boardView(snapshot, [line(1, "claimed")], now), "mine"), /title="Build waits\nblocked · planned\nBlocked by Build holder \(theirs\), which holds a capability it lists"/);
 });
 
 const ownerWait: NoteWait = { releaser: "owner", note: "approve the spend", holds: true };

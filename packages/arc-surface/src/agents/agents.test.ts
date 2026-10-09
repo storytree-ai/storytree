@@ -13,6 +13,17 @@ const lines: Line[] = [
   { kind: "claimed", source: "tool", harness: "codex", session: "s3", capability: "elsewhere", reason: "other work", seq: 5, at: at(4).toISOString(), project: "p" },
 ];
 
+test("2.4 an arc's holders come only from its open increments: their own claims and capability claims taken under them (ADR-0949 D1)", () => {
+  const under = (seq: number, session: string, capability: string, increment?: string): Line => ({ kind: "claimed", source: "tool", harness: "claude-code", session, capability, ...(increment ? { under: increment } : {}), reason: "build", seq, at: at(seq).toISOString(), project: "p" });
+  const board = agentsOnBoard([...lines, under(6, "s1", "mine", "i"), under(7, "s4", "shared", "other-arc-work")], at(8));
+  const open = { id: "i", fields: { status: "active" as const, capabilities: ["shared"] } };
+  assert.deepEqual(board.onArc([open]).map((agent) => agent.capability ?? agent.increment), ["i", "mine"], "a capability counts toward the increment it was taken under, not toward a list naming it");
+  // The 2026-10-09 case: a landed increment lists a capability another arc's session holds.
+  const landed = { id: "done", fields: { status: "closed" as const, capabilities: ["shared", "part"] } };
+  assert.deepEqual(board.onArc([landed]), [], "a closed increment contributes nothing");
+  assert.deepEqual(agentsOnBoard([...lines, under(6, "s1", "mine", "done")], at(8)).onArc([landed]), [], "not even a claim taken under it");
+});
+
 test("2.1–2.4 the board names each window, reason, quiet age and missing hooks, only on the work its arc names", () => {
   const board = agentsOnBoard(lines, at(5));
   assert.equal(board.on("i")?.label, "Claude Code");
@@ -22,7 +33,7 @@ test("2.1–2.4 the board names each window, reason, quiet age and missing hooks
   assert.equal(board.on("i")?.activity, "live");
   assert.equal(board.on("elsewhere")?.label, "Codex");
   assert.equal(board.on("elsewhere")?.activity, "hooks not running");
-  assert.deepEqual(board.onArc([{ id: "i", fields: { capabilities: ["part"] } }]).map((agent) => agent.session), ["s1", "s2"]);
+  assert.deepEqual(board.onArc([{ id: "i", fields: { status: "active", capabilities: ["part"] } }]).map((agent) => agent.session), ["s1"]);
   assert.deepEqual(board.onArc([]), []);
   const idle = agentsOnBoard(lines, at(42)).on("i")!;
   assert.equal(idle.holder, "idle");

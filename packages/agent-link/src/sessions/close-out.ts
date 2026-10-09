@@ -11,10 +11,8 @@ import { listRuns } from "@storytree/processes/listing";
 
 import type { ActivityLog, Line } from "../activity/index.js";
 import { returnUnclosed } from "../claims/claims.js";
-import { cancelClaimNotice } from "../claims/notices.js";
 import { rememberClosedOut } from "../hooks/close-out-reminder.js";
 import { held, partOf } from "../readings.js";
-import { storytreeHome } from "../routing/routing.js";
 import { resolveBranches, type BranchWatch } from "./branch-states.js";
 
 /** Who is closing out, and where. */
@@ -33,8 +31,6 @@ export interface CloseOutContext {
 export interface CloseOutOptions {
   /** The process ledger's home; by default, the one under the storytree home. */
   readonly home?: string;
-  /** Where automatic claim notices wait; separate from the own-process ledger's home. */
-  readonly claimHome?: string;
   /** Look at the project's branches first, now (GitHub's merges, git's state), so a merge no hook recorded counts. No look when absent. */
   readonly look?: BranchWatch;
 }
@@ -61,7 +57,6 @@ export async function closeOut(context: CloseOutContext, said: { safe: boolean; 
       if (claim.session !== context.session) continue;
       if (context.library !== undefined) await returnUnclosed({ library: context.library, session: context.session, ...(context.writer === undefined ? {} : { writer: context.writer }) }, claim.increment);
       await log.append({ ...who, kind: "released", ...partOf(claim) });
-      cancelClaimNotice(options.claimHome ?? storytreeHome(), context.session, id);
       released.push(id);
     }
     const line = await log.append({ ...who, kind: "closed-out", safe: said.safe, why: said.why.trim(), ...(running === undefined ? {} : { running }) });

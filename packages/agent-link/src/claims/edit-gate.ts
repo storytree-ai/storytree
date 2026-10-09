@@ -3,8 +3,8 @@
  * claimed increment's capabilities list does not name, or one another live session holds, by its own
  * claim or on the list of an increment it holds (ADR-0949 D3). The refusal names the holder, or the
  * way through: add the capability to the increment's list and claim it. This reverses ADR-0924 D2 for
- * the edit tools; edits through the shell are still never stopped, and still claim after the fact
- * (edit-claims.ts).
+ * the edit tools; edits through the shell are still never stopped. Nothing claims after the edit:
+ * ADR-0953 D5 retired ADR-0924's edit claims and their notices.
  *
  * Only a file's own declaration places it here (an opening "Capability N · <title>", or a test file's
  * one numbered capability): the code survey's inference is too slow for a hook the harness waits on,

@@ -15,15 +15,14 @@
  * The once-a-minute look around the machine (which branches still hold open work, worktrees to reap,
  * which sessions the apps keep) takes longer than a hook may run: asking GitHub alone may take 10 s.
  * So a hook hands it, when due, to a copy of itself run with `--upkeep`, which may run longer and
- * writes nothing but what that look finds. That copy also claims, for each session on this machine,
- * the capabilities of the files it edited since the last look (ADR-0924, claims/edit-claims.ts).
+ * writes nothing but what that look finds. Nothing claims a capability from an edit after the fact
+ * (ADR-0953 D5 retired ADR-0924's edit claims and their notices).
  *
  * One more, before each file-edit tool, which the harness waits for (`--edit-gate`, edit-gate.ts),
  * refuses an edit to a capability the session's claimed increment does not list, or that another live
  * session holds (ADR-0949 D3): it prints the refusal, which the agent reads instead of the edit happening.
  *
- * One more, at each prompt (ADR-0636 D1, b2), prints: what storytree left on this machine for the
- * session about claims made from its edits (ADR-0924, claims/notices.ts), the project's definitions
+ * One more, at each prompt (ADR-0636 D1, b2), prints: the project's definitions
  * for the terms the prompt names (definitions.ts), and once-per-session advice to start fresh when a
  * Claude Code session passes its context guidance (context-nudge.ts). The harness waits for it, so it gives up
  * after 2 s and prints nothing. It also writes a line saying the session's turn began (ADR-0754 D5). And a
@@ -51,7 +50,6 @@ import type { NewLine } from "../activity/index.js";
 import type { MergeContext, MergeWatch } from "../claims/index.js";
 import { openNamedProject, ProjectFolderError, requireApproval, route, storytreeHome, type LocateOptions } from "../routing/index.js";
 import { claudeCodeLines } from "./claude-code.js";
-import { takeNotices } from "../claims/notices.js";
 import { CLOSE_OUT_REMINDER, closeOutReminder } from "./close-out-reminder.js";
 import { codexLines } from "./codex.js";
 import { EDIT_GATE, editGate } from "./edit-gate.js";
@@ -144,9 +142,7 @@ export async function runHook({ argv, input, handOff, merges, locate }: HookInpu
     // A prompt's line is written while its context is looked up: the harness waits for both.
     if (asked !== undefined) {
       const [context] = await Promise.all([withinTime(contextForPrompt(asked)), made === undefined ? undefined : writeLines(harness, input, flags, made, handOff, merges, locate, failed)]);
-      // What storytree left this session about claims from edits waits on this machine: it is said even when storytree is not reached (ADR-0924 D3).
-      const added = [...noticesFor(asked, locate), ...(context ?? [])];
-      return added.length === 0 ? undefined : JSON.stringify({ hookSpecificOutput: { hookEventName: "UserPromptSubmit", additionalContext: added.join("\n\n") } });
+      return context === undefined || context.length === 0 ? undefined : JSON.stringify({ hookSpecificOutput: { hookEventName: "UserPromptSubmit", additionalContext: context.join("\n\n") } });
     }
     if (made === undefined) return;
     await writeLines(harness, input, flags, made, handOff, merges, locate, failed);
@@ -272,15 +268,8 @@ async function upkeep(made: HookLines, merges: MergeWatch | undefined, locate: L
     if (!(await approved(storytree, where.project, where.folder, homeOf(locate)))) return;
     const log = await openActivityLog(storytree, { connectTimeoutMs: CONNECT_TIMEOUT_MS, branchOf: currentBranch, ...(machine === undefined ? {} : { machine }) });
     try {
-      // The hook that handed it on found it due: each look is taken now, and this machine's recent edits claim their capabilities (ADR-0924).
-      const claimingFromEdits = async () => {
-        const [{ claimFromEdits }, library] = await Promise.all([import("../claims/edit-claims.js"), openNamedProject(storytree, where.project, where.identity)]);
-        await claimFromEdits({ log, library, project: where.project, home: storytreeHome(), ...(machine === undefined ? {} : { machine }) });
-      };
-      await Promise.all([
-        lookAround({ log, project: where.project, folder: made.folder, session: first.session, ...(first.harness === undefined ? {} : { harness: first.harness }), source: "hook" }, { ...merges, everyMs: 0 }),
-        claimingFromEdits().catch(() => undefined),
-      ]);
+      // The hook that handed it on found it due: each look is taken now.
+      await lookAround({ log, project: where.project, folder: made.folder, session: first.session, ...(first.harness === undefined ? {} : { harness: first.harness }), source: "hook" }, { ...merges, everyMs: 0 });
     } finally {
       await log.close();
     }
@@ -307,12 +296,6 @@ function promptIn(harness: string, input: unknown): Prompted | undefined {
   const { hook_event_name: event, session_id: session, cwd: folder, prompt } = input as Record<string, unknown>;
   if (event !== "UserPromptSubmit" || typeof session !== "string" || typeof folder !== "string" || folder === "" || typeof prompt !== "string") return undefined;
   return { harness, session, folder, prompt };
-}
-
-/** What storytree left on this machine for the session at a prompt in a project's folder, taken so it is said once. */
-function noticesFor({ session, folder }: Prompted, locate: LocateOptions | undefined): string[] {
-  if (route(folder, locate).status === "not-a-project") return [];
-  return takeNotices(storytreeHome(), session);
 }
 
 /**

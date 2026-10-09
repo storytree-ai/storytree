@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { promisify } from "node:util";
 
-import { main, prepareCheckout, PUSH_URL } from "./launch.mjs";
+import { laneLimit, main, prepareCheckout, PUSH_URL } from "./launch.mjs";
 
 const run = promisify(execFile);
 const now = () => Date.parse("2026-10-08T04:00:00Z");
@@ -20,10 +20,11 @@ async function box(t, extra = {}) {
   const lanesDir = await folder(t);
   await writeFile(join(lanesDir, "night-fences.txt"), "A=packages/dev-loop, apps/desktop/src/main\nB=packages/app\n");
   await writeFile(join(lanesDir, "night-common.md"), "Common rules.\n");
-  const events = [], lines = [], briefs = [];
+  const events = [], lines = [], briefs = [], marks = [];
   const counts = [5, 4];
   return {
-    lanesDir, events, lines, briefs, repo: join(lanesDir, "repo"), addDirs: ["/wt", lanesDir], pid: 4242, now,
+    lanesDir, events, lines, briefs, marks, repo: join(lanesDir, "repo"), addDirs: ["/wt", lanesDir], pid: 4242, now,
+    markQueue: async (one) => { marks.push(one); },
     say: (line) => lines.push(line), argsOf: async () => "", maxLanes: async () => 5,
     count: async () => { events.push("count"); return counts.length ? counts.shift() : 0; },
     lock: async (fn) => { events.push("lock"); await fn(); events.push("unlock"); },
@@ -52,6 +53,7 @@ test("12.5 · each lane waits for a slot and updates the checkout under the shar
   assert.equal(await readFile(join(b.lanesDir, "night-A-increment_one-brief.md"), "utf8"), b.briefs[0]);
   assert.equal(await readFile(join(b.lanesDir, "night-queue-A.txt"), "utf8"), "");
   assert.equal((await readFile(join(b.lanesDir, "night-A.pid"), "utf8")).trim(), "4242");
+  assert.deepEqual(b.marks, [{ track: "A", starting: "increment_one", running: [], queued: [] }], "the track's queue waits are kept as its lane starts");
   const status = b.lines.join("\n");
   for (const line of ["waiting for a slot (5 engines running) before increment_one", "start increment_one", "engine codex Codex weekly allowance 77% used",
     "end increment_one exit 0", "nothing ready in track A's fence", "stopped by night-stop", "track done"]) assert.ok(status.includes(line), line);
@@ -63,6 +65,25 @@ test("12.5 · each lane waits for a slot and updates the checkout under the shar
   assert.match(refused.lines[0], /runner 4242 not started: runner 77 still drives track A/);
   assert.equal(await main(["night", "Z"], await box(t)), 1, "a track night-fences.txt lacks does not start");
   assert.equal(await main(["nonsense"], { ...(await box(t)), out: () => {} }), 2);
+});
+
+test("12.6 · a track's lane limit is its line in night-lanes-per-track, else 1, and two lanes writing different packages run at once", async (t) => {
+  assert.equal(laneLimit("A=2\nB=3\n", "A"), 2);
+  assert.equal(laneLimit("A=2\n", "B"), 1, "a track not named runs one lane");
+  for (const bad of ["A=0", "A=two", "A=1.5", ""]) assert.equal(laneLimit(bad, "A"), 1, bad);
+
+  const looks = { increments: [
+    { id: "inc_lanes", arc: "arc_a", arcState: "active", body: "Write ownership: packages/dev-loop", status: "proposal", parked: "2026-10-06T00:00:00Z" },
+    { id: "inc_main", arc: "arc_a", arcState: "active", body: "Write ownership: apps/desktop/src/main", status: "proposal", parked: "2026-10-06T00:00:00Z" },
+  ], holds: { waits: {}, heldOn: {} }, claims: [], laptopArcs: [] };
+  let at = 0, most = 0;
+  const b = await box(t, { count: async () => 0, survey: async () => looks, sleep: async () => { await writeFile(join(b.lanesDir, "night-stop"), ""); },
+    runLane: async () => { most = Math.max(most, ++at); await new Promise((go) => setTimeout(go, 20)); at--; return 0; } });
+  await writeFile(join(b.lanesDir, "night-queue-A.txt"), "inc_lanes\ninc_main\n");
+  await writeFile(join(b.lanesDir, "night-lanes-per-track"), "A=2\n");
+  assert.equal(await main(["night", "A"], b), 0);
+  assert.equal(most, 2, "both lanes ran at once");
+  assert.equal(await readFile(join(b.lanesDir, "night-queue-A.txt"), "utf8"), "");
 });
 
 test("12.2 · the mintlib queue stops on a failed lane, keeping it queued, and refuses to start without its common brief", async (t) => {

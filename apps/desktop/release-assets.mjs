@@ -16,8 +16,10 @@ export const PLATFORMS = {
       // The zip is what electron-updater fetches; the dmg is what a browser downloads.
       `storytree-0.3-${version}-mac-arm64.zip`, `storytree-0.3-${version}-mac-arm64.zip.blockmap`,
       `storytree-0.3-${version}-arm64.dmg`, `storytree-0.3-${version}-arm64.dmg.blockmap`, "latest-mac.yml",
+      // The Mac one-command delivery; its manifest entry is merged into storytree-delivery.json on publish.
+      "install-storytree.sh", "install-storytree-mac.txt", "install-storytree-mac-development.txt", "storytree-delivery-mac.json",
     ],
-    uploads: (name) => name === "latest-mac.yml" || /\.(zip|dmg)(\.blockmap)?$/.test(name),
+    uploads: (name) => /^(latest-mac\.yml|install-storytree\.sh|install-storytree-mac(-development)?\.txt|storytree-delivery-mac\.json)$/.test(name) || /\.(zip|dmg)(\.blockmap)?$/.test(name),
   },
 };
 

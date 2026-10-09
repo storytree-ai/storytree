@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import childProcess, { execFileSync, spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { chmodSync, existsSync, linkSync, mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, linkSync, mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { createServer, type AddressInfo } from "node:net";
 import path from "node:path";
 import { syncBuiltinESMExports } from "node:module";
-import { test } from "node:test";
+import { test, type TestContext } from "node:test";
 
 import { findBinaries } from "@storytree/local-postgres";
 import pg from "pg";
@@ -16,6 +16,8 @@ import { locateApp, locateLibrary, locateStorytree, MARKER_FILE, NOT_RUNNING, ro
 
 // Synthetic credentials only. Punctuation pins URL encoding through a real SCRAM handshake.
 const password = "synthetic-local-password-:@/#?% with spaces";
+
+let fixtureSid: string | undefined;
 
 function windowsAcl(file: string, action: "private" | "expose" | "deny-read"): void {
   // Fixture setup needs no PowerShell/.NET startup. Keep the previous ten-second bound
@@ -39,9 +41,9 @@ function windowsAcl(file: string, action: "private" | "expose" | "deny-read"): v
     run("grant-everyone", "icacls.exe", [file, "/grant", "*S-1-1-0:RX"]);
     return;
   }
-  // Parse only the numeric SID, never localized headings or account names.
-  const identity = run("current-user", "whoami.exe", ["/user", "/fo", "csv", "/nh"]);
-  const sid = identity.match(/,"(S-1-\d+(?:-\d+)+)"\s*$/)?.[1];
+  // Parse only the numeric SID, never localized headings or account names; once per process.
+  fixtureSid ??= run("current-user", "whoami.exe", ["/user", "/fo", "csv", "/nh"]).match(/,"(S-1-\d+(?:-\d+)+)"\s*$/)?.[1];
+  const sid = fixtureSid;
   assert.ok(sid, "whoami did not return a current-user SID");
   if (action === "deny-read") {
     run("deny-current-user", "icacls.exe", [file, "/deny", `*${sid}:(RD)`]);
@@ -52,6 +54,13 @@ function windowsAcl(file: string, action: "private" | "expose" | "deny-read"): v
   // inherited entries and grant only the current user. All files contain synthetic data.
   run("reset", "icacls.exe", [file, "/reset"]);
   run("private", "icacls.exe", [file, "/inheritance:r", "/grant:r", `*${sid}:F`]);
+}
+
+/** Move a file's modification time on, as a change to it or its access list moves its change time. */
+let touches = 0;
+function touch(file: string): void {
+  touches += 1;
+  utimesSync(file, new Date(), new Date(Date.now() + touches * 1000));
 }
 
 function privatePath(file: string, directory = false): void {
@@ -134,25 +143,113 @@ test("1.16 authenticated discovery connects to an independently provisioned SCRA
   });
 });
 
+// A self-relative security descriptor as Windows' ADSI security utility returns it in hex.
+// Discovery resolves the user once per process, so on Windows, where a real discovery may run first,
+// the synthetic descriptors are the real user's.
+const me = process.platform === "win32"
+  ? execFileSync(path.join(process.env.SystemRoot!, "System32", "whoami.exe"), ["/user", "/fo", "csv", "/nh"], { encoding: "utf8", windowsHide: true })
+    .match(/,"(S-1-\d+(?:-\d+)+)"\s*$/)![1]!
+  : "S-1-5-21-1111111111-2222222222-3333333333-1001";
+function sidBytes(sid: string): Buffer {
+  const [, , authority, ...subs] = sid.split("-");
+  const bytes = Buffer.alloc(8 + 4 * subs.length);
+  bytes[0] = 1;
+  bytes[1] = subs.length;
+  bytes.writeUIntBE(Number(authority), 2, 6);
+  subs.forEach((sub, i) => bytes.writeUInt32LE(Number(sub), 8 + 4 * i));
+  return bytes;
+}
+function descriptor({ owner = me, protect = true, aces = [{ type: 0, flags: 0, sid: me }] }:
+  { owner?: string; protect?: boolean; aces?: { type: number; flags: number; sid: string }[] | null } = {}): string {
+  const ownerSid = sidBytes(owner);
+  const entries = (aces ?? []).map(({ type, flags, sid }) => {
+    const trustee = sidBytes(sid);
+    const ace = Buffer.alloc(8 + trustee.length);
+    ace[0] = type;
+    ace[1] = flags;
+    ace.writeUInt16LE(ace.length, 2);
+    ace.writeUInt32LE(0x1f01ff, 4);
+    trustee.copy(ace, 8);
+    return ace;
+  });
+  const acl = Buffer.concat([Buffer.alloc(8), ...entries]);
+  acl[0] = 2;
+  acl.writeUInt16LE(acl.length, 2);
+  acl.writeUInt16LE(entries.length, 4);
+  const header = Buffer.alloc(20);
+  header[0] = 1;
+  header.writeUInt16LE(0x8000 | (aces ? 0x0004 : 0) | (protect ? 0x1000 : 0), 2);
+  header.writeUInt32LE(20, 4);
+  header.writeUInt32LE(aces ? 20 + ownerSid.length : 0, 16);
+  return Buffer.concat([header, ownerSid, aces ? acl : Buffer.alloc(0)]).toString("hex").toUpperCase();
+}
+
+function mockWindows(t: TestContext, answer: (command: string) => string) {
+  const platform = Object.getOwnPropertyDescriptor(process, "platform")!;
+  Object.defineProperty(process, "platform", { ...platform, value: "win32" });
+  const child = t.mock.method(childProcess, "execFileSync", (command: string) => answer(path.basename(command).toLowerCase()));
+  syncBuiltinESMExports();
+  return () => {
+    child.mock.restore();
+    syncBuiltinESMExports();
+    Object.defineProperty(process, "platform", platform);
+  };
+}
+const whoami = `"synthetic\\user","${me}"\r\n`;
+
+test("1.16 the Windows privacy check reads owner, inheritance and grants from security descriptors without PowerShell", async (t) => {
+  await withTempDir((home) => {
+    const f = fixture(home);
+    let directory = descriptor();
+    let file = descriptor();
+    const commands: string[] = [];
+    const restore = mockWindows(t, (command) => {
+      commands.push(command);
+      return command === "whoami.exe" ? whoami : `${directory}\r\n${file}\r\n`;
+    });
+    try {
+      assert.equal(route(home, { home }).status, "routed");
+      assert.equal(commands.includes("powershell.exe"), false);
+      for (const [dir, leaf, reason] of [
+        [descriptor({ owner: "S-1-5-32-544" }), descriptor(), "windows-acl-owner"],
+        [descriptor(), descriptor({ owner: "S-1-5-21-1-2-3-1002" }), "windows-acl-owner"],
+        [descriptor({ protect: false }), descriptor(), "windows-acl-inheritance"],
+        [descriptor(), descriptor({ aces: [{ type: 0, flags: 0, sid: me }, { type: 0, flags: 0, sid: "S-1-1-0" }] }), "windows-acl-exposed"],
+        [descriptor({ aces: null }), descriptor(), "windows-acl-exposed"],
+        [descriptor(), descriptor({ aces: [{ type: 0, flags: 0, sid: me }, { type: 9, flags: 0, sid: "S-1-5-18" }] }), "windows-acl-exposed"],
+        [descriptor(), descriptor({ aces: [{ type: 0, flags: 0, sid: "S-1-5-18" }] }), "windows-acl-no-owner-grant"],
+        [descriptor({ aces: [{ type: 0, flags: 0x0b, sid: me }] }), descriptor(), "windows-acl-no-owner-grant"],
+        [descriptor(), descriptor({ aces: [{ type: 1, flags: 0, sid: me }] }), "windows-acl-no-owner-grant"],
+        [descriptor(), descriptor().slice(0, 30), "windows-acl-output"],
+        [descriptor(), "not a descriptor", "windows-acl-output"],
+      ] as const) {
+        [directory, file] = [dir, leaf];
+        touch(f.file);
+        const result = route(home, { home });
+        assert.equal(result.status, "not-running", reason);
+        if (result.status === "not-running") assert.match(result.message, new RegExp(`\\(${reason}\\)$`));
+      }
+      // SYSTEM and Administrators may hold grants; a deny for anyone narrows access.
+      [directory, file] = [descriptor(), descriptor({ aces: [{ type: 1, flags: 0, sid: "S-1-1-0" }, { type: 0, flags: 0x10, sid: me },
+        { type: 0, flags: 0, sid: "S-1-5-18" }, { type: 0, flags: 0, sid: "S-1-5-32-544" }] })];
+      touch(f.file);
+      assert.equal(route(home, { home }).status, "routed");
+    } finally { restore(); }
+  });
+});
+
 test("1.16 Windows privacy refusals explain the failed check without subprocess output or credentials", async (t) => {
   await withTempDir((home) => {
     fixture(home);
-    const platform = Object.getOwnPropertyDescriptor(process, "platform")!;
-    Object.defineProperty(process, "platform", { ...platform, value: "win32" });
     let failure: unknown;
-    const child = t.mock.method(childProcess, "execFileSync", () => {
+    const restore = mockWindows(t, (command) => {
       if (failure) throw failure;
-      return "unexpected private output";
+      return command === "whoami.exe" ? whoami : `${password}\r\n`;
     });
-    syncBuiltinESMExports();
     try {
       for (const [details, reason] of [
         [{ code: "ETIMEDOUT" }, "windows-acl-timeout"],
         [{ code: "ENOENT" }, "windows-acl-process"],
-        [{ status: 11 }, "windows-acl-owner"],
-        [{ status: 12 }, "windows-acl-inheritance"],
-        [{ status: 13 }, "windows-acl-exposed"],
-        [{ status: 14 }, "windows-acl-no-owner-grant"],
         [{ status: 1 }, "windows-acl-process"],
         [undefined, "windows-acl-output"],
       ] as const) {
@@ -165,43 +262,71 @@ test("1.16 Windows privacy refusals explain the failed check without subprocess 
         assert.equal(JSON.stringify(result).includes(encodeURIComponent(password)), false);
         assert.equal(JSON.stringify(result).includes(home), false);
       }
-    } finally {
-      child.mock.restore();
-      syncBuiltinESMExports();
-      Object.defineProperty(process, "platform", platform);
-    }
+    } finally { restore(); }
   });
 });
 
 test("1.16 a Windows privacy check that stalls once is retried once; a second stall still refuses", async (t) => {
   await withTempDir((home) => {
     const f = fixture(home);
-    const platform = Object.getOwnPropertyDescriptor(process, "platform")!;
-    Object.defineProperty(process, "platform", { ...platform, value: "win32" });
-    // A cold PowerShell start once exceeded the deadline on a loaded Windows runner (run 37750433353).
     let stalls = 0;
-    let calls = 0;
-    const child = t.mock.method(childProcess, "execFileSync", () => {
-      calls += 1;
-      if (calls <= stalls) throw Object.assign(new Error("stalled"), { code: "ETIMEDOUT" });
-      return "private\r\n";
+    let reads = 0;
+    const restore = mockWindows(t, (command) => {
+      if (command === "whoami.exe") return whoami;
+      reads += 1;
+      if (reads <= stalls) throw Object.assign(new Error("stalled"), { code: "ETIMEDOUT" });
+      return `${descriptor()}\r\n${descriptor()}\r\n`;
     });
-    syncBuiltinESMExports();
     try {
       stalls = 1;
       assert.equal(locateStorytree({ dataDir: f.dataDir }).running, true);
-      assert.equal(calls, 2);
-      calls = 0;
+      assert.equal(reads, 2);
+      reads = 0;
       stalls = 2;
+      touch(f.file);
       const refused = locateStorytree({ dataDir: f.dataDir });
       assert.equal(refused.running, false);
       if (!refused.running) assert.match(refused.message, /\(windows-acl-timeout\)$/);
-      assert.equal(calls, 2);
-    } finally {
-      child.mock.restore();
-      syncBuiltinESMExports();
-      Object.defineProperty(process, "platform", platform);
-    }
+      assert.equal(reads, 2);
+    } finally { restore(); }
+  });
+});
+
+test("1.16 a Windows discovery of an unchanged private handoff spawns no second check; a changed or refused one is checked again", async (t) => {
+  await withTempDir((home) => {
+    const f = fixture(home);
+    let directory = descriptor();
+    const commands: string[] = [];
+    const restore = mockWindows(t, (command) => {
+      commands.push(command);
+      return command === "whoami.exe" ? whoami : `${directory}\r\n${descriptor()}\r\n`;
+    });
+    const reads = () => commands.filter((command) => command === "cscript.exe").length;
+    try {
+      assert.equal(route(home, { home }).status, "routed");
+      assert.equal(reads(), 1);
+      assert.equal(route(home, { home }).status, "routed");
+      assert.equal(locateStorytree({ dataDir: f.dataDir }).running, true);
+      assert.equal(reads(), 1, "an unchanged handoff is not checked again");
+      // The user is resolved once per process.
+      assert.equal(commands.filter((command) => command === "whoami.exe").length <= 1, true);
+      // Changing the access list changes the file's change time: the next discovery checks it.
+      directory = descriptor({ protect: false });
+      touch(f.file);
+      assert.equal(route(home, { home }).status, "not-running");
+      assert.equal(reads(), 2);
+      // A refusal is never remembered as a pass, nor a pass kept past one.
+      assert.equal(route(home, { home }).status, "not-running");
+      assert.equal(reads(), 3);
+      directory = descriptor();
+      assert.equal(route(home, { home }).status, "routed");
+      assert.equal(reads(), 4);
+      // A replaced file is a new identity, checked again.
+      writeFileSync(`${f.file}.new`, readFileSync(f.file), { mode: 0o600 });
+      renameSync(`${f.file}.new`, f.file);
+      assert.equal(route(home, { home }).status, "routed");
+      assert.equal(reads(), 5);
+    } finally { restore(); }
   });
 });
 

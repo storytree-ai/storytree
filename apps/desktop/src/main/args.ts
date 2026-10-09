@@ -3,7 +3,8 @@
  * nothing when none is running (ADR-0656 D1); `--project <name>` picks the project to open, `--smoke` runs the smoke
  * check (render, screenshot, print, quit), and `--screenshot <file>` says where the smoke check
  * saves its screenshot, `--start-check` starts the main process as far as its handlers and exits 0
- * (the updater's check of a new build, contract 4.17), and `--background` starts the app without its window (it restarts that
+ * (the updater's check of a new build, contract 4.17), `--callback-check` keeps the app up with no window or library and
+ * reports each sign-in callback a later start hands it (contract 1.15, CI's proof of deep-link delivery), and `--background` starts the app without its window (it restarts that
  * way after an update, when the window was closed). Anything else (Electron's and Chromium's own switches, the app path in
  * development) is left alone.
  */
@@ -11,6 +12,7 @@ export interface AppArgs {
   project?: string;
   smoke: boolean;
   startCheck: boolean;
+  callbackCheck: boolean;
   background: boolean;
   quit: boolean;
   screenshot?: string;
@@ -19,13 +21,14 @@ export interface AppArgs {
 }
 
 export function parseArgs(argv: readonly string[]): AppArgs {
-  const args: AppArgs = { smoke: false, startCheck: false, background: false, quit: false };
+  const args: AppArgs = { smoke: false, startCheck: false, callbackCheck: false, background: false, quit: false };
   for (let index = 0; index < argv.length; index++) {
     const arg = argv[index] ?? "";
     const [flag, inline] = arg.startsWith("--") && arg.includes("=") ? [arg.slice(0, arg.indexOf("=")), arg.slice(arg.indexOf("=") + 1)] : [arg, undefined];
     const value = (): string | undefined => inline ?? argv[++index];
     if (flag === "--smoke") args.smoke = true;
     else if (flag === "--start-check") args.startCheck = true;
+    else if (flag === "--callback-check") args.callbackCheck = true;
     else if (flag === "--background") args.background = true;
     else if (flag === "--quit") args.quit = true;
     else if (flag === "--project") {

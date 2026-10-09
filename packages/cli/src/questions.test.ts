@@ -5,10 +5,12 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 
+import { claim, openActivityLog, readClaims } from "@storytree/agent-link";
+
 import { parseArgs } from "./args.js";
 import type { Context } from "./door.js";
 import { questions } from "./families/question.js";
-import { BuiltCommand, inWorld, type World } from "./testing/cli.js";
+import { BuiltCommand, inWorld, testServerUrl, type World } from "./testing/cli.js";
 
 const command = new BuiltCommand();
 
@@ -38,7 +40,7 @@ test("5.5 `question list` lists open questions across arcs, or on one arc", asyn
   });
 });
 
-test("5.8 `question list` leaves out a parked arc's open questions and says how many wait there until it is unparked", async () => {
+test("5.8 `question list` leaves out a parked arc's open questions, says how many wait there and on which arc, and that arc's own listing names them as parked with it", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();
     const active = await arcWithWork(world);
@@ -52,10 +54,12 @@ test("5.8 `question list` leaves out a parked arc's open questions and says how 
     assert.ok(all.stdout.includes(shown.id), all.stdout);
     assert.ok(!all.stdout.includes(hidden.id), all.stdout);
     assert.match(all.stdout, /1 more waits? on a parked arc/, "it says what it left out");
+    assert.ok(all.stdout.includes(parked.arc), "it names the parked arc to list them from");
     const one = await world.run(["question", "list", "--arc", parked.arc]);
     assert.equal(one.code, 0, one.stderr);
-    assert.ok(!one.stdout.includes(hidden.id), one.stdout);
-    assert.match(one.stdout, /parked/, one.stdout);
+    assert.ok(one.stdout.includes(hidden.id), "the parked arc's own listing names its question");
+    assert.match(one.stdout, /parked with the arc/, one.stdout);
+    assert.doesNotMatch(one.stdout, /^1 open/m, "it is not listed as waiting on the owner");
     await library.unparkArc(parked.arc);
     const back = await world.run(["question", "list"]);
     assert.ok(back.stdout.includes(hidden.id), "unparked, its question is back on the list");
@@ -174,6 +178,30 @@ test("5.3 a held increment reads as waiting on you until its question is settled
   });
 });
 
+test("5.12 `question new --hold` releases the asking session's claims on the held increment and the capability claims taken under it; an unrelated claim stands", async () => {
+  await inWorld(command, async (world) => {
+    const { arc, increment } = await arcWithWork(world);
+    const library = await world.library();
+    const other = await library.addIncrement({ arc, title: "Pricing page", objective: "Build it", body: "…" });
+    const story = await library.addStory({ title: "Sign-up" });
+    const capability = await library.addCapability({ story: story.id, title: "Email form" });
+    const log = await openActivityLog(testServerUrl());
+    try {
+      const asker = { log, library, project: world.project, session: "claude-ask", harness: "claude-code" } as const;
+      for (const id of [other.id, increment, capability.id]) assert.equal((await claim(asker, id, "building")).ok, true, id);
+
+      const raised = await world.run(["question", "new", ...questionFlags(arc), "--hold", increment], { CLAUDE_CODE_SESSION_ID: "claude-ask" });
+      assert.equal(raised.code, 0, raised.stderr);
+      assert.match(raised.stdout, new RegExp(`Released your claims on ${increment}, ${capability.id}`));
+      assert.deepEqual((await readClaims(log, world.project)).map((held) => held.increment ?? held.capability), [other.id]);
+      const shown = await world.run(["arc", "show", arc]);
+      assert.match(shown.stdout, /waiting on you: question/);
+    } finally {
+      await log.close();
+    }
+  });
+});
+
 test("5.10 unsupported question new flags are refused before any write, naming --hold", async () => {
   await inWorld(command, async (world) => {
     const { arc, increment } = await arcWithWork(world);
@@ -191,7 +219,7 @@ test("5.10 unsupported question new flags are refused before any write, naming -
   });
 });
 
-test("5.4 question retire only retires questions; either door refuses a question an increment is held on", async () => {
+test("5.4 question retire only retires questions, releasing every increment held on it in the same step; library retire still refuses a held one", async () => {
   await inWorld(command, async (world) => {
     const { arc, increment } = await arcWithWork(world);
     const library = await world.library();
@@ -199,13 +227,10 @@ test("5.4 question retire only retires questions; either door refuses a question
     await library.editIncrement(increment, { heldOn: [question.id] });
 
     const { cursor } = await library.changesSince(0);
-    for (const family of ["question", "library"]) {
-      const ran = await world.run([family, "retire", question.id, "--reason", "asked wrongly"]);
-      assert.equal(ran.code, 1);
-      assert.match(ran.stderr, new RegExp(increment));
-      assert.deepEqual((await library.changesSince(cursor)).changes, []);
-    }
-    assert.deepEqual((await library.questions(arc)).map((one) => one.id), [question.id]);
+    const refused = await world.run(["library", "retire", question.id, "--reason", "asked wrongly"]);
+    assert.equal(refused.code, 1);
+    assert.match(refused.stderr, new RegExp(increment));
+    assert.deepEqual((await library.changesSince(cursor)).changes, []);
 
     const wrongKind = await world.run(["question", "retire", increment, "--reason", "asked wrongly"]);
     assert.equal(wrongKind.code, 1);
@@ -213,11 +238,41 @@ test("5.4 question retire only retires questions; either door refuses a question
     assert.ok(wrongKind.stderr.includes(`storytree library retire ${increment}`), wrongKind.stderr);
     assert.deepEqual((await library.changesSince(cursor)).changes, []);
 
-    await library.editIncrement(increment, { heldOn: [] });
     const retired = await world.run(["question", "retire", question.id, "--reason", "asked wrongly"]);
     assert.equal(retired.code, 0, retired.stderr);
+    assert.ok(retired.stdout.includes(`Released ${increment}`), retired.stdout);
     assert.equal(await library.get(question.id), null);
+    assert.equal(((await library.get(increment))?.fields as { heldOn?: unknown } | undefined)?.heldOn, undefined);
     assert.equal((await library.history({ id: question.id })).at(-1)?.reason, "asked wrongly");
+  });
+});
+
+test("5.11 `question show` reads one question whole: what it asks, its answer once settled, and the open work held on it", async () => {
+  await inWorld(command, async (world) => {
+    const { arc, increment } = await arcWithWork(world);
+    const library = await world.library();
+    const question = await library.raiseQuestion({ arc, title: "Which mailer?", stakes: "Sign-up waits", statement: "Which one?", context: "Two in reach", options: "Mailgun or SES", analogy: "Like a post office" });
+    await library.editIncrement(increment, { heldOn: [question.id] });
+
+    const open = await world.run(["question", "show", question.id]);
+    assert.equal(open.code, 0, open.stderr);
+    for (const text of ["Which mailer?", arc, "open", "Sign-up waits", "Which one?", "Two in reach", "Mailgun or SES", "Like a post office", `Holding: ${increment}`]) {
+      assert.ok(open.stdout.includes(text), `${text}: ${open.stdout}`);
+    }
+
+    await library.settleQuestion(question.id, { answer: "Mailgun" });
+    const settled = await world.run(["question", "show", question.id]);
+    assert.equal(settled.code, 0, settled.stderr);
+    assert.match(settled.stdout, /settled/);
+    assert.match(settled.stdout, /Answer:\nMailgun/);
+    assert.ok(!settled.stdout.includes("Holding:"), settled.stdout);
+
+    const wrongKind = await world.run(["question", "show", increment]);
+    assert.equal(wrongKind.code, 1);
+    assert.match(wrongKind.stderr, /not a question/);
+    const missing = await world.run(["question", "show", "question_000000000000"]);
+    assert.equal(missing.code, 1);
+    assert.match(missing.stderr, /no question/);
   });
 });
 

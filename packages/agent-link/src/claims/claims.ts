@@ -20,6 +20,8 @@
  *   claimed lines name as `under` (ADR-0944 D5).
  * - A claim also ends when a pull request from the branch it was taken on merges after it was
  *   taken (ADR-0643 D3): a "merged" line, which merges.ts writes when GitHub shows one.
+ * - A claim also ends when its holder reads gone, crashed or abandoned with no end line: a "released"
+ *   line naming it, written by whichever session's hook notices (endGoneClaims, ADR-0944 D6).
  * - Claims work on trust: storytree refuses a second claim, but cannot stop an agent that never asks.
  *   Instead, a session's edits claim their capabilities for it, after the fact (ADR-0924, edit-claims.ts).
  */
@@ -101,9 +103,10 @@ export interface Waiting extends Hold {
   readonly checkBack?: string;
 }
 
-export type ReleaseAnswer = { ok: true } | { ok: false; refused: "not-held"; holder?: Claim };
+/** `returned` when the release made an unclosed increment a proposal again (5.29). */
+export type ReleaseAnswer = { ok: true; returned?: true } | { ok: false; refused: "not-held"; holder?: Claim };
 
-export type ReleaseForAnswer = { ok: true } | { ok: false; refused: "not-held" | "live"; holder?: Claim };
+export type ReleaseForAnswer = { ok: true; returned?: true } | { ok: false; refused: "not-held" | "live"; holder?: Claim };
 
 export type LandAnswer =
   | { ok: true; line: Line }
@@ -210,10 +213,49 @@ export async function release(context: ClaimContext, id: string): Promise<Releas
   return context.log.locked(context.project, async (log) => {
     const current = (await heldNow(log, context)).get(id);
     if (current?.session !== context.session) return current === undefined ? { ok: false, refused: "not-held" } : { ok: false, refused: "not-held", holder: current };
+    const returned = await returnUnclosed(context, current.increment);
     await log.append({ ...who(context), kind: "released", ...partOf(current) });
     cancelClaimNotice(context.home ?? storytreeHome(), context.session, id);
-    return { ok: true };
+    return returned ? { ok: true, returned } : { ok: true };
   });
+}
+
+/**
+ * Asking the owner about `increment` releases the work it holds (ADR-0944 D4): when the context's session holds it,
+ * its claim ends, and so do the session's capability claims taken under it; an active increment is a proposal again,
+ * as any release returns it (5.29), and reads held on the owner. Claims on other work stand, and an increment the
+ * session does not hold releases nothing. The ids released, the increment first.
+ */
+export async function releaseAsked(context: ClaimContext, increment: string): Promise<string[]> {
+  return context.log.locked(context.project, async (log) => {
+    const standing = await heldNow(log, context);
+    if (standing.get(increment)?.session !== context.session) return [];
+    const taken = [...standing.values()].filter((claim) => claim.session === context.session && claim.under === increment);
+    await returnUnclosed(context, increment);
+    const released: string[] = [];
+    for (const claim of [standing.get(increment)!, ...taken]) {
+      await log.append({ ...who(context), kind: "released", ...partOf(claim) });
+      const id = claim.increment ?? claim.capability!;
+      cancelClaimNotice(context.home ?? storytreeHome(), context.session, id);
+      released.push(id);
+    }
+    return released;
+  });
+}
+
+/**
+ * An increment whose last claim ends without closing it is nobody's work in progress: when it is
+ * active, it is a proposal again (5.29), through the library's own `returnIncrement`. Called under
+ * the activity log's lock before the "released" line, as a claim's activation is before its
+ * "claimed" line, so no claim can start it in between, and a library refusal writes nothing.
+ * Whether it was returned.
+ */
+export async function returnUnclosed(context: Pick<ClaimContext, "library" | "writer" | "session">, increment: string | undefined): Promise<true | undefined> {
+  if (increment === undefined) return undefined;
+  const work = await context.library.get(increment);
+  if (work?.type !== "increment" || (work.fields as { status: IncrementStatus }).status !== "active") return undefined;
+  await context.library.returnIncrement(increment, { ...context.writer, actor: `session:${context.session}` });
+  return true;
 }
 
 /**
@@ -227,8 +269,36 @@ export async function releaseFor(context: ClaimContext, id: string, holder: stri
     const current = (await heldNow(log, context)).get(id);
     if (current?.session !== holder) return current === undefined ? { ok: false, refused: "not-held" } : { ok: false, refused: "not-held", holder: current };
     if (current.holder === "live") return { ok: false, refused: "live", holder: current };
+    const returned = await returnUnclosed(context, current.increment);
     await log.append({ ...who(context), kind: "released", ...partOf(current), holder, reason });
-    return { ok: true };
+    return returned ? { ok: true, returned } : { ok: true };
+  });
+}
+
+/**
+ * End the claims of every holder that reads gone (no line for longer than LONGEST_COMMAND_MS and none
+ * that ended it, or last seen before its machine restarted), written by whichever session notices, as
+ * merged lines are (ADR-0944 D6): a "released" line naming the gone holder, with when it was last seen.
+ * A holder that is only quiet, or waiting, is never ended here: that is the session manager's (ADR-0944 D7).
+ * The lines written, none when nobody is gone.
+ */
+export async function endGoneClaims(context: Who & Pick<ClaimContext, "log" | "project" | "restarted">): Promise<Line[]> {
+  return context.log.locked(context.project, async (log) => {
+    const now = (await log.now()).getTime();
+    const claimLines = await log.standing();
+    const holders = [...new Set([...held(claimLines, new Map(), new Set(), now, Infinity).values()].map((claim) => claim.session))];
+    if (holders.length === 0) return [];
+    const fold = LogFold.fromBounded(await log.foldLines(holders, new Date(now - COMMANDS_MS).toISOString()), claimLines);
+    const gone = new Map(fold.sessions({ now: new Date(now) }).filter(({ state }) => state === "gone").map(({ session, lastSeenAt }) => [session, lastSeenAt]));
+    if (gone.size === 0) return [];
+    const restarted = context.restarted ?? thisRestart();
+    const ended: Line[] = [];
+    for (const claim of fold.claims({ now: new Date(now), ...(restarted === undefined ? {} : { restarted }) })) {
+      const lastSeen = gone.get(claim.session);
+      if (lastSeen === undefined) continue;
+      ended.push(await log.append({ ...who(context), kind: "released", ...partOf(claim), holder: claim.session, reason: `gone: no line since ${lastSeen}` }));
+    }
+    return ended;
   });
 }
 
@@ -337,8 +407,11 @@ async function heldIn(reads: ClaimReads, now: number, quietMs: number, restarted
     .map((claim) => [claim.increment ?? claim.capability, claim]));
 }
 
+/** Who writes a claim's lines. */
+type Who = Pick<ClaimContext, "session" | "harness" | "source" | "folder">;
+
 /** The fields every line a claim writes carries: whose it is. */
-function who(context: ClaimContext) {
+function who(context: Who) {
   return {
     session: context.session,
     ...(context.harness === undefined ? {} : { harness: context.harness }),

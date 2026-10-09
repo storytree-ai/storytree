@@ -44,10 +44,12 @@ test("3.20 · 3.11 · in a real browser, each territory is filled by its word an
 // The territory smoke above omits its picture-only tour: on macOS that tour consumed
 // 131s of the shared 180s package deadline before these two pages even started.
 // Both captures stream phases, including cleanup, before a package timeout can hide them.
-test('3.35 · live desktop roads grow on first display and on a polled dependency, preserving shared roads and reduced motion', { timeout: 155_000 }, async () => {
+// The capture waits while frames keep coming (a loaded runner draws one every few seconds) and
+// fails on a stall, so its budget leaves room for slow growth (increment_b613c12a4aeb).
+test('3.35 · live desktop roads grow on first display and on a polled dependency, preserving shared roads and reduced motion', { timeout: 280_000 }, async () => {
   if (!process.env.PATHWAY_CAPTURE_DIST) await run(process.execPath, ['--import', 'tsx', path.join(pathwaysFolder, 'build.mjs'), checkout, 'live-smoke'], { cwd: checkout, timeout: 30_000 });
   const { stdout } = await run(process.execPath, ['--import', 'tsx', path.join(pathwaysFolder, 'live-capture.mjs'), '--smoke'], {
-    cwd: checkout, timeout: 120_000, maxBuffer: 1024 * 1024,
+    cwd: checkout, timeout: 240_000, maxBuffer: 1024 * 1024,
     env: { ...process.env, CAPTURE_CHANNEL: process.env.CAPTURE_CHANNEL ?? 'chrome' },
   });
   const summary = JSON.parse(stdout.trim().split('\n').at(-1)!);
@@ -65,7 +67,8 @@ test('3.35 · live desktop roads grow on first display and on a polled dependenc
     assert.equal(reading.finalLinkCount, 131);
     assert.equal(reading.finalLinkIdentitiesPreserved, true);
     assert.ok(reading.newOnlyCrossSpans > 0);
-    assert.equal(reading.oldSharedRoadsAlwaysWhole, true);
+    assert.equal(reading.oldSharedRoadsAlwaysWhole, true, `${motion}: an old road drew partial after the restore; ${JSON.stringify({
+      partial: reading.oldSharedPartial, linkCounts: reading.restoredLinkCounts, hidden: reading.roadsHiddenFrames })}`);
     assert.equal(reading.completedWithoutCaptureInvalidation, true);
     assert.equal(reading.unrelatedUpdateKeepsRoadsWhole, true,
       `${motion}: the consumed description preserves every intervening road frame; ${JSON.stringify({

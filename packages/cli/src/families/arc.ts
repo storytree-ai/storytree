@@ -22,6 +22,7 @@ import { labelOf, Refusal, type Answer } from "../answer.js";
 import { commaSeparatedIds, type Args } from "../args.js";
 import type { Family, Verb } from "../door.js";
 import { valueOf } from "./library.js";
+import { releasedAsking } from "./workspace.js";
 
 /** The given flags among `names`, each as the library field it names (`--end-state` is `endState`), kept as the text given (`--pr 132` is "132", not a number). */
 function given(args: Args, names: readonly string[]): Record<string, string> {
@@ -164,9 +165,9 @@ function parking(name: "park" | "unpark"): Verb {
   };
 }
 
-/** An arc's state as said: "parked until <day>" while a dated park holds, its state otherwise. */
-function stateOf({ arc, state }: ArcView): string {
-  return state === "parked" && arc.fields.parkedUntil !== undefined ? `parked until ${arc.fields.parkedUntil} (UTC)` : state;
+/** An arc's state as said: "parked until <day>" while a dated park holds (the owner's, or its work's check-back), its state otherwise. */
+function stateOf({ state, wakes }: ArcView): string {
+  return state === "parked" && wakes !== undefined ? `parked until ${wakes} (UTC)` : state;
 }
 
 /**
@@ -192,7 +193,9 @@ function waiting(family: string, what: "arc" | "increment"): Verb[] {
           const wait = { releaser, note, ...(checkBack === undefined ? {} : { checkBack }) };
           const done = await (await context.library()).addWaitFor(id, wait, context.writer());
           if (done === null) throw new Refusal(`no increment "${id}" in this project`);
-          return { text: `${id} now waits for ${releasedBy(releaser)}: ${note}${checkBack === undefined ? "" : ` (check back ${checkBack})`}.` };
+          // Waiting on the owner releases the caller's claims on it, as raising a question does (ADR-0944 D4); an event releases nothing.
+          const released = releaser === "owner" ? await releasedAsking(context, id) : "";
+          return { text: `${id} now waits for ${releasedBy(releaser)}: ${note}${checkBack === undefined ? "" : ` (check back ${checkBack})`}.${released}` };
         }
         const on = args.need("on", this.usage);
         const done = await (await context.library()).addWait(id, on, args.need("reason", this.usage), context.writer());
@@ -303,11 +306,17 @@ const incrementUnstart: Verb = {
 
 const incrementEdit: Verb = {
   name: "edit",
-  usage: "arc increment edit <increment> [--title …] [--objective …] [--body …] [--touches a,b] [--held-on q]",
-  summary: "change only the named fields",
+  usage: "arc increment edit <increment> [--title …] [--objective …] [--body …] [--touches a,b] [--remedies f,g] [--held-on q]",
+  summary: "change only the named fields; --remedies adds friction to those it already remedies",
   async act(args, context): Promise<Answer> {
     const id = args.word(0, "the increment's id", this.usage);
-    const edited = await (await context.library()).editIncrement(id, incrementOf(args) as never, context.writer());
+    const library = await context.library();
+    const fields = incrementOf(args);
+    if (fields.remedies !== undefined) {
+      const had = ((await library.get(id))?.fields as { remedies?: string[] } | undefined)?.remedies ?? [];
+      fields.remedies = [...new Set([...had, ...(fields.remedies as string[])])];
+    }
+    const edited = await library.editIncrement(id, fields as never, context.writer());
     if (edited === null) throw new Refusal(`no increment "${id}" in this project`);
     return { text: `Edited increment ${id}.` };
   },

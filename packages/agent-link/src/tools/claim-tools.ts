@@ -104,7 +104,7 @@ export function registerClaimTools(define: Define, extensions: readonly ToolExte
     const id = capability ?? increment;
     if (id === undefined || (capability !== undefined && increment !== undefined)) return { text: ONE_PART, refused: true };
     const answer = await release(claimContext(call), id);
-    if (answer.ok) return { text: `You released ${await titleOf(call.library, id)}.` };
+    if (answer.ok) return { text: `You released ${await titleOf(call.library, id)}${answer.returned ? ": nobody holds it, so it is a proposal again" : ""}.` };
     return {
       text: answer.holder === undefined ? `You don't hold ${id}, and nobody else does.` : `You don't hold ${id}: ${holderOf(answer.holder)} does.`,
       refused: true,

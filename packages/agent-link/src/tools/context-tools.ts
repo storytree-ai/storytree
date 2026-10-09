@@ -34,10 +34,10 @@ export function registerContextTools(define: Define, home?: string): void {
       safe: z.boolean().describe("true: every pull request merged, the working tree clean, nothing of yours left running"),
       why: z.string().min(1).describe("Why, in a few words"),
     }),
-    async ({ safe, why }, { log, project, caller, folder }) => {
+    async ({ safe, why }, { log, library, project, caller, folder, writer }) => {
       const branch = currentBranch(folder);
       const { running, released } = await closeOut(
-        { log, project, ...lineOf(caller), folder, ...(branch === undefined ? {} : { branch }) },
+        { log, library, project, ...lineOf(caller), folder, writer, ...(branch === undefined ? {} : { branch }) },
         { safe, why },
         { look: {}, ...(home === undefined ? {} : { home: path.join(home, "own"), claimHome: home }) },
       );

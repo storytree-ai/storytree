@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { userInfo } from "node:os";
 import { after, before, test } from "node:test";
 
-import { claim, openActivityLog, readClaims } from "@storytree/agent-link";
+import { claim, openActivityLog, readClaims, recordFriction } from "@storytree/agent-link";
 
 import { parseArgs } from "./args.js";
 import type { Context } from "./door.js";
@@ -113,6 +113,35 @@ test("4.9 `arc increment wait --for` makes an increment wait for you, or for an 
     const cleared = await world.run(["arc", "increment", "unwait", increment, "--for", "owner"]);
     assert.equal(cleared.code, 0, cleared.stderr);
     assert.deepEqual((await library.waitsFor(increment)).map(({ releaser }) => releaser), ["event"]);
+  });
+});
+
+test("4.14 `arc increment wait --for owner` releases the waiting session's claims on the increment and the capability claims taken under it; `--for event` releases nothing", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const arc = await anArc(world);
+    const increment = (await library.addIncrement({ arc, title: "Ship to TestFlight", objective: "A build testers install", body: "…" })).id;
+    const other = (await library.addIncrement({ arc, title: "Store listing", objective: "Write it", body: "…" })).id;
+    const story = await library.addStory({ title: "Release" });
+    const capability = (await library.addCapability({ story: story.id, title: "TestFlight upload" })).id;
+    const log = await openActivityLog(testServerUrl());
+    try {
+      const waiter = { log, library, project: world.project, session: "codex-wait", harness: "codex" } as const;
+      for (const id of [other, increment, capability]) assert.equal((await claim(waiter, id, "shipping")).ok, true, id);
+      const held = async () => (await readClaims(log, world.project)).map((one) => one.increment ?? one.capability);
+
+      const event = await world.run(["arc", "increment", "wait", increment, "--for", "event", "--note", "Apple reviews build 12", "--check-back", "2099-01-01"], { CODEX_THREAD_ID: "codex-wait" });
+      assert.equal(event.code, 0, event.stderr);
+      assert.doesNotMatch(event.stdout, /Released/);
+      assert.deepEqual((await held()).sort(), [other, increment, capability].sort());
+
+      const owner = await world.run(["arc", "increment", "wait", increment, "--for", "owner", "--note", "Sign the Apple developer agreement"], { CODEX_THREAD_ID: "codex-wait" });
+      assert.equal(owner.code, 0, owner.stderr);
+      assert.match(owner.stdout, new RegExp(`Released your claims on ${increment}, ${capability}`));
+      assert.deepEqual(await held(), [other]);
+    } finally {
+      await log.close();
+    }
   });
 });
 
@@ -375,6 +404,28 @@ test("4.12 `arc increment unstart` returns an active increment nobody holds to p
     } finally {
       await log.close();
     }
+  });
+});
+
+test("4.13 `arc increment edit --remedies` adds live friction to an increment's remedies, keeping those it had, so `friction route --to tool` accepts it; friction that is not live is refused with nothing written", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const arc = await anArc(world);
+    const friction = (title: string) => recordFriction(library, { title, description: "Delay", statement: "Timeout", evidence: "src/mail.ts: TimeoutError", impact: "Readers wait" });
+    const first = await friction("Slow mail");
+    const later = await friction("Slow mail again");
+    const fix = await library.addIncrement({ arc, title: "Retry mail", objective: "Retry", body: "…", remedies: [first.id] });
+
+    const history = await library.history({ id: fix.id });
+    const refused = await world.run(["arc", "increment", "edit", fix.id, "--remedies", "friction_000000000000"]);
+    assert.equal(refused.code, 1, refused.stdout);
+    assert.deepEqual(await library.history({ id: fix.id }), history, "nothing was written");
+
+    const edited = await world.run(["arc", "increment", "edit", fix.id, "--remedies", later.id]);
+    assert.equal(edited.code, 0, edited.stderr);
+    assert.deepEqual(((await library.get(fix.id))?.fields as { remedies?: string[] } | undefined)?.remedies, [first.id, later.id]);
+    const routed = await world.run(["friction", "route", later.id, "--to", "tool", "--reason", "Its fix is parked"]);
+    assert.equal(routed.code, 0, routed.stderr);
   });
 });
 

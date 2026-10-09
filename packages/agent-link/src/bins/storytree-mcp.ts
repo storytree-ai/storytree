@@ -20,6 +20,7 @@ import { createJourneyRuntime, journeyVersion } from "@storytree/journey-events/
 
 import { builtFromMain, runSetupCheck, type HookCommand } from "../setup/index.js";
 import { createAgentTools } from "../tools/index.js";
+import { shutdownOnce } from "./shutdown.js";
 
 const folder = process.env.CLAUDE_PROJECT_DIR || process.cwd();
 const script = fileURLToPath(new URL("./storytree-hook.mjs", import.meta.url));
@@ -34,12 +35,7 @@ const journey = createJourneyRuntime({ appVersion: journeyVersion(typeof STORYTR
 const tools = createAgentTools({ folder, env: process.env, setup: hook === undefined ? {} : { hook, command }, journey });
 journey.start();
 
-let stopping = false;
-function stop(): void {
-  if (stopping) return;
-  stopping = true;
-  void Promise.allSettled([tools.close(), journey.finish()]).finally(() => process.exit(0));
-}
+const stop = shutdownOnce({ input: process.stdin, work: () => [tools.close(), journey.finish()] });
 process.stdin.on("close", stop);
 for (const signal of ["SIGINT", "SIGTERM"] as const) process.on(signal, stop);
 

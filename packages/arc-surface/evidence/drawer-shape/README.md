@@ -43,10 +43,10 @@ Reproduce from the repository root, using the existing #112 harness:
 
 ```sh
 flock /tmp/storytree-heavy.lock node apps/desktop/build.mjs
-flock /tmp/storytree-heavy.lock node --import tsx packages/arc-surface/evidence/capture.mjs
+flock /tmp/storytree-heavy.lock node --import tsx packages/arc-surface/evidence/capture.mjs <snapshot.json>
 ```
 
-`ARC_SNAPSHOT`, `ARC_PLAYWRIGHT` and `ARC_CHROMIUM` override the supplied snapshot, installed
+The snapshot is the first argument (or `ARC_SNAPSHOT`); the run stops if neither names one, and an empty board is never pictured. `ARC_PLAYWRIGHT` and `ARC_CHROMIUM` override the installed
 Playwright module and Chromium executable. Defaults name this Mint box’s installations.
 The browser, HTTP server and throwaway database are closed in `finally`.
 

@@ -1,5 +1,5 @@
 // Arc surface contract 3.1: geometry and interaction on the real renderer and supplied snapshot.
-// Reuses packages/app/evidence/project-switch-smoke.mjs's headless renderer route.
+// Its fake bridge and Chromium come from the capture kit (apps/desktop/src/capture).
 // Run after build, under flock /tmp/storytree-heavy.lock. Never opens the live library.
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
@@ -7,27 +7,30 @@ import { createServer } from 'node:http';
 import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { connect } from '@storytree/library';
 // The frame is reached through the desktop app, which mounts this surface: arc-surface itself never depends on it (ADR-0847).
-const { pageReads, projectSelection, smokeProblems } = await import(createRequire(new URL('../../../../apps/desktop/package.json', import.meta.url)).resolve('@storytree/app'));
+const { pageReads, projectSelection, smokeProblems } = await import(pathToFileURL(createRequire(new URL('../../../../apps/desktop/package.json', import.meta.url)).resolve('@storytree/app')).href);
 import { start } from '@storytree/local-postgres';
-
-const { chromium } = await import(process.env.STORYTREE_PLAYWRIGHT ?? '/home/mickh/code/Storytree/node_modules/.pnpm/playwright-core@1.60.0/node_modules/playwright-core/index.mjs');
-const output = path.dirname(fileURLToPath(import.meta.url));
-const dist = path.resolve(output, '../../../../apps/desktop/dist/renderer');
+import { captureOutput, fakeBridge, launch } from '../../../../apps/desktop/src/capture/index.ts';
+// The snapshot to restore is the first argument (or ARC_SNAPSHOT): no machine's folder is assumed.
+const snapshotPath = process.argv.slice(2).find(arg => !arg.startsWith('--')) ?? process.env.ARC_SNAPSHOT;
+if (!snapshotPath) throw new Error('usage: node capture.mjs <snapshot.json> (or set ARC_SNAPSHOT)');
+const here = path.dirname(fileURLToPath(import.meta.url));
+const output = captureOutput(here); // pictures and measurements: a scratch folder unless run with --retake
+const dist = path.resolve(here, '../../../../apps/desktop/dist/renderer');
 const temporary = mkdtempSync(path.join(tmpdir(), 'storytree-arc-bar-capture-'));
 let pg, store, reads, server, browser;
 try {
   pg = await start({ dataDir: path.join(temporary, 'pgdata'), owner: 'arc bar capture' });
   store = await connect({ url: pg.url });
-  const snapshotPath = process.env.ARC_SNAPSHOT ?? '/home/mickh/storytree-lanes/snapshots/2026-09-28T07-26-00-491Z.json';
   const snapshot = JSON.parse(readFileSync(snapshotPath, 'utf8'));
   await store.restore('storytree', snapshot);
   reads = pageReads({ storytree: store });
   const selection = projectSelection({ file: path.join(temporary, 'choice.json'), listProjects: () => store.listProjects() });
   await selection.choose('storytree');
-  const bridge = { ...reads, projectSelection: () => selection.read(), chooseProject: name => selection.choose(name) };
+  // The renderer's own reads (surfaces, setup, updates) are answered as idle by the capture kit; they are not under test.
+  const bridge = fakeBridge({ ...reads, projectSelection: () => selection.read(), chooseProject: name => selection.choose(name), readSurfaces: async () => undefined });
   server = createServer((req, res) => {
     const name = new URL(req.url, 'http://localhost').pathname.slice(1) || 'index.html';
     if (!['index.html', 'renderer.js', 'styles.css', 'app-setup.css', 'arc-surface.css', 'forest.css'].includes(name)) { res.writeHead(404).end(); return; }
@@ -35,17 +38,15 @@ try {
     res.end(readFileSync(path.join(dist, name)));
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-  browser = await chromium.launch({ executablePath: process.env.STORYTREE_CHROMIUM ?? '/home/mickh/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell', headless: true,
-    args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-dev-shm-usage'] });
+  browser = await launch();
   const page = await browser.newPage({ viewport: { width: 1440, height: 960 }, colorScheme: 'dark', deviceScaleFactor: 1 });
   const errors = []; page.on('pageerror', error => errors.push(String(error)));
-  await page.exposeFunction('arcBarRead', (method, args) => { assert.ok(Object.hasOwn(bridge, method)); return bridge[method](...args); });
-  await page.addInitScript(methods => {
-    window.storytree = Object.fromEntries(methods.map(method => [method, (...args) => window.arcBarRead(method, args)]));
-    try { localStorage.setItem('storytree:setup:guide-seen:v1', 'yes'); } catch { /* about:blank has no storage */ }
-  }, Object.keys(bridge));
+  await bridge.install(page);
+  await page.addInitScript(() => { try { localStorage.setItem('storytree:setup:guide-seen:v1', 'yes'); } catch { /* about:blank has no storage */ } });
   await page.goto(`http://127.0.0.1:${server.address().port}/`);
-  await page.waitForFunction(() => document.body.dataset.state === 'ready', undefined, { timeout: 120000 });
+  await bridge.ready(page, 120000);
+  // The app menu opens itself when the app's own reads are not carried here; it is not under test.
+  await page.evaluate(() => { const menu = document.getElementById('app-menu'); if (menu?.matches(':popover-open')) menu.hidePopover(); });
   const gear = page.getByRole('button', { name: 'App menu', exact: true });
   const bar = page.getByRole('button', { name: 'Open arc surface', exact: true });
   const drawer = page.locator('#arc-drawer');
@@ -85,6 +86,7 @@ try {
   assert.equal(await page.locator('#app-menu').isVisible(), true, 'gear is reachable with the drawer open');
   await gear.click();
   if (await page.locator('.panel-close').isVisible()) await page.locator('.panel-close').evaluate(button => button.click());
+  assert.ok(await page.locator('.arc-row').count() > 0, 'the board has rows: an empty board is not pictured');
   await page.screenshot({ path: path.join(output, 'bar-open.png') });
   await close.click({ position: { x: barBox.width - 20, y: barBox.height / 2 } });
   assert.equal(await drawer.isVisible(), false, 'clicking the bar again closes it');

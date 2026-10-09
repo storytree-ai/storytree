@@ -10,7 +10,7 @@ import { buildLauncher, LAUNCHER_PROGRAM } from "@storytree/agent-link/bins";
 import { disconnectAgents, installedToolServerCommand } from "@storytree/app-setup/connect";
 
 import { finishDelivery, installCommand, toolPaths, verifyPayload, writePayloadManifest } from "./index.js";
-import { waitForApp } from "./delivery.js";
+import { runtimeProblem, waitForApp } from "./delivery.js";
 
 /** The program the Windows command is made from: on Windows the real one, which tests run; elsewhere nothing runs it. */
 let program: Buffer | undefined;
@@ -180,6 +180,36 @@ test("1.11: an Apple Silicon payload lives in the .app bundle, needs its node an
     assert.throws(() => verifyPayload(bundle, "arm64", "darwin"), /Damaged payload file: node$/);
     rmSync(tools.node);
     assert.throws(() => verifyPayload(bundle, "arm64", "darwin"), /node/);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("1.12: the delivery helper runs from a Mac's own payload as from Windows, and refuses an Intel Mac, another system or another Node", () => {
+  assert.equal(runtimeProblem("arm64", { platform: "darwin", arch: "arm64", node: "24.21.0" }), undefined);
+  assert.equal(runtimeProblem("x64", { platform: "win32", arch: "x64", node: "24.21.0" }), undefined);
+  assert.match(runtimeProblem("x64", { platform: "darwin", arch: "x64", node: "24.21.0" })!, /Apple Silicon/);
+  assert.match(runtimeProblem("arm64", { platform: "darwin", arch: "x64", node: "24.21.0" })!, /does not match/);
+  assert.match(runtimeProblem("x64", { platform: "linux", arch: "x64", node: "24.21.0" })!, /does not match/);
+  assert.match(runtimeProblem("arm64", { platform: "darwin", arch: "arm64", node: "22.1.0" })!, /does not match/);
+});
+
+test("1.12: on an Apple Silicon Mac, finish opens the bundle's own executable and puts a storytree command in the home's bin", async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "storytree mac delivery "));
+  const bundle = path.join(dir, "Applications", "storytree-0.3.app");
+  const home = path.join(dir, ".storytree", "0.3");
+  const tools = toolPaths(bundle, "darwin");
+  try {
+    mkdirSync(path.dirname(tools.app), { recursive: true });
+    mkdirSync(tools.dir, { recursive: true });
+    for (const file of [tools.node, tools.mcp, tools.hook, tools.setup, tools.cli, tools.deliver, tools.app]) writeFileSync(file, "a runnable fixture");
+    writePayloadManifest(tools.dir, "arm64", "24.21.0", "darwin");
+    const launched: string[] = [];
+    const result = await finishDelivery({ installDir: bundle, home, arch: "arm64", platform: "darwin", searchPath: "" }, {
+      launch: async (exe) => { launched.push(exe); }, waitForApp: async () => {},
+    });
+    assert.deepEqual(launched, [tools.app]);
+    assert.equal(result.command.file, path.join(home, "bin", "storytree"));
+    assert.deepEqual(launcherRuns(result.command.file), { node: tools.node, target: tools.cli });
+    assert.equal(JSON.parse(readFileSync(path.join(home, "delivery.json"), "utf8")).installDir, bundle);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 

@@ -13,7 +13,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { stageTools } from "./tools.mjs";
-import { deliveryAssets } from "./delivery-assets.mjs";
+import { deliveryAssets, macDeliveryAssets } from "./delivery-assets.mjs";
 
 process.env.ELECTRON_BUILDER_7Z_FILTER ??= "BCJ";
 const version = process.env.STORYTREE_RELEASE_VERSION;
@@ -30,4 +30,4 @@ await build({
   ...(version === undefined && !identity.mac ? {} : { config: { ...(version === undefined ? {} : { extraMetadata: { version } }), ...identity } }),
 });
 const here = path.dirname(fileURLToPath(import.meta.url));
-if (!mac) deliveryAssets(path.join(here, "release"), version ?? JSON.parse(readFileSync(path.join(here, "package.json"), "utf8")).version);
+(mac ? macDeliveryAssets : deliveryAssets)(path.join(here, "release"), version ?? JSON.parse(readFileSync(path.join(here, "package.json"), "utf8")).version);

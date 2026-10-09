@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import type { Library } from "@storytree/library";
 import { STABLE_BRANCH } from "./release-channel.js";
 import { versionAt } from "./release-source.js";
-import { mergedPullRequests, pinStable, readStableManifest, type PinPorts, type StableManifest } from "./stable-pin.js";
+import { mergedPullRequests, pinStable, readStableManifest, type Bootstraps, type PinPorts, type StableManifest } from "./stable-pin.js";
 
 const REPOSITORY = "storytree-ai/storytree";
 export type GithubRequest = (endpoint: string, method?: string, body?: unknown) => Promise<unknown>;
@@ -16,10 +16,11 @@ function github(cwd: string): GithubRequest {
 }
 
 /** A fresh tree contains metadata only. Fast-forward-only moves make competing pins mutually exclusive. */
-export async function publishStable(manifest: StableManifest, bootstrap: string, expectedRef: string | undefined, api: GithubRequest): Promise<void> {
+export async function publishStable(manifest: StableManifest, bootstrap: Bootstraps, expectedRef: string | undefined, api: GithubRequest): Promise<void> {
   const tree = await api("git/trees", "POST", { tree: [
     { path: "latest.yml", mode: "100644", type: "blob", content: JSON.stringify(manifest, null, 2) + "\n" },
-    { path: "install-storytree.ps1", mode: "100644", type: "blob", content: bootstrap },
+    { path: "install-storytree.ps1", mode: "100644", type: "blob", content: bootstrap.ps1 },
+    ...(bootstrap.sh === undefined ? [] : [{ path: "install-storytree.sh", mode: "100644", type: "blob", content: bootstrap.sh }]),
     { path: "README.md", mode: "100644", type: "blob", content: `${manifest.releaseNotes}\n\nPinned from ${manifest.pin.commit}. Installer bytes remain on the original development release.\n` },
   ] }) as { sha: string };
   const commit = await api("git/commits", "POST", {
@@ -86,7 +87,10 @@ export async function pinRelease(version: string, options: { library: Pick<Libra
       // The development updater's complete publication is required too; it remains untouched.
       asset(release, "latest.yml");
       return { version: wanted, commit, channelSchema: delivery.channelSchema, draft: release.draft, prerelease: release.prerelease,
-        installer: { ...delivery.installer, url: installer.browser_download_url }, bootstrap: download(release, "install-storytree.ps1") };
+        installer: { ...delivery.installer, url: installer.browser_download_url }, bootstrap: {
+          ps1: download(release, "install-storytree.ps1"),
+          ...(release.assets.some(a => a.name === "install-storytree.sh") ? { sh: download(release, "install-storytree.sh") } : {}),
+        } };
     },
     async pullRequests(commit) {
       return mergedPullRequests(git("log", "--first-parent", "--merges", "--format=%s", commit));

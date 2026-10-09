@@ -2,7 +2,8 @@
  * Capability 6 · Agent tools (the MCP server). The work tools (ADR-0643 D1, 6): park, ready, move and close increments, park and unpark arcs, set and
  * clear waits, raise, correct, settle and retire the owner's questions, and record friction and re-steers. Each is a thin wrapper over the library's own
  * functions, or this story's capture functions over them, so no library rule is kept here twice.
- * Starting an increment is claiming it (claim-tools.ts), so a start is refused as a claim is.
+ * Starting an increment is claiming it (claim-tools.ts), so a start is refused as a claim is. Asking the owner about work the
+ * session holds, by a question held on it or a wait for the owner, releases its claims on it (releaseAsked, ADR-0944 D4).
  *
  * There is no hand close or re-open of an arc (ADR-0640 R1, 10-b): an arc reads closed when its
  * last increment closes, which close_increment says, and re-opens when work is parked on it, which
@@ -12,7 +13,7 @@ import type { Library } from "@storytree/library";
 import { z } from "zod";
 
 import { recordFriction, recordResteer, reinforceFriction } from "../capture/index.js";
-import { closed, currentBranch, increments } from "../claims/index.js";
+import { closed, currentBranch, increments, releaseAsked } from "../claims/index.js";
 import { lineOf, type Answer, type Call, type Define } from "./server.js";
 import { quoted } from "./text.js";
 
@@ -103,7 +104,7 @@ export function registerWorkTools(define: Define): void {
 
   define(
     "set_wait",
-    "Make an increment wait on another increment, on any arc, or an arc on another arc, with the reason (`on`, `reason`). Or make an increment wait for something outside the plan, with a note (`for`, `note`): the owner, for an action only they can take that is not a decision (a decision is a question), or an outside event, with the day to check back, from which it reads ready again. Waiting work cannot be claimed or started until the wait releases.",
+    "Make an increment wait on another increment, on any arc, or an arc on another arc, with the reason (`on`, `reason`). Or make an increment wait for something outside the plan, with a note (`for`, `note`): the owner, for an action only they can take that is not a decision (a decision is a question), or an outside event, with the day to check back, from which it reads ready again. Waiting work cannot be claimed or started until the wait releases; a wait for the owner releases your claims on the increment and the capabilities you took for it.",
     z.object({
       waiter: z.string().min(1).describe("The id of the increment or arc that waits"),
       on: z.string().min(1).optional().describe("The id of the increment or arc it waits on; or give `for` instead"),
@@ -112,12 +113,15 @@ export function registerWorkTools(define: Define): void {
       note: z.string().min(1).optional().describe("With `for`: what the owner must do, or what must happen, in a line"),
       check_back: z.string().min(1).optional().describe("With `for: event`, required: the day to check back (YYYY-MM-DD), from which it reads ready again"),
     }),
-    async ({ waiter, on, reason, for: releaser, note, check_back }, { library, writer }) => {
+    async ({ waiter, on, reason, for: releaser, note, check_back }, call) => {
+      const { library, writer } = call;
       if (releaser !== undefined && on === undefined) {
         if (note === undefined) return { text: "A wait for the owner or an outside event needs a `note` saying what.", refused: true };
         const done = await library.addWaitFor(waiter, { releaser, note, ...(check_back === undefined ? {} : { checkBack: check_back }) }, writer);
         if (done === null) return { text: `There is no increment ${waiter} in this project's plan.`, refused: true };
-        return { text: `${waiter} now waits for ${releasedBy(releaser)}: ${note}${check_back === undefined ? "" : ` (check back ${check_back})`}.`, data: { id: waiter } };
+        // Waiting on the owner lets go of the work it holds (ADR-0944 D4); an outside event does not.
+        const released = releaser === "owner" ? await releaseAsked(claimContext(call), waiter) : [];
+        return { text: `${waiter} now waits for ${releasedBy(releaser)}: ${note}${check_back === undefined ? "" : ` (check back ${check_back})`}.${releasedSaid(released)}`, data: { id: waiter, released } };
       }
       if (on === undefined || releaser !== undefined || reason === undefined) return { text: "Give either `on` and `reason` (work it waits on) or `for` and `note` (the owner or an outside event it waits for).", refused: true };
       const done = await library.addWait(waiter, on, reason, writer);
@@ -144,7 +148,7 @@ export function registerWorkTools(define: Define): void {
 
   define(
     "raise_question",
-    "Raise a question for the owner on an arc, instead of only asking in chat: what is at stake, the question, the context they need to answer it cold, and the options. Name the increments that cannot go on until they answer: those wait on the owner until it is settled.",
+    "Raise a question for the owner on an arc, instead of only asking in chat: what is at stake, the question, the context they need to answer it cold, and the options. Name the increments that cannot go on until they answer: those wait on the owner until it is settled, and your claims on those on this arc, with the capabilities you took for them, are released.",
     z.object({
       arc: id("arc"),
       title: z.string().min(1).describe("A short name for it"),
@@ -155,20 +159,24 @@ export function registerWorkTools(define: Define): void {
       recommendation: z.string().min(1).optional().describe("Which option you recommend, and why"),
       holds: z.array(z.string().min(1)).optional().describe("The ids of the increments held until the owner answers"),
     }),
-    async ({ holds, ...asked }, { library, writer }) => {
+    async ({ holds, ...asked }, call) => {
+      const { library, writer } = call;
       // Check the entire request before the first write: a refusal must leave no question or hold.
-      const holding = new Map<string, string[]>();
+      const holding = new Map<string, { heldOn: string[]; arc: string }>();
       for (const increment of holds ?? []) {
         const held = await heldOn(library, increment);
         if (held === undefined) return { text: `There is no increment ${increment} to hold on the question. Nothing was written.`, refused: true };
         holding.set(increment, held);
       }
       const question = await library.raiseQuestion(defined(asked), writer);
+      const released: string[] = [];
       for (const [increment, held] of holding) {
-        await library.editIncrement(increment, { heldOn: [...held, question.id] }, writer);
+        await library.editIncrement(increment, { heldOn: [...held.heldOn, question.id] }, writer);
+        // Asking about work this session holds lets go of it; a question about another arc releases nothing (ADR-0944 D4).
+        if (held.arc === asked.arc) released.push(...(await releaseAsked(claimContext(call), increment)));
       }
       const waiting = holding.size === 0 ? "" : ` ${[...holding.keys()].join(", ")} ${holding.size === 1 ? "waits" : "wait"} on the answer.`;
-      return { text: `Raised ${quoted(asked.title)} (${question.id}) on the arc for the owner.${waiting}`, data: { id: question.id } };
+      return { text: `Raised ${quoted(asked.title)} (${question.id}) on the arc for the owner.${waiting}${releasedSaid(released)}`, data: { id: question.id, released } };
     },
   );
 
@@ -272,10 +280,15 @@ function captureBranch(folder: string): string {
   return currentBranch(folder) ?? "(no branch)";
 }
 
-/** The questions increment `id` is held on now, or undefined when it is not a live increment. */
-async function heldOn(library: Library, id: string): Promise<string[] | undefined> {
+/** The questions increment `id` is held on now, and its arc, or undefined when it is not a live increment. */
+async function heldOn(library: Library, id: string): Promise<{ heldOn: string[]; arc: string } | undefined> {
   const increment = (await increments(library)).find((one) => one.id === id);
-  return increment === undefined ? undefined : (increment.fields.heldOn ?? []);
+  return increment === undefined ? undefined : { heldOn: increment.fields.heldOn ?? [], arc: increment.fields.arc };
+}
+
+/** What asking the owner released, in a sentence, or nothing when it released nothing. */
+function releasedSaid(released: readonly string[]): string {
+  return released.length === 0 ? "" : ` Released your claims on ${released.join(", ")}: the owner holds it now.`;
 }
 
 function noIncrement(increment: string): Answer {

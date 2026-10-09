@@ -331,7 +331,7 @@ test("5.14 Codex refuses invalid returned directories and releases a claim if na
     assert.deepEqual((await log.since(project, 0)).lines.filter((line) => line.kind === "claimed" || line.kind === "released").map((line) => line.kind), ["claimed", "released"]);
     assert.equal(git(folder, "rev-parse", "--abbrev-ref", "HEAD").trim(), "HEAD");
     assert.ok(existsSync(folder));
-    assert.equal(await statusOf(library, increment), "active");
+    assert.equal(await statusOf(library, increment), "proposal", "the released claim leaves it nobody's work: a proposal again (5.29)");
   });
 });
 
@@ -384,6 +384,26 @@ test("5.13 a session that holds work on a branch whose pull request waits in the
     assert.ok(made.ok && made.status === "ready", JSON.stringify(made));
     assert.notEqual(made.branch, "claude/queued");
     assert.deepEqual((await readClaims(log, project)).map(({ session, increment, branch }) => ({ session, increment, branch })), [{ session: "A", increment, branch: made.branch }]);
+  });
+});
+
+test("5.13 a Claude Code session that holds work on the main checkout's branch gets a fresh workspace, and its claim moves onto the new branch without ever being released; held on a live worktree's branch it is still refused", async () => {
+  await withWorld(async ({ log, project, site, park, as }) => {
+    const increment = await park("email form");
+    assert.equal((await claim({ ...as("A"), branch: "main" }, increment, "claimed from the main checkout")).ok, true);
+    const lines = (await log.since(project, 0)).lines.length;
+
+    const made = await makeWorkspace(as("A"), increment, "building the email form", { mergedPulls: async () => [], queuedPulls: async () => [] });
+
+    assert.ok(made.ok && made.status === "ready", JSON.stringify(made));
+    assert.ok(worktrees(site).includes(path.resolve(made.folder)));
+    assert.deepEqual((await readClaims(log, project)).map(({ session, increment, branch }) => ({ session, increment, branch })), [{ session: "A", increment, branch: made.branch }]);
+    assert.deepEqual((await log.since(project, 0)).lines.slice(lines).filter((line) => line.kind === "released"), [], "no moment releases it");
+
+    const again = await makeWorkspace(as("A", made.folder), increment, "again", { mergedPulls: async () => [], queuedPulls: async () => [] });
+    assert.ok(!again.ok && again.refused === "yours" && again.claim.branch === made.branch, JSON.stringify(again));
+    const fromMain = await makeWorkspace(as("A"), increment, "again", { mergedPulls: async () => [], queuedPulls: async () => [] });
+    assert.ok(!fromMain.ok && fromMain.refused === "yours" && fromMain.claim.branch === made.branch, JSON.stringify(fromMain));
   });
 });
 

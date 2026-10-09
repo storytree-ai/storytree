@@ -1,21 +1,25 @@
 /**
  * Capability 5 · Questions (the command line story): raise a question for the owner on an arc, optionally
- * holding increments on it; settle it with his answer in his words and the decision that carried
- * it, retire one that was wrong, or list the open ones. Retirement checks the record is a
- * question first; other kinds are directed to `library retire`.
+ * holding increments on it; read one whole; settle it with his answer in his words and the decision
+ * that carried it, retire one that was wrong, or list the open ones. Retirement checks the record is
+ * a question first; other kinds are directed to `library retire`.
  *
  * Every rule is the library's (its capability 12): the required fields, that settling needs an
- * answer, that a held increment waits on the owner, and that a question work is held on cannot be
- * retired. Holding an increment is the library's `editIncrement` of its `heldOn`, read from the
- * arc's own view, so only increments on the question's arc are held when it is raised; another is
- * held with `storytree arc increment edit <increment> --held-on <question>`. Listing the open
- * questions uses list(kind); `--arc` reads one arc's questions. `check` reads a question's review
+ * answer, and that a held increment waits on the owner. Holding an increment is the library's
+ * `editIncrement` of its `heldOn`, read from the arc's own view, so only increments on the question's arc are held when it is raised; another is
+ * held with `storytree arc increment edit <increment> --held-on <question>`. Retiring one goes through
+ * the library's retireQuestion, which takes it off every increment held on it first, so an owner-
+ * retired question goes in one step; `library retire` still refuses a held one. `show` reads one
+ * question whole, with the open increments held on it. Holding an increment the caller's
+ * session holds releases its claims on it, through the agent link's releaseAsked (ADR-0944 D4). Listing the open
+ * questions uses list(kind); `--arc` reads one arc's questions, naming a parked arc's as parked with it. `check` reads a question's review
  * lease through the library's checkQuestion, and `renew` re-stamps it through renewQuestion, which
  * refuses a settled question (ADR-0654).
  */
 import { labelOf, Refusal } from "../answer.js";
 import type { Family, Verb } from "../door.js";
 import { valueOf } from "./library.js";
+import { releasedAsking } from "./workspace.js";
 
 const QUESTION_FIELDS = ["arc", "title", "stakes", "statement", "context", "options", "analogy", "diagram", "recommendation"] as const;
 
@@ -45,11 +49,13 @@ const raise: Verb = {
       return increment;
     });
     const question = await library.raiseQuestion(fields as never, context.writer());
+    let released = "";
     for (const increment of held) {
       await library.editIncrement(increment.id, { heldOn: [...(increment.fields.heldOn ?? []), question.id] }, context.writer());
+      released += await releasedAsking(context, increment.id);
     }
     return {
-      text: `Raised question ${question.id} on ${question.fields.arc}${held.length === 0 ? "" : `, holding ${held.map((one) => one.id).join(", ")}`}.`,
+      text: `Raised question ${question.id} on ${question.fields.arc}${held.length === 0 ? "" : `, holding ${held.map((one) => one.id).join(", ")}`}.${released}`,
       next: [{ command: `storytree arc show ${question.fields.arc}`, why: "see what waits on him" }],
     };
   },
@@ -71,7 +77,7 @@ const settle: Verb = {
 const retire: Verb = {
   name: "retire",
   usage: "question retire <question> --reason <why>",
-  summary: "retire a question that was wrong; other records use library retire",
+  summary: "retire a question that was wrong, releasing the increments held on it; other records use library retire",
   async act(args, context) {
     const id = args.word(0, "the question's id", this.usage);
     const reason = args.need("reason", this.usage);
@@ -83,15 +89,41 @@ const retire: Verb = {
         next: [{ command: `storytree library retire ${id} --reason <why>`, why: "retire another kind of record" }],
       });
     }
-    await library.retire(id, reason, context.writer());
-    return { text: `Retired ${id}.` };
+    const released = (await library.retireQuestion(id, reason, context.writer())) ?? [];
+    return { text: `Retired ${id}.${released.length === 0 ? "" : ` Released ${released.join(", ")}, which no longer ${released.length === 1 ? "holds" : "hold"} on it.`}` };
+  },
+};
+
+const SHOWN_FIELDS = ["stakes", "statement", "context", "options", "analogy", "diagram", "recommendation", "answer"] as const;
+
+const show: Verb = {
+  name: "show",
+  usage: "question show <question>",
+  summary: "read one question whole: what it asks, its options, its answer, and the open work held on it",
+  async act(args, context) {
+    const id = args.word(0, "the question's id", this.usage);
+    const library = await context.library();
+    const record = await library.get(id);
+    if (record === null) throw new Refusal(`no question "${id}" in this project`);
+    if (record.type !== "question") {
+      throw new Refusal(`${id} is a ${record.type}, not a question`, { next: [{ command: `storytree library read ${id}`, why: "read another kind of record" }] });
+    }
+    const fields = record.fields as Readonly<Record<string, unknown>>;
+    const settled = typeof fields.settledAt === "string" ? `, settled ${fields.settledAt}${typeof fields.settledBy === "string" ? ` by ${fields.settledBy}` : ""}` : "";
+    const held = Object.entries((await library.holds()).heldOn).flatMap(([increment, on]) => (on.includes(id) ? [increment] : []));
+    const lines = [`${labelOf(fields)}  [${id}]`, `On ${String(fields.arc)}, ${String(fields.lifecycle)}${settled}.`];
+    for (const name of SHOWN_FIELDS) {
+      if (typeof fields[name] === "string") lines.push("", `${name[0]?.toUpperCase()}${name.slice(1)}:`, fields[name]);
+    }
+    if (held.length > 0) lines.push("", `Holding: ${held.join(", ")}`);
+    return { text: lines.join("\n"), next: [{ command: `storytree arc show ${String(fields.arc)}`, why: "see its arc" }] };
   },
 };
 
 const list: Verb = {
   name: "list",
   usage: "question list [--arc <arc>]",
-  summary: "the open questions across arcs, or on one arc; a parked arc's wait until it is unparked",
+  summary: "the open questions across arcs, or on one arc; a parked arc's wait until it is unparked, named by its own listing",
   async act(args, context) {
     const arc = args.text("arc");
     const library = await context.library();
@@ -100,11 +132,19 @@ const list: Verb = {
     const views = arc === undefined ? await library.arcViews() : [await library.arcView(arc)];
     const parkedArcs = new Set(views.flatMap((view) => (view?.state === "parked" ? [view.arc.id] : [])));
     const waiting = open.filter((question) => !parkedArcs.has(question.fields.arc));
-    const parked = open.length - waiting.length;
+    const parked = open.filter((question) => parkedArcs.has(question.fields.arc));
+    const line = (question: (typeof open)[number]) => `  - ${question.id}  [${question.fields.arc}]  ${labelOf(question.fields)}`;
     const where = arc === undefined ? "across arcs" : `on ${arc}`;
-    const aside = parked === 0 ? [] : [`${parked} more ${parked === 1 ? "waits" : "wait"} on a parked arc until it is unparked.`];
+    // Across arcs they stay off the list, but the arcs that hold them are named; one arc's own listing names them.
+    const holding = [...new Set(parked.map((question) => question.fields.arc))];
+    const aside =
+      parked.length === 0
+        ? []
+        : arc === undefined
+          ? [`${parked.length} more ${parked.length === 1 ? "waits" : "wait"} on a parked arc until it is unparked: ${holding.join(", ")} (storytree question list --arc <arc> names them).`]
+          : [`${parked.length} parked with the arc until it is unparked:`, ...parked.map(line)];
     if (waiting.length === 0) return { text: [`No question ${where} waits on the owner.`, ...aside].join("\n") };
-    return { text: [`${waiting.length} open ${where}:`, ...waiting.map((question) => `  - ${question.id}  [${question.fields.arc}]  ${labelOf(question.fields)}`), ...aside].join("\n") };
+    return { text: [`${waiting.length} open ${where}:`, ...waiting.map(line), ...aside].join("\n") };
   },
 };
 
@@ -123,7 +163,7 @@ const check: Verb = {
     if (lease.state === "fresh") return { text: line };
     return {
       text: `${line}\nRe-read it: renew it if it still holds as asked, retire it if it no longer does.`,
-      next: [{ command: `storytree library read ${id}`, why: "re-read it" }],
+      next: [{ command: `storytree question show ${id}`, why: "re-read it" }],
     };
   },
 };
@@ -142,7 +182,7 @@ const renew: Verb = {
 
 export const questions: Family = {
   name: "question",
-  summary: "the owner's questions: raise, settle, retire, list, check, renew",
-  verbs: [raise, settle, retire, list, check, renew],
-  guesses: { show: "library read <id>", read: "library read <id>", get: "library read <id>", open: "library read <id>" },
+  summary: "the owner's questions: raise, show, settle, retire, list, check, renew",
+  verbs: [raise, show, settle, retire, list, check, renew],
+  guesses: { read: "question show <id>", get: "question show <id>", open: "question show <id>" },
 };

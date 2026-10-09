@@ -51,10 +51,16 @@ export async function exportLibrary(library) {
   /** @type {Map<string, string>} cover id -> the node it is a front cover of */
   const coverOf = new Map();
   for (const note of notes) if (note.type === "decision" && note.fields.frontCoverOf !== undefined) coverOf.set(note.id, note.fields.frontCoverOf);
-  /** @type {Map<string, string[]>} node id -> the texts of the story-text definitions behind its covers, in creation order */
+  // Notes created in the same millisecond tie in creation order, broken by their random ids; the
+  // history's sequence is the order they were written.
+  /** @type {Map<string, number>} definition id -> where its creation sits in the history */
+  const written = new Map();
+  for (const entry of await library.history({ types: ["definition"] })) if (entry.action === "created") written.set(entry.recordId, entry.seq);
+  const blocks = notes.filter((note) => note.type === "definition" && note.fields.term.startsWith("Story text: "));
+  blocks.sort((a, b) => (written.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (written.get(b.id) ?? Number.MAX_SAFE_INTEGER));
+  /** @type {Map<string, string[]>} node id -> the texts of the story-text definitions behind its covers, in the order they were written */
   const behind = new Map();
-  for (const note of notes) {
-    if (note.type !== "definition" || !note.fields.term.startsWith("Story text: ")) continue;
+  for (const note of blocks) {
     const cover = note.fields.links?.find((id) => coverOf.has(id));
     if (cover === undefined) continue;
     const node = coverOf.get(cover);

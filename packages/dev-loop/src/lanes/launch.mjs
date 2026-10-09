@@ -1,4 +1,5 @@
-// Capability 12 · A Mint queue runs its lanes one at a time. The box's queue runners, which its wrappers exec:
+// Capability 12 · A Mint queue runs its lanes one at a time, or a night track up to its line in
+// night-lanes-per-track beside lanes writing other packages. The box's queue runners, which its wrappers exec:
 // node --import tsx packages/dev-loop/src/lanes/launch.mjs night <track>   (launch-night.sh run <track>: night-queue-<T>.txt, refilled from the library)
 // node --import tsx packages/dev-loop/src/lanes/launch.mjs mintlib         (launch-mintlib.sh run: mintlib-queue.txt, stops on a failed lane)
 // node packages/dev-loop/src/lanes/launch.mjs slots                       (engines running now, and the cap)
@@ -11,7 +12,7 @@ import { setTimeout as wait } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
-import { keepFed, parseFences, queuedOnTracks, surveyLibrary } from "./feed.mjs";
+import { keepFed, markQueueInLibrary, parseFences, queuedOnTracks, surveyLibrary } from "./feed.mjs";
 import { composeBrief, countEngines, holdRunner, runQueue, waitForSlot } from "./queue.mjs";
 import { runLane as runEngineLane } from "./runner.mjs";
 
@@ -47,7 +48,7 @@ export async function withFlock(path, fn) {
 export async function laneOnce({ increment, brief, log, err, addDirs, repo, maxLanes, lock, count, prepare, sleep, runLane, now = Date.now, say }) {
   const dated = (message) => say(`${stamp(now)} ${message}`);
   await lock(async () => {
-    await waitForSlot({ max: await maxLanes(), count, sleep, onWait: (running) => dated(`waiting for a slot (${running} engines running) before ${increment}`) });
+    await waitForSlot({ max: maxLanes, count, sleep, onWait: (running) => dated(`waiting for a slot (${running} engines running) before ${increment}`) });
     try { await prepare(); }
     catch (error) { dated(`checkout update failed before ${increment} (${error.message.split("\n")[0]}); the lane runs on the checkout as it is`); }
   });
@@ -58,6 +59,12 @@ export async function laneOnce({ increment, brief, log, err, addDirs, repo, maxL
   catch (error) { dated(`lane runner: ${error.message}; exit 75 so this lane stays queued`); code = 75; }
   dated(`end ${increment} exit ${code}`);
   return code;
+}
+
+/** A track's lane limit from night-lanes-per-track's `T=N` lines: N when it is a whole number of at least 1, else 1. */
+export function laneLimit(text, track) {
+  const value = text.split("\n").map((line) => line.trim()).find((line) => line.startsWith(`${track}=`))?.slice(2).trim();
+  return /^[1-9]\d*$/.test(value ?? "") ? Number(value) : 1;
 }
 
 async function argsOf(pid) {
@@ -73,7 +80,7 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
     count: async () => countEngines((await run("ps", ["-eo", "pid=,ppid=,args="], { maxBuffer: 64 * 1024 * 1024 })).stdout),
     lock: (fn) => withFlock(join(lanesDir, "night-checkout.lock"), fn),
     prepare: () => prepareCheckout({ repo }),
-    sleep: (ms) => wait(ms), argsOf, runLane: runEngineLane, survey: surveyLibrary, now: Date.now,
+    sleep: (ms, options) => wait(ms, undefined, options), argsOf, runLane: runEngineLane, survey: surveyLibrary, markQueue: (marks) => markQueueInLibrary(marks), now: Date.now,
   };
 }
 
@@ -112,7 +119,8 @@ export async function main(args, box = {}) {
     if (!fence) { dated(`night-fences.txt has no track ${name}: not starting`); return 1; }
     const code = await keepFed({
       track: name, fences: parseFences(fencesText), queueFile: join(L, `night-queue-${name}.txt`), stopFile: join(L, "night-stop"),
-      survey: b.survey, queued: () => queuedOnTracks(L), sleep: b.sleep, now: b.now, say,
+      survey: b.survey, queued: () => queuedOnTracks(L), markQueue: b.markQueue, sleep: b.sleep, now: b.now, say,
+      limit: async () => laneLimit(await readFile(join(L, "night-lanes-per-track"), "utf8").catch(() => ""), name),
       runLane: async (increment) => lane(increment, {
         title: `Overnight lane: track ${name}, ${increment}`,
         intro: `Your increment: ${increment}. Your track: ${name}. Your write fence: ${fence}.`,

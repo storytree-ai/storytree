@@ -134,7 +134,7 @@ export const steps: TourStep[] = [
   ], how: "Each capability carries promises a test can check. A file's dot is sized by its lines and sits in the capability whose tests reach it. The panel shows the capabilities and what depends on what.",
   why: "You can check what the agents meant to build, then see where the code went and which promises it serves.",
   decisions: [], surfaces: lit(plain), lineSurfaces: { 3: lit(files) }, target: signingIn, framing: .8,
-  phone: { target: signingIn, framing: .8, side: 0 }, panel: "story", panelFromLine: 4 },
+  phone: { target: signingIn, framing: 1.05, side: 0 }, panel: "story", panelFromLine: 4 },
   { id: "map-together", explainer: "map", ...shopMap, growth: { seconds: 15, stage: "pr3-building", until: "pr4" }, title: "Pathways.", lines: [
     // ✎
     "Stories are like the organs of your app: each plays its role, and many can't work without others.",
@@ -184,7 +184,7 @@ export const steps: TourStep[] = [
   ], how: "Before writing, an agent claims the increment it will build and each capability it will touch. A second claim on the same work is turned away. At this recorded moment, the cart's code has not been surveyed yet, so its claims have no outline.",
   why: "Two agents editing the same thing is how work gets lost. A claim says who is on what before anyone writes.",
   // Aimed past the cart so the island sits below the arcs drawer, both in view at once.
-  decisions: [], surfaces: lit(land), target: checkout, framing: .95, phone: { target: checkout, framing: .95, side: -107 }, tags: [{ target: cart, text: "Part 3: cart page and side menu" }] },
+  decisions: [], surfaces: lit(land), target: checkout, framing: .95, phone: { target: checkout, framing: .95, side: -107, narrow: -88 }, tags: [{ target: cart, text: "Part 3: cart page and side menu" }] },
   { id: "agents-parallel", explainer: "agents", ...shopMap, recorded: together, panel: "sessions", title: "Who is on what, at a glance.", lines: [
     "This means your agents can tell who is working on what just by looking at the map.",
     "Browsing, the cart and checkout, each built by its own session, at the same time.",
@@ -193,7 +193,7 @@ export const steps: TourStep[] = [
   // A laptop aims at Browsing, the lowest of the three, so all three names sit above the sessions list whichever step came
   // before; a phone keeps the overview, which turns no further than the claim step left it, drawn back and moved left so the
   // three stack between the sessions list and the card with their tags to their right.
-  decisions: [], surfaces: lit(land), laptop: { target: browsing, framing: 1.2 }, phone: { framing: 1.4, side: -107 },
+  decisions: [], surfaces: lit(land), laptop: { target: browsing, framing: 1.2 }, phone: { framing: 1.4, side: -107, narrow: -100 },
   tags: [{ target: browsing, text: "Part 2: product page, sorting, cart" }, { target: cart, text: "Part 3: cart page and side menu" }, { target: checkout, text: "Part 4: Checkout" }] },
   { id: "agents-standdown", explainer: "agents", ...shopMap, recorded: standDown, panel: "sessions", title: "An agent read the map and stood down.", lines: [
     "Later, a third session was sent to part 7 while another session held it.",

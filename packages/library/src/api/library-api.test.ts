@@ -104,6 +104,7 @@ const LIBRARY_API = [
   "decisions",
   "composeStatement",
   "retire",
+  "retireQuestion",
   "returnIncrement",
   "changesSince",
   "close",

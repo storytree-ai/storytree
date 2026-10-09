@@ -19,7 +19,7 @@ He asks to be walked through the open questions (all of them, an arc's, or one n
 
 ### 1. Before the first question: a list that deserves him
 
-1. Read `storytree adr list --load-bearing` (once per session), then `storytree question list`.
+1. Read `storytree adr list --load-bearing` (once per session), then `storytree question list` and `storytree arc waits` (what waits on him or on an outside event).
 2. **Check every question is still live** before it reaches him; stale premises were the commonest correction (13 times). Check the first one or two yourself so he is not kept waiting, and hand the rest to a background subagent that reports back before you reach them. For each question:
    - its arc is **not parked** (ADR-0835). If it is, retire the question and move its substance into the arc's increment body, clearing any increment held on it; list it as "parked, skipped".
    - it was **not already answered**: settled questions and re-steers on the same arc, decisions since it was raised, anything he said in another session that day.
@@ -27,7 +27,9 @@ He asks to be walked through the open questions (all of them, an arc's, or one n
    - it is **above the owner-fork bar** and **not a standing delegation**. A reversible engineering call, a "can a session do this itself?", or a premature "decide later" is decided and recorded by you, not asked.
    - it is **not "does it look right?"** (ADR-0794): a built look lands with its pictures and he raises what looks wrong. Propose retiring these.
 3. **Order by dependency.** A question whose framing depends on another open one waits until that one is answered; after each answer, look again at what is now askable. Otherwise go arc by arc.
-4. **Open with an overview table**, answer first: "N questions across M arcs, each checked live." Columns: # · Kind (design call / credential only you can create / spend / probably shouldn't exist) · Arc · Question in plain words. Put the ones you would retire in the table with the reason, so one "yes, retire" clears them. Say which are coupled and will be taken together. Then go straight into question 1 in the same message.
+4. **Open with an overview table**, answer first: "N questions and W waits across M arcs, each checked live." Read `storytree arc waits` as well as the question list, and put every wait in the table alongside the questions, even when there are no questions. Columns: # · Kind (design call / credential only you can create / spend / probably shouldn't exist / owner action / event) · Arc · Question or wait in plain words. Put the ones you would retire in the table with the reason, so one "yes, retire" clears them. Say which are coupled and will be taken together. Then go straight into question 1 in the same message, or, with no questions, the first owner action.
+   - An **owner action** wait: its note is the ask. When he says it is done, clear it with `storytree arc increment unwait <increment> --for owner`; never clear it on your own reading.
+   - An **event** wait: show its note, arc and check-back day, and flag it **overdue** once that day has passed. An overdue event is a prompt to check, never a reason to clear it: clear it (`--for event`) only when the event has actually happened.
 
 ### 2. Each question: one message he can answer in one line
 
@@ -88,12 +90,12 @@ Before asking him to act, find every requirement first (org policy, every permis
 
 ### 8. Ending the round
 
-The round is over when the refreshed question list holds nothing for him, or when he stops it. Re-check the list, then a short summary: each question, his answer and what it became (settled, decision number, increment, lane), what is still waiting on him, and what is running. Close out per the session role: friction for what fought you, claims released, `storytree processes` clean, `storytree session close-out --safe yes|no --why …`.
+The round is over when the refreshed question list and `storytree arc waits` hold nothing for him that was not shown, or when he stops it. Re-check both, then a short summary: each question, his answer and what it became (settled, decision number, increment, lane), what is still waiting on him, and what is running. Close out per the session role: friction for what fought you, claims released, `storytree processes` clean, `storytree session close-out --safe yes|no --why …`.
 
 
 ## Surfaces
 
-Both front doors work (ADR-0793). Command line: `storytree question list | settle | retire | check`, `storytree arc list | show`, `storytree arc increment edit | close | new`, `storytree adr list --load-bearing | new`, `storytree resteer new`, `storytree friction new`, `storytree session close-out`. Agent link: `show_plan`, `settle_question`, `retire_question`, `correct_question`, `raise_question`, `edit_plan`, `record_resteer`, `close_out`. The Mint box: `ssh mint` and its lane launcher. Use the available choice picker for a quick pick after the full text. `gh pr list` to check what already landed.
+Both front doors work (ADR-0793). Command line: `storytree question list | settle | retire | check`, `storytree arc list | show | waits`, `storytree arc increment edit | close | new | unwait`, `storytree adr list --load-bearing | new`, `storytree resteer new`, `storytree friction new`, `storytree session close-out`. Agent link: `show_plan`, `settle_question`, `retire_question`, `correct_question`, `raise_question`, `edit_plan`, `clear_wait`, `record_resteer`, `close_out`. The Mint box: `ssh mint` and its lane launcher. Use the available choice picker for a quick pick after the full text. `gh pr list` to check what already landed.
 
 ## Failure modes
 

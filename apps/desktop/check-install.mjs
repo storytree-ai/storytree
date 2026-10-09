@@ -1,9 +1,9 @@
 // Windows packaging proof: install the built NSIS payload, start the installed app's own main once
-// (4.17's start check), run its Postgres binaries, verify the shipped license (app setup 4.2), and
+// (4.17's start check), prove a sign-in callback reaches it as a second start (1.15), run its Postgres binaries, verify the shipped license (app setup 4.2), and
 // uninstall. No real app data, update feed or release is used. The release workflow runs it before
 // it publishes, so a release whose installed app cannot start never publishes.
 import assert from "node:assert/strict";
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -65,6 +65,51 @@ function checkUninstall(tools) {
   console.log("app setup 1.8 PASS (Windows x64): an update keeps storytree's home and connection; the uninstaller removes the app, home, library, update cache and Claude Code connection, and leaves the project and other settings");
 }
 
+/** The environment of a temporary user with an empty storytree home, for starting the installed app as Electron. */
+function throwawayUser(name) {
+  const user = path.join(temp, name);
+  const home = path.join(user, ".storytree", "0.3");
+  mkdirSync(home, { recursive: true });
+  const { ELECTRON_RUN_AS_NODE: _asNode, ...env } = process.env;
+  return { ...env, USERPROFILE: user, STORYTREE_HOME: home, LOCALAPPDATA: path.join(user, "AppData", "Local"), APPDATA: path.join(user, "AppData", "Roaming") };
+}
+
+/**
+ * Lifecycle 1.15, in the installed app: under `--callback-check` the first start holds the single-instance
+ * lock, and a second start carrying a fabricated storytree-auth callback (how Windows hands a deep link to
+ * the app) exits and hands it to the first, which reports it and where it went. A build stamped with a
+ * WorkOS client ID routes it to the sign-in session; an unstamped one has none to take it. No live sign-in.
+ */
+async function checkCallbackDelivery(env) {
+  const exe = path.join(installed, "storytree-0.3.exe");
+  const code = "fabricated-code-0f3a";
+  const first = spawn(exe, ["--callback-check"], { env, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
+  let said = "";
+  const heard = (pattern, what) => new Promise((resolve, reject) => {
+    const timer = setTimeout(() => { first.stdout.off("data", listen); reject(new Error(`the running app did not report ${what} within 60 s: ${said.trim()}`)); }, 60_000);
+    const listen = () => { if (pattern.test(said)) { clearTimeout(timer); first.stdout.off("data", listen); resolve(); } };
+    first.stdout.on("data", listen);
+    listen();
+  });
+  first.stdout.on("data", (chunk) => { said += chunk.toString("utf8"); });
+  first.stderr.on("data", (chunk) => { said += chunk.toString("utf8"); });
+  const exited = new Promise((resolve) => first.on("exit", (status) => resolve(status)));
+  try {
+    await heard(/callback check: waiting for sign-in callbacks/, "that it was waiting for callbacks");
+    const second = spawnSync(exe, [`storytree-auth://callback?code=${code}&state=x`], { env, windowsHide: true, timeout: 60_000, encoding: "utf8" });
+    assert.equal(second.status, 0, `the second start hands its callback over and exits: ${second.error ?? ""}${second.stdout}${second.stderr}`);
+    const outcome = process.env.STORYTREE_WORKOS_CLIENT_ID ? "reached the sign-in session" : "this build offers no sign-in";
+    await heard(new RegExp(`sign-in callback received: storytree-auth://callback; ${outcome}`), `the callback (${outcome})`);
+    assert.ok(!said.includes(code), "the report never prints the callback's code");
+    const quit = spawnSync(exe, ["--quit"], { env, windowsHide: true, timeout: 60_000 });
+    assert.equal(quit.status, 0, "a --quit start reaches the running app");
+    assert.equal(await Promise.race([exited, new Promise((resolve) => setTimeout(() => resolve("still running"), 30_000))]), 0, `the callback check ends on --quit: ${said.trim()}`);
+  } finally {
+    if (first.exitCode === null) first.kill();
+  }
+  console.log(`1.15 PASS (Windows x64): a second start's storytree-auth callback reached the installed app's running instance, which reported it (${process.env.STORYTREE_WORKOS_CLIENT_ID ? "routed to the sign-in session" : "no sign-in offered by this build"})`);
+}
+
 try {
   execFileSync(path.join(release, installer), ["/S", `/D=${installed}`], { timeout: 180_000 });
   assert.deepEqual(readFileSync(path.join(installed, "resources", "LICENSE")), license, "the installed app carries the repository license unchanged");
@@ -81,15 +126,9 @@ try {
   assert.equal(result.trim(), version);
   // The installed app's real main, as Electron, with a throwaway home: it must reach its handlers and
   // exit 0 in time, with no promise rejection left unhandled (0.3.606 passed every check and died here).
-  const starter = path.join(temp, "starting user");
-  const startHome = path.join(starter, ".storytree", "0.3");
-  mkdirSync(startHome, { recursive: true });
-  const cannotStart = await startsCleanly({
-    execPath: path.join(installed, "storytree-0.3.exe"),
-    args: [],
-    env: { ...process.env, USERPROFILE: starter, STORYTREE_HOME: startHome, LOCALAPPDATA: path.join(starter, "AppData", "Local"), APPDATA: path.join(starter, "AppData", "Roaming") },
-  });
+  const cannotStart = await startsCleanly({ execPath: path.join(installed, "storytree-0.3.exe"), args: [], env: throwawayUser("starting user") });
   assert.equal(cannotStart, undefined, `the installed app cannot start: ${cannotStart}`);
+  await checkCallbackDelivery(throwawayUser("signing-in user"));
   const postgres = execFileSync(path.join(installed, "resources", "postgres", "bin", "postgres.exe"), ["--version"], { encoding: "utf8", timeout: 30_000 });
   assert.match(postgres, /PostgreSQL/);
   const tools = path.join(installed, "resources", "agent-tools");

@@ -1,0 +1,18 @@
+{
+  "story": "The website",
+  "commit": "c2869cc7d8368279028aa535225d40b4574584fd",
+  "evidence": "packages/website/evidence/turn-acceptance",
+  "note": "Locally built website served from packages/website/dist, SwiftShader",
+  "checks": [
+    {
+      "contract": "1.9",
+      "name": "Act 1's turn hands over to Act 2 in about the time it is drawn to take, drawing frames throughout",
+      "observed": "pass"
+    },
+    {
+      "contract": "2.10",
+      "name": "After Run the turn lands on a live globe that drew nothing in chapter 1",
+      "observed": "pass"
+    }
+  ]
+}

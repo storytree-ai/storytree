@@ -12,7 +12,7 @@ import { test } from "node:test";
 
 import { connect, type Library } from "@storytree/library";
 
-import { openActivityLog, type ActivityLog, type LockedLog, type NewLine } from "../activity/index.js";
+import { ACTIVITY_DATABASE, openActivityLog, type ActivityLog, type LockedLog, type NewLine } from "../activity/index.js";
 import { readClaim, readClaims } from "../index.js";
 import { claimFrom, claimsFrom } from "../readings.js";
 import { runHook } from "../hooks/index.js";
@@ -21,8 +21,8 @@ import { claudeCode, withAgent } from "../testing/agent.js";
 import { countingStore } from "../testing/egress.js";
 import { withTempDir } from "../testing/folders.js";
 import { approveCheckout, dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { readSessions } from "../sessions/index.js";
-import { claim, claimRefusal, closed, land, readAttribution, release, releaseFor, type ClaimContext, type MergedPull, type MergeWatch } from "./index.js";
+import { closeOut, readSessions } from "../sessions/index.js";
+import { claim, claimRefusal, closed, endGoneClaims, land, readAttribution, release, releaseFor, type ClaimContext, type MergedPull, type MergeWatch } from "./index.js";
 import { boardClaims, due, mergedPullsThrough } from "./merges.js";
 
 interface World {
@@ -175,6 +175,32 @@ test('5.3 when A reports it landed, the claim ends and a "landed" line is writte
     assert.equal((await claim(as("A"), emailForm, "and another")).ok, true);
     await log.append(project, { session: "A", harness: "claude-code", source: "hook", kind: "session-ended", reason: "other" });
     assert.deepEqual(await readClaims(log, project), [], "A's session ending ended it");
+  });
+});
+
+test("5.28 a gone holder's claims end with a release naming it, written by whoever notices; a holder that is only quiet, or live, keeps its claim", async () => {
+  await withWorld(async ({ log, project, emailForm, passwordReset, as }) => {
+    const quietMs = 1_000;
+    assert.equal((await claim(as("A"), emailForm, "building the email form")).ok, true);
+    await sleep(quietMs + 300); // A is quiet, waiting, not gone
+    assert.deepEqual(await endGoneClaims(as("B", { quietMs })), [], "a quiet holder is the session manager's, never expired");
+
+    // A's window crashed: no line from it for longer than a command may run, and no session-ended.
+    const store = await connect({ url: testServerUrl() });
+    try {
+      const activity = await store.ownDatabase(ACTIVITY_DATABASE);
+      await activity.query("UPDATE activity SET at = at - interval '13 hours' WHERE project = $1 AND session = 'A'", [project]);
+    } finally {
+      await store.close();
+    }
+    assert.equal((await claim(as("B"), passwordReset, "building the reset")).ok, true);
+
+    const ended = await endGoneClaims(as("B", { quietMs }));
+    assert.deepEqual(ended.map((line) => line.kind === "released" && [line.session, line.holder, line.capability]), [["B", "A", emailForm]]);
+    assert.match((ended[0]?.kind === "released" && ended[0].reason) || "", /^gone: no line since /);
+    assert.deepEqual((await readClaims(log, project)).map(({ session, capability }) => [session, capability]), [["B", passwordReset]], "A's claim is free; B's stands");
+    assert.deepEqual(claimsFrom((await log.since(project, 0)).lines).map(({ session }) => session), ["B"], "the fold of the whole log agrees");
+    assert.deepEqual(await endGoneClaims(as("B", { quietMs })), [], "noticing again writes nothing");
   });
 });
 
@@ -508,6 +534,37 @@ test("5.7 session A claims a proposed increment, which the claim shows while the
     const lines = (await log.since(project, 0)).lines.length;
     assert.deepEqual(await claim(as("A"), closed, "one more go"), { ok: false, refused: "closed", increment: closed });
     assert.equal((await log.since(project, 0)).lines.length, lines, "nothing written for it");
+  });
+});
+
+test("5.29 releasing an active increment without closing it, by release, the session manager's release or close-out, returns it to proposal; a capability or a closed increment is untouched", async () => {
+  await withWorld(async ({ library, emailForm, as }) => {
+    const { arc, park } = await arcOf(library);
+    const released = await park("email form");
+    assert.equal((await claim(as("A"), released, "driving the email form")).ok, true);
+    assert.equal((await claim(as("A"), emailForm, "building the email form")).ok, true);
+    assert.deepEqual(await release(as("A"), released), { ok: true, returned: true });
+    assert.equal(await statusOf(library, arc, released), "proposal", "released, nobody holds it: a proposal again");
+    assert.ok(((await library.get(released))?.fields as { parked?: string } | undefined)?.parked, "it keeps the day it was parked");
+    assert.deepEqual(await release(as("A"), emailForm), { ok: true }, "a capability is released as before");
+
+    const quiet = await park("welcome email");
+    assert.equal((await claim(as("A"), quiet, "driving the welcome email")).ok, true);
+    await sleep(5);
+    assert.deepEqual(await releaseFor(as("B", { quietMs: 1 }), quiet, "A", "quiet, messaged"), { ok: true, returned: true });
+    assert.equal(await statusOf(library, arc, quiet), "proposal", "the session manager's release returns it too");
+
+    const left = await park("password reset");
+    const finished = await park("old form");
+    assert.equal((await claim(as("A"), left, "driving the reset")).ok, true);
+    assert.equal((await claim(as("A"), finished, "finishing the old form")).ok, true);
+    await library.closeIncrement(finished, { pr: "#3", disposition: "landed" });
+    await withTempDir(async (home) => {
+      const { released: ended } = await closeOut(as("A"), { safe: false, why: "handing off" }, { home, claimHome: home });
+      assert.deepEqual(ended, [left, finished]);
+    });
+    assert.equal(await statusOf(library, arc, left), "proposal", "close-out returns the unclosed increment");
+    assert.equal(await statusOf(library, arc, finished), "closed", "a closed one stays closed");
   });
 });
 

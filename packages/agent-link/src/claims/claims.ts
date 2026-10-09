@@ -20,9 +20,9 @@
  *   their claimed lines name as `under`, whoever closes it and whatever the disposition (ADR-0944 D5, ADR-0949 D4).
  * - A claim also ends when a pull request from the branch it was taken on merges after it was
  *   taken (ADR-0643 D3): a "merged" line, which merges.ts writes when GitHub shows one.
- * - A claim also ends when its holder reads gone, crashed or abandoned with no end line: a "released"
- *   line naming it, written by whichever session's hook notices (endGoneClaims, ADR-0944 D6); its unclosed
- *   increment, like any released one, is a proposal again (5.29, 5.30).
+ * - A holder that reads gone, crashed or abandoned with no end line, keeps its claim until the session
+ *   manager releases it from its stale-claim worklist (stale-claims.ts, ADR-0953 D4); its unclosed
+ *   increment, like any released one, is a proposal again (5.29).
  * - Claims work on trust: storytree refuses a second claim, but cannot stop an agent that never asks.
  *   Instead, a session's edits claim their capabilities for it, after the fact (ADR-0924, edit-claims.ts).
  */
@@ -277,40 +277,6 @@ export async function releaseFor(context: ClaimContext, id: string, holder: stri
 }
 
 /**
- * End the claims of every holder that reads gone (no line for longer than LONGEST_COMMAND_MS and none
- * that ended it, or last seen before its machine restarted), written by whichever session notices, as
- * merged lines are (ADR-0944 D6): a "released" line naming the gone holder, with when it was last seen.
- * A holder that is only quiet, or waiting, is never ended here: that is the session manager's (ADR-0944 D7).
- * An ended claim's unclosed active increment is a proposal again (5.30), as any release returns it, through
- * the library `openLibrary` opens, only once there is an increment claim to end. The lines written, none
- * when nobody is gone.
- */
-export async function endGoneClaims(context: Who & Pick<ClaimContext, "log" | "project" | "restarted"> & { readonly openLibrary?: () => Promise<Library> }): Promise<Line[]> {
-  return context.log.locked(context.project, async (log) => {
-    const now = (await log.now()).getTime();
-    const claimLines = await log.standing();
-    const holders = [...new Set([...held(claimLines, new Map(), new Set(), now, Infinity).values()].map((claim) => claim.session))];
-    if (holders.length === 0) return [];
-    const fold = LogFold.fromBounded(await log.foldLines(holders, new Date(now - COMMANDS_MS).toISOString()), claimLines);
-    const gone = new Map(fold.sessions({ now: new Date(now) }).filter(({ state }) => state === "gone").map(({ session, lastSeenAt }) => [session, lastSeenAt]));
-    if (gone.size === 0) return [];
-    const restarted = context.restarted ?? thisRestart();
-    const ended: Line[] = [];
-    let library: Promise<Library> | undefined;
-    for (const claim of fold.claims({ now: new Date(now), ...(restarted === undefined ? {} : { restarted }) })) {
-      const lastSeen = gone.get(claim.session);
-      if (lastSeen === undefined) continue;
-      if (claim.increment !== undefined && context.openLibrary !== undefined) {
-        library ??= context.openLibrary();
-        await returnUnclosed({ library: await library, session: context.session }, claim.increment);
-      }
-      ended.push(await log.append({ ...who(context), kind: "released", ...partOf(claim), holder: claim.session, reason: `gone: no line since ${lastSeen}` }));
-    }
-    return ended;
-  });
-}
-
-/**
  * Report `capability` landed: write the "landed" line, which ends the context's session's claim on
  * it. Refused if the library has no such capability, or another session holds it.
  */
@@ -399,7 +365,7 @@ interface ClaimReads {
 }
 
 /** How far back a holder's commands are read: a command started earlier is past any limit on it, with a minute for a finish written before its start. */
-const COMMANDS_MS = LONGEST_COMMAND_MS + 60_000;
+export const COMMANDS_MS = LONGEST_COMMAND_MS + 60_000;
 
 /**
  * Who holds what at `now`: the standing claims and the bounded session reading that verifies each

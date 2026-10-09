@@ -57,6 +57,7 @@ export const TOOLS = [
   "set_wait",
   "settle_question",
   "show_plan",
+  "stale_claims",
   "stop_own_run",
   "wire_pipeline",
   "write_note",

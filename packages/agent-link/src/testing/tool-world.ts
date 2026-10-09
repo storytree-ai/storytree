@@ -16,6 +16,7 @@ import { approveCheckout, dropTestProjects, testServerUrl, uniqueProjectName } f
 
 /** The toolbox: every tool the server offers. */
 export const TOOLS = [
+  "add_remedies",
   "attach_workspace",
   "check_setup",
   "claim",

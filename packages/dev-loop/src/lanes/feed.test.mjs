@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 
-import { keepFed, main, markQueue, parseFences, pickNext, queuedOnTracks, readSurvey, WEBSITE_ARC, writesOf } from "./feed.mjs";
+import { keepFed, main, markQueue, parseFences, pickNext, queuedOnTracks, READ_ONLY, readSurvey, WEBSITE_ARC, writesOf } from "./feed.mjs";
 
 const fences = parseFences(`L=packages/library, packages/librarian, packages/cli
 A=packages/agent-link, packages/app, apps/desktop/src/main, packages/dev-loop
@@ -297,4 +297,28 @@ test("11.5 · a refill skips an increment queued or running on any track's queue
     runLane: async (id) => { ran.push(id); await writeFile(stop, ""); return 0; }, sleep: () => assert.fail("no wait") });
   assert.deepEqual(ran, ["free"]);
   assert.deepEqual([...(await queuedOnTracks(dir))], [["taken", "G"]], "only live queue files count, not backups");
+});
+
+test("11.7 · read-only work goes only to the read-only track, whatever packages or tracks its body names, and that track takes nothing else", () => {
+  const withReview = parseFences(`A=packages/agent-link, packages/dev-loop
+R=read-only: reviews, evidence and reconciliation that write no package (packages/agent-link is read, never written)
+`);
+  assert.deepEqual(withReview.R, [READ_ONLY], "a read-only fence names no package, even when its notes mention one");
+  const work = survey([
+    increment("review", "Needs: Mint; read-only security challenge. Read scope: packages/agent-link, packages/cli. The track A source fence does not bind these reads.",
+      { parked: "2026-10-01T00:00:00Z" }),
+    increment("build", "Write ownership: packages/dev-loop.", { parked: "2026-10-02T00:00:00Z" }),
+  ]);
+  const onA = pickNext(work, { track: "A", fences: withReview });
+  assert.equal(onA.pick, "build");
+  assert.match(onA.skipped.find((skip) => skip.id === "review").why, /read-only.*track R/);
+
+  const onR = pickNext(work, { track: "R", fences: withReview, running: [{ id: "builder", writes: ["packages/agent-link"] }] });
+  assert.equal(onR.pick, "review", "read-only work writes nothing, so it never clashes with a running lane");
+  const rest = pickNext(survey([work.increments[1]]), { track: "R", fences: withReview });
+  assert.equal(rest.pick, undefined);
+  assert.match(rest.skipped[0].why, /track R takes only read-only work/);
+  assert.deepEqual(writesOf("Needs: Mint; read-only. Reads packages/cli.", withReview.R), [], "read-only work writes no package");
+  assert.equal(pickNext(work, { track: "A", fences }).skipped.find((skip) => skip.id === "review").why,
+    "read-only work, and no track's fence is read-only", "with no read-only track it is said so, not guessed onto a package track");
 });

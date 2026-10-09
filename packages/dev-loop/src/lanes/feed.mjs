@@ -13,15 +13,25 @@ import { queueLines, runQueue } from "./queue.mjs";
 export const WEBSITE_ARC = "arc_e42da2528db8";
 const HOUR = 3_600_000;
 const PATH = /\b(?:packages\/[a-z0-9-]+|apps\/desktop(?:\/src\/[a-z0-9-]+)?)/g;
+/** A read-only track's whole fence: it writes no package. */
+export const READ_ONLY = "read-only";
 
-/** night-fences.txt's tracks: each line `T=<paths and notes>`, read as the package paths it names. */
+/**
+ * night-fences.txt's tracks: each line `T=<paths and notes>`, read as the package paths it names; a line starting
+ * `T=read-only` is a read-only track, whose fence is [READ_ONLY] whatever packages its notes mention.
+ */
 export function parseFences(text) {
   const fences = {};
   for (const line of text.split("\n")) {
     const match = /^([A-Z])=(.*)$/.exec(line.trim());
-    if (match) fences[match[1]] = [...new Set(match[2].match(PATH) ?? [])];
+    if (match) fences[match[1]] = /^read-only\b/i.test(match[2].trim()) ? [READ_ONLY] : [...new Set(match[2].match(PATH) ?? [])];
   }
   return fences;
+}
+
+/** Work whose needs line says read-only: it writes no package, whatever packages it reads. */
+function readOnly(body) {
+  return (body.match(/\bneeds:[^\n]*/gi) ?? []).some((line) => /\bread-only\b/i.test(line));
 }
 
 /** Why `writes` may not run beside the `running` lanes, or undefined when it shares no package with them. */
@@ -34,6 +44,12 @@ function clash(writes, running) {
 }
 
 function outsideFence(body, track, fences) {
+  const reviewTracks = Object.keys(fences).filter((each) => fences[each].includes(READ_ONLY));
+  if (readOnly(body)) {
+    if (reviewTracks.includes(track)) return undefined;
+    return reviewTracks.length ? `read-only work, for track ${reviewTracks.join(" or ")}` : "read-only work, and no track's fence is read-only";
+  }
+  if (reviewTracks.includes(track)) return `track ${track} takes only read-only work`;
   const named = /\btrack ([A-Z])\b/.exec(body)?.[1];
   if (named) return named === track ? undefined : `named for track ${named}`;
   const paths = [...new Set(body.match(PATH) ?? [])];
@@ -45,9 +61,10 @@ function outsideFence(body, track, fences) {
 
 /**
  * The package paths an increment writes: those in its body's "Write ownership" sentence, else those its body names,
- * else (naming none) the whole `fence`, so it runs alone. Never its capabilities list (ADR-0944 D2).
+ * else (naming none) the whole `fence`, so it runs alone; read-only work writes none. Never its capabilities list (ADR-0944 D2).
  */
 export function writesOf(body, fence) {
+  if (readOnly(body)) return [];
   const owned = /write ownership:(.*?)(?:\.\s|\.$|\n|$)/i.exec(body)?.[1]?.match(PATH) ?? body.match(PATH) ?? [];
   return owned.length ? [...new Set(owned)] : fence;
 }

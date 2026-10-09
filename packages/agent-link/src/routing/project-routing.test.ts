@@ -465,7 +465,7 @@ test("1.1 first setups that race on a new server all find the trunks table, none
     }
   } finally {
     await storytree.close();
-    const client = new pg.Client({ connectionString: testServerUrl() });
+    const client = new pg.Client({ connectionString: process.env["STORYTREE_TEST_PG_ADMIN_URL"] || testServerUrl() });
     await client.connect();
     await client.query(`DROP DATABASE IF EXISTS "${database}" WITH (FORCE)`).finally(() => client.end());
   }

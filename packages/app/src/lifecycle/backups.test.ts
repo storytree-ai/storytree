@@ -56,7 +56,7 @@ test("1.8 the app writes a snapshot of each project to backups/<project>/, keepi
   } finally {
     await storytree.close();
     rmSync(dir, { recursive: true, force: true });
-    const admin = new pg.Client({ connectionString: url });
+    const admin = new pg.Client({ connectionString: process.env["STORYTREE_TEST_PG_ADMIN_URL"] || url });
     await admin.connect();
     try {
       for (const name of [site, app, copy]) await admin.query(`DROP DATABASE IF EXISTS "storytree_${name}" WITH (FORCE)`);

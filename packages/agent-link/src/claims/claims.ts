@@ -103,9 +103,10 @@ export interface Waiting extends Hold {
   readonly checkBack?: string;
 }
 
-export type ReleaseAnswer = { ok: true } | { ok: false; refused: "not-held"; holder?: Claim };
+/** `returned` when the release made an unclosed increment a proposal again (5.29). */
+export type ReleaseAnswer = { ok: true; returned?: true } | { ok: false; refused: "not-held"; holder?: Claim };
 
-export type ReleaseForAnswer = { ok: true } | { ok: false; refused: "not-held" | "live"; holder?: Claim };
+export type ReleaseForAnswer = { ok: true; returned?: true } | { ok: false; refused: "not-held" | "live"; holder?: Claim };
 
 export type LandAnswer =
   | { ok: true; line: Line }
@@ -212,10 +213,26 @@ export async function release(context: ClaimContext, id: string): Promise<Releas
   return context.log.locked(context.project, async (log) => {
     const current = (await heldNow(log, context)).get(id);
     if (current?.session !== context.session) return current === undefined ? { ok: false, refused: "not-held" } : { ok: false, refused: "not-held", holder: current };
+    const returned = await returnUnclosed(context, current.increment);
     await log.append({ ...who(context), kind: "released", ...partOf(current) });
     cancelClaimNotice(context.home ?? storytreeHome(), context.session, id);
-    return { ok: true };
+    return returned ? { ok: true, returned } : { ok: true };
   });
+}
+
+/**
+ * An increment whose last claim ends without closing it is nobody's work in progress: when it is
+ * active, it is a proposal again (5.29), through the library's own `returnIncrement`. Called under
+ * the activity log's lock before the "released" line, as a claim's activation is before its
+ * "claimed" line, so no claim can start it in between, and a library refusal writes nothing.
+ * Whether it was returned.
+ */
+export async function returnUnclosed(context: Pick<ClaimContext, "library" | "writer" | "session">, increment: string | undefined): Promise<true | undefined> {
+  if (increment === undefined) return undefined;
+  const work = await context.library.get(increment);
+  if (work?.type !== "increment" || (work.fields as { status: IncrementStatus }).status !== "active") return undefined;
+  await context.library.returnIncrement(increment, { ...context.writer, actor: `session:${context.session}` });
+  return true;
 }
 
 /**
@@ -229,8 +246,9 @@ export async function releaseFor(context: ClaimContext, id: string, holder: stri
     const current = (await heldNow(log, context)).get(id);
     if (current?.session !== holder) return current === undefined ? { ok: false, refused: "not-held" } : { ok: false, refused: "not-held", holder: current };
     if (current.holder === "live") return { ok: false, refused: "live", holder: current };
+    const returned = await returnUnclosed(context, current.increment);
     await log.append({ ...who(context), kind: "released", ...partOf(current), holder, reason });
-    return { ok: true };
+    return returned ? { ok: true, returned } : { ok: true };
   });
 }
 

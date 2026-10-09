@@ -331,7 +331,7 @@ test("5.14 Codex refuses invalid returned directories and releases a claim if na
     assert.deepEqual((await log.since(project, 0)).lines.filter((line) => line.kind === "claimed" || line.kind === "released").map((line) => line.kind), ["claimed", "released"]);
     assert.equal(git(folder, "rev-parse", "--abbrev-ref", "HEAD").trim(), "HEAD");
     assert.ok(existsSync(folder));
-    assert.equal(await statusOf(library, increment), "active");
+    assert.equal(await statusOf(library, increment), "proposal", "the released claim leaves it nobody's work: a proposal again (5.29)");
   });
 });
 

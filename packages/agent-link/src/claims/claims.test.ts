@@ -21,7 +21,7 @@ import { claudeCode, withAgent } from "../testing/agent.js";
 import { countingStore } from "../testing/egress.js";
 import { withTempDir } from "../testing/folders.js";
 import { approveCheckout, dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { readSessions } from "../sessions/index.js";
+import { closeOut, readSessions } from "../sessions/index.js";
 import { claim, claimRefusal, closed, endGoneClaims, land, readAttribution, release, releaseFor, type ClaimContext, type MergedPull, type MergeWatch } from "./index.js";
 import { boardClaims, due, mergedPullsThrough } from "./merges.js";
 
@@ -534,6 +534,37 @@ test("5.7 session A claims a proposed increment, which the claim shows while the
     const lines = (await log.since(project, 0)).lines.length;
     assert.deepEqual(await claim(as("A"), closed, "one more go"), { ok: false, refused: "closed", increment: closed });
     assert.equal((await log.since(project, 0)).lines.length, lines, "nothing written for it");
+  });
+});
+
+test("5.29 releasing an active increment without closing it, by release, the session manager's release or close-out, returns it to proposal; a capability or a closed increment is untouched", async () => {
+  await withWorld(async ({ library, emailForm, as }) => {
+    const { arc, park } = await arcOf(library);
+    const released = await park("email form");
+    assert.equal((await claim(as("A"), released, "driving the email form")).ok, true);
+    assert.equal((await claim(as("A"), emailForm, "building the email form")).ok, true);
+    assert.deepEqual(await release(as("A"), released), { ok: true, returned: true });
+    assert.equal(await statusOf(library, arc, released), "proposal", "released, nobody holds it: a proposal again");
+    assert.ok(((await library.get(released))?.fields as { parked?: string } | undefined)?.parked, "it keeps the day it was parked");
+    assert.deepEqual(await release(as("A"), emailForm), { ok: true }, "a capability is released as before");
+
+    const quiet = await park("welcome email");
+    assert.equal((await claim(as("A"), quiet, "driving the welcome email")).ok, true);
+    await sleep(5);
+    assert.deepEqual(await releaseFor(as("B", { quietMs: 1 }), quiet, "A", "quiet, messaged"), { ok: true, returned: true });
+    assert.equal(await statusOf(library, arc, quiet), "proposal", "the session manager's release returns it too");
+
+    const left = await park("password reset");
+    const finished = await park("old form");
+    assert.equal((await claim(as("A"), left, "driving the reset")).ok, true);
+    assert.equal((await claim(as("A"), finished, "finishing the old form")).ok, true);
+    await library.closeIncrement(finished, { pr: "#3", disposition: "landed" });
+    await withTempDir(async (home) => {
+      const { released: ended } = await closeOut(as("A"), { safe: false, why: "handing off" }, { home, claimHome: home });
+      assert.deepEqual(ended, [left, finished]);
+    });
+    assert.equal(await statusOf(library, arc, left), "proposal", "close-out returns the unclosed increment");
+    assert.equal(await statusOf(library, arc, finished), "closed", "a closed one stays closed");
   });
 });
 

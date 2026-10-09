@@ -6,9 +6,11 @@
  * first asks whether the project's branches have merged, so a yes whose pull request merged is
  * borne out whether or not a hook has looked since.
  */
+import type { Library, WriteOptions } from "@storytree/library";
 import { listRuns } from "@storytree/processes/listing";
 
 import type { ActivityLog, Line } from "../activity/index.js";
+import { returnUnclosed } from "../claims/claims.js";
 import { cancelClaimNotice } from "../claims/notices.js";
 import { rememberClosedOut } from "../hooks/close-out-reminder.js";
 import { held, partOf } from "../readings.js";
@@ -23,6 +25,9 @@ export interface CloseOutContext {
   readonly harness?: string;
   readonly folder?: string;
   readonly branch?: string;
+  /** The project's library: given, an unclosed increment whose claim this ends is a proposal again (5.29). */
+  readonly library?: Library;
+  readonly writer?: WriteOptions;
 }
 
 export interface CloseOutOptions {
@@ -34,7 +39,7 @@ export interface CloseOutOptions {
   readonly look?: BranchWatch;
 }
 
-/** Release all of this session's claims and record its close-out; safety verification remains independent. */
+/** Release all of this session's claims, returning its unclosed increments to proposal when given the library, and record its close-out; safety verification remains independent. */
 export async function closeOut(context: CloseOutContext, said: { safe: boolean; why: string }, options: CloseOutOptions = {}): Promise<{ line: Line; running: number | undefined; released: string[] }> {
   if (options.look !== undefined && context.folder !== undefined) {
     const watcher = { log: context.log, project: context.project, folder: context.folder, session: context.session, ...(context.harness === undefined ? {} : { harness: context.harness }), source: "tool" } as const;
@@ -54,6 +59,7 @@ export async function closeOut(context: CloseOutContext, said: { safe: boolean; 
     const released: string[] = [];
     for (const [id, claim] of held(await log.standing(), new Map(), new Set(), 0, Infinity)) {
       if (claim.session !== context.session) continue;
+      if (context.library !== undefined) await returnUnclosed({ library: context.library, session: context.session, ...(context.writer === undefined ? {} : { writer: context.writer }) }, claim.increment);
       await log.append({ ...who, kind: "released", ...partOf(claim) });
       cancelClaimNotice(options.claimHome ?? storytreeHome(), context.session, id);
       released.push(id);

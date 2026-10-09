@@ -1,8 +1,8 @@
 /** Capability 11 · Workspace: a terminal front door onto the agent link's claimed workspace, claim and release. */
-import type { ClaimAnswer, ClaimContext, WorkspaceAnswer } from "@storytree/agent-link";
+import type { ClaimAnswer, WorkspaceAnswer } from "@storytree/agent-link";
 
 import { Refusal } from "../answer.js";
-import type { Context, Family, Verb } from "../door.js";
+import type { Family, Verb } from "../door.js";
 
 const make: Verb = {
   name: "workspace",
@@ -87,7 +87,7 @@ usage: storytree ${this.usage}`, { code: 2 });
           ? `${holder} still reads live on ${id}: message it, and release only once it has stayed quiet.`
           : current === undefined ? `${holder} doesn't hold ${id}, and nobody else does.` : `${holder} doesn't hold ${id}: ${current.label} session ${current.session} (${current.reason}) does.`);
       }
-      return { text: `Released ${id} for ${holder}: ${reason}${await returnedToProposal(caller, id, context)}` };
+      return { text: `Released ${id} for ${holder}: ${reason}${returnedSaid(answer)}` };
     }
     const answer = await release(caller, id);
     if (!answer.ok) {
@@ -96,16 +96,13 @@ usage: storytree ${this.usage}`, { code: 2 });
         ? `You don't hold ${id}, and nobody else does.`
         : `You don't hold ${id}: ${holder.label} session ${holder.session} (${holder.reason}) does.`);
     }
-    return { text: `You released ${id}${await returnedToProposal(caller, id, context)}` };
+    return { text: `You released ${id}${returnedSaid(answer)}` };
   },
 };
 
-/** An increment released without closing is nobody's work in progress: it is a proposal again (11.11). Says so, or ends the sentence. */
-async function returnedToProposal(caller: ClaimContext, id: string, context: Context): Promise<string> {
-  const work = await caller.library.get(id);
-  if (work?.type !== "increment" || (work.fields as { status: string }).status !== "active") return ".";
-  await caller.library.returnIncrement(id, context.writer());
-  return "; nobody holds it, so it is a proposal again.";
+/** An increment released without closing is nobody's work in progress: the agent link made it a proposal again (11.11). Says so, or ends the sentence. */
+function returnedSaid(answer: { returned?: true }): string {
+  return answer.returned ? "; nobody holds it, so it is a proposal again." : ".";
 }
 
 /** Present the owning story's refusal without making another claiming rule here. */

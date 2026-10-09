@@ -15,7 +15,11 @@ export const guide = `
   </ul>
   <p>The new project appears in the app. Use the project picker to switch between forests.</p>
   <details><summary>Windows asks whether to trust the installer</summary>
-    <p>This release is unsigned, so Windows may show an unknown-publisher or SmartScreen warning. Check that you obtained it from storytree-ai/storytree. If you choose to trust that download, use More info → Run anyway when offered. If your organisation blocks it, ask its administrator; do not disable Windows protection.</p>
+    <p>This release is unsigned, so Windows may show an unknown-publisher or SmartScreen warning. Check that you obtained it from storytree-ai/storytree. If you choose to trust that download, use More info → Run anyway when offered. If your organisation blocks it, ask its administrator; do not disable Windows protection to get past an organisation's block.</p>
+  </details>
+  <details><summary>Windows says Smart App Control blocked storytree</summary>
+    <p>If Windows says Smart App Control blocked storytree and offers no Run anyway, that is Windows 11's reputation check: it blocks apps that are unsigned and not yet widely known, and this release is unsigned. To see whether it is on, open Windows Security → App &amp; browser control → Smart App Control settings; it reads On, Evaluation or Off.</p>
+    <p>To install storytree you would have to turn it off there. That is your choice, and it has a cost: Smart App Control then stops checking every app on this computer, not just storytree (Microsoft Defender antivirus keeps running). On Windows 11 with the April 2026 update or later you can turn it back on from the same page; before that update, turning it back on needs a reset or reinstall of Windows. If you would rather keep it on, wait for a signed release. If your organisation manages this computer, ask its administrator.</p>
   </details>
   <details><summary>Remove storytree</summary>
     <p>Uninstall <strong>storytree-0.3</strong> from Windows Settings → Apps, or run <code>storytree setup uninstall</code>. It asks whether to keep your library, then removes the app, its command and its connections and hooks in Claude Code and Codex. Your project folders and their files stay as they are. Restart your agents afterwards.</p>

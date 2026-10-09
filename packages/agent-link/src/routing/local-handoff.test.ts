@@ -144,7 +144,12 @@ test("1.16 authenticated discovery connects to an independently provisioned SCRA
 });
 
 // A self-relative security descriptor as Windows' ADSI security utility returns it in hex.
-const me = "S-1-5-21-1111111111-2222222222-3333333333-1001";
+// Discovery resolves the user once per process, so on Windows, where a real discovery may run first,
+// the synthetic descriptors are the real user's.
+const me = process.platform === "win32"
+  ? execFileSync(path.join(process.env.SystemRoot!, "System32", "whoami.exe"), ["/user", "/fo", "csv", "/nh"], { encoding: "utf8", windowsHide: true })
+    .match(/,"(S-1-\d+(?:-\d+)+)"\s*$/)![1]!
+  : "S-1-5-21-1111111111-2222222222-3333333333-1001";
 function sidBytes(sid: string): Buffer {
   const [, , authority, ...subs] = sid.split("-");
   const bytes = Buffer.alloc(8 + 4 * subs.length);

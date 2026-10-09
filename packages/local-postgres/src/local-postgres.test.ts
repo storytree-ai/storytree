@@ -299,6 +299,24 @@ test("2.8 clients sign in as an ordinary role that owns storytree's databases, n
   await stopped(server);
 });
 
+test("2.9 a throwaway test server can hand back the superuser's url beside its client's, for tests' setup, while its clients and handoff stay the ordinary role", async () => {
+  const dataDir = await freshCluster("superuser-beside");
+  const server = await started({ dataDir, superuserUrl: true });
+  assert.equal(new URL(server.url).username, "storytree", "the url clients use is the ordinary role's");
+  assert.ok(server.superuserUrl, "the superuser's url is handed back when asked for");
+  assert.equal(new URL(server.superuserUrl).username, "postgres");
+  assert.equal(new URL(server.superuserUrl).port, String(server.port));
+  assert.deepEqual(await query(server.superuserUrl, "SELECT rolsuper FROM pg_roles WHERE rolname = current_user"), [{ rolsuper: true }]);
+  await query(server.superuserUrl, "CREATE ROLE t_made_by_setup LOGIN");
+  const handoff = JSON.parse(readFileSync(path.join(`${dataDir}.auth`, "connection.json"), "utf8")) as { user: string };
+  assert.equal(handoff.user, "storytree", "the handoff still carries the ordinary role");
+  await stopped(server);
+
+  const plain = await started({ dataDir });
+  assert.equal(plain.superuserUrl, undefined, "a server not asked for it hands back no superuser url");
+  await stopped(plain);
+});
+
 // --- helpers ---------------------------------------------------------------------------------
 
 /**

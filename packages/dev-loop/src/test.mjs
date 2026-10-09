@@ -41,6 +41,9 @@
 // running is stopped before this one starts. Like every cluster local-postgres runs, it asks for
 // a password, which the url handed to the tests carries. Unlike the app's, it hands the tests the
 // superuser's, since they make roles of their own (a client of the app's gets an ordinary role).
+// It hands them the superuser's url for that setup apart, too, as STORYTREE_TEST_PG_ADMIN_URL (with
+// STORYTREE_TEST_PG_URL set, that one unless STORYTREE_TEST_PG_ADMIN_URL is set as well), so the
+// url they connect with can become the ordinary role's once every package's setup reads it.
 //
 // Files and node's own --test-* options go to `node --test`, in every unit: `pnpm run test <file>`
 // runs just that file, with no scope and no record. Give options in --name=value form, so that a
@@ -181,7 +184,8 @@ async function runHeavy(units) {
   if (interrupted) return 130;
   if (process.env.STORYTREE_TEST_PG_URL) {
     console.log("test Postgres: STORYTREE_TEST_PG_URL is set; using that server");
-    return runTests(process.env, units);
+    const env = process.env;
+    return runTests({ ...env, STORYTREE_TEST_PG_ADMIN_URL: env.STORYTREE_TEST_PG_ADMIN_URL || env.STORYTREE_TEST_PG_URL }, units);
   }
   const kept = keepPreviousServerLog(serverLog);
   if (kept !== undefined) console.log(`test Postgres: the previous run's server log is kept in ${path.relative(root, kept)}`);
@@ -194,6 +198,7 @@ async function runHeavy(units) {
       toolLog,
       owner: "a `pnpm test` run",
       signIn: "superuser",
+      superuserUrl: true,
       // Its data is thrown away, so no commit or CREATE DATABASE need wait on a disk flush.
       settings: { fsync: "off", synchronous_commit: "off", full_page_writes: "off" },
       log: (message) => console.log(`test Postgres: ${message}`),
@@ -206,7 +211,7 @@ async function runHeavy(units) {
   }
   try {
     if (interrupted) return 130;
-    return await runTests({ ...process.env, STORYTREE_TEST_PG_URL: server.url, STORYTREE_TEST_PG_DATA: server.dataDir }, units);
+    return await runTests({ ...process.env, STORYTREE_TEST_PG_URL: server.url, STORYTREE_TEST_PG_ADMIN_URL: server.superuserUrl, STORYTREE_TEST_PG_DATA: server.dataDir }, units);
   } finally {
     phase = "stopping the test Postgres";
     await server.stop();

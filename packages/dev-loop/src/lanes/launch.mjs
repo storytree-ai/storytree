@@ -125,7 +125,7 @@ export async function main(args, box = {}) {
         title: `Overnight lane: track ${name}, ${increment}`,
         intro: `Your increment: ${increment}. Your track: ${name}. Your write fence: ${fence}.`,
         notes: await readFile(join(L, `night-notes-${increment}.md`), "utf8").catch(() => ""),
-        common: await readFile(join(L, "night-common.md"), "utf8"),
+        common: await readFile(join(L, `night-common-${name}.md`), "utf8").catch(() => readFile(join(L, "night-common.md"), "utf8")),
         log: join(L, `night-${name}-${increment}.log`), err: join(L, `night-${name}-${increment}.err`),
       }),
     });

@@ -86,7 +86,21 @@ test("12.6 · a track's lane limit is its line in night-lanes-per-track, else 1,
   assert.equal(await readFile(join(b.lanesDir, "night-queue-A.txt"), "utf8"), "");
 });
 
-test("12.2 · the mintlib queue stops on a failed lane, keeping it queued, and refuses to start without its common brief", async (t) => {
+test("12.7 · a track with its own common brief composes its lanes from it; other tracks keep night-common.md", async (t) => {
+  const briefs = [];
+  for (const [track, increment] of [["R", "increment_review"], ["A", "increment_build"]]) {
+    const b = await box(t);
+    await writeFile(join(b.lanesDir, "night-fences.txt"), "A=packages/dev-loop\nR=read-only: reviews that write no package\n");
+    await writeFile(join(b.lanesDir, "night-common-R.md"), "Read-only rules.\n");
+    await writeFile(join(b.lanesDir, `night-queue-${track}.txt`), `${increment}\n`);
+    assert.equal(await main(["night", track], b), 0);
+    briefs.push(...b.briefs);
+  }
+  assert.equal(briefs[0], "# Overnight lane: track R, increment_review\n\nYour increment: increment_review. Your track: R. Your write fence: read-only: reviews that write no package.\n\nRead-only rules.\n");
+  assert.match(briefs[1], /\n\nCommon rules\.\n$/, "a track without its own common brief keeps night-common.md");
+});
+
+test("12.2 ·the mintlib queue stops on a failed lane, keeping it queued, and refuses to start without its common brief", async (t) => {
   const b = await box(t, { runLane: async () => 1 });
   await writeFile(join(b.lanesDir, "mintlib-queue.txt"), "increment_lib\nincrement_after\n");
   assert.equal(await main(["mintlib"], b), 1, "missing mintlib-common.md");

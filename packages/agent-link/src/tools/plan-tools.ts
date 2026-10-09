@@ -174,7 +174,8 @@ const EDITABLE = {
   increment: ["title", "capabilities", "links"],
 } as const;
 
-async function editPlan(target: string, changes: Changes, { library, writer }: Call): Promise<Answer> {
+async function editPlan(target: string, changes: Changes, call: Call): Promise<Answer> {
+  const { library, writer } = call;
   const kind = kindOf(await library.projectTree(), target) ?? ((await library.get(target))?.type === "increment" ? "increment" : undefined);
   if (kind === undefined) return { text: `Nothing in the plan has the id ${target}; show_plan lists every id.`, refused: true };
   const given = Object.entries(changes).filter(([, value]) => value !== undefined);
@@ -182,6 +183,10 @@ async function editPlan(target: string, changes: Changes, { library, writer }: C
   const wrong = given.map(([field]) => field).filter((field) => !allowed.includes(field));
   if (wrong.length > 0) return { text: `A ${kind} has no ${wrong.join(" or ")} to correct; it has ${allowed.join(", ")}.`, refused: true };
   if (given.length === 0) return { text: `Nothing to correct: give the ${kind}'s ${allowed.join(", ")}.`, refused: true };
+  if (kind === "increment" && changes.capabilities !== undefined) {
+    const shared = await sharedCapability(target, changes.capabilities, call);
+    if (shared !== undefined) return { text: shared, refused: true };
+  }
   const { depends_on: dependsOn, end_state: endState, ...rest } = changes;
   const fields = optional({ ...rest, dependsOn, endState });
   const edited =
@@ -196,6 +201,21 @@ async function editPlan(target: string, changes: Changes, { library, writer }: C
             : await library.editArc(target, fields, writer);
   if (edited === null) return { text: `Nothing in the plan has the id ${target} any more.`, refused: true };
   return { text: `Corrected ${kind} ${quoted(edited.fields.title)} (${target}).`, data: { id: target } };
+}
+
+/**
+ * Why `capabilities` may not be `target`'s list: one of them is on the list of an increment another
+ * live session holds, since two sessions never plan changes to the same capability (ADR-0949 D2).
+ */
+async function sharedCapability(target: string, capabilities: readonly string[], { library, log, project, quietMs, caller }: Call): Promise<string | undefined> {
+  const others = (await readClaims(log, project, { quietMs })).filter((claim) => claim.session !== caller.session && claim.holder === "live" && claim.increment !== undefined && claim.increment !== target);
+  for (const claim of others) {
+    const listed = ((await library.get(claim.increment!))?.fields as { capabilities?: string[] } | undefined)?.capabilities ?? [];
+    const capability = capabilities.find((id) => listed.includes(id));
+    if (capability !== undefined)
+      return `${capability} is already on the capabilities list of ${claim.increment}, which ${claim.label} session ${claim.session} holds (${claim.reason}): two sessions never plan changes to the same capability (ADR-0949 D2). Leave it off this list, or take other work.`;
+  }
+  return undefined;
 }
 
 async function showPlan({ library, log, project, quietMs }: Call): Promise<Answer> {

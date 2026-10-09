@@ -830,6 +830,44 @@ test("6.47 park_increment takes an increment's capabilities and links, and edit_
   });
 });
 
+test("6.48 edit_plan refuses an increment's capabilities list a capability already on the list of another live session's claimed increment, naming that increment and its holder, with nothing written; the same session's own lists, and a list whose increment is released, are not refused (ADR-0949 D2)", async () => {
+  await withProject(async ({ folder, library }) => {
+    const capabilitiesOf = async (id: string) => ((await library.get(id))?.fields as { capabilities?: string[] }).capabilities;
+    let theirs = "";
+    let capability = "";
+    let arc = "";
+    let mine = "";
+    let own = "";
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      ({ arc, capability } = await planned(agent));
+      theirs = idOf(await agent.call("park_increment", { arc, title: "Email form", objective: "Build it", body: "Red then green" }));
+      assert.equal((await agent.call("claim", { increment: theirs, reason: "driving the email form" })).isError, false);
+      assert.equal((await agent.call("edit_plan", { id: theirs, capabilities: [capability] })).isError, false);
+      own = idOf(await agent.call("park_increment", { arc, title: "Form polish", objective: "Polish it", body: "Red then green" }));
+      assert.equal((await agent.call("claim", { increment: own, reason: "polishing the form" })).isError, false);
+      const shared = await agent.call("edit_plan", { id: own, capabilities: [capability] });
+      assert.equal(shared.isError, false, `a session's own two lists may share: ${shared.text}`);
+    });
+    await withAgent(folder, codex("codex-1"), async (agent) => {
+      mine = idOf(await agent.call("park_increment", { arc, title: "Form copy", objective: "Reword it", body: "Red then green" }));
+      assert.equal((await agent.call("claim", { increment: mine, reason: "rewording the form" })).isError, false);
+      const history = await library.history({ id: mine });
+      const refused = await agent.call("edit_plan", { id: mine, capabilities: [capability] });
+      assert.equal(refused.isError, true, refused.text);
+      assert.ok(refused.text.includes(theirs) && refused.text.includes("claude-1") && refused.text.includes(capability), refused.text);
+      assert.deepEqual(await library.history({ id: mine }), history, "nothing was written");
+    });
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      for (const increment of [theirs, own]) assert.equal((await agent.call("release", { increment })).isError, false);
+    });
+    await withAgent(folder, codex("codex-1"), async (agent) => {
+      const allowed = await agent.call("edit_plan", { id: mine, capabilities: [capability] });
+      assert.equal(allowed.isError, false, allowed.text);
+      assert.deepEqual(await capabilitiesOf(mine), [capability]);
+    });
+  });
+});
+
 test("6.39 a tool call's reads do not grow with the log's length: the same calls (show the plan, claim, read the context, release) take about as much from the store in a project whose log holds weeks of history as in one whose log holds an hour's", { timeout: 120_000 }, async (t) => {
   const taken: number[] = [];
   let history = 0;

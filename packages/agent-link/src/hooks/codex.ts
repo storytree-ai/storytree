@@ -94,6 +94,21 @@ function commandStartedLine(common: Pick<NewLine, "session" | "harness" | "sourc
   return typeof command === "string" && !command.includes("*** Begin Patch") ? { ...common, kind: "command-started", command, call } : undefined;
 }
 
+/** The files a patch names, each once, in the order it names them, with the whole text of each file it adds. */
+export function patchEdits(patch: string): { path: string; text?: string }[] {
+  const edits: { path: string; text?: string }[] = [];
+  let adding: { path: string; text: string } | undefined;
+  for (const line of patch.split(/\r?\n/)) {
+    if (line.startsWith("***")) adding = undefined;
+    else if (adding !== undefined && line.startsWith("+")) adding.text += `${line.slice(1)}\n`;
+    const file = PATCH_FILE.exec(line)?.[1];
+    if (file === undefined || edits.some((edit) => edit.path === file)) continue;
+    if (line.startsWith("*** Add File:")) edits.push((adding = { path: file, text: "" }));
+    else edits.push({ path: file });
+  }
+  return edits;
+}
+
 /** The files a patch names, each once, in the order it names them. */
 function patchFiles(patch: string): string[] {
   const files: string[] = [];

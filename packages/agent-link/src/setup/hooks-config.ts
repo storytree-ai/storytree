@@ -19,13 +19,15 @@
  *   A second end-of-turn hook runs in the foreground, since Codex reads a Stop hook's block as
  *   Claude Code does: it may ask the agent to close out (ADR-0758 D4).
  *   Codex runs a newly added hook only after the user approves it once (ADR-0626 D4).
+ * - In both, the hook before each file-edit tool runs in the foreground, since its answer may refuse
+ *   the edit (ADR-0949 D3).
  */
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 
-import { ASK_SETUP, BACKGROUND, CLOSE_OUT_REMINDER, STORYTREE_TOOLS } from "../hooks/index.js";
+import { ASK_SETUP, BACKGROUND, CLOSE_OUT_REMINDER, EDIT_GATE, STORYTREE_TOOLS } from "../hooks/index.js";
 
 /** The command a harness runs as storytree's hook: a Node and the built hook script. */
 export interface HookCommand {
@@ -215,6 +217,8 @@ function claudeEntries({ node, script }: HookCommand): Record<string, HookEntry[
     PreToolUse: [
       { matcher: `${STORYTREE_TOOLS}.*`, hooks: [run(false)] },
       { matcher: "Bash|PowerShell", hooks: [run(true)] },
+      // Before each file edit, in the foreground: an edit to a capability the session may not write is refused (ADR-0949 D3).
+      { matcher: "Write|Edit|MultiEdit|NotebookEdit", hooks: [{ type: "command", command: node, args: [script, "claude-code", EDIT_GATE] }] },
     ],
     PostToolUse: [{ matcher: "Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell|Agent|Task", hooks: [run(true)] }],
     PostToolUseFailure: [{ matcher: "Bash|PowerShell", hooks: [run(true)] }],
@@ -238,6 +242,7 @@ function codexEntries({ node, script }: HookCommand): Record<string, HookEntry[]
     PreToolUse: [
       { matcher: `^${STORYTREE_TOOLS}`, hooks: [run(10)] },
       { matcher: "^Bash$", hooks: [run(10, true)] },
+      { matcher: "^apply_patch$", hooks: [{ type: "command", command: `${line} ${EDIT_GATE}`, timeout: 10 }] },
     ],
     PostToolUse: [{ matcher: "^(apply_patch|Bash|spawn_agent)$", hooks: [run(10)] }],
     // As in Claude Code: the turn's line in the background, then a foreground check whose block Codex reads (ADR-0758 D4).

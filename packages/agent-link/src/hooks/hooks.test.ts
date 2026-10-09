@@ -35,7 +35,8 @@ import { readContext } from "../context/index.js";
 import { MARKER_FILE, setUpProject } from "../routing/index.js";
 import { leaveNotice } from "../claims/notices.js";
 import { claimFromEdits } from "../claims/edit-claims.js";
-import { readClaims } from "../claims/index.js";
+import { claim, readClaims } from "../claims/index.js";
+import { EDIT_GATE } from "./edit-gate.js";
 import { hookFailures, hookFailuresFile } from "./failures.js";
 import { hookLines } from "./hooks.js";
 import { queueFolder } from "./queue.js";
@@ -1104,6 +1105,44 @@ test("3.24 a hook cut off at its deadline while a statement of its waits on the 
     } finally {
       await holder.query("ROLLBACK").catch(() => undefined);
       await Promise.all([holder.end(), looker.end()]);
+      await dropTestProjects([project]);
+    }
+  });
+});
+
+test("3.26 the hook before a file-edit tool, run as setup registers it, refuses a Claude Code edit and a Codex patch to a capability another live session holds, with the reason the agent reads, and says nothing for a file that declares no capability (ADR-0949 D3)", async () => {
+  await withTempDir(async (dir) => {
+    const project = uniqueProjectName();
+    const home = storytreeHome(dir, true);
+    const folder = await projectFolder(dir, project);
+    const storytree = await connect({ url: testServerUrl() });
+    const log = await openActivityLog(testServerUrl());
+    try {
+      const library = await storytree.openProject(project);
+      const story = await library.addStory({ title: "Visitor can sign up" });
+      const form = (await library.addCapability({ title: "1 · Email form", story: story.id })).id;
+      const arc = await library.createArc({ title: "Launch sign-up", intent: "Ship sign-up", endState: "Visitors sign up", stories: [story.id] });
+      const increment = (await library.addIncrement({ arc: arc.id, title: "email form", objective: "email form", body: "email form", capabilities: [form] })).id;
+      assert.equal((await claim({ log, library, project, session: "holder", harness: "codex" }, increment, "driving the email form")).ok, true);
+      const src = path.join(folder, "packages", "visitor-can-sign-up", "src");
+      mkdirSync(src, { recursive: true });
+      writeFileSync(path.join(src, "form.ts"), "/**\n * Capability 1 · Email form\n */\n");
+      writeFileSync(path.join(src, "notes.ts"), "export const notes = 1;\n");
+      const before = (tool: string, toolInput: Record<string, unknown>) => JSON.stringify({ session_id: "editor", cwd: folder, hook_event_name: "PreToolUse", tool_name: tool, tool_input: toolInput });
+      const refusalIn = (ran: Ran) => {
+        assert.deepEqual({ code: ran.code, stderr: ran.stderr }, { code: 0, stderr: "" });
+        return ran.stdout === "" ? undefined : (JSON.parse(ran.stdout) as { hookSpecificOutput?: { permissionDecision?: string; permissionDecisionReason?: string }; decision?: string });
+      };
+
+      const edited = refusalIn(await runHook("claude-code", before("Edit", { file_path: path.join(src, "form.ts"), old_string: "1", new_string: "2" }), home, [EDIT_GATE]));
+      assert.equal(edited?.hookSpecificOutput?.permissionDecision, "deny");
+      assert.match(edited?.hookSpecificOutput?.permissionDecisionReason ?? "", /refused before it happened.*"1 · Email form".*Codex session holder holds it/);
+      const patch = "*** Begin Patch\n*** Add File: packages/visitor-can-sign-up/src/more.ts\n+/**\n+ * Capability 1 · Email form\n+ */\n*** End Patch\n";
+      assert.equal(refusalIn(await runHook("codex", before("apply_patch", { command: patch }), home, [EDIT_GATE]))?.decision, "block", "an added file is read from the patch");
+      assert.equal(refusalIn(await runHook("claude-code", before("Write", { file_path: path.join(src, "notes.ts"), content: "export const notes = 2;\n" }), home, [EDIT_GATE])), undefined);
+    } finally {
+      await log.close();
+      await storytree.close();
       await dropTestProjects([project]);
     }
   });

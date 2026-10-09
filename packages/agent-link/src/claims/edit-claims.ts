@@ -2,8 +2,9 @@
  * Capability 5 · Claims: writing a capability's files claims it, off the agent's path: the upkeep
  * copy of a hook reads the edits this machine's sessions made since its last look, and claims each
  * edited file's capability for its session, unless the session already holds it or another live
- * session does (D1). Nothing is ever stopped (D2): an edit to a capability another live session holds
- * claims nothing and records a claim-refused line naming the file. Each session is told on this
+ * session does (D1). An edit made here is never undone (D2): one to a capability another live session holds
+ * claims nothing and records a claim-refused line naming the file. The edit tools are stopped before such an
+ * edit (edit-gate.ts, ADR-0949 D3, which reverses D2 for them); edits through the shell still reach here. Each session is told on this
  * machine, at its next prompt (notices.ts): what was claimed for it and from which file, so it can
  * release a wrong guess (D3); and, as editor, who holds what it edited. A holder is told of an edit to
  * what it holds by the look on its own machine, which reads every machine's refusals.

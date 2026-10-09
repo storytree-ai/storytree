@@ -18,6 +18,10 @@
  * writes nothing but what that look finds. That copy also claims, for each session on this machine,
  * the capabilities of the files it edited since the last look (ADR-0924, claims/edit-claims.ts).
  *
+ * One more, before each file-edit tool, which the harness waits for (`--edit-gate`, edit-gate.ts),
+ * refuses an edit to a capability the session's claimed increment does not list, or that another live
+ * session holds (ADR-0949 D3): it prints the refusal, which the agent reads instead of the edit happening.
+ *
  * One more, at each prompt (ADR-0636 D1, b2), prints: what storytree left on this machine for the
  * session about claims made from its edits (ADR-0924, claims/notices.ts), the project's definitions
  * for the terms the prompt names (definitions.ts), and once-per-session advice to start fresh when a
@@ -50,6 +54,7 @@ import { claudeCodeLines } from "./claude-code.js";
 import { takeNotices } from "../claims/notices.js";
 import { CLOSE_OUT_REMINDER, closeOutReminder } from "./close-out-reminder.js";
 import { codexLines } from "./codex.js";
+import { EDIT_GATE, editGate } from "./edit-gate.js";
 import { UPKEEP_DEADLINE_MS, withDeadline } from "./deadlines.js";
 import { noteCodexHookRan } from "./codex-trust.js";
 import { contextNudge } from "./context-nudge.js";
@@ -131,6 +136,8 @@ export async function runHook({ argv, input, handOff, merges, locate }: HookInpu
     if (flags.includes(ASK_SETUP)) return;
     // The turn-end hook that asks the agent to close out writes nothing: the other Stop hook writes the turn's line (ADR-0758 D4).
     if (flags.includes(CLOSE_OUT_REMINDER)) return closeOutReminder(harness, parsed);
+    // The hook before each file-edit tool writes nothing: it answers whether the edit may happen (ADR-0949 D3).
+    if (flags.includes(EDIT_GATE)) return await editGate(harness, parsed, locate, homeOf(locate), failed);
     const made = hookLines(harness, parsed);
     if (flags.includes(UPKEEP)) return void (made === undefined ? undefined : await upkeep(made, merges, locate));
     const asked = promptIn(harness, parsed);

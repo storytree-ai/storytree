@@ -268,7 +268,7 @@ interface ClaimOn {
   holder: "live" | "idle";
   /** Why the holder still binds, when live, including any standing close-out disagreement. */
   binds?: string;
-  /** For a capability, the increment its holder held when it claimed it: the holder closing that increment ends it (ADR-0944 D5). */
+  /** For a capability, the increment its holder held when it claimed it: closing that increment, or its holder releasing it, ends it (ADR-0949 D4). */
   under?: string;
 }
 
@@ -335,9 +335,13 @@ export function attributeFrom(lines: readonly Line[]): Attributed[] {
         for (const session of holding.keys()) drop(session, idOf(line)); // taken over, if it was held
         holding.set(line.session, [...(holding.get(line.session) ?? []), { ...partOf(line), ...(line.under === undefined ? {} : { under: line.under }) }]);
         break;
-      case "released":
-        drop(line.holder ?? line.session, idOf(line));
+      case "released": {
+        const releaser = line.holder ?? line.session;
+        drop(releaser, idOf(line));
+        // Releasing an increment ends what its holder claimed under it (ADR-0949 D4).
+        holding.set(releaser, (holding.get(releaser) ?? []).filter((part) => part.under !== idOf(line)));
         break;
+      }
       case "landed":
         drop(line.session, idOf(line));
         break;
@@ -345,8 +349,8 @@ export function attributeFrom(lines: readonly Line[]): Attributed[] {
         drop(line.holder, idOf(line));
         break;
       case "closed":
-        for (const session of holding.keys()) drop(session, line.increment);
-        holding.set(line.session, (holding.get(line.session) ?? []).filter((part) => part.under !== line.increment));
+        // Closing an increment ends every claim under it, whoever closes it (ADR-0949 D4).
+        for (const [session, held] of holding) holding.set(session, held.filter((part) => idOf(part) !== line.increment && part.under !== line.increment));
         break;
       case "session-ended":
         holding.delete(line.session);
@@ -784,6 +788,8 @@ function holding(holders: Map<string, Omit<Claim, "holder">>, line: Line): void 
       break;
     case "released":
       if (holders.get(idOf(line))?.session === (line.holder ?? line.session)) holders.delete(idOf(line));
+      // Releasing an increment ends what its holder claimed under it (ADR-0949 D4).
+      for (const [id, holder] of holders) if (holder.session === (line.holder ?? line.session) && holder.under === idOf(line)) holders.delete(id);
       break;
     case "landed":
       if (holders.get(idOf(line))?.session === line.session) holders.delete(idOf(line));
@@ -793,7 +799,7 @@ function holding(holders: Map<string, Omit<Claim, "holder">>, line: Line): void 
       break;
     case "closed":
       holders.delete(line.increment);
-      for (const [id, holder] of holders) if (holder.session === line.session && holder.under === line.increment) holders.delete(id);
+      for (const [id, holder] of holders) if (holder.under === line.increment) holders.delete(id);
       break;
     case "session-ended":
       for (const [id, holder] of holders) if (holder.session === line.session) holders.delete(id);

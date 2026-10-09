@@ -105,6 +105,9 @@ jobs:
         env:
           STORYTREE_UNIT_LIMIT_MS: 360000
           STORYTREE_TEST_EVIDENCE: ${{ matrix.system == 'Windows' && '.pgtest/windows-evidence' || matrix.system == 'macOS' && '.pgtest/macos-evidence' || '' }}
+      - name: PROOF ONLY, reverted before landing - fail after the tests
+        if: matrix.system != 'Linux'
+        run: exit 1
       # Exercise the distributable before merging packaging/updater changes. A source build
       # passing tests alone does not prove NSIS can unpack the app and its database binaries, or
       # that the signed Apple Silicon .app starts and runs its own Postgres and Node.

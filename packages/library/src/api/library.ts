@@ -23,6 +23,7 @@ import type {
   CapabilityEdit,
   CloseInput,
   ContractEdit,
+  ContractWriteOptions,
   Hold,
   Holds,
   NewQuestion,
@@ -139,8 +140,8 @@ export interface Library {
    * not a live capability.
    */
   setProposed(id: string, proposed: boolean, options?: WriteOptions): Promise<SchemaRecord<"capability"> | null>;
-  /** Add a contract to a capability, which must be a live capability. */
-  addContract(contract: NewContract, options?: WriteOptions): Promise<SchemaRecord<"contract">>;
+  /** Add a contract to a capability, which must be a live capability, its number skipping `testedNumbers` too. */
+  addContract(contract: NewContract, options?: ContractWriteOptions): Promise<SchemaRecord<"contract">>;
   /**
    * Change only the named fields of a contract. A new `capability` must be a live capability
    * (MissingReferenceError otherwise). Null, with nothing written, if `id` is not a live contract.
@@ -483,7 +484,7 @@ class LibraryHandle implements Library {
     return this.#project.work.editCapability(id, fields, options);
   }
 
-  addContract(contract: NewContract, options?: WriteOptions): Promise<SchemaRecord<"contract">> {
+  addContract(contract: NewContract, options?: ContractWriteOptions): Promise<SchemaRecord<"contract">> {
     return this.#project.work.addContract(contract, options);
   }
 

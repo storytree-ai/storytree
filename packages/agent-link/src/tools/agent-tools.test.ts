@@ -476,6 +476,25 @@ test("6.38 land names each planned contract of the capability that no numbered t
   });
 });
 
+test("6.50 plan_contract numbers a new contract past the numbers its capability's landed tests already carry", async () => {
+  await withProject(async ({ folder }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const story = idOf(await agent.call("plan_story", { title: "Shopping cart", ...FOUNDED }));
+      const capability = idOf(await agent.call("plan_capability", { story, title: "Adding", ...FOUNDED }));
+      const src = path.join(folder, "packages/shopping-cart/src");
+      mkdirSync(src, { recursive: true });
+      writeFileSync(path.join(folder, "packages/shopping-cart/package.json"), JSON.stringify({ name: "shopping-cart" }));
+      writeFileSync(path.join(src, "cart.test.js"), 'import { test } from "node:test";\ntest("1.1 adds", () => {});\ntest("1.3 refuses a sold-out item", () => {});\n');
+
+      const planned = await agent.call("plan_contract", { capability, title: "Removes an item" });
+      assert.equal(planned.isError, false, planned.text);
+      assert.match(planned.text, /1\.4 · Removes an item/);
+      const kept = await agent.call("plan_contract", { capability, title: "1.1 · Adds an item" });
+      assert.match(kept.text, /1\.1 · Adds an item/, "a landed test's own number is kept, so its contract can be planned");
+    });
+  });
+});
+
 test("11.1 on GitHub, wire_pipeline writes storytree's workflow: the project's install and tests on each system chosen, and storytree check pinned to this storytree's release", async () => {
   await withProject(async ({ folder }) => {
     git(folder, "init", "-q");

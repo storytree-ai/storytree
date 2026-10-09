@@ -26,6 +26,7 @@ export type {
   CapabilityEdit,
   CloseInput,
   ContractEdit,
+  ContractWriteOptions,
   Disposition,
   Hold,
   Holds,

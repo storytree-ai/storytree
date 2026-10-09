@@ -203,17 +203,29 @@ async function unplacedFiles({ library, folder }: Call, capability: string): Pro
  * checkout the session works in, read with the map's survey as CI health reads proofs; none for a capability
  * the plan lacks. A title prefixed with another package proves that package's contracts, not these.
  */
-async function untestedContracts({ library, folder }: Call, capability: string): Promise<string[]> {
-  const tree = await library.projectTree();
+async function untestedContracts(call: Call, capability: string): Promise<string[]> {
+  const tree = await call.library.projectTree();
   const story = tree.stories.find((one) => one.capabilities.some((part) => part.id === capability));
   if (story === undefined) return [];
-  const own = packageOf(story.title);
-  const survey = await codeSurveyReader({ checkout: "current" }).read(checkoutOf(folder), { ...tree, stories: [story] });
-  const proven = new Set((survey[story.id]?.tests ?? []).flatMap((test) => test.titles.filter((title) => title.package === undefined || title.package === own).map((title) => title.number)));
+  const proven = new Set(await testedNumbers(call, capability, tree));
   return (story.capabilities.find((part) => part.id === capability)?.contracts ?? []).map((contract) => contract.title).filter((title) => {
     const number = /^(\d+\.\d+) · /.exec(title)?.[1];
     return number !== undefined && !proven.has(number);
   });
+}
+
+/**
+ * The contract numbers the numbered tests in `capability`'s story package carry, in the checkout the session
+ * works in, read with the map's survey; none for a capability the plan lacks. A title prefixed with another
+ * package carries that package's numbers, not these.
+ */
+export async function testedNumbers({ library, folder }: Call, capability: string, tree?: Awaited<ReturnType<Library["projectTree"]>>): Promise<string[]> {
+  const plan = tree ?? (await library.projectTree());
+  const story = plan.stories.find((one) => one.capabilities.some((part) => part.id === capability));
+  if (story === undefined) return [];
+  const own = packageOf(story.title);
+  const survey = await codeSurveyReader({ checkout: "current" }).read(checkoutOf(folder), { ...plan, stories: [story] });
+  return (survey[story.id]?.tests ?? []).flatMap((test) => test.titles.filter((title) => title.package === undefined || title.package === own).map((title) => title.number));
 }
 
 function claimContext({ log, library, project, caller, folder, quietMs, writer }: Call): ClaimContext & { readonly folder: string } {

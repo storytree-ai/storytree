@@ -300,7 +300,7 @@ test("2.8 clients sign in as an ordinary role that owns storytree's databases, n
   await stopped(server);
 });
 
-test("2.10 on Windows the sign-in is kept private beside a data directory whose folder lets this user change files but not take ownership, as a checkout under C:\\code does", { skip: process.platform !== "win32" && "a Windows access list" }, () => {
+test("2.10 on Windows the sign-in is kept private beside a data directory whose folder lets this user change files but not take ownership, as a checkout under C:\\code does", { skip: process.platform !== "win32" && "platform:win32: a Windows access list" }, () => {
   // A folder granting this user Modify alone, inherited, as C:\code grants Authenticated Users: no right to change an owner.
   const parent = path.join(root, "modify-only");
   mkdirSync(parent);
@@ -319,7 +319,7 @@ test("2.10 on Windows the sign-in is kept private beside a data directory whose 
   assert.doesNotMatch(granted, /\(I\)/, "nothing inherited from the folder");
 });
 
-test("2.11 on Windows a sign-in folder a failed first run left behind is made private before any sign-in goes into it", { skip: process.platform !== "win32" && "a Windows access list" }, () => {
+test("2.11 on Windows a sign-in folder a failed first run left behind is made private before any sign-in goes into it", { skip: process.platform !== "win32" && "platform:win32: a Windows access list" }, () => {
   // A first run that made <dataDir>.auth but failed to protect it leaves the folder open to what its parent grants.
   const dataDir = path.join(root, "left-open", "data");
   mkdirSync(`${dataDir}.auth`, { recursive: true });

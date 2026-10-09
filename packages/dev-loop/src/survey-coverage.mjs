@@ -223,8 +223,10 @@ async function main() {
     let server;
     if (!env.STORYTREE_TEST_PG_URL) {
       const work = path.join(root, ".pgtest");
-      server = await start({ dataDir: path.join(work, "data"), serverLog: path.join(work, "pg.log"), toolLog: path.join(work, "tools.log"), owner: "a `pnpm survey:coverage` run", log: (message) => console.log(`test Postgres: ${message}`) });
-      env = { ...env, STORYTREE_TEST_PG_URL: server.url, STORYTREE_TEST_PG_DATA: server.dataDir };
+      server = await start({ dataDir: path.join(work, "data"), serverLog: path.join(work, "pg.log"), toolLog: path.join(work, "tools.log"), owner: "a `pnpm survey:coverage` run", superuserUrl: true, log: (message) => console.log(`test Postgres: ${message}`) });
+      env = { ...env, STORYTREE_TEST_PG_URL: server.url, STORYTREE_TEST_PG_ADMIN_URL: server.superuserUrl, STORYTREE_TEST_PG_DATA: server.dataDir };
+    } else if (!env.STORYTREE_TEST_PG_ADMIN_URL) {
+      env = { ...env, STORYTREE_TEST_PG_ADMIN_URL: env.STORYTREE_TEST_PG_URL };
     }
     try {
       for (const pkgDir of packages) {

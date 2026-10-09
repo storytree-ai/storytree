@@ -90,6 +90,11 @@ export interface StartOptions extends ClusterOptions {
    * server never hands out the superuser.
    */
   readonly signIn?: "client" | "superuser";
+  /**
+   * Also hand back the superuser's url, as `superuserUrl`, for a throwaway test server whose tests
+   * sign in as the ordinary role but make roles in their setup. The app's own server never asks.
+   */
+  readonly superuserUrl?: boolean;
 }
 
 /** A running server. */
@@ -100,6 +105,8 @@ export interface LocalPostgres {
    * log it.
    */
   readonly url: string;
+  /** The superuser's url, as secret as `url`: only when started with superuserUrl true. */
+  readonly superuserUrl?: string;
   readonly port: number;
   /** The data directory, as an absolute path. */
   readonly dataDir: string;
@@ -263,6 +270,7 @@ export async function start(options: StartOptions): Promise<LocalPostgres> {
   let stopping: Promise<void> | undefined;
   return {
     url: connectionUrl(signIn, port),
+    ...(options.superuserUrl === true ? { superuserUrl: connectionUrl(installation, port) } : {}),
     port,
     dataDir,
     stop() {

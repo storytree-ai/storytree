@@ -1,0 +1,234 @@
+{
+  "label": "before",
+  "reducedMotion": true,
+  "secondsSinceClick": 0.02,
+  "lanes": [
+    {
+      "name": "lane:up:capability_a6d2887aed63->capability_88a6aaa1fa93",
+      "drawn": 1
+    },
+    {
+      "name": "lane:down:capability_11fe600afeda->capability_75d059640d9d",
+      "drawn": 1
+    },
+    {
+      "name": "lane:down:capability_7b7421be1a1b->capability_75d059640d9d",
+      "drawn": 1
+    },
+    {
+      "name": "lane:down:capability_ab59a8461dd7->capability_5a80222c88c4",
+      "drawn": 1
+    },
+    {
+      "name": "lane:down:capability_ab59a8461dd7->capability_a1d4fadbec3e",
+      "drawn": 1
+    },
+    {
+      "name": "lane:down:capability_ab59a8461dd7->capability_baaeecb42577",
+      "drawn": 1
+    },
+    {
+      "name": "lane:down:capability_ab59a8461dd7->capability_75d059640d9d",
+      "drawn": 1
+    },
+    {
+      "name": "lane:down:capability_ab59a8461dd7->capability_13b04e769a4b",
+      "drawn": 1
+    },
+    {
+      "name": "lane:down:capability_81ad90bacdbc->capability_a7f068502213",
+      "drawn": 1
+    },
+    {
+      "name": "lane:down:capability_81ad90bacdbc->capability_d632ff0454c0",
+      "drawn": 1
+    },
+    {
+      "name": "lane:down:capability_81ad90bacdbc->capability_5f1ce148e63a",
+      "drawn": 1
+    },
+    {
+      "name": "lane:down:capability_bfc6fa737f09->capability_5f1ce148e63a",
+      "drawn": 1
+    },
+    {
+      "name": "lane:down:capability_562b2527ebca->capability_78d6e026f902",
+      "drawn": 1
+    },
+    {
+      "name": "lane:down:capability_f874f7de8110->capability_dd486ffa5b02",
+      "drawn": 1
+    },
+    {
+      "name": "lane:down:capability_f874f7de8110->capability_f27ac2abb10b",
+      "drawn": 1
+    },
+    {
+      "name": "lane:down:capability_f874f7de8110->capability_75d059640d9d",
+      "drawn": 1
+    },
+    {
+      "name": "lane:down:capability_7889e605384c->capability_78d6e026f902",
+      "drawn": 1
+    },
+    {
+      "name": "lane:down:capability_5fa5cdb5b3c0->capability_dd486ffa5b02",
+      "drawn": 1
+    }
+  ],
+  "rings": [
+    {
+      "name": "neighbour-ring:down:story_609c3b171b3f",
+      "visible": true,
+      "opacity": 0.9
+    },
+    {
+      "name": "neighbour-ring:down:story_f9fb5136c28f",
+      "visible": true,
+      "opacity": 0.9
+    },
+    {
+      "name": "neighbour-ring:down:story_d754d997f22a",
+      "visible": true,
+      "opacity": 0.9
+    },
+    {
+      "name": "neighbour-ring:up:story_55eb820f95c9",
+      "visible": true,
+      "opacity": 0.9
+    },
+    {
+      "name": "neighbour-ring:down:story_73dad81ba7a7",
+      "visible": true,
+      "opacity": 0.9
+    }
+  ],
+  "timing": [
+    {
+      "from": "capability_a6d2887aed63",
+      "to": "capability_88a6aaa1fa93",
+      "dir": "up",
+      "length": 191.68698135355072,
+      "seconds": 0.4694783022559179
+    },
+    {
+      "from": "capability_11fe600afeda",
+      "to": "capability_75d059640d9d",
+      "dir": "down",
+      "length": 109.61487197646623,
+      "seconds": 0.3326914532941104
+    },
+    {
+      "from": "capability_7b7421be1a1b",
+      "to": "capability_75d059640d9d",
+      "dir": "down",
+      "length": 237.56731886343388,
+      "seconds": 0.5459455314390564
+    },
+    {
+      "from": "capability_ab59a8461dd7",
+      "to": "capability_5a80222c88c4",
+      "dir": "down",
+      "length": 237.56731886343388,
+      "seconds": 0.5459455314390564
+    },
+    {
+      "from": "capability_ab59a8461dd7",
+      "to": "capability_a1d4fadbec3e",
+      "dir": "down",
+      "length": 237.56731886343388,
+      "seconds": 0.5459455314390564
+    },
+    {
+      "from": "capability_ab59a8461dd7",
+      "to": "capability_baaeecb42577",
+      "dir": "down",
+      "length": 237.56731886343388,
+      "seconds": 0.5459455314390564
+    },
+    {
+      "from": "capability_ab59a8461dd7",
+      "to": "capability_75d059640d9d",
+      "dir": "down",
+      "length": 237.56731886343388,
+      "seconds": 0.5459455314390564
+    },
+    {
+      "from": "capability_ab59a8461dd7",
+      "to": "capability_13b04e769a4b",
+      "dir": "down",
+      "length": 237.56731886343388,
+      "seconds": 0.5459455314390564
+    },
+    {
+      "from": "capability_81ad90bacdbc",
+      "to": "capability_a7f068502213",
+      "dir": "down",
+      "length": 237.56731886343388,
+      "seconds": 0.5459455314390564
+    },
+    {
+      "from": "capability_81ad90bacdbc",
+      "to": "capability_d632ff0454c0",
+      "dir": "down",
+      "length": 237.56731886343388,
+      "seconds": 0.5459455314390564
+    },
+    {
+      "from": "capability_81ad90bacdbc",
+      "to": "capability_5f1ce148e63a",
+      "dir": "down",
+      "length": 237.56731886343388,
+      "seconds": 0.5459455314390564
+    },
+    {
+      "from": "capability_bfc6fa737f09",
+      "to": "capability_5f1ce148e63a",
+      "dir": "down",
+      "length": 237.56731886343388,
+      "seconds": 0.5459455314390564
+    },
+    {
+      "from": "capability_562b2527ebca",
+      "to": "capability_78d6e026f902",
+      "dir": "down",
+      "length": 237.56731886343388,
+      "seconds": 0.5459455314390564
+    },
+    {
+      "from": "capability_f874f7de8110",
+      "to": "capability_dd486ffa5b02",
+      "dir": "down",
+      "length": 237.56731886343388,
+      "seconds": 0.5459455314390564
+    },
+    {
+      "from": "capability_f874f7de8110",
+      "to": "capability_f27ac2abb10b",
+      "dir": "down",
+      "length": 237.56731886343388,
+      "seconds": 0.5459455314390564
+    },
+    {
+      "from": "capability_f874f7de8110",
+      "to": "capability_75d059640d9d",
+      "dir": "down",
+      "length": 237.56731886343388,
+      "seconds": 0.5459455314390564
+    },
+    {
+      "from": "capability_7889e605384c",
+      "to": "capability_78d6e026f902",
+      "dir": "down",
+      "length": 128.0357523887324,
+      "seconds": 0.3633929206478873
+    },
+    {
+      "from": "capability_5fa5cdb5b3c0",
+      "to": "capability_dd486ffa5b02",
+      "dir": "down",
+      "length": 438.23411458440296,
+      "seconds": 0.880390190974005
+    }
+  ]
+}

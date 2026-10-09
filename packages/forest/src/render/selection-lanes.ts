@@ -33,3 +33,11 @@ export function ringPulse(elapsed: number, reducedMotion: boolean): { width: num
   const eased = 1 - (1 - t) ** 3;
   return { width: 5 - 3.5 * eased, opacity: 0.45 + 0.55 * eased };
 }
+
+/** The neighbour whose dock a lane's front is at (contract 3.27), so its ring pulses in then: a lane runs from the island
+ * built on to the one building on it, so an up lane sets out from its neighbour and a down lane arrives at its own. */
+export function reachedNeighbour(scene: ForestScene, lane: SelectionLane, at: "start" | "end"): string | undefined {
+  if ((lane.dir === "up") !== (at === "start")) return undefined;
+  const capability = lane.dir === "up" ? lane.to : lane.from;
+  return scene.islands.find(({ trees }) => trees.some(tree => tree.capability === capability))?.story;
+}

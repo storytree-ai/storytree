@@ -57,6 +57,8 @@ export interface PlanetWorldCanvasProps {
   orbit?: boolean;
   /** The selection's lit links, drawn as lanes over their roads; none by default. */
   lanes?: readonly LitLink[];
+  /** Told once per selection when each lit link's lane front leaves its first dock (`start`) and reaches its last (`end`). */
+  onLaneReach?: ((link: LitLink, at: 'start' | 'end') => void) | undefined;
   /** A recorded growth to replay (world 7): islands rise, roads draw on, and plate children read `usePlanetGrowth`. */
   growth?: PlanetGrowth | undefined;
   /** Draw first and newly arriving roads on in a live host; recorded growth takes precedence. */
@@ -139,7 +141,7 @@ const CAPTURE_SEAM = '__storytreeCaptureGlobe';
 
 /** The globe: one Canvas, the see-through sea, and each story's island as a flat surface with a coast
  * (ADR-0804 D1). Nothing on it is lit, so there is no sun to calibrate. */
-export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1], plateChildren, children, surface = true, surfaces, inside, framing = 1.18, sideOffset = 0, orbit = true, lanes = NO_LANES, growth, liveRoads = false }: PlanetWorldCanvasProps) {
+export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1], plateChildren, children, surface = true, surfaces, inside, framing = 1.18, sideOffset = 0, orbit = true, lanes = NO_LANES, onLaneReach, growth, liveRoads = false }: PlanetWorldCanvasProps) {
   const drawing = useMemo(() => planetPathwayDrawing(scene, spots, radius), [scene, spots, radius]);
   const pathways = drawing.plan;
   const reveal = useMemo(() => growth === undefined ? undefined : roadSegmentWindows(pathways, growth.plan.roads), [pathways, growth?.plan]);
@@ -165,7 +167,7 @@ export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1
         return <Plate key={island.story} island={island} spot={spot} radius={radius} plate={pathways.plates.get(island.story)!}
           visible={exterior.plates} grounds={exterior.grounds} children={plateChildren} />;
       })}
-      <group name="globe-roads" visible={exterior.roads}><Pathways plan={pathways} reveal={reveal} live={liveRoads && growth === undefined} visible={exterior.roads} /><SelectionLanes plan={pathways} lit={lanes} /></group>
+      <group name="globe-roads" visible={exterior.roads}><Pathways plan={pathways} reveal={reveal} live={liveRoads && growth === undefined} visible={exterior.roads} /><SelectionLanes plan={pathways} lit={lanes} onReach={onLaneReach} /></group>
       {inside}
     </group>
     <OrbitControls makeDefault enablePan={false} enableRotate={orbit} minZoom={0.1} maxZoom={30} />

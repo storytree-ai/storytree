@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { ForestScene, Island } from '../scene.js';
 import { crossingLength, linkKey, roadSegmentWindows, type GrowthWindow } from './growth.js';
-import { laneDrawSeconds } from './lanes.js';
+import { roadDrawSeconds } from './lanes.js';
 import { liveRoadProgress, liveRoadsGrowing, nextLiveRoads } from './live-roads.js';
 import { buildPlanetPathways } from './pathways.js';
 
@@ -24,7 +24,7 @@ test('6.16 live roads grow initially, then adding a real dependency preserves co
   const first = nextLiveRoads(new Map(), initial, 0);
   assert.deepEqual([...first.keys()], ['b1->a1']);
   const original = first.get('b1->a1')!;
-  assert.equal(original.seconds, laneDrawSeconds(crossingLength(initial, 'b1->a1')));
+  assert.equal(original.seconds, roadDrawSeconds(crossingLength(initial, 'b1->a1')));
   assert.equal(liveRoadProgress(original, 0, false), 0, 'first seen, the live road is undrawn');
   assert.equal(liveRoadProgress(original, original.seconds / 2, false), 0.5, 'half its time grows half its length');
 

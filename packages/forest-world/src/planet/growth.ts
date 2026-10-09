@@ -1,7 +1,7 @@
 /** Capability 7 · Growth. The globe's growth (world contracts 7.1–7.4): a recorded sequence of plan states replayed as islands rising
  * and roads drawing on, choreographed the way 0.2's arrival was (ADR-0639: its behaviour, not its code). */
 import type { ForestScene } from '../scene.js';
-import { laneDrawSeconds } from './lanes.js';
+import { roadDrawSeconds } from './lanes.js';
 import type { PlanetPathways } from './pathways.js';
 
 /** When something grows, in seconds from the growth's start. */
@@ -53,7 +53,7 @@ export const fileKey = (story: string, path: string) => `${story}\n${path}`;
 /** Replay `stages` as growth: what appears first in each stage, and when, never anything no stage holds. */
 export function growthPlan(stages: readonly GrowthStage[], options: GrowthOptions = {}): GrowthPlan {
   const plan: GrowthPlan = { seconds: 0, islands: new Map(), roads: new Map(), capabilities: new Map(), files: new Map(), stages: [] };
-  const roadSeconds = (link: string) => laneDrawSeconds(options.roadLength?.(link) ?? TYPICAL_ROAD);
+  const roadSeconds = (link: string) => roadDrawSeconds(options.roadLength?.(link) ?? TYPICAL_ROAD);
   const end = (w: GrowthWindow) => w.start + w.seconds;
   let at = 0;
   // The end of the latest hold, which counts toward the growth's length as a window does.

@@ -12,7 +12,7 @@ import { test } from "node:test";
 
 import type { AnnotatedTree } from "@storytree/library";
 
-import { codeSurveyReader, offThreadSurveyReader, readCodeSurvey } from "./read-survey.js";
+import { capabilitiesOfFiles, codeSurveyReader, offThreadSurveyReader, readCodeSurvey } from "./read-survey.js";
 import { focusProject } from "../read.js";
 // 8.16 runs this module on a worker thread; imported here, with no parent port, it answers nothing.
 import "./survey-worker.js";
@@ -492,6 +492,35 @@ test("8.16 a survey read on a worker thread answers what one read in place does,
       `the asking thread's loop was busy ${(offThread.utilization * 100).toFixed(0)}% of an off-thread read, ${(inPlace.utilization * 100).toFixed(0)}% of one in place`);
   } finally {
     await reader.close();
+    await rm(folder, { recursive: true, force: true });
+  }
+});
+
+test("8.17 a changed file is placed by its own declaration, else by the survey's inference, and a file outside every package or unreadable nowhere", async () => {
+  const folder = await mkdtemp(path.join(tmpdir(), "code-survey-owners-"));
+  const plan = { arcs: [], stories: [{ id: "story-shop", title: "Shop", capabilities: [{ id: "cap-claims", title: "3 · Claims" }, { id: "cap-cart", title: "4 · Cart" }] }] } as unknown as AnnotatedTree;
+  try {
+    const src = path.join(folder, "packages/shop/src");
+    await mkdir(src, { recursive: true });
+    await writeFile(path.join(src, "cart.ts"), "// Capability 4 · Cart.\nexport const cart = 1;\n");
+    await writeFile(path.join(src, "claim.ts"), "export const claim = 1;\n");
+    await writeFile(path.join(src, "claim.test.ts"), 'import { claim } from "./claim.js";\ntest("3.1 a claim", () => claim);\n');
+    await writeFile(path.join(src, "loose.ts"), "export const loose = 1;\n");
+    await writeFile(path.join(folder, "README.md"), "outside\n");
+    const owners = await capabilitiesOfFiles(folder, ["packages/shop/src/cart.ts", "packages\\shop\\src\\claim.ts", "packages/shop/src/claim.test.ts", "packages/shop/src/loose.ts", "packages/shop/src/gone.ts", "README.md"], plan);
+    assert.deepEqual([...owners], [
+      ["packages/shop/src/cart.ts", { capability: "cap-cart", inferred: false }],
+      ["packages/shop/src/claim.test.ts", { capability: "cap-claims", inferred: false }],
+      ["packages/shop/src/claim.ts", { capability: "cap-claims", inferred: true }],
+    ]);
+    const read: string[] = [];
+    const surveyed = await capabilitiesOfFiles(folder, ["packages/shop/src/claim.ts"], plan, {
+      readText: (file) => (read.push(file), "export const claim = 1;\n"),
+      survey: async () => ({ "story-shop": { files: [{ path: "src/claim.ts", lines: 1, capability: "cap-cart" }] } }) as never,
+    });
+    assert.deepEqual(read, ["packages/shop/src/claim.ts"]);
+    assert.deepEqual([...surveyed], [["packages/shop/src/claim.ts", { capability: "cap-cart", inferred: true }]]);
+  } finally {
     await rm(folder, { recursive: true, force: true });
   }
 });

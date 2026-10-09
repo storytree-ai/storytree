@@ -19,6 +19,7 @@
  *   last read (or the same Git blob) is not read again, an unchanged story keeps its survey, the checkout is
  *   found once per folder without blocking, and one survey of a folder runs at a time.
  */
+import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { Worker } from "node:worker_threads";
@@ -61,6 +62,49 @@ function manifestFrom(text: string): { name: string; deps: string[]; exports: Su
 const COVERAGE_MAP = "survey-coverage.json";
 
 export { declaredNumberOf, packageOf };
+
+/** A file's capability, and whether the survey inferred it because the file declares none. */
+export interface FileOwner {
+  readonly capability: string;
+  readonly inferred: boolean;
+}
+
+/**
+ * ADR-0925 D4's lookup, shared by edit claims and the gate's capability-list check so they never place a
+ * file differently: each of `files` (repo-relative to `root`) is placed by its own declaration, else by
+ * the code survey's inference of `root`'s current checkout. A file in no story's package, or one
+ * `readText` cannot read (undefined or a throw), is placed nowhere. Keys use forward slashes.
+ */
+export async function capabilitiesOfFiles(root: string, files: readonly string[], tree: AnnotatedTree, {
+  readText = (file: string) => readFileSync(path.join(root, file), "utf8"),
+  survey = (plan: AnnotatedTree) => codeSurveyReader({ checkout: "current" }).read(root, plan),
+}: { readText?(file: string): string | undefined; survey?(tree: AnnotatedTree): Promise<ProjectSurvey> } = {}): Promise<Map<string, FileOwner>> {
+  const owners = new Map<string, FileOwner>();
+  const undeclared: string[] = [];
+  for (const raw of files) {
+    const file = raw.replaceAll("\\", "/");
+    const story = tree.stories.find(({ title }) => file.startsWith(`packages/${packageOf(title)}/`) || (packageOf(title) === "app" && file.startsWith("apps/desktop/")));
+    if (story === undefined) continue;
+    let text: string | undefined;
+    try {
+      text = readText(file);
+    } catch {}
+    if (text === undefined) continue;
+    const number = declaredNumberOf({ path: file, text }, packageOf(story.title));
+    const declared = number === undefined ? undefined : story.capabilities.find(({ title }) => Number(/^\s*(\d+)\s*·/.exec(title)?.[1]) === number);
+    if (declared === undefined) undeclared.push(file);
+    else owners.set(file, { capability: declared.id, inferred: false });
+  }
+  if (undeclared.length === 0) return owners;
+  const surveyed = await survey(tree);
+  const inferred = new Map<string, string>();
+  for (const story of tree.stories) {
+    const base = `packages/${packageOf(story.title)}`;
+    for (const found of surveyed[story.id]?.files ?? []) if (found.capability !== undefined) inferred.set(path.posix.join(base, found.path), found.capability);
+  }
+  for (const file of undeclared) if (inferred.has(file)) owners.set(file, { capability: inferred.get(file)!, inferred: true });
+  return owners;
+}
 
 /** A file as last read: kept while its disk fingerprint or Git blob is unchanged. */
 type Kept = { readonly version: string; readonly file: SourceFile };

@@ -439,3 +439,35 @@ test("11.14 `workspace claim` from the main checkout, then `workspace <increment
     }
   });
 });
+
+test("11.14 `workspace claim` from the main checkout, then `workspace <increment>` and `workspace attach` by the same Codex session, prepares the app's worktree and keeps the claim, moved onto its codex branch with no release between", async () => {
+  await inWorld(command, async (world) => {
+    const increment = await withRepository(world);
+    const env = { CODEX_THREAD_ID: "codex-app" };
+    const claimed = await world.run(["workspace", "claim", increment, "--reason", "keeping it off the refill"], env);
+    assert.equal(claimed.code, 0, claimed.stderr);
+    const log = await openActivityLog(testServerUrl());
+    try {
+      const lines = (await log.since(world.project, 0)).lines.length;
+
+      const prepared = await world.run(["workspace", increment, "--reason", "building the email form"], env);
+      assert.equal(prepared.code, 0, prepared.stderr);
+      const args = prepared.stdout.match(/\{"ref":"[^"\n]+","name":"[^"\n]+"\}/)?.[0];
+      assert.ok(args, prepared.stdout);
+      const { ref, name } = JSON.parse(args) as { ref: string; name: string };
+      const folder = path.join(path.dirname(world.folder), "app returned");
+      git(world.folder, "worktree", "add", "--detach", folder, ref);
+      const attached = await world.run(["workspace", "attach", increment, "--folder", folder, "--ref", ref, "--name", name, "--reason", "building the email form"], env);
+
+      assert.equal(attached.code, 0, attached.stderr);
+      const [held, ...more] = await readClaims(log, world.project);
+      assert.deepEqual(more, []);
+      assert.equal(held?.session, "codex-app");
+      assert.equal(held?.branch, `codex/${name}`);
+      assert.equal(git(folder, "symbolic-ref", "--short", "HEAD").trim(), `codex/${name}`);
+      assert.deepEqual((await log.since(world.project, 0)).lines.slice(lines).filter((line) => line.kind === "released"), [], "no moment releases it");
+    } finally {
+      await log.close();
+    }
+  });
+});

@@ -1,5 +1,5 @@
 /**
- * Capability 6 · Agent tools (the MCP server). The work tools (ADR-0643 D1, 6): park, ready, move and close increments, park and unpark arcs, set and
+ * Capability 6 · Agent tools (the MCP server). The work tools (ADR-0643 D1, 6): park, ready, move and close increments, add to what one remedies, park and unpark arcs, set and
  * clear waits, raise, correct, settle and retire the owner's questions, and record friction and re-steers. Each is a thin wrapper over the library's own
  * functions, or this story's capture functions over them, so no library rule is kept here twice.
  * Starting an increment is claiming it (claim-tools.ts), so a start is refused as a claim is. Asking the owner about work the
@@ -83,6 +83,18 @@ export function registerWorkTools(define: Define): void {
       const said = `Moved ${quoted(moved.fields.title)} (${increment}) to arc`;
       const saved = { text: `${said} ${to}.`, data: { id: increment } };
       return afterWrite(saved, async () => ({ ...saved, text: `${said} ${await arcName(library, to)}.` }));
+    },
+  );
+
+  define(
+    "add_remedies",
+    "Add friction to what an already-parked increment remedies, keeping those it had: the increment is then the fix the friction can be routed to (route: tool). Each friction must be live.",
+    z.object({ increment: id("increment"), frictions: z.array(z.string().min(1)).min(1).describe("The ids of the friction it remedies") }),
+    async ({ increment, frictions }, { library, writer }) => {
+      const had = (await library.get(increment))?.fields as { remedies?: string[] } | undefined;
+      const edited = await library.editIncrement(increment, { remedies: [...new Set([...(had?.remedies ?? []), ...frictions])] }, writer);
+      if (edited === null) return noIncrement(increment);
+      return { text: `${quoted(edited.fields.title)} (${increment}) now remedies ${edited.fields.remedies?.join(", ")}.`, data: { id: increment } };
     },
   );
 

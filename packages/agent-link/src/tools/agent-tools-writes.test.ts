@@ -16,7 +16,7 @@ import { hostname } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
-import { roundDue, worklist } from "@storytree/librarian";
+import { roundDue, route, worklist } from "@storytree/librarian";
 import { z } from "zod";
 
 import { recordFriction, reinforceFriction, type ToolExtension } from "../index.js";
@@ -779,6 +779,30 @@ test("6.28 move_increment moves open work with its claim and completed history w
         assert.equal(refused.isError, true, `${why} is refused: ${refused.text}`);
       }
       assert.ok((await ids(target)).includes(increment) && !(await ids(target)).includes(done), "only completed history moved");
+    });
+  });
+});
+
+test("6.46 add_remedies adds live friction to a parked increment's remedies, keeping those it had, so a tool route accepts it; friction that is not live, or no increment, is refused with nothing written", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const { arc } = await planned(agent);
+      const friction = (title: string) => recordFriction(library, { title, description: "Delay", statement: "Timeout", evidence: "src/mail.ts: TimeoutError", impact: "Readers wait" });
+      const first = await friction("Slow mail");
+      const later = await friction("Slow mail again");
+      const fix = (await library.addIncrement({ arc, title: "Retry mail", objective: "Retry", body: "Red then green", remedies: [first.id] })).id;
+
+      const history = await library.history({ id: fix });
+      for (const args of [{ increment: fix, frictions: ["friction_000000000000"] }, { increment: "increment_000000000000", frictions: [later.id] }]) {
+        const refused = await agent.call("add_remedies", args);
+        assert.equal(refused.isError, true, refused.text);
+      }
+      assert.deepEqual(await library.history({ id: fix }), history, "nothing was written");
+
+      const added = await agent.call("add_remedies", { increment: fix, frictions: [later.id, first.id] });
+      assert.equal(added.isError, false, added.text);
+      assert.deepEqual(((await library.get(fix))?.fields as { remedies?: string[] } | undefined)?.remedies, [first.id, later.id]);
+      assert.equal((await route(library, later.id, "tool", "Its fix is parked")).fields.route, "tool");
     });
   });
 });

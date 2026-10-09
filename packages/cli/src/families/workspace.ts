@@ -2,7 +2,7 @@
 import type { ClaimAnswer, WorkspaceAnswer } from "@storytree/agent-link";
 
 import { Refusal } from "../answer.js";
-import type { Family, Verb } from "../door.js";
+import type { Context, Family, Verb } from "../door.js";
 
 const make: Verb = {
   name: "workspace",
@@ -99,6 +99,17 @@ usage: storytree ${this.usage}`, { code: 2 });
     return { text: `You released ${id}${returnedSaid(answer)}` };
   },
 };
+
+/**
+ * Asking the owner about an increment releases the work the caller holds for it, through the agent
+ * link's releaseAsked (ADR-0944 D4): the question's `--hold` and an owner wait both say so here. A
+ * caller holding none of it, a person's shell included, releases nothing and is told nothing.
+ */
+export async function releasedAsking(context: Context, increment: string): Promise<string> {
+  const { releaseAsked } = await import("@storytree/agent-link");
+  const released = await releaseAsked(await context.activityContext(), increment);
+  return released.length === 0 ? "" : ` Released your claims on ${released.join(", ")}.`;
+}
 
 /** An increment released without closing is nobody's work in progress: the agent link made it a proposal again (11.11). Says so, or ends the sentence. */
 function returnedSaid(answer: { returned?: true }): string {

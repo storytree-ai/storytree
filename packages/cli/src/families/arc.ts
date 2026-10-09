@@ -22,6 +22,7 @@ import { labelOf, Refusal, type Answer } from "../answer.js";
 import { commaSeparatedIds, type Args } from "../args.js";
 import type { Family, Verb } from "../door.js";
 import { valueOf } from "./library.js";
+import { releasedAsking } from "./workspace.js";
 
 /** The given flags among `names`, each as the library field it names (`--end-state` is `endState`), kept as the text given (`--pr 132` is "132", not a number). */
 function given(args: Args, names: readonly string[]): Record<string, string> {
@@ -192,7 +193,9 @@ function waiting(family: string, what: "arc" | "increment"): Verb[] {
           const wait = { releaser, note, ...(checkBack === undefined ? {} : { checkBack }) };
           const done = await (await context.library()).addWaitFor(id, wait, context.writer());
           if (done === null) throw new Refusal(`no increment "${id}" in this project`);
-          return { text: `${id} now waits for ${releasedBy(releaser)}: ${note}${checkBack === undefined ? "" : ` (check back ${checkBack})`}.` };
+          // Waiting on the owner releases the caller's claims on it, as raising a question does (ADR-0944 D4); an event releases nothing.
+          const released = releaser === "owner" ? await releasedAsking(context, id) : "";
+          return { text: `${id} now waits for ${releasedBy(releaser)}: ${note}${checkBack === undefined ? "" : ` (check back ${checkBack})`}.${released}` };
         }
         const on = args.need("on", this.usage);
         const done = await (await context.library()).addWait(id, on, args.need("reason", this.usage), context.writer());

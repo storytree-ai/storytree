@@ -10,7 +10,8 @@
  * held with `storytree arc increment edit <increment> --held-on <question>`. Retiring one goes through
  * the library's retireQuestion, which takes it off every increment held on it first, so an owner-
  * retired question goes in one step; `library retire` still refuses a held one. `show` reads one
- * question whole, with the open increments held on it. Listing the open
+ * question whole, with the open increments held on it. Holding an increment the caller's
+ * session holds releases its claims on it, through the agent link's releaseAsked (ADR-0944 D4). Listing the open
  * questions uses list(kind); `--arc` reads one arc's questions, naming a parked arc's as parked with it. `check` reads a question's review
  * lease through the library's checkQuestion, and `renew` re-stamps it through renewQuestion, which
  * refuses a settled question (ADR-0654).
@@ -18,6 +19,7 @@
 import { labelOf, Refusal } from "../answer.js";
 import type { Family, Verb } from "../door.js";
 import { valueOf } from "./library.js";
+import { releasedAsking } from "./workspace.js";
 
 const QUESTION_FIELDS = ["arc", "title", "stakes", "statement", "context", "options", "analogy", "diagram", "recommendation"] as const;
 
@@ -47,11 +49,13 @@ const raise: Verb = {
       return increment;
     });
     const question = await library.raiseQuestion(fields as never, context.writer());
+    let released = "";
     for (const increment of held) {
       await library.editIncrement(increment.id, { heldOn: [...(increment.fields.heldOn ?? []), question.id] }, context.writer());
+      released += await releasedAsking(context, increment.id);
     }
     return {
-      text: `Raised question ${question.id} on ${question.fields.arc}${held.length === 0 ? "" : `, holding ${held.map((one) => one.id).join(", ")}`}.`,
+      text: `Raised question ${question.id} on ${question.fields.arc}${held.length === 0 ? "" : `, holding ${held.map((one) => one.id).join(", ")}`}.${released}`,
       next: [{ command: `storytree arc show ${question.fields.arc}`, why: "see what waits on him" }],
     };
   },

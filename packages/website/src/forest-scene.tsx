@@ -11,10 +11,10 @@ import { createKnowledgeCore, KnowledgeNoteCard, type KnowledgeCore } from "@sto
 import saved from "./forest-snapshot.json" with { type: "json" };
 import shopSaved from "./shop-snapshot.json" with { type: "json" };
 import ownSaved from "./own-snapshot.json" with { type: "json" };
-import { crossingLength, growthMoment, growthPlan, type GrowthPlan } from "@storytree/forest-world/planet";
+import { crossingLength, growthPlan, type GrowthPlan } from "@storytree/forest-world/planet";
 import { buildPlanetPathways } from "@storytree/forest-world/geometry";
 import type { GrowthSnapshot, TourSnapshot } from "./forest-data.js";
-import { globeOf, lineStarts, placeTags, replayMoment, stepAt, type Box, type GlobeOn, type Hold, type Tag, type TagSide, type TourDetail, type TourGrowth, type TourStep } from "./tour.js";
+import { globeOf, lineStarts, replayMoment, stepAt, type GlobeOn, type Hold, type TourDetail, type TourGrowth, type TourStep } from "./tour.js";
 import { createCameraPlayer } from "./tour-camera.js";
 import { mapRecording, mapGrowthPlan, recordedFrame } from "./map-recording.js";
 import { growthReading, savedReading } from "./tour-reading.js";
@@ -112,63 +112,6 @@ function Arcs({ project, recording, open }: { project: string; recording: Record
   return <div ref={ref} className="tour-arcs" />;
 }
 
-/** Rings on the things a step talks about, placed on the drawing every frame once the camera has arrived. */
-function Tags({ tags, controls, arrived }: { tags: readonly Tag[]; controls: GlobeControls | undefined; arrived: boolean }) {
-  const host = document.getElementById("tour-tags");
-  const refs = useRef<(HTMLDivElement | null)[]>([]);
-  useEffect(() => {
-    if (!controls || !host || !tags.length) return;
-    let frame = 0, previous: (TagSide | undefined)[] = [];
-    const place = () => {
-      const canvas = document.querySelector("#website-forest canvas")?.getBoundingClientRect(), stage = host.getBoundingClientRect();
-      const shown: { node: HTMLDivElement; label: HTMLElement; box: Box; index: number }[] = [];
-      tags.forEach((tag, index) => {
-        const node = refs.current[index];
-        if (!node) return;
-        const at = canvas ? controls.position(tag.target) : undefined;
-        if (!at || !canvas || !at.visible || !arrived) { node.classList.add("away"); return; }
-        const x = at.x + canvas.left - stage.left, y = at.y + canvas.top - stage.top;
-        node.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
-        const label = node.lastElementChild as HTMLElement;
-        const size = label.getBoundingClientRect();
-        // Score the rounded position we draw, with room for fractional text sizes and the label offset's rounding.
-        shown.push({ node, label, box: { x: Math.round(x), y: Math.round(y), width: Math.ceil(size.width), height: Math.ceil(size.height) }, index });
-      });
-      // Each name sits on whichever side of its ring has room, clear of the other names, the other rings, the islands' names,
-      // the card and the panels, below or above the ring where the sides have no room (2.18). A phone keeps a name on its
-      // last side so it does not flit as the globe turns; a laptop has the room to take the first clear side every frame,
-      // so a side chosen while a panel slid in is not kept once it has gone, and its names share the room when the first
-      // clear sides leave one covered.
-      const room = { width: stage.width, height: stage.height };
-      const phone = stage.width <= 600;
-      // On a phone, the names of the islands the tags point at are as hard to cover as a panel: the step talks about those
-      // islands, and in a short band its tags can otherwise trade one for an untagged island's name.
-      const named = new Set(phone ? tags.flatMap(tag => tag.target.kind === "story" ? [tag.target.story] : []) : []);
-      const keepOut = [...document.querySelectorAll("#chapter2 :is(.tour-card, .sessions-list, .arc-overlay, .arc-handle), #website-forest .planet-nameplate:not(.crowded)")]
-        .filter(node => getComputedStyle(node).visibility === "visible").map(node => ({ box: node.getBoundingClientRect(), soft: node.classList.contains("planet-nameplate") && !named.has((node as HTMLElement).dataset.storyId ?? "") }))
-        .filter(({ box }) => box.width && box.height)
-        .map(({ box, soft }) => ({ x: box.left - stage.left, y: box.top - stage.top, width: box.width, height: box.height, soft }));
-      const sides = shown.length ? placeTags(shown.map(item => item.box), room, { keepOut, sides: ["right", "left", "below", "above"], previous: phone ? shown.map(item => previous[item.index]) : [], share: !phone }) : [];
-      previous = [];
-      shown.forEach(({ node, label, index }, at) => {
-        const side = sides[at]!;
-        previous[index] = side.side;
-        label.style.left = `${Math.round(side.x)}px`;
-        label.style.top = `${Math.round(side.y)}px`;
-        node.classList.remove("away");
-      });
-      frame = requestAnimationFrame(place);
-    };
-    frame = requestAnimationFrame(place);
-    return () => cancelAnimationFrame(frame);
-  }, [tags, controls, host, arrived]);
-  if (!host) return null;
-  return createPortal(<>{tags.map((tag, index) => <div key={index} ref={node => { refs.current[index] = node; }} className="tour-tag away"
-    data-story={tag.target.kind === "story" ? tag.target.story : undefined}>
-    <span className="tour-tag-ring" /><span className="tour-tag-text">{tag.text}</span>
-  </div>)}</>, host);
-}
-
 /** Where the globe's middle sits: in the room the card (left) and any side panel (right) leave it. */
 function offsetFor(step: TourStep | undefined, width: number) {
   if (!step || width <= 600) {
@@ -235,15 +178,15 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   const free = state?.freePlay === true;
   const everything = state?.holds.includes("everything") === true;
   const touring = !!tour && !free;
-  const requestedPanel = touring && !everything && (state?.lines ?? 1) >= (step?.panelFromLine ?? 1) ? step?.panel : undefined;
   const surfaces = useMemo((): Partial<GlobeSurfaces> => {
     if (!step || free || everything) return complete;
     let shown = step.surfaces;
     for (const [from, next] of Object.entries(step.lineSurfaces ?? {})) if ((state?.lines ?? 1) >= Number(from)) shown = next;
     return shown;
   }, [step, state?.lines, free, everything]);
-  // The step as its told lines leave it: a line can move the camera (ADR-0891, amended 2026-10-10).
+  // The step as its told lines leave it: a line can move the camera, or give its panel way to another (ADR-0891, amended 2026-10-11).
   const shownStep = step && stepAt(step, state?.lines ?? 1);
+  const requestedPanel = touring && !everything && (state?.lines ?? 1) >= (step?.panelFromLine ?? 1) ? shownStep?.panel : undefined;
   const sideOffset = offsetFor(touring && !everything ? shownStep : undefined, width);
   const globe: GlobeOn = step && state ? globeOf(step, state, tour!.elapsed) : { map: "storytree" };
 
@@ -281,7 +224,7 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   useEffect(() => {
     if (!tour) return;
     const before = recordingAt.current;
-    const inSessions = !free && step?.panel === "sessions" && !step.recorded && !step.sessionsAt;
+    const inSessions = !free && step?.panel === "sessions" && !step.sessionsAt;
     const wasInSessions = before?.inSessions === true && before.generation === state!.generation;
     recordingAt.current = { inSessions, generation: state!.generation };
     if (inSessions && !wasInSessions) replay();
@@ -384,19 +327,15 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
     const told = growthAt && growthAt.index === state?.index && growthAt.generation === state?.generation ? growthAt.at : globe.at;
     moment = typeof step?.growth === "object" ? replayMoment(grown.plan(), step.growth, told, lineStarts(step)) : 0;
   }
-  // A step at a recorded moment shows the shop as it stood then: its globe, and its sessions and arcs read from its records (2.17).
-  const recordedAt = touring && !everything && globe.map === "shop" && "when" in globe ? globe.when : undefined;
-  if (grown && recordedAt && globe.map === shownMap) moment = growthMoment(grown.plan(), recordedAt);
   const growth = grown ? { plan: grown.plan(), at: moment ?? Infinity } : undefined;
   // A step narrowed to a few stories dims the rest (ADR-0890's three teaching stories).
   const focus = touring && !everything && globe.map === shownMap && "focus" in globe ? globe.focus : undefined;
-  const datedFrame = grown && moment !== undefined && (inMapChapter || recordedAt) ? recordedFrame(grown.snapshot, grown.plan(), moment) : undefined;
-  const mapFrame = inMapChapter ? datedFrame : undefined;
-  const drawn = datedFrame?.scene ?? grown?.snapshot.scene ?? snapshot.scene;
+  const mapFrame = grown && moment !== undefined && inMapChapter ? recordedFrame(grown.snapshot, grown.plan(), moment) : undefined;
+  const drawn = mapFrame?.scene ?? grown?.snapshot.scene ?? snapshot.scene;
   // Free play on the shop reads the shop's saved reading for its panels, arcs and sessions; everywhere else, storytree's.
   const onShop = free && shownMap === "shop" && shopView !== undefined;
-  // A step replaying the shop's growth can still read its sessions list at one recorded moment.
-  const sessionsAt = recordedAt ?? (touring && !everything && shownMap === "shop" ? step?.sessionsAt : undefined);
+  // A step replaying the shop's growth can still read its sessions list and its arcs at one recorded moment.
+  const sessionsAt = touring && !everything && shownMap === "shop" ? step?.sessionsAt : undefined;
   const shopAt = useMemo(() => sessionsAt && shopSnapshot ? { recording: savedReading(shopSnapshot, { until: sessionsAt }) } : undefined, [sessionsAt]);
   useEffect(() => () => shopAt?.recording.reading.stop(), [shopAt]);
   const panelReading = onStorytree ? snapshot : shownMap === "shop" ? shopSnapshot : undefined;
@@ -418,7 +357,6 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
           onControls={onControls} surfaces={surfaces} framing={restingFraming} sideOffset={offsetFor(undefined, width)} mode={mode} />
       </div>
     </GlobeBoundary>}
-    {touring && !everything && step?.tags && <Tags tags={step.tags} controls={controls} arrived={arrived} />}
     {panelHost && createPortal(<>
       <div className="forest-views" role="group" aria-label="Project view" hidden={!free}>
         <button type="button" aria-pressed={mode === "forest"} onClick={() => setMode("forest")}>Forest</button>

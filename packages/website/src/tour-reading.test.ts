@@ -5,7 +5,6 @@ import type { TourSnapshot } from "./forest-data.js";
 import { growthReading, savedReading } from "./tour-reading.js";
 import shop from "./shop-snapshot.json" with { type: "json" };
 import type { Line } from "@storytree/session-management";
-import { createTour, globeOf } from "./tour.js";
 import { steps } from "./tour-copy.js";
 
 const snapshot = saved as unknown as TourSnapshot;
@@ -53,21 +52,15 @@ test("2.14 · free play on the shop reads its story panels, its arcs and its rec
   } finally { recording.reading.stop(); }
 });
 
-test("2.17 · the agents chapter opens on the sessions strip and pins the shop's records to recorded moments: three sessions building at once, then the session that stood down", async () => {
+test("2.16 · the map chapter's arcs and sessions read the shop's records at their moments: four parts none held, then parts 2, 3 and 4 held by three live sessions", async () => {
   const shopReading = growthReading(shop as never)!;
-  const chapter = steps.filter(step => step.explainer === "agents");
-  assert.ok(chapter.length >= 5 && chapter.every(step => step.map === "shop" && step.recorded), "every agents step is the shop at a recorded moment");
-  assert.equal(chapter[0]!.panel, "sessions", "the chapter opens on the sessions strip, not a replay of its fix");
-  const tour = createTour(steps);
-  tour.go(steps.indexOf(chapter[1]!));
-  assert.equal((globeOf(chapter[1]!, tour.state) as { when?: string }).when, chapter[1]!.recorded, "the globe shows the shop as it stood then");
-  /** The sessions live at `step`'s moment, by name, from the records offered then. */
-  const live = (id: string) => {
-    const step = chapter.find(item => item.id === id)!;
-    const recording = savedReading(shopReading, { until: step.recorded! });
+  const step = (id: string) => steps.find(item => item.id === id)!;
+  /** The arcs and the live sessions, by name, from the records offered at `until`. */
+  const at = async (until: string) => {
+    const recording = savedReading(shopReading, { until });
     try {
       const offered = recording.lines.slice(0, recording.progress().index);
-      assert.ok(offered.every(line => line.at <= step.recorded!) && recording.progress().index < recording.lines.length, `${id}: only what was recorded by then`);
+      assert.ok(offered.every(line => line.at <= until) && recording.progress().index < recording.lines.length, `${until}: only what was recorded by then`);
       const names = new Map<string, string>(), gone = new Set<string>(), started = new Set<string>();
       // A session that never named itself reads its claim's reason, as the list shows it.
       for (const line of offered as readonly (Line & { title?: string; reason?: string; increment?: string })[]) {
@@ -76,19 +69,21 @@ test("2.17 · the agents chapter opens on the sessions strip and pins the shop's
         if (line.kind === "session-named") names.set(line.session!, line.title!);
         if (line.kind === "closed-out" || line.kind === "session-ended") gone.add(line.session!);
       }
-      return [...started].filter(session => !gone.has(session)).map(session => names.get(session) ?? session);
+      const arcs = await recording.reads.arcViews("shop3");
+      return { arcs: arcs.map(view => [view.arc.fields.title, view.increments.map(increment => [increment.fields.title, increment.fields.status])]),
+        live: [...started].filter(session => !gone.has(session)).map(session => names.get(session) ?? session).sort() };
     } finally { recording.reading.stop(); }
   };
-  // The arcs as they stood then: the first arc active, part 1 closed, parts 2, 3 and 4 being built; the second not yet planned.
-  const together = chapter.find(item => item.id === "agents-parallel")!.recorded!;
-  const then = savedReading(shopReading, { until: together });
-  try {
-    const arcs = await then.reads.arcViews("shop3");
-    assert.deepEqual(arcs.map(view => [view.arc.fields.title, view.state]), [["Swag Labs copy", "active"]]);
-    const count = (status: string) => arcs[0]!.increments.filter(increment => increment.fields.status === status).length;
-    assert.deepEqual([count("closed"), count("active")], [2, 3], "part 1 and its fix closed; parts 2, 3 and 4 claimed");
-  } finally { then.reading.stop(); }
-  assert.deepEqual(live("agents-parallel").sort(), ["Part 2: product page, sorting, cart", "Part 3: cart page and side menu", "Part 4: Checkout"]);
-  assert.deepEqual(live("agents-standdown").sort(), ["326ef02d-5230-4c5c-b67f-fc7424373027", "Part 7: Search", "Part 8: Reviews"].sort(),
-    "part 7 and part 8 are held, and the session sent to part 7 has started and not yet stood down");
+  // Step 2: the shop's first arc, its four parts planned and none held yet.
+  assert.deepEqual((await at(step("map-arcs").sessionsAt!)).arcs, [["Swag Labs copy", [
+    ["Part 1: Sign in and the Products list", "proposal"], ["Part 2: Browsing", "proposal"], ["Part 3: The cart and the menu", "proposal"], ["Part 4: Checkout", "proposal"],
+  ]]]);
+  // Step 5: parts 2, 3 and 4 each held, by the three sessions whose flags stand.
+  const claims = await at(step("map-claims").sessionsAt!);
+  assert.deepEqual(claims.arcs[0]![1], [
+    ["Part 1: Sign in and the Products list", "closed"], ["Part 2: Browsing", "active"], ["Part 3: The cart and the menu", "active"], ["Part 4: Checkout", "active"],
+    ["Fix: sign-in errors show without a page load", "closed"],
+  ]);
+  assert.equal(claims.live.length, 3, `three live sessions: ${claims.live}`);
+  assert.ok(claims.live.includes("Part 2: product page, sorting, cart") && claims.live.includes("Part 4: Checkout"), `${claims.live}`);
 });

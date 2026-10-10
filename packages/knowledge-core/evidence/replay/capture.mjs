@@ -42,7 +42,7 @@ const reading = {
   opens: [
     open(old, 'c0', false),
     open(hub, 'c1'),
-    { kind: 'file', id: 'packages/session-management/src/claims/merges.ts', call: 'f1', tool: 'Read', resident: true },
+    { kind: 'file', id: 'packages/agent-link/src/claims/merges.ts', call: 'f1', tool: 'Read', resident: true },
     open(next, 'c2'),
     open(jump, 'c3'),
     open(later, 'c4'),

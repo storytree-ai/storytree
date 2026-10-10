@@ -75,7 +75,7 @@ const measures = {};
         windowReadings(project, sessions) { return Promise.all(sessions.map(one => this.windowReading(project, one))); },
         windowReading: async (_, session) => session === 'fp-builder'
           ? { session, at: new Date().toISOString(), inView: [], glimpses: [], compactions: 0,
-            opens: [open('packages/forest/src/view/sessions-list.tsx'), open('packages/forest/src/view/styles.css'), open('packages/session-management/src/readings.ts', false)] }
+            opens: [open('packages/forest/src/view/sessions-list.tsx'), open('packages/forest/src/view/styles.css'), open('packages/agent-link/src/readings.ts', false)] }
           : { session, at: new Date().toISOString(), absent: "no hook has named this session's transcript" },
       };
     }, seed);

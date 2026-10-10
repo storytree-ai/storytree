@@ -24,17 +24,18 @@ const survey = JSON.parse(readFileSync(path.join(rows, 'survey.json'), 'utf8'));
 // Every session worked in the last few minutes before the capture runs, so none is idle.
 const NOW = Date.now();
 const CHECKOUT = '/repo';
+// The paths are the seed's: its snapshot of the library predates the agent link's rename to Session management.
 const SESSIONS = {
   builder: { minutes: 2, reason: 'Build the window replay', capability: 'capability_062b84e5c6b0', file: 'packages/knowledge-core/src/look-inside/look-inside.ts' },
   reviewer: { minutes: 3, reason: 'Review the sessions list', capability: null, file: 'packages/forest/src/sessions-list/sessions-list.ts' },
   curator: { minutes: 4, reason: 'Curate the decision log', capability: null, file: 'packages/library/src/api/library.ts' },
-  scout: { minutes: 5, reason: 'Survey the agent link', capability: null, file: 'packages/session-management/src/activity/activity-log.ts' },
+  scout: { minutes: 5, reason: 'Survey the agent link', capability: null, file: 'packages/agent-link/src/activity/activity-log.ts' },
   'lane-north': { minutes: 6, reason: 'Port the command line', capability: null, file: 'packages/cli/src/args.ts' },
 };
 const SELECTED = 'scout';
 const ids = Object.keys(SESSIONS);
 // Each session holds a capability of the story whose file it opens, so the claimed territories show beside the traversal.
-const storyOfPackage = { 'knowledge-core': 'story_d754d997f22a', forest: 'story_deee4230348c', library: 'story_754e87e7d531', 'session-management': 'story_609c3b171b3f', cli: 'story_f9fb5136c28f' };
+const storyOfPackage = { 'knowledge-core': 'story_d754d997f22a', forest: 'story_deee4230348c', library: 'story_754e87e7d531', 'agent-link': 'story_609c3b171b3f', cli: 'story_f9fb5136c28f' };
 for (const one of Object.values(SESSIONS)) {
   const [, pkg, rest] = /^packages\/([^/]+)\/(.+)$/.exec(one.file);
   const file = survey[storyOfPackage[pkg]].files.find(f => f.path === rest);
@@ -119,7 +120,7 @@ await runCapture({
       // (slow in software GL on a busy Windows runner). The click waits until that highlight is drawn, so its press and release
       // do not queue behind the compile (a click timed out there, PR #764's Windows run).
       await row.hover();
-      await page.waitForFunction(story => !!window.__globe.scene.getObjectByName(`session-highlight:${story}`), storyOfPackage['session-management'], { timeout: 30000 });
+      await page.waitForFunction(story => !!window.__globe.scene.getObjectByName(`session-highlight:${story}`), storyOfPackage['agent-link'], { timeout: 30000 });
       await settle(page);
       await row.click();
       await page.waitForFunction(([want, hsl]) => {

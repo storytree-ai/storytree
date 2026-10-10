@@ -257,6 +257,34 @@ test("each kill since the unit last passed doubles its next deadline, up to the 
   assert.deepEqual(unitLimit("cli", { home: healed, ...machine }), { ms: 300_000, source: "learned" }, "a pass after the kill joins the history and the growth ends");
 });
 
+test("6.10 · a unit's deadline is learned only from runs that tested as many units at once, and each run records how many", (t) => {
+  const home = history(t, passes("cli", 50_000, 50_000, 50_000, 50_000, 50_000));
+  assert.deepEqual(unitLimit("cli", { home, ...machine }), { ms: 100_000, source: "learned" }, "rows from before jobs were recorded ran one at a time");
+  assert.deepEqual(unitLimit("cli", { home, ...machine, jobs: 3 }), { ms: UNIT_LIMIT_MS, source: "default" }, "a unit alone is no measure of it beside others");
+  const at = new Date().toISOString();
+  const shared = Array.from({ length: 5 }, () => JSON.stringify({ at, platform: "win32", arch: "arm64", unit: "cli", result: "pass", ms: 80_000, timedOut: false, jobs: 3 }));
+  writeFileSync(path.join(home, "test-timings.jsonl"), `${shared.join("\n")}\n`, { flag: "a" });
+  assert.deepEqual(unitLimit("cli", { home, ...machine, jobs: 3 }), { ms: 160_000, source: "learned" });
+  assert.deepEqual(unitLimit("cli", { home, ...machine }), { ms: 100_000, source: "learned" });
+  const recorded = mkdtempSync(path.join(tmpdir(), "unit-run-home-"));
+  t.after(() => rmSync(recorded, { recursive: true, force: true }));
+  recordTimings({ cli: { result: "pass", ms: 1 } }, { home: recorded, jobs: 3 });
+  assert.equal(JSON.parse(readFileSync(path.join(recorded, "test-timings.jsonl"), "utf8")).jobs, 3);
+});
+
+test("6.10 · a unit run beside others prints nothing and gives back its whole output, its last line included", async (t) => {
+  const root = fixture(t, {
+    "talks.test.mjs": `import { test } from "node:test";
+test("speaks", () => { console.log("said on stdout"); console.error("said on stderr"); });
+process.on("exit", () => process.stdout.write("last words\\n"));`,
+  });
+  let spawned;
+  const result = await runUnit({ root, files: ["talks.test.mjs"], env: process.env, hold: true, onSpawn: (child) => (spawned = child) });
+  assert.equal(result.code, 0);
+  assert.equal(spawned.stdio[1] !== null && spawned.stdio[2] !== null, true, "its output went to pipes, not this terminal");
+  for (const words of ["said on stdout", "said on stderr", "speaks", "last words"]) assert.match(result.output, new RegExp(words));
+});
+
 test("any agent can set a unit's deadline on this machine with a reason, and clear it", (t) => {
   const home = history(t, passes("cli", 50_000, 50_000, 50_000, 50_000, 50_000));
   assert.throws(() => setUnitLimit("cli", 300_000, { home, reason: " " }), /reason/);

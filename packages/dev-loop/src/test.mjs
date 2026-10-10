@@ -9,14 +9,17 @@
 // first line printed is the decision, `scope: ...`. Each package is one unit, its
 // `<dir>/src/**/*.test.{ts,mjs}`; the package-boundary check
 // (packages/dev-loop/src/package-boundaries.test.mjs) and the code allocation guardrail
-// (packages/dev-loop/src/allocation.test.mjs, ADR-0838 D5) are units of every run. The units run one after another against
-// the one Postgres, and a failure never stops the rest: the run ends with a PASS / FAIL / NOT RUN
-// table, and exits non-zero if any unit did not pass.
+// (packages/dev-loop/src/allocation.test.mjs, ADR-0838 D5) are units of every run. Several units
+// run at once against the one Postgres (unit-pool.mjs: --jobs=<n>, else STORYTREE_TEST_JOBS, else 2 with a core left free),
+// slowest first; each unit's output is held and printed whole under its name when it ends, and
+// `--jobs=1` runs them one after another with their output live. A failure never stops the rest:
+// the run ends with a PASS / FAIL / NOT RUN table, and exits non-zero if any unit did not pass.
 //
 //   pnpm run test --scope            print the decision and the units, and run nothing
 //   pnpm run test --full             run everything, whatever changed
 //   pnpm run test --only=cli,forest  run the named packages (dir, dir name or package name)
 //   pnpm run test --rerun-failed     run what the last run in this checkout failed or never reached
+//   pnpm run test --jobs=<n>         test n units at once; 1 runs them one after another
 //   pnpm run test <files>            run just those files, as one unit under UNIT_LIMIT_MS (or
 //                                    STORYTREE_UNIT_LIMIT_MS); killed there, it says so
 //   pnpm run test --help             print the usage (TEST_USAGE) and run nothing
@@ -56,8 +59,8 @@
 // killed at its deadline and its row names the tests still running (or within 20 s, naming the
 // file, when a file's tests have all ended but its process does not exit), and the run goes on to the next
 // unit. Each unit's time is added to the machine's history (test-timings.jsonl in STORYTREE_HOME,
-// default ~/.storytree/0.3), and its deadline is learned from that history: twice its slowest recent
-// pass, until it has five the run's default (STORYTREE_UNIT_LIMIT_MS when set, as CI sets it, else
+// default ~/.storytree/0.3), with how many units the run tested at once, and its deadline is learned
+// from the runs that tested as many at once: twice its slowest recent pass, until it has five the run's default (STORYTREE_UNIT_LIMIT_MS when set, as CI sets it, else
 // 3 min), doubled after each kill since it last passed, at most 15 min. Each
 // row gives the unit's time, its deadline and where the deadline came from. Any agent may set a
 // unit's deadline on this machine, and clear it again:
@@ -68,9 +71,9 @@
 // A run given a deadline (STORYTREE_TEST_DEADLINE, Unix seconds; CI sets its job's limit less room
 // to report, increment_7f43f74526ab) ends before the job limit cancels it, since a cancelled job can
 // lose its whole log: the unit running at the deadline is cut there and named like any killed unit,
-// the units after it are NOT RUN, and the table prints. Stalled outside any unit for
+// the units not yet started are NOT RUN, and the table prints. Stalled outside any unit for
 // DEADLINE_GRACE_MS past it (waiting, starting or stopping Postgres, or not exiting), the run says
-// where it stalled and exits 1.
+// where it stalled and exits 1. The units running at the deadline are each cut there.
 //
 // One heavy run at a time on a machine (heavy-lock.mjs): past the scope decision, a run
 // takes the machine's heavy-run lock (heavy-run.lock in STORYTREE_HOME) and holds it until its
@@ -91,7 +94,8 @@ import { acquireHeavyLock } from "./heavy-lock.mjs";
 import { runtimeRefusal } from "./node-runtime.mjs";
 import { keepPreviousServerLog } from "./server-log.mjs";
 import { parseTestArgs, planRun, readWorkspace, resultsTable, scopeFor, scopeLine, TEST_USAGE, unitGlobs } from "./test-scope.mjs";
-import { clearUnitLimit, DEADLINE_GRACE_MS, defaultUnitLimit, killTree, recordTimings, runDeadline, runUnit, setUnitLimit, unitLimit, unitReason, withinDeadline } from "./unit-run.mjs";
+import { runPool, slowestFirst, testJobs } from "./unit-pool.mjs";
+import { clearUnitLimit, DEADLINE_GRACE_MS, defaultUnitLimit, killTree, recentPassTimes, recordTimings, runDeadline, runUnit, setUnitLimit, unitLimit, unitReason, withinDeadline } from "./unit-run.mjs";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 const work = path.join(root, ".pgtest");
@@ -109,7 +113,8 @@ if (help || flagRefusal !== undefined) {
 }
 const namedFiles = testArgs.some((arg) => !arg.startsWith("-"));
 
-let child; // the test run, while it runs
+const children = new Set(); // the units' test processes, while they run
+let jobs = 1; // how many units at once: testJobs, settled before the lock
 let interrupted = false;
 let phase = "deciding the scope"; // where a run past its deadline says it stalled
 
@@ -117,14 +122,14 @@ const deadline = runDeadline(process.env);
 if (deadline !== undefined) {
   setTimeout(() => {
     console.error(`\ntest harness: past the run's deadline (STORYTREE_TEST_DEADLINE, ${new Date(deadline).toISOString()}) while ${phase}; ending the run`);
-    if (child) killTree(child);
+    for (const child of children) killTree(child);
     process.exit(1);
   }, Math.max(0, deadline + DEADLINE_GRACE_MS - Date.now())).unref();
 }
 for (const signal of ["SIGINT", "SIGTERM", "SIGHUP", "SIGBREAK"]) {
   process.on(signal, () => {
     interrupted = true;
-    child?.kill(); // a console Ctrl-C reaches it anyway; this covers a signal sent to us alone
+    for (const child of children) child.kill(); // a console Ctrl-C reaches them anyway; this covers a signal sent to us alone
   });
 }
 
@@ -145,6 +150,13 @@ async function main() {
   const refusal = runtimeRefusal();
   if (refusal !== undefined) {
     console.error(`test harness: ${refusal}`);
+    return 1;
+  }
+  let jobsSource;
+  try {
+    ({ jobs, source: jobsSource } = testJobs({ flag: flags.jobs }));
+  } catch (error) {
+    console.error(`test harness: ${error.message}`);
     return 1;
   }
   if (flags.setLimit !== undefined || flags.clearLimit !== undefined) return changeLimit();
@@ -168,6 +180,8 @@ async function main() {
       return 0;
     }
     units = plan.units;
+    jobs = Math.min(jobs, units.length);
+    if (jobs > 1) console.log(`jobs: ${jobs} units at once (${jobsSource}), slowest first; each unit's output prints whole when it ends`);
   }
   phase = "waiting for the heavy-run lock";
   const release = await acquireHeavyLock({ root, what: "pnpm test", stopped: () => interrupted });
@@ -199,7 +213,8 @@ async function runHeavy(units) {
       signIn: "client",
       superuserUrl: true,
       // Its data is thrown away, so no commit or CREATE DATABASE need wait on a disk flush.
-      settings: { fsync: "off", synchronous_commit: "off", full_page_writes: "off" },
+      // Room for several units' connections at once (each unit runs its files at once too).
+      settings: { fsync: "off", synchronous_commit: "off", full_page_writes: "off", max_connections: "300" },
       log: (message) => console.log(`test Postgres: ${message}`),
     });
   } catch (error) {
@@ -227,24 +242,29 @@ async function runTests(env, units) {
   const results = Object.fromEntries(units.map((unit) => [unit, "not run"]));
   const reasons = {};
   const timings = {};
-  for (const unit of units) {
-    if (interrupted) break;
+  const running = new Set();
+  const passTimes = jobs > 1 ? recentPassTimes() : new Map();
+  const order = jobs > 1 ? slowestFirst(units, { root, history: (unit) => passTimes.get(unit) }) : units;
+  await runPool(order, jobs, async (unit) => {
     if (deadline !== undefined && Date.now() >= deadline) {
       reasons[unit] = "not started: the run's deadline had passed";
-      continue;
+      return;
     }
-    phase = `running ${unit}`;
-    console.log(`\n=== ${unit} ===`);
+    running.add(unit);
+    phase = `running ${[...running].join(", ")}`;
+    console.log(jobs > 1 ? `started ${unit}` : `\n=== ${unit} ===`);
     const run = await runNodeTest(env, unitGlobs(unit), unit);
-    if (interrupted) break; // Ctrl-C cut it short: it stays NOT RUN
+    running.delete(unit);
+    if (jobs > 1) process.stdout.write(`\n=== ${unit} ===\n${run.output}`);
+    if (interrupted) return; // Ctrl-C cut it short: it stays NOT RUN
     results[unit] = run.code === 0 ? "pass" : "fail";
     reasons[unit] = unitReason(run, root);
     timings[unit] = { result: results[unit], ms: run.ms, timedOut: run.timedOut && !run.cut }; // a cut is the run's deadline, not the unit's
     if (run.timedOut || run.exitHung.length > 0) console.log(`\ntest harness: ${unit} ${reasons[unit]}`);
-  }
+  }, { stopped: () => interrupted });
   writeRecord(results);
   try {
-    recordTimings(timings);
+    recordTimings(timings, { jobs });
   } catch (error) {
     console.log(`test harness: could not add this run's times to the timing history: ${error.message}`);
   }
@@ -252,16 +272,19 @@ async function runTests(env, units) {
   return Object.values(results).every((result) => result === "pass") ? 0 : 1;
 }
 
+/** One unit's run; with other units running beside it, its output is held and returned as `output`. */
 async function runNodeTest(env, files, unit) {
-  const limit = withinDeadline(unit === undefined ? defaultUnitLimit() : unitLimit(unit), deadline);
+  const limit = withinDeadline(unit === undefined ? defaultUnitLimit() : unitLimit(unit, { jobs }), deadline);
+  let spawned;
   try {
     // No test loads the embedding model, so no run, CI included, downloads it (ADR-0733 D6):
     // ranked search is tested with a fake embedder, and everything else ranks by words.
     const evidence = env.STORYTREE_TEST_EVIDENCE ? { directory: path.resolve(root, env.STORYTREE_TEST_EVIDENCE), unit: unit ?? "files" } : undefined;
-    const run = await runUnit({ root, env: { ...env, STORYTREE_EMBEDDER: "off" }, args: testArgs, files, evidence, unitLimitMs: limit.ms, onSpawn: (spawned) => (child = spawned) });
+    const hold = unit !== undefined && jobs > 1;
+    const run = await runUnit({ root, env: { ...env, STORYTREE_EMBEDDER: "off" }, args: testArgs, files, evidence, unitLimitMs: limit.ms, hold, onSpawn: (child) => children.add((spawned = child)) });
     return { ...run, limitSource: limit.source, cut: limit.cut === true };
   } finally {
-    child = undefined;
+    children.delete(spawned);
   }
 }
 
@@ -286,7 +309,7 @@ function changeLimit() {
     console.error(`test harness: ${error.message}`);
     return 1;
   }
-  const { ms, source } = unitLimit(unit);
+  const { ms, source } = unitLimit(unit, { jobs });
   console.log(`${unit}: deadline ${ms / 1000} s on this machine (${source})`);
   return 0;
 }

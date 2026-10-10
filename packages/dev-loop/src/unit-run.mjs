@@ -37,8 +37,12 @@ const tsx = import.meta.resolve("tsx"); // from here, so a unit whose cwd is els
 const reporter = fileURLToPath(new URL("./test-running-reporter.mjs", import.meta.url));
 let runs = 0;
 
-/** Run one unit's files under node:test, resolving { code, ms, timedOut, running, exitHung, unitLimitMs }. */
-export function runUnit({ root, files, env, args = [], evidence, testLimitMs = TEST_LIMIT_MS, unitLimitMs = UNIT_LIMIT_MS, exitGraceMs = EXIT_GRACE_MS, stdio = "inherit", onSpawn = () => {} }) {
+/**
+ * Run one unit's files under node:test, resolving { code, ms, timedOut, running, exitHung, unitLimitMs }.
+ * With `hold`, as when other units run beside it, nothing is printed: its stdout and stderr, in the
+ * order they came, are resolved as `output` once the process has ended.
+ */
+export function runUnit({ root, files, env, args = [], evidence, testLimitMs = TEST_LIMIT_MS, unitLimitMs = UNIT_LIMIT_MS, exitGraceMs = EXIT_GRACE_MS, hold = false, stdio = hold ? ["ignore", "pipe", "pipe"] : "inherit", onSpawn = () => {} }) {
   const runningFile = path.join(tmpdir(), `storytree-running-${process.pid}-${++runs}.jsonl`);
   rmSync(runningFile, { force: true });
   const guard = ["--test-force-exit"];
@@ -73,6 +77,10 @@ export function runUnit({ root, files, env, args = [], evidence, testLimitMs = T
       stdio,
     });
     onSpawn(child);
+    let output = "";
+    // Its last output may still be in the pipes when it exits; a killed tree's close at once.
+    const closed = !hold ? Promise.resolve() : Promise.race([new Promise((done) => child.once("close", done)), new Promise((done) => setTimeout(done, 5_000).unref())]);
+    if (hold) for (const stream of [child.stdout, child.stderr]) stream.on("data", (chunk) => (output += chunk));
     let timedOut = false;
     let running = [];
     let exitHung = [];
@@ -111,7 +119,7 @@ export function runUnit({ root, files, env, args = [], evidence, testLimitMs = T
           return;
         }
       }
-      resolve(result);
+      closed.then(() => resolve(hold ? { ...result, output } : result));
     });
   });
 }
@@ -216,10 +224,13 @@ export function defaultUnitLimit(env = process.env) {
  * A unit's deadline on this machine and where it came from: what an agent set for it here, else
  * twice its slowest recent pass once it has enough, else the run's default (defaultUnitLimit); then
  * doubled for each kill since it last passed (a killed run never enters the passes, so without this
- * it could never recover), never over UNIT_LIMIT_CEILING_MS.
+ * it could never recover), never over UNIT_LIMIT_CEILING_MS. Only runs testing `jobs` units at once
+ * count.
  */
-export function unitLimit(unit, { home = defaultHome(), platform = process.platform, arch = process.arch, env = process.env } = {}) {
-  const rows = readJsonLines(path.join(home, "test-timings.jsonl")).filter((row) => row.unit === unit && row.platform === platform && row.arch === arch);
+export function unitLimit(unit, { home = defaultHome(), platform = process.platform, arch = process.arch, env = process.env, jobs = 1 } = {}) {
+  // Learned only from runs testing as many units at once as this one: a unit sharing the machine
+  // with others runs slower than alone (a row from before jobs were recorded ran alone).
+  const rows = readJsonLines(path.join(home, "test-timings.jsonl")).filter((row) => row.unit === unit && row.platform === platform && row.arch === arch && (row.jobs ?? 1) === jobs);
   const set = readLimits(home)[unit];
   const passes = rows.filter((row) => row.result === "pass").slice(-RECENT_PASSES);
   let { ms, source } = defaultUnitLimit(env);
@@ -300,13 +311,23 @@ export function unitReason({ ms, timedOut, running = [], exitHung = [], unitLimi
   return `timed out after ${took} (${limit}), killed; ${what}`;
 }
 
-/** Add this run's unit times to the machine's history, which unitLimit learns each deadline from. */
-export function recordTimings(units, { home = defaultHome() } = {}) {
+/** Add this run's unit times, and how many units it tested at once, to the machine's history, which unitLimit learns each deadline from. */
+export function recordTimings(units, { home = defaultHome(), jobs = 1 } = {}) {
   const at = new Date().toISOString();
   const lines = Object.entries(units).map(([unit, { result, ms, timedOut = false }]) =>
-    JSON.stringify({ at, platform: process.platform, arch: process.arch, unit, result, ms, timedOut }),
+    JSON.stringify({ at, platform: process.platform, arch: process.arch, unit, result, ms, timedOut, jobs }),
   );
   if (lines.length === 0) return;
   mkdirSync(home, { recursive: true });
   appendFileSync(path.join(home, "test-timings.jsonl"), `${lines.join("\n")}\n`);
+}
+
+/** Each unit's slowest recent passing time on this machine, at any number of units at once: what a pool orders by. */
+export function recentPassTimes({ home = defaultHome(), platform = process.platform, arch = process.arch } = {}) {
+  const passes = new Map();
+  for (const row of readJsonLines(path.join(home, "test-timings.jsonl"))) {
+    if (row.result !== "pass" || row.platform !== platform || row.arch !== arch) continue;
+    passes.set(row.unit, [...(passes.get(row.unit) ?? []), row.ms].slice(-LEARN_FROM_PASSES));
+  }
+  return new Map([...passes].map(([unit, times]) => [unit, Math.max(...times)]));
 }

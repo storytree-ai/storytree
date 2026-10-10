@@ -107,6 +107,28 @@ export async function openLedger(server: Storytree): Promise<Ledger> {
   return new PgLedger(await server.ownDatabase(LEDGER_DATABASE, { tables: SCHEMA }));
 }
 
+/**
+ * Delete `project`'s runs and hits from the ledger on `server` (ADR-0831): deleting a project deletes its
+ * records, and these are its records in the shared ledger, so a later project of the same name starts
+ * with an empty ledger. Both tables go together, or neither.
+ */
+export async function forgetProjectQuality(server: Storytree, project: string): Promise<void> {
+  assertName("project", project);
+  const client = await (await server.ownDatabase(LEDGER_DATABASE, { tables: SCHEMA })).connect();
+  let broken = false;
+  try {
+    await client.query("BEGIN");
+    for (const table of ["quality_runs", "quality_hits"]) await client.query(`DELETE FROM ${table} WHERE project = $1`, [project]);
+    await client.query("COMMIT");
+  } catch (error) {
+    broken = true;
+    await client.query("ROLLBACK").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release(broken);
+  }
+}
+
 interface HitRecord {
   id: string; // bigint: pg hands it over as a string
   project: string;

@@ -10,6 +10,7 @@ import { chmodSync, lstatSync, mkdirSync, readFileSync, rmSync, writeFileSync } 
 import path from "node:path";
 import { findProject, forgetProjectActivity, forgetTrunk, keepOnThisComputer, machineOf, MARKER_FILE, openActivityLog, openStorytree, ProjectFolderError, readClaims, readLibrary, readProjectChoice, recordRemovedProjects, removedProjects, setUpProject, storytreeHome, suggestProjectName, trunksOn, unusedName } from "@storytree/agent-link";
 import type { Storytree } from "@storytree/library";
+import { forgetProjectQuality } from "@storytree/quality-assurance";
 
 export { keepOnThisComputer, unusedName };
 
@@ -203,6 +204,7 @@ export async function deleteProject(project: string, options: DeleteProjectOptio
     const { freed, kept } = await freeOnThisComputer(storytree, project, home);
     await storytree.dropProject(project);
     await forgetProjectActivity(storytree, project);
+    await forgetProjectQuality(storytree, project);
     await forgetTrunk(storytree, { project }, home);
     recordRemovedProjects(home, removedProjects(home).filter((each) => each.name !== project));
     return { status: "deleted", project, ...(snapshot === undefined ? {} : { snapshot }), ...(freed === undefined ? {} : { freed }), ...(kept === undefined ? {} : { kept }) };

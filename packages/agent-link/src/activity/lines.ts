@@ -66,6 +66,8 @@ const noteRead = {
 const part = { capability: z.string().min(1).optional(), increment: z.string().min(1).optional() };
 const onePart = (line: { capability?: string | undefined; increment?: string | undefined }) => (line.capability === undefined) !== (line.increment === undefined);
 const ONE_PART = { message: "a claim is on a capability or an increment, exactly one" };
+/** Why a taken-over holder no longer bound (ADR-0953 D2). */
+export const QUIET_BECAUSE = ["idle", "gone", "restart", "closed-out"] as const;
 
 /** A line as it is written: what happened, without the number and time the log gives it. */
 export const NEW_LINE = z.discriminatedUnion("kind", [
@@ -105,9 +107,11 @@ export const NEW_LINE = z.discriminatedUnion("kind", [
    * A claim taken, on the git branch its session's folder was on, when it was on one (ADR-0643 D3).
    * One storytree took because the session edited a file of the capability names that `file`, from
    * the checkout's root (ADR-0924 D1). A capability claim names the increment its session held
-   * when it took it, `under`: that session closing the increment ends it (ADR-0944 D5).
+   * when it took it, `under`: that session closing the increment ends it (ADR-0944 D5). One taken
+   * over names the holder it took from, when that holder was last seen and why it no longer bound (ADR-0953 D2).
    */
-  z.object({ ...common, kind: z.literal("claimed"), ...part, reason: z.string().min(1), takenOverFrom: z.string().min(1).optional(), file: z.string().min(1).optional(), under: z.string().min(1).optional() }).strict().refine(onePart, ONE_PART),
+  z.object({ ...common, kind: z.literal("claimed"), ...part, reason: z.string().min(1), takenOverFrom: z.string().min(1).optional(),
+    quietSince: z.string().datetime({ offset: true }).optional(), takenBecause: z.enum(QUIET_BECAUSE).optional(), file: z.string().min(1).optional(), under: z.string().min(1).optional() }).strict().refine(onePart, ONE_PART),
   /** A claim turned away because another live session (`holder`) held the work: the reason the refused session gave, and the `file` whose edit asked for it (ADR-0924 D2). */
   z.object({ ...common, kind: z.literal("claim-refused"), ...part, holder: z.string().min(1), reason: z.string().min(1), file: z.string().min(1).optional() }).strict().refine(onePart, ONE_PART),
   /**

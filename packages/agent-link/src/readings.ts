@@ -266,6 +266,8 @@ interface ClaimOn {
   branch?: string;
   /** Whether the holding session is live, or idle past the quiet time (and so can be taken over). */
   holder: "live" | "idle";
+  /** When idle, when its holder was last seen and why it no longer binds (ADR-0953 D2). */
+  quiet?: { since: string; because: QuietBecause };
   /** Why the holder still binds, when live, including any standing close-out disagreement. */
   binds?: string;
   /** For a capability, the increment its holder held when it claimed it: closing that increment, or its holder releasing it, ends it (ADR-0949 D4). */
@@ -296,6 +298,12 @@ export interface Restart {
   readonly machine: string;
   readonly at: Date;
 }
+
+/**
+ * Why an idle holder no longer binds: its verified close-out, its machine restarting after it was
+ * last seen, quiet past the longest a command may run (gone), or past the quiet time (idle).
+ */
+export type QuietBecause = NonNullable<Extract<Line, { kind: "claimed" }>["takenBecause"]>;
 
 /** Whether a session last seen at `lastSeen` on `machine` died in `restarted`. */
 function diedIn(restarted: Restart | undefined, machine: string | undefined, lastSeen: string): boolean {
@@ -705,10 +713,13 @@ export class LogFold {
       const seen = this.#lastSeen.get(holder.session) ?? holder.since;
       const running = [...(this.#sessions.get(holder.session)?.running.values() ?? [])].some(({ until }) => now <= until);
       const closeOut = sessions.get(holder.session)?.closeOut;
-      const idle = closeOut?.verified === true || (now - Date.parse(seen) > quietMs && !running)
-        || diedIn(options.restarted, this.#machines.get(holder.session), seen) || this.#diedWithMachine(holder.session, seen);
+      const because: QuietBecause | undefined = closeOut?.verified === true ? "closed-out"
+        : diedIn(options.restarted, this.#machines.get(holder.session), seen) || this.#diedWithMachine(holder.session, seen) ? "restart"
+        : now - Date.parse(seen) > quietMs && !running ? (now - Date.parse(seen) > LONGEST_COMMAND_MS ? "gone" : "idle")
+        : undefined;
+      if (because !== undefined) return { ...holder, holder: "idle", quiet: { since: seen, because } } as Claim;
       const binds = running ? "a command is still recorded as running" : "activity is within the claim quiet time";
-      return { ...holder, holder: idle ? "idle" : "live", ...(idle ? {} : { binds: `${binds}${closeOut?.needsYou === undefined ? "" : `; close-out ${closeOut.needsYou}`}` }) } as Claim;
+      return { ...holder, holder: "live", binds: `${binds}${closeOut?.needsYou === undefined ? "" : `; close-out ${closeOut.needsYou}`}` } as Claim;
     });
   }
 

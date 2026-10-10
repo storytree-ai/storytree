@@ -15,8 +15,18 @@ export const LEDGER_DATABASE = "storytree-quality";
 
 type Pool = Awaited<ReturnType<Storytree["ownDatabase"]>>;
 
-/** The ledger's tables, as idempotent statements the library applies once per connection, in order. Later changes are appended. */
+/**
+ * The ledger's tables, as idempotent statements the library applies once per connection, in order, in one
+ * transaction. Later changes are appended. The first takes the tables a review writes, in the order it writes
+ * them, before any later statement locks one: otherwise reopening the ledger beside a review being written
+ * deadlocks (the setup altering quality_hits, then waiting on quality_runs, which the review holds).
+ */
 const SCHEMA: readonly string[] = [
+  `DO $$ BEGIN
+    IF to_regclass('quality_runs') IS NOT NULL AND to_regclass('quality_hits') IS NOT NULL THEN
+      LOCK TABLE quality_runs, quality_hits IN ACCESS EXCLUSIVE MODE;
+    END IF;
+  END $$`,
   `CREATE TABLE IF NOT EXISTS quality_runs (
     project  text NOT NULL,
     review   text NOT NULL,

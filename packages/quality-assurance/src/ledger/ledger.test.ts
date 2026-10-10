@@ -9,7 +9,7 @@ import { randomBytes } from "node:crypto";
 import { test } from "node:test";
 
 import { withConnections } from "../testing/pg.js";
-import { openLedger, qualityTools } from "../index.js";
+import { LEDGER_DATABASE, openLedger, qualityTools } from "../index.js";
 
 const projectName = () => `t-${randomBytes(4).toString("hex")}`;
 
@@ -42,6 +42,34 @@ test("3.1 · recording a review writes each check's run in each package and each
     for (const row of [...rows.runs, ...rows.hits]) {
       assert.equal(row.project, project);
       assert.ok(Date.now() - Date.parse(row.at) < 60_000, row.at);
+    }
+  });
+});
+
+test("3.1 · a review written while another connection opens the ledger for the first time is recorded, and the opening succeeds: no deadlock", async () => {
+  await withConnections(async (first, second) => {
+    const project = projectName();
+    await openLedger(first);
+    // A review's write, held open between its two tables, in the order writing a review takes them.
+    const writer = await (await first.ownDatabase(LEDGER_DATABASE)).connect();
+    let committed = false;
+    try {
+      await writer.query("BEGIN");
+      await writer.query("INSERT INTO quality_runs (project, review, check_id, package) VALUES ($1, 'review-1', 'check_a', 'library')", [project]);
+      let settled = false;
+      const opening = openLedger(second).finally(() => { settled = true; });
+      opening.catch(() => undefined);
+      // The review goes on to its second table once the opening waits on its first, or has finished without waiting.
+      const watcher = await first.ownDatabase(LEDGER_DATABASE);
+      while (!settled && (await watcher.query("SELECT 1 FROM pg_stat_activity WHERE datname = $1 AND wait_event_type = 'Lock'", [LEDGER_DATABASE])).rowCount === 0);
+      await writer.query("INSERT INTO quality_hits (project, review, check_id, package, file, line) VALUES ($1, 'review-1', 'check_a', 'library', 'src/a.ts', 1)", [project]);
+      await writer.query("COMMIT");
+      committed = true;
+      const rows = await (await opening).rows(project);
+      assert.deepEqual([rows.runs.length, rows.hits.length], [1, 1]);
+    } finally {
+      if (!committed) await writer.query("ROLLBACK").catch(() => undefined);
+      writer.release();
     }
   });
 });

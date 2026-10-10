@@ -56,3 +56,15 @@ test("6.10 · how many units run at once: --jobs, else STORYTREE_TEST_JOBS, else
   assert.deepEqual(testJobs({ flag: "1", env: { STORYTREE_TEST_JOBS: "4" } }), { jobs: 1, source: "--jobs" });
   for (const bad of ["0", "two", "1.5", ""]) assert.throws(() => testJobs({ flag: bad, env: {} }), /--jobs is a whole number/);
 });
+
+test("6.12 · a unit run alone starts only once every other unit has ended, and nothing starts beside it", async () => {
+  let now = 0;
+  const log = [];
+  await runPool(["proof", "a", "b", "c"], 2, async (unit) => {
+    log.push([unit, ++now]);
+    await delay(unit === "a" ? 40 : 10);
+    now--;
+  }, { alone: (unit) => unit === "proof" });
+  assert.deepEqual(log.map(([unit]) => unit), ["a", "b", "c", "proof"]);
+  assert.equal(log.find(([unit]) => unit === "proof")[1], 1, "nothing else was running when it started");
+});

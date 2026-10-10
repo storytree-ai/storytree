@@ -6,12 +6,16 @@
  * text, read for its declaration since a new file has none on disk. Codex's apply_patch names its files
  * in the patch, and gives an added file's text there.
  *
+ * Which capability a file declares is the map's rule, given by the hook command that runs this (the app
+ * setup's, ADR-0969); a hook given none refuses nothing.
+ *
  * Like every hook it never breaks the agent: outside a storytree project, in a checkout whose trunk is
  * not approved, when storytree cannot be reached in time, or on any failure, it says nothing and the
  * edit goes ahead.
  */
 import path from "node:path";
 
+import type { DeclaredCapabilities } from "../claims/edit-gate.js";
 import type { LocateOptions } from "../routing/index.js";
 import { patchEdits } from "./codex.js";
 import { withDeadline } from "./deadlines.js";
@@ -41,13 +45,13 @@ export function editIn(harness: string, input: unknown): { session: string; fold
 }
 
 /** The gate's answer for the harness: a refusal when the edit may not happen, else undefined. Never throws; `failed` keeps why it gave up. */
-export async function editGate(harness: string, input: unknown, locate: LocateOptions | undefined, home: string, failed: (stage: HookFailure["stage"], error: unknown) => void): Promise<string | undefined> {
+export async function editGate(harness: string, input: unknown, declared: DeclaredCapabilities | undefined, locate: LocateOptions | undefined, home: string, failed: (stage: HookFailure["stage"], error: unknown) => void): Promise<string | undefined> {
   const edit = editIn(harness, input);
-  if (edit === undefined) return undefined;
+  if (edit === undefined || declared === undefined) return undefined;
   let timer: NodeJS.Timeout | undefined;
   const late = new Promise<undefined>((resolve) => (timer = setTimeout(() => resolve(undefined), GATE_MS)));
   try {
-    const reason = await Promise.race([refusalFor(harness, edit, locate, home), late]);
+    const reason = await Promise.race([refusalFor(harness, edit, declared, locate, home), late]);
     if (reason === undefined) return undefined;
     // Claude Code reads the pre-tool decision; Codex reads the block it reads from a Stop hook.
     return JSON.stringify({ decision: "block", reason, hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: reason } });
@@ -59,7 +63,7 @@ export async function editGate(harness: string, input: unknown, locate: LocateOp
   }
 }
 
-async function refusalFor(harness: string, edit: NonNullable<ReturnType<typeof editIn>>, locate: LocateOptions | undefined, home: string): Promise<string | undefined> {
+async function refusalFor(harness: string, edit: NonNullable<ReturnType<typeof editIn>>, declared: DeclaredCapabilities, locate: LocateOptions | undefined, home: string): Promise<string | undefined> {
   const { route, requireApproval, openNamedProject, ProjectFolderError } = await import("../routing/index.js");
   const where = route(edit.folder, locate);
   if (where.status !== "routed") return undefined;
@@ -79,7 +83,7 @@ async function refusalFor(harness: string, edit: NonNullable<ReturnType<typeof e
     const log = await openActivityLog(storytree, { connectTimeoutMs: GATE_MS, ...(machine === undefined ? {} : { machine }) });
     try {
       const library = await openNamedProject(storytree, where.project, where.identity);
-      const refusal = await editRefusal({ log, library, project: where.project, session: edit.session, harness, folder: checkout }, checkout, edit.files);
+      const refusal = await editRefusal({ log, library, project: where.project, session: edit.session, harness, folder: checkout }, checkout, edit.files, declared);
       return refusal === undefined ? undefined : refusalMessage(refusal);
     } finally {
       await log.close();

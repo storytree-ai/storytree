@@ -48,6 +48,7 @@ import type { Storytree } from "@storytree/library";
 
 import type { NewLine } from "../activity/index.js";
 import type { MergeContext, MergeWatch } from "../claims/index.js";
+import type { DeclaredCapabilities } from "../claims/edit-gate.js";
 import { openNamedProject, ProjectFolderError, requireApproval, route, storytreeHome, type LocateOptions } from "../routing/index.js";
 import { claudeCodeLines } from "./claude-code.js";
 import { CLOSE_OUT_REMINDER, closeOutReminder } from "./close-out-reminder.js";
@@ -74,6 +75,8 @@ export interface HookInput {
   readonly merges?: MergeWatch;
   /** Where storytree is. By default, where the app keeps its owner record. */
   readonly locate?: LocateOptions;
+  /** Which capability each edited file declares, for the gate before each edit (`--edit-gate`). Without it the gate refuses nothing. */
+  readonly declaredCapabilities?: DeclaredCapabilities;
 }
 
 /** The flag that makes a hook hand its writing to the background instead of doing it. */
@@ -121,7 +124,7 @@ interface Prompted {
  * to; while storytree cannot be reached they wait on this machine for the next hook (queue.ts). Never throws. It prints nothing but what a prompt hook adds for the
  * agent (definitions and context advice), which it returns: the command prints it.
  */
-export async function runHook({ argv, input, handOff, merges, locate }: HookInput): Promise<string | undefined> {
+export async function runHook({ argv, input, handOff, merges, locate, declaredCapabilities }: HookInput): Promise<string | undefined> {
   const [harness = "", ...flags] = argv;
   const parsed = parse(input);
   const failed = (stage: HookFailure["stage"], error: unknown) => noteHookFailure(storytreeHome, hookIdentity(harness, parsed), stage, error);
@@ -135,7 +138,7 @@ export async function runHook({ argv, input, handOff, merges, locate }: HookInpu
     // The turn-end hook that asks the agent to close out writes nothing: the other Stop hook writes the turn's line (ADR-0758 D4).
     if (flags.includes(CLOSE_OUT_REMINDER)) return closeOutReminder(harness, parsed);
     // The hook before each file-edit tool writes nothing: it answers whether the edit may happen (ADR-0949 D3).
-    if (flags.includes(EDIT_GATE)) return await editGate(harness, parsed, locate, homeOf(locate), failed);
+    if (flags.includes(EDIT_GATE)) return await editGate(harness, parsed, declaredCapabilities, locate, homeOf(locate), failed);
     const made = hookLines(harness, parsed);
     if (flags.includes(UPKEEP)) return void (made === undefined ? undefined : await upkeep(made, merges, locate));
     const asked = promptIn(harness, parsed);

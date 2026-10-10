@@ -9,25 +9,24 @@
     "./settings": "./src/settings/panel.ts",
     "./testing/egress": "./src/testing/egress.ts",
     "./view": "./src/view/index.ts",
-    "./bins": "./src/bins/build.ts"
+    "./bins": "./src/bins/build.ts",
+    "./testing/pg": "./src/testing/pg.ts",
+    "./testing/folders": "./src/testing/folders.ts"
   },
   "scripts": {
     "typecheck": "tsc -p .",
     "build": "tsx src/bins/build.ts"
   },
   "dependencies": {
-    "@modelcontextprotocol/server": "^2.1.0",
     "@storytree/library": "workspace:*",
     "@storytree/journey-events": "workspace:*",
-    "@storytree/librarian": "workspace:^",
     "@storytree/map": "workspace:*",
     "pg": "^8.23.0",
     "zod": "^4.6.5",
-    "@storytree/processes": "workspace:*",
-    "@storytree/guardrails": "workspace:*"
+    "@storytree/processes": "workspace:*"
   },
   "devDependencies": {
-    "@modelcontextprotocol/client": "^2.1.0",
+    "@storytree/local-postgres": "workspace:*",
     "@types/node": "^24.13.6",
     "@types/pg": "^8.23.1",
     "esbuild": "^0.28.2",

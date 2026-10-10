@@ -1,0 +1,5 @@
+1 arcs:
+  arc_c3bbd249692c  [active]  A to-do page
+
+next:
+  - storytree arc show <arc>   (see one whole)

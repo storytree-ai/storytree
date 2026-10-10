@@ -61,7 +61,7 @@ export interface SaveInput {
   readonly sequence?: string;
   /** Minimum for automatic allocation; explicit numbers are still checked only for collisions. */
   readonly sequenceFloor?: number;
-  /** Refuse an id ever written, including retired records, under the project write lock. */
+  /** Refuse an id ever written, including retired records, under the project write lock. Health history does not count. */
   readonly onlyIfNew?: boolean;
   /** N1 repair: reserve all non-health history, including this record's and legacy types'. */
   readonly sequenceNeverHeld?: boolean;

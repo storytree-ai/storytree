@@ -22,7 +22,11 @@ already running**. The existing desktop second-instance handler restores a hidde
 Delivery waits for the app-owned database; it never starts another database or creates a
 project. The app records its own launch at successful startup. The bootstrap reuses an
 intact installation and refuses to replace an incomplete existing app without a named
-repair/update action. Ordinary updates remain the app's responsibility.
+repair/update action. Ordinary updates remain the app's responsibility. On a Mac, until the app
+updates itself, running `install.sh` again over an app older than the channel's release (read from
+its `Info.plist`) says "Updating storytree A to B", quits the open app with its own `--quit`,
+and puts the new bundle in the old one's place; the data under `~/.storytree` is untouched. Over
+the channel's own version, or when the release cannot be read, it opens the installed app.
 
 Connection-lane seam: `<STORYTREE_HOME>/delivery.json` (default `~/.storytree/0.3`) is written
 only after startup succeeds. Schema 1 holds `installDir` and `tools` with absolute paths:

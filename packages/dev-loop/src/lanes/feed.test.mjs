@@ -12,7 +12,7 @@ function survey(increments, extra = {}) {
   return { increments, holds: { waits: {}, heldOn: {} }, claims: [], ...extra };
 }
 
-test("11.2 · the survey reads arcs and holds once, with every increment's arc, the arc's state and the standing claims", async () => {
+test("11.2 · the survey reads arcs and holds once, with every increment's arc, capabilities list, the arc's state and the standing claims", async () => {
   let reads = 0;
   const record = (id, arc, body, extra = {}) => ({ id, createdAt: new Date(now), fields: { arc, title: id, body, status: "proposal", parked: "2026-10-06T00:00:00Z", waits: [], ...extra } });
   const library = {
@@ -32,6 +32,7 @@ test("11.2 · the survey reads arcs and holds once, with every increment's arc, 
   assert.equal(reads, 1);
   assert.deepEqual(read.increments.map((one) => [one.id, one.arc, one.arcState, one.body]), [
     ["i1", "arc_laptop", "active", "a"], ["i2", "arc_laptop", "active", "b"], ["i3", "arc_cap", "active", "c"], ["i4", "arc_box", "parked", "d"], ["i5", "arc_stale", "active", "e"]]);
+  assert.deepEqual(read.increments.map((one) => one.capabilities), [[], ["capability_x"], ["capability_x"], [], []], "with each one's capabilities list");
   assert.deepEqual(read.holds.waits.i1, [{ on: "z", reason: "r" }]);
   assert.deepEqual(read.arcs.map((arc) => [arc.id, arc.state, arc.openQuestions]), [["arc_laptop", "active", 1], ["arc_cap", "active", 0], ["arc_box", "parked", 0], ["arc_stale", "active", 0]]);
   assert.equal(read.claims, claims);
@@ -123,4 +124,37 @@ test("11.9 · an active arc whose open work all waits, with no open question, is
   assert.equal(pickPlan(work, { planned: new Set(["arc_empty", "arc_waits", "arc_held", "arc_event"]) }), undefined,
     "ready or claimed work, an open question, a parked arc and the website arc never qualify");
   assert.equal(pickPlan(survey([])), undefined, "a survey without arcs offers none");
+});
+
+test("11.11 · work whose session ended without a hand-off is offered again after a back-off, and not before", () => {
+  const ran = Date.parse("2026-10-07T01:00:00Z"), minute = 60_000;
+  const attempts = new Map([["bounced", { at: ran }], ["handed", { at: ran }]]);
+  const work = survey([increment("bounced", "x"), increment("handed", "x")], { holds: { waits: {}, heldOn: {}, waitsFor: { handed: [{ releaser: "event", note: "PR", holds: true }] } } });
+  const pick = (at, running = []) => pickPool(work, { attempts, running, max: 2, now: at, backoffMs: 30 * minute }).picks.map((one) => one.id);
+  assert.deepEqual(pick(ran + minute, ["bounced", "handed"]), [], "running work is not offered");
+  assert.deepEqual(pick(ran + 5 * minute), [], "the dispatcher sees the session gone: the back-off starts");
+  assert.deepEqual(pick(ran + 34 * minute), [], "not before the back-off passes");
+  assert.deepEqual(pick(ran + 35 * minute), ["bounced"], "offered again once it passes; work handed to the watcher still waits");
+});
+
+test("11.12 · work whose listed capability a live session holds is left out, and offered again once that claim clears", () => {
+  const ran = Date.parse("2026-10-07T01:00:00Z");
+  const attempts = new Map([["bounced", { at: ran }]]);
+  const held = [
+    { capability: "capability_hot", session: "s7", holder: "live", since: "2026-10-07T00:30:00Z" },
+    { capability: "capability_old", session: "s8", holder: "gone", since: "2026-10-07T00:30:00Z" },
+  ];
+  const work = (claims) => survey([
+    increment("listed", "x", { parked: "2026-10-01T00:00:00Z", capabilities: ["capability_cold", "capability_hot"] }),
+    increment("bounced", "x", { parked: "2026-10-02T00:00:00Z", capabilities: ["capability_hot"] }),
+    increment("gone-holder", "x", { parked: "2026-10-03T00:00:00Z", capabilities: ["capability_old"] }),
+    increment("unlisted", "x", { parked: "2026-10-04T00:00:00Z" }),
+  ], { claims });
+  const { picks, skipped } = pickPool(work(held), { attempts, max: 4, now: ran + 60_000 });
+  assert.deepEqual(picks.map((one) => one.id), ["gone-holder", "unlisted"], "a claim whose holder is not live leaves its work ready");
+  const why = Object.fromEntries(skipped.map((skip) => [skip.id, skip.why]));
+  assert.match(why.listed, /capability_hot held by live session s7/);
+  assert.equal(attempts.get("bounced").refusedBy, "s7", "a capability claim older than the start refused it");
+  assert.deepEqual(pickPool(work([]), { attempts, max: 4, now: ran + 2 * 60_000 }).picks.map((one) => one.id), ["listed", "bounced", "gone-holder", "unlisted"],
+    "offered again as soon as the claim clears, with no back-off");
 });

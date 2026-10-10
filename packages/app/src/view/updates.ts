@@ -1,4 +1,6 @@
 /** Capability 4 · Updates. */
+import type { LifecycleBridge } from "../lifecycle/bridge.js";
+import type { UpdatesBridge } from "../updates/bridge.js";
 import type { UpdateAction, UpdateState } from "../updates/main-updates.js";
 import { nextInstallAt, type InstallChoice, type InstallChoiceState } from "../updates/install-choice.js";
 
@@ -71,7 +73,7 @@ function waitingFor(choice: InstallChoice | undefined): string {
 
 /** Whether the app opens at sign-in, in the tray (lifecycle 1.12), and whether it can here. */
 export interface SignInState { available: boolean; on: boolean }
-export interface SignInBridge { read(): Promise<SignInState>; set(on: boolean): Promise<SignInState> }
+export interface SignInBridge { read: LifecycleBridge["readSignIn"]; set: LifecycleBridge["setSignIn"] }
 
 /** The Updates section's Open at sign-in switch; shown only where the app is installed and can open at sign-in. */
 export function mountSignIn(host: HTMLElement, bridge: SignInBridge | undefined) {
@@ -104,7 +106,7 @@ export function mountSignIn(host: HTMLElement, bridge: SignInBridge | undefined)
 }
 
 /** The gear's install choice (4.14); the bridge reads and keeps it in the main process. */
-export interface InstallChoiceBridge { read(): Promise<InstallChoiceState>; set(choice: InstallChoice): Promise<InstallChoiceState> }
+export interface InstallChoiceBridge { read: UpdatesBridge["readInstallChoice"]; set: UpdatesBridge["setInstallChoice"] }
 
 /** What the Updates section says about when the next automatic install may happen. */
 export function nextInstallText(choice: InstallChoice, now: Date): string {

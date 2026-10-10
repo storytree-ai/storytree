@@ -1,0 +1,3594 @@
+{
+ "taken": "2026-10-10T01:31:47.390Z",
+ "stories": 21,
+ "rows": 9,
+ "radius": 250.4,
+ "failing": [],
+ "storiesPlacedByCodeEdges": 20,
+ "rowHeight": {
+  "groundUnits": 50.3,
+  "degrees": 11.5
+ },
+ "islandWidth": {
+  "smallest": 39.9,
+  "median": 79.4,
+  "largest": 228.7,
+  "widerThanARowIsTall": 20
+ },
+ "nudge": {
+  "limitDegrees": 68.8,
+  "movedMoreThan20Degrees": [
+   "The library (30.9)",
+   "The agent link (54.2)",
+   "The app (57.5)",
+   "The forest (47.3)",
+   "The arc surface (66.6)",
+   "The app setup (29.1)",
+   "The website (22.9)",
+   "The local database (27.2)",
+   "Keys (29.3)",
+   "Journey events (29.5)"
+  ]
+ },
+ "turning": {
+  "tiltLimitDegrees": 88,
+  "spin": "unlimited",
+  "fewestIslandsAnyTurnLeaves": {
+   "facing": 3,
+   "readable": 0,
+   "spin": -180,
+   "tilt": 20
+  }
+ },
+ "pathwaysDrawnButNotARowDependency": [],
+ "rowDependenciesNotDrawn": 41,
+ "views": [
+  {
+   "label": "opening",
+   "turn": {
+    "spin": -2.5,
+    "tilt": -18
+   },
+   "islands": 21,
+   "facingTheEye": 17,
+   "readable": 10,
+   "atTheRim": [
+    "Keys (0.4)",
+    "Journey events (0.09)",
+    "The agent link (0.18)",
+    "The app setup (0.22)",
+    "The forest (0.4)",
+    "The website (0.24)",
+    "The command line (0.35)"
+   ],
+   "behindTheGlobe": [
+    "Identity",
+    "The local database",
+    "The arc surface",
+    "The app"
+   ],
+   "rowBandsOverlapping": [
+    "3/4",
+    "4/5"
+   ],
+   "dependenciesTheRowsAreBuiltFrom": {
+    "total": 60,
+    "north": 41,
+    "level": 0,
+    "south": 1,
+    "anEndBehindTheGlobe": 18,
+    "northWithBothEndsReadable": 11,
+    "list": [
+     {
+      "from": "The library",
+      "on": "Keys",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 79.3,
+      "dx": -36.2,
+      "fromRow": 1,
+      "onRow": 0
+     },
+     {
+      "from": "The agent link",
+      "on": "The library",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 101.2,
+      "dx": -363.5,
+      "fromRow": 4,
+      "onRow": 1
+     },
+     {
+      "from": "The agent link",
+      "on": "Journey events",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 175.9,
+      "dx": -431.8,
+      "fromRow": 4,
+      "onRow": 0
+     },
+     {
+      "from": "The agent link",
+      "on": "The librarian",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 55.6,
+      "dx": -111.5,
+      "fromRow": 4,
+      "onRow": 2
+     },
+     {
+      "from": "The agent link",
+      "on": "The map",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 49.8,
+      "dx": -202.9,
+      "fromRow": 4,
+      "onRow": 2
+     },
+     {
+      "from": "The agent link",
+      "on": "Process ledger",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 144.6,
+      "dx": -224.9,
+      "fromRow": 4,
+      "onRow": 0
+     },
+     {
+      "from": "The agent link",
+      "on": "Guardrails",
+      "verdict": "south",
+      "bothReadable": false,
+      "dy": -12.5,
+      "dx": -279.4,
+      "fromRow": 4,
+      "onRow": 3
+     },
+     {
+      "from": "The app",
+      "on": "The agent link",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 136.4,
+      "dx": 440,
+      "fromRow": 7,
+      "onRow": 4
+     },
+     {
+      "from": "The app",
+      "on": "The library",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 237.6,
+      "dx": 76.5,
+      "fromRow": 7,
+      "onRow": 1
+     },
+     {
+      "from": "The app",
+      "on": "The app setup",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 96.5,
+      "dx": -45.6,
+      "fromRow": 7,
+      "onRow": 5
+     },
+     {
+      "from": "The app",
+      "on": "The arc surface",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 115.9,
+      "dx": 404.3,
+      "fromRow": 7,
+      "onRow": 5
+     },
+     {
+      "from": "The app",
+      "on": "The forest",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": -8.7,
+      "dx": 23.8,
+      "fromRow": 7,
+      "onRow": 6
+     },
+     {
+      "from": "The app",
+      "on": "Identity",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 323.6,
+      "dx": 369.8,
+      "fromRow": 7,
+      "onRow": 0
+     },
+     {
+      "from": "The app",
+      "on": "Journey events",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 312.3,
+      "dx": 8.3,
+      "fromRow": 7,
+      "onRow": 0
+     },
+     {
+      "from": "The app",
+      "on": "The knowledge core",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 33.6,
+      "dx": 344.2,
+      "fromRow": 7,
+      "onRow": 5
+     },
+     {
+      "from": "The app",
+      "on": "The local database",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 347.1,
+      "dx": 56,
+      "fromRow": 7,
+      "onRow": 0
+     },
+     {
+      "from": "The forest",
+      "on": "The library",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 246.3,
+      "dx": 52.7,
+      "fromRow": 6,
+      "onRow": 1
+     },
+     {
+      "from": "The forest",
+      "on": "The arc surface",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 124.6,
+      "dx": 380.5,
+      "fromRow": 6,
+      "onRow": 5
+     },
+     {
+      "from": "The forest",
+      "on": "The agent link",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 145.1,
+      "dx": 416.2,
+      "fromRow": 6,
+      "onRow": 4
+     },
+     {
+      "from": "The forest",
+      "on": "The world",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 315.4,
+      "dx": 310.4,
+      "fromRow": 6,
+      "onRow": 0
+     },
+     {
+      "from": "The forest",
+      "on": "The knowledge core",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 42.3,
+      "dx": 320.4,
+      "fromRow": 6,
+      "onRow": 5
+     },
+     {
+      "from": "The forest",
+      "on": "The map",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 195,
+      "dx": 213.3,
+      "fromRow": 6,
+      "onRow": 2
+     },
+     {
+      "from": "The arc surface",
+      "on": "The agent link",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 20.5,
+      "dx": 35.7,
+      "fromRow": 5,
+      "onRow": 4
+     },
+     {
+      "from": "The arc surface",
+      "on": "The library",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 121.8,
+      "dx": -327.8,
+      "fromRow": 5,
+      "onRow": 1
+     },
+     {
+      "from": "The command line",
+      "on": "The agent link",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 222.3,
+      "dx": 285.9,
+      "fromRow": 8,
+      "onRow": 4
+     },
+     {
+      "from": "The command line",
+      "on": "The app",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 85.9,
+      "dx": -154.2,
+      "fromRow": 8,
+      "onRow": 7
+     },
+     {
+      "from": "The command line",
+      "on": "The app setup",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 182.3,
+      "dx": -199.7,
+      "fromRow": 8,
+      "onRow": 5
+     },
+     {
+      "from": "The command line",
+      "on": "The arc surface",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 201.7,
+      "dx": 250.2,
+      "fromRow": 8,
+      "onRow": 5
+     },
+     {
+      "from": "The command line",
+      "on": "CI health",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 192.4,
+      "dx": 142.8,
+      "fromRow": 8,
+      "onRow": 3
+     },
+     {
+      "from": "The command line",
+      "on": "The forest",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 77.2,
+      "dx": -130.3,
+      "fromRow": 8,
+      "onRow": 6
+     },
+     {
+      "from": "The command line",
+      "on": "Guardrails",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 209.8,
+      "dx": 6.5,
+      "fromRow": 8,
+      "onRow": 3
+     },
+     {
+      "from": "The command line",
+      "on": "Identity",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 409.5,
+      "dx": 215.6,
+      "fromRow": 8,
+      "onRow": 0
+     },
+     {
+      "from": "The command line",
+      "on": "Journey events",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 398.2,
+      "dx": -145.9,
+      "fromRow": 8,
+      "onRow": 0
+     },
+     {
+      "from": "The command line",
+      "on": "Keys",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 402.8,
+      "dx": -113.8,
+      "fromRow": 8,
+      "onRow": 0
+     },
+     {
+      "from": "The command line",
+      "on": "The librarian",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 277.9,
+      "dx": 174.4,
+      "fromRow": 8,
+      "onRow": 2
+     },
+     {
+      "from": "The command line",
+      "on": "The library",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 323.5,
+      "dx": -77.6,
+      "fromRow": 8,
+      "onRow": 1
+     },
+     {
+      "from": "The command line",
+      "on": "The map",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 272.1,
+      "dx": 83,
+      "fromRow": 8,
+      "onRow": 2
+     },
+     {
+      "from": "The command line",
+      "on": "Process ledger",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 366.9,
+      "dx": 61,
+      "fromRow": 8,
+      "onRow": 0
+     },
+     {
+      "from": "The librarian",
+      "on": "The library",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 45.6,
+      "dx": -252,
+      "fromRow": 2,
+      "onRow": 1
+     },
+     {
+      "from": "The knowledge core",
+      "on": "The library",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 204,
+      "dx": -267.7,
+      "fromRow": 5,
+      "onRow": 1
+     },
+     {
+      "from": "The knowledge core",
+      "on": "The agent link",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 102.8,
+      "dx": 95.8,
+      "fromRow": 5,
+      "onRow": 4
+     },
+     {
+      "from": "The app setup",
+      "on": "The agent link",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 40,
+      "dx": 485.6,
+      "fromRow": 5,
+      "onRow": 4
+     },
+     {
+      "from": "The app setup",
+      "on": "The library",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 141.2,
+      "dx": 122.1,
+      "fromRow": 5,
+      "onRow": 1
+     },
+     {
+      "from": "The app setup",
+      "on": "The local database",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 250.6,
+      "dx": 101.6,
+      "fromRow": 5,
+      "onRow": 0
+     },
+     {
+      "from": "The website",
+      "on": "The arc surface",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 156.1,
+      "dx": 54.4,
+      "fromRow": 7,
+      "onRow": 5
+     },
+     {
+      "from": "The website",
+      "on": "CI health",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 146.7,
+      "dx": -53,
+      "fromRow": 7,
+      "onRow": 3
+     },
+     {
+      "from": "The website",
+      "on": "The forest",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 31.5,
+      "dx": -326.1,
+      "fromRow": 7,
+      "onRow": 6
+     },
+     {
+      "from": "The website",
+      "on": "The knowledge core",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 73.8,
+      "dx": -5.7,
+      "fromRow": 7,
+      "onRow": 5
+     },
+     {
+      "from": "The website",
+      "on": "The world",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 346.9,
+      "dx": -15.8,
+      "fromRow": 7,
+      "onRow": 0
+     },
+     {
+      "from": "The dev loop",
+      "on": "The agent link",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 131.1,
+      "dx": 232.6,
+      "fromRow": 5,
+      "onRow": 4
+     },
+     {
+      "from": "The dev loop",
+      "on": "Guardrails",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 118.5,
+      "dx": -46.8,
+      "fromRow": 5,
+      "onRow": 3
+     },
+     {
+      "from": "The dev loop",
+      "on": "The library",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 232.3,
+      "dx": -130.9,
+      "fromRow": 5,
+      "onRow": 1
+     },
+     {
+      "from": "The dev loop",
+      "on": "The local database",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 341.7,
+      "dx": -151.5,
+      "fromRow": 5,
+      "onRow": 0
+     },
+     {
+      "from": "The dev loop",
+      "on": "The map",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 180.9,
+      "dx": 29.7,
+      "fromRow": 5,
+      "onRow": 2
+     },
+     {
+      "from": "The map",
+      "on": "The library",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 51.4,
+      "dx": -160.6,
+      "fromRow": 2,
+      "onRow": 1
+     },
+     {
+      "from": "CI health",
+      "on": "The library",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 131.1,
+      "dx": -220.4,
+      "fromRow": 3,
+      "onRow": 1
+     },
+     {
+      "from": "CI health",
+      "on": "The map",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 79.8,
+      "dx": -59.8,
+      "fromRow": 3,
+      "onRow": 2
+     },
+     {
+      "from": "Guardrails",
+      "on": "The map",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 62.4,
+      "dx": 76.5,
+      "fromRow": 3,
+      "onRow": 2
+     },
+     {
+      "from": "Quality assurance",
+      "on": "The library",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 162.7,
+      "dx": 8,
+      "fromRow": 4,
+      "onRow": 1
+     },
+     {
+      "from": "Quality assurance",
+      "on": "Guardrails",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 49,
+      "dx": 92.1,
+      "fromRow": 4,
+      "onRow": 3
+     }
+    ]
+   },
+   "pathwaysDrawn": {
+    "total": 19,
+    "north": 14,
+    "level": 0,
+    "south": 1,
+    "anEndBehindTheGlobe": 4,
+    "northWithBothEndsReadable": 5,
+    "list": [
+     {
+      "from": "The library",
+      "on": "Keys",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 79.3,
+      "dx": -36.2,
+      "fromRow": 1,
+      "onRow": 0
+     },
+     {
+      "from": "The agent link",
+      "on": "The library",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 101.2,
+      "dx": -363.5,
+      "fromRow": 4,
+      "onRow": 1
+     },
+     {
+      "from": "The agent link",
+      "on": "Guardrails",
+      "verdict": "south",
+      "bothReadable": false,
+      "dy": -12.5,
+      "dx": -279.4,
+      "fromRow": 4,
+      "onRow": 3
+     },
+     {
+      "from": "The app",
+      "on": "The local database",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 347.1,
+      "dx": 56,
+      "fromRow": 7,
+      "onRow": 0
+     },
+     {
+      "from": "The app",
+      "on": "The agent link",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 136.4,
+      "dx": 440,
+      "fromRow": 7,
+      "onRow": 4
+     },
+     {
+      "from": "The forest",
+      "on": "The world",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 315.4,
+      "dx": 310.4,
+      "fromRow": 6,
+      "onRow": 0
+     },
+     {
+      "from": "The forest",
+      "on": "The knowledge core",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 42.3,
+      "dx": 320.4,
+      "fromRow": 6,
+      "onRow": 5
+     },
+     {
+      "from": "The arc surface",
+      "on": "The agent link",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 20.5,
+      "dx": 35.7,
+      "fromRow": 5,
+      "onRow": 4
+     },
+     {
+      "from": "The command line",
+      "on": "The library",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 323.5,
+      "dx": -77.6,
+      "fromRow": 8,
+      "onRow": 1
+     },
+     {
+      "from": "The command line",
+      "on": "The agent link",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 222.3,
+      "dx": 285.9,
+      "fromRow": 8,
+      "onRow": 4
+     },
+     {
+      "from": "The command line",
+      "on": "The librarian",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 277.9,
+      "dx": 174.4,
+      "fromRow": 8,
+      "onRow": 2
+     },
+     {
+      "from": "The command line",
+      "on": "Guardrails",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 209.8,
+      "dx": 6.5,
+      "fromRow": 8,
+      "onRow": 3
+     },
+     {
+      "from": "The knowledge core",
+      "on": "The library",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 204,
+      "dx": -267.7,
+      "fromRow": 5,
+      "onRow": 1
+     },
+     {
+      "from": "The app setup",
+      "on": "The agent link",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 40,
+      "dx": 485.6,
+      "fromRow": 5,
+      "onRow": 4
+     },
+     {
+      "from": "The dev loop",
+      "on": "Guardrails",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 118.5,
+      "dx": -46.8,
+      "fromRow": 5,
+      "onRow": 3
+     },
+     {
+      "from": "The dev loop",
+      "on": "The local database",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 341.7,
+      "dx": -151.5,
+      "fromRow": 5,
+      "onRow": 0
+     },
+     {
+      "from": "The map",
+      "on": "The library",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 51.4,
+      "dx": -160.6,
+      "fromRow": 2,
+      "onRow": 1
+     },
+     {
+      "from": "Quality assurance",
+      "on": "The library",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 162.7,
+      "dx": 8,
+      "fromRow": 4,
+      "onRow": 1
+     },
+     {
+      "from": "Quality assurance",
+      "on": "Guardrails",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 49,
+      "dx": 92.1,
+      "fromRow": 4,
+      "onRow": 3
+     }
+    ]
+   },
+   "byRow": [
+    {
+     "row": 0,
+     "islands": 6,
+     "facingTheEye": 4,
+     "longitudeSpan": 240.5,
+     "screenY": [
+      -171.2,
+      -135.2
+     ]
+    },
+    {
+     "row": 1,
+     "islands": 1,
+     "facingTheEye": 1,
+     "longitudeSpan": 0,
+     "screenY": [
+      -91.8,
+      -91.8
+     ]
+    },
+    {
+     "row": 2,
+     "islands": 2,
+     "facingTheEye": 2,
+     "longitudeSpan": 25.4,
+     "screenY": [
+      -46.2,
+      -40.5
+     ]
+    },
+    {
+     "row": 3,
+     "islands": 2,
+     "facingTheEye": 2,
+     "longitudeSpan": 32.4,
+     "screenY": [
+      21.9,
+      39.3
+     ]
+    },
+    {
+     "row": 4,
+     "islands": 2,
+     "facingTheEye": 2,
+     "longitudeSpan": 109.6,
+     "screenY": [
+      9.4,
+      70.9
+     ]
+    },
+    {
+     "row": 5,
+     "islands": 4,
+     "facingTheEye": 3,
+     "longitudeSpan": 193.3,
+     "screenY": [
+      49.4,
+      140.4
+     ]
+    },
+    {
+     "row": 6,
+     "islands": 1,
+     "facingTheEye": 1,
+     "longitudeSpan": 0,
+     "screenY": [
+      154.5,
+      154.5
+     ]
+    },
+    {
+     "row": 7,
+     "islands": 2,
+     "facingTheEye": 1,
+     "longitudeSpan": 147.6,
+     "screenY": [
+      186,
+      186
+     ]
+    },
+    {
+     "row": 8,
+     "islands": 1,
+     "facingTheEye": 1,
+     "longitudeSpan": 0,
+     "screenY": [
+      231.7,
+      231.7
+     ]
+    }
+   ],
+   "islandList": [
+    {
+     "title": "Identity",
+     "row": 0,
+     "slot": 0,
+     "latitude": -41.4,
+     "longitude": -108,
+     "reach": 38.3,
+     "nudgedFromAnchor": 11.2,
+     "screenX": -175.9,
+     "screenY": -177.8,
+     "facing": -0.05
+    },
+    {
+     "title": "The world",
+     "row": 0,
+     "slot": 1,
+     "latitude": -50.6,
+     "longitude": -59.6,
+     "reach": 75.4,
+     "nudgedFromAnchor": 11.5,
+     "screenX": -140.4,
+     "screenY": -160.9,
+     "facing": 0.52
+    },
+    {
+     "title": "Process ledger",
+     "row": 0,
+     "slot": 2,
+     "latitude": -50.6,
+     "longitude": -5.2,
+     "reach": 31.6,
+     "nudgedFromAnchor": 7.8,
+     "screenX": -21.3,
+     "screenY": -135.2,
+     "facing": 0.84
+    },
+    {
+     "title": "Keys",
+     "row": 0,
+     "slot": 3,
+     "latitude": -50.6,
+     "longitude": 77.4,
+     "reach": 20,
+     "nudgedFromAnchor": 29.3,
+     "screenX": 153.5,
+     "screenY": -171.2,
+     "facing": 0.4
+    },
+    {
+     "title": "Journey events",
+     "row": 0,
+     "slot": 4,
+     "latitude": -41.4,
+     "longitude": 101.4,
+     "reach": 26.8,
+     "nudgedFromAnchor": 29.5,
+     "screenX": 185.6,
+     "screenY": -166.5,
+     "facing": 0.09
+    },
+    {
+     "title": "The local database",
+     "row": 0,
+     "slot": 5,
+     "latitude": -44,
+     "longitude": 132.5,
+     "reach": 37.3,
+     "nudgedFromAnchor": 27.2,
+     "screenX": 137.9,
+     "screenY": -201.3,
+     "facing": -0.23
+    },
+    {
+     "title": "The library",
+     "row": 1,
+     "slot": 0,
+     "latitude": -36.7,
+     "longitude": 38.2,
+     "reach": 79.9,
+     "nudgedFromAnchor": 30.9,
+     "screenX": 117.3,
+     "screenY": -91.8,
+     "facing": 0.8
+    },
+    {
+     "title": "The librarian",
+     "row": 2,
+     "slot": 0,
+     "latitude": -25.5,
+     "longitude": -34.1,
+     "reach": 27.6,
+     "nudgedFromAnchor": 20,
+     "screenX": -134.7,
+     "screenY": -46.2,
+     "facing": 0.82
+    },
+    {
+     "title": "The map",
+     "row": 2,
+     "slot": 1,
+     "latitude": -27,
+     "longitude": -8.7,
+     "reach": 36,
+     "nudgedFromAnchor": 19.5,
+     "screenX": -43.3,
+     "screenY": -40.5,
+     "facing": 0.97
+    },
+    {
+     "title": "CI health",
+     "row": 3,
+     "slot": 0,
+     "latitude": -7.4,
+     "longitude": -22.1,
+     "reach": 30.1,
+     "nudgedFromAnchor": 11.7,
+     "screenX": -103.1,
+     "screenY": 39.3,
+     "facing": 0.9
+    },
+    {
+     "title": "Guardrails",
+     "row": 3,
+     "slot": 1,
+     "latitude": -12.9,
+     "longitude": 10.3,
+     "reach": 27.5,
+     "nudgedFromAnchor": 1.5,
+     "screenX": 33.2,
+     "screenY": 21.9,
+     "facing": 0.99
+    },
+    {
+     "title": "The agent link",
+     "row": 4,
+     "slot": 0,
+     "latitude": -1.1,
+     "longitude": -77.1,
+     "reach": 114.3,
+     "nudgedFromAnchor": 54.2,
+     "screenX": -246.2,
+     "screenY": 9.4,
+     "facing": 0.18
+    },
+    {
+     "title": "Quality assurance",
+     "row": 4,
+     "slot": 1,
+     "latitude": 0.9,
+     "longitude": 32.5,
+     "reach": 50.1,
+     "nudgedFromAnchor": 9.6,
+     "screenX": 125.3,
+     "screenY": 70.9,
+     "facing": 0.82
+    },
+    {
+     "title": "The arc surface",
+     "row": 5,
+     "slot": 0,
+     "latitude": 16.1,
+     "longitude": -116.5,
+     "reach": 35.6,
+     "nudgedFromAnchor": 66.6,
+     "screenX": -210.5,
+     "screenY": 29.9,
+     "facing": -0.53
+    },
+    {
+     "title": "The knowledge core",
+     "row": 5,
+     "slot": 1,
+     "latitude": 12.8,
+     "longitude": -35.5,
+     "reach": 39.7,
+     "nudgedFromAnchor": 13.6,
+     "screenX": -150.4,
+     "screenY": 112.2,
+     "facing": 0.66
+    },
+    {
+     "title": "The dev loop",
+     "row": 5,
+     "slot": 2,
+     "latitude": 16.1,
+     "longitude": -0.8,
+     "reach": 71.9,
+     "nudgedFromAnchor": 13.9,
+     "screenX": -13.6,
+     "screenY": 140.4,
+     "facing": 0.83
+    },
+    {
+     "title": "The app setup",
+     "row": 5,
+     "slot": 3,
+     "latitude": 6.9,
+     "longitude": 76.8,
+     "reach": 42,
+     "nudgedFromAnchor": 29.1,
+     "screenX": 239.4,
+     "screenY": 49.4,
+     "facing": 0.22
+    },
+    {
+     "title": "The forest",
+     "row": 6,
+     "slot": 0,
+     "latitude": 27.6,
+     "longitude": 52.5,
+     "reach": 57.6,
+     "nudgedFromAnchor": 47.3,
+     "screenX": 170,
+     "screenY": 154.5,
+     "facing": 0.4
+    },
+    {
+     "title": "The website",
+     "row": 7,
+     "slot": 0,
+     "latitude": 39.1,
+     "longitude": -51,
+     "reach": 54,
+     "nudgedFromAnchor": 22.9,
+     "screenX": -156.1,
+     "screenY": 186,
+     "facing": 0.24
+    },
+    {
+     "title": "The app",
+     "row": 7,
+     "slot": 1,
+     "latitude": 39.1,
+     "longitude": 96.6,
+     "reach": 73.5,
+     "nudgedFromAnchor": 57.5,
+     "screenX": 193.8,
+     "screenY": 145.8,
+     "facing": -0.25
+    },
+    {
+     "title": "The command line",
+     "row": 8,
+     "slot": 0,
+     "latitude": 50.6,
+     "longitude": 16.9,
+     "reach": 54.8,
+     "nudgedFromAnchor": 12.1,
+     "screenX": 39.7,
+     "screenY": 231.7,
+     "facing": 0.35
+    }
+   ]
+  },
+  {
+   "label": "opening spin, no tilt",
+   "turn": {
+    "spin": -2.5,
+    "tilt": 0
+   },
+   "islands": 21,
+   "facingTheEye": 16,
+   "readable": 11,
+   "atTheRim": [
+    "The world (0.3)",
+    "Keys (0.17)",
+    "The agent link (0.18)",
+    "The app setup (0.27)",
+    "The website (0.46)"
+   ],
+   "behindTheGlobe": [
+    "Identity",
+    "Journey events",
+    "The local database",
+    "The arc surface",
+    "The app"
+   ],
+   "rowBandsOverlapping": [],
+   "dependenciesTheRowsAreBuiltFrom": {
+    "total": 60,
+    "north": 40,
+    "level": 0,
+    "south": 0,
+    "anEndBehindTheGlobe": 20,
+    "northWithBothEndsReadable": 21,
+    "list": [
+     {
+      "from": "The library",
+      "on": "Keys",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 43.8,
+      "dx": -36.2,
+      "fromRow": 1,
+      "onRow": 0
+     },
+     {
+      "from": "The agent link",
+      "on": "The library",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 144.7,
+      "dx": -363.5,
+      "fromRow": 4,
+      "onRow": 1
+     },
+     {
+      "from": "The agent link",
+      "on": "Journey events",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 160.7,
+      "dx": -431.8,
+      "fromRow": 4,
+      "onRow": 0
+     },
+     {
+      "from": "The agent link",
+      "on": "The librarian",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 102.8,
+      "dx": -111.5,
+      "fromRow": 4,
+      "onRow": 2
+     },
+     {
+      "from": "The agent link",
+      "on": "The map",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 108.9,
+      "dx": -202.9,
+      "fromRow": 4,
+      "onRow": 2
+     },
+     {
+      "from": "The agent link",
+      "on": "Process ledger",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 188.6,
+      "dx": -224.9,
+      "fromRow": 4,
+      "onRow": 0
+     },
+     {
+      "from": "The agent link",
+      "on": "Guardrails",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 50.8,
+      "dx": -279.4,
+      "fromRow": 4,
+      "onRow": 3
+     },
+     {
+      "from": "The app",
+      "on": "The agent link",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 162.9,
+      "dx": 440,
+      "fromRow": 7,
+      "onRow": 4
+     },
+     {
+      "from": "The app",
+      "on": "The library",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 307.6,
+      "dx": 76.5,
+      "fromRow": 7,
+      "onRow": 1
+     },
+     {
+      "from": "The app",
+      "on": "The app setup",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 127.8,
+      "dx": -45.6,
+      "fromRow": 7,
+      "onRow": 5
+     },
+     {
+      "from": "The app",
+      "on": "The arc surface",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 88.5,
+      "dx": 404.3,
+      "fromRow": 7,
+      "onRow": 5
+     },
+     {
+      "from": "The app",
+      "on": "The forest",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 41.9,
+      "dx": 23.8,
+      "fromRow": 7,
+      "onRow": 6
+     },
+     {
+      "from": "The app",
+      "on": "Identity",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 323.5,
+      "dx": 369.8,
+      "fromRow": 7,
+      "onRow": 0
+     },
+     {
+      "from": "The app",
+      "on": "Journey events",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 323.5,
+      "dx": 8.3,
+      "fromRow": 7,
+      "onRow": 0
+     },
+     {
+      "from": "The app",
+      "on": "The knowledge core",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 102.6,
+      "dx": 344.2,
+      "fromRow": 7,
+      "onRow": 5
+     },
+     {
+      "from": "The app",
+      "on": "The local database",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 331.8,
+      "dx": 56,
+      "fromRow": 7,
+      "onRow": 0
+     },
+     {
+      "from": "The forest",
+      "on": "The library",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 265.7,
+      "dx": 52.7,
+      "fromRow": 6,
+      "onRow": 1
+     },
+     {
+      "from": "The forest",
+      "on": "The arc surface",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 46.6,
+      "dx": 380.5,
+      "fromRow": 6,
+      "onRow": 5
+     },
+     {
+      "from": "The forest",
+      "on": "The agent link",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 120.9,
+      "dx": 416.2,
+      "fromRow": 6,
+      "onRow": 4
+     },
+     {
+      "from": "The forest",
+      "on": "The world",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 309.5,
+      "dx": 310.4,
+      "fromRow": 6,
+      "onRow": 0
+     },
+     {
+      "from": "The forest",
+      "on": "The knowledge core",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 60.7,
+      "dx": 320.4,
+      "fromRow": 6,
+      "onRow": 5
+     },
+     {
+      "from": "The forest",
+      "on": "The map",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 229.9,
+      "dx": 213.3,
+      "fromRow": 6,
+      "onRow": 2
+     },
+     {
+      "from": "The arc surface",
+      "on": "The agent link",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 74.4,
+      "dx": 35.7,
+      "fromRow": 5,
+      "onRow": 4
+     },
+     {
+      "from": "The arc surface",
+      "on": "The library",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 219.1,
+      "dx": -327.8,
+      "fromRow": 5,
+      "onRow": 1
+     },
+     {
+      "from": "The command line",
+      "on": "The agent link",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 198.4,
+      "dx": 285.9,
+      "fromRow": 8,
+      "onRow": 4
+     },
+     {
+      "from": "The command line",
+      "on": "The app",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 35.6,
+      "dx": -154.2,
+      "fromRow": 8,
+      "onRow": 7
+     },
+     {
+      "from": "The command line",
+      "on": "The app setup",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 163.4,
+      "dx": -199.7,
+      "fromRow": 8,
+      "onRow": 5
+     },
+     {
+      "from": "The command line",
+      "on": "The arc surface",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 124.1,
+      "dx": 250.2,
+      "fromRow": 8,
+      "onRow": 5
+     },
+     {
+      "from": "The command line",
+      "on": "CI health",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 225.8,
+      "dx": 142.8,
+      "fromRow": 8,
+      "onRow": 3
+     },
+     {
+      "from": "The command line",
+      "on": "The forest",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 77.5,
+      "dx": -130.3,
+      "fromRow": 8,
+      "onRow": 6
+     },
+     {
+      "from": "The command line",
+      "on": "Guardrails",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 249.3,
+      "dx": 6.5,
+      "fromRow": 8,
+      "onRow": 3
+     },
+     {
+      "from": "The command line",
+      "on": "Identity",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 359.1,
+      "dx": 215.6,
+      "fromRow": 8,
+      "onRow": 0
+     },
+     {
+      "from": "The command line",
+      "on": "Journey events",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 359.1,
+      "dx": -145.9,
+      "fromRow": 8,
+      "onRow": 0
+     },
+     {
+      "from": "The command line",
+      "on": "Keys",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 387,
+      "dx": -113.8,
+      "fromRow": 8,
+      "onRow": 0
+     },
+     {
+      "from": "The command line",
+      "on": "The librarian",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 301.2,
+      "dx": 174.4,
+      "fromRow": 8,
+      "onRow": 2
+     },
+     {
+      "from": "The command line",
+      "on": "The library",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 343.2,
+      "dx": -77.6,
+      "fromRow": 8,
+      "onRow": 1
+     },
+     {
+      "from": "The command line",
+      "on": "The map",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 307.3,
+      "dx": 83,
+      "fromRow": 8,
+      "onRow": 2
+     },
+     {
+      "from": "The command line",
+      "on": "Process ledger",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 387,
+      "dx": 61,
+      "fromRow": 8,
+      "onRow": 0
+     },
+     {
+      "from": "The librarian",
+      "on": "The library",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 41.9,
+      "dx": -252,
+      "fromRow": 2,
+      "onRow": 1
+     },
+     {
+      "from": "The knowledge core",
+      "on": "The library",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 205,
+      "dx": -267.7,
+      "fromRow": 5,
+      "onRow": 1
+     },
+     {
+      "from": "The knowledge core",
+      "on": "The agent link",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 60.2,
+      "dx": 95.8,
+      "fromRow": 5,
+      "onRow": 4
+     },
+     {
+      "from": "The app setup",
+      "on": "The agent link",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 35,
+      "dx": 485.6,
+      "fromRow": 5,
+      "onRow": 4
+     },
+     {
+      "from": "The app setup",
+      "on": "The library",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 179.7,
+      "dx": 122.1,
+      "fromRow": 5,
+      "onRow": 1
+     },
+     {
+      "from": "The app setup",
+      "on": "The local database",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 204,
+      "dx": 101.6,
+      "fromRow": 5,
+      "onRow": 0
+     },
+     {
+      "from": "The website",
+      "on": "The arc surface",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 88.5,
+      "dx": 54.4,
+      "fromRow": 7,
+      "onRow": 5
+     },
+     {
+      "from": "The website",
+      "on": "CI health",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 190.2,
+      "dx": -53,
+      "fromRow": 7,
+      "onRow": 3
+     },
+     {
+      "from": "The website",
+      "on": "The forest",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 41.9,
+      "dx": -326.1,
+      "fromRow": 7,
+      "onRow": 6
+     },
+     {
+      "from": "The website",
+      "on": "The knowledge core",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 102.6,
+      "dx": -5.7,
+      "fromRow": 7,
+      "onRow": 5
+     },
+     {
+      "from": "The website",
+      "on": "The world",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 351.4,
+      "dx": -15.8,
+      "fromRow": 7,
+      "onRow": 0
+     },
+     {
+      "from": "The dev loop",
+      "on": "The agent link",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 74.4,
+      "dx": 232.6,
+      "fromRow": 5,
+      "onRow": 4
+     },
+     {
+      "from": "The dev loop",
+      "on": "Guardrails",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 125.2,
+      "dx": -46.8,
+      "fromRow": 5,
+      "onRow": 3
+     },
+     {
+      "from": "The dev loop",
+      "on": "The library",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 219.1,
+      "dx": -130.9,
+      "fromRow": 5,
+      "onRow": 1
+     },
+     {
+      "from": "The dev loop",
+      "on": "The local database",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 243.3,
+      "dx": -151.5,
+      "fromRow": 5,
+      "onRow": 0
+     },
+     {
+      "from": "The dev loop",
+      "on": "The map",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 183.3,
+      "dx": 29.7,
+      "fromRow": 5,
+      "onRow": 2
+     },
+     {
+      "from": "The map",
+      "on": "The library",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 35.8,
+      "dx": -160.6,
+      "fromRow": 2,
+      "onRow": 1
+     },
+     {
+      "from": "CI health",
+      "on": "The library",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 117.4,
+      "dx": -220.4,
+      "fromRow": 3,
+      "onRow": 1
+     },
+     {
+      "from": "CI health",
+      "on": "The map",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 81.6,
+      "dx": -59.8,
+      "fromRow": 3,
+      "onRow": 2
+     },
+     {
+      "from": "Guardrails",
+      "on": "The map",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 58.1,
+      "dx": 76.5,
+      "fromRow": 3,
+      "onRow": 2
+     },
+     {
+      "from": "Quality assurance",
+      "on": "The library",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 153.6,
+      "dx": 8,
+      "fromRow": 4,
+      "onRow": 1
+     },
+     {
+      "from": "Quality assurance",
+      "on": "Guardrails",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 59.7,
+      "dx": 92.1,
+      "fromRow": 4,
+      "onRow": 3
+     }
+    ]
+   },
+   "pathwaysDrawn": {
+    "total": 19,
+    "north": 15,
+    "level": 0,
+    "south": 0,
+    "anEndBehindTheGlobe": 4,
+    "northWithBothEndsReadable": 9,
+    "list": [
+     {
+      "from": "The library",
+      "on": "Keys",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 43.8,
+      "dx": -36.2,
+      "fromRow": 1,
+      "onRow": 0
+     },
+     {
+      "from": "The agent link",
+      "on": "The library",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 144.7,
+      "dx": -363.5,
+      "fromRow": 4,
+      "onRow": 1
+     },
+     {
+      "from": "The agent link",
+      "on": "Guardrails",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 50.8,
+      "dx": -279.4,
+      "fromRow": 4,
+      "onRow": 3
+     },
+     {
+      "from": "The app",
+      "on": "The local database",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 331.8,
+      "dx": 56,
+      "fromRow": 7,
+      "onRow": 0
+     },
+     {
+      "from": "The app",
+      "on": "The agent link",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 162.9,
+      "dx": 440,
+      "fromRow": 7,
+      "onRow": 4
+     },
+     {
+      "from": "The forest",
+      "on": "The world",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 309.5,
+      "dx": 310.4,
+      "fromRow": 6,
+      "onRow": 0
+     },
+     {
+      "from": "The forest",
+      "on": "The knowledge core",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 60.7,
+      "dx": 320.4,
+      "fromRow": 6,
+      "onRow": 5
+     },
+     {
+      "from": "The arc surface",
+      "on": "The agent link",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 74.4,
+      "dx": 35.7,
+      "fromRow": 5,
+      "onRow": 4
+     },
+     {
+      "from": "The command line",
+      "on": "The library",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 343.2,
+      "dx": -77.6,
+      "fromRow": 8,
+      "onRow": 1
+     },
+     {
+      "from": "The command line",
+      "on": "The agent link",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 198.4,
+      "dx": 285.9,
+      "fromRow": 8,
+      "onRow": 4
+     },
+     {
+      "from": "The command line",
+      "on": "The librarian",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 301.2,
+      "dx": 174.4,
+      "fromRow": 8,
+      "onRow": 2
+     },
+     {
+      "from": "The command line",
+      "on": "Guardrails",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 249.3,
+      "dx": 6.5,
+      "fromRow": 8,
+      "onRow": 3
+     },
+     {
+      "from": "The knowledge core",
+      "on": "The library",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 205,
+      "dx": -267.7,
+      "fromRow": 5,
+      "onRow": 1
+     },
+     {
+      "from": "The app setup",
+      "on": "The agent link",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 35,
+      "dx": 485.6,
+      "fromRow": 5,
+      "onRow": 4
+     },
+     {
+      "from": "The dev loop",
+      "on": "Guardrails",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 125.2,
+      "dx": -46.8,
+      "fromRow": 5,
+      "onRow": 3
+     },
+     {
+      "from": "The dev loop",
+      "on": "The local database",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 243.3,
+      "dx": -151.5,
+      "fromRow": 5,
+      "onRow": 0
+     },
+     {
+      "from": "The map",
+      "on": "The library",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 35.8,
+      "dx": -160.6,
+      "fromRow": 2,
+      "onRow": 1
+     },
+     {
+      "from": "Quality assurance",
+      "on": "The library",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 153.6,
+      "dx": 8,
+      "fromRow": 4,
+      "onRow": 1
+     },
+     {
+      "from": "Quality assurance",
+      "on": "Guardrails",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 59.7,
+      "dx": 92.1,
+      "fromRow": 4,
+      "onRow": 3
+     }
+    ]
+   },
+   "byRow": [
+    {
+     "row": 0,
+     "islands": 6,
+     "facingTheEye": 3,
+     "longitudeSpan": 240.5,
+     "screenY": [
+      -193.5,
+      -193.5
+     ]
+    },
+    {
+     "row": 1,
+     "islands": 1,
+     "facingTheEye": 1,
+     "longitudeSpan": 0,
+     "screenY": [
+      -149.7,
+      -149.7
+     ]
+    },
+    {
+     "row": 2,
+     "islands": 2,
+     "facingTheEye": 2,
+     "longitudeSpan": 25.4,
+     "screenY": [
+      -113.8,
+      -107.7
+     ]
+    },
+    {
+     "row": 3,
+     "islands": 2,
+     "facingTheEye": 2,
+     "longitudeSpan": 32.4,
+     "screenY": [
+      -55.8,
+      -32.3
+     ]
+    },
+    {
+     "row": 4,
+     "islands": 2,
+     "facingTheEye": 2,
+     "longitudeSpan": 109.6,
+     "screenY": [
+      -4.9,
+      3.9
+     ]
+    },
+    {
+     "row": 5,
+     "islands": 4,
+     "facingTheEye": 3,
+     "longitudeSpan": 193.3,
+     "screenY": [
+      30.1,
+      69.4
+     ]
+    },
+    {
+     "row": 6,
+     "islands": 1,
+     "facingTheEye": 1,
+     "longitudeSpan": 0,
+     "screenY": [
+      116,
+      116
+     ]
+    },
+    {
+     "row": 7,
+     "islands": 2,
+     "facingTheEye": 1,
+     "longitudeSpan": 147.6,
+     "screenY": [
+      157.9,
+      157.9
+     ]
+    },
+    {
+     "row": 8,
+     "islands": 1,
+     "facingTheEye": 1,
+     "longitudeSpan": 0,
+     "screenY": [
+      193.5,
+      193.5
+     ]
+    }
+   ],
+   "islandList": [
+    {
+     "title": "Identity",
+     "row": 0,
+     "slot": 0,
+     "latitude": -41.4,
+     "longitude": -108,
+     "reach": 38.3,
+     "nudgedFromAnchor": 11.2,
+     "screenX": -175.9,
+     "screenY": -165.6,
+     "facing": -0.26
+    },
+    {
+     "title": "The world",
+     "row": 0,
+     "slot": 1,
+     "latitude": -50.6,
+     "longitude": -59.6,
+     "reach": 75.4,
+     "nudgedFromAnchor": 11.5,
+     "screenX": -140.4,
+     "screenY": -193.5,
+     "facing": 0.3
+    },
+    {
+     "title": "Process ledger",
+     "row": 0,
+     "slot": 2,
+     "latitude": -50.6,
+     "longitude": -5.2,
+     "reach": 31.6,
+     "nudgedFromAnchor": 7.8,
+     "screenX": -21.3,
+     "screenY": -193.5,
+     "facing": 0.63
+    },
+    {
+     "title": "Keys",
+     "row": 0,
+     "slot": 3,
+     "latitude": -50.6,
+     "longitude": 77.4,
+     "reach": 20,
+     "nudgedFromAnchor": 29.3,
+     "screenX": 153.5,
+     "screenY": -193.5,
+     "facing": 0.17
+    },
+    {
+     "title": "Journey events",
+     "row": 0,
+     "slot": 4,
+     "latitude": -41.4,
+     "longitude": 101.4,
+     "reach": 26.8,
+     "nudgedFromAnchor": 29.5,
+     "screenX": 185.6,
+     "screenY": -165.6,
+     "facing": -0.12
+    },
+    {
+     "title": "The local database",
+     "row": 0,
+     "slot": 5,
+     "latitude": -44,
+     "longitude": 132.5,
+     "reach": 37.3,
+     "nudgedFromAnchor": 27.2,
+     "screenX": 137.9,
+     "screenY": -173.9,
+     "facing": -0.46
+    },
+    {
+     "title": "The library",
+     "row": 1,
+     "slot": 0,
+     "latitude": -36.7,
+     "longitude": 38.2,
+     "reach": 79.9,
+     "nudgedFromAnchor": 30.9,
+     "screenX": 117.3,
+     "screenY": -149.7,
+     "facing": 0.65
+    },
+    {
+     "title": "The librarian",
+     "row": 2,
+     "slot": 0,
+     "latitude": -25.5,
+     "longitude": -34.1,
+     "reach": 27.6,
+     "nudgedFromAnchor": 20,
+     "screenX": -134.7,
+     "screenY": -107.7,
+     "facing": 0.72
+    },
+    {
+     "title": "The map",
+     "row": 2,
+     "slot": 1,
+     "latitude": -27,
+     "longitude": -8.7,
+     "reach": 36,
+     "nudgedFromAnchor": 19.5,
+     "screenX": -43.3,
+     "screenY": -113.8,
+     "facing": 0.87
+    },
+    {
+     "title": "CI health",
+     "row": 3,
+     "slot": 0,
+     "latitude": -7.4,
+     "longitude": -22.1,
+     "reach": 30.1,
+     "nudgedFromAnchor": 11.7,
+     "screenX": -103.1,
+     "screenY": -32.3,
+     "facing": 0.9
+    },
+    {
+     "title": "Guardrails",
+     "row": 3,
+     "slot": 1,
+     "latitude": -12.9,
+     "longitude": 10.3,
+     "reach": 27.5,
+     "nudgedFromAnchor": 1.5,
+     "screenX": 33.2,
+     "screenY": -55.8,
+     "facing": 0.97
+    },
+    {
+     "title": "The agent link",
+     "row": 4,
+     "slot": 0,
+     "latitude": -1.1,
+     "longitude": -77.1,
+     "reach": 114.3,
+     "nudgedFromAnchor": 54.2,
+     "screenX": -246.2,
+     "screenY": -4.9,
+     "facing": 0.18
+    },
+    {
+     "title": "Quality assurance",
+     "row": 4,
+     "slot": 1,
+     "latitude": 0.9,
+     "longitude": 32.5,
+     "reach": 50.1,
+     "nudgedFromAnchor": 9.6,
+     "screenX": 125.3,
+     "screenY": 3.9,
+     "facing": 0.87
+    },
+    {
+     "title": "The arc surface",
+     "row": 5,
+     "slot": 0,
+     "latitude": 16.1,
+     "longitude": -116.5,
+     "reach": 35.6,
+     "nudgedFromAnchor": 66.6,
+     "screenX": -210.5,
+     "screenY": 69.4,
+     "facing": -0.47
+    },
+    {
+     "title": "The knowledge core",
+     "row": 5,
+     "slot": 1,
+     "latitude": 12.8,
+     "longitude": -35.5,
+     "reach": 39.7,
+     "nudgedFromAnchor": 13.6,
+     "screenX": -150.4,
+     "screenY": 55.3,
+     "facing": 0.77
+    },
+    {
+     "title": "The dev loop",
+     "row": 5,
+     "slot": 2,
+     "latitude": 16.1,
+     "longitude": -0.8,
+     "reach": 71.9,
+     "nudgedFromAnchor": 13.9,
+     "screenX": -13.6,
+     "screenY": 69.4,
+     "facing": 0.96
+    },
+    {
+     "title": "The app setup",
+     "row": 5,
+     "slot": 3,
+     "latitude": 6.9,
+     "longitude": 76.8,
+     "reach": 42,
+     "nudgedFromAnchor": 29.1,
+     "screenX": 239.4,
+     "screenY": 30.1,
+     "facing": 0.27
+    },
+    {
+     "title": "The forest",
+     "row": 6,
+     "slot": 0,
+     "latitude": 27.6,
+     "longitude": 52.5,
+     "reach": 57.6,
+     "nudgedFromAnchor": 47.3,
+     "screenX": 170,
+     "screenY": 116,
+     "facing": 0.57
+    },
+    {
+     "title": "The website",
+     "row": 7,
+     "slot": 0,
+     "latitude": 39.1,
+     "longitude": -51,
+     "reach": 54,
+     "nudgedFromAnchor": 22.9,
+     "screenX": -156.1,
+     "screenY": 157.9,
+     "facing": 0.46
+    },
+    {
+     "title": "The app",
+     "row": 7,
+     "slot": 1,
+     "latitude": 39.1,
+     "longitude": 96.6,
+     "reach": 73.5,
+     "nudgedFromAnchor": 57.5,
+     "screenX": 193.8,
+     "screenY": 157.9,
+     "facing": -0.06
+    },
+    {
+     "title": "The command line",
+     "row": 8,
+     "slot": 0,
+     "latitude": 50.6,
+     "longitude": 16.9,
+     "reach": 54.8,
+     "nudgedFromAnchor": 12.1,
+     "screenX": 39.7,
+     "screenY": 193.5,
+     "facing": 0.61
+    }
+   ]
+  },
+  {
+   "label": "unturned front",
+   "turn": {
+    "spin": 0,
+    "tilt": 0
+   },
+   "islands": 21,
+   "facingTheEye": 16,
+   "readable": 11,
+   "atTheRim": [
+    "The world (0.32)",
+    "Keys (0.14)",
+    "The agent link (0.22)",
+    "The app setup (0.23)",
+    "The website (0.49)"
+   ],
+   "behindTheGlobe": [
+    "Identity",
+    "Journey events",
+    "The local database",
+    "The arc surface",
+    "The app"
+   ],
+   "rowBandsOverlapping": [],
+   "dependenciesTheRowsAreBuiltFrom": {
+    "total": 60,
+    "north": 40,
+    "level": 0,
+    "south": 0,
+    "anEndBehindTheGlobe": 20,
+    "northWithBothEndsReadable": 21,
+    "list": [
+     {
+      "from": "The library",
+      "on": "Keys",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 43.8,
+      "dx": -30.9,
+      "fromRow": 1,
+      "onRow": 0
+     },
+     {
+      "from": "The agent link",
+      "on": "The library",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 144.7,
+      "dx": -368.2,
+      "fromRow": 4,
+      "onRow": 1
+     },
+     {
+      "from": "The agent link",
+      "on": "Journey events",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 160.7,
+      "dx": -428.2,
+      "fromRow": 4,
+      "onRow": 0
+     },
+     {
+      "from": "The agent link",
+      "on": "The librarian",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 102.8,
+      "dx": -117.2,
+      "fromRow": 4,
+      "onRow": 2
+     },
+     {
+      "from": "The agent link",
+      "on": "The map",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 108.9,
+      "dx": -210.1,
+      "fromRow": 4,
+      "onRow": 2
+     },
+     {
+      "from": "The agent link",
+      "on": "Process ledger",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 188.6,
+      "dx": -229.5,
+      "fromRow": 4,
+      "onRow": 0
+     },
+     {
+      "from": "The agent link",
+      "on": "Guardrails",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 50.8,
+      "dx": -287.6,
+      "fromRow": 4,
+      "onRow": 3
+     },
+     {
+      "from": "The app",
+      "on": "The agent link",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 162.9,
+      "dx": 437.1,
+      "fromRow": 7,
+      "onRow": 4
+     },
+     {
+      "from": "The app",
+      "on": "The library",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 307.6,
+      "dx": 68.9,
+      "fromRow": 7,
+      "onRow": 1
+     },
+     {
+      "from": "The app",
+      "on": "The app setup",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 127.8,
+      "dx": -49,
+      "fromRow": 7,
+      "onRow": 5
+     },
+     {
+      "from": "The app",
+      "on": "The arc surface",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 88.5,
+      "dx": 408.3,
+      "fromRow": 7,
+      "onRow": 5
+     },
+     {
+      "from": "The app",
+      "on": "The forest",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 41.9,
+      "dx": 17.1,
+      "fromRow": 7,
+      "onRow": 6
+     },
+     {
+      "from": "The app",
+      "on": "Identity",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 323.5,
+      "dx": 371.6,
+      "fromRow": 7,
+      "onRow": 0
+     },
+     {
+      "from": "The app",
+      "on": "Journey events",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 323.5,
+      "dx": 8.9,
+      "fromRow": 7,
+      "onRow": 0
+     },
+     {
+      "from": "The app",
+      "on": "The knowledge core",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 102.6,
+      "dx": 335,
+      "fromRow": 7,
+      "onRow": 5
+     },
+     {
+      "from": "The app",
+      "on": "The local database",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 331.8,
+      "dx": 60.3,
+      "fromRow": 7,
+      "onRow": 0
+     },
+     {
+      "from": "The forest",
+      "on": "The library",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 265.7,
+      "dx": 51.8,
+      "fromRow": 6,
+      "onRow": 1
+     },
+     {
+      "from": "The forest",
+      "on": "The arc surface",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 46.6,
+      "dx": 391.3,
+      "fromRow": 6,
+      "onRow": 5
+     },
+     {
+      "from": "The forest",
+      "on": "The agent link",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 120.9,
+      "dx": 420,
+      "fromRow": 6,
+      "onRow": 4
+     },
+     {
+      "from": "The forest",
+      "on": "The world",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 309.5,
+      "dx": 313,
+      "fromRow": 6,
+      "onRow": 0
+     },
+     {
+      "from": "The forest",
+      "on": "The knowledge core",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 60.7,
+      "dx": 318,
+      "fromRow": 6,
+      "onRow": 5
+     },
+     {
+      "from": "The forest",
+      "on": "The map",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 229.9,
+      "dx": 209.9,
+      "fromRow": 6,
+      "onRow": 2
+     },
+     {
+      "from": "The arc surface",
+      "on": "The agent link",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 74.4,
+      "dx": 28.7,
+      "fromRow": 5,
+      "onRow": 4
+     },
+     {
+      "from": "The arc surface",
+      "on": "The library",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 219.1,
+      "dx": -339.5,
+      "fromRow": 5,
+      "onRow": 1
+     },
+     {
+      "from": "The command line",
+      "on": "The agent link",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 198.4,
+      "dx": 290.3,
+      "fromRow": 8,
+      "onRow": 4
+     },
+     {
+      "from": "The command line",
+      "on": "The app",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 35.6,
+      "dx": -146.8,
+      "fromRow": 8,
+      "onRow": 7
+     },
+     {
+      "from": "The command line",
+      "on": "The app setup",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 163.4,
+      "dx": -195.8,
+      "fromRow": 8,
+      "onRow": 5
+     },
+     {
+      "from": "The command line",
+      "on": "The arc surface",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 124.1,
+      "dx": 261.5,
+      "fromRow": 8,
+      "onRow": 5
+     },
+     {
+      "from": "The command line",
+      "on": "CI health",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 225.8,
+      "dx": 139.5,
+      "fromRow": 8,
+      "onRow": 3
+     },
+     {
+      "from": "The command line",
+      "on": "The forest",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 77.5,
+      "dx": -129.7,
+      "fromRow": 8,
+      "onRow": 6
+     },
+     {
+      "from": "The command line",
+      "on": "Guardrails",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 249.3,
+      "dx": 2.7,
+      "fromRow": 8,
+      "onRow": 3
+     },
+     {
+      "from": "The command line",
+      "on": "Identity",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 359.1,
+      "dx": 224.8,
+      "fromRow": 8,
+      "onRow": 0
+     },
+     {
+      "from": "The command line",
+      "on": "Journey events",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 359.1,
+      "dx": -137.9,
+      "fromRow": 8,
+      "onRow": 0
+     },
+     {
+      "from": "The command line",
+      "on": "Keys",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 387,
+      "dx": -108.9,
+      "fromRow": 8,
+      "onRow": 0
+     },
+     {
+      "from": "The command line",
+      "on": "The librarian",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 301.2,
+      "dx": 173,
+      "fromRow": 8,
+      "onRow": 2
+     },
+     {
+      "from": "The command line",
+      "on": "The library",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 343.2,
+      "dx": -77.9,
+      "fromRow": 8,
+      "onRow": 1
+     },
+     {
+      "from": "The command line",
+      "on": "The map",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 307.3,
+      "dx": 80.1,
+      "fromRow": 8,
+      "onRow": 2
+     },
+     {
+      "from": "The command line",
+      "on": "Process ledger",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 387,
+      "dx": 60.8,
+      "fromRow": 8,
+      "onRow": 0
+     },
+     {
+      "from": "The librarian",
+      "on": "The library",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 41.9,
+      "dx": -251,
+      "fromRow": 2,
+      "onRow": 1
+     },
+     {
+      "from": "The knowledge core",
+      "on": "The library",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 205,
+      "dx": -266.2,
+      "fromRow": 5,
+      "onRow": 1
+     },
+     {
+      "from": "The knowledge core",
+      "on": "The agent link",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 60.2,
+      "dx": 102,
+      "fromRow": 5,
+      "onRow": 4
+     },
+     {
+      "from": "The app setup",
+      "on": "The agent link",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 35,
+      "dx": 486.1,
+      "fromRow": 5,
+      "onRow": 4
+     },
+     {
+      "from": "The app setup",
+      "on": "The library",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 179.7,
+      "dx": 117.9,
+      "fromRow": 5,
+      "onRow": 1
+     },
+     {
+      "from": "The app setup",
+      "on": "The local database",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 204,
+      "dx": 109.3,
+      "fromRow": 5,
+      "onRow": 0
+     },
+     {
+      "from": "The website",
+      "on": "The arc surface",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 88.5,
+      "dx": 64.3,
+      "fromRow": 7,
+      "onRow": 5
+     },
+     {
+      "from": "The website",
+      "on": "CI health",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 190.2,
+      "dx": -57.7,
+      "fromRow": 7,
+      "onRow": 3
+     },
+     {
+      "from": "The website",
+      "on": "The forest",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 41.9,
+      "dx": -327,
+      "fromRow": 7,
+      "onRow": 6
+     },
+     {
+      "from": "The website",
+      "on": "The knowledge core",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 102.6,
+      "dx": -9,
+      "fromRow": 7,
+      "onRow": 5
+     },
+     {
+      "from": "The website",
+      "on": "The world",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 351.4,
+      "dx": -14,
+      "fromRow": 7,
+      "onRow": 0
+     },
+     {
+      "from": "The dev loop",
+      "on": "The agent link",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 74.4,
+      "dx": 240.8,
+      "fromRow": 5,
+      "onRow": 4
+     },
+     {
+      "from": "The dev loop",
+      "on": "Guardrails",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 125.2,
+      "dx": -46.8,
+      "fromRow": 5,
+      "onRow": 3
+     },
+     {
+      "from": "The dev loop",
+      "on": "The library",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 219.1,
+      "dx": -127.5,
+      "fromRow": 5,
+      "onRow": 1
+     },
+     {
+      "from": "The dev loop",
+      "on": "The local database",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 243.3,
+      "dx": -136,
+      "fromRow": 5,
+      "onRow": 0
+     },
+     {
+      "from": "The dev loop",
+      "on": "The map",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 183.3,
+      "dx": 30.6,
+      "fromRow": 5,
+      "onRow": 2
+     },
+     {
+      "from": "The map",
+      "on": "The library",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 35.8,
+      "dx": -158.1,
+      "fromRow": 2,
+      "onRow": 1
+     },
+     {
+      "from": "CI health",
+      "on": "The library",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 117.4,
+      "dx": -217.5,
+      "fromRow": 3,
+      "onRow": 1
+     },
+     {
+      "from": "CI health",
+      "on": "The map",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 81.6,
+      "dx": -59.4,
+      "fromRow": 3,
+      "onRow": 2
+     },
+     {
+      "from": "Guardrails",
+      "on": "The map",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 58.1,
+      "dx": 77.5,
+      "fromRow": 3,
+      "onRow": 2
+     },
+     {
+      "from": "Quality assurance",
+      "on": "The library",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 153.6,
+      "dx": 10.3,
+      "fromRow": 4,
+      "onRow": 1
+     },
+     {
+      "from": "Quality assurance",
+      "on": "Guardrails",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 59.7,
+      "dx": 90.9,
+      "fromRow": 4,
+      "onRow": 3
+     }
+    ]
+   },
+   "pathwaysDrawn": {
+    "total": 19,
+    "north": 15,
+    "level": 0,
+    "south": 0,
+    "anEndBehindTheGlobe": 4,
+    "northWithBothEndsReadable": 9,
+    "list": [
+     {
+      "from": "The library",
+      "on": "Keys",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 43.8,
+      "dx": -30.9,
+      "fromRow": 1,
+      "onRow": 0
+     },
+     {
+      "from": "The agent link",
+      "on": "The library",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 144.7,
+      "dx": -368.2,
+      "fromRow": 4,
+      "onRow": 1
+     },
+     {
+      "from": "The agent link",
+      "on": "Guardrails",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 50.8,
+      "dx": -287.6,
+      "fromRow": 4,
+      "onRow": 3
+     },
+     {
+      "from": "The app",
+      "on": "The local database",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 331.8,
+      "dx": 60.3,
+      "fromRow": 7,
+      "onRow": 0
+     },
+     {
+      "from": "The app",
+      "on": "The agent link",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 162.9,
+      "dx": 437.1,
+      "fromRow": 7,
+      "onRow": 4
+     },
+     {
+      "from": "The forest",
+      "on": "The world",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 309.5,
+      "dx": 313,
+      "fromRow": 6,
+      "onRow": 0
+     },
+     {
+      "from": "The forest",
+      "on": "The knowledge core",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 60.7,
+      "dx": 318,
+      "fromRow": 6,
+      "onRow": 5
+     },
+     {
+      "from": "The arc surface",
+      "on": "The agent link",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 74.4,
+      "dx": 28.7,
+      "fromRow": 5,
+      "onRow": 4
+     },
+     {
+      "from": "The command line",
+      "on": "The library",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 343.2,
+      "dx": -77.9,
+      "fromRow": 8,
+      "onRow": 1
+     },
+     {
+      "from": "The command line",
+      "on": "The agent link",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 198.4,
+      "dx": 290.3,
+      "fromRow": 8,
+      "onRow": 4
+     },
+     {
+      "from": "The command line",
+      "on": "The librarian",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 301.2,
+      "dx": 173,
+      "fromRow": 8,
+      "onRow": 2
+     },
+     {
+      "from": "The command line",
+      "on": "Guardrails",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 249.3,
+      "dx": 2.7,
+      "fromRow": 8,
+      "onRow": 3
+     },
+     {
+      "from": "The knowledge core",
+      "on": "The library",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 205,
+      "dx": -266.2,
+      "fromRow": 5,
+      "onRow": 1
+     },
+     {
+      "from": "The app setup",
+      "on": "The agent link",
+      "verdict": "north",
+      "bothReadable": false,
+      "dy": 35,
+      "dx": 486.1,
+      "fromRow": 5,
+      "onRow": 4
+     },
+     {
+      "from": "The dev loop",
+      "on": "Guardrails",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 125.2,
+      "dx": -46.8,
+      "fromRow": 5,
+      "onRow": 3
+     },
+     {
+      "from": "The dev loop",
+      "on": "The local database",
+      "verdict": "behind",
+      "bothReadable": false,
+      "dy": 243.3,
+      "dx": -136,
+      "fromRow": 5,
+      "onRow": 0
+     },
+     {
+      "from": "The map",
+      "on": "The library",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 35.8,
+      "dx": -158.1,
+      "fromRow": 2,
+      "onRow": 1
+     },
+     {
+      "from": "Quality assurance",
+      "on": "The library",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 153.6,
+      "dx": 10.3,
+      "fromRow": 4,
+      "onRow": 1
+     },
+     {
+      "from": "Quality assurance",
+      "on": "Guardrails",
+      "verdict": "north",
+      "bothReadable": true,
+      "dy": 59.7,
+      "dx": 90.9,
+      "fromRow": 4,
+      "onRow": 3
+     }
+    ]
+   },
+   "byRow": [
+    {
+     "row": 0,
+     "islands": 6,
+     "facingTheEye": 3,
+     "longitudeSpan": 240.5,
+     "screenY": [
+      -193.5,
+      -193.5
+     ]
+    },
+    {
+     "row": 1,
+     "islands": 1,
+     "facingTheEye": 1,
+     "longitudeSpan": 0,
+     "screenY": [
+      -149.7,
+      -149.7
+     ]
+    },
+    {
+     "row": 2,
+     "islands": 2,
+     "facingTheEye": 2,
+     "longitudeSpan": 25.4,
+     "screenY": [
+      -113.8,
+      -107.7
+     ]
+    },
+    {
+     "row": 3,
+     "islands": 2,
+     "facingTheEye": 2,
+     "longitudeSpan": 32.4,
+     "screenY": [
+      -55.8,
+      -32.3
+     ]
+    },
+    {
+     "row": 4,
+     "islands": 2,
+     "facingTheEye": 2,
+     "longitudeSpan": 109.6,
+     "screenY": [
+      -4.9,
+      3.9
+     ]
+    },
+    {
+     "row": 5,
+     "islands": 4,
+     "facingTheEye": 3,
+     "longitudeSpan": 193.3,
+     "screenY": [
+      30.1,
+      69.4
+     ]
+    },
+    {
+     "row": 6,
+     "islands": 1,
+     "facingTheEye": 1,
+     "longitudeSpan": 0,
+     "screenY": [
+      116,
+      116
+     ]
+    },
+    {
+     "row": 7,
+     "islands": 2,
+     "facingTheEye": 1,
+     "longitudeSpan": 147.6,
+     "screenY": [
+      157.9,
+      157.9
+     ]
+    },
+    {
+     "row": 8,
+     "islands": 1,
+     "facingTheEye": 1,
+     "longitudeSpan": 0,
+     "screenY": [
+      193.5,
+      193.5
+     ]
+    }
+   ],
+   "islandList": [
+    {
+     "title": "Identity",
+     "row": 0,
+     "slot": 0,
+     "latitude": -41.4,
+     "longitude": -108,
+     "reach": 38.3,
+     "nudgedFromAnchor": 11.2,
+     "screenX": -178.6,
+     "screenY": -165.6,
+     "facing": -0.23
+    },
+    {
+     "title": "The world",
+     "row": 0,
+     "slot": 1,
+     "latitude": -50.6,
+     "longitude": -59.6,
+     "reach": 75.4,
+     "nudgedFromAnchor": 11.5,
+     "screenX": -137,
+     "screenY": -193.5,
+     "facing": 0.32
+    },
+    {
+     "title": "Process ledger",
+     "row": 0,
+     "slot": 2,
+     "latitude": -50.6,
+     "longitude": -5.2,
+     "reach": 31.6,
+     "nudgedFromAnchor": 7.8,
+     "screenX": -14.5,
+     "screenY": -193.5,
+     "facing": 0.63
+    },
+    {
+     "title": "Keys",
+     "row": 0,
+     "slot": 3,
+     "latitude": -50.6,
+     "longitude": 77.4,
+     "reach": 20,
+     "nudgedFromAnchor": 29.3,
+     "screenX": 155.1,
+     "screenY": -193.5,
+     "facing": 0.14
+    },
+    {
+     "title": "Journey events",
+     "row": 0,
+     "slot": 4,
+     "latitude": -41.4,
+     "longitude": 101.4,
+     "reach": 26.8,
+     "nudgedFromAnchor": 29.5,
+     "screenX": 184.1,
+     "screenY": -165.6,
+     "facing": -0.15
+    },
+    {
+     "title": "The local database",
+     "row": 0,
+     "slot": 5,
+     "latitude": -44,
+     "longitude": 132.5,
+     "reach": 37.3,
+     "nudgedFromAnchor": 27.2,
+     "screenX": 132.7,
+     "screenY": -173.9,
+     "facing": -0.49
+    },
+    {
+     "title": "The library",
+     "row": 1,
+     "slot": 0,
+     "latitude": -36.7,
+     "longitude": 38.2,
+     "reach": 79.9,
+     "nudgedFromAnchor": 30.9,
+     "screenX": 124.2,
+     "screenY": -149.7,
+     "facing": 0.63
+    },
+    {
+     "title": "The librarian",
+     "row": 2,
+     "slot": 0,
+     "latitude": -25.5,
+     "longitude": -34.1,
+     "reach": 27.6,
+     "nudgedFromAnchor": 20,
+     "screenX": -126.8,
+     "screenY": -107.7,
+     "facing": 0.75
+    },
+    {
+     "title": "The map",
+     "row": 2,
+     "slot": 1,
+     "latitude": -27,
+     "longitude": -8.7,
+     "reach": 36,
+     "nudgedFromAnchor": 19.5,
+     "screenX": -33.9,
+     "screenY": -113.8,
+     "facing": 0.88
+    },
+    {
+     "title": "CI health",
+     "row": 3,
+     "slot": 0,
+     "latitude": -7.4,
+     "longitude": -22.1,
+     "reach": 30.1,
+     "nudgedFromAnchor": 11.7,
+     "screenX": -93.3,
+     "screenY": -32.3,
+     "facing": 0.92
+    },
+    {
+     "title": "Guardrails",
+     "row": 3,
+     "slot": 1,
+     "latitude": -12.9,
+     "longitude": 10.3,
+     "reach": 27.5,
+     "nudgedFromAnchor": 1.5,
+     "screenX": 43.6,
+     "screenY": -55.8,
+     "facing": 0.96
+    },
+    {
+     "title": "The agent link",
+     "row": 4,
+     "slot": 0,
+     "latitude": -1.1,
+     "longitude": -77.1,
+     "reach": 114.3,
+     "nudgedFromAnchor": 54.2,
+     "screenX": -244,
+     "screenY": -4.9,
+     "facing": 0.22
+    },
+    {
+     "title": "Quality assurance",
+     "row": 4,
+     "slot": 1,
+     "latitude": 0.9,
+     "longitude": 32.5,
+     "reach": 50.1,
+     "nudgedFromAnchor": 9.6,
+     "screenX": 134.5,
+     "screenY": 3.9,
+     "facing": 0.84
+    },
+    {
+     "title": "The arc surface",
+     "row": 5,
+     "slot": 0,
+     "latitude": 16.1,
+     "longitude": -116.5,
+     "reach": 35.6,
+     "nudgedFromAnchor": 66.6,
+     "screenX": -215.3,
+     "screenY": 69.4,
+     "facing": -0.43
+    },
+    {
+     "title": "The knowledge core",
+     "row": 5,
+     "slot": 1,
+     "latitude": 12.8,
+     "longitude": -35.5,
+     "reach": 39.7,
+     "nudgedFromAnchor": 13.6,
+     "screenX": -142,
+     "screenY": 55.3,
+     "facing": 0.79
+    },
+    {
+     "title": "The dev loop",
+     "row": 5,
+     "slot": 2,
+     "latitude": 16.1,
+     "longitude": -0.8,
+     "reach": 71.9,
+     "nudgedFromAnchor": 13.9,
+     "screenX": -3.3,
+     "screenY": 69.4,
+     "facing": 0.96
+    },
+    {
+     "title": "The app setup",
+     "row": 5,
+     "slot": 3,
+     "latitude": 6.9,
+     "longitude": 76.8,
+     "reach": 42,
+     "nudgedFromAnchor": 29.1,
+     "screenX": 242.1,
+     "screenY": 30.1,
+     "facing": 0.23
+    },
+    {
+     "title": "The forest",
+     "row": 6,
+     "slot": 0,
+     "latitude": 27.6,
+     "longitude": 52.5,
+     "reach": 57.6,
+     "nudgedFromAnchor": 47.3,
+     "screenX": 176,
+     "screenY": 116,
+     "facing": 0.54
+    },
+    {
+     "title": "The website",
+     "row": 7,
+     "slot": 0,
+     "latitude": 39.1,
+     "longitude": -51,
+     "reach": 54,
+     "nudgedFromAnchor": 22.9,
+     "screenX": -151,
+     "screenY": 157.9,
+     "facing": 0.49
+    },
+    {
+     "title": "The app",
+     "row": 7,
+     "slot": 1,
+     "latitude": 39.1,
+     "longitude": 96.6,
+     "reach": 73.5,
+     "nudgedFromAnchor": 57.5,
+     "screenX": 193,
+     "screenY": 157.9,
+     "facing": -0.09
+    },
+    {
+     "title": "The command line",
+     "row": 8,
+     "slot": 0,
+     "latitude": 50.6,
+     "longitude": 16.9,
+     "reach": 54.8,
+     "nudgedFromAnchor": 12.1,
+     "screenX": 46.2,
+     "screenY": 193.5,
+     "facing": 0.61
+    }
+   ]
+  }
+ ]
+}

@@ -17,11 +17,10 @@
  */
 import { hostname } from "node:os";
 
-import pg from "pg";
 import type { Pool, PoolClient } from "pg";
 import { z } from "zod";
 
-import type { Storytree } from "@storytree/library";
+import { connect, type Storytree } from "@storytree/library";
 
 import { BRANCH_FACTS, countValues, FOLD_LINES, foldValues, inViewValues, MAIN_WORK, selectLines, SESSION_COUNT, SESSIONS_IN_VIEW, STANDING_CLAIMS, STATE_LINES, stateValues, type LineFilter } from "./bounded.js";
 import { NEW_LINE, type Line, type LineKind, type LinesSince, type NewLine } from "./lines.js";
@@ -121,7 +120,7 @@ export function thisMachine(): string | undefined {
   return hostname().trim() || undefined;
 }
 
-/** The log's tables, as idempotent statements applied in order at every open. Later changes are appended. */
+/** The log's tables, as idempotent statements the library applies once per connection, in order. Later changes are appended. */
 const SCHEMA: readonly string[] = [
   `CREATE TABLE IF NOT EXISTS activity (
     seq     bigserial PRIMARY KEY,
@@ -161,27 +160,25 @@ interface ActivityRow {
 
 /**
  * Open the agent activity log where `server` is: the database of its own that a library connection
- * hands out (contract 2.5, ADR-0735 D3), on whatever server the library resolved to, local or Cloud
- * SQL; or the Postgres server at a postgres:// URL. From a connection, the log's pool is the
- * connection's, and closes with it.
- *
- * At a URL, the log opens on the server there (its own database
- * is used only to create the log's, the first time). The log's database and table are made if
- * they are missing.
- *
- * The log's database is connected to straight away, which is one connection when it exists. When
- * it does not, Postgres refuses (invalid_catalog_name), and on Windows it sometimes resets the
- * connection before its refusal arrives (seen as ECONNRESET, or as EPIPE when the reset beats the
- * client's first write). Either way the database is made if it is missing, from
- * the server's own, and the log's is tried once more.
+ * hands out and sets up (contract 2.5, ADR-0735 D3, ADR-0973), on whatever server the library
+ * resolved to, local or Cloud SQL; or the Postgres server at a postgres:// URL, through a library
+ * connection of the log's own. From a connection, the log's pool is the connection's, and closes
+ * with it; from a URL, closing the log closes the connection it opened.
  */
 export async function openActivityLog(server: string | Storytree, options: OpenOptions = {}): Promise<ActivityLog> {
-  if (typeof server !== "string") {
-    const pool = await server.ownDatabase(ACTIVITY_DATABASE);
-    await applySchema(pool);
-    return new PgActivityLog(pool, options.machine, false, options.branchOf);
+  if (typeof server !== "string") return new PgActivityLog(await activityPool(server), options.machine, undefined, options.branchOf);
+  const own = await connect({ url: server, connectTimeoutMs: options.connectTimeoutMs ?? 5_000 });
+  try {
+    return new PgActivityLog(await activityPool(own), options.machine, own, options.branchOf);
+  } catch (error) {
+    await own.close();
+    throw error;
   }
-  return openAtUrl(new URL(server), options);
+}
+
+/** The log's database, which the library creates and sets up with the log's tables. */
+function activityPool(server: Storytree): Promise<Pool> {
+  return server.ownDatabase(ACTIVITY_DATABASE, { tables: SCHEMA });
 }
 
 /**
@@ -191,8 +188,7 @@ export async function openActivityLog(server: string | Storytree, options: OpenO
  */
 export async function forgetProjectActivity(server: Storytree, project: string): Promise<void> {
   assertProject(project);
-  const pool = await server.ownDatabase(ACTIVITY_DATABASE);
-  await applySchema(pool);
+  const pool = await activityPool(server);
   const client = await pool.connect();
   let broken = false;
   try {
@@ -210,43 +206,22 @@ export async function forgetProjectActivity(server: Storytree, project: string):
   }
 }
 
-async function openAtUrl(server: URL, options: OpenOptions): Promise<ActivityLog> {
-  const timeout = options.connectTimeoutMs ?? 5_000;
-  const first = newPool(databaseUrl(server, ACTIVITY_DATABASE), timeout);
-  try {
-    await applySchema(first);
-    return new PgActivityLog(first, options.machine, true, options.branchOf);
-  } catch (error) {
-    await first.end();
-    if (!isMissingDatabase(error) && !isConnectionReset(error)) throw error;
-  }
-  await createDatabaseIfMissing(server, timeout);
-  const pool = newPool(databaseUrl(server, ACTIVITY_DATABASE), timeout);
-  try {
-    await applySchema(pool);
-  } catch (error) {
-    await pool.end();
-    throw error;
-  }
-  return new PgActivityLog(pool, options.machine, true, options.branchOf);
-}
-
 class PgActivityLog implements ActivityLog {
   readonly #pool: Pool;
   readonly #machine: string | undefined;
   readonly #branchOf: ((folder: string) => string | undefined) | undefined;
   #closing: Promise<void> | undefined;
 
-  readonly #ownsPool: boolean;
+  /** The connection the log opened for itself from a URL, closed with the log; the pool is its. */
+  readonly #owner: Storytree | undefined;
 
-  /** `ownsPool` false: the pool is a library connection's, which ends it. */
   readonly transcripts: TranscriptRecords;
 
-  constructor(pool: Pool, machine: string | undefined, ownsPool = true, branchOf?: (folder: string) => string | undefined) {
+  constructor(pool: Pool, machine: string | undefined, owner?: Storytree, branchOf?: (folder: string) => string | undefined) {
     this.#pool = pool;
     this.#machine = machine;
     this.#branchOf = branchOf;
-    this.#ownsPool = ownsPool;
+    this.#owner = owner;
     this.transcripts = new PgTranscriptRecords(pool);
   }
 
@@ -347,7 +322,7 @@ class PgActivityLog implements ActivityLog {
   }
 
   close(): Promise<void> {
-    this.#closing ??= this.#ownsPool ? this.#pool.end() : Promise.resolve();
+    this.#closing ??= this.#owner?.close() ?? Promise.resolve();
     return this.#closing;
   }
 
@@ -448,66 +423,4 @@ function lineOf(row: ActivityRow): Line {
 
 function assertProject(project: unknown): asserts project is string {
   if (typeof project !== "string" || project === "") throw new TypeError(`the activity log is kept per project: name one, not ${JSON.stringify(project)}`);
-}
-
-/** Apply the log's schema in one transaction; opens racing each other take turns on a lock. */
-async function applySchema(pool: Pool): Promise<void> {
-  const client = await pool.connect();
-  let failed = false;
-  try {
-    await client.query("BEGIN");
-    await client.query("SELECT pg_advisory_xact_lock(hashtext('storytree.activity-schema'))");
-    for (const statement of SCHEMA) await client.query(statement);
-    await client.query("COMMIT");
-  } catch (error) {
-    failed = true;
-    await client.query("ROLLBACK").catch(() => undefined);
-    throw error;
-  } finally {
-    client.release(failed);
-  }
-}
-
-/** Create the log's database from the server's own, unless it is there. Another open creating it first is the outcome wanted. */
-async function createDatabaseIfMissing(server: URL, timeout: number): Promise<void> {
-  const client = new pg.Client({ connectionString: server.href, connectionTimeoutMillis: timeout });
-  await client.connect();
-  try {
-    const { rows } = await client.query("SELECT 1 FROM pg_database WHERE datname = $1", [ACTIVITY_DATABASE]);
-    if (rows.length === 0) await client.query(`CREATE DATABASE "${ACTIVITY_DATABASE}"`);
-  } catch (error) {
-    const { code, constraint } = error as { code?: unknown; constraint?: unknown };
-    if (!(code === "42P04" || (code === "23505" && constraint === "pg_database_datname_index"))) throw error;
-  } finally {
-    await client.end();
-  }
-}
-
-function newPool(connectionString: string, timeout: number): Pool {
-  const pool = new pg.Pool({ connectionString, connectionTimeoutMillis: timeout });
-  // An idle connection that drops is discarded by the pool; without a listener Node would crash.
-  pool.on("error", () => {});
-  return pool;
-}
-
-/** The server URL with its database swapped for `database`: user, host, port and options stay. */
-function databaseUrl(server: URL, database: string): string {
-  const url = new URL(server.href);
-  url.pathname = `/${encodeURIComponent(database)}`;
-  return url.href;
-}
-
-/** The server said the database does not exist (invalid_catalog_name). */
-function isMissingDatabase(error: unknown): boolean {
-  return typeof error === "object" && error !== null && (error as { code?: unknown }).code === "3D000";
-}
-
-/**
- * The connection was reset, as Postgres on Windows sometimes does to one it is refusing. A reset
- * that arrives before the client has written its first message surfaces on that write, as EPIPE
- * (seen on macOS: the macOS run of storytree-ai/storytree#187), rather than as ECONNRESET.
- */
-function isConnectionReset(error: unknown): boolean {
-  const code = typeof error === "object" && error !== null ? (error as { code?: unknown }).code : undefined;
-  return code === "ECONNRESET" || code === "EPIPE";
 }

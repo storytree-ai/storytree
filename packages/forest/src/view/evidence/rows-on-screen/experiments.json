@@ -1,0 +1,167 @@
+{
+ "seedTaken": "2026-10-10T01:31:47.390Z",
+ "stories": 21,
+ "layouts": [
+  {
+   "layout": "today",
+   "rows": 9,
+   "radius": 250.4,
+   "islandsDrawnAt": "100%",
+   "landShareOfTheGlobe": "11.7%",
+   "widestRowSpansDegrees": 240.6,
+   "readable": 11,
+   "atTheRim": 5,
+   "behindTheGlobe": 5,
+   "dependenciesSeenPointingNorth": "21 of 60",
+   "behind": [
+    "The app",
+    "The arc surface",
+    "The local database",
+    "Identity",
+    "Journey events"
+   ]
+  },
+  {
+   "layout": "islands pushed at most 34.4 degrees from their row place; the globe grows instead",
+   "rows": 9,
+   "radius": 305.3,
+   "islandsDrawnAt": "82% of today's width",
+   "landShareOfTheGlobe": "7.9%",
+   "widestRowSpansDegrees": 179.3,
+   "readable": 14,
+   "atTheRim": 6,
+   "behindTheGlobe": 1,
+   "dependenciesSeenPointingNorth": "37 of 60",
+   "behind": [
+    "Identity"
+   ]
+  },
+  {
+   "layout": "islands pushed at most 17.2 degrees from their row place; the globe grows instead",
+   "rows": 9,
+   "radius": 462.7,
+   "islandsDrawnAt": "54% of today's width",
+   "landShareOfTheGlobe": "3.4%",
+   "widestRowSpansDegrees": 104.2,
+   "readable": 19,
+   "atTheRim": 2,
+   "behindTheGlobe": 0,
+   "dependenciesSeenPointingNorth": "55 of 60",
+   "behind": []
+  },
+  {
+   "layout": "rows from 60 south to 60 north",
+   "rows": 9,
+   "radius": 231.3,
+   "islandsDrawnAt": "108% of today's width",
+   "landShareOfTheGlobe": "13.7%",
+   "widestRowSpansDegrees": 312,
+   "readable": 9,
+   "atTheRim": 8,
+   "behindTheGlobe": 4,
+   "dependenciesSeenPointingNorth": "14 of 60",
+   "behind": [
+    "The arc surface",
+    "The local database",
+    "Identity",
+    "Journey events"
+   ]
+  },
+  {
+   "layout": "sea between islands as before ADR-0910 (12, not 36)",
+   "rows": 9,
+   "radius": 218,
+   "islandsDrawnAt": "115% of today's width",
+   "landShareOfTheGlobe": "15.4%",
+   "widestRowSpansDegrees": 218,
+   "readable": 12,
+   "atTheRim": 6,
+   "behindTheGlobe": 3,
+   "dependenciesSeenPointingNorth": "24 of 60",
+   "behind": [
+    "The arc surface",
+    "The local database",
+    "Identity"
+   ]
+  },
+  {
+   "layout": "rows ranked by the plan's dependencies, the ones drawn as pathways",
+   "rows": 4,
+   "radius": 255.4,
+   "islandsDrawnAt": "98% of today's width",
+   "landShareOfTheGlobe": "11.2%",
+   "widestRowSpansDegrees": 328.4,
+   "readable": 10,
+   "atTheRim": 6,
+   "behindTheGlobe": 5,
+   "dependenciesSeenPointingNorth": "12 of 19",
+   "behind": [
+    "The forest",
+    "The website",
+    "Identity",
+    "Journey events",
+    "CI health"
+   ]
+  }
+ ],
+ "turning": {
+  "islandsLieBetween": {
+   "west": -116.5,
+   "east": 132.5,
+   "south": -50.6,
+   "north": 50.6
+  },
+  "limits": [
+   {
+    "limit": "today: any spin, tilt to 88 degrees",
+    "shareOfAllTurnsAllowed": "100%",
+    "fewestReadable": 0,
+    "fewestFacingTheEye": 2,
+    "at": {
+     "centreLongitude": 177.5,
+     "tilt": 37.5
+    }
+   },
+   {
+    "limit": "the point facing the eye stays among the islands (west-most to east-most island, bottom row to top row)",
+    "shareOfAllTurnsAllowed": "40%",
+    "fewestReadable": 1,
+    "fewestFacingTheEye": 4,
+    "at": {
+     "centreLongitude": 130,
+     "tilt": 47.5
+    }
+   },
+   {
+    "limit": "the same, with 25 degrees of margin",
+    "shareOfAllTurnsAllowed": "72%",
+    "fewestReadable": 1,
+    "fewestFacingTheEye": 4,
+    "at": {
+     "centreLongitude": -140,
+     "tilt": 12.5
+    }
+   },
+   {
+    "limit": "spin among the islands, tilt at most 20 degrees",
+    "shareOfAllTurnsAllowed": "17%",
+    "fewestReadable": 2,
+    "fewestFacingTheEye": 6,
+    "at": {
+     "centreLongitude": 130,
+     "tilt": 17.5
+    }
+   },
+   {
+    "limit": "spin among the islands, no tilt",
+    "shareOfAllTurnsAllowed": "1%",
+    "fewestReadable": 3,
+    "fewestFacingTheEye": 7,
+    "at": {
+     "centreLongitude": -115,
+     "tilt": 0
+    }
+   }
+  ]
+ }
+}

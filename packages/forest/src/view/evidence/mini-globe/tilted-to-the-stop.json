@@ -1,0 +1,17 @@
+{
+  "tiltDegrees": 50,
+  "northBearingDegrees": 0,
+  "zoom": 1.462,
+  "readable": 6,
+  "of": 21,
+  "miniGlobe": {
+    "right": 8,
+    "top": 8,
+    "width": 120,
+    "mark": {
+      "x": 60,
+      "y": 26.3,
+      "behind": false
+    }
+  }
+}

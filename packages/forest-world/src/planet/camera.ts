@@ -23,6 +23,12 @@ export function applyPlanetFraming(camera: OrthographicCamera, radius: number, f
   camera.updateProjectionMatrix();
 }
 
+/** 6.18 (ADR-0977): the least zoom the wheel may reach, where the globe is half the size `framing` gives it.
+ *  The wheel alone is held to it; a host's own framing sets the zoom directly. */
+export function wheelFloor(radius: number, framing: number, size: FramingViewport): number {
+  return orthographicZoomFor(radius * framing, Math.min(size.width, size.height)) / 2;
+}
+
 /** A positive offset moves the globe right in CSS pixels without moving or turning the eye. */
 export function applyPlanetSideOffset(camera: OrthographicCamera, size: FramingViewport, sideOffset: number): void {
   const width = Math.max(size.width, 1), height = Math.max(size.height, 1);

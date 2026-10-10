@@ -250,6 +250,8 @@ function incrementOf(args: Args, usage: string): Record<string, unknown> {
     const list = listOf(args, flag);
     if (list !== undefined) fields[field] = list;
   }
+  // An empty --held-on clears the hold, as settling or retiring its last question does.
+  if ((fields.heldOn as string[] | undefined)?.length === 0) fields.heldOn = undefined;
   return fields;
 }
 
@@ -312,7 +314,7 @@ const incrementUnstart: Verb = {
 
 const incrementEdit: Verb = {
   name: "edit",
-  usage: "arc increment edit <increment> [--title …] [--objective …] [--body …] [--capabilities a,b] [--links a,b] [--remedies f,g] [--held-on q]",
+  usage: "arc increment edit <increment> [--title …] [--objective …] [--body …] [--capabilities a,b] [--links a,b] [--remedies f,g] [--held-on q, or empty to clear]",
   summary: "change only the named fields; --capabilities and --links replace the lists, --remedies adds friction to those it already remedies",
   async act(args, context): Promise<Answer> {
     const id = args.word(0, "the increment's id", this.usage);

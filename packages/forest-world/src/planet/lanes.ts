@@ -43,20 +43,27 @@ function sharedStrip(segment: PlanetPathwaySegment, dir: LitLink['dir']): Vector
   });
 }
 
-/** Each lit link's road between islands as one strip, dock to dock in dependency order; a link with no road between
- * islands (no trail, or one within an island) lights nothing. */
+/** Each lit link's road between islands as one strip, dock to dock in dependency order, or for a row link with no road,
+ * its plain coast-to-coast lane at a one-link road's width; a link with neither (no trail, or one within an island)
+ * lights nothing. */
 export function laneRoutes(plan: PlanetPathways, lit: readonly LitLink[]): LaneRoute[] {
   const segments = new Map(plan.segments.map(segment => [segment.id, segment]));
+  const plain = (link: LitLink) => plan.rowLanes?.find(lane => lane.from === link.from && lane.to === link.to)?.points;
   const selected = lit.flatMap(link => {
     const edge = plan.edges.find(e => e.from === link.from && e.to === link.to);
     const chain = edge?.segments ?? [];
-    return chain.length === 0 ? [] : [{ link, chain }];
+    return chain.length === 0 && plain(link) === undefined ? [] : [{ link, chain }];
   });
   const colours = new Map<string, number>();
   for (const { link, chain } of selected) for (const ref of chain) {
     colours.set(ref.id, (colours.get(ref.id) ?? 0) | (link.dir === 'up' ? 1 : 2));
   }
   return selected.map(({ link, chain }): LaneRoute => {
+    if (chain.length === 0) {
+      const points = plain(link)!, width = trailFillWidth(1) * RIBBON_GROUND_SCALE;
+      const length = points.slice(1).reduce((sum, point, i) => sum + point.distanceTo(points[i]!), 0);
+      return { ...link, points, length, widths: points.map(() => width), width, colour: LANE_COLOUR[link.dir] };
+    }
     const points: Vector3[] = [], widths: number[] = [];
     // The chain runs from the building capability to the one built on; the lane runs back along it.
     for (const ref of [...chain].reverse()) {

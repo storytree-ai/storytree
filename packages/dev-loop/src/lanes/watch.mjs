@@ -70,6 +70,16 @@ async function records(dir) {
 }
 
 /**
+ * The increments handed to the watcher in `dir`, each with why the pool leaves it alone: its pull request is landing,
+ * or a fix session works it. The watcher clears the event wait before a fix session claims the increment, so this,
+ * not the wait, keeps the dispatcher from starting a second session in between.
+ */
+export async function handedOff(dir) {
+  return (await records(dir)).map((record) => ({ increment: record.increment,
+    note: `PR #${record.pr} is with the Mint box's watcher${record.fixing ? ", and a fix session works it" : ""}` }));
+}
+
+/**
  * Hand a pull request to the watcher: park the increment on an event wait so no session claims it while it lands
  * (checking back in three days, after which the pool may take it again: an event wait needs that day), record the hand-off (one per pull request; handing back keeps its fix sessions), and start the watcher.
  */

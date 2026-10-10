@@ -13,6 +13,7 @@ import { promisify } from "node:util";
 import { blind, pickPlan, pickPool, readOnly, surveyLibrary } from "./feed.mjs";
 import { composeBrief, countEngines, holdRunner, waitForSlot } from "./queue.mjs";
 import { runLane as runEngineLane } from "./runner.mjs";
+import { handedOff } from "./watch.mjs";
 
 const run = promisify(execFile);
 /** The dispatcher's exit when its own code changed on origin/main: the box wrapper starts it again, on the new code. */
@@ -65,7 +66,8 @@ export async function laneOnce({ increment, brief, log, err, addDirs, repo, maxL
  * The dispatcher (ADR-0955 D2, D4): whenever free slots (the cap less the engines running and the sessions it is
  * still starting) are open, it takes that many increments from one survey (feed.mjs's pickPool) and launches each;
  * a launch's `engineUp` says its engine has started, so it counts among the engines from then on. It looks again
- * when a session ends, every `pollMs` while slots are full, and every `intervalMs` while nothing is ready. A claim
+ * when a session ends, every `pollMs` while slots are full, every `idleMs` while slots are free and nothing is ready
+ * (a newly parked or released increment waits minutes, not a quarter hour), and every `intervalMs` after a failed survey. A claim
  * that refused a session is said once, and its increment waits until that claim clears. With free slots and nothing
  * ready, it launches one planning session (`{ plan: true }`) for the arc feed.mjs's pickPlan offers, never two at
  * once, each arc once. Ends on the stop file, 75 (an engine failing at once), or RESTART once `codeVersion` (its own
@@ -74,7 +76,7 @@ export async function laneOnce({ increment, brief, log, err, addDirs, repo, maxL
  */
 export async function runPool({ survey, maxLanes, count, launch, stopFile, exists = async (path) => existsSync(path),
   codeVersion = async () => undefined, refresh = async () => {},
-  sleep = (ms, options) => wait(ms, undefined, options), intervalMs = 15 * 60_000, pollMs = 60_000, now = Date.now, say = console.log }) {
+  sleep = (ms, options) => wait(ms, undefined, options), intervalMs = 15 * 60_000, idleMs = 2 * 60_000, pollMs = 60_000, now = Date.now, say = console.log }) {
   const dated = (message) => say(`${stamp(now)} ${message}`);
   const attempts = new Map(), running = new Map(), starting = new Set(), refused = new Map(), planned = new Set();
   let ending, planning, changed, change = new Promise((go) => { changed = go; });
@@ -143,8 +145,8 @@ export async function runPool({ survey, maxLanes, count, launch, stopFile, exist
         continue;
       }
       if (await freshen()) continue;
-      dated(`nothing ready for ${free} free slot${free === 1 ? "" : "s"} (${skipped.length} skipped); looking again in ${Math.round(intervalMs / 60_000)} min`);
-      await pause(intervalMs);
+      dated(`nothing ready for ${free} free slot${free === 1 ? "" : "s"} (${skipped.length} skipped); looking again in ${Math.round(idleMs / 60_000)} min`);
+      await pause(idleMs);
       continue;
     }
     for (const one of picks) start(one);
@@ -192,6 +194,13 @@ export async function main(args, box = {}) {
   return 2;
 }
 
+/** A survey with each increment handed to the watcher held on it, as its event wait would hold it, so the pool and planning leave it alone. */
+export function withHandOffs(found, handed) {
+  const waitsFor = { ...found.holds.waitsFor };
+  for (const { increment, note } of handed) waitsFor[increment] = [...(waitsFor[increment] ?? []), { releaser: "event", note, holds: true }];
+  return { ...found, holds: { ...found.holds, waitsFor } };
+}
+
 /** `pool`: one dispatcher (pool.pid), its status lines in pool.status, stopped by pool-stop; each session's brief, log and err as pool-<increment>-…. */
 async function pool(b) {
   const L = b.lanesDir;
@@ -201,7 +210,7 @@ async function pool(b) {
   if (!runner.held) { dated(`dispatcher ${runner.by} is running: not starting`); return 1; }
   dated("dispatcher started");
   const code = await runPool({
-    survey: b.survey, maxLanes: b.maxLanes, count: b.count, stopFile: join(L, "pool-stop"), sleep: b.sleep, now: b.now, say,
+    survey: async () => withHandOffs(await b.survey(), await handedOff(join(L, "watch"))), maxLanes: b.maxLanes, count: b.count, stopFile: join(L, "pool-stop"), sleep: b.sleep, now: b.now, say,
     codeVersion: b.codeVersion ?? (async () => (await run("git", ["rev-parse", "HEAD:packages/dev-loop"], { cwd: b.repo })).stdout.trim()),
     refresh: () => b.lock(b.prepare),
     launch: async (one, { engineUp }) => {

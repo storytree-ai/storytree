@@ -208,3 +208,32 @@ test("12.11 · with free slots and nothing ready, one planning session starts fo
   assert.ok(b.briefs[0].startsWith("# Planning lane: arc_old\n\nYour arc: arc_old (Old)."));
   assert.ok(b.briefs[0].includes(await planRules()) && /never build/i.test(b.briefs[0]));
 });
+
+test("12.12 · an increment handed to the watcher is not offered while its hand-off stands, its fix session running or not", async (t) => {
+  const b = await box(t, { survey: async () => poolWork(["increment_handed", "increment_fixing", "increment_free"]), count: async () => 0, maxLanes: async () => 3 });
+  await mkdir(join(b.lanesDir, "watch"), { recursive: true });
+  await writeFile(join(b.lanesDir, "watch", "41.json"), JSON.stringify({ pr: 41, increment: "increment_handed", fixes: [], fixing: null }));
+  await writeFile(join(b.lanesDir, "watch", "42.json"), JSON.stringify({ pr: 42, increment: "increment_fixing", fixes: [{}], fixing: { pid: 7 } }));
+  const started = [];
+  b.runLane = async (options) => { started.push((await readFile(options.brief, "utf8")).split("\n")[0]); return 0; };
+  b.sleep = async () => { await new Promise((go) => setImmediate(go)); await writeFile(join(b.lanesDir, "pool-stop"), ""); };
+  assert.equal(await main(["pool"], b), 0);
+  assert.deepEqual(started, ["# Pool lane: increment_free"], "the handed-over increment and the one a fix session works are left to the watcher");
+});
+
+test("12.13 · with free slots and nothing ready the dispatcher looks again within minutes; full slots poll, and a failing survey backs off", async () => {
+  const pauses = [];
+  let looks = 0, stop = false, fail = false, engines = 0;
+  await runPool({
+    survey: async () => { if (fail) throw new Error("library down"); return poolWork([]); }, maxLanes: async () => 2, count: async () => engines,
+    stopFile: "/lanes/pool-stop", exists: async () => stop, now, say: () => {}, launch: async () => 0,
+    sleep: async (ms) => {
+      pauses.push(ms);
+      looks += 1;
+      if (looks === 1) engines = 2;
+      else if (looks === 2) { engines = 0; fail = true; }
+      else stop = true;
+    },
+  });
+  assert.deepEqual(pauses, [2 * 60_000, 60_000, 15 * 60_000], "idle with free slots: two minutes; every slot busy: a minute without a survey; survey failed: fifteen");
+});

@@ -1,13 +1,13 @@
 // Settings 10.13 (ADR-0846 D1): the Library tab's third location, a Postgres address, captured
 // through the real panel code (mountSettings, bundled for the browser) and the real settings
 // writers on a throwaway storytree home. No library, no Postgres: the panel reads and writes
-// settings.json only. Run: node --import tsx packages/agent-link/evidence/library-address/capture.mjs
+// settings.json only. Run: node --import tsx packages/session-management/evidence/library-address/capture.mjs
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { settingsActions } from '@storytree/agent-link/settings';
+import { settingsActions } from '@storytree/session-management/settings';
 import { buildSettingsPanel } from './build.mjs';
 
 const { chromium } = await import(process.env.STORYTREE_PLAYWRIGHT ?? '/home/mickh/code/Storytree/node_modules/.pnpm/playwright-core@1.60.0/node_modules/playwright-core/index.mjs');

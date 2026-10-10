@@ -4,7 +4,7 @@
 // delegation" definition's text, copied read-only into register.txt and defined in the throwaway
 // library. Never opens the live library or the owner's home.
 // Run after `node apps/desktop/build.mjs`, under the heavy lock:
-//   flock /tmp/storytree-heavy.lock node --import tsx packages/agent-link/evidence/decision-rights/capture.mjs
+//   flock /tmp/storytree-heavy.lock node --import tsx packages/session-management/evidence/decision-rights/capture.mjs
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
@@ -15,8 +15,8 @@ import { fileURLToPath } from 'node:url';
 
 const desktopRequire = createRequire(new URL('../../../../apps/desktop/package.json', import.meta.url));
 const { pageReads, projectSelection, surfacesActions } = await import(desktopRequire.resolve('@storytree/app'));
-const { settingsActions } = await import(desktopRequire.resolve('@storytree/agent-link/settings'));
-const { decisionRights } = await import(desktopRequire.resolve('@storytree/agent-link'));
+const { settingsActions } = await import(desktopRequire.resolve('@storytree/session-management/settings'));
+const { decisionRights } = await import(desktopRequire.resolve('@storytree/session-management'));
 const { forestSurfaces } = await import(desktopRequire.resolve('@storytree/forest/surfaces'));
 const { arcSurfaces } = await import(desktopRequire.resolve('@storytree/arc-surface/surfaces'));
 const { connect } = await import(desktopRequire.resolve('@storytree/library'));

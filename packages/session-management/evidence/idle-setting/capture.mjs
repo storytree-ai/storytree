@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { settingsActions } from '@storytree/agent-link/settings';
+import { settingsActions } from '@storytree/session-management/settings';
 import { buildAppMenu } from './build.mjs';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const { chromium } = await import(process.env.STORYTREE_PLAYWRIGHT ?? '/home/mickh/code/Storytree/node_modules/.pnpm/playwright-core@1.60.0/node_modules/playwright-core/index.mjs');

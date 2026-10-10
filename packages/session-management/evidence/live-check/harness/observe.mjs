@@ -1,7 +1,7 @@
 // observe.mjs <dir> <out> <commit>: turn journey.sh's run into the checks of setup check 8.6, as
 // `pnpm record:acceptance` reads them. It reads only what storytree recorded (the throwaway home's library
 // and activity log) and what storytree's command said; the sessions' replies are never read.
-// Run from this checkout: node --import tsx packages/agent-link/evidence/live-check/harness/observe.mjs …
+// Run from this checkout: node --import tsx packages/session-management/evidence/live-check/harness/observe.mjs …
 import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
@@ -80,7 +80,7 @@ await storytree.close();
 const observations = {
   story: "The agent link",
   commit,
-  evidence: "packages/agent-link/evidence/live-check/" + path.basename(out),
+  evidence: "packages/session-management/evidence/live-check/" + path.basename(out),
   note: "Run on the Mint box (Linux) against this checkout's dev build, through app setup's dev-home: a throwaway home and database, the agents' own sign-ins.",
   checks,
 };

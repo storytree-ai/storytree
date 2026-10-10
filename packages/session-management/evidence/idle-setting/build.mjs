@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
-const require = createRequire(path.join(root, 'packages/agent-link/package.json'));
+const require = createRequire(path.join(root, 'packages/session-management/package.json'));
 
 export async function buildAppMenu() {
   const { build } = require('esbuild');

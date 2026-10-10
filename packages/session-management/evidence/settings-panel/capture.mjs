@@ -2,8 +2,8 @@
 // Reuses packages/app/evidence/project-switch-smoke.mjs's headless renderer route.
 // Run after build, under flock /tmp/storytree-heavy.lock. Never opens the live library.
 import assert from 'node:assert/strict';
-import { settingsActions } from '@storytree/agent-link/settings';
-import { readSettings, setSetting } from '@storytree/agent-link';
+import { settingsActions } from '@storytree/session-management/settings';
+import { readSettings, setSetting } from '@storytree/session-management';
 import { createServer } from 'node:http';
 import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';

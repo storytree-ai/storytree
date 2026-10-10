@@ -1,4 +1,4 @@
-// Run from the repository root: flock /tmp/storytree-heavy.lock node --import tsx packages/agent-link/evidence/stalled-db/cli-check.mjs
+// Run from the repository root: flock /tmp/storytree-heavy.lock node --import tsx packages/session-management/evidence/stalled-db/cli-check.mjs
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';

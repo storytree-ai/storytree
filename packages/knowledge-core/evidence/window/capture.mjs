@@ -43,7 +43,7 @@ const window = {
     open(read[1], 'c2', [['s1', []], ['c1', [read[0]]]]),
     open(read[2], 'c3', [['c2', [read[1]]]]),
     open(read[3], 'c4', [['s2', []]]),
-    { kind: 'file', id: 'packages/agent-link/src/claims/merges.ts', call: 'f1', tool: 'Read', resident: true, inViewFrom: [] },
+    { kind: 'file', id: 'packages/session-management/src/claims/merges.ts', call: 'f1', tool: 'Read', resident: true, inViewFrom: [] },
   ],
 };
 const held = [read[5], read[0], read[1], read[2], read[3]];

@@ -28,7 +28,7 @@ line(ids.builder, 30, { kind: 'subagent-started', subagent: ids.helper, type: 'e
 line(ids.quiet, 6, { kind: 'session-started', harness: 'codex', folder: `${home}/.claude/worktrees/tidy-readme` });
 seed.lines = { lines, cursor: lines.length };
 const opened = [
-  ['packages/forest/src/view/sessions-list.tsx', true], ['packages/agent-link/src/context/window.ts', false],
+  ['packages/forest/src/view/sessions-list.tsx', true], ['packages/session-management/src/context/window.ts', false],
   ['packages/forest/src/sessions-list/sessions-list.ts', true], ['packages/app/src/surfaces/reads.ts', true],
   ['packages/forest/src/view/styles.css', true],
 ].map(([id, resident]) => ({ kind: 'file', id, call: id, tool: 'Read', resident, inViewFrom: [] }));

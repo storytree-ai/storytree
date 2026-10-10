@@ -3,7 +3,8 @@
 // queue: on MERGED it closes the increment and releases the session's claims, on a red it starts one fix session.
 // node packages/dev-loop/src/lanes/watch.mjs hand <pr> <increment> [--session <id>]   (records it and starts the watcher)
 // node packages/dev-loop/src/lanes/watch.mjs handover <pr> <increment>               (from any machine: `hand` on the box, else over ssh)
-// node packages/dev-loop/src/lanes/watch.mjs run                                     (the watcher: one per box)
+// node packages/dev-loop/src/lanes/watch.mjs run                                     (the watcher: one per box; keeps `watch` running)
+// node packages/dev-loop/src/lanes/watch.mjs watch                                   (its look loop, which `run` starts; exits 3 on its own code change)
 // node packages/dev-loop/src/lanes/watch.mjs status
 import { execFile, spawn as spawnChild } from "node:child_process";
 import { existsSync, openSync } from "node:fs";
@@ -21,6 +22,9 @@ const RED = new Set(["FAILURE", "TIMED_OUT", "CANCELLED", "ACTION_REQUIRED", "ST
 // The queue's removals that the Requeue workflow puts back once; one it left out past its grace is red.
 const EJECTED = new Set(["FAILED_CHECKS", "BRANCH_PROTECTION_FAILURE"]);
 const MARKS = [/watch\.mjs run( |$)/];
+const LOOP_MARKS = [/watch\.mjs watch( |$)/];
+/** The look loop's exit when the dev loop's code in the shared checkout changed: `run` starts it again, on the new code. */
+export const RESTART = 3;
 
 /**
  * A pull request, as GitHub's GraphQL returns it, read as merged, closed, red or pending. Red is a failed check on
@@ -211,6 +215,7 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
   const script = fileURLToPath(import.meta.url);
   // The watcher and its fix sessions belong to no agent session: they outlive the one that handed over.
   const free = { ...env };
+  const own = join(repo, "packages", "dev-loop", "src", "lanes", "watch.mjs");
   for (const name of ["CLAUDE_CODE_SESSION_ID", "CODEX_THREAD_ID"]) delete free[name];
   const detached = (args, log, cwd) => {
     const out = openSync(log, "a");
@@ -219,7 +224,7 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
     return child.pid;
   };
   return {
-    lanesDir, repo, dir, pidFile: join(dir, "watch.pid"), status: join(lanesDir, "watch.status"), argsOf,
+    lanesDir, repo, dir, pidFile: join(dir, "watch.pid"), loopPidFile: join(dir, "watch-loop.pid"), status: join(lanesDir, "watch.status"), argsOf,
     limit: Number(env.WATCH_FIX_LIMIT) || 2, intervalMs: Number(env.WATCH_INTERVAL_S ?? 60) * 1000, now: Date.now,
     session: env.CLAUDE_CODE_SESSION_ID?.trim() || env.CODEX_THREAD_ID?.trim() || "",
     storytree: async (args) => (await run("pnpm", ["-s", "storytree", ...args], { cwd: repo, maxBuffer: 16 * 1024 * 1024 })).stdout,
@@ -234,7 +239,14 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
         join(home, "code", "storytree03-wt"), lanesDir], `${base}.runner.log`, repo);
       return { pid, log: `${base}.log` };
     },
-    startWatcher: () => detached([script, "run"], join(lanesDir, "watch.status"), repo),
+    // Started from the shared checkout's copy, whichever worktree handed over, so it runs the code it watches for changes.
+    startWatcher: () => detached([own, "run"], join(lanesDir, "watch.status"), repo),
+    codeVersion: async () => (await run("git", ["rev-parse", "HEAD:packages/dev-loop"], { cwd: repo })).stdout.trim(),
+    loop: () => new Promise((ended) => {
+      const child = spawnChild(process.execPath, [own, "watch"], { cwd: repo, env: free, stdio: "inherit" });
+      child.once("error", () => ended(1));
+      child.once("exit", (code) => ended(code ?? 1));
+    }),
     // The box is the machine whose lanes folder has the lane runner; any other reaches it as `ssh mint`.
     onBox: existsSync(join(lanesDir, "run-lane.sh")),
     remote: async (args) => (await run("ssh", ["-o", "BatchMode=yes", "-o", "ConnectTimeout=15", env.WATCH_BOX_HOST || "mint",
@@ -272,13 +284,31 @@ export async function main(args, box = {}) {
     if (!found.length) out("no hand-offs");
     return 0;
   }
-  if (args[0] !== "run") { out("usage: watch.mjs handover <pr> <increment> | hand <pr> <increment> [--session <id>] | run | status"); return 2; }
+  if (args[0] !== "run" && args[0] !== "watch") { out("usage: watch.mjs handover <pr> <increment> | hand <pr> <increment> [--session <id>] | run | status"); return 2; }
   const say = b.say ?? ((line) => out(line));
-  const runner = await holdRunner({ pidFile: b.pidFile, pid: b.pid ?? process.pid, marks: MARKS, argsOf: b.argsOf });
-  if (!runner.held) { say(`watcher ${runner.by} is running: not starting`); return 1; }
+  const dated = (message) => say(`${new Date(b.now()).toISOString()} ${message}`);
+  if (args[0] === "run") {
+    // The keeper: it holds the watcher's pid file and starts the look loop again whenever it ends, at once on a restart.
+    const runner = await holdRunner({ pidFile: b.pidFile, pid: b.pid ?? process.pid, marks: MARKS, argsOf: b.argsOf });
+    if (!runner.held) { say(`watcher ${runner.by} is running: not starting`); return 1; }
+    for (;;) {
+      const code = await b.loop();
+      if (code === 1) { dated("watcher look loop would not start (another holds it): stopping"); return 1; }
+      if (code === RESTART) continue;
+      dated(`watcher look loop ended ${code}: starting it again in ${Math.round(b.intervalMs / 1000)} s`);
+      await b.sleep(b.intervalMs);
+    }
+  }
+  const loop = await holdRunner({ pidFile: b.loopPidFile, pid: b.pid ?? process.pid, marks: LOOP_MARKS, argsOf: b.argsOf });
+  if (!loop.held) { say(`watcher look loop ${loop.by} is running: not starting`); return 1; }
+  const version = () => Promise.resolve().then(b.codeVersion).catch(() => undefined);
+  const began = await version();
   for (;;) {
+    // Between looks, never in one: a fix session it started runs on, and its hand-off on disk keeps the count.
+    const current = began && await version();
+    if (current && current !== began) { dated(`dev loop code changed (${began} → ${current}): restarting`); return RESTART; }
     try { await watchOnce({ ...b, say }); }
-    catch (error) { say(`${new Date(b.now()).toISOString()} look failed: ${error.message.split("\n")[0]}`); }
+    catch (error) { dated(`look failed: ${error.message.split("\n")[0]}`); }
     await b.sleep(b.intervalMs);
   }
 }

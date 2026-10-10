@@ -1,5 +1,6 @@
 /**
- * Capability 1 · Quality control checks, and capability 3 · QA ledger: the checks and ledger readings as tools on the MCP server's one server, through
+ * Capability 1 · Quality control checks, capability 2 · Change review, capability 3 · QA ledger and capability 4 · Review loop
+ * bound: the checks and ledger readings and the change-reviewer's loop as tools on the MCP server's one server, through
  * its extension point (its ToolExtension, ADR-0643 D6, ADR-0969 D1). The extension's shape is restated rather
  * than imported, as the librarian's is: no story may depend on the MCP server, which depends on this
  * package to serve the tool, and checks the two still fit where it registers qualityTools.
@@ -8,6 +9,7 @@ import type { Library, Storytree } from "@storytree/library";
 import { z } from "zod";
 
 import { ledgerText, openLedger } from "../ledger/ledger.js";
+import { branchDiff, briefText, openReviews, standingText, takenText, type ReviewReturn } from "../review/review.js";
 import { checks, checksText } from "./checks.js";
 
 /** What a tool has to work with for one call, as far as the checks and ledger readings need it. */
@@ -33,7 +35,14 @@ export interface ToolExtension {
   readonly instructions?: string;
 }
 
-/** The tools this story serves on the MCP server: the checks reading (contract 1.2) and the ledger's (3.4). */
+/** What the change-reviewer returns, as a tool's argument; the loop itself refuses a return that does not answer its brief. */
+const reviewReturn = z.object({
+  checks: z.array(z.object({ check: z.string(), tripped: z.boolean(), hits: z.array(z.object({ file: z.string(), line: z.number(), found: z.string() })).optional() })).describe("Every check in the brief: tripped or not, and where tripped each file, line and what was found"),
+  contracts: z.array(z.object({ contract: z.string(), met: z.boolean(), why: z.string().optional() })).describe("Every contract in the brief: met or not, and why not"),
+  rejections: z.array(z.object({ hit: z.number(), accepted: z.boolean(), why: z.string().optional() })).optional().describe("Each rejection the brief asks to judge: whether its reason is accepted"),
+});
+
+/** The tools this story serves on the MCP server: the checks reading (contract 1.2), the ledger's (3.4), and the review loop (2.3, 4.4). */
 export function qualityTools(): ToolExtension {
   return {
     registerTools(define) {
@@ -44,6 +53,37 @@ export function qualityTools(): ToolExtension {
       define("quality_ledger", "Read the QA ledger's counts for this project: for each quality control check and each package, how many reviews ran it and how many hits it made, by the implementer's answer (fixed, rejected, unanswered).", z.object({}), async (_args, { storytree, project }) => {
         const reading = await (await openLedger(storytree)).reading(project);
         return { text: ledgerText(reading), data: { ledger: reading } };
+      });
+      define("quality_brief", "Issue the next review's brief for an increment's change: its diff against origin/main, the contracts of the capabilities it names and every live check. Give the diff, or the worktree whose branch is the change.", z.object({
+        increment: z.string().min(1).describe("The increment whose change is reviewed"),
+        diff: z.string().optional().describe("The change's diff against origin/main, as git diff gives it"),
+        worktree: z.string().optional().describe("The worktree whose branch is the change, to read the diff from"),
+      }), async ({ increment, diff, worktree }, { library, storytree }) => {
+        if (diff === undefined && worktree === undefined) throw new Error("Give the change's diff, or the worktree whose branch is the change: this server's folder is not the branch.");
+        const brief = await (await openReviews(storytree)).brief(library, increment, diff ?? branchDiff(worktree!));
+        return { text: briefText(brief), data: { brief } };
+      });
+      define("quality_take", "Take the change-reviewer's return on an increment's brief into the QA ledger, or refuse it naming what it leaves out, recording nothing.", z.object({
+        increment: z.string().min(1).describe("The increment whose change was reviewed"),
+        return: reviewReturn,
+      }), async ({ increment, return: review }, { storytree, project }) => {
+        const taken = await (await openReviews(storytree)).take(project, increment, review as ReviewReturn);
+        return { text: takenText(taken), data: { taken } };
+      });
+      define("quality_answer", "The implementer's answer to a review's hit: fixed, or rejected with a reason.", z.object({
+        hit: z.number().int().describe("The hit, by its number"),
+        answer: z.enum(["fixed", "rejected"]),
+        reason: z.string().optional().describe("Why the hit is rejected; needed for a rejection"),
+      }), async ({ hit, answer, reason }, { storytree, project }) => {
+        if (answer === "rejected" && reason === undefined) throw new Error("A rejected hit needs its reason.");
+        await (await openLedger(storytree)).answer(project, hit, answer === "fixed" ? { answer } : { answer, reason: reason! });
+        return { text: `Answered hit ${hit}: ${answer}.`, data: { hit, answer } };
+      });
+      define("quality_standing", "The findings that still stand on an increment's change, or that it is ready for the gate.", z.object({
+        increment: z.string().min(1).describe("The increment whose change is reviewed"),
+      }), async ({ increment }, { storytree, project }) => {
+        const standing = await (await openReviews(storytree)).standing(project, increment);
+        return { text: standingText(standing), data: { standing } };
       });
     },
   };

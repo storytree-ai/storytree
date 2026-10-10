@@ -93,7 +93,11 @@ for (const platform of PLATFORMS) {
     writing = false;
     const applying = updater.check();
     // Squirrel.Mac first fetches the download from MacUpdater; then the database stops, before anything else.
-    while (events.length === 0) await new Promise((resolve) => setImmediate(resolve));
+    // A check that settles first (Squirrel could not stage) fails here rather than spinning the run forever.
+    let settled = false;
+    applying.then(() => { settled = true; }, () => { settled = true; });
+    while (events.length === 0 && !settled) await new Promise((resolve) => setImmediate(resolve));
+    if (events.length === 0) await applying;
     assert.deepEqual(events, ["stopping"]);
     finishStop();
     assert.equal(await applying, "restarting");

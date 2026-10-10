@@ -62,10 +62,10 @@ export function registerNoteTools(define: Define): void {
 
   define(
     "write_note",
-    "Write an artifact: a decision (title and text), definition (term and meaning), or principle, guardrail, pattern, process, agent or techstack (required fields in fields). Use record_friction and record_resteer for their evidence rules. With no place named, it goes onto the shelf of the capability you claimed most recently.",
+    "Write an artifact: a decision (title and text), definition (term and meaning), or principle, guardrail, pattern, process, agent, techstack or check (required fields in fields). Use record_friction and record_resteer for their evidence rules. With no place named, it goes onto the shelf of the capability you claimed most recently.",
     z.object({
-      kind: z.string().min(1).describe("decision, definition, principle, guardrail, pattern, process, agent or techstack; friction and resteer have capture tools"),
-      fields: z.record(z.string(), z.unknown()).optional().describe("Required fields of a principle, guardrail, pattern, process, agent or techstack"),
+      kind: z.string().min(1).describe("decision, definition, principle, guardrail, pattern, process, agent, techstack or check; friction and resteer have capture tools"),
+      fields: z.record(z.string(), z.unknown()).optional().describe("Required fields of a principle, guardrail, pattern, process, agent, techstack or check"),
       text: z.string().min(1).optional().describe("A decision's text"),
       title: z.string().min(1).optional().describe("A decision's title"),
       term: z.string().min(1).optional().describe("A definition's term"),
@@ -169,8 +169,8 @@ const FIELDS = { decision: ["title", "text"], definition: ["term", "meaning"] } 
 async function writeNote(args: NoteArgs, call: Call): Promise<Answer> {
   if (args.kind === "memory") return { text: "memory belongs to the agent harness, not the library (ADR-0650); write a proper artifact kind such as decision, definition or principle.", refused: true };
   if (args.kind === "friction" || args.kind === "resteer") return { text: `Use record_${args.kind} to write this artifact under its evidence rules.`, refused: true };
-  const further = ["principle", "guardrail", "pattern", "process", "agent", "techstack"].includes(args.kind);
-  if (!further && args.kind !== "decision" && args.kind !== "definition") return { text: `Unknown artifact kind ${quoted(args.kind)}; use decision, definition, principle, guardrail, pattern, process, agent or techstack.`, refused: true };
+  const further = ["principle", "guardrail", "pattern", "process", "agent", "techstack", "check"].includes(args.kind);
+  if (!further && args.kind !== "decision" && args.kind !== "definition") return { text: `Unknown artifact kind ${quoted(args.kind)}; use decision, definition, principle, guardrail, pattern, process, agent, techstack or check.`, refused: true };
   const needs: readonly string[] = further ? [] : FIELDS[args.kind as keyof typeof FIELDS];
   if (further && args.fields === undefined) return { text: `Give the required fields for a ${args.kind} in fields.`, refused: true };
   if (!further && args.fields !== undefined) return { text: `A ${args.kind} takes ${needs.join(" and ")} directly.`, refused: true };

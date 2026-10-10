@@ -14,6 +14,16 @@ import { checkReference, checkReferences, couldBeId, DependencyLoopError, liveRe
 import { SchemaError, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../schema/index.js";
 import type { FieldsOf } from "../schema/types.js";
 
+/**
+ * What one contract is, in two sentences: the habits card says it, and both front doors quote it when
+ * a new contract's title runs past LONG_CONTRACT_TITLE characters, so two planners split one set of
+ * requirements alike.
+ */
+export const CONTRACT_DEFINITION =
+  "A contract is one behaviour seen from outside the code: what goes in (its inputs), what comes out (its outputs) and its errors. A promise that joins two such behaviours is two contracts, and one about how the code works inside is not a contract yet.";
+/** A contract title past this many characters gets the advisory: about the longest eighth of 338 live contract titles, measured 2026-10-11. */
+export const LONG_CONTRACT_TITLE = 300;
+
 /** A new story's fields. */
 export type NewStory = FieldsOf<"story">;
 /**

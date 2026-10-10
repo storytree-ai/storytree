@@ -111,18 +111,9 @@ importers:
 
   packages/agent-link:
     dependencies:
-      '@modelcontextprotocol/server':
-        specifier: ^2.1.0
-        version: 2.1.0
-      '@storytree/guardrails':
-        specifier: workspace:*
-        version: link:../guardrails
       '@storytree/journey-events':
         specifier: workspace:*
         version: link:../journey-events
-      '@storytree/librarian':
-        specifier: workspace:^
-        version: link:../librarian
       '@storytree/library':
         specifier: workspace:*
         version: link:../library
@@ -139,9 +130,6 @@ importers:
         specifier: ^4.6.5
         version: 4.6.5
     devDependencies:
-      '@modelcontextprotocol/client':
-        specifier: ^2.1.0
-        version: 2.1.0
       '@storytree/local-postgres':
         specifier: workspace:*
         version: link:../local-postgres
@@ -689,6 +677,55 @@ importers:
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+      typescript:
+        specifier: ~7.0.2
+        version: 7.0.2
+
+  packages/mcp-server:
+    dependencies:
+      '@modelcontextprotocol/server':
+        specifier: ^2.1.0
+        version: 2.1.0
+      '@storytree/agent-link':
+        specifier: workspace:*
+        version: link:../agent-link
+      '@storytree/guardrails':
+        specifier: workspace:*
+        version: link:../guardrails
+      '@storytree/journey-events':
+        specifier: workspace:*
+        version: link:../journey-events
+      '@storytree/librarian':
+        specifier: workspace:*
+        version: link:../librarian
+      '@storytree/library':
+        specifier: workspace:*
+        version: link:../library
+      '@storytree/map':
+        specifier: workspace:*
+        version: link:../map
+      '@storytree/processes':
+        specifier: workspace:*
+        version: link:../processes
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
+    devDependencies:
+      '@modelcontextprotocol/client':
+        specifier: ^2.1.0
+        version: 2.1.0
+      '@types/node':
+        specifier: ^24.13.6
+        version: 24.13.6
+      '@types/pg':
+        specifier: ^8.23.1
+        version: 8.23.1
+      pg:
+        specifier: ^8.23.0
+        version: 8.23.0
       tsx:
         specifier: ^4.23.15
         version: 4.23.15

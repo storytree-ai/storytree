@@ -1,5 +1,5 @@
 /**
- * Capability 7 · Instructions: contract 7.4. Codex keeps a tool server's instructions and tools out
+ * Capability 8 · Setup check: contract 8.25. Codex keeps a tool server's instructions and tools out
  * of the agent's first view (it finds them by searching), so a fresh Codex session never reads the
  * habits card; what it does read is the AGENTS.md in its home. Measured on the owner's Windows laptop
  * (packages/app-setup/evidence/codex-first-session): without this section 0 of 3 first sessions
@@ -13,7 +13,7 @@ import { test } from "node:test";
 import { withTempDir } from "../testing/folders.js";
 import { removeCodexInstructions, writeCodexInstructions } from "./index.js";
 
-test("7.4 Codex's AGENTS.md gets one storytree section telling the agent to call check_setup first in a storytree project; again changes nothing, the user's own text is kept, and removing takes out exactly that section", async () => {
+test("8.25 Codex's AGENTS.md gets one storytree section telling the agent to call check_setup first in a storytree project; again changes nothing, the user's own text is kept, and removing takes out exactly that section", async () => {
   await withTempDir(async (codexHome) => {
     const file = path.join(codexHome, "AGENTS.md");
     assert.equal(writeCodexInstructions(codexHome), "written");
@@ -42,7 +42,7 @@ test("7.4 Codex's AGENTS.md gets one storytree section telling the agent to call
   });
 });
 
-test("7.4 no Codex home here: nothing is written", async () => {
+test("8.25 no Codex home here: nothing is written", async () => {
   await withTempDir(async (dir) => {
     const missing = path.join(dir, "no-codex");
     assert.equal(writeCodexInstructions(missing), "not here");

@@ -1,7 +1,7 @@
 /**
  * Capability 6 · Rounds: contracts 6.1-6.2, 6.6 and 6.7 in the librarian story, each in a fresh project's
  * library on the real Postgres `pnpm test` provides; 6.5 against the librarian's subagent definition.
- * 6.3-6.4 are proven beside the agent link's server (packages/agent-link/src/tools/librarian-tools.test.ts).
+ * 6.3-6.4 are proven beside the MCP server (packages/mcp-server/src/tools/librarian-tools.test.ts).
  */
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";

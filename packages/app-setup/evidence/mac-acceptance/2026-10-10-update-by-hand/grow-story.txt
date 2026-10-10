@@ -1,0 +1,5 @@
+Wrote story story_da3f2f0aaced.
+Writer: person:runner
+
+next:
+  - storytree library read story_da3f2f0aaced   (read it back)

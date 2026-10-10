@@ -189,7 +189,7 @@ const create: Verb = {
     const fields = fieldsOf(args);
     const options = kind === "contract" && typeof fields.capability === "string" ? { ...context.writer(), testedNumbers: await testedNumbersOf(context.cwd, library, fields.capability) } : context.writer();
     const written = await withIdLists(fields, (given) => write(library, given, options));
-    const long = kind === "contract" && String((written.fields as Record<string, unknown>).title ?? "").length > LONG_CONTRACT_TITLE;
+    const long = kind === "contract" && String(fields.title ?? "").length > LONG_CONTRACT_TITLE;
     const advice = long ? `\nIts title runs past ${LONG_CONTRACT_TITLE} characters, which often means more than one promise: ${CONTRACT_DEFINITION} Split it with \`storytree library edit\` and \`storytree library new contract\` if so.` : "";
     return { text: `Wrote ${kind} ${written.id}.${advice}`, next: [{ command: `storytree library read ${written.id}`, why: "read it back" }] };
   },

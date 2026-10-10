@@ -128,6 +128,7 @@ const show: Verb = {
 const present: Verb = {
   name: "present",
   usage: "question present <question> [--done]",
+  switches: ["done"],
   summary: "mark a question as being put to the owner by this session, so no other asks him at once; --done when you move on",
   async act(args, context) {
     const id = args.word(0, "the question's id", this.usage);

@@ -14,7 +14,8 @@ import ownSaved from "./own-snapshot.json" with { type: "json" };
 import { crossingLength, growthMoment, growthPlan, type GrowthPlan } from "@storytree/forest-world/planet";
 import { buildPlanetPathways } from "@storytree/forest-world/geometry";
 import type { GrowthSnapshot, TourSnapshot } from "./forest-data.js";
-import { aim, flight, globeOf, lineStarts, placeTags, replayMoment, stepAt, type Box, type GlobeOn, type Hold, type Tag, type TagSide, type TourDetail, type TourStep } from "./tour.js";
+import { globeOf, lineStarts, placeTags, replayMoment, stepAt, type Box, type GlobeOn, type Hold, type Tag, type TagSide, type TourDetail, type TourGrowth, type TourStep } from "./tour.js";
+import { createCameraPlayer } from "./tour-camera.js";
 import { mapRecording, mapGrowthPlan, recordedFrame } from "./map-recording.js";
 import { growthReading, savedReading } from "./tour-reading.js";
 
@@ -206,9 +207,9 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   const shopView = useMemo(() => shopSnapshot && { recording: savedReading(shopSnapshot) }, []);
   useEffect(() => () => shopView?.recording.reading.stop(), [shopView]);
   // Where the arrival's time-lapse stands: told every frame by the tour while it plays (ADR-0889 2.2).
-  const [growthAt, setGrowthAt] = useState<{ at: number; index: number; generation: number }>();
+  const [growthAt, setGrowthAt] = useState<TourGrowth>();
   useEffect(() => {
-    const hear = (event: Event) => setGrowthAt((event as CustomEvent<{ at: number; index: number; generation: number }>).detail);
+    const hear = (event: CustomEvent<TourGrowth>) => setGrowthAt(event.detail);
     window.addEventListener("storytree-tour-growth", hear);
     return () => window.removeEventListener("storytree-tour-growth", hear);
   }, []);
@@ -221,7 +222,8 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   useEffect(() => { const resize = () => setWidth(window.innerWidth); window.addEventListener("resize", resize); return () => window.removeEventListener("resize", resize); }, []);
   const [progress, setProgress] = useState(recording.progress);
   const [openingActive, setOpeningActive] = useState(() => document.getElementById("opening")?.hidden === false);
-  const camera = useRef<{ target?: GlobeTarget; framing: number; entered: boolean; flight: number[]; drift: number[]; dive?: (() => void) | undefined }>({ framing: restingFraming, entered: false, flight: [], drift: [] });
+  const [camera] = useState(() => createCameraPlayer({ timers: { set: (run, ms) => window.setTimeout(run, ms), clear: timer => clearTimeout(timer as number) },
+    arrived: setArrived, running: () => latest.current?.running === true }));
   const previous = useRef<TourDetail | undefined>(undefined);
   const latest = useRef<TourDetail | undefined>(undefined);
   latest.current = tour;
@@ -246,9 +248,7 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   const globe: GlobeOn = step && state ? globeOf(step, state, tour!.elapsed) : { map: "storytree" };
 
   // Touching the globe hands it to the visitor: the tour waits, and says so (ADR-0879 D3).
-  const explore = useCallback(() => { if (touring) { controls?.cancel(); clearFlight(); clearDrift(); hold("exploring"); } }, [touring, controls]);
-  const clearFlight = () => { camera.current.flight.forEach(clearTimeout); camera.current.flight = []; camera.current.dive = undefined; };
-  const clearDrift = () => { camera.current.drift.forEach(clearTimeout); camera.current.drift = []; };
+  const explore = useCallback(() => { if (touring) { controls?.cancel(); camera.cancel(); hold("exploring"); } }, [touring, controls, camera]);
   const pickStory = useCallback((id: string | undefined, picked?: string) => {
     explore(); setStory(id); setToldStory(undefined); setCapability(picked); setNote(undefined); core.pin(undefined);
   }, [core, explore]);
@@ -266,8 +266,8 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   const onControls = useCallback((next: GlobeControls | undefined) => setControls(next), []);
   useEffect(() => {
     let first = true;
-    const hear = (event: Event) => {
-      const detail = (event as CustomEvent<TourDetail>).detail;
+    const hear = (event: CustomEvent<TourDetail>) => {
+      const detail = event.detail;
       // The first globe drawn is the step's own: under Act 2's pain that is the shop's seed, never a flash of another (2.10).
       if (first) { first = false; setShownMap(globeOf(detail.step, detail.state, detail.elapsed).map); }
       setTour(detail);
@@ -288,10 +288,10 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
     else if (!inSessions && before && (before.inSessions || before.generation !== state!.generation)) finishRecording();
   }, [step?.id, state?.generation, free]);
   useEffect(() => {
-    const opening = (event: Event) => {
-      const active = (event as CustomEvent<{ active: boolean }>).detail.active;
+    const opening = (event: CustomEvent<{ active: boolean }>) => {
+      const active = event.detail.active;
       // The first view waits for chapter 1 to hand over, so it grows in where the visitor is looking.
-      if (active) camera.current.entered = false;
+      if (active) camera.reenter();
       setOpeningActive(active);
     };
     window.addEventListener("storytree-opening", opening);
@@ -337,84 +337,24 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
     wasExploring.current = exploringNow;
   }, [exploringNow]);
 
-  // The camera flies; it never snaps (ADR-0879 D5). Between close steps it stays in and turns the globe (2.15).
+  // The camera flies; it never snaps (ADR-0879 D5). Between close steps it stays in and turns the globe (2.15). Its cues and
+  // timers are the camera player's (tour-camera.ts): the page tells it each step and puts on show the globe it asks for.
   useEffect(() => {
     if (!tour || !controls || free || !step || openingActive) return;
     const before = previous.current;
     previous.current = tour;
-    if (exploringNow || everything) { clearDrift(); if (everything && shownMapNow.current !== "storytree") setShownMap("storytree"); return; }
-    const map = globe.map, overview = overviews[map], driftOrder = driftOrders[map];
+    if (exploringNow || everything) { camera.freeze(); if (everything && shownMapNow.current !== "storytree") setShownMap("storytree"); return; }
+    const map = globe.map, overview = overviews[map];
     const view = (width > 600 ? shownStep!.laptop : shownStep!.phone) ?? shownStep!;
-    const target = view.target ?? overview, framing = view.framing ?? restingFraming;
-    // A new step, or a line that moves the camera within one.
-    const moved = !before || before.state.index !== state!.index || before.state.generation !== state!.generation || before.state.freePlay
-      || before.state.holds.includes("exploring") || before.state.holds.includes("everything") || !camera.current.entered
-      || JSON.stringify(target) !== JSON.stringify(camera.current.target) || framing !== camera.current.framing;
-    const speed = state!.speed, still = reduced();
-    const after = (timers: number[], ms: number, run: () => void) => { timers.push(window.setTimeout(run, ms)); };
-    const go = (stop: { target: GlobeTarget; framing: number; duration: number }, timers = camera.current.flight) =>
-      aim(target => controls.stop({ ...stop, target, sideOffset }), stop.target, overview, again => after(timers, 50, again));
-    const drift = (from: number) => {
-      if (!step.drift || still) return;
-      const story = driftOrder[from % driftOrder.length]!;
-      go({ target: { kind: "story", story }, framing, duration: 18_000 / speed }, camera.current.drift);
-      after(camera.current.drift, 18_000 / speed, () => drift(from + 1));
-    };
-    const next = () => driftOrder.indexOf(ownerOf(target) ?? "") + 1;
-    if (!moved) {
-      // The same step: waiting freezes the drift; playing again returns to the step's view and drifts on. Flights finish.
-      if (!tour.running) clearDrift();
-      else if (before && !before.running && step.drift) { clearDrift(); go({ target, framing, duration: 1400 / speed }); after(camera.current.drift, 1400 / speed, () => drift(next())); }
-      return;
-    }
-    clearFlight(); clearDrift();
-    setArrived(false);
-    const first = !camera.current.entered;
-    camera.current.entered = true;
-    const from = { ...camera.current };
-    let arrive = 0;
-    const land = () => { setArrived(true); if (latest.current?.running) drift(next()); };
-    const switching = map !== shownMapNow.current;
-    // A globe that grows from a point needs no pull back and dive: the old one gives way to the new one's point, which swells
-    // where the visitor is already looking (2.12; owner, 2026-10-05: "is this really needed?").
-    const swells = typeof step.growth === "object" && step.growth.stage === undefined;
-    if (switching && (still || first || swells)) setShownMap(map);
-    if (still) after(camera.current.flight, switching ? 60 : 0, () => go({ target, framing, duration: 0 }));
-    else if (switching && !first && !swells) {
-      // One project's globe for the other (ADR-0879 D7): pull back until the globe is small, swap it there, and dive into the new one.
-      const wide = Math.max(from.framing, framing, 1) * 2.4;
-      go({ target: from.target ?? overviews[shownMapNow.current], framing: wide, duration: 900 / speed });
-      // The dive waits for the new globe to be drawn: a heavy globe can take longer to lay out than any fixed beat.
-      after(camera.current.flight, 900 / speed, () => {
-        camera.current.dive = () => {
-          go({ target: overview, framing: wide, duration: 0 });
-          after(camera.current.flight, 60 / speed, () => go({ target, framing, duration: 1500 / speed }));
-          after(camera.current.flight, 1560 / speed, land);
-        };
-        setShownMap(map);
-      });
-      arrive = -1;
-    } else if (first) {
-      // Chapter 2's first view grows in from far away, out of the point chapter 1 ends on.
-      // The far pose lands first (one beat), so the flight in starts from it rather than from a stale zoom.
-      go({ target, framing: framing * 7, duration: 0 });
-      after(camera.current.flight, 60, () => go({ target, framing, duration: 2600 }));
-      arrive = 2660;
-    } else {
-      // The legs follow one another; each turns the globe and zooms at once.
-      for (const leg of flight(from, { target, framing })) {
-        const fly = () => go({ target, framing: leg.framing, duration: leg.ms / speed });
-        if (arrive) after(camera.current.flight, arrive, fly); else fly();
-        arrive += leg.ms / speed;
-      }
-    }
-    if (arrive >= 0) after(camera.current.flight, arrive, land);
-    camera.current.target = target; camera.current.framing = framing;
+    const target = view.target ?? overview;
+    camera.step({ tour, before, switching: map !== shownMapNow.current, to: { target, framing: view.framing ?? restingFraming }, overview,
+      shownOverview: overviews[shownMapNow.current], driftOrder: driftOrders[map], next: driftOrders[map].indexOf(ownerOf(target) ?? "") + 1,
+      reduced: reduced(), place: stop => controls.stop({ ...stop, sideOffset }), show: () => setShownMap(map) });
   }, [controls, tour, sideOffset, openingActive, globe.map]);
   // Once a swapped globe is drawn, the camera dives into it.
   useEffect(() => {
-    if (!camera.current.dive) return;
-    let frame = requestAnimationFrame(() => { frame = requestAnimationFrame(() => { const dive = camera.current.dive; camera.current.dive = undefined; dive?.(); }); });
+    if (!camera.diving) return;
+    let frame = requestAnimationFrame(() => { frame = requestAnimationFrame(() => camera.drawn()); });
     return () => cancelAnimationFrame(frame);
   }, [shownMap]);
   // Free play shows the project its selector chose (ADR-0890): the whole shop, or storytree's own. A switch closes what
@@ -429,7 +369,7 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
     const frame = requestAnimationFrame(() => controls.stop({ target: overviews[shownMap], framing: restingFraming, duration: reduced() ? 0 : 1200, sideOffset: 0 }));
     return () => cancelAnimationFrame(frame);
   }, [free, shownMap, controls]);
-  useEffect(() => () => { clearFlight(); clearDrift(); }, []);
+  useEffect(() => () => camera.cancel(), [camera]);
 
   // Find reads the project on show: its islands and its notes.
   const shownNotes = (grows(shownMap) ? [...knowledge(growths[shownMap].snapshot.changes ?? []).notes.values()] : notes).filter(item => String(item.fields.title ?? "").toLowerCase().includes(query.toLowerCase()));

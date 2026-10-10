@@ -64,6 +64,19 @@ export type TourState = {
   holds: readonly Hold[]; freePlay: boolean; project: FreePlayProject;
 };
 export type TourDetail = { step: TourStep; state: TourState; running: boolean; elapsed: number };
+/** Where the arrival's time-lapse stands, told every frame while it plays (ADR-0889 2.2). */
+export type TourGrowth = { at: number; index: number; generation: number };
+declare global {
+  /** The window events between the page's chapters, the tour's controls (tour-ui.ts) and its globe (forest-scene.tsx). */
+  interface WindowEventMap {
+    "storytree-tour": CustomEvent<TourDetail>;
+    "storytree-tour-request": Event;
+    "storytree-tour-hold": CustomEvent<{ reason: Hold; held: boolean }>;
+    "storytree-tour-growth": CustomEvent<TourGrowth>;
+    "storytree-opening": CustomEvent<{ active: boolean }>;
+    "storytree-arrived": Event;
+  }
+}
 
 /** How long words take to say at 1×: 2.6 words a second. */
 const spoken = (text: string): number => text.trim().split(/\s+/).filter(Boolean).length / 2.6 * 1000;

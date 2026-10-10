@@ -10,7 +10,7 @@
 // `<dir>/src/**/*.test.{ts,mjs}`; the package-boundary check
 // (packages/dev-loop/src/package-boundaries.test.mjs) and the code allocation guardrail
 // (packages/dev-loop/src/allocation.test.mjs, ADR-0838 D5) are units of every run. Several units
-// run at once against the one Postgres (unit-pool.mjs: --jobs=<n>, else STORYTREE_TEST_JOBS, else 3 with a core left free),
+// run at once against the one Postgres (unit-pool.mjs: --jobs=<n>, else STORYTREE_TEST_JOBS, else 2 with a core left free),
 // slowest first; each unit's output is held and printed whole under its name when it ends, and
 // `--jobs=1` runs them one after another with their output live. A failure never stops the rest:
 // the run ends with a PASS / FAIL / NOT RUN table, and exits non-zero if any unit did not pass.

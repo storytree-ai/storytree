@@ -50,7 +50,7 @@ test("6.10 · units start slowest first: by this machine's recent passes, then a
 
 test("6.10 · how many units run at once: --jobs, else STORYTREE_TEST_JOBS, else the default, leaving a core free; anything but a whole number from 1 is refused", () => {
   assert.deepEqual(testJobs({ env: {}, cpus: 12 }), { jobs: DEFAULT_JOBS, source: "default" });
-  assert.deepEqual(testJobs({ env: {}, cpus: 3 }), { jobs: 2, source: "default" }, "a core is left for the Postgres and the browsers");
+  assert.deepEqual(testJobs({ env: {}, cpus: 2 }), { jobs: 1, source: "default" }, "a core is left for the Postgres and the browsers");
   assert.deepEqual(testJobs({ env: {}, cpus: 1 }), { jobs: 1, source: "default" });
   assert.deepEqual(testJobs({ env: { STORYTREE_TEST_JOBS: "4" }, cpus: 2 }), { jobs: 4, source: "STORYTREE_TEST_JOBS" });
   assert.deepEqual(testJobs({ flag: "1", env: { STORYTREE_TEST_JOBS: "4" } }), { jobs: 1, source: "--jobs" });

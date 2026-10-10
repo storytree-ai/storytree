@@ -4,16 +4,18 @@
 // node --test runs files at once, so every test names its own databases and roles uniquely.
 //
 // How many at once: --jobs=<n>, else STORYTREE_TEST_JOBS, else DEFAULT_JOBS with a core left over
-// for the Postgres and the browsers the tests start. Measured on CI (PR #1029): at 3 on macOS's
-// 3-core runner, forest's real-browser tests timed out; 3 on Linux's and Windows' 4 cores passed.
+// for the Postgres and the browsers the tests start. Measured on CI (PR #1029): at 3, macOS's
+// 3-core runner timed out forest's real-browser tests (run 38008232208) and a Windows 4-core runner
+// timed out those and killed agent-link and cli at their 6 minutes (run 38009064713); each unit
+// already runs its files a core less than the machine's at once.
 // Which first: the slowest, so the longest unit is never the one left running alone at the end:
 // by this machine's recent passes, or, for a unit with none (a fresh CI runner), by the size of its
-// test files, which ranks agent-link, library and forest first as CI's times do.
+// test files, which puts agent-link, the slowest on CI, first.
 import { readdirSync, statSync } from "node:fs";
 import { availableParallelism } from "node:os";
 import path from "node:path";
 
-export const DEFAULT_JOBS = 3;
+export const DEFAULT_JOBS = 2;
 
 /** How many units a run tests at once, and where that number came from. */
 export function testJobs({ flag, env = process.env, cpus = availableParallelism() } = {}) {

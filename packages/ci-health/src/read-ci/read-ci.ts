@@ -1,6 +1,6 @@
 /**
  * Capability 3 · Reading the project's CI (ADR-0902): the newest finished push run on a GitHub
- * project's default branch, read through the Actions API, and its verdicts written to the library's
+ * project's default branch (or the merge queue's run of its commit), read through the Actions API, and its verdicts written to the library's
  * verified column.
  *
  * - Only a push run on the default branch is read: a pull request's run never marks the merged tree
@@ -12,6 +12,10 @@
  *   job (Windows) has run its tests, so the newest finished run that ran to its end is read. So is a run that concludes
  *   failure only because its test jobs were cancelled (an aggregate job failing on them): one with a cancelled job and
  *   no whole job holding test results.
+ * - A branch that merges through GitHub's merge queue has each commit tested by the queue's `merge_group` run before the
+ *   branch is moved to it, and the next merge usually cancels the push run of that commit. So the queue's finished run
+ *   of a commit the default branch's push runs name is read in that push run's place, the push run first when it ran
+ *   to its end. A queue run of a commit the branch never reached is not: its merge failed or was taken out.
  * - A skipped job is passed over; a cancelled job's log is read if available, passed over only on 404.
  * - Each job's results are its platform's, read from its runner labels or its name, so a test one platform skips
  *   for another is credited from the jobs of the platform it needs.
@@ -116,18 +120,24 @@ export async function readProjectCi({ library, git, github }: { library: Library
 
   const branch: string = (await github.json(`repos/${repository}`)).default_branch;
   const query = new URLSearchParams({ branch, event: "push", status: "completed", per_page: String(RUNS_LOOKED_AT) });
-  const finished: { id: number; conclusion?: string; head_sha: string; html_url: string }[] = (await github.json(`repos/${repository}/actions/runs?${query}`)).workflow_runs ?? [];
+  type Run = { id: number; conclusion?: string; head_sha: string; head_branch?: string; html_url: string };
+  const finished: Run[] = (await github.json(`repos/${repository}/actions/runs?${query}`)).workflow_runs ?? [];
   if (finished.length === 0) return { written: false, why: `${repository} has no finished push run on ${branch}, so there are no CI results to read; its health stays not checked.` };
+  const queued = new URLSearchParams({ event: "merge_group", status: "completed", per_page: String(RUNS_LOOKED_AT) });
+  const queueRuns: Run[] = ((await github.json(`repos/${repository}/actions/runs?${queued}`)).workflow_runs ?? [])
+    .filter((run: Run) => String(run.head_branch).startsWith(`gh-readonly-queue/${branch}/`));
+  // Each commit the branch's push runs name, newest first: its push run, then the merge queue's runs of the same commit.
+  const candidates = finished.flatMap((push) => [push, ...queueRuns.filter(({ head_sha }) => head_sha === push.head_sha)]);
   // A newer push cancels the run before it, often before its slowest job ran its tests: read the newest that ran to its end.
   // A run can conclude failure for that alone (an aggregate job failing on its cancelled ones), so it is judged by its jobs too.
-  let read: { run: (typeof finished)[number]; results: ReturnType<typeof parseTestLog> } | undefined;
-  for (const run of finished.filter(({ conclusion }) => conclusion !== "cancelled")) {
+  let read: { run: Run; results: ReturnType<typeof parseTestLog> } | undefined;
+  for (const run of candidates.filter(({ conclusion }) => conclusion !== "cancelled")) {
     const jobs = await jobResults(github, repository, run.id);
     if (jobs.some(({ conclusion }) => conclusion === "cancelled") && !jobs.some(({ conclusion, results }) => conclusion !== "cancelled" && results.length > 0)) continue;
     read = { run, results: jobs.flatMap(({ results }) => results) };
     break;
   }
-  if (read === undefined) return { written: false, why: `${repository}'s last ${finished.length} finished push runs on ${branch} were all cancelled before they ran to their end, so there are no whole CI results to read; its health stands as it was.` };
+  if (read === undefined) return { written: false, why: `${repository}'s last ${finished.length} finished push runs on ${branch}, and the merge queue's runs of their commits, were all cancelled before they ran to their end, so there are no whole CI results to read; its health stands as it was.` };
   const { run, results } = read;
 
   const commit: string = run.head_sha;

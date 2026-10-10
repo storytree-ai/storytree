@@ -24,15 +24,20 @@ export type TourStep = {
   surfaces: Partial<GlobeSurfaces>;
   /** From the given line (1-based) on, these surfaces replace the step's own. */
   lineSurfaces?: Record<number, Partial<GlobeSurfaces>>;
+  /** From the given line (1-based) on, this view replaces the step's own: the camera moves on the line that says why. */
+  lineViews?: Record<number, Pick<TourStep, "target" | "framing" | "laptop" | "phone">>;
   /** The globe a step shows: storytree's saved reading (the default), storytree's own recorded growth (ADR-0889 2.2b)
    * or the shop's (ADR-0890). */
   map?: "own" | "shop";
   /** A recorded growth: held at its point ("seed"), or replayed over `seconds` as the step plays, whole or only its
    * named `stage` (from the globe as it stood before that stage, to where the next begins, or to where the stage named `until`
-   * begins); absent, it is whole. */
-  growth?: "seed" | { seconds: number; stage?: string; until?: string };
+   * begins); absent, it is whole. Each beat has the replay reach its stage as its line begins, so a stage can wait for the
+   * line that talks about it. */
+  growth?: "seed" | { seconds: number; stage?: string; until?: string; beats?: readonly Beat[] };
   /** A moment in the shop's records: its globe, its sessions and its arcs as they stood then (ADR-0893). */
   recorded?: string;
+  /** The moment in the shop's records its sessions list reads while the step replays its growth. */
+  sessionsAt?: string;
   /** The stories a growth's globe is narrowed to: the rest are dimmed (ADR-0890's teaching stories). */
   focus?: readonly string[];
   target?: GlobeTarget; framing?: number; drift?: boolean;
@@ -44,10 +49,14 @@ export type TourStep = {
   /** A story selected so its dependency lanes draw on. */
   select?: string;
   panel?: "story" | "arcs" | "sessions" | "knowledge";
+  /** Leave the story panel's room before a later step opens it, so the globe does not slide when it does. */
+  panelRoom?: boolean;
   /** Open the panel when this line is told, after the map has shown its preceding ideas. */
   panelFromLine?: number;
   tags?: Tag[];
 };
+/** The replay reaches `stage` as line `line` (1-based) begins. */
+export type Beat = { line: number; stage: string };
 /** Free play's project: the example shop, whole (the default), or storytree's own saved project (ADR-0890). */
 export type FreePlayProject = "shop" | "storytree";
 export type TourState = {
@@ -63,6 +72,8 @@ export const readingTime = (text: string): number => Math.max(2800, spoken(text)
 /** A step rests on its last line before the camera moves on. */
 export const settle = 1200;
 /** A step that replays a growth lasts as long as it does, however short its words. */
+/** When each line begins, in seconds at 1×. */
+export const lineStarts = (step: TourStep): number[] => step.lines.map((_, index) => step.lines.slice(0, index).reduce((sum, line) => sum + readingTime(line), 0) / 1000);
 const duration = (step: TourStep) => Math.max(step.lines.reduce((sum, line) => sum + readingTime(line), 0), typeof step.growth === "object" ? step.growth.seconds * 1000 : 0) + settle;
 const shown = (step: TourStep, elapsed: number) => {
   let start = 0, count = 0;
@@ -138,14 +149,36 @@ export function createTour(steps: readonly TourStep[], { ready = () => true }: {
 
 /**
  * Where in a recorded growth's plan (its seconds) a step that replays it stands, `told` seconds into the step's replay:
- * across the whole growth, or across only its named stage, from where that stage begins to where the next does, or the stage
- * named `until` (2.12, 2.16).
+ * across the whole growth, or across only its named stage, from where that stage begins to just short of where the next does,
+ * or of the stage named `until` (2.12, 2.16). Each beat pins the replay to its stage's start as its line begins (`starts`,
+ * seconds), and the replay runs evenly between them.
  */
-export function replayMoment(plan: { seconds: number; stages: readonly { id: string; start: number }[] }, growth: { seconds: number; stage?: string; until?: string }, told: number): number {
+export function replayMoment(plan: { seconds: number; stages: readonly { id: string; start: number }[] }, growth: { seconds: number; stage?: string; until?: string; beats?: readonly Beat[] }, told: number, starts: readonly number[] = []): number {
   const at = growth.stage === undefined ? -1 : plan.stages.findIndex(stage => stage.id === growth.stage);
   const until = growth.until === undefined ? undefined : plan.stages.find(stage => stage.id === growth.until)?.start;
   const from = at < 0 ? 0 : plan.stages[at]!.start, to = until ?? (at < 0 ? plan.seconds : plan.stages[at + 1]?.start ?? plan.seconds);
-  return from + Math.min(1, Math.max(0, told / growth.seconds)) * (to - from);
+  // Short of `to`, so the stage it runs until is the next step's to show.
+  const end = to > from && (until !== undefined || at >= 0) ? to - 1e-3 : to;
+  const points = [{ told: 0, at: from },
+    ...(growth.beats ?? []).map(beat => ({ told: starts[beat.line - 1] ?? 0, at: plan.stages.find(stage => stage.id === beat.stage)?.start ?? from })),
+    { told: growth.seconds, at: end }];
+  const now = Math.min(growth.seconds, Math.max(0, told));
+  const next = points.findIndex(point => point.told > now);
+  if (next <= 0) return next === 0 ? from : end;
+  const a = points[next - 1]!, b = points[next]!;
+  return a.at + (now - a.told) / (b.told - a.told) * (b.at - a.at);
+}
+
+/** The step as it stands once `lines` lines are told: a line's view replaces the step's own from that line on. */
+export function stepAt(step: TourStep, lines: number): TourStep {
+  let shown = step;
+  for (const [from, view] of Object.entries(step.lineViews ?? {})) if (lines >= Number(from)) shown = { ...shown, ...view };
+  return shown;
+}
+/** Where the camera faces once `lines` lines are told, on a laptop (`wide`) or a phone. */
+export function viewOf(step: TourStep, lines: number, wide: boolean): CameraView & { side?: number; narrow?: number } {
+  const shown = stepAt(step, lines);
+  return (wide ? shown.laptop : shown.phone) ?? { ...(shown.target ? { target: shown.target } : {}), framing: shown.framing ?? 1.1 };
 }
 
 /** A step's camera view: what it faces, and how close (the short half-side in globe radii). */

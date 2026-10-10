@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { mapRecording, mapGrowthPlan, recordedFrame } from "./map-recording.js";
 import type { GrowthSnapshot } from "./forest-data.js";
 import shop from "./shop-snapshot.json" with { type: "json" };
-import { aim, createTour, flight, globeOf, groups, placeTags, readingTime, replayMoment, settle, type TourStep } from "./tour.js";
+import { aim, createTour, flight, globeOf, groups, lineStarts, placeTags, readingTime, replayMoment, settle, viewOf, type TourStep } from "./tour.js";
 import { steps as tourSteps } from "./tour-copy.js";
 
 const step = (id: string, explainer: TourStep["explainer"], lines = ["One two three four five six seven eight nine ten"]): TourStep => ({
@@ -150,11 +150,12 @@ test("2.12 · after the fixes, the map chapter opens on the shop's empty globe, 
   assert.equal(opening.explainer, "map", "the map chapter follows the fixes at once");
   const tour = atOne(tourSteps);
   tour.go(at + 1);
-  assert.deepEqual(globeOf(opening, tour.state, tour.elapsed()), { map: "shop", at: 0, focus: [] }, "the shop's globe, still a point");
-  assert.ok(typeof opening.growth === "object" && !opening.growth.stage && opening.growth.until === "pr1-building", "it swells until its stories are planned");
+  assert.deepEqual(globeOf(opening, tour.state, tour.elapsed()), { map: "shop", at: 0 }, "the shop's globe, still a point");
+  assert.ok(typeof opening.growth === "object" && !opening.growth.stage && opening.growth.until === "planned", "it swells until its first story is planned");
   const plan = { seconds: 30, stages: [{ id: "planned", start: 2 }, { id: "pr1-building", start: 6 }] };
   assert.equal(replayMoment(plan, opening.growth, 0), 0, "from the point");
-  assert.equal(replayMoment(plan, opening.growth, opening.growth.seconds), 6, "to the four faint planned stories, before building begins");
+  const end = replayMoment(plan, opening.growth, opening.growth.seconds);
+  assert.ok(end < 2 && end > 1.99, "to just before the first story is planned: no island shows on the empty globe");
   tour.hold("everything");
   assert.deepEqual(globeOf(opening, tour.state), { map: "storytree" }, "show everything still opens storytree's own globe");
 });
@@ -202,38 +203,78 @@ test("2.15 · a step's view is reached even when its island is drawn after the s
   assert.ok(tries > 0 && tries <= 100, "an island that never comes is given up on");
 });
 
-test("2.16 · the map chapter plays the four approved steps on the shop's recorded build", () => {
+test("2.16 · the map chapter plays the six approved steps on the shop's recorded build", () => {
   const chapter = tourSteps.filter(item => item.explainer === "map");
   assert.deepEqual(chapter.map(item => item.lines), [
     ["Let's start from the beginning and build a shopping site, so you can see how storytree draws a map as your agents build."],
     ["As your agents build your project, each of its stories shows up on the map as an island.",
       "Look inside a story and you'll find it's broken up into capabilities, the pieces that make it work.",
-      "Your code is glued to its capability: each dot is a file.",
+      "It starts as one. Each time your agent builds another capability, the island splits to make room for it."],
+    ["Your code is glued to its capability: each dot is a file.",
       "Select a story and a panel shows how its capabilities work together."],
     ["Stories are like the organs of your app: each plays its role, and many can't work without others.",
       "These dependencies are shown as pathways.",
       "Browsing, the cart and checkout all need signing in. With it built, three agents can build them at once."],
     ["As your automated tests run in CI, storytree shows you which capabilities are healthy and which need your attention.",
       "Yellow means nothing has proved it yet; green means its tests passed."],
+    ["Before an agent writes, its session claims the capability it's working on, so no two agents change the same thing.",
+      "Here the shop is growing, and the agent adding orders needs to change checkout and the cart. Its claims show on both.",
+      "Storytree lists your conversations with AI here as active sessions."],
   ]);
   assert.ok(chapter.every(item => item.map === "shop"));
-  const [empty, first, together, health] = chapter;
-  assert.equal((empty!.growth as { until: string }).until, "pr1-building", "the four faint planned stories finish the first step");
-  assert.deepEqual(empty!.focus, [], "all four are faint");
-  assert.equal((first!.growth as { stage: string }).stage, "pr1-building");
-  assert.equal((first!.growth as { until: string }).until, "pr2-building");
-  assert.deepEqual(first!.target, { kind: "story", story: "story_d263ef0f3f72" });
-  assert.equal(first!.panel, "story");
-  assert.equal(first!.panelFromLine, 4, "the panel opens after the capability growth and the file dots");
-  assert.equal(first!.lineSurfaces?.[3]?.fileCircles, true);
-  assert.deepEqual(together!.focus, ["story_d263ef0f3f72", "story_0c07d0047754", "story_2de9e8f4db21", "story_66f80ffaaa4d"]);
-  assert.equal((together!.growth as { stage: string }).stage, "pr3-building");
-  assert.equal((together!.growth as { until: string }).until, "pr4");
-  assert.equal(together!.lineSurfaces?.[2]?.roads, true);
-  assert.equal((health!.growth as { stage: string }).stage, "pr4");
+  const [empty, first, code, together, health, claims] = chapter;
+  const moments = chapter.map(item => typeof item.growth === "object" ? [item.growth.stage, item.growth.until] : item.growth);
+  assert.deepEqual(moments, [[undefined, "planned"], ["planned", "pr1"], ["pr1", "pr1"], ["pr3-building", "pr4"], ["pr4", "pr7-building"], ["pr7-building", "pr9"]]);
+  // Signing in rises with the first line, and its capabilities split it in time with the third.
+  assert.deepEqual((first!.growth as { beats: unknown }).beats, [{ line: 2, stage: "pr1-building" }, { line: 3, stage: "pr1-building" }]);
+  // Nothing in steps 2 and 3 reads as a claim: no session tints (their outlines and rings), no focus ring.
+  for (const item of [empty, first, code]) assert.ok(!item!.surfaces.sessionTints && !item!.focus && !Object.values(item!.lineSurfaces ?? {}).some(next => next.sessionTints), item!.id);
+  assert.equal(code!.lineSurfaces?.[1]?.fileCircles ?? code!.surfaces.fileCircles, true, "the dots appear with the first line");
+  assert.equal(code!.panel, "story");
+  assert.equal(code!.panelFromLine, 2, "the story panel opens with the second line");
+  assert.equal(together!.lineSurfaces?.[2]?.roads, true, "pathways come on with the second line");
   assert.equal(health!.surfaces.territories, "health");
-  assert.ok(health!.compare?.sources.some(Boolean));
+  assert.ok(claims!.surfaces.sessionTints, "the Orders session's outlines draw");
+  assert.equal(claims!.panel, "sessions");
+  assert.equal(claims!.panelFromLine, 3, "the sessions list opens on the third line");
+  assert.equal(claims!.sessionsAt?.slice(0, 16), "2026-10-05T03:09", "the list reads the three sessions live at 03:09");
+  assert.ok(claims!.compare?.sources.some(Boolean), "the comparison with other tools closes the chapter");
+  assert.ok(!health!.compare);
   for (const item of chapter) assert.ok(item.how && item.why && item.decisions.length === 0);
+  assert.match(claims!.how!, /code on the map/);
+});
+
+test("2.16 · across the map chapter the camera moves only on the line that says why, never at a step change", () => {
+  const chapter = tourSteps.filter(item => item.explainer === "map");
+  for (const wide of [true, false]) {
+    const moves: string[] = [];
+    let before: string | undefined;
+    for (const item of chapter) item.lines.forEach((_, index) => {
+      const view = JSON.stringify(viewOf(item, index + 1, wide));
+      if (before !== undefined && view !== before) moves.push(`${item.id}:${index + 1}`);
+      before = view;
+    });
+    // A phone also eases in on the cart as the claims step's second line names it and checkout: its whole shop is too small.
+    assert.deepEqual(moves, ["map-first:2", "map-together:1", ...(wide ? [] : ["map-claims:2"])], wide ? "laptop" : "phone");
+  }
+  const first = chapter[1]!;
+  assert.notDeepEqual(viewOf(first, 1, true), viewOf(first, 2, true), "it eases in on \"Look inside a story\"");
+  assert.deepEqual(viewOf(first, 1, true), viewOf(chapter[0]!, 1, true), "the second step opens on the first's view");
+});
+
+test("2.16 · a replay can hold a stage until a line begins, and stops short of the stage it runs until", () => {
+  const plan = { seconds: 30, stages: [{ id: "planned", start: 2 }, { id: "building", start: 4 }, { id: "land", start: 6 }, { id: "merged", start: 10 }] };
+  const growth = { seconds: 20, stage: "planned", until: "merged", beats: [{ line: 2, stage: "building" }, { line: 3, stage: "building" }] };
+  const starts = [0, 5, 12];
+  assert.equal(replayMoment(plan, growth, 0, starts), 2);
+  assert.equal(replayMoment(plan, growth, 2.5, starts), 3, "towards the first beat");
+  assert.equal(replayMoment(plan, growth, 5, starts), 4);
+  assert.equal(replayMoment(plan, growth, 9, starts), 4, "held until the third line begins");
+  assert.ok(Math.abs(replayMoment(plan, growth, 16, starts) - 7) < .01, "then on to the end");
+  const end = replayMoment(plan, growth, 20, starts);
+  assert.ok(end < 10 && end > 9.99, "short of the stage it runs until");
+  assert.equal(replayMoment(plan, { seconds: 1, stage: "merged", until: "merged" }, 1), 10, "a stage until itself stands still");
+  assert.deepEqual(lineStarts({ ...step("s", "map"), lines: ["one", "two words"] }), [0, readingTime("one") / 1000]);
 });
 
 test("2.18 · on a phone and on a laptop, each tag's name sits inside the screen, clear of the other tags and rings, the card and the panels", () => {
@@ -318,38 +359,43 @@ test("2.16 · the map replays capability landings, claims and health from the sa
   const recording = mapRecording(original);
   const plan = mapGrowthPlan(recording);
   const at = (id: string) => { const stage = plan.stages.find(stage => stage.id === id); assert.ok(stage, id); return stage.start; };
-  const missing = tourSteps.filter(step => step.explainer === "map").flatMap(step => typeof step.growth !== "object" ? [] : [step.growth.stage, step.growth.until].filter(id => id && !plan.stages.some(stage => stage.id === id)));
+  const missing = tourSteps.filter(step => step.explainer === "map").flatMap(step => typeof step.growth !== "object" ? [] : [step.growth.stage, step.growth.until, ...(step.growth.beats ?? []).map(beat => beat.stage)].filter(id => id && !plan.stages.some(stage => stage.id === id)));
   assert.deepEqual(missing, []);
-  const signIn = "story_d263ef0f3f72", checkout = "story_66f80ffaaa4d", browsing = "story_0c07d0047754";
-  const landings = original.reading!.recording.lines.filter(line => line.kind === "landed" && line.at < "2026-10-05T02:01:00.000Z" && "capability" in line);
-  const files = (id: string) => recordedFrame(recording, plan, at(id)).scene.islands.find(island => island.story === signIn)?.land?.files.length ?? 0;
+  const signIn = "story_d263ef0f3f72", browsing = "story_0c07d0047754", cart = "story_2de9e8f4db21", checkout = "story_66f80ffaaa4d";
+  const frame = (when: number) => recordedFrame(recording, plan, when);
+  const stories = (when: number) => frame(when).scene.islands.map(island => island.story).sort();
+  const files = (id: string) => frame(at(id)).scene.islands.find(island => island.story === signIn)?.land?.files.length ?? 0;
+  // Steps 1 to 3: signing in alone, its capabilities landing in their recorded order (the shop server first, 01:56).
+  for (const id of ["planned", "pr1-building", "pr1"]) assert.deepEqual(stories(at(id)), [signIn], `${id}: only signing in is on the map`);
+  const landed = plan.stages.filter(stage => stage.id.startsWith("land-")).map(stage => stage.id.slice(5));
+  assert.equal(landed[0], "capability_323895c5a414");
+  assert.deepEqual(landed, ["capability_323895c5a414", "capability_678463042156", "capability_ae20917d7a32"], "only the landings that change signing in's land take a beat");
   assert.equal(files("pr1-building"), 0);
-  assert.ok(recording.stages.every(stage => stage.scene.islands.every(island => !island.land || island.land.territories.length > 0)), "unbuilt islands have no land yet");
-  assert.ok(files("land-capability_323895c5a414") > 0);
   assert.ok(files("land-capability_678463042156") > files("land-capability_323895c5a414"));
   assert.equal(files("pr1"), 8);
-  for (const line of landings) {
-    const id = (line as { capability: string }).capability;
-    if (!recording.stages.some(stage => stage.id === `land-${id}`)) continue;
-    assert.equal(plan.capabilities.get(id)?.start, at(`land-${id}`), "territories fill when their agent lands them, not when planned");
-  }
-  const status = (stage: string, story: string) => recordedFrame(recording, plan, at(stage)).scene.islands.find(island => island.story === story)!.land!.territories.map(cap => cap.status);
-  assert.ok(status("pr4", checkout).every(status => status === "untested"));
-  assert.ok(status("pr7-building", checkout).every(status => status === "healthy"));
-  assert.ok(status("pr4", browsing).every(status => status === "healthy"), "Browsing's recorded green is drawn at 02:46, without its later capabilities");
+  for (const id of landed) assert.equal(plan.capabilities.get(id)?.start, at(`land-${id}`), "territories fill when their agent lands them, not when planned");
+  // Its code reached the map when its pull request merged, after its claims were released: no outline while it fills.
   const outlines = (when: number) => {
-    const frame = recordedFrame(recording, plan, when);
-    const surveyed = new Set(frame.scene.islands.flatMap(island => island.land?.territories.map(part => part.capability) ?? []));
-    return frame.wisps.flatMap(wisp => wisp.capabilities.filter(capability => surveyed.has(capability)));
+    const shown = frame(when);
+    const surveyed = new Set(shown.scene.islands.flatMap(island => island.land?.territories.map(part => part.capability) ?? []));
+    return shown.wisps.flatMap(wisp => wisp.capabilities.filter(capability => surveyed.has(capability)).map(capability => `${wisp.colour} ${capability}`));
   };
-  for (const id of ["pr4-building", "pr5-building", "pr3"]) assert.deepEqual(outlines(at(id)), [], `${id}: unsurveyed capability claims draw nothing`);
-  assert.deepEqual(outlines(at("pr5") - .001), []);
-  assert.deepEqual(outlines(at("pr5")).sort(), ["capability_668ca101a358", "capability_d37b7ec1b593"], "only Checkout's two surveyed claims can draw when the new land arrives");
-  assert.equal(outlines(at("pr4") - .001).length, 2);
-  assert.deepEqual(recordedFrame(recording, plan, at("pr4")).wisps, [], "release arrives in the same frame as its recorded land and health");
-  assert.equal(recordedFrame(recording, plan, 0).scene.islands.length, 4, "planned islands are mounted for the opening camera; the growth clock keeps them invisible until planned");
+  for (const id of ["pr1-building", ...landed.map(id => `land-${id}`), "pr1"]) assert.deepEqual(outlines(at(id)), [], `${id}: no claim draws on signing in`);
+  // Steps 4 and 5: the first round, then checkout's recorded green before the second round rises.
+  assert.deepEqual(stories(at("pr3-building")), [signIn, browsing, cart, checkout].sort());
+  assert.ok(plan.islands.get(browsing)!.start >= at("pr3-building"), "browsing, the cart and checkout grow in step 4");
+  const status = (when: number, story: string) => frame(when).scene.islands.find(island => island.story === story)!.land!.territories.map(cap => cap.status);
+  assert.ok(status(at("pr4"), checkout).every(status => status === "untested"));
+  const checked = at("pr7-building") - .001;
+  assert.ok(status(checked, checkout).every(status => status === "healthy"), "health turns green before the step ends");
+  assert.deepEqual(stories(checked), [signIn, browsing, cart, checkout].sort(), "the second round is not on the map yet");
+  assert.deepEqual(outlines(checked), []);
+  // Step 6: the second round's four planned stories, and the Orders session's two surveyed claims until its merge.
+  assert.equal(stories(at("pr7-building")).length, 8);
+  const orders = ["hsl(193, 80%, 68%) capability_276fa436dc33", "hsl(193, 80%, 68%) capability_668ca101a358"];
+  for (const id of ["pr7-building", "pr9-building", "pr8-building", "pr7"]) assert.deepEqual(outlines(at(id)).sort(), orders, `${id}: Order overview and Side menu`);
+  assert.deepEqual(outlines(at("pr9")), [], "released when its pull request merges");
+  assert.equal(recordedFrame(recording, plan, 0).scene.islands.length, 1, "signing in is mounted for the opening camera; the growth clock keeps it invisible until planned");
   assert.ok([...plan.islands.values()].every(window => window.start > 0));
-  assert.equal(recording.scene.islands.length, 4);
-  assert.ok(recording.stages.every(stage => stage.scene.islands.length <= 4));
   assert.equal(original.scene.islands.length, 8, "free play and the other chapters keep the saved recording");
 });

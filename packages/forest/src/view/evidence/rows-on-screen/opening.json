@@ -1,0 +1,138 @@
+{
+  "zoom": 1.462,
+  "canvas": {
+    "width": 1440,
+    "height": 864
+  },
+  "readable": 10,
+  "atTheRim": 8,
+  "behindTheGlobe": 3,
+  "islands": [
+    {
+      "title": "The library",
+      "x": 900,
+      "y": 640,
+      "facing": 0.82
+    },
+    {
+      "title": "The agent link",
+      "x": 360,
+      "y": 505,
+      "facing": 0.2
+    },
+    {
+      "title": "The app",
+      "x": 1005,
+      "y": 325,
+      "facing": -0.32
+    },
+    {
+      "title": "The forest",
+      "x": 976,
+      "y": 292,
+      "facing": 0.33
+    },
+    {
+      "title": "The arc surface",
+      "x": 405,
+      "y": 497,
+      "facing": -0.51
+    },
+    {
+      "title": "The command line",
+      "x": 785,
+      "y": 178,
+      "facing": 0.26
+    },
+    {
+      "title": "The librarian",
+      "x": 530,
+      "y": 568,
+      "facing": 0.85
+    },
+    {
+      "title": "The knowledge core",
+      "x": 507,
+      "y": 341,
+      "facing": 0.64
+    },
+    {
+      "title": "The app setup",
+      "x": 1075,
+      "y": 453,
+      "facing": 0.17
+    },
+    {
+      "title": "Process ledger",
+      "x": 696,
+      "y": 700,
+      "facing": 0.88
+    },
+    {
+      "title": "The website",
+      "x": 495,
+      "y": 245,
+      "facing": 0.2
+    },
+    {
+      "title": "The world",
+      "x": 517,
+      "y": 746,
+      "facing": 0.59
+    },
+    {
+      "title": "The local database",
+      "x": 918,
+      "y": 832,
+      "facing": -0.17
+    },
+    {
+      "title": "The dev loop",
+      "x": 711,
+      "y": 297,
+      "facing": 0.78
+    },
+    {
+      "title": "Keys",
+      "x": 948,
+      "y": 770,
+      "facing": 0.43
+    },
+    {
+      "title": "The map",
+      "x": 666,
+      "y": 557,
+      "facing": 0.99
+    },
+    {
+      "title": "Identity",
+      "x": 458,
+      "y": 787,
+      "facing": 0.03
+    },
+    {
+      "title": "Journey events",
+      "x": 992,
+      "y": 772,
+      "facing": 0.13
+    },
+    {
+      "title": "CI health",
+      "x": 578,
+      "y": 441,
+      "facing": 0.89
+    },
+    {
+      "title": "Guardrails",
+      "x": 780,
+      "y": 466,
+      "facing": 0.97
+    },
+    {
+      "title": "Quality assurance",
+      "x": 914,
+      "y": 401,
+      "facing": 0.78
+    }
+  ]
+}

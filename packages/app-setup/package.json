@@ -4,6 +4,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./bridge": "./src/help/bridge.ts",
     "./view": "./src/view/index.ts",
     "./view/styles.css": "./src/view/styles.css",
     "./deliver": "./src/deliver/index.ts",

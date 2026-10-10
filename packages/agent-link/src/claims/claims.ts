@@ -67,11 +67,18 @@ export function thisRestart(): Restart | undefined {
 
 export type ClaimAnswer =
   | { ok: true; claim: Claim; takenOverFrom?: Claim; alreadyHeld?: true }
-  | { ok: false; refused: "held"; holder: Claim }
+  | Held
   | { ok: false; refused: "unknown-capability"; capability: string }
   | { ok: false; refused: "closed"; increment: string }
   | { ok: false; refused: "waiting"; waits: Waiting[] }
   | { ok: false; refused: "reason-too-long"; limit: number; length: number };
+
+/**
+ * A claim refused because another live session holds the work, and the increments that session holds it for:
+ * the one it claimed the work under first, then every other increment it holds. Refused work waits on those to
+ * close, which a dispatcher chains it after (ADR-0955 D2).
+ */
+export type Held = { ok: false; refused: "held"; holder: Claim; heldFor: string[] };
 
 /**
  * A claim's reason is its session's name in the forest's running-sessions list, so it is held to
@@ -141,7 +148,7 @@ export async function claim(context: ClaimContext, id: string, reason: string, o
     if (mine && current.holder === "live" && !(options.moveBranch && context.branch !== undefined && context.branch !== current.branch)) return { ok: true, claim: current, alreadyHeld: true };
     if (!mine && current?.holder === "live") {
       await log.append({ ...who(context), kind: "claim-refused", ...found.part, holder: current.session, reason, ...file });
-      return { ok: false, refused: "held", holder: current };
+      return held(standing.values(), current);
     }
     // A claim may have waited for this lock without needing any library write at all.
     context.writer?.signal?.throwIfAborted();
@@ -171,14 +178,22 @@ export async function claim(context: ClaimContext, id: string, reason: string, o
 export async function claimRefusal(context: ClaimContext, id: string, reason?: string): Promise<Exclude<ClaimAnswer, { ok: true }> | undefined> {
   const found = await claimable(context, id);
   if (!("part" in found)) return found;
-  const current = await readClaim(context.log, context.project, id, {
+  const standing = await readClaims(context.log, context.project, {
     ...(context.quietMs === undefined ? {} : { quietMs: context.quietMs }),
     ...(context.restarted === undefined ? {} : { restarted: context.restarted }),
   });
+  const current = standing.find((claim) => (claim.increment ?? claim.capability) === id);
   if (current === undefined || current.session === context.session || current.holder !== "live") return undefined;
   // A caller giving the reason it would claim with is turned away now, so the refusal is recorded.
   if (reason !== undefined) await context.log.append(context.project, { ...who(context), kind: "claim-refused", ...found.part, holder: current.session, reason });
-  return { ok: false, refused: "held", holder: current };
+  return held(standing, current);
+}
+
+/** The refusal of a claim `holder` holds, naming the increments it holds the work for among `standing` claims. */
+function held(standing: Iterable<Claim>, holder: Claim): Held {
+  const holds = [...standing].filter((claim) => claim.session === holder.session && claim.increment !== undefined).map((claim) => claim.increment!);
+  const heldFor = [...new Set([...(holder.under === undefined ? [] : [holder.under]), ...holds])];
+  return { ok: false, refused: "held", holder, heldFor };
 }
 
 /** The live capability or increment `id`, when the library would let it be claimed; otherwise why not. */

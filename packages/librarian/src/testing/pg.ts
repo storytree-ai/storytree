@@ -8,10 +8,8 @@ import { randomBytes } from "node:crypto";
 import { connect as connectSocket, createServer, type AddressInfo, type Socket } from "node:net";
 
 import { connect, type Library } from "@storytree/library";
+import { dropTestDatabases } from "@storytree/local-postgres/testing";
 import pg from "pg";
-
-/** What uniqueProjectName() puts in every name; the only databases the helpers will drop. */
-const TEST_TOKEN = /t-[0-9a-f]{8}/;
 
 /** The server the tests run against. Throws when there is none. */
 export function testServerUrl(): string {
@@ -122,12 +120,5 @@ export async function healthHistory(project: string, entries: number, at: Date):
 }
 
 async function dropTestProject(name: string): Promise<void> {
-  if (!TEST_TOKEN.test(name)) throw new Error(`refusing to drop project ${JSON.stringify(name)}: it is not a test project`);
-  const client = new pg.Client({ connectionString: process.env["STORYTREE_TEST_PG_ADMIN_URL"] || testServerUrl() });
-  await client.connect();
-  try {
-    await client.query(`DROP DATABASE IF EXISTS "storytree_${name}" WITH (FORCE)`);
-  } finally {
-    await client.end();
-  }
+  await dropTestDatabases([`storytree_${name}`]);
 }

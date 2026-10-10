@@ -139,7 +139,7 @@ function returnedSaid(answer: { returned?: true }): string {
 export function workspaceRefusalText(id: string, answer: Exclude<WorkspaceAnswer | ClaimAnswer, { ok: true }>): string {
   switch (answer.refused) {
     case "held":
-      return `${id} is held by ${answer.holder.label} session ${answer.holder.session}: ${answer.holder.reason}${answer.holder.binds === undefined ? "" : `; binds: ${answer.holder.binds}`}. Pick other work.`;
+      return `${id} is held by ${answer.holder.label} session ${answer.holder.session}${answer.heldFor.length === 0 ? "" : ` for ${answer.heldFor.join(", ")}`}: ${answer.holder.reason}${answer.holder.binds === undefined ? "" : `; binds: ${answer.holder.binds}`}. Pick other work${answer.heldFor.length === 0 ? "" : `; this is free once ${answer.heldFor[0]} closes`}.`;
     case "yours":
       return `You already hold ${id}${answer.claim.branch === undefined ? "" : ` on branch ${answer.claim.branch}`}. Work there, or release it first.`;
     case "waiting":

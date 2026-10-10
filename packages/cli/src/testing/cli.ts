@@ -20,12 +20,9 @@ import path from "node:path";
 
 import { setUpProject } from "@storytree/agent-link/routing";
 import { connect, type Library } from "@storytree/library";
-import pg from "pg";
+import { dropTestDatabases } from "@storytree/local-postgres/testing";
 
 import { buildCommand } from "../bins/build.js";
-
-/** What uniqueProjectName() puts in every name; the only databases dropTestProjects() will drop. */
-const TEST_TOKEN = /t-[0-9a-f]{8}/;
 
 /** The server the tests run against. Throws when there is none. */
 export function testServerUrl(): string {
@@ -95,20 +92,7 @@ export function uniqueProjectName(): string {
  * somebody's real database on a shared server. The database name is the library's rule, restated.
  */
 export async function dropTestProjects(projects: Iterable<string>): Promise<void> {
-  const names = [...projects];
-  for (const name of names) {
-    if (!TEST_TOKEN.test(name)) throw new Error(`refusing to drop project ${JSON.stringify(name)}: test projects are named with uniqueProjectName()`);
-  }
-  if (names.length === 0) return;
-  // As the harness's superuser when it gave one: the ordinary role cannot end a backend another role
-  // holds on the database, and FORCE then refuses ("permission denied to terminate process").
-  const client = new pg.Client({ connectionString: process.env["STORYTREE_TEST_PG_ADMIN_URL"] || testServerUrl() });
-  await client.connect();
-  try {
-    for (const name of names) await client.query(`DROP DATABASE IF EXISTS "storytree_${name}" WITH (FORCE)`);
-  } finally {
-    await client.end();
-  }
+  await dropTestDatabases([...projects].map((name) => `storytree_${name}`));
 }
 
 /** The built command, once per test file: build it in `before`, remove it in `after`. */

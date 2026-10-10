@@ -17,6 +17,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@storytree/local-postgres": "workspace:*",
     "@types/node": "^24.13.6",
     "@types/pg": "^8.23.1",
     "tsx": "^4.23.15",

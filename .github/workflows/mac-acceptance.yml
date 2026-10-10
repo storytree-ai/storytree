@@ -9,7 +9,7 @@ on:
     inputs:
       channel:
         description: Release channel to install (stable or development)
-        default: stable
+        default: development
       hold:
         description: Hold the runner open afterwards for a remote session only the dispatcher's GitHub keys can open
         type: boolean
@@ -29,7 +29,7 @@ jobs:
         with:
           sparse-checkout: packages/app-setup/evidence/mac-acceptance/harness
       - name: Install with the one-liner and record what a first user sees
-        run: bash packages/app-setup/evidence/mac-acceptance/harness/run.sh "$RUNNER_TEMP/mac-acceptance" "${{ inputs.channel || 'stable' }}"
+        run: bash packages/app-setup/evidence/mac-acceptance/harness/run.sh "$RUNNER_TEMP/mac-acceptance" "${{ inputs.channel || 'development' }}"
       - uses: actions/upload-artifact@v7
         if: always()
         with:

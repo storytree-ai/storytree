@@ -40,8 +40,12 @@ cd "$PROJECT" || exit 1
 # The one-liner exactly as the release page gives it, in a pseudo-terminal (expect, which macOS ships) so its
 # questions are asked and answered the way a person at Terminal would: 1 connects Claude Code, Enter takes this
 # folder, Enter takes the suggested project name.
-if [ "$CHANNEL" = development ]; then ARGS=' -s -- --channel development'; else ARGS=; fi
-ONE_LINER="curl -fsSL https://raw.githubusercontent.com/storytree-ai/storytree/release-channel-stable/install-storytree.sh | sh$ARGS"
+# Each channel's one-liner as its release page gives it (install-storytree-mac*.txt).
+if [ "$CHANNEL" = development ]; then
+  ONE_LINER="curl -fsSL https://github.com/storytree-ai/storytree/releases/latest/download/install-storytree.sh | sh -s -- --channel development"
+else
+  ONE_LINER="curl -fsSL https://raw.githubusercontent.com/storytree-ai/storytree/release-channel-stable/install-storytree.sh | sh"
+fi
 echo "$ONE_LINER" > "$OUT/one-liner.txt"
 cat > "$OUT/answer.exp" <<'EXP'
 set timeout 900

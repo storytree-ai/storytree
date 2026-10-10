@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 
@@ -134,5 +134,57 @@ test("3.22 checkout, switch, reset and rebase claim no imported edits, including
     assert.deepEqual(edited(), []);
     git(root, "rebase", "incoming");
     assert.deepEqual(edited(), [], "replaying the session's commits imports no new edits");
+  });
+});
+
+test("3.22 a checkout moved to a published commit invents no edit even when HEAD's log cannot say how it moved, and a comparison Git cannot finish fails the observation instead; the session's own writes still count", async () => {
+  await withTempDir((dir) => {
+    const home = path.join(dir, "home");
+    const upstream = path.join(dir, "upstream");
+    const root = path.join(dir, "repo");
+    mkdirSync(upstream);
+    const failures: unknown[] = [];
+    const edited = () => shellEdits(home, root, { session: "one", harness: "claude-code", source: "hook", kind: "command-run", command: "gh pr view 1", folder: root }, (error) => failures.push(error)).flatMap((line) => line.kind === "file-edited" ? line.files : []);
+    const commit = (where: string, file: string, text: string) => {
+      writeFileSync(path.join(where, file), text);
+      git(where, "add", "-A");
+      git(where, "commit", "-q", "-m", text);
+    };
+    const headLog = path.join(root, ".git", "logs", "HEAD");
+    // What another process left: HEAD moved, and its log no longer records the move.
+    const unlogged = () => writeFileSync(headLog, readFileSync(headLog, "utf8").split("\n").filter(Boolean).slice(0, -1).map((entry) => `${entry}\n`).join(""));
+    git(upstream, "init", "-q", "-b", "main");
+    commit(upstream, "source.ts", "one");
+    git(dir, "clone", "-q", upstream, root);
+    assert.deepEqual(edited(), []);
+
+    commit(upstream, "source.ts", "two");
+    commit(upstream, "removed.ts", "added upstream");
+    git(root, "pull", "-q", "--ff-only");
+    unlogged();
+    assert.deepEqual(edited(), [], "a pull whose HEAD log entry is missing");
+
+    rmSync(path.join(upstream, "removed.ts"));
+    commit(upstream, "source.ts", "three");
+    git(root, "pull", "-q", "--ff-only");
+    writeFileSync(headLog, "");
+    assert.deepEqual(edited(), [], "a pull after HEAD's log was rewritten shorter");
+
+    commit(upstream, "source.ts", "four");
+    git(root, "pull", "-q", "--ff-only");
+    writeFileSync(path.join(root, "scratch.ts"), "the session's own write");
+    const pulled = readFileSync(headLog, "utf8");
+    const [from = "", to = ""] = pulled.split(" ");
+    const missing = "1".repeat(from.length);
+    writeFileSync(headLog, `${from} ${missing} x <x> 0 +0000\tpull: Fast-forward\n${missing} ${to} x <x> 0 +0000\tpull: Fast-forward\n`);
+    assert.deepEqual(edited(), [], "a log naming a commit that is not there");
+    assert.equal(failures.length, 1);
+    writeFileSync(headLog, pulled);
+    assert.deepEqual(edited(), ["scratch.ts"], "the failed observation kept its baseline");
+    assert.equal(failures.length, 1);
+
+    commit(root, "own.ts", "the session's own commit, not pushed");
+    unlogged();
+    assert.deepEqual(edited(), ["own.ts"]);
   });
 });

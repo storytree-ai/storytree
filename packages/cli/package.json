@@ -29,6 +29,7 @@
     "@storytree/processes": "workspace:*"
   },
   "devDependencies": {
+    "@storytree/local-postgres": "workspace:*",
     "@types/node": "^24.13.6",
     "esbuild": "^0.28.2",
     "pg": "^8.23.0",

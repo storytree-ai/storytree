@@ -124,3 +124,14 @@ test("11.9 · an active arc whose open work all waits, with no open question, is
     "ready or claimed work, an open question, a parked arc and the website arc never qualify");
   assert.equal(pickPlan(survey([])), undefined, "a survey without arcs offers none");
 });
+
+test("11.11 · work whose session ended without a hand-off is offered again after a back-off, and not before", () => {
+  const ran = Date.parse("2026-10-07T01:00:00Z"), minute = 60_000;
+  const attempts = new Map([["bounced", { at: ran }], ["handed", { at: ran }]]);
+  const work = survey([increment("bounced", "x"), increment("handed", "x")], { holds: { waits: {}, heldOn: {}, waitsFor: { handed: [{ releaser: "event", note: "PR", holds: true }] } } });
+  const pick = (at, running = []) => pickPool(work, { attempts, running, max: 2, now: at, backoffMs: 30 * minute }).picks.map((one) => one.id);
+  assert.deepEqual(pick(ran + minute, ["bounced", "handed"]), [], "running work is not offered");
+  assert.deepEqual(pick(ran + 5 * minute), [], "the dispatcher sees the session gone: the back-off starts");
+  assert.deepEqual(pick(ran + 34 * minute), [], "not before the back-off passes");
+  assert.deepEqual(pick(ran + 35 * minute), ["bounced"], "offered again once it passes; work handed to the watcher still waits");
+});

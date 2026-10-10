@@ -461,7 +461,7 @@ class ProjectLibrary implements Project {
     this.transactions = new PgTransactions(pool);
     this.records = new SchemaRecords(this.transactions);
     this.work = new WorkModel(this.records);
-    this.flight = new WorkInFlight(this.records);
+    this.flight = new WorkInFlight(this.records, this.work);
     this.knowledge = new Knowledge(this.records, name, { vectors: new PgVectors(pool, vectorCache, domain), ...(embedder === undefined ? {} : { embedder }) });
     this.health = new HealthRecord(this.records, this.work);
     this.#forget = forget;

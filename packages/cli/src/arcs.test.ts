@@ -6,6 +6,8 @@ import assert from "node:assert/strict";
 import { userInfo } from "node:os";
 import { after, before, test } from "node:test";
 
+import pg from "pg";
+
 import { claim, openActivityLog, readClaims, recordFriction, release } from "@storytree/agent-link";
 
 import { parseArgs } from "./args.js";
@@ -629,5 +631,44 @@ test("4.19 `arc show` lists each open increment's pending plan changes under it,
     assert.match(below, /Pending changes \(2\)/);
     assert.match(below, new RegExp(`${form.id}.*\\n.*description: \\(none\\) -> Where they type it`));
     assert.match(below, new RegExp(`${promise.id}.*\\n.*retire: overtaken`));
+  });
+});
+
+test("4.20 `arc increment settle-pending` applies the leftover pending plan changes of every closed increment that landed and drops those of every one that did not, naming each, and says so when none is left", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const arc = await anArc(world);
+    const story = await library.addStory({ title: "Sign up" });
+    const form = await library.addCapability({ story: story.id, title: "Form" });
+    const promise = await library.addContract({ capability: form.id, title: "Accepts an address" });
+    const landed = await library.addIncrement({ arc, title: "Address form", objective: "Rename it", body: "Red then green" });
+    const failed = await library.addIncrement({ arc, title: "Drop the check", objective: "Drop it", body: "Red then green" });
+    await library.advanceIncrement(landed.id, "active");
+    await library.advanceIncrement(failed.id, "active");
+    await library.pendChange(landed.id, { record: form.id, fields: { description: "Where they type it" } });
+    await library.pendChange(failed.id, { record: promise.id, retire: "overtaken" });
+    // Closed as a close was written before closing applied or dropped them: the pending changes stay behind.
+    const url = new URL(testServerUrl());
+    url.pathname = `/storytree_${world.project}`;
+    const client = new pg.Client({ connectionString: url.href });
+    await client.connect();
+    try {
+      for (const [id, outcome] of [[landed.id, { date: "2026-10-11", pr: "1130", disposition: "landed" }], [failed.id, { date: "2026-10-11", note: "abandoned", disposition: "failed" }]] as const) {
+        await client.query("UPDATE record SET fields = fields || $2::jsonb WHERE id = $1", [id, JSON.stringify({ status: "closed", outcome })]);
+      }
+    } finally {
+      await client.end();
+    }
+
+    const settled = await world.run(["arc", "increment", "settle-pending"]);
+    assert.equal(settled.code, 0, settled.stderr);
+    assert.match(settled.stdout, new RegExp(`${landed.id}: applied 1 \\(${form.id}\\)`));
+    assert.match(settled.stdout, new RegExp(`${failed.id}: dropped 1`));
+    assert.equal(((await library.get(form.id))?.fields as { description?: string } | undefined)?.description, "Where they type it");
+    assert.notEqual(await library.get(promise.id), null, "the failed increment's retirement was dropped, not applied");
+
+    const none = await world.run(["arc", "increment", "settle-pending"]);
+    assert.equal(none.code, 0, none.stderr);
+    assert.match(none.stdout, /No closed increment has pending plan changes left/);
   });
 });

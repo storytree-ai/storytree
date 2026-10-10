@@ -58,6 +58,8 @@ const LIBRARY_API = [
   "editIncrement",
   "pendChange",
   "stalePending",
+  "applyPending",
+  "settleClosedPending",
   "parkArc",
   "unparkArc",
   "arcView",
@@ -273,6 +275,9 @@ test("7.1 an agent's day against a real local Postgres: every step is visible wh
       assert.deepEqual(await again.projectTree(), theDay);
       assert.deepEqual((await again.projectTree({ pendingOf: work.id })).stories[0]!.capabilities[0]!.contracts, []);
       assert.deepEqual(await again.stalePending(work.id), []);
+      // Its pull request merges: the retirement applies, and every reader reads the plan without it.
+      assert.deepEqual(await again.applyPending(work.id, "#12"), { applied: [contract.id] });
+      assert.deepEqual((await again.projectTree()).stories[0]!.capabilities[0]!.contracts, []);
     } finally {
       await tomorrow.close();
     }

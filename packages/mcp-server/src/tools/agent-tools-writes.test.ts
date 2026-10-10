@@ -488,7 +488,8 @@ test("6.16 every library write from a tool names the calling session, including 
       // Holding the writer's own increment releases it, returning it to proposal: a third record (6.44).
       const question = await write("raise_question", { ...questionArgs, holds: [increment] }, 3);
       await write("correct_question", { question, stakes: "Cost and deliverability" });
-      await write("settle_question", { question, answer: "Mailgun" });
+      // Settling takes the question off the increment it held: a second record (12.3).
+      await write("settle_question", { question, answer: "Mailgun" }, 2);
       const mistaken = await write("raise_question", questionArgs);
       await write("retire_question", { question: mistaken, reason: "Already asked" });
       await write("close_increment", { increment, disposition: "landed", pr: "#82" });

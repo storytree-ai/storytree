@@ -1,4 +1,4 @@
-/** Capability 3 · First-run guide. */
+/** Capability 3 · First-run guide. The help surface's bridge to the main process. Data only: safe for the page and preload. */
 import type { SetupLine } from "@storytree/agent-link";
 import type { DraftResult } from "./feedback.js";
 
@@ -28,6 +28,14 @@ export interface FeedbackIdentityBridge {
   signOut(): Promise<void>;
 }
 
+/** Feedback sign-in's channels; whether this build offers it is asked once, synchronously, before the page loads (app setup 5.6). */
+export const FEEDBACK_IDENTITY_OFFERED = "storytree:feedback-identity-offered";
+export const FEEDBACK_IDENTITY_CHANNELS = {
+  status: "storytree:feedback-identity-status",
+  signIn: "storytree:feedback-identity-sign-in",
+  signOut: "storytree:feedback-identity-sign-out",
+} as const satisfies Record<keyof FeedbackIdentityBridge, string>;
+
 /** Only these actions cross from the help surface to the OS. No project data enters feedback. */
 export interface SetupHelpBridge {
   /** Present only after the desktop identity integration is configured. Never needed for basic use. */
@@ -47,3 +55,16 @@ export interface SetupHelpBridge {
   openFeedbackDraft(draft: unknown): Promise<DraftResult>;
   copyHelpText(text: string): Promise<void>;
 }
+
+/** The channels the help surface's actions travel on (ADR-0649); feedback sign-in has its own, above. */
+export const SETUP_HELP_CHANNELS = {
+  readSetupLicense: "storytree:read-setup-license",
+  agentConnections: "storytree:agent-connections",
+  checkSetupFolder: "storytree:check-setup-folder",
+  addProject: "storytree:add-project",
+  removeProject: "storytree:remove-project",
+  deletableProjects: "storytree:deletable-projects",
+  deleteProject: "storytree:delete-project",
+  openFeedbackDraft: "storytree:open-feedback-draft",
+  copyHelpText: "storytree:copy-help-text",
+} as const satisfies Record<Exclude<keyof SetupHelpBridge, "feedbackIdentity">, string>;

@@ -104,11 +104,11 @@ function windowsPrivate(directory: string, file: string, dirStat: Stats, fileSta
   const system32 = path.join(process.env.SystemRoot ?? "C:\\Windows", "System32");
   let scratch: string | undefined;
   let currentSid = processSid;
-  // One five-second deadline bounds both native children of an attempt.
+  // One ten-second deadline bounds both native children of the check.
   const check = () => {
     const started = performance.now();
     const run = (command: string, args: string[], env?: NodeJS.ProcessEnv) => {
-      const timeout = Math.floor(5000 - (performance.now() - started));
+      const timeout = Math.floor(10_000 - (performance.now() - started));
       if (timeout <= 0) throw Object.assign(new Error("deadline"), { code: "ETIMEDOUT" });
       return execFileSync(path.join(system32, command), args, { env, encoding: "utf8",
         stdio: ["ignore", "pipe", "pipe"], timeout, maxBuffer: 65_536, windowsHide: true });
@@ -125,12 +125,10 @@ function windowsPrivate(directory: string, file: string, dirStat: Stats, fileSta
     // cscript runs only a script file; it lives in the user's private temp folder for this call.
     scratch = mkdtempSync(path.join(tmpdir(), "storytree-handoff-"));
     writeFileSync(path.join(scratch, "descriptor.js"), DESCRIPTOR_SCRIPT, { mode: 0o600 });
-    // A stall once exceeded the deadline on a loaded machine. Retry a timeout once, keeping
-    // each attempt's deadline: a second stall refuses.
-    try { output = check(); } catch (error) {
-      if ((error as { code?: unknown } | null)?.code !== "ETIMEDOUT") throw error;
-      output = check();
-    }
+    // A loaded machine slows the children's cold start, it does not wedge them: a check killed
+    // at five seconds and started again paid that start twice and refused (merge queue,
+    // 2026-10-09). So one check is waited on for the whole ten seconds the two attempts had.
+    output = check();
   } catch (error) {
     if (error instanceof HandoffPrivacyError) throw error;
     throw new HandoffPrivacyError((error as { code?: unknown } | null)?.code === "ETIMEDOUT" ? "windows-acl-timeout" : "windows-acl-process");

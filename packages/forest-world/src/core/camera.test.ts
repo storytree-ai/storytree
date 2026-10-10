@@ -36,7 +36,6 @@ import {
   type Pt,
 } from './hex.js';
 
-const RAD = Math.PI / 180;
 
 /**
  * The declared value, plus a sweep either side of it — the range every invariant below holds
@@ -75,12 +74,34 @@ test('the land declares ONE camera elevation, in degrees, above the ground plane
 
 test("the land's projection is DERIVED from the declared elevation, never a second literal", () => {
   // If either of these ever stops being sin/cos of the ONE constant, the land has grown a second
-  // camera — which is exactly the state ADR-0367 D1 was written to end.
-  assert.equal(groundFlattening(), Math.sin(LAND_CAMERA_ELEVATION_DEG * RAD));
-  assert.equal(uprightForeshortening(), Math.cos(LAND_CAMERA_ELEVATION_DEG * RAD));
+  // camera — which is exactly the state ADR-0367 D1 was written to end. The expected values are
+  // worked by hand from known angles, not recomputed the way the code computes them.
+  const near = (actual: number, expected: number, what: string): void =>
+    assert.ok(Math.abs(actual - expected) < 1e-4, `${what}: ${actual}, worked ${expected}`);
+  // The declared camera (50 deg): sin 50 = 0.7660, cos 50 = 0.6428.
+  assert.equal(groundFlattening(), groundFlattening(LAND_CAMERA_ELEVATION_DEG));
+  assert.equal(uprightForeshortening(), uprightForeshortening(LAND_CAMERA_ELEVATION_DEG));
+  near(groundFlattening(50), 0.766, 'groundFlattening(50)');
+  near(uprightForeshortening(50), 0.6428, 'uprightForeshortening(50)');
+  // Edge-on and plan view, the two ends.
+  near(groundFlattening(0), 0, 'groundFlattening(0)');
+  near(uprightForeshortening(0), 1, 'uprightForeshortening(0)');
+  near(groundFlattening(90), 1, 'groundFlattening(90)');
+  near(uprightForeshortening(90), 0, 'uprightForeshortening(90)');
+  // The sweep, against a table of worked sines and cosines: 30 deg halves the ground, 60 deg halves
+  // an upright, and 26.565 deg (tan = 1/2, the 2:1 dimetric view) flattens it to 1/sqrt(5).
+  const worked: Record<(typeof SWEEP)[number], [ground: number, upright: number]> = {
+    12: [0.2079, 0.9781],
+    15: [0.2588, 0.9659],
+    20: [0.342, 0.9397],
+    26.565: [0.4472, 0.8944],
+    30: [0.5, 0.866],
+    45: [0.7071, 0.7071],
+    60: [0.866, 0.5],
+  };
   for (const deg of SWEEP) {
-    assert.equal(groundFlattening(deg), Math.sin(deg * RAD), `groundFlattening(${deg})`);
-    assert.equal(uprightForeshortening(deg), Math.cos(deg * RAD), `uprightForeshortening(${deg})`);
+    near(groundFlattening(deg), worked[deg][0], `groundFlattening(${deg})`);
+    near(uprightForeshortening(deg), worked[deg][1], `uprightForeshortening(${deg})`);
   }
 });
 

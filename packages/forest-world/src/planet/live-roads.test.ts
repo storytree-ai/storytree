@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { ForestScene, Island } from '../scene.js';
 import { crossingLength, linkKey, roadSegmentWindows, type GrowthWindow } from './growth.js';
-import { roadDrawSeconds } from './lanes.js';
 import { liveRoadProgress, liveRoadsGrowing, nextLiveRoads } from './live-roads.js';
 import { buildPlanetPathways } from './pathways.js';
 
@@ -24,7 +23,11 @@ test('6.16 live roads grow initially, then adding a real dependency preserves co
   const first = nextLiveRoads(new Map(), initial, 0);
   assert.deepEqual([...first.keys()], ['b1->a1']);
   const original = first.get('b1->a1')!;
-  assert.equal(original.seconds, roadDrawSeconds(crossingLength(initial, 'b1->a1')));
+  // Worked by hand: the router lays this road 150.42 units from coast to coast (the 0.8 rad between
+  // the island centres is 174.4 on R = 218, less the two coasts' reach), so it draws in
+  // 0.15 + 150.42 / 600 = 0.4007 s, inside the 0.28 to 1.2 s clamp.
+  assert.ok(Math.abs(crossingLength(initial, 'b1->a1') - 150.42) < 0.01, `${crossingLength(initial, 'b1->a1')}`);
+  assert.ok(Math.abs(original.seconds - 0.4007) < 1e-4, `${original.seconds}`);
   assert.equal(liveRoadProgress(original, 0, false), 0, 'first seen, the live road is undrawn');
   assert.equal(liveRoadProgress(original, original.seconds / 2, false), 0.5, 'half its time grows half its length');
 

@@ -92,7 +92,9 @@ test('the installed hook sets the drawn width from the camera of THAT draw, afte
   const opening = draw(ortho(OPENING));
   const zoomedOut = draw(ortho(ZOOMED_OUT));
   const zoomedIn = draw(ortho(ZOOMED_IN));
-  assert.equal(zoomedIn, trailRibbonScreenWidth(w, ZOOMED_IN));
+  // Worked by hand: four uses fill 1.2 + 1.8·√4 = 4.8 ground units, drawn at half (2.4) and
+  // 4.228 px per unit when zoomed in, so 2.4 × 4.228 = 10.1472 px.
+  assert.ok(Math.abs(zoomedIn - 10.1472) < 1e-9, `${zoomedIn}`);
   assert.ok(zoomedOut < opening && opening < zoomedIn, `${zoomedOut} < ${opening} < ${zoomedIn}`);
   assert.deepEqual(calls, ['own', 'own', 'own']);
   // A perspective camera has no zoom in this sense, nor does an orthographic one reporting none, nor

@@ -7,6 +7,17 @@
 import { labelOf } from "../sessions/index.js";
 import type { Line } from "./lines.js";
 
+/** Why a holder no longer bound, as a person says it. */
+const BECAUSE = { idle: "idle", gone: "gone", restart: "machine restarted", "closed-out": "closed out" } as const;
+
+/** How long a taken-over holder had been quiet when it was taken, and why, or nothing when the line does not say (ADR-0953 D2). */
+function quiet(line: Extract<Line, { kind: "claimed" }>): string {
+  if (line.quietSince === undefined || line.takenBecause === undefined) return "";
+  const ms = Math.max(0, Date.parse(line.at) - Date.parse(line.quietSince));
+  const span = ms < 60_000 ? `${Math.round(ms / 1000)} s` : ms < 120 * 60_000 ? `${Math.round(ms / 60_000)} min` : `${(ms / 3_600_000).toFixed(1)} h`;
+  return ` after ${span} quiet (${BECAUSE[line.takenBecause]})`;
+}
+
 /** The words after a line's kind: what it was about. */
 function about(line: Line, full: boolean): string {
   switch (line.kind) {
@@ -16,7 +27,7 @@ function about(line: Line, full: boolean): string {
     case "note-read":
       return ` ${line.note} (${line.read}, found by ${line.found})`;
     case "claimed":
-      return ` ${line.increment ?? line.capability}${line.file === undefined ? "" : `, editing ${line.file}`}${line.takenOverFrom === undefined ? "" : `, taken over from ${line.takenOverFrom}`}`;
+      return ` ${line.increment ?? line.capability}${line.file === undefined ? "" : `, editing ${line.file}`}${line.takenOverFrom === undefined ? "" : `, taken over from ${line.takenOverFrom}${quiet(line)}`}`;
     case "claim-refused":
       return ` ${line.increment ?? line.capability} held by ${line.holder}${line.file === undefined ? "" : `, editing ${line.file}`}: ${line.reason}`;
     case "released":

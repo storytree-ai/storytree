@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { promisify } from "node:util";
 
-import { main, poolRules, prepareCheckout, PUSH_URL, runPool } from "./launch.mjs";
+import { main, planRules, poolRules, prepareCheckout, PUSH_URL, runPool } from "./launch.mjs";
 
 const run = promisify(execFile);
 const now = () => Date.parse("2026-10-08T04:00:00Z");
@@ -144,4 +144,67 @@ test("12.9 · `pool` starts each ready increment under the shared lock with the 
   b.argsOf = async () => "node launch.mjs pool";
   await writeFile(join(b.lanesDir, "pool.pid"), "99\n");
   assert.equal(await main(["pool"], b), 1, "one dispatcher at a time");
+});
+
+test("12.10 · the dispatcher restarts between sessions when its own code changes, and not otherwise", async () => {
+  const lines = [], started = [], ends = new Map(), refreshed = [];
+  let version = "tree-a", engines = 0;
+  const code = await runPool({
+    survey: async () => poolWork(["a", "b"]), maxLanes: async () => 1, count: async () => engines,
+    codeVersion: async () => version, refresh: async () => { refreshed.push(version); },
+    stopFile: "/lanes/pool-stop", exists: async () => false, now, say: (line) => lines.push(line),
+    launch: (one, { engineUp }) => new Promise((done) => {
+      started.push(one.id); engines += 1; engineUp();
+      ends.set(one.id, () => { engines -= 1; lines.push(`ended ${one.id}`); done(0); });
+    }),
+    sleep: async () => { version = "tree-b"; setTimeout(() => ends.get("a")(), 5); },
+  });
+  assert.equal(code, 3);
+  assert.deepEqual(started, ["a"], "nothing new starts once the code changed; b waits for the restarted dispatcher");
+  assert.deepEqual(lines.slice(-2).map((line) => line.replace(/^\S+Z /, "")), ["ended a", "dev loop code changed (tree-a → tree-b): restarting"],
+    "the running session ends before the dispatcher does");
+
+  version = "tree-a";
+  const idle = await runPool({
+    survey: async () => { throw new Error("record was written on schema version 3, which is newer than version 2"); },
+    maxLanes: async () => 1, count: async () => 0, codeVersion: async () => version, refresh: async () => { refreshed.push("idle"); version = "tree-c"; },
+    stopFile: "/lanes/pool-stop", exists: async () => false, now, say: () => {}, launch: async () => assert.fail("nothing launches"), sleep: async () => {},
+  });
+  assert.equal(idle, 3, "a failing survey brings the checkout up to date and restarts on the new code");
+  assert.deepEqual(refreshed, ["idle"], "the checkout is refreshed only when no session starts");
+
+  let stop = false;
+  const steady = await runPool({
+    survey: async () => poolWork([]), maxLanes: async () => 1, count: async () => 0, codeVersion: async () => "tree-a", refresh: async () => { refreshed.push("steady"); },
+    stopFile: "/lanes/pool-stop", exists: async () => stop, now, say: () => {}, launch: async () => 0, sleep: async () => { stop = true; },
+  });
+  assert.equal(steady, 0, "unchanged code: no restart");
+  assert.deepEqual(refreshed, ["idle", "steady"]);
+});
+
+test("12.11 · with free slots and nothing ready, one planning session starts for a qualifying arc, never two at once", async (t) => {
+  const arcs = [{ id: "arc_old", state: "active", title: "Old", created: "2026-10-01T00:00:00Z", openQuestions: 0 },
+    { id: "arc_new", state: "active", title: "New", created: "2026-10-02T00:00:00Z", openQuestions: 0 }];
+  const started = [], ends = new Map();
+  let looks = 0, stop = false;
+  const code = await runPool({
+    survey: async () => ({ ...poolWork([]), arcs }), maxLanes: async () => 3, count: async () => 0,
+    stopFile: "/lanes/pool-stop", exists: async () => stop, now, say: () => {},
+    launch: (one, { engineUp }) => new Promise((done) => { started.push(`${one.plan ? "plan" : "build"}:${one.id}`); engineUp(); ends.set(one.id, done); }),
+    sleep: async () => {
+      looks += 1;
+      await new Promise((go) => setImmediate(go));
+      if (looks === 3) { assert.deepEqual(started, ["plan:arc_old"], "three free slots, one planning session"); ends.get("arc_old")(0); }
+      else if (looks === 5) { assert.deepEqual(started, ["plan:arc_old", "plan:arc_new"], "each arc planned once"); ends.get("arc_new")(0); stop = true; }
+    },
+  });
+  assert.equal(code, 0);
+  assert.deepEqual(started, ["plan:arc_old", "plan:arc_new"]);
+
+  const b = await box(t, { survey: async () => ({ ...poolWork([]), arcs: [arcs[0]] }), count: async () => 0, maxLanes: async () => 1 });
+  b.runLane = async (options) => { b.briefs.push(await readFile(options.brief, "utf8")); return 0; };
+  b.sleep = async () => { await new Promise((go) => setImmediate(go)); if (b.briefs.length) await writeFile(join(b.lanesDir, "pool-stop"), ""); };
+  assert.equal(await main(["pool"], b), 0);
+  assert.ok(b.briefs[0].startsWith("# Planning lane: arc_old\n\nYour arc: arc_old (Old)."));
+  assert.ok(b.briefs[0].includes(await planRules()) && /never build/i.test(b.briefs[0]));
 });

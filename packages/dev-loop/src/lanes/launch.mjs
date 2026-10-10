@@ -1,5 +1,5 @@
 // Capability 12 · The Mint pool's dispatcher (ADR-0955 D2), which the box's launcher execs:
-// node --import tsx packages/dev-loop/src/lanes/launch.mjs pool            (one dispatcher over every active arc's ready increments)
+// node --import tsx packages/dev-loop/src/lanes/launch.mjs pool            (one dispatcher over every active arc's ready increments; exits 3 to restart on its own code change)
 // node packages/dev-loop/src/lanes/launch.mjs slots                       (engines running now, and the cap)
 import { execFile, spawn } from "node:child_process";
 import { appendFileSync, existsSync } from "node:fs";
@@ -10,11 +10,13 @@ import { setTimeout as wait } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
-import { blind, pickPool, readOnly, surveyLibrary } from "./feed.mjs";
+import { blind, pickPlan, pickPool, readOnly, surveyLibrary } from "./feed.mjs";
 import { composeBrief, countEngines, holdRunner, waitForSlot } from "./queue.mjs";
 import { runLane as runEngineLane } from "./runner.mjs";
 
 const run = promisify(execFile);
+/** The dispatcher's exit when its own code changed on origin/main: the box wrapper starts it again, on the new code. */
+export const RESTART = 3;
 /** Lanes push over SSH: the https origin's OAuth token lacks the workflow scope (increment_ecdbefcd7fa1). */
 export const PUSH_URL = "git@github.com:storytree-ai/storytree.git";
 const stamp = (now) => new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z");
@@ -64,24 +66,43 @@ export async function laneOnce({ increment, brief, log, err, addDirs, repo, maxL
  * still starting) are open, it takes that many increments from one survey (feed.mjs's pickPool) and launches each;
  * a launch's `engineUp` says its engine has started, so it counts among the engines from then on. It looks again
  * when a session ends, every `pollMs` while slots are full, and every `intervalMs` while nothing is ready. A claim
- * that refused a session is said once, and its increment waits until that claim clears. Ends on the stop file, or
- * 75 (an engine failing at once), each after its running sessions end.
+ * that refused a session is said once, and its increment waits until that claim clears. With free slots and nothing
+ * ready, it launches one planning session (`{ plan: true }`) for the arc feed.mjs's pickPlan offers, never two at
+ * once, each arc once. Ends on the stop file, 75 (an engine failing at once), or RESTART once `codeVersion` (its own
+ * code in the shared checkout) differs from its start, each after its running sessions end; when a survey fails or
+ * finds nothing and no session is starting, it first brings the checkout up to date (`refresh`) to see that change.
  */
 export async function runPool({ survey, maxLanes, count, launch, stopFile, exists = async (path) => existsSync(path),
+  codeVersion = async () => undefined, refresh = async () => {},
   sleep = (ms, options) => wait(ms, undefined, options), intervalMs = 15 * 60_000, pollMs = 60_000, now = Date.now, say = console.log }) {
   const dated = (message) => say(`${stamp(now)} ${message}`);
-  const attempts = new Map(), running = new Map(), starting = new Set(), refused = new Map();
-  let ending, changed, change = new Promise((go) => { changed = go; });
+  const attempts = new Map(), running = new Map(), starting = new Set(), refused = new Map(), planned = new Set();
+  let ending, planning, changed, change = new Promise((go) => { changed = go; });
   const wake = () => { changed(); change = new Promise((go) => { changed = go; }); };
+  const version = () => Promise.resolve().then(codeVersion).catch(() => undefined);
+  const began = await version();
+  const codeChanged = async () => {
+    const current = began && await version();
+    if (!current || current === began) return false;
+    ending ??= { code: RESTART, message: `dev loop code changed (${began} → ${current}): restarting` };
+    return true;
+  };
+  const freshen = async () => {
+    if (!began || starting.size) return false;
+    try { await refresh(); }
+    catch (error) { dated(`checkout update failed (${String(error.message).split("\n")[0]})`); }
+    return codeChanged();
+  };
   const start = (one) => {
-    attempts.set(one.id, { at: now() });
+    if (one.plan) planning = one.id;
+    else attempts.set(one.id, { at: now() });
     starting.add(one.id);
     running.set(one.id, (async () => {
       try {
         const code = await launch(one, { engineUp: () => starting.delete(one.id) });
         if (code === 75) ending ??= { code: 75, message: `pool stopped: engine failing at once on ${one.id}` };
       } catch (error) { ending ??= { error }; }
-      finally { starting.delete(one.id); running.delete(one.id); wake(); }
+      finally { if (planning === one.id) planning = undefined; starting.delete(one.id); running.delete(one.id); wake(); }
     })());
   };
   const pause = async (ms) => {
@@ -90,6 +111,7 @@ export async function runPool({ survey, maxLanes, count, launch, stopFile, exist
     look.abort();
   };
   for (;;) {
+    if (!ending) await codeChanged();
     if (ending || await exists(stopFile)) {
       const last = ending ?? { code: 0, message: `stopped by ${stopFile.split(/[\\/]/).pop()}` };
       await Promise.all(running.values());
@@ -103,6 +125,7 @@ export async function runPool({ survey, maxLanes, count, launch, stopFile, exist
     try { found = await survey(); }
     catch (error) {
       dated(`library survey failed (${String(error.message).split("\n")[0]}); looking again in ${Math.round(intervalMs / 60_000)} min`);
+      if (await freshen()) continue;
       await pause(intervalMs);
       continue;
     }
@@ -111,6 +134,15 @@ export async function runPool({ survey, maxLanes, count, launch, stopFile, exist
       if (attempt.refusedBy && refused.get(id) !== attempt.refusedBy) { refused.set(id, attempt.refusedBy); dated(`refused ${id}: claimed by live session ${attempt.refusedBy}; retried once that claim clears`); }
     }
     if (!picks.length) {
+      const arc = planning ? undefined : pickPlan(found, { planned });
+      if (arc) {
+        planned.add(arc.id);
+        dated(`nothing ready: planning ${arc.id} (${arc.title})`);
+        start({ id: arc.id, title: arc.title, plan: true });
+        await pause(pollMs);
+        continue;
+      }
+      if (await freshen()) continue;
       dated(`nothing ready for ${free} free slot${free === 1 ? "" : "s"} (${skipped.length} skipped); looking again in ${Math.round(intervalMs / 60_000)} min`);
       await pause(intervalMs);
       continue;
@@ -118,6 +150,11 @@ export async function runPool({ survey, maxLanes, count, launch, stopFile, exist
     for (const one of picks) start(one);
     await pause(pollMs);
   }
+}
+
+/** The planning session's brief rules, versioned beside this file: plan the arc's next increments, never build. */
+export async function planRules() {
+  return readFile(new URL("./pool-brief-plan.md", import.meta.url), "utf8");
 }
 
 /** The pool's brief rules, versioned beside this file: the read-only rules for read-only or blind work, else the build rules. */
@@ -165,18 +202,21 @@ async function pool(b) {
   dated("dispatcher started");
   const code = await runPool({
     survey: b.survey, maxLanes: b.maxLanes, count: b.count, stopFile: join(L, "pool-stop"), sleep: b.sleep, now: b.now, say,
+    codeVersion: b.codeVersion ?? (async () => (await run("git", ["rev-parse", "HEAD:packages/dev-loop"], { cwd: b.repo })).stdout.trim()),
+    refresh: () => b.lock(b.prepare),
     launch: async (one, { engineUp }) => {
       const at = new Date(b.now()).toISOString().replace(/[-:]|\.\d{3}Z$/g, "");
-      const role = blind(one.body) ? " You are a blind reviewer: follow .claude/agents/blind-reviewer.md (ADR-0950)." : "";
+      const role = !one.plan && blind(one.body) ? " You are a blind reviewer: follow .claude/agents/blind-reviewer.md (ADR-0950)." : "";
+      const brief = one.plan
+        ? { title: `Planning lane: ${one.id}`, intro: `Your arc: ${one.id} (${one.title}).`, notes: "", common: await planRules() }
+        : { title: `Pool lane: ${one.id}`, intro: `Your increment: ${one.id}.${role}`,
+          notes: await readFile(join(L, `pool-notes-${one.id}.md`), "utf8").catch(() => ""), common: await (b.rules ?? poolRules)(one.body) };
       return laneOnce({
         increment: one.id, addDirs: b.addDirs, repo: b.repo, maxLanes: b.maxLanes, lock: b.lock, count: b.count, prepare: b.prepare,
         sleep: b.sleep, runLane: b.runLane, now: b.now,
         say: (line) => { if (/^\S+ engine \w+ /.test(line) && !/ exit -?\d+$/.test(line)) engineUp(); say(line); },
         log: join(L, `pool-${one.id}-${at}.log`), err: join(L, `pool-${one.id}-${at}.err`),
-        brief: { path: join(L, `pool-${one.id}-brief.md`), text: composeBrief({
-          title: `Pool lane: ${one.id}`, intro: `Your increment: ${one.id}.${role}`,
-          notes: await readFile(join(L, `pool-notes-${one.id}.md`), "utf8").catch(() => ""), common: await (b.rules ?? poolRules)(one.body),
-        }) },
+        brief: { path: join(L, `pool-${one.id}-brief.md`), text: composeBrief(brief) },
       });
     },
   });

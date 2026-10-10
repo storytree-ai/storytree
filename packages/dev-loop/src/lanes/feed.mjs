@@ -69,14 +69,33 @@ export function pickPool(survey, { attempts = new Map(), running = [], max = 1 }
   return { picks, skipped };
 }
 
-/** One survey of the library: every arc's increments with their holds (one `arcViews` and one `holds` read), and the standing claims. */
+/**
+ * The arc a planning session should take when nothing is ready (ADR-0955 D4): an active arc, not the website arc,
+ * with no open question and no open increment that is unwaited (every one waits on work, an event or a question),
+ * oldest first, skipping the arcs in `planned` (those this dispatcher has planned already). Undefined when none qualifies.
+ */
+export function pickPlan(survey, { planned = new Set() } = {}) {
+  const live = new Set(survey.claims.filter((claim) => claim.holder === "live" && claim.increment).map((claim) => claim.increment));
+  const waited = (id) => !live.has(id) && ((survey.holds.waits[id] ?? []).length > 0 || (survey.holds.heldOn[id] ?? []).length > 0
+    || (survey.holds.waitsFor?.[id] ?? []).some((hold) => hold.holds));
+  const open = Map.groupBy(survey.increments.filter((one) => one.status !== "closed"), (one) => one.arc);
+  return (survey.arcs ?? []).filter((arc) => arc.state === "active" && arc.id !== WEBSITE_ARC && !planned.has(arc.id) && !arc.openQuestions
+    && (open.get(arc.id) ?? []).every((one) => waited(one.id)))
+    .sort((a, b) => String(a.created).localeCompare(String(b.created)))[0];
+}
+
+/** One survey of the library: every arc with its open questions counted, its increments with their holds (one `arcViews` and one `holds` read), and the standing claims. */
 export async function readSurvey({ library, claims }) {
   const [views, holds, held] = await Promise.all([library.arcViews(), library.holds(), claims()]);
   const increments = views.flatMap((view) => view.increments.map((record) => ({
     id: record.id, arc: view.arc.id, arcState: view.state, title: record.fields.title, body: record.fields.body ?? "",
     status: record.fields.status, parked: record.fields.parked ?? record.createdAt?.toISOString?.(), priority: view.arc.fields?.priority,
   })));
-  return { increments, holds, claims: held };
+  const arcs = views.map((view) => ({
+    id: view.arc.id, state: view.state, title: view.arc.fields?.title ?? view.arc.id, created: view.arc.createdAt?.toISOString?.(),
+    openQuestions: (view.questions ?? []).filter((question) => question.fields.lifecycle === "open").length,
+  }));
+  return { arcs, increments, holds, claims: held };
 }
 
 async function withLibrary(project, use) {

@@ -814,7 +814,7 @@ test("8.11 a Codex installed only as its desktop app, off the PATH, is found whe
 });
 
 test("8.11 on a Mac, a Codex installed only as its desktop app is found inside the Codex or ChatGPT app bundle, in each layout the app has shipped (increment_ebe913930972)", {
-  skip: process.platform === "win32" && "platform:win32: the bundle's CLI is a bare `codex`, which Windows runs only as an .exe",
+  skip: process.platform === "win32" && "platform:posix: the bundle's CLI is a bare `codex`, which Windows runs only as an .exe",
 }, async () => {
   await withTempDir(async (dir) => {
     const bin = path.join(dir, "bin");

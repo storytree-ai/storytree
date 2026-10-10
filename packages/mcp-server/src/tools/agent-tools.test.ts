@@ -28,7 +28,7 @@ import { claudeCode, codex, idOf, withAgent } from "../testing/agent.js";
 import { git } from "@storytree/agent-link/testing/folders";
 import { projectDatabase, testServerDataDir, testServerUrl } from "@storytree/agent-link/testing/pg";
 import { createAgentTools, type ToolExtension } from "../index.js";
-import { protectionThrough, storytreeRef } from "@storytree/agent-link";
+import { protectionThrough, storytreeRef } from "@storytree/app-setup/pipeline";
 import { registerPlanTools } from "./plan-tools.js";
 import type { Call, Define } from "./server.js";
 import { FOUNDED, planned, TOOLS, withProject } from "../testing/tool-world.js";

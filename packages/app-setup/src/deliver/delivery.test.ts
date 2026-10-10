@@ -5,8 +5,8 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { launcherRuns } from "@storytree/agent-link";
-import { buildLauncher, LAUNCHER_PROGRAM } from "@storytree/agent-link/bins";
+import { buildLauncher, LAUNCHER_PROGRAM } from "../bins/build.js";
+import { launcherRuns } from "../setup/index.js";
 import { disconnectAgents, installedToolServerCommand } from "@storytree/app-setup/connect";
 
 import { finishDelivery, installCommand, toolPaths, verifyPayload, writePayloadManifest } from "./index.js";

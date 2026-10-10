@@ -1,8 +1,7 @@
 /**
- * Capability 1 · Project routing (the agent link story): the first time an agent session starts in
- * a folder that isn't a storytree project, storytree asks the user whether to set one up, and a yes
- * leaves a marker naming the project. From then on everything an agent does anywhere in that folder
- * is routed to that project. It never picks a project by itself, and when storytree isn't running
+ * Capability 1 · Project routing (the agent link story): which project a folder belongs to. Making a folder a
+ * project, after the user's yes, is the app setup story's (ADR-0969 D3), and leaves a marker naming the
+ * project. From then on everything an agent does anywhere in that folder is routed to that project. It never picks a project by itself, and when storytree isn't running
  * it says so at once.
  *
  * - The marker is `.storytree.json` in the project's folder: `{ "project": "<name>", "identity": "<its
@@ -30,16 +29,14 @@
  * Discovery is synchronous and uses no network. Stale owners refuse before credentials are read;
  * authenticated Windows discovery also checks the handoff's filesystem ACLs through PowerShell.
  */
-import { existsSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import path from "node:path";
 
 import type { ConnectOptions, Library, Storytree } from "@storytree/library";
 
 import { readLibrary } from "../settings/settings.js";
 
-import { keepOnThisComputer, recordProjectChoice } from "./project-choice.js";
-import { approvedTrunk, approveTrunk, forgetTrunk, machineOf, ProjectFolderError, refusal, registerTrunk, remembered, rememberApproval, storytreeHome, type Trunk, trunksOn, unusedName } from "./trunks.js";
-import { seedStarterPack } from "./starter-pack.js";
+import { approvedTrunk, machineOf, ProjectFolderError, remembered, rememberApproval, storytreeHome } from "./trunks.js";
 
 export { storytreeHome };
 import { authenticatedLocalUrl, HANDOFF_UNAVAILABLE, HandoffPrivacyError, type LocalOwner } from "./local-handoff.js";
@@ -56,19 +53,6 @@ export const NOT_RUNNING = "storytree isn't running";
  * project's database when the marker records it; or why there is none.
  */
 export type ProjectLookup = { project: string; folder: string; identity?: string } | { project: undefined; message: string };
-
-export interface SetUpOptions {
-  /** The folder the user said yes for. */
-  readonly folder: string;
-  /** The project's name, as the user gave it. */
-  readonly project: string;
-  /** A connection to the running storytree's library. */
-  readonly storytree: Storytree;
-  /** The app's home; defaults to STORYTREE_HOME, else ~/.storytree/0.3. It keeps this machine's identity. */
-  readonly storytreeHome?: string;
-  /** Add this machine's checkout to project `project`, which already exists (ADR-0757 D4). */
-  readonly join?: boolean;
-}
 
 export interface LocateOptions {
   /**
@@ -129,58 +113,6 @@ function goneProject(project: string): ProjectFolderError {
 }
 
 /**
- * Set `folder` up as project `project`, after the user said yes: the one check (ADR-0757) first,
- * then open the project in the library (creating its library the first time, seeded with the
- * starter pack, 1.14), record the folder as
- * the project's trunk on this machine, leave the marker, and record the user's choice for the app.
- * A refused folder (ProjectFolderError) or name (ProjectNameError, judged by the library before
- * anything touches the server) leaves nothing behind. `join` adds this machine's checkout to a
- * project that already exists; without it, an existing project's name is refused. Either approves
- * the trunk (ADR-0942 D1), and joining from a project's own recorded trunk approves it in place.
- */
-export async function setUpProject({ folder, project, storytree, storytreeHome: home = storytreeHome(), join = false }: SetUpOptions): Promise<{ project: string; marker: string }> {
-  const at = canonical(path.resolve(folder));
-  const existing = findProject(at);
-  // Joining on purpose from the folder its marker already names is how an unapproved trunk is approved (ADR-0942 D1).
-  const rejoining = join && existing.project === project && existing.folder === at;
-  if (existing.project !== undefined && !rejoining) throw new ProjectFolderError(`${at} is already part of storytree project "${existing.project}" (its folder is ${existing.folder}).`);
-  const machine = machineOf(home);
-  const [projects, trunks] = await Promise.all([storytree.listProjects(), liveTrunks(storytree, machine.id, home)]);
-  const refused = refusal({ folder: at, inMain: inMainCheckout(at), project, join, projects, trunks, suggestion: unusedName(suggestedName(at), projects) });
-  if (refused !== undefined) throw refused;
-  const library = await storytree.openProject(project);
-  const { identity } = library;
-  try {
-    // A new project inherits no lines written under its name before it: an older install's hooks, in a deleted project's folder.
-    if (!join) await (await import("../activity/index.js")).forgetProjectActivity(storytree, project);
-    const own = trunks.find((trunk) => trunk.project === project);
-    const by = join ? "join" : "setup";
-    const registered = own === undefined ? await registerTrunk(storytree, { project, machine: machine.id, machineName: machine.name, folder: at }, by) : own.approvedBy !== undefined || (await approveTrunk(storytree, own, by));
-    if (!registered) throw new ProjectFolderError(`${at} or project "${project}" was set up on this machine a moment ago by something else; check it again before setting it up.`);
-    rememberApproval(home, machine.id, own ?? { project, folder: at });
-    // A new project's library starts with the starter pack; one joined was seeded where it was set up.
-    if (!join) await seedStarterPack(library);
-  } finally {
-    await library.close();
-  }
-  // Should what follows fail, the trunk stays recorded: a retry here sets its own trunk up again.
-  const marker = path.join(at, MARKER_FILE);
-  const previous = existsSync(marker) ? readFileSync(marker) : undefined;
-  writeFileSync(marker, `${JSON.stringify({ project, identity }, null, 2)}\n`);
-  try {
-    recordProjectChoice(path.join(home, "project-choice.json"), project);
-    // A project removed from this computer and joined again on purpose is back on its list.
-    keepOnThisComputer(project, home);
-  } catch (error) {
-    // A new marker would make the tool's explicit retry stop at "already set up".
-    if (previous === undefined) rmSync(marker);
-    else writeFileSync(marker, previous);
-    throw error;
-  }
-  return { project, marker };
-}
-
-/**
  * Refuse unless `folder` (a git worktree's main checkout standing for it) is in `project`'s approved
  * trunk on this machine (ADR-0942 D1, D2): a marker, a known identity or a folder's name approves
  * nothing. Every hook and tool asks this before it opens the project, appends to its activity or
@@ -196,29 +128,6 @@ export async function requireApproval(storytree: Storytree, project: string, fol
   // A project deleted, perhaps from another computer, took its trunks with it: say that, not "approve it".
   if (!(await storytree.listProjects()).includes(project)) throw goneProject(project);
   throw new ProjectFolderError(`${at} names storytree project "${project}", but it is not approved as "${project}"'s checkout on this machine, so storytree opens nothing and records nothing here. If this is your checkout of "${project}", approve it on purpose: \`storytree doctor --join ${project}\` in a terminal there, or ask your agent to join it.`);
-}
-
-/**
- * This machine's trunks whose folders are still there. A trunk whose folder is gone (moved away or
- * deleted) is forgotten, so the project can be joined or seen at its new folder. A folder that is
- * there keeps its trunk even with its marker gone: the record, not the marker, holds it (1.8).
- */
-async function liveTrunks(storytree: Storytree, machine: string, home: string): Promise<Trunk[]> {
-  const trunks = await trunksOn(storytree, machine);
-  await forgetStale(storytree, trunks, home);
-  return trunks.filter((trunk) => existsSync(trunk.folder));
-}
-
-/** Forget each of `trunks` whose folder is gone; true when any was. */
-async function forgetStale(storytree: Storytree, trunks: readonly Trunk[], home: string): Promise<boolean> {
-  const stale = trunks.filter((trunk) => !existsSync(trunk.folder));
-  for (const trunk of stale) await forgetTrunk(storytree, trunk, home);
-  return stale.length > 0;
-}
-
-/** A name to suggest for `folder` as a new project: its own name, or the first of name-2, name-3… no project has. */
-export async function suggestProjectName(folder: string, storytree: Storytree): Promise<string> {
-  return unusedName(suggestedName(folder), await storytree.listProjects());
 }
 
 /**
@@ -290,26 +199,6 @@ export function route(from: string, options: LocateOptions = {}): Route {
   const library = locateLibrary(options);
   if (!library.found) return { status: "not-running", project: found.project, message: library.message };
   return { status: "routed", project: found.project, folder: found.folder, ...(found.identity === undefined ? {} : { identity: found.identity }), library: library.connect };
-}
-
-/** A project name to suggest for `folder`: its own name, as the library's project-name rule allows. */
-export function suggestedName(folder: string): string {
-  const name = path
-    .basename(path.resolve(folder))
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+/, "")
-    .slice(0, 40)
-    .replace(/-+$/, "");
-  return name === "" ? "my-project" : name;
-}
-
-/**
- * What check_setup says in `folder`, which isn't a storytree project: that it isn't, and how the user
- * can add it. The agent is not told to offer setup (ADR-0752 D3); the user adds projects deliberately.
- */
-export function notAProjectYet(folder: string, name: string = suggestedName(folder)): string {
-  return `This folder is not a storytree project, so storytree records nothing here; carry on with the user's request. The user can add it as a project: Add project in the storytree app, \`storytree doctor --set-up ${name}\` in a terminal here, or by asking you to set it up.`;
 }
 
 function defaultDataDir(): string {

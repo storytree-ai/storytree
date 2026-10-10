@@ -9,20 +9,27 @@
     "./view/styles.css": "./src/view/styles.css",
     "./deliver": "./src/deliver/index.ts",
     "./connect": "./src/connect/index.ts",
-    "./project": "./src/project/index.ts"
+    "./project": "./src/project/index.ts",
+    "./setup": "./src/setup/index.ts",
+    "./pipeline": "./src/pipeline/pipeline.ts",
+    "./bins": "./src/bins/build.ts"
   },
   "scripts": {
     "typecheck": "tsc -p .",
-    "dev-home": "node --import tsx src/connect/dev-home.ts"
+    "dev-home": "node --import tsx src/connect/dev-home.ts",
+    "build": "tsx src/bins/build.ts"
   },
   "dependencies": {
     "@storytree/agent-link": "workspace:*",
+    "@storytree/journey-events": "workspace:*",
     "@storytree/library": "workspace:*",
-    "@storytree/local-postgres": "workspace:*"
+    "@storytree/local-postgres": "workspace:*",
+    "@storytree/processes": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^24.13.6",
     "@types/pg": "^8.23.1",
+    "esbuild": "^0.28.2",
     "happy-dom": "catalog:",
     "pg": "^8.23.0",
     "tsx": "^4.23.15",

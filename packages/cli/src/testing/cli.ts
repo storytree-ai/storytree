@@ -18,7 +18,7 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSy
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { setUpProject } from "@storytree/agent-link/routing";
+import { setUpProject } from "@storytree/app-setup/project";
 import { connect, type Library } from "@storytree/library";
 import { dropTestDatabases } from "@storytree/local-postgres/testing";
 

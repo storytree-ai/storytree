@@ -12,7 +12,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 
-import { launcherFor } from "@storytree/agent-link";
+import { launcherFor } from "@storytree/app-setup/setup";
 import { BuiltCommand } from "./testing/cli.js";
 
 const windows = process.platform === "win32";

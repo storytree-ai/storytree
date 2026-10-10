@@ -22,7 +22,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFile
 import path from "node:path";
 
 import { due, projectTempFile, type MergeContext } from "../claims/merges.js";
-import { registeredHookScripts } from "../setup/hooks-config.js";
+import { registeredHookScripts } from "../hooks/registered.js";
 import { readSessions } from "./sessions.js";
 
 /** How worktrees are reaped. */

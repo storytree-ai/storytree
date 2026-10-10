@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { randomBytes } from "node:crypto";
-import { setUpProject } from "@storytree/agent-link";
+import { setUpProject } from "../project/making.js";
 import { connect } from "@storytree/library";
 import pg from "pg";
 import { projectsOnThisComputer } from "../project/index.js";

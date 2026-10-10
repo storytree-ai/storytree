@@ -7,7 +7,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { buildBins } from "@storytree/agent-link/bins";
+import { buildBins } from "@storytree/app-setup/bins";
 
 import { run } from "./index.js";
 

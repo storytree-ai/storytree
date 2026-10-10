@@ -5,7 +5,9 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
-import { launcherFile, noteCodexHookRan, registerHooks, runSetupCheck, verifyHooks } from "@storytree/agent-link";
+import { noteCodexHookRan } from "@storytree/agent-link";
+
+import { launcherFile, registerHooks, runSetupCheck, verifyHooks } from "../setup/index.js";
 import { connectAgents, disconnectAgents, installedToolServerCommand, type RunHarness } from "./index.js";
 import { deliveredCommand } from "./installed.js";
 import { makeDevHome, removeDevHome } from "./dev-home.js";

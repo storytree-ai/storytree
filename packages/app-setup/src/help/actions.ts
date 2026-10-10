@@ -1,7 +1,9 @@
 /** Capability 3 · First-run guide. */
 import { homedir } from "node:os";
 import path from "node:path";
-import { CODEX_TRUST_STEP, codexHookTrust, readProjectChoice, runSetupCheck } from "@storytree/agent-link";
+import { codexHookTrust, readProjectChoice } from "@storytree/agent-link";
+
+import { CODEX_TRUST_STEP, runSetupCheck } from "../setup/index.js";
 import type { Storytree } from "@storytree/library";
 import { addProject, deleteProject, keepOnThisComputer, projectFolder, removeProject, whoLoses } from "../project/index.js";
 import type { AgentConnection, SetupHelpBridge } from "./bridge.js";

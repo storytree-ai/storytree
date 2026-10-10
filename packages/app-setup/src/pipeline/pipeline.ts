@@ -1,5 +1,5 @@
 /**
- * Capability 11 · Pipeline wiring (the agent link story, ADR-0911 D1, D3): storytree's pipeline for a user's
+ * Capability 11 · Pipeline wiring (the app setup story since ADR-0969 D3; ADR-0911 D1, D3): storytree's pipeline for a user's
  * project, which the agent connects at setup and never writes for itself. It runs the project's own install
  * and test commands, and `storytree check` from storytree's public source at this storytree's release, with
  * only the Guardrails package installed (packages/guardrails/src/check/run.ts). On GitHub it is a workflow
@@ -8,7 +8,7 @@
  */
 import { execFileSync } from "node:child_process";
 
-import { ask, type Answer } from "./machine.js";
+import { ask, type Answer } from "@storytree/agent-link";
 
 /** The release stamped into a bundled build, as JSON; undeclared when run from source. */
 declare const STORYTREE_RELEASE: string | undefined;

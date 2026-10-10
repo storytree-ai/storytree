@@ -15,8 +15,9 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { CHECK_FILE, MARKER_FILE, noteCodexHookRan, noteHookFailure, registerHooks, type GhState, type HookCommand, type Homes } from "@storytree/agent-link";
-import { buildBins } from "@storytree/agent-link/bins";
+import { MARKER_FILE, noteCodexHookRan, noteHookFailure, type Homes } from "@storytree/agent-link";
+import { CHECK_FILE, registerHooks, type GhState, type HookCommand } from "@storytree/app-setup/setup";
+import { buildBins } from "@storytree/app-setup/bins";
 import { withTempDir } from "@storytree/agent-link/testing/folders";
 import { approveCheckout, dropTestProjects, placeTestServer, testServerUrl, uniqueProjectName } from "@storytree/agent-link/testing/pg";
 import { connect } from "@storytree/library";

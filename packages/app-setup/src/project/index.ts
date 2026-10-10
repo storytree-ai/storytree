@@ -1,6 +1,6 @@
 /**
  * Capability 3 · First-run guide. Adding a project (ADR-0752, ADR-0757): the folder the user chose, in the installer's folder step
- * or the app's Add project, becomes a storytree project through the agent link's one setup check,
+ * or the app's Add project, becomes a storytree project through the one setup check (capability 6, making.ts),
  * as every other way of adding one does. The choice is the user's explicit yes; a folder that
  * already belongs to a project is left as it is (and put back on this computer's list, if it was
  * removed from it), and a folder the check refuses is said with why.
@@ -8,10 +8,16 @@
 import { execFileSync } from "node:child_process";
 import { chmodSync, lstatSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { findProject, forgetProjectActivity, forgetTrunk, keepOnThisComputer, machineOf, MARKER_FILE, openActivityLog, openStorytree, ProjectFolderError, readClaims, readLibrary, readProjectChoice, recordRemovedProjects, removedProjects, setUpProject, storytreeHome, suggestProjectName, trunksOn, unusedName } from "@storytree/agent-link";
+import { findProject, forgetProjectActivity, forgetTrunk, keepOnThisComputer, machineOf, MARKER_FILE, openActivityLog, ProjectFolderError, readClaims, readLibrary, readProjectChoice, recordRemovedProjects, removedProjects, storytreeHome, trunksOn } from "@storytree/agent-link";
 import type { Storytree } from "@storytree/library";
 
+import { openStorytree } from "../setup/open-storytree.js";
+import { setUpProject, suggestProjectName, unusedName } from "./making.js";
+
 export { keepOnThisComputer, unusedName };
+export { notAProjectYet, setUpProject, suggestedName, suggestProjectName } from "./making.js";
+export type { SetUpOptions } from "./making.js";
+export { seedStarterPack, STARTER_PACK_VERSION, STARTER_ROLES, starterRolesIn } from "./starter-pack.js";
 
 /** The project a folder belongs to, or the name no project has yet to suggest for it. The folder need not exist yet. */
 export type ProjectFolder = { folder: string; project: string } | { folder: string; suggestion: string };

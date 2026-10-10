@@ -1,7 +1,7 @@
 /**
  * Capability 8 · Setup check. `storytree-setup install | remove`: register storytree's hooks for Claude Code and Codex now,
  * outside any session, or take out exactly what storytree added (capability 8 · Setup check,
- * the agent link story). The hook registered is the `storytree-hook.mjs` built beside this script.
+ * the app setup story). The hook registered is the `storytree-hook.mjs` built beside this script.
  * Claude Code's settings are CLAUDE_CONFIG_DIR's or ~/.claude's, Codex's CODEX_HOME's or ~/.codex's.
  */
 import { existsSync } from "node:fs";

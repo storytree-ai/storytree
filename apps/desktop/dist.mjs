@@ -14,6 +14,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { stageTools } from "./tools.mjs";
 import { deliveryAssets, macDeliveryAssets } from "./delivery-assets.mjs";
+import { macSigning } from "./mac-signing.mjs";
 
 process.env.ELECTRON_BUILDER_7Z_FILTER ??= "BCJ";
 const version = process.env.STORYTREE_RELEASE_VERSION;
@@ -22,7 +23,9 @@ const mac = process.platform === "darwin";
 await stageTools();
 // Without a Developer ID, sign ad-hoc rather than not at all: Apple Silicon runs no unsigned code.
 // Ad-hoc signing holds no secret, so a pull request's build signs too and CI proves the signature.
-const identity = mac && !process.env.CSC_LINK ? { mac: { identity: "-", notarize: false } } : {};
+// A certificate without Apple's notarisation key is refused here, before anything builds (contract 4.20).
+const signing = mac ? macSigning(process.env) : undefined;
+const identity = signing?.mode === "ad-hoc" ? { mac: { identity: signing.identity, notarize: signing.notarize } } : {};
 if (identity.mac) process.env.CSC_FOR_PULL_REQUEST = "true";
 await build({
   ...(mac ? { mac: [] } : { win: [] }), // use package.json's per-target architectures

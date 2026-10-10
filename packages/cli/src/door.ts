@@ -60,6 +60,8 @@ export interface Context {
   out(text: string): void;
   /** The project's library: the project the folder belongs to, on the running storytree. */
   library(): Promise<Library>;
+  /** The connection the library is opened on, which hands out a story's own database (ADR-0973). */
+  server(): Promise<Storytree>;
   /** The writer to pass to every write; using it also names that writer in the answer. */
   writer(): WriteOptions;
   /** Who holds what in the project right now: the agent link's reading of its activity log. */
@@ -126,6 +128,7 @@ export async function run(argv: readonly string[], io: Io): Promise<number> {
       ...(io.script === undefined ? {} : { script: io.script }),
       out: (text) => io.out(render({ text })),
       library: () => opened.library(),
+      server: () => opened.server(),
       claims: () => opened.claims(),
       activityContext: () => opened.activityContext(),
       claimContext: () => opened.claimContext(),
@@ -296,6 +299,10 @@ class Opened {
 
   library(): Promise<Library> {
     return (this.#library ??= this.#open());
+  }
+
+  server(): Promise<Storytree> {
+    return this.#server();
   }
 
   async claims(): Promise<Claim[]> {

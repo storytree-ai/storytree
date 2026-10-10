@@ -1,7 +1,8 @@
 /**
  * The log fold (ADR-0836 D1, D4): the sessions and claims a reading shows are an exact fold over the
  * log's lines in order, with the time applied when it is read. A fold fed the log a piece at a time,
- * as the page's live reading hears it, reads the same as the whole-history readings over every line.
+ * as the page's live reading hears it, or kept as a snapshot and restored, reads the same as one fed
+ * every line at once (sessionsFrom and claimsFrom are that fold).
  * No database: the lines are written out here as the log hands them out.
  */
 import assert from "node:assert/strict";

@@ -78,7 +78,7 @@ export function registerPlanTools(define: Define): void {
 
   define(
     "plan_contract",
-    "Plan a contract: one testable promise a capability makes. Leave its number off the title: it is given the capability's next free one, past the numbers its contracts and its story package's numbered tests carry, and a number another contract of the capability carries is refused. Write its test, see it fail, and report it red.",
+    "Plan a contract: one testable promise a capability makes. Leave its number off the title: it is given the capability's next free one, past the numbers its contracts and its story package's numbered tests carry, or, when exactly one numbered test there has no contract yet, that test's own number, and a number another contract of the capability carries is refused. Write its test, see it fail, and report it red.",
     z.object({ capability: id("capability it belongs to"), title, description }),
     async ({ capability, title: name, description: about }, call) => {
       const options = { ...call.writer, testedNumbers: await testedNumbers(call, capability) };

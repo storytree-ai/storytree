@@ -1,0 +1,439 @@
+{
+  "browser": "148.0.7778.96",
+  "lanes": [
+    {
+      "title": "Website",
+      "chip": "waiting",
+      "lineOne": [
+        "arc-chip arc-state-waiting",
+        "arc-title",
+        "arc-marks"
+      ],
+      "lineTwo": [
+        "arc-bars"
+      ],
+      "barsLabel": "Increments: 1 landed · 3 open",
+      "marks": [
+        {
+          "kind": "waits",
+          "count": "1",
+          "hover": "Add card payments: waits for an event: payment provider review (check back 2026-10-24)",
+          "label": "Add card payments: waits for an event: payment provider review (check back 2026-10-24)"
+        },
+        {
+          "kind": "owner",
+          "count": "2",
+          "hover": "waiting on you: Which payment provider?\nSwitch the DNS: waits for you: approve the DNS cutover",
+          "label": "waiting on you: Which payment provider?\nSwitch the DNS: waits for you: approve the DNS cutover"
+        }
+      ],
+      "head": {
+        "x": 27,
+        "y": 138.9222412109375,
+        "width": 712.28125,
+        "height": 20.15625
+      },
+      "title_box": {
+        "x": 81.25,
+        "y": 138.9222412109375,
+        "width": 50.40625,
+        "height": 20.15625
+      },
+      "marksBox": {
+        "x": 700.625,
+        "y": 143.5003662109375,
+        "width": 38.65625,
+        "height": 11
+      },
+      "lane": {
+        "x": 18,
+        "y": 131.9222412109375,
+        "width": 735.28125,
+        "height": 53.15625
+      },
+      "bars": [
+        {
+          "x": 27,
+          "y": 162.0784912109375,
+          "width": 8,
+          "height": 10
+        },
+        {
+          "x": 38,
+          "y": 162.0784912109375,
+          "width": 8,
+          "height": 10
+        },
+        {
+          "x": 49,
+          "y": 162.0784912109375,
+          "width": 8,
+          "height": 10
+        },
+        {
+          "x": 60,
+          "y": 162.0784912109375,
+          "width": 8,
+          "height": 10
+        }
+      ]
+    },
+    {
+      "title": "Cloud backups",
+      "chip": "queued",
+      "lineOne": [
+        "arc-chip arc-state-queued",
+        "arc-title",
+        "arc-marks"
+      ],
+      "lineTwo": [
+        "arc-bars"
+      ],
+      "barsLabel": "Increments: 1 landed · 3 open",
+      "marks": [
+        {
+          "kind": "waits",
+          "count": "1",
+          "hover": "Waiting for Move the last service 1 (Platform rebuild: every service moved to the new runtime, with its data, its alerts and its runbooks): The new runtime first.",
+          "label": "Waiting for Move the last service 1 (Platform rebuild: every service moved to the new runtime, with its data, its alerts and its runbooks): The new runtime first."
+        },
+        {
+          "kind": "owner",
+          "count": "1",
+          "hover": "Move the archive: waits for you: pick the backup region",
+          "label": "Move the archive: waits for you: pick the backup region"
+        }
+      ],
+      "head": {
+        "x": 27,
+        "y": 192.0784912109375,
+        "width": 712.28125,
+        "height": 20.15625
+      },
+      "title_box": {
+        "x": 82.609375,
+        "y": 192.0784912109375,
+        "width": 92.59375,
+        "height": 20.15625
+      },
+      "marksBox": {
+        "x": 700.625,
+        "y": 196.6566162109375,
+        "width": 38.65625,
+        "height": 11
+      },
+      "lane": {
+        "x": 18,
+        "y": 185.0784912109375,
+        "width": 735.28125,
+        "height": 53.15625
+      },
+      "bars": [
+        {
+          "x": 27,
+          "y": 215.2347412109375,
+          "width": 8,
+          "height": 10
+        },
+        {
+          "x": 38,
+          "y": 215.2347412109375,
+          "width": 8,
+          "height": 10
+        },
+        {
+          "x": 49,
+          "y": 215.2347412109375,
+          "width": 8,
+          "height": 10
+        },
+        {
+          "x": 60,
+          "y": 215.2347412109375,
+          "width": 8,
+          "height": 10
+        }
+      ]
+    },
+    {
+      "title": "Docs refresh",
+      "chip": "ready · 1 to take",
+      "lineOne": [
+        "arc-chip arc-state-ready",
+        "arc-title"
+      ],
+      "lineTwo": [
+        "arc-bars"
+      ],
+      "barsLabel": "Increments: 1 open",
+      "marks": [],
+      "head": {
+        "x": 27,
+        "y": 245.2347412109375,
+        "width": 712.28125,
+        "height": 20.15625
+      },
+      "title_box": {
+        "x": 121.390625,
+        "y": 245.2347412109375,
+        "width": 79.40625,
+        "height": 20.15625
+      },
+      "marksBox": null,
+      "lane": {
+        "x": 18,
+        "y": 238.2347412109375,
+        "width": 735.28125,
+        "height": 53.15625
+      },
+      "bars": [
+        {
+          "x": 27,
+          "y": 268.3909912109375,
+          "width": 8,
+          "height": 10
+        }
+      ]
+    },
+    {
+      "title": "Platform rebuild: every service moved to the new runtime, with its data, its alerts and its runbooks",
+      "chip": "ready · 7 to take",
+      "lineOne": [
+        "arc-chip arc-state-ready",
+        "arc-title"
+      ],
+      "lineTwo": [
+        "arc-bars"
+      ],
+      "barsLabel": "Increments: 26 landed · 1 not completed · 7 open",
+      "marks": [],
+      "head": {
+        "x": 27,
+        "y": 298.3909912109375,
+        "width": 712.28125,
+        "height": 20.15625
+      },
+      "title_box": {
+        "x": 121.390625,
+        "y": 298.3909912109375,
+        "width": 617.265625,
+        "height": 20.15625
+      },
+      "marksBox": null,
+      "lane": {
+        "x": 18,
+        "y": 291.3909912109375,
+        "width": 735.28125,
+        "height": 53.15625
+      },
+      "bars": [
+        {
+          "x": 27,
+          "y": 321.5472412109375,
+          "width": 8,
+          "height": 10
+        },
+        {
+          "x": 38,
+          "y": 321.5472412109375,
+          "width": 8,
+          "height": 10
+        },
+        {
+          "x": 49,
+          "y": 321.5472412109375,
+          "width": 8,
+          "height": 10
+        },
+        {
+          "x": 60,
+          "y": 321.5472412109375,
+          "width": 8,
+          "height": 10
+        },
+        {
+          "x": 71,
+          "y": 321.5472412109375,
+          "width": 8,
+          "height": 10
+        },
+        {
+          "x": 82,
+          "y": 321.5472412109375,
+          "width": 8,
+          "height": 10
+        },
+        {
+          "x": 93,
+          "y": 321.5472412109375,
+          "width": 8,
+          "height": 10
+        },
+        {
+          "x": 104,
+          "y": 321.5472412109375,
+          "width": 8,
+          "height": 10
+        },
+        {
+          "x": 115,
+          "y": 321.5472412109375,
+          "width": 8,
+          "height": 10
+        },
+        {
+          "x": 126,
+          "y": 321.5472412109375,
+          "width": 8,
+          "height": 10
+        },
+        {
+          "x": 137,
+          "y": 321.5472412109375,
+          "width": 8,
+          "height": 10
+        },
+        {
+          "x": 148,
+          "y": 321.5472412109375,
+          "width": 8,
+          "height": 10
+        },
+        {
+          "x": 159,
+          "y": 321.5472412109375,
+          "width": 8,
+          "height": 10
+        },
+        {
+          "x": 170,
+          "y": 321.5472412109375,
+          "width": 8,
+          "height": 10
+        },
+        {
+          "x": 181,
+          "y": 321.5472412109375,
+          "width": 8,
+          "height": 10
+        },
+        {
+          "x": 192,
+          "y": 321.5472412109375,
+          "width": 8,
+          "height": 10
+        },
+        {
+          "x": 203,
+          "y": 321.5472412109375,
+          "width": 8,
+          "height": 10
+        },
+        {
+          "x": 214,
+          "y": 321.5472412109375,
+          "width": 8,
+          "height": 10
+        },
+        {
+          "x": 225,
+          "y": 321.5472412109375,
+          "width": 8,
+          "height": 10
+        },
+        {
+          "x": 236,
+          "y": 321.5472412109375,
+          "width": 8,
+          "height": 10
+        },
+        {
+          "x": 247,
+          "y": 321.5472412109375,
+          "width": 8,
+          "height": 10
+        },
+        {
+          "x": 258,
+          "y": 321.5472412109375,
+          "width": 8,
+          "height": 10
+        },
+        {
+          "x": 269,
+          "y": 321.5472412109375,
+          "width": 8,
+          "height": 10
+        },
+        {
+          "x": 280,
+          "y": 321.5472412109375,
+          "width": 8,
+          "height": 10
+        },
+        {
+          "x": 291,
+          "y": 321.5472412109375,
+          "width": 8,
+          "height": 10
+        },
+        {
+          "x": 302,
+          "y": 321.5472412109375,
+          "width": 8,
+          "height": 10
+        },
+        {
+          "x": 313,
+          "y": 321.5472412109375,
+          "width": 8,
+          "height": 10
+        },
+        {
+          "x": 324,
+          "y": 321.5472412109375,
+          "width": 8,
+          "height": 10
+        },
+        {
+          "x": 335,
+          "y": 321.5472412109375,
+          "width": 8,
+          "height": 10
+        },
+        {
+          "x": 346,
+          "y": 321.5472412109375,
+          "width": 8,
+          "height": 10
+        },
+        {
+          "x": 357,
+          "y": 321.5472412109375,
+          "width": 8,
+          "height": 10
+        },
+        {
+          "x": 368,
+          "y": 321.5472412109375,
+          "width": 8,
+          "height": 10
+        },
+        {
+          "x": 379,
+          "y": 321.5472412109375,
+          "width": 8,
+          "height": 10
+        },
+        {
+          "x": 390,
+          "y": 321.5472412109375,
+          "width": 8,
+          "height": 10
+        }
+      ]
+    }
+  ],
+  "narrowLines": 2,
+  "errors": []
+}

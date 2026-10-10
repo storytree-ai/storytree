@@ -34,28 +34,23 @@ function laneText(lane: Lane): string {
   return [lane.count, ...lane.agents.map(agentText), ...lane.waits.map(waitText), ...lane.noteWaits.map(laneNoteText),
     ...lane.holdsUp.map((work) => `Holds up ${workText(work)}: ${work.reason}`)].join("\n");
 }
-/** A ready lane that also has idle claims keeps them beside its chip, muted; its hover names who holds what (ADR-0938 D3). */
-function renderIdleMarker(lane: Lane): string {
-  if (!lane.idle) return "";
+/** A lane's chip hover: what it reads, and on a ready lane who holds what while idle (ADR-0938 D3). */
+function chipText(lane: Lane): string {
   const held = (agent: BoardAgent) => lane.bars.find(({ id }) => id === agent.increment)?.title ?? agent.increment ?? agent.capability;
-  const title = lane.idle.agents.map((agent) => `Holds ${held(agent)}\n${agentText(agent)}`).join("\n");
-  return `<span class="arc-chip arc-idle-marker" title="${escape(title)}">${escape(lane.idle.chip)}</span>`;
+  return [laneText(lane), ...(lane.idle?.agents ?? []).map((agent) => `${lane.idle!.chip}: holds ${held(agent)}`)].join("\n");
 }
-/** A ready lane with open work held by a note wait says how many increments and the first note, beside its chip (ADR-0938). */
-function renderNoteMarker(lane: Lane): string {
-  if (lane.state !== "ready" || !lane.noteWaits.length) return "";
-  const notes = [...new Set(lane.noteWaits.map(({ note }) => note))];
-  const held = new Set(lane.noteWaits.map(({ increment }) => increment.id)).size;
-  return `<span class="arc-chip arc-note-marker" title="${escape(lane.noteWaits.map(laneNoteText).join("\n"))}"><span class="arc-note-text">+${held} waiting for ${escape(notes[0]!)}</span>${notes.length > 1 ? `<span class="arc-note-more"> and ${notes.length - 1} more</span>` : ""}</span>`;
-}
-/** A queued lane names its first blocker on its own line, and how many others: work first, then notes (ADR-0760 D1, ADR-0938). */
-function renderWaitsOn(lane: Lane): string {
-  const waits = lane.state !== "queued" ? [] : [
-    ...lane.waits.map((wait) => ({ text: `waits on ${wait.title}${wait.arc ? ` · ${wait.arc.title}` : ""}`, hover: waitText(wait) })),
-    ...lane.noteWaits.map((wait) => ({ text: noteText(wait), hover: laneNoteText(wait) }))];
-  const [first, ...rest] = waits;
-  if (!first) return "";
-  return `<span class="arc-waits-on" title="${escape(waits.map(({ hover }) => hover).join("\n"))}">${escape(first.text)}</span>${rest.length ? `<span class="arc-other-waits">+${rest.length} other wait${rest.length === 1 ? "" : "s"}</span>` : ""}`;
+const hourglass = `<svg class="arc-mark-icon" viewBox="0 0 10 12" width="9" height="11" aria-hidden="true"><path d="M1.5 1h7M1.5 11h7M2.5 1c0 3 2.5 3.6 2.5 5s-2.5 2-2.5 5M7.5 1c0 3-2.5 3.6-2.5 5s2.5 2 2.5 5" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>`;
+/** What a lane's open work waits on, counted once per thing: other work and events (hourglass), then the owner (question mark); the wording moves to each mark's hover and label (ADR-0980). */
+function renderMarks(lane: Lane): string {
+  const open = lane.bars.filter(({ reading }) => reading.state !== "landed" && reading.state !== "not-completed");
+  const works = new Map(open.flatMap((bar) => bar.waits).map((wait) => [wait.id, wait]));
+  const notes = (owner: boolean) => lane.noteWaits.filter(({ releaser }) => (releaser === "owner") === owner);
+  const events = notes(false), owners = notes(true);
+  const questions = lane.view.questions.filter(({ fields }) => fields.lifecycle === "open");
+  const mark = (kind: string, icon: string, count: number, lines: string[]) => count ? `<span class="arc-mark arc-mark-${kind}" role="img" aria-label="${escape(lines.join("\n"))}" title="${escape(lines.join("\n"))}">${icon}<span class="arc-mark-count">${count}</span></span>` : "";
+  const marks = mark("waits", hourglass, works.size + new Set(events.map(({ note }) => note)).size, [...[...works.values()].map(waitText), ...events.map(laneNoteText)])
+    + mark("owner", `<span class="arc-mark-icon" aria-hidden="true">?</span>`, questions.length + new Set(owners.map(({ note }) => note)).size, [...questions.map(({ fields }) => `waiting on you: ${fields.title}`), ...owners.map(laneNoteText)]);
+  return marks ? `<span class="arc-marks">${marks}</span>` : "";
 }
 function renderQueue(queue: ArcQueue, lanes: ReadonlyMap<string, Lane>, selected: string | undefined, expanded: ReadonlySet<string>): string {
   const lane = lanes.get(queue.arc.id)!;
@@ -71,8 +66,8 @@ function renderQueue(queue: ArcQueue, lanes: ReadonlyMap<string, Lane>, selected
   return `<section class="arc-row" data-arc-id="${escape(lane.id)}"><div class="arc-lane-line">
     <span class="arc-caret-slot">${queue.queued.length ? `<button type="button" class="arc-caret" data-arc-queue="${escape(lane.id)}" aria-expanded="${open}" aria-controls="arc-queue-${escape(lane.id)}" aria-label="${escape(queueLabel)}" title="${escape(queueLabel)}"><span aria-hidden="true">${open ? "▾" : "▸"}</span></button>` : ""}</span>
     <button type="button" class="arc-lane" data-arc-select="${escape(lane.id)}" aria-pressed="${selected === lane.id}">
-      <span class="arc-lane-head"><span class="arc-chip arc-state-${lane.state}" title="${escape(laneText(lane))}">${escape(lane.chip)}</span>${renderIdleMarker(lane)}${renderNoteMarker(lane)}${lane.priority === undefined ? "" : `<span class="arc-chip arc-priority" title="Priority ${lane.priority}">P${lane.priority}</span>`}<span class="arc-title" title="${escape(lane.title)}">${escape(lane.title)}</span></span>
-      <span class="arc-track"><span class="arc-bars" aria-label="Increments">${lane.bars.map(renderBar).join("")}</span><span class="arc-count">${escape(lane.count)}</span>${renderWaitsOn(lane)}</span>
+      <span class="arc-lane-head"><span class="arc-chip arc-state-${lane.state}" title="${escape(chipText(lane))}">${escape(lane.chip)}</span>${lane.priority === undefined ? "" : `<span class="arc-chip arc-priority" title="Priority ${lane.priority}">P${lane.priority}</span>`}<span class="arc-title" title="${escape(lane.title)}">${escape(lane.title)}</span>${renderMarks(lane)}</span>
+      <span class="arc-track"><span class="arc-bars" role="group" aria-label="${escape(`Increments: ${lane.count}`)}">${lane.bars.map(renderBar).join("")}</span></span>
     </button></div>${open && queue.queued.length ? `<div class="arc-queue" id="arc-queue-${escape(lane.id)}" data-queue-shape="${run.shape}"><span aria-hidden="true">→</span>${chips.join("")}</div>` : ""}</section>`;
 }
 function renderQuestionItem(question: QuestionReading): string {

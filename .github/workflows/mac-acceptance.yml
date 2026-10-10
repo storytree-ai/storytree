@@ -1,0 +1,42 @@
+name: Mac acceptance run
+
+# Check (b) of decision_b0a98e971a05 D4 (increment_dcaf0f58fcf0): the published one-liner on a fresh Apple Silicon
+# runner, first open, Gatekeeper, local Postgres, the setup check, hooks and a small project, recorded by
+# packages/app-setup/evidence/mac-acceptance/harness/run.sh and kept as an artifact. A push to a mac-acceptance/
+# branch runs it before the workflow reaches main. The repository is public: no secret is used or printed.
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: Release channel to install (stable or development)
+        default: development
+      hold:
+        description: Hold the runner open afterwards for a remote session only the dispatcher's GitHub keys can open
+        type: boolean
+        default: false
+  push:
+    branches: ["mac-acceptance/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: macos-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: packages/app-setup/evidence/mac-acceptance/harness
+      - name: Install with the one-liner and record what a first user sees
+        run: bash packages/app-setup/evidence/mac-acceptance/harness/run.sh "$RUNNER_TEMP/mac-acceptance" "${{ inputs.channel || 'development' }}"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: mac-acceptance
+          path: ${{ runner.temp }}/mac-acceptance
+      - name: Hold the runner open
+        if: always() && inputs.hold
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true

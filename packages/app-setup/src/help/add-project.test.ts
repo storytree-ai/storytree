@@ -5,7 +5,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { randomBytes } from "node:crypto";
 import { connect } from "@storytree/library";
-import pg from "pg";
+import { dropTestDatabases } from "@storytree/local-postgres/testing";
 import { projectsOnThisComputer } from "../project/index.js";
 import { setupHelpActions } from "./actions.js";
 
@@ -13,7 +13,7 @@ test("3.4 Add project: the picked folder becomes a project under its own name (k
   const dir = realpathSync.native(mkdtempSync(path.join(tmpdir(), "storytree-app-add-project-")));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const home = path.join(dir, "home");
-  const token = randomBytes(4).toString("hex");
+  const token = `t-${randomBytes(4).toString("hex")}`;
   const [blog, site] = [`blog-posts-${token}`, `site-${token}`];
   const url = process.env.STORYTREE_TEST_PG_URL;
   if (url === undefined) throw new Error("run the tests via `pnpm test`, which starts a local Postgres");
@@ -21,13 +21,7 @@ test("3.4 Add project: the picked folder becomes a project under its own name (k
   const library = await connect({ url });
   t.after(async () => {
     await library.close();
-    const client = new pg.Client({ connectionString: process.env["STORYTREE_TEST_PG_ADMIN_URL"] || url });
-    await client.connect();
-    try {
-      for (const name of [blog, site, `${site}-2`]) await client.query(`DROP DATABASE IF EXISTS "storytree_${name}" WITH (FORCE)`);
-    } finally {
-      await client.end();
-    }
+    await dropTestDatabases([blog, site, `${site}-2`].map((name) => `storytree_${name}`));
   });
   await (await library.openProject(site)).close();
   let picked: string | undefined;

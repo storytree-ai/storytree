@@ -10,8 +10,9 @@ name: Capability list
 # joins the tailnet as an ephemeral tag:ci node keylessly, with GitHub's OIDC token and the
 # variables TS_WIF_CLIENT_ID and TS_WIF_AUDIENCE as the environment plan-read sets them (its own
 # federated credential, whose subject names that environment), and connects as ci_plan_read, which
-# may SELECT library_meta and the plan's story, capability, contract, arc and increment records, and
-# nothing else. Its password is the secret PLAN_PG_PASSWORD in the environment plan-read. A pull
+# may SELECT library_meta and the plan's story, capability, contract, arc and increment records and
+# their history, and nothing else: infra/library-host/plan-read-grants.sql, which contract 7.7 runs
+# the check's reads under. Its password is the secret PLAN_PG_PASSWORD in the environment plan-read. A pull
 # request from this repository or a merge queue run without that secret fails, saying so; a pull
 # request from a fork, which GitHub gives no secrets, says "not checked" and passes.
 

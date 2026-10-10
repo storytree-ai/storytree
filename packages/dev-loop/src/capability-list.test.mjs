@@ -2,12 +2,17 @@
 // packages/dev-loop/src/capability-list.mjs; `pnpm gate` runs them against the library as check:capability-list.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { randomBytes } from "node:crypto";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
-import { branchTree, capabilitiesOf, capabilityListFor, incrementOfBranch, staleProblems, unlistedCapabilities } from "./capability-list.mjs";
+import { connect } from "@storytree/library";
+import { dropTestDatabases } from "@storytree/local-postgres/testing";
+import pg from "pg";
+
+import { branchTree, branchVerdict, capabilitiesOf, capabilityListFor, incrementOfBranch, staleProblems, unlistedCapabilities } from "./capability-list.mjs";
 import { runGate } from "./gate.mjs";
 
 /** A checkout holding the till's package: a declared source file, its test, and a file only the survey places. */
@@ -92,4 +97,67 @@ test("7.6 a branch's checks read the plan with its increment's pending changes l
   assert.deepEqual(rest, []);
   assert.match(problem, /contract contract_aaaaaaaaaaaa/);
   assert.match(problem, /history entry 41.*entry 57 \(updated 2026-10-11T01:00:00\.000Z by session:other\)/);
+});
+
+/** Run `sql` on the test server as the client at `url`, in `database` when given. */
+async function query(url, sql, database) {
+  const at = new URL(url);
+  if (database !== undefined) at.pathname = `/${database}`;
+  const client = new pg.Client({ connectionString: at.href });
+  await client.connect();
+  try {
+    return await client.query(sql);
+  } finally {
+    await client.end();
+  }
+}
+
+test("7.7 CI's plan-read account, granted exactly infra/library-host/plan-read-grants.sql, reaches the check's verdict, stale pending changes included, as the owner does, and writes nothing", async (t) => {
+  const url = process.env.STORYTREE_TEST_PG_URL;
+  assert.ok(url, "STORYTREE_TEST_PG_URL is not set: run these tests through `pnpm test`, which starts a local Postgres");
+  const admin = process.env.STORYTREE_TEST_PG_ADMIN_URL || url;
+  const run = randomBytes(4).toString("hex");
+  const [name, role, password] = [`t-${run}`, `ci_plan_read_${run}`, randomBytes(16).toString("hex")];
+  const database = `storytree_${name}`;
+  const root = checkout(t);
+  const opened = [];
+  try {
+    const owner = await connect({ url });
+    opened.push(owner);
+    const library = await owner.openProject(name);
+    opened.push(library);
+    const story = await library.addStory({ title: "The till", description: "Taking payment." });
+    const drawer = await library.addCapability({ title: "1 · The drawer", story: story.id });
+    await library.addCapability({ title: "2 · Receipts", story: story.id });
+    const arc = await library.createArc({ title: "Cash", intent: "Hold cash.", endState: "It is held." });
+    const increment = await library.addIncrement({ arc: arc.id, title: "Rename the drawer", objective: "Rename it", body: "Rename.", capabilities: [drawer.id] });
+    await library.advanceIncrement(increment.id, "active");
+    await library.pendChange(increment.id, { record: drawer.id, fields: { title: "1 · The cash drawer" } });
+    await library.editCapability(drawer.id, { description: "Changed since the pending change read it." });
+
+    await query(admin, `CREATE ROLE ${role} LOGIN PASSWORD '${password}'`);
+    const grants = readFileSync(new URL("../../../infra/library-host/plan-read-grants.sql", import.meta.url), "utf8")
+      .replaceAll("storytree_storytree", database).replaceAll("ci_plan_read", role);
+    await query(url, grants, database);
+
+    const asCi = new URL(url);
+    [asCi.username, asCi.password] = [role, password];
+    const ci = await connect({ url: asCi.href });
+    opened.push(ci);
+    const onCi = await ci.openProject(name);
+    opened.push(onCi);
+
+    const branch = `claude/increment-${increment.id.slice("increment_".length)}-a1b2c3`;
+    const changed = ["packages/till/src/drawer.ts", "packages/till/src/receipt.ts"];
+    const verdict = await branchVerdict(library, root, branch, changed, { survey });
+    assert.deepEqual(verdict.unlisted.map(({ files }) => files), [["packages/till/src/receipt.ts"]]);
+    assert.equal(verdict.stale.length, 1, "the pending change was read before the drawer changed");
+    assert.deepEqual(await branchVerdict(onCi, root, branch, changed, { survey }), verdict, "CI reads what the owner reads");
+
+    await assert.rejects(onCi.addStory({ title: "Refunds", description: "Written by CI?" }), /permission denied|row-level security/);
+  } finally {
+    for (const each of opened.reverse()) await each.close().catch(() => {});
+    await dropTestDatabases([database]);
+    await query(admin, `DROP ROLE IF EXISTS ${role}`);
+  }
 });

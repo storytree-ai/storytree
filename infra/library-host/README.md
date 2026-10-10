@@ -50,6 +50,12 @@ so restored row policies still name the right role. On Mint it uses a separate
 SCRAM password, has no owner membership and may only write health records under
 the ported `grants.sql` policies.
 
+CI's capability-list check reads the plan as a third role, `ci_plan_read`
+(ADR-0952): read-only, the plan's records and their history, under
+`plan-read-grants.sql`. Run that file on the box when its grants change; the gate's
+contract 7.7 runs the check's reads as a role granted exactly that file, so a
+read the check gains cannot land without its grant.
+
 Passwords are generated on Mint, never supplied in argv or printed:
 
 - `~/.storytree/library-host/postgres-password`: clients; 0600.

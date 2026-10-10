@@ -164,3 +164,19 @@ test("3.3 a bar waiting on work that is held on your question reads waiting on y
   assert.deepEqual([bar.reading.state, bar.reading.behind], ["waiting-on-you", ["q1"]]);
   assert.match(renderBoard(board, "mine"), /data-increment-id="m1"[^>]*title="[^"]*waiting on you: Which vendor\?/);
 });
+
+test("3.3 lanes sort by the arc's priority first, 1 first and unranked last, keeping the state order within one priority; each ranked lane shows it (ADR-0963)", () => {
+  const ranked = (id: string, priority?: number, at?: string) => {
+    const view = arc(id, "active", at);
+    return priority === undefined ? view : { ...view, arc: { ...view.arc, fields: { ...view.arc.fields, priority } } };
+  };
+  const waiting = ranked("waiting"); waiting.questions.push(record("q", "question", { arc: "waiting", title: "Question", lifecycle: "open", statement: "Pick", stakes: "Matters", context: "Context", options: "A or B" }));
+  const snapshot: BoardSnapshot = { arcs: [waiting, ranked("second", 2), ranked("first-old", 1, "2026-09-20"), ranked("first-new", 1, "2026-09-26"), ranked("blocked", 2)], heldOn: {},
+    waits: { blocked: [{ on: "missing", reason: "needs it", forGood: true }] } };
+  const board = boardView(snapshot, [], new Date("2026-09-27T00:00:00Z"));
+  assert.deepEqual(board.lanes.map(({ id }) => id), ["first-new", "first-old", "blocked", "second", "waiting"]);
+  assert.deepEqual(board.lanes.map(({ priority }) => priority), [1, 1, 2, 2, undefined]);
+  const html = renderBoard(board, "waiting");
+  assert.match(html, /<span class="arc-chip arc-priority" title="Priority 1">P1<\/span><span class="arc-title" title="first-new">/);
+  assert.equal(html.match(/arc-priority/g)?.length, 4, "an unranked lane shows no priority");
+});

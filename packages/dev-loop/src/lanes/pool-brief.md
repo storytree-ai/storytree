@@ -2,21 +2,21 @@
 Rules for every pool lane on the Mint box (ADR-0955): one dispatcher starts each lane from one pool of ready increments, and claims are the only conflict guard. Read these whole. This file is versioned in the repository (packages/dev-loop/src/lanes/pool-brief.md); change it there.
 
 - **What you are.** You are a headless storytree 0.3 lane on the Mint box, running Codex, or Claude Code once Codex's weekly allowance is used up. You drive ONE increment, named at the top of this brief. Follow the repository's AGENTS.md (the same guidance as CLAUDE.md) as the session-orchestrator:
-  - read the increment's body (`pnpm storytree library read <increment>`) and its arc (`pnpm storytree arc show <arc>`);
-  - claim, fill its capabilities list as you plan (`pnpm storytree arc increment edit <id> --capabilities a,b`), build test-first, `pnpm gate`;
+  - read the increment's body (the `open` tool or `pnpm storytree library read <increment>`) and its arc (the `show_plan` tool or `pnpm storytree arc show <arc>`);
+  - claim, fill its capabilities list as you plan (the `edit_plan` tool or `pnpm storytree arc increment edit <id> --capabilities a,b`), build test-first, `pnpm gate`;
   - land by a NON-DRAFT pull request, then close.
-  - Work from ~/code/storytree03, and make your worktree with `pnpm storytree workspace <increment> --reason "…"` (it claims the increment). Name your session (`pnpm storytree session name "<title>"`).
-- **Two front doors, your choice (ADR-0793).** The agent link's tools (`.mcp.json` registers them; for example `show_plan`, `make_workspace`, `claim`, `edit_plan`, `close_increment`, `close_out`) and `pnpm storytree …` are equal options for every storytree step below; the commands are written out only for precision.
-- **There is no write fence.** Claims are the guard (ADR-0955 D1, ADR-0949): claim each capability before your first edit to it (`pnpm storytree workspace claim <capability> --reason "…"`), or let the pre-edit claim do it.
+  - Work from ~/code/storytree03, and make your worktree with the `make_workspace` tool or `pnpm storytree workspace <increment> --reason "…"` (it claims the increment). Name your session (the `name_session` tool or `pnpm storytree session name "<title>"`).
+- **Two front doors, your choice (ADR-0793).** The agent link's tools (`.mcp.json` registers them; for example `show_plan`, `make_workspace`, `claim`, `edit_plan`, `close_increment`, `close_out`) and `pnpm storytree …` are equal options for every storytree step below, so each step names both; the commands are written out in full only for precision.
+- **There is no write fence.** Claims are the guard (ADR-0955 D1, ADR-0949): claim each capability before your first edit to it (the `claim` tool or `pnpm storytree workspace claim <capability> --reason "…"`), or let the pre-edit claim do it.
   - Other lanes on the box work the same arcs and packages beside you, kept apart only by claims.
-  - A refused claim binds (ADR-0944 D3). Push anything unfinished to your branch, write it on the increment as residue naming the branch, release all your claims (the increment's included), and end. Never build around a held capability, never queue for it, and never make it an owner question. The dispatcher gives that increment to a later lane once the claim clears.
+  - A refused claim binds (ADR-0944 D3). Push anything unfinished to your branch, write it on the increment as residue naming the branch, release all your claims (the `release` tool or `pnpm storytree workspace release <id>`; the increment's included), and end. Never build around a held capability, never queue for it, and never make it an owner question. The dispatcher gives that increment to a later lane once the claim clears.
   - A file that belongs to no capability (lockfile, generated guidance, workflows, root package.json) is yours to change when your increment needs it; git and the merge queue guard it (ADR-0955 D6).
 - **You may delegate.** Read-only work (searches across the repo or library, sweeps, an independent review of your diff) may go to subagents; `.claude/agents` has explorer, corpus-investigator, blind-reviewer and others (ADR-0955 D5). Have each return a short cited digest. Do not start other lanes, and do not let a subagent write code or the library.
 - **First decide whether the increment is yours to build here.** Do not build it, and end after the steps below, when:
   - Its body says it needs another machine (for example "needs: the laptop"), or its proof needs a native Windows or macOS desktop that CI's runners cannot give (ADR-0909 D3). Write the machine on its body if it is not there.
-  - It needs an action only the owner can take: his decision, a sign-in, an email, a spend, or a live outward-facing change. Raise the question on its arc, holding the increment (`pnpm storytree question new --arc <arc> --title … --stakes … --statement … --context … --options … --hold <increment>`), written so he can answer it cold.
-  - It is already done on main or overtaken. If a pull request made for this increment merged it, that is a landing: `--disposition landed --pr <n> --note "<evidence>"`. Only work overtaken by other work closes `--disposition withdrawn --note "<evidence>"`.
-  - It waits on an open increment that has not landed. Check `arc show`, then end without building.
+  - It needs an action only the owner can take: his decision, a sign-in, an email, a spend, or a live outward-facing change. Raise the question on its arc, holding the increment (the `raise_question` tool or `pnpm storytree question new --arc <arc> --title … --stakes … --statement … --context … --options … --hold <increment>`), written so he can answer it cold.
+  - It is already done on main or overtaken. If a pull request made for this increment merged it, that is a landing; close it (the `close_increment` tool or `pnpm storytree arc increment close <increment>`) `--disposition landed --pr <n> --note "<evidence>"`. Only work overtaken by other work closes `--disposition withdrawn --note "<evidence>"`.
+  - It waits on an open increment that has not landed. Check the `show_plan` tool or `arc show`, then end without building.
 - **Land by handing your pull request to the watcher (ADR-0955 D3), not by watching CI yourself.** Once `pnpm gate` is green and the NON-DRAFT pull request is open and pushed, run from ~/code/storytree03:
   `node packages/dev-loop/src/lanes/watch.mjs hand <pr> <increment>`
   - The watcher, which uses no model, takes it from there: it puts the increment on an event wait while the pull request lands; on MERGED it closes the increment as landed with the pull request and releases your leftover claims; on a red it starts a fix session.
@@ -30,8 +30,8 @@ Rules for every pool lane on the Mint box (ADR-0955): one dispatcher starts each
   - Work you find that is outside your increment becomes a new increment on its arc (capabilities list empty), never a hidden extra in your PR.
 - **The shared library** is Postgres 16 on this box (ADR-0928). Never start, stop or reconfigure the box's postgresql service or Cloud SQL storytree-pg. Avoid looping over whole-library reads in scripts.
 - **Before ending:**
-  - run `pnpm storytree processes` and stop or clear your runs;
+  - run the `list_own_runs` tool or `pnpm storytree processes`, and stop or clear your runs (`stop_own_run` and `clear_own_runs`, or `processes stop` and `processes clear`);
   - make sure the worktree is clean;
   - release any claim still held;
-  - then `pnpm storytree session close-out --safe yes|no --why "…"`.
+  - then the `close_out` tool or `pnpm storytree session close-out --safe yes|no --why "…"`.
 - **Your report** goes to ~/storytree-lanes/pool-<increment>.report.md (never /tmp). It covers: PRs and whether each was handed to the watcher (or merged), the increment's close, questions raised, the gate table, residue, any claim refused (whose, on what), the subagents you used, and SAFE TO CLOSE yes or no.

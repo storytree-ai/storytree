@@ -74,7 +74,8 @@ test('the tuned reference is the fixture island: thirteen regular hexes of the P
   // would have jumped to ~0.93 and every band on the shipped island with it.
   assert.equal(PRE_ADR0528_TILE.hexR, 27);
   assert.ok(HEX_R < PRE_ADR0528_TILE.hexR, `the engine's tile (${HEX_R}) is derived and smaller than the tuned one`);
-  assert.equal(LAND_AREA_PER_CAPABILITY, ENGINE_RATIO, 'one ratio, declared in the engine and re-exported here');
+  assert.equal(ENGINE_RATIO, 318, 'the approved density: 318 units² of land per capability');
+  assert.equal(LAND_AREA_PER_CAPABILITY, 318, 'one ratio, declared in the engine and re-exported here');
   assert.ok(Math.abs(HEX_TILE_AREA - 1894.0) < 0.01, `${HEX_TILE_AREA}`);
   assert.deepEqual(TUNED_FIXTURE, { tiles: 13, capabilities: 11 });
   assert.ok(Math.abs(TUNED_LAND_AREA_PER_CAPABILITY - 2238.36) < 0.01, `${TUNED_LAND_AREA_PER_CAPABILITY}`);

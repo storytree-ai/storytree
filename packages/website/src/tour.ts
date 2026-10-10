@@ -1,7 +1,7 @@
 /** Capability 2 · The forest on the site. */
 import type { GlobeSurfaces, GlobeTarget } from "@storytree/forest/view";
 
-/** "map" is Act 2's first chapter, taught on the shop (ADR-0891); "knowledge" follows it. */
+/** "map" is Act 2's first chapter, taught on the shop (ADR-0891); "knowledge" follows it, on the same globe. */
 export type Explainer = "map" | "knowledge";
 export type Group = "opening" | Explainer | "ending";
 /** Why the tour is waiting: the visitor's pause, a step's depth being read, every surface shown, or the globe being explored. */
@@ -45,7 +45,11 @@ export type TourStep = {
   phone?: { target?: GlobeTarget; framing: number; side: number; narrow?: number };
   /** A story selected so its dependency lanes draw on. */
   select?: string;
-  panel?: "story" | "arcs" | "sessions" | "knowledge";
+  panel?: "story" | "arcs" | "sessions" | "knowledge" | "note";
+  /** The library note whose card the "note" panel opens. */
+  note?: string;
+  /** The recorded session whose reads the knowledge core draws while the step shows. */
+  follow?: string;
   /** Leave the story panel's room before a later step opens it, so the globe does not slide when it does. */
   panelRoom?: boolean;
   /** Open the panel when this line is told, after the map has shown its preceding ideas. */

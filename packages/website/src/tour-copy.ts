@@ -22,14 +22,8 @@ const decisions = {
   tests: adr(623, "Minimal viable TDD: red, then green"),
   health: adr(744, "Health says what was checked"),
   maintain: adr(825, "Every card that isn't green says why, and who moves it"),
-  core: adr(647, "The knowledge inside the planet, a graph that refuses loops"),
-  loose: adr(658, "Loose notes gather at the core"),
-  shelves: adr(627, "Every story and capability has a shelf of front covers"),
-  librarian: adr(780, "Each landing keeps what the session learned"),
   claims: adr(643, "Claims, the wait refusal and release on merge"),
   closeOut: adr(758, "A session leaves the list by a verified close-out"),
-  reads: adr(740, "Each session's reading path, in its colour"),
-  window: adr(746, "A session's context window, from its transcript"),
   arcs: adr(638, "The arc surface"),
   waits: adr(760, "Waiting work shows as waiting"),
   landed: adr(772, "Landed is a work outcome"),
@@ -38,7 +32,6 @@ const decisions = {
 const principle = (n: 1 | 2 | 3 | 4): Chip => ({ kind: "principle", text: [
   "", "Signals must be real", "Show what matters now; hide the rest", "Your attention goes where you send it", "Nothing is out of reach",
 ][n]! });
-const partial = (text: string): Chip => ({ kind: "partial", text });
 
 const complete: GlobeSurfaces = { sea: true, grounds: true, roads: true, nameplates: true, territories: "health", fileCircles: true, knowledgeCore: true, sessionTints: true };
 const none = { roads: false, territories: false, fileCircles: false, knowledgeCore: false, sessionTints: false } as const;
@@ -47,10 +40,11 @@ const land: Partial<GlobeSurfaces> = { ...none, nameplates: true };
 const plain: Partial<GlobeSurfaces> = { ...land, territories: "plain" };
 const files: Partial<GlobeSurfaces> = { ...plain, fileCircles: true };
 const health: Partial<GlobeSurfaces> = { ...files, territories: "health" };
-const core: Partial<GlobeSurfaces> = { ...none, grounds: false, nameplates: false, knowledgeCore: true };
+// The land plain, its names on, and the notes inside the globe beneath it.
+const inside: Partial<GlobeSurfaces> = { ...land, knowledgeCore: true };
 
 const story = (id: string): GlobeTarget => ({ kind: "story", story: id });
-const library = story("story_754e87e7d531"), forest = story("story_deee4230348c"), centre: GlobeTarget = { kind: "core" };
+const forest = story("story_deee4230348c");
 // Storytree's own recorded growth (own-snapshot.json): Act 2 arrives on it, grown from a point as its agents built it (ADR-0889 2.2b).
 const own = { map: "own" as const, target: { kind: "core" } as GlobeTarget };
 // The shop (shop-snapshot.json): the store the test laptop's Claude Code sessions rebuilt side by side with storytree, where the
@@ -67,6 +61,13 @@ const whole = 1.32;
 // The map chapter's two views: the four stories, and close on signing in.
 const shop = { target: browsing, framing: whole, phone: { target: browsing, framing: 1.5, side: 0 } };
 const near = { target: signingIn, framing: .8, phone: { target: signingIn, framing: 1.05, side: 0 } };
+// The knowledge chapter's globe: the map chapter's, held where it ends (the 03:08:57 survey), with its notes beneath the land. Its
+// records are read at 03:06, once the session building orders has read checkout's shelf (03:04) and claimed its parts (03:05).
+const kept = { map: "shop" as const, growth: { seconds: 1, stage: "pr7-building", until: "pr7-building" }, sessionsAt: "2026-10-05T03:06:00.000Z" };
+const checkout = story("story_66f80ffaaa4d");
+const closeOnCheckout = { target: checkout, framing: .8, phone: { target: checkout, framing: 1.05, side: 0 } };
+// Checkout's "Finish becomes a form post" (02:55), and the session building orders that read it (03:04).
+const finishDecision = "decision_0822dda10ab2", ordersSession = "726ad13e-f730-45fb-9682-893eef2a5696";
 const lit = (surfaces: Partial<GlobeSurfaces>): Partial<GlobeSurfaces> => ({ ...surfaces, sessionTints: true });
 /** How long the arrival's time-lapse plays at 1×. */
 export const arrivalSeconds = 15;
@@ -77,7 +78,6 @@ const graphiti = { name: "Graphiti docs", url: "https://help.getzep.com/graphiti
 const cursorAgents = { name: "Cursor docs", url: "https://cursor.com/docs/agent/agents-window" };
 const langsmith = { name: "LangSmith docs", url: "https://docs.langchain.com/langsmith/studio" };
 const linear = { name: "Linear docs", url: "https://linear.app/docs/initiatives" };
-const compared = `Checked against each tool's own documentation on ${researchDate}. Follow a link to read it there.`;
 
 /**
  * The tour, one thought per line (ADR-0879 D4). Each explainer opens on the owner's own line (ADR-0857 D3);
@@ -178,36 +178,43 @@ export const steps: TourStep[] = [
   ], sources: [vscode, aider, undefined] },
   decisions: [], surfaces: lit({ ...health, roads: true }), ...shop },
 
-  { id: "knowledge-inside", explainer: "knowledge", title: "What the project knows lives inside.", lines: [
-    "Storytree remembers things using a knowledge graph.",
-    "Inside this globe: {notes} notes, {decisions} of them decisions.",
-    "Each sits beneath the story or capability it's about.",
-  ], why: "Every new agent session starts on its first day. The library keeps the decisions and lessons, so the next session doesn't have to relearn them.",
-  decisions: [decisions.core, decisions.loose], chips: [principle(1)], surfaces: { ...core, grounds: true }, target: centre, framing: 1, drift: true },
-  { id: "knowledge-kinds", explainer: "knowledge", title: "Different notes do different jobs.", lines: [
-    "Decisions record what was chosen, and why.",
-    "Principles and guardrails steer judgement; definitions keep words exact.",
-    "Notes link to the notes they stand on, and never loop.",
-  ], why: "A future reader needs to know what kind of note they've found: a choice to respect, a rule to follow, or a way of working. Refusing loops keeps every chain of reasons readable.",
-  decisions: [decisions.core, decisions.shelves], surfaces: core, target: centre, framing: .9, panel: "knowledge" },
-  { id: "knowledge-shelves", explainer: "knowledge", title: "Every story keeps a shelf.", lines: [
-    "Each story and capability has a shelf of front covers: the decisions that shaped it.",
-    "An agent reads the spines first, then opens only what its task needs.",
-    "Nothing has to be pasted into every prompt.",
-  ], why: "Pasting everything in up front wastes the agent's memory, and it goes stale. A shelf puts the right few books beside the work.",
-  decisions: [decisions.shelves, decisions.librarian], chips: [principle(3)], surfaces: { ...core, grounds: true, nameplates: true }, target: library, framing: .7 },
-  { id: "knowledge-reads", explainer: "knowledge", title: "Follow what a session read.", lines: [
-    "This is storytree's own activity, {recording}.",
-    "Pick a session to follow its reads through the library, in order.",
-    "It shows what the work stood on, and what it never opened.",
-  ], why: "An agent's work is only as good as what it read before it acted. The path shows what the work stood on.",
-  decisions: [decisions.reads, decisions.window], chips: [{ kind: "recording", text: "Recording, not live" }, partial("A read shows what was opened, not what the model understood.")],
-  surfaces: { ...core, sessionTints: true }, target: centre, framing: .9, panel: "sessions" },
-  { id: "knowledge-compare", explainer: "knowledge", kind: "compare", title: "Memory comes in many shapes. Storytree's sits with the work.", lines: [
+  // The knowledge graph (ADR-0990, proposed 2026-10-11): three steps after the map chapter's model. Every line, How and Why is
+  // DRAFT, written by the session that built it for the owner to rewrite. It stays on the globe the map chapter leaves (the first
+  // round's four stories at the 03:08:57 survey) and teaches on the shop's own record: checkout's Finish decision (02:55), read by
+  // the session building orders (03:04) before it claimed checkout's parts (03:05). The camera moves once, into checkout.
+  { id: "knowledge-inside", explainer: "knowledge", ...kept, title: "Decisions live inside the map.", lines: [
+    // DRAFT.
+    "As your agents build, they also decide things: how a part should work, and why.",
+    // DRAFT.
+    "Storytree keeps each decision inside the globe, beneath the part of the map it's about.",
+  ], how: "By the time the first round was green, the shop's agents had written {shopDecisions} decisions, most of them while planning, before any code. Each is a note in storytree's library, a knowledge graph: a note links to the notes it stands on, and the graph refuses loops, so every chain of reasons reads to its end. Principles, which steer judgement, are notes too. A note about no one part gathers at the core.",
+  why: "Every new agent session starts on its first day. Keeping the decisions with the work means the next session doesn't relearn them, and you don't explain them again.",
+  decisions: [], surfaces: lit({ ...health, roads: true }), lineSurfaces: { 2: inside }, ...shop },
+  { id: "knowledge-shelf", explainer: "knowledge", ...kept, title: "Every story keeps a shelf.", lines: [
+    // DRAFT.
+    "Each story and capability keeps a shelf: the decisions that shaped it.",
+    // DRAFT.
+    "Checkout's shelf says why Finish works the way it does.",
+  ], how: "A decision sits on the shelf of the story or capability it shaped. This one is on checkout's Placing the order: \"Finish becomes a form post; the cart is cleared on the complete page, not on the click.\" It was written at 02:55, as the shop's second round was planned. Checkout's first plan, at 01:50, had said \"Finish clears the cart before leaving\".",
+  why: "Pasting everything into every prompt spends the agent's attention, and goes stale. A shelf keeps the few decisions that matter beside the work they shaped.",
+  decisions: [], surfaces: inside, ...closeOnCheckout, panel: "note", note: finishDecision, panelFromLine: 2, panelRoom: true },
+  { id: "knowledge-reads", explainer: "knowledge", ...kept, follow: ordersSession, title: "The next agent reads it first.", lines: [
+    // DRAFT.
+    "Before an agent changes a part, it reads that part's shelf.",
+    // DRAFT.
+    "The session building orders read checkout's shelf, and opened the Finish decision.",
+    // DRAFT.
+    "Only then did it claim checkout's parts.",
+    // DRAFT.
+    "Nobody had to paste it into a prompt.",
+  ], how: "Storytree records every note a session opens, in order, and draws its path through the library in the session's colour. The orders session started at 03:02. At 03:04 it read the decisions on checkout's shelf and opened the Finish decision in full; at 03:05 it claimed the checkout capabilities its work would change. A read shows what was opened, not what the model understood.",
+  why: "An agent's work is only as good as what it read before it acted. The path shows what the work stood on, and what it never opened.",
+  compare: { lines: [
     "Cursor's rules load always, by file pattern, when the agent finds them relevant, or by hand.",
     "Graphiti keeps a graph of entities and facts over time, with where each came from.",
-    "Storytree keeps decisions on the shelves of the work they shaped.",
-  ], sources: [cursorRules, graphiti, undefined], why: compared, decisions: [decisions.busy], surfaces: core, target: centre, framing: .9, drift: true },
+    "Storytree keeps decisions on the shelves of the work they shaped, and shows who read them.",
+  ], sources: [cursorRules, graphiti, undefined] },
+  decisions: [], surfaces: inside, lineSurfaces: { 3: lit(inside) }, target: checkout, framing: 1, phone: { target: checkout, framing: 1.3, side: 0 }, panel: "sessions" },
 
   { id: "everything", explainer: "ending", title: "Now read the whole globe.", lines: [
     "Everything is back: the plan, the code, its health, the knowledge and the sessions.",

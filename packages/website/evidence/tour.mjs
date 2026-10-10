@@ -24,9 +24,9 @@ export async function verifyTourCamera(browser, url) {
     await page.goto(url);
     await page.waitForFunction(() => document.querySelector("#website-forest").dataset.forestState === "live");
     await page.waitForTimeout(3500);
-    await goToStep(page, "knowledge-shelves");
-    // Arriving from the shop's globe swaps globes first, which takes longer on a loaded machine.
-    await page.waitForFunction(() => document.querySelector(".forest-drawing")?.dataset.globe === "storytree" && document.querySelector(".forest-drawing")?.dataset.arrived === "true", null, { timeout: 30_000 });
+    await goToStep(page, "knowledge-shelf");
+    // Arriving from storytree's own globe swaps globes first, which takes longer on a loaded machine.
+    await page.waitForFunction(() => document.querySelector(".forest-drawing")?.dataset.globe === "shop" && document.querySelector(".forest-drawing")?.dataset.arrived === "true", null, { timeout: 30_000 });
     await page.waitForTimeout(500);
     await page.locator("#tour-play").click();
     const destination = await positions();
@@ -44,7 +44,7 @@ export async function verifyTourCamera(browser, url) {
     await page.locator("#tour-play").click();
     const resumed = await positions();
     if (distance(destination, resumed) > 5) failures.push(`Play left the camera ${Math.round(distance(destination, resumed))} pixels from the step's view`);
-    if (await stepOf(page) !== "knowledge-shelves") failures.push(`Play restarted or moved the step: ${await stepOf(page)}`);
+    if (await stepOf(page) !== "knowledge-shelf") failures.push(`Play restarted or moved the step: ${await stepOf(page)}`);
     const globe = () => page.locator(".forest-drawing").evaluate(node => ({ map: node.dataset.globe, islands: Number(node.dataset.islands) }));
     if (await page.locator("#tour-play").getAttribute("aria-label") === "Play the tour") await page.locator("#tour-play").click();
     // 2.12: from the fixes, the map chapter swaps storytree's globe for the shop's point at once, with no pull back and dive,
@@ -113,11 +113,16 @@ export async function verifyTourCamera(browser, url) {
     if (await risen() !== 4) failures.push("Health opens on the first round's four stories");
     await page.waitForTimeout(15_000);
     if (await risen() !== 4) failures.push(`The chapter stays on the four stories: ${await risen()}`);
-    await goToStep(page, "knowledge-kinds"); await page.waitForTimeout(2500);
-    if ((await globe()).map !== "storytree") failures.push("The knowledge steps return to storytree's globe");
+    // 2.20: the knowledge chapter stays on the same globe and its four stories, with no swap.
+    await step("knowledge-inside"); await page.waitForTimeout(2500);
+    if ((await globe()).map !== "shop" || await risen() !== 4) failures.push(`The knowledge chapter stays on the shop's four stories: ${JSON.stringify({ ...(await globe()), risen: await risen() })}`);
+    // On a laptop the shelf's second line opens the Finish decision's card.
+    await step("knowledge-shelf"); await lines(2); await page.waitForTimeout(800);
+    if (!/Finish becomes a form post/.test(await page.locator(".core-card").textContent().catch(() => ""))) failures.push("The shelf's second line opens the Finish decision's card");
     assert.deepEqual(failures, []);
   } finally { await page.close(); }
-  console.log("PASS contract 2.16: the map chapter keeps its globe bare under the arcs, raises its islands one by one, flies into signing in and back for the claims, opens each panel on its line and stays on its four stories, then storytree's returns");
+  console.log("PASS contract 2.16: the map chapter keeps its globe bare under the arcs, raises its islands one by one, flies into signing in and back for the claims, opens each panel on its line and stays on its four stories");
+  console.log("PASS contract 2.20: the knowledge chapter stays on the shop's four stories and opens the Finish decision's card on its line");
   console.log("PASS contracts 2.4 and 2.7: exploring holds the tour and says so; Play flies back to the step's view");
 }
 
@@ -136,7 +141,7 @@ export async function verifyTour(browser, url, output) {
   const rows = () => page.locator(".tour-session-surface .session-row").allTextContents();
   // 2.8: one pip per step, grouped by explainer; a pip jumps to its step.
   const pips = await page.locator("#tour-pips [data-go]").count();
-  assert.equal(pips, 16, "one pip per step, with six in the map chapter");
+  assert.equal(pips, 14, "one pip per step, with six in the map chapter and three in the knowledge chapter");
   assert.deepEqual(await page.locator("#tour-pips .tb-group").evaluateAll(groups => groups.map(group => group.dataset.group)),
     ["opening", "map", "knowledge", "ending"]);
   await goToStep(page, "map-capabilities");
@@ -210,24 +215,17 @@ export async function verifyTour(browser, url, output) {
   const agentsCompared = await page.locator("#tour-why a.source").evaluateAll(nodes => nodes.map(node => node.href));
   assert.ok(agentsCompared.length >= 3, "the claims step's depth keeps the comparison with Cursor, LangSmith and Linear");
   await page.locator("#tour-depth").click();
-  // 2.5: the knowledge explainer reaches its dated, sourced comparison.
-  for (const subject of ["knowledge"]) {
-    await goToStep(page, `${subject}-compare`);
-    await page.locator("#tour-play").click(); await page.locator("#tour-play").click();
-    const links = await page.locator("#tour-lines a.source").evaluateAll(nodes => nodes.map(node => node.href));
-    assert.ok(links.length >= 2 && links.every(href => href.startsWith("https://")), `${subject} keeps sourced comparisons`);
-    await page.locator("#tour-depth").click();
-    assert.match(await page.locator("#tour-why").textContent(), /Checked against each tool's own documentation on \d+ \w+ \d{4}/);
-    await page.locator("#tour-depth").click();
-  }
-  // The recording plays with the tour's clock and holds with it.
+  // 2.20: the reads step lists the shop's sessions as they stood at 03:06, the orders session among them; 2.5: its depth keeps
+  // the dated, sourced comparison with Cursor and Graphiti.
   await goToStep(page, "knowledge-reads");
-  const recordingIndex = async () => Number(await page.locator(".tour-recording-progress").getAttribute("data-recording-index"));
-  await page.clock.runFor(3500);
-  assert.ok(await recordingIndex() > 0 && await recordingIndex() < 287, "The dated recording replays");
-  await page.locator("#tour-play").click(); const stopped = await recordingIndex();
-  await page.clock.runFor(5000); assert.equal(await recordingIndex(), stopped, "Pause freezes the dated recording");
-  await page.locator("#tour-play").click();
+  await page.clock.runFor(500);
+  assert.match(await page.locator(".tour-session-surface").textContent(), /Part 6: Orders/, "the reads step lists the session it follows");
+  assert.match(await page.locator(".tour-recording-progress").textContent(), /03:06 UTC/, "read at the chapter's moment");
+  await page.locator("#tour-depth").click();
+  const memoryCompared = await page.locator("#tour-why a.source").evaluateAll(nodes => nodes.map(node => node.href));
+  assert.ok(memoryCompared.length >= 2 && memoryCompared.every(href => href.startsWith("https://")), "the reads step's depth keeps sourced comparisons");
+  assert.match(await page.locator("#tour-why").textContent(), /Checked against each tool's own documentation on \d+ \w+ \d{4}/);
+  await page.locator("#tour-depth").click();
   // 2.6: skipping opens dated, read-only free play; the app's surfaces work without WebGL.
   await page.locator("#tour-skip").click();
   assert.equal(await page.locator("#chapter2").getAttribute("data-tour-mode"), "freeplay");
@@ -316,7 +314,7 @@ async function verifyNamesClearHeader(page, width, output) {
 async function verifyOneFormat(page, width, output) {
   await goToStep(page, "pain");
   const impact = await page.locator("#tour-lines .tour-line.on .said").first().evaluate(node => parseFloat(getComputedStyle(node).fontSize));
-  for (const id of ["map-capabilities", "map-claims", "knowledge-kinds"]) {
+  for (const id of ["map-capabilities", "map-claims", "knowledge-shelf"]) {
     await goToStep(page, id);
     if (await page.locator("#tour-play").getAttribute("aria-label") === "Pause the tour") await page.locator("#tour-play").click();
     const look = await page.locator("#tour-card").evaluate(card => {
@@ -500,13 +498,8 @@ export async function verifyRecordingFreeplay(browser, url, output) {
   });
   await page.clock.install({ time: new Date("2030-01-01T00:00:00Z") });
   await page.goto(url); await page.locator("#tour-play").waitFor();
-  await goToStep(page, "knowledge-reads");
   const at = async () => Number(await page.locator(".tour-recording-progress").getAttribute("data-recording-index"));
-  await page.clock.runFor(2000); const slow = await at();
-  await page.locator("#tour-speed-cycle").click();
-  await page.clock.runFor(2000); assert.ok(await at() - slow >= 2, "1.5× plays the recording faster");
-  await page.screenshot({ path: path.join(output, "recording-390.png") });
-  for (const step of ["map-health", "knowledge-kinds"]) {
+  for (const step of ["map-health", "knowledge-shelf"]) {
     await goToStep(page, step);
     await touchTarget('#tour-depth');
     await page.locator("#tour-depth").click();
@@ -516,12 +509,13 @@ export async function verifyRecordingFreeplay(browser, url, output) {
     await page.locator(".tour-back").click();
   }
   await page.locator("#tour-skip").click();
+  await page.clock.runFor(500);
   assert.equal(await at(), Number(await page.locator(".tour-recording-progress").getAttribute("data-recording-total")), "Free play shows the recording's end");
   await touchTarget('.tour-browse-toggle');
   if (!await page.locator('#tour-label').isVisible()) phoneProblems.push('2.6: phone free play hides its date and read-only status');
   await page.close();
   assert.deepEqual(phoneProblems, [], 'Phone controls and dated free play remain usable');
-  console.log("PASS: the recording follows the tour's speed and holds; depth stays readable above the app's drawers");
+  console.log("PASS: free play shows the recording's end; depth stays readable above the app's drawers");
 }
 
 // Review captures of every chapter at its own controls, with each growth allowed to finish before pausing.
@@ -590,7 +584,7 @@ export async function reviewFallbacks(browser, url, output) {
     try {
       await page.goto(url);
       await page.locator('#tour-play').click();
-      await goToStep(page, 'knowledge-kinds');
+      await goToStep(page, 'knowledge-shelf');
       await page.waitForTimeout(500);
       await page.screenshot({ path: path.join(output, `${width}-no-webgl-knowledge.png`) });
       await page.locator('#tour-skip').click();

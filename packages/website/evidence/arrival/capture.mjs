@@ -200,17 +200,50 @@ const runs = {
   // names of the islands it frames stand against the screen's edges, the header, the card, the bar and the panels; and a clip
   // of the whole chapter at 1440 at the tour's own pace. --to <folder> (beside this one) says where they go.
   async mapSteps() {
-    const to = process.argv.includes("--to") ? process.argv[process.argv.indexOf("--to") + 1] : "map-six-steps";
-    const out = name => path.join(pictures, `../${to}/${name}`);
-    await mkdir(path.join(pictures, `../${to}`), { recursive: true });
     const four = ["Signing in", "Browsing", "Cart", "Checkout"];
-    // A picture taken as line N of a step is said, named `<step>-line-<N>`; every step is also pictured as it settles.
-    const lines = { "map-capabilities": [2], "map-claims": [1, 2] };
     const frames = { "map-empty": [], "map-arcs": [], "map-stories": four, "map-capabilities-line-2": ["Signing in"], "map-capabilities": ["Signing in"],
       "map-claims-line-1": four, "map-claims-line-2": [], "map-claims": ["Browsing", "Cart", "Checkout"], "map-health": four };
+    // A picture taken as line N of a step is said, named `<step>-line-<N>`; every step is also pictured as it settles.
     // The arcs panel lies over the globe while its line is said, and names no island; the sessions list's line names none
     // either, and on a laptop it may lie over signing in, which holds no flag. On a phone the list lies over the globe.
-    const phoneFrames = { ...frames, "map-claims": [] };
+    // Known, and said in the README: on the 320px globe the stories step's four two-line names crowd, and Checkout's hides
+    // rather than stray from its island (forest 3.31); the island stands in frame.
+    await chapterSteps({ chapter: "map", folder: "map-six-steps", lines: { "map-capabilities": [2], "map-claims": [1, 2] }, frames,
+      phoneFrames: { ...frames, "map-claims": [] }, known: ["320 map-stories Checkout: not drawn"], extra: { "map-capabilities": "1440-story-panel.png" } });
+  },
+  // The knowledge chapter in three steps (2.20, ADR-0990), pictured the same way: each step as it settles and on the lines that
+  // change what it shows (the notes, the note's card, the flags), and a clip of the whole chapter at 1440.
+  async knowledgeSteps() {
+    const four = ["Signing in", "Browsing", "Cart", "Checkout"];
+    // The sessions list lies over the lower globe on a laptop and the upper on a phone: on the reads step only checkout is framed.
+    const frames = { "knowledge-inside-line-2": four, "knowledge-inside": four, "knowledge-shelf-line-2": ["Checkout"], "knowledge-shelf": ["Checkout"],
+      "knowledge-reads-line-3": ["Checkout"], "knowledge-reads": ["Checkout"] };
+    await chapterSteps({ chapter: "knowledge", folder: "knowledge-three-steps", lines: { "knowledge-inside": [2], "knowledge-shelf": [2], "knowledge-reads": [3] }, frames, phoneFrames: frames, known: [], extra: {} });
+  },
+  // A clip of the arrival playing at the default 0.75×, pain to fixes.
+  async clip() {
+    const page = await open({ width: 1440, height: 900 }, { video: true });
+    await page.waitForTimeout(500);
+    await page.waitForFunction(() => document.querySelector("#chapter2").dataset.tourStep === "map-empty", null, { timeout: 120_000 });
+    await page.waitForTimeout(6000);
+    const video = page.video(); await page.close();
+    const file = await video.path();
+    await rm(path.join(pictures, "arrival.webm"), { force: true });
+    await rename(file, path.join(pictures, "arrival.webm"));
+  },
+};
+
+/**
+ * A chapter's steps (`<chapter>-…`), played in order at 1920, 1440, 1280, 390 and 320: each step pictured as it settles, and on
+ * the lines that change what it shows (`lines`), with where the names of the islands it frames (`frames`, `phoneFrames` at 600px
+ * and narrower) stand against the screen's edges, the header, the card, the bar and the panels; and a clip of the whole chapter
+ * at 1440 at the tour's own pace. `known` misses are said in the folder's README; `extra` copies a step's 1440 picture under
+ * another name. --to <folder> (beside this one) says where they go instead of `folder`.
+ */
+async function chapterSteps({ chapter, folder, lines, frames, phoneFrames, known: knownMisses, extra }) {
+    const to = process.argv.includes("--to") ? process.argv[process.argv.indexOf("--to") + 1] : folder;
+    const out = name => path.join(pictures, `../${to}/${name}`);
+    await mkdir(path.join(pictures, `../${to}`), { recursive: true });
     const measure = page => page.evaluate(names => {
       const box = node => { const r = node?.getBoundingClientRect(); return r && r.width ? { x: r.x, y: r.y, width: r.width, height: r.height } : undefined; };
       const plates = [...document.querySelectorAll(".planet-nameplate[data-story-id]")].map(node => ({ title: node.querySelector(".planet-nameplate-title")?.textContent, box: box(node), name: box(node.querySelector(".planet-nameplate-title")), shown: getComputedStyle(node).opacity !== "0" }));
@@ -226,11 +259,11 @@ const runs = {
       const settled = new Map();
       // Faster than the tour's 0.75× everywhere but the clip: each step still settles where it would.
       if (!clip) { if (width > 600) await page.locator('#tour-bar [data-speed="1.5"]').click(); else for (let tap = 0; tap < 2; tap++) await page.locator("#tour-speed-cycle").click(); }
+      const ids = await page.locator(`#tour-pips [data-step^="${chapter}-"]`).evaluateAll(pips => pips.map(pip => pip.dataset.step));
       if (clip) {
-        await go(page, "map-empty");
-        await page.waitForFunction(() => !document.querySelector("#chapter2").dataset.tourStep.startsWith("map-"), null, { timeout: 360_000 });
+        await go(page, ids[0]);
+        await page.waitForFunction(chapter => !document.querySelector("#chapter2").dataset.tourStep.startsWith(`${chapter}-`), chapter, { timeout: 360_000 });
       } else {
-        const ids = await page.locator('#tour-pips [data-step^="map-"]').evaluateAll(pips => pips.map(pip => pip.dataset.step));
         for (const id of ids) {
           if (await page.locator("#tour-play").getAttribute("aria-label") === "Play the tour") await page.locator("#tour-play").click();
           await go(page, id);
@@ -247,7 +280,7 @@ const runs = {
       }
       for (const [id, { picture, seen }] of settled) {
         await writeFile(out(`${width}-${id}.png`), picture);
-        if (width === 1440 && id === "map-capabilities") await writeFile(out("1440-story-panel.png"), picture);
+        if (width === 1440 && extra[id]) await writeFile(out(extra[id]), picture);
         const names = (typeof width === "number" && width <= 600 ? phoneFrames : frames)[id] ?? [];
         const misses = names.flatMap(title => {
           const plate = seen.plates.find(item => item.title === title);
@@ -271,32 +304,18 @@ const runs = {
       await page.close();
     }
     await writeFile(out("framing.json"), JSON.stringify(report, null, 2) + "\n");
-    // Known, and said in the README: on the 320px globe the stories step's four two-line names crowd, and Checkout's hides
-    // rather than stray from its island (forest 3.31); the island stands in frame.
-    const known = new Set(["320 map-stories Checkout: not drawn"]);
-    assert.deepEqual(report.flatMap(item => item.misses.map(miss => `${item.width} ${item.step} ${miss}`)).filter(miss => !known.has(miss)), [], "2.16: every named island stays clear of the header, narration and panels");
+    const known = new Set(knownMisses);
+    assert.deepEqual(report.flatMap(item => item.misses.map(miss => `${item.width} ${item.step} ${miss}`)).filter(miss => !known.has(miss)), [], `the ${chapter} chapter: every named island stays clear of the header, narration and panels`);
     if (widths) { observed.push(`Framing misses: ${JSON.stringify(report.filter(item => item.misses.length))}`); return; }
     const page = await open({ width: 1440, height: 900 }, { video: true });
     await play(page, "clip-1440", true);
     const video = page.video(); await page.close();
-    await rm(out("1440-map-chapter.webm"), { force: true });
-    await rename(await video.path(), out("1440-map-chapter.webm"));
+    await rm(out(`1440-${chapter}-chapter.webm`), { force: true });
+    await rename(await video.path(), out(`1440-${chapter}-chapter.webm`));
     for (const name of await readdir(path.join(pictures, `../${to}`))) if (name.startsWith("clip-1440-")) await rm(out(name));
     await writeFile(out("framing.json"), JSON.stringify(report, null, 2) + "\n");
-    observed.push(`The map chapter's steps: pictured in ${to}; framing misses: ${JSON.stringify(report.filter(item => item.misses.length).map(item => [item.width, item.step, item.misses]))}`);
-  },
-  // A clip of the arrival playing at the default 0.75×, pain to fixes.
-  async clip() {
-    const page = await open({ width: 1440, height: 900 }, { video: true });
-    await page.waitForTimeout(500);
-    await page.waitForFunction(() => document.querySelector("#chapter2").dataset.tourStep === "map-empty", null, { timeout: 120_000 });
-    await page.waitForTimeout(6000);
-    const video = page.video(); await page.close();
-    const file = await video.path();
-    await rm(path.join(pictures, "arrival.webm"), { force: true });
-    await rename(file, path.join(pictures, "arrival.webm"));
-  },
-};
+    observed.push(`The ${chapter} chapter's steps: pictured in ${to}; framing misses: ${JSON.stringify(report.filter(item => item.misses.length).map(item => [item.width, item.step, item.misses]))}`);
+}
 try {
   for (const [name, run] of Object.entries(runs)) if (!only || only === name) { console.log(`run ${name}`); await run(); }
   assert.deepEqual(errors, [], "the browser reports no errors");

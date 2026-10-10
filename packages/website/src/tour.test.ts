@@ -5,6 +5,7 @@ import type { GrowthSnapshot } from "./forest-data.js";
 import shop from "./shop-snapshot.json" with { type: "json" };
 import { aim, createTour, flight, globeOf, groups, lineStarts, readingTime, replayMoment, settle, stepAt, viewOf, type TourStep } from "./tour.js";
 import { steps as tourSteps } from "./tour-copy.js";
+import { fill, growthCounts } from "./tour-counts.js";
 
 const step = (id: string, explainer: TourStep["explainer"], lines = ["One two three four five six seven eight nine ten"]): TourStep => ({
   id, title: id, explainer, lines, decisions: [], surfaces: {},
@@ -325,4 +326,49 @@ test("2.16 · the map grows its four islands as they are named, then its pathway
   for (const when of [checked, at("pr7-building")]) assert.deepEqual(stories(when), four, "the chapter stays on the four stories");
   assert.ok([...plan.islands.values()].every(window => window.start > 0));
   assert.equal(original.scene.islands.length, 8, "free play and the other chapters keep the saved recording");
+});
+
+test("2.20 · the knowledge chapter plays three steps on the globe the map chapter leaves: decisions inside it, checkout's shelf, and the orders session reading it before it claims", () => {
+  const chapter = tourSteps.filter(item => item.explainer === "knowledge");
+  assert.deepEqual(chapter.map(item => item.id), ["knowledge-inside", "knowledge-shelf", "knowledge-reads"]);
+  for (const item of chapter) assert.ok(item.how && item.why && item.decisions.length === 0);
+  const [inside, shelf, reads] = chapter as [TourStep, TourStep, TourStep];
+  const recording = shop as unknown as GrowthSnapshot;
+  // Every step holds the map chapter's globe where its health step ends: the first round's four stories, checked.
+  const health = tourSteps.find(item => item.id === "map-health")!;
+  const plan = mapGrowthPlan(mapRecording(recording));
+  const end = replayMoment(plan, health.growth as { seconds: number }, (health.growth as { seconds: number }).seconds);
+  for (const item of chapter) {
+    assert.equal(item.map, "shop", `${item.id} stays on the shop`);
+    const growth = item.growth as { seconds: number };
+    for (const told of [0, growth.seconds]) assert.ok(Math.abs(replayMoment(plan, growth, told) - end) < .01, `${item.id} holds the globe where health leaves it`);
+  }
+  // One idea per line: the notes come in with the first step's second line, the note's card with the shelf's second, and the
+  // orders session's flags with the reads step's third.
+  const tinted = (item: TourStep, line: number) => { let shown = item.surfaces; for (const [from, next] of Object.entries(item.lineSurfaces ?? {})) if (line >= Number(from)) shown = next; return shown; };
+  const panels = (item: TourStep) => item.lines.map((_, index) => index + 1 >= (item.panelFromLine ?? 1) ? stepAt(item, index + 1).panel : undefined);
+  assert.deepEqual([tinted(inside, 1).knowledgeCore, tinted(inside, 2).knowledgeCore, tinted(shelf, 1).knowledgeCore, tinted(reads, 1).knowledgeCore], [false, true, true, true]);
+  assert.deepEqual(panels(shelf), [undefined, "note"]);
+  assert.deepEqual(panels(reads), reads.lines.map(() => "sessions"));
+  assert.deepEqual(reads.lines.map((_, index) => tinted(reads, index + 1).sessionTints === true), [false, false, true, true]);
+  // The camera: it arrives on health's view of the four stories, then goes in to checkout.
+  for (const wide of [true, false]) {
+    assert.deepEqual(viewOf(inside, 1, wide), viewOf(health, 2, wide), "the chapter picks up from health's view");
+    for (const item of [shelf, reads]) assert.deepEqual(viewOf(item, 1, wide).target, { kind: "story", story: "story_66f80ffaaa4d" });
+  }
+  // The shelf's note is a decision on one of checkout's capabilities; the session the reads step follows opened it in full
+  // from that shelf, then claimed checkout's capabilities, all before the moment the chapter reads and the survey it holds at.
+  const checkout = recording.reading!.tree.stories.find(story => story.id === "story_66f80ffaaa4d")!.capabilities.map(item => item.id);
+  const note = recording.changes!.find(change => change.recordId === shelf.note)!;
+  assert.ok(note.type === "decision" && checkout.includes(String(note.record.fields.frontCoverOf)), "the note sits on checkout's shelf");
+  const moment = reads.sessionsAt!;
+  assert.ok(chapter.every(item => item.sessionsAt === moment) && moment < recording.stages.find(stage => stage.id === "pr7-building")!.at);
+  const lines = recording.reading!.recording.lines.filter(line => line.session === reads.follow && line.at <= moment) as readonly { kind: string; at: string; note?: string; read?: string; found?: string; capability?: string }[];
+  const opened = lines.find(line => line.kind === "note-read" && line.note === shelf.note && line.read === "whole" && line.found === "shelf");
+  assert.ok(opened, "the followed session opened the note in full from its shelf");
+  const claims = lines.filter(line => line.kind === "claimed" && checkout.includes(line.capability ?? ""));
+  assert.ok(claims.length > 0 && claims.every(line => line.at > opened.at), "and claimed checkout's capabilities only after");
+  assert.deepEqual(reads.compare?.sources.map(source => source?.name), ["Cursor docs", "Graphiti docs", undefined], "the memory comparison is in the reads step's depth");
+  // The count the first step's depth gives is the decisions written by the survey the chapter holds at.
+  assert.match(fill(inside.how!, growthCounts(recording, recording)), /had written 47 decisions/);
 });

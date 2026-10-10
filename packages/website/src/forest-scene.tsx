@@ -52,12 +52,6 @@ const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 const hold = (reason: Hold, held = true) => window.dispatchEvent(new CustomEvent("storytree-tour-hold", { detail: { reason, held } }));
 const ownerOf = (target: GlobeTarget | undefined) => target?.kind === "story" ? target.story : target?.kind === "capability"
   ? snapshot.tree.stories.find(owner => owner.capabilities.some(item => item.id === target.capability))?.id : undefined;
-/** The session that read most in the recording: the sessions explainer follows its path. */
-const reader = (() => {
-  const reads = new Map<string, number>();
-  for (const line of snapshot.recording.lines as readonly { kind: string; session?: string }[]) if (line.kind === "note-read" && line.session) reads.set(line.session, (reads.get(line.session) ?? 0) + 1);
-  return [...reads].sort((a, b) => b[1] - a[1])[0]?.[0];
-})();
 /** Overview steps drift round the islands in their places' order, one leg at a time. */
 const order = (nodes: readonly { id: string; place: number }[]) => [...nodes].sort((a, b) => a.place - b.place).map(place => place.id);
 const driftOrders: Record<GlobeMap, string[]> = { storytree: order(snapshot.places), own: order(own.places), shop: order(shop.places) };
@@ -121,7 +115,7 @@ function offsetFor(step: TourStep | undefined, width: number) {
   const opening = step.kind === "beats" || step.kind === "statement" || step.kind === "fixes";
   // A chapter's lines start where the arrival's do (ADR-0890, amended 2026-10-05).
   const cardRight = Math.min(64, width * .04) + (opening ? Math.min(560, width * .46) : Math.min(400, width * .36));
-  const panel = step.panel === "story" || step.panelRoom ? Math.min(480, width - 24) + 12 : 0;
+  const panel = step.panel === "story" || step.panel === "note" || step.panelRoom ? Math.min(480, width - 24) + 12 : 0;
   return Math.round(Math.min(width * .2, (cardRight - panel) / 2));
 }
 
@@ -141,9 +135,12 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   const [browserOpen, setBrowserOpen] = useState(false);
   const [width, setWidth] = useState(window.innerWidth);
   const [arrived, setArrived] = useState(false);
-  // Each growth's own knowledge core, its notes appearing as the time-lapse reaches their dates (knowledge core 1.9).
+  // Each growth's own knowledge core, its notes appearing as the time-lapse reaches their dates (knowledge core 1.9). A public
+  // recording holds no transcript windows, so a session the core follows is drawn by its recorded reading path (ADR-0756).
   const growthCores = useMemo(() => Object.fromEntries((Object.keys(growths) as Grown[]).map(map => {
-    const made = createKnowledgeCore(growths[map].snapshot.project); made.take(growths[map].snapshot.changes ?? [], []); return [map, made];
+    const made = createKnowledgeCore(growths[map].snapshot.project, { reads: { windowReading: async (_project, session) =>
+      ({ session, at: growths[map].snapshot.window.to, absent: "Transcript windows were not included in this public recording." }) } });
+    made.take(growths[map].snapshot.changes ?? [], []); return [map, made];
   })) as Record<Grown, KnowledgeCore>, []);
   useEffect(() => () => Object.values(growthCores).forEach(made => made.dispose()), [growthCores]);
   // The shop's saved reading, at rest at its end, for free play on the shop (2.14).
@@ -266,11 +263,14 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   const openStepSurfaces = () => {
     if (!tour || free) return;
     setMode(requestedPanel === "knowledge" ? "library" : "forest");
-    setNote(undefined); core.pin(undefined); setBrowserOpen(false);
-    // A phone has no room for the app’s story panel beside the card: the step says it in words instead.
+    setBrowserOpen(false);
+    // A phone has no room for the app’s story panel or a note's card beside the card: the step says it in words instead.
+    const told = requestedPanel === "note" && window.innerWidth > 600 ? step?.note : undefined;
+    setNote(told); activeCore.pin(told);
     if (requestedPanel === "story" && window.innerWidth > 600) { setStory(ownerOf(step!.target)); setToldStory(ownerOf(step!.target)); setCapability(step!.target?.kind === "capability" ? step!.target.capability : undefined); }
     else { setStory(undefined); setCapability(undefined); }
-    if (step?.id === "knowledge-reads" && reader) core.select(reader);
+    // The shop's core draws the reads of the session the step follows, and no one's elsewhere (ADR-0921).
+    growthCores.shop.select(step?.map === "shop" ? step.follow : undefined);
   };
   useEffect(openStepSurfaces, [step?.id, state?.generation, free, everything, requestedPanel]);
   // Resuming after exploring closes what the visitor opened and puts the step's own surfaces back.
@@ -318,7 +318,8 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   const shownNotes = (grows(shownMap) ? [...knowledge(growths[shownMap].snapshot.changes ?? []).notes.values()] : notes).filter(item => String(item.fields.title ?? "").toLowerCase().includes(query.toLowerCase()));
   const selected = (story !== toldStory ? story : undefined) ?? (touring && !everything ? step?.select : undefined);
   const onStorytree = shownMap === "storytree";
-  const inMapChapter = touring && !everything && step?.explainer === "map" && shownMap === "shop";
+  // The knowledge chapter stays on the globe the map chapter leaves: the first round's four stories at its 03:08:57 survey.
+  const inMapChapter = touring && !everything && (step?.explainer === "map" || step?.explainer === "knowledge") && shownMap === "shop";
   const grown = inMapChapter ? mapChapter : grows(shownMap) ? growths[shownMap] : undefined;
   // The tour's step says how far the growth has played (seconds at 1×), over the whole plan or one stage of it (2.16).
   // Undefined is whole; a held seed is the point the globe grows from.
@@ -338,13 +339,17 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   const sessionsAt = touring && !everything && shownMap === "shop" ? step?.sessionsAt : undefined;
   const shopAt = useMemo(() => sessionsAt && shopSnapshot ? { recording: savedReading(shopSnapshot, { until: sessionsAt }) } : undefined, [sessionsAt]);
   useEffect(() => () => shopAt?.recording.reading.stop(), [shopAt]);
+  // The knowledge chapter's flags are the claims its sessions list reads at its moment, past the map chapter's first round.
+  const heldClaims = inMapChapter && step?.explainer === "knowledge" && shopAt !== undefined;
   const panelReading = onStorytree ? snapshot : shownMap === "shop" ? shopSnapshot : undefined;
   const shownProgress = onShop ? shopView.recording.progress() : shopAt ? shopAt.recording.progress() : progress;
-  // While the shop's sessions are on show, its core hears their recorded reads, as storytree's core hears its own.
+  // While the shop's sessions are on show, its core hears their recorded reads, as storytree's core hears its own: in free play
+  // to the recording's end, and on a step to the moment it reads.
   useEffect(() => {
-    if (!onShop) return;
-    return shopView.recording.reading.subscribe({ onNews: news => growthCores.shop.take(shop.changes ?? [], news.lines) });
-  }, [onShop, shopView, growthCores]);
+    const heard = onShop ? shopView.recording : shopAt?.recording;
+    if (!heard) return;
+    return heard.reading.subscribe({ onNews: news => growthCores.shop.take(shop.changes ?? [], news.lines) });
+  }, [onShop, shopView, shopAt, growthCores]);
   return <>
     {webgl && tour && <GlobeBoundary failed={failed}>
       <div className="forest-drawing" role="group" aria-label={onStorytree ? "Storytree’s saved project globe" : shownMap === "own" ? "Storytree’s own globe, growing as its agents built it" : "An online shop’s globe, as its agents built it"}
@@ -352,7 +357,7 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
         data-islands={drawn.islands.length} data-risen={growth ? [...growth.plan.islands.values()].filter(window => window.start <= growth.at).length : undefined} onPointerDown={explore} onWheel={explore}>
         <PlanetView core={grown ? growthCores[shownMap as Grown] : core} scene={drawn} places={grown?.places ?? places}
           frame={grown?.snapshot.scene} growth={growth} recordedSessions={mapFrame || (shopAt && shownMap === "shop") ? undefined : grown?.sessions}
-          wisps={mapFrame?.wisps ?? (shopAt && shownMap === "shop" ? wisps : grown ? [] : wisps)} selected={selected}
+          wisps={(heldClaims ? wisps : mapFrame?.wisps) ?? (shopAt && shownMap === "shop" ? wisps : grown ? [] : wisps)} selected={selected}
           highlighted={focus?.length === 0 ? ["planned-only"] : focus ?? highlight} onPick={pickStory} onNote={pickNote}
           onControls={onControls} surfaces={surfaces} framing={restingFraming} sideOffset={offsetFor(undefined, width)} mode={mode} />
       </div>

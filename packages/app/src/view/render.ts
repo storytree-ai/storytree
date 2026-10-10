@@ -1,7 +1,7 @@
 /** Capability 3 · Surfaces. The app story's controls; the desktop frame only mounts them. */
-import { markSvg, type MarkRoles } from "@storytree/mark";
+import { markSvg, type MarkRoles } from "@storytree/mark/drawing";
 
-/** The mark's roles on the page: the page's stylesheet sets these from its own light or dark colours (contract 2.11). */
+/** The mark's roles on the page (its drawing only: the page cannot load the package's file writers): the page's stylesheet sets these from its own light or dark colours (contract 2.11). */
 const PAGE_MARK: MarkRoles = { ocean: "var(--mark-ocean)", land: "var(--mark-land)", tree: "var(--mark-tree)", leaf: "var(--mark-leaf)" };
 
 export function renderAppMenu(): string {

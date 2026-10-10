@@ -5,7 +5,8 @@
  * Long text can come from a file; refusals are the library's own messages.
  *
  * - `new` hands the fields to the one library function that writes that kind, and the library
- *   judges them. A new contract skips the numbers its story package's tests carry, as plan_contract does. Friction and re-steers are not written here: they go through Session management's
+ *   judges them. A new contract skips the numbers its story package's tests carry, and one whose title runs past
+ *   LONG_CONTRACT_TITLE characters gets an advisory quoting CONTRACT_DEFINITION, as plan_contract does. Friction and re-steers are not written here: they go through Session management's
  *   capture functions (capability 9), whose evidence rules a person meets exactly as an agent does.
  * - A field's value is text, except `true`, `false`, a whole number, or one starting with `[` or
  *   `{`, which are read as JSON (a list of links, a number, a switch). `@file` reads the file.
@@ -18,7 +19,7 @@
  *   has no public editor yet, so that edit says what is missing.
  */
 import { isDeepStrictEqual } from "node:util";
-import { SchemaError, type KnowledgeKind, type Library, type PendingChange, type PhraseKind, type PlanChange, type RecordType, type WriteOptions } from "@storytree/library";
+import { CONTRACT_DEFINITION, LONG_CONTRACT_TITLE, SchemaError, type KnowledgeKind, type Library, type PendingChange, type PhraseKind, type PlanChange, type RecordType, type WriteOptions } from "@storytree/library";
 
 import { labelOf, Refusal, type Answer } from "../answer.js";
 import { commaSeparatedIds, type Args } from "../args.js";
@@ -188,7 +189,9 @@ const create: Verb = {
     const fields = fieldsOf(args);
     const options = kind === "contract" && typeof fields.capability === "string" ? { ...context.writer(), testedNumbers: await testedNumbersOf(context.cwd, library, fields.capability) } : context.writer();
     const written = await withIdLists(fields, (given) => write(library, given, options));
-    return { text: `Wrote ${kind} ${written.id}.`, next: [{ command: `storytree library read ${written.id}`, why: "read it back" }] };
+    const long = kind === "contract" && String(fields.title ?? "").length > LONG_CONTRACT_TITLE;
+    const advice = long ? `\nIts title runs past ${LONG_CONTRACT_TITLE} characters, which often means more than one promise: ${CONTRACT_DEFINITION} Split it with \`storytree library edit\` and \`storytree library new contract\` if so.` : "";
+    return { text: `Wrote ${kind} ${written.id}.${advice}`, next: [{ command: `storytree library read ${written.id}`, why: "read it back" }] };
   },
 };
 

@@ -131,8 +131,10 @@ const LIBRARY_API = [
  * heldBack joined it with contract 5.11: how the worklist says what a test run in progress holds back.
  */
 const RUNTIME_EXPORTS = [
+  "CONTRACT_DEFINITION",
   "ConnectionError",
   "DependencyLoopError",
+  "LONG_CONTRACT_TITLE",
   "LifecycleError",
   "LinkLoopError",
   "MissingReferenceError",

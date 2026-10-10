@@ -2,14 +2,14 @@
 // The real desktop page, built by ./build.mjs; all activity is synthetic. Desktop and narrow widths, expanded and collapsed.
 // PLANET_PLAYWRIGHT and PLANET_CHROMIUM point at playwright-core and a headless Chromium on the capturing machine.
 import assert from 'node:assert/strict';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { fakeBridge, withCapture } from '../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
+import { captureSeed, fakeBridge, seedFile, withCapture } from '../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const dist = path.join(here, 'dist/production');
-const seed = JSON.parse(readFileSync(path.join(here, '../../src/view/evidence/library-dots-clickable/seed.json'), 'utf8'));
+const { seed } = captureSeed('forest');
 const forest = seed.tree.stories.find(story => story.title === 'The forest');
 const now = Date.now();
 const at = minutes => new Date(now - minutes * 60_000).toISOString();
@@ -46,6 +46,9 @@ for (const [session, minutes, folder] of [['fp-idle-1', 42, 'tidy-hooks'], ['fp-
 }
 seed.lines = { lines, cursor: lines.length };
 seed.tree.arcs = [];
+// The window's files, named by the seed's story titles so a package rename cannot desync them.
+seed.files = { list: seedFile(seed, 'The forest', 'src/view/sessions-list.tsx'), styles: seedFile(seed, 'The forest', 'src/view/styles.css'),
+  readings: seedFile(seed, 'The agent link', 'src/readings.ts') };
 
 await withCapture({ folder: here, dist }, async ({ browser, origin, out, settle }) => {
 const measures = {};
@@ -75,7 +78,7 @@ const measures = {};
         windowReadings(project, sessions) { return Promise.all(sessions.map(one => this.windowReading(project, one))); },
         windowReading: async (_, session) => session === 'fp-builder'
           ? { session, at: new Date().toISOString(), inView: [], glimpses: [], compactions: 0,
-            opens: [open('packages/forest/src/view/sessions-list.tsx'), open('packages/forest/src/view/styles.css'), open('packages/agent-link/src/readings.ts', false)] }
+            opens: [open(data.files.list), open(data.files.styles), open(data.files.readings, false)] }
           : { session, at: new Date().toISOString(), absent: "no hook has named this session's transcript" },
       };
     }, seed);

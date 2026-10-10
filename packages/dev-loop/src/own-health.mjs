@@ -26,7 +26,7 @@ export const VERIFIED_BY_CI = "storytree test run on CI";
 // --- a test run -------------------------------------------------------------------------------
 
 /**
- * @typedef {{ name: string, suites: string[], file: string, status: "passed" | "failed" | "skipped", message?: string, ciRun?: string }} TestResult
+ * @typedef {{ name: string, suites: string[], file: string, status: "passed" | "failed" | "skipped", message?: string, ciRun?: string, unrun?: true }} TestResult
  */
 
 /**
@@ -96,7 +96,11 @@ function validEvidence(evidence, commit, platform = evidence?.platform) {
       ["passed", "failed", "skipped"].includes(test.status));
 }
 
-/** Replace only a local `platform:<os>` skip whose complete test identity passed in that system's matching run. */
+/**
+ * Replace only a local `platform:<os>` skip whose complete test identity passed in that system's matching run. A skip
+ * whose file that run never ran (its scope, ADR-0649 D4, did not reach the package) is marked `unrun`: the run could not
+ * re-run it, so it proves nothing either way.
+ */
 export function creditPlatforms(results, evidence, { root, commit }) {
   const key = (test, file = test.file) => JSON.stringify([file, test.suites, test.name]);
   const byPlatform = new Map();
@@ -107,13 +111,15 @@ export function creditPlatforms(results, evidence, { root, commit }) {
       const id = key(test);
       byTest.set(id, [...(byTest.get(id) ?? []), test]);
     }
-    byPlatform.set(run.platform, { run: run.run, byTest });
+    byPlatform.set(run.platform, { run: run.run, byTest, files: new Set(run.results.map((test) => test.file)) });
   }
   return results.map((test) => {
     const platform = test.status === "skipped" ? /^platform:([a-z0-9]+)(?:[-\s:]|$)/.exec(test.message ?? "")?.[1] : undefined;
     const proof = platform === undefined ? undefined : byPlatform.get(platform);
     if (proof === undefined) return test;
-    const matches = proof.byTest.get(key(test, path.relative(root, path.resolve(root, test.file)).replaceAll("\\", "/")));
+    const file = path.relative(root, path.resolve(root, test.file)).replaceAll("\\", "/");
+    if (!proof.files.has(file)) return { ...test, unrun: true };
+    const matches = proof.byTest.get(key(test, file));
     return matches?.length && matches.every((match) => match.status === "passed") ? { ...test, status: "passed", ciRun: `${CI_PLATFORMS[platform]}: ${proof.run}` } : test;
   });
 }
@@ -248,7 +254,7 @@ function moduleFile(target) {
 }
 
 /**
- * @typedef {{ number: string, state: "passing" | "failing" | "not-checked", passed: number, failed: number, skipped: number, total: number, note?: string, reason?: string, skip?: "owner" | "other" | `platform:${string}`, crashed?: true }} Verdict
+ * @typedef {{ number: string, state: "passing" | "failing" | "not-checked", passed: number, failed: number, skipped: number, total: number, note?: string, reason?: string, skip?: "owner" | "other" | `platform:${string}`, crashed?: true, unrun?: true }} Verdict
  */
 
 /**
@@ -308,7 +314,8 @@ export function judge({ contracts, results, coverage, show = (file) => file, pre
     } else if (counts.total === 0) verdict = { number, state: "not-checked", ...counts, reason: "no tests" };
     else if (counts.skipped > 0) {
       const why = skipReasons.length > 0 ? ` (${skipReasons.join("; ")})` : "";
-      verdict = { number, state: "not-checked", ...counts, skip: skipKind(skipReasons), reason: `${counts.skipped} of ${counts.total} tests skipped${why}` };
+      const unrun = own.every(({ status, unrun }) => status !== "skipped" || unrun === true);
+      verdict = { number, state: "not-checked", ...counts, skip: skipKind(skipReasons), reason: `${counts.skipped} of ${counts.total} tests skipped${why}`, ...(unrun ? { unrun } : {}) };
     } else verdict = { number, state: "passing", ...counts, note: tally };
     verdicts.set(number, verdict);
   }
@@ -448,7 +455,8 @@ function optional(field, value) {
  * and a verdict from elsewhere stands. One whose column already says the same is not written
  * again, so its note keeps the commit it was first not re-run at. A run that saw no CI evidence for
  * a platform (one missing from `platformsSeen`) cannot re-run a test that only runs there either,
- * so a passing verdict from elsewhere stands against its `platform:<os>` skip. The reported
+ * so a passing verdict from elsewhere stands against its `platform:<os>` skip; so does one whose skipped tests that
+ * platform's run never reached (`unrun`, its scope left their package out). The reported
  * column is never touched: that is what an agent says, and no agent has spoken here.
  * @param {import("@storytree/library").Library} library
  * @param {Map<string, string>} contractIds contract number -> id
@@ -528,7 +536,7 @@ async function markNotChecked(library, id, verdict, writer, platformsSeen) {
   // a verdict from elsewhere (an acceptance run, ADR-0825 D5) stands.
   if (verdict.skip === undefined && verdict.crashed !== true) return false;
   const earlier = (await library.health(id)).verified;
-  if (unseenPlatform(verdict.skip, platformsSeen) && earlier.state === "passing") return false;
+  if ((verdict.unrun === true || unseenPlatform(verdict.skip, platformsSeen)) && earlier.state === "passing") return false;
   const was = earlier.state === "not-checked" ? earlier.was : { state: earlier.state, at: earlier.at };
   const same = earlier.state === "not-checked" && earlier.skip === verdict.skip && earlier.was?.state === was?.state && earlier.was?.at === was?.at;
   if (same) return false;

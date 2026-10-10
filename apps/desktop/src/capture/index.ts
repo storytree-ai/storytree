@@ -14,5 +14,7 @@ export { seedWorkStates } from "./testing/seed.js";
 export { runCapture, withCapture, settle } from "./runner.js";
 export type { CaptureContext, CapturePage, CaptureSeed, CaptureView, SeededCaptureOptions } from "./runner.js";
 export { buildCapture } from "./build.js";
+export { captureSeed, seedFile } from "./seeds.js";
+export type { CaptureSeedName } from "./seeds.js";
 export { visibleGlobeTargets, zoomGlobe } from "./globe.js";
 export type { GlobeTarget, GlobeTargets } from "./globe.js";

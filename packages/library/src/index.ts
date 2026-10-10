@@ -13,7 +13,7 @@ export { ConnectionError, ProjectGoneError, ProjectNameError, RestoreRefusedErro
 export { LinkLoopError, SupersessionLoopError } from "./knowledge/index.js";
 export { DependencyLoopError, MissingReferenceError } from "./references.js";
 export { NumberTakenError } from "./transactions/index.js";
-export { LifecycleError, RetireRefusedError, WaitLoopError } from "./work/index.js";
+export { CONTRACT_DEFINITION, LifecycleError, LONG_CONTRACT_TITLE, RetireRefusedError, WaitLoopError } from "./work/index.js";
 export { MissingUpgradeError, NewerSchemaError, SchemaError, UnknownTypeError } from "./schema/index.js";
 
 export type { FieldsOf, KnowledgeKind, RecordType, SchemaRecord, WriteOptions } from "./schema/index.js";

@@ -9,6 +9,7 @@
  * The card names each tool in backticks, and uses backticks for nothing else: its tests hold it to
  * naming exactly the tools the server has, within 60 lines.
  */
+import { CONTRACT_DEFINITION } from "@storytree/library";
 import { decisionRights } from "@storytree/session-management";
 
 const DECISION_RIGHTS = decisionRights();
@@ -22,12 +23,8 @@ const DECISION_RIGHTS_LINES = [
   `- No file moves these: ${DECISION_RIGHTS.honesty.join("; ")}.`,
 ].join("\n");
 
-/**
- * What one contract is, in two sentences (contract 7.8): the card says it, and plan_contract quotes it
- * when a title runs long (6.57), so two planners split one set of requirements alike.
- */
-export const CONTRACT_DEFINITION =
-  "A contract is one behaviour seen from outside the code: what goes in (its inputs), what comes out (its outputs) and its errors. A promise that joins two such behaviours is two contracts, and one about how the code works inside is not a contract yet.";
+/** What one contract is (contract 7.8): the library owns the definition, and plan_contract quotes it when a title runs long (6.57). */
+export { CONTRACT_DEFINITION };
 
 const HABITS_CARD = `storytree keeps the plan of this project and records what you do, so the user can watch it grow. Work with it like this.
 

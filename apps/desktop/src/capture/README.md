@@ -31,6 +31,15 @@ method fails with its name. A view writes `<name>.png` and, when measured,
 `<name>.json`; `picture: false` omits the picture and `measurement` changes the JSON
 filename. The return value is the array of measured values.
 
+Shared seeds: `captureSeed('code-rows')` returns storytree's own library snapshot
+and its code survey; `captureSeed('forest')` returns the eight-story forest
+snapshot. Each call is a fresh copy. Refresh one with the script beside it:
+`seed.mts` in `code-rows`, `export.mjs` in `library-dots-clickable`. Name a
+story's file with `seedFile(seed, 'The agent link', 'src/readings.ts')`, never a
+hand-written `packages/<name>/…`. The path follows the seed's own story title, as
+the globe keys its files, so renaming the live package cannot desync it. A story
+the seed lacks fails, and the error names the stories the seed has.
+
 Globe captures built with `buildCapture` can call `visibleGlobeTargets(page)` once
 the globe is ready. It returns the camera's `zoom` and sorted `dots` and `islands`,
 each with an `id` and page coordinates `x`, `y`. It conservatively chooses centres

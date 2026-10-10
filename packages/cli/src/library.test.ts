@@ -8,6 +8,7 @@ import { userInfo } from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 
+import { CONTRACT_DEFINITION } from "@storytree/library";
 import { claim, openActivityLog } from "@storytree/session-management";
 
 import { parseArgs } from "./args.js";
@@ -378,6 +379,24 @@ test("3.15 `new contract` numbers past the capability's contracts and the number
     assert.equal(written.code, 0, written.stderr);
     const contract = (await library.list("contract")).find(({ id }) => written.stdout.includes(id));
     assert.equal((contract?.fields as Record<string, unknown> | undefined)?.title, "1.4 · Totals its items");
+  });
+});
+
+test("3.16 `new contract` with a title past 300 characters is written, and its answer adds an advisory quoting the library's definition of a contract; a shorter title gets none", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const story = await library.addStory({ title: "The shop" });
+    const capability = await library.addCapability({ title: "1 · Cart", story: story.id });
+
+    const long = await world.run(["library", "new", "contract", "--capability", capability.id, "--title", `Totals its items ${"and applies every discount ".repeat(12)}`]);
+    assert.equal(long.code, 0, long.stderr);
+    assert.match(long.stdout, /past 300 characters/);
+    assert.ok(long.stdout.includes(CONTRACT_DEFINITION), long.stdout);
+    assert.equal((await library.list("contract")).length, 1);
+
+    const short = await world.run(["library", "new", "contract", "--capability", capability.id, "--title", "Empties"]);
+    assert.equal(short.code, 0, short.stderr);
+    assert.ok(!short.stdout.includes(CONTRACT_DEFINITION), short.stdout);
   });
 });
 

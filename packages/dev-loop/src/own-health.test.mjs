@@ -440,6 +440,10 @@ test("5.4 Windows CI at the same commit verifies Get storytree 1.9 and Front doo
       assert.ok(verified.note.includes(windowsRun), "names the actual Windows run");
       assert.equal((await record(undefined)).state, "passing", "a run without Windows evidence cannot re-run it, so the Windows pass stands");
       assert.equal((await record({ ...evidence, results: [{ ...test, status: "failed" }] })).state, "not-checked", "Windows evidence that does not prove it takes the pass away");
+      await record(evidence);
+      const outOfScope = { ...evidence, results: [{ ...test, file: "packages/other/src/launched.test.ts", status: "passed" }] };
+      assert.equal((await record(outOfScope)).state, "passing", "a scoped Windows run that never ran the test's file cannot re-run it, so the Windows pass stands");
+      assert.equal((await record({ ...evidence, results: [{ ...test, name: "different test", status: "passed" }] })).state, "not-checked", "a Windows run of the test's file without the test takes the pass away");
       mkdirSync(path.join(directory, "unit-2"));
       writeFileSync(path.join(directory, "unit-2", "result.json"), JSON.stringify({ ...evidence, unit: "other", results: [{ ...test, file: "packages/other/src/test.ts", status: "passed" }] }));
       assert.equal(readCiEvidence(directory, { commit, run: windowsRun, platform: "win32" }).results.length, 2, "reads every unit, not only the last");

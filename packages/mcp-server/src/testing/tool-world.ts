@@ -43,6 +43,7 @@ export const TOOLS = [
   "plan_capability",
   "plan_contract",
   "plan_story",
+  "present_question",
   "raise_question",
   "read_context",
   "record_friction",

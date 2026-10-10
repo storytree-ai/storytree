@@ -344,6 +344,36 @@ test("6.11 it raises a question on an arc and holds an increment on it, which a 
   });
 });
 
+test("6.55 present_question marks a question as being put to the owner by the calling session; another live session is refused, naming it, and open flags it; done frees it, and a settled question is refused", async () => {
+  await withProject(async ({ folder, log, project }) => {
+    for (const session of ["claude-a", "claude-b"]) await log.append(project, { session, harness: "claude-code", source: "hook", kind: "session-started" });
+    await withAgent(folder, claudeCode("claude-a"), async (a) => {
+      await withAgent(folder, claudeCode("claude-b"), async (b) => {
+        const { arc } = await planned(a);
+        const question = idOf(await a.call("raise_question", { arc, title: "Which mailer?", stakes: "Cost", statement: "Mailgun or SES?", context: "Both work here", options: "Mailgun; SES" }));
+
+        const presented = await a.call("present_question", { question });
+        assert.equal(presented.isError, false, presented.text);
+        const refused = await b.call("present_question", { question });
+        assert.equal(refused.isError, true);
+        assert.match(refused.text, /claude-a/, "it names the session putting it to the owner");
+        const opened = await b.call("open", { id: question });
+        assert.match(opened.text, /Being put to the owner by Claude Code session claude-a/);
+
+        const done = await a.call("present_question", { question, done: true });
+        assert.equal(done.isError, false, done.text);
+        assert.doesNotMatch((await b.call("open", { id: question })).text, /Being put to the owner/);
+        assert.equal((await b.call("present_question", { question })).isError, false, "free once A is done");
+
+        await a.call("settle_question", { question, answer: "Mailgun" });
+        const settled = await a.call("present_question", { question });
+        assert.equal(settled.isError, true);
+        assert.match(settled.text, /settled/);
+      });
+    });
+  });
+});
+
 test("6.52 park_increment parks an increment born held on a question raised first, so a claim finds it waiting on the owner from the moment it is parked", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {

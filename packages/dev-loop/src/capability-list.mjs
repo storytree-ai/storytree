@@ -4,7 +4,9 @@
 // opening "Capability N · <title>", a test file's one numbered capability), else the code survey's
 // inference. A file none of these places changes no capability. The branch's increment is the one its
 // name carries (a workspace's branch is claude/increment-<id>-<suffix>); a branch naming none is not
-// checked. The library holds the list, so `pnpm gate` runs this as check:capability-list, and CI can
+// checked. It reads the plan with that increment's pending changes laid over, and fails one written
+// against a record that has changed since (ADR-0966 D3, D5).
+// The library holds the list, so `pnpm gate` runs this as check:capability-list, and CI can
 // run it on its own (`node --import tsx packages/dev-loop/src/capability-list.mjs`) where it can reach the library.
 
 import { execFileSync } from "node:child_process";
@@ -22,6 +24,23 @@ export function incrementOfBranch(branch) {
 export function currentBranch(root, env = process.env) {
   if (env.GITHUB_HEAD_REF) return env.GITHUB_HEAD_REF;
   return execFileSync("git", ["rev-parse", "--abbrev-ref", "HEAD"], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+}
+
+/**
+ * The plan `branch`'s own checks read (ADR-0966 D3): the library's live plan with the pending changes of
+ * the increment its name carries laid over, or the live plan when it names none.
+ */
+export function branchTree(library, branch) {
+  return library.projectTree({ pendingOf: incrementOfBranch(branch) });
+}
+
+/**
+ * One sentence for each of `increment`'s pending changes written against an older version of its record
+ * (ADR-0966 D5), as the library's stalePending gives them; empty when none is.
+ */
+export function staleProblems(increment, stale) {
+  return stale.map(({ record, type, base, moved }) =>
+    `${increment}'s pending change to ${type} ${record} was read at history entry ${base}, but entry ${moved.seq} (${moved.action} ${moved.at}${moved.actor === undefined ? "" : ` by ${moved.actor}`}) has changed it since: read it again and write the change again (ADR-0966 D5)`);
 }
 
 /** Whether the gate runs the check, and why not when it does not. */
@@ -80,25 +99,33 @@ if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.a
   const decision = capabilityListFor(root);
   if (!decision.run) console.log(`not checked: ${decision.reason}`);
   else {
-    const increment = incrementOfBranch(currentBranch(root));
+    const branch = currentBranch(root);
+    const increment = incrementOfBranch(branch);
     const { withLibrary } = await import("./build-guidance.mjs");
     const { changedFiles } = await import("./test-scope.mjs");
     const changed = changedFiles(root);
     const verdict = await withLibrary(async (library) => {
       const record = await library.get(increment);
       if (record === null || record.type !== "increment") return { missing: true };
-      const tree = await library.projectTree();
+      const tree = await branchTree(library, branch);
       const owners = await capabilitiesOf(root, changed, tree, { readText: textReader(root) });
-      return { unlisted: unlistedCapabilities(owners, record.fields.capabilities ?? [], tree), checked: owners.size };
+      const stale = staleProblems(increment, (await library.stalePending(increment)) ?? []);
+      return { unlisted: unlistedCapabilities(owners, record.fields.capabilities ?? [], tree), checked: owners.size, stale };
     }, "node --import tsx packages/dev-loop/src/capability-list.mjs");
     if (verdict === undefined) process.exitCode = 1;
     else if (verdict.missing) {
       console.error(`This branch names ${increment}, which is not an increment in the library.`);
       process.exitCode = 1;
-    } else if (verdict.unlisted.length > 0) {
-      const lines = verdict.unlisted.map(({ capability, title, files }) => `  ${title} (${capability}): ${files.join(", ")}`);
-      console.error(`This branch changes capabilities ${increment} does not list:\n${lines.join("\n")}\nAdd each to its capabilities list if the increment changes it (\`storytree arc increment edit ${increment} --capabilities …\`, or the edit_plan tool), or take the change out of this branch (ADR-0949 D3).`);
-      process.exitCode = 1;
-    } else console.log(`every capability this branch changes (${verdict.checked} file${verdict.checked === 1 ? "" : "s"} placed) is on ${increment}'s list`);
+    } else {
+      if (verdict.stale.length > 0) {
+        console.error(`This branch's pending plan changes were written against records that have changed since:\n${verdict.stale.map((problem) => `  ${problem}`).join("\n")}`);
+        process.exitCode = 1;
+      }
+      if (verdict.unlisted.length > 0) {
+        const lines = verdict.unlisted.map(({ capability, title, files }) => `  ${title} (${capability}): ${files.join(", ")}`);
+        console.error(`This branch changes capabilities ${increment} does not list:\n${lines.join("\n")}\nAdd each to its capabilities list if the increment changes it (\`storytree arc increment edit ${increment} --capabilities …\`, or the edit_plan tool), or take the change out of this branch (ADR-0949 D3).`);
+        process.exitCode = 1;
+      } else console.log(`every capability this branch changes (${verdict.checked} file${verdict.checked === 1 ? "" : "s"} placed) is on ${increment}'s list`);
+    }
   }
 }

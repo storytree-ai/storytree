@@ -9,7 +9,9 @@
 //
 // The plan is shared by every lane, so the gate holds a branch only to the edges between stories whose
 // packages it changes (increment_dbe087a55e1b): another lane's edge, planned before its code lands,
-// is printed as a note naming it, not a failure. A branch git cannot read is held to every edge.
+// is printed as a note naming it, not a failure. A branch git cannot read is held to every edge. The
+// branch reads the plan with its own increment's pending changes laid over (ADR-0966 D3), so its
+// pending edge is checked here and another lane's never reaches it.
 
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -100,11 +102,16 @@ if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.a
   const root = fileURLToPath(new URL("../../..", import.meta.url));
   const { withLibrary } = await import("./build-guidance.mjs");
   const { changedFiles } = await import("./test-scope.mjs");
+  const { branchTree, currentBranch } = await import("./capability-list.mjs");
   let changed;
+  let branch;
   try {
     changed = changedFiles(root);
   } catch {} // git cannot say what this branch changes: hold it to every edge
-  const verdict = await withLibrary((library) => library.projectTree().then((tree) => planEdgeVerdict(root, tree, changed)), "pnpm check:plan-edges");
+  try {
+    branch = currentBranch(root);
+  } catch {} // git cannot say which branch this is: read the live plan
+  const verdict = await withLibrary((library) => branchTree(library, branch).then((tree) => planEdgeVerdict(root, tree, changed)), "pnpm check:plan-edges");
   if (verdict === undefined) process.exitCode = 1;
   else {
     if (verdict.notes.length > 0) {

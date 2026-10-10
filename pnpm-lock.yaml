@@ -778,6 +778,9 @@ importers:
 
   packages/quality-assurance:
     dependencies:
+      '@storytree/guardrails':
+        specifier: workspace:*
+        version: link:../guardrails
       '@storytree/library':
         specifier: workspace:*
         version: link:../library

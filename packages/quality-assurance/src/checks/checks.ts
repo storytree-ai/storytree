@@ -18,6 +18,14 @@ export interface Check {
   readonly title: string;
   readonly question: string;
   readonly enforces: readonly Enforced[];
+  /** Each part graduated to a deterministic check in Guardrails, with that check's name (ADR-0956 D5); absent when none has. */
+  readonly graduated?: readonly Graduated[];
+}
+
+/** A part of a check that graduated, and the Guardrails check that now enforces it. */
+export interface Graduated {
+  readonly part: string;
+  readonly enforcedBy: string;
 }
 
 /** Every live check, in id order, each with the notes it enforces. A retired check is not in it. */
@@ -36,6 +44,7 @@ export async function checks(library: Library): Promise<Check[]> {
       const fields = note.fields as { title?: string; term?: string };
       return { id, kind: note.type, title: fields.title ?? fields.term ?? id };
     }),
+    ...(check.fields.graduated === undefined ? {} : { graduated: check.fields.graduated }),
   }));
 }
 
@@ -48,6 +57,7 @@ export function checksText(reading: readonly Check[]): string {
       `  ${check.id}  ${check.title}`,
       `    ${check.question}`,
       ...check.enforces.map((note) => `    enforces ${note.id}${note.kind === undefined ? "  (no longer live)" : `  [${note.kind}]  ${note.title}`}`),
+      ...(check.graduated ?? []).map((part) => `    graduated to Guardrails' ${part.enforcedBy}: ${part.part}`),
     ]),
   ].join("\n");
 }

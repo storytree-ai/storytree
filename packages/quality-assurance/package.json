@@ -10,6 +10,7 @@
     "typecheck": "tsc -p ."
   },
   "dependencies": {
+    "@storytree/guardrails": "workspace:*",
     "@storytree/library": "workspace:*",
     "zod": "^4.6.5"
   },

@@ -11,7 +11,7 @@ import path from "node:path";
 import { test } from "node:test";
 
 import { connect } from "@storytree/library";
-import pg from "pg";
+import { dropTestDatabases } from "@storytree/local-postgres/testing";
 
 import { BACKUP_EVERY_MS, BACKUPS_KEPT, backUp, keepBackups } from "./backups.js";
 
@@ -56,13 +56,7 @@ test("1.8 the app writes a snapshot of each project to backups/<project>/, keepi
   } finally {
     await storytree.close();
     rmSync(dir, { recursive: true, force: true });
-    const admin = new pg.Client({ connectionString: process.env["STORYTREE_TEST_PG_ADMIN_URL"] || url });
-    await admin.connect();
-    try {
-      for (const name of [site, app, copy]) await admin.query(`DROP DATABASE IF EXISTS "storytree_${name}" WITH (FORCE)`);
-    } finally {
-      await admin.end();
-    }
+    await dropTestDatabases([site, app, copy].map((name) => `storytree_${name}`));
   }
 });
 

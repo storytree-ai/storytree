@@ -23,7 +23,7 @@ import path from "node:path";
 import { test } from "node:test";
 
 import { connect } from "@storytree/library";
-import pg from "pg";
+import { dropTestDatabases } from "@storytree/local-postgres/testing";
 
 import { syncGuidance } from "./build-guidance.mjs";
 import { BUDGETS, driftOf, expectedFiles, overBudget, readRoles, REGION_END, REGION_START } from "./guidance.mjs";
@@ -246,12 +246,6 @@ async function withLibrary(body) {
     }
   } finally {
     await storytree.close();
-    const admin = new pg.Client({ connectionString: process.env.STORYTREE_TEST_PG_ADMIN_URL || url });
-    await admin.connect();
-    try {
-      await admin.query(`DROP DATABASE IF EXISTS "storytree_${name}" WITH (FORCE)`);
-    } finally {
-      await admin.end();
-    }
+    await dropTestDatabases([`storytree_${name}`]);
   }
 }

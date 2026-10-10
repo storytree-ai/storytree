@@ -22,6 +22,7 @@
     "pg": "^8.23.0"
   },
   "devDependencies": {
+    "@storytree/local-postgres": "workspace:*",
     "@types/node": "^24.13.6",
     "@types/pg": "^8.23.1",
     "builder-util": "26.15.3",

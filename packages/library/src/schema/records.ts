@@ -141,6 +141,11 @@ export class SchemaRecords {
     return record as SchemaRecord | null;
   }
 
+  /** Check `fields` as a write of a `type` record would, refusing them (SchemaError) with nothing written. */
+  check(type: RecordType, fields: Record<string, unknown>): void {
+    this.#check({ id: "", type, version: this.#version(type), fields, createdAt: "", updatedAt: "" });
+  }
+
   /** Retire the record, keeping the reason in its history: capability 2's retire, unchanged. */
   async retire(id: string, reason: string, options: WriteOptions = {}): Promise<void> {
     await this.#transactions.retire({ id, reason, ...writeOptionsOf(options) });

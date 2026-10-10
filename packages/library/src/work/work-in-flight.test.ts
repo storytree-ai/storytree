@@ -240,6 +240,47 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual([stored?.fields["capabilities"], stored?.fields["links"], stored?.fields["touches"]], [[capability.id], [story.id], undefined]);
   });
 
+  contract("10.12", "an active increment takes a pending change to a story, capability or contract it did not plan, leaving the live record alone; a second change merges; one another open increment holds is refused naming it", async ({ work, flight, records, transactions }) => {
+    const arc = await work.createArc(ARC);
+    const story = await work.addStory({ title: "Visitor can sign up" });
+    const form = await work.addCapability({ title: "Email form", story: story.id });
+    const promise = await work.addContract({ title: "Accepts a valid address", capability: form.id });
+    const increment = await flight.addIncrement({ arc: arc.id, ...WORK });
+    const other = await flight.addIncrement({ arc: arc.id, ...WORK });
+    const latest = async (id: string) => (await transactions.history({ id, newest: 1 }))[0]!.seq;
+
+    const unchanged = await transactions.history();
+    await assert.rejects(flight.pendChange(increment.id, { record: form.id, fields: { title: "Sign-up form" } }), RangeError, "a proposal takes none");
+    await flight.advanceIncrement(increment.id, "active");
+    const planned = await work.addCapability({ title: "Confirmation link", story: story.id });
+    const claimed = await transactions.history();
+    assert.deepEqual(await flight.pendChange(increment.id, { record: planned.id, fields: { title: "Link" } }), { plannedHere: true }, "one it planned is edited live");
+    await assert.rejects(flight.pendChange(increment.id, { record: arc.id, retire: "gone" }), (error: unknown) => error instanceof MissingReferenceError && error.field === "record");
+    await assert.rejects(flight.pendChange(increment.id, { record: story.id, fields: { titel: "x" } as never }), SchemaError);
+    await assert.rejects(flight.pendChange(increment.id, { record: form.id, fields: { story: "story_000000000000" } }), MissingReferenceError);
+    assert.deepEqual(await transactions.history(), claimed, "nothing was written");
+    assert.ok(unchanged.length < claimed.length);
+
+    const base = await latest(form.id);
+    const first = await flight.pendChange(increment.id, { record: form.id, fields: { title: "Sign-up form", description: "Where they type it" } });
+    assert.deepEqual(first, { pending: { record: form.id, type: "capability", base, before: { title: form.fields.title, description: null }, after: { title: "Sign-up form", description: "Where they type it" } } });
+    assert.deepEqual(await records.get(form.id), form, "the live record is left alone");
+    await work.editCapability(form.id, { description: "Typed by hand" });
+    await flight.pendChange(increment.id, { record: form.id, fields: { title: "Address form" } });
+    await flight.pendChange(increment.id, { record: promise.id, retire: "overtaken by the address form" });
+    await assert.rejects(flight.pendChange(increment.id, { record: promise.id, fields: { title: "x" } }), RangeError, "an edit after a pending retirement");
+    assert.deepEqual((await records.get(increment.id))?.fields.pending, [
+      { record: form.id, type: "capability", base, before: { title: form.fields.title, description: null }, after: { title: "Address form", description: "Where they type it" } },
+      { record: promise.id, type: "contract", base: await latest(promise.id), retire: "overtaken by the address form" },
+    ], "merged: the first base and before stay");
+
+    await flight.advanceIncrement(other.id, "active");
+    const held = await transactions.history();
+    await assert.rejects(flight.pendChange(other.id, { record: form.id, retire: "unwanted" }), (error: unknown) => error instanceof RangeError && error.message.includes(increment.id));
+    assert.deepEqual(await transactions.history(), held, "nothing was written");
+    assert.equal(await flight.pendChange("increment_000000000000", { record: form.id, retire: "x" }), null);
+  });
+
   contract("10.9", "an active increment returns to proposal keeping its parked date; a proposal or closed one is refused with nothing written", async ({ work, flight, transactions }) => {
     const arc = await work.createArc(ARC);
     const increment = await flight.addIncrement({ arc: arc.id, ...WORK });

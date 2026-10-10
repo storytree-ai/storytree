@@ -427,9 +427,10 @@ test("5.37 when a claim on an increment ends because its branch's pull request m
     const increment = await library.addIncrement({ arc: arc.id, title: "Address form", objective: "Rename it", body: "Rename the email form." });
     assert.equal((await claim(as("A", { branch: "feature/signup" }), increment.id, "renaming the form")).ok, true);
     await library.pendChange(increment.id, { record: emailForm, fields: { title: "Address form" } });
-    await sleep(20);
 
-    const merges: MergeWatch = { mergedPulls: async (_folder, branch) => (branch === "feature/signup" ? [{ number: 7, mergedAt: new Date().toISOString() }] : []), everyMs: 0 };
+    // Merged a minute after the claim was taken, as GitHub would date it.
+    const mergedAt = new Date(Date.now() + 60_000).toISOString();
+    const merges: MergeWatch = { mergedPulls: async (_folder, branch) => (branch === "feature/signup" ? [{ number: 7, mergedAt }] : []), everyMs: 0 };
     let applied: readonly string[] | undefined;
     const reach = async () => ({
       applyPending: async (id: string, pr?: string) => {

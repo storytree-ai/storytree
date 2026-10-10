@@ -12,7 +12,7 @@ import { listRuns } from "@storytree/processes/listing";
 import type { ActivityLog, Line } from "../activity/index.js";
 import { returnUnclosed } from "../claims/claims.js";
 import { rememberClosedOut } from "../hooks/close-out-reminder.js";
-import { held, partOf } from "../readings.js";
+import { partOf, standingFrom } from "../readings.js";
 import { resolveBranches, type BranchWatch } from "./branch-states.js";
 
 /** Who is closing out, and where. */
@@ -53,7 +53,7 @@ export async function closeOut(context: CloseOutContext, said: { safe: boolean; 
     // Read only standing claims, under the same lock as admission: a concurrent claim is either
     // included here or is fresh work after close-out. Never release another session's takeover.
     const released: string[] = [];
-    for (const [id, claim] of held(await log.standing(), new Map(), new Set(), 0, Infinity)) {
+    for (const [id, claim] of standingFrom(await log.standing())) {
       if (claim.session !== context.session) continue;
       if (context.library !== undefined) await returnUnclosed({ library: context.library, session: context.session, ...(context.writer === undefined ? {} : { writer: context.writer }) }, claim.increment);
       await log.append({ ...who, kind: "released", ...partOf(claim) });

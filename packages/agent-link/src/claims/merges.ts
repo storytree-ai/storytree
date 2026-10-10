@@ -21,7 +21,8 @@ import path from "node:path";
 import type { ActivityLog, Line } from "../activity/index.js";
 export { currentBranch } from "../activity/branch.js";
 import { ask } from "../setup/machine.js";
-import { claimsFrom, readClaims, type Claim } from "./claims.js";
+import { claimsFrom } from "../readings.js";
+import { readClaims, type Claim } from "./claims.js";
 
 /** A merged pull request, as GitHub reports it. */
 export interface MergedPull {

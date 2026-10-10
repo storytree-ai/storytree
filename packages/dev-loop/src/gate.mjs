@@ -10,6 +10,8 @@
 // branch whose name carries no increment is NOT RUN with that reason.
 // The gate holds the machine's heavy-run lock (packages/dev-loop/src/heavy-lock.mjs) for its whole run, so
 // concurrent sessions' gates queue; its test step runs under that hold.
+// Before its first check it installs a worktree no session-start hook installed (a pool lane makes its
+// own with storytree workspace), as `pnpm storytree` does; one its install cannot fix runs no check (7.5).
 import { execFileSync, spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -17,6 +19,7 @@ import { fileURLToPath } from "node:url";
 
 import { capabilityListFor } from "./capability-list.mjs";
 import { acquireHeavyLock } from "./heavy-lock.mjs";
+import { check } from "./provision-worktree.mjs";
 import { REGION_START, REGION_END, ROLE_DIRS } from "./guidance.mjs";
 import { changedFiles, resultsTable } from "./test-scope.mjs";
 
@@ -51,13 +54,18 @@ function generatedRegion(text) {
 }
 
 /** Continue after ordinary failures, but never report an interrupted check as a pass. */
-export async function runGate({ root = repoRoot, guidance = false, signal, forceSignal, log = console.log, run = runCheck } = {}) {
+export async function runGate({ root = repoRoot, guidance = false, signal, forceSignal, log = console.log, run = runCheck, provision = () => 0 } = {}) {
+  const installed = provision(log) === 0;
   const decision = guidanceFor(root, guidance);
   // The gate runs in a checkout, whose branch Git knows; CI's own run of the check reads its pull request's.
   const listed = capabilityListFor(root, {});
   const results = { typecheck: "not run", test: "not run", "check:guidance": "not run", "check:plan-edges": "not run", "check:capability-list": "not run" };
   const reasons = { "check:guidance": decision.reason, "check:capability-list": listed.reason };
   for (const step of Object.keys(results)) {
+    if (!installed) {
+      reasons[step] = "worktree not installed: see the line above";
+      continue;
+    }
     if (signal?.aborted) break;
     if (step === "check:guidance" && !decision.run) continue;
     if (step === "check:capability-list" && !listed.run) continue;
@@ -80,7 +88,7 @@ export async function runGate({ root = repoRoot, guidance = false, signal, force
       if (results[step] === "not run") reasons[step] = "interrupted";
     }
   }
-  const code = signal?.aborted ? 130 : Object.values(results).includes("fail") ? 1 : 0;
+  const code = signal?.aborted ? 130 : !installed || Object.values(results).includes("fail") ? 1 : 0;
   const rerunHint = code === 0 ? null : `rerun: pnpm ${guidance ? "run gate --guidance" : "gate"}`;
   log(`\n${resultsTable(results, { reasons, rerunHint })}`);
   return code;
@@ -148,7 +156,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     let release;
     try {
       release = await acquireHeavyLock({ root: repoRoot, what: "pnpm gate", stopped: () => controller.signal.aborted });
-      process.exitCode = await runGate({ guidance: args.includes("--guidance"), signal: controller.signal, forceSignal: force.signal });
+      process.exitCode = await runGate({ guidance: args.includes("--guidance"), provision: (log) => check({ root: repoRoot, log }), signal: controller.signal, forceSignal: force.signal });
     } catch (error) {
       console.error(`gate: ${error.message}`);
       process.exitCode = controller.signal.aborted ? 130 : 1;

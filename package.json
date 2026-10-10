@@ -9,7 +9,7 @@
   },
   "scripts": {
     "storytree": "node packages/dev-loop/src/provision-worktree.mjs --check && node --import tsx packages/cli/src/bins/storytree.ts",
-    "test": "node --import tsx packages/dev-loop/src/test.mjs",
+    "test": "node packages/dev-loop/src/provision-worktree.mjs --check && node --import tsx packages/dev-loop/src/test.mjs",
     "gate": "node packages/dev-loop/src/gate.mjs",
     "typecheck": "pnpm -r typecheck",
     "test-ratio": "node packages/dev-loop/src/test-ratio.mjs",

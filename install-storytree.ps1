@@ -2,8 +2,12 @@
 param([switch]$LibraryOnly, [ValidateSet('stable', 'development')][string]$Channel)
 $ErrorActionPreference = 'Stop'
 
-function Initialize-StorytreeChannel([string]$HomeDir, [string]$InstallDir, [string]$Requested) {
+# Choose the channel without writing it: a record written before anything installed would refuse a retry.
+function Resolve-StorytreeChannel([string]$HomeDir, [string]$InstallDir, [string]$Requested) {
+  if ($Requested -and $Requested -cnotin @('stable', 'development')) { throw 'Choose a valid release channel: stable or development.' }
   $file = Join-Path $HomeDir 'release-channel.json'
+  $markerFile = Join-Path $InstallDir 'resources/storytree-installed'
+  $installed = (Test-Path -LiteralPath $markerFile) -or (Test-Path -LiteralPath (Join-Path $InstallDir 'storytree-0.3.exe'))
   $existing = $null
   if (Test-Path -LiteralPath $file) {
     try {
@@ -11,26 +15,23 @@ function Initialize-StorytreeChannel([string]$HomeDir, [string]$InstallDir, [str
       if ($saved.schema -ne 1 -or $saved.channel -cnotin @('stable', 'development')) { throw 'invalid schema or channel' }
       $existing = [string]$saved.channel
     } catch { throw "The saved release channel could not be read: $($_.Exception.Message). Keep $file for diagnosis; delivery will not replace it." }
-  } else {
-    $markerFile = Join-Path $InstallDir 'resources/storytree-installed'
-    if (Test-Path -LiteralPath $markerFile) {
-      $marker = (Get-Content -LiteralPath $markerFile -Raw).Trim()
-      if ($marker -ceq 'nsis') { $existing = 'development' }
-      elseif ($marker -ceq 'nsis-stable') { $existing = 'stable' }
-      else { throw 'The installed app has an unknown release channel marker. Check it before retrying delivery.' }
-    }
+    # With no app installed, the record is what a failed delivery left behind; an explicit choice replaces it.
+    if (-not $installed -and $Requested) { $existing = $null }
+  } elseif (Test-Path -LiteralPath $markerFile) {
+    $marker = (Get-Content -LiteralPath $markerFile -Raw).Trim()
+    if ($marker -ceq 'nsis') { $existing = 'development' }
+    elseif ($marker -ceq 'nsis-stable') { $existing = 'stable' }
+    else { throw 'The installed app has an unknown release channel marker. Check it before retrying delivery.' }
   }
-  if ($Requested -and $Requested -cnotin @('stable', 'development')) { throw 'Choose a valid release channel: stable or development.' }
   if ($existing -and $Requested -and $existing -cne $Requested) { throw "This installation already uses $existing. Delivery cannot change its release channel to $Requested." }
-  $selected = if ($existing) { $existing } elseif ($Requested) { $Requested } else { 'stable' }
-  if (-not (Test-Path -LiteralPath $file)) {
-    New-Item -ItemType Directory -Path $HomeDir -Force | Out-Null
-    # The installer may launch the app itself: persist the choice before even starting NSIS.
-    $bytes = [Text.Encoding]::UTF8.GetBytes((@{ schema = 1; channel = $selected } | ConvertTo-Json -Compress))
-    $stream = [IO.File]::Open($file, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
-    try { $stream.Write($bytes, 0, $bytes.Length) } finally { $stream.Dispose() }
-  }
-  return $selected
+  if ($existing) { return $existing } elseif ($Requested) { return $Requested } else { return 'stable' }
+}
+
+# The installer may launch the app itself: delivery saves the channel after the download and before starting NSIS.
+function Save-StorytreeChannel([string]$HomeDir, [string]$Selected) {
+  $file = Join-Path $HomeDir 'release-channel.json'
+  New-Item -ItemType Directory -Path $HomeDir -Force | Out-Null
+  [IO.File]::WriteAllBytes($file, [Text.Encoding]::UTF8.GetBytes((@{ schema = 1; channel = $Selected } | ConvertTo-Json -Compress)))
 }
 
 function Get-StorytreeRelease([string]$SelectedChannel, [scriptblock]$Fetch) {
@@ -109,11 +110,12 @@ function Invoke-StorytreeDelivery([string]$InstallDir, [string]$Architecture, [h
     if (-not (& $Operations.Probe $InstallDir $Architecture)) {
       $step = 'download'; & $Operations.Stage $step
       $installer = & $Operations.Download $Architecture
+      & $Operations.Persist
       $step = 'install'; & $Operations.Stage $step
       & $Operations.Install $installer $InstallDir
       $step = 'verify'; & $Operations.Stage $step
       if (-not (& $Operations.Probe $InstallDir $Architecture)) { throw 'the installed app or its tool payload is incomplete' }
-    }
+    } else { & $Operations.Persist }
     $step = 'finish'; & $Operations.Stage $step
     $report = & $Operations.Finish $InstallDir $Architecture
     $step = 'path'; & $Operations.Stage $step
@@ -220,7 +222,7 @@ try {
     if ($record.schema -ne 1 -or -not [IO.Path]::IsPathRooted($record.installDir)) { throw 'Invalid delivery record. Keep it for diagnosis and check the installed app before retrying.' }
     $installDir = $record.installDir
   }
-  $selectedChannel = Initialize-StorytreeChannel $storytreeHome $installDir $Channel
+  $selectedChannel = Resolve-StorytreeChannel $storytreeHome $installDir $Channel
   # Expand environment variables without rewriting their original registry text.
   $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
   $machinePath = [Environment]::GetEnvironmentVariable('Path', 'Machine')
@@ -261,6 +263,7 @@ try {
       Move-Item -LiteralPath "$file.download" -Destination $file
       return $file
     }
+    Persist = { Save-StorytreeChannel $storytreeHome $selectedChannel }
     Install = {
       param($Installer, $Dir)
       # NSIS /D must be last and unquoted, even when it contains spaces.

@@ -40,3 +40,28 @@ test("7.7 a caller hands in its tables and gets its own database set up: connect
     await dropTestDatabases([name]);
   }
 });
+
+test("7.7 setting up again tables the database already holds runs none of their statements, so it never waits on a live writer in another connection", async () => {
+  const name = `storytree-own-${uniqueProjectName()}`;
+  const tables = ["CREATE TABLE IF NOT EXISTS entries (id serial PRIMARY KEY, said text NOT NULL)", "ALTER TABLE entries ADD COLUMN IF NOT EXISTS said_by text"];
+  const [first, second] = await Promise.all([connect({ url: testServerUrl() }), connect({ url: testServerUrl() })]);
+  const writer = await (await first.ownDatabase(name, { tables })).connect();
+  try {
+    // A write held open on the table: an ALTER, even one that changes nothing, would wait for it.
+    await writer.query("BEGIN");
+    await writer.query("INSERT INTO entries (said) VALUES ('hello')");
+    let settled = false;
+    const setUp = second.ownDatabase(name, { tables }).finally(() => { settled = true; });
+    setUp.catch(() => undefined);
+    const watcher = await first.ownDatabase(name);
+    let waited = false;
+    while (!settled && !waited) waited = (await watcher.query("SELECT 1 FROM pg_stat_activity WHERE datname = $1 AND wait_event_type = 'Lock'", [name])).rowCount !== 0;
+    assert.equal(waited, false, "the second set-up waited on the open write");
+    await setUp;
+  } finally {
+    await writer.query("ROLLBACK").catch(() => undefined);
+    writer.release();
+    await Promise.all([first.close(), second.close()]);
+    await dropTestDatabases([name]);
+  }
+});

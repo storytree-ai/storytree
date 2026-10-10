@@ -12,6 +12,7 @@
  * tables are current does neither, so an account let only read or write some rows (CI's health
  * account, ADR-0747) opens it too; one whose tables are behind is refused saying who may.
  */
+import { createHash } from "node:crypto";
 import path from "node:path";
 import type { Pool, PoolClient } from "pg";
 
@@ -519,14 +520,24 @@ async function tablesCurrent(pool: Pool, name: string): Promise<boolean> {
  * Run an own database's table definitions in one transaction (ADR-0973). Callers setting the same
  * database up can race (the app, an agent and the CLI on a new server), and two concurrent CREATE
  * TABLE IF NOT EXISTS can collide on the table's type, so they take turns on the database's lock.
+ * The lock serialises set-ups, not writers: an ALTER TABLE ... IF NOT EXISTS takes its table's
+ * ACCESS EXCLUSIVE lock even when it changes nothing, and can deadlock a live write in another
+ * process. So a list the database already holds, by its digest, runs none of its statements, as a
+ * project's schema skips by its version.
  */
 async function setUpOwnDatabase(pool: Pool, name: string, tables: readonly string[]): Promise<void> {
+  const digest = createHash("sha256").update(JSON.stringify(tables)).digest("hex");
   const client = await pool.connect();
   let failed = false;
   try {
     await client.query("BEGIN");
     await client.query("SELECT pg_advisory_xact_lock(hashtext('storytree.own-database'), hashtext($1))", [name]);
-    for (const statement of tables) await client.query(statement);
+    await client.query("CREATE TABLE IF NOT EXISTS storytree_own_set_up (digest text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())");
+    const { rowCount } = await client.query("SELECT 1 FROM storytree_own_set_up WHERE digest = $1", [digest]);
+    if (rowCount === 0) {
+      for (const statement of tables) await client.query(statement);
+      await client.query("INSERT INTO storytree_own_set_up (digest) VALUES ($1)", [digest]);
+    }
     await client.query("COMMIT");
   } catch (error) {
     failed = true;

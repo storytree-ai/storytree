@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
+import { promisify } from "node:util";
 
 import { countEngines } from "./queue.mjs";
 import { ensureWatcher, hand, handOver, main, readPull, RESTART, watchOnce } from "./watch.mjs";
@@ -223,4 +225,28 @@ test("13.10 · a watcher whose code changes between two looks ends with the rest
   assert.equal(kept, 1);
   assert.deepEqual(ends, [], "the loop ran three times");
   assert.deepEqual(slept, [60_000], "only an unexpected end waits before starting again");
+
+  // Its version is its own code's: a merge touching only other dev loop code leaves it looking, its own file restarts it.
+  const home = await mkdtemp(join(tmpdir(), "lane-watch-home-"));
+  t.after(() => rm(home, { recursive: true, force: true }));
+  const repo = join(home, "code", "storytree03");
+  const git = (...args) => promisify(execFile)("git", ["-c", "user.name=t", "-c", "user.email=t@t", ...args], { cwd: repo });
+  const commit = async (path, text) => {
+    await mkdir(join(repo, path, ".."), { recursive: true });
+    await writeFile(join(repo, path), text);
+    await git("add", "-A");
+    await git("commit", "-qm", path);
+  };
+  await mkdir(repo, { recursive: true });
+  await git("init", "-q");
+  await commit("packages/dev-loop/src/lanes/watch.mjs", "watcher v1");
+  await commit("packages/dev-loop/src/test-runner.mjs", "tests v1");
+  const merges = [() => commit("packages/dev-loop/src/test-runner.mjs", "tests v2"),
+    () => commit("packages/dev-loop/src/lanes/watch.mjs", "watcher v2")];
+  looks = 0;
+  b.looks[41] = { state: "pending", head: "h1" };
+  const { codeVersion: _, ...unpinned } = watching;
+  assert.equal(await main(["watch"], { ...unpinned, home,
+    sleep: async () => { assert.ok(merges.length, "it restarts once its own code changes"); await merges.shift()(); } }), RESTART);
+  assert.equal(looks, 2, "the test runner changed: it looked again; then its own code changed: it restarted");
 });

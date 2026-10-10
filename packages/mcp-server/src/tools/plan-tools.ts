@@ -4,7 +4,7 @@
  * and which sessions are about. A story or capability is planned with its founding decision, the
  * first book on its shelf, so none planned here starts with an empty shelf (ADR-0627 D5).
  */
-import { wordAndWhy, type AnnotatedTree, type HealthState, type NodeHealth } from "@storytree/library";
+import { heldBack, wordAndWhy, type AnnotatedTree, type HealthState, type NodeHealth } from "@storytree/library";
 import { z } from "zod";
 
 import { readClaims } from "@storytree/agent-link";
@@ -142,18 +142,22 @@ export function registerPlanTools(define: Define): void {
 
   define(
     "health_worklist",
-    "See the oldest three capabilities that are not healthy, each with its reason, who moves it and since when, and how many more wait. One an open increment lists among its capabilities is already routed and not offered (ADR-0825 D4).",
+    "See the oldest three capabilities that are not healthy, each with its reason, who moves it and since when, and how many more wait. One an open increment lists among its capabilities is already routed and not offered (ADR-0825 D4), and neither is one a test run in progress will record: it is held back, and counted.",
     z.object({}),
     async (_args, { library }) => {
-      const listed = await library.healthWorklist();
-      if (listed.length === 0) return { text: "Nothing waits on the health worklist: every capability is healthy or already routed.", data: { items: [], more: 0 } };
+      const all = await library.healthWorklist();
+      const said = heldBack(all);
+      const held = all.filter(({ waits }) => waits !== undefined).map(({ capability }) => capability);
+      const listed = all.filter(({ waits }) => waits === undefined);
+      if (listed.length === 0) return { text: ["Nothing waits on the health worklist: every capability is healthy or already routed.", ...(said === undefined ? [] : [said])].join("\n"), data: { items: [], more: 0, held } };
       const items = listed.slice(0, 3);
       const more = listed.length - items.length;
       const lines = items.map(({ capability, title, status, why, since }) =>
         `Capability ${quoted(title)} (${capability}): ${status} — ${why.reason}, the ${why.mover}'s to move${why.contracts.length === 0 ? "" : `, carried by ${why.contracts.join(", ")}`}; since ${since.slice(0, 10)}`,
       );
       if (more > 0) lines.push(`${more} more wait.`);
-      return { text: lines.join("\n"), data: { items, more } };
+      if (said !== undefined) lines.push(said);
+      return { text: lines.join("\n"), data: { items, more, held } };
     },
   );
 }

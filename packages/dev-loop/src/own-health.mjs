@@ -464,6 +464,50 @@ export async function recordHealth(library, contractIds, verdicts, writer = { by
 
 
 /**
+ * Before a run of `story`'s tests, mark pending each of its contracts the run can newly record: one a numbered test
+ * at this checkout names (its own package's, or a dependant's titled with its package, as checkStory runs them) whose
+ * verified column is failing or not checked without a skip. The health worklist then holds back a capability those
+ * carry until the run records them (friction_87a4d32684e3). A passing or skipped one is left as it is: the run would
+ * only say so again. The numbers marked, in the story's order.
+ * @param {import("@storytree/library").Library} library
+ * @param {import("@storytree/library").AnnotatedStory} story a story of `projectTree()`
+ * @param {Writer} writer
+ * @param {{ root: string }} options
+ * @returns {Promise<string[]>}
+ */
+export async function markPending(library, story, writer, { root }) {
+  const name = packageOf(story.title);
+  const named = new Set();
+  for (const dir of sourcesOf(name)) {
+    const source = path.join(root, dir);
+    let entries;
+    try {
+      entries = readdirSync(source, { recursive: true });
+    } catch {
+      continue;
+    }
+    for (const entry of entries.map(String).filter((entry) => /\.test\.m?[jt]s$/.test(entry) && !entry.split(/[\\/]/).includes("node_modules"))) {
+      for (const number of contractsCoveredBy(path.join(source, entry), { root: source })) named.add(number);
+    }
+  }
+  for (const file of dependantTestsNaming(name, { root })) {
+    for (const number of contractsCoveredBy(path.join(root, file), { root: path.join(root, "packages"), prefix: name })) named.add(number);
+  }
+  const marked = [];
+  const note = `a test run${writer.commit === undefined ? "" : ` at commit ${writer.commit}`} is recording it`;
+  for (const capability of story.capabilities) {
+    for (const contract of capability.contracts) {
+      const number = /^(\d+\.\d+) · /.exec(contract.title)?.[1];
+      const { state, skip } = contract.health.verified;
+      if (number === undefined || !named.has(number) || state === "passing" || (state === "not-checked" && skip !== undefined)) continue;
+      await library.markVerifiedPending(contract.id, { by: writer.by, note });
+      marked.push(number);
+    }
+  }
+  return marked;
+}
+
+/**
  * Mark contract `id` not checked when its tests were skipped or crashed: with its skip's kind, and
  * the earlier verdict it did not reproduce (carried over from a mark already standing). True if it
  * wrote.

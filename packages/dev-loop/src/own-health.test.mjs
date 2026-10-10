@@ -14,7 +14,7 @@ import { connect } from "@storytree/library";
 import { dropTestDatabases } from "@storytree/local-postgres/testing";
 
 import { checkStory } from "./check-own-health.mjs";
-import { contractsCoveredBy, contractsOf, judge, packageOf, parseJunit, readCiEvidence, recordHealth, recordingTarget } from "./own-health.mjs";
+import { contractsCoveredBy, contractsOf, judge, markPending, packageOf, parseJunit, readCiEvidence, recordHealth, recordingTarget } from "./own-health.mjs";
 
 test("parseJunit reads each test's name, the suites around it, its file, and whether it passed, failed or was skipped", () => {
   const results = parseJunit(JUNIT);
@@ -256,6 +256,39 @@ test("5.4 checking a story runs its own package's tests and records each contrac
     assert.equal((await lib.health(contractIds.get("1.1"))).verified.state, "passing");
     assert.equal((await lib.health(contractIds.get("1.2"))).verified.state, "failing");
     assert.deepEqual(await lib.healthHistory(contractIds.get("1.3")), [], "a contract with no test is left not checked");
+  });
+});
+
+test("5.8 before its tests run, own health marks pending each contract a numbered test at its commit names, its own or a dependant's, that is not verified passing or skipped, so the worklist holds its capability back until the run records it", async (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "own-health-pending-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  mkdirSync(path.join(root, "packages/cli/src"), { recursive: true });
+  mkdirSync(path.join(root, "packages/app/src"), { recursive: true });
+  writeFileSync(path.join(root, "packages/cli/src/kettle.test.mjs"), 'test("1.1 it does a", () => {});\ntest("1.2 it does b", () => {});\ntest("1.3 it does c", () => {});\n');
+  writeFileSync(path.join(root, "packages/app/src/door.test.mjs"), 'test("cli 1.4 it does d through the app", () => {});\n');
+  await withLibrary(async (lib) => {
+    const planned = await kettle(lib);
+    await lib.setProposed(planned.capabilities[0].id, false);
+    const { contractIds } = contractsOf(planned);
+    await lib.recordVerified(contractIds.get("1.1"), "passing");
+    await lib.recordVerified(contractIds.get("1.2"), "failing");
+    await lib.recordVerified(contractIds.get("1.3"), "not-checked", { skip: "owner" });
+    const writer = { by: "storytree test run on CI", commit: "abc123" };
+
+    const marked = await markPending(lib, (await lib.projectTree()).stories[0], writer, { root });
+    assert.deepEqual(marked, ["1.2", "1.4"], "a passing or skipped contract is left as it is");
+    assert.equal((await lib.health(contractIds.get("1.2"))).verified.state, "failing", "a pending mark is no verdict");
+    const [held] = await lib.healthWorklist();
+    assert.deepEqual(held.why.contracts, [contractIds.get("1.2")]);
+    assert.equal(held.waits?.by, writer.by);
+    assert.match(held.waits?.note ?? "", /abc123/);
+
+    const result = (name, file, status) => ({ name, suites: [], file: path.join(root, file), status });
+    const run = async () => ({ code: 1, results: [result("1.1 it does a", "packages/cli/src/kettle.test.mjs", "passed"), result("1.2 it does b", "packages/cli/src/kettle.test.mjs", "failed"), result("cli 1.4 it does d through the app", "packages/app/src/door.test.mjs", "passed")] });
+    await checkStory(lib, (await lib.projectTree()).stories[0], writer, { root, runTests: run, log: () => {}, error: () => {} });
+    const [offered] = await lib.healthWorklist();
+    assert.equal(offered.waits, undefined, "recorded, it is offered by what the run found");
+    assert.equal(offered.why.reason, "failing");
   });
 });
 

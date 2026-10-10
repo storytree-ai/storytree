@@ -1,5 +1,5 @@
 /**
- * Capability 5 · Health record: one test per contract 5.1-5.9 in the library story, each run on
+ * Capability 5 · Health record: one test per contract 5.1-5.11 in the library story, each run on
  * BOTH backends, as capabilities 2-4 and 6 are:
  *
  * - memory: a HealthRecord over SchemaRecords and a WorkModel over a fresh MemoryTransactions;
@@ -570,6 +570,37 @@ for (const backend of [memory, postgres]) {
 
     await flight.closeIncrement(fix.id, { disposition: "landed", pr: "1" });
     assert.deepEqual((await health.worklist()).map(({ capability }) => capability), [untested.id, proposed.id, routed.id, failing.id], "its route closed, it is offered again");
+  });
+  contract("5.11", "a capability whose every contract carrying its reason a run in progress will record says it waits on that run; once the run records it, or the run's time is up, it is offered by what it records", async ({ health, work }) => {
+    const story = await work.addStory({ title: "Visitor can sign up" });
+    const form = await work.addCapability({ title: "Email form", story: story.id });
+    const bad = await work.addContract({ title: "1.1 · Rejects a bad email", capability: form.id });
+    const plus = await work.addContract({ title: "1.2 · Accepts a plus address", capability: form.id });
+    const page = await work.addCapability({ title: "Thank-you page", story: story.id });
+    const shown = await work.addContract({ title: "2.1 · Shows thanks", capability: page.id });
+    for (const built of [form, page]) await work.setProposed(built.id, false);
+    await health.recordVerified(bad.id, "passing");
+    await later();
+    const run = { by: "storytree test run on CI", note: "Own health run at commit abc123 in progress" };
+    const pending = await health.markVerifiedPending(plus.id, run);
+    await later();
+    const newer = await health.markVerifiedPending(shown.id, run);
+    assert.deepEqual(await health.health(plus.id), { reported: { state: "not-checked" }, verified: { state: "not-checked" } }, "a pending mark is no verdict");
+
+    const waiting = await health.worklist();
+    assert.deepEqual(waiting.map(({ capability, why, waits }) => ({ capability, reason: why.reason, waits })), [
+      { capability: form.id, reason: "no test names it", waits: { since: pending.at, by: run.by, note: run.note } },
+      { capability: page.id, reason: "no test names it", waits: { since: newer.at, by: run.by, note: run.note } },
+    ], "held back, saying the run they wait on");
+    const ended = new Date(Date.parse(newer.at) + 2 * 60 * 60 * 1000);
+    assert.deepEqual((await health.worklist({ now: ended })).map(({ waits }) => waits), [undefined, undefined], "a run past its time waits for nothing");
+
+    await later();
+    await health.recordVerified(plus.id, "passing");
+    await health.recordVerified(shown.id, "failing");
+    assert.deepEqual((await health.worklist()).map(({ capability, why, waits }) => ({ capability, reason: why.reason, waits })), [
+      { capability: page.id, reason: "failing", waits: undefined },
+    ], "the run recorded them: the healthy one is off the list, the failing one offered");
   });
 }
 

@@ -134,7 +134,25 @@ export interface HealthWorkItem {
   why: CapabilityWhy;
   /** The reason's time where one was recorded (`why.since`), else when the capability was recorded. */
   since: string;
+  /**
+   * The run in progress it waits on: present when every contract carrying its reason has a pending
+   * mark (markVerifiedPending) newer than its verified entry and within PENDING_FOR, so it is not offered.
+   */
+  waits?: PendingRun;
 }
+
+/** A test run in progress that will record a contract's verified column: when it said so, who, and its note. */
+export interface PendingRun {
+  since: string;
+  by?: string;
+  note?: string;
+}
+
+/**
+ * How long a pending mark holds: the Own health job's own time limit (.github/workflows/own-health.yml's
+ * 45 minutes), so a run that died without recording holds nothing after it.
+ */
+export const PENDING_FOR = 45 * 60 * 1000;
 
 /** A story in the annotated tree, with its health rolled up from all its capabilities' contracts. */
 export interface AnnotatedStory extends Omit<StoryNode, "capabilities"> {
@@ -185,6 +203,16 @@ export class HealthRecord {
   /** Write what storytree verified about contract `contractId`, by seeing it for itself: as reportHealth, in the verified column. */
   recordVerified(contractId: string, state: HealthState, options: HealthOptions = {}): Promise<HealthEntry> {
     return this.#write("verified", contractId, state, options);
+  }
+
+  /**
+   * Say that a run in progress will record contract `contractId`'s verified column: a pending mark,
+   * kept apart from the column (`health_<contractId>_pending`), so its health reads as before. The
+   * worklist holds back a capability every contract carrying its reason is so marked for, until the
+   * run records it or PENDING_FOR passes. Refused as reportHealth is.
+   */
+  markVerifiedPending(contractId: string, options: HealthOptions = {}): Promise<HealthEntry> {
+    return this.#write("verified", contractId, "not-checked", options, "pending");
   }
 
   /**
@@ -253,13 +281,17 @@ export class HealthRecord {
    * recorded, or, where nothing was (not built, no test names it), when the capability was. One an
    * increment not yet closed lists among its capabilities is routed (ADR-0949 D2), and is left off until that increment closes.
    */
-  async worklist(): Promise<HealthWorkItem[]> {
+  async worklist({ now = new Date() }: { now?: Date } = {}): Promise<HealthWorkItem[]> {
     const routed = new Set((await this.#records.list("increment")).filter(({ fields }) => fields.status !== "closed").flatMap(({ fields }) => fields.capabilities ?? []));
     const recorded = new Map((await this.#records.list("capability")).map(({ id, createdAt }) => [id, createdAt]));
+    const marks = new Map((await this.#records.list("health")).filter(({ id }) => id.endsWith(PENDING)).map((record) => [record.fields.node, record]));
     return (await this.annotate()).stories
-      .flatMap((story) => story.capabilities.flatMap(({ id, title, status, why }) =>
-        why === undefined || routed.has(id) ? [] : [{ capability: id, title, story: story.id, status, why, since: why.since ?? recorded.get(id) ?? "" }],
-      ))
+      .flatMap((story) => story.capabilities.flatMap(({ id, title, status, why, contracts }) => {
+        if (why === undefined || routed.has(id)) return [];
+        const verified = new Map(contracts.map((contract) => [contract.id, contract.health.verified]));
+        const waits = waitingOn(why.contracts.map((carrying) => ({ mark: marks.get(carrying), verified: verified.get(carrying) })), now);
+        return [{ capability: id, title, story: story.id, status, why, since: why.since ?? recorded.get(id) ?? "", ...(waits === undefined ? {} : { waits }) }];
+      }))
       .sort((a, b) => (a.since < b.since ? -1 : a.since > b.since ? 1 : 0));
   }
 
@@ -268,7 +300,7 @@ export class HealthRecord {
    * throws with nothing written; the entry itself is checked against the health type inside the
    * write, as capability 3 checks every write.
    */
-  async #write(column: HealthColumnName, contractId: string, state: HealthState, options: HealthOptions): Promise<HealthEntry> {
+  async #write(column: HealthColumnName, contractId: string, state: HealthState, options: HealthOptions, kept: HealthColumnName | "pending" = column): Promise<HealthEntry> {
     const target = await recordNamed(this.#records, contractId);
     if (target?.type !== "contract") {
       throw new MissingReferenceError("node", contractId, "contract", target?.type, target === null ? undefined : ROLLED_UP[target.type]);
@@ -286,14 +318,14 @@ export class HealthRecord {
         ...(skip === undefined ? {} : { skip }),
         ...(was === undefined ? {} : { was: was.state, wasAt: was.at }),
       },
-      { id: healthId(contractId, column), ...(actor === undefined ? {} : { actor }), ...(options.signal === undefined ? {} : { signal: options.signal }) },
+      { id: healthId(contractId, kept), ...(actor === undefined ? {} : { actor }), ...(options.signal === undefined ? {} : { signal: options.signal }) },
     );
     return entryOf(record.fields, record.updatedAt);
   }
 
-  /** Every live health record, by id. */
+  /** Every live health record of a column, by id: a pending mark is none. */
   async #entries(): Promise<ReadonlyMap<string, SchemaRecord<"health">>> {
-    return new Map((await this.#records.list("health")).map((record) => [record.id, record]));
+    return new Map((await this.#records.list("health")).filter(({ id }) => !id.endsWith(PENDING)).map((record) => [record.id, record]));
   }
 
   /** The ids of the live contracts a capability's or story's health is rolled up from. */
@@ -307,9 +339,26 @@ export class HealthRecord {
   }
 }
 
-/** The id of the record holding a contract's column: one record per contract and column. */
-function healthId(contractId: string, column: HealthColumnName): string {
+/** The id of the record holding a contract's column, one record per contract and column, or its pending mark. */
+function healthId(contractId: string, column: HealthColumnName | "pending"): string {
   return `health_${contractId}_${column}`;
+}
+
+/** How a pending mark's id ends. */
+const PENDING = "_pending";
+
+/**
+ * The run a capability waits on: when every contract carrying its reason has a pending mark newer
+ * than its verified entry and younger than PENDING_FOR at `now`, the newest of those marks; else none.
+ */
+function waitingOn(carrying: readonly { mark: SchemaRecord<"health"> | undefined; verified: HealthColumn | undefined }[], now: Date): PendingRun | undefined {
+  const live = carrying.flatMap(({ mark, verified }) =>
+    mark !== undefined && now.getTime() - Date.parse(mark.updatedAt) < PENDING_FOR && (verified?.at === undefined || verified.at < mark.updatedAt) ? [mark] : [],
+  );
+  if (live.length === 0 || live.length < carrying.length) return undefined;
+  const newest = live.reduce((a, b) => (b.updatedAt > a.updatedAt ? b : a));
+  const { by, note } = newest.fields;
+  return { since: newest.updatedAt, ...(by === undefined ? {} : { by }), ...(note === undefined ? {} : { note }) };
 }
 
 /** A contract's own health: each column's latest entry, or not-checked. */
@@ -387,6 +436,17 @@ export function wordAndWhy(capability: Pick<AnnotatedCapability, "status" | "why
   const titles = new Map(capability.contracts.map((contract) => [contract.id, contract.title]));
   const named = why.contracts.map((id) => /^(\d+\.\d+) · /.exec(titles.get(id) ?? "")?.[1] ?? id);
   return `${status} — ${why.reason}, the ${why.mover}'s to move${named.length === 0 ? "" : `: ${named.join(", ")}`}`;
+}
+
+/**
+ * What the worklist says of the capabilities it holds back (HealthWorkItem.waits): how many, and the
+ * newest run they wait on; undefined when it holds none. How the command line and the agent link say it.
+ */
+export function heldBack(items: readonly HealthWorkItem[]): string | undefined {
+  const runs = items.flatMap(({ waits }) => (waits === undefined ? [] : [waits]));
+  if (runs.length === 0) return undefined;
+  const newest = runs.reduce((a, b) => (b.since > a.since ? b : a));
+  return `${runs.length} held back while a test run in progress records them: ${newest.note ?? newest.by ?? "a run"}, since ${newest.since.slice(0, 16).replace("T", " ")}.`;
 }
 
 /** What a report-only capability says in place of a reason (ADR-0630). */

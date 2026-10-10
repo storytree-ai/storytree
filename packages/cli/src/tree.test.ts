@@ -120,7 +120,7 @@ test("10.6 in a project whose health nothing verifies, each part gives the agent
   });
 });
 
-test("10.5 `storytree health worklist` prints the oldest three capabilities on the health worklist, each with its word, reason, who moves it, the contracts carrying it and since when, and how many more wait; with none it says nothing waits", async () => {
+test("10.5 `storytree health worklist` prints the oldest three capabilities on the health worklist, each with its word, reason, who moves it, the contracts carrying it and since when, and how many more wait; with none it says nothing waits; one a test run in progress will record is held back and counted", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();
     const none = await world.run(["health", "worklist"]);
@@ -147,5 +147,13 @@ test("10.5 `storytree health worklist` prints the oldest three capabilities on t
     assert.match(lines[at("Password rules")]!, /proposed — not built, the agent's to move/);
     assert.equal(at("Welcome email"), -1, ran.stdout);
     assert.match(ran.stdout, /1 more wait/);
+
+    await library.markVerifiedPending(check.id, { by: "storytree test run on CI", note: "a test run at commit abc123 is recording it" });
+    const held = await world.run(["health", "worklist"]);
+    assert.equal(held.code, 0, held.stderr);
+    assert.ok(!held.stdout.includes(form.id), held.stdout);
+    assert.match(held.stdout, /Welcome email/, "the slot it left is filled");
+    assert.match(held.stdout, /1 held back.*a test run at commit abc123 is recording it/);
+    assert.doesNotMatch(held.stdout, /more wait/);
   });
 });

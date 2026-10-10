@@ -216,9 +216,9 @@ const runs = {
   async knowledgeSteps() {
     const four = ["Signing in", "Browsing", "Cart", "Checkout"];
     // The sessions list lies over the lower globe on a laptop and the upper on a phone: on the reads step only checkout is framed.
-    const frames = { "knowledge-inside-line-2": four, "knowledge-inside": four, "knowledge-shelf-line-2": ["Checkout"], "knowledge-shelf": ["Checkout"],
+    const frames = { "knowledge-inside-line-3": four, "knowledge-inside": four, "knowledge-shelf-line-2": ["Checkout"], "knowledge-shelf": ["Checkout"],
       "knowledge-reads-line-3": ["Checkout"], "knowledge-reads": ["Checkout"] };
-    await chapterSteps({ chapter: "knowledge", folder: "knowledge-three-steps", lines: { "knowledge-inside": [2], "knowledge-shelf": [2], "knowledge-reads": [3] }, frames, phoneFrames: frames, known: [], extra: {} });
+    await chapterSteps({ chapter: "knowledge", folder: "knowledge-three-steps", lines: { "knowledge-inside": [3], "knowledge-shelf": [2], "knowledge-reads": [3] }, frames, phoneFrames: frames, known: [], extra: {} });
   },
   // A clip of the arrival playing at the default 0.75×, pain to fixes.
   async clip() {

@@ -346,11 +346,11 @@ test("2.20 · the knowledge chapter plays three steps on the globe the map chapt
     const growth = item.growth as { seconds: number };
     for (const told of [0, growth.seconds]) assert.ok(Math.abs(replayMoment(plan, growth, told) - end.start) < .01, `${item.id} holds the globe at the 03:08:57 survey`);
   }
-  // One idea per line: the notes come in with the first step's second line, the note's card with the shelf's second, and the
+  // One idea per line: the notes come in with the first step's third line, the note's card with the shelf's second, and the
   // orders session's flags with the reads step's third.
   const tinted = (item: TourStep, line: number) => { let shown = item.surfaces; for (const [from, next] of Object.entries(item.lineSurfaces ?? {})) if (line >= Number(from)) shown = next; return shown; };
   const panels = (item: TourStep) => item.lines.map((_, index) => index + 1 >= (item.panelFromLine ?? 1) ? stepAt(item, index + 1).panel : undefined);
-  assert.deepEqual([tinted(inside, 1).knowledgeCore, tinted(inside, 2).knowledgeCore, tinted(shelf, 1).knowledgeCore, tinted(reads, 1).knowledgeCore], [false, true, true, true]);
+  assert.deepEqual([1, 2, 3].map(line => tinted(inside, line).knowledgeCore).concat([tinted(shelf, 1).knowledgeCore, tinted(reads, 1).knowledgeCore]), [false, false, true, true, true]);
   assert.deepEqual(panels(shelf), [undefined, "note"]);
   assert.deepEqual(panels(reads), reads.lines.map(() => "sessions"));
   assert.deepEqual(reads.lines.map((_, index) => tinted(reads, index + 1).sessionTints === true), [false, false, true, true]);

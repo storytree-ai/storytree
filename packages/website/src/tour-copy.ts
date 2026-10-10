@@ -178,18 +178,20 @@ export const steps: TourStep[] = [
   ], sources: [vscode, aider, undefined] },
   decisions: [], surfaces: lit({ ...health, roads: true }), ...shop },
 
-  // The knowledge graph (ADR-0990, proposed 2026-10-11): three steps after the map chapter's model. Every line, How and Why is
-  // DRAFT, written by the session that built it for the owner to rewrite. It stays on the globe the map chapter leaves (the first
+  // The knowledge graph (ADR-0990, proposed 2026-10-11): three steps after the map chapter's model. ★ the owner's words; every
+  // other line, How and Why is DRAFT, written by the session that built it for the owner to rewrite. It stays on the globe the map chapter leaves (the first
   // round's four stories at the 03:08:57 survey) and teaches on the shop's own record: checkout's Finish decision (02:55), read by
   // the session building orders (03:04) before it claimed checkout's parts (03:05). The camera moves once, into checkout.
   { id: "knowledge-inside", explainer: "knowledge", ...kept, title: "Decisions live inside the map.", lines: [
+    // ★ The owner's words (ADR-0857 D3), kept word for word.
+    "Storytree remembers things using a knowledge graph.",
     // DRAFT.
     "As your agents build, they also decide things: how a part should work, and why.",
     // DRAFT.
     "Storytree keeps each decision inside the globe, beneath the part of the map it's about.",
   ], how: "By the time the first round was green, the shop's agents had written {shopDecisions} decisions, most of them while planning, before any code. Each is a note in storytree's library, a knowledge graph: a note links to the notes it stands on, and the graph refuses loops, so every chain of reasons reads to its end. Principles, which steer judgement, are notes too. A note about no one part gathers at the core.",
   why: "Every new agent session starts on its first day. Keeping the decisions with the work means the next session doesn't relearn them, and you don't explain them again.",
-  decisions: [], surfaces: lit({ ...health, roads: true }), lineSurfaces: { 2: inside }, ...shop },
+  decisions: [], surfaces: lit({ ...health, roads: true }), lineSurfaces: { 3: inside }, ...shop },
   { id: "knowledge-shelf", explainer: "knowledge", ...kept, title: "Every story keeps a shelf.", lines: [
     // DRAFT.
     "Each story and capability keeps a shelf: the decisions that shaped it.",

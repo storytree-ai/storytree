@@ -11,11 +11,11 @@ Made with `node packages/website/evidence/arrival/capture.mjs --only knowledgeSt
 
 | # | Step | The globe shows | Pictures |
 |---|---|---|---|
-| 1 | Decisions live inside the map. | Health's view of the four stories, as the map chapter leaves it; with the second line the land turns plain and the shop's notes show inside the globe, beneath the islands they are about. | `*-knowledge-inside-line-2.png`, `*-knowledge-inside.png` |
+| 1 | Decisions live inside the map. | Health's view of the four stories, as the map chapter leaves it, under the owner's line (★); with the third line the land turns plain and the shop's notes show inside the globe, beneath the islands they are about. | `*-knowledge-inside-line-3.png`, `*-knowledge-inside.png` |
 | 2 | Every story keeps a shelf. | The camera goes in to checkout. With the second line the card of checkout's decision "Finish becomes a form post; the cart is cleared on the complete page, not on the click" (02:55) opens beside it, above 600px; a phone says it in words. | `*-knowledge-shelf-line-2.png`, `*-knowledge-shelf.png` |
 | 3 | The next agent reads it first. | The shop's sessions list as it stood at 03:06, with the orders session (Part 6: Orders) followed: its recorded reading path walks the notes it opened (03:02 to 03:04), and with the third line its claims on checkout (03:05) stand as flags in its colour. The comparison with Cursor's rules and Graphiti is in this step's depth. | `*-knowledge-reads-line-3.png`, `*-knowledge-reads.png` |
 
-Every line, How and Why is DRAFT, written by the session that built it, marked in `src/tour-copy.ts`.
+★ "Storytree remembers things using a knowledge graph." is the owner's line, kept word for word (ADR-0857 D3); every other line, How and Why is DRAFT, written by the session that built it, marked in `src/tour-copy.ts`.
 
 **Choices made here (the owner can reshape any of them).**
 - Five steps became three: the kinds of note and the core where loose notes gather went into step 1's How; the comparison step

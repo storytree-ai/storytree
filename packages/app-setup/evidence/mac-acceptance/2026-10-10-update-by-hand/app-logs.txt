@@ -1,0 +1,22 @@
+ls: /Users/runner/Library/Logs/storytree-0.3: No such file or directory
+/Users/runner/.storytree/0.3:
+total 224
+drwxr-xr-x  18 runner  staff    576 Oct 10 03:47 .
+drwxr-xr-x   3 runner  staff     96 Oct 10 03:46 ..
+-rw-r--r--   1 runner  staff    122 Oct 10 03:46 app.json
+-rw-r--r--   1 runner  staff    175 Oct 10 03:47 approved-trunks.json
+drwxr-xr-x   3 runner  staff     96 Oct 10 03:46 bin
+-rw-r--r--   1 runner  staff    923 Oct 10 03:46 delivery.json
+drwx------  26 runner  staff    832 Oct 10 03:47 electron
+-rw-r--r--   1 runner  staff   4096 Oct 10 03:46 journey-events.sqlite
+-rw-r--r--   1 runner  staff  32768 Oct 10 03:46 journey-events.sqlite-shm
+-rw-r--r--   1 runner  staff  37112 Oct 10 03:46 journey-events.sqlite-wal
+-rw-r--r--   1 runner  staff    132 Oct 10 03:47 machine.json
+drwx------  27 runner  staff    864 Oct 10 03:46 pgdata
+drwx------   5 runner  staff    160 Oct 10 03:46 pgdata.auth
+-rw-------   1 runner  staff    725 Oct 10 03:47 pgdata.log
+-rw-r--r--   1 runner  staff    253 Oct 10 03:46 pgdata.owner.json
+-rw-r--r--   1 runner  staff   1358 Oct 10 03:46 pgdata.tools.log
+-rw-r--r--   1 runner  staff     32 Oct 10 03:47 project-choice.json
+-rw-r--r--   1 runner  staff     36 Oct 10 03:46 release-channel.json
+tail: /Users/runner/Library/Logs/storytree-0.3/main.log: No such file or directory

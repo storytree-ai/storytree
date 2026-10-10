@@ -543,7 +543,7 @@ test("5.29 releasing an active increment without closing it, by release, the ses
     assert.equal((await claim(as("A"), finished, "finishing the old form")).ok, true);
     await library.closeIncrement(finished, { pr: "#3", disposition: "landed" });
     await withTempDir(async (home) => {
-      const { released: ended } = await closeOut(as("A"), { safe: false, why: "handing off" }, { home, claimHome: home });
+      const { released: ended } = await closeOut(as("A"), { safe: false, why: "handing off" }, { home });
       assert.deepEqual(ended, [left, finished]);
     });
     assert.equal(await statusOf(library, arc, left), "proposal", "close-out returns the unclosed increment");

@@ -33,8 +33,6 @@ import { openActivityLog, type Line, type NewLine } from "../activity/index.js";
 import { buildBins } from "../bins/build.js";
 import { readContext } from "../context/index.js";
 import { MARKER_FILE, setUpProject } from "../routing/index.js";
-import { leaveNotice } from "../claims/notices.js";
-import { claimFromEdits } from "../claims/edit-claims.js";
 import { claim, readClaims } from "../claims/index.js";
 import { EDIT_GATE } from "./edit-gate.js";
 import { hookFailures, hookFailuresFile } from "./failures.js";
@@ -216,7 +214,7 @@ test("3.2 recorded Codex hook inputs make the same four lines, with the edited f
   });
 });
 
-for (const harness of ["claude-code", "codex"] as const) test(`3.22 ${harness} shell writes survive offline hooks and claim their capability, without attributing existing dirt or read-only commands`, async () => {
+for (const harness of ["claude-code", "codex"] as const) test(`3.22 ${harness} shell writes survive offline hooks, without attributing existing dirt or read-only commands`, async () => {
   const project = uniqueProjectName();
   await withTempDir(async (dir) => {
     const folder = await projectFolder(dir, project);
@@ -284,19 +282,7 @@ for (const harness of ["claude-code", "codex"] as const) test(`3.22 ${harness} s
     assert.deepEqual(edits.map((line) => line.files.map((name) => path.relative(folder, path.resolve(folder, name)).split(path.sep).join("/")).sort()), expected, traced);
     assert.ok(edits.every((line) => line.session === session && line.folder === folder && line.branch === "shell-test"));
 
-    const storytree = await connect({ url: testServerUrl() });
-    const log = await openActivityLog(testServerUrl());
-    try {
-      const library = await storytree.openProject(project);
-      const story = await library.addStory({ title: "Sign up" });
-      const cap = await library.addCapability({ story: story.id, title: "1 · Email" });
-      await claimFromEdits({ log, library, project, home });
-      assert.deepEqual((await readClaims(log, project)).map(({ session, capability }) => ({ session, capability })), [{ session, capability: cap.id }]);
-    } finally {
-      await log.close();
-      await storytree.close();
-      await dropTestProjects([project]);
-    }
+    await dropTestProjects([project]);
   });
 });
 
@@ -492,24 +478,6 @@ function addedContext(ran: Ran): string | undefined {
 function prompted(harness: "claude-code" | "codex", folder: string, prompt: string, session: string): string {
   return JSON.stringify({ ...JSON.parse(recorded(harness, "user-prompt-submit", folder)), prompt, session_id: session });
 }
-
-test("3.20 at a session's next prompt, the prompt hook adds what storytree left it about claims made from edits, each once, for Claude Code and Codex alike, read from this machine with storytree stopped; another session gets none of it", async () => {
-  await withTempDir(async (dir) => {
-    const folder = await projectFolder(dir, uniqueProjectName());
-    const home = storytreeHome(dir, false);
-    leaveNotice(home, "cc-edits", "[storytree] Your edit claimed \"Email form\" for you.");
-    leaveNotice(home, "cx-edits", "[storytree] Claude Code session cc-edits edited a file you hold.");
-    const ask = async (harness: "claude-code" | "codex", session: string) => {
-      const ran = await runHook(harness, prompted(harness, folder, "go on", session), home);
-      assert.deepEqual({ code: ran.code, stderr: ran.stderr }, { code: 0, stderr: "" });
-      return addedContext(ran);
-    };
-    assert.equal(await ask("claude-code", "cc-other"), undefined, "another session gets none");
-    assert.equal(await ask("claude-code", "cc-edits"), "[storytree] Your edit claimed \"Email form\" for you.");
-    assert.equal(await ask("claude-code", "cc-edits"), undefined, "each once");
-    assert.equal(await ask("codex", "cx-edits"), "[storytree] Claude Code session cc-edits edited a file you hold.");
-  });
-});
 
 test("3.7 at each prompt, every matching project definition is added for the agent: whole words in any case or plural, longest first, each once a session, meanings cut to 200 characters; a harness's own notice gets none, and with storytree stopped nothing is printed", async () => {
   const project = uniqueProjectName();

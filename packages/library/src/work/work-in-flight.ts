@@ -239,28 +239,37 @@ export class WorkInFlight {
 
   /**
    * Make `waiter` wait on `blocker`, with a reason (capability 11): an arc on a live arc, an increment
-   * on a live increment on any arc. A wait that would close a loop is refused (WaitLoopError).
+   * on a live increment on any arc. A wait that would close a loop across arcs and increments is
+   * refused (WaitLoopError). Null if `waiter` is not a live arc or increment.
    */
   addWait(waiter: string, blocker: string, reason: string, options?: WriteOptions): Promise<SchemaRecord<"arc" | "increment"> | null> {
     return this.#serially(() => waits.addWait(this.#records, () => this.#snapshot(), waiter, blocker, reason, options));
   }
 
-  /** Stop `waiter` waiting on `blocker` (capability 11). */
+  /** Stop `waiter` waiting on `blocker` (capability 11). Null if `waiter` is not a live arc or increment. */
   removeWait(waiter: string, blocker: string, options?: WriteOptions): Promise<SchemaRecord<"arc" | "increment"> | null> {
     return this.#serially(() => waits.removeWait(this.#records, waiter, blocker, options));
   }
 
-  /** Make an open increment wait for the owner or an outside event, with a note (11.6). */
+  /**
+   * Make an open increment wait for the owner (an action) or an outside event (with a check-back
+   * day), with a note (11.6); waiting again for the same releaser replaces it (RangeError for an event
+   * with no day or a day before today, an owner wait with a day, or a closed increment). Null if `id`
+   * is not a live increment.
+   */
   addWaitFor(id: string, wait: WaitFor, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
     return this.#serially(() => waits.addWaitFor(this.#records, id, wait, options));
   }
 
-  /** Stop an increment waiting for `releaser` (11.6). */
+  /** Stop an increment waiting for `releaser` (11.6). Null if `id` is not a live increment. */
   removeWaitFor(id: string, releaser: WaitFor["releaser"], options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
     return this.#serially(() => waits.removeWaitFor(this.#records, id, releaser, options));
   }
 
-  /** What an open increment waits for outside the library, read at `at` (11.6). */
+  /**
+   * What an open increment waits for outside the library at `at` (now, unless given), each with
+   * whether it still holds: an event wait no longer holds from its check-back day (11.6).
+   */
   waitsFor(id: string, at: Date = new Date()): Promise<NoteWait[]> {
     return waits.waitsFor(this.#records, id, at);
   }
@@ -280,9 +289,10 @@ export class WorkInFlight {
 
   /**
    * Every live arc's and open increment's wait holds, and every open increment's owner holds and
-   * waits for the owner or an event (read at `at`), from one reading of the project's work (11.5):
-   * what a surface showing all of it asks, in place of a waitHolds, a heldOnQuestion and a waitsFor
-   * per id, each of which reads the work again.
+   * waits for the owner or an event (read at `at`, now unless given), from one reading of the
+   * project's work (11.5): what a surface showing all of it asks, in place of a waitHolds, a
+   * heldOnQuestion and a waitsFor per id, each of which reads the work again. Closed increments have
+   * no holds and are omitted.
    */
   async holds(at: Date = new Date()): Promise<Holds> {
     const work = await this.#snapshot();
@@ -295,32 +305,45 @@ export class WorkInFlight {
     };
   }
 
-  /** Raise a question for the owner on a live arc that is not parked (capability 12). */
+  /** Raise a question for the owner on a live arc that is not parked (capability 12): it is open. */
   raiseQuestion(question: NewQuestion, options?: WriteOptions): Promise<SchemaRecord<"question">> {
     return this.#serially(() => questions.raiseQuestion(this.#records, (arc) => isParked(arc), question, options));
   }
 
-  /** Question `id`'s review lease as it reads at `at` (12-a). */
+  /**
+   * Question `id`'s review lease at `at` (now, unless given): fresh while it runs, lapsed once it has
+   * run out, settled once answered (12-a). Null if `id` is not a live question. It writes nothing.
+   */
   checkQuestion(id: string, at: Date = new Date()): Promise<QuestionLease | null> {
     return questions.checkQuestion(this.#records, id, at);
   }
 
-  /** Stamp open question `id` as checked to still hold, now (12-a). */
+  /**
+   * Stamp open question `id` as checked to still hold, now, starting its lease again (12-a). Renewing
+   * a settled question is refused (RangeError). Null if `id` is not a live question.
+   */
   renewQuestion(id: string, options?: WriteOptions): Promise<SchemaRecord<"question"> | null> {
     return this.#serially(() => questions.renewQuestion(this.#records, id, options));
   }
 
-  /** Correct open question `id`'s wording in place (12.7). */
+  /**
+   * Correct open question `id`'s wording in place, only the named fields; an optional one set to
+   * undefined is removed (12.7). Anything but its wording, or a settled question, is refused
+   * (RangeError) with nothing written. Null if `id` is not a live question.
+   */
   editQuestion(id: string, fields: QuestionEdit, options?: WriteOptions): Promise<SchemaRecord<"question"> | null> {
     return this.#serially(() => questions.editQuestion(this.#records, id, fields, options));
   }
 
-  /** The open questions whose lease has lapsed at `at`, longest lapsed first (12-a). */
+  /** The open questions whose lease has lapsed at `at` (now, unless given), longest lapsed first (12-a). */
   lapsedQuestions(at: Date = new Date()): Promise<SchemaRecord<"question">[]> {
     return questions.lapsedQuestions(this.#records, at);
   }
 
-  /** Settle a question with the owner's answer (capability 12). */
+  /**
+   * Settle a question with the owner's answer, and the live decision that carried it, if one did
+   * (capability 12). Null if `id` is not a live question.
+   */
   settleQuestion(id: string, settlement: Settlement, options?: WriteOptions): Promise<SchemaRecord<"question"> | null> {
     return this.#serially(() => questions.settleQuestion(this.#records, id, settlement, options));
   }
@@ -375,7 +398,10 @@ export class WorkInFlight {
     return this.#setParked(id, undefined, options);
   }
 
-  /** The arc whole, with its state, its increments and its questions, oldest first; null if `id` is not a live arc. */
+  /**
+   * The arc whole: its state (worked out on every read at `at`, now unless given, or parked), its
+   * increments and its questions, oldest first. Null if `id` is not a live arc.
+   */
   async arcView(id: string, at: Date = new Date()): Promise<ArcView | null> {
     const arc = await liveRecord(this.#records, id, ["arc"]);
     if (arc === null) return null;
@@ -384,7 +410,7 @@ export class WorkInFlight {
     return arcViewOf(arc, increments, questions, at);
   }
 
-  /** Every live arc's view, oldest arc first, as arcView answers each, read in three lists however many arcs there are. */
+  /** Every live arc's view, oldest arc first, as arcView answers each, read at `at` (now, unless given) in three lists however many arcs there are. */
   async arcViews(at: Date = new Date()): Promise<ArcView[]> {
     const [arcs, increments, questions] = await Promise.all([
       this.#records.list("arc"),

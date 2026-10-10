@@ -153,8 +153,12 @@ export class Knowledge {
   }
 
   /**
-   * Record a decision (capability 13): its links, front cover and supersessions checked, numbered
-   * inside the write.
+   * Record a decision, with its status (capability 13). Every link must name a live artifact,
+   * `frontCoverOf`, if given, the one live story or capability the decision is a front cover of, and
+   * each decision it supersedes a live decision. It is numbered inside the write, one past the highest
+   * number any decision has held, unless it is brought in under its own, which no other may have held
+   * (NumberTakenError). The storytree project auto-numbers above its stored floor once the ADR-0662
+   * switch is applied.
    */
   recordDecision(decision: NewDecision, options?: WriteOptions): Promise<SchemaRecord<"decision">> {
     return this.#log.recordDecision(decision, options);
@@ -165,7 +169,7 @@ export class Knowledge {
     return this.#log.setDecisionNumberFloor(floor, options);
   }
 
-  /** Repair an imported storytree decision's number once, from its own Full record line. */
+  /** Repair an imported storytree decision's number once, from its own Full record line; old numbers stay reserved in history. */
   numberDecision(id: string, number: number, options?: WriteOptions): Promise<SchemaRecord<"decision">> {
     return this.#log.numberDecision(id, number, options);
   }
@@ -175,7 +179,7 @@ export class Knowledge {
     return this.#log.decisionNumberPlan();
   }
 
-  /** The one-time Full record renumbering, previewed unless apply is explicit. */
+  /** The one-time Full record renumbering, previewed unless apply is explicit, reporting each refusal. */
   numberDecisionsFromFullRecord(options: WriteOptions & { readonly apply?: boolean } = {}): Promise<DecisionNumberPlan[]> {
     return this.#log.numberDecisionsFromFullRecord(options);
   }
@@ -185,7 +189,12 @@ export class Knowledge {
     return this.#log.numberFoundingDecisions(options);
   }
 
-  /** A decision as the decision log reads it (capability 13); null if `id` is not a live decision. */
+  /**
+   * A decision as the decision log reads it (capability 13): its record, full text included; its
+   * status, which is superseded exactly when an accepted decision names it in `supersedes`; and its
+   * composed statement, marked stale once its text has changed since. Null if `id` is not a live
+   * decision.
+   */
   decision(id: string): Promise<DecisionView | null> {
     return this.#log.decision(id);
   }
@@ -195,7 +204,10 @@ export class Knowledge {
     return this.#log.decisions();
   }
 
-  /** Compose a decision's one statement beside its text (C2). */
+  /**
+   * Compose a decision's one statement (C2): a maintained paragraph beside its text, never in its
+   * place, replacing any before it. Null if `id` is not a live decision.
+   */
   composeStatement(id: string, statement: string, options?: WriteOptions): Promise<SchemaRecord<"decision"> | null> {
     return this.#log.composeStatement(id, statement, options);
   }
@@ -259,8 +271,8 @@ export class Knowledge {
   }
 
   /**
-   * The live artifacts ranked by how close their meaning is to `query`, best first, at most
-   * `limit` of them (capability 14, ADR-0732). Each artifact's rendered text is embedded in chunks
+   * The live artifacts ranked by how close their meaning is to `query`, best first, ten unless
+   * `limit` says (capability 14, ADR-0732). Each artifact's rendered text is embedded in chunks
    * and it scores by its best chunk's cosine with the question; a chunk not embedded before (a new
    * or edited artifact) is embedded now. With no embedding model to hand, it gives search()'s
    * word matches instead, in creation order, and says why.

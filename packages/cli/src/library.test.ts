@@ -361,7 +361,7 @@ test("3.13 `new check` writes a quality control check enforcing a principle, and
   });
 });
 
-test("3.14 `new contract` numbers past the capability's contracts and the numbers its story package's tests carry, as plan_contract does", async () => {
+test("3.15 `new contract` numbers past the capability's contracts and the numbers its story package's tests carry, as plan_contract does", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();
     const story = await library.addStory({ title: "The shop" });

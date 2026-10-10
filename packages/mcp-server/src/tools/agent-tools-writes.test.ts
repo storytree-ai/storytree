@@ -315,6 +315,20 @@ test("6.11 it raises a question on an arc and holds an increment on it, which a 
   });
 });
 
+test("6.52 park_increment parks an increment born held on a question raised first, so a claim finds it waiting on the owner from the moment it is parked", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const { arc } = await planned(agent);
+      const question = idOf(await agent.call("raise_question", { arc, title: "Which mailer?", stakes: "Cost", statement: "Mailgun or SES?", context: "Both work here", options: "Mailgun; SES" }));
+      const welcome = idOf(await agent.call("park_increment", { arc, title: "Welcome email", objective: "Send it", body: "Red then green", held_on: [question] }));
+      assert.deepEqual(await library.heldOnQuestion(welcome), [question]);
+      const refused = await agent.call("claim", { increment: welcome, reason: "driving it" });
+      assert.equal(refused.isError, true);
+      assert.match(refused.text, /waiting on the owner/);
+    });
+  });
+});
+
 test("6.44 raising a question held on an increment the session holds, or a wait for the owner on it, releases its claims on it and the capabilities it took for it, and says so; claims on other work stand, and a question on another arc releases nothing (ADR-0944 D4)", async () => {
   await withProject(async ({ folder, library, log, project }) => {
     await withAgent(folder, claudeCode("asking"), async (agent) => {

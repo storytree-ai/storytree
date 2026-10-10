@@ -1,19 +1,19 @@
 /**
- * Capability 8 · Setup check: contract 8.25. Codex keeps a tool server's instructions and tools out
+ * Capability 2 · Connect an agent: contract 2.9. Codex keeps a tool server's instructions and tools out
  * of the agent's first view (it finds them by searching), so a fresh Codex session never reads the
  * habits card; what it does read is the AGENTS.md in its home. Measured on the owner's Windows laptop
  * (packages/app-setup/evidence/codex-first-session): without this section 0 of 3 first sessions
  * called check_setup; with it, 3 of 3 did before their first change.
  */
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
-import { withTempDir } from "../testing/folders.js";
-import { removeCodexInstructions, writeCodexInstructions } from "./index.js";
+import { removeCodexInstructions, writeCodexInstructions } from "./codex-agents.js";
 
-test("8.25 Codex's AGENTS.md gets one storytree section telling the agent to call check_setup first in a storytree project; again changes nothing, the user's own text is kept, and removing takes out exactly that section", async () => {
+test("2.9 Codex's AGENTS.md gets one storytree section telling the agent to call check_setup first in a storytree project; again changes nothing, the user's own text is kept, and removing takes out exactly that section", async () => {
   await withTempDir(async (codexHome) => {
     const file = path.join(codexHome, "AGENTS.md");
     assert.equal(writeCodexInstructions(codexHome), "written");
@@ -42,10 +42,19 @@ test("8.25 Codex's AGENTS.md gets one storytree section telling the agent to cal
   });
 });
 
-test("8.25 no Codex home here: nothing is written", async () => {
+test("2.9 no Codex home here: nothing is written", async () => {
   await withTempDir(async (dir) => {
     const missing = path.join(dir, "no-codex");
     assert.equal(writeCodexInstructions(missing), "not here");
     assert.equal(existsSync(missing), false);
   });
 });
+
+async function withTempDir(run: (dir: string) => Promise<void>): Promise<void> {
+  const dir = mkdtempSync(path.join(tmpdir(), "storytree codex home "));
+  try {
+    await run(dir);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}

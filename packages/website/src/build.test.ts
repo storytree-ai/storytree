@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
-import { COLOURWAYS, iconPath, readPng } from "@storytree/mark";
+import { readIco, readPng } from "@storytree/mark";
 
 import { buildWebsite } from "./build.js";
 
@@ -86,22 +86,30 @@ test("1.10 · every page's tab shows the mark, in day colours on a light setting
   }
   const svg = await readFile(path.join(output, "favicon.svg"), "utf8");
   const [light, dark] = svg.split("@media (prefers-color-scheme: dark)");
-  for (const [scheme, way] of [[light!, COLOURWAYS.day!], [dark!, COLOURWAYS.night!]] as const) {
+  const day = { canvas: "#F4EFE2", ocean: "#3E7CB1", land: "#8cb85e", tree: "#17301F", leaf: "#17301F" };
+  const night = { canvas: "#0F1E2E", ocean: "#1F4E79", land: "#2F6B3A", tree: "#F4EFE2", leaf: "#F2C14E" };
+  for (const [scheme, way] of [[light!, day], [dark!, night]] as const) {
     for (const role of ["canvas", "ocean", "land", "tree", "leaf"] as const) assert.match(scheme, new RegExp(`--mark-${role}: ${way[role]}`, "i"), role);
   }
-  assert.deepEqual(await readFile(path.join(output, "favicon.ico")), await readFile(iconPath("day", "mark.ico")));
+  // The fixed files draw the day tile: the pixel at the top middle, above the globe, is day's canvas.
+  const tileTop = ({ width, pixels }: { width: number; pixels: Uint8Array }) => [...pixels.subarray((width + width / 2) * 4, (width + width / 2) * 4 + 3)];
+  const ico = readIco(await readFile(path.join(output, "favicon.ico"))).find(({ size }) => size === 32);
+  assert.ok(ico, "favicon.ico carries a 32 pixel image");
+  assert.deepEqual(tileTop(readPng(ico.png)), [0xf4, 0xef, 0xe2]);
   const touch = readPng(await readFile(path.join(output, "apple-touch-icon.png")));
   assert.deepEqual([touch.width, touch.height], [180, 180]);
+  assert.deepEqual(tileTop(touch), [0xf4, 0xef, 0xe2]);
 });
 
 test("1.11 · the site wears the mark beside its name, drawn in the page's own colours", async (t) => {
   const output = await mkdtemp(path.join(tmpdir(), "website-mark-"));
   t.after(() => rm(output, { recursive: true, force: true }));
   await buildWebsite(output);
-  for (const page of ["index.html", "waitlist.html", "404.html"]) {
+  // Where each page names itself: the home heading; the waitlist's header and footer; the not-found header.
+  for (const [page, count] of [["index.html", 1], ["waitlist.html", 2], ["404.html", 1]] as const) {
     const html = await readFile(path.join(output, page), "utf8");
     const names = [...html.matchAll(/<(a class="wordmark"|h1 id="forest-title")[^>]*>([\s\S]*?)<\/(?:a|h1)>/g)];
-    assert.ok(names.length > 0, page);
+    assert.equal(names.length, count, page);
     for (const [, , inner] of names) {
       assert.match(inner!, /^<svg class="mark" viewBox="0 0 104 104"[^>]*aria-hidden="true"/, page);
       for (const role of ["ocean", "land", "tree", "leaf"]) assert.match(inner!, new RegExp(`(?:fill|stroke)="var\\(--mark-${role}\\)"`), role);

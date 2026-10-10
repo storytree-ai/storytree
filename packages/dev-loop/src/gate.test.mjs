@@ -45,6 +45,22 @@ test("7.1 the gate runs typecheck and scoped tests, and explains guidance NOT RU
   assert.doesNotMatch(table, /rerun-failed/);
 });
 
+test("7.5 the gate installs an uninstalled worktree before its first check, and one it cannot install leaves every check NOT RUN", async (t) => {
+  const { root } = checkout(t);
+  const calls = [];
+  const code = await runGate({ root, provision: () => (calls.push("install"), 0), run: async (step) => (calls.push(step), 0), log: () => {} });
+  assert.deepEqual(calls, ["install", "typecheck", "test", "check:plan-edges"]);
+  assert.equal(code, 0);
+
+  const ran = [];
+  const output = [];
+  const refused = await runGate({ root, provision: (log) => (log("this worktree is FRESH, not installed"), 1), run: async (step) => (ran.push(step), 0), log: (line) => output.push(line) });
+  assert.deepEqual(ran, [], "no check runs against a worktree with no modules");
+  assert.equal(refused, 1);
+  assert.match(output.at(-1), /NOT RUN\s+typecheck.*worktree not installed/);
+  assert.match(output.at(-1), /NOT RUN\s+test.*worktree not installed/);
+});
+
 test("library-only guidance edits can request every check, plan edges included (3.7), continuing past failure or launch error", async (t) => {
   const { root } = checkout(t);
   for (const broken of ["typecheck", "test", "check:guidance", "check:plan-edges"]) {

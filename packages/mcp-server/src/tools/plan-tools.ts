@@ -322,7 +322,6 @@ function said(state: HealthState): string {
   return state === "not-checked" ? "not checked" : state;
 }
 
-/** `fields` without the ones that are undefined: the library's inputs take no undefined values. */
 /**
  * The numbers of `capability`'s numbered tests (`tested`) that none of its live contracts carries, in order:
  * the capability's number is read off `title`, a contract just planned on it.
@@ -336,6 +335,7 @@ async function orphanTests({ library }: Call, capability: string, title: string,
   return own.sort((a, b) => Number(a.slice(prefix.length + 1)) - Number(b.slice(prefix.length + 1)));
 }
 
+/** `fields` without the ones that are undefined: the library's inputs take no undefined values. */
 function optional<T extends Record<string, unknown>>(fields: T): { [K in keyof T]: Exclude<T[K], undefined> } {
   return Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined)) as { [K in keyof T]: Exclude<T[K], undefined> };
 }

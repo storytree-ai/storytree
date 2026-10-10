@@ -337,11 +337,14 @@ test("2.20 · the knowledge chapter plays three steps on the globe the map chapt
   // Every step holds the map chapter's globe where its health step ends: the first round's four stories, checked.
   const health = tourSteps.find(item => item.id === "map-health")!;
   const plan = mapGrowthPlan(mapRecording(recording));
-  const end = replayMoment(plan, health.growth as { seconds: number }, (health.growth as { seconds: number }).seconds);
+  // Health runs until the second round's first building stage (03:08:57) and stops just short of it.
+  const end = plan.stages.find(stage => stage.id === "pr7-building")!;
+  assert.equal(end.at, "2026-10-05T03:08:57.049Z");
+  assert.equal((health.growth as { until: string }).until, "pr7-building");
   for (const item of chapter) {
     assert.equal(item.map, "shop", `${item.id} stays on the shop`);
     const growth = item.growth as { seconds: number };
-    for (const told of [0, growth.seconds]) assert.ok(Math.abs(replayMoment(plan, growth, told) - end) < .01, `${item.id} holds the globe where health leaves it`);
+    for (const told of [0, growth.seconds]) assert.ok(Math.abs(replayMoment(plan, growth, told) - end.start) < .01, `${item.id} holds the globe at the 03:08:57 survey`);
   }
   // One idea per line: the notes come in with the first step's second line, the note's card with the shelf's second, and the
   // orders session's flags with the reads step's third.
@@ -353,7 +356,10 @@ test("2.20 · the knowledge chapter plays three steps on the globe the map chapt
   assert.deepEqual(reads.lines.map((_, index) => tinted(reads, index + 1).sessionTints === true), [false, false, true, true]);
   // The camera: it arrives on health's view of the four stories, then goes in to checkout.
   for (const wide of [true, false]) {
-    assert.deepEqual(viewOf(inside, 1, wide), viewOf(health, 2, wide), "the chapter picks up from health's view");
+    // The four stories' view, centred on browsing: 1.32 globe radii on a laptop, 1.5 on a phone.
+    const browsing = { kind: "story", story: "story_0c07d0047754" };
+    assert.deepEqual(viewOf(inside, 1, wide), wide ? { target: browsing, framing: 1.32 } : { target: browsing, framing: 1.5, side: 0 }, "the chapter picks up on the four stories");
+    assert.deepEqual(viewOf(inside, 1, wide), viewOf(health, 2, wide), "where health leaves the camera");
     for (const item of [shelf, reads]) assert.deepEqual(viewOf(item, 1, wide).target, { kind: "story", story: "story_66f80ffaaa4d" });
   }
   // The shelf's note is a decision on one of checkout's capabilities; the session the reads step follows opened it in full

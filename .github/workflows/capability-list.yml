@@ -11,9 +11,9 @@ name: Capability list
 # variables TS_WIF_CLIENT_ID and TS_WIF_AUDIENCE as the environment plan-read sets them (its own
 # federated credential, whose subject names that environment), and connects as ci_plan_read, which
 # may SELECT library_meta and the plan's story, capability, contract, arc and increment records, and
-# nothing else. Its password is the secret PLAN_PG_PASSWORD in the environment plan-read. Until that
-# secret is set the job says "not checked" and passes, so it blocks nothing before the owner has
-# set it; a pull request from a fork, which GitHub gives no secrets, is not checked either.
+# nothing else. Its password is the secret PLAN_PG_PASSWORD in the environment plan-read. A pull
+# request from this repository or a merge queue run without that secret fails, saying so; a pull
+# request from a fork, which GitHub gives no secrets, says "not checked" and passes.
 
 on:
   pull_request:
@@ -45,11 +45,15 @@ jobs:
         id: settings
         env:
           SET_PLAN_PG_PASSWORD: ${{ secrets.PLAN_PG_PASSWORD != '' }}
+          FROM_FORK: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
         run: |
           if [ "$SET_PLAN_PG_PASSWORD" = true ]; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
+          elif [ "$FROM_FORK" = true ]; then
+            echo "not checked: a pull request from a fork is given no plan-read credentials"
           else
-            echo "not checked: plan-read credentials not set"
+            echo "::error::plan-read credentials not set: the environment plan-read has no secret PLAN_PG_PASSWORD, so the capability list cannot be checked (ADR-0952)"
+            exit 1
           fi
       - uses: actions/checkout@v6
         if: steps.settings.outputs.ready == 'true'

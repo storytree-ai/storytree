@@ -26,10 +26,12 @@ const PLATE_LIFT = 2;
 
 /**
  * A story's nameplate, its top edge at a fixed point just south of the island's coast, turning with the island; while the story is
- * selected, a smaller nameplate on each of its capabilities' territories, and the other stories' plates dim. No plate takes a pointer from the land beneath it.
+ * selected, a smaller nameplate on each of its capabilities' territories (below a claimed one's flag), and the other stories' plates dim. No plate takes a pointer from the land beneath it.
  */
-export function Nameplates({ island, spot, coast, radius, selected, dimmed = false }: {
+export function Nameplates({ island, spot, coast, radius, selected, dimmed = false, claimed = new Map() }: {
   island: Island; spot: PlanetSpot; coast: Coast; radius: number; selected: string | undefined; dimmed?: boolean;
+  /** Claimed capabilities: their flags stand where their nameplates would, so those nameplates hang just below (ADR-0968 D1). */
+  claimed?: ReadonlyMap<string, unknown>;
 }) {
   // Plates hide behind the sphere only (whatever radius it has grown to): one exact test each, not a raycast of the land.
   const occluder = useMemo(() => [{ current: globeOccluder(radius) }], [radius]);
@@ -68,7 +70,7 @@ export function Nameplates({ island, spot, coast, radius, selected, dimmed = fal
       </Overlay>
     </group>
     {plates.map(plate => <Overlay key={plate.capability} occlude={occluder} position={surface(plate).toArray()} center zIndexRange={[25, 21]} style={{ pointerEvents: "none" }}>
-      <div className="forest-label planet-nameplate capability" data-capability-id={plate.capability} data-size={plate.size}>{plate.title}</div>
+      <div className="forest-label planet-nameplate capability" data-capability-id={plate.capability} data-size={plate.size} data-claimed={claimed.has(plate.capability) ? "" : undefined}>{plate.title}</div>
     </Overlay>)}
   </>;
 }
@@ -143,7 +145,8 @@ export function SelectionRing({ island, descriptors, onGlobe = false, emphasis =
   );
 }
 
-const reducedMotion = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+/** Whether the reader asked for reduced motion. */
+export const reducedMotion = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /** A neighbour of the selected story, ringed in its relation's lane colour, pulsing in once when a lane's front
  * reaches its dock (`reached` holds its story then; contract 3.27). */

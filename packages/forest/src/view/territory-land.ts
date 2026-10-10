@@ -2,8 +2,8 @@
  * Capability 3 · Story node render: an island's capability territories as drawn (ADR-0804 D2). Each
  * territory is one mesh named `territory:<capability>`, filled by its capability's word (ADR-0825 D3);
  * Unclaimed code's is `territory:unclaimed`, with no capability: uncharted land, a night-dark fill with a
- * thin diagonal hatch (`territory-hatch:unclaimed`), still picked by a click on its land. The borders between territories are one set of line segments, and a claimed territory's
- * border is outlined just inside it in the claiming session's colour. All stop at the island's coast.
+ * thin diagonal hatch (`territory-hatch:unclaimed`), still picked by a click on its land. The borders between territories are one set of line segments,
+ * stopping at the island's coast. A claim draws nothing here: its flag and lot are `claim-flag.ts`'s (ADR-0968).
  * Plain three.js, so the marks are read without a browser.
  */
 import type { CapabilityWord } from "@storytree/forest-world/scene";
@@ -30,10 +30,6 @@ const UNCHARTED_FILL = { colour: "#101418", opacity: 0.92 };
 const UNCHARTED_HATCH = { colour: "#8fa8b8", opacity: 0.35 };
 /** The hatch lines lie this far apart, measured across them, in ground units. */
 const HATCH_SPACING = 0.35;
-/** A claim's outline: a band this deep inside the territory's border, in ground units; the only claim mark, so it reads at globe zoom (ADR-0923 D1). */
-const CLAIM_INSET = 1.2;
-const CLAIM_OPACITY = 0.95;
-const FADED_CLAIM_OPACITY = 0.6;
 const BORDER_COLOUR = "#f4f7f8";
 const BORDER_OPACITY = 0.85;
 
@@ -60,14 +56,13 @@ export function territoryLand(land: DrawnLand, onSurface: (point: Point) => Vect
     const pieces = cells.flatMap((cell) => land3 === undefined ? [cell] : land3.map((triangle) => clipToConvex(triangle, cell)).filter((piece) => piece.length >= 3));
     const mesh = new Mesh(fan(pieces, onSurface), territoryFill(territory));
     mesh.name = `territory:${territory.capability ?? "unclaimed"}`;
-    // A capability a running session claims keeps its fill; its border is outlined in the session's colour (ADR-0825 D3).
+    // A capability a running session claims keeps its fill and its borders; the flag says who holds it (ADR-0968 D1).
     const claimant = territory.capability === undefined ? undefined : claimed.get(territory.capability);
     mesh.userData = territory.capability === undefined ? { territory: true }
       : { territory: true, capability: territory.capability, title: territory.title ?? territory.capability, ...(territory.description === undefined ? {} : { description: territory.description }), word: territory.status ?? "untested", ...(claimant === undefined ? {} : { claimedBy: claimant.colour }) };
     mesh.renderOrder = 1;
     group.add(mesh);
     if (territory.capability === undefined) group.add(hatch(pieces, onSurface));
-    if (claimant !== undefined) group.add(claimOutline(territory.capability!, claimant, cells, pieces, coast, onSurface));
   });
   const kept = coast === undefined ? land.borders : land.borders.flatMap(({ from, to }) => insideOf(from, to, coast));
   const segments = kept.flatMap(({ from, to }) => [onSurface(from), onSurface(to)]).flatMap((point) => [point.x, point.y, point.z]);
@@ -90,7 +85,7 @@ function territoryFill(territory: DrawnLand["territories"][number]): MeshBasicMa
 
 /**
  * Diagonal hatching across convex land pieces: lines x + z = n * spacing, the same lines on every piece so the
- * hatch runs on unbroken across cells, each cut to the piece by the same clipping the claim bands use.
+ * hatch runs on unbroken across cells, each cut to the piece by the same clipping the lots' dashes use.
  */
 function hatch(pieces: readonly (readonly Point[])[], onSurface: (point: Point) => Vector3): LineSegments {
   const step = HATCH_SPACING * Math.SQRT2;
@@ -125,37 +120,46 @@ function fan(pieces: readonly (readonly Point[])[], onSurface: (point: Point) =>
 }
 
 /**
- * A claimed territory's border as a band just inside it, in the claimant's colour, fainter once it is quiet.
- * The border is every edge of the territory's cells not shared with another of its cells, cut to the coast,
- * and the coast where it crosses the territory; each edge's band is cut to the territory's own land.
+ * A staked lot's dashed line (ADR-0968 D4): dashes `on` long and `off` apart, `inset` inside the border of territory `at`.
+ * The border is every edge of the territory's cells not shared with another of its cells, cut to the coast, and the coast
+ * where it crosses the territory; a dash is kept only where it lies on the territory's land, `inset` clear of every border edge.
  */
-function claimOutline(capability: string, claimant: { colour: string; faded: boolean }, cells: readonly (readonly Point[])[], pieces: readonly (readonly Point[])[], coast: readonly (readonly Point[])[] | undefined, onSurface: (point: Point) => Vector3): Mesh {
+export function lotDashes(land: DrawnLand, at: number, coast: readonly (readonly Point[])[] | undefined, { inset, on, off }: { inset: number; on: number; off: number }): { from: Point; to: Point }[] {
+  const cells = land.cells.filter((cell) => cell.territory === at && cell.polygon.length >= 3).map((cell) => cell.polygon);
+  const land3 = coast === undefined ? undefined : landTriangles(coast);
+  const pieces = cells.flatMap((cell) => land3 === undefined ? [cell] : land3.map((triangle) => clipToConvex(triangle, cell)).filter((piece) => piece.length >= 3));
   const near = (p: Point, q: Point) => Math.abs(p.x - q.x) + Math.abs(p.z - q.z) < 1e-6;
   const shared = (a: Point, b: Point, own: number) => cells.some((cell, at) => at !== own && cell.some((p, i) => {
     const q = cell[(i + 1) % cell.length]!;
     return (near(p, b) && near(q, a)) || (near(p, a) && near(q, b));
   }));
-  const edges = cells.flatMap((cell, own) => cell.flatMap((a, i) => {
+  const edges = [...cells.flatMap((cell, own) => cell.flatMap((a, i) => {
     const b = cell[(i + 1) % cell.length]!;
     return shared(a, b, own) ? [] : coast === undefined ? [{ from: a, to: b }] : insideOf(a, b, coast);
-  }));
-  const shore = (coast ?? []).flatMap((ring) => ring.flatMap((a, i) => cells.flatMap((cell) => segmentInConvex(a, ring[(i + 1) % ring.length]!, cell))));
+  })), ...(coast ?? []).flatMap((ring) => ring.flatMap((a, i) => cells.flatMap((cell) => segmentInConvex(a, ring[(i + 1) % ring.length]!, cell))))];
   const inside = (p: Point) => pieces.some((piece) => inConvex(p, piece));
-  const band = [...edges, ...shore].flatMap(({ from, to }) => {
+  const clear = (p: Point) => edges.every(({ from, to }) => toSegment(p, from, to) >= inset * 0.98);
+  return edges.flatMap(({ from, to }) => {
     const length = Math.hypot(to.x - from.x, to.z - from.z);
     if (length < 1e-9) return [];
     let normal = { x: -(to.z - from.z) / length, z: (to.x - from.x) / length };
     const middle = { x: (from.x + to.x) / 2, z: (from.z + to.z) / 2 };
     if (!inside({ x: middle.x + normal.x * 1e-4, z: middle.z + normal.z * 1e-4 })) normal = { x: -normal.x, z: -normal.z };
-    const quad = [from, to, { x: to.x + normal.x * CLAIM_INSET, z: to.z + normal.z * CLAIM_INSET }, { x: from.x + normal.x * CLAIM_INSET, z: from.z + normal.z * CLAIM_INSET }];
-    return pieces.map((piece) => clipToConvex(quad, piece)).filter((cut) => cut.length >= 3);
+    const along = (s: number): Point => ({ x: from.x + (to.x - from.x) * s / length + normal.x * inset, z: from.z + (to.z - from.z) * s / length + normal.z * inset });
+    const dashes: { from: Point; to: Point }[] = [];
+    for (let s = 0; s < length; s += on + off) {
+      const [a, b, m] = [along(s), along(Math.min(length, s + on)), along(Math.min(length, s + on / 2))];
+      if ([a, b, m].every((p) => inside(p) && clear(p))) dashes.push({ from: a, to: b });
+    }
+    return dashes;
   });
-  const outline = new Mesh(fan(band, onSurface), new MeshBasicMaterial({ color: new Color(claimant.colour), transparent: true, opacity: claimant.faded ? FADED_CLAIM_OPACITY : CLAIM_OPACITY, side: DoubleSide, forceSinglePass: true, depthWrite: false }));
-  outline.name = `territory-claim:${capability}`;
-  outline.userData = { claim: true, capability, colour: claimant.colour, faded: claimant.faded };
-  outline.raycast = () => {};
-  outline.renderOrder = 2.5;
-  return outline;
+}
+
+/** How far `p` is from the segment from `a` to `b`. */
+function toSegment(p: Point, a: Point, b: Point): number {
+  const [dx, dz] = [b.x - a.x, b.z - a.z];
+  const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.z - a.z) * dz) / (dx * dx + dz * dz || 1)));
+  return Math.hypot(p.x - a.x - t * dx, p.z - a.z - t * dz);
 }
 
 /** Whether `p` lies in the convex loop `loop`, on its edge included. */

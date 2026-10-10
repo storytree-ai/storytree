@@ -20,7 +20,7 @@ const run = (file: string, args: string[], options: ExecFileOptions) => {
   return result;
 };
 
-test("3.20 · 3.11 · in a real browser, each territory is filled by its word and never grey, claims draw their bands, and failing islands behind the globe get rim markers", { timeout: 200_000 }, async () => {
+test("3.20 · 3.11 · in a real browser, each territory is filled by its word and never grey, claims plant their flags, and failing islands behind the globe get rim markers", { timeout: 200_000 }, async () => {
   await run(process.execPath, [path.join(territoryFolder, "build.mjs"), "smoke"], { cwd: checkout, timeout: 60_000 });
   // Chrome is installed on CI's three runner images, so the smoke downloads no browser.
   const { stdout } = await run(process.execPath, ["--import", "tsx", path.join(territoryFolder, "capture.mjs"), "--smoke"],
@@ -28,12 +28,12 @@ test("3.20 · 3.11 · in a real browser, each territory is filled by its word an
   const summary = JSON.parse(stdout.trim().split("\n").at(-1)!);
   assert.deepEqual(summary.fills, ["healthy #97c459 0.8", "proposed #f2d16b 0.8", "unhealthy #e24b4a 0.85", "untested #f2d16b 0.8"]);
   assert.equal(summary.greyFills, 0);
-  // Three sessions claim four capabilities; the quiet one's band is fainter.
-  assert.deepEqual(summary.outlines.map(([story, capability, , opacity, triangles]: [string, string, string, number, number]) => [story, capability, opacity, triangles > 0]), [
-    ["story_05e45963ca9f", "capability_05ff7e9f0f99", 0.95, true],
-    ["story_05e45963ca9f", "capability_4da153322012", 0.95, true],
-    ["story_be32e99ed54f", "capability_9f02379a2e1a", 0.6, true],
-    ["story_eb7d623fb9c8", "capability_75abfdd699c0", 0.95, true],
+  // Three sessions claim four capabilities, each with a pennant; the quiet one's is furled.
+  assert.deepEqual(summary.flags.map(([story, capability, , faded, triangles]: [string, string, string, boolean, number]) => [story, capability, faded, triangles > 0]).sort((a: unknown[], b: unknown[]) => `${a[0]}${a[1]}`.localeCompare(`${b[0]}${b[1]}`)), [
+    ["story_05e45963ca9f", "capability_05ff7e9f0f99", false, true],
+    ["story_05e45963ca9f", "capability_4da153322012", false, true],
+    ["story_be32e99ed54f", "capability_9f02379a2e1a", true, true],
+    ["story_eb7d623fb9c8", "capability_75abfdd699c0", false, true],
   ]);
   assert.deepEqual(summary.markers.map((marker: { story: string; title: string }) => [marker.story, marker.title]), [
     ["story_05e45963ca9f", "The agent link · unhealthy (storytree verified)"],

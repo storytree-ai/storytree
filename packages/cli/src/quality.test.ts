@@ -10,7 +10,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 
 import { connect } from "@storytree/library";
-import { checks, checksText, ledgerText, openLedger, openReviews, standingText } from "@storytree/quality-assurance";
+import { checks, checksText, ledgerText, openLedger, openReviews } from "@storytree/quality-assurance";
 
 import { BuiltCommand, inWorld, testServerUrl } from "./testing/cli.js";
 
@@ -85,7 +85,7 @@ test("(quality assurance's 2.1, 2.2 and 4.1) `quality brief`, `take`, `answer` a
       assert.equal(answered.code, 0, answered.stderr);
       const standing = await world.run(["quality", "standing", increment.id]);
       assert.equal(standing.code, 0, standing.stderr);
-      assert.ok(standing.stdout.startsWith(standingText([])), standing.stdout);
+      assert.ok(standing.stdout.startsWith("No finding stands: the change is ready for the gate."), standing.stdout);
     } finally {
       await storytree.close();
     }

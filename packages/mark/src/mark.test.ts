@@ -1,6 +1,6 @@
 /** The mark 1.1–2.2: the master drawing in the caller's colours, its named colourways, and the fixed-colour files generated from it. */
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { test } from "node:test";
 
 import { COLOURWAYS, ICNS_TYPES, ICO_SIZES, PNG_SIZES, iconPath, markSvg, readIcns, readIco, readPng, renderMark } from "./index.js";
@@ -21,7 +21,7 @@ function painted(svg: string): { tag: string; colour: string }[] {
   return out;
 }
 
-test("the mark 1.1: given four role colours, the SVG fills each role's shapes with its colour and carries no other colour", () => {
+test("1.1 · given four role colours, the SVG fills each role's shapes with its colour and carries no other colour", () => {
   const svg = markSvg(roles);
   assert.match(svg, /viewBox="0 0 104 104"/);
   const shapes = painted(svg);
@@ -39,7 +39,7 @@ test("the mark 1.1: given four role colours, the SVG fills each role's shapes wi
   assert.throws(() => markSvg({ ocean: "#000", land: "#111", tree: "#222" } as never), /leaf/);
 });
 
-test("the mark 1.2: given a canvas or a named colourway, the SVG draws the tile in the canvas colour and the mark in that colourway's roles", () => {
+test("1.2 · given a canvas or a named colourway, the SVG draws the tile in the canvas colour and the mark in that colourway's roles", () => {
   const tiled = painted(markSvg({ ...roles, canvas: "var(--c)" }));
   assert.equal(tiled.length, 15);
   assert.deepEqual(tiled[0], { tag: "rect", colour: "var(--c)" }, "the tile is drawn first, behind the mark");
@@ -55,12 +55,13 @@ test("the mark 1.2: given a canvas or a named colourway, the SVG draws the tile 
   assert.throws(() => markSvg("dusk"), /day.*night/);
 });
 
-test("the mark 2.1: each committed PNG holds the master drawing rendered at its size in its colourway", () => {
+test("2.1 · each committed PNG holds the master drawing rendered at its size in its colourway", () => {
   assert.deepEqual(PNG_SIZES, [16, 32, 48, 64, 128, 256, 512, 1024]);
   for (const name of Object.keys(COLOURWAYS)) {
     const way = COLOURWAYS[name]!;
     for (const size of PNG_SIZES) {
       const file = iconPath(name, `${size}.png`);
+      assert.ok(existsSync(file), `${file} is missing: run pnpm --filter @storytree/mark icons`);
       const png = readPng(readFileSync(file));
       assert.equal(png.width, size, file);
       assert.equal(png.height, size, file);
@@ -76,7 +77,7 @@ test("the mark 2.1: each committed PNG holds the master drawing rendered at its 
   }
 });
 
-test("the mark 2.2: each colourway's .ico and .icns hold the master's PNGs at the sizes Windows and macOS read", () => {
+test("2.2 · each colourway's .ico and .icns hold the master's PNGs at the sizes Windows and macOS read", () => {
   assert.deepEqual(ICO_SIZES, [16, 32, 48, 64, 128, 256]);
   assert.deepEqual({ ...ICNS_TYPES }, { icp4: 16, icp5: 32, icp6: 64, ic07: 128, ic08: 256, ic09: 512, ic10: 1024 });
   for (const name of Object.keys(COLOURWAYS)) {

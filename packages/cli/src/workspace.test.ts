@@ -143,6 +143,14 @@ test("11.8 work with an open pull request is refused naming it and --despite-ope
   });
 });
 
+test("5.35 the CLI's refusal of a held claim names the increments its holder holds the work for", () => {
+  const holder = { capability: "capability_form", session: "s1", label: "Codex", reason: "build form", since: "2026-10-10T00:00:00.000Z", holder: "live" } as const;
+  const refused = workspaceRefusalText("capability_form", { ok: false, refused: "held", holder, heldFor: ["increment_form", "increment_mail"] });
+  assert.ok(refused.includes("Codex session s1 for increment_form, increment_mail: build form"), refused);
+  assert.ok(refused.includes("once increment_form closes"), refused);
+  assert.doesNotMatch(workspaceRefusalText("capability_form", { ok: false, refused: "held", holder, heldFor: [] }), / for |closes/);
+});
+
 test("11.8 the CLI offers --despite-open-pulls from the refusal's pull data regardless of its wording", () => {
   const increment = "increment_email";
   const why = "Finish pull request #41 on claude/email first";
@@ -284,7 +292,7 @@ test("11.12 `workspace release --holder <session> --reason` is the session manag
     const increment = await library.addIncrement({ arc: arc.id, title: "Email form", objective: "Build it", body: "…" });
     const log = await openActivityLog(testServerUrl());
     try {
-      assert.equal((await world.run(["settings", "set", "idle-after", "1s"])).code, 0);
+      assert.equal((await world.run(["settings", "set", "idle-after", "10m"])).code, 0); // far longer than any process start
       assert.equal((await claim({ log, library, project: world.project, session: "quiet", harness: "claude-code", quietMs: 1_000 }, increment.id, "building the form")).ok, true);
       const before = await log.since(world.project, 0);
       const live = await world.run(["workspace", "release", increment.id, "--holder", "quiet", "--reason", "quiet, messaged"], { CLAUDE_CODE_SESSION_ID: "manager" });
@@ -292,6 +300,7 @@ test("11.12 `workspace release --holder <session> --reason` is the session manag
       assert.match(live.stderr, /quiet.*live/);
       assert.deepEqual(await log.since(world.project, 0), before, "a refusal writes nothing");
 
+      assert.equal((await world.run(["settings", "set", "idle-after", "1s"])).code, 0);
       await new Promise((done) => setTimeout(done, 1_300)); // the holder says nothing for longer than idle-after
       const ran = await world.run(["workspace", "release", increment.id, "--holder", "quiet", "--reason", "quiet 24h after the manager's message"], { CLAUDE_CODE_SESSION_ID: "manager" });
       assert.equal(ran.code, 0, ran.stderr);

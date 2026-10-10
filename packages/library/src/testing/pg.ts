@@ -25,21 +25,15 @@ import { readFileSync, renameSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { connect as connectSocket, createServer, type AddressInfo, type Socket } from "node:net";
 
+import { dropTestDatabases } from "@storytree/local-postgres/testing";
+
 import { connect, type Project } from "../project/index.js";
 
 import pg from "pg";
 import type { Client } from "pg";
 
-/**
- * What uniqueProjectName() puts in every name; the only databases dropTestDatabases() and the only
- * roles dropTestRoles() will drop.
- */
+/** What uniqueProjectName() puts in every name; the only roles dropTestRoles() will drop. */
 const TEST_TOKEN = /t-[0-9a-f]{8}/;
-
-/** Something SQL can be run on: a pg Client or Pool. */
-export interface Queryable {
-  query(text: string): Promise<unknown>;
-}
 
 /** The server the tests run against. Throws when there is none. */
 export function testServerUrl(): string {
@@ -107,55 +101,14 @@ async function withClient<T>(
   }
 }
 
-/**
- * Drop a test's databases, ending any connection still open to them. Missing ones are skipped.
- * Only names carrying a uniqueProjectName() token are accepted, so a mistake in a test can never
- * drop somebody's real database on a shared server.
- *
- * They are dropped on the test server, or through `server` when given: a connection to another
- * server's own database (a Cloud SQL instance's, say).
- *
- * Through `server` signed in as a user that may not create databases, a project database that user
+/*
+ * Through a `server` signed in as a user that may not create databases, a project database that user
  * made by borrowing a role that may (capability 8) is the borrowed role's, and is dropped all the
  * same, as the user: DROP DATABASE takes a member holding its owner's rights by inheritance, as a
  * role granted with the default INHERIT does. It is deliberately not dropped AS that role (SET
  * ROLE): WITH (FORCE) could then not end the user's own sessions still open on it.
  */
-export async function dropTestDatabases(databases: Iterable<string>, server?: Queryable): Promise<void> {
-  const names = [...databases];
-  for (const name of names) assertTestName("drop", "database", name);
-  if (names.length === 0) return;
-  const drop = async (client: Queryable): Promise<void> => {
-    for (const name of names) {
-      const sql = `DROP DATABASE IF EXISTS ${quoteIdentifier(name)}`;
-      let statement = `${sql} WITH (FORCE)`;
-      let retries = 0;
-      for (;;) {
-        try {
-          await client.query(statement);
-          break;
-        } catch (error) {
-          if (statement !== sql && isError(error, "42501", "TerminateOtherDBBackends")) {
-            // FORCE can refuse an autovacuum worker (which has no login role). Plain DROP ends
-            // autovacuum itself and waits for departing backends. Still fail if it cannot drop it.
-            statement = sql;
-          } else if (isError(error, "55006", "dropdb") && retries++ < DEPARTED_RETRIES) {
-            // A backend still leaving after DROP's own 5-second wait (a terminated one on Windows
-            // has been seen to): try again, a bounded number of times, then fail.
-            await new Promise((resolve) => setTimeout(resolve, 200));
-          } else {
-            throw error;
-          }
-        }
-      }
-    }
-  };
-  if (server !== undefined) {
-    await drop(server);
-  } else {
-    await withTestClient(drop);
-  }
-}
+export { dropTestDatabases, type Queryable } from "@storytree/local-postgres/testing";
 
 /** The password createTestRole() gave each login role it made, by role. */
 const rolePasswords = new Map<string, string>();
@@ -280,15 +233,7 @@ export async function dropTestRoles(roles: Iterable<string>): Promise<void> {
   });
 }
 
-/** How many more times a drop is tried while the database is still being accessed. */
-const DEPARTED_RETRIES = 5;
-
-function isError(error: unknown, code: string, routine: string): boolean {
-  return typeof error === "object" && error !== null &&
-    "code" in error && error.code === code && "routine" in error && error.routine === routine;
-}
-
-function assertTestName(action: "create" | "drop", what: "database" | "role", name: string): void {
+function assertTestName(action: "create" | "drop", what: "role", name: string): void {
   if (!TEST_TOKEN.test(name)) {
     throw new Error(`refusing to ${action} ${what} ${JSON.stringify(name)}: test ${what}s are named with uniqueProjectName()`);
   }

@@ -130,6 +130,9 @@ importers:
         specifier: ^4.6.5
         version: 4.6.5
     devDependencies:
+      '@storytree/local-postgres':
+        specifier: workspace:*
+        version: link:../local-postgres
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6
@@ -300,6 +303,9 @@ importers:
         specifier: workspace:*
         version: link:../processes
     devDependencies:
+      '@storytree/local-postgres':
+        specifier: workspace:*
+        version: link:../local-postgres
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6
@@ -568,6 +574,9 @@ importers:
         specifier: ^4.6.5
         version: 4.6.5
     devDependencies:
+      '@storytree/local-postgres':
+        specifier: workspace:*
+        version: link:../local-postgres
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6
@@ -605,6 +614,9 @@ importers:
         specifier: ^4.6.5
         version: 4.6.5
     devDependencies:
+      '@storytree/local-postgres':
+        specifier: workspace:*
+        version: link:../local-postgres
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6

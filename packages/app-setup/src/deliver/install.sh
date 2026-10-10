@@ -164,12 +164,57 @@ st_ask() {
   if ST_ANSWER=$( (IFS= read -r st_line && printf '%s' "$st_line") 2>/dev/null < /dev/tty); then :; else ST_ANSWER=; ST_NO_TTY=1; echo; fi
 }
 
+# st_newer INSTALLED RELEASE: succeeds when the release's version is newer, part by part; an unreadable one never is.
+st_newer() {
+  awk -v a="$1" -v b="$2" 'BEGIN {
+    if (a !~ /^[0-9]+\.[0-9]+\.[0-9]+$/ || b !~ /^[0-9]+\.[0-9]+\.[0-9]+$/) exit 1
+    split(a, x, "."); split(b, y, ".")
+    for (i = 1; i <= 3; i++) { if (y[i] + 0 > x[i] + 0) exit 0; if (y[i] + 0 < x[i] + 0) exit 1 }
+    exit 1
+  }'
+}
+
+# st_plist_version APP: the version the installed app bundle says it is, from its Info.plist.
+st_plist_version() {
+  st_plist="$1/Contents/Info.plist"
+  [ -f "$st_plist" ] || return 1
+  { if command -v plutil >/dev/null 2>&1; then plutil -convert xml1 -o - "$st_plist"; else cat "$st_plist"; fi; } 2>/dev/null |
+    awk '/<key>CFBundleShortVersionString<\/key>/ { want = 1; next }
+      want { sub(/.*<string>/, ""); sub(/<\/string>.*/, ""); print; exit }'
+}
+
+# st_place NEW DEST: puts the new app where DEST is, moving an old one aside first so the new one never lands inside it;
+# a failed move puts the old one back. The old app goes once the new one is in place; the data is under ~/.storytree.
+st_place() {
+  st_old=
+  if [ -e "$2" ]; then
+    st_old="$2.storytree-old-$$"
+    mv "$2" "$st_old" || { st_fail "the installed app at $2 could not be moved aside"; return; }
+  fi
+  if mv "$1" "$2" 2>/dev/null; then [ -z "$st_old" ] || rm -rf "$st_old"; return 0; fi
+  [ -z "$st_old" ] || mv "$st_old" "$2"
+  st_fail "the app could not be moved to $2"
+}
+
 st_delivery_steps() {
   ST_STEP=inspect
   st_op_probe "$1" "$2" || return
-  if [ "$ST_PRESENT" = no ]; then
-    ST_STEP=download; st_op_stage download; st_op_download "$2" || return
+  ST_UPDATE=
+  if [ "$ST_PRESENT" = yes ]; then
+    # A repeat run updates an app older than the channel's release; one that cannot read the release opens what is there.
+    st_op_version "$1"
+    if st_op_release "$2"; then
+      if st_newer "$ST_INSTALLED" "$st_version"; then ST_UPDATE=yes; echo "Updating storytree $ST_INSTALLED to $st_version."; fi
+    else
+      echo "Could not check for a newer storytree ($ST_ERROR); opening the installed ${ST_INSTALLED:-app}."
+    fi
+  fi
+  if [ "$ST_PRESENT" = no ] || [ -n "$ST_UPDATE" ]; then
+    ST_STEP=download
+    if [ -z "$ST_UPDATE" ]; then st_op_stage download; st_op_release "$2" || return; fi
+    st_op_download "$2" || return
     st_op_persist || return
+    if [ -n "$ST_UPDATE" ]; then ST_STEP=quit; st_op_stage quit; st_op_quit "$1" || return; fi
     ST_STEP=install; st_op_stage install; st_op_install "$ST_ARCHIVE" "$1" || return
     ST_STEP=verify; st_op_stage verify; st_op_probe "$1" "$2" || return
     [ "$ST_PRESENT" = yes ] || { st_fail 'the installed app or its tool payload is incomplete'; return; }
@@ -180,7 +225,7 @@ st_delivery_steps() {
   ST_STEP=path; st_op_stage path; st_op_path
 }
 
-# st_delivery INSTALLDIR ARCH: install when nothing usable is there, then open the app and put the command on PATH.
+# st_delivery INSTALLDIR ARCH: install when nothing usable or only an older app is there, then open the app and put the command on PATH.
 st_delivery() {
   st_delivery_steps "$1" "$2" || st_fail "storytree delivery failed at $ST_STEP: $ST_ERROR. Retry: run the same command again. Your projects and agent settings have not been replaced"
 }
@@ -247,6 +292,7 @@ st_tools() { ST_NODE="$1/Contents/Resources/agent-tools/node"; ST_HELPER="$1/Con
 st_op_stage() {
   case "$1" in
     download) echo 'Finding the storytree release for this installation channel.' ;;
+    quit) echo 'Quitting the open storytree app so it can be replaced; its database stops first.' ;;
     install) echo 'Installing the app into Applications in your home folder.' ;;
     verify) echo 'Checking the installed app and its bundled tools.' ;;
     finish) echo 'Opening the app and starting its database.' ;;
@@ -269,8 +315,11 @@ st_op_probe() {
   ST_PRESENT=yes
 }
 
+st_op_version() { ST_INSTALLED=$(st_plist_version "$1") || ST_INSTALLED=; }
+
+st_op_release() { st_release "$ST_CHANNEL" "$1" "$ST_TMP/storytree-delivery.json"; }
+
 st_op_download() {
-  st_release "$ST_CHANNEL" "$1" "$ST_TMP/storytree-delivery.json" || return
   echo "Downloading storytree $st_version for an Apple Silicon Mac."
   st_download "$ST_PAYLOAD_URL" "$ST_TMP/$ST_PAYLOAD_NAME" || { st_fail 'the download did not finish'; return; }
   st_verify "$ST_TMP/$ST_PAYLOAD_NAME" "$ST_PAYLOAD_SHA" || return
@@ -279,12 +328,26 @@ st_op_download() {
 
 st_op_persist() { st_save_channel "$ST_HOME" "$ST_CHANNEL" || st_fail "the release channel could not be saved in $ST_HOME"; }
 
+# The app's own --quit asks the running one to quit, which waits for its database to stop; a closed app starts nothing.
+st_op_quit() {
+  st_tools "$1"
+  st_exe="$1/Contents/MacOS/storytree-0.3"
+  pgrep -f "$st_exe" >/dev/null 2>&1 || return 0
+  "$st_exe" --quit >/dev/null 2>&1
+  st_waited=0
+  while pgrep -f "$st_exe" >/dev/null 2>&1; do
+    [ "$st_waited" -lt 90 ] || { st_fail 'the open storytree app did not quit. Quit it from its menu, then retry'; return; }
+    sleep 1; st_waited=$((st_waited + 1))
+  done
+}
+
 st_op_install() {
   mkdir -p "$ST_TMP/app" || return
   # ditto keeps the bundle's signature and links as the release built them.
   if command -v ditto >/dev/null 2>&1; then ditto -x -k "$1" "$ST_TMP/app"; else unzip -q "$1" -d "$ST_TMP/app"; fi || { st_fail 'the downloaded app could not be unpacked'; return; }
   [ -d "$ST_TMP/app/storytree-0.3.app" ] || { st_fail 'the download holds no storytree-0.3.app'; return; }
-  mkdir -p "$(dirname "$2")" && mv "$ST_TMP/app/storytree-0.3.app" "$2" || st_fail "the app could not be moved to $2"
+  mkdir -p "$(dirname "$2")" || { st_fail "the folder for $2 could not be made"; return; }
+  st_place "$ST_TMP/app/storytree-0.3.app" "$2"
 }
 
 st_op_finish() {

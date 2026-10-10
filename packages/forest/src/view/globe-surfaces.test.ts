@@ -5,20 +5,19 @@ import { growLand, PAST_ISLANDS, pastIslands, presentTerritories, restoreTerrito
 import { fileCircleMarks } from "./file-circles.js";
 import { territoryLand } from "./territory-land.js";
 
-test("3.22 territories switch between health, plain boundaries and hidden without changing claims or geometry", () => {
+test("3.22 territories switch between health, plain boundaries and hidden without changing geometry", () => {
   const land = territoryLand({ territories: [{ capability: "pay", status: "unhealthy" }],
     cells: [{ territory: 0, polygon: [{ x: 0, z: 0 }, { x: 2, z: 0 }, { x: 2, z: 2 }, { x: 0, z: 2 }] }],
-    borders: [{ from: { x: 0, z: 0 }, to: { x: 0, z: 2 } }] }, p => new Vector3(p.x, 0, p.z), undefined,
-    new Map([["pay", { colour: "#aa66ff", faded: false }]]));
+    borders: [{ from: { x: 0, z: 0 }, to: { x: 0, z: 2 } }] }, p => new Vector3(p.x, 0, p.z));
   const territory = land.getObjectByName("territory:pay") as Mesh;
   const material = territory.material as MeshBasicMaterial, opacity = material.opacity;
   const geometry = territory.geometry, colour = material.color.clone();
-  const border = land.getObjectByName("territory-borders")!, claim = land.getObjectByName("territory-claim:pay")!;
+  const border = land.getObjectByName("territory-borders")!;
   presentTerritories(land, "plain");
   assert.equal(material.opacity, 0, "plain boundaries have no health fill");
-  assert.ok(border.visible && claim.visible);
+  assert.ok(border.visible);
   presentTerritories(land, false);
-  assert.ok(!territory.visible && !border.visible && claim.visible, "claims have their own switch");
+  assert.ok(!territory.visible && !border.visible);
   presentTerritories(land, "health");
   assert.ok(territory.visible && border.visible); assert.equal(material.opacity, opacity); assert.ok(material.color.equals(colour));
   assert.equal(territory.geometry, geometry);

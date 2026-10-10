@@ -1,5 +1,5 @@
 /**
- * Capability 8 · Setup check: one test per contract 8.1-8.5 and 8.7 in the app setup story (the agent link's until ADR-0969 D3). Contract 8.6,
+ * Capability 8 · Setup check: one test per contract 8.1-8.5 and 8.7 in the app setup story (Session management's until ADR-0969 D3). Contract 8.6,
  * the live check with a real Claude Code and a real Codex, is subscription-billed, and is run once
  * by hand as the story's final proof rather than here.
  *
@@ -18,17 +18,17 @@ import { fileURLToPath } from "node:url";
 
 import { connect } from "@storytree/library";
 
-import { locateStorytree, MARKER_FILE, noteCodexHookRan, type Line } from "@storytree/agent-link";
-import { withTempDir } from "@storytree/agent-link/testing/folders";
-import { dropTestProjects, placeTestServer, testServerUrl, uniqueProjectName } from "@storytree/agent-link/testing/pg";
+import { locateStorytree, MARKER_FILE, noteCodexHookRan, type Line } from "@storytree/session-management";
+import { withTempDir } from "@storytree/session-management/testing/folders";
+import { dropTestProjects, placeTestServer, testServerUrl, uniqueProjectName } from "@storytree/session-management/testing/pg";
 
 import { buildBins } from "../bins/build.js";
 import { setUpProject } from "../project/making.js";
 import { runSetupCheck } from "./index.js";
 import { builtFromMain, FIX_SENTENCES, ghState, launcherFile, machineState, putCommandOnPath, registerHooks, removeCommand, removeHooks, verifyHooks, type HookCommand, type Homes } from "./index.js";
 
-/** The stub app and the harness payload fixtures stay with the agent link, whose hooks they feed. */
-const AGENT_LINK_SRC = path.dirname(fileURLToPath(import.meta.resolve("@storytree/agent-link")));
+/** The stub app and the harness payload fixtures stay with Session management, whose hooks they feed. */
+const AGENT_LINK_SRC = path.dirname(fileURLToPath(import.meta.resolve("@storytree/session-management")));
 const STUB_APP = path.join(AGENT_LINK_SRC, "testing", "stub-app.mjs");
 const FIXTURES = path.join(AGENT_LINK_SRC, "hooks", "fixtures") + path.sep;
 
@@ -305,7 +305,7 @@ test("8.3 with storytree closed, a session start opens it", async () => {
   });
 });
 
-test("opening storytree waits until it accepts connections, not only until it has said where it will listen (regression: the agent link's live check, 2026-09-26)", async () => {
+test("opening storytree waits until it accepts connections, not only until it has said where it will listen (regression: Session management's live check, 2026-09-26)", async () => {
   await withTempDir(async (dir) => {
     const storytreeHome = path.join(dir, "storytree-home");
     mkdirSync(storytreeHome);

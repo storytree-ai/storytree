@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@storytree/library": "workspace:*",
-    "@storytree/agent-link": "workspace:*",
+    "@storytree/session-management": "workspace:*",
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.6.1",
     "react": "^19.1.1",

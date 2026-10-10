@@ -18,7 +18,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { locateLibrary, readLibrary } from "@storytree/agent-link";
+import { locateLibrary, readLibrary } from "@storytree/session-management";
 import { connect } from "@storytree/library";
 import { DataDirInUseError, start } from "@storytree/local-postgres";
 

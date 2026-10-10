@@ -13,8 +13,8 @@ import {
   WaitLoopError,
 } from "@storytree/library";
 
-import { CaptureError } from "@storytree/agent-link";
-import { ProjectFolderError } from "@storytree/agent-link";
+import { CaptureError } from "@storytree/session-management";
+import { ProjectFolderError } from "@storytree/session-management";
 
 /** A tool's answer: one plain sentence (or a few lines), what it made or found as data, and whether it refused. */
 export interface Answer {

@@ -4,7 +4,7 @@
  * default until it is set; a surface that follows another is on only while that one is. The
  * declared list is handed in by whoever composes the stories, so this package depends on none.
  */
-import { readSurfaceChoices, setSurfaceChoice } from "@storytree/agent-link";
+import { readSurfaceChoices, setSurfaceChoice } from "@storytree/session-management";
 
 import type { SurfacesResult } from "./bridge.js";
 

@@ -10,13 +10,13 @@ import { McpServer, type CallToolResult, type ServerContext } from "@modelcontex
 import { z } from "zod";
 
 import { habitsCard } from "../instructions/habits.js";
-import { hookFailures, type HookFailure } from "@storytree/agent-link";
-import { findProject, storytreeHome } from "@storytree/agent-link";
+import { hookFailures, type HookFailure } from "@storytree/session-management";
+import { findProject, storytreeHome } from "@storytree/session-management";
 import { notAProjectYet, setUpProject, starterRolesIn, suggestProjectName } from "@storytree/app-setup/project";
 import { checkFilesWritten, codexHooksState, FIX_SENTENCES, HOOK_TESTS, openStorytree, runSetupCheck, verifyHooks, type Fix, type SetupOptions } from "@storytree/app-setup/setup";
 import { isUnreachable, NOT_RUNNING_ANSWER, refusalOf, result } from "./answers.js";
 import type { Connections } from "./connections.js";
-import { callLines, lineOf, seenCaller, type Caller } from "@storytree/agent-link";
+import { callLines, lineOf, seenCaller, type Caller } from "@storytree/session-management";
 import { metaOf, type JourneyMilestones } from "./server.js";
 import { quoted } from "./text.js";
 

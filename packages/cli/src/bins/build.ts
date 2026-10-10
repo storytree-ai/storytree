@@ -1,7 +1,7 @@
 /**
  * Capability 1 · Front door. The `storytree` command, built into one plain Node script: what a person's shell runs, with no
  * tsx and only its staged native dependencies beside it. esbuild bundles it with everything it imports (the library,
- * the agent link, pg and zod included).
+ * Session management, pg and zod included).
  *
  * `pnpm --filter @storytree/cli build` writes it to packages/cli/dist/; tests build it into a
  * directory of their own with buildCommand().

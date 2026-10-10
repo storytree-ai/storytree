@@ -116,7 +116,7 @@ export async function readSurvey({ library, claims }) {
 }
 
 async function withLibrary(project, use) {
-  const { locateLibrary } = await import("@storytree/agent-link");
+  const { locateLibrary } = await import("@storytree/session-management");
   const { connect } = await import("@storytree/library");
   const where = locateLibrary();
   if (!where.found) throw new Error(where.message);
@@ -130,7 +130,7 @@ async function withLibrary(project, use) {
 
 /** One survey of the shared library, where this computer's `library` setting says it is. */
 export async function surveyLibrary(project = "storytree") {
-  const { openActivityLog, readClaims } = await import("@storytree/agent-link");
+  const { openActivityLog, readClaims } = await import("@storytree/session-management");
   return withLibrary(project, async (library, storytree) => {
     const log = await openActivityLog(storytree);
     return readSurvey({ library, claims: () => readClaims(log, project) });

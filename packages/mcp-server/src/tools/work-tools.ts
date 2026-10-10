@@ -12,8 +12,8 @@
 import type { Library } from "@storytree/library";
 import { z } from "zod";
 
-import { recordFriction, recordResteer, reinforceFriction } from "@storytree/agent-link";
-import { closed, currentBranch, increments, presentQuestion, releaseAsked, stopPresenting } from "@storytree/agent-link";
+import { recordFriction, recordResteer, reinforceFriction } from "@storytree/session-management";
+import { closed, currentBranch, increments, presentQuestion, releaseAsked, stopPresenting } from "@storytree/session-management";
 import { lineOf, type Answer, type Call, type Define } from "./server.js";
 import { quoted } from "./text.js";
 

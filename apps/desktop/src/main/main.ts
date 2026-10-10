@@ -74,7 +74,7 @@ import {
 } from "@storytree/app";
 import { projectsOnThisComputer, setupHelpActions } from "@storytree/app-setup";
 import { FEEDBACK_IDENTITY_CHANNELS, FEEDBACK_IDENTITY_OFFERED, SETUP_HELP_CHANNELS } from "@storytree/app-setup/bridge";
-import { settingsActions, SETTINGS_CHANNELS } from "@storytree/agent-link/settings";
+import { settingsActions, SETTINGS_CHANNELS } from "@storytree/session-management/settings";
 import { createJourneyRuntime, type JourneyRuntime } from "@storytree/journey-events/runtime";
 import { JOURNEY_CHANNELS } from "@storytree/journey-events/bridge";
 import { LIFECYCLE_CHANNELS } from "@storytree/app/lifecycle/bridge";
@@ -355,7 +355,7 @@ async function run(): Promise<void> {
     addStartMenuShortcut();
     try { signingIn.apply(); } catch (error) { console.error(`opening at sign-in: ${messageOf(error)}`); }
     if (storytree !== undefined) backups = keepBackups({ storytree, dir: home.backups, log: line => console.log(line) });
-    // The app looks at each project's branches itself, once a minute, so its sessions list never waits on a hook's look (agent link 4.21).
+    // The app looks at each project's branches itself, once a minute, so its sessions list never waits on a hook's look (Session management 4.21).
     setInterval(() => void reads?.lookAround(), LOOK_EVERY_MS).unref();
     updates.start();
     const launchedAt = Date.now();
@@ -438,7 +438,7 @@ function showWindow(): void {
 
 /**
  * Record how this app was started, so that an agent's session start can open it again when it is
- * closed (the agent link's setup check). A packaged portable build runs from a temporary copy, so
+ * closed (the app setup's setup check). A packaged portable build runs from a temporary copy, so
  * the portable file itself is what is recorded; in development, Electron and the app's folder.
  */
 function recordLaunch(): void {

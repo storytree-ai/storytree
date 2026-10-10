@@ -1,6 +1,6 @@
 /**
  * Capability 6 · Make a folder a project: one test per contract 6.1-6.8 in the app setup story (ADR-0969 D3; until then
- * the agent link's 1.3, 1.8-1.11, 1.13 and 1.14).
+ * Session management's 1.3, 1.8-1.11, 1.13 and 1.14).
  *
  * The folders are throwaway directories. Setting one up opens its project in the library on the
  * real Postgres `pnpm test` provides; each such project is named with uniqueProjectName() and its
@@ -11,9 +11,9 @@ import { existsSync, mkdirSync, readFileSync, renameSync, rmSync } from "node:fs
 import path from "node:path";
 import { test } from "node:test";
 
-import { findProject, MARKER_FILE, requireApproval, type ProjectLookup } from "@storytree/agent-link";
-import { git, withTempDir } from "@storytree/agent-link/testing/folders";
-import { dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/agent-link/testing/pg";
+import { findProject, MARKER_FILE, requireApproval, type ProjectLookup } from "@storytree/session-management";
+import { git, withTempDir } from "@storytree/session-management/testing/folders";
+import { dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/session-management/testing/pg";
 import { connect, ProjectNameError, type Storytree } from "@storytree/library";
 
 import { setUpProject, suggestProjectName } from "./making.js";

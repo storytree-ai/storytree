@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { userInfo } from "node:os";
 import { after, before, test } from "node:test";
 
-import { claim, openActivityLog, readClaims, recordFriction, release } from "@storytree/agent-link";
+import { claim, openActivityLog, readClaims, recordFriction, release } from "@storytree/session-management";
 
 import { parseArgs } from "./args.js";
 import type { Context } from "./door.js";

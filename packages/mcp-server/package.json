@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/server": "^2.1.0",
-    "@storytree/agent-link": "workspace:*",
+    "@storytree/session-management": "workspace:*",
     "@storytree/guardrails": "workspace:*",
     "@storytree/journey-events": "workspace:*",
     "@storytree/librarian": "workspace:*",

@@ -6,7 +6,7 @@
  * outcome, move one to another arc keeping its id, and make an arc or increment wait on another
  * with a reason, or an increment wait for the owner or an outside event with a note (ADR-0938 D1),
  * or clear the wait (the library clears one itself when its blocker lands or closes, 11.8). Return active work nobody holds to proposal (`increment unstart`). Closing an
- * increment ends its claims through the agent link's `closed`.
+ * increment ends its claims through Session management's `closed`.
  *
  * Every rule is the library's (its capabilities 10, 11 and 12): an arc's intent and end state, a
  * close's note, the loop check, whether a wait holds (`waitHolds`) and whether work is held on the
@@ -287,7 +287,7 @@ const incrementClose: Verb = {
     const outcome = closeOf(args);
     const done = await caller.library.closeIncrement(id, outcome, context.writer());
     if (done === null) throw new Refusal(`no increment "${id}" in this project`);
-    const { closed } = await import("@storytree/agent-link");
+    const { closed } = await import("@storytree/session-management");
     await closed(caller, id, outcome.disposition);
     await context.journey?.().then((journey) => journey.incrementClosed(done.fields.outcome?.disposition)).catch(() => {});
     return { text: `Closed increment ${id}: ${done.fields.outcome?.disposition ?? ""}. Any claim on it has ended.`, next: [{ command: `storytree arc show ${done.fields.arc}`, why: "see the arc" }] };

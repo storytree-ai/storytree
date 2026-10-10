@@ -11,14 +11,14 @@
  * the library's retireQuestion, which takes it off every increment held on it first, so an owner-
  * retired question goes in one step; `library retire` still refuses a held one. `show` reads one
  * question whole, with the open increments held on it. Holding an increment the caller's
- * session holds releases its claims on it, through the agent link's releaseAsked (ADR-0944 D4). Listing the open
+ * session holds releases its claims on it, through Session management's releaseAsked (ADR-0944 D4). Listing the open
  * questions uses list(kind); `--arc` reads one arc's questions, naming a parked arc's as parked with it. `check` reads a question's review
  * lease through the library's checkQuestion, and `renew` re-stamps it through renewQuestion, which
  * refuses a settled question (ADR-0654). `present` marks a question as being put to the owner by the
- * calling session, through the agent link's presentQuestion, which refuses it while another live session
+ * calling session, through Session management's presentQuestion, which refuses it while another live session
  * is (its 5.36), and `--done` clears the mark; `list` flags each question a live session is presenting.
  */
-import type { Presenter } from "@storytree/agent-link";
+import type { Presenter } from "@storytree/session-management";
 import type { SchemaRecord } from "@storytree/library";
 
 import { labelOf, Refusal } from "../answer.js";
@@ -132,7 +132,7 @@ const present: Verb = {
   summary: "mark a question as being put to the owner by this session, so no other asks him at once; --done when you move on",
   async act(args, context) {
     const id = args.word(0, "the question's id", this.usage);
-    const { presentQuestion, stopPresenting } = await import("@storytree/agent-link");
+    const { presentQuestion, stopPresenting } = await import("@storytree/session-management");
     const caller = await context.claimContext();
     if (args.has("done")) {
       return { text: (await stopPresenting(caller, id)) ? `${id} is no longer being put to the owner by this session.` : `This session was not putting ${id} to the owner.` };
@@ -168,7 +168,7 @@ const list: Verb = {
     const parkedArcs = new Set(views.flatMap((view) => (view?.state === "parked" ? [view.arc.id] : [])));
     const waiting = open.filter((question) => !parkedArcs.has(question.fields.arc));
     const parked = open.filter((question) => parkedArcs.has(question.fields.arc));
-    // A question another session is putting to the owner right now is flagged, so he is not asked twice (agent link 5.36).
+    // A question another session is putting to the owner right now is flagged, so he is not asked twice (Session management 5.36).
     const presenters = open.some((question) => question.fields.presenting !== undefined) ? await presentersAmong(context, open) : new Map<string, Presenter>();
     const flag = (id: string) => {
       const by = presenters.get(id);
@@ -189,9 +189,9 @@ const list: Verb = {
   },
 };
 
-/** Of `open`, those a live session is putting to the owner, read through the agent link. */
+/** Of `open`, those a live session is putting to the owner, read through Session management. */
 async function presentersAmong(context: Context, open: readonly SchemaRecord<"question">[]): Promise<ReadonlyMap<string, Presenter>> {
-  const { presentersOf } = await import("@storytree/agent-link");
+  const { presentersOf } = await import("@storytree/session-management");
   const { log, project } = await context.activityContext();
   return presentersOf(log, project, open);
 }

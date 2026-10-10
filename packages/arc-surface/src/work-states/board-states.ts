@@ -1,6 +1,6 @@
 /** Capability 1 · Work states. Capability 1, contracts 1.4–1.6. The library decides whether waits/questions still hold;
- * the agent link decides who holds work. This reading only gives those facts their display order. */
-import type { Claim } from "@storytree/agent-link";
+ * Session management decides who holds work. This reading only gives those facts their display order. */
+import type { Claim } from "@storytree/session-management";
 import type { ArcState as Lifecycle, FieldsOf, Hold, NoteWait } from "@storytree/library";
 
 export type IncrementState = "landed" | "not-completed" | "waiting-on-you" | "queued" | "blocked" | "held" | "open";

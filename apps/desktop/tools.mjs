@@ -1,4 +1,4 @@
-// Packaging adapter: reuse the agent link's build, then stage the host platform's native runtimes:
+// Packaging adapter: reuse the app setup's build, then stage the host platform's native runtimes:
 // both Windows architectures on Windows, Apple Silicon on macOS.
 import { buildBins, buildLauncher, LAUNCHER_PROGRAM, stageNativeProbes } from "@storytree/app-setup/bins";
 import { macRuntime, NODE_VERSION, stageRuntime, windowsRuntime, writePayloadManifest } from "@storytree/app-setup/deliver";
@@ -29,7 +29,7 @@ function observe(message) {
 export async function buildToolBundle(outdir, { platform = process.platform, arch = process.arch, release } = {}) {
   mkdirSync(outdir, { recursive: true });
   // stageTools builds each payload's own `storytree` launcher; the host's here would only be overwritten.
-  await timed("agent link commands (buildBins)", () => buildBins(outdir, { release, launcher: false }));
+  await timed("storytree commands (buildBins)", () => buildBins(outdir, { release, launcher: false }));
   await timed("delivery helper bundle", () => build({
     stdin: {
       contents: 'import { runDeliveryCommand } from "@storytree/app-setup/deliver"; runDeliveryCommand().catch(error => { console.error(error.message); process.exitCode = 1; });',

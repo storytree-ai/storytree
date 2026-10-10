@@ -8,7 +8,7 @@ import { spawn } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import { readLibrary } from "@storytree/agent-link";
+import { readLibrary } from "@storytree/session-management";
 
 import type { RunningBuild } from "./follow-main.js";
 

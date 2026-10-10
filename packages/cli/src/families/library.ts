@@ -5,7 +5,7 @@
  * Long text can come from a file; refusals are the library's own messages.
  *
  * - `new` hands the fields to the one library function that writes that kind, and the library
- *   judges them. Friction and re-steers are not written here: they go through the agent link's
+ *   judges them. Friction and re-steers are not written here: they go through Session management's
  *   capture functions (capability 9), whose evidence rules a person meets exactly as an agent does.
  * - A field's value is text, except `true`, `false`, a whole number, or one starting with `[` or
  *   `{`, which are read as JSON (a list of links, a number, a switch). `@file` reads the file.

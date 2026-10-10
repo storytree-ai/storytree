@@ -1,5 +1,5 @@
 /**
- * An agent for the agent link's tests: a tool server (capability 6) and an MCP client connected to
+ * An agent for the MCP server's tests: a tool server (capability 6) and an MCP client connected to
  * it in memory, as Claude Code or Codex would be, with no real agent and no network. Claude Code's
  * session id reaches the server in its environment; Codex's on each call's `_meta`.
  */
@@ -9,7 +9,7 @@ import { Client } from "@modelcontextprotocol/client";
 import { InMemoryTransport } from "@modelcontextprotocol/server";
 
 import { createAgentTools, type AgentToolOptions } from "../tools/index.js";
-import { testServerDataDir } from "@storytree/agent-link/testing/pg";
+import { testServerDataDir } from "@storytree/session-management/testing/pg";
 
 export interface Answer {
   text: string;

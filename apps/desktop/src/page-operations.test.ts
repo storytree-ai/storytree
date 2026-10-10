@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { SETTINGS_CHANNELS } from "@storytree/agent-link/view";
+import { SETTINGS_CHANNELS } from "@storytree/session-management/view";
 import { LIFECYCLE_CHANNELS } from "@storytree/app/lifecycle/bridge";
 import { PROJECTS_CHANNELS } from "@storytree/app/projects/bridge";
 import { UPDATES_CHANNELS } from "@storytree/app/updates/bridge";

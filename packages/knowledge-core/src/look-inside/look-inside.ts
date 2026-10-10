@@ -1,5 +1,5 @@
 /** Capability 4 · Look inside and inspect an artifact. Capability 4's founding book (E1, V1, S1): a pinned note's card, and how the running sessions' reads light and cross the globe. */
-import type { SessionWindow } from "@storytree/agent-link";
+import type { SessionWindow } from "@storytree/session-management";
 import type { RecordEnvelope } from "@storytree/library";
 
 import type { Knowledge } from "../ghosts/ghosts.js";

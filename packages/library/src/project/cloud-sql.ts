@@ -152,7 +152,7 @@ async function googleConnector(project: string): Promise<CloudSqlConnector> {
     import("google-auth-library"),
   ]);
   // google-auth-library is CommonJS: Node names its exports, and a bundle (the installed command
-  // and agent link) hands them over as the module's default instead.
+  // and Session management) hands them over as the module's default instead.
   const { GoogleAuth } = "GoogleAuth" in googleAuth ? googleAuth : (googleAuth as { default: typeof googleAuth }).default;
   const auth = new GoogleAuth({
     projectId: project,

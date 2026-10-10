@@ -15,7 +15,7 @@ import { InMemoryTransport } from "@modelcontextprotocol/server";
 import { connect } from "@storytree/library";
 import { briefText, checks, checksText, ledgerText, openLedger, openReviews, qualityTools, standingText } from "@storytree/quality-assurance";
 
-import { approveCheckout, dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/agent-link/testing/pg";
+import { approveCheckout, dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/session-management/testing/pg";
 import { createAgentTools } from "./index.js";
 
 test("(quality assurance's 1.2) the shared server's quality_checks answers the package's checks reading, and the installed server serves it for storytree's own library", async () => {

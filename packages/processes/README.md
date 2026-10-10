@@ -7,7 +7,7 @@ claim. Listing, stopping and closing have exported empty homes (`/listing`, `/st
 
 ## Common launch boundary
 
-Both harness adapters pass the agent link's already resolved `ToolCall.caller` and `agent` to
+Both harness adapters pass Session management's already resolved `ToolCall.caller` and `agent` to
 `ownerFromCall`. A manual terminal supplies its explicit session binding. No folder, git branch,
 command text, PID adoption or session-age heuristic supplies ownership.
 
@@ -36,7 +36,7 @@ streams, so caller exit cannot keep pipes open or end the child. Command output 
 interactive terminals are not part of this boundary. Short-lived commands still leave records.
 
 The tests call this same API with Claude Code, Codex and manual identities. Installing CLI/MCP
-entry points and the agent link's offline composition seam belong to the integration/listing
+entry points and Session management's offline composition seam belong to the integration/listing
 lane; this PR changes neither front door. Existing harness activity hooks do not register runs.
 
 ## Durable records and child links
@@ -52,7 +52,7 @@ A record contains owner session/harness/agent, optional explicit parent session,
 optional project, executable/argv, absolute folder, launch time, PID, native birth observation
 and optional `parentRun`. A child launched through this API with `parentRun` keeps its own record
 and that link after the parent exits. Cross-session links require the supplied `parentSession`
-and matching harness; same-session subagents retain the agent link's explicit subagent ID.
+and matching harness; same-session subagents retain Session management's explicit subagent ID.
 These fields are trusted local caller context, not an authentication boundary against arbitrary
 code running as the same OS user. They never come from command/folder/time matching.
 

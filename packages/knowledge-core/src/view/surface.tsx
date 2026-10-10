@@ -7,7 +7,7 @@
  */
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 
-import type { Line, SessionWindow } from "@storytree/agent-link";
+import type { Line, SessionWindow } from "@storytree/session-management";
 import type { Change } from "@storytree/library";
 
 import { knowledge, storedEdges } from "../ghosts/ghosts.js";
@@ -21,7 +21,7 @@ import { NoteCard } from "./drawing.js";
 /** How often the selected session's window is read again, as often as the sessions list's bars. */
 const WINDOW_EVERY_MS = 10_000;
 
-/** The one read the core makes beyond what it is handed: the selected session's window (agent link 9.10), from the host; none with none selected (ADR-0921). */
+/** The one read the core makes beyond what it is handed: the selected session's window (Session management 9.10), from the host; none with none selected (ADR-0921). */
 export interface CoreReads {
   windowReading(project: string, session: string): Promise<SessionWindow>;
 }

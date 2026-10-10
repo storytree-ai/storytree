@@ -1,4 +1,4 @@
-/** The installed command: the agent link builds the full CLI beside its hook and setup scripts. */
+/** The installed command: Session management builds the full CLI beside its hook and setup scripts. */
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { existsSync, mkdirSync } from "node:fs";
@@ -42,7 +42,7 @@ test("8.5 setup installs the full command beside its hooks; the launcher reads t
     assert.match(checked.stdout, /storytree is running/);
     assert.match(checked.stdout, /Hooks for Claude Code: registered/);
     // Use the bundled command to remove the launcher: removing it through itself, which Windows
-    // will not delete while it runs, is the agent link's own contract (8.9). This contract proves
+    // will not delete while it runs, is Session management's own contract (8.9). This contract proves
     // its installed target is the full command line.
     const removed = await world.run(["setup", "remove"], env);
     assert.equal(removed.code, 0, removed.stderr);

@@ -22,8 +22,8 @@
 import type { KnowledgeKind, Library, Note, NoteEdit, SchemaRecord, WriteOptions } from "@storytree/library";
 import { z } from "zod";
 
-import type { Line, NewLine } from "@storytree/agent-link";
-import { presentersOf, readClaims } from "@storytree/agent-link";
+import type { Line, NewLine } from "@storytree/session-management";
+import { presentersOf, readClaims } from "@storytree/session-management";
 import { lineOf, type Answer, type Call, type Define } from "./server.js";
 import { firstLineOf, quoted, spineOf, wholeOf, type Findable } from "./text.js";
 
@@ -138,7 +138,7 @@ const QUESTION_WORDS = ["stakes", "statement", "context", "options", "analogy", 
 /** A question whole: its arc and state, every field of its wording and answer, and the open increments held on it. */
 async function openQuestion(question: SchemaRecord<"question">, { library, log, project }: Call): Promise<Answer> {
   const fields = question.fields as Readonly<Record<string, unknown>>;
-  // A question another live session is putting to the owner says so, so he is not asked twice (agent link 5.36).
+  // A question another live session is putting to the owner says so, so he is not asked twice (Session management 5.36).
   const presenter = (await presentersOf(log, project, [question])).get(question.id);
   const settled = typeof fields.settledAt === "string" ? `, settled ${fields.settledAt}${typeof fields.settledBy === "string" ? ` by ${fields.settledBy}` : ""}` : "";
   const holding = Object.entries((await library.holds()).heldOn).flatMap(([increment, on]) => (on.includes(question.id) ? [increment] : []));

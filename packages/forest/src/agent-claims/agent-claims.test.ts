@@ -7,7 +7,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { Line, NewLine } from "@storytree/agent-link/readings";
+import type { Line, NewLine } from "@storytree/session-management/readings";
 import { workStates } from "@storytree/arc-surface";
 import type { AnnotatedStory, AnnotatedTree, ArcView } from "@storytree/library";
 

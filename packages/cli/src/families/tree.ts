@@ -4,13 +4,13 @@
  * the agent's) and any claim on it, and each capability's word with why it is not healthy (ADR-0825 D1). Name a story to see only that story.
  *
  * One reading of the library's projectTree, whose health is already rolled up by the library, and
- * one of the agent link's claims. A story is named by its id or its title.
+ * one of Session management's claims. A story is named by its id or its title.
  *
  * `storytree health ci` reads the project's CI test results into its verified health (the CI health story, ADR-0902).
  * `storytree health worklist` prints the oldest three capabilities on the library's health
  * worklist (ADR-0825 D4), for the librarian pass to route, and how many a test run in progress holds back.
  */
-import type { Claim } from "@storytree/agent-link";
+import type { Claim } from "@storytree/session-management";
 import { heldBack, type NodeHealth } from "@storytree/library";
 
 import { Refusal } from "../answer.js";

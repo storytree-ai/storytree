@@ -20,7 +20,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 
 import type { ConnectOptions } from "@storytree/library";
 
-import { locateStorytree, readLibrary, storytreeHome } from "@storytree/agent-link";
+import { locateStorytree, readLibrary, storytreeHome } from "@storytree/session-management";
 
 /** Where the library is once storytree is up (the local app's database, the Cloud SQL instance, or the Postgres address), or why it is not. */
 export type StorytreeOpened =

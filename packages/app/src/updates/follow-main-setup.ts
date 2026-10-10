@@ -21,7 +21,7 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { storytreeHome } from "@storytree/agent-link";
+import { storytreeHome } from "@storytree/session-management";
 
 import { appDirIn, buildApp, electronIn, setUpRuntime, type RunningBuild, type SetUpOptions } from "./follow-main.js";
 import { installedAppDir, installedAppPresent } from "./one-app.js";

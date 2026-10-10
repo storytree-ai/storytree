@@ -1,4 +1,4 @@
-/** Capability 6 · Rounds. Rounds 6.3–6.4: curation on the agent link's shared server, through its public extension point. */
+/** Capability 6 · Rounds. Rounds 6.3–6.4: curation on the shared MCP server, through its public extension point. */
 import { execFileSync } from "node:child_process";
 import { homedir } from "node:os";
 import path from "node:path";
@@ -91,7 +91,7 @@ export function librarianTools({ tools }: { tools?: () => readonly string[] } = 
  * millisecond stays after the cursor too: uncertainty must never hide a curated write.
  */
 async function sessionStart(call: ToolCall): Promise<{ since?: number }> {
-  // The session's first start line alone, never the rest of the log (agent link 2.7).
+  // The session's first start line alone, never the rest of the log (Session management 2.7).
   const [start] = await call.log.lines(call.project, { kinds: ["session-started"], sessions: [call.caller.session], where: { harness: call.caller.harness ?? null }, oldest: 1, omit: ["transcript"] });
   if (start === undefined) return {};
   // Two changes, never the whole history (contract 6.6): the newest, read first so that a change

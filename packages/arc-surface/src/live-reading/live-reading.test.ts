@@ -7,8 +7,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { Line, LinesSince } from "@storytree/agent-link";
-import { claimsFrom, sessionsFrom, type LogFoldSnapshot } from "@storytree/agent-link/readings";
+import type { Line, LinesSince } from "@storytree/session-management";
+import { claimsFrom, sessionsFrom, type LogFoldSnapshot } from "@storytree/session-management/readings";
 import type { Change, Changes } from "@storytree/library";
 
 import { liveReading, type LiveReads, type News, type Timers } from "./live-reading.js";

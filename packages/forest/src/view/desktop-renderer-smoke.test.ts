@@ -36,7 +36,7 @@ test("3.20 · 3.11 · in a real browser, each territory is filled by its word an
     ["story_eb7d623fb9c8", "capability_75abfdd699c0", false, true],
   ]);
   assert.deepEqual(summary.markers.map((marker: { story: string; title: string }) => [marker.story, marker.title]), [
-    ["story_05e45963ca9f", "The agent link · unhealthy (storytree verified)"],
+    ["story_05e45963ca9f", "Session management · unhealthy (storytree verified)"],
     ["story_eb7d623fb9c8", "The library · unhealthy (storytree verified)"],
   ]);
 });

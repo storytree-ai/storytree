@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { Claim } from "@storytree/agent-link";
+import type { Claim } from "@storytree/session-management";
 import type { FieldsOf, Hold, NoteWait } from "@storytree/library";
 import { arcState, incrementState, questionsBehind } from "./board-states.js";
 

@@ -54,14 +54,14 @@ function git(root, ...args) {
   });
 }
 
-/** library <- agent-link <- cli, library <- forest, and a package the root harness runs on. */
+/** library <- session-management <- cli, library <- forest, and a package the root harness runs on. */
 function fixture(t) {
   return workspace(t, {
     rootDeps: { "@x/pg": "workspace:*" },
     packages: {
       "packages/library": { name: "@x/library", files: { "src/a.test.ts": "" } },
-      "packages/agent-link": { name: "@x/agent-link", deps: ["@x/library"], files: { "src/b.test.ts": "" } },
-      "packages/cli": { name: "@x/cli", deps: ["@x/agent-link"], files: { "src/c.test.ts": "" } },
+      "packages/session-management": { name: "@x/session-management", deps: ["@x/library"], files: { "src/b.test.ts": "" } },
+      "packages/cli": { name: "@x/cli", deps: ["@x/session-management"], files: { "src/c.test.ts": "" } },
       "packages/forest": { name: "@x/forest", deps: ["@x/library"], files: { "src/d.test.ts": "" } },
       "packages/pg": { name: "@x/pg", files: { "src/e.test.ts": "" } },
       "apps/desktop": { name: "@x/desktop", deps: ["@x/forest"], files: { "src/f.test.ts": "" } },
@@ -71,9 +71,9 @@ function fixture(t) {
 
 test("1.1 a change inside a package runs that package and every package that depends on it, and no other", (t) => {
   const ws = readWorkspace(fixture(t));
-  const decision = classify(["packages/agent-link/src/x.ts"], ws);
+  const decision = classify(["packages/session-management/src/x.ts"], ws);
   assert.equal(decision.mode, "affected");
-  assert.deepEqual(decision.dirs, ["packages/agent-link", "packages/cli"]);
+  assert.deepEqual(decision.dirs, ["packages/session-management", "packages/cli"]);
 
   const deeper = classify(["packages/forest/src/y.ts", "packages/cli/src/z.ts"], ws);
   assert.deepEqual(deeper.dirs, ["apps/desktop", "packages/cli", "packages/forest"], "dependents are followed all the way up");
@@ -171,9 +171,9 @@ test("1.2 an origin/main that cannot be read runs everything, saying so", (t) =>
 
 test("the decision prints as one scope: line naming what runs and why", (t) => {
   const ws = readWorkspace(fixture(t));
-  const affected = scopeLine(classify(["packages/agent-link/src/x.ts"], ws));
+  const affected = scopeLine(classify(["packages/session-management/src/x.ts"], ws));
   assert.match(affected, /^scope: affected /);
-  assert.ok(affected.includes("packages/agent-link") && affected.includes("packages/cli"), affected);
+  assert.ok(affected.includes("packages/session-management") && affected.includes("packages/cli"), affected);
   assert.equal(affected.split("\n").length, 1);
   const full = scopeLine(classify(["pnpm-lock.yaml"], ws));
   assert.match(full, /^scope: full /);
@@ -187,13 +187,13 @@ test("a run is one unit per selected package with tests", (t) => {
   write(root, "packages/empty/package.json", JSON.stringify({ name: "@x/empty" }));
   const all = readWorkspace(root);
 
-  const affected = planRun({ root, workspace: ws, decision: classify(["packages/agent-link/src/x.ts"], ws) });
-  assert.deepEqual(affected.units, ["packages/agent-link", "packages/cli"]);
+  const affected = planRun({ root, workspace: ws, decision: classify(["packages/session-management/src/x.ts"], ws) });
+  assert.deepEqual(affected.units, ["packages/session-management", "packages/cli"]);
 
   const full = planRun({ root, workspace: all, decision: classify(["README.md"], all) });
   assert.deepEqual(full.units, [
     "apps/desktop",
-    "packages/agent-link",
+    "packages/session-management",
     "packages/cli",
     "packages/forest",
     "packages/library",
@@ -215,15 +215,15 @@ test("a package whose tests are .test.mjs files is a unit, and its unit runs the
 test("the package-boundary check runs in every scoped run, since a change inside any one package can break it", (t) => {
   const root = fixture(t);
   const ws = readWorkspace(root);
-  const decision = classify(["packages/agent-link/src/x.ts"], ws);
-  assert.deepEqual(planRun({ root, workspace: ws, decision }).units, ["packages/agent-link", "packages/cli"], "until the check exists");
+  const decision = classify(["packages/session-management/src/x.ts"], ws);
+  assert.deepEqual(planRun({ root, workspace: ws, decision }).units, ["packages/session-management", "packages/cli"], "until the check exists");
 
   write(root, "packages/dev-loop/package.json", JSON.stringify({ name: "@x/dev-loop" }));
   write(root, "packages/dev-loop/src/package-boundaries.test.mjs", "");
   write(root, "packages/dev-loop/src/other.test.mjs", "");
   const withLoop = readWorkspace(root);
   assert.deepEqual(planRun({ root, workspace: withLoop, decision }).units, [
-    "packages/agent-link",
+    "packages/session-management",
     "packages/cli",
     "packages/dev-loop/src/package-boundaries.test.mjs",
   ]);
@@ -235,7 +235,7 @@ test("the package-boundary check runs in every scoped run, since a change inside
 test("1.3 --full forces everything, --only names units, and --rerun-failed runs what the last run failed or never reached", (t) => {
   const root = fixture(t);
   const ws = readWorkspace(root);
-  const decision = classify(["packages/agent-link/src/x.ts"], ws);
+  const decision = classify(["packages/session-management/src/x.ts"], ws);
 
   const forced = planRun({ root, workspace: ws, decision, flags: { full: true } });
   assert.equal(forced.decision.mode, "full");
@@ -305,7 +305,7 @@ test("1.5 a file named to run alone is a unit of its own whenever its package ru
   assert.deepEqual(scoped, ["apps/desktop", "packages/forest", "packages/forest/src/view/proof.test.ts"]);
   assert.ok(planRun({ root, workspace: ws, decision: classify(["README.md"], ws), alone }).units.includes("packages/forest/src/view/proof.test.ts"));
   assert.deepEqual(planRun({ root, workspace: ws, decision: classify(["README.md"], ws), flags: { only: ["forest"] }, alone }).units, ["packages/forest", "packages/forest/src/view/proof.test.ts"]);
-  assert.ok(!planRun({ root, workspace: ws, decision: classify(["packages/agent-link/src/x.ts"], ws), alone }).units.some((unit) => unit.endsWith(".test.ts")), "not when its package does not run");
+  assert.ok(!planRun({ root, workspace: ws, decision: classify(["packages/session-management/src/x.ts"], ws), alone }).units.some((unit) => unit.endsWith(".test.ts")), "not when its package does not run");
 
   assert.deepEqual(unitGlobs("packages/forest", { root, alone }).sort(), ["packages/forest/src/d.test.ts", "packages/forest/src/more.test.mjs", "packages/forest/src/view/other.test.ts"]);
   assert.deepEqual(unitGlobs("packages/forest/src/view/proof.test.ts", { root, alone }), ["packages/forest/src/view/proof.test.ts"]);

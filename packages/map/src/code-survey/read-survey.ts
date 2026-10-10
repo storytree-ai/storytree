@@ -5,7 +5,7 @@
  * - Main reads an immutable snapshot of fetched origin/main without touching a checkout. An offline
  *   remote keeps the last fetched main; without a fetched main the read fails. Without origin, the
  *   primary folder is read. The map explicitly chooses the current checkout (ADR-0864).
- * - A story's package is the one named after its title ("The agent link" is packages/agent-link),
+ * - A story's package is the one named after its title ("Session management" is packages/session-management),
  *   but for a story whose package was named otherwise; a story with no such package has no code yet.
  * - A story's package manifests say which other stories' packages it depends on, through any dependency
  *   field: the code's edges between stories, which place the islands in rows (ADR-0840 D2). The app

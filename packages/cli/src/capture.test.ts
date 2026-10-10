@@ -1,4 +1,4 @@
-/** Capability 9 · Friction and re-steers: the built command uses the agent link's evidence rules. */
+/** Capability 9 · Friction and re-steers: the built command uses Session management's evidence rules. */
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
@@ -6,7 +6,7 @@ import { userInfo } from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 
-import { recordFriction } from "@storytree/agent-link";
+import { recordFriction } from "@storytree/session-management";
 import { BuiltCommand, inWorld } from "./testing/cli.js";
 
 const command = new BuiltCommand();

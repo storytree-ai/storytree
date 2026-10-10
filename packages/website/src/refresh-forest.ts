@@ -1,7 +1,7 @@
 // Capability 3 · Saved snapshot. From the checkout root: node --import tsx packages/website/src/refresh-forest.ts --from <ISO> --to <ISO> [--output <file>]
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
-import { route, requireApproval, openNamedProject, openActivityLog } from "@storytree/agent-link";
+import { route, requireApproval, openNamedProject, openActivityLog } from "@storytree/session-management";
 import { connect } from "@storytree/library";
 import { readCodeSurvey } from "@storytree/forest/code-survey";
 import { refreshTourSnapshot } from "./tour-snapshot.js";

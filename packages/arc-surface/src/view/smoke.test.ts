@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Window } from "happy-dom";
-import type { Line } from "@storytree/agent-link";
+import type { Line } from "@storytree/session-management";
 import { smokeArcSurface, type ArcDrawn, type BoardReads, type BoardSnapshot } from "../index.js";
 import { record } from "../testing/records.js";
 import { mountArcSurface } from "./index.js";

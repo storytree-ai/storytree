@@ -10,12 +10,12 @@
  * again, since the part is being worked on once more. A story follows its parts.
  *
  * Increment and arc readings live alongside this in board-states.ts, consuming the library's
- * wait/question readings and the agent link's claims.
+ * wait/question readings and Session management's claims.
  *
  * It is a pure function of the agent activity log's lines, so the page can run it, and it is tested
  * without a database.
  */
-import type { Line } from "@storytree/agent-link";
+import type { Line } from "@storytree/session-management";
 
 /** Where a part stands. */
 export type PartState = "planned" | "in-progress" | "landed";

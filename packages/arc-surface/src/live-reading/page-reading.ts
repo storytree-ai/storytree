@@ -16,8 +16,8 @@
  *   from the start, and the reading converges either way (D5).
  * - It never writes to the library.
  */
-import type { Line } from "@storytree/agent-link";
-import { LogFold, type LogFoldSnapshot, type LogReading } from "@storytree/agent-link/readings";
+import type { Line } from "@storytree/session-management";
+import { LogFold, type LogFoldSnapshot, type LogReading } from "@storytree/session-management/readings";
 import type { Change } from "@storytree/library";
 
 import { ASK_EVERY_MS, liveReading, pageTimers, type LiveReading, type LiveReads, type News, type Timers } from "./live-reading.js";

@@ -1,7 +1,7 @@
 /**
  * The website's test helper for the Postgres `pnpm test` provides (STORYTREE_TEST_PG_DATA is its
  * data directory): a throwaway storytree home made to look like that server's, restated from the
- * command line's test helper (packages/cli/src/testing/cli.ts), itself restated from the agent link's.
+ * command line's test helper (packages/cli/src/testing/cli.ts), itself restated from Session management's.
  */
 import { spawnSync } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";

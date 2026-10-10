@@ -230,7 +230,7 @@ test("2.16 · the map chapter plays six steps in the owner's order: the beginnin
   assert.deepEqual(chapter.map(item => item.lines.some((_, index) => tinted(item, index + 1).sessionTints === true)), [false, false, false, false, true, true], "flags show from the claims step on, and lift in health");
   assert.deepEqual(claims!.compare?.sources.map(source => source?.name), ["Cursor docs", "LangSmith docs", "Linear docs", undefined], "the agents chapter's comparison is kept in the claims step's depth");
   assert.equal(tinted(health!, 1).territories, "health");
-  assert.ok(health!.compare?.sources.some(Boolean), "the comparison with other tools closes the chapter");
+  assert.deepEqual(health!.compare?.sources.map(source => source?.name), ["VS Code docs", "Aider docs", undefined], "the comparison with file-browsing tools closes the chapter");
 });
 
 test("2.16 · across the map chapter the camera moves twice: into signing in for its capabilities, and back to the four stories for the claims", () => {
@@ -313,7 +313,9 @@ test("2.16 · the map grows its four islands as they are named, then its pathway
   assert.equal(plan.stages.filter(stage => stage.id.startsWith("staked-") && stage.start > at("pr3-building") && stage.start <= standing).length, 8);
   // Step 6: flags lift as capabilities land, the cart's and checkout's code takes their shares' place, then the round turns green.
   assert.equal(flags(at("lifted-capability_f29c62742cce")).length, 7);
-  assert.equal(island(at("pr5"), cart).land!.files.length > 0, true, "the cart's code arrives");
+  const survey = (original.stages.find(stage => stage.id === "pr5")!.scene.islands.find(island => island.story === cart)!.land)!;
+  assert.deepEqual([island(at("pr5"), cart).land!.territories.map(part => part.capability), island(at("pr5"), cart).land!.files.map(file => file.path)],
+    [survey.territories.map(part => part.capability), survey.files.map(file => file.path)], "the cart's surveyed code takes its shares' place");
   const status = (when: number, story: string) => island(when, story).land!.territories.map(part => part.status);
   assert.ok(status(at("pr4"), checkout).every(status => status === "untested"));
   const checked = at("pr7-building") - .001;

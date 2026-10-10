@@ -8,7 +8,8 @@
  * decision-log.ts), which numbers and reads its decisions.
  *
  * ADR-0640 grows it by eight kinds, written with writeKnowledge: principles, guardrails, patterns,
- * processes, agent roles, friction, re-steers and tech stack. They are artifacts like decisions and definitions:
+ * processes, agent roles, friction, re-steers and tech stack; ADR-0956 D3 adds a ninth, the quality control
+ * check, which enforces at least one principle or guardrail. They are artifacts like decisions and definitions:
  * searched, linked only to artifacts, and edited with editNote. An agent role's required reading, rules,
  * anti-patterns and step reading, and a process's branch edges, are links to artifacts too (6-a).
  *
@@ -30,14 +31,14 @@ import { relatedEach, relatedTo, type Related, type RelatedOptions, type Similar
 
 /**
  * The fields that link an artifact to other artifacts (6-a), which the loop check follows: its links,
- * and an agent role's required reading, rules, anti-patterns and step reading, and a process's
- * branch edges.
+ * and an agent role's required reading, rules, anti-patterns and step reading, a process's branch
+ * edges, and the notes a check enforces.
  */
-const LINK_FIELDS = ["links", "context", "rules", "antiPatterns", "stepRefs", "branchEdges"] as const;
+const LINK_FIELDS = ["links", "context", "rules", "antiPatterns", "stepRefs", "branchEdges", "enforces"] as const;
 
-/** The kinds of artifact: decisions, definitions, and the eight kinds of ADR-0640. */
+/** The kinds of artifact: decisions, definitions, the eight kinds of ADR-0640 and ADR-0956's check. */
 export type NoteType = "decision" | "definition" | KnowledgeKind;
-/** A new artifact of one of the eight kinds: its fields. Every reference in it must name a live artifact. */
+/** A new artifact of one of the knowledge kinds: its fields. Every reference in it must name a live artifact. */
 export type NewKnowledge<K extends KnowledgeKind = KnowledgeKind> = FieldsOf<K>;
 /** A stored artifact of any kind. */
 export type Note = SchemaRecord<NoteType>;
@@ -92,7 +93,7 @@ export type NoteEdit = {
   [K in NoteType]: { [F in keyof FieldsOf<K>]?: FieldsOf<K>[F] | undefined };
 }[NoteType];
 
-/** The eight kinds writeKnowledge writes. */
+/** The kinds writeKnowledge writes. */
 export const KNOWLEDGE_KINDS: readonly KnowledgeKind[] = [
   "principle",
   "guardrail",
@@ -102,6 +103,7 @@ export const KNOWLEDGE_KINDS: readonly KnowledgeKind[] = [
   "friction",
   "resteer",
   "techstack",
+  "check",
 ];
 
 const NOTE_TYPES: readonly NoteType[] = ["decision", "definition", ...KNOWLEDGE_KINDS];
@@ -118,6 +120,7 @@ const REFERENCE_FIELDS: ReadonlySet<string> = new Set([
   "context",
   "rules",
   "antiPatterns",
+  "enforces",
   "refs",
   "to",
   "supersedes",
@@ -135,6 +138,8 @@ const OWN_VERBS: Readonly<Record<string, string>> = {
 
 /** What an artifact may link to: another artifact, never the work (capability 9). */
 const NOTE: Expected = artifactsOnly(NOTE_TYPES);
+/** What a check may enforce (ADR-0956 D3): the principles and guardrails that carry a rule's reason. */
+const ENFORCEABLE: Expected = { name: "principle or guardrail", types: ["principle", "guardrail"], why: "a check enforces the principle or guardrail note that carries its rule's reason" };
 
 export class Knowledge {
   readonly #records: SchemaRecords;
@@ -196,9 +201,10 @@ export class Knowledge {
   }
 
   /**
-   * Write an artifact of one of the eight kinds (ADR-0640). Its links, and an agent role's or a process's
-   * other references, must each name a live artifact, like ordinary links; its fields are then
-   * checked against its kind inside the write. A kind that is not one of the eight is refused.
+   * Write an artifact of one of the knowledge kinds (ADR-0640, ADR-0956 D3). Its links, and an agent
+   * role's or a process's other references, must each name a live artifact, like ordinary links, and
+   * a check's `enforces` a live principle or guardrail; its fields are then checked against its kind
+   * inside the write. A kind that is not one of them is refused.
    */
   async writeKnowledge<K extends KnowledgeKind>(kind: K, fields: NewKnowledge<K>, options?: WriteOptions): Promise<SchemaRecord<K>> {
     if (!KNOWLEDGE_KINDS.includes(kind)) {
@@ -400,6 +406,7 @@ export class Knowledge {
     }
     for (const step of listOf(at["stepRefs"])) await checkReferences(this.#records, "stepRefs", fieldOf(step, "refs"), NOTE);
     for (const edge of listOf(at["branchEdges"])) await checkReference(this.#records, "branchEdges", fieldOf(edge, "to"), NOTE);
+    await checkReferences(this.#records, "enforces", at["enforces"], ENFORCEABLE);
   }
 
   /** An artifact may link to a live artifact, and to nothing else. */
@@ -480,7 +487,7 @@ function linkEdgesOf(fields: object): { field: string; to: string }[] {
   const edges = (field: string, ids: unknown[]): { field: string; to: string }[] =>
     ids.filter((id): id is string => typeof id === "string").map((to) => ({ field, to }));
   return [
-    ...["links", "context", "rules", "antiPatterns", "supersedes"].flatMap((field) => edges(field, listOf(at[field]))),
+    ...["links", "context", "rules", "antiPatterns", "enforces", "supersedes"].flatMap((field) => edges(field, listOf(at[field]))),
     ...edges("stepRefs", listOf(at["stepRefs"]).flatMap((step) => listOf(fieldOf(step, "refs")))),
     ...edges("branchEdges", listOf(at["branchEdges"]).map((edge) => fieldOf(edge, "to"))),
   ];
@@ -490,7 +497,7 @@ function linkEdgesOf(fields: object): { field: string; to: string }[] {
 function linksOf(fields: object): unknown[] {
   const at = fields as Record<string, unknown>;
   return [
-    ...["links", "context", "rules", "antiPatterns"].flatMap((field) => listOf(at[field])),
+    ...["links", "context", "rules", "antiPatterns", "enforces"].flatMap((field) => listOf(at[field])),
     ...listOf(at["stepRefs"]).flatMap((step) => listOf(fieldOf(step, "refs"))),
     ...listOf(at["branchEdges"]).map((edge) => fieldOf(edge, "to")),
   ];

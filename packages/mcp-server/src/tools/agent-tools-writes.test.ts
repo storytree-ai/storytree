@@ -593,7 +593,7 @@ test("6.34 a call a hook saw works in the worktree that hook ran in, so a claim 
   });
 });
 
-test("ADR-0650 writes proper artifact kinds with default filing and refuses harness memory without writing", async () => {
+test("ADR-0650 writes proper artifact kinds, a quality control check among them, with default filing and refuses harness memory without writing", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("artifact-writer"), async (agent) => {
       const story = idOf(await agent.call("plan_story", { title: "Mail", ...FOUNDED }));
@@ -603,6 +603,9 @@ test("ADR-0650 writes proper artifact kinds with default filing and refuses harn
       const fields = { title: "Verify senders", description: "Check the sending domain", statement: "Verify before sending", why: "Mail must arrive", howToApply: "Verify the domain before enabling delivery" };
       const id = idOf(await agent.call("write_note", { kind: "principle", fields }));
       assert.deepEqual((await library.get(id))?.fields, { ...fields, links: [cover!.id] });
+      const check = { title: "Senders verified", description: "A change that sends mail", question: "Does every new sender verify its domain first?", enforces: [id] };
+      const checkId = idOf(await agent.call("write_note", { kind: "check", fields: check }));
+      assert.deepEqual((await library.get(checkId))?.fields, { ...check, links: [cover!.id] });
       const before = await library.history();
       const refused = await agent.call("write_note", { kind: "memory", text: "Remember this" });
       assert.equal(refused.isError, true);

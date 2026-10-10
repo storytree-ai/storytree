@@ -106,6 +106,15 @@ test("2.4 depth and incoming links count only notes that are neither ghosts nor 
   assert.deepEqual(core.linksIn, without.linksIn, "the ghost changes no other note's count");
 });
 
+test("2.5 a quality control check is read as a live note, linked and counted like any other kind", () => {
+  const history = new History().memory("base").create("qa", "check", { title: "Every package has a story", links: ["base"] });
+  const core = knowledge(history.changes);
+
+  assert.ok(core.notes.has("qa"));
+  assert.ok(core.active.has("qa"));
+  assert.equal(core.linksIn.get("base"), 1);
+});
+
 test("4.16 two notes are joined when either stores a reference to the other (links or supersedes); a shared neighbour joins nothing", () => {
   const core = knowledge(new History()
     .decision("a", { links: ["b"] })

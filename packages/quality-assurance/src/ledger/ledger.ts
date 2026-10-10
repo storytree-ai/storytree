@@ -39,6 +39,21 @@ const SCHEMA: readonly string[] = [
     answered_at timestamptz
   )`,
   `CREATE INDEX IF NOT EXISTS quality_hits_project_idx ON quality_hits (project, check_id, package)`,
+  // Capabilities 2 and 4 (ADR-0956 D1, D7): a hit names the change whose review found it and what was found, and a
+  // rejection records whether a later review accepted its reason; each review of a change is one brief, kept.
+  `ALTER TABLE quality_hits ADD COLUMN IF NOT EXISTS change text`,
+  `ALTER TABLE quality_hits ADD COLUMN IF NOT EXISTS found text`,
+  `ALTER TABLE quality_hits ADD COLUMN IF NOT EXISTS accepted boolean NOT NULL DEFAULT false`,
+  `CREATE TABLE IF NOT EXISTS quality_briefs (
+    project   text NOT NULL,
+    change    text NOT NULL,
+    iteration integer NOT NULL,
+    brief     jsonb NOT NULL,
+    at        timestamptz NOT NULL DEFAULT now(),
+    taken     jsonb,
+    taken_at  timestamptz,
+    PRIMARY KEY (project, change, iteration)
+  )`,
 ];
 
 /** Where a check found something: a line of a file in one package. */
@@ -46,12 +61,16 @@ export interface Hit {
   readonly package: string;
   readonly file: string;
   readonly line: number;
+  /** What the reviewer found there, in its words. */
+  readonly found?: string;
 }
 
 /** One review, as it is recorded: the packages the change touches, and each check it ran with its hits. */
 export interface Review {
   readonly project: string;
   readonly review: string;
+  /** The change (its increment) the review is an iteration of, when it is one of a loop (capability 4). */
+  readonly change?: string;
   readonly packages: readonly string[];
   readonly ran: readonly { readonly check: string; readonly hits: readonly Hit[] }[];
 }
@@ -77,6 +96,8 @@ export interface HitRow extends Hit {
   readonly at: string;
   readonly answer: "fixed" | "rejected" | "unanswered";
   readonly reason?: string;
+  /** Whether a later review accepted the rejection's reason. */
+  readonly accepted: boolean;
 }
 
 /** One line of the reading: a check in one package, how many reviews ran it there, and its hits by answer. */
@@ -104,10 +125,66 @@ export interface Ledger {
 
 /** Open the ledger on `server`'s connection: its own database, set up with the ledger's tables, closed with the connection. */
 export async function openLedger(server: Storytree): Promise<Ledger> {
-  return new PgLedger(await server.ownDatabase(LEDGER_DATABASE, { tables: SCHEMA }));
+  return new PgLedger(await ledgerDatabase(server));
 }
 
-interface HitRecord {
+/** The ledger's own database on `server`'s connection, set up with its tables; for this package's own modules. */
+export function ledgerDatabase(server: Storytree): Promise<Pool> {
+  return server.ownDatabase(LEDGER_DATABASE, { tables: SCHEMA });
+}
+
+/** A client of the ledger's database, inside one transaction. */
+export type LedgerClient = Awaited<ReturnType<Pool["connect"]>>;
+
+/** Run `body` in one transaction on `pool`: committed when it returns, rolled back, writing nothing, when it throws. */
+export async function inTransaction<T>(pool: Pool, body: (client: LedgerClient) => Promise<T>): Promise<T> {
+  const client = await pool.connect();
+  let broken = false;
+  try {
+    await client.query("BEGIN");
+    const result = await body(client);
+    await client.query("COMMIT");
+    return result;
+  } catch (error) {
+    broken = true;
+    await client.query("ROLLBACK").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release(broken);
+  }
+}
+
+/** Refuse a review the ledger cannot keep, writing nothing; then write its runs and hits on `client`, returning the hits as kept. */
+export async function writeReview(client: LedgerClient, review: Review): Promise<HitRow[]> {
+  assertName("project", review.project);
+  assertName("review", review.review);
+  if (review.packages.length === 0) throw new Error("A review names at least one package the change touches.");
+  for (const name of review.packages) assertName("package", name);
+  for (const { check, hits } of review.ran) {
+    assertName("check", check);
+    for (const hit of hits) {
+      if (!review.packages.includes(hit.package)) throw new Error(`Check ${check} hit ${hit.file} in package "${hit.package}", which the review does not name among the packages the change touches.`);
+      assertName("file", hit.file);
+      if (!Number.isInteger(hit.line) || hit.line < 1) throw new Error(`A hit's line is a whole number from 1, not ${hit.line}.`);
+    }
+  }
+  const hits: HitRow[] = [];
+  for (const { check, hits: found } of review.ran) {
+    for (const name of review.packages) {
+      await client.query("INSERT INTO quality_runs (project, review, check_id, package) VALUES ($1, $2, $3, $4)", [review.project, review.review, check, name]);
+    }
+    for (const hit of found) {
+      const { rows } = await client.query<HitRecord>(
+        `INSERT INTO quality_hits (project, review, check_id, package, file, line, change, found) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING ${HIT_COLUMNS}`,
+        [review.project, review.review, check, hit.package, hit.file, hit.line, review.change ?? null, hit.found ?? null],
+      );
+      hits.push(hitRow(rows[0]!));
+    }
+  }
+  return hits;
+}
+
+export interface HitRecord {
   id: string; // bigint: pg hands it over as a string
   project: string;
   review: string;
@@ -118,15 +195,21 @@ interface HitRecord {
   at: Date;
   answer: "fixed" | "rejected" | null;
   reason: string | null;
+  found: string | null;
+  accepted: boolean;
 }
 
-const HIT_COLUMNS = "id, project, review, check_id, package, file, line, at, answer, reason";
+/** The columns a hit is read with, for this package's own modules. */
+export const HIT_COLUMNS = "id, project, review, check_id, package, file, line, at, answer, reason, found, accepted";
 
-function hitRow(row: HitRecord): HitRow {
+/** A hit as read from the database, as the ledger hands it over. */
+export function hitRow(row: HitRecord): HitRow {
   return {
     id: Number(row.id), project: row.project, review: row.review, check: row.check_id, package: row.package,
     file: row.file, line: row.line, at: row.at.toISOString(), answer: row.answer ?? "unanswered",
     ...(row.reason === null ? {} : { reason: row.reason }),
+    ...(row.found === null ? {} : { found: row.found }),
+    accepted: row.accepted,
   };
 }
 
@@ -138,51 +221,14 @@ class PgLedger implements Ledger {
   }
 
   async record(review: Review): Promise<{ hits: HitRow[] }> {
-    assertName("project", review.project);
-    assertName("review", review.review);
-    if (review.packages.length === 0) throw new Error("A review names at least one package the change touches.");
-    for (const name of review.packages) assertName("package", name);
-    for (const { check, hits } of review.ran) {
-      assertName("check", check);
-      for (const hit of hits) {
-        if (!review.packages.includes(hit.package)) throw new Error(`Check ${check} hit ${hit.file} in package "${hit.package}", which the review does not name among the packages the change touches.`);
-        assertName("file", hit.file);
-        if (!Number.isInteger(hit.line) || hit.line < 1) throw new Error(`A hit's line is a whole number from 1, not ${hit.line}.`);
-      }
-    }
-    const client = await this.#pool.connect();
-    let broken = false;
-    try {
-      await client.query("BEGIN");
-      const hits: HitRow[] = [];
-      for (const { check, hits: found } of review.ran) {
-        for (const name of review.packages) {
-          await client.query("INSERT INTO quality_runs (project, review, check_id, package) VALUES ($1, $2, $3, $4)", [review.project, review.review, check, name]);
-        }
-        for (const hit of found) {
-          const { rows } = await client.query<HitRecord>(
-            `INSERT INTO quality_hits (project, review, check_id, package, file, line) VALUES ($1, $2, $3, $4, $5, $6) RETURNING ${HIT_COLUMNS}`,
-            [review.project, review.review, check, hit.package, hit.file, hit.line],
-          );
-          hits.push(hitRow(rows[0]!));
-        }
-      }
-      await client.query("COMMIT");
-      return { hits };
-    } catch (error) {
-      broken = true;
-      await client.query("ROLLBACK").catch(() => undefined);
-      throw error;
-    } finally {
-      client.release(broken);
-    }
+    return { hits: await inTransaction(this.#pool, (client) => writeReview(client, review)) };
   }
 
   async answer(project: string, id: number, answer: Answer): Promise<void> {
     const reason = answer.answer === "rejected" ? answer.reason.trim() : null;
     if (answer.answer === "rejected" && reason === "") throw new Error("A rejected hit needs its reason.");
     const { rowCount } = await this.#pool.query(
-      "UPDATE quality_hits SET answer = $3, reason = $4, answered_at = now() WHERE project = $1 AND id = $2",
+      "UPDATE quality_hits SET answer = $3, reason = $4, answered_at = now(), accepted = false WHERE project = $1 AND id = $2",
       [project, id, answer.answer, reason],
     );
     if (rowCount === 0) throw new Error(`The ledger holds no hit ${id} in project "${project}".`);

@@ -33,14 +33,14 @@ export async function withConnections(body: (first: Storytree, second: Storytree
   }
 }
 
-/** Run `body` with a fresh project's library, dropped afterwards, pass or fail. */
-export async function withLibrary(body: (library: Library) => Promise<void>): Promise<void> {
+/** Run `body` with a fresh project's library and the connection it is opened on, dropped afterwards, pass or fail. */
+export async function withLibrary(body: (library: Library, storytree: Storytree) => Promise<void>): Promise<void> {
   const project = `t-${randomBytes(4).toString("hex")}`;
   const storytree = await connect({ url: testServerUrl() });
   try {
     const library = await storytree.openProject(project);
     try {
-      await body(library);
+      await body(library, storytree);
     } finally {
       await library.close();
     }

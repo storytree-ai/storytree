@@ -17,7 +17,8 @@ The text above that marker is written by hand, and it counts toward the file's 4
   what failed. Give flags in that `pnpm run <script> --flag` form: Windows PowerShell 5.1 drops a bare `--`.
   `pnpm typecheck` checks types.
 - `pnpm test` and `pnpm gate` queue behind the machine's heavy-run lock themselves (a waiting run says
-  whose run it waits for), so run them plain, in the background: no flock wrapper.
+  whose run it waits for), so run them plain, in the background: no flock wrapper. A session whose engine
+  exits when its turn ends (a Mint lane) runs them in the foreground instead, until the table prints.
 - `pnpm check:guidance` says whether this file, AGENTS.md and the role files match the library.
   It reads the app's library, so CI cannot run it: run it yourself when you change a role or a note
   a role stands on.

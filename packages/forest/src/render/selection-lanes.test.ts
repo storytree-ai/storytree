@@ -1,8 +1,10 @@
 /** Story node render 3.26: a selected story's links to other stories light as lanes, by direction. */
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { workStates } from '@storytree/arc-surface';
+import type { AnnotatedCapability, AnnotatedStory } from '@storytree/library';
 import type { ForestScene, Island } from '../index.js';
-import { reachedNeighbour, ringPulse, selectionLanes, selectionNeighbours } from '../index.js';
+import { forestScene, reachedNeighbour, ringPulse, selectionLanes, selectionNeighbours } from '../index.js';
 
 const island = (story: string, capabilities: string[]): Island => ({
   story, title: story, x: 0, z: 0, key: story,
@@ -42,4 +44,21 @@ test('3.27 a selected story\'s neighbours are ringed by relation, violet when bo
   assert.equal(reachedNeighbour(scene, { from: 'b1', to: 'a1', dir: 'up' }, 'end'), undefined, 'and ends on the selected island');
   assert.equal(reachedNeighbour(scene, { from: 'c1', to: 'b1', dir: 'down' }, 'start'), undefined, 'a down lane leaves the selected island');
   assert.equal(reachedNeighbour(scene, { from: 'c1', to: 'b1', dir: 'down' }, 'end'), 'c', 'and arrives at its neighbour');
+});
+
+test('3.26 selecting a story also lights a lane to each story its row depends on, and from each that depends on it, where no capability link joins them', () => {
+  const NO_HEALTH = { reported: { state: 'not-checked' as const }, verified: { state: 'not-checked' as const } };
+  const capability = (id: string, dependsOn: string[] = []): AnnotatedCapability => ({ id, title: id, dependsOn, proposed: true, status: 'proposed' as const, contracts: [], health: NO_HEALTH });
+  const story = (id: string, ...capabilities: AnnotatedCapability[]): AnnotatedStory => ({ id, title: id, capabilities, health: NO_HEALTH });
+  // The website's package depends on the world's and the forest's; the plan records only website on forest.
+  const tree = { arcs: [], stories: [story('world', capability('w1')), story('forest', capability('f1')), story('website', capability('s1', ['f1']))] };
+  const code = { website: { files: [], imports: [], dependsOn: ['world', 'forest'] } };
+  const scene = forestScene(tree, [], workStates([]), code);
+  assert.deepEqual(selectionLanes(scene, 'website'), [
+    { from: 's1', to: 'f1', dir: 'up' },
+    { from: 'website', to: 'world', dir: 'up' },
+  ], 'the code dependency with no plan link lights a lane between the stories; the planned one is not lit twice');
+  assert.deepEqual(selectionLanes(scene, 'world'), [{ from: 'website', to: 'world', dir: 'down' }]);
+  assert.deepEqual([...selectionNeighbours(scene, 'website')], [['forest', 'up'], ['world', 'up']]);
+  assert.equal(reachedNeighbour(scene, { from: 'website', to: 'world', dir: 'up' }, 'start'), 'world');
 });

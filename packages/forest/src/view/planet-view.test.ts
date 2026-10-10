@@ -9,6 +9,7 @@ import { dragTurn, focusRotation, globeFraming, globeHover, hiddenMarkers, isGlo
 import { codePathKey } from "@storytree/knowledge-core";
 import { circleStops, fileCircleMarks, lightFileCircles } from "./file-circles.js";
 import { lightTerritories, territoryLand } from "./territory-land.js";
+import { ClaimMarks } from "./claim-flag.js";
 import { territories } from "../territories/territories.js";
 
 test("3.12 hovering an eligible artifact shows its title and pointer in either mode; empty space clears both", () => {
@@ -448,7 +449,7 @@ const programsEveryFrame = (root: Group): string[] => {
   return found;
 };
 
-test("5.4 an animating globe redraws a session-lit island's land, circles and tints without re-deriving a shader program", () => {
+test("5.4 an animating globe redraws a session-lit island's land, circles, tints and claim flags without re-deriving a shader program", () => {
   const land = {
     radius: 2,
     territories: [{ capability: "cap-a", status: "healthy" as const }, { capability: "cap-b" }],
@@ -460,10 +461,14 @@ test("5.4 an animating globe redraws a session-lit island's land, circles and ti
   };
   const plate = new Group();
   const drawn = territoryLand(land, flat.onSurface, undefined, new Map([["cap-a", { colour: "#e69f00", faded: false }]]));
+  const marks = new ClaimMarks();
+  marks.setLand(territories([{ capability: "cap-a", lines: 1 }, { capability: "cap-b", lines: 1 }], 2), flat.onSurface, flat.normalAt, true);
+  marks.claims(new Map([["cap-a", { colour: "#e69f00", faded: false }]]), 0, { standing: false, reduced: false });
+  marks.frame(0.7, { zoom: 20, eye: new Quaternion(), reduced: false });
   lightTerritories(drawn, new Map([["cap-a", "in-window" as const], ["cap-b", "faded" as const]]), "#e69f00");
   const circles = circlesOf();
   lightFileCircles(circles, new Map([[codePathKey("story", "src/a.ts"), "in-window" as const], [codePathKey("story", "src/b.ts"), "faded" as const]]), "#e69f00", "story");
-  plate.add(drawn, circles);
-  assert.ok(plate.getObjectByName("territory-claim:cap-a") && plate.getObjectByName("file-ring:src/a.ts"), "the fixture draws every kind of mark");
+  plate.add(drawn, circles, marks.root);
+  assert.ok(plate.getObjectByName("territory-claim:cap-a") && plate.getObjectByName("claim-lot:cap-a") && plate.getObjectByName("file-ring:src/a.ts"), "the fixture draws every kind of mark");
   assert.deepEqual(programsEveryFrame(plate), []);
 });

@@ -11,6 +11,6 @@ Rules for a planning lane on the Mint box (ADR-0955 D4). The dispatcher starts o
   - **The open work only looks stuck:** a wait whose blocker landed is stale; clear it (the `clear_wait` tool or `pnpm storytree arc increment unwait …`), which makes the work ready again.
 - Claims: you write no capability, so you claim none; never claim, release or close another session's work.
 - **The shared library** is Postgres 16 on this box (ADR-0928). Never start, stop or reconfigure the box's postgresql service or Cloud SQL storytree-pg. Avoid looping over whole-library reads.
-- **You exit when you end a turn**, so never end one while something you started is still running.
+- **You exit when you end a turn**, so never end one while something you started is still running: ending the turn to wait exits the lane and strands what it has not written. Run commands in the foreground, and poll anything already in the background inside the same turn.
 - **Before ending:** run the `list_own_runs` tool or `pnpm storytree processes` and stop or clear your runs (`stop_own_run` and `clear_own_runs`, or `processes stop` and `processes clear`), then the `close_out` tool or `pnpm storytree session close-out --safe yes|no --why "…"`.
 - **Your report** goes to ~/storytree-lanes/pool-<arc>.report.md (never /tmp): what you read, what you parked, cleared or asked (with ids), and SAFE TO CLOSE yes or no.

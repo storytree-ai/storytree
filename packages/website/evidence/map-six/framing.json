@@ -1,0 +1,2582 @@
+[
+  {
+    "width": 1920,
+    "step": "map-empty",
+    "framed": [],
+    "misses": [],
+    "seen": {
+      "step": "map-empty",
+      "progress": 0.911,
+      "arrived": "true",
+      "room": {
+        "width": 1920,
+        "height": 1080
+      },
+      "drawing": {
+        "x": 0,
+        "y": 0,
+        "width": 1920,
+        "height": 1080
+      },
+      "card": {
+        "x": 64,
+        "y": 810.4375,
+        "width": 400,
+        "height": 193.5625
+      },
+      "bar": {
+        "x": 0,
+        "y": 1021,
+        "width": 1920,
+        "height": 59
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 1920,
+        "height": 62
+      },
+      "plates": []
+    }
+  },
+  {
+    "width": 1920,
+    "step": "map-first",
+    "framed": [
+      "Signing in"
+    ],
+    "misses": [],
+    "seen": {
+      "step": "map-first",
+      "progress": 0.897,
+      "arrived": "true",
+      "room": {
+        "width": 1920,
+        "height": 1080
+      },
+      "drawing": {
+        "x": 0,
+        "y": 0,
+        "width": 1920,
+        "height": 1080
+      },
+      "card": {
+        "x": 64,
+        "y": 636.109375,
+        "width": 400,
+        "height": 367.890625
+      },
+      "bar": {
+        "x": 0,
+        "y": 1021,
+        "width": 1920,
+        "height": 59
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 1920,
+        "height": 62
+      },
+      "plates": [
+        {
+          "title": "Signing in",
+          "box": {
+            "x": 904.671875,
+            "y": 616.7667846679688,
+            "width": 82.65625,
+            "height": 18.28125
+          },
+          "shown": true
+        }
+      ]
+    }
+  },
+  {
+    "width": 1920,
+    "step": "map-code",
+    "framed": [
+      "Signing in"
+    ],
+    "misses": [],
+    "seen": {
+      "step": "map-code",
+      "progress": 0.918,
+      "arrived": "true",
+      "room": {
+        "width": 1920,
+        "height": 1080
+      },
+      "drawing": {
+        "x": 0,
+        "y": 0,
+        "width": 1920,
+        "height": 1080
+      },
+      "card": {
+        "x": 64,
+        "y": 801.4375,
+        "width": 400,
+        "height": 202.5625
+      },
+      "bar": {
+        "x": 0,
+        "y": 1021,
+        "width": 1920,
+        "height": 59
+      },
+      "panel": {
+        "x": 1428,
+        "y": 66,
+        "width": 480,
+        "height": 944
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 1920,
+        "height": 62
+      },
+      "plates": [
+        {
+          "title": "Signing in",
+          "box": {
+            "x": 904.671875,
+            "y": 616.7667846679688,
+            "width": 82.65625,
+            "height": 18.28125
+          },
+          "shown": true
+        }
+      ]
+    }
+  },
+  {
+    "width": 1920,
+    "step": "map-together",
+    "framed": [
+      "Signing in",
+      "Browsing",
+      "Cart",
+      "Checkout"
+    ],
+    "misses": [],
+    "seen": {
+      "step": "map-together",
+      "progress": 0.894,
+      "arrived": "true",
+      "room": {
+        "width": 1920,
+        "height": 1080
+      },
+      "drawing": {
+        "x": 0,
+        "y": 0,
+        "width": 1920,
+        "height": 1080
+      },
+      "card": {
+        "x": 64,
+        "y": 667.375,
+        "width": 400,
+        "height": 336.625
+      },
+      "bar": {
+        "x": 0,
+        "y": 1021,
+        "width": 1920,
+        "height": 59
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 1920,
+        "height": 62
+      },
+      "plates": [
+        {
+          "title": "Signing in",
+          "box": {
+            "x": 1215.87744140625,
+            "y": 808.6821899414062,
+            "width": 82.65625,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Browsing",
+          "box": {
+            "x": 1152.703125,
+            "y": 582.116943359375,
+            "width": 78.59375,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Cart",
+          "box": {
+            "x": 1062.10693359375,
+            "y": 353.294921875,
+            "width": 45.515625,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Checkout",
+          "box": {
+            "x": 1104.93359375,
+            "y": 181.5901641845703,
+            "width": 79.59375,
+            "height": 18.28125
+          },
+          "shown": true
+        }
+      ]
+    }
+  },
+  {
+    "width": 1920,
+    "step": "map-health",
+    "framed": [
+      "Signing in",
+      "Browsing",
+      "Cart",
+      "Checkout"
+    ],
+    "misses": [],
+    "seen": {
+      "step": "map-health",
+      "progress": 0.89,
+      "arrived": "true",
+      "room": {
+        "width": 1920,
+        "height": 1080
+      },
+      "drawing": {
+        "x": 0,
+        "y": 0,
+        "width": 1920,
+        "height": 1080
+      },
+      "card": {
+        "x": 64,
+        "y": 738.90625,
+        "width": 400,
+        "height": 265.09375
+      },
+      "bar": {
+        "x": 0,
+        "y": 1021,
+        "width": 1920,
+        "height": 59
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 1920,
+        "height": 62
+      },
+      "plates": [
+        {
+          "title": "Signing in",
+          "box": {
+            "x": 1217.147705078125,
+            "y": 803.34130859375,
+            "width": 82.65625,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Browsing",
+          "box": {
+            "x": 1152.703125,
+            "y": 610.8414916992188,
+            "width": 78.59375,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Cart",
+          "box": {
+            "x": 1062.10693359375,
+            "y": 353.294921875,
+            "width": 45.515625,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Checkout",
+          "box": {
+            "x": 1103.4776611328125,
+            "y": 191.08993530273438,
+            "width": 79.59375,
+            "height": 18.28125
+          },
+          "shown": true
+        }
+      ]
+    }
+  },
+  {
+    "width": 1920,
+    "step": "map-claims-line-2",
+    "framed": [
+      "Checkout",
+      "Cart",
+      "Orders"
+    ],
+    "misses": [],
+    "seen": {
+      "step": "map-claims",
+      "progress": 0.557,
+      "arrived": "true",
+      "room": {
+        "width": 1920,
+        "height": 1080
+      },
+      "drawing": {
+        "x": 0,
+        "y": 0,
+        "width": 1920,
+        "height": 1080
+      },
+      "card": {
+        "x": 64,
+        "y": 604.84375,
+        "width": 400,
+        "height": 399.15625
+      },
+      "bar": {
+        "x": 0,
+        "y": 1021,
+        "width": 1920,
+        "height": 59
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 1920,
+        "height": 62
+      },
+      "plates": [
+        {
+          "title": "Signing in",
+          "box": {
+            "x": 1217.147705078125,
+            "y": 803.34130859375,
+            "width": 82.65625,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Browsing",
+          "box": {
+            "x": 1152.703125,
+            "y": 610.8414916992188,
+            "width": 78.59375,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Cart",
+          "box": {
+            "x": 1062.10693359375,
+            "y": 353.294921875,
+            "width": 45.515625,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Checkout",
+          "box": {
+            "x": 1103.4776611328125,
+            "y": 191.08993530273438,
+            "width": 79.59375,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Orders",
+          "box": {
+            "x": 1248.87255859375,
+            "y": 361.1766357421875,
+            "width": 75.59375,
+            "height": 37.96875
+          },
+          "shown": true
+        }
+      ]
+    }
+  },
+  {
+    "width": 1920,
+    "step": "map-claims",
+    "framed": [
+      "Checkout",
+      "Cart",
+      "Orders"
+    ],
+    "misses": [],
+    "seen": {
+      "step": "map-claims",
+      "progress": 0.891,
+      "arrived": "true",
+      "room": {
+        "width": 1920,
+        "height": 1080
+      },
+      "drawing": {
+        "x": 0,
+        "y": 0,
+        "width": 1920,
+        "height": 1080
+      },
+      "card": {
+        "x": 64,
+        "y": 604.84375,
+        "width": 400,
+        "height": 399.15625
+      },
+      "bar": {
+        "x": 0,
+        "y": 1021,
+        "width": 1920,
+        "height": 59
+      },
+      "sessions": {
+        "x": 480,
+        "y": 871,
+        "width": 1424,
+        "height": 137
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 1920,
+        "height": 62
+      },
+      "plates": [
+        {
+          "title": "Signing in",
+          "box": {
+            "x": 1217.147705078125,
+            "y": 803.34130859375,
+            "width": 82.65625,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Browsing",
+          "box": {
+            "x": 1152.703125,
+            "y": 610.8414916992188,
+            "width": 78.59375,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Cart",
+          "box": {
+            "x": 1062.10693359375,
+            "y": 353.294921875,
+            "width": 45.515625,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Checkout",
+          "box": {
+            "x": 1103.4776611328125,
+            "y": 191.08993530273438,
+            "width": 79.59375,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Orders",
+          "box": {
+            "x": 1248.87255859375,
+            "y": 361.1766357421875,
+            "width": 75.59375,
+            "height": 37.96875
+          },
+          "shown": true
+        }
+      ]
+    }
+  },
+  {
+    "width": 1440,
+    "step": "map-empty",
+    "framed": [],
+    "misses": [],
+    "seen": {
+      "step": "map-empty",
+      "progress": 0.902,
+      "arrived": "true",
+      "room": {
+        "width": 1440,
+        "height": 900
+      },
+      "drawing": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 900
+      },
+      "card": {
+        "x": 57.59375,
+        "y": 638.0625,
+        "width": 400,
+        "height": 185.9375
+      },
+      "bar": {
+        "x": 0,
+        "y": 841,
+        "width": 1440,
+        "height": 59
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 62
+      },
+      "plates": []
+    }
+  },
+  {
+    "width": 1440,
+    "step": "map-first",
+    "framed": [
+      "Signing in"
+    ],
+    "misses": [],
+    "seen": {
+      "step": "map-first",
+      "progress": 0.913,
+      "arrived": "true",
+      "room": {
+        "width": 1440,
+        "height": 900
+      },
+      "drawing": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 900
+      },
+      "card": {
+        "x": 57.59375,
+        "y": 473.265625,
+        "width": 400,
+        "height": 350.734375
+      },
+      "bar": {
+        "x": 0,
+        "y": 841,
+        "width": 1440,
+        "height": 59
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 62
+      },
+      "plates": [
+        {
+          "title": "Signing in",
+          "box": {
+            "x": 661.671875,
+            "y": 514.5400390625,
+            "width": 82.65625,
+            "height": 18.28125
+          },
+          "shown": true
+        }
+      ]
+    }
+  },
+  {
+    "width": 1440,
+    "step": "map-code",
+    "framed": [
+      "Signing in"
+    ],
+    "misses": [],
+    "seen": {
+      "step": "map-code",
+      "progress": 0.925,
+      "arrived": "true",
+      "room": {
+        "width": 1440,
+        "height": 900
+      },
+      "drawing": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 900
+      },
+      "card": {
+        "x": 57.59375,
+        "y": 629.0625,
+        "width": 400,
+        "height": 194.9375
+      },
+      "bar": {
+        "x": 0,
+        "y": 841,
+        "width": 1440,
+        "height": 59
+      },
+      "panel": {
+        "x": 948,
+        "y": 66,
+        "width": 480,
+        "height": 764
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 62
+      },
+      "plates": [
+        {
+          "title": "Signing in",
+          "box": {
+            "x": 661.671875,
+            "y": 514.5400390625,
+            "width": 82.65625,
+            "height": 18.28125
+          },
+          "shown": true
+        }
+      ]
+    }
+  },
+  {
+    "width": 1440,
+    "step": "map-together",
+    "framed": [
+      "Signing in",
+      "Browsing",
+      "Cart",
+      "Checkout"
+    ],
+    "misses": [],
+    "seen": {
+      "step": "map-together",
+      "progress": 0.886,
+      "arrived": "true",
+      "room": {
+        "width": 1440,
+        "height": 900
+      },
+      "drawing": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 900
+      },
+      "card": {
+        "x": 57.59375,
+        "y": 502.625,
+        "width": 400,
+        "height": 321.375
+      },
+      "bar": {
+        "x": 0,
+        "y": 841,
+        "width": 1440,
+        "height": 59
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 62
+      },
+      "plates": [
+        {
+          "title": "Signing in",
+          "box": {
+            "x": 962.0098876953125,
+            "y": 674.4695434570312,
+            "width": 82.65625,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Browsing",
+          "box": {
+            "x": 909.703125,
+            "y": 485.6651611328125,
+            "width": 78.59375,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Cart",
+          "box": {
+            "x": 836.9628295898438,
+            "y": 294.9801330566406,
+            "width": 45.515625,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Checkout",
+          "box": {
+            "x": 869.8118286132812,
+            "y": 151.89283752441406,
+            "width": 79.59375,
+            "height": 18.28125
+          },
+          "shown": true
+        }
+      ]
+    }
+  },
+  {
+    "width": 1440,
+    "step": "map-health",
+    "framed": [
+      "Signing in",
+      "Browsing",
+      "Cart",
+      "Checkout"
+    ],
+    "misses": [],
+    "seen": {
+      "step": "map-health",
+      "progress": 0.918,
+      "arrived": "true",
+      "room": {
+        "width": 1440,
+        "height": 900
+      },
+      "drawing": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 900
+      },
+      "card": {
+        "x": 57.59375,
+        "y": 570.34375,
+        "width": 400,
+        "height": 253.65625
+      },
+      "bar": {
+        "x": 0,
+        "y": 841,
+        "width": 1440,
+        "height": 59
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 62
+      },
+      "plates": [
+        {
+          "title": "Signing in",
+          "box": {
+            "x": 963.068359375,
+            "y": 670.018798828125,
+            "width": 82.65625,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Browsing",
+          "box": {
+            "x": 909.703125,
+            "y": 509.6022644042969,
+            "width": 78.59375,
+            "height": 18.281280517578125
+          },
+          "shown": true
+        },
+        {
+          "title": "Cart",
+          "box": {
+            "x": 836.9628295898438,
+            "y": 294.9801330566406,
+            "width": 45.515625,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Checkout",
+          "box": {
+            "x": 868.5985717773438,
+            "y": 159.809326171875,
+            "width": 79.59375,
+            "height": 18.28125
+          },
+          "shown": true
+        }
+      ]
+    }
+  },
+  {
+    "width": 1440,
+    "step": "map-claims-line-2",
+    "framed": [
+      "Checkout",
+      "Cart",
+      "Orders"
+    ],
+    "misses": [],
+    "seen": {
+      "step": "map-claims",
+      "progress": 0.58,
+      "arrived": "true",
+      "room": {
+        "width": 1440,
+        "height": 900
+      },
+      "drawing": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 900
+      },
+      "card": {
+        "x": 57.59375,
+        "y": 473.265625,
+        "width": 400,
+        "height": 350.734375
+      },
+      "bar": {
+        "x": 0,
+        "y": 841,
+        "width": 1440,
+        "height": 59
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 62
+      },
+      "plates": [
+        {
+          "title": "Signing in",
+          "box": {
+            "x": 963.068359375,
+            "y": 670.018798828125,
+            "width": 82.65625,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Browsing",
+          "box": {
+            "x": 909.703125,
+            "y": 509.6022644042969,
+            "width": 78.59375,
+            "height": 18.281280517578125
+          },
+          "shown": true
+        },
+        {
+          "title": "Cart",
+          "box": {
+            "x": 836.9628295898438,
+            "y": 294.9801330566406,
+            "width": 45.515625,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Checkout",
+          "box": {
+            "x": 868.5985717773438,
+            "y": 159.809326171875,
+            "width": 79.59375,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Orders",
+          "box": {
+            "x": 990.09423828125,
+            "y": 301.5473327636719,
+            "width": 75.59375,
+            "height": 37.96875
+          },
+          "shown": true
+        }
+      ]
+    }
+  },
+  {
+    "width": 1440,
+    "step": "map-claims",
+    "framed": [
+      "Checkout",
+      "Cart",
+      "Orders"
+    ],
+    "misses": [],
+    "seen": {
+      "step": "map-claims",
+      "progress": 0.897,
+      "arrived": "true",
+      "room": {
+        "width": 1440,
+        "height": 900
+      },
+      "drawing": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 900
+      },
+      "card": {
+        "x": 57.59375,
+        "y": 473.265625,
+        "width": 400,
+        "height": 350.734375
+      },
+      "bar": {
+        "x": 0,
+        "y": 841,
+        "width": 1440,
+        "height": 59
+      },
+      "sessions": {
+        "x": 473.59375,
+        "y": 691,
+        "width": 950.40625,
+        "height": 137
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 62
+      },
+      "plates": [
+        {
+          "title": "Signing in",
+          "box": {
+            "x": 963.068359375,
+            "y": 670.018798828125,
+            "width": 82.65625,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Browsing",
+          "box": {
+            "x": 909.703125,
+            "y": 509.6022644042969,
+            "width": 78.59375,
+            "height": 18.281280517578125
+          },
+          "shown": true
+        },
+        {
+          "title": "Cart",
+          "box": {
+            "x": 836.9628295898438,
+            "y": 294.9801330566406,
+            "width": 45.515625,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Checkout",
+          "box": {
+            "x": 868.5985717773438,
+            "y": 159.809326171875,
+            "width": 79.59375,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Orders",
+          "box": {
+            "x": 990.09423828125,
+            "y": 301.5473327636719,
+            "width": 75.59375,
+            "height": 37.96875
+          },
+          "shown": true
+        }
+      ]
+    }
+  },
+  {
+    "width": 1280,
+    "step": "map-empty",
+    "framed": [],
+    "misses": [],
+    "seen": {
+      "step": "map-empty",
+      "progress": 0.888,
+      "arrived": "true",
+      "room": {
+        "width": 1280,
+        "height": 800
+      },
+      "drawing": {
+        "x": 0,
+        "y": 0,
+        "width": 1280,
+        "height": 800
+      },
+      "card": {
+        "x": 51.1875,
+        "y": 577.171875,
+        "width": 400,
+        "height": 146.828125
+      },
+      "bar": {
+        "x": 0,
+        "y": 741,
+        "width": 1280,
+        "height": 59
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 1280,
+        "height": 62
+      },
+      "plates": []
+    }
+  },
+  {
+    "width": 1280,
+    "step": "map-first",
+    "framed": [
+      "Signing in"
+    ],
+    "misses": [],
+    "seen": {
+      "step": "map-first",
+      "progress": 0.889,
+      "arrived": "true",
+      "room": {
+        "width": 1280,
+        "height": 800
+      },
+      "drawing": {
+        "x": 0,
+        "y": 0,
+        "width": 1280,
+        "height": 800
+      },
+      "card": {
+        "x": 51.1875,
+        "y": 428.625,
+        "width": 400,
+        "height": 295.375
+      },
+      "bar": {
+        "x": 0,
+        "y": 741,
+        "width": 1280,
+        "height": 59
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 1280,
+        "height": 62
+      },
+      "plates": [
+        {
+          "title": "Signing in",
+          "box": {
+            "x": 578.671875,
+            "y": 457.74737548828125,
+            "width": 82.65625,
+            "height": 18.28125
+          },
+          "shown": true
+        }
+      ]
+    }
+  },
+  {
+    "width": 1280,
+    "step": "map-code",
+    "framed": [
+      "Signing in"
+    ],
+    "misses": [],
+    "seen": {
+      "step": "map-code",
+      "progress": 0.901,
+      "arrived": "true",
+      "room": {
+        "width": 1280,
+        "height": 800
+      },
+      "drawing": {
+        "x": 0,
+        "y": 0,
+        "width": 1280,
+        "height": 800
+      },
+      "card": {
+        "x": 51.1875,
+        "y": 542.0625,
+        "width": 400,
+        "height": 181.9375
+      },
+      "bar": {
+        "x": 0,
+        "y": 741,
+        "width": 1280,
+        "height": 59
+      },
+      "panel": {
+        "x": 788,
+        "y": 66,
+        "width": 480,
+        "height": 664
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 1280,
+        "height": 62
+      },
+      "plates": [
+        {
+          "title": "Signing in",
+          "box": {
+            "x": 578.671875,
+            "y": 457.74737548828125,
+            "width": 82.65625,
+            "height": 18.28125
+          },
+          "shown": true
+        }
+      ]
+    }
+  },
+  {
+    "width": 1280,
+    "step": "map-together",
+    "framed": [
+      "Signing in",
+      "Browsing",
+      "Cart",
+      "Checkout"
+    ],
+    "misses": [],
+    "seen": {
+      "step": "map-together",
+      "progress": 0.897,
+      "arrived": "true",
+      "room": {
+        "width": 1280,
+        "height": 800
+      },
+      "drawing": {
+        "x": 0,
+        "y": 0,
+        "width": 1280,
+        "height": 800
+      },
+      "card": {
+        "x": 51.1875,
+        "y": 454.734375,
+        "width": 400,
+        "height": 269.265625
+      },
+      "bar": {
+        "x": 0,
+        "y": 741,
+        "width": 1280,
+        "height": 59
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 1280,
+        "height": 62
+      },
+      "plates": [
+        {
+          "title": "Signing in",
+          "box": {
+            "x": 872.9722900390625,
+            "y": 599.906982421875,
+            "width": 82.65625,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Browsing",
+          "box": {
+            "x": 826.703125,
+            "y": 432.0808410644531,
+            "width": 78.59375,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Cart",
+          "box": {
+            "x": 763.8827514648438,
+            "y": 262.5830383300781,
+            "width": 45.515625,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Checkout",
+          "box": {
+            "x": 791.1885986328125,
+            "y": 135.3943328857422,
+            "width": 79.59375,
+            "height": 18.28125
+          },
+          "shown": true
+        }
+      ]
+    }
+  },
+  {
+    "width": 1280,
+    "step": "map-health",
+    "framed": [
+      "Signing in",
+      "Browsing",
+      "Cart",
+      "Checkout"
+    ],
+    "misses": [],
+    "seen": {
+      "step": "map-health",
+      "progress": 0.941,
+      "arrived": "true",
+      "room": {
+        "width": 1280,
+        "height": 800
+      },
+      "drawing": {
+        "x": 0,
+        "y": 0,
+        "width": 1280,
+        "height": 800
+      },
+      "card": {
+        "x": 51.1875,
+        "y": 515.953125,
+        "width": 400,
+        "height": 208.046875
+      },
+      "bar": {
+        "x": 0,
+        "y": 741,
+        "width": 1280,
+        "height": 59
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 1280,
+        "height": 62
+      },
+      "plates": [
+        {
+          "title": "Signing in",
+          "box": {
+            "x": 873.9132080078125,
+            "y": 595.9507446289062,
+            "width": 82.65625,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Browsing",
+          "box": {
+            "x": 826.703125,
+            "y": 453.3582763671875,
+            "width": 78.59375,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Cart",
+          "box": {
+            "x": 763.8827514648438,
+            "y": 262.5830383300781,
+            "width": 45.515625,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Checkout",
+          "box": {
+            "x": 790.1101684570312,
+            "y": 142.4311981201172,
+            "width": 79.59375,
+            "height": 18.28125
+          },
+          "shown": true
+        }
+      ]
+    }
+  },
+  {
+    "width": 1280,
+    "step": "map-claims-line-2",
+    "framed": [
+      "Checkout",
+      "Cart",
+      "Orders"
+    ],
+    "misses": [],
+    "seen": {
+      "step": "map-claims",
+      "progress": 0.619,
+      "arrived": "true",
+      "room": {
+        "width": 1280,
+        "height": 800
+      },
+      "drawing": {
+        "x": 0,
+        "y": 0,
+        "width": 1280,
+        "height": 800
+      },
+      "card": {
+        "x": 51.1875,
+        "y": 428.625,
+        "width": 400,
+        "height": 295.375
+      },
+      "bar": {
+        "x": 0,
+        "y": 741,
+        "width": 1280,
+        "height": 59
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 1280,
+        "height": 62
+      },
+      "plates": [
+        {
+          "title": "Signing in",
+          "box": {
+            "x": 873.9132080078125,
+            "y": 595.9507446289062,
+            "width": 82.65625,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Browsing",
+          "box": {
+            "x": 826.703125,
+            "y": 453.3582763671875,
+            "width": 78.59375,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Cart",
+          "box": {
+            "x": 763.8827514648438,
+            "y": 262.5830383300781,
+            "width": 45.515625,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Checkout",
+          "box": {
+            "x": 790.1101684570312,
+            "y": 142.4311981201172,
+            "width": 79.59375,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Orders",
+          "box": {
+            "x": 898.3286743164062,
+            "y": 268.4212951660156,
+            "width": 75.59375,
+            "height": 37.96875
+          },
+          "shown": true
+        }
+      ]
+    }
+  },
+  {
+    "width": 1280,
+    "step": "map-claims",
+    "framed": [
+      "Checkout",
+      "Cart",
+      "Orders"
+    ],
+    "misses": [],
+    "seen": {
+      "step": "map-claims",
+      "progress": 0.933,
+      "arrived": "true",
+      "room": {
+        "width": 1280,
+        "height": 800
+      },
+      "drawing": {
+        "x": 0,
+        "y": 0,
+        "width": 1280,
+        "height": 800
+      },
+      "card": {
+        "x": 51.1875,
+        "y": 428.625,
+        "width": 400,
+        "height": 295.375
+      },
+      "bar": {
+        "x": 0,
+        "y": 741,
+        "width": 1280,
+        "height": 59
+      },
+      "sessions": {
+        "x": 467.1875,
+        "y": 591,
+        "width": 796.8125,
+        "height": 137
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 1280,
+        "height": 62
+      },
+      "plates": [
+        {
+          "title": "Signing in",
+          "box": {
+            "x": 873.9132080078125,
+            "y": 595.9507446289062,
+            "width": 82.65625,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Browsing",
+          "box": {
+            "x": 826.703125,
+            "y": 453.3582763671875,
+            "width": 78.59375,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Cart",
+          "box": {
+            "x": 763.8827514648438,
+            "y": 262.5830383300781,
+            "width": 45.515625,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Checkout",
+          "box": {
+            "x": 790.1101684570312,
+            "y": 142.4311981201172,
+            "width": 79.59375,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Orders",
+          "box": {
+            "x": 898.3286743164062,
+            "y": 268.4212951660156,
+            "width": 75.59375,
+            "height": 37.96875
+          },
+          "shown": true
+        }
+      ]
+    }
+  },
+  {
+    "width": 390,
+    "step": "map-empty",
+    "framed": [],
+    "misses": [],
+    "seen": {
+      "step": "map-empty",
+      "progress": 0.886,
+      "arrived": "true",
+      "room": {
+        "width": 390,
+        "height": 844
+      },
+      "drawing": {
+        "x": 0,
+        "y": 72,
+        "width": 390,
+        "height": 333
+      },
+      "card": {
+        "x": 10,
+        "y": 409,
+        "width": 370,
+        "height": 289
+      },
+      "bar": {
+        "x": 0,
+        "y": 733,
+        "width": 390,
+        "height": 111
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 390,
+        "height": 87.375
+      },
+      "plates": []
+    }
+  },
+  {
+    "width": 390,
+    "step": "map-first",
+    "framed": [
+      "Signing in"
+    ],
+    "misses": [],
+    "seen": {
+      "step": "map-first",
+      "progress": 0.886,
+      "arrived": "true",
+      "room": {
+        "width": 390,
+        "height": 844
+      },
+      "drawing": {
+        "x": 0,
+        "y": 72,
+        "width": 390,
+        "height": 331
+      },
+      "card": {
+        "x": 10,
+        "y": 407,
+        "width": 370,
+        "height": 291
+      },
+      "bar": {
+        "x": 0,
+        "y": 733,
+        "width": 390,
+        "height": 111
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 390,
+        "height": 87.375
+      },
+      "plates": [
+        {
+          "title": "Signing in",
+          "box": {
+            "x": 153.671875,
+            "y": 258.03662109375,
+            "width": 82.65625,
+            "height": 18.28125
+          },
+          "shown": true
+        }
+      ]
+    }
+  },
+  {
+    "width": 390,
+    "step": "map-code",
+    "framed": [
+      "Signing in"
+    ],
+    "misses": [],
+    "seen": {
+      "step": "map-code",
+      "progress": 0.889,
+      "arrived": "true",
+      "room": {
+        "width": 390,
+        "height": 844
+      },
+      "drawing": {
+        "x": 0,
+        "y": 72,
+        "width": 390,
+        "height": 333
+      },
+      "card": {
+        "x": 10,
+        "y": 409,
+        "width": 370,
+        "height": 289
+      },
+      "bar": {
+        "x": 0,
+        "y": 733,
+        "width": 390,
+        "height": 111
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 390,
+        "height": 87.375
+      },
+      "plates": [
+        {
+          "title": "Signing in",
+          "box": {
+            "x": 153.671875,
+            "y": 259.14013671875,
+            "width": 82.65625,
+            "height": 18.28125
+          },
+          "shown": true
+        }
+      ]
+    }
+  },
+  {
+    "width": 390,
+    "step": "map-together",
+    "framed": [
+      "Signing in",
+      "Browsing",
+      "Cart",
+      "Checkout"
+    ],
+    "misses": [],
+    "seen": {
+      "step": "map-together",
+      "progress": 0.884,
+      "arrived": "true",
+      "room": {
+        "width": 390,
+        "height": 844
+      },
+      "drawing": {
+        "x": 0,
+        "y": 72,
+        "width": 390,
+        "height": 333
+      },
+      "card": {
+        "x": 10,
+        "y": 409,
+        "width": 370,
+        "height": 289
+      },
+      "bar": {
+        "x": 0,
+        "y": 733,
+        "width": 390,
+        "height": 111
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 390,
+        "height": 87.375
+      },
+      "plates": [
+        {
+          "title": "Signing in",
+          "box": {
+            "x": 170.42608642578125,
+            "y": 310.06744384765625,
+            "width": 82.65625,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Browsing",
+          "box": {
+            "x": 155.703125,
+            "y": 251.8527374267578,
+            "width": 78.59375,
+            "height": 18.281234741210938
+          },
+          "shown": true
+        },
+        {
+          "title": "Cart",
+          "box": {
+            "x": 144.71437072753906,
+            "y": 193.05819702148438,
+            "width": 45.515625,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Checkout",
+          "box": {
+            "x": 143.05746459960938,
+            "y": 148.93960571289062,
+            "width": 79.59375,
+            "height": 18.28125
+          },
+          "shown": true
+        }
+      ]
+    }
+  },
+  {
+    "width": 390,
+    "step": "map-health",
+    "framed": [
+      "Signing in",
+      "Browsing",
+      "Cart",
+      "Checkout"
+    ],
+    "misses": [],
+    "seen": {
+      "step": "map-health",
+      "progress": 0.884,
+      "arrived": "true",
+      "room": {
+        "width": 390,
+        "height": 844
+      },
+      "drawing": {
+        "x": 0,
+        "y": 72,
+        "width": 390,
+        "height": 333
+      },
+      "card": {
+        "x": 10,
+        "y": 409,
+        "width": 370,
+        "height": 289
+      },
+      "bar": {
+        "x": 0,
+        "y": 733,
+        "width": 390,
+        "height": 111
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 390,
+        "height": 87.375
+      },
+      "plates": [
+        {
+          "title": "Signing in",
+          "box": {
+            "x": 170.75245666503906,
+            "y": 308.69512939453125,
+            "width": 82.65625,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Browsing",
+          "box": {
+            "x": 155.703125,
+            "y": 259.23333740234375,
+            "width": 78.59375,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Cart",
+          "box": {
+            "x": 144.71437072753906,
+            "y": 193.05819702148438,
+            "width": 45.515625,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Checkout",
+          "box": {
+            "x": 142.6833953857422,
+            "y": 151.38052368164062,
+            "width": 79.59375,
+            "height": 18.28125
+          },
+          "shown": true
+        }
+      ]
+    }
+  },
+  {
+    "width": 390,
+    "step": "map-claims-line-2",
+    "framed": [
+      "Checkout",
+      "Cart",
+      "Orders"
+    ],
+    "misses": [],
+    "seen": {
+      "step": "map-claims",
+      "progress": 0.514,
+      "arrived": "true",
+      "room": {
+        "width": 390,
+        "height": 844
+      },
+      "drawing": {
+        "x": 0,
+        "y": 72,
+        "width": 390,
+        "height": 331
+      },
+      "card": {
+        "x": 10,
+        "y": 407,
+        "width": 370,
+        "height": 291
+      },
+      "bar": {
+        "x": 0,
+        "y": 733,
+        "width": 390,
+        "height": 111
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 390,
+        "height": 87.375
+      },
+      "plates": [
+        {
+          "title": "Signing in",
+          "box": {
+            "x": 157.03089904785156,
+            "y": 446.8298034667969,
+            "width": 82.65625,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Browsing",
+          "box": {
+            "x": 110.96275329589844,
+            "y": 382.3130187988281,
+            "width": 78.59375,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Cart",
+          "box": {
+            "x": 72.18046569824219,
+            "y": 252.18338012695312,
+            "width": 45.515625,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Checkout",
+          "box": {
+            "x": 92.75956726074219,
+            "y": 150.72357177734375,
+            "width": 79.59375,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Orders",
+          "box": {
+            "x": 157.203125,
+            "y": 263.43084716796875,
+            "width": 75.59375,
+            "height": 37.96875
+          },
+          "shown": true
+        }
+      ]
+    }
+  },
+  {
+    "width": 390,
+    "step": "map-claims",
+    "framed": [],
+    "misses": [],
+    "seen": {
+      "step": "map-claims",
+      "progress": 0.89,
+      "arrived": "true",
+      "room": {
+        "width": 390,
+        "height": 844
+      },
+      "drawing": {
+        "x": 0,
+        "y": 104,
+        "width": 390,
+        "height": 307
+      },
+      "card": {
+        "x": 10,
+        "y": 407,
+        "width": 370,
+        "height": 291
+      },
+      "bar": {
+        "x": 0,
+        "y": 733,
+        "width": 390,
+        "height": 111
+      },
+      "sessions": {
+        "x": 10,
+        "y": 84,
+        "width": 370,
+        "height": 135
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 390,
+        "height": 87.375
+      },
+      "plates": [
+        {
+          "title": "Signing in",
+          "box": {
+            "x": 156.78733825683594,
+            "y": 451.8988037109375,
+            "width": 82.65625,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Browsing",
+          "box": {
+            "x": 114.20677185058594,
+            "y": 392.0599670410156,
+            "width": 78.59375,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Cart",
+          "box": {
+            "x": 79.43569946289062,
+            "y": 271.36572265625,
+            "width": 45.515625,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Checkout",
+          "box": {
+            "x": 97.28720092773438,
+            "y": 177.26251220703125,
+            "width": 79.59375,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Orders",
+          "box": {
+            "x": 157.203125,
+            "y": 281.797607421875,
+            "width": 75.59375,
+            "height": 37.96875
+          },
+          "shown": true
+        }
+      ]
+    }
+  },
+  {
+    "width": 320,
+    "step": "map-empty",
+    "framed": [],
+    "misses": [],
+    "seen": {
+      "step": "map-empty",
+      "progress": 0.886,
+      "arrived": "true",
+      "room": {
+        "width": 320,
+        "height": 700
+      },
+      "drawing": {
+        "x": 0,
+        "y": 72,
+        "width": 320,
+        "height": 264
+      },
+      "card": {
+        "x": 10,
+        "y": 340,
+        "width": 300,
+        "height": 214
+      },
+      "bar": {
+        "x": 0,
+        "y": 589,
+        "width": 320,
+        "height": 111
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 320,
+        "height": 87.375
+      },
+      "plates": []
+    }
+  },
+  {
+    "width": 320,
+    "step": "map-first",
+    "framed": [
+      "Signing in"
+    ],
+    "misses": [],
+    "seen": {
+      "step": "map-first",
+      "progress": 0.882,
+      "arrived": "true",
+      "room": {
+        "width": 320,
+        "height": 700
+      },
+      "drawing": {
+        "x": 0,
+        "y": 72,
+        "width": 320,
+        "height": 200
+      },
+      "card": {
+        "x": 10,
+        "y": 276,
+        "width": 300,
+        "height": 278
+      },
+      "bar": {
+        "x": 0,
+        "y": 589,
+        "width": 320,
+        "height": 111
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 320,
+        "height": 87.375
+      },
+      "plates": [
+        {
+          "title": "Signing in",
+          "box": {
+            "x": 118.671875,
+            "y": 185.75692749023438,
+            "width": 82.65625,
+            "height": 18.28125
+          },
+          "shown": true
+        }
+      ]
+    }
+  },
+  {
+    "width": 320,
+    "step": "map-code",
+    "framed": [
+      "Signing in"
+    ],
+    "misses": [],
+    "seen": {
+      "step": "map-code",
+      "progress": 0.884,
+      "arrived": "true",
+      "room": {
+        "width": 320,
+        "height": 700
+      },
+      "drawing": {
+        "x": 0,
+        "y": 72,
+        "width": 320,
+        "height": 264
+      },
+      "card": {
+        "x": 10,
+        "y": 340,
+        "width": 300,
+        "height": 214
+      },
+      "bar": {
+        "x": 0,
+        "y": 589,
+        "width": 320,
+        "height": 111
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 320,
+        "height": 87.375
+      },
+      "plates": [
+        {
+          "title": "Signing in",
+          "box": {
+            "x": 118.671875,
+            "y": 221.06915283203125,
+            "width": 82.65625,
+            "height": 18.28125
+          },
+          "shown": true
+        }
+      ]
+    }
+  },
+  {
+    "width": 320,
+    "step": "map-together",
+    "framed": [
+      "Signing in",
+      "Browsing",
+      "Cart",
+      "Checkout"
+    ],
+    "misses": [],
+    "seen": {
+      "step": "map-together",
+      "progress": 0.883,
+      "arrived": "true",
+      "room": {
+        "width": 320,
+        "height": 700
+      },
+      "drawing": {
+        "x": 0,
+        "y": 72,
+        "width": 320,
+        "height": 221
+      },
+      "card": {
+        "x": 10,
+        "y": 297,
+        "width": 300,
+        "height": 257
+      },
+      "bar": {
+        "x": 0,
+        "y": 589,
+        "width": 320,
+        "height": 111
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 320,
+        "height": 87.375
+      },
+      "plates": [
+        {
+          "title": "Signing in",
+          "box": {
+            "x": 129.79104614257812,
+            "y": 231.14234924316406,
+            "width": 82.65625,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Browsing",
+          "box": {
+            "x": 120.703125,
+            "y": 192.50738525390625,
+            "width": 78.59375,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Cart",
+          "box": {
+            "x": 118.97297668457031,
+            "y": 153.48757934570312,
+            "width": 45.515625,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Checkout",
+          "box": {
+            "x": 112.14250183105469,
+            "y": 124.20767211914062,
+            "width": 79.59375,
+            "height": 18.28125
+          },
+          "shown": true
+        }
+      ]
+    }
+  },
+  {
+    "width": 320,
+    "step": "map-health",
+    "framed": [
+      "Signing in",
+      "Browsing",
+      "Cart",
+      "Checkout"
+    ],
+    "misses": [],
+    "seen": {
+      "step": "map-health",
+      "progress": 0.884,
+      "arrived": "true",
+      "room": {
+        "width": 320,
+        "height": 700
+      },
+      "drawing": {
+        "x": 0,
+        "y": 72,
+        "width": 320,
+        "height": 264
+      },
+      "card": {
+        "x": 10,
+        "y": 340,
+        "width": 300,
+        "height": 214
+      },
+      "bar": {
+        "x": 0,
+        "y": 589,
+        "width": 320,
+        "height": 111
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 320,
+        "height": 87.375
+      },
+      "plates": [
+        {
+          "title": "Signing in",
+          "box": {
+            "x": 132.21324157714844,
+            "y": 260.35595703125,
+            "width": 82.65625,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Browsing",
+          "box": {
+            "x": 120.703125,
+            "y": 221.14305114746094,
+            "width": 78.59375,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Cart",
+          "box": {
+            "x": 115.4183349609375,
+            "y": 168.67987060546875,
+            "width": 45.515625,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Checkout",
+          "box": {
+            "x": 110.27757263183594,
+            "y": 135.6381072998047,
+            "width": 79.59375,
+            "height": 18.28125
+          },
+          "shown": true
+        }
+      ]
+    }
+  },
+  {
+    "width": 320,
+    "step": "map-claims-line-2",
+    "framed": [
+      "Checkout",
+      "Cart",
+      "Orders"
+    ],
+    "misses": [],
+    "seen": {
+      "step": "map-claims",
+      "progress": 0.508,
+      "arrived": "true",
+      "room": {
+        "width": 320,
+        "height": 700
+      },
+      "drawing": {
+        "x": 0,
+        "y": 72,
+        "width": 320,
+        "height": 200
+      },
+      "card": {
+        "x": 10,
+        "y": 276,
+        "width": 300,
+        "height": 278
+      },
+      "bar": {
+        "x": 0,
+        "y": 589,
+        "width": 320,
+        "height": 111
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 320,
+        "height": 87.375
+      },
+      "plates": [
+        {
+          "title": "Signing in",
+          "box": {
+            "x": 120.70149230957031,
+            "y": 299.83135986328125,
+            "width": 82.65625,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Browsing",
+          "box": {
+            "x": 93.66966247558594,
+            "y": 260.848388671875,
+            "width": 78.59375,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Cart",
+          "box": {
+            "x": 76.78193664550781,
+            "y": 182.22023010253906,
+            "width": 45.515625,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Checkout",
+          "box": {
+            "x": 82.4728775024414,
+            "y": 120.91520690917969,
+            "width": 79.59374237060547,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Orders",
+          "box": {
+            "x": 122.203125,
+            "y": 189.01626586914062,
+            "width": 75.59375,
+            "height": 37.96875
+          },
+          "shown": true
+        }
+      ]
+    }
+  },
+  {
+    "width": 320,
+    "step": "map-claims",
+    "framed": [],
+    "misses": [],
+    "seen": {
+      "step": "map-claims",
+      "progress": 0.888,
+      "arrived": "true",
+      "room": {
+        "width": 320,
+        "height": 700
+      },
+      "drawing": {
+        "x": 0,
+        "y": 28,
+        "width": 320,
+        "height": 252
+      },
+      "card": {
+        "x": 10,
+        "y": 276,
+        "width": 300,
+        "height": 278
+      },
+      "bar": {
+        "x": 0,
+        "y": 589,
+        "width": 320,
+        "height": 111
+      },
+      "sessions": {
+        "x": 10,
+        "y": 8,
+        "width": 300,
+        "height": 135
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 320,
+        "height": 87.375
+      },
+      "plates": [
+        {
+          "title": "Signing in",
+          "box": {
+            "x": 121.22920227050781,
+            "y": 314.181884765625,
+            "width": 82.65625,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Browsing",
+          "box": {
+            "x": 86.6409683227539,
+            "y": 265.0633544921875,
+            "width": 78.59374237060547,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Cart",
+          "box": {
+            "x": 61.06226348876953,
+            "y": 165.9918670654297,
+            "width": 45.515625,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Checkout",
+          "box": {
+            "x": 72.66301727294922,
+            "y": 88.74754333496094,
+            "width": 79.59375762939453,
+            "height": 18.28125
+          },
+          "shown": true
+        },
+        {
+          "title": "Orders",
+          "box": {
+            "x": 122.203125,
+            "y": 174.55487060546875,
+            "width": 75.59375,
+            "height": 37.96875
+          },
+          "shown": true
+        }
+      ]
+    }
+  }
+]

@@ -15,8 +15,8 @@ import { InMemoryTransport } from "@modelcontextprotocol/server";
 import { librarianTools } from "@storytree/librarian";
 import { connect, type Library } from "@storytree/library";
 
-import { openActivityLog, type ActivityLog } from "../activity/index.js";
-import { approveCheckout, dropTestProjects, testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { openActivityLog, type ActivityLog } from "@storytree/agent-link";
+import { approveCheckout, dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/agent-link/testing/pg";
 import { createAgentTools } from "./index.js";
 
 const VERBS = ["worklist", "link", "supersede", "correct", "annotate", "retire", "park", "graduate", "route"];

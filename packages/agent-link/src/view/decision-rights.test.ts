@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { decisionRights } from "../instructions/habits.js";
+import { decisionRights } from "../instructions/decision-rights.js";
 import { renderDecisionRights } from "./decision-rights.js";
 
-test("7.6 the app shows who decides what, read-only, from the card's own lines, with the project's standing delegations when it has them", () => {
+test("10.14 the app shows who decides what, read-only, from the card's own lines, with the project's standing delegations when it has them", () => {
   const split = decisionRights();
   const html = renderDecisionRights({ delegations: "1. Reversible engineering <choices>.\n2. Built looks." });
   for (const line of [...split.decides, ...split.asks, ...split.honesty]) {

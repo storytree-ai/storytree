@@ -21,8 +21,8 @@
 import type { KnowledgeKind, Library, Note, NoteEdit, SchemaRecord, WriteOptions } from "@storytree/library";
 import { z } from "zod";
 
-import type { Line, NewLine } from "../activity/index.js";
-import { readClaims } from "../claims/index.js";
+import type { Line, NewLine } from "@storytree/agent-link";
+import { readClaims } from "@storytree/agent-link";
 import { lineOf, type Answer, type Call, type Define } from "./server.js";
 import { firstLineOf, quoted, spineOf, wholeOf, type Findable } from "./text.js";
 

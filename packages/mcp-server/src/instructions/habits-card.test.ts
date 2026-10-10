@@ -1,8 +1,8 @@
 /**
  * Capability 7 · Instructions, the habits card: one test per contract 7.1-7.3 and 7.5 in
- * the agent link story. The card names each tool in backticks, and uses backticks for nothing
+ * the MCP server story. The card names each tool in backticks, and uses backticks for nothing
  * else, so the tools it teaches are exactly the backticked words in it. Whether real agents follow
- * it is capability 8's live check.
+ * it is the agent link's setup check.
  */
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -13,8 +13,9 @@ import { test } from "node:test";
 import { Client } from "@modelcontextprotocol/client";
 import { InMemoryTransport } from "@modelcontextprotocol/server";
 
-import { createAgentTools } from "../tools/index.js";
-import { decisionRights, habitsCard } from "./index.js";
+import { createAgentTools } from "../index.js";
+import { decisionRights } from "@storytree/agent-link";
+import { habitsCard } from "./habits.js";
 
 /** A client connected in memory to a fresh tool server, as a harness is at session start. */
 async function sessionStart(harness = "claude-code"): Promise<{ client: Client; close(): Promise<void> }> {

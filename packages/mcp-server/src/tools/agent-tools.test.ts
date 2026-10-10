@@ -22,13 +22,13 @@ import { connect } from "@storytree/library";
 import pg from "pg";
 import { z } from "zod";
 
-import { readClaims } from "../claims/index.js";
-import { sessionsFrom } from "../readings.js";
+import { readClaims } from "@storytree/agent-link";
+import { sessionsFrom } from "@storytree/agent-link/readings";
 import { claudeCode, codex, idOf, withAgent } from "../testing/agent.js";
-import { git } from "../testing/folders.js";
-import { projectDatabase, testServerDataDir, testServerUrl } from "../testing/pg.js";
-import { createAgentTools, type ToolExtension } from "./index.js";
-import { protectionThrough, storytreeRef } from "../setup/pipeline.js";
+import { git } from "@storytree/agent-link/testing/folders";
+import { projectDatabase, testServerDataDir, testServerUrl } from "@storytree/agent-link/testing/pg";
+import { createAgentTools, type ToolExtension } from "../index.js";
+import { protectionThrough, storytreeRef } from "@storytree/agent-link";
 import { registerPlanTools } from "./plan-tools.js";
 import type { Call, Define } from "./server.js";
 import { FOUNDED, planned, TOOLS, withProject } from "../testing/tool-world.js";
@@ -495,7 +495,7 @@ test("6.50 plan_contract numbers a new contract past the numbers its capability'
   });
 });
 
-test("11.1 on GitHub, wire_pipeline writes storytree's workflow: the project's install and tests on each system chosen, and storytree check pinned to this storytree's release", async () => {
+test("agent-link 11.1 on GitHub, wire_pipeline writes storytree's workflow: the project's install and tests on each system chosen, and storytree check pinned to this storytree's release", async () => {
   await withProject(async ({ folder }) => {
     git(folder, "init", "-q");
     git(folder, "remote", "add", "origin", "https://github.com/someone/shop.git");
@@ -514,7 +514,7 @@ test("11.1 on GitHub, wire_pipeline writes storytree's workflow: the project's i
   });
 });
 
-test("11.2 in a project not on GitHub, wire_pipeline writes nothing and gives the commands to add to the user's own pipeline", async () => {
+test("agent-link 11.2 in a project not on GitHub, wire_pipeline writes nothing and gives the commands to add to the user's own pipeline", async () => {
   await withProject(async ({ folder }) => {
     git(folder, "init", "-q");
     git(folder, "remote", "add", "origin", "https://gitlab.com/someone/shop.git");
@@ -529,7 +529,7 @@ test("11.2 in a project not on GitHub, wire_pipeline writes nothing and gives th
   });
 });
 
-test("11.3 wire_pipeline proposes branch protection as a command for the user to approve, and changes no repository setting itself", async () => {
+test("agent-link 11.3 wire_pipeline proposes branch protection as a command for the user to approve, and changes no repository setting itself", async () => {
   await withProject(async ({ folder }) => {
     git(folder, "init", "-q");
     git(folder, "remote", "add", "origin", "git@github.com:someone/shop.git");
@@ -546,7 +546,7 @@ test("11.3 wire_pipeline proposes branch protection as a command for the user to
   });
 });
 
-test("11.5 when GitHub refuses protection on the repository's plan (a free private repository), wire_pipeline offers merging only after both checks pass instead of a command that would fail, and only reads the setting", async () => {
+test("agent-link 11.5 when GitHub refuses protection on the repository's plan (a free private repository), wire_pipeline offers merging only after both checks pass instead of a command that would fail, and only reads the setting", async () => {
   await withProject(async ({ folder }) => {
     git(folder, "init", "-q");
     git(folder, "remote", "add", "origin", "https://github.com/someone/shop.git");

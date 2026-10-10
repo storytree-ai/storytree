@@ -23,12 +23,12 @@ import { connect, type Library } from "@storytree/library";
 import { worklist } from "@storytree/librarian";
 import pg from "pg";
 
-import { openActivityLog, type Line } from "../activity/index.js";
-import { readClaims } from "../claims/index.js";
-import { MARKER_FILE } from "../routing/index.js";
+import { openActivityLog, type Line } from "@storytree/agent-link";
+import { readClaims } from "@storytree/agent-link";
+import { MARKER_FILE } from "@storytree/agent-link";
 import { claudeCode, codex, idOf, withAgent } from "../testing/agent.js";
-import { git, withTempDir } from "../testing/folders.js";
-import { approveCheckout, dropTestProjects, placeTestServer, projectDatabase, testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { git, withTempDir } from "@storytree/agent-link/testing/folders";
+import { approveCheckout, dropTestProjects, placeTestServer, projectDatabase, testServerUrl, uniqueProjectName } from "@storytree/agent-link/testing/pg";
 import { NOT_RUNNING_ANSWER } from "./index.js";
 import { registerWorkTools } from "./work-tools.js";
 import type { Answer, Call, Define } from "./server.js";

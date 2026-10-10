@@ -9,13 +9,14 @@ import { rmSync } from "node:fs";
 import { McpServer, type CallToolResult, type ServerContext } from "@modelcontextprotocol/server";
 import { z } from "zod";
 
-import { habitsCard } from "../instructions/index.js";
-import { hookFailures, type HookFailure } from "../hooks/failures.js";
-import { findProject, notAProjectYet, setUpProject, starterRolesIn, storytreeHome, suggestProjectName } from "../routing/index.js";
-import { checkFilesWritten, codexHooksState, FIX_SENTENCES, HOOK_TESTS, openStorytree, runSetupCheck, verifyHooks, type Fix, type SetupOptions } from "../setup/index.js";
+import { habitsCard } from "../instructions/habits.js";
+import { hookFailures, type HookFailure } from "@storytree/agent-link";
+import { findProject, notAProjectYet, setUpProject, starterRolesIn, storytreeHome, suggestProjectName } from "@storytree/agent-link";
+import { checkFilesWritten, codexHooksState, FIX_SENTENCES, HOOK_TESTS, openStorytree, runSetupCheck, verifyHooks, type Fix, type SetupOptions } from "@storytree/agent-link";
 import { isUnreachable, NOT_RUNNING_ANSWER, refusalOf, result } from "./answers.js";
 import type { Connections } from "./connections.js";
-import { callLines, lineOf, metaOf, seenCaller, type Caller, type JourneyMilestones } from "./server.js";
+import { callLines, lineOf, seenCaller, type Caller } from "@storytree/agent-link";
+import { metaOf, type JourneyMilestones } from "./server.js";
 import { quoted } from "./text.js";
 
 export interface SetupToolContext {

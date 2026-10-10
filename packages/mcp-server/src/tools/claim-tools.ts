@@ -12,7 +12,7 @@ import type { Library } from "@storytree/library";
 import { codeSurveyReader, packageOf } from "@storytree/map/code-survey";
 import { z } from "zod";
 
-import { attachWorkspace, claim, CLAIM_REASON_LIMIT, currentBranch, increments, land, makeWorkspace, release, staleClaims, type Claim, type ClaimAnswer, type ClaimContext, type MergeWatch, type WorkspaceRefusal } from "../claims/index.js";
+import { attachWorkspace, claim, CLAIM_REASON_LIMIT, currentBranch, increments, land, makeWorkspace, release, staleClaims, type Claim, type ClaimAnswer, type ClaimContext, type MergeWatch, type WorkspaceRefusal } from "@storytree/agent-link";
 import { refusalOf } from "./answers.js";
 import { lineOf, type Call, type Define, type ToolExtension } from "./server.js";
 import { quoted } from "./text.js";

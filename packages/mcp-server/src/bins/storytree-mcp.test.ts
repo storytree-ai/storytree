@@ -8,8 +8,8 @@ import { test } from "node:test";
 import { Client } from "@modelcontextprotocol/client";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 
-import { removeTempDir } from "../testing/folders.js";
-import { buildBins } from "./build.js";
+import { removeTempDir } from "@storytree/agent-link/testing/folders";
+import { buildBins } from "@storytree/agent-link/bins";
 
 test("6.33 the built storytree-mcp, started as a harness starts it, serves the tools over stdin and stdout and exits when stdin closes", async (t) => {
   const home = await mkdtemp(path.join(tmpdir(), "storytree-mcp-"));

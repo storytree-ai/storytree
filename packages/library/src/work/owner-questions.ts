@@ -32,6 +32,8 @@ export interface QuestionEdit {
   readonly analogy?: string | undefined;
   readonly diagram?: string | undefined;
   readonly recommendation?: string | undefined;
+  /** The session putting it to the owner now (12.10), or undefined once it no longer is. */
+  readonly presenting?: { readonly session: string; readonly since: string } | undefined;
 }
 
 /** How a question is settled: the owner's answer, and the decision that carried it, if one did. */
@@ -82,8 +84,8 @@ export class RetireRefusedError extends Error {
   }
 }
 
-/** The fields editQuestion changes: a question's wording (12.7). */
-const QUESTION_WORDING: ReadonlySet<string> = new Set(["title", "stakes", "statement", "context", "options", "analogy", "diagram", "recommendation"]);
+/** The fields editQuestion changes: a question's wording (12.7), and who is putting it to the owner (12.10). */
+const QUESTION_WORDING: ReadonlySet<string> = new Set(["title", "stakes", "statement", "context", "options", "analogy", "diagram", "recommendation", "presenting"]);
 
 /**
  * Raise a question for the owner on a live arc (MissingReferenceError otherwise) that is not parked
@@ -135,9 +137,10 @@ export async function renewQuestion(records: SchemaRecords, id: string, options?
 }
 
 /**
- * Correct open question `id`'s wording in place (12.7): only the named fields change. Anything but
- * its wording (its arc, lifecycle, answer or lease) is refused (RangeError), and so is editing a
- * settled question, both with nothing written: its answer stands, answered to the words it had.
+ * Correct open question `id`'s wording in place (12.7), or mark or clear the session putting it to
+ * the owner (12.10): only the named fields change. Anything else (its arc, lifecycle, answer or
+ * lease) is refused (RangeError), and so is editing a settled question, both with nothing written:
+ * its answer stands, answered to the words it had.
  * Null, with nothing written, if `id` is not a live question.
  */
 export async function editQuestion(records: SchemaRecords, id: string, fields: QuestionEdit, options?: WriteOptions): Promise<SchemaRecord<"question"> | null> {
@@ -167,9 +170,9 @@ export async function lapsedQuestions(records: SchemaRecords, at: Date): Promise
 
 /**
  * Settle a question with the owner's answer, kept on it with when and the decision that carried
- * it, which must be a live decision, and the question taken off every increment's heldOn (12.3).
- * A settlement with no answer is refused (SchemaError), and so is settling a settled question.
- * Null, with nothing written, if `id` is not a live question.
+ * it, which must be a live decision, and the question taken off every increment's heldOn (12.3);
+ * it is no longer being put to him (12.10). A settlement with no answer is refused (SchemaError),
+ * and so is settling a settled question. Null, with nothing written, if `id` is not a live question.
  */
 export async function settleQuestion(records: SchemaRecords, id: string, settlement: Settlement, options?: WriteOptions): Promise<SchemaRecord<"question"> | null> {
   const question = await liveRecord(records, id, ["question"]);
@@ -182,6 +185,7 @@ export async function settleQuestion(records: SchemaRecords, id: string, settlem
     answer: settlement.answer,
     settledAt: new Date().toISOString(),
     settledBy: settlement.decision,
+    presenting: undefined,
   }, options)) as SchemaRecord<"question"> | null;
 }
 

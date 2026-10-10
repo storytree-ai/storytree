@@ -146,7 +146,12 @@ export class SchemaRecords {
     await this.#transactions.retire({ id, reason, ...writeOptionsOf(options) });
   }
 
-  /** The history, oldest first: capability 2's history, unchanged, each record as it was written. */
+  /**
+   * Every original write, oldest first, including retired records, with its optional actor and
+   * retirement reason: capability 2's history, unchanged. Filter by record id and/or entries after a
+   * sequence number. Records stay as written, on their original schema versions; reading history
+   * never upgrades or rewrites them.
+   */
   async history(filter?: HistoryFilter): Promise<HistoryEntry[]> {
     return this.#transactions.history(filter);
   }

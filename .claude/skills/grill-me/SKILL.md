@@ -33,6 +33,8 @@ He asks to be walked through the open questions (all of them, an arc's, or one n
 
 ### 2. Each question: one message he can answer in one line
 
+Before you show him a question, mark it as yours: `storytree question present <question>`. If it is refused, another live session is putting it to him right now: skip it, tell him in one line who has it, and do not ask it. When you move on without his answer, run `storytree question present <question> --done`; settling it clears the mark. `storytree question list` flags the questions another session is presenting: leave those out of your table.
+
 Skip a part only when it truly adds nothing.
 
 - **Heading:** `Question n of N: <the decision in plain words>`.
@@ -94,7 +96,7 @@ The round is over when the refreshed question list and `storytree arc waits` hol
 
 ## Surfaces
 
-Both front doors work (ADR-0793). Command line: `storytree question list | settle | retire | check`, `storytree arc list | show | waits`, `storytree arc increment edit | close | new | unwait`, `storytree adr list --load-bearing | new`, `storytree resteer new`, `storytree friction new`, `storytree session close-out`. Agent link: `show_plan`, `settle_question`, `retire_question`, `correct_question`, `raise_question`, `edit_plan`, `clear_wait`, `record_resteer`, `close_out`. The Mint box: `ssh mint` and its lane launcher. Use the available choice picker for a quick pick after the full text. `gh pr list` to check what already landed.
+Both front doors work (ADR-0793). Command line: `storytree question list | present | settle | retire | check`, `storytree arc list | show | waits`, `storytree arc increment edit | close | new | unwait`, `storytree adr list --load-bearing | new`, `storytree resteer new`, `storytree friction new`, `storytree session close-out`. Agent link: `show_plan`, `settle_question`, `retire_question`, `correct_question`, `raise_question`, `edit_plan`, `clear_wait`, `record_resteer`, `close_out`. The Mint box: `ssh mint` and its lane launcher. Use the available choice picker for a quick pick after the full text. `gh pr list` to check what already landed.
 
 ## Failure modes
 

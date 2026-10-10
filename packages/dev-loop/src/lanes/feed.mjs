@@ -23,9 +23,12 @@ const rank = (one) => one.priority ?? Infinity;
  * another machine; no fence or track is read. By arc priority, then oldest parked first, and within one priority
  * those on an arc no live session (nor a pick already made) is on before the rest (ADR-0963 D2). `running` names the increments this dispatcher is running, never started
  * twice; `attempts` maps each increment this dispatcher has started to when it started it: a live claim older than that start
- * refused it, and it is retried only once that claim clears (it records the refusal in `attempts`), never otherwise.
+ * refused it, and it is retried only once that claim clears (it records the refusal in `attempts`). Work whose session has
+ * ended and is back in the pool (it bounced on a capability claim, say) is offered again `backoffMs` after the first
+ * survey that found the session gone (it records that in `attempts` as `ended`), so a bounce needs no restart and a
+ * session that bounces every time starts at most once a back-off.
  */
-export function pickPool(survey, { attempts = new Map(), running = [], max = 1 }) {
+export function pickPool(survey, { attempts = new Map(), running = [], max = 1, now = Date.now(), backoffMs = 30 * 60_000 }) {
   const skipped = [];
   const live = new Map(survey.claims.filter((claim) => claim.holder === "live" && claim.increment).map((claim) => [claim.increment, claim]));
   const arcOf = new Map(survey.increments.map((one) => [one.id, one.arc]));
@@ -42,7 +45,10 @@ export function pickPool(survey, { attempts = new Map(), running = [], max = 1 }
         if (attempt && !attempt.refusedBy && Date.parse(claim.since) < attempt.at) attempt.refusedBy = claim.session;
         return `held by live session ${claim.session}`;
       }
-      if (attempt && !attempt.refusedBy) return "already run by this dispatcher";
+      if (attempt && !attempt.refusedBy) {
+        attempt.ended ??= now;
+        if (now < attempt.ended + backoffMs) return `already run by this dispatcher; offered again after ${new Date(attempt.ended + backoffMs).toISOString()}`;
+      }
       const waits = survey.holds.waits[one.id] ?? [];
       if (waits.length) return `waits on ${waits.map((hold) => hold.on).join(", ")}`;
       const notes = (survey.holds.waitsFor?.[one.id] ?? []).filter((hold) => hold.holds);

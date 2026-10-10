@@ -93,5 +93,17 @@ shot after-grow
 
 step processes-after sh -c "pgrep -fl storytree; echo; pgrep -fl postgres"
 step app-logs sh -c "ls -la '$HOME/.storytree/0.3' '$HOME/Library/Logs/storytree-0.3' 2>&1; tail -n 80 '$HOME/Library/Logs/storytree-0.3/main.log' 2>&1"
+# Updating by hand while the app cannot update itself: a second run of the one-liner over an installed app downloads
+# nothing, so the app is quit and moved out first, then the one-liner run again; the project must still be there.
+step rerun-installed expect "$OUT/answer.exp" "$ONE_LINER"
+step quit osascript -e 'quit app "storytree-0.3"'
+sleep 10
+step move-out sh -c "mv '$APP' '$HOME/.Trash/' && ls '$HOME/.Trash'"
+step reinstall expect "$OUT/answer.exp" "$ONE_LINER"
+sleep 10
+step version-after sh -c "defaults read '$APP/Contents/Info' CFBundleShortVersionString"
+step tree-after st tree
+shot after-reinstall
+
 echo "== steps"
 cat "$STEPS"

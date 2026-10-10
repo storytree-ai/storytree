@@ -292,7 +292,7 @@ test("11.12 `workspace release --holder <session> --reason` is the session manag
     const increment = await library.addIncrement({ arc: arc.id, title: "Email form", objective: "Build it", body: "…" });
     const log = await openActivityLog(testServerUrl());
     try {
-      assert.equal((await world.run(["settings", "set", "idle-after", "1s"])).code, 0);
+      assert.equal((await world.run(["settings", "set", "idle-after", "10m"])).code, 0); // far longer than any process start
       assert.equal((await claim({ log, library, project: world.project, session: "quiet", harness: "claude-code", quietMs: 1_000 }, increment.id, "building the form")).ok, true);
       const before = await log.since(world.project, 0);
       const live = await world.run(["workspace", "release", increment.id, "--holder", "quiet", "--reason", "quiet, messaged"], { CLAUDE_CODE_SESSION_ID: "manager" });
@@ -300,6 +300,7 @@ test("11.12 `workspace release --holder <session> --reason` is the session manag
       assert.match(live.stderr, /quiet.*live/);
       assert.deepEqual(await log.since(world.project, 0), before, "a refusal writes nothing");
 
+      assert.equal((await world.run(["settings", "set", "idle-after", "1s"])).code, 0);
       await new Promise((done) => setTimeout(done, 1_300)); // the holder says nothing for longer than idle-after
       const ran = await world.run(["workspace", "release", increment.id, "--holder", "quiet", "--reason", "quiet 24h after the manager's message"], { CLAUDE_CODE_SESSION_ID: "manager" });
       assert.equal(ran.code, 0, ran.stderr);

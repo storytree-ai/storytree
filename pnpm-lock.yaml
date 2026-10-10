@@ -78,6 +78,9 @@ importers:
       '@storytree/local-postgres':
         specifier: workspace:*
         version: link:../../packages/local-postgres
+      '@storytree/map':
+        specifier: workspace:*
+        version: link:../../packages/map
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6

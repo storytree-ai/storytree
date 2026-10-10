@@ -44,9 +44,10 @@ export async function withFlock(path, fn) {
 
 /**
  * One lane: under the shared checkout lock, wait for a free engine slot and prepare the checkout; then write
- * the brief, and run it through the lane runner, which picks the engine. Status lines go to `say`.
+ * the brief, and run it through the lane runner, which picks the engine. Status lines go to `say`. With `follow`,
+ * the runner checks the lane left a report or a push for its increment, and resumes it once if not.
  */
-export async function laneOnce({ increment, brief, log, err, addDirs, repo, maxLanes, lock, count, prepare, sleep, runLane, now = Date.now, say }) {
+export async function laneOnce({ increment, brief, log, err, addDirs, repo, maxLanes, lock, count, prepare, sleep, runLane, follow = false, now = Date.now, say }) {
   const dated = (message) => say(`${stamp(now)} ${message}`);
   await lock(async () => {
     await waitForSlot({ max: maxLanes, count, sleep, onWait: (running) => dated(`waiting for a slot (${running} engines running) before ${increment}`) });
@@ -56,7 +57,7 @@ export async function laneOnce({ increment, brief, log, err, addDirs, repo, maxL
   await writeFile(brief.path, brief.text);
   dated(`start ${increment}`);
   let code;
-  try { code = await runLane({ brief: brief.path, log, err, addDirs, cwd: repo, say }); }
+  try { code = await runLane({ brief: brief.path, log, err, addDirs, cwd: repo, say, ...(follow ? { increment } : {}) }); }
   catch (error) { dated(`lane runner: ${error.message}; exit 75, which stops the dispatcher`); code = 75; }
   dated(`end ${increment} exit ${code}`);
   return code;
@@ -222,7 +223,7 @@ async function pool(b) {
           notes: await readFile(join(L, `pool-notes-${one.id}.md`), "utf8").catch(() => ""), common: await (b.rules ?? poolRules)(one.body) };
       return laneOnce({
         increment: one.id, addDirs: b.addDirs, repo: b.repo, maxLanes: b.maxLanes, lock: b.lock, count: b.count, prepare: b.prepare,
-        sleep: b.sleep, runLane: b.runLane, now: b.now,
+        sleep: b.sleep, runLane: b.runLane, now: b.now, follow: !one.plan,
         say: (line) => { if (/^\S+ engine \w+ /.test(line) && !/ exit -?\d+$/.test(line)) engineUp(); say(line); },
         log: join(L, `pool-${one.id}-${at}.log`), err: join(L, `pool-${one.id}-${at}.err`),
         brief: { path: join(L, `pool-${one.id}-brief.md`), text: composeBrief(brief) },

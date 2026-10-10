@@ -203,7 +203,7 @@ function skillOf(skill, titles) {
     `# ${fields.title}`,
     fields.statement,
     ...sections.map(([key, label]) => `## ${label}\n\n${fields[key]}`),
-    ...(links.length === 0 ? [] : [`## Stands on\n\nNotes in the library; find one by its title with the agent link's \`search_notes\`.\n\n${links.join("\n")}`]),
+    ...(links.length === 0 ? [] : [`## Stands on\n\nNotes in the library; find one by its title with the MCP server's \`search_notes\`.\n\n${links.join("\n")}`]),
   ].join("\n\n");
 }
 
@@ -221,7 +221,7 @@ function standsOn(role, titles) {
   const lines = groups
     .filter(([key]) => (role.fields[key] ?? []).length > 0)
     .map(([key, label]) => `- **${label}:** ${role.fields[key].map((id) => titleOf(id, role, titles)).join(" · ")}`);
-  return ["**Stands on:** notes in the library; find one by its title with the agent link's `search_notes`.", ...lines].join("\n");
+  return ["**Stands on:** notes in the library; find one by its title with the MCP server's `search_notes`.", ...lines].join("\n");
 }
 
 function titleOf(id, note, titles, kind = "agent role") {

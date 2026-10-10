@@ -206,6 +206,9 @@ importers:
       '@storytree/processes':
         specifier: workspace:*
         version: link:../processes
+      '@storytree/quality-assurance':
+        specifier: workspace:*
+        version: link:../quality-assurance
     devDependencies:
       '@types/node':
         specifier: ^24.13.6

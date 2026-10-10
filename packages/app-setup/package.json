@@ -24,7 +24,8 @@
     "@storytree/journey-events": "workspace:*",
     "@storytree/library": "workspace:*",
     "@storytree/local-postgres": "workspace:*",
-    "@storytree/processes": "workspace:*"
+    "@storytree/processes": "workspace:*",
+    "@storytree/quality-assurance": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^24.13.6",

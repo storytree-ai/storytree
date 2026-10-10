@@ -221,7 +221,22 @@ export function parseTestArgs(argv) {
  * dir, dir name or package name), and `rerunFailed` takes the units the last recorded
  * run failed or never reached. Returns the decision as it now stands and the unit list.
  */
-export function planRun({ root, workspace, decision, flags = {}, record }) {
+/**
+ * Test files that run as a unit of their own, after every other unit has ended and with nothing
+ * beside them, whenever their package runs; their package's unit runs its other files. Forest's
+ * browser proof: its software-GL frames starve when other units and files share a 3-CPU macOS
+ * runner (load average 42 in run 38038938459; arc_2a8dbc47a5f9, increment_ba747f54277d), and its
+ * 15 s no-new-frame wait is not widened instead.
+ */
+export const ALONE = ["packages/forest/src/view/desktop-renderer-smoke.test.ts"];
+
+/** The units with each file to run alone whose package is among them added after them as its own. */
+function withAlone(root, units, alone) {
+  const own = alone.filter((file) => !units.includes(file) && units.some((unit) => file.startsWith(`${unit}/`)) && existsSync(path.join(root, file)));
+  return [...units, ...own];
+}
+
+export function planRun({ root, workspace, decision, flags = {}, record, alone = ALONE }) {
   const all = workspace.filter((p) => hasTests(root, p.dir)).map((p) => p.dir);
   if (flags.full) decision = full("--full asked for everything");
   if (flags.only?.length) {
@@ -231,7 +246,7 @@ export function planRun({ root, workspace, decision, flags = {}, record }) {
       return pkg.dir;
     });
     const dirs = [...new Set(units)].sort();
-    return { decision: { mode: "only", dirs, reason: "--only named them" }, units: dirs.filter((u) => all.includes(u)) };
+    return { decision: { mode: "only", dirs, reason: "--only named them" }, units: withAlone(root, dirs.filter((u) => all.includes(u)), alone) };
   }
   if (flags.rerunFailed) {
     if (record === undefined) {
@@ -244,14 +259,23 @@ export function planRun({ root, workspace, decision, flags = {}, record }) {
     const reason = dirs.length ? "what the last run failed or never reached" : "the last run failed nothing";
     return { decision: { mode: "rerun-failed", dirs, reason }, units: dirs };
   }
-  if (decision.mode === "full") return { decision, units: all };
+  if (decision.mode === "full") return { decision, units: withAlone(root, all, alone) };
   const always = ALWAYS_RUN.filter((file) => existsSync(path.join(root, file)));
-  return { decision, units: [...decision.dirs.filter((dir) => all.includes(dir)), ...always] };
+  return { decision, units: withAlone(root, [...decision.dirs.filter((dir) => all.includes(dir)), ...always], alone) };
 }
 
-/** The test files a unit runs, as the globs node --test is given: a unit may be one file. */
-export function unitGlobs(unit) {
-  return /\.test\.m?[jt]s$/.test(unit) ? [unit] : [`${unit}/src/**/*.test.ts`, `${unit}/src/**/*.test.mjs`];
+/**
+ * The test files a unit runs, as the globs node --test is given: a unit may be one file. A package
+ * holding a file to run alone names its other files instead, since a glob cannot leave one out.
+ */
+export function unitGlobs(unit, { root, alone = ALONE } = {}) {
+  if (/\.test\.m?[jt]s$/.test(unit)) return [unit];
+  const globs = [`${unit}/src/**/*.test.ts`, `${unit}/src/**/*.test.mjs`];
+  if (root === undefined || !alone.some((file) => file.startsWith(`${unit}/`))) return globs;
+  return globSync(globs, { cwd: root, exclude: (name) => path.basename(String(name)) === "node_modules" })
+    .map((file) => file.replaceAll("\\", "/"))
+    .filter((file) => !alone.includes(file))
+    .sort();
 }
 
 function hasTests(root, dir) {

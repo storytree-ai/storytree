@@ -80,3 +80,20 @@ test("3.22 hidden land and file circles cannot be picked, including through an i
   assert.equal(pickGlobe(f.world, f.camera, box, cursor, "forest"), undefined);
   assert.equal(pointedFile(f.world, f.camera, box, cursor), undefined);
 });
+
+test("3.37 home eases the globe back to the turn and zoom it opened on, the short way round", () => {
+  const f = fixture();
+  const home: GlobePose = { turn: { yaw: 0.4, pitch: 0 }, framing: 1.18, sideOffset: 0 };
+  f.guide.stop({ target: { kind: "story", story: "shop" }, framing: 5, sideOffset: 40, duration: 0 });
+  // Spun more than once round and tilted: home is the opening view, not a rewind of every turn.
+  const wound = { ...f.pose(), turn: { yaw: 0.4 + 4 * Math.PI + 0.3, pitch: 0.6 } };
+  Object.assign(f.pose(), wound);
+  assert.equal(f.guide.home(home, 1000), true);
+  assert.equal(f.guide.frame(500), true, "it eases, rather than jumping");
+  const halfway = f.pose().turn.yaw;
+  assert.ok(Math.abs(halfway - wound.turn.yaw) <= 0.3, "the short way round, never unwinding whole turns");
+  assert.equal(f.guide.frame(500), false);
+  const back = f.pose();
+  assert.equal(back.framing, 1.18); assert.equal(back.sideOffset, 0); assert.equal(back.turn.pitch, 0);
+  assert.ok(Math.abs(Math.sin(back.turn.yaw - 0.4)) < 1e-9 && Math.cos(back.turn.yaw - 0.4) > 0, "facing the way it opened");
+});

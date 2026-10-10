@@ -96,3 +96,32 @@ test("2.3 a test skipped on one platform for a platform reason counts passed whe
   assert.equal(read("c_out_12").skip, "owner", "an owner skip outranks any other");
   assert.equal(judgeRun(proofs, [{ name: "1.1 cart page shows its shell", suites: [], status: "skipped", message: "slow" }]).verdicts.get("c_cart_11")!.skip, "other");
 });
+
+test("2.4 a result no test holds by its exact title counts for contract N.M of the one story whose test calls a helper with N.M and a title, when the result's name begins with that number and ends with that title; held by two stories, it credits nothing", () => {
+  const helper = (number: string) => [
+    `import { test } from "node:test";`,
+    `for (const backend of ["memory", "postgres"]) {`,
+    "  const contract = (number, title, body) => test(`${number} [${backend}] ${title}`, body);",
+    `  contract("${number}", "a wait is cleared as its blocker lands", async () => {});`,
+    `}`,
+  ].join("\n");
+  const files = [
+    { path: "packages/review-the-cart/src/cart.test.js", text: helper("1.2") },
+    { path: "packages/check-out/src/checkout.test.js", text: `${helper("1.1")}\n${`test("1.2 missing details show the error", () => {});`}` },
+    { path: "packages/review-the-cart/src/shared.test.js", text: helper("1.1") },
+  ];
+  const { verdicts, unmatched } = judgeRun(proofsAt(TREE, files), [
+    pass("1.2 [memory] a wait is cleared as its blocker lands"),
+    pass("1.2 [postgres] a wait is cleared as its blocker lands"),
+    pass("1.2 missing details show the error"),
+    pass("1.1 [memory] a wait is cleared as its blocker lands"),
+    pass("1.20 [memory] a wait is cleared as its blocker lands"),
+    pass("1.2 [memory] another title"),
+  ]);
+  assert.deepEqual(
+    Object.fromEntries([...verdicts].map(([id, verdict]) => [id, [verdict.state, verdict.total]])),
+    { c_cart_11: ["not-checked", 0], c_cart_12: ["passing", 2], c_out_11: ["not-checked", 0], c_out_12: ["passing", 1] },
+    "the cart's 1.2 through its helper's number and title, both backends; checkout's 1.2 by its exact title; 1.1's bare number is held by both stories",
+  );
+  assert.deepEqual(unmatched.map(({ name }) => name), ["1.1 [memory] a wait is cleared as its blocker lands", "1.20 [memory] a wait is cleared as its blocker lands", "1.2 [memory] another title"]);
+});

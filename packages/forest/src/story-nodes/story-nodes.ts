@@ -43,6 +43,8 @@ export interface StoryNode {
   place: number;
   /** Where its place is on flat ground: its slot across the row from the row's middle, and its row northward (−y). */
   at: Point;
+  /** The stories its row is ranked above: by its package's dependencies where surveyed, else its capabilities'. */
+  dependsOn: string[];
 }
 
 /**
@@ -57,13 +59,13 @@ export function storyNodes(tree: AnnotatedTree, history: readonly Change[], surv
   const order = [...new Set([...created, ...tree.stories.map(({ id }) => id)])].filter((id) => tree.stories.some((story) => story.id === id));
   const rows = storyRows(tree, order, survey);
   return tree.stories.map((story) => {
-    const { row, slot, width } = rows.get(story.id)!;
-    return { id: story.id, title: story.title, reported: story.health.reported.state, place: placeInRow(row, slot), at: { x: slot - (width - 1) / 2, y: -row } };
+    const { row, slot, width, dependsOn } = rows.get(story.id)!;
+    return { id: story.id, title: story.title, reported: story.health.reported.state, place: placeInRow(row, slot), at: { x: slot - (width - 1) / 2, y: -row }, dependsOn };
   });
 }
 
-/** Each story's row, its slot in the row from the west, and how many the row holds; `order` is the stories in creation order. */
-function storyRows(tree: AnnotatedTree, order: readonly string[], survey: Readonly<Record<string, Pick<StorySurvey, "dependsOn">>>): Map<string, { row: number; slot: number; width: number }> {
+/** Each story's row, its slot in the row from the west, how many the row holds, and the stories it was ranked above; `order` is the stories in creation order. */
+function storyRows(tree: AnnotatedTree, order: readonly string[], survey: Readonly<Record<string, Pick<StorySurvey, "dependsOn">>>): Map<string, { row: number; slot: number; width: number; dependsOn: string[] }> {
   const owner = new Map(tree.stories.flatMap((story) => story.capabilities.map(({ id }) => [id, story.id] as const)));
   const known = new Set(order);
   const dependsOn = new Map(tree.stories.map((story) => [story.id, survey[story.id]?.dependsOn?.filter((other) => known.has(other) && other !== story.id)
@@ -96,7 +98,7 @@ function storyRows(tree: AnnotatedTree, order: readonly string[], survey: Readon
     return [id, seen.size];
   }));
 
-  const placed = new Map<string, { row: number; slot: number; width: number }>();
+  const placed = new Map<string, { row: number; slot: number; width: number; dependsOn: string[] }>();
   const across = (id: string) => { const at = placed.get(id)!; return at.slot - (at.width - 1) / 2; };
   const under = (id: string) => {
     const below = dependsOn.get(id)!.filter((other) => placed.has(other));
@@ -112,7 +114,7 @@ function storyRows(tree: AnnotatedTree, order: readonly string[], survey: Readon
     } else {
       line = [...members].sort((a, b) => under(a) - under(b));
     }
-    line.forEach((id, slot) => placed.set(id, { row, slot, width: line.length }));
+    line.forEach((id, slot) => placed.set(id, { row, slot, width: line.length, dependsOn: dependsOn.get(id)! }));
   }
   return placed;
 }

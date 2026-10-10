@@ -237,7 +237,7 @@ function claimContext({ log, library, project, caller, folder, quietMs, writer }
 async function refusalText(library: Library, id: string, answer: Exclude<ClaimAnswer, { ok: true }>): Promise<string> {
   switch (answer.refused) {
     case "held":
-      return `${await titleOf(library, id)} is held by ${holderOf(answer.holder)}. Pick other work: nobody queues.`;
+      return `${await titleOf(library, id)} is held by ${holderOf(answer.holder, answer.heldFor)}. Pick other work: nobody queues${answer.heldFor.length === 0 ? "" : `; this is free once ${answer.heldFor[0]} closes`}.`;
     case "closed":
       return `${await titleOf(library, id)} is closed: there is nothing left to claim. Pick other work.`;
     case "waiting": {
@@ -261,9 +261,9 @@ async function workspaceRefusalText(library: Library, id: string, answer: Worksp
   return refusalText(library, id, answer);
 }
 
-/** Who holds a claim, and why, as a sentence names them. */
-function holderOf(claim: Claim): string {
-  return `${claim.label} session ${claim.session} (${claim.reason})${claim.binds === undefined ? "" : `; binds: ${claim.binds}`}`;
+/** Who holds a claim, for which increments when they are known, and why, as a sentence names them. */
+function holderOf(claim: Claim, heldFor: readonly string[] = []): string {
+  return `${claim.label} session ${claim.session}${heldFor.length === 0 ? "" : ` for ${heldFor.join(", ")}`} (${claim.reason})${claim.binds === undefined ? "" : `; binds: ${claim.binds}`}`;
 }
 
 /** A capability's or an increment's title, quoted, or its id when the plan has no such thing. */

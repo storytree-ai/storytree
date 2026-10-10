@@ -292,3 +292,22 @@ test("the results table shows each unit PASS, FAIL or NOT RUN, and how to rerun 
   assert.match(table, /pnpm run test --rerun-failed/);
   assert.doesNotMatch(resultsTable({ "packages/cli": "pass" }), /rerun-failed/, "nothing to rerun, no hint");
 });
+
+test("1.5 a file named to run alone is a unit of its own whenever its package runs, and its package's unit runs every other file", (t) => {
+  const root = fixture(t);
+  write(root, "packages/forest/src/view/proof.test.ts", "");
+  write(root, "packages/forest/src/view/other.test.ts", "");
+  write(root, "packages/forest/src/more.test.mjs", "");
+  const ws = readWorkspace(root);
+  const alone = ["packages/forest/src/view/proof.test.ts", "packages/cli/src/gone.test.ts"];
+
+  const scoped = planRun({ root, workspace: ws, decision: classify(["packages/forest/src/x.ts"], ws), alone }).units;
+  assert.deepEqual(scoped, ["apps/desktop", "packages/forest", "packages/forest/src/view/proof.test.ts"]);
+  assert.ok(planRun({ root, workspace: ws, decision: classify(["README.md"], ws), alone }).units.includes("packages/forest/src/view/proof.test.ts"));
+  assert.deepEqual(planRun({ root, workspace: ws, decision: classify(["README.md"], ws), flags: { only: ["forest"] }, alone }).units, ["packages/forest", "packages/forest/src/view/proof.test.ts"]);
+  assert.ok(!planRun({ root, workspace: ws, decision: classify(["packages/agent-link/src/x.ts"], ws), alone }).units.some((unit) => unit.endsWith(".test.ts")), "not when its package does not run");
+
+  assert.deepEqual(unitGlobs("packages/forest", { root, alone }).sort(), ["packages/forest/src/d.test.ts", "packages/forest/src/more.test.mjs", "packages/forest/src/view/other.test.ts"]);
+  assert.deepEqual(unitGlobs("packages/forest/src/view/proof.test.ts", { root, alone }), ["packages/forest/src/view/proof.test.ts"]);
+  assert.ok(unitGlobs("packages/library", { root, alone }).includes("packages/library/src/**/*.test.ts"), "a package with no file to run alone keeps its globs");
+});

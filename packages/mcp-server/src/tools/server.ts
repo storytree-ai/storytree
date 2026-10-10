@@ -38,7 +38,7 @@ import { McpServer, type CallToolResult, type ServerContext } from "@modelcontex
 import { agentOf, callLines, endMergedClaims, findProject, idleAfterMs, lineOf, locateStorytree, requestOf, route, seenCaller, storytreeHome, type ActivityLog, type Agent, type Caller, type MergeWatch } from "@storytree/agent-link";
 import { type SetupOptions } from "@storytree/app-setup/setup";
 import type { ProtectionReader } from "@storytree/app-setup/pipeline";
-import { type Library, type WriteOptions } from "@storytree/library";
+import { type Library, type Storytree, type WriteOptions } from "@storytree/library";
 import { librarianTools } from "@storytree/librarian";
 import { qualityTools } from "@storytree/quality-assurance";
 import { appDatabaseWork } from "@storytree/processes/listing";
@@ -102,6 +102,8 @@ export const NOT_A_PROJECT_ANSWER = "this folder isn't a storytree project, so s
 export interface Call {
   readonly library: Library;
   readonly log: ActivityLog;
+  /** The connection the library and log were opened on, which hands out a story's own database (ADR-0973). */
+  readonly storytree: Storytree;
   readonly project: string;
   readonly caller: Caller;
   /** Library history names the resolved session; cancellation stops writes still waiting to start. */
@@ -163,7 +165,7 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
       const meta = metaOf(context);
       try {
         let quietMs = options.quietMs;
-        const { library, log } = await connections.reach(where.library, where.project, where.identity, { folder: where.folder, home });
+        const { library, log, storytree } = await connections.reach(where.library, where.project, where.identity, { folder: where.folder, home });
         // What the hooks wrote of this very call, the one run just before it (ADR-0629 D2): only those lines (contract 2.7).
         const lines = await callLines(log, where.project, meta);
         const caller = seenCaller(lines, callerOf(context), meta);
@@ -176,7 +178,7 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
         // A claim whose pull request has merged ends before the tool sees who holds what (ADR-0643 D3).
         await endMergedClaims({ log, project: where.project, folder, ...lineOf(caller), source: "tool" }, options.merges).catch(() => []);
         return result(await act(args as never, {
-          library, log, project: where.project, caller,
+          library, log, storytree, project: where.project, caller,
           writer: { actor: `session:${caller.session}`, signal: context.mcpReq.signal },
           folder,
           // Read once for this call, only if it needs liveness. Independent context readings

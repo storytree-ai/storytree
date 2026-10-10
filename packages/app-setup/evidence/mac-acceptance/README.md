@@ -34,3 +34,9 @@ Runner: macOS 26.6.2 (25G83), image macos-26-arm64 20260907.0351.1, Apple M1 (Vi
     had never run, so `~/.claude` did not exist and no hooks were registered; the setup check says "Hooks for
     Claude Code: not installed on this machine" (`hooks.txt`). Not Mac-specific; parked as its own increment on
     arc_5b467265f126. A user who has used Claude Code before has that folder, so registration goes ahead there (not observed in this run).
+- `2026-10-10-update-by-hand/` (run 38021743142): the same development install, then the steps a user takes to
+  update while the app cannot update itself. **Running the one-liner again over an installed app downloads
+  nothing**: it reopens the app and asks the questions again (`rerun-installed.txt`), so it updates no one. Quitting
+  the app, moving `~/Applications/storytree-0.3.app` to the Bin and running the one-liner again reinstalls it in
+  14 s, keeping the project and its story (`reinstall.txt`, `tree-after.txt`). Both runs installed 0.3.1045, so
+  this proves that the reinstall keeps the project, not a move from one version to the next.

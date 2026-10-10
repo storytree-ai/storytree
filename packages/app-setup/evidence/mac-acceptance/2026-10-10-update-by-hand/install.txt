@@ -1,0 +1,20 @@
+spawn sh -c curl -fsSL https://github.com/storytree-ai/storytree/releases/latest/download/install-storytree.sh | sh -s -- --channel development
+Finding the storytree release for this installation channel.
+Downloading storytree 0.3.1045 for an Apple Silicon Mac.
+#=#=#                                                                          ##O#-#                                                                         ##                                                                         4.1%#######                                                                    9.9%##########                                                                14.9%#############                                                             18.3%################                                                          22.7%####################                                                      28.1%#######################                                                   33.2%#########################                                                 36.1%#############################                                             41.5%#################################                                         46.2%####################################                                      50.7%#######################################                                   54.4%##########################################                                59.3%###############################################                           65.5%##################################################                        70.4%######################################################                    76.2%##########################################################                81.9%##############################################################            87.3%##################################################################        92.5%#####################################################################     97.1%######################################################################## 100.0%
+Installing the app into Applications in your home folder.
+Checking the installed app and its bundled tools.
+Opening the app and starting its database.
+Adding the storytree command to your PATH.
+storytree is installed; its app is open and its database is ready.
+The storytree command is available in a new terminal window.
+Connect your installed and signed-in agents: 1 Claude Code, 2 Codex, 3 both, S skip for now.
+Choose 1, 2, 3 or S: 1
+Claude Code: tools connected; hooks not verified.
+Tools connected in user settings; hooks not verified. Start a new agent session in the folder of your project and call check_setup; it names each missing hook until its event is received. Project or managed settings can override this user registration.
+Choose your project folder: press Enter for /Users/runner/st-mac-acceptance, type another folder (created if missing), or S to skip.
+Project folder: 
+Project name: press Enter for 'st-mac-acceptance', or type your own (lower-case letters, digits and single hyphens).
+Project name: 
+
+/Users/runner/st-mac-acceptance is now storytree project 'st-mac-acceptance', and the app shows it. Start Claude Code or Codex in that folder to work in it.

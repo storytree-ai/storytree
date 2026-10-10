@@ -1,0 +1,8 @@
+total 8
+drwxr-xr-x   3 runner  staff    96 Oct 10 03:47 .
+drwxr-x---+ 47 runner  staff  1504 Oct 10 03:47 ..
+-rw-r--r--   1 runner  staff    60 Oct 10 03:47 .storytree.json
+{
+  "project": "st-mac-acceptance",
+  "identity": "16396"
+}

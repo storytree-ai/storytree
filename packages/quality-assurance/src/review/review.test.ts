@@ -96,7 +96,7 @@ test("2.2 · a return answering every check and contract is taken and its hits r
   });
 });
 
-/** The tools this package registers, by name, as the agent link's server would call them. */
+/** The tools this package registers, by name, as the MCP server would call them. */
 function registeredTools() {
   type Call = { library: Library; storytree: unknown; project: string };
   const tools: Record<string, (args: object, call: Call) => Promise<{ text: string; data?: Record<string, unknown> }>> = {};

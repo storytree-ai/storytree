@@ -1,5 +1,5 @@
 /**
- * Capability 11 · Waits (ADR-0640): one test per contract 11.1-11.4 in the library story, each run
+ * Capability 11 · Waits (ADR-0640): one test per contract 11.1-11.6 and 11.8 in the library story, each run
  * on BOTH backends: a WorkModel and a WorkInFlight over a fresh MemoryTransactions, and the `work`
  * and `flight` of a fresh Postgres project, dropped afterwards, pass or fail.
  *
@@ -126,7 +126,7 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await flight.waitHolds(first.id), []);
 
     await flight.addIncrement({ arc: mail.id, title: "Mailer, again", ...WORK });
-    assert.equal((await flight.waitHolds(launch.id)).length, 1, "work parked on it reopened it, so the wait holds again");
+    assert.deepEqual(await flight.waitHolds(launch.id), [], "the closing cleared the wait (11.8), so reopening the arc does not bring it back");
     await assert.rejects(flight.addWait(launch.id, first.id, "?"), MissingReferenceError, "an arc waits on an arc");
   });
 
@@ -192,6 +192,46 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(one.heldOn[form.id], [question.id]);
     assert.equal(one.waits[done.id], undefined, "closed increments are omitted");
     assert.deepEqual(await flight.waitHolds(done.id), []);
+  });
+
+  contract("11.8", "a wait is cleared from the record that stores it as its blocker lands (an increment) or closes (an arc), with the reason in its history; a failed or withdrawn blocker's wait stays", async ({ work, flight, records }) => {
+    const mail = await work.createArc({ title: "Mail", ...ARC });
+    const launch = await work.createArc({ title: "Launch", ...ARC });
+    await flight.addWait(launch.id, mail.id, "launch needs mail");
+    const mailer = await flight.addIncrement({ arc: mail.id, title: "Mailer", ...WORK });
+    const templates = await flight.addIncrement({ arc: mail.id, title: "Templates", ...WORK });
+    const form = await flight.addIncrement({ arc: launch.id, title: "Form", ...WORK });
+    await flight.addWait(form.id, mailer.id, "sends through it");
+    await flight.addWait(form.id, templates.id, "uses them");
+    const stored = async (id: string): Promise<string[] | undefined> => ((await records.get(id))?.fields as { waits?: { on: string }[] }).waits?.map(({ on }) => on);
+
+    await flight.closeIncrement(mailer.id, { pr: "#1", disposition: "landed" });
+    assert.deepEqual(await stored(form.id), [templates.id], "the landed blocker's wait is gone from the record");
+    const [cleared] = await records.history({ id: form.id }).then((entries) => entries.slice(-1));
+    assert.ok(cleared?.reason?.includes(mailer.id) && /landed/.test(cleared.reason), `its history says why: ${JSON.stringify(cleared)}`);
+
+    await flight.closeIncrement(templates.id, { note: "Not needed", disposition: "withdrawn" });
+    assert.deepEqual(await stored(form.id), [templates.id], "a withdrawn blocker's wait stays, holding for good");
+    assert.deepEqual(await stored(launch.id), undefined, "its arc closed with its last increment, and the arc wait on it is gone");
+
+    // An arc closed by settling its last open question clears the waits on it too.
+    const copy = await work.createArc({ title: "Copy", ...ARC });
+    await flight.addWait(launch.id, copy.id, "needs the words");
+    const question = await flight.raiseQuestion({ arc: copy.id, title: "Tone?", stakes: "The words", statement: "Which tone?", context: "None yet", options: "Warm or plain" });
+    await flight.closeIncrement((await flight.addIncrement({ arc: copy.id, title: "Draft", ...WORK })).id, { pr: "#2", disposition: "landed" });
+    assert.deepEqual(await stored(launch.id), [copy.id], "an open question keeps the arc open");
+    await flight.settleQuestion(question.id, { answer: "Plain" });
+    assert.deepEqual(await stored(launch.id), undefined);
+
+    // A withdrawn blocker corrected to landed clears its wait; moving an arc's last open work away closes it and clears the waits on it.
+    await flight.correctIncrementClosure(templates.id, { pr: "#3", disposition: "landed" }, "it did land, in #3");
+    assert.deepEqual(await stored(form.id), undefined);
+    const site = await work.createArc({ title: "Site", ...ARC });
+    const page = await flight.addIncrement({ arc: site.id, title: "Page", ...WORK });
+    await flight.addIncrement({ arc: site.id, title: "Sketch", outcome: { pr: "#4", disposition: "landed" }, ...WORK });
+    await flight.addWait(launch.id, site.id, "needs a page");
+    await flight.moveIncrement(page.id, launch.id, "belongs to the launch");
+    assert.deepEqual(await stored(launch.id), undefined);
   });
 
   contract("11.6", "an increment waits for the owner or an outside event with a note: an owner wait holds until cleared, an event wait until its check-back day, then reads passed", async ({ work, flight, transactions }) => {

@@ -2,10 +2,11 @@
 // is open and its gate is green, and hands the pull request here; this script, not a model, watches CI and the merge
 // queue: on MERGED it closes the increment and releases the session's claims, on a red it starts one fix session.
 // node packages/dev-loop/src/lanes/watch.mjs hand <pr> <increment> [--session <id>]   (records it and starts the watcher)
+// node packages/dev-loop/src/lanes/watch.mjs handover <pr> <increment>               (from any machine: `hand` on the box, else over ssh)
 // node packages/dev-loop/src/lanes/watch.mjs run                                     (the watcher: one per box)
 // node packages/dev-loop/src/lanes/watch.mjs status
 import { execFile, spawn as spawnChild } from "node:child_process";
-import { openSync } from "node:fs";
+import { existsSync, openSync } from "node:fs";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
@@ -91,6 +92,24 @@ export async function hand({ dir, pr, increment, session, storytree, startWatche
     "--check-back", new Date(now() + 3 * 86_400_000).toISOString().slice(0, 10)]);
   await save(dir, { fixes: [], fixing: null, ...old, pr, increment, session, handedAt: new Date(now()).toISOString() });
   await startWatcher();
+}
+
+/**
+ * Hand a pull request over from any machine, with the handing session's own id so the watcher releases its claims:
+ * on the box it is `hand`; elsewhere it runs `hand` on the box through `remote` (ssh). When the box cannot be reached
+ * it refuses with the reason, and the session lands the pull request itself.
+ */
+export async function handOver({ pr, increment, session, onBox, local, remote }) {
+  const fallback = `Wait for the merge yourself: watch \`gh pr checks ${pr}\` for MERGED, then close ${increment} with --disposition landed --pr ${pr}.`;
+  if (!session) return { code: 1, lines: ["no session id (CLAUDE_CODE_SESSION_ID or CODEX_THREAD_ID): the watcher could not release this session's claims, so it is not handed over.", fallback] };
+  const args = ["hand", String(pr), increment, "--session", session];
+  if (onBox) { await local(args); return { code: 0, lines: [] }; }
+  try {
+    const said = await remote(args);
+    return { code: 0, lines: [said.trim(), `Close out with: pnpm storytree session close-out --safe yes --why "PR #${pr} open and green, handed to the watcher"`].filter(Boolean) };
+  } catch (error) {
+    return { code: 1, lines: [`could not reach the Mint box's watcher: ${error.message.trim().split("\n").at(-1)}`, fallback] };
+  }
 }
 
 function fixBrief({ pr, increment, why, logs, n, limit }) {
@@ -208,14 +227,24 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
       return { pid, log: `${base}.log` };
     },
     startWatcher: () => detached([script, "run"], join(lanesDir, "watch.status"), repo),
+    // The box is the machine whose lanes folder has the lane runner; any other reaches it as `ssh mint`.
+    onBox: existsSync(join(lanesDir, "run-lane.sh")),
+    remote: async (args) => (await run("ssh", ["-o", "BatchMode=yes", "-o", "ConnectTimeout=15", env.WATCH_BOX_HOST || "mint",
+      `cd ~/code/storytree03 && node packages/dev-loop/src/lanes/watch.mjs ${args.join(" ")}`], { timeout: 120_000 })).stdout,
     sleep: (ms) => wait(ms),
   };
 }
 
-/** `hand <pr> <increment> [--session <id>]`, `run` or `status`; `box` overrides the box's paths and processes in tests. */
+/** `handover <pr> <increment>`, `hand <pr> <increment> [--session <id>]`, `run` or `status`; `box` overrides the box's paths and processes in tests. */
 export async function main(args, box = {}) {
   const b = { ...boxDefaults(), ...box };
   const out = b.out ?? console.log;
+  if (args[0] === "handover" && /^\d+$/.test(args[1] ?? "") && /^increment_\w+$/.test(args[2] ?? "")) {
+    const { code, lines } = await handOver({ pr: Number(args[1]), increment: args[2], session: b.session, onBox: b.onBox,
+      local: (hand) => main(hand, box), remote: b.remote });
+    for (const line of lines) out(line);
+    return code;
+  }
   await mkdir(b.dir, { recursive: true });
   if (args[0] === "hand" && /^\d+$/.test(args[1] ?? "") && /^increment_\w+$/.test(args[2] ?? "")) {
     const at = args.indexOf("--session");
@@ -235,7 +264,7 @@ export async function main(args, box = {}) {
     if (!found.length) out("no hand-offs");
     return 0;
   }
-  if (args[0] !== "run") { out("usage: watch.mjs hand <pr> <increment> [--session <id>] | run | status"); return 2; }
+  if (args[0] !== "run") { out("usage: watch.mjs handover <pr> <increment> | hand <pr> <increment> [--session <id>] | run | status"); return 2; }
   const say = b.say ?? ((line) => out(line));
   const runner = await holdRunner({ pidFile: b.pidFile, pid: b.pid ?? process.pid, marks: MARKS, argsOf: b.argsOf });
   if (!runner.held) { say(`watcher ${runner.by} is running: not starting`); return 1; }

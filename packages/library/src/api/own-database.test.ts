@@ -25,3 +25,18 @@ test("7.7 a connection's own database is made the first time, is never a project
     await dropTestDatabases([name]);
   }
 });
+
+test("7.7 a caller hands in its tables and gets its own database set up: connections setting it up at once all succeed, and every table is there", async () => {
+  const name = `storytree-own-${uniqueProjectName()}`;
+  const tables = ["CREATE TABLE IF NOT EXISTS entries (id serial PRIMARY KEY, said text NOT NULL)", "CREATE INDEX IF NOT EXISTS entries_said ON entries (said)"];
+  const connections = await Promise.all(Array.from({ length: 4 }, () => connect({ url: testServerUrl() })));
+  try {
+    const pools = await Promise.all(connections.map((storytree) => storytree.ownDatabase(name, { tables })));
+    await pools[0]?.query("INSERT INTO entries (said) VALUES ('hello')");
+    assert.deepEqual((await pools[3]?.query<{ said: string }>("SELECT said FROM entries"))?.rows, [{ said: "hello" }]);
+    assert.equal(await connections[0]?.ownDatabase(name), pools[0], "a reader asking without tables gets the same pool");
+  } finally {
+    await Promise.all(connections.map((storytree) => storytree.close()));
+    await dropTestDatabases([name]);
+  }
+});

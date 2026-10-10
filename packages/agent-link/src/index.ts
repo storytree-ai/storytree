@@ -1,6 +1,7 @@
-// Capability 6 · Agent tools (the MCP server). @storytree/agent-link: the user's own Claude Code or Codex using storytree by itself
-// (the agent link story). It reaches the library only through the library's public API.
-export { findProject, locateApp, locateLibrary, locateStorytree, MARKER_FILE, NOT_A_PROJECT, NOT_RUNNING, openNamedProject, requireApproval, route, setUpProject, storytreeHome, suggestProjectName, withConnectTimeout } from "./routing/index.js";
+// Capability 2 · Agent activity log. @storytree/agent-link: the record of what the user's own Claude Code or Codex does with storytree
+// (the agent link story). It reaches the library only through the library's public API. The MCP server's wrapper calls
+// what it exports to name a call's session, record the call and end merged claims (ADR-0969 D1).
+export { findProject, notAProjectYet, starterRolesIn, locateApp, locateLibrary, locateStorytree, MARKER_FILE, NOT_A_PROJECT, NOT_RUNNING, openNamedProject, requireApproval, route, setUpProject, storytreeHome, suggestProjectName, withConnectTimeout } from "./routing/index.js";
 export { forgetTrunk, machineOf, ProjectFolderError, trunksOn, unusedName } from "./routing/index.js";
 export type { LocateOptions, ProjectLookup, Route, SetUpOptions, StorytreeAddress } from "./routing/index.js";
 export { keepOnThisComputer, readProjectChoice, recordProjectChoice, recordRemovedProjects, removedProjects, type HiddenProject } from "./routing/project-choice.js";
@@ -10,17 +11,22 @@ export { ACTIVITY_DATABASE, cachedLines, currentBranch, forgetProjectActivity, f
 export type { ActivityLog, Agent, Line, LineKind, LinesCache, LinesSince, LockedLog, NewLine, OpenOptions } from "./activity/index.js";
 export { closeOut, labelOf, nameRefusal, nameSession, SESSION_NAME_LIMIT, lookAsApp, projectFolder, QUIET_MS, readSessions, sessionsFrom, sessionsListing } from "./sessions/index.js";
 export type { CloseOut, CloseOutContext, Session, SessionOptions, SessionState } from "./sessions/index.js";
-export { attachWorkspace, attributeFrom, boardClaims, claim, claimFrom, claimsFrom, closed, land, makeWorkspace, presentersOf, presentQuestion, readAttribution, readClaim, readClaims, release, releaseAsked, releaseFor, staleClaims, stopPresenting } from "./claims/index.js";
-export type { Attributed, Claim, ClaimAnswer, ClaimContext, ClaimsOptions, LandAnswer, PresentAnswer, Presenter, ReleaseAnswer, ReleaseForAnswer, StaleClaim, StaleWorklist, ClaimedWorkspace, OpenPullForWork, WorkspaceAnswer, WorkspaceAttachment, WorkspaceRefusal } from "./claims/index.js";
-export { createAgentTools, NOT_A_PROJECT_ANSWER, NOT_RUNNING_ANSWER } from "./tools/index.js";
-export type { AgentToolOptions, AgentTools, ToolExtension, ToolCall, DefineTool, ToolAnswer } from "./tools/index.js";
+export { attachWorkspace, attributeFrom, boardClaims, claim, claimFrom, claimsFrom, closed, land, makeWorkspace, presentersOf, presentQuestion, readAttribution, readClaim, readClaims, release, releaseAsked, releaseFor, staleClaims, stopPresenting, CLAIM_REASON_LIMIT, claimRefusal, endMergedClaims, increments } from "./claims/index.js";
+export type { Attributed, Claim, ClaimAnswer, ClaimContext, ClaimsOptions, LandAnswer, PresentAnswer, Presenter, ReleaseAnswer, ReleaseForAnswer, StaleClaim, StaleWorklist, MergeWatch, ClaimedWorkspace, OpenPullForWork, WorkspaceAnswer, WorkspaceAttachment, WorkspaceRefusal } from "./claims/index.js";
+export { agentOf, callLines, lineOf, requestOf, seenCaller } from "./sessions/caller.js";
+export type { Caller, CallMeta } from "./sessions/caller.js";
 export { codexHookTrust, noteCodexHookRan } from "./hooks/index.js";
+export { hookFailures, noteHookFailure } from "./hooks/failures.js";
+export type { HookFailure } from "./hooks/failures.js";
 export type { CodexHookTrust } from "./hooks/index.js";
-export { CHECK_COMMAND, CHECK_FILE, CODEX_TRUST_STEP, defaultHomes, launcherFile, launcherFiles, launcherFor, launcherRuns, markDisconnected, openStorytree, registerHooks, removeHooks, removeLauncher, runSetupCheck, runsElevated, suggestedName, verifyHooks, writeLauncher } from "./setup/index.js";
-export type { HookCommand, HookRegistration, Homes, HooksReport, LauncherRuns, RemovalReport, SetupLine, SetupOptions, SetupReport, StorytreeOpened, Verification } from "./setup/index.js";
-export { decisionRights, habitsCard, removeCodexInstructions, STANDING_DELEGATION, standingDelegations, writeCodexInstructions } from "./instructions/index.js";
+export { builtFromMain, checkFilesWritten, codexHooksState, FIX_SENTENCES, HOOK_TESTS, CHECK_COMMAND, CHECK_FILE, CODEX_TRUST_STEP, defaultHomes, launcherFile, launcherFiles, launcherFor, launcherRuns, markDisconnected, openStorytree, registerHooks, removeHooks, removeLauncher, runSetupCheck, runsElevated, suggestedName, verifyHooks, writeLauncher } from "./setup/index.js";
+export type { Fix, GhState, HookCommand, HookRegistration, Homes, HooksReport, LauncherRuns, RemovalReport, SetupLine, SetupOptions, SetupReport, StorytreeOpened, Verification } from "./setup/index.js";
+export { decisionRights, removeCodexInstructions, STANDING_DELEGATION, standingDelegations, writeCodexInstructions } from "./instructions/index.js";
 export type { DecisionRights } from "./instructions/index.js";
 export { contextCommand, contextReading, readContext, sessionWindow } from "./context/index.js";
+export { guidanceSentence } from "./context/guidance.js";
+export { checkCommands, ghProtection, githubRepository, protectionCommand, protectionThrough, storytreeRef, WORKFLOW_FILE, workflowFor } from "./setup/pipeline.js";
+export type { ProtectionReader, System } from "./setup/pipeline.js";
 export { pruneTranscripts, RETAIN_MS, scrub, shipTranscript, storedContextReading, storedSessionWindow } from "./transcripts/index.js";
 export { TranscriptCache } from "./transcripts/index.js";
 export type { Arrival, ContextCommandAnswer, ContextCommandOptions, ContextReading, SessionWindow, WindowOpen, WindowReading, WindowTarget } from "./context/index.js";

@@ -117,6 +117,11 @@ export function NameplateCrowd({ selected }: { selected: string | undefined }) {
     const stripBox = strip.current?.getBoundingClientRect();
     const faded = fadedPlates(shown, selected, stripBox && stripBox.width > 0 && stripBox.height > 0 ? stripBox : undefined);
     for (const label of labels) label.classList.toggle("crowded", faded.has(label.dataset.storyId!));
+    // The overlays place the names after this pass in the same frame: once they have, a name judged where it no longer stands
+    // (a jump with nothing drawn after it, as a reduced-motion step makes) is judged again on one more frame.
+    const where = (boxes: readonly DOMRect[]) => boxes.map(box => [box.x, box.y, box.width, box.height].map(Math.round).join()).join(";");
+    const judged = where(shown.map(plate => plate.box));
+    requestAnimationFrame(() => { if (where(labels.filter(onScreen).map(label => label.getBoundingClientRect())) !== judged) invalidate(); });
     const capabilities = [...host.querySelectorAll<HTMLElement>(".planet-nameplate.capability")];
     const fadedNames = fadedCapabilities(capabilities.filter(onScreen).map(label => ({ capability: label.dataset.capabilityId!,
       box: label.getBoundingClientRect(), size: Number(label.dataset.size ?? 0) })));

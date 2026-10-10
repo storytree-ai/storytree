@@ -179,9 +179,9 @@ export function provision({ root = repoRoot, install = pnpmInstall, retries = 1,
   return { ok: false, condition, code: last.code || 1 };
 }
 
-/** Run the agent link's tool server from root's source, over this process's stdin and stdout, to its exit code. */
+/** Run the MCP server from root's source, over this process's stdin and stdout, to its exit code. */
 function startServer(root) {
-  const server = path.join(root, "packages", "agent-link", "src", "bins", "storytree-mcp.ts");
+  const server = path.join(root, "packages", "mcp-server", "src", "bins", "storytree-mcp.ts");
   const child = spawn(process.execPath, ["--import", "tsx", server], { cwd: root, stdio: "inherit" });
   for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => child.kill(signal));
   return new Promise((resolve) => {

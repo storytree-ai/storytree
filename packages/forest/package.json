@@ -8,6 +8,7 @@
     "./view": "./src/view/index.ts",
     "./view/styles.css": "./src/view/styles.css",
     "./code-survey": "./src/code-survey/read-survey.ts",
+    "./page": "./src/render/page.ts",
     "./snapshot": "./src/snapshot/forest-snapshot.ts"
   },
   "scripts": {

@@ -174,14 +174,21 @@ export class WorkInFlight {
   /**
    * Close an increment, recording the day, its pull request, its note and what the close meant. A
    * close with no pull request needs a note (SchemaError); closing a closed one is refused
-   * (LifecycleError). Null, with nothing written, if `id` is not a live increment.
+   * (LifecycleError). Null, with nothing written, if `id` is not a live increment. In the same step
+   * the waits on it are cleared if it landed, and the waits on its arc if that now reads closed (11.8);
+   * a failed or withdrawn close leaves its waits, holding for good, since the work did not arrive.
    */
   closeIncrement(id: string, close: CloseInput, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
     return this.#serially(async () => {
       const increment = await liveRecord(this.#records, id, ["increment"]);
       if (increment === null) return null;
       if (increment.fields.status === "closed") throw new LifecycleError(id, "closed", "closed");
-      return (await this.#records.edit(id, { status: "closed", outcome: outcomeOf(close) }, options)) as SchemaRecord<"increment"> | null;
+      const closed = (await this.#records.edit(id, { status: "closed", outcome: outcomeOf(close) }, options)) as SchemaRecord<"increment"> | null;
+      await this.#clearAfter(async () => {
+        if (close.disposition === "landed") await waits.clearWaitsOn(this.#records, "increment", id, `its blocker ${id} landed, so the wait on it is cleared`, options);
+        await this.#clearIfClosed(increment.fields.arc, options);
+      });
+      return closed;
     });
   }
 
@@ -189,7 +196,8 @@ export class WorkInFlight {
    * Replace a closed increment's outcome, keeping the correction and its nonblank reason in
    * history (10.2). The closure date stays unless supplied; the other outcome fields are replaced.
    * Open work is refused (RangeError), and the usual outcome validation still applies (SchemaError).
-   * Null, with nothing written, if `id` is not a live increment. Its lifecycle never changes.
+   * Null, with nothing written, if `id` is not a live increment. Its lifecycle never changes. A
+   * correction to landed clears the waits on it (11.8).
    */
   correctIncrementClosure(id: string, close: CloseInput, reason: string, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
     return this.#serially(async () => {
@@ -198,7 +206,9 @@ export class WorkInFlight {
       if (increment.fields.status !== "closed") throw new RangeError(`increment ${JSON.stringify(id)} must be closed before its closure can be corrected`);
       if (typeof reason !== "string" || reason.trim() === "") throw new RangeError("correcting an increment's closure requires a nonblank reason");
       const outcome = outcomeOf({ ...close, date: close.date ?? increment.fields.outcome!.date });
-      return (await this.#records.edit(id, { outcome }, { ...options, reason })) as SchemaRecord<"increment"> | null;
+      const corrected = (await this.#records.edit(id, { outcome }, { ...options, reason })) as SchemaRecord<"increment"> | null;
+      if (close.disposition === "landed") await this.#clearAfter(() => waits.clearWaitsOn(this.#records, "increment", id, `its blocker ${id} landed, so the wait on it is cleared`, options));
+      return corrected;
     });
   }
 
@@ -207,7 +217,7 @@ export class WorkInFlight {
    * records the move with `reason`. The arc must be live (MissingReferenceError otherwise). Open
    * work cannot move into a closed arc (ADR-0792 D2, RangeError), while completed history may move
    * there during arc decomposition without reopening it. Null, with nothing written, if `id` is
-   * not a live increment.
+   * not a live increment. Moving the last open work off an arc closes it, clearing the waits on it (11.8).
    */
   moveIncrement(id: string, arc: string, reason: string, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
     return this.#serially(async () => {
@@ -217,7 +227,9 @@ export class WorkInFlight {
       if (increment.fields.status !== "closed" && (await this.arcView(arc))?.state === "closed") {
         throw new RangeError(`arc ${JSON.stringify(arc)} is closed and takes nothing new: move ${JSON.stringify(id)} to a live arc`);
       }
-      return (await this.#records.edit(id, { arc }, { ...options, reason })) as SchemaRecord<"increment"> | null;
+      const moved = (await this.#records.edit(id, { arc }, { ...options, reason })) as SchemaRecord<"increment"> | null;
+      await this.#clearAfter(() => this.#clearIfClosed(increment.fields.arc, options));
+      return moved;
     });
   }
 
@@ -320,9 +332,13 @@ export class WorkInFlight {
     return questions.lapsedQuestions(this.#records, at);
   }
 
-  /** Settle a question with the owner's answer (capability 12). */
+  /** Settle a question with the owner's answer (capability 12), clearing the waits on its arc if that now reads closed (11.8). */
   settleQuestion(id: string, settlement: Settlement, options?: WriteOptions): Promise<SchemaRecord<"question"> | null> {
-    return this.#serially(() => questions.settleQuestion(this.#records, id, settlement, options));
+    return this.#serially(async () => {
+      const settled = await questions.settleQuestion(this.#records, id, settlement, options);
+      if (settled !== null) await this.#clearAfter(() => this.#clearIfClosed(settled.fields.arc, options));
+      return settled;
+    });
   }
 
   /** The questions raised on arc `arcId`, open and settled, oldest first. */
@@ -340,7 +356,12 @@ export class WorkInFlight {
    * increments released, or null, with nothing written, if it is not a live question.
    */
   retireQuestion(id: string, reason: string, options?: WriteOptions): Promise<string[] | null> {
-    return this.#serially(() => questions.retireQuestion(this.#records, id, reason, options));
+    return this.#serially(async () => {
+      const question = await liveRecord(this.#records, id, ["question"]);
+      const heldBy = await questions.retireQuestion(this.#records, id, reason, options);
+      if (question !== null) await this.#clearAfter(() => this.#clearIfClosed(question.fields.arc, options));
+      return heldBy;
+    });
   }
 
   /**
@@ -426,6 +447,27 @@ export class WorkInFlight {
     return new Snapshot(arcs, increments, questions, hasIncrements, new Set(landed.map(({ id }) => id)));
   }
 
+
+  /**
+   * Once arc `id` reads closed, clear the waits on it (11.8): run after a write that can close it,
+   * its last open increment closing or its last open question going.
+   */
+  async #clearIfClosed(id: string, options?: WriteOptions): Promise<void> {
+    if ((await this.arcView(id))?.state === "closed") await waits.clearWaitsOn(this.#records, "arc", id, `its blocker ${id} closed, so the wait on it is cleared`, options);
+  }
+
+  /**
+   * Run the clearing that follows a committed write, which stands whatever the clearing meets: a
+   * record it cannot read (a newer sibling schema, 6.9) leaves the waits stored, and they hold no
+   * longer anyway, since waitHolds reads each blocker.
+   */
+  async #clearAfter(clear: () => Promise<unknown>): Promise<void> {
+    try {
+      await clear();
+    } catch {
+      // The write before it is committed; a later reader sees the blocker closed.
+    }
+  }
 
   #setParked(id: string, parked: true | undefined, options?: ParkOptions): Promise<SchemaRecord<"arc"> | null> {
     return this.#serially(async () => {

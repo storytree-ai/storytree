@@ -5,7 +5,8 @@
 //
 // - The frame is the app story's `packages/app` and `apps/desktop` (startup, lifecycle, updates and
 //   mounting each story's surface); the front door is the cli story's `packages/cli` (command families
-//   that call the story package owning the work). Neither holds another story's code.
+//   that call the story package owning the work), and the MCP server story's `packages/mcp-server` is the
+//   second front door (ADR-0969 D1). None holds another story's code.
 // - No story leans on the frame or the front door (ADR-0847 D1) unless the owner sanctioned that edge
 //   in package-edges.json beside this file, with his own words and the date (D2). The list holds only
 //   his exceptions; a lane never adds one.
@@ -17,7 +18,7 @@ import { readFileSync } from "node:fs";
 import { packageProblems } from "@storytree/guardrails";
 
 /** 0.3's own stories, each by the id its package has (packages/<id>). */
-export const STORIES = ["agent-link", "app", "app-setup", "arc-surface", "ci-health", "cli", "dev-loop", "forest", "forest-world", "guardrails", "identity", "journey-events", "keys", "knowledge-core", "librarian", "library", "local-postgres", "map", "processes", "website"];
+export const STORIES = ["agent-link", "app", "app-setup", "arc-surface", "ci-health", "cli", "dev-loop", "forest", "forest-world", "guardrails", "identity", "journey-events", "keys", "knowledge-core", "librarian", "library", "local-postgres", "map", "mcp-server", "processes", "quality-assurance", "website"];
 // app-setup: story_b91056a06337 (The app setup).
 // processes: story_9abd84ab493f (Process ledger).
 // dev-loop: story_95ed402f9bd3 (The dev loop, ADR-0805 D3).
@@ -28,6 +29,8 @@ export const STORIES = ["agent-link", "app", "app-setup", "arc-surface", "ci-hea
 // journey-events: story_9eb523952644 (Journey events).
 // ci-health: story_5c212e7a9a6c (CI health, ADR-0902).
 // guardrails: Guardrails, ADR-0911 D2.
+// mcp-server: The MCP server, ADR-0969 D1.
+// quality-assurance: story_421e473f0a99 (Quality assurance, ADR-0956 D2).
 
 /**
  * Story code the frame still holds, each with the open question on storytree-0-3-scales-arc that
@@ -36,8 +39,11 @@ export const STORIES = ["agent-link", "app", "app-setup", "arc-surface", "ci-hea
  */
 export const NOT_YET_MOVED = [];
 
-/** The frame and the front door, which mount and front the stories and hold none of their code. */
-export const FRAMES = [{ story: "app", dirs: ["packages/app", "apps/desktop"] }, { story: "cli", dirs: ["packages/cli"], frontDoor: true }];
+/**
+ * The frame and the two front doors, which mount and front the stories and hold none of their code: the
+ * command line, and the MCP server an agent's harness starts (ADR-0969 D1), on which no story may depend either.
+ */
+export const FRAMES = [{ story: "app", dirs: ["packages/app", "apps/desktop"] }, { story: "cli", dirs: ["packages/cli"], frontDoor: true }, { story: "mcp-server", dirs: ["packages/mcp-server"], frontDoor: true }];
 
 /** The owner's exceptions to the frame rule: { edges: [{ from, to, said, on }] }, each in his own words, with the date. */
 export const EDGES = JSON.parse(readFileSync(new URL("./package-edges.json", import.meta.url), "utf8"));

@@ -1,0 +1,4 @@
+total 0
+drwxr-xr-x   2 runner  staff    64 Oct 10 03:34 .
+drwxr-x---+ 41 runner  staff  1312 Oct 10 03:34 ..
+cat: /Users/runner/st-mac-acceptance/.storytree.json: No such file or directory

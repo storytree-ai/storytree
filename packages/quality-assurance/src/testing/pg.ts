@@ -18,7 +18,6 @@ export function testServerUrl(): string {
   return url;
 }
 
-/** Run `body` with a fresh project's library, dropped afterwards, pass or fail. */
 /** Run `body` with two connections to the test server, each closed afterwards, pass or fail. */
 export async function withConnections(body: (first: Storytree, second: Storytree) => Promise<void>): Promise<void> {
   const first = await connect({ url: testServerUrl() });
@@ -34,6 +33,7 @@ export async function withConnections(body: (first: Storytree, second: Storytree
   }
 }
 
+/** Run `body` with a fresh project's library, dropped afterwards, pass or fail. */
 export async function withLibrary(body: (library: Library) => Promise<void>): Promise<void> {
   const project = `t-${randomBytes(4).toString("hex")}`;
   const storytree = await connect({ url: testServerUrl() });

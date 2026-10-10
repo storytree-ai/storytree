@@ -167,14 +167,16 @@ export async function lapsedQuestions(records: SchemaRecords, at: Date): Promise
 
 /**
  * Settle a question with the owner's answer, kept on it with when and the decision that carried
- * it, which must be a live decision. A settlement with no answer is refused (SchemaError), and so
- * is settling a settled question. Null, with nothing written, if `id` is not a live question.
+ * it, which must be a live decision, and the question taken off every increment's heldOn (12.3).
+ * A settlement with no answer is refused (SchemaError), and so is settling a settled question.
+ * Null, with nothing written, if `id` is not a live question.
  */
 export async function settleQuestion(records: SchemaRecords, id: string, settlement: Settlement, options?: WriteOptions): Promise<SchemaRecord<"question"> | null> {
   const question = await liveRecord(records, id, ["question"]);
   if (question === null) return null;
   if (question.fields.lifecycle === "settled") throw new RangeError(`question ${JSON.stringify(id)} is already settled`);
   await checkReference(records, "decision", settlement.decision, "decision");
+  await releaseHolders(records, id, options);
   return (await records.edit(id, {
     lifecycle: "settled",
     answer: settlement.answer,
@@ -207,12 +209,18 @@ export async function refuseRetiringHeld(records: SchemaRecords, id: string): Pr
  */
 export async function retireQuestion(records: SchemaRecords, id: string, reason: string, options?: WriteOptions): Promise<string[] | null> {
   if ((await liveRecord(records, id, ["question"])) === null) return null;
+  const released = await releaseHolders(records, id, options);
+  await records.retire(id, reason, options);
+  return released;
+}
+
+/** Take question `id` off the heldOn of every increment that names it, open or closed, keeping their other holds; the increments released, oldest first. */
+async function releaseHolders(records: SchemaRecords, id: string, options?: WriteOptions): Promise<string[]> {
   const heldBy = (await records.list("increment")).filter((increment) => increment.fields.heldOn?.includes(id) === true).sort(byCreation);
   for (const increment of heldBy) {
     const rest = (increment.fields.heldOn ?? []).filter((held) => held !== id);
     await records.edit(increment.id, { heldOn: rest.length === 0 ? undefined : rest }, options);
   }
-  await records.retire(id, reason, options);
   return heldBy.map((increment) => increment.id);
 }
 

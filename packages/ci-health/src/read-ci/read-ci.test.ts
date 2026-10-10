@@ -300,3 +300,20 @@ test("3.10 on a branch that merges through GitHub's merge queue, whose push runs
   assert.equal(asked.asked.some((route) => /runs\/9\d\/jobs/.test(route)), false, "neither the cancelled push run nor a queue run of another commit or branch is read");
   for (const id of contracts) assert.equal((await library.health(id)).verified.state, "passing");
 });
+
+test("3.11 of the merge queue's runs of a commit, only the one of the push run's own workflow is read: a newer queue run of another workflow, which uploads no test results, is passed over", async (t) => {
+  const { library, contracts } = await shopLibrary(t);
+  const { folder, commit } = projectFolder(t);
+  const queue = (id: number, workflow_id: number) => ({ id, workflow_id, conclusion: "success", head_sha: commit, head_branch: `gh-readonly-queue/trunk/pr-${id}-${"0".repeat(40)}`, html_url: `https://github.com/acme/shop/actions/runs/${id}` });
+  const asked = github((query) => {
+    if (query.get("status") !== "completed") return [];
+    if (query.get("event") === "push" && query.get("branch") === "trunk") return [{ id: 95, workflow_id: 1, conclusion: "cancelled", head_sha: commit, html_url: "https://github.com/acme/shop/actions/runs/95" }];
+    if (query.get("event") === "merge_group") return [queue(98, 2), queue(7, 1)];
+    return [];
+  }, tap("ok"));
+  const read = await readProjectCi({ library, git: gitIn(folder), github: asked });
+  assert.equal(read.written, true, read.written ? "" : read.why);
+  assert.equal(read.written && read.run, "https://github.com/acme/shop/actions/runs/7", "the CI workflow's queue run is read");
+  assert.equal(asked.asked.some((route) => route.includes("runs/98/")), false, "the other workflow's queue run is never read");
+  for (const id of contracts) assert.equal((await library.health(id)).verified.state, "passing");
+});

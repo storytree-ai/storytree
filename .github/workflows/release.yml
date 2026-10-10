@@ -158,3 +158,13 @@ jobs:
         run: node apps/desktop/release.mjs publish
         env:
           GH_TOKEN: ${{ github.token }}
+
+  # Check (a) of decision_b0a98e971a05 D4: the published development one-liner, run on a fresh GitHub Mac, must
+  # install this very version and bring up the app, its database and the setup check. The concurrency group keeps
+  # the next release from publishing first, so "latest" is still this one. The evidence is an artifact of this run.
+  mac-acceptance:
+    needs: [source, publish]
+    uses: ./.github/workflows/mac-acceptance.yml
+    with:
+      channel: development
+      version: ${{ needs.source.outputs.version }}

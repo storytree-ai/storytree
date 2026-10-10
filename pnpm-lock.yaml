@@ -836,6 +836,9 @@ importers:
       '@storytree/knowledge-core':
         specifier: workspace:*
         version: link:../knowledge-core
+      '@storytree/mark':
+        specifier: workspace:*
+        version: link:../mark
       react:
         specifier: ^19.1.1
         version: 19.3.0

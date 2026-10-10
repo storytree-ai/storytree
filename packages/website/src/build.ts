@@ -3,6 +3,7 @@ import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
+import { MARK_LINKS, inlineMark, writeMarkFiles } from "./mark.js";
 import { openingMarkup } from "./opening-markup.js";
 import { fill, growthCounts, tourCounts } from "./tour-counts.js";
 import type { GrowthSnapshot, TourSnapshot } from "./forest-data.js";
@@ -49,7 +50,8 @@ export async function buildWebsite(output = path.join(packageRoot, "dist"), opti
   const countsScript = `<script type="application/json" id="tour-counts">${JSON.stringify(counts).replaceAll("<", "\\u003c")}</script>`;
   for (const page of ["index.html", "waitlist.html", "404.html"]) {
     const template = fill(await readFile(path.join(packageRoot, "src", page), "utf8"), counts);
-    const html = template.replace("<!-- OPENING -->", openingMarkup()).replace("<!-- COUNTS -->", countsScript)
+    const html = template.replace("<!-- OPENING -->", openingMarkup()).replaceAll("<!-- MARK -->", inlineMark())
+      .replace("<!-- MARK LINKS -->", MARK_LINKS).replace("<!-- COUNTS -->", countsScript)
       .replace(/\/assets\/(main|forest|styles)\.(?:js|css)/g, (_, name: string) => {
         const entry = entries.get(name);
         if (!entry) throw new Error(`Missing website entry: ${name}`);
@@ -64,6 +66,7 @@ export async function buildWebsite(output = path.join(packageRoot, "dist"), opti
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
   }
+  await writeMarkFiles(output);
   return result.metafile;
 }
 

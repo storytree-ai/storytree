@@ -12,6 +12,11 @@
   --green: #bdd6a6;
   --muted: #adb7b5;
   --line: #343e40;
+  /* The mark's four roles, in the site's own colours: pale land on a dark globe, as the saved forest draws it. */
+  --mark-ocean: var(--line);
+  --mark-land: var(--green);
+  --mark-tree: var(--ink);
+  --mark-leaf: var(--ink);
 }
 * { box-sizing: border-box; }
 html { scroll-padding-top: 28px; }
@@ -31,6 +36,7 @@ body:not(.immersive-home) p, .immersive-home :is(.tour-copy, #opening) p { margi
 .site-header .wordmark { flex-shrink: 0; }
 .wordmark { font-size: 28px; font-weight: 650; letter-spacing: -.055em; text-decoration: none; }
 .wordmark span { color: var(--green); }
+.mark { flex-shrink: 0; width: 1.3em; height: 1.3em; margin-right: .3em; vertical-align: -.3em; }
 .site-header nav { display: flex; flex-wrap: wrap; gap: 12px 34px; font-size: 14px; }
 .site-header a, .site-footer a, .text-link { display: inline-flex; align-items: center; min-width: 44px; min-height: 44px; }
 .site-header nav a { gap: .3em; text-decoration: none; }

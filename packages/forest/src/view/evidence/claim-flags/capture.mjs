@@ -25,7 +25,8 @@ await withCapture({ folder: here, dist }, async ({ browser, origin, out, settle 
       await page.evaluate(([story, px, width]) => {
         const { size, scene } = demo.state();
         const radius = scene.getObjectByName(`planet:${story}`).position.length();
-        return demo.controls.stop({ target: { kind: 'story', story }, framing: Math.min(size.width, size.height) / (2 * radius * px / width), duration: 1 });
+        // Never past the islands (PAST_ISLANDS.leave, 0.34): this reading's globe is large, so its deepest close-up is less than 480 px.
+        return demo.controls.stop({ target: { kind: 'story', story }, framing: Math.max(0.36, Math.min(size.width, size.height) / (2 * radius * px / width)), duration: 1 });
       }, [story, px, ISLAND_WIDTH]);
       await page.waitForTimeout(100); await settle(page, 6);
     };
@@ -34,7 +35,7 @@ await withCapture({ folder: here, dist }, async ({ browser, origin, out, settle 
       const { scene, camera } = demo.state(); scene.updateMatrixWorld(true);
       const flags = []; scene.traverse(o => { if (!o.name.startsWith('territory-claim:')) return;
         const pole = o.getObjectByName('flag-pole'), dot = o.getObjectByName('flag-dot'), lot = o.getObjectByName(`claim-lot:${o.userData.capability}`);
-        let height = null; if (pole?.visible) { pole.geometry.computeBoundingBox(); const box = pole.geometry.boundingBox.clone().applyMatrix4(pole.matrixWorld); const a = box.min.clone().project(camera), b = box.max.clone().project(camera); height = Math.round(Math.abs(a.y - b.y) * demo.state().size.height / 2 * 10) / 10; }
+        let height = null; if (pole?.visible) { pole.geometry.computeBoundingBox(); const { min, max } = pole.geometry.boundingBox; const end = y => min.clone().set(0, y, 0).applyMatrix4(pole.matrixWorld).project(camera); height = Math.round(Math.abs(end(min.y).y - end(max.y).y) * demo.state().size.height / 2 * 10) / 10; }
         flags.push({ ...o.userData, dot: !!dot?.visible, poleHeightPx: height, lotDashes: lot ? lot.geometry.attributes.position.count / 2 : 0 }); });
       let bands = 0; scene.traverse(o => { if (o.name.startsWith('territory-claim:') && o.isMesh) bands++; });
       return { zoom: camera.zoom, flags, bands };

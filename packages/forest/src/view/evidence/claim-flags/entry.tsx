@@ -4,7 +4,6 @@ import { forestScene, sessionColour, storyNodes, type SessionWisp } from "@story
 import { workStates } from "@storytree/arc-surface";
 import { PlanetView, type GlobeControls } from "@storytree/forest/view";
 import { createKnowledgeCore } from "@storytree/knowledge-core/view";
-import "@storytree/forest/view/styles.css";
 
 // The capture uses an existing saved reading; the claims are labelled fixtures, not a recording of live activity.
 declare const __SEED__: any;

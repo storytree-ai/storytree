@@ -11,7 +11,10 @@ island's survey left out so that island has no code. The claims are labelled fix
 
 The globe's clock is held at set moments, so each picture of a claim's life is taken at a known time.
 
-Pictures, each at the tour's close-up (an island about 480 px wide), the resting globe (about 90 px) and a 390-wide phone (30 px at rest, so dots; 200 px close):
+Pictures at the resting globe (an island of the drawn size about 90 px wide), a close-up, and on a 390-wide phone (30 px at rest,
+so dots, and a close-up). A close-up asks for the tour's 480 px (200 px on the phone) but never zooms past the islands (framing
+0.36, above `PAST_ISLANDS`): this reading's globe is large, so its deepest close-up is shallower and `measurements.json` records
+the zoom each view reached:
 - `*-held.png`: three sessions' flags standing;
 - `*-arrive-100_12.png`, `*-arrive-100_4.png`, `*-arrive-100_75.png`, `*-arrive-102.png`: the fifth claim dropping in, overshooting, its ring opening at the foot, then standing;
 - `*-quieting.png`, `*-quiet.png`: furling and greying;

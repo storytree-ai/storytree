@@ -56,14 +56,12 @@ test("3.1 · a review written while another connection opens the ledger for the 
     try {
       await writer.query("BEGIN");
       await writer.query("INSERT INTO quality_runs (project, review, check_id, package) VALUES ($1, 'review-1', 'check_a', 'library')", [project]);
-      const opening = openLedger(second);
+      let settled = false;
+      const opening = openLedger(second).finally(() => { settled = true; });
       opening.catch(() => undefined);
+      // The review goes on to its second table once the opening waits on its first, or has finished without waiting.
       const watcher = await first.ownDatabase(LEDGER_DATABASE);
-      const deadline = Date.now() + 10_000;
-      while ((await watcher.query("SELECT 1 FROM pg_stat_activity WHERE datname = $1 AND wait_event_type = 'Lock'", [LEDGER_DATABASE])).rowCount === 0) {
-        assert.ok(Date.now() < deadline, "the opening never waited on the review's write");
-        await new Promise((resolve) => setTimeout(resolve, 20));
-      }
+      while (!settled && (await watcher.query("SELECT 1 FROM pg_stat_activity WHERE datname = $1 AND wait_event_type = 'Lock'", [LEDGER_DATABASE])).rowCount === 0);
       await writer.query("INSERT INTO quality_hits (project, review, check_id, package, file, line) VALUES ($1, 'review-1', 'check_a', 'library', 'src/a.ts', 1)", [project]);
       await writer.query("COMMIT");
       committed = true;

@@ -223,6 +223,37 @@ function idIn(text: string, type: string): string {
   return id;
 }
 
+test("4.17 `arc edit --priority` sets and clears an arc's priority, refusing anything but a whole number of 1 or more or `none`, and `arc list` orders live arcs by it (ADR-0963)", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const unranked = await anArc(world);
+    const second = await anArc(world);
+    const first = await anArc(world);
+    const cleared = await anArc(world);
+    for (const [id, priority] of [[second, "2"], [first, "1"], [cleared, "1"]] as const) {
+      const ran = await world.run(["arc", "edit", id, "--priority", priority]);
+      assert.equal(ran.code, 0, ran.stderr);
+    }
+    assert.equal((await library.arcView(first))!.arc.fields.priority, 1);
+    assert.equal((await world.run(["arc", "edit", cleared, "--priority", "none"])).code, 0);
+    assert.equal((await library.arcView(cleared))!.arc.fields.priority, undefined);
+
+    const before = (await library.changesSince(0)).changes.length;
+    for (const wrong of ["0", "-1", "1.5", "first", ""]) {
+      const ran = await world.run(["arc", "edit", unranked, "--priority", wrong]);
+      assert.equal(ran.code, 1, `--priority ${wrong} was taken`);
+      assert.match(ran.stderr, /priority/);
+    }
+    assert.equal((await library.changesSince(0)).changes.length, before, "a refused priority writes nothing");
+
+    const listed = await world.run(["arc", "list"]);
+    const order = listed.stdout.split("\n").flatMap((line) => [first, second, unranked, cleared].filter((id) => line.includes(id)));
+    assert.deepEqual(order, [first, second, unranked, cleared], listed.stdout);
+    assert.match(listed.stdout.split("\n").find((line) => line.includes(first))!, /priority 1/);
+    assert.match((await world.run(["arc", "show", second])).stdout, /Priority: 2/);
+  });
+});
+
 test("4.1 an arc with no intent is refused", async () => {
   await inWorld(command, async (world) => {
     const ran = await world.run(["arc", "new", "--title", "Launch v1", "--end-state", "Visitors sign up"]);

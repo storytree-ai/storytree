@@ -11,9 +11,6 @@ export type { Agent, Line, LineKind, LinesSince, NewLine } from "./activity/inde
  */
 export const QUIET_MS = 30 * 60 * 1000;
 
-/** The kinds of line that decide whether a session has a command running. */
-export const COMMAND_KINDS = ["command-started", "command-run", "turn-ended", "session-started", "session-ended"] as const;
-
 /**
  * The longest a started command keeps its session live without finishing: 12 hours. Past it, the
  * command is taken to have died with its window, as when a window crashes mid-command.
@@ -187,66 +184,9 @@ export function sessionsFrom(lines: readonly Line[], options: SessionOptions = {
   return fold.sessions(options);
 }
 
-/**
- * Whether a session, by its own lines `own` (oldest first), is working or waiting at `now` by its
- * turns (ADR-0754 D5): working from a prompt until its turn ends, or while a command it started
- * runs. A restart ends a turn its window never finished; compacting mid-turn does not. Undefined
- * when its hooks have reported no prompt, so its turns are unknown.
- */
-export function turnState(own: readonly Line[], now: number): "working" | "waiting" | undefined {
-  let prompted = false;
-  let inTurn = false;
-  for (const line of own) {
-    if (line.kind === "prompt-submitted") prompted = inTurn = true;
-    else if (line.kind === "turn-ended" || line.kind === "session-ended" || (line.kind === "session-started" && line.how !== "compact")) inTurn = false;
-  }
-  if (!prompted) return undefined;
-  return inTurn || commandRunning(own, now) ? "working" : "waiting";
-}
-
-/**
- * Whether a session, by its own lines `own` (oldest first), has been quiet for longer than `quietMs`
- * at `now`: no line in that time, and no command of its still running.
- */
-export function isQuiet(own: readonly Line[], now: number, quietMs: number): boolean {
-  const latest = own.at(-1);
-  if (latest === undefined) return true;
-  return now - Date.parse(latest.at) > quietMs && !commandRunning(own, now);
-}
-
-/**
- * Whether a session, by its own lines `own` (oldest first), has a command still running at `now`.
- * Only its command-started, command-run, turn-ended, session-started and session-ended lines count,
- * so `own` may hold just those (COMMAND_KINDS). A command is running when it
- * started, has no finish line under its call's id, was not closed since by the end of
- * its turn (unless that turn left background tasks running) or of its session, or by a restart,
- * and is within its harness's limit on a command (CLAUDE_CODE_COMMAND_MS, else LONGEST_COMMAND_MS;
- * LONGEST_COMMAND_MS for one its turn left running in the background). The finish line may be written before the start line
- * (each is written by its own hook process), so a finish anywhere closes it.
- */
-export function commandRunning(own: readonly Line[], now: number): boolean {
-  return commandsRunning(own, now).length > 0;
-}
-
 /** A command still running: what it was, when it started, and when its limit passes. */
 interface CommandRunning extends RunningCommand {
   until: number;
-}
-
-/** The commands `commandRunning` counts, each with its text and when it started, oldest first: the same reading, not a second one. */
-function commandsRunning(own: readonly Line[], now: number): CommandRunning[] {
-  const finished = new Set(own.flatMap((line) => (line.kind === "command-run" && line.call !== undefined ? [line.call] : [])));
-  let running: CommandRunning[] = []; // each running command, and when its limit passes
-  for (const line of own) {
-    if (line.kind === "command-started" && !finished.has(line.call)) {
-      const startedAt = Date.parse(line.at);
-      running.push({ command: line.command, since: line.at, until: startedAt + (line.limitMs ?? (line.harness === "claude-code" ? CLAUDE_CODE_COMMAND_MS : LONGEST_COMMAND_MS)) });
-    } else if (line.kind === "turn-ended" && line.background !== undefined && line.background > 0) {
-      // Left running in the background, a command is past its harness's limit on one it waits for.
-      running = running.map((one) => ({ ...one, until: Date.parse(one.since) + LONGEST_COMMAND_MS }));
-    } else if (line.kind === "turn-ended" || line.kind === "session-started" || line.kind === "session-ended") running = [];
-  }
-  return running.filter(({ until }) => now <= until);
 }
 
 /** A capability, or an increment (ADR-0643 D1), held by a session, as the log shows it. */
@@ -331,73 +271,27 @@ export function claimFrom(lines: readonly Line[], id: string, options: ClaimsOpt
  * activity.
  */
 export function attributeFrom(lines: readonly Line[]): Attributed[] {
-  const holding = new Map<string, (Part & { under?: string })[]>(); // session → what it holds, in the order claimed
-  const drop = (session: string, id: string) => {
-    const held = holding.get(session);
-    if (held !== undefined) holding.set(session, held.filter((other) => idOf(other) !== id));
-  };
+  const holders = new Map<string, Omit<Claim, "holder">>();
   const attributed: Attributed[] = [];
   for (const line of [...lines].sort((a, b) => a.seq - b.seq)) {
-    switch (line.kind) {
-      case "claimed":
-        for (const session of holding.keys()) drop(session, idOf(line)); // taken over, if it was held
-        holding.set(line.session, [...(holding.get(line.session) ?? []), { ...partOf(line), ...(line.under === undefined ? {} : { under: line.under }) }]);
-        break;
-      case "released": {
-        const releaser = line.holder ?? line.session;
-        drop(releaser, idOf(line));
-        // Releasing an increment ends what its holder claimed under it (ADR-0949 D4).
-        holding.set(releaser, (holding.get(releaser) ?? []).filter((part) => part.under !== idOf(line)));
-        break;
-      }
-      case "landed":
-        drop(line.session, idOf(line));
-        break;
-      case "merged":
-        drop(line.holder, idOf(line));
-        break;
-      case "closed":
-        // Closing an increment ends every claim under it, whoever closes it (ADR-0949 D4).
-        for (const [session, held] of holding) holding.set(session, held.filter((part) => idOf(part) !== line.increment && part.under !== line.increment));
-        break;
-      case "session-ended":
-        holding.delete(line.session);
-        break;
-      case "file-edited":
-      case "command-run": {
-        const held = holding.get(line.session) ?? [];
-        const capability = held.findLast((part) => part.capability !== undefined)?.capability;
-        const increment = held.findLast((part) => part.increment !== undefined)?.increment;
-        attributed.push({ line, capability, increment });
-        break;
-      }
-    }
+    holding(holders, line);
+    if (line.kind !== "file-edited" && line.kind !== "command-run") continue;
+    const held = [...holders.values()].filter((holder) => holder.session === line.session);
+    attributed.push({ line, capability: held.findLast((part) => part.capability !== undefined)?.capability, increment: held.findLast((part) => part.increment !== undefined)?.increment });
   }
   return attributed;
 }
 
-/** The sessions with a command still running at `now`, as `lines` (oldest first) show them. */
-export function runningIn(lines: readonly Line[], now: number): Set<string> {
-  const bySession = new Map<string, Line[]>();
-  for (const line of lines) bySession.set(line.session, [...(bySession.get(line.session) ?? []), line]);
-  return new Set([...bySession].filter(([, own]) => commandRunning(own, now)).map(([session]) => session));
+/** The claims standing after `claimLines`, by what they are on, in the order claimed: who holds what, before any holder is judged live or idle. */
+export function standingFrom(claimLines: readonly Line[]): Map<string, Omit<Claim, "holder">> {
+  const holders = new Map<string, Omit<Claim, "holder">>();
+  for (const line of claimLines) holding(holders, line);
+  return holders;
 }
 
-/** The claims standing after `claimLines`, by what they are on, each holder judged by when its session last wrote and whether a command of its is running. */
-export function held(claimLines: readonly Line[], lastSeen: ReadonlyMap<string, string>, running: ReadonlySet<string>, now: number, quietMs: number, restarted?: Restart): Map<string, Claim> {
-  const holders = new Map<string, Omit<Claim, "holder">>();
-  const machines = new Map<string, string>();
-  for (const line of claimLines) {
-    holding(holders, line);
-    if (line.machine !== undefined) machines.set(line.session, line.machine);
-  }
-  const claims = new Map<string, Claim>();
-  for (const [id, holder] of holders) {
-    const seen = lastSeen.get(holder.session) ?? holder.since;
-    const idle = (now - Date.parse(seen) > quietMs && !running.has(holder.session)) || diedIn(restarted, machines.get(holder.session), seen);
-    claims.set(id, { ...holder, holder: idle ? "idle" : "live" } as Claim);
-  }
-  return claims;
+/** The sessions holding a claim standing after `claimLines`. */
+export function holdersOf(claimLines: readonly Line[]): string[] {
+  return [...new Set([...standingFrom(claimLines).values()].map((holder) => holder.session))];
 }
 
 export function claimOf(session: string, harness: string | undefined, part: Part, reason: string, since: string, branch: string | undefined): Omit<Claim, "holder"> {
@@ -500,7 +394,7 @@ export interface LogFoldSnapshot {
  * The sessions and claims reading, folded as the log's lines arrive (ADR-0836 D1, D4): it keeps what
  * each session's lines have said, the claims standing, and the latest that others' lines say about a
  * branch and about a session the apps keep, never the lines themselves. The time is applied only
- * when it is read, so it reads the same as sessionsFrom and claimsFrom over every line it was fed.
+ * when it is read. sessionsFrom and claimsFrom are this fold fed every line at once: each rule is written here only.
  * Feed it the log's lines in order, each once: each piece is put in order, and pieces are taken as they come.
  */
 export class LogFold {
@@ -622,9 +516,14 @@ export class LogFold {
         own.onMain.set(key, { folder, ...(line.machine === undefined ? {} : { machine: line.machine }), edited: edited || was?.edited === true });
       }
     }
-    // Its turns (turnState), and its commands (commandsRunning).
+    // Its turns (ADR-0754 D5): working from a prompt until its turn ends, or while a command it started runs.
+    // A restart ends a turn its window never finished; compacting mid-turn does not.
     if (line.kind === "prompt-submitted") own.prompted = own.inTurn = true;
     else if (line.kind === "turn-ended" || line.kind === "session-ended" || (line.kind === "session-started" && line.how !== "compact")) own.inTurn = false;
+    // Its commands: running from its start until a finish under its call's id (written by its own hook, so
+    // perhaps before the start), the end of its turn (unless that turn left background tasks running) or of its
+    // session, or a restart, and within its harness's limit on one (CLAUDE_CODE_COMMAND_MS, else LONGEST_COMMAND_MS;
+    // LONGEST_COMMAND_MS for one its turn left running in the background).
     if (line.kind === "command-started") {
       if (!own.finished.has(line.call)) {
         own.running.set(line.call, { command: line.command, since: line.at,
@@ -795,6 +694,7 @@ export function logReading(log: readonly Line[] | LogReading): LogReading {
 function holding(holders: Map<string, Omit<Claim, "holder">>, line: Line): void {
   switch (line.kind) {
     case "claimed":
+      holders.delete(idOf(line)); // taken over or claimed again: it stands in the order claimed
       holders.set(idOf(line), { ...claimOf(line.session, line.harness, partOf(line), line.reason, line.at, line.branch), ...(line.under === undefined ? {} : { under: line.under }) });
       break;
     case "released":

@@ -181,6 +181,7 @@ export const TEST_USAGE = `pnpm test: run the tests this branch's changes can re
   pnpm run test --full             run everything, whatever changed
   pnpm run test --only=cli,forest  run the named packages (dir, dir name or package name)
   pnpm run test --rerun-failed     run what the last run in this checkout failed or never reached
+  pnpm run test --jobs=<n>         test n units at once (else STORYTREE_TEST_JOBS, else 2, a core left free); 1 runs them one by one
   pnpm run test <files>            run just those files, as one unit
   pnpm run test --set-limit=<unit>=<seconds> --reason="..."   set a unit's deadline on this machine
   pnpm run test --clear-limit=<unit>                          clear it again
@@ -194,7 +195,7 @@ node --test's own options (--test-name-pattern=..., --test-only, ...) go to ever
  * Both end the run before the heavy-run lock or a Postgres is taken.
  */
 export function parseTestArgs(argv) {
-  const flags = { full: false, scope: false, rerunFailed: false, only: [], setLimit: undefined, clearLimit: undefined, reason: undefined };
+  const flags = { full: false, scope: false, rerunFailed: false, only: [], setLimit: undefined, clearLimit: undefined, reason: undefined, jobs: undefined };
   const testArgs = [];
   let help = false;
   let refusal;
@@ -208,8 +209,9 @@ export function parseTestArgs(argv) {
     else if (arg.startsWith("--set-limit=")) flags.setLimit = arg.slice("--set-limit=".length);
     else if (arg.startsWith("--clear-limit=")) flags.clearLimit = arg.slice("--clear-limit=".length);
     else if (arg.startsWith("--reason=")) flags.reason = arg.slice("--reason=".length);
+    else if (arg.startsWith("--jobs=")) flags.jobs = arg.slice("--jobs=".length);
     else if (!arg.startsWith("-") || /^--(experimental-)?test-/.test(arg)) testArgs.push(arg);
-    else refusal ??= `unknown flag ${arg}; the known ones are --full, --scope, --only=<packages>, --rerun-failed, --set-limit=, --clear-limit=, --reason=, --help, and node --test's --test-* options`;
+    else refusal ??= `unknown flag ${arg}; the known ones are --full, --scope, --only=<packages>, --rerun-failed, --jobs=<n>, --set-limit=, --clear-limit=, --reason=, --help, and node --test's --test-* options`;
   }
   return { flags, testArgs, help, refusal };
 }

@@ -11,6 +11,8 @@ import { JOURNEY_CHANNELS, type JourneyBridge } from "@storytree/journey-events/
 import type { ProjectSurvey } from "@storytree/forest/code-survey";
 import type { AnnotatedTree, ArcView, Holds, Changes, Note, SchemaRecord } from "@storytree/library";
 
+import { pageMethods } from "./page-operations.js";
+
 export interface StorytreeBridge extends SetupHelpBridge, SurfacesBridge, JourneyBridge {
   checkForUpdates(action: UpdateAction): Promise<UpdateState>;
   /** Whether the app opens at sign-in, in the tray (lifecycle 1.12), and whether it can here. */
@@ -124,13 +126,9 @@ export function createBridge(
     : undefined;
   return {
     ...(feedbackIdentity === undefined ? {} : { feedbackIdentity }),
-    readJourney: () => invoke(JOURNEY_CHANNELS.readJourney) as ReturnType<JourneyBridge["readJourney"]>,
-    chooseJourney: (on) => invoke(JOURNEY_CHANNELS.chooseJourney, on) as ReturnType<JourneyBridge["chooseJourney"]>,
-    prepareJourneyDeletion: () => invoke(JOURNEY_CHANNELS.prepareJourneyDeletion) as ReturnType<JourneyBridge["prepareJourneyDeletion"]>,
-    readSettings: () => invoke(SETTINGS_CHANNELS.readSettings) as ReturnType<SettingsBridge["readSettings"]>,
-    saveSetting: (name, values) => invoke(SETTINGS_CHANNELS.saveSetting, name, values) as ReturnType<SettingsBridge["saveSetting"]>,
-    readSurfaces: () => invoke(SURFACES_CHANNELS.readSurfaces) as ReturnType<SurfacesBridge["readSurfaces"]>,
-    saveSurface: (words) => invoke(SURFACES_CHANNELS.saveSurface, words) as ReturnType<SurfacesBridge["saveSurface"]>,
+    ...pageMethods<JourneyBridge>(JOURNEY_CHANNELS, invoke),
+    ...pageMethods<SettingsBridge>(SETTINGS_CHANNELS, invoke),
+    ...pageMethods<SurfacesBridge>(SURFACES_CHANNELS, invoke),
     checkForUpdates: (action) => invoke(CHANNELS.checkForUpdates, action) as ReturnType<StorytreeBridge["checkForUpdates"]>,
     readSignIn: () => invoke(CHANNELS.readSignIn) as ReturnType<StorytreeBridge["readSignIn"]>,
     setSignIn: (on) => invoke(CHANNELS.setSignIn, on) as ReturnType<StorytreeBridge["setSignIn"]>,

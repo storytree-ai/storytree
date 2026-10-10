@@ -8,7 +8,7 @@
  * stand beside it (ADR-0953 D1, D2).
  */
 import type { ActivityLog } from "../activity/index.js";
-import { held, LogFold, type Claim, type Restart } from "../readings.js";
+import { holdersOf, LogFold, type Claim, type Restart } from "../readings.js";
 import { idleAfterMs } from "../settings/settings.js";
 import { COMMANDS_MS, thisRestart } from "./claims.js";
 import { ghAllOpenPulls, type AllOpenPulls, type OpenPull } from "./merges.js";
@@ -52,7 +52,7 @@ export async function staleClaims(context: { readonly log: ActivityLog; readonly
   const { log, project } = context;
   const now = options.now ?? new Date();
   const claimLines = await log.standing(project);
-  const holders = [...new Set([...held(claimLines, new Map(), new Set(), now.getTime(), Infinity).values()].map((claim) => claim.session))];
+  const holders = holdersOf(claimLines);
   if (holders.length === 0) return { claims: [] };
   const fold = LogFold.fromBounded(await log.foldLines(project, holders, new Date(now.getTime() - COMMANDS_MS).toISOString()), claimLines);
   const restarted = options.restarted ?? thisRestart();

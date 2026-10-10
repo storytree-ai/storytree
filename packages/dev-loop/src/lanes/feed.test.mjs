@@ -80,6 +80,30 @@ test("11.8 · the pool picks ready work from every package by claims alone, olde
     "retried once its claim clears; work it ran is not");
 });
 
+test("11.10 · the pool takes ready work by its arc's priority, then by when it was parked", async () => {
+  const work = survey([
+    increment("old-unranked", "x", { arc: "arc_none", parked: "2026-09-01T00:00:00Z" }),
+    increment("old-second", "x", { arc: "arc_two", parked: "2026-09-02T00:00:00Z", priority: 2 }),
+    increment("young-first", "x", { arc: "arc_one", parked: "2026-10-05T00:00:00Z", priority: 1 }),
+    increment("older-first", "x", { arc: "arc_one", parked: "2026-10-01T00:00:00Z", priority: 1 }),
+    increment("busy-first", "x", { arc: "arc_busy", parked: "2026-10-04T00:00:00Z", priority: 1 }),
+    increment("held", "x", { arc: "arc_busy", parked: "2026-08-01T00:00:00Z", priority: 1 }),
+  ], { claims: [{ increment: "held", session: "s1", holder: "live", since: "2026-10-07T00:00:00Z" }] });
+  assert.deepEqual(pickPool(work, { max: 5 }).picks.map((one) => one.id), ["older-first", "busy-first", "young-first", "old-second", "old-unranked"],
+    "priority 1 before 2 before none; an idle arc goes before a busy one only within one priority");
+
+  const record = (id, arc) => ({ id, createdAt: new Date(now), fields: { arc, title: id, status: "proposal", waits: [] } });
+  const library = {
+    arcViews: async () => [
+      { arc: { id: "arc_r", fields: { priority: 3 } }, state: "active", increments: [record("r1", "arc_r")] },
+      { arc: { id: "arc_u", fields: {} }, state: "active", increments: [record("u1", "arc_u")] },
+    ],
+    holds: async () => ({ waits: {}, heldOn: {} }),
+  };
+  const read = await readSurvey({ library, claims: async () => [] });
+  assert.deepEqual(read.increments.map((one) => one.priority), [3, undefined], "the survey carries each increment's arc priority");
+});
+
 test("11.9 · an active arc whose open work all waits, with no open question, is offered for planning, oldest first and once", () => {
   const arc = (id, created, extra = {}) => ({ id, state: "active", title: id, created, openQuestions: 0, ...extra });
   const work = survey([

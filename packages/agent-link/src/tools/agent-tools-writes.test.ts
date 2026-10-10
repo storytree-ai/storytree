@@ -830,6 +830,30 @@ test("6.47 park_increment takes an increment's capabilities and links, and edit_
   });
 });
 
+test("6.51 edit_plan sets and clears an arc's priority, refusing anything but a whole number of 1 or more or \"none\" with nothing written, and show_plan lists arcs by it, 1 first (ADR-0963)", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const { arc: unranked } = await planned(agent);
+      const ranked = idOf(await agent.call("plan_arc", { title: "Ranked arc", intent: "Go first", end_state: "Done first" }));
+      const set = await agent.call("edit_plan", { id: ranked, priority: 2 });
+      assert.equal(set.isError, false, set.text);
+      assert.equal(((await library.get(ranked))?.fields as { priority?: number } | undefined)?.priority, 2);
+
+      const history = await library.history({ id: ranked });
+      for (const wrong of [0, 1.5, "first"]) assert.equal((await agent.call("edit_plan", { id: ranked, priority: wrong })).isError, true, `priority ${wrong} was taken`);
+      assert.deepEqual(await library.history({ id: ranked }), history, "nothing was written");
+
+      const plan = await agent.call("show_plan");
+      const arcLines = plan.text.split("\n").filter((line) => line.startsWith("Arc "));
+      assert.deepEqual(arcLines.map((line) => [ranked, unranked].find((id) => line.includes(id))), [ranked, unranked], plan.text);
+      assert.match(arcLines[0]!, /priority 2/);
+
+      assert.equal((await agent.call("edit_plan", { id: ranked, priority: "none" })).isError, false);
+      assert.equal(((await library.get(ranked))?.fields as { priority?: number } | undefined)?.priority, undefined);
+    });
+  });
+});
+
 test("6.48 edit_plan refuses an increment's capabilities list a capability already on the list of another live session's claimed increment, naming that increment and its holder, with nothing written; the same session's own lists, and a list whose increment is released, are not refused (ADR-0949 D2)", async () => {
   await withProject(async ({ folder, library }) => {
     const capabilitiesOf = async (id: string) => ((await library.get(id))?.fields as { capabilities?: string[] }).capabilities;

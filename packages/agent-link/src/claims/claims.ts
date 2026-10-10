@@ -33,10 +33,10 @@ import { uptime } from "node:os";
 import type { Hold, Holds, IncrementStatus, Library, SchemaRecord, WriteOptions } from "@storytree/library";
 
 import { thisMachine, type ActivityLog, type Line } from "../activity/index.js";
-import { attributeFrom, CLAIM_KINDS, claimOf, claimsFrom as readLines, held, LogFold, LONGEST_COMMAND_MS, partOf, type Attributed, type Claim, type ClaimsOptions, type Part, type Restart } from "../readings.js";
+import { attributeFrom, CLAIM_KINDS, claimOf, holdersOf, LogFold, LONGEST_COMMAND_MS, partOf, type Attributed, type Claim, type ClaimsOptions, type Part, type Restart } from "../readings.js";
 import { idleAfterMs } from "../settings/settings.js";
 
-export { attributeFrom } from "../readings.js";
+export { attributeFrom, claimFrom, claimsFrom } from "../readings.js";
 export type { Attributed, Claim, ClaimsOptions } from "../readings.js";
 
 /** Who is claiming, releasing or landing, and where. */
@@ -276,22 +276,11 @@ export async function closed(context: ClaimContext, increment: string, dispositi
   return context.log.locked(context.project, (log) => log.append({ ...who(context), kind: "closed", increment, disposition }));
 }
 
-/** Who holds what, using the current per-user idle duration unless supplied by the caller. */
-export function claimsFrom(lines: readonly Line[], options: ClaimsOptions = {}): Claim[] {
-  const restarted = options.restarted ?? thisRestart();
-  return readLines(lines, { ...options, quietMs: options.quietMs ?? idleAfterMs(), ...(restarted === undefined ? {} : { restarted }) });
-}
-
 /** Who holds what in `project`'s log, read from the standing claims and their holders' latest lines alone (contract 2.7). */
 export async function readClaims(log: ActivityLog, project: string, options: ClaimsOptions = {}): Promise<Claim[]> {
   const reads: ClaimReads = { standing: () => log.standing(project), foldLines: (sessions, since) => log.foldLines(project, sessions, since) };
   const now = (options.now ?? new Date()).getTime();
   return [...(await heldIn(reads, now, options.quietMs ?? idleAfterMs(), options.restarted ?? thisRestart())).values()];
-}
-
-/** The current holder of one capability or increment, or undefined when nobody holds it. */
-export function claimFrom(lines: readonly Line[], id: string, options: ClaimsOptions = {}): Claim | undefined {
-  return claimsFrom(lines, options).find((claim) => (claim.increment ?? claim.capability) === id);
 }
 
 /** Who holds one capability or increment in `project`, using the same reading as the board. */
@@ -353,7 +342,7 @@ export const COMMANDS_MS = LONGEST_COMMAND_MS + 60_000;
  */
 async function heldIn(reads: ClaimReads, now: number, quietMs: number, restarted: Restart | undefined): Promise<Map<string, Claim>> {
   const claimLines = await reads.standing();
-  const holders = [...new Set([...held(claimLines, new Map(), new Set(), now, Infinity).values()].map((claim) => claim.session))];
+  const holders = holdersOf(claimLines);
   if (holders.length === 0) return new Map();
   const fold = LogFold.fromBounded(await reads.foldLines(holders, new Date(now - COMMANDS_MS).toISOString()), claimLines);
   return new Map(fold.claims({ now: new Date(now), quietMs, ...(restarted === undefined ? {} : { restarted }) })

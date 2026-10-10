@@ -29,20 +29,15 @@
  *   from the store does not grow with the project's history.
  */
 import type { ActivityLog, Line } from "../activity/index.js";
-import { held, LogFold, LONGEST_COMMAND_MS, sessionsFrom as readLines, type Session, type SessionOptions } from "../readings.js";
+import { holdersOf, LogFold, LONGEST_COMMAND_MS, sessionsFrom, type Session, type SessionOptions } from "../readings.js";
 import { idleAfterMs, leaveAfterMs } from "../settings/settings.js";
 
 export { closeOut } from "./close-out.js";
 export { nameRefusal, nameSession, SESSION_NAME_LIMIT } from "./name.js";
 export type { CloseOutContext, CloseOutOptions } from "./close-out.js";
 
-export { COMMAND_KINDS, commandRunning, isQuiet, labelOf, LEAVE_MS, LONGEST_COMMAND_MS, ON_MAIN_LABELS, QUIET_MS, turnState } from "../readings.js";
+export { labelOf, LEAVE_MS, LONGEST_COMMAND_MS, ON_MAIN_LABELS, QUIET_MS, sessionsFrom } from "../readings.js";
 export type { CloseOut, Listing, OnMain, RunningCommand, Session, SessionApp, SessionOptions, SessionState } from "../readings.js";
-
-/** Read sessions with the current per-user idle-after and leave-after durations, unless the caller supplies them. */
-export function sessionsFrom(lines: readonly Line[], options: SessionOptions = {}): Session[] {
-  return readLines(lines, { ...options, quietMs: options.quietMs ?? idleAfterMs(), leaveMs: options.leaveMs ?? leaveAfterMs() });
-}
 
 export interface ReadSessionsOptions extends SessionOptions {
   /**
@@ -64,11 +59,11 @@ export async function readSessions(log: ActivityLog, project: string, options: R
   const quietMs = options.quietMs ?? idleAfterMs();
   const leaveMs = options.leaveMs ?? leaveAfterMs();
   const claimLines = await log.standing(project);
-  const holders = [...held(claimLines, new Map(), new Set(), now.getTime(), Infinity)];
+  const holders = holdersOf(claimLines);
   const of = options.of ?? "all";
   const sessions = Array.isArray(of) ? (of as readonly string[])
     : of === "all" ? await log.sessionsInView(project, new Date(0).toISOString())
-    : [...new Set([...await log.sessionsInView(project, new Date(now.getTime() - Math.max(leaveMs, LONGEST_COMMAND_MS)).toISOString()), ...holders.map(([, claim]) => claim.session)])];
+    : [...new Set([...await log.sessionsInView(project, new Date(now.getTime() - Math.max(leaveMs, LONGEST_COMMAND_MS)).toISOString()), ...holders])];
   const standing = LogFold.fromBounded(await log.foldLines(project, sessions, new Date(now.getTime() - COMMANDS_MS).toISOString()), claimLines);
   return standing.sessions({ now, quietMs, leaveMs });
 }
@@ -77,5 +72,5 @@ export async function readSessions(log: ActivityLog, project: string, options: R
 export async function readSessionStates(log: ActivityLog, project: string, options: SessionOptions = {}): Promise<Pick<Session, "session" | "harness" | "state">[]> {
   const now = options.now ?? new Date();
   const lines = await log.stateLines(project, new Date(now.getTime() - LONGEST_COMMAND_MS).toISOString(), new Date(now.getTime() - COMMANDS_MS).toISOString());
-  return sessionsFrom(lines, { ...options, now }).map(({ session, harness, state }) => ({ session, ...(harness === undefined ? {} : { harness }), state }));
+  return sessionsFrom(lines, { ...options, now, quietMs: options.quietMs ?? idleAfterMs(), leaveMs: options.leaveMs ?? leaveAfterMs() }).map(({ session, harness, state }) => ({ session, ...(harness === undefined ? {} : { harness }), state }));
 }

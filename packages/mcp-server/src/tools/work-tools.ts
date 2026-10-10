@@ -13,7 +13,7 @@ import type { Library } from "@storytree/library";
 import { z } from "zod";
 
 import { recordFriction, recordResteer, reinforceFriction } from "@storytree/agent-link";
-import { closed, currentBranch, increments, releaseAsked } from "@storytree/agent-link";
+import { closed, currentBranch, increments, presentQuestion, releaseAsked, stopPresenting } from "@storytree/agent-link";
 import { lineOf, type Answer, type Call, type Define } from "./server.js";
 import { quoted } from "./text.js";
 
@@ -231,6 +231,29 @@ export function registerWorkTools(define: Define): void {
       const settled = await library.settleQuestion(question, defined({ answer, decision }), writer);
       if (settled === null) return { text: `There is no question ${question} in this project.`, refused: true };
       return { text: `Settled ${quoted(settled.fields.title)} (${question}). Work held on it goes on.`, data: { id: question } };
+    },
+  );
+
+  define(
+    "present_question",
+    "Mark an open question as being put to the owner by this session, before you ask him, so no other session asks him the same at once; another live session's mark refuses it, naming that session: skip it then. done: true when you move on without his answer. Settling it clears the mark.",
+    z.object({ question: id("question"), done: z.boolean().optional().describe("true to stop putting it to the owner") }),
+    async ({ question, done }, call) => {
+      const caller = { ...claimContext(call), writer: call.writer };
+      if (done === true) {
+        const stopped = await stopPresenting(caller, question);
+        return { text: stopped ? `${question} is no longer being put to the owner by this session.` : `This session was not putting ${question} to the owner.`, data: { id: question, presenting: false } };
+      }
+      const answer = await presentQuestion(caller, question);
+      if (answer.ok) return { text: `${question} is being put to the owner by this session. Settling it with his answer clears that.`, data: { id: question, presenting: true, since: answer.since } };
+      switch (answer.refused) {
+        case "presenting":
+          return { text: `${question} is being put to the owner by ${answer.presenter.label} session ${answer.presenter.session} since ${answer.presenter.since}: skip it, and do not ask him again.`, refused: true };
+        case "settled":
+          return { text: `${question} is settled: its answer stands.`, refused: true };
+        case "unknown-question":
+          return { text: `There is no question ${question} in this project.`, refused: true };
+      }
     },
   );
 

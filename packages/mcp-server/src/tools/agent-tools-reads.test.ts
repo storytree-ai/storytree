@@ -198,6 +198,7 @@ test('6.4 a bad call gets a readable refusal rather than a crash, and with story
         ["raise_question", { arc: "arc_000000000000", title: "Which mailer?", stakes: "Cost", statement: "Mailgun or SES?", context: "Both work", options: "Mailgun; SES" }],
         ["correct_question", { question: "question_000000000000", title: "Which mailer, Mailgun or SES?" }],
         ["settle_question", { question: "question_000000000000", answer: "Mailgun" }],
+        ["present_question", { question: "question_000000000000" }],
         ["retire_question", { question: "question_000000000000", reason: "asked in error" }],
         ["read_context", {}],
         ["close_out", { safe: true, why: "all merged" }],

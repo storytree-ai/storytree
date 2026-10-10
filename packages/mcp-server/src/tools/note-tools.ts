@@ -23,7 +23,7 @@ import type { KnowledgeKind, Library, Note, NoteEdit, SchemaRecord, WriteOptions
 import { z } from "zod";
 
 import type { Line, NewLine } from "@storytree/agent-link";
-import { readClaims } from "@storytree/agent-link";
+import { presentersOf, readClaims } from "@storytree/agent-link";
 import { lineOf, type Answer, type Call, type Define } from "./server.js";
 import { firstLineOf, quoted, spineOf, wholeOf, type Findable } from "./text.js";
 
@@ -136,8 +136,10 @@ async function openRecord(id: string, call: Call): Promise<Answer> {
 const QUESTION_WORDS = ["stakes", "statement", "context", "options", "analogy", "diagram", "recommendation", "answer"] as const;
 
 /** A question whole: its arc and state, every field of its wording and answer, and the open increments held on it. */
-async function openQuestion(question: SchemaRecord<"question">, { library }: Call): Promise<Answer> {
+async function openQuestion(question: SchemaRecord<"question">, { library, log, project }: Call): Promise<Answer> {
   const fields = question.fields as Readonly<Record<string, unknown>>;
+  // A question another live session is putting to the owner says so, so he is not asked twice (agent link 5.36).
+  const presenter = (await presentersOf(log, project, [question])).get(question.id);
   const settled = typeof fields.settledAt === "string" ? `, settled ${fields.settledAt}${typeof fields.settledBy === "string" ? ` by ${fields.settledBy}` : ""}` : "";
   const holding = Object.entries((await library.holds()).heldOn).flatMap(([increment, on]) => (on.includes(question.id) ? [increment] : []));
   const out = [`Question ${quoted(String(fields.title))} (${question.id}):`, `On ${String(fields.arc)}, ${String(fields.lifecycle)}${settled}.`];
@@ -145,7 +147,8 @@ async function openQuestion(question: SchemaRecord<"question">, { library }: Cal
     if (typeof fields[name] === "string") out.push(`${name[0]?.toUpperCase()}${name.slice(1)}: ${fields[name]}`);
   }
   if (holding.length > 0) out.push(`Holding: ${holding.join(", ")}`);
-  return { text: out.join("\n"), data: { question: { id: question.id, ...fields, holding } } };
+  if (presenter !== undefined) out.push(`Being put to the owner by ${presenter.label} session ${presenter.session} since ${presenter.since}: do not ask him again.`);
+  return { text: out.join("\n"), data: { question: { id: question.id, ...fields, holding, ...(presenter === undefined ? {} : { presenter }) } } };
 }
 
 /** A contract whole: its title, its description, and the capability it belongs to. */

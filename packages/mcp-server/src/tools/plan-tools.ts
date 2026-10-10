@@ -78,12 +78,14 @@ export function registerPlanTools(define: Define): void {
 
   define(
     "plan_contract",
-    "Plan a contract: one testable promise a capability makes. Leave its number off the title: it is given the capability's next free one, past the numbers its contracts and its story package's numbered tests carry, or, when exactly one numbered test there has no contract yet, that test's own number, and a number another contract of the capability carries is refused. Write its test, see it fail, and report it red.",
+    "Plan a contract: one testable promise a capability makes. Leave its number off the title: it is given the capability's next free one, past the numbers its contracts and its story package's numbered tests carry, even a test no contract carries yet, since that test may promise something else; the reply names those tests, so when this contract is one's promise you give that number in the title. A number another contract of the capability carries is refused. Write its test, see it fail, and report it red.",
     z.object({ capability: id("capability it belongs to"), title, description }),
     async ({ capability, title: name, description: about }, call) => {
-      const options = { ...call.writer, testedNumbers: await testedNumbers(call, capability) };
-      const contract = await call.library.addContract({ title: name, capability, ...optional({ description: about }) }, options);
-      return { text: `Planned contract ${quoted(contract.fields.title)} (${contract.id}). Write its test, see it fail, and report it red.`, data: { id: contract.id } };
+      const tested = await testedNumbers(call, capability);
+      const contract = await call.library.addContract({ title: name, capability, ...optional({ description: about }) }, { ...call.writer, testedNumbers: tested });
+      const orphans = await orphanTests(call, capability, contract.fields.title, tested);
+      const named = orphans.length === 0 ? "" : ` Numbered ${orphans.length === 1 ? `test ${orphans[0]} has` : `tests ${orphans.slice(0, -1).join(", ")} and ${orphans.at(-1)} have`} no contract: if this contract is ${orphans.length === 1 ? "its" : "one's"} promise, give it that number with edit_plan.`;
+      return { text: `Planned contract ${quoted(contract.fields.title)} (${contract.id}).${named} Write its test, see it fail, and report it red.`, data: { id: contract.id, orphans } };
     },
   );
 
@@ -321,6 +323,19 @@ function said(state: HealthState): string {
 }
 
 /** `fields` without the ones that are undefined: the library's inputs take no undefined values. */
+/**
+ * The numbers of `capability`'s numbered tests (`tested`) that none of its live contracts carries, in order:
+ * the capability's number is read off `title`, a contract just planned on it.
+ */
+async function orphanTests({ library }: Call, capability: string, title: string, tested: readonly string[]): Promise<string[]> {
+  const prefix = /^(\d+)\.\d+ · /.exec(title)?.[1];
+  if (prefix === undefined) return [];
+  const contracts = (await library.projectTree()).stories.flatMap((story) => story.capabilities).find((part) => part.id === capability)?.contracts ?? [];
+  const carried = new Set(contracts.map((contract) => /^(\d+\.\d+) · /.exec(contract.title)?.[1]));
+  const own = [...new Set(tested)].filter((number) => number.startsWith(`${prefix}.`) && !carried.has(number));
+  return own.sort((a, b) => Number(a.slice(prefix.length + 1)) - Number(b.slice(prefix.length + 1)));
+}
+
 function optional<T extends Record<string, unknown>>(fields: T): { [K in keyof T]: Exclude<T[K], undefined> } {
   return Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined)) as { [K in keyof T]: Exclude<T[K], undefined> };
 }

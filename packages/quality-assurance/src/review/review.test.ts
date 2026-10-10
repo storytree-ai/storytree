@@ -15,7 +15,7 @@ import { test } from "node:test";
 import type { Library } from "@storytree/library";
 
 import { withLibrary } from "../testing/pg.js";
-import { openLedger, openReviews, qualityTools, REVIEW_LIMIT, standingText, type ReviewReturn } from "../index.js";
+import { briefText, openLedger, openReviews, qualityTools, REVIEW_LIMIT, standingText, type ReviewReturn } from "../index.js";
 
 const DIFF = [
   "diff --git a/packages/forest-world/src/camera.test.ts b/packages/forest-world/src/camera.test.ts",
@@ -66,6 +66,27 @@ test("2.1 · the first brief holds the branch's diff, every contract of the capa
     assert.ok(brief.checks.some(({ question }) => question === "Is any expected value computed the way the code computes it?"));
     assert.deepEqual(brief.earlier, []);
     assert.doesNotMatch(JSON.stringify(brief), /SECRET BREAKDOWN|Build the email form|reset link/);
+  });
+});
+
+test("2.4 · a contract the increment rewords pending its merge is briefed in its pending text, and one it retires pending its merge is listed as retired and not answered", async () => {
+  await withLibrary(async (library, storytree) => {
+    const { increment, contracts, checks } = await plan(library);
+    await library.advanceIncrement(increment, "active");
+    await library.pendChange(increment, { record: contracts[0]!, fields: { title: "1.1 · A bad email is refused, saying why", description: null } });
+    await library.pendChange(increment, { record: contracts[1]!, retire: "overtaken by 1.1" });
+    const reviews = await openReviews(storytree);
+    const brief = await reviews.brief(library, increment, DIFF);
+
+    assert.deepEqual(brief.contracts, [{ id: contracts[0], title: "1.1 · A bad email is refused, saying why", pending: true }]);
+    assert.deepEqual(brief.retired, [{ id: contracts[1], title: "1.2 · A good email is kept", reason: "overtaken by 1.1" }]);
+    const text = briefText(brief);
+    assert.match(text, /1\.1 · A bad email is refused, saying why/);
+    assert.doesNotMatch(text, /No @, no account\./);
+    assert.match(text, new RegExp(`${contracts[1]}  1\\.2 · A good email is kept\\n    retired by this change, pending its merge: overtaken by 1\\.1`));
+
+    await assert.rejects(reviews.take(library.name, increment, clean(checks, contracts)), new RegExp(`contract ${contracts[1]} is not in the brief`));
+    await reviews.take(library.name, increment, clean(checks, [contracts[0]!]));
   });
 });
 

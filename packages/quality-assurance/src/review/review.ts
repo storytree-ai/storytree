@@ -7,6 +7,8 @@
  *   issued, then the reviewer's return taken. A brief not yet taken is replaced by the next one issued.
  * - The brief holds the branch's diff against origin/main, every contract of the capabilities the increment
  *   names, and every live check; never the increment's body or the implementer's reasoning (contract 2.1).
+ *   A contract the increment changes pending its merge (ADR-0966 D1) is briefed as the change leaves it: in
+ *   its pending text, marked pending, and one it retires listed as retired with the reason, not answered (2.4).
  *   From the second review on it also holds each earlier hit with the implementer's answer, and the
  *   rejections the reviewer must judge (4.2).
  * - A return is taken whole or not at all: it answers every check and contract in its brief, and judges every
@@ -20,7 +22,7 @@
  */
 import { execFileSync } from "node:child_process";
 
-import type { Library, Storytree } from "@storytree/library";
+import type { Library, PendingChange, Storytree } from "@storytree/library";
 
 import { checks as liveChecks, type Graduated } from "../checks/checks.js";
 import type { GraduatedFindings } from "../graduation/graduation.js";
@@ -39,7 +41,10 @@ export interface Brief {
   readonly diff: string;
   /** The packages the diff touches (`root` for files outside any package). */
   readonly packages: readonly string[];
-  readonly contracts: readonly { readonly id: string; readonly title: string; readonly description?: string }[];
+  /** Each contract to judge, in its pending text when the increment changes it pending its merge (`pending`, contract 2.4). */
+  readonly contracts: readonly { readonly id: string; readonly title: string; readonly description?: string; readonly pending?: true }[];
+  /** The contracts the increment retires pending its merge, with the reason: not judged (contract 2.4). Absent from briefs issued before 2.4. */
+  readonly retired?: readonly { readonly id: string; readonly title: string; readonly reason: string }[];
   /** Each live check not graduated whole; one graduated in part names the parts Guardrails now enforces, which the reviewer does not judge (contract 5.2). */
   readonly checks: readonly { readonly id: string; readonly title: string; readonly question: string; readonly graduated?: readonly Graduated[] }[];
   /** Each hit earlier reviews of this change made, with the implementer's answer. */
@@ -124,12 +129,25 @@ class PgReviews implements Reviews {
       ].join("\n"));
     }
     const capabilities = new Set((increment.fields as { capabilities?: string[] }).capabilities ?? []);
-    const contracts = (await library.list("contract"))
-      .filter((contract) => capabilities.has(contract.fields.capability))
-      .map((contract) => ({ id: contract.id, title: contract.fields.title, ...(contract.fields.description === undefined ? {} : { description: contract.fields.description }) }))
-      .sort((a, b) => a.title.localeCompare(b.title, "en", { numeric: true }) || a.id.localeCompare(b.id));
+    const pending = new Map(((increment.fields as { pending?: PendingChange[] }).pending ?? []).map((change) => [change.record, change]));
+    const byTitle = (a: { id: string; title: string }, b: { id: string; title: string }): number => a.title.localeCompare(b.title, "en", { numeric: true }) || a.id.localeCompare(b.id);
+    const named = (await library.list("contract"))
+      .map((contract) => ({ contract, change: pending.get(contract.id) }))
+      .map(({ contract, change }) => ({ contract, change, fields: { ...contract.fields, ...(change !== undefined && "after" in change ? change.after : {}) } as Record<string, unknown> }))
+      .filter(({ fields }) => capabilities.has(fields["capability"] as string));
+    const contracts = named
+      .filter(({ change }) => change === undefined || !("retire" in change))
+      .map(({ contract, change, fields }) => ({
+        id: contract.id, title: fields["title"] as string,
+        ...(typeof fields["description"] === "string" ? { description: fields["description"] } : {}),
+        ...(change === undefined ? {} : { pending: true as const }),
+      }))
+      .sort(byTitle);
+    const retired = named
+      .flatMap(({ contract, change }) => (change !== undefined && "retire" in change ? [{ id: contract.id, title: contract.fields.title, reason: change.retire }] : []))
+      .sort(byTitle);
     const brief: Brief = {
-      project, change, iteration: taken + 1, diff, packages, contracts,
+      project, change, iteration: taken + 1, diff, packages, contracts, retired,
       checks: (await liveChecks(library)).filter(({ graduated }) => !(graduated ?? []).some(({ whole }) => whole)).map(({ id, title, question, graduated }) => ({ id, title, question, ...(graduated === undefined ? {} : { graduated }) })),
       earlier,
       judge: earlier.filter((hit) => hit.answer === "rejected" && !hit.accepted).map((hit) => hit.id),
@@ -241,7 +259,11 @@ export function briefText(brief: Brief): string {
     ].join("\n")),
     "",
     `Contracts (${brief.contracts.length}): for each, say whether the change does what it says, and why not.`,
-    ...brief.contracts.map((contract) => `  ${contract.id}  ${contract.title}${contract.description === undefined ? "" : `\n    ${contract.description}`}`),
+    ...brief.contracts.map((contract) => `  ${contract.id}  ${contract.title}${contract.pending ? "  (as this change rewords it, pending its merge)" : ""}${contract.description === undefined ? "" : `\n    ${contract.description}`}`),
+    ...((brief.retired ?? []).length === 0 ? [] : [
+      `Retired contracts (${brief.retired!.length}): not yours to judge, and not answered in the return.`,
+      ...brief.retired!.map((contract) => `  ${contract.id}  ${contract.title}\n    retired by this change, pending its merge: ${contract.reason}`),
+    ]),
     ...(brief.earlier.length === 0 ? [] : [
       "",
       `Earlier hits (${brief.earlier.length}), with the implementer's answer:`,

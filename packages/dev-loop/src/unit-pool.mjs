@@ -3,8 +3,9 @@
 // it is paced by its slowest unit. The units already share the one Postgres safely: within a unit
 // node --test runs files at once, so every test names its own databases and roles uniquely.
 //
-// How many at once: --jobs=<n>, else STORYTREE_TEST_JOBS, else DEFAULT_JOBS (never more than the
-// machine's cores). CI sets its own per system, chosen against measured runs (ci.yml).
+// How many at once: --jobs=<n>, else STORYTREE_TEST_JOBS, else DEFAULT_JOBS with a core left over
+// for the Postgres and the browsers the tests start. Measured on CI (PR #1029): at 3 on macOS's
+// 3-core runner, forest's real-browser tests timed out; 3 on Linux's and Windows' 4 cores passed.
 // Which first: the slowest, so the longest unit is never the one left running alone at the end:
 // by this machine's recent passes, or, for a unit with none (a fresh CI runner), by the size of its
 // test files, which ranks agent-link, library and forest first as CI's times do.
@@ -17,7 +18,7 @@ export const DEFAULT_JOBS = 3;
 /** How many units a run tests at once, and where that number came from. */
 export function testJobs({ flag, env = process.env, cpus = availableParallelism() } = {}) {
   const [value, source] = flag !== undefined ? [flag, "--jobs"] : env.STORYTREE_TEST_JOBS ? [env.STORYTREE_TEST_JOBS, "STORYTREE_TEST_JOBS"] : [undefined, "default"];
-  if (value === undefined) return { jobs: Math.max(1, Math.min(DEFAULT_JOBS, cpus)), source };
+  if (value === undefined) return { jobs: Math.max(1, Math.min(DEFAULT_JOBS, cpus - 1)), source };
   const jobs = Number(value);
   if (!Number.isInteger(jobs) || jobs < 1) throw new Error(`${source} is a whole number of units to test at once, at least 1, not ${JSON.stringify(value)}`);
   return { jobs, source };

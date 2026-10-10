@@ -181,7 +181,7 @@ export const TEST_USAGE = `pnpm test: run the tests this branch's changes can re
   pnpm run test --full             run everything, whatever changed
   pnpm run test --only=cli,forest  run the named packages (dir, dir name or package name)
   pnpm run test --rerun-failed     run what the last run in this checkout failed or never reached
-  pnpm run test --jobs=<n>         test n units at once (else STORYTREE_TEST_JOBS, else 3); 1 runs them one by one
+  pnpm run test --jobs=<n>         test n units at once (else STORYTREE_TEST_JOBS, else 3, a core left free); 1 runs them one by one
   pnpm run test <files>            run just those files, as one unit
   pnpm run test --set-limit=<unit>=<seconds> --reason="..."   set a unit's deadline on this machine
   pnpm run test --clear-limit=<unit>                          clear it again

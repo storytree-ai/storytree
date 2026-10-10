@@ -44,6 +44,18 @@ function listOf(args: Args, name: string): string[] | undefined {
 }
 
 const ARC_FIELDS = ["title", "intent", "end-state", "description"] as const;
+
+/** `--priority <n|none>` (ADR-0963 D3): a whole number of 1 or more, or `none`, which clears it; not given, nothing. */
+function priorityOf(args: Args): { priority?: number | undefined } {
+  const value = args.text("priority");
+  if (value === undefined) return {};
+  if (value === "none") return { priority: undefined };
+  if (!/^[1-9]\d*$/.test(value) || !Number.isSafeInteger(Number(value))) throw new Refusal(`--priority is a whole number of 1 or more (1 first), or none to clear it; not "${value}"`);
+  return { priority: Number(value) };
+}
+
+/** An arc's priority as said: 1 first, and an arc with none comes after every arc that has one (ADR-0963 D1). */
+const rankOf = (view: ArcView): number => view.arc.fields.priority ?? Infinity;
 const INCREMENT_FIELDS = ["title", "objective", "body"] as const;
 
 /** An increment's close, as given: its outcome. */
@@ -97,6 +109,7 @@ const show: Verb = {
     if (view === null) throw new Refusal(`no arc "${id}" in this project`);
     const { arc, state, increments, questions } = view;
     const lines = [`${arc.fields.title}  [${arc.id}]  ${stateOf(view)}`, "", `Intent: ${arc.fields.intent}`, `End state: ${arc.fields.endState}`];
+    if (arc.fields.priority !== undefined) lines.push(`Priority: ${arc.fields.priority}`);
     for (const line of [...holdsOn(holds, arc.id), ...staleWaits(holds, arc, "arc")]) lines.push(`This arc ${line}`);
     const open = increments.filter((increment) => increment.fields.status !== "closed");
     const closed = increments.filter((increment) => increment.fields.status === "closed");
@@ -139,12 +152,13 @@ const create: Verb = {
 
 const edit: Verb = {
   name: "edit",
-  usage: "arc edit <arc> [--title …] [--intent …] [--end-state …] [--stories a,b]",
-  summary: "change only the named fields",
+  usage: "arc edit <arc> [--title …] [--intent …] [--end-state …] [--stories a,b] [--priority <n|none>]",
+  summary: "change only the named fields; --priority ranks the arc, 1 first, and none clears it",
   async act(args, context) {
     const id = args.word(0, "the arc's id", this.usage);
     const stories = listOf(args, "stories");
-    const edited = await (await context.library()).editArc(id, { ...given(args, ARC_FIELDS), ...(stories === undefined ? {} : { stories }) } as never, context.writer());
+    const priority = priorityOf(args);
+    const edited = await (await context.library()).editArc(id, { ...given(args, ARC_FIELDS), ...(stories === undefined ? {} : { stories }), ...priority } as never, context.writer());
     if (edited === null) throw new Refusal(`no arc "${id}" in this project`);
     return { text: `Edited arc ${id}.`, next: [{ command: `storytree arc show ${id}`, why: "see it whole" }] };
   },
@@ -385,11 +399,16 @@ const increment: Family = {
 const list: Verb = {
   name: "list",
   usage: "arc list",
-  summary: "every live arc and its state",
+  summary: "every live arc, its state and its priority, by priority (1 first, unranked last)",
   async act(_args, context) {
     const library = await context.library();
     const lines: string[] = [];
-    for (const view of await library.arcViews()) lines.push(`  ${view.arc.id}  [${stateOf(view)}]  ${view.arc.fields.title}`);
+    // A stable sort: within one priority, and among the unranked, the order is the library's.
+    const views = (await library.arcViews()).sort((one, other) => rankOf(one) - rankOf(other) || 0);
+    for (const view of views) {
+      const priority = view.arc.fields.priority === undefined ? "" : `  priority ${view.arc.fields.priority}`;
+      lines.push(`  ${view.arc.id}  [${stateOf(view)}]${priority}  ${view.arc.fields.title}`);
+    }
     return {
       text: lines.length === 0 ? "No arcs in this project." : [`${lines.length} arcs:`, ...lines].join("\n"),
       next: [{ command: "storytree arc show <arc>", why: "see one whole" }],

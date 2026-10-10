@@ -2,7 +2,8 @@
  * Capability 11 · Waits (the library story): an arc waits on an arc, and an increment on an increment
  * on any arc, each with a reason, and a wait that would close a loop across both kinds is refused when
  * it is written. An open increment can also wait for the owner or an outside event, with a note (11.6).
- * waitHolds is the one answer to whether a wait still holds.
+ * waitHolds is the one answer to whether a wait still holds. A wait whose blocker lands (an increment)
+ * or closes (an arc) is cleared in the same step, so no stored wait is stale (11.8, ADR-0975).
  *
  * WorkInFlight (capability 10) serializes each write and reads the project's open work once; the
  * rules for what a wait stores, when it holds and when it would close a loop are here.
@@ -111,6 +112,26 @@ export async function removeWait(records: SchemaRecords, waiter: string, blocker
   if (record === null) return null;
   const waits = (record.fields.waits ?? []).filter((wait) => wait.on !== blocker);
   return (await records.edit(waiter, { waits: waits.length === 0 ? undefined : waits }, options)) as SchemaRecord<"arc" | "increment"> | null;
+}
+
+/**
+ * Clear every stored wait on `blocker`, an arc or increment as `kind` says, which has landed (an increment) or closed (an arc), so no
+ * wait is ever stale (11.8): from each open increment that waits on it, or each arc. Each waiter's
+ * history keeps the cleared wait, with `reason`. The ids of the waiters cleared.
+ */
+export async function clearWaitsOn(records: SchemaRecords, kind: "arc" | "increment", blocker: string, reason: string, options?: WriteOptions): Promise<string[]> {
+  const waiters = kind === "arc"
+    ? await records.select("arc", ["waits"])
+    : await records.select("increment", ["waits"], { not: { status: "closed" } });
+  const cleared: string[] = [];
+  for (const { id, fields } of waiters) {
+    const stored: readonly Wait[] = fields.waits ?? [];
+    if (!stored.some((wait) => wait.on === blocker)) continue;
+    const waits = stored.filter((wait) => wait.on !== blocker);
+    await records.edit(id, { waits: waits.length === 0 ? undefined : waits }, { ...options, reason });
+    cleared.push(id);
+  }
+  return cleared;
 }
 
 /**

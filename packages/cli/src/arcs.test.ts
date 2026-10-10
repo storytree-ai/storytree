@@ -388,7 +388,7 @@ test("4.4 `arc show` reads a wait on work held on your question as waiting on yo
   });
 });
 
-test("4.11 `arc show` names a stale wait: one whose blocker has landed, which no longer holds, with the command that clears it", async () => {
+test("4.11 `arc show` says nothing of a wait whose blocker has landed: closing the blocker cleared it", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();
     const arc = await anArc(world);
@@ -402,9 +402,7 @@ test("4.11 `arc show` names a stale wait: one whose blocker has landed, which no
     assert.equal(ran.code, 0, ran.stderr);
     const lines = ran.stdout.split(/\r?\n/);
     const form = lines.findIndex((line) => line.includes(second.id));
-    const block = lines.slice(form, form + 3).join("\n");
-    assert.ok(block.includes(first.id) && /landed/.test(block) && /stale/.test(block), `no stale wait under ${second.id}:\n${ran.stdout}`);
-    assert.ok(block.includes(`storytree arc increment unwait ${second.id} --on ${first.id}`), block);
+    assert.ok(!lines[form + 1]?.includes(first.id), `a wait still said under ${second.id}:\n${ran.stdout}`);
   });
 });
 

@@ -104,17 +104,18 @@ const standingVerb: Verb = {
   },
 };
 
-const graduateUsage = "quality graduate <check> --part … --enforced-by <guardrails check>";
+const graduateUsage = "quality graduate <check> --part … --enforced-by <guardrails check> [--whole]";
 const graduateVerb: Verb = {
   name: "graduate",
   usage: graduateUsage,
-  summary: "record that a part of a check is now enforced by a deterministic check in Guardrails",
+  summary: "record that a part of a check, or with --whole all of it, is now enforced by a deterministic check in Guardrails",
+  switches: ["whole"],
   async act(args, context) {
     const { checks, checksText, graduate } = await import("@storytree/quality-assurance");
     const check = args.word(0, "the check that graduates", graduateUsage);
     const library = await context.library();
-    await graduate(library, check, { part: args.need("part", graduateUsage), enforcedBy: args.need("enforced-by", graduateUsage) });
-    return { text: `Graduated part of ${check}.\n${checksText((await checks(library)).filter(({ id }) => id === check))}` };
+    await graduate(library, check, { part: args.need("part", graduateUsage), enforcedBy: args.need("enforced-by", graduateUsage), ...(args.has("whole") ? { whole: true as const } : {}) });
+    return { text: `Graduated ${args.has("whole") ? "all" : "part"} of ${check}.\n${checksText((await checks(library)).filter(({ id }) => id === check))}` };
   },
 };
 

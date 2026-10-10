@@ -66,8 +66,11 @@ export interface MergeContext {
   readonly session: string;
   readonly harness?: string;
   readonly source: "hook" | "tool";
-  /** The project's library, reached only once a merge is seen, to apply a merged increment's pending plan changes (ADR-0966 D4). */
-  readonly library?: () => Promise<Pick<Library, "applyPending">>;
+  /**
+   * The project's library, to apply a merged increment's pending plan changes (ADR-0966 D4): open, as
+   * a claim's context holds it, or a way to open it, reached only once a merge is seen.
+   */
+  readonly library?: Pick<Library, "applyPending"> | (() => Promise<Pick<Library, "applyPending">>);
 }
 
 /** How often a project is asked about, at most, by default. */
@@ -112,7 +115,10 @@ async function endMergedOn(context: MergeContext, watch: MergeWatch, asked: (bra
       if (pull === undefined) continue;
       if (claim.increment !== undefined && context.library !== undefined) {
         const increment = claim.increment;
-        await context.library().then((library) => library.applyPending(increment, `#${pull.number}`)).catch(() => undefined);
+        const reach = context.library;
+        await Promise.resolve(typeof reach === "function" ? reach() : reach)
+          .then((library) => library.applyPending(increment, `#${pull.number}`))
+          .catch(() => undefined);
       }
       const ender = { session: context.session, ...(context.harness === undefined ? {} : { harness: context.harness }), source: context.source, folder: context.folder };
       written.push((await endClaim(log, ender, partOf(claim), { by: "merge", holder: claim.session, branch: claim.branch, pr: pull.number })).line);

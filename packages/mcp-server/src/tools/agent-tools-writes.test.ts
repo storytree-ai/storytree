@@ -48,6 +48,28 @@ test("6.4 a held claim refusal explains the running command and dirty-main close
   });
 });
 
+test("6.4 a held claim refusal names the increment its holder holds the work for, and when it is free; a holder holding no increment is named with neither", async () => {
+  await withProject(async ({ folder, log, project }) => {
+    await withAgent(folder, claudeCode("contender"), async (agent) => {
+      const { arc, story, capability } = await planned(agent);
+      const increment = idOf(await agent.call("park_increment", { arc, title: "Sign-up form", objective: "Build it", body: "Red then green" }));
+      const loose = idOf(await agent.call("plan_capability", { story, title: "Welcome mail", ...FOUNDED }));
+      const own = { session: "holder", harness: "codex", source: "hook", folder, branch: "main", machine: "mint" } as const;
+      await log.append(project, { ...own, kind: "claimed", increment, reason: "driving the form" });
+      await log.append(project, { ...own, kind: "claimed", capability, reason: "building the form" });
+      await log.append(project, { ...own, session: "loner", kind: "claimed", capability: loose, reason: "writing the mail" });
+      const refused = await agent.call("claim", { capability, reason: "next writer" });
+      assert.equal(refused.isError, true);
+      assert.match(refused.text, new RegExp(`session holder for ${increment} \\(building the form\\)`));
+      assert.match(refused.text, new RegExp(`free once ${increment} closes`));
+      const alone = await agent.call("claim", { capability: loose, reason: "next writer" });
+      assert.equal(alone.isError, true);
+      assert.match(alone.text, /session loner \(writing the mail\)/);
+      assert.doesNotMatch(alone.text, /free once/);
+    });
+  });
+});
+
 test("6.42 close_out reports the calling session's released claims, and a repeated call releases none", async () => {
   await withProject(async ({ folder, log, project }) => {
     await withAgent(folder, claudeCode("closing"), async (agent) => {

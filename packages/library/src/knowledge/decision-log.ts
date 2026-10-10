@@ -86,7 +86,7 @@ export class DecisionLog {
   async setDecisionNumberFloor(floor: number, options: WriteOptions & { readonly apply?: boolean } = {}): Promise<number> {
     this.#requireStorytree();
     if (!Number.isSafeInteger(floor) || floor < 1) throw new RangeError("decision number floor must be a positive safe integer");
-    const history = await this.#records.history({ id: NUMBER_FLOOR_ID });
+    const history = (await this.#records.history({ id: NUMBER_FLOOR_ID })).filter((entry) => entry.type === "decisionNumbering");
     if (history.length > 0) throw new RangeError(`decision number floor is already set to ${this.#numberFloor(history).floor}; it cannot be lowered or set twice`);
     if (options.apply === true) {
       await this.#records.create("decisionNumbering", { floor }, { ...options, id: NUMBER_FLOOR_ID, onlyIfNew: true });
@@ -94,8 +94,9 @@ export class DecisionLog {
     return floor;
   }
 
+  /** Only a decisionNumbering entry is the floor: health history at its id is neither floor nor block. */
   #numberFloor(history: HistoryEntry[]): { floor: number; seq: number } {
-    const entry = history.find((entry) => entry.recordId === NUMBER_FLOOR_ID);
+    const entry = history.find((entry) => entry.recordId === NUMBER_FLOOR_ID && entry.type === "decisionNumbering");
     const floor = entry?.record.fields.floor;
     if (entry === undefined || typeof floor !== "number" || !Number.isSafeInteger(floor) || floor < 1) {
       throw new RangeError("decision number floor is unset; storytree requires its persisted numbering floor before automatic numbering");

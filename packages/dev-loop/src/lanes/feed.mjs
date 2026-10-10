@@ -19,15 +19,20 @@ const rank = (one) => one.priority ?? Infinity;
 
 /**
  * The pool's next `max` increments from one survey (ADR-0955 D2), and why each other was skipped. A candidate is
- * not closed, sits on an active arc, has no live claim, wait or held-on question, and needs neither the owner nor
+ * not closed, sits on an active arc, has no live claim on it or on a capability its list names, no wait or held-on
+ * question, and needs neither the owner nor
  * another machine; no fence or track is read. By arc priority, then oldest parked first, and within one priority
  * those on an arc no live session (nor a pick already made) is on before the rest (ADR-0963 D2). `running` names the increments this dispatcher is running, never started
  * twice; `attempts` maps each increment this dispatcher has started to when it started it: a live claim older than that start
- * refused it, and it is retried only once that claim clears (it records the refusal in `attempts`), never otherwise.
+ * (on it or on a listed capability) refused it, and it is retried only once that claim clears (it records the refusal in `attempts`). Work whose session has
+ * ended and is back in the pool (it bounced on a capability claim, say) is offered again `backoffMs` after the first
+ * survey that found the session gone (it records that in `attempts` as `ended`), so a bounce needs no restart and a
+ * session that bounces every time starts at most once a back-off.
  */
-export function pickPool(survey, { attempts = new Map(), running = [], max = 1 }) {
+export function pickPool(survey, { attempts = new Map(), running = [], max = 1, now = Date.now(), backoffMs = 30 * 60_000 }) {
   const skipped = [];
   const live = new Map(survey.claims.filter((claim) => claim.holder === "live" && claim.increment).map((claim) => [claim.increment, claim]));
+  const liveCapabilities = new Map(survey.claims.filter((claim) => claim.holder === "live" && claim.capability).map((claim) => [claim.capability, claim]));
   const arcOf = new Map(survey.increments.map((one) => [one.id, one.arc]));
   const busy = new Set([...live.keys(), ...running].map((id) => arcOf.get(id)).filter(Boolean));
   const ready = [];
@@ -42,7 +47,15 @@ export function pickPool(survey, { attempts = new Map(), running = [], max = 1 }
         if (attempt && !attempt.refusedBy && Date.parse(claim.since) < attempt.at) attempt.refusedBy = claim.session;
         return `held by live session ${claim.session}`;
       }
-      if (attempt && !attempt.refusedBy) return "already run by this dispatcher";
+      const held = (one.capabilities ?? []).map((capability) => liveCapabilities.get(capability)).filter(Boolean);
+      if (held.length) {
+        if (attempt && !attempt.refusedBy && held.some((hold) => Date.parse(hold.since) < attempt.at)) attempt.refusedBy = held[0].session;
+        return held.map((hold) => `${hold.capability} held by live session ${hold.session}`).join("; ");
+      }
+      if (attempt && !attempt.refusedBy) {
+        attempt.ended ??= now;
+        if (now < attempt.ended + backoffMs) return `already run by this dispatcher; offered again after ${new Date(attempt.ended + backoffMs).toISOString()}`;
+      }
       const waits = survey.holds.waits[one.id] ?? [];
       if (waits.length) return `waits on ${waits.map((hold) => hold.on).join(", ")}`;
       const notes = (survey.holds.waitsFor?.[one.id] ?? []).filter((hold) => hold.holds);
@@ -89,7 +102,7 @@ export async function readSurvey({ library, claims }) {
   const [views, holds, held] = await Promise.all([library.arcViews(), library.holds(), claims()]);
   const increments = views.flatMap((view) => view.increments.map((record) => ({
     id: record.id, arc: view.arc.id, arcState: view.state, title: record.fields.title, body: record.fields.body ?? "",
-    status: record.fields.status, parked: record.fields.parked ?? record.createdAt?.toISOString?.(), priority: view.arc.fields?.priority,
+    status: record.fields.status, capabilities: record.fields.capabilities ?? [], parked: record.fields.parked ?? record.createdAt?.toISOString?.(), priority: view.arc.fields?.priority,
   })));
   const arcs = views.map((view) => ({
     id: view.arc.id, state: view.state, title: view.arc.fields?.title ?? view.arc.id, created: view.arc.createdAt?.toISOString?.(),

@@ -1,0 +1,193 @@
+{
+  "label": "after",
+  "browser": "148.0.7778.96",
+  "errors": [],
+  "warnings": [
+    "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+    "[.WebGL-0x23a400147600]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
+    "[.WebGL-0x23a400147600]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels (this message will no longer repeat)"
+  ],
+  "turn": {
+    "tiltDegrees": 0
+  },
+  "rows": [
+    {
+      "row": 0,
+      "top": 716.8,
+      "bottom": 716.8
+    },
+    {
+      "row": 1,
+      "top": 653.4,
+      "bottom": 653.4
+    },
+    {
+      "row": 2,
+      "top": 591.5,
+      "bottom": 599.4
+    },
+    {
+      "row": 3,
+      "top": 479.9,
+      "bottom": 515.1
+    },
+    {
+      "row": 4,
+      "top": 427.2,
+      "bottom": 439
+    },
+    {
+      "row": 5,
+      "top": 329.8,
+      "bottom": 387.7
+    },
+    {
+      "row": 6,
+      "top": 261.2,
+      "bottom": 261.2
+    },
+    {
+      "row": 7,
+      "top": 199.5,
+      "bottom": 199.5
+    },
+    {
+      "row": 8,
+      "top": 147.2,
+      "bottom": 147.2
+    }
+  ],
+  "rowBandsOverlapping": [],
+  "edgesInView": "40 of 40 point up",
+  "south": [],
+  "islands": [
+    {
+      "title": "The world",
+      "rank": 0,
+      "x": 516.2,
+      "y": 716.8,
+      "facing": 0.31,
+      "latitude": -50.6
+    },
+    {
+      "title": "Process ledger",
+      "rank": 0,
+      "x": 694,
+      "y": 716.8,
+      "facing": 0.63,
+      "latitude": -50.6
+    },
+    {
+      "title": "Keys",
+      "rank": 0,
+      "x": 947.6,
+      "y": 716.8,
+      "facing": 0.15,
+      "latitude": -50.6
+    },
+    {
+      "title": "The library",
+      "rank": 1,
+      "x": 898.5,
+      "y": 653.4,
+      "facing": 0.64,
+      "latitude": -36.9
+    },
+    {
+      "title": "The librarian",
+      "rank": 2,
+      "x": 530.1,
+      "y": 591.5,
+      "facing": 0.74,
+      "latitude": -25.6
+    },
+    {
+      "title": "The map",
+      "rank": 2,
+      "x": 666.1,
+      "y": 599.4,
+      "facing": 0.88,
+      "latitude": -27
+    },
+    {
+      "title": "CI health",
+      "rank": 3,
+      "x": 577.6,
+      "y": 479.9,
+      "facing": 0.91,
+      "latitude": -7.5
+    },
+    {
+      "title": "Guardrails",
+      "rank": 3,
+      "x": 780.8,
+      "y": 515.1,
+      "facing": 0.96,
+      "latitude": -13
+    },
+    {
+      "title": "The agent link",
+      "rank": 4,
+      "x": 359.6,
+      "y": 439,
+      "facing": 0.21,
+      "latitude": -1.1
+    },
+    {
+      "title": "Quality assurance",
+      "rank": 4,
+      "x": 915,
+      "y": 427.2,
+      "facing": 0.85,
+      "latitude": 0.7
+    },
+    {
+      "title": "The knowledge core",
+      "rank": 5,
+      "x": 506.7,
+      "y": 350.9,
+      "facing": 0.79,
+      "latitude": 12.7
+    },
+    {
+      "title": "The dev loop",
+      "rank": 5,
+      "x": 711.1,
+      "y": 329.8,
+      "facing": 0.96,
+      "latitude": 16.1
+    },
+    {
+      "title": "The app setup",
+      "rank": 5,
+      "x": 1075.1,
+      "y": 387.7,
+      "facing": 0.24,
+      "latitude": 6.9
+    },
+    {
+      "title": "The forest",
+      "rank": 6,
+      "x": 976.3,
+      "y": 261.2,
+      "facing": 0.55,
+      "latitude": 27.6
+    },
+    {
+      "title": "The website",
+      "rank": 7,
+      "x": 495.5,
+      "y": 199.5,
+      "facing": 0.48,
+      "latitude": 39.1
+    },
+    {
+      "title": "The command line",
+      "rank": 8,
+      "x": 787.6,
+      "y": 147.2,
+      "facing": 0.61,
+      "latitude": 50.6
+    }
+  ]
+}

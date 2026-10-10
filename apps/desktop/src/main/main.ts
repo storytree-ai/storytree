@@ -71,9 +71,13 @@ import {
   type PageReads,
 } from "@storytree/app";
 import { projectsOnThisComputer, setupHelpActions } from "@storytree/app-setup";
+import { FEEDBACK_IDENTITY_CHANNELS, FEEDBACK_IDENTITY_OFFERED, SETUP_HELP_CHANNELS } from "@storytree/app-setup/bridge";
 import { settingsActions, SETTINGS_CHANNELS } from "@storytree/agent-link/settings";
 import { createJourneyRuntime, type JourneyRuntime } from "@storytree/journey-events/runtime";
 import { JOURNEY_CHANNELS } from "@storytree/journey-events/bridge";
+import { LIFECYCLE_CHANNELS } from "@storytree/app/lifecycle/bridge";
+import { PROJECTS_CHANNELS } from "@storytree/app/projects/bridge";
+import { UPDATES_CHANNELS } from "@storytree/app/updates/bridge";
 import { sourceVersion } from "@storytree/app/version";
 import { connect, type AnnotatedTree, type Storytree } from "@storytree/library";
 import { DataDirInUseError, findBinaries, start, type LocalPostgres } from "@storytree/local-postgres";
@@ -93,6 +97,7 @@ import { AuthKitCore, AuthOperations, sessionEncryption } from "@workos/authkit-
 
 import { CHANNELS } from "../bridge.js";
 import { APP_OWNER, appHome } from "../home.js";
+import { answerPage } from "../page-operations.js";
 import { parseArgs } from "./args.js";
 import { registersSignInScheme, routeCallback } from "./callback-check.js";
 import { createTrayIcon } from "./tray-icon.js";
@@ -210,16 +215,12 @@ if (refusal !== undefined) {
 async function run(): Promise<void> {
   // The bundled main is CommonJS with no import.meta, so its own build is named from Electron when packaged and from the checkout at its app path otherwise.
   journey = createJourneyRuntime({ home: home.dir, appVersion: app.isPackaged ? app.getVersion() : (sourceVersion(app.getAppPath())?.version ?? "0.3.0") });
-  ipcMain.handle(JOURNEY_CHANNELS.readJourney, () => journey!.readJourney());
-  ipcMain.handle(JOURNEY_CHANNELS.chooseJourney, (_event, on: boolean) => journey!.chooseJourney(on));
-  ipcMain.handle(JOURNEY_CHANNELS.prepareJourneyDeletion, () => journey!.prepareJourneyDeletion());
+  answerPage(ipcMain, JOURNEY_CHANNELS, journey);
   if (!args.smoke && !args.startCheck) journey.desktopStarted(installedApp());
   const settings = settingsActions(home.dir);
-  ipcMain.handle(SETTINGS_CHANNELS.readSettings, () => settings.readSettings());
-  ipcMain.handle(SETTINGS_CHANNELS.saveSetting, (_event, name: unknown, values: unknown) => settings.saveSetting(name, values));
+  answerPage(ipcMain, SETTINGS_CHANNELS, settings);
   const surfaces = surfacesActions(SURFACES, home.dir);
-  ipcMain.handle(SURFACES_CHANNELS.readSurfaces, () => surfaces.readSurfaces());
-  ipcMain.handle(SURFACES_CHANNELS.saveSurface, (_event, words: unknown) => surfaces.saveSurface(words));
+  answerPage(ipcMain, SURFACES_CHANNELS, surfaces);
   const help = setupHelpActions({
     licenseFile: path.join(app.isPackaged ? process.resourcesPath : __dirname, "LICENSE"),
     storytreeHome: home.dir,
@@ -234,22 +235,13 @@ async function run(): Promise<void> {
       return storytree;
     },
   });
-  ipcMain.handle(CHANNELS.readSetupLicense, () => help.readSetupLicense());
-  ipcMain.handle(CHANNELS.agentConnections, () => help.agentConnections());
-  ipcMain.handle(CHANNELS.checkSetupFolder, () => help.checkSetupFolder());
-  ipcMain.handle(CHANNELS.addProject, () => help.addProject().then(result => journey!.afterProjectAdded(result)));
-  ipcMain.handle(CHANNELS.removeProject, (_event, name: unknown) => help.removeProject(name));
-  ipcMain.handle(CHANNELS.deletableProjects, () => help.deletableProjects());
-  ipcMain.handle(CHANNELS.deleteProject, (_event, name: unknown, typed: unknown, snapshot: unknown) => help.deleteProject(name, typed, snapshot));
-  ipcMain.handle(CHANNELS.openFeedbackDraft, (_event, draft: unknown) => help.openFeedbackDraft(draft));
-  ipcMain.handle(CHANNELS.copyHelpText, (_event, text: string) => help.copyHelpText(text));
+  // Adding a project also tells the journey, so the frame composes that answer from the two stories'.
+  answerPage(ipcMain, SETUP_HELP_CHANNELS, { ...help, addProject: () => help.addProject().then(result => journey!.afterProjectAdded(result)) });
   // Sign-in for feedback, when this build offers it: the page asks for it before it loads, and gets only an id and an email.
   const feedbackIdentity = identityConfig === undefined ? undefined : startFeedbackIdentity(identityConfig);
-  ipcMain.on(CHANNELS.feedbackIdentityOffered, (event) => { event.returnValue = feedbackIdentity !== undefined; });
+  ipcMain.on(FEEDBACK_IDENTITY_OFFERED, (event) => { event.returnValue = feedbackIdentity !== undefined; });
   if (feedbackIdentity !== undefined) {
-    ipcMain.handle(CHANNELS.feedbackIdentityStatus, () => feedbackIdentity.status());
-    ipcMain.handle(CHANNELS.feedbackIdentitySignIn, () => feedbackIdentity.signIn());
-    ipcMain.handle(CHANNELS.feedbackIdentitySignOut, () => feedbackIdentity.signOut());
+    answerPage(ipcMain, FEEDBACK_IDENTITY_CHANNELS, feedbackIdentity);
     if (registersSignInScheme(args, true)) {
       registerProtocol(AUTH_SCHEME);
       for (const url of [...earlyCallbacks.splice(0), ...callbackUrls(process.argv)]) deliverCallback(url);
@@ -264,11 +256,13 @@ async function run(): Promise<void> {
   ipcMain.handle(CHANNELS.windowReading, (_event, name: unknown, session: unknown) => open().windowReading(name, session));
   ipcMain.handle(CHANNELS.windowReadings, (_event, name: unknown, sessions: unknown) => open().windowReadings(name, sessions));
 
-  ipcMain.handle(CHANNELS.listProjects, () => (reads === undefined ? [] : reads.listProjects()));
-  ipcMain.handle(CHANNELS.projectSelection, () => projects?.read() ?? { projects: [], current: undefined });
-  ipcMain.handle(CHANNELS.chooseProject, (_event, name: unknown) => {
-    if (projects === undefined) throw new Error("The library is not open");
-    return projects.choose(name);
+  answerPage(ipcMain, PROJECTS_CHANNELS, {
+    listProjects: () => (reads === undefined ? [] : reads.listProjects()),
+    projectSelection: () => projects?.read() ?? { projects: [], current: undefined },
+    chooseProject: (name: unknown) => {
+      if (projects === undefined) throw new Error("The library is not open");
+      return projects.choose(name);
+    },
   });
   // The code survey surveys the tree the page last read, rather than reading it a second time.
   const treesRead = new Map<unknown, AnnotatedTree>();
@@ -344,15 +338,16 @@ async function run(): Promise<void> {
     }),
     log: line => console.log(line),
   });
-  ipcMain.handle(CHANNELS.checkForUpdates, (_event, action: unknown) => (releases ?? updates!).request(action));
   // The installed app opens at sign-in, in the tray, unless the user turned that off (lifecycle 1.12).
   const signingIn = signIn({ installed: !args.smoke && installedApp(), file: path.join(home.dir, "sign-in.json"), loginItems: { set: (item) => app.setLoginItemSettings(item) } });
-  ipcMain.handle(CHANNELS.readSignIn, () => signingIn.read());
-  ipcMain.handle(CHANNELS.setSignIn, (_event, on: unknown) => signingIn.set(on));
+  answerPage(ipcMain, LIFECYCLE_CHANNELS, { readSignIn: () => signingIn.read(), setSignIn: (on: unknown) => signingIn.set(on) });
   // When a downloaded release may install itself (updates 4.13): meaningful only where releases install.
   const installing = installChoice({ available: !args.smoke && installedApp(), file: path.join(home.dir, "install-choice.json") });
-  ipcMain.handle(CHANNELS.readInstallChoice, () => installing.read());
-  ipcMain.handle(CHANNELS.setInstallChoice, (_event, choice: unknown) => installing.set(choice));
+  answerPage(ipcMain, UPDATES_CHANNELS, {
+    checkForUpdates: (action: unknown) => (releases ?? updates!).request(action),
+    readInstallChoice: () => installing.read(),
+    setInstallChoice: (choice: unknown) => installing.set(choice),
+  });
   console.log(`storytree 0.3: ${build}`);
   windowQuery = { ...(problem === undefined ? {} : { problem }) };
   if (args.smoke) await smoke(openWindow(windowQuery), project);

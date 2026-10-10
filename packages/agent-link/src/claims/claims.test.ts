@@ -17,13 +17,12 @@ import { lineText, readClaim, readClaims } from "../index.js";
 import { claimFrom, claimsFrom, LONGEST_COMMAND_MS } from "../readings.js";
 import { runHook } from "../hooks/index.js";
 import { MARKER_FILE } from "../routing/index.js";
-import { claudeCode, withAgent } from "../testing/agent.js";
 import { countingStore } from "../testing/egress.js";
 import { withTempDir } from "../testing/folders.js";
 import { approveCheckout, dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { closeOut, readSessions } from "../sessions/index.js";
 import { claim, claimRefusal, closed, land, readAttribution, release, releaseFor, type ClaimContext, type MergedPull, type MergeWatch } from "./index.js";
-import { boardClaims, due, mergedPullsThrough, projectTempFile, type OpenPull } from "./merges.js";
+import { boardClaims, due, endMergedClaims, mergedPullsThrough, projectTempFile, type OpenPull } from "./merges.js";
 import { staleClaims } from "./stale-claims.js";
 
 interface World {
@@ -112,6 +111,29 @@ test("5.2 B's claim on it is refused, naming A, and a claim-refused line records
       [{ capability: emailForm, session: "B", reason: "A went quiet; taking over" }],
       "B holds it now, and A does not",
     );
+  });
+});
+
+test("5.35 a refused claim names the increments its holder holds the work for: the one it claimed the work under first, then the rest it holds; none when it holds no increment", async () => {
+  await withWorld(async ({ library, emailForm, passwordReset, as }) => {
+    const { park } = await arcOf(library);
+    const other = await park("welcome email");
+    const driving = await park("email form");
+    assert.equal((await claim(as("A"), other, "driving the welcome email")).ok, true);
+    assert.equal((await claim(as("A"), driving, "driving the email form")).ok, true);
+    assert.equal((await claim(as("A"), emailForm, "building the email form")).ok, true);
+    assert.equal((await claim(as("C"), passwordReset, "fixing the reset link")).ok, true);
+
+    const refused = await claim(as("B"), emailForm, "I want it too");
+    assert.ok(!refused.ok && refused.refused === "held");
+    assert.deepEqual(refused.heldFor, [driving, other], "the increment it was claimed under first");
+    const unlocked = await claimRefusal(as("B"), emailForm);
+    assert.ok(unlocked?.refused === "held");
+    assert.deepEqual(unlocked.heldFor, [driving, other], "read without the lock, the same");
+
+    const none = await claim(as("B"), passwordReset, "I want this one");
+    assert.ok(!none.ok && none.refused === "held");
+    assert.deepEqual(none.heldFor, [], "its holder holds no increment");
   });
 });
 
@@ -377,13 +399,13 @@ test("5.10 a claim taken on branch feature/signup ends with a merged line once G
       assert.equal((await claim(as("B", { branch: "feature/reset" }), passwordReset, "building the reset")).ok, true); // B's pull request is still open
       await sleep(20);
 
-      await withAgent(folder, { ...claudeCode("C"), merges }, async (agent) => {
-        await agent.call("show_plan");
-        assert.deepEqual(await held(), [[emailForm, "A"], [passwordReset, "B"]], "a merge from before the claim, and an open pull request, end nothing");
+      // What the MCP server's wrapper calls before every tool call (ADR-0969 D1).
+      const toolCall = () => endMergedClaims({ log, project, folder, session: "C", harness: "claude-code", source: "tool" }, merges);
+      await toolCall();
+      assert.deepEqual(await held(), [[emailForm, "A"], [passwordReset, "B"]], "a merge from before the claim, and an open pull request, end nothing");
 
-        pulls.set("feature/signup", [...pulls.get("feature/signup")!, { number: 7, mergedAt: new Date().toISOString() }]);
-        await agent.call("show_plan");
-      });
+      pulls.set("feature/signup", [...pulls.get("feature/signup")!, { number: 7, mergedAt: new Date().toISOString() }]);
+      await toolCall();
       assert.deepEqual(await held(), [[passwordReset, "B"]], "the merge ended A's claim, at the next tool call");
       const merged = (await log.since(project, 0)).lines.filter((line) => line.kind === "merged");
       assert.deepEqual(

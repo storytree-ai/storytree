@@ -14,8 +14,8 @@
  *   no whole job holding test results.
  * - A branch that merges through GitHub's merge queue has each commit tested by the queue's `merge_group` run before the
  *   branch is moved to it, and the next merge usually cancels the push run of that commit. So the queue's finished run
- *   of a commit the default branch's push runs name is read in that push run's place, the push run first when it ran
- *   to its end. A queue run of a commit the branch never reached is not: its merge failed or was taken out.
+ *   of a commit the default branch's push runs name, by the push run's own workflow, is read in that push run's place,
+ *   the push run first when it ran to its end; another workflow's queue run, which may upload no test results, never is. A queue run of a commit the branch never reached is not: its merge failed or was taken out.
  * - A skipped job is passed over; a cancelled job's log is read if available, passed over only on 404.
  * - Each job's results are its platform's, read from its runner labels or its name, so a test one platform skips
  *   for another is credited from the jobs of the platform it needs.
@@ -120,14 +120,15 @@ export async function readProjectCi({ library, git, github }: { library: Library
 
   const branch: string = (await github.json(`repos/${repository}`)).default_branch;
   const query = new URLSearchParams({ branch, event: "push", status: "completed", per_page: String(RUNS_LOOKED_AT) });
-  type Run = { id: number; conclusion?: string; head_sha: string; head_branch?: string; html_url: string };
+  type Run = { id: number; workflow_id?: number; conclusion?: string; head_sha: string; head_branch?: string; html_url: string };
   const finished: Run[] = (await github.json(`repos/${repository}/actions/runs?${query}`)).workflow_runs ?? [];
   if (finished.length === 0) return { written: false, why: `${repository} has no finished push run on ${branch}, so there are no CI results to read; its health stays not checked.` };
   const queued = new URLSearchParams({ event: "merge_group", status: "completed", per_page: String(RUNS_LOOKED_AT) });
   const queueRuns: Run[] = ((await github.json(`repos/${repository}/actions/runs?${queued}`)).workflow_runs ?? [])
     .filter((run: Run) => String(run.head_branch).startsWith(`gh-readonly-queue/${branch}/`));
-  // Each commit the branch's push runs name, newest first: its push run, then the merge queue's runs of the same commit.
-  const candidates = finished.flatMap((push) => [push, ...queueRuns.filter(({ head_sha }) => head_sha === push.head_sha)]);
+  // Each commit the branch's push runs name, newest first: its push run, then the merge queue's runs of the same commit by
+  // the same workflow. Another workflow's queue run (a check that uploads no test results) is never read in its place.
+  const candidates = finished.flatMap((push) => [push, ...queueRuns.filter(({ head_sha, workflow_id }) => head_sha === push.head_sha && workflow_id === push.workflow_id)]);
   // A newer push cancels the run before it, often before its slowest job ran its tests: read the newest that ran to its end.
   // A run can conclude failure for that alone (an aggregate job failing on its cancelled ones), so it is judged by its jobs too.
   let read: { run: Run; results: ReturnType<typeof parseTestLog> } | undefined;

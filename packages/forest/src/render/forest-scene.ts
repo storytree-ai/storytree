@@ -69,7 +69,8 @@ export function forestScene(tree: AnnotatedTree, history: readonly Change[], sta
   });
   const links = tree.stories.flatMap(story => story.capabilities.flatMap(capability =>
     capability.dependsOn.map(to => ({ from: capability.id, to }))));
-  return { islands, links };
+  const rowLinks = [...nodes.values()].flatMap(({ id, dependsOn }) => dependsOn.map(to => ({ from: id, to })));
+  return { islands, links, rowLinks };
 }
 
 /** The stories whose islands differ between two scenes: redrawn, added or gone, in `after`'s order then `before`'s. */

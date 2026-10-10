@@ -27,8 +27,10 @@ import { setUpProject } from "../project/making.js";
 import { runSetupCheck } from "./index.js";
 import { builtFromMain, FIX_SENTENCES, ghState, launcherFile, machineState, putCommandOnPath, registerHooks, removeCommand, removeHooks, verifyHooks, type HookCommand, type Homes } from "./index.js";
 
-const STUB_APP = fileURLToPath(new URL("../testing/stub-app.mjs", import.meta.url));
-const FIXTURES = fileURLToPath(new URL("../hooks/fixtures/", import.meta.url));
+/** The stub app and the harness payload fixtures stay with the agent link, whose hooks they feed. */
+const AGENT_LINK_SRC = path.dirname(fileURLToPath(import.meta.resolve("@storytree/agent-link")));
+const STUB_APP = path.join(AGENT_LINK_SRC, "testing", "stub-app.mjs");
+const FIXTURES = path.join(AGENT_LINK_SRC, "hooks", "fixtures") + path.sep;
 
 /** A hook command as the setup check registers it: registering never runs it. */
 const HOOK: HookCommand = { node: process.execPath, script: path.join(tmpdir(), "storytree", "dist", "storytree-hook.mjs") };

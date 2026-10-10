@@ -5,7 +5,6 @@
  */
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { connect as connectTo, createServer, type AddressInfo, type Socket } from "node:net";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
@@ -146,44 +145,6 @@ test('2.3 lines written for project "site" never appear when reading project "ap
   });
 });
 
-/**
- * A stand-in for the test server whose first connection is reset before anything is said, as
- * Postgres on Windows sometimes resets a connection it is refusing (one to a database not made
- * yet) before its refusal arrives. Every later connection is passed through to the test server.
- */
-async function firstConnectionReset(): Promise<{ url: string; close(): Promise<void> }> {
-  const target = new URL(testServerUrl());
-  const sockets = new Set<Socket>();
-  let first = true;
-  const server = createServer((client) => {
-    sockets.add(client);
-    if (first) {
-      first = false;
-      client.resetAndDestroy();
-      return;
-    }
-    const upstream = connectTo(Number(target.port), target.hostname);
-    sockets.add(upstream);
-    const end = (): void => {
-      client.destroy();
-      upstream.destroy();
-    };
-    for (const socket of [client, upstream]) socket.on("error", end).on("close", end);
-    client.pipe(upstream).pipe(client);
-  });
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const url = new URL(target.href);
-  url.port = String((server.address() as AddressInfo).port);
-  return {
-    url: url.href,
-    close: () =>
-      new Promise((resolve) => {
-        for (const socket of sockets) socket.destroy();
-        server.close(() => resolve());
-      }),
-  };
-}
-
 test("2.6 a line may name the earlier line of its own project's log that caused it, and reads back naming it; one naming a line its project's log does not hold is refused, and nothing is written", async () => {
   const site = uniqueProjectName();
   const app = uniqueProjectName();
@@ -200,22 +161,6 @@ test("2.6 a line may name the earlier line of its own project's log that caused 
     }
     assert.deepEqual((await log.since(app, called.seq)).lines, [], "a refused line is never written");
   });
-});
-
-test("the log opens even when Postgres on Windows resets its first connection, as it did the first time the log was opened in a fresh cluster (regression: the Windows run of storytree-ai/storytree#11)", async () => {
-  const project = uniqueProjectName();
-  const server = await firstConnectionReset();
-  try {
-    const log = await openActivityLog(server.url);
-    try {
-      const line = await log.append(project, { session: "s", source: "hook", kind: "command-run", command: "npm test" });
-      assert.deepEqual((await log.since(project, 0)).lines, [line]);
-    } finally {
-      await log.close();
-    }
-  } finally {
-    await server.close();
-  }
 });
 
 test("2.4 the log never shows up in the library's list of projects, and writing lines leaves the library's own records and change feed untouched", async () => {

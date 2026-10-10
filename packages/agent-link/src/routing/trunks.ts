@@ -83,39 +83,9 @@ const SCHEMA = `CREATE TABLE IF NOT EXISTS trunks (
 /** A trunks table made before approval (ADR-0942) gains it, every record unapproved: nothing is grandfathered (D3). */
 const APPROVAL = "ALTER TABLE trunks ADD COLUMN IF NOT EXISTS approved_at timestamptz, ADD COLUMN IF NOT EXISTS approved_by text";
 
-/** Pools whose trunks table this process has already set up. */
-const ready = new WeakSet<Pool>();
-
-async function trunksPool(storytree: Storytree): Promise<Pool> {
-  const pool = await storytree.ownDatabase(TRUNKS_DATABASE);
-  if (!ready.has(pool)) {
-    await setUpTrunks(pool);
-    ready.add(pool);
-  }
-  return pool;
-}
-
-/**
- * Make the trunks table in `pool`'s database unless it is there. First setups can race (the app,
- * an agent and the CLI on a new server), and two concurrent CREATE TABLE IF NOT EXISTS can collide
- * on the table's type, so they take turns on an advisory lock.
- */
-export async function setUpTrunks(pool: Pool): Promise<void> {
-  const client = await pool.connect();
-  let failed = false;
-  try {
-    await client.query("BEGIN");
-    await client.query("SELECT pg_advisory_xact_lock(hashtext('storytree.trunks-schema'))");
-    await client.query(SCHEMA);
-    await client.query(APPROVAL);
-    await client.query("COMMIT");
-  } catch (error) {
-    failed = true;
-    await client.query("ROLLBACK").catch(() => undefined);
-    throw error;
-  } finally {
-    client.release(failed);
-  }
+/** The trunks database, set up by the library with the table's definitions (ADR-0973). */
+function trunksPool(storytree: Storytree): Promise<Pool> {
+  return storytree.ownDatabase(TRUNKS_DATABASE, { tables: [SCHEMA, APPROVAL] });
 }
 
 /** Every project's trunk on `machine`. */

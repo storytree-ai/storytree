@@ -134,7 +134,7 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await flight.questions(arc.id), [settled], "it stays on its arc, answer and all");
   });
 
-  contract("12.3", "an open increment held on an open question reads as waiting on the owner; settling releases it with no write to the increment; a question that does not exist holds nothing", async ({ work, flight, records, transactions }) => {
+  contract("12.3", "an open increment held on an open question reads as waiting on the owner; settling takes the question off every increment's heldOn, keeping its other holds; a question that does not exist holds nothing", async ({ work, flight, records, transactions }) => {
     const arc = await work.createArc(ARC);
     const question = await flight.raiseQuestion({ arc: arc.id, ...ASK });
     const held = await flight.addIncrement({ arc: arc.id, ...WORK, heldOn: [question.id] });
@@ -148,11 +148,16 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await flight.heldOnQuestion(held.id), [], "closed work waits on nobody");
     assert.equal((await flight.arcView(arc.id))?.state, "active", "a question on it waits on the owner");
 
+    const other = await flight.raiseQuestion({ arc: arc.id, ...ASK });
     const open = await flight.addIncrement({ arc: arc.id, ...WORK, heldOn: [question.id] });
-    const before = await transactions.history({ id: open.id });
+    const both = await flight.addIncrement({ arc: arc.id, ...WORK, heldOn: [question.id, other.id] });
     await flight.settleQuestion(question.id, { answer: "Mailgun" });
     assert.deepEqual(await flight.heldOnQuestion(open.id), [], "settling released it");
-    assert.deepEqual(await transactions.history({ id: open.id }), before, "with no write to the increment");
+    const heldOn = async (id: string): Promise<unknown> => ((await records.get(id))?.fields as { heldOn?: unknown } | undefined)?.heldOn;
+    assert.equal(await heldOn(open.id), undefined, "its heldOn no longer names the settled question");
+    assert.deepEqual(await heldOn(both.id), [other.id], "its other holds stay");
+    await flight.settleQuestion(other.id, { answer: "Postmark" });
+    await flight.closeIncrement(both.id, { pr: "#4", disposition: "landed" });
     await flight.closeIncrement(open.id, { pr: "#3", disposition: "landed" });
     assert.equal((await flight.arcView(arc.id))?.state, "closed");
 

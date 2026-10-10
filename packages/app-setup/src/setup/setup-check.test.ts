@@ -305,7 +305,7 @@ test("8.3 with storytree closed, a session start opens it", async () => {
   });
 });
 
-test("opening storytree waits until it accepts connections, not only until it has said where it will listen (regression: Session management's live check, 2026-09-26)", async () => {
+test("opening storytree waits until it accepts connections, not only until it has said where it will listen (regression: the agent link's live check, 2026-09-26)", async () => {
   await withTempDir(async (dir) => {
     const storytreeHome = path.join(dir, "storytree-home");
     mkdirSync(storytreeHome);

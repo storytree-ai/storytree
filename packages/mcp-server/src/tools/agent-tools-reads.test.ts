@@ -301,7 +301,7 @@ test("6.5 a note written with no place named while holding a claim goes onto tha
   });
 });
 
-test("the sentence travels with the data: a harness that shows the agent a tool's data instead of its text, as Claude Code 2.1.212 did, still shows the sentence (regression: Session management's live check, 2026-09-26)", async () => {
+test("the sentence travels with the data: a harness that shows the agent a tool's data instead of its text, as Claude Code 2.1.212 did, still shows the sentence (regression: the agent link's live check, 2026-09-26)", async () => {
   await withProject(async ({ folder }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const story = await agent.call("plan_story", { title: "Visitor can sign up", ...FOUNDED });

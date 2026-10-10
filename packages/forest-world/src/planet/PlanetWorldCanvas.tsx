@@ -12,7 +12,7 @@ import { EXACT_COLOUR_CANVAS_PROPS } from '../exact-colour.js';
 import { SHIPPED_ELEVATION_DEG } from './camera.js';
 import { createPlanetSurface, plateTransform, type PlanetSpot } from './planet.js';
 import { disposeIslandSurface, islandSurface } from './island-surface.js';
-import { applyPlanetFraming, applyPlanetSideOffset } from './camera.js';
+import { applyPlanetFraming, applyPlanetSideOffset, wheelFloor } from './camera.js';
 import { GrowthProvider, usePlanetGrowth, type PlanetGrowth } from './PlanetGrowth.js';
 import { plateGrowth, roadSegmentWindows } from './growth.js';
 import { paintWhileSeen, startingFrameloop, viewportWatch, type ViewportWatch } from './paint-while-seen.js';
@@ -125,6 +125,12 @@ function Framing({ radius, framing, sideOffset }: { radius: number; framing: num
   return null;
 }
 
+/** The wheel and pinch zoom the eye; zooming out stops at half the framed size (6.18). */
+function Wheel({ radius, framing, orbit }: { radius: number; framing: number; orbit: boolean }) {
+  const size = useThree(state => state.size);
+  return <OrbitControls makeDefault enablePan={false} enableRotate={orbit} minZoom={wheelFloor(radius, framing, size)} maxZoom={30} />;
+}
+
 /** World 6.10: the globe draws only while some of its canvas is on screen, however busy its animations are. */
 function PaintWhileSeen({ watch }: { watch: ViewportWatch | undefined }) {
   const get = useThree(state => state.get);
@@ -170,7 +176,7 @@ export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1
       <group name="globe-roads" visible={exterior.roads}><Pathways plan={pathways} reveal={reveal} live={liveRoads && growth === undefined} visible={exterior.roads} /><SelectionLanes plan={pathways} lit={lanes} onReach={onLaneReach} /></group>
       {inside}
     </group>
-    <OrbitControls makeDefault enablePan={false} enableRotate={orbit} minZoom={0.1} maxZoom={30} />
+    <Wheel radius={radius} framing={framing} orbit={orbit} />
     {/* The host's children read the growth too (usePlanetGrowth), as the plates and the inside do. */}
     {children}
     </GrowthProvider>

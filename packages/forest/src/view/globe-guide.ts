@@ -7,7 +7,9 @@ export type GlobePose = { turn: GlobeTurn; framing: number; sideOffset: number }
 export type CameraStop = { target: GlobeTarget; framing?: number; sideOffset?: number; duration?: number };
 export type ScreenPosition = { x: number; y: number; visible: boolean };
 export type GlobeControls = { stop(stop: CameraStop): boolean; position(target: GlobeTarget): ScreenPosition | undefined; cancel(): void };
-export function createGlobeGuide(host: { world(): Object3D; camera(): Camera; size(): { width: number; height: number }; read(): GlobePose; write(pose: GlobePose): void; invalidate(): void }): GlobeControls & { frame(milliseconds: number): boolean } {
+/** The short way round from `from` to face the way `to` does, as a yaw to ease toward. */
+const nearestYaw = (from: number, to: number) => from + Math.atan2(Math.sin(to - from), Math.cos(to - from));
+export function createGlobeGuide(host: { world(): Object3D; camera(): Camera; size(): { width: number; height: number }; read(): GlobePose; write(pose: GlobePose): void; invalidate(): void }): GlobeControls & { frame(milliseconds: number): boolean; home(pose: GlobePose, duration?: number): boolean } {
   let motion: { from: GlobePose; to: GlobePose; elapsed: number; duration: number } | undefined;
   function frame(milliseconds: number): boolean {
     if (motion === undefined) return false;
@@ -22,6 +24,14 @@ export function createGlobeGuide(host: { world(): Object3D; camera(): Camera; si
     host.invalidate();
     return motion !== undefined;
   }
+  function go(from: GlobePose, to: GlobePose, duration: number): boolean {
+    if (!Number.isFinite(to.framing) || to.framing <= 0 || !Number.isFinite(to.sideOffset) || !Number.isFinite(duration) || duration < 0) return false;
+    motion = undefined;
+    if (duration === 0) host.write(to);
+    else motion = { from, to, duration, elapsed: 0 };
+    host.invalidate();
+    return true;
+  }
   return {
     stop(stop) {
       const world = host.world(); world.updateMatrixWorld(true);
@@ -30,15 +40,13 @@ export function createGlobeGuide(host: { world(): Object3D; camera(): Camera; si
       const from = host.read();
       const facing = stop.target.kind === "core" ? from.turn : turnToIsland(globe.worldToLocal(target.point.clone()));
       // Take the short way round the poles, retaining the app's north-up yaw/pitch turn.
-      const yaw = from.turn.yaw + Math.atan2(Math.sin(facing.yaw - from.turn.yaw), Math.cos(facing.yaw - from.turn.yaw));
-      const to = { turn: { yaw, pitch: facing.pitch }, framing: stop.framing ?? from.framing, sideOffset: stop.sideOffset ?? from.sideOffset };
-      const duration = stop.duration ?? 600;
-      if (!Number.isFinite(to.framing) || to.framing <= 0 || !Number.isFinite(to.sideOffset) || !Number.isFinite(duration) || duration < 0) return false;
-      motion = undefined;
-      if (duration === 0) host.write(to);
-      else motion = { from, to, duration, elapsed: 0 };
-      host.invalidate();
-      return true;
+      const to = { turn: { yaw: nearestYaw(from.turn.yaw, facing.yaw), pitch: facing.pitch }, framing: stop.framing ?? from.framing, sideOffset: stop.sideOffset ?? from.sideOffset };
+      return go(from, to, stop.duration ?? 600);
+    },
+    // 3.37: back to the opening view, facing the way it opened however many times it was spun round.
+    home(pose, duration = 600) {
+      const from = host.read();
+      return go(from, { ...pose, turn: { yaw: nearestYaw(from.turn.yaw, pose.turn.yaw), pitch: pose.turn.pitch } }, duration);
     },
     position(target) {
       const world = host.world(), camera = host.camera();

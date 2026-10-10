@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { OrthographicCamera, Vector3 } from 'three';
-import { applyPlanetFraming, applyPlanetSideOffset } from './camera.js';
+import { applyPlanetFraming, applyPlanetSideOffset, wheelFloor } from './camera.js';
 
 const near = (actual: number, expected: number) =>
   assert.ok(Math.abs(actual - expected) < 1e-8, `${actual} != ${expected}`);
@@ -68,5 +68,17 @@ test('6.6 framing and sideways offset still land at the same requested positions
     near(centre.x, width / 2 + 86);
     near(centre.y, height / 2);
     near(limb.x - centre.x, Math.min(width, height) / (2 * 1.18));
+  }
+});
+
+test('6.18 the wheel floor is half the framed size: at it, the globe spans half the radii its framing gives it', () => {
+  for (const [width, height] of [[1000, 600], [450, 900]] as const) {
+    const camera = cameraFor(width, height);
+    const radius = 210, framing = 1.18;
+    applyPlanetFraming(camera, radius, framing, { width, height });
+    const opened = camera.zoom;
+    near(wheelFloor(radius, framing, { width, height }), opened / 2);
+    // A host's framing that pulls further back (a tour's wide shot) lowers the floor with it.
+    near(wheelFloor(radius, framing * 7, { width, height }), opened / 14);
   }
 });

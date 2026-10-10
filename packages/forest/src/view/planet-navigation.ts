@@ -64,12 +64,16 @@ export function planetLayout(scene: ForestScene, places: ReadonlyMap<string, num
   return { scene, islands, spots: same ? before.spots : spots, radius: grown.radius };
 }
 
-/** How far the globe tilts toward either pole: just short of it, so north always stays up on screen. */
-export const TILT_LIMIT = 88 * Math.PI / 180;
+/**
+ * How far the globe tilts toward either pole (3.38, ADR-0977): 50°, enough to bring the top and bottom rows
+ * (42° north and south) past the middle of the view, never so far that the view looks down from over a pole.
+ * The Library keeps the same stop: its notes fill a see-through ball, so no tilt hides any of them.
+ */
+export const TILT_LIMIT = 50 * Math.PI / 180;
 
 /**
- * The globe as turned in the eye's frame: spun about its poles by yaw, then tilted by pitch, held short of
- * each pole. Nothing else turns it, so with an eye that never rolls, north points straight up the screen.
+ * The globe as turned in the eye's frame: spun about its poles by yaw, then tilted by pitch, held within
+ * the tilt stop. Nothing else turns it, so with an eye that never rolls, north points straight up the screen.
  */
 export function focusRotation(turn: GlobeTurn, eye: Quaternion): Quaternion {
   const pitch = Math.max(-TILT_LIMIT, Math.min(TILT_LIMIT, turn.pitch));
@@ -78,7 +82,7 @@ export function focusRotation(turn: GlobeTurn, eye: Quaternion): Quaternion {
 
 /**
  * A drag of `drag` pixels on a canvas `height` tall: sideways spins the globe about its poles without limit,
- * up and down tilts it, short of each pole. A drag the canvas's height turns it once around, as the orbit did.
+ * up and down tilts it, up to the tilt stop. A drag the canvas's height turns it once around, as the orbit did.
  */
 export function dragTurn(turn: GlobeTurn, drag: { x: number; y: number }, height: number): GlobeTurn {
   const rate = 2 * Math.PI / height;

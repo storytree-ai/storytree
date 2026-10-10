@@ -202,6 +202,35 @@ test("5.12 `question new --hold` releases the asking session's claims on the hel
   });
 });
 
+test("5.13 `question present` marks a question as being put to the owner by the calling session; another live session is refused, naming it, `question list` flags it, and `--done` frees it", async () => {
+  await inWorld(command, async (world) => {
+    const { arc } = await arcWithWork(world);
+    const library = await world.library();
+    const question = await library.raiseQuestion({ title: "Mailer?", stakes: "Reach readers", statement: "Which?", context: "Email", options: "Mailgun or SES", arc });
+    const log = await openActivityLog(testServerUrl());
+    try {
+      for (const session of ["claude-a", "claude-b"]) await log.append(world.project, { session, harness: "claude-code", source: "hook", kind: "session-started" });
+      const a = { CLAUDE_CODE_SESSION_ID: "claude-a" };
+      const b = { CLAUDE_CODE_SESSION_ID: "claude-b" };
+
+      const presented = await world.run(["question", "present", question.id], a);
+      assert.equal(presented.code, 0, presented.stderr);
+      const refused = await world.run(["question", "present", question.id], b);
+      assert.notEqual(refused.code, 0);
+      assert.match(refused.stderr, /claude-a/, "it names the session putting it to the owner");
+      const listed = await world.run(["question", "list"]);
+      assert.match(listed.stdout, new RegExp(`${question.id}.*being put to the owner by Claude Code session claude-a`));
+
+      const done = await world.run(["question", "present", question.id, "--done"], a);
+      assert.equal(done.code, 0, done.stderr);
+      assert.doesNotMatch((await world.run(["question", "list"])).stdout, /being put to the owner/);
+      assert.equal((await world.run(["question", "present", question.id], b)).code, 0, "free once A is done");
+    } finally {
+      await log.close();
+    }
+  });
+});
+
 test("5.10 unsupported question new flags are refused before any write, naming --hold", async () => {
   await inWorld(command, async (world) => {
     const { arc, increment } = await arcWithWork(world);

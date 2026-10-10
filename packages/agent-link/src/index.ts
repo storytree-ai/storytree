@@ -11,8 +11,8 @@ export { ACTIVITY_DATABASE, cachedLines, currentBranch, forgetProjectActivity, f
 export type { ActivityLog, Agent, Line, LineKind, LinesCache, LinesSince, LockedLog, NewLine, OpenOptions } from "./activity/index.js";
 export { closeOut, labelOf, nameRefusal, nameSession, SESSION_NAME_LIMIT, lookAsApp, projectFolder, QUIET_MS, readSessions, sessionsFrom, sessionsListing } from "./sessions/index.js";
 export type { CloseOut, CloseOutContext, Session, SessionOptions, SessionState } from "./sessions/index.js";
-export { attachWorkspace, attributeFrom, boardClaims, claim, claimFrom, claimsFrom, closed, land, makeWorkspace, readAttribution, readClaim, readClaims, release, releaseAsked, releaseFor, staleClaims, CLAIM_REASON_LIMIT, claimRefusal, endMergedClaims, increments } from "./claims/index.js";
-export type { Attributed, Claim, ClaimAnswer, ClaimContext, ClaimsOptions, LandAnswer, ReleaseAnswer, ReleaseForAnswer, StaleClaim, StaleWorklist, MergeWatch, ClaimedWorkspace, OpenPullForWork, WorkspaceAnswer, WorkspaceAttachment, WorkspaceRefusal } from "./claims/index.js";
+export { attachWorkspace, attributeFrom, boardClaims, claim, claimFrom, claimsFrom, closed, land, makeWorkspace, presentersOf, presentQuestion, readAttribution, readClaim, readClaims, release, releaseAsked, releaseFor, staleClaims, stopPresenting, CLAIM_REASON_LIMIT, claimRefusal, endMergedClaims, increments } from "./claims/index.js";
+export type { Attributed, Claim, ClaimAnswer, ClaimContext, ClaimsOptions, LandAnswer, PresentAnswer, Presenter, ReleaseAnswer, ReleaseForAnswer, StaleClaim, StaleWorklist, MergeWatch, ClaimedWorkspace, OpenPullForWork, WorkspaceAnswer, WorkspaceAttachment, WorkspaceRefusal } from "./claims/index.js";
 export { agentOf, callLines, lineOf, requestOf, seenCaller } from "./sessions/caller.js";
 export type { Caller, CallMeta } from "./sessions/caller.js";
 export { codexHookTrust, noteCodexHookRan } from "./hooks/index.js";

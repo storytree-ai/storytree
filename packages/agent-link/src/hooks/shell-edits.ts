@@ -9,7 +9,10 @@
  * including after failure and while offline. Nothing here reads the library or parses shell code.
  * A file a pull, merge, checkout, reset or rebase brought in, left exactly as Git wrote it, is not
  * the session's edit. Commits of its own writes still count. A reflog offset distinguishes a reset
- * at the same HEAD and a round trip between branches from no Git operation at all.
+ * at the same HEAD and a round trip between branches from no Git operation at all. A move HEAD's
+ * log cannot account for (another tool moved HEAD unlogged, or the log was rewritten) still imports
+ * what a commit already on a remote brought, and a comparison Git cannot finish fails the observation:
+ * a checkout another process pulled is never the session's edit (increment_a550aa18c717).
  * Like the other hooks this observes, not intercepts: writes outside the hook's worktree, changes
  * undone between observations, and simultaneous writers in one worktree cannot be attributed.
  * An observation that fails keeps the last good baseline, so the next one still sees the write, and
@@ -51,15 +54,18 @@ export function shellEdits(home: string, root: string, line: NewLine, failed: (e
     const previous = readSnapshot(file);
     const reflog = headLog(root, git);
     const current = { head: head(git), ...snapshot(root, git), reflog: reflog?.length };
+    // Compared before the baseline moves on: a comparison that fails is a failed observation, never an edit.
+    let files: string[] = [];
+    if (line.kind === "command-run" && previous !== undefined) {
+      const changed = [...new Set([...previous.files.keys(), ...current.files.keys()])]
+        .filter((name) => previous.files.get(name) !== current.files.get(name));
+      const fromGit = imported(git, previous, current, changed, reflog);
+      files = changed.filter((name) => !fromGit.has(name)).sort();
+    }
     temporary = `${file}.${randomUUID()}.part`;
     writeFileSync(temporary, JSON.stringify({ head: current.head, files: [...current.files], untracked: [...current.untracked], reflog: current.reflog }));
     renameSync(temporary, file);
-    if (line.kind !== "command-run" || previous === undefined) return [];
-    const changed = [...new Set([...previous.files.keys(), ...current.files.keys()])]
-      .filter((name) => previous.files.get(name) !== current.files.get(name));
-    const fromGit = imported(git, previous, current, changed, reflog);
-    const files = changed.filter((name) => !fromGit.has(name)).sort();
-    if (files.length === 0) return [];
+    if (files.length === 0 || line.kind !== "command-run") return [];
     const { command: _command, call: _call, kind: _kind, ...common } = line;
     return [{ ...common, kind: "file-edited", folder: root, files }];
   } catch (error) {
@@ -105,50 +111,75 @@ function headLog(root: string, git: Git): Buffer | undefined {
 /**
  * The changed files Git brought in and the session left as committed. Discarding earlier dirt
  * is not another edit by the agent. A commit of a shell write still counts, even beside a merge.
- * Anything unreadable imports nothing, so a doubtful file is still attributed.
+ * HEAD's log says how HEAD moved; when it cannot (another tool moved HEAD unlogged, or the log was
+ * rewritten since), a file left as the new HEAD has it was brought in when that HEAD is already on
+ * a remote, so the session's unpushed commits still count. A Git read that fails throws: the
+ * observation fails rather than counting a doubtful file as the session's edit.
  */
 function imported(git: Git, previous: Observation, current: Observation, changed: string[], reflog: Buffer | undefined): Set<string> {
   const from = previous.head;
   const to = current.head;
   if (from === undefined || to === undefined || changed.length === 0) return new Set();
-  try {
-    let moves: { from: string; to: string; subject: string }[];
-    if (previous.reflog !== undefined && reflog !== undefined) {
-      if (previous.reflog > reflog.length) return new Set(); // expired or rewritten log
-      moves = reflog.subarray(previous.reflog).toString("utf8").split("\n").filter(Boolean).map((entry) => {
-        const [from = "", to = ""] = entry.split(" ");
-        return { from, to, subject: entry.slice(entry.indexOf("\t") + 1) };
-      });
-    } else {
-      // Upgrade a baseline written before offsets were kept; same-HEAD operations need a new one.
-      if (from === to) return new Set();
-      const entries = git(["log", "--walk-reflogs", "-n", "200", "--format=%H %gs", "HEAD"]).split("\n").filter(Boolean)
-        .map((entry) => ({ hash: entry.slice(0, entry.indexOf(" ")), subject: entry.slice(entry.indexOf(" ") + 1) }));
-      const start = entries.findIndex((entry) => entry.hash === from);
-      if (start <= 0) return new Set();
-      moves = entries.slice(0, start).map((entry, step) => ({ from: entries[step + 1]!.hash, to: entry.hash, subject: entry.subject })).reverse();
+  const moves = movesOf(git, previous, reflog, from, to);
+  if (moves === undefined) return from === to ? new Set() : published(git, previous, current, changed, from, to);
+  const brought = new Set<string>();
+  const own = new Set<string>();
+  for (const move of moves) {
+    const restores = /^(reset|checkout)\b/.test(move.subject);
+    const names = move.from === move.to ? [] : changedBetween(git, move.from, move.to);
+    if (restores) for (const name of changed) brought.add(name);
+    for (const name of names) {
+      (/^(pull|merge|checkout|reset|rebase)\b/.test(move.subject) ? brought : own).add(name);
+      if (restores) own.delete(name);
     }
-    if (moves[0]?.from !== from || moves.at(-1)?.to !== to || moves.some((move, index) => index > 0 && moves[index - 1]!.to !== move.from)) return new Set();
-    const brought = new Set<string>();
-    const own = new Set<string>();
-    for (const move of moves) {
-      const restores = /^(reset|checkout)\b/.test(move.subject);
-      const names = move.from === move.to ? [] : git(["diff", "--name-only", "-z", "--no-renames", move.from, move.to]).split("\0").filter(Boolean);
-      if (restores) for (const name of changed) brought.add(name);
-      for (const name of names) {
-        (/^(pull|merge|checkout|reset|rebase)\b/.test(move.subject) ? brought : own).add(name);
-        if (restores) own.delete(name);
-      }
-    }
-    const candidates = changed.filter((name) => brought.has(name) && !own.has(name));
-    if (candidates.length === 0) return new Set();
-    const after = blobs(git, to, candidates);
-    // A reset can discard staged additions, but an unrelated untracked file's deletion is the
-    // shell's own write. Both are absent from HEAD; keep their earlier index status to tell them apart.
-    return new Set(candidates.filter((name) => current.files.get(name) === after.get(name) && !(previous.untracked?.has(name) && !after.has(name))));
-  } catch {
-    return new Set();
   }
+  return leftAsCommitted(git, previous, current, to, changed.filter((name) => brought.has(name) && !own.has(name)));
+}
+
+/** HEAD's moves from `from` to `to`, oldest first, as its log records them; undefined when the log cannot account for them. */
+function movesOf(git: Git, previous: Observation, reflog: Buffer | undefined, from: string, to: string): { from: string; to: string; subject: string }[] | undefined {
+  let moves: { from: string; to: string; subject: string }[];
+  if (previous.reflog !== undefined && reflog !== undefined) {
+    if (previous.reflog > reflog.length) return undefined; // expired or rewritten log
+    moves = reflog.subarray(previous.reflog).toString("utf8").split("\n").filter(Boolean).map((entry) => {
+      const [from = "", to = ""] = entry.split(" ");
+      return { from, to, subject: entry.slice(entry.indexOf("\t") + 1) };
+    });
+  } else {
+    // Upgrade a baseline written before offsets were kept; same-HEAD operations need a new one.
+    if (from === to) return undefined;
+    const entries = git(["log", "--walk-reflogs", "-n", "200", "--format=%H %gs", "HEAD"]).split("\n").filter(Boolean)
+      .map((entry) => ({ hash: entry.slice(0, entry.indexOf(" ")), subject: entry.slice(entry.indexOf(" ") + 1) }));
+    const start = entries.findIndex((entry) => entry.hash === from);
+    if (start <= 0) return undefined;
+    moves = entries.slice(0, start).map((entry, step) => ({ from: entries[step + 1]!.hash, to: entry.hash, subject: entry.subject })).reverse();
+  }
+  return moves[0]?.from !== from || moves.at(-1)?.to !== to || moves.some((move, index) => index > 0 && moves[index - 1]!.to !== move.from) ? undefined : moves;
+}
+
+/** For a move HEAD's log cannot account for: the changed files left as `to` has them, when `to` is already on a remote; else none. */
+function published(git: Git, previous: Observation, current: Observation, changed: string[], from: string, to: string): Set<string> {
+  if (git(["rev-list", "-n", "1", to, "--not", "--remotes"]).trim() !== "") return new Set();
+  // A commit pruned since cannot be compared with: any changed file may then have come with the move.
+  const moved = hasCommit(git, from) ? new Set(changedBetween(git, from, to)) : undefined;
+  return leftAsCommitted(git, previous, current, to, changed.filter((name) => moved === undefined || moved.has(name)));
+}
+
+/** Of `candidates`, those whose contents are what commit `to` has. */
+function leftAsCommitted(git: Git, previous: Observation, current: Observation, to: string, candidates: string[]): Set<string> {
+  if (candidates.length === 0) return new Set();
+  const after = blobs(git, to, candidates);
+  // A reset can discard staged additions, but an unrelated untracked file's deletion is the
+  // shell's own write. Both are absent from HEAD; keep their earlier index status to tell them apart.
+  return new Set(candidates.filter((name) => current.files.get(name) === after.get(name) && !(previous.untracked?.has(name) && !after.has(name))));
+}
+
+function changedBetween(git: Git, from: string, to: string): string[] {
+  return git(["diff", "--name-only", "-z", "--no-renames", from, to]).split("\0").filter(Boolean);
+}
+
+function hasCommit(git: Git, commit: string): boolean {
+  try { git(["cat-file", "-e", `${commit}^{commit}`]); return true; } catch { return false; }
 }
 
 function blobs(git: Git, commit: string, names: string[]): Map<string, string> {

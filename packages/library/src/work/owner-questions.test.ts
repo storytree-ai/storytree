@@ -299,4 +299,23 @@ for (const backend of [memory, postgres]) {
     assert.equal(history.length + 1, settled.length, "only the settlement was written");
     assert.equal(await flight.editQuestion("question_000000000000", { options: "x" }), null, "null for no question");
   });
+
+  contract("12.10", "an open question carries the session putting it to the owner, set and cleared in place; settling clears it, and a settled question cannot carry one", async ({ work, flight, transactions }) => {
+    const arc = await work.createArc(ARC);
+    const question = await flight.raiseQuestion({ arc: arc.id, ...ASK });
+    const presenting = { session: "session-A", since: "2026-10-10T09:00:00.000Z" };
+
+    const marked = await flight.editQuestion(question.id, { presenting });
+    assert.deepEqual(marked?.fields.presenting, presenting);
+    const cleared = await flight.editQuestion(question.id, { presenting: undefined });
+    assert.equal(cleared?.fields.presenting, undefined);
+
+    await flight.editQuestion(question.id, { presenting });
+    const settled = await flight.settleQuestion(question.id, { answer: "Mailgun" });
+    assert.equal(settled?.fields.presenting, undefined, "settling clears who is putting it to him");
+
+    const history = await transactions.history();
+    await assert.rejects(flight.editQuestion(question.id, { presenting }), (error: unknown) => error instanceof RangeError && /settled/.test(error.message));
+    assert.deepEqual(await transactions.history(), history, "nothing was written");
+  });
 }

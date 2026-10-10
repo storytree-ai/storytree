@@ -460,6 +460,11 @@ export const RECORD_SCHEMAS = {
       verifiedAt: nonEmpty.optional(),
       /** How many days that check is trusted for. */
       leaseDays: z.number().int().positive().optional(),
+      /**
+       * The session putting it to the owner right now, and since when (12.10): two sessions never
+       * ask him the same thing at once. Whether that session is still live is the agent link's reading.
+       */
+      presenting: z.object({ session: nonEmpty, since: nonEmpty }).strict().optional(),
     })
     .strict()
     .superRefine((fields, context) => {
@@ -467,6 +472,7 @@ export const RECORD_SCHEMAS = {
       if (fields.lifecycle === "settled") {
         if (fields.answer === undefined) problem(["answer"], 'a settled question needs field "answer": the owner\'s answer');
         if (fields.settledAt === undefined) problem(["settledAt"], 'a settled question needs field "settledAt": when it was settled');
+        if (fields.presenting !== undefined) problem(["presenting"], "a settled question is no longer being put to the owner");
       } else {
         for (const field of ["answer", "settledAt", "settledBy"] as const) {
           if (fields[field] !== undefined) problem([field], `an open question has no "${field}" yet`);

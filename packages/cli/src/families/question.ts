@@ -14,10 +14,15 @@
  * session holds releases its claims on it, through the agent link's releaseAsked (ADR-0944 D4). Listing the open
  * questions uses list(kind); `--arc` reads one arc's questions, naming a parked arc's as parked with it. `check` reads a question's review
  * lease through the library's checkQuestion, and `renew` re-stamps it through renewQuestion, which
- * refuses a settled question (ADR-0654).
+ * refuses a settled question (ADR-0654). `present` marks a question as being put to the owner by the
+ * calling session, through the agent link's presentQuestion, which refuses it while another live session
+ * is (its 5.36), and `--done` clears the mark; `list` flags each question a live session is presenting.
  */
+import type { Presenter } from "@storytree/agent-link";
+import type { SchemaRecord } from "@storytree/library";
+
 import { labelOf, Refusal } from "../answer.js";
-import type { Family, Verb } from "../door.js";
+import type { Context, Family, Verb } from "../door.js";
 import { valueOf } from "./library.js";
 import { releasedAsking } from "./workspace.js";
 
@@ -120,6 +125,35 @@ const show: Verb = {
   },
 };
 
+const present: Verb = {
+  name: "present",
+  usage: "question present <question> [--done]",
+  summary: "mark a question as being put to the owner by this session, so no other asks him at once; --done when you move on",
+  async act(args, context) {
+    const id = args.word(0, "the question's id", this.usage);
+    const { presentQuestion, stopPresenting } = await import("@storytree/agent-link");
+    const caller = await context.claimContext();
+    if (args.has("done")) {
+      return { text: (await stopPresenting(caller, id)) ? `${id} is no longer being put to the owner by this session.` : `This session was not putting ${id} to the owner.` };
+    }
+    const answer = await presentQuestion(caller, id);
+    if (answer.ok) {
+      return {
+        text: `${id} is being put to the owner by this session. Settling it with his answer clears that.`,
+        next: [{ command: `storytree question present ${id} --done`, why: "if you move on without his answer" }],
+      };
+    }
+    switch (answer.refused) {
+      case "presenting":
+        throw new Refusal(`${id} is being put to the owner by ${answer.presenter.label} session ${answer.presenter.session} since ${answer.presenter.since}: skip it, and do not ask him again.`);
+      case "settled":
+        throw new Refusal(`${id} is settled: its answer stands.`, { next: [{ command: `storytree question show ${id}`, why: "read his answer" }] });
+      case "unknown-question":
+        throw new Refusal(`no question "${id}" in this project`);
+    }
+  },
+};
+
 const list: Verb = {
   name: "list",
   usage: "question list [--arc <arc>]",
@@ -133,7 +167,13 @@ const list: Verb = {
     const parkedArcs = new Set(views.flatMap((view) => (view?.state === "parked" ? [view.arc.id] : [])));
     const waiting = open.filter((question) => !parkedArcs.has(question.fields.arc));
     const parked = open.filter((question) => parkedArcs.has(question.fields.arc));
-    const line = (question: (typeof open)[number]) => `  - ${question.id}  [${question.fields.arc}]  ${labelOf(question.fields)}`;
+    // A question another session is putting to the owner right now is flagged, so he is not asked twice (agent link 5.36).
+    const presenters = open.some((question) => question.fields.presenting !== undefined) ? await presentersAmong(context, open) : new Map<string, Presenter>();
+    const flag = (id: string) => {
+      const by = presenters.get(id);
+      return by === undefined ? "" : `  (being put to the owner by ${by.label} session ${by.session})`;
+    };
+    const line = (question: (typeof open)[number]) => `  - ${question.id}  [${question.fields.arc}]  ${labelOf(question.fields)}${flag(question.id)}`;
     const where = arc === undefined ? "across arcs" : `on ${arc}`;
     // Across arcs they stay off the list, but the arcs that hold them are named; one arc's own listing names them.
     const holding = [...new Set(parked.map((question) => question.fields.arc))];
@@ -147,6 +187,13 @@ const list: Verb = {
     return { text: [`${waiting.length} open ${where}:`, ...waiting.map(line), ...aside].join("\n") };
   },
 };
+
+/** Of `open`, those a live session is putting to the owner, read through the agent link. */
+async function presentersAmong(context: Context, open: readonly SchemaRecord<"question">[]): Promise<ReadonlyMap<string, Presenter>> {
+  const { presentersOf } = await import("@storytree/agent-link");
+  const { log, project } = await context.activityContext();
+  return presentersOf(log, project, open);
+}
 
 const check: Verb = {
   name: "check",
@@ -182,7 +229,7 @@ const renew: Verb = {
 
 export const questions: Family = {
   name: "question",
-  summary: "the owner's questions: raise, show, settle, retire, list, check, renew",
-  verbs: [raise, show, settle, retire, list, check, renew],
+  summary: "the owner's questions: raise, show, present, settle, retire, list, check, renew",
+  verbs: [raise, show, present, settle, retire, list, check, renew],
   guesses: { read: "question show <id>", get: "question show <id>", open: "question show <id>" },
 };

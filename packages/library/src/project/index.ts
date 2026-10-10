@@ -9,4 +9,4 @@ export { ProjectGoneError, ProjectNameError } from "./names.js";
 export { RestoreRefusedError } from "./snapshot.js";
 export type { ProjectSnapshot, SnapshotEvent, SnapshotRecord } from "./snapshot.js";
 export { connect } from "./storytree.js";
-export type { ConnectOptions, OpenOptions, Project, Storytree } from "./storytree.js";
+export type { ConnectOptions, OpenOptions, OwnDatabaseOptions, Project, Storytree } from "./storytree.js";

@@ -4,7 +4,7 @@
   "type": "module",
   "description": "The dev loop (story_95ed402f9bd3, ADR-0805 D3): the test runner and its scoping, the gate, worktree provisioning, the guidance build, the library's export, restore and server, own health, and storytree's declarations for the Guardrails story's package and allocation checks. The root package.json's commands and CI run them from here.",
   "dependencies": {
-    "@storytree/agent-link": "workspace:*",
+    "@storytree/session-management": "workspace:*",
     "@storytree/guardrails": "workspace:*",
     "@storytree/library": "workspace:*",
     "@storytree/local-postgres": "workspace:*",

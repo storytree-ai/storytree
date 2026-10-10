@@ -15,7 +15,7 @@ interface ActivityLine {
   readonly at: string;
 }
 
-/** What the librarian asks of the log: the lines a bounded read names (the agent link's contract 2.7), never the whole log. */
+/** What the librarian asks of the log: the lines a bounded read names (Session management's contract 2.7), never the whole log. */
 interface LineAsk {
   readonly kinds?: readonly "session-started"[];
   readonly sessions?: readonly string[];
@@ -46,7 +46,7 @@ export interface ToolAnswer {
 /** Registers one tool: its name, what it is for, its arguments, and what it does with them. */
 export type DefineTool = <S extends z.ZodObject>(name: string, description: string, input: S, act: (args: z.output<S>, call: ToolCall) => Promise<ToolAnswer>) => void;
 
-/** The librarian's contribution to the agent link's one tool server. */
+/** The librarian's contribution to Session management's one tool server. */
 export interface ToolExtension {
   readonly registerTools?: (define: DefineTool) => void;
   readonly instructions?: string;

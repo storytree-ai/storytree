@@ -7,7 +7,7 @@ node --import tsx packages/website/src/refresh-forest.ts --from 2026-10-02T00:00
 ```
 
 The website owns the publication policy. It reads the marker's selected project
-through the library and agent link's public exports, surveys the main checkout
+through the library and Session management's public exports, surveys the main checkout
 through `@storytree/forest/code-survey`, and draws land with `forestScene`,
 `storyNodes`, `growPlanet` and the arc surface's `workStates`. The Node-only
 refresh resolves the forest's installed arc-surface dependency through its public

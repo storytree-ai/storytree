@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { SessionWindow } from "@storytree/agent-link";
+import type { SessionWindow } from "@storytree/session-management";
 
 import { createKnowledgeCore } from "./surface.js";
 

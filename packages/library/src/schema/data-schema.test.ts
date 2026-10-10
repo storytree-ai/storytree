@@ -620,7 +620,7 @@ function newerVersion(id: string, type: RecordType, version: number): (error: un
     }
     assert.match(error.message, /git pull/);
     assert.match(error.message, /pnpm install/);
-    assert.match(error.message, /restart the agent link from a current worktree/);
+    assert.match(error.message, /restart the MCP server from a current worktree/);
     assert.match(error.message, /The running code(?: is \d+ commits? behind locally fetched origin\/main|'s distance from locally fetched origin\/main is unknown)\./);
     return true;
   };

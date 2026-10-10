@@ -28,7 +28,7 @@
     "check:plan-edges": "node --import tsx packages/dev-loop/src/plan-edges.mjs"
   },
   "devDependencies": {
-    "@storytree/agent-link": "workspace:*",
+    "@storytree/session-management": "workspace:*",
     "@storytree/dev-loop": "workspace:*",
     "@storytree/library": "workspace:*",
     "@storytree/local-postgres": "workspace:*",

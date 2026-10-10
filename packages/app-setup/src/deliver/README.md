@@ -61,7 +61,7 @@ repointed at this installation and named in the result's `replaced`, which the o
 PowerShell owns registry PATH persistence and Explorer notification; no global Node or tool
 installation occurs. Node patch versions and both hashes are pinned in `runtime.ts`.
 
-The launcher is the agent link's own (`launcherFor` in its setup), so capability 2's disconnect
+The launcher is the app setup's own (`launcherFor` in its setup), so capability 2's disconnect
 recognises it by what it runs. The delivery tests exercise that public disconnect seam.
 
 See `../../evidence/deliver/README.md` for observed proofs and the outstanding real Windows

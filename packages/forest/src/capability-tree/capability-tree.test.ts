@@ -8,7 +8,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { Line, NewLine } from "@storytree/agent-link";
+import type { Line, NewLine } from "@storytree/session-management";
 import { workStates } from "@storytree/arc-surface";
 import type { AnnotatedCapability, AnnotatedStory, HealthState } from "@storytree/library";
 

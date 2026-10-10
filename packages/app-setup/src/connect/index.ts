@@ -2,7 +2,7 @@
 import { mkdirSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
-import { codexHookTrust } from "@storytree/agent-link";
+import { codexHookTrust } from "@storytree/session-management";
 
 import { CODEX_TRUST_STEP, launcherFiles, launcherRuns, markDisconnected, registerHooks, removeHooks, removeLauncher, runsElevated } from "../setup/index.js";
 import { removeCodexInstructions, writeCodexInstructions } from "./codex-agents.js";
@@ -73,7 +73,7 @@ const conflict = (file: string) => `The existing storytree entry in ${file} is i
 export async function connectAgents(options: ConnectionOptions): Promise<ConnectionResult[]> {
   const where = locations(options);
   const results: ConnectionResult[] = [];
-  // Codex's own limit, which storytree only names: started from an administrator terminal, it runs no command (agent link 8.17).
+  // Codex's own limit, which storytree only names: started from an administrator terminal, it runs no command (Session management 8.17).
   const elevated = options.harnesses.includes("codex") && await (options.elevated ?? runsElevated)().catch(() => false);
   const hook = hookCommand(options.installed);
   for (const harness of new Set(options.harnesses)) {

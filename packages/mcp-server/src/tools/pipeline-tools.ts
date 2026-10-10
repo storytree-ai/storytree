@@ -1,5 +1,5 @@
 /**
- * Capability 6 · Agent tools: `wire_pipeline`, over the agent link's pipeline wiring (its capability 11),
+ * Capability 6 · Agent tools: `wire_pipeline`, over the app setup's pipeline wiring (its capability 11),
  * which the agent calls when a project is set up or adopts a pipeline (ADR-0911 D3). It writes storytree's workflow into a GitHub project, or gives the commands for
  * the pipeline the user has elsewhere, and proposes branch protection for the user to approve; it never
  * changes a repository setting itself.

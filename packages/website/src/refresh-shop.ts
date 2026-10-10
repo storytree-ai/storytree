@@ -11,7 +11,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
-import type { Line } from "@storytree/agent-link";
+import type { Line } from "@storytree/session-management";
 import type { AnnotatedTree, ArcView, Change, Holds } from "@storytree/library";
 import { refreshGrowthSnapshot } from "./saved-growth.js";
 import { ciHealth, codeAt, landings, shopStages } from "./shop-growth.js";
@@ -27,7 +27,7 @@ async function history(): Promise<{ capturedAt: string; tree: AnnotatedTree; cha
     if (saved.project !== project) throw new Error(`The record is of ${saved.project}, not ${project}.`);
     return saved;
   }
-  const { openNamedProject, openActivityLog } = await import("@storytree/agent-link");
+  const { openNamedProject, openActivityLog } = await import("@storytree/session-management");
   const { connect } = await import("@storytree/library");
   const server = await connect({ url: values.library! });
   try {

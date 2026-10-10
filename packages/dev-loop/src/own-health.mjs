@@ -406,8 +406,8 @@ export function contractsOf(story) {
 }
 
 /**
- * The package whose tests prove a story: the one named after its title ("The agent link" ->
- * `agent-link`), but for the stories whose package was named otherwise. Its tests are in
+ * The package whose tests prove a story: the one named after its title ("Session management" ->
+ * `session-management`), but for the stories whose package was named otherwise. Its tests are in
  * packages/<name>/src, and a story with no such package has none yet.
  * @param {string} title
  */

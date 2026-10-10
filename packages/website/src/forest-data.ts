@@ -1,5 +1,5 @@
 // Capability 3 · Saved snapshot. Type-only: browsers never import refresh/database code.
-import type { Line } from "@storytree/agent-link";
+import type { Line } from "@storytree/session-management";
 import type { AnnotatedTree, ArcView, Change, Holds } from "@storytree/library";
 import type { SessionWisp, StoryNode } from "@storytree/forest";
 import type { ForestSnapshot } from "@storytree/forest/snapshot";

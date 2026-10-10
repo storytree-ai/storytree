@@ -20,7 +20,7 @@
     "build": "tsx src/bins/build.ts"
   },
   "dependencies": {
-    "@storytree/agent-link": "workspace:*",
+    "@storytree/session-management": "workspace:*",
     "@storytree/journey-events": "workspace:*",
     "@storytree/library": "workspace:*",
     "@storytree/local-postgres": "workspace:*",

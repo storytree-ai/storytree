@@ -3,12 +3,12 @@
  * increment or a capability with its agent's harness, window and reason, and whether it is live or
  * idle; or who holds one piece of work. Claiming and releasing stay with the agents' tools.
  *
- * One reading: the agent link's `boardClaims` over its activity log, which judges live and idle,
+ * One reading: Session management's `boardClaims` over its activity log, which judges live and idle,
  * having first asked GitHub whether any claim's branch has merged (ADR-0643 D3).
- * `noticeboard log` shows the log's latest lines as the agent link writes them out, each with the
+ * `noticeboard log` shows the log's latest lines as Session management writes them out, each with the
  * line that caused it or "cause not recorded" (ADR-0746 D2).
  */
-import type { Claim } from "@storytree/agent-link";
+import type { Claim } from "@storytree/session-management";
 
 import { Refusal } from "../answer.js";
 import type { Family, Verb } from "../door.js";
@@ -30,7 +30,7 @@ const board: Verb = {
   async act(args, context) {
     const id = args.words[0];
     const { log: activity, project, folder, session, harness } = await context.activityContext();
-    const { boardClaims } = await import("@storytree/agent-link");
+    const { boardClaims } = await import("@storytree/session-management");
     const claims = await boardClaims({ log: activity, project, folder, session, ...(harness === undefined ? {} : { harness }), source: "tool" });
     if (id !== undefined) {
       const held = claims.find((claim) => claim.increment === id || claim.capability === id);
@@ -55,10 +55,10 @@ const log: Verb = {
     const limit = Number(args.text("limit") ?? LOG_LINES);
     if (!Number.isSafeInteger(limit) || limit < 1) throw new Refusal(`--limit takes a whole number, 1 or more\nusage: storytree ${this.usage}`, { code: 2 });
     const { log: activity, project } = await context.activityContext();
-    // The latest lines alone, never the whole log (agent link 2.7).
+    // The latest lines alone, never the whole log (Session management 2.7).
     const lines = await activity.lines(project, { ...(session === undefined ? {} : { sessions: [session] }), newest: limit });
     if (lines.length === 0) return { text: session === undefined ? "The activity log has no lines yet." : `The activity log has no lines for ${session}.` };
-    const { fullLineText, lineText } = await import("@storytree/agent-link");
+    const { fullLineText, lineText } = await import("@storytree/session-management");
     return { text: lines.map(args.has("full") ? fullLineText : lineText).join("\n") };
   },
 };

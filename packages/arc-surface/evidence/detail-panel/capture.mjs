@@ -12,7 +12,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { connect } from '@storytree/library';
-import { openActivityLog, claim } from '@storytree/agent-link';
+import { openActivityLog, claim } from '@storytree/session-management';
 // The frame is reached through the desktop app, which mounts this surface: arc-surface itself never depends on it (ADR-0847).
 const { pageReads } = await import(pathToFileURL(createRequire(new URL('../../../../apps/desktop/package.json', import.meta.url)).resolve('@storytree/app')).href);
 import { start } from '@storytree/local-postgres';

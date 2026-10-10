@@ -8,7 +8,7 @@ import { after, before, test } from "node:test";
 
 import pg from "pg";
 
-import { claim, openActivityLog, readClaims, recordFriction, release } from "@storytree/agent-link";
+import { claim, openActivityLog, readClaims, recordFriction, release } from "@storytree/session-management";
 
 import { parseArgs } from "./args.js";
 import type { Context } from "./door.js";

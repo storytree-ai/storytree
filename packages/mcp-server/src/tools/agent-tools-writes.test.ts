@@ -1,5 +1,5 @@
 /**
- * Capability 6 · Agent tools (the MCP server), in the agent link story: waits, friction and re-steers, corrections and retirements, questions, other stories' tools, workspaces, search, and bounded reads. One of three files
+ * Capability 6 · Agent tools (the MCP server), in the MCP server story: waits, friction and re-steers, corrections and retirements, questions, other stories' tools, workspaces, search, and bounded reads. One of three files
  * (agent-tools, agent-tools-reads, agent-tools-writes) split so a test unit runs them side by side.
  * A test client talks to the server inside the test itself, over an
  * in-memory transport, with no real agent and no network, as Claude Code or Codex would: Claude
@@ -19,14 +19,14 @@ import { test } from "node:test";
 import { roundDue, route, worklist } from "@storytree/librarian";
 import { z } from "zod";
 
-import { recordFriction, reinforceFriction } from "@storytree/agent-link";
+import { recordFriction, reinforceFriction } from "@storytree/session-management";
 import type { ToolExtension } from "./index.js";
-import { readClaims } from "@storytree/agent-link";
-import { MARKER_FILE } from "@storytree/agent-link";
+import { readClaims } from "@storytree/session-management";
+import { MARKER_FILE } from "@storytree/session-management";
 import { claudeCode, codex, idOf, withAgent } from "../testing/agent.js";
-import { countingStore, longHistory } from "@storytree/agent-link/testing/egress";
-import { git } from "@storytree/agent-link/testing/folders";
-import { approveCheckout, placeTestServer, uniqueProjectName } from "@storytree/agent-link/testing/pg";
+import { countingStore, longHistory } from "@storytree/session-management/testing/egress";
+import { git } from "@storytree/session-management/testing/folders";
+import { approveCheckout, placeTestServer, uniqueProjectName } from "@storytree/session-management/testing/pg";
 import { FOUNDED, planned, TOOLS, withProject } from "../testing/tool-world.js";
 
 test("6.4 a held claim refusal explains the running command and dirty-main close-out disagreement", async () => {

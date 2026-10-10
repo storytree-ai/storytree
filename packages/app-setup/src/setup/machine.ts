@@ -11,7 +11,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 
-import { ask, pathEnv, type Answer } from "@storytree/agent-link";
+import { ask, pathEnv, type Answer } from "@storytree/session-management";
 
 export { ask, pathEnv, type Answer };
 

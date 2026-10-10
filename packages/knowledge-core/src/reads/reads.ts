@@ -1,5 +1,5 @@
-/** Capability 3 · Reads by session and agent. Capability 3's founding book (R1, T1): reads by session and agent, from the agent link's activity log. */
-import type { Line } from "@storytree/agent-link";
+/** Capability 3 · Reads by session and agent. Capability 3's founding book (R1, T1): reads by session and agent, from Session management's activity log. */
+import type { Line } from "@storytree/session-management";
 
 /** What the picture says when the log holds no reads: never that the knowledge went unused. */
 export const NO_RECORDED_READS = "no recorded reads";

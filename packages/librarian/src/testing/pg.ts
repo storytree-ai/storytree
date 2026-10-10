@@ -2,7 +2,7 @@
  * Helpers for the librarian's tests, which run against the real Postgres `pnpm test` starts
  * (packages/dev-loop/src/test.mjs hands it over as STORYTREE_TEST_PG_URL). A Postgres test must never skip
  * silently, so asking for the server when there is none throws. The library keeps its own helpers
- * inside its package, so the few needed here are restated, as the agent link's are.
+ * inside its package, so the few needed here are restated, as Session management's are.
  */
 import { randomBytes } from "node:crypto";
 import { connect as connectSocket, createServer, type AddressInfo, type Socket } from "node:net";
@@ -48,7 +48,7 @@ export interface CountedLibrary {
 /**
  * Run `body` with a fresh project's library whose every connection goes through a stand-in for the
  * network in front of the test server, counting the bytes the server sends back. Restated from the
- * agent link's countingStore, as the rest of these helpers are.
+ * Session management's countingStore, as the rest of these helpers are.
  */
 export async function withCountedLibrary(body: (counted: CountedLibrary) => Promise<void>): Promise<void> {
   const upstream = new URL(testServerUrl());

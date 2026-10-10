@@ -236,7 +236,7 @@ test("own health reads a story's contracts from the library, each number from it
     assert.deepEqual(numbers, ["1.1", "1.2", "1.3", "1.4"]);
     assert.deepEqual([...contractIds.values()], story.capabilities[0].contracts.map(({ id }) => id));
   });
-  assert.equal(packageOf("The agent link"), "agent-link");
+  assert.equal(packageOf("Session management"), "session-management");
   assert.equal(packageOf("The arc surface"), "arc-surface");
   assert.equal(packageOf("The library"), "library");
   assert.equal(packageOf("The command line"), "cli", "a package named otherwise");
@@ -327,13 +327,13 @@ test("5.4 checking a story also runs a dependant's test titled with the story's 
   const root = mkdtempSync(path.join(tmpdir(), "own-health-dependant-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   mkdirSync(path.join(root, "packages/cli/src"), { recursive: true });
-  mkdirSync(path.join(root, "packages/agent-link/src/tools"), { recursive: true });
+  mkdirSync(path.join(root, "packages/session-management/src/tools"), { recursive: true });
   mkdirSync(path.join(root, "packages/library/src"), { recursive: true });
   const own = path.join(root, "packages/cli/src/kettle.test.mjs");
-  const dependant = path.join(root, "packages/agent-link/src/tools/door.test.ts");
+  const dependant = path.join(root, "packages/session-management/src/tools/door.test.ts");
   writeFileSync(own, 'test("1.1 it does a", () => {});\n');
   const prefixed = ["cli", "1.3: the tool does what the command does"].join(" ");
-  writeFileSync(dependant, `test(${JSON.stringify(prefixed)}, () => {});\ntest("1.4 the agent link's own 1.4", () => {});\n`);
+  writeFileSync(dependant, `test(${JSON.stringify(prefixed)}, () => {});\ntest("1.4 Session management's own 1.4", () => {});\n`);
   writeFileSync(path.join(root, "packages/library/src/other.test.ts"), 'test("1.3 the library\'s own 1.3", () => {});\n');
   await withLibrary(async (lib) => {
     const story = await kettle(lib);
@@ -346,12 +346,12 @@ test("5.4 checking a story also runs a dependant's test titled with the story's 
         results: [
           { name: "1.1 it does a", suites: [], file: own, status: "passed" },
           { name: prefixed, suites: [], file: dependant, status: "passed" },
-          { name: "1.4 the agent link's own 1.4", suites: [], file: dependant, status: "failed" },
+          { name: "1.4 Session management's own 1.4", suites: [], file: dependant, status: "failed" },
         ],
       };
     };
     assert.equal(await checkStory(lib, story, { by: "storytree test run" }, { root, runTests: run, log: () => {}, error: () => {} }), true);
-    assert.deepEqual(ran, ["packages/cli/src/**/*.test.ts", "packages/cli/src/**/*.test.mjs", "packages/agent-link/src/tools/door.test.ts"]);
+    assert.deepEqual(ran, ["packages/cli/src/**/*.test.ts", "packages/cli/src/**/*.test.mjs", "packages/session-management/src/tools/door.test.ts"]);
     assert.equal((await lib.health(contractIds.get("1.3"))).verified.state, "passing", "the dependant's prefixed title proves 1.3");
     assert.deepEqual(await lib.healthHistory(contractIds.get("1.4")), [], "a dependant's own unprefixed 1.4 is not the story's");
   });

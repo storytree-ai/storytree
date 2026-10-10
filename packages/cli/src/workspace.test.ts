@@ -11,7 +11,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 
-import { claim, openActivityLog, readClaims } from "@storytree/agent-link";
+import { claim, openActivityLog, readClaims } from "@storytree/session-management";
 
 import { workspaceRefusalText } from "./families/workspace.js";
 import { BuiltCommand, inWorld, storytree, testServerUrl, type World } from "./testing/cli.js";

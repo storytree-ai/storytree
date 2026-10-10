@@ -246,7 +246,7 @@ test("1.16 a folder whose marker names a project, unapproved on this machine, is
   });
 });
 
-test("8.6 with Codex's hooks registered and none of them run yet, it names the one step that lets Codex run them (agent link 8.16)", async () => {
+test("8.6 with Codex's hooks registered and none of them run yet, it names the one step that lets Codex run them (Session management 8.16)", async () => {
   await inWorld(command, async (world) => {
     const user = aUser(world);
 

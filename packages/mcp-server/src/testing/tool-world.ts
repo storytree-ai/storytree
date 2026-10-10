@@ -8,11 +8,11 @@ import path from "node:path";
 
 import { connect, type Library } from "@storytree/library";
 
-import { openActivityLog, type ActivityLog } from "@storytree/agent-link";
-import { MARKER_FILE } from "@storytree/agent-link";
+import { openActivityLog, type ActivityLog } from "@storytree/session-management";
+import { MARKER_FILE } from "@storytree/session-management";
 import { idOf, type Agent } from "./agent.js";
-import { withTempDir } from "@storytree/agent-link/testing/folders";
-import { approveCheckout, dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/agent-link/testing/pg";
+import { withTempDir } from "@storytree/session-management/testing/folders";
+import { approveCheckout, dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/session-management/testing/pg";
 
 /** The toolbox: every tool the server offers. */
 export const TOOLS = [

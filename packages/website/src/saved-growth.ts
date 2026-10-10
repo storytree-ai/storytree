@@ -1,6 +1,6 @@
 // Capability 3 · Saved snapshot. Node-only: a project's saved growth, as storytree's own (refresh-own.ts) and the shop's (refresh-shop.ts) are saved for
 // the tour: its library as it grew, one recorded stage at a time; every stage is replayed from its history, never drawn by hand.
-import type { Line } from "@storytree/agent-link";
+import type { Line } from "@storytree/session-management";
 import { workStates } from "@storytree/arc-surface";
 import { forestScene, growPlanet, sessionColour, storyNodes, type SessionWisp } from "@storytree/forest";
 import type { ProjectSurvey } from "@storytree/forest/code-survey";

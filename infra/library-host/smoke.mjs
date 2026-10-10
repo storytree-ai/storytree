@@ -10,7 +10,7 @@ if (process.argv.includes('--dry-run')) {
   process.env.STORYTREE_HOME = o.ISOLATED;
   for (const name of Object.keys(process.env)) if (name.startsWith('PG')) delete process.env[name];
   const { connect } = await import('@storytree/library');
-  const { claim, release, openActivityLog, readClaims } = await import('@storytree/agent-link');
+  const { claim, release, openActivityLog, readClaims } = await import('@storytree/session-management');
   const env = { STORYTREE_HOME: o.ISOLATED };
   const arcs = await o.run('pnpm', ['storytree', 'arc', 'list'], { env });
   const plan = await o.run('pnpm', ['storytree', 'tree'], { env });

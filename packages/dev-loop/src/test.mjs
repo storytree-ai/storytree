@@ -37,7 +37,7 @@
 //
 // With STORYTREE_TEST_PG_URL set, the tests use that server and nothing is started or stopped.
 // Otherwise this runs a throwaway local server through @storytree/local-postgres, and hands the
-// tests its data directory too, as STORYTREE_TEST_PG_DATA (the agent link reads the owner record
+// tests its data directory too, as STORYTREE_TEST_PG_DATA (Session management reads the owner record
 // local-postgres keeps beside it, as it reads the desktop app's). The server comes from the
 // @embedded-postgres binaries (on Windows arm64, the x64 build under the OS's emulation). Its
 // cluster lives in .pgtest/data and is created on first use. The server listens on 127.0.0.1 only,

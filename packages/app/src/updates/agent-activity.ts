@@ -2,7 +2,7 @@
  * Capability 4 · Updates, contract 4.4: when an agent last worked in the app's library, so a
  * downloaded release does not stop the database under a live session (whenToInstall's agentActiveAt).
  */
-import { ACTIVITY_DATABASE } from "@storytree/agent-link";
+import { ACTIVITY_DATABASE } from "@storytree/session-management";
 import type { Storytree } from "@storytree/library";
 
 /**

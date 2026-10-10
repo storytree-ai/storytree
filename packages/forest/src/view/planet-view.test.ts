@@ -299,12 +299,12 @@ test("3.18 the forest hands the core each circle's place on the globe: where it 
   plate.quaternion.setFromEuler(new Euler(0.4, -1.1, 0.7));
   plate.add(circles);
   plate.updateMatrixWorld(true);
-  const stops = circleStops(circles, "agent-link", { position: plate.position, quaternion: plate.quaternion });
-  assert.deepEqual([...stops.keys()], [codePathKey("agent-link", "src/a.ts"), codePathKey("agent-link", "src/b.ts")]);
-  assert.equal(codePathKey("agent-link", "src/a.ts"), "packages/agent-link/src/a.ts");
+  const stops = circleStops(circles, "session-management", { position: plate.position, quaternion: plate.quaternion });
+  assert.deepEqual([...stops.keys()], [codePathKey("session-management", "src/a.ts"), codePathKey("session-management", "src/b.ts")]);
+  assert.equal(codePathKey("session-management", "src/a.ts"), "packages/session-management/src/a.ts");
   for (const path of ["src/a.ts", "src/b.ts"]) {
     const world = mark(circles, path).getWorldPosition(new Vector3());
-    assert.ok(new Vector3().copy(stops.get(codePathKey("agent-link", path))!).distanceTo(world) < 1e-9, path);
+    assert.ok(new Vector3().copy(stops.get(codePathKey("session-management", path))!).distanceTo(world) < 1e-9, path);
   }
 });
 

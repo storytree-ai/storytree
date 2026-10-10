@@ -1,7 +1,7 @@
 /** Capability 3 · First-run guide. */
 import { homedir } from "node:os";
 import path from "node:path";
-import { codexHookTrust, readProjectChoice } from "@storytree/agent-link";
+import { codexHookTrust, readProjectChoice } from "@storytree/session-management";
 
 import { CODEX_TRUST_STEP, runSetupCheck } from "../setup/index.js";
 import type { Storytree } from "@storytree/library";
@@ -10,7 +10,7 @@ import type { AgentConnection, SetupHelpBridge } from "./bridge.js";
 import { openFeedbackDraft } from "./feedback.js";
 import { readShippedLicense } from "./license.js";
 
-/** Platform adapters come from the frame; diagnostics and recovery stay with the agent link. */
+/** Platform adapters come from the frame; diagnostics and recovery stay with Session management. */
 export function setupHelpActions(options: {
   licenseFile: string;
   storytreeHome: string;
@@ -25,7 +25,7 @@ export function setupHelpActions(options: {
   return {
     readSetupLicense: () => readShippedLicense(options.licenseFile),
     async agentConnections() {
-      // Codex runs storytree's hooks only once the user trusts them; a hook that has run is the proof (agent link 3.18).
+      // Codex runs storytree's hooks only once the user trusts them; a hook that has run is the proof (Session management 3.18).
       const codexHome = options.codexHome ?? (process.env.CODEX_HOME || path.join(homedir(), ".codex"));
       const trust = codexHookTrust({ storytreeHome: options.storytreeHome, codexHome });
       const connections: AgentConnection[] = [];

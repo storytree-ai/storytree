@@ -18,7 +18,7 @@ import { readFileSync } from "node:fs";
 import { packageProblems } from "@storytree/guardrails";
 
 /** 0.3's own stories, each by the id its package has (packages/<id>). */
-export const STORIES = ["agent-link", "app", "app-setup", "arc-surface", "ci-health", "cli", "dev-loop", "forest", "forest-world", "guardrails", "identity", "journey-events", "keys", "knowledge-core", "librarian", "library", "local-postgres", "map", "mcp-server", "processes", "quality-assurance", "website"];
+export const STORIES = ["app", "app-setup", "arc-surface", "ci-health", "cli", "dev-loop", "forest", "forest-world", "guardrails", "identity", "journey-events", "keys", "knowledge-core", "librarian", "library", "local-postgres", "map", "mcp-server", "processes", "quality-assurance", "session-management", "website"];
 // app-setup: story_b91056a06337 (The app setup).
 // processes: story_9abd84ab493f (Process ledger).
 // dev-loop: story_95ed402f9bd3 (The dev loop, ADR-0805 D3).

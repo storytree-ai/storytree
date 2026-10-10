@@ -6,7 +6,7 @@
  * the refusal's own words, and never opens the local library instead, which would split one board
  * in two.
  */
-import { readLibrary } from "@storytree/agent-link";
+import { readLibrary } from "@storytree/session-management";
 import type { ConnectOptions, Storytree } from "@storytree/library";
 
 /** The app's own Postgres, as local-postgres hands it back: where it listens, and how to stop it. */

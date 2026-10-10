@@ -12,7 +12,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 
-import { openActivityLog } from "@storytree/agent-link";
+import { openActivityLog } from "@storytree/session-management";
 import { pageReads, readSurfaces, setSurface, surfaceOn } from "@storytree/app";
 import { arcSmokeProblems, boardView, watchBoard, type BoardState } from "@storytree/arc-surface";
 import { arcSurfaces } from "@storytree/arc-surface/surfaces";

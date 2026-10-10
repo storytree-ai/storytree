@@ -37,7 +37,7 @@ export interface DevHomeOptions {
   readonly harnesses: readonly Harness[];
   /** Where Codex's sign-in is read from (and handed back to). By default the user's own ~/.codex. */
   readonly signedIn?: { readonly codex?: string };
-  /** Builds the dev build's commands into a folder. By default the agent link's own build. */
+  /** Builds the dev build's commands into a folder. By default Session management's own build. */
   readonly build?: (outdir: string) => Promise<Record<string, string>>;
   readonly run?: RunHarness;
 }

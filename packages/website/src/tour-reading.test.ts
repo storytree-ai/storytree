@@ -4,7 +4,7 @@ import saved from "./forest-snapshot.json" with { type: "json" };
 import type { TourSnapshot } from "./forest-data.js";
 import { growthReading, savedReading } from "./tour-reading.js";
 import shop from "./shop-snapshot.json" with { type: "json" };
-import type { Line } from "@storytree/agent-link";
+import type { Line } from "@storytree/session-management";
 import { createTour, globeOf } from "./tour.js";
 import { steps } from "./tour-copy.js";
 

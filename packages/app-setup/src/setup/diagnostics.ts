@@ -2,7 +2,7 @@
 import { NODE_FLOOR, type AgentCliState, type MachineState } from "./machine.js";
 import { CODEX_TRUST_STEP } from "./verify.js";
 import type { SetupReport } from "./setup.js";
-import type { AppReading } from "@storytree/agent-link";
+import type { AppReading } from "@storytree/session-management";
 import { compareVersions } from "./hooks-release.js";
 
 export interface SetupLine {

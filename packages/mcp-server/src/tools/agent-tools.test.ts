@@ -1,5 +1,5 @@
 /**
- * Capability 6 · Agent tools (the MCP server), in the agent link story: listing the tools, planning, claiming and reporting through them, cancelling a call, landing, and wiring a pipeline. One of three files
+ * Capability 6 · Agent tools (the MCP server), in the MCP server story: listing the tools, planning, claiming and reporting through them, cancelling a call, landing, and wiring a pipeline. One of three files
  * (agent-tools, agent-tools-reads, agent-tools-writes) split so a test unit runs them side by side.
  * A test client talks to the server inside the test itself, over an
  * in-memory transport, with no real agent and no network, as Claude Code or Codex would: Claude
@@ -22,11 +22,11 @@ import { connect } from "@storytree/library";
 import pg from "pg";
 import { z } from "zod";
 
-import { readClaims } from "@storytree/agent-link";
-import { sessionsFrom } from "@storytree/agent-link/readings";
+import { readClaims } from "@storytree/session-management";
+import { sessionsFrom } from "@storytree/session-management/readings";
 import { claudeCode, codex, idOf, withAgent } from "../testing/agent.js";
-import { git } from "@storytree/agent-link/testing/folders";
-import { projectDatabase, testServerDataDir, testServerUrl } from "@storytree/agent-link/testing/pg";
+import { git } from "@storytree/session-management/testing/folders";
+import { projectDatabase, testServerDataDir, testServerUrl } from "@storytree/session-management/testing/pg";
 import { createAgentTools, type ToolExtension } from "../index.js";
 import { protectionThrough, storytreeRef } from "@storytree/app-setup/pipeline";
 import { registerPlanTools } from "./plan-tools.js";
@@ -516,7 +516,7 @@ test("6.57 plan_contract plans a contract whose title runs past 300 characters, 
   });
 });
 
-test("agent-link 11.1 on GitHub, wire_pipeline writes storytree's workflow: the project's install and tests on each system chosen, and storytree check pinned to this storytree's release", async () => {
+test("session-management 11.1 on GitHub, wire_pipeline writes storytree's workflow: the project's install and tests on each system chosen, and storytree check pinned to this storytree's release", async () => {
   await withProject(async ({ folder }) => {
     git(folder, "init", "-q");
     git(folder, "remote", "add", "origin", "https://github.com/someone/shop.git");
@@ -535,7 +535,7 @@ test("agent-link 11.1 on GitHub, wire_pipeline writes storytree's workflow: the 
   });
 });
 
-test("agent-link 11.2 in a project not on GitHub, wire_pipeline writes nothing and gives the commands to add to the user's own pipeline", async () => {
+test("session-management 11.2 in a project not on GitHub, wire_pipeline writes nothing and gives the commands to add to the user's own pipeline", async () => {
   await withProject(async ({ folder }) => {
     git(folder, "init", "-q");
     git(folder, "remote", "add", "origin", "https://gitlab.com/someone/shop.git");
@@ -550,7 +550,7 @@ test("agent-link 11.2 in a project not on GitHub, wire_pipeline writes nothing a
   });
 });
 
-test("agent-link 11.3 wire_pipeline proposes branch protection as a command for the user to approve, and changes no repository setting itself", async () => {
+test("session-management 11.3 wire_pipeline proposes branch protection as a command for the user to approve, and changes no repository setting itself", async () => {
   await withProject(async ({ folder }) => {
     git(folder, "init", "-q");
     git(folder, "remote", "add", "origin", "git@github.com:someone/shop.git");
@@ -567,7 +567,7 @@ test("agent-link 11.3 wire_pipeline proposes branch protection as a command for 
   });
 });
 
-test("agent-link 11.5 when GitHub refuses protection on the repository's plan (a free private repository), wire_pipeline offers merging only after both checks pass instead of a command that would fail, and only reads the setting", async () => {
+test("session-management 11.5 when GitHub refuses protection on the repository's plan (a free private repository), wire_pipeline offers merging only after both checks pass instead of a command that would fail, and only reads the setting", async () => {
   await withProject(async ({ folder }) => {
     git(folder, "init", "-q");
     git(folder, "remote", "add", "origin", "https://github.com/someone/shop.git");

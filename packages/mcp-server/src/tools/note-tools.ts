@@ -9,7 +9,8 @@
  *   opened without having been shown was found by its id. Each read names the agent that made it,
  *   as the harness revealed it (ADR-0629 D2). The record says what was reached, never what helped
  *   (ADR-0624 D3).
- * - A contract opens whole too: its promise and the capability it belongs to. An arc is refused.
+ * - A contract opens whole too: its promise and the capability it belongs to. So does a question: its
+ *   arc and state, its wording and answer, and the open increments held on it. An arc is refused.
  * - An artifact is corrected in place through the library's editNote (ADR-0641 D2 step 3): only the
  *   fields given change, and its old wording stays in its history.
  * - A new artifact with no place named goes onto the shelf of the capability the session claimed most
@@ -55,17 +56,17 @@ export function registerNoteTools(define: Define): void {
 
   define(
     "open",
-    "Open a story or a capability to see its shelf of front-cover decisions as spines, founding book first; open a contract to read its promise and the capability it belongs to; or open an artifact to read it whole, with the titles of what it links to and what links to it. Start at the shelf, open what matches your task, and stop when you can act.",
-    z.object({ id: z.string().min(1).describe("The id of a story, a capability, a contract or an artifact") }),
+    "Open a story or a capability to see its shelf of front-cover decisions as spines, founding book first; open a contract to read its promise and the capability it belongs to; open a question to read it whole with the work held on it; or open an artifact to read it whole, with the titles of what it links to and what links to it. Start at the shelf, open what matches your task, and stop when you can act.",
+    z.object({ id: z.string().min(1).describe("The id of a story, a capability, a contract, a question or an artifact") }),
     async ({ id }, call) => openRecord(id, call),
   );
 
   define(
     "write_note",
-    "Write an artifact: a decision (title and text), definition (term and meaning), or principle, guardrail, pattern, process, agent or techstack (required fields in fields). Use record_friction and record_resteer for their evidence rules. With no place named, it goes onto the shelf of the capability you claimed most recently.",
+    "Write an artifact: a decision (title and text), definition (term and meaning), or principle, guardrail, pattern, process, agent, techstack or check (required fields in fields). Use record_friction and record_resteer for their evidence rules. With no place named, it goes onto the shelf of the capability you claimed most recently.",
     z.object({
-      kind: z.string().min(1).describe("decision, definition, principle, guardrail, pattern, process, agent or techstack; friction and resteer have capture tools"),
-      fields: z.record(z.string(), z.unknown()).optional().describe("Required fields of a principle, guardrail, pattern, process, agent or techstack"),
+      kind: z.string().min(1).describe("decision, definition, principle, guardrail, pattern, process, agent, techstack or check; friction and resteer have capture tools"),
+      fields: z.record(z.string(), z.unknown()).optional().describe("Required fields of a principle, guardrail, pattern, process, agent, techstack or check"),
       text: z.string().min(1).optional().describe("A decision's text"),
       title: z.string().min(1).optional().describe("A decision's title"),
       term: z.string().min(1).optional().describe("A definition's term"),
@@ -107,12 +108,14 @@ async function openRecord(id: string, call: Call): Promise<Answer> {
       if (contract !== undefined) return openContract(contract, capability);
     }
   }
+  const record = await library.get(id);
+  if (record?.type === "question") return openQuestion(record as SchemaRecord<"question">, call);
   const notes = await library.search("");
   const note = notes.find((candidate) => candidate.id === id);
   if (note === undefined) {
     const arc = tree.arcs.some((node) => node.id === id);
     return {
-      text: arc ? `${id} is an arc: open a story, a capability, a contract or an artifact.` : `Nothing in this project has the id ${id}.`,
+      text: arc ? `${id} is an arc: open a story, a capability, a contract, a question or an artifact.` : `Nothing in this project has the id ${id}.`,
       refused: true,
     };
   }
@@ -127,6 +130,22 @@ async function openRecord(id: string, call: Call): Promise<Answer> {
   if (linksTo.length > 0) out.push("It links to:", ...linksTo.map(spineLine));
   if (linkedFrom.length > 0) out.push("Linked from:", ...linkedFrom.map(spineLine));
   return { text: out.join("\n"), data: { note: { id, kind: note.type, ...note.fields }, linksTo: linksTo.map(spineData), linkedFrom: linkedFrom.map(spineData) } };
+}
+
+/** The words of a question shown whole, in the order the owner reads them. */
+const QUESTION_WORDS = ["stakes", "statement", "context", "options", "analogy", "diagram", "recommendation", "answer"] as const;
+
+/** A question whole: its arc and state, every field of its wording and answer, and the open increments held on it. */
+async function openQuestion(question: SchemaRecord<"question">, { library }: Call): Promise<Answer> {
+  const fields = question.fields as Readonly<Record<string, unknown>>;
+  const settled = typeof fields.settledAt === "string" ? `, settled ${fields.settledAt}${typeof fields.settledBy === "string" ? ` by ${fields.settledBy}` : ""}` : "";
+  const holding = Object.entries((await library.holds()).heldOn).flatMap(([increment, on]) => (on.includes(question.id) ? [increment] : []));
+  const out = [`Question ${quoted(String(fields.title))} (${question.id}):`, `On ${String(fields.arc)}, ${String(fields.lifecycle)}${settled}.`];
+  for (const name of QUESTION_WORDS) {
+    if (typeof fields[name] === "string") out.push(`${name[0]?.toUpperCase()}${name.slice(1)}: ${fields[name]}`);
+  }
+  if (holding.length > 0) out.push(`Holding: ${holding.join(", ")}`);
+  return { text: out.join("\n"), data: { question: { id: question.id, ...fields, holding } } };
 }
 
 /** A contract whole: its title, its description, and the capability it belongs to. */
@@ -169,8 +188,8 @@ const FIELDS = { decision: ["title", "text"], definition: ["term", "meaning"] } 
 async function writeNote(args: NoteArgs, call: Call): Promise<Answer> {
   if (args.kind === "memory") return { text: "memory belongs to the agent harness, not the library (ADR-0650); write a proper artifact kind such as decision, definition or principle.", refused: true };
   if (args.kind === "friction" || args.kind === "resteer") return { text: `Use record_${args.kind} to write this artifact under its evidence rules.`, refused: true };
-  const further = ["principle", "guardrail", "pattern", "process", "agent", "techstack"].includes(args.kind);
-  if (!further && args.kind !== "decision" && args.kind !== "definition") return { text: `Unknown artifact kind ${quoted(args.kind)}; use decision, definition, principle, guardrail, pattern, process, agent or techstack.`, refused: true };
+  const further = ["principle", "guardrail", "pattern", "process", "agent", "techstack", "check"].includes(args.kind);
+  if (!further && args.kind !== "decision" && args.kind !== "definition") return { text: `Unknown artifact kind ${quoted(args.kind)}; use decision, definition, principle, guardrail, pattern, process, agent, techstack or check.`, refused: true };
   const needs: readonly string[] = further ? [] : FIELDS[args.kind as keyof typeof FIELDS];
   if (further && args.fields === undefined) return { text: `Give the required fields for a ${args.kind} in fields.`, refused: true };
   if (!further && args.fields !== undefined) return { text: `A ${args.kind} takes ${needs.join(" and ")} directly.`, refused: true };

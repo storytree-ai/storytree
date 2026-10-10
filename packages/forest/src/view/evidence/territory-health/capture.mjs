@@ -60,7 +60,7 @@ add(60, SESSIONS.C, claim(CAP.storyNodeRender, 'territory colours'));
 add(45, SESSIONS.C, { kind: 'turn-ended', source: 'hook' });
 const log = { lines, cursor: lines.length };
 
-/** What the land drew, counted from the scene and the page: each territory's word and fill, each claim outline, and the rim markers. */
+/** What the land drew, counted from the scene and the page: each territory's word and fill, each claim's flag, and the rim markers. */
 function measure(page) {
   return page.evaluate(() => {
     const { scene, camera } = window.__globe;
@@ -76,8 +76,11 @@ function measure(page) {
             fill: '#' + child.material.color.getHexString(), opacity: child.material.opacity, saturation: Math.round(hsl.s * 100) / 100, claimedBy: child.userData.claimedBy ?? null });
         }
         if (child.name.startsWith('territory-hatch:')) hatches.push({ colour: '#' + child.material.color.getHexString(), opacity: child.material.opacity, segments: child.geometry.attributes.position.count / 2, renderOrder: child.renderOrder });
-        if (child.name.startsWith('territory-claim:')) outlines.push({ capability: child.userData.capability, colour: child.userData.colour, drawn: '#' + child.material.color.getHexString(),
-          opacity: child.material.opacity, faded: child.userData.faded, triangles: child.geometry.attributes.position.count / 3 });
+        if (child.name.startsWith('territory-claim:')) {
+          const pennant = child.getObjectByName('flag-pennant');
+          outlines.push({ capability: child.userData.capability, colour: child.userData.colour, drawn: pennant ? '#' + pennant.material.color.getHexString() : null,
+            faded: child.userData.faded, triangles: pennant ? pennant.geometry.attributes.position.count / 3 : 0 });
+        }
       });
       islands.push({ story: object.name.slice(7), territories, claimOutlines: outlines, hatches });
     });
@@ -168,8 +171,8 @@ function measure(page) {
     return ids.every(id => !!state.scene.getObjectByName(`planet:${id}`)?.getObjectByName('island-ground'));
   }, seed.tree.stories.map(s => s.id), { timeout: 60000, polling: 100 }).catch(error => failedWait('seeded islands', error));
   phase('wait for territory and claim meshes');
-  // Territories arrive with the survey, and the claim outlines with the first read of the log: wait until both are drawn.
-  await page.waitForFunction(() => { let outlines = 0, files = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('territory-claim:')) outlines++; if (o.name.startsWith('file:')) files++; }); return outlines > 0 && files > 0; }, undefined, { timeout: 30000, polling: 100 }).catch(error => failedWait('claim bands and file circles', error));
+  // Territories arrive with the survey, and the claim flags with the first read of the log: wait until both are drawn.
+  await page.waitForFunction(() => { let outlines = 0, files = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('territory-claim:')) outlines++; if (o.name.startsWith('file:')) files++; }); return outlines > 0 && files > 0; }, undefined, { timeout: 30000, polling: 100 }).catch(error => failedWait('claim flags and file circles', error));
   await page.evaluate(() => { for (const menu of document.querySelectorAll('[popover]')) if (menu.matches(':popover-open')) menu.hidePopover(); });
   await settleView(page);
   const results = { now: new Date(NOW).toISOString(), sessions: SESSIONS, capabilities: CAP, logLines: lines.length };
@@ -228,7 +231,7 @@ function measure(page) {
   // the like), which throw on the missing answer. The land's own marks are asserted from the scene below.
   assert.equal(results.front.greyFills, 0);
   console.log(JSON.stringify({ browser: results.browser, fills: results.front.fills, greyFills: results.front.greyFills,
-    outlines: results.front.islands.flatMap(i => i.claimOutlines.map(o => [i.story, o.capability, o.colour, o.opacity, o.triangles])), markers: results.turnedAway.markers, errors }));
+    flags: results.front.islands.flatMap(i => i.claimOutlines.map(o => [i.story, o.capability, o.colour, o.faded, o.triangles])), markers: results.turnedAway.markers, errors }));
   // Observation is complete. Stop redraws, then let page closure release the WebGL context.
   // Explicit dispose/forceContextLoss can itself stall the macOS software-GL driver.
   phase('stop redraws after observation');

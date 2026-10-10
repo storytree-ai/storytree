@@ -17,6 +17,8 @@ const CONNECT_TIMEOUT_MS = 3_000;
 export interface Reached {
   readonly library: Library;
   readonly log: ActivityLog;
+  /** The connection both were opened on, which hands out a story's own database (ADR-0973). */
+  readonly storytree: Storytree;
 }
 
 export class Connections {
@@ -59,7 +61,7 @@ export class Connections {
     }
     try {
       const [openedLibrary, openedLog] = await Promise.all([opening, log]);
-      return { library: openedLibrary, log: openedLog };
+      return { library: openedLibrary, log: openedLog, storytree };
     } catch (error) {
       // Both openings started together. Let both discard their timed-out sockets before
       // answering, so an immediate retry cannot pick up the other failed opening.

@@ -1,0 +1,386 @@
+{
+  "pictures": [
+    "desktop-rest-held.png",
+    "desktop-rest-arrive-100_12.png",
+    "desktop-rest-arrive-100_4.png",
+    "desktop-rest-arrive-100_75.png",
+    "desktop-rest-arrive-102.png",
+    "desktop-rest-quieting.png",
+    "desktop-rest-quiet.png",
+    "desktop-rest-leaving.png",
+    "desktop-rest-gone.png",
+    "desktop-close-held.png",
+    "desktop-close-arrive-100_12.png",
+    "desktop-close-arrive-100_4.png",
+    "desktop-close-arrive-100_75.png",
+    "desktop-close-arrive-102.png",
+    "desktop-close-quieting.png",
+    "desktop-close-quiet.png",
+    "desktop-close-leaving.png",
+    "desktop-close-gone.png",
+    "desktop-lots.png",
+    "phone-rest-held.png",
+    "phone-rest-arrive-100_12.png",
+    "phone-rest-arrive-100_4.png",
+    "phone-rest-arrive-100_75.png",
+    "phone-rest-arrive-102.png",
+    "phone-rest-quieting.png",
+    "phone-rest-quiet.png",
+    "phone-rest-leaving.png",
+    "phone-rest-gone.png",
+    "phone-close-held.png",
+    "phone-close-arrive-100_12.png",
+    "phone-close-arrive-100_4.png",
+    "phone-close-arrive-100_75.png",
+    "phone-close-arrive-102.png",
+    "phone-close-quieting.png",
+    "phone-close-quiet.png",
+    "phone-close-leaving.png",
+    "phone-close-gone.png",
+    "phone-lots.png"
+  ],
+  "desktop-rest": {
+    "zoom": 2.0613312852712142,
+    "flags": [
+      {
+        "claim": true,
+        "capability": "capability_5e0362aae607",
+        "colour": "hsl(207, 80%, 68%)",
+        "faded": false,
+        "dot": false,
+        "poleHeightPx": 17.2,
+        "lotDashes": 0
+      },
+      {
+        "claim": true,
+        "capability": "capability_5a80222c88c4",
+        "colour": "hsl(301, 80%, 68%)",
+        "faded": false,
+        "dot": false,
+        "poleHeightPx": 17.2,
+        "lotDashes": 0
+      },
+      {
+        "claim": true,
+        "capability": "capability_a1d4fadbec3e",
+        "colour": "hsl(248, 80%, 68%)",
+        "faded": false,
+        "dot": false,
+        "poleHeightPx": 17.2,
+        "lotDashes": 0
+      },
+      {
+        "claim": true,
+        "capability": "capability_07c95281a87e",
+        "colour": "hsl(356, 80%, 68%)",
+        "faded": false,
+        "dot": false,
+        "poleHeightPx": 17.2,
+        "lotDashes": 46
+      },
+      {
+        "claim": true,
+        "capability": "capability_f1d66d700591",
+        "colour": "hsl(356, 80%, 68%)",
+        "faded": false,
+        "dot": false,
+        "poleHeightPx": 17.2,
+        "lotDashes": 49
+      }
+    ],
+    "bands": 0
+  },
+  "desktop-rest-quiet": {
+    "claim": true,
+    "capability": "capability_dd486ffa5b02",
+    "colour": "hsl(335, 80%, 68%)",
+    "faded": true,
+    "dot": false,
+    "poleHeightPx": 17.2,
+    "lotDashes": 0
+  },
+  "desktop-close": {
+    "zoom": 6.116207951070336,
+    "flags": [
+      {
+        "claim": true,
+        "capability": "capability_5e0362aae607",
+        "colour": "hsl(207, 80%, 68%)",
+        "faded": false,
+        "dot": false,
+        "poleHeightPx": 29.2,
+        "lotDashes": 0
+      },
+      {
+        "claim": true,
+        "capability": "capability_5a80222c88c4",
+        "colour": "hsl(301, 80%, 68%)",
+        "faded": false,
+        "dot": false,
+        "poleHeightPx": 29.2,
+        "lotDashes": 0
+      },
+      {
+        "claim": true,
+        "capability": "capability_a1d4fadbec3e",
+        "colour": "hsl(248, 80%, 68%)",
+        "faded": false,
+        "dot": false,
+        "poleHeightPx": 29.2,
+        "lotDashes": 0
+      },
+      {
+        "claim": true,
+        "capability": "capability_07c95281a87e",
+        "colour": "hsl(356, 80%, 68%)",
+        "faded": false,
+        "dot": false,
+        "poleHeightPx": 29.2,
+        "lotDashes": 46
+      },
+      {
+        "claim": true,
+        "capability": "capability_f1d66d700591",
+        "colour": "hsl(356, 80%, 68%)",
+        "faded": false,
+        "dot": false,
+        "poleHeightPx": 29.2,
+        "lotDashes": 49
+      }
+    ],
+    "bands": 0
+  },
+  "desktop-close-quiet": {
+    "claim": true,
+    "capability": "capability_dd486ffa5b02",
+    "colour": "hsl(335, 80%, 68%)",
+    "faded": true,
+    "dot": false,
+    "poleHeightPx": 29.2,
+    "lotDashes": 0
+  },
+  "desktop-lots": {
+    "zoom": 6.116207951070336,
+    "flags": [
+      {
+        "claim": true,
+        "capability": "capability_5e0362aae607",
+        "colour": "hsl(207, 80%, 68%)",
+        "faded": false,
+        "dot": false,
+        "poleHeightPx": 29.2,
+        "lotDashes": 0
+      },
+      {
+        "claim": true,
+        "capability": "capability_5a80222c88c4",
+        "colour": "hsl(301, 80%, 68%)",
+        "faded": false,
+        "dot": false,
+        "poleHeightPx": 29.2,
+        "lotDashes": 0
+      },
+      {
+        "claim": true,
+        "capability": "capability_a1d4fadbec3e",
+        "colour": "hsl(248, 80%, 68%)",
+        "faded": false,
+        "dot": false,
+        "poleHeightPx": 29.2,
+        "lotDashes": 0
+      },
+      {
+        "claim": true,
+        "capability": "capability_07c95281a87e",
+        "colour": "hsl(356, 80%, 68%)",
+        "faded": false,
+        "dot": false,
+        "poleHeightPx": 29.2,
+        "lotDashes": 46
+      },
+      {
+        "claim": true,
+        "capability": "capability_f1d66d700591",
+        "colour": "hsl(356, 80%, 68%)",
+        "faded": false,
+        "dot": false,
+        "poleHeightPx": 29.2,
+        "lotDashes": 49
+      }
+    ],
+    "bands": 0
+  },
+  "desktop-errors": [],
+  "phone-rest": {
+    "zoom": 0.6871104284237382,
+    "flags": [
+      {
+        "claim": true,
+        "capability": "capability_5e0362aae607",
+        "colour": "hsl(207, 80%, 68%)",
+        "faded": false,
+        "dot": true,
+        "poleHeightPx": null,
+        "lotDashes": 0
+      },
+      {
+        "claim": true,
+        "capability": "capability_5a80222c88c4",
+        "colour": "hsl(301, 80%, 68%)",
+        "faded": false,
+        "dot": true,
+        "poleHeightPx": null,
+        "lotDashes": 0
+      },
+      {
+        "claim": true,
+        "capability": "capability_a1d4fadbec3e",
+        "colour": "hsl(248, 80%, 68%)",
+        "faded": false,
+        "dot": true,
+        "poleHeightPx": null,
+        "lotDashes": 0
+      },
+      {
+        "claim": true,
+        "capability": "capability_07c95281a87e",
+        "colour": "hsl(356, 80%, 68%)",
+        "faded": false,
+        "dot": true,
+        "poleHeightPx": null,
+        "lotDashes": 46
+      },
+      {
+        "claim": true,
+        "capability": "capability_f1d66d700591",
+        "colour": "hsl(356, 80%, 68%)",
+        "faded": false,
+        "dot": true,
+        "poleHeightPx": null,
+        "lotDashes": 49
+      }
+    ],
+    "bands": 0
+  },
+  "phone-rest-quiet": {
+    "claim": true,
+    "capability": "capability_dd486ffa5b02",
+    "colour": "hsl(335, 80%, 68%)",
+    "faded": true,
+    "dot": true,
+    "poleHeightPx": null,
+    "lotDashes": 0
+  },
+  "phone-close": {
+    "zoom": 2.484709480122324,
+    "flags": [
+      {
+        "claim": true,
+        "capability": "capability_5e0362aae607",
+        "colour": "hsl(207, 80%, 68%)",
+        "faded": false,
+        "dot": false,
+        "poleHeightPx": 19.1,
+        "lotDashes": 0
+      },
+      {
+        "claim": true,
+        "capability": "capability_5a80222c88c4",
+        "colour": "hsl(301, 80%, 68%)",
+        "faded": false,
+        "dot": false,
+        "poleHeightPx": 19.1,
+        "lotDashes": 0
+      },
+      {
+        "claim": true,
+        "capability": "capability_a1d4fadbec3e",
+        "colour": "hsl(248, 80%, 68%)",
+        "faded": false,
+        "dot": false,
+        "poleHeightPx": 19.1,
+        "lotDashes": 0
+      },
+      {
+        "claim": true,
+        "capability": "capability_07c95281a87e",
+        "colour": "hsl(356, 80%, 68%)",
+        "faded": false,
+        "dot": false,
+        "poleHeightPx": 19.1,
+        "lotDashes": 46
+      },
+      {
+        "claim": true,
+        "capability": "capability_f1d66d700591",
+        "colour": "hsl(356, 80%, 68%)",
+        "faded": false,
+        "dot": false,
+        "poleHeightPx": 19.1,
+        "lotDashes": 49
+      }
+    ],
+    "bands": 0
+  },
+  "phone-close-quiet": {
+    "claim": true,
+    "capability": "capability_dd486ffa5b02",
+    "colour": "hsl(335, 80%, 68%)",
+    "faded": true,
+    "dot": false,
+    "poleHeightPx": 19.1,
+    "lotDashes": 0
+  },
+  "phone-lots": {
+    "zoom": 2.484709480122324,
+    "flags": [
+      {
+        "claim": true,
+        "capability": "capability_5e0362aae607",
+        "colour": "hsl(207, 80%, 68%)",
+        "faded": false,
+        "dot": false,
+        "poleHeightPx": 19.1,
+        "lotDashes": 0
+      },
+      {
+        "claim": true,
+        "capability": "capability_5a80222c88c4",
+        "colour": "hsl(301, 80%, 68%)",
+        "faded": false,
+        "dot": false,
+        "poleHeightPx": 19.1,
+        "lotDashes": 0
+      },
+      {
+        "claim": true,
+        "capability": "capability_a1d4fadbec3e",
+        "colour": "hsl(248, 80%, 68%)",
+        "faded": false,
+        "dot": false,
+        "poleHeightPx": 19.1,
+        "lotDashes": 0
+      },
+      {
+        "claim": true,
+        "capability": "capability_07c95281a87e",
+        "colour": "hsl(356, 80%, 68%)",
+        "faded": false,
+        "dot": false,
+        "poleHeightPx": 19.1,
+        "lotDashes": 46
+      },
+      {
+        "claim": true,
+        "capability": "capability_f1d66d700591",
+        "colour": "hsl(356, 80%, 68%)",
+        "faded": false,
+        "dot": false,
+        "poleHeightPx": 19.1,
+        "lotDashes": 49
+      }
+    ],
+    "bands": 0
+  },
+  "phone-errors": []
+}

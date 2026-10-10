@@ -131,8 +131,8 @@ test("12.9 · `pool` starts each ready increment under the shared lock with the 
     survey: async () => poolWork(["increment_build", "increment_review"], { bodies: { increment_review: "needs: read-only, blind" } }),
     count: async () => 0, maxLanes: async () => 2,
   });
-  const ran = [];
-  b.runLane = async (options) => { ran.push(await readFile(options.brief, "utf8")); options.say("2026-10-08T04:00:00Z engine claude allowance used"); return 0; };
+  const ran = [], followed = [];
+  b.runLane = async (options) => { ran.push(await readFile(options.brief, "utf8")); followed.push(options.increment); options.say("2026-10-08T04:00:00Z engine claude allowance used"); return 0; };
   b.sleep = async () => { await new Promise((go) => setImmediate(go)); if (ran.length === 2) await writeFile(join(b.lanesDir, "pool-stop"), ""); };
   assert.equal(await main(["pool"], b), 0);
   const build = ran.find((brief) => brief.startsWith("# Pool lane: increment_build"));
@@ -141,6 +141,7 @@ test("12.9 · `pool` starts each ready increment under the shared lock with the 
   assert.ok(review.includes(await poolRules("needs: read-only")) && /blind reviewer/.test(review));
   assert.ok(b.lines.some((line) => /start increment_build/.test(line)) && b.lines.some((line) => /end increment_review exit 0/.test(line)));
   assert.equal(b.events.filter((one) => one === "lock").length, 2);
+  assert.deepEqual(followed.sort(), ["increment_build", "increment_review"], "the runner checks what each lane left for its increment");
   b.argsOf = async () => "node launch.mjs pool";
   await writeFile(join(b.lanesDir, "pool.pid"), "99\n");
   assert.equal(await main(["pool"], b), 1, "one dispatcher at a time");
@@ -202,7 +203,7 @@ test("12.11 · with free slots and nothing ready, one planning session starts fo
   assert.deepEqual(started, ["plan:arc_old", "plan:arc_new"]);
 
   const b = await box(t, { survey: async () => ({ ...poolWork([]), arcs: [arcs[0]] }), count: async () => 0, maxLanes: async () => 1 });
-  b.runLane = async (options) => { b.briefs.push(await readFile(options.brief, "utf8")); return 0; };
+  b.runLane = async (options) => { b.briefs.push(await readFile(options.brief, "utf8")); assert.equal(options.increment, undefined, "a planning lane is not checked for a push"); return 0; };
   b.sleep = async () => { await new Promise((go) => setImmediate(go)); if (b.briefs.length) await writeFile(join(b.lanesDir, "pool-stop"), ""); };
   assert.equal(await main(["pool"], b), 0);
   assert.ok(b.briefs[0].startsWith("# Planning lane: arc_old\n\nYour arc: arc_old (Old)."));

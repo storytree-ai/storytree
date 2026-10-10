@@ -1,5 +1,7 @@
 # An increment can wait for the owner or an event, with a note — ADR-0938
 
+*Overtaken 2026-10-10 by ADR-0980 ([row-marks](../row-marks/README.md)): the row's count, its waits-on line and the markers beside the chip are gone, so this capture's script no longer passes as written; it is kept as the record of what landed then.*
+
 The actual desktop renderer, captured unedited with headless Chromium 148 over an isolated Postgres
 and an explicit fixture. Dark theme, 1440 × 960 at 2× scale. Nothing in the owner's library or running
 app is opened or changed.

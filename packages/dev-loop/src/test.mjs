@@ -12,7 +12,9 @@
 // (packages/dev-loop/src/allocation.test.mjs, ADR-0838 D5) are units of every run. Several units
 // run at once against the one Postgres (unit-pool.mjs: --jobs=<n>, else STORYTREE_TEST_JOBS, else 2 with a core left free),
 // slowest first; each unit's output is held and printed whole under its name when it ends, and
-// `--jobs=1` runs them one after another with their output live. A failure never stops the rest:
+// `--jobs=1` runs them one after another with their output live. A file named to run alone
+// (test-scope.mjs ALONE: forest's browser proof) is a unit of its own, run once every other unit has
+// ended, with nothing beside it. A failure never stops the rest:
 // the run ends with a PASS / FAIL / NOT RUN table, and exits non-zero if any unit did not pass.
 //
 //   pnpm run test --scope            print the decision and the units, and run nothing
@@ -93,7 +95,7 @@ import { DataDirInUseError, start } from "@storytree/local-postgres";
 import { acquireHeavyLock } from "./heavy-lock.mjs";
 import { runtimeRefusal } from "./node-runtime.mjs";
 import { keepPreviousServerLog } from "./server-log.mjs";
-import { parseTestArgs, planRun, readWorkspace, resultsTable, scopeFor, scopeLine, TEST_USAGE, unitGlobs } from "./test-scope.mjs";
+import { parseTestArgs, planRun, readWorkspace, resultsTable, scopeFor, scopeLine, TEST_USAGE, unitGlobs, ALONE } from "./test-scope.mjs";
 import { runPool, slowestFirst, testJobs } from "./unit-pool.mjs";
 import { clearUnitLimit, DEADLINE_GRACE_MS, defaultUnitLimit, killTree, recentPassTimes, recordTimings, runDeadline, runUnit, setUnitLimit, unitLimit, unitReason, withinDeadline } from "./unit-run.mjs";
 
@@ -253,7 +255,7 @@ async function runTests(env, units) {
     running.add(unit);
     phase = `running ${[...running].join(", ")}`;
     console.log(jobs > 1 ? `started ${unit}` : `\n=== ${unit} ===`);
-    const run = await runNodeTest(env, unitGlobs(unit), unit);
+    const run = await runNodeTest(env, unitGlobs(unit, { root }), unit);
     running.delete(unit);
     if (jobs > 1) process.stdout.write(`\n=== ${unit} ===\n${run.output}`);
     if (interrupted) return; // Ctrl-C cut it short: it stays NOT RUN
@@ -261,7 +263,7 @@ async function runTests(env, units) {
     reasons[unit] = unitReason(run, root);
     timings[unit] = { result: results[unit], ms: run.ms, timedOut: run.timedOut && !run.cut }; // a cut is the run's deadline, not the unit's
     if (run.timedOut || run.exitHung.length > 0) console.log(`\ntest harness: ${unit} ${reasons[unit]}`);
-  }, { stopped: () => interrupted });
+  }, { stopped: () => interrupted, alone: (unit) => ALONE.includes(unit) });
   writeRecord(results);
   try {
     recordTimings(timings, { jobs });

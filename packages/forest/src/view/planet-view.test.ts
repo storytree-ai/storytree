@@ -9,6 +9,7 @@ import { dragTurn, focusRotation, globeFraming, globeHover, hiddenMarkers, isGlo
 import { codePathKey } from "@storytree/knowledge-core";
 import { circleStops, fileCircleMarks, lightFileCircles } from "./file-circles.js";
 import { lightTerritories, territoryLand } from "./territory-land.js";
+import { ClaimMarks } from "./claim-flag.js";
 import { territories } from "../territories/territories.js";
 
 test("3.12 hovering an eligible artifact shows its title and pointer in either mode; empty space clears both", () => {
@@ -103,18 +104,18 @@ test("3.11 a hidden failure has a marker in the camera's frame, and its click tu
   assert.ok(hiddenMarkers(islands, focused, orbitedEye).every(m => m.story !== "behind"));
 });
 
-test("north stays up: the opening view, a marker's focus and any drag spin and tilt the globe, never past just short of a pole, and never roll it", () => {
+test("3.38 north stays up: the opening view, a marker's focus and any drag spin the globe freely and tilt it no further than 50° toward a pole, and never roll it", () => {
   // The canvas's eye looks down a little and never rolls; the globe turns, not the eye.
   const eye = new Quaternion().setFromEuler(new Euler(-0.3, 0, 0));
   const islands: FacingIsland[] = [
     { story: "polar", spot: { x: 0.05, y: 5, z: 0.05 }, trees: [{ status: "unhealthy" }] },
     { story: "behind", spot: { x: -3, y: -1, z: -4 }, trees: [{ status: "unhealthy" }] },
   ];
-  const short = Math.cos(88 * Math.PI / 180) - 1e-9;
+  const short = Math.cos(50 * Math.PI / 180) - 1e-9;
   const northUp = (turn: Parameters<typeof focusRotation>[0], why: string) => {
     const north = new Vector3(0, 1, 0).applyQuaternion(focusRotation(turn, eye)).applyQuaternion(eye.clone().invert());
     assert.ok(Math.abs(north.x) < 1e-9, `${why}: north points straight up the screen`);
-    assert.ok(north.y >= short, `${why}: tilted no further than just short of the pole`);
+    assert.ok(north.y >= short, `${why}: tilted no further than 50° toward the pole`);
   };
   let turn = openingTurn(islands);
   northUp(turn, "the opening view of an island at the pole");
@@ -125,6 +126,7 @@ test("north stays up: the opening view, a marker's focus and any drag spin and t
     turn = dragTurn(turn, drag, 800);
     northUp(turn, `a drag of ${drag.x}, ${drag.y}`);
   }
+  assert.ok(Math.abs(dragTurn({ yaw: 0, pitch: 0 }, { x: 0, y: 5000 }, 800).pitch - 50 * Math.PI / 180) < 1e-12, "a long tilt stops at 50°, not short of it");
   const spun = dragTurn({ yaw: 0, pitch: 0 }, { x: 200, y: 0 }, 800);
   assert.ok(spun.yaw > 0 && spun.pitch === 0, "dragging sideways spins around the poles only");
   assert.ok(dragTurn(spun, { x: 400 * 9, y: 0 }, 800).yaw > spun.yaw + 2 * Math.PI, "and the spin has no limit");
@@ -448,7 +450,7 @@ const programsEveryFrame = (root: Group): string[] => {
   return found;
 };
 
-test("5.4 an animating globe redraws a session-lit island's land, circles and tints without re-deriving a shader program", () => {
+test("5.4 an animating globe redraws a session-lit island's land, circles, tints and claim flags without re-deriving a shader program", () => {
   const land = {
     radius: 2,
     territories: [{ capability: "cap-a", status: "healthy" as const }, { capability: "cap-b" }],
@@ -460,10 +462,14 @@ test("5.4 an animating globe redraws a session-lit island's land, circles and ti
   };
   const plate = new Group();
   const drawn = territoryLand(land, flat.onSurface, undefined, new Map([["cap-a", { colour: "#e69f00", faded: false }]]));
+  const marks = new ClaimMarks();
+  marks.setLand(territories([{ capability: "cap-a", lines: 1 }, { capability: "cap-b", lines: 1 }], 2), flat.onSurface, flat.normalAt, true);
+  marks.claims(new Map([["cap-a", { colour: "#e69f00", faded: false }]]), 0, { standing: false, reduced: false });
+  marks.frame(0.7, { zoom: 20, eye: new Quaternion(), reduced: false });
   lightTerritories(drawn, new Map([["cap-a", "in-window" as const], ["cap-b", "faded" as const]]), "#e69f00");
   const circles = circlesOf();
   lightFileCircles(circles, new Map([[codePathKey("story", "src/a.ts"), "in-window" as const], [codePathKey("story", "src/b.ts"), "faded" as const]]), "#e69f00", "story");
-  plate.add(drawn, circles);
-  assert.ok(plate.getObjectByName("territory-claim:cap-a") && plate.getObjectByName("file-ring:src/a.ts"), "the fixture draws every kind of mark");
+  plate.add(drawn, circles, marks.root);
+  assert.ok(plate.getObjectByName("territory-claim:cap-a") && plate.getObjectByName("claim-lot:cap-a") && plate.getObjectByName("file-ring:src/a.ts"), "the fixture draws every kind of mark");
   assert.deepEqual(programsEveryFrame(plate), []);
 });

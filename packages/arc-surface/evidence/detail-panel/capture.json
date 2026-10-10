@@ -1,0 +1,64 @@
+{
+  "browser": "148.0.7778.96",
+  "closed": {
+    "intentOpen": false,
+    "questions": [
+      [
+        "Which payment provider should take card payments for the first paid plan?",
+        "open"
+      ],
+      [
+        "Should the domain move before launch?",
+        "settled"
+      ]
+    ],
+    "increments": [
+      [
+        "Add card payments",
+        [
+          "you"
+        ]
+      ],
+      [
+        "Switch the DNS",
+        [
+          "you"
+        ]
+      ],
+      [
+        "Publish the pricing page",
+        [
+          "you",
+          "1 increment"
+        ]
+      ],
+      [
+        "Pass the provider review",
+        [
+          "event"
+        ]
+      ],
+      [
+        "Fix the footer links",
+        [
+          "Codex · 0 min quiet"
+        ]
+      ],
+      [
+        "Write the about page",
+        [
+          "to take"
+        ]
+      ],
+      [
+        "Move the blog",
+        [
+          "not completed"
+        ]
+      ]
+    ],
+    "landedFold": "39 landed"
+  },
+  "opened": "Publish the pricing page\nyou\n1 increment\nObjective\nPublish the pricing page, so that the site can take its next step.\nWaits on\nAdd card payments (Website): Prices name the provider’s fees.\nBehind your questions\nWhich payment provider should take card payments for the first paid plan?",
+  "errors": []
+}

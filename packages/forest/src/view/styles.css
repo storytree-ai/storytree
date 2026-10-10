@@ -70,6 +70,34 @@
   color: #101418;
 }
 
+/* 3.36: the mini globe in the top right; a click takes the globe home (3.37). */
+.planet-mini-globe {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  pointer-events: auto;
+  cursor: pointer;
+  line-height: 0;
+}
+
+.planet-mini-globe:focus-visible { outline: 2px solid #eadcae; border-radius: 50%; }
+.mini-globe-sea { fill: #16212a; stroke: #7d8a94; stroke-width: 1.4; }
+.planet-mini-globe:hover .mini-globe-sea { stroke: #eadcae; }
+.mini-globe-equator { fill: none; stroke: #3c4a55; stroke-width: 1; }
+.mini-globe-axis { stroke: #3c4a55; stroke-width: 1; stroke-dasharray: 2 2; }
+.mini-globe-land { fill: #8fb07a; }
+.mini-globe-land.behind { fill: none; stroke: #8fb07a; stroke-width: 1; opacity: 0.55; }
+.mini-globe-pole { fill: #e6ecf0; }
+.mini-globe-label { fill: #e6ecf0; font: 700 11px system-ui, sans-serif; }
+.mini-globe-facing circle { fill: none; stroke: #eadcae; stroke-width: 2; }
+.mini-globe-facing .mini-globe-facing-dot { fill: #eadcae; stroke: none; }
+/* The face on show is on the far side of the opening view: a dashed blue ring, never mistaken for home. */
+.mini-globe-facing.behind circle { stroke: #8ec5ff; stroke-dasharray: 3 2; }
+.mini-globe-facing.behind .mini-globe-facing-dot { fill: #8ec5ff; }
+
 .planet-edge-marker {
   position: absolute;
   transform: translate(-50%, -50%);
@@ -741,6 +769,8 @@
 .planet-nameplate.crowded { opacity:0; }
 /* A capability's name wraps by word to two lines at most, an ellipsis past them; its full name and description read on hover (3.32). */
 .planet-nameplate.capability { transform:none; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; width:max-content; max-width:120px; white-space:normal; text-wrap:balance; text-align:center; line-height:1.15; border-radius:0.6rem; padding:0.1rem 0.45rem; font-size:0.7rem; font-weight:500; background:rgb(16 20 24 / 0.62); }
+/* A claimed capability's flag stands at its nameplate's point: the name hangs just below the flag's foot (ADR-0968 D1). */
+.planet-nameplate.capability[data-claimed] { translate:0 calc(50% + 5px); }
 /* Unsurveyed progress counts landed work, without claiming code coverage or test health (forest 3.29). */
 /* Its progress sits beneath the title, so the plate keeps STORY_PLATE_WIDTH and a row of small islands' names clear each other (1.10). */
 .planet-nameplate.with-progress { display:inline-flex; flex-direction:column; align-items:center; }

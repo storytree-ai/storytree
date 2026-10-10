@@ -1,13 +1,15 @@
 /**
- * Quality assurance's contract 1.2, at this front door: the real, built `storytree quality checks` prints
- * the checks reading through quality assurance's public API, the same reading its tool on the MCP server gives.
+ * Quality assurance's contracts 1.2 and 3.4, at this front door: the real, built `storytree quality checks`
+ * and `storytree quality ledger` print the checks and ledger readings through quality assurance's public API,
+ * the same readings its tools on the MCP server give.
  */
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 
-import { checks, checksText } from "@storytree/quality-assurance";
+import { connect } from "@storytree/library";
+import { checks, checksText, ledgerText, openLedger } from "@storytree/quality-assurance";
 
-import { BuiltCommand, inWorld } from "./testing/cli.js";
+import { BuiltCommand, inWorld, testServerUrl } from "./testing/cli.js";
 
 const command = new BuiltCommand();
 
@@ -25,5 +27,23 @@ test("(quality assurance's 1.2) `quality checks` prints the package's checks rea
     const ran = await world.run(["quality", "checks"]);
     assert.equal(ran.code, 0, ran.stderr);
     assert.ok(ran.stdout.startsWith(checksText(reading)), ran.stdout);
+  });
+});
+
+test("(quality assurance's 3.4) `quality ledger` prints the package's ledger reading for the folder's project", async () => {
+  await inWorld(command, async (world) => {
+    const storytree = await connect({ url: testServerUrl() });
+    try {
+      const ledger = await openLedger(storytree);
+      await ledger.record({ project: world.project, review: "r1", packages: ["library"], ran: [{ check: "check_a", hits: [{ package: "library", file: "a.ts", line: 1 }] }, { check: "check_b", hits: [] }] });
+      const reading = await ledger.reading(world.project);
+      assert.equal(reading.length, 2);
+
+      const ran = await world.run(["quality", "ledger"]);
+      assert.equal(ran.code, 0, ran.stderr);
+      assert.ok(ran.stdout.startsWith(ledgerText(reading)), ran.stdout);
+    } finally {
+      await storytree.close();
+    }
   });
 });

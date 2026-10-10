@@ -26,8 +26,8 @@ export interface Knowledge {
   linksIn: ReadonlyMap<string, number>;
 }
 
-/** The library's note kinds (its NoteType): memory notes, decisions, definitions and the eight kinds. */
-const NOTE_TYPES = new Set(["memory", "decision", "definition", "principle", "guardrail", "pattern", "process", "agent", "friction", "resteer", "techstack"]);
+/** The library's note kinds (its NoteType): memory notes, decisions, definitions, the eight kinds and quality control checks. */
+const NOTE_TYPES = new Set(["memory", "decision", "definition", "principle", "guardrail", "pattern", "process", "agent", "friction", "resteer", "techstack", "check"]);
 
 /**
  * Read a project's knowledge from its change history (changesSince(0)): its live notes, which

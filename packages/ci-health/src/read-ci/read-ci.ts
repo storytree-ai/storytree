@@ -16,6 +16,9 @@
  *   branch is moved to it, and the next merge usually cancels the push run of that commit. So the queue's finished run
  *   of a commit the default branch's push runs name, by the push run's own workflow, is read in that push run's place,
  *   the push run first when it ran to its end; another workflow's queue run, which may upload no test results, never is. A queue run of a commit the branch never reached is not: its merge failed or was taken out.
+ * - Each run's tests are scoped to the packages its merge can reach, as the `scope:` line its log opens with says, so a
+ *   contract whose package the newest run left out is judged from the newest run that scoped it in, back through the
+ *   runs looked at; a run that scoped every package in, or whose log names no scope, ends the looking.
  * - A skipped job is passed over; a cancelled job's log is read if available, passed over only on 404.
  * - Each job's results are its platform's, read from its runner labels or its name, so a test one platform skips
  *   for another is credited from the jobs of the platform it needs.
@@ -26,8 +29,8 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type { Library } from "@storytree/library";
-import { parseTestLog } from "../run-results/run-results.js";
-import { judgeRun, proofsAt } from "../verdicts/verdicts.js";
+import { parseTestLog, scopeOfLog } from "../run-results/run-results.js";
+import { judgeRun, proofsAt, type Verdict } from "../verdicts/verdicts.js";
 
 /** The Actions API: a route's JSON, or its text (a job's log). */
 export type GitHub = { json(route: string): Promise<any>; text(route: string): Promise<string> };
@@ -93,8 +96,18 @@ async function filesAt(git: Git, commit: string): Promise<{ path: string; text: 
   return Promise.all(paths.map(async (file) => ({ path: file, text: await git(["show", `${commit}:${file}`]) })));
 }
 
-/** Each job a run did not skip, with its conclusion and the test results its log holds, as its platform's. */
-async function jobResults(github: GitHub, repository: string, run: number): Promise<{ conclusion: string | undefined; results: ReturnType<typeof parseTestLog> }[]> {
+/** The code files at `commit`, fetched from origin when the clone lacks it, or undefined when it cannot be had. */
+async function filesOf(git: Git, commit: string): Promise<{ path: string; text: string }[] | undefined> {
+  try {
+    return await filesAt(git, commit);
+  } catch {
+    await git(["fetch", "--quiet", "origin", commit]).catch(() => "");
+    return filesAt(git, commit).catch(() => undefined);
+  }
+}
+
+/** Each job a run did not skip, with its conclusion, the test results its log holds, as its platform's, and the folders its log scoped the tests to. */
+async function jobResults(github: GitHub, repository: string, run: number): Promise<{ conclusion: string | undefined; results: ReturnType<typeof parseTestLog>; scope?: ReturnType<typeof scopeOfLog> }[]> {
   // A job the run skipped ran nothing and has no log: GitHub answers its log with 404.
   const jobs: { id: number; conclusion?: string; name?: string; labels?: string[] }[] = ((await github.json(`repos/${repository}/actions/runs/${run}/jobs`)).jobs ?? [])
     .filter((job: { conclusion?: string }) => job.conclusion !== "skipped");
@@ -102,7 +115,8 @@ async function jobResults(github: GitHub, repository: string, run: number): Prom
     const platform = platformOfJob(job);
     const onPlatform = (log: string) => parseTestLog(log).map((result) => (platform === undefined ? result : { ...result, platform }));
     try {
-      return { conclusion: job.conclusion, results: onPlatform(await github.text(`repos/${repository}/actions/jobs/${job.id}/logs`)) };
+      const log = await github.text(`repos/${repository}/actions/jobs/${job.id}/logs`);
+      return { conclusion: job.conclusion, results: onPlatform(log), scope: scopeOfLog(log) };
     } catch (error) {
       // Cancellation can leave no log, but a job that started may still hold test evidence.
       const said = String((error as { stderr?: string })?.stderr ?? error);
@@ -131,30 +145,42 @@ export async function readProjectCi({ library, git, github }: { library: Library
   const candidates = finished.flatMap((push) => [push, ...queueRuns.filter(({ head_sha, workflow_id }) => head_sha === push.head_sha && workflow_id === push.workflow_id)]);
   // A newer push cancels the run before it, often before its slowest job ran its tests: read the newest that ran to its end.
   // A run can conclude failure for that alone (an aggregate job failing on its cancelled ones), so it is judged by its jobs too.
-  let read: { run: Run; results: ReturnType<typeof parseTestLog> } | undefined;
+  // Each run is scoped to the packages its merge could reach: a contract whose package it left out is judged from the
+  // newest older run that scoped it in, until a run that scoped everything in.
+  const tree = await library.projectTree();
+  const judged = new Map<string, { verdict: Verdict; at: string }>();
+  const done = new Set<string>();
+  let newest: { run: Run; tests: number; unmatched: number } | undefined;
   for (const run of candidates.filter(({ conclusion }) => conclusion !== "cancelled")) {
     const jobs = await jobResults(github, repository, run.id);
     if (jobs.some(({ conclusion }) => conclusion === "cancelled") && !jobs.some(({ conclusion, results }) => conclusion !== "cancelled" && results.length > 0)) continue;
-    read = { run, results: jobs.flatMap(({ results }) => results) };
-    break;
+    const results = jobs.flatMap(({ results }) => results);
+    // The folders the run scoped in, from every job whose log names them; undefined when it ran everything or named none.
+    const named = jobs.flatMap(({ scope }) => (scope === undefined ? [] : [scope]));
+    const scoped = named.length === 0 || named.includes("everything") ? undefined : new Set(named.flat());
+    const files = await filesOf(git, run.head_sha);
+    if (files === undefined) {
+      if (newest === undefined) return { written: false, why: `Run ${run.html_url} tested commit ${run.head_sha}, which this clone does not have and could not fetch; pull, then read again.` };
+      continue;
+    }
+    const proofs = proofsAt(tree, files);
+    const { verdicts, unmatched } = judgeRun(proofs, results);
+    newest ??= { run, tests: results.length, unmatched: unmatched.length };
+    const at = `at commit ${run.head_sha.slice(0, 12)}, run ${run.html_url}`;
+    for (const story of proofs.filter(({ package: own }) => !done.has(own) && (scoped === undefined || scoped.has(`packages/${own}`)))) {
+      done.add(story.package);
+      for (const id of story.contracts.values()) if (verdicts.has(id)) judged.set(id, { verdict: verdicts.get(id)!, at });
+    }
+    // A story whose package the commit does not hold has no tests to wait for.
+    const held = new Set(files.map(({ path }) => path.split("/")[1]));
+    if (scoped === undefined || proofs.every(({ package: own }) => done.has(own) || !held.has(own))) break;
   }
-  if (read === undefined) return { written: false, why: `${repository}'s last ${finished.length} finished push runs on ${branch}, and the merge queue's runs of their commits, were all cancelled before they ran to their end, so there are no whole CI results to read; its health stands as it was.` };
-  const { run, results } = read;
-
+  if (newest === undefined) return { written: false, why: `${repository}'s last ${finished.length} finished push runs on ${branch}, and the merge queue's runs of their commits, were all cancelled before they ran to their end, so there are no whole CI results to read; its health stands as it was.` };
+  const { run } = newest;
   const commit: string = run.head_sha;
-  let files;
-  try {
-    files = await filesAt(git, commit);
-  } catch {
-    await git(["fetch", "--quiet", "origin", commit]).catch(() => "");
-    files = await filesAt(git, commit).catch(() => undefined);
-  }
-  if (files === undefined) return { written: false, why: `Run ${run.html_url} tested commit ${commit}, which this clone does not have and could not fetch; pull, then read again.` };
 
-  const { verdicts, unmatched } = judgeRun(proofsAt(await library.projectTree(), files), results);
   const counts = { passing: 0, failing: 0, notChecked: 0 };
-  const at = `at commit ${commit.slice(0, 12)}, run ${run.html_url}`;
-  for (const [id, verdict] of verdicts) {
+  for (const [id, { verdict, at }] of judged) {
     if (verdict.state === "not-checked") {
       if (verdict.skipped === 0) continue;
       await library.recordVerified(id, "not-checked", { by: VERIFIED_BY_PROJECT_CI, note: `${verdict.note}, ${at}`, ...(verdict.skip === undefined ? {} : { skip: verdict.skip }) });
@@ -164,5 +190,5 @@ export async function readProjectCi({ library, git, github }: { library: Library
     await library.recordVerified(id, verdict.state, { by: VERIFIED_BY_PROJECT_CI, note: `${verdict.note}, ${at}` });
     counts[verdict.state]++;
   }
-  return { written: true, repository, run: run.html_url, commit, tests: results.length, unmatched: unmatched.length, ...counts };
+  return { written: true, repository, run: run.html_url, commit, tests: newest.tests, unmatched: newest.unmatched, ...counts };
 }

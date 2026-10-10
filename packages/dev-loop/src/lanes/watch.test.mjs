@@ -27,8 +27,8 @@ async function box(t, { looks = {}, board = "" } = {}) {
   return { dir, calls, fixes, lines, live, looks, options, tick: (ms) => { clock += ms; }, noRoom: () => { room = false; } };
 }
 
-const pull = ({ state = "OPEN", head = "h1", checks = [], removed = [], queued = false } = {}) => ({
-  state, headRefOid: head, mergeQueueEntry: queued ? { state: "QUEUED" } : null,
+const pull = ({ state = "OPEN", head = "h1", checks = [], removed = [], queued = false, mergeable = "MERGEABLE" } = {}) => ({
+  state, headRefOid: head, mergeable, mergeQueueEntry: queued ? { state: "QUEUED" } : null,
   commits: { nodes: [{ commit: { statusCheckRollup: { contexts: { nodes: checks } } } }] },
   timelineItems: { nodes: removed },
 });
@@ -104,6 +104,23 @@ test("13.2 · a red pull request starts exactly one fix session at a time, and o
   b.looks[41] = { ...red, head: "h2" };
   await watchOnce(b.options);
   assert.equal(b.fixes.length, 2);
+});
+
+test("13.8 · a pull request that conflicts with main is red with every check green, and its fix session is told to merge main", async (t) => {
+  const options = { since: minutes(-60), now: at, graceMs: 10 * 60_000 };
+  const conflicting = readPull(pull({ checks: [passed], mergeable: "CONFLICTING" }), options);
+  assert.equal(conflicting.state, "red");
+  assert.match(conflicting.why, /conflicts with main/);
+  assert.equal(readPull(pull({ checks: [passed], mergeable: "UNKNOWN" }), options).state, "pending", "not yet computed");
+  assert.equal(readPull(pull({ checks: [passed, failed], mergeable: "CONFLICTING" }), options).why, "verify on Windows failed", "a failed check still says which");
+
+  const b = await box(t);
+  await handOff(b);
+  b.looks[41] = conflicting;
+  await watchOnce(b.options);
+  assert.equal(b.fixes.length, 1);
+  assert.match(b.fixes[0].brief, /conflicts with main/);
+  assert.match(b.fixes[0].brief, /merge\s+origin\/main/);
 });
 
 test("13.3 · after its fix limit the watcher writes an owner wait with the PR and the logs", async (t) => {

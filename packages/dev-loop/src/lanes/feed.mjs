@@ -14,6 +14,9 @@ export function blind(body) {
   return (body.match(/\bneeds:[^\n]*/gi) ?? []).some((line) => /\bblind\b/i.test(line));
 }
 
+/** A wait's note that says its pull request is with the watcher: the hand-off's event wait, or the watcher's own record. */
+const HANDED = /\bthe Mint box's watcher\b/;
+
 /** An increment's place by its arc's priority (ADR-0963 D1): 1 first, an arc with none after every ranked one. */
 const rank = (one) => one.priority ?? Infinity;
 
@@ -86,10 +89,13 @@ export function pickPool(survey, { attempts = new Map(), running = [], max = 1, 
  * The arc a planning session should take when nothing is ready (ADR-0955 D4): an active arc, not the website arc,
  * with no open question and no open increment that is unwaited (every one waits on work, an event or a question),
  * oldest first, skipping the arcs in `planned` (those this dispatcher has planned already). Undefined when none qualifies.
+ * Work handed to the watcher, or waiting on work that is (at any depth), is in flight like claimed work, not stalled.
  */
 export function pickPlan(survey, { planned = new Set() } = {}) {
   const live = new Set(survey.claims.filter((claim) => claim.holder === "live" && claim.increment).map((claim) => claim.increment));
-  const waited = (id) => !live.has(id) && ((survey.holds.waits[id] ?? []).length > 0 || (survey.holds.heldOn[id] ?? []).length > 0
+  const handed = (id, seen = new Set()) => !seen.has(id) && (seen.add(id), (survey.holds.waitsFor?.[id] ?? []).some((hold) => hold.holds && HANDED.test(hold.note))
+    || (survey.holds.waits[id] ?? []).some((hold) => handed(hold.on, seen)));
+  const waited = (id) => !live.has(id) && !handed(id) && ((survey.holds.waits[id] ?? []).length > 0 || (survey.holds.heldOn[id] ?? []).length > 0
     || (survey.holds.waitsFor?.[id] ?? []).some((hold) => hold.holds));
   const open = Map.groupBy(survey.increments.filter((one) => one.status !== "closed"), (one) => one.arc);
   return (survey.arcs ?? []).filter((arc) => arc.state === "active" && arc.id !== WEBSITE_ARC && !planned.has(arc.id) && !arc.openQuestions

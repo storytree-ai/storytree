@@ -14,7 +14,7 @@
  * start` (starting is claiming, the agent tools'), no `increment ready` (ADR-0645 D5; ADR-0909 D4 retired the step, and the word is refused saying so), and no hand
  * close or re-open of an arc (the owner's R1). `arc list` reads list(kind), then each arc's view.
  */
-import { questionsBehind } from "@storytree/arc-surface";
+import { questionsBehind } from "@storytree/arc-surface/board-states";
 import type { ArcView, Holds, NoteWait, WaitFor } from "@storytree/library";
 
 import { labelOf, Refusal, type Answer } from "../answer.js";
@@ -250,6 +250,8 @@ function incrementOf(args: Args, usage: string): Record<string, unknown> {
     const list = listOf(args, flag);
     if (list !== undefined) fields[field] = list;
   }
+  // An empty --held-on clears the hold, as settling or retiring its last question does.
+  if ((fields.heldOn as string[] | undefined)?.length === 0) fields.heldOn = undefined;
   return fields;
 }
 
@@ -312,7 +314,7 @@ const incrementUnstart: Verb = {
 
 const incrementEdit: Verb = {
   name: "edit",
-  usage: "arc increment edit <increment> [--title …] [--objective …] [--body …] [--capabilities a,b] [--links a,b] [--remedies f,g] [--held-on q]",
+  usage: "arc increment edit <increment> [--title …] [--objective …] [--body …] [--capabilities a,b] [--links a,b] [--remedies f,g] [--held-on q, or empty to clear]",
   summary: "change only the named fields; --capabilities and --links replace the lists, --remedies adds friction to those it already remedies",
   async act(args, context): Promise<Answer> {
     const id = args.word(0, "the increment's id", this.usage);

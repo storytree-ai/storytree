@@ -33,6 +33,9 @@ export interface PlanetPathways {
   segments: PlanetPathwaySegment[];
   edges: TrailEdgeOut[];
   docks: { story: string; point: Vector3; local: CoastPoint; links: string[] }[];
+  /** A plain lane for each of the scene's row links, by story id, coast to coast along the globe: lit on selection
+   * only, never drawn as a road. */
+  rowLanes?: { from: string; to: string; points: Vector3[] }[];
 }
 
 interface Point { x: number; y: number }
@@ -166,6 +169,30 @@ function alongTheGlobe(points: readonly Vector3[]): Vector3[] {
     out.push(b.clone());
   }
   return out;
+}
+
+/** A plain lane between two islands (a row link's, which has no road): from the coast point of `to` nearest `from`
+ * to the coast point of `from` nearest that, riding the road lift over the globe and easing to each dock's height. */
+function coastToCoast(from: Ground, to: Ground, radius: number, coasts: Map<Ground, Vector3[]>): Vector3[] {
+  const coast = (g: Ground) => coasts.get(g) ?? coasts.set(g, g.rings.flat().map(local => onGround(g, local))).get(g)!;
+  const nearestTo = (points: Vector3[], target: Vector3) => points.reduce((best, p) => p.distanceTo(target) < best.distanceTo(target) ? p : best);
+  const start = nearestTo(coast(to), from.at), end = nearestTo(coast(from), start);
+  // Waypoints a tenth of a radian apart first: alongTheGlobe fills a gap by its straight chord, short of the arc on a long lane.
+  const angle = start.angleTo(end), waypoints = Math.max(1, Math.ceil(angle / 0.1));
+  const points = alongTheGlobe(Array.from({ length: waypoints + 1 }, (_, i) => {
+    const t = i / waypoints, sin = Math.sin(angle);
+    if (i === 0 || i === waypoints || sin < 1e-9) return (i === waypoints ? end : start).clone();
+    return start.clone().normalize().multiplyScalar(Math.sin((1 - t) * angle) / sin).addScaledVector(end.clone().normalize(), Math.sin(t * angle) / sin)
+      .setLength(start.length() + (end.length() - start.length()) * t);
+  }));
+  const walk = [0];
+  for (let i = 1; i < points.length; i++) walk.push(walk[i - 1]! + points[i]!.distanceTo(points[i - 1]!));
+  const length = walk.at(-1)!;
+  return points.map((point, i) => {
+    if (i === 0 || i === points.length - 1) return point;
+    const ease = Math.max(0, 1 - Math.min(walk[i]!, length - walk[i]!) / 8);
+    return point.clone().setLength(radius + ROAD_LIFT + (point.length() - radius - ROAD_LIFT) * ease);
+  });
 }
 
 function requireNetwork(network: TrailNetwork): void {
@@ -331,6 +358,11 @@ export function buildPlanetPathways(scene: ForestScene, spots: ReadonlyMap<strin
     segment.width = trailFillWidth(segment.links.length) * RIBBON_GROUND_SCALE;
   }
   plan.docks = [...docks.values()].map(dock => ({ story: dock.story, point: dock.point, local: dock.local, links: [...dock.links].sort() }));
+  const coasts = new Map<Ground, Vector3[]>();
+  plan.rowLanes = (scene.rowLinks ?? []).flatMap(({ from, to }) => {
+    const a = grounds.get(from), b = grounds.get(to);
+    return a === undefined || b === undefined || a === b ? [] : [{ from, to, points: coastToCoast(a, b, radius, coasts) }];
+  });
   return plan;
 }
 

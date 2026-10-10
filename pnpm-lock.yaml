@@ -200,6 +200,9 @@ importers:
       '@storytree/local-postgres':
         specifier: workspace:*
         version: link:../local-postgres
+      '@storytree/quality-assurance':
+        specifier: workspace:*
+        version: link:../quality-assurance
     devDependencies:
       '@types/node':
         specifier: ^24.13.6

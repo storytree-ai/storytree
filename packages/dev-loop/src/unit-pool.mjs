@@ -70,12 +70,15 @@ function testBytes(root, unit) {
 
 /**
  * Run `run(unit)` for each unit in order, at most `jobs` at once, starting the next as soon as one
- * ends. Once `stopped()` says so, no further unit starts; those running are awaited.
+ * ends. A unit `alone(unit)` names waits until every other unit has ended, and runs with nothing
+ * beside it (forest's browser proof: increment_ba747f54277d). Once `stopped()` says so, no further
+ * unit starts; those running are awaited.
  */
-export async function runPool(units, jobs, run, { stopped = () => false } = {}) {
-  const queue = [...units];
+export async function runPool(units, jobs, run, { stopped = () => false, alone = () => false } = {}) {
+  const queue = units.filter((unit) => !alone(unit));
   const lane = async () => {
     while (queue.length > 0 && !stopped()) await run(queue.shift());
   };
-  await Promise.all(Array.from({ length: Math.min(jobs, units.length) }, lane));
+  await Promise.all(Array.from({ length: Math.min(jobs, queue.length) }, lane));
+  for (const unit of units.filter(alone)) if (!stopped()) await run(unit);
 }

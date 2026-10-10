@@ -8,6 +8,7 @@ import { test } from "node:test";
 import { connect, type Storytree } from "@storytree/library";
 import { dropTestDatabases } from "@storytree/local-postgres/testing";
 import { openActivityLog, requireApproval, setUpProject } from "@storytree/agent-link";
+import { openLedger } from "@storytree/quality-assurance";
 import { addProject, deleteProject, projectFolder, projectsOnThisComputer, removeProject } from "./index.js";
 
 /** The test Postgres `pnpm test` starts; each project made here is dropped afterwards. */
@@ -164,7 +165,7 @@ test("3.6 deleting a project drops its records for every machine once its name i
   assert.equal((await deleteProject(name, { home, library, snapshot: false, confirm: name })).status, "no such project");
 });
 
-test("3.6 a deleted project leaves no activity behind and leaves every computer's hidden list: a new project of its name starts with no old claims, and is shown", async (t) => {
+test("3.6 a deleted project leaves no activity or QA ledger rows behind and leaves every computer's hidden list: a new project of its name starts with no old claims, and is shown", async (t) => {
   const dir = realpathSync.native(mkdtempSync(path.join(tmpdir(), "storytree-delete-traces-")));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const token = `t-${randomBytes(4).toString("hex")}`;
@@ -177,12 +178,15 @@ test("3.6 a deleted project leaves no activity behind and leaves every computer'
   await log.append(name, { session: `old-${token}`, source: "tool", kind: "claimed", capability: `capability_${token}`, reason: "left behind" });
   await log.append(name, { session: `old-${token}`, source: "tool", kind: "released", capability: `capability_${token}` });
   await log.transcripts.store(name, `old-${token}`, [{ part: "", start: 0, finish: 3, record: "{}\n" }]);
+  const ledger = await openLedger(library);
+  await ledger.record({ project: name, review: `review-${token}`, packages: ["app-setup"], ran: [{ check: "check_a", hits: [{ package: "app-setup", file: "src/a.test.ts", line: 1 }] }] });
   assert.equal((await removeProject(name, { home: other, library })).status, "removed", "another computer hid it");
   writeFileSync(path.join(home, "project-choice.json"), JSON.stringify({ current: "elsewhere" }));
 
   assert.equal((await deleteProject(name, { home, library, snapshot: false, confirm: name })).status, "deleted");
   assert.deepEqual((await log.since(name, 0)).lines, [], "its lines go with it");
   assert.equal(await log.transcripts.text(name, `old-${token}`), undefined, "and its transcripts");
+  assert.deepEqual(await ledger.rows(name), { runs: [], hits: [] }, "and its QA ledger rows");
   projectsOnThisComputer(await library.projectIdentities(), other); // the other computer's app lists its projects
 
   assert.equal((await addProject(path.join(dir, "second"), name, { home, library })).status, "set up");

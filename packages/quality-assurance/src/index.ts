@@ -3,7 +3,7 @@
 export { checks, checksText } from "./checks/checks.js";
 export type { Check, Enforced } from "./checks/checks.js";
 export { qualityTools } from "./checks/tools.js";
-export { LEDGER_DATABASE, ledgerText, openLedger } from "./ledger/ledger.js";
+export { forgetProjectQuality, LEDGER_DATABASE, ledgerText, openLedger } from "./ledger/ledger.js";
 export type { Answer, Count, Hit, HitRow, Ledger, Review, RunRow } from "./ledger/ledger.js";
 export { branchDiff, briefText, diffPackages, openReviews, packageOf, REVIEW_LIMIT, standingText, takenText } from "./review/review.js";
 export type { Brief, Reviews, ReviewReturn, Taken } from "./review/review.js";

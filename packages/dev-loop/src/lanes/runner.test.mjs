@@ -185,3 +185,50 @@ test("10.10 · a lane whose newest reading is stale and spent runs one Codex pro
   await main(["status"], options);
   assert.match(options.lines.at(-1), /next lane: claude .*the next lane takes a fresh one first$/);
 });
+
+test("10.11 · a lane that exits 0 having left no report or push is resumed once, then its claims are released and residue written", async (t) => {
+  const options = await lane(t);
+  const session = "1aeed14e-4eef-44a7-a5a0-55f748d0a4b5";
+  const runs = join(options.home, "runs");
+  // A Claude engine that names its session, records each call, and with WRITE_REPORT set writes the lane's report.
+  options.commands.claude = command(`const fs=require('node:fs'); fs.appendFileSync(${JSON.stringify(runs)}, JSON.stringify(process.argv.slice(1))+'\\n');`
+    + ` console.log(JSON.stringify({type:'system',subtype:'init',session_id:${JSON.stringify(session)}}));`
+    + ` if (process.env.WRITE_REPORT && process.argv.includes('--resume')) fs.writeFileSync(${JSON.stringify(join(options.lanesDir, "pool-increment_abc.report.md"))}, 'done');`);
+  await writeFile(join(options.lanesDir, "engine-override"), "claude");
+  const told = [];
+  options.increment = "increment_abc";
+  options.heads = async () => ({ "claude/increment-abc-old": "1111" });
+  options.storytree = async (args) => {
+    told.push(args);
+    if (args[0] === "noticeboard") return `2 claims now:\n  - increment increment_abc  Claude Code ${session} (idle, on claude/increment-abc-x), since 2026-10-06T00:00:00Z: build\n  - capability capability_other  Claude Code someone-else (live), since 2026-10-06T00:00:00Z: other\n`;
+    if (args[0] === "library") return "The breakdown.";
+    return "";
+  };
+  const calls = async () => (await readFile(runs, "utf8")).trim().split("\n").map((line) => JSON.parse(line));
+
+  assert.equal(await runLane(options), 1, "a lane that left nothing twice is not counted done");
+  const [first, second] = await calls();
+  assert.equal(first[1], await readFile(options.brief, "utf8"));
+  assert.equal(second[0], "-p"); assert.match(second[1], /ended your turn while your work was unfinished: continue/);
+  assert.deepEqual(second.slice(2, 4), ["--resume", session]);
+  assert.deepEqual(told.find((args) => args[1] === "release"), ["workspace", "release", "increment_abc", "--holder", session, "--reason", told.find((args) => args[1] === "release")[6]]);
+  assert.equal(told.filter((args) => args[1] === "release").length, 1, "only the lane's own claims are released");
+  const edit = told.find((args) => args[0] === "arc");
+  assert.deepEqual(edit.slice(0, 4), ["arc", "increment", "edit", "increment_abc"]);
+  assert.match(edit[5], /^The breakdown\.\n\nResidue \(lane runner, 2026-10-06\): .*no report.*twice/s);
+  assert.match(edit[5], new RegExp(options.log.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&")));
+
+  await rm(runs); told.length = 0;
+  options.env.WRITE_REPORT = "1";
+  assert.equal(await runLane(options), 0, "a resumed lane that then writes its report is done");
+  assert.equal((await calls()).length, 2);
+  assert.deepEqual(told, []);
+
+  await rm(runs);
+  delete options.env.WRITE_REPORT;
+  let pushed = false;
+  options.heads = async () => (pushed = !pushed) ? { "claude/increment-abc-old": "1111" } : { "claude/increment-abc-old": "1111", "claude/increment-abc-new": "2222" };
+  assert.equal(await runLane(options), 0, "a lane that pushed a branch for its increment is done at once");
+  assert.equal((await calls()).length, 1);
+  assert.deepEqual(told, []);
+});

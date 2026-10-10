@@ -157,6 +157,18 @@ export async function inTransaction<T>(pool: Pool, body: (client: LedgerClient) 
   }
 }
 
+/**
+ * Delete `project`'s runs and hits from the ledger on `server` (ADR-0831): deleting a project deletes its
+ * records, and these are its records in the shared ledger, so a later project of the same name starts
+ * with an empty ledger. Both tables go together, or neither.
+ */
+export async function forgetProjectQuality(server: Storytree, project: string): Promise<void> {
+  assertName("project", project);
+  await inTransaction(await ledgerDatabase(server), async (client) => {
+    for (const table of ["quality_runs", "quality_hits"]) await client.query(`DELETE FROM ${table} WHERE project = $1`, [project]);
+  });
+}
+
 /** Refuse a review the ledger cannot keep, writing nothing; then write its runs and hits on `client`, returning the hits as kept. */
 export async function writeReview(client: LedgerClient, review: Review): Promise<HitRow[]> {
   assertName("project", review.project);

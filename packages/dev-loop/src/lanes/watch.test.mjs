@@ -206,7 +206,7 @@ test("13.10 · a watcher whose code changes between two looks ends with the rest
   await handOff(b);
   b.looks[41] = { state: "pending", head: "h1" };
   let version = "tree-a", looks = 0;
-  const watching = { ...b.options, pidFile: join(b.dir, "watch-loop.pid"), pid: 7, argsOf: async () => "",
+  const watching = { ...b.options, loopPidFile: join(b.dir, "watch-loop.pid"), pid: 7, argsOf: async () => "",
     codeVersion: async () => version,
     look: async (pr) => { looks++; return b.looks[pr]; },
     // The checkout moves on, and the pull request goes red, while the watcher sleeps between looks.

@@ -1,0 +1,2 @@
+spawn sh -c curl -fsSL https://raw.githubusercontent.com/storytree-ai/storytree/release-channel-stable/install-storytree.sh | sh
+curl: (56) The requested URL returned error: 404

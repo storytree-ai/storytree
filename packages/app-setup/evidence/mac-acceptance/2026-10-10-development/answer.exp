@@ -1,0 +1,11 @@
+set timeout 900
+spawn sh -c [lindex $argv 0]
+expect {
+  "Choose 1, 2, 3 or S:" { send "1\r"; exp_continue }
+  "Project folder:" { send "\r"; exp_continue }
+  "Project name:" { send "\r"; exp_continue }
+  timeout { puts "TIMED OUT waiting for the installer"; exit 124 }
+  eof
+}
+catch wait result
+exit [lindex $result 3]

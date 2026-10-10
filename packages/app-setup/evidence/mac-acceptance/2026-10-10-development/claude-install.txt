@@ -1,0 +1,2 @@
+/opt/homebrew/bin/claude
+2.1.296 (Claude Code)

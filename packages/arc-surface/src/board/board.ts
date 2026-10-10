@@ -35,6 +35,8 @@ export interface LaneNoteWait extends NoteWait {
 export interface Lane {
   id: string;
   title: string;
+  /** The arc's priority, 1 first; an unranked arc has none (ADR-0963). */
+  priority?: number;
   view: ArcView;
   bars: Bar[];
   agents: BoardAgent[];
@@ -114,7 +116,8 @@ export function boardView(snapshot: BoardSnapshot, log: readonly Line[] | LogRea
     const laneWaits = state !== "queued" ? waits.on(arc.id)
       : [...new Map(bars.flatMap((bar) => bar.waits).map((wait) => [wait.id, wait])).values()];
     const noteWaits = bars.flatMap((bar) => bar.noteWaits.filter(({ holds }) => holds).map((wait): LaneNoteWait => ({ ...wait, increment: { id: bar.id, title: bar.title } })));
-    return { id: arc.id, title: arc.fields.title, view, bars, agents: holders, state, chip, ...(state === "ready" && idleHolders.length ? { idle: { chip: idleChip(idleHolders), agents: idleHolders } } : {}), count, lastActivity, waits: laneWaits, noteWaits, holdsUp: waits.heldUpBy(arc.id) };
-  }).sort((a, b) => rank[a.state] - rank[b.state] || b.lastActivity - a.lastActivity || a.id.localeCompare(b.id));
+    return { id: arc.id, title: arc.fields.title, ...(arc.fields.priority === undefined ? {} : { priority: arc.fields.priority }), view, bars, agents: holders, state, chip, ...(state === "ready" && idleHolders.length ? { idle: { chip: idleChip(idleHolders), agents: idleHolders } } : {}), count, lastActivity, waits: laneWaits, noteWaits, holdsUp: waits.heldUpBy(arc.id) };
+  // ADR-0963 D2: ranked arcs first, 1 first, unranked last; one priority keeps the state and activity order.
+  }).sort((a, b) => (a.priority ?? Infinity) - (b.priority ?? Infinity) || rank[a.state] - rank[b.state] || b.lastActivity - a.lastActivity || a.id.localeCompare(b.id));
   return { scope, lanes, queues: arcQueues(lanes), selected: firstBriefing(lanes.map((lane) => ({ id: lane.id, parked: lane.view.state === "parked", questions: lane.view.questions }))) };
 }

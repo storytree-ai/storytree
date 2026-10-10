@@ -7,7 +7,7 @@ export type { ProjectSelection } from "./projects/selection.js";
 export type { PageReads, PageReadsOptions } from "./surfaces/reads.js";
 export { smokeProblems } from "./surfaces/smoke.js";
 export { readSurfaces, setSurface, surfacesActions } from "./surfaces/switches.js";
-export { SURFACES_CHANNELS, surfaceOn, type SurfacesBridge, type SurfacesResult } from "./surfaces/bridge.js";
+export { PAGE_READS_CHANNELS, SURFACES_CHANNELS, surfaceOn, type PageReadsBridge, type SurfacesBridge, type SurfacesResult } from "./surfaces/bridge.js";
 export type { SurfaceChoice, SurfaceDeclaration, SurfaceReading, SurfaceSettingDeclaration, SurfaceSettingReading } from "./surfaces/switches.js";
 export type { Drawn } from "./surfaces/smoke.js";
 export { background, TRAY_MENU } from "./lifecycle/background.js";

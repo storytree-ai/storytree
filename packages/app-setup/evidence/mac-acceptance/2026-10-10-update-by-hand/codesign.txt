@@ -1,0 +1,10 @@
+Executable=/Users/runner/Applications/storytree-0.3.app/Contents/MacOS/storytree-0.3
+Identifier=ai.storytree.desktop-0-3
+Format=app bundle with Mach-O thin (arm64)
+CodeDirectory v=20500 size=441 flags=0x10002(adhoc,runtime) hashes=3+7 location=embedded
+Signature=adhoc
+Info.plist entries=33
+TeamIdentifier=not set
+Runtime Version=26.5.0
+Sealed Resources version=2 rules=13 files=1421
+Internal requirements count=0 size=12

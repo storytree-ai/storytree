@@ -1,5 +1,5 @@
 /**
- * Capability 7 · Instructions, for Codex (contract 7.4). Codex keeps a tool server's tools out of
+ * Capability 8 · Setup check: instructions for Codex (contract 8.25). Codex keeps a tool server's tools out of
  * the agent's first view until it searches for them, and never shows the server's instructions, so
  * the habits card does not reach a Codex session. The AGENTS.md in Codex's home does, in every
  * session, whether or not the user has trusted storytree's hooks yet. So connecting Codex writes one

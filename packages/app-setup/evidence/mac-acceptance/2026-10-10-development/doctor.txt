@@ -1,0 +1,10 @@
+storytree is running.
+Hooks for Claude Code: not installed on this machine.
+Hooks for Codex: not installed on this machine.
+This folder is storytree project "st-mac-acceptance".
+No hook has reached storytree in this project yet: start an agent session here.
+The storytree command: on your path.
+GitHub's gh command is not signed in. storytree works without it: only a claim ending by itself when its pull request merges needs it.
+storytree works through Claude Code or Codex, and neither is ready: Claude Code is installed and not signed in; Codex is not installed. Fix: To sign in, run `claude auth login`, then run the setup check again.
+git is installed.
+Node v24.20.0 is installed.

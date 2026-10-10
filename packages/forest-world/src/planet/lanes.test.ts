@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { Vector3 } from 'three';
 import type { ForestScene, Island } from '../scene.js';
-import { buildPlanetPathways, laneDrawSeconds, laneProgress, laneRoutes, LANE_COLOUR } from '../geometry.js';
+import { buildPlanetPathways, islandCoastReach, laneDrawSeconds, laneProgress, laneRoutes, LANE_COLOUR } from '../geometry.js';
 import { advanceLaneClock, entranceShown, laneDelays, laneEntrances, laneHead, LANE_GLOW } from './lanes.js';
 import type { PlanetPathways } from './pathways.js';
 
@@ -47,6 +47,29 @@ test('6.8 a lit link\'s lane is one unbroken strip between islands, from the doc
   alone!.points.forEach((p, i) => assert.ok(Math.abs(alone!.widths[i]! - road(p)) < 1e-9, `a lone lane fills its road at point ${i}`));
   assert.ok(LANE_GLOW > 1.5, 'its glow reaches beyond the road\'s edge');
   assert.deepEqual(laneRoutes(plan, [{ from: 'x', to: 'y', dir: 'up' }]), [], 'a link with no trail lights nothing');
+});
+
+test('6.8 a row dependency no road joins lights a plain lane from coast to coast along the globe, over the horizon when its far end is behind it, and is never drawn as a road', () => {
+  const far = { x: -R * Math.sin(2.6), y: 0, z: R * Math.cos(2.6) };
+  const rowed: ForestScene = { ...scene, islands: [...scene.islands, island('c', ['c1'])], rowLinks: [{ from: 'b', to: 'a' }, { from: 'c', to: 'a' }] };
+  const at = new Map([...spots, ['c', far]]);
+  const plan = buildPlanetPathways(rowed, at, R), roads = buildPlanetPathways({ ...rowed, rowLinks: [] }, at, R);
+  assert.deepEqual(plan.edges, roads.edges, 'no road is added for a row dependency');
+  assert.equal(plan.segments.length, roads.segments.length);
+  const lanes = laneRoutes(plan, [{ from: 'b', to: 'a', dir: 'up' }, { from: 'c', to: 'a', dir: 'down' }]);
+  assert.deepEqual(lanes.map(l => [l.from, l.to, l.colour]), [['b', 'a', LANE_COLOUR.up], ['c', 'a', LANE_COLOUR.down]]);
+  const centre = (spot: { x: number; y: number; z: number }) => new Vector3(spot.x, spot.y, spot.z);
+  for (const [lane, from] of [[lanes[0]!, spots.get('b')!], [lanes[1]!, far]] as const) {
+    const reach = (story: string) => islandCoastReach(rowed.islands.find(i => i.story === story)!);
+    const [start, end] = [lane.points[0]!, lane.points.at(-1)!];
+    assert.ok(start.distanceTo(centre(spots.get('a')!)) <= reach('a') + 1 && start.distanceTo(centre(from)) > reach(lane.from), 'it starts at the island built on');
+    assert.ok(end.distanceTo(centre(from)) <= reach(lane.from) + 1 && end.distanceTo(centre(spots.get('a')!)) > reach('a'), 'and ends at the island building on it');
+    assert.ok(lane.points.every(p => p.length() >= R - 1e-9), 'it never cuts through the glass');
+    assert.ok(lane.points.slice(1).every((p, i) => p.distanceTo(lane.points[i]!) <= 1.01), 'it follows the globe in small steps');
+    assert.equal(lane.widths.length, lane.points.length);
+  }
+  assert.ok(lanes[1]!.points.some(p => p.z < 0), 'a lane to an island behind the globe runs over the horizon');
+  assert.deepEqual(laneRoutes(plan, [{ from: 'a', to: 'b', dir: 'up' }]), [], 'a row dependency the scene does not hold lights nothing');
 });
 
 test('6.8 a lane marks each dock it uses in its colour, both colours side by side where an up and a down lane share one, shown once its front leaves or reaches it', () => {

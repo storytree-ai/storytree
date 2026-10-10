@@ -317,3 +317,45 @@ test("3.11 of the merge queue's runs of a commit, only the one of the push run's
   assert.equal(asked.asked.some((route) => route.includes("runs/98/")), false, "the other workflow's queue run is never read");
   for (const id of contracts) assert.equal((await library.health(id)).verified.state, "passing");
 });
+
+test("3.13 each run is scoped by the 'scope:' line its log opens with: a contract whose package the newest run left out is verified from the newest run that scoped it in, and a run that scoped every package in ends the looking", async (t) => {
+  const { library, contracts } = await shopLibrary(t);
+  const { folder, commit } = projectFolder(t);
+  const at = "2026-10-10T08:35:05.2765737Z";
+  const affected = (...dirs: string[]) => `${at} scope: affected — ${dirs.join(", ") || "nothing"} — changed: ${dirs[0] ?? "nothing"}`;
+  // storytree's own CI (merge_group run 38038330733): the newest run scoped in packages/arc-surface alone, so the
+  // check-out package's tests, which merged a run earlier, did not run in it.
+  const logs: Record<number, string> = {
+    70: affected("packages/arc-surface"),
+    60: [affected("packages/check-out", "packages/web"), tap("ok")].join("\n"),
+    50: [`${at} scope: full — everything — a root file changed`, tap("not ok")].join("\n"),
+  };
+  const run = (id: number) => ({ id, conclusion: "success", head_sha: commit, html_url: `https://github.com/acme/shop/actions/runs/${id}` });
+  const fake = (runs: object[]) => {
+    const asked = github((query) => (pushRunsOnTrunk(commit)(query).length === 0 ? [] : runs), "");
+    const json = asked.json;
+    asked.json = async (route) => {
+      const id = /actions\/runs\/(\d+)\/jobs$/.exec(route)?.[1];
+      return id === undefined ? json(route) : { jobs: [{ id: Number(id) * 10, conclusion: "success", name: "verify on Linux" }] };
+    };
+    asked.text = async (route) => logs[Number(/jobs\/(\d+)\/logs$/.exec(route)?.[1])] ?? "";
+    return asked;
+  };
+
+  const asked = fake([run(7), run(6), run(5)]);
+  const read = await readProjectCi({ library, git: gitIn(folder), github: asked });
+  assert.equal(read.written, true, read.written ? "" : read.why);
+  assert.equal(read.written && read.run, "https://github.com/acme/shop/actions/runs/7", "the newest run is the reading's");
+  for (const id of contracts) {
+    const { verified } = await library.health(id);
+    assert.equal(verified.state, "passing", "the newest run that scoped check-out in passed both");
+    assert.match(verified.note ?? "", /run https:\/\/github\.com\/acme\/shop\/actions\/runs\/6$/, "the verdict names the run it came from");
+  }
+  assert.equal(asked.asked.some((route) => route.includes("runs/5/")), false, "once every package is scoped in, no older run is read");
+
+  // The newest run scoped everything in: it alone is read, as a run whose log names no scope is.
+  const whole = fake([run(5), run(6)]);
+  await readProjectCi({ library, git: gitIn(folder), github: whole });
+  assert.equal((await library.health(contracts[1]!)).verified.state, "failing");
+  assert.equal(whole.asked.some((route) => route.includes("runs/6/")), false);
+});

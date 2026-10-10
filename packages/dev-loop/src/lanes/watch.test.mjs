@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 
 import { countEngines } from "./queue.mjs";
-import { ensureWatcher, hand, handOver, readPull, watchOnce } from "./watch.mjs";
+import { ensureWatcher, hand, handOver, main, readPull, RESTART, watchOnce } from "./watch.mjs";
 
 const at = Date.parse("2026-10-10T12:00:00Z");
 const minutes = (n) => new Date(at + n * 60_000).toISOString();
@@ -199,4 +199,28 @@ test("13.7 · a session on any machine hands over: on the box directly, elsewher
   const nobody = await handOver({ pr: 41, increment: "increment_one", session: "", onBox: false, local, remote: ok });
   assert.equal(nobody.code, 1, "with no session id the watcher could not release the session's claims");
   assert.equal(sshed.length, 1);
+});
+
+test("13.10 · a watcher whose code changes between two looks ends with the restart code, starting no fix session, and its keeper starts it again", async (t) => {
+  const b = await box(t);
+  await handOff(b);
+  b.looks[41] = { state: "pending", head: "h1" };
+  let version = "tree-a", looks = 0;
+  const watching = { ...b.options, loopPidFile: join(b.dir, "watch-loop.pid"), pid: 7, argsOf: async () => "",
+    codeVersion: async () => version,
+    look: async (pr) => { looks++; return b.looks[pr]; },
+    // The checkout moves on, and the pull request goes red, while the watcher sleeps between looks.
+    sleep: async () => { version = "tree-b"; b.looks[41] = red; } };
+  assert.equal(await main(["watch"], watching), RESTART);
+  assert.equal(looks, 1, "it looked once, on the code it started with");
+  assert.equal(b.fixes.length, 0, "no fix session is started after the change");
+  assert.match(b.lines.join("\n"), /tree-a → tree-b/);
+
+  // `run` keeps it running: a restart starts the loop again (on the new code), anything else after a pause, until another holds it.
+  const ends = [RESTART, 0, 1], slept = [];
+  const kept = await main(["run"], { ...watching, pidFile: join(b.dir, "watch.pid"), sleep: async (ms) => { slept.push(ms); },
+    intervalMs: 60_000, loop: async () => ends.shift() });
+  assert.equal(kept, 1);
+  assert.deepEqual(ends, [], "the loop ran three times");
+  assert.deepEqual(slept, [60_000], "only an unexpected end waits before starting again");
 });

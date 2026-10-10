@@ -1,7 +1,28 @@
 // Capability 12 · The Mint pool runs its lanes under the box's cap (ADR-0955 D2): one dispatcher at a time, at most
 // the box's cap of engines at once, each lane's brief composed from its header, notes and the pool's rules.
+import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import { posix } from "node:path";
+import { promisify } from "node:util";
+
+/**
+ * The code the dispatcher runs (12.10, ADR-0981): what launch.mjs loads, each lane's runner loads, and the briefs it
+ * composes. A change to one of these restarts the dispatcher; a change anywhere else in the dev loop (the test runner,
+ * the gate, the health readers, a test) leaves it starting work. When one of these files comes to import another file,
+ * name that file here.
+ */
+export const POOL_CODE = ["launch.mjs", "feed.mjs", "queue.mjs", "runner.mjs", "engine.mjs", "watch.mjs",
+  "pool-brief.md", "pool-brief-plan.md", "pool-brief-read-only.md"].map((name) => `packages/dev-loop/src/lanes/${name}`);
+
+/**
+ * The version of `paths` (repository-relative) at the checkout's HEAD: one hash of their blob ids, so it moves only
+ * when one of them changes. A path HEAD lacks is left out; with none of them there it is undefined.
+ */
+export async function codeVersion({ repo, paths = POOL_CODE, exec = promisify(execFile) }) {
+  const { stdout } = await exec("git", ["ls-tree", "HEAD", "--", ...paths], { cwd: repo });
+  return stdout.trim() ? createHash("sha1").update(stdout).digest("hex").slice(0, 12) : undefined;
+}
 
 const ENGINES = [["codex", "exec"], ["codex", "e"], ["claude", "-p"], ["claude", "--print"]];
 

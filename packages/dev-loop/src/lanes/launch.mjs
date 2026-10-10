@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 import { blind, pickPlan, pickPool, readOnly, surveyLibrary } from "./feed.mjs";
-import { composeBrief, countEngines, holdRunner, waitForSlot } from "./queue.mjs";
+import { codeVersion, composeBrief, countEngines, holdRunner, waitForSlot } from "./queue.mjs";
 import { runLane as runEngineLane } from "./runner.mjs";
 import { handedOff } from "./watch.mjs";
 
@@ -71,8 +71,8 @@ export async function laneOnce({ increment, brief, log, err, addDirs, repo, maxL
  * (a newly parked or released increment waits minutes, not a quarter hour), and every `intervalMs` after a failed survey. A claim
  * that refused a session is said once, and its increment waits until that claim clears. With free slots and nothing
  * ready, it launches one planning session (`{ plan: true }`) for the arc feed.mjs's pickPlan offers, never two at
- * once, each arc once. Ends on the stop file, 75 (an engine failing at once), or RESTART once `codeVersion` (its own
- * code in the shared checkout) differs from its start, each after its running sessions end; when a survey fails or
+ * once, each arc once. Ends on the stop file, 75 (an engine failing at once), or RESTART once `codeVersion` (the code
+ * it runs in the shared checkout, queue.mjs's POOL_CODE) differs from its start, each after its running sessions end; when a survey fails or
  * finds nothing and no session is starting, it first brings the checkout up to date (`refresh`) to see that change.
  */
 export async function runPool({ survey, maxLanes, count, launch, stopFile, exists = async (path) => existsSync(path),
@@ -212,7 +212,7 @@ async function pool(b) {
   dated("dispatcher started");
   const code = await runPool({
     survey: async () => withHandOffs(await b.survey(), await handedOff(join(L, "watch"))), maxLanes: b.maxLanes, count: b.count, stopFile: join(L, "pool-stop"), sleep: b.sleep, now: b.now, say,
-    codeVersion: b.codeVersion ?? (async () => (await run("git", ["rev-parse", "HEAD:packages/dev-loop"], { cwd: b.repo })).stdout.trim()),
+    codeVersion: b.codeVersion ?? (() => codeVersion({ repo: b.repo })),
     refresh: () => b.lock(b.prepare),
     launch: async (one, { engineUp }) => {
       const at = new Date(b.now()).toISOString().replace(/[-:]|\.\d{3}Z$/g, "");

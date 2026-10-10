@@ -7,6 +7,7 @@ import { test } from "node:test";
 import { promisify } from "node:util";
 
 import { main, planRules, poolRules, prepareCheckout, PUSH_URL, runPool } from "./launch.mjs";
+import { codeVersion } from "./queue.mjs";
 
 const run = promisify(execFile);
 const now = () => Date.parse("2026-10-08T04:00:00Z");
@@ -181,6 +182,37 @@ test("12.10 · the dispatcher restarts between sessions when its own code change
   });
   assert.equal(steady, 0, "unchanged code: no restart");
   assert.deepEqual(refreshed, ["idle", "steady"]);
+});
+
+test("12.10 · its own code is the code it runs: a merge touching only other dev loop code leaves it starting work", async (t) => {
+  const repo = await folder(t);
+  const git = (...args) => run("git", ["-c", "user.name=t", "-c", "user.email=t@t", ...args], { cwd: repo });
+  const commit = async (path, text) => {
+    await mkdir(join(repo, path, ".."), { recursive: true });
+    await writeFile(join(repo, path), text);
+    await git("add", "-A");
+    await git("commit", "-qm", path);
+  };
+  await git("init", "-q");
+  await commit("packages/dev-loop/src/lanes/launch.mjs", "pool v1");
+  await commit("packages/dev-loop/src/test-runner.mjs", "tests v1");
+  const dispatch = async (merge) => {
+    const started = [];
+    let stop = false;
+    const code = await runPool({
+      survey: async () => poolWork(["a", "b"]), maxLanes: async () => 1, count: async () => 0,
+      codeVersion: () => codeVersion({ repo }), refresh: async () => {},
+      stopFile: "/lanes/pool-stop", exists: async () => stop, now, say: () => {},
+      // The merge lands, and the shared checkout reaches it, while the first session runs.
+      launch: async (one) => { started.push(one.id); if (started.length === 1) await merge(); return 0; },
+      sleep: async () => { if (started.length === 2) stop = true; },
+    });
+    return { code, started };
+  };
+  const elsewhere = await dispatch(() => commit("packages/dev-loop/src/test-runner.mjs", "tests v2"));
+  assert.deepEqual(elsewhere, { code: 0, started: ["a", "b"] }, "the test runner changed: no restart, and b starts after the merge");
+  const own = await dispatch(() => commit("packages/dev-loop/src/lanes/launch.mjs", "pool v2"));
+  assert.deepEqual(own, { code: 3, started: ["a"] }, "the dispatcher's code changed: it restarts, starting nothing more");
 });
 
 test("12.11 · with free slots and nothing ready, one planning session starts for a qualifying arc, never two at once", async (t) => {

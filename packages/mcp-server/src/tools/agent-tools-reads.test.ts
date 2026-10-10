@@ -1,5 +1,5 @@
 /**
- * Capability 6 · Agent tools (the MCP server), in the agent link story: what each call records and reads (sessions, notes, context), refusals with storytree stopped, increments and plan health. One of three files
+ * Capability 6 · Agent tools (the MCP server), in the MCP server story: what each call records and reads (sessions, notes, context), refusals with storytree stopped, increments and plan health. One of three files
  * (agent-tools, agent-tools-reads, agent-tools-writes) split so a test unit runs them side by side.
  * A test client talks to the server inside the test itself, over an
  * in-memory transport, with no real agent and no network, as Claude Code or Codex would: Claude
@@ -23,12 +23,12 @@ import { connect, type Library } from "@storytree/library";
 import { worklist } from "@storytree/librarian";
 import pg from "pg";
 
-import { openActivityLog, type Line } from "@storytree/agent-link";
-import { readClaims } from "@storytree/agent-link";
-import { MARKER_FILE } from "@storytree/agent-link";
+import { openActivityLog, type Line } from "@storytree/session-management";
+import { readClaims } from "@storytree/session-management";
+import { MARKER_FILE } from "@storytree/session-management";
 import { claudeCode, codex, idOf, withAgent } from "../testing/agent.js";
-import { git, withTempDir } from "@storytree/agent-link/testing/folders";
-import { approveCheckout, dropTestProjects, placeTestServer, projectDatabase, testServerUrl, uniqueProjectName } from "@storytree/agent-link/testing/pg";
+import { git, withTempDir } from "@storytree/session-management/testing/folders";
+import { approveCheckout, dropTestProjects, placeTestServer, projectDatabase, testServerUrl, uniqueProjectName } from "@storytree/session-management/testing/pg";
 import { NOT_RUNNING_ANSWER } from "./index.js";
 import { registerWorkTools } from "./work-tools.js";
 import type { Answer, Call, Define } from "./server.js";
@@ -536,7 +536,7 @@ test("6.9 a committed close remains successful when a newer sibling schema preve
         assert.match(answer.text, /schema version 999/);
         assert.match(answer.text, /git pull/);
         assert.match(answer.text, /pnpm install/);
-        assert.match(answer.text, /restart the agent link/);
+        assert.match(answer.text, /restart the MCP server/);
 
         const before = await library.history({ id: future.id });
         const refused = await agent.call("close_increment", { increment: future.id, disposition: "withdrawn", note: "Cannot read it" });

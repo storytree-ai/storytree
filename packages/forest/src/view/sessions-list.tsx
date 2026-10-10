@@ -1,8 +1,8 @@
 /** Capability 7 · Running sessions. The forest owns its sessions surface; the desktop only mounts it and carries public reads. */
 import React, { Fragment, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import type { ContextReading, SessionWindow } from "@storytree/agent-link";
-import { ON_MAIN_LABELS, type Line, type LogReading, type OnMain } from "@storytree/agent-link/readings";
+import type { ContextReading, SessionWindow } from "@storytree/session-management";
+import { ON_MAIN_LABELS, type Line, type LogReading, type OnMain } from "@storytree/session-management/readings";
 import { pageKept, pageReading, type LiveReads, type PageReading } from "@storytree/arc-surface";
 import type { AnnotatedTree, ArcView } from "@storytree/library";
 import type { RosterEntry } from "@storytree/knowledge-core";
@@ -15,9 +15,9 @@ export interface SessionsReads extends LiveReads {
   projectTree(project: string): Promise<AnnotatedTree>;
   /** Every live arc's view in one ask (library 7.8): never one read per arc. */
   arcViews(project: string): Promise<readonly ArcView[]>;
-  /** The agent link's context readings (9.5, 9.8) for these sessions, read now; the rows' bars and totals. */
+  /** Session management's context readings (9.5, 9.8) for these sessions, read now; the rows' bars and totals. */
   contextReadings?(project: string, sessions: readonly string[]): Promise<readonly ContextReading[]>;
-  /** A session's window (agent link 9.10), read when its row is expanded: the files its expansion lists. */
+  /** A session's window (Session management 9.10), read when its row is expanded: the files its expansion lists. */
   windowReading?(project: string, session: string): Promise<SessionWindow>;
   /** Several sessions' windows in one ask, in the order asked; preferred to windowReading when given. */
   windowReadings?(project: string, sessions: readonly string[]): Promise<readonly SessionWindow[]>;

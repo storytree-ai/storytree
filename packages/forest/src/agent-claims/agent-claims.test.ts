@@ -7,7 +7,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { Line, NewLine } from "@storytree/agent-link/readings";
+import type { Line, NewLine } from "@storytree/session-management/readings";
 import { workStates } from "@storytree/arc-surface";
 import type { AnnotatedStory, AnnotatedTree, ArcView } from "@storytree/library";
 
@@ -83,8 +83,9 @@ test("5.4 none of this changes how a capability's state is drawn", () => {
 
 test("5.5 a session keeps one colour, never green or the needs-you amber; a folded subagent flags in its parent's colour", () => {
   const sessions = Array.from({ length: 40 }, (_, index) => `session-${index}`);
-  for (const session of sessions) {
-    assert.equal(sessionColour(session), sessionColour(session));
+  const first = sessions.map(sessionColour);
+  for (const [index, session] of sessions.entries()) {
+    assert.equal(sessionColour(session), first[index], `${session} keeps its colour`);
     const hue = Number(/^hsl\((\d+)/.exec(sessionColour(session))?.[1]);
     assert.ok(!(hue >= 30 && hue < 170), `${session}'s hue ${hue} is outside amber and green`);
   }

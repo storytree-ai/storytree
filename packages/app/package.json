@@ -16,7 +16,7 @@
     "typecheck": "tsc -p ."
   },
   "dependencies": {
-    "@storytree/agent-link": "workspace:*",
+    "@storytree/session-management": "workspace:*",
     "@storytree/library": "workspace:*",
     "electron-updater": "6.8.9",
     "pg": "^8.23.0"

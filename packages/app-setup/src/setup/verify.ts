@@ -6,7 +6,7 @@
  */
 import path from "node:path";
 
-import type { Line } from "@storytree/agent-link";
+import type { Line } from "@storytree/session-management";
 
 /** The four hooks a session's setup is verified by, in the order they fire. */
 export const HOOK_TESTS = ["session start", "storytree tool call", "file edit", "command"] as const;

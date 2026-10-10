@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
-import { noteCodexHookRan } from "@storytree/agent-link";
+import { noteCodexHookRan } from "@storytree/session-management";
 
 import { launcherFile, registerHooks, runSetupCheck, verifyHooks } from "../setup/index.js";
 import { connectAgents, disconnectAgents, installedToolServerCommand, type RunHarness } from "./index.js";
@@ -366,7 +366,7 @@ test("2.2 a dev build connects its own commands to a throwaway Codex home with i
   mkdirSync(signedIn);
   writeFileSync(path.join(signedIn, "auth.json"), '{"signed":"in"}');
   writeFileSync(path.join(signedIn, "config.toml"), legacy);
-  // The commands a dev build makes, stood in for: building them is the agent link's own concern.
+  // The commands a dev build makes, stood in for: building them is Session management's own concern.
   const build = async (outdir: string) => {
     mkdirSync(outdir, { recursive: true });
     const names = ["storytree-mcp", "storytree-hook", "storytree-setup", "storytree"];

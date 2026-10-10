@@ -12,14 +12,14 @@ import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-import { locateApp, storytreeHome } from "@storytree/agent-link";
+import { locateApp, storytreeHome } from "@storytree/session-management";
 
 export type QuitResult = { state: "quit" } | { state: "not running" } | { state: "still running" } | { state: "no record"; message: string };
 
 export interface QuitOptions {
   /** The storytree home: STORYTREE_HOME, else ~/.storytree/0.3. */
   readonly home?: string;
-  /** Whether the app is running. By default, the agent link's reading of its owner or launch record (1.11). */
+  /** Whether the app is running. By default, Session management's reading of its owner or launch record (1.11). */
   readonly locate?: () => { running: boolean };
   /** Starts a program, detached. */
   readonly open?: (command: string, args: readonly string[]) => void;

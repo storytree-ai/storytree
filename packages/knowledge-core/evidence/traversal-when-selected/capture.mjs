@@ -24,6 +24,7 @@ const survey = JSON.parse(readFileSync(path.join(rows, 'survey.json'), 'utf8'));
 // Every session worked in the last few minutes before the capture runs, so none is idle.
 const NOW = Date.now();
 const CHECKOUT = '/repo';
+// The paths are the seed's: its snapshot of the library predates the agent link's rename to Session management.
 const SESSIONS = {
   builder: { minutes: 2, reason: 'Build the window replay', capability: 'capability_062b84e5c6b0', file: 'packages/knowledge-core/src/look-inside/look-inside.ts' },
   reviewer: { minutes: 3, reason: 'Review the sessions list', capability: null, file: 'packages/forest/src/sessions-list/sessions-list.ts' },

@@ -9,7 +9,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { workStates } from "@storytree/arc-surface";
-import type { NewLine } from "@storytree/agent-link";
+import type { NewLine } from "@storytree/session-management";
 import { forestDescriptors, GROUND_PER_PLACE, GROUND_PER_WORLD_UNIT, islandReach, statusOf, type Descriptor3D, type InstanceDescriptor } from "@storytree/forest-world";
 import type { AnnotatedCapability, AnnotatedStory, Change } from "@storytree/library";
 

@@ -11,7 +11,7 @@
  */
 import path from "node:path";
 
-import { idleAfterMs, leaveAfterMs, lookAsApp, projectFolder, openActivityLog, pruneTranscripts, standingDelegations, storedContextReading, storedSessionWindow, TranscriptCache, type ActivityLog } from "@storytree/agent-link";
+import { idleAfterMs, leaveAfterMs, lookAsApp, projectFolder, openActivityLog, pruneTranscripts, standingDelegations, storedContextReading, storedSessionWindow, TranscriptCache, type ActivityLog } from "@storytree/session-management";
 import type { Library, Storytree } from "@storytree/library";
 
 import type { PageReadsBridge } from "./bridge.js";
@@ -25,7 +25,7 @@ export interface PageReads extends Answers<PageReadsBridge> {
   listProjects(): Promise<string[]>;
   /** The latest folder a session of the project worked in on this machine, still there: where its code can be read. */
   projectFolder(project: unknown): Promise<string | undefined>;
-  /** The app's own look at every project's branches (agent link 4.21), so the sessions list never waits on a hook's. Never throws, never blocks the process, and never runs twice at once. */
+  /** The app's own look at every project's branches (Session management 4.21), so the sessions list never waits on a hook's. Never throws, never blocks the process, and never runs twice at once. */
   lookAround(): Promise<void>;
   /** Close the libraries and the log opened here. The connection to the library stays the caller's. */
   close(): Promise<void>;

@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, statSync } from "node
 import path from "node:path";
 import type { InstalledTools } from "./payload.js";
 
-// The agent link's launcher, recognised by its marker line: on Windows a program of its own (ADR-0854).
+// Session management's launcher, recognised by its marker line: on Windows a program of its own (ADR-0854).
 const marker = "storytree 0.3's command (put here by its setup check)";
 export interface CommandResult {
   status: "installed" | "already installed" | "conflict";

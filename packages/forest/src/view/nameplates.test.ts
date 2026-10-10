@@ -83,7 +83,7 @@ test("3.31 where two story names overlap on screen, the less face-on one fades a
 
 test("3.33 where a selected island's capability names overlap, the smaller territory's fades", () => {
   const box = (left: number, top: number) => ({ left, top, right: left + 80, bottom: top + 30 });
-  // As The agent link showed them: Sessions over Claims, Context readings over Settings.
+  // As Session management showed them: Sessions over Claims, Context readings over Settings.
   const names = [
     { capability: "sessions", box: box(500, 400), size: 9 }, { capability: "claims", box: box(530, 415), size: 14 },
     { capability: "context readings", box: box(600, 480), size: 6 }, { capability: "settings", box: box(620, 500), size: 3 },

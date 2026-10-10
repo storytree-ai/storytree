@@ -9,7 +9,7 @@
  * The card names each tool in backticks, and uses backticks for nothing else: its tests hold it to
  * naming exactly the tools the server has, within 60 lines.
  */
-import { decisionRights } from "@storytree/agent-link";
+import { decisionRights } from "@storytree/session-management";
 
 const DECISION_RIGHTS = decisionRights();
 

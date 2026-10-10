@@ -13,7 +13,7 @@
     "build": "tsx src/bins/build.ts"
   },
   "dependencies": {
-    "@storytree/agent-link": "workspace:*",
+    "@storytree/session-management": "workspace:*",
     "@storytree/app": "workspace:*",
     "@storytree/app-setup": "workspace:*",
     "@storytree/arc-surface": "workspace:*",

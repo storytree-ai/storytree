@@ -5,7 +5,7 @@ import { test } from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { arcsAfter, isSessionRows, keptPanelOpen, keptTab, SessionsList, windowsReader } from "./sessions-list.js";
 import type { ArcView } from "@storytree/library";
-import type { SessionWindow } from "@storytree/agent-link";
+import type { SessionWindow } from "@storytree/session-management";
 import { sessionColour } from "../agent-claims/agent-claims.js";
 import type { HistoryRow, SessionRow } from "../sessions-list/sessions-list.js";
 

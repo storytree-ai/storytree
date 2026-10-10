@@ -1,7 +1,7 @@
 /**
  * The setup check's two tools, check_setup and set_up_project, as an agent calls them through the MCP
- * server: the agent link's contracts 8.4-8.24 that only a call through the server shows, and 7.7, the
- * habits card in their answers. The setup work itself is the agent link's, and its own tests stay there.
+ * server: the setup contracts 8.4-8.24, numbered as the agent link had them, that only a call through the server shows, and 7.7, the
+ * habits card in their answers. The setup work itself is the app setup's, and its own tests stay there.
  *
  * Each test works in a throwaway home: its own Claude Code config folder and Codex home, holding
  * settings of the user's own that the setup check must leave alone, and a storytree home that says
@@ -15,18 +15,18 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { MARKER_FILE, noteCodexHookRan, noteHookFailure, type Homes } from "@storytree/agent-link";
+import { MARKER_FILE, noteCodexHookRan, noteHookFailure, type Homes } from "@storytree/session-management";
 import { CHECK_FILE, registerHooks, type GhState, type HookCommand } from "@storytree/app-setup/setup";
 import { buildBins } from "@storytree/app-setup/bins";
-import { withTempDir } from "@storytree/agent-link/testing/folders";
-import { approveCheckout, dropTestProjects, placeTestServer, testServerUrl, uniqueProjectName } from "@storytree/agent-link/testing/pg";
+import { withTempDir } from "@storytree/session-management/testing/folders";
+import { approveCheckout, dropTestProjects, placeTestServer, testServerUrl, uniqueProjectName } from "@storytree/session-management/testing/pg";
 import { connect } from "@storytree/library";
 
 import { habitsCard } from "../instructions/habits.js";
 import { claudeCode, codex, withAgent } from "../testing/agent.js";
 
-/** The hook fixtures the agent link's own hook tests run on: a harness's input, as it sends it. */
-const FIXTURES = path.join(path.dirname(fileURLToPath(import.meta.resolve("@storytree/agent-link/testing/pg"))), "..", "hooks", "fixtures");
+/** The hook fixtures Session management's own hook tests run on: a harness's input, as it sends it. */
+const FIXTURES = path.join(path.dirname(fileURLToPath(import.meta.resolve("@storytree/session-management/testing/pg"))), "..", "hooks", "fixtures");
 
 /** A hook command as the setup check registers it: registering never runs it. */
 const HOOK: HookCommand = { node: process.execPath, script: path.join(tmpdir(), "storytree", "dist", "storytree-hook.mjs") };
@@ -91,7 +91,7 @@ function readJson(file: string): Record<string, unknown> {
   return JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown>;
 }
 
-test("agent-link 8.4 setup records the chosen project only after a successful yes, never on an existing-project check", async () => {
+test("session-management 8.4 setup records the chosen project only after a successful yes, never on an existing-project check", async () => {
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
     const name = uniqueProjectName();
@@ -142,7 +142,7 @@ test("agent-link 8.4 setup records the chosen project only after a successful ye
   });
 });
 
-test("agent-link 8.5 the agent fires a test of each hook, and the connection shows as verified only when storytree has received every one; until then it names the missing hook and the fix", async () => {
+test("session-management 8.5 the agent fires a test of each hook, and the connection shows as verified only when storytree has received every one; until then it names the missing hook and the fix", async () => {
   const project = uniqueProjectName();
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
@@ -232,7 +232,7 @@ test("journey-events 1.5: the hooks-verified milestone is reported only once che
   });
 });
 
-test("agent-link 8.21 a Codex session that set its project up during the session, while Codex's hooks are known to run, is told what Claude Code is told: start a new session here and check again; never the trust step, which stays for a Codex whose hooks have never run (regression: Conduit 1 on the reset laptop, 2026-10-01)", async () => {
+test("session-management 8.21 a Codex session that set its project up during the session, while Codex's hooks are known to run, is told what Claude Code is told: start a new session here and check again; never the trust step, which stays for a Codex whose hooks have never run (regression: Conduit 1 on the reset laptop, 2026-10-01)", async () => {
   const project = uniqueProjectName();
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
@@ -279,7 +279,7 @@ test("7.7 set_up_project's answer and check_setup's in a project carry the whole
   });
 });
 
-test("agent-link 8.22 a session that sets its project up finishes the setup in that answer: the starter roles and a new session to verify its hooks, or Codex's trust step, never a second check_setup in this session (regression: Codex's approval review refused the second check, 2026-10-01)", async () => {
+test("session-management 8.22 a session that sets its project up finishes the setup in that answer: the starter roles and a new session to verify its hooks, or Codex's trust step, never a second check_setup in this session (regression: Codex's approval review refused the second check, 2026-10-01)", async () => {
   const [claudes, codexes, waiting] = [uniqueProjectName(), uniqueProjectName(), uniqueProjectName()];
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
@@ -328,7 +328,7 @@ function fireHook(storytreeHome: string, harness: string, fixture: string, folde
   });
 }
 
-test("agent-link 8.8 with gh missing, signed out or signed in, the agent is never asked to install or sign in to it, in check_setup's text or its data", async () => {
+test("session-management 8.8 with gh missing, signed out or signed in, the agent is never asked to install or sign in to it, in check_setup's text or its data", async () => {
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
     const said = async (gh: GhState): Promise<string> => {
@@ -349,7 +349,7 @@ test("agent-link 8.8 with gh missing, signed out or signed in, the agent is neve
   });
 });
 
-test("agent-link 8.19 in a project whose library holds the starter roles, the check names them for the agent to open; a project without them is told of none", async () => {
+test("session-management 8.19 in a project whose library holds the starter roles, the check names them for the agent to open; a project without them is told of none", async () => {
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
     const [seeded, older] = [uniqueProjectName(), uniqueProjectName()];
@@ -383,7 +383,7 @@ test("agent-link 8.19 in a project whose library holds the starter roles, the ch
   });
 });
 
-test("agent-link 8.20 once storytree has received the session's edit of the check file, the check deletes the file where the agent wrote it, in a worktree whose tool server runs in the project's folder and while the other hooks are still missing (regression: the laptop's worktree sessions, 2026-10-02)", async () => {
+test("session-management 8.20 once storytree has received the session's edit of the check file, the check deletes the file where the agent wrote it, in a worktree whose tool server runs in the project's folder and while the other hooks are still missing (regression: the laptop's worktree sessions, 2026-10-02)", async () => {
   const project = uniqueProjectName();
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
@@ -411,7 +411,7 @@ test("agent-link 8.20 once storytree has received the session's edit of the chec
   });
 });
 
-test("agent-link 8.24 the check tells a session the hook failures this machine traced for it (how many, and the latest's event, stage and error), so a session whose lines went missing can capture why; a session with none is told nothing of them", async () => {
+test("session-management 8.24 the check tells a session the hook failures this machine traced for it (how many, and the latest's event, stage and error), so a session whose lines went missing can capture why; a session with none is told nothing of them", async () => {
   const project = uniqueProjectName();
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);

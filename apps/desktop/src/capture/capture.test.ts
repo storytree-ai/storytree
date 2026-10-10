@@ -10,7 +10,7 @@ import { runInNewContext } from "node:vm";
 import { test } from "node:test";
 import type { Page } from "playwright-core";
 
-import type { Line, NewLine } from "@storytree/agent-link";
+import type { Line, NewLine } from "@storytree/session-management";
 import { workStates } from "@storytree/arc-surface";
 
 import { fakeBridge, launchPlan, outputFolder, seedWorkStates, visibleGlobeTargets, zoomGlobe } from "./index.js";

@@ -10,7 +10,7 @@ increment's earlier count of 22:
 
 | Source story | Cross-story links |
 | --- | ---: |
-| Agent link | 1 |
+| Session management | 1 |
 | App | 1 |
 | Arc surface | 4 |
 | Command line | 20 |
@@ -31,7 +31,7 @@ second run and removal of a dependency deleted from its source.
 
 ![The seeded forest](seeded-forest.png)
 
-![The agent link's drill-down includes the library's capability 7](seeded-cross-story-link.png)
+![Session management's drill-down includes the library's capability 7](seeded-cross-story-link.png)
 
 Renderer: **headless Chromium 148.0.7778.96, ANGLE / Vulkan SwiftShader Device
 (Subzero)**. These are untouched 1440 × 960 screenshots of the actual desktop

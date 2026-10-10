@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
-import type { Line } from "@storytree/agent-link";
+import type { Line } from "@storytree/session-management";
 import { ASK_EVERY_MS, CLOCK_EVERY_MS, readBoard, watchBoard } from "../index.js";
 import type { BoardState } from "./live-board.js";
 import type { BoardReads } from "./reads.js";

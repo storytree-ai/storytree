@@ -7,9 +7,9 @@
  */
 import { connect, ConnectionError, type ConnectOptions, type Library, type Storytree } from "@storytree/library";
 
-import { openNamedProject, requireApproval, withConnectTimeout } from "@storytree/agent-link";
+import { openNamedProject, requireApproval, withConnectTimeout } from "@storytree/session-management";
 
-import { currentBranch, openActivityLog, thisMachine, type ActivityLog } from "@storytree/agent-link";
+import { currentBranch, openActivityLog, thisMachine, type ActivityLog } from "@storytree/session-management";
 
 /** How long a fresh database handshake may take before a call says storytree isn't reachable. */
 const CONNECT_TIMEOUT_MS = 3_000;

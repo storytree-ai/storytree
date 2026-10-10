@@ -7,7 +7,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { connect, type Storytree } from "@storytree/library";
 import { dropTestDatabases } from "@storytree/local-postgres/testing";
-import { openActivityLog, requireApproval } from "@storytree/agent-link";
+import { openActivityLog, requireApproval } from "@storytree/session-management";
 import { openLedger } from "@storytree/quality-assurance";
 
 import { setUpProject } from "./making.js";

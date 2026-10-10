@@ -16,7 +16,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { openActivityLog } from "@storytree/agent-link";
+import { openActivityLog } from "@storytree/session-management";
 import { connect } from "@storytree/library";
 import { start } from "@storytree/local-postgres";
 import pg from "pg";

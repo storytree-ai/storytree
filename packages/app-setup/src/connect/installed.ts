@@ -1,7 +1,7 @@
 /** Capability 2 · Connect an agent. The installed helper joins delivery's saved paths to capability 2's connection operations. */
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { storytreeHome } from "@storytree/agent-link";
+import { storytreeHome } from "@storytree/session-management";
 import { connectAgents, disconnectAgents, installedToolServerCommand, type Harness } from "./index.js";
 
 /**

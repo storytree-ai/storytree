@@ -2,7 +2,7 @@
  * Capability 1 · Lifecycle. What the preload script hands the page, as `window.storytree`: these functions and nothing else.
  * Each is answered by the main process, which alone holds the library (@storytree/app's pageReads).
  */
-import { SETTINGS_CHANNELS, type SettingsBridge } from "@storytree/agent-link/view";
+import { SETTINGS_CHANNELS, type SettingsBridge } from "@storytree/session-management/view";
 import { PAGE_READS_CHANNELS, SURFACES_CHANNELS, type PageReadsBridge } from "@storytree/app/surfaces";
 import { LIFECYCLE_CHANNELS, type LifecycleBridge } from "@storytree/app/lifecycle/bridge";
 import { PROJECTS_CHANNELS, type ProjectsBridge } from "@storytree/app/projects/bridge";

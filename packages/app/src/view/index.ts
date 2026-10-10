@@ -1,5 +1,5 @@
 /** Capability 3 · Surfaces. */
-import { mountDecisionRights, mountSettings, type SettingsBridge } from "@storytree/agent-link/view";
+import { mountDecisionRights, mountSettings, type SettingsBridge } from "@storytree/session-management/view";
 import type { ProjectSelection } from "../projects/selection.js";
 import type { SurfacesBridge } from "../surfaces/bridge.js";
 import { renderAppMenu, renderSwitcher } from "./render.js";
@@ -48,9 +48,9 @@ export function mountAppMenu(host: HTMLElement, options: {
     readSettings: () => desktop!.storytree.readSettings(),
     saveSetting: (name, values) => desktop!.storytree.saveSetting(name, values),
   };
-  // The agent link offers its settings by group; each group is its own tab.
+  // Session management offers its settings by group; each group is its own tab.
   const sessionSettings = mountSettings(menu.querySelector<HTMLElement>('[data-app-settings="sessions"]')!, bridge, { returnFocus: gear, embedded: true, group: "sessions" });
-  // Below them, who decides what (agent link 7.6), with the standing delegations of the project on show.
+  // Below them, who decides what (Session management 7.6), with the standing delegations of the project on show.
   const decisionRights = mountDecisionRights(menu.querySelector<HTMLElement>("[data-app-decision-rights]")!,
     async () => shown === undefined ? undefined : desktop!.storytree.standingDelegations(shown));
   const sessions = {

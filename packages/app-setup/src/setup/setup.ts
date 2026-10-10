@@ -14,7 +14,7 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
-import { codexHookTrust, findProject, readAppRecords, storytreeHome, type AppPlaces, type AppReading } from "@storytree/agent-link";
+import { codexHookTrust, findProject, readAppRecords, storytreeHome, type AppPlaces, type AppReading } from "@storytree/session-management";
 
 import { suggestedName } from "../project/making.js";
 import { defaultHomes, disconnectedHarnesses, registeredHookScripts, registerHooks, type HookCommand, type Homes, type HooksReport } from "./hooks-config.js";

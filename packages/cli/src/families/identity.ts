@@ -31,7 +31,7 @@ function identityFamily(command: "sign-in" | "status" | "sign-out", summary: str
 async function identity(command: "sign-in" | "status" | "sign-out", context: Context): Promise<string> {
   const clientId = process.env.STORYTREE_WORKOS_CLIENT_ID ?? "";
   if (clientId === "") return command === "sign-in" ? NOT_CONFIGURED : `Signed out. ${NOT_CONFIGURED}`;
-  const [{ identityCommand }, { storytreeHome }] = await Promise.all([import("@storytree/identity/command"), import("@storytree/agent-link/routing")]);
+  const [{ identityCommand }, { storytreeHome }] = await Promise.all([import("@storytree/identity/command"), import("@storytree/session-management/routing")]);
   // Ctrl-C cancels a waiting sign-in through identity, which releases its lock and saves nothing.
   const cancel = new AbortController();
   const interrupted = () => cancel.abort();

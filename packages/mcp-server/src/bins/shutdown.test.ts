@@ -9,7 +9,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { removeTempDir } from "@storytree/agent-link/testing/folders";
+import { removeTempDir } from "@storytree/session-management/testing/folders";
 import { shutdownOnce } from "./shutdown.js";
 
 test("6.45 the tool server exits with code 0 when a delivery ran during its shutdown", async (t) => {

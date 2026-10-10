@@ -17,7 +17,7 @@
   "dependencies": {
     "@storytree/library": "workspace:*",
     "@storytree/arc-surface": "workspace:*",
-    "@storytree/agent-link": "workspace:*",
+    "@storytree/session-management": "workspace:*",
     "@storytree/forest-world": "workspace:*",
     "@storytree/knowledge-core": "workspace:*",
     "@dagrejs/dagre": "^1.1.4",

@@ -8,7 +8,7 @@ import { userInfo } from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 
-import { claim, openActivityLog } from "@storytree/agent-link";
+import { claim, openActivityLog } from "@storytree/session-management";
 
 import { parseArgs } from "./args.js";
 import type { Context } from "./door.js";

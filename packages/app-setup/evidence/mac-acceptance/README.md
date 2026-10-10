@@ -9,6 +9,13 @@ from npm and never signed in), Enter for the folder, Enter for the suggested nam
 the app's window, local Postgres, the setup check, hooks, and a project grown with no agent, one file per step,
 with exit codes and times in `steps.tsv`. No secret is used, and no agent is signed in: the logs are public.
 
+Check (a) (increment_4bc9955ff232): the release workflow calls the same run after every publish, on the
+development channel, and `harness/judge.sh` fails it unless the install exits 0, the app is in `~/Applications` at
+the version just published (the pipe hides a 404), the app and its Postgres are running, and the setup check exits
+0. Its verdicts are in `verdict.tsv`, in the run's `mac-acceptance` artifact; those runs are not committed here.
+Hooks and `spctl --assess` are recorded, not judged, until increment_9e50c19dfefe and the Developer ID
+(increment_9d05fb8a164b) land.
+
 ## Runs of 2026-10-10
 
 Runner: macOS 26.6.2 (25G83), image macos-26-arm64 20260907.0351.1, Apple M1 (Virtual); Claude Code 2.1.296.

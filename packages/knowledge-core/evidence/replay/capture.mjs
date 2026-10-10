@@ -123,7 +123,8 @@ try {
     controls?.update?.();
     window.__globe.invalidate();
   }, notes);
-  await page.waitForFunction(() => { let n = 0; window.__globe.scene.traverse(o => { if (o.userData?.lit) n++; }); return n > 0; });
+  // The knowledge dots are drawn; with none selected no session lights what it read (ADR-0921).
+  await page.waitForFunction(() => { let n = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('knowledge-point:')) n++; }); return n > 0; });
   await frames();
   await aim(opened);
   await frames();

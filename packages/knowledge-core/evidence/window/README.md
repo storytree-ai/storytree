@@ -21,3 +21,7 @@ These are the real desktop page in headless Chromium (SwiftShader) on Linux, ove
 node packages/forest/evidence/sessions-list/build.mjs
 node --import tsx packages/knowledge-core/evidence/window/capture.mjs
 ```
+
+**Since ADR-0921 (2026-10-11 re-run):** with none selected nothing is lit, so the capture waits for the knowledge dots to be drawn and
+checks none is lit, then waits for every ring the selected window holds. `--smoke` builds its own page and takes no pictures;
+knowledge-core's numbered 4.7 · 4.16 window test runs it.

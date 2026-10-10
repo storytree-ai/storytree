@@ -49,7 +49,7 @@ test("1.2 · the tool this package registers answers the checks reading as data 
 
     const tools: Record<string, (args: object, call: { library: typeof library }) => Promise<{ text: string; data?: Record<string, unknown> }>> = {};
     qualityTools().registerTools!((name, _description, _input, act) => { tools[name] = act as never; });
-    assert.deepEqual(Object.keys(tools), ["quality_checks", "quality_ledger"]);
+    assert.deepEqual(Object.keys(tools), ["quality_checks", "quality_ledger", "quality_brief", "quality_take", "quality_answer", "quality_standing"]);
     const answer = await tools.quality_checks!({}, { library });
 
     assert.equal(answer.text, [

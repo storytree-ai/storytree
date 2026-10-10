@@ -281,6 +281,43 @@ for (const backend of [memory, postgres]) {
     assert.equal(await flight.pendChange("increment_000000000000", { record: form.id, retire: "x" }), null);
   });
 
+  contract("10.14", "an increment's branch reads the plan with its pending changes laid over, every other reader the live plan; a pending change whose record has changed since it was read is named stale with the entry that moved it", async ({ work, flight, transactions }) => {
+    const arc = await work.createArc(ARC);
+    const story = await work.addStory({ title: "Visitor can sign up" });
+    const other = await work.addStory({ title: "Visitor can sign in" });
+    const form = await work.addCapability({ title: "Email form", story: story.id, description: "Where they type it" });
+    const link = await work.addCapability({ title: "Confirmation link", story: story.id });
+    const promise = await work.addContract({ title: "Accepts a valid address", capability: form.id });
+    const kept = await work.addContract({ title: "Rejects a bad address", capability: form.id });
+    const increment = await flight.addIncrement({ arc: arc.id, ...WORK });
+    await flight.advanceIncrement(increment.id, "active");
+    const live = await work.projectTree();
+    assert.deepEqual(await flight.withPending(increment.id, live), live, "none pending: the live plan");
+    assert.deepEqual(await flight.stalePending(increment.id), []);
+
+    await flight.pendChange(increment.id, { record: form.id, fields: { title: "Address form", description: undefined, dependsOn: [link.id], story: other.id } });
+    await flight.pendChange(increment.id, { record: promise.id, retire: "overtaken" });
+    await flight.pendChange(increment.id, { record: kept.id, fields: { capability: link.id } });
+    const branch = await flight.withPending(increment.id, live);
+    const signUp = branch!.stories.find(({ id }) => id === story.id);
+    const signIn = branch!.stories.find(({ id }) => id === other.id);
+    assert.deepEqual(signUp!.capabilities.map(({ id, contracts }) => [id, contracts.map(({ id }) => id)]), [[link.id, [kept.id]]], "the form moved out; the kept contract moved to the link");
+    assert.deepEqual(signIn!.capabilities.map(({ id, title, description, dependsOn, contracts }) => ({ id, title, description, dependsOn, contracts })), [
+      { id: form.id, title: "Address form", description: undefined, dependsOn: [link.id], contracts: [] },
+    ], "edited, its description dropped, and its retired contract gone");
+    assert.deepEqual(await work.projectTree(), live, "every other reader reads the live plan");
+    assert.equal(await flight.withPending("increment_000000000000", live), null);
+
+    assert.deepEqual(await flight.stalePending(increment.id), [], "nothing has moved since");
+    const base = (await transactions.history({ id: promise.id, newest: 1 }))[0]!.seq;
+    await work.editContract(promise.id, { description: "Typed by another session" }, { actor: "session:other" });
+    const moved = (await transactions.history({ id: promise.id, newest: 1 }))[0]!;
+    assert.deepEqual(await flight.stalePending(increment.id), [
+      { record: promise.id, type: "contract", base, moved: { seq: moved.seq, action: "updated", at: moved.at, actor: "session:other" } },
+    ]);
+    assert.equal(await flight.stalePending("increment_000000000000"), null);
+  });
+
   contract("10.9", "an active increment returns to proposal keeping its parked date; a proposal or closed one is refused with nothing written", async ({ work, flight, transactions }) => {
     const arc = await work.createArc(ARC);
     const increment = await flight.addIncrement({ arc: arc.id, ...WORK });

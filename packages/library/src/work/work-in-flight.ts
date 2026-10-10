@@ -23,6 +23,7 @@ import { INCREMENT_STATUSES, type FieldsOf } from "../schema/types.js";
 import * as questions from "./owner-questions.js";
 import { heldOnOpen, type NewQuestion, type QuestionEdit, type QuestionLease, type Settlement } from "./owner-questions.js";
 import * as waits from "./waits.js";
+import type { CapabilityNode, ProjectTree, StoryNode } from "./work-model.js";
 import { arcHold, holdsOf, incrementHold, noteWaits, type Hold, type Holds, type NoteWait, type Wait, type WaitFor } from "./waits.js";
 
 /** Where an increment is in its lifecycle. */
@@ -88,6 +89,17 @@ export type PlanChange =
 
 /** What pendChange did: the change now pending, or nothing, since the increment planned the record and edits it live. */
 export type Pended = { readonly pending: PendingChange } | { readonly plannedHere: true };
+
+/**
+ * A pending change written against an older version of its record (ADR-0966 D5): the history entry
+ * it was read at (`base`), and the one that has changed the record since (`moved`), with when and who.
+ */
+export interface StalePending {
+  readonly record: string;
+  readonly type: PendingChange["type"];
+  readonly base: number;
+  readonly moved: { readonly seq: number; readonly action: "created" | "updated" | "retired"; readonly at: string; readonly actor?: string };
+}
 
 /** What an increment's pending changes may name: its plan's records (ADR-0966 D1). */
 const PLAN_RECORD = { name: "story, capability or contract", types: ["story", "capability", "contract"] } as const;
@@ -325,6 +337,35 @@ export class WorkInFlight {
       await this.#records.edit(id, { pending: next }, options);
       return { pending: entry };
     });
+  }
+
+  /**
+   * `tree`, as WorkModel.projectTree() gives it, with increment `id`'s pending changes laid over (ADR-0966
+   * D3): what its branch's own checks read. An edit's new fields replace the live ones the tree shows
+   * (a capability or contract given a new story or capability moves there), and a retirement takes the
+   * record, and anything under it, out. The tree given is not changed. Null if `id` is not a live increment.
+   */
+  async withPending(id: string, tree: ProjectTree): Promise<ProjectTree | null> {
+    const increment = await liveRecord(this.#records, id, ["increment"]);
+    return increment === null ? null : overlay(tree, increment.fields.pending ?? []);
+  }
+
+  /**
+   * Increment `id`'s pending changes whose record has changed since they were read (ADR-0966 D5's gate
+   * case): each with its base and the history entry that moved it, in the increment's order. Empty when
+   * every base is still its record's latest entry; null if `id` is not a live increment.
+   */
+  async stalePending(id: string): Promise<StalePending[] | null> {
+    const increment = await liveRecord(this.#records, id, ["increment"]);
+    if (increment === null) return null;
+    const stale: StalePending[] = [];
+    for (const { record, type, base } of increment.fields.pending ?? []) {
+      const [latest] = await this.#records.history({ id: record, newest: 1 });
+      if (latest === undefined || latest.seq === base) continue;
+      const moved = { seq: latest.seq, action: latest.action, at: latest.at, ...(latest.actor === undefined ? {} : { actor: latest.actor }) };
+      stale.push({ record, type, base, moved });
+    }
+    return stale;
   }
 
   /**
@@ -757,4 +798,40 @@ function outcomeOf(close: CloseInput): NonNullable<FieldsOf<"increment">["outcom
     ...(close.note === undefined ? {} : { note: close.note }),
     disposition: close.disposition,
   };
+}
+
+/** `tree` with `pending` laid over, as WorkInFlight.withPending gives it. */
+function overlay(tree: ProjectTree, pending: readonly PendingChange[]): ProjectTree {
+  const retired = new Set(pending.flatMap((change) => ("retire" in change ? [change.record] : [])));
+  const after = new Map(pending.flatMap((change) => ("after" in change ? [[change.record, change.after] as const] : [])));
+  const shown = <T extends { id: string; title: string; description?: string }>(node: T): T => {
+    const fields = after.get(node.id);
+    if (fields === undefined) return node;
+    const { description: _, ...rest } = node;
+    const title = Object.hasOwn(fields, "title") ? (fields["title"] as string) : node.title;
+    const description = Object.hasOwn(fields, "description") ? (fields["description"] as string | null) : node.description;
+    return { ...rest, title, ...(description === null || description === undefined ? {} : { description }) } as T;
+  };
+  const parentOf = (id: string, field: string, live: string): string => {
+    const moved = after.get(id)?.[field];
+    return typeof moved === "string" ? moved : live;
+  };
+  const capabilities = tree.stories.flatMap((story) => story.capabilities.map((capability) => ({ capability, story: parentOf(capability.id, "story", story.id) })));
+  const contracts = capabilities.flatMap(({ capability }) => capability.contracts.map((contract) => ({ contract, capability: parentOf(contract.id, "capability", capability.id) })));
+  const capabilityNode = (capability: CapabilityNode): CapabilityNode => {
+    const fields = after.get(capability.id) ?? {};
+    return {
+      ...shown(capability),
+      dependsOn: Object.hasOwn(fields, "dependsOn") ? [...((fields["dependsOn"] as string[] | null) ?? [])] : [...capability.dependsOn],
+      proposed: Object.hasOwn(fields, "proposed") ? fields["proposed"] === true : capability.proposed,
+      contracts: contracts.filter((one) => one.capability === capability.id && !retired.has(one.contract.id)).map(({ contract }) => shown(contract)),
+    };
+  };
+  const stories: StoryNode[] = tree.stories
+    .filter((story) => !retired.has(story.id))
+    .map((story) => ({
+      ...shown(story),
+      capabilities: capabilities.filter((one) => one.story === story.id && !retired.has(one.capability.id)).map(({ capability }) => capabilityNode(capability)),
+    }));
+  return { stories, arcs: tree.arcs.map((arc) => ({ ...arc, stories: [...arc.stories] })) };
 }

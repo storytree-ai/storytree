@@ -275,6 +275,21 @@ test("5.4 checking a story runs its own package's tests and records each contrac
   });
 });
 
+test("5.8 a range wider than 256 contracts names none for the pending marks, so a fixture's oversized title stops no run", (t) => {
+  const directory = mkdtempSync(path.join(tmpdir(), "own-health-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const file = path.join(directory, "fixture.test.ts");
+  writeFileSync(file, ['test("3.1–3.9007199254740991 oversized", () => {});', 'test("3.1–3.257 one past the cap", () => {});', 'test("4.1–4.256 at the cap", () => {});'].join("\n"));
+  assert.deepEqual([...contractsCoveredBy(file, { root: directory })], Array.from({ length: 256 }, (_, n) => `4.${n + 1}`));
+});
+
+test("5.4 a test whose title's range is wider than 256 contracts credits none and is reported unmapped", () => {
+  const oversized = { name: "3.1–3.9007199254740991 oversized", suites: [], file: "a.test.ts", status: "passed" };
+  const { verdicts, unmapped } = judge({ contracts: ["3.1"], results: [oversized], coverage: () => new Set() });
+  assert.equal(verdicts.get("3.1").total, 0);
+  assert.deepEqual(unmapped, [oversized]);
+});
+
 test("5.8 before its tests run, own health marks pending each contract a numbered test at its commit names, its own or a dependant's, that is not verified passing or skipped, so the worklist holds its capability back until the run records it", async (t) => {
   const root = mkdtempSync(path.join(tmpdir(), "own-health-pending-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));

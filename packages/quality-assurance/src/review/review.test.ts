@@ -1,11 +1,15 @@
 /**
- * Capability 2 · Change review and capability 4 · Review loop bound: contracts 2.1, 2.2 and 4.1 to 4.4 on the
+ * Capability 2 · Change review and capability 4 · Review loop bound: contracts 2.1 to 2.3 and 4.1 to 4.4 on the
  * real Postgres `pnpm test` provides, through the package's public entry, against a library holding an
  * increment, the contracts of the capabilities it names, and live checks. Contract 4.4 is also proved at the
  * two front doors, beside the command line's tests and the MCP server's, because this package cannot depend
  * back on either.
  */
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { test } from "node:test";
 
 import type { Library } from "@storytree/library";
@@ -89,6 +93,63 @@ test("2.2 · a return answering every check and contract is taken and its hits r
     assert.equal(rows.runs.length, 4);
     assert.equal(rows.hits.length, 1);
     await assert.rejects(reviews.take(library.name, increment, clean(checks, contracts)), /no brief/);
+  });
+});
+
+/** The tools this package registers, by name, as the agent link's server would call them. */
+function registeredTools() {
+  type Call = { library: Library; storytree: unknown; project: string };
+  const tools: Record<string, (args: object, call: Call) => Promise<{ text: string; data?: Record<string, unknown> }>> = {};
+  qualityTools().registerTools!((name, _description, _input, act) => { tools[name] = act as never; });
+  return tools;
+}
+
+/** A git checkout whose branch adds one line to a library file on top of its origin/main. */
+function branchCheckout(): string {
+  const dir = mkdtempSync(join(tmpdir(), "qa-review-"));
+  const git = (...args: string[]) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { cwd: dir });
+  git("init", "-q");
+  execFileSync("mkdir", ["-p", join(dir, "packages/library/src")]);
+  writeFileSync(join(dir, "packages/library/src/a.ts"), "export const a = 1;\n");
+  git("add", ".");
+  git("commit", "-qm", "base");
+  git("update-ref", "refs/remotes/origin/main", "HEAD");
+  writeFileSync(join(dir, "packages/library/src/a.ts"), "export const a = 1;\nexport const b = 2;\n");
+  git("commit", "-qam", "change");
+  return dir;
+}
+
+test("2.3 · the brief's tool issues the brief given the diff, or reads it from the worktree given, and refuses neither; the take tool takes the same return the loop takes", async () => {
+  await withLibrary(async (library, storytree) => {
+    const { increment, contracts, checks } = await plan(library);
+    const tools = registeredTools();
+    const call = { library, storytree, project: library.name };
+
+    await assert.rejects(tools.quality_brief!({ increment }, call), /diff.*worktree/);
+    const given = await tools.quality_brief!({ increment, diff: DIFF }, call);
+    const brief = given.data!.brief as { iteration: number; diff: string; packages: string[]; contracts: { id: string }[] };
+    assert.equal(brief.iteration, 1);
+    assert.equal(brief.diff, DIFF);
+    assert.deepEqual(brief.contracts.map(({ id }) => id), contracts);
+    assert.match(given.text, /^Review 1 of change /);
+    assert.match(given.text, /1\.1 · A bad email is refused/);
+
+    const dir = branchCheckout();
+    try {
+      const read = await tools.quality_brief!({ increment, worktree: dir }, call);
+      const fromWorktree = read.data!.brief as { diff: string; packages: string[] };
+      assert.match(fromWorktree.diff, /^\+export const b = 2;$/m);
+      assert.doesNotMatch(fromWorktree.diff, /forest-world/);
+      assert.deepEqual(fromWorktree.packages, ["library"]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+
+    const taken = await tools.quality_take!({ increment, return: clean(checks, contracts, { [checks[0]!]: [{ file: "packages/library/src/a.ts", line: 2, found: "b is new" }] }) }, call);
+    assert.match(taken.text, /^Recorded review .*#1: 1 hit\./);
+    assert.deepEqual((await (await openLedger(storytree)).rows(library.name)).hits.map(({ check, file, line }) => ({ check, file, line })), [
+      { check: checks[0], file: "packages/library/src/a.ts", line: 2 },
+    ]);
   });
 });
 

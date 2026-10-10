@@ -576,6 +576,7 @@ for (const backend of [memory, postgres]) {
     const form = await work.addCapability({ title: "Email form", story: story.id });
     const bad = await work.addContract({ title: "1.1 · Rejects a bad email", capability: form.id });
     const plus = await work.addContract({ title: "1.2 · Accepts a plus address", capability: form.id });
+    await later();
     const page = await work.addCapability({ title: "Thank-you page", story: story.id });
     const shown = await work.addContract({ title: "2.1 · Shows thanks", capability: page.id });
     for (const built of [form, page]) await work.setProposed(built.id, false);

@@ -77,6 +77,7 @@ const LIBRARY_API = [
   "lapsedQuestions",
   "reportHealth",
   "recordVerified",
+  "markVerifiedPending",
   "health",
   "healthHistory",
   "healthWorklist",
@@ -123,6 +124,7 @@ const LIBRARY_API = [
  * already held, and a decision superseding itself, are refused. LinkLoopError joined it with
  * contract 9.4: how a note link that would close a loop is refused (ADR-0647 D2). wordAndWhy joined
  * it with contract 5.8: how a capability's word and why it is not healthy are said (ADR-0825 D1).
+ * heldBack joined it with contract 5.11: how the worklist says what a test run in progress holds back.
  */
 const RUNTIME_EXPORTS = [
   "ConnectionError",
@@ -144,6 +146,7 @@ const RUNTIME_EXPORTS = [
   "UnknownTypeError",
   "WaitLoopError",
   "connect",
+  "heldBack",
   "wordAndWhy",
 ];
 

@@ -24,7 +24,8 @@ const MARKS = [/watch\.mjs run( |$)/];
 
 /**
  * A pull request, as GitHub's GraphQL returns it, read as merged, closed, red or pending. Red is a failed check on
- * its head, or a removal from the merge queue after `since` that the Requeue workflow has not undone in `graceMs`.
+ * its head, a conflict with main (no check fails on one, so it would otherwise wait out its check-back), or a removal
+ * from the merge queue after `since` that the Requeue workflow has not undone in `graceMs`.
  */
 export function readPull(pull, { since, now, graceMs }) {
   const head = pull.headRefOid;
@@ -36,6 +37,9 @@ export function readPull(pull, { since, now, graceMs }) {
     return { state: "red", head, why: failed.map((check) => `${check.name ?? check.context} failed`).join("; "),
       logs: failed.map((check) => check.detailsUrl ?? check.targetUrl).filter(Boolean) };
   }
+  if (pull.mergeable === "CONFLICTING") {
+    return { state: "red", head, why: "it conflicts with main: merge origin/main and resolve the conflicts", logs: [] };
+  }
   const removal = pull.timelineItems?.nodes?.at(-1);
   const removedAt = Date.parse(removal?.createdAt);
   if (!pull.mergeQueueEntry && EJECTED.has(removal?.reason?.toUpperCase()) && removedAt > Date.parse(since) && now - removedAt > graceMs) {
@@ -45,7 +49,7 @@ export function readPull(pull, { since, now, graceMs }) {
 }
 
 const QUERY = `query($owner: String!, $name: String!, $pr: Int!) { repository(owner: $owner, name: $name) { pullRequest(number: $pr) {
-  state headRefOid mergeQueueEntry { state }
+  state headRefOid mergeable mergeQueueEntry { state }
   commits(last: 1) { nodes { commit { statusCheckRollup { contexts(first: 100) { nodes {
     __typename ... on CheckRun { name status conclusion detailsUrl } ... on StatusContext { context state targetUrl } } } } } } }
   timelineItems(itemTypes: [REMOVED_FROM_MERGE_QUEUE_EVENT], last: 1) { nodes { ... on RemovedFromMergeQueueEvent { createdAt reason } } }

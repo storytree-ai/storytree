@@ -175,7 +175,8 @@ export async function checkStory(library, story, writer, { root, evidence = [], 
       let line = `    ${number.padEnd(5)} ${verdict.state.padEnd(12)} ${verdict.note ?? verdict.reason ?? ""}`;
       if (verdict.state === "not-checked") {
         const earlier = (await library.health(contract.id)).verified;
-        if (unseenPlatform(verdict.skip, platformsSeen) && earlier.state === "passing") line += `; its earlier pass (${earlier.at}) stands: no ${verdict.skip} CI run to re-run it`;
+        if (verdict.unrun === true && earlier.state === "passing") line += `; its earlier pass (${earlier.at}) stands: the ${verdict.skip} CI run did not reach its tests`;
+        else if (unseenPlatform(verdict.skip, platformsSeen) && earlier.state === "passing") line += `; its earlier pass (${earlier.at}) stands: no ${verdict.skip} CI run to re-run it`;
         else if (earlier.state !== "not-checked") line += `; its earlier entry (${earlier.state}, ${earlier.at}) is marked not re-run`;
         if (verdict.skip !== undefined) line += ` [skip: ${verdict.skip}]`;
       }

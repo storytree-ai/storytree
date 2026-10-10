@@ -14,11 +14,14 @@ export function blind(body) {
   return (body.match(/\bneeds:[^\n]*/gi) ?? []).some((line) => /\bblind\b/i.test(line));
 }
 
+/** An increment's place by its arc's priority (ADR-0963 D1): 1 first, an arc with none after every ranked one. */
+const rank = (one) => one.priority ?? Infinity;
+
 /**
  * The pool's next `max` increments from one survey (ADR-0955 D2), and why each other was skipped. A candidate is
  * not closed, sits on an active arc, has no live claim, wait or held-on question, and needs neither the owner nor
- * another machine; no fence or track is read. Oldest parked first, those on an arc no live session (nor a pick
- * already made) is on before the rest. `running` names the increments this dispatcher is running, never started
+ * another machine; no fence or track is read. By arc priority, then oldest parked first, and within one priority
+ * those on an arc no live session (nor a pick already made) is on before the rest (ADR-0963 D2). `running` names the increments this dispatcher is running, never started
  * twice; `attempts` maps each increment this dispatcher has started to when it started it: a live claim older than that start
  * refused it, and it is retried only once that claim clears (it records the refusal in `attempts`), never otherwise.
  */
@@ -29,7 +32,7 @@ export function pickPool(survey, { attempts = new Map(), running = [], max = 1 }
   const busy = new Set([...live.keys(), ...running].map((id) => arcOf.get(id)).filter(Boolean));
   const ready = [];
   const candidates = survey.increments.filter((one) => one.status !== "closed" && one.arcState === "active")
-    .sort((a, b) => String(a.parked).localeCompare(String(b.parked)));
+    .sort((a, b) => rank(a) - rank(b) || String(a.parked).localeCompare(String(b.parked)));
   for (const one of candidates) {
     const why = (() => {
       if (running.includes(one.id)) return "running now";
@@ -57,7 +60,8 @@ export function pickPool(survey, { attempts = new Map(), running = [], max = 1 }
   }
   const picks = [];
   while (picks.length < max && ready.length) {
-    const at = Math.max(0, ready.findIndex((one) => !busy.has(one.arc)));
+    const idle = ready.findIndex((one) => !busy.has(one.arc));
+    const at = idle > 0 && rank(ready[idle]) !== rank(ready[0]) ? 0 : Math.max(0, idle);
     const [one] = ready.splice(at, 1);
     busy.add(one.arc);
     picks.push(one);
@@ -70,7 +74,7 @@ export async function readSurvey({ library, claims }) {
   const [views, holds, held] = await Promise.all([library.arcViews(), library.holds(), claims()]);
   const increments = views.flatMap((view) => view.increments.map((record) => ({
     id: record.id, arc: view.arc.id, arcState: view.state, title: record.fields.title, body: record.fields.body ?? "",
-    status: record.fields.status, parked: record.fields.parked ?? record.createdAt?.toISOString?.(),
+    status: record.fields.status, parked: record.fields.parked ?? record.createdAt?.toISOString?.(), priority: view.arc.fields?.priority,
   })));
   return { increments, holds, claims: held };
 }

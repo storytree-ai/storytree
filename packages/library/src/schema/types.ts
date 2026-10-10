@@ -150,6 +150,8 @@ export const RECORD_SCHEMAS = {
         .regex(/^\d{4}-\d{2}-\d{2}$/, "a wake day is YYYY-MM-DD")
         .refine((day) => new Date(`${day}T00:00:00Z`).toISOString().startsWith(day), "a wake day is a real day")
         .optional(),
+      // ADR-0963 D1: 1 first; an arc with none comes after every arc that has one. Optional, so no version bump.
+      priority: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER).optional(),
       waits,
     })
     .strict(),

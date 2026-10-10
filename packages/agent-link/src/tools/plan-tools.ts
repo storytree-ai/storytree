@@ -100,6 +100,10 @@ export function registerPlanTools(define: Define): void {
       stories: z.array(z.string().min(1)).optional().describe("An arc's stories, replacing them"),
       intent: intent.optional(),
       end_state: endState.optional(),
+      priority: z
+        .union([z.number().int().min(1).max(Number.MAX_SAFE_INTEGER), z.literal("none")])
+        .optional()
+        .describe("An arc's priority: a whole number, 1 first, or \"none\" to clear it; an arc with none comes after every arc that has one (ADR-0963)"),
       capabilities: z.array(z.string().min(1)).optional().describe("An increment's capabilities, replacing them: the ones it changes, and nothing else"),
       links: z.array(z.string().min(1)).optional().describe("An increment's links, replacing them: its stories, notes or decisions"),
     }),
@@ -163,6 +167,7 @@ interface Changes {
   stories?: string[] | undefined;
   intent?: string | undefined;
   end_state?: string | undefined;
+  priority?: number | "none" | undefined;
   capabilities?: string[] | undefined;
   links?: string[] | undefined;
 }
@@ -172,7 +177,7 @@ const EDITABLE = {
   story: ["title", "description"],
   capability: ["title", "description", "story", "depends_on"],
   contract: ["title", "description", "capability"],
-  arc: ["title", "description", "stories", "intent", "end_state"],
+  arc: ["title", "description", "stories", "intent", "end_state", "priority"],
   increment: ["title", "capabilities", "links"],
 } as const;
 
@@ -189,8 +194,9 @@ async function editPlan(target: string, changes: Changes, call: Call): Promise<A
     const shared = await sharedCapability(target, changes.capabilities, call);
     if (shared !== undefined) return { text: shared, refused: true };
   }
-  const { depends_on: dependsOn, end_state: endState, ...rest } = changes;
-  const fields = optional({ ...rest, dependsOn, endState });
+  const { depends_on: dependsOn, end_state: endState, priority, ...rest } = changes;
+  // "none" clears an arc's priority: the library removes a field given as undefined (ADR-0963 D3).
+  const fields = { ...optional({ ...rest, dependsOn, endState }), ...(priority === undefined ? {} : { priority: priority === "none" ? undefined : priority }) };
   const edited =
     kind === "story"
       ? await library.editStory(target, fields, writer)
@@ -240,8 +246,12 @@ async function showPlan({ library, log, project, quietMs }: Call): Promise<Answe
       for (const contract of capability.contracts) out.push(`    Contract ${quoted(contract.title)} (${contract.id}): ${healthOf(contract.health)}`);
     }
   }
-  for (const arc of tree.arcs) {
-    out.push(`Arc ${quoted(arc.title)} (${arc.id}) grows ${arc.stories.length === 0 ? "no stories yet" : arc.stories.join(", ")}`);
+  // Ranked arcs first, 1 first; the sort is stable, so the unranked and each priority's arcs keep creation order (ADR-0963 D2).
+  const priorityOf = new Map(views.map((view) => [view.arc.id, view.arc.fields.priority]));
+  const rank = (id: string) => priorityOf.get(id) ?? Infinity;
+  for (const arc of [...tree.arcs].sort((one, other) => rank(one.id) - rank(other.id) || 0)) {
+    const priority = priorityOf.get(arc.id);
+    out.push(`Arc ${quoted(arc.title)} (${arc.id})${priority === undefined ? "" : `, priority ${priority},`} grows ${arc.stories.length === 0 ? "no stories yet" : arc.stories.join(", ")}`);
     for (const increment of incrementsOf.get(arc.id) ?? []) {
       out.push(`  Increment ${quoted(increment.fields.title)} (${increment.id}): ${increment.fields.status}; ${heldBy(increment.id)}`);
     }

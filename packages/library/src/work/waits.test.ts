@@ -222,6 +222,16 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await stored(launch.id), [copy.id], "an open question keeps the arc open");
     await flight.settleQuestion(question.id, { answer: "Plain" });
     assert.deepEqual(await stored(launch.id), undefined);
+
+    // A withdrawn blocker corrected to landed clears its wait; moving an arc's last open work away closes it and clears the waits on it.
+    await flight.correctIncrementClosure(templates.id, { pr: "#3", disposition: "landed" }, "it did land, in #3");
+    assert.deepEqual(await stored(form.id), undefined);
+    const site = await work.createArc({ title: "Site", ...ARC });
+    const page = await flight.addIncrement({ arc: site.id, title: "Page", ...WORK });
+    await flight.addIncrement({ arc: site.id, title: "Sketch", outcome: { pr: "#4", disposition: "landed" }, ...WORK });
+    await flight.addWait(launch.id, site.id, "needs a page");
+    await flight.moveIncrement(page.id, launch.id, "belongs to the launch");
+    assert.deepEqual(await stored(launch.id), undefined);
   });
 
   contract("11.6", "an increment waits for the owner or an outside event with a note: an owner wait holds until cleared, an event wait until its check-back day, then reads passed", async ({ work, flight, transactions }) => {

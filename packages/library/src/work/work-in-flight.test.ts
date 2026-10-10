@@ -470,6 +470,8 @@ test("10.8 work reads stay small as unrelated closed history grows, preserving b
     const question = await flight.raiseQuestion({ arc: history.id, title: "Still needed?", stakes: "Keeps arc open", statement: "Which?", context: "Context", options: "A or B" });
     assert.ok((await flight.waitHolds(waiter.id)).some(({ on }) => on === history.id), "a closed-work arc with an open question holds");
     await flight.settleQuestion(question.id, { answer: "A" });
+    // Settling its last question closed the arc and cleared the wait on it (11.8): written again, a parked arc holds.
+    await flight.addWait(arc.id, history.id, "closed arc releases");
     await flight.parkArc(history.id);
     assert.ok((await flight.waitHolds(waiter.id)).some(({ on }) => on === history.id), "a parked arc holds");
     await flight.unparkArc(history.id);

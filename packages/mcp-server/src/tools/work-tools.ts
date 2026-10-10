@@ -27,7 +27,7 @@ const releasedBy = (releaser: "owner" | "event"): string => (releaser === "owner
 export function registerWorkTools(define: Define): void {
   define(
     "park_increment",
-    "Park an increment of work on an arc, as a proposal: what it is, its objective, and its breakdown in the body. Leave its capabilities empty unless you know them: the session that claims it fills them in as it plans (ADR-0949 D2); cite its stories, notes or decisions as links. To record work that landed without ever being parked, give its outcome, and it is born closed. Parking work on a closed arc re-opens it.",
+    "Park an increment of work on an arc, as a proposal: what it is, its objective, and its breakdown in the body. Leave its capabilities empty unless you know them: the session that claims it fills them in as it plans (ADR-0949 D2); cite its stories, notes or decisions as links. To park work that must wait on the owner, raise the question first (raise_question, with no holds) and park the increment held_on it, so it is held from the moment it exists: parking first and holding it after leaves it open to be claimed in between. To record work that landed without ever being parked, give its outcome, and it is born closed. Parking work on a closed arc re-opens it.",
     z.object({
       arc: id("arc"),
       title: z.string().min(1).describe("What it is called: a short name"),
@@ -35,9 +35,10 @@ export function registerWorkTools(define: Define): void {
       body: z.string().min(1).describe("The increment itself: how the work breaks down"),
       capabilities: z.array(z.string().min(1)).optional().describe("The ids of the capabilities it changes, and nothing else: its lock list"),
       links: z.array(z.string().min(1)).optional().describe("The ids of anything else it cites: its stories, notes or decisions"),
+      held_on: z.array(z.string().min(1)).optional().describe("The ids of open questions it is born held on: it waits on the owner's answer until each is settled"),
       outcome: z.object({ disposition, pr, note }).optional().describe("Only for work that already landed without being parked: how it closed"),
     }),
-    async ({ arc, title, objective, body, capabilities, links, outcome }, { library, writer }) => {
+    async ({ arc, title, objective, body, capabilities, links, held_on, outcome }, { library, writer }) => {
       const before = (await library.arcView(arc))?.state;
       const increment = await library.addIncrement({
         arc,
@@ -46,6 +47,7 @@ export function registerWorkTools(define: Define): void {
         body,
         ...(capabilities === undefined ? {} : { capabilities }),
         ...(links === undefined ? {} : { links }),
+        ...(held_on === undefined ? {} : { heldOn: held_on }),
         ...(outcome === undefined ? {} : { outcome: defined(outcome) }),
       }, writer);
       const said = outcome === undefined ? `Parked ${quoted(title)} (${increment.id}) as a proposal. Claim it to start it.` : `Recorded ${quoted(title)} (${increment.id}), ${outcome.disposition}.`;
@@ -162,7 +164,7 @@ export function registerWorkTools(define: Define): void {
 
   define(
     "raise_question",
-    "Raise a question for the owner on an arc, instead of only asking in chat: what is at stake, the question, the context they need to answer it cold, and the options. Name the increments that cannot go on until they answer: those wait on the owner until it is settled, and your claims on those on this arc, with the capabilities you took for them, are released.",
+    "Raise a question for the owner on an arc, instead of only asking in chat: what is at stake, the question, the context they need to answer it cold, and the options. Name the increments that cannot go on until they answer: those wait on the owner until it is settled, and your claims on those on this arc, with the capabilities you took for them, are released. For work not yet parked, raise the question first and then park the increment held_on it (park_increment), never park it first and hold it after.",
     z.object({
       arc: id("arc"),
       title: z.string().min(1).describe("A short name for it"),

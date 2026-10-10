@@ -93,6 +93,7 @@ import { AuthKitCore, AuthOperations, sessionEncryption } from "@workos/authkit-
 
 import { CHANNELS } from "../bridge.js";
 import { APP_OWNER, appHome } from "../home.js";
+import { answerPage } from "../page-operations.js";
 import { parseArgs } from "./args.js";
 import { registersSignInScheme, routeCallback } from "./callback-check.js";
 import { createTrayIcon } from "./tray-icon.js";
@@ -210,16 +211,12 @@ if (refusal !== undefined) {
 async function run(): Promise<void> {
   // The bundled main is CommonJS with no import.meta, so its own build is named from Electron when packaged and from the checkout at its app path otherwise.
   journey = createJourneyRuntime({ home: home.dir, appVersion: app.isPackaged ? app.getVersion() : (sourceVersion(app.getAppPath())?.version ?? "0.3.0") });
-  ipcMain.handle(JOURNEY_CHANNELS.readJourney, () => journey!.readJourney());
-  ipcMain.handle(JOURNEY_CHANNELS.chooseJourney, (_event, on: boolean) => journey!.chooseJourney(on));
-  ipcMain.handle(JOURNEY_CHANNELS.prepareJourneyDeletion, () => journey!.prepareJourneyDeletion());
+  answerPage(ipcMain, JOURNEY_CHANNELS, journey);
   if (!args.smoke && !args.startCheck) journey.desktopStarted(installedApp());
   const settings = settingsActions(home.dir);
-  ipcMain.handle(SETTINGS_CHANNELS.readSettings, () => settings.readSettings());
-  ipcMain.handle(SETTINGS_CHANNELS.saveSetting, (_event, name: unknown, values: unknown) => settings.saveSetting(name, values));
+  answerPage(ipcMain, SETTINGS_CHANNELS, settings);
   const surfaces = surfacesActions(SURFACES, home.dir);
-  ipcMain.handle(SURFACES_CHANNELS.readSurfaces, () => surfaces.readSurfaces());
-  ipcMain.handle(SURFACES_CHANNELS.saveSurface, (_event, words: unknown) => surfaces.saveSurface(words));
+  answerPage(ipcMain, SURFACES_CHANNELS, surfaces);
   const help = setupHelpActions({
     licenseFile: path.join(app.isPackaged ? process.resourcesPath : __dirname, "LICENSE"),
     storytreeHome: home.dir,

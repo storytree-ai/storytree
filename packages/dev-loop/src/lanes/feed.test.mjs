@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { pickPool, readSurvey, WEBSITE_ARC } from "./feed.mjs";
+import { pickPlan, pickPool, readSurvey, WEBSITE_ARC } from "./feed.mjs";
 
 const now = Date.parse("2026-10-07T03:00:00Z");
 
@@ -19,7 +19,7 @@ test("11.2 · the survey reads arcs and holds once, with every increment's arc, 
     arcViews: async () => {
       reads++;
       return [
-        { arc: { id: "arc_laptop" }, state: "active", increments: [record("i1", "arc_laptop", "a"), record("i2", "arc_laptop", "b", { capabilities: ["capability_x"] })] },
+        { arc: { id: "arc_laptop", createdAt: new Date(now) }, state: "active", questions: [{ fields: { lifecycle: "open" } }, { fields: { lifecycle: "settled" } }], increments: [record("i1", "arc_laptop", "a"), record("i2", "arc_laptop", "b", { capabilities: ["capability_x"] })] },
         { arc: { id: "arc_cap" }, state: "active", increments: [record("i3", "arc_cap", "c", { capabilities: ["capability_x"] })] },
         { arc: { id: "arc_box" }, state: "parked", increments: [record("i4", "arc_box", "d")] },
         { arc: { id: "arc_stale" }, state: "active", increments: [record("i5", "arc_stale", "e")] },
@@ -33,6 +33,7 @@ test("11.2 · the survey reads arcs and holds once, with every increment's arc, 
   assert.deepEqual(read.increments.map((one) => [one.id, one.arc, one.arcState, one.body]), [
     ["i1", "arc_laptop", "active", "a"], ["i2", "arc_laptop", "active", "b"], ["i3", "arc_cap", "active", "c"], ["i4", "arc_box", "parked", "d"], ["i5", "arc_stale", "active", "e"]]);
   assert.deepEqual(read.holds.waits.i1, [{ on: "z", reason: "r" }]);
+  assert.deepEqual(read.arcs.map((arc) => [arc.id, arc.state, arc.openQuestions]), [["arc_laptop", "active", 1], ["arc_cap", "active", 0], ["arc_box", "parked", 0], ["arc_stale", "active", 0]]);
   assert.equal(read.claims, claims);
 });
 
@@ -77,4 +78,25 @@ test("11.8 · the pool picks ready work from every package by claims alone, olde
   assert.equal(attempts.get("refused").refusedBy, "s9", "a claim older than the start refused it");
   assert.deepEqual(pickPool(survey([increment("refused", "x"), increment("ran", "x")]), { attempts, max: 2 }).picks.map((one) => one.id), ["refused"],
     "retried once its claim clears; work it ran is not");
+});
+
+test("11.9 · an active arc whose open work all waits, with no open question, is offered for planning, oldest first and once", () => {
+  const arc = (id, created, extra = {}) => ({ id, state: "active", title: id, created, openQuestions: 0, ...extra });
+  const work = survey([
+    increment("waiting", "x", { arc: "arc_waits" }), increment("done", "x", { arc: "arc_waits", status: "closed" }),
+    increment("held", "x", { arc: "arc_held" }), increment("ready", "x", { arc: "arc_ready" }),
+    increment("claimed", "x", { arc: "arc_claimed" }), increment("event", "x", { arc: "arc_event" }),
+  ], {
+    arcs: [arc("arc_waits", "2026-10-03T00:00:00Z"), arc("arc_empty", "2026-10-02T00:00:00Z"), arc("arc_held", "2026-10-04T00:00:00Z"),
+      arc("arc_ready", "2026-09-01T00:00:00Z"), arc("arc_claimed", "2026-09-01T00:00:00Z"), arc("arc_asked", "2026-09-01T00:00:00Z", { openQuestions: 1 }),
+      arc("arc_parked", "2026-09-01T00:00:00Z", { state: "parked" }), arc(WEBSITE_ARC, "2026-09-01T00:00:00Z"), arc("arc_event", "2026-10-05T00:00:00Z")],
+    holds: { waits: { waiting: [{ on: "x" }] }, heldOn: { held: ["question_1"] }, waitsFor: { event: [{ releaser: "event", note: "PR", holds: true }] } },
+    claims: [{ increment: "claimed", session: "s1", holder: "live", since: "2026-10-07T00:00:00Z" }],
+  });
+  assert.equal(pickPlan(work)?.id, "arc_empty", "an arc with no open work qualifies, oldest first");
+  assert.equal(pickPlan(work, { planned: new Set(["arc_empty"]) })?.id, "arc_waits", "closed work does not count; each arc once");
+  assert.deepEqual(["arc_empty", "arc_waits", "arc_held", "arc_event"].map((id, at, all) => pickPlan(work, { planned: new Set(all.slice(0, at)) })?.id), ["arc_empty", "arc_waits", "arc_held", "arc_event"]);
+  assert.equal(pickPlan(work, { planned: new Set(["arc_empty", "arc_waits", "arc_held", "arc_event"]) }), undefined,
+    "ready or claimed work, an open question, a parked arc and the website arc never qualify");
+  assert.equal(pickPlan(survey([])), undefined, "a survey without arcs offers none");
 });

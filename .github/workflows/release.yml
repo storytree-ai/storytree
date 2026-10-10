@@ -97,6 +97,8 @@ jobs:
       - run: node apps/desktop/release.mjs draft
         env:
           GH_TOKEN: ${{ github.token }}
+          # Only whether the Mac certificate is set, never its value: the notes say if the build is notarised.
+          STORYTREE_MAC_SIGNED: ${{ secrets.CSC_LINK != '' }}
 
   # Each platform builds on its own runner, proves its build installs and starts, and uploads only
   # its own assets (apps/desktop/release-assets.mjs) into the draft.
@@ -133,15 +135,37 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # With the Developer ID secrets set, the Mac build is signed and notarised (contract 4.20): this puts the
+      # certificate in a temporary keychain, Apple's key in a file and the identity in STORYTREE_MAC_IDENTITY.
+      # Without them it does nothing and the build stays ad-hoc. Windows never receives them: electron-builder
+      # would read CSC_LINK as a Windows certificate.
+      - name: Prepare the Mac signing keychain
+        if: matrix.system == 'macOS'
+        run: node apps/desktop/mac-signing.mjs prepare
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
       # desktop:dist also stages each platform's bootstrap, one-liners and checksum manifest (on macOS its
       # entry, merged on publish) beside the installers; they upload with them, so first-run delivery
       # never meets a partial release.
+      # APPLE_API_KEY is not set here: prepare exported it as the key file's path, which notarisation reads.
       - run: pnpm desktop:dist
+        env:
+          CSC_LINK: ${{ matrix.system == 'macOS' && secrets.CSC_LINK || '' }}
+          CSC_KEY_PASSWORD: ${{ matrix.system == 'macOS' && secrets.CSC_KEY_PASSWORD || '' }}
+          APPLE_API_KEY_ID: ${{ matrix.system == 'macOS' && secrets.APPLE_API_KEY_ID || '' }}
+          APPLE_API_ISSUER: ${{ matrix.system == 'macOS' && secrets.APPLE_API_ISSUER || '' }}
       - run: ${{ matrix.check }}
       - name: Upload this platform's assets to the draft
         run: node apps/desktop/release.mjs upload
         env:
           GH_TOKEN: ${{ github.token }}
+      - name: Delete the Mac signing keychain and Apple's key file
+        if: always() && matrix.system == 'macOS'
+        run: node apps/desktop/mac-signing.mjs cleanup
 
   # Published only when every platform's required assets are in the draft (contract 4.6), after the
   # Mac entry is merged into storytree-delivery.json.

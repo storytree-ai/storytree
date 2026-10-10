@@ -7,6 +7,7 @@
  * field's value, or to the latest line for each key; the sessions and claims readings get the few
  * lines that decide them, never the history that does not.
  */
+import { ENDING_KINDS_SQL, ENDS_STANDING } from "../claims/endings.js";
 import type { LineKind } from "./lines.js";
 
 /** What a bounded read asks for: each condition given narrows what the server sends. */
@@ -109,15 +110,10 @@ WITH latest AS (
   ORDER BY coalesce(detail->>'increment', detail->>'capability'), seq DESC
 ), endings AS (
   SELECT seq, kind, session, detail->>'holder' AS holder, coalesce(detail->>'increment', detail->>'capability') AS id
-  FROM activity WHERE project = $1 AND kind IN ('released', 'landed', 'merged', 'closed', 'session-ended')
+  FROM activity WHERE project = $1 AND kind IN (${ENDING_KINDS_SQL})
 ), standing AS (
   SELECT l.id, l.session FROM latest l WHERE NOT EXISTS (
-    SELECT 1 FROM endings e WHERE e.seq > l.seq AND (
-      (e.kind = 'released' AND coalesce(e.holder, e.session) = l.session AND (e.id = l.id OR e.id = l.under))
-      OR (e.kind = 'landed' AND e.session = l.session AND e.id = l.id)
-      OR (e.kind = 'merged' AND e.holder = l.session AND e.id = l.id)
-      OR (e.kind = 'closed' AND (e.id = l.id OR e.id = l.under))
-      OR (e.kind = 'session-ended' AND e.session = l.session)))
+    SELECT 1 FROM endings e WHERE e.seq > l.seq AND ${ENDS_STANDING})
 ), claimers AS (
   SELECT DISTINCT session FROM activity
   WHERE project = $1 AND kind = 'claimed' AND coalesce(detail->>'increment', detail->>'capability') IN (SELECT id FROM standing)

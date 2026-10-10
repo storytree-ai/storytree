@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { decisionRights } from "../instructions/decision-rights.js";
+import { decisionRights } from "../settings/decision-rights.js";
 import { renderDecisionRights } from "./decision-rights.js";
 
 test("10.14 the app shows who decides what, read-only, from the card's own lines, with the project's standing delegations when it has them", () => {

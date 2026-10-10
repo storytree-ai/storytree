@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { connect, type Storytree } from "@storytree/library";
-import pg from "pg";
+import { dropTestDatabases } from "@storytree/local-postgres/testing";
 import { openActivityLog, requireApproval } from "@storytree/agent-link";
 
 import { setUpProject } from "./making.js";
@@ -19,13 +19,7 @@ async function testLibrary(t: { after(fn: () => Promise<void>): void }, projects
   const storytree = await connect({ url });
   t.after(async () => {
     await storytree.close();
-    const client = new pg.Client({ connectionString: process.env["STORYTREE_TEST_PG_ADMIN_URL"] || url });
-    await client.connect();
-    try {
-      for (const name of projects) await client.query(`DROP DATABASE IF EXISTS "storytree_${name}" WITH (FORCE)`);
-    } finally {
-      await client.end();
-    }
+    await dropTestDatabases(projects.map((name) => `storytree_${name}`));
   });
   return storytree;
 }
@@ -33,7 +27,7 @@ async function testLibrary(t: { after(fn: () => Promise<void>): void }, projects
 test("1.7 / 3.4: a chosen folder becomes a project (created if missing, suggested its own name); one already a project is said and nothing is created; a refused name or folder leaves nothing", async (t) => {
   const dir = realpathSync.native(mkdtempSync(path.join(tmpdir(), "storytree-add-project-")));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
-  const token = randomBytes(4).toString("hex");
+  const token = `t-${randomBytes(4).toString("hex")}`;
   const name = `my-site-${token}`;
   const library = await testLibrary(t, [name, `other-${token}`]);
   const home = path.join(dir, "home");
@@ -68,7 +62,7 @@ test("1.7 / 3.4: a chosen folder becomes a project (created if missing, suggeste
 test("removing a project takes it off this computer's list, keeps its records and frees its folder here: set up afresh, or joined on purpose, which brings it back; an unknown name is refused", async (t) => {
   const dir = realpathSync.native(mkdtempSync(path.join(tmpdir(), "storytree-remove-project-")));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
-  const token = randomBytes(4).toString("hex");
+  const token = `t-${randomBytes(4).toString("hex")}`;
   const name = `downloads-${token}`;
   const library = await testLibrary(t, [name, `site-${token}`]);
   const home = path.join(dir, "home");
@@ -94,7 +88,7 @@ test("removing a project takes it off this computer's list, keeps its records an
 test("removing a project whose marker git tracks leaves the folder as it is and says so; adding it again brings the project back", async (t) => {
   const dir = realpathSync.native(mkdtempSync(path.join(tmpdir(), "storytree-remove-tracked-")));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
-  const token = randomBytes(4).toString("hex");
+  const token = `t-${randomBytes(4).toString("hex")}`;
   const name = `tracked-${token}`;
   const library = await testLibrary(t, [name]);
   const home = path.join(dir, "home");
@@ -115,7 +109,7 @@ test("removing a project whose marker git tracks leaves the folder as it is and 
 test("3.7 / 3.6 removing or deleting a project drops the approval its own storytree home remembers, so its folder is refused afterwards", async (t) => {
   const dir = realpathSync.native(mkdtempSync(path.join(tmpdir(), "storytree-forget-approval-")));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
-  const token = randomBytes(4).toString("hex");
+  const token = `t-${randomBytes(4).toString("hex")}`;
   const removed = `removed-${token}`, deleted = `deleted-${token}`;
   const library = await testLibrary(t, [removed, deleted]);
   const home = path.join(dir, "home");
@@ -132,7 +126,7 @@ test("3.7 / 3.6 removing or deleting a project drops the approval its own storyt
 test("3.6 deleting a project drops its records for every machine once its name is typed, after a snapshot into this machine's backups that restores it; refused for a wrong name, the project in use, or one a live session holds a claim in", async (t) => {
   const dir = realpathSync.native(mkdtempSync(path.join(tmpdir(), "storytree-delete-project-")));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
-  const token = randomBytes(4).toString("hex");
+  const token = `t-${randomBytes(4).toString("hex")}`;
   const name = `downloads-${token}`;
   const library = await testLibrary(t, [name]);
   const home = path.join(dir, "home");
@@ -175,7 +169,7 @@ test("3.6 deleting a project drops its records for every machine once its name i
 test("3.6 a deleted project leaves no activity behind and leaves every computer's hidden list: a new project of its name starts with no old claims, and is shown", async (t) => {
   const dir = realpathSync.native(mkdtempSync(path.join(tmpdir(), "storytree-delete-traces-")));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
-  const token = randomBytes(4).toString("hex");
+  const token = `t-${randomBytes(4).toString("hex")}`;
   const name = `scratch-${token}`;
   const library = await testLibrary(t, [name]);
   const [home, other] = [path.join(dir, "home"), path.join(dir, "other")];
@@ -200,7 +194,7 @@ test("3.6 a deleted project leaves no activity behind and leaves every computer'
 test("3.6 a new project of a deleted one's name inherits nothing: not the lines an older computer's hooks wrote under the name since, nor a hidden list on a computer that has not listed its projects since", async (t) => {
   const dir = realpathSync.native(mkdtempSync(path.join(tmpdir(), "storytree-delete-again-")));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
-  const token = randomBytes(4).toString("hex");
+  const token = `t-${randomBytes(4).toString("hex")}`;
   const name = `scratch-${token}`;
   const library = await testLibrary(t, [name]);
   const [home, other] = [path.join(dir, "home"), path.join(dir, "other")];

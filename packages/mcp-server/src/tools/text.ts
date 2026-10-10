@@ -50,7 +50,7 @@ export function wholeOf(note: Note): string {
   }
 }
 
-/** What the eight further kinds are called in a sentence. */
+/** What the eight further kinds and a check are called in a sentence. */
 const KIND_NAMES: Readonly<Record<string, string>> = {
   principle: "Principle",
   guardrail: "Guardrail",
@@ -60,6 +60,7 @@ const KIND_NAMES: Readonly<Record<string, string>> = {
   friction: "Friction",
   resteer: "Re-steer",
   techstack: "Tech stack",
+  check: "Quality control check",
 };
 
 function firstLine(text: string): string {

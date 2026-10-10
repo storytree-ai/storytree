@@ -7,7 +7,7 @@ import { randomBytes } from "node:crypto";
 import { test } from "node:test";
 
 import { connect } from "@storytree/library";
-import pg from "pg";
+import { dropTestDatabases } from "@storytree/local-postgres/testing";
 
 import { acceptRun } from "./record-acceptance.mjs";
 import { mintAcceptance, readObservations, recordAcceptance, reportedStates, wentRedThenGreen } from "./acceptance-health.mjs";
@@ -133,12 +133,6 @@ async function withLibrary(body) {
     }
   } finally {
     await storytree.close();
-    const admin = new pg.Client({ connectionString: process.env.STORYTREE_TEST_PG_ADMIN_URL || url });
-    await admin.connect();
-    try {
-      await admin.query(`DROP DATABASE IF EXISTS "storytree_${name}" WITH (FORCE)`);
-    } finally {
-      await admin.end();
-    }
+    await dropTestDatabases([`storytree_${name}`]);
   }
 }

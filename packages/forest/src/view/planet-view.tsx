@@ -10,8 +10,9 @@ import { KnowledgeGlobePoints, useCodeLighting, type CodeLighting, type Knowledg
 import { SessionIslandEmphasis } from "./session-emphasis.js";
 import { circleStops, fileCircleMarks, lightFileCircles } from "./file-circles.js";
 import { lightTerritories, territoryLand } from "./territory-land.js";
+import { ClaimMarks } from "./claim-flag.js";
 import { fileCircles, territories } from "../territories/territories.js";
-import { NameplateCrowd, Nameplates, NeighbourRing, Overlay, SelectionRing } from "./island-overlays.js";
+import { NameplateCrowd, Nameplates, NeighbourRing, Overlay, reducedMotion, SelectionRing } from "./island-overlays.js";
 import { dragTurn, focusRotation, globeHover, hiddenMarkers, isGlobeDrag, oncePerFrame, pickGlobe, planetLayout, type ForestMode } from "./planet-navigation.js";
 import { claimsOn } from "./planet-update.js";
 import { createGlobeGuide, type GlobeControls, type GlobePose } from "./globe-guide.js";
@@ -76,7 +77,7 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
   // 5.7: replaying a growth with its recorded sessions, the wisps are the replay's, swapped as it passes each stage.
   const [replayed, setReplayed] = useState<readonly SessionWisp[]>();
   const wisps = growth !== undefined && recordedSessions !== undefined ? replayed ?? [] : live;
-  // ADR-0825 D3, ADR-0923: a running session outlines the territories it claimed, and nothing else; no wisps, no coast tint.
+  // ADR-0968, ADR-0923: a running session plants a flag on each territory it claimed, and nothing else; no wisps, no coast tint.
   const claimed = useMemo(() => claimTints(wisps), [wisps]);
   // Each island reports where its file circles lie on the globe once it has drawn them (only the drawing knows its coast); the core's traversal hops between them (ADR-0804 D5).
   const [stopsByStory, setStops] = useState<ReadonlyMap<string, ReadonlyMap<string, { x: number; y: number; z: number }>>>(new Map());
@@ -116,7 +117,7 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
         spot={layout.spots.get(island.story)!} lighting={lighting} surfaces={shownSurfaces} onStops={reportStops} />}
       {mode === "forest" && <SessionIslandEmphasis emphasis={emphasis} />}
       {emphasis === "held" && <SelectionRing island={local} descriptors={descriptors} onGlobe emphasis />}
-      {shownSurfaces.nameplates && <Nameplates island={island} spot={layout.spots.get(island.story)!} coast={coast} radius={layout.radius} selected={selected} dimmed={emphasis === "dimmed"} />}
+      {shownSurfaces.nameplates && <Nameplates island={island} spot={layout.spots.get(island.story)!} coast={coast} radius={layout.radius} selected={selected} dimmed={emphasis === "dimmed"} claimed={claimed} />}
       {mode === "forest" && <SelectionRing island={island.story === selected ? local : undefined} descriptors={descriptors} onGlobe />}
       {mode === "forest" && neighbours.has(island.story) && <NeighbourRing key={`${selected}:${neighbours.get(island.story)}`}
         island={local} descriptors={descriptors} relation={neighbours.get(island.story)!} reached={reached} />}
@@ -179,7 +180,7 @@ function Territories({ story, land, coast, claimed, radius, spot, lighting, surf
   surfaces: GlobeSurfaces;
   onStops: (story: string, stops: ReadonlyMap<string, { x: number; y: number; z: number }> | undefined) => void;
 }) {
-  const invalidate = useThree(state => state.invalidate);
+  const { invalidate, clock, camera } = useThree();
   // A claim on another island leaves this one's territories as they were.
   const tints = useKept(claimed, tints => claimsOn(tints, land));
   const drawn = useMemo(() => {
@@ -188,8 +189,26 @@ function Territories({ story, land, coast, claimed, radius, spot, lighting, surf
     const circles = fileCircleMarks(fileCircles(map, land.files), onIslandSurface(radius), islandNormal(radius));
     const root = new Group();
     root.add(group, circles);
-    return { root, group, circles };
+    return { root, group, circles, map };
   }, [land, coast, tints, radius]);
+  // ADR-0968: each claim's flag, and on an island with no code its lot, kept across claim changes so each plays its life.
+  const marks = useMemo(() => new ClaimMarks(), []);
+  useEffect(() => () => marks.dispose(), [marks]);
+  const first = useRef(true);
+  useEffect(() => {
+    marks.setLand(drawn.map, onIslandSurface(radius, TERRITORY_LIFT), islandNormal(radius), land.files.length === 0, coast);
+    invalidate();
+  }, [marks, drawn, land.files.length, coast, radius, invalidate]);
+  useEffect(() => {
+    // Claims already held when the globe first draws stand; any later one, a replay's included, arrives.
+    marks.claims(tints, clock.getElapsedTime(), { standing: first.current && clock.getElapsedTime() < 1, reduced: reducedMotion() });
+    first.current = false;
+    invalidate();
+  }, [marks, tints, clock, invalidate]);
+  useFrame(() => {
+    // The canvas draws on demand: a transition asks for frames only while it plays; a standing flag asks for none.
+    if (marks.frame(clock.getElapsedTime(), { zoom: camera.zoom, eye: camera.quaternion, reduced: reducedMotion() })) invalidate();
+  });
   useEffect(() => {
     if (land.package === undefined) return;
     const { position, quaternion } = plateTransform(spot, radius);
@@ -201,9 +220,9 @@ function Territories({ story, land, coast, claimed, radius, spot, lighting, surf
     lightTerritories(drawn.group, surfaces.sessionTints ? lighting.capabilities : new Map(), lighting.colour);
     presentTerritories(drawn.group, surfaces.territories);
     drawn.circles.visible = surfaces.fileCircles;
-    for (const object of drawn.group.children) if (object.userData.claim) object.visible = surfaces.sessionTints;
+    marks.root.visible = surfaces.sessionTints;
     invalidate();
-  }, [drawn, lighting, land.package, surfaces, invalidate]);
+  }, [drawn, marks, lighting, land.package, surfaces, invalidate]);
   // 3.30: on a growing globe the land fills in behind its island; once whole it is left alone until the growth or the land changes.
   const growth = usePlanetGrowth();
   const whole = useRef(false);
@@ -217,7 +236,7 @@ function Territories({ story, land, coast, claimed, radius, spot, lighting, surf
     mark.geometry?.dispose();
     mark.material?.dispose();
   }), [drawn]);
-  return <primitive object={drawn.root} />;
+  return <><primitive object={drawn.root} /><primitive object={marks.root} /></>;
 }
 
 type ScreenMarker = EdgeMarker & { left: number; top: number };

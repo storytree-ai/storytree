@@ -167,6 +167,9 @@ importers:
       '@storytree/app-setup':
         specifier: workspace:*
         version: link:../app-setup
+      '@storytree/local-postgres':
+        specifier: workspace:*
+        version: link:../local-postgres
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6

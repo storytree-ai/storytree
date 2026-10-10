@@ -14,7 +14,7 @@
  * start` (starting is claiming, the agent tools'), no `increment ready` (ADR-0645 D5; ADR-0909 D4 retired the step, and the word is refused saying so), and no hand
  * close or re-open of an arc (the owner's R1). `arc list` reads list(kind), then each arc's view.
  */
-import { questionsBehind } from "@storytree/arc-surface";
+import { questionsBehind } from "@storytree/arc-surface/board-states";
 import type { ArcView, Holds, NoteWait, WaitFor } from "@storytree/library";
 
 import { labelOf, Refusal, type Answer } from "../answer.js";

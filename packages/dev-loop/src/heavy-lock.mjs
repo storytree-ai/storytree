@@ -129,7 +129,9 @@ export async function acquireHeavyLock({ root, what, log = console.log, waitMs =
           writeFileSync(file, JSON.stringify(me), { flag: "wx" });
           break;
         } catch (error) {
-          if (error.code !== "EEXIST") throw error;
+          // On Windows a just-released lock another process still has open lingers, pending
+          // deletion, and creating it is refused with EPERM: it is not free yet, so wait.
+          if (error.code !== "EEXIST" && !(process.platform === "win32" && (error.code === "EPERM" || error.code === "EBUSY"))) throw error;
         }
       }
       const holder = readHolder(file);

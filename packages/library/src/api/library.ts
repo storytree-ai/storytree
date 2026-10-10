@@ -57,8 +57,9 @@ export interface Storytree {
    * creator role where the user may not create databases; never listed as a project; closed with
    * this connection. The one pool the library hands out, and never to a project's database: the
    * agent activity log keeps its lines here, so it reaches the cloud wherever the library does.
-   * Handed its `tables`, the library sets it up (ADR-0973): it runs them once per connection, in one
-   * transaction under the database's own lock, so callers setting it up at once take turns. A
+   * Handed its `tables`, the library sets it up (ADR-0973): it runs those the database has not yet
+   * applied, in one transaction under the database's own lock, so callers setting it up at once take
+   * turns and a database already set up runs no DDL. A
    * caller that only reads may leave them out.
    */
   ownDatabase(name: string, options?: OwnDatabaseOptions): Promise<Pool>;

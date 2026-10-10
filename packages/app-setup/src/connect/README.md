@@ -26,7 +26,7 @@ Claude Code uses the top-level `mcpServers.storytree` in `~/.claude.json`, or
 private temporary copy and performs removal there; the user file is replaced only after
 validation and a concurrent-edit check. Claude JSON is validated before editing. Neither
 adapter overwrites an incompatible `storytree` entry, including a legacy 0.2 connection.
-A different MCP name would break the existing agent-link tool-call hook matcher.
+A different MCP name would break the existing session-management tool-call hook matcher.
 
 Disconnect removes only the chosen MCP registration and hook commands matching this
 installation's exact command/arguments. Other hook commands in the same group survive.

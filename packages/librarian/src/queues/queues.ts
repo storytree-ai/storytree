@@ -5,7 +5,7 @@
  * three reports not yet routed, most recurrences first (ADR-0716), oldest first on ties, never one the session's own branch filed, so the librarian
  * never marks its own homework; a report with no provenance counts as another's, so the queue
  * cannot drain by going anonymous. The routing judgement is the librarian's own (ADR-0644 D3, S).
- * Settling and retiring a question are the agent link's tools.
+ * Settling and retiring a question are the MCP server's tools.
  */
 import type { FieldsOf, Library, Note, SchemaRecord, WriteOptions } from "@storytree/library";
 

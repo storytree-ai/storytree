@@ -6,7 +6,7 @@
  * check fixes by itself and names the fix for the rest, and it sets a folder up as a project only
  * when you tell it to.
  *
- * - The check is the agent link's `runSetupCheck` (its capability 8), which opens storytree when it
+ * - The check is the app setup's `runSetupCheck` (its capability 8), which opens storytree when it
  *   is closed, registers the hooks, and puts the `storytree` command on the path. Those last two
  *   need storytree's hook script, which an installed storytree keeps beside this command; run from
  *   anywhere else, the doctor says so rather than registering something else.
@@ -16,7 +16,7 @@
  *   checkout on this machine (ADR-0942 D1); until then the doctor says so, and `--join <name>` run
  *   there approves it on purpose.
  * - The hooks last seen firing is the latest hook line in the project's activity log.
- * - `storytree setup install | remove` stays the agent link's own command, run from beside this one.
+ * - `storytree setup install | remove` stays Session management's own command, run from beside this one.
  */
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -24,7 +24,7 @@ import { homedir } from "node:os";
 import path from "node:path";
 
 import type { SetupReport } from "@storytree/app-setup/setup";
-import { findProject, ProjectFolderError, requireApproval } from "@storytree/agent-link/routing";
+import { findProject, ProjectFolderError, requireApproval } from "@storytree/session-management/routing";
 import { setUpProject, suggestProjectName } from "@storytree/app-setup/project";
 import type { ConnectOptions } from "@storytree/library";
 
@@ -52,7 +52,7 @@ function hooksSaid(report: SetupReport): string[] {
   });
   const server = report.lines.find((line) => line.check === "codex-server" && line.fix !== undefined);
   if (server !== undefined) said.push(`${server.message} Fix: ${server.fix}`);
-  // Whether Codex runs its hooks yet, and an administrator terminal where it cannot (agent link 8.16, 8.17).
+  // Whether Codex runs its hooks yet, and an administrator terminal where it cannot (Session management 8.16, 8.17).
   for (const line of report.lines.filter((each) => each.check === "codex-hooks" || each.check === "elevated")) said.push(line.fix === undefined ? line.message : `${line.message} Fix: ${line.fix}`);
   const statusLine = report.hooks.statusLine;
   if (statusLine === "installed") said.push("Claude Code status line: storytree's installed now; it shows from the next session.");
@@ -91,7 +91,7 @@ function machineSaid(report: SetupReport): string[] {
 async function lastHook(library: ConnectOptions, project: string): Promise<string> {
   const { connect } = await import("@storytree/library");
   const storytree = await connect(library);
-  const { openActivityLog } = await import("@storytree/agent-link");
+  const { openActivityLog } = await import("@storytree/session-management");
   const log = await openActivityLog(storytree).catch(async (error: unknown) => {
     await storytree.close();
     throw error;
@@ -198,7 +198,7 @@ const setup: Verb = {
   async act(args, context) {
     const script = context.script === undefined ? undefined : path.join(path.dirname(context.script), "storytree-setup.mjs");
     if (script === undefined || !existsSync(script)) {
-      throw new Refusal("storytree setup is the agent link's, and runs from an installed storytree: this command is not beside it");
+      throw new Refusal("storytree setup is the app setup's, and runs from an installed storytree: this command is not beside it");
     }
     const ran = spawnSync(process.execPath, [script, ...args.words], { encoding: "utf8" });
     if (ran.status !== 0) throw new Refusal(`${ran.stderr}${ran.stdout}`.trim() || "storytree setup failed", { code: ran.status ?? 1 });

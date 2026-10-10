@@ -1,5 +1,5 @@
 // Capability 1 · Knowledge under its shelves. @storytree/knowledge-core: the knowledge inside the planet (the knowledge core story). It reads
-// the library only through the change history its public API gives, and the agent link only
+// the library only through the change history its public API gives, and Session management only
 // through its activity log's lines.
 export { knowledge } from "./ghosts/ghosts.js";
 export type { Ghost, GhostEvidence, Knowledge } from "./ghosts/ghosts.js";

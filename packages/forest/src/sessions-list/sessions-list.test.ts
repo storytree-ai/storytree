@@ -1,7 +1,7 @@
 /** Running sessions: the forest's session-to-island reading. */
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { LogFold, type Line, type NewLine } from "@storytree/agent-link/readings";
+import { LogFold, type Line, type NewLine } from "@storytree/session-management/readings";
 import type { AnnotatedTree, ArcView } from "@storytree/library";
 import { atWork, clickedSelection, dayRange, globeRoster, historyRows, historySelection, presetRange, sessionRoster, sessionRows, windowFiles } from "./sessions-list.js";
 import { sessionColour } from "../agent-claims/agent-claims.js";
@@ -253,7 +253,7 @@ test("7.16 a row lists the commands its session started and has not seen finish,
   assert.deepEqual(sessionRows(tree, log({ ...hook, kind: "prompt-submitted" }), [], now)[0]?.running, [], "a session running nothing lists nothing");
 });
 
-test("7.20 a row carries the agent link's work-on-main flag (4.26): outside a workspace for uncommitted work on main, first commit pending in a repository with none; an unflagged row carries none (ADR-0906)", () => {
+test("7.20 a row carries Session management's work-on-main flag (4.26): outside a workspace for uncommitted work on main, first commit pending in a repository with none; an unflagged row carries none (ADR-0906)", () => {
   const hook = (session: string) => ({ session, harness: "claude-code", source: "hook", folder: `/w/${session}`, branch: "main", machine: "mint" }) as const;
   const look = (of: string, unborn: boolean): Partial<Line> & NewLine =>
     ({ session: "looker", harness: "claude-code", source: "hook", machine: "mint", kind: "main-state", of: `/w/${of}`, dirty: true, ...(unborn ? { unborn: true } : {}) });

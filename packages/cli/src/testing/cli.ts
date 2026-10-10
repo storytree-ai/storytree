@@ -8,7 +8,7 @@
  * copy of its owner record (and its sign-in handoff, when it asks for a password), where the app's would be. A Postgres test must never skip silently, so
  * asking for either variable when it is missing throws.
  *
- * The agent link keeps its test helpers inside its package, so the few these tests need are
+ * Session management keeps its test helpers inside its package, so the few these tests need are
  * restated here, as it restates the library's.
  */
 import assert from "node:assert/strict";
@@ -42,7 +42,7 @@ export function testServerDataDir(): string {
  * its owner record at `<dataDir>.owner.json` and, when the server asks for a password, of its
  * private sign-in handoff at `<dataDir>.auth/connection.json` (ADR-0941), private as discovery
  * checks it. A passwordless server has no handoff: only the record is copied. Restated from the
- * agent link's test helper.
+ * Session management's test helper.
  */
 export function placeTestServer(dataDir: string): void {
   writeFileSync(`${dataDir}.owner.json`, readFileSync(`${testServerDataDir()}.owner.json`));

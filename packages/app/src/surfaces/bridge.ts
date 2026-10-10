@@ -3,7 +3,7 @@
  * travel on: the Surfaces menu's (ADR-0750), and the reads every surface makes of the library and the agent activity log, which
  * the app answers (reads.ts). Data only: safe for the page and preload.
  */
-import type { ContextReading, LinesSince, SessionWindow } from "@storytree/agent-link";
+import type { ContextReading, LinesSince, SessionWindow } from "@storytree/session-management";
 import type { AnnotatedTree, ArcView, Changes, Holds, Note, SchemaRecord } from "@storytree/library";
 
 import type { SurfaceReading } from "./switches.js";
@@ -37,15 +37,15 @@ export interface PageReadsBridge {
   frontCovers(name: string, nodeId: string): Promise<SchemaRecord<"decision">[]>;
   /** The notes that link to a note. */
   relatedNotes(name: string, noteId: string): Promise<Note[]>;
-  /** A project's standing delegations (agent link 7.6), for the who-decides-what view; none when its library has none. */
+  /** A project's standing delegations (Session management 7.6), for the who-decides-what view; none when its library has none. */
   standingDelegations(name: string): Promise<string | undefined>;
-  /** Each named session's context reading in a project (agent link 9.5), read now, in the order asked. */
+  /** Each named session's context reading in a project (Session management 9.5), read now, in the order asked. */
   contextReadings(name: string, sessions: readonly string[]): Promise<ContextReading[]>;
-  /** The user's idle-after setting in milliseconds (agent link 10), read now: how long a session may be quiet before the list shows it idle. */
+  /** The user's idle-after setting in milliseconds (Session management 10), read now: how long a session may be quiet before the list shows it idle. */
   idleAfterMs(): Promise<number>;
-  /** The user's leave-after setting in milliseconds (agent link 10), read now: how long a quiet session with no unmerged work stays listed. */
+  /** The user's leave-after setting in milliseconds (Session management 10), read now: how long a quiet session with no unmerged work stays listed. */
   leaveAfterMs(): Promise<number>;
-  /** A session's window in a project (agent link 9.10), read now. */
+  /** A session's window in a project (Session management 9.10), read now. */
   windowReading(name: string, session: string): Promise<SessionWindow>;
   /** Several sessions' windows in a project, in one read of the log, in the order asked. */
   windowReadings(name: string, sessions: readonly string[]): Promise<SessionWindow[]>;

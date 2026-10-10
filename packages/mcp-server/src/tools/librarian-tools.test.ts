@@ -1,6 +1,6 @@
 /**
  * The librarian story's rounds 6.3–6.4: the real shared server serves curation and gives the session
- * its next step. Kept here, beside the server, because the librarian cannot depend back on the agent link.
+ * its next step. Kept here, beside the server, because the librarian cannot depend back on Session management.
  */
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
@@ -15,8 +15,8 @@ import { InMemoryTransport } from "@modelcontextprotocol/server";
 import { librarianTools } from "@storytree/librarian";
 import { connect, type Library } from "@storytree/library";
 
-import { openActivityLog, type ActivityLog } from "@storytree/agent-link";
-import { approveCheckout, dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/agent-link/testing/pg";
+import { openActivityLog, type ActivityLog } from "@storytree/session-management";
+import { approveCheckout, dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/session-management/testing/pg";
 import { createAgentTools } from "./index.js";
 
 const VERBS = ["worklist", "link", "supersede", "correct", "annotate", "retire", "park", "graduate", "route"];

@@ -3,7 +3,7 @@
  * `storytree project delete <project> --confirm <project>`: delete its records (ADR-0831).
  * A front door only: the app setup owns removing and deleting a project.
  */
-import { findProject, MARKER_FILE } from "@storytree/agent-link/routing";
+import { findProject, MARKER_FILE } from "@storytree/session-management/routing";
 
 import { Refusal } from "../answer.js";
 import type { Family } from "../door.js";

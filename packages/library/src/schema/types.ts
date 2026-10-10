@@ -476,7 +476,7 @@ export const RECORD_SCHEMAS = {
       leaseDays: z.number().int().positive().optional(),
       /**
        * The session putting it to the owner right now, and since when (12.10): two sessions never
-       * ask him the same thing at once. Whether that session is still live is the agent link's reading.
+       * ask him the same thing at once. Whether that session is still live is Session management's reading.
        */
       presenting: z.object({ session: nonEmpty, since: nonEmpty }).strict().optional(),
     })

@@ -67,7 +67,7 @@ test("1.4 after nudging, on storytree's own seven rows at their real sizes, ever
   const rows: [string, number, number][][] = [
     [["The local database", 34.2], ["Process ledger", 31.5], ["The library", 76.1], ["The world", 143.5], ["Keys", 20]],
     [["The librarian", 25.8]],
-    [["The agent link", 107]],
+    [["Session management", 107]],
     [["The app", 46.5], ["The knowledge core", 41.7], ["The app setup", 37.2]],
     [["The dev loop", 45.8], ["The arc surface", 34.5]],
     [["The forest", 50.9]],

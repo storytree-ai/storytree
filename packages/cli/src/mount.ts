@@ -3,7 +3,7 @@
  * read from the verb's inputs, its words and flags become the verb's input, a step it offers next is named as a
  * command, and the verb's own refusal is the door's, with the usage when the input was wrong.
  */
-import { commandInput, commandUsage, mounted, VerbRefusal, type DoorWords, type Verb as Declared } from "@storytree/agent-link/verbs";
+import { commandInput, commandUsage, mounted, VerbRefusal, type DoorWords, type Verb as Declared } from "@storytree/session-management/verbs";
 
 import { Refusal, type Next } from "./answer.js";
 import type { Verb } from "./door.js";

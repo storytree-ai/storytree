@@ -11,7 +11,7 @@ export const ownerSchema = z.object({
 /** Already resolved caller identity. parentSession is an explicit delegation, never inferred. */
 export type RunOwner = z.infer<typeof ownerSchema>;
 /**
- * The agent link's tool call, as far as ownership reads it. Restated rather than imported: the agent
+ * the MCP server's tool call, as far as ownership reads it. Restated rather than imported: the agent
  * link depends on this package, and a dependency back would make a workspace cycle.
  */
 export interface OwningCall {

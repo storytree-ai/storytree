@@ -8,7 +8,7 @@
  */
 import { execFileSync } from "node:child_process";
 
-import { ask, type Answer } from "@storytree/agent-link";
+import { ask, type Answer } from "@storytree/session-management";
 
 /** The release stamped into a bundled build, as JSON; undeclared when run from source. */
 declare const STORYTREE_RELEASE: string | undefined;

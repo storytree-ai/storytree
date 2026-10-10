@@ -2,7 +2,7 @@
  * Capability 7 · Instructions, the habits card: one test per contract 7.1-7.3 and 7.5 in
  * the MCP server story. The card names each tool in backticks, and uses backticks for nothing
  * else, so the tools it teaches are exactly the backticked words in it. Whether real agents follow
- * it is the agent link's setup check.
+ * it is the app setup's setup check.
  */
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -14,7 +14,7 @@ import { Client } from "@modelcontextprotocol/client";
 import { InMemoryTransport } from "@modelcontextprotocol/server";
 
 import { createAgentTools } from "../index.js";
-import { decisionRights } from "@storytree/agent-link";
+import { decisionRights } from "@storytree/session-management";
 import { habitsCard } from "./habits.js";
 
 /** A client connected in memory to a fresh tool server, as a harness is at session start. */

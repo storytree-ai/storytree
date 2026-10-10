@@ -1,11 +1,11 @@
-/** Capability 7 · Running sessions. The forest's running sessions, read from the agent link; no transcript or liveness reader here. */
-import { logReading, QUIET_MS, type Line, type LogReading, type OnMain, type PullState, type Session, type SessionState } from "@storytree/agent-link/readings";
+/** Capability 7 · Running sessions. The forest's running sessions, read from Session management; no transcript or liveness reader here. */
+import { logReading, QUIET_MS, type Line, type LogReading, type OnMain, type PullState, type Session, type SessionState } from "@storytree/session-management/readings";
 import type { AnnotatedTree, ArcView } from "@storytree/library";
-import type { SessionWindow } from "@storytree/agent-link";
+import type { SessionWindow } from "@storytree/session-management";
 import type { RosterEntry } from "@storytree/knowledge-core";
 import { sessionColour } from "../agent-claims/agent-claims.js";
 
-/** Estimated tokens in each of a context's four groups (agent link 9.8): read as shares, not a second total. */
+/** Estimated tokens in each of a context's four groups (Session management 9.8): read as shares, not a second total. */
 export interface ContextGroups {
   injected: number;
   grounding: number;
@@ -13,12 +13,12 @@ export interface ContextGroups {
   other: number;
 }
 
-/** Facts about a session read elsewhere (the agent link's context reading, 9.5). Never inferred from prose. */
+/** Facts about a session read elsewhere (Session management's context reading, 9.5). Never inferred from prose. */
 export interface SessionDetails {
   parentSession?: string;
   totalTokens?: number;
   composition?: ContextGroups | undefined;
-  /** The user's context guidance in tokens, as the reading carried it (agent link 9.7). */
+  /** The user's context guidance in tokens, as the reading carried it (Session management 9.7). */
   guidance?: number | undefined;
 }
 /** A folder a session worked in: the branches it recorded there, and, when it recorded any, whether one still holds open work (unmerged) or none does (merged). */
@@ -45,7 +45,7 @@ export interface SessionRow {
   state: SessionState | "observed";
   /**
    * Folded into the list's "N idle" row, and not counted (ADR-0758 D1, D5): neither working, nor
-   * waiting for you (a turn ended within the idle-after time). By its state alone; who is listed at all is the agent link's reading.
+   * waiting for you (a turn ended within the idle-after time). By its state alone; who is listed at all is Session management's reading.
    */
   idle: boolean;
   /** When its session's lines were last seen; a subagent's, when it was started. */
@@ -64,7 +64,7 @@ export interface SessionRow {
   description: string[];
   /** The machine it runs on, named only when the listed sessions span more than one (7.13). */
   machine?: string;
-  /** Work it did on main rather than in a workspace, as the agent link flags it (4.26, ADR-0906); none when it did none. */
+  /** Work it did on main rather than in a workspace, as Session management flags it (4.26, ADR-0906); none when it did none. */
   onMain?: OnMain;
   children: SessionRow[];
 }
@@ -85,7 +85,7 @@ export function sessionRows(tree: AnnotatedTree, log: readonly Line[] | LogReadi
   const judged = quietMs === undefined ? { now } : { now, quietMs };
   const { fold, lines } = logReading(log);
   const sessions = fold.sessions(leaveMs === undefined ? judged : { ...judged, leaveMs });
-  // Who is listed is the agent link's reading (ADR-0754 D4, ADR-0758 D3): a verified close-out, or an ended or
+  // Who is listed is Session management's reading (ADR-0754 D4, ADR-0758 D3): a verified close-out, or an ended or
   // silent session with no open work, is hidden.
   const ended = new Set(sessions.filter(session => session.listing === "hidden").map(session => session.session));
   const quiet = quietMs ?? QUIET_MS;
@@ -230,7 +230,7 @@ function contextTotal(detail: SessionDetails | undefined): number | undefined {
 /** A row's files, as its expansion lists them (7.8): each once, in the order first opened; or why there are none. */
 export type SessionFiles = { files: { path: string; resident: boolean }[] } | { absent: string };
 
-/** The files in a session's window reading (agent link 9.10), a file resident if any of its opens still is. */
+/** The files in a session's window reading (Session management 9.10), a file resident if any of its opens still is. */
 export function windowFiles(window: SessionWindow): SessionFiles {
   if ("absent" in window) return { absent: window.absent };
   const files = new Map<string, boolean>();
@@ -304,7 +304,7 @@ function prNumber(pr: string | undefined): number | undefined {
 
 /**
  * The sessions the live list no longer lists (7.1 hides them) whose first line to last overlaps `range`, latest first (7.21).
- * Read from the same log reading as the live rows: the agent link's fold keeps every session it was fed, and the
+ * Read from the same log reading as the live rows: Session management's fold keeps every session it was fed, and the
  * claims, closes and merges one by one, so no second reading is needed.
  */
 export function historyRows(tree: AnnotatedTree, log: readonly Line[] | LogReading, arcs: readonly ArcView[], range: HistoryRange, now: Date,

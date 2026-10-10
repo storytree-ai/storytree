@@ -10,8 +10,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
-import { ACTIVITY_DATABASE, openActivityLog, pruneTranscripts, RETAIN_MS, shipTranscript, type ActivityLog } from "@storytree/agent-link";
-import { countingStore, longHistory } from "@storytree/agent-link/testing/egress";
+import { ACTIVITY_DATABASE, openActivityLog, pruneTranscripts, RETAIN_MS, shipTranscript, type ActivityLog } from "@storytree/session-management";
+import { countingStore, longHistory } from "@storytree/session-management/testing/egress";
 import { connect, type Storytree } from "@storytree/library";
 import pg from "pg";
 import { dropTestDatabases } from "@storytree/local-postgres/testing";
@@ -22,7 +22,7 @@ test("3.1 the page can ask the app for the library's changes and the agent log's
   const shown = uniqueProjectName();
   const other = uniqueProjectName();
   await withApp([shown, other], async ({ storytree, log, reads }) => {
-    // An agent's work, written as the agent link writes it: into the project's library and the log.
+    // An agent's work, written as Session management writes it: into the project's library and the log.
     const library = await storytree.openProject(shown);
     const first = await library.addStory({ title: "Visitor can sign up" });
     await log.append(shown, { session: "A", source: "hook", kind: "session-started" });
@@ -121,7 +121,7 @@ test("3.5 the page can ask the app for the context readings of sessions in the p
   });
 });
 
-test("3.6 the page can ask the app for a session's window (agent link 9.10), or several sessions' in one ask, parsed from the transcript records in the shared log, with no access to the machine the session ran on; a session with none named reads as an absence", async () => {
+test("3.6 the page can ask the app for a session's window (Session management 9.10), or several sessions' in one ask, parsed from the transcript records in the shared log, with no access to the machine the session ran on; a session with none named reads as an absence", async () => {
   const shown = uniqueProjectName();
   await withApp([shown], async ({ storytree, log, reads }) => {
     await storytree.openProject(shown);

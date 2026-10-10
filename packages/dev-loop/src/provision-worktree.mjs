@@ -20,7 +20,7 @@
 //     import of the new package fails, naming it, not the cause.
 // Anything else is left alone at no cost, so the hook is safe to run at every session start.
 //
-// With --serve it is how 0.3's own sessions start the agent link's tool server (.mcp.json and
+// With --serve it is how 0.3's own sessions start the MCP server (.mcp.json and
 // .codex/config.toml, ADR-0793 D2): the harness starts the server beside the session-start hook,
 // so in a worktree still being installed it waits for that install, then runs the server from this
 // worktree's source. It never installs itself, so two installs never run in one worktree at once.
@@ -51,7 +51,7 @@ import { fileURLToPath } from "node:url";
 const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
 const WORKSPACE_GROUPS = ["packages", "apps"];
 
-/** A known-stale primary must be repaired before this process loads the agent link's source. */
+/** A known-stale primary must be repaired before this process loads Session management's source. */
 function checkoutRefusal(root) {
   const git = (...args) => {
     const result = spawnSync("git", args, { cwd: root, encoding: "utf8", timeout: 5_000, windowsHide: true });
@@ -68,8 +68,8 @@ function checkoutRefusal(root) {
     ? ` It also has ${ahead} local commit${ahead === 1 ? "" : "s"}; reconcile those with origin/main before the fast-forward.`
     : "";
   return `storytree: the primary checkout (${root}) on main is ${behind} commit${behind === 1 ? "" : "s"} behind locally fetched origin/main; ` +
-    `the agent link cannot start from this older code.${reconcile} Preserve any local edits, then run ` +
-    "`git pull --ff-only origin main && pnpm install` in that checkout and restart the session's agent link.";
+    `the MCP server cannot start from this older code.${reconcile} Preserve any local edits, then run ` +
+    "`git pull --ff-only origin main && pnpm install` in that checkout and restart the session's MCP server.";
 }
 
 /** Which condition calls for an install, or undefined when the worktree is installed and current. */

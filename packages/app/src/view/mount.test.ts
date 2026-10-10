@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { setImmediate } from "node:timers/promises";
-import { settingsActions } from "@storytree/agent-link/settings";
+import { settingsActions } from "@storytree/session-management/settings";
 import { Window, type HTMLButtonElement } from "happy-dom";
 import { mountAppMenu } from "./index.js";
 import { fakeBridge } from "../../../../apps/desktop/src/capture/index.js";

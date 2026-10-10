@@ -153,7 +153,7 @@ function recordOf(text) {
   return /^Full record: (ADR-\d+)\b/m.exec(text)?.[1];
 }
 
-/** A story's file name from its title: "The agent link" -> "agent-link". */
+/** A story's file name from its title: "Session management" -> "session-management". */
 function storyName(title) {
   return title.replace(/^the\s+/i, "").toLowerCase().replace(/['’]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }

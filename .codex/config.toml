@@ -1,7 +1,7 @@
 [features]
 hooks = true
 
-# The agent link's tool server (ADR-0793 D2), run from this checkout's own source, so every worktree
+# The MCP server (ADR-0793 D2), run from this checkout's own source, so every worktree
 # serves its own code and no installed app is needed. It waits for the session-start install first.
 [mcp_servers.storytree]
 command = "node"

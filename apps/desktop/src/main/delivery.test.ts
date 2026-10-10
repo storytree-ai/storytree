@@ -64,8 +64,8 @@ test("app setup 1.1 / library 14.5: delivered tools run outside a checkout, incl
 
 // On Windows the folder can stay held for a moment after the child that loaded native binaries from
 // it exits (EBUSY, EPERM): retry for a while, then leave it in the system's temp directory and say
-// so, rather than failing the delivery this test protects. The agent link's tests do the same
-// (packages/agent-link/src/testing/folders.ts).
+// so, rather than failing the delivery this test protects. Session management's tests do the same
+// (packages/session-management/src/testing/folders.ts).
 async function removeTempDir(dir: string, waitMs = 10_000): Promise<void> {
   const deadline = Date.now() + waitMs;
   let observedHold = false;

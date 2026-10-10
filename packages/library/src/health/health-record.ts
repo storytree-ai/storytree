@@ -427,7 +427,7 @@ export function capabilityWhy(proposed: boolean, contracts: readonly { id: strin
  * carrying it, each by the number its title starts with or, without one, its id; for example
  * "untested — needs owner, the owner's to move: 8.1". A report-only one says what the agent
  * reports and that storytree does not check this project's tests yet. How the command line and the
- * agent link say it.
+ * Session management say it.
  */
 export function wordAndWhy(capability: Pick<AnnotatedCapability, "status" | "why" | "contracts" | "health" | "reportOnly">): string {
   const { status, why } = capability;
@@ -440,7 +440,7 @@ export function wordAndWhy(capability: Pick<AnnotatedCapability, "status" | "why
 
 /**
  * What the worklist says of the capabilities it holds back (HealthWorkItem.waits): how many, and the
- * newest run they wait on; undefined when it holds none. How the command line and the agent link say it.
+ * newest run they wait on; undefined when it holds none. How the command line and Session management say it.
  */
 export function heldBack(items: readonly HealthWorkItem[]): string | undefined {
   const runs = items.flatMap(({ waits }) => (waits === undefined ? [] : [waits]));

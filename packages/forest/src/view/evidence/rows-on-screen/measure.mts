@@ -7,7 +7,7 @@ import { writeFileSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { openNamedProject, requireApproval, route } from '@storytree/agent-link';
+import { openNamedProject, requireApproval, route } from '@storytree/session-management';
 import { workStates } from '@storytree/arc-surface';
 import { islandCoastReach } from '@storytree/forest-world/geometry';
 import { connect } from '@storytree/library';

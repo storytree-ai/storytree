@@ -86,7 +86,7 @@ export class NewerSchemaError extends Error {
     super(
       `record ${JSON.stringify(id)} (${type}) was written on schema version ${version}, which is newer than ` +
         `version ${knownVersion}, the newest ${type} version this code knows: it is refused rather than guessed at. ` +
-        `${distance} Update the storytree checkout with \`git pull\` and \`pnpm install\`; restart the agent link from a current worktree if it is running.`,
+        `${distance} Update the storytree checkout with \`git pull\` and \`pnpm install\`; restart the MCP server from a current worktree if it is running.`,
     );
     this.name = "NewerSchemaError";
     this.id = id;

@@ -222,7 +222,7 @@ function nonEmpty(value: string | undefined): string | undefined {
   return value === undefined || value === "" ? undefined : value;
 }
 
-/** Storytree's home, as the agent link's routing reads it: STORYTREE_HOME, else ~/.storytree/0.3. */
+/** Storytree's home, as Session management's routing reads it: STORYTREE_HOME, else ~/.storytree/0.3. */
 function defaultHome(): string {
   const home = process.env.STORYTREE_HOME;
   return home !== undefined && home !== "" ? path.resolve(home) : path.join(homedir(), ".storytree", "0.3");

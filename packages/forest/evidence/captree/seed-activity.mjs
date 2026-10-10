@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-import { openActivityLog } from '@storytree/agent-link';
+import { openActivityLog } from '@storytree/session-management';
 
 import { appLibraryServer } from '../../../../scripts/library-server.mjs';
 

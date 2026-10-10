@@ -5,22 +5,22 @@
  * listing, offering next only the commands that open what it named (ADR-0786), and a failure exits
  * non-zero and says what to do; a command it does not have answers with the real one for that job.
  *
- * - The project is the agent link's project routing (its capability 1) from the folder the command
+ * - The project is Session management's project routing (its capability 1) from the folder the command
  *   runs in: the nearest `.storytree.json` at or above it. Where storytree is, is the same routing's
  *   reading of the storytree home (STORYTREE_HOME, else ~/.storytree/0.3). "Not a project" and
  *   "not running" are its words, and come back before anything reaches a database.
  * - The library is reached only through its public API, opened on first use, so a command that
  *   needs none (the help) never connects.
  * - A verb imports the other stories' code it calls inside its act, never at the top of its family's
- *   file: the door and the menus statically load only the agent link's light routing entry, so the
+ *   file: the door and the menus statically load only Session management's light routing entry, so the
  *   help and the "not a project" and "not running" answers parse no more than that (contract 1.3).
  * - `--help` (or `-h`) after a command answers its usage and summary and runs nothing, whatever
  *   else the command would need.
  * - Exit codes: 0 answered; 1 refused (by the library, which is printed in its own words, or by
  *   the door, which says what to do); 2 a command used wrongly, with its usage.
  */
-import type { ActivityLog, Claim, ClaimContext } from "@storytree/agent-link";
-import { openNamedProject, ProjectFolderError, requireApproval, route } from "@storytree/agent-link/routing";
+import type { ActivityLog, Claim, ClaimContext } from "@storytree/session-management";
+import { openNamedProject, ProjectFolderError, requireApproval, route } from "@storytree/session-management/routing";
 import { sourceVersion } from "@storytree/app/version";
 import type { ConnectOptions, Library, Storytree, WriteOptions } from "@storytree/library";
 
@@ -64,7 +64,7 @@ export interface Context {
   server(): Promise<Storytree>;
   /** The writer to pass to every write; using it also names that writer in the answer. */
   writer(): WriteOptions;
-  /** Who holds what in the project right now: the agent link's reading of its activity log. */
+  /** Who holds what in the project right now: Session management's reading of its activity log. */
   claims(): Promise<Claim[]>;
   /** The caller and activity log, including a person closing an increment from their terminal. */
   activityContext(): Promise<ClaimContext & { readonly folder: string }>;
@@ -307,7 +307,7 @@ class Opened {
 
   async claims(): Promise<Claim[]> {
     const where = this.#routed();
-    const { openActivityLog, readClaims } = await import("@storytree/agent-link");
+    const { openActivityLog, readClaims } = await import("@storytree/session-management");
     const log = await openActivityLog(await this.#server());
     try {
       return await readClaims(log, where.project);
@@ -326,7 +326,7 @@ class Opened {
     const caller = commandSession() ?? { session: `person:${person()}` };
     const where = this.#routed();
     const library = await this.library();
-    const { currentBranch, openActivityLog, thisMachine } = await import("@storytree/agent-link");
+    const { currentBranch, openActivityLog, thisMachine } = await import("@storytree/session-management");
     const machine = thisMachine();
     // Lines written from a terminal name its machine and its folder's branch, as a hook's do (ADR-0754 D4).
     const log = await (this.#log ??= this.#server().then((storytree) => openActivityLog(storytree, { branchOf: currentBranch, ...(machine === undefined ? {} : { machine }) })));

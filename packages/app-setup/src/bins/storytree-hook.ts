@@ -1,5 +1,5 @@
 /**
- * Capability 8 · Setup check. The hook command setup registers (`storytree-hook <harness>`): the agent link's hook
+ * Capability 8 · Setup check. The hook command setup registers (`storytree-hook <harness>`): Session management's hook
  * command, given the map's file-to-capability lookup for its gate before each edit (ADR-0949 D3), which the agent
  * link may not import (ADR-0969). This is where the two meet: the app setup story may import both.
  *
@@ -10,7 +10,7 @@
 import { realpathSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 
-import { hookCommand, type DeclaredCapabilities } from "@storytree/agent-link/hook-command";
+import { hookCommand, type DeclaredCapabilities } from "@storytree/session-management/hook-command";
 
 /** The capability each file declares, by the map's rule, its survey's inference never read. */
 export const declaredCapabilities: DeclaredCapabilities = async (checkout, files, tree, readText) => {

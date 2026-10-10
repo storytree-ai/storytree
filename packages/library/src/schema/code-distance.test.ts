@@ -33,7 +33,7 @@ test("3.5 · CommonJS bundled schema errors load and explain recovery with unkno
     assert.match(error.message, /distance from locally fetched origin\/main is unknown/);
     assert.match(error.message, /git pull/);
     assert.match(error.message, /pnpm install/);
-    assert.match(error.message, /restart the agent link from a current worktree/);
+    assert.match(error.message, /restart the MCP server from a current worktree/);
   } finally {
     rmSync(folder, { recursive: true, force: true });
   }

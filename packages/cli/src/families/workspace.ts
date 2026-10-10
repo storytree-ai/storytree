@@ -1,5 +1,5 @@
-/** Capability 11 · Workspace: a terminal front door onto the agent link's claimed workspace, claim and release. */
-import type { ClaimAnswer, WorkspaceAnswer } from "@storytree/agent-link";
+/** Capability 11 · Workspace: a terminal front door onto Session management's claimed workspace, claim and release. */
+import type { ClaimAnswer, WorkspaceAnswer } from "@storytree/session-management";
 
 import { Refusal } from "../answer.js";
 import type { Context, Family, Verb } from "../door.js";
@@ -14,7 +14,7 @@ const make: Verb = {
     const reason = args.need("reason", this.usage).trim();
     if (!reason) throw new Refusal(`this needs a non-empty --reason\nusage: storytree ${this.usage}`, { code: 2 });
     const caller = await context.claimContext();
-    const { makeWorkspace } = await import("@storytree/agent-link");
+    const { makeWorkspace } = await import("@storytree/session-management");
     const made = await makeWorkspace(caller, id, reason, {}, { despiteOpenPulls: args.has("despite-open-pulls") });
     if (!made.ok) throw new Refusal(workspaceRefusalText(id, made));
     if (made.status === "prepared") {
@@ -42,7 +42,7 @@ const attach: Verb = {
     const codex = caller.harness === "codex";
     const folder = codex ? args.need("folder", this.usage) : args.text("folder") ?? caller.folder;
     const attachment = codex ? { folder, ref: args.need("ref", this.usage), name: args.need("name", this.usage) } : { folder };
-    const { attachWorkspace } = await import("@storytree/agent-link");
+    const { attachWorkspace } = await import("@storytree/session-management");
     const attached = await attachWorkspace(caller, id, reason, attachment);
     if (!attached.ok) throw new Refusal(`${workspaceRefusalText(id, attached)} The app's worktree is kept.`);
     return { text: `Attached workspace ${attached.folder}\nBranch: ${attached.branch}, at ${attached.base}.\n${caller.session} holds ${id}: ${reason}\nUse that directory explicitly for commands. Set it up as this project does at session start.` };
@@ -58,7 +58,7 @@ const claimOnly: Verb = {
     const reason = args.need("reason", this.usage).trim();
     if (!reason) throw new Refusal(`this needs a non-empty --reason\nusage: storytree ${this.usage}`, { code: 2 });
     const caller = await context.claimContext();
-    const { claim } = await import("@storytree/agent-link");
+    const { claim } = await import("@storytree/session-management");
     const answer = await claim(caller, id, reason);
     if (!answer.ok) throw new Refusal(workspaceRefusalText(id, answer));
     if (answer.alreadyHeld) return { text: `${caller.session} already holds ${id}: no worktree was made.` };
@@ -73,7 +73,7 @@ const releaseClaim: Verb = {
   summary: "release a claim this agent session holds, without closing or landing the work; with --holder, the session manager's release of a quiet session's claim (ADR-0944 D7)",
   async act(args, context) {
     const id = args.word(0, "the work's id", this.usage);
-    const { release, releaseFor } = await import("@storytree/agent-link");
+    const { release, releaseFor } = await import("@storytree/session-management");
     const caller = await context.claimContext();
     const holder = args.text("holder");
     if (holder !== undefined) {
@@ -106,7 +106,7 @@ const stale: Verb = {
   summary: "the session manager's stale-claim worklist: claimed increments whose holder is quiet, with no command running and no open pull request, each with its route (ADR-0953 D4)",
   async act(_args, context) {
     const caller = await context.activityContext();
-    const { staleClaims } = await import("@storytree/agent-link");
+    const { staleClaims } = await import("@storytree/session-management");
     const { claims, pullsUnread } = await staleClaims(caller, caller.quietMs === undefined ? {} : { quietMs: caller.quietMs });
     const unread = pullsUnread ? ["GitHub could not be asked which pull requests are open: check each branch before releasing."] : [];
     if (claims.length === 0) return { text: ["No claimed increment is stale.", ...unread].join("\n") };
@@ -125,12 +125,12 @@ const stale: Verb = {
  * caller holding none of it, a person's shell included, releases nothing and is told nothing.
  */
 export async function releasedAsking(context: Context, increment: string): Promise<string> {
-  const { releaseAsked } = await import("@storytree/agent-link");
+  const { releaseAsked } = await import("@storytree/session-management");
   const released = await releaseAsked(await context.activityContext(), increment);
   return released.length === 0 ? "" : ` Released your claims on ${released.join(", ")}.`;
 }
 
-/** An increment released without closing is nobody's work in progress: the agent link made it a proposal again (11.11). Says so, or ends the sentence. */
+/** An increment released without closing is nobody's work in progress: Session management made it a proposal again (11.11). Says so, or ends the sentence. */
 function returnedSaid(answer: { returned?: true }): string {
   return answer.returned ? "; nobody holds it, so it is a proposal again." : ".";
 }
@@ -159,7 +159,7 @@ export function workspaceRefusalText(id: string, answer: Exclude<WorkspaceAnswer
   }
 }
 
-/** One thing holding work a claim was refused on, as the agent link gives it. */
+/** One thing holding work a claim was refused on, as Session management gives it. */
 type Waiting = Extract<ClaimAnswer, { refused: "waiting" }>["waits"][number];
 
 /** One thing holding the work: other work, the owner's question, or the owner or an outside event it waits for with a note (ADR-0938 D1). */

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { Line, NewLine } from "@storytree/agent-link";
+import type { Line, NewLine } from "@storytree/session-management";
 import { agentsOnBoard } from "./agents.js";
 
 const start = Date.parse("2026-09-27T00:00:00Z");
@@ -41,7 +41,7 @@ test("2.1–2.4 the board names each window, reason, quiet age and missing hooks
   assert.equal(idle.quietMinutes, 41);
 });
 
-test("2.2 every claim-ending event removes the holder, and a running command follows the agent link's live reading", () => {
+test("2.2 every claim-ending event removes the holder, and a running command follows Session management's live reading", () => {
   const endings: NewLine[] = [
     { kind: "released", source: "tool", session: "s1", increment: "i" },
     { kind: "closed", source: "tool", session: "s1", increment: "i", disposition: "landed" },

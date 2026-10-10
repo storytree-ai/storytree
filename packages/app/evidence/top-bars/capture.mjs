@@ -9,7 +9,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { connect } from '@storytree/library';
 import { pageReads, projectSelection, smokeProblems } from '@storytree/app';
-import { settingsActions } from '@storytree/agent-link/settings';
+import { settingsActions } from '@storytree/session-management/settings';
 import { start } from '@storytree/local-postgres';
 
 const { chromium } = await import(process.env.STORYTREE_PLAYWRIGHT ?? '/home/mickh/code/Storytree/node_modules/.pnpm/playwright-core@1.60.0/node_modules/playwright-core/index.mjs');

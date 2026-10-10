@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 
-import { claim, openActivityLog, readClaims } from "@storytree/agent-link";
+import { claim, openActivityLog, readClaims } from "@storytree/session-management";
 
 import { parseArgs } from "./args.js";
 import type { Context } from "./door.js";

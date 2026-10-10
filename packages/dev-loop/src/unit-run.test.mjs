@@ -227,7 +227,7 @@ test("a unit with too little history on this machine keeps the fixed deadline", 
 });
 
 // increment_3bd2b051ab67: CI's fresh runners never have history, so the run itself says how long a
-// unit there may take: Windows agent-link passed main at 171.3 s, 9 s under the fixed 3 minutes.
+// unit there may take: Windows session-management passed main at 171.3 s, 9 s under the fixed 3 minutes.
 test("a unit with too little history takes the run's own default deadline when it gives one", (t) => {
   const home = history(t, passes("cli", 40_000));
   const env = { STORYTREE_UNIT_LIMIT_MS: "360000" };
@@ -238,8 +238,8 @@ test("a unit with too little history takes the run's own default deadline when i
 });
 
 test("with enough passes, a unit's deadline is twice its slowest recent pass, never under the floor", (t) => {
-  const home = history(t, [...passes("agent-link", 60_000, 165_000, 61_000, 70_000, 90_000), ...passes("arc-surface", 2_000, 18_000, 2_000, 2_500, 3_000)]);
-  assert.deepEqual(unitLimit("agent-link", { home, ...machine }), { ms: 330_000, source: "learned" });
+  const home = history(t, [...passes("session-management", 60_000, 165_000, 61_000, 70_000, 90_000), ...passes("arc-surface", 2_000, 18_000, 2_000, 2_500, 3_000)]);
+  assert.deepEqual(unitLimit("session-management", { home, ...machine }), { ms: 330_000, source: "learned" });
   assert.deepEqual(unitLimit("arc-surface", { home, ...machine }), { ms: UNIT_LIMIT_FLOOR_MS, source: "learned" });
 });
 

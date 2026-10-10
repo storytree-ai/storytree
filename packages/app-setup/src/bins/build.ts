@@ -2,7 +2,7 @@
  * Capability 8 · Setup check. storytree's commands, built into plain Node scripts: what a harness runs, with no tsx and
  * only its staged native dependencies beside it. Each is one ES module that esbuild bundles with everything it
  * imports (the library, pg and zod included). The setup command is this story's, and so is the hook command's
- * entry, which gives the agent link's hook the map's file-to-capability lookup (bins/storytree-hook.ts); the tool
+ * entry, which gives Session management's hook the map's file-to-capability lookup (bins/storytree-hook.ts); the tool
  * server is the MCP server story's and the `storytree` command the command line's, each built from its own package
  * by path (ADR-0969 D3).
  *

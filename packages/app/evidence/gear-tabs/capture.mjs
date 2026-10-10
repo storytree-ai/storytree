@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 
 const desktopRequire = createRequire(new URL('../../../../apps/desktop/package.json', import.meta.url));
 const { pageReads, projectSelection, smokeProblems, surfacesActions } = await import(desktopRequire.resolve('@storytree/app'));
-const { settingsActions } = await import(desktopRequire.resolve('@storytree/agent-link/settings'));
+const { settingsActions } = await import(desktopRequire.resolve('@storytree/session-management/settings'));
 const { forestSurfaces } = await import(desktopRequire.resolve('@storytree/forest/surfaces'));
 const { arcSurfaces } = await import(desktopRequire.resolve('@storytree/arc-surface/surfaces'));
 const { connect } = await import(desktopRequire.resolve('@storytree/library'));

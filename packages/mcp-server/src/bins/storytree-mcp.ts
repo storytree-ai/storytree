@@ -1,5 +1,5 @@
 /**
- * Capability 6 · Agent tools (the MCP server). `storytree-mcp`: the storytree tool server (capability 6 · Agent tools, the agent link story),
+ * Capability 6 · Agent tools (the MCP server). `storytree-mcp`: the storytree tool server (capability 6 · Agent tools, the MCP server story),
  * which Claude Code or Codex starts for each session and talks to over stdin and stdout. It works
  * in the session's folder: Claude Code names it in CLAUDE_PROJECT_DIR, and both harnesses start
  * the server there. Nothing but the protocol is ever written to stdout.

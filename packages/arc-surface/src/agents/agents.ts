@@ -1,5 +1,5 @@
-/** Capability 2 · Agents on the board: decorate the agent link's own claim/session readings, never infer another holder. */
-import { logReading, type Claim, type Line, type LogReading } from "@storytree/agent-link/readings";
+/** Capability 2 · Agents on the board: decorate Session management's own claim/session readings, never infer another holder. */
+import { logReading, type Claim, type Line, type LogReading } from "@storytree/session-management/readings";
 
 export type BoardAgent = Claim & {
   startedAt: string;

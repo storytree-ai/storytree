@@ -7,8 +7,8 @@
 import { heldBack, wordAndWhy, type AnnotatedTree, type HealthState, type NodeHealth, type PlanChange } from "@storytree/library";
 import { z } from "zod";
 
-import { readClaims } from "@storytree/agent-link";
-import { readSessions } from "@storytree/agent-link";
+import { readClaims } from "@storytree/session-management";
+import { readSessions } from "@storytree/session-management";
 import { testedNumbers } from "./claim-tools.js";
 import type { Answer, Call, Define } from "./server.js";
 import { quoted } from "./text.js";

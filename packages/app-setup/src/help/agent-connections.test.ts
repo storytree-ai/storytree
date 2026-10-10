@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { noteCodexHookRan } from "@storytree/agent-link";
+import { noteCodexHookRan } from "@storytree/session-management";
 
 import { registerHooks } from "../setup/index.js";
 import { setupHelpActions } from "../index.js";

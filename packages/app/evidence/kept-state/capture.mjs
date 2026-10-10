@@ -14,7 +14,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const require_ = createRequire(new URL('../../../../apps/desktop/package.json', import.meta.url));
 const desktopRequire = { resolve: (name) => pathToFileURL(require_.resolve(name)).href };
 const { pageReads, projectSelection, surfacesActions } = await import(desktopRequire.resolve('@storytree/app'));
-const { settingsActions, openActivityLog } = { ...await import(desktopRequire.resolve('@storytree/agent-link/settings')), ...await import(desktopRequire.resolve('@storytree/agent-link')) };
+const { settingsActions, openActivityLog } = { ...await import(desktopRequire.resolve('@storytree/session-management/settings')), ...await import(desktopRequire.resolve('@storytree/session-management')) };
 const { forestSurfaces } = await import(desktopRequire.resolve('@storytree/forest/surfaces'));
 const { arcSurfaces } = await import(desktopRequire.resolve('@storytree/arc-surface/surfaces'));
 const { connect } = await import(desktopRequire.resolve('@storytree/library'));

@@ -1,5 +1,5 @@
 /** Capability 3 · Arc surface. */
-import { logReading, type Line, type LogReading } from "@storytree/agent-link/readings";
+import { logReading, type Line, type LogReading } from "@storytree/session-management/readings";
 import type { ArcView, Hold, NoteWait } from "@storytree/library";
 import { agentsOnBoard, type BoardAgent } from "../agents/agents.js";
 import { firstBriefing } from "../briefing/briefing.js";

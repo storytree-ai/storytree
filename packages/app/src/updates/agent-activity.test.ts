@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { test } from "node:test";
 
-import { openActivityLog } from "@storytree/agent-link";
+import { openActivityLog } from "@storytree/session-management";
 import { connect } from "@storytree/library";
 
 import { agentActiveAt } from "./agent-activity.js";

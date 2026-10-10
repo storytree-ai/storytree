@@ -6,7 +6,7 @@ import { execFileSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
-import type { Line } from "@storytree/agent-link";
+import type { Line } from "@storytree/session-management";
 import type { AnnotatedTree, Change } from "@storytree/library";
 import { refreshGrowthSnapshot } from "./saved-growth.js";
 import { ownStages } from "./own-growth.js";
@@ -24,7 +24,7 @@ async function history(): Promise<{ capturedAt: string; tree: AnnotatedTree; cha
     if (saved.project !== project) throw new Error(`The record is of ${saved.project}, not ${project}.`);
     return saved;
   }
-  const { route, requireApproval, openNamedProject, openActivityLog } = await import("@storytree/agent-link");
+  const { route, requireApproval, openNamedProject, openActivityLog } = await import("@storytree/session-management");
   const { connect } = await import("@storytree/library");
   const routed = route(process.cwd());
   if (routed.status !== "routed") throw new Error(routed.message);

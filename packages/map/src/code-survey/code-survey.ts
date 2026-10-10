@@ -81,7 +81,7 @@ const EXECUTED = 0.5;
 /** Stories whose package is not named after their title. */
 const PACKAGE_NAMED_OTHERWISE: Readonly<Record<string, string>> = { "command-line": "cli", "world": "forest-world", "local-database": "local-postgres", "process-ledger": "processes" };
 
-/** The package a story's code lives in: named after its title ("The agent link" is packages/agent-link), but for a few named otherwise. */
+/** The package a story's code lives in: named after its title ("Session management" is packages/session-management), but for a few named otherwise. */
 export function packageOf(title: string): string {
   const name = title.replace(/^the\s+/i, "").toLowerCase().replace(/['’]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   return Object.hasOwn(PACKAGE_NAMED_OTHERWISE, name) ? PACKAGE_NAMED_OTHERWISE[name]! : name;

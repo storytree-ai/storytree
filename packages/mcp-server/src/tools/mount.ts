@@ -9,8 +9,8 @@
 
 import { z } from "zod";
 
-import { currentBranch } from "@storytree/agent-link";
-import { mounted, toolInput, VerbRefusal, type DoorWords, type Verb, type VerbAnswer, type VerbInput } from "@storytree/agent-link/verbs";
+import { currentBranch } from "@storytree/session-management";
+import { mounted, toolInput, VerbRefusal, type DoorWords, type Verb, type VerbAnswer, type VerbInput } from "@storytree/session-management/verbs";
 
 import { lineOf, type Answer, type Define } from "./server.js";
 

@@ -3,8 +3,8 @@
  * project: the one check every way of adding a project goes through (the installer, the app's Add project,
  * `storytree doctor --set-up`, the agent's set_up_project), then the project opened (its library seeded with
  * the starter pack the first time), the folder recorded and approved as this machine's trunk, the marker left,
- * and the app's choice recorded. Reading which project a folder belongs to is the agent link's project routing,
- * beneath the hooks; this writes to the trunks table it reads, through the agent link's trunk functions.
+ * and the app's choice recorded. Reading which project a folder belongs to is Session management's project routing,
+ * beneath the hooks; this writes to the trunks table it reads, through Session management's trunk functions.
  *
  * The one check, refusal(), refuses a second trunk for a project on this machine, a folder that is, is inside,
  * is a worktree of, or holds another project's trunk, and a name some project already has unless this
@@ -30,7 +30,7 @@ import {
   storytreeHome,
   trunksOn,
   type Trunk,
-} from "@storytree/agent-link";
+} from "@storytree/session-management";
 
 import { seedStarterPack } from "./starter-pack.js";
 

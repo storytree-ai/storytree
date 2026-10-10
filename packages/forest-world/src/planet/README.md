@@ -40,7 +40,7 @@ orthographic zoom for a viewport (`orthographicZoomFor`) and the globe's framing
 ## Historical first-slice capture
 
 The seed at green commit `0967c43` produces six stories and 43 capability trees: the
-agent link, app, arc surface, forest, librarian and library. The fresh seed
+Session management, app, arc surface, forest, librarian and library. The fresh seed
 has no agent work-state entries, so the planned trees wear the existing
 yellow. The capture uses those story files through `parseStory` and
 `forestScene`, with stable filename ids rather than a particular database's

@@ -4,7 +4,7 @@
  * the colour its row wears too (ADR-0825 D3). That outline is the only claim mark (ADR-0923): no
  * orbiting wisp (ADR-0736, ADR-0781), no coast tint (ADR-0804 D9), and an increment claim draws
  * nothing. It follows
- * the agent link's own readings of the log (claims and sessions, through its browser-safe
+ * Session management's own readings of the log (claims and sessions, through its browser-safe
  * `readings` entry), so the forest and the claim tool always agree.
  *
  * Its shelf: a claim is never a sign of health, so a wisp carries neither health nor state and
@@ -14,7 +14,7 @@
  * time fades; landing, releasing or its window closing takes the wisp away. Folded subagents and
  * lanes claim only in their parent's colour, through its wisp (ADR-0736 D4).
  */
-import { logReading, type Line, type LogReading } from "@storytree/agent-link/readings";
+import { logReading, type Line, type LogReading } from "@storytree/session-management/readings";
 import type { SessionRow } from "../sessions-list/sessions-list.js";
 
 /** One session's wisp round one island. */

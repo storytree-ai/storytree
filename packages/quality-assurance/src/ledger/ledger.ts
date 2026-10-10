@@ -54,7 +54,15 @@ const SCHEMA: readonly string[] = [
     taken_at  timestamptz,
     PRIMARY KEY (project, change, iteration)
   )`,
+  // Capability 5 (ADR-0956 D5): a run or hit is the reviewer's or a graduated check's, so one review may hold both for one check.
+  `ALTER TABLE quality_runs ADD COLUMN IF NOT EXISTS found_by text NOT NULL DEFAULT 'reviewer' CHECK (found_by IN ('reviewer', 'graduated'))`,
+  `ALTER TABLE quality_hits ADD COLUMN IF NOT EXISTS found_by text NOT NULL DEFAULT 'reviewer' CHECK (found_by IN ('reviewer', 'graduated'))`,
+  `ALTER TABLE quality_runs DROP CONSTRAINT IF EXISTS quality_runs_pkey`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS quality_runs_key ON quality_runs (project, review, check_id, package, found_by)`,
 ];
+
+/** Who found a hit, or ran a check: the change-reviewer, or a Guardrails check graduated from it (capability 5). */
+export type FoundBy = "reviewer" | "graduated";
 
 /** Where a check found something: a line of a file in one package. */
 export interface Hit {
@@ -72,7 +80,8 @@ export interface Review {
   /** The change (its increment) the review is an iteration of, when it is one of a loop (capability 4). */
   readonly change?: string;
   readonly packages: readonly string[];
-  readonly ran: readonly { readonly check: string; readonly hits: readonly Hit[] }[];
+  /** Each check run, the reviewer's unless `foundBy` says it was the Guardrails check graduated from it. */
+  readonly ran: readonly { readonly check: string; readonly hits: readonly Hit[]; readonly foundBy?: FoundBy }[];
 }
 
 /** The implementer's answer to a hit (contract 3.2). */
@@ -85,6 +94,7 @@ export interface RunRow {
   readonly check: string;
   readonly package: string;
   readonly at: string;
+  readonly foundBy: FoundBy;
 }
 
 /** A hit as the ledger keeps it; `answer` is unanswered until the implementer answers it. */
@@ -98,6 +108,7 @@ export interface HitRow extends Hit {
   readonly reason?: string;
   /** Whether a later review accepted the rejection's reason. */
   readonly accepted: boolean;
+  readonly foundBy: FoundBy;
 }
 
 /** One line of the reading: a check in one package, how many reviews ran it there, and its hits by answer. */
@@ -109,6 +120,8 @@ export interface Count {
   readonly fixed: number;
   readonly rejected: number;
   readonly unanswered: number;
+  /** How many of the hits a Guardrails check graduated from this one found (capability 5). */
+  readonly graduated: number;
 }
 
 /** The QA ledger on one Postgres server: one table set, every project's rows, each project reading its own. */
@@ -184,14 +197,14 @@ export async function writeReview(client: LedgerClient, review: Review): Promise
     }
   }
   const hits: HitRow[] = [];
-  for (const { check, hits: found } of review.ran) {
+  for (const { check, hits: found, foundBy = "reviewer" } of review.ran) {
     for (const name of review.packages) {
-      await client.query("INSERT INTO quality_runs (project, review, check_id, package) VALUES ($1, $2, $3, $4)", [review.project, review.review, check, name]);
+      await client.query("INSERT INTO quality_runs (project, review, check_id, package, found_by) VALUES ($1, $2, $3, $4, $5)", [review.project, review.review, check, name, foundBy]);
     }
     for (const hit of found) {
       const { rows } = await client.query<HitRecord>(
-        `INSERT INTO quality_hits (project, review, check_id, package, file, line, change, found) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING ${HIT_COLUMNS}`,
-        [review.project, review.review, check, hit.package, hit.file, hit.line, review.change ?? null, hit.found ?? null],
+        `INSERT INTO quality_hits (project, review, check_id, package, file, line, change, found, found_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING ${HIT_COLUMNS}`,
+        [review.project, review.review, check, hit.package, hit.file, hit.line, review.change ?? null, hit.found ?? null, foundBy],
       );
       hits.push(hitRow(rows[0]!));
     }
@@ -212,10 +225,11 @@ export interface HitRecord {
   reason: string | null;
   found: string | null;
   accepted: boolean;
+  found_by: FoundBy;
 }
 
 /** The columns a hit is read with, for this package's own modules. */
-export const HIT_COLUMNS = "id, project, review, check_id, package, file, line, at, answer, reason, found, accepted";
+export const HIT_COLUMNS = "id, project, review, check_id, package, file, line, at, answer, reason, found, accepted, found_by";
 
 /** A hit as read from the database, as the ledger hands it over. */
 export function hitRow(row: HitRecord): HitRow {
@@ -225,6 +239,7 @@ export function hitRow(row: HitRecord): HitRow {
     ...(row.reason === null ? {} : { reason: row.reason }),
     ...(row.found === null ? {} : { found: row.found }),
     accepted: row.accepted,
+    foundBy: row.found_by,
   };
 }
 
@@ -250,33 +265,35 @@ class PgLedger implements Ledger {
   }
 
   async rows(project: string): Promise<{ runs: RunRow[]; hits: HitRow[] }> {
-    const runs = await this.#pool.query<{ project: string; review: string; check_id: string; package: string; at: Date }>(
-      "SELECT project, review, check_id, package, at FROM quality_runs WHERE project = $1 ORDER BY at, review, check_id, package",
+    const runs = await this.#pool.query<{ project: string; review: string; check_id: string; package: string; at: Date; found_by: FoundBy }>(
+      "SELECT project, review, check_id, package, at, found_by FROM quality_runs WHERE project = $1 ORDER BY at, review, check_id, package, found_by DESC",
       [project],
     );
     const hits = await this.#pool.query<HitRecord>(`SELECT ${HIT_COLUMNS} FROM quality_hits WHERE project = $1 ORDER BY id`, [project]);
     return {
-      runs: runs.rows.map((row) => ({ project: row.project, review: row.review, check: row.check_id, package: row.package, at: row.at.toISOString() })),
+      runs: runs.rows.map((row) => ({ project: row.project, review: row.review, check: row.check_id, package: row.package, at: row.at.toISOString(), foundBy: row.found_by })),
       hits: hits.rows.map(hitRow),
     };
   }
 
   async reading(project: string): Promise<Count[]> {
-    const { rows } = await this.#pool.query<{ check_id: string; package: string; reviews: number; hits: number; fixed: number; rejected: number; unanswered: number }>(
+    const { rows } = await this.#pool.query<{ check_id: string; package: string; reviews: number; hits: number; fixed: number; rejected: number; unanswered: number; graduated: number }>(
       `SELECT r.check_id, r.package, r.reviews,
               coalesce(h.hits, 0)::int AS hits, coalesce(h.fixed, 0)::int AS fixed,
-              coalesce(h.rejected, 0)::int AS rejected, coalesce(h.unanswered, 0)::int AS unanswered
+              coalesce(h.rejected, 0)::int AS rejected, coalesce(h.unanswered, 0)::int AS unanswered,
+              coalesce(h.graduated, 0)::int AS graduated
          FROM (SELECT check_id, package, count(DISTINCT review)::int AS reviews FROM quality_runs WHERE project = $1 GROUP BY check_id, package) r
          LEFT JOIN (SELECT check_id, package, count(*) AS hits,
                            count(*) FILTER (WHERE answer = 'fixed') AS fixed,
                            count(*) FILTER (WHERE answer = 'rejected') AS rejected,
-                           count(*) FILTER (WHERE answer IS NULL) AS unanswered
+                           count(*) FILTER (WHERE answer IS NULL) AS unanswered,
+                           count(*) FILTER (WHERE found_by = 'graduated') AS graduated
                       FROM quality_hits WHERE project = $1 GROUP BY check_id, package) h
            ON h.check_id = r.check_id AND h.package = r.package
         ORDER BY r.check_id, r.package`,
       [project],
     );
-    return rows.map((row) => ({ check: row.check_id, package: row.package, reviews: row.reviews, hits: row.hits, fixed: row.fixed, rejected: row.rejected, unanswered: row.unanswered }));
+    return rows.map((row) => ({ check: row.check_id, package: row.package, reviews: row.reviews, hits: row.hits, fixed: row.fixed, rejected: row.rejected, unanswered: row.unanswered, graduated: row.graduated }));
   }
 }
 
@@ -285,7 +302,7 @@ export function ledgerText(reading: readonly Count[]): string {
   if (reading.length === 0) return "The QA ledger holds no review in this project.";
   return [
     "QA ledger: per check and package, reviews that ran it, and its hits (fixed, rejected, unanswered):",
-    ...reading.map((count) => `  ${count.check}  ${count.package}  ran ${count.reviews}, ${count.hits === 0 ? "no hits" : `${count.hits} hit${count.hits === 1 ? "" : "s"} (${count.fixed} fixed, ${count.rejected} rejected, ${count.unanswered} unanswered)`}`),
+    ...reading.map((count) => `  ${count.check}  ${count.package}  ran ${count.reviews}, ${count.hits === 0 ? "no hits" : `${count.hits} hit${count.hits === 1 ? "" : "s"} (${count.fixed} fixed, ${count.rejected} rejected, ${count.unanswered} unanswered)${count.graduated === 0 ? "" : `, ${count.graduated} found by Guardrails`}`}`),
   ].join("\n");
 }
 

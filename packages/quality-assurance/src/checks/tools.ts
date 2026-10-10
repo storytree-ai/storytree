@@ -1,6 +1,6 @@
 /**
  * Capability 1 · Quality control checks, capability 2 · Change review, capability 3 · QA ledger and capability 4 · Review loop
- * bound: the checks and ledger readings and the change-reviewer's loop as tools on the MCP server's one server, through
+ * bound, and capability 5 · Graduation: the checks and ledger readings, the change-reviewer's loop and a check's graduation as tools on the MCP server's one server, through
  * its extension point (its ToolExtension, ADR-0643 D6, ADR-0969 D1). The extension's shape is restated rather
  * than imported, as the librarian's is: no story may depend on the MCP server, which depends on this
  * package to serve the tool, and checks the two still fit where it registers qualityTools.
@@ -8,6 +8,7 @@
 import type { Library, Storytree } from "@storytree/library";
 import { z } from "zod";
 
+import { graduate, graduatedFindings } from "../graduation/graduation.js";
 import { ledgerText, openLedger } from "../ledger/ledger.js";
 import { branchDiff, briefText, openReviews, standingText, takenText, type ReviewReturn } from "../review/review.js";
 import { checks, checksText } from "./checks.js";
@@ -42,7 +43,7 @@ const reviewReturn = z.object({
   rejections: z.array(z.object({ hit: z.number(), accepted: z.boolean(), why: z.string().optional() })).optional().describe("Each rejection the brief asks to judge: whether its reason is accepted"),
 });
 
-/** The tools this story serves on the MCP server: the checks reading (contract 1.2), the ledger's (3.4), and the review loop (2.3, 4.4). */
+/** The tools this story serves on the MCP server: the checks reading (contract 1.2), the ledger's (3.4), the review loop (2.3, 4.4) and graduation (5.1, 5.3). */
 export function qualityTools(): ToolExtension {
   return {
     registerTools(define) {
@@ -63,11 +64,15 @@ export function qualityTools(): ToolExtension {
         const brief = await (await openReviews(storytree)).brief(library, increment, diff ?? branchDiff(worktree!));
         return { text: briefText(brief), data: { brief } };
       });
-      define("quality_take", "Take the change-reviewer's return on an increment's brief into the QA ledger, or refuse it naming what it leaves out, recording nothing.", z.object({
+      define("quality_take", "Take the change-reviewer's return on an increment's brief into the QA ledger, or refuse it naming what it leaves out, recording nothing. Give the worktree whose branch is the change, and what Guardrails' graduated checks find there is recorded with it.", z.object({
         increment: z.string().min(1).describe("The increment whose change was reviewed"),
         return: reviewReturn,
-      }), async ({ increment, return: review }, { storytree, project }) => {
-        const taken = await (await openReviews(storytree)).take(project, increment, review as ReviewReturn);
+        worktree: z.string().optional().describe("The worktree whose branch is the change, for Guardrails' graduated checks to run on"),
+      }), async ({ increment, return: review, worktree }, { library, storytree, project }) => {
+        const graduated = worktree === undefined
+          ? { ran: false as const, reason: "no worktree was given, and this server's folder is not the branch." }
+          : await graduatedFindings(library, worktree);
+        const taken = await (await openReviews(storytree)).take(project, increment, review as ReviewReturn, graduated);
         return { text: takenText(taken), data: { taken } };
       });
       define("quality_answer", "The implementer's answer to a review's hit: fixed, or rejected with a reason.", z.object({
@@ -84,6 +89,16 @@ export function qualityTools(): ToolExtension {
       }), async ({ increment }, { storytree, project }) => {
         const standing = await (await openReviews(storytree)).standing(project, increment);
         return { text: standingText(standing), data: { standing } };
+      });
+      // "graduate" is the librarian's tool, so this one names what graduates.
+      define("graduate_check", "Record that a part of a quality control check is now enforced by a deterministic check in Guardrails; the reviewer judges only the rest.", z.object({
+        check: z.string().min(1).describe("The check that graduates"),
+        part: z.string().min(1).describe("The part of the check Guardrails now enforces"),
+        enforced_by: z.string().min(1).describe("The Guardrails graduated check that enforces it"),
+      }), async ({ check, part, enforced_by }, { library }) => {
+        await graduate(library, check, { part, enforcedBy: enforced_by });
+        const reading = (await checks(library)).filter(({ id }) => id === check);
+        return { text: `Graduated part of ${check}.\n${checksText(reading)}`, data: { check: reading[0] } };
       });
     },
   };

@@ -344,7 +344,7 @@ test("6.11 it raises a question on an arc and holds an increment on it, which a 
   });
 });
 
-test("6.53 present_question marks a question as being put to the owner by the calling session; another live session is refused, naming it, and open flags it; done frees it, and a settled question is refused", async () => {
+test("6.55 present_question marks a question as being put to the owner by the calling session; another live session is refused, naming it, and open flags it; done frees it, and a settled question is refused", async () => {
   await withProject(async ({ folder, log, project }) => {
     for (const session of ["claude-a", "claude-b"]) await log.append(project, { session, harness: "claude-code", source: "hook", kind: "session-started" });
     await withAgent(folder, claudeCode("claude-a"), async (a) => {

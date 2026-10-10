@@ -30,9 +30,9 @@ export type RecordType =
   | "question";
 
 /**
- * Capability 6's eight kinds beyond decisions and definitions (ADR-0640), each with
- * 0.2's fields (`packages/library/src/knowledge.ts` in storytree 0.2), a title and a one-line
- * description.
+ * Capability 6's kinds beyond decisions and definitions: ADR-0640's eight, each with 0.2's fields
+ * (`packages/library/src/knowledge.ts` in storytree 0.2), and ADR-0956 D3's quality control check,
+ * each with a title and a one-line description.
  */
 export type KnowledgeKind =
   | "principle"
@@ -42,7 +42,8 @@ export type KnowledgeKind =
   | "agent"
   | "friction"
   | "resteer"
-  | "techstack";
+  | "techstack"
+  | "check";
 
 /**
  * An increment's lifecycle, in the only order it moves (capability 10). Its ready step, between
@@ -356,6 +357,22 @@ export const RECORD_SCHEMAS = {
     .object({ ...knowledgeHead, statement: nonEmpty, whatItIs: nonEmpty, whyThis: nonEmpty, constraints: nonEmpty.optional() })
     .strict(),
   /**
+   * A quality control check (ADR-0956 D3): one question a reviewer answers yes or no about a finished
+   * change, and the principles or guardrails it `enforces`, at least one, which keep the reason for
+   * the rule; optionally how to answer it and examples. What has `graduated` to deterministic
+   * checking (ADR-0956 D5) is each part with where it is now enforced.
+   */
+  check: z
+    .object({
+      ...knowledgeHead,
+      question: nonEmpty,
+      enforces: ids.min(1),
+      howToAnswer: nonEmpty.optional(),
+      examples: nonEmpty.optional(),
+      graduated: z.array(z.object({ part: nonEmpty, enforcedBy: nonEmpty }).strict()).optional(),
+    })
+    .strict(),
+  /**
    * One increment of an arc's work (capability 10), from the moment it is decided until it closes;
    * closed, it is the arc's log entry. It names the `capabilities` it changes, the lock list a claim
    * on it lights (ADR-0949 D2), parked empty and filled by the session that claims it; it cites
@@ -474,6 +491,7 @@ export const SCHEMA_VERSIONS: Readonly<Record<RecordType, number>> = {
   friction: 1,
   resteer: 1,
   techstack: 1,
+  check: 1,
   increment: 3,
   question: 1,
 };

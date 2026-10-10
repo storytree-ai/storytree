@@ -1,6 +1,6 @@
 /**
- * Capability 6 · Knowledge and memory, grown by ADR-0640: contracts 6.6 and 6.7 in
- * the library story, each run on BOTH backends, as 6.1-6.5 are (knowledge-memory.test.ts):
+ * Capability 6 · Knowledge and memory, grown by ADR-0640 and ADR-0956: contracts 6.6, 6.7 and 6.12
+ * in the library story, each run on BOTH backends, as 6.1-6.5 are (knowledge-memory.test.ts):
  *
  * - memory: a Knowledge over SchemaRecords over a fresh MemoryTransactions;
  * - postgres: the `knowledge` of a fresh project on the server `pnpm test` provides, dropped
@@ -13,6 +13,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { connect } from "../project/index.js";
+import { MissingReferenceError } from "../references.js";
 import { SchemaError, SchemaRecords, type KnowledgeKind } from "../schema/index.js";
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { MemoryTransactions, type Transactions } from "../transactions/index.js";
@@ -155,5 +156,51 @@ for (const backend of [memory, postgres]) {
     await knowledge.writeKnowledge("resteer", resteer as never);
     const defect = await knowledge.writeKnowledge("resteer", { ...resteer, disposition: "defect", mode: "tool-defect" } as never);
     assert.equal((defect.fields as Record<string, unknown>).mode, "tool-defect");
+  });
+
+  contract("6.12", "a quality control check is saved with its question, the principles or guardrails it enforces and what graduated, and refused without its question or enforcing none or anything else", async ({ knowledge, transactions }) => {
+    const { principle, guardrail } = fullKinds("unused");
+    const rule = await knowledge.writeKnowledge("principle", principle as never);
+    const guard = await knowledge.writeKnowledge("guardrail", guardrail as never);
+    const term = await knowledge.defineTerm({ term: "Tautology", meaning: "True by construction" });
+    const check = {
+      title: "Tautological expected value",
+      description: "An expected value computed the way the code computes it",
+      question: "Is any expected value computed the way the code computes it?",
+      howToAnswer: "Yes when an assertion's expected side repeats the code's formula",
+      enforces: [rule.id, guard.id],
+      graduated: [{ part: "A constant asserted equal to itself", enforcedBy: "a Guardrails check" }],
+    };
+
+    const saved = await knowledge.writeKnowledge("check", check);
+    assert.equal(saved.type, "check");
+    assert.deepEqual((await transactions.get(saved.id))?.fields, check, "a check reads back as given");
+    assert.deepEqual((await knowledge.search("formula")).map(({ id }) => id), [saved.id], "a check is found by a word of how to answer it");
+
+    const before = await transactions.history();
+    for (const field of ["title", "description", "question", "enforces"] as const) {
+      const { [field]: _left, ...without } = check;
+      await assert.rejects(
+        knowledge.writeKnowledge("check", without as never),
+        (error: unknown) => error instanceof SchemaError && error.fields.includes(field),
+        `a check without ${field} is refused, naming it`,
+      );
+    }
+    await assert.rejects(
+      knowledge.writeKnowledge("check", { ...check, enforces: [] }),
+      (error: unknown) => error instanceof SchemaError && error.fields.includes("enforces"),
+      "a check enforcing nothing is refused",
+    );
+    await assert.rejects(
+      knowledge.writeKnowledge("check", { ...check, graduated: [{ part: "All of it" }] } as never),
+      (error: unknown) => error instanceof SchemaError && error.fields.includes("graduated"),
+      "a graduated part says where it is now enforced",
+    );
+    await assert.rejects(
+      knowledge.writeKnowledge("check", { ...check, enforces: [term.id] }),
+      (error: unknown) => error instanceof MissingReferenceError && error.message.includes(term.id),
+      "a check enforcing a definition, not a principle or guardrail, is refused",
+    );
+    assert.deepEqual(await transactions.history(), before, "nothing was written");
   });
 }

@@ -343,3 +343,20 @@ test("3.11 a list field given to `new` or `edit` as comma-separated ids is writt
     assert.equal(((await library.list("definition")).find(({ id }) => prose.stdout.includes(id))?.fields as Record<string, unknown> | undefined)?.meaning, "First, second");
   });
 });
+
+test("3.13 `new check` writes a quality control check enforcing a principle, and `read` returns it whole", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const rule = await library.writeKnowledge("principle", { title: "Test creation", description: "How tests are written", statement: "A test can disagree with the code", why: "Else it proves nothing", howToApply: "Work the expected value by hand" });
+    const question = "Is any expected value computed the way the code computes it?";
+
+    const written = await world.run(["library", "new", "check", "--title", "Tautological expected value", "--description", "Expected values worked by hand", "--question", question, "--howToAnswer", "Yes when the expected side repeats the formula", "--enforces", rule.id]);
+    assert.equal(written.code, 0, written.stderr);
+    const check = (await library.list("check")).find(({ id }) => written.stdout.includes(id));
+    assert.deepEqual((check?.fields as Record<string, unknown> | undefined)?.enforces, [rule.id]);
+
+    const read = await world.run(["library", "read", check!.id]);
+    assert.equal(read.code, 0, read.stderr);
+    assert.ok(read.stdout.includes(`[check]`) && read.stdout.includes(question), read.stdout);
+  });
+});

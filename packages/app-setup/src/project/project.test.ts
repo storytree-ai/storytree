@@ -7,7 +7,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { connect, type Storytree } from "@storytree/library";
 import pg from "pg";
-import { openActivityLog, setUpProject } from "@storytree/agent-link";
+import { openActivityLog, requireApproval, setUpProject } from "@storytree/agent-link";
 import { addProject, deleteProject, projectFolder, projectsOnThisComputer, removeProject } from "./index.js";
 
 /** The test Postgres `pnpm test` starts; each project made here is dropped afterwards. */
@@ -108,6 +108,23 @@ test("removing a project whose marker git tracks leaves the folder as it is and 
   assert.equal(projectsOnThisComputer(await library.projectIdentities(), home).includes(name), false);
   assert.deepEqual(await addProject(folder, "anything", { home, library }), { status: "already a project", folder, project: name });
   assert.ok(projectsOnThisComputer(await library.projectIdentities(), home).includes(name), "adding its folder again brings it back");
+});
+
+test("3.7 / 3.6 removing or deleting a project drops the approval its own storytree home remembers, so its folder is refused afterwards", async (t) => {
+  const dir = realpathSync.native(mkdtempSync(path.join(tmpdir(), "storytree-forget-approval-")));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const token = randomBytes(4).toString("hex");
+  const removed = `removed-${token}`, deleted = `deleted-${token}`;
+  const library = await testLibrary(t, [removed, deleted]);
+  const home = path.join(dir, "home");
+  for (const [name, gone] of [[removed, () => removeProject(removed, { home, library })], [deleted, () => deleteProject(deleted, { home, library, snapshot: false, confirm: deleted })]] as const) {
+    const folder = path.join(dir, name);
+    assert.equal((await addProject(folder, name, { home, library })).status, "set up");
+    writeFileSync(path.join(home, "project-choice.json"), JSON.stringify({ current: "elsewhere" }));
+    await requireApproval(library, name, folder, home);
+    await gone();
+    await assert.rejects(requireApproval(library, name, folder, home), `${name}'s folder is refused once it is gone from this computer`);
+  }
 });
 
 test("3.6 deleting a project drops its records for every machine once its name is typed, after a snapshot into this machine's backups that restores it; refused for a wrong name, the project in use, or one a live session holds a claim in", async (t) => {

@@ -129,7 +129,7 @@ async function freeOnThisComputer(storytree: Storytree, project: string, home: s
       kept = trackedByGit(trunk.folder);
       if (!kept) rmSync(marker);
     }
-    await forgetTrunk(storytree, { project, machine });
+    await forgetTrunk(storytree, { project, machine }, home);
   }
   const identity = (await storytree.projectIdentities())[project];
   recordRemovedProjects(home, [...removedProjects(home).filter((each) => each.name !== project), { name: project, ...(identity === undefined ? {} : { identity }) }]);
@@ -203,7 +203,7 @@ export async function deleteProject(project: string, options: DeleteProjectOptio
     const { freed, kept } = await freeOnThisComputer(storytree, project, home);
     await storytree.dropProject(project);
     await forgetProjectActivity(storytree, project);
-    await forgetTrunk(storytree, { project });
+    await forgetTrunk(storytree, { project }, home);
     recordRemovedProjects(home, removedProjects(home).filter((each) => each.name !== project));
     return { status: "deleted", project, ...(snapshot === undefined ? {} : { snapshot }), ...(freed === undefined ? {} : { freed }), ...(kept === undefined ? {} : { kept }) };
   });

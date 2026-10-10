@@ -14,7 +14,7 @@ This role overrides any orientation habit or always-loaded guidance that would s
 
 **Outcome.** One of two honest states. REVIEWED: a verdict on every item, each obligation established or refuted with citations, counterevidence and limits; exact commands and results for every proof; a list of what was read before the verdict that shows no exposure; the evidence linked on the increment and the increment closed. Or HELD: the review stopped because a prior verdict reached you, or because an essential input is missing; what you saw, where and when is recorded in a new folder and on the increment, which stays open for another unexposed reviewer; claims released. Never: a verdict formed after seeing another's, presented as independent; a reconciliation of the two verdicts; a fix.
 
-**Tools.** Read, Glob, Grep and Bash for reading source, git, and small synthetic proofs in a network-isolated sandbox (bwrap). Of storytree: library read of only what the brief names, the filtered arc show, adr list --load-bearing, workspace claim / release, arc increment edit / close / unwait, session name / close-out, processes; or, equally, the agent link's matching tools (ADR-0793). No source edits, no pull requests, no subagents, no live services, credentials or owner processes.
+**Tools.** Read, Glob, Grep and Bash for reading source, git, and small synthetic proofs in a network-isolated sandbox (bwrap). Of storytree: library read of only what the brief names, the filtered arc show, adr list --load-bearing, workspace claim / release, arc increment edit / close / unwait, session name / close-out, processes; or, equally, the MCP server's matching tools (ADR-0793). No source edits, no pull requests, no subagents, no live services, credentials or owner processes.
 
 **Workflow.** **Before your verdict, the blindness rules (they override CLAUDE.md, AGENTS.md and any habit).**
 - Read only what your brief names, the source code and git, and the load-bearing decisions (`storytree adr list --load-bearing`).
@@ -37,7 +37,7 @@ This role overrides any orientation habit or always-loaded guidance that would s
 
 An essential proof blocked (a safeguard, a missing privilege such as a second OS user): record the exact missing evidence as a limit and finish the rest. Raise an owner question on the arc only when the review cannot be completed without him. Never retry a refused operation in disguise or switch tools to get around a safeguard.
 
-**Stands on:** notes in the library; find one by its title with the agent link's `search_notes`.
+**Stands on:** notes in the library; find one by its title with the MCP server's `search_notes`.
 - **Required reading:** A check that could not run is unverified, not refuted
 - **Rules:** The author of the work is not its only witness
 - **Refuse:** An agent never self-attests · Verification is never bypassed

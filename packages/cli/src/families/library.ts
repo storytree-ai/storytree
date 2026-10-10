@@ -11,15 +11,19 @@
  *   `{`, which are read as JSON (a list of links, a number, a switch). `@file` reads the file.
  *   Text given for a field the library wants as a list is read as comma-separated ids (`--links a,b`),
  *   since Windows PowerShell 5.1 strips a JSON list's inner quotes; a shell-joined word is refused.
+ * - Run by a session holding an increment, `edit` and `retire` of a story, capability or contract
+ *   planned before it hold the change on the increment as a pending change until its branch merges
+ *   (ADR-0966 D1), and `read` of the increment lists them as before and after (D3).
  * - Reads use `get`, `list` and `history`. Edits use the kind's public editor; question wording
  *   has no public editor yet, so that edit says what is missing.
  */
 import { isDeepStrictEqual } from "node:util";
-import { SchemaError, type KnowledgeKind, type Library, type PhraseKind, type RecordType, type WriteOptions } from "@storytree/library";
+import { SchemaError, type KnowledgeKind, type Library, type PendingChange, type PhraseKind, type PlanChange, type RecordType, type WriteOptions } from "@storytree/library";
 
 import { labelOf, Refusal, type Answer } from "../answer.js";
 import { commaSeparatedIds, type Args } from "../args.js";
-import type { Family, Verb } from "../door.js";
+import type { Context, Family, Verb } from "../door.js";
+import { commandSession } from "../writer.js";
 
 /** The fields a verb was given, keyed by flag name, each value read as `new` reads it. */
 export function fieldsOf(args: Args, except: readonly string[] = []): Record<string, unknown> {
@@ -200,12 +204,47 @@ const read: Verb = {
       if (value === undefined) throw new Refusal(`${id} has no field "${field}"; its fields are ${Object.keys(record.fields).join(", ")}`);
       return { text: typeof value === "string" ? value : JSON.stringify(value, null, 2), raw: true };
     }
-    const fields = Object.entries(record.fields).map(([key, value]) => `${key}: ${typeof value === "string" ? value : JSON.stringify(value, null, 2)}`);
+    const { pending, ...rest } = record.fields as Fields & { pending?: PendingChange[] };
+    const fields = Object.entries(rest).map(([key, value]) => `${key}: ${typeof value === "string" ? value : JSON.stringify(value, null, 2)}`);
+    const held = record.type === "increment" && pending !== undefined && pending.length > 0 ? ["", ...pendingSaid(pending)] : [];
     return {
-      text: [`${record.id}  [${record.type}]  schema ${record.version}`, `Created: ${record.createdAt}`, `Updated: ${record.updatedAt}`, "", ...fields].join("\n"),
+      text: [`${record.id}  [${record.type}]  schema ${record.version}`, `Created: ${record.createdAt}`, `Updated: ${record.updatedAt}`, "", ...fields, ...held].join("\n"),
     };
   },
 };
+
+/** The kinds whose edits and retirements wait on the caller's increment until its branch merges (ADR-0966 D1). */
+const PLAN_TYPES: ReadonlySet<string> = new Set(["story", "capability", "contract"]);
+
+/**
+ * Hold `change` on the increment the calling session holds, as a pending change (ADR-0966 D1), and
+ * say so; undefined when it holds none, or the increment planned the record itself, and the change
+ * is made live. Of several, the one it claimed last.
+ */
+async function heldOnIncrement(context: Context, library: Library, change: PlanChange): Promise<string | undefined> {
+  const session = commandSession()?.session;
+  if (session === undefined) return undefined;
+  const increment = (await context.claims())
+    .filter((claim) => claim.session === session && claim.increment !== undefined)
+    .sort((one, other) => one.since.localeCompare(other.since))
+    .at(-1)?.increment;
+  if (increment === undefined) return undefined;
+  const pended = await library.pendChange(increment, change, context.writer());
+  if (pended === null || !("pending" in pended)) return undefined;
+  return `pending on increment ${increment} until its branch merges; the live plan is unchanged.`;
+}
+
+/** An increment's pending changes (ADR-0966 D3): each record, then each field as before -> after, or its retirement. */
+export function pendingSaid(pending: readonly PendingChange[]): string[] {
+  const said = (value: unknown): string => (value === null || value === undefined ? "(none)" : typeof value === "string" ? value : JSON.stringify(value));
+  return [
+    `Pending changes (${pending.length}), applied when its branch merges:`,
+    ...pending.flatMap((change) => [
+      `  ${change.record}  [${change.type}]  read at history entry ${change.base}`,
+      ...("retire" in change ? [`    retire: ${change.retire}`] : Object.entries(change.after).map(([field, value]) => `    ${field}: ${said(change.before[field])} -> ${said(value)}`)),
+    ]),
+  ];
+}
 
 const edit: Verb = {
   name: "edit",
@@ -222,6 +261,10 @@ const edit: Verb = {
     const fields = fieldsOf(args);
     if (Object.keys(fields).length === 0) return { text: `No fields given: ${id} is unchanged.` };
     const writer = context.writer();
+    if (PLAN_TYPES.has(record.type)) {
+      const held = await withIdLists(fields, (fields) => heldOnIncrement(context, library, { record: id, fields }));
+      if (held !== undefined) return { text: `Your edit of ${record.type} ${id} (${Object.keys(fields).join(", ")}) is ${held}`, next: [{ command: "storytree library read <increment>", why: "see its pending changes" }] };
+    }
     const edited = await withIdLists(fields, async (fields) => {
       switch (record.type) {
         case "story": return library.editStory(id, fields as never, writer);
@@ -245,7 +288,12 @@ const retire: Verb = {
   async act(args, context) {
     const id = args.word(0, "the record's id", this.usage);
     const reason = args.need("reason", this.usage);
-    await (await context.library()).retire(id, reason, context.writer());
+    const library = await context.library();
+    if (PLAN_TYPES.has((await library.get(id))?.type ?? "")) {
+      const held = await heldOnIncrement(context, library, { record: id, retire: reason });
+      if (held !== undefined) return { text: `Retiring ${id} is ${held}` };
+    }
+    await library.retire(id, reason, context.writer());
     return { text: `Retired ${id}.` };
   },
 };

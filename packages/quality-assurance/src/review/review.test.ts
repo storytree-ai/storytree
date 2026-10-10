@@ -1,7 +1,9 @@
 /**
- * Capability 2 · Change review and capability 4 · Review loop bound: contracts 2.1 to 2.3 and 4.1 to 4.3 on the
+ * Capability 2 · Change review and capability 4 · Review loop bound: contracts 2.1 to 2.3 and 4.1 to 4.4 on the
  * real Postgres `pnpm test` provides, through the package's public entry, against a library holding an
- * increment, the contracts of the capabilities it names, and live checks.
+ * increment, the contracts of the capabilities it names, and live checks. Contract 4.4 is also proved at the
+ * two front doors, beside the command line's tests and the MCP server's, because this package cannot depend
+ * back on either.
  */
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
@@ -13,7 +15,7 @@ import { test } from "node:test";
 import type { Library } from "@storytree/library";
 
 import { withLibrary } from "../testing/pg.js";
-import { openLedger, openReviews, qualityTools, REVIEW_LIMIT, type ReviewReturn } from "../index.js";
+import { openLedger, openReviews, qualityTools, REVIEW_LIMIT, standingText, type ReviewReturn } from "../index.js";
 
 const DIFF = [
   "diff --git a/packages/forest-world/src/camera.test.ts b/packages/forest-world/src/camera.test.ts",
@@ -218,5 +220,29 @@ test("4.3 · with a finding standing after the tenth review an eleventh brief is
 
     await (await openLedger(storytree)).answer(library.name, open!, { answer: "fixed" });
     assert.equal((await reviews.brief(library, increment, DIFF)).iteration, 11);
+  });
+});
+
+test("4.4 · the tools this package registers record the same answer to a hit and give the same standing findings as the package's API the command line calls", async () => {
+  await withLibrary(async (library, storytree) => {
+    const { increment, contracts, checks } = await plan(library);
+    const reviews = await openReviews(storytree);
+    const ledger = await openLedger(storytree);
+    await reviews.brief(library, increment, DIFF);
+    const file = "packages/forest-world/src/camera.test.ts";
+    const { hits: [byTool, byApi] } = await reviews.take(library.name, increment, clean(checks, contracts, { [checks[0]!]: [{ file, line: 2, found: "a" }, { file, line: 3, found: "b" }] }));
+
+    const tools: Record<string, (args: object, call: { storytree: typeof storytree; project: string }) => Promise<{ text: string; data?: Record<string, unknown> }>> = {};
+    qualityTools().registerTools!((name, _description, _input, act) => { tools[name] = act as never; });
+    const call = { storytree, project: library.name };
+
+    await assert.rejects(tools.quality_answer!({ hit: byTool!.id, answer: "rejected" }, call), /reason/);
+    assert.deepEqual((await reviews.standing(library.name, increment)).map(({ id }) => id), [byTool!.id, byApi!.id]);
+    assert.deepEqual(await tools.quality_answer!({ hit: byTool!.id, answer: "fixed" }, call), { text: `Answered hit ${byTool!.id}: fixed.`, data: { hit: byTool!.id, answer: "fixed" } });
+    await ledger.answer(library.name, byApi!.id, { answer: "rejected", reason: "BASE is a worked number" });
+
+    const standing = await reviews.standing(library.name, increment);
+    assert.deepEqual(standing.map(({ id, answer, reason }) => ({ id, answer, reason })), [{ id: byApi!.id, answer: "rejected", reason: "BASE is a worked number" }]);
+    assert.deepEqual(await tools.quality_standing!({ increment }, call), { text: standingText(standing), data: { standing } });
   });
 });

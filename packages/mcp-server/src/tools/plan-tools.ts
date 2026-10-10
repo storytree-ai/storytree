@@ -4,7 +4,7 @@
  * and which sessions are about. A story or capability is planned with its founding decision, the
  * first book on its shelf, so none planned here starts with an empty shelf (ADR-0627 D5).
  */
-import { heldBack, wordAndWhy, type AnnotatedTree, type HealthState, type NodeHealth } from "@storytree/library";
+import { heldBack, wordAndWhy, type AnnotatedTree, type HealthState, type NodeHealth, type PlanChange } from "@storytree/library";
 import { z } from "zod";
 
 import { readClaims } from "@storytree/agent-link";
@@ -78,7 +78,7 @@ export function registerPlanTools(define: Define): void {
 
   define(
     "plan_contract",
-    "Plan a contract: one testable promise a capability makes. Leave its number off the title: it is given the capability's next free one, past the numbers its contracts and its story package's numbered tests carry, and a number another contract of the capability carries is refused. Write its test, see it fail, and report it red.",
+    "Plan a contract: one testable promise a capability makes. Leave its number off the title: it is given the capability's next free one, past the numbers its contracts and its story package's numbered tests carry, or, when exactly one numbered test there has no contract yet, that test's own number, and a number another contract of the capability carries is refused. Write its test, see it fail, and report it red.",
     z.object({ capability: id("capability it belongs to"), title, description }),
     async ({ capability, title: name, description: about }, call) => {
       const options = { ...call.writer, testedNumbers: await testedNumbers(call, capability) };
@@ -89,7 +89,7 @@ export function registerPlanTools(define: Define): void {
 
   define(
     "edit_plan",
-    "Correct an arc, story, capability, contract or increment in place: change only the fields you give. An increment's capabilities list is filled here by the session that claims it, as it plans (ADR-0949 D2).",
+    "Correct an arc, story, capability, contract or increment in place: change only the fields you give. An increment's capabilities list is filled here by the session that claims it, as it plans (ADR-0949 D2). While you hold an increment, a change to a story, capability or contract planned before it waits on the increment as a pending change until its branch merges, and the live plan is unchanged (ADR-0966); one it planned changes at once.",
     z.object({
       id: id("arc, story, capability, contract or increment to correct"),
       title: title.optional(),
@@ -112,11 +112,14 @@ export function registerPlanTools(define: Define): void {
 
   define(
     "retire_from_plan",
-    "Retire a capability or a contract that is no longer wanted, with the reason: it leaves the plan, and its history keeps it and the reason.",
+    "Retire a capability or a contract that is no longer wanted, with the reason: it leaves the plan, and its history keeps it and the reason. While you hold an increment, one planned before it is retired when the increment's branch merges, waiting until then as a pending change (ADR-0966).",
     z.object({ id: id("capability or contract to retire"), reason: z.string().min(1).describe("Why it is retired, in a line") }),
-    async ({ id: target, reason }, { library, writer }) => {
+    async ({ id: target, reason }, call) => {
+      const { library, writer } = call;
       const found = partOf(await library.projectTree(), target);
       if (found === undefined) return { text: `${target} is not a capability or a contract in this project's plan: only those are retired here.`, refused: true };
+      const held = await heldOnIncrement(call, { record: target, retire: reason });
+      if (held !== undefined) return { text: `Retiring ${found.kind} ${quoted(found.title)} (${target}) is ${held}`, data: { id: target } };
       await library.retire(target, reason, writer);
       return { text: `Retired ${found.kind} ${quoted(found.title)} (${target}): ${reason}.`, data: { id: target } };
     },
@@ -201,6 +204,10 @@ async function editPlan(target: string, changes: Changes, call: Call): Promise<A
   const { depends_on: dependsOn, end_state: endState, priority, ...rest } = changes;
   // "none" clears an arc's priority: the library removes a field given as undefined (ADR-0963 D3).
   const fields = { ...optional({ ...rest, dependsOn, endState }), ...(priority === undefined ? {} : { priority: priority === "none" ? undefined : priority }) };
+  if (kind === "story" || kind === "capability" || kind === "contract") {
+    const held = await heldOnIncrement(call, { record: target, fields });
+    if (held !== undefined) return { text: `Your change to ${kind} ${quoted(String(((await library.get(target))?.fields as { title?: string } | undefined)?.title))} (${target}) is ${held}`, data: { id: target } };
+  }
   const edited =
     kind === "story"
       ? await library.editStory(target, fields, writer)
@@ -213,6 +220,22 @@ async function editPlan(target: string, changes: Changes, call: Call): Promise<A
             : await library.editArc(target, fields, writer);
   if (edited === null) return { text: `Nothing in the plan has the id ${target} any more.`, refused: true };
   return { text: `Corrected ${kind} ${quoted(edited.fields.title)} (${target}).`, data: { id: target } };
+}
+
+/**
+ * Hold `change` on the increment the calling session holds, as a pending change that waits for its
+ * branch to merge (ADR-0966 D1), and say so; undefined when it holds none, or the increment planned
+ * the record itself, and the change is made live. Of several, the one it claimed last.
+ */
+async function heldOnIncrement({ library, log, project, quietMs, caller, writer }: Call, change: PlanChange): Promise<string | undefined> {
+  const increment = (await readClaims(log, project, { quietMs }))
+    .filter((claim) => claim.session === caller.session && claim.increment !== undefined)
+    .sort((one, other) => one.since.localeCompare(other.since))
+    .at(-1)?.increment;
+  if (increment === undefined) return undefined;
+  const pended = await library.pendChange(increment, change, writer);
+  if (pended === null || !("pending" in pended)) return undefined;
+  return `pending on increment ${increment} until its branch merges; the live plan is unchanged. Reading the increment lists it.`;
 }
 
 /**

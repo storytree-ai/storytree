@@ -303,7 +303,8 @@ test("2.16 · the map grows its four islands as they are named, then its pathway
   // Step 5: three sessions' eight claims, each a flag in its session's colour standing in a share of its capability.
   const flags = (when: number) => frame(when).wisps.flatMap(wisp => wisp.capabilities.map(capability => [wisp.story, wisp.colour, capability] as const));
   assert.deepEqual(flags(at("pr3-building")), [], "no flag before the first claim");
-  const standing = at("staked-capability_94f91d2ed3a9");
+  assert.ok(at("staked-capability_94f91d2ed3a9") < at("together"), "all eight stand before the claims step's second line");
+  const standing = at("together");
   const byStory = (when: number) => Object.fromEntries([browsing, cart, checkout].map(story => [story, flags(when).filter(flag => flag[0] === story).map(flag => flag[1])]));
   assert.deepEqual(byStory(standing), {
     [browsing]: Array(3).fill("hsl(10, 80%, 68%)"), [cart]: Array(2).fill("hsl(188, 80%, 68%)"), [checkout]: Array(3).fill("hsl(214, 80%, 68%)"),

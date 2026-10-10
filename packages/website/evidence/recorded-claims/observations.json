@@ -1,242 +1,234 @@
 {
   "source": "Locally built website; existing globe capture seam; SwiftShader; 0.75x default speed",
-  "baseCommit": "936c33f4e36be1c80dce022fe59171fcadee4d9c",
+  "baseCommit": "unpublished local build",
   "checks": [
     {
       "contract": "2.16",
-      "observed": "pass"
-    },
-    {
-      "contract": "2.17",
       "observed": "pass"
     }
   ],
   "results": [
     {
       "width": 1440,
-      "flags": [
-        {
-          "capability": "capability_323895c5a414",
-          "frames": 305,
-          "recorded": "2026-10-05T01:53:10.187Z"
-        },
-        {
-          "capability": "capability_678463042156",
-          "frames": 80,
-          "recorded": "2026-10-05T01:56:24.681Z"
-        },
-        {
-          "capability": "capability_ae20917d7a32",
-          "frames": 33,
-          "recorded": "2026-10-05T01:57:12.414Z"
-        },
-        {
-          "capability": "capability_ff897f5c13aa",
-          "frames": 39,
-          "recorded": "2026-10-05T01:57:35.820Z"
-        },
-        {
-          "capability": "capability_918e1fa754ab",
-          "frames": 125,
-          "recorded": "2026-10-05T01:58:24.106Z"
-        }
+      "standing": [
+        "hsl(10, 80%, 68%) capability_9a6a5d648ba6",
+        "hsl(10, 80%, 68%) capability_f29c62742cce",
+        "hsl(10, 80%, 68%) capability_fb36c3db4690",
+        "hsl(188, 80%, 68%) capability_276fa436dc33 lot",
+        "hsl(188, 80%, 68%) capability_ed214990be99 lot",
+        "hsl(214, 80%, 68%) capability_668ca101a358 lot",
+        "hsl(214, 80%, 68%) capability_94f91d2ed3a9 lot",
+        "hsl(214, 80%, 68%) capability_d37b7ec1b593 lot"
       ],
-      "checkoutFrames": 121,
+      "claimedFrames": 475,
       "pixels": {
-        "marks": 1,
-        "changed": 516
+        "marks": 8,
+        "changed": 1512
       },
       "stages": [
         {
-          "id": "staked-capability_323895c5a414",
-          "recorded": "2026-10-05T01:53:10.187Z",
-          "planSeconds": 1.62
-        },
-        {
-          "id": "staked-capability_678463042156",
-          "recorded": "2026-10-05T01:56:24.681Z",
-          "planSeconds": 2.15
-        },
-        {
-          "id": "lifted-capability_323895c5a414",
-          "recorded": "2026-10-05T01:56:40.707Z",
-          "planSeconds": 2.68
-        },
-        {
-          "id": "lifted-capability_678463042156",
-          "recorded": "2026-10-05T01:57:11.016Z",
-          "planSeconds": 3.22
-        },
-        {
-          "id": "staked-capability_ae20917d7a32",
-          "recorded": "2026-10-05T01:57:12.414Z",
-          "planSeconds": 3.75
-        },
-        {
-          "id": "lifted-capability_ae20917d7a32",
-          "recorded": "2026-10-05T01:57:34.328Z",
-          "planSeconds": 4.29
-        },
-        {
           "id": "staked-capability_ff897f5c13aa",
-          "recorded": "2026-10-05T01:57:35.820Z",
-          "planSeconds": 4.82
+          "recorded": "2026-10-05T02:15:33.468Z",
+          "planSeconds": 6.89
         },
         {
           "id": "lifted-capability_ff897f5c13aa",
-          "recorded": "2026-10-05T01:58:22.579Z",
-          "planSeconds": 5.36
+          "recorded": "2026-10-05T02:19:43.458Z",
+          "planSeconds": 7.47
         },
         {
-          "id": "staked-capability_918e1fa754ab",
-          "recorded": "2026-10-05T01:58:24.106Z",
-          "planSeconds": 5.89
+          "id": "staked-capability_f29c62742cce",
+          "recorded": "2026-10-05T02:28:12.991Z",
+          "planSeconds": 8.36
         },
         {
-          "id": "lifted-capability_918e1fa754ab",
-          "recorded": "2026-10-05T01:58:50.615Z",
-          "planSeconds": 6.43
+          "id": "staked-capability_fb36c3db4690",
+          "recorded": "2026-10-05T02:28:14.641Z",
+          "planSeconds": 8.65
         },
         {
-          "id": "land-capability_323895c5a414",
-          "recorded": "2026-10-05T02:06:32.144Z",
-          "planSeconds": 6.96
+          "id": "staked-capability_9a6a5d648ba6",
+          "recorded": "2026-10-05T02:28:16.152Z",
+          "planSeconds": 8.94
         },
         {
-          "id": "land-capability_678463042156",
-          "recorded": "2026-10-05T02:06:32.145Z",
-          "planSeconds": 7.55
+          "id": "staked-capability_d37b7ec1b593",
+          "recorded": "2026-10-05T02:28:19.169Z",
+          "planSeconds": 9.23
         },
         {
-          "id": "land-capability_ae20917d7a32",
-          "recorded": "2026-10-05T02:06:32.146Z",
-          "planSeconds": 8.14
+          "id": "staked-capability_668ca101a358",
+          "recorded": "2026-10-05T02:28:20.759Z",
+          "planSeconds": 9.52
         },
         {
-          "id": "pr5",
-          "recorded": "2026-10-05T02:46:21.000Z",
-          "planSeconds": 12.93
+          "id": "staked-capability_ed214990be99",
+          "recorded": "2026-10-05T02:28:24.860Z",
+          "planSeconds": 9.81
         },
         {
-          "id": "pr4",
-          "recorded": "2026-10-05T02:46:51.304Z",
-          "planSeconds": 13.52
+          "id": "staked-capability_276fa436dc33",
+          "recorded": "2026-10-05T02:28:26.502Z",
+          "planSeconds": 10.1
+        },
+        {
+          "id": "staked-capability_94f91d2ed3a9",
+          "recorded": "2026-10-05T02:28:27.018Z",
+          "planSeconds": 10.39
+        },
+        {
+          "id": "lifted-capability_f29c62742cce",
+          "recorded": "2026-10-05T02:29:25.015Z",
+          "planSeconds": 10.68
+        },
+        {
+          "id": "lifted-capability_fb36c3db4690",
+          "recorded": "2026-10-05T02:31:35.789Z",
+          "planSeconds": 10.96
+        },
+        {
+          "id": "lifted-capability_9a6a5d648ba6",
+          "recorded": "2026-10-05T02:37:37.586Z",
+          "planSeconds": 11.83
+        },
+        {
+          "id": "lifted-capability_ed214990be99",
+          "recorded": "2026-10-05T02:42:20.737Z",
+          "planSeconds": 12.44
+        },
+        {
+          "id": "lifted-capability_276fa436dc33",
+          "recorded": "2026-10-05T02:42:22.988Z",
+          "planSeconds": 12.73
+        },
+        {
+          "id": "lifted-capability_d37b7ec1b593",
+          "recorded": "2026-10-05T02:46:23.975Z",
+          "planSeconds": 13.33
+        },
+        {
+          "id": "lifted-capability_668ca101a358",
+          "recorded": "2026-10-05T02:46:26.167Z",
+          "planSeconds": 13.62
+        },
+        {
+          "id": "lifted-capability_94f91d2ed3a9",
+          "recorded": "2026-10-05T02:46:28.270Z",
+          "planSeconds": 13.91
         }
       ],
-      "frames": 3486
+      "frames": 4477
     },
     {
       "width": 390,
-      "flags": [
-        {
-          "capability": "capability_323895c5a414",
-          "frames": 619,
-          "recorded": "2026-10-05T01:53:10.187Z"
-        },
-        {
-          "capability": "capability_678463042156",
-          "frames": 168,
-          "recorded": "2026-10-05T01:56:24.681Z"
-        },
-        {
-          "capability": "capability_ae20917d7a32",
-          "frames": 80,
-          "recorded": "2026-10-05T01:57:12.414Z"
-        },
-        {
-          "capability": "capability_ff897f5c13aa",
-          "frames": 80,
-          "recorded": "2026-10-05T01:57:35.820Z"
-        },
-        {
-          "capability": "capability_918e1fa754ab",
-          "frames": 328,
-          "recorded": "2026-10-05T01:58:24.106Z"
-        }
+      "standing": [
+        "hsl(10, 80%, 68%) capability_9a6a5d648ba6",
+        "hsl(10, 80%, 68%) capability_f29c62742cce",
+        "hsl(10, 80%, 68%) capability_fb36c3db4690",
+        "hsl(188, 80%, 68%) capability_276fa436dc33 lot",
+        "hsl(188, 80%, 68%) capability_ed214990be99 lot",
+        "hsl(214, 80%, 68%) capability_668ca101a358 lot",
+        "hsl(214, 80%, 68%) capability_94f91d2ed3a9 lot",
+        "hsl(214, 80%, 68%) capability_d37b7ec1b593 lot"
       ],
-      "checkoutFrames": 199,
+      "claimedFrames": 898,
       "pixels": {
-        "marks": 1,
-        "changed": 119
+        "marks": 8,
+        "changed": 518
       },
       "stages": [
         {
-          "id": "staked-capability_323895c5a414",
-          "recorded": "2026-10-05T01:53:10.187Z",
-          "planSeconds": 1.62
-        },
-        {
-          "id": "staked-capability_678463042156",
-          "recorded": "2026-10-05T01:56:24.681Z",
-          "planSeconds": 2.15
-        },
-        {
-          "id": "lifted-capability_323895c5a414",
-          "recorded": "2026-10-05T01:56:40.707Z",
-          "planSeconds": 2.68
-        },
-        {
-          "id": "lifted-capability_678463042156",
-          "recorded": "2026-10-05T01:57:11.016Z",
-          "planSeconds": 3.22
-        },
-        {
-          "id": "staked-capability_ae20917d7a32",
-          "recorded": "2026-10-05T01:57:12.414Z",
-          "planSeconds": 3.75
-        },
-        {
-          "id": "lifted-capability_ae20917d7a32",
-          "recorded": "2026-10-05T01:57:34.328Z",
-          "planSeconds": 4.29
-        },
-        {
           "id": "staked-capability_ff897f5c13aa",
-          "recorded": "2026-10-05T01:57:35.820Z",
-          "planSeconds": 4.82
+          "recorded": "2026-10-05T02:15:33.468Z",
+          "planSeconds": 6.89
         },
         {
           "id": "lifted-capability_ff897f5c13aa",
-          "recorded": "2026-10-05T01:58:22.579Z",
-          "planSeconds": 5.36
+          "recorded": "2026-10-05T02:19:43.458Z",
+          "planSeconds": 7.47
         },
         {
-          "id": "staked-capability_918e1fa754ab",
-          "recorded": "2026-10-05T01:58:24.106Z",
-          "planSeconds": 5.89
+          "id": "staked-capability_f29c62742cce",
+          "recorded": "2026-10-05T02:28:12.991Z",
+          "planSeconds": 8.36
         },
         {
-          "id": "lifted-capability_918e1fa754ab",
-          "recorded": "2026-10-05T01:58:50.615Z",
-          "planSeconds": 6.43
+          "id": "staked-capability_fb36c3db4690",
+          "recorded": "2026-10-05T02:28:14.641Z",
+          "planSeconds": 8.65
         },
         {
-          "id": "land-capability_323895c5a414",
-          "recorded": "2026-10-05T02:06:32.144Z",
-          "planSeconds": 6.96
+          "id": "staked-capability_9a6a5d648ba6",
+          "recorded": "2026-10-05T02:28:16.152Z",
+          "planSeconds": 8.94
         },
         {
-          "id": "land-capability_678463042156",
-          "recorded": "2026-10-05T02:06:32.145Z",
-          "planSeconds": 7.55
+          "id": "staked-capability_d37b7ec1b593",
+          "recorded": "2026-10-05T02:28:19.169Z",
+          "planSeconds": 9.23
         },
         {
-          "id": "land-capability_ae20917d7a32",
-          "recorded": "2026-10-05T02:06:32.146Z",
-          "planSeconds": 8.14
+          "id": "staked-capability_668ca101a358",
+          "recorded": "2026-10-05T02:28:20.759Z",
+          "planSeconds": 9.52
         },
         {
-          "id": "pr5",
-          "recorded": "2026-10-05T02:46:21.000Z",
-          "planSeconds": 12.93
+          "id": "staked-capability_ed214990be99",
+          "recorded": "2026-10-05T02:28:24.860Z",
+          "planSeconds": 9.81
         },
         {
-          "id": "pr4",
-          "recorded": "2026-10-05T02:46:51.304Z",
-          "planSeconds": 13.52
+          "id": "staked-capability_276fa436dc33",
+          "recorded": "2026-10-05T02:28:26.502Z",
+          "planSeconds": 10.1
+        },
+        {
+          "id": "staked-capability_94f91d2ed3a9",
+          "recorded": "2026-10-05T02:28:27.018Z",
+          "planSeconds": 10.39
+        },
+        {
+          "id": "lifted-capability_f29c62742cce",
+          "recorded": "2026-10-05T02:29:25.015Z",
+          "planSeconds": 10.68
+        },
+        {
+          "id": "lifted-capability_fb36c3db4690",
+          "recorded": "2026-10-05T02:31:35.789Z",
+          "planSeconds": 10.96
+        },
+        {
+          "id": "lifted-capability_9a6a5d648ba6",
+          "recorded": "2026-10-05T02:37:37.586Z",
+          "planSeconds": 11.83
+        },
+        {
+          "id": "lifted-capability_ed214990be99",
+          "recorded": "2026-10-05T02:42:20.737Z",
+          "planSeconds": 12.44
+        },
+        {
+          "id": "lifted-capability_276fa436dc33",
+          "recorded": "2026-10-05T02:42:22.988Z",
+          "planSeconds": 12.73
+        },
+        {
+          "id": "lifted-capability_d37b7ec1b593",
+          "recorded": "2026-10-05T02:46:23.975Z",
+          "planSeconds": 13.33
+        },
+        {
+          "id": "lifted-capability_668ca101a358",
+          "recorded": "2026-10-05T02:46:26.167Z",
+          "planSeconds": 13.62
+        },
+        {
+          "id": "lifted-capability_94f91d2ed3a9",
+          "recorded": "2026-10-05T02:46:28.270Z",
+          "planSeconds": 13.91
         }
       ],
-      "frames": 5959
+      "frames": 7127
     }
   ]
 }

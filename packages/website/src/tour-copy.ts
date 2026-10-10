@@ -57,9 +57,8 @@ const own = { map: "own" as const, target: { kind: "core" } as GlobeTarget };
 // chapters teach (ADR-0890), walking only four of its stories: Signing in, Browsing, Cart and Checkout (ADR-0891, amended
 // 2026-10-05).
 const signingInId = "story_d263ef0f3f72", browsing = story("story_0c07d0047754");
-// Signing in's first capability, and the first and last of the three sessions' claims on the first round (02:28:12 to 02:28:27):
-// browsing's product page, the first to land (02:29:25), and checkout's order complete, the last claimed.
-const shopServer = "capability_323895c5a414", productPage = "capability_f29c62742cce", orderComplete = "capability_94f91d2ed3a9";
+// Signing in's first capability, and browsing's product page, the first of the three sessions' claims to land (02:29:25).
+const shopServer = "capability_323895c5a414", productPage = "capability_f29c62742cce";
 // The shop was rebuilt with storytree's guardrails (ADR-0911 D5): no part of its code is unallocated at any stage, so the tour
 // shows no hatched ground.
 const signingIn = story(signingInId);
@@ -151,7 +150,7 @@ export const steps: TourStep[] = [
   // The record: three sessions claimed browsing's, the cart's and checkout's capabilities between 02:28:12 and 02:28:27. The flags
   // drop with the first line; the arcs panel and then the sessions list read the record at 02:28:30.
   { id: "map-claims", explainer: "map", map: "shop", sessionsAt: "2026-10-05T02:28:30.000Z",
-    growth: { seconds: 8, stage: "pr3-building", until: `lifted-${productPage}`, beats: [{ line: 2, stage: `staked-${orderComplete}` }] },
+    growth: { seconds: 8, stage: "pr3-building", until: `lifted-${productPage}`, beats: [{ line: 2, stage: "together" }] },
     title: "Agents claim their work.", lines: [
     "Agents claim capabilities before they work on them, so each can see what the others are working on.",
     "The plan shows it too: parts 2, 3 and 4 of the arc, each held by its own session.",

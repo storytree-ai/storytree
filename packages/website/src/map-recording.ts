@@ -95,6 +95,10 @@ export function mapRecording(saved: GrowthSnapshot): GrowthSnapshot {
     const held = heldAt(line.at);
     stages.push({ ...first, id: `${line.kind === "claimed" ? "staked" : "lifted"}-${capabilityOf(line)}`, at: line.at, scene: shared(narrow(sceneAt(line.at)), held), wisps: wispsOf(held) });
   }
+  // A beat once the first round's claims all stand (02:28:30), so the claims step's first line has them all down before its
+  // panels open.
+  const together = new Date(Date.parse(claims.filter(line => line.kind === "claimed" && line.at > first.at).at(-1)!.at) + 3000).toISOString();
+  stages.push({ ...first, id: "together", at: together, scene: shared(narrow(sceneAt(together)), heldAt(together)), wisps: wispsOf(heldAt(together)) });
   // The 03:08:57 survey's green on the first round ("checked"), then the moment the second round starts being built, which
   // the chapter runs until and never reaches: its islands and sessions are not shown.
   stages.push({ ...end, id: "checked", scene: narrow(end.scene), wisps: [] }, { ...end, scene: narrow(end.scene), wisps: [] });

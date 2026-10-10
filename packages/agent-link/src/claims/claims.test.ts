@@ -421,6 +421,33 @@ test("5.10 a claim taken on branch feature/signup ends with a merged line once G
   });
 });
 
+test("5.37 when a claim on an increment ends because its branch's pull request merged, that increment's pending plan changes are applied first, marked with the pull request", async () => {
+  await withWorld(async ({ log, library, project, emailForm, as }) => {
+    const arc = await library.createArc({ title: "Sign-up", intent: "Ship sign-up", endState: "Visitors can sign up" });
+    const increment = await library.addIncrement({ arc: arc.id, title: "Address form", objective: "Rename it", body: "Rename the email form." });
+    assert.equal((await claim(as("A", { branch: "feature/signup" }), increment.id, "renaming the form")).ok, true);
+    await library.pendChange(increment.id, { record: emailForm, fields: { title: "Address form" } });
+    await sleep(20);
+
+    const merges: MergeWatch = { mergedPulls: async (_folder, branch) => (branch === "feature/signup" ? [{ number: 7, mergedAt: new Date().toISOString() }] : []), everyMs: 0 };
+    let applied: readonly string[] | undefined;
+    const reach = async () => ({
+      applyPending: async (id: string, pr?: string) => {
+        assert.deepEqual((await readClaims(log, project)).map(({ increment }) => increment), [increment.id], "applied before the claim ends");
+        const done = await library.applyPending(id, pr);
+        applied = done?.applied;
+        return done;
+      },
+    });
+    await endMergedClaims({ log, project, folder: "/work/site", session: "C", source: "tool", library: reach }, merges);
+
+    assert.deepEqual(applied, [emailForm]);
+    assert.equal((await library.get(emailForm))?.fields["title"], "Address form");
+    assert.equal((await library.history({ id: emailForm, newest: 1 }))[0]?.reason, `applied at the merge of PR #7 (${increment.id})`);
+    assert.deepEqual(await readClaims(log, project), [], "and then the claim ended");
+  });
+});
+
 test("5.10 the board asks GitHub itself before it shows claims, even in a minute a hook has already asked: a claim whose branch merged is not shown (regression: a merged branch's claim stood for 7 hours, 2026-09-29)", async () => {
   await withWorld(async ({ log, project, emailForm, as }) => {
     assert.equal((await claim(as("A", { branch: "feature/signup" }), emailForm, "building the email form")).ok, true);

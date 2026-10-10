@@ -23,7 +23,7 @@ import { INCREMENT_STATUSES, type FieldsOf } from "../schema/types.js";
 import * as questions from "./owner-questions.js";
 import { heldOnOpen, type NewQuestion, type QuestionEdit, type QuestionLease, type Settlement } from "./owner-questions.js";
 import * as waits from "./waits.js";
-import type { CapabilityNode, ProjectTree, StoryNode } from "./work-model.js";
+import { WorkModel, type CapabilityNode, type ProjectTree, type StoryNode } from "./work-model.js";
 import { arcHold, holdsOf, incrementHold, noteWaits, type Hold, type Holds, type NoteWait, type Wait, type WaitFor } from "./waits.js";
 
 /** Where an increment is in its lifecycle. */
@@ -101,6 +101,24 @@ export interface StalePending {
   readonly moved: { readonly seq: number; readonly action: "created" | "updated" | "retired"; readonly at: string; readonly actor?: string };
 }
 
+/** A pending change not applied at its increment's landing (ADR-0966 D5): stale, naming the entry that moved it, or refused by its editor. */
+export type UnappliedPending =
+  | (StalePending & { readonly why: "stale" })
+  | { readonly record: string; readonly type: PendingChange["type"]; readonly base: number; readonly why: "refused"; readonly refusal: string };
+
+/** What applying an increment's pending changes did: the records changed, and, when some could not be, the residue increment parked for them. */
+export interface AppliedPending {
+  readonly applied: string[];
+  readonly residue?: { readonly increment: string; readonly changes: UnappliedPending[] };
+}
+
+/** What settling one closed increment's leftover pending changes did (settleClosedPending). */
+export interface SettledPending extends AppliedPending {
+  readonly increment: string;
+  /** How many were dropped, since it did not land. */
+  readonly dropped: number;
+}
+
 /** What an increment's pending changes may name: its plan's records (ADR-0966 D1). */
 const PLAN_RECORD = { name: "story, capability or contract", types: ["story", "capability", "contract"] } as const;
 
@@ -146,11 +164,14 @@ const EDITABLE: ReadonlySet<string> = new Set(["title", "objective", "body", "ca
 
 export class WorkInFlight {
   readonly #records: SchemaRecords;
+  /** The plan's editors, through which a landed increment's pending changes apply (ADR-0966 D4). */
+  readonly #work: WorkModel;
   /** The last write queued through this layer; the next one starts once it has settled. */
   #lastWrite: Promise<unknown> = Promise.resolve();
 
-  constructor(records: SchemaRecords) {
+  constructor(records: SchemaRecords, work: WorkModel = new WorkModel(records)) {
     this.#records = records;
+    this.#work = work;
   }
 
   /**
@@ -206,13 +227,22 @@ export class WorkInFlight {
    * (LifecycleError). Null, with nothing written, if `id` is not a live increment. In the same step
    * the waits on it are cleared if it landed, and the waits on its arc if that now reads closed (11.8);
    * a failed or withdrawn close leaves its waits, holding for good, since the work did not arrive.
+   * Its pending plan changes (ADR-0966) are applied first if it landed, as applyPending applies them,
+   * and dropped in the close itself otherwise, its history saying how many (D6).
    */
   closeIncrement(id: string, close: CloseInput, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
     return this.#serially(async () => {
-      const increment = await liveRecord(this.#records, id, ["increment"]);
+      let increment = await liveRecord(this.#records, id, ["increment"]);
       if (increment === null) return null;
       if (increment.fields.status === "closed") throw new LifecycleError(id, "closed", "closed");
-      const closed = (await this.#records.edit(id, { status: "closed", outcome: outcomeOf(close) }, options)) as SchemaRecord<"increment"> | null;
+      if (close.disposition === "landed" && (increment.fields.pending ?? []).length > 0) {
+        await this.#applyPending(increment, close.pr, options);
+        increment = (await liveRecord(this.#records, id, ["increment"]))!;
+      }
+      const dropped = increment.fields.pending?.length ?? 0;
+      const fields = { status: "closed" as const, outcome: outcomeOf(close), ...(dropped === 0 ? {} : { pending: undefined }) };
+      const write = dropped === 0 ? options : { ...options, reason: options?.reason ?? droppedReason(dropped, close.disposition) };
+      const closed = (await this.#records.edit(id, fields, write)) as SchemaRecord<"increment"> | null;
       await this.#clearAfter(async () => {
         if (close.disposition === "landed") await waits.clearWaitsOn(this.#records, "increment", id, `its blocker ${id} landed, so the wait on it is cleared`, options);
         await this.#clearIfClosed(increment.fields.arc, options);
@@ -369,6 +399,50 @@ export class WorkInFlight {
   }
 
   /**
+   * Apply increment `id`'s pending changes (ADR-0966 D4): what GitHub reporting its branch merged, or
+   * its landed close, calls. Each goes through the plan's own editor (editStory, editCapability,
+   * editContract, retire), which checks it as a live edit is checked, and its history entry's reason
+   * reads "applied at the merge of PR #n (<increment>)". One whose record has changed since it was
+   * read, or is gone, is stale; one its editor refuses is refused: neither is applied, and both are
+   * parked together as one proposal increment on the same arc, its body naming each record, its base,
+   * the entry that moved it or the refusal, and the change (D5). A change whose record's latest entry
+   * already carries its mark, as after a crash part-way, counts as applied. The increment keeps none
+   * pending afterwards. The library has no transaction across records, so they apply one at a time,
+   * in the increment's order. Null if `id` is not a live increment.
+   */
+  applyPending(id: string, pr?: string, options?: WriteOptions): Promise<AppliedPending | null> {
+    return this.#serially(async () => {
+      const increment = await liveRecord(this.#records, id, ["increment"]);
+      return increment === null ? null : this.#applyPending(increment, pr, options);
+    });
+  }
+
+  /**
+   * Settle every closed increment's leftover pending changes, those of increments closed before
+   * closing applied or dropped them: each that landed has them applied, as applyPending applies them
+   * with its pull request; each that did not has them dropped. Oldest first; empty when none is left.
+   */
+  settleClosedPending(options?: WriteOptions): Promise<SettledPending[]> {
+    return this.#serially(async () => {
+      const closed = (await this.#records.select("increment", ["pending", "outcome"], { where: { status: "closed" } }))
+        .filter((increment) => (increment.fields.pending ?? []).length > 0)
+        .sort(byCreation);
+      const settled: SettledPending[] = [];
+      for (const { id, fields } of closed) {
+        const increment = (await liveRecord(this.#records, id, ["increment"]))!;
+        if (fields.outcome?.disposition === "landed") {
+          settled.push({ increment: id, ...(await this.#applyPending(increment, fields.outcome.pr, options)), dropped: 0 });
+        } else {
+          const dropped = fields.pending!.length;
+          await this.#records.edit(id, { pending: undefined }, { ...options, reason: droppedReason(dropped, fields.outcome?.disposition ?? "withdrawn") });
+          settled.push({ increment: id, applied: [], dropped });
+        }
+      }
+      return settled;
+    });
+  }
+
+  /**
    * Make `waiter` wait on `blocker`, with a reason (capability 11): an arc on a live arc, an increment
    * on a live increment on any arc. A wait that would close a loop across arcs and increments is
    * refused (WaitLoopError). Null if `waiter` is not a live arc or increment.
@@ -512,16 +586,74 @@ export class WorkInFlight {
    * a capability with live dependents, refused (RetireRefusedError) with nothing written.
    */
   retire(id: string, reason: string, options?: WriteOptions): Promise<void> {
-    return this.#serially(async () => {
-      const record = await liveRecord(this.#records, id, ["question", "capability"]);
-      if (record?.type === "question") await questions.refuseRetiringHeld(this.#records, id);
-      if (record?.type === "capability") {
-        const dependents = (await this.#records.select("capability", ["dependsOn"]))
-          .filter((capability) => capability.fields.dependsOn?.includes(id) === true);
-        if (dependents.length > 0) throw new questions.RetireRefusedError(id, dependents.map((capability) => capability.id), "dependsOn");
+    return this.#serially(() => this.#retire(id, reason, options));
+  }
+
+  async #retire(id: string, reason: string, options?: WriteOptions): Promise<void> {
+    const record = await liveRecord(this.#records, id, ["question", "capability"]);
+    if (record?.type === "question") await questions.refuseRetiringHeld(this.#records, id);
+    if (record?.type === "capability") {
+      const dependents = (await this.#records.select("capability", ["dependsOn"]))
+        .filter((capability) => capability.fields.dependsOn?.includes(id) === true);
+      if (dependents.length > 0) throw new questions.RetireRefusedError(id, dependents.map((capability) => capability.id), "dependsOn");
+    }
+    await this.#records.retire(id, reason, options);
+  }
+
+  /** applyPending's work, run inside the caller's turn of the queue. */
+  async #applyPending(increment: SchemaRecord<"increment">, pr: string | undefined, options?: WriteOptions): Promise<AppliedPending> {
+    const pending = increment.fields.pending ?? [];
+    if (pending.length === 0) return { applied: [] };
+    const number = pr?.replace(/^#/, "");
+    const mark = number === undefined || number === "" ? `applied at the landing of ${increment.id}` : `applied at the merge of PR #${number} (${increment.id})`;
+    const applied: string[] = [];
+    const unapplied: UnappliedPending[] = [];
+    for (const change of pending) {
+      const { record, type, base } = change;
+      const [latest] = await this.#records.history({ id: record, newest: 1 });
+      if (latest?.reason?.includes(mark) === true) {
+        applied.push(record);
+        continue;
       }
-      await this.#records.retire(id, reason, options);
-    });
+      if (latest === undefined || latest.seq !== base || latest.action === "retired") {
+        const moved = latest === undefined
+          ? { seq: base, action: "retired" as const, at: "", actor: undefined }
+          : { seq: latest.seq, action: latest.action, at: latest.at, actor: latest.actor };
+        unapplied.push({ record, type, base, moved: { seq: moved.seq, action: moved.action, at: moved.at, ...(moved.actor === undefined ? {} : { actor: moved.actor }) }, why: "stale" });
+        continue;
+      }
+      try {
+        if ("retire" in change) {
+          await this.#retire(record, `${change.retire} (${mark})`, options);
+        } else {
+          const fields = Object.fromEntries(Object.entries(change.after).map(([field, value]) => [field, value ?? undefined]));
+          const write = { ...options, reason: mark };
+          if (type === "story") await this.#work.editStory(record, fields, write);
+          else if (type === "capability") await this.#work.editCapability(record, fields, write);
+          else await this.#work.editContract(record, fields, write);
+        }
+        applied.push(record);
+      } catch (error) {
+        unapplied.push({ record, type, base, why: "refused", refusal: error instanceof Error ? error.message : String(error) });
+      }
+    }
+    let residue: AppliedPending["residue"];
+    if (unapplied.length > 0) {
+      const changes = new Map(pending.map((change) => [change.record, change]));
+      const parked = await this.#records.create("increment", {
+        arc: increment.fields.arc,
+        title: `Redo the plan changes ${increment.id} could not apply at its landing`,
+        objective: `The plan says what ${increment.id} meant it to say: each change below is redone by hand against its record as it is now, or let go with a reason.`,
+        body: residueBody(increment.id, mark, unapplied, changes),
+        links: [increment.id],
+        status: "proposal",
+        parked: new Date().toISOString(),
+      }, options);
+      residue = { increment: parked.id, changes: unapplied };
+    }
+    const summary = `${mark}: ${applied.length} applied${unapplied.length === 0 ? "" : `, ${unapplied.length} parked as residue on ${residue!.increment}`}`;
+    await this.#records.edit(increment.id, { pending: undefined }, { ...options, reason: summary });
+    return { applied, ...(residue === undefined ? {} : { residue }) };
   }
 
 
@@ -783,6 +915,28 @@ function asleepUntil(arc: ArcFacts, increments: readonly IncrementFacts[], quest
 function isParked(arc: ArcFacts, at: Date = new Date()): boolean {
   const { parked, parkedUntil } = arc.fields;
   return parked === true && (parkedUntil === undefined || at.getTime() < Date.parse(`${parkedUntil}T00:00:00Z`));
+}
+
+/** Why a close or a settling dropped `count` pending plan changes (ADR-0966 D6). */
+function droppedReason(count: number, disposition: string): string {
+  return `dropped ${count} pending plan change${count === 1 ? "" : "s"}: the increment closed ${disposition}, so they never apply (ADR-0966 D6)`;
+}
+
+/** The residue increment's body: each unapplied change, its record, its base, why it was not applied, and the change itself. */
+function residueBody(increment: string, mark: string, unapplied: readonly UnappliedPending[], changes: ReadonlyMap<string, PendingChange>): string {
+  const lines = unapplied.map((one) => {
+    const why = one.why === "stale"
+      ? `stale: read at history entry #${one.base}, since moved by entry #${one.moved.seq} (${one.moved.action}${one.moved.at === "" ? "" : ` ${one.moved.at}`}${one.moved.actor === undefined ? "" : ` by ${one.moved.actor}`})`
+      : `refused by its editor at history entry #${one.base}: ${one.refusal}`;
+    const change = changes.get(one.record)!;
+    const what = "retire" in change ? `retire it: ${change.retire}` : `set ${JSON.stringify(change.after)} (was ${JSON.stringify(change.before)})`;
+    return `- ${one.type} ${one.record}, ${why}. The change: ${what}.`;
+  });
+  return [
+    `RESIDUE of ${increment} (ADR-0966 D5): at its landing (${mark}) these pending plan changes were not applied, and nothing overwrote the record.`,
+    ...lines,
+    "Redo each against the record as it reads now, or let it go with a reason, then close this.",
+  ].join("\n");
 }
 
 /** Where `status` sits in the lifecycle. */

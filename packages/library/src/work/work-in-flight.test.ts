@@ -318,6 +318,103 @@ for (const backend of [memory, postgres]) {
     assert.equal(await flight.stalePending("increment_000000000000"), null);
   });
 
+  contract("10.15", "pending changes apply through the editors when the increment lands, marked with the pull request; stale or refused ones are parked as residue on its arc; applying again applies nothing twice", async ({ work, flight, records, transactions }) => {
+    const arc = await work.createArc(ARC);
+    const story = await work.addStory({ title: "Visitor can sign up" });
+    const form = await work.addCapability({ title: "1 · Email form", story: story.id });
+    const link = await work.addCapability({ title: "2 · Confirmation link", story: story.id });
+    const promise = await work.addContract({ title: "1.1 · Accepts a valid address", capability: form.id });
+    const renumbered = await work.addContract({ title: "1.2 · Rejects a bad address", capability: form.id });
+    const increment = await flight.addIncrement({ arc: arc.id, ...WORK });
+    await flight.advanceIncrement(increment.id, "active");
+    await flight.pendChange(increment.id, { record: form.id, fields: { title: "1 · Address form", description: "Where they type it" } });
+    await flight.pendChange(increment.id, { record: promise.id, retire: "overtaken by the address form" });
+    await flight.pendChange(increment.id, { record: link.id, fields: { title: "2 · Link" } });
+    await flight.pendChange(increment.id, { record: renumbered.id, fields: { title: "1.3 · Rejects a bad address" } });
+    await work.editCapability(link.id, { description: "Sent by another session" }, { actor: "session:other" });
+    const movedLink = (await transactions.history({ id: link.id, newest: 1 }))[0]!;
+    await work.addContract({ title: "1.3 · Planned by another session", capability: form.id });
+
+    const result = await flight.applyPending(increment.id, "#41");
+    const edited = (await records.get(form.id)) as SchemaRecord<"capability">;
+    assert.deepEqual([edited.fields.title, edited.fields.description], ["1 · Address form", "Where they type it"]);
+    assert.equal((await transactions.history({ id: form.id, newest: 1 }))[0]!.reason, `applied at the merge of PR #41 (${increment.id})`);
+    assert.equal(await records.get(promise.id), null, "the retirement applied");
+    assert.equal(((await records.get(link.id)) as SchemaRecord<"capability">).fields.title, "2 · Confirmation link", "a stale change is not applied");
+    assert.equal(((await records.get(renumbered.id)) as SchemaRecord<"contract">).fields.title, "1.2 · Rejects a bad address", "a change the editor refuses is not applied");
+    assert.deepEqual(result?.applied, [form.id, promise.id]);
+    assert.deepEqual(result?.residue?.changes.map(({ record }) => record), [link.id, renumbered.id]);
+    const residue = (await records.get(result!.residue!.increment)) as SchemaRecord<"increment">;
+    assert.deepEqual([residue.fields.arc, residue.fields.status], [arc.id, "proposal"]);
+    assert.ok(residue.fields.body.includes(link.id) && residue.fields.body.includes(`#${movedLink.seq}`), "names the record and the history entry that moved it");
+    assert.ok(residue.fields.body.includes(renumbered.id) && residue.fields.body.includes("1.3"), "names the refused record and why");
+    assert.equal(((await records.get(increment.id)) as SchemaRecord<"increment">).fields.pending, undefined, "nothing is left pending");
+
+    const settled = await transactions.history();
+    assert.deepEqual(await flight.applyPending(increment.id, "#41"), { applied: [] });
+    assert.deepEqual(await transactions.history(), settled, "nothing is applied twice");
+    assert.equal(await flight.applyPending("increment_000000000000", "#41"), null);
+  });
+
+  contract("10.15", "a landed close applies the pending changes first; a change already applied under the same mark, as after a crash part-way, counts as applied, not stale", async ({ work, flight, records }) => {
+    const arc = await work.createArc(ARC);
+    const story = await work.addStory({ title: "Visitor can sign up" });
+    const form = await work.addCapability({ title: "Email form", story: story.id });
+    const link = await work.addCapability({ title: "Confirmation link", story: story.id });
+    const increment = await flight.addIncrement({ arc: arc.id, ...WORK });
+    await flight.advanceIncrement(increment.id, "active");
+    await flight.pendChange(increment.id, { record: form.id, fields: { title: "Address form" } });
+    await flight.pendChange(increment.id, { record: link.id, fields: { title: "Link" } });
+    await work.editCapability(form.id, { title: "Address form" }, { reason: `applied at the merge of PR #9 (${increment.id})` });
+
+    const closed = await flight.closeIncrement(increment.id, { pr: "#9", disposition: "landed" });
+    assert.equal(closed?.fields.status, "closed");
+    assert.equal(closed?.fields.pending, undefined);
+    assert.equal(((await records.get(link.id)) as SchemaRecord<"capability">).fields.title, "Link");
+    assert.equal((await flight.arcView(arc.id))?.increments.length, 1, "no residue: the half-applied change was already applied");
+  });
+
+  contract("10.16", "an increment closed failed or withdrawn drops its pending changes, its history saying so, and the live plan is left as it was", async ({ work, flight, records, transactions }) => {
+    const arc = await work.createArc(ARC);
+    const story = await work.addStory({ title: "Visitor can sign up" });
+    const form = await work.addCapability({ title: "Email form", story: story.id });
+    for (const disposition of ["failed", "withdrawn"] as const) {
+      const increment = await flight.addIncrement({ arc: arc.id, ...WORK });
+      await flight.advanceIncrement(increment.id, "active");
+      await flight.pendChange(increment.id, { record: form.id, retire: "unwanted" });
+      const closed = await flight.closeIncrement(increment.id, { note: "did not land", disposition });
+      assert.equal(closed?.fields.pending, undefined);
+      assert.match((await transactions.history({ id: increment.id, newest: 1 }))[0]!.reason ?? "", /dropped 1 pending plan change/);
+      assert.deepEqual(await records.get(form.id), form, "the live plan is left as it was");
+    }
+  });
+
+  contract("10.17", "settling closed increments' leftover pending changes applies those of each that landed and drops those of each that did not, and finds nothing the second time", async ({ work, flight, records, transactions }) => {
+    const arc = await work.createArc(ARC);
+    const story = await work.addStory({ title: "Visitor can sign up" });
+    const form = await work.addCapability({ title: "Email form", story: story.id });
+    const link = await work.addCapability({ title: "Confirmation link", story: story.id });
+    const landed = await flight.addIncrement({ arc: arc.id, ...WORK });
+    const failed = await flight.addIncrement({ arc: arc.id, ...WORK });
+    for (const [increment, record] of [[landed, form], [failed, link]] as const) {
+      await flight.advanceIncrement(increment.id, "active");
+      await flight.pendChange(increment.id, { record: record.id, fields: { title: "Renamed" } });
+    }
+    // Closed before closing applied or dropped anything: written as the earlier code wrote a close.
+    await records.edit(landed.id, { status: "closed", outcome: { date: "2026-10-11", pr: "1130", disposition: "landed" } });
+    await records.edit(failed.id, { status: "closed", outcome: { date: "2026-10-11", note: "abandoned", disposition: "failed" } });
+
+    const settled = await flight.settleClosedPending();
+    assert.deepEqual(settled.map(({ increment, applied, dropped }) => ({ increment, applied, dropped })).sort((one, two) => one.dropped - two.dropped), [
+      { increment: landed.id, applied: [form.id], dropped: 0 },
+      { increment: failed.id, applied: [], dropped: 1 },
+    ]);
+    assert.equal(((await records.get(form.id)) as SchemaRecord<"capability">).fields.title, "Renamed");
+    assert.equal((await transactions.history({ id: form.id, newest: 1 }))[0]!.reason, `applied at the merge of PR #1130 (${landed.id})`);
+    assert.equal(((await records.get(link.id)) as SchemaRecord<"capability">).fields.title, link.fields.title, "dropped, not applied");
+    assert.deepEqual(await flight.settleClosedPending(), []);
+  });
+
   contract("10.9", "an active increment returns to proposal keeping its parked date; a proposal or closed one is refused with nothing written", async ({ work, flight, transactions }) => {
     const arc = await work.createArc(ARC);
     const increment = await flight.addIncrement({ arc: arc.id, ...WORK });

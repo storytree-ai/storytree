@@ -12,11 +12,16 @@
  *   it was last asked. A project whose held claims name no branch is never asked about.
  * - The "merged" line is written by whichever session saw the merge, naming the holder, so that it
  *   never makes an idle holder read as live.
- * - Nothing here ever fails a hook or a tool: `gh` missing, signed out or slow means no merge seen.
+ * - A claim on an increment whose branch merged first has the increment's pending plan changes
+ *   applied (ADR-0966 D4), through the library the caller can reach, marked with the pull request.
+ * - Nothing here ever fails a hook or a tool: `gh` missing, signed out or slow means no merge seen,
+ *   and a library that cannot apply leaves the changes pending, for the increment's landed close.
  */
 import { statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+
+import type { Library } from "@storytree/library";
 
 import type { ActivityLog, Line } from "../activity/index.js";
 export { currentBranch } from "../activity/branch.js";
@@ -61,6 +66,8 @@ export interface MergeContext {
   readonly session: string;
   readonly harness?: string;
   readonly source: "hook" | "tool";
+  /** The project's library, reached only once a merge is seen, to apply a merged increment's pending plan changes (ADR-0966 D4). */
+  readonly library?: () => Promise<Pick<Library, "applyPending">>;
 }
 
 /** How often a project is asked about, at most, by default. */
@@ -103,6 +110,10 @@ async function endMergedOn(context: MergeContext, watch: MergeWatch, asked: (bra
       if (claim.branch === undefined) continue;
       const pull = (merged.get(claim.branch) ?? []).find((pull) => Date.parse(pull.mergedAt) > Date.parse(claim.since));
       if (pull === undefined) continue;
+      if (claim.increment !== undefined && context.library !== undefined) {
+        const increment = claim.increment;
+        await context.library().then((library) => library.applyPending(increment, `#${pull.number}`)).catch(() => undefined);
+      }
       const ender = { session: context.session, ...(context.harness === undefined ? {} : { harness: context.harness }), source: context.source, folder: context.folder };
       written.push((await endClaim(log, ender, partOf(claim), { by: "merge", holder: claim.session, branch: claim.branch, pr: pull.number })).line);
     }

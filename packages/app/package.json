@@ -28,6 +28,7 @@
     "builder-util": "26.15.3",
     "happy-dom": "catalog:",
     "tsx": "^4.23.15",
-    "typescript": "~7.0.2"
+    "typescript": "~7.0.2",
+    "@storytree/app-setup": "workspace:*"
   }
 }

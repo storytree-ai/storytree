@@ -1,5 +1,5 @@
 /**
- * Capability 8 · Setup check: one test per contract 8.1-8.5 and 8.7 in the agent link story. Contract 8.6,
+ * Capability 8 · Setup check: one test per contract 8.1-8.5 and 8.7 in the app setup story (the agent link's until ADR-0969 D3). Contract 8.6,
  * the live check with a real Claude Code and a real Codex, is subscription-billed, and is run once
  * by hand as the story's final proof rather than here.
  *
@@ -18,17 +18,19 @@ import { fileURLToPath } from "node:url";
 
 import { connect } from "@storytree/library";
 
-import { runSetupCheck, setUpProject } from "../index.js";
+import { locateStorytree, MARKER_FILE, noteCodexHookRan, type Line } from "@storytree/agent-link";
+import { withTempDir } from "@storytree/agent-link/testing/folders";
+import { dropTestProjects, placeTestServer, testServerUrl, uniqueProjectName } from "@storytree/agent-link/testing/pg";
+
 import { buildBins } from "../bins/build.js";
-import { noteCodexHookRan } from "../hooks/index.js";
-import type { Line } from "../activity/index.js";
-import { locateStorytree, MARKER_FILE } from "../routing/index.js";
-import { withTempDir } from "../testing/folders.js";
-import { dropTestProjects, placeTestServer, testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { setUpProject } from "../project/making.js";
+import { runSetupCheck } from "./index.js";
 import { builtFromMain, FIX_SENTENCES, ghState, launcherFile, machineState, putCommandOnPath, registerHooks, removeCommand, removeHooks, verifyHooks, type HookCommand, type Homes } from "./index.js";
 
-const STUB_APP = fileURLToPath(new URL("../testing/stub-app.mjs", import.meta.url));
-const FIXTURES = fileURLToPath(new URL("../hooks/fixtures/", import.meta.url));
+/** The stub app and the harness payload fixtures stay with the agent link, whose hooks they feed. */
+const AGENT_LINK_SRC = path.dirname(fileURLToPath(import.meta.resolve("@storytree/agent-link")));
+const STUB_APP = path.join(AGENT_LINK_SRC, "testing", "stub-app.mjs");
+const FIXTURES = path.join(AGENT_LINK_SRC, "hooks", "fixtures") + path.sep;
 
 /** A hook command as the setup check registers it: registering never runs it. */
 const HOOK: HookCommand = { node: process.execPath, script: path.join(tmpdir(), "storytree", "dist", "storytree-hook.mjs") };

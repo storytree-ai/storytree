@@ -7,7 +7,7 @@
  * directory of their own with buildCommand().
  */
 import path from "node:path";
-import { buildLauncher, LAUNCHER_PROGRAM, stageNativeProbes } from "@storytree/agent-link/bins";
+import { buildLauncher, LAUNCHER_PROGRAM, stageNativeProbes } from "@storytree/app-setup/bins";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { build } from "esbuild";

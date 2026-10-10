@@ -5,7 +5,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { launcherFor } from "@storytree/agent-link";
+import { launcherFor } from "@storytree/app-setup/setup";
 import { buildCommand } from "../../src/bins/build.js";
 
 const dir = mkdtempSync(path.join(tmpdir(), "storytree answers "));

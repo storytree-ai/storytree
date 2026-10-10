@@ -18,6 +18,7 @@
     "@storytree/map": "workspace:*",
     "@storytree/processes": "workspace:*",
     "@storytree/quality-assurance": "workspace:*",
+    "@storytree/app-setup": "workspace:*",
     "zod": "^4.6.5"
   },
   "devDependencies": {

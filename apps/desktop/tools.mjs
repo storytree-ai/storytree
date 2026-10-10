@@ -1,6 +1,6 @@
 // Packaging adapter: reuse the agent link's build, then stage the host platform's native runtimes:
 // both Windows architectures on Windows, Apple Silicon on macOS.
-import { buildBins, buildLauncher, LAUNCHER_PROGRAM, stageNativeProbes } from "@storytree/agent-link/bins";
+import { buildBins, buildLauncher, LAUNCHER_PROGRAM, stageNativeProbes } from "@storytree/app-setup/bins";
 import { macRuntime, NODE_VERSION, stageRuntime, windowsRuntime, writePayloadManifest } from "@storytree/app-setup/deliver";
 import { build } from "esbuild";
 import { execFileSync } from "node:child_process";

@@ -1,5 +1,5 @@
 /**
- * Capability 1 · Project routing. The starter pack (capability 1, contract 1.14): what a new project's library holds on day one.
+ * Capability 6 · Make a folder a project. The starter pack (contract 6.7): what a new project's library holds on day one.
  * The owner chose it (2026-10-01): roles drawn from storytree's own core ones, an orchestrator and a
  * librarian, slimmed down for a user's project, and only the principles they stand on that a first
  * build needs. It starts small and grows from what the first builds show a session lacked, so this

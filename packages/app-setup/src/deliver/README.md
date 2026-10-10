@@ -1,4 +1,4 @@
-Capability 1 delivers the existing NSIS app and agent-link tool bundle. `install.ps1` is the
+Capability 1 delivers the existing NSIS app and app setup tool bundle. `install.ps1` is the
 published one-command entry point; the desktop packages it alongside the release feed.
 
 On an Apple Silicon Mac the one command is `install.sh` (contract 1.12), run as
@@ -51,7 +51,7 @@ does (marker, library project, the app's project choice); a folder already in a 
 said and nothing is created. `finish` itself still never creates a project. `setup install` retains its hook/command meaning;
 delivery's own `inspect` and `finish` operations do not write harness settings.
 
-Delivery owns `~/.storytree/0.3/bin/storytree.exe`, recognizes the agent-link's 0.3 launcher
+Delivery owns `~/.storytree/0.3/bin/storytree.exe`, recognizes the app setup's 0.3 launcher
 marker, and adds its directory to the per-user Windows PATH. The launcher is a small program of
 its own, made from the payload's `storytree-launcher.exe`, so no shell reads its words (ADR-0854);
 the batch file it was before, `storytree.cmd`, is replaced by it in its folder. Unrelated commands anywhere on

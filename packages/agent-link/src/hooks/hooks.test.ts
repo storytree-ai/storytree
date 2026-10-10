@@ -30,19 +30,18 @@ import { connect } from "@storytree/library";
 import pg from "pg";
 
 import { openActivityLog, type Line, type NewLine } from "../activity/index.js";
-import { buildBins } from "../bins/build.js";
+import { buildHook } from "../testing/hook-bin.js";
 import { readContext } from "../context/index.js";
-import { MARKER_FILE, setUpProject } from "../routing/index.js";
+import { MARKER_FILE } from "../routing/index.js";
 import { claim, readClaims } from "../claims/index.js";
 import { EDIT_GATE } from "./edit-gate.js";
 import { hookFailures, hookFailuresFile } from "./failures.js";
-import { hookLines } from "./hooks.js";
+import { BACKGROUND, hookLines } from "./hooks.js";
 import { queueFolder } from "./queue.js";
 import { readSettings, setSetting } from "../settings/settings.js";
-import { registerHooks } from "../setup/hooks-config.js";
 import { countingStore, longHistory } from "../testing/egress.js";
 import { git, removeTempDir, withTempDir } from "../testing/folders.js";
-import { approveCheckout, dropTestProjects, placeTestServer, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { approveCheckout, dropTestProjects, markedProject, placeTestServer, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 
 const FIXTURES = fileURLToPath(new URL("./fixtures/", import.meta.url));
 /** The name of the machine the tests run on, as every line a hook writes names it. */
@@ -57,7 +56,7 @@ let hook: string;
 
 before(async () => {
   bins = mkdtempSync(path.join(tmpdir(), "storytree-link-bins-"));
-  hook = (await buildBins(bins))["storytree-hook"]!;
+  hook = await buildHook(bins);
 });
 
 after(() => {
@@ -335,7 +334,7 @@ test("a folder set up for a project that was then deleted writes no lines under 
     mkdirSync(folder);
     const storytree = await connect({ url: testServerUrl() });
     try {
-      await setUpProject({ folder, project, storytree, storytreeHome: home });
+      await markedProject(storytree, folder, project, home);
       await storytree.dropProject(project); // deleted from another computer; this folder still names it
       const start = recorded("claude-code", "session-start-startup", folder);
       assert.equal((await runHook("claude-code", start, home)).code, 0);
@@ -945,11 +944,8 @@ test("3.19 a Claude Code session's end is recorded though Claude Code stops its 
       const home = path.join(dir, "slow-home");
       const folder = await projectFolder(dir, project, home);
       placeTestServer(path.join(home, "pgdata"), { port: (slow.address() as AddressInfo).port });
-      const claude = path.join(dir, "claude-home");
-      mkdirSync(claude);
-      registerHooks({ claude }, { node: process.execPath, script: hook });
-      const settings = JSON.parse(readFileSync(path.join(claude, "settings.json"), "utf8")) as { hooks: { SessionEnd: { hooks: { command: string; args: string[] }[] }[] } };
-      const { command, args } = settings.hooks.SessionEnd[0]!.hooks[0]!;
+      // As setup registers Claude Code's end hook (the app setup's hooks-config.ts): the hook, with --background.
+      const [command, args] = [process.execPath, [hook, "claude-code", BACKGROUND]];
 
       // Run as Claude Code runs it, and cut short at 1.5 s as Claude Code does (2.1.284: AbortSignal.timeout(1500)).
       const child = spawn(command, args, { env: { ...process.env, STORYTREE_HOME: home }, stdio: ["pipe", "ignore", "ignore"], shell: false });

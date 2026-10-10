@@ -5,7 +5,7 @@ import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { buildLauncher } from "@storytree/agent-link/bins";
+import { buildLauncher } from "@storytree/app-setup/bins";
 
 const dir = mkdtempSync(path.join(tmpdir(), "storytree ps51 "));
 const bin = path.join(dir, "bin");

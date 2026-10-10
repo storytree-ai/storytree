@@ -10,7 +10,7 @@
  *   is closed, registers the hooks, and puts the `storytree` command on the path. Those last two
  *   need storytree's hook script, which an installed storytree keeps beside this command; run from
  *   anywhere else, the doctor says so rather than registering something else.
- * - Setting a folder up is the agent link's `setUpProject`, called only for `--set-up <name>`, or
+ * - Setting a folder up is the app setup story's `setUpProject`, called only for `--set-up <name>`, or
  *   `--join <name>` to add this machine's checkout to a project that already exists (ADR-0757 D4).
  * - A folder whose marker names a project is read only once it is approved as that project's
  *   checkout on this machine (ADR-0942 D1); until then the doctor says so, and `--join <name>` run
@@ -23,8 +23,9 @@ import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 
-import type { SetupReport } from "@storytree/agent-link";
-import { findProject, ProjectFolderError, requireApproval, setUpProject, suggestProjectName } from "@storytree/agent-link/routing";
+import type { SetupReport } from "@storytree/app-setup/setup";
+import { findProject, ProjectFolderError, requireApproval } from "@storytree/agent-link/routing";
+import { setUpProject, suggestProjectName } from "@storytree/app-setup/project";
 import type { ConnectOptions } from "@storytree/library";
 
 import { Refusal, type Answer } from "../answer.js";
@@ -140,7 +141,7 @@ const doctor: Verb = {
   summary: "check storytree's setup, fix what it can, and name the fix for the rest",
   async act(args, context): Promise<Answer> {
     const hook = hookBeside(context.script);
-    const { runSetupCheck } = await import("@storytree/agent-link");
+    const { runSetupCheck } = await import("@storytree/app-setup/setup");
     const report = await runSetupCheck({
       folder: context.cwd,
       ...(hook === undefined ? {} : { hook: { node: process.execPath, script: hook }, command: { path: process.env.PATH ?? process.env.Path ?? "", home: homedir() } }),

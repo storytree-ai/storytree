@@ -14,13 +14,13 @@ import { randomBytes } from "node:crypto";
 import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-import { connect } from "@storytree/library";
+import { connect, type Storytree } from "@storytree/library";
 import { dropTestDatabases } from "@storytree/local-postgres/testing";
 
 import pg from "pg";
 
-import { requireApproval } from "../routing/routing.js";
-import { machineOf, registerTrunk } from "../routing/trunks.js";
+import { MARKER_FILE, requireApproval } from "../routing/routing.js";
+import { approveTrunk, machineOf, registerTrunk } from "../routing/trunks.js";
 
 /** The server the tests run against. Throws when there is none. */
 export function testServerUrl(): string {
@@ -125,6 +125,25 @@ function required(name: string, how: string): string {
  * the test server's, where a test's tool server keeps its machine), as setting it up would
  * (ADR-0942): for tests that write a project's marker by hand.
  */
+/**
+ * Make `folder` `project`'s approved trunk on the machine whose storytree home is `home`, its library opened (made the
+ * first time) and its marker naming it and its identity: what setting it up leaves, for the agent link's tests of
+ * reading it. Setting a folder up, with its checks, is the app setup story's (ADR-0969 D3), which this package may
+ * not import.
+ */
+export async function markedProject(storytree: Storytree, folder: string, project: string, home: string): Promise<void> {
+  const library = await storytree.openProject(project);
+  const { identity } = library;
+  await library.close();
+  mkdirSync(folder, { recursive: true });
+  writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project, identity }, null, 2)}\n`);
+  const machine = machineOf(home);
+  const at = realpathSync.native(folder);
+  if (!(await registerTrunk(storytree, { project, machine: machine.id, machineName: machine.name, folder: at }, "test"))) {
+    await approveTrunk(storytree, { project, machine: machine.id, folder: at }, "test");
+  }
+}
+
 export async function approveCheckout(folder: string, project: string, home: string = path.dirname(path.resolve(testServerDataDir()))): Promise<void> {
   const machine = machineOf(home);
   const storytree = await connect({ url: testServerUrl() });

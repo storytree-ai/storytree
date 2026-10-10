@@ -40,3 +40,26 @@ test("7.7 a caller hands in its tables and gets its own database set up: connect
     await dropTestDatabases([name]);
   }
 });
+
+test("7.7 once its tables are there, a new connection's set-up runs no DDL, so it never waits behind a writer's open transaction", async () => {
+  const name = `storytree-own-${uniqueProjectName()}`;
+  const tables = ["CREATE TABLE IF NOT EXISTS entries (id serial PRIMARY KEY, said text NOT NULL)", "ALTER TABLE entries ADD COLUMN IF NOT EXISTS at timestamptz"];
+  const first = await connect({ url: testServerUrl() });
+  const second = await connect({ url: testServerUrl() });
+  const writer = await (await first.ownDatabase(name, { tables })).connect();
+  try {
+    await writer.query("BEGIN");
+    await writer.query("INSERT INTO entries (said) VALUES ('mid-write')");
+    let timer: NodeJS.Timeout | undefined;
+    const waited = new Promise<"waited">((resolve) => (timer = setTimeout(() => resolve("waited"), 5000)));
+    const opened = await Promise.race([second.ownDatabase(name, { tables }).then(() => "opened" as const), waited]);
+    clearTimeout(timer);
+    assert.equal(opened, "opened", "the second connection's set-up waited on the writer's lock");
+    await writer.query("COMMIT");
+  } finally {
+    await writer.query("ROLLBACK").catch(() => undefined);
+    writer.release();
+    await Promise.all([first.close(), second.close()]);
+    await dropTestDatabases([name]);
+  }
+});

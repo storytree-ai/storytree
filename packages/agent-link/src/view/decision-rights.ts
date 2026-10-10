@@ -1,6 +1,6 @@
 /** Capability 10 · Settings: who decides what, shown read-only in the app (10.14). */
 /// <reference lib="dom" />
-import { decisionRights } from "../instructions/decision-rights.js";
+import { decisionRights } from "../settings/decision-rights.js";
 import { decisionRightsStyles } from "./styles.js";
 
 /**

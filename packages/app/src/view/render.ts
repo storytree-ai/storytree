@@ -2,7 +2,7 @@
 import { markSvg, type MarkRoles } from "@storytree/mark";
 
 /** The mark's roles on the page: the page's stylesheet sets these from its own light or dark colours (contract 2.11). */
-export const PAGE_MARK: MarkRoles = { ocean: "var(--mark-ocean)", land: "var(--mark-land)", tree: "var(--mark-tree)", leaf: "var(--mark-leaf)" };
+const PAGE_MARK: MarkRoles = { ocean: "var(--mark-ocean)", land: "var(--mark-land)", tree: "var(--mark-tree)", leaf: "var(--mark-leaf)" };
 
 export function renderAppMenu(): string {
   return `<header class="app-bar"><button type="button" class="app-gear" aria-label="App menu" popovertarget="app-menu" aria-controls="app-menu" aria-expanded="false" title="App menu">

@@ -120,9 +120,6 @@ importers:
       '@storytree/library':
         specifier: workspace:*
         version: link:../library
-      '@storytree/mark':
-        specifier: workspace:*
-        version: link:../mark
       '@storytree/session-management':
         specifier: workspace:*
         version: link:../session-management

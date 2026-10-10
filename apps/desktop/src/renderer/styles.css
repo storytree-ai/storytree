@@ -19,11 +19,6 @@
   --none-text: #4e545d;
   --none-line: #cfd2d7;
   --columns: minmax(0, 1fr) 11.5rem 11.5rem;
-  /* The mark's four roles, from this theme's own colours (light and dark alike), with the page as its canvas. */
-  --mark-ocean: var(--none-line);
-  --mark-land: var(--pass-line);
-  --mark-tree: var(--text);
-  --mark-leaf: var(--pass-text);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -75,12 +70,6 @@ main {
 .loading,
 .empty {
   color: var(--muted);
-}
-
-.empty .app-mark {
-  display: block;
-  width: 4rem;
-  height: 4rem;
 }
 
 .empty h1 {

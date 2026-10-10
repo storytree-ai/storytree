@@ -1023,3 +1023,38 @@ test("6.39 a tool call's reads do not grow with the log's length: the same calls
   assert.ok(history > 20_000_000, `the long history is weeks' worth: ${history} bytes`);
   assert.ok(taken[1]! - taken[0]! < 128 * 1024, `the calls took ${taken[0]} bytes from a short log and ${taken[1]} from one ${history} bytes longer: no more than 128 KiB apart`);
 });
+
+test("6.56 edit_plan and retire_from_plan, under an increment's claim, hold a change to a record planned before it as a pending change on the increment, leaving the live record alone; one the increment planned, or a call holding no increment, changes it live (ADR-0966 D1)", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const { arc, story, capability } = await planned(agent);
+      const contract = idOf(await agent.call("plan_contract", { capability, title: "Accepts a valid address" }));
+      const increment = idOf(await agent.call("park_increment", { arc, title: "Address form", objective: "Rename it", body: "Red then green" }));
+      assert.equal((await agent.call("claim", { increment, reason: "driving the address form" })).isError, false);
+      const live = await library.get(capability);
+
+      const edited = await agent.call("edit_plan", { id: capability, title: "Address form", description: "Where they type it" });
+      assert.equal(edited.isError, false, edited.text);
+      assert.match(edited.text, new RegExp(`pending on increment ${increment}`));
+      const retired = await agent.call("retire_from_plan", { id: contract, reason: "overtaken by the address form" });
+      assert.equal(retired.isError, false, retired.text);
+      assert.match(retired.text, new RegExp(`pending on increment ${increment}`));
+      assert.deepEqual(await library.get(capability), live, "the live capability is left alone");
+      assert.notEqual(await library.get(contract), null, "the contract is still live");
+      const pending = ((await library.get(increment))?.fields as { pending?: { record: string; after?: unknown; retire?: string }[] }).pending;
+      assert.deepEqual(pending?.map(({ record, after, retire }) => [record, after, retire]), [
+        [capability, { title: "Address form", description: "Where they type it" }, undefined],
+        [contract, undefined, "overtaken by the address form"],
+      ]);
+
+      const own = idOf(await agent.call("plan_capability", { story, title: "Confirmation link", ...FOUNDED }));
+      assert.equal((await agent.call("edit_plan", { id: own, description: "Sent by mail" })).isError, false);
+      assert.equal((await library.get(own))?.fields["description" as never], "Sent by mail", "one the increment planned is edited live");
+    });
+    await withAgent(folder, claudeCode("claude-2"), async (agent) => {
+      const { capability } = await planned(agent);
+      assert.equal((await agent.call("edit_plan", { id: capability, description: "Typed by hand" })).isError, false);
+      assert.equal((await library.get(capability))?.fields["description" as never], "Typed by hand", "with no increment held, the edit is live");
+    });
+  });
+});

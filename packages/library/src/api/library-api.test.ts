@@ -56,6 +56,7 @@ const LIBRARY_API = [
   "correctIncrementClosure",
   "moveIncrement",
   "editIncrement",
+  "pendChange",
   "parkArc",
   "unparkArc",
   "arcView",

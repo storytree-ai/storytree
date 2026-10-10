@@ -1,7 +1,7 @@
 /**
  * Capability 4 · Arcs and increments (the command line story): see one arc whole, its intent, end state,
- * increments and their states, the questions waiting on the owner, and what each waiting item
- * waits for; and every wait for the owner or an outside event across arcs. Create, edit, park or
+ * increments and their states, the questions waiting on the owner, what each waiting item
+ * waits for, and each open increment's pending plan changes (ADR-0966 D3); and every wait for the owner or an outside event across arcs. Create, edit, park or
  * unpark an arc; park an increment, record a landing that was never parked, close one with its
  * outcome, move one to another arc keeping its id, and make an arc or increment wait on another
  * with a reason, or an increment wait for the owner or an outside event with a note (ADR-0938 D1),
@@ -20,7 +20,7 @@ import type { ArcView, Holds, NoteWait, WaitFor } from "@storytree/library";
 import { labelOf, Refusal, type Answer } from "../answer.js";
 import { commaSeparatedIds, type Args } from "../args.js";
 import type { Context, Family, Verb } from "../door.js";
-import { valueOf } from "./library.js";
+import { pendingSaid, valueOf } from "./library.js";
 import { commandSession } from "../writer.js";
 import { releasedAsking } from "./workspace.js";
 
@@ -106,6 +106,7 @@ const show: Verb = {
     for (const increment of open) {
       lines.push(`  - ${increment.id}  [${increment.fields.status}]  ${increment.fields.title}`);
       for (const line of holdsOn(holds, increment.id)) lines.push(`      ${line}`);
+      if ((increment.fields.pending ?? []).length > 0) for (const line of pendingSaid(increment.fields.pending!)) lines.push(`      ${line}`);
     }
     const waiting = questions.filter((question) => question.fields.lifecycle === "open");
     // A parked arc's questions are parked with it until it is unparked (ADR-0835 D2).

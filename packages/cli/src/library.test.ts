@@ -8,10 +8,12 @@ import { userInfo } from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 
+import { claim, openActivityLog } from "@storytree/agent-link";
+
 import { parseArgs } from "./args.js";
 import type { Context } from "./door.js";
 import { library as libraryFamily } from "./families/library.js";
-import { BuiltCommand, inWorld } from "./testing/cli.js";
+import { BuiltCommand, inWorld, testServerUrl } from "./testing/cli.js";
 
 const command = new BuiltCommand();
 
@@ -358,5 +360,37 @@ test("3.13 `new check` writes a quality control check enforcing a principle, and
     const read = await world.run(["library", "read", check!.id]);
     assert.equal(read.code, 0, read.stderr);
     assert.ok(read.stdout.includes(`[check]`) && read.stdout.includes(question), read.stdout);
+  });
+});
+
+test("3.14 `library edit` and `retire`, run by a session holding an increment, hold a change to a record planned before it as a pending change on the increment, the live record left alone; `library read` of the increment lists each as before and after, or its retirement (ADR-0966)", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const arc = await library.createArc({ title: "Launch", intent: "Ship sign-up", endState: "Visitors sign up" });
+    const story = await library.addStory({ title: "Sign up" });
+    const form = await library.addCapability({ story: story.id, title: "Form" });
+    const promise = await library.addContract({ capability: form.id, title: "Accepts an address" });
+    const increment = await library.addIncrement({ arc: arc.id, title: "Address form", objective: "Rename it", body: "Red then green" });
+    const log = await openActivityLog(testServerUrl());
+    try {
+      const as = { CLAUDE_CODE_SESSION_ID: "caller" };
+      assert.equal((await claim({ log, library, project: world.project, session: "caller", harness: "claude-code" }, increment.id, "driving the address form")).ok, true);
+      const live = await library.get(form.id);
+      const edited = await world.run(["library", "edit", form.id, "--description", "Where they type it"], as);
+      assert.equal(edited.code, 0, edited.stderr);
+      assert.match(edited.stdout, new RegExp(`pending on increment ${increment.id}`));
+      const retired = await world.run(["library", "retire", promise.id, "--reason", "overtaken"], as);
+      assert.equal(retired.code, 0, retired.stderr);
+      assert.deepEqual(await library.get(form.id), live, "the live record is left alone");
+      assert.notEqual(await library.get(promise.id), null, "the contract is still live");
+
+      const read = await world.run(["library", "read", increment.id]);
+      assert.equal(read.code, 0, read.stderr);
+      assert.match(read.stdout, /Pending changes \(2\)/);
+      assert.match(read.stdout, new RegExp(`${form.id}.*\\n.*description: \\(none\\) -> Where they type it`));
+      assert.match(read.stdout, new RegExp(`${promise.id}.*\\n.*retire: overtaken`));
+    } finally {
+      await log.close();
+    }
   });
 });

@@ -75,6 +75,23 @@ export interface IncrementEdit {
   readonly heldOn?: string[] | undefined;
 }
 
+/** A pending plan change, as its increment keeps it (ADR-0966 D1). */
+export type PendingChange = NonNullable<FieldsOf<"increment">["pending"]>[number];
+
+/**
+ * A change to a story, capability or contract, to wait on an increment: some of its fields (one
+ * set to undefined is removed), or its retirement with the reason.
+ */
+export type PlanChange =
+  | { readonly record: string; readonly fields: Readonly<Record<string, unknown>> }
+  | { readonly record: string; readonly retire: string };
+
+/** What pendChange did: the change now pending, or nothing, since the increment planned the record and edits it live. */
+export type Pended = { readonly pending: PendingChange } | { readonly plannedHere: true };
+
+/** What an increment's pending changes may name: its plan's records (ADR-0966 D1). */
+const PLAN_RECORD = { name: "story, capability or contract", types: ["story", "capability", "contract"] } as const;
+
 /** How to park an arc: a write's options, and the day it wakes (YYYY-MM-DD, UTC), if it has one. */
 export interface ParkOptions extends WriteOptions {
   readonly until?: string;
@@ -246,6 +263,67 @@ export class WorkInFlight {
       if ((await liveRecord(this.#records, id, ["increment"])) === null) return null;
       await this.#checkNames(fields);
       return (await this.#records.edit(id, fields, options)) as SchemaRecord<"increment"> | null;
+    });
+  }
+
+  /**
+   * Hold `change` on active increment `id` as a pending change (ADR-0966 D1), leaving the live record
+   * alone: kept with the record's latest history entry as its base, and, for an edit, the changed
+   * fields' live values beside the new ones. A second change to the same record merges into the first,
+   * keeping its base and first values; a retirement replaces an edit, and an edit after a pending
+   * retirement is refused. A record the increment planned itself, created after it started, is not
+   * held: the answer says so, and the caller edits it live. Refused, with nothing written: an increment
+   * that is not active (RangeError); a record that is not a live story, capability or contract
+   * (MissingReferenceError); an edit that would leave the record invalid (SchemaError) or name a
+   * missing record (MissingReferenceError); and a record another open increment already holds a
+   * pending change for, naming that increment (RangeError, D5). Null if `id` is not a live increment.
+   */
+  pendChange(id: string, change: PlanChange, options?: WriteOptions): Promise<Pended | null> {
+    return this.#serially(async () => {
+      const increment = await liveRecord(this.#records, id, ["increment"]);
+      if (increment === null) return null;
+      if (increment.fields.status !== "active") {
+        throw new RangeError(`increment ${JSON.stringify(id)} is ${increment.fields.status}: only an active increment, one a session holds, takes pending changes`);
+      }
+      await checkReference(this.#records, "record", change.record, PLAN_RECORD);
+      const record = (await liveRecord(this.#records, change.record, PLAN_RECORD.types))!;
+      const [created] = await this.#records.history({ id: record.id, oldest: 1 });
+      const started = (await this.#records.history({ id })).find((entry) => entry.record.fields["status"] === "active");
+      if (started !== undefined && created!.seq > started.seq) return { plannedHere: true };
+      const holder = (await this.#records.select("increment", ["pending"], { not: { status: "closed" } }))
+        .find((other) => other.id !== id && (other.fields.pending ?? []).some((pending) => pending.record === record.id));
+      if (holder !== undefined) {
+        throw new RangeError(
+          `${record.type} ${JSON.stringify(record.id)} already has a pending change on open increment ${JSON.stringify(holder.id)}: ` +
+            "two increments never hold changes to one record (ADR-0966 D5); take other work, or wait for that one to land or close",
+        );
+      }
+      const pending = increment.fields.pending ?? [];
+      const earlier = pending.find((entry) => entry.record === record.id);
+      const base = earlier?.base ?? (await this.#records.history({ id: record.id, newest: 1 }))[0]!.seq;
+      const head = { record: record.id, type: record.type, base };
+      let entry: PendingChange;
+      if ("retire" in change) {
+        entry = { ...head, retire: change.retire };
+      } else {
+        if (earlier !== undefined && "retire" in earlier) {
+          throw new RangeError(`${record.type} ${JSON.stringify(record.id)} is pending retirement on this increment: it takes no edit after that`);
+        }
+        const live = record.fields as Record<string, unknown>;
+        const given = Object.keys(change.fields);
+        const after = { ...(earlier?.after ?? {}), ...Object.fromEntries(given.map((field) => [field, change.fields[field] ?? null])) };
+        const before = { ...Object.fromEntries(given.map((field) => [field, live[field] ?? null])), ...(earlier?.before ?? {}) };
+        const merged = { ...live, ...after };
+        for (const [field, value] of Object.entries(after)) if (value === null) delete merged[field];
+        this.#records.check(record.type, merged);
+        await checkReference(this.#records, "story", record.type === "capability" ? change.fields["story"] : undefined, "story");
+        await checkReferences(this.#records, "dependsOn", change.fields["dependsOn"], "capability");
+        await checkReference(this.#records, "capability", record.type === "contract" ? change.fields["capability"] : undefined, "capability");
+        entry = { ...head, before, after };
+      }
+      const next = earlier === undefined ? [...pending, entry] : pending.map((other) => (other === earlier ? entry : other));
+      await this.#records.edit(id, { pending: next }, options);
+      return { pending: entry };
     });
   }
 

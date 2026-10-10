@@ -610,3 +610,24 @@ test("4.7 `arc increment move` re-homes open work with its claim and closed hist
     }
   });
 });
+
+test("4.19 `arc show` lists each open increment's pending plan changes under it, as before and after, or a retirement with its reason (ADR-0966 D3)", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const arc = await anArc(world);
+    const story = await library.addStory({ title: "Sign up" });
+    const form = await library.addCapability({ story: story.id, title: "Form" });
+    const promise = await library.addContract({ capability: form.id, title: "Accepts an address" });
+    const increment = await library.addIncrement({ arc, title: "Address form", objective: "Rename it", body: "Red then green" });
+    await library.advanceIncrement(increment.id, "active");
+    await library.pendChange(increment.id, { record: form.id, fields: { description: "Where they type it" } });
+    await library.pendChange(increment.id, { record: promise.id, retire: "overtaken" });
+
+    const shown = await world.run(["arc", "show", arc]);
+    assert.equal(shown.code, 0, shown.stderr);
+    const below = shown.stdout.slice(shown.stdout.indexOf(increment.id));
+    assert.match(below, /Pending changes \(2\)/);
+    assert.match(below, new RegExp(`${form.id}.*\\n.*description: \\(none\\) -> Where they type it`));
+    assert.match(below, new RegExp(`${promise.id}.*\\n.*retire: overtaken`));
+  });
+});

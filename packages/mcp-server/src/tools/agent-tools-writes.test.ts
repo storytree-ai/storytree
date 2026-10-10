@@ -284,7 +284,7 @@ test("6.14 it retires a contract and then a capability with a reason, and each i
   });
 });
 
-test("6.11 it raises a question on an arc and holds an increment on it, which a claim then finds waiting on the owner; it settles the question with his answer, which releases the increment, and retiring a question an increment is held on is refused", async () => {
+test("6.11 it raises a question on an arc and holds an increment on it, which a claim then finds waiting on the owner; it settles the question with his answer, which releases the increment; retiring a held question releases the increments held on it, naming them, and a record that is not a question is refused", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { arc } = await planned(agent);
@@ -298,19 +298,26 @@ test("6.11 it raises a question on an arc and holds an increment on it, which a 
       assert.equal(refused.isError, true);
       assert.match(refused.text, /waiting on the owner/);
 
-      const retired = await agent.call("retire_question", { question, reason: "asked in error" });
-      assert.equal(retired.isError, true, "an increment is held on it");
-      assert.equal((await library.arcView(arc))?.questions.some((one) => one.id === question), true, "still there");
-
       const settled = await agent.call("settle_question", { question, answer: "Mailgun: its API is the simplest" });
       assert.equal(settled.isError, false, settled.text);
       assert.equal((await library.arcView(arc))?.questions.find((one) => one.id === question)?.fields.answer, "Mailgun: its API is the simplest");
       assert.deepEqual(await library.heldOnQuestion(welcome), [], "his answer released it");
       assert.equal((await agent.call("claim", { increment: welcome, reason: "driving it" })).isError, false);
 
-      const wrong = idOf(await agent.call("raise_question", { ...asked, title: "Asked in error" }));
-      assert.equal((await agent.call("retire_question", { question: wrong, reason: "asked in error" })).isError, false);
+      const receipt = await park("Receipt email");
+      const wrong = idOf(await agent.call("raise_question", { ...asked, title: "Asked in error", holds: [receipt] }));
+      assert.deepEqual(await library.heldOnQuestion(receipt), [wrong]);
+      const retired = await agent.call("retire_question", { question: wrong, reason: "asked in error" });
+      assert.equal(retired.isError, false, retired.text);
+      assert.match(retired.text, new RegExp(`Released ${receipt}`));
+      assert.deepEqual(retired.data.released, [receipt]);
       assert.equal((await library.arcView(arc))?.questions.some((one) => one.id === wrong), false, "retired");
+      assert.deepEqual(await library.heldOnQuestion(receipt), [], "no longer held");
+      assert.equal((await agent.call("claim", { increment: receipt, reason: "driving it" })).isError, false);
+
+      const notAQuestion = await agent.call("retire_question", { question: welcome, reason: "asked in error" });
+      assert.equal(notAQuestion.isError, true);
+      assert.match(notAQuestion.text, /not a question/);
     });
   });
 });
@@ -743,7 +750,7 @@ test("6.27 correct_question corrects an open question's wording in place: only t
   });
 });
 
-test("6.26 open on a contract shows it whole: its title, its description and the capability it belongs to; an arc is still refused readably", async () => {
+test("6.26 open on a contract shows it whole: its title, its description and the capability it belongs to; open on a question reads it whole with the increments held on it; an arc is still refused readably", async () => {
   await withProject(async ({ folder, library }) => {
     const story = await library.addStory({ title: "Visitor can sign up" });
     const capability = await library.addCapability({ title: "Postcode form", story: story.id });
@@ -757,6 +764,15 @@ test("6.26 open on a contract shows it whole: its title, its description and the
       assert.match(opened.text, /Contract "1\.1 · Rejects a postcode with letters only" \(contract_\w+\):\nA bad postcode is refused/);
       assert.match(opened.text, new RegExp(`Capability "1 · Postcode form" \\(${capability.id}\\)`));
       assert.deepEqual(opened.data.contract, { id: contract.id, title: "1.1 · Rejects a postcode with letters only", description: "A bad postcode is refused", capability: { id: capability.id, title: "1 · Postcode form" } });
+
+      const held = await library.addIncrement({ arc: arc.id, title: "Signup email", objective: "Send it", body: "Red then green" });
+      const question = await library.raiseQuestion({ arc: arc.id, title: "Which mailer?", stakes: "Cost and deliverability", statement: "Send through Mailgun or SES?", context: "Both work here", options: "Mailgun; SES", recommendation: "Mailgun" });
+      await library.editIncrement(held.id, { heldOn: [question.id] });
+      const read = await agent.call("open", { id: question.id });
+      assert.equal(read.isError, false, read.text);
+      assert.match(read.text, new RegExp(`Question "Which mailer\\?" \\(${question.id}\\)`));
+      for (const words of [/Cost and deliverability/, /Send through Mailgun or SES\?/, /Both work here/, /Mailgun; SES/, /Recommendation: Mailgun/, new RegExp(`Holding: ${held.id}`), new RegExp(`On ${arc.id}, open`)]) assert.match(read.text, words);
+      assert.deepEqual((read.data.question as { holding: string[] }).holding, [held.id]);
 
       const refused = await agent.call("open", { id: arc.id });
       assert.equal(refused.isError, true);

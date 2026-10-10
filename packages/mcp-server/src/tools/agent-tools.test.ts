@@ -30,6 +30,7 @@ import { projectDatabase, testServerDataDir, testServerUrl } from "@storytree/ag
 import { createAgentTools, type ToolExtension } from "../index.js";
 import { protectionThrough, storytreeRef } from "@storytree/app-setup/pipeline";
 import { registerPlanTools } from "./plan-tools.js";
+import { CONTRACT_DEFINITION } from "../instructions/habits.js";
 import type { Call, Define } from "./server.js";
 import { FOUNDED, planned, TOOLS, withProject } from "../testing/tool-world.js";
 
@@ -493,6 +494,24 @@ test("6.50 plan_contract numbers a new contract past the numbers its capability'
       assert.deepEqual(planned.data.orphans, ["1.1", "1.3"]);
       const kept = await agent.call("plan_contract", { capability, title: "1.1 · Adds an item" });
       assert.match(kept.text, /1\.1 · Adds an item/, "a landed test's own number is kept, so its contract can be planned");
+    });
+  });
+});
+
+test("6.57 plan_contract plans a contract whose title runs past 300 characters, adding an advisory line that quotes the card's definition of a contract; a shorter title gets none", async () => {
+  await withProject(async ({ folder }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const story = idOf(await agent.call("plan_story", { title: "Shopping cart", ...FOUNDED }));
+      const capability = idOf(await agent.call("plan_capability", { story, title: "Adding", ...FOUNDED }));
+      const long = await agent.call("plan_contract", { capability, title: `Adds an item ${"and keeps it ".repeat(23)}`.trim() });
+      assert.equal(long.isError, false, long.text);
+      assert.match(long.text, /Planned contract/);
+      assert.match(long.text, /past 300 characters/);
+      assert.ok(long.text.includes(CONTRACT_DEFINITION), long.text);
+      assert.equal(long.data.long, true);
+      const short = await agent.call("plan_contract", { capability, title: "Removes an item" });
+      assert.ok(!short.text.includes(CONTRACT_DEFINITION), short.text);
+      assert.equal(short.data.long, false);
     });
   });
 });

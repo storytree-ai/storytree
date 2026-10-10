@@ -22,6 +22,13 @@ const DECISION_RIGHTS_LINES = [
   `- No file moves these: ${DECISION_RIGHTS.honesty.join("; ")}.`,
 ].join("\n");
 
+/**
+ * What one contract is, in two sentences (contract 7.8): the card says it, and plan_contract quotes it
+ * when a title runs long (6.57), so two planners split one set of requirements alike.
+ */
+export const CONTRACT_DEFINITION =
+  "A contract is one behaviour seen from outside the code: what goes in (its inputs), what comes out (its outputs) and its errors. A promise that joins two such behaviours is two contracts, and one about how the code works inside is not a contract yet.";
+
 const HABITS_CARD = `storytree keeps the plan of this project and records what you do, so the user can watch it grow. Work with it like this.
 
 Start every session with \`check_setup\`, and do what it says. If this folder isn't a storytree project, carry on without storytree: never offer to set it up. Call \`set_up_project\` only when the user asks for storytree here, with a name no project has (a refusal suggests one); set its join only when they ask to add this computer's copy of a project they already have elsewhere. Once the project is set up, or when it adopts a pipeline, call \`wire_pipeline\` with its test command: it adds the tests and storytree's check to the project's CI, the checks storytree owns, so never write your own. Branch protection is a repository setting: propose it as \`wire_pipeline\` words it, and turn it on only if the user approves.
@@ -29,7 +36,7 @@ Start every session with \`check_setup\`, and do what it says. If this folder is
 Plan first.
 - \`focus\` shows what a file, capability, promise or story depends on (up) and what depends on it (down). Start with counts, then dry_run or a narrowed show; an oversized show refuses with counts.
 - \`show_plan\` shows the plan: every story, capability and contract with its health, who holds what, and which sessions are about. \`health_worklist\` lists the oldest capabilities that are not healthy, with why and who moves each: route each into an increment whose capabilities list names it, held on a question when only the owner can move it.
-- Plan a story (something a user can do) with \`plan_story\`, the parts that make it work with \`plan_capability\`, and each testable promise with \`plan_contract\`. A story or capability starts with its founding decision: what it is for, and the one choice that shapes it. Group stories under an initiative with \`plan_arc\`. Correct any of them with \`edit_plan\`, and \`retire_from_plan\` a capability or contract no longer wanted, with the reason.
+- Plan a story (something a user can do) with \`plan_story\`, the parts that make it work with \`plan_capability\`, and each testable promise with \`plan_contract\`. ${CONTRACT_DEFINITION} A story or capability starts with its founding decision: what it is for, and the one choice that shapes it. Group stories under an initiative with \`plan_arc\`. Correct any of them with \`edit_plan\`, and \`retire_from_plan\` a capability or contract no longer wanted, with the reason.
 - Break an arc's work into increments with \`park_increment\` (the breakdown goes in its body, its capabilities list left empty); claiming one starts it, and as you plan it you fill its capabilities list, the capabilities it changes and nothing else, with \`edit_plan\`, citing its stories as links. \`move_increment\` re-homes one on another arc, keeping its id. \`add_remedies\` makes a parked one the fix for friction. \`park_arc\` parks or unparks an arc.
 - When one piece of work must wait for another, \`set_wait\` with the reason; when an increment waits for something outside the plan, an action only the owner can take that is not a decision, or an outside event, \`set_wait\` for the owner or the event, with a note (an event needs a day to check back). \`clear_wait\` when it no longer must.
 - When only the owner can decide (see Who decides what, below), land what is green first and push the rest to a branch named on the increment, then \`raise_question\` on the arc instead of only asking in chat, holding the increments that need the answer: it releases your claims on them. \`correct_question\` fixes its wording while it is open. Before you put an open question to the owner, \`present_question\` marks it as yours to ask; refused, another session is asking him already, so skip it, and \`present_question\` with done when you move on without his answer. \`settle_question\` with the answer, in the owner's own words; \`retire_question\` one that was wrong to ask.

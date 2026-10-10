@@ -1,5 +1,5 @@
 /**
- * Capability 7 · Instructions, the habits card: one test per contract 7.1-7.3 and 7.5 in
+ * Capability 7 · Instructions, the habits card: one test per contract 7.1-7.3, 7.5 and 7.8 in
  * the MCP server story. The card names each tool in backticks, and uses backticks for nothing
  * else, so the tools it teaches are exactly the backticked words in it. Whether real agents follow
  * it is the agent link's setup check.
@@ -15,7 +15,7 @@ import { InMemoryTransport } from "@modelcontextprotocol/server";
 
 import { createAgentTools } from "../index.js";
 import { decisionRights } from "@storytree/agent-link";
-import { habitsCard } from "./habits.js";
+import { CONTRACT_DEFINITION, habitsCard } from "./habits.js";
 
 /** A client connected in memory to a fresh tool server, as a harness is at session start. */
 async function sessionStart(harness = "claude-code"): Promise<{ client: Client; close(): Promise<void> }> {
@@ -73,6 +73,17 @@ test("7.5 the card handed at session start says who decides what, and what no fi
     for (const line of [...rights.decides, ...rights.asks, rights.delegations, rights.override, ...rights.honesty]) {
       assert.ok(served.includes(line), `the served card lacks: ${line}`);
     }
+  } finally {
+    await session.close();
+  }
+});
+
+test("7.8 the card handed at session start says what one contract is: a behaviour seen from outside, in its inputs, outputs and errors", async () => {
+  assert.equal(CONTRACT_DEFINITION.split(/(?<=\.) /).length, 2, "two sentences");
+  for (const word of ["outside", "inputs", "outputs", "errors"]) assert.ok(CONTRACT_DEFINITION.includes(word), `the definition lacks: ${word}`);
+  const session = await sessionStart();
+  try {
+    assert.ok((session.client.getInstructions() ?? "").includes(CONTRACT_DEFINITION));
   } finally {
     await session.close();
   }

@@ -9,6 +9,7 @@ import { z } from "zod";
 
 import { readClaims } from "@storytree/agent-link";
 import { readSessions } from "@storytree/agent-link";
+import { CONTRACT_DEFINITION } from "../instructions/habits.js";
 import { testedNumbers } from "./claim-tools.js";
 import type { Answer, Call, Define } from "./server.js";
 import { quoted } from "./text.js";
@@ -18,6 +19,9 @@ const description = z.string().min(1).optional().describe("A sentence or two on 
 const intent = z.string().min(1).describe("What the arc exists to deliver, in a sentence");
 const endState = z.string().min(1).describe("What closed looks like: the condition under which it is delivered");
 const id = (what: string) => z.string().min(1).describe(`The id of the ${what}, as the plan shows it`);
+/** A title past this many characters gets plan_contract's advisory line: about the longest eighth of 338 live contract titles, measured 2026-10-11. */
+const LONG_CONTRACT = 300;
+
 const founding = z
   .object({
     title: z.string().min(1).describe("The one choice that shapes it, as a short title"),
@@ -85,7 +89,9 @@ export function registerPlanTools(define: Define): void {
       const contract = await call.library.addContract({ title: name, capability, ...optional({ description: about }) }, { ...call.writer, testedNumbers: tested });
       const orphans = await orphanTests(call, capability, contract.fields.title, tested);
       const named = orphans.length === 0 ? "" : ` Numbered ${orphans.length === 1 ? `test ${orphans[0]} has` : `tests ${orphans.slice(0, -1).join(", ")} and ${orphans.at(-1)} have`} no contract: if this contract is ${orphans.length === 1 ? "its" : "one's"} promise, give it that number with edit_plan.`;
-      return { text: `Planned contract ${quoted(contract.fields.title)} (${contract.id}).${named} Write its test, see it fail, and report it red.`, data: { id: contract.id, orphans } };
+      const long = contract.fields.title.length > LONG_CONTRACT;
+      const advice = long ? ` Its title runs past ${LONG_CONTRACT} characters, which often means more than one promise: ${CONTRACT_DEFINITION} Split it with edit_plan and plan_contract if so.` : "";
+      return { text: `Planned contract ${quoted(contract.fields.title)} (${contract.id}).${named}${advice} Write its test, see it fail, and report it red.`, data: { id: contract.id, orphans, long } };
     },
   );
 

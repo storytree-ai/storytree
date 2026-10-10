@@ -13,6 +13,7 @@
     "dist": "node build.mjs && node --import tsx dist.mjs"
   },
   "devDependencies": {
+    "@storytree/mark": "workspace:*",
     "@google-cloud/cloud-sql-connector": "^1.11.1",
     "@huggingface/transformers": "^4.3.0",
     "@storytree/session-management": "workspace:*",
@@ -85,6 +86,7 @@
       "releaseType": "release"
     },
     "win": {
+      "icon": "../../packages/mark/icons/day/mark.ico",
       "extraResources": [
         {
           "from": "node_modules/@embedded-postgres/windows-x64/native",
@@ -122,6 +124,7 @@
           ]
         }
       ],
+      "icon": "../../packages/mark/icons/day/mark.icns",
       "category": "public.app-category.developer-tools",
       "hardenedRuntime": true,
       "entitlements": "entitlements.mac.plist",
@@ -140,6 +143,8 @@
     "nsis": {
       "artifactName": "storytree-0.3-${version}-setup.${ext}",
       "oneClick": true,
+      "installerIcon": "../../packages/mark/icons/day/mark.ico",
+      "uninstallerIcon": "../../packages/mark/icons/day/mark.ico",
       "perMachine": false,
       "include": "installer.nsh"
     },

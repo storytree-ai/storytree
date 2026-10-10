@@ -1,12 +1,25 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { renderAppMenu, renderNoProjects, renderSwitcher } from "./render.js";
+import { markSvg } from "@storytree/mark";
+
+import { PAGE_MARK, renderAppMenu, renderNoProjects, renderSwitcher } from "./render.js";
 
 test("2.5: the empty page explains adding a project from the gear menu or the command line", () => {
   const html = renderNoProjects();
   assert.match(html, /<h1>No projects yet<\/h1>/);
   assert.match(html, /Add a folder as a project from the gear menu: Projects → Add project…/);
   assert.match(html, /<code>storytree doctor --set-up &lt;name&gt;<\/code> in the folder/);
+});
+
+test("2.11 · the empty page shows storytree's mark in the page theme's colours, with no tile and no file", () => {
+  const html = renderNoProjects();
+  const mark = html.match(/<svg class="app-mark"[\s\S]*?<\/svg>/)?.[0];
+  assert.ok(mark, "the mark is drawn inline, above the heading");
+  assert.ok(html.indexOf(mark) < html.indexOf("<h1>"));
+  assert.match(mark, /aria-hidden="true"/);
+  assert.equal(mark.replace(/ class="app-mark" aria-hidden="true"/, ""), markSvg(PAGE_MARK).trim(), "the mark's own drawing");
+  assert.deepEqual(PAGE_MARK, { ocean: "var(--mark-ocean)", land: "var(--mark-land)", tree: "var(--mark-tree)", leaf: "var(--mark-leaf)" });
+  assert.doesNotMatch(mark, /<rect/, "the page is the canvas");
 });
 
 // App capability 2: the gear and project switcher (pending contracts in evidence/top-bars/library-update).

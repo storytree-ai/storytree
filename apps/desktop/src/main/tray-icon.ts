@@ -1,11 +1,17 @@
-/**
- * Capability 1 · Lifecycle. The tray icon: a 32x32 PNG of a green tree, inline so the packaged app needs no extra file.
- * Drawn by a throwaway script (a circle for the crown, a bar for the trunk); replace it freely.
- */
+/** Capability 1 · Lifecycle. The tray's and the window's icons: the mark (app-icon.ts) as Electron images. */
 import { nativeImage, type NativeImage } from "electron";
 
-export const TRAY_ICON_PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAaElEQVR4nO3OoREAIAxDUSZCMAmaSRiHTcEiELRNrxXJXfR/pXCC1TX2z0PjcIQ0DIeEAqxxEwIVVyNCAei4GEEAAQR4IETxFAAkQhVHIUzxFAAtBBbWIFzi92Zv+3X3MAEEEJAGgNwBNQOMdNYpivEAAAAASUVORK5CYII=";
+import { markIcon, type IconColourway } from "./app-icon.js";
 
-export function createTrayIcon(): NativeImage {
-  return nativeImage.createFromDataURL(TRAY_ICON_PNG);
+/** The tray icon: 16 pixels, with a 32-pixel picture for screens at twice the scale. */
+export function createTrayIcon(colourway: IconColourway): NativeImage {
+  const [small, large] = markIcon(colourway, [16, 32]);
+  const image = nativeImage.createFromBuffer(small!.png, { scaleFactor: 1 });
+  image.addRepresentation({ scaleFactor: 2, buffer: large!.png });
+  return image;
+}
+
+/** The window's icon, which the taskbar shows for an unpackaged app. */
+export function createWindowIcon(colourway: IconColourway): NativeImage {
+  return nativeImage.createFromBuffer(markIcon(colourway, [256])[0]!.png);
 }

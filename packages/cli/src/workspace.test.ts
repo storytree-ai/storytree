@@ -11,7 +11,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 
-import { claim, openActivityLog, readClaims } from "@storytree/agent-link";
+import { ACTIVITY_DATABASE, claim, openActivityLog, readClaims } from "@storytree/agent-link";
+import pg from "pg";
 
 import { workspaceRefusalText } from "./families/workspace.js";
 import { BuiltCommand, inWorld, storytree, testServerUrl, type World } from "./testing/cli.js";
@@ -284,15 +285,24 @@ test("11.12 `workspace release --holder <session> --reason` is the session manag
     const increment = await library.addIncrement({ arc: arc.id, title: "Email form", objective: "Build it", body: "…" });
     const log = await openActivityLog(testServerUrl());
     try {
-      assert.equal((await world.run(["settings", "set", "idle-after", "1s"])).code, 0);
-      assert.equal((await claim({ log, library, project: world.project, session: "quiet", harness: "claude-code", quietMs: 1_000 }, increment.id, "building the form")).ok, true);
+      assert.equal((await world.run(["settings", "set", "idle-after", "10m"])).code, 0);
+      assert.equal((await claim({ log, library, project: world.project, session: "quiet", harness: "claude-code" }, increment.id, "building the form")).ok, true);
       const before = await log.since(world.project, 0);
       const live = await world.run(["workspace", "release", increment.id, "--holder", "quiet", "--reason", "quiet, messaged"], { CLAUDE_CODE_SESSION_ID: "manager" });
       assert.equal(live.code, 1);
       assert.match(live.stderr, /quiet.*live/);
       assert.deepEqual(await log.since(world.project, 0), before, "a refusal writes nothing");
 
-      await new Promise((done) => setTimeout(done, 1_300)); // the holder says nothing for longer than idle-after
+      // Time passing: the holder has said nothing for two hours, well past idle-after.
+      const url = new URL(testServerUrl());
+      url.pathname = `/${ACTIVITY_DATABASE}`;
+      const client = new pg.Client({ connectionString: url.href });
+      await client.connect();
+      try {
+        await client.query("UPDATE activity SET at = at - interval '2 hours' WHERE project = $1 AND session = 'quiet'", [world.project]);
+      } finally {
+        await client.end();
+      }
       const ran = await world.run(["workspace", "release", increment.id, "--holder", "quiet", "--reason", "quiet 24h after the manager's message"], { CLAUDE_CODE_SESSION_ID: "manager" });
       assert.equal(ran.code, 0, ran.stderr);
       assert.match(ran.stdout, /quiet/);

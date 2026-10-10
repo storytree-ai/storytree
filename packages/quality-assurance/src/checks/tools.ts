@@ -91,14 +91,15 @@ export function qualityTools(): ToolExtension {
         return { text: standingText(standing), data: { standing } };
       });
       // "graduate" is the librarian's tool, so this one names what graduates.
-      define("graduate_check", "Record that a part of a quality control check is now enforced by a deterministic check in Guardrails; the reviewer judges only the rest.", z.object({
+      define("graduate_check", "Record that a part of a quality control check, or with whole all of it, is now enforced by a deterministic check in Guardrails; the reviewer judges only the rest, and a check graduated whole leaves the review brief.", z.object({
         check: z.string().min(1).describe("The check that graduates"),
         part: z.string().min(1).describe("The part of the check Guardrails now enforces"),
         enforced_by: z.string().min(1).describe("The Guardrails graduated check that enforces it"),
-      }), async ({ check, part, enforced_by }, { library }) => {
-        await graduate(library, check, { part, enforcedBy: enforced_by });
+        whole: z.boolean().optional().describe("True when the part is all of the check, so it leaves the review brief"),
+      }), async ({ check, part, enforced_by, whole }, { library }) => {
+        await graduate(library, check, { part, enforcedBy: enforced_by, ...(whole ? { whole: true as const } : {}) });
         const reading = (await checks(library)).filter(({ id }) => id === check);
-        return { text: `Graduated part of ${check}.\n${checksText(reading)}`, data: { check: reading[0] } };
+        return { text: `Graduated ${whole ? "all" : "part"} of ${check}.\n${checksText(reading)}`, data: { check: reading[0] } };
       });
     },
   };

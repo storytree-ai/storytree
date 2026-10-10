@@ -161,9 +161,9 @@ export class WorkModel {
    * carry, and a title whose number another live contract of the capability carries is refused
    * with a SchemaError on `title`, nothing written. A capability with no number numbers nothing.
    * `testedNumbers`, the contract numbers the capability's tests already carry, are skipped too, so
-   * the next free number is past them; but when exactly one of them is carried by no live contract,
-   * the title gets that number, since it is the red test written first. A number given is kept,
-   * which is how a landed test's contract gets planned.
+   * the next free number is past them, even one no live contract carries: a test without a contract
+   * may promise something else, so only a number given binds the contract to it. A number given is
+   * kept, which is how a landed or red test's contract gets planned.
    */
   addContract(contract: NewContract, options?: ContractWriteOptions): Promise<SchemaRecord<"contract">> {
     return this.#serially(async () => {
@@ -252,8 +252,8 @@ export class WorkModel {
 
   /**
    * `title` as a new contract of `capability` carries it: refused if its number is taken there, and
-   * given the next free number when it has none and the capability has one, or the one tested number
-   * no live contract carries.
+   * given the next free number, past its contracts' and its tests' numbers, when it has none and the
+   * capability has one.
    */
   async #numbered(title: string, capability: string, tested: readonly string[]): Promise<string> {
     if (typeof title !== "string" || !couldBeId(capability)) return title; // the schema refuses it in the write
@@ -265,8 +265,6 @@ export class WorkModel {
     if (prefix === undefined) return title;
     const own = (numbers: readonly (string | undefined)[]) => numbers.flatMap((number) => (number?.startsWith(`${prefix}.`) ? [Number(number.slice(prefix.length + 1))] : []));
     const planned = own((await this.#contractsOf(capability)).map((contract) => contractNumber(contract.fields.title)));
-    const unplanned = [...new Set(own(tested))].filter((number) => !planned.includes(number));
-    if (unplanned.length === 1) return `${prefix}.${unplanned[0]} · ${title}`; // the red test this contract is planned for
     return `${prefix}.${Math.max(0, ...planned, ...own(tested)) + 1} · ${title}`;
   }
 

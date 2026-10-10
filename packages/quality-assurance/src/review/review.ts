@@ -14,7 +14,7 @@
  * - A finding stands while it is unanswered, or rejected for a reason no later review accepted (4.1). With
  *   one standing after the tenth review, the eleventh brief is refused, naming the arc for the session's
  *   question (4.3); the refusal itself writes nothing.
- * - Capability 5 · Graduation (ADR-0956 D5): a check graduated in part stays in the brief with the part Guardrails
+ * - Capability 5 · Graduation (ADR-0956 D5): a check graduated whole leaves the brief, and one graduated in part stays in the brief with the part Guardrails
  *   now enforces named (5.2), and what Guardrails' graduated checks find on the change is taken with the return,
  *   recorded as theirs under the check each graduated from (5.3).
  */
@@ -40,7 +40,7 @@ export interface Brief {
   /** The packages the diff touches (`root` for files outside any package). */
   readonly packages: readonly string[];
   readonly contracts: readonly { readonly id: string; readonly title: string; readonly description?: string }[];
-  /** Each live check; one graduated in part names the parts Guardrails now enforces, which the reviewer does not judge (contract 5.2). */
+  /** Each live check not graduated whole; one graduated in part names the parts Guardrails now enforces, which the reviewer does not judge (contract 5.2). */
   readonly checks: readonly { readonly id: string; readonly title: string; readonly question: string; readonly graduated?: readonly Graduated[] }[];
   /** Each hit earlier reviews of this change made, with the implementer's answer. */
   readonly earlier: readonly HitRow[];
@@ -130,7 +130,7 @@ class PgReviews implements Reviews {
       .sort((a, b) => a.title.localeCompare(b.title, "en", { numeric: true }) || a.id.localeCompare(b.id));
     const brief: Brief = {
       project, change, iteration: taken + 1, diff, packages, contracts,
-      checks: (await liveChecks(library)).map(({ id, title, question, graduated }) => ({ id, title, question, ...(graduated === undefined ? {} : { graduated }) })),
+      checks: (await liveChecks(library)).filter(({ graduated }) => !(graduated ?? []).some(({ whole }) => whole)).map(({ id, title, question, graduated }) => ({ id, title, question, ...(graduated === undefined ? {} : { graduated }) })),
       earlier,
       judge: earlier.filter((hit) => hit.answer === "rejected" && !hit.accepted).map((hit) => hit.id),
     };

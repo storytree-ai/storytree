@@ -18,7 +18,7 @@ import { briefText, checks, checksText, ledgerText, openLedger, openReviews, qua
 import { approveCheckout, dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/agent-link/testing/pg";
 import { createAgentTools } from "./index.js";
 
-test("(quality assurance's 1.2) the shared server's quality_checks answers the package's checks reading, and the installed server serves it for storytree's own library", async () => {
+test("quality-assurance 1.2 · the shared server's quality_checks answers the package's checks reading, and the installed server serves it for storytree's own library", async () => {
   const project = uniqueProjectName();
   const storytree = await connect({ url: testServerUrl() });
   const library = await storytree.openProject(project);
@@ -67,7 +67,7 @@ test("(quality assurance's 1.2) the shared server's quality_checks answers the p
   }
 });
 
-test("(quality assurance's 3.4) the shared server's quality_ledger answers the package's ledger reading for the folder's project", async () => {
+test("quality-assurance 3.4 · the shared server's quality_ledger answers the package's ledger reading for the folder's project", async () => {
   const project = uniqueProjectName();
   const storytree = await connect({ url: testServerUrl() });
   const library = await storytree.openProject(project);
@@ -119,7 +119,7 @@ function textOf(answer: Awaited<ReturnType<Client["callTool"]>>): string {
   return (answer.content as { text: string }[])[0]!.text;
 }
 
-test("(quality assurance's 2.3 and 4.4) the shared server's quality_brief, quality_take, quality_answer and quality_standing run the package's review loop, the brief's diff given as text or read from a worktree", async () => {
+test("quality-assurance 2.3 and 4.4 · the shared server's quality_brief, quality_take, quality_answer and quality_standing run the package's review loop, the brief's diff given as text or read from a worktree", async () => {
   const project = uniqueProjectName();
   const storytree = await connect({ url: testServerUrl() });
   const library = await storytree.openProject(project);
@@ -182,7 +182,7 @@ test("(quality assurance's 2.3 and 4.4) the shared server's quality_brief, quali
   }
 });
 
-test("(quality assurance's 5.1 and 5.3) the shared server's graduate_check graduates a check through the package, and quality_take given the worktree records what the graduated check finds there as its own", async () => {
+test("quality-assurance 5.1 and 5.3 · the shared server's graduate_check graduates a check, in part or whole, through the package, and quality_take given the worktree records what the graduated check finds there as its own", async () => {
   const project = uniqueProjectName();
   const storytree = await connect({ url: testServerUrl() });
   const library = await storytree.openProject(project);
@@ -212,11 +212,17 @@ test("(quality assurance's 5.1 and 5.3) the shared server's graduate_check gradu
       const reading = await checks(library);
       assert.deepEqual(reading[0]!.graduated, [{ part: "the same call on both sides of an equality", enforcedBy: "self-equal-assertion" }]);
       assert.ok(textOf(graduated).includes(checksText(reading)), textOf(graduated));
+      const whole = await library.writeKnowledge("check", { title: "Self-equal assertion", description: "An assertion that compares a value with itself.", question: "Does any assertion compare a value with itself?", enforces: [principle.id] });
+      assert.notEqual((await client.callTool({ name: "graduate_check", arguments: { check: whole.id, part: "an assertion comparing a value with itself", enforced_by: "self-equal-assertion", whole: true } })).isError, true);
+      assert.deepEqual((await checks(library)).find(({ id }) => id === whole.id)!.graduated, [{ part: "an assertion comparing a value with itself", enforcedBy: "self-equal-assertion", whole: true }]);
 
       await client.callTool({ name: "quality_brief", arguments: { increment, worktree } });
       await client.callTool({ name: "quality_take", arguments: { increment, worktree, return: { checks: [{ check: check.id, tripped: false }], contracts: [{ contract: contract.id, met: true }] } } });
       const { hits } = await (await openLedger(storytree)).rows(project);
-      assert.deepEqual(hits.map(({ check: id, file, line, foundBy }) => ({ id, file, line, foundBy })), [{ id: check.id, file: "packages/forms/src/email.test.ts", line: 1, foundBy: "graduated" }]);
+      assert.deepEqual(hits.map(({ check: id, file, line, foundBy }) => ({ id, file, line, foundBy })).sort((a, b) => a.id.localeCompare(b.id)), [
+        { id: check.id, file: "packages/forms/src/email.test.ts", line: 1, foundBy: "graduated" },
+        { id: whole.id, file: "packages/forms/src/email.test.ts", line: 1, foundBy: "graduated" },
+      ].sort((a, b) => a.id.localeCompare(b.id)));
     });
   } finally {
     rmSync(folder, { recursive: true, force: true });

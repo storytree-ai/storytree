@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
-import { capabilitiesOf, capabilityListFor, incrementOfBranch, unlistedCapabilities } from "./capability-list.mjs";
+import { branchTree, capabilitiesOf, capabilityListFor, incrementOfBranch, staleProblems, unlistedCapabilities } from "./capability-list.mjs";
 import { runGate } from "./gate.mjs";
 
 /** A checkout holding the till's package: a declared source file, its test, and a file only the survey places. */
@@ -76,4 +76,20 @@ test("7.4 a branch naming no increment leaves the check NOT RUN with its reason;
   assert.equal(named.code, 1);
   assert.equal(named.calls.at(-1), "check:capability-list");
   assert.match(named.table, /FAIL\s+check:capability-list/);
+});
+
+test("7.6 a branch's checks read the plan with its increment's pending changes laid over, and each pending change written against an older record is a problem naming both entries", async () => {
+  const asked = [];
+  const library = { projectTree: async (options) => (asked.push(options), tree) };
+  assert.equal(await branchTree(library, "claude/increment-ca8ba53211b7-f8f424"), tree);
+  await branchTree(library, "claude/dazzling-jones-f96c61");
+  assert.deepEqual(asked, [{ pendingOf: "increment_ca8ba53211b7" }, { pendingOf: undefined }], "the branch's increment, or none");
+
+  assert.deepEqual(staleProblems("increment_ca8ba53211b7", []), []);
+  const [problem, ...rest] = staleProblems("increment_ca8ba53211b7", [
+    { record: "contract_aaaaaaaaaaaa", type: "contract", base: 41, moved: { seq: 57, action: "updated", at: "2026-10-11T01:00:00.000Z", actor: "session:other" } },
+  ]);
+  assert.deepEqual(rest, []);
+  assert.match(problem, /contract contract_aaaaaaaaaaaa/);
+  assert.match(problem, /history entry 41.*entry 57 \(updated 2026-10-11T01:00:00\.000Z by session:other\)/);
 });

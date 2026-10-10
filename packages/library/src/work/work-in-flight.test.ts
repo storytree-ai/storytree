@@ -365,7 +365,7 @@ for (const backend of [memory, postgres]) {
     await flight.advanceIncrement(increment.id, "active");
     await flight.pendChange(increment.id, { record: form.id, fields: { title: "Address form" } });
     await flight.pendChange(increment.id, { record: link.id, fields: { title: "Link" } });
-    await work.editCapability(form.id, { title: "Address form" }, { reason: `applied at the merge of PR #9 (${increment.id})` });
+    await records.edit(form.id, { title: "Address form" }, { reason: `applied at the merge of PR #9 (${increment.id})` });
 
     const closed = await flight.closeIncrement(increment.id, { pr: "#9", disposition: "landed" });
     assert.equal(closed?.fields.status, "closed");

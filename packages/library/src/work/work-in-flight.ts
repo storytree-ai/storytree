@@ -241,7 +241,7 @@ export class WorkInFlight {
       }
       const dropped = increment.fields.pending?.length ?? 0;
       const fields = { status: "closed" as const, outcome: outcomeOf(close), ...(dropped === 0 ? {} : { pending: undefined }) };
-      const write = dropped === 0 ? options : { ...options, reason: options?.reason ?? droppedReason(dropped, close.disposition) };
+      const write = dropped === 0 ? options : { ...options, reason: droppedReason(dropped, close.disposition) };
       const closed = (await this.#records.edit(id, fields, write)) as SchemaRecord<"increment"> | null;
       await this.#clearAfter(async () => {
         if (close.disposition === "landed") await waits.clearWaitsOn(this.#records, "increment", id, `its blocker ${id} landed, so the wait on it is cleared`, options);

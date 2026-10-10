@@ -114,9 +114,6 @@ importers:
       '@storytree/library':
         specifier: workspace:*
         version: link:../library
-      '@storytree/map':
-        specifier: workspace:*
-        version: link:../map
       '@storytree/processes':
         specifier: workspace:*
         version: link:../processes
@@ -203,6 +200,9 @@ importers:
       '@storytree/local-postgres':
         specifier: workspace:*
         version: link:../local-postgres
+      '@storytree/map':
+        specifier: workspace:*
+        version: link:../map
       '@storytree/processes':
         specifier: workspace:*
         version: link:../processes

@@ -8,14 +8,15 @@
  *
  * Only a file's own declaration places it here (an opening "Capability N · <title>", or a test file's
  * one numbered capability): the code survey's inference is too slow for a hook the harness waits on,
- * and too often wrong to stop work on. A file that declares nothing is never refused; the landing
- * check at gate and CI reads the branch's whole change. A session that holds no increment is refused
- * only what another holds: there is no list to read.
+ * and too often wrong to stop work on. That rule is the map's, so the gate is given it as a lookup by
+ * whoever runs it (the app setup's hook command, ADR-0969) and never imports the map itself. A file that
+ * declares nothing is never refused; the landing check at gate and CI reads the branch's whole change. A
+ * session that holds no increment is refused only what another holds: there is no list to read.
  */
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-import type { Library, SchemaRecord } from "@storytree/library";
+import type { AnnotatedTree, Library, SchemaRecord } from "@storytree/library";
 
 import { readClaims, type Claim, type ClaimContext } from "./claims.js";
 
@@ -25,20 +26,27 @@ export interface EditedFile {
   readonly text?: string;
 }
 
+/**
+ * The capability each of `files` (repo-relative to `checkout`, forward slashes) declares of `tree`'s, by
+ * its own declaration alone, keyed by file; a file that declares none is left out. `readText` gives a
+ * file's text, the edit's own when the tool gave it.
+ */
+export type DeclaredCapabilities = (checkout: string, files: readonly string[], tree: AnnotatedTree, readText: (file: string) => string) => Promise<ReadonlyMap<string, string>>;
+
 export type EditRefusal =
   | { readonly refused: "unlisted"; readonly capability: string; readonly title: string; readonly file: string; readonly increment: string; readonly listed: readonly string[] }
   | { readonly refused: "held"; readonly capability: string; readonly title: string; readonly file: string; readonly holder: Claim; readonly on?: string };
 
 /**
  * Why the context's session may not edit `files` in the checkout at `checkout` now, or undefined when
- * it may. A refusal because another live session holds the capability writes a claim-refused line, so
+ * it may; `declared` places each file in its capability. A refusal because another live session holds the capability writes a claim-refused line, so
  * the activity log shows who was turned away and by whom.
  */
-export async function editRefusal(context: Pick<ClaimContext, "log" | "library" | "project" | "session" | "harness" | "folder" | "quietMs" | "restarted">, checkout: string, files: readonly EditedFile[]): Promise<EditRefusal | undefined> {
+export async function editRefusal(context: Pick<ClaimContext, "log" | "library" | "project" | "session" | "harness" | "folder" | "quietMs" | "restarted">, checkout: string, files: readonly EditedFile[], declared: DeclaredCapabilities): Promise<EditRefusal | undefined> {
   const placed = files.map((file) => ({ ...file, relative: path.relative(checkout, path.resolve(checkout, file.path)).split(path.sep).join("/") }))
     .filter(({ relative }) => relative.startsWith("packages/") || relative.startsWith("apps/desktop/"));
   if (placed.length === 0) return undefined;
-  const owners = await declaredOwners(context.library, checkout, placed);
+  const owners = await declaredOwners(context.library, checkout, placed, declared);
   if (owners.length === 0) return undefined;
 
   const claims = await readClaims(context.log, context.project, {
@@ -82,18 +90,14 @@ export function refusalMessage(refusal: EditRefusal): string {
 }
 
 /** The capability each of `files` declares, in the plan's stories, in order; a file that declares none is left out. */
-async function declaredOwners(library: Library, checkout: string, files: readonly (EditedFile & { relative: string })[]): Promise<{ capability: string; title: string; file: string }[]> {
-  const [{ capabilitiesOfFiles }, tree] = await Promise.all([import("@storytree/map/code-survey"), library.projectTree()]);
+async function declaredOwners(library: Library, checkout: string, files: readonly (EditedFile & { relative: string })[], declared: DeclaredCapabilities): Promise<{ capability: string; title: string; file: string }[]> {
+  const tree = await library.projectTree();
   const texts = new Map(files.map((file) => [file.relative, file.text] as const));
-  // The map's shared lookup, its declared half only: the survey's inference is never read here.
-  const placed = await capabilitiesOfFiles(checkout, [...texts.keys()], tree, {
-    readText: (file) => texts.get(file) ?? readFileSync(path.join(checkout, file), "utf8"),
-    survey: async () => ({}),
-  });
+  const placed = await declared(checkout, [...texts.keys()], tree, (file) => texts.get(file) ?? readFileSync(path.join(checkout, file), "utf8"));
   const titles = new Map(tree.stories.flatMap((story) => story.capabilities.map(({ id, title }) => [id, title] as const)));
   const owners: { capability: string; title: string; file: string }[] = [];
-  for (const [file, { capability, inferred }] of placed) {
-    if (!inferred && !owners.some((owner) => owner.capability === capability)) owners.push({ capability, title: titles.get(capability)!, file });
+  for (const [file, capability] of placed) {
+    if (!owners.some((owner) => owner.capability === capability)) owners.push({ capability, title: titles.get(capability)!, file });
   }
   return owners;
 }

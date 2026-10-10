@@ -12,30 +12,41 @@
  * leaves running, detached and with nothing of the harness's open, and exits at once. The look around
  * the machine a hook hands on, once a minute, goes the same way, to a copy run with `--upkeep` that
  * may run for UPKEEP_DEADLINE_MS.
+ *
+ * This module runs nothing by itself: an entry point calls hookCommand(), giving it what this story may not
+ * import. The command setup registers is the app setup story's (packages/app-setup/src/bins/storytree-hook.ts),
+ * which gives the gate before each edit the map's file-to-capability lookup; this story's own tests build
+ * testing/storytree-hook.ts.
  */
 import { spawn } from "node:child_process";
 
+import type { DeclaredCapabilities } from "../claims/edit-gate.js";
 import { DEADLINE_MS, runHook, statusLine, UPKEEP, UPKEEP_DEADLINE_MS } from "../hooks/index.js";
 
-setTimeout(() => process.exit(0), process.argv.includes(UPKEEP) ? UPKEEP_DEADLINE_MS : DEADLINE_MS).unref();
-process.on("uncaughtException", () => process.exit(0));
-process.on("unhandledRejection", () => process.exit(0));
+export type { DeclaredCapabilities };
 
-let input = "";
-process.stdin.setEncoding("utf8");
-process.stdin.on("data", (chunk: string) => (input += chunk));
-process.stdin.on("error", () => process.exit(0));
-process.stdin.on("end", () => {
-  // `storytree-hook statusline`: Claude Code's status line (hooks/status-line.ts), printed with no newline.
-  if (process.argv[2] === "statusline") {
-    void statusLine(input).then((line) => process.stdout.write(line, () => process.exit(0)));
-    return;
-  }
-  runHook({ argv: process.argv.slice(2), input, handOff }).then(
-    (added) => (added === undefined ? process.exit(0) : process.stdout.write(added, () => process.exit(0))),
-    () => process.exit(0),
-  );
-});
+/** Run the hook command for this process: its harness and flags in argv, the hook's input on stdin. */
+export function hookCommand({ declaredCapabilities }: { declaredCapabilities?: DeclaredCapabilities } = {}): void {
+  setTimeout(() => process.exit(0), process.argv.includes(UPKEEP) ? UPKEEP_DEADLINE_MS : DEADLINE_MS).unref();
+  process.on("uncaughtException", () => process.exit(0));
+  process.on("unhandledRejection", () => process.exit(0));
+
+  let input = "";
+  process.stdin.setEncoding("utf8");
+  process.stdin.on("data", (chunk: string) => (input += chunk));
+  process.stdin.on("error", () => process.exit(0));
+  process.stdin.on("end", () => {
+    // `storytree-hook statusline`: Claude Code's status line (hooks/status-line.ts), printed with no newline.
+    if (process.argv[2] === "statusline") {
+      void statusLine(input).then((line) => process.stdout.write(line, () => process.exit(0)));
+      return;
+    }
+    runHook({ argv: process.argv.slice(2), input, handOff, ...(declaredCapabilities === undefined ? {} : { declaredCapabilities }) }).then(
+      (added) => (added === undefined ? process.exit(0) : process.stdout.write(added, () => process.exit(0))),
+      () => process.exit(0),
+    );
+  });
+}
 
 /** Start this script again for `harness` with `flags`, detached, with `input` on its stdin, and resolve once it has the input. */
 function handOff(harness: string, input: string, flags: readonly string[] = []): Promise<void> {

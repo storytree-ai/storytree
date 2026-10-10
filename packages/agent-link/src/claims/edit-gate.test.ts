@@ -10,6 +10,7 @@ import { test } from "node:test";
 import { connect } from "@storytree/library";
 
 import { openActivityLog } from "../activity/index.js";
+import { declaredInTests } from "../testing/declared.js";
 import { withTempDir } from "../testing/folders.js";
 import { dropTestProjects, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { claim, closed, release } from "./claims.js";
@@ -33,7 +34,7 @@ test("5.31 an edit tool aimed at a capability its session's claimed increment do
       writeFileSync(path.join(src, "reset.ts"), "/**\n * Capability 2 · Password reset: the link.\n */\nexport const reset = 1;\n");
       writeFileSync(path.join(src, "notes.ts"), "export const notes = 1;\n");
       const as = (session: string) => ({ log, library, project, session, harness: "claude-code", folder: checkout });
-      const gate = (session: string, file: string, text?: string) => editRefusal(as(session), checkout, [{ path: path.join(src, file), ...(text === undefined ? {} : { text }) }]);
+      const gate = (session: string, file: string, text?: string) => editRefusal(as(session), checkout, [{ path: path.join(src, file), ...(text === undefined ? {} : { text }) }], declaredInTests);
 
       const mine = await park("email form", [form]);
       assert.equal((await claim(as("A"), mine, "driving the email form")).ok, true);
@@ -43,6 +44,9 @@ test("5.31 an edit tool aimed at a capability its session's claimed increment do
       assert.deepEqual(unlisted && { ...unlisted }, { refused: "unlisted", capability: reset, title: "2 · Password reset", file: "packages/visitor-can-sign-up/src/reset.ts", increment: mine, listed: [form] });
       assert.match(refusalMessage(unlisted!), new RegExp(`storytree arc increment edit ${mine} --capabilities ${form},${reset}`));
       assert.equal((await gate("A", "new.ts", "/**\n * Capability 2 · Password reset\n */\n"))?.refused, "unlisted", "a new file is read from the text the tool will write");
+      const placedBy = (lookup: Map<string, string>) => async () => lookup;
+      assert.equal(await editRefusal(as("A"), checkout, [{ path: path.join(src, "reset.ts") }], placedBy(new Map())), undefined, "a file is placed only by the lookup the gate is given");
+      assert.equal((await editRefusal(as("A"), checkout, [{ path: path.join(src, "notes.ts") }], placedBy(new Map([["packages/visitor-can-sign-up/src/notes.ts", reset]]))))?.refused, "unlisted", "whatever the file's text says");
 
       const theirs = await park("password reset", [reset]);
       assert.equal((await claim(as("B"), theirs, "driving the reset")).ok, true);

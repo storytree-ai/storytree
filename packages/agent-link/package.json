@@ -6,6 +6,7 @@
     ".": "./src/index.ts",
     "./readings": "./src/readings.ts",
     "./verbs": "./src/sessions/verbs.ts",
+    "./hook-command": "./src/bins/storytree-hook.ts",
     "./routing": "./src/routing/index.ts",
     "./settings": "./src/settings/panel.ts",
     "./testing/egress": "./src/testing/egress.ts",
@@ -18,7 +19,6 @@
   },
   "dependencies": {
     "@storytree/library": "workspace:*",
-    "@storytree/map": "workspace:*",
     "pg": "^8.23.0",
     "zod": "^4.6.5",
     "@storytree/processes": "workspace:*"

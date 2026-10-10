@@ -1,6 +1,7 @@
 /**
- * The hook command built as a harness runs it, for the agent link's own tests: one plain Node script bundled from
- * bins/storytree-hook.ts. The release build of every command, this one included, is the app setup story's
+ * The hook command built as a harness runs it, for the agent link's own tests: one plain Node script that runs
+ * bins/storytree-hook.ts's hookCommand() with testing/declared.ts's stand-in for the map's file-to-capability
+ * lookup, which this story may not import. The release build of every command, this one included, is the app setup story's
  * buildBins (packages/app-setup/src/bins/build.ts, ADR-0969 D3), which this package may not import; the options
  * that shape how fast a hook starts (split chunks, pg's require banner) are kept the same here.
  */
@@ -9,12 +10,15 @@ import { fileURLToPath } from "node:url";
 
 import { build } from "esbuild";
 
-const ENTRY = fileURLToPath(new URL("../bins/storytree-hook.ts", import.meta.url));
+const here = path.dirname(fileURLToPath(import.meta.url));
+
+/** The command's entry, with no file of its own: what it runs is the agent link's, and only its tests run it so. */
+const ENTRY = 'import { hookCommand } from "../bins/storytree-hook.ts";\nimport { declaredInTests } from "./declared.ts";\n\nhookCommand({ declaredCapabilities: declaredInTests });\n';
 
 /** Build the hook command into `outdir`, and return its path. */
 export async function buildHook(outdir: string): Promise<string> {
   await build({
-    entryPoints: { "storytree-hook": ENTRY },
+    stdin: { contents: ENTRY, resolveDir: here, sourcefile: "storytree-hook.ts", loader: "ts" },
     outdir,
     outExtension: { ".js": ".mjs" },
     bundle: true,

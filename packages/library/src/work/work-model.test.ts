@@ -522,10 +522,21 @@ for (const backend of [memory, postgres]) {
     const story = await work.addStory({ title: "Visitor can sign up" });
     const form = await work.addCapability({ title: "3 · Email form", story: story.id });
     await work.addContract({ title: "Rejects a bad email", capability: form.id });
-    const tested = { testedNumbers: ["3.1", "3.4", "7.9"] };
+    const tested = { testedNumbers: ["3.1", "3.2", "3.4", "7.9"] };
     assert.equal((await work.addContract({ title: "Trims spaces", capability: form.id }, tested)).fields.title, "3.5 · Trims spaces", "past the highest a test carries");
     assert.equal((await work.addContract({ title: "3.4 · Accepts a plus address", capability: form.id }, tested)).fields.title, "3.4 · Accepts a plus address", "a landed test's own number is kept");
     assert.equal((await work.addContract({ title: "Lowercases the domain", capability: form.id })).fields.title, "3.6 · Lowercases the domain", "with no tests named, the plan alone numbers");
+  });
+
+  contract("4.11", "a contract planned without a number takes the number of the one numbered test of the capability no live contract carries, so a red test's contract gets the test's own number", async ({ work }) => {
+    const story = await work.addStory({ title: "Visitor can sign up" });
+    const form = await work.addCapability({ title: "3 · Email form", story: story.id });
+    await work.addContract({ title: "Rejects a bad email", capability: form.id });
+    await work.addContract({ title: "Accepts a plus address", capability: form.id });
+    const red = { testedNumbers: ["3.1", "3.2", "3.3", "7.9"] };
+    assert.equal((await work.addContract({ title: "Trims spaces", capability: form.id }, red)).fields.title, "3.3 · Trims spaces", "the red test's own number");
+    const proven = { testedNumbers: ["3.1", "3.2", "3.3"] };
+    assert.equal((await work.addContract({ title: "Lowercases the domain", capability: form.id }, proven)).fields.title, "3.4 · Lowercases the domain", "every test claimed: the next free number");
   });
 }
 

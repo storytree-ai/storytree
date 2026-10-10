@@ -3,16 +3,15 @@
 // Run both through `node "<checkout>/packages/dev-loop/src/heavy-lock.mjs" --` (absolute checkout path). --smoke builds its own page
 // into dist/smoke, takes no pictures and skips the fixed rests, so a test proves every wait below still resolves in a real browser.
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildCapture, fakeBridge, withCapture } from '../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
+import { buildCapture, captureSeed, fakeBridge, seedFile, withCapture } from '../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const smoke = process.argv.includes('--smoke');
 const dist = smoke ? path.join(here, 'dist/smoke') : path.join(here, '../sessions-list/dist/production');
 if (smoke) await buildCapture({ dist });
-const seed = JSON.parse(readFileSync(path.join(here, '../../src/view/evidence/library-dots-clickable/seed.json'), 'utf8'));
+const { seed } = captureSeed('forest');
 const forest = seed.tree.stories.find(story => story.title === 'The forest');
 const ids = { builder: 'rowdetail-builder', helper: 'rowdetail-helper', quiet: 'rowdetail-quiet' };
 const now = Date.now();
@@ -30,11 +29,12 @@ line(ids.builder, 2, { kind: 'file-edited', files: ['a.ts'], folder: trees[2] })
 line(ids.builder, 30, { kind: 'subagent-started', subagent: ids.helper, type: 'explorer', task: 'Find the window reading' });
 line(ids.quiet, 6, { kind: 'session-started', harness: 'codex', folder: `${home}/.claude/worktrees/tidy-readme` });
 seed.lines = { lines, cursor: lines.length };
+// The window's files, named by the seed's story titles so a package rename cannot desync them.
 const opened = [
-  ['packages/forest/src/view/sessions-list.tsx', true], ['packages/agent-link/src/context/window.ts', false],
-  ['packages/forest/src/sessions-list/sessions-list.ts', true], ['packages/app/src/surfaces/reads.ts', true],
-  ['packages/forest/src/view/styles.css', true],
-].map(([id, resident]) => ({ kind: 'file', id, call: id, tool: 'Read', resident, inViewFrom: [] }));
+  ['The forest', 'src/view/sessions-list.tsx', true], ['The agent link', 'src/context/window.ts', false],
+  ['The forest', 'src/sessions-list/sessions-list.ts', true], ['The app', 'src/surfaces/reads.ts', true],
+  ['The forest', 'src/view/styles.css', true],
+].map(([story, file, resident]) => [seedFile(seed, story, file), resident]).map(([id, resident]) => ({ kind: 'file', id, call: id, tool: 'Read', resident, inViewFrom: [] }));
 seed.window = { session: ids.builder, at: new Date(now).toISOString(), inView: [], compactions: 1, opens: opened };
 seed.tree.arcs = [];
 

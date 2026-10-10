@@ -6,39 +6,36 @@
 // proves every wait below still resolves in a real browser). Counts, from the scene, every lit note, trail and file circle by colour, and every claimed
 // territory, so "no traversal with none selected" and "who holds what unchanged" are measured, not looked at.
 import assert from 'node:assert/strict';
-import { readFileSync, writeFileSync } from 'node:fs';
-import { gunzipSync } from 'node:zlib';
+import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { captureOutput, runCapture } from '../../../../apps/desktop/src/capture/index.ts';
+import { captureOutput, captureSeed, runCapture, seedFile } from '../../../../apps/desktop/src/capture/index.ts';
 import { sessionColour } from '../../../forest/src/agent-claims/agent-claims.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const label = process.argv[2];
 const smoke = process.argv.includes('--smoke');
 assert.ok(['before', 'after'].includes(label), 'pass a before/after build label');
-const rows = path.join(here, '../../../forest/src/view/evidence/code-rows');
-const seed = JSON.parse(gunzipSync(readFileSync(path.join(rows, 'seed.json.gz'))).toString('utf8'));
-const survey = JSON.parse(readFileSync(path.join(rows, 'survey.json'), 'utf8'));
+const { seed, survey } = captureSeed('code-rows');
 
 // Every session worked in the last few minutes before the capture runs, so none is idle.
 const NOW = Date.now();
 const CHECKOUT = '/repo';
-// The paths are the seed's: its snapshot of the library predates the agent link's rename to Session management.
+// Each session opens a file of one story's package, named by the seed's story title so a package rename cannot desync it.
 const SESSIONS = {
-  builder: { minutes: 2, reason: 'Build the window replay', capability: 'capability_062b84e5c6b0', file: 'packages/knowledge-core/src/look-inside/look-inside.ts' },
-  reviewer: { minutes: 3, reason: 'Review the sessions list', capability: null, file: 'packages/forest/src/sessions-list/sessions-list.ts' },
-  curator: { minutes: 4, reason: 'Curate the decision log', capability: null, file: 'packages/library/src/api/library.ts' },
-  scout: { minutes: 5, reason: 'Survey the agent link', capability: null, file: 'packages/agent-link/src/activity/activity-log.ts' },
-  'lane-north': { minutes: 6, reason: 'Port the command line', capability: null, file: 'packages/cli/src/args.ts' },
+  builder: { minutes: 2, reason: 'Build the window replay', capability: 'capability_062b84e5c6b0', story: 'The knowledge core', path: 'src/look-inside/look-inside.ts' },
+  reviewer: { minutes: 3, reason: 'Review the sessions list', capability: null, story: 'The forest', path: 'src/sessions-list/sessions-list.ts' },
+  curator: { minutes: 4, reason: 'Curate the decision log', capability: null, story: 'The library', path: 'src/api/library.ts' },
+  scout: { minutes: 5, reason: 'Survey the agent link', capability: null, story: 'The agent link', path: 'src/activity/activity-log.ts' },
+  'lane-north': { minutes: 6, reason: 'Port the command line', capability: null, story: 'The command line', path: 'src/args.ts' },
 };
 const SELECTED = 'scout';
 const ids = Object.keys(SESSIONS);
+const storyId = title => seed.tree.stories.find(story => story.title === title).id;
 // Each session holds a capability of the story whose file it opens, so the claimed territories show beside the traversal.
-const storyOfPackage = { 'knowledge-core': 'story_d754d997f22a', forest: 'story_deee4230348c', library: 'story_754e87e7d531', 'agent-link': 'story_609c3b171b3f', cli: 'story_f9fb5136c28f' };
 for (const one of Object.values(SESSIONS)) {
-  const [, pkg, rest] = /^packages\/([^/]+)\/(.+)$/.exec(one.file);
-  const file = survey[storyOfPackage[pkg]].files.find(f => f.path === rest);
+  one.file = seedFile(seed, one.story, one.path);
+  const file = survey[storyId(one.story)].files.find(f => f.path === one.path);
   assert.ok(file, `${one.file} is surveyed`);
   one.capability ??= file.capability;
 }
@@ -120,7 +117,7 @@ await runCapture({
       // (slow in software GL on a busy Windows runner). The click waits until that highlight is drawn, so its press and release
       // do not queue behind the compile (a click timed out there, PR #764's Windows run).
       await row.hover();
-      await page.waitForFunction(story => !!window.__globe.scene.getObjectByName(`session-highlight:${story}`), storyOfPackage['agent-link'], { timeout: 30000 });
+      await page.waitForFunction(story => !!window.__globe.scene.getObjectByName(`session-highlight:${story}`), storyId(SESSIONS[SELECTED].story), { timeout: 30000 });
       await settle(page);
       await row.click();
       await page.waitForFunction(([want, hsl]) => {

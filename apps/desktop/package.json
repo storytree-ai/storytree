@@ -25,6 +25,7 @@
     "@storytree/knowledge-core": "workspace:*",
     "@storytree/library": "workspace:*",
     "@storytree/local-postgres": "workspace:*",
+    "@storytree/map": "workspace:*",
     "@types/node": "^24.13.6",
     "@workos-inc/node": "^10.4.0",
     "@workos/authkit-electron": "0.1.2",

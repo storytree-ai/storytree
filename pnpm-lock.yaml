@@ -75,6 +75,9 @@ importers:
       '@storytree/local-postgres':
         specifier: workspace:*
         version: link:../../packages/local-postgres
+      '@storytree/map':
+        specifier: workspace:*
+        version: link:../../packages/map
       '@storytree/session-management':
         specifier: workspace:*
         version: link:../../packages/session-management

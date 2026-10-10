@@ -9,13 +9,13 @@ import { createServer } from 'node:http';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { captureOutput, fakeBridge, launch } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
+import { captureOutput, captureSeed, fakeBridge, launch, seedFile } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const out = captureOutput(here); // pictures and measurements: a scratch folder unless run with --retake
 const root = path.resolve(here, '../../../..');
 const built = path.join(root, 'packages/forest/evidence/sessions-list/dist/production');
-const seed = JSON.parse(readFileSync(path.join(root, 'packages/forest/src/view/evidence/library-dots-clickable/seed.json'), 'utf8'));
+const { seed } = captureSeed('forest');
 const forest = seed.tree.stories.find(item => item.title === 'The forest');
 const records = new Map(seed.changes.changes.map(change => [change.recordId, change.record]));
 const covers = [...new Set(seed.changes.changes.filter(change => change.record.fields?.frontCoverOf).map(change => change.recordId))].sort();
@@ -42,7 +42,7 @@ const reading = {
   opens: [
     open(old, 'c0', false),
     open(hub, 'c1'),
-    { kind: 'file', id: 'packages/agent-link/src/claims/merges.ts', call: 'f1', tool: 'Read', resident: true },
+    { kind: 'file', id: seedFile(seed, 'The agent link', 'src/claims/merges.ts'), call: 'f1', tool: 'Read', resident: true },
     open(next, 'c2'),
     open(jump, 'c3'),
     open(later, 'c4'),

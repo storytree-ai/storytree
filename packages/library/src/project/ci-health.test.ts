@@ -114,3 +114,39 @@ for (const source of GRANTS_FILES) test(`8.4 CI's health account (${source}/gran
     await dropTestRoles([ci, owner, creator]);
   }
 });
+
+for (const source of GRANTS_FILES) test(`8.4 Granted (${source}/grants.sql) before the floor is set, CI's health at the floor's id neither sets nor blocks it`, async () => {
+  const run = uniqueProjectName();
+  const [owner, ci, creator] = [`${run}-owner@storytree.test`, `${run}-ci-health@storytree.test`, `${run}-creator`];
+  const database = `storytree_${run}`;
+  const opened: { close(): Promise<void> }[] = [];
+  try {
+    await createTestRole(owner, { createdb: false });
+    await createTestRole(ci, { createdb: false });
+    await createTestRole(creator, { createdb: true, login: false });
+    await withTestClient((client) => client.query(`GRANT "${creator}" TO "${owner}"`));
+    const ownerProjects = await connectProjects({ url: as(owner) });
+    opened.push(ownerProjects);
+    const ownerProject = await ownerProjects.openProject(run);
+    const decisions = new Knowledge(ownerProject.records, "storytree");
+    const grants = readFileSync(new URL(`../../../../infra/${source}/grants.sql`, import.meta.url), "utf8")
+      .replaceAll("storytree_storytree", database).replaceAll("storytree-ci-health@storytree-498613.iam", ci);
+    await withTestClientAs(owner, (client) => client.query(grants), database);
+
+    // The health role's own SQL rights, at the floor's id, before the owner has set it.
+    const forged = { id: "project-decision-number-floor", type: "health", version: 1, fields: { floor: 900000 } };
+    await withTestClientAs(ci, (client) => client.query(
+      "INSERT INTO record_event (record_id, type, action, record) VALUES ($1, 'health', 'created', $2::jsonb)",
+      [forged.id, JSON.stringify(forged)],
+    ), database);
+    await assert.rejects(decisions.recordDecision({ title: "Use a queue", text: "Jobs wait.", status: "accepted" }), /floor is unset/, "health history is no floor");
+
+    assert.equal(await decisions.setDecisionNumberFloor(662, { apply: true }), 662, "health history does not block the owner's floor");
+    await assert.rejects(decisions.setDecisionNumberFloor(700, { apply: true }), /already set to 662/);
+    assert.equal((await decisions.recordDecision({ title: "Use a queue", text: "Jobs wait.", status: "accepted" })).fields.number, 663);
+  } finally {
+    await Promise.allSettled(opened.map((storytree) => storytree.close()));
+    await dropTestDatabases([database]);
+    await dropTestRoles([ci, owner, creator]);
+  }
+});

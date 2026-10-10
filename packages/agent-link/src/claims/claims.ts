@@ -16,6 +16,7 @@
  * - A session may hold more than one capability. Its edits count toward the one it claimed most
  *   recently of those it still holds; an edit or command from a session holding nothing is
  *   unplanned activity.
+ * - Every way a claim ends, and what that does to its increment, is claims/endings.ts's; in brief:
  * - An increment's claim also ends when the increment is closed through storytree: a "closed" line.
  *   Closing or releasing an increment also ends every capability claim taken while it was held, which
  *   their claimed lines name as `under`, whoever closes it and whatever the disposition (ADR-0944 D5, ADR-0949 D4).
@@ -35,6 +36,7 @@ import type { Hold, Holds, IncrementStatus, Library, SchemaRecord, WriteOptions 
 import { thisMachine, type ActivityLog, type Line } from "../activity/index.js";
 import { attributeFrom, CLAIM_KINDS, claimOf, holdersOf, LogFold, LONGEST_COMMAND_MS, partOf, type Attributed, type Claim, type ClaimsOptions, type Part, type Restart } from "../readings.js";
 import { idleAfterMs } from "../settings/settings.js";
+import { endClaim } from "./endings.js";
 
 export { attributeFrom, claimFrom, claimsFrom } from "../readings.js";
 export type { Attributed, Claim, ClaimsOptions } from "../readings.js";
@@ -211,8 +213,7 @@ export async function release(context: ClaimContext, id: string): Promise<Releas
   return context.log.locked(context.project, async (log) => {
     const current = (await heldNow(log, context)).get(id);
     if (current?.session !== context.session) return current === undefined ? { ok: false, refused: "not-held" } : { ok: false, refused: "not-held", holder: current };
-    const returned = await returnUnclosed(context, current.increment);
-    await log.append({ ...who(context), kind: "released", ...partOf(current) });
+    const { returned } = await endClaim(log, who(context), partOf(current), { by: "holder" }, context);
     return returned ? { ok: true, returned } : { ok: true };
   });
 }
@@ -228,29 +229,13 @@ export async function releaseAsked(context: ClaimContext, increment: string): Pr
     const standing = await heldNow(log, context);
     if (standing.get(increment)?.session !== context.session) return [];
     const taken = [...standing.values()].filter((claim) => claim.session === context.session && claim.under === increment);
-    await returnUnclosed(context, increment);
     const released: string[] = [];
     for (const claim of [standing.get(increment)!, ...taken]) {
-      await log.append({ ...who(context), kind: "released", ...partOf(claim) });
+      await endClaim(log, who(context), partOf(claim), { by: "holder" }, context);
       released.push(claim.increment ?? claim.capability!);
     }
     return released;
   });
-}
-
-/**
- * An increment whose last claim ends without closing it is nobody's work in progress: when it is
- * active, it is a proposal again (5.29), through the library's own `returnIncrement`. Called under
- * the activity log's lock before the "released" line, as a claim's activation is before its
- * "claimed" line, so no claim can start it in between, and a library refusal writes nothing.
- * Whether it was returned.
- */
-export async function returnUnclosed(context: Pick<ClaimContext, "library" | "writer" | "session">, increment: string | undefined): Promise<true | undefined> {
-  if (increment === undefined) return undefined;
-  const work = await context.library.get(increment);
-  if (work?.type !== "increment" || (work.fields as { status: IncrementStatus }).status !== "active") return undefined;
-  await context.library.returnIncrement(increment, { ...context.writer, actor: `session:${context.session}` });
-  return true;
 }
 
 /**
@@ -264,8 +249,7 @@ export async function releaseFor(context: ClaimContext, id: string, holder: stri
     const current = (await heldNow(log, context)).get(id);
     if (current?.session !== holder) return current === undefined ? { ok: false, refused: "not-held" } : { ok: false, refused: "not-held", holder: current };
     if (current.holder === "live") return { ok: false, refused: "live", holder: current };
-    const returned = await returnUnclosed(context, current.increment);
-    await log.append({ ...who(context), kind: "released", ...partOf(current), holder, reason });
+    const { returned } = await endClaim(log, who(context), partOf(current), { by: "manager", holder, reason }, context);
     return returned ? { ok: true, returned } : { ok: true };
   });
 }
@@ -279,7 +263,7 @@ export async function land(context: ClaimContext, capability: string): Promise<L
   return context.log.locked(context.project, async (log) => {
     const current = (await heldNow(log, context)).get(capability);
     if (current !== undefined && current.session !== context.session) return { ok: false, refused: "held", holder: current };
-    return { ok: true, line: await log.append({ ...who(context), kind: "landed", capability }) };
+    return { ok: true, line: (await endClaim(log, who(context), { capability }, { by: "landing" })).line };
   });
 }
 
@@ -288,7 +272,7 @@ export async function land(context: ClaimContext, capability: string): Promise<L
  * claim on it, whoever holds it. The library's own close is the caller's, done first.
  */
 export async function closed(context: ClaimContext, increment: string, disposition: "landed" | "failed" | "withdrawn"): Promise<Line> {
-  return context.log.locked(context.project, (log) => log.append({ ...who(context), kind: "closed", increment, disposition }));
+  return context.log.locked(context.project, async (log) => (await endClaim(log, who(context), { increment }, { by: "close", disposition })).line);
 }
 
 /** Who holds what in `project`'s log, read from the standing claims and their holders' latest lines alone (contract 2.7). */

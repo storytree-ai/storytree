@@ -9,11 +9,13 @@ import type { AnnotatedTree } from "@storytree/library";
 
 import type { StorySurvey } from "@storytree/map";
 
+import type { ForestBridge } from "./page.js";
+
 /** The live reading's two reads and the project's tree: `window.storytree`'s. */
 export interface ForestReads extends LiveReads {
   projectTree(project: string): Promise<AnnotatedTree>;
-  /** Each story's code survey, by story id. A host that cannot read the code has none, and the islands have no territories. */
-  codeSurvey?(project: string): Promise<Readonly<Record<string, StorySurvey>>>;
+  /** A host that cannot read the code has no code survey, and the islands have no territories. */
+  codeSurvey?: ForestBridge["codeSurvey"];
 }
 
 export interface ForestReadingOptions {

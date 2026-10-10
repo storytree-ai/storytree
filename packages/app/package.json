@@ -4,8 +4,11 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./lifecycle/bridge": "./src/lifecycle/bridge.ts",
     "./projects": "./src/projects/follow.ts",
+    "./projects/bridge": "./src/projects/bridge.ts",
     "./surfaces": "./src/surfaces/bridge.ts",
+    "./updates/bridge": "./src/updates/bridge.ts",
     "./version": "./src/updates/version.ts",
     "./view": "./src/view/index.ts"
   },

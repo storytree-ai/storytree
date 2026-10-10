@@ -11,39 +11,18 @@
  */
 import path from "node:path";
 
-import { idleAfterMs, leaveAfterMs, lookAsApp, projectFolder, openActivityLog, pruneTranscripts, standingDelegations, storedContextReading, storedSessionWindow, TranscriptCache, type ActivityLog, type ContextReading, type LinesSince, type SessionWindow } from "@storytree/agent-link";
-import type { AnnotatedTree, ArcView, Holds, Changes, Library, Note, SchemaRecord, Storytree } from "@storytree/library";
+import { idleAfterMs, leaveAfterMs, lookAsApp, projectFolder, openActivityLog, pruneTranscripts, standingDelegations, storedContextReading, storedSessionWindow, TranscriptCache, type ActivityLog } from "@storytree/agent-link";
+import type { Library, Storytree } from "@storytree/library";
 
-/** The page's reads, as the app answers them. */
-export interface PageReads {
+import type { PageReadsBridge } from "./bridge.js";
+
+/** Each of a bridge's methods as the app answers it: given the page's arguments unchecked, since they arrive untrusted. */
+type Answers<Bridge> = { [Method in keyof Bridge]: Bridge[Method] extends (...args: infer Args) => infer Answer ? (...args: { [At in keyof Args]: unknown }) => Answer : never };
+
+/** The page's reads (bridge.ts's PageReadsBridge, on its channels), as the app answers them, and what the app itself asks of them. */
+export interface PageReads extends Answers<PageReadsBridge> {
   /** The names of the projects in the app's library, sorted. */
   listProjects(): Promise<string[]>;
-  /** A project's tree, with every node's health. */
-  projectTree(project: unknown): Promise<AnnotatedTree>;
-  /** The library's changes to a project after `cursor` (0 for all), and the cursor to pass next time. */
-  changesSince(project: unknown, cursor: unknown): Promise<Changes>;
-  /** The agent activity log's lines for a project after `cursor` (0 for all), and the cursor to pass next time. */
-  linesSince(project: unknown, cursor: unknown): Promise<LinesSince>;
-  /** A story's or capability's shelf of front covers in a project, founding book first. */
-  frontCovers(project: unknown, nodeId: unknown): Promise<SchemaRecord<"decision">[]>;
-  /** The notes in a project that link to a note. */
-  relatedNotes(project: unknown, noteId: unknown): Promise<Note[]>;
-  /** A project's standing delegations (agent link 7.6): the definition "Standing delegation"'s meaning, or none when its library has none. */
-  standingDelegations(project: unknown): Promise<string | undefined>;
-  /** Every live arc's view in a project, in one read (library 7.8): what the sessions list builds its rows from. */
-  arcViews(project: unknown): Promise<ArcView[]>;
-  /** Every hold on a project's live work, wait and owner, in one reading. */
-  holds(project: unknown): Promise<Holds>;
-  /** Each named session's context reading in a project (agent link 9.5), parsed now from the transcript records its hooks streamed into the shared log (ADR-0749 D3), in the order asked. */
-  contextReadings(project: unknown, sessions: unknown): Promise<ContextReading[]>;
-  /** The user's idle-after setting in milliseconds (agent link 10), read now: how long a session may be quiet before the list shows it idle. */
-  idleAfterMs(): Promise<number>;
-  /** The user's leave-after setting in milliseconds (agent link 10), read now: how long a quiet session with no unmerged work stays listed. */
-  leaveAfterMs(): Promise<number>;
-  /** A session's window in a project (agent link 9.10), parsed now from the transcript records in the shared log. */
-  windowReading(project: unknown, session: unknown): Promise<SessionWindow>;
-  /** Several sessions' windows in one ask, in the order asked: the log is read once for all of them, not once each. */
-  windowReadings(project: unknown, sessions: unknown): Promise<SessionWindow[]>;
   /** The latest folder a session of the project worked in on this machine, still there: where its code can be read. */
   projectFolder(project: unknown): Promise<string | undefined>;
   /** The app's own look at every project's branches (agent link 4.21), so the sessions list never waits on a hook's. Never throws, never blocks the process, and never runs twice at once. */

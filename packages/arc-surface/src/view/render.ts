@@ -71,7 +71,7 @@ function renderQueue(queue: ArcQueue, lanes: ReadonlyMap<string, Lane>, selected
   return `<section class="arc-row" data-arc-id="${escape(lane.id)}"><div class="arc-lane-line">
     <span class="arc-caret-slot">${queue.queued.length ? `<button type="button" class="arc-caret" data-arc-queue="${escape(lane.id)}" aria-expanded="${open}" aria-controls="arc-queue-${escape(lane.id)}" aria-label="${escape(queueLabel)}" title="${escape(queueLabel)}"><span aria-hidden="true">${open ? "▾" : "▸"}</span></button>` : ""}</span>
     <button type="button" class="arc-lane" data-arc-select="${escape(lane.id)}" aria-pressed="${selected === lane.id}">
-      <span class="arc-lane-head"><span class="arc-chip arc-state-${lane.state}" title="${escape(laneText(lane))}">${escape(lane.chip)}</span>${renderIdleMarker(lane)}${renderNoteMarker(lane)}<span class="arc-title" title="${escape(lane.title)}">${escape(lane.title)}</span></span>
+      <span class="arc-lane-head"><span class="arc-chip arc-state-${lane.state}" title="${escape(laneText(lane))}">${escape(lane.chip)}</span>${renderIdleMarker(lane)}${renderNoteMarker(lane)}${lane.priority === undefined ? "" : `<span class="arc-chip arc-priority" title="Priority ${lane.priority}">P${lane.priority}</span>`}<span class="arc-title" title="${escape(lane.title)}">${escape(lane.title)}</span></span>
       <span class="arc-track"><span class="arc-bars" aria-label="Increments">${lane.bars.map(renderBar).join("")}</span><span class="arc-count">${escape(lane.count)}</span>${renderWaitsOn(lane)}</span>
     </button></div>${open && queue.queued.length ? `<div class="arc-queue" id="arc-queue-${escape(lane.id)}" data-queue-shape="${run.shape}"><span aria-hidden="true">→</span>${chips.join("")}</div>` : ""}</section>`;
 }

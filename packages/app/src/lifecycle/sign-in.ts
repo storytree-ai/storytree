@@ -9,18 +9,16 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
+import type { SignInState } from "./bridge.js";
+
+export type { SignInState };
+
 /** What the app asks Electron's app.setLoginItemSettings for. */
 export interface LoginItem {
   openAtLogin: boolean;
   args: string[];
   /** The value's name under the user's Run key on Windows, which the uninstaller removes. */
   name: string;
-}
-
-/** Whether the app can open at sign-in here, and whether it will. */
-export interface SignInState {
-  available: boolean;
-  on: boolean;
 }
 
 export const SIGN_IN_NAME = "storytree 0.3";

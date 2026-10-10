@@ -10,7 +10,7 @@
  */
 import type { AnnotatedTree, HealthEntry, HealthWorkItem, HealthOptions, HealthState, NodeHealth } from "../health/index.js";
 import type { DecisionNumberPlan, DecisionView, Findable, NewDecision, NewDefinition, NewKnowledge, Note, NoteEdit, PhraseOptions, PhrasePage, Ranked, RankOptions, Related, RelatedOptions } from "../knowledge/index.js";
-import { connect as connectServer, type ConnectOptions, type OpenOptions, type Project, type ProjectSnapshot, type Storytree as Server } from "../project/index.js";
+import { connect as connectServer, type ConnectOptions, type OpenOptions, type OwnDatabaseOptions, type Project, type ProjectSnapshot, type Storytree as Server } from "../project/index.js";
 import type { Pool } from "pg";
 import { couldBeId } from "../references.js";
 import type { RecordType, SchemaRecord, WriteOptions } from "../schema/index.js";
@@ -83,8 +83,11 @@ export interface Storytree {
    * creator role where the user may not create databases; never listed as a project; closed with
    * this connection. The one pool the library hands out, and never to a project's database: the
    * agent activity log keeps its lines here, so it reaches the cloud wherever the library does.
+   * Handed its `tables`, the library sets it up (ADR-0973): it runs them once per connection, in one
+   * transaction under the database's own lock, so callers setting it up at once take turns. A
+   * caller that only reads may leave them out.
    */
-  ownDatabase(name: string): Promise<Pool>;
+  ownDatabase(name: string, options?: OwnDatabaseOptions): Promise<Pool>;
   /** Close this connection, every library opened through it, and its own databases. */
   close(): Promise<void>;
 }
@@ -420,8 +423,8 @@ class ServerHandle implements Storytree {
     return this.#server.dropProject(name);
   }
 
-  ownDatabase(name: string): Promise<Pool> {
-    return this.#server.ownDatabase(name);
+  ownDatabase(name: string, options?: OwnDatabaseOptions): Promise<Pool> {
+    return this.#server.ownDatabase(name, options);
   }
 
   close(): Promise<void> {

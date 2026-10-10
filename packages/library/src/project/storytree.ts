@@ -99,6 +99,12 @@ export interface OpenOptions {
   readonly identity?: string;
 }
 
+/** How a caller's own database is set up (contract 7.7, ADR-0973). */
+export interface OwnDatabaseOptions {
+  /** Its table definitions, each idempotent (CREATE TABLE IF NOT EXISTS and the like), run in order. */
+  readonly tables?: readonly string[];
+}
+
 /** A connection to one Postgres server and the storytree projects on it. */
 export interface Storytree {
   /**
@@ -128,8 +134,10 @@ export interface Storytree {
    * A database of the caller's own called `name`, beside the projects on the same server, local or
    * Cloud SQL (contract 7.7, ADR-0735 D3): created the first time as a project's is, never listed
    * as a project, and closed with this connection. A project's database is never handed out.
+   * Handed its `tables` (ADR-0973), it runs them once per connection, in one transaction under the
+   * database's own lock, so callers setting the same database up at once take turns.
    */
-  ownDatabase(name: string): Promise<Pool>;
+  ownDatabase(name: string, options?: OwnDatabaseOptions): Promise<Pool>;
   /** Close this connection, every project opened through it, and its own databases. */
   close(): Promise<void>;
 }
@@ -188,6 +196,8 @@ class ServerConnection implements Storytree {
   readonly #projects = new Set<ProjectLibrary>();
   readonly #opening = new Set<Promise<Project>>();
   readonly #own = new Map<string, Promise<Pool>>();
+  /** Each own database's tables, set up once per connection: keyed by its name and its definitions. */
+  readonly #ownSetUp = new Map<string, Promise<void>>();
   readonly #embedder: EmbedderSource | undefined;
   readonly #vectorCache: string | null;
   readonly #cloudInstance: string | undefined;
@@ -236,7 +246,7 @@ class ServerConnection implements Storytree {
     }
   }
 
-  async ownDatabase(name: string): Promise<Pool> {
+  async ownDatabase(name: string, options: OwnDatabaseOptions = {}): Promise<Pool> {
     this.#assertOpen();
     if (name.startsWith(PROJECT_DATABASE_PREFIX) || name === "" || name === "postgres") {
       return Promise.reject(new Error(`"${name}" is not a database of its own to hand out: it is a project's, or the server's.`));
@@ -251,6 +261,17 @@ class ServerConnection implements Storytree {
       pool.catch(() => this.#own.delete(name));
       this.#own.set(name, pool);
     }
+    if (options.tables === undefined || options.tables.length === 0) return pool;
+    const tables = options.tables;
+    const key = `${name}\0${tables.join("\0")}`;
+    let setUp = this.#ownSetUp.get(key);
+    if (setUp === undefined) {
+      setUp = pool.then((opened) => setUpOwnDatabase(opened, name, tables).catch((error: unknown) => Promise.reject(this.#server.explain(error))));
+      // A failed set-up is forgotten, so the next ask tries again.
+      setUp.catch(() => this.#ownSetUp.delete(key));
+      this.#ownSetUp.set(key, setUp);
+    }
+    await setUp;
     return pool;
   }
 
@@ -491,6 +512,28 @@ async function tablesCurrent(pool: Pool, name: string): Promise<boolean> {
     return true;
   } finally {
     client.release();
+  }
+}
+
+/**
+ * Run an own database's table definitions in one transaction (ADR-0973). Callers setting the same
+ * database up can race (the app, an agent and the CLI on a new server), and two concurrent CREATE
+ * TABLE IF NOT EXISTS can collide on the table's type, so they take turns on the database's lock.
+ */
+async function setUpOwnDatabase(pool: Pool, name: string, tables: readonly string[]): Promise<void> {
+  const client = await pool.connect();
+  let failed = false;
+  try {
+    await client.query("BEGIN");
+    await client.query("SELECT pg_advisory_xact_lock(hashtext('storytree.own-database'), hashtext($1))", [name]);
+    for (const statement of tables) await client.query(statement);
+    await client.query("COMMIT");
+  } catch (error) {
+    failed = true;
+    await client.query("ROLLBACK").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release(failed);
   }
 }
 

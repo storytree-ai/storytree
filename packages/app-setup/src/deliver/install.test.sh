@@ -102,23 +102,54 @@ check "$(grep -cF .storytree/0.3 "$profile")" 0 "an older line of ours is replac
 check "$(grep -c 'setup uninstall' "$profile")" 1 "the line is marked for setup uninstall"
 check "$(PATH=/usr/bin; . "$profile"; printf '%s' "$PATH")" '/Users/$odd "one"/bin:/usr/bin' "a folder with shell characters stays one word"
 
-# Delivery steps: download, install and verify only when nothing usable is there; a failure names its step.
+# Versions: a release replaces the installed app only when it is newer, compared part by part as numbers.
+st_newer 0.3.711 0.3.1045 || check older newer "0.3.1045 is newer than 0.3.711"
+if st_newer 0.3.1045 0.3.1045; then check newer same "the same version is not newer"; fi
+if st_newer 0.3.1045 0.3.999; then check newer older "an older release is not newer"; fi
+if st_newer "" 0.3.1045; then check newer unknown "an unreadable installed version is not replaced"; fi
+mkdir -p "$root/Old.app/Contents"
+printf '<?xml version="1.0"?>\n<plist version="1.0">\n<dict>\n\t<key>CFBundleName</key>\n\t<string>storytree-0.3</string>\n\t<key>CFBundleShortVersionString</key>\n\t<string>0.3.711</string>\n</dict>\n</plist>\n' > "$root/Old.app/Contents/Info.plist"
+check "$(st_plist_version "$root/Old.app")" 0.3.711 "the installed version comes from the app's Info.plist"
+
+# Replacing: the new app takes the old one's place, never lands inside it; a failed move puts the old one back.
+mkdir -p "$root/New.app"; printf new > "$root/New.app/mark"
+st_place "$root/New.app" "$root/Old.app" || check refused placed "the new app is placed over the old"
+check "$(cat "$root/Old.app/mark" 2>/dev/null)/$(ls -A "$root" | grep -c storytree-old)" new/0 "the old app is gone and the new one is in its place"
+mkdir -p "$root/Kept.app"; printf kept > "$root/Kept.app/mark"
+refused "could not be moved" "a missing new app" st_place "$root/Missing.app" "$root/Kept.app"
+check "$(cat "$root/Kept.app/mark")" kept "a failed move puts the old app back"
+rm -rf "$root/Old.app" "$root/Kept.app"
+
+# Delivery steps: download, install and verify only when nothing usable is there or the channel has a newer
+# release; a failure names its step.
 steps=
 present=no
+installed=0.3.711
+release=0.3.711
 st_op_stage() { :; }
 st_op_probe() { ST_PRESENT=$present; steps="$steps probe"; }
+st_op_version() { ST_INSTALLED=$installed; steps="$steps version"; }
+st_op_release() { steps="$steps release"; [ -n "$release" ] || { ST_ERROR='the release manifest could not be read'; return 1; }; st_version=$release; }
 st_op_download() { steps="$steps download"; ST_ARCHIVE="$root/app.zip"; }
 st_op_persist() { steps="$steps persist"; }
+st_op_quit() { steps="$steps quit"; }
 st_op_install() { steps="$steps install"; present=yes; }
 st_op_finish() { steps="$steps finish"; ST_REPORT='{"command":{"status":"installed"}}'; }
 st_op_path() { steps="$steps path"; }
-st_delivery "$app" arm64; check "$steps" " probe download persist install probe finish path" "a first install"
-steps=; st_delivery "$app" arm64; check "$steps" " probe persist finish path" "a repeat reuses the installation"
+st_delivery "$app" arm64 >/dev/null; check "$steps" " probe release download persist install probe finish path" "a first install"
+steps=; said=$(st_delivery "$app" arm64; printf '|%s' "$steps"); check "$said" "| probe version release persist finish path" "a repeat on the channel's version changes nothing"
+release=0.3.1045
+steps=; said=$(st_delivery "$app" arm64; printf '|%s' "$steps"); check "$said" "Updating storytree 0.3.711 to 0.3.1045.
+| probe version release download persist quit install probe finish path" "a repeat over an older version updates it"
+release=
+steps=; said=$(st_delivery "$app" arm64; printf '|%s' "$steps"); check "$said" "Could not check for a newer storytree (the release manifest could not be read); opening the installed 0.3.711.
+| probe version release persist finish path" "a repeat that cannot read the release keeps the installed app"
+release=0.3.711
 st_op_install() { ST_ERROR="the app could not be moved into place"; return 1; }
 present=no; steps=
 refused "failed at install: the app could not be moved into place" "a failed install names its step" st_delivery "$app" arm64
 case "$ST_ERROR" in *"run the same command again"*) ;; *) check "$ST_ERROR" "a retry action" "a failure says how to retry" ;; esac
-check "$steps" " probe download persist" "nothing after the failed step runs"
+check "$steps" " probe release download persist" "nothing after the failed step runs"
 
 # Connection: 1, 2, 3 or S, read from the terminal, since the script itself arrives on standard input.
 answers=

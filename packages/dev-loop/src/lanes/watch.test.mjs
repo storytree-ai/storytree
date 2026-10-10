@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 
 import { countEngines } from "./queue.mjs";
-import { ensureWatcher, hand, readPull, watchOnce } from "./watch.mjs";
+import { ensureWatcher, hand, handOver, readPull, watchOnce } from "./watch.mjs";
 
 const at = Date.parse("2026-10-10T12:00:00Z");
 const minutes = (n) => new Date(at + n * 60_000).toISOString();
@@ -158,4 +158,28 @@ test("13.5 · a hand-off parks the increment on an event wait and starts the wat
   assert.equal(await start(9), true, "a reused pid does not");
   assert.deepEqual(spawned, [9]);
   assert.equal(countEngines(`  7     1 ${procs[7]}`), 0, "it takes no engine slot");
+});
+
+test("13.7 · a session on any machine hands over: on the box directly, elsewhere over ssh with its own session id, refusing plainly when the box is out of reach", async () => {
+  const handed = [], sshed = [];
+  const local = async (args) => { handed.push(args); };
+  const ok = async (args) => { sshed.push(args); return "PR #41 handed to the watcher"; };
+  assert.equal((await handOver({ pr: 41, increment: "increment_one", session: SESSION, onBox: true, local, remote: ok })).code, 0);
+  assert.deepEqual(handed, [["hand", "41", "increment_one", "--session", SESSION]]);
+  assert.equal(sshed.length, 0, "the box hands over without ssh");
+
+  const away = await handOver({ pr: 41, increment: "increment_one", session: SESSION, onBox: false, local, remote: ok });
+  assert.equal(away.code, 0);
+  assert.deepEqual(sshed, [["hand", "41", "increment_one", "--session", SESSION]], "the laptop's own session id travels, so the watcher releases its claims");
+  assert.match(away.lines.join("\n"), /close-out --safe yes/);
+
+  const down = await handOver({ pr: 41, increment: "increment_one", session: SESSION, onBox: false, local,
+    remote: async () => { throw new Error("ssh: connect to host mint port 22: Connection timed out"); } });
+  assert.equal(down.code, 1);
+  assert.match(down.lines.join("\n"), /could not reach the Mint box.*Connection timed out/s);
+  assert.match(down.lines.join("\n"), /wait for the merge yourself/i, "the session falls back to landing it itself");
+
+  const nobody = await handOver({ pr: 41, increment: "increment_one", session: "", onBox: false, local, remote: ok });
+  assert.equal(nobody.code, 1, "with no session id the watcher could not release the session's claims");
+  assert.equal(sshed.length, 1);
 });

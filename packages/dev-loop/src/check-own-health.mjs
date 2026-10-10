@@ -39,7 +39,7 @@ import { connect } from "@storytree/library";
 
 import { appHome } from "../../../apps/desktop/src/home.ts";
 import { appLibraryServer } from "./library-server.mjs";
-import { contractsCoveredBy, contractsOf, creditPlatforms, dependantTestsNaming, judge, packageOf, parseJunit, readCiEvidence, recordHealth, unseenPlatform, recordingTarget, sourcesOf } from "./own-health.mjs";
+import { contractsCoveredBy, contractsOf, creditPlatforms, dependantTestsNaming, judge, markPending, packageOf, parseJunit, readCiEvidence, recordHealth, unseenPlatform, recordingTarget, sourcesOf } from "./own-health.mjs";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 const PROJECT = "storytree";
@@ -100,7 +100,12 @@ async function main() {
     const library = await storytree.openProject(PROJECT);
     try {
       let code = 0;
-      for (const story of (await library.projectTree()).stories) {
+      const { stories } = await library.projectTree();
+      // Say first what this run will record, so the health worklist holds it back meanwhile (packages/dev-loop/src/own-health.mjs's markPending).
+      let pending = 0;
+      for (const story of stories) pending += (await markPending(library, story, target.writer, { root })).length;
+      console.log(`marked ${pending} contracts pending: this run's numbered tests name them and their verified health is not yet passing`);
+      for (const story of stories) {
         if (!(await checkStory(library, story, target.writer, { root, evidence }))) code = 1;
       }
       return code;

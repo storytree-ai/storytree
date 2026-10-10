@@ -82,7 +82,7 @@ const FROM_FLIGHT = [
   "addWait", "removeWait", "waitHolds", "addWaitFor", "removeWaitFor", "waitsFor", "holds",
   "raiseQuestion", "settleQuestion", "questions", "heldOnQuestion", "checkQuestion", "renewQuestion", "editQuestion", "lapsedQuestions",
 ] as const satisfies readonly (keyof Project["flight"])[];
-const FROM_HEALTH = ["reportHealth", "recordVerified", "health", "healthHistory"] as const satisfies readonly (keyof Project["health"])[];
+const FROM_HEALTH = ["reportHealth", "recordVerified", "markVerifiedPending", "health", "healthHistory"] as const satisfies readonly (keyof Project["health"])[];
 const FROM_KNOWLEDGE = [
   "recordDecision", "numberDecision", "decisionNumberPlan", "numberDecisionsFromFullRecord", "setDecisionNumberFloor", "numberFoundingDecisions",
   "writeKnowledge", "defineTerm", "editNote", "search", "searchEach", "rank", "rankAll", "findPhrase",

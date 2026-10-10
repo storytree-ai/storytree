@@ -630,7 +630,7 @@ test("6.29 show_plan gives each capability's word, and for one not healthy its r
   });
 });
 
-test("6.30 health_worklist gives the oldest three capabilities on the health worklist, each with its reason, who moves it, the contracts carrying it and since when, and how many more wait; a capability an open increment lists among its capabilities is not offered", async () => {
+test("6.30 health_worklist gives the oldest three capabilities on the health worklist, each with its reason, who moves it, the contracts carrying it and since when, and how many more wait; a capability an open increment lists among its capabilities is not offered, and one a test run in progress will record is held back and counted", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       assert.match((await agent.call("health_worklist")).text, /nothing waits/i);
@@ -658,6 +658,13 @@ test("6.30 health_worklist gives the oldest three capabilities on the health wor
       assert.match(listed.text, /Password rules[^\n]*proposed — not built, the agent's to move/);
       assert.match(listed.text, /1 more wait/);
       assert.ok(!listed.text.includes(routed), listed.text);
+
+      await library.markVerifiedPending(check, { by: "storytree test run on CI", note: "a test run at commit abc123 is recording it" });
+      const held = await agent.call("health_worklist");
+      assert.deepEqual((held.data.items as { capability: string }[]).map((item) => item.capability), [later[1], later[2], later[3]], "held back, its slot filled");
+      assert.deepEqual(held.data.held, [capability]);
+      assert.equal(held.data.more, 0);
+      assert.match(held.text, /1 held back.*a test run at commit abc123 is recording it/);
     });
   });
 });

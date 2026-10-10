@@ -8,10 +8,10 @@
  *
  * `storytree health ci` reads the project's CI test results into its verified health (the CI health story, ADR-0902).
  * `storytree health worklist` prints the oldest three capabilities on the library's health
- * worklist (ADR-0825 D4), for the librarian pass to route.
+ * worklist (ADR-0825 D4), for the librarian pass to route, and how many a test run in progress holds back.
  */
 import type { Claim } from "@storytree/agent-link";
-import type { NodeHealth } from "@storytree/library";
+import { heldBack, type NodeHealth } from "@storytree/library";
 
 import { Refusal } from "../answer.js";
 import type { Family, Verb } from "../door.js";
@@ -73,13 +73,16 @@ const worklist: Verb = {
   usage: "health worklist",
   summary: "the oldest three capabilities that are not healthy, with why, who moves each and since when",
   async act(_args, context) {
-    const listed = await (await context.library()).healthWorklist();
-    if (listed.length === 0) return { text: "Nothing waits on the health worklist: every capability is healthy or already routed." };
+    const all = await (await context.library()).healthWorklist();
+    const held = heldBack(all);
+    const listed = all.filter(({ waits }) => waits === undefined);
+    if (listed.length === 0) return { text: ["Nothing waits on the health worklist: every capability is healthy or already routed.", ...(held === undefined ? [] : [held])].join("\n") };
     const shown = listed.slice(0, 3);
     const lines = shown.map(({ capability, title, status, why, since }) =>
       `${title}  [${capability}]  ${status} — ${why.reason}, the ${why.mover}'s to move${why.contracts.length === 0 ? "" : `: ${why.contracts.join(", ")}`}; since ${since.slice(0, 10)}`,
     );
     if (listed.length > shown.length) lines.push(`${listed.length - shown.length} more wait.`);
+    if (held !== undefined) lines.push(held);
     return { text: lines.join("\n"), next: [{ command: "storytree arc increment new --arc <arc> --title <t> --objective <o> --body <text> --capabilities <capability> [--held-on <question>]", why: "route one: an increment whose capabilities list names it, held on a question when it needs the owner" }] };
   },
 };

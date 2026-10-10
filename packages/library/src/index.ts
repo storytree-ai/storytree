@@ -52,6 +52,7 @@ export type {
   CapabilityStatus,
   CapabilityWhy,
   HealthWorkItem,
+  PendingRun,
   EarlierVerdict,
   HealthColumn,
   HealthColumnName,
@@ -62,5 +63,5 @@ export type {
   NodeHealth,
   SkipKind,
 } from "./health/index.js";
-export { NOT_VERIFIED, wordAndWhy } from "./health/index.js";
+export { heldBack, NOT_VERIFIED, wordAndWhy } from "./health/index.js";
 export type { DecisionNumberPlan, DecisionStatus, DecisionView, NewDecision, NewDefinition, NewKnowledge, Note, NoteEdit, NoteType, PhraseKind, PhraseOptions, PhrasePage, Ranked, RankOptions, Related, RelatedHit, RelatedOptions } from "./knowledge/index.js";

@@ -101,7 +101,8 @@ import { APP_OWNER, appHome } from "../home.js";
 import { answerPage } from "../page-operations.js";
 import { parseArgs } from "./args.js";
 import { registersSignInScheme, routeCallback } from "./callback-check.js";
-import { createTrayIcon } from "./tray-icon.js";
+import { followTaskbar, iconColourway } from "./app-icon.js";
+import { createTrayIcon, createWindowIcon } from "./tray-icon.js";
 import { startRefusal } from "./one-app.js";
 import { followReleases, installedApp } from "./releases.js";
 import { keepDrawingThroughGpuResets } from "./gpu-resets.js";
@@ -380,7 +381,13 @@ async function run(): Promise<void> {
 
 /** The tray icon, whose menu brings the window back or quits the app. */
 function showTray(): void {
-  tray = new Tray(createTrayIcon());
+  // The mark, in the colourway of the taskbar it sits on, worn again when that setting changes (contract 1.17).
+  followTaskbar(nativeTheme, (colourway) => {
+    if (tray === undefined) tray = new Tray(createTrayIcon(colourway));
+    else tray.setImage(createTrayIcon(colourway));
+    for (const window of BrowserWindow.getAllWindows()) window.setIcon(createWindowIcon(colourway));
+  });
+  if (tray === undefined) return;
   tray.setToolTip(`storytree 0.3 · ${build}`);
   const actions = { show: showWindow, quit: () => app.quit() };
   tray.setContextMenu(Menu.buildFromTemplate(TRAY_MENU.map((item) => ({ label: item.label, click: actions[item.id] }))));
@@ -535,6 +542,7 @@ function openWindow(query: { project?: string; problem?: string }): BrowserWindo
     minHeight: 480,
     show: false,
     title: "storytree 0.3",
+    icon: createWindowIcon(iconColourway(nativeTheme)),
     backgroundColor: nativeTheme.shouldUseDarkColors ? "#17191c" : "#fbfbfa",
     autoHideMenuBar: true,
     webPreferences: {

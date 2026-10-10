@@ -96,7 +96,7 @@ The round is over when the refreshed question list and `storytree arc waits` hol
 
 ## Surfaces
 
-Both front doors work (ADR-0793). Command line: `storytree question list | present | settle | retire | check`, `storytree arc list | show | waits`, `storytree arc increment edit | close | new | unwait`, `storytree adr list --load-bearing | new`, `storytree resteer new`, `storytree friction new`, `storytree session close-out`. Agent link: `show_plan`, `settle_question`, `retire_question`, `correct_question`, `raise_question`, `edit_plan`, `clear_wait`, `record_resteer`, `close_out`. The Mint box: `ssh mint` and its lane launcher. Use the available choice picker for a quick pick after the full text. `gh pr list` to check what already landed.
+Both front doors work (ADR-0793). Command line: `storytree question list | present | settle | retire | check`, `storytree arc list | show | waits`, `storytree arc increment edit | close | new | unwait`, `storytree adr list --load-bearing | new`, `storytree resteer new`, `storytree friction new`, `storytree session close-out`. MCP server: `show_plan`, `settle_question`, `retire_question`, `correct_question`, `raise_question`, `edit_plan`, `clear_wait`, `record_resteer`, `close_out`. The Mint box: `ssh mint` and its lane launcher. Use the available choice picker for a quick pick after the full text. `gh pr list` to check what already landed.
 
 ## Failure modes
 
@@ -108,7 +108,7 @@ Every question he answered is settled with his words and its increment body rewr
 
 ## Stands on
 
-Notes in the library; find one by its title with the agent link's `search_notes`.
+Notes in the library; find one by its title with the MCP server's `search_notes`.
 
 - Register follows audience
 - Plain language first

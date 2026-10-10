@@ -46,19 +46,28 @@ test("7.7 once its tables are there, a new connection's set-up runs no DDL, so i
   const tables = ["CREATE TABLE IF NOT EXISTS entries (id serial PRIMARY KEY, said text NOT NULL)", "ALTER TABLE entries ADD COLUMN IF NOT EXISTS at timestamptz"];
   const first = await connect({ url: testServerUrl() });
   const second = await connect({ url: testServerUrl() });
-  const writer = await (await first.ownDatabase(name, { tables })).connect();
+  const pool = await first.ownDatabase(name, { tables });
+  const writer = await pool.connect();
+  let opening: Promise<unknown> = Promise.resolve();
   try {
     await writer.query("BEGIN");
     await writer.query("INSERT INTO entries (said) VALUES ('mid-write')");
-    let timer: NodeJS.Timeout | undefined;
-    const waited = new Promise<"waited">((resolve) => (timer = setTimeout(() => resolve("waited"), 5000)));
-    const opened = await Promise.race([second.ownDatabase(name, { tables }).then(() => "opened" as const), waited]);
-    clearTimeout(timer);
-    assert.equal(opened, "opened", "the second connection's set-up waited on the writer's lock");
+    // The server says when a backend in this database waits on a lock (asked outside the writer's
+    // transaction, which reads its activity as it stood when it began): the set-up must finish without one.
+    let settled = false;
+    opening = second.ownDatabase(name, { tables }).finally(() => (settled = true));
+    let waited = false;
+    while (!settled && !waited) {
+      const { rows } = await pool.query("SELECT 1 FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'");
+      waited = rows.length > 0;
+    }
+    assert.equal(waited, false, "the second connection's set-up waited on the writer's lock");
+    await opening;
     await writer.query("COMMIT");
   } finally {
     await writer.query("ROLLBACK").catch(() => undefined);
     writer.release();
+    await opening.catch(() => undefined);
     await Promise.all([first.close(), second.close()]);
     await dropTestDatabases([name]);
   }

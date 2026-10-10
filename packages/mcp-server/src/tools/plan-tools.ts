@@ -206,7 +206,7 @@ async function editPlan(target: string, changes: Changes, call: Call): Promise<A
   const fields = { ...optional({ ...rest, dependsOn, endState }), ...(priority === undefined ? {} : { priority: priority === "none" ? undefined : priority }) };
   if (kind === "story" || kind === "capability" || kind === "contract") {
     const held = await heldOnIncrement(call, { record: target, fields });
-    if (held !== undefined) return { text: `Your change to ${kind} ${quoted(String((await library.get(target))?.fields.title))} (${target}) is ${held}`, data: { id: target } };
+    if (held !== undefined) return { text: `Your change to ${kind} ${quoted(String(((await library.get(target))?.fields as { title?: string } | undefined)?.title))} (${target}) is ${held}`, data: { id: target } };
   }
   const edited =
     kind === "story"

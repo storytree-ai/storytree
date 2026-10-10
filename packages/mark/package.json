@@ -7,7 +7,7 @@
   },
   "scripts": {
     "typecheck": "tsc -p .",
-    "icons": "node --import tsx src/write-icons.ts"
+    "icons": "node --import tsx --eval \"import('./src/icons.ts').then((m) => m.writeIcons().forEach((file) => console.log(file)))\""
   },
   "devDependencies": {
     "@types/node": "^24.13.6",

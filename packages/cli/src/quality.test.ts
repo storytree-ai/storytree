@@ -20,7 +20,7 @@ const command = new BuiltCommand();
 before(() => command.build());
 after(() => command.remove());
 
-test("(quality assurance's 1.2) `quality checks` prints the package's checks reading", async () => {
+test("quality-assurance 1.2 · `quality checks` prints the package's checks reading", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();
     const principle = await library.writeKnowledge("principle", { title: "Test creation principles", description: "How a test earns its place.", statement: "A test fails if its behaviour is removed.", why: "A test that cannot fail protects nothing.", howToApply: "Delete the behaviour and watch the test fail." });
@@ -34,7 +34,7 @@ test("(quality assurance's 1.2) `quality checks` prints the package's checks rea
   });
 });
 
-test("(quality assurance's 3.4) `quality ledger` prints the package's ledger reading for the folder's project", async () => {
+test("quality-assurance 3.4 · `quality ledger` prints the package's ledger reading for the folder's project", async () => {
   await inWorld(command, async (world) => {
     const storytree = await connect({ url: testServerUrl() });
     try {
@@ -52,7 +52,7 @@ test("(quality assurance's 3.4) `quality ledger` prints the package's ledger rea
   });
 });
 
-test("(quality assurance's 2.1, 2.2 and 4.1) `quality brief`, `take`, `answer` and `standing` run one review of an increment's change through the package", async () => {
+test("quality-assurance 2.1, 2.2 and 4.1 · `quality brief`, `take`, `answer` and `standing` run one review of an increment's change through the package", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();
     const story = await library.addStory({ title: "Visitor can sign up" });
@@ -94,7 +94,7 @@ test("(quality assurance's 2.1, 2.2 and 4.1) `quality brief`, `take`, `answer` a
   });
 });
 
-test("(quality assurance's 5.1) `quality graduate` writes the part and the Guardrails check that enforces it on the check, and the checks reading shows both; an unknown Guardrails check is refused, writing nothing", async () => {
+test("quality-assurance 5.1 · `quality graduate` writes the part and the Guardrails check that enforces it on the check, and the checks reading shows both; an unknown Guardrails check is refused, writing nothing", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();
     const principle = await library.writeKnowledge("principle", { title: "Test creation principles", description: "How a test earns its place.", statement: "A test fails if its behaviour is removed.", why: "A test that cannot fail protects nothing.", howToApply: "Delete the behaviour and watch the test fail." });

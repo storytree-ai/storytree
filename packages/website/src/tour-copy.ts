@@ -5,9 +5,9 @@ import type { Chip, Decision, Explainer, Group, TourStep } from "./tour.js";
 /** When the comparisons were checked against each tool's own documentation (definition_b0b80acc7330). */
 export const researchDate = "3 October 2026";
 export const groupTitles: Record<Group, string> = {
-  opening: "Why storytree", map: "The map", agents: "Agents on the map", knowledge: "Knowledge graph", ending: "The whole globe",
+  opening: "Why storytree", map: "The map", knowledge: "Knowledge graph", ending: "The whole globe",
 };
-export const explainers: { id: Explainer; title: string }[] = (["map", "agents", "knowledge"] as const).map(id => ({ id, title: groupTitles[id] }));
+export const explainers: { id: Explainer; title: string }[] = (["map", "knowledge"] as const).map(id => ({ id, title: groupTitles[id] }));
 
 const adr = (number: number, title: string): Decision => ({ number, title });
 const decisions = {
@@ -56,26 +56,18 @@ const own = { map: "own" as const, target: { kind: "core" } as GlobeTarget };
 // The shop (shop-snapshot.json): the store the test laptop's Claude Code sessions rebuilt side by side with storytree, where the
 // chapters teach (ADR-0890), walking only four of its stories: Signing in, Browsing, Cart and Checkout (ADR-0891, amended
 // 2026-10-05).
-const signingInId = "story_d263ef0f3f72", built = ["story_0c07d0047754", "story_2de9e8f4db21", "story_66f80ffaaa4d"];
-const teaching = [signingInId, ...built];
-const browsing = story(built[0]!), cart = story(built[1]!), checkout = story(built[2]!);
-// Signing in's capabilities its first session staked, in the order it claimed them.
-const shopServer = "capability_323895c5a414", session = "capability_678463042156", signOut = "capability_918e1fa754ab";
+const signingInId = "story_d263ef0f3f72", browsing = story("story_0c07d0047754");
+// Signing in's first capability, and the first and last of the three sessions' claims on the first round (02:28:12 to 02:28:27):
+// browsing's product page, the first to land (02:29:25), and checkout's order complete, the last claimed.
+const shopServer = "capability_323895c5a414", productPage = "capability_f29c62742cce", orderComplete = "capability_94f91d2ed3a9";
 // The shop was rebuilt with storytree's guardrails (ADR-0911 D5): no part of its code is unallocated at any stage, so the tour
 // shows no hatched ground.
 const signingIn = story(signingInId);
-// Two recorded moments in the shop's records: parts 2, 3 and 4 claimed by three sessions at once, and the session sent to
-// part 7 while part 7 and part 8 were held, after it said so and before it closed out (03:42:34).
-const together = "2026-10-05T02:33:00.000Z", standDown = "2026-10-05T03:40:00.000Z";
-// The chapters' steps are the shop with its teaching stories lit and the rest dimmed. The drawing dims only where session
-// tints are on; the shop at these moments has no live sessions but the ones a step shows, so they add nothing else.
-const shopMap = { map: "shop" as const, focus: teaching };
 // A view of the four teaching stories together, centred on Browsing so the preceding close-up cannot leave Checkout at the rim.
-const whole = 1.25;
-// The map chapter's three views: far and near on signing in, then the shop's first round with room for the second.
-const far = { target: signingIn, framing: whole, phone: { target: signingIn, framing: 1.5, side: 0 } };
-const near = { target: signingIn, framing: .8, phone: { target: signingIn, framing: 1.05, side: 0 } };
+const whole = 1.32;
+// The map chapter's two views: the four stories, and close on signing in.
 const shop = { target: browsing, framing: whole, phone: { target: browsing, framing: 1.5, side: 0 } };
+const near = { target: signingIn, framing: .8, phone: { target: signingIn, framing: 1.05, side: 0 } };
 const lit = (surfaces: Partial<GlobeSurfaces>): Partial<GlobeSurfaces> => ({ ...surfaces, sessionTints: true });
 /** How long the arrival's time-lapse plays at 1×. */
 export const arrivalSeconds = 15;
@@ -120,117 +112,72 @@ export const steps: TourStep[] = [
   ], why: "Storytree answers to four principles. Signals must be real: everything you see comes from the real code and the real work, and says where it came from. Show what matters now and hide the rest: nothing asks for your attention unless it needs it. Your attention goes where you send it: you choose what to look into, and how deep to go. Nothing is out of reach: whatever storytree hides, you can always bring back.",
   decisions: [], surfaces: complete, framing: 1.1, drift: true },
 
-  // The map (ADR-0891, amended twice on 2026-10-10): five approved steps. ★ the owner's words; ✎ his words lightly edited;
-  // DRAFT the approved supporting line. Every How and Why remains DRAFT. The camera moves twice, each on the line that says why
-  // ("Look inside a story", "Stories are like the organs"), never at a step change: each step opens on the view the last
-  // one ended on. Signing in's session stakes its capabilities as flags in lots before its code lands (ADR-0968).
-  { id: "map-empty", explainer: "map", map: "shop", growth: { seconds: 10, until: "planned" }, title: "The beginning.", lines: [
+  // The map (ADR-0891, amended 2026-10-11): six steps in the owner's order. ★ the owner's words; the rest is DRAFT, approved as a
+  // table and reworded to fit, as is every How and Why. The whole chapter plays forward in the shop's recorded time. The camera
+  // moves twice, each as a step begins: into signing in as capabilities are named, and back out to the four stories for the
+  // claims. Every claim is a flag in its capability's share (ADR-0968).
+  { id: "map-empty", explainer: "map", map: "shop", growth: { seconds: 10, until: "plans" }, title: "The beginning.", lines: [
     // ★
     "Let's start from the beginning and build a shopping site, so you can see how storytree draws a map as your agents build.",
-  ], how: "Before writing code, the shop's agents plan its stories, each something a customer can do. Each story's code lives in its own package.",
-  why: "Grouping code by what the software lets someone do gives you a map you can read while it is being built.",
-  decisions: [], surfaces: land, ...far, panelRoom: true },
-  // The record: the shop server claimed 01:53 to 01:56, the session 01:56 to 01:57, the page shell 01:57, the sign-in page 01:57
-  // to 01:58, sign-out 01:58. The claims line runs from the session's claim to sign-out's: the flag moves three times while it is
-  // told, and into sign-out's lot as the last line begins, where it stands while the sessions list is open.
-  { id: "map-first", explainer: "map", map: "shop", sessionsAt: "2026-10-05T01:58:30.000Z",
-    growth: { seconds: 26, stage: "planned", until: `lifted-${signOut}`, beats: [{ line: 2, stage: `staked-${shopServer}` }, { line: 3, stage: `staked-${session}` }, { line: 4, stage: `staked-${signOut}` }] },
-    title: "A story, its capabilities, and who is building them.", lines: [
-    // ✎
-    "As your agents build your project, each of its stories shows up on the map as an island.",
-    // ✎
-    "Look inside a story and you'll find it's broken up into capabilities, the pieces that make it work.",
-    // DRAFT.
-    "Before an agent writes, its session claims the capability it's working on, so no two agents change the same thing.",
-    // ★
-    "Storytree lists your conversations with AI here as active sessions.",
-  ], how: "Signing in was the first story the shop's agent built. Before its code exists, each capability has an equal share of the island. As the agent claims a capability, its session's flag drops into that share, marked as a lot; when the capability lands, the flag lifts and the agent claims the next.",
-  why: "You can check what the agents meant to build before reading any code, and two agents never change the same thing: a claim says who is on what before anyone writes.",
-  decisions: [], surfaces: plain, lineSurfaces: { 2: lit(plain) }, ...far, lineViews: { 2: near }, panel: "sessions", panelFromLine: 4, panelRoom: true },
-  { id: "map-code", explainer: "map", map: "shop", growth: { seconds: 7, stage: `land-${shopServer}`, until: "pr1" }, title: "Your code.", lines: [
-    // DRAFT.
-    "It starts as one. Each time your agent builds another capability, the island splits to make room for it.",
-    // ✎
-    "Your code is glued to its capability: each dot is a file.",
-    // ✎
-    "Select a story and a panel shows how its capabilities work together.",
-  ], how: "Signing in's code reached the map when its pull request merged. Each capability's territory arrives in the order the agent built it, the shop server first. A file's dot is sized by its lines and sits in the capability whose tests reach it. The panel shows the story's capabilities and what depends on what.",
-  why: "You can see where the code went and which promises it serves, without opening a file.",
-  decisions: [], surfaces: plain, lineSurfaces: { 2: files }, ...near, panel: "story", panelFromLine: 3 },
-  { id: "map-together", explainer: "map", map: "shop", growth: { seconds: 15, stage: "pr3-building", until: "pr4" }, title: "Pathways.", lines: [
-    // ✎
-    "Stories are like the organs of your app: each plays its role, and many can't work without others.",
-    // ★
-    "These dependencies are shown as pathways.",
-    // DRAFT.
-    "Browsing, the cart and checkout all need signing in. With it built, three agents can build them at once.",
-  ], how: "The analogy breaks where organs depend on each other both ways: a pathway runs one way, and storytree refuses a loop. The cart and checkout also depend on browsing, built alongside them.",
-  why: "Pathways show what a story needs and where a change can reach. Agents can see which work can run in parallel.",
-  // The three agents' claims draw whatever ADR-0968 draws for them; the chapter adds no mark of its own.
-  decisions: [], surfaces: lit(files), lineSurfaces: { 2: lit({ ...files, roads: true }) }, ...shop },
-  { id: "map-health", explainer: "map", map: "shop", growth: { seconds: 11, stage: "pr4", until: "pr7-building" }, title: "Health.", lines: [
-    // ✎
-    "As your automated tests run in CI, storytree shows you which capabilities are healthy and which need your attention.",
-    // DRAFT.
-    "Yellow means nothing has proved it yet; green means its tests passed.",
-  ], how: "The shop's CI ran its tests, and storytree matched the results to each capability's promises. A colour counts only when something other than the agent checked it; saying 'done' doesn't count.",
-  why: "You can see what has been proved and what still needs checking, without taking an agent's word for it.",
-  compare: { lines: [
-    "VS Code's Explorer browses files and folders; its Outline lists a file's symbols.",
-    "Aider's repo map ranks your code's names and signatures to fit the model's budget.",
-    "Storytree groups the code by what it lets someone do, with the plan beside it.",
-  ], sources: [vscode, aider, undefined] },
-  decisions: [], surfaces: { ...health, roads: true }, ...shop },
-
-  // Agents on the map (ADR-0893): the shop's own records at two recorded moments, 5 October 2026: parts 2, 3 and 4 built by three
-  // sessions at once, then the session sent to part 7 while another held it. It opens on the sessions strip: the fixes are said
-  // once, in the arrival (ADR-0890, amended 2026-10-05). The owner's lines are his; every other line, and each step's How and
-  // Why, is DRAFT, the agent's wording until the owner writes his own.
-  { id: "agents-sessions", explainer: "agents", ...shopMap, recorded: together, panel: "sessions", title: "Your sessions, listed.", lines: [
-    "Storytree lists your conversations with AI here as active sessions.",
-    "Each one is an agent at work, named for the part it is building.",
-    "On 5 October, three of them were building the shop at once.",
-  ], how: "A session starts when you open a conversation with a coding agent in your project. It leaves the list when it closes out, and storytree checks that against its branches and anything still running.",
-  why: "With several agents at once, the first question is who is working right now. The list answers it from what the agents did, not from what they said.",
-  decisions: [], surfaces: lit(land), framing: 1.05 },
-  { id: "agents-arcs", explainer: "agents", ...shopMap, recorded: together, panel: "arcs", title: "Plans of work are arcs.", lines: [
-    "It lists plans of work here. In storytree they are known as arcs.",
-    "The shop's first arc had four parts, each an increment of work.",
-    "Parts 2, 3 and 4 were built side by side.",
+  ], how: "The shop starts as an empty globe. Its agents plan the work before they write any code, and each story they plan will be an island here.",
+  why: "Watching a project grow from nothing shows you how to read the map of one that is already big.",
+  decisions: [], surfaces: land, ...shop },
+  // The record just before the first claim (01:53:08): the shop's first arc and its four parts, none held yet.
+  { id: "map-arcs", explainer: "map", map: "shop", sessionsAt: "2026-10-05T01:53:00.000Z", growth: { seconds: 1, stage: "plans", until: "plans" },
+    title: "Plans of work are arcs.", lines: [
+    "Before any code, your agents plan the work. Storytree lists those plans here; it calls them arcs.",
+    "The shop's first arc has four parts, each an increment of work.",
   ], how: "An arc has an end state and a list of increments. A session claims an increment before it starts, lands it through a pull request, and closes it.",
   why: "A plan that lives beside the work lets the next agent pick up the next piece without asking you.",
-  decisions: [], surfaces: lit(land), framing: 1.05 },
-  { id: "agents-claim", explainer: "agents", ...shopMap, recorded: together, panel: "arcs", title: "A claim shows in both places.", lines: [
-    "A session can stake its claim on the map as well as on the arc it's working on.",
-    "Part 3's session holds the cart's increment on the arc and claims its capabilities.",
-    "A claimed capability carries a flag in its session's colour.",
-  ], how: "Before writing, an agent claims the increment it will build and each capability it will touch. A second claim on the same work is turned away. At this recorded moment the shop's map has no ground drawn for the cart's capabilities yet, so its claims plant no flag.",
-  why: "Two agents editing the same thing is how work gets lost. A claim says who is on what before anyone writes.",
-  // Aimed past the cart so the island sits below the arcs drawer, both in view at once.
-  decisions: [], surfaces: lit(land), target: checkout, framing: .95, phone: { target: checkout, framing: .95, side: -107, narrow: -88 }, tags: [{ target: cart, text: "Part 3: cart page and side menu" }] },
-  { id: "agents-parallel", explainer: "agents", ...shopMap, recorded: together, panel: "sessions", title: "Who is on what, at a glance.", lines: [
-    "This means your agents can tell who is working on what just by looking at the map.",
-    "Browsing, the cart and checkout, each built by its own session, at the same time.",
-  ], how: "The list gives each session a colour. The map plants a flag in that colour on each capability a session claims. In this recording, the map has no ground drawn yet for these three sessions' claims, so their colours appear only in the list.",
-  why: "An agent that can see what is taken picks other work instead of colliding with it.",
-  // A laptop aims at Browsing, the lowest of the three, so all three names sit above the sessions list whichever step came
-  // before; a phone keeps the overview, which turns no further than the claim step left it, drawn back and moved left so the
-  // three stack between the sessions list and the card with their tags to their right.
-  decisions: [], surfaces: lit(land), laptop: { target: browsing, framing: 1.2 }, phone: { framing: 1.4, side: -107, narrow: -100 },
-  tags: [{ target: browsing, text: "Part 2: product page, sorting, cart" }, { target: cart, text: "Part 3: cart page and side menu" }, { target: checkout, text: "Part 4: Checkout" }] },
-  { id: "agents-standdown", explainer: "agents", ...shopMap, recorded: standDown, panel: "sessions", title: "An agent read the map and stood down.", lines: [
-    "Later, a third session was sent to part 7 while another session held it.",
-    "It read the plan, saw part 7 taken, and changed nothing.",
-    "Its own words: “Part 7 (Search) is already being worked on by another session, so I've stopped there. I haven't made a workspace or changed any code.”",
-  ], how: "The session read the arc and the claims on it, found both open parts held by live sessions, and claimed nothing. Asked to take part 8 over if it had stalled, it looked at that session's workspace, found it still writing, and left it alone.",
-  why: "Agents that read the map don't pull work out from under each other. The record shows it happened, and why.",
+  decisions: [], surfaces: land, ...shop, panel: "arcs" },
+  // Each island rises as it is named, in the order the agents started on them (first claims 01:53, 01:58, 02:28); the pathways
+  // draw on with the second line, those to signing in first, then those to browsing.
+  { id: "map-stories", explainer: "map", map: "shop", growth: { seconds: 16, stage: "plans", until: `land-${shopServer}`, beats: [{ line: 2, stage: "pathways" }] },
+    title: "Stories and pathways.", lines: [
+    "Each story in your project shows up as an island on the map: first signing in, then browsing, then the cart and checkout.",
+    "The dependencies between stories are shown as pathways: browsing, the cart and checkout all need signing in.",
+  ], how: "A story is something a customer can do, and its code lives in its own package. A pathway runs one way, from a story to the story it needs: the cart and checkout also need browsing. Storytree refuses a loop.",
+  why: "Pathways show what a story needs and where a change can reach, so you and your agents can see which work can run in parallel.",
+  decisions: [], surfaces: land, lineSurfaces: { 2: { ...land, roads: true } }, ...shop },
+  // Signing in's and browsing's code reached the map when their pull request merged (02:06); the cart and checkout have none yet,
+  // so each of their planned capabilities has an equal share of the island.
+  { id: "map-capabilities", explainer: "map", map: "shop", growth: { seconds: 7, stage: `land-${shopServer}`, until: "pr1" }, title: "Capabilities and your code.", lines: [
+    "Each story is broken into capabilities, the pieces that make it work.",
+    "Capabilities hold your code: each dot is a file.",
+    "Select a story and a panel shows how its capabilities work together.",
+  ], how: "Each capability's territory arrives in the order the agent built it, signing in's shop server first. A file's dot is sized by its lines and sits in the capability whose tests reach it. The cart and checkout have no code yet, so each of their planned capabilities has an equal share of the island, with no dots. The panel shows the story's capabilities and what depends on what.",
+  why: "You can see where the code went and which promises it serves, without opening a file.",
+  decisions: [], surfaces: { ...plain, roads: true }, lineSurfaces: { 2: { ...files, roads: true } }, ...near, panel: "story", panelFromLine: 3, panelRoom: true },
+  // The record: three sessions claimed browsing's, the cart's and checkout's capabilities between 02:28:12 and 02:28:27. The flags
+  // drop with the first line; the arcs panel and then the sessions list read the record at 02:28:30.
+  { id: "map-claims", explainer: "map", map: "shop", sessionsAt: "2026-10-05T02:28:30.000Z",
+    growth: { seconds: 8, stage: "pr3-building", until: `lifted-${productPage}`, beats: [{ line: 2, stage: `staked-${orderComplete}` }] },
+    title: "Agents claim their work.", lines: [
+    "Agents claim capabilities before they work on them, so each can see what the others are working on.",
+    "The plan shows it too: parts 2, 3 and 4 of the arc, each held by its own session.",
+    "Your agent sessions are listed here too.",
+  ], how: "Before writing, an agent claims the increment it will build and each capability it will touch, and a second claim on the same work is turned away. Each claim is a flag in its session's colour, standing in its capability's share; on the cart and checkout, which have no code yet, the share is marked as a lot. Within fifteen seconds, three sessions claimed eight capabilities on browsing, the cart and checkout.",
+  why: "Two agents editing the same thing is how work gets lost. A claim says who is on what before anyone writes, so an agent that can see what is taken picks other work instead.",
   compare: { lines: [
     "Cursor's Agents window runs agents in parallel, each in its own worktree, with diffs to review.",
     "LangSmith Studio visualises and debugs agent systems, with tracing and evaluation.",
     "Linear's initiatives connect projects to goals and progress updates.",
     "Storytree ties each session to the work it claimed on the map, and each increment to the session holding it.",
   ], sources: [cursorAgents, langsmith, linear, undefined] },
-  decisions: [], surfaces: lit(land), target: browsing, framing: .9, tags: [{ target: browsing, text: "part 7, held" }] },
+  decisions: [], surfaces: lit({ ...files, roads: true }), ...shop, lineViews: { 2: { panel: "arcs" }, 3: { panel: "sessions" } } },
+  { id: "map-health", explainer: "map", map: "shop", growth: { seconds: 16, stage: `lifted-${productPage}`, until: "pr7-building" }, title: "Health.", lines: [
+    // ✎
+    "As your automated tests run in CI, storytree shows you which capabilities are healthy and which need your attention.",
+    // DRAFT.
+    "Yellow means nothing has proved it yet; green means its tests passed.",
+  ], how: "As each capability lands, its flag lifts, and the cart's and checkout's code takes their shares' place. The shop's CI ran its tests, and storytree matched the results to each capability's promises. A colour counts only when something other than the agent checked it; saying 'done' doesn't count.",
+  why: "You can see what has been proved and what still needs checking, without taking an agent's word for it.",
+  compare: { lines: [
+    "VS Code's Explorer browses files and folders; its Outline lists a file's symbols.",
+    "Aider's repo map ranks your code's names and signatures to fit the model's budget.",
+    "Storytree groups the code by what it lets someone do, with the plan beside it.",
+  ], sources: [vscode, aider, undefined] },
+  decisions: [], surfaces: lit({ ...health, roads: true }), ...shop },
 
   { id: "knowledge-inside", explainer: "knowledge", title: "What the project knows lives inside.", lines: [
     "Storytree remembers things using a knowledge graph.",

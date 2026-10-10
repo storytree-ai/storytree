@@ -10,7 +10,7 @@ export function growthReading(growth: GrowthSnapshot): TourSnapshot | undefined 
 }
 
 /** The app's read-only surfaces receive the saved records, with the recording's own clock. */
-/** `until` holds the reading at a recorded moment: only what was recorded by then (2.17). */
+/** `until` holds the reading at a recorded moment: only what was recorded by then (2.16). */
 export function savedReading(snapshot: TourSnapshot, { replay = false, until }: { replay?: boolean; until?: string } = {}) {
   // Publication omits private optional fields. No missing field is reconstructed.
   const lines = snapshot.recording.lines as readonly Line[];

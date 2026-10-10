@@ -71,50 +71,53 @@ export async function verifyTourCamera(browser, url) {
     if ((await drawn()).risen !== 0) failures.push(`The empty globe carries no story yet: ${JSON.stringify(await drawn())}`);
     await page.waitForFunction(() => document.querySelector(".forest-drawing")?.dataset.arrived === "true", null, { timeout: 30_000 });
     const empty = await settled();
-    // 2.16: the second step opens on the first's view; signing in alone rises, and the camera eases in on its second line.
-    await step("map-first");
+    // 2.16: the arcs panel opens over the bare globe, on the same view.
+    await step("map-arcs");
     await page.waitForTimeout(1500);
-    const opened = await signingIn();
-    if (distance(empty, opened) > 6) failures.push(`The second step opens on the first step's view: ${JSON.stringify({ empty, opened })}`);
-    await page.waitForTimeout(2500);
-    if (await risen() !== 1) failures.push(`Only signing in rises in the second step: ${await risen()}`);
+    if (await page.locator(".tour-arc-surface").evaluate(node => node.hidden)) failures.push("The arcs panel opens over the bare globe");
+    if (await risen() !== 0) failures.push(`The globe stays bare while the arcs are shown: ${await risen()}`);
+    // 2.16: each island rises as it is named, signing in first, on the same view; then all four, with their pathways.
+    await step("map-stories");
+    const counts = new Set();
+    for (let look = 0; look < 60 && await stepOf(page) === "map-stories" && await risen() < 4; look++) { counts.add(await risen()); await page.waitForTimeout(250); }
+    counts.add(await risen());
+    if (![1, 2, 4].every(count => counts.has(count))) failures.push(`The islands rise one by one as they are named: ${[...counts]}`);
     await lines(2);
-    await page.waitForTimeout(3000);
+    const stories = await settled();
+    if (distance(empty, stories) > 6) failures.push(`The first three steps keep one view: ${JSON.stringify({ empty, stories })}`);
+    // 2.16: the camera flies into signing in as capabilities are named; the dots, then the panel, follow with no move.
+    await step("map-capabilities");
+    await page.waitForTimeout(3500);
     const inside = await settled();
-    if (distance(opened, inside) < 30) failures.push(`The camera eases in on "Look inside a story": ${JSON.stringify({ opened, inside })}`);
-    assert.equal(await page.locator(".story-panel").count(), 0, "2.16: the island and its capabilities arrive before the panel");
-    // Its session's claims and the sessions list follow on the same view.
-    await lines(4);
-    await page.waitForTimeout(3000);
-    const ended = await settled();
-    if (distance(inside, ended) > 6) failures.push(`The claims and the sessions list move no camera: ${JSON.stringify({ inside, ended })}`);
-    // 2.16: the code lands, then the dots, then the panel on the third step's third line, with no camera move.
-    // The island is drawn smaller once its code lands, so its name, below its coast, rises: across, it stays where it was.
-    await step("map-code");
-    await page.waitForTimeout(2500);
-    const across = plates => plates.map(plate => ({ ...plate, y: 0 }));
-    if (distance(across(ended), across(await signingIn())) > 6) failures.push(`The code step opens on the view the second step ended on: ${JSON.stringify({ ended, now: await signingIn() })}`);
-    await lines(2);
-    const landed = await settled();
+    if (distance(stories, inside) < 30) failures.push(`The camera flies into signing in for its capabilities: ${JSON.stringify({ stories, inside })}`);
+    assert.equal(await page.locator(".story-panel").count(), 0, "2.16: the capabilities and their dots arrive before the panel");
     await lines(3);
     await page.locator(".story-panel").waitFor({ state: "visible" });
     assert.match(await page.locator(".story-panel").textContent(), /Signing in.*Session/s, "2.16: the real story panel opens on the third line");
-    if (distance(landed, await signingIn()) > 6) failures.push(`The panel opens with no camera move: ${JSON.stringify({ landed, now: await signingIn() })}`);
+    if (distance(inside, await signingIn()) > 6) failures.push(`The panel opens with no camera move: ${JSON.stringify({ inside, now: await signingIn() })}`);
+    // 2.16: back to the four stories for the claims; the arcs panel, then the sessions list, on their lines.
+    await step("map-claims");
+    await page.waitForTimeout(3500);
+    // Signing in is drawn smaller and reshaped once its code lands, so its name, below its coast, rises and shifts a little;
+    // a camera left at the close-up would leave it hundreds of pixels away.
+    const back = await settled();
+    if (distance(stories, back) > 40) failures.push(`The claims step returns to the four stories' view: ${JSON.stringify({ stories, back })}`);
+    if (!(await page.locator(".tour-arc-surface").evaluate(node => node.hidden)) || !(await page.locator(".tour-session-surface").evaluate(node => node.hidden))) failures.push("The flags are shown before any panel");
+    await lines(2); await page.waitForTimeout(400);
+    if (await page.locator(".tour-arc-surface").evaluate(node => node.hidden)) failures.push("The arcs panel opens on the claims step's second line");
+    await lines(3); await page.waitForTimeout(400);
+    if (await page.locator(".tour-session-surface").evaluate(node => node.hidden) || !(await page.locator(".tour-arc-surface").evaluate(node => node.hidden))) failures.push("The arcs panel gives way to the sessions list on the third line");
     // 2.16: health keeps the first round's four stories, and the chapter ends on them: the second round never rises.
-    await goToStep(page, "map-health");
+    await step("map-health");
     await page.waitForTimeout(800);
     if (await risen() !== 4) failures.push("Health opens on the first round's four stories");
     await page.waitForTimeout(15_000);
     if (await risen() !== 4) failures.push(`The chapter stays on the four stories: ${await risen()}`);
-    // 2.17: an agents step shows the shop as it stood at its recorded moment.
-    await goToStep(page, "agents-parallel"); await page.waitForTimeout(2500);
-    const parallel = await page.locator(".forest-drawing").evaluate(node => ({ map: node.dataset.globe, growth: node.dataset.growth }));
-    if (parallel.map !== "shop" || parallel.growth === "whole") failures.push(`The agents chapter shows the shop at a recorded moment: ${JSON.stringify(parallel)}`);
     await goToStep(page, "knowledge-kinds"); await page.waitForTimeout(2500);
     if ((await globe()).map !== "storytree") failures.push("The knowledge steps return to storytree's globe");
     assert.deepEqual(failures, []);
   } finally { await page.close(); }
-  console.log("PASS contracts 2.16 and 2.17: the map chapter grows signing in alone, moves the camera only on its lines, stays on its four stories, and the agents chapter stands at its recorded moments, then storytree's returns");
+  console.log("PASS contract 2.16: the map chapter keeps its globe bare under the arcs, raises its islands one by one, flies into signing in and back for the claims, opens each panel on its line and stays on its four stories, then storytree's returns");
   console.log("PASS contracts 2.4 and 2.7: exploring holds the tour and says so; Play flies back to the step's view");
 }
 
@@ -133,39 +136,39 @@ export async function verifyTour(browser, url, output) {
   const rows = () => page.locator(".tour-session-surface .session-row").allTextContents();
   // 2.8: one pip per step, grouped by explainer; a pip jumps to its step.
   const pips = await page.locator("#tour-pips [data-go]").count();
-  assert.equal(pips, 20, "one pip per step, with five in the map chapter");
+  assert.equal(pips, 16, "one pip per step, with six in the map chapter");
   assert.deepEqual(await page.locator("#tour-pips .tb-group").evaluateAll(groups => groups.map(group => group.dataset.group)),
-    ["opening", "map", "agents", "knowledge", "ending"]);
-  await goToStep(page, "map-first");
-  assert.equal(await page.locator('#tour-pips [data-step="map-first"]').getAttribute("aria-current"), "step");
+    ["opening", "map", "knowledge", "ending"]);
+  await goToStep(page, "map-capabilities");
+  assert.equal(await page.locator('#tour-pips [data-step="map-capabilities"]').getAttribute("aria-current"), "step");
   // 2.4: the lines arrive at a readable pace; pause holds them; a faster speed brings the next sooner.
   assert.equal(await shown(), 1);
   await page.locator("#tour-play").click();
   assert.equal(await holds(page), "Paused");
-  await page.clock.runFor(15000); assert.equal(await stepOf(page), "map-first", "Pause holds the step");
+  await page.clock.runFor(15000); assert.equal(await stepOf(page), "map-capabilities", "Pause holds the step");
   await page.locator("#tour-play").click();
   // A waiting step shows all its lines, so the pace is timed on a fresh step: its first line reads for about 7.7 s at 1×.
   assert.equal(await page.locator("#tour-speed-cycle").textContent(), "0.75×", "Act 2 arrives at 0.75×");
   await page.locator("#tour-speed-cycle").click(); await page.locator("#tour-speed-cycle").click(); assert.equal(await page.locator("#tour-speed-cycle").textContent(), "1.5×");
-  await goToStep(page, "map-together"); assert.equal(await shown(), 1);
+  await goToStep(page, "map-claims"); assert.equal(await shown(), 1);
   await page.clock.runFor(5500); assert.equal(await shown(), 2, "1.5× brings the next line in two thirds of the time");
-  await goToStep(page, "map-first");
+  await goToStep(page, "map-capabilities");
   // 2.4, 2.7: depth holds the tour, says why, and Escape returns to the button; play continues the same step.
   await page.locator("#tour-depth").click();
   assert.equal(await holds(page), "Waiting while you read");
   assert.equal(await page.evaluate(() => document.activeElement?.tagName), "H3");
-  await page.clock.runFor(30000); assert.equal(await stepOf(page), "map-first");
+  await page.clock.runFor(30000); assert.equal(await stepOf(page), "map-capabilities");
   await page.keyboard.press("Escape"); assert.equal(await page.evaluate(() => document.activeElement?.id), "tour-depth");
   await page.locator("#tour-everything").click();
   assert.equal(await holds(page), "Showing everything");
-  await page.clock.runFor(30000); assert.equal(await stepOf(page), "map-first");
+  await page.clock.runFor(30000); assert.equal(await stepOf(page), "map-capabilities");
   await page.locator("#tour-depth").click();
   await page.locator("#tour-play").click();
   assert.equal(await holds(page), "", "Play clears every hold");
   assert.equal(await page.locator("#tour-everything").getAttribute("aria-checked"), "false");
-  assert.equal(await stepOf(page), "map-first", "Play continues the step it stopped in");
+  assert.equal(await stepOf(page), "map-capabilities", "Play continues the step it stopped in");
   await page.locator("#tour-next").focus(); await page.keyboard.press("Enter");
-  assert.equal(await stepOf(page), "map-code");
+  assert.equal(await stepOf(page), "map-claims");
   // 2.16: the map chapter's depth is How and Why, never decision numbers; its last step offers the dated, sourced comparison.
   for (const id of await page.locator("#tour-pips [data-step]").evaluateAll(pips => pips.map(pip => pip.dataset.step).filter(id => id.startsWith("map-")))) {
     await goToStep(page, id);
@@ -181,34 +184,31 @@ export async function verifyTour(browser, url, output) {
   assert.match(await page.locator("#tour-why").textContent(), /Checked against each tool's own documentation on \d+ \w+ \d{4}/);
   await page.screenshot({ path: path.join(output, "390-map-depth.png") });
   await page.locator("#tour-depth").click();
-  // 2.16: the second step opens the sessions list on its fourth line, with the one session live at that moment.
-  await goToStep(page, "map-first");
+  // 2.16: the arcs step opens the shop's first arc over the bare globe, its four parts none held yet.
+  await goToStep(page, "map-arcs"); await page.clock.runFor(500);
+  assert.equal(await page.locator(".tour-arc-surface").evaluate(node => node.hidden), false, "the arcs panel is open");
+  await page.locator(".arc-lanes").waitFor();
+  assert.match(await page.locator(".arc-lanes").textContent(), /Swag Labs copy/, "the shop's own first arc");
+  await page.screenshot({ path: path.join(output, "390-map-arcs.png") });
+  // 2.16: the claims step opens the arcs on its second line and the sessions list on its third, with the three sessions live then.
+  await goToStep(page, "map-claims");
   if (await page.locator("#tour-play").getAttribute("aria-label") === "Play the tour") await page.locator("#tour-play").click();
   await page.clock.runFor(500);
   assert.equal(await page.locator(".tour-session-surface").evaluate(node => node.hidden), true, "the sessions list waits for its line");
-  for (let tick = 0; tick < 160 && await shown() < 4; tick++) await page.clock.runFor(250);
-  assert.equal(await stepOf(page), "map-first");
+  assert.equal(await page.locator(".tour-arc-surface").evaluate(node => node.hidden), true, "so does the arcs panel");
+  for (let tick = 0; tick < 160 && await shown() < 2; tick++) await page.clock.runFor(250);
+  assert.equal(await page.locator(".tour-arc-surface").evaluate(node => node.hidden), false, "the arcs panel opens on the second line");
+  for (let tick = 0; tick < 160 && await shown() < 3; tick++) await page.clock.runFor(250);
+  assert.equal(await stepOf(page), "map-claims");
   assert.equal(await page.locator(".tour-session-surface").evaluate(node => node.hidden), false, "the sessions list is open");
+  assert.equal(await page.locator(".tour-arc-surface").evaluate(node => node.hidden), true, "and the arcs panel has given way to it");
   const live = await rows();
-  assert.ok(live.some(row => row.includes("Plan shop3; build part 1 (sign in)")), `the list shows the session building signing in: ${live}`);
-  assert.equal(live.length, 1, `only the one live session: ${live}`);
-  await page.screenshot({ path: path.join(output, "390-map-first-sessions.png") });
-  // 2.17: the agents chapter shows the shop's records as they stood: three sessions at once, its arc, then the stand-down.
-  await goToStep(page, "agents-parallel"); await page.clock.runFor(500);
-  assert.equal(await page.locator(".tour-session-surface").evaluate(node => node.hidden), false, "the sessions strip is open");
-  for (const name of ["Part 2: product page, sorting, cart", "Part 3: cart page and side menu", "Part 4: Checkout"]) assert.ok((await rows()).some(row => row.includes(name)), `the strip lists ${name}: ${await rows()}`);
-  await page.screenshot({ path: path.join(output, "390-agents-parallel.png") });
-  await goToStep(page, "agents-arcs"); await page.clock.runFor(500);
-  assert.equal(await page.locator(".tour-arc-surface").evaluate(node => node.hidden), false, "the arcs panel is open");
-  await page.locator(".arc-lanes").waitFor();
-  assert.match(await page.locator(".arc-lanes").textContent(), /Swag Labs copy/, "the shop's own arc, open");
-  await page.screenshot({ path: path.join(output, "390-agents-arcs.png") });
-  await goToStep(page, "agents-standdown"); await page.clock.runFor(500);
-  for (const name of ["Part 7: Search", "Part 8: Reviews"]) assert.ok((await rows()).some(row => row.includes(name)), `the strip lists ${name}: ${await rows()}`);
+  for (const name of ["Part 2: product page, sorting, cart", "Part 4: Checkout"]) assert.ok(live.some(row => row.includes(name)), `the list lists ${name}: ${live}`);
+  assert.equal(live.length, 3, `three live sessions: ${live}`);
+  await page.screenshot({ path: path.join(output, "390-map-claims-sessions.png") });
   await page.locator("#tour-depth").click();
   const agentsCompared = await page.locator("#tour-why a.source").evaluateAll(nodes => nodes.map(node => node.href));
-  assert.ok(agentsCompared.length >= 2, "the agents chapter's last step offers sourced comparisons");
-  assert.doesNotMatch(await page.locator("#tour-why").textContent(), /ADR-\d/, "its depth names no decision numbers");
+  assert.ok(agentsCompared.length >= 3, "the claims step's depth keeps the comparison with Cursor, LangSmith and Linear");
   await page.locator("#tour-depth").click();
   // 2.5: the knowledge explainer reaches its dated, sourced comparison.
   for (const subject of ["knowledge"]) {
@@ -277,56 +277,10 @@ export async function verifyTour(browser, url, output) {
 
 // Website 2.6, 1.6 and 5.4: the chapter fills the viewport, its controls are reachable and tappable, free play is the desktop's.
 const overlap = (a, b) => Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
-// 2.18 at every width: the agents chapter's tags each read whole inside the screen, clear of one another, the other rings,
-// the card and the panels, and the tagged islands' names read whole inside the screen, clear of them; on a phone the arcs drawer ends above the card.
-async function verifyAgentTags(page, width, height, output, size = `${width}`) {
-  for (const id of ["agents-arcs", "agents-claim", "agents-parallel"]) {
-    await goToStep(page, id);
-    if (await page.locator("#tour-play").getAttribute("aria-label") === "Pause the tour") await page.locator("#tour-play").click();
-    const card = await page.locator("#tour-card").boundingBox();
-    if (id !== "agents-parallel" && width < 600) {
-      await page.locator("#chapter2 .arc-overlay").waitFor();
-      await page.waitForTimeout(400);
-      const drawer = await page.locator("#chapter2 .arc-overlay").boundingBox();
-      assert.ok(drawer && drawer.y + drawer.height <= card.y, `the arcs drawer ends above the card at ${width}px: ${JSON.stringify({ drawer, card })}`);
-    }
-    if (id === "agents-arcs") continue;
-    const count = id === "agents-parallel" ? 3 : 1;
-    await page.waitForFunction(count => document.querySelectorAll("#tour-tags .tour-tag:not(.away)").length === count, count, { timeout: 30_000 });
-    // The tags and the panels at rest: read once two looks 400 ms apart agree (a panel sliding in or the camera settling moves them).
-    const rest = () => page.evaluate(() => JSON.stringify([...document.querySelectorAll("#tour-tags .tour-tag:not(.away) .tour-tag-text, #chapter2 :is(.sessions-list, .arc-overlay)")].map(node => { const box = node.getBoundingClientRect(); return [box.x, box.y, box.width, box.height].map(Math.round); })));
-    await page.waitForTimeout(800);
-    for (let look = await rest(), tries = 0; tries < 20; tries++) { await page.waitForTimeout(400); const again = await rest(); if (again === look) break; look = again; }
-    const tags = await page.locator("#tour-tags .tour-tag:not(.away) .tour-tag-text").evaluateAll(nodes => nodes.map(node => { const box = node.getBoundingClientRect(); return { x: box.x, y: box.y, width: box.width, height: box.height, text: node.textContent }; }));
-    const rings = await page.locator("#tour-tags .tour-tag:not(.away) .tour-tag-ring").evaluateAll(nodes => nodes.map(node => { const box = node.getBoundingClientRect(); return { x: box.x, y: box.y, width: box.width, height: box.height }; }));
-    const panels = await page.locator("#chapter2 :is(.sessions-list, .arc-overlay)").evaluateAll(nodes => nodes.map(node => node.getBoundingClientRect()).filter(box => box.width).map(box => ({ x: box.x, y: box.y, width: box.width, height: box.height })));
-    tags.forEach((tag, index) => {
-      assert.ok(tag.x >= 0 && tag.y >= 0 && tag.x + tag.width <= width && tag.y + tag.height <= height, `${tag.text} is inside the screen at ${width}px: ${JSON.stringify(tag)}`);
-      for (const other of tags.slice(index + 1)) assert.equal(overlap(tag, other), 0, `${tag.text} is clear of ${other.text} at ${width}px`);
-      for (const panel of [card, ...panels]) assert.equal(overlap(tag, panel), 0, `${tag.text} is clear of the card and the panels on the ${id} step at ${width}px: ${JSON.stringify({ tag, panels })}`);
-      rings.forEach((ring, other) => { if (other !== index) assert.equal(overlap(tag, ring), 0, `${tag.text} is clear of ring ${other} at ${width}px`); });
-    });
-    // The tagged islands' own names read too, clear of the card, the panels and the tags, reached in order from the step before.
-    const named = await page.evaluate(() => [...document.querySelectorAll("#tour-tags .tour-tag:not(.away)[data-story]")].map(tag => {
-      const plate = document.querySelector(`.planet-nameplate[data-story-id="${tag.dataset.story}"]`);
-      const box = plate?.getBoundingClientRect();
-      return { story: tag.dataset.story, text: plate?.textContent, shown: !!plate && !plate.classList.contains("crowded") && box.width > 0, x: box?.x, y: box?.y, width: box?.width, height: box?.height };
-    }));
-    assert.equal(named.length, count, `every tag names its island at ${width}px`);
-    for (const plate of named) {
-      assert.ok(plate.shown, `${plate.text ?? plate.story}'s name is shown on the ${id} step at ${width}px`);
-      assert.ok(plate.x >= 0 && plate.y >= 0 && plate.x + plate.width <= width && plate.y + plate.height <= height, `${plate.text}'s name reads whole inside the screen on the ${id} step at ${size}: ${JSON.stringify(plate)}`);
-      for (const panel of [card, ...panels]) assert.equal(overlap(plate, panel), 0, `${plate.text}'s name is clear of the card and the panels on the ${id} step at ${width}px: ${JSON.stringify({ plate, panel })}`);
-      for (const tag of tags) assert.equal(overlap(plate, tag), 0, `${plate.text}'s name is clear of ${tag.text} on the ${id} step at ${width}px: ${JSON.stringify({ plate, tag })}`);
-    }
-    await page.screenshot({ path: path.join(output, `${id}-${size}.png`) });
-  }
-}
-
-// 2.18's framing, at every width: no island's name shown in the map chapter, as it plays through, hides under the heading or
+// 2.16's framing, at every width: no island's name shown in the map chapter, as it plays through, hides under the heading or
 // the dated note above the globe.
 async function verifyNamesClearHeader(page, width, output) {
-  const map = ["map-empty", "map-first", "map-code", "map-together", "map-health"];
+  const map = ["map-empty", "map-arcs", "map-stories", "map-capabilities", "map-claims", "map-health"];
   await goToStep(page, map[0]);
   await page.locator('#tour-bar [data-speed="1.5"]').evaluate(button => button.click());
   if (await page.locator("#tour-play").getAttribute("aria-label") !== "Pause the tour") await page.locator("#tour-play").click();
@@ -336,10 +290,10 @@ async function verifyNamesClearHeader(page, width, output) {
       const box = node => { const { x, y, width, height } = node.getBoundingClientRect(); return { x, y, width, height }; };
       return {
         header: [...document.querySelectorAll("#chapter2 :is(.tour-heading, .tour-note)")].filter(node => node.getBoundingClientRect().width).map(box),
-        // A name under the claims step's open sessions list is covered by it, not read: that line names no island.
+        // A name under the claims step's open arcs panel or sessions list is covered by it, not read: those lines name no island.
         plates: (() => {
-          const list = document.querySelector(".tour-session-surface:not([hidden]) .sessions-list")?.getBoundingClientRect();
-          const under = plate => !!list && plate.x < list.right && list.left < plate.x + plate.width && plate.y < list.bottom && list.top < plate.y + plate.height;
+          const panels = [...document.querySelectorAll(".tour-session-surface:not([hidden]) .sessions-list, .tour-arc-surface:not([hidden]) .arc-overlay")].map(node => node.getBoundingClientRect()).filter(box => box.width);
+          const under = plate => panels.some(list => plate.x < list.right && list.left < plate.x + plate.width && plate.y < list.bottom && list.top < plate.y + plate.height);
           return [...document.querySelectorAll("#website-forest .planet-nameplate[data-story-id]:not(.crowded)")]
             .filter(node => getComputedStyle(node).visibility === "visible" && Number(getComputedStyle(node).opacity) > 0)
             .map(node => ({ text: node.textContent, ...box(node) })).filter(plate => plate.width && !under(plate));
@@ -362,7 +316,7 @@ async function verifyNamesClearHeader(page, width, output) {
 async function verifyOneFormat(page, width, output) {
   await goToStep(page, "pain");
   const impact = await page.locator("#tour-lines .tour-line.on .said").first().evaluate(node => parseFloat(getComputedStyle(node).fontSize));
-  for (const id of ["map-first", "agents-sessions", "knowledge-kinds"]) {
+  for (const id of ["map-capabilities", "map-claims", "knowledge-kinds"]) {
     await goToStep(page, id);
     if (await page.locator("#tour-play").getAttribute("aria-label") === "Pause the tour") await page.locator("#tour-play").click();
     const look = await page.locator("#tour-card").evaluate(card => {
@@ -410,15 +364,14 @@ async function verifyShortPhones(browser, url) {
   }
 }
 
-// 2.18 on short phones: the agents steps' tags and the map's names still read clear where the words take room from the globe.
-async function verifyShortPhoneTags(browser, url, output) {
+// 2.16 on short phones: the map's names still read clear where the words take room from the globe.
+async function verifyShortPhoneNames(browser, url, output) {
   for (const [width, height] of [[320, 700], [320, 568]]) {
     const page = await browser.newPage({ viewport: { width, height }, reducedMotion: "reduce" });
     await page.addInitScript(() => localStorage.setItem("storytree-opening-seen", "yes"));
     await page.goto(url);
     await page.locator("#tour-play").click();
     await verifyNamesClearHeader(page, `${width}x${height}`, output);
-    await verifyAgentTags(page, width, height, output, `${width}x${height}`);
     await page.close();
   }
 }
@@ -473,7 +426,6 @@ export async function verifyImmersive(browser, url, output) {
     await goToStep(page, "value");
     assert.equal(await recorded.isVisible(), false, "a step without a recording has no small print");
     await verifyNamesClearHeader(page, width, output);
-    await verifyAgentTags(page, width, height, output);
     // A failure here is 2.19's own, so its observation can say so (capture.mjs writes it).
     await verifyOneFormat(page, width, output).catch(error => { error.contract = "2.19"; throw error; });
     await page.locator("#tour-skip").click();
@@ -527,7 +479,7 @@ export async function verifyImmersive(browser, url, output) {
     await page.screenshot({ path: path.join(output, `waitlist-${width}.png`), fullPage: true });
     await page.close();
   }
-  await verifyShortPhoneTags(browser, url, output);
+  await verifyShortPhoneNames(browser, url, output);
   await verifyShortPhones(browser, url).catch(error => { error.contract = "2.19"; throw error; });
   await writeFile(path.join(output, "immersive-measurements.json"), JSON.stringify({ source: "Locally built unpublished working tree", viewports: measurements }, null, 2) + "\n");
   console.log(JSON.stringify(measurements));
@@ -589,7 +541,7 @@ export async function reviewChapters(browser, url, output) {
       const steps = await page.locator('#tour-pips [data-step]').evaluateAll(nodes => nodes.map(node => node.dataset.step));
       for (const id of steps) {
         await goToStep(page, id);
-        const plays = { grow: 20, 'map-empty': 14, 'map-first': 34, 'map-code': 18, 'map-together': 23, 'map-health': 15 };
+        const plays = { grow: 20, 'map-empty': 14, 'map-arcs': 14, 'map-stories': 24, 'map-capabilities': 18, 'map-claims': 22, 'map-health': 22 };
         if (id in plays) {
           await page.locator('#tour-play').click();
           await page.waitForTimeout(plays[id] * 1000);

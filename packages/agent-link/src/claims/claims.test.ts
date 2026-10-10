@@ -13,8 +13,8 @@ import { test } from "node:test";
 import { connect, type Library } from "@storytree/library";
 
 import { ACTIVITY_DATABASE, openActivityLog, type ActivityLog, type LockedLog, type NewLine } from "../activity/index.js";
-import { readClaim, readClaims } from "../index.js";
-import { claimFrom, claimsFrom } from "../readings.js";
+import { lineText, readClaim, readClaims } from "../index.js";
+import { claimFrom, claimsFrom, LONGEST_COMMAND_MS } from "../readings.js";
 import { runHook } from "../hooks/index.js";
 import { MARKER_FILE } from "../routing/index.js";
 import { claudeCode, withAgent } from "../testing/agent.js";
@@ -149,7 +149,11 @@ test("5.2, 4.12 verified safe close-out permits takeover despite stale commands;
       assert.equal((await claimRefusal(as("B", options), emailForm)) === undefined, finished, `${scenario}: workspace preview`);
       const contender = await claim(as("B", options), emailForm, "next writer");
       assert.equal(contender.ok, finished, `${scenario}: atomic admission`);
-      if (contender.ok) assert.equal(contender.takenOverFrom?.session, "A", scenario);
+      if (contender.ok) {
+        assert.equal(contender.takenOverFrom?.session, "A", scenario);
+        const taken = (await log.since(project, 0)).lines.findLast((line) => line.kind === "claimed");
+        assert.ok(taken?.kind === "claimed" && taken.takenBecause === "closed-out", `${scenario}: the takeover says the holder closed out`);
+      }
       else {
         assert.ok(contender.refused === "held" && contender.holder.session === "A", scenario);
         assert.ok(contender.holder.binds, scenario);
@@ -158,6 +162,38 @@ test("5.2, 4.12 verified safe close-out permits takeover despite stale commands;
       }
     });
   }
+});
+
+test("5.34 a takeover's claimed line names the holder, when it was last seen and why it no longer bound: idle, gone, its machine restarted, or closed out", async () => {
+  await withWorld(async ({ log, project, emailForm, passwordReset, as }) => {
+    const quietMs = 1_000;
+    assert.ok((await claim(as("A"), emailForm, "building the email form")).ok);
+    const lastSeen = await log.append(project, { session: "A", harness: "claude-code", source: "hook", machine: "mint", kind: "prompt-submitted" });
+    await sleep(quietMs + 300);
+    assert.ok((await claim(as("B", { quietMs }), emailForm, "A went quiet; taking over")).ok);
+    const idle = (await log.since(project, 0)).lines.findLast((line) => line.kind === "claimed");
+    assert.ok(idle?.kind === "claimed");
+    assert.deepEqual({ from: idle.takenOverFrom, since: idle.quietSince, because: idle.takenBecause }, { from: "A", since: lastSeen.at, because: "idle" });
+    assert.match(lineText(idle), new RegExp(`claimed ${emailForm}, taken over from A after \\d+ s quiet \\(idle\\)  ·`), "the activity log reads who, how long and why");
+
+    // A holder seen on this machine only before it last started died with it, however short its quiet.
+    assert.ok((await claim(as("C"), passwordReset, "password reset")).ok);
+    await log.append(project, { session: "C", harness: "claude-code", source: "hook", machine: "mint", kind: "prompt-submitted" });
+    const restarted = { machine: "mint", at: new Date(Date.now() + 60_000) };
+    assert.ok((await claim({ ...as("D"), restarted }, passwordReset, "C's machine restarted")).ok);
+    const restart = (await log.since(project, 0)).lines.findLast((line) => line.kind === "claimed");
+    assert.ok(restart?.kind === "claimed" && restart.takenOverFrom === "C" && restart.takenBecause === "restart");
+    assert.match(lineText(restart), /taken over from C after \d+ s quiet \(machine restarted\)/);
+
+    // A holder quiet past the longest a command may run is gone.
+    const lines = (await log.since(project, 0)).lines;
+    const gone = claimsFrom(lines, { quietMs, now: new Date(Date.parse(lastSeen.at) + LONGEST_COMMAND_MS + 90 * 60_000) })
+      .find((one) => one.session === "D");
+    assert.equal(gone?.quiet?.because, "gone");
+    const later = { ...idle, at: new Date(Date.parse(idle.quietSince ?? "") + 13.5 * 60 * 60_000).toISOString(), takenBecause: "gone" as const };
+    assert.match(lineText(later), /taken over from A after 13\.5 h quiet \(gone\)/);
+    assert.match(lineText({ ...later, at: new Date(Date.parse(idle.quietSince ?? "") + 42 * 60_000).toISOString(), takenBecause: "closed-out" }), /after 42 min quiet \(closed out\)/);
+  });
 });
 
 test('5.3 when A reports it landed, the claim ends and a "landed" line is written; a release, or A\'s session ending, also ends it', async () => {

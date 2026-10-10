@@ -1,0 +1,22 @@
+{
+  "name": "@storytree/quality-assurance",
+  "private": true,
+  "type": "module",
+  "description": "Quality assurance (ADR-0956): the quality control checks a change-reviewer applies, read as one list from the library, and later the QA ledger of what each check finds.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@storytree/library": "workspace:*",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@storytree/local-postgres": "workspace:*",
+    "@types/node": "^24.13.6",
+    "tsx": "^4.23.15",
+    "typescript": "~7.0.2"
+  }
+}

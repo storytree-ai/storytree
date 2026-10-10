@@ -302,6 +302,9 @@ importers:
       '@storytree/processes':
         specifier: workspace:*
         version: link:../processes
+      '@storytree/quality-assurance':
+        specifier: workspace:*
+        version: link:../quality-assurance
     devDependencies:
       '@storytree/local-postgres':
         specifier: workspace:*
@@ -710,6 +713,9 @@ importers:
       '@storytree/processes':
         specifier: workspace:*
         version: link:../processes
+      '@storytree/quality-assurance':
+        specifier: workspace:*
+        version: link:../quality-assurance
       zod:
         specifier: ^4.6.5
         version: 4.6.5
@@ -742,6 +748,28 @@ importers:
         specifier: ^4.6.5
         version: 4.6.5
     devDependencies:
+      '@types/node':
+        specifier: ^24.13.6
+        version: 24.13.6
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+      typescript:
+        specifier: ~7.0.2
+        version: 7.0.2
+
+  packages/quality-assurance:
+    dependencies:
+      '@storytree/library':
+        specifier: workspace:*
+        version: link:../library
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
+    devDependencies:
+      '@storytree/local-postgres':
+        specifier: workspace:*
+        version: link:../local-postgres
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6

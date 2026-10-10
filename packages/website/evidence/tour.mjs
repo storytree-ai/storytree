@@ -83,27 +83,29 @@ export async function verifyTourCamera(browser, url) {
     const inside = await settled();
     if (distance(opened, inside) < 30) failures.push(`The camera eases in on "Look inside a story": ${JSON.stringify({ opened, inside })}`);
     assert.equal(await page.locator(".story-panel").count(), 0, "2.16: the island and its capabilities arrive before the panel");
-    // Signing in's name follows its coast as each capability lands, so the step's end is read once the splits are done.
-    await lines(3);
-    await page.waitForTimeout(8000);
+    // Its session's claims and the sessions list follow on the same view.
+    await lines(4);
+    await page.waitForTimeout(3000);
     const ended = await settled();
-    // 2.16: the dots, then the panel on the third step's second line, with no camera move.
+    if (distance(inside, ended) > 6) failures.push(`The claims and the sessions list move no camera: ${JSON.stringify({ inside, ended })}`);
+    // 2.16: the code lands, then the dots, then the panel on the third step's third line, with no camera move.
+    // The island is drawn smaller once its code lands, so its name, below its coast, rises: across, it stays where it was.
     await step("map-code");
     await page.waitForTimeout(2500);
-    if (distance(ended, await signingIn()) > 6) failures.push(`The code step opens on the view the second step ended on: ${JSON.stringify({ ended, now: await signingIn() })}`);
+    const across = plates => plates.map(plate => ({ ...plate, y: 0 }));
+    if (distance(across(ended), across(await signingIn())) > 6) failures.push(`The code step opens on the view the second step ended on: ${JSON.stringify({ ended, now: await signingIn() })}`);
     await lines(2);
+    const landed = await settled();
+    await lines(3);
     await page.locator(".story-panel").waitFor({ state: "visible" });
-    assert.match(await page.locator(".story-panel").textContent(), /Signing in.*Session/s, "2.16: the real story panel opens on the second line");
-    if (distance(ended, await signingIn()) > 6) failures.push(`The panel opens with no camera move: ${JSON.stringify({ ended, now: await signingIn() })}`);
-    // 2.16: health keeps the first round's four stories; the second round rises only in the last step.
+    assert.match(await page.locator(".story-panel").textContent(), /Signing in.*Session/s, "2.16: the real story panel opens on the third line");
+    if (distance(landed, await signingIn()) > 6) failures.push(`The panel opens with no camera move: ${JSON.stringify({ landed, now: await signingIn() })}`);
+    // 2.16: health keeps the first round's four stories, and the chapter ends on them: the second round never rises.
     await goToStep(page, "map-health");
     await page.waitForTimeout(800);
     if (await risen() !== 4) failures.push("Health opens on the first round's four stories");
     await page.waitForTimeout(15_000);
-    if (await risen() !== 4) failures.push("Health keeps the second round for the claims step");
-    await goToStep(page, "map-claims");
-    await page.waitForTimeout(4000);
-    if (await risen() !== 8) failures.push(`The second round's four planned stories rise in the claims step: ${await risen()}`);
+    if (await risen() !== 4) failures.push(`The chapter stays on the four stories: ${await risen()}`);
     // 2.17: an agents step shows the shop as it stood at its recorded moment.
     await goToStep(page, "agents-parallel"); await page.waitForTimeout(2500);
     const parallel = await page.locator(".forest-drawing").evaluate(node => ({ map: node.dataset.globe, growth: node.dataset.growth }));
@@ -112,7 +114,7 @@ export async function verifyTourCamera(browser, url) {
     if ((await globe()).map !== "storytree") failures.push("The knowledge steps return to storytree's globe");
     assert.deepEqual(failures, []);
   } finally { await page.close(); }
-  console.log("PASS contracts 2.16 and 2.17: the map chapter grows signing in alone, moves the camera only on its lines, keeps the second round for its last step, and the agents chapter stands at its recorded moments, then storytree's returns");
+  console.log("PASS contracts 2.16 and 2.17: the map chapter grows signing in alone, moves the camera only on its lines, stays on its four stories, and the agents chapter stands at its recorded moments, then storytree's returns");
   console.log("PASS contracts 2.4 and 2.7: exploring holds the tour and says so; Play flies back to the step's view");
 }
 
@@ -131,7 +133,7 @@ export async function verifyTour(browser, url, output) {
   const rows = () => page.locator(".tour-session-surface .session-row").allTextContents();
   // 2.8: one pip per step, grouped by explainer; a pip jumps to its step.
   const pips = await page.locator("#tour-pips [data-go]").count();
-  assert.equal(pips, 21, "one pip per step, with six in the map chapter");
+  assert.equal(pips, 20, "one pip per step, with five in the map chapter");
   assert.deepEqual(await page.locator("#tour-pips .tb-group").evaluateAll(groups => groups.map(group => group.dataset.group)),
     ["opening", "map", "agents", "knowledge", "ending"]);
   await goToStep(page, "map-first");
@@ -179,18 +181,18 @@ export async function verifyTour(browser, url, output) {
   assert.match(await page.locator("#tour-why").textContent(), /Checked against each tool's own documentation on \d+ \w+ \d{4}/);
   await page.screenshot({ path: path.join(output, "390-map-depth.png") });
   await page.locator("#tour-depth").click();
-  // 2.16: the claims step opens the sessions list on its third line, with the three sessions live at that moment.
-  await goToStep(page, "map-claims");
+  // 2.16: the second step opens the sessions list on its fourth line, with the one session live at that moment.
+  await goToStep(page, "map-first");
   if (await page.locator("#tour-play").getAttribute("aria-label") === "Play the tour") await page.locator("#tour-play").click();
   await page.clock.runFor(500);
   assert.equal(await page.locator(".tour-session-surface").evaluate(node => node.hidden), true, "the sessions list waits for its line");
-  for (let tick = 0; tick < 120 && await shown() < 3; tick++) await page.clock.runFor(250);
-  assert.equal(await stepOf(page), "map-claims");
+  for (let tick = 0; tick < 160 && await shown() < 4; tick++) await page.clock.runFor(250);
+  assert.equal(await stepOf(page), "map-first");
   assert.equal(await page.locator(".tour-session-surface").evaluate(node => node.hidden), false, "the sessions list is open");
   const live = await rows();
-  for (const name of ["Part 5: Accounts (sign up)", "Part 6: Orders", "Part 9a: stock, prices, Admin page"]) assert.ok(live.some(row => row.includes(name)), `the list shows ${name}: ${live}`);
-  assert.equal(live.length, 3, `only the three live sessions: ${live}`);
-  await page.screenshot({ path: path.join(output, "390-map-claims-sessions.png") });
+  assert.ok(live.some(row => row.includes("Plan shop3; build part 1 (sign in)")), `the list shows the session building signing in: ${live}`);
+  assert.equal(live.length, 1, `only the one live session: ${live}`);
+  await page.screenshot({ path: path.join(output, "390-map-first-sessions.png") });
   // 2.17: the agents chapter shows the shop's records as they stood: three sessions at once, its arc, then the stand-down.
   await goToStep(page, "agents-parallel"); await page.clock.runFor(500);
   assert.equal(await page.locator(".tour-session-surface").evaluate(node => node.hidden), false, "the sessions strip is open");
@@ -324,7 +326,7 @@ async function verifyAgentTags(page, width, height, output, size = `${width}`) {
 // 2.18's framing, at every width: no island's name shown in the map chapter, as it plays through, hides under the heading or
 // the dated note above the globe.
 async function verifyNamesClearHeader(page, width, output) {
-  const map = ["map-empty", "map-first", "map-code", "map-together", "map-health", "map-claims"];
+  const map = ["map-empty", "map-first", "map-code", "map-together", "map-health"];
   await goToStep(page, map[0]);
   await page.locator('#tour-bar [data-speed="1.5"]').evaluate(button => button.click());
   if (await page.locator("#tour-play").getAttribute("aria-label") !== "Pause the tour") await page.locator("#tour-play").click();
@@ -587,7 +589,7 @@ export async function reviewChapters(browser, url, output) {
       const steps = await page.locator('#tour-pips [data-step]').evaluateAll(nodes => nodes.map(node => node.dataset.step));
       for (const id of steps) {
         await goToStep(page, id);
-        const plays = { grow: 20, 'map-empty': 14, 'map-first': 27, 'map-code': 10, 'map-together': 23, 'map-health': 15, 'map-claims': 26 };
+        const plays = { grow: 20, 'map-empty': 14, 'map-first': 34, 'map-code': 18, 'map-together': 23, 'map-health': 15 };
         if (id in plays) {
           await page.locator('#tour-play').click();
           await page.waitForTimeout(plays[id] * 1000);

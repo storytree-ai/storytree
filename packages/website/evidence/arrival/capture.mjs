@@ -168,12 +168,11 @@ const runs = {
       assert.equal(await stepOf(page), "map-health");
       assert.equal(Number(await page.locator(".forest-drawing").getAttribute("data-risen")), 4);
       await shot(page, `${width}-health-green`);
-      await go(page, "map-claims"); await pause(page);
       await page.locator("#tour-depth").click();
       assert.equal(await page.locator(".tour-compare a").count(), 2);
       await page.close();
     }
-    observed.push("2.16: Health holds the first round's four stories, and the claims step offers the sourced comparison: pass");
+    observed.push("2.16: Health holds the first round's four stories and, the chapter's last step, offers the sourced comparison: pass");
   },
   // The agents chapter (2.17, ADR-0893): each step on the shop at its recorded moment, at 1920, 1440, 1280, 390 and 320.
   // --to <folder> (beside this one) writes them elsewhere, for a before-and-after.
@@ -210,26 +209,26 @@ const runs = {
         await page.waitForFunction(() => document.querySelector(".forest-drawing")?.dataset.arrived === "true", null, { timeout: 30_000 }).catch(() => {});
         await page.waitForTimeout(2000);
         await page.screenshot({ path: out(`${width}-${id}`) });
-        if (["map-first", "map-claims"].includes(id)) { await page.locator("#tour-depth").click(); await page.waitForTimeout(600); await page.screenshot({ path: out(`${width}-${id}-depth`) }); await page.locator("#tour-depth").click(); }
+        if (["map-first", "map-health"].includes(id)) { await page.locator("#tour-depth").click(); await page.waitForTimeout(600); await page.screenshot({ path: out(`${width}-${id}-depth`) }); await page.locator("#tour-depth").click(); }
         await play(page);
       }
       await page.close();
     }
     observed.push(`Every chapter step in the tour's one format: pictured in ${to}`);
   },
-  // The map chapter in six steps (2.16, ADR-0891 amended 2026-10-10), played in order at 1920, 1440, 1280, 390 and 320:
+  // The map chapter in five steps (2.16, ADR-0891 amended twice 2026-10-10), played in order at 1920, 1440, 1280, 390 and 320:
   // each step pictured as it settles, with where the names of the islands it frames stand against the screen's edges, the
-  // header, the card, the bar and the panels; the claims step also on its second line, before the sessions list opens; and a
-  // clip of steps 1 to 4 at 1440, with the camera's two line-cued moves. --to <folder> (beside this one) says where they go.
+  // header, the card, the bar and the panels; the second step also on its claims line, before the sessions list opens; and a
+  // clip of steps 1 to 3 at 1440, with the camera's line-cued move. --to <folder> (beside this one) says where they go.
   async mapSteps() {
-    const to = process.argv.includes("--to") ? process.argv[process.argv.indexOf("--to") + 1] : "map-six";
+    const to = process.argv.includes("--to") ? process.argv[process.argv.indexOf("--to") + 1] : "map-five";
     const out = name => path.join(pictures, `../${to}/${name}`);
     await mkdir(path.join(pictures, `../${to}`), { recursive: true });
-    const four = ["Signing in", "Browsing", "Cart", "Checkout"], claimed = ["Checkout", "Cart", "Orders"];
-    const frames = { "map-first": ["Signing in"], "map-code": ["Signing in"], "map-together": four, "map-health": four, "map-claims-line-2": claimed, "map-claims": claimed };
-    // On a phone the sessions list, opened by the claims step's third line, lies over the islands its second line named;
-    // the third names none.
-    const phoneFrames = { ...frames, "map-claims": [] };
+    const four = ["Signing in", "Browsing", "Cart", "Checkout"];
+    const frames = { "map-first-line-3": ["Signing in"], "map-first": ["Signing in"], "map-code": ["Signing in"], "map-together": four, "map-health": four };
+    // On a phone the sessions list, opened by the second step's last line, lies over the island its claims line named; the
+    // last line names none.
+    const phoneFrames = { ...frames, "map-first": [] };
     const measure = page => page.evaluate(names => {
       const box = node => { const r = node?.getBoundingClientRect(); return r && r.width ? { x: r.x, y: r.y, width: r.width, height: r.height } : undefined; };
       const plates = [...document.querySelectorAll(".planet-nameplate[data-story-id]")].map(node => ({ title: node.querySelector(".planet-nameplate-title")?.textContent, box: box(node), shown: getComputedStyle(node).opacity !== "0" }));
@@ -247,17 +246,17 @@ const runs = {
       if (!clip) { if (width > 600) await page.locator('#tour-bar [data-speed="1.5"]').click(); else for (let tap = 0; tap < 2; tap++) await page.locator("#tour-speed-cycle").click(); }
       if (clip) {
         await go(page, "map-empty");
-        await page.waitForFunction(() => document.querySelector("#chapter2").dataset.tourStep === "map-health", null, { timeout: 240_000 });
+        await page.waitForFunction(() => document.querySelector("#chapter2").dataset.tourStep === "map-together", null, { timeout: 240_000 });
       } else {
         const ids = await page.locator('#tour-pips [data-step^="map-"]').evaluateAll(pips => pips.map(pip => pip.dataset.step));
         for (const id of ids) {
           if (await page.locator("#tour-play").getAttribute("aria-label") === "Play the tour") await page.locator("#tour-play").click();
           await go(page, id);
-          // The claims step on its second line, while it plays: a paused step shows all its lines, and the third opens the list.
-          if (id === "map-claims") {
-            await page.waitForFunction(() => document.querySelectorAll("#tour-lines .tour-line.on").length === 2, null, { timeout: 60_000 });
+          // The second step on its claims line, while it plays: a paused step shows all its lines, and the last opens the list.
+          if (id === "map-first") {
+            await page.waitForFunction(() => document.querySelectorAll("#tour-lines .tour-line.on").length === 3, null, { timeout: 60_000 });
             await page.waitForTimeout(1500);
-            settled.set("map-claims-line-2", { picture: await page.screenshot(), seen: await measure(page) });
+            settled.set("map-first-line-3", { picture: await page.screenshot(), seen: await measure(page) });
           }
           await page.waitForFunction(() => Number(document.querySelector('#tour-pips [aria-current="step"]').style.getPropertyValue("--fill")) >= .88, null, { timeout: 60_000 });
           await pause(page); await page.waitForTimeout(700);
@@ -294,8 +293,8 @@ const runs = {
     const page = await open({ width: 1440, height: 900 }, { video: true });
     await play(page, "clip-1440", true);
     const video = page.video(); await page.close();
-    await rm(out("1440-steps-1-to-4.webm"), { force: true });
-    await rename(await video.path(), out("1440-steps-1-to-4.webm"));
+    await rm(out("1440-steps-1-to-3.webm"), { force: true });
+    await rename(await video.path(), out("1440-steps-1-to-3.webm"));
     for (const name of await readdir(path.join(pictures, `../${to}`))) if (name.startsWith("clip-1440-")) await rm(out(name));
     await writeFile(out("framing.json"), JSON.stringify(report, null, 2) + "\n");
     observed.push(`The map chapter's steps: pictured in ${to}; framing misses: ${JSON.stringify(report.filter(item => item.misses.length))}`);

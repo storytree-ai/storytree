@@ -3,14 +3,13 @@ import { growthPlan, type GrowthPlan, type GrowthOptions } from "@storytree/fore
 import type { GrowthSnapshot } from "./forest-data.js";
 
 /**
- * The map chapter's window onto the shop's saved record, to the Orders session's merge (pr9). Signing in, the story the first
- * session built, is alone on the map until the first round's three stories start being built together (pr3-building); the
- * second round's stories join when their sessions start writing (pr7-building), just after that survey's health is shown on
- * the first round alone.
+ * The map chapter's window onto the shop's saved record, to the 03:08:57 survey that turns the first round green. Signing in,
+ * the story the first session built, is alone on the map until the first round's three stories start being built together
+ * (pr3-building); the second round's stories never rise (ADR-0891, amended 2026-10-10: five steps).
  */
 export function mapRecording(saved: GrowthSnapshot): GrowthSnapshot {
   const index = (id: string) => saved.stages.findIndex(stage => stage.id === id);
-  const first = saved.stages[index("pr1")]!, building = saved.stages[index("pr1-building")]!, second = saved.stages[index("pr7-building")]!;
+  const first = saved.stages[index("pr1")]!, building = saved.stages[index("pr1-building")]!;
   const alone = new Set(building.wisps.map(wisp => wisp.story));
   const round = new Set(saved.stages[index("pr4")]!.scene.islands.map(island => island.story));
   const narrow = (scene: GrowthSnapshot["scene"], stories: ReadonlySet<string>): GrowthSnapshot["scene"] => {
@@ -18,22 +17,41 @@ export function mapRecording(saved: GrowthSnapshot): GrowthSnapshot {
     const capabilities = new Set(islands.flatMap(island => island.trees.flatMap(tree => tree.capability ? [tree.capability] : [])));
     return { ...scene, islands, ...(scene.links ? { links: scene.links.filter(link => capabilities.has(link.from) && capabilities.has(link.to)) } : {}) };
   };
-  const stages = saved.stages.slice(0, index("pr9") + 1).flatMap((stage, at) => at < index("pr3-building") ? [{ ...stage, scene: narrow(stage.scene, alone) }]
+  // The 03:08:57 survey's green on the first round ("checked"), then the moment the second round starts being built, which
+  // the chapter runs until and never reaches: its islands and sessions are not shown.
+  const stages = saved.stages.slice(0, index("pr7-building") + 1).flatMap((stage, at) => at === index("pr1-building") ? []
+    : at < index("pr3-building") ? [{ ...stage, scene: narrow(stage.scene, alone) }]
     : at < index("pr7-building") ? [{ ...stage, scene: narrow(stage.scene, round) }]
-    // The 03:08:57 survey's green on the first round, before its second-round islands rise.
-    : at === index("pr7-building") ? [{ ...stage, id: "checked", scene: narrow(stage.scene, round), wisps: [] }, stage] : [stage]);
-  // The export has code surveys at PR boundaries and capability landings between them. Reveal the first survey's
-  // allocation in that recorded landing order; file sizes/ownership stay the survey's, never invented between commits.
-  // Signing in's code reached the map only when its pull request merged, after its claims were released, so no claim
-  // draws while it fills (ADR-0923).
+    : [{ ...stage, id: "checked", scene: narrow(stage.scene, round), wisps: [] }, { ...stage, scene: narrow(stage.scene, round), wisps: [] }]);
+  const lines = saved.reading?.recording.lines ?? [];
+  const titles = new Map(saved.stages.flatMap(stage => stage.scene.islands.flatMap(island => island.land?.territories.flatMap(part => part.capability ? [[part.capability, part.title ?? part.capability] as const] : []) ?? [])));
+  // While signing in has no code, its session stakes its capabilities as it claims them (ADR-0968 D4): the island carries an
+  // equal share for each, and each claim is a flag in its share's lot, lifted when its capability lands. Browsing's claims
+  // by the same session fall on an island not yet shown.
+  const planned = narrow(building.scene, alone);
+  const staked = { ...planned, islands: planned.islands.map(island => ({ ...island, land: { files: [], territories: island.trees.flatMap(tree => tree.capability
+    ? [{ capability: tree.capability, title: titles.get(tree.capability) ?? tree.capability, status: tree.status ?? "untested", lines: 1 }] : []) } })) };
+  const shares = new Set(staked.islands.flatMap(island => island.trees.flatMap(tree => tree.capability ? [tree.capability] : [])));
+  const held = new Set<string>();
+  for (const line of lines) {
+    if ((line.kind !== "claimed" && line.kind !== "landed") || !("capability" in line) || line.at >= first.at || !shares.has(String(line.capability))) continue;
+    const capability = String(line.capability);
+    if (line.kind === "claimed") held.add(capability); else held.delete(capability);
+    stages.push({ ...building, id: `${line.kind === "claimed" ? "staked" : "lifted"}-${capability}`, at: line.at, scene: staked,
+      wisps: held.size ? building.wisps.filter(wisp => alone.has(wisp.story)).map(wisp => ({ ...wisp, capabilities: [...held] })) : [] });
+  }
+  // The export has code surveys at PR boundaries and capability landings between them. Signing in's code reached the map when
+  // its pull request merged (pr1), after its claims were released: its territories take the lots' place there, one at a
+  // time in the order the agent landed them, a millisecond apart; file sizes and ownership stay the survey's, never invented
+  // between commits.
   const landed = new Set<string>();
   const opening = narrow(first.scene, alone);
-  for (const line of saved.reading?.recording.lines ?? []) {
-    if (line.kind !== "landed" || !("capability" in line) || line.at >= first.at) continue;
-    const capability = String(line.capability);
-    if (!opening.islands.some(island => island.land?.territories.some(part => part.capability === capability))) continue;
+  const landings = lines.filter(line => line.kind === "landed" && "capability" in line && line.at < first.at
+    && opening.islands.some(island => island.land?.territories.some(part => part.capability === String((line as { capability: unknown }).capability))));
+  landings.forEach((line, order) => {
+    const capability = String((line as { capability: unknown }).capability);
     landed.add(capability);
-    stages.push({ ...first, id: `land-${capability}`, at: line.at, wisps: [],
+    stages.push({ ...first, id: `land-${capability}`, at: new Date(Date.parse(first.at) - (landings.length - order)).toISOString(), wisps: [],
       scene: { ...opening, islands: opening.islands.map(island => {
         const { land, ...planned } = island;
         if (!land) return island;
@@ -42,19 +60,23 @@ export function mapRecording(saved: GrowthSnapshot): GrowthSnapshot {
           files: land.files.filter(file => file.capability && landed.has(file.capability)) } } : planned;
       }) },
     });
-  }
+  });
   stages.sort((a, b) => a.at.localeCompare(b.at));
   return { ...saved, scene: saved.stages[index("pr9")]!.scene, stages };
 }
 
-/** Every dated health/claim change gets a beat, even when it adds no new geometry. */
+/**
+ * Every dated health/claim change gets a beat, even when it adds no new geometry. Signing in's shares show from the first
+ * claim on it, whole as the first flag drops, so each lot has its ground; its surveyed territories then replace them stage by stage.
+ */
 export function mapGrowthPlan(recording: GrowthSnapshot, roadLength?: GrowthOptions["roadLength"]): GrowthPlan {
   const plan = growthPlan(recording.stages.map(stage => ({ ...stage, hold: 1 })), { fromPoint: true, seconds: 15,
     ...(roadLength ? { roadLength } : {}), until: recording.stages.at(-1)!.at });
-  for (const stage of plan.stages) {
-    if (!stage.id.startsWith("land-")) continue;
-    const capability = stage.id.slice(5), window = plan.capabilities.get(capability);
-    if (window) plan.capabilities.set(capability, { ...window, start: stage.start });
+  const first = plan.stages.find(stage => stage.id.startsWith("staked-"));
+  const staked = recording.stages.find(stage => stage.id === first?.id);
+  for (const island of staked?.scene.islands ?? []) for (const part of island.land?.territories ?? []) {
+    const window = part.capability ? plan.capabilities.get(part.capability) : undefined;
+    if (window) plan.capabilities.set(part.capability!, { ...window, start: first!.start - window.seconds });
   }
   return plan;
 }

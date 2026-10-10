@@ -203,45 +203,48 @@ test("2.15 · a step's view is reached even when its island is drawn after the s
   assert.ok(tries > 0 && tries <= 100, "an island that never comes is given up on");
 });
 
-test("2.16 · the map chapter plays the six approved steps on the shop's recorded build", () => {
+test("2.16 · the map chapter plays the five approved steps on the shop's recorded build", () => {
   const chapter = tourSteps.filter(item => item.explainer === "map");
   assert.deepEqual(chapter.map(item => item.lines), [
     ["Let's start from the beginning and build a shopping site, so you can see how storytree draws a map as your agents build."],
     ["As your agents build your project, each of its stories shows up on the map as an island.",
       "Look inside a story and you'll find it's broken up into capabilities, the pieces that make it work.",
-      "It starts as one. Each time your agent builds another capability, the island splits to make room for it."],
-    ["Your code is glued to its capability: each dot is a file.",
+      "Before an agent writes, its session claims the capability it's working on, so no two agents change the same thing.",
+      "Storytree lists your conversations with AI here as active sessions."],
+    ["It starts as one. Each time your agent builds another capability, the island splits to make room for it.",
+      "Your code is glued to its capability: each dot is a file.",
       "Select a story and a panel shows how its capabilities work together."],
     ["Stories are like the organs of your app: each plays its role, and many can't work without others.",
       "These dependencies are shown as pathways.",
       "Browsing, the cart and checkout all need signing in. With it built, three agents can build them at once."],
     ["As your automated tests run in CI, storytree shows you which capabilities are healthy and which need your attention.",
       "Yellow means nothing has proved it yet; green means its tests passed."],
-    ["Before an agent writes, its session claims the capability it's working on, so no two agents change the same thing.",
-      "Here the shop is growing, and the agent adding orders needs to change checkout and the cart. Its claims show on both.",
-      "Storytree lists your conversations with AI here as active sessions."],
   ]);
   assert.ok(chapter.every(item => item.map === "shop"));
-  const [empty, first, code, together, health, claims] = chapter;
+  const [empty, first, code, together, health] = chapter;
+  const shopServer = "capability_323895c5a414", session = "capability_678463042156", signOut = "capability_918e1fa754ab";
   const moments = chapter.map(item => typeof item.growth === "object" ? [item.growth.stage, item.growth.until] : item.growth);
-  assert.deepEqual(moments, [[undefined, "planned"], ["planned", "pr1"], ["pr1", "pr1"], ["pr3-building", "pr4"], ["pr4", "pr7-building"], ["pr7-building", "pr9"]]);
-  // Signing in rises with the first line, and its capabilities split it in time with the third.
-  assert.deepEqual((first!.growth as { beats: unknown }).beats, [{ line: 2, stage: "pr1-building" }, { line: 3, stage: "pr1-building" }]);
-  // Nothing in steps 2 and 3 reads as a claim: no session tints (their outlines and rings), no focus ring.
-  for (const item of [empty, first, code]) assert.ok(!item!.surfaces.sessionTints && !item!.focus && !Object.values(item!.lineSurfaces ?? {}).some(next => next.sessionTints), item!.id);
-  assert.equal(code!.lineSurfaces?.[1]?.fileCircles ?? code!.surfaces.fileCircles, true, "the dots appear with the first line");
+  assert.deepEqual(moments, [[undefined, "planned"], ["planned", `lifted-${signOut}`], [`land-${shopServer}`, "pr1"], ["pr3-building", "pr4"], ["pr4", "pr7-building"]]);
+  // Signing in rises with the first line; its first flag drops with the second, the flag moves through its lots on the third,
+  // and stands in sign-out's while the sessions list is open on the fourth.
+  assert.deepEqual((first!.growth as { beats: unknown }).beats, [{ line: 2, stage: `staked-${shopServer}` }, { line: 3, stage: `staked-${session}` }, { line: 4, stage: `staked-${signOut}` }]);
+  const tinted = (item: TourStep, line: number) => { let shown = item.surfaces; for (const [from, next] of Object.entries(item.lineSurfaces ?? {})) if (line >= Number(from)) shown = next; return shown.sessionTints === true; };
+  assert.deepEqual(first!.lines.map((_, index) => tinted(first!, index + 1)), [false, true, true, true], "signing in appears plain; its flags draw from the second line");
+  assert.ok(!tinted(empty!, 1) && !first!.focus && !code!.lines.some((_, index) => tinted(code!, index + 1)), "nothing reads as a claim before the first flag, or once its code lands");
+  assert.equal(first!.panel, "sessions");
+  assert.equal(first!.panelFromLine, 4, "the sessions list opens on the fourth line");
+  assert.equal(first!.sessionsAt?.slice(0, 16), "2026-10-05T01:58", "the list reads the one session live then");
+  assert.equal(code!.lineSurfaces?.[2]?.fileCircles, true, "the dots appear with the second line");
+  assert.ok(!code!.surfaces.fileCircles);
   assert.equal(code!.panel, "story");
-  assert.equal(code!.panelFromLine, 2, "the story panel opens with the second line");
+  assert.equal(code!.panelFromLine, 3, "the story panel opens with the third line");
   assert.equal(together!.lineSurfaces?.[2]?.roads, true, "pathways come on with the second line");
+  assert.ok(tinted(together!, 1), "the three agents' flags are let through");
   assert.equal(health!.surfaces.territories, "health");
-  assert.ok(claims!.surfaces.sessionTints, "the Orders session's outlines draw");
-  assert.equal(claims!.panel, "sessions");
-  assert.equal(claims!.panelFromLine, 3, "the sessions list opens on the third line");
-  assert.equal(claims!.sessionsAt?.slice(0, 16), "2026-10-05T03:09", "the list reads the three sessions live at 03:09");
-  assert.ok(claims!.compare?.sources.some(Boolean), "the comparison with other tools closes the chapter");
-  assert.ok(!health!.compare);
+  assert.ok(health!.compare?.sources.some(Boolean), "the comparison with other tools closes the chapter");
   for (const item of chapter) assert.ok(item.how && item.why && item.decisions.length === 0);
-  assert.match(claims!.how!, /code on the map/);
+  assert.match(first!.how!, /flag/);
+  assert.ok(!tourSteps.some(item => [item.how, item.why, ...item.lines].some(text => /outline/i.test(text ?? "") && !/Outline lists/.test(text ?? ""))), "the site speaks of flags, not outlines");
 });
 
 test("2.16 · across the map chapter the camera moves only on the line that says why, never at a step change", () => {
@@ -254,8 +257,7 @@ test("2.16 · across the map chapter the camera moves only on the line that says
       if (before !== undefined && view !== before) moves.push(`${item.id}:${index + 1}`);
       before = view;
     });
-    // A phone also eases in on the cart as the claims step's second line names it and checkout: its whole shop is too small.
-    assert.deepEqual(moves, ["map-first:2", "map-together:1", ...(wide ? [] : ["map-claims:2"])], wide ? "laptop" : "phone");
+    assert.deepEqual(moves, ["map-first:2", "map-together:1"], wide ? "laptop" : "phone");
   }
   const first = chapter[1]!;
   assert.notDeepEqual(viewOf(first, 1, true), viewOf(first, 2, true), "it eases in on \"Look inside a story\"");
@@ -354,7 +356,7 @@ test("2.18 · on a laptop, where the first-come sides leave a tag over a panel, 
 });
 
 
-test("2.16 · the map replays capability landings, claims and health from the same recorded stage", () => {
+test("2.16 · the map stakes signing in's claims as flags in lots before its code lands, then replays its landings, claims and health from the same recorded stage", () => {
   const original = shop as unknown as GrowthSnapshot;
   const recording = mapRecording(original);
   const plan = mapGrowthPlan(recording);
@@ -364,37 +366,44 @@ test("2.16 · the map replays capability landings, claims and health from the sa
   const signIn = "story_d263ef0f3f72", browsing = "story_0c07d0047754", cart = "story_2de9e8f4db21", checkout = "story_66f80ffaaa4d";
   const frame = (when: number) => recordedFrame(recording, plan, when);
   const stories = (when: number) => frame(when).scene.islands.map(island => island.story).sort();
-  const files = (id: string) => frame(at(id)).scene.islands.find(island => island.story === signIn)?.land?.files.length ?? 0;
-  // Steps 1 to 3: signing in alone, its capabilities landing in their recorded order (the shop server first, 01:56).
-  for (const id of ["planned", "pr1-building", "pr1"]) assert.deepEqual(stories(at(id)), [signIn], `${id}: only signing in is on the map`);
-  const landed = plan.stages.filter(stage => stage.id.startsWith("land-")).map(stage => stage.id.slice(5));
-  assert.equal(landed[0], "capability_323895c5a414");
-  assert.deepEqual(landed, ["capability_323895c5a414", "capability_678463042156", "capability_ae20917d7a32"], "only the landings that change signing in's land take a beat");
-  assert.equal(files("pr1-building"), 0);
-  assert.ok(files("land-capability_678463042156") > files("land-capability_323895c5a414"));
-  assert.equal(files("pr1"), 8);
-  for (const id of landed) assert.equal(plan.capabilities.get(id)?.start, at(`land-${id}`), "territories fill when their agent lands them, not when planned");
-  // Its code reached the map when its pull request merged, after its claims were released: no outline while it fills.
-  const outlines = (when: number) => {
-    const shown = frame(when);
-    const surveyed = new Set(shown.scene.islands.flatMap(island => island.land?.territories.map(part => part.capability) ?? []));
-    return shown.wisps.flatMap(wisp => wisp.capabilities.filter(capability => surveyed.has(capability)).map(capability => `${wisp.colour} ${capability}`));
-  };
-  for (const id of ["pr1-building", ...landed.map(id => `land-${id}`), "pr1"]) assert.deepEqual(outlines(at(id)), [], `${id}: no claim draws on signing in`);
-  // Steps 4 and 5: the first round, then checkout's recorded green before the second round rises.
+  const signingIn = (when: number) => frame(when).scene.islands.find(island => island.story === signIn);
+  const flags = (when: number) => frame(when).wisps.flatMap(wisp => wisp.capabilities.map(capability => `${wisp.colour} ${capability.slice(-4)}`));
+  for (const id of ["planned", "pr1"]) assert.deepEqual(stories(at(id)), [signIn], `${id}: only signing in is on the map`);
+  assert.equal(signingIn(at("planned"))?.land, undefined, "signing in rises plain, before any claim");
+  // Steps 2: its session stakes each capability as it claims it, a flag in a lot on an equal share of the island with no code.
+  const claims = plan.stages.filter(stage => /^(staked|lifted)-/.test(stage.id));
+  const purple = "hsl(300, 80%, 68%)";
+  assert.deepEqual(claims.map(stage => [stage.id.replace(/capability_\w+/, ""), flags(stage.start)]), [
+    ["staked-", [`${purple} a414`]], ["staked-", [`${purple} a414`, `${purple} 2156`]], ["lifted-", [`${purple} 2156`]], ["lifted-", []],
+    ["staked-", [`${purple} 7a32`]], ["lifted-", []], ["staked-", [`${purple} 13aa`]], ["lifted-", []], ["staked-", [`${purple} 54ab`]], ["lifted-", []],
+  ], "the shop server, the session, the page shell, the sign-in page and sign-out, one after another");
+  for (const stage of claims) {
+    const land = signingIn(stage.start)!.land!;
+    assert.deepEqual([land.files.length, land.territories.length, new Set(land.territories.map(part => part.lines)).size], [0, 5, 1], `${stage.id}: five equal shares, no code`);
+  }
+  const first = claims[0]!.start;
+  for (const part of signingIn(first)!.land!.territories) { const window = plan.capabilities.get(part.capability!)!; assert.ok(window.start + window.seconds <= first + 1e-9, `${part.title}'s share is whole as the first flag drops`); }
+  // Step 3: its code lands when its pull request merged: the surveyed territories take the lots' place in the order it built them.
+  const landed = plan.stages.filter(stage => stage.id.startsWith("land-"));
+  assert.deepEqual(landed.map(stage => stage.id.slice(5)), ["capability_323895c5a414", "capability_678463042156", "capability_ae20917d7a32"]);
+  assert.ok(landed[0]!.start > claims.at(-1)!.start, "after the last claim is released");
+  assert.deepEqual(landed.map(stage => signingIn(stage.start)!.land!.territories.length), [1, 2, 3], "it starts as one, then splits");
+  assert.ok(landed.every(stage => flags(stage.start).length === 0));
+  assert.equal(signingIn(at("pr1"))!.land!.files.length, 8);
+  // Steps 4 and 5: the first round, checkout's two surveyed claims at pr5, then its recorded green; the second round never rises.
   assert.deepEqual(stories(at("pr3-building")), [signIn, browsing, cart, checkout].sort());
   assert.ok(plan.islands.get(browsing)!.start >= at("pr3-building"), "browsing, the cart and checkout grow in step 4");
+  const surveyed = (when: number) => {
+    const shown = frame(when), codes = new Set(shown.scene.islands.flatMap(island => island.land?.territories.map(part => part.capability) ?? []));
+    return shown.wisps.flatMap(wisp => wisp.capabilities.filter(capability => codes.has(capability)).map(capability => `${wisp.colour} ${capability.slice(-4)}`));
+  };
+  assert.deepEqual(surveyed(at("pr5")).sort(), ["hsl(214, 80%, 68%) a358", "hsl(214, 80%, 68%) b593"]);
   const status = (when: number, story: string) => frame(when).scene.islands.find(island => island.story === story)!.land!.territories.map(cap => cap.status);
   assert.ok(status(at("pr4"), checkout).every(status => status === "untested"));
   const checked = at("pr7-building") - .001;
   assert.ok(status(checked, checkout).every(status => status === "healthy"), "health turns green before the step ends");
-  assert.deepEqual(stories(checked), [signIn, browsing, cart, checkout].sort(), "the second round is not on the map yet");
-  assert.deepEqual(outlines(checked), []);
-  // Step 6: the second round's four planned stories, and the Orders session's two surveyed claims until its merge.
-  assert.equal(stories(at("pr7-building")).length, 8);
-  const orders = ["hsl(193, 80%, 68%) capability_276fa436dc33", "hsl(193, 80%, 68%) capability_668ca101a358"];
-  for (const id of ["pr7-building", "pr9-building", "pr8-building", "pr7"]) assert.deepEqual(outlines(at(id)).sort(), orders, `${id}: Order overview and Side menu`);
-  assert.deepEqual(outlines(at("pr9")), [], "released when its pull request merges");
+  assert.deepEqual(flags(checked), []);
+  for (const when of [checked, at("pr7-building")]) assert.deepEqual(stories(when), [signIn, browsing, cart, checkout].sort(), "the chapter stays on the four stories");
   assert.equal(recordedFrame(recording, plan, 0).scene.islands.length, 1, "signing in is mounted for the opening camera; the growth clock keeps it invisible until planned");
   assert.ok([...plan.islands.values()].every(window => window.start > 0));
   assert.equal(original.scene.islands.length, 8, "free play and the other chapters keep the saved recording");

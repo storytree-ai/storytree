@@ -12,8 +12,8 @@ import { forestScene, storyNodes } from '../../../index.js';
 import { rowOf } from '../../../planet-places/planet-places.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const seed = JSON.parse(gunzipSync(readFileSync(path.join(here, 'seed.json.gz'))).toString('utf8'));
-const survey = JSON.parse(readFileSync(path.join(here, 'survey.json'), 'utf8'));
+const seed = JSON.parse(gunzipSync(readFileSync(path.join(here, 'investigation-seed.json.gz'))).toString('utf8'));
+const survey = JSON.parse(readFileSync(path.join(here, 'investigation-survey.json'), 'utf8'));
 const { tree } = seed, changes = seed.changes.changes;
 const scene = forestScene(tree, changes, workStates([]), survey);
 const title = new Map<string, string>(tree.stories.map((s: any) => [s.id, s.title]));

@@ -143,6 +143,14 @@ test("11.8 work with an open pull request is refused naming it and --despite-ope
   });
 });
 
+test("5.35 the CLI's refusal of a held claim names the increments its holder holds the work for", () => {
+  const holder = { capability: "capability_form", session: "s1", label: "Codex", reason: "build form", since: "2026-10-10T00:00:00.000Z", holder: "live" } as const;
+  const refused = workspaceRefusalText("capability_form", { ok: false, refused: "held", holder, heldFor: ["increment_form", "increment_mail"] });
+  assert.ok(refused.includes("Codex session s1 for increment_form, increment_mail: build form"), refused);
+  assert.ok(refused.includes("once increment_form closes"), refused);
+  assert.doesNotMatch(workspaceRefusalText("capability_form", { ok: false, refused: "held", holder, heldFor: [] }), / for |closes/);
+});
+
 test("11.8 the CLI offers --despite-open-pulls from the refusal's pull data regardless of its wording", () => {
   const increment = "increment_email";
   const why = "Finish pull request #41 on claude/email first";

@@ -1,7 +1,7 @@
 // Storytree's own globe as the desktop lays it out, measured on screen at the view the app opens on:
 // for every dependency, is the dependent's island north of the island it depends on, where the eye sees them?
-// Reads the live library (read only, as ../rows/seed.mts does) and this checkout's code survey; writes
-// measurements.json, seed.json.gz and survey.json (for capture.mjs) and one schematic per view beside this file.
+// Reads the live library (read only, as seed.mts does) and this checkout's code survey; writes
+// measurements.json, investigation-seed.json.gz and investigation-survey.json (for capture-investigation.mjs) and one schematic per view beside this file.
 // Run: node --import tsx measure.mts
 import { writeFileSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
@@ -38,8 +38,8 @@ for (const change of all.changes) kept.set(`${change.recordId}:${change.action =
 const changes = [...kept.values()].sort((a, b) => a.seq - b.seq);
 const survey: any = await readCodeSurvey(root, tree);
 const taken = new Date().toISOString();
-writeFileSync(path.join(here, 'seed.json.gz'), gzipSync(JSON.stringify({ projects: ['storytree'], tree, changes: { ...all, changes }, lines: { lines: [], cursor: 0 }, covers: {}, stats: { stories: tree.stories.length, taken } }) + '\n', { level: 9 }));
-writeFileSync(path.join(here, 'survey.json'), JSON.stringify(survey) + '\n');
+writeFileSync(path.join(here, 'investigation-seed.json.gz'), gzipSync(JSON.stringify({ projects: ['storytree'], tree, changes: { ...all, changes }, lines: { lines: [], cursor: 0 }, covers: {}, stats: { stories: tree.stories.length, taken } }) + '\n', { level: 9 }));
+writeFileSync(path.join(here, 'investigation-survey.json'), JSON.stringify(survey) + '\n');
 
 const scene = forestScene(tree, changes, workStates([]), survey);
 const nodes = storyNodes(tree, changes, survey);

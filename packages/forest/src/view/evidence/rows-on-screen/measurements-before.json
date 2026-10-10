@@ -1,0 +1,219 @@
+{
+  "label": "before",
+  "browser": "148.0.7778.96",
+  "errors": [],
+  "warnings": [
+    "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+    "[.WebGL-0x13640015f800]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
+    "[.WebGL-0x13640015f800]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels (this message will no longer repeat)"
+  ],
+  "turn": {
+    "tiltDegrees": -22.8
+  },
+  "rows": [
+    {
+      "row": 0,
+      "top": 604.4,
+      "bottom": 691.7
+    },
+    {
+      "row": 1,
+      "top": 545.1,
+      "bottom": 545.1
+    },
+    {
+      "row": 2,
+      "top": 460.7,
+      "bottom": 473.3
+    },
+    {
+      "row": 3,
+      "top": 345.7,
+      "bottom": 371.4
+    },
+    {
+      "row": 4,
+      "top": 306.3,
+      "bottom": 408.7
+    },
+    {
+      "row": 5,
+      "top": 200.5,
+      "bottom": 357
+    },
+    {
+      "row": 6,
+      "top": 196.1,
+      "bottom": 196.1
+    },
+    {
+      "row": 7,
+      "top": 149,
+      "bottom": 149
+    },
+    {
+      "row": 8,
+      "top": 82.6,
+      "bottom": 82.6
+    }
+  ],
+  "rowBandsOverlapping": [
+    "3/4",
+    "3/5",
+    "4/5"
+  ],
+  "edgesInView": "42 of 43 point up",
+  "south": [
+    {
+      "from": "The agent link",
+      "on": "Guardrails",
+      "up": false
+    }
+  ],
+  "islands": [
+    {
+      "title": "Identity",
+      "rank": 0,
+      "x": 458.7,
+      "y": 691.7,
+      "facing": 0.03,
+      "latitude": -41.4
+    },
+    {
+      "title": "The world",
+      "rank": 0,
+      "x": 516.2,
+      "y": 650,
+      "facing": 0.59,
+      "latitude": -50.6
+    },
+    {
+      "title": "Process ledger",
+      "rank": 0,
+      "x": 694,
+      "y": 604.4,
+      "facing": 0.88,
+      "latitude": -50.6
+    },
+    {
+      "title": "Keys",
+      "rank": 0,
+      "x": 947.6,
+      "y": 673.6,
+      "facing": 0.43,
+      "latitude": -50.6
+    },
+    {
+      "title": "Journey events",
+      "rank": 0,
+      "x": 991.7,
+      "y": 676.5,
+      "facing": 0.13,
+      "latitude": -41.4
+    },
+    {
+      "title": "The library",
+      "rank": 1,
+      "x": 898.5,
+      "y": 545.1,
+      "facing": 0.82,
+      "latitude": -36.9
+    },
+    {
+      "title": "The librarian",
+      "rank": 2,
+      "x": 530.1,
+      "y": 473.3,
+      "facing": 0.85,
+      "latitude": -25.6
+    },
+    {
+      "title": "The map",
+      "rank": 2,
+      "x": 666.1,
+      "y": 460.7,
+      "facing": 0.99,
+      "latitude": -27
+    },
+    {
+      "title": "CI health",
+      "rank": 3,
+      "x": 577.6,
+      "y": 345.7,
+      "facing": 0.89,
+      "latitude": -7.5
+    },
+    {
+      "title": "Guardrails",
+      "rank": 3,
+      "x": 780.8,
+      "y": 371.4,
+      "facing": 0.97,
+      "latitude": -13
+    },
+    {
+      "title": "The agent link",
+      "rank": 4,
+      "x": 359.6,
+      "y": 408.7,
+      "facing": 0.2,
+      "latitude": -1.1
+    },
+    {
+      "title": "Quality assurance",
+      "rank": 4,
+      "x": 915,
+      "y": 306.3,
+      "facing": 0.78,
+      "latitude": 0.7
+    },
+    {
+      "title": "The knowledge core",
+      "rank": 5,
+      "x": 506.7,
+      "y": 245.1,
+      "facing": 0.64,
+      "latitude": 12.7
+    },
+    {
+      "title": "The dev loop",
+      "rank": 5,
+      "x": 711.1,
+      "y": 200.5,
+      "facing": 0.78,
+      "latitude": 16.1
+    },
+    {
+      "title": "The app setup",
+      "rank": 5,
+      "x": 1075.1,
+      "y": 357,
+      "facing": 0.17,
+      "latitude": 6.9
+    },
+    {
+      "title": "The forest",
+      "rank": 6,
+      "x": 976.3,
+      "y": 196.1,
+      "facing": 0.33,
+      "latitude": 27.6
+    },
+    {
+      "title": "The website",
+      "rank": 7,
+      "x": 495.5,
+      "y": 149,
+      "facing": 0.2,
+      "latitude": 39.1
+    },
+    {
+      "title": "The command line",
+      "rank": 8,
+      "x": 787.6,
+      "y": 82.6,
+      "facing": 0.26,
+      "latitude": 50.6
+    }
+  ]
+}

@@ -1,83 +1,102 @@
-// The desktop page on measure.mts's seed and survey: the view it opens on, the unturned front, and how far a
-// person's drag and wheel can take it. Build first (the same call as ../rows/build.mjs), then run with --retake
-// to replace the committed pictures:
-//   node --import tsx capture.mjs build
-//   node "<checkout>/packages/dev-loop/src/heavy-lock.mjs" -- node --import tsx capture.mjs --retake
+// Seed and views for the shared desktop capture runner. Run with <before|after>; --retake explicitly
+// replaces committed evidence. Measures the opening view on screen: each row's band of island heights,
+// which bands overlap, and every dependency in view whose dependent is drawn below what it depends on.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildCapture, runCapture, zoomGlobe } from '../../../../../../apps/desktop/src/capture/index.ts';
+import { runCapture } from '../../../../../../apps/desktop/src/capture/index.ts';
 const here = path.dirname(fileURLToPath(import.meta.url));
-// `--variant <name>` builds and captures a second page (a checkout with README.md's one-constant change), its level view only.
-const variant = process.argv.includes('--variant') ? process.argv[process.argv.indexOf('--variant') + 1] : undefined;
-const dist = path.join(here, variant === undefined ? 'dist' : `dist-${variant}`);
-if (process.argv[2] === 'build') { await buildCapture({ dist }); process.exit(0); }
+const label = process.argv[2];
+assert.ok(['before', 'after'].includes(label), 'pass a before/after build label');
 const seed = JSON.parse(gunzipSync(readFileSync(path.join(here, 'seed.json.gz'))).toString('utf8'));
 const survey = JSON.parse(readFileSync(path.join(here, 'survey.json'), 'utf8'));
-const titles = Object.fromEntries(seed.tree.stories.map(s => [s.id, s.title]));
 
-/** Where each island's middle is on the page, and how squarely it faces the eye (1 face on, 0 edge on, below 0 behind the globe). */
-const islandsOnScreen = page => page.evaluate(`(titles => {
-  const { scene, camera, gl } = globalThis.__globe;
-  scene.updateMatrixWorld(true); camera.updateMatrixWorld();
-  const globe = scene.getObjectByName('globe'), V = camera.position.constructor;
-  const centre = globe.getWorldPosition(new V()), toEye = camera.getWorldDirection(new V()).negate();
-  const box = gl.domElement.getBoundingClientRect();
-  const islands = Object.keys(titles).map(id => {
-    const at = scene.getObjectByName('planet:' + id).getWorldPosition(new V());
-    const facing = at.clone().sub(centre).normalize().dot(toEye), ndc = at.clone().project(camera);
-    return { title: titles[id], x: Math.round(box.left + (ndc.x + 1) * box.width / 2), y: Math.round(box.top + (1 - ndc.y) * box.height / 2), facing: +facing.toFixed(2) };
-  });
-  return { zoom: +camera.zoom.toFixed(3), canvas: { width: Math.round(box.width), height: Math.round(box.height) },
-    readable: islands.filter(i => i.facing >= 0.5).length, atTheRim: islands.filter(i => i.facing > 0 && i.facing < 0.5).length, behindTheGlobe: islands.filter(i => i.facing <= 0).length, islands };
-})(${JSON.stringify(titles)})`);
-
-/** A person's drag from the middle of the globe, in fractions of the canvas's height (a full height turns it once round). */
-async function drag(page, across, down) {
-  const box = await page.evaluate(`(() => { const b = globalThis.__globe.gl.domElement.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2, height: b.height }; })()`);
-  await page.mouse.move(box.x, box.y);
-  await page.mouse.down();
-  for (let step = 1; step <= 24; step++) {
-    await page.mouse.move(box.x + across * box.height * step / 24, box.y + down * box.height * step / 24);
-    await page.evaluate('new Promise(requestAnimationFrame)');
-  }
-  await page.mouse.up();
+/**
+ * Each story's row in the seed as the app ranks it (longest path over the survey's package dependencies where it
+ * names them, ADR-0840 D2, else capability dependsOn rolled up to stories), and what each depends on.
+ */
+function ranks(tree) {
+  const owner = new Map(tree.stories.flatMap(s => s.capabilities.map(c => [c.id, s.id])));
+  const known = new Set(tree.stories.map(s => s.id));
+  const on = new Map(tree.stories.map(s => [s.id, survey[s.id]?.dependsOn?.filter(d => known.has(d) && d !== s.id)
+    ?? [...new Set(s.capabilities.flatMap(c => c.dependsOn.map(d => owner.get(d)).filter(o => o && o !== s.id)))]]));
+  const rank = new Map(), visiting = new Set();
+  const visit = id => {
+    if (rank.has(id)) return rank.get(id);
+    if (visiting.has(id)) return -1;
+    visiting.add(id);
+    const r = Math.max(0, ...on.get(id).map(d => visit(d) + 1));
+    visiting.delete(id); rank.set(id, r); return r;
+  };
+  tree.stories.forEach(s => visit(s.id));
+  return { rank, on };
 }
 
-let opening;
+/** Where each island's middle is drawn, in CSS pixels down from the canvas top, and whether it faces the eye. */
+const onScreen = (page, ids) => page.evaluate(ids => {
+  const { scene, camera, size } = window.__globe, V = camera.position.constructor;
+  const toEye = camera.quaternion.clone().invert();
+  const turn = window.__nav.rotation;
+  return ids.map(id => {
+    const world = scene.getObjectByName(`planet:${id}`).getWorldPosition(new V());
+    const p = world.clone().project(camera);
+    const own = world.clone().applyQuaternion(turn.clone().invert()).normalize();
+    return { id, x: (p.x + 1) * size.width / 2, y: (1 - p.y) * size.height / 2,
+      facing: world.clone().normalize().applyQuaternion(toEye).z, latitude: Math.asin(own.y) * 180 / Math.PI };
+  });
+}, ids);
+
+function measure(islands, browser, errors, warnings, turn) {
+  const { rank, on } = ranks(seed.tree);
+  const titles = new Map(seed.tree.stories.map(s => [s.id, s.title]));
+  const seen = islands.filter(i => i.facing > 0).map(i => ({ ...i, title: titles.get(i.id), rank: rank.get(i.id) }));
+  const rows = [...new Set(seen.map(i => i.rank))].sort((a, b) => a - b).map(row => {
+    const ys = seen.filter(i => i.rank === row).map(i => i.y);
+    return { row, top: +Math.min(...ys).toFixed(1), bottom: +Math.max(...ys).toFixed(1) };
+  });
+  // Two rows overlap in height when the lower row's highest island is drawn above the upper row's lowest.
+  const rowBandsOverlapping = rows.flatMap((a, i) => rows.slice(i + 1).filter(b => a.top < b.bottom).map(b => `${a.row}/${b.row}`));
+  const byId = new Map(seen.map(i => [i.id, i]));
+  const edges = seen.flatMap(i => on.get(i.id).filter(d => byId.has(d)).map(d => ({ from: i.title, on: titles.get(d), up: i.y < byId.get(d).y })));
+  return { label, browser, errors, warnings: [...new Set(warnings)], turn, rows, rowBandsOverlapping,
+    edgesInView: `${edges.filter(e => e.up).length} of ${edges.length} point up`, south: edges.filter(e => !e.up),
+    islands: seen.sort((a, b) => a.rank - b.rank || a.x - b.x).map(i => ({ title: i.title, rank: i.rank, x: +i.x.toFixed(1), y: +i.y.toFixed(1), facing: +i.facing.toFixed(2), latitude: +i.latitude.toFixed(1) })) };
+}
+
+const ids = seed.tree.stories.map(s => s.id);
 await runCapture({
-  folder: here, dist, seed, survey,
+  folder: here, dist: path.join(here, 'dist', label), seed, survey,
   prepare: async ({ page, errors, failed, warnings }) => {
     await page.waitForFunction(ids => {
       const state = window.__globe;
       if (document.body.dataset.state !== 'ready' || !state || !window.__nav) return false;
       return ids.every(id => !!state.scene.getObjectByName(`planet:${id}`)?.getObjectByName('island-ground'));
-    }, seed.tree.stories.map(s => s.id), { timeout: 180000 }).catch(async error => {
+    }, ids, { timeout: 120000 }).catch(async error => {
       console.error(JSON.stringify({ state: await page.evaluate(() => document.body.dataset.state + ' | ' + (document.querySelector('.empty')?.innerText ?? '')), errors, urls: failed, warnings: warnings.slice(0, 5) }));
       throw error;
     });
+    await page.waitForFunction(() => { let n = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('file:')) n++; }); return n > 0; }, undefined, { timeout: 60000 });
     for (const name of ['Close help', 'Close app menu']) { const b = page.getByRole('button', { name, exact: true }); if (await b.isVisible().catch(() => false)) await b.click(); }
     await page.evaluate(() => { for (const menu of document.querySelectorAll('[popover]')) if (menu.matches(':popover-open')) menu.hidePopover(); });
   },
-  views: variant !== undefined ? [
-    { name: `variant-${variant}`, prepare: ({ page }) => page.evaluate(() => { window.__nav.onRotate(window.__globe.camera.quaternion.clone()); }), measure: ({ page }) => islandsOnScreen(page),
-      expect: seen => console.log(variant, seen.readable, seen.atTheRim, seen.behindTheGlobe) },
-  ] : [
-    { name: 'opening', measure: async ({ page }) => (opening = await islandsOnScreen(page)),
-      expect: seen => console.log('opening', seen.readable, seen.atTheRim, seen.behindTheGlobe) },
-    // Half the canvas's height sideways: the globe half-way round, the far side of the opening view.
-    { name: 'spun-half-round', prepare: ({ page }) => drag(page, 0.5, 0), measure: ({ page }) => islandsOnScreen(page),
-      expect: seen => console.log('spun-half-round', seen.readable, seen.atTheRim, seen.behindTheGlobe) },
-    // Back, then down as far as the tilt goes (88 degrees): the rows seen from over the north pole.
-    { name: 'tilted-to-the-limit', prepare: async ({ page }) => { await drag(page, -0.5, 0); await drag(page, 0, 0.4); }, measure: ({ page }) => islandsOnScreen(page),
-      expect: seen => console.log('tilted-to-the-limit', seen.readable, seen.atTheRim, seen.behindTheGlobe) },
-    // The unturned globe, no spin and no tilt: every row a level line.
-    { name: 'front', prepare: ({ page }) => page.evaluate(() => { window.__nav.onRotate(window.__globe.camera.quaternion.clone()); }), measure: ({ page }) => islandsOnScreen(page),
-      expect: seen => console.log('front', seen.readable, seen.atTheRim, seen.behindTheGlobe) },
-    // The wheel out as far as it goes.
-    { name: 'zoomed-out-to-the-limit', prepare: async ({ page }) => { const min = await page.evaluate('globalThis.__globe.controls.minZoom'); await zoomGlobe(page, min * 1.02); }, measure: ({ page }) => islandsOnScreen(page),
-      expect: seen => { assert.ok(seen.zoom < opening.zoom / 10); console.log('zoomed-out', seen.zoom, 'from', opening.zoom); } },
+  views: [
+    { name: `${label}-opening`,
+      measurement: `measurements-${label}.json`,
+      measure: async ({ page, browser, errors, warnings }) => {
+        const turn = await page.evaluate(() => {
+          // The globe's own turn, the eye's taken off: tilt is how far north leans toward the eye.
+          const { camera } = window.__globe, V = camera.position.constructor;
+          const north = new V(0, 1, 0).applyQuaternion(window.__nav.rotation).applyQuaternion(camera.quaternion.clone().invert());
+          return { tiltDegrees: +(Math.asin(Math.max(-1, Math.min(1, north.z))) * 180 / Math.PI).toFixed(1) };
+        });
+        return measure(await onScreen(page, ids), await browser.version(), errors, warnings, turn);
+      },
+      expect: results => {
+        assert.deepEqual(results.errors, []);
+        console.log(label, results.turn, results.rowBandsOverlapping, results.edgesInView, JSON.stringify(results.south));
+      },
+    },
   ],
 });

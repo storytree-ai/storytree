@@ -10,6 +10,7 @@ import { promisify } from "node:util";
 
 const territoryFolder = fileURLToPath(new URL("./evidence/territory-health", import.meta.url));
 const pathwaysFolder = fileURLToPath(new URL("./evidence/pathway-repair/", import.meta.url));
+const rowDetailFolder = fileURLToPath(new URL("../../evidence/row-detail", import.meta.url));
 const checkout = path.resolve(pathwaysFolder, "../../../../../..");
 const exec = promisify(execFile);
 const run = (file: string, args: string[], options: ExecFileOptions) => {
@@ -79,4 +80,14 @@ test('3.35 · live desktop roads grow on first display and on a polled dependenc
     assert.equal(reading.pageErrors, 0);
   }
   assert.ok(summary.reduced.firstNewOnlyFractions.every((fraction: number) => fraction === 1), 'reduced motion completes new roads immediately');
+});
+
+// The row-detail capture run in a real browser, so a session-row control it waits for that the strip no longer draws fails here,
+// on the changing branch, rather than at the next retake.
+test("7.8 · in a real browser, every session row starts collapsed, and its expander shows its worktrees and its window's files, the compacted one muted", { timeout: 200_000 }, async () => {
+  const { stdout } = await run(process.execPath, ["--import", "tsx", path.join(rowDetailFolder, "capture.mjs"), "--smoke"],
+    { cwd: checkout, timeout: 180_000, env: { ...process.env, CAPTURE_CHANNEL: process.env.CAPTURE_CHANNEL ?? "chrome" } });
+  const summary = JSON.parse(stdout.trim().split("\n").findLast(line => line.startsWith("{"))!);
+  // Two rows at work; the builder's subagent is folded under its "+1".
+  assert.deepEqual(summary, { collapsed: 2, worktrees: 3, files: 5, muted: 1 });
 });

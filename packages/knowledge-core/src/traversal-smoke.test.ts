@@ -24,3 +24,11 @@ test("4.7 · 4.16 · in a real browser, no session's traversal draws with none s
   const { windowNotes, ...oneSelected } = summary.oneSelected;
   assert.deepEqual(oneSelected, { trails: 3, trailColours: 1, litNotes: 0, litFiles: 1, claimedTerritories: 5 });
 });
+
+// The window capture run the same way, for the rings it waits for on a selected session's held notes.
+test("4.7 · 4.16 · in a real browser, nothing is lit with none selected, and selecting a session rings each note it holds, not the one a compaction dropped", { timeout: 200_000 }, async () => {
+  const { stdout } = await run(process.execPath, ["--import", "tsx", path.join(pkg, "evidence/window/capture.mjs"), "--smoke"],
+    { cwd: checkout, timeout: 180_000, env: { ...process.env, CAPTURE_CHANNEL: process.env.CAPTURE_CHANNEL ?? "chrome" } });
+  const summary = JSON.parse(stdout.trim().split("\n").findLast(line => line.startsWith("{"))!);
+  assert.deepEqual(summary, { read: 6, held: 5, inViewLines: 0 });
+});

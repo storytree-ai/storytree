@@ -22,8 +22,10 @@ Rules for every pool lane on the Mint box (ADR-0955): one dispatcher starts each
   - The watcher, which uses no model, takes it from there: it puts the increment on an event wait while the pull request lands; on MERGED it closes the increment as landed with the pull request and releases your leftover claims; on a red it starts a fix session.
   - Then close out (the `close_out` tool or `pnpm storytree session close-out --safe yes --why "PR #<n> open and green at the gate, handed to the watcher"`), write your report and end. Do not wait for CI, and do not close the increment yourself.
   - Never `gh pr merge`, never squash, never force-push.
-- **If you are a fix session** (your brief names a pull request the watcher handed you): read the failing log, suspect a stale branch first (merge origin/main, then `pnpm install`), fix, push, run the gate, and end. The watcher keeps watching.
-- **You exit when you end a turn**, so never end a turn while something you started is still running in the background.
+- **If you are a fix session** (your brief names a pull request the watcher handed you): read the failing log, suspect a stale branch first (merge origin/main, then `pnpm install`), fix, run the gate in the foreground until its table prints, push, and end. The watcher keeps watching.
+- **You exit when you end a turn**, so never end a turn while something you started is still running in the background: a lane that ends its turn to wait exits at once, and its uncommitted work is stranded with no commit, pull request or report.
+  - Run `pnpm gate` and `pnpm test` in the foreground and stay in the turn until the PASS / FAIL / NOT RUN table prints, however long the run queues behind another lane's. This overrides the general guidance to run them in the background.
+  - A run already in the background is polled inside the same turn (read its output, check it again), never waited for by ending the turn.
 - **Commits and pull requests** follow the repository's usual form. A Codex lane adds no Claude attribution lines; a Claude lane adds the ones its harness asks for.
 - **Defects and residue.**
   - A storytree defect you hit is parked on the arc that owns it, or fixed on its own PR if it is small and in your way. Never build around it silently.

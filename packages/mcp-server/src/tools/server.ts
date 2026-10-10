@@ -176,7 +176,7 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
         const folder = requested?.folder !== undefined && existsSync(requested.folder) && findProject(requested.folder).project === where.project ? requested.folder : options.folder;
         await log.append(where.project, { ...lineOf(caller), source: "tool", folder, kind: "tool-called", tool: name, ...cause });
         // A claim whose pull request has merged ends before the tool sees who holds what (ADR-0643 D3).
-        await endMergedClaims({ log, project: where.project, folder, ...lineOf(caller), source: "tool" }, options.merges).catch(() => []);
+        await endMergedClaims({ log, project: where.project, folder, ...lineOf(caller), source: "tool", library: async () => library }, options.merges).catch(() => []);
         return result(await act(args as never, {
           library, log, storytree, project: where.project, caller,
           writer: { actor: `session:${caller.session}`, signal: context.mcpReq.signal },

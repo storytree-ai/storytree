@@ -9,7 +9,7 @@
  */
 import { allocationProblems, checkoutOf } from "@storytree/guardrails";
 import type { Library } from "@storytree/library";
-import { codeSurveyReader, packageOf } from "@storytree/map/code-survey";
+import { packageOf, testedNumbers as testedNumbersIn } from "@storytree/map/code-survey";
 import { z } from "zod";
 
 import { attachWorkspace, claim, CLAIM_REASON_LIMIT, currentBranch, increments, land, makeWorkspace, release, staleClaims, type Claim, type ClaimAnswer, type ClaimContext, type MergeWatch, type WorkspaceRefusal } from "@storytree/session-management";
@@ -214,18 +214,9 @@ async function untestedContracts(call: Call, capability: string): Promise<string
   });
 }
 
-/**
- * The contract numbers the numbered tests in `capability`'s story package carry, in the checkout the session
- * works in, read with the map's survey; none for a capability the plan lacks. A title prefixed with another
- * package carries that package's numbers, not these.
- */
+/** The contract numbers the numbered tests in `capability`'s story package carry, in the checkout the session works in. */
 export async function testedNumbers({ library, folder }: Call, capability: string, tree?: Awaited<ReturnType<Library["projectTree"]>>): Promise<string[]> {
-  const plan = tree ?? (await library.projectTree());
-  const story = plan.stories.find((one) => one.capabilities.some((part) => part.id === capability));
-  if (story === undefined) return [];
-  const own = packageOf(story.title);
-  const survey = await codeSurveyReader({ checkout: "current" }).read(checkoutOf(folder), { ...plan, stories: [story] });
-  return (survey[story.id]?.tests ?? []).flatMap((test) => test.titles.filter((title) => title.package === undefined || title.package === own).map((title) => title.number));
+  return testedNumbersIn(checkoutOf(folder), tree ?? (await library.projectTree()), capability);
 }
 
 function claimContext({ log, library, project, caller, folder, quietMs, writer }: Call): ClaimContext & { readonly folder: string } {

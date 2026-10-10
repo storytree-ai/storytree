@@ -8,6 +8,7 @@ import path from "node:path";
 import { releaseSource, versionAt } from "../../packages/app/src/updates/release-source.ts";
 import { INSTALL_COMMAND, MAC_INSTALL_COMMAND, mergeDelivery } from "./delivery-assets.mjs";
 import { hostPlatform, missingAssets, platformUploads, PLATFORMS } from "./release-assets.mjs";
+import { macReleaseNote } from "./mac-signing.mjs";
 
 const repository = "storytree-ai/storytree";
 const git = (...args) => execFileSync("git", args, { encoding: "utf8" }).trim();
@@ -110,7 +111,8 @@ function notes(command, macCommand, sha) {
     "",
     `Windows x64 and arm64 installer, built from verified merged main ${sha}. First-user delivery follows only the owner's stable pin; it is unavailable until the first pin.`,
     "",
-    "The macOS (Apple Silicon) zip and dmg are built and ad-hoc signed on the same commit, but not yet notarised: macOS refuses to open them until a release that is.",
+    // The draft is written before the Mac build, so the workflow says whether its certificate is set.
+    macReleaseNote(process.env.STORYTREE_MAC_SIGNED === "true"),
     "",
     "Development installations follow every published build. To install development explicitly, use the command in install-storytree-development.txt (Windows) or install-storytree-mac-development.txt (Mac). Existing installations retain their channel.",
   ].join("\n");

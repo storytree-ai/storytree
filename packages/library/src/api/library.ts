@@ -57,8 +57,9 @@ export interface Storytree {
    * creator role where the user may not create databases; never listed as a project; closed with
    * this connection. The one pool the library hands out, and never to a project's database: the
    * agent activity log keeps its lines here, so it reaches the cloud wherever the library does.
-   * Handed its `tables`, the library sets it up (ADR-0973): it runs them once per connection, in one
-   * transaction under the database's own lock, so callers setting it up at once take turns. A
+   * Handed its `tables`, the library sets it up (ADR-0973): it runs those the database has not yet
+   * applied, in one transaction under the database's own lock, so callers setting it up at once take
+   * turns and a database already set up runs no DDL. A
    * caller that only reads may leave them out.
    */
   ownDatabase(name: string, options?: OwnDatabaseOptions): Promise<Pool>;
@@ -77,7 +78,7 @@ const FROM_WORK = [
   "addStory", "editStory", "createArc", "editArc", "addCapability", "editCapability", "setProposed", "addContract", "editContract", "arcsFor",
 ] as const satisfies readonly (keyof Project["work"])[];
 const FROM_FLIGHT = [
-  "addIncrement", "advanceIncrement", "returnIncrement", "closeIncrement", "correctIncrementClosure", "moveIncrement", "editIncrement",
+  "addIncrement", "advanceIncrement", "returnIncrement", "closeIncrement", "correctIncrementClosure", "moveIncrement", "editIncrement", "pendChange", "stalePending", "applyPending", "settleClosedPending",
   "parkArc", "unparkArc", "arcView", "arcViews",
   "addWait", "removeWait", "waitHolds", "addWaitFor", "removeWaitFor", "waitsFor", "holds",
   "raiseQuestion", "settleQuestion", "questions", "heldOnQuestion", "checkQuestion", "renewQuestion", "editQuestion", "lapsedQuestions",
@@ -110,8 +111,12 @@ export interface Library
   readonly identity: string;
   /** Every live record of this kind, upgraded, in id order. An unknown kind is refused. */
   list<K extends RecordType>(kind: K): Promise<SchemaRecord<K>[]>;
-  /** The plan as it is now, story › capability › contract with every node's health, and the arcs: what the forest reads. */
-  projectTree(): Promise<AnnotatedTree>;
+  /**
+   * The plan as it is now, story › capability › contract with every node's health, and the arcs: what the forest reads.
+   * Given `pendingOf`, an increment, it is the plan that increment's branch reads (ADR-0966 D3): the live plan with
+   * the increment's pending changes laid over (withPending). An id that is not a live increment lays nothing over.
+   */
+  projectTree(options?: { readonly pendingOf?: string | undefined }): Promise<AnnotatedTree>;
   /**
    * The health worklist (ADR-0825 D4): every capability that is not healthy, with its reason, who
    * moves it and since when, oldest first, leaving off one an increment not yet closed lists among its capabilities.
@@ -228,7 +233,11 @@ function libraryOf(project: Project): Library {
       return project.records.list(kind);
     },
     /** The work model's tree, annotated with health (capability 5 reads the plan through capability 4). */
-    projectTree: () => project.health.annotate(),
+    async projectTree(options) {
+      if (options?.pendingOf === undefined || !couldBeId(options.pendingOf)) return project.health.annotate();
+      const tree = await project.work.projectTree();
+      return project.health.annotate((await project.flight.withPending(options.pendingOf, tree)) ?? tree);
+    },
     healthWorklist: () => project.health.worklist(),
     async retireQuestion(id, reason, options) {
       if (!couldBeId(id)) return null;

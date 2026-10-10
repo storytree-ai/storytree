@@ -12,6 +12,7 @@
  * tables are current does neither, so an account let only read or write some rows (CI's health
  * account, ADR-0747) opens it too; one whose tables are behind is refused saying who may.
  */
+import { createHash } from "node:crypto";
 import path from "node:path";
 import type { Pool, PoolClient } from "pg";
 
@@ -134,8 +135,9 @@ export interface Storytree {
    * A database of the caller's own called `name`, beside the projects on the same server, local or
    * Cloud SQL (contract 7.7, ADR-0735 D3): created the first time as a project's is, never listed
    * as a project, and closed with this connection. A project's database is never handed out.
-   * Handed its `tables` (ADR-0973), it runs them once per connection, in one transaction under the
-   * database's own lock, so callers setting the same database up at once take turns.
+   * Handed its `tables` (ADR-0973), it runs those the database has not yet applied, in one transaction
+   * under the database's own lock, so callers setting the same database up at once take turns and
+   * a database already set up runs no DDL.
    */
   ownDatabase(name: string, options?: OwnDatabaseOptions): Promise<Pool>;
   /** Close this connection, every project opened through it, and its own databases. */
@@ -196,7 +198,7 @@ class ServerConnection implements Storytree {
   readonly #projects = new Set<ProjectLibrary>();
   readonly #opening = new Set<Promise<Project>>();
   readonly #own = new Map<string, Promise<Pool>>();
-  /** Each own database's tables, set up once per connection: keyed by its name and its definitions. */
+  /** Each own database's tables, checked once per connection: keyed by its name and its definitions. */
   readonly #ownSetUp = new Map<string, Promise<void>>();
   readonly #embedder: EmbedderSource | undefined;
   readonly #vectorCache: string | null;
@@ -459,7 +461,7 @@ class ProjectLibrary implements Project {
     this.transactions = new PgTransactions(pool);
     this.records = new SchemaRecords(this.transactions);
     this.work = new WorkModel(this.records);
-    this.flight = new WorkInFlight(this.records);
+    this.flight = new WorkInFlight(this.records, this.work);
     this.knowledge = new Knowledge(this.records, name, { vectors: new PgVectors(pool, vectorCache, domain), ...(embedder === undefined ? {} : { embedder }) });
     this.health = new HealthRecord(this.records, this.work);
     this.#forget = forget;
@@ -516,17 +518,26 @@ async function tablesCurrent(pool: Pool, name: string): Promise<boolean> {
 }
 
 /**
- * Run an own database's table definitions in one transaction (ADR-0973). Callers setting the same
- * database up can race (the app, an agent and the CLI on a new server), and two concurrent CREATE
- * TABLE IF NOT EXISTS can collide on the table's type, so they take turns on the database's lock.
+ * Run an own database's table definitions in one transaction (ADR-0973), skipping any it already
+ * holds: each statement applied is recorded by its digest in `storytree_setup`, so a connection
+ * opening a database already set up runs no DDL. An ALTER TABLE re-run on every connection would
+ * wait behind another process's open write, and could deadlock it (friction_c0a718e8bf16). Callers
+ * setting the same database up can race (the app, an agent and the CLI on a new server), and two
+ * concurrent CREATE TABLE IF NOT EXISTS can collide on the table's type, so they take turns on the
+ * database's lock and look again once they hold it.
  */
 async function setUpOwnDatabase(pool: Pool, name: string, tables: readonly string[]): Promise<void> {
+  if ((await unappliedStatements(pool, tables)).length === 0) return;
   const client = await pool.connect();
   let failed = false;
   try {
     await client.query("BEGIN");
     await client.query("SELECT pg_advisory_xact_lock(hashtext('storytree.own-database'), hashtext($1))", [name]);
-    for (const statement of tables) await client.query(statement);
+    await client.query("CREATE TABLE IF NOT EXISTS storytree_setup (digest text PRIMARY KEY, at timestamptz NOT NULL DEFAULT now())");
+    for (const statement of await unappliedStatements(client, tables)) {
+      await client.query(statement);
+      await client.query("INSERT INTO storytree_setup (digest) VALUES (md5($1))", [statement]);
+    }
     await client.query("COMMIT");
   } catch (error) {
     failed = true;
@@ -535,6 +546,18 @@ async function setUpOwnDatabase(pool: Pool, name: string, tables: readonly strin
   } finally {
     client.release(failed);
   }
+}
+
+/** The statements of `tables` an own database has not recorded as applied, in order; all of them before its first set-up. */
+async function unappliedStatements(client: Pool | PoolClient, tables: readonly string[]): Promise<string[]> {
+  const applied = await client.query<{ digest: string }>("SELECT digest FROM storytree_setup").then(
+    ({ rows }) => new Set(rows.map((row) => row.digest)),
+    (error: unknown) => {
+      if (sqlState(error) === "42P01") return new Set<string>(); // undefined_table: never set up by this storytree
+      throw error;
+    },
+  );
+  return tables.filter((statement) => !applied.has(createHash("md5").update(statement).digest("hex")));
 }
 
 /**

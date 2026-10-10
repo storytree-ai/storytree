@@ -87,6 +87,13 @@ const waitsFor = z
   .refine((list) => new Set(list.map(({ releaser }) => releaser)).size === list.length, "at most one wait per releaser")
   .optional();
 
+/** One pending plan change on an increment (ADR-0966 D1): an edit with its before and after, or a retirement with its reason. */
+const pendingHead = { record: nonEmpty, type: z.enum(["story", "capability", "contract"]), base: z.number().int().min(0) };
+const pendingChange = z.union([
+  z.object({ ...pendingHead, before: z.record(z.string(), z.unknown()), after: z.record(z.string(), z.unknown()) }).strict(),
+  z.object({ ...pendingHead, retire: nonEmpty }).strict(),
+]);
+
 /**
  * What every one of the eight kinds carries (6-a): a title, a one-line description, and links to
  * the other artifacts it relates to, as every artifact has.
@@ -362,7 +369,7 @@ export const RECORD_SCHEMAS = {
    * A quality control check (ADR-0956 D3): one question a reviewer answers yes or no about a finished
    * change, and the principles or guardrails it `enforces`, at least one, which keep the reason for
    * the rule; optionally how to answer it and examples. What has `graduated` to deterministic
-   * checking (ADR-0956 D5) is each part with where it is now enforced.
+   * checking (ADR-0956 D5) is each part with where it is now enforced, `whole` when the part is the whole check.
    */
   check: z
     .object({
@@ -371,7 +378,7 @@ export const RECORD_SCHEMAS = {
       enforces: ids.min(1),
       howToAnswer: nonEmpty.optional(),
       examples: nonEmpty.optional(),
-      graduated: z.array(z.object({ part: nonEmpty, enforcedBy: nonEmpty }).strict()).optional(),
+      graduated: z.array(z.object({ part: nonEmpty, enforcedBy: nonEmpty, whole: z.literal(true).optional() }).strict()).optional(),
     })
     .strict(),
   /**
@@ -403,6 +410,13 @@ export const RECORD_SCHEMAS = {
        * the work with no write here, and the link stays as the record of what it waited on.
        */
       heldOn: ids.optional(),
+      /**
+       * Its pending plan changes (ADR-0966 D1): edits and retirements of stories, capabilities and
+       * contracts it did not plan, waiting for its branch to merge, each with the history entry
+       * (`base`) it was read at. An edit keeps the changed fields' live values (`before`) and new ones
+       * (`after`), null for a field absent. Optional, so no version bump.
+       */
+      pending: z.array(pendingChange).optional(),
       /** How it closed: absent until it does. */
       outcome: z
         .object({

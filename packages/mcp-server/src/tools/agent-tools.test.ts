@@ -476,7 +476,7 @@ test("6.38 land names each planned contract of the capability that no numbered t
   });
 });
 
-test("6.50 plan_contract numbers a new contract past the numbers its capability's landed tests already carry", async () => {
+test("6.50 plan_contract numbers a new contract past the numbers its capability's landed tests already carry, naming those no contract carries", async () => {
   await withProject(async ({ folder }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const story = idOf(await agent.call("plan_story", { title: "Shopping cart", ...FOUNDED }));
@@ -489,6 +489,8 @@ test("6.50 plan_contract numbers a new contract past the numbers its capability'
       const planned = await agent.call("plan_contract", { capability, title: "Removes an item" });
       assert.equal(planned.isError, false, planned.text);
       assert.match(planned.text, /1\.4 · Removes an item/);
+      assert.match(planned.text, /Numbered tests 1\.1 and 1\.3 have no contract/, "the orphan tests are named, so the planner can choose one's number");
+      assert.deepEqual(planned.data.orphans, ["1.1", "1.3"]);
       const kept = await agent.call("plan_contract", { capability, title: "1.1 · Adds an item" });
       assert.match(kept.text, /1\.1 · Adds an item/, "a landed test's own number is kept, so its contract can be planned");
     });

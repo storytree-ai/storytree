@@ -42,6 +42,9 @@ export type {
   NewContract,
   NewIncrement,
   NewStory,
+  Pended,
+  PendingChange,
+  PlanChange,
   StoryEdit,
 } from "./work/index.js";
 export type {

@@ -106,6 +106,21 @@ export async function capabilitiesOfFiles(root: string, files: readonly string[]
   return owners;
 }
 
+/**
+ * The contract numbers the numbered tests in `capability`'s story package carry in `root`'s current
+ * checkout, which both front doors skip when they number a new contract; none for a capability `tree`
+ * lacks. A title prefixed with another package carries that package's numbers, not these.
+ */
+export async function testedNumbers(root: string, tree: AnnotatedTree, capability: string, {
+  survey = (plan: AnnotatedTree) => codeSurveyReader({ checkout: "current" }).read(root, plan),
+}: { survey?(tree: AnnotatedTree): Promise<ProjectSurvey> } = {}): Promise<string[]> {
+  const story = tree.stories.find((one) => one.capabilities.some((part) => part.id === capability));
+  if (story === undefined) return [];
+  const own = packageOf(story.title);
+  const surveyed = await survey({ ...tree, stories: [story] });
+  return (surveyed[story.id]?.tests ?? []).flatMap((test) => test.titles.filter((title) => title.package === undefined || title.package === own).map((title) => title.number));
+}
+
 /** A file as last read: kept while its disk fingerprint or Git blob is unchanged. */
 type Kept = { readonly version: string; readonly file: SourceFile };
 

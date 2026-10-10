@@ -11,8 +11,8 @@ import { checks, type Graduated } from "../checks/checks.js";
 
 /**
  * Write on check `id`'s record that `graduated.part` is now enforced by Guardrails' `graduated.enforcedBy`,
- * beside any part graduated before. A Guardrails check that does not exist, or an id that is not a live
- * check, is refused and nothing is written.
+ * beside any part graduated before, marked whole when it is all of the check. A Guardrails check that does not
+ * exist, or an id that is not a live check, is refused and nothing is written.
  */
 export async function graduate(library: Library, id: string, graduated: Graduated): Promise<void> {
   if (!(GRADUATED_CHECKS as readonly string[]).includes(graduated.enforcedBy)) {
@@ -22,7 +22,7 @@ export async function graduate(library: Library, id: string, graduated: Graduate
   const check = await library.get(id);
   if (check === null || check.type !== "check") throw new Error(`${id} is not a live quality control check.`);
   const earlier = (check.fields as { graduated?: Graduated[] }).graduated ?? [];
-  await library.editNote(id, { graduated: [...earlier, { part: graduated.part, enforcedBy: graduated.enforcedBy }] });
+  await library.editNote(id, { graduated: [...earlier, { part: graduated.part, enforcedBy: graduated.enforcedBy, ...(graduated.whole ? { whole: true } : {}) }] });
 }
 
 /** What Guardrails' graduated checks found on a change, under the check each graduated from; not run says why, and is never a pass. */

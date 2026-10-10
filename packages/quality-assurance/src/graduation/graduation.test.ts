@@ -42,7 +42,7 @@ async function graduatedPlan(library: Library) {
   const tautology = await library.writeKnowledge("check", { title: "Tautological expected value", description: "Expected values computed as the code computes them.", question: "Is any expected value computed the way the code computes it?", enforces: [principle.id] });
   const skips = await library.writeKnowledge("check", { title: "Silent skip", description: "Tests that skip without saying so.", question: "Does any test skip silently?", enforces: [principle.id] });
   await graduate(library, tautology.id, { part: "the same call on both sides of an equality", enforcedBy: "self-equal-assertion" });
-  return { increment: increment.id, contract: contract.id, tautology: tautology.id, skips: skips.id };
+  return { increment: increment.id, contract: contract.id, principle: principle.id, tautology: tautology.id, skips: skips.id };
 }
 
 /** A git checkout whose branch, against its origin/main, adds `files`; removed after `body`, pass or fail. */
@@ -75,6 +75,31 @@ test("5.2 · a check graduated in part stays in the review brief with the part G
     ].sort((a, b) => a.id.localeCompare(b.id)));
     assert.match(briefText(brief), new RegExp(`${tautology}  Tautological expected value\\n.*\\n    Not yours to judge: Guardrails' self-equal-assertion checks the same call on both sides of an equality\\.`));
     assert.doesNotMatch(briefText(brief), new RegExp(`${skips}  Silent skip\\n.*\\n    Not yours`));
+  });
+});
+
+test("5.2 · a check graduated whole is no longer in the review brief, so the return need not answer it and no reviewer run of it is recorded, while what its Guardrails check finds is still recorded under it", async () => {
+  await withLibrary(async (library, storytree) => {
+    const { increment, contract, principle, tautology, skips } = await graduatedPlan(library);
+    const whole = await library.writeKnowledge("check", { title: "Self-equal assertion", description: "An assertion that compares a value with itself.", question: "Does any assertion compare a value with itself?", enforces: [principle] });
+    await graduate(library, whole.id, { part: "an assertion comparing a value with itself", enforcedBy: "self-equal-assertion", whole: true });
+    assert.deepEqual((await checks(library)).find(({ id }) => id === whole.id)!.graduated, [{ part: "an assertion comparing a value with itself", enforcedBy: "self-equal-assertion", whole: true }]);
+    assert.match(checksText(await checks(library)), /graduated whole to Guardrails' self-equal-assertion: an assertion comparing a value with itself/);
+
+    const reviews = await openReviews(storytree);
+    await withCheckout({ "packages/forms/src/email.test.ts": "assert.equal(valid(x), valid(x));\n" }, async (checkout, diff) => {
+      const brief = await reviews.brief(library, increment, diff);
+      assert.deepEqual(brief.checks.map(({ id }) => id).sort(), [tautology, skips].sort());
+      assert.doesNotMatch(briefText(brief), new RegExp(whole.id));
+
+      const taken = await reviews.take(library.name, increment, {
+        checks: [{ check: tautology, tripped: false }, { check: skips, tripped: false }],
+        contracts: [{ contract, met: true }],
+      }, await graduatedFindings(library, checkout));
+      const { runs } = await (await openLedger(storytree)).rows(library.name);
+      assert.deepEqual(runs.filter(({ check }) => check === whole.id).map(({ foundBy }) => foundBy), ["graduated"]);
+      assert.deepEqual(taken.hits.filter(({ check }) => check === whole.id).map(({ line, foundBy }) => ({ line, foundBy })), [{ line: 1, foundBy: "graduated" }]);
+    });
   });
 });
 

@@ -226,7 +226,9 @@ async function writeLines(harness: string, input: string, flags: readonly string
       // call or at a prompt, which the harness waits for; the tool call looks for itself.
       const [first] = made.lines;
       if (first !== undefined && first.kind !== "tool-requested" && first.kind !== "prompt-submitted") {
-        const watcher = { log, project: where.project, folder: made.folder, session: first.session, ...(first.harness === undefined ? {} : { harness: first.harness }), source: "hook" } as const;
+        // The library is opened only if a merge is seen, to apply its increment's pending plan changes (ADR-0966 D4).
+        const library = () => openNamedProject(storytree, where.project, where.identity);
+        const watcher = { log, project: where.project, folder: made.folder, session: first.session, ...(first.harness === undefined ? {} : { harness: first.harness }), source: "hook", library } as const;
         // The look around the machine, when due, goes to a copy that may run longer (ADR-0754 D4); never at a session's end, which the harness cuts short.
         const looks = first.kind !== "session-ended";
         if (looks && handOff !== undefined) {
@@ -234,7 +236,7 @@ async function writeLines(harness: string, input: string, flags: readonly string
           if (due(`${where.project}-upkeep`, merges?.everyMs ?? UPKEEP_EVERY_MS)) await handOff(harness, input, [UPKEEP]);
         }
         const { endMergedClaims } = await import("../claims/index.js");
-        await endMergedClaims({ log, project: where.project, folder: made.folder, session: first.session, ...(first.harness === undefined ? {} : { harness: first.harness }), source: "hook" }, merges);
+        await endMergedClaims(watcher, merges);
         // What the session's transcript gained since the last hook streams into the shared log, scrubbed (ADR-0749 D3, D4).
         if (first.transcript !== undefined) {
           const { shipTranscript } = await import("../transcripts/index.js");

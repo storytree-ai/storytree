@@ -56,6 +56,10 @@ const LIBRARY_API = [
   "correctIncrementClosure",
   "moveIncrement",
   "editIncrement",
+  "pendChange",
+  "stalePending",
+  "applyPending",
+  "settleClosedPending",
   "parkArc",
   "unparkArc",
   "arcView",
@@ -263,6 +267,17 @@ test("7.1 an agent's day against a real local Postgres: every step is visible wh
       const again = await tomorrow.openProject(name);
       assert.deepEqual(await again.projectTree(), theDay);
       assert.deepEqual(await again.changesSince(0), day);
+
+      // A session's increment retires the contract pending its merge: its branch reads the plan without it, everyone else as it was.
+      const work = await again.addIncrement({ arc: arc.id, title: "Drop the check", objective: "Drop it", body: "Retire 1.1." });
+      await again.advanceIncrement(work.id, "active");
+      await again.pendChange(work.id, { record: contract.id, retire: "overtaken" });
+      assert.deepEqual(await again.projectTree(), theDay);
+      assert.deepEqual((await again.projectTree({ pendingOf: work.id })).stories[0]!.capabilities[0]!.contracts, []);
+      assert.deepEqual(await again.stalePending(work.id), []);
+      // Its pull request merges: the retirement applies, and every reader reads the plan without it.
+      assert.deepEqual(await again.applyPending(work.id, "#12"), { applied: [contract.id] });
+      assert.deepEqual((await again.projectTree()).stories[0]!.capabilities[0]!.contracts, []);
     } finally {
       await tomorrow.close();
     }

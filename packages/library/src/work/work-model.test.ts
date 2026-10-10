@@ -522,10 +522,20 @@ for (const backend of [memory, postgres]) {
     const story = await work.addStory({ title: "Visitor can sign up" });
     const form = await work.addCapability({ title: "3 · Email form", story: story.id });
     await work.addContract({ title: "Rejects a bad email", capability: form.id });
-    const tested = { testedNumbers: ["3.1", "3.4", "7.9"] };
+    const tested = { testedNumbers: ["3.1", "3.2", "3.4", "7.9"] };
     assert.equal((await work.addContract({ title: "Trims spaces", capability: form.id }, tested)).fields.title, "3.5 · Trims spaces", "past the highest a test carries");
     assert.equal((await work.addContract({ title: "3.4 · Accepts a plus address", capability: form.id }, tested)).fields.title, "3.4 · Accepts a plus address", "a landed test's own number is kept");
     assert.equal((await work.addContract({ title: "Lowercases the domain", capability: form.id })).fields.title, "3.6 · Lowercases the domain", "with no tests named, the plan alone numbers");
+  });
+
+  contract("4.11", "a contract planned without a number never takes the number of a numbered test no live contract carries: it gets the next free number past it, and only a number given binds it to that test", async ({ work }) => {
+    const story = await work.addStory({ title: "Visitor can sign up" });
+    const form = await work.addCapability({ title: "3 · Email form", story: story.id });
+    await work.addContract({ title: "Rejects a bad email", capability: form.id });
+    await work.addContract({ title: "Accepts a plus address", capability: form.id });
+    const orphan = { testedNumbers: ["3.1", "3.2", "3.3", "7.9"] };
+    assert.equal((await work.addContract({ title: "Trims spaces", capability: form.id }, orphan)).fields.title, "3.4 · Trims spaces", "past the orphan test, not onto it");
+    assert.equal((await work.addContract({ title: "3.3 · Lowercases the domain", capability: form.id }, orphan)).fields.title, "3.3 · Lowercases the domain", "the planner gives the orphan's number to take it");
   });
 }
 

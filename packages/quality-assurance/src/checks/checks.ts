@@ -22,10 +22,11 @@ export interface Check {
   readonly graduated?: readonly Graduated[];
 }
 
-/** A part of a check that graduated, and the Guardrails check that now enforces it. */
+/** A part of a check that graduated, and the Guardrails check that now enforces it; `whole` when the part is all of the check. */
 export interface Graduated {
   readonly part: string;
   readonly enforcedBy: string;
+  readonly whole?: true | undefined;
 }
 
 /** Every live check, in id order, each with the notes it enforces. A retired check is not in it. */
@@ -57,7 +58,7 @@ export function checksText(reading: readonly Check[]): string {
       `  ${check.id}  ${check.title}`,
       `    ${check.question}`,
       ...check.enforces.map((note) => `    enforces ${note.id}${note.kind === undefined ? "  (no longer live)" : `  [${note.kind}]  ${note.title}`}`),
-      ...(check.graduated ?? []).map((part) => `    graduated to Guardrails' ${part.enforcedBy}: ${part.part}`),
+      ...(check.graduated ?? []).map((part) => `    graduated${part.whole ? " whole" : ""} to Guardrails' ${part.enforcedBy}: ${part.part}`),
     ]),
   ].join("\n");
 }

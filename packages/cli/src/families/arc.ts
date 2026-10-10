@@ -1,11 +1,11 @@
 /**
  * Capability 4 · Arcs and increments (the command line story): see one arc whole, its intent, end state,
- * increments and their states, the questions waiting on the owner, and what each waiting item
- * waits for; and every wait for the owner or an outside event across arcs. Create, edit, park or
+ * increments and their states, the questions waiting on the owner, what each waiting item
+ * waits for, and each open increment's pending plan changes (ADR-0966 D3); and every wait for the owner or an outside event across arcs. Create, edit, park or
  * unpark an arc; park an increment, record a landing that was never parked, close one with its
  * outcome, move one to another arc keeping its id, and make an arc or increment wait on another
  * with a reason, or an increment wait for the owner or an outside event with a note (ADR-0938 D1),
- * or clear the wait (the library clears one itself when its blocker lands or closes, 11.8). Return active work nobody holds to proposal (`increment unstart`). Closing an
+ * or clear the wait (the library clears one itself when its blocker lands or closes, 11.8). Return active work nobody holds to proposal (`increment unstart`), and settle the pending plan changes closed increments left behind (`increment settle-pending`). Closing an
  * increment ends its claims through Session management's `closed`.
  *
  * Every rule is the library's (its capabilities 10, 11 and 12): an arc's intent and end state, a
@@ -20,7 +20,7 @@ import type { ArcView, Holds, NoteWait, WaitFor } from "@storytree/library";
 import { labelOf, Refusal, type Answer } from "../answer.js";
 import { commaSeparatedIds, type Args } from "../args.js";
 import type { Context, Family, Verb } from "../door.js";
-import { valueOf } from "./library.js";
+import { pendingSaid, valueOf } from "./library.js";
 import { commandSession } from "../writer.js";
 import { releasedAsking } from "./workspace.js";
 
@@ -106,6 +106,7 @@ const show: Verb = {
     for (const increment of open) {
       lines.push(`  - ${increment.id}  [${increment.fields.status}]  ${increment.fields.title}`);
       for (const line of holdsOn(holds, increment.id)) lines.push(`      ${line}`);
+      if ((increment.fields.pending ?? []).length > 0) for (const line of pendingSaid(increment.fields.pending!)) lines.push(`      ${line}`);
     }
     const waiting = questions.filter((question) => question.fields.lifecycle === "open");
     // A parked arc's questions are parked with it until it is unparked (ADR-0835 D2).
@@ -376,10 +377,25 @@ const incrementMove: Verb = {
   },
 };
 
+const incrementSettlePending: Verb = {
+  name: "settle-pending",
+  usage: "arc increment settle-pending",
+  summary: "apply the leftover pending plan changes of closed increments that landed, and drop those of ones that did not (ADR-0966)",
+  async act(_args, context) {
+    const settled = await (await context.library()).settleClosedPending(context.writer());
+    if (settled.length === 0) return { text: "No closed increment has pending plan changes left." };
+    const lines = settled.map(({ increment, applied, residue, dropped }) =>
+      dropped > 0
+        ? `  ${increment}: dropped ${dropped}, since it did not land`
+        : `  ${increment}: applied ${applied.length}${applied.length === 0 ? "" : ` (${applied.join(", ")})`}${residue === undefined ? "" : `; ${residue.changes.length} not applied, parked as ${residue.increment}`}`);
+    return { text: [`Settled ${settled.length} closed ${settled.length === 1 ? "increment's" : "increments'"} pending plan changes:`, ...lines].join("\n") };
+  },
+};
+
 const increment: Family = {
   name: "increment",
   summary: "the increments of an arc's work",
-  verbs: [incrementNew, incrementAdd, incrementClose, incrementCorrectClosure, incrementEdit, incrementUnstart, incrementMove, ...waiting("arc increment", "increment")],
+  verbs: [incrementNew, incrementAdd, incrementClose, incrementCorrectClosure, incrementEdit, incrementUnstart, incrementMove, incrementSettlePending, ...waiting("arc increment", "increment")],
   guesses: { show: "library read <id>", read: "library read <id>", get: "library read <id>", open: "library read <id>" },
   retired: {
     ready: { why: "ADR-0909 retired the increment's ready step, and claiming a proposal starts it.", instead: "workspace <increment> --reason …" },

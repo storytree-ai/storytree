@@ -133,12 +133,15 @@ export function ledgerDatabase(server: Storytree): Promise<Pool> {
   return server.ownDatabase(LEDGER_DATABASE, { tables: SCHEMA });
 }
 
+/** A client of the ledger's database, taken from its pool (the promise form of pg's overloaded connect). */
+const connectTo = (pool: Pool) => pool.connect();
+
 /** A client of the ledger's database, inside one transaction. */
-export type LedgerClient = Awaited<ReturnType<Pool["connect"]>>;
+export type LedgerClient = Awaited<ReturnType<typeof connectTo>>;
 
 /** Run `body` in one transaction on `pool`: committed when it returns, rolled back, writing nothing, when it throws. */
 export async function inTransaction<T>(pool: Pool, body: (client: LedgerClient) => Promise<T>): Promise<T> {
-  const client = await pool.connect();
+  const client = await connectTo(pool);
   let broken = false;
   try {
     await client.query("BEGIN");

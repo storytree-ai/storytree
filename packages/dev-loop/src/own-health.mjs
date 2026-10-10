@@ -352,23 +352,30 @@ function contractsOfResult(result, prefix, prefixedOnly) {
  * Only a leading list names contracts: N.M entries joined by comma, slash or "and", with
  * ascending en-dash ranges within one capability. Whitespace or the title's end must follow
  * the last entry, or a colon and then one ("3.6: …"). Once prose starts, later numbers give no
- * credit. Overlaps count only once. A range wider than RANGE_LIMIT names none, as the map's survey
- * refuses one (map 8.10): a fixture's oversized title must not stop the run.
+ * credit. Overlaps count only once. A list wider than LEADING_LIST_LIMIT numbers, counting
+ * overlaps, or with an end past a safe integer is no real list (a fixture's "3.1–3.9007199254740991"),
+ * so it credits nothing, checked before any expanding.
  */
-/** The most contracts one en-dash range may name. */
-const RANGE_LIMIT = 256;
+// As map's survey bounds a title's proofs (8.10): the widest real range spans a handful.
+const LEADING_LIST_LIMIT = 256;
 
 function leadingContracts(title) {
   const prefix = /^(\d+\.\d+(?:–\d+\.\d+)?(?:(?:\s*[,/]\s*|\s+and\s+)\d+\.\d+(?:–\d+\.\d+)?)*):?(?=\s|$)/.exec(title)?.[1];
   if (prefix === undefined) return [];
-  const numbers = new Set();
+  const ranges = [];
+  let width = 0;
   for (const [, first, last] of prefix.matchAll(/(\d+\.\d+)(?:–(\d+\.\d+))?/g)) {
+    const [capability, start] = first.split(".").map(Number);
+    const [endCapability, end] = (last ?? first).split(".").map(Number);
+    if (capability !== endCapability || !Number.isSafeInteger(start) || !Number.isSafeInteger(end) || end < start) return [];
+    width += end - start + 1;
+    if (width > LEADING_LIST_LIMIT) return [];
+    ranges.push({ first, capability, start, end });
+  }
+  const numbers = new Set();
+  for (const { first, capability, start, end } of ranges) {
     numbers.add(first);
-    if (last === undefined) continue;
-    const [capability, start] = first.split(".");
-    const [endCapability, end] = last.split(".");
-    if (capability !== endCapability || Number(end) < Number(start) || Number(end) - Number(start) >= RANGE_LIMIT) return [];
-    for (let n = Number(start) + 1; n <= Number(end); n++) numbers.add(`${capability}.${n}`);
+    for (let n = start + 1; n <= end; n++) numbers.add(`${capability}.${n}`);
   }
   return [...numbers];
 }

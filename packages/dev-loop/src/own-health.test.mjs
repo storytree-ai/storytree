@@ -163,6 +163,22 @@ test("contractsCoveredBy: a crashed multi-contract file leaves every named contr
   }
 });
 
+test("5.4 a leading range too wide to be real, or with an unsafe end, credits nothing instead of crashing; one up to 256 numbers wide still credits", (t) => {
+  const directory = mkdtempSync(path.join(tmpdir(), "own-health-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const file = path.join(directory, "planted.test.ts");
+  const oversized = ["3.1–3.9007199254740991 oversized", "3.1–3.257 too wide", "3.1–3.128, 3.129–3.257 too wide together", "3.1–3.9007199254740993 unsafe"];
+  writeFileSync(file, [...oversized, "3.1–3.256 wide"].map((title) => `test(${JSON.stringify(title)}, () => {});`).join("\n"));
+  assert.equal(contractsCoveredBy(file, { root: directory }).size, 256);
+  const { verdicts, unmapped } = judge({
+    contracts: ["3.1", "3.2"],
+    results: oversized.map((name) => ({ name, suites: [], file: "a.test.ts", status: "failed" })),
+    coverage: () => new Set(),
+  });
+  assert.equal(verdicts.get("3.1").state, "not-checked");
+  assert.deepEqual(unmapped.map(({ name }) => name), oversized);
+});
+
 test("contractsCoveredBy reads only test titles: a comment or a fixture string naming a contract covers nothing", (t) => {
   const directory = mkdtempSync(path.join(tmpdir(), "own-health-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));

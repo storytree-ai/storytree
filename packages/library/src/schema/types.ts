@@ -369,7 +369,7 @@ export const RECORD_SCHEMAS = {
    * A quality control check (ADR-0956 D3): one question a reviewer answers yes or no about a finished
    * change, and the principles or guardrails it `enforces`, at least one, which keep the reason for
    * the rule; optionally how to answer it and examples. What has `graduated` to deterministic
-   * checking (ADR-0956 D5) is each part with where it is now enforced.
+   * checking (ADR-0956 D5) is each part with where it is now enforced, `whole` when the part is the whole check.
    */
   check: z
     .object({
@@ -378,7 +378,7 @@ export const RECORD_SCHEMAS = {
       enforces: ids.min(1),
       howToAnswer: nonEmpty.optional(),
       examples: nonEmpty.optional(),
-      graduated: z.array(z.object({ part: nonEmpty, enforcedBy: nonEmpty }).strict()).optional(),
+      graduated: z.array(z.object({ part: nonEmpty, enforcedBy: nonEmpty, whole: z.literal(true).optional() }).strict()).optional(),
     })
     .strict(),
   /**

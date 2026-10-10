@@ -105,7 +105,7 @@ for (const platform of PLATFORMS) {
       // Squirrel.Mac staged the verified download; the relaunch opens the app once ShipIt has swapped it.
       assert.deepEqual(feed.squirrel?.staged, feed.installer);
       assert.equal(target?.execPath, "/bin/sh");
-      assert.deepEqual(target?.args.slice(2), ["storytree-update", path.resolve(process.execPath, "../../..")]);
+      assert.deepEqual(target?.args.slice(2), ["storytree-update", "/Applications/storytree 0.3.app"]);
     }
     assert.equal(feed.downloads, 1);
   });
@@ -279,7 +279,7 @@ async function fixture(t: test.TestContext, platform: Platform = "win32") {
     holds: path.join(dir, "update-holds"),
     updater(restart: (target: Launch, showing: boolean) => Promise<void>, canRestart: () => Promise<boolean>, quiet = async () => true, channel?: "stable" | "development") {
       if (platform === "darwin") electron.autoUpdater = state.squirrel = new Squirrel();
-      const updater = new ReleaseUpdater({ restart, canRestart, quiet, home: dir, ...(channel ? { releaseChannel: () => channel } : {}) }, {
+      const updater = new ReleaseUpdater({ restart, canRestart, quiet, home: dir, bundle: "/Applications/storytree 0.3.app", ...(channel ? { releaseChannel: () => channel } : {}) }, {
         version: "0.3.1", name: "storytree-test", isPackaged: true,
         appUpdateConfigPath: config, userDataPath: dir, baseCachePath: dir,
         whenReady: async () => {}, relaunch: () => assert.fail("separate relaunch"),

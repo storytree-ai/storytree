@@ -19,6 +19,8 @@ export interface ReleaseOptions {
   readonly home?: string;
   /** Read on the first check so an unreadable channel fails the check, never app startup. */
   readonly releaseChannel?: () => ReleaseChannel;
+  /** On macOS, the app bundle a restart opens once Squirrel has installed into it; by default the one holding this executable. */
+  readonly bundle?: string;
 }
 
 type Check = "current" | "waiting" | "restarting" | "stopped";
@@ -60,7 +62,7 @@ class NsisRelease extends NsisUpdater {
  * signed app, so desktop turns this on only once the app is signed (increment_4dcfabc58d92).
  */
 class MacRelease extends MacUpdater {
-  constructor(private readonly handoff: Handoff, app?: AppAdapter) {
+  constructor(private readonly handoff: Handoff, app?: AppAdapter, private readonly bundle?: string) {
     super(undefined, app);
   }
 
@@ -76,7 +78,8 @@ class MacRelease extends MacUpdater {
       squirrel.checkForUpdates();
     });
     // The executable is Contents/MacOS/<name> inside the app's bundle.
-    await this.handoff({ execPath: "/bin/sh", args: ["-c", OPEN_AFTER_SHIPIT, "storytree-update", path.resolve(process.execPath, "../../..")] });
+    const bundle = this.bundle ?? path.resolve(process.execPath, "../../..");
+    await this.handoff({ execPath: "/bin/sh", args: ["-c", OPEN_AFTER_SHIPIT, "storytree-update", bundle] });
   }
 }
 
@@ -93,7 +96,7 @@ const OPEN_AFTER_SHIPIT = 'app=$1; shift; i=0; while pgrep -x ShipIt >/dev/null 
  * Each platform's base: Windows installs through NSIS, macOS through Squirrel.Mac. The Linux arc
  * adds AppImageUpdater here (increment_4e9232f6bd10). Elsewhere installed apps do not update.
  */
-const BASES: Partial<Record<NodeJS.Platform, new (handoff: Handoff, app?: AppAdapter) => NsisRelease | MacRelease>> = {
+const BASES: Partial<Record<NodeJS.Platform, new (handoff: Handoff, app?: AppAdapter, bundle?: string) => NsisRelease | MacRelease>> = {
   win32: NsisRelease,
   darwin: MacRelease,
 };
@@ -124,7 +127,7 @@ export class ReleaseUpdater {
   constructor(private readonly options: ReleaseOptions, app?: AppAdapter, platform: NodeJS.Platform = process.platform) {
     const Base = releaseBase(platform);
     if (Base === undefined) throw new Error(`Installed apps do not update from releases on ${platform}`);
-    this.base = new Base((target) => this.options.restart(target, true), app);
+    this.base = new Base((target) => this.options.restart(target, true), app, options.bundle);
     this.base.autoDownload = false;
     this.base.autoInstallOnAppQuit = false;
     this.base.allowPrerelease = false;

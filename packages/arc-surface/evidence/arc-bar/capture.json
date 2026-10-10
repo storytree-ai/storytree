@@ -5,39 +5,45 @@
     "width": 1440,
     "height": 960
   },
-  "barBox": {
+  "appBarBox": {
     "x": 0,
     "y": 0,
-    "width": 1380,
-    "height": 60
+    "width": 1440,
+    "height": 48
+  },
+  "barBox": {
+    "x": 0,
+    "y": 48,
+    "width": 1440,
+    "height": 48
   },
   "gearBox": {
     "x": 1392,
-    "y": 12,
+    "y": 5.5,
     "width": 36,
     "height": 36
   },
   "drawerBox": {
     "x": 0,
-    "y": 60,
+    "y": 96,
     "width": 1440,
     "height": 480
   },
   "controls": {
     "x": 12,
-    "y": 72,
+    "y": 108,
     "width": 154.140625,
     "height": 43.28125
   },
   "narrowBar": {
     "x": 0,
-    "y": 0,
-    "width": 300,
-    "height": 60
+    "y": 48,
+    "width": 360,
+    "height": 48
   },
   "narrowGear": {
     "x": 312,
-    "y": 12,
+    "y": 5.5,
     "width": 36,
     "height": 36
   },
@@ -45,7 +51,8 @@
   "capabilities": 71,
   "errors": [],
   "passed": [
-    "bar spans to gear",
+    "bar spans the window below the app bar",
+    "gear in the app bar",
     "forest controls below strip",
     "click toggle at both ends",
     "keyboard and Escape focus",

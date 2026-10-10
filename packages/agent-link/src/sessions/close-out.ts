@@ -10,7 +10,7 @@ import type { Library, WriteOptions } from "@storytree/library";
 import { listRuns } from "@storytree/processes/listing";
 
 import type { ActivityLog, Line } from "../activity/index.js";
-import { returnUnclosed } from "../claims/claims.js";
+import { endClaim } from "../claims/endings.js";
 import { rememberClosedOut } from "../hooks/close-out-reminder.js";
 import { partOf, standingFrom } from "../readings.js";
 import { resolveBranches, type BranchWatch } from "./branch-states.js";
@@ -55,8 +55,8 @@ export async function closeOut(context: CloseOutContext, said: { safe: boolean; 
     const released: string[] = [];
     for (const [id, claim] of standingFrom(await log.standing())) {
       if (claim.session !== context.session) continue;
-      if (context.library !== undefined) await returnUnclosed({ library: context.library, session: context.session, ...(context.writer === undefined ? {} : { writer: context.writer }) }, claim.increment);
-      await log.append({ ...who, kind: "released", ...partOf(claim) });
+      const returning = context.library === undefined ? undefined : { library: context.library, session: context.session, ...(context.writer === undefined ? {} : { writer: context.writer }) };
+      await endClaim(log, who, partOf(claim), { by: "holder" }, returning);
       released.push(id);
     }
     const line = await log.append({ ...who, kind: "closed-out", safe: said.safe, why: said.why.trim(), ...(running === undefined ? {} : { running }) });

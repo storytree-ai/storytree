@@ -126,6 +126,23 @@ test("11.9 · an active arc whose open work all waits, with no open question, is
   assert.equal(pickPlan(survey([])), undefined, "a survey without arcs offers none");
 });
 
+test("11.13 · an arc whose open work waits on its own handed-over pull requests is in flight, not offered for planning", () => {
+  const arc = (id, created) => ({ id, state: "active", title: id, created, openQuestions: 0 });
+  const handed = (pr) => [{ releaser: "event", note: `PR #${pr} is open and green and handed to the Mint box's watcher, which closes this on its merge or starts a fix session on a red.`, holds: true }];
+  const work = survey([
+    increment("landing", "x", { arc: "arc_landing" }), increment("next", "x", { arc: "arc_landing" }),
+    increment("fixing", "x", { arc: "arc_fixing" }),
+    increment("stalled", "x", { arc: "arc_stalled" }),
+  ], {
+    arcs: [arc("arc_landing", "2026-10-01T00:00:00Z"), arc("arc_fixing", "2026-10-02T00:00:00Z"), arc("arc_stalled", "2026-10-03T00:00:00Z")],
+    holds: { waits: { next: [{ on: "landing", reason: "x", forGood: false }] }, heldOn: {}, waitsFor: {
+      landing: handed(1085), fixing: [{ releaser: "event", note: "PR #1090 is with the Mint box's watcher, and a fix session works it", holds: true }],
+      stalled: [{ releaser: "event", note: "the vendor ships 2.0", holds: true }],
+    } },
+  });
+  assert.equal(pickPlan(work)?.id, "arc_stalled", "a hand-over wait, its watcher record, and a wait on an increment holding one are in flight");
+});
+
 test("11.11 · work whose session ended without a hand-off is offered again after a back-off, and not before", () => {
   const ran = Date.parse("2026-10-07T01:00:00Z"), minute = 60_000;
   const attempts = new Map([["bounced", { at: ran }], ["handed", { at: ran }]]);

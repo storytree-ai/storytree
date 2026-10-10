@@ -37,8 +37,9 @@ import path from "node:path";
 import { McpServer, type CallToolResult, type ServerContext } from "@modelcontextprotocol/server";
 import { agentOf, callLines, endMergedClaims, findProject, idleAfterMs, lineOf, locateStorytree, requestOf, route, seenCaller, storytreeHome, type ActivityLog, type Agent, type Caller, type MergeWatch, type SetupOptions } from "@storytree/agent-link";
 import type { ProtectionReader } from "@storytree/agent-link";
-import { type Library, type WriteOptions } from "@storytree/library";
+import { type Library, type Storytree, type WriteOptions } from "@storytree/library";
 import { librarianTools } from "@storytree/librarian";
+import { qualityTools } from "@storytree/quality-assurance";
 import { appDatabaseWork } from "@storytree/processes/listing";
 import type { z } from "zod";
 
@@ -100,6 +101,8 @@ export const NOT_A_PROJECT_ANSWER = "this folder isn't a storytree project, so s
 export interface Call {
   readonly library: Library;
   readonly log: ActivityLog;
+  /** The connection the library and log were opened on, which hands out a story's own database (ADR-0973). */
+  readonly storytree: Storytree;
   readonly project: string;
   readonly caller: Caller;
   /** Library history names the resolved session; cancellation stops writes still waiting to start. */
@@ -133,11 +136,12 @@ export interface ToolExtension {
 }
 
 export function createAgentTools(options: AgentToolOptions): AgentTools {
-  // ADR-0644 U1: enable the librarian for storytree's own library first. Its behaviour stays in
-  // its package; this is the shared registration point for other stories (ADR-0643 D6).
+  // ADR-0644 U1: enable the librarian for storytree's own library first, and quality assurance's checks
+  // reading with it (ADR-0956). Their behaviour stays in their packages; this is the shared registration
+  // point for other stories (ADR-0643 D6).
   const servedTools = ["check_setup", "set_up_project", ...OWN_TOOLS];
   const extensions = [
-    ...(findProject(options.folder).project === "storytree" ? [librarianTools({ tools: () => servedTools })] : []),
+    ...(findProject(options.folder).project === "storytree" ? [librarianTools({ tools: () => servedTools }), qualityTools()] : []),
     ...options.extensions ?? [],
   ];
   const instructions = [habitsCard(), ...extensions.flatMap((extension) => extension.instructions === undefined ? [] : [extension.instructions])].join("\n");
@@ -160,7 +164,7 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
       const meta = metaOf(context);
       try {
         let quietMs = options.quietMs;
-        const { library, log } = await connections.reach(where.library, where.project, where.identity, { folder: where.folder, home });
+        const { library, log, storytree } = await connections.reach(where.library, where.project, where.identity, { folder: where.folder, home });
         // What the hooks wrote of this very call, the one run just before it (ADR-0629 D2): only those lines (contract 2.7).
         const lines = await callLines(log, where.project, meta);
         const caller = seenCaller(lines, callerOf(context), meta);
@@ -173,7 +177,7 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
         // A claim whose pull request has merged ends before the tool sees who holds what (ADR-0643 D3).
         await endMergedClaims({ log, project: where.project, folder, ...lineOf(caller), source: "tool" }, options.merges).catch(() => []);
         return result(await act(args as never, {
-          library, log, project: where.project, caller,
+          library, log, storytree, project: where.project, caller,
           writer: { actor: `session:${caller.session}`, signal: context.mcpReq.signal },
           folder,
           // Read once for this call, only if it needs liveness. Independent context readings

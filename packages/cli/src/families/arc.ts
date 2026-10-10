@@ -5,8 +5,7 @@
  * unpark an arc; park an increment, record a landing that was never parked, close one with its
  * outcome, move one to another arc keeping its id, and make an arc or increment wait on another
  * with a reason, or an increment wait for the owner or an outside event with a note (ADR-0938 D1),
- * or clear the wait; `arc show` also names a stale wait, one whose blocker has closed, with the command
- * that clears it. Return active work nobody holds to proposal (`increment unstart`). Closing an
+ * or clear the wait (the library clears one itself when its blocker lands or closes, 11.8). Return active work nobody holds to proposal (`increment unstart`). Closing an
  * increment ends its claims through the agent link's `closed`.
  *
  * Every rule is the library's (its capabilities 10, 11 and 12): an arc's intent and end state, a
@@ -15,7 +14,7 @@
  * start` (starting is claiming, the agent tools'), no `increment ready` (ADR-0645 D5; ADR-0909 D4 retired the step, and the word is refused saying so), and no hand
  * close or re-open of an arc (the owner's R1). `arc list` reads list(kind), then each arc's view.
  */
-import { questionsBehind } from "@storytree/arc-surface";
+import { questionsBehind } from "@storytree/arc-surface/board-states";
 import type { ArcView, Holds, NoteWait, WaitFor } from "@storytree/library";
 
 import { labelOf, Refusal, type Answer } from "../answer.js";
@@ -80,17 +79,6 @@ function holdsOn(holds: Holds, id: string): string[] {
   return lines;
 }
 
-/**
- * The waits `record` still stores that no longer hold: its blocker landed (an increment) or closed
- * (an arc), so the wait is stale and only clutters the record, each with the command that clears it.
- */
-function staleWaits(holds: Holds, record: { readonly id: string; readonly fields: { readonly waits?: readonly { readonly on: string }[] | undefined } }, family: string): string[] {
-  const holding = new Set((holds.waits[record.id] ?? []).map((hold) => hold.on));
-  return (record.fields.waits ?? [])
-    .filter((wait) => !holding.has(wait.on))
-    .map(({ on }) => `waited on ${on}, which ${on.startsWith("arc_") ? "closed" : "landed"}: a stale wait, cleared by storytree ${family} unwait ${record.id} --on ${on}`);
-}
-
 /** A wait for the owner or an outside event, as `arc show` names it under its increment: an event's reads passed from its check-back day. */
 function waitSaid({ releaser, note, checkBack, holds }: NoteWait): string {
   if (releaser === "owner") return `waiting on you: ${note}`;
@@ -110,14 +98,14 @@ const show: Verb = {
     const { arc, state, increments, questions } = view;
     const lines = [`${arc.fields.title}  [${arc.id}]  ${stateOf(view)}`, "", `Intent: ${arc.fields.intent}`, `End state: ${arc.fields.endState}`];
     if (arc.fields.priority !== undefined) lines.push(`Priority: ${arc.fields.priority}`);
-    for (const line of [...holdsOn(holds, arc.id), ...staleWaits(holds, arc, "arc")]) lines.push(`This arc ${line}`);
+    for (const line of holdsOn(holds, arc.id)) lines.push(`This arc ${line}`);
     const open = increments.filter((increment) => increment.fields.status !== "closed");
     const closed = increments.filter((increment) => increment.fields.status === "closed");
     lines.push("", `Work (${open.length} open)`);
     if (open.length === 0) lines.push("  (none)");
     for (const increment of open) {
       lines.push(`  - ${increment.id}  [${increment.fields.status}]  ${increment.fields.title}`);
-      for (const line of [...holdsOn(holds, increment.id), ...staleWaits(holds, increment, "arc increment")]) lines.push(`      ${line}`);
+      for (const line of holdsOn(holds, increment.id)) lines.push(`      ${line}`);
     }
     const waiting = questions.filter((question) => question.fields.lifecycle === "open");
     // A parked arc's questions are parked with it until it is unparked (ADR-0835 D2).
@@ -262,6 +250,8 @@ function incrementOf(args: Args, usage: string): Record<string, unknown> {
     const list = listOf(args, flag);
     if (list !== undefined) fields[field] = list;
   }
+  // An empty --held-on clears the hold, as settling or retiring its last question does.
+  if ((fields.heldOn as string[] | undefined)?.length === 0) fields.heldOn = undefined;
   return fields;
 }
 
@@ -324,7 +314,7 @@ const incrementUnstart: Verb = {
 
 const incrementEdit: Verb = {
   name: "edit",
-  usage: "arc increment edit <increment> [--title …] [--objective …] [--body …] [--capabilities a,b] [--links a,b] [--remedies f,g] [--held-on q]",
+  usage: "arc increment edit <increment> [--title …] [--objective …] [--body …] [--capabilities a,b] [--links a,b] [--remedies f,g] [--held-on q, or empty to clear]",
   summary: "change only the named fields; --capabilities and --links replace the lists, --remedies adds friction to those it already remedies",
   async act(args, context): Promise<Answer> {
     const id = args.word(0, "the increment's id", this.usage);

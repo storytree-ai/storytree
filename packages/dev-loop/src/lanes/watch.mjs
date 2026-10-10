@@ -24,7 +24,8 @@ const MARKS = [/watch\.mjs run( |$)/];
 
 /**
  * A pull request, as GitHub's GraphQL returns it, read as merged, closed, red or pending. Red is a failed check on
- * its head, or a removal from the merge queue after `since` that the Requeue workflow has not undone in `graceMs`.
+ * its head, a conflict with main (no check fails on one, so it would otherwise wait out its check-back), or a removal
+ * from the merge queue after `since` that the Requeue workflow has not undone in `graceMs`.
  */
 export function readPull(pull, { since, now, graceMs }) {
   const head = pull.headRefOid;
@@ -36,6 +37,9 @@ export function readPull(pull, { since, now, graceMs }) {
     return { state: "red", head, why: failed.map((check) => `${check.name ?? check.context} failed`).join("; "),
       logs: failed.map((check) => check.detailsUrl ?? check.targetUrl).filter(Boolean) };
   }
+  if (pull.mergeable === "CONFLICTING") {
+    return { state: "red", head, why: "it conflicts with main: merge origin/main and resolve the conflicts", logs: [] };
+  }
   const removal = pull.timelineItems?.nodes?.at(-1);
   const removedAt = Date.parse(removal?.createdAt);
   if (!pull.mergeQueueEntry && EJECTED.has(removal?.reason?.toUpperCase()) && removedAt > Date.parse(since) && now - removedAt > graceMs) {
@@ -45,7 +49,7 @@ export function readPull(pull, { since, now, graceMs }) {
 }
 
 const QUERY = `query($owner: String!, $name: String!, $pr: Int!) { repository(owner: $owner, name: $name) { pullRequest(number: $pr) {
-  state headRefOid mergeQueueEntry { state }
+  state headRefOid mergeable mergeQueueEntry { state }
   commits(last: 1) { nodes { commit { statusCheckRollup { contexts(first: 100) { nodes {
     __typename ... on CheckRun { name status conclusion detailsUrl } ... on StatusContext { context state targetUrl } } } } } } }
   timelineItems(itemTypes: [REMOVED_FROM_MERGE_QUEUE_EVENT], last: 1) { nodes { ... on RemovedFromMergeQueueEvent { createdAt reason } } }
@@ -124,6 +128,10 @@ Your job is that pull request and nothing else. Work from ~/code/storytree03 and
 - Read the failing log (\`gh run view <run> --log-failed\`, or \`gh pr checks ${pr}\`). Suspect a stale branch first: merge
   origin/main, run \`pnpm install\`, and \`pnpm gate\`. Then fix what is really broken, see \`pnpm gate\` green and push.
   Never force-push, squash or \`gh pr merge\`.
+- You exit when you end a turn: a session that ends its turn to wait exits at once, and its uncommitted work is stranded.
+  So run \`pnpm gate\` and \`pnpm test\` in the foreground and stay in the turn until the PASS / FAIL / NOT RUN table prints,
+  however long the run queues behind another lane's; this overrides the general guidance to run them in the background.
+  A run already in the background is polled inside the same turn, never waited for by ending the turn.
 - Hand it back: \`node packages/dev-loop/src/lanes/watch.mjs hand ${pr} ${increment}\`, then
   \`pnpm storytree session close-out --safe yes --why "PR #${pr} fixed and handed back to the watcher"\`, and end.
 - If it needs the owner (a decision, a sign-in, a spend), raise the question on the increment's arc holding the increment, then close out and end.

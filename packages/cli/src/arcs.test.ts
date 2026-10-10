@@ -388,7 +388,7 @@ test("4.4 `arc show` reads a wait on work held on your question as waiting on yo
   });
 });
 
-test("4.11 `arc show` names a stale wait: one whose blocker has landed, which no longer holds, with the command that clears it", async () => {
+test("4.11 `arc show` says nothing of a wait whose blocker has landed: closing the blocker cleared it", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();
     const arc = await anArc(world);
@@ -402,9 +402,7 @@ test("4.11 `arc show` names a stale wait: one whose blocker has landed, which no
     assert.equal(ran.code, 0, ran.stderr);
     const lines = ran.stdout.split(/\r?\n/);
     const form = lines.findIndex((line) => line.includes(second.id));
-    const block = lines.slice(form, form + 3).join("\n");
-    assert.ok(block.includes(first.id) && /landed/.test(block) && /stale/.test(block), `no stale wait under ${second.id}:\n${ran.stdout}`);
-    assert.ok(block.includes(`storytree arc increment unwait ${second.id} --on ${first.id}`), block);
+    assert.ok(!lines[form + 1]?.includes(first.id), `a wait still said under ${second.id}:\n${ran.stdout}`);
   });
 });
 
@@ -484,6 +482,21 @@ test("4.15 `arc increment new` and `edit` take --capabilities and --links, edit 
     const edited = await world.run(["arc", "increment", "edit", id, "--capabilities", `${form!.id},${page!.id}`]);
     assert.equal(edited.code, 0, edited.stderr);
     assert.deepEqual([(await fieldsOf()).capabilities, (await fieldsOf()).links], [[form!.id, page!.id], [story.id]], "the list is replaced, the links kept");
+  });
+});
+
+test("4.18 `arc increment edit --held-on \"\"` clears a hold put on by mistake: the increment reads held on nothing", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const arc = await anArc(world);
+    const held = await library.addIncrement({ arc, title: "Mailer", objective: "Mail", body: "…" });
+    const question = await library.raiseQuestion({ arc, title: "Which mailer?", stakes: "s", statement: "q", context: "c", options: "o" });
+    await library.editIncrement(held.id, { heldOn: [question.id] });
+
+    const cleared = await world.run(["arc", "increment", "edit", held.id, "--held-on", ""]);
+
+    assert.equal(cleared.code, 0, cleared.stderr);
+    assert.equal(((await library.get(held.id))?.fields as { heldOn?: string[] }).heldOn, undefined);
   });
 });
 

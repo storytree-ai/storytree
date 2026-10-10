@@ -14,7 +14,7 @@ import ownSaved from "./own-snapshot.json" with { type: "json" };
 import { crossingLength, growthMoment, growthPlan, type GrowthPlan } from "@storytree/forest-world/planet";
 import { buildPlanetPathways } from "@storytree/forest-world/geometry";
 import type { GrowthSnapshot, TourSnapshot } from "./forest-data.js";
-import { aim, flight, globeOf, placeTags, replayMoment, type Box, type GlobeOn, type Hold, type Tag, type TagSide, type TourDetail, type TourStep } from "./tour.js";
+import { aim, flight, globeOf, lineStarts, placeTags, replayMoment, stepAt, type Box, type GlobeOn, type Hold, type Tag, type TagSide, type TourDetail, type TourStep } from "./tour.js";
 import { mapRecording, mapGrowthPlan, recordedFrame } from "./map-recording.js";
 import { growthReading, savedReading } from "./tour-reading.js";
 
@@ -177,7 +177,7 @@ function offsetFor(step: TourStep | undefined, width: number) {
   const opening = step.kind === "beats" || step.kind === "statement" || step.kind === "fixes";
   // A chapter's lines start where the arrival's do (ADR-0890, amended 2026-10-05).
   const cardRight = Math.min(64, width * .04) + (opening ? Math.min(560, width * .46) : Math.min(400, width * .36));
-  const panel = step.panel === "story" ? Math.min(480, width - 24) + 12 : 0;
+  const panel = step.panel === "story" || step.panelRoom ? Math.min(480, width - 24) + 12 : 0;
   return Math.round(Math.min(width * .2, (cardRight - panel) / 2));
 }
 
@@ -188,6 +188,8 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   const [wisps, setWisps] = useState<readonly SessionWisp[]>([]);
   const [highlight, setHighlight] = useState<readonly string[]>();
   const [story, setStory] = useState<string>();
+  // A story panel the tour opened, not the visitor: its island is not selected, so no ring reads as a claim (ADR-0891, 2026-10-10).
+  const [toldStory, setToldStory] = useState<string>();
   const [capability, setCapability] = useState<string>();
   const [note, setNote] = useState<string>();
   const [mode, setMode] = useState<"forest" | "library">("forest");
@@ -238,7 +240,9 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
     for (const [from, next] of Object.entries(step.lineSurfaces ?? {})) if ((state?.lines ?? 1) >= Number(from)) shown = next;
     return shown;
   }, [step, state?.lines, free, everything]);
-  const sideOffset = offsetFor(touring && !everything ? step : undefined, width);
+  // The step as its told lines leave it: a line can move the camera (ADR-0891, amended 2026-10-10).
+  const shownStep = step && stepAt(step, state?.lines ?? 1);
+  const sideOffset = offsetFor(touring && !everything ? shownStep : undefined, width);
   const globe: GlobeOn = step && state ? globeOf(step, state, tour!.elapsed) : { map: "storytree" };
 
   // Touching the globe hands it to the visitor: the tour waits, and says so (ADR-0879 D3).
@@ -246,7 +250,7 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   const clearFlight = () => { camera.current.flight.forEach(clearTimeout); camera.current.flight = []; camera.current.dive = undefined; };
   const clearDrift = () => { camera.current.drift.forEach(clearTimeout); camera.current.drift = []; };
   const pickStory = useCallback((id: string | undefined, picked?: string) => {
-    explore(); setStory(id); setCapability(picked); setNote(undefined); core.pin(undefined);
+    explore(); setStory(id); setToldStory(undefined); setCapability(picked); setNote(undefined); core.pin(undefined);
   }, [core, explore]);
   const pickCapability = useCallback((id: string) => { explore(); setCapability(id); }, [explore]);
   const closeStory = useCallback(() => { setStory(undefined); setCapability(undefined); }, []);
@@ -277,7 +281,7 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   useEffect(() => {
     if (!tour) return;
     const before = recordingAt.current;
-    const inSessions = !free && step?.panel === "sessions" && !step.recorded;
+    const inSessions = !free && step?.panel === "sessions" && !step.recorded && !step.sessionsAt;
     const wasInSessions = before?.inSessions === true && before.generation === state!.generation;
     recordingAt.current = { inSessions, generation: state!.generation };
     if (inSessions && !wasInSessions) replay();
@@ -321,7 +325,7 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
     setMode(requestedPanel === "knowledge" ? "library" : "forest");
     setNote(undefined); core.pin(undefined); setBrowserOpen(false);
     // A phone has no room for the app’s story panel beside the card: the step says it in words instead.
-    if (requestedPanel === "story" && window.innerWidth > 600) { setStory(ownerOf(step!.target)); setCapability(step!.target?.kind === "capability" ? step!.target.capability : undefined); }
+    if (requestedPanel === "story" && window.innerWidth > 600) { setStory(ownerOf(step!.target)); setToldStory(ownerOf(step!.target)); setCapability(step!.target?.kind === "capability" ? step!.target.capability : undefined); }
     else { setStory(undefined); setCapability(undefined); }
     if (step?.id === "knowledge-reads" && reader) core.select(reader);
   };
@@ -339,11 +343,13 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
     const before = previous.current;
     previous.current = tour;
     if (exploringNow || everything) { clearDrift(); if (everything && shownMapNow.current !== "storytree") setShownMap("storytree"); return; }
-    const moved = !before || before.state.index !== state!.index || before.state.generation !== state!.generation || before.state.freePlay
-      || before.state.holds.includes("exploring") || before.state.holds.includes("everything") || !camera.current.entered;
     const map = globe.map, overview = overviews[map], driftOrder = driftOrders[map];
-    const view = (width > 600 ? step.laptop : step.phone) ?? step;
+    const view = (width > 600 ? shownStep!.laptop : shownStep!.phone) ?? shownStep!;
     const target = view.target ?? overview, framing = view.framing ?? restingFraming;
+    // A new step, or a line that moves the camera within one.
+    const moved = !before || before.state.index !== state!.index || before.state.generation !== state!.generation || before.state.freePlay
+      || before.state.holds.includes("exploring") || before.state.holds.includes("everything") || !camera.current.entered
+      || JSON.stringify(target) !== JSON.stringify(camera.current.target) || framing !== camera.current.framing;
     const speed = state!.speed, still = reduced();
     const after = (timers: number[], ms: number, run: () => void) => { timers.push(window.setTimeout(run, ms)); };
     const go = (stop: { target: GlobeTarget; framing: number; duration: number }, timers = camera.current.flight) =>
@@ -427,7 +433,7 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
 
   // Find reads the project on show: its islands and its notes.
   const shownNotes = (grows(shownMap) ? [...knowledge(growths[shownMap].snapshot.changes ?? []).notes.values()] : notes).filter(item => String(item.fields.title ?? "").toLowerCase().includes(query.toLowerCase()));
-  const selected = story ?? (touring && !everything ? step?.select : undefined);
+  const selected = (story !== toldStory ? story : undefined) ?? (touring && !everything ? step?.select : undefined);
   const onStorytree = shownMap === "storytree";
   const inMapChapter = touring && !everything && step?.explainer === "map" && shownMap === "shop";
   const grown = inMapChapter ? mapChapter : grows(shownMap) ? growths[shownMap] : undefined;
@@ -436,7 +442,7 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   let moment: number | undefined;
   if (grown && globe.map === shownMap && "at" in globe && globe.at !== undefined) {
     const told = growthAt && growthAt.index === state?.index && growthAt.generation === state?.generation ? growthAt.at : globe.at;
-    moment = typeof step?.growth === "object" ? replayMoment(grown.plan(), step.growth, told) : 0;
+    moment = typeof step?.growth === "object" ? replayMoment(grown.plan(), step.growth, told, lineStarts(step)) : 0;
   }
   // A step at a recorded moment shows the shop as it stood then: its globe, and its sessions and arcs read from its records (2.17).
   const recordedAt = touring && !everything && globe.map === "shop" && "when" in globe ? globe.when : undefined;
@@ -449,7 +455,9 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   const drawn = datedFrame?.scene ?? grown?.snapshot.scene ?? snapshot.scene;
   // Free play on the shop reads the shop's saved reading for its panels, arcs and sessions; everywhere else, storytree's.
   const onShop = free && shownMap === "shop" && shopView !== undefined;
-  const shopAt = useMemo(() => recordedAt && shopSnapshot ? { recording: savedReading(shopSnapshot, { until: recordedAt }) } : undefined, [recordedAt]);
+  // A step replaying the shop's growth can still read its sessions list at one recorded moment.
+  const sessionsAt = recordedAt ?? (touring && !everything && shownMap === "shop" ? step?.sessionsAt : undefined);
+  const shopAt = useMemo(() => sessionsAt && shopSnapshot ? { recording: savedReading(shopSnapshot, { until: sessionsAt }) } : undefined, [sessionsAt]);
   useEffect(() => () => shopAt?.recording.reading.stop(), [shopAt]);
   const panelReading = onStorytree ? snapshot : shownMap === "shop" ? shopSnapshot : undefined;
   const shownProgress = onShop ? shopView.recording.progress() : shopAt ? shopAt.recording.progress() : progress;
@@ -505,7 +513,7 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
       {/* The recorded sessions and the arcs of the project on show: the shop's in free play on it, storytree's otherwise. */}
       <div className="tour-session-surface" hidden={free ? !onStorytree && !onShop : requestedPanel !== "sessions"}>
         {shopAt
-          ? <Sessions key={`shop@${recordedAt}`} project={shop.project} recording={shopAt.recording} core={growthCores.shop} onWisps={setWisps} onHighlight={onHighlight} onPick={explore} />
+          ? <Sessions key={`shop@${sessionsAt}`} project={shop.project} recording={shopAt.recording} core={growthCores.shop} onWisps={setWisps} onHighlight={onHighlight} onPick={explore} />
           : onShop
           ? <Sessions key="shop" project={shop.project} recording={shopView.recording} core={growthCores.shop} onWisps={setWisps} onHighlight={onHighlight} onPick={explore} />
           : <Sessions key="storytree" project={snapshot.project} recording={recording} core={core} onWisps={setWisps} onHighlight={onHighlight} onPick={explore} />}
@@ -515,7 +523,7 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
       </div>
       <div className="tour-arc-surface" hidden={free ? !onStorytree && !onShop : requestedPanel !== "arcs"}>
         {shopAt
-          ? <Arcs key={`shop@${recordedAt}`} project={shop.project} recording={shopAt.recording} open={requestedPanel === "arcs"} />
+          ? <Arcs key={`shop@${sessionsAt}`} project={shop.project} recording={shopAt.recording} open={requestedPanel === "arcs"} />
           : onShop
           ? <Arcs key="shop" project={shop.project} recording={shopView.recording} open={false} />
           : <Arcs key="storytree" project={snapshot.project} recording={recording} open={requestedPanel === "arcs"} />}

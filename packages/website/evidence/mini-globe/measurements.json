@@ -1,0 +1,19 @@
+{
+ "build": "5d7f5db32db33355c16d726be4d589dd5c7a3e93",
+ "viewport": "1440 x 900, SwiftShader",
+ "arrived": {
+  "x": 60,
+  "y": 60,
+  "behind": false
+ },
+ "turned": {
+  "x": 33.1,
+  "y": 26.3,
+  "behind": true
+ },
+ "home": {
+  "x": 60,
+  "y": 60,
+  "behind": false
+ }
+}

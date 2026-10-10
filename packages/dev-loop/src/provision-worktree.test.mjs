@@ -11,7 +11,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { hookOutput, provision, serve } from "./provision-worktree.mjs";
+import { check, hookOutput, provision, serve } from "./provision-worktree.mjs";
 
 const script = fileURLToPath(new URL("./provision-worktree.mjs", import.meta.url));
 
@@ -80,63 +80,92 @@ test("2.1 as a session-start hook it exits 0 and says nothing on a healthy workt
   assert.equal(run.stdout, "");
 });
 
-test("before a storytree command, an uninstalled worktree is refused with the command that installs it", (t) => {
+/** A fake `pnpm install` that leaves root as a completed install with every workspace link made. */
+function linkingInstall(calls) {
+  return (root) => {
+    calls.push(root);
+    mkdirSync(path.join(root, "node_modules", ".pnpm"), { recursive: true });
+    writeFileSync(path.join(root, "node_modules", ".modules.yaml"), "");
+    writeFileSync(path.join(root, "node_modules", ".pnpm", "lock.yaml"), readFileSync(path.join(root, "pnpm-lock.yaml")));
+    for (const dir of [root, ...["library", "keys"].map((name) => path.join(root, "packages", name))]) {
+      let manifest;
+      try {
+        manifest = JSON.parse(readFileSync(path.join(dir, "package.json"), "utf8"));
+      } catch {
+        continue;
+      }
+      mkdirSync(path.join(dir, "node_modules"), { recursive: true });
+      for (const name of Object.keys({ ...manifest.dependencies, ...manifest.devDependencies })) {
+        mkdirSync(path.join(dir, "node_modules", name), { recursive: true });
+      }
+    }
+    return { ok: true, code: 0 };
+  };
+}
+
+/** packages/library now depends on packages/keys, which landed after the install. */
+function addKeysDependency(root) {
+  mkdirSync(path.join(root, "packages", "keys"));
+  writeFileSync(path.join(root, "packages", "keys", "package.json"), JSON.stringify({ name: "@storytree/keys" }));
+  const library = { name: "@storytree/library", dependencies: { "@storytree/keys": "workspace:*" } };
+  writeFileSync(path.join(root, "packages", "library", "package.json"), JSON.stringify(library));
+}
+
+test("2.2 before a storytree command, an uninstalled worktree is installed and the command runs", (t) => {
   for (const condition of ["fresh", "unlinked"]) {
     const root = worktree(t, condition);
-    const run = spawnSync(process.execPath, [script, "--check", "--root", root], { encoding: "utf8" });
-    assert.equal(run.status, 1, condition);
-    assert.equal(run.stdout, "");
-    assert.ok(run.stderr.includes(root), `${condition}: it names the worktree`);
-    assert.match(run.stderr, /node packages\/dev-loop\/src\/provision-worktree\.mjs/, `${condition}: it names the fix`);
-    assert.equal(run.stderr.trim().split("\n").length, 1, `${condition}: in one line`);
+    const ran = [];
+    assert.equal(check({ root, install: linkingInstall(ran) }), 0, condition);
+    assert.deepEqual(ran, [root], `${condition}: one install, in the worktree`);
   }
   const current = spawnSync(process.execPath, [script, "--check", "--root", worktree(t, "current")], { encoding: "utf8" });
   assert.equal(current.status, 0);
   assert.equal(current.stdout + current.stderr, "", "an installed worktree runs the command with nothing said");
 });
 
-for (const condition of ["current", "stale"]) {
-  test(`2.2 before a storytree command, a ${condition} worktree missing a package's workspace link is refused with the fix`, (t) => {
-    // Installed and current, but packages/library now depends on packages/keys, which landed after the install.
+test("2.3 before a storytree command, a worktree its install cannot fix is refused in one line with the command that installs it", (t) => {
+  for (const condition of ["fresh", "unlinked"]) {
     const root = worktree(t, condition);
-    mkdirSync(path.join(root, "packages", "keys"));
-    writeFileSync(path.join(root, "packages", "keys", "package.json"), JSON.stringify({ name: "@storytree/keys" }));
-    const library = { name: "@storytree/library", dependencies: { "@storytree/keys": "workspace:*" } };
-    writeFileSync(path.join(root, "packages", "library", "package.json"), JSON.stringify(library));
-    const run = spawnSync(process.execPath, [script, "--check", "--root", root], { encoding: "utf8" });
-    assert.equal(run.status, 1);
-    assert.match(run.stderr, /node packages\/dev-loop\/src\/provision-worktree\.mjs/, "it names the fix");
-    assert.ok(run.stderr.includes("@storytree/keys"), "it names the package the install lacks");
+    const lines = [];
+    assert.equal(check({ root, install: () => ({ ok: false, code: 1 }), log: (line) => lines.push(line) }), 1, condition);
+    const refusal = lines.at(-1);
+    assert.ok(refusal.includes(root), `${condition}: it names the worktree`);
+    assert.match(refusal, /node packages\/dev-loop\/src\/provision-worktree\.mjs/, `${condition}: it names the fix`);
+    assert.equal(refusal.split("\n").length, 1, `${condition}: in one line`);
+  }
+  // An install that reports success but still links nothing is refused too, naming the missing link.
+  const root = worktree(t, "current");
+  addKeysDependency(root);
+  const lines = [];
+  assert.equal(check({ root, install: () => ({ ok: true, code: 0 }), log: (line) => lines.push(line) }), 1);
+  assert.ok(lines.at(-1).includes("@storytree/keys"), "it names the package the install lacks");
+});
+
+for (const condition of ["current", "stale"]) {
+  test(`2.2 before a storytree command, a ${condition} worktree missing a package's workspace link is reinstalled and the command runs`, (t) => {
+    const root = worktree(t, condition);
+    addKeysDependency(root);
+    const ran = [];
+    assert.equal(check({ root, install: linkingInstall(ran) }), 0);
+    assert.deepEqual(ran, [root], "one install, in the worktree");
     let calls = 0;
     provision({ root, install: () => (calls++, { ok: true }) });
-    assert.equal(calls, 1, "the session-start hook reinstalls it");
-
-    // Once the install links it, the command runs.
-    mkdirSync(path.join(root, "packages", "library", "node_modules", "@storytree", "keys"), { recursive: true });
-    const linked = spawnSync(process.execPath, [script, "--check", "--root", root], { encoding: "utf8" });
-    assert.equal(linked.status, 0, linked.stderr);
+    assert.equal(calls, 0, "the next session-start hook finds nothing to do");
   });
 }
 
-test("2.2 missing root workspace links are refused and reinstalled even after a package's missing link is repaired", (t) => {
+test("2.2 missing root workspace links are reinstalled even after a package's missing link is repaired", (t) => {
   const root = worktree(t, "current");
   writeFileSync(path.join(root, "package.json"), JSON.stringify({
     name: "storytree", devDependencies: { "@storytree/library": "workspace:*" },
   }));
-  writeFileSync(path.join(root, "packages", "library", "package.json"), JSON.stringify({
-    name: "@storytree/library", dependencies: { "@storytree/keys": "workspace:*" },
-  }));
-  mkdirSync(path.join(root, "packages", "keys"));
-  writeFileSync(path.join(root, "packages", "keys", "package.json"), JSON.stringify({ name: "@storytree/keys" }));
-  const check = () => spawnSync(process.execPath, [script, "--check", "--root", root], { encoding: "utf8" });
-
-  // Both links are missing, although the lockfile still matches the last install.
-  assert.equal(check().status, 1, "the incomplete install cannot run commands");
+  addKeysDependency(root);
   mkdirSync(path.join(root, "packages", "library", "node_modules", "@storytree", "keys"), { recursive: true });
-  const rootOnly = check();
-  assert.equal(rootOnly.status, 1, "repairing the package's link does not repair the root's");
-  assert.match(rootOnly.stderr, /storytree → @storytree\/library/);
-  assert.match(rootOnly.stderr, /node packages\/dev-loop\/src\/provision-worktree\.mjs/, "it names the fix");
+
+  // Only the root's link is missing, although the lockfile still matches the last install.
+  const lines = [];
+  assert.equal(check({ root, install: () => ({ ok: true }), log: (line) => lines.push(line) }), 1, "an install that links nothing leaves it refused");
+  assert.match(lines.at(-1), /storytree → @storytree\/library/);
 
   let calls = 0;
   const result = provision({ root, install: (where) => {
@@ -148,7 +177,7 @@ test("2.2 missing root workspace links are refused and reinstalled even after a 
   assert.equal(calls, 1, "the session-start hook reinstalls the missing root link");
   assert.equal(result.condition, "behind");
   assert.equal(hookOutput(result, root), "");
-  const repaired = check();
+  const repaired = spawnSync(process.execPath, [script, "--check", "--root", root], { encoding: "utf8" });
   assert.equal(repaired.status, 0, repaired.stderr);
   assert.equal(repaired.stdout + repaired.stderr, "");
 });

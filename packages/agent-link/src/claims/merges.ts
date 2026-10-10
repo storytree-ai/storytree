@@ -21,8 +21,9 @@ import path from "node:path";
 import type { ActivityLog, Line } from "../activity/index.js";
 export { currentBranch } from "../activity/branch.js";
 import { ask } from "../setup/machine.js";
-import { claimsFrom } from "../readings.js";
+import { claimsFrom, partOf } from "../readings.js";
 import { readClaims, type Claim } from "./claims.js";
+import { endClaim } from "./endings.js";
 
 /** A merged pull request, as GitHub reports it. */
 export interface MergedPull {
@@ -102,19 +103,8 @@ async function endMergedOn(context: MergeContext, watch: MergeWatch, asked: (bra
       if (claim.branch === undefined) continue;
       const pull = (merged.get(claim.branch) ?? []).find((pull) => Date.parse(pull.mergedAt) > Date.parse(claim.since));
       if (pull === undefined) continue;
-      written.push(
-        await log.append({
-          session: context.session,
-          ...(context.harness === undefined ? {} : { harness: context.harness }),
-          source: context.source,
-          folder: context.folder,
-          kind: "merged",
-          ...(claim.increment === undefined ? { capability: claim.capability } : { increment: claim.increment }),
-          holder: claim.session,
-          branch: claim.branch,
-          pr: pull.number,
-        }),
-      );
+      const ender = { session: context.session, ...(context.harness === undefined ? {} : { harness: context.harness }), source: context.source, folder: context.folder };
+      written.push((await endClaim(log, ender, partOf(claim), { by: "merge", holder: claim.session, branch: claim.branch, pr: pull.number })).line);
     }
     return written;
   });

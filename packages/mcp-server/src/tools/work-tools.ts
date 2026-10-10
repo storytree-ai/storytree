@@ -236,11 +236,15 @@ export function registerWorkTools(define: Define): void {
 
   define(
     "retire_question",
-    "Retire a question that was wrong to ask, with the reason. One that was answered is settled instead, and one that work is held on cannot be retired.",
+    "Retire a question that was wrong to ask, with the reason. One that was answered is settled instead. Work held on it is released from it, and the answer names that work.",
     z.object({ question: id("question"), reason: z.string().min(1).describe("Why it was wrong to ask") }),
     async ({ question, reason }, { library, writer }) => {
-      await library.retire(question, reason, writer);
-      return { text: `Retired question ${question}.`, data: { id: question } };
+      const record = await library.get(question);
+      if (record === null) return { text: `There is no question ${question} in this project.`, refused: true };
+      if (record.type !== "question") return { text: `${question} is a ${record.type}, not a question: use retire for other records.`, refused: true };
+      const released = (await library.retireQuestion(question, reason, writer)) ?? [];
+      const freed = released.length === 0 ? "" : ` Released ${released.join(", ")}, which no longer ${released.length === 1 ? "holds" : "hold"} on it.`;
+      return { text: `Retired question ${question}.${freed}`, data: { id: question, released } };
     },
   );
 

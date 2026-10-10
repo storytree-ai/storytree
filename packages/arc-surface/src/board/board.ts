@@ -42,8 +42,9 @@ export interface Lane {
   agents: BoardAgent[];
   state: ArcState;
   chip: string;
-  /** A ready lane's idle claims, kept beside its chip (ADR-0938 D3). */
+  /** A ready lane's idle claims, named in its chip's hover (ADR-0938 D3, ADR-0980). */
   idle?: { chip: string; agents: BoardAgent[] };
+  /** What landed and what is open, spoken on the bars' label and never shown (ADR-0980). */
   count: string;
   lastActivity: number;
   waits: NamedWait[];
@@ -112,7 +113,7 @@ export function boardView(snapshot: BoardSnapshot, log: readonly Line[] | LogRea
     const idleHolders = holders.filter(({ holder }) => holder === "idle");
     const chip = state === "idle" ? idleChip(holders)
       : state === "ready" ? `ready · ${bars.filter(({ reading }) => reading.state === "open").length} to take` : state.replaceAll("-", " ");
-    // A queued lane names what its increments wait on, once per blocker (ADR-0760 D1).
+    // A queued lane names what its increments wait on, once per blocker (ADR-0760 D1; counted in its hourglass mark, ADR-0980).
     const laneWaits = state !== "queued" ? waits.on(arc.id)
       : [...new Map(bars.flatMap((bar) => bar.waits).map((wait) => [wait.id, wait])).values()];
     const noteWaits = bars.flatMap((bar) => bar.noteWaits.filter(({ holds }) => holds).map((wait): LaneNoteWait => ({ ...wait, increment: { id: bar.id, title: bar.title } })));

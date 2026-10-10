@@ -2,6 +2,7 @@
 // Node callers supply the configured idle duration; a browser caller that omits quietMs keeps
 // the 30-minute default until its bridge supplies the setting.
 import type { Line } from "./activity/index.js";
+import { ENDING_KINDS, ends } from "./claims/endings.js";
 export type { Agent, Line, LineKind, LinesSince, NewLine } from "./activity/index.js";
 
 /**
@@ -251,7 +252,7 @@ function diedIn(restarted: Restart | undefined, machine: string | undefined, las
 }
 
 /** The kinds of line that decide who holds what. */
-export const CLAIM_KINDS = ["claimed", "released", "landed", "closed", "merged", "session-ended"] as const;
+export const CLAIM_KINDS = ["claimed", ...ENDING_KINDS] as const;
 
 /** Who holds what, as `lines` show it, each holder judged live or idle at `options.now`. In the order they were claimed. */
 export function claimsFrom(lines: readonly Line[], options: ClaimsOptions = {}): Claim[] {
@@ -690,30 +691,12 @@ export function logReading(log: readonly Line[] | LogReading): LogReading {
   return { fold, lines: log };
 }
 
-/** Take one line into `holders`, the claims standing by what they are on. */
+/** Take one line into `holders`, the claims standing by what they are on: a claim taken, or the claims a line ends (claims/endings.ts). */
 function holding(holders: Map<string, Omit<Claim, "holder">>, line: Line): void {
-  switch (line.kind) {
-    case "claimed":
-      holders.delete(idOf(line)); // taken over or claimed again: it stands in the order claimed
-      holders.set(idOf(line), { ...claimOf(line.session, line.harness, partOf(line), line.reason, line.at, line.branch), ...(line.under === undefined ? {} : { under: line.under }) });
-      break;
-    case "released":
-      if (holders.get(idOf(line))?.session === (line.holder ?? line.session)) holders.delete(idOf(line));
-      // Releasing an increment ends what its holder claimed under it (ADR-0949 D4).
-      for (const [id, holder] of holders) if (holder.session === (line.holder ?? line.session) && holder.under === idOf(line)) holders.delete(id);
-      break;
-    case "landed":
-      if (holders.get(idOf(line))?.session === line.session) holders.delete(idOf(line));
-      break;
-    case "merged":
-      if (holders.get(idOf(line))?.session === line.holder) holders.delete(idOf(line));
-      break;
-    case "closed":
-      holders.delete(line.increment);
-      for (const [id, holder] of holders) if (holder.under === line.increment) holders.delete(id);
-      break;
-    case "session-ended":
-      for (const [id, holder] of holders) if (holder.session === line.session) holders.delete(id);
-      break;
+  if (line.kind === "claimed") {
+    holders.delete(idOf(line)); // taken over or claimed again: it stands in the order claimed
+    holders.set(idOf(line), { ...claimOf(line.session, line.harness, partOf(line), line.reason, line.at, line.branch), ...(line.under === undefined ? {} : { under: line.under }) });
+    return;
   }
+  for (const [id, holder] of holders) if (ends(line, id, holder)) holders.delete(id);
 }

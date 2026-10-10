@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 const { chromium } = await import(process.env.STORYTREE_PLAYWRIGHT ?? 'playwright-core');
 import { start } from '@storytree/local-postgres';
 import { connect } from '@storytree/library';
-import { setUpProject } from '@storytree/agent-link';
+import { setUpProject } from '@storytree/app-setup/project';
 import { pageReads, projectSelection } from '@storytree/app';
 const root = fileURLToPath(new URL('../../..', import.meta.url));
 const out = process.env.STORYTREE_SMOKE_OUT ?? path.join(tmpdir(), 'app-own-projects-evidence');

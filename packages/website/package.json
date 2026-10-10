@@ -26,6 +26,7 @@
     "typescript": "~7.0.2",
     "@types/react-dom": "^19.1.6",
     "@types/pg": "^8.23.1",
-    "pg": "^8.23.0"
+    "pg": "^8.23.0",
+    "@storytree/app-setup": "workspace:*"
   }
 }

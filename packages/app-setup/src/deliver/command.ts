@@ -1,5 +1,5 @@
 /** Capability 1 · Get storytree. */
-import { launcherFile, launcherFor, removeLauncher, writeLauncher } from "@storytree/agent-link";
+import { launcherFile, launcherFor, removeLauncher, writeLauncher } from "../setup/index.js";
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import type { InstalledTools } from "./payload.js";

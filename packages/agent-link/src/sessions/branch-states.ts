@@ -31,7 +31,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { thisMachine, type ActivityLog, type BranchFacts, type Line, type NewLine } from "../activity/index.js";
-import { ask, type Answer } from "../setup/machine.js";
+import { ask, type Answer } from "./ask.js";
 import { due, ghAllMergedPulls, projectTempFile, ghAllOpenPulls, type AllMergedPulls, type AllOpenPulls, type MergeContext, type MergedPull, type OpenPull } from "../claims/merges.js";
 
 /** How branches are watched. */

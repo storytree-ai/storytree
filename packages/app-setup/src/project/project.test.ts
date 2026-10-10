@@ -7,7 +7,9 @@ import path from "node:path";
 import { test } from "node:test";
 import { connect, type Storytree } from "@storytree/library";
 import pg from "pg";
-import { openActivityLog, requireApproval, setUpProject } from "@storytree/agent-link";
+import { openActivityLog, requireApproval } from "@storytree/agent-link";
+
+import { setUpProject } from "./making.js";
 import { addProject, deleteProject, projectFolder, projectsOnThisComputer, removeProject } from "./index.js";
 
 /** The test Postgres `pnpm test` starts; each project made here is dropped afterwards. */

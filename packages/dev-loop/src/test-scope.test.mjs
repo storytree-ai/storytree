@@ -94,10 +94,10 @@ test("a package whose code reaches into another by a relative path depends on it
   assert.deepEqual(decision.dirs, ["packages/forest", "packages/world"]);
 });
 
-test("the real workspace's undeclared reach is found: agent-link builds cli's bin by path", () => {
+test("the real workspace's undeclared reach is found: app-setup builds cli's bin by path", () => {
   const ws = readWorkspace(repoRoot);
-  assert.ok(ws.find((p) => p.dir === "packages/agent-link").reaches.includes("packages/cli"));
-  assert.ok(classify(["packages/cli/src/bins/storytree.ts"], ws).dirs.includes("packages/agent-link"));
+  assert.ok(ws.find((p) => p.dir === "packages/app-setup").reaches.includes("packages/cli"));
+  assert.ok(classify(["packages/cli/src/bins/storytree.ts"], ws).dirs.includes("packages/app-setup"));
 });
 
 test("1.2 a change in the dev loop runs everything: its runner, scoper and gate decide how every test runs (ADR-0805 D4)", () => {

@@ -1,9 +1,11 @@
 /**
- * Capability 8 · Setup check. The agent link's commands, built into plain Node scripts: what a harness runs, with no tsx and
+ * Capability 8 · Setup check. storytree's commands, built into plain Node scripts: what a harness runs, with no tsx and
  * only its staged native dependencies beside it. Each is one ES module that esbuild bundles with everything it
- * imports (the library, pg and zod included).
+ * imports (the library, pg and zod included). The setup command is this story's; the hook command is the agent
+ * link's, the tool server the MCP server story's and the `storytree` command the command line's, each built from
+ * its own package by path (ADR-0969 D3).
  *
- * `pnpm --filter @storytree/agent-link build` writes them to packages/agent-link/dist/; tests build
+ * `pnpm --filter @storytree/app-setup build` writes them to packages/app-setup/dist/; tests build
  * them into a directory of their own with buildBins().
  */
 import path from "node:path";
@@ -23,7 +25,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 
 /** The commands, by the file each is built to. */
 const ENTRY_POINTS: Readonly<Record<string, string>> = {
-  "storytree-hook": path.join(here, "storytree-hook.ts"),
+  "storytree-hook": path.resolve(here, "../../../agent-link/src/bins/storytree-hook.ts"),
   "storytree-setup": path.join(here, "storytree-setup.ts"),
   // The tool server is the MCP server story's (ADR-0969 D1), and the installed launcher the command-line
   // story's: the two doors, built beside the hook and setup scripts.

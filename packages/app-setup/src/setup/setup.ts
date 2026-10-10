@@ -1,5 +1,5 @@
 /**
- * Capability 8 · Setup check (the agent link story): the user installs only the storytree tool
+ * Capability 8 · Setup check (the app setup story since ADR-0969 D3): the user installs only the storytree tool
  * server, and every session start checks storytree's setup and fixes whatever is missing on the
  * spot: it opens storytree if it is closed, registers the hooks if they are missing, and says
  * whether the folder is a project. Nothing is created unless the user asks: the installer's folder
@@ -14,17 +14,16 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
-import { codexHookTrust } from "../hooks/codex-trust.js";
-import { findProject, storytreeHome, suggestedName } from "../routing/index.js";
+import { codexHookTrust, findProject, readAppRecords, storytreeHome, type AppPlaces, type AppReading } from "@storytree/agent-link";
+
+import { suggestedName } from "../project/making.js";
 import { defaultHomes, disconnectedHarnesses, registeredHookScripts, registerHooks, type HookCommand, type Homes, type HooksReport } from "./hooks-config.js";
 import { hooksRelease, type HooksRelease, type LatestRelease } from "./hooks-release.js";
 import { openStorytree, type StorytreeOpened } from "./open-storytree.js";
 import { ghState, putCommandOnPath, type CommandInstall, type CommandPath, type GhState } from "./command.js";
 import { setupLines, type SetupLine } from "./diagnostics.js";
 import { machineState, type MachineState } from "./machine.js";
-import { readAppRecords, type AppPlaces, type AppReading } from "../sessions/app-records.js";
 
-export { suggestedName };
 
 export type { SetupLine } from "./diagnostics.js";
 export { machineState, NODE_FLOOR, runsElevated } from "./machine.js";

@@ -5,7 +5,7 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 import test from 'node:test';
 import { verifyPayload, writePayloadManifest } from '@storytree/app-setup/deliver';
-import { buildBins } from '@storytree/agent-link/bins';
+import { buildBins } from '@storytree/app-setup/bins';
 import { launchOwned, type RunRecord } from '@storytree/processes';
 import { stopTestChild, testChildArgs } from '@storytree/processes/testing';
 import { BuiltCommand, storytree } from './testing/cli.js';

@@ -23,22 +23,17 @@
  *   the edit (ADR-0949 D3).
  */
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { homedir } from "node:os";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 
-import { ASK_SETUP, BACKGROUND, CLOSE_OUT_REMINDER, EDIT_GATE, STORYTREE_TOOLS } from "../hooks/index.js";
+import { ASK_SETUP, BACKGROUND, CLOSE_OUT_REMINDER, defaultHomes, EDIT_GATE, registeredHookScripts, scriptsIn, STORYTREE_TOOLS, type Homes } from "@storytree/agent-link";
+
+export { defaultHomes, registeredHookScripts, type Homes };
 
 /** The command a harness runs as storytree's hook: a Node and the built hook script. */
 export interface HookCommand {
   readonly node: string;
   readonly script: string;
-}
-
-/** Where each harness keeps its settings: Claude Code's config folder (~/.claude) and Codex's home (~/.codex). */
-export interface Homes {
-  readonly claude?: string;
-  readonly codex?: string;
 }
 
 /**
@@ -80,39 +75,6 @@ interface HookEntry {
 }
 
 type Settings = Record<string, unknown> & { hooks?: Record<string, HookEntry[]> };
-
-/** The harnesses' homes on this machine: CLAUDE_CONFIG_DIR or ~/.claude, and CODEX_HOME or ~/.codex. */
-export function defaultHomes(env: Readonly<Record<string, string | undefined>> = process.env): Required<Homes> {
-  return {
-    claude: env.CLAUDE_CONFIG_DIR || path.join(homedir(), ".claude"),
-    codex: env.CODEX_HOME || path.join(homedir(), ".codex"),
-  };
-}
-
-/** The hook scripts Claude Code's settings.json and Codex's hooks.json register, as paths: none from a file missing or unreadable. */
-export function registeredHookScripts(homes: Homes = defaultHomes()): string[] {
-  const scripts: string[] = [];
-  for (const file of [homes.claude && path.join(homes.claude, "settings.json"), homes.codex && path.join(homes.codex, "hooks.json")]) {
-    if (file === undefined) continue;
-    const strings: string[] = [];
-    const collect = (value: unknown): void => {
-      if (typeof value === "string") strings.push(value);
-      else if (value !== null && typeof value === "object") for (const inner of Object.values(value)) collect(inner);
-    };
-    try {
-      collect(JSON.parse(readFileSync(file, "utf8")));
-    } catch {
-      continue;
-    }
-    scripts.push(...scriptsIn(strings));
-  }
-  return scripts;
-}
-
-/** The hook script paths in `strings`: a Claude Code argument is the path alone; a Codex command line holds it, perhaps quoted. */
-function scriptsIn(strings: readonly unknown[]): string[] {
-  return strings.flatMap((text) => typeof text !== "string" ? [] : [...text.matchAll(/(?:^|['"\s])((?:[A-Za-z]:)?[\\/][^'"]*?storytree-hook\.mjs)/g)].map((found) => found[1]!));
-}
 
 /**
  * Register storytree's hooks for each harness whose home is here, replacing any older registration

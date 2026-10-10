@@ -1,8 +1,10 @@
-/** Capability 2 · Connect an agent: per-user agent connection. Setup checks and hook verification stay in agent-link. */
+/** Capability 2 · Connect an agent: per-user agent connection. The setup check and hook verification are capability 8 (setup/). */
 import { statSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
-import { CODEX_TRUST_STEP, codexHookTrust, launcherFiles, launcherRuns, markDisconnected, registerHooks, removeCodexInstructions, removeHooks, removeLauncher, runsElevated, writeCodexInstructions } from "@storytree/agent-link";
+import { codexHookTrust, removeCodexInstructions, writeCodexInstructions } from "@storytree/agent-link";
+
+import { CODEX_TRUST_STEP, launcherFiles, launcherRuns, markDisconnected, registerHooks, removeHooks, removeLauncher, runsElevated } from "../setup/index.js";
 import { claudeSettings, codexSettings, installedToolServerCommand, read, runHarness, type Harness, type InstalledToolServerCommand, type RunHarness, type Settings } from "./harness.js";
 
 export { installedToolServerCommand };

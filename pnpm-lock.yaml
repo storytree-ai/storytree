@@ -111,9 +111,6 @@ importers:
 
   packages/agent-link:
     dependencies:
-      '@storytree/journey-events':
-        specifier: workspace:*
-        version: link:../journey-events
       '@storytree/library':
         specifier: workspace:*
         version: link:../library
@@ -167,6 +164,9 @@ importers:
         specifier: ^8.23.0
         version: 8.23.0
     devDependencies:
+      '@storytree/app-setup':
+        specifier: workspace:*
+        version: link:../app-setup
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6
@@ -191,12 +191,18 @@ importers:
       '@storytree/agent-link':
         specifier: workspace:*
         version: link:../agent-link
+      '@storytree/journey-events':
+        specifier: workspace:*
+        version: link:../journey-events
       '@storytree/library':
         specifier: workspace:*
         version: link:../library
       '@storytree/local-postgres':
         specifier: workspace:*
         version: link:../local-postgres
+      '@storytree/processes':
+        specifier: workspace:*
+        version: link:../processes
     devDependencies:
       '@types/node':
         specifier: ^24.13.6
@@ -204,6 +210,9 @@ importers:
       '@types/pg':
         specifier: ^8.23.1
         version: 8.23.1
+      esbuild:
+        specifier: ^0.28.2
+        version: 0.28.2
       happy-dom:
         specifier: 'catalog:'
         version: 20.14.5
@@ -692,6 +701,9 @@ importers:
       '@storytree/agent-link':
         specifier: workspace:*
         version: link:../agent-link
+      '@storytree/app-setup':
+        specifier: workspace:*
+        version: link:../app-setup
       '@storytree/guardrails':
         specifier: workspace:*
         version: link:../guardrails
@@ -779,6 +791,9 @@ importers:
         specifier: ^19.1.1
         version: 19.3.0(react@19.3.0)
     devDependencies:
+      '@storytree/app-setup':
+        specifier: workspace:*
+        version: link:../app-setup
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6

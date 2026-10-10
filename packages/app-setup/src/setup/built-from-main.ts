@@ -15,7 +15,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { storytreeHome } from "../routing/index.js";
+import { storytreeHome } from "@storytree/agent-link";
 import { defaultHomes, registeredHookScripts, type HookCommand, type Homes } from "./hooks-config.js";
 
 export interface FollowMainOptions {
@@ -25,7 +25,7 @@ export interface FollowMainOptions {
   readonly storytreeHome?: string;
   /** Where the harnesses keep their settings, to see whether the app installed the hooks. */
   readonly homes?: Homes;
-  /** How to build the agent link's commands into a folder; by default, buildBins. */
+  /** How to build storytree's commands into a folder; by default, buildBins. */
   readonly build?: (outdir: string) => Promise<unknown>;
 }
 
@@ -82,7 +82,7 @@ function prune(builds: string, current: string): void {
   }
 }
 
-/** The agent link's own build, loaded only here: a bundled command never builds itself, and never carries esbuild. */
+/** storytree's own build of its commands, loaded only here: a bundled command never builds itself, and never carries esbuild. */
 async function buildBins(outdir: string): Promise<unknown> {
   const source = new URL("../bins/build.ts", import.meta.url).href;
   const { buildBins: build } = (await import(source)) as { buildBins: (outdir: string) => Promise<unknown> };

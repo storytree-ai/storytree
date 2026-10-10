@@ -9,7 +9,7 @@ import path from "node:path";
 
 import { z } from "zod";
 
-import { checkCommands, ghProtection, githubRepository, protectionCommand, storytreeRef, WORKFLOW_FILE, workflowFor, type ProtectionReader, type System } from "@storytree/agent-link";
+import { checkCommands, ghProtection, githubRepository, protectionCommand, storytreeRef, WORKFLOW_FILE, workflowFor, type ProtectionReader, type System } from "@storytree/app-setup/pipeline";
 import type { Define } from "./server.js";
 
 export function registerPipelineTools(define: Define, readProtection: ProtectionReader = ghProtection): void {

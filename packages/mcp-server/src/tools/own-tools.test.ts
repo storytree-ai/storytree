@@ -5,7 +5,7 @@ import path from 'node:path';
 import test from 'node:test';
 import { Client } from '@modelcontextprotocol/client';
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
-import { buildBins } from '@storytree/agent-link/bins';
+import { buildBins } from '@storytree/app-setup/bins';
 import { InMemoryTransport } from '@modelcontextprotocol/server';
 import { launchOwned, type RunRecord } from '@storytree/processes';
 import { stopTestChild, testChildArgs } from '@storytree/processes/testing';

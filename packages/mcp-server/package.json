@@ -17,7 +17,8 @@
     "@storytree/library": "workspace:*",
     "@storytree/map": "workspace:*",
     "@storytree/processes": "workspace:*",
-    "zod": "^4.6.5"
+    "zod": "^4.6.5",
+    "@storytree/app-setup": "workspace:*"
   },
   "devDependencies": {
     "@modelcontextprotocol/client": "^2.1.0",

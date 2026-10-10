@@ -1,9 +1,8 @@
 /**
- * Capability 1 · Project routing: one test per contract 1.1-1.6 in the agent link story.
- *
- * The folders are throwaway directories. Setting one up opens its project in the library on the
- * real Postgres `pnpm test` provides; each such project is named with uniqueProjectName() and its
- * database is dropped afterwards, pass or fail.
+ * Capability 1 · Project routing: which project a folder belongs to, and whether this machine may reach it. Setting a
+ * folder up is the app setup story's (ADR-0969 D3, its capability 6); here a project is made as setting it up leaves it
+ * (markedProject), on the real Postgres `pnpm test` provides; each such project is named with uniqueProjectName() and
+ * its database is dropped afterwards, pass or fail.
  *
  * "Is storytree running, and where?" is read from the owner record @storytree/local-postgres keeps
  * beside the app's data directory (`<dataDir>.owner.json`) while the app's Postgres runs. The test
@@ -17,14 +16,14 @@ import { createServer, type AddressInfo } from "node:net";
 import path from "node:path";
 import { test } from "node:test";
 
-import { connect, ProjectNameError, type Storytree } from "@storytree/library";
+import { connect, type Storytree } from "@storytree/library";
 import pg from "pg";
 
 import { setLibrary } from "../settings/settings.js";
 import { git, withTempDir } from "../testing/folders.js";
-import { dropTestProjects, placeTestServer, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { forgetTrunk, machineOf, registerTrunk } from "./trunks.js";
-import { findProject, locateStorytree, MARKER_FILE, NOT_A_PROJECT, NOT_RUNNING, requireApproval, route, setUpProject, suggestProjectName, type ProjectLookup } from "./index.js";
+import { dropTestProjects, markedProject, placeTestServer, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { approveTrunk, forgetTrunk, machineOf, registerTrunk } from "./trunks.js";
+import { findProject, locateStorytree, MARKER_FILE, NOT_A_PROJECT, NOT_RUNNING, requireApproval, route, type ProjectLookup } from "./index.js";
 
 /** "Well under a second", as the tests hold it. */
 const QUICK_MS = 500;
@@ -70,7 +69,7 @@ function timed<T>(fn: () => T): { result: T; ms: number } {
   return { result, ms: performance.now() - started };
 }
 
-test('1.1 setting a folder up as project "site" leaves a marker naming it, and asking from the folder, a sub-folder and a git worktree of it all give "site"', async () => {
+test('1.1 a folder whose marker names project "site" gives "site" asked from the folder, a sub-folder and a git worktree of it', async () => {
   const project = uniqueProjectName(); // "site", unique on the shared test server
   await withTempDir(async (dir) => {
     const folder = path.join(dir, "site");
@@ -79,10 +78,7 @@ test('1.1 setting a folder up as project "site" leaves a marker naming it, and a
     git(folder, "commit", "-q", "--allow-empty", "-m", "first");
 
     await withStorytree([project], async (storytree) => {
-      const setUp = await setUpProject({ folder, project, storytree, storytreeHome: path.join(dir, "app-home") });
-      assert.equal(setUp.project, project);
-      assert.deepEqual(JSON.parse(readFileSync(path.join(folder, MARKER_FILE), "utf8")), { project, identity: (await storytree.projectIdentities())[project] }, "the marker names the project and its database");
-      assert.ok((await storytree.listProjects()).includes(project), "the project's library now exists");
+      await markedProject(storytree, folder, project, path.join(dir, "app-home"));
     });
 
     // A worktree of the folder, beside it. The marker was never committed, so the worktree has no
@@ -117,20 +113,6 @@ test('1.2 a folder with no marker, in it or above it, gives "not a storytree pro
 
     // So routing sends nothing anywhere, whatever the state of storytree.
     assert.deepEqual(route(plain, { dataDir: testServerDataDir() }), { status: "not-a-project", message: NOT_A_PROJECT });
-  });
-});
-
-test("1.3 a project name the library would refuse is refused when setting a folder up, and nothing is written", async () => {
-  const refused = ["Site", "my site", "-site", "site-", "si--te", "a".repeat(41), ""];
-  await withTempDir(async (dir) => {
-    await withStorytree([], async (storytree) => {
-      for (const name of refused) {
-        await assert.rejects(setUpProject({ folder: dir, project: name, storytree, storytreeHome: path.join(dir, "app-home") }), ProjectNameError, `${JSON.stringify(name)} is refused`);
-      }
-      assert.equal(existsSync(path.join(dir, MARKER_FILE)), false, "no marker was written");
-      const projects = await storytree.listProjects();
-      for (const name of refused) assert.equal(projects.includes(name), false, `no project ${JSON.stringify(name)}`);
-    });
   });
 });
 
@@ -262,92 +244,6 @@ function folderRefusal(...words: string[]): (error: unknown) => boolean {
   return (error: unknown) => error instanceof Error && error.name === "ProjectFolderError" && words.every((word) => error.message.includes(word));
 }
 
-test("1.8 a folder that is a project's trunk, inside one, a git worktree of one, or holding one is refused for another project, and nothing is written", async () => {
-  const [site, other] = [uniqueProjectName(), uniqueProjectName()];
-  await withTempDir(async (dir) => {
-    const { laptop } = machines(dir);
-    const trunk = path.join(dir, "code", "site");
-    mkdirSync(trunk, { recursive: true });
-    git(trunk, "init", "-q");
-    git(trunk, "commit", "-q", "--allow-empty", "-m", "first");
-    const worktree = path.join(dir, "site-feature");
-    git(trunk, "worktree", "add", "-q", "-b", "feature", worktree);
-    await withStorytree([site, other], async (storytree) => {
-      await setUpProject({ folder: trunk, project: site, storytree, storytreeHome: laptop });
-      // The marker is gone (never committed, say): the library's record of the trunk still refuses.
-      rmSync(path.join(trunk, MARKER_FILE));
-      const inside = path.join(trunk, "docs");
-      mkdirSync(inside);
-      for (const folder of [trunk, inside, worktree, path.dirname(trunk)]) {
-        await assert.rejects(setUpProject({ folder, project: other, storytree, storytreeHome: laptop }), folderRefusal(site), `${folder} is refused`);
-        assert.equal(existsSync(path.join(folder, MARKER_FILE)), false, `no marker in ${folder}`);
-      }
-      assert.equal((await storytree.listProjects()).includes(other), false, "no library was made for the refused project");
-    });
-  });
-});
-
-test("1.9 a second folder for a project already living on this machine is refused, joining or not; its trunk keeps routing", async () => {
-  const project = uniqueProjectName();
-  await withTempDir(async (dir) => {
-    const { laptop } = machines(dir);
-    const [first, second] = [path.join(dir, "first"), path.join(dir, "second")];
-    mkdirSync(first);
-    mkdirSync(second);
-    await withStorytree([project], async (storytree) => {
-      await setUpProject({ folder: first, project, storytree, storytreeHome: laptop });
-      for (const join of [false, true]) {
-        await assert.rejects(setUpProject({ folder: second, project, storytree, storytreeHome: laptop, join }), folderRefusal(first, "worktree"));
-      }
-      assert.equal(existsSync(path.join(second, MARKER_FILE)), false);
-      assert.deepEqual(named(findProject(first)), { project, folder: first });
-    });
-  });
-});
-
-test("1.10 a new folder named like an existing project is refused unless it joins on purpose, and the refusal suggests the first free name", async () => {
-  const project = uniqueProjectName();
-  await withTempDir(async (dir) => {
-    const { laptop, box } = machines(dir);
-    const [trunk, other] = [path.join(dir, "a", project), path.join(dir, "b", project)];
-    mkdirSync(trunk, { recursive: true });
-    mkdirSync(other, { recursive: true });
-    await withStorytree([project, `${project}-2`], async (storytree) => {
-      await setUpProject({ folder: trunk, project, storytree, storytreeHome: laptop });
-      assert.equal(await suggestProjectName(other, storytree), `${project}-2`, "the suggestion avoids every existing project");
-      // On another machine too: a matching folder name is never taken as joining.
-      await assert.rejects(setUpProject({ folder: other, project, storytree, storytreeHome: box }), folderRefusal(`${project}-2`));
-      assert.equal(existsSync(path.join(other, MARKER_FILE)), false);
-      await setUpProject({ folder: other, project: `${project}-2`, storytree, storytreeHome: box });
-      assert.deepEqual(named(findProject(other)), { project: `${project}-2`, folder: other });
-    });
-  });
-});
-
-test("1.11 another machine adds its checkout to an existing project only on purpose, and a git worktree of it then routes there; joining a missing project is refused", async () => {
-  const [project, missing] = [uniqueProjectName(), uniqueProjectName()];
-  await withTempDir(async (dir) => {
-    const { laptop, box } = machines(dir);
-    const [onLaptop, onBox] = [path.join(dir, "laptop", "app"), path.join(dir, "box", "app")];
-    mkdirSync(onLaptop, { recursive: true });
-    mkdirSync(onBox, { recursive: true });
-    git(onBox, "init", "-q");
-    git(onBox, "commit", "-q", "--allow-empty", "-m", "first");
-    await withStorytree([project, missing], async (storytree) => {
-      await setUpProject({ folder: onLaptop, project, storytree, storytreeHome: laptop });
-      await setUpProject({ folder: onBox, project, storytree, storytreeHome: box, join: true });
-      const worktree = path.join(dir, "box", "app-feature");
-      git(onBox, "worktree", "add", "-q", "-b", "feature", worktree);
-      assert.deepEqual(named(findProject(worktree)), { project, folder: onBox });
-      assert.deepEqual(await storytree.listProjects().then((names) => names.filter((name) => name === project)), [project], "one project, shared by both machines");
-      const elsewhere = path.join(dir, "elsewhere");
-      mkdirSync(elsewhere);
-      await assert.rejects(setUpProject({ folder: elsewhere, project: missing, storytree, storytreeHome: box, join: true }), folderRefusal(missing));
-      assert.equal((await storytree.listProjects()).includes(missing), false);
-    });
-  });
-});
-
 test("1.12 a marker alone reaches no project: with or without the project's identity it is refused until its trunk is approved, a trunk recorded before approval stays refused until it joins on purpose, and an approved trunk and its worktrees reach it", async () => {
   const [project, victim] = [uniqueProjectName(), uniqueProjectName()];
   await withTempDir(async (dir) => {
@@ -377,7 +273,8 @@ test("1.12 a marker alone reaches no project: with or without the project's iden
       await assert.rejects(requireApproval(storytree, project, trunk, laptop), folderRefusal(project, "not approved"), "nothing is grandfathered");
       await assert.rejects(requireApproval(storytree, project, worktree, laptop), folderRefusal(project, "not approved"));
 
-      await setUpProject({ folder: trunk, project, storytree, storytreeHome: laptop, join: true });
+      // Joining on purpose approves it in place (the app setup's 6.5).
+      assert.equal(await approveTrunk(storytree, { project, machine: machine.id, folder: trunk }, "join"), true);
       await requireApproval(storytree, project, trunk, laptop);
       // The approval is the trunk's record, not this home's memory of it: the same machine with nothing remembered finds it too.
       const fresh = path.join(dir, "laptop-home-again");
@@ -387,36 +284,6 @@ test("1.12 a marker alone reaches no project: with or without the project's iden
       await requireApproval(storytree, project, path.join(worktree), laptop);
       await assert.rejects(requireApproval(storytree, victim, trunk, laptop), folderRefusal(victim), "an approved trunk is approved for its own project only");
       await assert.rejects(requireApproval(storytree, project, worktree, machines(dir).box), folderRefusal(project), "approval is per machine");
-      const second = path.join(dir, "copy");
-      mkdirSync(second);
-      await assert.rejects(setUpProject({ folder: second, project, storytree, storytreeHome: laptop, join: true }), folderRefusal(trunk));
-    });
-  });
-});
-
-test("1.13 a moved trunk is never adopted on sight: it reaches its project only once joined on purpose, and a deleted one gives way to a new folder joining; a live trunk is still never moved", async () => {
-  const project = uniqueProjectName();
-  await withTempDir(async (dir) => {
-    const { laptop } = machines(dir);
-    const [old, moved] = [path.join(dir, "old", "app"), path.join(dir, "moved", "app")];
-    mkdirSync(old, { recursive: true });
-    mkdirSync(path.dirname(moved));
-    await withStorytree([project], async (storytree) => {
-      await setUpProject({ folder: old, project, storytree, storytreeHome: laptop });
-      await requireApproval(storytree, project, old, laptop);
-      renameSync(old, moved);
-      assert.deepEqual(named(findProject(moved)), { project, folder: moved }, "its marker moved with it");
-      await assert.rejects(requireApproval(storytree, project, moved, laptop), folderRefusal(project, "not approved"), "the moved folder is not adopted on sight");
-      await setUpProject({ folder: moved, project, storytree, storytreeHome: laptop, join: true });
-      await requireApproval(storytree, project, moved, laptop);
-      const copy = path.join(dir, "copy");
-      mkdirSync(copy);
-      await assert.rejects(setUpProject({ folder: copy, project, storytree, storytreeHome: laptop, join: true }), folderRefusal(moved), "the trunk it moved to is live");
-
-      rmSync(moved, { recursive: true });
-      await setUpProject({ folder: copy, project, storytree, storytreeHome: laptop, join: true });
-      assert.deepEqual(named(findProject(copy)), { project, folder: copy }, "a fresh folder joins in place of the deleted one");
-      await requireApproval(storytree, project, copy, laptop);
     });
   });
 });
@@ -428,14 +295,14 @@ test("1.18 a forgotten trunk's approval is forgotten on this machine too: its fo
     const trunk = path.join(dir, "app");
     mkdirSync(trunk);
     await withStorytree([project], async (storytree) => {
-      await setUpProject({ folder: trunk, project, storytree, storytreeHome: laptop });
+      await markedProject(storytree, trunk, project, laptop);
       await requireApproval(storytree, project, trunk, laptop);
       // Removed from this machine: the folder and its marker are still there, the trunk is not.
       await forgetTrunk(storytree, { project, machine: machineOf(laptop).id }, laptop);
       await assert.rejects(requireApproval(storytree, project, trunk, laptop), folderRefusal(project, "not approved"));
 
       // The project deleted, so its trunk forgotten on every machine; the checkout deleted and cloned again at the same place.
-      await setUpProject({ folder: trunk, project, storytree, storytreeHome: laptop, join: true });
+      await markedProject(storytree, trunk, project, laptop);
       await requireApproval(storytree, project, trunk, laptop);
       const marker = readFileSync(path.join(trunk, MARKER_FILE));
       await forgetTrunk(storytree, { project }, laptop);
@@ -458,7 +325,7 @@ test("1.17 only a git worktree its trunk's repository registered inherits the tr
     const worktree = path.join(dir, "app-feature");
     git(trunk, "worktree", "add", "-q", "-b", "feature", worktree);
     await withStorytree([project], async (storytree) => {
-      await setUpProject({ folder: trunk, project, storytree, storytreeHome: laptop });
+      await markedProject(storytree, trunk, project, laptop);
       assert.equal(named(findProject(worktree)).project, project);
       await requireApproval(storytree, project, worktree, laptop);
 
@@ -480,39 +347,3 @@ test("1.17 only a git worktree its trunk's repository registered inherits the tr
   });
 });
 
-test("1.14 setting a new project up seeds its library with the starter roles, an orchestrator and a librarian, and the principles they stand on; joining it from another machine adds no second copy", async () => {
-  const project = uniqueProjectName();
-  await withTempDir(async (dir) => {
-    const { laptop, box } = machines(dir);
-    const [onLaptop, onBox] = [path.join(dir, "laptop", "app"), path.join(dir, "box", "app")];
-    mkdirSync(onLaptop, { recursive: true });
-    mkdirSync(onBox, { recursive: true });
-    await withStorytree([project], async (storytree) => {
-      const roles = async () => {
-        const library = await storytree.openProject(project);
-        try {
-          const found = [];
-          for (const title of ["orchestrator", "librarian"]) {
-            const agents = (await library.search(title)).map((note) => ({ type: note.type, ...(note.fields as { title?: string; context?: string[] }) })).filter((note) => note.type === "agent" && note.title === title);
-            for (const agent of agents) {
-              for (const id of agent.context ?? []) assert.equal((await library.get(id))?.type, "principle", `${title} stands on a live principle`);
-            }
-            found.push(...agents.map((agent) => agent.title));
-          }
-          return found;
-        } finally {
-          await library.close();
-        }
-      };
-      // A first try that fails at its last step (the choice cannot be saved), then the retry.
-      const choice = path.join(laptop, "project-choice.json");
-      mkdirSync(choice, { recursive: true });
-      await assert.rejects(setUpProject({ folder: onLaptop, project, storytree, storytreeHome: laptop }));
-      rmSync(choice, { recursive: true });
-      await setUpProject({ folder: onLaptop, project, storytree, storytreeHome: laptop });
-      assert.deepEqual(await roles(), ["orchestrator", "librarian"], "the retry adds no second copy");
-      await setUpProject({ folder: onBox, project, storytree, storytreeHome: box, join: true });
-      assert.deepEqual(await roles(), ["orchestrator", "librarian"], "joining adds no second copy");
-    });
-  });
-});

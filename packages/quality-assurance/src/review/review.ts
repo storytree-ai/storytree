@@ -14,12 +14,16 @@
  * - A finding stands while it is unanswered, or rejected for a reason no later review accepted (4.1). With
  *   one standing after the tenth review, the eleventh brief is refused, naming the arc for the session's
  *   question (4.3); the refusal itself writes nothing.
+ * - Capability 5 · Graduation (ADR-0956 D5): a check graduated in part stays in the brief with the part Guardrails
+ *   now enforces named (5.2), and what Guardrails' graduated checks find on the change is taken with the return,
+ *   recorded as theirs under the check each graduated from (5.3).
  */
 import { execFileSync } from "node:child_process";
 
 import type { Library, Storytree } from "@storytree/library";
 
-import { checks as liveChecks } from "../checks/checks.js";
+import { checks as liveChecks, type Graduated } from "../checks/checks.js";
+import type { GraduatedFindings } from "../graduation/graduation.js";
 import { HIT_COLUMNS, hitRow, inTransaction, ledgerDatabase, writeReview, type HitRecord, type HitRow } from "../ledger/ledger.js";
 
 /** The reviews of one change that may run while a finding still stands (ADR-0956 D7). */
@@ -36,7 +40,8 @@ export interface Brief {
   /** The packages the diff touches (`root` for files outside any package). */
   readonly packages: readonly string[];
   readonly contracts: readonly { readonly id: string; readonly title: string; readonly description?: string }[];
-  readonly checks: readonly { readonly id: string; readonly title: string; readonly question: string }[];
+  /** Each live check; one graduated in part names the parts Guardrails now enforces, which the reviewer does not judge (contract 5.2). */
+  readonly checks: readonly { readonly id: string; readonly title: string; readonly question: string; readonly graduated?: readonly Graduated[] }[];
   /** Each hit earlier reviews of this change made, with the implementer's answer. */
   readonly earlier: readonly HitRow[];
   /** The earlier hits rejected for a reason no review has accepted yet: the return judges each. */
@@ -56,14 +61,19 @@ export interface Taken {
   readonly hits: readonly HitRow[];
   readonly unmet: readonly { readonly contract: string; readonly why: string }[];
   readonly standing: readonly HitRow[];
+  /** Why Guardrails' graduated checks did not run on the change, when they did not: none of their findings is recorded. */
+  readonly graduatedNotRun?: string;
 }
 
 /** The review loop on one Postgres server, in the QA ledger's database. */
 export interface Reviews {
   /** Issue the next brief for `change` (an increment of `library`'s project), its diff given; refused after the tenth with a finding standing. */
   brief(library: Library, change: string, diff: string): Promise<Brief>;
-  /** Take the reviewer's return on `change`'s brief awaiting one, or refuse it naming what it gets wrong, writing nothing. */
-  take(project: string, change: string, review: ReviewReturn): Promise<Taken>;
+  /**
+   * Take the reviewer's return on `change`'s brief awaiting one, or refuse it naming what it gets wrong, writing nothing.
+   * What Guardrails' graduated checks found on the change, when given, is recorded with it as theirs (contract 5.3).
+   */
+  take(project: string, change: string, review: ReviewReturn, graduated?: GraduatedFindings): Promise<Taken>;
   /** `change`'s standing findings, oldest first: none means it is ready for the gate. */
   standing(project: string, change: string): Promise<HitRow[]>;
 }
@@ -120,7 +130,7 @@ class PgReviews implements Reviews {
       .sort((a, b) => a.title.localeCompare(b.title, "en", { numeric: true }) || a.id.localeCompare(b.id));
     const brief: Brief = {
       project, change, iteration: taken + 1, diff, packages, contracts,
-      checks: (await liveChecks(library)).map(({ id, title, question }) => ({ id, title, question })),
+      checks: (await liveChecks(library)).map(({ id, title, question, graduated }) => ({ id, title, question, ...(graduated === undefined ? {} : { graduated }) })),
       earlier,
       judge: earlier.filter((hit) => hit.answer === "rejected" && !hit.accepted).map((hit) => hit.id),
     };
@@ -132,7 +142,7 @@ class PgReviews implements Reviews {
     return brief;
   }
 
-  async take(project: string, change: string, review: ReviewReturn): Promise<Taken> {
+  async take(project: string, change: string, review: ReviewReturn, graduated?: GraduatedFindings): Promise<Taken> {
     const { rows } = await this.#pool.query<{ brief: Brief }>(
       "SELECT brief FROM quality_briefs WHERE project = $1 AND change = $2 AND taken_at IS NULL ORDER BY iteration DESC LIMIT 1",
       [project, change],
@@ -145,7 +155,14 @@ class PgReviews implements Reviews {
     const hits = await inTransaction(this.#pool, async (client) => {
       const written = await writeReview(client, {
         project, review: name, change, packages: brief.packages,
-        ran: review.checks.map(({ check, hits }) => ({ check, hits: (hits ?? []).map(({ file, line, found }) => ({ package: packageOf(file), file, line, found })) })),
+        ran: [
+          ...review.checks.map(({ check, hits }) => ({ check, hits: (hits ?? []).map(({ file, line, found }) => ({ package: packageOf(file), file, line, found })) })),
+          // A graduated check's trip outside the packages the brief's diff touches is not part of the change reviewed.
+          ...(graduated?.ran ? graduated.checks : []).map(({ check, hits }) => ({
+            check, foundBy: "graduated" as const,
+            hits: hits.map(({ file, line, found }) => ({ package: packageOf(file), file, line, found })).filter((hit) => brief.packages.includes(hit.package)),
+          })),
+        ],
       });
       for (const { hit } of (review.rejections ?? []).filter(({ accepted }) => accepted)) {
         await client.query("UPDATE quality_hits SET accepted = true WHERE project = $1 AND id = $2", [project, hit]);
@@ -158,6 +175,7 @@ class PgReviews implements Reviews {
       hits,
       unmet: review.contracts.filter(({ met }) => !met).map(({ contract, why }) => ({ contract, why: why ?? "" })),
       standing: await this.standing(project, change),
+      ...(graduated !== undefined && !graduated.ran ? { graduatedNotRun: graduated.reason } : {}),
     };
   }
 
@@ -217,7 +235,10 @@ export function briefText(brief: Brief): string {
     `Review ${brief.iteration} of change ${brief.change} (project ${brief.project}); packages it touches: ${brief.packages.join(", ")}.`,
     "",
     `Checks (${brief.checks.length}): for each, say whether the change trips it, and where (file, line, what you found).`,
-    ...brief.checks.map((check) => `  ${check.id}  ${check.title}\n    ${check.question}`),
+    ...brief.checks.map((check) => [
+      `  ${check.id}  ${check.title}\n    ${check.question}`,
+      ...(check.graduated ?? []).map((part) => `    Not yours to judge: Guardrails' ${part.enforcedBy} checks ${part.part}.`),
+    ].join("\n")),
     "",
     `Contracts (${brief.contracts.length}): for each, say whether the change does what it says, and why not.`,
     ...brief.contracts.map((contract) => `  ${contract.id}  ${contract.title}${contract.description === undefined ? "" : `\n    ${contract.description}`}`),
@@ -238,6 +259,7 @@ export function takenText(taken: Taken): string {
   return [
     `Recorded review ${taken.review}: ${taken.hits.length === 0 ? "no hits" : `${taken.hits.length} hit${taken.hits.length === 1 ? "" : "s"}`}.`,
     ...taken.hits.map((hit) => `  hit ${hit.id}  ${hit.check}  ${hit.file}:${hit.line}  ${hit.found ?? ""}`),
+    ...(taken.graduatedNotRun === undefined ? [] : [`  Guardrails' graduated checks did not run, so nothing of theirs is recorded: ${taken.graduatedNotRun}`]),
     ...taken.unmet.map(({ contract, why }) => `  contract ${contract} not met: ${why}`),
     standingText(taken.standing),
   ].join("\n");

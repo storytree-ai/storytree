@@ -2,7 +2,8 @@
  * Capability 1 · Front door. `storytree quality …`: the quality assurance story's work (ADR-0956), its
  * checks and ledger readings the same as its tools on the MCP server give (that story's contracts 1.2 and 3.4),
  * and the change-reviewer's loop: the brief, the return taken, the implementer's answer and what still stands
- * (its capabilities 2 and 4).
+ * (its capabilities 2 and 4), with what Guardrails' graduated checks find on the change taken beside the return, and
+ * a check graduated to them (its capability 5).
  */
 import { Refusal } from "../answer.js";
 import type { Family, Verb } from "../door.js";
@@ -55,7 +56,7 @@ const takeVerb: Verb = {
   usage: takeUsage,
   summary: "take the change-reviewer's return on the increment's brief into the QA ledger, or refuse it naming what it leaves out",
   async act(args, context) {
-    const { openReviews, takenText } = await import("@storytree/quality-assurance");
+    const { graduatedFindings, openReviews, takenText } = await import("@storytree/quality-assurance");
     const increment = args.word(0, "the increment whose change was reviewed", takeUsage);
     const text = args.need("return", takeUsage);
     let review;
@@ -65,7 +66,7 @@ const takeVerb: Verb = {
       throw new Refusal(`the return is not JSON: ${(error as Error).message}`);
     }
     const library = await context.library();
-    const taken = await (await openReviews(await context.server())).take(library.name, increment, review);
+    const taken = await (await openReviews(await context.server())).take(library.name, increment, review, await graduatedFindings(library, context.cwd));
     return {
       text: takenText(taken),
       ...(taken.standing.length === 0 ? {} : { next: [{ command: "storytree quality answer <hit> fixed|rejected --reason …", why: "answer each standing finding" }] }),
@@ -103,8 +104,22 @@ const standingVerb: Verb = {
   },
 };
 
+const graduateUsage = "quality graduate <check> --part … --enforced-by <guardrails check>";
+const graduateVerb: Verb = {
+  name: "graduate",
+  usage: graduateUsage,
+  summary: "record that a part of a check is now enforced by a deterministic check in Guardrails",
+  async act(args, context) {
+    const { checks, checksText, graduate } = await import("@storytree/quality-assurance");
+    const check = args.word(0, "the check that graduates", graduateUsage);
+    const library = await context.library();
+    await graduate(library, check, { part: args.need("part", graduateUsage), enforcedBy: args.need("enforced-by", graduateUsage) });
+    return { text: `Graduated part of ${check}.\n${checksText((await checks(library)).filter(({ id }) => id === check))}` };
+  },
+};
+
 export const quality: Family = {
   name: "quality",
-  summary: "the quality control checks, the QA ledger, and the change-reviewer's loop: brief, take, answer, standing",
-  verbs: [checksVerb, ledgerVerb, briefVerb, takeVerb, answerVerb, standingVerb],
+  summary: "the quality control checks, the QA ledger, the change-reviewer's loop (brief, take, answer, standing), and graduating a check",
+  verbs: [checksVerb, ledgerVerb, briefVerb, takeVerb, answerVerb, standingVerb, graduateVerb],
 };

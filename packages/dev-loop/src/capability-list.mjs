@@ -81,6 +81,23 @@ export function unlistedCapabilities(owners, listed, tree) {
   return [...unlisted].map(([capability, files]) => ({ capability, title: titles.get(capability) ?? capability, files }));
 }
 
+/**
+ * The check's verdict on `branch`, whose `changed` files (repo-relative) are under `root`: every read it
+ * makes of `library`, which CI makes as its plan-read role (ADR-0952), so each needs that role's grant
+ * (infra/library-host/plan-read-grants.sql). `{ missing: true }` when the branch's increment is not one;
+ * else the capabilities it changes unlisted, how many files were placed, and its stale pending changes.
+ * `options` (readText, survey) pass through to capabilitiesOf.
+ */
+export async function branchVerdict(library, root, branch, changed, options = {}) {
+  const increment = incrementOfBranch(branch);
+  const record = await library.get(increment);
+  if (record === null || record.type !== "increment") return { missing: true };
+  const tree = await branchTree(library, branch);
+  const owners = await capabilitiesOf(root, changed, tree, options);
+  const stale = staleProblems(increment, (await library.stalePending(increment)) ?? []);
+  return { unlisted: unlistedCapabilities(owners, record.fields.capabilities ?? [], tree), checked: owners.size, stale };
+}
+
 /** A changed file's text: as the checkout has it, or as the branch's base had it when the branch deleted it. */
 function textReader(root) {
   let base;
@@ -104,14 +121,8 @@ if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.a
     const { withLibrary } = await import("./build-guidance.mjs");
     const { changedFiles } = await import("./test-scope.mjs");
     const changed = changedFiles(root);
-    const verdict = await withLibrary(async (library) => {
-      const record = await library.get(increment);
-      if (record === null || record.type !== "increment") return { missing: true };
-      const tree = await branchTree(library, branch);
-      const owners = await capabilitiesOf(root, changed, tree, { readText: textReader(root) });
-      const stale = staleProblems(increment, (await library.stalePending(increment)) ?? []);
-      return { unlisted: unlistedCapabilities(owners, record.fields.capabilities ?? [], tree), checked: owners.size, stale };
-    }, "node --import tsx packages/dev-loop/src/capability-list.mjs");
+    const verdict = await withLibrary((library) => branchVerdict(library, root, branch, changed, { readText: textReader(root) }),
+      "node --import tsx packages/dev-loop/src/capability-list.mjs");
     if (verdict === undefined) process.exitCode = 1;
     else if (verdict.missing) {
       console.error(`This branch names ${increment}, which is not an increment in the library.`);

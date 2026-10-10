@@ -19,6 +19,7 @@ const ENTRY = 'import { hookCommand } from "../bins/storytree-hook.ts";\nimport 
 export async function buildHook(outdir: string): Promise<string> {
   await build({
     stdin: { contents: ENTRY, resolveDir: here, sourcefile: "storytree-hook.ts", loader: "ts" },
+    entryNames: "storytree-hook",
     outdir,
     outExtension: { ".js": ".mjs" },
     bundle: true,

@@ -184,10 +184,11 @@ function descriptor({ owner = me, protect = true, aces = [{ type: 0, flags: 0, s
   return Buffer.concat([header, ownerSid, aces ? acl : Buffer.alloc(0)]).toString("hex").toUpperCase();
 }
 
-function mockWindows(t: TestContext, answer: (command: string) => string) {
+function mockWindows(t: TestContext, answer: (command: string, options: { timeout?: number }) => string) {
   const platform = Object.getOwnPropertyDescriptor(process, "platform")!;
   Object.defineProperty(process, "platform", { ...platform, value: "win32" });
-  const child = t.mock.method(childProcess, "execFileSync", (command: string) => answer(path.basename(command).toLowerCase()));
+  const child = t.mock.method(childProcess, "execFileSync",
+    (command: string, _args: string[], options: { timeout?: number }) => answer(path.basename(command).toLowerCase(), options));
   syncBuiltinESMExports();
   return () => {
     child.mock.restore();
@@ -266,28 +267,30 @@ test("1.16 Windows privacy refusals explain the failed check without subprocess 
   });
 });
 
-test("1.16 a Windows privacy check that stalls once is retried once; a second stall still refuses", async (t) => {
+test("1.16 a slow Windows privacy check is waited on, not restarted: its children share one ten-second deadline, and a check past it refuses (regression: two five-second attempts refused under load in the merge queue, 2026-10-09)", async (t) => {
   await withTempDir((home) => {
     const f = fixture(home);
-    let stalls = 0;
-    let reads = 0;
-    const restore = mockWindows(t, (command) => {
+    let stall = false;
+    const timeouts: Record<string, number[]> = { "whoami.exe": [], "cscript.exe": [] };
+    const restore = mockWindows(t, (command, { timeout }) => {
+      timeouts[command]!.push(timeout!);
       if (command === "whoami.exe") return whoami;
-      reads += 1;
-      if (reads <= stalls) throw Object.assign(new Error("stalled"), { code: "ETIMEDOUT" });
+      if (stall) throw Object.assign(new Error("stalled"), { code: "ETIMEDOUT" });
       return `${descriptor()}\r\n${descriptor()}\r\n`;
     });
     try {
-      stalls = 1;
       assert.equal(locateStorytree({ dataDir: f.dataDir }).running, true);
-      assert.equal(reads, 2);
-      reads = 0;
-      stalls = 2;
+      // The user is looked up once per process, so an earlier check may have done it already.
+      const [user = 10_000] = timeouts["whoami.exe"]!;
+      const [read] = timeouts["cscript.exe"]!;
+      assert.ok(user > 9_900 && user <= 10_000, `the check's first child has the ten seconds: ${user}`);
+      assert.ok(read! > 5_000 && read! <= user, `the descriptor read has what is left of them: ${read}`);
+      stall = true;
       touch(f.file);
       const refused = locateStorytree({ dataDir: f.dataDir });
       assert.equal(refused.running, false);
       if (!refused.running) assert.match(refused.message, /\(windows-acl-timeout\)$/);
-      assert.equal(reads, 2);
+      assert.equal(timeouts["cscript.exe"]!.length, 2, "a check past its deadline is not started again");
     } finally { restore(); }
   });
 });

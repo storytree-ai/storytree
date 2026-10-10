@@ -103,18 +103,18 @@ test("3.11 a hidden failure has a marker in the camera's frame, and its click tu
   assert.ok(hiddenMarkers(islands, focused, orbitedEye).every(m => m.story !== "behind"));
 });
 
-test("north stays up: the opening view, a marker's focus and any drag spin and tilt the globe, never past just short of a pole, and never roll it", () => {
+test("3.38 north stays up: the opening view, a marker's focus and any drag spin the globe freely and tilt it no further than 50° toward a pole, and never roll it", () => {
   // The canvas's eye looks down a little and never rolls; the globe turns, not the eye.
   const eye = new Quaternion().setFromEuler(new Euler(-0.3, 0, 0));
   const islands: FacingIsland[] = [
     { story: "polar", spot: { x: 0.05, y: 5, z: 0.05 }, trees: [{ status: "unhealthy" }] },
     { story: "behind", spot: { x: -3, y: -1, z: -4 }, trees: [{ status: "unhealthy" }] },
   ];
-  const short = Math.cos(88 * Math.PI / 180) - 1e-9;
+  const short = Math.cos(50 * Math.PI / 180) - 1e-9;
   const northUp = (turn: Parameters<typeof focusRotation>[0], why: string) => {
     const north = new Vector3(0, 1, 0).applyQuaternion(focusRotation(turn, eye)).applyQuaternion(eye.clone().invert());
     assert.ok(Math.abs(north.x) < 1e-9, `${why}: north points straight up the screen`);
-    assert.ok(north.y >= short, `${why}: tilted no further than just short of the pole`);
+    assert.ok(north.y >= short, `${why}: tilted no further than 50° toward the pole`);
   };
   let turn = openingTurn(islands);
   northUp(turn, "the opening view of an island at the pole");
@@ -125,6 +125,7 @@ test("north stays up: the opening view, a marker's focus and any drag spin and t
     turn = dragTurn(turn, drag, 800);
     northUp(turn, `a drag of ${drag.x}, ${drag.y}`);
   }
+  assert.ok(Math.abs(dragTurn({ yaw: 0, pitch: 0 }, { x: 0, y: 5000 }, 800).pitch - 50 * Math.PI / 180) < 1e-12, "a long tilt stops at 50°, not short of it");
   const spun = dragTurn({ yaw: 0, pitch: 0 }, { x: 200, y: 0 }, 800);
   assert.ok(spun.yaw > 0 && spun.pitch === 0, "dragging sideways spins around the poles only");
   assert.ok(dragTurn(spun, { x: 400 * 9, y: 0 }, 800).yaw > spun.yaw + 2 * Math.PI, "and the spin has no limit");

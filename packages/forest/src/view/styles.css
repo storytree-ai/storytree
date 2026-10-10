@@ -70,6 +70,34 @@
   color: #101418;
 }
 
+/* 3.36: the mini globe in the top right; a click takes the globe home (3.37). */
+.planet-mini-globe {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  pointer-events: auto;
+  cursor: pointer;
+  line-height: 0;
+}
+
+.planet-mini-globe:focus-visible { outline: 2px solid #eadcae; border-radius: 50%; }
+.mini-globe-sea { fill: #16212a; stroke: #7d8a94; stroke-width: 1.4; }
+.planet-mini-globe:hover .mini-globe-sea { stroke: #eadcae; }
+.mini-globe-equator { fill: none; stroke: #3c4a55; stroke-width: 1; }
+.mini-globe-axis { stroke: #3c4a55; stroke-width: 1; stroke-dasharray: 2 2; }
+.mini-globe-land { fill: #8fb07a; }
+.mini-globe-land.behind { fill: none; stroke: #8fb07a; stroke-width: 1; opacity: 0.55; }
+.mini-globe-pole { fill: #e6ecf0; }
+.mini-globe-label { fill: #e6ecf0; font: 700 11px system-ui, sans-serif; }
+.mini-globe-facing circle { fill: none; stroke: #eadcae; stroke-width: 2; }
+.mini-globe-facing .mini-globe-facing-dot { fill: #eadcae; stroke: none; }
+/* The face on show is on the far side of the opening view: a dashed blue ring, never mistaken for home. */
+.mini-globe-facing.behind circle { stroke: #8ec5ff; stroke-dasharray: 3 2; }
+.mini-globe-facing.behind .mini-globe-facing-dot { fill: #8ec5ff; }
+
 .planet-edge-marker {
   position: absolute;
   transform: translate(-50%, -50%);

@@ -15,6 +15,7 @@ import { NameplateCrowd, Nameplates, NeighbourRing, Overlay, SelectionRing } fro
 import { dragTurn, focusRotation, globeHover, hiddenMarkers, isGlobeDrag, oncePerFrame, pickGlobe, planetLayout, type ForestMode } from "./planet-navigation.js";
 import { claimsOn } from "./planet-update.js";
 import { createGlobeGuide, type GlobeControls, type GlobePose } from "./globe-guide.js";
+import { asksForHome, miniGlobe } from "./mini-globe.js";
 import { growLand, pastIslands, presentTerritories, shownSurfaces as surfacesFor, type GlobeSurfaces } from "./globe-surfaces.js";
 
 export type PlanetViewProps = {
@@ -128,6 +129,7 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
     rotation={rotation.toArray()} plateChildren={overlays} lanes={lanes} onLaneReach={onLaneReach} growth={growth} liveRoads={liveRoads}>
     <Navigation islands={layout.islands} radius={layout.radius} titles={new Map(scene.islands.map(i => [i.story, i.title]))}
       rotation={rotation} onRotate={setRotation} onPose={setPose} onControls={onControls} onPick={onPick} onNote={onNote} mode={mode} onPast={setPast}
+      opening={{ framing: framing ?? 1.18, sideOffset: sideOffset ?? 0 }}
       showFailures={shownSurfaces.grounds || shownSurfaces.territories !== false || shownSurfaces.fileCircles || shownSurfaces.nameplates || shownSurfaces.roads} />
     <NameplateCrowd selected={selected} />
     {growth !== undefined && recordedSessions !== undefined && <ReplaySessions recorded={recordedSessions} onWisps={setReplayed} />}
@@ -222,8 +224,10 @@ function Territories({ story, land, coast, claimed, radius, spot, lighting, surf
 
 type ScreenMarker = EdgeMarker & { left: number; top: number };
 
-function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onControls, onPick, onNote, mode, onPast, showFailures }: {
+function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onControls, onPick, onNote, mode, onPast, showFailures, opening }: {
   onPose: (pose: GlobePose) => void;
+  /** The zoom and offset the globe opened on, which Home returns to with the opening turn (3.37). */
+  opening: { framing: number; sideOffset: number };
   /** Told when the eye zooms in past the islands, and back out (ADR-0919 D3). */
   onPast: (past: boolean) => void;
   onControls: ((controls: GlobeControls | undefined) => void) | undefined;
@@ -272,11 +276,24 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
     position: target => guide.current!.position(target),
     cancel: () => guide.current!.cancel(),
   };
+  // The turn the globe opened on, kept as home even when a guide took the first turn (3.37).
+  const [home, setHome] = useState<GlobeTurn>();
   useEffect(() => {
+    if (home === undefined && islands.length > 0) setHome(openingTurn(islands));
     if (opened.current || islands.length === 0) return;
     opened.current = true;
     turnTo(openingTurn(islands));
-  }, [islands, turnTo]);
+  }, [islands, turnTo, home]);
+  const goHome = useRef<() => void>(undefined);
+  goHome.current = () => {
+    if (home === undefined || !guide.current!.home({ turn: home, ...opening })) return;
+    guideFrameAt.current = performance.now();
+  };
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent): void => { if (asksForHome(event)) { event.preventDefault(); goHome.current!(); } };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   useEffect(() => {
     onControls?.(controls.current);
     return () => { onControls?.(undefined); };
@@ -379,5 +396,34 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
       title={`${titles.get(marker.story)} · unhealthy (storytree verified)`}
       aria-label={`Show unhealthy story: ${titles.get(marker.story)}`}
       onClick={() => { guide.current!.cancel(); turnTo(marker.turn); }}>!</button>)}
+    {home !== undefined && <MiniGlobeButton islands={islands} home={home} turn={turn.current} onHome={() => goHome.current!()} />}
   </Overlay>;
+}
+
+/** 3.36: the globe as it opened, small in the corner, with its poles and a mark on the face on show; a click goes home (3.37). */
+function MiniGlobeButton({ islands, home, turn, onHome }: { islands: readonly FacingIsland[]; home: GlobeTurn; turn: GlobeTurn; onHome: () => void }) {
+  const mini = miniGlobe(islands, home, turn);
+  const c = 60, r = 44, at = (p: { x: number; y: number }) => ({ cx: c + p.x * r, cy: c - p.y * r });
+  const equator = mini.equator.filter(p => p.front).map(p => `${(c + p.x * r).toFixed(1)},${(c - p.y * r).toFixed(1)}`).join(" ");
+  const pole = (p: typeof mini.north, label: string) => <g opacity={p.front ? 1 : 0.45}>
+    <circle {...at(p)} r={3.5} className="mini-globe-pole" />
+    <text x={c + p.x * (r + 10)} y={c - p.y * (r + 10)} className="mini-globe-label" textAnchor="middle" dominantBaseline="central">{label}</text>
+  </g>;
+  // Land on the far side is drawn as hollow rings under the near side's solid dots.
+  const land = [...mini.islands].sort((a, b) => Number(a.front) - Number(b.front));
+  return <button type="button" className="planet-mini-globe" title="Back to the opening view (Home)" aria-label="Back to the opening view (Home)" onClick={onHome}>
+    <svg viewBox="0 0 120 120" width={120} height={120} aria-hidden="true">
+      <circle cx={c} cy={c} r={r} className="mini-globe-sea" />
+      <polyline points={equator} className="mini-globe-equator" />
+      <line x1={at(mini.south).cx} y1={at(mini.south).cy} x2={at(mini.north).cx} y2={at(mini.north).cy} className="mini-globe-axis" />
+      {land.map(island => <circle key={island.story} {...at(island)} r={island.front ? 3.6 : 2.8}
+        className={island.front ? "mini-globe-land" : "mini-globe-land behind"} />)}
+      {pole(mini.north, "N")}
+      {pole(mini.south, "S")}
+      <g className={mini.facing.front ? "mini-globe-facing" : "mini-globe-facing behind"}>
+        <circle {...at(mini.facing)} r={8} />
+        <circle {...at(mini.facing)} r={2} className="mini-globe-facing-dot" />
+      </g>
+    </svg>
+  </button>;
 }

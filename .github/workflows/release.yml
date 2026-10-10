@@ -51,8 +51,14 @@ jobs:
       matrix:
         runner: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 15
+    # The same limits as ci.yml's test job, which runs this full suite on main and passes: with the
+    # default 3-minute unit limit and a 15-minute job, Windows agent-link and cli were killed in
+    # every release attempt after 0.3.1045 (runs 38035124117, 38037855790), so nothing shipped.
+    timeout-minutes: 35
     steps:
+      - name: Set the test run's deadline
+        shell: bash
+        run: echo "STORYTREE_TEST_DEADLINE=$(( $(date +%s) + 31 * 60 ))" >> "$GITHUB_ENV"
       - uses: actions/checkout@v6
         with:
           ref: ${{ needs.source.outputs.sha }}
@@ -66,6 +72,8 @@ jobs:
       - run: pnpm typecheck
       # A release is a complete artifact. Verify its exact merged commit, even if main moved.
       - run: pnpm test -- --full
+        env:
+          STORYTREE_UNIT_LIMIT_MS: 360000
 
   # One draft per release, made once before any platform uploads: GitHub lets two drafts share a tag,
   # so the platforms never race to create it. A draft stays invisible to installed apps.

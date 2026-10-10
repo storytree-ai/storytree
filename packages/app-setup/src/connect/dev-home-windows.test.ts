@@ -139,13 +139,14 @@ for (const operation of ["copy", "hand-back"] as const) {
   });
 }
 
+// Add-Type compiles C# on each call; on a loaded Windows CI runner a cold compile has run past 30 s.
 function powershell(script: string, files: string[]): string {
   const env = { ...process.env };
   for (const key of Object.keys(env)) if (key.toUpperCase() === "PSMODULEPATH") delete env[key];
   const body = `$ErrorActionPreference = 'Stop'\n[Console]::InputEncoding = [Text.UTF8Encoding]::new($false)\n[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)\n$files = ConvertFrom-Json ([Console]::In.ReadToEnd())\n${script}`;
   return childProcess.execFileSync(path.join(process.env.SystemRoot!, "System32", "WindowsPowerShell", "v1.0", "powershell.exe"),
     ["-NoProfile", "-NonInteractive", "-EncodedCommand", Buffer.from(body, "utf16le").toString("base64")],
-    { input: JSON.stringify(files), env, encoding: "utf8", windowsHide: true, timeout: 30_000 });
+    { input: JSON.stringify(files), env, encoding: "utf8", windowsHide: true, timeout: 120_000 });
 }
 
 function allowUnrelated(files: string[]): void {

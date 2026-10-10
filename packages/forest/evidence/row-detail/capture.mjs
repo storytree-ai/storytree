@@ -1,13 +1,16 @@
 // Pictures for the owner's look at contract 7.8: a session row, collapsed and expanded to its worktrees and window files.
 // The actual desktop page, built by ../sessions-list/build.mjs; all activity here is synthetic.
-// Run both through `node "<checkout>/packages/dev-loop/src/heavy-lock.mjs" --` (absolute checkout path).
+// Run both through `node "<checkout>/packages/dev-loop/src/heavy-lock.mjs" --` (absolute checkout path). --smoke builds its own page
+// into dist/smoke, takes no pictures and skips the fixed rests, so a test proves every wait below still resolves in a real browser.
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { captureSeed, fakeBridge, seedFile, withCapture } from '../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
+import { buildCapture, captureSeed, fakeBridge, seedFile, withCapture } from '../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const dist = path.join(here, '../sessions-list/dist/production');
+const smoke = process.argv.includes('--smoke');
+const dist = smoke ? path.join(here, 'dist/smoke') : path.join(here, '../sessions-list/dist/production');
+if (smoke) await buildCapture({ dist });
 const { seed } = captureSeed('forest');
 const forest = seed.tree.stories.find(story => story.title === 'The forest');
 const ids = { builder: 'rowdetail-builder', helper: 'rowdetail-helper', quiet: 'rowdetail-quiet' };
@@ -67,11 +70,12 @@ await withCapture({ folder: here, dist }, async ({ browser, origin, out, settle 
   const list = page.getByRole('complementary', { name: 'Running sessions', exact: true });
   const row = list.locator(`.session-row[data-session-id="${ids.builder}"]`);
   await row.waitFor();
-  // Every row starts expanded (forest 7.17): fold it first, for the collapsed picture.
-  await row.getByRole('button', { name: /^Hide detail/ }).click();
+  // Every row starts collapsed (forest 7.8), as the collapsed picture shows it.
   await row.getByRole('button', { name: /^Show detail/ }).waitFor();
-  await page.waitForTimeout(500);
-  await list.screenshot({ path: path.join(out, 'collapsed.png') });
+  if (!smoke) { await page.waitForTimeout(500); await list.screenshot({ path: path.join(out, 'collapsed.png') }); }
+  const toggles = await list.locator('.session-children-toggle').evaluateAll(items => items.map(item => item.getAttribute('aria-expanded')));
+  assert.ok(toggles.length > 0 && toggles.every(open => open === 'false'), `every row starts collapsed: ${toggles}`);
+  assert.equal(await list.locator('.session-detail').count(), 0, 'no detail drawn while collapsed');
   await row.getByRole('button', { name: /^Show detail/ }).click();
   const detail = list.locator('li', { has: page.locator(`.session-row[data-session-id="${ids.builder}"]`) }).locator('.session-detail');
   await detail.locator('.session-detail-files li').first().waitFor();
@@ -82,8 +86,9 @@ await withCapture({ folder: here, dist }, async ({ browser, origin, out, settle 
   assert.equal(await detail.locator('.session-detail-files li').count(), opened.length);
   assert.equal(await detail.locator('li[data-resident="no"]').count(), 1);
   await list.locator(`.session-row[data-session-id="${ids.helper}"]`).waitFor();
-  await page.waitForTimeout(300);
-  await list.screenshot({ path: path.join(out, 'expanded.png') });
+  if (!smoke) { await page.waitForTimeout(300); await list.screenshot({ path: path.join(out, 'expanded.png') }); }
   assert.deepEqual(errors, []);
-  console.log('Captured collapsed.png and expanded.png');
+  console.log(smoke ? 'Smoke run: no pictures' : 'Captured collapsed.png and expanded.png');
+  console.log(JSON.stringify({ collapsed: toggles.length, worktrees: await detail.locator('.session-detail-worktrees li').count(),
+    files: await detail.locator('.session-detail-files li').count(), muted: await detail.locator('li[data-resident="no"]').count() }));
 });

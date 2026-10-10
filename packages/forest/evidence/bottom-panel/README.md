@@ -35,3 +35,6 @@ PLANET_PLAYWRIGHT=<playwright-core/index.mjs> PLANET_CHROMIUM=<chrome-headless-s
   Judgements: side margins are 0 (the arcs bar is flush); Escape does not collapse it (the arcs bar's drawer does; a list that is also a place to
   read while working should not vanish on a stray Escape); the header's legend stays on the strip when collapsed.
   Concern: expanded, the strip covers the lower 40% of the globe (seen through it, blurred).
+
+**Since rows start collapsed (forest 7.8, 2026-10-11 re-run):** the capture opens the builder's row before measuring its detail, so
+Running counts its two commands, not the waiting session's third. The pictures above are from before, re-taken only with `--retake`.

@@ -115,6 +115,8 @@ const measures = {};
 
     await ready();
     await list.locator('.session-row[data-session-id="fp-builder"]').waitFor();
+    // Every row starts collapsed (forest 7.8): open the builder's, for its worktrees and running work.
+    await list.locator('.session-row[data-session-id="fp-builder"]').getByRole('button', { name: /^Show detail/ }).click();
     await list.locator('.session-detail-files').first().waitFor();
     await page.waitForTimeout(1500);
     const expanded = await measure();
@@ -128,7 +130,7 @@ const measures = {};
     assert.ok(/^rgba\(/.test(expanded.background), expanded.background);
     assert.equal(expanded.idleFold, '3 idle');
     assert.ok(expanded.worktreeLabels.includes('unmerged') && expanded.worktreeLabels.includes('merged'));
-    assert.equal(expanded.running, 3);
+    assert.equal(expanded.running, 2, "the builder's two commands; the waiting session's row stays collapsed");
     await page.waitForTimeout(300);
     await page.screenshot({ path: path.join(out, `bottom-${name}-expanded.png`) });
 

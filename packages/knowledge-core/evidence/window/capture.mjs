@@ -3,17 +3,20 @@
 // session has read six real notes; its window reading (agent link 9.10) says four of those it holds
 // now, one fell out at a compaction, and which were in view when each was opened. Selecting its row
 // rings the notes it holds in warm white and joins the in-view pairs with dotted warm white lines.
+// --smoke builds its own page into dist/smoke and takes no pictures, so a test proves every wait below still resolves in a real browser.
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { captureOutput, captureSeed, fakeBridge, launch, seedFile } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
+import { buildCapture, captureOutput, captureSeed, fakeBridge, launch, seedFile } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const out = captureOutput(here); // pictures and measurements: a scratch folder unless run with --retake
 const root = path.resolve(here, '../../../..');
-const built = path.join(root, 'packages/forest/evidence/sessions-list/dist/production');
+const smoke = process.argv.includes('--smoke');
+const built = smoke ? path.join(here, 'dist/smoke') : path.join(root, 'packages/forest/evidence/sessions-list/dist/production');
+if (smoke) await buildCapture({ dist: built });
 const { seed } = captureSeed('forest');
 const forest = seed.tree.stories.find(item => item.title === 'The forest');
 const covers = [...new Set(seed.changes.changes.filter(change => change.record.fields?.frontCoverOf).map(change => change.recordId))].sort();
@@ -50,6 +53,7 @@ const held = [read[5], read[0], read[1], read[2], read[3]];
 
 const server = createServer((req, res) => {
   const name = new URL(req.url, 'http://localhost').pathname.slice(1);
+  if (name === 'favicon.ico') { res.writeHead(204).end(); return; } // a full Chrome asks for one, as the shared runner answers
   if (!['index.html', 'renderer.js', 'styles.css', 'arc-surface.css', 'app-setup.css', 'forest.css'].includes(name)) { res.writeHead(404).end(); return; }
   res.setHeader('Content-Type', name.endsWith('.js') ? 'text/javascript' : name.endsWith('.css') ? 'text/css' : 'text/html');
   res.end(readFileSync(path.join(built, name)));
@@ -105,24 +109,28 @@ try {
     });
     return { rings: rings.sort(), links };
   });
-  await page.waitForFunction(() => { let n = 0; window.__globe.scene.traverse(o => { if (o.userData?.lit) n++; }); return n > 0; });
+  // The knowledge dots are drawn; with none selected no session lights what it read (ADR-0921), so none is lit.
+  await page.waitForFunction(() => { let n = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('knowledge-point:')) n++; }); return n > 0; });
   await frames();
+  const lit = () => page.evaluate(() => { let n = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('knowledge-point:') && o.userData.lit) n++; }); return n; });
 
-  // None selected: the running session lights what it read, and no window is drawn.
+  // None selected: nothing lit, and no window is drawn.
+  assert.equal(await lit(), 0, 'no read lit while no session is selected');
   assert.deepEqual(await drawn(), { rings: [], links: [] }, 'no window while no session is selected');
   assert.deepEqual(await page.evaluate(() => window.__asked), [], 'no one session\'s window asked while none is selected');
-  await page.screenshot({ path: path.join(out, 'window-none-selected.png') });
+  if (!smoke) await page.screenshot({ path: path.join(out, 'window-none-selected.png') });
 
   // Select its row: the core asks for that session's window and draws it.
   await row.click();
-  await page.waitForFunction(() => { let n = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('knowledge-window:')) n++; }); return n > 0; });
+  // The window's rings arrive as the replay reaches each read (ADR-0797 D1): wait for all it holds.
+  await page.waitForFunction(want => { let n = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('knowledge-window:')) n++; }); return n >= want; }, held.length);
   await frames();
   const selected = await drawn();
   assert.deepEqual(await page.evaluate(() => window.__asked), [session]);
   assert.deepEqual(selected.rings, [...held].sort(), 'a ring on each note it holds now, and not on the one a compaction dropped');
   // The dotted in-view lines gave way to the traversal drawing (ADR-0756), which the traversal capture covers.
   assert.deepEqual(selected.links, [], 'no in-view lines: the traversal drawing replaced them');
-  await page.screenshot({ path: path.join(out, 'window-selected.png') });
+  if (!smoke) await page.screenshot({ path: path.join(out, 'window-selected.png') });
 
   // Back to every session: the window goes.
   await row.click();
@@ -130,7 +138,8 @@ try {
   assert.deepEqual(await drawn(), { rings: [], links: [] }, 'deselecting takes the window away');
   assert.deepEqual(errors, []);
   writeFileSync(path.join(out, 'capture.json'), JSON.stringify({ read: read.length, held: selected.rings.length, inViewLines: selected.links.length }, null, 2) + '\n');
-  console.log('ADR-0746 D1 capture passed: ' + JSON.stringify({ held: selected.rings.length, inViewLines: selected.links.length }));
+  console.log('ADR-0746 D1 capture passed');
+  console.log(JSON.stringify({ read: read.length, held: selected.rings.length, inViewLines: selected.links.length }));
 } finally {
   await browser?.close();
   server.close();

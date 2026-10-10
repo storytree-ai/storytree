@@ -71,7 +71,7 @@ function observe(host: HTMLElement) {
   };
   // Run belongs to the terminal: a globe merely touching the fold waits for the handover.
   window.addEventListener("storytree-opening", event => {
-    if ((event as CustomEvent<{ active: boolean }>).detail.active) {
+    if (event.detail.active) {
       generation++;
       scheduled = false; awaitingWords = false;
       stop?.(); stop = undefined;

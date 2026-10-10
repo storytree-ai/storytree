@@ -221,12 +221,12 @@ export function wireTour() {
   });
   // The drawing asks the tour to wait while the visitor explores it, and to let go when a surface it opened closes.
   window.addEventListener("storytree-tour-hold", event => {
-    const { reason, held: holding } = (event as CustomEvent<{ reason: Hold; held: boolean }>).detail;
+    const { reason, held: holding } = event.detail;
     render(holding ? tour.hold(reason) : tour.release(reason));
   });
   window.addEventListener("storytree-tour-request", () => render());
   window.addEventListener("storytree-opening", event => {
-    openingActive = (event as CustomEvent<{ active: boolean }>).detail.active;
+    openingActive = event.detail.active;
     clock = performance.now();
     if (openingActive) return;
     // Once Act 2's first words have painted, the globe may set up behind them (2.10).

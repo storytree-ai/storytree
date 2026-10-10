@@ -10,7 +10,7 @@ const loadTour = () => {
   void import("./tour-ui.js").then(({ wireTour }) => wireTour()).catch(() => { tourRequested = false; });
 };
 window.addEventListener("storytree-opening", event => {
-  if (!(event as CustomEvent<{ active: boolean }>).detail.active) loadTour();
+  if (!event.detail.active) loadTour();
 });
 wireOpening();
 if (chapter) {

@@ -1,5 +1,5 @@
 /**
- * Quality assurance's contracts 1.2, 2.3, 3.4 and 4.4, at this front door: the real shared server serves the checks and
+ * Quality assurance's contracts 1.2, 2.3, 3.4, 4.4, 5.1 and 5.3, at this front door: the real shared server serves the checks and
  * ledger readings and the change-reviewer's loop through quality assurance's public API, the tools being the ones that package registers. Kept here, beside
  * the server, because quality assurance cannot depend back on the MCP server.
  */
@@ -172,6 +172,51 @@ test("(quality assurance's 2.3 and 4.4) the shared server's quality_brief, quali
       await client.callTool({ name: "quality_answer", arguments: { hit: hit!.id, answer: "fixed" } });
       const standing = await client.callTool({ name: "quality_standing", arguments: { increment } });
       assert.deepEqual(standing.structuredContent, { message: standingText([]), standing: [] });
+    });
+  } finally {
+    rmSync(folder, { recursive: true, force: true });
+    rmSync(worktree, { recursive: true, force: true });
+    await library.close();
+    await storytree.close();
+    await dropTestProjects([project]);
+  }
+});
+
+test("(quality assurance's 5.1 and 5.3) the shared server's graduate_check graduates a check through the package, and quality_take given the worktree records what the graduated check finds there as its own", async () => {
+  const project = uniqueProjectName();
+  const storytree = await connect({ url: testServerUrl() });
+  const library = await storytree.openProject(project);
+  const folder = mkdtempSync(path.join(tmpdir(), "quality-graduate-"));
+  const worktree = mkdtempSync(path.join(tmpdir(), "quality-graduated-branch-"));
+  try {
+    const story = await library.addStory({ title: "Visitor can sign up" });
+    const capability = await library.addCapability({ title: "1 · Email form", story: story.id });
+    const contract = await library.addContract({ capability: capability.id, title: "1.1 · A bad email is refused" });
+    const arc = await library.createArc({ title: "Launch sign-up", intent: "Ship sign-up", endState: "Visitors sign up", stories: [story.id] });
+    const increment = (await library.addIncrement({ arc: arc.id, title: "Email form", objective: "Build the email form", body: "The breakdown.", capabilities: [capability.id] })).id;
+    const principle = await library.writeKnowledge("principle", { title: "Test creation principles", description: "How a test earns its place.", statement: "A test fails if its behaviour is removed.", why: "A test that cannot fail protects nothing.", howToApply: "Delete the behaviour and watch the test fail." });
+    const check = await library.writeKnowledge("check", { title: "Tautological expected value", description: "Expected values computed as the code computes them.", question: "Is any expected value computed the way the code computes it?", enforces: [principle.id] });
+    const git = (...args: string[]) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", ...args], { cwd: worktree, encoding: "utf8" });
+    git("init", "-q");
+    writeFileSync(path.join(worktree, "README.md"), "base\n");
+    git("add", "."), git("commit", "-qm", "base"), git("update-ref", "refs/remotes/origin/main", "HEAD");
+    mkdirSync(path.join(worktree, "packages", "forms", "src"), { recursive: true });
+    writeFileSync(path.join(worktree, "packages", "forms", "src", "email.test.ts"), "assert.equal(valid(x), valid(x));\n");
+    git("add", "."), git("commit", "-qm", "change");
+    writeFileSync(path.join(folder, ".storytree.json"), JSON.stringify({ project }));
+    await approveCheckout(folder, project);
+
+    await withClient(folder, async (client) => {
+      assert.equal((await client.callTool({ name: "graduate_check", arguments: { check: check.id, part: "the same call twice", enforced_by: "no-such-check" } })).isError, true);
+      const graduated = await client.callTool({ name: "graduate_check", arguments: { check: check.id, part: "the same call on both sides of an equality", enforced_by: "self-equal-assertion" } });
+      const reading = await checks(library);
+      assert.deepEqual(reading[0]!.graduated, [{ part: "the same call on both sides of an equality", enforcedBy: "self-equal-assertion" }]);
+      assert.ok(textOf(graduated).includes(checksText(reading)), textOf(graduated));
+
+      await client.callTool({ name: "quality_brief", arguments: { increment, worktree } });
+      await client.callTool({ name: "quality_take", arguments: { increment, worktree, return: { checks: [{ check: check.id, tripped: false }], contracts: [{ contract: contract.id, met: true }] } } });
+      const { hits } = await (await openLedger(storytree)).rows(project);
+      assert.deepEqual(hits.map(({ check: id, file, line, foundBy }) => ({ id, file, line, foundBy })), [{ id: check.id, file: "packages/forms/src/email.test.ts", line: 1, foundBy: "graduated" }]);
     });
   } finally {
     rmSync(folder, { recursive: true, force: true });

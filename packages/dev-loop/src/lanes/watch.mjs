@@ -15,7 +15,15 @@ import { setTimeout as wait } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
-import { countEngines, holdRunner } from "./queue.mjs";
+import { codeVersion, countEngines, holdRunner } from "./queue.mjs";
+
+/**
+ * The code the watcher runs (13.10, ADR-0981 D3): what watch.mjs loads and what the fix sessions it starts load
+ * (runner.mjs and its engine.mjs; their brief is written here). A change to one of these restarts the look loop; a
+ * change anywhere else in the dev loop leaves it looking. When one of these files comes to import another file, name
+ * that file here.
+ */
+export const WATCH_CODE = ["watch.mjs", "queue.mjs", "runner.mjs", "engine.mjs"].map((name) => `packages/dev-loop/src/lanes/${name}`);
 
 const run = promisify(execFile);
 const RED = new Set(["FAILURE", "TIMED_OUT", "CANCELLED", "ACTION_REQUIRED", "STARTUP_FAILURE", "ERROR"]);
@@ -241,7 +249,7 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
     },
     // Started from the shared checkout's copy, whichever worktree handed over, so it runs the code it watches for changes.
     startWatcher: () => detached([own, "run"], join(lanesDir, "watch.status"), repo),
-    codeVersion: async () => (await run("git", ["rev-parse", "HEAD:packages/dev-loop"], { cwd: repo })).stdout.trim(),
+    codeVersion: () => codeVersion({ repo, paths: WATCH_CODE }),
     loop: () => new Promise((ended) => {
       const child = spawnChild(process.execPath, [own, "watch"], { cwd: repo, env: free, stdio: "inherit" });
       child.once("error", () => ended(1));
@@ -255,9 +263,9 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
   };
 }
 
-/** `handover <pr> <increment>`, `hand <pr> <increment> [--session <id>]`, `run` or `status`; `box` overrides the box's paths and processes in tests. */
+/** `handover <pr> <increment>`, `hand <pr> <increment> [--session <id>]`, `run` or `status`; `box` overrides the box's home, paths and processes in tests. */
 export async function main(args, box = {}) {
-  const b = { ...boxDefaults(), ...box };
+  const b = { ...boxDefaults({ home: box.home }), ...box };
   const out = b.out ?? console.log;
   if (args[0] === "handover" && /^\d+$/.test(args[1] ?? "") && /^increment_\w+$/.test(args[2] ?? "")) {
     const { code, lines } = await handOver({ pr: Number(args[1]), increment: args[2], session: b.session, onBox: b.onBox,

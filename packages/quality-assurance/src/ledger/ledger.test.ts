@@ -95,10 +95,10 @@ test("3.3 · the reading counts, per check and package, the reviews that ran it 
     await ledger.answer(project, two.hits[0]!.id, { answer: "rejected", reason: "not computed by the code" });
 
     assert.deepEqual(await ledger.reading(project), [
-      { check: "check_a", package: "app", reviews: 1, hits: 0, fixed: 0, rejected: 0, unanswered: 0 },
-      { check: "check_a", package: "library", reviews: 2, hits: 3, fixed: 1, rejected: 1, unanswered: 1 },
-      { check: "check_b", package: "app", reviews: 1, hits: 0, fixed: 0, rejected: 0, unanswered: 0 },
-      { check: "check_b", package: "library", reviews: 1, hits: 0, fixed: 0, rejected: 0, unanswered: 0 },
+      { check: "check_a", package: "app", reviews: 1, hits: 0, fixed: 0, rejected: 0, unanswered: 0, graduated: 0 },
+      { check: "check_a", package: "library", reviews: 2, hits: 3, fixed: 1, rejected: 1, unanswered: 1, graduated: 0 },
+      { check: "check_b", package: "app", reviews: 1, hits: 0, fixed: 0, rejected: 0, unanswered: 0, graduated: 0 },
+      { check: "check_b", package: "library", reviews: 1, hits: 0, fixed: 0, rejected: 0, unanswered: 0, graduated: 0 },
     ]);
   });
 });
@@ -124,8 +124,8 @@ test("3.4 · the tool this package registers answers the folder's project's ledg
       "  check_b  library  ran 1, no hits",
     ].join("\n"));
     assert.deepEqual(answer.data, { ledger: [
-      { check: "check_a", package: "library", reviews: 1, hits: 2, fixed: 1, rejected: 0, unanswered: 1 },
-      { check: "check_b", package: "library", reviews: 1, hits: 0, fixed: 0, rejected: 0, unanswered: 0 },
+      { check: "check_a", package: "library", reviews: 1, hits: 2, fixed: 1, rejected: 0, unanswered: 1, graduated: 0 },
+      { check: "check_b", package: "library", reviews: 1, hits: 0, fixed: 0, rejected: 0, unanswered: 0, graduated: 0 },
     ] });
   });
 });

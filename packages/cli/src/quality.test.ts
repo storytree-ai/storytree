@@ -2,7 +2,8 @@
  * Quality assurance's contracts 1.2 and 3.4, at this front door: the real, built `storytree quality checks`
  * and `storytree quality ledger` print the checks and ledger readings through quality assurance's public API,
  * the same readings its tools on the MCP server give. Its contracts 2.1, 2.2 and 4.1 at this front door: the
- * change-reviewer's loop, `quality brief`, `take`, `answer` and `standing`, run through the same API.
+ * change-reviewer's loop, `quality brief`, `take`, `answer` and `standing`, run through the same API; and its 5.1:
+ * `quality graduate`.
  */
 import assert from "node:assert/strict";
 import { writeFileSync } from "node:fs";
@@ -76,6 +77,7 @@ test("(quality assurance's 2.1, 2.2 and 4.1) `quality brief`, `take`, `answer` a
     writeFileSync(path.join(world.folder, "return.json"), JSON.stringify({ checks: [{ check: check.id, tripped: true, hits: [{ file: "packages/forms/src/email.test.ts", line: 2, found: "compares the code with itself" }] }], contracts: [{ contract: contract.id, met: true }] }));
     const taken = await world.run(["quality", "take", increment.id, "--return", "@return.json"]);
     assert.equal(taken.code, 0, taken.stderr);
+    assert.match(taken.stdout, /Guardrails' graduated checks did not run, so nothing of theirs is recorded/);
     const storytree = await connect({ url: testServerUrl() });
     try {
       const [hit] = await (await openReviews(storytree)).standing(world.project, increment.id);
@@ -89,5 +91,24 @@ test("(quality assurance's 2.1, 2.2 and 4.1) `quality brief`, `take`, `answer` a
     } finally {
       await storytree.close();
     }
+  });
+});
+
+test("(quality assurance's 5.1) `quality graduate` writes the part and the Guardrails check that enforces it on the check, and the checks reading shows both; an unknown Guardrails check is refused, writing nothing", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const principle = await library.writeKnowledge("principle", { title: "Test creation principles", description: "How a test earns its place.", statement: "A test fails if its behaviour is removed.", why: "A test that cannot fail protects nothing.", howToApply: "Delete the behaviour and watch the test fail." });
+    const check = await library.writeKnowledge("check", { title: "Tautological expected value", description: "Expected values computed as the code computes them.", question: "Is any expected value computed the way the code computes it?", enforces: [principle.id] });
+
+    const refused = await world.run(["quality", "graduate", check.id, "--part", "the same call twice", "--enforced-by", "no-such-check"]);
+    assert.equal(refused.code, 1);
+    assert.match(refused.stderr, /no-such-check/);
+    assert.equal((await checks(library))[0]!.graduated, undefined);
+
+    const ran = await world.run(["quality", "graduate", check.id, "--part", "the same call on both sides of an equality", "--enforced-by", "self-equal-assertion"]);
+    assert.equal(ran.code, 0, ran.stderr);
+    const [read] = await checks(library);
+    assert.deepEqual(read!.graduated, [{ part: "the same call on both sides of an equality", enforcedBy: "self-equal-assertion" }]);
+    assert.ok(ran.stdout.includes(checksText([read!])), ran.stdout);
   });
 });

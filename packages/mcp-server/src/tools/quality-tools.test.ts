@@ -1,6 +1,6 @@
 /**
- * Quality assurance's contract 1.2, at this front door: the real shared server serves the checks reading
- * through quality assurance's public API, the tool being the one that package registers. Kept here, beside
+ * Quality assurance's contracts 1.2 and 3.4, at this front door: the real shared server serves the checks and
+ * ledger readings through quality assurance's public API, the tools being the ones that package registers. Kept here, beside
  * the server, because quality assurance cannot depend back on the MCP server.
  */
 import assert from "node:assert/strict";
@@ -12,7 +12,7 @@ import { test } from "node:test";
 import { Client } from "@modelcontextprotocol/client";
 import { InMemoryTransport } from "@modelcontextprotocol/server";
 import { connect } from "@storytree/library";
-import { checks, checksText, qualityTools } from "@storytree/quality-assurance";
+import { checks, checksText, ledgerText, openLedger, qualityTools } from "@storytree/quality-assurance";
 
 import { approveCheckout, dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/agent-link/testing/pg";
 import { createAgentTools } from "./index.js";
@@ -57,6 +57,38 @@ test("(quality assurance's 1.2) the shared server's quality_checks answers the p
         await lister.close();
         await installed.close();
       }
+    }
+  } finally {
+    rmSync(folder, { recursive: true, force: true });
+    await library.close();
+    await storytree.close();
+    await dropTestProjects([project]);
+  }
+});
+
+test("(quality assurance's 3.4) the shared server's quality_ledger answers the package's ledger reading for the folder's project", async () => {
+  const project = uniqueProjectName();
+  const storytree = await connect({ url: testServerUrl() });
+  const library = await storytree.openProject(project);
+  const folder = mkdtempSync(path.join(tmpdir(), "quality-ledger-"));
+  try {
+    const ledger = await openLedger(storytree);
+    await ledger.record({ project, review: "r1", packages: ["library"], ran: [{ check: "check_a", hits: [{ package: "library", file: "a.ts", line: 1 }] }] });
+    const reading = await ledger.reading(project);
+    assert.equal(reading.length, 1);
+    writeFileSync(path.join(folder, ".storytree.json"), JSON.stringify({ project }));
+    await approveCheckout(folder, project);
+    const tools = createAgentTools({ folder, dataDir: process.env.STORYTREE_TEST_PG_DATA!, env: {}, extensions: [qualityTools()], merges: { mergedPulls: async () => [] } });
+    const client = new Client({ name: "claude-code", version: "test" });
+    const [serverSide, clientSide] = InMemoryTransport.createLinkedPair();
+    try {
+      await tools.server.connect(serverSide);
+      await client.connect(clientSide);
+      const answer = await client.callTool({ name: "quality_ledger", arguments: {} });
+      assert.deepEqual(answer.structuredContent, { message: ledgerText(reading), ledger: reading });
+    } finally {
+      await client.close();
+      await tools.close();
     }
   } finally {
     rmSync(folder, { recursive: true, force: true });

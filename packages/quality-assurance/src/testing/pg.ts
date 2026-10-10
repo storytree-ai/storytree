@@ -6,11 +6,11 @@
  */
 import { randomBytes } from "node:crypto";
 
-import { connect, type Library } from "@storytree/library";
+import { connect, type Library, type Storytree } from "@storytree/library";
 import { dropTestDatabases } from "@storytree/local-postgres/testing";
 
 /** The server the tests run against. Throws when there is none. */
-function testServerUrl(): string {
+export function testServerUrl(): string {
   const url = process.env.STORYTREE_TEST_PG_URL;
   if (url === undefined || url === "") {
     throw new Error("STORYTREE_TEST_PG_URL is not set: run the tests via `pnpm test`, which starts a local Postgres.");
@@ -19,6 +19,21 @@ function testServerUrl(): string {
 }
 
 /** Run `body` with a fresh project's library, dropped afterwards, pass or fail. */
+/** Run `body` with two connections to the test server, each closed afterwards, pass or fail. */
+export async function withConnections(body: (first: Storytree, second: Storytree) => Promise<void>): Promise<void> {
+  const first = await connect({ url: testServerUrl() });
+  try {
+    const second = await connect({ url: testServerUrl() });
+    try {
+      await body(first, second);
+    } finally {
+      await second.close();
+    }
+  } finally {
+    await first.close();
+  }
+}
+
 export async function withLibrary(body: (library: Library) => Promise<void>): Promise<void> {
   const project = `t-${randomBytes(4).toString("hex")}`;
   const storytree = await connect({ url: testServerUrl() });

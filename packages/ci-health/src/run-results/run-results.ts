@@ -85,3 +85,19 @@ export function commitOfLog(log: string): string | undefined {
   const commit = at < 0 ? undefined : lines[at + 1]?.trim();
   return commit !== undefined && /^[0-9a-f]{40}$/.test(commit) ? commit : undefined;
 }
+
+/**
+ * The folders a run's tests were scoped to, from the `scope: <mode> — <folders> — <why>` line storytree's test runner
+ * prints first (`scope: affected — packages/cart, apps/web — changed: …`): an empty list for `nothing`, `everything` for
+ * a run of everything (`full`, or the files named on the command line), and undefined when the log names no scope.
+ */
+export function scopeOfLog(log: string): string[] | "everything" | undefined {
+  for (const line of log.split("\n").map(textOf)) {
+    // Only the first: a test's own output may print another.
+    const scope = /^scope: ([\w-]+)(?: — (.*?) — )?/.exec(line);
+    if (scope === null) continue;
+    if (scope[1] === "full" || scope[2] === undefined) return "everything";
+    return scope[2] === "nothing" ? [] : scope[2]!.split(", ").map((folder) => folder.trim());
+  }
+  return undefined;
+}

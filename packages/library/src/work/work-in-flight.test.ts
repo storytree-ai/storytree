@@ -269,7 +269,7 @@ for (const backend of [memory, postgres]) {
     await flight.pendChange(increment.id, { record: form.id, fields: { title: "Address form" } });
     await flight.pendChange(increment.id, { record: promise.id, retire: "overtaken by the address form" });
     await assert.rejects(flight.pendChange(increment.id, { record: promise.id, fields: { title: "x" } }), RangeError, "an edit after a pending retirement");
-    assert.deepEqual((await records.get(increment.id))?.fields.pending, [
+    assert.deepEqual(((await records.get(increment.id)) as SchemaRecord<"increment"> | null)?.fields.pending, [
       { record: form.id, type: "capability", base, before: { title: form.fields.title, description: null }, after: { title: "Address form", description: "Where they type it" } },
       { record: promise.id, type: "contract", base: await latest(promise.id), retire: "overtaken by the address form" },
     ], "merged: the first base and before stay");

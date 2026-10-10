@@ -20,7 +20,7 @@
         "hsl(214, 80%, 68%) capability_94f91d2ed3a9 lot",
         "hsl(214, 80%, 68%) capability_d37b7ec1b593 lot"
       ],
-      "claimedFrames": 475,
+      "claimedFrames": 516,
       "pixels": {
         "marks": 8,
         "changed": 1512
@@ -29,95 +29,95 @@
         {
           "id": "staked-capability_ff897f5c13aa",
           "recorded": "2026-10-05T02:15:33.468Z",
-          "planSeconds": 6.89
+          "planSeconds": 6.76
         },
         {
           "id": "lifted-capability_ff897f5c13aa",
           "recorded": "2026-10-05T02:19:43.458Z",
-          "planSeconds": 7.47
+          "planSeconds": 7.33
         },
         {
           "id": "staked-capability_f29c62742cce",
           "recorded": "2026-10-05T02:28:12.991Z",
-          "planSeconds": 8.36
+          "planSeconds": 8.21
         },
         {
           "id": "staked-capability_fb36c3db4690",
           "recorded": "2026-10-05T02:28:14.641Z",
-          "planSeconds": 8.65
+          "planSeconds": 8.49
         },
         {
           "id": "staked-capability_9a6a5d648ba6",
           "recorded": "2026-10-05T02:28:16.152Z",
-          "planSeconds": 8.94
+          "planSeconds": 8.77
         },
         {
           "id": "staked-capability_d37b7ec1b593",
           "recorded": "2026-10-05T02:28:19.169Z",
-          "planSeconds": 9.23
+          "planSeconds": 9.06
         },
         {
           "id": "staked-capability_668ca101a358",
           "recorded": "2026-10-05T02:28:20.759Z",
-          "planSeconds": 9.52
+          "planSeconds": 9.34
         },
         {
           "id": "staked-capability_ed214990be99",
           "recorded": "2026-10-05T02:28:24.860Z",
-          "planSeconds": 9.81
+          "planSeconds": 9.62
         },
         {
           "id": "staked-capability_276fa436dc33",
           "recorded": "2026-10-05T02:28:26.502Z",
-          "planSeconds": 10.1
+          "planSeconds": 9.91
         },
         {
           "id": "staked-capability_94f91d2ed3a9",
           "recorded": "2026-10-05T02:28:27.018Z",
-          "planSeconds": 10.39
+          "planSeconds": 10.19
         },
         {
           "id": "lifted-capability_f29c62742cce",
           "recorded": "2026-10-05T02:29:25.015Z",
-          "planSeconds": 10.68
+          "planSeconds": 10.76
         },
         {
           "id": "lifted-capability_fb36c3db4690",
           "recorded": "2026-10-05T02:31:35.789Z",
-          "planSeconds": 10.96
+          "planSeconds": 11.04
         },
         {
           "id": "lifted-capability_9a6a5d648ba6",
           "recorded": "2026-10-05T02:37:37.586Z",
-          "planSeconds": 11.83
+          "planSeconds": 11.89
         },
         {
           "id": "lifted-capability_ed214990be99",
           "recorded": "2026-10-05T02:42:20.737Z",
-          "planSeconds": 12.44
+          "planSeconds": 12.49
         },
         {
           "id": "lifted-capability_276fa436dc33",
           "recorded": "2026-10-05T02:42:22.988Z",
-          "planSeconds": 12.73
+          "planSeconds": 12.77
         },
         {
           "id": "lifted-capability_d37b7ec1b593",
           "recorded": "2026-10-05T02:46:23.975Z",
-          "planSeconds": 13.33
+          "planSeconds": 13.36
         },
         {
           "id": "lifted-capability_668ca101a358",
           "recorded": "2026-10-05T02:46:26.167Z",
-          "planSeconds": 13.62
+          "planSeconds": 13.65
         },
         {
           "id": "lifted-capability_94f91d2ed3a9",
           "recorded": "2026-10-05T02:46:28.270Z",
-          "planSeconds": 13.91
+          "planSeconds": 13.93
         }
       ],
-      "frames": 4477
+      "frames": 4544
     },
     {
       "width": 390,
@@ -131,7 +131,7 @@
         "hsl(214, 80%, 68%) capability_94f91d2ed3a9 lot",
         "hsl(214, 80%, 68%) capability_d37b7ec1b593 lot"
       ],
-      "claimedFrames": 898,
+      "claimedFrames": 957,
       "pixels": {
         "marks": 8,
         "changed": 518
@@ -140,95 +140,95 @@
         {
           "id": "staked-capability_ff897f5c13aa",
           "recorded": "2026-10-05T02:15:33.468Z",
-          "planSeconds": 6.89
+          "planSeconds": 6.76
         },
         {
           "id": "lifted-capability_ff897f5c13aa",
           "recorded": "2026-10-05T02:19:43.458Z",
-          "planSeconds": 7.47
+          "planSeconds": 7.33
         },
         {
           "id": "staked-capability_f29c62742cce",
           "recorded": "2026-10-05T02:28:12.991Z",
-          "planSeconds": 8.36
+          "planSeconds": 8.21
         },
         {
           "id": "staked-capability_fb36c3db4690",
           "recorded": "2026-10-05T02:28:14.641Z",
-          "planSeconds": 8.65
+          "planSeconds": 8.49
         },
         {
           "id": "staked-capability_9a6a5d648ba6",
           "recorded": "2026-10-05T02:28:16.152Z",
-          "planSeconds": 8.94
+          "planSeconds": 8.77
         },
         {
           "id": "staked-capability_d37b7ec1b593",
           "recorded": "2026-10-05T02:28:19.169Z",
-          "planSeconds": 9.23
+          "planSeconds": 9.06
         },
         {
           "id": "staked-capability_668ca101a358",
           "recorded": "2026-10-05T02:28:20.759Z",
-          "planSeconds": 9.52
+          "planSeconds": 9.34
         },
         {
           "id": "staked-capability_ed214990be99",
           "recorded": "2026-10-05T02:28:24.860Z",
-          "planSeconds": 9.81
+          "planSeconds": 9.62
         },
         {
           "id": "staked-capability_276fa436dc33",
           "recorded": "2026-10-05T02:28:26.502Z",
-          "planSeconds": 10.1
+          "planSeconds": 9.91
         },
         {
           "id": "staked-capability_94f91d2ed3a9",
           "recorded": "2026-10-05T02:28:27.018Z",
-          "planSeconds": 10.39
+          "planSeconds": 10.19
         },
         {
           "id": "lifted-capability_f29c62742cce",
           "recorded": "2026-10-05T02:29:25.015Z",
-          "planSeconds": 10.68
+          "planSeconds": 10.76
         },
         {
           "id": "lifted-capability_fb36c3db4690",
           "recorded": "2026-10-05T02:31:35.789Z",
-          "planSeconds": 10.96
+          "planSeconds": 11.04
         },
         {
           "id": "lifted-capability_9a6a5d648ba6",
           "recorded": "2026-10-05T02:37:37.586Z",
-          "planSeconds": 11.83
+          "planSeconds": 11.89
         },
         {
           "id": "lifted-capability_ed214990be99",
           "recorded": "2026-10-05T02:42:20.737Z",
-          "planSeconds": 12.44
+          "planSeconds": 12.49
         },
         {
           "id": "lifted-capability_276fa436dc33",
           "recorded": "2026-10-05T02:42:22.988Z",
-          "planSeconds": 12.73
+          "planSeconds": 12.77
         },
         {
           "id": "lifted-capability_d37b7ec1b593",
           "recorded": "2026-10-05T02:46:23.975Z",
-          "planSeconds": 13.33
+          "planSeconds": 13.36
         },
         {
           "id": "lifted-capability_668ca101a358",
           "recorded": "2026-10-05T02:46:26.167Z",
-          "planSeconds": 13.62
+          "planSeconds": 13.65
         },
         {
           "id": "lifted-capability_94f91d2ed3a9",
           "recorded": "2026-10-05T02:46:28.270Z",
-          "planSeconds": 13.91
+          "planSeconds": 13.93
         }
       ],
-      "frames": 7127
+      "frames": 7124
     }
   ]
 }

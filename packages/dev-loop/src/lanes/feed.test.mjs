@@ -48,7 +48,6 @@ test("11.8 · the pool picks ready work from every package by claims alone, olde
     increment("waits", "packages/app", { parked: "2026-09-02T00:00:00Z" }),
     increment("owner-wait", "packages/app", { parked: "2026-09-02T00:00:00Z" }),
     increment("question", "packages/app", { parked: "2026-09-03T00:00:00Z" }),
-    increment("owner", "needs: the owner's sign-in", { parked: "2026-09-04T00:00:00Z" }),
     increment("laptop", "needs: the laptop", { parked: "2026-09-04T00:00:00Z" }),
     increment("website", "packages/app", { parked: "2026-09-04T00:00:00Z", arc: WEBSITE_ARC }),
     increment("closed", "packages/app", { parked: "2026-09-04T00:00:00Z", status: "closed" }),
@@ -65,7 +64,6 @@ test("11.8 · the pool picks ready work from every package by claims alone, olde
   assert.match(why.waits, /waits on x/);
   assert.match(why["owner-wait"], /waits for the owner/);
   assert.match(why.question, /held on question_1/);
-  assert.match(why.owner, /owner action/);
   assert.match(why.laptop, /another machine/);
   assert.match(why.website, /website arc/);
   assert.equal(why.closed, undefined);
@@ -79,6 +77,16 @@ test("11.8 · the pool picks ready work from every package by claims alone, olde
   assert.equal(attempts.get("refused").refusedBy, "s9", "a claim older than the start refused it");
   assert.deepEqual(pickPool(survey([increment("refused", "x"), increment("ran", "x")]), { attempts, max: 2 }).picks.map((one) => one.id), ["refused"],
     "retried once its claim clears; work it ran is not");
+});
+
+test("11.15 · only a wait for the owner or a held-on question keeps work from the pool as his; no wording in its body does", () => {
+  const work = survey([
+    increment("worded", "needs: the owner's sign-in. An owner action names the build.", { parked: "2026-09-01T00:00:00Z" }),
+    increment("waited", "Build it in packages/app.", { parked: "2026-09-02T00:00:00Z" }),
+  ], { holds: { waits: {}, waitsFor: { waited: [{ releaser: "owner", note: "sign in to the store", holds: true }] }, heldOn: {} } });
+  const { picks, skipped } = pickPool(work, { max: 2 });
+  assert.deepEqual(picks.map((one) => one.id), ["worded"]);
+  assert.deepEqual(skipped, [{ id: "waited", why: "waits for the owner: sign in to the store" }]);
 });
 
 test("11.10 · the pool takes ready work by its arc's priority, then by when it was parked", async () => {

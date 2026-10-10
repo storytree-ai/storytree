@@ -23,8 +23,8 @@ const rank = (one) => one.priority ?? Infinity;
 /**
  * The pool's next `max` increments from one survey (ADR-0955 D2), and why each other was skipped. A candidate is
  * not closed, sits on an active arc, has no live claim on it or on a capability its list names, no wait or held-on
- * question, and needs neither the owner nor
- * another machine; no fence or track is read. By arc priority, then oldest parked first, and within one priority
+ * question (only those say it needs the owner; its body's wording never does), and its needs line names no other
+ * machine; no fence or track is read. By arc priority, then oldest parked first, and within one priority
  * those on an arc no live session (nor a pick already made) is on before the rest (ADR-0963 D2). `running` names the increments this dispatcher is running, never started
  * twice; `attempts` maps each increment this dispatcher has started to when it started it: a live claim older than that start
  * (on it or on a listed capability) refused it, and it is retried only once that claim clears (it records the refusal in `attempts`). Work whose session has
@@ -66,9 +66,7 @@ export function pickPool(survey, { attempts = new Map(), running = [], max = 1, 
       const questions = survey.holds.heldOn[one.id] ?? [];
       if (questions.length) return `held on ${questions.join(", ")}`;
       if (one.arc === WEBSITE_ARC) return "on the website arc";
-      const needs = (one.body.match(/\bneeds:[^\n]*/gi) ?? []).join("\n");
-      if (/\bowner\b/i.test(needs) || /\bowner action\b/i.test(one.body)) return "needs an owner action";
-      if (/\b(?:laptop|another machine)\b/i.test(needs)) return "needs another machine";
+      if ((one.body.match(/\bneeds:[^\n]*/gi) ?? []).some((line) => /\b(?:laptop|another machine)\b/i.test(line))) return "needs another machine";
       return undefined;
     })();
     if (why) skipped.push({ id: one.id, why });

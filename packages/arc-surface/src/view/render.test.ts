@@ -28,17 +28,28 @@ test("3/4 drawer rows hide queued chips until their blocker's caret opens, with 
   assert.doesNotMatch(opened, /Queued after this arc/);
 });
 
-test("3/5 question list gives reading cost; opening swaps in the reading and back restores the list", () => {
+test("3/5 the detail panel is rows you scan: a folded intent, a question per row with its status, and nothing of a question's prose until it is opened", () => {
   const list = renderBoard(board, "build");
-  assert.match(list, /data-question-open="q"/);
-  assert.match(list, /\d+ words/);
+  assert.match(list, /<details class="arc-fold arc-intent-fold" data-fold-key="build:intent"><summary>Intent<\/summary>/);
+  assert.match(list, /data-question-open="q"[^>]*>.*?Which release\?.*?arc-status-open[^>]*>open</s);
+  assert.doesNotMatch(list, /\d+ words|diagram stored|no diagram|Open ↗|comes only from waits|<h4>Settled/);
   assert.doesNotMatch(list, /The full question statement/);
   const reading = renderBoard(board, "build", "q");
   assert.match(reading, /The full question statement/);
   assert.match(reading, /data-question-back/);
   assert.doesNotMatch(reading, /data-question-open|Intent of build/);
-  assert.equal(renderBoard(board, "build", undefined), list);
   assert.equal(renderBoard(board, "build", "removed-question"), list);
+});
+
+test("3/5 the increments table follows the questions: a row per open increment opens in place to its detail, and landed ones fold behind one row", () => {
+  const work = (id: string, status: "proposal" | "closed" = "proposal") => record(id, "increment", { arc: "a", title: `Build ${id}`, objective: `Objective of ${id}`, body: "planning body", status, ...(status === "closed" ? { outcome: { date: "2026-09-20", disposition: "landed" as const, pr: "7" } } : {}) });
+  const a = { arc: record("a", "arc", { title: "Arc a", intent: "a", endState: "Done" }), state: "active" as const, questions: [], increments: [work("l1", "closed"), work("l2", "closed"), work("o1")] };
+  const html = renderBoard(boardView({ arcs: [a], heldOn: {}, waits: {} }, [], new Date()), "a");
+  const panel = html.slice(html.indexOf('<aside class="arc-briefing"'));
+  assert.match(panel, /<details class="arc-increment" data-fold-key="a:increment:o1"><summary><span class="arc-swatch arc-grey"[^>]*><\/span><span class="arc-increment-title"[^>]*>Build o1<\/span>.*?to take.*?<\/summary>.*?Objective of o1/s);
+  assert.match(panel, /<details class="arc-fold arc-landed-fold" data-fold-key="a:landed"><summary>2 landed<\/summary>.*?data-fold-key="a:increment:l1".*?#7/s);
+  assert.ok(panel.indexOf("a:increment:o1") < panel.indexOf("a:landed"));
+  assert.doesNotMatch(panel, /planning body|<h4>Questions/, "an arc with no questions shows no questions section");
 });
 
 // Arc surface contract 3.1: the bar is dedicated to arcs and exposes its toggle state.
@@ -81,7 +92,7 @@ test("3.2 a lane's second line is its bars alone: the count is spoken on the bar
   const html = renderBoard(boardView({ arcs: [a], heldOn: {}, waits: { i2: [{ on: "i1", reason: "after i1", forGood: false }] }, waitsFor: { i3: [{ releaser: "event", note: "vendor ships the part", checkBack: "2999-01-02", holds: true }] } }, [], new Date()), "a");
   const track = html.match(/<span class="arc-track">(.*?)<\/span>\s*<\/button>/s)![1]!;
   assert.match(track, /^<span class="arc-bars" role="group" aria-label="Increments: 1 landed · 2 open">(<span class="arc-bar[^>]*>[^<]*<\/span>)+<\/span>$/);
-  assert.doesNotMatch(html, /arc-count|arc-waits-on|arc-note-marker|arc-idle-marker|>1 landed/);
+  assert.doesNotMatch(html.slice(0, html.indexOf("<aside")), /arc-count|arc-waits-on|arc-note-marker|arc-idle-marker|>1 landed/);
 });
 
 test("3.3 a lane counts what its open work waits on at the right of its title: an hourglass for other work and events, a question mark for the owner; a mark with nothing to count is not drawn, and a ready lane's idle claims are in its chip's hover", () => {

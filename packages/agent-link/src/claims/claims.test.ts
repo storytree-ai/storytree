@@ -115,6 +115,29 @@ test("5.2 B's claim on it is refused, naming A, and a claim-refused line records
   });
 });
 
+test("5.35 a refused claim names the increments its holder holds the work for: the one it claimed the work under first, then the rest it holds; none when it holds no increment", async () => {
+  await withWorld(async ({ library, emailForm, passwordReset, as }) => {
+    const { park } = await arcOf(library);
+    const other = await park("welcome email");
+    const driving = await park("email form");
+    assert.equal((await claim(as("A"), other, "driving the welcome email")).ok, true);
+    assert.equal((await claim(as("A"), driving, "driving the email form")).ok, true);
+    assert.equal((await claim(as("A"), emailForm, "building the email form")).ok, true);
+    assert.equal((await claim(as("C"), passwordReset, "fixing the reset link")).ok, true);
+
+    const refused = await claim(as("B"), emailForm, "I want it too");
+    assert.ok(!refused.ok && refused.refused === "held");
+    assert.deepEqual(refused.heldFor, [driving, other], "the increment it was claimed under first");
+    const unlocked = await claimRefusal(as("B"), emailForm);
+    assert.ok(unlocked?.refused === "held");
+    assert.deepEqual(unlocked.heldFor, [driving, other], "read without the lock, the same");
+
+    const none = await claim(as("B"), passwordReset, "I want this one");
+    assert.ok(!none.ok && none.refused === "held");
+    assert.deepEqual(none.heldFor, [], "its holder holds no increment");
+  });
+});
+
 test("5.2, 4.12 verified safe close-out permits takeover despite stale commands; unverified or resumed holders still bind", async () => {
   for (const scenario of ["finished", "compacted", "unsafe", "unknown-runs", "running", "unmerged", "dirty-main", "background", "prompted", "restarted", "new-claim", "reclaimed"] as const) {
     await withWorld(async ({ log, project, emailForm, passwordReset, as }) => {

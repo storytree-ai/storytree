@@ -23,7 +23,8 @@ Under **Legible at the resting view**, the bar uses 14 px text with a separate p
 that truncates safely on narrow windows. Under **The resting view is designed, not fitted**,
 the native bar is 1,060 × 60 px, occupying 6.6% of the frame, with a 12 px gutter before the
 36 px gear. The browser proof additionally checks a 1,380 px bar at 1,440 px and a 300 px bar
-at 360 px; the forest controls start below the strip. Under **Meaning outranks appearance**,
+at 360 px; the forest controls start below the strip. (Since the two top bars landed, the
+browser proof reads the later layout: see *Re-take* below.) Under **Meaning outranks appearance**,
 the bar remains a native button with an explicit open/close name, expanded state, visible
 keyboard focus and a direction caret. Its label makes no stale claim about current work.
 These are review observations, not visual acceptance.
@@ -74,3 +75,14 @@ wrapper stops Xvfb. No live library, claim, decision or question was written.
 
 [Library patch and supervisor checklist](library-update/README.md) carry the story updates.
 The supervisor records ADR-0660’s narrowed handle clause and closes the increment.
+
+## Re-take, 2026-10-10 (increment_357069f477a3)
+
+The two top bars (commit 4cac4f1f, `packages/app/evidence/top-bars`) moved the gear into the
+app's own 48 px bar along the top edge and put the arc bar directly below it. The capture's
+geometry now asserts that layout: the app bar at (0, 0) across 1,440 px with the gear inside it;
+the arc bar at x=0, y=48, the full 1,440 px wide and 48 px tall; the drawer opening at the arc
+bar's bottom edge; and, at 360 px, a 360 px arc bar with the gear above it. Every other
+assertion is unchanged. [bar-closed.png](bar-closed.png), [bar-open.png](bar-open.png) and
+[capture.json](capture.json) are now this browser capture's re-take (1,440 × 960, snapshot
+`2026-09-28T07-26-00-491Z.json`); the Electron readings above are the earlier native take.

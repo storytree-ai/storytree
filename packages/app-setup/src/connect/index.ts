@@ -2,7 +2,8 @@
 import { mkdirSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
-import { CODEX_TRUST_STEP, codexHookTrust, launcherFiles, launcherRuns, markDisconnected, registerHooks, removeCodexInstructions, removeHooks, removeLauncher, runsElevated, writeCodexInstructions } from "@storytree/agent-link";
+import { CODEX_TRUST_STEP, codexHookTrust, launcherFiles, launcherRuns, markDisconnected, registerHooks, removeHooks, removeLauncher, runsElevated } from "@storytree/agent-link";
+import { removeCodexInstructions, writeCodexInstructions } from "./codex-agents.js";
 import { claudeSettings, codexSettings, installedToolServerCommand, read, runHarness, type Harness, type InstalledToolServerCommand, type RunHarness, type Settings } from "./harness.js";
 
 export { installedToolServerCommand };

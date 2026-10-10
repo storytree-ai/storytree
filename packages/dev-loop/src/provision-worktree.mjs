@@ -30,9 +30,12 @@
 //
 // With --check it is what `pnpm storytree` runs first: a worktree that is FRESH, UNLINKED or BEHIND
 // cannot start the command line at all, and the crash names a missing module (often @storytree/app), not
-// the cause, so it is refused in one line that names the command to run. A session reaches it when
-// its start hook never ran in this worktree (a launch path that skips it). STALE is let through: the
-// command line usually still runs, and the session-start refresh or `pnpm install` is its fix.
+// the cause. A session reaches it when its start hook never ran in this worktree, or ran before the
+// worktree reached its final commit (a launch path we cannot see from here: two Windows desktop
+// worktrees met it, each healed by running this script by hand), so it installs the worktree itself,
+// as the hook would have, and refuses in one line that names the command to run only if it still
+// cannot start. STALE is let through: the command line usually still runs, and the session-start
+// refresh or `pnpm install` is its fix.
 // Missing links take priority over STALE: a matching lockfile is not proof that the links exist,
 // and a different installed lockfile must not hide a link the command line needs.
 //
@@ -234,6 +237,19 @@ export function checkOutput(root) {
   );
 }
 
+/**
+ * What `pnpm storytree` runs first: a worktree the command line cannot start in is installed as the
+ * session-start hook would have, and refused (in one line, through log) only if it still cannot.
+ * @returns {number} the exit code
+ */
+export function check({ root = repoRoot, install = pnpmInstall, log = () => {} } = {}) {
+  if (!checkOutput(root)) return 0;
+  provision({ root, install, log });
+  const refusal = checkOutput(root);
+  if (refusal) log(refusal);
+  return refusal ? 1 : 0;
+}
+
 /** What the hook writes to stdout for a result: the agent's heads-up when the install failed, else "". */
 export function hookOutput(result, root) {
   if (result.ok) return "";
@@ -260,9 +276,7 @@ if (isEntry()) {
   if (args.includes("--serve")) {
     process.exitCode = await serve({ root });
   } else if (args.includes("--check")) {
-    const refusal = checkOutput(root);
-    if (refusal) process.stderr.write(`${refusal}\n`);
-    process.exitCode = refusal ? 1 : 0;
+    process.exitCode = check({ root, log: (line) => process.stderr.write(`${line}\n`) });
   } else {
     const result = provision({ root, log: (line) => process.stderr.write(`${line}\n`) });
     const output = hook ? hookOutput(result, root) : "";

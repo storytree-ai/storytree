@@ -61,6 +61,7 @@ catch wait result
 exit [lindex $result 3]
 EXP
 step install expect "$OUT/answer.exp" "$ONE_LINER"
+step version defaults read "$APP/Contents/Info" CFBundleShortVersionString
 sleep 10
 shot first-open
 

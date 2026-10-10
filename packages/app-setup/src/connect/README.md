@@ -13,8 +13,10 @@ The delivery lane supplies absolute paths to its own Node and bundled
 `storytree-hook.mjs` and `storytree.mjs`. No cwd, project, npm, repository path, or
 machine Node is captured in registration. Stable installed paths survive resource updates.
 
-Each result reports tools registration and a next action separately; `hooks` is always
-`not verified`. A new agent session reaches the existing setup check. Its project consent
+Each result reports tools registration and a next action separately. Connecting also
+registers the harness's hooks, making its home folder first when it has never run; hooks it
+could not register make the result `not connected` with the file to repair. Claude Code's
+`hooks` are `not verified` until a session runs them. A new agent session reaches the existing setup check. Its project consent
 and received-event verification remain authoritative. Project/managed harness configuration
 can override a user registration and must be diagnosed in that session.
 

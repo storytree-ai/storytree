@@ -86,6 +86,16 @@ test("2.2 connecting registers the chosen harness's hooks, so its first session'
   assert.ok(readFileSync(codexHooks, "utf8").includes("storytree-hook.mjs"));
 });
 
+test("2.2 connecting a harness that has never run, so has no home folder yet, still registers its hooks", async (t) => {
+  const f = fixture(t);
+  rmSync(f.claude, { recursive: true });
+  rmSync(f.codex, { recursive: true });
+  const results = await connectAgents({ ...f.options, harnesses: ["claude-code", "codex"] });
+  assert.deepEqual(results.map((r) => r.tools), ["connected", "connected"]);
+  assert.ok(readFileSync(path.join(f.claude, "settings.json"), "utf8").includes("storytree-hook.mjs"));
+  assert.ok(readFileSync(path.join(f.codex, "hooks.json"), "utf8").includes("storytree-hook.mjs"));
+});
+
 test("2.2 connecting Codex tells its first session, hooks trusted or not, to call check_setup first in a project; disconnecting takes that out", async (t) => {
   const f = fixture(t);
   const agents = path.join(f.codex, "AGENTS.md");

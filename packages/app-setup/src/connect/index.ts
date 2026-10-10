@@ -1,5 +1,5 @@
 /** Capability 2 · Connect an agent: per-user agent connection. Setup checks and hook verification stay in agent-link. */
-import { statSync } from "node:fs";
+import { mkdirSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 import { CODEX_TRUST_STEP, codexHookTrust, launcherFiles, launcherRuns, markDisconnected, registerHooks, removeCodexInstructions, removeHooks, removeLauncher, runsElevated, writeCodexInstructions } from "@storytree/agent-link";
@@ -90,8 +90,12 @@ export async function connectAgents(options: ConnectionOptions): Promise<Connect
       continue;
     }
     let settings: Settings | undefined;
-    let checkingFile = path.join(harness === "claude-code" ? where.claude : where.codex, harness === "claude-code" ? "settings.json" : "hooks.json");
+    const harnessHome = harness === "claude-code" ? where.claude : where.codex;
+    const hooksFile = path.join(harnessHome, harness === "claude-code" ? "settings.json" : "hooks.json");
+    let checkingFile = hooksFile;
     try {
+      // A harness that has never started a session has no home yet (its --version makes none): make it, so its hooks go in now.
+      mkdirSync(harnessHome, { recursive: true });
       const hooksText = read(checkingFile);
       if (hooksText !== undefined) {
         const hooks: unknown = JSON.parse(hooksText);
@@ -108,7 +112,9 @@ export async function connectAgents(options: ConnectionOptions): Promise<Connect
       if (outdated) await settings.update(options.installed);
       else if (settings.current === undefined) await settings.add(options.installed);
       markDisconnected(where.storytree, harness, false);
-      registerHooks(harness === "claude-code" ? { claude: where.claude } : { codex: where.codex }, hook);
+      checkingFile = hooksFile;
+      const registration = registerHooks(harness === "claude-code" ? { claude: where.claude } : { codex: where.codex }, hook)[harness];
+      if (registration !== "registered" && registration !== "already registered") throw new Error(`Hooks ${registration}`);
       // Codex shows the agent neither the tool server's instructions nor its tools until it searches, and
       // runs no hook until the user trusts it: its home's AGENTS.md is what sends its first session to check_setup.
       if (harness === "codex") writeCodexInstructions(where.codex);

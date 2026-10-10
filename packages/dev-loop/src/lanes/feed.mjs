@@ -22,7 +22,8 @@ const rank = (one) => one.priority ?? Infinity;
 
 /**
  * The pool's next `max` increments from one survey (ADR-0955 D2), and why each other was skipped. A candidate is
- * not closed, sits on an active arc, has no live claim on it or on a capability its list names, no wait or held-on
+ * not closed, sits on an active arc, has no live claim on it or on a capability its list names (directly, or on the list of an
+ * increment a live session holds), no wait or held-on
  * question (only those say it needs the owner; its body's wording never does), and its needs line names no other
  * machine; no fence or track is read. By arc priority, then oldest parked first, and within one priority
  * those on an arc no live session (nor a pick already made) is on before the rest (ADR-0963 D2). `running` names the increments this dispatcher is running, never started
@@ -35,7 +36,10 @@ const rank = (one) => one.priority ?? Infinity;
 export function pickPool(survey, { attempts = new Map(), running = [], max = 1, now = Date.now(), backoffMs = 30 * 60_000 }) {
   const skipped = [];
   const live = new Map(survey.claims.filter((claim) => claim.holder === "live" && claim.increment).map((claim) => [claim.increment, claim]));
-  const liveCapabilities = new Map(survey.claims.filter((claim) => claim.holder === "live" && claim.capability).map((claim) => [claim.capability, claim]));
+  // A capability on the list of an increment a live session holds is held too, as the edit gate reads it (ADR-0949 D3); a direct claim names it first.
+  const listOf = new Map(survey.increments.map((one) => [one.id, one.capabilities ?? []]));
+  const liveCapabilities = new Map([...live.values()].flatMap((claim) => (listOf.get(claim.increment) ?? []).map((capability) => [capability, { ...claim, capability, on: claim.increment }])));
+  for (const claim of survey.claims) if (claim.holder === "live" && claim.capability) liveCapabilities.set(claim.capability, claim);
   const arcOf = new Map(survey.increments.map((one) => [one.id, one.arc]));
   const busy = new Set([...live.keys(), ...running].map((id) => arcOf.get(id)).filter(Boolean));
   const ready = [];
@@ -53,7 +57,7 @@ export function pickPool(survey, { attempts = new Map(), running = [], max = 1, 
       const held = (one.capabilities ?? []).map((capability) => liveCapabilities.get(capability)).filter(Boolean);
       if (held.length) {
         if (attempt && !attempt.refusedBy && held.some((hold) => Date.parse(hold.since) < attempt.at)) attempt.refusedBy = held[0].session;
-        return held.map((hold) => `${hold.capability} held by live session ${hold.session}`).join("; ");
+        return held.map((hold) => `${hold.capability} held by live session ${hold.session}${hold.on ? ` on the list of ${hold.on}` : ""}`).join("; ");
       }
       if (attempt && !attempt.refusedBy) {
         attempt.ended ??= now;

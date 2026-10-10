@@ -183,3 +183,17 @@ test("11.12 · work whose listed capability a live session holds is left out, an
   assert.deepEqual(pickPool(work([]), { attempts, max: 4, now: ran + 2 * 60_000 }).picks.map((one) => one.id), ["listed", "bounced", "gone-holder", "unlisted"],
     "offered again as soon as the claim clears, with no back-off");
 });
+
+test("11.16 · work is left out while a capability on its list is on the list of an increment another live session holds", () => {
+  const work = (claims) => survey([
+    increment("driven", "x", { parked: "2026-10-01T00:00:00Z", capabilities: ["capability_shared", "capability_own"] }),
+    increment("wide", "y", { arc: "arc_b", parked: "2026-10-02T00:00:00Z", capabilities: ["capability_free", "capability_shared"] }),
+    increment("apart", "z", { arc: "arc_c", parked: "2026-10-03T00:00:00Z", capabilities: ["capability_own2"] }),
+  ], { claims });
+  const driving = [{ increment: "driven", session: "s9", holder: "live", since: "2026-10-07T00:30:00Z" }];
+  const { picks, skipped } = pickPool(work(driving), { max: 3, now });
+  assert.deepEqual(picks.map((one) => one.id), ["apart"]);
+  assert.match(Object.fromEntries(skipped.map((skip) => [skip.id, skip.why])).wide, /capability_shared held by live session s9 on the list of driven/);
+  assert.deepEqual(pickPool(work([{ ...driving[0], holder: "gone" }]), { max: 3, now }).picks.map((one) => one.id), ["driven", "wide", "apart"],
+    "offered again once the holder's claim is no longer live");
+});

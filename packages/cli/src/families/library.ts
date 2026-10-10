@@ -5,7 +5,7 @@
  * Long text can come from a file; refusals are the library's own messages.
  *
  * - `new` hands the fields to the one library function that writes that kind, and the library
- *   judges them. Friction and re-steers are not written here: they go through the agent link's
+ *   judges them. A new contract skips the numbers its story package's tests carry, as plan_contract does. Friction and re-steers are not written here: they go through the agent link's
  *   capture functions (capability 9), whose evidence rules a person meets exactly as an agent does.
  * - A field's value is text, except `true`, `false`, a whole number, or one starting with `[` or
  *   `{`, which are read as JSON (a list of links, a number, a switch). `@file` reads the file.
@@ -185,10 +185,18 @@ const create: Verb = {
       throw new Refusal(`storytree library new writes ${Object.keys(WRITERS).join(", ")}; not "${kind}"`, { code: 2 });
     }
     const library = await context.library();
-    const written = await withIdLists(fieldsOf(args), (fields) => write(library, fields, context.writer()));
+    const fields = fieldsOf(args);
+    const options = kind === "contract" && typeof fields.capability === "string" ? { ...context.writer(), testedNumbers: await testedNumbersOf(context.cwd, library, fields.capability) } : context.writer();
+    const written = await withIdLists(fields, (given) => write(library, given, options));
     return { text: `Wrote ${kind} ${written.id}.`, next: [{ command: `storytree library read ${written.id}`, why: "read it back" }] };
   },
 };
+
+/** The contract numbers `capability`'s story package's numbered tests carry in the checkout `cwd` is in. */
+async function testedNumbersOf(cwd: string, library: Library, capability: string): Promise<string[]> {
+  const [{ checkoutOf }, { testedNumbers }] = await Promise.all([import("@storytree/guardrails"), import("@storytree/map/code-survey")]);
+  return testedNumbers(checkoutOf(cwd), await library.projectTree(), capability);
+}
 
 const read: Verb = {
   name: "read",

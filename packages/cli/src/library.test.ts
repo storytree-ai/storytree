@@ -3,7 +3,7 @@
  * throwaway project, plus a focused check of how the command presents the library's ranked answer.
  */
 import assert from "node:assert/strict";
-import { writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { userInfo } from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
@@ -360,6 +360,24 @@ test("3.13 `new check` writes a quality control check enforcing a principle, and
     const read = await world.run(["library", "read", check!.id]);
     assert.equal(read.code, 0, read.stderr);
     assert.ok(read.stdout.includes(`[check]`) && read.stdout.includes(question), read.stdout);
+  });
+});
+
+test("3.15 `new contract` numbers past the capability's contracts and the numbers its story package's tests carry, as plan_contract does", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const story = await library.addStory({ title: "The shop" });
+    const capability = await library.addCapability({ title: "1 · Cart", story: story.id });
+    await library.addContract({ title: "1.1 · Holds an item", capability: capability.id });
+    const src = path.join(world.folder, "packages/shop/src");
+    mkdirSync(src, { recursive: true });
+    writeFileSync(path.join(src, "cart.ts"), "export const cart = 1;\n");
+    writeFileSync(path.join(src, "cart.test.ts"), 'import { cart } from "./cart.js";\ntest("1.2 an item is counted", () => cart);\ntest("1.3 a cart empties", () => cart);\n');
+
+    const written = await world.run(["library", "new", "contract", "--capability", capability.id, "--title", "Totals its items"]);
+    assert.equal(written.code, 0, written.stderr);
+    const contract = (await library.list("contract")).find(({ id }) => written.stdout.includes(id));
+    assert.equal((contract?.fields as Record<string, unknown> | undefined)?.title, "1.4 · Totals its items");
   });
 });
 

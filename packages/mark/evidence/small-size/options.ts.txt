@@ -1,0 +1,61 @@
+import { writeFileSync } from "node:fs";
+import { SHAPES, COLOURWAYS, type Shape } from "../../src/drawing.ts";
+import { writePng } from "../../src/files.ts";
+import { renderShapes } from "./raster.ts";
+
+type Frame = { dx: number; dy: number; s: number };
+const island = SHAPES.find((s) => s.kind === "blob")! as Extract<Shape, { kind: "blob" }>;
+const fork = [0, 3] as const;
+function tree(f: Frame, lineWidth = 2.5, rootR = 3.5, leafR = 5): Shape[] {
+  const lines: Shape[] = ([[[0, 17], fork], [fork, [-14, -7]], [fork, [14, -7]], [fork, [0, -17]]] as const)
+    .map(([from, to]) => ({ kind: "line", role: "tree", frame: f, from, to, width: lineWidth }) as Shape);
+  const dots = [["tree", [0, 17], rootR], ["tree", fork, rootR], ["leaf", [-14, -7], leafR], ["leaf", [14, -7], leafR], ["leaf", [0, -17], leafR]] as const;
+  return [...lines, ...dots.map(([role, [x, y], r]) => ({ kind: "circle", role, cx: f.dx + f.s * x, cy: f.dy + f.s * y, r: f.s * r }) as Shape)];
+}
+// The island and tree as one group, scaled by k about the master's (56,57) and moved so that point sits at (cx, cy).
+function group(k: number, cx: number, cy: number, lineWidth = 2.5, rootR = 3.5, leafR = 5): Shape[] {
+  const isl: Frame = { dx: cx - 0.8 * k * 52, dy: cy - 0.8 * k * 53, s: 0.8 * k };
+  return [{ ...island, frame: isl }, ...tree({ dx: cx, dy: cy, s: 0.75 * k }, lineWidth, rootR, leafR)];
+}
+export const OPTIONS: Record<string, Shape[]> = {
+  master: [...SHAPES],
+  // A: the globe fills the tile, no islets, island and tree scaled up with it, the tree's lines and dots bolder.
+  A_globe_fills: [{ kind: "circle", role: "ocean", cx: 52, cy: 52, r: 50 }, ...group(1.75, 52, 54, 3.2, 4, 5.5)],
+  // B: the island alone fills the tile, no globe and no islets; the tree bolder on it.
+  B_island_only: [...group(2.0, 52, 52, 3.2, 4, 5.5)],
+  // C: the tree alone, no globe and no land, filling the tile.
+  C_tree_only: [...tree({ dx: 52, dy: 54, s: 2.0 }, 3, 4, 5.5)],
+};
+
+const scale = (px: Uint8Array, size: number, k: number) => {
+  const out = new Uint8Array(size * k * size * k * 4);
+  for (let y = 0; y < size * k; y++) for (let x = 0; x < size * k; x++) out.set(px.subarray(((Math.floor(y / k) * size) + Math.floor(x / k)) * 4, ((Math.floor(y / k) * size) + Math.floor(x / k)) * 4 + 4), (y * size * k + x) * 4);
+  return out;
+};
+// Contact sheet: per option a row: day16 x8, night16 x8, day32 x4, night32 x4, then actual 16 and 32 of each, on grey.
+const cell = 128, pad = 16, rowsN = Object.keys(OPTIONS).length;
+const W = pad + 4 * (cell + pad) + 2 * (16 + 8) + 2 * (32 + 8) + pad, H = pad + rowsN * (cell + pad);
+const sheet = new Uint8Array(W * H * 4);
+for (let i = 0; i < W * H; i++) sheet.set([200, 200, 200, 255], i * 4);
+const blit = (px: Uint8Array, s: number, x0: number, y0: number) => {
+  for (let y = 0; y < s; y++) for (let x = 0; x < s; x++) {
+    const a = px[(y * s + x) * 4 + 3]! / 255, at = ((y0 + y) * W + x0 + x) * 4;
+    for (let c = 0; c < 3; c++) sheet[at + c] = Math.round(px[(y * s + x) * 4 + c]! * a + sheet[at + c]! * (1 - a));
+  }
+};
+Object.entries(OPTIONS).forEach(([name, shapes], row) => {
+  const y = pad + row * (cell + pad);
+  let x = pad;
+  for (const [size, k] of [[16, 8], [32, 4]] as const) for (const way of ["day", "night"]) {
+    const px = renderShapes(shapes, way, size);
+    blit(scale(px, size, k), cell, x, y); x += cell + pad;
+    writeFileSync(`/home/mickh/storytree-lanes/scratch-7c1d/${name}-${way}-${size}.png`, writePng(px, size));
+  }
+  for (const size of [16, 32]) for (const way of ["day", "night"]) { blit(renderShapes(shapes, way, size), size, x, y + 40); x += size + 8; }
+  console.log(row, name);
+});
+import { deflateSync, crc32 } from "node:zlib";
+const chunk = (t: string, d: Buffer) => { const h = Buffer.alloc(8); h.writeUInt32BE(d.length, 0); h.write(t, 4, "latin1"); const c = Buffer.alloc(4); c.writeUInt32BE(crc32(Buffer.concat([h.subarray(4), d])), 0); return Buffer.concat([h, d, c]); };
+const ih = Buffer.alloc(13); ih.writeUInt32BE(W, 0); ih.writeUInt32BE(H, 4); ih.set([8, 6, 0, 0, 0], 8);
+const raw = Buffer.alloc(H * (W * 4 + 1)); for (let y = 0; y < H; y++) raw.set(sheet.subarray(y * W * 4, (y + 1) * W * 4), y * (W * 4 + 1) + 1);
+writeFileSync("/home/mickh/storytree-lanes/scratch-7c1d/sheet.png", Buffer.concat([Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a]), chunk("IHDR", ih), chunk("IDAT", deflateSync(raw)), chunk("IEND", Buffer.alloc(0))]));

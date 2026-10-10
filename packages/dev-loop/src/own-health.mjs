@@ -352,8 +352,12 @@ function contractsOfResult(result, prefix, prefixedOnly) {
  * Only a leading list names contracts: N.M entries joined by comma, slash or "and", with
  * ascending en-dash ranges within one capability. Whitespace or the title's end must follow
  * the last entry, or a colon and then one ("3.6: …"). Once prose starts, later numbers give no
- * credit. Overlaps count only once.
+ * credit. Overlaps count only once. A range wider than RANGE_LIMIT names none, as the map's survey
+ * refuses one (map 8.10): a fixture's oversized title must not stop the run.
  */
+/** The most contracts one en-dash range may name. */
+const RANGE_LIMIT = 256;
+
 function leadingContracts(title) {
   const prefix = /^(\d+\.\d+(?:–\d+\.\d+)?(?:(?:\s*[,/]\s*|\s+and\s+)\d+\.\d+(?:–\d+\.\d+)?)*):?(?=\s|$)/.exec(title)?.[1];
   if (prefix === undefined) return [];
@@ -363,7 +367,7 @@ function leadingContracts(title) {
     if (last === undefined) continue;
     const [capability, start] = first.split(".");
     const [endCapability, end] = last.split(".");
-    if (capability !== endCapability || Number(end) < Number(start)) return [];
+    if (capability !== endCapability || Number(end) < Number(start) || Number(end) - Number(start) >= RANGE_LIMIT) return [];
     for (let n = Number(start) + 1; n <= Number(end); n++) numbers.add(`${capability}.${n}`);
   }
   return [...numbers];

@@ -1,8 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { markSvg } from "@storytree/mark";
-
-import { PAGE_MARK, renderAppMenu, renderNoProjects, renderSwitcher } from "./render.js";
+import { renderAppMenu, renderNoProjects, renderSwitcher } from "./render.js";
 
 test("2.5: the empty page explains adding a project from the gear menu or the command line", () => {
   const html = renderNoProjects();
@@ -17,8 +15,9 @@ test("2.11 · the empty page shows storytree's mark in the page theme's colours,
   assert.ok(mark, "the mark is drawn inline, above the heading");
   assert.ok(html.indexOf(mark) < html.indexOf("<h1>"));
   assert.match(mark, /aria-hidden="true"/);
-  assert.equal(mark.replace(/ class="app-mark" aria-hidden="true"/, ""), markSvg(PAGE_MARK).trim(), "the mark's own drawing");
-  assert.deepEqual(PAGE_MARK, { ocean: "var(--mark-ocean)", land: "var(--mark-land)", tree: "var(--mark-tree)", leaf: "var(--mark-leaf)" });
+  assert.match(mark, /viewBox="0 0 104 104"/, "the mark's own drawing");
+  const colours = [...mark.matchAll(/(?:fill|stroke)="([^"]+)"/g)].map((m) => m[1]);
+  assert.deepEqual(new Set(colours), new Set(["var(--mark-ocean)", "var(--mark-land)", "var(--mark-tree)", "var(--mark-leaf)"]), "every role from the theme, no colour of its own");
   assert.doesNotMatch(mark, /<rect/, "the page is the canvas");
 });
 

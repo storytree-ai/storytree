@@ -664,7 +664,7 @@ test("4.20 `arc increment settle-pending` applies the leftover pending plan chan
     assert.equal(settled.code, 0, settled.stderr);
     assert.match(settled.stdout, new RegExp(`${landed.id}: applied 1 \\(${form.id}\\)`));
     assert.match(settled.stdout, new RegExp(`${failed.id}: dropped 1`));
-    assert.equal((await library.get(form.id))?.fields["description"], "Where they type it");
+    assert.equal(((await library.get(form.id))?.fields as { description?: string } | undefined)?.description, "Where they type it");
     assert.notEqual(await library.get(promise.id), null, "the failed increment's retirement was dropped, not applied");
 
     const none = await world.run(["arc", "increment", "settle-pending"]);

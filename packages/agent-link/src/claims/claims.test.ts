@@ -443,7 +443,7 @@ test("5.37 when a claim on an increment ends because its branch's pull request m
     await endMergedClaims({ log, project, folder: "/work/site", session: "C", source: "tool", library: reach }, merges);
 
     assert.deepEqual(applied, [emailForm]);
-    assert.equal((await library.get(emailForm))?.fields["title"], "Address form");
+    assert.equal(((await library.get(emailForm))?.fields as { title?: string } | undefined)?.title, "Address form");
     assert.equal((await library.history({ id: emailForm, newest: 1 }))[0]?.reason, `applied at the merge of PR #7 (${increment.id})`);
     assert.deepEqual(await readClaims(log, project), [], "and then the claim ended");
   });

@@ -24,9 +24,10 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 /** The commands, by the file each is built to. */
 const ENTRY_POINTS: Readonly<Record<string, string>> = {
   "storytree-hook": path.join(here, "storytree-hook.ts"),
-  "storytree-mcp": path.join(here, "storytree-mcp.ts"),
   "storytree-setup": path.join(here, "storytree-setup.ts"),
-  // The installed launcher is the command-line story's door, beside the hook and setup scripts.
+  // The tool server is the MCP server story's (ADR-0969 D1), and the installed launcher the command-line
+  // story's: the two doors, built beside the hook and setup scripts.
+  "storytree-mcp": path.resolve(here, "../../../mcp-server/src/bins/storytree-mcp.ts"),
   storytree: path.resolve(here, "../../../cli/src/bins/storytree.ts"),
 };
 

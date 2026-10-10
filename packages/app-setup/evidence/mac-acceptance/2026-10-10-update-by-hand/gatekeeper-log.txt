@@ -1,0 +1,11 @@
+2026-10-10 03:47:13.346 Df syspolicyd[208:297b] [com.apple.securityd:SecError] Error checking with notarization daemon: 3
+2026-10-10 03:47:14.499 Df syspolicyd[208:297b] [com.apple.securityd:SecError] Error checking with notarization daemon: 3
+2026-10-10 03:47:14.552 Df syspolicyd[208:297b] [com.apple.securityd:SecError] Error checking with notarization daemon: 3
+2026-10-10 03:47:14.585 Df syspolicyd[208:2bd2] [com.apple.securityd:SecError] Error checking with notarization daemon: 3
+2026-10-10 03:47:14.629 Df syspolicyd[208:297b] [com.apple.securityd:SecError] Error checking with notarization daemon: 3
+2026-10-10 03:47:14.657 Df syspolicyd[208:2bd2] [com.apple.securityd:SecError] Error checking with notarization daemon: 3
+2026-10-10 03:47:14.695 Df syspolicyd[208:297b] [com.apple.securityd:SecError] Error checking with notarization daemon: 3
+2026-10-10 03:47:14.736 Df syspolicyd[208:2bd2] [com.apple.securityd:SecError] Error checking with notarization daemon: 3
+2026-10-10 03:47:17.588 Df syspolicyd[208:2bd3] [com.apple.securityd:SecError] Error checking with notarization daemon: 3
+2026-10-10 03:47:17.617 Df syspolicyd[208:2bd3] [com.apple.securityd:SecError] Error checking with notarization daemon: 3
+2026-10-10 03:47:17.766 Df syspolicyd[208:297b] [com.apple.securityd:SecError] Error checking with notarization daemon: 3

@@ -1,0 +1,2 @@
+ls: /Users/runner/Applications: No such file or directory
+ls: /Users/runner/.storytree: No such file or directory

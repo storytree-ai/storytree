@@ -1,0 +1,3 @@
+ls: /Users/runner/.storytree/0.3: No such file or directory
+ls: /Users/runner/Library/Logs/storytree-0.3: No such file or directory
+tail: /Users/runner/Library/Logs/storytree-0.3/main.log: No such file or directory

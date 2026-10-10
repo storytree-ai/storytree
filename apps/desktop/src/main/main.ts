@@ -34,6 +34,7 @@
 import { smokeArcSurface } from "@storytree/arc-surface";
 import { arcSurfaces } from "@storytree/arc-surface/surfaces";
 import { offThreadSurveyReader } from "@storytree/forest/code-survey";
+import { FOREST_CHANNELS } from "@storytree/forest/page";
 import { forestSurfaces } from "@storytree/forest/surfaces";
 import { appendFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { format } from "node:util";
@@ -51,6 +52,7 @@ import {
   launchToRecord,
   openAppLibrary,
   pageReads,
+  PAGE_READS_CHANNELS,
   projectSelection,
   refreshOwnHealth,
   seedWriting,
@@ -253,37 +255,34 @@ async function run(): Promise<void> {
     }
   }
 
-  ipcMain.handle(CHANNELS.arcViews, (_event, name: unknown) => open().arcViews(name));
-  ipcMain.handle(CHANNELS.holds, (_event, name: unknown) => open().holds(name));
-  ipcMain.handle(CHANNELS.contextReadings, (_event, name: unknown, sessions: unknown) => open().contextReadings(name, sessions));
-  ipcMain.handle(CHANNELS.idleAfterMs, () => open().idleAfterMs());
-  ipcMain.handle(CHANNELS.leaveAfterMs, () => open().leaveAfterMs());
-  ipcMain.handle(CHANNELS.windowReading, (_event, name: unknown, session: unknown) => open().windowReading(name, session));
-  ipcMain.handle(CHANNELS.windowReadings, (_event, name: unknown, sessions: unknown) => open().windowReadings(name, sessions));
-
   ipcMain.handle(CHANNELS.listProjects, () => (reads === undefined ? [] : reads.listProjects()));
   ipcMain.handle(CHANNELS.projectSelection, () => projects?.read() ?? { projects: [], current: undefined });
   ipcMain.handle(CHANNELS.chooseProject, (_event, name: unknown) => {
     if (projects === undefined) throw new Error("The library is not open");
     return projects.choose(name);
   });
+  // Each read asks the library open by then: these are answered before it opens, and again after it reopens.
+  const lateReads = Object.fromEntries(Object.keys(PAGE_READS_CHANNELS).map((method) => [method, (...asked: unknown[]) => {
+    const now = open();
+    return (now[method as keyof typeof PAGE_READS_CHANNELS] as (...asked: unknown[]) => unknown).apply(now, asked);
+  }])) as unknown as PageReads;
   // The code survey surveys the tree the page last read, rather than reading it a second time.
   const treesRead = new Map<unknown, AnnotatedTree>();
-  ipcMain.handle(CHANNELS.projectTree, async (_event, name: unknown) => {
-    const tree = await open().projectTree(name);
-    treesRead.set(name, tree);
-    return tree;
+  answerPage(ipcMain, PAGE_READS_CHANNELS, {
+    ...lateReads,
+    projectTree: async (name: unknown) => {
+      const tree = await open().projectTree(name);
+      treesRead.set(name, tree);
+      return tree;
+    },
   });
-  ipcMain.handle(CHANNELS.changesSince, (_event, name: unknown, cursor: unknown) => open().changesSince(name, cursor));
-  ipcMain.handle(CHANNELS.linesSince, (_event, name: unknown, cursor: unknown) => open().linesSince(name, cursor));
-  ipcMain.handle(CHANNELS.frontCovers, (_event, name: unknown, nodeId: unknown) => open().frontCovers(name, nodeId));
-  ipcMain.handle(CHANNELS.relatedNotes, (_event, name: unknown, noteId: unknown) => open().relatedNotes(name, noteId));
-  ipcMain.handle(CHANNELS.standingDelegations, (_event, name: unknown) => open().standingDelegations(name));
   // Surveys parse every changed file: on a worker thread, so the main process keeps answering meanwhile (map 8.16).
   const surveys = offThreadSurveyReader(path.join(__dirname, "survey-worker.cjs"));
-  ipcMain.handle(CHANNELS.codeSurvey, async (_event, name: unknown) => {
-    const folder = await open().projectFolder(name);
-    return folder === undefined ? {} : surveys.read(folder, treesRead.get(name) ?? await open().projectTree(name));
+  answerPage(ipcMain, FOREST_CHANNELS, {
+    codeSurvey: async (name: unknown) => {
+      const folder = await open().projectFolder(name);
+      return folder === undefined ? {} : surveys.read(folder, treesRead.get(name) ?? await open().projectTree(name));
+    },
   });
 
   if (args.startCheck) {

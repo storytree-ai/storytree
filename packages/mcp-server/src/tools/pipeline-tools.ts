@@ -1,6 +1,6 @@
 /**
- * Capability 11 · Pipeline wiring: `wire_pipeline`, which the agent calls when a project is set up or adopts
- * a pipeline (ADR-0911 D3). It writes storytree's workflow into a GitHub project, or gives the commands for
+ * Capability 6 · Agent tools: `wire_pipeline`, over the agent link's pipeline wiring (its capability 11),
+ * which the agent calls when a project is set up or adopts a pipeline (ADR-0911 D3). It writes storytree's workflow into a GitHub project, or gives the commands for
  * the pipeline the user has elsewhere, and proposes branch protection for the user to approve; it never
  * changes a repository setting itself.
  */
@@ -9,7 +9,7 @@ import path from "node:path";
 
 import { z } from "zod";
 
-import { checkCommands, ghProtection, githubRepository, protectionCommand, storytreeRef, WORKFLOW_FILE, workflowFor, type ProtectionReader, type System } from "../setup/pipeline.js";
+import { checkCommands, ghProtection, githubRepository, protectionCommand, storytreeRef, WORKFLOW_FILE, workflowFor, type ProtectionReader, type System } from "@storytree/agent-link";
 import type { Define } from "./server.js";
 
 export function registerPipelineTools(define: Define, readProtection: ProtectionReader = ghProtection): void {

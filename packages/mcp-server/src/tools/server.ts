@@ -1,5 +1,5 @@
 /**
- * Capability 6 · Agent tools, the MCP server (the agent link story): the toolbox the agent calls
+ * Capability 6 · Agent tools, the MCP server (the MCP server story, ADR-0969 D1): the toolbox the agent calls
  * to plan work, see the plan and who is on what, claim, report red, green and landed, and search,
  * read and write notes. Each tool is a thin wrapper over the library's API and the claims, and
  * answers in a short plain sentence the agent can act on, with what it made or found as data too.
@@ -35,18 +35,14 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 
 import { McpServer, type CallToolResult, type ServerContext } from "@modelcontextprotocol/server";
+import { agentOf, callLines, endMergedClaims, findProject, idleAfterMs, lineOf, locateStorytree, requestOf, route, seenCaller, storytreeHome, type ActivityLog, type Agent, type Caller, type MergeWatch, type SetupOptions } from "@storytree/agent-link";
+import type { ProtectionReader } from "@storytree/agent-link";
 import { type Library, type WriteOptions } from "@storytree/library";
 import { librarianTools } from "@storytree/librarian";
 import { appDatabaseWork } from "@storytree/processes/listing";
 import type { z } from "zod";
 
-import type { ActivityLog, Agent, Line } from "../activity/index.js";
-import { endMergedClaims, type MergeWatch } from "../claims/index.js";
-import { habitsCard } from "../instructions/index.js";
-import { findProject, locateStorytree, route, storytreeHome } from "../routing/index.js";
-import { idleAfterMs } from "../settings/settings.js";
-import type { SetupOptions } from "../setup/index.js";
-import type { ProtectionReader } from "../setup/pipeline.js";
+import { habitsCard } from "../instructions/habits.js";
 import { isUnreachable, libraryDown, NOT_RUNNING_ANSWER, refusalOf, result, type Answer } from "./answers.js";
 import { registerClaimTools } from "./claim-tools.js";
 import { registerContextTools } from "./context-tools.js";
@@ -59,8 +55,8 @@ import { registerWorkTools } from "./work-tools.js";
 import { OWN_TOOLS, registerOwnTools } from "./own-tools.js";
 import { registerPipelineTools } from "./pipeline-tools.js";
 
-export { NOT_RUNNING_ANSWER };
-export type { Answer };
+export { NOT_RUNNING_ANSWER, lineOf };
+export type { Answer, Caller };
 
 /** What the tool server needs to know about where it runs. */
 export interface AgentToolOptions {
@@ -99,12 +95,6 @@ export interface AgentTools {
 
 /** What every tool answers in a folder that is not a storytree project. */
 export const NOT_A_PROJECT_ANSWER = "this folder isn't a storytree project, so storytree has nothing to keep here; call check_setup to see what to do, or carry on without it";
-
-/** The session calling, as the harness names it. */
-export interface Caller {
-  readonly session: string;
-  readonly harness?: string;
-}
 
 /** What a tool has to work with for one call. */
 export interface Call {
@@ -262,11 +252,6 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
   };
 }
 
-/** A line's own "who": the session and, when known, its harness. */
-export function lineOf(caller: Caller): { session: string; harness?: string } {
-  return caller.harness === undefined ? { session: caller.session } : { session: caller.session, harness: caller.harness };
-}
-
 /**
  * Who is calling. The harness from the client's name (Claude Code calls itself `claude-code`, Codex
  * `codex-mcp-client`); the session from where that harness puts it.
@@ -279,68 +264,6 @@ function callerFrom(server: McpServer, context: ServerContext, env: Readonly<Rec
   const fromEnv = text(env.CLAUDE_CODE_SESSION_ID);
   const session = (harness === "claude-code" ? (fromEnv ?? fromMeta) : (fromMeta ?? fromEnv)) ?? ownSession;
   return harness === undefined ? { session } : { session, harness };
-}
-
-/**
- * Which of the session's agents made a call (ADR-0629 D2), from what the harness revealed and
- * nothing else, as the 2026-09-26 probe of Claude Code 2.1.283 and Codex 0.155 found it:
- * - the line the hook before the call left under the call's id (`_meta["claudecode/toolUseId"]`,
- *   Codex's `_meta.callId`), which is all Claude Code reveals: it shares one tool server between
- *   the orchestrator and its subagents;
- * - else, for Codex, the call's own thread: the session's (`sessionId`) is the orchestrator's, any
- *   other a subagent's own id;
- * - a subagent's type and task from the line its start left, when there is one.
- * Otherwise "unknown": never worked out from timing or transcripts.
- */
-function agentOf(lines: readonly Line[], meta: Readonly<Record<string, unknown>>): Agent {
-  const agent = requestOf(lines, meta)?.agent ?? threadAgent(meta) ?? "unknown";
-  if (typeof agent === "string") return agent;
-  const started = lines.findLast((line): line is Extract<Line, { kind: "subagent-started" }> => line.kind === "subagent-started" && line.subagent === agent.subagent);
-  const type = agent.type ?? started?.type;
-  const task = agent.task ?? started?.task;
-  return { subagent: agent.subagent, ...(type === undefined ? {} : { type }), ...(task === undefined ? {} : { task }) };
-}
-
-/**
- * The lines a call is read from (contract 2.7): the line the hook before it left, found by the call's
- * id, and the start of the subagent that line or the call names. Nothing else of the log is sent.
- */
-export async function callLines(log: ActivityLog, project: string, meta: Readonly<Record<string, unknown>>): Promise<Line[]> {
-  const call = callOf(meta);
-  const requested = call === undefined ? [] : await log.lines(project, { kinds: ["tool-requested"], where: { call }, newest: 1, omit: ["transcript"] });
-  const agent = requestOf(requested, meta)?.agent ?? threadAgent(meta);
-  if (typeof agent !== "object") return requested;
-  const started = await log.lines(project, { kinds: ["subagent-started"], where: { subagent: agent.subagent }, newest: 1, omit: ["transcript"] });
-  return [...started, ...requested].sort((a, b) => a.seq - b.seq);
-}
-
-/**
- * The calling session as the hook before the call named it, when one did. After Claude Code's
- * /clear the window is a new session that only its hooks see, while this server keeps the id it was
- * started with; a call no hook saw keeps the id the harness gave the server.
- */
-export function seenCaller(lines: readonly Line[], caller: Caller, meta: Readonly<Record<string, unknown>>): Caller {
-  const requested = requestOf(lines, meta);
-  return requested === undefined ? caller : { ...caller, session: requested.session };
-}
-
-/** The line the hook before a call left, found by the call's id: Claude Code's `_meta["claudecode/toolUseId"]`, Codex's `_meta.callId`. */
-function requestOf(lines: readonly Line[], meta: Readonly<Record<string, unknown>>): Extract<Line, { kind: "tool-requested" }> | undefined {
-  const call = callOf(meta);
-  return call === undefined ? undefined : lines.findLast((line): line is Extract<Line, { kind: "tool-requested" }> => line.kind === "tool-requested" && line.call === call);
-}
-
-/** The call's id, as the harness gave it. */
-function callOf(meta: Readonly<Record<string, unknown>>): string | undefined {
-  return text(meta["claudecode/toolUseId"]) ?? text(meta.callId);
-}
-
-/** Codex names the thread making each call beside its session: the session's own thread is its orchestrator. */
-function threadAgent(meta: Readonly<Record<string, unknown>>): Agent | undefined {
-  const thread = text(meta.threadId);
-  const session = text(meta.sessionId);
-  if (thread === undefined || session === undefined) return undefined;
-  return thread === session ? "orchestrator" : { subagent: thread };
 }
 
 /** A call's progress reporter: a numbered notification per phase, under the token the client sent. */

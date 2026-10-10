@@ -5,17 +5,17 @@ import path from 'node:path';
 import test from 'node:test';
 import { Client } from '@modelcontextprotocol/client';
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
-import { buildBins } from '../bins/build.js';
+import { buildBins } from '@storytree/agent-link/bins';
 import { InMemoryTransport } from '@modelcontextprotocol/server';
 import { launchOwned, type RunRecord } from '@storytree/processes';
 import { stopTestChild, testChildArgs } from '@storytree/processes/testing';
 import { listRuns } from '@storytree/processes/listing';
 import { createAgentTools } from './server.js';
-import { openActivityLog } from '../activity/index.js';
-import { removeTempDir } from '../testing/folders.js';
+import { openActivityLog } from '@storytree/agent-link';
+import { removeTempDir } from '@storytree/agent-link/testing/folders';
 import { connect, ConnectionError } from '@storytree/library';
 import { libraryDown } from './answers.js';
-import { approveCheckout, placeTestServer, testServerUrl, uniqueProjectName, dropTestProjects } from '../testing/pg.js';
+import { approveCheckout, placeTestServer, testServerUrl, uniqueProjectName, dropTestProjects } from '@storytree/agent-link/testing/pg';
 
 for (const installed of [false, true]) test(`processes 3.4/3.6/4.1/5.1: own tools, ${installed ? 'installed' : 'source'} MCP reads and clears the offline ledger and stops only its caller scope`, async t => {
   const home = await mkdtemp(path.join(tmpdir(), 'own-tools-'));

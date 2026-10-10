@@ -7,12 +7,12 @@ import path from "node:path";
 
 import { z } from "zod";
 
-import { currentBranch } from "../activity/index.js";
-import { closeOut } from "../sessions/close-out.js";
-import { nameRefusal, nameSession, SESSION_NAME_LIMIT } from "../sessions/name.js";
+import { currentBranch } from "@storytree/agent-link";
+import { closeOut } from "@storytree/agent-link";
+import { nameRefusal, nameSession, SESSION_NAME_LIMIT } from "@storytree/agent-link";
 
-import { readContext } from "../context/index.js";
-import { guidanceSentence } from "../context/guidance.js";
+import { readContext } from "@storytree/agent-link";
+import { guidanceSentence } from "@storytree/agent-link";
 import { lineOf, type Define } from "./server.js";
 
 export function registerContextTools(define: Define, home?: string): void {

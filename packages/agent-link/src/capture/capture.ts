@@ -1,5 +1,6 @@
 /**
- * Capability 6 · Agent tools (the MCP server). Friction and re-steer capture, with storytree 0.2's evidence rules (ADR-0643 D1, the owner's n4;
+ * Capability 2 · Agent activity log. Friction and re-steer capture, which the MCP server's tools and the
+ * command line both call, with storytree 0.2's evidence rules (ADR-0643 D1, the owner's n4;
  * 0.2's `packages/cli/src/friction.ts` and `resteer.ts`). These are this story's functions: the
  * agent tools call them, and a person's command line (`0-3-cli-story-tree`) calls the same ones.
  * They write through the library's `writeKnowledge`, which keeps the rules of the records

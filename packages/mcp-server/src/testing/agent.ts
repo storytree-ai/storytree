@@ -9,7 +9,7 @@ import { Client } from "@modelcontextprotocol/client";
 import { InMemoryTransport } from "@modelcontextprotocol/server";
 
 import { createAgentTools, type AgentToolOptions } from "../tools/index.js";
-import { testServerDataDir } from "./pg.js";
+import { testServerDataDir } from "@storytree/agent-link/testing/pg";
 
 export interface Answer {
   text: string;

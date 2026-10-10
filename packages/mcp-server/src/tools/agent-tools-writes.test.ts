@@ -19,13 +19,14 @@ import { test } from "node:test";
 import { roundDue, route, worklist } from "@storytree/librarian";
 import { z } from "zod";
 
-import { recordFriction, reinforceFriction, type ToolExtension } from "../index.js";
-import { readClaims } from "../claims/index.js";
-import { MARKER_FILE } from "../routing/index.js";
+import { recordFriction, reinforceFriction } from "@storytree/agent-link";
+import type { ToolExtension } from "./index.js";
+import { readClaims } from "@storytree/agent-link";
+import { MARKER_FILE } from "@storytree/agent-link";
 import { claudeCode, codex, idOf, withAgent } from "../testing/agent.js";
-import { countingStore, longHistory } from "../testing/egress.js";
-import { git } from "../testing/folders.js";
-import { approveCheckout, placeTestServer, uniqueProjectName } from "../testing/pg.js";
+import { countingStore, longHistory } from "@storytree/agent-link/testing/egress";
+import { git } from "@storytree/agent-link/testing/folders";
+import { approveCheckout, placeTestServer, uniqueProjectName } from "@storytree/agent-link/testing/pg";
 import { FOUNDED, planned, TOOLS, withProject } from "../testing/tool-world.js";
 
 test("6.4 a held claim refusal explains the running command and dirty-main close-out disagreement", async () => {

@@ -5,7 +5,9 @@
  */
 import { contextBridge, ipcRenderer } from "electron";
 
-import { CHANNELS, createBridge } from "../bridge.js";
+import { FEEDBACK_IDENTITY_OFFERED } from "@storytree/app-setup/bridge";
 
-const feedbackIdentity = ipcRenderer.sendSync(CHANNELS.feedbackIdentityOffered) === true;
+import { createBridge } from "../bridge.js";
+
+const feedbackIdentity = ipcRenderer.sendSync(FEEDBACK_IDENTITY_OFFERED) === true;
 contextBridge.exposeInMainWorld("storytree", createBridge((channel, ...args) => ipcRenderer.invoke(channel, ...args), { feedbackIdentity }));

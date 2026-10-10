@@ -7,7 +7,7 @@ import { appMenuStyles } from "./styles.js";
 import { mountSurfaces } from "./surfaces.js";
 import { switchProject } from "./switch.js";
 import { mountInstallChoice, mountSignIn, mountUpdates, type InstallChoiceBridge, type SignInBridge } from "./updates.js";
-import type { UpdateAction, UpdateState } from "../updates/main-updates.js";
+import type { UpdatesBridge } from "../updates/bridge.js";
 
 export { renderNoProjects } from "./render.js";
 
@@ -18,7 +18,7 @@ export function mountAppMenu(host: HTMLElement, options: {
   onChosen(): void | Promise<void>;
   onError(error: unknown): void;
   mountHelp(host: HTMLElement, returnFocus: HTMLElement, onOpen: () => void): { open(): void; close(): void; stop(): void };
-  checkForUpdates(action: UpdateAction): Promise<UpdateState>;
+  checkForUpdates: UpdatesBridge["checkForUpdates"];
   /** Opening at sign-in, where the frame can offer it (lifecycle 1.12). */
   signIn?: SignInBridge;
   /** When a downloaded release may install itself, where the app installs releases (updates 4.13). */

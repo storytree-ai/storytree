@@ -1,0 +1,68 @@
+{
+ "build": "c687ceb8673d1ec887532d0de468dca30171aef5",
+ "viewport": "1440 x 900, SwiftShader",
+ "pathwaysStep": [
+  {
+   "title": "Checkout",
+   "x": 949,
+   "y": 132
+  },
+  {
+   "title": "Cart",
+   "x": 949,
+   "y": 265
+  },
+  {
+   "title": "Browsing",
+   "x": 949,
+   "y": 450
+  },
+  {
+   "title": "Signing in",
+   "x": 949,
+   "y": 635
+  }
+ ],
+ "finishedShop": [
+  {
+   "title": "Checkout",
+   "x": 635,
+   "y": 92
+  },
+  {
+   "title": "Reviews",
+   "x": 805,
+   "y": 92
+  },
+  {
+   "title": "Orders",
+   "x": 719,
+   "y": 240
+  },
+  {
+   "title": "Cart",
+   "x": 539,
+   "y": 251
+  },
+  {
+   "title": "Admin",
+   "x": 901,
+   "y": 251
+  },
+  {
+   "title": "Browsing",
+   "x": 624,
+   "y": 453
+  },
+  {
+   "title": "Accounts",
+   "x": 816,
+   "y": 453
+  },
+  {
+   "title": "Signing in",
+   "x": 720,
+   "y": 660
+  }
+ ]
+}

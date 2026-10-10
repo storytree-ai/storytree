@@ -40,20 +40,26 @@ export function turnToIsland(spot: GlobeDirection): GlobeTurn {
 }
 
 /**
- * Face the first failing island in input order; with none failing, the islands' middle (the mean of their
- * directions), so a chain of rows opens centred rather than from its bottom story, or the first story where
- * the islands ring the globe and have no middle. An empty globe stays neutral.
+ * Open level, spun to the first failing island in input order; with none failing, to the islands' middle (the
+ * mean of their directions), or to the first story where the islands ring the globe and have no middle. The
+ * opening never tilts: seen from far away, an untilted globe draws every row as a level line and every
+ * dependency pointing up, and rows lie within 51° of the equator, so a failing island still faces the eye
+ * at 0.63 or more. An empty globe stays neutral.
  */
 export function openingTurn(islands: readonly FacingIsland[]): GlobeTurn {
   const failing = islands.find(isFailing);
-  if (failing !== undefined) return turnToIsland(failing.spot);
+  if (failing !== undefined) return level(turnToIsland(failing.spot));
   if (islands.length === 0) return { yaw: 0, pitch: 0 };
   const middle = islands.reduce((sum, { spot }) => {
     const length = Math.hypot(spot.x, spot.y, spot.z);
     return { x: sum.x + spot.x / length, y: sum.y + spot.y / length, z: sum.z + spot.z / length };
   }, { x: 0, y: 0, z: 0 });
   // Islands spread all round have a middle near the globe's centre, which points nowhere in particular.
-  return turnToIsland(Math.hypot(middle.x, middle.y, middle.z) > 0.25 * islands.length ? middle : islands[0]!.spot);
+  return level(turnToIsland(Math.hypot(middle.x, middle.y, middle.z) > 0.25 * islands.length ? middle : islands[0]!.spot));
+}
+
+function level({ yaw }: GlobeTurn): GlobeTurn {
+  return { yaw, pitch: 0 };
 }
 
 /**

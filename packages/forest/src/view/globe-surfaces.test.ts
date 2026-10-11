@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { Mesh, MeshBasicMaterial, Vector3 } from "three";
-import { growLand, PAST_ISLANDS, pastIslands, presentTerritories, restoreTerritoryPresentation, shownSurfaces, type GlobeSurfaces } from "./globe-surfaces.js";
+import { LineSegments, Mesh, MeshBasicMaterial, Vector3 } from "three";
+import { growLand, PAST_ISLANDS, pastIslands, presentTerritories, restoreTerritoryPresentation, shownSurfaces, TERRITORY_DRAW, TerritoryDrawOn, type GlobeSurfaces } from "./globe-surfaces.js";
 import { fileCircleMarks } from "./file-circles.js";
 import { territoryLand } from "./territory-land.js";
 
@@ -90,4 +90,60 @@ test("3.34 zooming in past the islands hides them, leaving the glass and core; z
   assert.equal(zoom(PAST_ISLANDS.leave * 1.01), false, "back out, the islands return");
   assert.equal(zoom(PAST_ISLANDS.enter * 1.01), false);
   assert.deepEqual(shownSurfaces(undefined, past), shownSurfaces(undefined, false));
+});
+
+test("3.43 territories arrive without a flash: borders trace on along their length, then the fill eases in; kept land stays drawn across a rebuild", () => {
+  const flat = (p: { x: number; z: number }) => new Vector3(p.x, 0, p.z);
+  const square = (x: number) => [{ x, z: 0 }, { x: x + 2, z: 0 }, { x: x + 2, z: 2 }, { x, z: 2 }];
+  // A chain of two borders, 2 + 2 long, around one territory.
+  const one = { territories: [{ capability: "pay", status: "healthy" as const }], cells: [{ territory: 0, polygon: square(0) }],
+    borders: [{ from: { x: 2, z: 0 }, to: { x: 2, z: 2 } }, { from: { x: 2, z: 2 }, to: { x: 0, z: 2 } }] };
+  const drawnOf = (land: ReturnType<typeof territoryLand>) => {
+    const lines = land.getObjectByName("territory-borders") as LineSegments;
+    const count = Math.min(lines.geometry.drawRange.count, lines.geometry.getAttribute("position").count);
+    const at = lines.geometry.getAttribute("position").array;
+    let length = 0;
+    for (let i = 0; i < count; i += 2) length += Math.hypot(at[i * 3 + 3]! - at[i * 3]!, at[i * 3 + 5]! - at[i * 3 + 2]!);
+    return length;
+  };
+  const fill = (land: ReturnType<typeof territoryLand>, capability: string) => ((land.getObjectByName(`territory:${capability}`) as Mesh).material as MeshBasicMaterial).opacity;
+  const drawOn = new TerritoryDrawOn();
+  // Shown plain: a freshly built land has no fill on its first draw, and its borders start undrawn.
+  const first = territoryLand(one, flat);
+  drawOn.take(first, "plain", 10, { standing: false, reduced: false });
+  assert.equal(fill(first, "pay"), 0, "plain shows no fill, even on the frame the land is built");
+  assert.equal(drawnOf(first), 0);
+  assert.equal(drawOn.frame(10.5, false), true, "still drawing");
+  assert.ok(Math.abs(drawnOf(first) - 2) < 1e-6, "half the chain at half the time");
+  assert.equal(drawOn.frame(10 + TERRITORY_DRAW.borders, false), false);
+  assert.ok(Math.abs(drawnOf(first) - 4) < 1e-6, "whole");
+  // Health: a new territory's fill waits for its borders, then eases in.
+  const health = new TerritoryDrawOn();
+  const land = territoryLand(one, flat);
+  const full = fill(land, "pay");
+  health.take(land, "health", 0, { standing: false, reduced: false });
+  assert.equal(fill(land, "pay"), 0, "no fill before its borders are drawn");
+  health.frame(TERRITORY_DRAW.borders + TERRITORY_DRAW.fill / 2, false);
+  assert.ok(fill(land, "pay") > 0 && fill(land, "pay") < full, "the fill eases in");
+  health.frame(TERRITORY_DRAW.borders + TERRITORY_DRAW.fill, false);
+  assert.equal(fill(land, "pay"), full);
+  // A rebuild that adds a territory keeps what was drawn, and draws on only the new land.
+  const two = { territories: [...one.territories, { capability: "ship", status: "unhealthy" as const }],
+    cells: [...one.cells, { territory: 1, polygon: square(2) }], borders: [...one.borders, { from: { x: 4, z: 0 }, to: { x: 4, z: 2 } }] };
+  const rebuilt = territoryLand(two, flat);
+  health.take(rebuilt, "health", 5, { standing: false, reduced: false });
+  assert.equal(fill(rebuilt, "pay"), full, "a kept territory never blinks");
+  assert.equal(fill(rebuilt, "ship"), 0, "the new one starts empty");
+  assert.ok(Math.abs(drawnOf(rebuilt) - 4) < 1e-6, "kept borders stay drawn; the new one starts at nothing");
+  health.frame(5 + TERRITORY_DRAW.borders + TERRITORY_DRAW.fill, false);
+  assert.ok(Math.abs(drawnOf(rebuilt) - 6) < 1e-6);
+  assert.equal(fill(rebuilt, "ship"), ((territoryLand(two, flat).getObjectByName("territory:ship") as Mesh).material as MeshBasicMaterial).opacity);
+  // Hiding forgets it, so showing again draws on; reduced motion and the globe's first draw show it whole at once.
+  health.take(rebuilt, false, 6, { standing: false, reduced: false });
+  health.take(rebuilt, "health", 7, { standing: false, reduced: true });
+  assert.ok(Math.abs(drawnOf(rebuilt) - 6) < 1e-6); assert.equal(fill(rebuilt, "pay"), full);
+  assert.equal(health.frame(7, true), false);
+  const standing = new TerritoryDrawOn(), opened = territoryLand(one, flat);
+  standing.take(opened, "health", 0.2, { standing: true, reduced: false });
+  assert.ok(Math.abs(drawnOf(opened) - 4) < 1e-6); assert.equal(fill(opened, "pay"), full);
 });

@@ -1,6 +1,6 @@
 /** Capability 3 · Story node render. The forest's globe book: lane B's plates at lane A's places, with lane C's failure turns. */
 import { useFrame, useThree } from "@react-three/fiber";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Group, Quaternion, Vector3 } from "three";
 import { claimTints, openingTurn, replayWisps, selectionLanes, type ClaimTint, type EdgeMarker, type FacingIsland, type ForestScene, type GlobeTurn, type Island, type SessionWisp } from "@storytree/forest";
 import type { Descriptor3D } from "@storytree/forest-world";
@@ -19,7 +19,7 @@ import { claimsOn } from "./planet-update.js";
 import { createGlobeGuide, type GlobeControls, type GlobePose } from "./globe-guide.js";
 import { createGlobeAside } from "./globe-aside.js";
 import { asksForHome, miniGlobe } from "./mini-globe.js";
-import { growLand, pastIslands, presentTerritories, shownSurfaces as surfacesFor, type GlobeSurfaces } from "./globe-surfaces.js";
+import { growLand, pastIslands, shownSurfaces as surfacesFor, TerritoryDrawOn, type GlobeSurfaces } from "./globe-surfaces.js";
 
 export type PlanetViewProps = {
   /** Receives the app-owned controls while the globe is mounted. */
@@ -243,21 +243,27 @@ function Territories({ story, land, coast, claimed, radius, spot, lighting, surf
     onStops(story, circleStops(drawn.circles, land.package, { position: new Vector3(...position), quaternion }));
     return () => onStops(story, undefined);
   }, [drawn, land.package, story, spot.x, spot.y, spot.z, radius, onStops]);
-  useEffect(() => {
-    lightFileCircles(drawn.circles, surfaces.sessionTints ? lighting.files : new Map(), lighting.colour, land.package ?? "");
-    lightTerritories(drawn.group, surfaces.sessionTints ? lighting.capabilities : new Map(), lighting.colour);
-    presentTerritories(drawn.group, surfaces.territories);
-    drawn.circles.visible = surfaces.fileCircles;
-    marks.root.visible = surfaces.sessionTints;
-    invalidate();
-  }, [drawn, marks, lighting, land.package, surfaces, invalidate]);
   // 3.30: on a growing globe the land fills in behind its island; once whole it is left alone until the growth or the land changes.
   const growth = usePlanetGrowth();
   const whole = useRef(false);
-  useEffect(() => { whole.current = false; }, [growth, drawn, surfaces]);
+  const grow = useCallback(() => growLand(drawn.group, drawn.circles, { capability: id => growth.capability(id), file: path => growth.file(story, path) }), [drawn, growth, story]);
+  // 3.43: what this island already drew stays drawn across a rebuild; new borders trace on and new fills ease in.
+  const drawOn = useMemo(() => new TerritoryDrawOn(), []);
+  const opened = useRef(true);
+  // Before the land is first drawn, so a rebuilt island never shows a frame in the wrong colours.
+  useLayoutEffect(() => {
+    lightFileCircles(drawn.circles, surfaces.sessionTints ? lighting.files : new Map(), lighting.colour, land.package ?? "");
+    lightTerritories(drawn.group, surfaces.sessionTints ? lighting.capabilities : new Map(), lighting.colour);
+    drawOn.take(drawn.group, surfaces.territories, clock.getElapsedTime(), { standing: opened.current && clock.getElapsedTime() < 1, reduced: reducedMotion() });
+    opened.current = false;
+    drawn.circles.visible = surfaces.fileCircles;
+    marks.root.visible = surfaces.sessionTints;
+    whole.current = grow();
+    invalidate();
+  }, [drawn, marks, drawOn, lighting, land.package, surfaces, clock, grow, invalidate]);
   useFrame(() => {
-    if (whole.current) return;
-    whole.current = growLand(drawn.group, drawn.circles, { capability: id => growth.capability(id), file: path => growth.file(story, path) });
+    if (drawOn.frame(clock.getElapsedTime(), reducedMotion())) invalidate();
+    if (!whole.current) whole.current = grow();
   });
   useEffect(() => () => drawn.root.traverse((object) => {
     const mark = object as { geometry?: { dispose(): void }; material?: { dispose(): void } };

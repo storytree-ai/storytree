@@ -42,6 +42,17 @@
   display: block;
 }
 
+/* The globe's own wrapper: no box of its own. With Stories and Library both off it stays mounted, unseen and
+   unpickable, so it comes back as it was left (3.10). */
+.forest-globe,
+.forest-globe[hidden] {
+  display: contents;
+}
+
+.forest-globe[hidden] {
+  visibility: hidden;
+}
+
 .forest-views {
   position: absolute;
   z-index: 50;
@@ -795,3 +806,4 @@
 .planet-progress { display:block; width:58px; font-size:0.62rem; font-weight:500; line-height:1.2; white-space:nowrap; }
 .planet-progress-meter { display:block; height:3px; margin:0.2rem 0 0.1rem; overflow:hidden; border-radius:2px; background:color-mix(in srgb, currentColor 22%, transparent); }
 .planet-progress-meter > span { display:block; height:100%; background:currentColor; }
+@media (max-width:600px) { .planet-nameplate:not(.capability) { font-size:0.7rem; padding:0.1rem 0.4rem; } .planet-progress { width:auto; min-width:24px; } .planet-progress-word { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); } }

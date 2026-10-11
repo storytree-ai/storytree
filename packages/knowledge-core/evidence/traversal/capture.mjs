@@ -91,7 +91,7 @@ try {
   }
   const row = page.getByRole('complementary', { name: 'Running sessions', exact: true }).locator(`.session-row[data-session-id="${session}"]`);
   await row.waitFor();
-  await page.locator('button[data-forest-mode="library"]').click();
+  await page.locator('button[data-globe-switch="stories"]').click();
   const frames = async () => page.evaluate(async () => {
     for (let i = 0; i < 8; i++) { window.__globe.invalidate(); await new Promise(requestAnimationFrame); }
   });

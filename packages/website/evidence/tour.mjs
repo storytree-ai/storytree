@@ -75,6 +75,17 @@ export async function verifyTourCamera(browser, url) {
     await step("map-arcs");
     await page.waitForTimeout(1500);
     if (await page.locator(".tour-arc-surface").evaluate(node => node.hidden)) failures.push("The arcs panel opens over the bare globe");
+    // 2.18 on a laptop: while the tour plays the arcs drawer is a small list at the edge, with no detail panel, clear of the
+    // globe; 2.21: its first arc is pointed out and named.
+    const arcsList = await page.evaluate(() => {
+      const list = document.querySelector(".tour-arc-surface .arc-overlay").getBoundingClientRect(), globe = document.querySelector("#website-forest canvas").getBoundingClientRect();
+      const briefing = document.querySelector(".tour-arc-surface .arc-briefing");
+      const pointer = document.querySelector(".tour-arc-pointer:not(.away) .tour-tag-text");
+      return { share: list.width * list.height / (innerWidth * innerHeight), briefing: !!briefing?.checkVisibility(), pointer: pointer?.textContent, right: list.right, globeMiddle: globe.left + globe.width / 2 };
+    });
+    if (arcsList.share > .1 || arcsList.briefing || arcsList.right > arcsList.globeMiddle - 200) failures.push(`The arcs list is small, at the edge, with no detail panel: ${JSON.stringify(arcsList)}`);
+    for (let tries = 0; tries < 20 && !arcsList.pointer; tries++) { await page.waitForTimeout(150); arcsList.pointer = await page.locator(".tour-arc-pointer:not(.away) .tour-tag-text").textContent().catch(() => undefined); }
+    if (arcsList.pointer !== "a plan of work: an arc") failures.push(`The arcs line points out the arc: ${arcsList.pointer}`);
     if (await risen() !== 0) failures.push(`The globe stays bare while the arcs are shown: ${await risen()}`);
     // 2.16: each island rises as it is named, signing in first, on the same view; then all four, with their pathways.
     await step("map-stories");
@@ -141,7 +152,7 @@ export async function verifyTour(browser, url, output) {
   const rows = () => page.locator(".tour-session-surface .session-row").allTextContents();
   // 2.8: one pip per step, grouped by explainer; a pip jumps to its step.
   const pips = await page.locator("#tour-pips [data-go]").count();
-  assert.equal(pips, 14, "one pip per step, with six in the map chapter and three in the knowledge chapter");
+  assert.equal(pips, 15, "one pip per step, with seven in the map chapter and three in the knowledge chapter");
   assert.deepEqual(await page.locator("#tour-pips .tb-group").evaluateAll(groups => groups.map(group => group.dataset.group)),
     ["opening", "map", "knowledge", "ending"]);
   await goToStep(page, "map-capabilities");
@@ -189,11 +200,19 @@ export async function verifyTour(browser, url, output) {
   assert.match(await page.locator("#tour-why").textContent(), /Checked against each tool's own documentation on \d+ \w+ \d{4}/);
   await page.screenshot({ path: path.join(output, "390-map-depth.png") });
   await page.locator("#tour-depth").click();
+  // 2.16: the harness step shows the harnesses storytree works with, each by its mark and name, with no panel open.
+  await goToStep(page, "map-harness"); await page.clock.runFor(500);
+  assert.deepEqual(await page.locator("#tour-marks .tour-mark").evaluateAll(nodes => nodes.map(node => [node.textContent, node.querySelector("img")?.complete && node.querySelector("img").naturalWidth > 0])), [["Claude Code", true], ["Codex", true]], "each harness by its own mark and name");
+  assert.equal(await page.locator(".tour-arc-surface").evaluate(node => node.hidden), true, "no panel opens on the harness step");
   // 2.16: the arcs step opens the shop's first arc over the bare globe, its four parts none held yet.
   await goToStep(page, "map-arcs"); await page.clock.runFor(500);
   assert.equal(await page.locator(".tour-arc-surface").evaluate(node => node.hidden), false, "the arcs panel is open");
   await page.locator(".arc-lanes").waitFor();
   assert.match(await page.locator(".arc-lanes").textContent(), /Swag Labs copy/, "the shop's own first arc");
+  // 2.21, with no globe: the arc is pointed out and named below the list.
+  for (let tick = 0; tick < 8 && !await page.locator(".tour-arc-pointer:not(.away)").count(); tick++) await page.clock.runFor(100);
+  assert.equal(await page.locator(".tour-arc-pointer:not(.away) .tour-tag-text").textContent(), "a plan of work: an arc", "the arc is pointed out");
+  assert.equal(await page.locator("#tour-marks").evaluate(node => node.hidden), true, "the marks are the harness step's alone");
   await page.screenshot({ path: path.join(output, "390-map-arcs.png") });
   // 2.16: the claims step opens the arcs on its second line and the sessions list on its third, with the three sessions live then.
   await goToStep(page, "map-claims");
@@ -284,7 +303,7 @@ const overlap = (a, b) => Math.max(0, Math.min(a.x + a.width, b.x + b.width) - M
 // 2.16's framing, at every width: no island's name shown in the map chapter, as it plays through, hides under the heading or
 // the dated note above the globe.
 async function verifyNamesClearHeader(page, width, output) {
-  const map = ["map-empty", "map-arcs", "map-stories", "map-capabilities", "map-claims", "map-health"];
+  const map = ["map-empty", "map-harness", "map-arcs", "map-stories", "map-capabilities", "map-claims", "map-health"];
   await goToStep(page, map[0]);
   await page.locator('#tour-bar [data-speed="1.5"]').evaluate(button => button.click());
   if (await page.locator("#tour-play").getAttribute("aria-label") !== "Pause the tour") await page.locator("#tour-play").click();
@@ -541,7 +560,7 @@ export async function reviewChapters(browser, url, output) {
       const steps = await page.locator('#tour-pips [data-step]').evaluateAll(nodes => nodes.map(node => node.dataset.step));
       for (const id of steps) {
         await goToStep(page, id);
-        const plays = { grow: 20, 'map-empty': 14, 'map-arcs': 14, 'map-stories': 24, 'map-capabilities': 18, 'map-claims': 22, 'map-health': 22 };
+        const plays = { grow: 20, 'map-empty': 14, 'map-harness': 10, 'map-arcs': 14, 'map-stories': 24, 'map-capabilities': 18, 'map-claims': 22, 'map-health': 22 };
         if (id in plays) {
           await page.locator('#tour-play').click();
           await page.waitForTimeout(plays[id] * 1000);

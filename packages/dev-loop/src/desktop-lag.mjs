@@ -91,7 +91,7 @@ const READ_PAGE = `(async () => {
   const panel = document.querySelector(".story-panel");
   const shown = (element) => !element.hidden && element.getClientRects().length > 0;
   return { t: performance.now(), inputs: ${INPUTS}, selected: document.body.dataset.selected, note: document.body.dataset.note,
-    panelOpen: panel !== null && !panel.hidden, mode: document.querySelector("[data-forest-mode][aria-pressed=true]")?.dataset.forestMode,
+    panelOpen: panel !== null && !panel.hidden, mode: document.querySelector("[data-forest-mode]")?.dataset.forestMode,
     sessionSelected: document.querySelector(".session-row[data-selected]") !== null, still: window.storytreeGlobe?.still() ?? true,
     progress: [...document.querySelectorAll("[role=progressbar], [aria-busy=true]")].some(shown) };
 })()`;

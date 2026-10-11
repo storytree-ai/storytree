@@ -83,10 +83,10 @@ const expected = { story: SELECTED, ...counts.get(SELECTED),
           const info = group.userData.lanes.find(l => l.from === from && l.to === to);
           const fromPlate = plate(owners[from]), toPlate = plate(owners[to]);
           lanes.push({
-            name: object.name, dir, from, to, colour: '#' + object.material.color.getHexString(),
-            vertices: position.count, indexCount: object.geometry.index.count,
-            drawStart: object.geometry.drawRange.start,
-            drawCount: object.geometry.drawRange.count === Infinity ? object.geometry.index.count : object.geometry.drawRange.count,
+            // A lane draws on in its shader: uDrawn is the drawn length along it (-1 undrawn), uColour its colour.
+            name: object.name, dir, from, to, colour: '#' + object.material.uniforms.uColour.value.getHexString(),
+            vertices: position.count, drawnLength: object.material.uniforms.uDrawn.value, laneLength: object.userData.length,
+            drawn: Math.max(0, Math.min(1, object.material.uniforms.uDrawn.value / object.userData.length)),
             visible: object.visible, renderOrder: object.renderOrder,
             length: info.length, seconds: info.seconds,
             // The dependency end is the capability built on (`to`): the first vertices should sit on its story's island.
@@ -164,11 +164,11 @@ const expected = { story: SELECTED, ...counts.get(SELECTED),
     result.deselected.stillSelectedLabel = await page.evaluate(id => document.querySelector(`.forest-label[data-story-id="${id}"]`)?.className.includes('selected'), SELECTED);
     await page.screenshot({ path: path.join(out, 'deselected.png'), timeout: 180000 });
 
-    // 3. mid-draw: select again, screenshot ~150 ms after the click. Draw ranges are read before and after
+    // 3. mid-draw: select again, screenshot ~150 ms after the click. Drawn fractions are read before and after
     // the screenshot with their time since the click, because a software-GL frame is not instantaneous.
     // Software GL makes a frame slow, so up to eight attempts are made; the first whose lanes were still
-    // partial after the picture was taken (draw ranges only grow, so it was partial in the picture) is kept.
-    const fraction = lane => lane.drawCount / lane.indexCount;
+    // partial after the picture was taken (drawn fractions only grow, so it was partial in the picture) is kept.
+    const fraction = lane => lane.drawn;
     const fractions = reading => Object.fromEntries(reading.lanes.map(l => [l.name, +fraction(l).toFixed(3)]));
     result.midDraw = { attempts: [] };
     for (let attempt = 1; attempt <= 8; attempt++) {
@@ -193,8 +193,8 @@ const expected = { story: SELECTED, ...counts.get(SELECTED),
     await page.waitForTimeout(1500);
     await settle(page, 20);
 
-    // Library mode: the toggle closes the selection; no lane mesh is mounted there either.
-    await page.click('button[data-forest-mode="library"]');
+    // Stories off (the Library view): the switch closes the selection; no lane mesh is mounted there either.
+    await page.click('button[data-globe-switch="stories"]');
     await settle(page, 20);
     result.libraryMode = { ...await lanes(), mode: await page.evaluate(() => document.querySelector('.forest').dataset.forestMode) };
 
@@ -208,7 +208,7 @@ const expected = { story: SELECTED, ...counts.get(SELECTED),
       downLanes: lanesOf(result.selected).filter(l => l.dir === 'down').length,
       expectedUpLinks: expected.upLinks.length, expectedDownLinks: expected.downLinks.length,
       colours: Object.fromEntries(['up', 'down'].map(dir => [dir, [...new Set(lanesOf(result.selected).filter(l => l.dir === dir).map(l => l.colour))]])),
-      everyLaneFullyDrawnAtFinalFrame: lanesOf(result.selected).every(l => l.drawStart === 0 && l.drawCount === l.indexCount),
+      everyLaneFullyDrawnAtFinalFrame: lanesOf(result.selected).every(l => l.drawn === 1),
       everyLaneDrawsFromDependencyEnd: lanesOf(result.selected).every(l => l.drawsFromDependencyEnd),
       lanesWhenDeselected: lanesOf(result.deselected).length,
       lanesInLibraryMode: lanesOf(result.libraryMode).length,

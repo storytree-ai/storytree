@@ -18,6 +18,7 @@ async function measure(page) {
     const V = camera.position.constructor, Q = camera.quaternion.constructor;
     const eye = new V(0, 0, 1).applyQuaternion(camera.quaternion), plates = [], pathways = [], points = [], threads = [];
     const knowledgeObjects = [];
+    const seen = node => !node || node.visible && seen(node.parent);
     scene.getObjectByName('knowledge-points')?.traverse(object => {
       if (object.isMesh || object.isLine || object.isPoints) knowledgeObjects.push({ name: object.name, type: object.type });
     });
@@ -33,7 +34,7 @@ async function measure(page) {
       }
       if (object.name.startsWith('knowledge-thread:')) threads.push(object.name);
       if (/pathway|trail/.test(object.name)) {
-        pathways.push({ name: object.name, children: object.children.length, data: object.userData,
+        pathways.push({ name: object.name, shown: seen(object), children: object.children.length, data: object.userData,
           vertices: object.geometry?.attributes.position?.count ?? 0 });
       }
       if (!object.name.startsWith('planet:story_')) return;
@@ -44,7 +45,11 @@ async function measure(page) {
         meshes++; vertices += mesh.geometry.attributes.position.count;
         triangles += (mesh.geometry.index?.count ?? mesh.geometry.attributes.position.count) / 3;
       });
-      plates.push({ story: object.name.slice(7), facing: normal.dot(eye),
+      // The Library hides the islands' surfaces but keeps the plates mounted (ADR-0919 D3, D4), so a plate counts as
+      // shown only when one of its meshes is visible together with every parent.
+      let shown = false;
+      object.traverse(mesh => { if (mesh.isMesh && seen(mesh)) shown = true; });
+      plates.push({ story: object.name.slice(7), shown, facing: normal.dot(eye),
         screen: object.getWorldPosition(new V()).project(camera).toArray(),
         position: object.position.toArray(), meshes, vertices, triangles });
     });
@@ -94,7 +99,7 @@ async function measure(page) {
       markers: [...document.querySelectorAll('.forest-claim, .planet-edge-marker')].map(el => ({
         capability: el.dataset.capabilityId, failingStory: el.dataset.failingStory, ...visibleElement(el),
       })),
-      mode: document.querySelector('.forest-views [aria-pressed="true"]')?.dataset.forestMode,
+      mode: document.querySelector('.forest').dataset.forestMode,
       drew: JSON.parse(document.body.dataset.drew), view: document.querySelector('.forest').dataset.view,
       selected: document.body.dataset.selected ?? null, noteSelected: document.body.dataset.note ?? null,
       card: document.querySelector('.core-card')?.innerText ?? null, panelVisible: !document.querySelector('.story-panel').hidden,
@@ -169,20 +174,22 @@ function checkMode(result, mode) {
   assert.equal(result.points.length, census.drawn);
   assert.equal(result.points.filter(point => point.depth === null).length, census.noShelf);
   assert.ok(result.points.every(point => !census.excludedIds.includes(point.id)));
-  assert.equal(result.plates.length, mode === 'forest' ? seed.stats.stories : 0);
+  assert.equal(result.plates.filter(plate => plate.shown).length, mode === 'forest' ? seed.stats.stories : 0);
   assert.deepEqual(result.drawn.islands, mode === 'forest' ? seed.tree.stories.map(s => s.id).sort() : []);
   assert.deepEqual(result.drawn.points, census.notes.map(n => n.id).sort(), 'every eligible dot reaches the renderer in either mode');
-  assert.equal(result.shellPresent, mode === 'forest');
+  // The Library hides the islands, not the globe: the glass stays (ADR-0919 D4) and the roads stay mounted, hidden.
+  assert.equal(result.shellPresent, true);
   if (mode === 'library') {
-    assert.deepEqual(result.drawn.otherMeshes, [], 'hidden islands submit no meshes');
-    assert.equal(result.pathways.length, 0);
+    assert.deepEqual(result.drawn.otherMeshes, ['planet:shell'], 'hidden islands and roads submit no meshes; only the glass draws');
+    assert.equal(result.pathways.filter(pathway => pathway.shown).length, 0);
     assert.equal(result.labels.length, 0);
   }
 }
 
 async function switchMode(page, mode) {
-  await page.getByRole('group', { name: 'Globe view' }).getByRole('button', { name: mode === 'forest' ? 'Forest' : 'Library', exact: true }).click();
-  await page.waitForFunction(mode => document.querySelector(`.forest-views [data-forest-mode="${mode}"]`)?.getAttribute('aria-pressed') === 'true', mode);
+  // Library mode is the Stories switch off (ADR-1002 D2); the Library switch stays on.
+  await page.getByRole('group', { name: 'Globe layers' }).getByRole('button', { name: 'Stories', exact: true }).click();
+  await page.waitForFunction(mode => document.querySelector('.forest').dataset.forestMode === mode, mode);
   await settle(page);
 }
 
@@ -231,7 +238,7 @@ async function candidates(page) {
 }
 
 async function hoverDot(page, farSide = false) {
-  const mode = await page.locator('.forest-views [aria-pressed="true"]').getAttribute('data-forest-mode');
+  const mode = await page.locator('.forest').getAttribute('data-forest-mode');
   const points = (await candidates(page)).filter(point => (mode === 'library' || point.near && !point.land) && (!farSide || !point.near));
   // A compact description makes the screenshot useful; hit eligibility remains the production picker.
   points.sort((a, b) => {

@@ -77,6 +77,14 @@ can precede the overlay's React commit: [the reproduced failure](refresh-red.txt
 saw no marker yet. Both waits retain the visibility assertion and fail after
 15 seconds; the refreshed run passes all 18 checks.
 
+Increment `increment_b3a0ea0ee0fd` (2026-10-11) brought the capture in step with today's globe and
+retook it: the roads' group holds only the 28 cross-story links (roads run only between islands, forest 3.6, 3.7),
+not all 102; the opening spins to the failing island and never tilts, so it faces the eye at its row's
+latitude (0.70 here, at least 0.63) centred left to right, rather than dead ahead. It also found a real
+defect: half a turn later the failure's rim marker sat under the Sessions strip docked over the pane's
+bottom edge, so the click on it never landed. The marker now keeps 20 px clear above the strip (3.11,
+`../../planet-view.test.ts`), and this run passes all 17 checks.
+
 Reproduce from the checkout root (installed Playwright Chromium, or
 `CAPTURE_CHROMIUM`; `CAPTURE_PLAYWRIGHT` can name a different Playwright module):
 

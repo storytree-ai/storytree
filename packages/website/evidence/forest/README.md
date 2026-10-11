@@ -1,5 +1,23 @@
 # The site's saved forest
 
+**Retired 2026-10-12** (increment_6109b6c7039b). The harness that made this record
+(`build-observed.mjs`, `capture.mjs`, `verify.mjs`, `desktop-entry.tsx`) no longer ran on main: its
+observation build patched lines of the forest's source that have since changed, and `verify.mjs` waited
+for the old home page's `#install-command` and `#hero-title` and for the globe's on-screen turn buttons,
+none of which the site has now. It was removed rather than repaired, because its work has moved:
+
+| What it did | Where that is done now |
+| --- | --- |
+| Captured storytree's stills, `public/forest-*.png` | `shop-stills.mjs storytree` (its argument arrives with PR #1236), from the website's own live drawing of free play ([FOREST.md](../../FOREST.md)) |
+| Contracts 2.2 and 2.3: text before the renderer, the still on missing WebGL or a failed scene download | `node packages/website/evidence/capture.mjs <out> --verify-forest` (2.1 to 2.3, at 1440, 1280, 390 and 320 px); all seven checks passed on 2026-10-12 |
+| Doubled text at 320 px | `--verify-enlarged` |
+| The globe's turn buttons at 320 px, doubled text | Nothing: the buttons are gone; the globe is turned by direct manipulation (`tour.mjs`) |
+| Website and desktop drawing the same base geometry from one saved scene | Nothing: kept only as this dated record of 2026-10-02 (pictures and `measurements.json` below) |
+| Storytree's still shown with JavaScript off, after a lost WebGL context, and when the renderer throws on start | No browser proof yet; the site still does all three. Parked as increment_726820719411 |
+
+Everything below is the record as it stood on 2026-10-02, kept for its pictures and measurements; its
+repeat instructions are gone with the scripts.
+
 The website draws its committed reading with the public `PlanetWorldCanvas` after text has
 painted and the map enters the viewport. Its still is a capture of that drawing.
 
@@ -61,18 +79,3 @@ missing WebGL, failed chunk loading, initialization failure and context-loss rec
 usable install/contact controls, phone layout and 200% text controls. The snapshot unit
 proof covers retained data, complete question text, requested recording boundaries/project,
 recursive private-field/path/cloud-id scrubbing and secret refusal before atomic replacement.
-
-## Repeat from the checkout root
-
-```sh
-pnpm --filter @storytree/website build
-node packages/website/evidence/forest/build-observed.mjs
-node packages/website/evidence/forest/capture.mjs --stills
-pnpm --filter @storytree/website build
-node packages/website/evidence/forest/verify.mjs
-node packages/website/evidence/forest/build-observed.mjs
-node packages/website/evidence/forest/capture.mjs
-```
-
-The scripts close every browser and local HTTP server they start. Rebuild after capturing
-stills so the production output contains them.

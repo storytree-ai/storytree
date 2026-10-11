@@ -5,7 +5,7 @@ import { BufferGeometry, CircleGeometry, Color, DoubleSide, Float32BufferAttribu
 import type { PlanetPathways } from './pathways.js';
 import { growthProgress, linkKey, roadSegmentWindows, segmentDrawRange, type GrowthWindow } from './growth.js';
 import { usePlanetGrowth } from './PlanetGrowth.js';
-import { advanceLaneClock, entranceShown, laneDrawSeconds, laneEntrances, laneHead, laneHeads, LANE_GLOW, laneProgress, laneRoutes, type InlandWay, type LitLink } from './lanes.js';
+import { advanceLaneClock, entranceShown, laneDrawSeconds, laneEntrances, laneHead, laneHeads, LANE_GLOW, laneProgress, laneRoutes, type HeadRange, type InlandWay, type LitLink } from './lanes.js';
 import { liveRoadProgress, liveRoadsGrowing, nextLiveRoads } from './live-roads.js';
 
 const ribbonShapes = new WeakMap<BufferGeometry, {
@@ -73,12 +73,15 @@ export function revealRibbon(geometry: BufferGeometry, progress: number, fromEnd
 }
 
 /** A lane's strip: at each vertex its physical distance along the route (`along`), its side (`across`, -1 or 1)
- * and the way out to that side at half the strip's width (`sideways`), so a shader can draw its front and head. */
-export function laneRibbon(route: { points: Vector3[]; widths: readonly number[] }, spread = 1, lift = 0): BufferGeometry {
+ * and the way out to that side at half the strip's width (`sideways`), so a shader can draw its front and head. Given
+ * `only`, it covers just those stretches of the route: lanes sharing a road then lay one glow on it, not one each. */
+export function laneRibbon(route: { points: Vector3[]; widths: readonly number[] }, spread = 1, lift = 0, only?: readonly HeadRange[]): BufferGeometry {
   const position: number[] = [], sideways: number[] = [], along: number[] = [], across: number[] = [], index: number[] = [];
   let distance = 0;
   for (let i = 0; i < route.points.length; i++) {
+    const from = distance;
     if (i) distance += route.points[i]!.distanceTo(route.points[i - 1]!);
+    const middle = (from + distance) / 2;
     const radial = route.points[i]!.clone().normalize(), p = route.points[i]!.clone().addScaledVector(radial, lift);
     const tangent = route.points[Math.min(route.points.length - 1, i + 1)]!.clone().sub(route.points[Math.max(0, i - 1)]!);
     const side = radial.clone().cross(tangent).normalize().multiplyScalar(route.widths[i]! * spread / 2);
@@ -88,7 +91,7 @@ export function laneRibbon(route: { points: Vector3[]; widths: readonly number[]
       along.push(distance);
       across.push(sign);
     }
-    if (i) index.push(2 * i - 2, 2 * i - 1, 2 * i, 2 * i - 1, 2 * i + 1, 2 * i);
+    if (i && (!only || only.some(([a, b]) => a <= middle && middle <= b))) index.push(2 * i - 2, 2 * i - 1, 2 * i, 2 * i - 1, 2 * i + 1, 2 * i);
   }
   const geometry = new BufferGeometry();
   geometry.setAttribute('position', new Float32BufferAttribute(position, 3));
@@ -244,7 +247,7 @@ export function SelectionLanes({ plan, lit, inland }: { plan: PlanetPathways; li
     const routes = laneRoutes(plan, lit, inland), heads = laneHeads(routes);
     return routes.map((lane, i) => ({ lane, seconds: laneDrawSeconds(lane.length), heads: heads[i]!,
       strip: { geometry: laneRibbon(lane, 1, 0.12), material: laneMaterial(lane.colour, false, 0.95) },
-      glow: { geometry: laneRibbon(lane, LANE_GLOW, 0.1), material: laneMaterial(lane.colour, true, 0.45) } }));
+      glow: { geometry: laneRibbon(lane, LANE_GLOW, 0.1, heads[i]!), material: laneMaterial(lane.colour, true, 0.45) } }));
   }, [plan, lit, inland]);
   const entrances = useMemo(() => laneEntrances(lanes.map(({ lane }) => lane)).map(mark => {
     const radial = mark.point.clone().normalize();

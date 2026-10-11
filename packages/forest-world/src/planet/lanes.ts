@@ -30,8 +30,9 @@ export interface LaneDock { story: string; local: CoastPoint; point: Vector3 }
 /** The way inland from `dock` to `capability`'s territory, on the globe, starting on the dock; none where it ends there. */
 export type InlandWay = (dock: LaneDock, capability: string) => readonly Vector3[] | undefined;
 
-/** A lane inland is as wide as a road one link uses, so it reads as a thread along the borders rather than a road. */
-const INLAND_WIDTH = trailFillWidth(1) * RIBBON_GROUND_SCALE;
+/** A lane is a thread of one width wherever it runs, laid down the middle of its road and on along the borders inland:
+ * two thirds of a road one link uses, so the road shows either side of it (by the owner's direction, 2026-10-12). */
+export const THREAD_WIDTH = trailFillWidth(1) * RIBBON_GROUND_SCALE * 2 / 3;
 /** The farthest apart two points of a way inland are, in ground units, so its straight pieces stay on the land. */
 const INLAND_STEP = 1;
 
@@ -97,13 +98,13 @@ export function laneRoutes(plan: PlanetPathways, lit: readonly LitLink[], inland
       for (const point of ref.reversed ? along : [...along].reverse()) {
         if (points.length === 0 || points.at(-1)!.distanceTo(point) > 1e-9) {
           points.push(point);
-          widths.push(segment.width * (shared ? SHARED_WIDTH : 1));
+          widths.push(Math.min(THREAD_WIDTH, segment.width * (shared ? SHARED_WIDTH : 1)));
         }
       }
     }
     const [into, outOf] = [way(points[0]!, link.to).reverse(), way(points.at(-1)!, link.from)];
-    points.unshift(...into); widths.unshift(...into.map(() => INLAND_WIDTH));
-    points.push(...outOf); widths.push(...outOf.map(() => INLAND_WIDTH));
+    points.unshift(...into); widths.unshift(...into.map(() => THREAD_WIDTH));
+    points.push(...outOf); widths.push(...outOf.map(() => THREAD_WIDTH));
     const length = points.slice(1).reduce((sum, point, i) => sum + point.distanceTo(points[i]!), 0);
     return { ...link, points, length, widths, width: Math.min(...widths), colour: LANE_COLOUR[link.dir], ...typeOnly ? { typeOnly } : {} };
   });

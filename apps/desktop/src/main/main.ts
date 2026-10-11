@@ -104,7 +104,7 @@ import { registersSignInScheme, routeCallback } from "./callback-check.js";
 import { followTaskbar, iconColourway } from "./app-icon.js";
 import { createTrayIcon, createWindowIcon } from "./tray-icon.js";
 import { startRefusal } from "./one-app.js";
-import { followReleases, installedApp } from "./releases.js";
+import { followReleases, installedApp, releasesInstall } from "./releases.js";
 import { keepDrawingThroughGpuResets } from "./gpu-resets.js";
 import { checkedUpdate, finishStartCheck, runWhenReady, startsCleanly } from "./start-check.js";
 
@@ -337,11 +337,13 @@ async function run(): Promise<void> {
     }),
     log: line => console.log(line),
   });
-  // The installed app opens at sign-in, in the tray, unless the user turned that off (lifecycle 1.12).
+  // The installed app opens at sign-in, in the tray, unless the user turned that off (lifecycle 1.12). An installed Mac app
+  // (updates 4.21) does too, through the same login item; its start refusal and the journey's desktopStarted use installedApp
+  // as Windows does. The install choice is offered only where releases install themselves, which an ad-hoc Mac build does not.
   const signingIn = signIn({ installed: !args.smoke && installedApp(), file: path.join(home.dir, "sign-in.json"), loginItems: { set: (item) => app.setLoginItemSettings(item) } });
   answerPage(ipcMain, LIFECYCLE_CHANNELS, { readSignIn: () => signingIn.read(), setSignIn: (on: unknown) => signingIn.set(on) });
   // When a downloaded release may install itself (updates 4.13): meaningful only where releases install.
-  const installing = installChoice({ available: !args.smoke && installedApp(), file: path.join(home.dir, "install-choice.json") });
+  const installing = installChoice({ available: !args.smoke && releasesInstall(), file: path.join(home.dir, "install-choice.json") });
   answerPage(ipcMain, UPDATES_CHANNELS, {
     checkForUpdates: (action: unknown) => (releases ?? updates!).request(action),
     readInstallChoice: () => installing.read(),

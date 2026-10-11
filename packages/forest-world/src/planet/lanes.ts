@@ -51,7 +51,7 @@ export function onIsland(local: readonly CoastPoint[], spot: PlanetSpot, radius:
 const SHARED_WIDTH = 0.48;
 /** A lane's glow spreads this many times its width, beyond the road's edge. */
 export const LANE_GLOW = 2.6;
-/** A dock's mark: about twice a one-link road across. */
+/** A lane end's mark: about twice a one-link road across. */
 const PIP_RADIUS = 0.96 * trailFillWidth(1) * RIBBON_GROUND_SCALE;
 
 /** Choose the side in the segment's stored orientation, before walking it in either direction.
@@ -112,14 +112,15 @@ export function laneRoutes(plan: PlanetPathways, lit: readonly LitLink[], inland
 export interface LaneEntrance {
   dir: LitLink['dir'];
   colour: string;
-  /** On the coast at its dock's height; beside the other colour's mark where both use the dock. */
+  /** At a lane's end: in its capability's territory, or on the coast at its dock where it has no way inland; beside the
+   * other colour's mark where both end there. */
   point: Vector3;
   radius: number;
-  /** The lanes it marks, and whether each leaves (`start`) or reaches (`end`) this dock. */
+  /** The lanes it marks, and whether each leaves (`start`) or reaches (`end`) this end. */
   lanes: { from: string; to: string; at: 'start' | 'end' }[];
 }
 
-/** One mark per colour at each dock a lane uses: an up and a down mark sharing a dock sit side by side across it. */
+/** One mark per colour at each place a lane ends: an up and a down mark sharing one sit side by side across it. */
 export function laneEntrances(lanes: readonly LaneRoute[]): LaneEntrance[] {
   const docks: { point: Vector3; heading: Vector3; marks: Map<LitLink['dir'], LaneEntrance> }[] = [];
   for (const lane of lanes) for (const at of ['start', 'end'] as const) {
@@ -127,7 +128,7 @@ export function laneEntrances(lanes: readonly LaneRoute[]): LaneEntrance[] {
     const point = points[0]!, heading = points[Math.min(1, points.length - 1)]!.clone().sub(point);
     let dock = docks.find(d => d.point.distanceTo(point) < 1e-6);
     if (!dock) docks.push(dock = { point, heading: heading.clone().multiplyScalar(0), marks: new Map() });
-    // Seen from the dock, a lane leaving and one arriving both head out to sea.
+    // Seen from where they end, a lane leaving and one arriving both head the same way along it.
     dock.heading.add(heading.lengthSq() > 0 ? heading.normalize() : heading);
     const mark = dock.marks.get(lane.dir) ?? { dir: lane.dir, colour: lane.colour, point, radius: 0, lanes: [] };
     // A pip that reads as the lane's end at the globe's opening scale.
@@ -139,12 +140,12 @@ export function laneEntrances(lanes: readonly LaneRoute[]): LaneEntrance[] {
     if (marks.size === 1) return [...marks.values()];
     const side = point.clone().normalize().cross(heading).normalize();
     return [...marks.values()].map(mark => ({ ...mark,
-      // The same sides as a shared trunk's strips, a hair apart, kept at the dock's height over the globe.
+      // The same sides as a shared trunk's strips, a hair apart, kept at the end's height over the globe.
       point: point.clone().addScaledVector(side, mark.radius * 1.15 * (mark.dir === 'up' ? 1 : -1)).normalize().multiplyScalar(point.length()) }));
   });
 }
 
-/** A mark appears when its lane's front leaves the dock (`start`) or reaches it (`end`), not before. */
+/** A mark appears when its lane's front leaves its start (`start`) or reaches its end (`end`), not before. */
 export function entranceShown(at: 'start' | 'end', progress: number): boolean {
   return at === 'start' ? progress > 0 : progress >= 1;
 }

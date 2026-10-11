@@ -34,6 +34,14 @@
 #chapter2 .tour-recording-progress { position:absolute; z-index:6; top:52px; right:24px; margin:0; color:#f2967b; font:600 11px/1.5 system-ui, sans-serif; letter-spacing:.06em; text-transform:uppercase; font-variant-numeric:tabular-nums; }
 #chapter2[data-tour-mode="freeplay"] .tour-recording-progress { display:none; }
 #chapter2[data-tour-mode="tour"] .planet-mini-globe { top:76px; }
+/* While the tour talks, the arcs drawer is small on a laptop too, as on a phone (2.18): its list of arcs alone, with no detail
+   panel and no size control, under the page's name and above the card, so the globe stays in full view beside it. Free play
+   keeps the whole surface. */
+#chapter2[data-tour-mode="tour"] .arc-overlay { top:140px; left:clamp(24px, 4vw, 64px); right:auto; width:min(400px, 36vw); height:auto; min-height:0; max-height:170px; bottom:auto; border:1px solid #3d4748; border-top:0; border-radius:0 0 12px 12px; }
+#chapter2[data-tour-mode="tour"] .arc-overlay .arc-handle { border:1px solid #3d4748; border-radius:12px 12px 0 0; }
+#chapter2[data-tour-mode="tour"] .arc-panes { grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(0,1fr); }
+#chapter2[data-tour-mode="tour"] .arc-lanes { border-right:0; }
+#chapter2[data-tour-mode="tour"] :is(.arc-briefing, .arc-size) { display:none; }
 @media(max-width:600px) {
  #chapter2 .forest-views { top:60px; left:14px; }
  #chapter2 .planet-mini-globe { top:52px; right:6px; }
@@ -56,9 +64,8 @@
     shows its list of arcs alone, never running under the card. The globe keeps its size and moves down a little, so
     the islands the step faces sit in the band between the panel and the card. */
  #chapter2[data-tour-mode="tour"] .sessions-list { max-height:140px; }
- #chapter2[data-tour-mode="tour"] .arc-overlay { height:auto; min-height:0; max-height:136px; bottom:auto; }
- #chapter2[data-tour-mode="tour"] .arc-panes { grid-template-rows:minmax(0,1fr); }
- #chapter2[data-tour-mode="tour"] .arc-briefing { display:none; }
+ #chapter2[data-tour-mode="tour"] .arc-overlay { top:48px; left:0; right:0; width:auto; max-height:136px; border:0; border-radius:0; }
+ #chapter2[data-tour-mode="tour"] .arc-overlay .arc-handle { border:0; border-bottom:1px solid #485159; border-radius:0; }
  #chapter2[data-tour-mode="tour"]:has(.tour-session-surface:not([hidden]), .tour-arc-surface:not([hidden])) .forest-drawing { top:104px; bottom:max(calc(52% - 20px), calc(var(--tour-under) + 4px - 8px)); }
 }
 /* A short phone's long steps take room from the globe (2.19), so its globe's bottom follows the card up, and the band above

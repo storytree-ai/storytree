@@ -5,6 +5,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./readings": "./src/readings.ts",
+    "./claim-mark": "./src/claims/claim-mark.ts",
     "./machines": "./src/machines/machines.ts",
     "./verbs": "./src/sessions/verbs.ts",
     "./hook-command": "./src/bins/storytree-hook.ts",

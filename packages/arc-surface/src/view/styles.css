@@ -39,12 +39,16 @@
 .arc-mark { display: inline-flex; align-items: center; gap: 2px; font-size: .68rem; line-height: 1; color: #a66a0a; }
 .arc-mark-icon { flex: 0 0 auto; font-weight: 700; }
 .arc-state-in-progress { color: #287858; background: #55a47720; border-color: #638b73; }
-.arc-track { display: block; min-height: 16px; margin-top: 3px; }
+/* Ovals sit close under the title; a lane with a flag adds only the headroom a flag needs, its top about 2 px under the title row. */
+.arc-track { display: block; margin-top: 3px; }
+.arc-track.arc-flagged { padding-top: 10px; }
 .arc-bars { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; }
-.arc-bar { display: inline-flex; flex: 0 0 8px; align-items: center; justify-content: center; min-width: 3px; width: 8px; height: 10px; border-radius: 2px; }
+.arc-flagged .arc-bars { row-gap: 12px; }
+.arc-bar { position: relative; flex: 0 0 16px; width: 16px; height: 8px; border-radius: 50%; }
 .arc-green { background: #5b9975; } .arc-red { background: #be6463; } .arc-yellow { background: #d3a84c; } .arc-grey { background: #8d9498; }
 .arc-check-back { outline: 1px solid #d3a84c; outline-offset: 1px; }
-.arc-agent-mark { color: #102118; text-shadow: 0 0 1px #fff; font-size: 8px; line-height: 1; }
+/* A holder's flag: its foot at the oval's middle, a little left of centre, so the pennant flies over the oval; a second holder stands beside. */
+.arc-agent-mark { position: absolute; left: calc(3px + var(--flag-at, 0) * 5px); top: -11px; overflow: visible; pointer-events: none; }
 .arc-other-waits { color: var(--muted, #adb8b2); font-size: .68rem; }
 .arc-queue { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; padding: 2px 14px 7px 27px; color: var(--muted, #adb8b2); font-size: .75rem; }
 .arc-queue-chip { display: inline-flex; align-items: center; gap: 4px; max-width: 30ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .72rem !important; background: transparent; border: 1px solid var(--line, #43504d); border-radius: 4px; padding: 1px 6px; }

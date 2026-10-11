@@ -4,7 +4,7 @@ import { test } from "node:test";
 // The release's macOS signing mode, chosen from the repository's signing secrets (apps/desktop's
 // mac-signing.mjs): the release workflow and dist.mjs both follow it.
 // @ts-expect-error: a plain .mjs packaging script, outside the typed source
-import { identityFrom, macReleaseNote, macSigning } from "../mac-signing.mjs";
+import { builderEnv, identityFrom, macReleaseNote, macSigning } from "../mac-signing.mjs";
 
 const apple = { APPLE_API_KEY: "-----BEGIN PRIVATE KEY-----", APPLE_API_KEY_ID: "KEY123", APPLE_API_ISSUER: "issuer-uuid" };
 const listed = [
@@ -17,6 +17,16 @@ test("4.20 with no signing certificate the Mac build stays ad-hoc, asks for no k
   assert.deepEqual(macSigning({}), { mode: "ad-hoc", identity: "-", keychain: false, notarize: false });
   // An absent repository secret reaches the job as an empty string.
   assert.deepEqual(macSigning({ CSC_LINK: "", ...apple }), { mode: "ad-hoc", identity: "-", keychain: false, notarize: false });
+});
+
+test("4.20 an ad-hoc Mac build hands electron-builder no CSC_LINK or CSC_KEY_PASSWORD, so an empty secret is not read as a certificate path", () => {
+  // The release passes absent secrets as empty strings; electron-builder resolved CSC_LINK="" to apps/desktop and failed.
+  const adHoc = builderEnv({ CSC_LINK: "", CSC_KEY_PASSWORD: "", PATH: "/usr/bin" });
+  assert.equal("CSC_LINK" in adHoc, false);
+  assert.equal("CSC_KEY_PASSWORD" in adHoc, false);
+  assert.equal(adHoc.PATH, "/usr/bin");
+  const signed = { CSC_LINK: "base64p12", CSC_KEY_PASSWORD: "pw", ...apple };
+  assert.deepEqual(builderEnv(signed), signed);
 });
 
 test("4.20 with the certificate and Apple's key the Mac build imports a keychain, signs as the Developer ID find-identity lists, and notarises", () => {

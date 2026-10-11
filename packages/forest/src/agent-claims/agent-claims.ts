@@ -14,8 +14,12 @@
  * time fades; landing, releasing or its window closing takes the wisp away. Folded subagents and
  * lanes claim only in their parent's colour, through its wisp (ADR-0736 D4).
  */
+import { sessionColour } from "@storytree/session-management/claim-mark";
 import { logReading, type Line, type LogReading } from "@storytree/session-management/readings";
 import type { SessionRow } from "../sessions-list/sessions-list.js";
+
+/** A session's own colour, shared by its wisps, its row and its flags: Session management's, so every surface wears one. */
+export { sessionColour };
 
 /** One session's wisp round one island. */
 export interface SessionWisp {
@@ -68,20 +72,3 @@ export function claimTints(wisps: readonly SessionWisp[]): Map<string, ClaimTint
   return tints;
 }
 
-/** Hues a session may wear: clear of the "needs you" amber and of every green (30°–170°). */
-const FIRST_HUE = 170;
-const HUE_SPAN = 220;
-
-/** A session's own colour, the same on every read, shared by its wisps and its row. */
-export function sessionColour(session: string): string {
-  return `hsl(${Math.round(FIRST_HUE + hashOf(session) % HUE_SPAN) % 360}, 80%, 68%)`;
-}
-
-function hashOf(session: string): number {
-  let hash = 2166136261;
-  for (const char of session) hash = Math.imul(hash ^ char.codePointAt(0)!, 16777619);
-  // Spread ids that differ only in their last letter (session-1, session-2) across the whole span.
-  hash = Math.imul(hash ^ (hash >>> 16), 0x85ebca6b);
-  hash = Math.imul(hash ^ (hash >>> 13), 0xc2b2ae35);
-  return (hash ^ (hash >>> 16)) >>> 0;
-}

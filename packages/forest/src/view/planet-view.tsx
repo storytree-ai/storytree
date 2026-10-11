@@ -17,6 +17,7 @@ import { NameplateCrowd, Nameplates, Overlay, reducedMotion, SelectionRing } fro
 import { dragTurn, focusRotation, globeHover, hiddenMarkers, isGlobeDrag, movingSpots, MOVE_SECONDS, oncePerFrame, pickGlobe, planetLayout, type ForestMode } from "./planet-navigation.js";
 import { claimsOn } from "./planet-update.js";
 import { createGlobeGuide, type GlobeControls, type GlobePose } from "./globe-guide.js";
+import { createGlobeAside } from "./globe-aside.js";
 import { asksForHome, miniGlobe } from "./mini-globe.js";
 import { growLand, pastIslands, presentTerritories, shownSurfaces as surfacesFor, type GlobeSurfaces } from "./globe-surfaces.js";
 
@@ -27,6 +28,8 @@ export type PlanetViewProps = {
   surfaces?: Partial<GlobeSurfaces> | undefined;
   /** Move the globe right by this many CSS pixels, leaving its turn unchanged. */
   sideOffset?: number | undefined;
+  /** CSS pixels of the canvas's right a panel covers: the globe glides into the width left of it (3.40). */
+  aside?: number | undefined;
   mode?: ForestMode;
   /** False when the Library is switched off (ADR-0750): no notes inside, so the globe reads solid. */
   library?: boolean;
@@ -54,7 +57,7 @@ export type PlanetViewProps = {
   onNote: (note: string) => void;
 };
 
-export function PlanetView({ core, scene, places, wisps: live, selected, highlighted, onPick, onNote, mode = "forest", framing, sideOffset, surfaces, onControls, library = true, frame, easeMoves = false, growth, liveRoads = false, recordedSessions }: PlanetViewProps) {
+export function PlanetView({ core, scene, places, wisps: live, selected, highlighted, onPick, onNote, mode = "forest", framing, sideOffset, aside = 0, surfaces, onControls, library = true, frame, easeMoves = false, growth, liveRoads = false, recordedSessions }: PlanetViewProps) {
   // Zoomed in past the islands, or in the Library, only the glass and the core show (ADR-0919 D3, D4). The hidden
   // marks stay mounted, so guides can still locate them.
   const [past, setPast] = useState(false);
@@ -128,7 +131,7 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
     rotation={rotation.toArray()} plateChildren={overlays} lanes={lanes} laneWays={ways} growth={growth} liveRoads={liveRoads}>
     <Navigation islands={layout.islands} radius={layout.radius} titles={new Map(scene.islands.map(i => [i.story, i.title]))}
       rotation={rotation} onRotate={setRotation} onPose={setPose} onControls={onControls} onPick={onPick} onNote={onNote} mode={mode} onPast={setPast}
-      opening={{ framing: framing ?? 1.18, sideOffset: sideOffset ?? 0 }}
+      opening={{ framing: framing ?? 1.18, sideOffset: sideOffset ?? 0 }} aside={aside}
       showFailures={shownSurfaces.grounds || shownSurfaces.territories !== false || shownSurfaces.fileCircles || shownSurfaces.nameplates || shownSurfaces.roads} />
     <NameplateCrowd selected={selected} />
     {growth !== undefined && recordedSessions !== undefined && <ReplaySessions recorded={recordedSessions} onWisps={setReplayed} />}
@@ -266,8 +269,10 @@ function Territories({ story, land, coast, claimed, radius, spot, lighting, surf
 
 type ScreenMarker = EdgeMarker & { left: number; top: number };
 
-function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onControls, onPick, onNote, mode, onPast, showFailures, opening }: {
+function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onControls, onPick, onNote, mode, onPast, showFailures, opening, aside }: {
   onPose: (pose: GlobePose) => void;
+  /** CSS pixels of the canvas's right a panel covers (3.40). */
+  aside: number;
   /** The zoom and offset the globe opened on, which Home returns to with the opening turn (3.37). */
   opening: { framing: number; sideOffset: number };
   /** Told when the eye zooms in past the islands, and back out (ADR-0919 D3). */
@@ -296,18 +301,19 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
     onRotate(focusRotation(next, camera.quaternion));
   }, [camera, onRotate]);
   // The handle remains stable while its host reads the latest scene, camera and callbacks.
-  const host = useRef({ camera, scene, size, radius, onPose, turnTo, invalidate });
-  host.current = { camera, scene, size, radius, onPose, turnTo, invalidate };
+  const host = useRef({ camera, scene, size, radius, onPose, turnTo, invalidate, opening });
+  host.current = { camera, scene, size, radius, onPose, turnTo, invalidate, opening };
+  const read = (): GlobePose => {
+    const { camera: eye, size: viewport, radius: extent } = host.current;
+    return { turn: { ...turn.current }, framing: Math.min(viewport.width, viewport.height) / (2 * eye.zoom * extent),
+      sideOffset: eye.view?.enabled ? -eye.view.offsetX : 0 };
+  };
   const guide = useRef<ReturnType<typeof createGlobeGuide>>(undefined);
   if (guide.current === undefined) guide.current = createGlobeGuide({
     world: () => host.current.scene,
     camera: () => host.current.camera,
     size: () => host.current.size,
-    read: () => {
-      const { camera: eye, size: viewport, radius: extent } = host.current;
-      return { turn: { ...turn.current }, framing: Math.min(viewport.width, viewport.height) / (2 * eye.zoom * extent),
-        sideOffset: eye.view?.enabled ? -eye.view.offsetX : 0 };
-    },
+    read,
     write: pose => { opened.current = true; host.current.turnTo(pose.turn); host.current.onPose(pose); },
     invalidate: () => host.current.invalidate(),
   });
@@ -328,9 +334,17 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
     opened.current = true;
     turnTo(openingTurn(islands));
   }, [islands, turnTo, home]);
+  // 3.40: the globe follows the right-hand panel into the free width, and back.
+  const besideAside = useRef<ReturnType<typeof createGlobeAside>>(undefined);
+  besideAside.current ??= createGlobeAside(() => host.current.opening);
+  useEffect(() => {
+    const moved = besideAside.current!.place(size, aside, read());
+    if (moved === undefined || !guide.current!.slide(moved.to, moved.glide && !reducedMotion() ? 600 : 0)) return;
+    guideFrameAt.current = performance.now();
+  }, [aside, size.width, size.height]);
   const goHome = useRef<() => void>(undefined);
   goHome.current = () => {
-    if (home === undefined || !guide.current!.home({ turn: home, ...opening })) return;
+    if (home === undefined || !guide.current!.home({ turn: home, ...besideAside.current!.home(size) })) return;
     guideFrameAt.current = performance.now();
   };
   useEffect(() => {
@@ -430,7 +444,9 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
     };
   }, [camera, gl, scene, onPick, onNote, mode, turnTo]);
 
-  return <Overlay fullscreen zIndexRange={[40, 40]} style={{ pointerEvents: "none" }}>
+  // Pinned to the canvas, not to the globe's centre: under a side offset (3.40) the pointer's tooltip, the rim markers
+  // (already placed from the projected centre) and the mini globe would otherwise move twice.
+  return <Overlay fullscreen calculatePosition={pinnedToCanvas} zIndexRange={[40, 40]} style={{ pointerEvents: "none" }}>
     {hover !== undefined && <span role="tooltip" className={`knowledge-tooltip${hover.detail === undefined ? "" : " with-detail"}`} style={{ position: "absolute", left: hover.x, top: hover.y }}>
       {hover.detail === undefined ? hover.title : <><strong>{hover.title}</strong><span className="knowledge-tooltip-detail">{hover.detail}</span></>}
     </span>}
@@ -440,12 +456,15 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
       title={`${titles.get(marker.story)} · unhealthy (storytree verified)`}
       aria-label={`Show unhealthy story: ${titles.get(marker.story)}`}
       onClick={() => { guide.current!.cancel(); turnTo(marker.turn); }}>!</button>)}
-    {home !== undefined && <MiniGlobeButton islands={islands} home={home} turn={turn.current} onHome={() => goHome.current!()} />}
+    {home !== undefined && <MiniGlobeButton islands={islands} home={home} turn={turn.current} aside={aside} onHome={() => goHome.current!()} />}
   </Overlay>;
 }
 
+/** The canvas's middle, where a fullscreen overlay's middle stays whatever the camera's side offset. */
+const pinnedToCanvas = (_object: unknown, _camera: unknown, size: { width: number; height: number }) => [size.width / 2, size.height / 2];
+
 /** 3.36: the globe as it opened, small in the corner, with its poles and a mark on the face on show; a click goes home (3.37). */
-function MiniGlobeButton({ islands, home, turn, onHome }: { islands: readonly FacingIsland[]; home: GlobeTurn; turn: GlobeTurn; onHome: () => void }) {
+function MiniGlobeButton({ islands, home, turn, aside, onHome }: { islands: readonly FacingIsland[]; home: GlobeTurn; turn: GlobeTurn; aside: number; onHome: () => void }) {
   const mini = miniGlobe(islands, home, turn);
   const c = 60, r = 44, at = (p: { x: number; y: number }) => ({ cx: c + p.x * r, cy: c - p.y * r });
   const equator = mini.equator.filter(p => p.front).map(p => `${(c + p.x * r).toFixed(1)},${(c - p.y * r).toFixed(1)}`).join(" ");
@@ -455,7 +474,8 @@ function MiniGlobeButton({ islands, home, turn, onHome }: { islands: readonly Fa
   </g>;
   // Land on the far side is drawn as hollow rings under the near side's solid dots.
   const land = [...mini.islands].sort((a, b) => Number(a.front) - Number(b.front));
-  return <button type="button" className="planet-mini-globe" title="Back to the opening view (Home)" aria-label="Back to the opening view (Home)" onClick={onHome}>
+  // 3.40: it stays in the corner of the free width, left of an open panel.
+  return <button type="button" className="planet-mini-globe" style={aside > 0 ? { marginRight: aside } : undefined} title="Back to the opening view (Home)" aria-label="Back to the opening view (Home)" onClick={onHome}>
     <svg viewBox="0 0 120 120" width={120} height={120} aria-hidden="true">
       <circle cx={c} cy={c} r={r} className="mini-globe-sea" />
       <polyline points={equator} className="mini-globe-equator" />

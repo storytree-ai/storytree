@@ -88,7 +88,7 @@ test("2.4 · a contract the increment rewords pending its merge is briefed in it
     const reviews = await openReviews(storytree);
     const brief = await reviews.brief(library, increment, DIFF);
 
-    assert.deepEqual(brief.contracts, [{ id: contracts[0], title: "1.1 · A bad email is refused, saying why", pending: true }]);
+    assert.deepEqual(brief.contracts.map(({ capability: _, ...contract }) => contract), [{ id: contracts[0], title: "1.1 · A bad email is refused, saying why", pending: true }]);
     assert.deepEqual(brief.retired, [{ id: contracts[1], title: "1.2 · A good email is kept", reason: "overtaken by 1.1" }]);
     const text = briefText(brief);
     assert.match(text, /1\.1 · A bad email is refused, saying why/);
@@ -97,6 +97,31 @@ test("2.4 · a contract the increment rewords pending its merge is briefed in it
 
     await assert.rejects(reviews.take(library.name, increment, clean(checks, contracts)), new RegExp(`contract ${contracts[1]} is not in the brief`));
     await reviews.take(library.name, increment, clean(checks, [contracts[0]!]));
+  });
+});
+
+test("2.5 · the brief lists each contract under its story and capability, so two stories' contracts sharing a number both appear, each with its story, and a named capability with no contracts still shows", async () => {
+  await withLibrary(async (library, storytree) => {
+    const forest = await library.addStory({ title: "The world" });
+    const website = await library.addStory({ title: "The website" });
+    const drawing = await library.addCapability({ title: "3 · Drawing", story: forest.id });
+    const pages = await library.addCapability({ title: "3 · Pages", story: website.id });
+    const empty = await library.addCapability({ title: "4 · Search", story: website.id });
+    const tree = await library.addContract({ capability: drawing.id, title: "3.4 · A tree is drawn" });
+    const page = await library.addContract({ capability: pages.id, title: "3.4 · A page is served" });
+    const arc = await library.createArc({ title: "Both", intent: "Both", endState: "Both", stories: [forest.id, website.id] });
+    const increment = await library.addIncrement({ arc: arc.id, title: "Both", objective: "Both", body: "Both", capabilities: [pages.id, drawing.id, empty.id] });
+    const brief = await (await openReviews(storytree)).brief(library, increment.id, DIFF);
+
+    assert.deepEqual(brief.contracts.map(({ id, capability }) => ({ id, capability })), [
+      { id: page.id, capability: pages.id },
+      { id: tree.id, capability: drawing.id },
+    ]);
+    const text = briefText(brief);
+    const section = text.slice(text.indexOf("Contracts ("), text.indexOf("The diff against"));
+    assert.match(section, new RegExp(`The world › 3 · Drawing  \\(${drawing.id}\\)\\n    ${tree.id}  3\\.4 · A tree is drawn`));
+    assert.match(section, new RegExp(`The website › 3 · Pages  \\(${pages.id}\\)\\n    ${page.id}  3\\.4 · A page is served`));
+    assert.match(section, new RegExp(`The website › 4 · Search  \\(${empty.id}\\)\\n    no contracts`));
   });
 });
 

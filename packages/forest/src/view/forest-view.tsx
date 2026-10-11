@@ -10,6 +10,7 @@ import { KnowledgeNoteCard, type KnowledgeCore } from "@storytree/knowledge-core
 import { PlanetView } from "./planet-view.js";
 import { nextScene, sameWisps } from "./planet-update.js";
 import { PanelSelection, type Selection } from "./panel-selection.js";
+import { panelAside } from "./globe-aside.js";
 import { globeFraming, type ForestMode } from "./planet-navigation.js";
 import type { GlobeControls } from "./globe-guide.js";
 import { globeLocator, type GlobeLocator } from "./globe-locator.js";
@@ -37,6 +38,8 @@ interface Drawn {
   selected: string | undefined;
   highlighted: readonly string[] | undefined;
   viewport: { width: number; height: number } | undefined;
+  /** CSS pixels of the page's right the story panel or note card covers (3.40). */
+  aside: number;
 }
 
 /**
@@ -49,7 +52,7 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
   { library = true, opening = "whole-planet" }: { library?: boolean; opening?: GlobeOpening | undefined } = {}): Promise<ForestView> {
   const root = createRoot(container);
   let drawn: Drawn = {
-    mode: "forest", places: new Map(), scene: { islands: [] }, wisps: [], selected: undefined, highlighted: undefined, viewport: undefined,
+    mode: "forest", places: new Map(), scene: { islands: [] }, wisps: [], selected: undefined, highlighted: undefined, viewport: undefined, aside: 0,
   };
 
   const render = (next: Partial<Drawn>): void => {
@@ -60,7 +63,7 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
     root.render(<>
       <PlanetView core={core} scene={drawn.scene} places={drawn.places} wisps={drawn.wisps}
         selected={drawn.selected} highlighted={drawn.highlighted}
-        onPick={pick} onNote={pickNote} onControls={onControls} mode={drawn.mode} framing={globeFraming(opening)} library={library} liveRoads />
+        onPick={pick} onNote={pickNote} onControls={onControls} mode={drawn.mode} framing={globeFraming(opening)} aside={drawn.aside} library={library} liveRoads />
       {library && <div className="forest-views" role="group" aria-label="Globe view">
         {(["forest", "library"] as const).map(mode => <button key={mode} type="button"
           data-forest-mode={mode} aria-pressed={drawn.mode === mode} onClick={() => changeMode(mode)}>
@@ -88,11 +91,19 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
     box: () => (container.querySelector("canvas") ?? container).getBoundingClientRect() });
   window.addEventListener("keydown", onKey);
 
-  const observer = new ResizeObserver(() => {
+  // The right-hand slot (the story panel or the Library's note card) is the globe's sibling; the globe moves aside for
+  // the width it measures, so a panel's own width (narrowed while the tree has its space) reaches it as drawn.
+  const panel = container.parentElement?.querySelector<HTMLElement>(":scope > .story-panel") ?? undefined;
+  const measure = (): void => {
     const { clientWidth: width, clientHeight: height } = container;
-    if (width > 0 && height > 0) render({ viewport: { width, height } });
-  });
+    const aside = panel === undefined ? 0 : panelAside(container.getBoundingClientRect(), [...panel.getClientRects()]);
+    if (width > 0 && height > 0 && (width !== drawn.viewport?.width || height !== drawn.viewport.height || aside !== drawn.aside)) render({ viewport: { width, height }, aside });
+  };
+  const observer = new ResizeObserver(measure);
   observer.observe(container);
+  // Opening or closing the panel toggles its `hidden`, which a size observer alone may miss.
+  const shown = new MutationObserver(measure);
+  if (panel !== undefined) { observer.observe(panel); shown.observe(panel, { attributes: true, attributeFilter: ["hidden"] }); }
 
   return {
     show(scene, places) {
@@ -113,6 +124,7 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
       delete page.storytreeGlobe;
       core.dispose();
       observer.disconnect();
+      shown.disconnect();
       root.unmount();
       container.replaceChildren();
     },

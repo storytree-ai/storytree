@@ -261,6 +261,25 @@ test("12.11 · with free slots and nothing ready, one planning session starts fo
   assert.ok(b.briefs[0].includes(await planRules()) && /never build/i.test(b.briefs[0]));
 });
 
+test("12.14 · an arc it planned in a state it remembers is not planned again after a restart, and is once that state changes", async (t) => {
+  const arc = { id: "arc_owner", state: "active", title: "Owner", created: "2026-10-01T00:00:00Z", openQuestions: 0 };
+  const waiting = (ids) => ({ ...poolWork(ids), increments: poolWork(ids).increments.map((one) => ({ ...one, arc: arc.id })), arcs: [arc], holds: { waits: {}, heldOn: {}, waitsFor: Object.fromEntries(ids.map((id) => [id, [{ releaser: "owner", note: "the owner runs reissue-cert.sh prepare", holds: true }]])) } });
+  const restart = async (b, work) => {
+    const started = [];
+    b.survey = async () => work;
+    b.runLane = async (options) => { started.push((await readFile(options.brief, "utf8")).split("\n")[0]); return 0; };
+    let looks = 0;
+    b.sleep = async () => { await new Promise((go) => setImmediate(go)); if (++looks === 2) await writeFile(join(b.lanesDir, "pool-stop"), ""); };
+    assert.equal(await main(["pool"], b), 0);
+    await rm(join(b.lanesDir, "pool-stop"));
+    return started;
+  };
+  const b = await box(t, { count: async () => 0, maxLanes: async () => 2 });
+  assert.deepEqual(await restart(b, waiting(["cert"])), ["# Planning lane: arc_owner"]);
+  assert.deepEqual(await restart(b, waiting(["cert"])), [], "restarted, with nothing changed on the arc: no second planning lane");
+  assert.deepEqual(await restart(b, waiting(["cert", "next"])), ["# Planning lane: arc_owner"], "a newly parked increment changes it");
+});
+
 test("12.12 · an increment handed to the watcher is not offered while its hand-off stands, its fix session running or not", async (t) => {
   const b = await box(t, { survey: async () => poolWork(["increment_handed", "increment_fixing", "increment_free"]), count: async () => 0, maxLanes: async () => 3 });
   await mkdir(join(b.lanesDir, "watch"), { recursive: true });

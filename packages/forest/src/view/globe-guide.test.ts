@@ -111,6 +111,24 @@ test("3.37 home eases the globe back to the turn and zoom it opened on, the shor
   assert.ok(Math.abs(Math.sin(back.turn.yaw - 0.4)) < 1e-9 && Math.cos(back.turn.yaw - 0.4) > 0, "facing the way it opened");
 });
 
+test("3.40 a slide eases the zoom and side offset only, never the turn; a drag or wheel cutting it short still lands the offset", () => {
+  const f = fixture();
+  const turn = { ...f.pose().turn };
+  assert.equal(f.guide.slide({ framing: 2, sideOffset: -246 }, 1000), true);
+  f.guide.frame(500);
+  assert.equal(f.pose().sideOffset, -123, "a glide, not a jump"); assert.equal(f.pose().framing, 2.5);
+  f.guide.frame(500);
+  assert.deepEqual(f.pose(), { turn, framing: 2, sideOffset: -246 });
+  f.guide.slide({ framing: 3, sideOffset: 0 }, 1000);
+  f.guide.frame(500);
+  f.guide.cancel();
+  assert.equal(f.pose().sideOffset, 0, "the globe still ends centred in the free space");
+  assert.equal(f.pose().framing, 2.5, "the zoom is left to the wheel");
+  assert.equal(f.guide.frame(16), false);
+  f.guide.slide({ framing: 1, sideOffset: 40 }, 0);
+  assert.deepEqual(f.pose(), { turn, framing: 1, sideOffset: 40 }, "reduced motion: at once");
+});
+
 test("3.41 the page's locator gives each drawn island's capability count and client point, each note's point, turns to face one at once, and says when the glide is over", () => {
   const f = fixture();
   const note = new Group(); note.name = "knowledge-point:note_1"; note.position.set(0, 5, 0); f.globe.add(note);

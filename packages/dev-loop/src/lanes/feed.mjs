@@ -26,8 +26,8 @@ const rank = (one) => one.priority ?? Infinity;
  * The pool's next `max` increments from one survey (ADR-0955 D2), and why each other was skipped. A candidate is
  * not closed, sits on an active arc, has no live claim on it or on a capability its list names (directly, or on the list of an
  * increment a live session holds), no capability its lane was refused while the session that refused it still holds it, no wait or held-on
- * question (only those say it needs the owner; its body's wording never does), and its needs clause names no other
- * machine; no fence or track is read. By arc priority, then oldest parked first, and within one priority
+ * question (only those say it needs the owner; its body's wording never does), its machine field, when set, names this
+ * machine (`survey.here`), and its needs clause names no other machine (until every such increment carries the field); no fence or track is read. By arc priority, then oldest parked first, and within one priority
  * those on an arc no live session (nor a pick already made) is on before the rest (ADR-0963 D2). `running` names the increments this dispatcher is running, never started
  * twice; `attempts` maps each increment this dispatcher has started to when it started it: a live claim older than that start
  * (on it, on a listed capability or on one its lane was refused) refused it, and it is retried only once that claim clears (it records the refusal in `attempts`). Work whose session has
@@ -78,6 +78,7 @@ export function pickPool(survey, { attempts = new Map(), running = [], max = 1, 
       if (notes.length) return notes.map((hold) => `waits for ${hold.releaser === "owner" ? "the owner" : "an event"}: ${hold.note}`).join("; ");
       const questions = survey.holds.heldOn[one.id] ?? [];
       if (questions.length) return `held on ${questions.join(", ")}`;
+      if (one.machine && one.machine !== survey.here) return `needs ${one.machine}`;
       if (/\b(?:laptop|another machine)\b/i.test(needs(one.body))) return "needs another machine";
       return undefined;
     })();
@@ -96,38 +97,57 @@ export function pickPool(survey, { attempts = new Map(), running = [], max = 1, 
 }
 
 /**
- * The arc a planning session should take when nothing is ready (ADR-0955 D4): an active arc with no open question and no open increment that is unwaited (every one waits on work, an event or a question),
- * oldest first, skipping the arcs in `planned` (those this dispatcher has planned already). Undefined when none qualifies.
- * Work handed to the watcher, or waiting on work that is (at any depth), is in flight like claimed work, not stalled.
+ * An arc's state as planning reads it: its open questions and each open increment with its status and what holds it.
+ * Equal states mean nothing a planning session acts on has changed, however many surveys apart they were read.
  */
-export function pickPlan(survey, { planned = new Set() } = {}) {
+export function planState(survey, arcId) {
+  const arc = (survey.arcs ?? []).find((one) => one.id === arcId);
+  const holds = (id) => ({
+    waits: (survey.holds.waits[id] ?? []).map((hold) => hold.on).sort(),
+    heldOn: [...(survey.holds.heldOn[id] ?? [])].sort(),
+    waitsFor: (survey.holds.waitsFor?.[id] ?? []).filter((hold) => hold.holds).map((hold) => `${hold.releaser}: ${hold.note}`).sort(),
+  });
+  const open = survey.increments.filter((one) => one.arc === arcId && one.status !== "closed")
+    .sort((a, b) => a.id.localeCompare(b.id)).map((one) => [one.id, one.status, holds(one.id)]);
+  return JSON.stringify([arc?.openQuestions ?? 0, open]);
+}
+
+/**
+ * The arc a planning session should take when nothing is ready (ADR-0955 D4): an active arc with no open question and no open increment that is unwaited (every one waits on work, an event or a question),
+ * oldest first, skipping an arc whose entry in `planned` (arc to the planState it was last planned in, kept across the dispatcher's restarts)
+ * is its present state: an arc waiting on the owner is planned once until something on it changes. The arc comes with its `state`, for `planned`.
+ * Undefined when none qualifies. Work handed to the watcher, or waiting on work that is (at any depth), is in flight like claimed work, not stalled.
+ */
+export function pickPlan(survey, { planned = new Map() } = {}) {
   const live = new Set(survey.claims.filter((claim) => claim.holder === "live" && claim.increment).map((claim) => claim.increment));
   const handed = (id, seen = new Set()) => !seen.has(id) && (seen.add(id), (survey.holds.waitsFor?.[id] ?? []).some((hold) => hold.holds && HANDED.test(hold.note))
     || (survey.holds.waits[id] ?? []).some((hold) => handed(hold.on, seen)));
   const waited = (id) => !live.has(id) && !handed(id) && ((survey.holds.waits[id] ?? []).length > 0 || (survey.holds.heldOn[id] ?? []).length > 0
     || (survey.holds.waitsFor?.[id] ?? []).some((hold) => hold.holds));
   const open = Map.groupBy(survey.increments.filter((one) => one.status !== "closed"), (one) => one.arc);
-  return (survey.arcs ?? []).filter((arc) => arc.state === "active" && !planned.has(arc.id) && !arc.openQuestions
-    && (open.get(arc.id) ?? []).every((one) => waited(one.id)))
+  const arc = (survey.arcs ?? []).filter((one) => one.state === "active" && !one.openQuestions
+    && (open.get(one.id) ?? []).every((increment) => waited(increment.id)) && planned.get(one.id) !== planState(survey, one.id))
     .sort((a, b) => String(a.created).localeCompare(String(b.created)))[0];
+  return arc && { ...arc, state: planState(survey, arc.id) };
 }
 
 /**
- * One survey of the library: every arc with its open questions counted, its increments with their holds (one `arcViews` and one `holds` read), the standing claims,
+ * One survey of the library: every arc with its open questions counted, its increments with their holds and machine fields (one `arcViews` and one `holds` read),
+ * this machine's short name (`here`, undefined while it has none), the standing claims,
  * and the capability refusals their live holders gave, each under the increment its refused session held (`refusals`, given the live holders' sessions).
  */
-export async function readSurvey({ library, claims, refusals = async () => [] }) {
-  const [views, holds, held] = await Promise.all([library.arcViews(), library.holds(), claims()]);
+export async function readSurvey({ library, claims, refusals = async () => [], here = async () => undefined }) {
+  const [views, holds, held, name] = await Promise.all([library.arcViews(), library.holds(), claims(), here()]);
   const holders = [...new Set(held.filter((claim) => claim.holder === "live").map((claim) => claim.session))];
   const increments = views.flatMap((view) => view.increments.map((record) => ({
     id: record.id, arc: view.arc.id, arcState: view.state, title: record.fields.title, body: record.fields.body ?? "",
-    status: record.fields.status, capabilities: record.fields.capabilities ?? [], parked: record.fields.parked ?? record.createdAt?.toISOString?.(), priority: view.arc.fields?.priority,
+    status: record.fields.status, capabilities: record.fields.capabilities ?? [], machine: record.fields.machine, parked: record.fields.parked ?? record.createdAt?.toISOString?.(), priority: view.arc.fields?.priority,
   })));
   const arcs = views.map((view) => ({
     id: view.arc.id, state: view.state, title: view.arc.fields?.title ?? view.arc.id, created: view.arc.createdAt?.toISOString?.(),
     openQuestions: (view.questions ?? []).filter((question) => question.fields.lifecycle === "open").length,
   }));
-  return { arcs, increments, holds, claims: held, refusals: holders.length ? await refusals(holders) : [] };
+  return { arcs, increments, holds, claims: held, here: name, refusals: holders.length ? await refusals(holders) : [] };
 }
 
 async function withLibrary(project, use) {
@@ -146,10 +166,11 @@ async function withLibrary(project, use) {
 /** One survey of the shared library, where this computer's `library` setting says it is. */
 export async function surveyLibrary(project = "storytree") {
   const { openActivityLog, readClaims } = await import("@storytree/session-management");
+  const { thisComputer } = await import("@storytree/session-management/machines");
   return withLibrary(project, async (library, storytree) => {
     const log = await openActivityLog(storytree);
     const refusals = async (holders) => (await log.lines(project, { kinds: ["claim-refused"], has: ["capability", "under"], where: { holder: holders }, omit: ["reason", "file"] }))
       .map((line) => ({ capability: line.capability, under: line.under, holder: line.holder }));
-    return readSurvey({ library, claims: () => readClaims(log, project), refusals });
+    return readSurvey({ library, claims: () => readClaims(log, project), refusals, here: async () => (await thisComputer(storytree)).name });
   });
 }

@@ -66,6 +66,8 @@ export type TourStep = {
   panelFromLine?: number;
   /** The marks a step shows beneath its lines: the coding harnesses storytree works with. */
   marks?: readonly Mark[];
+  /** One line beneath the marks, for the harnesses that have none. */
+  marksNote?: string;
   /** The labels each line (1-based) puts on what it talks about, shown only while it is the current line. */
   labels?: Record<number, readonly Label[]>;
 };

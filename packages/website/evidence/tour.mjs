@@ -204,6 +204,7 @@ export async function verifyTour(browser, url, output) {
   await goToStep(page, "map-harness"); await page.clock.runFor(500);
   assert.deepEqual(await page.locator("#tour-marks .tour-mark").evaluateAll(nodes => nodes.map(node => [node.textContent, node.querySelector("img")?.complete && node.querySelector("img").naturalWidth > 0])), [["Claude Code", true], ["Codex", true]], "each harness by its own mark and name");
   assert.equal(await page.locator(".tour-arc-surface").evaluate(node => node.hidden), true, "no panel opens on the harness step");
+  assert.match(await page.locator("#tour-marks-note").evaluate(node => node.hidden ? "" : node.textContent), /MCP/, "one line under the marks for every other harness");
   // 2.16: the arcs step opens the shop's first arc over the bare globe, its four parts none held yet.
   await goToStep(page, "map-arcs"); await page.clock.runFor(500);
   assert.equal(await page.locator(".tour-arc-surface").evaluate(node => node.hidden), false, "the arcs panel is open");
@@ -213,6 +214,7 @@ export async function verifyTour(browser, url, output) {
   for (let tick = 0; tick < 8 && !await page.locator(".tour-arc-pointer:not(.away)").count(); tick++) await page.clock.runFor(100);
   assert.equal(await page.locator(".tour-arc-pointer:not(.away) .tour-tag-text").textContent(), "a plan of work: an arc", "the arc is pointed out");
   assert.equal(await page.locator("#tour-marks").evaluate(node => node.hidden), true, "the marks are the harness step's alone");
+  assert.equal(await page.locator("#tour-marks-note").evaluate(node => node.hidden), true, "so is the line under them");
   await page.screenshot({ path: path.join(output, "390-map-arcs.png") });
   // 2.16: the claims step opens the arcs on its second line and the sessions list on its third, with the three sessions live then.
   await goToStep(page, "map-claims");

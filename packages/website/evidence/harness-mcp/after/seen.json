@@ -1,0 +1,49 @@
+{
+  "errors": [],
+  "seen": [
+    {
+      "name": "1440-map-harness",
+      "card": {
+        "x": 58,
+        "y": 604,
+        "width": 400,
+        "height": 220
+      },
+      "marks": {
+        "x": 58,
+        "y": 699,
+        "width": 400,
+        "height": 44
+      },
+      "note": "Any other agent that speaks MCP can use the plan too.",
+      "noteBox": {
+        "x": 58,
+        "y": 753,
+        "width": 400,
+        "height": 21
+      }
+    },
+    {
+      "name": "390-map-harness",
+      "card": {
+        "x": 10,
+        "y": 409,
+        "width": 370,
+        "height": 289
+      },
+      "marks": {
+        "x": 16,
+        "y": 496,
+        "width": 358,
+        "height": 36
+      },
+      "note": "Any other agent that speaks MCP can use the plan too.",
+      "noteBox": {
+        "x": 16,
+        "y": 542,
+        "width": 358,
+        "height": 39
+      }
+    }
+  ]
+}

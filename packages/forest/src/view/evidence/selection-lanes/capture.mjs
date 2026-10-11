@@ -164,33 +164,24 @@ const expected = { story: SELECTED, ...counts.get(SELECTED),
     result.deselected.stillSelectedLabel = await page.evaluate(id => document.querySelector(`.forest-label[data-story-id="${id}"]`)?.className.includes('selected'), SELECTED);
     await page.screenshot({ path: path.join(out, 'deselected.png'), timeout: 180000 });
 
-    // 3. mid-draw: select again, screenshot ~150 ms after the click. Drawn fractions are read before and after
-    // the screenshot with their time since the click, because a software-GL frame is not instantaneous.
-    // Software GL makes a frame slow, so up to eight attempts are made; the first whose lanes were still
-    // partial after the picture was taken (drawn fractions only grow, so it was partial in the picture) is kept.
-    const fraction = lane => lane.drawn;
-    const fractions = reading => Object.fromEntries(reading.lanes.map(l => [l.name, +fraction(l).toFixed(3)]));
-    result.midDraw = { attempts: [] };
-    for (let attempt = 1; attempt <= 8; attempt++) {
-      await page.evaluate(ids => window.__faceCentre(ids), neighbours);
-      await settle(page, 20);
-      const again = await page.evaluate(id => window.__screenOf(id), SELECTED);
-      await page.mouse.click(again.x, again.y);
-      await page.mouse.move(2, 2);
-      const before = await page.evaluate(o => ({ sinceClickMs: performance.now() - window.__clickedAt, ...window.__lanes(o) }), ownersObject);
-      await page.screenshot({ path: path.join(out, 'mid-draw.png'), timeout: 180000 });
-      const after = await page.evaluate(o => ({ sinceClickMs: performance.now() - window.__clickedAt, ...window.__lanes(o) }), ownersObject);
-      const partial = after.lanes.filter(l => fraction(l) > 0 && fraction(l) < 1).length;
-      result.midDraw.attempts.push({ attempt, beforeScreenshotMs: Math.round(before.sinceClickMs), afterScreenshotMs: Math.round(after.sinceClickMs), partialLanesAfter: partial });
-      if (partial > 0) {
-        Object.assign(result.midDraw, { kept: attempt, beforeScreenshot: { sinceClickMs: before.sinceClickMs, fractions: fractions(before) },
-          afterScreenshot: { sinceClickMs: after.sinceClickMs, fractions: fractions(after) }, partialLanes: partial });
-        break;
-      }
-      await page.waitForTimeout(1500);
-      await deselect();
-    }
-    await page.waitForTimeout(1500);
+    // 3. mid-draw: select again with the page's clock (Playwright's) paused at the click and run forward 400 ms, so
+    // the picture is drawn at exactly that moment however slow the software renderer; one reading, one picture.
+    const MID_DRAW_MS = 400;
+    const fractions = reading => Object.fromEntries(reading.lanes.map(l => [l.name, +l.drawn.toFixed(3)]));
+    await page.evaluate(ids => window.__faceCentre(ids), neighbours);
+    await settle(page, 20);
+    const again = await page.evaluate(id => window.__screenOf(id), SELECTED);
+    await page.clock.install();
+    await page.clock.pauseAt(Date.now() + 1000);
+    await page.mouse.click(again.x, again.y);
+    await page.mouse.move(2, 2);
+    await page.clock.runFor(MID_DRAW_MS);
+    const mid = await page.evaluate(o => ({ sinceClickMs: performance.now() - window.__clickedAt, ...window.__lanes(o) }), ownersObject);
+    await page.screenshot({ path: path.join(out, 'mid-draw.png'), timeout: 180000 });
+    result.midDraw = { sinceClickMs: Math.round(mid.sinceClickMs), fractions: fractions(mid),
+      partialLanes: mid.lanes.filter(l => l.drawn > 0 && l.drawn < 1).length };
+    await page.clock.resume();
+    await page.waitForTimeout(2000);
     await settle(page, 20);
 
     // Stories off (the Library view): the switch closes the selection; no lane mesh is mounted there either.
@@ -212,13 +203,14 @@ const expected = { story: SELECTED, ...counts.get(SELECTED),
       everyLaneDrawsFromDependencyEnd: lanesOf(result.selected).every(l => l.drawsFromDependencyEnd),
       lanesWhenDeselected: lanesOf(result.deselected).length,
       lanesInLibraryMode: lanesOf(result.libraryMode).length,
-      midDrawKeptAttempt: result.midDraw.kept ?? null,
+      midDrawPartialLanes: result.midDraw.partialLanes,
       pageErrors: errors.length,
     };
     assert.equal(result.summary.lanesWhenUnselected, 0);
     assert.equal(result.summary.lanesWhenDeselected, 0);
     assert.equal(result.summary.lanesInLibraryMode, 0);
     assert.ok(result.summary.everyLaneFullyDrawnAtFinalFrame, 'every lane is fully drawn at the final frame');
+    assert.ok(result.summary.midDrawPartialLanes > 0, 'lanes are still drawing in the mid-draw picture');
     assert.deepEqual(errors, []);
     writeFileSync(path.join(out, 'measurements.json'), JSON.stringify(result, null, 2) + '\n');
     await page.close();

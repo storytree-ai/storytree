@@ -59,10 +59,10 @@
         "renderOrder": 2,
         "length": 184.63127551459442,
         "seconds": 0.7385251020583777,
-        "firstVertexToDependencyIsland": 32.79757180318754,
-        "firstVertexToBuildingIsland": 165.5289968255566,
+        "firstVertexToDependencyIsland": 32.79757180318756,
+        "firstVertexToBuildingIsland": 165.52899682555662,
         "lastVertexToDependencyIsland": 155.19793749643839,
-        "lastVertexToBuildingIsland": 37.10844355337504,
+        "lastVertexToBuildingIsland": 37.10844355337503,
         "drawsFromDependencyEnd": true
       },
       {
@@ -79,10 +79,10 @@
         "renderOrder": 2,
         "length": 133.1340508992557,
         "seconds": 0.5325362035970228,
-        "firstVertexToDependencyIsland": 43.52563538523476,
+        "firstVertexToDependencyIsland": 43.52563538523475,
         "firstVertexToBuildingIsland": 137.45093579876018,
-        "lastVertexToDependencyIsland": 143.97277964250833,
-        "lastVertexToBuildingIsland": 35.63314745452109,
+        "lastVertexToDependencyIsland": 143.9727796425083,
+        "lastVertexToBuildingIsland": 35.633147454521094,
         "drawsFromDependencyEnd": true
       },
       {
@@ -99,10 +99,10 @@
         "renderOrder": 2,
         "length": 282.12834917989755,
         "seconds": 1.1285133967195902,
-        "firstVertexToDependencyIsland": 43.52563538523476,
+        "firstVertexToDependencyIsland": 43.52563538523475,
         "firstVertexToBuildingIsland": 172.7362799433382,
-        "lastVertexToDependencyIsland": 216.27321242183493,
-        "lastVertexToBuildingIsland": 17.021480849273704,
+        "lastVertexToDependencyIsland": 216.2732124218349,
+        "lastVertexToBuildingIsland": 17.021480849273694,
         "drawsFromDependencyEnd": true
       },
       {
@@ -119,10 +119,10 @@
         "renderOrder": 2,
         "length": 333.8199802149315,
         "seconds": 1.335279920859726,
-        "firstVertexToDependencyIsland": 26.598355894701832,
+        "firstVertexToDependencyIsland": 26.598355894701818,
         "firstVertexToBuildingIsland": 212.79555549074826,
-        "lastVertexToDependencyIsland": 216.27321242183493,
-        "lastVertexToBuildingIsland": 17.021480849273704,
+        "lastVertexToDependencyIsland": 216.2732124218349,
+        "lastVertexToBuildingIsland": 17.021480849273694,
         "drawsFromDependencyEnd": true
       },
       {
@@ -139,10 +139,10 @@
         "renderOrder": 2,
         "length": 315.77801697151926,
         "seconds": 1.263112067886077,
-        "firstVertexToDependencyIsland": 4.1444184190911315,
+        "firstVertexToDependencyIsland": 4.144418419091127,
         "firstVertexToBuildingIsland": 208.68247305145846,
         "lastVertexToDependencyIsland": 210.60792790595286,
-        "lastVertexToBuildingIsland": 22.27792085847987,
+        "lastVertexToBuildingIsland": 22.277920858479895,
         "drawsFromDependencyEnd": true
       },
       {
@@ -159,10 +159,10 @@
         "renderOrder": 2,
         "length": 283.2871651157488,
         "seconds": 1.1331486604629952,
-        "firstVertexToDependencyIsland": 26.598355894701832,
+        "firstVertexToDependencyIsland": 26.598355894701818,
         "firstVertexToBuildingIsland": 212.79555549074826,
         "lastVertexToDependencyIsland": 210.60792790595286,
-        "lastVertexToBuildingIsland": 22.27792085847987,
+        "lastVertexToBuildingIsland": 22.277920858479895,
         "drawsFromDependencyEnd": true
       },
       {
@@ -179,10 +179,10 @@
         "renderOrder": 2,
         "length": 410.0202451387973,
         "seconds": 1.6400809805551892,
-        "firstVertexToDependencyIsland": 50.62608022959692,
-        "firstVertexToBuildingIsland": 253.63649431429255,
+        "firstVertexToDependencyIsland": 50.626080229596944,
+        "firstVertexToBuildingIsland": 253.63649431429252,
         "lastVertexToDependencyIsland": 312.2688715275491,
-        "lastVertexToBuildingIsland": 41.79805210885735,
+        "lastVertexToBuildingIsland": 41.79805210885734,
         "drawsFromDependencyEnd": true
       },
       {
@@ -199,10 +199,10 @@
         "renderOrder": 2,
         "length": 474.26858217585453,
         "seconds": 1.8970743287034182,
-        "firstVertexToDependencyIsland": 4.1444184190911315,
+        "firstVertexToDependencyIsland": 4.144418419091127,
         "firstVertexToBuildingIsland": 291.3177718305445,
-        "lastVertexToDependencyIsland": 297.0265912105549,
-        "lastVertexToBuildingIsland": 12.416685540839588,
+        "lastVertexToDependencyIsland": 297.02659121055495,
+        "lastVertexToBuildingIsland": 12.416685540839577,
         "drawsFromDependencyEnd": true
       },
       {
@@ -219,7 +219,7 @@
         "renderOrder": 2,
         "length": 344.8979716869571,
         "seconds": 1.3795918867478283,
-        "firstVertexToDependencyIsland": 26.598355894701832,
+        "firstVertexToDependencyIsland": 26.598355894701818,
         "firstVertexToBuildingIsland": 271.73988106708845,
         "lastVertexToDependencyIsland": 240.8373372860621,
         "lastVertexToBuildingIsland": 66.38876030588257,
@@ -259,10 +259,10 @@
         "renderOrder": 2,
         "length": 398.8516152041253,
         "seconds": 1.5954064608165013,
-        "firstVertexToDependencyIsland": 18.372802870202637,
+        "firstVertexToDependencyIsland": 18.372802870202634,
         "firstVertexToBuildingIsland": 279.2991928534952,
-        "lastVertexToDependencyIsland": 269.4457087809129,
-        "lastVertexToBuildingIsland": 28.887183757689346,
+        "lastVertexToDependencyIsland": 269.445708780913,
+        "lastVertexToBuildingIsland": 28.88718375768935,
         "drawsFromDependencyEnd": true
       },
       {
@@ -279,10 +279,10 @@
         "renderOrder": 2,
         "length": 321.4224674576791,
         "seconds": 1.2856898698307164,
-        "firstVertexToDependencyIsland": 26.598355894701832,
+        "firstVertexToDependencyIsland": 26.598355894701818,
         "firstVertexToBuildingIsland": 271.73988106708845,
-        "lastVertexToDependencyIsland": 234.38338806510805,
-        "lastVertexToBuildingIsland": 73.60133909856036,
+        "lastVertexToDependencyIsland": 234.38338806510802,
+        "lastVertexToBuildingIsland": 73.60133909856037,
         "drawsFromDependencyEnd": true
       }
     ],
@@ -298,48 +298,20 @@
     "stillSelectedLabel": false
   },
   "midDraw": {
-    "attempts": [
-      {
-        "attempt": 1,
-        "beforeScreenshotMs": 181,
-        "afterScreenshotMs": 538,
-        "partialLanesAfter": 12
-      }
-    ],
-    "kept": 1,
-    "beforeScreenshot": {
-      "sinceClickMs": 180.89999997615814,
-      "fractions": {
-        "lane:up:capability_1dbca9b95636->capability_3a6c57bbfcb1": 0.085,
-        "lane:down:capability_7a758195c881->capability_04dcb8fe5009": 0.118,
-        "lane:down:capability_c345b5ddd136->capability_04dcb8fe5009": 0.056,
-        "lane:down:capability_c345b5ddd136->capability_db9b40f7f91e": 0.047,
-        "lane:down:capability_c7ebf8c14744->capability_b745ed8384c3": 0.05,
-        "lane:down:capability_c7ebf8c14744->capability_db9b40f7f91e": 0.055,
-        "lane:down:capability_2b7803e1c0a1->capability_c3ba48740533": 0.038,
-        "lane:down:capability_eed71dc36e3f->capability_b745ed8384c3": 0.033,
-        "lane:down:capability_91a4f6cf1b45->capability_db9b40f7f91e": 0.046,
-        "lane:down:capability_ff89cf89baf8->capability_965c55baee5e": 0.03,
-        "lane:down:capability_008bbda618f4->capability_1dbca9b95636": 0.039,
-        "lane:down:capability_ccb8fa5b3191->capability_db9b40f7f91e": 0.049
-      }
-    },
-    "afterScreenshot": {
-      "sinceClickMs": 537.6000000238419,
-      "fractions": {
-        "lane:up:capability_1dbca9b95636->capability_3a6c57bbfcb1": 0.604,
-        "lane:down:capability_7a758195c881->capability_04dcb8fe5009": 0.837,
-        "lane:down:capability_c345b5ddd136->capability_04dcb8fe5009": 0.395,
-        "lane:down:capability_c345b5ddd136->capability_db9b40f7f91e": 0.334,
-        "lane:down:capability_c7ebf8c14744->capability_b745ed8384c3": 0.353,
-        "lane:down:capability_c7ebf8c14744->capability_db9b40f7f91e": 0.394,
-        "lane:down:capability_2b7803e1c0a1->capability_c3ba48740533": 0.272,
-        "lane:down:capability_eed71dc36e3f->capability_b745ed8384c3": 0.235,
-        "lane:down:capability_91a4f6cf1b45->capability_db9b40f7f91e": 0.323,
-        "lane:down:capability_ff89cf89baf8->capability_965c55baee5e": 0.215,
-        "lane:down:capability_008bbda618f4->capability_1dbca9b95636": 0.279,
-        "lane:down:capability_ccb8fa5b3191->capability_db9b40f7f91e": 0.347
-      }
+    "sinceClickMs": 400,
+    "fractions": {
+      "lane:up:capability_1dbca9b95636->capability_3a6c57bbfcb1": 0.52,
+      "lane:down:capability_7a758195c881->capability_04dcb8fe5009": 0.721,
+      "lane:down:capability_c345b5ddd136->capability_04dcb8fe5009": 0.34,
+      "lane:down:capability_c345b5ddd136->capability_db9b40f7f91e": 0.288,
+      "lane:down:capability_c7ebf8c14744->capability_b745ed8384c3": 0.304,
+      "lane:down:capability_c7ebf8c14744->capability_db9b40f7f91e": 0.339,
+      "lane:down:capability_2b7803e1c0a1->capability_c3ba48740533": 0.234,
+      "lane:down:capability_eed71dc36e3f->capability_b745ed8384c3": 0.202,
+      "lane:down:capability_91a4f6cf1b45->capability_db9b40f7f91e": 0.278,
+      "lane:down:capability_ff89cf89baf8->capability_965c55baee5e": 0.185,
+      "lane:down:capability_008bbda618f4->capability_1dbca9b95636": 0.241,
+      "lane:down:capability_ccb8fa5b3191->capability_db9b40f7f91e": 0.299
     },
     "partialLanes": 12
   },
@@ -351,8 +323,8 @@
   "errors": [],
   "warnings": [
     "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
-    "[.WebGL-0x382c0015c400]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
-    "[.WebGL-0x382c0015c400]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels (this message will no longer repeat)"
+    "[.WebGL-0x30fc0015c400]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
+    "[.WebGL-0x30fc0015c400]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels (this message will no longer repeat)"
   ],
   "summary": {
     "lanesWhenUnselected": 0,
@@ -373,7 +345,7 @@
     "everyLaneDrawsFromDependencyEnd": true,
     "lanesWhenDeselected": 0,
     "lanesInLibraryMode": 0,
-    "midDrawKeptAttempt": 1,
+    "midDrawPartialLanes": 12,
     "pageErrors": 0
   }
 }

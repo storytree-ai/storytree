@@ -1,7 +1,8 @@
 // Seeded headless-Chromium evidence of the selection lanes drawing on (world 6.8–6.9, forest 3.27). Run with
 // `node --import tsx capture.mjs before <main checkout>` or `... after`, under the machine's heavy-run lock (see README);
 // --retake replaces the committed pictures. Same seed (lanes-at-the-coast's), viewport and turn for both builds; the
-// only inputs are clicks. Frames are taken at wall-clock moments after the click and say how far each lane had drawn.
+// only inputs are clicks. The page's clock is Playwright's, paused and run forward to each moment after the click, so every
+// frame is drawn at exactly its moment however slow the software renderer, and says how far each lane had drawn then.
 import assert from 'node:assert/strict';
 import { readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
@@ -42,7 +43,7 @@ const click = async (page, id) => {
   }, id);
   await page.mouse.click(at.x, at.y);
   await page.mouse.move(2, 2);
-  return page.evaluate(() => performance.now());
+  return { at, since: await page.evaluate(() => performance.now()) };
 };
 
 // In-page: how far each lane has drawn (the shader's front over the lane's length after; the draw range before),
@@ -65,7 +66,7 @@ const reading = (page, since) => page.evaluate(since => {
 
 const all = drawn => drawn.lanes.length > 0 && drawn.lanes.every(lane => lane.drawn >= 0.999);
 const frames = [];
-let reduced;
+let reduced, anchor;
 await runCapture({
   folder: here, dist, seed,
   prepare: async ({ page, out }) => {
@@ -83,20 +84,27 @@ await runCapture({
     await page.waitForTimeout(4000);
     await face(page, FACING);
     await page.waitForTimeout(500);
-    const since = await click(page, SELECTED);
+    await page.clock.install();
+    await page.clock.pauseAt(Date.now() + 1000);
+    const { at: point, since } = await click(page, SELECTED);
+    anchor = point;
+    let at = 0;
     for (const [i, moment] of MOMENTS.entries()) {
-      await page.waitForFunction(([since, moment]) => performance.now() - since >= moment * 1000, [since, moment], { polling: 10 });
+      // Frames run every 16 ms of the page's clock, so the lanes' own clock sees normal frame steps.
+      await page.clock.runFor(Math.round((moment - at) * 1000));
+      at = moment;
       const value = await reading(page, since);
       await page.screenshot({ path: path.join(out, `${label}-frame-${i + 1}.png`), timeout: 180000 });
       frames.push({ frame: i + 1, ...value });
     }
     writeFileSync(path.join(out, `${label}-frames.json`), JSON.stringify({ label, selected: 'The library', frames }, null, 2) + '\n');
+    await page.clock.resume();
     await page.waitForFunction(() => { window.__globe.invalidate(); return true; });
     // Reduced motion: select Keys and The library again with the preference on; the first frame is the last.
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await click(page, KEYS);
     await page.waitForTimeout(1000);
-    const again = await click(page, SELECTED);
+    const { since: again } = await click(page, SELECTED);
     await page.evaluate(() => new Promise(requestAnimationFrame));
     await page.evaluate(() => new Promise(requestAnimationFrame));
     reduced = await reading(page, again);
@@ -107,19 +115,21 @@ await runCapture({
   ],
 });
 
-// One picture: the globe's part of each frame side by side, four to a row, each labelled with its moment.
+// One picture: the globe's part of each frame side by side, four to a row, each labelled with its moment. The crop is
+// placed by the selected island's point on screen, so it frames the same lanes wherever the build puts the globe.
 assert.ok(all(frames.at(-1)), 'every lane is whole by the last frame');
 await runStrip();
 async function runStrip() {
   await withCapture({ folder: here, softwareGL: false }, async ({ browser, out }) => {
     const page = await browser.newPage({ viewport: { width: 1920, height: 700 }, deviceScaleFactor: 1 });
+    const crop = { left: Math.round(100 - anchor.x * 0.8), top: Math.round(280 - anchor.y * 0.8) };
     const cells = frames.map(({ frame, secondsSinceClick, lanes }) => {
       const src = `data:image/png;base64,${readFileSync(path.join(out, `${label}-frame-${frame}.png`)).toString('base64')}`;
       const whole = lanes.filter(lane => lane.drawn >= 0.999).length;
       return `<figure><div><img src="${src}"></div><figcaption>${secondsSinceClick.toFixed(2)} s · ${whole}/${lanes.length} lanes whole</figcaption></figure>`;
     }).join('');
     await page.setContent(`<style>body{margin:0;background:#101418;color:#ddd;font:15px system-ui}main{display:grid;grid-template-columns:repeat(4,480px)}
-      figure{margin:0}div{width:480px;height:480px;overflow:hidden}img{width:1152px;margin:-152px 0 0 -272px;display:block}figcaption{padding:4px 8px}</style><main>${cells}</main>`);
+      figure{margin:0}div{width:480px;height:480px;overflow:hidden}img{width:1152px;margin:${crop.top}px 0 0 ${crop.left}px;display:block}figcaption{padding:4px 8px}</style><main>${cells}</main>`);
     await page.screenshot({ path: path.join(out, `${label}-strip.png`), fullPage: true });
     // The strip holds every frame; only the after build's mid-draw frame is kept whole, at full size.
     for (const { frame } of frames) if (label !== 'after' || frame !== 2) unlinkSync(path.join(out, `${label}-frame-${frame}.png`));

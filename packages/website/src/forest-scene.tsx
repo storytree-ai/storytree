@@ -318,7 +318,8 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   const shownNotes = (grows(shownMap) ? [...knowledge(growths[shownMap].snapshot.changes ?? []).notes.values()] : notes).filter(item => String(item.fields.title ?? "").toLowerCase().includes(query.toLowerCase()));
   const selected = (story !== toldStory ? story : undefined) ?? (touring && !everything ? step?.select : undefined);
   const onStorytree = shownMap === "storytree";
-  // The knowledge chapter stays on the globe the map chapter leaves: the first round's four stories at its 03:08:57 survey.
+  // The knowledge chapter stays on the globe the map chapter leaves: the first round's four stories at its 03:08:57 survey, at
+  // their own plan's places; leaving them for the whole shop eases the four across to its places, once (3.4, forest 3.28).
   const inMapChapter = touring && !everything && (step?.explainer === "map" || step?.explainer === "knowledge") && shownMap === "shop";
   const grown = inMapChapter ? mapChapter : grows(shownMap) ? growths[shownMap] : undefined;
   // The tour's step says how far the growth has played (seconds at 1×), over the whole plan or one stage of it (2.16).
@@ -356,7 +357,7 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
         data-globe={shownMap} data-arrived={arrived} data-growth={grown ? moment === undefined ? "whole" : moment.toFixed(2) : undefined} data-focus={focus?.join(" ")}
         data-islands={drawn.islands.length} data-risen={growth ? [...growth.plan.islands.values()].filter(window => window.start <= growth.at).length : undefined} onPointerDown={explore} onWheel={explore}>
         <PlanetView core={grown ? growthCores[shownMap as Grown] : core} scene={drawn} places={grown?.places ?? places}
-          frame={grown?.snapshot.scene} growth={growth} recordedSessions={mapFrame || (shopAt && shownMap === "shop") ? undefined : grown?.sessions}
+          frame={grown?.snapshot.scene} easeMoves growth={growth} recordedSessions={mapFrame || (shopAt && shownMap === "shop") ? undefined : grown?.sessions}
           wisps={(heldClaims ? wisps : mapFrame?.wisps) ?? (shopAt && shownMap === "shop" ? wisps : grown ? [] : wisps)} selected={selected}
           highlighted={focus?.length === 0 ? ["planned-only"] : focus ?? highlight} onPick={pickStory} onNote={pickNote}
           onControls={onControls} surfaces={surfaces} framing={restingFraming} sideOffset={offsetFor(undefined, width)} mode={mode} />

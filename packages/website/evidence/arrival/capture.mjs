@@ -209,7 +209,11 @@ const runs = {
     // Known, and said in the README: on the 320px globe the stories step's four two-line names crowd, and Checkout's hides
     // rather than stray from its island (forest 3.31); the island stands in frame.
     await chapterSteps({ chapter: "map", folder: "map-six-steps", lines: { "map-capabilities": [2], "map-claims": [1, 2] }, frames,
-      phoneFrames: { ...frames, "map-claims": [] }, known: ["320 map-stories Checkout: not drawn"], extra: { "map-capabilities": "1440-story-panel.png" } });
+      phoneFrames: { ...frames, "map-claims": [] }, known: ["320 map-stories Checkout: not drawn",
+        // The first round's rows put the cart and checkout side by side: on a phone their two-line names meet, and checkout's
+        // hides rather than stray from its island (forest 3.31) until a phone gives side-by-side names room.
+        "390 map-stories Checkout: not drawn", "390 map-claims-line-1 Checkout: not drawn", "390 map-health Checkout: not drawn",
+        "320 map-claims-line-1 Checkout: not drawn", "320 map-health Checkout: not drawn"], extra: { "map-capabilities": "1440-story-panel.png" } });
   },
   // The knowledge chapter in three steps (2.20, ADR-0990), pictured the same way: each step as it settles and on the lines that
   // change what it shows (the notes, the note's card, the flags), and a clip of the whole chapter at 1440.

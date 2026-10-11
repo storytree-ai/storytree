@@ -7,7 +7,7 @@ import { workStates } from "@storytree/arc-surface";
 import { buildPlanetPathways, plateTransform } from "@storytree/forest-world/geometry";
 import { forestScene, PLANET_RADIUS, SEA_GAP, storyNodes } from "@storytree/forest";
 
-import { planetLayout } from "./planet-navigation.js";
+import { movingSpots, planetLayout } from "./planet-navigation.js";
 import type { StorySurvey } from "@storytree/map";
 
 const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
@@ -72,4 +72,20 @@ test("3.28 a plan still growing, framed by its full plan, keeps every island whe
   assert.deepEqual([...framed.spots.keys()], [ids[0], ids[1], ids[7]], "only the growing plan's islands are drawn");
   for (const [story, spot] of framed.spots) assert.deepEqual(spot, whole.spots.get(story), `${story} sits where the full plan puts it`);
   assert.notDeepEqual(planetLayout(growing, places).spots.get(ids[0]!), whole.spots.get(ids[0]!), "unframed, the growing plan would sit elsewhere");
+});
+
+test("3.28 a host that changes layout moves each island once, eased along the globe from its old spot to its new; an island new to the layout stands at its spot", () => {
+  const full = forestScene(tree, [], workStates([]));
+  const growing = forestScene({ ...tree, stories: tree.stories.filter((_, i) => i < 2 || i === 7) }, [], workStates([]));
+  const before = planetLayout(growing, places).spots, after = planetLayout(full, places).spots;
+  const moved = ids[0]!, angle = (a: { x: number; y: number; z: number }, b: typeof a) => new Vector3(a.x, a.y, a.z).angleTo(new Vector3(b.x, b.y, b.z));
+  assert.ok(angle(before.get(moved)!, after.get(moved)!) > .05, "the island has somewhere to go");
+  assert.deepEqual(movingSpots(before, after, 0).get(moved), before.get(moved));
+  assert.deepEqual(movingSpots(before, after, 1), after, "the move ends on the new layout");
+  const whole = angle(before.get(moved)!, after.get(moved)!);
+  const part = (progress: number) => angle(before.get(moved)!, movingSpots(before, after, progress).get(moved)!) / whole;
+  const middle = movingSpots(before, after, .5).get(moved)!;
+  assert.ok(Math.abs(new Vector3(middle.x, middle.y, middle.z).length() - 1) < 1e-9, "on the globe, never through it");
+  assert.ok(Math.abs(part(.5) - .5) < 1e-6 && part(.2) < .2 && part(.8) > .8, "eased in and out");
+  for (const story of ids.slice(2, 7)) assert.deepEqual(movingSpots(before, after, .5).get(story), after.get(story), `${story} is new, so it stands at its spot`);
 });

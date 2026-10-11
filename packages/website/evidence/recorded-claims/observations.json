@@ -1,6 +1,6 @@
 {
   "source": "Locally built website; existing globe capture seam; SwiftShader; 0.75x default speed",
-  "baseCommit": "unpublished local build",
+  "baseCommit": "9f5277ec313a6f1b6d1921c05c3b6b6bbcd85107",
   "checks": [
     {
       "contract": "2.16",
@@ -20,10 +20,10 @@
         "hsl(214, 80%, 68%) capability_94f91d2ed3a9 lot",
         "hsl(214, 80%, 68%) capability_d37b7ec1b593 lot"
       ],
-      "claimedFrames": 516,
+      "claimedFrames": 237,
       "pixels": {
         "marks": 8,
-        "changed": 1512
+        "changed": 1557
       },
       "stages": [
         {
@@ -117,7 +117,7 @@
           "planSeconds": 13.93
         }
       ],
-      "frames": 4544
+      "frames": 2158
     },
     {
       "width": 390,
@@ -131,10 +131,10 @@
         "hsl(214, 80%, 68%) capability_94f91d2ed3a9 lot",
         "hsl(214, 80%, 68%) capability_d37b7ec1b593 lot"
       ],
-      "claimedFrames": 957,
+      "claimedFrames": 725,
       "pixels": {
         "marks": 8,
-        "changed": 518
+        "changed": 535
       },
       "stages": [
         {
@@ -228,7 +228,7 @@
           "planSeconds": 13.93
         }
       ],
-      "frames": 7124
+      "frames": 6778
     }
   ]
 }

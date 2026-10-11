@@ -50,7 +50,7 @@ const own = { map: "own" as const, target: { kind: "core" } as GlobeTarget };
 // The shop (shop-snapshot.json): the store the test laptop's Claude Code sessions rebuilt side by side with storytree, where the
 // chapters teach (ADR-0890), walking only four of its stories: Signing in, Browsing, Cart and Checkout (ADR-0891, amended
 // 2026-10-05).
-const signingInId = "story_d263ef0f3f72", browsing = story("story_0c07d0047754");
+const signingInId = "story_d263ef0f3f72", browsing = story("story_0c07d0047754"), cart = story("story_2de9e8f4db21");
 // Signing in's first capability, and browsing's product page, the first of the three sessions' claims to land (02:29:25).
 const shopServer = "capability_323895c5a414", productPage = "capability_f29c62742cce";
 // The shop was rebuilt with storytree's guardrails (ADR-0911 D5): no part of its code is unallocated at any stage, so the tour
@@ -140,31 +140,36 @@ export const steps: TourStep[] = [
   ], how: "Storytree calls a plan of work an arc: an end state and a list of increments, each a piece of the work. The shop's first arc had four parts. A session claims an increment before it starts, lands it through a pull request, and closes it.",
   why: "A plan that lives beside the work lets the next agent pick up the next piece without asking you.",
   decisions: [], surfaces: land, ...shop, panel: "arcs", labels: { 1: [{ point: "arc", text: "a plan of work: an arc" }] } },
-  // Each island rises as it is named, in the order the agents started on them (first claims 01:53, 01:58, 02:28); the pathways
-  // draw on with the second line, those to signing in first, then those to browsing.
-  { id: "map-stories", explainer: "map", map: "shop", growth: { seconds: 16, stage: "plans", until: `land-${shopServer}`, beats: [{ line: 2, stage: "pathways" }] },
+  // The owner's one line (2026-10-11); the map tells the rest, a moment at a time within the line: each island rises, named a
+  // story, in the order the agents started on them (first claims 01:53, 01:58, 02:28), then the pathways draw on, those to
+  // signing in first, then those to browsing, one of them explained where it is drawn.
+  { id: "map-stories", explainer: "map", map: "shop", cues: [2, 4.5, 7, 9.5],
+    growth: { seconds: 16, stage: "plans", until: `land-${shopServer}`, beats: [{ line: 2, stage: "planned" }, { line: 3, stage: "risen-browsing" }, { line: 4, stage: "risen-round" }, { line: 5, stage: "pathways" }] },
     title: "Stories and pathways.", lines: [
-    "Each story in your project shows up as an island on the map: first signing in, then browsing, then the cart and checkout.",
-    "The dependencies between stories are shown as pathways: browsing, the cart and checkout all need signing in.",
-  ], how: "A story is something a customer can do, and its code lives in its own package. A pathway runs one way, from a story to the story it needs: the cart and checkout also need browsing. Storytree refuses a loop.",
+    // ★ His words, punctuation tidied.
+    "In storytree, projects are made from stories. As your agents build, stories show up on the map as islands.",
+  ], how: "A story is something a customer can do, and its code lives in its own package. The shop's islands rise in the order its agents started on them: signing in, then browsing, then the cart and checkout. The dependencies between stories are pathways: browsing, the cart and checkout all need signing in, and the cart and checkout also need browsing. A pathway runs one way, from a story to the story it needs, and storytree refuses a loop.",
   why: "Pathways show what a story needs and where a change can reach, so you and your agents can see which work can run in parallel.",
-  decisions: [], surfaces: land, lineSurfaces: { 2: { ...land, roads: true } }, ...shop,
-  // The pathway from the cart's page to signing in's page shell, near the cart on its own stretch of road. Each label shows only
-  // as narrow as it reads clear of the islands' names (evidence/map-labels): a phone keeps the pathway's, down to 390px.
-  labels: { 1: [{ target: signingIn, text: "a story", narrowest: 601 }],
-    2: [{ target: { kind: "pathway", link: "capability_ed214990be99->capability_ae20917d7a32", along: .2 }, text: "the cart needs signing in", narrowest: 390 }] } },
+  decisions: [], surfaces: land, lineSurfaces: { 5: { ...land, roads: true } }, ...shop,
+  // Each island is named a story as it rises; the pathway from the cart's page to signing in's page shell, near the cart on its
+  // own stretch of road. Each label shows only as narrow as it reads clear of the islands' names (evidence/map-labels): a phone
+  // keeps the pathway's, down to 390px.
+  labels: { 2: [{ target: signingIn, text: "a story", narrowest: 601 }], 3: [{ target: browsing, text: "a story", narrowest: 601 }],
+    4: [{ target: cart, text: "a story", narrowest: 601 }, { target: checkout, text: "a story", narrowest: 601 }],
+    5: [{ target: { kind: "pathway", link: "capability_ed214990be99->capability_ae20917d7a32", along: .2 }, text: "a pathway: the cart needs signing in", narrowest: 390 }] } },
   // Signing in's and browsing's code reached the map when their pull request merged (02:06); the cart and checkout have none yet,
-  // so each of their planned capabilities has an equal share of the island.
-  { id: "map-capabilities", explainer: "map", map: "shop", growth: { seconds: 7, stage: `land-${shopServer}`, until: "pr1" }, title: "Capabilities and your code.", lines: [
-    "Each story is broken into capabilities, the pieces that make it work.",
-    "Capabilities hold your code: each dot is a file.",
-    "Select a story and a panel shows how its capabilities work together.",
-  ], how: "Each capability's territory arrives in the order the agent built it, signing in's shop server first. A file's dot is sized by its lines and sits in the capability whose tests reach it. The cart and checkout have no code yet, so each of their planned capabilities has an equal share of the island, with no dots. The panel shows the story's capabilities and what depends on what.",
+  // so each of their planned capabilities has an equal share of the island. The owner's one line; the territories, then the file
+  // dots, then the story panel, each a moment within it with a label on what arrives.
+  { id: "map-capabilities", explainer: "map", map: "shop", cues: [4.5, 7.5], growth: { seconds: 7, stage: `land-${shopServer}`, until: "pr1" }, title: "Capabilities and your code.", lines: [
+    // ★
+    "Each story shows the parts that make it work.",
+  ], how: "Each story is broken into capabilities, the pieces that make it work, and each capability's territory arrives in the order the agent built it, signing in's shop server first. Capabilities hold your code: each dot is a file, sized by its lines, in the capability whose tests reach it. The cart and checkout have no code yet, so each of their planned capabilities has an equal share of the island, with no dots. Select a story and a panel shows how its capabilities work together: what each one is, and what depends on what.",
   why: "You can see where the code went and which promises it serves, without opening a file.",
   decisions: [], surfaces: { ...plain, roads: true }, lineSurfaces: { 2: { ...files, roads: true } }, ...near, panel: "story", panelFromLine: 3, panelRoom: true,
   // Signing in's largest file in the survey its code arrived with (02:06).
   labels: { 1: [{ target: { kind: "capability", capability: shopServer }, text: "a capability", narrowest: 601 }],
-    2: [{ target: { kind: "file", story: signingInId, path: "src/server/server.js" }, read: "file", narrowest: 390 }] } },
+    2: [{ target: { kind: "file", story: signingInId, path: "src/server/server.js" }, read: "file", text: "each dot is a file", narrowest: 390 }],
+    3: [{ point: "panel", text: "how its capabilities work together" }] } },
   // The record: three sessions claimed browsing's, the cart's and checkout's capabilities between 02:28:12 and 02:28:27. The flags
   // drop with the first line; the arcs panel and then the sessions list read the record at 02:28:30.
   { id: "map-claims", explainer: "map", map: "shop", sessionsAt: "2026-10-05T02:28:30.000Z",

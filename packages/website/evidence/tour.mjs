@@ -53,6 +53,8 @@ export async function verifyTourCamera(browser, url) {
     const risen = () => page.locator(".forest-drawing").evaluate(node => Number(node.dataset.risen));
     const lines = count => page.waitForFunction(count => document.querySelectorAll("#tour-lines .tour-line.on").length === count, count, { timeout: 45_000 });
     const step = id => page.waitForFunction(id => document.querySelector("#chapter2").dataset.tourStep === id, id, { timeout: 45_000 });
+    // A moment within a step: its lines and the cues within them (2.21).
+    const moment = count => page.waitForFunction(count => Number(document.querySelector("#chapter2").dataset.tourMoment) === count, count, { timeout: 45_000 });
     // Signing in's name, where it stands on the screen: the camera's view, read from the drawing.
     const signingIn = async () => (await positions()).filter(plate => plate.id === "story_d263ef0f3f72");
     // Where it stands once the camera has stopped: two looks 400 ms apart agree.
@@ -87,13 +89,17 @@ export async function verifyTourCamera(browser, url) {
     for (let tries = 0; tries < 20 && !arcsList.pointer; tries++) { await page.waitForTimeout(150); arcsList.pointer = await page.locator(".tour-arc-pointer:not(.away) .tour-tag-text").textContent().catch(() => undefined); }
     if (arcsList.pointer !== "a plan of work: an arc") failures.push(`The arcs line points out the arc: ${arcsList.pointer}`);
     if (await risen() !== 0) failures.push(`The globe stays bare while the arcs are shown: ${await risen()}`);
-    // 2.16: each island rises as it is named, signing in first, on the same view; then all four, with their pathways.
+    // 2.16: one line; each island rises as a moment within it, signing in first, on the same view; then all four, with their
+    // pathways, one of them labelled where it is drawn (2.21).
     await step("map-stories");
+    if (await page.locator("#tour-lines .tour-line").count() !== 1) failures.push("The stories step says one line");
     const counts = new Set();
     for (let look = 0; look < 60 && await stepOf(page) === "map-stories" && await risen() < 4; look++) { counts.add(await risen()); await page.waitForTimeout(250); }
     counts.add(await risen());
     if (![1, 2, 4].every(count => counts.has(count))) failures.push(`The islands rise one by one as they are named: ${[...counts]}`);
-    await lines(2);
+    await moment(5);
+    const pathway = await page.waitForFunction(() => [...document.querySelectorAll("#tour-tags .tour-tag:not(.away) .tour-tag-text")].some(node => node.textContent === "a pathway: the cart needs signing in"), null, { timeout: 8000 }).then(() => true, () => false);
+    if (!pathway) failures.push("The pathways are explained where they are drawn");
     const stories = await settled();
     if (distance(empty, stories) > 6) failures.push(`The first three steps keep one view: ${JSON.stringify({ empty, stories })}`);
     // 2.16: the camera flies into signing in as capabilities are named; the dots, then the panel, follow with no move.
@@ -102,9 +108,12 @@ export async function verifyTourCamera(browser, url) {
     const inside = await settled();
     if (distance(stories, inside) < 30) failures.push(`The camera flies into signing in for its capabilities: ${JSON.stringify({ stories, inside })}`);
     assert.equal(await page.locator(".story-panel").count(), 0, "2.16: the capabilities and their dots arrive before the panel");
-    await lines(3);
+    if (await page.locator("#tour-lines .tour-line").count() !== 1) failures.push("The capabilities step says one line");
+    await moment(3);
     await page.locator(".story-panel").waitFor({ state: "visible" });
-    assert.match(await page.locator(".story-panel").textContent(), /Signing in.*Session/s, "2.16: the real story panel opens on the third line");
+    assert.match(await page.locator(".story-panel").textContent(), /Signing in.*Session/s, "2.16: the real story panel opens at the step's third moment");
+    const pointed = await page.locator('.tour-arc-pointer[data-label="panel"]:not(.away) .tour-tag-text').textContent({ timeout: 5000 }).catch(() => undefined);
+    if (pointed !== "how its capabilities work together") failures.push(`The panel is pointed out as it opens: ${pointed}`);
     if (distance(inside, await signingIn()) > 6) failures.push(`The panel opens with no camera move: ${JSON.stringify({ inside, now: await signingIn() })}`);
     // 2.16: back to the four stories for the claims; the arcs panel, then the sessions list, on their lines.
     await step("map-claims");

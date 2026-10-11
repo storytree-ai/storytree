@@ -1,0 +1,406 @@
+{
+  "errors": [],
+  "seen": [
+    {
+      "name": "1440-map-stories-moment-1",
+      "expected": null,
+      "moment": 1,
+      "lines": [
+        "In storytree, projects are made from stories. As your agents build, stories show up on the map as islands."
+      ],
+      "labels": []
+    },
+    {
+      "name": "1440-map-stories-moment-2",
+      "expected": "a story",
+      "moment": 2,
+      "lines": [
+        "In storytree, projects are made from stories. As your agents build, stories show up on the map as islands."
+      ],
+      "labels": [
+        {
+          "text": "a story",
+          "crowds": []
+        }
+      ]
+    },
+    {
+      "name": "1440-map-stories-moment-3",
+      "expected": "a story",
+      "moment": 3,
+      "lines": [
+        "In storytree, projects are made from stories. As your agents build, stories show up on the map as islands."
+      ],
+      "labels": [
+        {
+          "text": "a story",
+          "crowds": []
+        }
+      ]
+    },
+    {
+      "name": "1440-map-stories-moment-4",
+      "expected": "a story",
+      "moment": 4,
+      "lines": [
+        "In storytree, projects are made from stories. As your agents build, stories show up on the map as islands."
+      ],
+      "labels": [
+        {
+          "text": "a story",
+          "crowds": []
+        }
+      ]
+    },
+    {
+      "name": "1440-map-stories-moment-5",
+      "expected": "a pathway: the cart needs signing in",
+      "moment": 5,
+      "lines": [
+        "In storytree, projects are made from stories. As your agents build, stories show up on the map as islands."
+      ],
+      "labels": [
+        {
+          "text": "a pathway: the cart needs signing in",
+          "crowds": []
+        }
+      ]
+    },
+    {
+      "name": "1440-map-capabilities-moment-1",
+      "expected": "a capability",
+      "moment": 1,
+      "lines": [
+        "Each story shows the parts that make it work."
+      ],
+      "labels": [
+        {
+          "text": "a capability",
+          "crowds": []
+        }
+      ]
+    },
+    {
+      "name": "1440-map-capabilities-moment-2",
+      "expected": "each dot is a file: server.js · 110 lines",
+      "moment": 2,
+      "lines": [
+        "Each story shows the parts that make it work."
+      ],
+      "labels": [
+        {
+          "text": "each dot is a file: server.js · 110 lines",
+          "crowds": []
+        }
+      ]
+    },
+    {
+      "name": "1440-map-capabilities-moment-3",
+      "expected": "how its capabilities work together",
+      "moment": 3,
+      "lines": [
+        "Each story shows the parts that make it work."
+      ],
+      "labels": [
+        {
+          "text": "how its capabilities work together",
+          "crowds": []
+        }
+      ]
+    },
+    {
+      "name": "1440-map-stories-paused",
+      "moment": 5,
+      "lines": [
+        "In storytree, projects are made from stories. As your agents build, stories show up on the map as islands."
+      ],
+      "labels": [
+        {
+          "text": "a story",
+          "crowds": []
+        },
+        {
+          "text": "a story",
+          "crowds": []
+        },
+        {
+          "text": "a story",
+          "crowds": []
+        },
+        {
+          "text": "a story",
+          "crowds": []
+        },
+        {
+          "text": "a pathway: the cart needs signing in",
+          "crowds": []
+        }
+      ]
+    },
+    {
+      "name": "1440-map-capabilities-paused",
+      "moment": 3,
+      "lines": [
+        "Each story shows the parts that make it work."
+      ],
+      "labels": [
+        {
+          "text": "a capability",
+          "crowds": []
+        },
+        {
+          "text": "each dot is a file: server.js · 110 lines",
+          "crowds": []
+        },
+        {
+          "text": "how its capabilities work together",
+          "crowds": []
+        }
+      ]
+    },
+    {
+      "name": "1440-map-stories-no-webgl",
+      "moment": 1,
+      "lines": [
+        "In storytree, projects are made from stories. As your agents build, stories show up on the map as islands."
+      ],
+      "labels": []
+    },
+    {
+      "name": "1440-map-capabilities-no-webgl",
+      "moment": 1,
+      "lines": [
+        "Each story shows the parts that make it work."
+      ],
+      "labels": []
+    },
+    {
+      "name": "390-map-stories-moment-1",
+      "expected": null,
+      "moment": 1,
+      "lines": [
+        "In storytree, projects are made from stories. As your agents build, stories show up on the map as islands."
+      ],
+      "labels": []
+    },
+    {
+      "name": "390-map-stories-moment-2",
+      "expected": null,
+      "moment": 2,
+      "lines": [
+        "In storytree, projects are made from stories. As your agents build, stories show up on the map as islands."
+      ],
+      "labels": []
+    },
+    {
+      "name": "390-map-stories-moment-3",
+      "expected": null,
+      "moment": 3,
+      "lines": [
+        "In storytree, projects are made from stories. As your agents build, stories show up on the map as islands."
+      ],
+      "labels": []
+    },
+    {
+      "name": "390-map-stories-moment-4",
+      "expected": null,
+      "moment": 4,
+      "lines": [
+        "In storytree, projects are made from stories. As your agents build, stories show up on the map as islands."
+      ],
+      "labels": []
+    },
+    {
+      "name": "390-map-stories-moment-5",
+      "expected": "a pathway: the cart needs signing in",
+      "moment": 5,
+      "lines": [
+        "In storytree, projects are made from stories. As your agents build, stories show up on the map as islands."
+      ],
+      "labels": [
+        {
+          "text": "a pathway: the cart needs signing in",
+          "crowds": []
+        }
+      ]
+    },
+    {
+      "name": "390-map-capabilities-moment-1",
+      "expected": null,
+      "moment": 1,
+      "lines": [
+        "Each story shows the parts that make it work."
+      ],
+      "labels": []
+    },
+    {
+      "name": "390-map-capabilities-moment-2",
+      "expected": "each dot is a file: server.js · 110 lines",
+      "moment": 2,
+      "lines": [
+        "Each story shows the parts that make it work."
+      ],
+      "labels": [
+        {
+          "text": "each dot is a file: server.js · 110 lines",
+          "crowds": []
+        }
+      ]
+    },
+    {
+      "name": "390-map-capabilities-moment-3",
+      "expected": null,
+      "moment": 3,
+      "lines": [
+        "Each story shows the parts that make it work."
+      ],
+      "labels": []
+    },
+    {
+      "name": "390-map-stories-paused",
+      "moment": 5,
+      "lines": [
+        "In storytree, projects are made from stories. As your agents build, stories show up on the map as islands."
+      ],
+      "labels": [
+        {
+          "text": "a pathway: the cart needs signing in",
+          "crowds": []
+        }
+      ]
+    },
+    {
+      "name": "390-map-capabilities-paused",
+      "moment": 3,
+      "lines": [
+        "Each story shows the parts that make it work."
+      ],
+      "labels": [
+        {
+          "text": "each dot is a file: server.js · 110 lines",
+          "crowds": []
+        }
+      ]
+    },
+    {
+      "name": "390-map-stories-no-webgl",
+      "moment": 1,
+      "lines": [
+        "In storytree, projects are made from stories. As your agents build, stories show up on the map as islands."
+      ],
+      "labels": []
+    },
+    {
+      "name": "390-map-capabilities-no-webgl",
+      "moment": 1,
+      "lines": [
+        "Each story shows the parts that make it work."
+      ],
+      "labels": []
+    },
+    {
+      "name": "320-map-stories-moment-1",
+      "expected": null,
+      "moment": 1,
+      "lines": [
+        "In storytree, projects are made from stories. As your agents build, stories show up on the map as islands."
+      ],
+      "labels": []
+    },
+    {
+      "name": "320-map-stories-moment-2",
+      "expected": null,
+      "moment": 2,
+      "lines": [
+        "In storytree, projects are made from stories. As your agents build, stories show up on the map as islands."
+      ],
+      "labels": []
+    },
+    {
+      "name": "320-map-stories-moment-3",
+      "expected": null,
+      "moment": 3,
+      "lines": [
+        "In storytree, projects are made from stories. As your agents build, stories show up on the map as islands."
+      ],
+      "labels": []
+    },
+    {
+      "name": "320-map-stories-moment-4",
+      "expected": null,
+      "moment": 4,
+      "lines": [
+        "In storytree, projects are made from stories. As your agents build, stories show up on the map as islands."
+      ],
+      "labels": []
+    },
+    {
+      "name": "320-map-stories-moment-5",
+      "expected": null,
+      "moment": 5,
+      "lines": [
+        "In storytree, projects are made from stories. As your agents build, stories show up on the map as islands."
+      ],
+      "labels": []
+    },
+    {
+      "name": "320-map-capabilities-moment-1",
+      "expected": null,
+      "moment": 1,
+      "lines": [
+        "Each story shows the parts that make it work."
+      ],
+      "labels": []
+    },
+    {
+      "name": "320-map-capabilities-moment-2",
+      "expected": null,
+      "moment": 2,
+      "lines": [
+        "Each story shows the parts that make it work."
+      ],
+      "labels": []
+    },
+    {
+      "name": "320-map-capabilities-moment-3",
+      "expected": null,
+      "moment": 3,
+      "lines": [
+        "Each story shows the parts that make it work."
+      ],
+      "labels": []
+    },
+    {
+      "name": "320-map-stories-paused",
+      "moment": 5,
+      "lines": [
+        "In storytree, projects are made from stories. As your agents build, stories show up on the map as islands."
+      ],
+      "labels": []
+    },
+    {
+      "name": "320-map-capabilities-paused",
+      "moment": 3,
+      "lines": [
+        "Each story shows the parts that make it work."
+      ],
+      "labels": []
+    },
+    {
+      "name": "320-map-stories-no-webgl",
+      "moment": 1,
+      "lines": [
+        "In storytree, projects are made from stories. As your agents build, stories show up on the map as islands."
+      ],
+      "labels": []
+    },
+    {
+      "name": "320-map-capabilities-no-webgl",
+      "moment": 1,
+      "lines": [
+        "Each story shows the parts that make it work."
+      ],
+      "labels": []
+    }
+  ]
+}

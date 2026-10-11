@@ -33,7 +33,7 @@ function rig() {
 const story = (id: string): GlobeTarget => id === "core" ? { kind: "core" } : { kind: "story", story: id };
 const step = (id: string, more: Partial<TourStep> = {}): TourStep => ({ id, title: id, explainer: "map", lines: ["One"], decisions: [], surfaces: {}, ...more });
 const detail = (s: TourStep, index: number, more: Partial<TourDetail["state"]> = {}, running = true): TourDetail => ({ step: s, running, elapsed: 0,
-  state: { index, generation: 0, lines: 1, speed: 1, holds: [], freePlay: false, project: "shop", ...more } });
+  state: { index, generation: 0, lines: 1, moments: 1, speed: 1, holds: [], freePlay: false, project: "shop", ...more } });
 
 test("2.15 · chapter 2's first view grows in from far away, then arrives", () => {
   const { log, advance, tell } = rig();

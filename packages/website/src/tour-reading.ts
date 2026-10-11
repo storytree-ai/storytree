@@ -1,6 +1,7 @@
 /** Capability 2 · The forest on the site. */
 import { pageReading, type BoardReads, type Timers } from "@storytree/arc-surface";
 import type { Line } from "@storytree/session-management";
+import { createKnowledgeCore, type CoreReads } from "@storytree/knowledge-core/view";
 import type { SessionsReads } from "@storytree/forest/view";
 import type { GrowthSnapshot, TourSnapshot } from "./forest-data.js";
 
@@ -29,7 +30,7 @@ export function savedReading(snapshot: TourSnapshot, { replay = false, until }: 
       return () => { jobs.delete(job); };
     },
   };
-  const reads: SessionsReads & BoardReads = {
+  const reads: SessionsReads & BoardReads & CoreReads = {
     projectTree: async () => snapshot.tree,
     arcViews: async () => until === undefined || replay ? snapshot.arcs : arcsAt(snapshot.arcs, lines, until),
     holds: async () => snapshot.holds,
@@ -59,6 +60,18 @@ export function savedReading(snapshot: TourSnapshot, { replay = false, until }: 
       return progress();
     },
   };
+}
+
+
+/**
+ * A saved reading with its own knowledge core hearing it; a replay gets a fresh one, so its prior traversal never leaks into its start.
+ * The core reads a picked session's window from the recording, which answers it absent, so the session's reading path is drawn (ADR-0756).
+ */
+export function recordedView(snapshot: TourSnapshot, { replay = false }: { replay?: boolean } = {}) {
+  const recording = savedReading(snapshot, { replay });
+  const core = createKnowledgeCore(snapshot.project, { reads: recording.reads });
+  const stopHearing = recording.reading.subscribe({ onNews: news => core.take(snapshot.changes, news.lines) });
+  return { recording, core, stop() { stopHearing(); core.dispose(); recording.reading.stop(); } };
 }
 
 /**

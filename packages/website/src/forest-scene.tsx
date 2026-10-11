@@ -17,7 +17,7 @@ import type { GrowthSnapshot, TourSnapshot } from "./forest-data.js";
 import { globeOf, lineStarts, replayMoment, stepAt, type GlobeOn, type Hold, type TourDetail, type TourGrowth, type TourStep } from "./tour.js";
 import { createCameraPlayer } from "./tour-camera.js";
 import { mapRecording, mapGrowthPlan, recordedFrame } from "./map-recording.js";
-import { growthReading, savedReading } from "./tour-reading.js";
+import { growthReading, recordedView, savedReading } from "./tour-reading.js";
 
 const snapshot = saved as unknown as TourSnapshot;
 const places = new Map(snapshot.places.map(place => [place.id, place.place]));
@@ -415,19 +415,11 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   </>;
 }
 
-/** A replay gets a fresh app reading and core, so its prior traversal never leaks into its start. */
-function recordedView(replay = false) {
-  const recording = savedReading(snapshot, { replay });
-  const core = createKnowledgeCore(snapshot.project);
-  const stopHearing = recording.reading.subscribe({ onNews: news => core.take(snapshot.changes, news.lines) });
-  return { recording, core, stop() { stopHearing(); core.dispose(); recording.reading.stop(); } };
-}
-
 function RecordedForest(props: ForestHost) {
-  const [view, setView] = useState(() => recordedView());
+  const [view, setView] = useState(() => recordedView(snapshot));
   useEffect(() => () => view.stop(), [view]);
-  const replay = useCallback(() => setView(recordedView(true)), []);
-  const finishRecording = useCallback(() => setView(recordedView()), []);
+  const replay = useCallback(() => setView(recordedView(snapshot, { replay: true })), []);
+  const finishRecording = useCallback(() => setView(recordedView(snapshot)), []);
   return <Forest {...props} core={view.core} recording={view.recording} replay={replay} finishRecording={finishRecording} />;
 }
 

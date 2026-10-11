@@ -9,6 +9,8 @@
  *   time it is asked for, with the computer's name beside it to read.
  * - Making a folder a project, and the one check before it, are the app setup story's (ADR-0969 D3):
  *   it records and approves trunks through registerTrunk and approveTrunk.
+ * - A project is its trunk folder plus the folders it imports (ADR-0757 as ADR-0993 amends it): each
+ *   import is recorded beside the trunk, per machine, approved by the deliberate act of importing (ADR-0942).
  */
 import { randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
@@ -35,6 +37,17 @@ export interface Trunk {
   readonly folder: string;
   /** What approved it (ADR-0942): "setup", "join", or the authority an approval command cited; absent while unapproved. */
   readonly approvedBy?: string;
+}
+
+/** A folder a project imports on one machine (ADR-0993 D1). */
+export interface ImportedFolder {
+  readonly project: string;
+  readonly machine: string;
+  readonly machineName: string;
+  readonly folder: string;
+  /** Its repository's address and the commit it was at, when it is a git checkout with a remote. */
+  readonly repository?: string;
+  readonly commit?: string;
 }
 
 /** Why a folder cannot be set up as the project asked for. */
@@ -80,9 +93,49 @@ const SCHEMA = `CREATE TABLE IF NOT EXISTS trunks (
 /** A trunks table made before approval (ADR-0942) gains it, every record unapproved: nothing is grandfathered (D3). */
 const APPROVAL = "ALTER TABLE trunks ADD COLUMN IF NOT EXISTS approved_at timestamptz, ADD COLUMN IF NOT EXISTS approved_by text";
 
+const IMPORTS = `CREATE TABLE IF NOT EXISTS imports (
+  project      text NOT NULL,
+  machine      text NOT NULL,
+  machine_name text NOT NULL,
+  folder       text NOT NULL,
+  repository   text,
+  commit_sha   text,
+  at           timestamptz NOT NULL DEFAULT now(),
+  approved_by  text NOT NULL,
+  PRIMARY KEY (project, machine, folder)
+)`;
+
 /** The trunks database, set up by the library with the table's definitions (ADR-0973). */
 function trunksPool(storytree: Storytree): Promise<Pool> {
-  return storytree.ownDatabase(TRUNKS_DATABASE, { tables: [SCHEMA, APPROVAL] });
+  return storytree.ownDatabase(TRUNKS_DATABASE, { tables: [SCHEMA, APPROVAL, IMPORTS] });
+}
+
+/** Record that `project` imports `imported.folder` on its machine, approved by the import; importing it again updates its repository and commit. */
+export async function recordImport(storytree: Storytree, imported: ImportedFolder): Promise<void> {
+  const pool = await trunksPool(storytree);
+  await pool.query(
+    `INSERT INTO imports (project, machine, machine_name, folder, repository, commit_sha, approved_by) VALUES ($1, $2, $3, $4, $5, $6, 'import')
+     ON CONFLICT (project, machine, folder) DO UPDATE SET machine_name = excluded.machine_name, repository = excluded.repository, commit_sha = excluded.commit_sha, at = now()`,
+    [imported.project, imported.machine, imported.machineName, imported.folder, imported.repository ?? null, imported.commit ?? null],
+  );
+}
+
+/** The folders `project` imports on `machine`, by folder, each with what approved it. */
+export async function importsOf(storytree: Storytree, project: string, machine: string): Promise<(ImportedFolder & { readonly approvedBy: string })[]> {
+  const pool = await trunksPool(storytree);
+  const { rows } = await pool.query<{ project: string; machine: string; machine_name: string; folder: string; repository: string | null; commit_sha: string | null; approved_by: string }>(
+    "SELECT project, machine, machine_name, folder, repository, commit_sha, approved_by FROM imports WHERE project = $1 AND machine = $2 ORDER BY folder",
+    [project, machine],
+  );
+  return rows.map((row) => ({
+    project: row.project,
+    machine: row.machine,
+    machineName: row.machine_name,
+    folder: row.folder,
+    ...(row.repository === null ? {} : { repository: row.repository }),
+    ...(row.commit_sha === null ? {} : { commit: row.commit_sha }),
+    approvedBy: row.approved_by,
+  }));
 }
 
 /** Every project's trunk on `machine`. */
@@ -131,13 +184,16 @@ export async function approvedTrunk(storytree: Storytree, project: string, machi
 /**
  * Forget `project`'s trunk on `machine`, as when the project is removed from it, or on every machine
  * when none is named, as when it is deleted; false when there was none. The approval `home` remembers
- * for it on that machine goes with it, so a folder later at the same place is asked about afresh.
+ * for it on that machine goes with it, so a folder later at the same place is asked about afresh, and
+ * so do the folders the project imports there.
  */
 export async function forgetTrunk(storytree: Storytree, { project, machine }: { project: string; machine?: string }, home: string = storytreeHome()): Promise<boolean> {
   const pool = await trunksPool(storytree);
   const { rowCount } = machine === undefined
     ? await pool.query("DELETE FROM trunks WHERE project = $1", [project])
     : await pool.query("DELETE FROM trunks WHERE project = $1 AND machine = $2", [project, machine]);
+  if (machine === undefined) await pool.query("DELETE FROM imports WHERE project = $1", [project]);
+  else await pool.query("DELETE FROM imports WHERE project = $1 AND machine = $2", [project, machine]);
   forgetApproval(home, project, machine);
   return (rowCount ?? 0) > 0;
 }

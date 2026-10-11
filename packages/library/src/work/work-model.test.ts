@@ -1,5 +1,5 @@
 /**
- * Capability 4 · Work model: one test per contract 4.1-4.10 (4.9 is in library-api.test.ts) in the library story, each run on
+ * Capability 4 · Work model: one test per contract 4.1-4.13 (4.9 is in library-api.test.ts) in the library story, each run on
  * BOTH backends, as capabilities 2 and 3 are:
  *
  * - memory: a WorkModel over SchemaRecords over a fresh MemoryTransactions;
@@ -536,6 +536,42 @@ for (const backend of [memory, postgres]) {
     const orphan = { testedNumbers: ["3.1", "3.2", "3.3", "7.9"] };
     assert.equal((await work.addContract({ title: "Trims spaces", capability: form.id }, orphan)).fields.title, "3.4 · Trims spaces", "past the orphan test, not onto it");
     assert.equal((await work.addContract({ title: "3.3 · Lowercases the domain", capability: form.id }, orphan)).fields.title, "3.3 · Lowercases the domain", "the planner gives the orphan's number to take it");
+  });
+  contract("4.12", "only mapStories makes a story mapped: a mapped field given to addStory or editStory is refused and nothing is written", async ({ work, records, transactions }) => {
+    const story = await work.addStory({ title: "Visitor can sign up" });
+    const before = await transactions.history();
+    const mapped = { from: "/code/shop", package: ".", folders: ["."] };
+    await assert.rejects(work.addStory({ title: "Shop", mapped } as never), schemaError("story", ["mapped"]));
+    await assert.rejects(work.editStory(story.id, { mapped } as never), schemaError("story", ["mapped"]));
+    assert.deepEqual(await transactions.history(), before, "nothing was written");
+    assert.deepEqual((await records.get(story.id))?.fields, { title: "Visitor can sign up" });
+  });
+
+  contract("4.13", "mapStories adds a mapped story per new package, retires those of the same import whose package is gone, and leaves every other story as it stands", async ({ work, records }) => {
+    const own = await work.addStory({ title: "Visitor can sign up" });
+    const first = await work.mapStories("/code/shop", [
+      { package: "packages/cart", title: "@shop/cart", description: "The cart", folders: ["packages/cart"] },
+      { package: "packages/pay", title: "@shop/pay", folders: ["packages/pay"] },
+    ]);
+    assert.deepEqual(first.retired, []);
+    assert.deepEqual(first.added.map((story) => story.fields), [
+      { title: "@shop/cart", description: "The cart", mapped: { from: "/code/shop", package: "packages/cart", folders: ["packages/cart"] } },
+      { title: "@shop/pay", mapped: { from: "/code/shop", package: "packages/pay", folders: ["packages/pay"] } },
+    ]);
+    const [cart, pay] = first.added;
+    const elsewhere = await work.mapStories("git@github.com:shop/admin.git", [{ package: ".", title: "admin", folders: ["."] }]);
+
+    const again = await work.mapStories("/code/shop", [
+      { package: "packages/cart", title: "@shop/cart renamed", folders: ["packages/cart/src"] },
+      { package: "packages/ship", title: "@shop/ship", folders: ["packages/ship"] },
+    ]);
+    assert.deepEqual(again.added.map((story) => story.fields.title), ["@shop/ship"], "only the new package is added");
+    assert.deepEqual(again.retired, [pay!.id], "the story whose package is gone is retired");
+    assert.deepEqual(again.kept, [cart!.id]);
+    assert.deepEqual((await records.get(cart!.id))?.fields, cart!.fields, "a kept story stands as it was, its folders included");
+    assert.equal(await records.get(pay!.id), null);
+    assert.deepEqual(((await records.get(elsewhere.added[0]!.id)) as SchemaRecord<"story"> | null)?.fields.mapped, { from: "git@github.com:shop/admin.git", package: ".", folders: ["."] }, "another import's story is untouched");
+    assert.deepEqual((await records.get(own.id))?.fields, { title: "Visitor can sign up" }, "a story storytree built is untouched");
   });
 }
 

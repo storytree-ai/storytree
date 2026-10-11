@@ -42,6 +42,8 @@ export type {
   NewCapability,
   NewContract,
   NewIncrement,
+  MappedPackage,
+  MappedStories,
   NewStory,
   Pended,
   PendingChange,

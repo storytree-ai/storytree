@@ -2,8 +2,8 @@
 // (the Session management story). It reaches the library only through the library's public API. The MCP server's wrapper calls
 // what it exports to name a call's session, record the call and end merged claims (ADR-0969 D1).
 export { findProject, inMainCheckout, locateApp, locateLibrary, locateStorytree, MARKER_FILE, NOT_A_PROJECT, NOT_RUNNING, openNamedProject, requireApproval, route, storytreeHome, withConnectTimeout } from "./routing/index.js";
-export { approveTrunk, forgetTrunk, machineOf, ProjectFolderError, registerTrunk, rememberApproval, trunksOn } from "./routing/index.js";
-export type { LocateOptions, ProjectLookup, Route, StorytreeAddress, Trunk } from "./routing/index.js";
+export { approveTrunk, forgetTrunk, importsOf, machineOf, ProjectFolderError, recordImport, registerTrunk, rememberApproval, trunksOn } from "./routing/index.js";
+export type { ImportedFolder, LocateOptions, ProjectLookup, Route, StorytreeAddress, Trunk } from "./routing/index.js";
 export { keepOnThisComputer, readProjectChoice, recordProjectChoice, recordRemovedProjects, removedProjects, type HiddenProject } from "./routing/project-choice.js";
 export { idleAfterMs, leaveAfterMs, readLibrary, readSettings, readSurfaceChoices, setLibrary, setSetting, setSurfaceChoice } from "./settings/settings.js";
 export type { LibraryLocation, LibraryReading, SettingReading, SettingsReading, SurfaceChoices } from "./settings/settings.js";

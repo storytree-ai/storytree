@@ -1,8 +1,11 @@
 /**
  * Capability 3 · Library. `storytree project remove <project>`: take a project added by mistake off this computer's list.
  * `storytree project delete <project> --confirm <project>`: delete its records (ADR-0831).
- * A front door only: the app setup owns removing and deleting a project.
+ * `storytree import <folder>`: import an existing JavaScript or TypeScript project into this one, as mapped stories (ADR-0993).
+ * A front door only: the app setup owns removing, deleting and importing into a project.
  */
+import path from "node:path";
+
 import { findProject, MARKER_FILE } from "@storytree/session-management/routing";
 
 import { Refusal } from "../answer.js";
@@ -51,4 +54,32 @@ export const projectFamily: Family = {
       return { text: `"${deleted.project}" is deleted: its records are gone from the library, for every computer using it.${snapshot}${folder}` };
     },
   }],
+};
+
+const IMPORT_USAGE = "import <folder>";
+
+export const importFamily: Family = {
+  name: "import",
+  summary: "import an existing JavaScript or TypeScript project into this one: one mapped story per package it declares",
+  verbs: [],
+  bare: {
+    name: "import",
+    usage: IMPORT_USAGE,
+    summary: "record the folder as imported by this project and map each package it declares to a mapped story; again, it adds new packages and drops gone ones; nothing is written into the folder",
+    async act(args, context) {
+      if (args.words.length !== 1 || args.names.length) throw new Refusal(`usage: storytree ${IMPORT_USAGE}`, { code: 2 });
+      const { importProject, ImportRefusedError } = await import("@storytree/app-setup");
+      const folder = path.resolve(context.cwd, args.word(0, "a folder", IMPORT_USAGE));
+      const imported = await importProject({ folder, library: await context.library(), storytree: await context.server() }).catch((error: unknown) => {
+        throw error instanceof ImportRefusedError ? new Refusal(error.message) : error;
+      });
+      const from = imported.repository === undefined ? "" : ` (${imported.repository} at ${imported.commit?.slice(0, 12) ?? "an unknown commit"})`;
+      const lines = [
+        `Imported ${imported.folder}${from}: ${imported.added.length} mapped ${imported.added.length === 1 ? "story" : "stories"} added, ${imported.retired.length} retired, ${imported.kept.length} kept as they stand.`,
+        ...imported.added.map((story) => `  + ${story.id}  ${story.title}`),
+        ...imported.retired.map((id) => `  - ${id}  retired: its package is gone`),
+      ];
+      return { text: lines.join("\n"), next: [{ command: "storytree tree", why: "see the mapped stories in the plan" }] };
+    },
+  },
 };

@@ -22,7 +22,7 @@ import pg from "pg";
 import { setLibrary } from "../settings/settings.js";
 import { git, withTempDir } from "../testing/folders.js";
 import { dropTestProjects, markedProject, placeTestServer, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { approveTrunk, forgetTrunk, machineOf, registerTrunk } from "./trunks.js";
+import { approveTrunk, forgetTrunk, importsOf, machineOf, recordImport, registerTrunk } from "./trunks.js";
 import { findProject, locateStorytree, MARKER_FILE, NOT_A_PROJECT, NOT_RUNNING, requireApproval, route, type ProjectLookup } from "./index.js";
 
 /** "Well under a second", as the tests hold it. */
@@ -310,6 +310,33 @@ test("1.18 a forgotten trunk's approval is forgotten on this machine too: its fo
       mkdirSync(trunk);
       writeFileSync(path.join(trunk, MARKER_FILE), marker);
       await assert.rejects(requireApproval(storytree, project, trunk, laptop), folderRefusal(project, "not approved"));
+    });
+  });
+});
+
+test("1.19 an imported folder is recorded on its project beside the trunk, approved by the import; recording it again updates it, and forgetting the trunk forgets its imports", async () => {
+  const [project, other] = [uniqueProjectName(), uniqueProjectName()];
+  await withTempDir(async (dir) => {
+    const { laptop, box } = machines(dir);
+    const [onLaptop, onBox] = [machineOf(laptop), machineOf(box)];
+    await withStorytree([], async (storytree) => {
+      const shop = { project, machine: onLaptop.id, machineName: onLaptop.name, folder: path.join(dir, "shop"), repository: "https://github.com/shop/shop.git", commit: "a".repeat(40) };
+      await recordImport(storytree, shop);
+      await recordImport(storytree, { project, machine: onLaptop.id, machineName: onLaptop.name, folder: path.join(dir, "admin") });
+      await recordImport(storytree, { ...shop, machine: onBox.id, machineName: onBox.name });
+      await recordImport(storytree, { ...shop, project: other });
+      await recordImport(storytree, { ...shop, commit: "b".repeat(40) });
+      assert.deepEqual(await importsOf(storytree, project, onLaptop.id), [
+        { project, machine: onLaptop.id, machineName: onLaptop.name, folder: path.join(dir, "admin"), approvedBy: "import" },
+        { ...shop, commit: "b".repeat(40), approvedBy: "import" },
+      ]);
+      await forgetTrunk(storytree, { project, machine: onLaptop.id }, laptop);
+      assert.deepEqual(await importsOf(storytree, project, onLaptop.id), [], "forgotten with its trunk on this machine");
+      assert.equal((await importsOf(storytree, project, onBox.id)).length, 1, "another machine's import stays");
+      await forgetTrunk(storytree, { project }, laptop);
+      assert.deepEqual(await importsOf(storytree, project, onBox.id), [], "a deleted project's imports go on every machine");
+      assert.equal((await importsOf(storytree, other, onLaptop.id)).length, 1, "another project's import stays");
+      await forgetTrunk(storytree, { project: other }, laptop);
     });
   });
 });

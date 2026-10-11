@@ -1,5 +1,5 @@
 /**
- * Capability 5 · Health record: one test per contract 5.1-5.11 in the library story, each run on
+ * Capability 5 · Health record: one test per contract 5.1-5.12 in the library story, each run on
  * BOTH backends, as capabilities 2-4 and 6 are:
  *
  * - memory: a HealthRecord over SchemaRecords and a WorkModel over a fresh MemoryTransactions;
@@ -602,6 +602,44 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual((await health.worklist()).map(({ capability, why, waits }) => ({ capability, reason: why.reason, waits })), [
       { capability: page.id, reason: "failing", waits: undefined },
     ], "the run recorded them: the healthy one is off the list, the failing one offered");
+  });
+  contract("5.12", "a capability whose story's code changed on main after its contracts carrying its reason were last verified waits on that commit's run; once they are verified after it, or the time is up, it is offered by what is recorded", async ({ health, work }) => {
+    const story = await work.addStory({ title: "Visitor can sign up" });
+    const other = await work.addStory({ title: "Visitor can sign in" });
+    const form = await work.addCapability({ title: "Email form", story: story.id });
+    const bad = await work.addContract({ title: "1.1 · Rejects a bad email", capability: form.id });
+    const page = await work.addCapability({ title: "Thank-you page", story: story.id });
+    const shown = await work.addContract({ title: "2.1 · Shows thanks", capability: page.id });
+    const empty = await work.addCapability({ title: "Welcome email", story: story.id });
+    const login = await work.addCapability({ title: "Login form", story: other.id });
+    await work.addContract({ title: "1.1 · Logs in", capability: login.id });
+    for (const built of [form, page, empty, login]) await work.setProposed(built.id, false);
+    await later();
+    await health.recordVerified(bad.id, "failing");
+    await later();
+    const merged = { commit: "8c3903b4", at: new Date().toISOString() };
+    const changed = new Map([[story.id, merged]]);
+    await later();
+    const recorded = await health.recordVerified(shown.id, "failing");
+
+    const waiting = await health.worklist({ changed });
+    assert.deepEqual(new Map(waiting.map(({ capability, why, waits }) => [capability, { reason: why.reason, held: waits !== undefined }])), new Map([
+      [empty.id, { reason: "no test names it", held: false }],
+      [login.id, { reason: "no test names it", held: false }],
+      [form.id, { reason: "failing", held: true }],
+      [page.id, { reason: "failing", held: false }],
+    ]), "only the one verified before its story's newest commit waits: one verified since, one in a story that did not change, and one no contract carries are offered");
+    const waits = waiting.find(({ capability }) => capability === form.id)!.waits!;
+    assert.equal(waits.since, merged.at);
+    assert.match(waits.note ?? "", /8c3903b4/, "it says the commit it waits on");
+    assert.ok(recorded.at > merged.at);
+
+    const over = new Date(Date.parse(merged.at) + 2 * 60 * 60 * 1000);
+    assert.equal((await health.worklist({ changed, now: over })).find(({ capability }) => capability === form.id)!.waits, undefined, "a commit past its run's time waits for nothing");
+
+    await later();
+    await health.recordVerified(bad.id, "failing");
+    assert.equal((await health.worklist({ changed })).find(({ capability }) => capability === form.id)!.waits, undefined, "verified since the commit: offered by what is recorded");
   });
 }
 

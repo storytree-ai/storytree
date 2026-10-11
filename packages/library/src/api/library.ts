@@ -8,7 +8,7 @@
  * one project. It composes the internals (the project's transactions, typed records, work model,
  * knowledge and health) without exposing any of them, and everything it returns is data.
  */
-import type { AnnotatedTree, HealthWorkItem } from "../health/index.js";
+import type { AnnotatedTree, ChangedOnMain, HealthWorkItem } from "../health/index.js";
 import { connect as connectServer, type ConnectOptions, type OpenOptions, type OwnDatabaseOptions, type Project, type ProjectSnapshot, type Storytree as Server } from "../project/index.js";
 import type { Pool } from "pg";
 import { couldBeId } from "../references.js";
@@ -120,8 +120,10 @@ export interface Library
   /**
    * The health worklist (ADR-0825 D4): every capability that is not healthy, with its reason, who
    * moves it and since when, oldest first, leaving off one an increment not yet closed lists among its capabilities.
+   * Given `changed`, by story id the newest commit on main that changed the story's code, a capability
+   * its own-health run has not recorded since waits on that commit.
    */
-  healthWorklist(): Promise<HealthWorkItem[]>;
+  healthWorklist(options?: { readonly changed?: ReadonlyMap<string, ChangedOnMain> }): Promise<HealthWorkItem[]>;
   /**
    * Retire a question that was wrong to ask, taking it off the heldOn of every increment held on it,
    * open or closed, in the same step. The increments released, oldest first; null, with nothing
@@ -238,7 +240,7 @@ function libraryOf(project: Project): Library {
       const tree = await project.work.projectTree();
       return project.health.annotate((await project.flight.withPending(options.pendingOf, tree)) ?? tree);
     },
-    healthWorklist: () => project.health.worklist(),
+    healthWorklist: (options) => project.health.worklist(options?.changed === undefined ? {} : { changed: options.changed }),
     async retireQuestion(id, reason, options) {
       if (!couldBeId(id)) return null;
       return project.flight.retireQuestion(id, reason, options);

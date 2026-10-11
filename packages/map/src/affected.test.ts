@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
 import type { AnnotatedTree } from "@storytree/library";
-import { focusProject, mapCommand } from "./read.js";
+import { changedOnMain, focusProject, mapCommand } from "./read.js";
 
 async function repository(t: TestContext) {
   const folder = await mkdtemp(path.join(tmpdir(), "map-affected-"));
@@ -126,4 +126,35 @@ test("4.1 diverged refs distinguish two-dot endpoints from merge-base and curren
   assert.equal(current.diff?.base, repo.base);
   assert.equal(current.diff?.changedPaths, 2);
   assert.ok(current.rows!.some(row => row.path === "dirty.md"));
+});
+
+test("4.2 each story whose package origin/main changed within the time asked has its newest such commit and when; the rest are absent, and with no origin/main there are none", async t => {
+  const repo = await repository(t);
+  const at = (when: Date, message: string) => execFileSync("git", ["-c", "user.name=Map test", "-c", "user.email=map@example.test", "-c", "commit.gpgsign=false", "commit", "-m", message], { cwd: repo.folder, env: { ...process.env, GIT_COMMITTER_DATE: when.toISOString(), GIT_AUTHOR_DATE: when.toISOString() }, stdio: "ignore" });
+  const now = new Date();
+  const ago = (minutes: number) => new Date(now.getTime() - minutes * 60 * 1000);
+  await repo.write("packages/pantry/src/shelf.ts", "export const shelf = 1;\n");
+  repo.git("add", "-A"); at(ago(3 * 24 * 60), "pantry, long ago");
+  await repo.write("packages/shop/src/core.ts", "export const core = 2;\n");
+  repo.git("add", "-A"); at(ago(50), "shop, earlier");
+  const shop = repo.git("rev-parse", "HEAD");
+  await repo.write("packages/till/src/drawer.ts", "export const drawer = 1;\n");
+  repo.git("add", "-A"); at(ago(20), "till");
+  const till = repo.git("rev-parse", "HEAD");
+  await repo.write("notes/readme.md", "notes\n");
+  repo.git("add", "-A"); at(ago(10), "no package");
+  repo.git("update-ref", "refs/remotes/origin/main", "HEAD");
+  await repo.write("packages/pantry/src/shelf.ts", "export const shelf = 2;\n");
+  repo.git("add", "-A"); at(ago(5), "pantry, on this branch only");
+  const stories = [{ id: "shop", title: "Shop" }, { id: "till", title: "The till" }, { id: "pantry", title: "Pantry" }];
+
+  const changed = await changedOnMain(stories, repo.folder, { within: 24 * 60 * 60 * 1000, now });
+  assert.deepEqual([...changed.keys()].sort(), ["shop", "till"], "a story its package's commits on main left untouched in the time, or touched only off main, is absent");
+  assert.equal(changed.get("shop")!.commit, shop);
+  assert.equal(Date.parse(changed.get("shop")!.at), Math.floor(ago(50).getTime() / 1000) * 1000);
+  assert.equal(changed.get("till")!.commit, till);
+  assert.deepEqual([...(await changedOnMain(stories, repo.folder, { within: 30 * 60 * 1000, now })).keys()], ["till"], "only commits within the time asked count");
+
+  repo.git("update-ref", "-d", "refs/remotes/origin/main");
+  assert.equal((await changedOnMain(stories, repo.folder, { within: 24 * 60 * 60 * 1000, now })).size, 0, "no origin/main: none");
 });

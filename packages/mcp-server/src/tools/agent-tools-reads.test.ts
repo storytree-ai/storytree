@@ -11,6 +11,7 @@
  * What the tests check is read back through the library and the activity log themselves.
  */
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { hostname } from "node:os";
 import { createServer, connect as openSocket, type AddressInfo, type Socket } from "node:net";
@@ -665,6 +666,23 @@ test("6.30 health_worklist gives the oldest three capabilities on the health wor
       assert.deepEqual(held.data.held, [capability]);
       assert.equal(held.data.more, 0);
       assert.match(held.text, /1 held back.*a test run at commit abc123 is recording it/);
+
+      await library.recordVerified(check, "failing");
+      assert.deepEqual((await agent.call("health_worklist")).data.held, [], "the run recorded it");
+      await delay(1100);
+      const git = (...args: string[]) => execFileSync("git", ["-c", "user.name=Tool test", "-c", "user.email=tool@example.test", "-c", "commit.gpgsign=false", ...args], { cwd: folder, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+      writeFileSync(path.join(folder, "notes.md"), "notes\n");
+      git("init", "-q"); git("add", "-A"); git("commit", "-qm", "outside every package");
+      git("update-ref", "refs/remotes/origin/main", "HEAD");
+      assert.deepEqual((await agent.call("health_worklist")).data.held, [], "main changed no story's package");
+      mkdirSync(path.join(folder, "packages/visitor-can-sign-up/src"), { recursive: true });
+      writeFileSync(path.join(folder, "packages/visitor-can-sign-up/src/form.ts"), "export const form = 1;\n");
+      git("add", "-A"); git("commit", "-qm", "the story's package");
+      const merged = git("rev-parse", "HEAD");
+      git("update-ref", "refs/remotes/origin/main", "HEAD");
+      const waiting = await agent.call("health_worklist");
+      assert.deepEqual(waiting.data.held, [capability], "its story's package changed on main after it was verified");
+      assert.match(waiting.text, new RegExp(`1 held back.*commit ${merged}`));
     });
   });
 });

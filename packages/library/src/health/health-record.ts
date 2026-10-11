@@ -135,8 +135,9 @@ export interface HealthWorkItem {
   /** The reason's time where one was recorded (`why.since`), else when the capability was recorded. */
   since: string;
   /**
-   * The run in progress it waits on: present when every contract carrying its reason has a pending
-   * mark (markVerifiedPending) newer than its verified entry and within PENDING_FOR, so it is not offered.
+   * The run it waits on, so it is not offered: present when every contract carrying its reason has a
+   * pending mark (markVerifiedPending) newer than its verified entry and within PENDING_FOR, or else
+   * when its story's code changed on main after every one was last verified, within MERGE_WAITS_FOR.
    */
   waits?: PendingRun;
 }
@@ -153,6 +154,19 @@ export interface PendingRun {
  * 45 minutes), so a run that died without recording holds nothing after it.
  */
 export const PENDING_FOR = 45 * 60 * 1000;
+
+/** The newest commit on main that changed a story's code, and when it was committed (an ISO 8601 timestamp). */
+export interface ChangedOnMain {
+  commit: string;
+  at: string;
+}
+
+/**
+ * How long a commit to main holds back its story's capabilities before its own-health run records
+ * them: CI's 35 minutes (.github/workflows/ci.yml), then the Own health job's 5 and 45, plus the 5 its
+ * automerge may take to start it. A run that failed or never started holds nothing after it.
+ */
+export const MERGE_WAITS_FOR = 90 * 60 * 1000;
 
 /** A story in the annotated tree, with its health rolled up from all its capabilities' contracts. */
 export interface AnnotatedStory extends Omit<StoryNode, "capabilities"> {
@@ -280,8 +294,10 @@ export class HealthRecord {
    * moves it and since when, oldest first (the plan's order on a tie). Since is when its reason was
    * recorded, or, where nothing was (not built, no test names it), when the capability was. One an
    * increment not yet closed lists among its capabilities is routed (ADR-0949 D2), and is left off until that increment closes.
+   * `changed` gives, by story id, the newest commit on main that changed the story's code: a
+   * capability its run has not recorded since waits on it (friction_cf907de5ca3b).
    */
-  async worklist({ now = new Date() }: { now?: Date } = {}): Promise<HealthWorkItem[]> {
+  async worklist({ now = new Date(), changed = new Map() }: { now?: Date; changed?: ReadonlyMap<string, ChangedOnMain> } = {}): Promise<HealthWorkItem[]> {
     const routed = new Set((await this.#records.list("increment")).filter(({ fields }) => fields.status !== "closed").flatMap(({ fields }) => fields.capabilities ?? []));
     const recorded = new Map((await this.#records.list("capability")).map(({ id, createdAt }) => [id, createdAt]));
     const marks = new Map((await this.#records.list("health")).filter(({ id }) => id.endsWith(PENDING)).map((record) => [record.fields.node, record]));
@@ -289,7 +305,8 @@ export class HealthRecord {
       .flatMap((story) => story.capabilities.flatMap(({ id, title, status, why, contracts }) => {
         if (why === undefined || routed.has(id)) return [];
         const verified = new Map(contracts.map((contract) => [contract.id, contract.health.verified]));
-        const waits = waitingOn(why.contracts.map((carrying) => ({ mark: marks.get(carrying), verified: verified.get(carrying) })), now);
+        const carrying = why.contracts.map((id) => verified.get(id));
+        const waits = waitingOn(why.contracts.map((id) => ({ mark: marks.get(id), verified: verified.get(id) })), now) ?? waitingOnMerge(changed.get(story.id), carrying, now);
         return [{ capability: id, title, story: story.id, status, why, since: why.since ?? recorded.get(id) ?? "", ...(waits === undefined ? {} : { waits }) }];
       }))
       .sort((a, b) => (a.since < b.since ? -1 : a.since > b.since ? 1 : 0));
@@ -359,6 +376,16 @@ function waitingOn(carrying: readonly { mark: SchemaRecord<"health"> | undefined
   const newest = live.reduce((a, b) => (b.updatedAt > a.updatedAt ? b : a));
   const { by, note } = newest.fields;
   return { since: newest.updatedAt, ...(by === undefined ? {} : { by }), ...(note === undefined ? {} : { note }) };
+}
+
+/**
+ * The commit a capability waits on: when its story's code changed on main less than MERGE_WAITS_FOR
+ * before `now`, and after every contract carrying its reason (at least one) was last verified; else none.
+ */
+function waitingOnMerge(merged: ChangedOnMain | undefined, carrying: readonly (HealthColumn | undefined)[], now: Date): PendingRun | undefined {
+  if (merged === undefined || carrying.length === 0 || now.getTime() - Date.parse(merged.at) >= MERGE_WAITS_FOR) return undefined;
+  if (carrying.some((verified) => verified?.at !== undefined && Date.parse(verified.at) >= Date.parse(merged.at))) return undefined;
+  return { since: merged.at, note: `commit ${merged.commit} changed its code on main; its own-health run has not recorded it yet` };
 }
 
 /** A contract's own health: each column's latest entry, or not-checked. */
@@ -446,7 +473,7 @@ export function heldBack(items: readonly HealthWorkItem[]): string | undefined {
   const runs = items.flatMap(({ waits }) => (waits === undefined ? [] : [waits]));
   if (runs.length === 0) return undefined;
   const newest = runs.reduce((a, b) => (b.since > a.since ? b : a));
-  return `${runs.length} held back while a test run in progress records them: ${newest.note ?? newest.by ?? "a run"}, since ${newest.since.slice(0, 16).replace("T", " ")}.`;
+  return `${runs.length} held back until a test run records them: ${newest.note ?? newest.by ?? "a run"}, since ${newest.since.slice(0, 16).replace("T", " ")}.`;
 }
 
 /** What a report-only capability says in place of a reason (ADR-0630). */

@@ -1,7 +1,7 @@
 {
   "story": "The forest",
-  "commit": "fab5b6ed933d278bf5320095db109fcea74974d8",
-  "evidence": "/home/mickh/code/storytree03/.claude/worktrees/increment-fa47ebc6ac05-499e21/packages/forest/src/view/evidence/forest-library-toggle",
+  "commit": "bc9039d9123c88312fc5eda5f8fdc8c1ff84c496",
+  "evidence": "/home/mickh/code/storytree03/.claude/worktrees/increment-b3a0ea0ee0fd-66918e/packages/forest/src/view/evidence/forest-library-toggle",
   "checks": [
     {
       "contract": "3.9",

@@ -10,7 +10,7 @@ const pkgDir = path.resolve(here, '../..');
 export const mutation = process.argv.find(arg => arg.startsWith('--mutate='))?.slice('--mutate='.length);
 // Each mutation changes only this capture's bundle, removing one real behaviour a proof below checks.
 const MUTATIONS = {
-  mode: [/forest-view\.tsx$/, '    render({ mode });\n', '    render({});\n'],
+  mode: [/forest-view\.tsx$/, '    render({ switches });\n', '    render({});\n'],
   emphasis: [/session-emphasis\.tsx$/, 'emphasis === "held" ? 1.16 : 0.24', '1'],
   fit: [/tree-space\.ts$/, '() => moving.fit()', '() => {}'],
 };

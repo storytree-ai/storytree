@@ -52,7 +52,7 @@ await withCapture({ folder: here, dist }, async ({ browser, origin, out }) => {
   await page.waitForFunction(() => document.body.dataset.state === 'ready' && window.__globe, undefined, { timeout: 120000 });
   for (const name of ['Close help', 'Close app menu']) { const b = page.getByRole('button', { name, exact: true }); if (await b.isVisible().catch(() => false)) await b.click(); }
   await page.evaluate(() => { for (const m of document.querySelectorAll('[popover]')) if (m.matches(':popover-open')) m.hidePopover(); });
-  if (mode === 'library') await page.locator('button[data-forest-mode="library"]').click();
+  if (mode === 'library') await page.locator('button[data-globe-switch="stories"]').click();
   await page.waitForFunction(() => { let n = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('knowledge-glow:') && o.visible) n++; }); return n > 0; }, undefined, { timeout: 60000 })
     .catch(() => console.error('no visible glow'));
   await page.waitForTimeout(4000);

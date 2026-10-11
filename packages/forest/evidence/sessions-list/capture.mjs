@@ -207,7 +207,7 @@ await withCapture({ folder: here, dist: path.join(here, 'dist/production') }, as
   await row(ids.parent).focus();
   await frames();
   assert.deepEqual((await plateState()).map(({ id, emphasis }) => ({ id, emphasis })), hovered.map(({ id, emphasis }) => ({ id, emphasis })), 'keyboard focus links the same islands');
-  await page.getByRole('button', { name: 'Forest', exact: true }).focus();
+  await page.getByRole('button', { name: 'Stories', exact: true }).focus();
   await frames();
   assert.deepEqual(await plateState(), baseline, 'focus leaving the row restores the forest');
 
@@ -238,7 +238,7 @@ await withCapture({ folder: here, dist: path.join(here, 'dist/production') }, as
   assert.equal(await detail.locator('li[data-resident="no"]').innerText(), 'src/example.test.ts');
   assert.equal(await list.locator('.session-off-plan').count(), 0, 'row detail uses window files, not the retired off-plan widget');
   await page.mouse.move(4, 4);
-  await page.getByRole('button', { name: 'Forest', exact: true }).focus();
+  await page.getByRole('button', { name: 'Stories', exact: true }).focus();
   await frames();
   await page.screenshot({ path: path.join(out, 'sessions-list-expanded.png') });
 

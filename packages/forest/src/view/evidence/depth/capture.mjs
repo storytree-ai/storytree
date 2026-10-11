@@ -97,7 +97,7 @@ for (const which of ['before', 'after']) {
       return { grounds, shownGrounds, depth, far };
     })()`);
     for (const view of VIEWS) {
-      if (view.library) { await page.locator('.forest-views button[data-forest-mode="library"]').click(); await settle(page); }
+      if (view.library) { await page.locator('.forest-views button[data-globe-switch="stories"]').click(); await settle(page); }
       await page.evaluate(`(() => {
         const { scene, camera, size, invalidate } = window.__globe, { rotation, onRotate } = window.__nav;
         const V = camera.position.constructor, Q = camera.quaternion.constructor;

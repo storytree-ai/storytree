@@ -9,9 +9,12 @@ recording of live activity. Production source and appearance are unchanged.
 coverage holds only what it executed:
 
 - **forest 3.3, 3.4, 3.9, 3.10, 3.13 (globe):** the public module exports its surfaces; the globe
-  opens in Forest with one nameplate per story; a click just above a facing nameplate selects that
-  story and names its capabilities; Library hides every nameplate, clears the selection and keeps the
-  canvas; Forest brings them back on the same canvas; Escape closes a selection; the card slot mounts
+  opens with its Stories and Library switches both on and one nameplate per story; a click just above
+  a facing nameplate selects that story and names its capabilities; each press flips only its own
+  switch, and the four pairs draw on one canvas, camera, turn and zoom: Library off the islands on a
+  solid globe, keeping the story (`globe-library-off.png`); both off nothing where the globe was, with
+  nothing pickable and the selection cleared (`globe-both-off.png`); Stories off the core alone
+  (`globe-library.png`); both on the islands over the core (`globe-both-on.png`); Escape closes a selection; the card slot mounts
   and unmounts; disposing removes the canvas and empties its host.
 - **forest 7.4 (sessions):** highlighting a session's held story lights that island's meshes
   (brightness above 1) and rings it, dims every other island, and leaving restores them all.
@@ -26,9 +29,9 @@ node --import tsx packages/forest/evidence/mounted-views/capture.mjs
 pnpm survey:coverage forest
 ```
 
-Red checks change only the capture bundle: `--mutate=mode` (choosing a mode no longer renders it),
+Red checks change only the capture bundle: `--mutate=mode` (a switch's press no longer renders it),
 `--mutate=emphasis` (a held island is not brightened) and `--mutate=fit` (Fit does nothing). Each
-fails its proof: the Library mode wait times out; `7.4 the held island is lit`; `4.11 Fit returns to
+fails its proof: `3.9 Library off: the islands on a solid globe`; `7.4 the held island is lit`; `4.11 Fit returns to
 the whole tree`. A mutated run never records coverage, and a failed normal run withdraws these proofs'
 previous inputs.
 

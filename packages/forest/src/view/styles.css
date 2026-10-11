@@ -42,6 +42,17 @@
   display: block;
 }
 
+/* The globe's own wrapper: no box of its own. With Stories and Library both off it stays mounted, unseen and
+   unpickable, so it comes back as it was left (3.10). */
+.forest-globe,
+.forest-globe[hidden] {
+  display: contents;
+}
+
+.forest-globe[hidden] {
+  visibility: hidden;
+}
+
 .forest-views {
   position: absolute;
   z-index: 50;

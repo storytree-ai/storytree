@@ -189,8 +189,8 @@ async function measure({ appDir, exe, extraArgs, home: reuse, homeFrom, project,
       await row.click({ timeout: 2000 }).catch(() => {});
       await page.waitForTimeout(600);
     }
-    for (const mode of ["library", "forest", "library", "forest"]) {
-      await page.locator(`[data-forest-mode=${mode}]`).click({ timeout: 2000 }).catch(() => {});
+    for (let flips = 0; flips < 4; flips++) {
+      await page.locator("[data-globe-switch=stories]").click({ timeout: 2000 }).catch(() => {});
       await page.waitForTimeout(800);
     }
     await mark("end");

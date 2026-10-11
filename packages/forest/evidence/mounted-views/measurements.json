@@ -1,20 +1,20 @@
 {
-  "capturedAt": "2026-10-03T21:59:32.066Z",
+  "capturedAt": "2026-10-11T11:03:13.978Z",
   "proofs": {
-    "globe": "forest 3.3 a click on a facing story node selects it through the public view; 3.4 nameplates; 3.9, 3.10 Library and Forest keep one canvas; 3.13 the card slot",
+    "globe": "forest 3.3 a click on a facing story node selects it through the public view; 3.4 nameplates; 3.9, 3.10 the Stories and Library switches draw each pair and keep one canvas; 3.13 the card slot",
     "sessions": "forest 7.4 the mounted view lights a hovered session's held island, dims the others, and restores them on leaving",
     "tree": "forest 4.11 the capability tree's own space opens fitted, fits again after a drag, chooses a clicked card, and closes"
   },
   "results": {
     "globe": {
       "stories": 15,
-      "facing": 12,
+      "facing": 5,
       "picked": "story_d754d997f22a",
-      "capabilityPlates": 2
+      "capabilityPlates": 4
     },
     "sessions": {
       "story": "story_754e87e7d531",
-      "lit": 46,
+      "lit": 69,
       "dimmedIslands": 14
     },
     "tree": {
@@ -26,13 +26,13 @@
   "measured": {
     "globe": {
       "src/agent-claims/agent-claims.ts": {
-        "3": 4
+        "3": 1
       },
       "src/capability-tree/capability-tree.ts": {
         "3": 7
       },
       "src/never-hidden/never-hidden.ts": {
-        "3": 6
+        "3": 7
       },
       "src/planet-places/island-growth.ts": {
         "3": 29
@@ -41,16 +41,22 @@
         "3": 3
       },
       "src/render/forest-scene.ts": {
-        "3": 19
+        "3": 18
       },
       "src/render/selection-lanes.ts": {
-        "3": 8
+        "3": 4
       },
       "src/story-nodes/story-nodes.ts": {
-        "3": 27
+        "3": 28
       },
       "src/territories/territories.ts": {
-        "3": 89
+        "3": 90
+      },
+      "src/view/border-route.ts": {
+        "3": 21
+      },
+      "src/view/claim-flag.ts": {
+        "3": 40
       },
       "src/view/file-circles.ts": {
         "3": 3
@@ -65,7 +71,10 @@
         "3": 1
       },
       "src/view/globe-surfaces.ts": {
-        "3": 4
+        "3": 6
+      },
+      "src/view/globe-switches.ts": {
+        "3": 2
       },
       "src/view/index.ts": {
         "3": 1
@@ -74,42 +83,42 @@
         "3": 30
       },
       "src/view/island-progress.ts": {
-        "3": 3
+        "3": 1
       },
-      "src/view/nameplates.ts": {
-        "3": 30
-      },
-      "src/view/panel-selection.ts": {
+      "src/view/mini-globe.ts": {
         "3": 6
       },
+      "src/view/nameplates.ts": {
+        "3": 20
+      },
+      "src/view/panel-selection.ts": {
+        "3": 7
+      },
       "src/view/planet-navigation.ts": {
-        "3": 17
+        "3": 20
       },
       "src/view/planet-update.ts": {
         "3": 5
       },
       "src/view/planet-view.tsx": {
-        "3": 59
+        "3": 71
       },
       "src/view/session-emphasis.tsx": {
         "3": 5
       },
-      "src/view/session-tints.ts": {
-        "3": 8
-      },
       "src/view/territory-land.ts": {
-        "3": 63
+        "3": 46
       }
     },
     "sessions": {
       "src/agent-claims/agent-claims.ts": {
-        "7": 4
+        "7": 1
       },
       "src/capability-tree/capability-tree.ts": {
         "7": 7
       },
       "src/never-hidden/never-hidden.ts": {
-        "7": 6
+        "7": 7
       },
       "src/planet-places/island-growth.ts": {
         "7": 29
@@ -118,16 +127,22 @@
         "7": 3
       },
       "src/render/forest-scene.ts": {
-        "7": 19
+        "7": 18
       },
       "src/render/selection-lanes.ts": {
-        "7": 4
+        "7": 1
       },
       "src/story-nodes/story-nodes.ts": {
-        "7": 27
+        "7": 28
       },
       "src/territories/territories.ts": {
-        "7": 89
+        "7": 90
+      },
+      "src/view/border-route.ts": {
+        "7": 1
+      },
+      "src/view/claim-flag.ts": {
+        "7": 37
       },
       "src/view/file-circles.ts": {
         "7": 3
@@ -139,19 +154,25 @@
         "7": 3
       },
       "src/view/globe-surfaces.ts": {
-        "7": 4
+        "7": 6
+      },
+      "src/view/globe-switches.ts": {
+        "7": 1
       },
       "src/view/index.ts": {
         "7": 1
       },
       "src/view/island-overlays.tsx": {
-        "7": 20
+        "7": 28
       },
       "src/view/island-progress.ts": {
-        "7": 3
+        "7": 1
+      },
+      "src/view/mini-globe.ts": {
+        "7": 5
       },
       "src/view/nameplates.ts": {
-        "7": 23
+        "7": 10
       },
       "src/view/panel-selection.ts": {
         "7": 2
@@ -163,16 +184,13 @@
         "7": 5
       },
       "src/view/planet-view.tsx": {
-        "7": 53
+        "7": 64
       },
       "src/view/session-emphasis.tsx": {
         "7": 9
       },
-      "src/view/session-tints.ts": {
-        "7": 8
-      },
       "src/view/territory-land.ts": {
-        "7": 61
+        "7": 45
       }
     },
     "tree": {
@@ -192,10 +210,10 @@
         "4": 1
       },
       "src/render/forest-scene.ts": {
-        "4": 19
+        "4": 18
       },
       "src/story-nodes/story-nodes.ts": {
-        "4": 27
+        "4": 28
       },
       "src/territories/territories.ts": {
         "4": 78

@@ -109,7 +109,7 @@ async function measure(page) {
       markers: [...document.querySelectorAll('.forest-claim, .planet-edge-marker')].map(el => ({
         capability: el.dataset.capabilityId, failingStory: el.dataset.failingStory, ...visibleElement(el),
       })),
-      mode: document.querySelector('.forest-views [aria-pressed="true"]')?.dataset.forestMode,
+      mode: document.querySelector('.forest').dataset.forestMode,
       drew: JSON.parse(document.body.dataset.drew), view: document.querySelector('.forest').dataset.view,
       selected: document.body.dataset.selected ?? null, panelVisible: !document.querySelector('.story-panel').hidden,
     };
@@ -220,8 +220,9 @@ function sameCore(before, after) {
 }
 
 async function switchMode(page, mode) {
-  await page.getByRole('group', { name: 'Globe view' }).getByRole('button', { name: mode === 'forest' ? 'Forest' : 'Library', exact: true }).click();
-  await page.waitForFunction(mode => document.querySelector(`.forest-views [data-forest-mode="${mode}"]`)?.getAttribute('aria-pressed') === 'true', mode);
+  // Library mode is the Stories switch off (ADR-1002 D2); the Library switch stays on.
+  await page.getByRole('group', { name: 'Globe layers' }).getByRole('button', { name: 'Stories', exact: true }).click();
+  await page.waitForFunction(mode => document.querySelector('.forest').dataset.forestMode === mode, mode);
   await settle(page);
 }
 
@@ -316,8 +317,8 @@ async function failureJourney(browser) {
   sameGlobe(orbited, await measure(page));
   await switchMode(page, 'library');
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await page.getByRole('button', { name: 'Forest', exact: true }).waitFor();
-  await page.waitForFunction(() => document.querySelector('.forest-views [data-forest-mode="forest"]')?.getAttribute('aria-pressed') === 'true');
+  await page.getByRole('button', { name: 'Stories', exact: true }).waitFor();
+  await page.waitForFunction(() => [...document.querySelectorAll('.forest-views [data-globe-switch]')].every(button => button.getAttribute('aria-pressed') === 'true'));
   assert.deepEqual(errors, []);
   writeFileSync(path.join(out, 'interactions.json'), JSON.stringify({
     synthetic: 'Browser-only snapshot copy: one failing capability and one Codex claim. No library writes.',

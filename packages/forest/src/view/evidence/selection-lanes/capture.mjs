@@ -193,8 +193,8 @@ const expected = { story: SELECTED, ...counts.get(SELECTED),
     await page.waitForTimeout(1500);
     await settle(page, 20);
 
-    // Library mode: the toggle closes the selection; no lane mesh is mounted there either.
-    await page.click('button[data-forest-mode="library"]');
+    // Stories off (the Library view): the switch closes the selection; no lane mesh is mounted there either.
+    await page.click('button[data-globe-switch="stories"]');
     await settle(page, 20);
     result.libraryMode = { ...await lanes(), mode: await page.evaluate(() => document.querySelector('.forest').dataset.forestMode) };
 

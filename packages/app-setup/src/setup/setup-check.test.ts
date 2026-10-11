@@ -728,6 +728,20 @@ test("8.11 the check says whether Claude Code or Codex is installed and signed i
   });
 });
 
+test("8.27 with neither Claude Code nor Codex ready, the agent-cli line's fix gives storytree's stdio server entry, in the mcpServers JSON shape, for any other harness with an MCP client to add by hand", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const missing = async () => ({ claude: "missing", codex: "missing", git: "present", node: { state: "ok", version: "v24.1.0" }, waitMs: 5_000 }) as const;
+    const report = await runSetupCheck({ folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome, gh: async () => "signed in" as const, machine: missing });
+    const line = report.lines.find((each) => each.check === "agent-cli");
+    assert.equal(line?.state, "needs-attention");
+    const entry = /(\{[\s\S]*\})/.exec(line?.fix ?? "")?.[1];
+    assert.ok(entry !== undefined, `an entry in the fix: ${line?.fix}`);
+    assert.deepEqual(JSON.parse(entry), { mcpServers: { storytree: { type: "stdio", command: HOOK.node, args: [path.join(tmpdir(), "storytree", "dist", "storytree-mcp.mjs")] } } });
+    assert.match(line?.fix ?? "", /Claude Code/, "installing a watched harness stays offered");
+  });
+});
+
 test("8.11 a tool that exits while something it started still holds its output is not waited on (regression: gh auth status's tzutil, 2026-09-28)", { timeout: 30_000 }, async () => {
   await withTempDir(async (dir) => {
     const bin = path.join(dir, "bin");

@@ -35,7 +35,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 
 import { McpServer, type CallToolResult, type ServerContext } from "@modelcontextprotocol/server";
-import { agentOf, callLines, endMergedClaims, findProject, idleAfterMs, lineOf, locateStorytree, requestOf, route, seenCaller, storytreeHome, type ActivityLog, type Agent, type Caller, type MergeWatch } from "@storytree/session-management";
+import { agentOf, callLines, endMergedClaims, findProject, harnessOfClient, idleAfterMs, SESSION_ENV, lineOf, locateStorytree, requestOf, route, seenCaller, storytreeHome, type ActivityLog, type Agent, type Caller, type MergeWatch } from "@storytree/session-management";
 import { type SetupOptions } from "@storytree/app-setup/setup";
 import type { ProtectionReader } from "@storytree/app-setup/pipeline";
 import { type Library, type Storytree, type WriteOptions } from "@storytree/library";
@@ -285,15 +285,16 @@ export async function servedTools(folder: string, options: Omit<AgentToolOptions
 
 /**
  * Who is calling. The harness from the client's name (Claude Code calls itself `claude-code`, Codex
- * `codex-mcp-client`); the session from where that harness puts it.
+ * `codex-mcp-client`, any other client by its own name); the session from where that harness puts it.
+ * A client that names none is the session STORYTREE_SESSION_ID names in the server's environment, or
+ * else the server's own id, one for the server's life (6.65): its shell names it the same way.
  */
 function callerFrom(server: McpServer, context: ServerContext, env: Readonly<Record<string, string | undefined>>, ownSession: string): Caller {
-  const client = server.server.getClientVersion()?.name;
-  const harness = client === "codex-mcp-client" ? "codex" : client;
+  const harness = harnessOfClient(server.server.getClientVersion()?.name);
   const meta = metaOf(context);
   const fromMeta = text(meta.sessionId) ?? text(meta.threadId);
   const fromEnv = text(env.CLAUDE_CODE_SESSION_ID);
-  const session = (harness === "claude-code" ? (fromEnv ?? fromMeta) : (fromMeta ?? fromEnv)) ?? ownSession;
+  const session = (harness === "claude-code" ? (fromEnv ?? fromMeta) : (fromMeta ?? fromEnv)) ?? text(env[SESSION_ENV]) ?? ownSession;
   return harness === undefined ? { session } : { session, harness };
 }
 

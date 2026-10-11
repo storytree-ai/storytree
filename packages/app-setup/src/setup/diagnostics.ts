@@ -1,8 +1,8 @@
 /** Capability 8 · Setup check. The setup check's lines and fixes, shared by the terminal and the agent's check_setup tool. */
 import { NODE_FLOOR, type AgentCliState, type MachineState } from "./machine.js";
 import { CODEX_TRUST_STEP } from "./verify.js";
-import type { SetupReport } from "./setup.js";
-import type { AppReading } from "@storytree/session-management";
+import type { ServerEntry, SetupReport } from "./setup.js";
+import { watchedHarness, type AppReading, type Harness } from "@storytree/session-management";
 import { compareVersions } from "./hooks-release.js";
 
 export interface SetupLine {
@@ -22,7 +22,7 @@ export function setupLines(report: Omit<SetupReport, "lines">): SetupLine[] {
   if (hooks === undefined) {
     lines.push({ check: "hooks", state: "skipped", message: "This check has no installed storytree hook command to register.", fix: "Run the check from an installed storytree." });
   } else {
-    const name = (harness: "claude-code" | "codex") => harness === "codex" ? "Codex" : "Claude Code";
+    const name = (harness: Harness) => watchedHarness(harness)?.label ?? harness;
     const registered = (["claude-code", "codex"] as const).filter((harness) => hooks[harness] === "registered");
     // Name only the harnesses whose hooks are in place: not one that is not on this machine or was disconnected.
     const present = (["claude-code", "codex"] as const).filter((harness) => hooks[harness] === "registered" || hooks[harness] === "already registered");
@@ -115,7 +115,7 @@ export function setupLines(report: Omit<SetupReport, "lines">): SetupLine[] {
   lines.push(gh === "signed in"
     ? { check: "gh", state: "ok", message: "GitHub's gh command is signed in." }
     : { check: "gh", state: "note", message: `GitHub's gh command ${ghNow}. storytree works without it: only a claim ending by itself when its pull request merges needs it.` });
-  lines.push(...machineLines(machine));
+  lines.push(...machineLines(machine, report.serverEntry, report.connected));
   lines.push(archivesLine(report.archives));
   lines.push(project.status === "set up"
     ? { check: "project", state: "ok", message: `This folder is storytree project ${JSON.stringify(project.name)}.` }
@@ -140,8 +140,18 @@ function archivesLine(archives: readonly AppReading[]): SetupLine {
     : { check: "archives", state: "note", message: `${capital}. Sessions here leave the running-sessions list after the leave-after time instead of when archived.` };
 }
 
+/**
+ * How any other harness with an MCP client connects (8.27): storytree's server entry in the common
+ * `mcpServers` shape, to add by hand, or where to get one when this check knows of no installed server.
+ */
+export function connectedPath(entry: ServerEntry | undefined): string {
+  if (entry === undefined) return "Any other harness with an MCP client can connect to storytree by adding its tool server, from an installed storytree, by hand.";
+  const shape = { mcpServers: { storytree: { type: "stdio", command: entry.command, args: entry.args } } };
+  return `Any other harness with an MCP client can connect to storytree: add this server entry to its MCP settings by hand, then start a new session there and call check_setup: ${JSON.stringify(shape)}`;
+}
+
 /** The agent CLI, git and Node lines: what a first run needs on the machine (ADR-0716). */
-function machineLines(machine: MachineState): SetupLine[] {
+function machineLines(machine: MachineState, entry: ServerEntry | undefined, connected: string | undefined): SetupLine[] {
   const seconds = `${Math.round(machine.waitMs / 1000)} seconds`;
   const cli = (name: string, state: AgentCliState): string =>
     state === "signed in" ? `${name} is installed and signed in`
@@ -152,13 +162,16 @@ function machineLines(machine: MachineState): SetupLine[] {
   const signIns = [machine.claude === "signed out" ? "run `claude auth login`" : undefined, machine.codex === "signed out" ? "run `codex login`" : undefined].filter((fix) => fix !== undefined);
   const lines: SetupLine[] = [agentReady
     ? { check: "agent-cli", state: "ok", message: `${cli("Claude Code", machine.claude)}; ${cli("Codex", machine.codex)}.` }
+    // A session already connected through another MCP client needs neither (6.64).
+    : connected !== undefined
+      ? { check: "agent-cli", state: "ok", message: `This session is connected through ${connected}, an MCP client storytree has no hooks for; ${cli("Claude Code", machine.claude)}; ${cli("Codex", machine.codex)}.` }
     : {
         check: "agent-cli",
         state: "needs-attention",
-        message: `storytree works through Claude Code or Codex, and neither is ready: ${cli("Claude Code", machine.claude)}; ${cli("Codex", machine.codex)}.`,
-        fix: signIns.length > 0
+        message: `storytree watches sessions in Claude Code or Codex, and neither is ready: ${cli("Claude Code", machine.claude)}; ${cli("Codex", machine.codex)}.`,
+        fix: `${signIns.length > 0
           ? `To sign in, ${signIns.join(", or ")}, then run the setup check again.`
-          : "Install Claude Code (https://claude.com/claude-code) or Codex (https://developers.openai.com/codex), sign in, then run the setup check again.",
+          : "Install Claude Code (https://claude.com/claude-code) or Codex (https://developers.openai.com/codex), sign in, then run the setup check again."} ${connectedPath(entry)}`,
       }];
 
   // git and Node are optional for a user: a note, never a fix (owner, 2026-09-29, question_bb3efa1e3191).

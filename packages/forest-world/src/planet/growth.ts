@@ -61,7 +61,8 @@ export function growthPlan(stages: readonly GrowthStage[], options: GrowthOption
   if (options.fromPoint) { plan.globe = { start: 0, seconds: GLOBE_SWELL }; at = GLOBE_SWELL; }
   stages.forEach((stage, index) => {
     const { islands } = stage.scene;
-    const storyOf = new Map(islands.flatMap(i => i.trees.flatMap(t => t.capability === undefined ? [] : [[t.capability, i.story] as const])));
+    // A road's end is a capability on an island, or the island as a whole.
+    const storyOf = new Map(islands.flatMap(i => [[i.story, i.story] as const, ...i.trees.flatMap(t => t.capability === undefined ? [] : [[t.capability, i.story] as const])]));
     const fresh = islands.filter(i => !plan.islands.has(i.story)).map(i => i.story);
     const links = (stage.scene.links ?? []).filter(l => storyOf.has(l.from) && storyOf.has(l.to) && !plan.roads.has(linkKey(l)));
     const settled = new Map<string, number>(islands.filter(i => plan.islands.has(i.story)).map(i => [i.story, at]));

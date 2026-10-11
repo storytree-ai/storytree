@@ -88,3 +88,13 @@ test('6.13 a link naming a capability on no island is left out on its own: every
   assert.ok(drawing.plan.segments.length > 0, 'the road between the islands is drawn');
   assert.match(drawing.issue ?? '', /b2.*retired/, 'the notice names the link left out');
 });
+
+test('6.19 a road may end on an island as a whole, named by its story, as well as on a capability on it', () => {
+  // A new island building on an old one that has no capabilities to name (ADR-0993: a mapped island is a black box).
+  const whole = { from: 'b', to: 'c' };
+  const drawing = planetPathwayDrawing({ islands: [...scene.islands, island('c', [])], links: [...links, whole] },
+    new Map([...spots, ['c', { x: 0, y: R * Math.sin(0.3), z: R * Math.cos(0.3) }]]), R);
+  assert.equal(drawing.issue, undefined, 'nothing is left out');
+  assert.deepEqual(drawing.plan.edges.map(e => `${e.from}->${e.to}`).sort(), ['b->c', 'b1->a1']);
+  assert.ok(drawing.plan.docks.some(d => d.story === 'c' && d.links.includes('b->c')), 'the road docks on the whole island\'s coast');
+});

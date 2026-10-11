@@ -9,6 +9,7 @@
  */
 import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, Group, LineBasicMaterial, LineSegments, Mesh, MeshBasicMaterial, Quaternion, RingGeometry, Vector3, type Material, type Object3D } from "three";
 import type { ClaimTint } from "@storytree/forest";
+import { pennantOutline, quietHsl } from "@storytree/session-management/claim-mark";
 import { facing } from "./nameplates.js";
 import { lotDashes, type DrawnLand } from "./territory-land.js";
 
@@ -68,11 +69,11 @@ export function claimMoment({ arrived, left, quiet, now, reduced }: { arrived?: 
   };
 }
 
-/** The session's colour, greyed by `q` (0 held, 1 quiet): a third less saturated and four points darker. */
+/** The session's colour, greyed by `q` (0 held, 1 quiet), by the rule every claim mark shares. */
 function greyed(colour: string, q: number): Color {
   if (q === 0) return new Color(colour);
-  const hsl = new Color(colour).getHSL({ h: 0, s: 0, l: 0 });
-  return new Color().setHSL(hsl.h, hsl.s * (1 - q / 3), Math.max(0, hsl.l - 0.04 * q));
+  const hsl = quietHsl(new Color(colour).getHSL({ h: 0, s: 0, l: 0 }), q);
+  return new Color().setHSL(hsl.h, hsl.s, hsl.l);
 }
 
 const flatMaterial = (colour: Color | string, opacity = 1) =>
@@ -96,17 +97,6 @@ function stroke(points: readonly (readonly [number, number])[], width: number, c
     return [[ax + nx, ay + ny], [bx + nx, by + ny], [bx - nx, by - ny], [ax + nx, ay + ny], [bx - nx, by - ny], [ax - nx, ay - ny]];
   }), ...points.flatMap(([x, y]) => disc(x, y, h, h, 8))];
 }
-const quadratic = (from: readonly [number, number], via: readonly [number, number], to: readonly [number, number], steps = 10) =>
-  Array.from({ length: steps + 1 }, (_, i): [number, number] => { const t = i / steps, u = 1 - t; return [u * u * from[0] + 2 * u * t * via[0] + t * t * to[0], u * u * from[1] + 2 * u * t * via[1] + t * t * to[1]]; });
-
-/** The pennant's outline at scale `k`, furled by `q`: from the pole's top out to its tip and back, its edges bowed (ADR-0968's reference drawing). */
-function pennantOutline(k: number, q: number): [number, number][] {
-  const H = 26 * k, W = 17 * k * (1 - 0.58 * q), h = 12 * k, droop = q * 9 * k;
-  // The drawing's y runs down the canvas; here it runs up the screen.
-  const tip: [number, number] = [W, H - h * 0.5 - droop];
-  return [...quadratic([0.6 * k, H], [W * 0.5, H - h * 0.16 - droop * 0.4], tip), ...quadratic(tip, [W * 0.5, H - h * 0.84 - droop * 0.8], [0.6 * k, H - h - droop * 0.25]).slice(1)];
-}
-
 /** The flag's own marks at scale `k`, furled by `q`, replacing what `drawing` held: a pennant on a pole over a shadow, or a dot. */
 function drawFlag(drawing: Group, colour: string, k: number, q: number): void {
   for (const child of [...drawing.children]) { child.removeFromParent(); disposeMark(child); }

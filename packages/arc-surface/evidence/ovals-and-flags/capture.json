@@ -1,0 +1,111 @@
+{
+  "browser": "148.0.7778.96",
+  "dark": [
+    {
+      "title": "Website",
+      "headBottom": 154.45433044433594,
+      "firstOvalTop": 167.45433044433594,
+      "flags": [
+        {
+          "session": "working-now",
+          "fill": "hsl(25, 80%, 68%)",
+          "top": 157.15432739257812,
+          "pennantWidth": 9.020004272460938
+        },
+        {
+          "session": "quiet-contact",
+          "fill": "hsl(11, 53.33%, 64%)",
+          "top": 157.15432739257812,
+          "pennantWidth": 3.5999908447265625
+        }
+      ]
+    },
+    {
+      "title": "Docs refresh",
+      "headBottom": 209.61058044433594,
+      "firstOvalTop": 212.61058044433594,
+      "flags": []
+    }
+  ],
+  "light": [
+    {
+      "title": "Website",
+      "headBottom": 152.65625,
+      "firstOvalTop": 165.65625,
+      "flags": [
+        {
+          "session": "working-now",
+          "fill": "hsl(25, 80%, 68%)",
+          "top": 155.3562469482422,
+          "pennantWidth": 9.020004272460938
+        },
+        {
+          "session": "quiet-contact",
+          "fill": "hsl(11, 53.33%, 64%)",
+          "top": 155.3562469482422,
+          "pennantWidth": 3.5999908447265625
+        }
+      ]
+    },
+    {
+      "title": "Docs refresh",
+      "headBottom": 207.8125,
+      "firstOvalTop": 210.8125,
+      "flags": []
+    }
+  ],
+  "dark-4x": [
+    {
+      "title": "Website",
+      "headBottom": 152.65625,
+      "firstOvalTop": 165.65625,
+      "flags": [
+        {
+          "session": "working-now",
+          "fill": "hsl(25, 80%, 68%)",
+          "top": 155.3562469482422,
+          "pennantWidth": 9.020004272460938
+        },
+        {
+          "session": "quiet-contact",
+          "fill": "hsl(11, 53.33%, 64%)",
+          "top": 155.3562469482422,
+          "pennantWidth": 3.5999908447265625
+        }
+      ]
+    },
+    {
+      "title": "Docs refresh",
+      "headBottom": 207.8125,
+      "firstOvalTop": 210.8125,
+      "flags": []
+    }
+  ],
+  "light-4x": [
+    {
+      "title": "Website",
+      "headBottom": 152.65625,
+      "firstOvalTop": 165.65625,
+      "flags": [
+        {
+          "session": "working-now",
+          "fill": "hsl(25, 80%, 68%)",
+          "top": 155.3562469482422,
+          "pennantWidth": 9.020004272460938
+        },
+        {
+          "session": "quiet-contact",
+          "fill": "hsl(11, 53.33%, 64%)",
+          "top": 155.3562469482422,
+          "pennantWidth": 3.5999908447265625
+        }
+      ]
+    },
+    {
+      "title": "Docs refresh",
+      "headBottom": 207.8125,
+      "firstOvalTop": 210.8125,
+      "flags": []
+    }
+  ]
+}

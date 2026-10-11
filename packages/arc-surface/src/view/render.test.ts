@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { record } from "../testing/records.js";
 import { boardView, type BoardSnapshot } from "../board/board.js";
+import { quietColour, sessionColour } from "@storytree/session-management/claim-mark";
 import { renderBoard, renderHandle } from "./render.js";
 
 const snapshot: BoardSnapshot = {
@@ -93,6 +94,25 @@ test("3.2 a lane's second line is its bars alone: the count is spoken on the bar
   const track = html.match(/<span class="arc-track">(.*?)<\/span>\s*<\/button>/s)![1]!;
   assert.match(track, /^<span class="arc-bars" role="group" aria-label="Increments: 1 landed · 2 open">(<span class="arc-bar[^>]*>[^<]*<\/span>)+<\/span>$/);
   assert.doesNotMatch(html.slice(0, html.indexOf("<aside")), /arc-count|arc-waits-on|arc-note-marker|arc-idle-marker|>1 landed/);
+});
+
+test("3.2 a claimed increment's oval carries its holder's flag in the session's colour, furled and greyed while the holder is idle; an unclaimed one carries none", () => {
+  const work = (id: string) => record(id, "increment", { arc: "a", title: `Build ${id}`, objective: id, body: id, status: "proposal" });
+  const a = { arc: record("a", "arc", { title: "Arc a", intent: "a", endState: "Done" }), state: "active" as const, questions: [], increments: [work("i1"), work("i2"), work("i3")] };
+  const claim = (session: string, increment: string, at: string) => ({ seq: 1, project: "p", session, harness: "claude-code", source: "hook" as const, kind: "claimed" as const, increment, reason: `Build ${increment}`, at });
+  const lanes = (claims: ReturnType<typeof claim>[]) => renderBoard(boardView({ arcs: [a], heldOn: {}, waits: {} }, claims, new Date("2026-09-27T00:42:00Z")), "a");
+  const html = lanes([claim("idle-one", "i1", "2026-09-27T00:00:00Z"), claim("live-one", "i2", "2026-09-27T00:41:00Z")]);
+  const bar = (id: string) => html.match(new RegExp(`<span class="arc-bar[^"]*"[^>]*data-increment-id="${id}".*?</span>`, "s"))![0];
+  const fill = (id: string) => bar(id).match(/<path class="arc-flag-pennant" d="M[^"]+Z" fill="([^"]+)"/)?.[1];
+  const tipOut = (id: string) => Math.max(...[...bar(id).match(/d="M([^"]+)Z"/)![1]!.matchAll(/(-?[\d.]+),/g)].map(([, x]) => Number(x)));
+  assert.match(bar("i1"), /<svg class="arc-agent-mark"[^>]*data-agent-session="idle-one"[^>]*data-work-id="i1"[^>]*data-agent-label="[^"]+"/, "mount reads the holder from its flag");
+  assert.equal(fill("i2"), sessionColour("live-one"));
+  assert.equal(fill("i1"), quietColour(sessionColour("idle-one"), 1));
+  assert.ok(tipOut("i1") < tipOut("i2") * 0.5, "the idle holder's pennant is furled");
+  assert.doesNotMatch(bar("i3"), /<svg/);
+  assert.doesNotMatch(html, /●/, "no dot");
+  assert.match(html, /<span class="arc-track arc-flagged">/, "a lane with a flag leaves it headroom");
+  assert.match(lanes([]), /<span class="arc-track">/, "and a lane with none does not");
 });
 
 test("3.3 a lane counts what its open work waits on at the right of its title: an hourglass for other work and events, a question mark for the owner; a mark with nothing to count is not drawn, and a ready lane's idle claims are in its chip's hover", () => {

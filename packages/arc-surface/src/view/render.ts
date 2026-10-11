@@ -1,5 +1,6 @@
 /** Capability 3 · Arc surface. */
 import type { NoteWait } from "@storytree/library";
+import { pennantOutline, quietColour, sessionColour } from "@storytree/session-management/claim-mark";
 import type { BoardAgent } from "../agents/agents.js";
 import { briefing, incrementRows, type Briefing, type IncrementRow, type QuestionReading } from "../briefing/briefing.js";
 import type { Bar, BoardView, Lane, LaneNoteWait } from "../board/board.js";
@@ -25,10 +26,26 @@ function barText(bar: Bar): string {
     ...(bar.reading.close ? [`Close: ${bar.reading.close}`] : []), ...(bar.blockedBy ? [`Blocked by ${workText(bar.blockedBy)}, which holds a capability it lists`] : []), ...bar.agents.map(agentText), ...bar.waits.map(waitText), ...bar.noteWaits.map(noteText),
     ...bar.questionsBehind.map((question) => `waiting on you: ${question}`), ...bar.holdsUp.map((work) => `Holds up ${workText(work)}: ${work.reason}`)].join("\n");
 }
+/** The globe's flag at this share of its drawn size, its outline and shadow in the globe's ink (ADR-0968). */
+const FLAG_K = 0.55, INK = "#0d1114";
+const px = (value: number) => Number(value.toFixed(2));
+/**
+ * A holder's flag planted on its increment's oval: the globe's pennant in the session's colour on a dark pole, its foot at
+ * the oval's middle; furled and greyed while its holder is idle with its hooks running, as the globe judges it.
+ */
+function renderFlag(agent: BoardAgent, index: number): string {
+  const q = agent.holder === "idle" && agent.hooksRunning ? 1 : 0;
+  const outline = pennantOutline(FLAG_K, q).map(([x, y]) => `${px(x)},${px(-y)}`).join(" L");
+  const top = px(-26 * FLAG_K);
+  return `<svg class="arc-agent-mark" style="--flag-at: ${index}" viewBox="-3 -15 14 17" width="14" height="17" aria-hidden="true" data-agent-session="${escape(agent.session)}" data-work-id="${escape(agent.increment ?? agent.capability)}" data-agent-label="${escape(agent.label)}">`
+    + `<ellipse cx="0" cy="0" rx="${px(4.4 * FLAG_K)}" ry="${px(2 * FLAG_K)}" fill="#080b0e" fill-opacity="0.45"/>`
+    + `<path class="arc-flag-pennant" d="M${outline}Z" fill="${quietColour(sessionColour(agent.session), q)}" stroke="${INK}" stroke-width="0.65" stroke-linejoin="round"/>`
+    + `<line x1="0" y1="0" x2="0" y2="${top}" stroke="${INK}" stroke-width="1.2" stroke-linecap="round"/></svg>`;
+}
 function renderBar(bar: Bar): string {
   const title = barText(bar);
   const passed = bar.reading.checkBackPassed ? ` arc-check-back" data-check-back-passed="true` : "";
-  return `<span class="arc-bar arc-${bar.reading.color}${passed}" data-increment-id="${escape(bar.id)}" role="img" aria-label="${escape(title)}" title="${escape(title)}">${bar.agents.map((agent) => `<span class="arc-agent-mark" data-agent-session="${escape(agent.session)}" data-work-id="${escape(agent.increment ?? agent.capability)}" data-agent-label="${escape(agent.label)}" aria-label="${escape(agentText(agent))}">●</span>`).join("")}</span>`;
+  return `<span class="arc-bar arc-${bar.reading.color}${passed}" data-increment-id="${escape(bar.id)}" role="img" aria-label="${escape(title)}" title="${escape(title)}">${bar.agents.map(renderFlag).join("")}</span>`;
 }
 function laneText(lane: Lane): string {
   return [lane.count, ...lane.agents.map(agentText), ...lane.waits.map(waitText), ...lane.noteWaits.map(laneNoteText),
@@ -67,7 +84,7 @@ function renderQueue(queue: ArcQueue, lanes: ReadonlyMap<string, Lane>, selected
     <span class="arc-caret-slot">${queue.queued.length ? `<button type="button" class="arc-caret" data-arc-queue="${escape(lane.id)}" aria-expanded="${open}" aria-controls="arc-queue-${escape(lane.id)}" aria-label="${escape(queueLabel)}" title="${escape(queueLabel)}"><span aria-hidden="true">${open ? "▾" : "▸"}</span></button>` : ""}</span>
     <button type="button" class="arc-lane" data-arc-select="${escape(lane.id)}" aria-pressed="${selected === lane.id}">
       <span class="arc-lane-head"><span class="arc-chip arc-state-${lane.state}" title="${escape(chipText(lane))}">${escape(lane.chip)}</span>${lane.priority === undefined ? "" : `<span class="arc-chip arc-priority" title="Priority ${lane.priority}">P${lane.priority}</span>`}<span class="arc-title" title="${escape(lane.title)}">${escape(lane.title)}</span>${renderMarks(lane)}</span>
-      <span class="arc-track"><span class="arc-bars" role="group" aria-label="${escape(`Increments: ${lane.count}`)}">${lane.bars.map(renderBar).join("")}</span></span>
+      <span class="arc-track${lane.bars.some(({ agents }) => agents.length) ? " arc-flagged" : ""}"><span class="arc-bars" role="group" aria-label="${escape(`Increments: ${lane.count}`)}">${lane.bars.map(renderBar).join("")}</span></span>
     </button></div>${open && queue.queued.length ? `<div class="arc-queue" id="arc-queue-${escape(lane.id)}" data-queue-shape="${run.shape}"><span aria-hidden="true">→</span>${chips.join("")}</div>` : ""}</section>`;
 }
 /** One question, one row: its title and its status; the row opens its reading (ADR-0980 D5). */

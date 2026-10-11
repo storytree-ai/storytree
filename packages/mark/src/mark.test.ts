@@ -5,7 +5,6 @@ import { test } from "node:test";
 
 import { SHAPES, SMALL_SHAPES } from "./drawing.js";
 import { COLOURWAYS, ICNS_TYPES, ICO_SIZES, PNG_SIZES, iconPath, markSvg, readIcns, readIco, readPng, renderMark } from "./index.js";
-import { renderShapes } from "./raster.js";
 
 const roles = { ocean: "var(--o)", land: "var(--l)", tree: "var(--t)", leaf: "var(--f)" };
 
@@ -70,11 +69,11 @@ test("2.1 · each committed PNG holds the mark rendered at its size in its colou
       const fresh = renderMark(name, size);
       assert.ok(Buffer.from(png.pixels).equals(Buffer.from(fresh)), `${file} is not the mark's render: run pnpm --filter @storytree/mark icons`);
     }
-    // 16 is the small-size drawing (ADR-0999), 32 and up the master.
-    const same = (a: Uint8Array, b: Uint8Array) => Buffer.from(a).equals(Buffer.from(b));
-    assert.ok(same(renderMark(name, 16), renderShapes(SMALL_SHAPES, name, 16)), `${name}: 16 is the small-size drawing`);
-    assert.ok(!same(renderMark(name, 16), renderShapes(SHAPES, name, 16)), `${name}: 16 is not the master`);
-    for (const size of [32, 48]) assert.ok(same(renderMark(name, size), renderShapes(SHAPES, name, size)), `${name}: ${size} is the master`);
+    // 16 is the small-size drawing (ADR-0999), 32 and up the master: just below the tile's top edge, box y 6.5 to 13, only
+    // the small-size globe (radius 50) reaches; the master's (radius 36) leaves canvas there.
+    const pixel = (px: Uint8Array, size: number, x: number, y: number) => [...px.subarray((y * size + x) * 4, (y * size + x) * 4 + 4)];
+    assert.deepEqual(pixel(renderMark(name, 16), 16, 8, 1), [...hex(way.ocean), 255], `${name}: at 16 the globe fills the tile`);
+    assert.deepEqual(pixel(renderMark(name, 32), 32, 17, 2), [...hex(way.canvas), 255], `${name}: at 32 the master's globe leaves the canvas`);
     // What the render shows: transparent beyond the tile's rounded corner, canvas inside the tile, ocean inside the globe.
     const big = renderMark(name, 1024);
     const at = (x: number, y: number) => [...big.subarray((y * 1024 + x) * 4, (y * 1024 + x) * 4 + 4)];

@@ -110,7 +110,7 @@ export function renderMark(colours: MarkColours | string, size: number): Uint8Ar
 }
 
 /** The given shapes on the tile, in a colourway (or #rrggbb colours with a canvas), as size x size straight RGBA pixels. */
-export function renderShapes(shapes: readonly Shape[], colours: MarkColours | string, size: number): Uint8Array {
+function renderShapes(shapes: readonly Shape[], colours: MarkColours | string, size: number): Uint8Array {
   const c = resolveColours(colours);
   if (c.canvas === undefined) throw new Error("A fixed-colour file needs a canvas colour.");
   const canvas = rgb(c.canvas);

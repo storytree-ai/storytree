@@ -7,40 +7,53 @@
 //   the settled time (the page shows what the entry says settled looks like), whether a sign of progress showed, and the IPC
 //   calls the action made, counted by channel;
 // - over the whole run, each IPC handler's time and answer size, event-loop lag in the main process, and a CPU profile.
-// It prints one table, a row per action, against each budget, then the run's summary, and writes result.json (every round)
-// and renderer.cpuprofile to the out folder. An action it could not perform reads NOT RUN with the reason, and the run exits 3.
-// A report, never a gate (ADR-0623): no timing enters `pnpm test`.
+// It prints one table, a row per action and size, against each budget, then the run's summary, and writes result.json (every
+// round) and renderer.cpuprofile to the out folder, a folder per size on a seeded run. An action it could not perform reads NOT RUN
+// with the reason, and the run exits 3. A report, never a gate (ADR-0623): no timing enters `pnpm test`.
 //
-//   pnpm lag:desktop [--action <name>] [--rounds <n>] [--story <title>] [--project <name>] [--out <dir>]
+//   pnpm lag:desktop [--sizes standard,large] [--action <name>] [--rounds <n>] [--story <title>] [--out <dir>] [--recorder on|off]
+//   pnpm lag:desktop --live [--action <name>] [--rounds <n>] [--story <title>] [--project <name>] [--out <dir>]
 //                    [--home-from <dir>|none] [--home <dir>] [--recorder on|off]
-//   pnpm lag:desktop --chromium [--seed code-rows|forest] [--action <name>] [--rounds <n>] [--story <title>] [--out <dir>]
+//   pnpm lag:desktop --chromium [--sizes standard,large | --snapshot code-rows|forest] [--action <name>] [--rounds <n>] [--story <title>] [--out <dir>]
 //                    [--recorder on|off]
 //   pnpm lag:desktop --analyze <dir>      reprint a run's table and summary
 //
-// --story names the island open-named-island opens (default: the library's, the owner's case). --home names the throwaway
-// home: the first run on it starts cold, and a later run on the same home starts warm from the reading the first one kept.
+// By default the run reads a library it seeds (lag-seed.mjs, the seed `pnpm lag:reads` reads), so two runs compare (ADR-1001 D1):
+// a throwaway Postgres (STORYTREE_TEST_PG_URL's when set, otherwise its own in a temporary folder) holding the seed at each of
+// --sizes (default both), a project per size, standing still while the run measures. The table's size column shows where an
+// action's settled time crosses 1 s (ADR-1001 D2). --live reads the real library instead: the laptop's reading.
+//
 // --recorder off opens the page with the app's own lag recorder (Lag in real use) switched off, so a run with it and a run
 // without show what recording costs; its `recordLag` calls are counted with the rest, by round.
 //
-// The app runs in Electron on a throwaway STORYTREE_HOME holding copies of the real home's settings.json, machine.json,
-// project-choice.json and auth.json (the keys, among them the library's Postgres password, kept readable by the user alone), so
-// it reads the same live library while the running app is left alone. APP_DIR is the desktop app to launch (default: this
-// checkout's apps/desktop, built first with `pnpm --filter @storytree/desktop build`; on the laptop, an installed slot's
-// apps/desktop), ELECTRON_EXE the Electron to run it with (default: the one APP_DIR installed), and ELECTRON_ARGS switches to
-// give it. --home-from names the home to copy settings from (default: STORYTREE_HOME, else ~/.storytree/0.3); `none` starts the
-// app on an empty home.
+// --story names the island open-named-island opens (default: the library's, the owner's case, which the seed's first story is).
 //
-// --chromium runs the same catalogue on the desktop page in headless Chromium over the capture kit's stand-in bridge, on a library
-// snapshot (`--seed`, default code-rows: storytree's own), for a machine where Electron cannot run. On the Mint box Electron
-// crashes at launch (SIGSEGV, with or without --ozone-platform=headless and SwiftShader), so the box runs --chromium.
+// The app runs in Electron on a throwaway STORYTREE_HOME. Seeded, its settings.json names the seeded Postgres and auth.json holds
+// its password, readable by the user alone, and --project opens the size's project. --live copies the real home's settings.json,
+// machine.json, project-choice.json and auth.json instead (the keys kept readable by the user alone), so it reads the same live
+// library while the running app is left alone: --home-from names the home to copy settings from (default: STORYTREE_HOME, else
+// ~/.storytree/0.3; `none` starts the app on an empty home), and --home names the throwaway home: the first run on it starts cold,
+// and a later run on the same home starts warm from the reading the first one kept. APP_DIR is the desktop app to launch (default:
+// this checkout's apps/desktop, built first with `pnpm --filter @storytree/desktop build`; on the laptop, an installed slot's
+// apps/desktop), ELECTRON_EXE the Electron to run it with (default: the one APP_DIR installed), and ELECTRON_ARGS switches to give it.
+//
+// --chromium runs the same catalogue on the desktop page in headless Chromium over the capture kit's stand-in bridge, for a machine
+// where Electron cannot run: the bridge answers the page's reads from the seeded library, or from a library snapshot with
+// --snapshot (code-rows: storytree's own; forest). On the Mint box Electron crashes at launch (SIGSEGV, with or without
+// --ozone-platform=headless and SwiftShader), so the box runs --chromium.
 
-import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { homedir, tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { CATALOGUE, chooseIsland, isSettled, NAMED_STORY } from "@storytree/forest/actions";
+import { connect } from "@storytree/library";
+import { start } from "@storytree/local-postgres";
+import { openActivityLog } from "@storytree/session-management";
+
+import { describeSize, seedLagProject, seedSize, SIZES } from "./lag-seed.mjs";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 const SETTINGS = ["settings.json", "machine.json", "project-choice.json", "auth.json"];
@@ -64,6 +77,21 @@ export function lagHome({ home, homeFrom }) {
   if (homeFrom !== "none") for (const file of SETTINGS) if (existsSync(path.join(homeFrom, file))) cpSync(path.join(homeFrom, file), path.join(made, file));
   if (existsSync(path.join(made, "auth.json"))) chmodSync(path.join(made, "auth.json"), 0o600);
   return { home: made, warm: false };
+}
+
+/**
+ * A throwaway home whose settings name the Postgres at `url` as the library, its address without the password, and whose auth.json
+ * holds the password as the key `postgres`, readable by the user alone: the app reads the seeded library and nothing else.
+ */
+export function seededHome(url) {
+  const home = mkdtempSync(path.join(tmpdir(), "lag-desktop-home-"));
+  const address = new URL(url);
+  const key = decodeURIComponent(address.password);
+  address.password = "";
+  writeFileSync(path.join(home, "settings.json"), `${JSON.stringify({ library: { location: "postgres", address: address.toString() } }, null, 2)}\n`);
+  writeFileSync(path.join(home, "auth.json"), JSON.stringify({ postgres: { key } }), { mode: 0o600 });
+  chmodSync(path.join(home, "auth.json"), 0o600);
+  return home;
 }
 
 /** Watch the page: Event Timing (input to paint) and Long Animation Frames, kept in window.__ev and window.__loaf. */
@@ -239,7 +267,7 @@ async function performActions(page, actions, rounds, ipc, mark) {
 }
 
 /** Run the catalogue on a ready `page`, and write result.json and renderer.cpuprofile into `out`. */
-async function measurePage(page, { actions, rounds, out, ipc, state, readyMs, extra }) {
+async function measurePage(page, { actions, rounds, out, ipc, state, readyMs, size, extra }) {
   await page.waitForTimeout(3000);
   await page.evaluate(OBSERVE);
   const marks = [];
@@ -248,21 +276,21 @@ async function measurePage(page, { actions, rounds, out, ipc, state, readyMs, ex
   await cdp.send("Profiler.enable");
   await cdp.send("Profiler.setSamplingInterval", { interval: 200 });
   await cdp.send("Profiler.start");
-  const performed = await performActions(page, actions, rounds, ipc, mark);
+  const performed = (await performActions(page, actions, rounds, ipc, mark)).map((action) => ({ ...action, size }));
   const { profile } = await cdp.send("Profiler.stop");
   writeFileSync(path.join(out, "renderer.cpuprofile"), JSON.stringify(profile));
   const ev = await page.evaluate("window.__ev");
   const loaf = await page.evaluate("window.__loaf");
   const mem = await page.evaluate("({ heap: performance.memory?.usedJSHeapSize, nodes: document.getElementsByTagName('*').length })");
-  writeFileSync(path.join(out, "result.json"), JSON.stringify({ state, readyMs, marks, actions: performed, ev, loaf, ipc: await ipc.all(), mem, ...(await extra()) }, null, 1));
+  writeFileSync(path.join(out, "result.json"), JSON.stringify({ state, readyMs, size, marks, actions: performed, ev, loaf, ipc: await ipc.all(), mem, ...(await extra()) }, null, 1));
   log("wrote", path.join(out, "result.json"));
 }
 
 /** Launch the built desktop app in Electron and run the catalogue on it; IPC is its main process's handlers, wrapped. */
-async function measureElectron({ appDir, exe, extraArgs, home: reuse, homeFrom, project, out, actions, rounds, recorder }) {
+async function measureElectron({ appDir, exe, extraArgs, home: reuse, homeFrom, seeded, project, size, out, actions, rounds, recorder }) {
   const { _electron } = await import("playwright-core");
-  const { home, warm } = lagHome({ home: reuse, homeFrom });
-  log("home", home, warm ? "(warm: reused)" : homeFrom === "none" ? "(empty)" : `(settings from ${homeFrom})`);
+  const { home, warm } = seeded === undefined ? lagHome({ home: reuse, homeFrom }) : { home: seededHome(seeded), warm: false };
+  log("home", home, seeded !== undefined ? `(the seeded library, project ${project})` : warm ? "(warm: reused)" : homeFrom === "none" ? "(empty)" : `(settings from ${homeFrom})`);
 
   const began = Date.now();
   const app = await _electron.launch({ executablePath: exe, args: [...extraArgs, appDir, ...(project ? ["--project", project] : [])], env: { ...process.env, STORYTREE_HOME: home, ...(recorder === "off" ? { STORYTREE_LAG_RECORDER: "off" } : {}) }, timeout: 180_000 });
@@ -310,32 +338,17 @@ async function measureElectron({ appDir, exe, extraArgs, home: reuse, homeFrom, 
     log("state", state, "after", readyMs, "ms");
     const read = () => app.evaluate(() => globalThis.__ipc);
     const ipc = { mark: async () => (await read()).length, since: async (from, to) => byChannel((await read()).slice(from, to)), all: read };
-    await measurePage(page, { actions, rounds, out, ipc, state, readyMs, extra: async () => ({ lag: await app.evaluate(() => globalThis.__lag), recorder }) });
+    await measurePage(page, { actions, rounds, out, ipc, state, readyMs, size, extra: async () => ({ lag: await app.evaluate(() => globalThis.__lag), recorder }) });
   } finally {
     await app.close().catch(() => {});
   }
 }
 
-/**
- * Run the catalogue on the desktop page in headless Chromium over the capture kit's stand-in bridge (apps/desktop/src/capture),
- * on a library snapshot (`seed`): for a machine where Electron cannot run, as on the Mint box. IPC is the bridge's calls.
- * The kit is the app's own TypeScript, loaded at run time through tsx, as the evidence captures load it: no package depends on it.
- */
-async function measureChromium({ seed: seedName, out, actions, rounds, recorder }) {
-  const { register } = await import("tsx/esm/api");
-  register();
-  const kit = await import(pathToFileURL(path.join(root, "apps", "desktop", "src", "capture", "index.ts")).href);
-  const { seed, survey } = kit.captureSeed(seedName);
-  const dist = path.join(out, "page");
-  await kit.buildCapture({ dist });
-  const calls = [];
-  const counted = (channel, answer) => async (...args) => {
-    calls.push({ channel, at: Date.now() });
-    return answer(...args);
-  };
+/** The page's reads of a snapshot (`snapshot`, the capture kit's seed by name), as the stand-in bridge answers them. */
+function snapshotAnswers(kit, snapshot) {
+  const { seed, survey } = kit.captureSeed(snapshot);
   let current = seed.projects[0];
-  const recorded = [];
-  const answers = {
+  return {
     projectSelection: async () => ({ projects: seed.projects, current }),
     chooseProject: async (name) => ({ projects: seed.projects, current: (current = name) }),
     listProjects: async () => seed.projects,
@@ -344,22 +357,75 @@ async function measureChromium({ seed: seedName, out, actions, rounds, recorder 
     linesSince: async (_, cursor) => (cursor === 0 ? seed.lines : { lines: [], cursor: seed.lines.cursor }),
     frontCovers: async (_, id) => seed.covers[id] ?? [],
     ...(survey === undefined ? {} : { codeSurvey: async () => survey }),
+  };
+}
+
+/**
+ * The page's reads of `project` in the seeded library, as the app's own page reads answer them (@storytree/app's pageReads; the
+ * dev loop does not depend on the frame, ADR-0847): the library's and the activity log's answers, the project the only one shown.
+ */
+async function libraryAnswers({ storytree, project }) {
+  const library = await storytree.openProject(project);
+  const log = await openActivityLog(storytree);
+  const selection = async () => ({ projects: [project], current: project });
+  return {
+    answers: {
+      projectSelection: selection,
+      chooseProject: selection,
+      listProjects: async () => [project],
+      projectTree: () => library.projectTree(),
+      changesSince: (_, cursor) => library.changesSince(cursor),
+      linesSince: (_, cursor) => log.since(project, cursor),
+      frontCovers: (_, id) => library.frontCovers(id),
+      relatedNotes: (_, id) => library.relatedNotes(id),
+      arcViews: () => library.arcViews(),
+      holds: () => library.holds(),
+    },
+    close: () => log.close(),
+  };
+}
+
+/**
+ * Run the catalogue on the desktop page in headless Chromium over the capture kit's stand-in bridge (apps/desktop/src/capture),
+ * answering the page's reads from the seeded library (`storytree`'s `project`) or a snapshot (`snapshot`): for a machine where
+ * Electron cannot run, as on the Mint box. IPC is the bridge's calls. The kit is the app's own TypeScript, loaded at run time
+ * through tsx, as the evidence captures load it: no package depends on it.
+ */
+async function measureChromium({ snapshot, storytree, project, size, out, actions, rounds, recorder }) {
+  const { register } = await import("tsx/esm/api");
+  register();
+  const kit = await import(pathToFileURL(path.join(root, "apps", "desktop", "src", "capture", "index.ts")).href);
+  const seeded = snapshot === undefined ? await libraryAnswers({ storytree, project }) : undefined;
+  const recorded = [];
+  const answers = {
+    ...(seeded?.answers ?? snapshotAnswers(kit, snapshot)),
     // Counted like any call, so a round shows whether the page's lag recorder spoke between an input and its settling; what it
     // sent is kept in result.json beside the lab's own rounds.
     recordLag: async (readings) => { recorded.push(...readings); },
   };
+  const dist = path.join(out, "page");
+  await kit.buildCapture({ dist });
+  const calls = [];
+  const counted = (channel, answer) => async (...args) => {
+    calls.push({ channel, at: Date.now() });
+    return answer(...args);
+  };
   const bridge = kit.fakeBridge(Object.fromEntries(Object.entries(answers).map(([channel, answer]) => [channel, counted(channel, answer)])));
-  await kit.withCapture({ folder: path.join(out, "capture"), dist }, async ({ browser, origin }) => {
+  try {
+    await kit.withCapture({ folder: path.join(out, "capture"), dist }, async ({ browser, origin }) => {
     const began = Date.now();
     const page = await browser.newPage({ viewport: { width: 1440, height: 960 }, deviceScaleFactor: 1, colorScheme: "dark" });
     await bridge.install(page);
     await page.goto(`${origin}/index.html${recorder === "off" ? "?lag-recorder=off" : ""}`, { waitUntil: "domcontentloaded", timeout: 180_000 });
     await bridge.ready(page, 180_000);
     const readyMs = Date.now() - began;
-    log("state ready after", readyMs, "ms, on the", seedName, "snapshot");
+    log("state ready after", readyMs, "ms, on", snapshot === undefined ? `the ${size} seed` : `the ${snapshot} snapshot`);
     const ipc = { mark: async () => calls.length, since: async (from, to) => byChannel(calls.slice(from, to)), all: async () => calls };
-    await measurePage(page, { actions, rounds, out, ipc, state: "ready", readyMs, extra: async () => ({ lag: [], page: "chromium", seed: seedName, recorder, recorded, defaulted: bridge.defaulted }) });
-  });
+    await measurePage(page, { actions, rounds, out, ipc, state: "ready", readyMs, size, extra: async () => ({ lag: [], page: "chromium", ...(snapshot === undefined ? {} : { snapshot }), recorder, recorded, defaulted: bridge.defaulted }) });
+    });
+  } finally {
+    await seeded?.close();
+  }
 }
 
 /** Calls counted by channel. */
@@ -378,15 +444,16 @@ const median = (values) => [...values].sort((a, b) => a - b)[Math.floor((values.
  * has no response to judge, and one with nothing to settle (its rounds' settled is null) no settled time. A round is settled in budget within `settledMs`, or when progress showed within the response budget
  * and stayed until settled. An action with a round it could not perform is NOT RUN, with the reason.
  */
-export function judge({ name, budget, rounds, notRun }) {
-  if (notRun !== undefined) return { name, notRun, rounds: rounds.length };
+export function judge({ name, size, budget, rounds, notRun }) {
+  const sized = size === undefined ? {} : { size };
+  if (notRun !== undefined) return { name, ...sized, rounds: rounds.length, notRun };
   const responses = rounds.filter((round) => round.inputs > 0).map((round) => round.response ?? 0);
   const longest = Math.max(0, ...rounds.flatMap((round) => round.frames.map((frame) => frame.duration)));
   const settled = rounds.map((round) => round.settled).filter((ms) => ms !== null);
   const ipc = rounds.map((round) => Object.values(round.ipc).reduce((sum, n) => sum + n, 0));
   const settledWithin = (round) => round.settled === null || round.settled <= budget.settledMs || (round.progressAt !== undefined && round.progressAt <= budget.responseMs && round.progressHeld);
   return {
-    name, rounds: rounds.length,
+    name, ...sized, rounds: rounds.length,
     response: responses.length === 0 ? undefined : { median: median(responses), worst: Math.max(...responses) },
     longestFrame: longest,
     settled: settled.length === 0 ? undefined : { median: median(settled), worst: Math.max(...settled) },
@@ -399,25 +466,43 @@ export function judge({ name, budget, rounds, notRun }) {
   };
 }
 
-/** The table, a row per judged action: median and worst response, the longest frame, settled, the IPC count, and each verdict. */
+/** The table, a row per judged action and the size it ran at: median and worst response, the longest frame, settled, the IPC count, and each verdict. */
 export function actionTable(rows) {
   const ms = (n) => (n === 0 ? "<16" : n.toFixed(0));
-  const lines = [["action", "rounds", "response p50/worst", "longest frame", "settled p50/worst", "IPC", "response", "smooth", "settled"]];
+  const lines = [["action", "size", "rounds", "response p50/worst", "longest frame", "settled p50/worst", "IPC", "response", "smooth", "settled"]];
   for (const row of rows) {
-    if (row.notRun !== undefined) lines.push([row.name, String(row.rounds), `NOT RUN: ${row.notRun}`]);
-    else lines.push([row.name, String(row.rounds), row.response === undefined ? "-" : `${ms(row.response.median)} / ${ms(row.response.worst)} ms`,
+    if (row.notRun !== undefined) lines.push([row.name, row.size ?? "-", String(row.rounds), `NOT RUN: ${row.notRun}`]);
+    else lines.push([row.name, row.size ?? "-", String(row.rounds), row.response === undefined ? "-" : `${ms(row.response.median)} / ${ms(row.response.worst)} ms`,
       row.longestFrame === 0 ? "none over 50" : `${row.longestFrame.toFixed(0)} ms`, row.settled === undefined ? "-" : `${row.settled.median.toFixed(0)} / ${row.settled.worst.toFixed(0)} ms`,
       String(row.ipc), row.verdict.response, row.verdict.smooth, row.verdict.settled]);
   }
-  const widths = lines[0].map((_, column) => Math.max(...lines.filter((line) => line.length > 3).map((line) => line[column].length)));
-  return lines.map((line) => (line.length > 3 ? line.map((cell, column) => cell.padEnd(widths[column])).join("  ") : `${line[0].padEnd(widths[0])}  ${line[1].padEnd(widths[1])}  ${line[2]}`).trimEnd()).join("\n");
+  const widths = lines[0].map((_, column) => Math.max(...lines.filter((line) => line.length > 4).map((line) => line[column].length)));
+  return lines.map((line) => (line.length > 4 ? line.map((cell, column) => cell.padEnd(widths[column])).join("  ") : `${line.slice(0, 3).map((cell, column) => cell.padEnd(widths[column])).join("  ")}  ${line[3]}`).trimEnd()).join("\n");
 }
 
 /** 3 when any action could not be performed (NOT RUN), else 0: a missed budget is reported, never a failed run. */
 export const exitCode = (rows) => (rows.some((row) => row.notRun !== undefined) ? 3 : 0);
 
-/** The summary of the run in `out`: the actions' table, IPC by channel, each action's cost over its rounds, events, long frames, main-process lag and the profile's top functions. */
+/** The runs a seeded run in `out` kept, a folder per size, smallest first. */
+function sizeRuns(out) {
+  return Object.keys(SIZES).filter((size) => existsSync(path.join(out, size, "result.json"))).map((size) => path.join(out, size));
+}
+
+/** Every judged row of the run in `out`: its actions, or each size's on a seeded run. */
+function judgedRows(out) {
+  const results = existsSync(path.join(out, "result.json")) ? [out] : sizeRuns(out);
+  return results.flatMap((dir) => JSON.parse(readFileSync(path.join(dir, "result.json"), "utf8")).actions?.map(judge) ?? []);
+}
+
+/**
+ * The summary of the run in `out`. A seeded run kept a folder per size: one table across the sizes, then each size's summary.
+ * One run's: the actions' table, IPC by channel, each action's cost over its rounds, events, long frames, main-process lag and the profile's top functions. */
 export function summary(out) {
+  if (!existsSync(path.join(out, "result.json"))) {
+    const runs = sizeRuns(out);
+    if (runs.length === 0) throw new Error(`${out} holds no run: no result.json, in it or in a folder per size`);
+    return [`${actionTable(judgedRows(out))}\n`, ...runs.map((dir) => `== ${path.basename(dir)} ==\n${summary(dir)}`)].join("\n");
+  }
   const r = JSON.parse(readFileSync(path.join(out, "result.json"), "utf8"));
   const lines = [];
   const say = (...parts) => lines.push(parts.join(" "));
@@ -511,21 +596,72 @@ async function main(args) {
   if (!Number.isInteger(rounds) || rounds < 1) throw new Error("--rounds takes a whole number of at least 1");
   const out = path.resolve(option(args, "out", path.join(tmpdir(), `lag-desktop-${new Date().toISOString().replace(/[:.]/g, "-")}`)));
   mkdirSync(out, { recursive: true });
+  const chromium = args.includes("--chromium");
+  const live = args.includes("--live");
+  const snapshot = option(args, "snapshot", undefined);
+  if (live && chromium) throw new Error("--live reads the real library through the desktop app; --chromium reads the seeded library, or a --snapshot");
+  if (snapshot !== undefined && !chromium) throw new Error("--snapshot is a --chromium run's");
   const recorder = option(args, "recorder", "on");
   if (recorder !== "on" && recorder !== "off") throw new Error("--recorder takes on or off");
-  if (args.includes("--chromium")) await measureChromium({ seed: option(args, "seed", "code-rows"), out, actions, rounds, recorder });
-  else {
+  const electron = () => {
     const appDir = path.resolve(process.env.APP_DIR ?? path.join(root, "apps", "desktop"));
     if (!existsSync(path.join(appDir, "dist", "main.cjs"))) throw new Error(`${appDir} has no dist/main.cjs: build it first (pnpm --filter @storytree/desktop build), or set APP_DIR to a built app`);
     const exe = process.env.ELECTRON_EXE ?? createRequire(path.join(appDir, "package.json"))("electron");
+    return { appDir, exe, extraArgs: (process.env.ELECTRON_ARGS ?? "").split(" ").filter(Boolean) };
+  };
+  if (snapshot !== undefined) await measureChromium({ snapshot, size: snapshot, out, actions, rounds, recorder });
+  else if (live) {
     const homeFrom = option(args, "home-from", process.env.STORYTREE_HOME ?? path.join(homedir(), ".storytree", "0.3"));
-    const extraArgs = (process.env.ELECTRON_ARGS ?? "").split(" ").filter(Boolean);
     const home = option(args, "home", undefined);
-    await measureElectron({ appDir, exe, extraArgs, home: home === undefined ? undefined : path.resolve(home), homeFrom, project: option(args, "project", undefined), out, actions, rounds, recorder });
+    await measureElectron({ ...electron(), home: home === undefined ? undefined : path.resolve(home), homeFrom, project: option(args, "project", undefined), size: "live", out, actions, rounds, recorder });
+  } else {
+    const sizes = option(args, "sizes", Object.keys(SIZES).join(",")).split(",");
+    for (const size of sizes) seedSize(size);
+    const app = chromium ? undefined : electron();
+    await withSeededLibrary(sizes, async ({ url, storytree, projects }) => {
+      for (const size of sizes) {
+        const sized = path.join(out, size);
+        mkdirSync(sized, { recursive: true });
+        log(size, "seed:", describeSize(size));
+        if (chromium) await measureChromium({ storytree, project: projects[size], size, out: sized, actions, rounds, recorder });
+        else await measureElectron({ ...app, seeded: url, project: projects[size], size, out: sized, actions, rounds, recorder });
+      }
+    });
   }
   console.log(`\n${summary(out)}`);
   console.log(`\nlag:desktop: the run is in ${out}`);
-  return exitCode(JSON.parse(readFileSync(path.join(out, "result.json"), "utf8")).actions.map(judge));
+  return exitCode(judgedRows(out));
+}
+
+/**
+ * Seed each of `sizes` as its own project (lag-<size>) in a throwaway Postgres, STORYTREE_TEST_PG_URL's when set, otherwise one
+ * started in a temporary folder, and run `measure` on it; the projects are dropped and the server stopped after.
+ */
+async function withSeededLibrary(sizes, measure) {
+  let server;
+  let folder;
+  let url = process.env.STORYTREE_TEST_PG_URL;
+  if (!url) {
+    folder = mkdtempSync(path.join(tmpdir(), "lag-desktop-pg-"));
+    server = await start({ dataDir: path.join(folder, "pgdata"), owner: "a `pnpm lag:desktop` run" });
+    url = server.url;
+  }
+  const storytree = await connect({ url });
+  const projects = Object.fromEntries(sizes.map((size) => [size, `lag-${size}`]));
+  try {
+    for (const size of sizes) {
+      await storytree.dropProject(projects[size]).catch(() => {});
+      const began = Date.now();
+      await seedLagProject(storytree, url, projects[size], size);
+      log("seeded", size, "in", Date.now() - began, "ms");
+    }
+    await measure({ url, storytree, projects });
+  } finally {
+    for (const project of Object.values(projects)) await storytree.dropProject(project).catch(() => {});
+    await storytree.close();
+    await server?.stop();
+    if (folder) rmSync(folder, { recursive: true, force: true });
+  }
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

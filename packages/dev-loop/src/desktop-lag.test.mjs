@@ -6,7 +6,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { actionTable, exitCode, judge, lagHome, summary } from "./desktop-lag.mjs";
+import { actionTable, exitCode, judge, lagHome, seededHome, summary } from "./desktop-lag.mjs";
 
 test("8.3 pnpm lag:desktop --home starts cold on a new home and warm on one an earlier run left", () => {
   const from = mkdtempSync(path.join(tmpdir(), "lag-home-from-"));
@@ -56,12 +56,12 @@ test("8.2 pnpm lag:desktop analysis preserves the measured CPU intervals and the
 test("8.4 pnpm lag:desktop judges each named action's recorded rounds against its budget, in one table, and an action it could not perform reads NOT RUN in the table and the exit code", () => {
   const budget = { responseMs: 100, frameMs: 50, settledMs: 1000 };
   const round = (fields) => ({ inputs: 2, response: 40, frames: [], settled: 300, ipc: { "storytree:projectTree": 1 }, ...fields });
-  const quick = { name: "open-fewest-island", budget, rounds: [round({}), round({ response: 60, ipc: {} }), round({ response: null })] };
+  const quick = { name: "open-fewest-island", size: "standard", budget, rounds: [round({}), round({ response: 60, ipc: {} }), round({ response: null })] };
   // Its worst response (60) is within 100; a round under the browser's 16 ms threshold counts as answered at once.
-  assert.deepEqual(judge(quick), { name: "open-fewest-island", rounds: 3, response: { median: 40, worst: 60 }, longestFrame: 0,
+  assert.deepEqual(judge(quick), { name: "open-fewest-island", size: "standard", rounds: 3, response: { median: 40, worst: 60 }, longestFrame: 0,
     settled: { median: 300, worst: 300 }, ipc: 1, verdict: { response: "within", smooth: "within", settled: "within" } });
   // The library's island: one slow answer, a 180 ms frame naming its script, and a settle past 1 s with no progress on show.
-  const slow = { name: "open-named-island", budget, rounds: [round({ response: 140, frames: [{ duration: 180, scripts: ["FrameRequestCallback/render"] }], settled: 1400 }), round({})] };
+  const slow = { name: "open-named-island", size: "large", budget, rounds: [round({ response: 140, frames: [{ duration: 180, scripts: ["FrameRequestCallback/render"] }], settled: 1400 }), round({})] };
   assert.deepEqual(judge(slow).verdict, { response: "missed", smooth: "missed", settled: "missed" });
   // Past 1 s is within when progress showed within the response budget and stayed until settled; not when it came late or went.
   assert.equal(judge({ ...slow, rounds: [round({ settled: 1400, progressAt: 30, progressHeld: true })] }).verdict.settled, "within");
@@ -70,15 +70,16 @@ test("8.4 pnpm lag:desktop judges each named action's recorded rounds against it
   // An action that made no input and has nothing to settle (ten seconds idle) is judged on its frames alone.
   const idle = judge({ name: "idle", budget, rounds: [round({ inputs: 0, response: null, settled: null })] });
   assert.deepEqual([idle.response, idle.settled, idle.verdict], [undefined, undefined, { response: "n/a", smooth: "within", settled: "n/a" }]);
-  const missing = { name: "open-library-note", budget, rounds: [], notRun: "a Library note is not in view" };
-  assert.deepEqual(judge(missing), { name: "open-library-note", rounds: 0, notRun: "a Library note is not in view" });
+  const missing = { name: "open-library-note", size: "large", budget, rounds: [], notRun: "a Library note is not in view" };
+  assert.deepEqual(judge(missing), { name: "open-library-note", size: "large", rounds: 0, notRun: "a Library note is not in view" });
 
   const rows = [quick, slow, missing].map(judge);
   const table = actionTable(rows).split("\n");
   assert.equal(table.length, 4, "a header and a row per action");
-  assert.match(table[1], /^open-fewest-island\s+3\s+40 \/ 60 ms\s+none over 50\s+300 \/ 300 ms\s+1\s+within\s+within\s+within$/);
-  assert.match(table[2], /^open-named-island\s+2\s+40 \/ 140 ms\s+180 ms\s+300 \/ 1400 ms\s+1\s+missed\s+missed\s+missed$/);
-  assert.match(table[3], /^open-library-note\s+0\s+NOT RUN: a Library note is not in view$/);
+  assert.match(table[0], /^action\s+size\s+rounds\s/);
+  assert.match(table[1], /^open-fewest-island\s+standard\s+3\s+40 \/ 60 ms\s+none over 50\s+300 \/ 300 ms\s+1\s+within\s+within\s+within$/);
+  assert.match(table[2], /^open-named-island\s+large\s+2\s+40 \/ 140 ms\s+180 ms\s+300 \/ 1400 ms\s+1\s+missed\s+missed\s+missed$/);
+  assert.match(table[3], /^open-library-note\s+large\s+0\s+NOT RUN: a Library note is not in view$/);
   assert.equal(exitCode(rows), 3);
   assert.equal(exitCode([quick, slow].map(judge)), 0, "a missed budget is reported, not a failed run");
 
@@ -88,6 +89,32 @@ test("8.4 pnpm lag:desktop judges each named action's recorded rounds against it
     writeFileSync(path.join(out, "result.json"), JSON.stringify({ state: "ready", readyMs: 0, marks: [], actions: [quick, slow, missing], ipc: [], ev: [], loaf: [], lag: [], mem: {} }));
     assert.ok(summary(out).startsWith(`${actionTable(rows)}\n`));
   } finally {
+    rmSync(out, { recursive: true, force: true });
+  }
+});
+
+test("8.6 pnpm lag:desktop starts the app on a home naming the seeded library, its password readable by the user alone, and prints one table across the sizes it ran", () => {
+  const home = seededHome("postgres://storytree:s%40cret@127.0.0.1:54321/postgres");
+  const out = mkdtempSync(path.join(tmpdir(), "lag-sizes-"));
+  try {
+    assert.deepEqual(JSON.parse(readFileSync(path.join(home, "settings.json"), "utf8")), { library: { location: "postgres", address: "postgres://storytree@127.0.0.1:54321/postgres" } });
+    const auth = path.join(home, "auth.json");
+    assert.deepEqual(JSON.parse(readFileSync(auth, "utf8")), { postgres: { key: "s@cret" } });
+    if (process.platform !== "win32") assert.equal(statSync(auth).mode & 0o777, 0o600);
+
+    // A seeded run keeps each size's run in its own folder; the summary leads with one table across them.
+    const budget = { responseMs: 100, frameMs: 50, settledMs: 1000 };
+    const round = (settled) => ({ inputs: 1, response: 40, frames: [], settled, ipc: { projectTree: 1 } });
+    for (const [size, settled] of [["standard", 300], ["large", 1400]]) {
+      mkdirSync(path.join(out, size));
+      writeFileSync(path.join(out, size, "result.json"), JSON.stringify({ state: "ready", readyMs: 0, size, marks: [], actions: [{ name: "open-named-island", size, budget, rounds: [round(settled)] }], ipc: [], ev: [], loaf: [], lag: [], mem: {} }));
+    }
+    const table = summary(out).split("\n\n")[0].split("\n");
+    assert.equal(table.length, 3, "a header and a row per size");
+    assert.match(table[1], /^open-named-island\s+standard\s+1\s.*300 \/ 300 ms.*within$/);
+    assert.match(table[2], /^open-named-island\s+large\s+1\s.*1400 \/ 1400 ms.*missed$/);
+  } finally {
+    rmSync(home, { recursive: true, force: true });
     rmSync(out, { recursive: true, force: true });
   }
 });

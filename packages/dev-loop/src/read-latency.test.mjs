@@ -8,7 +8,8 @@ import { fileURLToPath } from "node:url";
 
 import { connect } from "@storytree/library";
 
-import { measureReads, seedLagProject } from "./read-latency.mjs";
+import { seedLagProject } from "./lag-seed.mjs";
+import { measureReads } from "./read-latency.mjs";
 
 test("8.1 every query is counted and delayed, seeding is neither, and the reported time is the median", async (t) => {
   const url = process.env.STORYTREE_TEST_PG_URL;

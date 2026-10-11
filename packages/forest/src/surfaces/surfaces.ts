@@ -37,7 +37,7 @@ export const forestSurfaces = [
   {
     id: "library",
     name: "Library",
-    description: "The Library view, which lets you see through the globe to your project's notes, and the Library panel that shows the note you pick. Off, the globe stays solid and its Forest and Library buttons go.",
+    description: "The Library view, which lets you see through the globe to your project's notes, and the Library panel that shows the note you pick. Off, the globe stays solid and its Library switch goes.",
     switchable: true,
     settings: [],
   },

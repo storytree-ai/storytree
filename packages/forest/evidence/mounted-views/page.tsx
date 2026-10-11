@@ -51,6 +51,7 @@ Object.assign(window, { proof: {
   },
   ready: () => globe !== undefined && document.querySelectorAll(".planet-nameplate").length > 0,
   canvas: () => globe?.().gl.domElement,
+  globe: () => globe!(),
   selections: () => selections,
   marks: (prefix: string) => { const names: string[] = []; globe!().scene.traverse((o: any) => { if (String(o.name).startsWith(prefix)) names.push(o.name); }); return names; },
   highlight: (stories: string[] | undefined, session?: string) => view!.highlight(stories, session),

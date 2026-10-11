@@ -94,7 +94,7 @@ async function measure(page) {
       markers: [...document.querySelectorAll('.forest-claim, .planet-edge-marker')].map(el => ({
         capability: el.dataset.capabilityId, failingStory: el.dataset.failingStory, ...visibleElement(el),
       })),
-      mode: document.querySelector('.forest-views [aria-pressed="true"]')?.dataset.forestMode,
+      mode: document.querySelector('.forest').dataset.forestMode,
       drew: JSON.parse(document.body.dataset.drew), view: document.querySelector('.forest').dataset.view,
       selected: document.body.dataset.selected ?? null, noteSelected: document.body.dataset.note ?? null,
       card: document.querySelector('.core-card')?.innerText ?? null, panelVisible: !document.querySelector('.story-panel').hidden,
@@ -181,8 +181,9 @@ function checkMode(result, mode) {
 }
 
 async function switchMode(page, mode) {
-  await page.getByRole('group', { name: 'Globe view' }).getByRole('button', { name: mode === 'forest' ? 'Forest' : 'Library', exact: true }).click();
-  await page.waitForFunction(mode => document.querySelector(`.forest-views [data-forest-mode="${mode}"]`)?.getAttribute('aria-pressed') === 'true', mode);
+  // Library mode is the Stories switch off (ADR-1002 D2); the Library switch stays on.
+  await page.getByRole('group', { name: 'Globe layers' }).getByRole('button', { name: 'Stories', exact: true }).click();
+  await page.waitForFunction(mode => document.querySelector('.forest').dataset.forestMode === mode, mode);
   await settle(page);
 }
 
@@ -231,7 +232,7 @@ async function candidates(page) {
 }
 
 async function hoverDot(page, farSide = false) {
-  const mode = await page.locator('.forest-views [aria-pressed="true"]').getAttribute('data-forest-mode');
+  const mode = await page.locator('.forest').getAttribute('data-forest-mode');
   const points = (await candidates(page)).filter(point => (mode === 'library' || point.near && !point.land) && (!farSide || !point.near));
   // A compact description makes the screenshot useful; hit eligibility remains the production picker.
   points.sort((a, b) => {

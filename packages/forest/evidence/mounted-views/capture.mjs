@@ -14,7 +14,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const pkgDir = path.resolve(here, '../..');
 const out = path.join(here, 'out');
 const PROOFS = {
-  globe: 'forest 3.3 a click on a facing story node selects it through the public view; 3.4 nameplates; 3.9, 3.10 Library and Forest keep one canvas; 3.13 the card slot',
+  globe: 'forest 3.3 a click on a facing story node selects it through the public view; 3.4 nameplates; 3.9, 3.10 the Stories and Library switches draw each pair and keep one canvas; 3.13 the card slot',
   sessions: "forest 7.4 the mounted view lights a hovered session's held island, dims the others, and restores them on leaving",
   tree: "forest 4.11 the capability tree's own space opens fitted, fits again after a drag, chooses a clicked card, and closes",
 };
@@ -48,6 +48,8 @@ try {
       await page.waitForFunction(() => window.proof.ready(), null, { timeout: 60_000 });
       await settle(page, 8);
     };
+    const switches = page => page.evaluate(() => Object.fromEntries([...document.querySelectorAll('[data-globe-switch]')]
+      .map(button => [button.dataset.globeSwitch, button.getAttribute('aria-pressed')])));
     const shot = async (page, name) => { if (mutation === undefined) await page.screenshot({ path: path.join(here, `${name}.png`) }); };
 
     await proof('globe', async page => {
@@ -58,7 +60,8 @@ try {
       await opened(page);
       const host = page.locator('#globe');
       assert.equal(await host.getAttribute('data-view'), 'globe');
-      assert.equal(await host.getAttribute('data-forest-mode'), 'forest', '3.10 a new launch opens in Forest');
+      assert.deepEqual(await switches(page), { stories: 'true', library: 'true' }, '3.10 a new launch opens with both switches on');
+      assert.equal(await host.getAttribute('data-forest-mode'), 'forest');
       const canvas = await page.evaluateHandle(() => window.proof.canvas());
       // 3.4: each near-side story node carries its story's name.
       const plates = await page.$$eval('.planet-nameplate:not(.capability)', nodes => nodes.map(node => ({
@@ -80,19 +83,45 @@ try {
       const capabilityPlates = await page.locator('.planet-nameplate.capability').count();
       assert.ok(capabilityPlates > 0, 'the selected story names its capabilities on their territories');
       await shot(page, 'globe-selected');
-      // 3.9, 3.10: Library hides the story nodes and clears the selection; Forest brings them back on the same canvas.
-      await page.click('button[data-forest-mode="library"]');
-      await page.waitForFunction(() => document.querySelector('#globe').dataset.forestMode === 'library');
-      await page.waitForFunction(() => document.querySelectorAll('.planet-nameplate').length === 0);
-      assert.equal(await page.getAttribute('button[data-forest-mode="library"]', 'aria-pressed'), 'true');
-      assert.equal((await page.evaluate(() => window.proof.selections())).at(-1), null, '3.10 choosing Library clears the story selection');
-      assert.ok(await page.evaluate(c => window.proof.canvas() === c, canvas), '3.10 Library keeps the canvas');
-      await settle(page, 8);
+      // 3.9, 3.10: each switch flips only itself; each pair draws its own globe on the same canvas, camera and turn.
+      const pose = () => page.evaluate(() => { const { camera } = window.proof.globe(); return { camera: camera.uuid, zoom: camera.zoom, at: camera.position.toArray(), turn: camera.quaternion.toArray() }; });
+      const opening = await pose();
+      const drawn = () => page.evaluate(() => {
+        const host = document.querySelector('#globe'), wrapper = host.querySelector('.forest-globe');
+        let core = false;
+        window.proof.globe().scene.traverse(o => { if (o.name === 'globe-core') core = o.visible; });
+        return { mode: host.dataset.forestMode, plates: document.querySelectorAll('.planet-nameplate:not(.capability)').length, core,
+          seen: getComputedStyle(wrapper).visibility !== 'hidden', switches: [...host.querySelectorAll('[data-globe-switch]')].map(b => b.textContent) };
+      });
+      const press = async (which, mode, plates) => {
+        await page.click(`button[data-globe-switch="${which}"]`);
+        await page.waitForFunction(mode => document.querySelector('#globe').dataset.forestMode === mode, mode);
+        await page.waitForFunction(n => document.querySelectorAll('.planet-nameplate:not(.capability)').length === n, plates);
+        await settle(page, 8);
+        assert.ok(await page.evaluate(c => window.proof.canvas() === c, canvas), `3.10 ${which} keeps the canvas`);
+        assert.deepEqual(await pose(), opening, `3.10 ${which} keeps the camera, turn and zoom`);
+        return drawn();
+      };
+      const libraryOff = await press('library', 'forest', stories.length);
+      assert.deepEqual(libraryOff, { mode: 'forest', plates: stories.length, core: false, seen: true, switches: ['Stories', 'Library'] }, '3.9 Library off: the islands on a solid globe');
+      assert.deepEqual(await switches(page), { stories: 'true', library: 'false' }, '3.10 a press flips only its own switch');
+      assert.equal((await page.evaluate(() => window.proof.selections())).at(-1)?.kind, 'story', '3.10 Library off keeps the story');
+      await shot(page, 'globe-library-off');
+      const bothOff = await press('stories', 'library', 0);
+      assert.deepEqual(bothOff, { mode: 'library', plates: 0, core: false, seen: false, switches: ['Stories', 'Library'] }, '3.9 both off: nothing where the globe was, the switches stay');
+      assert.equal((await page.evaluate(() => window.proof.selections())).at(-1), null, '3.10 Stories off clears the story selection');
+      const { x, y } = await page.evaluate(() => { const b = document.querySelector('#globe').getBoundingClientRect(); return { x: b.width / 2, y: b.height / 2 }; });
+      const before = (await page.evaluate(() => window.proof.selections())).length;
+      await page.mouse.click(x, y);
+      await settle(page, 4);
+      assert.equal((await page.evaluate(() => window.proof.selections())).length, before, '3.9 nothing can be picked with both off');
+      await shot(page, 'globe-both-off');
+      const storiesOff = await press('library', 'library', 0);
+      assert.deepEqual(storiesOff, { mode: 'library', plates: 0, core: true, seen: true, switches: ['Stories', 'Library'] }, '3.9 Stories off: the core alone');
       await shot(page, 'globe-library');
-      await page.click('button[data-forest-mode="forest"]');
-      await page.waitForFunction(() => document.querySelector('#globe').dataset.forestMode === 'forest');
-      await page.waitForFunction(n => document.querySelectorAll('.planet-nameplate').length === n, stories.length);
-      assert.ok(await page.evaluate(c => window.proof.canvas() === c, canvas), '3.10 Forest keeps the canvas');
+      const bothOn = await press('stories', 'forest', stories.length);
+      assert.deepEqual(bothOn, { mode: 'forest', plates: stories.length, core: true, seen: true, switches: ['Stories', 'Library'] }, '3.9 both on: the islands over the core');
+      await shot(page, 'globe-both-on');
       // Escape closes a story selected through the view's handle.
       await page.evaluate(story => window.proof.select(story), target.story);
       await page.waitForSelector(`.planet-nameplate.selected[data-story-id="${target.story}"]`);

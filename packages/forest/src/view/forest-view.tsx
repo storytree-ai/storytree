@@ -10,7 +10,8 @@ import { KnowledgeNoteCard, type KnowledgeCore } from "@storytree/knowledge-core
 import { PlanetView } from "./planet-view.js";
 import { nextScene, sameWisps } from "./planet-update.js";
 import { PanelSelection, type Selection } from "./panel-selection.js";
-import { globeFraming, type ForestMode } from "./planet-navigation.js";
+import { globeFraming } from "./planet-navigation.js";
+import { flipSwitch, globeLayers, LAUNCH_SWITCHES, type GlobeSwitch, type GlobeSwitches } from "./globe-switches.js";
 import type { GlobeOpening } from "../surfaces/surfaces.js";
 
 export interface ForestView {
@@ -28,7 +29,7 @@ export interface ForestView {
 
 /** What the page draws, as one value handed to React on every change. */
 interface Drawn {
-  mode: ForestMode;
+  switches: GlobeSwitches;
   places: ReadonlyMap<string, number>;
   scene: ForestScene;
   wisps: readonly SessionWisp[];
@@ -40,31 +41,37 @@ interface Drawn {
 /**
  * Open the globe in `container`. `onSelect` hears the story or artifact picked, or empty space.
  * The app's existing core supplies the faint points; its inspection page stays deferred.
- * With `library` off (ADR-0750) the globe stays solid and has no Forest and Library buttons;
- * `opening` is how close it opens.
+ * It carries two switches, Stories and Library, each on or off by itself (ADR-1002 D1, D2). With `library` off
+ * (ADR-0750) the globe stays solid and only Stories is offered; `opening` is how close it opens.
  */
 export async function openForestView(container: HTMLElement, onSelect: (selection: Selection) => void, core: KnowledgeCore,
   { library = true, opening = "whole-planet" }: { library?: boolean; opening?: GlobeOpening | undefined } = {}): Promise<ForestView> {
   const root = createRoot(container);
   let drawn: Drawn = {
-    mode: "forest", places: new Map(), scene: { islands: [] }, wisps: [], selected: undefined, highlighted: undefined, viewport: undefined,
+    switches: LAUNCH_SWITCHES, places: new Map(), scene: { islands: [] }, wisps: [], selected: undefined, highlighted: undefined, viewport: undefined,
   };
 
   const render = (next: Partial<Drawn>): void => {
     drawn = { ...drawn, ...next };
     if (drawn.viewport === undefined) return;
+    const layers = globeLayers(drawn.switches, library);
     container.dataset.view = "globe";
-    container.dataset.forestMode = drawn.mode;
+    container.dataset.forestMode = layers.mode;
+    container.dataset.globeShown = String(layers.shown);
+    // Both off hides the globe without unmounting it, so its canvas, camera, turn and zoom come back as left (3.10);
+    // the mini globe and failure markers sit inside it and go with it, and nothing hidden can be picked.
     root.render(<>
-      <PlanetView core={core} scene={drawn.scene} places={drawn.places} wisps={drawn.wisps}
-        selected={drawn.selected} highlighted={drawn.highlighted}
-        onPick={pick} onNote={pickNote} mode={drawn.mode} framing={globeFraming(opening)} library={library} liveRoads />
-      {library && <div className="forest-views" role="group" aria-label="Globe view">
-        {(["forest", "library"] as const).map(mode => <button key={mode} type="button"
-          data-forest-mode={mode} aria-pressed={drawn.mode === mode} onClick={() => changeMode(mode)}>
-          {mode === "forest" ? "Forest" : "Library"}
+      <div className="forest-globe" hidden={!layers.shown}>
+        <PlanetView core={core} scene={drawn.scene} places={drawn.places} wisps={drawn.wisps}
+          selected={drawn.selected} highlighted={drawn.highlighted}
+          onPick={pick} onNote={pickNote} mode={layers.mode} framing={globeFraming(opening)} library={layers.library} liveRoads />
+      </div>
+      <div className="forest-views" role="group" aria-label="Globe layers">
+        {layers.offered.map(which => <button key={which} type="button"
+          data-globe-switch={which} aria-pressed={drawn.switches[which]} onClick={() => flip(which)}>
+          {which === "stories" ? "Stories" : "Library"}
         </button>)}
-      </div>}
+      </div>
     </>);
   };
   const selection = new PanelSelection(next => {
@@ -72,9 +79,10 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
     render({ selected: next?.kind === "story" ? next.id : undefined });
     onSelect(next);
   });
-  const changeMode = (mode: ForestMode): void => {
-    render({ mode });
-    selection.modeChosen(mode);
+  const flip = (which: GlobeSwitch): void => {
+    const switches = flipSwitch(drawn.switches, which);
+    render({ switches });
+    selection.switched({ stories: switches.stories, library: globeLayers(switches, library).library });
   };
   const pick = (story: string | undefined, capability?: string): void => selection.story(story, capability);
   const pickNote = (note: string): void => selection.note(note);

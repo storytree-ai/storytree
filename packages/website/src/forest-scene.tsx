@@ -3,7 +3,7 @@ import { Component, useCallback, useEffect, useMemo, useRef, useState, type Reac
 import { createPortal } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { drillDown, type SessionWisp } from "@storytree/forest";
-import { PlanetView, mountSessionsList, renderStoryPanel, attachPanZoom, mountTreeSpace, type GlobeControls, type GlobeSurfaces, type GlobeTarget } from "@storytree/forest/view";
+import { PlanetView, LAUNCH_SWITCHES, flipSwitch, globeLayers, mountSessionsList, renderStoryPanel, attachPanZoom, mountTreeSpace, type GlobeControls, type GlobeSurfaces, type GlobeSwitch, type GlobeTarget } from "@storytree/forest/view";
 import { workStates } from "@storytree/arc-surface";
 import { mountArcSurface } from "@storytree/arc-surface/view";
 import { knowledge } from "@storytree/knowledge-core";
@@ -14,7 +14,7 @@ import ownSaved from "./own-snapshot.json" with { type: "json" };
 import { crossingLength, growthPlan, type GrowthPlan } from "@storytree/forest-world/planet";
 import { buildPlanetPathways } from "@storytree/forest-world/geometry";
 import type { GrowthSnapshot, TourSnapshot } from "./forest-data.js";
-import { globeOf, labelsAt, labelWords, momentStarts, placeTags, replayMoment, stepAt, type Box, type GlobeOn, type Hold, type TagSide, type TourDetail, type TourGrowth, type TourStep } from "./tour.js";
+import { globeOf, labelsAt, labelWords, momentStarts, placeTags, replayMoment, stepAt, switchesFor, type Box, type GlobeOn, type Hold, type TagSide, type TourDetail, type TourGrowth, type TourStep } from "./tour.js";
 import { createCameraPlayer } from "./tour-camera.js";
 import { mapRecording, mapGrowthPlan, recordedFrame } from "./map-recording.js";
 import { growthReading, recordedView, savedReading } from "./tour-reading.js";
@@ -221,7 +221,9 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   const [toldStory, setToldStory] = useState<string>();
   const [capability, setCapability] = useState<string>();
   const [note, setNote] = useState<string>();
-  const [mode, setMode] = useState<"forest" | "library">("forest");
+  // The globe's two switches, Stories and Library, as the app's (ADR-1002 D1); a step sets them, free play opens with both on.
+  const [switches, setSwitches] = useState(LAUNCH_SWITCHES);
+  const layers = globeLayers(switches, true);
   const [query, setQuery] = useState("");
   const [browserOpen, setBrowserOpen] = useState(false);
   const [width, setWidth] = useState(window.innerWidth);
@@ -291,6 +293,13 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   const closeStory = useCallback(() => { setStory(undefined); setCapability(undefined); }, []);
   const pickNote = useCallback((id: string) => { explore(); setNote(id); setStory(undefined); activeCore.pin(id); }, [activeCore, explore]);
   const closeNote = useCallback(() => { setNote(undefined); activeCore.pin(undefined); }, [activeCore]);
+  // A switch turned off closes the panel it would leave pointing at nothing: Stories a story's, Library a note's card.
+  const flip = (which: GlobeSwitch) => {
+    const next = flipSwitch(switches, which);
+    setSwitches(next);
+    if (!next.stories) { closeStory(); setToldStory(undefined); }
+    if (!next.library) closeNote();
+  };
   useEffect(() => {
     const escape = (event: KeyboardEvent) => { if (event.key !== "Escape" || event.defaultPrevented) return; if (note) closeNote(); else if (story) closeStory(); else setBrowserOpen(false); };
     window.addEventListener("keydown", escape); return () => window.removeEventListener("keydown", escape);
@@ -357,7 +366,7 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   // Each step opens what it talks about (ADR-0852 D3).
   const openStepSurfaces = () => {
     if (!tour || free) return;
-    setMode(requestedPanel === "knowledge" ? "library" : "forest");
+    setSwitches(switchesFor(requestedPanel, false));
     setBrowserOpen(false);
     // A phone has no room for the app’s story panel or a note's card beside the card: the step says it in words instead.
     const told = requestedPanel === "note" && window.innerWidth > 600 ? step?.note : undefined;
@@ -408,6 +417,7 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
     setStory(undefined); setCapability(undefined); setNote(undefined); setBrowserOpen(false);
     setShownMap(globe.map);
   }, [free, globe.map, shownMap]);
+  useEffect(() => { if (free) setSwitches(switchesFor(undefined, true)); }, [free]);
   useEffect(() => {
     if (!free || !controls) return;
     const frame = requestAnimationFrame(() => controls.stop({ target: overviews[shownMap], framing: restingFraming, duration: reduced() ? 0 : 1200, sideOffset: 0 }));
@@ -474,20 +484,21 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   return <>
     {webgl && tour && <GlobeBoundary failed={globeFailed}>
       <div className="forest-drawing" role="group" aria-label={onStorytree ? "Storytree’s saved project globe" : shownMap === "own" ? "Storytree’s own globe, growing as its agents built it" : "An online shop’s globe, as its agents built it"}
-        data-globe={shownMap} data-arrived={arrived} data-growth={grown ? moment === undefined ? "whole" : moment.toFixed(2) : undefined} data-focus={focus?.join(" ")}
+        data-globe={shownMap} data-globe-shown={layers.shown} style={layers.shown ? undefined : { visibility: "hidden" }} data-arrived={arrived} data-growth={grown ? moment === undefined ? "whole" : moment.toFixed(2) : undefined} data-focus={focus?.join(" ")}
         data-islands={drawn.islands.length} data-risen={growth ? [...growth.plan.islands.values()].filter(window => window.start <= growth.at).length : undefined} onPointerDown={explore} onWheel={explore}>
         <PlanetView core={grown ? growthCores[shownMap as Grown] : core} scene={drawn} places={grown?.places ?? places}
           frame={grown?.snapshot.scene} easeMoves growth={growth} recordedSessions={mapFrame || (shopAt && shownMap === "shop") ? undefined : grown?.sessions}
           wisps={(heldClaims ? wisps : mapFrame?.wisps) ?? (shopAt && shownMap === "shop" ? wisps : grown ? [] : wisps)} selected={selected}
           highlighted={focus?.length === 0 ? ["planned-only"] : focus ?? highlight} onPick={pickStory} onNote={pickNote}
-          onControls={onControls} surfaces={surfaces} framing={restingFraming} sideOffset={offsetFor(undefined, width)} mode={mode} />
+          onControls={onControls} surfaces={surfaces} framing={restingFraming} sideOffset={offsetFor(undefined, width)} mode={layers.mode} library={layers.library} />
       </div>
     </GlobeBoundary>}
     {webgl && <Labels labels={shownLabels} controls={controls} arrived={arrived} />}
     {panelHost && createPortal(<>
-      <div className="forest-views" role="group" aria-label="Project view" hidden={!free}>
-        <button type="button" aria-pressed={mode === "forest"} onClick={() => setMode("forest")}>Forest</button>
-        <button type="button" aria-pressed={mode === "library"} onClick={() => setMode("library")}>Library</button>
+      <div className="forest-views" role="group" aria-label="Globe layers" hidden={!free}>
+        {layers.offered.map(which => <button key={which} type="button" data-globe-switch={which} aria-pressed={switches[which]} onClick={() => flip(which)}>
+          {which === "stories" ? "Stories" : "Library"}
+        </button>)}
       </div>
       <button className="tour-browse-toggle" type="button" aria-label="Find a story or note in the saved project" aria-expanded={browserOpen} hidden={!free} onClick={() => setBrowserOpen(value => !value)}>Find</button>
       <div className="tour-record-browser" hidden={!browserOpen || !free}>

@@ -1,5 +1,5 @@
 /** Capability 2 · The forest on the site. */
-import type { GlobeSurfaces, GlobeTarget } from "@storytree/forest/view";
+import type { GlobeSurfaces, GlobeSwitches, GlobeTarget } from "@storytree/forest/view";
 
 /** "map" is Act 2's first chapter, taught on the shop (ADR-0891); "knowledge" follows it, on the same globe. */
 export type Explainer = "map" | "knowledge";
@@ -248,6 +248,14 @@ export function globeOf(step: TourStep, state: TourState, elapsed = 0): GlobeOn 
   const focus = step.focus ? { focus: step.focus } : {};
   if (step.growth === "seed") return { map: step.map, at: 0, ...focus };
   return step.growth ? { map: step.map, at: Math.min(step.growth.seconds, elapsed / 1000), ...focus } : { map: step.map, ...focus };
+}
+
+/**
+ * The globe's two switches, Stories and Library, a step puts on (ADR-1002 D1): a step whose panel is the knowledge core turns
+ * the islands off so the core shows alone; any other step, and free play, opens with both on, as a launch of the app does.
+ */
+export function switchesFor(panel: TourStep["panel"], free: boolean): GlobeSwitches {
+  return { stories: free || panel !== "knowledge", library: true };
 }
 
 /**

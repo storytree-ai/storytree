@@ -64,6 +64,7 @@ Red, then green, then landed.
 Record what you learned.
 - \`write_note\` a decision, definition, principle, guardrail, pattern, process, agent role or tech stack artifact when you learn something worth keeping; give the chosen kind its required fields. With no place named, it goes onto the shelf of the capability you hold. \`correct_note\` fixes an artifact's wording in place.
 - \`record_friction\` when something got in your way, with concrete evidence; \`reinforce\` the existing item when it happens again, with its own evidence. \`record_resteer\` when the owner redirects you, quoting their own words.
+- Give storytree text holding a dollar sign followed by a name, or a line break, through its tools, or to its command line as a file (--body @body.txt), never typed on the command line itself: the shell reads typed words first, and swaps the name for its value, or stops on an unset one, before storytree runs.
 
 Use \`list_own_runs\` for this caller’s recorded work, \`list_all_runs\` for every recorded session on this computer, \`stop_own_run\` for named runs you own, and \`clear_own_runs\` to remove only your confirmed-gone records and read what remains on this computer. These tools work with the app offline; uncertain caller identity grants no stop authority.
 

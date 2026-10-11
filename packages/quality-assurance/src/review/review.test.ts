@@ -7,7 +7,7 @@
  */
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -140,7 +140,7 @@ function branchCheckout(trunk?: string): string {
   const dir = mkdtempSync(join(tmpdir(), "qa-review-"));
   const git = (...args: string[]) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { cwd: dir });
   git("init", "-q");
-  execFileSync("mkdir", ["-p", join(dir, "packages/library/src")]);
+  mkdirSync(join(dir, "packages/library/src"), { recursive: true });
   writeFileSync(join(dir, "packages/library/src/a.ts"), "export const a = 1;\n");
   git("add", ".");
   git("commit", "-qm", "base");

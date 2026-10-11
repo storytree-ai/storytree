@@ -26,6 +26,9 @@ const CI = 'storytree-ci-health@storytree-498613.iam';
 // The three 0.3 databases. 0.2's frozen `storytree` stays on Cloud SQL and is archived there by
 // `gcloud sql export` before the instance is deleted (owner, 2026-10-07: "we dont need backups for 0.2").
 const DBS = ['storytree_storytree', 'storytree-activity', 'storytree-trunks'];
+// Backed up beside them: the lag runner's history (packages/dev-loop/src/lag-box.mjs), whose baselines and
+// recorded reasons cannot be measured again. It never lived on Cloud SQL, so the copy and transition leave it out.
+const BACKED = [...DBS, 'storytree-lag'];
 const MARK = 'storytree library-host increment_b3ccd17ff113';
 const PASSWORD = path.join(ROOT, 'postgres-password');
 const CI_PASSWORD = path.join(ROOT, 'ci-health-password');
@@ -54,7 +57,8 @@ export function checkedCounts(source, restored) {
 
 export function checkedManifest(manifest) {
   if (manifest?.format !== 1 || !Array.isArray(manifest.databases) ||
-      JSON.stringify(manifest.databases.map(d => d.name).sort()) !== JSON.stringify([...DBS].sort()) ||
+      // A backup from before storytree-lag joined still restores.
+      ![DBS, BACKED].some(names => JSON.stringify(manifest.databases.map(d => d.name).sort()) === JSON.stringify([...names].sort())) ||
       manifest.databases.some(d => d.file !== `${d.name}.dump` || !/^[a-f0-9]{64}$/.test(d.sha256) ||
         !Number.isSafeInteger(d.bytes) || d.bytes <= 0 || !d.rows ||
         Object.values(d.rows).some(n => !/^\d+$/.test(n)))) {
@@ -269,8 +273,9 @@ async function backup() {
   const directory = path.join(LOGS, stamp());
   await mkdir(directory, { mode: 0o700 });
   const manifest = { format: 1, at: new Date().toISOString(), source: 'mint', databases: [] };
-  for (const name of DBS) {
-    await ownedDatabase(LOCAL, name);
+  for (const name of BACKED) {
+    // storytree-lag was made by the lag runner, not here, so it carries no mark; dump still refuses a stranger's database.
+    if (DBS.includes(name)) await ownedDatabase(LOCAL, name);
     const entry = await dump(LOCAL, name, directory);
     await scratchRestore(LOCAL, directory, entry);
     manifest.databases.push(entry);
@@ -347,7 +352,7 @@ export async function main(args) {
   const positional = rest.filter(arg => arg !== '--dry-run');
   if (!actions.includes(action) || positional.length > (['restore-backup', 'rollback-rehearsal'].includes(action) ? 1 : 0)) throw new Error(`Usage: host.mjs ${actions.join('|')} [backup-prefix] [--dry-run]`);
   if (dry) {
-    console.log(`DRY RUN ${action}: databases ${DBS.join(', ')}; local socket ${LOCAL.host}:${LOCAL.port}; bucket ${BUCKET}.`);
+    console.log(`DRY RUN ${action}: databases ${(['backup', 'restore-backup'].includes(action) ? BACKED : DBS).join(', ')}; local socket ${LOCAL.host}:${LOCAL.port}; bucket ${BUCKET}.`);
     console.log('Create-only local files/roles/databases; marked scratch databases only may be dropped; uploads require all restored row counts to match.');
     console.log('Cloud SQL is never stopped/reconfigured. Real Storytree settings are untouched. No subprocess, connection or write was made.');
     return;

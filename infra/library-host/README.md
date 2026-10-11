@@ -12,6 +12,12 @@ SQL, is stopped with the instance at cutover, and gets one `gcloud sql export` t
 `archive/` before the instance is deleted. Nothing here copies, backs up, swaps or
 rolls it back.
 
+The backups also carry `storytree-lag`, the lag runner's history
+(`packages/dev-loop/src/lag-box.mjs`): each action's baseline, its runs and the
+reasons recorded by `pnpm lag:box rebaseline`. The runs could be measured again;
+the reasons could not. It was made by the lag runner on Mint and never lived on
+Cloud SQL, so the rehearsal, cutover and rollback leave it out.
+
 Every machine-changing script needs a read-only review and a dry run before its
 real run. Do not run `cutover.sh` or `rollback.sh` for real during rehearsal.
 `setup.sh` is the exact previously reviewed script the owner ran with sudo.
@@ -122,7 +128,7 @@ node infra/library-host/host.mjs backup
 node infra/library-host/host.mjs backup
 ```
 
-All three dumps must restore into new scratch databases and match their source
+All four dumps (the three 0.3 databases and `storytree-lag`) must restore into new scratch databases and match their source
 snapshot's per-table row counts before **any** upload. Scratch names are unique;
 only databases marked as created by this increment may be dropped. No forced
 disconnect or existing-database overwrite is used. A session advisory lock on
@@ -145,7 +151,8 @@ node infra/library-host/host.mjs rollback-rehearsal gs://storytree-498613-librar
 node infra/library-host/host.mjs rollback-rehearsal gs://storytree-498613-library-backups/backups/TIMESTAMP
 ```
 
-The local proof downloads all three dumps, verifies sizes/hashes and restores each
+The local proof downloads every dump the manifest names (a backup from before
+`storytree-lag` joined names three), verifies sizes/hashes and restores each
 into scratch. The Cloud SQL proof restores the project backup only into
 `storytree_rollback_rehearsal`, checks it, then drops it. It refuses an existing
 scratch name. If Mint IAM lacks database-creation rights, the laptop owner must
@@ -169,6 +176,16 @@ copies the reviewed script to a private, versioned runtime outside the disposabl
 worktree. Its `pg` dependency resolves from the permanent
 `~/code/storytree03/node_modules`; keep that checkout installed. Output goes to
 `~/storytree-lanes/library-backups/timer.log`. Existing unit files are refused.
+
+When `host.mjs` changes, re-install so the timer runs the new copy (older runtime
+folders stay, as evidence of what ran):
+
+```sh
+systemctl --user disable --now storytree-library-backup.timer
+rm ~/.config/systemd/user/storytree-library-backup.service ~/.config/systemd/user/storytree-library-backup.timer
+node infra/library-host/host.mjs install-timer
+grep ExecStart ~/.config/systemd/user/storytree-library-backup.service
+```
 
 The laptop cutover step enables the existing **No library backup for 12 hours**
 Cloud Monitoring alert after checking it observes these writes. This rehearsal

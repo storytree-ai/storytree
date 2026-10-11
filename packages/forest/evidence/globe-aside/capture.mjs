@@ -2,39 +2,17 @@
 // Run from the checkout: node --import tsx packages/forest/evidence/globe-aside/capture.mjs [--before]
 // --before builds the page with the panel's width withheld from the globe, as main drew it before 3.40.
 import assert from 'node:assert/strict';
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { gunzipSync } from 'node:zlib';
+import { rmSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { build, stop } from 'esbuild';
+import { buildPage } from './build.mjs';
 import { withCapture, settle } from '../../../../apps/desktop/src/capture/index.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const pkgDir = path.resolve(here, '../..');
 const out = path.join(here, 'out');
 const before = process.argv.includes('--before');
-const codeRows = path.join(pkgDir, 'src/view/evidence/code-rows');
-const seed = JSON.parse(gunzipSync(readFileSync(path.join(codeRows, 'seed.json.gz'))));
-const survey = JSON.parse(readFileSync(path.join(codeRows, 'survey.json')));
-
-mkdirSync(out, { recursive: true });
 try {
-  await build({
-    entryPoints: [path.join(here, 'page.tsx')], outfile: path.join(out, 'bundle.js'), bundle: true,
-    format: 'iife', platform: 'browser', jsx: 'automatic', target: 'es2023', loader: { '.glb': 'binary' }, logLevel: 'warning',
-    define: { __SEED__: JSON.stringify(seed), __SURVEY__: JSON.stringify(survey), 'process.env.NODE_ENV': '"production"' },
-    plugins: before ? [{ name: 'before', setup(builder) {
-      builder.onLoad({ filter: /forest-view\.tsx$/ }, ({ path: file }) => {
-        const source = readFileSync(file, 'utf8'), changed = source.replace('aside={drawn.aside}', 'aside={0}');
-        assert.notEqual(changed, source, 'the before build withholds the measured width');
-        return { contents: changed, loader: 'tsx' };
-      });
-    } }] : [],
-  });
-  stop();
-  writeFileSync(path.join(out, 'index.html'), `<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="/bundle.css">
-<style>html,body{margin:0;width:100%;height:100%;background:#101418;color:#e7edf0;font:14px system-ui}#content{position:absolute;inset:0}#globe{position:absolute;inset:0}</style>
-</head><body><div id="content" class="forest-workspace" data-theme="dark"><div id="globe"></div><aside class="story-panel" hidden></aside></div><script src="/bundle.js"></script></body></html>`);
+  await buildPage(out, { before });
 
   const results = {};
   await withCapture({ folder: here, dist: out }, async ({ browser, origin }) => {

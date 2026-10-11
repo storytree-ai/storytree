@@ -88,7 +88,7 @@ test("2.16 · the map chapter's arcs and sessions read the shop's records at the
   assert.ok(claims.live.includes("Part 2: product page, sorting, cart") && claims.live.includes("Part 4: Checkout"), `${claims.live}`);
 });
 
-test("2.13 · free play on storytree's own project draws a picked session's reading path: its core's window read answers as absent from the public recording", async () => {
+test("2.13 · free play on storytree's own project reads a picked session's window from the recording, answered as absent from the public recording, the core's gate before it draws that session's reading path", async () => {
   const view = recordedView(snapshot);
   try {
     const reader = (snapshot.recording.lines as readonly Line[]).find(line => line.kind === "note-read" && line.session)!.session!;

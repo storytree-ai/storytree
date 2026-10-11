@@ -28,10 +28,11 @@
  *   name), asking git for at most a few seconds once GitHub has answered, least recently looked-at
  *   branches first, and never fails a hook: `gh` or git missing, slow or refusing means nothing is learned this time.
  */
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { thisMachine, type ActivityLog, type BranchFacts, type Line, type NewLine } from "../activity/index.js";
+import { findProject } from "../routing/routing.js";
 import { ask, type Answer } from "./ask.js";
 import { due, ghAllMergedPulls, projectTempFile, ghAllOpenPulls, type AllMergedPulls, type AllOpenPulls, type MergeContext, type MergedPull, type OpenPull } from "../claims/merges.js";
 
@@ -187,10 +188,26 @@ export async function lookAsApp(log: ActivityLog, project: string, watch: Branch
   return resolveBranches({ log, project, folder, session: `app:${machine ?? "this machine"}`, source: "tool" }, watch);
 }
 
-/** The latest folder a session of `project` worked in on this machine that is still there; undefined when there is none. */
+/**
+ * The latest folder a session of `project` worked in on this machine that is still there, taken up to
+ * the folder holding the project's marker when it sits below it; undefined when there is none. A
+ * project with no git repository records the subfolder a command ran in, and the code survey must
+ * read the whole project.
+ */
 export async function projectFolder(log: ActivityLog, project: string, machine = thisMachine()): Promise<string | undefined> {
   const lines = await log.lines(project, { where: { machine: machine ?? null }, has: ["folder"], latestBy: ["folder"], newest: 200, omit: ["command", "files", "transcript"] });
-  return lines.findLast((line) => line.folder !== undefined && existsSync(line.folder))?.folder;
+  const folder = lines.findLast((line) => line.folder !== undefined && existsSync(line.folder))?.folder;
+  if (folder === undefined) return undefined;
+  const found = findProject(folder);
+  if (found.project !== project) return folder;
+  // Only a marker at or above the folder: a git worktree's marker may be in the folder it is a worktree of.
+  let below: string;
+  try {
+    below = path.relative(found.folder, realpathSync.native(folder));
+  } catch {
+    return folder;
+  }
+  return below.startsWith("..") || path.isAbsolute(below) ? folder : found.folder;
 }
 
 /** What is known of a branch worth looking at: when it was first worked on, its latest folder on this machine, and whether its own machine has found it ahead. */

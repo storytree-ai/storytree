@@ -1,0 +1,291 @@
+{
+  "usualUnderDrawer": {
+    "drawerOpen": true,
+    "overlap": 0
+  },
+  "fullUnderDrawer": {
+    "drawerOpen": true,
+    "overlap": 480,
+    "hits": [
+      "drawer",
+      "drawer",
+      "drawer"
+    ]
+  },
+  "fullClear": {
+    "panel": false,
+    "mark": false,
+    "strip": {
+      "top": 96,
+      "right": 936,
+      "bottom": 905.609375
+    },
+    "panelLeft": 948
+  },
+  "desktop": {
+    "usual": {
+      "pane": {
+        "top": 96,
+        "height": 864
+      },
+      "box": {
+        "top": 707.15625,
+        "bottom": 0,
+        "left": 0,
+        "right": 0,
+        "height": 156.84375
+      },
+      "heightOfPane": 0.182,
+      "dataSize": null,
+      "open": "true",
+      "size": {
+        "text": "Expand",
+        "pressed": "false",
+        "label": "Expand sessions to fill the pane"
+      },
+      "bodyHidden": false,
+      "scrollHeight": 120,
+      "clientHeight": 120,
+      "overflowY": "auto",
+      "headerHeight": 36,
+      "kept": null
+    },
+    "full": {
+      "pane": {
+        "top": 96,
+        "height": 864
+      },
+      "box": {
+        "top": 0,
+        "bottom": 0,
+        "left": 0,
+        "right": 0,
+        "height": 864
+      },
+      "heightOfPane": 1,
+      "dataSize": "full",
+      "open": "true",
+      "size": {
+        "text": "Restore",
+        "pressed": "true",
+        "label": "Restore sessions to their usual height"
+      },
+      "bodyHidden": false,
+      "scrollHeight": 827,
+      "clientHeight": 827,
+      "overflowY": "auto",
+      "headerHeight": 36,
+      "kept": "true"
+    },
+    "history": {
+      "pane": {
+        "top": 96,
+        "height": 864
+      },
+      "box": {
+        "top": 0,
+        "bottom": 0,
+        "left": 0,
+        "right": 0,
+        "height": 864
+      },
+      "heightOfPane": 1,
+      "dataSize": "full",
+      "open": "true",
+      "size": {
+        "text": "Restore",
+        "pressed": "true",
+        "label": "Restore sessions to their usual height"
+      },
+      "bodyHidden": false,
+      "scrollHeight": 827,
+      "clientHeight": 827,
+      "overflowY": "auto",
+      "headerHeight": 36,
+      "kept": "true"
+    },
+    "folded": {
+      "pane": {
+        "top": 96,
+        "height": 864
+      },
+      "box": {
+        "top": 827,
+        "bottom": 0,
+        "left": 0,
+        "right": 0,
+        "height": 37
+      },
+      "heightOfPane": 0.043,
+      "dataSize": null,
+      "open": "false",
+      "size": null,
+      "bodyHidden": true,
+      "scrollHeight": 0,
+      "clientHeight": 0,
+      "overflowY": "auto",
+      "headerHeight": 36,
+      "kept": "true"
+    },
+    "restored": {
+      "pane": {
+        "top": 96,
+        "height": 864
+      },
+      "box": {
+        "top": 707.15625,
+        "bottom": 0,
+        "left": 0,
+        "right": 0,
+        "height": 156.84375
+      },
+      "heightOfPane": 0.182,
+      "dataSize": null,
+      "open": "true",
+      "size": {
+        "text": "Expand",
+        "pressed": "false",
+        "label": "Expand sessions to fill the pane"
+      },
+      "bodyHidden": false,
+      "scrollHeight": 120,
+      "clientHeight": 120,
+      "overflowY": "auto",
+      "headerHeight": 36,
+      "kept": "false"
+    }
+  },
+  "narrow": {
+    "usual": {
+      "pane": {
+        "top": 96,
+        "height": 804
+      },
+      "box": {
+        "top": 632.375,
+        "bottom": 0,
+        "left": 0,
+        "right": 0,
+        "height": 171.625
+      },
+      "heightOfPane": 0.213,
+      "dataSize": null,
+      "open": "true",
+      "size": {
+        "text": "Expand",
+        "pressed": "false",
+        "label": "Expand sessions to fill the pane"
+      },
+      "bodyHidden": false,
+      "scrollHeight": 118,
+      "clientHeight": 118,
+      "overflowY": "auto",
+      "headerHeight": 53,
+      "kept": null
+    },
+    "full": {
+      "pane": {
+        "top": 96,
+        "height": 804
+      },
+      "box": {
+        "top": 0,
+        "bottom": 0,
+        "left": 0,
+        "right": 0,
+        "height": 804
+      },
+      "heightOfPane": 1,
+      "dataSize": "full",
+      "open": "true",
+      "size": {
+        "text": "Restore",
+        "pressed": "true",
+        "label": "Restore sessions to their usual height"
+      },
+      "bodyHidden": false,
+      "scrollHeight": 750,
+      "clientHeight": 750,
+      "overflowY": "auto",
+      "headerHeight": 53,
+      "kept": "true"
+    },
+    "history": {
+      "pane": {
+        "top": 96,
+        "height": 804
+      },
+      "box": {
+        "top": 0,
+        "bottom": 0,
+        "left": 0,
+        "right": 0,
+        "height": 804
+      },
+      "heightOfPane": 1,
+      "dataSize": "full",
+      "open": "true",
+      "size": {
+        "text": "Restore",
+        "pressed": "true",
+        "label": "Restore sessions to their usual height"
+      },
+      "bodyHidden": false,
+      "scrollHeight": 767,
+      "clientHeight": 767,
+      "overflowY": "auto",
+      "headerHeight": 36,
+      "kept": "true"
+    },
+    "folded": {
+      "pane": {
+        "top": 96,
+        "height": 804
+      },
+      "box": {
+        "top": 750.21875,
+        "bottom": 0,
+        "left": 0,
+        "right": 0,
+        "height": 53.78125
+      },
+      "heightOfPane": 0.067,
+      "dataSize": null,
+      "open": "false",
+      "size": null,
+      "bodyHidden": true,
+      "scrollHeight": 0,
+      "clientHeight": 0,
+      "overflowY": "auto",
+      "headerHeight": 53,
+      "kept": "true"
+    },
+    "restored": {
+      "pane": {
+        "top": 96,
+        "height": 804
+      },
+      "box": {
+        "top": 632.375,
+        "bottom": 0,
+        "left": 0,
+        "right": 0,
+        "height": 171.625
+      },
+      "heightOfPane": 0.213,
+      "dataSize": null,
+      "open": "true",
+      "size": {
+        "text": "Expand",
+        "pressed": "false",
+        "label": "Expand sessions to fill the pane"
+      },
+      "bodyHidden": false,
+      "scrollHeight": 118,
+      "clientHeight": 118,
+      "overflowY": "auto",
+      "headerHeight": 53,
+      "kept": "false"
+    }
+  }
+}

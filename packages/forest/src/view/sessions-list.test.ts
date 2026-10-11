@@ -3,7 +3,7 @@ import { createElement } from "react";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { arcsAfter, isSessionRows, keptPanelOpen, keptTab, SessionsList, windowsReader } from "./sessions-list.js";
+import { arcsAfter, isSessionRows, keptPanelOpen, keptStripFull, keptTab, SessionsList, windowsReader } from "./sessions-list.js";
 import type { ArcView } from "@storytree/library";
 import type { SessionWindow } from "@storytree/session-management";
 import { sessionColour } from "../agent-claims/agent-claims.js";
@@ -180,6 +180,29 @@ test("7.17 the list is a bottom strip whose header toggles it, like the arcs bar
   assert.equal(keptPanelOpen("other", storage).read(), true, "kept per project");
   store.set("storytree.forest.sessions-open.v1:demo", "\"maybe\"");
   assert.equal(keptPanelOpen("demo", storage).read(), true, "a foreign value is ignored");
+});
+
+test("7.17 the header carries an Expand control beside its caret that fills the forest pane, and Restore that returns it to at most 40%; the size is kept per project, a missing or foreign value reads as not expanded, and a collapsed strip shows only its header", () => {
+  const strip = { rows: [{ ...row, children: [] }], onHighlight() {} };
+  const usual = renderToStaticMarkup(createElement(SessionsList, strip));
+  assert.doesNotMatch(usual, /<aside[^>]*data-size=/, "the usual height by default");
+  assert.match(usual, /<button type="button" class="sessions-size" aria-pressed="false" aria-label="Expand sessions to fill the pane"[^>]*>Expand<\/button><span class="sessions-caret"/);
+  const full = renderToStaticMarkup(createElement(SessionsList, { ...strip, full: true }));
+  assert.match(full, /<aside[^>]*data-size="full"/);
+  assert.match(full, /class="sessions-size" aria-pressed="true" aria-label="Restore sessions to their usual height"[^>]*>Restore</);
+  const history = renderToStaticMarkup(createElement(SessionsList, { ...strip, full: true, tab: "history" }));
+  assert.match(history, /<aside[^>]*data-size="full"/, "History uses the height too");
+  const shut = renderToStaticMarkup(createElement(SessionsList, { ...strip, full: true, open: false }));
+  assert.doesNotMatch(shut, /data-size=|sessions-size/, "collapsed, only the header: no size and no size control");
+
+  const store = new Map<string, string>();
+  const storage = { getItem: (key: string) => store.get(key) ?? null, setItem: (key: string, value: string) => void store.set(key, value) };
+  assert.equal(keptStripFull("demo", storage).read(), false, "nothing kept: the usual height");
+  keptStripFull("demo", storage).write(true);
+  assert.equal(keptStripFull("demo", storage).read(), true, "an expanded strip stays expanded next start");
+  assert.equal(keptStripFull("other", storage).read(), false, "kept per project");
+  store.set("storytree.forest.sessions-size.v1:demo", "\"huge\"");
+  assert.equal(keptStripFull("demo", storage).read(), false, "a foreign value is ignored");
 });
 
 test("the list reads every arc in one ask, and again only when a change touches an arc, an increment or a question (ADR-0836 D3)", async () => {

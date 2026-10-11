@@ -4,7 +4,8 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
-import type { AnnotatedTree, Library } from "@storytree/library";
+import type { AnnotatedTree, ChangedOnMain, Library } from "@storytree/library";
+import { packageOf } from "./code-survey/code-survey.js";
 import { codeSurveyReader } from "./code-survey/read-survey.js";
 import { buildGraph, type ChangeLabel, type MapEdge, type MapNode, type ProjectGraph } from "./graph.js";
 import { impact } from "./impact.js";
@@ -154,4 +155,33 @@ export async function affectedProject(library: Pick<Library, "projectTree">, fol
     "Both code readings use today's plan, not historical promise wording.",
     "Impact conservatively joins base and target edges; a route may combine both readings.",
   ] } };
+}
+
+/** Folders outside packages/ that hold a story's code, by its package: the desktop app is the app story's other half (ADR-0649). */
+const ALSO_IN: Readonly<Record<string, readonly string[]>> = { app: ["apps/desktop/"] };
+
+/**
+ * For each story whose package (packages/<name>/, with any folder ALSO_IN names) fetched origin/main
+ * changed in a commit made within `within` milliseconds before `now`, the newest such commit and when
+ * it was committed, by story id; a story whose package did not change then is absent. Nothing is
+ * fetched: with no origin/main there are none.
+ */
+export async function changedOnMain(stories: readonly { readonly id: string; readonly title: string }[], folder: string, { within, now = new Date() }: { readonly within: number; readonly now?: Date }): Promise<Map<string, ChangedOnMain>> {
+  const changed = new Map<string, ChangedOnMain>();
+  let log: string;
+  try {
+    await gitText(folder, ["rev-parse", "--verify", "--quiet", "refs/remotes/origin/main"]);
+    log = await gitText(folder, ["log", "refs/remotes/origin/main", `--since=@${Math.floor((now.getTime() - within) / 1000)}`, "--format=%x01%H %cI", "--name-only", "--"]);
+  } catch {
+    return changed;
+  }
+  const folders = stories.map(story => ({ id: story.id, under: [`packages/${packageOf(story.title)}/`, ...ALSO_IN[packageOf(story.title)] ?? []] }));
+  for (const entry of log.split("\x01").slice(1)) {
+    const [head = "", ...files] = entry.split("\n").filter(Boolean);
+    const [commit = "", at = ""] = head.split(" ");
+    for (const story of folders) {
+      if (!changed.has(story.id) && files.some(file => story.under.some(under => file.startsWith(under)))) changed.set(story.id, { commit, at: new Date(at).toISOString() });
+    }
+  }
+  return changed;
 }

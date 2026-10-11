@@ -7,6 +7,7 @@
 import { CONTRACT_DEFINITION, heldBack, LONG_CONTRACT_TITLE as LONG_CONTRACT, wordAndWhy, type AnnotatedTree, type HealthState, type NodeHealth, type PlanChange } from "@storytree/library";
 import { z } from "zod";
 
+import { healthWorklistAt } from "@storytree/map/read";
 import { readClaims } from "@storytree/session-management";
 import { readSessions } from "@storytree/session-management";
 import { testedNumbers } from "./claim-tools.js";
@@ -150,10 +151,10 @@ export function registerPlanTools(define: Define): void {
 
   define(
     "health_worklist",
-    "See the oldest three capabilities that are not healthy, each with its reason, who moves it and since when, and how many more wait. One an open increment lists among its capabilities is already routed and not offered (ADR-0825 D4), and neither is one a test run in progress will record: it is held back, and counted.",
+    "See the oldest three capabilities that are not healthy, each with its reason, who moves it and since when, and how many more wait. One an open increment lists among its capabilities is already routed and not offered (ADR-0825 D4), and neither is one a test run in progress, or a merge to main its own-health run has not recorded yet, will record: it is held back, and counted.",
     z.object({}),
-    async (_args, { library }) => {
-      const all = await library.healthWorklist();
+    async (_args, { library, folder }) => {
+      const all = await healthWorklistAt(library, folder);
       const said = heldBack(all);
       const held = all.filter(({ waits }) => waits !== undefined).map(({ capability }) => capability);
       const listed = all.filter(({ waits }) => waits === undefined);

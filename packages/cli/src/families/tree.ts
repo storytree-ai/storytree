@@ -73,7 +73,8 @@ const worklist: Verb = {
   usage: "health worklist",
   summary: "the oldest three capabilities that are not healthy, with why, who moves each and since when",
   async act(_args, context) {
-    const all = await (await context.library()).healthWorklist();
+    const { healthWorklistAt } = await import("@storytree/map/read");
+    const all = await healthWorklistAt(await context.library(), context.cwd);
     const held = heldBack(all);
     const listed = all.filter(({ waits }) => waits === undefined);
     if (listed.length === 0) return { text: ["Nothing waits on the health worklist: every capability is healthy or already routed.", ...(held === undefined ? [] : [held])].join("\n") };

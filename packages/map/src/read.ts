@@ -1,7 +1,7 @@
 /** Capability 3 · Counts before detail. The map's Node entry point: a live library reading joined to the caller's checkout. */
 import { execFile } from "node:child_process";
-import { affectedProject, type AffectedOptions } from "./affected.js";
-import type { AnnotatedTree, Library } from "@storytree/library";
+import { affectedProject, changedOnMain, type AffectedOptions } from "./affected.js";
+import type { AnnotatedTree, HealthWorkItem, Library } from "@storytree/library";
 import { codeSurveyReader } from "./code-survey/read-survey.js";
 import { buildGraph, type ProjectGraph } from "./graph.js";
 import { focus, formatFocus, type FocusAnswer, type FocusOptions } from "./focus.js";
@@ -57,4 +57,18 @@ export async function mapCommand(library: PlanReader, folder: string, options: F
 export async function affectedCommand(library: PlanReader, folder: string, options: AffectedOptions, json = false): Promise<string> {
   const answer = await affectedProject(onBranch(library, folder), folder, options);
   return json ? JSON.stringify(answer) : formatFocus(answer);
+}
+
+export { changedOnMain };
+
+/** How far back main's commits are read for the health worklist: longer than any merge's own-health run takes, so the library's bound decides. */
+const MAIN_READ_BACK = 24 * 60 * 60 * 1000;
+
+/**
+ * The health worklist as the checkout at `folder` sees main: a capability whose story's code changed
+ * on its fetched origin/main since its contracts were last verified waits on that commit's own-health run.
+ */
+export async function healthWorklistAt(library: Pick<Library, "projectTree" | "healthWorklist">, folder: string): Promise<HealthWorkItem[]> {
+  const { stories } = await library.projectTree();
+  return library.healthWorklist({ changed: await changedOnMain(stories, folder, { within: MAIN_READ_BACK }) });
 }

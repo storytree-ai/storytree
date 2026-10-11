@@ -1,13 +1,14 @@
 /** Capability 9 · Context readings. Contract 9.9: one advisory nudge per Claude Code session, using the reading's current guidance. */
 import type { Storytree } from "@storytree/library";
 
-import { openActivityLog } from "../activity/index.js";
 import { readContext } from "../context/context.js";
 import { notYetGivenIds } from "./given-once.js";
 
 /** Missing readings or settings add nothing, and never prevent the prompt's definitions. */
 export async function contextNudge(storytree: Storytree, project: string, session: string): Promise<string | undefined> {
   try {
+    // Loaded here, not at the top: a static import would load the library on every hook's start (3.3).
+    const { openActivityLog } = await import("../activity/index.js");
     const log = await openActivityLog(storytree);
     try {
       const reading = await readContext(log, project, session);

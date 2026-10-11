@@ -90,7 +90,8 @@ test("5.2 B's claim on it is refused, naming A, and a claim-refused line records
     const quietMs = 1_000;
     assert.equal((await claim(as("A"), emailForm, "building the email form")).ok, true);
 
-    const refused = await claim(as("B", { quietMs }), emailForm, "I want it too");
+    // Refused under the usual quiet time: a slow runner can take longer than quietMs between A's claim and this one.
+    const refused = await claim(as("B"), emailForm, "I want it too");
     assert.equal(refused.ok, false);
     assert.ok(!refused.ok && refused.refused === "held");
     assert.deepEqual({ session: refused.holder.session, label: refused.holder.label, reason: refused.holder.reason }, {

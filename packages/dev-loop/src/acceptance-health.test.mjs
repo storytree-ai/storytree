@@ -123,7 +123,8 @@ async function withLibrary(body) {
   const url = process.env.STORYTREE_TEST_PG_URL;
   assert.ok(url, "STORYTREE_TEST_PG_URL is not set: run these tests through `pnpm test`, which starts a local Postgres");
   const name = `t-${randomBytes(4).toString("hex")}`;
-  const storytree = await connect({ url });
+  // A loaded Windows runner once took past the default 3 s to connect (run 38069873356); connecting is not what is tested.
+  const storytree = await connect({ url, connectTimeoutMs: 10_000 });
   try {
     const lib = await storytree.openProject(name);
     try {

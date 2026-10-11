@@ -1,9 +1,9 @@
 /** The page's planet joins: permanent places, mesh picking, and failure markers after orbiting. */
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { Color, DoubleSide, Euler, Group, LineBasicMaterial, LineSegments, Mesh, MeshBasicMaterial, OrthographicCamera, PlaneGeometry, Quaternion, Raycaster, SphereGeometry, Vector2, Vector3 } from "three";
+import { Color, DoubleSide, Euler, Group, LineBasicMaterial, LineSegments, Mesh, MeshBasicMaterial, OrthographicCamera, PlaneGeometry, Quaternion, Raycaster, SphereGeometry, SRGBColorSpace, Vector2, Vector3 } from "three";
 import { workStates } from "@storytree/arc-surface";
-import { forestDrawn, forestScene, openingTurn, storyNodes, type FacingIsland } from "@storytree/forest";
+import { forestDrawn, forestScene, islandArea, MAPPED_ISLAND_CAP, MIN_ISLAND_AREA, openingTurn, storyNodes, type FacingIsland } from "@storytree/forest";
 import type { AnnotatedTree, Change } from "@storytree/library";
 import { dragTurn, focusRotation, globeFraming, globeHover, hiddenMarkers, isGlobeDrag, pickGlobe, pickIsland, planetLayout, pointedFile } from "./planet-navigation.js";
 import { codePathKey } from "@storytree/knowledge-core";
@@ -448,6 +448,41 @@ test("3.20 each territory is filled by its capability's word, green, red or yell
   const claimed = territoryLand({ territories: land.territories, cells, borders: [] }, flat, undefined, new Map([["cap-healthy", { colour: "hsl(200, 80%, 68%)", faded: false }]]));
   assert.ok(fill(claimed, "territory:cap-healthy").color.equals(fill(drawn, "territory:cap-healthy").color), "a claim never changes the fill");
   assert.equal(fill(claimed, "territory:cap-healthy").opacity, fill(drawn, "territory:cap-healthy").opacity);
+});
+
+test("3.39 a mapped story is one brown island, whole: no territories, file circles or hatch; its land follows its lines up to a cap; with no survey it is still brown land", () => {
+  const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
+  const tree: AnnotatedTree = { arcs: [], stories: [
+    { id: "cart", title: "cart", health, capabilities: [], mapped: { from: "/code/shop", package: "packages/cart", folders: ["packages/cart"] } },
+    { id: "shop", title: "The shop", health, capabilities: [{ id: "cap", title: "1 · Browse", dependsOn: [], proposed: true, status: "proposed" as const, contracts: [], health }] },
+  ] };
+  const files = (lines: number) => [{ path: "packages/cart/src/a.ts", lines: lines / 2 }, { path: "packages/cart/src/b.ts", lines: lines / 2 }];
+  const survey = (lines: number) => ({ cart: { files: files(lines), imports: [], mapped: { folder: "/code/shop" } }, shop: { files: [{ path: "src/browse.ts", lines: 400, capability: "cap" }], imports: [] } });
+  const scene = (lines?: number, read: AnnotatedTree = tree) => forestScene(read, [], workStates([]), lines === undefined ? {} : survey(lines));
+  const cart = scene(2_000).islands[0]!;
+  assert.deepEqual(cart.land, { territories: [{ mapped: true, lines: 2_000 }], files: [] }, "one mapped territory, and no file circles");
+  assert.equal(cart.area, islandArea(2_000), "a small mapped island's land follows its lines as a built island's does");
+  const huge = scene(200_000).islands;
+  assert.equal(huge[0]!.area, MAPPED_ISLAND_CAP, "a very large one is capped");
+  assert.ok(MAPPED_ISLAND_CAP < islandArea(200_000));
+  assert.equal(huge[1]!.area, scene(2_000).islands[1]!.area, "and its built neighbour keeps its own land");
+  assert.notEqual(huge[0]!.key, cart.key, "a mapped island redraws when its code grows");
+  // A project whose only stories are mapped, before any survey or verification, opens on brown land.
+  const unsurveyed = scene(undefined, { ...tree, unverified: true }).islands[0]!;
+  assert.deepEqual(unsurveyed.land, { territories: [{ mapped: true, lines: 1 }], files: [] });
+  assert.equal(unsurveyed.area, MIN_ISLAND_AREA);
+
+  const map = territories(cart.land!.territories, 20);
+  const drawn = territoryLand(map, (p) => new Vector3(p.x, 0, p.z));
+  const mesh = drawn.getObjectByName("territory:mapped") as Mesh;
+  assert.ok(mesh.geometry.attributes.position!.count > 0, "the whole island is brown land");
+  assert.deepEqual(mesh.userData, { territory: true, mapped: true }, "picked as land, with no capability and no word");
+  assert.equal(drawn.getObjectByName("territory:unclaimed"), undefined, "never the uncharted look");
+  assert.equal(drawn.getObjectByName("territory-hatch:unclaimed"), undefined, "and never hatched");
+  const brown = (mesh.material as MeshBasicMaterial).color.getHSL({ h: 0, s: 0, l: 0 }, SRGBColorSpace);
+  assert.ok(brown.h > 15 / 360 && brown.h < 45 / 360 && brown.s > 0.25 && brown.l > 0.25 && brown.l < 0.6, "brown: an earthy orange, muted and mid-dark");
+  const parked = new Color("#86939d").getHSL({ h: 0, s: 0, l: 0 }, SRGBColorSpace);
+  assert.ok(Math.abs(brown.h - parked.h) > 0.3 && brown.s - parked.s > 0.1, "warm and plainly apart from parked's cool slate grey");
 });
 
 /**

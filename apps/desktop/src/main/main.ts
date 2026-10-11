@@ -278,7 +278,8 @@ async function run(): Promise<void> {
   answerPage(ipcMain, FOREST_CHANNELS, {
     codeSurvey: async (name: unknown) => {
       const folder = await open().projectFolder(name);
-      return folder === undefined ? {} : surveys.read(folder, treesRead.get(name) ?? await open().projectTree(name));
+      // The folders this machine imports, where the survey reads the project's mapped stories (ADR-0993 D2).
+      return folder === undefined ? {} : surveys.read(folder, treesRead.get(name) ?? await open().projectTree(name), await open().projectImports(name));
     },
   });
 

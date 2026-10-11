@@ -15,7 +15,8 @@
  * packages, the stories they reach are its dependencies too, with or without a capability at either
  * end (ADR-0991 D2): a code edge the plan never recorded still places the island, and a dependency
  * only its package.json or its tests name ranks nothing. A recorded dependsOn stays, for what no
- * import shows (ADR-0991 D3).
+ * import shows (ADR-0991 D3). A mapped story is ranked by the roads the survey reads among mapped
+ * islands, so it sits below the mapped islands that import it (ADR-0993).
  *
  * Everything here is a pure function of what the library hands the forest, so it is tested
  * without a database.
@@ -56,7 +57,7 @@ export interface StoryNode {
  * the history does not show being created comes after every story it does show. `survey` is the
  * project's code survey: the stories a story's derived edges reach rank it as well.
  */
-export function storyNodes(tree: AnnotatedTree, history: readonly Change[], survey: Readonly<Record<string, Pick<StorySurvey, "edges">>> = {}): StoryNode[] {
+export function storyNodes(tree: AnnotatedTree, history: readonly Change[], survey: Readonly<Record<string, Pick<StorySurvey, "edges" | "dependsOn" | "mapped">>> = {}): StoryNode[] {
   const created = history.filter(({ type, action }) => type === "story" && action === "created").map(({ recordId }) => recordId);
   const order = [...new Set([...created, ...tree.stories.map(({ id }) => id)])].filter((id) => tree.stories.some((story) => story.id === id));
   const rows = storyRows(tree, order, survey);
@@ -67,11 +68,12 @@ export function storyNodes(tree: AnnotatedTree, history: readonly Change[], surv
 }
 
 /** Each story's row, its slot in the row from the west, how many the row holds, and the stories it was ranked above; `order` is the stories in creation order. */
-function storyRows(tree: AnnotatedTree, order: readonly string[], survey: Readonly<Record<string, Pick<StorySurvey, "edges">>>): Map<string, { row: number; slot: number; width: number; dependsOn: string[] }> {
+function storyRows(tree: AnnotatedTree, order: readonly string[], survey: Readonly<Record<string, Pick<StorySurvey, "edges" | "dependsOn" | "mapped">>>): Map<string, { row: number; slot: number; width: number; dependsOn: string[] }> {
   const owner = new Map(tree.stories.flatMap((story) => story.capabilities.map(({ id }) => [id, story.id] as const)));
   const known = new Set(order);
   const dependsOn = new Map(tree.stories.map((story) => [story.id, [...new Set([
     ...(survey[story.id]?.edges ?? []).map((edge) => edge.story),
+    ...(survey[story.id]?.mapped === undefined ? [] : survey[story.id]?.dependsOn ?? []),
     ...story.capabilities.flatMap(({ dependsOn: on }) => on.flatMap((capability) => owner.get(capability) ?? [])),
   ])].filter((other) => known.has(other) && other !== story.id)]));
   const dependents = new Map(order.map((id) => [id, order.filter((other) => dependsOn.get(other)!.includes(id))]));

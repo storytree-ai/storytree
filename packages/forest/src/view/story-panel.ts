@@ -23,8 +23,15 @@ export function renderStoryPanel(panel: StoryPanel, selected: string | undefined
       <button type="button" class="panel-close" aria-label="Close">×</button>
     </header>
     <p class="panel-sentences">${text(panel.description)}</p>
+    ${panel.mapped === undefined ? "" : mapped(panel.mapped)}
     ${!tree || panel.capabilities.length === 0 ? "" : diagram(panel, shown?.id)}
     ${shown === undefined ? "" : capability(shown)}`;
+}
+
+/** What a mapped story is (ADR-0993 D3), in place of a health it does not carry, with its counts once surveyed. */
+function mapped({ files, lines }: NonNullable<StoryPanel["mapped"]>): string {
+  const counts = files === undefined || lines === undefined ? "" : ` ${files.toLocaleString("en-GB")} file${files === 1 ? "" : "s"}, ${lines.toLocaleString("en-GB")} line${lines === 1 ? "" : "s"}.`;
+  return `<p class="panel-mapped"><strong>Mapped:</strong> here before storytree, and assumed to be working.${counts}</p>`;
 }
 
 function capability(line: CapabilityLine): string {

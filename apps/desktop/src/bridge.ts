@@ -11,11 +11,12 @@ import type { SurfacesBridge } from "@storytree/app";
 import { FEEDBACK_IDENTITY_CHANNELS, SETUP_HELP_CHANNELS, type FeedbackIdentityBridge, type SetupHelpBridge } from "@storytree/app-setup/bridge";
 import { FOREST_CHANNELS, type ForestBridge } from "@storytree/forest/page";
 import { JOURNEY_CHANNELS, type JourneyBridge } from "@storytree/journey-events/bridge";
+import { LAG_CHANNELS, type LagBridge } from "@storytree/lag-in-use/bridge";
 
 import { pageMethods } from "./page-operations.js";
 
 export interface StorytreeBridge
-  extends SetupHelpBridge, SurfacesBridge, JourneyBridge, UpdatesBridge, LifecycleBridge, ProjectsBridge, PageReadsBridge, ForestBridge {}
+  extends SetupHelpBridge, SurfacesBridge, JourneyBridge, UpdatesBridge, LifecycleBridge, ProjectsBridge, PageReadsBridge, ForestBridge, LagBridge {}
 
 /** What the main process told the preload about the bridge: whether this build offers sign-in for feedback (app setup contract 5.6). */
 export interface BridgeOptions {
@@ -41,5 +42,6 @@ export function createBridge(
     ...pageMethods<Omit<SetupHelpBridge, "feedbackIdentity">>(SETUP_HELP_CHANNELS, invoke),
     ...pageMethods<PageReadsBridge>(PAGE_READS_CHANNELS, invoke),
     ...pageMethods<ForestBridge>(FOREST_CHANNELS, invoke),
+    ...pageMethods<LagBridge>(LAG_CHANNELS, invoke),
   };
 }

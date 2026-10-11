@@ -31,6 +31,10 @@
  */
 import { parse } from "@babel/parser";
 
+import { packageOf } from "./package-of.js";
+
+export { packageOf };
+
 /** A file of a story's package; the disk reader tags helpers outside src as test support. */
 export type SourceFile = { readonly path: string; readonly text: string; readonly testSupport?: boolean };
 
@@ -84,15 +88,6 @@ export type CoverageMap = Readonly<Record<string, Readonly<Record<string, number
 
 /** Where executed code ranks among import depths: after a direct import (0), before a further one (1). */
 const EXECUTED = 0.5;
-
-/** Stories whose package is not named after their title. */
-const PACKAGE_NAMED_OTHERWISE: Readonly<Record<string, string>> = { "command-line": "cli", "world": "forest-world", "local-database": "local-postgres", "process-ledger": "processes", "lag-in-real-use": "lag-in-use" };
-
-/** The package a story's code lives in: named after its title ("Session management" is packages/session-management), but for a few named otherwise. */
-export function packageOf(title: string): string {
-  const name = title.replace(/^the\s+/i, "").toLowerCase().replace(/['’]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-  return Object.hasOwn(PACKAGE_NAMED_OTHERWISE, name) ? PACKAGE_NAMED_OTHERWISE[name]! : name;
-}
 
 const TEST_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$/;
 /** A test file, or a test helper under a testing/ folder: never counted as source, though a test reaches through a helper. */

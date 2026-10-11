@@ -1,0 +1,55 @@
+/**
+ * Capability 4 · Sessions. The one place a harness storytree watches is described (decision_057bc7ad0a8c D1):
+ * its id, the name people call it, the name its MCP client gives itself, where it names the session in
+ * its shells, and which transcript reader reads it. A harness with hooks storytree knows is watched; any
+ * other MCP client is connected: storytree serves its tools and commands, and sees nothing else of it.
+ * Browser-safe: nothing here reads a file or the environment.
+ */
+
+/** A harness storytree registers hooks in and reads the transcripts of. */
+export interface WatchedHarness {
+  readonly id: string;
+  /** As people call it. */
+  readonly label: string;
+  /** The name its MCP client gives itself. */
+  readonly client: string;
+  /** The environment variable naming the session in the shells it runs. */
+  readonly shellSession: string;
+  /** Which reader reads its transcript. */
+  readonly transcript: "claude-code" | "codex";
+}
+
+export const WATCHED_HARNESSES = [
+  { id: "claude-code", label: "Claude Code", client: "claude-code", shellSession: "CLAUDE_CODE_SESSION_ID", transcript: "claude-code" },
+  { id: "codex", label: "Codex", client: "codex-mcp-client", shellSession: "CODEX_THREAD_ID", transcript: "codex" },
+] as const satisfies readonly WatchedHarness[];
+
+/** A watched harness's id. */
+export type Harness = (typeof WATCHED_HARNESSES)[number]["id"];
+
+/** The ids of the watched harnesses, in the order they are described. */
+export const HARNESS_IDS: readonly Harness[] = WATCHED_HARNESSES.map((harness) => harness.id);
+
+/**
+ * The variable any harness or user sets to name a connected session to storytree: the tool server reads it
+ * from its environment and the command line from the shell's, so a tool call and a command are one session.
+ */
+export const SESSION_ENV = "STORYTREE_SESSION_ID";
+
+/** Watched: storytree's hooks report the session. Connected: it reaches storytree only through tools and commands. */
+export type Tier = "watched" | "connected";
+
+/** The watched harness `harness` names, or undefined for any other. */
+export function watchedHarness(harness: string | undefined): WatchedHarness | undefined {
+  return WATCHED_HARNESSES.find((one) => one.id === harness);
+}
+
+/** The harness an MCP client is: a watched one's id by its client name, any other by its own name. */
+export function harnessOfClient(client: string | undefined): string | undefined {
+  return WATCHED_HARNESSES.find((one) => one.client === client)?.id ?? client;
+}
+
+/** The tier a session in `harness` is in: watched only in a harness storytree has hooks for. */
+export function tierOf(harness: string | undefined): Tier {
+  return watchedHarness(harness) === undefined ? "connected" : "watched";
+}

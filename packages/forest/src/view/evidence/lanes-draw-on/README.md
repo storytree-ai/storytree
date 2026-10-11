@@ -24,19 +24,21 @@ pathway". Now:
 The owner's scene: storytree's own plan (the [lanes-at-the-coast](../lanes-at-the-coast/README.md) seed, 20 stories),
 desktop page in headless Chromium (SwiftShader), 1440 x 960, dark theme, the globe turned to face The library, The map
 and Keys; Keys clicked, then The library. 18 lanes light: 1 up (to Keys) and 17 down, 16 of them sharing the trunk
-north to The command line. Frames are taken at wall-clock moments after the click; a screenshot takes about 0.7 s in
-software rendering, so the moments are uneven, and each frame's JSON gives how far every lane had drawn then.
-**Before** is `main` at 2e622633; **after** is this branch.
+north to The command line. The page runs on Playwright's clock, paused at the click and run forward to each moment
+(0.15, 0.4, 0.7, 1.0, 1.4, 1.9, 2.6 and 4.0 s), so each frame is at exactly its moment however slow software rendering
+is, and each frame's JSON gives how far every lane had drawn then. The strip's crop is placed by The library's point on
+screen, so both builds show the same lanes. **Before** is `main` at 2e622633; **after** was this branch, re-captured
+on 2026-10-11 from `main` at 93eeaead, whose pacing is [one wave per road](../one-wave-per-road/README.md)'s
+(world 6.9, ADR-1000), not the paragraph's above.
 
 | | Before | After |
 | --- | --- | --- |
-| Draw-on strip, the globe's part of each frame | [before-strip.png](before-strip.png): 18 of 18 lanes whole by 0.88 s | [after-strip.png](after-strip.png): 1 whole at 1.0 s, 7 at 1.74 s, 17 at 2.49 s, all by 3.21 s |
-| Mid-draw, full size | | [after-frame-2.png](after-frame-2.png) (1.0 s: the trunk's heads climbing north) |
+| Draw-on strip, the globe's part of each frame | [before-strip.png](before-strip.png): 2 of 18 lanes whole at 0.4 s, 17 at 0.7 s, all by 1.0 s | [after-strip.png](after-strip.png): 1 whole at 1.0 s, 4 at 1.4 s, 9 at 1.9 s, 17 at 2.6 s, all by 4.0 s (the longest, 756 ground units, at 3.02 s) |
+| Mid-draw, full size | | [after-frame-2.png](after-frame-2.png) (0.4 s: the trunk's head climbing north) |
 | Reduced motion, first frame after the click | [before-reduced-motion.png](before-reduced-motion.png) | [after-reduced-motion.png](after-reduced-motion.png): all 18 whole, no heads, rings settled |
 
-On the trunk the 16 down lanes start 0.07 s apart over the same road, so mid-draw their heads read as a run of bright
-dashes climbing it. The map's ring comes in last (3.21 s), when the longest lane (438 ground units, 1.8 s, starting at
-1.2 s) reaches it.
+Under one wave per road the down lanes all start on the click and climb the trunk as one front; the selection settles
+when the longest lane (756 ground units, 3.02 s) is whole.
 
 ## Reproduce
 

@@ -16,6 +16,8 @@
 import { readFile } from "node:fs/promises";
 
 import type { ActivityLog, Line } from "../activity/index.js";
+import { labelOf } from "../readings.js";
+import { watchedHarness } from "../harnesses.js";
 import { claudeCodeCompositionFold, codexCompositionFold, type Composition, type CompositionFold } from "./composition.js";
 import { contextGuidance, type ContextGuidance } from "./guidance.js";
 import { isCount, isRecord, SYNTHETIC, type JsonRecord } from "./transcript.js";
@@ -62,6 +64,8 @@ export function codexTokens(text: string): TokenCount {
 export class ContextFold {
   readonly harness: string | undefined;
   readonly #codex: boolean;
+  /** A harness storytree has no reader for: its transcript is never read as another's (contract 9.15). */
+  readonly #unread: boolean;
   readonly #composition: CompositionFold;
   #lines = 0;
   #records = 0;
@@ -69,12 +73,16 @@ export class ContextFold {
 
   constructor(harness: string | undefined) {
     this.harness = harness;
-    this.#codex = harness === "codex";
+    // A line naming no harness is from before hooks named it: Claude Code's, the only harness then.
+    const reader = harness === undefined ? "claude-code" : watchedHarness(harness)?.transcript;
+    this.#unread = reader === undefined;
+    this.#codex = reader === "codex";
     this.#composition = this.#codex ? codexCompositionFold() : claudeCodeCompositionFold();
   }
 
   /** Take the next piece of the transcript: whole lines, following the last piece fed. */
   feed(text: string): this {
+    if (this.#unread) return this;
     for (const line of text.split("\n")) {
       if (line.trim() === "") continue;
       this.#lines += 1;
@@ -98,6 +106,7 @@ export class ContextFold {
   }
 
   count(): TokenCount {
+    if (this.#unread) return { absent: `storytree reads no transcript of ${labelOf(this.harness)}` };
     if (this.#codex) {
       if (this.#lines === 0) return { absent: "the rollout is empty" };
       return this.#latest === undefined ? { absent: "the rollout holds no token count" } : { tokens: this.#latest };

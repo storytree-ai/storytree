@@ -73,17 +73,17 @@ function titles(nodes: readonly StoryNode[]): string[] {
   return nodes.map(({ title }) => title);
 }
 
-test("1.11 a mapped story sits a row below the mapped stories whose code imports it; a loop among them still draws every island; a built story's package.json ranks nothing", () => {
+test("1.11 a mapped story sits a row below the mapped stories whose code imports it, and a built story above the mapped story its package depends on; a loop among them still draws every island", () => {
   const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
   const mapped = (id: string): AnnotatedStory => ({ id, title: id, capabilities: [], health, mapped: { from: "/code/shop", package: `packages/${id}`, folders: [`packages/${id}`] } });
-  const built: AnnotatedStory = { id: "new", title: "new", capabilities: [], health };
-  const tree = { stories: [mapped("app"), mapped("ui"), mapped("core"), built], arcs: [] };
+  const built = (id: string): AnnotatedStory => ({ id, title: id, capabilities: [], health });
+  const tree = { stories: [mapped("app"), mapped("ui"), mapped("core"), built("new"), built("old")], arcs: [] };
   const read = (dependsOn: string[], loop?: string[]) => ({ files: [], imports: [], dependsOn, mapped: { folder: "/code/shop", ...(loop === undefined ? {} : { loop }) } });
   const rows = (survey: Parameters<typeof storyNodes>[2]) => Object.fromEntries(storyNodes(tree, [], survey).map(({ id, at }) => [id, -at.y]));
-  assert.deepEqual(rows({ app: read(["ui", "core"]), ui: read(["core"]), core: read([]), new: { dependsOn: ["core"] } }),
-    { app: 2, ui: 1, core: 0, new: 0 }, "each mapped island is above what it imports; the built story's package.json ranks nothing");
+  assert.deepEqual(rows({ app: read(["ui", "core"]), ui: read(["core"]), core: read([]), new: { dependsOn: ["ui", "old"] } }),
+    { app: 2, ui: 1, core: 0, new: 2, old: 0 }, "each mapped island is above what it imports, and the built one above the mapped one it depends on; a built story's package.json naming a built one ranks nothing");
   const looped = storyNodes(tree, [], { app: read(["ui"], ["app", "ui"]), ui: read(["app"], ["ui", "app"]), core: read([]) });
-  assert.equal(looped.length, 4, "a loop never stops the layout");
+  assert.equal(looped.length, 5, "a loop never stops the layout");
   assert.ok(looped.every(({ at }) => Number.isFinite(at.x) && Number.isFinite(at.y)));
   assert.notEqual(looped.find(({ id }) => id === "app")!.at.y, looped.find(({ id }) => id === "ui")!.at.y, "the loop is broken where it is found, so one stands on the other");
 });

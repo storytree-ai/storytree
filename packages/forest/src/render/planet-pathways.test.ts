@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { Vector3 } from 'three';
-import { forestScene, growPlanet, PLANET_RADIUS, storyNodes } from '../index.js';
+import { forestScene, growPlanet, PLANET_RADIUS, selectionLanes, storyNodes } from '../index.js';
 import { workStates } from '@storytree/arc-surface';
 import { planetLayout } from '../view/planet-navigation.js';
 import { territories, territoryAt } from '../territories/territories.js';
@@ -123,4 +123,16 @@ test('3.6 the roads are the survey\'s derived capability edges with the recorded
   ], 'a recorded link is drawn by value; the code\'s types alone are type-only; an edge with no capability end has no road');
   assert.equal('rowLinks' in derived, false, 'nothing else is handed on to draw');
   assert.deepEqual(forestScene(small, [], workStates([])).links, [{ from: 'b1', to: 'a1' }], 'with no survey the recorded links stand');
+});
+
+test('3.43 a built story whose package depends on a mapped story\'s has a road from its island to the mapped island as a whole, lit when either is selected', () => {
+  const mapped = { id: 'old', title: 'old', health, capabilities: [], mapped: { from: '/code/shop', package: 'packages/old', folders: ['packages/old'] } };
+  const built = { id: 'new', title: 'new', health, capabilities: [capability('n1', [])] };
+  const other = { id: 'b', title: 'b', health, capabilities: [capability('b1', [])] };
+  // new's package names the mapped old and the built b; only the mapped one has no capability edge to stand for it.
+  const survey = { new: { files: [], imports: [], dependsOn: ['old', 'b'] }, old: { files: [], imports: [], dependsOn: [], mapped: { folder: '/code/shop' } } };
+  const scene = forestScene({ arcs: [], stories: [mapped, built, other] }, [], workStates([]), survey);
+  assert.deepEqual(scene.links, [{ from: 'new', to: 'old' }], 'one road, island to island; a built-to-built package dependency draws none');
+  assert.deepEqual(selectionLanes(scene, 'new'), [{ from: 'new', to: 'old', dir: 'up' }]);
+  assert.deepEqual(selectionLanes(scene, 'old'), [{ from: 'new', to: 'old', dir: 'down' }]);
 });

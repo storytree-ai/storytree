@@ -4,106 +4,106 @@
   "frames": [
     {
       "frame": 1,
-      "secondsSinceClick": 0.34,
+      "secondsSinceClick": 0.15,
       "lanes": [
         {
           "name": "lane:up:capability_a6d2887aed63->capability_88a6aaa1fa93",
-          "drawn": 0.802
+          "drawn": 0.316
         },
         {
           "name": "lane:down:capability_11fe600afeda->capability_75d059640d9d",
-          "drawn": 1
+          "drawn": 0.444
         },
         {
           "name": "lane:down:capability_7b7421be1a1b->capability_75d059640d9d",
-          "drawn": 0.681
+          "drawn": 0.289
         },
         {
           "name": "lane:down:capability_ab59a8461dd7->capability_5a80222c88c4",
-          "drawn": 0.681
+          "drawn": 0.289
         },
         {
           "name": "lane:down:capability_ab59a8461dd7->capability_a1d4fadbec3e",
-          "drawn": 0.681
+          "drawn": 0.289
         },
         {
           "name": "lane:down:capability_ab59a8461dd7->capability_baaeecb42577",
-          "drawn": 0.681
+          "drawn": 0.289
         },
         {
           "name": "lane:down:capability_ab59a8461dd7->capability_75d059640d9d",
-          "drawn": 0.681
+          "drawn": 0.289
         },
         {
           "name": "lane:down:capability_ab59a8461dd7->capability_13b04e769a4b",
-          "drawn": 0.681
+          "drawn": 0.289
         },
         {
           "name": "lane:down:capability_81ad90bacdbc->capability_a7f068502213",
-          "drawn": 0.681
+          "drawn": 0.289
         },
         {
           "name": "lane:down:capability_81ad90bacdbc->capability_d632ff0454c0",
-          "drawn": 0.681
+          "drawn": 0.289
         },
         {
           "name": "lane:down:capability_81ad90bacdbc->capability_5f1ce148e63a",
-          "drawn": 0.681
+          "drawn": 0.289
         },
         {
           "name": "lane:down:capability_bfc6fa737f09->capability_5f1ce148e63a",
-          "drawn": 0.681
+          "drawn": 0.289
         },
         {
           "name": "lane:down:capability_562b2527ebca->capability_78d6e026f902",
-          "drawn": 0.681
+          "drawn": 0.289
         },
         {
           "name": "lane:down:capability_f874f7de8110->capability_dd486ffa5b02",
-          "drawn": 0.681
+          "drawn": 0.289
         },
         {
           "name": "lane:down:capability_f874f7de8110->capability_f27ac2abb10b",
-          "drawn": 0.681
+          "drawn": 0.289
         },
         {
           "name": "lane:down:capability_f874f7de8110->capability_75d059640d9d",
-          "drawn": 0.681
+          "drawn": 0.289
         },
         {
           "name": "lane:down:capability_7889e605384c->capability_78d6e026f902",
-          "drawn": 1
+          "drawn": 0.388
         },
         {
           "name": "lane:down:capability_5fa5cdb5b3c0->capability_dd486ffa5b02",
-          "drawn": 0.439
+          "drawn": 0.181
         }
       ],
       "rings": [
         {
           "name": "neighbour-ring:down:story_609c3b171b3f",
           "visible": true,
-          "opacity": 0.873
+          "opacity": 0.634
         },
         {
           "name": "neighbour-ring:down:story_f9fb5136c28f",
           "visible": true,
-          "opacity": 0.873
+          "opacity": 0.634
         },
         {
           "name": "neighbour-ring:down:story_d754d997f22a",
           "visible": true,
-          "opacity": 0.872
+          "opacity": 0.634
         },
         {
           "name": "neighbour-ring:up:story_55eb820f95c9",
           "visible": true,
-          "opacity": 0.872
+          "opacity": 0.634
         },
         {
           "name": "neighbour-ring:down:story_73dad81ba7a7",
           "visible": true,
-          "opacity": 0.872
+          "opacity": 0.634
         }
       ],
       "timing": [
@@ -237,11 +237,11 @@
     },
     {
       "frame": 2,
-      "secondsSinceClick": 0.88,
+      "secondsSinceClick": 0.4,
       "lanes": [
         {
           "name": "lane:up:capability_a6d2887aed63->capability_88a6aaa1fa93",
-          "drawn": 1
+          "drawn": 0.792
         },
         {
           "name": "lane:down:capability_11fe600afeda->capability_75d059640d9d",
@@ -249,59 +249,59 @@
         },
         {
           "name": "lane:down:capability_7b7421be1a1b->capability_75d059640d9d",
-          "drawn": 1
+          "drawn": 0.67
         },
         {
           "name": "lane:down:capability_ab59a8461dd7->capability_5a80222c88c4",
-          "drawn": 1
+          "drawn": 0.67
         },
         {
           "name": "lane:down:capability_ab59a8461dd7->capability_a1d4fadbec3e",
-          "drawn": 1
+          "drawn": 0.67
         },
         {
           "name": "lane:down:capability_ab59a8461dd7->capability_baaeecb42577",
-          "drawn": 1
+          "drawn": 0.67
         },
         {
           "name": "lane:down:capability_ab59a8461dd7->capability_75d059640d9d",
-          "drawn": 1
+          "drawn": 0.67
         },
         {
           "name": "lane:down:capability_ab59a8461dd7->capability_13b04e769a4b",
-          "drawn": 1
+          "drawn": 0.67
         },
         {
           "name": "lane:down:capability_81ad90bacdbc->capability_a7f068502213",
-          "drawn": 1
+          "drawn": 0.67
         },
         {
           "name": "lane:down:capability_81ad90bacdbc->capability_d632ff0454c0",
-          "drawn": 1
+          "drawn": 0.67
         },
         {
           "name": "lane:down:capability_81ad90bacdbc->capability_5f1ce148e63a",
-          "drawn": 1
+          "drawn": 0.67
         },
         {
           "name": "lane:down:capability_bfc6fa737f09->capability_5f1ce148e63a",
-          "drawn": 1
+          "drawn": 0.67
         },
         {
           "name": "lane:down:capability_562b2527ebca->capability_78d6e026f902",
-          "drawn": 1
+          "drawn": 0.67
         },
         {
           "name": "lane:down:capability_f874f7de8110->capability_dd486ffa5b02",
-          "drawn": 1
+          "drawn": 0.67
         },
         {
           "name": "lane:down:capability_f874f7de8110->capability_f27ac2abb10b",
-          "drawn": 1
+          "drawn": 0.67
         },
         {
           "name": "lane:down:capability_f874f7de8110->capability_75d059640d9d",
-          "drawn": 1
+          "drawn": 0.67
         },
         {
           "name": "lane:down:capability_7889e605384c->capability_78d6e026f902",
@@ -309,34 +309,34 @@
         },
         {
           "name": "lane:down:capability_5fa5cdb5b3c0->capability_dd486ffa5b02",
-          "drawn": 1
+          "drawn": 0.433
         }
       ],
       "rings": [
         {
           "name": "neighbour-ring:down:story_609c3b171b3f",
           "visible": true,
-          "opacity": 0.9
+          "opacity": 0.853
         },
         {
           "name": "neighbour-ring:down:story_f9fb5136c28f",
           "visible": true,
-          "opacity": 0.9
+          "opacity": 0.853
         },
         {
           "name": "neighbour-ring:down:story_d754d997f22a",
           "visible": true,
-          "opacity": 0.9
+          "opacity": 0.853
         },
         {
           "name": "neighbour-ring:up:story_55eb820f95c9",
           "visible": true,
-          "opacity": 0.9
+          "opacity": 0.853
         },
         {
           "name": "neighbour-ring:down:story_73dad81ba7a7",
           "visible": true,
-          "opacity": 0.9
+          "opacity": 0.853
         }
       ],
       "timing": [
@@ -470,7 +470,7 @@
     },
     {
       "frame": 3,
-      "secondsSinceClick": 0.97,
+      "secondsSinceClick": 0.7,
       "lanes": [
         {
           "name": "lane:up:capability_a6d2887aed63->capability_88a6aaa1fa93",
@@ -542,7 +542,7 @@
         },
         {
           "name": "lane:down:capability_5fa5cdb5b3c0->capability_dd486ffa5b02",
-          "drawn": 1
+          "drawn": 0.762
         }
       ],
       "rings": [
@@ -703,7 +703,7 @@
     },
     {
       "frame": 4,
-      "secondsSinceClick": 1.05,
+      "secondsSinceClick": 1,
       "lanes": [
         {
           "name": "lane:up:capability_a6d2887aed63->capability_88a6aaa1fa93",
@@ -936,7 +936,7 @@
     },
     {
       "frame": 5,
-      "secondsSinceClick": 1.41,
+      "secondsSinceClick": 1.4,
       "lanes": [
         {
           "name": "lane:up:capability_a6d2887aed63->capability_88a6aaa1fa93",
@@ -1169,7 +1169,7 @@
     },
     {
       "frame": 6,
-      "secondsSinceClick": 1.91,
+      "secondsSinceClick": 1.9,
       "lanes": [
         {
           "name": "lane:up:capability_a6d2887aed63->capability_88a6aaa1fa93",
@@ -1635,7 +1635,7 @@
     },
     {
       "frame": 8,
-      "secondsSinceClick": 4.01,
+      "secondsSinceClick": 4,
       "lanes": [
         {
           "name": "lane:up:capability_a6d2887aed63->capability_88a6aaa1fa93",

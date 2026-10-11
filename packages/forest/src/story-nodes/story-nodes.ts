@@ -16,7 +16,9 @@
  * end (ADR-0991 D2): a code edge the plan never recorded still places the island, and a dependency
  * only its package.json or its tests name ranks nothing. A recorded dependsOn stays, for what no
  * import shows (ADR-0991 D3). A mapped story is ranked by the roads the survey reads among mapped
- * islands, so it sits below the mapped islands that import it (ADR-0993).
+ * islands, so it sits below the mapped islands that import it (ADR-0993), and a built story whose
+ * package depends on a mapped story's sits above it, since no derived edge can reach an island with
+ * no capabilities.
  *
  * Everything here is a pure function of what the library hands the forest, so it is tested
  * without a database.
@@ -46,7 +48,7 @@ export interface StoryNode {
   place: number;
   /** Where its place is on flat ground: its slot across the row from the row's middle, and its row northward (−y). */
   at: Point;
-  /** The stories its row is ranked above: those its code's edges reach, and those its capabilities record depending on. */
+  /** The stories its row is ranked above: those its code's edges reach, the mapped ones its package depends on, and those its capabilities record depending on. */
   dependsOn: string[];
 }
 
@@ -71,9 +73,11 @@ export function storyNodes(tree: AnnotatedTree, history: readonly Change[], surv
 function storyRows(tree: AnnotatedTree, order: readonly string[], survey: Readonly<Record<string, Pick<StorySurvey, "edges" | "dependsOn" | "mapped">>>): Map<string, { row: number; slot: number; width: number; dependsOn: string[] }> {
   const owner = new Map(tree.stories.flatMap((story) => story.capabilities.map(({ id }) => [id, story.id] as const)));
   const known = new Set(order);
+  const mapped = new Set(tree.stories.filter((story) => story.mapped !== undefined).map(({ id }) => id));
   const dependsOn = new Map(tree.stories.map((story) => [story.id, [...new Set([
     ...(survey[story.id]?.edges ?? []).map((edge) => edge.story),
-    ...(survey[story.id]?.mapped === undefined ? [] : survey[story.id]?.dependsOn ?? []),
+    // A mapped island has no capabilities, so no derived edge reaches it: a package dependency on one is read instead.
+    ...(survey[story.id]?.dependsOn ?? []).filter((other) => survey[story.id]?.mapped !== undefined || mapped.has(other)),
     ...story.capabilities.flatMap(({ dependsOn: on }) => on.flatMap((capability) => owner.get(capability) ?? [])),
   ])].filter((other) => known.has(other) && other !== story.id)]));
   const dependents = new Map(order.map((id) => [id, order.filter((other) => dependsOn.get(other)!.includes(id))]));

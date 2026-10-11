@@ -74,13 +74,19 @@ export function forestScene(tree: AnnotatedTree, history: readonly Change[], sta
 /**
  * The roads (ADR-0991 D1, D3): each recorded capability dependsOn, drawn by value, then each edge the code survey
  * derives with a capability at both ends that no recorded one already joins, marked type-only when only types join them.
- * A derived edge with no capability at an end is a story edge with no road.
+ * A derived edge with no capability at an end is a story edge with no road. A built story whose package depends on a
+ * mapped story's has a road from its island to the mapped island as a whole: a mapped island has no capability to name,
+ * and the survey names no importing one.
  */
 function capabilityLinks(tree: AnnotatedTree, survey: Readonly<Record<string, StorySurvey>>): { from: string; to: string; typeOnly?: true }[] {
   const links = new Map<string, { from: string; to: string; typeOnly?: true }>(tree.stories.flatMap(story => story.capabilities.flatMap(capability =>
     capability.dependsOn.map(to => [`${capability.id}->${to}`, { from: capability.id, to }] as const))));
   for (const story of tree.stories) for (const { from, to, typeOnly } of survey[story.id]?.edges ?? []) {
     if (from !== undefined && to !== undefined && !links.has(`${from}->${to}`)) links.set(`${from}->${to}`, { from, to, ...(typeOnly ? { typeOnly } : {}) });
+  }
+  const mapped = new Set(tree.stories.filter(story => story.mapped !== undefined).map(({ id }) => id));
+  for (const story of tree.stories) if (story.mapped === undefined) for (const to of survey[story.id]?.dependsOn ?? []) {
+    if (mapped.has(to)) links.set(`${story.id}->${to}`, { from: story.id, to });
   }
   return [...links.values()];
 }

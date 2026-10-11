@@ -5,6 +5,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./surfaces": "./src/surfaces/surfaces.ts",
+    "./actions": "./src/actions/catalogue.ts",
     "./view": "./src/view/index.ts",
     "./view/styles.css": "./src/view/styles.css",
     "./code-survey": "./src/code-survey/read-survey.ts",

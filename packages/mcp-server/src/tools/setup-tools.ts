@@ -16,7 +16,7 @@ import { notAProjectYet, setUpProject, starterPackStatus, starterRolesIn, sugges
 import { checkFilesWritten, codexHooksState, FIX_SENTENCES, HOOK_TESTS, openStorytree, runSetupCheck, verifyHooks, type Fix, type SetupOptions } from "@storytree/app-setup/setup";
 import { isUnreachable, NOT_RUNNING_ANSWER, refusalOf, result } from "./answers.js";
 import type { Connections } from "./connections.js";
-import { callLines, lineOf, seenCaller, type Caller } from "@storytree/session-management";
+import { callLines, labelOf, lineOf, seenCaller, SESSION_ENV, tierOf, type Caller } from "@storytree/session-management";
 import { metaOf, type Define, type JourneyMilestones } from "./server.js";
 import { quoted } from "./text.js";
 
@@ -39,12 +39,14 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
     },
     (async (_args: unknown, context: ServerContext): Promise<CallToolResult> => {
       const heard = callerOf(context);
-      const report = await runSetupCheck({ ...setup, folder });
+      // An MCP client storytree has no hooks for is connected: nothing of its hooks is asked for (6.64).
+      const connected = tierOf(heard.harness) === "connected";
+      const report = await runSetupCheck({ ...setup, folder, ...(connected ? { connected: labelOf(heard.harness) } : {}) });
       // A note (an optional tool missing) reaches the agent neither in the text nor in the data, so it is
       // never taken as work to do; storytree doctor and the app's diagnostics still show it.
       const told = report.lines.filter((line) => line.state !== "note" && !(line.check === "gh" && line.state === "ok"));
-      const data: Record<string, unknown> = { storytree: report.storytree.state, hooks: report.hooks ?? null, project: report.project, lines: told };
-      const unverified = { verified: false, missing: [...HOOK_TESTS], fixes: [] };
+      const data: Record<string, unknown> = { storytree: report.storytree.state, hooks: report.hooks ?? null, project: report.project, lines: told, tier: connected ? "connected" : "watched" };
+      const unverified = { verified: false, passed: false, missing: [...HOOK_TESTS], fixes: [] };
       const said = told
         .filter((line) => line.check !== "project")
         .map((line) => [line.message, line.fix].filter(Boolean).join(" "));
@@ -71,6 +73,10 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
         // The session as the hook before this call named it: after Claude Code's /clear, the new one.
         const caller = seenCaller(await callLines(log, report.project.name, metaOf(context)), heard, metaOf(context));
         await log.append(report.project.name, { ...lineOf(caller), source: "tool", folder, kind: "tool-called", tool: "check_setup" });
+        if (connected) {
+          said.push(connectedSentence(caller));
+          return result({ text: withCard(said.join(" ")), data: { ...data, starterRoles, starterPack, verified: false, passed: true, missing: [], fixes: [], session: caller.session } });
+        }
         // This session's hook lines alone: the latest of each kind, and its edits for the check file (contract 2.7).
         const [fired, edits] = await Promise.all([
           log.lines(report.project.name, { sessions: [caller.session], where: { source: "hook" }, latestBy: ["kind"], omit: ["command", "files", "transcript"] }),
@@ -95,7 +101,7 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
         // What this machine's hooks traced of their failures for this session (contract 3.23), so a gap in its lines can be read.
         const failures = hookFailures(setup.storytreeHome ?? storytreeHome(), caller.session);
         if (failures.length > 0) said.push(failuresSentence(failures));
-        return result({ text: withCard(said.join(" ")), data: { ...data, starterRoles, starterPack, ...verification, hookFailures: failures } });
+        return result({ text: withCard(said.join(" ")), data: { ...data, starterRoles, starterPack, ...verification, passed: verification.verified, hookFailures: failures } });
       } catch (error) {
         if (isUnreachable(error)) {
           await connections.close();
@@ -188,6 +194,17 @@ function newerPackSentence({ seeded, current }: StarterPackStatus): string {
  */
 function withCard(text: string): string {
   return `${text}\n\nHow to work with storytree in this project, whole (your harness may have shown you only the start of it):\n\n${habitsCard()}`;
+}
+
+/**
+ * What a connected session is told (6.64): the check passes, and what storytree does not do for it, since it
+ * has no hooks there; and how its shell's commands act as the same session (6.65).
+ */
+function connectedSentence(caller: Caller): string {
+  return `The setup check passes: this session is connected through ${labelOf(caller.harness)}, an MCP client storytree has no hooks for. ` +
+    "Planning, claims, the library, questions and reviews all work through these tools and the storytree command; " +
+    "storytree does not see this session's file edits or commands, cannot refuse an edit to a capability another session holds, has no context reading for it, and ships no transcript of it. " +
+    `This session's id is ${caller.session}: run storytree commands in its shell with ${SESSION_ENV}=${caller.session} set, so they act as this session.`;
 }
 
 /** What a session that set its project up is told of its hooks, which only a session started in the project can show. */

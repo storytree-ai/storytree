@@ -60,6 +60,7 @@ export interface IslandLand {
 export interface ForestScene {
   islands: Island[];
   /** Capability dependencies, `from` building on `to`: derived from the code's imports or recorded (ADR-0991 D1, D3),
-   * type-only when only the code's types join them; optional for callers drawing land alone. */
+   * type-only when only the code's types join them; optional for callers drawing land alone. An end may instead name an
+   * island as a whole, by its story, where there is no capability to name (a mapped island, ADR-0993). */
   links?: readonly { from: string; to: string; typeOnly?: true }[];
 }

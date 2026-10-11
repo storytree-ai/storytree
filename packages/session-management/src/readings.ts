@@ -3,6 +3,7 @@
 // the 30-minute default until its bridge supplies the setting.
 import type { Line } from "./activity/index.js";
 import { ENDING_KINDS, ends } from "./claims/endings.js";
+import { tierOf, WATCHED_HARNESSES, type Tier } from "./harnesses.js";
 export type { Agent, Line, LineKind, LinesSince, NewLine } from "./activity/index.js";
 
 /**
@@ -110,8 +111,13 @@ export interface Session {
   /** When its latest line was written. */
   lastSeenAt: string;
   state: SessionState;
-  /** False while no hook of this session has written a line: it is flagged "hooks not running". */
+  /** False while no hook of this session has written a line: it is flagged "hooks not running", unless it is connected. */
   hooksRunning: boolean;
+  /**
+   * Watched once a hook of it has written a line, or while its harness is one storytree has hooks for; connected
+   * otherwise (contract 4.32): it reaches storytree only through tools and commands, so missing activity is no quiet.
+   */
+  tier: Tier;
   /** Every branch other than the main line its lines name, in the order it first worked on each (ADR-0754 D4). */
   branches: string[];
   /** Those of its branches that still hold open work: not merged, still ahead of the main line, and not deleted. */
@@ -170,7 +176,7 @@ export interface SessionOptions {
 }
 
 /** The harnesses people know by another name than their id. */
-const LABELS: Readonly<Record<string, string>> = { "claude-code": "Claude Code", codex: "Codex" };
+const LABELS: Readonly<Record<string, string>> = Object.fromEntries(WATCHED_HARNESSES.map((harness) => [harness.id, harness.label]));
 
 /** A harness as people call it: "Claude Code" for `claude-code`, "Codex" for `codex`, any other by its own id. */
 export function labelOf(harness: string | undefined): string {
@@ -590,6 +596,7 @@ export class LogFold {
         lastSeenAt: latest.at,
         state,
         hooksRunning: own.hooksRunning,
+        tier: own.hooksRunning ? "watched" : tierOf(harness),
         branches,
         openWork,
         branchesByFolder,
@@ -704,3 +711,4 @@ function holding(holders: Map<string, Omit<Claim, "holder">>, line: Line): void 
   }
   for (const [id, holder] of holders) if (ends(line, id, holder)) holders.delete(id);
 }
+export { harnessOfClient, HARNESS_IDS, SESSION_ENV, tierOf, watchedHarness, WATCHED_HARNESSES, type Harness, type Tier, type WatchedHarness } from "./harnesses.js";

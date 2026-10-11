@@ -13,9 +13,12 @@ export type Chip = { kind: "principle" | "partial" | "recording"; text: string }
  * A label on the thing a line talks about (ADR-0891, amended 2026-10-10): fixed words, or words read from the record the globe
  * shows at that moment: a file's name and lines, the name of the session whose flag stands in a capability, or a story's health.
  * `narrowest` is the narrowest screen, in CSS pixels, it shows on: below that it would crowd the island or another name, and a
- * phone shows at most one in a step. A `point` names a panel to point out instead.
+ * phone shows at most one in a step. A `point` names a panel to point out instead: the sessions list, outlined, or the arcs
+ * list's first arc, outlined and named in `text`.
  */
-export type Label = { target: GlobeTarget; text?: string; read?: "file" | "holder" | "health"; narrowest?: number } | { point: "sessions" };
+export type Label = { target: GlobeTarget; text?: string; read?: "file" | "holder" | "health"; narrowest?: number } | { point: "sessions" } | { point: "arc"; text: string };
+/** Another company's published mark, shown unaltered beside its name as a plain "works with" reference. */
+export type Mark = { name: string; src: string };
 export type TourStep = {
   id: string; explainer: Group; title: string;
   /** beats replace one another; lines accumulate; a comparison's lines each carry a source; a statement is a headline and
@@ -61,6 +64,8 @@ export type TourStep = {
   panelRoom?: boolean;
   /** Open the panel when this line is told, after the map has shown its preceding ideas. */
   panelFromLine?: number;
+  /** The marks a step shows beneath its lines: the coding harnesses storytree works with. */
+  marks?: readonly Mark[];
   /** The labels each line (1-based) puts on what it talks about, shown only while it is the current line. */
   labels?: Record<number, readonly Label[]>;
 };

@@ -3,7 +3,7 @@
 Forest contract 3.26 (which links light), world contracts 6.8 / 6.9 (routes and draw-on timing). Selecting a story
 lights every capability link between it and another story as a lane over its road: **#0d8fb0** for what the story
 builds on (upstream), **#6a5fee** for what builds on it (downstream). Each lane draws on from the dependency end at
-constant speed over 0.28 to 1.2 s (ease-out cubic). Forest mode only.
+the pace world 6.9 sets (see [one wave per road](../one-wave-per-road/README.md)). Forest mode only.
 
 These are untouched 1440 x 960 captures of the planet-pathways seed (copied as [seed.json](seed.json): eight stories,
 58 capabilities, 28 cross-story links), real desktop page, dark theme, device scale 1. The selected story is the
@@ -15,7 +15,7 @@ rotation setter, so the story and its neighbours face the viewer, a little left 
 | --- | --- |
 | [unselected.png](unselected.png) | Nothing selected: roads only, no lane mesh. |
 | [selected.png](selected.png) | After a click on the story's island and 1.6 s: 12 lanes fully drawn over their roads. |
-| [mid-draw.png](mid-draw.png) | The same click, captured while drawing (a software-GL frame is slow, so the capture retries up to eight times and keeps the first one whose lanes were still partial after the picture; [measurements.json](measurements.json) `midDraw` gives the draw fractions before and after it). |
+| [mid-draw.png](mid-draw.png) | The same click, 400 ms after it: the page runs on Playwright's clock, paused at the click and run forward 400 ms, so the picture is at exactly that moment however slow software GL is; all 12 lanes partial ([measurements.json](measurements.json) `midDraw` gives each one's drawn fraction then). |
 | [deselected.png](deselected.png) | After a click on open sea: no lane mesh again. |
 
 [measurements.json](measurements.json) holds, per lane at the final frame, its name, direction, colour, vertex count,

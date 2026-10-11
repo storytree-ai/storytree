@@ -1,12 +1,14 @@
 /**
  * Capability 9 · Context readings. `storytree context` (contract 9.6): this session's context reading, from a shell. The command
  * line's front door hands its arguments here. The session is the one the harness put in the
- * shell's environment: Claude Code's `CLAUDE_CODE_SESSION_ID`, Codex's `CODEX_THREAD_ID`. It exits
+ * shell's environment: Claude Code's `CLAUDE_CODE_SESSION_ID`, Codex's `CODEX_THREAD_ID`, or for any other
+ * harness `STORYTREE_SESSION_ID`, which a connected session sets. It exits
  * 0 whatever it finds: a figure, or an absence said in words and never as a number.
  */
 import path from "node:path";
 
 import { ProjectFolderError, requireApproval, route, storytreeHome, type LocateOptions } from "../routing/index.js";
+import { SESSION_ENV, WATCHED_HARNESSES } from "../harnesses.js";
 import { readContext, type ContextReading } from "./context.js";
 import { guidanceSentence } from "./guidance.js";
 
@@ -26,9 +28,16 @@ export interface ContextCommandAnswer {
   readonly code: number;
 }
 
+/** Where a shell names its session: each watched harness's own variable, then storytree's for any other (contract 9.15). */
+const SESSION_VARIABLES = [...WATCHED_HARNESSES.map((harness) => harness.shellSession), SESSION_ENV];
+
+function shellSession(env: ContextCommandOptions["env"]): string | undefined {
+  return SESSION_VARIABLES.map((name) => env[name]?.trim()).find((value) => value !== undefined && value !== "");
+}
+
 export async function contextCommand({ folder, env, json = false, locate }: ContextCommandOptions): Promise<ContextCommandAnswer> {
-  const session = env.CLAUDE_CODE_SESSION_ID?.trim() || env.CODEX_THREAD_ID?.trim();
-  if (!session) return said(json, "This shell names no agent session (neither CLAUDE_CODE_SESSION_ID nor CODEX_THREAD_ID is set), so there is no context reading.");
+  const session = shellSession(env);
+  if (!session) return said(json, `This shell names no agent session (none of ${SESSION_VARIABLES.join(", ")} is set), so there is no context reading. In a harness storytree has no hooks for, set ${SESSION_ENV} to the session id check_setup names.`);
   const where = route(folder, locate);
   if (where.status !== "routed") return said(json, `No context reading: ${where.message}.`);
   const [{ openActivityLog }, { connect }] = await Promise.all([import("../activity/index.js"), import("@storytree/library")]);

@@ -195,6 +195,43 @@ test("app-setup 8.5 the agent fires a test of each hook, and the connection show
   });
 });
 
+test("6.64 check_setup from an MCP client storytree has no hooks for passes as connected, says what storytree does not do for it and names the session id for its shells; a watched harness whose hooks are missing still needs attention", async () => {
+  const project = uniqueProjectName();
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const folder = path.join(dir, "site");
+    mkdirSync(folder);
+    writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
+    await approveCheckout(folder, project, home.storytreeHome);
+    // Neither watched harness is on this machine: the session is connected through another client.
+    const missing = async () => ({ claude: "missing", codex: "missing", git: "present", node: { state: "ok", version: "v24.1.0" }, waitMs: 5_000 }) as const;
+    const setup = { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, machine: missing, homes: home.homes, storytreeHome: home.storytreeHome } };
+    try {
+      const server = await connect({ url: testServerUrl() });
+      await (await server.openProject(project)).close().finally(() => server.close());
+      await withAgent(folder, { client: "cursor", env: { STORYTREE_SESSION_ID: "cursor-chat-1" }, ...setup }, async (agent) => {
+        const answer = await agent.call("check_setup");
+        assert.equal(answer.isError, false, answer.text);
+        assert.equal(answer.data.tier, "connected");
+        assert.equal(answer.data.passed, true);
+        assert.deepEqual(answer.data.fixes, []);
+        assert.equal((answer.data.lines as { state: string }[]).some((line) => line.state === "needs-attention"), false, JSON.stringify(answer.data.lines));
+        for (const unseen of [/edits/, /commands/, /refuse an edit/, /context reading/, /transcript/]) assert.match(answer.text, unseen);
+        assert.match(answer.text, /STORYTREE_SESSION_ID=cursor-chat-1/);
+        assert.doesNotMatch(answer.text, /Not verified yet/);
+      });
+      await withAgent(folder, claudeCode("claude-1", setup), async (agent) => {
+        const answer = await agent.call("check_setup");
+        assert.equal(answer.data.tier, "watched");
+        assert.equal(answer.data.passed, false);
+        assert.match(answer.text, /Not verified yet/);
+      });
+    } finally {
+      await dropTestProjects([project]);
+    }
+  });
+});
+
 test("journey-events 1.5: the hooks-verified milestone is reported only once check_setup verifies all four of the current session's hooks; incomplete evidence, or another session's, reports none", async () => {
   const project = uniqueProjectName();
   await withTempDir(async (dir) => {

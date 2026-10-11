@@ -170,3 +170,10 @@ test('7.6 a stage that holds a beat for what it carries beyond the plan takes th
   assert.deepEqual(unheld.stages.map(s => s.id), ['stories', 'linked'], 'without its hold it takes no time');
   assert.ok(plan.seconds - unheld.seconds >= 1, 'the hold adds its beat');
 });
+
+test('7.1 a road ending on an island as a whole grows like any other: it leaves the island it builds on once that has risen', () => {
+  const plan = growthPlan([{ id: 'whole', scene: { islands: [island('old', []), island('new', ['n1'])], links: [{ from: 'new', to: 'old' }] } }]);
+  const road = plan.roads.get('new->old');
+  assert.ok(road, 'the road is drawn');
+  assert.ok(road.start >= end(plan.islands.get('old')!) - 1e-9 && plan.islands.get('new')!.start >= end(road) - 1e-9, 'new rises as the road from old arrives');
+});

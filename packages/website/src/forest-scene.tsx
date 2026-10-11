@@ -161,6 +161,41 @@ function Labels({ labels, controls, arrived }: { labels: readonly ShownLabel[]; 
   </div>)}</>, host);
 }
 
+/**
+ * The arcs list's first arc pointed out while the line that names it is said (2.21): an outline round its row and its words
+ * beside it, or below the list where a phone's full-width list leaves no room beside it. It reads the list's own rows, so it
+ * stands with or without the globe.
+ */
+function ArcPointer({ text }: { text: string }) {
+  const outline = useRef<HTMLDivElement>(null), words = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    let frame = 0;
+    const place = () => {
+      const ring = outline.current, label = words.current;
+      if (!ring || !label) return;
+      const stage = (ring.offsetParent ?? document.body).getBoundingClientRect();
+      const row = document.querySelector("#chapter2 .tour-arc-surface:not([hidden]) .arc-overlay:not([hidden]) .arc-lane");
+      const list = row?.closest(".arc-overlay")?.getBoundingClientRect(), box = row?.getBoundingClientRect();
+      const shown = !!box?.width && !!list && box.bottom <= list.bottom + 1;
+      ring.classList.toggle("away", !shown);
+      if (shown) {
+        ring.style.transform = `translate(${Math.round(box.left - stage.left - 3)}px, ${Math.round(box.top - stage.top - 3)}px)`;
+        ring.style.width = `${Math.round(box.width + 6)}px`; ring.style.height = `${Math.round(box.height + 6)}px`;
+        const size = label.getBoundingClientRect(), beside = box.right + 14 + size.width <= stage.right - 12;
+        label.style.left = `${Math.round(beside ? box.width + 20 : 12)}px`;
+        label.style.top = `${Math.round(beside ? (box.height + 6 - size.height) / 2 : list.bottom - box.top + 14)}px`;
+        label.dataset.side = beside ? "beside" : "below";
+      }
+      frame = requestAnimationFrame(place);
+    };
+    frame = requestAnimationFrame(place);
+    return () => cancelAnimationFrame(frame);
+  }, [text]);
+  return <div ref={outline} className="tour-arc-pointer away" data-label="arc" aria-hidden="true">
+    <span ref={words} className="tour-tag-text">{text}</span>
+  </div>;
+}
+
 /** Where the globe's middle sits: in the room the card (left) and any side panel (right) leave it. */
 function offsetFor(step: TourStep | undefined, width: number) {
   if (!step || width <= 600) {
@@ -416,6 +451,9 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   const shownLabels = useMemo((): ShownLabel[] => JSON.parse(labelKey), [labelKey]);
   // The sessions list is pointed out while the line that names it is said, not labelled on the globe.
   const pointed = lineLabels.some(label => "point" in label && label.point === "sessions");
+  // The arcs list's first arc is pointed out and named while the line that names it is said, with or without the globe.
+  const arcPoint = touring && !everything && step && state && requestedPanel === "arcs"
+    ? labelsAt(step, state.lines, { width }).flatMap(label => "point" in label && label.point === "arc" ? [label.text] : [])[0] : undefined;
   // The knowledge chapter's flags are the claims its sessions list reads at its moment, past the map chapter's first round.
   const heldClaims = inMapChapter && step?.explainer === "knowledge" && shopAt !== undefined;
   const panelReading = onStorytree ? snapshot : shownMap === "shop" ? shopSnapshot : undefined;
@@ -489,6 +527,7 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
           ? <Arcs key="shop" project={shop.project} recording={shopView.recording} open={false} />
           : <Arcs key="storytree" project={snapshot.project} recording={recording} open={requestedPanel === "arcs"} />}
       </div>
+      {arcPoint && <ArcPointer key={arcPoint} text={arcPoint} />}
     </>, panelHost)}
   </>;
 }

@@ -326,6 +326,9 @@ importers:
 
   packages/dev-loop:
     dependencies:
+      '@storytree/forest':
+        specifier: workspace:*
+        version: link:../forest
       '@storytree/guardrails':
         specifier: workspace:*
         version: link:../guardrails

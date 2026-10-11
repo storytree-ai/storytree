@@ -137,7 +137,11 @@ export const steps: TourStep[] = [
     "The dependencies between stories are shown as pathways: browsing, the cart and checkout all need signing in.",
   ], how: "A story is something a customer can do, and its code lives in its own package. A pathway runs one way, from a story to the story it needs: the cart and checkout also need browsing. Storytree refuses a loop.",
   why: "Pathways show what a story needs and where a change can reach, so you and your agents can see which work can run in parallel.",
-  decisions: [], surfaces: land, lineSurfaces: { 2: { ...land, roads: true } }, ...shop },
+  decisions: [], surfaces: land, lineSurfaces: { 2: { ...land, roads: true } }, ...shop,
+  // The pathway from the cart's page to signing in's page shell, near the cart on its own stretch of road. Each label shows only
+  // as narrow as it reads clear of the islands' names (evidence/map-labels): a phone keeps the pathway's, down to 390px.
+  labels: { 1: [{ target: signingIn, text: "a story", narrowest: 601 }],
+    2: [{ target: { kind: "pathway", link: "capability_ed214990be99->capability_ae20917d7a32", along: .2 }, text: "the cart needs signing in", narrowest: 390 }] } },
   // Signing in's and browsing's code reached the map when their pull request merged (02:06); the cart and checkout have none yet,
   // so each of their planned capabilities has an equal share of the island.
   { id: "map-capabilities", explainer: "map", map: "shop", growth: { seconds: 7, stage: `land-${shopServer}`, until: "pr1" }, title: "Capabilities and your code.", lines: [
@@ -146,7 +150,10 @@ export const steps: TourStep[] = [
     "Select a story and a panel shows how its capabilities work together.",
   ], how: "Each capability's territory arrives in the order the agent built it, signing in's shop server first. A file's dot is sized by its lines and sits in the capability whose tests reach it. The cart and checkout have no code yet, so each of their planned capabilities has an equal share of the island, with no dots. The panel shows the story's capabilities and what depends on what.",
   why: "You can see where the code went and which promises it serves, without opening a file.",
-  decisions: [], surfaces: { ...plain, roads: true }, lineSurfaces: { 2: { ...files, roads: true } }, ...near, panel: "story", panelFromLine: 3, panelRoom: true },
+  decisions: [], surfaces: { ...plain, roads: true }, lineSurfaces: { 2: { ...files, roads: true } }, ...near, panel: "story", panelFromLine: 3, panelRoom: true,
+  // Signing in's largest file in the survey its code arrived with (02:06).
+  labels: { 1: [{ target: { kind: "capability", capability: shopServer }, text: "a capability", narrowest: 601 }],
+    2: [{ target: { kind: "file", story: signingInId, path: "src/server/server.js" }, read: "file", narrowest: 390 }] } },
   // The record: three sessions claimed browsing's, the cart's and checkout's capabilities between 02:28:12 and 02:28:27. The flags
   // drop with the first line; the arcs panel and then the sessions list read the record at 02:28:30.
   { id: "map-claims", explainer: "map", map: "shop", sessionsAt: "2026-10-05T02:28:30.000Z",
@@ -163,7 +170,9 @@ export const steps: TourStep[] = [
     "Linear's initiatives connect projects to goals and progress updates.",
     "Storytree ties each session to the work it claimed on the map, and each increment to the session holding it.",
   ], sources: [cursorAgents, langsmith, linear, undefined] },
-  decisions: [], surfaces: lit({ ...files, roads: true }), ...shop, lineViews: { 2: { panel: "arcs" }, 3: { panel: "sessions" } } },
+  decisions: [], surfaces: lit({ ...files, roads: true }), ...shop, lineViews: { 2: { panel: "arcs" }, 3: { panel: "sessions" } },
+  // The first flag (02:28:12), named by its session, which had named itself at 02:27:06; on a phone it would cover browsing's name.
+  labels: { 1: [{ target: { kind: "capability", capability: productPage }, read: "holder", narrowest: 601 }], 3: [{ point: "sessions" }] } },
   { id: "map-health", explainer: "map", map: "shop", growth: { seconds: 16, stage: `lifted-${productPage}`, until: "pr7-building" }, title: "Health.", lines: [
     // ✎
     "As your automated tests run in CI, storytree shows you which capabilities are healthy and which need your attention.",
@@ -176,7 +185,8 @@ export const steps: TourStep[] = [
     "Aider's repo map ranks your code's names and signatures to fit the model's budget.",
     "Storytree groups the code by what it lets someone do, with the plan beside it.",
   ], sources: [vscode, aider, undefined] },
-  decisions: [], surfaces: lit({ ...health, roads: true }), ...shop },
+  decisions: [], surfaces: lit({ ...health, roads: true }), ...shop,
+  labels: { 1: [{ target: checkout, read: "health" }], 2: [{ target: checkout, read: "health" }] } },
 
   // The knowledge graph (ADR-0990, proposed 2026-10-11): three steps after the map chapter's model. ★ the owner's words; every
   // other line, How and Why is DRAFT, written by the session that built it for the owner to rewrite. It stays on the globe the map chapter leaves (the first

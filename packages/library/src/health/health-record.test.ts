@@ -700,6 +700,7 @@ for (const backend of [memory, postgres]) {
     assert.match(waits.note ?? "", /no recorded run/, "it says what it waits on");
 
     await health.recordVerified(plus.id, "failing");
+    await later();
     await health.recordVerified(said.id, "failing");
     assert.deepEqual((await health.worklist({ named })).filter(({ capability }) => capability !== empty.id).map(({ capability, why, waits }) => ({ capability, reason: why.reason, waits })), [
       { capability: form.id, reason: "failing", waits: undefined },

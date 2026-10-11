@@ -79,7 +79,8 @@ jobs:
           # Wait until the box answers: a new node's peers see it only after a few seconds.
           ping: 100.97.8.31
       # A throwaway storytree home whose library setting is the Mint box as the read-only role; its
-      # password reaches storytree as PGPASSWORD, since that home saves no key.
+      # password reaches storytree as PGPASSWORD, since that home saves no key. The address trusts the
+      # box's certificate from this checkout's infra/library-host/mint-library.crt (ADR-0997 D1).
       - name: Check every changed capability is on the increment's list
         if: steps.settings.outputs.ready == 'true'
         env:
@@ -87,5 +88,5 @@ jobs:
         run: |
           export STORYTREE_HOME="$RUNNER_TEMP/storytree-home"
           mkdir -p "$STORYTREE_HOME"
-          echo '{"library":{"location":"postgres","address":"postgres://ci_plan_read@100.97.8.31:5432/postgres"}}' > "$STORYTREE_HOME/settings.json"
+          echo "{\"library\":{\"location\":\"postgres\",\"address\":\"postgres://ci_plan_read@100.97.8.31:5432/postgres?sslrootcert=$GITHUB_WORKSPACE/infra/library-host/mint-library.crt\"}}" > "$STORYTREE_HOME/settings.json"
           node --import tsx packages/dev-loop/src/capability-list.mjs

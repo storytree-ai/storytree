@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
 import { operator as o } from './host.mjs';
 
 if (process.argv.slice(2).some(arg => arg !== '--dry-run')) throw new Error('Usage: node --import tsx smoke.mjs [--dry-run]');
@@ -32,7 +33,8 @@ if (process.argv.includes('--dry-run')) {
     assert.equal((await readClaims(log, project)).length, 1);
     assert.equal((await release(context, capability.id)).ok, true);
     assert.equal((await readClaims(log, project)).length, 0);
-    const tailnet = await connect({ address: `postgres://${o.OWNER}@mickh-a520i-ac:5432/postgres` });
+    const certificate = fileURLToPath(new URL('./mint-library.crt', import.meta.url));
+    const tailnet = await connect({ address: `postgres://${o.OWNER}@mickh-a520i-ac:5432/postgres?sslrootcert=${certificate}` });
     try {
       assert.equal((await (await tailnet.openProject(project)).projectTree()).stories[0].title, 'Library host smoke');
     } finally { await tailnet.close(); }

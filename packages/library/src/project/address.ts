@@ -8,9 +8,10 @@
  * who it is.
  *
  * A remote address gets the password only after its server proves who it is (ADR-0943 D1): over TLS,
- * with a certificate that chains to an authority storytree trusts (Node's store, storytree's own
- * library's certificate, or the address's `sslrootcert`) and names the host the address does. A
- * loopback address keeps its own rules (ADR-0943 D2, server.ts's LocalClient).
+ * with a certificate that chains to an authority storytree trusts (the address's `sslrootcert` when
+ * it names one, otherwise Node's authorities alone: no build trusts a certificate of storytree's own,
+ * ADR-0997 D1) and names the host the address does. A loopback address keeps its own rules
+ * (ADR-0943 D2, server.ts's LocalClient).
  */
 import { readFileSync } from "node:fs";
 import { isIP } from "node:net";
@@ -20,7 +21,6 @@ import { resolveKey } from "@storytree/keys";
 import pg from "pg";
 
 import { ConnectionError, sqlState } from "./connection-error.js";
-import { STORYTREE_LIBRARY_CERTIFICATE } from "./library-certificate.js";
 import { isLoopback, localServer, type ServerAccess, type Transport, type WaitBounds } from "./server.js";
 
 /** The key a library reached by address takes its password from. */
@@ -72,8 +72,8 @@ export function addressServer(address: string, connectTimeoutMs = TIMEOUT_MS, bo
 
 /**
  * The transport for a remote address: TLS that trusts the address's `sslrootcert` alone when it
- * names one, otherwise Node's authorities and storytree's own library's certificate, and checks
- * the certificate names the address's own host. Refused when the address asks for any weaker TLS.
+ * names one, otherwise Node's authorities alone, and checks the certificate names the address's
+ * own host. Refused when the address asks for any weaker TLS.
  */
 function remoteTransport(url: URL): Transport {
   for (const key of url.searchParams.keys()) {
@@ -88,7 +88,7 @@ function remoteTransport(url: URL): Transport {
   const rootFile = url.searchParams.get("sslrootcert");
   let ca: string | string[];
   try {
-    ca = rootFile === null ? [...rootCertificates, STORYTREE_LIBRARY_CERTIFICATE] : readFileSync(rootFile, "utf8");
+    ca = rootFile === null ? [...rootCertificates] : readFileSync(rootFile, "utf8");
   } catch (error) {
     throw new ConnectionError("config", `Storytree could not read ${rootFile}, the certificate the library's address ${shown(url)} trusts (sslrootcert): check that it exists and can be read.`, error);
   }

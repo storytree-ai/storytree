@@ -102,7 +102,7 @@ FB frontend-builder, BR blind-reviewer, CI corpus-investigator; c = required rea
 | Render and witness a flag-guarded surface (pattern) | FB c | ADAPT | storytree's desktop capture kit (`apps/desktop/src/capture`) becomes the project's committed capture harness. |
 | Merge ceremony (process) | SO c | ADAPT | `pnpm gate`, three-system CI, automerge, the merge queue, the Mint watcher hand-over and the context-mark figures dropped; the project's pipeline and its own merge practice (asked once and recorded) stand in. |
 | Pre-merge librarian pass (process) | SO c, LC c | ADAPT | Guidance regeneration dropped; the friction drain step made explicit. |
-| Library edit ceremony (process) | SO c | ADAPT | `build:guidance`, `.npmrc`/PowerShell detail and friction ids dropped; the `@file` rule kept for the command line. |
+| Library edit ceremony (process) | SO c | ADAPT | `build:guidance`, the command line's `@file` and shell-quoting rules (the habits card names only the tools a user's agent has) and friction ids dropped. |
 | Friction adjudication (process) | LC c | ADAPT | `storytree arc increment new --remedies` becomes park_increment and add_remedies. |
 
 The pack seeds 45 principles, 6 guardrails, 8 patterns and 4 processes: the pack's own four

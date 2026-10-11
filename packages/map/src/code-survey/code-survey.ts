@@ -86,7 +86,7 @@ export type CoverageMap = Readonly<Record<string, Readonly<Record<string, number
 const EXECUTED = 0.5;
 
 /** Stories whose package is not named after their title. */
-const PACKAGE_NAMED_OTHERWISE: Readonly<Record<string, string>> = { "command-line": "cli", "world": "forest-world", "local-database": "local-postgres", "process-ledger": "processes" };
+const PACKAGE_NAMED_OTHERWISE: Readonly<Record<string, string>> = { "command-line": "cli", "world": "forest-world", "local-database": "local-postgres", "process-ledger": "processes", "lag-in-real-use": "lag-in-use" };
 
 /** The package a story's code lives in: named after its title ("Session management" is packages/session-management), but for a few named otherwise. */
 export function packageOf(title: string): string {

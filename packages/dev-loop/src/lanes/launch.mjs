@@ -124,6 +124,8 @@ export async function runPool({ survey, maxLanes, count, launch, stopFile, exist
     }
     const free = await maxLanes() - await count() - starting.size;
     if (free <= 0) { await pause(pollMs); continue; }
+    // A slot just freed: read the version again, since a read begun before that session ended may predate its merge.
+    if (await codeChanged()) continue;
     let found;
     try { found = await survey(); }
     catch (error) {

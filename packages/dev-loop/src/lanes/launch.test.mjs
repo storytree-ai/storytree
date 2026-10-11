@@ -182,6 +182,25 @@ test("12.10 · the dispatcher restarts between sessions when its own code change
   });
   assert.equal(steady, 0, "unchanged code: no restart");
   assert.deepEqual(refreshed, ["idle", "steady"]);
+
+  // A slow read (a loaded box) that began before the merge landed answers only after the session has ended.
+  let tree = "tree-a", endSession;
+  const slowStarted = [];
+  const slow = await runPool({
+    survey: async () => poolWork(["a", "b"]), maxLanes: async () => 1, count: async () => 0,
+    codeVersion: () => {
+      const seen = tree, end = endSession;
+      if (!end) return Promise.resolve(seen);
+      endSession = undefined;
+      tree = "tree-b";
+      end(0);
+      return new Promise((go) => setImmediate(go)).then(() => seen);
+    },
+    stopFile: "/lanes/pool-stop", exists: async () => false, now, say: () => {},
+    launch: (one) => { slowStarted.push(one.id); return new Promise((done) => { endSession = done; }); },
+    sleep: async () => {},
+  });
+  assert.deepEqual({ slow, slowStarted }, { slow: 3, slowStarted: ["a"] }, "a version read from before the session ended never lets the next one start");
 });
 
 test("12.10 · its own code is the code it runs: a merge touching only other dev loop code leaves it starting work", async (t) => {

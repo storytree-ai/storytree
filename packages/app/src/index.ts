@@ -38,6 +38,6 @@ export type { LaunchRecord } from "./lifecycle/launch.js";
 export { openAppLibrary } from "./lifecycle/open-where-set.js";
 export type { AppLibrary, AppLibraryOptions, StartedPostgres } from "./lifecycle/open-where-set.js";
 export { quitApp } from "./lifecycle/quit.js";
-export { SIGN_IN_NAME, signIn } from "./lifecycle/sign-in.js";
+export { loginItemsFor, SIGN_IN_LABEL, SIGN_IN_NAME, signIn } from "./lifecycle/sign-in.js";
 export type { LoginItem, SignInState } from "./lifecycle/sign-in.js";
 export type { QuitResult } from "./lifecycle/quit.js";

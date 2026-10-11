@@ -5,8 +5,12 @@
  * and that choice is kept in the app's home (`sign-in.json`) so the next start does not register
  * it again. Only an installed app registers: a development copy, a portable build or a runtime
  * slot would leave sign-in pointing at a build that is not the one the user installed.
+ *
+ * Electron's login item passes `args` only on Windows; on a Mac it would open the window at every
+ * sign-in, and its `wasOpenedAtLogin` cannot tell such a start apart from macOS 13 on. So on a Mac
+ * the app registers a per-user LaunchAgent instead, which starts it with `--background` itself.
  */
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import type { SignInState } from "./bridge.js";
@@ -22,8 +26,50 @@ export interface LoginItem {
 }
 
 export const SIGN_IN_NAME = "storytree 0.3";
+/** The Mac LaunchAgent's label and file name: the app's bundle id. */
+export const SIGN_IN_LABEL = "ai.storytree.desktop-0-3";
 
-export function signIn(options: { installed: boolean; file: string; loginItems: { set(item: LoginItem): void } }) {
+interface LoginItems { set(item: LoginItem): void }
+
+const xml = (text: string): string => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+/** Where the platform keeps a login item: Electron's on Windows, a LaunchAgent in `launchAgents` on a Mac. */
+export function loginItemsFor(platform: NodeJS.Platform, options: { electron: LoginItems; execPath: string; launchAgents: string }): LoginItems {
+  if (platform !== "darwin") return options.electron;
+  const file = path.join(options.launchAgents, `${SIGN_IN_LABEL}.plist`);
+  return {
+    set(item) {
+      // A Mac login item Electron registered would open the window beside the agent's start.
+      options.electron.set({ ...item, openAtLogin: false });
+      if (!item.openAtLogin) {
+        rmSync(file, { force: true });
+        return;
+      }
+      const args = [options.execPath, ...item.args].map((arg) => `    <string>${xml(arg)}</string>`).join("\n");
+      mkdirSync(options.launchAgents, { recursive: true });
+      // AbandonProcessGroup: an update relaunches the app, and launchd must not stop that start when this one quits.
+      writeFileSync(file, `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>${SIGN_IN_LABEL}</string>
+  <key>ProgramArguments</key>
+  <array>
+${args}
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>AbandonProcessGroup</key>
+  <true/>
+</dict>
+</plist>
+`);
+    },
+  };
+}
+
+export function signIn(options: { installed: boolean; file: string; loginItems: LoginItems }) {
   const choice = (): boolean => {
     try {
       const stored = JSON.parse(readFileSync(options.file, "utf8")) as { open?: unknown };

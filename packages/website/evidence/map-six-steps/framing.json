@@ -6,7 +6,7 @@
     "misses": [],
     "seen": {
       "step": "map-empty",
-      "progress": 0.926,
+      "progress": 0.9,
       "arrived": "true",
       "room": {
         "width": 1920,
@@ -46,7 +46,7 @@
     "misses": [],
     "seen": {
       "step": "map-arcs",
-      "progress": 0.894,
+      "progress": 0.896,
       "arrived": "true",
       "room": {
         "width": 1920,
@@ -91,7 +91,7 @@
     "misses": [],
     "seen": {
       "step": "map-stories",
-      "progress": 0.889,
+      "progress": 0.894,
       "arrived": "true",
       "room": {
         "width": 1920,
@@ -198,7 +198,7 @@
     "misses": [],
     "seen": {
       "step": "map-capabilities",
-      "progress": 0.648,
+      "progress": 0.707,
       "arrived": "true",
       "room": {
         "width": 1920,
@@ -311,7 +311,7 @@
     "misses": [],
     "seen": {
       "step": "map-capabilities",
-      "progress": 0.898,
+      "progress": 0.912,
       "arrived": "true",
       "room": {
         "width": 1920,
@@ -532,7 +532,7 @@
     "misses": [],
     "seen": {
       "step": "map-claims",
-      "progress": 0.709,
+      "progress": 0.706,
       "arrived": "true",
       "room": {
         "width": 1920,
@@ -641,7 +641,7 @@
     "misses": [],
     "seen": {
       "step": "map-claims",
-      "progress": 0.931,
+      "progress": 0.92,
       "arrived": "true",
       "room": {
         "width": 1920,
@@ -757,7 +757,7 @@
     "misses": [],
     "seen": {
       "step": "map-health",
-      "progress": 0.901,
+      "progress": 0.92,
       "arrived": "true",
       "room": {
         "width": 1920,
@@ -862,7 +862,7 @@
     "misses": [],
     "seen": {
       "step": "map-empty",
-      "progress": 0.915,
+      "progress": 0.891,
       "arrived": "true",
       "room": {
         "width": 1440,
@@ -947,7 +947,7 @@
     "misses": [],
     "seen": {
       "step": "map-stories",
-      "progress": 0.908,
+      "progress": 0.92,
       "arrived": "true",
       "room": {
         "width": 1440,
@@ -1054,7 +1054,7 @@
     "misses": [],
     "seen": {
       "step": "map-capabilities",
-      "progress": 0.615,
+      "progress": 0.653,
       "arrived": "true",
       "room": {
         "width": 1440,
@@ -1283,7 +1283,7 @@
     "misses": [],
     "seen": {
       "step": "map-claims",
-      "progress": 0.569,
+      "progress": 0.376,
       "arrived": "true",
       "room": {
         "width": 1440,
@@ -1388,7 +1388,7 @@
     "misses": [],
     "seen": {
       "step": "map-claims",
-      "progress": 0.895,
+      "progress": 0.945,
       "arrived": "true",
       "room": {
         "width": 1440,
@@ -1503,7 +1503,7 @@
     "misses": [],
     "seen": {
       "step": "map-claims",
-      "progress": 0.912,
+      "progress": 0.983,
       "arrived": "true",
       "room": {
         "width": 1440,
@@ -1619,7 +1619,7 @@
     "misses": [],
     "seen": {
       "step": "map-health",
-      "progress": 0.974,
+      "progress": 0.936,
       "arrived": "true",
       "room": {
         "width": 1440,
@@ -1724,7 +1724,7 @@
     "misses": [],
     "seen": {
       "step": "map-empty",
-      "progress": 0.895,
+      "progress": 0.886,
       "arrived": "true",
       "room": {
         "width": 1280,
@@ -1764,7 +1764,7 @@
     "misses": [],
     "seen": {
       "step": "map-arcs",
-      "progress": 0.888,
+      "progress": 0.907,
       "arrived": "true",
       "room": {
         "width": 1280,
@@ -1809,7 +1809,7 @@
     "misses": [],
     "seen": {
       "step": "map-stories",
-      "progress": 0.887,
+      "progress": 0.885,
       "arrived": "true",
       "room": {
         "width": 1280,
@@ -1916,7 +1916,7 @@
     "misses": [],
     "seen": {
       "step": "map-capabilities",
-      "progress": 0.626,
+      "progress": 0.641,
       "arrived": "true",
       "room": {
         "width": 1280,
@@ -2029,7 +2029,7 @@
     "misses": [],
     "seen": {
       "step": "map-capabilities",
-      "progress": 0.898,
+      "progress": 0.907,
       "arrived": "true",
       "room": {
         "width": 1280,
@@ -2145,7 +2145,7 @@
     "misses": [],
     "seen": {
       "step": "map-claims",
-      "progress": 0.369,
+      "progress": 0.454,
       "arrived": "true",
       "room": {
         "width": 1280,
@@ -2250,7 +2250,7 @@
     "misses": [],
     "seen": {
       "step": "map-claims",
-      "progress": 0.591,
+      "progress": 0.734,
       "arrived": "true",
       "room": {
         "width": 1280,
@@ -2359,7 +2359,7 @@
     "misses": [],
     "seen": {
       "step": "map-claims",
-      "progress": 0.895,
+      "progress": 0.886,
       "arrived": "true",
       "room": {
         "width": 1280,
@@ -2475,7 +2475,7 @@
     "misses": [],
     "seen": {
       "step": "map-health",
-      "progress": 0.9,
+      "progress": 0.919,
       "arrived": "true",
       "room": {
         "width": 1280,
@@ -2580,7 +2580,7 @@
     "misses": [],
     "seen": {
       "step": "map-empty",
-      "progress": 0.888,
+      "progress": 0.893,
       "arrived": "true",
       "room": {
         "width": 390,
@@ -2620,7 +2620,7 @@
     "misses": [],
     "seen": {
       "step": "map-arcs",
-      "progress": 0.886,
+      "progress": 0.892,
       "arrived": "true",
       "room": {
         "width": 390,
@@ -2667,7 +2667,7 @@
     ],
     "seen": {
       "step": "map-stories",
-      "progress": 0.905,
+      "progress": 0.884,
       "arrived": "true",
       "room": {
         "width": 390,
@@ -2774,7 +2774,7 @@
     "misses": [],
     "seen": {
       "step": "map-capabilities",
-      "progress": 0.682,
+      "progress": 0.684,
       "arrived": "true",
       "room": {
         "width": 390,
@@ -2881,7 +2881,7 @@
     "misses": [],
     "seen": {
       "step": "map-capabilities",
-      "progress": 0.889,
+      "progress": 0.891,
       "arrived": "true",
       "room": {
         "width": 390,
@@ -2993,7 +2993,7 @@
     ],
     "seen": {
       "step": "map-claims",
-      "progress": 0.37,
+      "progress": 0.298,
       "arrived": "true",
       "room": {
         "width": 390,
@@ -3098,7 +3098,7 @@
     "misses": [],
     "seen": {
       "step": "map-claims",
-      "progress": 0.576,
+      "progress": 0.532,
       "arrived": "true",
       "room": {
         "width": 390,
@@ -3203,7 +3203,7 @@
     "misses": [],
     "seen": {
       "step": "map-claims",
-      "progress": 0.884,
+      "progress": 0.883,
       "arrived": "true",
       "room": {
         "width": 390,
@@ -3426,7 +3426,7 @@
     "misses": [],
     "seen": {
       "step": "map-empty",
-      "progress": 0.895,
+      "progress": 0.906,
       "arrived": "true",
       "room": {
         "width": 320,
@@ -3513,7 +3513,7 @@
     ],
     "seen": {
       "step": "map-stories",
-      "progress": 0.884,
+      "progress": 0.885,
       "arrived": "true",
       "room": {
         "width": 320,
@@ -3620,7 +3620,7 @@
     "misses": [],
     "seen": {
       "step": "map-capabilities",
-      "progress": 0.689,
+      "progress": 0.534,
       "arrived": "true",
       "room": {
         "width": 320,
@@ -3727,7 +3727,7 @@
     "misses": [],
     "seen": {
       "step": "map-capabilities",
-      "progress": 0.903,
+      "progress": 0.884,
       "arrived": "true",
       "room": {
         "width": 320,
@@ -3839,7 +3839,7 @@
     ],
     "seen": {
       "step": "map-claims",
-      "progress": 0.35,
+      "progress": 0.293,
       "arrived": "true",
       "room": {
         "width": 320,
@@ -3944,7 +3944,7 @@
     "misses": [],
     "seen": {
       "step": "map-claims",
-      "progress": 0.576,
+      "progress": 0.532,
       "arrived": "true",
       "room": {
         "width": 320,
@@ -4049,7 +4049,7 @@
     "misses": [],
     "seen": {
       "step": "map-claims",
-      "progress": 0.886,
+      "progress": 0.883,
       "arrived": "true",
       "room": {
         "width": 320,
@@ -4167,7 +4167,7 @@
     ],
     "seen": {
       "step": "map-health",
-      "progress": 0.94,
+      "progress": 0.891,
       "arrived": "true",
       "room": {
         "width": 320,

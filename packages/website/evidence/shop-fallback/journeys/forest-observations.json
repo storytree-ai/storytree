@@ -1,0 +1,50 @@
+{
+  "story": "The website",
+  "commit": "unpublished local build",
+  "evidence": "packages/website/evidence/shop-fallback/journeys",
+  "note": "Locally built website served from packages/website/dist",
+  "checks": [
+    {
+      "contract": "2.3",
+      "name": "before the 3D scene's code arrives, the explanation and waitlist entry are available",
+      "observed": "pass",
+      "detail": "scene code requested yet: true; separate form validation available true"
+    },
+    {
+      "contract": "2.1",
+      "name": "with WebGL, the live scene takes over from the still and draws on its canvas",
+      "observed": "pass",
+      "detail": "state live, canvas shown true, still shown false, 39 distinct colours where the scene is"
+    },
+    {
+      "contract": "2.2",
+      "name": "at 1440px, when WebGL is unavailable, every view shows a saved picture of its own project or says why it cannot, and the page stays usable",
+      "observed": "pass",
+      "detail": "state still; shop step note \"The map can’t draw in this browser: it needs WebGL. This step replays a moment of the shop’s recorded build, and no single saved picture can show that truthfully, so the words play on without it. Free play shows a saved picture of the finished shop.\"; shop still 66 colours; storytree still 44 colours; arcs panel and waitlist usable"
+    },
+    {
+      "contract": "2.2",
+      "name": "at 1280px, when WebGL is unavailable, every view shows a saved picture of its own project or says why it cannot, and the page stays usable",
+      "observed": "pass",
+      "detail": "state still; shop step note \"The map can’t draw in this browser: it needs WebGL. This step replays a moment of the shop’s recorded build, and no single saved picture can show that truthfully, so the words play on without it. Free play shows a saved picture of the finished shop.\"; shop still 68 colours; storytree still 46 colours; arcs panel and waitlist usable"
+    },
+    {
+      "contract": "2.2",
+      "name": "at 390px, when WebGL is unavailable, every view shows a saved picture of its own project or says why it cannot, and the page stays usable",
+      "observed": "pass",
+      "detail": "state still; shop step note \"The map can’t draw in this browser: it needs WebGL. This step replays a moment of the shop’s recorded build, and no single saved picture can show that truthfully, so the words play on without it. Free play shows a saved picture of the finished shop.\"; shop still 62 colours; storytree still 43 colours; arcs panel and waitlist usable"
+    },
+    {
+      "contract": "2.2",
+      "name": "at 320px, when WebGL is unavailable, every view shows a saved picture of its own project or says why it cannot, and the page stays usable",
+      "observed": "pass",
+      "detail": "state still; shop step note \"The map can’t draw in this browser: it needs WebGL. This step replays a moment of the shop’s recorded build, and no single saved picture can show that truthfully, so the words play on without it. Free play shows a saved picture of the finished shop.\"; shop still 51 colours; storytree still 38 colours; arcs panel and waitlist usable"
+    },
+    {
+      "contract": "2.2",
+      "name": "at 1440px, when the scene's code fails to load, every view shows a saved picture of its own project or says why it cannot, and the page stays usable",
+      "observed": "pass",
+      "detail": "state still; shop step note \"The map can’t draw in this browser: it needs WebGL. This step replays a moment of the shop’s recorded build, and no single saved picture can show that truthfully, so the words play on without it. Free play shows a saved picture of the finished shop.\"; shop still 62 colours; storytree still 45 colours; waitlist usable"
+    }
+  ]
+}

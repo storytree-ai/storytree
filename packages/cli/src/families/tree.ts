@@ -79,12 +79,15 @@ const worklist: Verb = {
     const listed = all.filter(({ waits }) => waits === undefined);
     if (listed.length === 0) return { text: ["Nothing waits on the health worklist: every capability is healthy or already routed.", ...(held === undefined ? [] : [held])].join("\n") };
     const shown = listed.slice(0, 3);
-    const lines = shown.map(({ capability, title, status, why, since }) =>
-      `${title}  [${capability}]  ${status} — ${why.reason}, the ${why.mover}'s to move${why.contracts.length === 0 ? "" : `: ${why.contracts.join(", ")}`}; since ${since.slice(0, 10)}`,
+    const lines = shown.map(({ capability, title, status, why, since, contractsPass }) =>
+      `${title}  [${capability}]  ${status} — ${why.reason}, the ${why.mover}'s to move${why.contracts.length === 0 ? "" : `: ${why.contracts.join(", ")}`}; since ${since.slice(0, 10)}` +
+      (contractsPass ? "; its tests already pass on main; only its proposed flag is left" : ""),
     );
     if (listed.length > shown.length) lines.push(`${listed.length - shown.length} more wait.`);
     if (held !== undefined) lines.push(held);
-    return { text: lines.join("\n"), next: [{ command: "storytree arc increment new --arc <arc> --title <t> --objective <o> --body <text> --capabilities <capability> [--held-on <question>]", why: "route one: an increment whose capabilities list names it, held on a question when it needs the owner" }] };
+    const built = shown.filter(({ contractsPass }) => contractsPass).map(({ capability }) => ({ command: `storytree capability built ${capability}`, why: "its tests already pass: switch its proposed flag off (ADR-0744 D2)" }));
+    const unbuilt = shown.some(({ contractsPass }) => !contractsPass);
+    return { text: lines.join("\n"), next: [...built, ...(unbuilt ? [{ command: "storytree arc increment new --arc <arc> --title <t> --objective <o> --body <text> --capabilities <capability> [--held-on <question>]", why: "route one: an increment whose capabilities list names it, held on a question when it needs the owner" }] : [])] };
   },
 };
 

@@ -32,11 +32,16 @@
         <div id="tour-project" class="tour-project" role="group" aria-label="Project to explore" hidden><span class="tp-label" aria-hidden="true">Project</span><button type="button" data-project="shop" aria-pressed="true">The shop</button><button type="button" data-project="storytree" aria-pressed="false">storytree</button></div>
         <div class="tour-stage">
           <div id="website-forest" data-forest-state="still" aria-label="Storytree’s project map">
-            <picture class="forest-still">
+            <picture class="forest-still storytree-still">
               <source media="(max-width: 600px)" srcset="/forest-phone.png">
               <img src="/forest-desktop.png" width="458" height="458" loading="lazy" alt="A saved map of storytree’s project: pale story islands and their connections on a dark globe.">
             </picture>
+            <picture class="forest-still shop-still">
+              <source media="(max-width: 600px)" srcset="/shop-phone.png">
+              <img src="/shop-desktop.png" width="1000" height="1000" loading="lazy" alt="A saved picture of the online shop’s finished map: its eight story islands, green, joined by roads on a dark globe.">
+            </picture>
           </div>
+          <p class="forest-unavailable" role="note"><strong>The map can’t draw in this browser: it needs WebGL.</strong> This step replays a moment of the shop’s recorded build, and no single saved picture can show that truthfully, so the words play on without it. Free play shows a saved picture of the finished shop.</p>
           <div id="tour-tags" class="tour-tags" aria-hidden="true"></div>
           <article id="tour-card" class="tour-card is-in" aria-labelledby="tour-title">
             <p id="tour-kicker" class="tour-kicker">Act 2 · Why storytree</p>

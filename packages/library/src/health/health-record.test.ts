@@ -658,6 +658,21 @@ for (const backend of [memory, postgres]) {
     await health.recordVerified(sibling.id, "passing");
     assert.equal(await parkedOf(capability.id), undefined, "green is unchanged");
   });
+
+  contract("5.14", "a proposed capability with at least one contract and every contract verified passing is on the worklist still not built and the agent's, marked that its contracts already pass; one with no contract or any contract not passing is not so marked", async ({ health, work }) => {
+    const { story, capability, contract, sibling } = await smallPlan(work);
+    const empty = await work.addCapability({ title: "Nothing promised", story: story.id });
+    const itemOf = async (id: string) => (await health.worklist()).find((item) => item.capability === id)!;
+    await health.recordVerified(contract.id, "passing");
+    assert.equal((await itemOf(capability.id)).contractsPass, undefined, "one contract not verified");
+    await health.recordVerified(sibling.id, "passing");
+    const passing = await itemOf(capability.id);
+    assert.equal(passing.contractsPass, true);
+    assert.deepEqual([passing.status, passing.why.reason, passing.why.mover], ["proposed", "not built", "agent"], "its reason and mover unchanged");
+    assert.equal((await itemOf(empty.id)).contractsPass, undefined, "no contract");
+    await health.recordVerified(sibling.id, "failing");
+    assert.equal((await itemOf(capability.id)).contractsPass, undefined, "one failing");
+  });
 }
 
 /** Past the current millisecond, so the next write's time sorts after the last one's. */

@@ -1,73 +1,27 @@
 /**
  * Capability 6 · Make a folder a project. The starter pack (contract 6.7): what a new project's library holds on day one.
- * The owner chose it (2026-10-01): roles drawn from storytree's own core ones, an orchestrator and a
- * librarian, slimmed down for a user's project, and only the principles they stand on that a first
- * build needs. ADR-0996 grows it towards the full system storytree's own sessions work with, first with
- * the test-quality review: the six quality control checks, the notes they enforce and a change-reviewer,
- * which the orchestrator sends each green change to before it lands. This file is the one place its text
- * lives: change it here and raise STARTER_PACK_VERSION.
+ * The owner chose it (2026-10-01): roles drawn from storytree's own, adapted for a user's project. ADR-0996
+ * grew it to the full system storytree's own sessions work with: every role (starter-roles.ts), the
+ * principles, guardrails, patterns and processes they stand on (starter-notes.ts), and the six quality
+ * control checks the change-reviewer answers for every green change before it lands (here).
+ * starter-pack-classification.md records where each came from. These files are the one place its
+ * text lives: change it there and raise STARTER_PACK_VERSION.
  *
  * Seeding writes only what the library does not already hold under the same title, so setting a
  * project up again after a failed try adds no second copy. Joining a project from another machine
  * seeds nothing: its library was seeded when it was first set up, and is the user's since.
  */
 import type { Library, NewKnowledge } from "@storytree/library";
+import { GUARDRAILS, NO_MODULE_MOCK, PATTERNS, PRINCIPLES, PROCESSES, TEST_CREATION } from "./starter-notes.js";
+import { ROLES } from "./starter-roles.js";
 
 /** The pack's version: raise it whenever its text changes. */
-export const STARTER_PACK_VERSION = 2;
+export const STARTER_PACK_VERSION = 3;
 
 /** Who the history says wrote the pack's records. */
 const ACTOR = `storytree setup (starter pack v${STARTER_PACK_VERSION})`;
 
-type Principle = NewKnowledge<"principle">;
-type Guardrail = NewKnowledge<"guardrail">;
 type Check = Omit<NewKnowledge<"check">, "enforces"> & { readonly enforces: readonly string[] };
-type Role = Omit<NewKnowledge<"agent">, "context"> & { readonly standsOn: readonly string[] };
-
-const TEST_CREATION = "Test creation principles";
-const NO_MODULE_MOCK = "Never mock a module — give the code a seam";
-
-const PRINCIPLES: readonly Principle[] = [
-  {
-    title: "Minimum to green",
-    description: "Build only what the next failing test needs, then stop.",
-    statement: "Write the least code that makes the failing test pass, then stop and land it.",
-    why: "Code nobody asked for is more to read, test and fix later. Small steps keep the project working after every one of them.",
-    howToApply: "Before writing code, name the one behaviour it adds. Make its test pass with as little as will do. A next idea becomes its own piece of work on the plan, not more code now.",
-  },
-  {
-    title: "Minimum test to red",
-    description: "Before building a behaviour, write the smallest test that fails because it is missing.",
-    statement: "Before building a behaviour, write the smallest test that fails because the behaviour is missing, and see it fail.",
-    why: "A test you never saw fail may test nothing. A small one says exactly what broke.",
-    howToApply: "Test what the user can do or see (the contract's promise), not the wording of text or how the files are laid out. Run it and see it fail, then make it pass. If the test is hard to write, the piece is too big: split it.",
-  },
-  {
-    title: "Edit before adding",
-    description: "Before writing a new note, look for one that already says it, and correct that one instead.",
-    statement: "Before writing a new note, search for one that already covers it; if one does, correct it instead of adding another.",
-    why: "Two notes saying nearly the same thing drift apart, and the next session cannot tell which one is true.",
-    howToApply: "Search the library with the note's main words. A close match: correct it. Nothing close: write a new one, linking only the notes it really rests on.",
-  },
-  {
-    title: TEST_CREATION,
-    description: "A test verifies the real outcome, not a proxy, and must fail if the behaviour it pins were removed.",
-    statement: "A test must verify the actual outcome rather than a proxy for it (real content over existence, what the user sees over how the code does it) and must genuinely fail if the behaviour it pins were removed.",
-    why: "A test is only as good as what it checks. Checking that a file exists (not what it holds), that a function was called (not what it produced), or that a flag is true (not the result it claims) gives a green with no proof behind it, and an agent rewarded for green will satisfy exactly that hollow signal. Fixtures fail the same way: a whole-module mock deletes the real library's guards, so the suite stays green while the real code throws, and small hand-built numbers cannot catch a rule that breaks at real scale.",
-    howToApply: "Ask the deletion check first: if the behaviour were removed, would this test fail? If not, it pins nothing. Assert the produced content and behaviour, the unhappy path included; avoid permissive assertions (a length above zero), success-flag-only checks and swallowed errors. Write expected values by hand or from the contract, never with the code's own formula. Prefer real collaborators; when you must substitute one, pass it in through a seam carrying what the real one needs, with fixture values at real magnitudes. Never assert a wall-clock duration: on a busy machine it measures the load, so pass a clock in. A test that cannot run here skips visibly through the test runner's skip option, with its reason, never through an `if` around its declaration, so a test that did not run is never counted as proof. Start each test's title with the number of the contract it proves (`2.3 …`), since storytree credits a test only to that contract.",
-  },
-];
-
-const GUARDRAILS: readonly Guardrail[] = [
-  {
-    title: NO_MODULE_MOCK,
-    description: "If a test must substitute a collaborator, the code offers a narrow seam with a real default; the module system is never rewritten under test.",
-    statement: "Never replace a module with a module mock; add a seam: a narrow value carrying only what the consumer uses, passed in, with a real default.",
-    rule: "A component that cannot be tested without rewriting imports has a design problem, not a testing problem. Add the seam: declare the narrow surface the consumer actually drives (not somebody else's class), pass it in, and give it a real default so no production caller changes. Then test through the seam against a real or in-memory implementation.",
-    enforcedBy: "The change-reviewer's Module mock check, on every green change before it lands.",
-    failureMode: "The code under test never runs and the suite is green anyway: a guard's test that mocks the guard's own module still passes after the guard is deleted.",
-  },
-];
 
 /** The quality control checks the change-reviewer answers for every green change (adapted from storytree's own six). */
 const CHECKS: readonly Check[] = [
@@ -115,83 +69,31 @@ const CHECKS: readonly Check[] = [
   },
 ];
 
-const ROLES: readonly Role[] = [
-  {
-    title: "orchestrator",
-    description: "The session the user talks to: turns what they want into the plan, then into working, tested code, one small piece at a time.",
-    oneLine: "Plan it, build it test-first, have it reviewed, land it, and say plainly what now works.",
-    role: "You are the session the user talks to. You turn what they want into the project's plan, then into working code, one small tested piece at a time, and you keep the plan true to what was built. You decide how to build; the user decides what the project is for.",
-    outcome: "Each piece of work ends either done (its tests pass, a fresh-context review left no finding standing, its capability is landed, its increment closed, and the user told in plain words what now works) or held (what works is kept, what does not is written onto the plan, and anything only the user can answer is raised as a question). Never broken code passed off as working, a skipped test or review, or a problem dropped in silence.",
-    tools: "storytree's tools: check_setup, show_plan, plan_story, plan_capability, plan_contract, plan_arc, park_increment, claim, make_workspace, open, search_notes, report, quality_answer, quality_standing, land, mark_built, close_increment, raise_question, record_friction, record_resteer, write_note, close_out. And the project's own test command.",
-    workflow: [
-      "1. Orient: call check_setup, then show_plan. Read only what the task needs (open the capability, search_notes), and stop reading when you can act.",
-      "2. Plan before building: something new the user can do is a story, the parts that make it work are its capabilities, and each testable promise is a contract. Break bigger work into increments on an arc, smallest useful piece first.",
-      "3. Claim the increment you drive and each capability before you change it. If another session holds it, pick other work.",
-      "4. Build one contract at a time (Minimum test to red, then Minimum to green): write its test, see it fail and report it red, make it pass and report it green.",
-      "5. Review: commit the green change, then start the change-reviewer in a fresh context: a subagent if your harness offers one, or else a new session of your harness in the same folder (`claude -p` or `codex exec`). Brief it with only this: work as the change-reviewer role in this project's library (search_notes \"change-reviewer\", then open it), reviewing increment <id>, whose branch is checked out in <folder>. Never pass on how you built it. It records its review and hands back each hit by number. Answer every hit with quality_answer: fixed (fix it and commit), or rejected with a reason the reviewer can judge. A contract it finds not met is fixed, or put to the user. Review again while quality_standing lists a finding, and land only when none stands. If the brief is refused after ten reviews, stop and raise_question on the arc it names, quoting the findings that stand.",
-      "6. Land: when a capability's contracts pass and nothing stands from the review, land it and mark it built; close the increment with its outcome, and tell the user in plain words what now works.",
-      "7. Record: friction for what got in your way, a re-steer when the user redirected you (in their words), and a note for anything worth keeping. Then work as the librarian for a few minutes.",
-      "8. Take the next piece, or close_out saying whether it is safe to close.",
-    ].join("\n"),
-    escalation: "When only the user can decide, raise_question on the arc rather than only asking in chat, and carry on with whatever does not wait on the answer.",
-    standsOn: ["Minimum to green", "Minimum test to red"],
-  },
-  {
-    title: "librarian",
-    description: "Keeps the project's library useful: no near-copies, links that mean something, recurring friction turned into lessons, and a plan true to what was built.",
-    oneLine: "A few minutes after each landing: tidy the library so the next session starts clear.",
-    role: "You put on the librarian's hat for a few minutes whenever a piece of work lands. The library is the project's memory between sessions: if it is muddled, the next session starts muddled.",
-    outcome: "Every note is genuinely new or was folded into the one that already covered it. A link means one note rests on another. Friction that keeps coming back has become a principle that prevents it. The plan matches what was built, and answered questions are settled with the user's answer.",
-    tools: "storytree's tools: search_notes, open, write_note, correct_note, reinforce, show_plan, edit_plan, retire_from_plan, settle_question.",
-    workflow: [
-      "1. Look at what this session wrote: notes, friction, re-steers.",
-      "2. For each new note, search for one that already says it (Edit before adding). If one does, correct that one and write no copy.",
-      "3. Friction that happened again is reinforced, not filed twice. Once the same friction has come back with evidence, write a principle that would have prevented it.",
-      "4. Keep the plan honest: edit_plan wording that no longer matches what was built, retire_from_plan a contract nobody wants (with the reason), and settle_question each question the user has answered, in their words.",
-      "5. Stop when that is done.",
-    ].join("\n"),
-    escalation: "Never rewrite what the user decided. If something they decided looks wrong, raise_question instead of changing it.",
-    standsOn: ["Edit before adding"],
-  },
-  {
-    title: "change-reviewer",
-    description: "Quality control on one green change before it lands: a fresh-context reviewer that answers every quality control check and every contract its increment names from the review's brief alone, and records what it finds.",
-    oneLine: "Review one green change against the checks and its contracts, from the brief alone, and record what you find.",
-    role: "You are the change-reviewer: quality control on one green change, before it lands. The session that built it starts you with a fresh context, briefed with the increment and the folder its branch is checked out in, and nothing about how it was built, so its reasoning cannot steer you. You read only the review's brief: the change's diff against the project's main branch, the contracts of the capabilities its increment names, the quality control checks, and, from the second review of the same change, each earlier hit with the builder's answer. You say, for every check, whether the change trips it and where, and for every contract, whether the change does what it says. You fix nothing: the builder answers you.",
-    outcome: "Your review is recorded by quality_take, answering every check (tripped or not; where tripped, the file, the line and what you found), every contract (met or not; if not, why) and every rejection the brief asks you to judge (its reason accepted or not; if not, why). You hand the builder the take's answer: each hit with its number, any contract not met, and whether the change is ready to land. Never: a verdict on something the brief did not hold, a hit with no file and line, a finding softened because the builder's reasoning reached you, a fix, or a review left unrecorded.",
-    tools: "storytree's tools: quality_brief, quality_take, quality_checks. And git diff and git show of the branch under review, and reading the files the diff touches. Nothing else: no plan or increment reads, no claims, no edits, no commits.",
-    workflow: [
-      "1. Your brief names the increment (the change) and the folder its branch is checked out in, and nothing about how it was built. If it carries the builder's reasoning anyway, ignore it and say so in your answer.",
-      "2. Call quality_brief with the increment and that folder as its worktree. It records that a review has begun and gives the review's brief: its number, the checks, the contracts, any earlier hits with their answers and the rejections to judge, and the diff. Read only that, plus the lines around a hunk in the files the diff touches when a hunk alone is not enough to judge.",
-      "3. For each check, answer its question about this change: tripped or not. Where tripped, give each place as the file's path from the project's folder, the line, and one sentence of what you found. A check is a judgement, not a pattern match: trip it only where the change does what the check asks about.",
-      "4. For each contract, judge whether the change does what it says, from the diff and the tests in it; not met needs a one-line why.",
-      "5. From the second review on, judge each rejection the brief lists: accept its reason when it answers the check (the expected value really is a worked number, the case really is out of the check's reach), otherwise do not, saying why. A reasoned rejection is a legitimate answer; do not hold out for a fix you merely prefer.",
-      "6. Call quality_take with the increment, the same worktree, and your return: every check (`check`, `tripped`, and where tripped its `hits`, each a `file`, `line` and `found`), every contract (`contract`, `met`, and a `why` when not met), and, when the brief lists rejections to judge, each one (`hit`, `accepted`, and a `why` when not). A refused return names what it gets wrong and records nothing: correct it and take it again.",
-      "7. Answer the builder with the take's answer whole, and end.",
-    ].join("\n"),
-    escalation: "quality_brief refuses because ten reviews of the change have run with findings still standing: run no review; hand the refusal back whole, and the builder raises the question on the arc it names. A brief that cannot be issued for another reason, or a return refused for a reason you cannot correct: hand back the message whole, and end. Never judge a change from anything but its brief, and never record a review you did not run.",
-    standsOn: [TEST_CREATION, NO_MODULE_MOCK],
-  },
-];
-
 /** The titles of the pack's roles, in the order the setup check names them. */
 export const STARTER_ROLES: readonly string[] = ROLES.map((role) => role.title);
 
 /** Write the starter pack into `library`, skipping each record it already holds under the same title. */
 export async function seedStarterPack(library: Library): Promise<void> {
   const ids = new Map<string, string>();
-  const write = async <K extends "principle" | "guardrail">(kind: K, note: NewKnowledge<K>) => {
-    ids.set(note.title, (await held(library, kind, note.title)) ?? (await library.writeKnowledge(kind, note, { actor: ACTOR })).id);
+  const write = async <K extends NoteKind>(kind: K, notes: readonly NewKnowledge<K>[]) => {
+    const heldNow = await held(library, kind);
+    for (const note of notes) ids.set(note.title, heldNow.get(note.title) ?? (await library.writeKnowledge(kind, note, { actor: ACTOR })).id);
   };
-  for (const principle of PRINCIPLES) await write("principle", principle);
-  for (const guardrail of GUARDRAILS) await write("guardrail", guardrail);
+  await write("principle", PRINCIPLES);
+  await write("guardrail", GUARDRAILS);
+  await write("pattern", PATTERNS);
+  await write("process", PROCESSES);
+  const linked = (titles: readonly string[] = []) =>
+    titles.map((title) => ids.get(title) ?? fail(`the starter pack links "${title}", which it does not hold`));
+  const checks = await held(library, "check");
   for (const { enforces, ...check } of CHECKS) {
-    if ((await held(library, "check", check.title)) !== undefined) continue;
-    await library.writeKnowledge("check", { ...check, enforces: enforces.map((title) => ids.get(title)!) }, { actor: ACTOR });
+    if (!checks.has(check.title)) await library.writeKnowledge("check", { ...check, enforces: linked(enforces) }, { actor: ACTOR });
   }
-  for (const { standsOn, ...role } of ROLES) {
-    if ((await held(library, "agent", role.title)) !== undefined) continue;
-    await library.writeKnowledge("agent", { ...role, context: standsOn.map((title) => ids.get(title)!) }, { actor: ACTOR });
+  const roles = await held(library, "agent");
+  for (const { standsOn, rules, refuse, ...role } of ROLES) {
+    if (roles.has(role.title)) continue;
+    const links = { context: linked(standsOn), ...(rules === undefined ? {} : { rules: linked(rules) }), ...(refuse === undefined ? {} : { antiPatterns: linked(refuse) }) };
+    await library.writeKnowledge("agent", { ...role, ...links }, { actor: ACTOR });
   }
 }
 
@@ -201,7 +103,13 @@ export async function starterRolesIn(library: Library): Promise<string[]> {
   return STARTER_ROLES.filter((title) => titles.has(title));
 }
 
-/** The id of the live `type` record titled `title`, if the library holds one. */
-async function held(library: Library, type: "principle" | "guardrail" | "check" | "agent", title: string): Promise<string | undefined> {
-  return (await library.list(type)).find((note) => note.fields.title === title)?.id;
+type NoteKind = "principle" | "guardrail" | "pattern" | "process";
+
+/** The ids of the live `type` records `library` holds, by title. */
+async function held(library: Library, type: NoteKind | "check" | "agent"): Promise<Map<string, string>> {
+  return new Map((await library.list(type)).map((note) => [note.fields.title, note.id]));
+}
+
+function fail(message: string): never {
+  throw new Error(message);
 }

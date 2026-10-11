@@ -193,7 +193,10 @@ test("6.6 a moved trunk is never adopted on sight: it reaches its project only o
 /** The six test-quality checks the starter pack seeds, by title. */
 const STARTER_CHECKS = ["Hidden skip", "Module mock", "Proxy assertion", "Tautological expected value", "Test title without a contract number", "Wall-clock duration"];
 
-test("6.7 setting a new project up seeds its library with the starter roles (an orchestrator, a librarian and a change-reviewer), the six test-quality checks a review's brief lists, and the notes they stand on; joining it from another machine adds no second copy", async () => {
+/** Every role the starter pack seeds, by title. */
+const STARTER_ROLE_TITLES = ["blind-reviewer", "change-reviewer", "corpus-investigator", "explorer", "frontend-builder", "librarian", "orchestrator", "story-author"];
+
+test("6.7 setting a new project up seeds its library with every starter role (orchestrator, librarian, change-reviewer, explorer, story-author, frontend-builder, blind-reviewer, corpus-investigator), the six test-quality checks a review's brief lists, and the notes they stand on; joining it from another machine adds no second copy", async () => {
   const project = uniqueProjectName();
   await withTempDir(async (dir) => {
     const { laptop, box } = machines(dir);
@@ -201,28 +204,56 @@ test("6.7 setting a new project up seeds its library with the starter roles (an 
     mkdirSync(onLaptop, { recursive: true });
     mkdirSync(onBox, { recursive: true });
     await withStorytree([project], async (storytree) => {
-      // The pack as the library holds it: each role and check by title, every note each stands on or enforces live.
+      // The pack as the library holds it: each role and check by title, every note a role stands on, keeps as a rule or refuses, and every note a check enforces, live.
       const pack = async () => {
         const library = await storytree.openProject(project);
         try {
           const roles = await library.list("agent");
           const checks = await library.list("check");
-          for (const id of [...roles.flatMap((role) => role.fields.context), ...checks.flatMap((check) => check.fields.enforces)]) {
-            assert.ok(["principle", "guardrail"].includes((await library.get(id))?.type ?? "none"), `${id} is a live principle or guardrail`);
+          const linked = new Set([
+            ...roles.flatMap((role) => [...role.fields.context, ...(role.fields.rules ?? []), ...(role.fields.antiPatterns ?? [])]),
+            ...checks.flatMap((check) => check.fields.enforces),
+          ]);
+          for (const id of linked) {
+            assert.ok(["principle", "guardrail", "pattern", "process"].includes((await library.get(id))?.type ?? "none"), `${id} is a live principle, guardrail, pattern or process`);
           }
-          return { roles: roles.map((role) => role.fields.title).sort(), checks: checks.map((check) => check.fields.title).sort() };
+          const kinds = ["principle", "guardrail", "pattern", "process"] as const;
+          const notes = (await Promise.all(kinds.map(async (kind) => (await library.list(kind)).map((note) => `${kind}: ${note.fields.title}`)))).flat();
+          return { roles: roles.map((role) => role.fields.title).sort(), checks: checks.map((check) => check.fields.title).sort(), notes: notes.sort() };
         } finally {
           await library.close();
         }
       };
-      const seeded = { roles: ["change-reviewer", "librarian", "orchestrator"], checks: STARTER_CHECKS };
+      // What a role stands on, by title: the notes behind its required reading, its rules and what it refuses.
+      const standsOn = async (title: string) => {
+        const library = await storytree.openProject(project);
+        try {
+          const role = (await library.list("agent")).find((agent) => agent.fields.title === title)!;
+          const titles = async (ids: readonly string[] = []) =>
+            Promise.all(ids.map(async (id) => {
+              const fields = (await library.get(id))?.fields;
+              return fields !== undefined && "title" in fields ? fields.title : `${id} (not a live note)`;
+            }));
+          return { reading: await titles(role.fields.context), rules: await titles(role.fields.rules), refuse: await titles(role.fields.antiPatterns) };
+        } finally {
+          await library.close();
+        }
+      };
       // A first try that fails at its last step (the choice cannot be saved), then the retry.
       const choice = path.join(laptop, "project-choice.json");
       mkdirSync(choice, { recursive: true });
       await assert.rejects(setUpProject({ folder: onLaptop, project, storytree, storytreeHome: laptop }));
       rmSync(choice, { recursive: true });
       await setUpProject({ folder: onLaptop, project, storytree, storytreeHome: laptop });
-      assert.deepEqual(await pack(), seeded, "the retry adds no second copy");
+      const seeded = await pack();
+      assert.deepEqual({ roles: seeded.roles, checks: seeded.checks }, { roles: STARTER_ROLE_TITLES, checks: STARTER_CHECKS }, "the retry adds no second role or check");
+      assert.equal(new Set(seeded.notes.map((note) => note.replace(/^[a-z]+: /, ""))).size, seeded.notes.length, "the retry adds no second copy of a note");
+      assert.deepEqual(await standsOn("explorer"), {
+        reading: ["Delegate exploration to digest-returning subagents", "Pull-based context architecture", "Reference, don't restate", "Plain language first"],
+        rules: ["Delegate exploration to digest-returning subagents", "Reference, don't restate", "Plain language first", "No claim without evidence"],
+        refuse: ["Escalate up when blocked or out of scope"],
+      });
+      assert.deepEqual((await standsOn("orchestrator")).reading, ["Merge ceremony", "Pre-merge librarian pass", "Library edit ceremony", "Pull-based context architecture", "Decompose by testability; delegate the glue", "Parallel build-lane fan-out", "Friction earns durable guidance by supporting evidence, not by being reported"]);
       await setUpProject({ folder: onBox, project, storytree, storytreeHome: box, join: true });
       assert.deepEqual(await pack(), seeded, "joining adds no second copy");
 

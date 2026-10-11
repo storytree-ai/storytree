@@ -305,7 +305,7 @@ test("session-management 8.22 a session that sets its project up finishes the se
       for (const [name, agentFor] of [[claudes, claudeCode], [codexes, codex]] as const) {
         const answer = await setUp(name, agentFor);
         assert.equal(answer.isError, false, answer.text);
-        assert.deepEqual(answer.data.starterRoles, ["orchestrator", "librarian", "change-reviewer"]);
+        assert.deepEqual(answer.data.starterRoles, ["orchestrator", "librarian", "change-reviewer", "explorer", "story-author", "frontend-builder", "blind-reviewer", "corpus-investigator"]);
         assert.deepEqual(answer.data.fixes, ["new-session"], "no edit or command test, which only a session started in the project could complete");
         assert.match(answer.text, /new session/);
         assert.doesNotMatch(answer.text, /type \/hooks/);
@@ -361,7 +361,7 @@ test("session-management 8.19 in a project whose library holds the starter roles
       await withAgent(newFolder, agentIn(newFolder), async (agent) => {
         assert.equal((await agent.call("set_up_project", { name: seeded })).isError, false);
         const checked = await agent.call("check_setup");
-        assert.deepEqual(checked.data.starterRoles, ["orchestrator", "librarian", "change-reviewer"]);
+        assert.deepEqual(checked.data.starterRoles, ["orchestrator", "librarian", "change-reviewer", "explorer", "story-author", "frontend-builder", "blind-reviewer", "corpus-investigator"]);
         assert.match(checked.text, /orchestrator/);
         assert.match(checked.text, /librarian/);
         assert.match(checked.text, /change-reviewer/);

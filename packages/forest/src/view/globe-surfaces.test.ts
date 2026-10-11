@@ -92,7 +92,7 @@ test("3.34 zooming in past the islands hides them, leaving the glass and core; z
   assert.deepEqual(shownSurfaces(undefined, past), shownSurfaces(undefined, false));
 });
 
-test("3.43 territories arrive without a flash: borders trace on along their length, then the fill eases in; kept land stays drawn across a rebuild", () => {
+test("3.46 territories arrive without a flash: borders trace on along their length, then the fill eases in; kept land stays drawn across a rebuild", () => {
   const flat = (p: { x: number; z: number }) => new Vector3(p.x, 0, p.z);
   const square = (x: number) => [{ x, z: 0 }, { x: x + 2, z: 0 }, { x: x + 2, z: 2 }, { x, z: 2 }];
   // A chain of two borders, 2 + 2 long, around one territory.

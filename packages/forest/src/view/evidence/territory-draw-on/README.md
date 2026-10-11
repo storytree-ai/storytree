@@ -1,4 +1,4 @@
-# Why the islands flashed on the map chapter's capabilities step, and the fix (increment_fbfb586cfd31, 3.43)
+# Why the islands flashed on the map chapter's capabilities step, and the fix (increment_fbfb586cfd31, 3.46)
 
 `probe-website.mjs` plays the locally built website at 1440×900 from the stories step to the capabilities step and reads, on every
 frame the globe renders (through the capture seam in `PlanetWorldCanvas`), each territory's fill opacity and visibility and its
@@ -20,7 +20,7 @@ pnpm --filter @storytree/website build
 node packages/forest/src/view/evidence/territory-draw-on/probe-website.mjs --out /tmp/frames.json
 ```
 
-## After (3.43)
+## After (3.46)
 
 `TerritoryDrawOn` in `globe-surfaces.ts` presents each rebuilt land in a layout effect, before it can be drawn, and keeps what the island
 already drew by its ground: kept borders and fills are whole from the first frame, new borders trace on along their chains over one

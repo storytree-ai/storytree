@@ -33,7 +33,7 @@ const healthOpacity = new WeakMap<Mesh, number>();
 const presentation = new WeakMap<Object3D, GlobeSurfaces["territories"]>();
 /** How far each territory has filled in on a growing globe (3.30); absent is whole. */
 const grownBy = new WeakMap<Object3D, number>();
-/** How far each new territory's fill has eased in after its borders drew on (3.43); absent is whole. */
+/** How far each new territory's fill has eased in after its borders drew on (3.46); absent is whole. */
 const drawnBy = new WeakMap<Object3D, number>();
 /** Each file circle's full size, before the growth swells it. */
 const fullSize = new WeakMap<Object3D, number>();
@@ -89,14 +89,14 @@ export function growLand(land: Group, circles: Group, grown: { capability(capabi
 }
 
 /** A new border traces on along its length over `borders` rendered seconds, at constant speed as the roads do (world 6.17),
- * then a new territory's fill eases in over `fill` (3.43). */
+ * then a new territory's fill eases in over `fill` (3.46). */
 export const TERRITORY_DRAW = { borders: 1, fill: 0.4 } as const;
 
 type Segment = { key: string; from: string; to: string; index: number };
 type Chain = { start: number; steps: { index: number; flip: boolean; length: number }[]; length: number };
 
 /**
- * One island's territories arriving (3.43): what it has drawn is kept by its ground, so a rebuilt land shows the borders and
+ * One island's territories arriving (3.46): what it has drawn is kept by its ground, so a rebuilt land shows the borders and
  * fills it already had, whole, from its first frame, and only new land draws on: each new border along its chain, then each new
  * territory's fill easing in. Hiding the territories forgets them, so showing them again draws them on. Under reduced motion, or
  * as the globe first opens, everything stands whole at once.

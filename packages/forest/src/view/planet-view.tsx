@@ -247,7 +247,7 @@ function Territories({ story, land, coast, claimed, radius, spot, lighting, surf
   const growth = usePlanetGrowth();
   const whole = useRef(false);
   const grow = useCallback(() => growLand(drawn.group, drawn.circles, { capability: id => growth.capability(id), file: path => growth.file(story, path) }), [drawn, growth, story]);
-  // 3.43: what this island already drew stays drawn across a rebuild; new borders trace on and new fills ease in.
+  // 3.46: what this island already drew stays drawn across a rebuild; new borders trace on and new fills ease in.
   const drawOn = useMemo(() => new TerritoryDrawOn(), []);
   const opened = useRef(true);
   // Before the land is first drawn, so a rebuilt island never shows a frame in the wrong colours.

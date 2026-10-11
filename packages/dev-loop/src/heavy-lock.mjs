@@ -25,7 +25,7 @@ import { fileURLToPath } from "node:url";
 export const HOLDER_ENV = "STORYTREE_HEAVY_LOCK_HOLDER";
 export const WAIT_LIMIT_MS = 60 * 60 * 1000;
 
-const lockFile = () => path.join(process.env.STORYTREE_HOME || path.join(homedir(), ".storytree", "0.3"), "heavy-run.lock");
+const lockFile = (home = process.env.STORYTREE_HOME) => path.join(home || path.join(homedir(), ".storytree", "0.3"), "heavy-run.lock");
 
 function readHolder(file) {
   try {
@@ -50,6 +50,16 @@ function alive({ pid, gone }) {
   } catch (error) {
     return error.code === "EPERM";
   }
+}
+
+/** Remove the lock when its holder's process has gone: a holder killed outright (taskkill /f on Windows) runs no exit handler. */
+export function clearAbandonedHeavyLock(home) {
+  const file = lockFile(home);
+  const holder = readHolder(file);
+  if (holder === undefined || alive(holder)) return;
+  try {
+    unlinkSync(file);
+  } catch {}
 }
 
 function branchOf(root) {

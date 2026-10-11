@@ -31,6 +31,7 @@ import { connect } from "@storytree/library";
 import { locateLibrary, storytreeHome } from "@storytree/session-management";
 
 import { comparedRows } from "./desktop-lag.mjs";
+import { clearAbandonedHeavyLock } from "./heavy-lock.mjs";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 const PROJECT = "storytree";
@@ -223,17 +224,20 @@ const minutes = (ms) => (ms >= 60_000 ? `${(ms / 60_000).toFixed(ms % 60_000 ===
 
 /**
  * Run `command` in a process group of its own, stopped when it passes `limitMs`: SIGTERM to the group (the heavy-run lock's wrapper
- * then stops its command and releases the lock), SIGKILL after `graceMs`. Resolves to its exit code, or timedOut with the reason.
+ * then stops its command and releases the lock), SIGKILL after `graceMs`; on Windows, taskkill /t /f at once, after which a lock its
+ * killed wrapper could not release is cleared. Resolves to its exit code, or timedOut with the reason.
  * `setTimer` is setTimeout unless a caller fires the limit itself.
  */
 export function runBounded(command, args, { cwd, env = process.env, limitMs, graceMs = 30_000, log: say = log, output = "inherit", setTimer = setTimeout }) {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { cwd, env, stdio: ["ignore", output, output], detached: true });
+    const windows = process.platform === "win32";
+    const child = spawn(command, args, { cwd, env, stdio: ["ignore", output, output], detached: !windows });
     let timedOut = false;
     let killer;
     const signal = (sent) => {
       try {
-        process.kill(-child.pid, sent);
+        if (windows) execFileSync("taskkill", ["/pid", String(child.pid), "/t", "/f"], { stdio: "ignore" });
+        else process.kill(-child.pid, sent);
       } catch {}
     };
     const timer = setTimer(() => {
@@ -246,6 +250,7 @@ export function runBounded(command, args, { cwd, env = process.env, limitMs, gra
     child.once("close", (code) => {
       clearTimeout(timer);
       clearTimeout(killer);
+      if (timedOut) clearAbandonedHeavyLock(env.STORYTREE_HOME);
       resolve(timedOut ? { timedOut, code, reason: `passed its limit of ${minutes(limitMs)}` } : { timedOut, code });
     });
   });

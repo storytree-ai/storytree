@@ -6,11 +6,13 @@
  *
  * The installed app is the Windows one-click install: its folder is %LOCALAPPDATA%\Programs\storytree-0.3
  * (the packaging config's per-user NSIS target and product name), marked by resources\storytree-installed,
- * which the installer writes (apps/desktop/installer.nsh). The packaging config ships no installer for
- * macOS or Linux, so there is none to find there. The app that follows main is set up when a runtime
- * slot holds a built app (`pnpm app:follow-main`).
+ * which the installer writes (apps/desktop/installer.nsh). On a Mac it is the bundle the one-liner put
+ * in place (~/Applications/storytree-0.3.app by default), which the home's delivery record names, as
+ * installation() reads it (contract 4.21); nothing may be written inside the bundle. Linux has no
+ * installer, so there is none to find there. The app that follows main is set up when a runtime slot
+ * holds a built app (`pnpm app:follow-main`).
  */
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 import { appDirIn } from "./follow-main.js";
@@ -22,11 +24,21 @@ export interface Machine {
   localAppData?: string | undefined;
 }
 
+/** The installed Mac app's bundle, when the home's delivery record names one that is still there. */
+function macAppDir(home: string): string | undefined {
+  let record: { schema?: unknown; installDir?: unknown } | undefined;
+  try { record = JSON.parse(readFileSync(path.join(home, "delivery.json"), "utf8")); } catch { return undefined; }
+  if (record?.schema !== 1 || typeof record.installDir !== "string" || !record.installDir.endsWith(".app")) return undefined;
+  return existsSync(path.join(record.installDir, "Contents")) ? record.installDir : undefined;
+}
+
 /** The installed app's folder, when this machine has one. */
-export function installedAppDir(localAppData = process.env.LOCALAPPDATA): string | undefined {
-  if (localAppData === undefined || localAppData === "") return undefined;
-  const dir = path.join(localAppData, "Programs", "storytree-0.3");
-  return existsSync(path.join(dir, "resources", "storytree-installed")) ? dir : undefined;
+export function installedAppDir(home: string, localAppData = process.env.LOCALAPPDATA): string | undefined {
+  if (localAppData !== undefined && localAppData !== "") {
+    const dir = path.join(localAppData, "Programs", "storytree-0.3");
+    if (existsSync(path.join(dir, "resources", "storytree-installed"))) return dir;
+  }
+  return macAppDir(home);
 }
 
 /** The follow-main app's runtime folder, when it is set up here. */
@@ -36,11 +48,13 @@ export function followMainDir(home: string): string | undefined {
 }
 
 /** Why the follow-main app may not be set up or started here, naming the installed app; undefined when it may. */
-export function installedAppPresent(localAppData?: string): string | undefined {
-  const installed = installedAppDir(localAppData);
+export function installedAppPresent(home: string, localAppData?: string): string | undefined {
+  const installed = installedAppDir(home, localAppData);
   if (installed === undefined) return undefined;
-  return `the installed storytree 0.3 app is on this machine (${installed}), and only one storytree app may run per machine. ` +
-    `Uninstall it first (Settings → Apps → storytree-0.3 → Uninstall, or run "Uninstall storytree-0.3.exe" in that folder), then run this again.`;
+  const remove = installed.endsWith(".app")
+    ? `Uninstall it first (quit it from its menu-bar icon, then move ${installed} to the Trash), then run this again.`
+    : `Uninstall it first (Settings → Apps → storytree-0.3 → Uninstall, or run "Uninstall storytree-0.3.exe" in that folder), then run this again.`;
+  return `the installed storytree 0.3 app is on this machine (${installed}), and only one storytree app may run per machine. ${remove}`;
 }
 
 /** Why the installed app may not start here, naming the follow-main app; undefined when it may. */
@@ -53,5 +67,5 @@ export function followMainPresent(home: string): string | undefined {
 
 /** Why the app `starting` may not start beside the other copy; undefined when it may. */
 export function otherApp({ starting, home, localAppData }: Machine & { starting: "installed" | "follow-main" }): string | undefined {
-  return starting === "installed" ? followMainPresent(home) : installedAppPresent(localAppData);
+  return starting === "installed" ? followMainPresent(home) : installedAppPresent(home, localAppData);
 }

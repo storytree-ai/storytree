@@ -189,3 +189,17 @@ test("4.12 a healthy capability says nothing more, and a contract not re-run say
   assert.match(renderStoryPanel(notGreen(undefined, { state: "passing", at: "2026-10-01T23:59:00.000Z" }), "cap"), /last seen passing 1 Oct, not re-run since/);
   assert.doesNotMatch(renderStoryPanel(notGreen(undefined), "cap"), /not re-run since/);
 });
+
+test("4.15 a mapped story's panel says it was here before storytree and is assumed to be working, with its files and lines, and shows no health", () => {
+  const mapped: StoryPanel = { story: "m", title: "Cart", description: "no description yet", capabilities: [], arrows: [], mapped: { files: 2, lines: 1200 } };
+  const html = renderStoryPanel(mapped, undefined);
+  assert.match(html, /class="panel-mapped"/);
+  assert.match(html, /here before storytree/i);
+  assert.match(html, /assumed to be working/);
+  assert.match(html, /2 files, 1,200 lines/);
+  assert.doesNotMatch(html, /panel-badge|panel-health|passing|failing|not checked/, "no health is shown");
+  const uncounted = renderStoryPanel({ ...mapped, mapped: {} }, undefined);
+  assert.match(uncounted, /assumed to be working/);
+  assert.doesNotMatch(uncounted, /files|lines/, "no counts before the survey reads it");
+  assert.doesNotMatch(renderStoryPanel(panel, "base"), /panel-mapped/, "a built story's panel says nothing of it");
+});

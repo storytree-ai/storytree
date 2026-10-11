@@ -388,6 +388,25 @@ test("6.52 park_increment parks an increment born held on a question raised firs
   });
 });
 
+test("6.59 park_increment parks an increment born waiting on another increment, so a claim on it is refused naming its blocker until that lands; a blocker that is not a live increment is refused with nothing parked", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const { arc } = await planned(agent);
+      const mailer = idOf(await agent.call("park_increment", { arc, title: "Mailer", objective: "Send mail", body: "Red then green" }));
+      const welcome = idOf(await agent.call("park_increment", { arc, title: "Welcome email", objective: "Send it", body: "Red then green", waits_on: [{ increment: mailer, reason: "sends through it" }] }));
+      assert.deepEqual(await library.waitHolds(welcome), [{ on: mailer, reason: "sends through it", forGood: false }]);
+      const refused = await agent.call("claim", { increment: welcome, reason: "driving it" });
+      assert.equal(refused.isError, true);
+      assert.match(refused.text, new RegExp(`waits on ${mailer} \\(sends through it\\)`));
+
+      const before = (await library.arcView(arc))?.increments.length;
+      const broken = await agent.call("park_increment", { arc, title: "Bounces", objective: "Handle them", body: "Red then green", waits_on: [{ increment: arc, reason: "?" }] });
+      assert.equal(broken.isError, true);
+      assert.equal((await library.arcView(arc))?.increments.length, before, "nothing parked");
+    });
+  });
+});
+
 test("6.44 raising a question held on an increment the session holds, or a wait for the owner on it, releases its claims on it and the capabilities it took for it, and says so; claims on other work stand, and a question on another arc releases nothing (ADR-0944 D4)", async () => {
   await withProject(async ({ folder, library, log, project }) => {
     await withAgent(folder, claudeCode("asking"), async (agent) => {

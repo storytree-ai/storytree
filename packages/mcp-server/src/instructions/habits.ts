@@ -54,6 +54,7 @@ Code the map can draw.
 Red, then green, then landed.
 - Write a contract's test first, run it, see it fail, and \`report\` it red.
 - Make it pass, and \`report\` it green.
+- Before a green change lands, have it reviewed in a fresh context, as the library's change-reviewer role says: \`quality_brief\` gives the review the change's diff, the contracts its increment names and every check \`quality_checks\` reads, and \`quality_take\` records what it found. Answer each hit with \`quality_answer\`, fixed or rejected with a reason, and review again while \`quality_standing\` lists one. \`quality_ledger\` counts the hits by check; \`graduate_check\` records a part of a check that a deterministic check now enforces.
 - When its contracts pass, \`land\` the capability: your claim on it ends. A landing that leaves a source file of the story's package reached by no numbered test is held, naming each file: place it, then land again. A landing also names each planned contract no numbered test proves: write its test, or retire the contract. If you stop before then, \`release\` it.
 - A capability is proposed until you \`mark_built\` it, once you consider it built. Its card then says healthy, unhealthy or untested from what storytree verified, never from your report.
 - At an increment boundary, \`read_context\` says how many tokens your context holds; judge whether to take on more.
@@ -63,6 +64,7 @@ Red, then green, then landed.
 Record what you learned.
 - \`write_note\` a decision, definition, principle, guardrail, pattern, process, agent role or tech stack artifact when you learn something worth keeping; give the chosen kind its required fields. With no place named, it goes onto the shelf of the capability you hold. \`correct_note\` fixes an artifact's wording in place.
 - \`record_friction\` when something got in your way, with concrete evidence; \`reinforce\` the existing item when it happens again, with its own evidence. \`record_resteer\` when the owner redirects you, quoting their own words.
+- Give storytree text holding a dollar sign followed by a name, or a line break, through its tools, or to its command line as a file (--body @body.txt), never typed on the command line itself: the shell reads typed words first, and swaps the name for its value, or stops on an unset one, before storytree runs.
 
 Use \`list_own_runs\` for this caller’s recorded work, \`list_all_runs\` for every recorded session on this computer, \`stop_own_run\` for named runs you own, and \`clear_own_runs\` to remove only your confirmed-gone records and read what remains on this computer. These tools work with the app offline; uncertain caller identity grants no stop authority.
 

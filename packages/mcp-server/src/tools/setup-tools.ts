@@ -168,7 +168,8 @@ const SET_UP_THIS_SESSION =
 
 /** The starter roles the project's library holds (1.14, 8.19), named for the agent to open. */
 function rolesSentence(starterRoles: readonly string[]): string {
-  return `Its library holds the ${starterRoles.join(" and ")} roles, which say how to work in this project: find each with search_notes and read it before you start, and work as it says.`;
+  const named = starterRoles.length < 3 ? starterRoles.join(" and ") : `${starterRoles.slice(0, -1).join(", ")} and ${starterRoles.at(-1)}`;
+  return `Its library holds the ${named} roles, which say how to work in this project: find each with search_notes and read it before you start, and work as it says when you take it up.`;
 }
 
 /** What the check says of the hook failures this machine traced for the session: how many, and the latest. */

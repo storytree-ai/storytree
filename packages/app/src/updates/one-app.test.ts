@@ -62,3 +62,34 @@ test("4.18 each app's start refuses where the other copy is, naming it; alone, n
   assert.ok(refusedFollowMain?.includes(installed), "the follow-main app names the installed app's folder");
   assert.match(refusedFollowMain ?? "", /uninstall/i);
 });
+
+function installMac({ home }: { home: string }): string {
+  // The Mac one-liner puts the bundle in ~/Applications and records it in the home's delivery record.
+  const bundle = path.join(path.dirname(path.dirname(home)), "Applications", "storytree-0.3.app");
+  mkdirSync(path.join(bundle, "Contents", "Resources"), { recursive: true });
+  mkdirSync(home, { recursive: true });
+  writeFileSync(path.join(home, "delivery.json"), JSON.stringify({ schema: 1, installDir: bundle, tools: {} }));
+  return bundle;
+}
+
+test("4.18 on a Mac, setting up and starting the app that follows main refuse where the delivery record names the installed app, naming its bundle and how to remove it", async (t) => {
+  const box = machine(t);
+  const bundle = installMac(box);
+  const done: string[] = [];
+  const said: string[] = [];
+
+  const result = await followMain({ home: box.home, localAppData: box.localAppData, setUp: async () => (done.push("set up"), {} as RunningBuild), start: () => (done.push("start"), 1), say: (line) => said.push(line) });
+
+  assert.deepEqual(result, { refused: bundle });
+  assert.deepEqual(done, [], "nothing is built or started");
+  assert.match(said.join("\n"), /Trash/, "it says how to remove a Mac app");
+  const refused = otherApp({ starting: "follow-main", ...box });
+  assert.ok(refused?.includes(bundle), "the follow-main app's start names the bundle");
+});
+
+test("4.18 a delivery record whose app is gone is no installed app", (t) => {
+  const box = machine(t);
+  const bundle = installMac(box);
+  rmSync(bundle, { recursive: true, force: true });
+  assert.equal(otherApp({ starting: "follow-main", ...box }), undefined);
+});

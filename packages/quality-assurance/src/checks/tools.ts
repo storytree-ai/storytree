@@ -55,9 +55,9 @@ export function qualityTools(): ToolExtension {
         const reading = await (await openLedger(storytree)).reading(project);
         return { text: ledgerText(reading), data: { ledger: reading } };
       });
-      define("quality_brief", "Issue the next review's brief for an increment's change: its diff against origin/main, the contracts of the capabilities it names and every live check. Give the diff, or the worktree whose branch is the change.", z.object({
+      define("quality_brief", "Issue the next review's brief for an increment's change: its diff against the default branch origin names (origin/main when it names none), the contracts of the capabilities it names and every live check. Give the diff, or the worktree whose branch is the change.", z.object({
         increment: z.string().min(1).describe("The increment whose change is reviewed"),
-        diff: z.string().optional().describe("The change's diff against origin/main, as git diff gives it"),
+        diff: z.string().optional().describe("The change's diff against its default branch, as git diff gives it"),
         worktree: z.string().optional().describe("The worktree whose branch is the change, to read the diff from"),
       }), async ({ increment, diff, worktree }, { library, storytree }) => {
         if (diff === undefined && worktree === undefined) throw new Error("Give the change's diff, or the worktree whose branch is the change: this server's folder is not the branch.");

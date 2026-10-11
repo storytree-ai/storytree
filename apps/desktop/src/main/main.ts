@@ -50,6 +50,7 @@ import {
   buildLabel,
   electronIn,
   launchToRecord,
+  loginItemsFor,
   openAppLibrary,
   pageReads,
   PAGE_READS_CHANNELS,
@@ -278,7 +279,8 @@ async function run(): Promise<void> {
   answerPage(ipcMain, FOREST_CHANNELS, {
     codeSurvey: async (name: unknown) => {
       const folder = await open().projectFolder(name);
-      return folder === undefined ? {} : surveys.read(folder, treesRead.get(name) ?? await open().projectTree(name));
+      // The folders this machine imports, where the survey reads the project's mapped stories (ADR-0993 D2).
+      return folder === undefined ? {} : surveys.read(folder, treesRead.get(name) ?? await open().projectTree(name), await open().projectImports(name));
     },
   });
 
@@ -338,9 +340,13 @@ async function run(): Promise<void> {
     log: line => console.log(line),
   });
   // The installed app opens at sign-in, in the tray, unless the user turned that off (lifecycle 1.12). An installed Mac app
-  // (updates 4.21) does too, through the same login item; its start refusal and the journey's desktopStarted use installedApp
+  // (updates 4.21) does too, through its LaunchAgent; its start refusal and the journey's desktopStarted use installedApp
   // as Windows does. The install choice is offered only where releases install themselves, which an ad-hoc Mac build does not.
-  const signingIn = signIn({ installed: !args.smoke && installedApp(), file: path.join(home.dir, "sign-in.json"), loginItems: { set: (item) => app.setLoginItemSettings(item) } });
+  const signingIn = signIn({ installed: !args.smoke && installedApp(), file: path.join(home.dir, "sign-in.json"), loginItems: loginItemsFor(process.platform, {
+    electron: { set: (item) => app.setLoginItemSettings(item) },
+    execPath: process.execPath,
+    launchAgents: path.join(app.getPath("home"), "Library", "LaunchAgents"),
+  }) });
   answerPage(ipcMain, LIFECYCLE_CHANNELS, { readSignIn: () => signingIn.read(), setSignIn: (on: unknown) => signingIn.set(on) });
   // When a downloaded release may install itself (updates 4.13): meaningful only where releases install.
   const installing = installChoice({ available: !args.smoke && releasesInstall(), file: path.join(home.dir, "install-choice.json") });

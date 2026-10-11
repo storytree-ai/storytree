@@ -44,7 +44,10 @@ test("1.2 only named milestones and validated app versions cross the queue bound
     assert.equal(a.state().queued, 0);
     for (const event of ["installed", "first_launch", "agent_connected", "hooks_verified", "first_project", "first_landed_increment", "error", "app_version"]) a.record(event);
     const sent: unknown[] = [];
-    await a.flush({ send: async event => { sent.push(event); }, close: async () => {} });
+    // Drain across flushes: a slow runner can reach the bounded flush's deadline (2.3) before all eight.
+    while (a.state().queued > 0) {
+      assert.ok(await a.flush({ send: async event => { sent.push(event); }, close: async () => {} }) > 0);
+    }
     assert.equal(sent.length, 8);
     for (const event of sent as { properties: unknown; distinctId: string }[]) {
       assert.deepEqual(event.properties, { app_version: "0.3.42" });

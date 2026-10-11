@@ -1,6 +1,6 @@
 /** Capability 8 · Files from disk or an immutable merged Git tree; never check out over local work. */
 import { type ChildProcess, execFile } from "node:child_process";
-import { readdir, realpath, stat } from "node:fs/promises";
+import { lstat, readdir, realpath, stat } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 
@@ -218,8 +218,11 @@ const imported = new Map<string, { commit: string; source: Promise<SurveySource>
  * The files of an imported folder (ADR-0993 D2): those Git tracks at its checkout's commit, read from that
  * commit's immutable tree with one Git call per ask while the commit stands, and `commit` naming it; a folder
  * that is no checkout with a commit is read from disk, with no commit. `folder` is the folder as the source spells it.
+ * Work done there and not committed (a changed, new or deleted file Git does not ignore) stands over the commit's
+ * tree, read from disk, and `local` names it (each such file with its size and modified time) so a survey of it
+ * is kept only while it is unchanged.
  */
-export async function importedSource(folder: string, readText: (file: string) => Promise<string>): Promise<{ source: SurveySource; folder: string; commit?: string }> {
+export async function importedSource(folder: string, readText: (file: string) => Promise<string>): Promise<{ source: SurveySource; folder: string; commit?: string; local?: string }> {
   const found = await gitText(folder, ["rev-parse", "--path-format=absolute", "--show-toplevel", "--git-common-dir", "HEAD", "--show-prefix"]).catch(() => undefined);
   const [top, common, commit, prefix = ""] = found?.split("\n") ?? [];
   if (top === undefined || common === undefined || commit === undefined) return { source: disk(folder, readText), folder };
@@ -231,7 +234,64 @@ export async function importedSource(folder: string, readText: (file: string) =>
     kept = { commit, source };
     imported.set(common, kept);
   }
-  return { source: await kept.source, folder: path.resolve(root, prefix), commit };
+  const at = { folder: path.resolve(root, prefix), commit };
+  const local = await localWork(root);
+  if (local.size === 0) return { source: await kept.source, ...at };
+  return { source: overlaid(await kept.source, local, readText), ...at, local: JSON.stringify([...local].sort(([a], [b]) => (a < b ? -1 : 1))) };
+}
+
+/**
+ * Each file the checkout at `root` changed, added or deleted since its commit, Git's ignored files left out, by full
+ * path: its version on disk (size and modified time), or undefined when it is not there. Nothing is written into the
+ * checkout: Git is told not to take its optional index lock.
+ */
+async function localWork(root: string): Promise<Map<string, string | undefined>> {
+  const listed = (await git(root, ["--no-optional-locks", "status", "--porcelain", "-z", "--untracked-files=all", "--no-renames"])).toString("utf8");
+  const local = new Map<string, string | undefined>();
+  for (const entry of listed.split("\0")) {
+    if (entry.length < 4) continue;
+    const full = path.resolve(root, entry.slice(3));
+    if (!full.startsWith(root + path.sep)) throw new Error("Git survey path escapes its repository.");
+    const found = await lstat(full).catch(() => undefined);
+    local.set(full, found?.isFile() ? `${found.size}:${found.mtimeMs}` : undefined);
+  }
+  return local;
+}
+
+/** `base` with `local`'s files standing over it: each read from disk, or gone when it is not there. */
+function overlaid(base: SurveySource, local: ReadonlyMap<string, string | undefined>, read: (file: string) => Promise<string>): SurveySource {
+  const added = new Map<string, Map<string, Entry>>();
+  const gone = new Map<string, Set<string>>();
+  for (const [full, version] of local) {
+    if (version === undefined) {
+      gone.set(path.dirname(full), (gone.get(path.dirname(full)) ?? new Set()).add(path.basename(full)));
+      continue;
+    }
+    let child = full;
+    while (child !== base.root) {
+      const parent = path.dirname(child);
+      let entries = added.get(parent);
+      if (!entries) added.set(parent, entries = new Map());
+      const name = path.basename(child);
+      if (entries.has(name)) break;
+      entries.set(name, { name, directory: child !== full, file: child === full });
+      child = parent;
+    }
+  }
+  return {
+    root: base.root,
+    async entries(directory) {
+      const entries = new Map((await base.entries(directory)).map((entry) => [entry.name, entry]));
+      for (const name of gone.get(directory) ?? []) if (entries.get(name)?.file) entries.delete(name);
+      for (const [name, entry] of added.get(directory) ?? []) if (!entries.has(name)) entries.set(name, entry);
+      return [...entries.values()].sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
+    },
+    async file(full) {
+      if (!local.has(full)) return base.file(full);
+      const version = local.get(full);
+      return version === undefined ? undefined : { version, read: () => read(full) };
+    },
+  };
 }
 
 export function surveySourceReader(scope: "main" | "current", readText: (file: string) => Promise<string>) {

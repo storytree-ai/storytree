@@ -5,7 +5,7 @@
  *
  * - A change is one increment's branch, named by the increment. Each review of it is one iteration: a brief
  *   issued, then the reviewer's return taken. A brief not yet taken is replaced by the next one issued.
- * - The brief holds the branch's diff against origin/main, every contract of the capabilities the increment
+ * - The brief holds the branch's diff against origin/main, its uncommitted work included (2.6), every contract of the capabilities the increment
  *   names, and every live check; never the increment's body or the implementer's reasoning (contract 2.1).
  *   Each contract is listed under its story and capability, and every capability named is listed even with no
  *   contracts, so two stories' contracts sharing a number both appear, each with its story (2.5).
@@ -264,7 +264,28 @@ function refusals(brief: Brief, review: ReviewReturn): string[] {
  * by default the branch origin names as its default (a user's project may call it master), else origin/main.
  */
 export function branchDiff(cwd: string, base = originDefault(cwd)): string {
-  return execFileSync("git", ["diff", `${base}...HEAD`], { cwd, encoding: "utf8", maxBuffer: 256 * 1024 * 1024 });
+  const git = (...args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8", maxBuffer: 256 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
+  // A folder whose origin names no default branch, as an imported one may be, is read against its own commit.
+  let from = "HEAD";
+  try {
+    from = git("merge-base", base, "HEAD").trim();
+  } catch {
+    // No default branch to compare to.
+  }
+  const untracked = git("ls-files", "--others", "--exclude-standard", "-z").split("\0").filter((file) => file !== "");
+  return [git("diff", from), ...untracked.map((file) => newFileDiff(cwd, file))].join("");
+}
+
+/** A file Git does not track yet, as a diff that adds it. */
+function newFileDiff(cwd: string, file: string): string {
+  try {
+    return execFileSync("git", ["diff", "--no-index", "--", "/dev/null", file], { cwd, encoding: "utf8", maxBuffer: 256 * 1024 * 1024, stdio: ["ignore", "pipe", "ignore"], windowsHide: true });
+  } catch (error) {
+    // `git diff --no-index` exits 1 when the two differ, which a new file always does.
+    const { status, stdout } = error as { status?: number; stdout?: string };
+    if (status === 1 && typeof stdout === "string") return stdout;
+    throw error;
+  }
 }
 
 /** The branch origin names as its default, as the checkout in `cwd` last heard; origin/main when it never said. */

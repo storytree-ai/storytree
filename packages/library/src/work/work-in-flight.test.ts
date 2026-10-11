@@ -519,8 +519,8 @@ for (const backend of [memory, postgres]) {
     await flight.addIncrement({ arc: shelved.id, ...WORK, capabilities: [form!.id, mail!.id] });
     const dated = await flight.addIncrement({ arc: later.id, ...WORK, capabilities: [form!.id] });
     await flight.addWaitFor(dated.id, { releaser: "event", note: "deletion finishes", checkBack: new Date(Date.now() + 4 * 86_400_000).toISOString().slice(0, 10) });
-    const parked = async () => Object.fromEntries([...(await flight.parkedCapabilities()).entries()].map(([id, arcs]) => [id, arcs.map(({ title }) => title)]));
-    assert.deepEqual(await parked(), { [form!.id]: ["Shelved", "Later"], [mail!.id]: ["Shelved"] }, "parked by the owner, or asleep on a dated event; one no open increment names is not parked");
+    const parked = async () => Object.fromEntries([...(await flight.parkedCapabilities()).entries()].map(([id, arcs]) => [id, arcs.map(({ title }) => title).sort()]));
+    assert.deepEqual(await parked(), { [form!.id]: ["Later", "Shelved"], [mail!.id]: ["Shelved"] }, "parked by the owner, or asleep on a dated event; one no open increment names is not parked");
 
     const now = await flight.addIncrement({ arc: live.id, ...WORK, capabilities: [mail!.id] });
     assert.deepEqual(Object.keys(await parked()), [form!.id], "an open increment on an active arc keeps it out");

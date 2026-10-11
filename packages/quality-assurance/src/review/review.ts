@@ -7,6 +7,8 @@
  *   issued, then the reviewer's return taken. A brief not yet taken is replaced by the next one issued.
  * - The brief holds the branch's diff against origin/main, every contract of the capabilities the increment
  *   names, and every live check; never the increment's body or the implementer's reasoning (contract 2.1).
+ *   Each contract is listed under its story and capability, and every capability named is listed even with no
+ *   contracts, so two stories' contracts sharing a number both appear, each with its story (2.5).
  *   A contract the increment changes pending its merge (ADR-0966 D1) is briefed as the change leaves it: in
  *   its pending text, marked pending, and one it retires listed as retired with the reason, not answered (2.4).
  *   From the second review on it also holds each earlier hit with the implementer's answer, and the
@@ -41,8 +43,13 @@ export interface Brief {
   readonly diff: string;
   /** The packages the diff touches (`root` for files outside any package). */
   readonly packages: readonly string[];
-  /** Each contract to judge, in its pending text when the increment changes it pending its merge (`pending`, contract 2.4). */
-  readonly contracts: readonly { readonly id: string; readonly title: string; readonly description?: string; readonly pending?: true }[];
+  /** Each capability the increment names, with its story, in story then capability order (contract 2.5). Absent from briefs issued before 2.5. */
+  readonly capabilities?: readonly { readonly id: string; readonly title: string; readonly story: { readonly id: string; readonly title: string } }[];
+  /**
+   * Each contract to judge, in its pending text when the increment changes it pending its merge (`pending`, contract 2.4),
+   * and the capability it belongs to (contract 2.5; absent from briefs issued before it).
+   */
+  readonly contracts: readonly { readonly id: string; readonly title: string; readonly description?: string; readonly pending?: true; readonly capability?: string }[];
   /** The contracts the increment retires pending its merge, with the reason: not judged (contract 2.4). Absent from briefs issued before 2.4. */
   readonly retired?: readonly { readonly id: string; readonly title: string; readonly reason: string }[];
   /** Each live check not graduated whole; one graduated in part names the parts Guardrails now enforces, which the reviewer does not judge (contract 5.2). */
@@ -135,19 +142,29 @@ class PgReviews implements Reviews {
       .map((contract) => ({ contract, change: pending.get(contract.id) }))
       .map(({ contract, change }) => ({ contract, change, fields: { ...contract.fields, ...(change !== undefined && "after" in change ? change.after : {}) } as Record<string, unknown> }))
       .filter(({ fields }) => capabilities.has(fields["capability"] as string));
+    const title = (record: Awaited<ReturnType<Library["get"]>>): string | undefined => (record?.fields as { title?: string } | undefined)?.title;
+    const listed = await Promise.all([...capabilities].map(async (id) => {
+      const capability = await library.get(id);
+      const storyId = (capability?.fields as { story?: string } | undefined)?.story ?? "";
+      const story = storyId === "" ? null : await library.get(storyId);
+      return { id, title: title(capability) ?? id, story: { id: storyId, title: title(story) ?? (storyId || "no story") } };
+    }));
+    listed.sort((a, b) => byTitle(a.story, b.story) || byTitle(a, b));
+    const order = new Map(listed.map(({ id }, index) => [id, index]));
     const contracts = named
       .filter(({ change }) => change === undefined || !("retire" in change))
       .map(({ contract, change, fields }) => ({
         id: contract.id, title: fields["title"] as string,
         ...(typeof fields["description"] === "string" ? { description: fields["description"] } : {}),
         ...(change === undefined ? {} : { pending: true as const }),
+        capability: fields["capability"] as string,
       }))
-      .sort(byTitle);
+      .sort((a, b) => order.get(a.capability)! - order.get(b.capability)! || byTitle(a, b));
     const retired = named
       .flatMap(({ contract, change }) => (change !== undefined && "retire" in change ? [{ id: contract.id, title: contract.fields.title, reason: change.retire }] : []))
       .sort(byTitle);
     const brief: Brief = {
-      project, change, iteration: taken + 1, diff, packages, contracts, retired,
+      project, change, iteration: taken + 1, diff, packages, capabilities: listed, contracts, retired,
       checks: (await liveChecks(library)).filter(({ graduated }) => !(graduated ?? []).some(({ whole }) => whole)).map(({ id, title, question, graduated }) => ({ id, title, question, ...(graduated === undefined ? {} : { graduated }) })),
       earlier,
       judge: earlier.filter((hit) => hit.answer === "rejected" && !hit.accepted).map((hit) => hit.id),
@@ -259,6 +276,11 @@ function originDefault(cwd: string): string {
   }
 }
 
+/** One contract of the brief as a line, with its description beneath, at `indent`. */
+function contractLine(contract: Brief["contracts"][number], indent: string): string {
+  return `${indent}${contract.id}  ${contract.title}${contract.pending ? "  (as this change rewords it, pending its merge)" : ""}${contract.description === undefined ? "" : `\n${indent}  ${contract.description}`}`;
+}
+
 /** The brief as the plain text the change-reviewer reads. */
 export function briefText(brief: Brief): string {
   return [
@@ -271,7 +293,15 @@ export function briefText(brief: Brief): string {
     ].join("\n")),
     "",
     `Contracts (${brief.contracts.length}): for each, say whether the change does what it says, and why not.`,
-    ...brief.contracts.map((contract) => `  ${contract.id}  ${contract.title}${contract.pending ? "  (as this change rewords it, pending its merge)" : ""}${contract.description === undefined ? "" : `\n    ${contract.description}`}`),
+    ...(brief.capabilities === undefined
+      ? brief.contracts.map((contract) => contractLine(contract, "  "))
+      : brief.capabilities.map((capability) => {
+        const under = brief.contracts.filter((contract) => contract.capability === capability.id);
+        return [
+          `  ${capability.story.title} › ${capability.title}  (${capability.id})`,
+          ...(under.length === 0 ? ["    no contracts"] : under.map((contract) => contractLine(contract, "    "))),
+        ].join("\n");
+      })),
     ...((brief.retired ?? []).length === 0 ? [] : [
       `Retired contracts (${brief.retired!.length}): not yours to judge, and not answered in the return.`,
       ...brief.retired!.map((contract) => `  ${contract.id}  ${contract.title}\n    retired by this change, pending its merge: ${contract.reason}`),

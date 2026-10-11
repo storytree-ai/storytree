@@ -4,7 +4,7 @@
  * the globe's own pointer handlers.
  */
 import type { ForestScene } from "@storytree/forest";
-import type { GlobeControls, GlobeTarget } from "./globe-guide.js";
+import type { GlobeTarget, PlacedGlobeControls } from "./globe-guide.js";
 
 /** An island's story and title, its capability count and where its middle is, in the page's client pixels. */
 export type PlacedIsland = { story: string; title: string; capabilities: number; x: number; y: number; visible: boolean };
@@ -16,12 +16,14 @@ export interface GlobeLocator {
   notes(): PlacedNote[];
   /** Turn the globe at once, with no glide, to face `target`; false when it is not drawn. */
   face(target: GlobeTarget): boolean;
-  /** Whether the globe has handed over its controls and no glide is under way. */
+  /** Whether the globe has handed over its controls, no glide is under way and the globe sits beside the panel as the page
+   * measures it now: a panel that has just opened or closed starts its slide only after the next paint (3.43). */
   still(): boolean;
 }
 
-/** The locator over the globe's controls (undefined until it hands them over), the scene on show and the canvas's place on the page. */
-export function globeLocator(page: { controls(): GlobeControls | undefined; scene(): ForestScene; box(): { left: number; top: number } }): GlobeLocator {
+/** The locator over the globe's controls (undefined until it hands them over), the scene on show, the canvas's place on the page
+ * and the width the right-hand panel takes from the globe now. */
+export function globeLocator(page: { controls(): PlacedGlobeControls | undefined; scene(): ForestScene; box(): { left: number; top: number }; aside(): number }): GlobeLocator {
   const client = (at: { x: number; y: number; visible: boolean }) => {
     const box = page.box();
     return { x: at.x + box.left, y: at.y + box.top, visible: at.visible };
@@ -46,7 +48,7 @@ export function globeLocator(page: { controls(): GlobeControls | undefined; scen
     face: target => page.controls()?.stop({ target, duration: 0 }) ?? false,
     still() {
       const controls = page.controls();
-      return controls !== undefined && !controls.moving();
+      return controls !== undefined && !controls.moving() && controls.aside() === page.aside();
     },
   };
 }

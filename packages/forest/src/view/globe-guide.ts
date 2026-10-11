@@ -10,11 +10,21 @@ export type CameraStop = { target: GlobeTarget; framing?: number; sideOffset?: n
 export type ScreenPosition = { x: number; y: number; visible: boolean };
 /** `moving` says a stop's glide is still under way; `notes` lists the Library's notes drawn on the globe, by id. */
 export type GlobeControls = { stop(stop: CameraStop): boolean; position(target: GlobeTarget): ScreenPosition | undefined; cancel(): void; moving(): boolean; notes(): string[] };
+/** The controls a globe view hands over, with the panel width (CSS pixels) it last placed itself beside (3.40, 3.43). */
+export type PlacedGlobeControls = GlobeControls & { aside(): number };
 /** The short way round from `from` to face the way `to` does, as a yaw to ease toward. */
 const nearestYaw = (from: number, to: number) => from + Math.atan2(Math.sin(to - from), Math.cos(to - from));
 export function createGlobeGuide(host: { world(): Object3D; camera(): Camera; size(): { width: number; height: number }; read(): GlobePose; write(pose: GlobePose): void; invalidate(): void }): GlobeControls & { frame(milliseconds: number): boolean; home(pose: GlobePose, duration?: number): boolean; slide(to: Omit<GlobePose, "turn">, duration?: number): boolean } {
   // A slide (3.40) moves the zoom and offset only, leaving the turn to whatever turns it meanwhile.
   let motion: { from: GlobePose; to: GlobePose; elapsed: number; duration: number; slide?: boolean } | undefined;
+  // 3.44: the host draws a written zoom and offset on its next render, so until it has, the pose written is the one on show.
+  let written: GlobePose | undefined;
+  const current = (): GlobePose => {
+    const drawn = host.read();
+    if (written !== undefined && Math.abs(drawn.framing - written.framing) < 1e-6 && Math.abs(drawn.sideOffset - written.sideOffset) < 1e-6) written = undefined;
+    return written === undefined ? drawn : { ...written, turn: drawn.turn };
+  };
+  const write = (pose: GlobePose): void => { written = pose; host.write(pose); };
   function frame(milliseconds: number): boolean {
     if (motion === undefined) return false;
     motion.elapsed += Math.max(0, milliseconds);
@@ -22,7 +32,7 @@ export function createGlobeGuide(host: { world(): Object3D; camera(): Camera; si
     const eased = progress * progress * (3 - 2 * progress);
     const mix = (from: number, to: number) => progress === 1 ? to : from + (to - from) * eased;
     const { from, to } = motion;
-    host.write({ turn: motion.slide ? host.read().turn : { yaw: mix(from.turn.yaw, to.turn.yaw), pitch: mix(from.turn.pitch, to.turn.pitch) },
+    write({ turn: motion.slide ? host.read().turn : { yaw: mix(from.turn.yaw, to.turn.yaw), pitch: mix(from.turn.pitch, to.turn.pitch) },
       framing: mix(from.framing, to.framing), sideOffset: mix(from.sideOffset, to.sideOffset) });
     if (progress === 1) motion = undefined;
     host.invalidate();
@@ -31,7 +41,7 @@ export function createGlobeGuide(host: { world(): Object3D; camera(): Camera; si
   function go(from: GlobePose, to: GlobePose, duration: number, slide = false): boolean {
     if (!Number.isFinite(to.framing) || to.framing <= 0 || !Number.isFinite(to.sideOffset) || !Number.isFinite(duration) || duration < 0) return false;
     motion = undefined;
-    if (duration === 0) host.write(to);
+    if (duration === 0) write(to);
     else motion = { from, to, duration, elapsed: 0, slide };
     host.invalidate();
     return true;
@@ -41,7 +51,7 @@ export function createGlobeGuide(host: { world(): Object3D; camera(): Camera; si
       const world = host.world(); world.updateMatrixWorld(true);
       const target = findTarget(world, stop.target), globe = world.getObjectByName("globe");
       if (target === undefined || globe === undefined) return false;
-      const from = host.read();
+      const from = current();
       const facing = stop.target.kind === "core" ? from.turn : turnToIsland(globe.worldToLocal(target.point.clone()));
       // Take the short way round the poles, retaining the app's north-up yaw/pitch turn.
       const to = { turn: { yaw: nearestYaw(from.turn.yaw, facing.yaw), pitch: facing.pitch }, framing: stop.framing ?? from.framing, sideOffset: stop.sideOffset ?? from.sideOffset };
@@ -49,11 +59,11 @@ export function createGlobeGuide(host: { world(): Object3D; camera(): Camera; si
     },
     // 3.37: back to the opening view, facing the way it opened however many times it was spun round.
     home(pose, duration = 600) {
-      const from = host.read();
+      const from = current();
       return go(from, { ...pose, turn: { yaw: nearestYaw(from.turn.yaw, pose.turn.yaw), pitch: pose.turn.pitch } }, duration);
     },
     slide(to, duration = 600) {
-      const from = host.read();
+      const from = current();
       return go(from, { ...to, turn: from.turn }, duration, true);
     },
     position(target) {
@@ -72,13 +82,18 @@ export function createGlobeGuide(host: { world(): Object3D; camera(): Camera; si
       return { x: (projected.x + 1) * width / 2, y: (1 - projected.y) * height / 2,
         visible: marked && isDrawn(found.object) && near && Math.abs(projected.x) <= 1 && Math.abs(projected.y) <= 1 && Math.abs(projected.z) <= 1 };
     },
-    // A slide cut short by a drag or the wheel still ends beside the panel; its zoom is left where the wheel takes it.
+    // A slide cut short by a drag or the wheel still ends beside the panel; its zoom is left where the wheel takes it, so
+    // the zoom on show is the wheel's from here, not a pose the guide wrote.
     cancel() {
       const cut = motion;
       motion = undefined;
-      if (cut?.slide) { host.write({ ...host.read(), sideOffset: cut.to.sideOffset }); host.invalidate(); }
+      if (cut?.slide) { host.write({ ...current(), sideOffset: cut.to.sideOffset }); host.invalidate(); }
+      written = undefined;
     },
-    moving: () => motion !== undefined,
+    moving() {
+      current();
+      return motion !== undefined || written !== undefined;
+    },
     notes() {
       const notes: string[] = [];
       host.world().traverse(object => { if (object.name.startsWith("knowledge-point:")) notes.push(object.name.slice("knowledge-point:".length)); });

@@ -135,12 +135,12 @@ test("3.41 the page's locator gives each drawn island's capability count and cli
   const island = (story: string, capabilities: (string | undefined)[]) => ({ story, title: story, x: 0, z: 0, key: story,
     trees: capabilities.map(capability => ({ capability, form: "pale" as const, contracts: 0 })) });
   const scene = { islands: [island("shop", ["checkout", "cart"]), island("gone", [undefined])] };
-  let controls: typeof f.guide | undefined;
-  const locator = globeLocator({ controls: () => controls, scene: () => scene, box: () => ({ left: 100, top: 50 }) });
+  let controls: (typeof f.guide & { aside(): number }) | undefined;
+  const locator = globeLocator({ controls: () => controls, scene: () => scene, box: () => ({ left: 100, top: 50 }), aside: () => 0 });
   assert.deepEqual(locator.islands(), [], "nothing is placed before the globe hands over its controls");
   assert.equal(locator.still(), false);
   assert.equal(locator.face({ kind: "story", story: "shop" }), false);
-  controls = f.guide;
+  controls = { ...f.guide, aside: () => 0 };
   const shop = f.guide.position({ kind: "story", story: "shop" })!;
   // An island the world has not drawn is left out, and a story's one seedling is no capability.
   assert.deepEqual(locator.islands(), [{ story: "shop", title: "shop", capabilities: 2, x: shop.x + 100, y: shop.y + 50, visible: shop.visible }]);
@@ -157,4 +157,37 @@ test("3.41 the page's locator gives each drawn island's capability count and cli
   const faced = locator.islands()[0]!;
   assert.ok(faced.visible && Math.abs(faced.x - 500) < 1e-6 && Math.abs(faced.y - 350) < 1e-6, "the island faces the viewer, mid-canvas");
   assert.equal(locator.face({ kind: "story", story: "missing" }), false);
+});
+
+test("3.43 the locator reads still only once the globe has placed itself beside the panel as the page measures it now", () => {
+  const f = fixture();
+  let placed = 0, measured = 0;
+  const controls = { ...f.guide, aside: () => placed };
+  const locator = globeLocator({ controls: () => controls, scene: () => ({ islands: [] }), box: () => ({ left: 0, top: 0 }), aside: () => measured });
+  assert.equal(locator.still(), true);
+  // The panel closes: the page measures its new width before the globe's slide back has begun.
+  measured = 0; placed = 380;
+  assert.equal(locator.still(), false, "the slide has not started");
+  placed = 0; f.guide.slide({ framing: 1, sideOffset: 0 }, 600);
+  assert.equal(locator.still(), false, "the slide is under way");
+  f.guide.frame(600);
+  assert.equal(locator.still(), true);
+});
+
+test("3.44 a pose written but not yet drawn still counts: the guide reads moving until the host draws it, and a stop starts from it", () => {
+  // The page draws a written pose on its next render, so the camera trails the guide's writes.
+  const world = new Group(), globe = new Group(), story = new Group();
+  globe.name = "globe"; story.name = "planet:shop"; story.position.set(0, 0, 10); globe.add(story); world.add(globe);
+  const camera = new OrthographicCamera(-400, 400, 300, -300, 0.1, 1000);
+  let drawn: GlobePose = { turn: { yaw: 0, pitch: 0 }, framing: 1, sideOffset: 0 }, queued: GlobePose | undefined;
+  const guide = createGlobeGuide({ world: () => world, camera: () => camera, size: () => ({ width: 800, height: 600 }),
+    read: () => ({ ...drawn }), write: next => { queued = next; }, invalidate() {} });
+  const render = () => { if (queued !== undefined) drawn = queued; queued = undefined; };
+  guide.slide({ framing: 1, sideOffset: -200 }, 600);
+  guide.frame(600);
+  assert.equal(guide.moving(), true, "the slide's last pose is not drawn yet");
+  guide.stop({ target: { kind: "core" }, duration: 0 });
+  render();
+  assert.equal(drawn.sideOffset, -200, "the stop keeps the slide's end, not the stale drawn offset");
+  assert.equal(guide.moving(), false);
 });

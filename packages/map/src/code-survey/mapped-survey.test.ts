@@ -62,14 +62,13 @@ test("8.20 a mapped story is surveyed from the folder this machine imports it fr
     await write(shop, SHOP);
     git(shop, "init", "-q", "-b", "main");
     commit(shop);
-    await write(shop, { "packages/cart/src/untracked.ts": "export const loose = 1;\n" });
     const survey = await codeSurveyReader({ checkout: "current" }).read(trunk, tree, [{ folder: shop, repository: REPOSITORY }]);
 
     assert.deepEqual(survey["story-cart"]?.files, [
       { path: "packages/cart/src/index.test.ts", lines: 1 },
       { path: "packages/cart/src/index.ts", lines: 3 },
       { path: "packages/cart/src/util.js", lines: 1 },
-    ], "tracked code only, no skipped folder, no capability, tests counted as the island's files");
+    ], "code only, no skipped folder, no capability, tests counted as the island's files");
     assert.equal(survey["story-cart"]?.mapped?.folder, shop);
     assert.deepEqual(survey["story-root"]?.files, [{ path: "scripts/build.mjs", lines: 1 }], "the root package leaves out the folders its import's other packages map");
     assert.deepEqual(survey["story-cart"]?.imports, []);
@@ -148,6 +147,43 @@ test("8.22 an imported folder that is no checkout is read again only where a fil
     assert.deepEqual(read, [path.join(shop, "packages/pay/lib/pay.mjs")]);
     assert.equal(third["story-pay"]?.files[0]?.lines, 2);
     assert.equal(third["story-cart"], first["story-cart"]);
+  } finally {
+    await rm(shop, { recursive: true, force: true });
+    await rm(trunk, { recursive: true, force: true });
+  }
+});
+
+test("8.24 work done at source in an imported checkout counts before it is committed there: changed and new files Git does not ignore are read from disk, deleted ones leave, and only they are read", async () => {
+  const shop = await mkdtemp(path.join(tmpdir(), "mapped-local-"));
+  const trunk = await mkdtemp(path.join(tmpdir(), "mapped-trunk-"));
+  try {
+    await write(shop, { ...SHOP, ".gitignore": "*.gen.ts\n" });
+    git(shop, "init", "-q", "-b", "main");
+    commit(shop);
+    const read: string[] = [];
+    const reader = codeSurveyReader({ checkout: "current", readFile: (file) => (read.push(file), readFile(file, "utf8")) });
+    const imports = [{ folder: shop, repository: REPOSITORY }];
+    const first = await reader.read(trunk, tree, imports);
+
+    await write(shop, {
+      "packages/cart/src/index.ts": "export const cart = () => 2;\n",
+      "packages/cart/src/pages/new.tsx": "export const Page = () => null;\n\nexport default Page;\n",
+      "packages/cart/src/skip.gen.ts": "export const generated = 1;\n",
+    });
+    await rm(path.join(shop, "packages/cart/src/util.js"));
+    const second = await reader.read(trunk, tree, imports);
+    assert.deepEqual(second["story-cart"]?.files, [
+      { path: "packages/cart/src/index.test.ts", lines: 1 },
+      { path: "packages/cart/src/index.ts", lines: 1 },
+      { path: "packages/cart/src/pages/new.tsx", lines: 2 },
+    ], "an edit and a new file count from disk, an ignored file does not, a deleted one leaves");
+    assert.deepEqual(read.sort(), [path.join(shop, "packages/cart/src/index.ts"), path.join(shop, "packages/cart/src/pages/new.tsx")], "only the changed files are read");
+    assert.equal(second["story-pay"], first["story-pay"], "an island with no local work keeps its survey");
+
+    read.length = 0;
+    const third = await reader.read(trunk, tree, imports);
+    assert.deepEqual(read, [], "local work unchanged since the last survey is not read again");
+    assert.equal(third["story-cart"], second["story-cart"]);
   } finally {
     await rm(shop, { recursive: true, force: true });
     await rm(trunk, { recursive: true, force: true });

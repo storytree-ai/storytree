@@ -14,6 +14,8 @@
  * - Surveying again does work in proportion to what changed (ADR-0836): while an imported checkout stays at
  *   its commit each of its stories keeps its files without a walk, and a file is read again only when its
  *   blob (on disk, its size and modified time) changed. Only line counts are kept, never a file's text.
+ * - Work done at source and not yet committed there counts (ADR-0993 D1): a changed or new file Git does not
+ *   ignore is read from disk over the commit's tree, a deleted one leaves, and only those files are read.
  */
 import path from "node:path";
 
@@ -99,13 +101,13 @@ export function mappedSurveyReader(readText: (file: string) => Promise<string>) 
     }
     const found = new Map<string, { readonly story: MappedStory; readonly folder: string; readonly walk: Walked }>();
     await Promise.all([...byImport].map(async ([imported, own]) => {
-      const { source, folder: root, commit } = await importedSource(imported.folder, readText);
+      const { source, folder: root, commit, local } = await importedSource(imported.folder, readText);
       await Promise.all(own.map(async (story) => {
         // A folder another package of this import maps, inside one of this story's, is that story's to read.
         const left = new Set(own.flatMap((other) => other === story ? [] : other.mapped.folders)
           .filter((folder) => !story.mapped.folders.includes(folder) && story.mapped.folders.some((mine) => inside(folder, mine)))
           .map((folder) => path.join(root, folder)));
-        const key = commit === undefined ? undefined : JSON.stringify([root, commit, story.mapped.folders, story.mapped.package, [...left].sort()]);
+        const key = commit === undefined ? undefined : JSON.stringify([root, commit, local ?? "", story.mapped.folders, story.mapped.package, [...left].sort()]);
         const kept = walked.get(story.id);
         const walkedNow = key !== undefined && kept?.key === key ? kept.walk : await walk(story, source, root, left);
         if (key !== undefined) walked.set(story.id, { key, walk: walkedNow });

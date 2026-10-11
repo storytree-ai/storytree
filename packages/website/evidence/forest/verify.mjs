@@ -36,11 +36,11 @@ try {
   for (const width of [1440, 390]) {
     const page = await browser.newPage({ javaScriptEnabled: false, viewport: { width, height: width === 390 ? 844 : 1000 }, deviceScaleFactor: 1 });
     await page.goto(url);
-    assert.equal(await page.locator('.forest-still img').count(), 1, '2.2: saved forest still exists without JavaScript');
-    await page.waitForFunction(() => { const img = document.querySelector('.forest-still img'); return img.complete && img.naturalWidth > 0; });
-    assert.ok(await page.locator('.forest-still').isVisible(), '2.2: still is visible without JavaScript');
+    assert.equal(await page.locator('.storytree-still img').count(), 1, '2.2: saved forest still exists without JavaScript');
+    await page.waitForFunction(() => { const img = document.querySelector('.storytree-still img'); return img.complete && img.naturalWidth > 0; });
+    assert.ok(await page.locator('.storytree-still').isVisible(), '2.2: still is visible without JavaScript');
     await contentUsable(page, width);
-    stillSources ??= await page.locator('.forest-still').evaluate(element => element.innerHTML);
+    stillSources ??= await page.locator('.storytree-still').evaluate(element => element.innerHTML);
     await page.close();
   }
   for (const failure of ['webgl', 'chunk', 'initialization']) {
@@ -62,8 +62,8 @@ try {
     await page.waitForFunction(() => performance.getEntriesByName('forest-activate').length > 0);
     if (failure !== 'webgl') await page.waitForFunction(() => performance.getEntriesByName('forest-request').length > 0);
     await page.waitForFunction(() => document.querySelector('#website-forest').dataset.forestState === 'still');
-    assert.equal(await page.locator('.forest-still').evaluate(element => element.innerHTML), stillSources, `2.2: ${failure} uses the same saved still`);
-    assert.ok(await page.locator('.forest-still').isVisible(), `2.2: ${failure} keeps still visible`);
+    assert.equal(await page.locator('.storytree-still').evaluate(element => element.innerHTML), stillSources, `2.2: ${failure} uses the same saved still`);
+    assert.ok(await page.locator('.storytree-still').isVisible(), `2.2: ${failure} keeps still visible`);
     await contentUsable(page, 390);
     await page.locator('#copy-command').click();
     await page.waitForFunction(() => document.querySelector('#copy-command').dataset.copyState === 'copied');
@@ -81,7 +81,7 @@ try {
     await page.route(/\/forest-scene-[^/]+\.js/, async route => { await held; await route.continue(); });
     await page.goto(url, { waitUntil: 'domcontentloaded' });
     await contentUsable(page, width);
-    assert.ok(await page.locator('.forest-still').isVisible(), '2.3: text and still remain while renderer fetch is held');
+    assert.ok(await page.locator('.storytree-still').isVisible(), '2.3: text and still remain while renderer fetch is held');
     await page.locator('#website-forest').scrollIntoViewIfNeeded();
     await page.waitForFunction(() => performance.getEntriesByName('forest-request').length > 0);
     const timing = await page.evaluate(() => ({
@@ -92,13 +92,13 @@ try {
     release();
     await page.waitForFunction(() => document.querySelector('#website-forest').dataset.forestState === 'live', undefined, { timeout: 90000 });
     assert.ok(await page.locator('.forest-canvas canvas').isVisible(), '2.3: public renderer draws successfully');
-    assert.equal(await page.locator('.forest-still').isVisible(), false, '2.3: live drawing replaces still');
+    assert.equal(await page.locator('.storytree-still').isVisible(), false, '2.3: live drawing replaces still');
     await contentUsable(page, width);
     assert.deepEqual(errors, []);
     await page.locator('.forest-canvas canvas').evaluate(canvas => canvas.getContext('webgl2').getExtension('WEBGL_lose_context').loseContext());
     await page.waitForFunction(() => document.querySelector('#website-forest').dataset.forestState === 'still');
-    assert.ok(await page.locator('.forest-still').isVisible(), '2.2: losing the active WebGL context restores the same still');
-    assert.equal(await page.locator('.forest-still').evaluate(element => element.innerHTML), stillSources);
+    assert.ok(await page.locator('.storytree-still').isVisible(), '2.2: losing the active WebGL context restores the same still');
+    assert.equal(await page.locator('.storytree-still').evaluate(element => element.innerHTML), stillSources);
     await contentUsable(page, width);
     await page.close();
   }

@@ -129,7 +129,7 @@ const runs = {
     });
     await still.goto(url); await still.locator("#tour-play").waitFor();
     assert.equal(await stepOf(still), "pain");
-    assert.equal(await still.locator(".forest-still img").evaluate(node => node.checkVisibility({ visibilityProperty: true })), false, "no WebGL: storytree's saved still never stands in under the pain");
+    assert.equal(await still.locator(".storytree-still img").evaluate(node => node.checkVisibility({ visibilityProperty: true })), false, "no WebGL: storytree's saved still never stands in under the pain");
     await go(still, "fixes"); await pause(still); await still.waitForTimeout(300);
     await still.screenshot({ path: path.join(pictures, "390-no-webgl-4-fixes.png") });
     await still.close();
@@ -140,7 +140,7 @@ const runs = {
     await loading.route(/forest-scene-[^/]*\.js$/, () => {});
     await loading.goto(url); await loading.locator("#tour-play").waitFor();
     await loading.waitForFunction(() => document.querySelector("#website-forest").dataset.forestState === "loading");
-    assert.equal(await loading.locator(".forest-still img").evaluate(node => node.checkVisibility({ visibilityProperty: true })), false, "loading: no still of storytree's globe under the pain");
+    assert.equal(await loading.locator(".storytree-still img").evaluate(node => node.checkVisibility({ visibilityProperty: true })), false, "loading: no still of storytree's globe under the pain");
     await loading.close();
     observed.push("2.11 reduced motion, no WebGL and a loading globe keep the arrival dark under the pain: pass");
   },

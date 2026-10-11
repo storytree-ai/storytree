@@ -61,13 +61,13 @@ const list = verb({
     all: { kind: "switch", describe: "the hidden sessions too" },
     json: { kind: "switch", describe: "as JSON" },
   },
-  async act({ all, json }, { log, library, project, folder, session, harness }) {
+  async act({ all, json }, { log, server, project, folder, session, harness }) {
     // Merges are asked about now, as the board asks about claims: the list never waits on a hook's look.
     const look = { context: { log, project, folder, session, ...(harness === undefined ? {} : { harness }), source: "tool" } } as const;
     const { sessionsListing } = await import("./listing.js");
     const { machineNames } = await import("../machines/machines.js");
     // Each session's machine is shown by its short name (Machines, 11.3); unreadable names leave the hostnames.
-    const names = await machineNames(library).catch(() => undefined);
+    const names = server === undefined ? undefined : await machineNames(server).catch(() => undefined);
     const text = await sessionsListing(log, project, { all, json, look, ...(names === undefined ? {} : { names }) });
     return json ? { text } : { text, next: [{ command: "session list --all", why: "the hidden sessions too" }] };
   },

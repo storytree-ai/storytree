@@ -8,6 +8,12 @@ import type { MachineRecord } from "./machines.js";
 
 const NO_TOOL = { absent: "a computer is named, and its machines read, by the person at it on the command line" };
 
+/** The library server the machines are kept on: a door that has none open cannot reach them. */
+function server(context: VerbContext) {
+  if (context.server === undefined) throw new VerbRefusal("the machines are kept on the library server, which this door has not opened");
+  return context.server;
+}
+
 /** Where the caller's computer keeps its storytree home, when the context names one. */
 function here(context: VerbContext) {
   return context.home === undefined ? {} : { home: context.home };
@@ -24,7 +30,7 @@ const name = verb({
   async act({ name: given }, context) {
     const { MachineNameError, nameThisMachine } = await import("./machines.js");
     try {
-      const machine = await nameThisMachine(context.library, given, here(context));
+      const machine = await nameThisMachine(server(context), given, here(context));
       return { text: `Named this computer "${machine.name}" (${described(machine)}).`, data: { ...machine } };
     } catch (error) {
       if (error instanceof MachineNameError) throw new VerbRefusal(error.message, { misuse: error.misuse });
@@ -39,7 +45,7 @@ const list = verb({
   inputs: {},
   async act(_input, context) {
     const { machinesOf } = await import("./machines.js");
-    const machines = await machinesOf(context.library, context.project, here(context));
+    const machines = await machinesOf(server(context), context.project, here(context));
     const lines = machines.map((machine) => `${machine.name ?? "(no name)"}  ${machine.hostname}  ${machine.id}${machine.here ? "  (this computer)" : ""}`);
     return {
       text: [`${machines.length} machine${machines.length === 1 ? "" : "s"}: name, hostname, id.`, ...lines].join("\n"),
@@ -54,8 +60,8 @@ const which = verb({
   tool: NO_TOOL,
   inputs: {},
   async act(_input, context, words) {
-    const { thisMachine } = await import("./machines.js");
-    const machine = await thisMachine(context.library, here(context));
+    const { thisComputer } = await import("./machines.js");
+    const machine = await thisComputer(server(context), here(context));
     return {
       text: machine.name === undefined
         ? `This computer has no name yet (${described(machine)}): give it one with ${words.say({ command: "machine name <name>" })}.`

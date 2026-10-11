@@ -47,7 +47,7 @@ async function withMachines(body: (storytree: Storytree, homes: [string, string]
 
 /** What a verb needs of its caller here: the library server, through the project's library, and the storytree home. */
 function caller(storytree: Storytree, home: string, project = uniqueProjectName()) {
-  return { log: undefined as never, library: storytree as unknown as Library, project, session: "claude-1", harness: "claude-code", folder: home, home };
+  return { log: undefined as never, library: {} as Library, server: storytree, project, session: "claude-1", harness: "claude-code", folder: home, home };
 }
 
 test("11.1 · `storytree machine name <name>` gives this computer a short name, kept with its hostname and id; a name another machine has, or one that is not a short name, is refused", async () => {

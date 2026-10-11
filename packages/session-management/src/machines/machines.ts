@@ -83,7 +83,7 @@ export async function nameThisMachine(server: Server, name: string, here: Here =
 }
 
 /** This computer: its id, its hostname and its name when it has one. */
-export async function thisMachine(server: Server, here: Here = {}): Promise<MachineRecord> {
+export async function thisComputer(server: Server, here: Here = {}): Promise<MachineRecord> {
   const { id } = machineOf(here.home ?? storytreeHome());
   const db = await pool(server);
   const { rows } = await db.query<{ name: string }>("SELECT name FROM machines WHERE id = $1", [id]);
@@ -95,7 +95,7 @@ export async function thisMachine(server: Server, here: Here = {}): Promise<Mach
  * computer; named ones first, by name, then the rest by hostname.
  */
 export async function machinesOf(server: Server, project: string, here: Here = {}): Promise<(MachineRecord & { here: boolean })[]> {
-  const self = await thisMachine(server, here);
+  const self = await thisComputer(server, here);
   const db = await pool(server);
   const { rows } = await db.query<{ id: string; hostname: string; name: string | null }>(
     `SELECT coalesce(m.id, t.machine) AS id, coalesce(m.hostname, t.machine_name) AS hostname, m.name

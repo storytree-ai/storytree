@@ -20,6 +20,9 @@ const LOG = Array.from({ length: 21 }, (_, n) => ({ commit: `m${n}`, subject: n 
 const main = (n) => ({ commit: `m${n}`, parent: `m${n - 1}` });
 const verdicts = (slower = [], { size = "standard" } = {}) => ACTIONS.map((name) => ({ name, size, verdict: slower.includes(name) ? "slower" : "same", against: 100, this: slower.includes(name) ? 300 : 100 }));
 let seq = 0;
+const until = async (ready) => {
+  while (!ready()) await new Promise((resolve) => setImmediate(resolve));
+};
 const done = (purpose, head, against, slower = [], actions = null) => ({ seq: ++seq, purpose, head, against, actions, state: "done", rows: verdicts(slower) });
 
 test("8.11 pnpm lag:box runs the newest main once main has moved past the last commit measured and no run is going: ten merges while one run is going produce one further run, on the tenth", () => {
@@ -128,10 +131,15 @@ test("8.15 pnpm lag:box stops a run that passes its limit, records why, and leav
   const heavyLock = fileURLToPath(new URL("./heavy-lock.mjs", import.meta.url));
   try {
     const env = { ...process.env, STORYTREE_HOME: home };
-    // Holds the heavy-run lock through the wrapper the runner starts the lag run in, then never ends.
-    const result = await runBounded(process.execPath, [heavyLock, "--", process.execPath, "-e", "setInterval(() => {}, 1000)"], { cwd: home, env, limitMs: 1500, graceMs: 5000, log: () => {} });
+    // Holds the heavy-run lock through the wrapper the runner starts the lag run in, then never ends. The test fires the limit
+    // itself once the lock is held, so no real time decides the outcome.
+    const timers = [];
+    const running = runBounded(process.execPath, [heavyLock, "--", process.execPath, "-e", "setInterval(() => {}, 1000)"], { cwd: home, env, limitMs: 30 * 60_000, log: () => {}, setTimer: (fire) => timers.push(fire) });
+    await until(() => existsSync(path.join(home, "heavy-run.lock")));
+    timers[0]();
+    const result = await running;
     assert.equal(result.timedOut, true);
-    assert.match(result.reason, /passed its limit of 2 s/);
+    assert.match(result.reason, /passed its limit of 30 min/);
     assert.equal(existsSync(path.join(home, "heavy-run.lock")), false, "the lock is released");
     const quick = await runBounded(process.execPath, ["-e", "process.exit(3)"], { cwd: home, env, limitMs: 60_000, log: () => {} });
     assert.deepEqual({ timedOut: quick.timedOut, code: quick.code }, { timedOut: false, code: 3 });

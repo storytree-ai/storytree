@@ -224,8 +224,9 @@ const minutes = (ms) => (ms >= 60_000 ? `${(ms / 60_000).toFixed(ms % 60_000 ===
 /**
  * Run `command` in a process group of its own, stopped when it passes `limitMs`: SIGTERM to the group (the heavy-run lock's wrapper
  * then stops its command and releases the lock), SIGKILL after `graceMs`. Resolves to its exit code, or timedOut with the reason.
+ * `setTimer` is setTimeout unless a caller fires the limit itself.
  */
-export function runBounded(command, args, { cwd, env = process.env, limitMs, graceMs = 30_000, log: say = log, output = "inherit" }) {
+export function runBounded(command, args, { cwd, env = process.env, limitMs, graceMs = 30_000, log: say = log, output = "inherit", setTimer = setTimeout }) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, { cwd, env, stdio: ["ignore", output, output], detached: true });
     let timedOut = false;
@@ -235,11 +236,11 @@ export function runBounded(command, args, { cwd, env = process.env, limitMs, gra
         process.kill(-child.pid, sent);
       } catch {}
     };
-    const timer = setTimeout(() => {
+    const timer = setTimer(() => {
       timedOut = true;
       say(`lag:box: the run passed its limit of ${minutes(limitMs)}; stopping it`);
       signal("SIGTERM");
-      killer = setTimeout(() => signal("SIGKILL"), graceMs);
+      killer = setTimer(() => signal("SIGKILL"), graceMs);
     }, limitMs);
     child.once("error", reject);
     child.once("close", (code) => {

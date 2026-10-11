@@ -1081,3 +1081,19 @@ test("6.58 import_project imports a folder into the project as mapped stories, o
     });
   });
 });
+
+test("map 3.8 focus answers for a mapped story from the folder this machine imports it from", async () => {
+  await withProject(async ({ folder }) => {
+    const shop = path.join(folder, "..", "shop");
+    mkdirSync(path.join(shop, "src"), { recursive: true });
+    writeFileSync(path.join(shop, "package.json"), JSON.stringify({ name: "shop" }));
+    writeFileSync(path.join(shop, "src", "index.ts"), "export const shop = 1;\n");
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      assert.equal((await agent.call("import_project", { folder: "../shop" })).isError, false);
+      const focused = await agent.call("focus", { select: "file:src/index.ts", up: 1, mode: "show" });
+      assert.equal(focused.isError, false, focused.text);
+      assert.match(focused.text, /Mapped: 2/);
+      assert.match(focused.text, /story\s+story_\w+\s+shop\s+\[mapped\]/);
+    });
+  });
+});

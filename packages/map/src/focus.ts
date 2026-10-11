@@ -34,10 +34,14 @@ export interface FocusAnswer {
     readonly byDepth: Record<number, Partial<Record<NodeKind, number>>>;
     readonly byKind: Partial<Record<NodeKind, number>>;
     readonly health: Record<MapHealth, number>;
+    /** Rows of mapped stories and their files, which carry no health (ADR-0993 D3). */
+    readonly mapped: number;
   };
   readonly refused: boolean;
   readonly ceiling: number;
   readonly hints: readonly string[];
+  /** Each loop of roads among the mapped stories shown, the titles round it; reported, refusing nothing. */
+  readonly loops?: readonly (readonly string[])[];
   readonly rows?: readonly FocusRow[];
   readonly diff?: DiffSummary;
 }
@@ -52,7 +56,8 @@ export function selectNode(graph: ProjectGraph, select: string): MapNode {
   const wanted = select.slice(at + 1);
   if (at < 0 || !wanted || !["file", "cap", "promise", "story"].includes(prefix)) throw new Error("Select file:<path>, cap:<id|number>, promise:<id|number>, or story:<name>.");
   const found = graph.nodes.filter(node => {
-    if (prefix === "file") return (node.kind === "file" || node.kind === "test") && node.path === normalizePath(wanted);
+    // A mapped file is also selected by its full path, which its id carries.
+    if (prefix === "file") return (node.kind === "file" || node.kind === "test") && (node.path === normalizePath(wanted) || (node.health === "mapped" && normalizePath(node.id.slice(5)) === normalizePath(wanted)));
     if (prefix === "cap") return node.kind === "capability" && (node.id === wanted || node.number === wanted);
     if (prefix === "promise") return node.kind === "promise" && (node.id === wanted || node.number === wanted);
     return node.kind === "story" && (node.id === wanted || node.title.toLowerCase() === wanted.toLowerCase());
@@ -116,17 +121,20 @@ export function focusRows(graph: ProjectGraph, selected: readonly string[], rows
   const ceiling = limits.ceiling ?? SHOW_CEILING;
   const shown = rows.filter(node => !options.kind || options.kind.includes(node.kind))
     .sort((a, b) => a.depth - b.depth || a.kind.localeCompare(b.kind) || a.id.localeCompare(b.id));
-  const counts: FocusAnswer["counts"] = { byDepth: {}, byKind: {}, health: { healthy: 0, failing: 0, untested: 0 } };
+  const counts = { byDepth: {} as FocusAnswer["counts"]["byDepth"], byKind: {} as FocusAnswer["counts"]["byKind"], health: { healthy: 0, failing: 0, untested: 0 }, mapped: 0 };
   for (const row of shown) {
     const at = counts.byDepth[row.depth] ??= {};
     at[row.kind] = (at[row.kind] ?? 0) + 1;
     counts.byKind[row.kind] = (counts.byKind[row.kind] ?? 0) + 1;
-    counts.health[row.health]++;
+    if (row.health === "mapped") counts.mapped++;
+    else counts.health[row.health]++;
   }
+  const loops = shown.flatMap(row => row.loop === undefined ? [] : [row.loop]);
   const refused = mode === "show" && shown.length > ceiling;
   return {
     mode, selected, rowCount: shown.length, estimatedTokens: Math.ceil(JSON.stringify(shown).length / 4), healthSource: graph.healthSource,
     counts, refused, ceiling,
+    ...(loops.length === 0 ? {} : { loops }),
     hints: ["Narrow with a smaller --up/--down depth or --kind story,capability,promise,file,test.", "Use --dry-run to estimate, then --show for every row."],
     ...(mode === "show" && !refused ? { rows: shown } : {}),
   };
@@ -134,7 +142,9 @@ export function focusRows(graph: ProjectGraph, selected: readonly string[], rows
 
 /** The CLI and tool share the same readable answer as well as the same JSON data. */
 export function formatFocus(answer: FocusAnswer): string {
-  const lines = [`${answer.rowCount} rows; approximately ${answer.estimatedTokens} tokens. Health: ${answer.healthSource}.`];
+  // An answer of mapped rows alone says no health word: mapped code carries none (ADR-0993 D3).
+  const health = answer.rowCount === 0 || answer.counts.mapped < answer.rowCount;
+  const lines = [`${answer.rowCount} rows; approximately ${answer.estimatedTokens} tokens.${health ? ` Health: ${answer.healthSource}.` : ""}`];
   if (answer.diff) {
     lines.push(`Diff ${answer.diff.range}: ${answer.diff.comparison}; base ${answer.diff.base}; target ${answer.diff.target}. ${answer.diff.changedPaths} changed paths; ${answer.diff.renames} renames; ${answer.diff.unresolved} unresolved.`);
     lines.push(`Changes: ${Object.entries(answer.diff.statuses).map(([status, count]) => `${status} ${count}`).join(", ") || "none"}.`);
@@ -142,7 +152,9 @@ export function formatFocus(answer: FocusAnswer): string {
   }
   if (answer.refused) lines.push(`Show refused: ${answer.rowCount} rows exceeds the ceiling of ${answer.ceiling}. Narrow the selection.`);
   for (const [depth, kinds] of Object.entries(answer.counts.byDepth)) lines.push(`Depth ${depth}: ${Object.entries(kinds).map(([kind, count]) => `${kind} ${count}`).join(", ")}`);
-  lines.push(`Health: ${Object.entries(answer.counts.health).map(([state, count]) => `${state} ${count}`).join(", ")}`);
+  if (health) lines.push(`Health: ${Object.entries(answer.counts.health).map(([state, count]) => `${state} ${count}`).join(", ")}`);
+  if (answer.counts.mapped > 0) lines.push(`Mapped: ${answer.counts.mapped}`);
+  for (const loop of answer.loops ?? []) lines.push(`Loop of roads among mapped stories, reported, refusing nothing: ${[...loop, loop[0]].join(" → ")}`);
   for (const row of answer.rows ?? []) lines.push(`${row.depth}  ${row.kind}  ${row.id}  ${row.title}  [${row.health}]${row.snapshot ? ` [${row.snapshot}]` : ""}${row.changes ? ` [${row.changes.join(", ")}]` : ""}${row.unresolved ? ` unresolved: ${row.unresolved}` : ""}${row.edge.length ? `  ${row.edge.map(edge => `${edge.kind} (${edge.provenance}${edge.snapshot ? `, ${edge.snapshot}` : ""}): ${edge.from} -> ${edge.to}`).join("; ")}` : ""}`);
   if (!answer.rows) lines.push(...answer.hints);
   return lines.join("\n");

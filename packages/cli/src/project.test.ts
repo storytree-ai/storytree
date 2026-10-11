@@ -101,3 +101,17 @@ test("3.17 storytree import <folder> imports it into the folder's project, sayin
     assert.match(refused.stderr, /does not exist/);
   });
 });
+
+test("map 3.8 storytree map answers for a mapped story from the folder this machine imports it from", async () => {
+  await inWorld(command, async ({ elsewhere, run }) => {
+    const shop = path.join(elsewhere, "shop");
+    mkdirSync(path.join(shop, "src"), { recursive: true });
+    writeFileSync(path.join(shop, "package.json"), JSON.stringify({ name: "shop" }));
+    writeFileSync(path.join(shop, "src", "index.ts"), "export const shop = 1;\n");
+    assert.equal((await run(["import", shop])).code, 0);
+    const mapped = await run(["map", "--select", "story:shop", "--down", "1", "--show"]);
+    assert.equal(mapped.code, 0, mapped.stderr);
+    assert.match(mapped.stdout, /Mapped: 2/);
+    assert.match(mapped.stdout, /file\s+\S*shop\/src\/index\.ts\s+src\/index\.ts\s+\[mapped\]/);
+  });
+});

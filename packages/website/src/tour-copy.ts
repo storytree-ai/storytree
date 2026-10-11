@@ -79,7 +79,7 @@ const cursorAgents = { name: "Cursor docs", url: "https://cursor.com/docs/agent/
 const langsmith = { name: "LangSmith docs", url: "https://docs.langchain.com/langsmith/studio" };
 const linear = { name: "Linear docs", url: "https://linear.app/docs/initiatives" };
 // The harnesses storytree's first-run probe looks for (each its company's own published mark, evidence/map-harness/README.md).
-// Another harness is one more entry here.
+// Another harness is one more entry here, once storytree watches it; one that only speaks MCP gets the line beneath (ADR-1007 D5).
 const harnesses: Mark[] = [{ name: "Claude Code", src: "/harness/claude-code.png" }, { name: "Codex", src: "/harness/codex.png" }];
 
 /**
@@ -128,9 +128,9 @@ export const steps: TourStep[] = [
   { id: "map-harness", explainer: "map", map: "shop", growth: { seconds: 1, stage: "plans", until: "plans" }, title: "Works with your harness.", lines: [
     // ★
     "Storytree works with your existing coding harness.",
-  ], how: "Storytree doesn't replace the agent you code with. When you set up a project it looks for Claude Code and Codex, and joins their sessions through hooks and an MCP server: the hooks tell storytree what each session reads and changes, and the MCP server gives the agent storytree's tools for the plan and the library.",
+  ], how: "Storytree doesn't replace the agent you code with. When you set up a project it looks for Claude Code and Codex, and joins their sessions through hooks and an MCP server: the hooks tell storytree what each session reads and changes, and the MCP server gives the agent storytree's tools for the plan and the library. Any other agent that speaks MCP can connect to the server too: it gets the plan, claims and the library, though storytree doesn't watch its session.",
   why: "You keep the agents, prompts and habits you already have; storytree adds the map beside them.",
-  decisions: [], surfaces: land, ...shop, marks: harnesses },
+  decisions: [], surfaces: land, ...shop, marks: harnesses, marksNote: "Any other agent that speaks MCP can use the plan too." },
   // The record just before the first claim (01:53:08): the shop's first arc and its four parts, none held yet. The arcs list is
   // small while the tour plays, and its first arc is pointed out and named.
   { id: "map-arcs", explainer: "map", map: "shop", sessionsAt: "2026-10-05T01:53:00.000Z", growth: { seconds: 1, stage: "plans", until: "plans" },

@@ -132,11 +132,12 @@ test("8.7 pnpm lag:desktop --against judges each action slower, the same or fast
   // 100 ms of main-thread work more per round: past 20% and past a frame, so slower.
   assert.equal(compareAction(action("open-most-island", [512, 531, 1390, 505, 520]), against).verdict, "slower");
   assert.equal(compareAction(against, action("open-most-island", [512, 531, 1390, 505, 520])).verdict, "faster");
-  // A short action a frame apart on every round (settled is read once a frame) is the same, though it is 160% worse; 300 ms to
-  // 350 ms is past two frames but under 20%, so the same too; 40 ms to 80 ms is past both, so slower.
+  // Short actions a frame or two apart on every round (settled is read once a frame) are the same, though 160% and 70% worse;
+  // 400 ms to 460 ms is past three frames but under 20%, so the same too; 36 ms to 135 ms is past both, so slower.
   assert.equal(compareAction(action("open-library-note", [31, 30, 120, 28, 32]), action("open-library-note", [12, 10, 123, 27, 11])).verdict, "same");
-  assert.equal(compareAction(action("close-panel", [350, 352, 348]), action("close-panel", [300, 301, 299])).verdict, "same");
-  assert.equal(compareAction(action("close-panel", [80, 81, 79]), action("close-panel", [40, 38, 41])).verdict, "slower");
+  assert.equal(compareAction(action("library-and-back", [74, 75, 73]), action("library-and-back", [43, 44, 42])).verdict, "same");
+  assert.equal(compareAction(action("close-panel", [460, 462, 458]), action("close-panel", [400, 401, 399])).verdict, "same");
+  assert.equal(compareAction(action("close-panel", [135, 136, 134]), action("close-panel", [36, 35, 37])).verdict, "slower");
   // An action with nothing to settle is compared on its response; one with no input either, on its frames over 50 ms.
   const hover = (response) => ({ name: "hover-sweep", budget, rounds: [{ inputs: 9, response, frames: [], settled: null, ipc: {} }] });
   assert.deepEqual([compareAction(hover(90), hover(30)).measure, compareAction(hover(90), hover(30)).verdict], ["response", "slower"]);

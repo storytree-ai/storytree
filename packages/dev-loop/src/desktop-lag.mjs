@@ -16,7 +16,16 @@
 //                    [--home-from <dir>|none] [--home <dir>] [--recorder on|off]
 //   pnpm lag:desktop --chromium [--sizes standard,large | --snapshot code-rows|forest] [--action <name>] [--rounds <n>] [--story <title>] [--out <dir>]
 //                    [--recorder on|off]
+//   pnpm lag:desktop [--chromium] --against <ref | built app dir> [--sizes …] [--action <name>] [--rounds <n>] [--out <dir>]
 //   pnpm lag:desktop --analyze <dir>      reprint a run's table and summary
+//
+// --against compares two builds in one run (ADR-1001 D3, D7): this checkout's and another, measured in turn round by round (A, B, A,
+// B, ...) on the same seed, so the box's load falls on both. Per action it prints both medians, the difference and a verdict, slower,
+// the same or faster past MARGIN, and a read whose count per round differs as its own finding; each build's run is kept in
+// <out>/<size>/this and <out>/<size>/against. A ref is checked out into a throwaway worktree, installed with the repo's provisioning
+// (and built, for Electron), and removed after; a built app dir (an apps/desktop, as APP_DIR names) is used where it is.
+//
+// Every run but --analyze queues behind the machine's heavy-run lock (heavy-lock.mjs) for its whole length.
 //
 // By default the run reads a library it seeds (lag-seed.mjs, the seed `pnpm lag:reads` reads), so two runs compare (ADR-1001 D1):
 // a throwaway Postgres (STORYTREE_TEST_PG_URL's when set, otherwise its own in a temporary folder) holding the seed at each of
@@ -535,10 +544,11 @@ export const exitCode = (rows) => (rows.some((row) => row.notRun !== undefined) 
 
 /**
  * How far apart two builds' medians must be before one is called slower or faster (ADR-1001 D3): by more than this share of the
- * quicker build, and by more than two frames. A round's settled time is read once a frame, so two builds in their own browsers can sit
- * a frame apart on every round with nothing between them: main against itself read a Library note 12 ms against 31 ms.
+ * quicker build, and by more than three frames. A round's settled time is read once a frame, so two builds in their own browsers can
+ * sit a frame apart on every round with nothing between them, two on an action that waits between its inputs: main against itself, in
+ * five runs on the busy Mint box, read a Library note 12 ms against 31 ms and Library and back 43 ms against 74 ms.
  */
-export const MARGIN = { ratio: 0.2, ms: 33 };
+export const MARGIN = { ratio: 0.2, ms: 50 };
 
 /**
  * The page's background polls, made on timers, not asked for by an action: the library's changes and the log's lines, the project

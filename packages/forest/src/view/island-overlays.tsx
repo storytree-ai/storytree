@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState, type ComponentProps, type CSSProp
 import { DoubleSide, Quaternion, type Group } from "three";
 import type { Island } from "@storytree/forest";
 import { globeOccluder, onIslandSurface, plateTransform, type PlanetSpot } from "@storytree/forest-world/planet";
-import { territories, type Coast } from "../territories/territories.js";
+import { islandTerritories, type Coast } from "../territories/territories.js";
 import { capabilityPlates, facing, fadedCapabilities, fadedPlates, southOnPlate, STORY_PLATE_WIDTH, storyPlate } from "./nameplates.js";
 import { islandProgress } from "./island-progress.js";
 import { GROUND_PER_WORLD_UNIT, islandReach, type Descriptor3D } from "@storytree/forest-world";
@@ -51,7 +51,7 @@ export function Nameplates({ island, spot, coast, radius, selected, dimmed = fal
     label.current.dataset.facing = String(faces);
   }, -1);
   const chosen = island.story === selected;
-  const plates = useMemo(() => chosen && island.land !== undefined ? capabilityPlates(territories(island.land.territories, coast)) : [], [chosen, island.land, coast]);
+  const plates = useMemo(() => chosen && island.land !== undefined ? capabilityPlates(islandTerritories(island.land.territories, coast)) : [], [chosen, island.land, coast]);
   const progress = islandProgress(island);
   const opacity = dimmed ? 0.24 : selected !== undefined && !chosen ? 0.5 : 1;
   // Its opacity is a variable, so a crowded plate's fade (styles.css) can take it to nothing and back.

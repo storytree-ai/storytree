@@ -1,0 +1,277 @@
+{
+  "label": "after",
+  "errors": [],
+  "roadSegments": 75,
+  "typedSegments": 54,
+  "cores": 52,
+  "frameMs": 5,
+  "marks": 32,
+  "lanes": [
+    {
+      "dir": "down",
+      "from": "The command line",
+      "to": "The app setup",
+      "typeOnly": false,
+      "length": 1178.7
+    },
+    {
+      "dir": "up",
+      "from": "The app setup",
+      "to": "Session management",
+      "typeOnly": false,
+      "length": 839.4
+    },
+    {
+      "dir": "up",
+      "from": "The app setup",
+      "to": "Session management",
+      "typeOnly": false,
+      "length": 709.5
+    },
+    {
+      "dir": "up",
+      "from": "The app setup",
+      "to": "Guardrails",
+      "typeOnly": false,
+      "length": 168.3
+    },
+    {
+      "dir": "up",
+      "from": "The app setup",
+      "to": "Session management",
+      "typeOnly": false,
+      "length": 770.3
+    },
+    {
+      "dir": "down",
+      "from": "The app",
+      "to": "The app setup",
+      "typeOnly": false,
+      "length": 982.9
+    },
+    {
+      "dir": "down",
+      "from": "The app",
+      "to": "The app setup",
+      "typeOnly": false,
+      "length": 930.2
+    },
+    {
+      "dir": "down",
+      "from": "The command line",
+      "to": "The app setup",
+      "typeOnly": false,
+      "length": 1109.5
+    },
+    {
+      "dir": "down",
+      "from": "The command line",
+      "to": "The app setup",
+      "typeOnly": false,
+      "length": 1247.8
+    },
+    {
+      "dir": "down",
+      "from": "The command line",
+      "to": "The app setup",
+      "typeOnly": false,
+      "length": 1195.6
+    },
+    {
+      "dir": "up",
+      "from": "The app setup",
+      "to": "The local database",
+      "typeOnly": false,
+      "length": 950.7
+    },
+    {
+      "dir": "up",
+      "from": "The app setup",
+      "to": "The local database",
+      "typeOnly": false,
+      "length": 912.2
+    },
+    {
+      "dir": "up",
+      "from": "The app setup",
+      "to": "Quality assurance",
+      "typeOnly": false,
+      "length": 102.7
+    },
+    {
+      "dir": "up",
+      "from": "The app setup",
+      "to": "Session management",
+      "typeOnly": false,
+      "length": 798.8
+    },
+    {
+      "dir": "up",
+      "from": "The app setup",
+      "to": "Session management",
+      "typeOnly": false,
+      "length": 668.9
+    },
+    {
+      "dir": "up",
+      "from": "The app setup",
+      "to": "Session management",
+      "typeOnly": false,
+      "length": 652.8
+    },
+    {
+      "dir": "up",
+      "from": "The app setup",
+      "to": "Session management",
+      "typeOnly": true,
+      "length": 755.3
+    },
+    {
+      "dir": "up",
+      "from": "The app setup",
+      "to": "Session management",
+      "typeOnly": false,
+      "length": 738.2
+    },
+    {
+      "dir": "up",
+      "from": "The app setup",
+      "to": "Session management",
+      "typeOnly": true,
+      "length": 783.2
+    },
+    {
+      "dir": "up",
+      "from": "The app setup",
+      "to": "Session management",
+      "typeOnly": false,
+      "length": 773.1
+    },
+    {
+      "dir": "up",
+      "from": "The app setup",
+      "to": "Session management",
+      "typeOnly": false,
+      "length": 643.2
+    },
+    {
+      "dir": "up",
+      "from": "The app setup",
+      "to": "Session management",
+      "typeOnly": false,
+      "length": 586.4
+    },
+    {
+      "dir": "up",
+      "from": "The app setup",
+      "to": "Session management",
+      "typeOnly": false,
+      "length": 689
+    },
+    {
+      "dir": "up",
+      "from": "The app setup",
+      "to": "Session management",
+      "typeOnly": false,
+      "length": 716.9
+    },
+    {
+      "dir": "up",
+      "from": "The app setup",
+      "to": "Session management",
+      "typeOnly": false,
+      "length": 644.1
+    },
+    {
+      "dir": "up",
+      "from": "The app setup",
+      "to": "Session management",
+      "typeOnly": false,
+      "length": 884.4
+    },
+    {
+      "dir": "up",
+      "from": "The app setup",
+      "to": "Session management",
+      "typeOnly": false,
+      "length": 697.8
+    },
+    {
+      "dir": "up",
+      "from": "The app setup",
+      "to": "Session management",
+      "typeOnly": false,
+      "length": 583.6
+    },
+    {
+      "dir": "up",
+      "from": "The app setup",
+      "to": "Session management",
+      "typeOnly": false,
+      "length": 714.1
+    },
+    {
+      "dir": "up",
+      "from": "The app setup",
+      "to": "The map",
+      "typeOnly": false,
+      "length": 417.7
+    },
+    {
+      "dir": "up",
+      "from": "The app setup",
+      "to": "The library",
+      "typeOnly": true,
+      "length": 386.9
+    },
+    {
+      "dir": "up",
+      "from": "The app setup",
+      "to": "The library",
+      "typeOnly": false,
+      "length": 396.4
+    },
+    {
+      "dir": "up",
+      "from": "The app setup",
+      "to": "The library",
+      "typeOnly": true,
+      "length": 393.6
+    },
+    {
+      "dir": "up",
+      "from": "The app setup",
+      "to": "The library",
+      "typeOnly": true,
+      "length": 305.7
+    },
+    {
+      "dir": "up",
+      "from": "The app setup",
+      "to": "Journey events",
+      "typeOnly": false,
+      "length": 1014.3
+    },
+    {
+      "dir": "down",
+      "from": "The MCP server",
+      "to": "The app setup",
+      "typeOnly": false,
+      "length": 383
+    },
+    {
+      "dir": "down",
+      "from": "The MCP server",
+      "to": "The app setup",
+      "typeOnly": false,
+      "length": 288.9
+    },
+    {
+      "dir": "down",
+      "from": "The MCP server",
+      "to": "The app setup",
+      "typeOnly": false,
+      "length": 313.9
+    }
+  ]
+}

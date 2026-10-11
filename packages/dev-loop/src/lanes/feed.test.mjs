@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { pickPlan, pickPool, readSurvey, WEBSITE_ARC } from "./feed.mjs";
+import { pickPlan, pickPool, readSurvey } from "./feed.mjs";
 
 const now = Date.parse("2026-10-07T03:00:00Z");
 
@@ -49,7 +49,6 @@ test("11.8 · the pool picks ready work from every package by claims alone, olde
     increment("owner-wait", "packages/app", { parked: "2026-09-02T00:00:00Z" }),
     increment("question", "packages/app", { parked: "2026-09-03T00:00:00Z" }),
     increment("laptop", "needs: the laptop", { parked: "2026-09-04T00:00:00Z" }),
-    increment("website", "packages/app", { parked: "2026-09-04T00:00:00Z", arc: WEBSITE_ARC }),
     increment("closed", "packages/app", { parked: "2026-09-04T00:00:00Z", status: "closed" }),
     increment("parked-arc", "packages/app", { parked: "2026-09-04T00:00:00Z", arcState: "parked" }),
   ], {
@@ -65,7 +64,6 @@ test("11.8 · the pool picks ready work from every package by claims alone, olde
   assert.match(why["owner-wait"], /waits for the owner/);
   assert.match(why.question, /held on question_1/);
   assert.match(why.laptop, /another machine/);
-  assert.match(why.website, /website arc/);
   assert.equal(why.closed, undefined);
   assert.equal(why["parked-arc"], undefined);
   assert.deepEqual(pickPool(work, { max: 9, running: ["app-work"] }).picks.map((one) => one.id).includes("app-work"), false, "never started twice");
@@ -77,6 +75,8 @@ test("11.8 · the pool picks ready work from every package by claims alone, olde
   assert.equal(attempts.get("refused").refusedBy, "s9", "a claim older than the start refused it");
   assert.deepEqual(pickPool(survey([increment("refused", "x"), increment("ran", "x")]), { attempts, max: 2 }).picks.map((one) => one.id), ["refused"],
     "retried once its claim clears; work it ran is not");
+  assert.deepEqual(pickPool(survey([increment("website", "packages/app", { arc: "arc_e42da2528db8" })]), {}).picks.map((one) => one.id), ["website"],
+    "the website arc's ready work is picked like any other arc's");
 });
 
 test("11.15 · only a wait for the owner or a held-on question keeps work from the pool as his; no wording in its body does", () => {
@@ -122,7 +122,7 @@ test("11.9 · an active arc whose open work all waits, with no open question, is
   ], {
     arcs: [arc("arc_waits", "2026-10-03T00:00:00Z"), arc("arc_empty", "2026-10-02T00:00:00Z"), arc("arc_held", "2026-10-04T00:00:00Z"),
       arc("arc_ready", "2026-09-01T00:00:00Z"), arc("arc_claimed", "2026-09-01T00:00:00Z"), arc("arc_asked", "2026-09-01T00:00:00Z", { openQuestions: 1 }),
-      arc("arc_parked", "2026-09-01T00:00:00Z", { state: "parked" }), arc(WEBSITE_ARC, "2026-09-01T00:00:00Z"), arc("arc_event", "2026-10-05T00:00:00Z")],
+      arc("arc_parked", "2026-09-01T00:00:00Z", { state: "parked" }), arc("arc_event", "2026-10-05T00:00:00Z")],
     holds: { waits: { waiting: [{ on: "x" }] }, heldOn: { held: ["question_1"] }, waitsFor: { event: [{ releaser: "event", note: "PR", holds: true }] } },
     claims: [{ increment: "claimed", session: "s1", holder: "live", since: "2026-10-07T00:00:00Z" }],
   });
@@ -130,7 +130,8 @@ test("11.9 · an active arc whose open work all waits, with no open question, is
   assert.equal(pickPlan(work, { planned: new Set(["arc_empty"]) })?.id, "arc_waits", "closed work does not count; each arc once");
   assert.deepEqual(["arc_empty", "arc_waits", "arc_held", "arc_event"].map((id, at, all) => pickPlan(work, { planned: new Set(all.slice(0, at)) })?.id), ["arc_empty", "arc_waits", "arc_held", "arc_event"]);
   assert.equal(pickPlan(work, { planned: new Set(["arc_empty", "arc_waits", "arc_held", "arc_event"]) }), undefined,
-    "ready or claimed work, an open question, a parked arc and the website arc never qualify");
+    "ready or claimed work, an open question and a parked arc never qualify");
+  assert.equal(pickPlan(survey([], { arcs: [arc("arc_e42da2528db8", "2026-09-01T00:00:00Z")] }))?.id, "arc_e42da2528db8", "the website arc is planned like any other");
   assert.equal(pickPlan(survey([])), undefined, "a survey without arcs offers none");
 });
 

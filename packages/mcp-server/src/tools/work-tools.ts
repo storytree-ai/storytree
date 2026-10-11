@@ -13,7 +13,8 @@ import type { Library, Storytree } from "@storytree/library";
 import { z } from "zod";
 
 import { recordFriction, recordResteer, reinforceFriction } from "@storytree/session-management";
-import { closed, currentBranch, incrementMachine, increments, MachineNameError, presentQuestion, releaseAsked, stopPresenting } from "@storytree/session-management";
+import { closed, currentBranch, increments, presentQuestion, releaseAsked, stopPresenting } from "@storytree/session-management";
+import { incrementMachine, MachineNameError } from "@storytree/session-management/machines";
 import { lineOf, type Answer, type Call, type Define } from "./server.js";
 import { quoted } from "./text.js";
 

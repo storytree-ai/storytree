@@ -265,7 +265,7 @@ function incrementOf(args: Args, usage: string): Record<string, unknown> {
 async function machineGiven(args: Args, context: Context): Promise<{ machine?: string | undefined }> {
   const name = args.text("machine");
   if (name === undefined) return {};
-  const { incrementMachine, MachineNameError } = await import("@storytree/session-management");
+  const { incrementMachine, MachineNameError } = await import("@storytree/session-management/machines");
   try {
     return { machine: await incrementMachine(await context.server(), name) };
   } catch (error) {

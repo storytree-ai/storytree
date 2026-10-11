@@ -21,7 +21,8 @@ import { connect } from "@storytree/library";
 import { roundDue, route, worklist } from "@storytree/librarian";
 import { z } from "zod";
 
-import { nameThisMachine, recordFriction, reinforceFriction } from "@storytree/session-management";
+import { nameThisMachine } from "@storytree/session-management/machines";
+import { recordFriction, reinforceFriction } from "@storytree/session-management";
 import type { ToolExtension } from "./index.js";
 import { readClaims } from "@storytree/session-management";
 import { MARKER_FILE } from "@storytree/session-management";

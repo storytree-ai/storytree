@@ -10,7 +10,8 @@ import { after, before, test } from "node:test";
 import pg from "pg";
 
 import { connect } from "@storytree/library";
-import { claim, nameThisMachine, openActivityLog, readClaims, recordFriction, release } from "@storytree/session-management";
+import { nameThisMachine } from "@storytree/session-management/machines";
+import { claim, openActivityLog, readClaims, recordFriction, release } from "@storytree/session-management";
 import { withTempDir } from "@storytree/session-management/testing/folders";
 
 import { parseArgs } from "./args.js";

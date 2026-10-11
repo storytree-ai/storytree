@@ -3,8 +3,11 @@ import test from 'node:test';
 import { Vector3 } from 'three';
 import type { ForestScene, Island } from '../scene.js';
 import { buildPlanetPathways, laneDrawSeconds, laneProgress, laneRoutes, LANE_COLOUR } from '../geometry.js';
-import { advanceLaneClock, entranceShown, laneDelays, laneEntrances, laneHead, LANE_GLOW } from './lanes.js';
+import { trailFillWidth } from '../core/routing.js';
+import { RIBBON_GROUND_SCALE } from '../trail-ribbon-width.js';
+import { advanceLaneClock, entranceShown, laneDelays, laneEntrances, laneHead, LANE_GLOW, onIsland, type InlandWay } from './lanes.js';
 import type { PlanetPathways } from './pathways.js';
+import { dashedRoadMaterial, laneMaterial, ribbon, roadInk } from './PlanetTrailRibbons.js';
 
 const R = 218;
 const island = (story: string, capabilities: string[]): Island => ({
@@ -47,6 +50,64 @@ test('6.8 a lit link\'s lane is one unbroken strip between islands, from the doc
   alone!.points.forEach((p, i) => assert.ok(Math.abs(alone!.widths[i]! - road(p)) < 1e-9, `a lone lane fills its road at point ${i}`));
   assert.ok(LANE_GLOW > 1.5, 'its glow reaches beyond the road\'s edge');
   assert.deepEqual(laneRoutes(plan, [{ from: 'x', to: 'y', dir: 'up' }]), [], 'a link with no trail lights nothing');
+});
+
+test('6.8 a lit lane runs on from each dock along its way inland to its capability\'s territory, a one-link road wide; with no way it ends at its dock', () => {
+  const plan = buildPlanetPathways(scene, spots, R);
+  const link = { from: 'b1', to: 'a1', dir: 'down' } as const;
+  // A way from the dock straight to the island's middle, in the island's own ground coordinates.
+  const middle = (story: string) => onIsland([{ x: 0, z: 0 }], spots.get(story)!, R)[0]!;
+  const inland: InlandWay = (dock, capability) => {
+    assert.equal(capability, dock.story === 'a' ? 'a1' : 'b1', 'each end asks for the way to its own capability');
+    return onIsland([dock.local, { x: dock.local.x / 2, z: dock.local.z / 2 }, { x: 0, z: 0 }], spots.get(dock.story)!, R);
+  };
+  const [road] = laneRoutes(plan, [link]), [lane] = laneRoutes(plan, [link], inland);
+  assert.ok(lane!.points[0]!.distanceTo(middle('a')) < 1e-9, 'it starts in the territory on the island built on');
+  assert.ok(lane!.points.at(-1)!.distanceTo(middle('b')) < 1e-9, 'and ends in the territory on the island building on it');
+  const start = lane!.points.findIndex(p => p.distanceTo(road!.points[0]!) < 1e-9);
+  assert.ok(start > 0, 'through the dock');
+  road!.points.forEach((p, i) => assert.ok(p.distanceTo(lane!.points[start + i]!) < 1e-9, `along its road at point ${i}`));
+  const inlandWidths = [...lane!.widths.slice(0, start), ...lane!.widths.slice(start + road!.points.length)];
+  assert.ok(inlandWidths.length > 0 && inlandWidths.every(w => Math.abs(w - trailFillWidth(1) * RIBBON_GROUND_SCALE) < 1e-9), 'a one-link road wide inland');
+  lane!.points.slice(1).forEach((p, i) => assert.ok(p.distanceTo(lane!.points[i]!) <= 1 + 1e-9, `unbroken at point ${i}`));
+  assert.ok(Math.abs(lane!.length - lane!.points.slice(1).reduce((sum, p, i) => sum + p.distanceTo(lane!.points[i]!), 0)) < 1e-6);
+  const marks = laneEntrances([lane!]);
+  assert.deepEqual(marks.map(mark => [mark.point.distanceTo(lane!.points[0]!) < 1e-9, mark.point.distanceTo(lane!.points.at(-1)!) < 1e-9].indexOf(true)).sort(), [0, 1],
+    'its marks sit at its two ends, in the territories');
+  const [none] = laneRoutes(plan, [link], () => undefined);
+  assert.equal(none!.points.length, road!.points.length, 'with no way inland it ends at its docks');
+});
+
+test('6.8 a way inland lies on its island where the globe draws it, from the dock, a unit at most between points', () => {
+  const plan = buildPlanetPathways(scene, spots, R);
+  for (const dock of plan.docks) {
+    const way = onIsland([dock.local, { x: 0, z: 0 }], spots.get(dock.story)!, R);
+    assert.ok(way[0]!.distanceTo(dock.point) < 1e-6, `it starts on the dock on ${dock.story}`);
+    way.slice(1).forEach((p, i) => assert.ok(p.distanceTo(way[i]!) <= 1 + 1e-9));
+    assert.ok(way.length > Math.hypot(dock.local.x, dock.local.z), 'filled in along the way');
+  }
+});
+
+test('6.8 a type-only link\'s road and its lane are dashed; a road a link by value shares keeps a solid core as wide as its links by value', () => {
+  const typed: ForestScene = { ...scene, links: [{ from: 'b1', to: 'a1' }, { from: 'b2', to: 'a2', typeOnly: true }, { from: 'b2', to: 'a1', typeOnly: true }] };
+  const plan = buildPlanetPathways(typed, spots, R);
+  assert.deepEqual(plan.edges.map(e => [e.from, e.to, e.typeOnly === true]), [['b1', 'a1', false], ['b2', 'a2', true], ['b2', 'a1', true]]);
+  for (const segment of plan.segments) {
+    assert.equal(segment.typeOnlyLinks ?? 0, segment.links.filter(link => link !== 'b1->a1').length, `${segment.id} counts its type-only links`);
+  }
+  assert.deepEqual(roadInk({ links: ['x', 'y'] }), { dashed: false }, 'a road of links by value is solid');
+  assert.deepEqual(roadInk({ links: ['x', 'y'], typeOnlyLinks: 2 }), { dashed: true }, 'a road of type-only links is dashed');
+  assert.deepEqual(roadInk({ links: ['x', 'y', 'z'], typeOnlyLinks: 1 }), { dashed: true, core: trailFillWidth(2) * RIBBON_GROUND_SCALE },
+    'a shared road is dashed, with a solid core as wide as its two links by value');
+  const lanes = laneRoutes(plan, [{ from: 'b1', to: 'a1', dir: 'up' }, { from: 'b2', to: 'a2', dir: 'up' }]);
+  assert.deepEqual(lanes.map(lane => lane.typeOnly === true), [false, true]);
+  assert.equal(laneMaterial(LANE_COLOUR.up, false, 1, true).uniforms.uDashed!.value, 1, 'a type-only lane is dashed');
+  assert.equal(laneMaterial(LANE_COLOUR.up, false, 1).uniforms.uDashed!.value, 0, 'a lane by value is not');
+  assert.equal(dashedRoadMaterial('#c7bba1').uniforms.uDashed!.value, 1);
+  // The dashes are measured along the road, so they keep their length wherever the road runs.
+  const strip = ribbon(plan.segments[0]!), along = strip.getAttribute('along');
+  const points = plan.segments[0]!.points;
+  assert.ok(Math.abs(along.getX(along.count - 1) - points.slice(1).reduce((sum, p, i) => sum + p.distanceTo(points[i]!), 0)) < 1e-3);
 });
 
 test('6.8 a lane marks each dock it uses in its colour, both colours side by side where an up and a down lane share one, shown once its front leaves or reaches it', () => {

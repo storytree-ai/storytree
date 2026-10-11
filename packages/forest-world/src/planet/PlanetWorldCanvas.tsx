@@ -6,7 +6,8 @@ import { Vector3, type Group, type OrthographicCamera } from 'three';
 import type { ForestScene, Island } from '../scene.js';
 import { planetPathwayDrawing, type PlanetPathwayPlate } from './pathways.js';
 import { Pathways, SelectionLanes } from './PlanetTrailRibbons.js';
-import type { LitLink } from './lanes.js';
+import { onIsland, type InlandWay, type LitLink } from './lanes.js';
+import type { CoastPoint } from '../coast-clip.js';
 import type { Descriptor3D } from '../descriptors.js';
 import { EXACT_COLOUR_CANVAS_PROPS } from '../exact-colour.js';
 import { SHIPPED_ELEVATION_DEG } from './camera.js';
@@ -57,6 +58,9 @@ export interface PlanetWorldCanvasProps {
   orbit?: boolean;
   /** The selection's lit links, drawn as lanes over their roads; none by default. */
   lanes?: readonly LitLink[];
+  /** The way inland from a dock on `story`'s island to `capability`'s territory, in the island's own ground coordinates
+   * and starting on the dock, along lines the host has drawn there (ADR-0991 D4); without it a lane ends at its docks. */
+  laneWays?: ((story: string, capability: string, dock: CoastPoint) => readonly CoastPoint[] | undefined) | undefined;
   /** A recorded growth to replay (world 7): islands rise, roads draw on, and plate children read `usePlanetGrowth`. */
   growth?: PlanetGrowth | undefined;
   /** Draw first and newly arriving roads on in a live host; recorded growth takes precedence. */
@@ -145,8 +149,12 @@ const CAPTURE_SEAM = '__storytreeCaptureGlobe';
 
 /** The globe: one Canvas, the see-through sea, and each story's island as a flat surface with a coast
  * (ADR-0804 D1). Nothing on it is lit, so there is no sun to calibrate. */
-export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1], plateChildren, children, surface = true, surfaces, inside, framing = 1.18, sideOffset = 0, orbit = true, lanes = NO_LANES, growth, liveRoads = false }: PlanetWorldCanvasProps) {
+export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1], plateChildren, children, surface = true, surfaces, inside, framing = 1.18, sideOffset = 0, orbit = true, lanes = NO_LANES, laneWays, growth, liveRoads = false }: PlanetWorldCanvasProps) {
   const drawing = useMemo(() => planetPathwayDrawing(scene, spots, radius), [scene, spots, radius]);
+  const inland = useMemo((): InlandWay | undefined => laneWays && ((dock, capability) => {
+    const way = laneWays(dock.story, capability, dock.local), spot = spots.get(dock.story);
+    return way && spot && way.length > 1 ? onIsland(way, spot, radius) : undefined;
+  }), [laneWays, spots, radius]);
   const pathways = drawing.plan;
   const reveal = useMemo(() => growth === undefined ? undefined : roadSegmentWindows(pathways, growth.plan.roads), [pathways, growth?.plan]);
   const elevation = SHIPPED_ELEVATION_DEG * Math.PI / 180;
@@ -171,7 +179,7 @@ export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1
         return <Plate key={island.story} island={island} spot={spot} radius={radius} plate={pathways.plates.get(island.story)!}
           visible={exterior.plates} grounds={exterior.grounds} children={plateChildren} />;
       })}
-      <group name="globe-roads" visible={exterior.roads}><Pathways plan={pathways} reveal={reveal} live={liveRoads && growth === undefined} visible={exterior.roads} /><SelectionLanes plan={pathways} lit={lanes} /></group>
+      <group name="globe-roads" visible={exterior.roads}><Pathways plan={pathways} reveal={reveal} live={liveRoads && growth === undefined} visible={exterior.roads} /><SelectionLanes plan={pathways} lit={lanes} inland={inland} /></group>
       {inside}
     </group>
     <Wheel radius={radius} framing={framing} orbit={orbit} />

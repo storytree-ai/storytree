@@ -11,12 +11,12 @@ export type Source = { name: string; url: string };
 export type Chip = { kind: "principle" | "partial" | "recording"; text: string };
 /**
  * A label on the thing a line talks about (ADR-0891, amended 2026-10-10): fixed words, or words read from the record the globe
- * shows at that moment: a file's name and lines, the name of the session whose flag stands in a capability, or a story's health.
+ * shows at that moment: a file's name and lines (after `text`, when it has one), the name of the session whose flag stands in a capability, or a story's health.
  * `narrowest` is the narrowest screen, in CSS pixels, it shows on: below that it would crowd the island or another name, and a
- * phone shows at most one in a step. A `point` names a panel to point out instead: the sessions list, outlined, or the arcs
- * list's first arc, outlined and named in `text`.
+ * phone shows at most one in a step. A `point` names a panel to point out instead: the sessions list, outlined, the arcs
+ * list's first arc, outlined and named in `text`, or the story panel's diagram, outlined and named in `text`.
  */
-export type Label = { target: GlobeTarget; text?: string; read?: "file" | "holder" | "health"; narrowest?: number } | { point: "sessions" } | { point: "arc"; text: string };
+export type Label = { target: GlobeTarget; text?: string; read?: "file" | "holder" | "health"; narrowest?: number } | { point: "sessions" } | { point: "arc" | "panel"; text: string };
 /** Another company's published mark, shown unaltered beside its name as a plain "works with" reference. */
 export type Mark = { name: string; src: string };
 export type TourStep = {
@@ -25,6 +25,10 @@ export type TourStep = {
    * its subhead, alone; fixes pair each pain (its note) with its fix (its line). */
   kind?: "beats" | "lines" | "compare" | "statement" | "fixes";
   lines: string[];
+  /** Moments within the lines, each in seconds at 1× from the step's start: a label, a surface or a panel can arrive partway
+   * through a line, as the map shows what the line would otherwise say. Where a step has cues, every number below keyed by
+   * line (and a beat's line) counts its moments instead: its lines and its cues, in the order they begin. */
+  cues?: readonly number[];
   notes?: string[]; sources?: (Source | undefined)[];
   /** A step's depth: how it works and why it exists, as curated explainers (ADR-0891); a comparison offered there. */
   how?: string; why?: string; decisions: Decision[]; chips?: Chip[];
@@ -66,6 +70,8 @@ export type TourStep = {
   panelFromLine?: number;
   /** The marks a step shows beneath its lines: the coding harnesses storytree works with. */
   marks?: readonly Mark[];
+  /** One line beneath the marks, for the harnesses that have none. */
+  marksNote?: string;
   /** The labels each line (1-based) puts on what it talks about, shown only while it is the current line. */
   labels?: Record<number, readonly Label[]>;
 };
@@ -73,8 +79,9 @@ export type TourStep = {
 export type Beat = { line: number; stage: string };
 /** Free play's project: the example shop, whole (the default), or storytree's own saved project (ADR-0890). */
 export type FreePlayProject = "shop" | "storytree";
+/** `lines` are the lines told; `moments` the moments reached, lines and cues together (the same count where a step has no cues). */
 export type TourState = {
-  index: number; generation: number; lines: number; speed: .75 | 1 | 1.5;
+  index: number; generation: number; lines: number; moments: number; speed: .75 | 1 | 1.5;
   holds: readonly Hold[]; freePlay: boolean; project: FreePlayProject;
 };
 export type TourDetail = { step: TourStep; state: TourState; running: boolean; elapsed: number };
@@ -101,12 +108,13 @@ export const settle = 1200;
 /** A step that replays a growth lasts as long as it does, however short its words. */
 /** When each line begins, in seconds at 1×. */
 export const lineStarts = (step: TourStep): number[] => step.lines.map((_, index) => step.lines.slice(0, index).reduce((sum, line) => sum + readingTime(line), 0) / 1000);
-const duration = (step: TourStep) => Math.max(step.lines.reduce((sum, line) => sum + readingTime(line), 0), typeof step.growth === "object" ? step.growth.seconds * 1000 : 0) + settle;
-const shown = (step: TourStep, elapsed: number) => {
-  let start = 0, count = 0;
-  for (const line of step.lines) { if (elapsed >= start) count++; start += readingTime(line); }
-  return Math.max(1, Math.min(count, step.lines.length));
-};
+/** When each moment begins, in seconds at 1×: each line's start and each cue, in order. */
+export const momentStarts = (step: TourStep): number[] => [...lineStarts(step), ...step.cues ?? []].sort((a, b) => a - b);
+// A step lasts until its last cue has been read, as a line would be.
+const duration = (step: TourStep) => Math.max(step.lines.reduce((sum, line) => sum + readingTime(line), 0), typeof step.growth === "object" ? step.growth.seconds * 1000 : 0,
+  ...(step.cues ?? []).map(cue => cue * 1000 + readingTime(""))) + settle;
+const reached = (starts: readonly number[], elapsed: number) => Math.max(1, starts.filter(start => elapsed >= start * 1000 - 1e-6).length);
+const shown = (step: TourStep, elapsed: number) => reached(lineStarts(step), elapsed);
 
 /** The progress bar's groups: consecutive steps of one explainer share a group. */
 export function groups(steps: readonly TourStep[]): { explainer: Group; steps: number[] }[] {
@@ -122,15 +130,16 @@ export function groups(steps: readonly TourStep[]): { explainer: Group; steps: n
 /** `ready` says whether the globe a growth plays on is set up: until it is, the time-lapse and the step before it wait (2.10). */
 export function createTour(steps: readonly TourStep[], { ready = () => true }: { ready?: () => boolean } = {}) {
   if (!steps.length) throw new Error("A tour needs at least one step.");
-  let state: TourState = { index: 0, generation: 0, lines: 1, speed: .75, holds: [], freePlay: false, project: "shop" };
+  let state: TourState = { index: 0, generation: 0, lines: 1, moments: 1, speed: .75, holds: [], freePlay: false, project: "shop" };
   let elapsed = 0;
   const update = (patch: Partial<TourState>) => state = { ...state, ...patch };
   const all = (index = state.index) => steps[index]!.lines.length;
+  const every = (index = state.index) => momentStarts(steps[index]!).length;
   /** Moving to a step keeps only the visitor's own pause: a paused tour steps through by hand, each step shown whole. */
   const enter = (index: number) => {
     elapsed = 0;
     const holds = state.holds.includes("paused") ? ["paused" as const] : [];
-    return update({ index, holds, lines: holds.length ? all(index) : 1, freePlay: false });
+    return update({ index, holds, lines: holds.length ? all(index) : 1, moments: holds.length ? every(index) : 1, freePlay: false });
   };
   const tour = {
     get state() { return state; },
@@ -149,8 +158,8 @@ export function createTour(steps: readonly TourStep[], { ready = () => true }: {
         if (!grows(state.index + 1) || ready()) return tour.next();
         elapsed = duration(step) - 1e-6;
       }
-      const lines = Math.max(state.lines, shown(step, elapsed));
-      return lines === state.lines ? state : update({ lines });
+      const lines = Math.max(state.lines, shown(step, elapsed)), moments = Math.max(state.moments, reached(momentStarts(step), elapsed));
+      return lines === state.lines && moments === state.moments ? state : update({ lines, moments });
     },
     go(index: number) { return index < 0 || index >= steps.length ? state : enter(index); },
     next() {
@@ -158,11 +167,11 @@ export function createTour(steps: readonly TourStep[], { ready = () => true }: {
       return state.index + 1 >= steps.length ? update({ freePlay: true, holds: [] }) : enter(state.index + 1);
     },
     previous() { return state.freePlay ? enter(steps.length - 1) : enter(Math.max(0, state.index - 1)); },
-    replay() { elapsed = 0; return update({ index: 0, generation: state.generation + 1, lines: 1, holds: [], freePlay: false }); },
+    replay() { elapsed = 0; return update({ index: 0, generation: state.generation + 1, lines: 1, moments: 1, holds: [], freePlay: false }); },
     skip() { return update({ freePlay: true, holds: [] }); },
     hold(reason: Hold) {
       if (state.freePlay || state.holds.includes(reason)) return state;
-      return update({ holds: [...state.holds, reason], lines: all() });
+      return update({ holds: [...state.holds, reason], lines: all(), moments: every() });
     },
     release(reason: Hold) { return state.holds.includes(reason) ? update({ holds: state.holds.filter(hold => hold !== reason) }) : state; },
     /** Play clears every hold and continues the step where it stopped; pause is the visitor's own hold. */
@@ -196,7 +205,7 @@ export function replayMoment(plan: { seconds: number; stages: readonly { id: str
   return a.at + (now - a.told) / (b.told - a.told) * (b.at - a.at);
 }
 
-/** The step as it stands once `lines` lines are told: a line's view replaces the step's own from that line on. */
+/** The step as it stands once `lines` lines (or moments) are told: a line's view replaces the step's own from that line on. */
 export function stepAt(step: TourStep, lines: number): TourStep {
   let shown = step;
   for (const [from, view] of Object.entries(step.lineViews ?? {})) if (lines >= Number(from)) shown = { ...shown, ...view };
@@ -241,9 +250,14 @@ export function globeOf(step: TourStep, state: TourState, elapsed = 0): GlobeOn 
   return step.growth ? { map: step.map, at: Math.min(step.growth.seconds, elapsed / 1000), ...focus } : { map: step.map, ...focus };
 }
 
-/** The labels on show once `lines` lines are told: the current line's own, none once it has passed (2.21). */
-export function labelsAt(step: TourStep, lines: number, { width = Infinity }: { width?: number } = {}): readonly Label[] {
-  return (step.labels?.[lines] ?? []).filter(label => "point" in label || width >= (label.narrowest ?? 0));
+/**
+ * The labels on show once `lines` lines (or moments) are told: the current one's own, none once it has passed (2.21). A
+ * waiting step (`still`) shows every label its last line brings, so labels that arrive on a timer can all be read at once.
+ */
+export function labelsAt(step: TourStep, lines: number, { width = Infinity, still = false }: { width?: number; still?: boolean } = {}): readonly Label[] {
+  const starts = momentStarts(step), from = still ? starts.indexOf(lineStarts(step).at(-1) ?? 0) + 1 : lines;
+  return Array.from({ length: lines - from + 1 }, (_, index) => step.labels?.[from + index] ?? []).flat()
+    .filter(label => "point" in label || width >= (label.narrowest ?? 0));
 }
 
 /** The part of a recorded frame a label reads. */
@@ -262,7 +276,7 @@ export function labelWords(label: Label, frame: LabelFrame, named: (session: str
   if (target.kind === "story" && !island(target.story)) return undefined;
   if (label.read === "file" && target.kind === "file") {
     const file = island(target.story)?.land?.files.find(file => file.path === target.path);
-    return file && `${file.path.split("/").at(-1)} · ${file.lines} lines`;
+    return file && `${label.text ? `${label.text}: ` : ""}${file.path.split("/").at(-1)} · ${file.lines} lines`;
   }
   if (label.read === "holder" && target.kind === "capability") {
     const holder = frame.wisps.find(wisp => wisp.capabilities.includes(target.capability));

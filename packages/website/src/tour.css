@@ -157,6 +157,8 @@ html:has(> body.immersive-home) { scroll-padding-top:0; }
 #chapter2 .tour-marks[hidden] { display:none; }
 #chapter2 .tour-mark { display:flex; align-items:center; gap:12px; color:#eceee6; font:600 17px/1.3 system-ui, sans-serif; animation:tour-beat-in .8s ease both; }
 #chapter2 .tour-mark img { flex:none; width:44px; height:44px; }
+#chapter2 .tour-marks-note { margin:-8px 0 18px; color:#c9cdc0; font:400 15px/1.4 system-ui, sans-serif; animation:tour-beat-in .8s ease both; }
+#chapter2 .tour-marks-note[hidden] { display:none; }
 @keyframes tour-point { 0%, 45% { outline:2px solid var(--green); outline-offset:3px; } 100% { outline:2px solid transparent; outline-offset:3px; } }
 
 /* The bar, always there: play, speed, where you are, Next, free play, replay, show everything (ADR-0879 D2). */
@@ -213,6 +215,7 @@ html:has(> body.immersive-home) { scroll-padding-top:0; }
 @media (max-width:600px) {
   #chapter2 .tour-mark { font-size:15px; gap:10px; }
   #chapter2 .tour-mark img { width:36px; height:36px; }
+  #chapter2 .tour-marks-note { font-size:14px; }
   #chapter2 { --bar-h:110px; min-height:620px; }
   /* A phone's controls are thumb-sized (contract 1.6): every standalone control is at least 44px high. */
   #chapter2 :is(.tb-btn, .tb-switch, .tb-speed-cycle) { min-height:44px; }

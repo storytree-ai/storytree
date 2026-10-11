@@ -26,7 +26,7 @@ export function wireTour() {
   // The globe sets up behind the pain beat; the time-lapse waits until it is live, or has fallen back to its still (2.10).
   const tour = createTour(steps, { ready: () => document.getElementById("website-forest")?.dataset.forestState !== "loading" });
   const recorded = get("tour-recorded");
-  const card = get("tour-card"), kicker = get("tour-kicker"), heading = get("tour-title"), lines = get("tour-lines"), chips = get("tour-chips"), marks = get("tour-marks");
+  const card = get("tour-card"), kicker = get("tour-kicker"), heading = get("tour-title"), lines = get("tour-lines"), chips = get("tour-chips"), marks = get("tour-marks"), marksNote = get("tour-marks-note");
   const depthToggle = get<HTMLButtonElement>("tour-depth"), depth = get("tour-why");
   const play = get<HTMLButtonElement>("tour-play"), icon = play.querySelector("path")!;
   const pips = get<HTMLOListElement>("tour-pips"), label = get("tour-label"), held = get("tour-held");
@@ -134,6 +134,8 @@ export function wireTour() {
     const globe = globeOf(step, state, tour.elapsed());
     root.dataset.globeMap = globe.map;
     root.dataset.tourRunning = String(running);
+    // How far into the step it stands: its lines and the moments within them (2.21).
+    root.dataset.tourMoment = String(state.moments);
     if (changedStep) {
       const at = where(state.index);
       kicker.textContent = state.freePlay ? "Act 2 · Your turn" : step.explainer === "opening" || step.explainer === "ending" ? `Act 2 · ${at.title}` : `${at.title} · ${at.at} of ${at.of}`;
@@ -153,6 +155,8 @@ export function wireTour() {
         return item;
       }));
       marks.hidden = !stepMarks.length;
+      marksNote.textContent = state.freePlay ? "" : text(step.marksNote ?? "");
+      marksNote.hidden = !marksNote.textContent;
       // A recording's date is small print in the corner, not a chip on the card (owner, 2026-10-04).
       const dated = stepChips.find(chip => chip.kind === "recording");
       recorded.textContent = dated ? text(dated.text) : "";

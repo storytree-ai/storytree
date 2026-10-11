@@ -3,7 +3,7 @@ import { Component, useCallback, useEffect, useMemo, useRef, useState, type Reac
 import { createPortal } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { drillDown, type SessionWisp } from "@storytree/forest";
-import { PlanetView, LAUNCH_SWITCHES, flipSwitch, globeLayers, mountSessionsList, renderStoryPanel, attachPanZoom, mountTreeSpace, type GlobeControls, type GlobeSurfaces, type GlobeSwitch, type GlobeTarget } from "@storytree/forest/view";
+import { PlanetView, flipSwitch, globeLayers, mountSessionsList, renderStoryPanel, attachPanZoom, mountTreeSpace, type GlobeControls, type GlobeSurfaces, type GlobeSwitch, type GlobeTarget } from "@storytree/forest/view";
 import { workStates } from "@storytree/arc-surface";
 import { mountArcSurface } from "@storytree/arc-surface/view";
 import { knowledge } from "@storytree/knowledge-core";
@@ -221,8 +221,9 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   const [toldStory, setToldStory] = useState<string>();
   const [capability, setCapability] = useState<string>();
   const [note, setNote] = useState<string>();
-  // The globe's two switches, Stories and Library, as the app's (ADR-1002 D1); a step sets them, free play opens with both on.
-  const [switches, setSwitches] = useState(LAUNCH_SWITCHES);
+  // The globe's two switches, Stories and Library, as the app's (ADR-1002 D1); a step sets them, and the website opens with both
+  // on where the app opens with Library off.
+  const [switches, setSwitches] = useState(() => switchesFor(undefined, true));
   const layers = globeLayers(switches, true);
   const [query, setQuery] = useState("");
   const [browserOpen, setBrowserOpen] = useState(false);

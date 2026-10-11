@@ -3,12 +3,12 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { flipSwitch, globeLayers, LAUNCH_SWITCHES } from "./globe-switches.js";
 
-test("3.10 a launch opens with Stories and Library both on, and a press flips only its own switch", () => {
-  assert.deepEqual(LAUNCH_SWITCHES, { stories: true, library: true });
-  const noStories = flipSwitch(LAUNCH_SWITCHES, "stories");
-  assert.deepEqual(noStories, { stories: false, library: true });
-  assert.deepEqual(flipSwitch(noStories, "library"), { stories: false, library: false });
-  assert.deepEqual(flipSwitch(flipSwitch(LAUNCH_SWITCHES, "library"), "library"), LAUNCH_SWITCHES);
+test("3.10 a launch opens with Stories on and Library off, and a press flips only its own switch", () => {
+  assert.deepEqual(LAUNCH_SWITCHES, { stories: true, library: false });
+  const both = flipSwitch(LAUNCH_SWITCHES, "library");
+  assert.deepEqual(both, { stories: true, library: true });
+  assert.deepEqual(flipSwitch(both, "stories"), { stories: false, library: true });
+  assert.deepEqual(flipSwitch(flipSwitch(LAUNCH_SWITCHES, "stories"), "stories"), LAUNCH_SWITCHES);
 });
 
 test("3.9 each pair of switches draws its own globe: both on the islands over the core, Library off a solid globe, Stories off the core alone, both off nothing", () => {

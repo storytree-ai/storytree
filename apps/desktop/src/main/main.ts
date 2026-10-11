@@ -604,9 +604,10 @@ async function smoke(window: BrowserWindow, project: string | undefined): Promis
     const arcsOn = !read.ok || surfaceOn(read.value, "arcs");
     const arcProblems = project !== undefined && state === "ready" && arcsOn ? await smokeArcSurface(window.webContents, project, open()) : [];
     if (state === "ready" && args.forestMode !== undefined) {
-      // The Library mode is the globe's Stories switch off (ADR-1002 D2).
+      // The Library mode is the globe's Stories switch off (ADR-1002 D2), with its Library switch on: a launch opens it off.
       const mode = args.forestMode, stories = mode === "forest";
       await window.webContents.executeJavaScript(`(async () => {
+        if (${!stories}) document.querySelector('.forest-views [data-globe-switch="library"][aria-pressed="false"]')?.click();
         const button = document.querySelector('.forest-views [data-globe-switch="stories"]');
         if (!button) throw new Error('Stories switch is missing');
         if (button.getAttribute('aria-pressed') !== '${stories}') button.click();

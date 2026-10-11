@@ -263,6 +263,9 @@ async function failureJourney(browser) {
   ]) data.lines.lines.push({ ...actor, source: 'tool', ...line, seq: ++seq });
   data.lines.cursor = seq;
   const { page, errors, warnings } = await openPage(browser, 'production', data);
+  // A launch opens with Library off (ADR-1002 D1); these checks are of the islands over the core, so it is switched on.
+  await page.evaluate(() => document.querySelector('[data-globe-switch="library"][aria-pressed="false"]')?.click());
+  await settle(page);
   const opening = await measure(page);
   checkMode(opening, 'forest');
   // The opening spins to the failing island and never tilts (never-hidden.ts openingTurn): it sits in the middle
@@ -318,7 +321,7 @@ async function failureJourney(browser) {
   await switchMode(page, 'library');
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.getByRole('button', { name: 'Stories', exact: true }).waitFor();
-  await page.waitForFunction(() => [...document.querySelectorAll('.forest-views [data-globe-switch]')].every(button => button.getAttribute('aria-pressed') === 'true'));
+  await page.waitForFunction(() => [...document.querySelectorAll('.forest-views [data-globe-switch]')].map(button => button.getAttribute('aria-pressed')).join() === 'true,false');
   assert.deepEqual(errors, []);
   writeFileSync(path.join(out, 'interactions.json'), JSON.stringify({
     synthetic: 'Browser-only snapshot copy: one failing capability and one Codex claim. No library writes.',

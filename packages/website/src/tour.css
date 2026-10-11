@@ -88,10 +88,17 @@ html:has(> body.immersive-home) { scroll-padding-top:0; }
 /* A recording's date is small print in the bottom-left corner, above the bar. */
 #chapter2 .tour-recorded { position:absolute; z-index:66; left:24px; bottom:calc(var(--bar-h) + 8px); margin:0; color:var(--dim); font:10.5px/1.4 system-ui, sans-serif; letter-spacing:.01em; pointer-events:none; }
 #chapter2[data-tour-mode="freeplay"] .tour-recorded { display:none; }
-/* Until a growth's drawing is live (loading, or no WebGL), the still is storytree's saved reading, not the growth: the arrival
-   stays dark, and so does free play on the shop. */
-#chapter2:is([data-globe-map="own"], [data-globe-map="shop"]) #website-forest:not([data-forest-state="live"]) .forest-still,
+/* Until a growth's drawing is live (loading, or no WebGL), storytree's saved still is not the growth: the arrival stays dark.
+   Free play on the shop shows the shop's own still, captured from the same renderer; a tour step on the shop replays one
+   recorded moment that no single picture stands for, so once the globe has fallen back for good a note says so instead. */
+#chapter2:is([data-globe-map="own"], [data-globe-map="shop"]) #website-forest:not([data-forest-state="live"]) .storytree-still,
 #chapter2:is([data-globe-map="own"], [data-globe-map="shop"])[data-tour-mode="tour"]:has(#website-forest[data-forest-state="still"]) .tour-note { visibility:hidden; }
+#chapter2[data-globe-map="shop"][data-tour-mode="freeplay"] #website-forest:not([data-forest-state="live"]) .shop-still,
+#chapter2[data-globe-map="shop"][data-tour-mode="tour"]:has(#website-forest[data-forest-state="still"]) .forest-unavailable { display:block; }
+/* The note sits above the narration, in the column the card uses, clear of the panels a step opens on the right. */
+#chapter2 .forest-unavailable { position:absolute; z-index:5; top:96px; left:24px; width:min(400px, 36vw); box-sizing:border-box; margin:0; padding:16px 18px; border:1px dashed var(--edge);
+  border-radius:12px; background:#151b1f; color:var(--soft); font:13.5px/1.55 system-ui, sans-serif; }
+#chapter2 .forest-unavailable strong { display:block; margin-bottom:4px; color:#f0f0e7; font-weight:600; }
 
 /* The value statement, alone on its slide: the headline and its subhead, nothing else. */
 #chapter2[data-tour-kind="statement"] .tour-kicker { visibility:hidden; }
@@ -213,6 +220,9 @@ html:has(> body.immersive-home) { scroll-padding-top:0; }
   #chapter2 { --tour-under:calc(var(--bar-h) + 36px + var(--tour-room, 0px)); }
   #chapter2[data-tour-mode="tour"] .forest-drawing, #chapter2[data-tour-mode="tour"] .forest-still { top:72px; bottom:clamp(52%, calc(var(--tour-under) + 4px), 69%); }
   #chapter2[data-tour-mode="tour"] .forest-still { inset:72px 10% clamp(52%, calc(var(--tour-under) + 4px), 69%); }
+  /* In free play a still has the screen between the controls and the sessions list, centred. */
+  #chapter2[data-tour-mode="freeplay"] .forest-still { inset:172px 6% 200px 6%; }
+  #chapter2 .forest-unavailable { top:72px; left:14px; right:14px; width:auto; padding:12px 14px; font-size:12.5px; line-height:1.45; }
   #chapter2 .tour-card, #chapter2:is([data-tour-kind="beats"], [data-tour-kind="statement"], [data-tour-kind="fixes"])[data-tour-mode="tour"] .tour-card { left:10px; right:10px; top:clamp(calc(31% + 4px), calc(100% - var(--tour-under)), calc(48% + 4px)); bottom:calc(var(--bar-h) + 36px); width:auto; max-height:none; padding:14px 15px 12px; justify-content:flex-start; }
   #chapter2:is([data-tour-kind="beats"], [data-tour-kind="statement"], [data-tour-kind="fixes"], [data-tour-kind="lines"], [data-tour-kind="compare"])[data-tour-mode="tour"] .tour-card { left:10px; padding:4px 6px; }
   #chapter2:is([data-tour-kind="beats"], [data-tour-kind="statement"], [data-tour-kind="fixes"], [data-tour-kind="lines"], [data-tour-kind="compare"])[data-tour-mode="tour"] .tour-stage::before { inset:auto 0 0 0; width:auto; height:60%; background:linear-gradient(0deg, #101418f5 72%, #10141800); }

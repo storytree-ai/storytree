@@ -67,6 +67,8 @@ h1 em { font-style: normal; color: var(--green); }
 .forest-canvas { visibility: hidden; }
 #website-forest[data-forest-state="live"] .forest-canvas { visibility: visible; }
 #website-forest[data-forest-state="live"] .forest-still { visibility: hidden; }
+/* The shop's still and its replay note show only where the tour puts the shop on the globe (tour.css). */
+.shop-still, .forest-unavailable { display: none; }
 .forest-key { border-top: 1px solid var(--line); padding-top: 19px; display: flex; justify-content: space-between; gap: 24px; font-size: 12px; line-height: 1.7; color: var(--muted); }
 .forest-key p:first-child { color: #d4ddd0; }
 .paper { background: var(--paper); color: var(--ink); color-scheme: light; }

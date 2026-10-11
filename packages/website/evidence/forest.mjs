@@ -55,26 +55,99 @@ export async function verifyForest(browser, url, out, step, picture) {
   });
   await live.close();
 
-  // 2.2: with no WebGL, or a scene that fails to start, the still stays and the page still works.
-  for (const [how, setup] of [
-    ["WebGL is unavailable", (page) => page.addInitScript(() => { const original = HTMLCanvasElement.prototype.getContext; HTMLCanvasElement.prototype.getContext = function (kind, ...rest) { return /webgl/.test(kind) ? null : original.call(this, kind, ...rest); }; })],
-    ["the scene's code fails to load", (page) => page.route(/forest-scene-[^/]*\.js$/, (route) => route.fulfill({ status: 500, body: "" }))],
+  // 2.2: with no WebGL, or a scene that fails to start, every view the globe would draw shows a saved picture of that same
+  // project, or says plainly why one cannot stand for it, and the narration, panels and waitlist stay usable. Seen, not loaded:
+  // each check reads computed visibility and the pixels on screen, so a loaded but hidden picture fails it.
+  const noWebGL = (page) => page.addInitScript(() => { const original = HTMLCanvasElement.prototype.getContext; HTMLCanvasElement.prototype.getContext = function (kind, ...rest) { return /webgl/.test(kind) ? null : original.call(this, kind, ...rest); }; });
+  const sceneFails = (page) => page.route(/forest-scene-[^/]*\.js$/, (route) => route.fulfill({ status: 500, body: "" }));
+  for (const [how, setup, width, height] of [
+    ["WebGL is unavailable", noWebGL, 1440, 900], ["WebGL is unavailable", noWebGL, 1280, 800],
+    ["WebGL is unavailable", noWebGL, 390, 844], ["WebGL is unavailable", noWebGL, 320, 844],
+    ["the scene's code fails to load", sceneFails, 1440, 900],
   ]) {
-    const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+    const page = await browser.newPage({ viewport: { width, height }, reducedMotion: "reduce" });
     await page.addInitScript(() => localStorage.setItem("storytree-opening-seen", "yes"));
     await setup(page);
     await page.goto(url, { waitUntil: "load" });
     await page.locator("#website-forest").scrollIntoViewIfNeeded();
-    await page.waitForTimeout(3000);
-    await step("2.2", `when ${how}, the visitor sees the forest's still and the page stays usable`, async () => {
+    await page.waitForFunction(() => document.querySelector("#website-forest").dataset.forestState === "still", null, { timeout: 30_000 }).catch(() => {});
+    const name = `${how.startsWith("WebGL") ? "no-webgl" : "scene-fails"}-${width}`;
+    await step("2.2", `at ${width}px, when ${how}, every view shows a saved picture of its own project or says why it cannot, and the page stays usable`, async () => {
       const state = await page.locator("#website-forest").getAttribute("data-forest-state");
-      const still = await page.locator("#website-forest .forest-still img").evaluate((img) => img.complete && img.naturalWidth > 0 && img.getBoundingClientRect().height > 0);
-      await picture(page.locator("#website-forest"), `forest-still-${how.startsWith("WebGL") ? "no-webgl" : "scene-fails"}.png`);
+      const failures = [];
+      // A shop step replaying a recorded moment: no picture stands in for it; a plain note says so, and the words play on.
+      await page.locator('#tour-pips [data-step="map-stories"]').click();
+      await settled(page, "tour", "shop");
+      const replay = await seen(page, ".forest-unavailable");
+      if (!replay.shown || !/WebGL/.test(replay.text)) failures.push(`shop step: note shown ${replay.shown}, says "${replay.text}"`);
+      for (const still of [".storytree-still", ".shop-still"]) if ((await seen(page, `#website-forest ${still} img`)).shown) failures.push(`shop step: ${still} stands in for a recorded moment`);
+      if (!(await page.locator("#tour-lines").isVisible())) failures.push("shop step: the narration is hidden");
+      await picture(page, `forest-${name}-shop-step.png`);
+      // Free play on the shop: the shop's own saved picture, never storytree's.
+      await page.locator("#tour-skip").click();
+      await settled(page, "freeplay", "shop", ".shop-still img");
+      const shop = await seen(page, "#website-forest .shop-still img", true);
+      if (!shop.shown || shop.colours <= 8) failures.push(`shop free play: shop still shown ${shop.shown}, ${shop.colours} colours`);
+      if ((await seen(page, "#website-forest .storytree-still img")).shown) failures.push("shop free play: storytree's still stands in for the shop");
+      if ((await seen(page, ".forest-unavailable")).shown) failures.push("shop free play: the replay note is shown over the shop's picture");
+      await picture(page, `forest-${name}-shop.png`);
+      // Free play on storytree: storytree's own saved picture.
+      await page.getByRole("button", { name: "storytree", exact: true }).click();
+      await settled(page, "freeplay", "storytree", ".storytree-still img");
+      const own = await seen(page, "#website-forest .storytree-still img", true);
+      if (!own.shown || own.colours <= 8) failures.push(`storytree free play: still shown ${own.shown}, ${own.colours} colours`);
+      if ((await seen(page, "#website-forest .shop-still img")).shown) failures.push("storytree free play: the shop's still stands in for storytree");
+      await picture(page, `forest-${name}-storytree.png`);
+      // Its read-only panels (which arrive with the scene's code, so only when that code loads) and the waitlist still work.
+      if (setup === noWebGL) {
+        await page.locator("[data-open-arcs]").click();
+        const arcs = await page.locator(".arc-lanes").isVisible();
+        await page.locator("[data-close-arcs]").click();
+        if (!arcs) failures.push("the arcs panel did not open");
+      }
       await page.locator("#tour-hatch").click();
       await page.locator("#waitlist-email").waitFor({ state: "visible" });
       const usable = (await page.locator("#waitlist-email").isVisible()) && (await page.locator("#waitlist-submit").isVisible());
-      return [state === "still" && still && usable, `state ${state}, still shown ${still}, waitlist usable ${usable}`];
+      if (!usable) failures.push("the waitlist is not usable");
+      if (state !== "still") failures.push(`state ${state}`);
+      return [failures.length === 0, failures.length ? failures.join("; ") : `state ${state}; shop step note "${replay.text}"; shop still ${shop.colours} colours; storytree still ${own.colours} colours; ${setup === noWebGL ? "arcs panel and " : ""}waitlist usable`];
     });
     await page.close();
   }
+}
+
+// Waits until the chapter is in the given mode on the given project and, if named, that view's picture has loaded. A picture that
+// never loads (one the page keeps from showing) lets the wait lapse, and the check that follows reports it unseen.
+async function settled(page, mode, map, picture) {
+  await page.waitForFunction(([mode, map]) => document.querySelector("#chapter2").dataset.tourMode === mode && document.querySelector("#chapter2").dataset.globeMap === map, [mode, map], { timeout: 10_000 });
+  if (picture) await page.waitForFunction((selector) => { const image = document.querySelector(selector); return image.complete && image.naturalWidth > 0; }, picture, { timeout: 5_000 }).catch(() => {});
+}
+
+// What the visitor sees of an element: shown when it is visible by computed style and has area on screen; its text; and, if asked,
+// how many distinct colours its pixels show (a blank or failed picture is one flat colour).
+async function seen(page, selector, pixels = false) {
+  const element = page.locator(selector);
+  if (await element.count() === 0) return { shown: false, text: "", colours: 0 };
+  const shown = await element.evaluate((node) => {
+    const box = node.getBoundingClientRect();
+    const loaded = node instanceof HTMLImageElement ? node.complete && node.naturalWidth > 0 : true;
+    return loaded && node.checkVisibility({ visibilityProperty: true, opacityProperty: true }) && box.width > 0 && box.height > 0;
+  });
+  const text = (await element.textContent())?.trim() ?? "";
+  if (!shown || !pixels) return { shown, text, colours: 0 };
+  const shot = await element.screenshot();
+  const colours = await page.evaluate(async (png) => {
+    const image = new Image();
+    image.src = `data:image/png;base64,${png}`;
+    await image.decode();
+    const copy = document.createElement("canvas");
+    copy.width = 64; copy.height = 64;
+    const context = copy.getContext("2d");
+    context.drawImage(image, 0, 0, 64, 64);
+    const data = context.getImageData(0, 0, 64, 64).data;
+    const found = new Set();
+    for (let i = 0; i < data.length; i += 4) found.add(`${data[i] >> 4},${data[i + 1] >> 4},${data[i + 2] >> 4}`);
+    return found.size;
+  }, shot.toString("base64"));
+  return { shown, text, colours };
 }

@@ -17,6 +17,8 @@ export interface ListingOptions extends SessionOptions {
   readonly json?: boolean;
   /** Who reads, and where: the project's branches are looked at first, now, whenever a hook last looked. */
   readonly look?: { readonly context: MergeContext; readonly watch?: BranchWatch };
+  /** Each named machine's short name, by hostname (Machines, 11.3): a session's machine shows by it. */
+  readonly names?: ReadonlyMap<string, string>;
 }
 
 /** `project`'s sessions, as text or JSON, in the order they started. */
@@ -29,13 +31,14 @@ export async function sessionsListing(log: ActivityLog, project: string, options
   const hidden = (options.all === true ? sessions.length : await log.sessionCount(project)) - shown.length;
   const count = `${shown.length} session${shown.length === 1 ? "" : "s"}${options.all === true ? "" : " in the list"}`;
   const header = hidden === 0 ? `${count}.` : `${count}; ${hidden} hidden (--all shows them).`;
-  return [header, ...shown.map(block)].join("\n\n");
+  return [header, ...shown.map((session) => block(session, options.names))].join("\n\n");
 }
 
 /** One session as a few plain lines. */
-function block(session: Session): string {
+function block(session: Session, names?: ReadonlyMap<string, string>): string {
   const lines = [`${session.label} ${session.session}: ${session.state}, ${session.listing}`];
   if (session.name !== undefined) lines.push(`  named: ${session.name}`);
+  if (session.machine !== undefined) lines.push(`  machine: ${names?.get(session.machine) ?? session.machine}`);
   if (session.folder !== undefined) lines.push(`  folder: ${session.folder}`);
   // A session's branches, split into those still holding open work and those resolved.
   const resolved = session.branches.filter((branch) => !session.openWork.includes(branch));

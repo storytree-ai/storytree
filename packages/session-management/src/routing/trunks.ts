@@ -80,9 +80,9 @@ const SCHEMA = `CREATE TABLE IF NOT EXISTS trunks (
 /** A trunks table made before approval (ADR-0942) gains it, every record unapproved: nothing is grandfathered (D3). */
 const APPROVAL = "ALTER TABLE trunks ADD COLUMN IF NOT EXISTS approved_at timestamptz, ADD COLUMN IF NOT EXISTS approved_by text";
 
-/** The trunks database, set up by the library with the table's definitions (ADR-0973). */
-function trunksPool(storytree: Storytree): Promise<Pool> {
-  return storytree.ownDatabase(TRUNKS_DATABASE, { tables: [SCHEMA, APPROVAL] });
+/** The trunks database, set up by the library with the table's definitions (ADR-0973), and any more tables kept beside them (Machines' names). */
+export function trunksPool(storytree: Pick<Storytree, "ownDatabase">, more: readonly string[] = []): Promise<Pool> {
+  return storytree.ownDatabase(TRUNKS_DATABASE, { tables: [SCHEMA, APPROVAL, ...more] });
 }
 
 /** Every project's trunk on `machine`. */

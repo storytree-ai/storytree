@@ -1,12 +1,14 @@
 /**
  * Capability 4 · Sessions. The session verbs, declared once (ADR-0969 D2): name a session, close it out, and list the
  * sessions. The command line and the MCP server each mount them; listing the sessions has no tool, and says why.
+ * Machines' verbs are mounted from here too (MACHINE_VERBS), as this is the verbs' one entry.
  */
 import path from "node:path";
 
 import { SESSION_NAME_LIMIT } from "./name.js";
 import { verb, VerbRefusal, type Verb } from "./verb.js";
 
+export { MACHINE_VERBS } from "../machines/verbs.js";
 export { commandInput, commandUsage, mounted, toolInput, VerbRefusal } from "./verb.js";
 export type { DoorWords, InputOf, Step, Verb, VerbAnswer, VerbContext, VerbInput, VerbInputs } from "./verb.js";
 
@@ -59,11 +61,14 @@ const list = verb({
     all: { kind: "switch", describe: "the hidden sessions too" },
     json: { kind: "switch", describe: "as JSON" },
   },
-  async act({ all, json }, { log, project, folder, session, harness }) {
+  async act({ all, json }, { log, library, project, folder, session, harness }) {
     // Merges are asked about now, as the board asks about claims: the list never waits on a hook's look.
     const look = { context: { log, project, folder, session, ...(harness === undefined ? {} : { harness }), source: "tool" } } as const;
     const { sessionsListing } = await import("./listing.js");
-    const text = await sessionsListing(log, project, { all, json, look });
+    const { machineNames } = await import("../machines/machines.js");
+    // Each session's machine is shown by its short name (Machines, 11.3); unreadable names leave the hostnames.
+    const names = await machineNames(library).catch(() => undefined);
+    const text = await sessionsListing(log, project, { all, json, look, ...(names === undefined ? {} : { names }) });
     return json ? { text } : { text, next: [{ command: "session list --all", why: "the hidden sessions too" }] };
   },
 });

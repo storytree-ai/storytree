@@ -21,6 +21,7 @@ import { health, plan } from "./tree.js";
 import { workspace } from "./workspace.js";
 import { processes } from "./processes.js";
 import { session } from "./session.js";
+import { machine } from "./machine.js";
 import { settings } from "./settings.js";
 import { mapFamily } from "./map.js";
 import { affectedFamily } from "./affected.js";
@@ -64,4 +65,5 @@ export const FAMILIES: readonly Family[] = [
   signOut,
   contextFamily,
   session,
+  machine,
 ];

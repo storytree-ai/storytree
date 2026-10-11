@@ -101,6 +101,8 @@ export interface Session {
   label: string;
   /** The folder it started in: its start line's, or else its first line's. */
   folder?: string;
+  /** The hostname of the machine its latest line naming one was written on. */
+  machine?: string;
   /** Every folder its lines name, in the order it first worked in each: one session may work in many worktrees (ADR-0749 D2). */
   worktrees: string[];
   /** When its first line was written. */
@@ -576,11 +578,13 @@ export class LogFold {
         : record !== undefined ? (archived ? "hidden" : settled ? "done" : "listed")
         : settled ? "hidden" : "listed";
       const words = this.#appWords.get(session);
+      const machine = this.#machines.get(session);
       return {
         session,
         ...(harness === undefined ? {} : { harness }),
         label: labelOf(harness),
         ...(folder === undefined ? {} : { folder }),
+        ...(machine === undefined ? {} : { machine }),
         worktrees: [...own.worktrees],
         startedAt: own.firstAt,
         lastSeenAt: latest.at,

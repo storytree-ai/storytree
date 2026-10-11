@@ -5,7 +5,7 @@ import { Color, DoubleSide, Euler, Group, LineBasicMaterial, LineSegments, Mesh,
 import { workStates } from "@storytree/arc-surface";
 import { forestDrawn, forestScene, MAPPED_ISLAND_CAP, MIN_ISLAND_AREA, openingTurn, storyNodes, type FacingIsland } from "@storytree/forest";
 import type { AnnotatedTree, Change } from "@storytree/library";
-import { dragTurn, focusRotation, globeFraming, globeHover, hiddenMarkers, isGlobeDrag, pickGlobe, pickIsland, planetLayout, pointedFile } from "./planet-navigation.js";
+import { dragTurn, focusRotation, globeFraming, globeHover, hiddenMarkers, isGlobeDrag, markerSpot, pickGlobe, pickIsland, planetLayout, pointedFile } from "./planet-navigation.js";
 import { codePathKey } from "@storytree/knowledge-core";
 import { circleStops, fileCircleMarks, lightFileCircles } from "./file-circles.js";
 import { lightTerritories, territoryLand } from "./territory-land.js";
@@ -158,6 +158,17 @@ test("3.11 Forest never hides a failing island; only an explicit Library choice 
   const focused = focusRotation(marker!.turn, eye);
   const facing = new Vector3(0, 0, -1).applyQuaternion(focused);
   assert.ok(facing.z > 0.999999, "the marker still turns the failure into view");
+});
+
+test("3.11 a rim marker keeps clear above what is docked over the canvas's bottom edge, so the Sessions strip never covers it", () => {
+  const size = { width: 1440, height: 920 };
+  const strip = { left: 0, right: 1440, top: 884, bottom: 920 };
+  assert.deepEqual(markerSpot({ left: 720, top: 930 }, size, []), { left: 720, top: 900 }, "with nothing docked it stays 20px inside the canvas");
+  assert.deepEqual(markerSpot({ left: 720, top: 930 }, size, [strip]), { left: 720, top: 864 }, "it sits 20px above the strip");
+  assert.deepEqual(markerSpot({ left: 720, top: 400 }, size, [strip]), { left: 720, top: 400 }, "a marker clear of the strip does not move");
+  const panel = { left: 0, right: 600, top: 884, bottom: 920 };
+  assert.deepEqual(markerSpot({ left: 900, top: 930 }, size, [panel]), { left: 900, top: 900 }, "a strip that does not reach under the marker leaves it");
+  assert.deepEqual(markerSpot({ left: -5, top: 930 }, size, [{ left: 0, right: 1440, top: 400, bottom: 600 }]), { left: 20, top: 900 }, "only what reaches the bottom edge counts");
 });
 
 test("the globe's opening zoom: the whole planet fills 85% of the short side by default, as today; close up fills more, room around less (ADR-0750)", () => {

@@ -17,11 +17,16 @@ reproducing it needs no library connection or restored user home.
 Loose dots occupy a deterministic shuffled cubic lattice filling a ball within **0.55R**.
 Their centers must be at least **0.035R** apart and clear of shelf points; the drawn dot diameter
 is **0.012R**. On this snapshot: minimum loose separation **0.1513165074R**, minimum shelf
-clearance **0.0663055450R**, maximum loose radius **0.5455794261R**. `measure.mjs` asserts these
+clearance **0.0477519308R**, maximum loose radius **0.5455794261R**. `measure.mjs` asserts these
 bounds, counts and exclusion through the production functions: `forestScene` →
 `storyNodes` → `planetLayout` → `globePoints`, using the drawn globe’s radius and
 row positions rather than treating an encoded row/slot as an XYZ point. Unit tests also exercise 2,000
 loose artifacts.
+
+Retaken 2026-10-11 (`increment_b3a0ea0ee0fd`): the islands' layout had moved since the last census, which
+shifted all 77 shelf dots (the 99 loose ones did not move), so `measure.mjs` was retaken first. The Library hides the
+islands, not the globe (ADR-0919 D4): the glass stays drawn and the islands and roads stay mounted, hidden, so the
+capture counts the plates and roads shown, and in the Library expects the glass as the only other mesh submitted.
 
 Picking projects the rotated dots into screen space, giving each an **8 px** target. Closest
 screen distance wins, with depth breaking ties. Forest keeps the far half behind the glass

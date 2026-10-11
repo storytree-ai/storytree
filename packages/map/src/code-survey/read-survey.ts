@@ -27,7 +27,7 @@ import { surveySourceReader, type SurveySource } from "./survey-source.js";
 
 import type { AnnotatedTree } from "@storytree/library";
 
-import { declaredNumberOf, dependenciesOf, packageOf, surveyStory, type CoverageMap, type SourceFile, type StorySurvey, type SurveyPackage } from "./code-survey.js";
+import { declaredNumberOf, dependenciesOf, packageOf, storyEdges, surveyStory, type CoverageMap, type SourceFile, type StorySurvey, type SurveyPackage } from "./code-survey.js";
 
 /** Each story's survey, by story id; a story with no package is absent. */
 export type ProjectSurvey = Readonly<Record<string, StorySurvey>>;
@@ -245,7 +245,7 @@ export function codeSurveyReader({ readFile: readText = (file: string) => readFi
       }
       const files = map === undefined ? sources : [...sources, map];
       const packages = JSON.stringify(read.filter(pkg => Object.keys(pkg.exports).length > 0).map(({ root, name, exports }) => ({ root, name, exports })));
-      if (last !== undefined && last.capabilities === capabilities && last.packages === packages && last.files.length === files.length && last.files.every((file, at) => file === files[at])) return [[story.id, last.survey, read] as const];
+      if (last !== undefined && last.capabilities === capabilities && last.packages === packages && last.files.length === files.length && last.files.every((file, at) => file === files[at])) return [[story.id, last.survey, read, sources.map(inRepository), base] as const];
       const coverage = map === undefined ? {} : coverageFrom(map.text);
       const measured = surveyStory(
         sources.map(inRepository),
@@ -261,16 +261,25 @@ export function codeSurveyReader({ readFile: readText = (file: string) => readFi
         tests: (measured.tests ?? []).map((file) => ({ ...file, path: inPackage(file.path), imports: file.imports.map(relativeImport) })),
       };
       surveyed.set(story.id, { files, capabilities, packages, survey: fresh });
-      return [[story.id, fresh, read] as const];
+      return [[story.id, fresh, read, sources.map(inRepository), base] as const];
     }));
     // Each story's package dependencies on other stories' packages, by package name.
     const storyOf = new Map(surveys.flat().flatMap(([id, , read]) => read.map(({ name }) => [name, id] as const)));
+    // And the edges its imports of them derive, between capabilities (ADR-0991 D1, D2), each path from its own package.
+    const baseOf = new Map(surveys.flat().map(([id, , , , base]) => [id, base] as const));
+    const derived = storyEdges(surveys.flat().map(([id, survey, read, files, base]) => ({
+      id, files, packages: read,
+      owners: new Map(survey.files.flatMap((file) => file.capability === undefined ? [] : [[path.posix.normalize(`${base}/${file.path}`), file.capability] as const])),
+    })));
     const withEdges = surveys.flat().map(([id, base, read]) => {
-      if (read.length === 0) return [id, base] as const;
-      const dependsOn = [...new Set(read.flatMap(({ deps }) => deps).flatMap((dep) => { const other = storyOf.get(dep); return other === undefined || other === id ? [] : [other]; }))];
+      const dependsOn = read.length === 0 ? undefined : [...new Set(read.flatMap(({ deps }) => deps).flatMap((dep) => { const other = storyOf.get(dep); return other === undefined || other === id ? [] : [other]; }))];
+      const edges = (derived.get(id) ?? []).map((edge) => ({
+        ...edge,
+        files: edge.files.map((file) => ({ ...file, from: path.posix.relative(baseOf.get(id)!, file.from), ...(file.to === undefined ? {} : { to: path.posix.relative(baseOf.get(edge.story)!, file.to) }) })),
+      }));
       const last = edged.get(id);
-      if (last !== undefined && last.base === base && JSON.stringify(last.survey.dependsOn) === JSON.stringify(dependsOn)) return [id, last.survey] as const;
-      const survey = { ...base, dependsOn };
+      if (last !== undefined && last.base === base && JSON.stringify([last.survey.dependsOn, last.survey.edges]) === JSON.stringify([dependsOn, edges])) return [id, last.survey] as const;
+      const survey = { ...base, edges, ...(dependsOn === undefined ? {} : { dependsOn }) };
       edged.set(id, { base, survey });
       return [id, survey] as const;
     });

@@ -12,6 +12,8 @@ import { test } from "node:test";
 
 import type { AnnotatedTree } from "@storytree/library";
 
+import type { StorySurvey } from "./code-survey.js";
+
 import { capabilitiesOfFiles, codeSurveyReader, offThreadSurveyReader, readCodeSurvey } from "./read-survey.js";
 import { focusProject } from "../read.js";
 // 8.16 runs this module on a worker thread; imported here, with no parent port, it answers nothing.
@@ -297,6 +299,94 @@ test("8.8 the app unions its package and desktop dependencies and refreshes only
     const removed = await reader.read(folder, stories);
     assert.deepEqual(removed["story-app"]?.dependsOn, ["story-till"]);
     assert.deepEqual(removed["story-bank"]?.dependsOn, [], "a removed manifest no longer identifies a package");
+  } finally {
+    await rm(folder, { recursive: true, force: true });
+  }
+});
+
+/** Write each package's files under `folder`, keyed by their path from the package. */
+async function writePackages(folder: string, packages: Readonly<Record<string, Readonly<Record<string, string>>>>): Promise<void> {
+  for (const [name, files] of Object.entries(packages)) {
+    for (const [file, text] of Object.entries(files)) {
+      await mkdir(path.dirname(path.join(folder, "packages", name, file)), { recursive: true });
+      await writeFile(path.join(folder, "packages", name, file), text);
+    }
+  }
+}
+
+/** Two stories: the till's names, defined across its files and offered through its exports and re-exports, and a bank whose code no numbered test reaches. */
+const tillAndBank = {
+  till: {
+    "package.json": JSON.stringify({ name: "@x/till", exports: { ".": "./src/index.ts", "./receipts": "./src/receipts.ts" } }),
+    "src/index.ts": 'export * from "./prices.js";\nexport { receipt as makeReceipt } from "./receipts.js";\n',
+    "src/prices.ts": "export const price = 1;\nexport type Money = number;\n",
+    "src/receipts.ts": "export function receipt() { return 1; }\n",
+    "src/prices.test.ts": 'import { price } from "./prices.js";\ntest("1.1 prices", () => price);\n',
+    "src/receipts.test.ts": 'import { receipt } from "./receipts.js";\ntest("2.1 receipts", () => receipt);\n',
+  },
+  bank: {
+    "package.json": JSON.stringify({ name: "@x/bank", exports: { ".": "./src/index.ts" } }),
+    "src/index.ts": 'export { vault } from "./vault.js";\n',
+    "src/vault.ts": "export const vault = 1;\n",
+  },
+};
+const tillAndBankStories = [
+  { id: "story-till", title: "Till", capabilities: [{ id: "cap-prices", title: "1 · Prices" }, { id: "cap-receipts", title: "2 · Receipts" }] },
+  { id: "story-bank", title: "Bank", capabilities: [{ id: "cap-vault", title: "1 · Vault" }] },
+];
+
+/** A story's derived edges, one line each: from capability, story, to capability, by value or types. */
+const edgeLines = (survey: StorySurvey | undefined): string[] =>
+  (survey?.edges ?? []).map((edge) => `${edge.from ?? "-"} > ${edge.story}:${edge.to ?? "-"} ${edge.typeOnly ? "types" : "value"}`).sort();
+
+test("8.18 an import of another story's name is an edge from its file's capability to the capability of the file defining it, type-only when every import behind it is", async () => {
+  const folder = await mkdtemp(path.join(tmpdir(), "code-survey-edges-"));
+  const stories = { arcs: [], stories: [{ id: "story-shop", title: "Shop", capabilities: [{ id: "cap-cart", title: "1 · Cart" }, { id: "cap-pay", title: "2 · Pay" }] }, ...tillAndBankStories] } as unknown as AnnotatedTree;
+  try {
+    await writePackages(folder, {
+      ...tillAndBank,
+      shop: {
+        "package.json": JSON.stringify({ name: "@x/shop" }),
+        // A value and a type import of one capability's file make a value edge; a renamed re-export leads to its own file.
+        "src/cart.ts": 'import { price, makeReceipt } from "@x/till";\nimport type { Money } from "@x/till";\nexport const cart: Money = price + makeReceipt();\n',
+        // Types alone make a type-only edge, even inline; a subpath export and a literal dynamic import lead to the file they name.
+        "src/pay.ts": 'import { type Money } from "@x/till";\nexport const pay = (): Promise<Money> => import("@x/till/receipts").then(({ receipt }) => receipt());\n',
+        "src/cart.test.ts": 'import { cart } from "./cart.js";\nimport { vault } from "@x/bank";\ntest("1.1 cart", () => cart + vault);\n',
+        "src/pay.test.ts": 'import { pay } from "./pay.js";\ntest("2.1 pay", () => pay);\n',
+      },
+    });
+    const survey = await codeSurveyReader().read(folder, stories);
+    assert.deepEqual(edgeLines(survey["story-shop"]), [
+      "cap-cart > story-till:cap-prices value",
+      "cap-cart > story-till:cap-receipts value",
+      "cap-pay > story-till:cap-prices types",
+      "cap-pay > story-till:cap-receipts value",
+    ], "a test's import of the bank makes no edge");
+    assert.deepEqual(survey["story-shop"]?.edges?.find((edge) => edge.from === "cap-pay" && edge.to === "cap-prices")?.files, [{ from: "src/pay.ts", to: "src/prices.ts", typeOnly: true }]);
+    assert.deepEqual(edgeLines(survey["story-till"]), []);
+  } finally {
+    await rm(folder, { recursive: true, force: true });
+  }
+});
+
+test("8.19 a derived edge with no capability at an end is kept as a story edge naming the files that cause it", async () => {
+  const folder = await mkdtemp(path.join(tmpdir(), "code-survey-story-edges-"));
+  const stories = { arcs: [], stories: [{ id: "story-shop", title: "Shop", capabilities: [{ id: "cap-cart", title: "1 · Cart" }] }, ...tillAndBankStories] } as unknown as AnnotatedTree;
+  try {
+    await writePackages(folder, {
+      ...tillAndBank,
+      shop: {
+        "package.json": JSON.stringify({ name: "@x/shop" }),
+        "src/cart.ts": 'import { vault } from "@x/bank";\nexport const cart = vault;\n',
+        "src/loose.ts": 'export { price } from "@x/till";\n',
+        "src/cart.test.ts": 'import { cart } from "./cart.js";\ntest("1.1 cart", () => cart);\n',
+      },
+    });
+    const survey = await codeSurveyReader().read(folder, stories);
+    assert.deepEqual(survey["story-shop"]?.edges, [
+      { story: "story-bank", from: "cap-cart", typeOnly: false, files: [{ from: "src/cart.ts", to: "src/vault.ts", typeOnly: false }] },
+      { story: "story-till", to: "cap-prices", typeOnly: false, files: [{ from: "src/loose.ts", to: "src/prices.ts", typeOnly: false }] },
+    ]);
   } finally {
     await rm(folder, { recursive: true, force: true });
   }

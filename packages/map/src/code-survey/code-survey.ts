@@ -68,6 +68,8 @@ export type StorySurvey = {
   readonly imports: readonly FileImport[];
   /** Numbered tests and helpers; absent only in older saved surveys. */
   readonly tests?: readonly SurveyedTest[];
+  /** The edges its source files' imports of other stories' packages derive, by capability (ADR-0991 D1, D2); absent in older saved surveys. */
+  readonly edges?: readonly CodeEdge[];
   /** The stories whose packages this story's package depends on, through any field of its package.json; absent when it has none (ADR-0840 D2). */
   readonly dependsOn?: readonly string[];
 };
@@ -447,4 +449,182 @@ export function surveyStory(tree: readonly SourceFile[], capabilities: readonly 
     imports: edgesOf(file, paths, packages).map((edge) => ({ from: file.path, to: edge.to })),
   }));
   return { files, imports, tests };
+}
+
+/**
+ * One import of another package a file makes (ADR-0991 D1): its specifier, and the names it takes with
+ * whether each is a type; "all" for a namespace, a bare, a dynamic or a CommonJS import, which take the file.
+ */
+type PackageImport = { readonly specifier: string; readonly names: readonly (readonly [name: string, typeOnly: boolean])[] | { readonly all: boolean } };
+
+/** What a file offers: names it defines, names it passes on from elsewhere, and the files it passes everything on from. */
+type Offers = {
+  readonly local: ReadonlySet<string>;
+  readonly from: ReadonlyMap<string, { readonly specifier: string; readonly name: string | undefined }>;
+  readonly star: readonly string[];
+};
+
+type Node = { readonly type: string; readonly [key: string]: unknown };
+const nameOf = (node: unknown): string => {
+  const named = node as { name?: string; value?: string };
+  return named.name ?? named.value ?? "";
+};
+const nodes = (value: unknown): Node[] => (Array.isArray(value) ? value : []) as Node[];
+const literal = (node: unknown): string | undefined => {
+  const found = node as { type?: string; value?: unknown; literal?: unknown } | null;
+  if (found?.type === "StringLiteral" && typeof found.value === "string") return found.value;
+  return found?.type === "TSLiteralType" ? literal(found.literal) : undefined;
+};
+
+/** Parse each unchanged file once for what it offers and what it imports of other packages. */
+const reading = new WeakMap<SourceFile, { readonly offers: Offers; readonly imports: readonly PackageImport[] }>();
+
+function readingOf(file: SourceFile): { readonly offers: Offers; readonly imports: readonly PackageImport[] } {
+  const cached = reading.get(file);
+  if (cached !== undefined) return cached;
+  const program = syntaxOf(file)?.program;
+  const local = new Set<string>();
+  const from = new Map<string, { specifier: string; name: string | undefined }>();
+  const star: string[] = [];
+  const imported = new Map<string, { specifier: string; name: string | undefined }>();
+  const imports: PackageImport[] = [];
+  const bound = (pattern: unknown): string[] => {
+    const node = pattern as Node | null;
+    if (node === null) return [];
+    if (node.type === "Identifier") return [nameOf(node)];
+    if (node.type === "ObjectPattern") return nodes(node.properties).flatMap((property) => bound(property.type === "RestElement" ? property.argument : property.value));
+    if (node.type === "ArrayPattern") return nodes(node.elements).flatMap((element) => bound(element?.type === "RestElement" ? element.argument : element));
+    return node.type === "AssignmentPattern" ? bound(node.left) : [];
+  };
+  for (const statement of nodes(program?.body)) {
+    const source = literal(statement.source);
+    const typeOnly = statement.importKind === "type" || statement.exportKind === "type";
+    if (statement.type === "ImportDeclaration" && source !== undefined) {
+      const specifiers = nodes(statement.specifiers);
+      for (const specifier of specifiers) imported.set(nameOf(specifier.local), { specifier: source, name: specifier.type === "ImportSpecifier" ? nameOf(specifier.imported) : specifier.type === "ImportDefaultSpecifier" ? "default" : undefined });
+      imports.push({ specifier: source, names: specifiers.length === 0 || specifiers.some((one) => one.type === "ImportNamespaceSpecifier") ? { all: typeOnly } : specifiers.map((one) =>
+        [one.type === "ImportDefaultSpecifier" ? "default" : nameOf(one.imported), typeOnly || one.importKind === "type"] as const) });
+    } else if (statement.type === "ExportNamedDeclaration") {
+      const specifiers = nodes(statement.specifiers);
+      for (const specifier of specifiers) {
+        const as = nameOf(specifier.exported);
+        if (source !== undefined) from.set(as, { specifier: source, name: specifier.type === "ExportNamespaceSpecifier" ? undefined : nameOf(specifier.local) });
+        else if (imported.has(nameOf(specifier.local))) from.set(as, imported.get(nameOf(specifier.local))!);
+        else local.add(as);
+      }
+      if (source !== undefined) imports.push({ specifier: source, names: specifiers.some((one) => one.type === "ExportNamespaceSpecifier") ? { all: typeOnly } : specifiers.map((one) => [nameOf(one.local), typeOnly || one.exportKind === "type"] as const) });
+      const declaration = statement.declaration as Node | null;
+      if (declaration?.type === "VariableDeclaration") for (const declarator of nodes(declaration.declarations)) bound(declarator.id).forEach((name) => local.add(name));
+      else if (declaration !== null && declaration !== undefined) local.add(nameOf(declaration.id));
+    } else if (statement.type === "ExportDefaultDeclaration") local.add("default");
+    else if (statement.type === "ExportAllDeclaration" && source !== undefined) {
+      if (statement.exported) from.set(nameOf(statement.exported), { specifier: source, name: undefined });
+      else star.push(source);
+      imports.push({ specifier: source, names: { all: typeOnly } });
+    }
+  }
+  // Imports inside the code: a literal dynamic import runs its file; `import("…").T` in a type only names it.
+  const visit = (value: unknown): void => {
+    if (Array.isArray(value)) { value.forEach(visit); return; }
+    if (value === null || typeof value !== "object" || !("type" in value)) return;
+    const node = value as Node;
+    const source = node.type === "ImportExpression" ? literal(node.source) : node.type === "TSImportType" ? literal(node.argument) : undefined;
+    if (source !== undefined) imports.push({ specifier: source, names: { all: node.type === "TSImportType" } });
+    Object.values(value).forEach(visit);
+  };
+  visit(program?.body);
+  for (const specifier of requiresOf(file)) imports.push({ specifier, names: { all: false } });
+  const read = { offers: { local, from, star }, imports };
+  reading.set(file, read);
+  return read;
+}
+
+/** A story's code as the edges between stories need it: its files, its package manifests, and each source file's capability. */
+export type EdgeStory = {
+  readonly id: string;
+  /** Its code files, tests included, in repository coordinates. */
+  readonly files: readonly SourceFile[];
+  readonly packages: readonly SurveyPackage[];
+  /** Each source file's capability, by path; a file absent has none. */
+  readonly owners: ReadonlyMap<string, string>;
+};
+
+/** One import behind a derived edge: the importing file, the file that defines what it takes (absent when it cannot be found), and whether it took types alone. */
+export type EdgeFile = { readonly from: string; readonly to?: string; readonly typeOnly: boolean };
+
+/**
+ * An edge the code derives from a story to another (ADR-0991 D1, D2): from its capability to the other
+ * story's, type-only when every import behind it is. A capability absent at either end makes it a story
+ * edge with no capability edge under it; `files` names the imports that cause it.
+ */
+export type CodeEdge = { readonly story: string; readonly from?: string; readonly to?: string; readonly typeOnly: boolean; readonly files: readonly EdgeFile[] };
+
+/**
+ * Each story's edges to other stories, from the imports its source files (never its tests or test helpers)
+ * make of another story's package: each name taken leads, through that package's exports and re-exports,
+ * to the file that defines it; a name taken whole leads to the file its specifier names. Paths stay in the
+ * coordinates `files` gave.
+ */
+export function storyEdges(stories: readonly EdgeStory[]): Map<string, CodeEdge[]> {
+  const byName = new Map(stories.flatMap((story) => story.packages.map((pkg) => [pkg.name, { story, pkg }] as const)));
+  const lookups = new Map(stories.map((story) => {
+    const code = story.files.filter((file) => CODE_FILE.test(file.path) && !DECLARATION.test(file.path));
+    return [story.id, { byPath: new Map(code.map((file) => [file.path, file])), paths: new Set(code.map((file) => file.path)) }] as const;
+  }));
+
+  /** The file of `story` that defines `name`, starting from `path` and following what it passes on; undefined where nothing does. */
+  const definer = (story: EdgeStory, path: string, name: string, seen: Set<string>): string | undefined => {
+    const { byPath, paths } = lookups.get(story.id)!;
+    const file = byPath.get(path);
+    if (file === undefined || seen.has(path)) return undefined;
+    seen.add(path);
+    const { offers } = readingOf(file);
+    if (offers.local.has(name)) return path;
+    const passed = offers.from.get(name);
+    if (passed !== undefined) {
+      const next = resolve(path, passed.specifier, paths, story.packages);
+      // A name passed on from outside the package is defined, as far as the package goes, where it is passed on.
+      if (next === undefined) return path;
+      return passed.name === undefined ? next : definer(story, next, passed.name, seen) ?? next;
+    }
+    for (const specifier of offers.star) {
+      const next = resolve(path, specifier, paths, story.packages);
+      const found = next === undefined ? undefined : definer(story, next, name, seen);
+      if (found !== undefined) return found;
+    }
+    return undefined;
+  };
+
+  const edges = new Map<string, CodeEdge[]>();
+  for (const story of stories) {
+    const grouped = new Map<string, { story: string; from?: string; to?: string; files: Map<string, EdgeFile> }>();
+    for (const file of story.files) {
+      if (isTestCode(file) || !CODE_FILE.test(file.path) || DECLARATION.test(file.path)) continue;
+      for (const { specifier, names } of readingOf(file).imports) {
+        const named = [...byName].filter(([name]) => specifier === name || specifier.startsWith(name + "/")).sort(([a], [b]) => b.length - a.length)[0]?.[1];
+        if (named === undefined || named.story.id === story.id) continue;
+        const { paths } = lookups.get(named.story.id)!;
+        const subpath = specifier === named.pkg.name ? "." : "." + specifier.slice(named.pkg.name.length);
+        const target = named.pkg.exports[subpath];
+        const start = target === undefined ? undefined : resolve(named.pkg.root + "package.json", target, paths, []);
+        const taken = "all" in names ? [[undefined, names.all] as const] : names;
+        for (const [name, typeOnly] of taken) {
+          const to = start === undefined || name === undefined ? start : definer(named.story, start, name, new Set()) ?? start;
+          const fromCapability = story.owners.get(file.path);
+          const toCapability = to === undefined ? undefined : named.story.owners.get(to);
+          const key = JSON.stringify([named.story.id, fromCapability ?? null, toCapability ?? null]);
+          const group = grouped.get(key) ?? { story: named.story.id, ...(fromCapability === undefined ? {} : { from: fromCapability }), ...(toCapability === undefined ? {} : { to: toCapability }), files: new Map() };
+          grouped.set(key, group);
+          const pair = JSON.stringify([file.path, to ?? null]);
+          const before = group.files.get(pair);
+          group.files.set(pair, { from: file.path, ...(to === undefined ? {} : { to }), typeOnly: typeOnly && (before?.typeOnly ?? true) });
+        }
+      }
+    }
+    edges.set(story.id, [...grouped].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([, { files, ...edge }]) => {
+      const behind = [...files.values()];
+      return { ...edge, typeOnly: behind.every((one) => one.typeOnly), files: behind };
+    }));
+  }
+  return edges;
 }

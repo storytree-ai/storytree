@@ -39,7 +39,7 @@ const GUIDE_SEEN = `try { localStorage.setItem("storytree:setup:guide-seen:v1", 
 
 export interface FakeBridgeOptions {
   /** "unseen" for a capture of the first-run guide itself: the page then opens as a first launch. */
-  guide?: "seen" | "unseen";
+  guide?: "seen" | "unseen" | undefined;
 }
 
 const PROJECT = "storytree";

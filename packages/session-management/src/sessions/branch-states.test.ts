@@ -112,6 +112,66 @@ test("4.10 a session whose branches merged, or exist nowhere this machine can se
   }
 });
 
+test("4.10 a branch another machine took for deleted while it was only on its own machine is open again once it has an open pull request, or once its own machine finds it ahead, however long GitHub takes to answer (regression: a handed-over session read verified 36 minutes before its merge, 2026-10-11)", async () => {
+  const log = await openActivityLog(testServerUrl());
+  const project = uniqueProjectName();
+  try {
+    await withTempDir(async (dir) => {
+      const origin = path.join(dir, "origin.git");
+      git(dir, "init", "-q", "--bare", "-b", "main", origin);
+      const clone = (name: string) => {
+        const repo = path.join(dir, name);
+        git(dir, "clone", "-q", origin, repo);
+        return repo;
+      };
+      const site = clone("site");
+      writeFileSync(path.join(site, "a.txt"), "a\n");
+      git(site, "add", "a.txt");
+      git(site, "commit", "-q", "-m", "first");
+      git(site, "push", "-q", "origin", "HEAD:main");
+      const laptop = clone("laptop");
+      for (const branch of ["claude/handed", "claude/unpushed"]) {
+        git(laptop, "switch", "-q", "-c", branch, "origin/main");
+        writeFileSync(path.join(laptop, `${branch.slice("claude/".length)}.txt`), "work\n");
+        git(laptop, "add", ".");
+        git(laptop, "commit", "-q", "-m", "work");
+      }
+      git(laptop, "switch", "-q", "--detach", "origin/main");
+
+      const work = async (branch: string) => {
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        await log.append(project, { session: "lane", harness: "claude-code", source: "hook", machine: "laptop", folder: laptop, branch, kind: "file-edited", files: ["x.ts"] });
+      };
+      for (const branch of ["claude/handed", "claude/unpushed"]) await work(branch);
+
+      const watcher = (folder: string) => ({ log, project, folder, session: "observer", harness: "claude-code", source: "hook" }) as const;
+      const noPulls = { allMergedPulls: async () => new Map(), allOpenPulls: async () => new Map(), everyMs: 0, budgetMs: 60_000 };
+      const openWork = async () => sessionsFrom((await log.since(project, 0)).lines).map((session) => [session.session, session.openWork]);
+
+      // The box looks while both exist only on the laptop: it takes them for deleted.
+      await resolveBranches(watcher(site), { ...noPulls, machine: "box" });
+      assert.deepEqual(await openWork(), [["lane", []]]);
+
+      // The lane works on, pushes one and opens its pull request; the box looks again.
+      for (const branch of ["claude/handed", "claude/unpushed"]) await work(branch);
+      git(laptop, "push", "-q", "origin", "claude/handed");
+      const opened = async () => new Map([["claude/handed", { number: 7, draft: false, checks: "passing" as const, queued: false }]]);
+      await resolveBranches(watcher(site), { ...noPulls, allOpenPulls: opened, machine: "box" });
+      assert.deepEqual(await openWork(), [["lane", ["claude/handed"]]], "an open pull request from a branch taken for deleted opens it again");
+
+      // The laptop looks, with GitHub slower than the whole look's budget: its git is still asked.
+      const slow = async () => {
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        return new Map();
+      };
+      await resolveBranches(watcher(laptop), { ...noPulls, allMergedPulls: slow, allOpenPulls: opened, budgetMs: 100, machine: "laptop" });
+      assert.deepEqual(await openWork(), [["lane", ["claude/handed", "claude/unpushed"]]], "its own machine finds the unpushed branch ahead");
+    });
+  } finally {
+    await log.close();
+  }
+});
+
 test("4.10 a git that does not answer whether a branch exists leaves it unresolved, never deleted; once git answers, the next look resolves it", async () => {
   const log = await openActivityLog(testServerUrl());
   const project = uniqueProjectName();

@@ -14,7 +14,8 @@
  *   (or the nearest one still there: a cleaned-up worktree's repository).
  * - A branch worked on only on other machines is deleted once it exists nowhere this machine can
  *   see: not on `origin` and not a branch here. Its own machine opens it again if it is still there,
- *   and once that machine has found it ahead, no other machine guesses it away.
+ *   and once that machine has found it ahead, no other machine guesses it away. An open pull request
+ *   from it opens it again on any machine (a branch renamed before its first push, 2026-10-11).
  * - A branch is looked at while no line has resolved it, or once its session has written on it
  *   since it resolved, so work added after a merge or a fresh start is seen as open again.
  * - A `branch-state` line is written only when the state changes, by whichever session saw it,
@@ -24,8 +25,8 @@
  *   changes, and whether its repository has no commit yet, as a `main-state` line, written only
  *   when that changes. A folder found clean is looked at again only once someone works there again.
  * - It runs at most once a minute per project on each machine (the claims' stamp, under its own
- *   name), for at most a few seconds, least recently looked-at branches first, and never fails a
- *   hook: `gh` or git missing, slow or refusing means nothing is learned this time.
+ *   name), asking git for at most a few seconds once GitHub has answered, least recently looked-at
+ *   branches first, and never fails a hook: `gh` or git missing, slow or refusing means nothing is learned this time.
  */
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -44,7 +45,7 @@ export interface BranchWatch {
   readonly everyMs?: number;
   /** The machine this runs on, as lines name it. By default, this one's host name. */
   readonly machine?: string;
-  /** How long one look may take before the rest wait for the next. By default, 3 s. */
+  /** How long one look may spend asking this machine's git before the rest wait for the next; waiting on GitHub and origin spends none of it. By default, 3 s. */
   readonly budgetMs?: number;
   /** How git is asked about a branch on this machine. By default, this machine's git. */
   readonly git?: GitRunner;
@@ -89,7 +90,8 @@ export async function resolveBranches(context: MergeContext, watch: BranchWatch 
   const candidates = toLookAt(facts, machine, looked);
   const places = work.filter(({ folder }) => existsSync(folder)).map(({ folder }) => folder);
   if (candidates.size === 0 && places.length === 0) return [];
-  const deadline = Date.now() + (watch.budgetMs ?? BUDGET_MS);
+  const budget = watch.budgetMs ?? BUDGET_MS;
+  let deadline = Date.now() + budget;
   const mainFound: MainFound[] = [];
   for (const folder of places) {
     if (Date.now() > deadline) break;
@@ -101,6 +103,8 @@ export async function resolveBranches(context: MergeContext, watch: BranchWatch 
     (watch.allOpenPulls ?? ghAllOpenPulls)(context.folder).catch(() => undefined),
   ]);
   const seen = [...candidates.values()].some((facts) => facts.folder === undefined && !facts.foundThere) ? await seenHere(context.folder) : undefined;
+  // GitHub's answer for a long history can outlast the whole budget: the branches get a budget of their own.
+  deadline = Date.now() + budget;
   const found: Found[] = [];
   for (const [branch, facts] of [...candidates].sort(([a], [b]) => (looked[a] ?? 0) - (looked[b] ?? 0))) {
     const pull = (merged.get(branch) ?? []).find((pull) => Date.parse(pull.mergedAt) >= Date.parse(facts.firstAt));
@@ -151,8 +155,9 @@ export async function resolveBranches(context: MergeContext, watch: BranchWatch 
       const now = current.get(state.of);
       // A branch no line has resolved reads as open.
       const wasOpen = now?.open ?? true;
-      // Only GitHub was asked: its pull request says nothing of a branch a line has resolved.
-      if (state.how === undefined && !wasOpen) continue;
+      // Only GitHub was asked: no open pull request says nothing of a branch a line has resolved, but
+      // an open one opens it again (another machine may have taken it for deleted before it was pushed).
+      if (state.how === undefined && !wasOpen && state.pull?.pr === undefined) continue;
       if (wasOpen === state.open && (!state.open || state.pull === undefined || samePull(state.pull, now))) continue;
       const pull = state.pull ?? {};
       written.push(await log.append({
@@ -160,7 +165,8 @@ export async function resolveBranches(context: MergeContext, watch: BranchWatch 
         kind: "branch-state",
         of: state.of,
         open: state.open,
-        how: state.how ?? now?.how ?? "ahead",
+        // GitHub alone only ever finds a branch open, and an open branch is ahead.
+        how: state.how ?? "ahead",
         ...pull,
       }));
     }

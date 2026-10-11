@@ -737,7 +737,7 @@ test("8.27 with neither Claude Code nor Codex ready, the agent-cli line's fix gi
     assert.equal(line?.state, "needs-attention");
     const entry = /(\{[\s\S]*\})/.exec(line?.fix ?? "")?.[1];
     assert.ok(entry !== undefined, `an entry in the fix: ${line?.fix}`);
-    assert.deepEqual(JSON.parse(entry), { mcpServers: { storytree: { type: "stdio", command: HOOK.node, args: [path.join(path.dirname(HOOK.script), "storytree-mcp.mjs")] } } });
+    assert.deepEqual(JSON.parse(entry), { mcpServers: { storytree: { type: "stdio", command: HOOK.node, args: [path.join(tmpdir(), "storytree", "dist", "storytree-mcp.mjs")] } } });
     assert.match(line?.fix ?? "", /Claude Code/, "installing a watched harness stays offered");
   });
 });

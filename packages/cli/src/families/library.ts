@@ -1,5 +1,5 @@
 /**
- * Capability 3 · Library (the command line story): read any record whole, list a kind, search the artifacts,
+ * Capability 3 · Library (the command line story): read any record whole (several, and the records they link to, in one start), list a kind, search the artifacts,
  * see what links to an artifact and a record's history, all through the library's own reads; write a
  * new record of any kind, edit named fields of one, or retire one with its reason and writer.
  * Long text can come from a file; refusals are the library's own messages.
@@ -201,26 +201,52 @@ async function testedNumbersOf(cwd: string, library: Library, capability: string
   return testedNumbers(checkoutOf(cwd), await library.projectTree(), capability);
 }
 
+/** A record as the library returns it. */
+type Stored = NonNullable<Awaited<ReturnType<Library["get"]>>>;
+
+/** A stored record's id: its kind, an underscore and twelve hex digits. */
+const RECORD_ID = /^[a-z]+_[0-9a-f]{12}$/;
+
+/** The ids `record`'s list fields name (a note's links, a role's rules and context), in stored order. */
+function idsNamedBy(record: Stored): string[] {
+  return Object.values(record.fields).flatMap((value) => (Array.isArray(value) ? value.filter((item): item is string => typeof item === "string" && RECORD_ID.test(item)) : []));
+}
+
+/** `record` whole: its heading, then each field, then an increment's pending changes. */
+function wholeRecord(record: Stored): string {
+  const { pending, ...rest } = record.fields as Fields & { pending?: PendingChange[] };
+  const fields = Object.entries(rest).map(([key, value]) => `${key}: ${typeof value === "string" ? value : JSON.stringify(value, null, 2)}`);
+  const held = record.type === "increment" && pending !== undefined && pending.length > 0 ? ["", ...pendingSaid(pending)] : [];
+  return [`${record.id}  [${record.type}]  schema ${record.version}`, `Created: ${record.createdAt}`, `Updated: ${record.updatedAt}`, "", ...fields, ...held].join("\n");
+}
+
 const read: Verb = {
   name: "read",
-  usage: "library read <id> [--field <name>]",
-  summary: "a record, whole; or one field exactly as stored, nothing else",
+  usage: "library read <id> [<id>…] [--linked] [--field <name>]",
+  summary: "records, whole, in one start (--linked adds the records their id lists name); or one record's field exactly as stored",
+  switches: ["linked"],
   async act(args, context) {
-    const id = args.word(0, "the record's id", this.usage);
-    const record = await (await context.library()).get(id);
-    if (record === null) throw new Refusal(`no record "${id}" in this project`);
+    args.word(0, "the record's id", this.usage);
+    const ids = [...new Set(args.words)];
+    const library = await context.library();
+    const records = await Promise.all(ids.map((id) => library.get(id)));
+    const missing = ids.filter((_, index) => records[index] === null);
+    if (missing.length > 0) throw new Refusal(missing.map((id) => `no record "${id}" in this project`).join("\n"));
+    const named = records as Stored[];
     const field = args.text("field");
     if (field !== undefined) {
+      if (named.length > 1 || args.has("linked")) throw new Refusal(`--field reads one record's field; give one id\nusage: storytree ${this.usage}`, { code: 2 });
+      const record = named[0]!;
       const value = Object.hasOwn(record.fields, field) ? (record.fields as Record<string, unknown>)[field] : undefined;
-      if (value === undefined) throw new Refusal(`${id} has no field "${field}"; its fields are ${Object.keys(record.fields).join(", ")}`);
+      if (value === undefined) throw new Refusal(`${record.id} has no field "${field}"; its fields are ${Object.keys(record.fields).join(", ")}`);
       return { text: typeof value === "string" ? value : JSON.stringify(value, null, 2), raw: true };
     }
-    const { pending, ...rest } = record.fields as Fields & { pending?: PendingChange[] };
-    const fields = Object.entries(rest).map(([key, value]) => `${key}: ${typeof value === "string" ? value : JSON.stringify(value, null, 2)}`);
-    const held = record.type === "increment" && pending !== undefined && pending.length > 0 ? ["", ...pendingSaid(pending)] : [];
-    return {
-      text: [`${record.id}  [${record.type}]  schema ${record.version}`, `Created: ${record.createdAt}`, `Updated: ${record.updatedAt}`, "", ...fields, ...held].join("\n"),
-    };
+    const linkedIds = args.has("linked") ? [...new Set(named.flatMap(idsNamedBy))].filter((id) => !ids.includes(id)) : [];
+    const linked = await Promise.all(linkedIds.map((id) => library.get(id)));
+    const gone = linkedIds.filter((_, index) => linked[index] === null);
+    const shown = [...named, ...linked.filter((record): record is Stored => record !== null)];
+    const note = gone.length > 0 ? [`Linked but not in this project: ${gone.join(", ")}`] : [];
+    return { text: [...shown.map(wholeRecord), ...note].join("\n\n") };
   },
 };
 

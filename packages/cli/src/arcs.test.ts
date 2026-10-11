@@ -8,7 +8,7 @@ import { after, before, test } from "node:test";
 
 import pg from "pg";
 
-import { claim, openActivityLog, readClaims, recordFriction, release } from "@storytree/session-management";
+import { claim, openActivityLog, readClaims, recordFriction, release, type ActivityLog, type Line } from "@storytree/session-management";
 
 import { parseArgs } from "./args.js";
 import type { Context } from "./door.js";
@@ -549,13 +549,13 @@ test("4.6 closing an increment ends its claim for any holder and outcome; a refu
         const increment = await library.addIncrement({ arc, title: "Email form", objective: "Build it", body: "…" });
         const held = await claim({ log, library, project: world.project, session: "holder", harness: "claude-code" }, increment.id, "building the form");
         assert.equal(held.ok, true);
-        const before = await log.since(world.project, 0);
+        const before = await logged(log, world.project);
         const close = ["arc", "increment", "close", increment.id, "--disposition", disposition];
         const refused = await world.run(close, env);
         assert.equal(refused.code, 1, refused.stdout);
         assert.match(refused.stderr, /note/);
         assert.equal((await readClaims(log, world.project))[0]?.increment, increment.id);
-        assert.deepEqual(await log.since(world.project, 0), before);
+        assert.deepEqual(await logged(log, world.project), before);
 
         // A bare pull request number, as the guidance's `--pr <n>` gives it, is kept as the text it is.
         const outcome = disposition === "landed" ? ["--pr", "132"] : ["--note", "Folded into the sign-up page"];
@@ -565,15 +565,15 @@ test("4.6 closing an increment ends its claim for any holder and outcome; a refu
         assert.equal(closed?.disposition, disposition);
         if (disposition === "landed") assert.equal(closed?.pr, "132");
         assert.deepEqual(await readClaims(log, world.project), [], "closing it must end the claim");
-        const line = (await log.since(world.project, 0)).lines.at(-1);
+        const line = (await logged(log, world.project)).lines.at(-1);
         assert.equal(line?.kind, "closed");
         if (line?.kind === "closed") assert.deepEqual([line.increment, line.disposition, line.session], [increment.id, disposition, session]);
       }
-      const before = await log.since(world.project, 0);
+      const before = await logged(log, world.project);
       const missing = await world.run(["arc", "increment", "close", "increment_000000000000", "--disposition", "landed", "--pr", "#132"]);
       assert.equal(missing.code, 1);
       assert.match(missing.stderr, /no increment/);
-      assert.deepEqual(await log.since(world.project, 0), before);
+      assert.deepEqual(await logged(log, world.project), before);
     } finally {
       await log.close();
     }
@@ -672,3 +672,8 @@ test("4.20 `arc increment settle-pending` applies the leftover pending plan chan
     assert.match(none.stdout, /No closed increment has pending plan changes left/);
   });
 });
+
+/** The project's log as its claims and closes wrote it: without the door's own record of each command's answer (ADR-0983 D1). */
+async function logged(log: ActivityLog, project: string): Promise<{ lines: Line[] }> {
+  return { lines: (await log.since(project, 0)).lines.filter((line) => line.kind !== "door-answered") };
+}

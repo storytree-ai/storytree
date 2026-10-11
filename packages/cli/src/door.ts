@@ -388,36 +388,29 @@ class Opened {
   }
 
   /**
-   * Record how the command was answered on its session, a person's own from their terminal (ADR-0983 D1):
-   * nothing in a folder that is no project, or where storytree is not running or this checkout is not approved.
+   * Record how the command was answered on the agent session that ran it (ADR-0983 D1): nothing from a
+   * person's own terminal, which would add a row to the sessions list, nor in a folder that is no project,
+   * where storytree is not running, or where this checkout is not approved.
    */
   async answered(answer: { verb: string } & DoorOutcome): Promise<void> {
-    const where = route(this.#cwd);
-    if (where.status !== "routed") return;
-    const { log, project, folder, session, harness } = await this.activityLog();
-    await log.append(project, { session, ...(harness === undefined ? {} : { harness }), source: "tool", folder, kind: "door-answered", door: "command", ...answer });
-  }
-
-  /** The project's activity log and the calling session, with no library opened. */
-  async activityLog(): Promise<{ log: ActivityLog; project: string; folder: string; session: string; harness?: string }> {
-    const caller = commandSession() ?? { session: `person:${person()}` };
-    const where = this.#routed();
-    const { currentBranch, openActivityLog, thisMachine } = await import("@storytree/session-management");
-    const machine = thisMachine();
-    // Lines written from a terminal name its machine and its folder's branch, as a hook's do (ADR-0754 D4).
-    const log = await (this.#log ??= this.#server().then((storytree) => openActivityLog(storytree, { branchOf: currentBranch, ...(machine === undefined ? {} : { machine }) })));
-    return { log, project: where.project, folder: this.#cwd, ...caller };
+    const caller = commandSession();
+    if (caller === undefined || route(this.#cwd).status !== "routed") return;
+    await (await this.#activityLog()).append(this.#routed().project, { ...caller, source: "tool", folder: this.#cwd, kind: "door-answered", door: "command", ...answer });
   }
 
   async activityContext(): Promise<ClaimContext & { readonly folder: string; readonly server: Storytree }> {
     const caller = commandSession() ?? { session: `person:${person()}` };
     const where = this.#routed();
     const library = await this.library();
+    return { log: await this.#activityLog(), library, server: await this.#server(), project: where.project, folder: this.#cwd, ...caller };
+  }
+
+  /** The project's activity log, opened once with no library. */
+  async #activityLog(): Promise<ActivityLog> {
     const { currentBranch, openActivityLog, thisMachine } = await import("@storytree/session-management");
     const machine = thisMachine();
     // Lines written from a terminal name its machine and its folder's branch, as a hook's do (ADR-0754 D4).
-    const log = await (this.#log ??= this.#server().then((storytree) => openActivityLog(storytree, { branchOf: currentBranch, ...(machine === undefined ? {} : { machine }) })));
-    return { log, library, server: await this.#server(), project: where.project, folder: this.#cwd, ...caller };
+    return (this.#log ??= this.#server().then((storytree) => openActivityLog(storytree, { branchOf: currentBranch, ...(machine === undefined ? {} : { machine }) })));
   }
 
   async #open(): Promise<Library> {

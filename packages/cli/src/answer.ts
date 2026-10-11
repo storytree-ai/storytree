@@ -34,6 +34,18 @@ export class Refusal extends Error {
   }
 }
 
+/** The door's answer to a word it does not have: the word typed, and the command the refusal named, when it named one. */
+export class UnknownCommand extends Refusal {
+  readonly word: string;
+  readonly named: string | undefined;
+
+  constructor(message: string, word: string, named: string | undefined, options: { next?: readonly Next[]; code?: number } = {}) {
+    super(message, options);
+    this.word = word;
+    this.named = named;
+  }
+}
+
 /** An answer as the terminal shows it. */
 export function render(answer: Answer): string {
   if (answer.raw === true) return answer.text;

@@ -39,11 +39,36 @@ export function result(answer: Answer): CallToolResult {
   };
 }
 
+/** The library's and the claims' own refusals, as against a failure. */
+function isRefusal(error: unknown): boolean {
+  const refusals = [MissingReferenceError, SchemaError, DependencyLoopError, UnknownTypeError, NewerSchemaError, ProjectNameError, ProjectFolderError, ConnectionError, LifecycleError, WaitLoopError, RetireRefusedError, CaptureError];
+  return refusals.some((kind) => error instanceof kind);
+}
+
 /** A refusal the agent can read: the library's own message for the refusals it makes, said plainly otherwise. */
 export function refusalOf(error: unknown): string {
-  const refusals = [MissingReferenceError, SchemaError, DependencyLoopError, UnknownTypeError, NewerSchemaError, ProjectNameError, ProjectFolderError, ConnectionError, LifecycleError, WaitLoopError, RetireRefusedError, CaptureError];
-  if (refusals.some((kind) => error instanceof kind)) return `storytree refused that: ${(error as Error).message}`;
+  if (isRefusal(error)) return `storytree refused that: ${(error as Error).message}`;
   return `storytree could not do that: ${error instanceof Error ? error.message : String(error)}`;
+}
+
+/** How a tool's call went, as its `door-answered` line records it (ADR-0983 D1). */
+export interface DoorOutcome {
+  readonly outcome: "answered" | "refused" | "failed";
+  readonly class?: string;
+  readonly next: string[];
+}
+
+/** An answer the tool gave: refused or answered, with the next steps its data offered, as the tool door names them. */
+export function outcomeOf(answer: Answer): DoorOutcome {
+  const offered = Array.isArray(answer.data?.next) ? answer.data.next as unknown[] : [];
+  const next = offered.flatMap((one) => typeof one === "object" && one !== null && typeof (one as { step?: unknown }).step === "string" ? [(one as { step: string }).step] : []);
+  return { outcome: answer.refused === true ? "refused" : "answered", next };
+}
+
+/** A tool that threw: refused, for the library's and the claims' refusals, else failed; with the error's class. */
+export function failureOf(error: unknown): DoorOutcome {
+  const named = error instanceof Error ? error.name : undefined;
+  return { outcome: isRefusal(error) ? "refused" : "failed", ...(named === undefined || named === "" ? {} : { class: named }), next: [] };
 }
 
 /** Storytree could not be reached, or went away: the connection failed, dropped or timed out. */

@@ -45,7 +45,7 @@ import { appDatabaseWork } from "@storytree/processes/listing";
 import type { z } from "zod";
 
 import { habitsCard } from "../instructions/habits.js";
-import { isUnreachable, libraryDown, NOT_RUNNING_ANSWER, refusalOf, result, type Answer } from "./answers.js";
+import { failureOf, isUnreachable, libraryDown, NOT_RUNNING_ANSWER, outcomeOf, refusalOf, result, type Answer, type DoorOutcome } from "./answers.js";
 import { registerClaimTools } from "./claim-tools.js";
 import { registerContextTools } from "./context-tools.js";
 import { Connections } from "./connections.js";
@@ -176,9 +176,11 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
         const cause = request === undefined ? {} : { causedBy: request };
         const folder = requested?.folder !== undefined && existsSync(requested.folder) && findProject(requested.folder).project === where.project ? requested.folder : options.folder;
         await log.append(where.project, { ...lineOf(caller), source: "tool", folder, kind: "tool-called", tool: name, ...cause });
+        // How the call was answered, after the tool has answered and never in its way (ADR-0983 D1).
+        const answeredLine = (outcome: DoorOutcome) => log.append(where.project, { ...lineOf(caller), source: "tool", folder, kind: "door-answered", door: "tool", verb: name, ...outcome, ...cause }).catch(() => {});
         // A claim whose pull request has merged ends before the tool sees who holds what (ADR-0643 D3).
         await endMergedClaims({ log, project: where.project, folder, ...lineOf(caller), source: "tool", library: async () => library }, options.merges).catch(() => []);
-        return result(await act(args as never, {
+        const answered = await act(args as never, {
           library, log, storytree, project: where.project, caller,
           writer: { actor: `session:${caller.session}`, signal: context.mcpReq.signal },
           folder,
@@ -189,7 +191,12 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
           ...(request === undefined ? {} : { request }),
           ...(options.journey === undefined ? {} : { journey: options.journey }),
           progress: progressOf(context),
-        }));
+        }).catch(async (error: unknown) => {
+          if (!isUnreachable(error)) await answeredLine(failureOf(error));
+          throw error;
+        });
+        await answeredLine(outcomeOf(answered));
+        return result(answered);
       } catch (error) {
         if (isUnreachable(error)) {
           await connections.close();

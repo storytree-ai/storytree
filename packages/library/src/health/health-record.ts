@@ -17,7 +17,7 @@
 import { couldBeId, liveRecord, MissingReferenceError, recordNamed } from "../references.js";
 import type { SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.js";
 import type { FieldsOf, RecordType } from "../schema/types.js";
-import type { ArcNode, CapabilityNode, ContractNode, ProjectTree, StoryNode, WorkModel } from "../work/index.js";
+import type { ArcNode, CapabilityNode, ContractNode, ParkedOn, ProjectTree, StoryNode, WorkModel } from "../work/index.js";
 
 /** A column's state. A column with no entry reads `not-checked`, never `passing`. */
 export type HealthState = FieldsOf<"health">["state"];
@@ -106,6 +106,11 @@ export interface AnnotatedCapability extends Omit<CapabilityNode, "contracts"> {
    * the agent reports is all there is to show, labelled as the agent's, and no agent can move its word.
    */
   reportOnly?: true;
+  /**
+   * The arcs that park it, when it is not proven (proposed or untested) and parked on purpose (ADR-0992):
+   * the map fills it grey and its card names them. Its word is unchanged; absent otherwise.
+   */
+  parkedOn?: ParkedOn[];
 }
 
 /**
@@ -265,9 +270,10 @@ export class HealthRecord {
   /**
    * `tree`, as WorkModel.projectTree() gives it, with `health` added to every story, capability and
    * contract: a contract's own, and each capability's and story's rolled up from the contracts the
-   * tree holds under it. The tree given is not changed. With no tree, the plan as it is now.
+   * tree holds under it. The tree given is not changed. With no tree, the plan as it is now. `parked`,
+   * WorkInFlight.parkedCapabilities()'s reading, marks each capability not proven with the arcs that park it.
    */
-  async annotate(tree?: ProjectTree): Promise<AnnotatedTree> {
+  async annotate(tree?: ProjectTree, parked: ReadonlyMap<string, readonly ParkedOn[]> = new Map()): Promise<AnnotatedTree> {
     const plan = tree ?? (await this.#work.projectTree());
     const entries = await this.#entries();
     const unverified = ![...entries.values()].some(({ fields }) => fields.column === "verified");
@@ -280,7 +286,8 @@ export class HealthRecord {
           const status = capabilityStatus(capability.proposed, contracts.map((contract) => contract.health.verified.state));
           const reportOnly = unverified && !capability.proposed;
           const why = reportOnly ? undefined : capabilityWhy(capability.proposed, contracts.map((contract) => ({ id: contract.id, verified: contract.health.verified })));
-          return { ...capability, dependsOn: [...capability.dependsOn], contracts, health, status, ...(why === undefined ? {} : { why }), ...(reportOnly ? { reportOnly } : {}) };
+          const parkedOn = status === "proposed" || status === "untested" ? parked.get(capability.id) : undefined;
+          return { ...capability, dependsOn: [...capability.dependsOn], contracts, health, status, ...(why === undefined ? {} : { why }), ...(reportOnly ? { reportOnly } : {}), ...(parkedOn === undefined ? {} : { parkedOn: [...parkedOn] }) };
         });
         const health = rolledUp(capabilities.flatMap((capability) => capability.contracts.map((contract) => contract.health)));
         return { ...story, capabilities, health };

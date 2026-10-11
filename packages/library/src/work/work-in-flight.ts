@@ -122,6 +122,12 @@ export interface SettledPending extends AppliedPending {
 /** What an increment's pending changes may name: its plan's records (ADR-0966 D1). */
 const PLAN_RECORD = { name: "story, capability or contract", types: ["story", "capability", "contract"] } as const;
 
+/** An arc that parks a capability (ADR-0992 D6): its id and title, so the capability's card can name it. */
+export interface ParkedOn {
+  readonly arc: string;
+  readonly title: string;
+}
+
 /** How to park an arc: a write's options, and the day it wakes (YYYY-MM-DD, UTC), if it has one. */
 export interface ParkOptions extends WriteOptions {
   readonly until?: string;
@@ -700,6 +706,35 @@ export class WorkInFlight {
     return [...arcs].sort(byCreation).map((arc) => {
       return arcViewOf(arc, incrementsOf.get(arc.id) ?? [], questionsOf.get(arc.id) ?? [], at);
     });
+  }
+
+  /**
+   * The capabilities parked on purpose at `at` (now, unless given; ADR-0992 D2, D3), each with the arcs
+   * that park it, in the order of the increments naming it: open increments name it, every one sits on an
+   * arc reading parked (the owner's, or asleep on a dated event, 10.10), and none waits for the owner or
+   * is held on an open question. Its arcs' states are read as arcViews reads them, from three selections
+   * of the fields that decide them, never their prose.
+   */
+  async parkedCapabilities(at: Date = new Date()): Promise<Map<string, ParkedOn[]>> {
+    const [arcs, increments, questions] = await Promise.all([
+      this.#records.select("arc", ["title", "waits", "parked", "parkedUntil"]),
+      this.#records.select("increment", ["arc", "status", "waits", "waitsFor", "heldOn", "outcome", "capabilities"]),
+      this.#records.select("question", ["arc", "lifecycle"]),
+    ]);
+    const of = <T extends { fields: { arc: string } }>(records: readonly T[], arc: string): T[] => records.filter((record) => record.fields.arc === arc);
+    const parked = new Map(arcs.filter((arc) => arcState(arc, of(increments, arc.id).sort(byCreation), of(questions, arc.id), at) === "parked").map((arc) => [arc.id, arc.fields.title]));
+    const named = new Map<string, { arcs: ParkedOn[]; asks: boolean }>();
+    for (const increment of [...increments].sort(byCreation)) {
+      if (increment.fields.status === "closed") continue;
+      const title = parked.get(increment.fields.arc);
+      const asks = title === undefined || noteWaits(increment.fields.waitsFor, at).some(({ releaser, holds }) => holds && releaser === "owner") || heldOnOpen(increment, questions).length > 0;
+      for (const capability of increment.fields.capabilities ?? []) {
+        const seen = named.get(capability) ?? { arcs: [], asks: false };
+        if (title !== undefined && !seen.arcs.some(({ arc }) => arc === increment.fields.arc)) seen.arcs.push({ arc: increment.fields.arc, title });
+        named.set(capability, { arcs: seen.arcs, asks: seen.asks || asks });
+      }
+    }
+    return new Map([...named].flatMap(([capability, { arcs, asks }]) => (asks ? [] : [[capability, arcs] as const])));
   }
 
   /** Only open work and the facts needed to read its named blockers, never closed prose. */

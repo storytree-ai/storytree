@@ -21,10 +21,14 @@ const survey = JSON.parse(readFileSync(path.join(here, '../session-tints/survey.
 // healthy, anything else untested), with these seeded so every word shows. Cloud connection is the real library's
 // one red card on 2026-10-01; Hooks is red so a failure sits beside a claim on The agent link.
 const WORDS = { capability_2417a0fb5578: 'unhealthy', capability_f3c4cf342304: 'unhealthy', capability_b59e959e0da8: 'proposed', capability_cd33386156ad: 'proposed' };
+// ADR-0992: two not proven are parked on purpose, so they are filled grey: Arc surface (untested) beside its island's
+// yellow Agents on the board and Briefing and green Work states, and The app's Storytree projects (proposed).
+const PARKED = { capability_60a15402b053: 'Board redesign', capability_b59e959e0da8: 'Identity' };
 for (const story of seed.tree.stories) for (const capability of story.capabilities) {
   capability.status = WORDS[capability.id] ?? (capability.health.verified.state === 'passing' ? 'healthy' : 'untested');
   capability.proposed = capability.status === 'proposed';
   if (capability.status === 'unhealthy') capability.health = { ...capability.health, verified: { state: 'failing' } };
+  if (PARKED[capability.id]) capability.parkedOn = [{ arc: `arc-${PARKED[capability.id]}`, title: PARKED[capability.id] }];
 }
 phase('launch browser');
 await withCapture({ folder: here, dist: path.join(here, 'dist', ...(smoke ? ['smoke'] : [])) }, async ({ browser, origin, out, settle }) => {
@@ -72,7 +76,7 @@ function measure(page) {
       object.traverse(child => {
         if (child.name.startsWith('territory:')) {
           const hsl = child.material.color.getHSL({ h: 0, s: 0, l: 0 });
-          territories.push({ capability: child.userData.capability ?? null, title: child.userData.title ?? 'Unclaimed code', word: child.userData.word ?? null,
+          territories.push({ capability: child.userData.capability ?? null, title: child.userData.title ?? 'Unclaimed code', word: child.userData.word ?? null, parked: child.userData.parked === true,
             fill: '#' + child.material.color.getHexString(), opacity: child.material.opacity, saturation: Math.round(hsl.s * 100) / 100, claimedBy: child.userData.claimedBy ?? null });
         }
         if (child.name.startsWith('territory-hatch:')) hatches.push({ colour: '#' + child.material.color.getHexString(), opacity: child.material.opacity, segments: child.geometry.attributes.position.count / 2, renderOrder: child.renderOrder });
@@ -87,7 +91,9 @@ function measure(page) {
     const filled = islands.flatMap(i => i.territories).filter(t => t.opacity > 0 && t.capability !== null);
     const uncharted = islands.flatMap(i => i.territories.filter(t => t.capability === null).map(t => ({ story: i.story, fill: t.fill, opacity: t.opacity, saturation: t.saturation, hatches: i.hatches })));
     const markers = [...document.querySelectorAll('.planet-edge-marker')].map(m => ({ story: m.dataset.failingStory, title: m.title, label: m.getAttribute('aria-label') }));
-    return { zoom: camera.zoom, fills: [...new Set(filled.map(t => `${t.word} ${t.fill} ${t.opacity}`))].sort(), greyFills: filled.filter(t => t.saturation < 0.3).length, uncharted, markers, islands };
+    // Grey is parked's alone (ADR-0992): greyFills counts a grey territory that is not parked.
+    return { zoom: camera.zoom, fills: [...new Set(filled.map(t => `${t.word}${t.parked ? ' parked' : ''} ${t.fill} ${t.opacity}`))].sort(), greyFills: filled.filter(t => t.saturation < 0.3 && !t.parked).length,
+      parked: filled.filter(t => t.parked).map(t => t.capability).sort(), uncharted, markers, islands };
   });
 }
 
@@ -201,7 +207,7 @@ function measure(page) {
   const zoomed = async () => { await page.evaluate(() => { const { camera, invalidate } = window.__globe; camera.zoom *= 2.6; camera.updateProjectionMatrix(); invalidate(); }); await settleView(page); };
   const unzoom = async () => { await page.evaluate(() => { const { camera, invalidate } = window.__globe; camera.zoom /= 2.6; camera.updateProjectionMatrix(); invalidate(); }); await settleView(page); };
   // Close-ups serve pictures only; the smoke already measures all territories and claims.
-  if (!smoke) for (const [name, story] of [['agent-link', AGENT_LINK], ['forest', FOREST], ['library', LIBRARY], ['command-line', 'story_20549f1d48af']]) {
+  if (!smoke) for (const [name, story] of [['agent-link', AGENT_LINK], ['forest', FOREST], ['library', LIBRARY], ['command-line', 'story_20549f1d48af'], ['arc-surface', 'story_78b33d16d0b6']]) {
     await faceIt(story);
     await zoomed();
     results[`closeUp-${name}`] = await measure(page);
@@ -230,7 +236,7 @@ function measure(page) {
   // Page errors are recorded, not asserted: the stand-in bridge answers nothing for panels newer than it (sign-in and
   // the like), which throw on the missing answer. The land's own marks are asserted from the scene below.
   assert.equal(results.front.greyFills, 0);
-  console.log(JSON.stringify({ browser: results.browser, fills: results.front.fills, greyFills: results.front.greyFills,
+  console.log(JSON.stringify({ browser: results.browser, fills: results.front.fills, greyFills: results.front.greyFills, parked: results.front.parked,
     flags: results.front.islands.flatMap(i => i.claimOutlines.map(o => [i.story, o.capability, o.colour, o.faded, o.triangles])), markers: results.turnedAway.markers, errors }));
   // Observation is complete. Stop redraws, then let page closure release the WebGL context.
   // Explicit dispose/forceContextLoss can itself stall the macOS software-GL driver.

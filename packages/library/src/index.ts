@@ -38,6 +38,7 @@ export type {
   IncrementEdit,
   IncrementStatus,
   NewArc,
+  ParkedOn,
   NewCapability,
   NewContract,
   NewIncrement,

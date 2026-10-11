@@ -101,14 +101,17 @@ export function forestDrawn(scene: ForestScene): ForestDrawn {
  * with no files or package asserted. A project never verified keeps its existing bare land.
  * The page cuts it to the island's coast, which only the drawing knows.
  */
-function landOf(capabilities: readonly { id: string; title: string; description?: string; status: CapabilityWord }[], survey: StorySurvey | undefined, pkg: string, verified: boolean): Island["land"] {
+function landOf(capabilities: readonly { id: string; title: string; description?: string; status: CapabilityWord; parkedOn?: readonly unknown[] }[], survey: StorySurvey | undefined, pkg: string, verified: boolean): Island["land"] {
+  // A capability not proven and parked on purpose is drawn grey (ADR-0992); the library decides which.
+  const territory = ({ id, title, description, status, parkedOn }: (typeof capabilities)[number], lines: number) =>
+    ({ capability: id, title, ...(description === undefined ? {} : { description }), status, ...(parkedOn === undefined ? {} : { parked: true as const }), lines });
   if (survey === undefined || survey.files.length === 0) return !verified || capabilities.length === 0 ? undefined : {
-    territories: capabilities.map(({ id, title, description, status }) => ({ capability: id, title, ...(description === undefined ? {} : { description }), status, lines: 1 })),
+    territories: capabilities.map((capability) => territory(capability, 1)),
     files: [],
   };
   const linesOf = (capability: string | undefined) => survey.files.filter((file) => file.capability === capability).reduce((sum, file) => sum + file.lines, 0);
   return {
-    territories: [...capabilities.map(({ id, title, description, status }) => ({ capability: id, title, ...(description === undefined ? {} : { description }), status, lines: linesOf(id) })), { lines: linesOf(undefined) }].filter(({ lines }) => lines > 0),
+    territories: [...capabilities.map((capability) => territory(capability, linesOf(capability.id))), { lines: linesOf(undefined) }].filter(({ lines }) => lines > 0),
     files: survey.files,
     package: pkg,
     imports: survey.imports,

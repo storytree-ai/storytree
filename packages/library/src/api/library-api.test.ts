@@ -461,6 +461,23 @@ test("7.3 the package's public entry exports exactly the API and nothing else, a
   }
 });
 
+test("7.10 projectTree marks a capability not proven that a parked arc's open work names with that arc, and drops the mark once the arc is unparked (ADR-0992)", async () => {
+  const name = uniqueProjectName();
+  await withStorytree([name], async (storytree) => {
+    const lib = await storytree.openProject(name);
+    const story = await lib.addStory({ title: "Visitor can sign up" });
+    const form = await lib.addCapability({ title: "Email form", story: story.id });
+    const arc = await lib.createArc({ title: "Identity", intent: "An intent", endState: "An end state" });
+    await lib.addIncrement({ arc: arc.id, title: "Sign-in", objective: "Build it", body: "Later.", capabilities: [form.id] });
+    const parkedOn = async () => (await lib.projectTree()).stories[0]!.capabilities[0]!.parkedOn;
+    assert.equal(await parkedOn(), undefined, "an active arc's work needs attention");
+    await lib.parkArc(arc.id);
+    assert.deepEqual(await parkedOn(), [{ arc: arc.id, title: "Identity" }]);
+    await lib.unparkArc(arc.id);
+    assert.equal(await parkedOn(), undefined);
+  });
+});
+
 test("7.4 editStory, editContract and editArc change only the fields they name, check a new reference as adding does, and give null for an id that is not a live record of their type", async () => {
   const name = uniqueProjectName();
   await withStorytree([name], async (storytree) => {

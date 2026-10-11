@@ -641,6 +641,23 @@ for (const backend of [memory, postgres]) {
     await health.recordVerified(bad.id, "failing");
     assert.equal((await health.worklist({ changed })).find(({ capability }) => capability === form.id)!.waits, undefined, "verified since the commit: offered by what is recorded");
   });
+
+  contract("5.13", "a capability not proven carries the arcs that park it in the annotated tree; a healthy or unhealthy one, or one not parked, carries none (ADR-0992)", async ({ health, work }) => {
+    const { capability, contract, sibling } = await smallPlan(work);
+    const other = await work.addCapability({ title: "Elsewhere", story: capability.fields.story });
+    const parked = new Map([[capability.id, [{ arc: "arc-1", title: "Shelved" }]]]);
+    const parkedOf = async (id: string) => (await health.annotate(undefined, parked)).stories[0]!.capabilities.find((one) => one.id === id)!.parkedOn;
+    assert.deepEqual(await parkedOf(capability.id), [{ arc: "arc-1", title: "Shelved" }], "proposed and parked");
+    assert.equal(await parkedOf(other.id), undefined, "not parked");
+    assert.equal((await health.annotate()).stories[0]!.capabilities.find((one) => one.id === capability.id)!.parkedOn, undefined, "nothing parked is given");
+    await work.setProposed(capability.id, false);
+    await health.recordVerified(contract.id, "failing");
+    assert.equal(await parkedOf(capability.id), undefined, "red stays red on a parked arc");
+    await health.recordVerified(contract.id, "passing");
+    assert.deepEqual(await parkedOf(capability.id), [{ arc: "arc-1", title: "Shelved" }], "untested and parked");
+    await health.recordVerified(sibling.id, "passing");
+    assert.equal(await parkedOf(capability.id), undefined, "green is unchanged");
+  });
 }
 
 /** Past the current millisecond, so the next write's time sorts after the last one's. */

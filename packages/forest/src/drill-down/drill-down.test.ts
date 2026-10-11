@@ -147,6 +147,17 @@ test("4.12 a capability that is not healthy carries its reason, who moves it, an
   assert.equal(c?.why, undefined, "a healthy capability says nothing more");
 });
 
+test("4.14 a parked capability carries its word, its reason and the arcs that park it; one not parked carries none", () => {
+  const why = { reason: "not built" as const, mover: "agent" as const, contracts: [] };
+  const parked = { ...capability("parked", []), why, parkedOn: [{ arc: "arc-1", title: "Identity" }] };
+  const tree: AnnotatedTree = { stories: [story("s", parked, { ...capability("free", []), why })], arcs: [] };
+  const [a, b] = drillDown(tree, "s", workStates([]), [])?.capabilities ?? [];
+  assert.equal(a?.status, "proposed");
+  assert.deepEqual(a?.why, { reason: "not built", mover: "agent", contracts: [] });
+  assert.deepEqual(a?.parkedOn, [{ arc: "arc-1", title: "Identity" }]);
+  assert.equal("parkedOn" in (b ?? {}), false);
+});
+
 test("4.13 in a project nothing verifies, each capability, and each other story's it points at, is marked as shown by the agent's report", () => {
   const reportOnly = (built: AnnotatedCapability): AnnotatedCapability => ({ ...built, reportOnly: true });
   const tree: AnnotatedTree = {

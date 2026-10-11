@@ -2,7 +2,8 @@
 
 Increment "Territories show health: green, yellow, red; claims on the border", arc "Health you can
 maintain". Each capability's territory is filled by its word (ADR-0744): healthy green, unhealthy red,
-yellow while proposed or untested. No territory is filled grey (grey is kept for mapped), and Unclaimed code,
+yellow while proposed or untested, and mid slate grey (#86939D) when proposed or untested and parked on purpose
+(ADR-0992, increment "Parked capabilities are filled grey on the map", 2026-10-11). Unclaimed code,
 land no contract has surveyed, is drawn as uncharted land: a night-dark fill with thin diagonal hatching. A session's
 claim draws a band just inside the claimed territory's border in the session's colour, fainter once the
 session is quiet, and leaves the fill to the word. The rim marker for a failing story now reads
@@ -16,6 +17,7 @@ accepted (ADR-0794).
 | Close-up (x2.6) on The command line: its largest territory, Unclaimed code, as uncharted land | [close-up-command-line.png](close-up-command-line.png) |
 | Close-up (x2.6) on The forest: a quiet session's faded claim on the yellow Story node render; proposed Story nodes in yellow | [close-up-forest.png](close-up-forest.png) |
 | Close-up (x2.6) on The library: the red Cloud connection beside a live claim on Library transactions | [close-up-library.png](close-up-library.png) |
+| Close-up (x2.6) on The arc surface: the parked Arc surface in slate grey beside green Work states, yellow Agents on the board and Briefing, and hatched uncharted land (ADR-0992) | [close-up-arc-surface.png](close-up-arc-surface.png) |
 | The globe turned half round from The library: the two failing islands behind it show rim markers | [rim-markers.png](rim-markers.png) |
 
 Renderer: headless Chromium 148, ANGLE / Vulkan SwiftShader, 1440 x 960, dark theme, device scale 1.
@@ -23,7 +25,8 @@ Seed: the eight-story, 58-capability snapshot of `../knowledge-under-islands`, w
 the 13-line agent log of `../session-tints` (sessions A and B live, C quiet), at the fixed clock
 `2026-10-01T12:00:00Z`. The snapshot predates the word, so `capture.mjs` gives each capability one: its
 verified column's (passing reads healthy, anything else untested), with four seeded so every word shows:
-Cloud connection and Hooks unhealthy, Storytree projects and Story nodes proposed. Run `node build.mjs`,
+Cloud connection and Hooks unhealthy, Storytree projects and Story nodes proposed; Arc surface (untested) and Storytree
+projects (proposed) are parked, so they are grey. All seven pictures were re-taken on the Mint box on 2026-10-11 for ADR-0992. Run `node build.mjs`,
 then `node --import tsx capture.mjs`, under `node "<checkout>/packages/dev-loop/src/heavy-lock.mjs" --`. Full numbers: [measurements.json](measurements.json).
 `../../desktop-renderer-smoke.test.ts` builds this page as `smoke` and runs `capture.mjs --smoke` in installed Chrome
 (`CAPTURE_CHANNEL`, default `chrome`): no pictures, so a scene target one of these waits names that the globe no longer

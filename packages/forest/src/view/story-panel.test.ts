@@ -144,6 +144,19 @@ function whyLine(html: string): string {
   return found[1]!.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
 }
 
+test("4.14 a parked capability's detail keeps its word and reason and says it is parked, naming its arcs", () => {
+  const base = notGreen({ reason: "not built", mover: "agent", contracts: [] });
+  const parked = (titles: string[]): string => renderStoryPanel({ ...base, capabilities: [{ ...base.capabilities[0]!, parkedOn: titles.map((title, at) => ({ arc: `arc-${at}`, title })) }] }, "cap");
+  const one = parked(["Identity <beta>"]);
+  const said = /<p class="panel-parked"[^>]*>([\s\S]*?)<\/p>/.exec(one)?.[1]?.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+  assert.equal(said, "Parked on Identity &lt;beta&gt;: shelved on purpose, so nothing is asked of you yet.");
+  assert.match(one, /panel-state status-untested">untested</, "its word is kept");
+  assert.equal(whyLine(one), "Why not green: it is not built yet. The agent moves this one.", "and its reason");
+  assert.ok(one.indexOf("panel-parked") > one.indexOf("panel-why") && one.indexOf("panel-parked") < one.indexOf("<details>"));
+  assert.match(parked(["Identity", "Journey events"]), /Parked on Identity and Journey events:/);
+  assert.equal(renderStoryPanel(base, "cap").includes("panel-parked"), false, "one not parked says nothing of it");
+});
+
 test("4.12 a capability that is not healthy says why under its word, who moves it, and its contracts by number", () => {
   const agent = renderStoryPanel(notGreen({ reason: "no test names it", mover: "agent", contracts: ["1.2", "1.3"] }), "cap");
   assert.equal(whyLine(agent), "Why not green: no test names 1.2 and 1.3. The agent moves this one.");

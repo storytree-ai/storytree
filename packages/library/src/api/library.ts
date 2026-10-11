@@ -236,9 +236,10 @@ function libraryOf(project: Project): Library {
     },
     /** The work model's tree, annotated with health (capability 5 reads the plan through capability 4). */
     async projectTree(options) {
-      if (options?.pendingOf === undefined || !couldBeId(options.pendingOf)) return project.health.annotate();
+      const parked = await project.flight.parkedCapabilities();
+      if (options?.pendingOf === undefined || !couldBeId(options.pendingOf)) return project.health.annotate(undefined, parked);
       const tree = await project.work.projectTree();
-      return project.health.annotate((await project.flight.withPending(options.pendingOf, tree)) ?? tree);
+      return project.health.annotate((await project.flight.withPending(options.pendingOf, tree)) ?? tree, parked);
     },
     healthWorklist: (options) => project.health.worklist(options?.changed === undefined ? {} : { changed: options.changed }),
     async retireQuestion(id, reason, options) {

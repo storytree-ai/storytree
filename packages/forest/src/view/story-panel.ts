@@ -49,6 +49,7 @@ function capability(line: CapabilityLine): string {
       <h3>${text(line.title)} <span class="panel-state status-${line.status}">${line.reportOnly ? `the agent reports ${HEALTH[line.reported]}` : line.status}</span></h3>
       ${line.why === undefined ? "" : why(line.why)}
       ${line.reportOnly ? `<p class="panel-why report-only">${text(NOT_VERIFIED)}.</p>` : ""}
+      ${line.parkedOn === undefined ? "" : parked(line.parkedOn)}
       <p>${text(line.description)}</p>
       <p class="panel-health">
         ${badge("the agent reports", line.reported)}
@@ -76,6 +77,13 @@ function why({ reason, mover, contracts, since }: WhyLine): string {
   const named = contracts.length < 2 ? (contracts[0] ?? "it") : `${contracts.slice(0, -1).join(", ")} and ${contracts.at(-1)}`;
   const sentence = REASON[reason](reason === "not built" ? "" : named);
   return `<p class="panel-why mover-${mover}"><strong>Why not green:</strong> ${text(sentence)}${since === undefined || reason === "not re-run" ? "" : `, since ${day(since)}`}. <span class="panel-mover">${mover === "owner" ? "You move this one." : "The agent moves this one."}</span></p>`;
+}
+
+/** Why a grey territory is grey (ADR-0992 D6): the arcs that park it, by title. */
+function parked(arcs: NonNullable<CapabilityLine["parkedOn"]>): string {
+  const titles = arcs.map(({ title }) => title);
+  const named = titles.length < 2 ? (titles[0] ?? "") : `${titles.slice(0, -1).join(", ")} and ${titles.at(-1)}`;
+  return `<p class="panel-parked">Parked on ${text(named)}: shelved on purpose, so nothing is asked of you yet.</p>`;
 }
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];

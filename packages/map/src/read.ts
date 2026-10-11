@@ -1,6 +1,6 @@
 /** Capability 3 · Counts before detail. The map's Node entry point: a live library reading joined to the caller's checkout. */
 import { execFile } from "node:child_process";
-import { affectedProject, changedOnMain, type AffectedOptions } from "./affected.js";
+import { affectedProject, changedOnMain, namedOnMain, type AffectedOptions } from "./affected.js";
 import type { AnnotatedTree, HealthWorkItem, Library } from "@storytree/library";
 import { codeSurveyReader, type ImportedFolder } from "./code-survey/read-survey.js";
 import { buildGraph, type ProjectGraph } from "./graph.js";
@@ -68,9 +68,16 @@ const MAIN_READ_BACK = 24 * 60 * 60 * 1000;
 
 /**
  * The health worklist as the checkout at `folder` sees main: a capability whose story's code changed
- * on its fetched origin/main since its contracts were last verified waits on that commit's own-health run.
+ * on its fetched origin/main since its contracts were last verified waits on that commit's own-health run,
+ * and one offered as "no test names it" whose every such contract a test on main names waits on a run
+ * to record it. Main's tests are read only when the worklist offers one so.
  */
 export async function healthWorklistAt(library: Pick<Library, "projectTree" | "healthWorklist">, folder: string): Promise<HealthWorkItem[]> {
-  const { stories } = await library.projectTree();
-  return library.healthWorklist({ changed: await changedOnMain(stories, folder, { within: MAIN_READ_BACK }) });
+  const tree = await library.projectTree();
+  const changed = await changedOnMain(tree.stories, folder, { within: MAIN_READ_BACK });
+  const offered = await library.healthWorklist({ changed });
+  const unnamed = new Set(offered.flatMap(({ why, waits }) => (waits === undefined && why.reason === "no test names it" ? why.contracts : [])));
+  if (unnamed.size === 0) return offered;
+  const named = await namedOnMain(tree, folder, unnamed);
+  return named === undefined || named.contracts.length === 0 ? offered : library.healthWorklist({ changed, named });
 }

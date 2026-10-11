@@ -4,8 +4,8 @@ import { mkdtemp, mkdir, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
-import type { AnnotatedTree } from "@storytree/library";
-import { changedOnMain, focusProject, mapCommand } from "./read.js";
+import type { AnnotatedTree, HealthWorkItem, Library } from "@storytree/library";
+import { changedOnMain, focusProject, healthWorklistAt, mapCommand } from "./read.js";
 
 async function repository(t: TestContext) {
   const folder = await mkdtemp(path.join(tmpdir(), "map-affected-"));
@@ -157,4 +157,49 @@ test("4.2 each story whose package origin/main changed within the time asked has
 
   repo.git("update-ref", "-d", "refs/remotes/origin/main");
   assert.equal((await changedOnMain(stories, repo.folder, { within: 24 * 60 * 60 * 1000, now })).size, 0, "no origin/main: none");
+});
+
+test("4.3 the health worklist read at a checkout names to the library each contract carrying \"no test names it\" that a numbered test in its story's package on fetched origin/main names, with main's commit; a test only off main names nothing, and with no origin/main none is named", async t => {
+  const folder = await mkdtemp(path.join(tmpdir(), "map-named-"));
+  t.after(() => rm(folder, { recursive: true, force: true }));
+  const checkout = path.join(folder, "checkout");
+  const git = (cwd: string, ...args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], windowsHide: true }).trim();
+  const write = async (name: string, text: string) => { await mkdir(path.dirname(path.join(checkout, name)), { recursive: true }); await writeFile(path.join(checkout, name), text); };
+  const commit = (message: string) => git(checkout, "-c", "user.name=Map test", "-c", "user.email=map@example.test", "-c", "commit.gpgsign=false", "commit", "-m", message);
+  await write("packages/shop/package.json", '{"name":"@example/shop"}');
+  await write("packages/shop/src/cart.ts", "export const cart = 1;\n");
+  await write("packages/shop/src/cart.test.ts", 'import { cart } from "./cart.js";\ntest("1.1 · adds an item", () => cart);\n');
+  await mkdir(checkout, { recursive: true });
+  git(checkout, "init", "-b", "main"); git(checkout, "add", "."); commit("cart on main");
+  const origin = path.join(folder, "origin.git");
+  git(folder, "init", "--bare", origin);
+  git(checkout, "remote", "add", "origin", origin);
+  git(checkout, "push", "-q", "origin", "main");
+  const main = git(checkout, "rev-parse", "HEAD");
+  await write("packages/shop/src/cart.test.ts", 'import { cart } from "./cart.js";\ntest("1.1 · adds an item", () => cart);\ntest("1.2 · removes an item", () => cart);\n');
+  git(checkout, "add", "."); commit("1.2 on this branch only");
+  const health = { reported: { state: "not-checked" }, verified: { state: "not-checked" } };
+  const contract = (id: string, title: string) => ({ id, title, health });
+  const plan = { arcs: [], stories: [{ id: "shop", title: "Shop", health, capabilities: [
+    { id: "cart", title: "1 · Cart", health, dependsOn: [], contracts: [contract("adds", "1.1 · Adds an item"), contract("removes", "1.2 · Removes an item")] },
+    { id: "till", title: "2 · Till", health, dependsOn: [], contracts: [contract("pays", "2.1 · Takes payment")] },
+  ] }] } as unknown as AnnotatedTree;
+  const asked: Parameters<Library["healthWorklist"]>[0][] = [];
+  const item = (capability: string, contracts: string[]) => ({ capability, title: capability, story: "shop", status: "untested", since: "", why: { reason: "no test names it", mover: "agent", contracts } }) as HealthWorkItem;
+  const library = {
+    projectTree: async () => plan,
+    healthWorklist: async (options?: Parameters<Library["healthWorklist"]>[0]) => { asked.push(options); return [item("cart", ["adds", "removes"]), item("till", ["pays"])]; },
+  };
+
+  await healthWorklistAt(library, checkout);
+  const named = asked.at(-1)?.named;
+  assert.deepEqual(named?.contracts, ["adds"], "1.1's test is on main; 1.2's only on this branch, and 2.1 has none");
+  assert.equal(named?.commit, main, "main's commit");
+  assert.equal(Date.parse(named!.at), Date.parse(git(checkout, "log", "-1", "--format=%cI", main)));
+
+  asked.length = 0;
+  git(checkout, "remote", "remove", "origin");
+  git(checkout, "update-ref", "-d", "refs/remotes/origin/main");
+  await healthWorklistAt(library, checkout);
+  assert.ok(asked.every(options => options?.named === undefined), "no origin/main: nothing named");
 });

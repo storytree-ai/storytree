@@ -142,7 +142,8 @@ export interface HealthWorkItem {
   /**
    * The run it waits on, so it is not offered: present when every contract carrying its reason has a
    * pending mark (markVerifiedPending) newer than its verified entry and within PENDING_FOR, or else
-   * when its story's code changed on main after every one was last verified, within MERGE_WAITS_FOR.
+   * when its story's code changed on main after every one was last verified, within MERGE_WAITS_FOR,
+   * or else when its reason is `no test names it` and a test on main names every one: a run has yet to record it.
    */
   waits?: PendingRun;
   /**
@@ -177,6 +178,12 @@ export interface ChangedOnMain {
  * automerge may take to start it. A run that failed or never started holds nothing after it.
  */
 export const MERGE_WAITS_FOR = 90 * 60 * 1000;
+
+/** Fetched origin/main's newest commit, when it was committed, and the contracts its tests name by number. */
+export interface NamedOnMain extends ChangedOnMain {
+  /** The ids of the contracts a numbered test title in their story's package on main names. */
+  contracts: readonly string[];
+}
 
 /** A story in the annotated tree, with its health rolled up from all its capabilities' contracts. */
 export interface AnnotatedStory extends Omit<StoryNode, "capabilities"> {
@@ -307,9 +314,10 @@ export class HealthRecord {
    * recorded, or, where nothing was (not built, no test names it), when the capability was. One an
    * increment not yet closed lists among its capabilities is routed (ADR-0949 D2), and is left off until that increment closes.
    * `changed` gives, by story id, the newest commit on main that changed the story's code: a
-   * capability its run has not recorded since waits on it (friction_cf907de5ca3b).
+   * capability its run has not recorded since waits on it (friction_cf907de5ca3b). `named` gives the
+   * contracts main's tests name: one never recorded that a test there names is no missing test, and waits on a run (friction_c7a7e6754c54).
    */
-  async worklist({ now = new Date(), changed = new Map() }: { now?: Date; changed?: ReadonlyMap<string, ChangedOnMain> } = {}): Promise<HealthWorkItem[]> {
+  async worklist({ now = new Date(), changed = new Map(), named }: { now?: Date; changed?: ReadonlyMap<string, ChangedOnMain>; named?: NamedOnMain } = {}): Promise<HealthWorkItem[]> {
     const routed = new Set((await this.#records.list("increment")).filter(({ fields }) => fields.status !== "closed").flatMap(({ fields }) => fields.capabilities ?? []));
     const recorded = new Map((await this.#records.list("capability")).map(({ id, createdAt }) => [id, createdAt]));
     const marks = new Map((await this.#records.list("health")).filter(({ id }) => id.endsWith(PENDING)).map((record) => [record.fields.node, record]));
@@ -318,7 +326,7 @@ export class HealthRecord {
         if (why === undefined || routed.has(id)) return [];
         const verified = new Map(contracts.map((contract) => [contract.id, contract.health.verified]));
         const carrying = why.contracts.map((id) => verified.get(id));
-        const waits = waitingOn(why.contracts.map((id) => ({ mark: marks.get(id), verified: verified.get(id) })), now) ?? waitingOnMerge(changed.get(story.id), carrying, now);
+        const waits = waitingOn(why.contracts.map((id) => ({ mark: marks.get(id), verified: verified.get(id) })), now) ?? waitingOnMerge(changed.get(story.id), carrying, now) ?? waitingOnNamed(named, why, contracts);
         const contractsPass = status === "proposed" && contracts.length > 0 && contracts.every((contract) => contract.health.verified.state === "passing");
         return [{ capability: id, title, story: story.id, status, why, since: why.since ?? recorded.get(id) ?? "", ...(waits === undefined ? {} : { waits }), ...(contractsPass ? { contractsPass } : {}) }];
       }))
@@ -399,6 +407,17 @@ function waitingOnMerge(merged: ChangedOnMain | undefined, carrying: readonly (H
   if (merged === undefined || carrying.length === 0 || now.getTime() - Date.parse(merged.at) >= MERGE_WAITS_FOR) return undefined;
   if (carrying.some((verified) => verified?.at !== undefined && Date.parse(verified.at) >= Date.parse(merged.at))) return undefined;
   return { since: merged.at, note: `commit ${merged.commit} changed its code on main; its own-health run has not recorded it yet` };
+}
+
+/**
+ * The run a capability whose reason is `no test names it` waits on when a test on main names every
+ * contract carrying it (at least one): main's commit, saying the contracts by number; else none.
+ */
+function waitingOnNamed(named: NamedOnMain | undefined, why: CapabilityWhy, contracts: readonly { id: string; title: string }[]): PendingRun | undefined {
+  if (named === undefined || why.reason !== "no test names it" || why.contracts.length === 0 || !why.contracts.every((id) => named.contracts.includes(id))) return undefined;
+  const titles = new Map(contracts.map(({ id, title }) => [id, title]));
+  const numbers = why.contracts.map((id) => /^(\d+\.\d+) · /.exec(titles.get(id) ?? "")?.[1] ?? id);
+  return { since: named.at, note: `a test on main (commit ${named.commit}) names ${numbers.join(", ")}; no recorded run has seen it yet` };
 }
 
 /** A contract's own health: each column's latest entry, or not-checked. */

@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
-import type { AnnotatedTree, ChangedOnMain, Library } from "@storytree/library";
+import type { AnnotatedTree, ChangedOnMain, Library, NamedOnMain } from "@storytree/library";
 import { packageOf } from "./code-survey/code-survey.js";
 import { codeSurveyReader } from "./code-survey/read-survey.js";
 import { buildGraph, type ChangeLabel, type MapEdge, type MapNode, type ProjectGraph } from "./graph.js";
@@ -184,4 +184,35 @@ export async function changedOnMain(stories: readonly { readonly id: string; rea
     }
   }
   return changed;
+}
+
+/**
+ * Which of `contracts` (ids) a numbered test title in its story's package on fetched origin/main names
+ * by its number, with main's newest commit and when it was committed (friction_c7a7e6754c54). A
+ * title prefixed with another package names that package's numbers. Fetches origin/main as the code
+ * survey does; undefined when there is no origin/main to read.
+ */
+export async function namedOnMain(tree: AnnotatedTree, folder: string, contracts: ReadonlySet<string>): Promise<NamedOnMain | undefined> {
+  const stories = tree.stories.filter(story => story.mapped === undefined && story.capabilities.some(capability => capability.contracts.some(({ id }) => contracts.has(id))));
+  let surveyed: Awaited<ReturnType<ReturnType<typeof codeSurveyReader>["read"]>>;
+  let head: string;
+  try {
+    surveyed = await codeSurveyReader().read(folder, { ...tree, stories });
+    head = await gitText(folder, ["log", "-1", "--format=%H %cI", "refs/remotes/origin/main", "--"]);
+  } catch {
+    return undefined;
+  }
+  const [commit = "", at = ""] = head.split(" ");
+  const named: string[] = [];
+  for (const story of stories) {
+    const own = packageOf(story.title);
+    const numbers = new Set((surveyed[story.id]?.tests ?? []).flatMap(test => test.titles.filter(title => title.package === undefined || title.package === own).map(title => title.number)));
+    for (const capability of story.capabilities) {
+      for (const { id, title } of capability.contracts) {
+        const number = /^(\d+\.\d+) · /.exec(title)?.[1];
+        if (contracts.has(id) && number !== undefined && numbers.has(number)) named.push(id);
+      }
+    }
+  }
+  return { commit, at: new Date(at).toISOString(), contracts: named };
 }

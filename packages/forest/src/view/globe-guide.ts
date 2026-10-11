@@ -11,8 +11,9 @@ export type ScreenPosition = { x: number; y: number; visible: boolean };
 export type GlobeControls = { stop(stop: CameraStop): boolean; position(target: GlobeTarget): ScreenPosition | undefined; cancel(): void };
 /** The short way round from `from` to face the way `to` does, as a yaw to ease toward. */
 const nearestYaw = (from: number, to: number) => from + Math.atan2(Math.sin(to - from), Math.cos(to - from));
-export function createGlobeGuide(host: { world(): Object3D; camera(): Camera; size(): { width: number; height: number }; read(): GlobePose; write(pose: GlobePose): void; invalidate(): void }): GlobeControls & { frame(milliseconds: number): boolean; home(pose: GlobePose, duration?: number): boolean } {
-  let motion: { from: GlobePose; to: GlobePose; elapsed: number; duration: number } | undefined;
+export function createGlobeGuide(host: { world(): Object3D; camera(): Camera; size(): { width: number; height: number }; read(): GlobePose; write(pose: GlobePose): void; invalidate(): void }): GlobeControls & { frame(milliseconds: number): boolean; home(pose: GlobePose, duration?: number): boolean; slide(to: Omit<GlobePose, "turn">, duration?: number): boolean } {
+  // A slide (3.40) moves the zoom and offset only, leaving the turn to whatever turns it meanwhile.
+  let motion: { from: GlobePose; to: GlobePose; elapsed: number; duration: number; slide?: boolean } | undefined;
   function frame(milliseconds: number): boolean {
     if (motion === undefined) return false;
     motion.elapsed += Math.max(0, milliseconds);
@@ -20,17 +21,17 @@ export function createGlobeGuide(host: { world(): Object3D; camera(): Camera; si
     const eased = progress * progress * (3 - 2 * progress);
     const mix = (from: number, to: number) => progress === 1 ? to : from + (to - from) * eased;
     const { from, to } = motion;
-    host.write({ turn: { yaw: mix(from.turn.yaw, to.turn.yaw), pitch: mix(from.turn.pitch, to.turn.pitch) },
+    host.write({ turn: motion.slide ? host.read().turn : { yaw: mix(from.turn.yaw, to.turn.yaw), pitch: mix(from.turn.pitch, to.turn.pitch) },
       framing: mix(from.framing, to.framing), sideOffset: mix(from.sideOffset, to.sideOffset) });
     if (progress === 1) motion = undefined;
     host.invalidate();
     return motion !== undefined;
   }
-  function go(from: GlobePose, to: GlobePose, duration: number): boolean {
+  function go(from: GlobePose, to: GlobePose, duration: number, slide = false): boolean {
     if (!Number.isFinite(to.framing) || to.framing <= 0 || !Number.isFinite(to.sideOffset) || !Number.isFinite(duration) || duration < 0) return false;
     motion = undefined;
     if (duration === 0) host.write(to);
-    else motion = { from, to, duration, elapsed: 0 };
+    else motion = { from, to, duration, elapsed: 0, slide };
     host.invalidate();
     return true;
   }
@@ -50,6 +51,10 @@ export function createGlobeGuide(host: { world(): Object3D; camera(): Camera; si
       const from = host.read();
       return go(from, { ...pose, turn: { yaw: nearestYaw(from.turn.yaw, pose.turn.yaw), pitch: pose.turn.pitch } }, duration);
     },
+    slide(to, duration = 600) {
+      const from = host.read();
+      return go(from, { ...to, turn: from.turn }, duration, true);
+    },
     position(target) {
       const world = host.world(), camera = host.camera();
       world.updateMatrixWorld(true); camera.updateMatrixWorld(true);
@@ -66,7 +71,12 @@ export function createGlobeGuide(host: { world(): Object3D; camera(): Camera; si
       return { x: (projected.x + 1) * width / 2, y: (1 - projected.y) * height / 2,
         visible: marked && isDrawn(found.object) && near && Math.abs(projected.x) <= 1 && Math.abs(projected.y) <= 1 && Math.abs(projected.z) <= 1 };
     },
-    cancel() { motion = undefined; },
+    // A slide cut short by a drag or the wheel still ends beside the panel; its zoom is left where the wheel takes it.
+    cancel() {
+      const cut = motion;
+      motion = undefined;
+      if (cut?.slide) { host.write({ ...host.read(), sideOffset: cut.to.sideOffset }); host.invalidate(); }
+    },
     frame,
   };
 }

@@ -250,3 +250,34 @@ test("13.10 · a watcher whose code changes between two looks ends with the rest
     sleep: async () => { assert.ok(merges.length, "it restarts once its own code changes"); await merges.shift()(); } }), RESTART);
   assert.equal(looks, 2, "the test runner changed: it looked again; then its own code changed: it restarted");
 });
+
+test("13.11 · a pull request handed over to keep its increment open is watched and fixed, and on MERGED leaves the increment open", async (t) => {
+  const b = await box(t, { board: `  - capability capability_left  Claude Code ${SESSION} (live, on claude/x), since 2026-10-10T11:00:00Z: work` });
+  await hand({ ...b.options, pr: 41, increment: "increment_one", session: SESSION, keepOpen: true, startWatcher: async () => {} });
+  assert.doesNotMatch(b.calls[0][7], /closes this/, "its wait does not promise to close the increment");
+  b.looks[41] = red;
+  await watchOnce(b.options);
+  assert.match(b.fixes[0].brief, /watch\.mjs hand 41 increment_one --keep-open/, "the fix session hands it back keeping it open");
+  b.live.clear();
+  b.calls.length = 0;
+  b.looks[41] = { state: "merged", head: "h2" };
+  await watchOnce(b.options);
+  assert.deepEqual(b.calls, [
+    ["arc", "increment", "unwait", "increment_one", "--for", "event"],
+    ["noticeboard"],
+    ["workspace", "release", "capability_left", "--holder", SESSION, "--reason", "PR #41 merged; released by the watcher"],
+  ], "no close");
+  assert.match(b.lines.at(-1), /PR #41 merged: increment_one stays open/);
+  assert.deepEqual(await readdir(b.dir), []);
+
+  const handed = [];
+  await handOver({ pr: 43, increment: "increment_one", session: SESSION, keepOpen: true, onBox: false, local: async () => {},
+    remote: async (args) => { handed.push(args); return ""; } });
+  assert.deepEqual(handed, [["hand", "43", "increment_one", "--session", SESSION, "--keep-open"]], "the flag travels over ssh");
+  const outs = [];
+  await main(["hand", "44", "increment_one", "--keep-open", "--session", SESSION], { ...b.options, dir: b.dir, out: (line) => outs.push(line),
+    pidFile: join(b.dir, "watch.pid"), argsOf: async () => "", startWatcher: async () => 1 });
+  const record = await saved(b, 44);
+  assert.equal(record.keepOpen, true); assert.equal(record.session, SESSION);
+  assert.match(outs[0], /stays open/);
+});

@@ -87,7 +87,7 @@ test('6.8 a way inland lies on its island where the globe draws it, from the doc
   }
 });
 
-test('6.8 a type-only link stays marked on its road and its lane, which are drawn like any other', () => {
+test('6.8 a type-only link stays marked on its road and its lane', () => {
   const typed: ForestScene = { ...scene, links: [{ from: 'b1', to: 'a1' }, { from: 'b2', to: 'a2', typeOnly: true }, { from: 'b2', to: 'a1', typeOnly: true }] };
   const plan = buildPlanetPathways(typed, spots, R);
   assert.deepEqual(plan.edges.map(e => [e.from, e.to, e.typeOnly === true]), [['b1', 'a1', false], ['b2', 'a2', true], ['b2', 'a1', true]]);

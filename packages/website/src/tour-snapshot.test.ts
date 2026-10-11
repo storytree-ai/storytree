@@ -18,7 +18,7 @@ function reading(): TourReading {
     changes: [{ seq: 1, recordId: "decision_example", type: "decision", action: "created", record: record("decision_example", "decision", { title: "A choice", number: 7, status: "accepted", frontCoverOf: "story_example", links: ["principle_example"], supersedes: [], story: "story_example", body: "DROP_ME", branch: "private" }) }],
     survey: { story_example: { files: [{ path: "src/main.ts", lines: 40, capability: "capability_example" }], imports: [{ from: "src/main.ts", to: "src/other.ts" }] } },
     arcs: [
-      { arc: record("arc_open", "arc", { title: "Open", intent: "Intent", endState: "End" }), state: "active", increments: [], questions: [record("question_example", "question", { title: "Question", arc: "arc_open", stakes: "Stakes", statement: "Statement", context: "Context", options: "Options", analogy: "Analogy", diagram: "a → b", recommendation: "Recommendation", lifecycle: "open", raised: at })] },
+      { arc: record("arc_open", "arc", { title: "Open", intent: "Intent", endState: "End" }), state: "active", increments: [], questions: [record("question_example", "question", { title: "Question", arc: "arc_open", stakes: "Stakes", statement: "Statement", context: "Context", options: "Options", analogy: "Analogy", diagram: "a → b", recommendation: "Recommendation", lifecycle: "open" })] },
       { arc: record("arc_closed", "arc", { title: "Closed" }), state: "closed", increments: [], questions: [] },
     ], holds: { waits: { arc_open: [], arc_closed: [] }, heldOn: {} },
     lines: [line(1, "session-started", { folder: "/home/alice", machine: "private-host", transcript: "private-log", branch: "private-branch" }),
@@ -78,4 +78,21 @@ test("3.2, 3.3 · credential-like retained text or an invalid window refuses ref
   input.window = { from: until, to: at };
   await assert.rejects(refreshTourSnapshot(file, async () => input), /window/i);
   assert.equal(await readFile(file, "utf8"), "last valid snapshot\n");
+});
+
+test("3.14 · the saved reading keeps of each arc only what the arcs drawer shows: a settled question its title and answer, an increment never its body", async t => {
+  const file = await saved(t);
+  const input = reading();
+  const view = input.arcs[0]! as unknown as { increments: unknown[]; questions: unknown[] };
+  const record = (id: string, type: string, fields: object) => ({ id, type, version: 1, fields, createdAt: at, updatedAt: at });
+  view.increments.push(record("increment_example", "increment", { arc: "arc_open", title: "Build it", objective: "It works", status: "closed", parked: at, capabilities: ["capability_example"], heldOn: ["question_example"],
+    outcome: { date: at, disposition: "landed", pr: "7", note: "Landed" }, body: "accessToken = SDK getAccessToken", touches: ["DROP_ME"], remedies: ["DROP_ME"] }));
+  view.questions.push(record("question_settled", "question", { title: "Settled", arc: "arc_open", lifecycle: "settled", answer: "A", stakes: "S", statement: "S",
+    context: "Neither is secret: paste both into the session", options: "O", analogy: "An", recommendation: "R", settledAt: at, leaseDays: 7, verifiedAt: at }));
+  await refreshTourSnapshot(file, async () => input);
+  const snapshot = JSON.parse(await readFile(file, "utf8"));
+  assert.deepEqual(snapshot.arcs[0].arc.fields, { title: "Open", intent: "Intent" });
+  assert.deepEqual(snapshot.arcs[0].increments[0].fields, { arc: "arc_open", title: "Build it", objective: "It works", status: "closed", parked: at, capabilities: ["capability_example"], heldOn: ["question_example"],
+    outcome: { date: at, disposition: "landed", pr: "7", note: "Landed" } });
+  assert.deepEqual(snapshot.arcs[0].questions[1].fields, { title: "Settled", arc: "arc_open", lifecycle: "settled", answer: "A" });
 });

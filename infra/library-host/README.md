@@ -12,6 +12,12 @@ SQL, is stopped with the instance at cutover, and gets one `gcloud sql export` t
 `archive/` before the instance is deleted. Nothing here copies, backs up, swaps or
 rolls it back.
 
+The backups also carry `storytree-lag`, the lag runner's history
+(`packages/dev-loop/src/lag-box.mjs`): each action's baseline, its runs and the
+reasons recorded by `pnpm lag:box rebaseline`. The runs could be measured again;
+the reasons could not. It was made by the lag runner on Mint and never lived on
+Cloud SQL, so the rehearsal, cutover and rollback leave it out.
+
 Every machine-changing script needs a read-only review and a dry run before its
 real run. Do not run `cutover.sh` or `rollback.sh` for real during rehearsal.
 `setup.sh` is the exact previously reviewed script the owner ran with sudo.
@@ -23,9 +29,12 @@ Over the tailnet (`mickh-a520i-ac`, its Tailscale names or `100.97.8.31`) the
 library answers only over TLS, and storytree trusts its certificate only where the
 address names it (ADR-0997 D1): no build of storytree trusts it, and an address
 with no `sslrootcert` trusts Node's authorities alone, so it is refused
-`untrusted-server`. `mint-library.crt` here is that certificate's public half
-(SHA-256 90:B0:79:84:…:D3:F1:71; check it with `openssl x509 -noout -fingerprint
--sha256 -in mint-library.crt`), committed because it is not a secret (ADR-0943 D3).
+`untrusted-server`. `mint-library.crt` here is that certificate's public half,
+committed because it is not a secret (ADR-0943 D3). While the box moves to a
+certificate that cannot sign for other hosts (ADR-0997 D4), it holds two: the one
+served today (SHA-256 90:B0:79:84:…:D3:F1:71) and its successor, issued CA:FALSE
+(SHA-256 4F:4E:25:4E:…:A8:AA:AD), so every client trusts the new one before the box
+serves it; once the old key is destroyed, the file holds the new one alone.
 
 - The laptop keeps its own copy at `C:\Users\mickh\.storytree\0.3\mint-library.crt`,
   and its library is
@@ -122,7 +131,7 @@ node infra/library-host/host.mjs backup
 node infra/library-host/host.mjs backup
 ```
 
-All three dumps must restore into new scratch databases and match their source
+All four dumps (the three 0.3 databases and `storytree-lag`) must restore into new scratch databases and match their source
 snapshot's per-table row counts before **any** upload. Scratch names are unique;
 only databases marked as created by this increment may be dropped. No forced
 disconnect or existing-database overwrite is used. A session advisory lock on
@@ -145,7 +154,8 @@ node infra/library-host/host.mjs rollback-rehearsal gs://storytree-498613-librar
 node infra/library-host/host.mjs rollback-rehearsal gs://storytree-498613-library-backups/backups/TIMESTAMP
 ```
 
-The local proof downloads all three dumps, verifies sizes/hashes and restores each
+The local proof downloads every dump the manifest names (a backup from before
+`storytree-lag` joined names three), verifies sizes/hashes and restores each
 into scratch. The Cloud SQL proof restores the project backup only into
 `storytree_rollback_rehearsal`, checks it, then drops it. It refuses an existing
 scratch name. If Mint IAM lacks database-creation rights, the laptop owner must
@@ -169,6 +179,16 @@ copies the reviewed script to a private, versioned runtime outside the disposabl
 worktree. Its `pg` dependency resolves from the permanent
 `~/code/storytree03/node_modules`; keep that checkout installed. Output goes to
 `~/storytree-lanes/library-backups/timer.log`. Existing unit files are refused.
+
+When `host.mjs` changes, re-install so the timer runs the new copy (older runtime
+folders stay, as evidence of what ran):
+
+```sh
+systemctl --user disable --now storytree-library-backup.timer
+rm ~/.config/systemd/user/storytree-library-backup.service ~/.config/systemd/user/storytree-library-backup.timer
+node infra/library-host/host.mjs install-timer
+grep ExecStart ~/.config/systemd/user/storytree-library-backup.service
+```
 
 The laptop cutover step enables the existing **No library backup for 12 hours**
 Cloud Monitoring alert after checking it observes these writes. This rehearsal

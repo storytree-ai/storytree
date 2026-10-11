@@ -1,4 +1,4 @@
-// Free play on storytree's own saved project: pick the session that read most and picture its reading path (increment_c684327d5381).
+// Free play on storytree's own saved project: pick the session that read most notes whole and picture its reading path (increment_c684327d5381).
 // Run after `pnpm --filter @storytree/website build`: node packages/website/evidence/freeplay-reading-path/capture.mjs [--as <prefix>]
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
@@ -12,7 +12,8 @@ const dist = path.resolve(process.env.WEBSITE_DIST ?? path.resolve(here, "../../
 const prefix = process.argv.includes("--as") ? process.argv[process.argv.indexOf("--as") + 1] : "after";
 const saved = JSON.parse(await readFile(path.resolve(here, "../../src/forest-snapshot.json"), "utf8"));
 const counts = new Map();
-for (const line of saved.recording.lines) if (line.kind === "note-read" && line.session) counts.set(line.session, (counts.get(line.session) ?? 0) + 1);
+// Only whole reads join a reading path (ReadRecord.replay), so the session that read most notes whole is picked.
+for (const line of saved.recording.lines) if (line.kind === "note-read" && line.read === "whole" && line.session) counts.set(line.session, (counts.get(line.session) ?? 0) + 1);
 const [reader, reads] = [...counts].sort((a, b) => b[1] - a[1])[0];
 const types = { ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".png": "image/png", ".svg": "image/svg+xml", ".json": "application/json" };
 const server = createServer(async (req, res) => {
@@ -40,7 +41,7 @@ try {
     await row.click();
     await page.waitForTimeout(4000);
     await page.screenshot({ path: path.join(here, `${prefix}-${width}.png`) });
-    console.log(`${prefix} ${width}: picked ${reader} (${reads} recorded reads)`);
+    console.log(`${prefix} ${width}: picked ${reader} (${reads} whole reads)`);
     await page.close();
   }
 } finally { await browser.close(); server.close(); }

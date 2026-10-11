@@ -5,7 +5,7 @@ import type { ForestScene, Island } from '../scene.js';
 import { buildPlanetPathways, laneDrawSeconds, laneProgress, laneRoutes, LANE_COLOUR } from '../geometry.js';
 import { trailFillWidth } from '../core/routing.js';
 import { RIBBON_GROUND_SCALE } from '../trail-ribbon-width.js';
-import { advanceLaneClock, entranceShown, laneEntrances, laneHead, laneHeads, LANE_GLOW, LANE_SPEED, onIsland, type InlandWay, type LaneRoute, type LitLink } from './lanes.js';
+import { advanceLaneClock, entranceShown, laneEntrances, laneHead, laneHeads, LANE_GLOW, LANE_SPEED, onIsland, THREAD_WIDTH, type InlandWay, type LaneRoute, type LitLink } from './lanes.js';
 import type { PlanetPathways } from './pathways.js';
 
 const R = 218;
@@ -17,7 +17,7 @@ const scene: ForestScene = { islands: [island('a', ['a1', 'a2']), island('b', ['
   links: [{ from: 'a2', to: 'a1' }, { from: 'b1', to: 'a1' }, { from: 'b2', to: 'b1' }, { from: 'b2', to: 'a2' }] };
 const spots = new Map([['a', { x: R * Math.sin(0.3), y: 0, z: R * Math.cos(0.3) }], ['b', { x: -R * Math.sin(0.3), y: 0, z: R * Math.cos(0.3) }]]);
 
-test('6.8 a lit link\'s lane is one unbroken strip between islands, from the dock of the island built on to the dock of the island building on it, filling its road with a glow beyond', () => {
+test('6.8 a lit link\'s lane is one unbroken strip between islands, from the dock of the island built on to the dock of the island building on it, a thread down the middle of its road with a glow beyond', () => {
   const plan = buildPlanetPathways(scene, spots, R);
   const lanes = laneRoutes(plan, [{ from: 'b1', to: 'a1', dir: 'down' }, { from: 'b2', to: 'a2', dir: 'up' }, { from: 'a2', to: 'a1', dir: 'up' }]);
   assert.deepEqual(lanes.map(l => [l.from, l.to, l.colour]), [['b1', 'a1', LANE_COLOUR.down], ['b2', 'a2', LANE_COLOUR.up]],
@@ -40,18 +40,19 @@ test('6.8 a lit link\'s lane is one unbroken strip between islands, from the doc
     lane.points.forEach((p, i) => {
       const margin = Math.min(...road.filter(segment => segment.points.some(q => q.distanceTo(back[i]!) < 1e-9)).map(segment => segment.width / 2));
       assert.ok(p.distanceTo(back[i]!) + lane.widths[i]! / 2 <= margin + 1e-9, `inside its road at point ${i}`);
-      assert.ok(lane.widths[i]! >= 0.95 * margin, `at least half its road at point ${i}`);
+      assert.ok(lane.widths[i]! <= THREAD_WIDTH + 1e-9, `no wider than the thread at point ${i}`);
     });
     assert.ok(Math.abs(lane.length - lane.points.slice(1).reduce((sum, p, i) => sum + p.distanceTo(lane.points[i]!), 0)) < 1e-6);
   }
   const [alone] = laneRoutes(plan, [{ from: 'b1', to: 'a1', dir: 'down' }]);
   const road = (p: Vector3) => Math.max(...plan.segments.filter(s => s.points.some(q => q.distanceTo(p) < 1e-9)).map(s => s.width));
-  alone!.points.forEach((p, i) => assert.ok(Math.abs(alone!.widths[i]! - road(p)) < 1e-9, `a lone lane fills its road at point ${i}`));
-  assert.ok(LANE_GLOW > 1.5, 'its glow reaches beyond the road\'s edge');
+  alone!.points.forEach((p, i) => assert.ok(Math.abs(alone!.widths[i]! - THREAD_WIDTH) < 1e-9 && alone!.widths[i]! < road(p), `a lone lane is the thread, its road showing either side, at point ${i}`));
+  assert.ok(THREAD_WIDTH < trailFillWidth(1) * RIBBON_GROUND_SCALE, 'narrower than the narrowest road');
+  assert.ok(LANE_GLOW > 1.5, 'its glow reaches beyond the thread\'s edge');
   assert.deepEqual(laneRoutes(plan, [{ from: 'x', to: 'y', dir: 'up' }]), [], 'a link with no trail lights nothing');
 });
 
-test('6.8 a lit lane runs on from each dock along its way inland to its capability\'s territory, a one-link road wide; with no way it ends at its dock', () => {
+test('6.8 a lit lane runs on from each dock along its way inland to its capability\'s territory, the same thread; with no way it ends at its dock', () => {
   const plan = buildPlanetPathways(scene, spots, R);
   const link = { from: 'b1', to: 'a1', dir: 'down' } as const;
   // A way from the dock straight to the island's middle, in the island's own ground coordinates.
@@ -67,7 +68,7 @@ test('6.8 a lit lane runs on from each dock along its way inland to its capabili
   assert.ok(start > 0, 'through the dock');
   road!.points.forEach((p, i) => assert.ok(p.distanceTo(lane!.points[start + i]!) < 1e-9, `along its road at point ${i}`));
   const inlandWidths = [...lane!.widths.slice(0, start), ...lane!.widths.slice(start + road!.points.length)];
-  assert.ok(inlandWidths.length > 0 && inlandWidths.every(w => Math.abs(w - trailFillWidth(1) * RIBBON_GROUND_SCALE) < 1e-9), 'a one-link road wide inland');
+  assert.ok(inlandWidths.length > 0 && inlandWidths.every(w => Math.abs(w - THREAD_WIDTH) < 1e-9), 'the same thread inland');
   lane!.points.slice(1).forEach((p, i) => assert.ok(p.distanceTo(lane!.points[i]!) <= 1 + 1e-9, `unbroken at point ${i}`));
   assert.ok(Math.abs(lane!.length - lane!.points.slice(1).reduce((sum, p, i) => sum + p.distanceTo(lane!.points[i]!), 0)) < 1e-6);
   const marks = laneEntrances([lane!]);

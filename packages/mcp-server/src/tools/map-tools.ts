@@ -1,6 +1,7 @@
 /** Capability 6 · Agent tools (the MCP server). The agent front door for The map; its selection, graph and responses stay in the map package. */
 import { formatFocus } from "@storytree/map";
 import { focusProject } from "@storytree/map/read";
+import { importsOf, machineOf, storytreeHome } from "@storytree/session-management";
 import { z } from "zod";
 import type { Define } from "./server.js";
 
@@ -15,14 +16,16 @@ export function registerMapTools(define: Define): void {
       kind: z.array(z.enum(["story", "capability", "promise", "file", "test"])).optional(),
       mode: z.enum(["counts", "dry_run", "show"]).optional(),
     }),
-    async ({ select, up, down, kind, mode }, { library, folder }) => {
+    async ({ select, up, down, kind, mode }, { library, storytree, folder }) => {
+      // The folders this machine imports, where the map reads the mapped stories (ADR-0993 D2).
+      const imports = await importsOf(storytree, library.name, machineOf(storytreeHome()).id);
       const answer = await focusProject(library, folder, {
         select,
         ...(up === undefined ? {} : { up }),
         ...(down === undefined ? {} : { down }),
         ...(kind === undefined ? {} : { kind }),
         ...(mode === undefined ? {} : { mode }),
-      });
+      }, imports);
       return { text: formatFocus(answer), data: { ...answer }, refused: answer.refused };
     },
   );

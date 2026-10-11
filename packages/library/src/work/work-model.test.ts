@@ -573,6 +573,14 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(((await records.get(elsewhere.added[0]!.id)) as SchemaRecord<"story"> | null)?.fields.mapped, { from: "git@github.com:shop/admin.git", package: ".", folders: ["."] }, "another import's story is untouched");
     assert.deepEqual((await records.get(own.id))?.fields, { title: "Visitor can sign up" }, "a story storytree built is untouched");
   });
+
+  contract("4.14", "the plan's tree carries a mapped story's import, package and folders as mapStories recorded them; a story storytree built carries none", async ({ work }) => {
+    const own = await work.addStory({ title: "Visitor can sign up" });
+    const { added: [cart] } = await work.mapStories("/code/shop", [{ package: "packages/cart", title: "@shop/cart", folders: ["packages/cart"] }]);
+    const { stories } = await work.projectTree();
+    assert.deepEqual(stories.find((story) => story.id === cart!.id)?.mapped, { from: "/code/shop", package: "packages/cart", folders: ["packages/cart"] });
+    assert.equal(Object.hasOwn(stories.find((story) => story.id === own.id)!, "mapped"), false);
+  });
 }
 
 /**

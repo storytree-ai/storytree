@@ -75,6 +75,8 @@ export interface StoryNode {
   id: string;
   title: string;
   description?: string;
+  /** Where a mapped story's code is (ADR-0993 D2): its import, its package and the folders holding its code. */
+  mapped?: { from: string; package: string; folders: string[] };
   /** The capabilities pointing at this story, in creation order. */
   capabilities: CapabilityNode[];
 }
@@ -296,6 +298,7 @@ export class WorkModel {
     return {
       stories: stories.sort(byCreation).map((story) => ({
         ...nodeOf(story),
+        ...(story.fields.mapped === undefined ? {} : { mapped: { ...story.fields.mapped, folders: [...story.fields.mapped.folders] } }),
         capabilities: (capabilitiesOf.get(story.id) ?? []).map((capability) => ({
           ...nodeOf(capability),
           dependsOn: [...(capability.fields.dependsOn ?? [])],

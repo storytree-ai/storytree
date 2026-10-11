@@ -4,6 +4,34 @@ import { readdir, realpath, stat } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 
+import type { SurveyPackage } from "./code-survey.js";
+
+/** The folders a survey never reads into. */
+export const SKIPPED = new Set(["node_modules", "dist", "out", "evidence"]);
+
+/** The dependency fields of a package.json, in the order their names are listed. */
+const DEPENDENCY_FIELDS = ["dependencies", "devDependencies", "optionalDependencies", "peerDependencies"] as const;
+
+/** A package.json's name and the packages it depends on through any field; undefined when it cannot be read. */
+export function manifestFrom(text: string): { name: string; deps: string[]; exports: SurveyPackage["exports"] } | undefined {
+  try {
+    const parsed = JSON.parse(text) as Record<string, unknown>;
+    if (typeof parsed.name !== "string") return undefined;
+    const deps = DEPENDENCY_FIELDS.flatMap((field) => {
+      const named = parsed[field];
+      return typeof named === "object" && named !== null ? Object.keys(named) : [];
+    });
+    const exports = typeof parsed.exports === "string" ? { ".": parsed.exports } : parsed.exports;
+    const literal = typeof exports === "object" && exports !== null ? Object.entries(exports).filter(([key, target]) =>
+      (key === "." || key.startsWith("./")) && !key.includes("*") && typeof target === "string" && target.startsWith("./")
+      && !target.includes("*") && !target.split("/").slice(1).some(part => part === ".." || part === "node_modules"),
+    ) as [string, string][] : [];
+    return { name: parsed.name, deps: [...new Set(deps)], exports: Object.fromEntries(literal) };
+  } catch {
+    return undefined;
+  }
+}
+
 type Entry = { name: string; directory: boolean; file: boolean };
 export interface SurveySource {
   readonly root: string;
@@ -101,8 +129,11 @@ async function refresh(common: string, root: string, kept: Repository): Promise<
   return source;
 }
 
-/** Tree entries and blob identities are immutable. Text is batched only when the survey asks for it. */
-async function snapshot(common: string, root: string, commit: string): Promise<SurveySource> {
+/**
+ * Tree entries and blob identities are immutable. Text is batched only when the survey asks for it, and kept
+ * for a later ask unless `forget` says the asker keeps what it needs of it.
+ */
+async function snapshot(common: string, root: string, commit: string, forget = false): Promise<SurveySource> {
   const args = ["--git-dir", common];
   const files = new Map<string, string>();
   const directories = new Map<string, Map<string, Entry>>();
@@ -158,7 +189,10 @@ async function snapshot(common: string, root: string, commit: string): Promise<S
               loaded.push([sha, output.subarray(end + 1, next).toString("utf8")]);
               at = next + 1;
             }
-            for (const [sha, text] of loaded) batch.get(sha)!.resolve(text);
+            for (const [sha, text] of loaded) {
+              batch.get(sha)!.resolve(text);
+              if (forget) texts.delete(sha);
+            }
           } catch (error) {
             for (const [sha, waiter] of batch) { texts.delete(sha); waiter.reject(error); }
           }
@@ -175,6 +209,29 @@ async function snapshot(common: string, root: string, commit: string): Promise<S
       return sha === undefined ? undefined : { version: sha, read: () => read(sha) };
     },
   };
+}
+
+/** An imported checkout's last snapshot, by its Git directory: kept while its commit stands. */
+const imported = new Map<string, { commit: string; source: Promise<SurveySource> }>();
+
+/**
+ * The files of an imported folder (ADR-0993 D2): those Git tracks at its checkout's commit, read from that
+ * commit's immutable tree with one Git call per ask while the commit stands, and `commit` naming it; a folder
+ * that is no checkout with a commit is read from disk, with no commit. `folder` is the folder as the source spells it.
+ */
+export async function importedSource(folder: string, readText: (file: string) => Promise<string>): Promise<{ source: SurveySource; folder: string; commit?: string }> {
+  const found = await gitText(folder, ["rev-parse", "--path-format=absolute", "--show-toplevel", "--git-common-dir", "HEAD", "--show-prefix"]).catch(() => undefined);
+  const [top, common, commit, prefix = ""] = found?.split("\n") ?? [];
+  if (top === undefined || common === undefined || commit === undefined) return { source: disk(folder, readText), folder };
+  const root = path.resolve(top);
+  let kept = imported.get(common);
+  if (kept?.commit !== commit) {
+    const source = snapshot(common, root, commit, true);
+    source.catch(() => { if (imported.get(common)?.source === source) imported.delete(common); });
+    kept = { commit, source };
+    imported.set(common, kept);
+  }
+  return { source: await kept.source, folder: path.resolve(root, prefix), commit };
 }
 
 export function surveySourceReader(scope: "main" | "current", readText: (file: string) => Promise<string>) {

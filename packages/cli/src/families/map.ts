@@ -29,7 +29,11 @@ export const mapFamily: Family = {
     async act(args, context) {
       const select = args.need("select", this.usage);
       const { mapCommand } = await import("@storytree/map/read");
-      return { text: await mapCommand(await context.library(), context.cwd, { select, ...mapOptions(args) }, args.has("json")) };
+      const { importsOf, machineOf, storytreeHome } = await import("@storytree/session-management");
+      const library = await context.library();
+      // The folders this machine imports, where the map reads the mapped stories (ADR-0993 D2).
+      const imports = await importsOf(await context.server(), library.name, machineOf(storytreeHome()).id);
+      return { text: await mapCommand(library, context.cwd, { select, ...mapOptions(args) }, args.has("json"), imports) };
     },
   },
 };

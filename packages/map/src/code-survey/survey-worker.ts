@@ -4,10 +4,10 @@ import { parentPort } from "node:worker_threads";
 
 import type { AnnotatedTree } from "@storytree/library";
 
-import { readCodeSurvey } from "./read-survey.js";
+import { readCodeSurvey, type ImportedFolder } from "./read-survey.js";
 
-parentPort?.on("message", ({ id, folder, tree }: { id: number; folder: string; tree: AnnotatedTree }) => {
-  readCodeSurvey(folder, tree).then(
+parentPort?.on("message", ({ id, folder, tree, imports }: { id: number; folder: string; tree: AnnotatedTree; imports?: ImportedFolder[] }) => {
+  readCodeSurvey(folder, tree, imports).then(
     (survey) => parentPort!.postMessage({ id, survey }),
     (error: unknown) => parentPort!.postMessage({ id, error: error instanceof Error ? error.message : String(error) }),
   );

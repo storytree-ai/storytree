@@ -269,6 +269,11 @@ export async function verifyTour(browser, url, output) {
   assert.ok(await page.locator(".arc-briefing").isVisible()); await page.locator("[data-close-arcs]").click();
   assert.ok(await page.locator(".session-row").count() > 0, "Saved sessions remain available without WebGL");
   await page.screenshot({ path: path.join(output, "390-no-webgl.png") });
+  // 2.16: replayed from free play on storytree, the arcs step still opens the shop's first arc, though no globe draws.
+  await page.locator("#tour-replay").click();
+  await goToStep(page, "map-arcs"); await page.clock.runFor(500);
+  await page.locator(".tour-arc-surface .arc-lanes").waitFor();
+  assert.match(await page.locator(".tour-arc-surface .arc-lanes").textContent(), /Swag Labs copy/, "the shop's own first arc after free play on storytree");
   await page.locator("#tour-hatch").click(); assert.equal(new URL(page.url()).pathname, "/waitlist.html");
   assert.deepEqual(errors, []); await page.close();
   console.log("PASS contracts 2.4–2.8: readable pace, holds that say why, play in place, grouped pips, sourced comparisons, dated free play without WebGL");

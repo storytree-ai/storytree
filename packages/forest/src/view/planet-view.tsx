@@ -323,6 +323,8 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
     stop: stop => { const started = guide.current!.stop(stop); if (started) { opened.current = true; guideFrameAt.current = performance.now(); } return started; },
     position: target => guide.current!.position(target),
     cancel: () => guide.current!.cancel(),
+    moving: () => guide.current!.moving(),
+    notes: () => guide.current!.notes(),
   };
   // The turn the globe opened on, kept as home even when a guide took the first turn (3.37).
   const [home, setHome] = useState<GlobeTurn>();

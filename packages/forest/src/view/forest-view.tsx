@@ -13,6 +13,8 @@ import { PanelSelection, type Selection } from "./panel-selection.js";
 import { panelAside } from "./globe-aside.js";
 import { globeFraming } from "./planet-navigation.js";
 import { flipSwitch, globeLayers, LAUNCH_SWITCHES, type GlobeSwitch, type GlobeSwitches } from "./globe-switches.js";
+import type { GlobeControls } from "./globe-guide.js";
+import { globeLocator, type GlobeLocator } from "./globe-locator.js";
 import type { GlobeOpening } from "../surfaces/surfaces.js";
 
 export interface ForestView {
@@ -46,6 +48,7 @@ interface Drawn {
  * The app's existing core supplies the faint points; its inspection page stays deferred.
  * It carries two switches, Stories and Library, each on or off by itself (ADR-1002 D1, D2). With `library` off
  * (ADR-0750) the globe stays solid and only Stories is offered; `opening` is how close it opens.
+ * The page offers `window.storytreeGlobe`, the locator the lag instrument clicks islands by (3.41).
  */
 export async function openForestView(container: HTMLElement, onSelect: (selection: Selection) => void, core: KnowledgeCore,
   { library = true, opening = "whole-planet" }: { library?: boolean; opening?: GlobeOpening | undefined } = {}): Promise<ForestView> {
@@ -67,7 +70,7 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
       <div className="forest-globe" hidden={!layers.shown}>
         <PlanetView core={core} scene={drawn.scene} places={drawn.places} wisps={drawn.wisps}
           selected={drawn.selected} highlighted={drawn.highlighted}
-          onPick={pick} onNote={pickNote} mode={layers.mode} framing={globeFraming(opening)} aside={drawn.aside} library={layers.library} liveRoads />
+          onPick={pick} onNote={pickNote} onControls={onControls} mode={layers.mode} framing={globeFraming(opening)} aside={drawn.aside} library={layers.library} liveRoads />
       </div>
       <div className="forest-views" role="group" aria-label="Globe layers">
         {layers.offered.map(which => <button key={which} type="button"
@@ -90,6 +93,11 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
   const pick = (story: string | undefined, capability?: string): void => selection.story(story, capability);
   const pickNote = (note: string): void => selection.note(note);
   const onKey = (event: KeyboardEvent): void => selection.key(event.key);
+  let controls: GlobeControls | undefined;
+  const onControls = (next: GlobeControls | undefined): void => { controls = next; };
+  const page = window as { storytreeGlobe?: GlobeLocator };
+  page.storytreeGlobe = globeLocator({ controls: () => controls, scene: () => drawn.scene,
+    box: () => (container.querySelector("canvas") ?? container).getBoundingClientRect() });
   window.addEventListener("keydown", onKey);
 
   // The right-hand slot (the story panel or the Library's note card) is the globe's sibling; the globe moves aside for
@@ -122,6 +130,7 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
     },
     dispose() {
       window.removeEventListener("keydown", onKey);
+      delete page.storytreeGlobe;
       core.dispose();
       observer.disconnect();
       shown.disconnect();

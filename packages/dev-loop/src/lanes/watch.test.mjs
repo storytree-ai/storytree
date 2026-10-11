@@ -182,7 +182,7 @@ test("13.5 · a hand-off parks the increment on an event wait and starts the wat
 test("13.7 · a session on any machine hands over: on the box directly, elsewhere over ssh with its own session id, refusing plainly when the box is out of reach", async () => {
   const handed = [], sshed = [];
   const local = async (args) => { handed.push(args); };
-  const ok = async (args) => { sshed.push(args); return "PR #41 handed to the watcher"; };
+  const ok = async (args) => { sshed.push(args); return "PR #41 handed to the watcher\nClose out with: pnpm storytree session close-out --safe yes --why \"PR #41 open and green, handed to the watcher\"\n"; };
   assert.equal((await handOver({ pr: 41, increment: "increment_one", session: SESSION, onBox: true, local, remote: ok })).code, 0);
   assert.deepEqual(handed, [["hand", "41", "increment_one", "--session", SESSION]]);
   assert.equal(sshed.length, 0, "the box hands over without ssh");
@@ -190,7 +190,7 @@ test("13.7 · a session on any machine hands over: on the box directly, elsewher
   const away = await handOver({ pr: 41, increment: "increment_one", session: SESSION, onBox: false, local, remote: ok });
   assert.equal(away.code, 0);
   assert.deepEqual(sshed, [["hand", "41", "increment_one", "--session", SESSION]], "the laptop's own session id travels, so the watcher releases its claims");
-  assert.match(away.lines.join("\n"), /close-out --safe yes/);
+  assert.equal(away.lines.join("\n").match(/close-out --safe yes/g)?.length, 1, "the box's own words are relayed, with the close-out line said once");
 
   const down = await handOver({ pr: 41, increment: "increment_one", session: SESSION, onBox: false, local,
     remote: async () => { throw new Error("ssh: connect to host mint port 22: Connection timed out"); } });

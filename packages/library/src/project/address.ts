@@ -10,12 +10,14 @@
  * A remote address gets the password only after its server proves who it is (ADR-0943 D1): over TLS,
  * with a certificate that chains to an authority storytree trusts (the address's `sslrootcert` when
  * it names one, otherwise Node's authorities alone: no build trusts a certificate of storytree's own,
- * ADR-0997 D1) and names the host the address does. A loopback address keeps its own rules
+ * ADR-0997 D1), or is exactly one of the certificates `sslrootcert` holds, and names the host the
+ * address does. A loopback address keeps its own rules
  * (ADR-0943 D2, server.ts's LocalClient).
  */
 import { readFileSync } from "node:fs";
 import { isIP } from "node:net";
-import { checkServerIdentity, rootCertificates, type ConnectionOptions } from "node:tls";
+import { X509Certificate } from "node:crypto";
+import { checkServerIdentity, rootCertificates, type ConnectionOptions, type TLSSocket } from "node:tls";
 
 import { resolveKey } from "@storytree/keys";
 import pg from "pg";
@@ -74,6 +76,12 @@ export function addressServer(address: string, connectTimeoutMs = TIMEOUT_MS, bo
  * The transport for a remote address: TLS that trusts the address's `sslrootcert` alone when it
  * names one, otherwise Node's authorities alone, and checks the certificate names the address's
  * own host. Refused when the address asks for any weaker TLS.
+ *
+ * A certificate `sslrootcert` holds is trusted as itself, not only as an authority: a server whose
+ * certificate signed itself and is no authority (the Mint library's, ADR-0997 D4) is trusted when it
+ * presents exactly that certificate. Node's OpenSSL takes such a certificate as a trust anchor, but
+ * Electron's BoringSSL does not, and the desktop app connects from Electron; so with `sslrootcert`
+ * the TLS layer only reports, and pinnedClient decides, on every runtime alike.
  */
 function remoteTransport(url: URL): Transport {
   for (const key of url.searchParams.keys()) {
@@ -87,21 +95,25 @@ function remoteTransport(url: URL): Transport {
   }
   const rootFile = url.searchParams.get("sslrootcert");
   let ca: string | string[];
+  let pins: X509Certificate[] | undefined;
   try {
     ca = rootFile === null ? [...rootCertificates] : readFileSync(rootFile, "utf8");
+    if (typeof ca === "string") pins = (ca.match(PEM_CERTIFICATE) ?? []).map((pem) => new X509Certificate(pem));
   } catch (error) {
-    throw new ConnectionError("config", `Storytree could not read ${rootFile}, the certificate the library's address ${shown(url)} trusts (sslrootcert): check that it exists and can be read.`, error);
+    throw new ConnectionError("config", `Storytree could not read ${rootFile}, the certificate the library's address ${shown(url)} trusts (sslrootcert): check that it exists, can be read and holds PEM certificates.`, error);
   }
   const host = url.hostname.replace(/^\[(.*)\]$/, "$1");
   const ssl: ConnectionOptions = {
     ca,
-    rejectUnauthorized: true,
+    rejectUnauthorized: pins === undefined,
     ...(isIP(host) === 0 ? { servername: host } : {}),
     // Against the address's host, never what the socket was given: pg leaves an IP address unnamed, and Node would check it as localhost.
     checkServerIdentity: (_dialled, certificate) => checkServerIdentity(host, certificate),
   };
-  return { ssl, Client: RemoteClient };
+  return { ssl, Client: pins === undefined ? RemoteClient : pinnedClient(pins, host) };
 }
+
+const PEM_CERTIFICATE = /-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----/g;
 
 /** A client that never answers a plain-text password request, even over checked TLS (defence in depth). */
 class RemoteClient extends pg.Client {
@@ -111,6 +123,43 @@ class RemoteClient extends pg.Client {
       "The library's server asked for the password in plain text, so storytree did not send it. Configure that server to use scram-sha-256 password authentication.",
     ));
   }
+}
+
+/**
+ * A RemoteClient that judges the server's certificate itself, the moment the handshake completes and
+ * before any message from the server is read (so before any password could be sent): trusted when
+ * its chain checked out and it names `host` (TLS's own verdict), or when it is exactly one of `pins`,
+ * compared on the whole certificate, is in date and names `host`. Anything else ends the connection.
+ */
+function pinnedClient(pins: readonly X509Certificate[], host: string): typeof RemoteClient {
+  return class PinnedClient extends RemoteClient {
+    constructor(...args: ConstructorParameters<typeof pg.Client>) {
+      super(...args);
+      // pg swaps its socket for the TLS one, then says sslconnect, all before the handshake starts.
+      this.connection.once("sslconnect", () => {
+        const socket = this.connection.stream as TLSSocket;
+        socket.once("secureConnect", () => {
+          const refusal = untrusted(socket, pins, host);
+          if (refusal !== undefined) socket.destroy(refusal);
+        });
+      });
+    }
+  };
+}
+
+/** Why the server on `socket` is not to be trusted, or nothing when it is. */
+function untrusted(socket: TLSSocket, pins: readonly X509Certificate[], host: string): Error | undefined {
+  if (socket.authorized) return undefined;
+  // Not getPeerX509Certificate: once it has been read, this socket answers no later read of the certificate.
+  const presented = socket.getPeerCertificate();
+  if (presented.raw === undefined || !pins.some((pin) => pin.raw.equals(presented.raw))) {
+    return Object.assign(new Error(`The server's certificate was not trusted: ${socket.authorizationError}`), { code: String(socket.authorizationError) });
+  }
+  const { validFromDate, validToDate } = new X509Certificate(presented.raw);
+  const now = Date.now();
+  if (now < validFromDate.getTime()) return Object.assign(new Error("The server's certificate is not yet valid"), { code: "CERT_NOT_YET_VALID" });
+  if (now > validToDate.getTime()) return Object.assign(new Error("The server's certificate has expired"), { code: "CERT_HAS_EXPIRED" });
+  return checkServerIdentity(host, presented);
 }
 
 /** The address, if it is a postgres:// URL naming a host and a user and carrying no password. */

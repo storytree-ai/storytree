@@ -70,6 +70,10 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
+      # Windows cli's own deadline, as ci.yml sets it (twice its slowest pass there).
+      - if: matrix.runner == 'windows-latest'
+        shell: bash
+        run: pnpm run test --set-limit=cli=720 --reason="Windows CI passes took up to 346 s; twice that, friction_21e0e923a222"
       # A release is a complete artifact. Verify its exact merged commit, even if main moved.
       - run: pnpm test -- --full
         env:

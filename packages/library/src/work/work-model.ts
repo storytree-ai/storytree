@@ -227,7 +227,8 @@ export class WorkModel {
    * `testedNumbers`, the contract numbers the capability's tests already carry, are skipped too, so
    * the next free number is past them, even one no live contract carries: a test without a contract
    * may promise something else, so only a number given binds the contract to it. A number given is
-   * kept, which is how a landed or red test's contract gets planned.
+   * kept, which is how a landed or red test's contract gets planned, and written with its " · "
+   * when it came without (editContract too), since that is the form readers find a number in.
    */
   addContract(contract: NewContract, options?: ContractWriteOptions): Promise<SchemaRecord<"contract">> {
     return this.#serially(async () => {
@@ -265,7 +266,8 @@ export class WorkModel {
         const capability = fields.capability ?? stored.fields.capability;
         if (typeof title === "string" && couldBeId(capability)) await this.#refuseTakenNumber(title, capability, id);
       }
-      return (await this.#records.edit(id, fields, options)) as SchemaRecord<"contract"> | null;
+      const edit = typeof fields.title === "string" ? { ...fields, title: separated(fields.title) } : fields;
+      return (await this.#records.edit(id, edit, options)) as SchemaRecord<"contract"> | null;
     });
   }
 
@@ -325,7 +327,7 @@ export class WorkModel {
     if (typeof title !== "string" || !couldBeId(capability)) return title; // the schema refuses it in the write
     if (contractNumber(title) !== undefined) {
       await this.#refuseTakenNumber(title, capability);
-      return title;
+      return separated(title);
     }
     const prefix = /^(\d+) · /.exec((await this.#titleOf(capability)) ?? "")?.[1];
     if (prefix === undefined) return title;
@@ -447,6 +449,11 @@ function loopThrough(start: string, graph: ReadonlyMap<string, readonly unknown[
 function capabilityNumber(title: unknown): number | undefined {
   const number = typeof title === "string" ? /^(\d+) · /.exec(title)?.[1] : undefined;
   return number === undefined ? undefined : Number(number);
+}
+
+/** `title` with its contract number followed by " · ", as every reader of contract numbers expects: "5.38 Text" becomes "5.38 · Text". */
+function separated(title: string): string {
+  return title.replace(/^(\d+\.\d+)\s+(?!·)(?=\S)/, "$1 · ");
 }
 
 /** The number a contract's title starts with (capability, dot, contract), if it starts with one. */

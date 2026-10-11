@@ -581,6 +581,15 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(stories.find((story) => story.id === cart!.id)?.mapped, { from: "/code/shop", package: "packages/cart", folders: ["packages/cart"] });
     assert.equal(Object.hasOwn(stories.find((story) => story.id === own.id)!, "mapped"), false);
   });
+
+  contract("4.15", "a number given in a contract's title without its separator is written as number then \" · \", on planning and on correcting; a title already in that form is kept", async ({ work }) => {
+    const story = await work.addStory({ title: "Visitor can sign up" });
+    const form = await work.addCapability({ title: "3 · Email form", story: story.id });
+    const bare = await work.addContract({ title: "3.4 Accepts a plus address", capability: form.id });
+    assert.equal(bare.fields.title, "3.4 · Accepts a plus address", "the separator is written in");
+    assert.equal((await work.addContract({ title: "3.5 · Trims spaces", capability: form.id })).fields.title, "3.5 · Trims spaces", "a numbered title is kept");
+    assert.equal((await work.editContract(bare.id, { title: "3.4 Accepts a plus address, any case" }))?.fields.title, "3.4 · Accepts a plus address, any case", "a correction is written in the same form");
+  });
 }
 
 /**

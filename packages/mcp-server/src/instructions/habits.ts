@@ -23,6 +23,19 @@ const DECISION_RIGHTS_LINES = [
   `- No file moves these: ${DECISION_RIGHTS.honesty.join("; ")}.`,
 ].join("\n");
 
+/**
+ * How to build beside mapped code (contract 7.9, ADR-0993 D4, D8 to D11): the card carries it whole, so the
+ * setup check can hand a project with imports the same words.
+ */
+export const MAPPED_CODE_GUIDANCE = [
+  "Build beside mapped code.",
+  "- A mapped story is code that was here before storytree: assume it works, and change it only when the increment names it.",
+  "- Build new stories on top in their own packages, each depending on the mapped package by a link: to its folder under its own name. It declares no exports, so import its files by path; match its module type and path aliases, and link its single copy of its framework and type packages.",
+  "- Old code never imports new code. To route something back, build an interface in storytree that the old code consumes.",
+  "- Test the interface your package has with the old code. For a new feature inside the old app, bring in whatever serves its UI and import the rest.",
+  "- Before changing a part in its middle, `focus` on what calls it and shape the work with the user; refuse when it is too large.",
+].join("\n");
+
 /** What one contract is (contract 7.8): the library owns the definition, and plan_contract quotes it when a title runs long (6.57). */
 export { CONTRACT_DEFINITION };
 
@@ -50,6 +63,8 @@ Code the map can draw.
 - storytree draws a story's code on its island from the story's own package, packages/<story>/src, where <story> is the story's title in lower case with hyphens, without a leading "The" ("Shopping cart" is packages/shopping-cart). It reads JavaScript and TypeScript files (.js, .mjs, .jsx, .ts, .tsx and the like). A package.json dependency on another story's package draws the road between the two stories.
 - Start each test's title with the number of the contract it proves ("2.3 the cart keeps its items after a reload"): the files that test reaches are drawn inside that capability.
 - Lay a new project's code out this way. In an existing project, ask the user before moving code.
+
+${MAPPED_CODE_GUIDANCE}
 
 Red, then green, then landed.
 - Write a contract's test first, run it, see it fail, and \`report\` it red.

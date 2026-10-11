@@ -1,5 +1,5 @@
 /**
- * Capability 7 · Instructions, the habits card: one test per contract 7.1-7.3, 7.5 and 7.8 in
+ * Capability 7 · Instructions, the habits card: one test per contract 7.1-7.3, 7.5, 7.8 and 7.9 in
  * the MCP server story. The card names each tool in backticks, and uses backticks for nothing
  * else, so the tools it teaches are exactly the backticked words in it. Whether real agents follow
  * it is the app setup's setup check.
@@ -84,6 +84,24 @@ test("7.8 the card handed at session start says what one contract is: a behaviou
   const session = await sessionStart();
   try {
     assert.ok((session.client.getInstructions() ?? "").includes(CONTRACT_DEFINITION));
+  } finally {
+    await session.close();
+  }
+});
+
+test("7.9 the card handed at session start says how to build beside mapped code", async () => {
+  const session = await sessionStart();
+  try {
+    const served = session.client.getInstructions() ?? "";
+    // One phrase for each thing ADR-0993 D4 and D8 to D11 has the agent do beside mapped code.
+    for (const said of [
+      "change it only when the increment names it",
+      "depending on the mapped package by a link:",
+      "Old code never imports new code",
+      "Test the interface your package has with the old code",
+      "bring in whatever serves its UI and import the rest",
+      "`focus` on what calls it and shape the work with the user",
+    ]) assert.ok(served.includes(said), `the served card lacks: ${said}`);
   } finally {
     await session.close();
   }

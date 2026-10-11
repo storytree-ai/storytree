@@ -8,6 +8,7 @@
  *   capability: nothing parses them, and a black box has no imports to follow until someone explores it.
  * - A mapped story's package dependency, through any field of its package.json, on another mapped story's
  *   package is a road between them. A loop among them is reported on each story round it, and refuses nothing.
+ *   Its dependency on a built story's package is never a road: old code never imports new code (ADR-0993 D9).
  * - An import is named by its repository's address, else its folder, as the import keyed it; a mapped story
  *   whose import this machine does not name has no survey.
  * - Surveying again does work in proportion to what changed (ADR-0836): while an imported checkout stays at
@@ -85,8 +86,11 @@ export function mappedSurveyReader(readText: (file: string) => Promise<string>) 
     };
   }
 
-  /** The survey of each mapped story in `stories` whose import is among `imports`, by story id. */
-  async function read(stories: readonly AnnotatedTree["stories"][number][], imports: readonly ImportedFolder[]): Promise<Map<string, StorySurvey>> {
+  /**
+   * The survey of each mapped story in `stories` whose import is among `imports`, by story id, and the story id
+   * of each mapped package's name, for a built story's dependency on it to resolve to.
+   */
+  async function read(stories: readonly AnnotatedTree["stories"][number][], imports: readonly ImportedFolder[]): Promise<{ readonly surveys: Map<string, StorySurvey>; readonly storyOf: ReadonlyMap<string, string> }> {
     const mapped = stories.filter((story): story is MappedStory => story.mapped !== undefined);
     const byImport = new Map<ImportedFolder, MappedStory[]>();
     for (const story of mapped) {
@@ -123,7 +127,7 @@ export function mappedSurveyReader(readText: (file: string) => Promise<string>) 
       last.set(id, kept);
       surveys.set(id, kept);
     }
-    return surveys;
+    return { surveys, storyOf };
   }
 
   return { read };

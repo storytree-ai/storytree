@@ -8,6 +8,7 @@ import { execFileSync, spawn } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, rmdirSync, rmSync } from "node:fs";
 import path from "node:path";
 import { installedToolServerCommand, removeConnections, type RunHarness } from "../connect/index.js";
+import { watchedHarness } from "@storytree/session-management";
 import { toolPaths } from "./payload.js";
 
 export type LibraryChoice = "keep" | "remove";
@@ -87,7 +88,7 @@ export async function uninstall(options: UninstallOptions): Promise<UninstallRep
     ...(options.run === undefined ? {} : { run: options.run }),
   });
   for (const result of connections) {
-    const name = result.harness === "claude-code" ? "Claude Code" : "Codex";
+    const name = watchedHarness(result.harness)?.label ?? result.harness;
     if (result.tools === "kept") { complete = false; lines.push(`${name}: ${result.next}`); }
     else if (result.tools === "removed") lines.push(`${name}: storytree's connection, hooks and status line removed.`);
   }

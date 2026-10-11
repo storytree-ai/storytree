@@ -82,17 +82,17 @@ test("4.32 a session in a harness storytree has no hooks for reads as connected,
   const log = await openActivityLog(testServerUrl());
   try {
     const project = uniqueProjectName();
-    await log.append(project, { session: "cursor-1", harness: "cursor", source: "tool", folder: "/work/site", kind: "tool-called", tool: "show_plan" });
+    await log.append(project, { session: "zed-1", harness: "zed", source: "tool", folder: "/work/site", kind: "tool-called", tool: "show_plan" });
     await log.append(project, { session: "shell-1", source: "tool", folder: "/work/site", kind: "door-answered", door: "command", verb: "arc list", outcome: "answered", next: [] });
     const last = await log.append(project, { session: "claude-1", harness: "claude-code", source: "tool", folder: "/work/site", kind: "tool-called", tool: "show_plan" });
     const now = new Date(Date.parse(last.at) + 1_000);
 
     const json = JSON.parse(await sessionsListing(log, project, { now, json: true })) as { session: string; tier: string }[];
-    assert.deepEqual(Object.fromEntries(json.map((one) => [one.session, one.tier])), { "cursor-1": "connected", "shell-1": "connected", "claude-1": "watched" });
+    assert.deepEqual(Object.fromEntries(json.map((one) => [one.session, one.tier])), { "zed-1": "connected", "shell-1": "connected", "claude-1": "watched" });
     const blocks = (await sessionsListing(log, project, { now })).split(/\n(?=\S)/);
     const block = (session: string) => blocks.find((one) => one.includes(session)) ?? "";
-    assert.match(block("cursor-1"), /connected, not watched/);
-    assert.doesNotMatch(block("cursor-1"), /hooks not running/);
+    assert.match(block("zed-1"), /connected, not watched/);
+    assert.doesNotMatch(block("zed-1"), /hooks not running/);
     assert.match(block("claude-1"), /hooks not running/);
     assert.doesNotMatch(block("claude-1"), /connected/);
   } finally {

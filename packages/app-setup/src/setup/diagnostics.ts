@@ -2,7 +2,7 @@
 import { NODE_FLOOR, type AgentCliState, type MachineState } from "./machine.js";
 import { CODEX_TRUST_STEP } from "./verify.js";
 import type { ServerEntry, SetupReport } from "./setup.js";
-import { watchedHarness, type AppReading, type Harness } from "@storytree/session-management";
+import { HARNESS_IDS, watchedHarness, type AppReading, type Harness } from "@storytree/session-management";
 import { compareVersions } from "./hooks-release.js";
 
 export interface SetupLine {
@@ -22,16 +22,19 @@ export function setupLines(report: Omit<SetupReport, "lines">): SetupLine[] {
   if (hooks === undefined) {
     lines.push({ check: "hooks", state: "skipped", message: "This check has no installed storytree hook command to register.", fix: "Run the check from an installed storytree." });
   } else {
-    const name = (harness: Harness) => watchedHarness(harness)?.label ?? harness;
-    const registered = (["claude-code", "codex"] as const).filter((harness) => hooks[harness] === "registered");
+    const names = (harnesses: readonly Harness[]) => {
+      const labels = harnesses.map((harness) => watchedHarness(harness)?.label ?? harness);
+      return labels.length < 3 ? labels.join(" and ") : `${labels.slice(0, -1).join(", ")} and ${labels.at(-1)}`;
+    };
+    const registered = HARNESS_IDS.filter((harness) => hooks[harness] === "registered");
     // Name only the harnesses whose hooks are in place: not one that is not on this machine or was disconnected.
-    const present = (["claude-code", "codex"] as const).filter((harness) => hooks[harness] === "registered" || hooks[harness] === "already registered");
+    const present = HARNESS_IDS.filter((harness) => hooks[harness] === "registered" || hooks[harness] === "already registered");
     const replaced = [...new Set(Object.values(hooks.replaced ?? {}).flat())];
     lines.push({ check: "hooks", state: registered.length > 0 ? "fixed" : "ok", message: registered.length > 0
-      ? `storytree's hooks were registered for ${registered.map(name).join(" and ")}${replaced.length > 0 ? `, replacing another build's hooks, which ran ${replaced.join(" and ")}` : ""}.`
+      ? `storytree's hooks were registered for ${names(registered)}${replaced.length > 0 ? `, replacing another build's hooks, which ran ${replaced.join(" and ")}` : ""}.`
       : present.length > 0
-        ? `storytree's hooks are registered for ${present.map(name).join(" and ")}; receiving them is verified inside a session.`
-        : "No harness here has storytree's hooks: neither Claude Code nor Codex is on this machine and connected." });
+        ? `storytree's hooks are registered for ${names(present)}; receiving them is verified inside a session.`
+        : "No harness here has storytree's hooks: none of Claude Code, Codex and Cursor is on this machine and connected." });
     if (present.length > 0) {
       // Said plainly, so neither the user nor an agent's own reviewer takes this check for what sends the transcript.
       lines.push({ check: "transcripts", state: "ok", message: "This check sends nothing of the session. storytree's hooks send each session's transcript into the library's shared log as the session works, so every machine's app can read it" +
@@ -158,20 +161,26 @@ function machineLines(machine: MachineState, entry: ServerEntry | undefined, con
       : state === "signed out" ? `${name} is installed and not signed in`
         : state === "missing" ? `${name} is not installed`
           : `${name} did not answer within ${seconds}`;
+  // Cursor is only ever there or not: its command line reports a lapsed sign-in as logged in (8.28).
+  const cursor = machine.cursor === undefined ? "" : `; ${machine.cursor === "present" ? "Cursor is installed" : machine.cursor === "missing" ? "Cursor is not installed" : `Cursor did not answer within ${seconds}`}`;
+  const clis = `${cli("Claude Code", machine.claude)}; ${cli("Codex", machine.codex)}${cursor}`;
   const agentReady = machine.claude === "signed in" || machine.codex === "signed in";
   const signIns = [machine.claude === "signed out" ? "run `claude auth login`" : undefined, machine.codex === "signed out" ? "run `codex login`" : undefined].filter((fix) => fix !== undefined);
   const lines: SetupLine[] = [agentReady
-    ? { check: "agent-cli", state: "ok", message: `${cli("Claude Code", machine.claude)}; ${cli("Codex", machine.codex)}.` }
+    ? { check: "agent-cli", state: "ok", message: `${clis}.` }
+    // Cursor alone is a harness storytree watches: there, though no answer of it says it is signed in.
+    : machine.cursor === "present"
+      ? { check: "agent-cli", state: "ok", message: `${clis}, and storytree cannot tell whether it is signed in: Cursor's command line says it is logged in when its sign-in has lapsed.` }
     // A session already connected through another MCP client needs neither (6.64).
     : connected !== undefined
-      ? { check: "agent-cli", state: "ok", message: `This session is connected through ${connected}, an MCP client storytree has no hooks for; ${cli("Claude Code", machine.claude)}; ${cli("Codex", machine.codex)}.` }
+      ? { check: "agent-cli", state: "ok", message: `This session is connected through ${connected}, an MCP client storytree has no hooks for; ${clis}.` }
     : {
         check: "agent-cli",
         state: "needs-attention",
-        message: `storytree watches sessions in Claude Code or Codex, and neither is ready: ${cli("Claude Code", machine.claude)}; ${cli("Codex", machine.codex)}.`,
+        message: `storytree watches sessions in Claude Code, Codex or Cursor, and none is ready: ${clis}.`,
         fix: `${signIns.length > 0
           ? `To sign in, ${signIns.join(", or ")}, then run the setup check again.`
-          : "Install Claude Code (https://claude.com/claude-code) or Codex (https://developers.openai.com/codex), sign in, then run the setup check again."} ${connectedPath(entry)}`,
+          : "Install Claude Code (https://claude.com/claude-code), Codex (https://developers.openai.com/codex) or Cursor (https://cursor.com), sign in, then run the setup check again."} ${connectedPath(entry)}`,
       }];
 
   // git and Node are optional for a user: a note, never a fix (owner, 2026-09-29, question_bb3efa1e3191).

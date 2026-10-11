@@ -75,6 +75,44 @@ for (const harnesses of [["claude-code"], ["codex"], ["claude-code", "codex"]] a
   });
 }
 
+test("2.10 choosing Cursor registers the tool server in ~/.cursor/mcp.json and storytree's hooks in ~/.cursor/hooks.json, keeping every other server and hook; repeating changes nothing, disconnecting removes exactly what it added, and a machine without Cursor gets a recovery action, not a success", async (t) => {
+  const f = fixture(t);
+  const cursor = path.join(f.home, ".cursor");
+  mkdirSync(cursor);
+  const mcpFile = path.join(cursor, "mcp.json");
+  const hooksFile = path.join(cursor, "hooks.json");
+  const servers = { mcpServers: { other: { command: "npx", args: ["other-server"] } } };
+  const hooks = { version: 1, hooks: { stop: [{ command: "./mine.sh" }] } };
+  writeFileSync(mcpFile, JSON.stringify(servers));
+  writeFileSync(hooksFile, JSON.stringify(hooks));
+
+  const absent: RunHarness = async (exe, args, opts) => { if (exe === "cursor-agent") throw Object.assign(new Error("not found"), { code: "ENOENT" }); return run(exe, args, opts); };
+  const [missing] = await connectAgents({ ...f.options, run: absent, harnesses: ["cursor"] });
+  assert.equal(missing!.tools, "not connected");
+  assert.match(missing!.next, /cursor-agent --version/);
+  assert.equal(readFileSync(mcpFile, "utf8"), JSON.stringify(servers), "nothing is registered without Cursor");
+
+  const [first] = await connectAgents({ ...f.options, harnesses: ["cursor"] });
+  assert.deepEqual([first!.tools, first!.hooks, first!.settingsFile], ["connected", "not verified", mcpFile]);
+  const connected = JSON.parse(readFileSync(mcpFile, "utf8"));
+  assert.deepEqual(connected.mcpServers.other, servers.mcpServers.other);
+  assert.deepEqual([connected.mcpServers.storytree.command, connected.mcpServers.storytree.args], [process.execPath, [f.script]]);
+  const registered = JSON.parse(readFileSync(hooksFile, "utf8"));
+  assert.equal(registered.version, 1);
+  assert.deepEqual(registered.hooks.stop[0], hooks.hooks.stop[0], "the user's own hook is kept, still first");
+  const starts: { command: string }[] = registered.hooks.sessionStart;
+  assert.ok(starts.some((entry) => entry.command.includes(path.join(f.tools, "storytree-hook.mjs")) && entry.command.endsWith(" cursor")), "the start hook is registered");
+
+  const before = [readFileSync(mcpFile, "utf8"), readFileSync(hooksFile, "utf8")];
+  assert.equal((await connectAgents({ ...f.options, harnesses: ["cursor"] }))[0]!.tools, "already connected");
+  assert.deepEqual([readFileSync(mcpFile, "utf8"), readFileSync(hooksFile, "utf8")], before);
+
+  const report = await disconnectAgents({ ...f.options, harnesses: ["cursor"] });
+  assert.equal(report.harnesses[0]!.tools, "disconnected");
+  assert.deepEqual(JSON.parse(readFileSync(mcpFile, "utf8")), servers);
+  assert.deepEqual(JSON.parse(readFileSync(hooksFile, "utf8")), hooks);
+});
+
 test("2.2 connecting registers the chosen harness's hooks, so its first session's start hook already runs", async (t) => {
   const f = fixture(t);
   const hookScript = path.join(f.tools, "storytree-hook.mjs");

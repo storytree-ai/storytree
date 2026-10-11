@@ -62,7 +62,7 @@ const CLAUDE_SETTINGS = {
 const CODEX_CONFIG = 'model = "gpt-5"\n\n[mcp_servers.storytree]\ncommand = "node"\nargs = ["storytree-mcp.mjs"]\n';
 
 interface Home {
-  homes: Required<Homes>;
+  homes: Required<Pick<Homes, "claude" | "codex">>;
   claudeSettings: string;
   codexConfig: string;
   codexHooks: string;
@@ -209,7 +209,7 @@ test("6.64 check_setup from an MCP client storytree has no hooks for passes as c
     try {
       const server = await connect({ url: testServerUrl() });
       await (await server.openProject(project)).close().finally(() => server.close());
-      await withAgent(folder, { client: "cursor", env: { STORYTREE_SESSION_ID: "cursor-chat-1" }, ...setup }, async (agent) => {
+      await withAgent(folder, { client: "zed", env: { STORYTREE_SESSION_ID: "zed-chat-1" }, ...setup }, async (agent) => {
         const answer = await agent.call("check_setup");
         assert.equal(answer.isError, false, answer.text);
         assert.equal(answer.data.tier, "connected");
@@ -217,7 +217,7 @@ test("6.64 check_setup from an MCP client storytree has no hooks for passes as c
         assert.deepEqual(answer.data.fixes, []);
         assert.equal((answer.data.lines as { state: string }[]).some((line) => line.state === "needs-attention"), false, JSON.stringify(answer.data.lines));
         for (const unseen of [/edits/, /commands/, /refuse an edit/, /context reading/, /transcript/]) assert.match(answer.text, unseen);
-        assert.match(answer.text, /STORYTREE_SESSION_ID=cursor-chat-1/);
+        assert.match(answer.text, /STORYTREE_SESSION_ID=zed-chat-1/);
         assert.doesNotMatch(answer.text, /Not verified yet/);
       });
       await withAgent(folder, claudeCode("claude-1", setup), async (agent) => {

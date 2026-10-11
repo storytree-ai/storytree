@@ -77,7 +77,7 @@ export async function verifyForest(browser, url, out, step, picture) {
       const failures = [];
       // A shop step replaying a recorded moment: no picture stands in for it; a plain note says so, and the words play on.
       await page.locator('#tour-pips [data-step="map-stories"]').click();
-      await page.waitForTimeout(400);
+      await settled(page, "tour", "shop");
       const replay = await seen(page, ".forest-unavailable");
       if (!replay.shown || !/WebGL/.test(replay.text)) failures.push(`shop step: note shown ${replay.shown}, says "${replay.text}"`);
       for (const still of [".storytree-still", ".shop-still"]) if ((await seen(page, `#website-forest ${still} img`)).shown) failures.push(`shop step: ${still} stands in for a recorded moment`);
@@ -85,7 +85,7 @@ export async function verifyForest(browser, url, out, step, picture) {
       await picture(page, `forest-${name}-shop-step.png`);
       // Free play on the shop: the shop's own saved picture, never storytree's.
       await page.locator("#tour-skip").click();
-      await page.waitForTimeout(400);
+      await settled(page, "freeplay", "shop", ".shop-still img");
       const shop = await seen(page, "#website-forest .shop-still img", true);
       if (!shop.shown || shop.colours <= 8) failures.push(`shop free play: shop still shown ${shop.shown}, ${shop.colours} colours`);
       if ((await seen(page, "#website-forest .storytree-still img")).shown) failures.push("shop free play: storytree's still stands in for the shop");
@@ -93,7 +93,7 @@ export async function verifyForest(browser, url, out, step, picture) {
       await picture(page, `forest-${name}-shop.png`);
       // Free play on storytree: storytree's own saved picture.
       await page.getByRole("button", { name: "storytree", exact: true }).click();
-      await page.waitForTimeout(400);
+      await settled(page, "freeplay", "storytree", ".storytree-still img");
       const own = await seen(page, "#website-forest .storytree-still img", true);
       if (!own.shown || own.colours <= 8) failures.push(`storytree free play: still shown ${own.shown}, ${own.colours} colours`);
       if ((await seen(page, "#website-forest .shop-still img")).shown) failures.push("storytree free play: the shop's still stands in for storytree");
@@ -114,6 +114,13 @@ export async function verifyForest(browser, url, out, step, picture) {
     });
     await page.close();
   }
+}
+
+// Waits until the chapter is in the given mode on the given project and, if named, that view's picture has loaded. A picture that
+// never loads (one the page keeps from showing) lets the wait lapse, and the check that follows reports it unseen.
+async function settled(page, mode, map, picture) {
+  await page.waitForFunction(([mode, map]) => document.querySelector("#chapter2").dataset.tourMode === mode && document.querySelector("#chapter2").dataset.globeMap === map, [mode, map], { timeout: 10_000 });
+  if (picture) await page.waitForFunction((selector) => { const image = document.querySelector(selector); return image.complete && image.naturalWidth > 0; }, picture, { timeout: 5_000 }).catch(() => {});
 }
 
 // What the visitor sees of an element: shown when it is visible by computed style and has area on screen; its text; and, if asked,

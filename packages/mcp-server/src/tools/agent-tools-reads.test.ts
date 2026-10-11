@@ -206,6 +206,7 @@ test('6.4 a bad call gets a readable refusal rather than a crash, and with story
         ["close_out", { safe: true, why: "all merged" }],
         ["name_session", { title: "Building signup" }],
         ["wire_pipeline", { test: "npm test" }],
+        ["take_starter_pack", {}],
         ["quality_checks", {}],
         ["quality_ledger", {}],
         ["quality_brief", { increment: "increment_000000000000", diff: "diff --git a/src/a.ts b/src/a.ts\n+export const a = 1;\n" }],

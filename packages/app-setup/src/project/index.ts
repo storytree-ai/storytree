@@ -20,7 +20,7 @@ export { notAProjectYet, setUpProject, suggestedName, suggestProjectName } from 
 export type { SetUpOptions } from "./making.js";
 export { ImportRefusedError, importProject } from "./importing.js";
 export type { Imported, ImportOptions } from "./importing.js";
-export { seedStarterPack, STARTER_PACK_VERSION, STARTER_ROLES, starterRolesIn } from "./starter-pack.js";
+export { seedStarterPack, STARTER_PACK_VERSION, STARTER_ROLES, starterPackStatus, starterRolesIn, takeStarterPack, type StarterPackRecord, type StarterPackStatus, type StarterPackTake } from "./starter-pack.js";
 
 /** The project a folder belongs to, or the name no project has yet to suggest for it. The folder need not exist yet. */
 export type ProjectFolder = { folder: string; project: string } | { folder: string; suggestion: string };

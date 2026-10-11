@@ -65,9 +65,19 @@ export async function verifyTourCamera(browser, url) {
     };
     await goToStep(page, "fixes");
     await page.waitForFunction(() => document.querySelector(".forest-drawing")?.dataset.globe === "own" && document.querySelector(".forest-drawing")?.dataset.arrived === "true", null, { timeout: 30_000 });
+    // "At once" is read where the camera sets off for the step, not after a fixed wait: the drawing's first state with the
+    // camera away must already show the shop's point. The step's own render comes before the camera's, still on storytree's
+    // globe, and a loaded box can hold the camera's past any fixed wait.
+    await page.locator(".forest-drawing").evaluate(node => {
+      window.handedOver = undefined;
+      new MutationObserver((_, observer) => {
+        if (node.dataset.arrived !== "false") return;
+        window.handedOver = { map: node.dataset.globe, growth: node.dataset.growth, risen: Number(node.dataset.risen) };
+        observer.disconnect();
+      }).observe(node, { attributes: true });
+    });
     await goToStep(page, "map-empty");
-    await page.waitForTimeout(250);
-    const swapped = await drawn();
+    const swapped = await (await page.waitForFunction(() => window.handedOver, null, { timeout: 30_000 })).jsonValue();
     if (swapped.map !== "shop" || !(Number(swapped.growth) < 1)) failures.push(`The shop's point replaces storytree's globe at once: ${JSON.stringify(swapped)}`);
     await page.waitForTimeout(3000);
     if ((await drawn()).risen !== 0) failures.push(`The empty globe carries no story yet: ${JSON.stringify(await drawn())}`);

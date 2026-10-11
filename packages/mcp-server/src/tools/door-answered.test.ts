@@ -12,7 +12,7 @@ import { z } from "zod";
 import { claudeCode, withAgent } from "../testing/agent.js";
 import { withProject } from "../testing/tool-world.js";
 import { mountTools } from "./mount.js";
-import type { ToolExtension } from "./server.js";
+import { servedTools, type ToolExtension } from "./server.js";
 
 const offers: Verb = {
   command: { family: "thing", name: "show", summary: "show a thing" },
@@ -64,5 +64,15 @@ test("6.61 a tool whose door-answered line cannot be written still gives its ans
       assert.equal(answer.isError, false, answer.text);
       assert.equal(answer.text, "Still answered.");
     });
+  });
+});
+
+test("6.63 the tool server names every tool it would serve in a folder, the same names its client lists, without a call", async () => {
+  await withProject(async ({ folder }) => {
+    const named = await servedTools(folder, { extensions: [fixtures] });
+    await withAgent(folder, claudeCode("tool-door-names", { extensions: [fixtures] }), async (agent) => {
+      assert.deepEqual([...named].sort(), await agent.tools());
+    });
+    assert.ok(named.includes("check_setup") && named.includes("show_thing"), "the setup check's tools and an extension's are named too");
   });
 });

@@ -1,5 +1,5 @@
 /**
- * Capability 1 · Front door: one test per contract 1.1-1.5, 1.15 and 1.17 in the command line story, each running the
+ * Capability 1 · Front door: one test per contract 1.1-1.5, 1.15, 1.17 and 1.18 in the command line story, each running the
  * real, built `storytree` command in a throwaway folder and storytree home.
  */
 import assert from "node:assert/strict";
@@ -7,10 +7,12 @@ import { after, before, test } from "node:test";
 
 import pg from "pg";
 import { openActivityLog } from "@storytree/session-management";
+import type { Reading } from "@storytree/reading-the-front-doors";
 
 import { BuiltCommand, bareNode, inWorld, storytree, testServerUrl } from "./testing/cli.js";
 
 const command = new BuiltCommand();
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 before(() => command.build());
 after(() => command.remove());
@@ -214,5 +216,30 @@ test("1.17 every answer is recorded on the calling session as a door-answered li
     } finally {
       await log.close();
     }
+  });
+});
+
+test("1.18 storytree doors prints the front-door reading: every command walked from the door's own table and every tool the tool server serves, with calls, those with none at zero, and the misses", async () => {
+  await inWorld(command, async (world) => {
+    const session = { CLAUDE_CODE_SESSION_ID: "doors-1" };
+    assert.equal((await world.run(["library", "search", "Mailer"], session)).code, 0);
+    assert.equal((await world.run(["arc", "increment", "show", "x"], session)).code, 2);
+
+    const read = await world.run(["doors", "--json"]);
+    assert.equal(read.code, 0, read.stderr);
+    const { short, long } = JSON.parse(read.stdout) as { short: Reading; long: Reading };
+    assert.equal(Date.parse(short.until) - Date.parse(short.since), 7 * DAY_MS, "the short window is a week by default");
+    assert.equal(Date.parse(long.until) - Date.parse(long.since), 28 * DAY_MS, "and the long one four");
+    const of = (verb: string) => short.surfaces.find((surface) => surface.verb === verb);
+    assert.deepEqual(of("storytree library search"), { door: "command", verb: "storytree library search", declared: true, calls: 1, sessions: 1 });
+    assert.deepEqual(of("storytree noticeboard"), { door: "command", verb: "storytree noticeboard", declared: true, calls: 0, sessions: 0 }, "a family's bare command is declared");
+    assert.deepEqual(of("check_setup"), { door: "tool", verb: "check_setup", declared: true, calls: 0, sessions: 0 });
+    assert.deepEqual(short.misses, [{ door: "command", where: "storytree arc increment", word: "show", named: "storytree library read", count: 1 }]);
+
+    const printed = await world.run(["doors", "--days", "2", "--trend", "14"]);
+    assert.equal(printed.code, 0, printed.stderr);
+    assert.match(printed.stdout, /\(2 days\), with the 14 days/);
+    assert.match(printed.stdout, /storytree arc increment show\s+1\s+1\s+→ storytree library read/);
+    assert.equal((await world.run(["doors", "--days", "0"])).code, 2, "a window of no days is refused");
   });
 });

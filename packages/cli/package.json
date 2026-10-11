@@ -27,7 +27,9 @@
     "@storytree/library": "workspace:*",
     "@storytree/map": "workspace:*",
     "@storytree/processes": "workspace:*",
-    "@storytree/quality-assurance": "workspace:*"
+    "@storytree/quality-assurance": "workspace:*",
+    "@storytree/mcp-server": "workspace:*",
+    "@storytree/reading-the-front-doors": "workspace:*"
   },
   "devDependencies": {
     "@storytree/local-postgres": "workspace:*",

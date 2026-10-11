@@ -11,6 +11,7 @@ import { capabilities } from "./capability.js";
 import { friction, resteer } from "./capture.js";
 import { contextFamily } from "./context.js";
 import { doctorFamily, setupFamily } from "./doctor.js";
+import { doors } from "./doors.js";
 import { accountStatus, signIn, signOut } from "./identity.js";
 import { library } from "./library.js";
 import { journeyFamily } from "./journey.js";
@@ -41,6 +42,7 @@ export const FAMILIES: readonly Family[] = [
   questions,
   decisions,
   noticeboard,
+  doors,
   doctorFamily,
   checkFamily,
   quality,

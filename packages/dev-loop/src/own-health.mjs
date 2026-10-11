@@ -17,6 +17,11 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
+import { packageOf } from "@storytree/map/package-of";
+
+/** The package whose tests prove a story, by its title (packages/map/src/code-survey/package-of.ts): its tests are in packages/<name>/src. */
+export { packageOf };
+
 /** Who writes the verified health: a run of the story's tests, seen by storytree for itself. */
 export const VERIFIED_BY = "storytree test run";
 
@@ -419,17 +424,6 @@ export function contractsOf(story) {
 }
 
 /**
- * The package whose tests prove a story: the one named after its title ("Session management" ->
- * `session-management`), but for the stories whose package was named otherwise. Its tests are in
- * packages/<name>/src, and a story with no such package has none yet.
- * @param {string} title
- */
-export function packageOf(title) {
-  const name = title.replace(/^the\s+/i, "").toLowerCase().replace(/['’]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-  return PACKAGE_NAMED_OTHERWISE[name] ?? name;
-}
-
-/**
  * The repo-relative folders holding a story's own tests, by its package: packages/<name>/src, and
  * for the app story also the desktop app's, the other half of its frame (ADR-0649).
  * @param {string} name
@@ -437,15 +431,6 @@ export function packageOf(title) {
 export function sourcesOf(name) {
   return name === "app" ? ["packages/app/src", "apps/desktop/src"] : [`packages/${name}/src`];
 }
-
-/** Stories whose package is not named after their title. */
-const PACKAGE_NAMED_OTHERWISE = {
-  "command-line": "cli",
-  world: "forest-world",
-  "local-database": "local-postgres",
-  "process-ledger": "processes",
-  "lag-in-real-use": "lag-in-use",
-};
 
 // --- writing to the library -------------------------------------------------------------------
 

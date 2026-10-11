@@ -42,7 +42,8 @@
 // --snapshot (code-rows: storytree's own; forest). On the Mint box Electron crashes at launch (SIGSEGV, with or without
 // --ozone-platform=headless and SwiftShader), so the box runs --chromium.
 
-import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { homedir, tmpdir } from "node:os";
 import path from "node:path";
@@ -53,7 +54,9 @@ import { connect } from "@storytree/library";
 import { start } from "@storytree/local-postgres";
 import { openActivityLog } from "@storytree/session-management";
 
+import { acquireHeavyLock } from "./heavy-lock.mjs";
 import { describeSize, seedLagProject, seedSize, SIZES } from "./lag-seed.mjs";
+import { provision } from "./provision-worktree.mjs";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 const SETTINGS = ["settings.json", "machine.json", "project-choice.json", "auth.json"];
@@ -128,7 +131,7 @@ const READ_PAGE = `(async () => {
 })()`;
 
 /** A round that could not be performed: it reads NOT RUN with `message`. */
-class NotRun extends Error {}
+export class NotRun extends Error {}
 
 /** Poll the page each frame until it shows `until` (for `island`), or NOT RUN after `limitMs`. Returns the readings taken. */
 async function waitFor(page, until, island, limitMs) {
@@ -244,30 +247,41 @@ async function performRound(page, action, ipc) {
   };
 }
 
-/** Perform each of `actions` for `rounds` rounds; an action's first round that cannot be performed ends it as NOT RUN. */
-async function performActions(page, actions, rounds, ipc, mark) {
-  const performed = [];
+/**
+ * Perform each of `actions` for `rounds` rounds on each of `sides` (a build's page: `perform(action)` one round, `mark(label)` its
+ * timeline), in turn within each round, so two builds measured together take each round in the same minutes (A, B, A, B, ...:
+ * ADR-1001 D3). An action's first round a side cannot perform ends that action, on every side, as NOT RUN on that side. Returns each
+ * side's performed actions.
+ */
+export async function alternate(actions, rounds, sides) {
+  const performed = sides.map(() => []);
   for (const action of actions) {
-    await mark(action.name);
-    const done = { name: action.name, budget: action.budget, rounds: [] };
-    for (let n = 0; n < rounds; n++) {
-      try {
-        done.rounds.push(await performRound(page, action, ipc));
-      } catch (error) {
-        if (!(error instanceof NotRun)) throw error;
-        done.notRun = error.message;
-        break;
+    for (const side of sides) await side.mark(action.name);
+    const done = sides.map(() => ({ name: action.name, budget: action.budget, rounds: [] }));
+    for (let n = 0; n < rounds && done.every((one) => one.notRun === undefined); n++) {
+      for (const [at, side] of sides.entries()) {
+        try {
+          done[at].rounds.push(await side.perform(action));
+        } catch (error) {
+          if (!(error instanceof NotRun)) throw error;
+          done[at].notRun = error.message;
+          break;
+        }
       }
     }
-    log(action.name, done.notRun === undefined ? `${done.rounds.length} rounds` : `NOT RUN: ${done.notRun}`);
-    performed.push(done);
+    log(action.name, done.map((one) => (one.notRun === undefined ? `${one.rounds.length} rounds` : `NOT RUN: ${one.notRun}`)).join(" | "));
+    done.forEach((one, at) => performed[at].push(one));
   }
-  await mark("end");
+  for (const side of sides) await side.mark("end");
   return performed;
 }
 
-/** Run the catalogue on a ready `page`, and write result.json and renderer.cpuprofile into `out`. */
-async function measurePage(page, { actions, rounds, out, ipc, state, readyMs, size, extra }) {
+/**
+ * Start measuring a ready build's page (`session`: its page, IPC counter and what it read at start): watch its frames and inputs and
+ * profile it. Returns the side `alternate` performs rounds on, and `finish(performed)`, which writes its result.json and
+ * renderer.cpuprofile into `out`.
+ */
+async function startMeasuring({ page, ipc, state, readyMs, extra }, { out, size }) {
   await page.waitForTimeout(3000);
   await page.evaluate(OBSERVE);
   const marks = [];
@@ -276,21 +290,43 @@ async function measurePage(page, { actions, rounds, out, ipc, state, readyMs, si
   await cdp.send("Profiler.enable");
   await cdp.send("Profiler.setSamplingInterval", { interval: 200 });
   await cdp.send("Profiler.start");
-  const performed = (await performActions(page, actions, rounds, ipc, mark)).map((action) => ({ ...action, size }));
-  const { profile } = await cdp.send("Profiler.stop");
-  writeFileSync(path.join(out, "renderer.cpuprofile"), JSON.stringify(profile));
-  const ev = await page.evaluate("window.__ev");
-  const loaf = await page.evaluate("window.__loaf");
-  const mem = await page.evaluate("({ heap: performance.memory?.usedJSHeapSize, nodes: document.getElementsByTagName('*').length })");
-  writeFileSync(path.join(out, "result.json"), JSON.stringify({ state, readyMs, size, marks, actions: performed, ev, loaf, ipc: await ipc.all(), mem, ...(await extra()) }, null, 1));
-  log("wrote", path.join(out, "result.json"));
+  const finish = async (performed) => {
+    const { profile } = await cdp.send("Profiler.stop");
+    mkdirSync(out, { recursive: true });
+    writeFileSync(path.join(out, "renderer.cpuprofile"), JSON.stringify(profile));
+    const ev = await page.evaluate("window.__ev");
+    const loaf = await page.evaluate("window.__loaf");
+    const mem = await page.evaluate("({ heap: performance.memory?.usedJSHeapSize, nodes: document.getElementsByTagName('*').length })");
+    const actions = performed.map((action) => ({ ...action, size }));
+    writeFileSync(path.join(out, "result.json"), JSON.stringify({ state, readyMs, size, marks, actions, ev, loaf, ipc: await ipc.all(), mem, ...(await extra()) }, null, 1));
+    log("wrote", path.join(out, "result.json"));
+  };
+  return { side: { mark, perform: (action) => performRound(page, action, ipc) }, finish };
 }
 
-/** Launch the built desktop app in Electron and run the catalogue on it; IPC is its main process's handlers, wrapped. */
-async function measureElectron({ appDir, exe, extraArgs, home: reuse, homeFrom, seeded, project, size, out, actions, rounds, recorder }) {
+/**
+ * Run the catalogue on each of `builds` (one, or this checkout's and the one it is compared against), in turn round by round, and
+ * write each one's result.json and renderer.cpuprofile into its own `out`. A build is `open(use)`: it starts the app, calls `use`
+ * with its ready page, and closes it after.
+ */
+async function measureBuilds(builds, { actions, rounds, size }) {
+  const started = [];
+  const run = async (at) => {
+    if (at < builds.length) return builds[at].open(async (session) => {
+      started.push(await startMeasuring(session, { out: builds[at].out, size }));
+      await run(at + 1);
+    });
+    const performed = await alternate(actions, rounds, started.map((one) => one.side));
+    for (const [at, one] of started.entries()) await one.finish(performed[at]);
+  };
+  await run(0);
+}
+
+/** Launch the built desktop app in Electron and call `use` with its ready page; IPC is its main process's handlers, wrapped. */
+async function openElectron({ appDir, exe, extraArgs, home: reuse, homeFrom, seeded, project, recorder }, use) {
   const { _electron } = await import("playwright-core");
   const { home, warm } = seeded === undefined ? lagHome({ home: reuse, homeFrom }) : { home: seededHome(seeded), warm: false };
-  log("home", home, seeded !== undefined ? `(the seeded library, project ${project})` : warm ? "(warm: reused)" : homeFrom === "none" ? "(empty)" : `(settings from ${homeFrom})`);
+  log("app", appDir, "home", home, seeded !== undefined ? `(the seeded library, project ${project})` : warm ? "(warm: reused)" : homeFrom === "none" ? "(empty)" : `(settings from ${homeFrom})`);
 
   const began = Date.now();
   const app = await _electron.launch({ executablePath: exe, args: [...extraArgs, appDir, ...(project ? ["--project", project] : [])], env: { ...process.env, STORYTREE_HOME: home, ...(recorder === "off" ? { STORYTREE_LAG_RECORDER: "off" } : {}) }, timeout: 180_000 });
@@ -338,7 +374,7 @@ async function measureElectron({ appDir, exe, extraArgs, home: reuse, homeFrom, 
     log("state", state, "after", readyMs, "ms");
     const read = () => app.evaluate(() => globalThis.__ipc);
     const ipc = { mark: async () => (await read()).length, since: async (from, to) => byChannel((await read()).slice(from, to)), all: read };
-    await measurePage(page, { actions, rounds, out, ipc, state, readyMs, size, extra: async () => ({ lag: await app.evaluate(() => globalThis.__lag), recorder }) });
+    await use({ page, ipc, state, readyMs, extra: async () => ({ lag: await app.evaluate(() => globalThis.__lag), recorder }) });
   } finally {
     await app.close().catch(() => {});
   }
@@ -364,7 +400,7 @@ function snapshotAnswers(kit, snapshot) {
  * The page's reads of `project` in the seeded library, as the app's own page reads answer them (@storytree/app's pageReads; the
  * dev loop does not depend on the frame, ADR-0847): the library's and the activity log's answers, the project the only one shown.
  */
-async function libraryAnswers({ storytree, project }) {
+async function libraryAnswers({ storytree, project, openActivityLog }) {
   const library = await storytree.openProject(project);
   const log = await openActivityLog(storytree);
   const selection = async () => ({ projects: [project], current: project });
@@ -386,16 +422,28 @@ async function libraryAnswers({ storytree, project }) {
 }
 
 /**
- * Run the catalogue on the desktop page in headless Chromium over the capture kit's stand-in bridge (apps/desktop/src/capture),
- * answering the page's reads from the seeded library (`storytree`'s `project`) or a snapshot (`snapshot`): for a machine where
- * Electron cannot run, as on the Mint box. IPC is the bridge's calls. The kit is the app's own TypeScript, loaded at run time
- * through tsx, as the evidence captures load it: no package depends on it.
+ * The library and activity log code of the checkout at `from`: this one's as imported, another's (the build compared against) loaded
+ * from its own source through tsx, so its page's reads are answered by its own read code, as its app would answer them.
  */
-async function measureChromium({ snapshot, storytree, project, size, out, actions, rounds, recorder }) {
+async function libraryOf(from, url, storytree) {
+  if (from === root) return { storytree, openActivityLog };
+  const load = (name) => import(pathToFileURL(path.join(from, "packages", name, "src", "index.ts")).href);
+  const [library, sessions] = [await load("library"), await load("session-management")];
+  return { storytree: await library.connect({ url }), openActivityLog: sessions.openActivityLog };
+}
+
+/**
+ * Open the desktop page of the checkout at `from` in headless Chromium over its capture kit's stand-in bridge (apps/desktop/src/capture)
+ * and call `use` with it ready, answering the page's reads from the seeded library at `url` (`project`), read by that checkout's own
+ * library code, or a snapshot (`snapshot`): for a machine where Electron cannot run, as on the Mint box. IPC is the bridge's calls.
+ * The kit is the app's own TypeScript, loaded at run time through tsx, as the evidence captures load it: no package depends on it.
+ */
+async function openChromium({ from = root, snapshot, url, storytree, project, size, out, recorder }, use) {
   const { register } = await import("tsx/esm/api");
   register();
-  const kit = await import(pathToFileURL(path.join(root, "apps", "desktop", "src", "capture", "index.ts")).href);
-  const seeded = snapshot === undefined ? await libraryAnswers({ storytree, project }) : undefined;
+  const kit = await import(pathToFileURL(path.join(from, "apps", "desktop", "src", "capture", "index.ts")).href);
+  const library = snapshot === undefined ? await libraryOf(from, url, storytree) : undefined;
+  const seeded = library === undefined ? undefined : await libraryAnswers({ ...library, project });
   const recorded = [];
   const answers = {
     ...(seeded?.answers ?? snapshotAnswers(kit, snapshot)),
@@ -404,6 +452,7 @@ async function measureChromium({ snapshot, storytree, project, size, out, action
     recordLag: async (readings) => { recorded.push(...readings); },
   };
   const dist = path.join(out, "page");
+  mkdirSync(out, { recursive: true });
   await kit.buildCapture({ dist });
   const calls = [];
   const counted = (channel, answer) => async (...args) => {
@@ -419,12 +468,13 @@ async function measureChromium({ snapshot, storytree, project, size, out, action
     await page.goto(`${origin}/index.html${recorder === "off" ? "?lag-recorder=off" : ""}`, { waitUntil: "domcontentloaded", timeout: 180_000 });
     await bridge.ready(page, 180_000);
     const readyMs = Date.now() - began;
-    log("state ready after", readyMs, "ms, on", snapshot === undefined ? `the ${size} seed` : `the ${snapshot} snapshot`);
-    const ipc = { mark: async () => calls.length, since: async (from, to) => byChannel(calls.slice(from, to)), all: async () => calls };
-    await measurePage(page, { actions, rounds, out, ipc, state: "ready", readyMs, size, extra: async () => ({ lag: [], page: "chromium", ...(snapshot === undefined ? {} : { snapshot }), recorder, recorded, defaulted: bridge.defaulted }) });
+    log("state ready after", readyMs, "ms, on", snapshot === undefined ? `the ${size} seed` : `the ${snapshot} snapshot`, from === root ? "" : `(${from})`);
+    const ipc = { mark: async () => calls.length, since: async (start, end) => byChannel(calls.slice(start, end)), all: async () => calls };
+    await use({ page, ipc, state: "ready", readyMs, extra: async () => ({ lag: [], page: "chromium", ...(snapshot === undefined ? {} : { snapshot }), recorder, recorded, defaulted: bridge.defaulted }) });
     });
   } finally {
     await seeded?.close();
+    if (from !== root) await library?.storytree.close();
   }
 }
 
@@ -483,21 +533,149 @@ export function actionTable(rows) {
 /** 3 when any action could not be performed (NOT RUN), else 0: a missed budget is reported, never a failed run. */
 export const exitCode = (rows) => (rows.some((row) => row.notRun !== undefined) ? 3 : 0);
 
+/**
+ * How far apart two builds' medians must be before one is called slower or faster (ADR-1001 D3): by more than this share of the
+ * build compared against, and by more than one frame.
+ */
+export const MARGIN = { ratio: 0.2, ms: 16 };
+
+/** The page's background poll, made on a timer, not asked for by an action: its count per round varies by wall time. */
+const POLL = new Set(["changesSince", "linesSince", "recordLag"]);
+
+/**
+ * What a comparison measures an action by, from its rounds on both builds: its settled time when it has something to settle, else
+ * its response when it made an input, else the time its frames over 50 ms took (ten seconds idle).
+ */
+function measureOf(rounds) {
+  if (rounds.some((round) => round.settled !== null)) return { measure: "settled", of: (round) => round.settled };
+  if (rounds.some((round) => round.inputs > 0)) return { measure: "response", of: (round) => round.response ?? 0 };
+  return { measure: "frames", of: (round) => round.frames.reduce((sum, frame) => sum + frame.duration, 0) };
+}
+
+/** Each channel's median calls per round, the background poll left out, channels named without their `storytree:` prefix. */
+function readsPerRound(rounds) {
+  const name = (channel) => channel.replace(/^storytree:/, "");
+  const channels = new Set(rounds.flatMap((round) => Object.keys(round.ipc).map(name)));
+  const counts = {};
+  for (const channel of [...channels].filter((channel) => !POLL.has(channel))) {
+    counts[channel] = median(rounds.map((round) => Object.entries(round.ipc).filter(([called]) => name(called) === channel).reduce((sum, [, n]) => sum + n, 0)));
+  }
+  return counts;
+}
+
+/**
+ * One action compared on two builds measured together: `ours` (this checkout's rounds) against `theirs` (the build it is compared
+ * against). Both medians of its measure, the difference, and a verdict: slower when this build's median is worse by more than
+ * MARGIN's share of the other's and by more than a frame, faster when better by more than MARGIN's share of its own and a frame,
+ * otherwise the same. A read the action asks for a different
+ * number of times per round is listed in `counts`. A side that could not perform it makes the row NOT RUN, naming that side.
+ */
+export function compareAction(ours, theirs) {
+  const sized = ours.size === undefined ? {} : { size: ours.size };
+  const rounds = Math.min(ours.rounds.length, theirs.rounds.length);
+  const notRun = ours.notRun !== undefined ? `this build: ${ours.notRun}` : theirs.notRun !== undefined ? `against: ${theirs.notRun}` : undefined;
+  if (notRun !== undefined) return { name: ours.name, ...sized, rounds, notRun };
+  const { measure, of } = measureOf([...ours.rounds, ...theirs.rounds]);
+  const valuesOf = (performed) => performed.map(of).filter((value) => value !== null);
+  const [against, mine] = [median(valuesOf(theirs.rounds)), median(valuesOf(ours.rounds))];
+  const difference = mine - against;
+  // Each way against the quicker build, so a pair compared either way round reads as mirror images.
+  const past = (by, quicker) => by > MARGIN.ms && by > quicker * MARGIN.ratio;
+  const [theirReads, ourReads] = [readsPerRound(theirs.rounds), readsPerRound(ours.rounds)];
+  const counts = [...new Set([...Object.keys(theirReads), ...Object.keys(ourReads)])].sort()
+    .map((channel) => ({ channel, against: theirReads[channel] ?? 0, this: ourReads[channel] ?? 0 }))
+    .filter((count) => count.against !== count.this);
+  return { name: ours.name, ...sized, rounds, measure, against, this: mine, difference, verdict: past(difference, against) ? "slower" : past(-difference, mine) ? "faster" : "same", counts };
+}
+
+/** The comparison's table, a row per action and size, then a line per read whose count per round differs between the builds. */
+export function compareTable(rows) {
+  const signed = (n) => `${n < 0 ? "-" : "+"}${Math.abs(n).toFixed(0)}`;
+  const lines = [["action", "size", "rounds", "measure", "against p50", "this p50", "difference", "verdict"]];
+  for (const row of rows) {
+    if (row.notRun !== undefined) lines.push([row.name, row.size ?? "-", String(row.rounds), `NOT RUN: ${row.notRun}`]);
+    else lines.push([row.name, row.size ?? "-", String(row.rounds), row.measure, `${row.against.toFixed(0)} ms`, `${row.this.toFixed(0)} ms`,
+      `${signed(row.difference)} ms (${row.against === 0 ? "-" : `${signed((100 * row.difference) / row.against)}%`})`, row.verdict]);
+  }
+  const widths = lines[0].map((_, column) => Math.max(...lines.filter((line) => line.length > 4).map((line) => line[column].length)));
+  const table = lines.map((line) => (line.length > 4 ? line.map((cell, column) => cell.padEnd(widths[column])).join("  ") : `${line.slice(0, 3).map((cell, column) => cell.padEnd(widths[column])).join("  ")}  ${line[3]}`).trimEnd());
+  const counts = rows.flatMap((row) => (row.counts ?? []).map((count) => `count: ${row.name}${row.size === undefined ? "" : ` (${row.size})`} ${count.channel} ${count.against} -> ${count.this} per round`));
+  return [...table, ...counts].join("\n");
+}
+
+/**
+ * Call `use` with the desktop app folder of the build to compare against. `against` is a built app folder (an apps/desktop, as
+ * APP_DIR names), used where it is; otherwise a git ref of the repository at `root`, checked out into a throwaway worktree, installed
+ * with the repository's own provisioning (`install`), built by `build` when given, and removed afterwards, whatever happened.
+ */
+export async function withAgainst(against, { root: repo = root, install = (tree) => provision({ root: tree, log }), build }, use) {
+  if (existsSync(against) && statSync(against).isDirectory()) return use(path.resolve(against));
+  const folder = mkdtempSync(path.join(tmpdir(), "lag-against-"));
+  const tree = path.join(folder, "checkout");
+  const git = (...args) => execFileSync("git", args, { cwd: repo, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+  try {
+    git("worktree", "add", "--detach", tree, against);
+  } catch (error) {
+    rmSync(folder, { recursive: true, force: true });
+    throw new Error(`--against ${against} is neither a folder nor a ref git can check out: ${String(error.stderr ?? error.message).trim()}`);
+  }
+  try {
+    log("against", against, "checked out in", tree);
+    const installed = install(tree);
+    if (!installed.ok) throw new Error(`could not install ${against} in ${tree} (exit ${installed.code})`);
+    await build?.(tree);
+    return await use(path.join(tree, "apps", "desktop"));
+  } finally {
+    try {
+      git("worktree", "remove", "--force", tree);
+    } catch {}
+    rmSync(folder, { recursive: true, force: true });
+    try {
+      git("worktree", "prune");
+    } catch {}
+  }
+}
+
 /** The runs a seeded run in `out` kept, a folder per size, smallest first. */
 function sizeRuns(out) {
   return Object.keys(SIZES).filter((size) => existsSync(path.join(out, size, "result.json"))).map((size) => path.join(out, size));
 }
 
+/** The actions a run's result.json in `dir` recorded. */
+const actionsIn = (dir) => JSON.parse(readFileSync(path.join(dir, "result.json"), "utf8")).actions ?? [];
+
 /** Every judged row of the run in `out`: its actions, or each size's on a seeded run. */
 function judgedRows(out) {
   const results = existsSync(path.join(out, "result.json")) ? [out] : sizeRuns(out);
-  return results.flatMap((dir) => JSON.parse(readFileSync(path.join(dir, "result.json"), "utf8")).actions?.map(judge) ?? []);
+  return results.flatMap((dir) => actionsIn(dir).map(judge));
 }
 
+/** The sizes a comparison in `out` kept, smallest first: a folder per size holding this build's run (this) and the other's (against). */
+function comparedRuns(out) {
+  return Object.keys(SIZES).map((size) => path.join(out, size)).filter((dir) => ["this", "against"].every((side) => existsSync(path.join(dir, side, "result.json"))));
+}
+
+/** Every compared row of the comparison in `out`, a row per action and size. */
+function comparedRows(out) {
+  return comparedRuns(out).flatMap((dir) => {
+    const theirs = actionsIn(path.join(dir, "against"));
+    return actionsIn(path.join(dir, "this")).map((ours) => compareAction(ours, theirs.find((one) => one.name === ours.name) ?? { ...ours, rounds: [], notRun: "not measured" }));
+  });
+}
+
+/** The rows a run in `out` is judged by for its exit code: the comparison's, or the budgets'. */
+const runRows = (out) => (comparedRuns(out).length > 0 ? comparedRows(out) : judgedRows(out));
+
 /**
- * The summary of the run in `out`. A seeded run kept a folder per size: one table across the sizes, then each size's summary.
+ * The summary of the run in `out`. A comparison (--against) kept a folder per size and build: the comparison's table, then each build's
+ * actions against their budgets. A seeded run kept a folder per size: one table across the sizes, then each size's summary.
  * One run's: the actions' table, IPC by channel, each action's cost over its rounds, events, long frames, main-process lag and the profile's top functions. */
 export function summary(out) {
+  const compared = existsSync(path.join(out, "result.json")) ? [] : comparedRuns(out);
+  if (compared.length > 0) {
+    // A comparison: its verdicts, then each build's actions against their budgets; --analyze <out>/<size>/<this|against> gives one in full.
+    return [`${compareTable(comparedRows(out))}\n`, ...compared.flatMap((dir) => ["this", "against"].map((side) => `== ${path.basename(dir)}: ${side} ==\n${actionTable(actionsIn(path.join(dir, side)).map(judge))}\n`))].join("\n");
+  }
   if (!existsSync(path.join(out, "result.json"))) {
     const runs = sizeRuns(out);
     if (runs.length === 0) throw new Error(`${out} holds no run: no result.json, in it or in a folder per size`);
@@ -599,38 +777,56 @@ async function main(args) {
   const chromium = args.includes("--chromium");
   const live = args.includes("--live");
   const snapshot = option(args, "snapshot", undefined);
+  const against = option(args, "against", undefined);
   if (live && chromium) throw new Error("--live reads the real library through the desktop app; --chromium reads the seeded library, or a --snapshot");
   if (snapshot !== undefined && !chromium) throw new Error("--snapshot is a --chromium run's");
+  if (against !== undefined && (live || snapshot !== undefined)) throw new Error("--against compares two builds on the seeded library, not with --live or --snapshot");
   const recorder = option(args, "recorder", "on");
   if (recorder !== "on" && recorder !== "off") throw new Error("--recorder takes on or off");
-  const electron = () => {
-    const appDir = path.resolve(process.env.APP_DIR ?? path.join(root, "apps", "desktop"));
+  const sizes = option(args, "sizes", Object.keys(SIZES).join(",")).split(",");
+  for (const size of sizes) seedSize(size);
+  const electron = (appDir) => {
     if (!existsSync(path.join(appDir, "dist", "main.cjs"))) throw new Error(`${appDir} has no dist/main.cjs: build it first (pnpm --filter @storytree/desktop build), or set APP_DIR to a built app`);
     const exe = process.env.ELECTRON_EXE ?? createRequire(path.join(appDir, "package.json"))("electron");
     return { appDir, exe, extraArgs: (process.env.ELECTRON_ARGS ?? "").split(" ").filter(Boolean) };
   };
-  if (snapshot !== undefined) await measureChromium({ snapshot, size: snapshot, out, actions, rounds, recorder });
-  else if (live) {
-    const homeFrom = option(args, "home-from", process.env.STORYTREE_HOME ?? path.join(homedir(), ".storytree", "0.3"));
-    const home = option(args, "home", undefined);
-    await measureElectron({ ...electron(), home: home === undefined ? undefined : path.resolve(home), homeFrom, project: option(args, "project", undefined), size: "live", out, actions, rounds, recorder });
-  } else {
-    const sizes = option(args, "sizes", Object.keys(SIZES).join(",")).split(",");
-    for (const size of sizes) seedSize(size);
-    const app = chromium ? undefined : electron();
-    await withSeededLibrary(sizes, async ({ url, storytree, projects }) => {
-      for (const size of sizes) {
-        const sized = path.join(out, size);
-        mkdirSync(sized, { recursive: true });
-        log(size, "seed:", describeSize(size));
-        if (chromium) await measureChromium({ storytree, project: projects[size], size, out: sized, actions, rounds, recorder });
-        else await measureElectron({ ...app, seeded: url, project: projects[size], size, out: sized, actions, rounds, recorder });
+  const ourApp = path.resolve(process.env.APP_DIR ?? path.join(root, "apps", "desktop"));
+  // The whole run, a compared build's checkout and install included, waits its turn behind gate and test runs (ADR-1001 D3).
+  const release = await acquireHeavyLock({ root, what: "pnpm lag:desktop" });
+  try {
+    if (snapshot !== undefined) await measureBuilds([{ out, open: (use) => openChromium({ snapshot, size: snapshot, out, recorder }, use) }], { actions, rounds, size: snapshot });
+    else if (live) {
+      const homeFrom = option(args, "home-from", process.env.STORYTREE_HOME ?? path.join(homedir(), ".storytree", "0.3"));
+      const home = option(args, "home", undefined);
+      const opened = { ...electron(ourApp), home: home === undefined ? undefined : path.resolve(home), homeFrom, project: option(args, "project", undefined), recorder };
+      await measureBuilds([{ out, open: (use) => openElectron(opened, use) }], { actions, rounds, size: "live" });
+    } else {
+      // A build of the seeded library: this checkout's, or the one compared against (`appDir`, an apps/desktop, in its checkout).
+      const build = (appDir, dir, seeded) => (chromium
+        ? { out: dir, open: (use) => openChromium({ from: path.resolve(appDir, "..", ".."), ...seeded, out: dir, recorder }, use) }
+        : { out: dir, open: (use) => openElectron({ ...electron(appDir), seeded: seeded.url, project: seeded.project, recorder }, use) });
+      const measure = (theirApp) => withSeededLibrary(sizes, async ({ url, storytree, projects }) => {
+        for (const size of sizes) {
+          const sized = path.join(out, size);
+          const seeded = { url, storytree, project: projects[size], size };
+          log(size, "seed:", describeSize(size));
+          const builds = theirApp === undefined ? [build(ourApp, sized, seeded)] : [build(ourApp, path.join(sized, "this"), seeded), build(theirApp, path.join(sized, "against"), seeded)];
+          await measureBuilds(builds, { actions, rounds, size });
+        }
+      });
+      if (against === undefined) await measure(undefined);
+      else {
+        if (!chromium) electron(ourApp);
+        const buildDesktop = (tree) => execFileSync(process.platform === "win32" ? "pnpm.cmd" : "pnpm", ["--filter", "@storytree/desktop", "build"], { cwd: tree, stdio: "inherit", shell: process.platform === "win32" });
+        await withAgainst(against, { build: chromium ? undefined : buildDesktop }, measure);
       }
-    });
+    }
+  } finally {
+    release();
   }
   console.log(`\n${summary(out)}`);
   console.log(`\nlag:desktop: the run is in ${out}`);
-  return exitCode(judgedRows(out));
+  return exitCode(runRows(out));
 }
 
 /**

@@ -18,6 +18,7 @@ import { fileURLToPath } from "node:url";
 import { MARKER_FILE, noteCodexHookRan, noteHookFailure, type Homes } from "@storytree/session-management";
 import { CHECK_FILE, registerHooks, type GhState, type HookCommand } from "@storytree/app-setup/setup";
 import { buildBins } from "@storytree/app-setup/bins";
+import { STARTER_PACK_VERSION } from "@storytree/app-setup/project";
 import { withTempDir } from "@storytree/session-management/testing/folders";
 import { approveCheckout, dropTestProjects, placeTestServer, testServerUrl, uniqueProjectName } from "@storytree/session-management/testing/pg";
 import { connect } from "@storytree/library";
@@ -380,6 +381,50 @@ test("session-management 8.19 in a project whose library holds the starter roles
     } finally {
       await storytree.close();
       await dropTestProjects([seeded, older]);
+    }
+  });
+});
+
+test("session-management 8.26 in a project an earlier starter pack seeded, the check names the seeded and current versions and offers take_starter_pack while it would add or replace something; once taken, or in a project never seeded, it offers nothing", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const [earlier, never] = [uniqueProjectName(), uniqueProjectName()];
+    const storytree = await connect({ url: testServerUrl() });
+    try {
+      const agentIn = (folder: string) => claudeCode(`claude-${path.basename(folder)}`, { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome } });
+      const projectFolder = async (project: string) => {
+        const folder = path.join(dir, project);
+        mkdirSync(folder);
+        writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
+        await approveCheckout(folder, project, home.storytreeHome);
+        return folder;
+      };
+      // Version 1 of the pack seeded this one: a principle whose statement the pack has since changed.
+      const library = await storytree.openProject(earlier);
+      await library.writeKnowledge("principle", { title: "Minimum to green", description: "Build only what the next failing test needs.", statement: "Write the least code that passes.", why: "Less to fix.", howToApply: "Name the behaviour first." }, { actor: "storytree setup (starter pack v1)" });
+      await library.close();
+      await (await storytree.openProject(never)).close();
+
+      await withAgent(await projectFolder(earlier), agentIn(path.join(dir, earlier)), async (agent) => {
+        const offered = await agent.call("check_setup");
+        assert.deepEqual(offered.data.starterPack, { seeded: 1, current: STARTER_PACK_VERSION, offered: true });
+        assert.match(offered.text, new RegExp(`starter pack v1\\b.*v${STARTER_PACK_VERSION}\\b`));
+        assert.match(offered.text, /take_starter_pack/);
+        const took = await agent.call("take_starter_pack");
+        assert.equal(took.isError, false, took.text);
+        assert.deepEqual((took.data.replaced as { title: string }[]).map(({ title }) => title), ["Minimum to green"]);
+        const taken = await agent.call("check_setup");
+        assert.deepEqual(taken.data.starterPack, { seeded: STARTER_PACK_VERSION, current: STARTER_PACK_VERSION, offered: false });
+        assert.doesNotMatch(taken.text, /take_starter_pack/);
+      });
+      await withAgent(await projectFolder(never), agentIn(path.join(dir, never)), async (agent) => {
+        const checked = await agent.call("check_setup");
+        assert.deepEqual(checked.data.starterPack, { seeded: null, current: STARTER_PACK_VERSION, offered: false });
+        assert.doesNotMatch(checked.text, /take_starter_pack/);
+      });
+    } finally {
+      await storytree.close();
+      await dropTestProjects([earlier, never]);
     }
   });
 });

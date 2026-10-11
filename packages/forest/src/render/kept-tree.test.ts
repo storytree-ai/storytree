@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { AnnotatedTree } from "@storytree/library";
+import type { StorySurvey } from "@storytree/map";
 import { drawingOf, keptDrawing, keptTree } from "./kept-tree.js";
 
 const tree: AnnotatedTree = { arcs: [{ id: "arc_1" }] as AnnotatedTree["arcs"], stories: [{
@@ -30,8 +31,8 @@ test("3.48 a start on an unchanged project draws once: the forest drawn from wha
   const at = new Date(0).toISOString();
   const history = ["story_c", "story_b", "story_a", "story_d"].map((id, index) => ({ seq: index + 1, recordId: id, type: "story", action: "created", record: { id, type: "story", version: 1, fields: {}, createdAt: at, updatedAt: at } })) as never[];
   const states = workStates([{ seq: 1, project: "shop", at, kind: "landed", session: "s1", source: "tool", capability: "cap_c" }] as never[]);
-  const surveyed = (lines: number) => ({
-    story_a: { files: [{ path: "src/a.ts", lines, capability: "cap_a" }], imports: [], tests: [{ kind: "test" as const, path: "src/a.test.ts", titles: [], imports: [] }], edges: [{ story: "story_b", from: "cap_a", to: "cap_b" }] },
+  const surveyed = (lines: number): Record<string, StorySurvey> => ({
+    story_a: { files: [{ path: "src/a.ts", lines, capability: "cap_a" }], imports: [], tests: [{ kind: "test" as const, path: "src/a.test.ts", titles: [], imports: [] }], edges: [{ story: "story_b", from: "cap_a", to: "cap_b", typeOnly: false, files: [] }] },
     story_b: { files: [{ path: "src/b.ts", lines: 40, capability: "cap_b" }], imports: [] },
   });
   const drawn = (survey: Parameters<typeof forestScene>[3], tree = project, created: Parameters<typeof forestScene>[1] = history, by: Parameters<typeof forestScene>[2] = states) =>

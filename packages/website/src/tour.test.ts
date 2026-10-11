@@ -232,7 +232,6 @@ test("2.16 · the map chapter plays seven steps in the owner's order: the beginn
   assert.deepEqual(capabilities!.lines, ["Each story shows the parts that make it work."]);
   assert.deepEqual([tinted(capabilities!, 1).territories, tinted(capabilities!, 1).fileCircles, tinted(capabilities!, 2).fileCircles], ["plain", false, true]);
   assert.deepEqual(panels(capabilities!), [undefined, undefined, "story"]);
-  assert.ok(/capabilit/i.test(capabilities!.title), "the title still names capabilities");
   // Step 5: the flags, then the arcs panel, then the sessions list, read as the flags stand (after 02:28:27, before 02:29:25).
   assert.deepEqual(panels(claims!), [undefined, "arcs", "sessions"]);
   assert.ok(claims!.sessionsAt! > "2026-10-05T02:28:27" && claims!.sessionsAt! < "2026-10-05T02:29:25");

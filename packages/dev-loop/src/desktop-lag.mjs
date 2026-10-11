@@ -11,7 +11,7 @@
 // round) and renderer.cpuprofile to the out folder, a folder per size on a seeded run. An action it could not perform reads NOT RUN
 // with the reason, and the run exits 3. A report, never a gate (ADR-0623): no timing enters `pnpm test`.
 //
-//   pnpm lag:desktop [--sizes standard,large] [--action <name>] [--rounds <n>] [--story <title>] [--out <dir>] [--recorder on|off]
+//   pnpm lag:desktop [--sizes standard,large] [--action <name>[,<name>...]] [--rounds <n>] [--story <title>] [--out <dir>] [--recorder on|off]
 //   pnpm lag:desktop --live [--action <name>] [--rounds <n>] [--story <title>] [--project <name>] [--out <dir>]
 //                    [--home-from <dir>|none] [--home <dir>] [--recorder on|off]
 //   pnpm lag:desktop --chromium [--sizes standard,large | --snapshot code-rows|forest] [--action <name>] [--rounds <n>] [--story <title>] [--out <dir>]
@@ -670,7 +670,7 @@ function comparedRuns(out) {
 }
 
 /** Every compared row of the comparison in `out`, a row per action and size. */
-function comparedRows(out) {
+export function comparedRows(out) {
   return comparedRuns(out).flatMap((dir) => {
     const theirs = actionsIn(path.join(dir, "against"));
     return actionsIn(path.join(dir, "this")).map((ours) => compareAction(ours, theirs.find((one) => one.name === ours.name) ?? { ...ours, rounds: [], notRun: "not measured" }));
@@ -782,8 +782,10 @@ async function main(args) {
   const story = option(args, "story", NAMED_STORY);
   const named = option(args, "action", undefined);
   const catalogue = CATALOGUE.map((action) => ({ ...action, perform: action.perform.map((step) => (step.kind === "island" && typeof step.island === "object" ? { ...step, island: { story } } : step)) }));
-  const actions = catalogue.filter((action) => named === undefined || action.name === named);
-  if (actions.length === 0) throw new Error(`no action ${named} in the catalogue: ${CATALOGUE.map((action) => action.name).join(", ")}`);
+  const names = named?.split(",");
+  const unknown = names?.filter((name) => !catalogue.some((action) => action.name === name)) ?? [];
+  if (unknown.length > 0) throw new Error(`no action ${unknown.join(", ")} in the catalogue: ${CATALOGUE.map((action) => action.name).join(", ")}`);
+  const actions = catalogue.filter((action) => names === undefined || names.includes(action.name));
   const rounds = Number(option(args, "rounds", "5"));
   if (!Number.isInteger(rounds) || rounds < 1) throw new Error("--rounds takes a whole number of at least 1");
   const out = path.resolve(option(args, "out", path.join(tmpdir(), `lag-desktop-${new Date().toISOString().replace(/[:.]/g, "-")}`)));

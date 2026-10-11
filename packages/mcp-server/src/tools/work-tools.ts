@@ -9,11 +9,11 @@
  * last increment closes, which close_increment says, and re-opens when work is parked on it, which
  * park_increment says.
  */
-import type { Library } from "@storytree/library";
+import type { Library, Storytree } from "@storytree/library";
 import { z } from "zod";
 
 import { recordFriction, recordResteer, reinforceFriction } from "@storytree/session-management";
-import { closed, currentBranch, increments, presentQuestion, releaseAsked, stopPresenting } from "@storytree/session-management";
+import { closed, currentBranch, incrementMachine, increments, MachineNameError, presentQuestion, releaseAsked, stopPresenting } from "@storytree/session-management";
 import { lineOf, type Answer, type Call, type Define } from "./server.js";
 import { quoted } from "./text.js";
 
@@ -37,9 +37,12 @@ export function registerWorkTools(define: Define): void {
       links: z.array(z.string().min(1)).optional().describe("The ids of anything else it cites: its stories, notes or decisions"),
       held_on: z.array(z.string().min(1)).optional().describe("The ids of open questions it is born held on: it waits on the owner's answer until each is settled"),
       waits_on: z.array(z.object({ increment: id("increment"), reason: z.string().min(1).describe("Why it waits") })).optional().describe("The increments it is born waiting on: it is not ready until each closes as landed"),
+      machine: z.string().min(1).optional().describe("The one machine that can take it, by the short name Machines knows it by; leave it out when any machine can"),
       outcome: z.object({ disposition, pr, note }).optional().describe("Only for work that already landed without being parked: how it closed"),
     }),
-    async ({ arc, title, objective, body, capabilities, links, held_on, waits_on, outcome }, { library, writer }) => {
+    async ({ arc, title, objective, body, capabilities, links, held_on, waits_on, machine, outcome }, { library, storytree, writer }) => {
+      const named = machine === undefined ? { machine: undefined } : await machineChecked(storytree, machine);
+      if ("refused" in named) return named.refused;
       const before = (await library.arcView(arc))?.state;
       const increment = await library.addIncrement({
         arc,
@@ -49,6 +52,7 @@ export function registerWorkTools(define: Define): void {
         ...(capabilities === undefined ? {} : { capabilities }),
         ...(links === undefined ? {} : { links }),
         ...(held_on === undefined ? {} : { heldOn: held_on }),
+        ...(named.machine === undefined ? {} : { machine: named.machine }),
         ...(waits_on === undefined ? {} : { waits: waits_on.map(({ increment: on, reason }) => ({ on, reason })) }),
         ...(outcome === undefined ? {} : { outcome: defined(outcome) }),
       }, writer);
@@ -362,4 +366,17 @@ function claimContext({ log, library, project, caller, folder, quietMs }: Call) 
 /** `fields` without the ones left undefined. */
 function defined<T extends Record<string, unknown>>(fields: T): { [K in keyof T]: Exclude<T[K], undefined> } {
   return Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined)) as { [K in keyof T]: Exclude<T[K], undefined> };
+}
+
+/**
+ * An increment's machine as `name` sets it, checked by Session management's Machines (`incrementMachine`):
+ * a named machine's name, or undefined for "none", which clears it; a name Machines does not know is refused.
+ */
+export async function machineChecked(storytree: Storytree, name: string): Promise<{ machine: string | undefined } | { refused: Answer }> {
+  try {
+    return { machine: await incrementMachine(storytree, name) };
+  } catch (error) {
+    if (error instanceof MachineNameError) return { refused: { text: `${error.message}.`, refused: true } };
+    throw error;
+  }
 }

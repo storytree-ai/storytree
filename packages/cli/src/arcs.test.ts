@@ -3,12 +3,15 @@
  * the real, built `storytree` command.
  */
 import assert from "node:assert/strict";
+import { randomBytes } from "node:crypto";
 import { userInfo } from "node:os";
 import { after, before, test } from "node:test";
 
 import pg from "pg";
 
-import { claim, openActivityLog, readClaims, recordFriction, release } from "@storytree/session-management";
+import { connect } from "@storytree/library";
+import { claim, nameThisMachine, openActivityLog, readClaims, recordFriction, release } from "@storytree/session-management";
+import { withTempDir } from "@storytree/session-management/testing/folders";
 
 import { parseArgs } from "./args.js";
 import type { Context } from "./door.js";
@@ -514,6 +517,36 @@ test("4.22 `arc increment edit --held-on none` clears a hold, for a shell that d
 
     assert.equal(cleared.code, 0, cleared.stderr);
     assert.equal(((await library.get(held.id))?.fields as { heldOn?: string[] }).heldOn, undefined);
+  });
+});
+
+test("4.23 `arc increment edit --machine <name>` names the one machine that can take an increment, `--machine none` clears it, and a name Machines does not know is refused with nothing written", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const arc = await anArc(world);
+    const work = await library.addIncrement({ arc, title: "Installer", objective: "Install", body: "…" });
+    const mint = `m-${randomBytes(4).toString("hex")}`;
+    const storytree = await connect({ url: testServerUrl() });
+    try {
+      await withTempDir((home) => nameThisMachine(storytree, mint, { home, host: `host-${randomBytes(4).toString("hex")}` }));
+    } finally {
+      await storytree.close();
+    }
+    const machineOf = async () => ((await library.get(work.id))?.fields as { machine?: string }).machine;
+
+    const named = await world.run(["arc", "increment", "edit", work.id, "--machine", mint]);
+    assert.equal(named.code, 0, named.stderr);
+    assert.equal(await machineOf(), mint);
+
+    const unknown = `m-${randomBytes(4).toString("hex")}`;
+    const refused = await world.run(["arc", "increment", "edit", work.id, "--machine", unknown]);
+    assert.notEqual(refused.code, 0);
+    assert.match(refused.stderr, new RegExp(`no machine is called "${unknown}"`));
+    assert.equal(await machineOf(), mint, "nothing written");
+
+    const cleared = await world.run(["arc", "increment", "edit", work.id, "--machine", "none"]);
+    assert.equal(cleared.code, 0, cleared.stderr);
+    assert.equal(await machineOf(), undefined);
   });
 });
 

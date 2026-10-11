@@ -43,6 +43,7 @@ test('4.1 a start line makes a live session labelled "Claude Code", with its fol
         lastSeenAt: edit.at,
         state: "working",
         hooksRunning: true,
+        tier: "watched",
         branches: [],
         openWork: [],
         archived: false,

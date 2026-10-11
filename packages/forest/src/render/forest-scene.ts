@@ -47,7 +47,7 @@ export interface ForestDrawn {
  * `states` the arc surface's work states over its agent activity log, and `survey` its code's survey by
  * story (capability 8): a surveyed story's island is cut into its capabilities' territories.
  */
-export function forestScene(tree: AnnotatedTree, history: readonly Change[], states: WorkStates, survey: Readonly<Record<string, StorySurvey>> = {}): ForestScene {
+export function forestScene(tree: AnnotatedTree, history: readonly Pick<Change, "type" | "action" | "recordId">[], states: Pick<WorkStates, "part">, survey: Readonly<Record<string, StorySurvey>> = {}): ForestScene {
   const nodes = new Map(storyNodes(tree, history, survey).map((node) => [node.id, node]));
   const islands = tree.stories.map((story): Island => {
     const node = nodes.get(story.id);

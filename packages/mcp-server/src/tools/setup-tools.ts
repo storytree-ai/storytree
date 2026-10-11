@@ -12,12 +12,12 @@ import { z } from "zod";
 import { habitsCard } from "../instructions/habits.js";
 import { hookFailures, type HookFailure } from "@storytree/session-management";
 import { findProject, storytreeHome } from "@storytree/session-management";
-import { notAProjectYet, setUpProject, starterRolesIn, suggestProjectName } from "@storytree/app-setup/project";
+import { notAProjectYet, setUpProject, starterPackStatus, starterRolesIn, suggestProjectName, takeStarterPack, type StarterPackStatus } from "@storytree/app-setup/project";
 import { checkFilesWritten, codexHooksState, FIX_SENTENCES, HOOK_TESTS, openStorytree, runSetupCheck, verifyHooks, type Fix, type SetupOptions } from "@storytree/app-setup/setup";
 import { isUnreachable, NOT_RUNNING_ANSWER, refusalOf, result } from "./answers.js";
 import type { Connections } from "./connections.js";
 import { callLines, lineOf, seenCaller, type Caller } from "@storytree/session-management";
-import { metaOf, type JourneyMilestones } from "./server.js";
+import { metaOf, type Define, type JourneyMilestones } from "./server.js";
 import { quoted } from "./text.js";
 
 export interface SetupToolContext {
@@ -65,6 +65,9 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
         // Seeded roles are read only when the agent is pointed at them (1.14, 8.19).
         const starterRoles = await starterRolesIn(library);
         if (starterRoles.length > 0) said.push(rolesSentence(starterRoles));
+        // A library an earlier pack seeded is offered the newer one, for the user to take (8.26).
+        const starterPack = await starterPackStatus(library);
+        if (starterPack.offered) said.push(newerPackSentence(starterPack));
         // The session as the hook before this call named it: after Claude Code's /clear, the new one.
         const caller = seenCaller(await callLines(log, report.project.name, metaOf(context)), heard, metaOf(context));
         await log.append(report.project.name, { ...lineOf(caller), source: "tool", folder, kind: "tool-called", tool: "check_setup" });
@@ -92,7 +95,7 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
         // What this machine's hooks traced of their failures for this session (contract 3.23), so a gap in its lines can be read.
         const failures = hookFailures(setup.storytreeHome ?? storytreeHome(), caller.session);
         if (failures.length > 0) said.push(failuresSentence(failures));
-        return result({ text: withCard(said.join(" ")), data: { ...data, starterRoles, ...verification, hookFailures: failures } });
+        return result({ text: withCard(said.join(" ")), data: { ...data, starterRoles, starterPack, ...verification, hookFailures: failures } });
       } catch (error) {
         if (isUnreachable(error)) {
           await connections.close();
@@ -151,6 +154,31 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
       }
     }) as never,
   );
+}
+
+/**
+ * `take_starter_pack`, which the agent calls on the user's yes to check_setup's offer of a newer starter pack (8.26):
+ * the pack is taken into the project's library without overwriting what its user edited (6.9).
+ */
+export function registerStarterPackTool(define: Define): void {
+  define(
+    "take_starter_pack",
+    "Take the newer starter pack into this project's library: call it only when check_setup offered it and the user said yes. It adds the records the library lacks and replaces only the ones the user has not edited; each edited one is left as it is and named, with the newer text beside it.",
+    z.object({}),
+    async (_args, { library }) => {
+      const took = await takeStarterPack(library);
+      const said = [`Took the starter pack: added ${took.added.length} and replaced ${took.replaced.length} of its records.`];
+      if (took.kept.length > 0) {
+        said.push(`Left as the user edited ${took.kept.length === 1 ? "it" : "them"}: ${took.kept.map(({ kind, title }) => `the ${kind} ${quoted(title)}`).join(", ")}. Show the user the newer text beside each (in this answer's data) and change one only if they ask.`);
+      }
+      return { text: said.join(" "), data: { ...took } };
+    },
+  );
+}
+
+/** What the check says of a newer pack than the one that seeded the library (8.26). */
+function newerPackSentence({ seeded, current }: StarterPackStatus): string {
+  return `Its library was seeded by storytree's starter pack v${seeded}, and this storytree carries v${current}. Offer the user the newer pack: it adds what the library lacks and replaces only records they have not edited, leaving their edits as they are. Call take_starter_pack only if they say yes.`;
 }
 
 /**

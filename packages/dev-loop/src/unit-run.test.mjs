@@ -272,6 +272,16 @@ test("6.10 · a unit's deadline is learned only from runs that tested as many un
   assert.equal(JSON.parse(readFileSync(path.join(recorded, "test-timings.jsonl"), "utf8")).jobs, 3);
 });
 
+// increment_3f535ac2dc4e: on the Surface Pro session-management takes 150 to 250 s alone, so under the
+// 180 s default it was killed, passed at the doubled deadline, and was killed again at the default.
+test("6.13 · a unit with too few passes at this concurrency is never given less than twice its slowest recent pass at any", (t) => {
+  const slow = history(t, [["session-management", "fail", 180_000, true], ...passes("session-management", 233_000)]);
+  assert.deepEqual(unitLimit("session-management", { home: slow, ...machine }), { ms: 466_000, source: "twice its slowest pass, too few to learn from" });
+  const alone = history(t, passes("cli", 160_000, 226_000, 150_000, 140_000, 133_000));
+  assert.deepEqual(unitLimit("cli", { home: alone, ...machine, jobs: 2 }), { ms: 452_000, source: "twice its slowest pass, too few to learn from" }, "beside others it is no faster than alone");
+  assert.deepEqual(unitLimit("cli", { home: alone, ...machine, jobs: 2, env: { STORYTREE_UNIT_LIMIT_MS: "600000" } }), { ms: 600_000, source: "STORYTREE_UNIT_LIMIT_MS" }, "the run's default when that is longer");
+});
+
 test("6.10 · a unit run beside others prints nothing and gives back its whole output, its last line included", async (t) => {
   const root = fixture(t, {
     "talks.test.mjs": `import { test } from "node:test";

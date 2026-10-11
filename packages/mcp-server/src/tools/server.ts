@@ -52,7 +52,7 @@ import { Connections } from "./connections.js";
 import { registerNoteTools } from "./note-tools.js";
 import { registerPlanTools } from "./plan-tools.js";
 import { registerMapTools } from "./map-tools.js";
-import { registerSetupTools } from "./setup-tools.js";
+import { registerSetupTools, registerStarterPackTool } from "./setup-tools.js";
 import { registerWorkTools } from "./work-tools.js";
 import { OWN_TOOLS, registerOwnTools } from "./own-tools.js";
 import { registerPipelineTools } from "./pipeline-tools.js";
@@ -212,6 +212,7 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
     callerOf,
     ...(options.journey === undefined ? {} : { journey: options.journey }),
   });
+  registerStarterPackTool(define);
   registerPlanTools(define);
   registerMapTools(define);
   registerOwnTools({

@@ -4,7 +4,8 @@
 // node --test runs files at once, so every test names its own databases and roles uniquely.
 //
 // How many at once: --jobs=<n>, else STORYTREE_TEST_JOBS, else DEFAULT_JOBS with a core left over
-// for the Postgres and the browsers the tests start. Measured on CI (PR #1029): at 3, macOS's
+// for the Postgres and the browsers the tests start; one where the Postgres runs under emulation
+// (Windows arm64, EMULATED below). Measured on CI (PR #1029): at 3, macOS's
 // 3-core runner timed out forest's real-browser tests (run 38008232208) and a Windows 4-core runner
 // timed out those and killed agent-link (now session-management) and cli at their 6 minutes (run 38009064713); each unit
 // already runs its files a core less than the machine's at once.
@@ -17,9 +18,18 @@ import path from "node:path";
 
 export const DEFAULT_JOBS = 2;
 
+// There is no Windows arm64 Postgres: the x64 one runs under the OS's emulation (local-postgres,
+// binaries.ts), and cores do not make up for it. Measured on a Surface Pro with 12 of them
+// (increment_3f535ac2dc4e, 2026-10-11): a full run at two units at once failed 6 of 26 units in
+// 16 minutes (two killed at their deadline, four on the 60 s test limit and the database's 3 s
+// connect), as did every full run at two before it; one at a time took the same 16 minutes and
+// none failed that way.
+const EMULATED = "default: this machine's test Postgres runs under x64 emulation, which two units at once overload";
+
 /** How many units a run tests at once, and where that number came from. */
-export function testJobs({ flag, env = process.env, cpus = availableParallelism() } = {}) {
+export function testJobs({ flag, env = process.env, cpus = availableParallelism(), platform = process.platform, arch = process.arch } = {}) {
   const [value, source] = flag !== undefined ? [flag, "--jobs"] : env.STORYTREE_TEST_JOBS ? [env.STORYTREE_TEST_JOBS, "STORYTREE_TEST_JOBS"] : [undefined, "default"];
+  if (value === undefined && platform === "win32" && arch === "arm64") return { jobs: 1, source: EMULATED };
   if (value === undefined) return { jobs: Math.max(1, Math.min(DEFAULT_JOBS, cpus - 1)), source };
   const jobs = Number(value);
   if (!Number.isInteger(jobs) || jobs < 1) throw new Error(`${source} is a whole number of units to test at once, at least 1, not ${JSON.stringify(value)}`);

@@ -49,12 +49,26 @@ test("6.10 · units start slowest first: by this machine's recent passes, then a
 });
 
 test("6.10 · how many units run at once: --jobs, else STORYTREE_TEST_JOBS, else the default, leaving a core free; anything but a whole number from 1 is refused", () => {
-  assert.deepEqual(testJobs({ env: {}, cpus: 12 }), { jobs: DEFAULT_JOBS, source: "default" });
-  assert.deepEqual(testJobs({ env: {}, cpus: 2 }), { jobs: 1, source: "default" }, "a core is left for the Postgres and the browsers");
-  assert.deepEqual(testJobs({ env: {}, cpus: 1 }), { jobs: 1, source: "default" });
-  assert.deepEqual(testJobs({ env: { STORYTREE_TEST_JOBS: "4" }, cpus: 2 }), { jobs: 4, source: "STORYTREE_TEST_JOBS" });
+  const native = { platform: "linux", arch: "x64" }; // not the machine this test runs on
+  assert.deepEqual(testJobs({ env: {}, cpus: 12, ...native }), { jobs: DEFAULT_JOBS, source: "default" });
+  assert.deepEqual(testJobs({ env: {}, cpus: 2, ...native }), { jobs: 1, source: "default" }, "a core is left for the Postgres and the browsers");
+  assert.deepEqual(testJobs({ env: {}, cpus: 1, ...native }), { jobs: 1, source: "default" });
+  assert.deepEqual(testJobs({ env: { STORYTREE_TEST_JOBS: "4" }, cpus: 2, ...native }), { jobs: 4, source: "STORYTREE_TEST_JOBS" });
   assert.deepEqual(testJobs({ flag: "1", env: { STORYTREE_TEST_JOBS: "4" } }), { jobs: 1, source: "--jobs" });
   for (const bad of ["0", "two", "1.5", ""]) assert.throws(() => testJobs({ flag: bad, env: {} }), /--jobs is a whole number/);
+});
+
+// increment_3f535ac2dc4e: the Surface Pro (Windows arm64, 12 cores) failed every full run at two
+// units at once, and passed one at a time in the same 16 minutes.
+test("6.13 · where the test Postgres runs under emulation the default is one unit at a time, with the reason; --jobs and STORYTREE_TEST_JOBS still decide", () => {
+  const emulated = { platform: "win32", arch: "arm64", cpus: 12 };
+  const { jobs, source } = testJobs({ env: {}, ...emulated });
+  assert.equal(jobs, 1);
+  assert.match(source, /^default: .*emulation/);
+  assert.equal(testJobs({ env: {}, platform: "win32", arch: "x64", cpus: 4 }).jobs, DEFAULT_JOBS, "Windows on x64 runs it natively");
+  assert.equal(testJobs({ env: {}, platform: "darwin", arch: "arm64", cpus: 3 }).jobs, DEFAULT_JOBS, "arm64 elsewhere has a build of its own");
+  assert.deepEqual(testJobs({ flag: "2", env: {}, ...emulated }), { jobs: 2, source: "--jobs" });
+  assert.deepEqual(testJobs({ env: { STORYTREE_TEST_JOBS: "2" }, ...emulated }), { jobs: 2, source: "STORYTREE_TEST_JOBS" });
 });
 
 test("6.12 · a unit run alone starts only once every other unit has ended, and nothing starts beside it", async () => {

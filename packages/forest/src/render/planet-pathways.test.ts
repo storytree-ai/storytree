@@ -102,3 +102,25 @@ test('3.6 a change on one island routes nothing again (ADR-0836 D1)', () => {
   assert.deepEqual(routed, []);
   assert.deepEqual(after.edges, before.edges, 'the same pathways are drawn');
 });
+
+test('3.6 the roads are the survey\'s derived capability edges with the recorded dependsOn, each saying whether it is type-only (ADR-0991 D1, D3)', () => {
+  const edge = (story: string, from: string | undefined, to: string | undefined, typeOnly: boolean) =>
+    ({ story, ...(from === undefined ? {} : { from }), ...(to === undefined ? {} : { to }), typeOnly, files: [] });
+  // b's code takes types from a1 and a2, and b1 → a1 is also recorded; c's import of a reaches no capability on a.
+  const survey = {
+    b: { files: [], imports: [], edges: [edge('a', 'b1', 'a1', true), edge('a', 'b1', 'a2', true)] },
+    c: { files: [], imports: [], edges: [edge('a', 'c1', undefined, false)] },
+  };
+  const small = { arcs: [], stories: [
+    { id: 'a', title: 'A', health, capabilities: [capability('a1', []), capability('a2', [])] },
+    { id: 'b', title: 'B', health, capabilities: [capability('b1', ['a1'])] },
+    { id: 'c', title: 'C', health, capabilities: [capability('c1', [])] },
+  ] };
+  const derived = forestScene(small, [], workStates([]), survey);
+  assert.deepEqual([...derived.links!].sort((m, n) => `${m.from}${m.to}`.localeCompare(`${n.from}${n.to}`)), [
+    { from: 'b1', to: 'a1', typeOnly: false },
+    { from: 'b1', to: 'a2', typeOnly: true },
+  ], 'a recorded link is drawn by value; the code\'s types alone are type-only; an edge with no capability end has no road');
+  assert.equal('rowLinks' in derived, false, 'nothing else is handed on to draw');
+  assert.deepEqual(forestScene(small, [], workStates([])).links, [{ from: 'b1', to: 'a1', typeOnly: false }], 'with no survey the recorded links stand');
+});

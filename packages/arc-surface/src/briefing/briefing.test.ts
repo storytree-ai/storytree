@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { FieldsOf } from "@storytree/library";
 import { boardView } from "../board/board.js";
+import { renderBoard } from "../view/render.js";
 import { record } from "../testing/records.js";
 import { briefing, firstBriefing, incrementRows, questionReading } from "./briefing.js";
 
@@ -52,6 +53,16 @@ test("5.2 a question is read statement first with trade-offs, a non-binding reco
   const noDiagram = questionReading({ id: "q", fields: { ...fields, diagram: undefined } });
   assert.equal(noDiagram.diagram, "No diagram stored");
   assert.equal(noDiagram.hasDiagram, false);
+});
+
+test("5.3 a settled question published with only its title and answer opens on those two, with no empty headings", () => {
+  // A saved reading publishes a settled question's title and answer alone (website 3.14), so its other fields are absent.
+  const kept = record("kept", "question", { arc: "a", title: "Which way?", lifecycle: "settled", answer: "The short way" } as FieldsOf<"question">);
+  const arc = { arc: record("a", "arc", { title: "Arc a", intent: "a", endState: "Done" }), state: "active" as const, increments: [], questions: [kept] };
+  const html = renderBoard(boardView({ arcs: [arc], waits: {}, heldOn: {} }, [], new Date()), "a", "kept");
+  const reading = html.slice(html.indexOf('<aside class="arc-briefing"'));
+  assert.match(reading, /arc-answer.*?The short way.*?<h3>Which way\?<\/h3>/s);
+  assert.doesNotMatch(reading, /<h4>|diagram stored|arc-fold|\d+ words|undefined/i);
 });
 
 const work = (id: string, extra: Partial<FieldsOf<"increment">> = {}) => record(id, "increment", { arc: "a", title: `Build ${id}`, objective: `Objective of ${id}`, body: "planning body", status: "proposal", parked: "2026-09-27T00:00:00Z", ...extra });

@@ -44,6 +44,19 @@ export const publicPlan = (tree: AnnotatedTree) => ({
       contracts: capability.contracts.map(contract => pick(contract, ["id", "title", "description", "health"])) })) })),
 });
 
+const recordKeys = ["id", "type", "version", "createdAt", "updatedAt"];
+const publicRecord = <T extends { fields: object }>(record: T, keys: readonly string[]) => ({ ...pick(record, recordKeys), fields: pick(record.fields, keys) }) as unknown as T;
+
+/** The arcs as the arcs drawer reads them (the owner's answer to question_b4430290d0e5): what it shows of each arc, increment and open question, and of a settled one only its title and answer. */
+export const publicArcs = (arcs: readonly ArcView[]): ArcView[] => arcs.map(view => ({
+  ...pick(view, ["state", "wakes"]) as Pick<ArcView, "state" | "wakes">,
+  arc: publicRecord(view.arc, ["title", "intent", "priority"]),
+  increments: view.increments.map(increment => publicRecord(increment, ["arc", "title", "objective", "status", "parked", "capabilities", "heldOn", "outcome"])),
+  questions: view.questions.map(question => publicRecord(question, question.fields.lifecycle === "open"
+    ? ["arc", "title", "lifecycle", "statement", "stakes", "diagram", "options", "recommendation", "analogy", "context"]
+    : ["arc", "title", "lifecycle", "answer"])),
+}));
+
 /** The activity the sessions and arcs surfaces replay: their kinds of line, inside the recording's window. */
 export const publicActivity = (lines: readonly Line[], window: { from: string; to: string }) =>
   lines.filter(line => kinds.has(line.kind) && Date.parse(line.at) >= Date.parse(window.from) && Date.parse(line.at) < Date.parse(window.to));
@@ -81,7 +94,7 @@ export async function refreshTourSnapshot(file: string, read: () => Promise<Tour
     const scene = forestScene(tree, changes, workStates(lines), survey);
     const places = storyNodes(tree, changes, survey);
     const grown = growPlanet(places.map(({ id, place }) => ({ story: id, place, reach: islandCoastReach(scene.islands.find(island => island.story === id)!) })));
-    const arcs = input.arcs.filter(view => view.state !== "closed");
+    const arcs = publicArcs(input.arcs.filter(view => view.state !== "closed"));
     const boardIds = new Set(arcs.flatMap(view => [view.arc.id, ...view.increments.map(increment => increment.id)]));
     const snapshot = {
       version: 1, capturedAt, radius: grown.radius, scene, spots: [...grown.spots], project, places, tree: publicPlan(tree),

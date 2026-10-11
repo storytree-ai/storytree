@@ -118,10 +118,10 @@ function renderPanel(lane: Lane, detail: Briefing): string {
 }
 function renderQuestion(question: QuestionReading): string {
   return `${question.answer ? `<div class="arc-answer"><strong>Answer</strong><p>${escape(question.answer)}</p></div>` : ""}
-    <article class="arc-question" data-question-id="${escape(question.id)}"><div class="arc-reading-head"><button type="button" data-question-back>← back to questions</button><small>${question.words} words</small></div><h3>${escape(question.title)}</h3>
+    <article class="arc-question" data-question-id="${escape(question.id)}"><div class="arc-reading-head"><button type="button" data-question-back>← back to questions</button>${question.words ? `<small>${question.words} words</small>` : ""}</div><h3>${escape(question.title)}</h3>
     ${question.lead.map(({ label, text }) => `<h4>${label}</h4><p class="arc-prose">${escape(text)}</p>`).join("")}
-    <h4>Diagram</h4><pre class="arc-diagram">${escape(question.diagram)}</pre>
-    <h4>Options</h4>${question.options.map((option) => `<div class="arc-option"><p>${escape(option.summary)}</p>${option.for || option.against ? `<dl><dt>For</dt><dd>${escape(option.for)}</dd><dt>Against</dt><dd>${escape(option.against)}</dd></dl>` : ""}</div>`).join("")}
+    ${question.diagram ? `<h4>Diagram</h4><pre class="arc-diagram">${escape(question.diagram)}</pre>` : ""}
+    ${question.options.length ? "<h4>Options</h4>" : ""}${question.options.map((option) => `<div class="arc-option"><p>${escape(option.summary)}</p>${option.for || option.against ? `<dl><dt>For</dt><dd>${escape(option.for)}</dd><dt>Against</dt><dd>${escape(option.against)}</dd></dl>` : ""}</div>`).join("")}
     ${question.recommendation ? `<h4>${question.recommendation.label}</h4><p class="arc-prose">${escape(question.recommendation.text)}</p>` : ""}
     ${question.folds.map(({ label, text, words }) => `<details class="arc-fold" data-fold-key="${escape(question.id)}:${label}"><summary>${label} · ${words} words</summary><p class="arc-prose">${escape(text)}</p></details>`).join("")}</article>`;
 }

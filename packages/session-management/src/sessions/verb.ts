@@ -8,7 +8,7 @@
  * Nothing here loads anything: a door's menus read declarations at start, and the work a verb does is imported
  * inside its act.
  */
-import type { Library, WriteOptions } from "@storytree/library";
+import type { Library, Storytree, WriteOptions } from "@storytree/library";
 
 import type { ActivityLog } from "../activity/index.js";
 
@@ -51,6 +51,8 @@ export interface VerbContext {
   readonly writer?: WriteOptions;
   /** The storytree home the caller's process ledger and claims are kept under, when not the usual one. */
   readonly home?: string;
+  /** The library server, for what it keeps beside the projects (Machines' names), when the door has it open. */
+  readonly server?: Pick<Storytree, "ownDatabase">;
 }
 
 /** A verb's answer: one sentence (or a few lines), what it made or found, and the steps that open what it named. */

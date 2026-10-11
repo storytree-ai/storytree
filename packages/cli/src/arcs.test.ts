@@ -487,7 +487,7 @@ test("4.15 `arc increment new` and `edit` take --capabilities and --links, edit 
   });
 });
 
-test("4.18 `arc increment edit --held-on \"\"` clears a hold put on by mistake: the increment reads held on nothing", async () => {
+test("4.22 `arc increment edit --held-on \"\"` clears a hold put on by mistake: the increment reads held on nothing", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();
     const arc = await anArc(world);
@@ -502,7 +502,7 @@ test("4.18 `arc increment edit --held-on \"\"` clears a hold put on by mistake: 
   });
 });
 
-test("4.21 `arc increment edit --held-on none` clears a hold, for a shell that drops an empty argument (Windows PowerShell 5.1): the increment reads held on nothing", async () => {
+test("4.22 `arc increment edit --held-on none` clears a hold, for a shell that drops an empty argument (Windows PowerShell 5.1): the increment reads held on nothing", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();
     const arc = await anArc(world);

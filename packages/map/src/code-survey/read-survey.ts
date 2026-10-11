@@ -18,12 +18,15 @@
  * - Surveying again reads only what changed (ADR-0836 D2): a file whose size and modified time are as
  *   last read (or the same Git blob) is not read again, an unchanged story keeps its survey, the checkout is
  *   found once per folder without blocking, and one survey of a folder runs at a time.
+ * - A mapped story is read from the folder this machine imports it from, as mapped-survey.ts reads it
+ *   (ADR-0993 D2), never from the checkout's packages.
  */
 import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { Worker } from "node:worker_threads";
-import { surveySourceReader, type SurveySource } from "./survey-source.js";
+import { manifestFrom, SKIPPED, surveySourceReader, type SurveySource } from "./survey-source.js";
+import { mappedSurveyReader, type ImportedFolder } from "./mapped-survey.js";
 
 import type { AnnotatedTree } from "@storytree/library";
 
@@ -32,31 +35,7 @@ import { declaredNumberOf, dependenciesOf, packageOf, storyEdges, surveyStory, t
 /** Each story's survey, by story id; a story with no package is absent. */
 export type ProjectSurvey = Readonly<Record<string, StorySurvey>>;
 
-const SKIPPED = new Set(["node_modules", "dist", "out", "evidence"]);
 const TEST_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$/;
-
-/** The dependency fields of a package.json, in the order their names are listed. */
-const DEPENDENCY_FIELDS = ["dependencies", "devDependencies", "optionalDependencies", "peerDependencies"] as const;
-
-/** A package.json's name and the packages it depends on through any field; undefined when it cannot be read. */
-function manifestFrom(text: string): { name: string; deps: string[]; exports: SurveyPackage["exports"] } | undefined {
-  try {
-    const parsed = JSON.parse(text) as Record<string, unknown>;
-    if (typeof parsed.name !== "string") return undefined;
-    const deps = DEPENDENCY_FIELDS.flatMap((field) => {
-      const named = parsed[field];
-      return typeof named === "object" && named !== null ? Object.keys(named) : [];
-    });
-    const exports = typeof parsed.exports === "string" ? { ".": parsed.exports } : parsed.exports;
-    const literal = typeof exports === "object" && exports !== null ? Object.entries(exports).filter(([key, target]) =>
-      (key === "." || key.startsWith("./")) && !key.includes("*") && typeof target === "string" && target.startsWith("./")
-      && !target.includes("*") && !target.split("/").slice(1).some(part => part === ".." || part === "node_modules"),
-    ) as [string, string][] : [];
-    return { name: parsed.name, deps: [...new Set(deps)], exports: Object.fromEntries(literal) };
-  } catch {
-    return undefined;
-  }
-}
 
 /** The file beside a package's src that holds its coverage map (written by the dev loop's `pnpm survey:coverage`). */
 const COVERAGE_MAP = "survey-coverage.json";
@@ -83,7 +62,7 @@ export async function capabilitiesOfFiles(root: string, files: readonly string[]
   const undeclared: string[] = [];
   for (const raw of files) {
     const file = raw.replaceAll("\\", "/");
-    const story = tree.stories.find(({ title }) => file.startsWith(`packages/${packageOf(title)}/`) || (packageOf(title) === "app" && file.startsWith("apps/desktop/")));
+    const story = tree.stories.find(({ title, mapped }) => mapped === undefined && (file.startsWith(`packages/${packageOf(title)}/`) || (packageOf(title) === "app" && file.startsWith("apps/desktop/"))));
     if (story === undefined) continue;
     let text: string | undefined;
     try {
@@ -126,9 +105,14 @@ type Kept = { readonly version: string; readonly file: SourceFile };
 
 /** Surveys a project's checkout, keeping what it read so that surveying again reads only what changed. */
 export interface CodeSurveyReader {
-  /** The survey of every story in `tree` whose package the checkout at `folder` holds. */
-  read(folder: string, tree: AnnotatedTree): Promise<ProjectSurvey>;
+  /**
+   * The survey of every story in `tree` whose package the checkout at `folder` holds, and of every mapped story
+   * whose import is among `imports`, the folders this machine imports (ADR-0993 D2).
+   */
+  read(folder: string, tree: AnnotatedTree, imports?: readonly ImportedFolder[]): Promise<ProjectSurvey>;
 }
+
+export type { ImportedFolder };
 
 /** A coverage map's text, read; an unreadable one allocates nothing. */
 function coverageFrom(text: string): CoverageMap {
@@ -151,6 +135,7 @@ export function codeSurveyReader({ readFile: readText = (file: string) => readFi
   const surveyed = new Map<string, { readonly files: readonly SourceFile[]; readonly capabilities: string; readonly packages: string; readonly survey: StorySurvey }>();
   const running = new Map<string, Promise<ProjectSurvey>>();
   const edged = new Map<string, { readonly base: StorySurvey; readonly survey: StorySurvey }>();
+  const mappedReader = mappedSurveyReader(readText);
 
   /** A file at `full`, its path from `root` with forward slashes, read again only if it changed; undefined when there is none. */
   async function fileAt(source: SurveySource, root: string, full: string, seen: Map<string, Kept>, testSupport?: true): Promise<SourceFile | undefined> {
@@ -189,11 +174,13 @@ export function codeSurveyReader({ readFile: readText = (file: string) => readFi
     return found.flat();
   }
 
-  async function survey(folder: string, tree: AnnotatedTree): Promise<ProjectSurvey> {
+  async function survey(folder: string, tree: AnnotatedTree, imports: readonly ImportedFolder[]): Promise<ProjectSurvey> {
     const source = await sourceAt(folder);
     const checkout = source.root;
     const seen = new Map<string, Kept>();
-    const surveys = await Promise.all(tree.stories.map(async (story) => {
+    const mapped = mappedReader.read(tree.stories, imports);
+    mapped.catch(() => {}); // Awaited below; a failure there is the survey's.
+    const surveys = await Promise.all(tree.stories.filter((story) => story.mapped === undefined).map(async (story) => {
       const storyPackage = packageOf(story.title);
       const root = path.join(checkout, "packages", storyPackage);
       const sources = await filesUnder(source, root, path.join(root, "src"), seen);
@@ -285,13 +272,13 @@ export function codeSurveyReader({ readFile: readText = (file: string) => readFi
     });
     for (const full of kept.keys()) if (full.startsWith(checkout + path.sep) && !seen.has(full)) kept.delete(full);
     for (const [full, now] of seen) kept.set(full, now);
-    return Object.fromEntries(withEdges);
+    return { ...Object.fromEntries(withEdges), ...Object.fromEntries(await mapped) };
   }
 
   return {
-    read(folder, tree) {
+    read(folder, tree, imports = []) {
       // One survey of a folder at a time: an ask while one runs takes its answer (ADR-0836 D2).
-      const now = running.get(folder) ?? survey(folder, tree).finally(() => running.delete(folder));
+      const now = running.get(folder) ?? survey(folder, tree, imports).finally(() => running.delete(folder));
       running.set(folder, now);
       return now;
     },
@@ -300,9 +287,9 @@ export function codeSurveyReader({ readFile: readText = (file: string) => readFi
 
 const shared = codeSurveyReader();
 
-/** The survey of every story in `tree` whose package the checkout at `folder` holds, read through one kept reader. */
-export function readCodeSurvey(folder: string, tree: AnnotatedTree): Promise<ProjectSurvey> {
-  return shared.read(folder, tree);
+/** The survey of every story in `tree` whose package the checkout at `folder` holds, and of each mapped story `imports` holds, read through one kept reader. */
+export function readCodeSurvey(folder: string, tree: AnnotatedTree, imports?: readonly ImportedFolder[]): Promise<ProjectSurvey> {
+  return shared.read(folder, tree, imports);
 }
 
 /**
@@ -335,11 +322,11 @@ export function offThreadSurveyReader(workerFile: string | URL, options: { execA
     return made;
   };
   return {
-    read(folder: string, tree: AnnotatedTree): Promise<ProjectSurvey> {
+    read(folder: string, tree: AnnotatedTree, imports?: readonly ImportedFolder[]): Promise<ProjectSurvey> {
       return new Promise((resolve, reject) => {
         const id = next++;
         waiting.set(id, { resolve, reject });
-        started().postMessage({ id, folder, tree });
+        started().postMessage({ id, folder, tree, imports });
       });
     },
     async close(): Promise<void> {

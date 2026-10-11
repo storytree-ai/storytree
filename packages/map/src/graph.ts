@@ -11,7 +11,10 @@ export interface MapNode {
   readonly id: string;
   readonly kind: NodeKind;
   readonly title: string;
-  readonly health: MapHealth;
+  /** A mapped story and its files read mapped, in place of a health they do not carry (ADR-0993 D3). */
+  readonly health: MapHealth | "mapped";
+  /** A mapped story in a loop of roads among mapped stories: the titles round it, its own first. */
+  readonly loop?: readonly string[];
   readonly story: string;
   readonly number?: string;
   readonly path?: string;
@@ -54,7 +57,7 @@ export function buildGraph(tree: AnnotatedTree, survey: ProjectSurvey): ProjectG
   const nodes = new Map<string, MapNode>();
   const edges = new Map<string, MapEdge>();
   const healthSource = tree.unverified ? "reported" : "verified";
-  const promisesByPackage = new Map(tree.stories.map(story => [packageOf(story.title), new Map(story.capabilities.flatMap(cap => cap.contracts.flatMap(contract => {
+  const promisesByPackage = new Map(tree.stories.filter(story => story.mapped === undefined).map(story => [packageOf(story.title), new Map(story.capabilities.flatMap(cap => cap.contracts.flatMap(contract => {
     const number = /^\s*(\d+\.\d+)\b/.exec(contract.title)?.[1];
     return number === undefined ? [] : [[number, contract] as const];
   })))]));
@@ -63,8 +66,10 @@ export function buildGraph(tree: AnnotatedTree, survey: ProjectSurvey): ProjectG
     const value = { from, to, kind, provenance };
     edges.set(JSON.stringify(value), value);
   };
+  const titleOf = new Map(tree.stories.map(story => [story.id, story.title]));
   for (const story of tree.stories) {
-    add({ id: story.id, kind: "story", title: story.title, story: story.id, health: healthOf(story.health, healthSource) });
+    const loop = survey[story.id]?.mapped?.loop?.map(id => titleOf.get(id) ?? id);
+    add({ id: story.id, kind: "story", title: story.title, story: story.id, health: story.mapped === undefined ? healthOf(story.health, healthSource) : "mapped", ...(loop === undefined ? {} : { loop }) });
     for (const cap of story.capabilities) {
       const number = /^\s*(\d+)\s*·/.exec(cap.title)?.[1];
       add({ id: cap.id, kind: "capability", title: cap.title, story: story.id, health: healthOf(cap.health, healthSource), ...(number === undefined ? {} : { number }) });
@@ -80,6 +85,16 @@ export function buildGraph(tree: AnnotatedTree, survey: ProjectSurvey): ProjectG
   for (const story of tree.stories) {
     const read = survey[story.id];
     if (!read) continue;
+    if (read.mapped !== undefined) {
+      // A mapped island is a black box (ADR-0993 D5): its files, in no capability, and its roads; its files' ids are their full paths.
+      for (const file of read.files) {
+        const id = `file:${`${read.mapped.folder.replaceAll("\\", "/").replace(/\/$/, "")}/${file.path}`}`;
+        add({ id, kind: "file", title: file.path, path: file.path, story: story.id, health: "mapped" });
+        edge(id, story.id, "belongs-to", "inferred");
+      }
+      for (const dependency of read.dependsOn ?? []) edge(story.id, dependency, "depends-on", "inferred");
+      continue;
+    }
     const ownPackage = packageOf(story.title);
     const pathname = (file: string): string => normalizePath(`packages/${ownPackage}/${file}`);
     const fileId = (file: string): string => `${read.tests?.some(test => test.path === file) ? "test" : "file"}:${pathname(file)}`;

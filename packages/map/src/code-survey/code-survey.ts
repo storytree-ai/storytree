@@ -72,6 +72,11 @@ export type StorySurvey = {
   readonly edges?: readonly CodeEdge[];
   /** The stories whose packages this story's package depends on, through any field of its package.json; absent when it has none (ADR-0840 D2). */
   readonly dependsOn?: readonly string[];
+  /**
+   * Present for a mapped story (ADR-0993 D2): the folder this machine imports it from, its files' paths being
+   * from there, and the stories round a loop of roads it is in, itself first, when it is in one.
+   */
+  readonly mapped?: { readonly folder: string; readonly loop?: readonly string[] };
 };
 
 /** A package's coverage map: for each source file, how many numbered tests of each capability number executed it. */

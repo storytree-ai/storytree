@@ -35,7 +35,7 @@ test("3.5 · CommonJS bundled schema errors load and explain recovery with unkno
     assert.match(error.message, /pnpm install/);
     assert.match(error.message, /restart the MCP server from a current worktree/);
   } finally {
-    rmSync(folder, { recursive: true, force: true });
+    rmSync(folder, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });
 
@@ -69,7 +69,7 @@ test("3.5 · code distance stays pinned to loaded code after the checkout advanc
     git("update-ref", "-d", "refs/remotes/origin/main");
     assert.equal(distance(), undefined, "losing the reference cannot mask the schema refusal");
   } finally {
-    rmSync(folder, { recursive: true, force: true });
+    rmSync(folder, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });
 
@@ -80,6 +80,6 @@ test("3.5 · code outside a checkout has no invented commit distance", () => {
     writeFileSync(source, "// installed build\n");
     assert.equal(codeDistance(source)(), undefined);
   } finally {
-    rmSync(folder, { recursive: true, force: true });
+    rmSync(folder, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });

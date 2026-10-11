@@ -14,6 +14,7 @@ import { joinedReads, keptWorkStates, pageKeptReading, pageReading, type LiveRea
 import { mountArcSurface, type ArcSurface } from "@storytree/arc-surface/view";
 import { drillDown, forestDrawn, forestReading, forestScene, keptTree, selectedCapability, storyNodes, type ForestDrawn } from "@storytree/forest";
 import { mountJourneyConsent, mountJourneySettings } from "@storytree/journey-events/view";
+import { mountLagRecorder } from "@storytree/lag-in-use/view";
 import type { AnnotatedTree } from "@storytree/library";
 
 import type { StorytreeBridge } from "../bridge.js";
@@ -51,7 +52,8 @@ const appMenu = mountAppMenu(element("app-menu-host"), {
 const consentHost = document.createElement("div");
 document.body.append(consentHost);
 const consent = mountJourneyConsent(consentHost, window.storytree);
-window.addEventListener("beforeunload", () => { appMenu.stop(); consent.stop(); consentHost.remove(); });
+const lagRecorder = mountLagRecorder(window.storytree);
+window.addEventListener("beforeunload", () => { appMenu.stop(); consent.stop(); consentHost.remove(); lagRecorder?.stop(); });
 
 /** The project on show's forest and live reading, stopped when another project is shown. */
 let showing: { page: PageReading | undefined; reading: LiveReading | undefined; view: ForestView | undefined; arcs: ArcSurface | undefined; sessions: ReturnType<typeof mountSessionsList> | undefined; card: (() => void) | undefined; tree: TreeSpace | undefined } | undefined;

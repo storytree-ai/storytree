@@ -12,12 +12,15 @@
 // A report, never a gate (ADR-0623): no timing enters `pnpm test`.
 //
 //   pnpm lag:desktop [--action <name>] [--rounds <n>] [--story <title>] [--project <name>] [--out <dir>]
-//                    [--home-from <dir>|none] [--home <dir>]
+//                    [--home-from <dir>|none] [--home <dir>] [--recorder on|off]
 //   pnpm lag:desktop --chromium [--seed code-rows|forest] [--action <name>] [--rounds <n>] [--story <title>] [--out <dir>]
+//                    [--recorder on|off]
 //   pnpm lag:desktop --analyze <dir>      reprint a run's table and summary
 //
 // --story names the island open-named-island opens (default: the library's, the owner's case). --home names the throwaway
 // home: the first run on it starts cold, and a later run on the same home starts warm from the reading the first one kept.
+// --recorder off opens the page with the app's own lag recorder (Lag in real use) switched off, so a run with it and a run
+// without show what recording costs; its `recordLag` calls are counted with the rest, by round.
 //
 // The app runs in Electron on a throwaway STORYTREE_HOME holding copies of the real home's settings.json, machine.json,
 // project-choice.json and auth.json (the keys, among them the library's Postgres password, kept readable by the user alone), so
@@ -180,16 +183,19 @@ async function prepare(page, step, round, limitMs) {
 async function performRound(page, action, ipc) {
   const round = {};
   for (const step of action.setup) await (await prepare(page, step, round, action.limitMs))();
-  const calls = await ipc.mark();
   let before;
+  let calls;
   for (const step of action.perform) {
     const act = await prepare(page, step, round, action.limitMs);
+    // Counted from the first input on: turning an island to face, in prepare, is unmeasured.
     before ??= await page.evaluate(`({ t: performance.now(), inputs: ${INPUTS} })`);
+    calls ??= await ipc.mark();
     await act();
   }
   const start = before.t;
   const readings = await waitFor(page, action.settled, round.island, action.limitMs);
   const settledAt = readings.at(-1).t;
+  const settledCalls = await ipc.mark();
   // Event Timing reports after the paint: two frames more so the last input's entry has arrived.
   await page.evaluate(READ_PAGE);
   const after = await page.evaluate(READ_PAGE);
@@ -205,6 +211,8 @@ async function performRound(page, action, ipc) {
     settled: Object.keys(action.settled).length === 0 ? null : settledAt - start,
     ...(shown === -1 ? {} : { progressAt: readings[shown].t - start, progressHeld: readings.slice(shown).every((reading) => reading.progress || isSettled(action.settled, reading, round.island)) }),
     ipc: await ipc.since(calls),
+    // The calls made by the time settled was seen: the page's lag recorder must make none of them (Lag in real use 1.2).
+    ipcUntilSettled: await ipc.since(calls, settledCalls),
   };
 }
 
@@ -251,13 +259,13 @@ async function measurePage(page, { actions, rounds, out, ipc, state, readyMs, ex
 }
 
 /** Launch the built desktop app in Electron and run the catalogue on it; IPC is its main process's handlers, wrapped. */
-async function measureElectron({ appDir, exe, extraArgs, home: reuse, homeFrom, project, out, actions, rounds }) {
+async function measureElectron({ appDir, exe, extraArgs, home: reuse, homeFrom, project, out, actions, rounds, recorder }) {
   const { _electron } = await import("playwright-core");
   const { home, warm } = lagHome({ home: reuse, homeFrom });
   log("home", home, warm ? "(warm: reused)" : homeFrom === "none" ? "(empty)" : `(settings from ${homeFrom})`);
 
   const began = Date.now();
-  const app = await _electron.launch({ executablePath: exe, args: [...extraArgs, appDir, ...(project ? ["--project", project] : [])], env: { ...process.env, STORYTREE_HOME: home }, timeout: 180_000 });
+  const app = await _electron.launch({ executablePath: exe, args: [...extraArgs, appDir, ...(project ? ["--project", project] : [])], env: { ...process.env, STORYTREE_HOME: home, ...(recorder === "off" ? { STORYTREE_LAG_RECORDER: "off" } : {}) }, timeout: 180_000 });
   app.process().stdout.on("data", (data) => process.stdout.write(`[main] ${data}`));
   app.process().stderr.on("data", (data) => process.stdout.write(`[main!] ${data}`));
   try {
@@ -301,8 +309,8 @@ async function measureElectron({ appDir, exe, extraArgs, home: reuse, homeFrom, 
     const readyMs = Date.now() - began;
     log("state", state, "after", readyMs, "ms");
     const read = () => app.evaluate(() => globalThis.__ipc);
-    const ipc = { mark: async () => (await read()).length, since: async (from) => byChannel((await read()).slice(from)), all: read };
-    await measurePage(page, { actions, rounds, out, ipc, state, readyMs, extra: async () => ({ lag: await app.evaluate(() => globalThis.__lag) }) });
+    const ipc = { mark: async () => (await read()).length, since: async (from, to) => byChannel((await read()).slice(from, to)), all: read };
+    await measurePage(page, { actions, rounds, out, ipc, state, readyMs, extra: async () => ({ lag: await app.evaluate(() => globalThis.__lag), recorder }) });
   } finally {
     await app.close().catch(() => {});
   }
@@ -313,7 +321,7 @@ async function measureElectron({ appDir, exe, extraArgs, home: reuse, homeFrom, 
  * on a library snapshot (`seed`): for a machine where Electron cannot run, as on the Mint box. IPC is the bridge's calls.
  * The kit is the app's own TypeScript, loaded at run time through tsx, as the evidence captures load it: no package depends on it.
  */
-async function measureChromium({ seed: seedName, out, actions, rounds }) {
+async function measureChromium({ seed: seedName, out, actions, rounds, recorder }) {
   const { register } = await import("tsx/esm/api");
   register();
   const kit = await import(pathToFileURL(path.join(root, "apps", "desktop", "src", "capture", "index.ts")).href);
@@ -326,6 +334,7 @@ async function measureChromium({ seed: seedName, out, actions, rounds }) {
     return answer(...args);
   };
   let current = seed.projects[0];
+  const recorded = [];
   const answers = {
     projectSelection: async () => ({ projects: seed.projects, current }),
     chooseProject: async (name) => ({ projects: seed.projects, current: (current = name) }),
@@ -335,18 +344,21 @@ async function measureChromium({ seed: seedName, out, actions, rounds }) {
     linesSince: async (_, cursor) => (cursor === 0 ? seed.lines : { lines: [], cursor: seed.lines.cursor }),
     frontCovers: async (_, id) => seed.covers[id] ?? [],
     ...(survey === undefined ? {} : { codeSurvey: async () => survey }),
+    // Counted like any call, so a round shows whether the page's lag recorder spoke between an input and its settling; what it
+    // sent is kept in result.json beside the lab's own rounds.
+    recordLag: async (readings) => { recorded.push(...readings); },
   };
   const bridge = kit.fakeBridge(Object.fromEntries(Object.entries(answers).map(([channel, answer]) => [channel, counted(channel, answer)])));
   await kit.withCapture({ folder: path.join(out, "capture"), dist }, async ({ browser, origin }) => {
     const began = Date.now();
     const page = await browser.newPage({ viewport: { width: 1440, height: 960 }, deviceScaleFactor: 1, colorScheme: "dark" });
     await bridge.install(page);
-    await page.goto(`${origin}/index.html`, { waitUntil: "domcontentloaded", timeout: 180_000 });
+    await page.goto(`${origin}/index.html${recorder === "off" ? "?lag-recorder=off" : ""}`, { waitUntil: "domcontentloaded", timeout: 180_000 });
     await bridge.ready(page, 180_000);
     const readyMs = Date.now() - began;
     log("state ready after", readyMs, "ms, on the", seedName, "snapshot");
-    const ipc = { mark: async () => calls.length, since: async (from) => byChannel(calls.slice(from)), all: async () => calls };
-    await measurePage(page, { actions, rounds, out, ipc, state: "ready", readyMs, extra: async () => ({ lag: [], page: "chromium", seed: seedName, defaulted: bridge.defaulted }) });
+    const ipc = { mark: async () => calls.length, since: async (from, to) => byChannel(calls.slice(from, to)), all: async () => calls };
+    await measurePage(page, { actions, rounds, out, ipc, state: "ready", readyMs, extra: async () => ({ lag: [], page: "chromium", seed: seedName, recorder, recorded, defaulted: bridge.defaulted }) });
   });
 }
 
@@ -499,7 +511,9 @@ async function main(args) {
   if (!Number.isInteger(rounds) || rounds < 1) throw new Error("--rounds takes a whole number of at least 1");
   const out = path.resolve(option(args, "out", path.join(tmpdir(), `lag-desktop-${new Date().toISOString().replace(/[:.]/g, "-")}`)));
   mkdirSync(out, { recursive: true });
-  if (args.includes("--chromium")) await measureChromium({ seed: option(args, "seed", "code-rows"), out, actions, rounds });
+  const recorder = option(args, "recorder", "on");
+  if (recorder !== "on" && recorder !== "off") throw new Error("--recorder takes on or off");
+  if (args.includes("--chromium")) await measureChromium({ seed: option(args, "seed", "code-rows"), out, actions, rounds, recorder });
   else {
     const appDir = path.resolve(process.env.APP_DIR ?? path.join(root, "apps", "desktop"));
     if (!existsSync(path.join(appDir, "dist", "main.cjs"))) throw new Error(`${appDir} has no dist/main.cjs: build it first (pnpm --filter @storytree/desktop build), or set APP_DIR to a built app`);
@@ -507,7 +521,7 @@ async function main(args) {
     const homeFrom = option(args, "home-from", process.env.STORYTREE_HOME ?? path.join(homedir(), ".storytree", "0.3"));
     const extraArgs = (process.env.ELECTRON_ARGS ?? "").split(" ").filter(Boolean);
     const home = option(args, "home", undefined);
-    await measureElectron({ appDir, exe, extraArgs, home: home === undefined ? undefined : path.resolve(home), homeFrom, project: option(args, "project", undefined), out, actions, rounds });
+    await measureElectron({ appDir, exe, extraArgs, home: home === undefined ? undefined : path.resolve(home), homeFrom, project: option(args, "project", undefined), out, actions, rounds, recorder });
   }
   console.log(`\n${summary(out)}`);
   console.log(`\nlag:desktop: the run is in ${out}`);

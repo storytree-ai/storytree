@@ -15,6 +15,7 @@ import { doors } from "./doors.js";
 import { accountStatus, signIn, signOut } from "./identity.js";
 import { library } from "./library.js";
 import { journeyFamily } from "./journey.js";
+import { lag } from "./lag.js";
 import { questions } from "./question.js";
 import { noticeboard } from "./noticeboard.js";
 import { importFamily, projectFamily } from "./project.js";
@@ -43,6 +44,7 @@ export const FAMILIES: readonly Family[] = [
   decisions,
   noticeboard,
   doors,
+  lag,
   doctorFamily,
   checkFamily,
   quality,

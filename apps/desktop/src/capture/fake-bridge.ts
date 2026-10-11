@@ -88,6 +88,7 @@ const QUIET: StorytreeBridge = {
   relatedNotes: async () => [],
   standingDelegations: async () => undefined,
   codeSurvey: async () => ({}),
+  recordLag: async () => {},
 };
 
 /** A fake bridge answering with `answers`, and with the quiet answers for the rest, typed against the desktop app's own bridge. */

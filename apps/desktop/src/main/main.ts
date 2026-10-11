@@ -78,6 +78,8 @@ import { FEEDBACK_IDENTITY_CHANNELS, FEEDBACK_IDENTITY_OFFERED, SETUP_HELP_CHANN
 import { settingsActions, SETTINGS_CHANNELS } from "@storytree/session-management/settings";
 import { createJourneyRuntime, type JourneyRuntime } from "@storytree/journey-events/runtime";
 import { JOURNEY_CHANNELS } from "@storytree/journey-events/bridge";
+import { createLagRuntime } from "@storytree/lag-in-use/runtime";
+import { LAG_CHANNELS } from "@storytree/lag-in-use/bridge";
 import { LIFECYCLE_CHANNELS } from "@storytree/app/lifecycle/bridge";
 import { PROJECTS_CHANNELS } from "@storytree/app/projects/bridge";
 import { UPDATES_CHANNELS } from "@storytree/app/updates/bridge";
@@ -217,8 +219,11 @@ if (refusal !== undefined) {
 
 async function run(): Promise<void> {
   // The bundled main is CommonJS with no import.meta, so its own build is named from Electron when packaged and from the checkout at its app path otherwise.
-  journey = createJourneyRuntime({ home: home.dir, appVersion: app.isPackaged ? app.getVersion() : (sourceVersion(app.getAppPath())?.version ?? "0.3.0") });
+  const appVersion = app.isPackaged ? app.getVersion() : (sourceVersion(app.getAppPath())?.version ?? "0.3.0");
+  journey = createJourneyRuntime({ home: home.dir, appVersion });
   answerPage(ipcMain, JOURNEY_CHANNELS, journey);
+  // The page's lag readings are kept in the home and go nowhere else (Lag in real use).
+  answerPage(ipcMain, LAG_CHANNELS, createLagRuntime({ home: home.dir, appVersion }));
   if (!args.smoke && !args.startCheck) journey.desktopStarted(installedApp());
   const settings = settingsActions(home.dir);
   answerPage(ipcMain, SETTINGS_CHANNELS, settings);
@@ -570,7 +575,9 @@ function openWindow(query: { project?: string; problem?: string }): BrowserWindo
     event.preventDefault();
     window.setTitle(build === "" ? title : `${title} · ${build}`);
   });
-  void window.loadFile(path.join(__dirname, "renderer", "index.html"), { query });
+  // The lag instrument measures the catalogue with the page's lag recorder on and off (STORYTREE_LAG_RECORDER=off).
+  const recorder = process.env.STORYTREE_LAG_RECORDER === "off" ? { "lag-recorder": "off" } : {};
+  void window.loadFile(path.join(__dirname, "renderer", "index.html"), { query: { ...query, ...recorder } });
   return window;
 }
 

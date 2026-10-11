@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { Vector3, type BufferGeometry } from 'three';
 import { drawLane, laneMaterial, laneRibbon, ribbon, revealRibbon } from './PlanetTrailRibbons.js';
+import { laneHeads } from './lanes.js';
 
 function front(geometry: BufferGeometry): number {
   const lastPair = geometry.drawRange.count / 6;

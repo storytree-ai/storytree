@@ -27,10 +27,13 @@ await stageTools();
 const signing = mac ? macSigning(process.env) : undefined;
 const identity = signing?.mode === "ad-hoc" ? { mac: { identity: signing.identity, notarize: signing.notarize } } : {};
 if (identity.mac) process.env.CSC_FOR_PULL_REQUEST = "true";
+// The packaged package.json records the Mac signing mode: only a Developer ID build follows releases (updates 4.21),
+// because Squirrel.Mac refuses an update to an app that is not Developer ID signed.
+const extraMetadata = { ...(version === undefined ? {} : { version }), ...(signing ? { storytree: { macSigning: signing.mode } } : {}) };
 await build({
   ...(mac ? { mac: [] } : { win: [] }), // use package.json's per-target architectures
   publish: "never",
-  ...(version === undefined && !identity.mac ? {} : { config: { ...(version === undefined ? {} : { extraMetadata: { version } }), ...identity } }),
+  ...(Object.keys(extraMetadata).length === 0 ? {} : { config: { extraMetadata, ...identity } }),
 });
 const here = path.dirname(fileURLToPath(import.meta.url));
 (mac ? macDeliveryAssets : deliveryAssets)(path.join(here, "release"), version ?? JSON.parse(readFileSync(path.join(here, "package.json"), "utf8")).version);

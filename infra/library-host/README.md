@@ -17,6 +17,27 @@ real run. Do not run `cutover.sh` or `rollback.sh` for real during rehearsal.
 `setup.sh` is the exact previously reviewed script the owner ran with sudo.
 The lane does not have sudo and does not rerun it.
 
+## Reaching it by a remote name
+
+Over the tailnet (`mickh-a520i-ac`, its Tailscale names or `100.97.8.31`) the
+library answers only over TLS, and storytree trusts its certificate only where the
+address names it (ADR-0997 D1): no build of storytree trusts it, and an address
+with no `sslrootcert` trusts Node's authorities alone, so it is refused
+`untrusted-server`. `mint-library.crt` here is that certificate's public half
+(SHA-256 90:B0:79:84:…:D3:F1:71; check it with `openssl x509 -noout -fingerprint
+-sha256 -in mint-library.crt`), committed because it is not a secret (ADR-0943 D3).
+
+- The laptop keeps its own copy at `C:\Users\mickh\.storytree\0.3\mint-library.crt`,
+  and its library is
+  `postgres://storytree_library@mickh-a520i-ac:5432/postgres?sslrootcert=C:/Users/mickh/.storytree/0.3/mint-library.crt`.
+  Nothing that tidies the storytree home may remove that file.
+- CI's two jobs that read the library (`capability-list.yml`, `own-health.yml`)
+  name this file in the checkout:
+  `?sslrootcert=$GITHUB_WORKSPACE/infra/library-host/mint-library.crt`.
+- A new development machine copies `mint-library.crt` somewhere it keeps, then sets
+  its library to the box's address with `?sslrootcert=<that absolute path>`.
+- The box itself reaches the library at `127.0.0.1`: loopback, no TLS, no file.
+
 ## Setup and rehearsal
 
 Owner-only, on an unprepared Mint host:
@@ -195,7 +216,8 @@ retry: preserved databases and files are intentional.
 After Mint passes, the laptop saves its client key using a command such as
 `!ssh mickh@mickh-a520i-ac cat /home/mickh/.storytree/library-host/postgres-password`
 via `storytree auth set postgres` stdin, sets the library to
-`postgres://storytree_library@mickh-a520i-ac:5432/postgres`, restarts its app/tool
+`postgres://storytree_library@mickh-a520i-ac:5432/postgres?sslrootcert=<its copy of mint-library.crt>`
+(see "Reaching it by a remote name"), restarts its app/tool
 servers and smokes. The laptop alone stops Cloud SQL, enables the alert, switches
 CI secrets/settings and resumes the backup timer and lanes.
 

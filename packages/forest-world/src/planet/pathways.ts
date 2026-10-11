@@ -22,6 +22,8 @@ export interface PlanetPathwaySegment {
   /** Physical ground units, from the original capability links sharing this segment. */
   width: number;
   links: string[];
+  /** How many of its links are type-only: only the code's types join their capabilities (ADR-0991 D1); absent for none. */
+  typeOnlyLinks?: number;
   /** On a road between islands: its longest stretch, in ground units, that the router never planned: the straight
    * run on the chart from where the router ends it to its dock on the coast, or a gap the globe filled in along its
    * surface. */
@@ -31,7 +33,8 @@ export interface PlanetPathwaySegment {
 export interface PlanetPathways {
   plates: Map<string, PlanetPathwayPlate>;
   segments: PlanetPathwaySegment[];
-  edges: TrailEdgeOut[];
+  /** Each with `typeOnly` when only the code's types join its two capabilities. */
+  edges: (TrailEdgeOut & { typeOnly?: true })[];
   docks: { story: string; point: Vector3; local: CoastPoint; links: string[] }[];
 }
 
@@ -52,7 +55,7 @@ interface Ground extends PreparedGround {
   centre: Point;
   r: number;
 }
-interface Link extends TrailEdgeIn { source: string; target: string }
+interface Link extends TrailEdgeIn { source: string; target: string; typeOnly?: true }
 interface Dock { story: string; local: CoastPoint; point: Vector3; links: Set<string> }
 
 // Polls preserve unchanged island objects; retain their ground input and relief through routing.
@@ -317,9 +320,10 @@ export function buildPlanetPathways(scene: ForestScene, spots: ReadonlyMap<strin
     if (!pair || !edge) throw new Error(`Missing cross-island route for ${displayKey(link)}`);
     pair.source.links.add(displayKey(link));
     pair.target.links.add(displayKey(link));
-    plan.edges.push({ from: link.from, to: link.to, segments: refPrefix('cross:', edge) });
+    plan.edges.push({ from: link.from, to: link.to, segments: refPrefix('cross:', edge), ...link.typeOnly ? { typeOnly: true as const } : {} });
   }
   const segmentById = new Map(plan.segments.map(segment => [segment.id, segment]));
+  const typeOnly = new Set(plan.edges.filter(edge => edge.typeOnly).map(displayKey));
   for (const edge of plan.edges) for (const ref of edge.segments) {
     const segment = segmentById.get(ref.id);
     if (!segment) throw new Error(`Missing pathway segment ${ref.id}`);
@@ -328,6 +332,8 @@ export function buildPlanetPathways(scene: ForestScene, spots: ReadonlyMap<strin
   for (const segment of plan.segments) {
     if (segment.links.length === 0) throw new Error(`Orphan pathway segment ${segment.id}`);
     segment.links.sort();
+    const typed = segment.links.filter(link => typeOnly.has(link)).length;
+    if (typed > 0) segment.typeOnlyLinks = typed;
     segment.width = trailFillWidth(segment.links.length) * RIBBON_GROUND_SCALE;
   }
   plan.docks = [...docks.values()].map(dock => ({ story: dock.story, point: dock.point, local: dock.local, links: [...dock.links].sort() }));

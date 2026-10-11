@@ -10,8 +10,9 @@ import { KnowledgeGlobePoints, useCodeLighting, type CodeLighting, type Knowledg
 import { SessionIslandEmphasis } from "./session-emphasis.js";
 import { circleStops, fileCircleMarks, lightFileCircles } from "./file-circles.js";
 import { lightTerritories, territoryLand } from "./territory-land.js";
+import { laneWays } from "./border-route.js";
 import { ClaimMarks } from "./claim-flag.js";
-import { fileCircles, territories } from "../territories/territories.js";
+import { fileCircles, islandTerritories } from "../territories/territories.js";
 import { NameplateCrowd, Nameplates, Overlay, reducedMotion, SelectionRing } from "./island-overlays.js";
 import { dragTurn, focusRotation, globeHover, hiddenMarkers, isGlobeDrag, oncePerFrame, pickGlobe, planetLayout, type ForestMode } from "./planet-navigation.js";
 import { claimsOn } from "./planet-update.js";
@@ -100,6 +101,8 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
   const lighting = useCodeLighting(core, codePlaces);
   // Contract 3.26: the selected story's links to other stories light as lanes; the Library shows none.
   const lanes = useKept(useMemo(() => mode === "forest" ? selectionLanes(scene, selected) : [], [scene, selected, mode]), JSON.stringify);
+  // ADR-0991 D4: a lit lane runs on from its dock along the territories' borders to its capability.
+  const ways = useMemo(() => laneWays(layout.scene.islands), [layout.scene]);
   const overlays = useCallback((island: Island, descriptors: readonly Descriptor3D[], coast: readonly (readonly { x: number; z: number }[])[]) => {
     // Lane B has already centred the descriptors in the plate's own ground coordinates.
     const local = { ...island, x: 0, z: 0 };
@@ -116,7 +119,7 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
   return <PlanetWorldCanvas scene={layout.scene} spots={layout.spots} radius={layout.radius}
     surface surfaces={shownSurfaces} framing={cameraFraming} sideOffset={cameraOffset} orbit={false}
     inside={<group name="globe-core" visible={library && shownSurfaces.knowledgeCore}><GrowingCore core={core} spots={layout.spots} radius={layout.radius} places={codePlaces} growing={growth !== undefined} /></group>}
-    rotation={rotation.toArray()} plateChildren={overlays} lanes={lanes} growth={growth} liveRoads={liveRoads}>
+    rotation={rotation.toArray()} plateChildren={overlays} lanes={lanes} laneWays={ways} growth={growth} liveRoads={liveRoads}>
     <Navigation islands={layout.islands} radius={layout.radius} titles={new Map(scene.islands.map(i => [i.story, i.title]))}
       rotation={rotation} onRotate={setRotation} onPose={setPose} onControls={onControls} onPick={onPick} onNote={onNote} mode={mode} onPast={setPast}
       opening={{ framing: framing ?? 1.18, sideOffset: sideOffset ?? 0 }}
@@ -175,7 +178,7 @@ function Territories({ story, land, coast, claimed, radius, spot, lighting, surf
   // A claim on another island leaves this one's territories as they were.
   const tints = useKept(claimed, tints => claimsOn(tints, land));
   const drawn = useMemo(() => {
-    const map = territories(land.territories, coast);
+    const map = islandTerritories(land.territories, coast);
     const group = territoryLand(map, onIslandSurface(radius, TERRITORY_LIFT), coast, tints);
     const circles = fileCircleMarks(fileCircles(map, land.files), onIslandSurface(radius), islandNormal(radius));
     const root = new Group();

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { AnnotatedTree } from "@storytree/library";
 import { buildGraph } from "./index.js";
-import { focus } from "./focus.js";
+import { focus, formatFocus } from "./focus.js";
 
 const health = { reported: { state: "not-checked" }, verified: { state: "passing" } } as const;
 const promise = { id: "projects-empty", title: "2.5 An empty project shows its next step", health };
@@ -115,4 +115,32 @@ test("1.1 a dependent's prefixed proof joins the named package's promise and pre
   assert.equal(built.nodes.find(node => node.id === foreignId)?.health, "failing");
   assert.deepEqual(built.nodes.find(node => node.id === foreignId)?.testTitles, [proof, unknown]);
   assert.ok(built.edges.some(edge => edge.from === "test:packages/session-management/src/local.test.ts" && edge.to === "local-proof" && edge.kind === "tests"));
+});
+
+test("3.7 a mapped story, and a file of its imported folder by either path, answer counts first with the word mapped and no health word, naming a loop", () => {
+  const mapped = (pkg: string) => ({ from: "https://example.test/shop.git", package: pkg, folders: [pkg] });
+  const plan = { arcs: [], stories: [
+    { id: "cart", title: "@shop/cart", health, capabilities: [], mapped: mapped("packages/cart") },
+    { id: "pay", title: "@shop/pay", health, capabilities: [], mapped: mapped("packages/pay") },
+  ] } as unknown as AnnotatedTree;
+  const built = buildGraph(plan, {
+    cart: { files: [{ path: "packages/cart/src/index.ts", lines: 3 }], imports: [], tests: [], dependsOn: ["pay"], mapped: { folder: "/code/shop", loop: ["cart", "pay"] } },
+    pay: { files: [{ path: "packages/pay/lib/pay.mjs", lines: 1 }], imports: [], tests: [], dependsOn: ["cart"], mapped: { folder: "/code/shop", loop: ["pay", "cart"] } },
+  });
+  const counts = focus(built, { select: "story:@shop/cart" });
+  assert.equal(counts.rows, undefined);
+  assert.deepEqual(counts.counts.byDepth, { 0: { story: 1 }, 1: { story: 1, file: 1 } });
+  assert.equal(counts.counts.mapped, 3);
+  assert.deepEqual(counts.loops, [["@shop/cart", "@shop/pay"], ["@shop/pay", "@shop/cart"]]);
+  const text = formatFocus(counts);
+  assert.match(text, /Mapped: 3/);
+  assert.match(text, /@shop\/cart → @shop\/pay → @shop\/cart/);
+  assert.doesNotMatch(text, /health|healthy|failing|untested|verified/i);
+
+  const file = "file:/code/shop/packages/cart/src/index.ts";
+  const shown = focus(built, { select: "file:packages/cart/src/index.ts", up: 1, mode: "show" });
+  assert.deepEqual(shown.rows?.map(row => [row.id, row.health]), [[file, "mapped"], ["cart", "mapped"]]);
+  assert.match(formatFocus(shown), /\[mapped\]/);
+  assert.doesNotMatch(formatFocus(shown), /health|healthy|failing|untested|verified/i);
+  assert.equal(focus(built, { select: "file:/code/shop/packages/cart/src/index.ts", up: 0, mode: "show" }).rows?.[0]?.id, file, "its full path selects it too");
 });

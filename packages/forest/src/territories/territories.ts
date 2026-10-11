@@ -84,6 +84,18 @@ export function territories(shares: readonly TerritoryShare[], outline: number |
   return coast === undefined ? { radius, territories: held, cells, borders } : { radius, coast, territories: held, cells, borders };
 }
 
+/** Each island's cut, by its shares and coast, so its drawing, its nameplates and its lit lanes cut it once. */
+const cuts = new WeakMap<readonly TerritoryShare[], { coast: Coast; map: TerritoryMap }>();
+
+/** {@link territories} of an island's `shares` cut to its `coast`, once for the pair whoever asks. */
+export function islandTerritories(shares: readonly TerritoryShare[], coast: Coast): TerritoryMap {
+  const known = cuts.get(shares);
+  if (known?.coast === coast) return known.map;
+  const map = territories(shares, coast);
+  cuts.set(shares, { coast, map });
+  return map;
+}
+
 /** `count` seeds spread evenly over the disc of `radius`, like a sunflower's. */
 function sunflower(count: number, radius: number): Point[] {
   return Array.from({ length: count }, (_, at): Point => {

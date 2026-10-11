@@ -1,27 +1,37 @@
 /** Capability 4 · Updates. Installed-app updates; development slots keep their own follow-main updater. */
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 
 import { app } from "electron";
-import { ReleaseUpdater, releaseChannel, type InstallChoice, type ReleaseOptions } from "@storytree/app";
+import { ReleaseUpdater, installation, releaseChannel, type InstallChoice, type Installation, type ReleaseOptions } from "@storytree/app";
 
+import { appHome } from "../home.js";
 import { releasesLog, waitingLine } from "./releases-log.js";
 
-/**
- * Whether this is the app the installer put here. The installer writes a marker; unpacked
- * development bundles, portable executables and smoke runs must never replace themselves with an
- * installed release, nor register themselves to open at sign-in.
- */
-export function installedApp(): boolean {
-  return app.isPackaged && process.platform === "win32" && process.env.PORTABLE_EXECUTABLE_FILE === undefined &&
-    existsSync(path.join(process.resourcesPath, "storytree-installed"));
+/** This app's installation (updates 4.21): whether it is installed, and whether it follows releases. */
+function thisInstallation(): Installation {
+  return installation({
+    platform: process.platform, packaged: app.isPackaged, resourcesPath: process.resourcesPath, appPath: app.getAppPath(),
+    home: appHome().dir, portable: process.env.PORTABLE_EXECUTABLE_FILE,
+  });
 }
 
-/** The updater, for the gear's Updates panel; undefined where the app does not update from releases. */
-export function followReleases(options: ReleaseOptions, home: string, choice: () => InstallChoice): ReleaseUpdater | undefined {
-  if (!installedApp()) return undefined;
+/** Whether this is the app the installer put here (the Windows installer's marker, or a Mac delivery record naming this bundle). */
+export function installedApp(): boolean {
+  return thisInstallation().installed;
+}
 
-  const updater = new ReleaseUpdater({ ...options, home, releaseChannel: () => releaseChannel(home, readFileSync(path.join(process.resourcesPath, "storytree-installed"), "utf8")) });
+/** Whether a downloaded release can install itself here, which the gear's install choice is about. */
+export function releasesInstall(): boolean {
+  return thisInstallation().followsReleases;
+}
+
+/** The updater, for the gear's Updates panel; undefined where the app does not update from releases (an ad-hoc signed Mac build among them). */
+export function followReleases(options: ReleaseOptions, home: string, choice: () => InstallChoice): ReleaseUpdater | undefined {
+  const { followsReleases, markerFile } = thisInstallation();
+  if (!followsReleases) return undefined;
+
+  const updater = new ReleaseUpdater({ ...options, home, releaseChannel: () => releaseChannel(home, markerFile === undefined ? "" : readFileSync(markerFile, "utf8")) });
   const log = releasesLog(path.join(home, "releases.log"));
   updater.logger = log;
   const check = async (): Promise<void> => {

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { pickPlan, pickPool, readSurvey } from "./feed.mjs";
+import { blind, pickPlan, pickPool, readOnly, readSurvey } from "./feed.mjs";
 
 const now = Date.parse("2026-10-07T03:00:00Z");
 
@@ -197,4 +197,20 @@ test("11.16 · work is left out while a capability on its list is on the list of
   assert.match(Object.fromEntries(skipped.map((skip) => [skip.id, skip.why])).wide, /capability_shared held by live session s9 on the list of driven/);
   assert.deepEqual(pickPool(work([{ ...driving[0], holder: "gone" }]), { max: 3, now }).picks.map((one) => one.id), ["driven", "wide", "apart"],
     "offered again once the holder's claim is no longer live");
+});
+
+test("11.17 · only the body's leading needs clause routes work: read-only, blind or another machine said later is not its need", () => {
+  const sameLine = "Needs: packages/website; Mint-capable. Build the panels and retain usable read-only panels for a blind reviewer on the laptop.";
+  const quoted = "Needs: packages/dev-loop.\nThe bug: a label reading needs: read-only, blind, or needs: the laptop, later in a body.";
+  for (const body of [sameLine, quoted]) {
+    assert.equal(readOnly(body), false, body);
+    assert.equal(blind(body), false, body);
+  }
+  assert.equal(readOnly("needs: read-only. Survey the arc."), true);
+  assert.equal(blind("Needs: blind review of the change."), true);
+  assert.equal(readOnly("needs: read-only, blind"), true);
+  assert.equal(blind("needs: read-only, blind"), true);
+  const { picks, skipped } = pickPool(survey([increment("build", quoted), increment("laptop", "needs: the laptop. Then build.")]), { now });
+  assert.deepEqual(picks.map((one) => one.id), ["build"]);
+  assert.deepEqual(skipped, [{ id: "laptop", why: "needs another machine" }]);
 });

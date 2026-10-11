@@ -2,7 +2,7 @@
 import { execFile } from "node:child_process";
 import { affectedProject, changedOnMain, type AffectedOptions } from "./affected.js";
 import type { AnnotatedTree, HealthWorkItem, Library } from "@storytree/library";
-import { codeSurveyReader } from "./code-survey/read-survey.js";
+import { codeSurveyReader, type ImportedFolder } from "./code-survey/read-survey.js";
 import { buildGraph, type ProjectGraph } from "./graph.js";
 import { focus, formatFocus, type FocusAnswer, type FocusOptions } from "./focus.js";
 
@@ -37,19 +37,20 @@ function onBranch(library: PlanReader, folder: string): PlanReader {
   return { projectTree: () => branchPlan(library, folder) };
 }
 
-export async function readMap(library: PlanReader, folder: string): Promise<ProjectGraph> {
+/** The map of the checkout at `folder`, with each mapped story `imports` holds, the folders this machine imports (ADR-0993 D2). */
+export async function readMap(library: PlanReader, folder: string, imports: readonly ImportedFolder[] = []): Promise<ProjectGraph> {
   const tree = await branchPlan(library, folder);
-  const survey = await codeSurveyReader({ checkout: "current" }).read(folder, tree);
+  const survey = await codeSurveyReader({ checkout: "current" }).read(folder, tree, imports);
   return buildGraph(tree, survey);
 }
 
-export async function focusProject(library: PlanReader, folder: string, options: FocusOptions): Promise<FocusAnswer> {
+export async function focusProject(library: PlanReader, folder: string, options: FocusOptions, imports: readonly ImportedFolder[] = []): Promise<FocusAnswer> {
   if (options.select.startsWith("diff:")) return affectedProject(onBranch(library, folder), folder, { ...options, range: options.select.slice(5) });
-  return focus(await readMap(library, folder), options);
+  return focus(await readMap(library, folder, imports), options);
 }
 
-export async function mapCommand(library: PlanReader, folder: string, options: FocusOptions, json = false): Promise<string> {
-  const answer = await focusProject(library, folder, options);
+export async function mapCommand(library: PlanReader, folder: string, options: FocusOptions, json = false, imports: readonly ImportedFolder[] = []): Promise<string> {
+  const answer = await focusProject(library, folder, options, imports);
   return json ? JSON.stringify(answer) : formatFocus(answer);
 }
 
@@ -60,6 +61,7 @@ export async function affectedCommand(library: PlanReader, folder: string, optio
 }
 
 export { changedOnMain };
+export type { ImportedFolder };
 
 /** How far back main's commits are read for the health worklist: longer than any merge's own-health run takes, so the library's bound decides. */
 const MAIN_READ_BACK = 24 * 60 * 60 * 1000;

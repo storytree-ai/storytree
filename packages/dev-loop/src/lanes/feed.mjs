@@ -1,14 +1,19 @@
 // Capability 11 · The Mint pool keeps its lanes fed (ADR-0955 D2): one survey of the library names every active
 // arc's ready increments, under the manager's skip rules, and claims are the only conflict guard.
 
-/** Work whose needs line says read-only: it writes no package, whatever packages it reads. */
-export function readOnly(body) {
-  return (body.match(/\bneeds:[^\n]*/gi) ?? []).some((line) => /\bread-only\b/i.test(line));
+/** The body's leading needs clause: its first needs label, up to that sentence's full stop or the line's end. Later wording, and a needs label quoted later, are not its need. */
+function needs(body) {
+  return body.match(/\bneeds:(?:[^\n.]|\.(?!\s|$))*/i)?.[0] ?? "";
 }
 
-/** Work whose needs line says blind: a blind reviewer's (ADR-0950). */
+/** Work whose needs clause says read-only: it writes no package, whatever packages it reads. */
+export function readOnly(body) {
+  return /\bread-only\b/i.test(needs(body));
+}
+
+/** Work whose needs clause says blind: a blind reviewer's (ADR-0950). */
 export function blind(body) {
-  return (body.match(/\bneeds:[^\n]*/gi) ?? []).some((line) => /\bblind\b/i.test(line));
+  return /\bblind\b/i.test(needs(body));
 }
 
 /** A wait's note that says its pull request is with the watcher: the hand-off's event wait, or the watcher's own record. */
@@ -21,7 +26,7 @@ const rank = (one) => one.priority ?? Infinity;
  * The pool's next `max` increments from one survey (ADR-0955 D2), and why each other was skipped. A candidate is
  * not closed, sits on an active arc, has no live claim on it or on a capability its list names (directly, or on the list of an
  * increment a live session holds), no wait or held-on
- * question (only those say it needs the owner; its body's wording never does), and its needs line names no other
+ * question (only those say it needs the owner; its body's wording never does), and its needs clause names no other
  * machine; no fence or track is read. By arc priority, then oldest parked first, and within one priority
  * those on an arc no live session (nor a pick already made) is on before the rest (ADR-0963 D2). `running` names the increments this dispatcher is running, never started
  * twice; `attempts` maps each increment this dispatcher has started to when it started it: a live claim older than that start
@@ -66,7 +71,7 @@ export function pickPool(survey, { attempts = new Map(), running = [], max = 1, 
       if (notes.length) return notes.map((hold) => `waits for ${hold.releaser === "owner" ? "the owner" : "an event"}: ${hold.note}`).join("; ");
       const questions = survey.holds.heldOn[one.id] ?? [];
       if (questions.length) return `held on ${questions.join(", ")}`;
-      if ((one.body.match(/\bneeds:[^\n]*/gi) ?? []).some((line) => /\b(?:laptop|another machine)\b/i.test(line))) return "needs another machine";
+      if (/\b(?:laptop|another machine)\b/i.test(needs(one.body))) return "needs another machine";
       return undefined;
     })();
     if (why) skipped.push({ id: one.id, why });

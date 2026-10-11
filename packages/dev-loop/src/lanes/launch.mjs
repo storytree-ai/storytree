@@ -71,15 +71,17 @@ export async function laneOnce({ increment, brief, log, err, addDirs, repo, maxL
  * (a newly parked or released increment waits minutes, not a quarter hour), and every `intervalMs` after a failed survey. A claim
  * that refused a session is said once, and its increment waits until that claim clears. With free slots and nothing
  * ready, it launches one planning session (`{ plan: true }`) for the arc feed.mjs's pickPlan offers, never two at
- * once, each arc once. Ends on the stop file, 75 (an engine failing at once), or RESTART once `codeVersion` (the code
+ * once, and an arc again only once its state differs from the one it was last planned in (`plans` keeps those across restarts,
+ * so an arc waiting on the owner costs one planning lane, not one per restart). Ends on the stop file, 75 (an engine failing at once), or RESTART once `codeVersion` (the code
  * it runs in the shared checkout, queue.mjs's POOL_CODE) differs from its start, each after its running sessions end; when a survey fails or
  * finds nothing and no session is starting, it first brings the checkout up to date (`refresh`) to see that change.
  */
 export async function runPool({ survey, maxLanes, count, launch, stopFile, exists = async (path) => existsSync(path),
-  codeVersion = async () => undefined, refresh = async () => {},
+  plans = { load: async () => new Map(), save: async () => {} }, codeVersion = async () => undefined, refresh = async () => {},
   sleep = (ms, options) => wait(ms, undefined, options), intervalMs = 15 * 60_000, idleMs = 2 * 60_000, pollMs = 60_000, now = Date.now, say = console.log }) {
   const dated = (message) => say(`${stamp(now)} ${message}`);
-  const attempts = new Map(), running = new Map(), starting = new Set(), refused = new Map(), planned = new Set();
+  const attempts = new Map(), running = new Map(), starting = new Set(), refused = new Map();
+  const planned = await plans.load();
   let ending, planning, changed, change = new Promise((go) => { changed = go; });
   const wake = () => { changed(); change = new Promise((go) => { changed = go; }); };
   const version = () => Promise.resolve().then(codeVersion).catch(() => undefined);
@@ -141,7 +143,9 @@ export async function runPool({ survey, maxLanes, count, launch, stopFile, exist
     if (!picks.length) {
       const arc = planning ? undefined : pickPlan(found, { planned });
       if (arc) {
-        planned.add(arc.id);
+        planned.set(arc.id, arc.state);
+        try { await plans.save(planned); }
+        catch (error) { dated(`planned arcs not saved (${String(error.message).split("\n")[0]}); a restart may plan ${arc.id} again`); }
         dated(`nothing ready: planning ${arc.id} (${arc.title})`);
         start({ id: arc.id, title: arc.title, plan: true });
         await pause(pollMs);
@@ -204,7 +208,15 @@ export function withHandOffs(found, handed) {
   return { ...found, holds: { ...found.holds, waitsFor } };
 }
 
-/** `pool`: one dispatcher (pool.pid), its status lines in pool.status, stopped by pool-stop; each session's brief, log and err as pool-<increment>-…. */
+/** The arcs the dispatcher planned, each with the state it was planned in, kept in `path` across its restarts; a missing or unreadable file remembers none. */
+export function planFile(path) {
+  return {
+    load: async () => new Map(Object.entries(JSON.parse(await readFile(path, "utf8").catch(() => "{}") || "{}"))),
+    save: (planned) => writeFile(path, `${JSON.stringify(Object.fromEntries(planned), null, 2)}\n`),
+  };
+}
+
+/** `pool`: one dispatcher (pool.pid), its status lines in pool.status, stopped by pool-stop, its planned arcs in pool-planned.json; each session's brief, log and err as pool-<increment>-…. */
 async function pool(b) {
   const L = b.lanesDir;
   const say = b.say ?? ((line) => appendFileSync(join(L, "pool.status"), `${line}\n`));
@@ -213,7 +225,7 @@ async function pool(b) {
   if (!runner.held) { dated(`dispatcher ${runner.by} is running: not starting`); return 1; }
   dated("dispatcher started");
   const code = await runPool({
-    survey: async () => withHandOffs(await b.survey(), await handedOff(join(L, "watch"))), maxLanes: b.maxLanes, count: b.count, stopFile: join(L, "pool-stop"), sleep: b.sleep, now: b.now, say,
+    survey: async () => withHandOffs(await b.survey(), await handedOff(join(L, "watch"))), maxLanes: b.maxLanes, count: b.count, stopFile: join(L, "pool-stop"), plans: planFile(join(L, "pool-planned.json")), sleep: b.sleep, now: b.now, say,
     codeVersion: b.codeVersion ?? (() => codeVersion({ repo: b.repo })),
     refresh: () => b.lock(b.prepare),
     launch: async (one, { engineUp }) => {

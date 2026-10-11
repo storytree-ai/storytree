@@ -97,20 +97,38 @@ export function pickPool(survey, { attempts = new Map(), running = [], max = 1, 
 }
 
 /**
- * The arc a planning session should take when nothing is ready (ADR-0955 D4): an active arc with no open question and no open increment that is unwaited (every one waits on work, an event or a question),
- * oldest first, skipping the arcs in `planned` (those this dispatcher has planned already). Undefined when none qualifies.
- * Work handed to the watcher, or waiting on work that is (at any depth), is in flight like claimed work, not stalled.
+ * An arc's state as planning reads it: its open questions and each open increment with its status and what holds it.
+ * Equal states mean nothing a planning session acts on has changed, however many surveys apart they were read.
  */
-export function pickPlan(survey, { planned = new Set() } = {}) {
+export function planState(survey, arcId) {
+  const arc = (survey.arcs ?? []).find((one) => one.id === arcId);
+  const holds = (id) => ({
+    waits: (survey.holds.waits[id] ?? []).map((hold) => hold.on).sort(),
+    heldOn: [...(survey.holds.heldOn[id] ?? [])].sort(),
+    waitsFor: (survey.holds.waitsFor?.[id] ?? []).filter((hold) => hold.holds).map((hold) => `${hold.releaser}: ${hold.note}`).sort(),
+  });
+  const open = survey.increments.filter((one) => one.arc === arcId && one.status !== "closed")
+    .sort((a, b) => a.id.localeCompare(b.id)).map((one) => [one.id, one.status, holds(one.id)]);
+  return JSON.stringify([arc?.openQuestions ?? 0, open]);
+}
+
+/**
+ * The arc a planning session should take when nothing is ready (ADR-0955 D4): an active arc with no open question and no open increment that is unwaited (every one waits on work, an event or a question),
+ * oldest first, skipping an arc whose entry in `planned` (arc to the planState it was last planned in, kept across the dispatcher's restarts)
+ * is its present state: an arc waiting on the owner is planned once until something on it changes. The arc comes with its `state`, for `planned`.
+ * Undefined when none qualifies. Work handed to the watcher, or waiting on work that is (at any depth), is in flight like claimed work, not stalled.
+ */
+export function pickPlan(survey, { planned = new Map() } = {}) {
   const live = new Set(survey.claims.filter((claim) => claim.holder === "live" && claim.increment).map((claim) => claim.increment));
   const handed = (id, seen = new Set()) => !seen.has(id) && (seen.add(id), (survey.holds.waitsFor?.[id] ?? []).some((hold) => hold.holds && HANDED.test(hold.note))
     || (survey.holds.waits[id] ?? []).some((hold) => handed(hold.on, seen)));
   const waited = (id) => !live.has(id) && !handed(id) && ((survey.holds.waits[id] ?? []).length > 0 || (survey.holds.heldOn[id] ?? []).length > 0
     || (survey.holds.waitsFor?.[id] ?? []).some((hold) => hold.holds));
   const open = Map.groupBy(survey.increments.filter((one) => one.status !== "closed"), (one) => one.arc);
-  return (survey.arcs ?? []).filter((arc) => arc.state === "active" && !planned.has(arc.id) && !arc.openQuestions
-    && (open.get(arc.id) ?? []).every((one) => waited(one.id)))
+  const arc = (survey.arcs ?? []).filter((one) => one.state === "active" && !one.openQuestions
+    && (open.get(one.id) ?? []).every((increment) => waited(increment.id)) && planned.get(one.id) !== planState(survey, one.id))
     .sort((a, b) => String(a.created).localeCompare(String(b.created)))[0];
+  return arc && { ...arc, state: planState(survey, arc.id) };
 }
 
 /**

@@ -23,9 +23,12 @@ Over the tailnet (`mickh-a520i-ac`, its Tailscale names or `100.97.8.31`) the
 library answers only over TLS, and storytree trusts its certificate only where the
 address names it (ADR-0997 D1): no build of storytree trusts it, and an address
 with no `sslrootcert` trusts Node's authorities alone, so it is refused
-`untrusted-server`. `mint-library.crt` here is that certificate's public half
-(SHA-256 90:B0:79:84:…:D3:F1:71; check it with `openssl x509 -noout -fingerprint
--sha256 -in mint-library.crt`), committed because it is not a secret (ADR-0943 D3).
+`untrusted-server`. `mint-library.crt` here is that certificate's public half,
+committed because it is not a secret (ADR-0943 D3). While the box moves to a
+certificate that cannot sign for other hosts (ADR-0997 D4), it holds two: the one
+served today (SHA-256 90:B0:79:84:…:D3:F1:71) and its successor, issued CA:FALSE
+(SHA-256 4F:4E:25:4E:…:A8:AA:AD), so every client trusts the new one before the box
+serves it; once the old key is destroyed, the file holds the new one alone.
 
 - The laptop keeps its own copy at `C:\Users\mickh\.storytree\0.3\mint-library.crt`,
   and its library is

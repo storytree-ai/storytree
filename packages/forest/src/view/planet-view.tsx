@@ -14,7 +14,7 @@ import { laneWays } from "./border-route.js";
 import { ClaimMarks } from "./claim-flag.js";
 import { fileCircles, islandTerritories } from "../territories/territories.js";
 import { NameplateCrowd, Nameplates, Overlay, reducedMotion, SelectionRing } from "./island-overlays.js";
-import { dragTurn, focusRotation, globeHover, hiddenMarkers, isGlobeDrag, oncePerFrame, pickGlobe, planetLayout, type ForestMode } from "./planet-navigation.js";
+import { dragTurn, focusRotation, globeHover, hiddenMarkers, isGlobeDrag, movingSpots, MOVE_SECONDS, oncePerFrame, pickGlobe, planetLayout, type ForestMode } from "./planet-navigation.js";
 import { claimsOn } from "./planet-update.js";
 import { createGlobeGuide, type GlobeControls, type GlobePose } from "./globe-guide.js";
 import { asksForHome, miniGlobe } from "./mini-globe.js";
@@ -34,6 +34,9 @@ export type PlanetViewProps = {
   framing?: number | undefined;
   /** The full plan a plan still growing is drawn within: each island keeps the spot it has there (3.28). */
   frame?: ForestScene | undefined;
+  /** A host that changes `places` or `frame` (one layout for the plan as it was, one for the plan as it is) has its islands
+   * ease across from one to the other, once (3.28); without it, or with reduced motion, they jump. */
+  easeMoves?: boolean | undefined;
   /** A recorded growth to replay (world 7): islands rise, their territories and file circles fill in behind them (3.30), and the core's notes appear. */
   growth?: PlanetGrowth | undefined;
   /** The live desktop grows arriving ordinary roads, separately from recorded replay. */
@@ -51,7 +54,7 @@ export type PlanetViewProps = {
   onNote: (note: string) => void;
 };
 
-export function PlanetView({ core, scene, places, wisps: live, selected, highlighted, onPick, onNote, mode = "forest", framing, sideOffset, surfaces, onControls, library = true, frame, growth, liveRoads = false, recordedSessions }: PlanetViewProps) {
+export function PlanetView({ core, scene, places, wisps: live, selected, highlighted, onPick, onNote, mode = "forest", framing, sideOffset, surfaces, onControls, library = true, frame, easeMoves = false, growth, liveRoads = false, recordedSessions }: PlanetViewProps) {
   // Zoomed in past the islands, or in the Library, only the glass and the core show (ADR-0919 D3, D4). The hidden
   // marks stay mounted, so guides can still locate them.
   const [past, setPast] = useState(false);
@@ -75,6 +78,9 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
   const shown = useRef<ReturnType<typeof planetLayout>>(undefined);
   const layout = useMemo(() => planetLayout(scene, places, shown.current, frame), [scene, places, frame]);
   shown.current = layout;
+  // 3.28: while a change of layout plays, only the plates travel, with no roads; the rest is drawn once, at the new layout.
+  const moving = useMovingSpots(layout.spots, easeMoves), travelling = moving !== layout.spots;
+  const roadless = useMemo(() => ({ ...layout.scene, links: [] }), [layout.scene]);
   const [rotation, setRotation] = useState(() => new Quaternion());
   // 5.7: replaying a growth with its recorded sessions, the wisps are the replay's, swapped as it passes each stage.
   const [replayed, setReplayed] = useState<readonly SessionWisp[]>();
@@ -116,7 +122,7 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
       {mode === "forest" && <SelectionRing island={island.story === selected ? local : undefined} descriptors={descriptors} onGlobe />}
     </>;
   }, [wisps, claimed, selected, highlighted, layout.spots, layout.radius, lighting, reportStops, shownSurfaces, mode]);
-  return <PlanetWorldCanvas scene={layout.scene} spots={layout.spots} radius={layout.radius}
+  return <PlanetWorldCanvas scene={travelling ? roadless : layout.scene} spots={moving} radius={layout.radius}
     surface surfaces={shownSurfaces} framing={cameraFraming} sideOffset={cameraOffset} orbit={false}
     inside={<group name="globe-core" visible={library && shownSurfaces.knowledgeCore}><GrowingCore core={core} spots={layout.spots} radius={layout.radius} places={codePlaces} growing={growth !== undefined} /></group>}
     rotation={rotation.toArray()} plateChildren={overlays} lanes={lanes} laneWays={ways} growth={growth} liveRoads={liveRoads}>
@@ -139,6 +145,31 @@ function ReplaySessions({ recorded, onWisps }: { recorded: readonly { at: string
     if (now !== shown.current) { shown.current = now; onWisps(now); }
   });
   return null;
+}
+
+/** The spots on show: `spots`, or, while a change of layout plays, the islands on their way to them (3.28). */
+function useMovingSpots(spots: ReadonlyMap<string, FacingIsland["spot"]>, ease: boolean): ReadonlyMap<string, FacingIsland["spot"]> {
+  const target = useRef(spots), drawn = useRef(spots), move = useRef<{ from: ReadonlyMap<string, FacingIsland["spot"]>; start: number }>(undefined);
+  const [, setTick] = useState(0);
+  if (target.current !== spots) {
+    const from = drawn.current;
+    const moved = [...spots].some(([story, spot]) => { const old = from.get(story); return old !== undefined && (old.x !== spot.x || old.y !== spot.y || old.z !== spot.z); });
+    move.current = ease && moved && !reducedMotion() ? { from, start: performance.now() } : undefined;
+    target.current = spots;
+  }
+  const playing = move.current;
+  useEffect(() => {
+    if (!playing) return;
+    let frame = requestAnimationFrame(function next() {
+      setTick(tick => tick + 1);
+      if (performance.now() - playing.start < MOVE_SECONDS * 1000) frame = requestAnimationFrame(next);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [playing]);
+  const progress = playing ? (performance.now() - playing.start) / (MOVE_SECONDS * 1000) : 1;
+  if (playing && progress >= 1) move.current = undefined;
+  drawn.current = progress >= 1 ? spots : movingSpots(playing!.from, spots, progress);
+  return drawn.current;
 }
 
 /** The core inside the globe, its notes appearing with a growth when there is one (knowledge core 1.9). */

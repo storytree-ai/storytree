@@ -64,6 +64,27 @@ export function planetLayout(scene: ForestScene, places: ReadonlyMap<string, num
   return { scene, islands, spots: same ? before.spots : spots, radius: grown.radius };
 }
 
+/** How long a host's change of layout takes to move its islands, in seconds (3.28). */
+export const MOVE_SECONDS = 1.6;
+
+/**
+ * The spots on show `progress` (0 to 1) of the way through a change of layout from `from` to `to` (3.28): an island in both
+ * slides along the globe from its old spot to its new, eased in and out; an island new to `to` stands at its spot.
+ */
+export function movingSpots(from: ReadonlyMap<string, FacingIsland["spot"]>, to: ReadonlyMap<string, FacingIsland["spot"]>, progress: number): Map<string, FacingIsland["spot"]> {
+  if (progress >= 1) return new Map(to);
+  const eased = progress <= 0 ? 0 : progress < .5 ? 4 * progress ** 3 : 1 - (-2 * progress + 2) ** 3 / 2;
+  return new Map([...to].map(([story, end]) => {
+    const start = from.get(story);
+    if (start === undefined) return [story, end];
+    if (eased === 0) return [story, start];
+    const angle = Math.acos(Math.max(-1, Math.min(1, start.x * end.x + start.y * end.y + start.z * end.z)));
+    if (angle < 1e-9) return [story, end];
+    const a = Math.sin((1 - eased) * angle) / Math.sin(angle), b = Math.sin(eased * angle) / Math.sin(angle);
+    return [story, { x: a * start.x + b * end.x, y: a * start.y + b * end.y, z: a * start.z + b * end.z }];
+  }));
+}
+
 /**
  * How far the globe tilts toward either pole (3.38, ADR-0977): 50°, enough to bring the top and bottom rows
  * (42° north and south) past the middle of the view, never so far that the view looks down from over a pole.

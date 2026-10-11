@@ -229,7 +229,11 @@ test("6.7 setting a new project up seeds its library with every starter role (or
         const library = await storytree.openProject(project);
         try {
           const role = (await library.list("agent")).find((agent) => agent.fields.title === title)!;
-          const titles = async (ids: readonly string[] = []) => Promise.all(ids.map(async (id) => (await library.get(id))!.fields.title));
+          const titles = async (ids: readonly string[] = []) =>
+            Promise.all(ids.map(async (id) => {
+              const fields = (await library.get(id))?.fields;
+              return fields !== undefined && "title" in fields ? fields.title : `${id} (not a live note)`;
+            }));
           return { reading: await titles(role.fields.context), rules: await titles(role.fields.rules), refuse: await titles(role.fields.antiPatterns) };
         } finally {
           await library.close();

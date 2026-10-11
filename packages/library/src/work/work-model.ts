@@ -24,8 +24,23 @@ export const CONTRACT_DEFINITION =
 /** A contract title past this many characters gets the advisory: about the longest eighth of 338 live contract titles, measured 2026-10-11. */
 export const LONG_CONTRACT_TITLE = 300;
 
-/** A new story's fields. */
-export type NewStory = FieldsOf<"story">;
+/** A new story's fields. A mapped story is mapStories' alone to make. */
+export type NewStory = Omit<FieldsOf<"story">, "mapped">;
+/** One package of an imported folder, as mapStories maps it to a story (ADR-0993 D2). */
+export interface MappedPackage {
+  /** The package's folder relative to the imported folder ("." for the folder itself): what a later import matches on. */
+  readonly package: string;
+  readonly title: string;
+  readonly description?: string;
+  /** The folders that hold its code. */
+  readonly folders: readonly string[];
+}
+/** What one mapStories did: the stories it added, retired and left as they stand (ids, in the import's order). */
+export interface MappedStories {
+  readonly added: SchemaRecord<"story">[];
+  readonly retired: string[];
+  readonly kept: string[];
+}
 /**
  * A new arc's fields: its intent and end state (capability 10), and the stories it grows, when
  * given, each an existing story; an arc may list none. Parking is capability 10's parkArc.
@@ -37,8 +52,8 @@ export type NewCapability = Omit<FieldsOf<"capability">, "proposed"> & { propose
 export type NewContract = FieldsOf<"contract">;
 /** An edit of a capability: some of its fields. A field set to undefined is removed. */
 export type CapabilityEdit = { [F in keyof FieldsOf<"capability">]?: FieldsOf<"capability">[F] | undefined };
-/** An edit of a story: some of its fields. A field set to undefined is removed. */
-export type StoryEdit = { [F in keyof FieldsOf<"story">]?: FieldsOf<"story">[F] | undefined };
+/** An edit of a story: some of its fields. A field set to undefined is removed. Mapped is mapStories' alone. */
+export type StoryEdit = { [F in keyof NewStory]?: NewStory[F] | undefined };
 /** An edit of a contract: some of its fields. A field set to undefined is removed. */
 export type ContractEdit = { [F in keyof FieldsOf<"contract">]?: FieldsOf<"contract">[F] | undefined };
 /** How a contract is added: as any write, and skipping the contract numbers `testedNumbers` (its capability's tests) carry. */
@@ -104,10 +119,47 @@ export class WorkModel {
 
   /**
    * Add a story to the project. Its id is generated: an `id` in `story` is refused as an unknown
-   * field, as is any other field a story does not have.
+   * field, as is any other field a story does not have, and `mapped`, which only mapStories writes.
    */
   addStory(story: NewStory, options?: WriteOptions): Promise<SchemaRecord<"story">> {
-    return this.#serially(() => this.#records.create("story", story, options));
+    return this.#serially(() => {
+      refuseMapped(story);
+      return this.#records.create("story", story, options);
+    });
+  }
+
+  /**
+   * Map the packages of the import `from` to stories (ADR-0993 D2, D6), the only way a story is made
+   * mapped: a package no live story of `from` maps gets a new mapped story, with no capabilities;
+   * a live story of `from` whose package is not among `packages` is retired; every other story,
+   * of `from` or not, stands as it is, so the folders an agent has redrawn are kept.
+   */
+  mapStories(from: string, packages: readonly MappedPackage[], options?: WriteOptions): Promise<MappedStories> {
+    return this.#serially(async () => {
+      const mapped = new Map<string, SchemaRecord<"story">>();
+      for (const story of (await this.#records.list("story")).sort(byCreation)) {
+        if (story.fields.mapped?.from === from) mapped.set(story.fields.mapped.package, story);
+      }
+      const named = new Set(packages.map((found) => found.package));
+      const added: SchemaRecord<"story">[] = [];
+      const kept: string[] = [];
+      for (const found of packages) {
+        const story = mapped.get(found.package);
+        if (story !== undefined) {
+          kept.push(story.id);
+          continue;
+        }
+        const fields = { title: found.title, ...(found.description === undefined ? {} : { description: found.description }), mapped: { from, package: found.package, folders: [...found.folders] } };
+        added.push(await this.#records.create("story", fields, options));
+      }
+      const retired: string[] = [];
+      for (const [pkg, story] of mapped) {
+        if (named.has(pkg)) continue;
+        await this.#records.retire(story.id, `its package ${pkg} is no longer in ${from}`, options);
+        retired.push(story.id);
+      }
+      return { added, retired, kept };
+    });
   }
 
   /**
@@ -184,11 +236,12 @@ export class WorkModel {
   }
 
   /**
-   * Change only the named fields of a story, as capability 3's edit does. Returns null, and writes
-   * nothing, if `id` is not a live story.
+   * Change only the named fields of a story, as capability 3's edit does, except `mapped`, refused
+   * as addStory refuses it. Returns null, and writes nothing, if `id` is not a live story.
    */
   editStory(id: string, fields: StoryEdit, options?: WriteOptions): Promise<SchemaRecord<"story"> | null> {
     return this.#serially(async () => {
+      refuseMapped(fields);
       if ((await liveRecord(this.#records, id, ["story"])) === null) return null;
       return (await this.#records.edit(id, fields, options)) as SchemaRecord<"story"> | null;
     });
@@ -334,6 +387,11 @@ export class WorkModel {
     this.#lastWrite = result.catch(() => undefined);
     return result;
   }
+}
+
+/** Refuse a `mapped` field: only mapStories makes a story mapped (ADR-0993 D2). */
+function refuseMapped(fields: object): void {
+  if ("mapped" in fields) throw new SchemaError("story", [{ field: "mapped", problem: "a story is made mapped only by importing a project" }]);
 }
 
 /** What every node of the tree starts with. */

@@ -16,7 +16,7 @@ import { library } from "./library.js";
 import { journeyFamily } from "./journey.js";
 import { questions } from "./question.js";
 import { noticeboard } from "./noticeboard.js";
-import { projectFamily } from "./project.js";
+import { importFamily, projectFamily } from "./project.js";
 import { health, plan } from "./tree.js";
 import { workspace } from "./workspace.js";
 import { processes } from "./processes.js";
@@ -54,6 +54,7 @@ export const FAMILIES: readonly Family[] = [
   capabilities,
   setupFamily,
   projectFamily,
+  importFamily,
   workspace,
   processes,
   settings,

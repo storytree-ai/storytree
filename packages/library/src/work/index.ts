@@ -17,6 +17,8 @@ export type {
   NewArc,
   NewCapability,
   NewContract,
+  MappedPackage,
+  MappedStories,
   NewStory,
   ProjectTree,
   StoryEdit,

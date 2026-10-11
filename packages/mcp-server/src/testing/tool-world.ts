@@ -29,6 +29,7 @@ export const TOOLS = [
   "edit_plan",
   "focus",
   "health_worklist",
+  "import_project",
   "land",
   "list_all_runs",
   "list_own_runs",

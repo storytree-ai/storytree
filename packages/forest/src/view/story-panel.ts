@@ -83,7 +83,7 @@ function why({ reason, mover, contracts, since }: WhyLine): string {
 function parked(arcs: NonNullable<CapabilityLine["parkedOn"]>): string {
   const titles = arcs.map(({ title }) => title);
   const named = titles.length < 2 ? (titles[0] ?? "") : `${titles.slice(0, -1).join(", ")} and ${titles.at(-1)}`;
-  return `<p class="panel-parked">Parked on ${text(named)}: shelved on purpose, so nothing is asked of you yet.</p>`;
+  return `<p class="panel-parked">Parked on ${text(named)}: shelved on purpose.</p>`;
 }
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];

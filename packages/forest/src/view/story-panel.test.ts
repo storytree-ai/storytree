@@ -149,7 +149,7 @@ test("4.14 a parked capability's detail keeps its word and reason and says it is
   const parked = (titles: string[]): string => renderStoryPanel({ ...base, capabilities: [{ ...base.capabilities[0]!, parkedOn: titles.map((title, at) => ({ arc: `arc-${at}`, title })) }] }, "cap");
   const one = parked(["Identity <beta>"]);
   const said = /<p class="panel-parked"[^>]*>([\s\S]*?)<\/p>/.exec(one)?.[1]?.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
-  assert.equal(said, "Parked on Identity &lt;beta&gt;: shelved on purpose, so nothing is asked of you yet.");
+  assert.equal(said, "Parked on Identity &lt;beta&gt;: shelved on purpose.");
   assert.match(one, /panel-state status-untested">untested</, "its word is kept");
   assert.equal(whyLine(one), "Why not green: it is not built yet. The agent moves this one.", "and its reason");
   assert.ok(one.indexOf("panel-parked") > one.indexOf("panel-why") && one.indexOf("panel-parked") < one.indexOf("<details>"));

@@ -62,6 +62,8 @@ export interface NewIncrement {
   readonly remedies?: string[];
   /** The open questions it is held on (capability 12): each must be a live question. */
   readonly heldOn?: string[];
+  /** The increments it is born waiting on, each with why (11): each must be a live increment. */
+  readonly waits?: Wait[];
   readonly outcome?: CloseInput;
 }
 
@@ -181,8 +183,9 @@ export class WorkInFlight {
   }
 
   /**
-   * Add an increment to a live arc (MissingReferenceError otherwise, as for any capability, link or
-   * remedies that is not live). It is a proposal, stamped with when it was parked, or, given an
+   * Add an increment to a live arc (MissingReferenceError otherwise, as for any capability, link,
+   * remedies or increment it waits on that is not live). A wait given at birth needs no loop check,
+   * since nothing can wait on a record not yet written. It is a proposal, stamped with when it was parked, or, given an
    * `outcome`, born closed.
    */
   addIncrement(increment: NewIncrement, options?: WriteOptions): Promise<SchemaRecord<"increment">> {
@@ -190,6 +193,7 @@ export class WorkInFlight {
       const { outcome, ...fields } = increment;
       await checkReference(this.#records, "arc", fields.arc, "arc");
       await this.#checkNames(fields);
+      for (const { on } of fields.waits ?? []) await checkReference(this.#records, "on", on, "increment");
       const lifecycle = outcome === undefined
         ? { status: "proposal" as const, parked: new Date().toISOString() }
         : { status: "closed" as const, outcome: outcomeOf(outcome) };

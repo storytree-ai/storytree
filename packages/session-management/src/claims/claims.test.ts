@@ -138,6 +138,26 @@ test("5.35 a refused claim names the increments its holder holds the work for: t
   });
 });
 
+test("5.38 a refused capability claim's line names the increment the refused session holds it under, the latest it claimed, so the pool can leave that increment out while the holder keeps the capability; none when it holds no increment", async () => {
+  await withWorld(async ({ library, log, project, emailForm, passwordReset, as }) => {
+    const { park } = await arcOf(library);
+    const earlier = await park("welcome email");
+    const driving = await park("email form");
+    assert.equal((await claim(as("A"), emailForm, "building the email form")).ok, true);
+    assert.equal((await claim(as("A"), passwordReset, "fixing the reset link")).ok, true);
+    assert.equal((await claim(as("B"), earlier, "driving the welcome email")).ok, true);
+    assert.equal((await claim(as("B"), driving, "driving the email form")).ok, true);
+
+    assert.ok(!(await claim(as("B"), emailForm, "I need it for the email form")).ok);
+    assert.ok((await claimRefusal(as("B"), passwordReset, "I need it as well"))?.refused === "held");
+    assert.ok(!(await claim(as("C"), emailForm, "no increment of mine")).ok);
+
+    const refusals = (await log.since(project, 0)).lines.filter((line) => line.kind === "claim-refused");
+    assert.deepEqual(refusals.map((line) => line.kind === "claim-refused" && [line.session, line.capability, line.holder, line.under]),
+      [["B", emailForm, "A", driving], ["B", passwordReset, "A", driving], ["C", emailForm, "A", undefined]]);
+  });
+});
+
 test("5.2, 4.12 verified safe close-out permits takeover despite stale commands; unverified or resumed holders still bind", async () => {
   for (const scenario of ["finished", "compacted", "unsafe", "unknown-runs", "running", "unmerged", "dirty-main", "background", "prompted", "restarted", "new-claim", "reclaimed"] as const) {
     await withWorld(async ({ log, project, emailForm, passwordReset, as }) => {

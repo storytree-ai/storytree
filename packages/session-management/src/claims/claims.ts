@@ -149,7 +149,7 @@ export async function claim(context: ClaimContext, id: string, reason: string, o
     const mine = current?.session === context.session;
     if (mine && current.holder === "live" && !(options.moveBranch && context.branch !== undefined && context.branch !== current.branch)) return { ok: true, claim: current, alreadyHeld: true };
     if (!mine && current?.holder === "live") {
-      await log.append({ ...who(context), kind: "claim-refused", ...found.part, holder: current.session, reason, ...file });
+      await log.append({ ...who(context), kind: "claim-refused", ...found.part, holder: current.session, reason, ...file, ...underOf(standing, context.session, found.part) });
       return held(standing.values(), current);
     }
     // A claim may have waited for this lock without needing any library write at all.
@@ -187,7 +187,10 @@ export async function claimRefusal(context: ClaimContext, id: string, reason?: s
   const current = standing.find((claim) => (claim.increment ?? claim.capability) === id);
   if (current === undefined || current.session === context.session || current.holder !== "live") return undefined;
   // A caller giving the reason it would claim with is turned away now, so the refusal is recorded.
-  if (reason !== undefined) await context.log.append(context.project, { ...who(context), kind: "claim-refused", ...found.part, holder: current.session, reason });
+  if (reason !== undefined) {
+    const under = underOf(new Map(standing.map((claim) => [claim.increment ?? claim.capability!, claim])), context.session, found.part);
+    await context.log.append(context.project, { ...who(context), kind: "claim-refused", ...found.part, holder: current.session, reason, ...under });
+  }
   return held(standing, current);
 }
 

@@ -57,6 +57,7 @@ export async function editRefusal(context: Pick<ClaimContext, "log" | "library" 
   const others = claims.filter((claim) => claim.session !== context.session && claim.holder === "live");
   const lists = new Map(await Promise.all([...mine, ...others.filter((claim) => claim.increment !== undefined)].map(async (claim) => [claim.increment!, await listOf(context.library, claim.increment!)] as const)));
 
+  const driving = mine.at(-1)?.increment;
   for (const { capability, title, file } of owners) {
     const direct = others.find((claim) => claim.capability === capability);
     // A capability the session claimed for itself is its own, whichever other increment lists it.
@@ -66,11 +67,10 @@ export async function editRefusal(context: Pick<ClaimContext, "log" | "library" 
     if (holder !== undefined) {
       await context.log.append(context.project, {
         session: context.session, ...(context.harness === undefined ? {} : { harness: context.harness }), source: "hook", ...(context.folder === undefined ? {} : { folder: context.folder }),
-        kind: "claim-refused", capability, holder: holder.session, reason: `edit to ${file} refused before it happened`,
+        kind: "claim-refused", capability, holder: holder.session, reason: `edit to ${file} refused before it happened`, ...(driving === undefined ? {} : { under: driving }),
       });
       return { refused: "held", capability, title, file, holder, ...(listing === undefined ? {} : { on: listing.increment! }) };
     }
-    const driving = mine.at(-1)?.increment;
     if (driving !== undefined && !mine.some((claim) => lists.get(claim.increment!)!.includes(capability))) {
       return { refused: "unlisted", capability, title, file, increment: driving, listed: lists.get(driving)! };
     }

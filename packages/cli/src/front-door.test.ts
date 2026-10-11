@@ -1,8 +1,10 @@
 /**
- * Capability 1 · Front door: one test per contract 1.1-1.5, 1.15, 1.17 and 1.18 in the command line story, each running the
+ * Capability 1 · Front door: one test per contract 1.1-1.5, 1.15, 1.17, 1.18 and 1.19 in the command line story, each running the
  * real, built `storytree` command in a throwaway folder and storytree home.
  */
 import assert from "node:assert/strict";
+import { writeFileSync } from "node:fs";
+import path from "node:path";
 import { after, before, test } from "node:test";
 
 import pg from "pg";
@@ -241,5 +243,21 @@ test("1.18 storytree doors prints the front-door reading: every command walked f
     assert.match(printed.stdout, /\(2 days\), with the 14 days/);
     assert.match(printed.stdout, /storytree arc increment show\s+1\s+1\s+→ storytree library read/);
     assert.equal((await world.run(["doors", "--days", "0"])).code, 2, "a window of no days is refused");
+  });
+});
+
+test("1.19 storytree lag prints Lag in real use's report over the lag readings kept in the storytree home", async () => {
+  await inWorld(command, async (world) => {
+    const empty = await world.run(["lag"]);
+    assert.equal(empty.code, 0, empty.stderr);
+    assert.match(empty.stdout, /No lag readings in the last 7 days in .*lag-readings\.jsonl/);
+
+    const at = new Date().toISOString();
+    const reading = (settled: number) => JSON.stringify({ at, version: "0.3.42", name: "open-island", response: 48, longFrames: 1, longestFrame: 212, settled, progress: false, size: 14 });
+    writeFileSync(path.join(world.home, "lag-readings.jsonl"), `${reading(240)}\n${reading(1800)}\n`);
+    const printed = await world.run(["lag"]);
+    assert.equal(printed.code, 0, printed.stderr);
+    assert.match(printed.stdout, /^open-island\s+2\s+48 \/ 48 \/ 48\s+212 \/ 212 \/ 212\s+240 \/ 1800 \/ 1800\s+100 \/ 50 \/ 1000\s+frame, settled$/m);
+    assert.match(printed.stdout, /open-island has fewer than 10 readings/);
   });
 });

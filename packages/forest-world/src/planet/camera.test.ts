@@ -82,3 +82,22 @@ test('6.18 the wheel floor is half the framed size: at it, the globe spans half 
     near(wheelFloor(radius, framing * 7, { width, height }), opened / 14);
   }
 });
+
+test('6.20 a globe that grows past the eye keeps its near side drawn: the eye backs away along its view, the picture unmoved', () => {
+  const width = 1440, height = 960, made = 218, grown = 945;
+  // The canvas makes its camera for the globe it first draws: 4 radii out, the far plane at 10.
+  const camera = new OrthographicCamera(-width / 2, width / 2, height / 2, -height / 2, 0.1, made * 10);
+  camera.position.set(0, 668, 560.5);
+  camera.lookAt(0, 0, 0);
+  applyPlanetFraming(camera, grown, 1.18, { width, height });
+  camera.updateMatrixWorld();
+  const toward = camera.position.clone().normalize(), side = new Vector3(1, 0, 0);
+  for (const point of [toward.clone().multiplyScalar(grown), toward.clone().multiplyScalar(-grown), side.clone().multiplyScalar(grown)]) {
+    const z = point.clone().project(camera).z;
+    assert.ok(Math.abs(z) <= 1, `depth ${z} is clipped`);
+  }
+  const centre = screen(new Vector3(), camera, width, height);
+  near(centre.x, width / 2);
+  near(centre.y, height / 2);
+  near(screen(side.clone().multiplyScalar(grown), camera, width, height).x - centre.x, Math.min(width, height) / (2 * 1.18));
+});

@@ -17,9 +17,14 @@ export function orthographicZoomFor(halfHeight: number, shortSideCssPx: number):
   return Math.max(shortSideCssPx, 1) / (2 * Math.max(halfHeight, Number.EPSILON));
 }
 
-/** The globe's framing is the number of radii covered by half the viewport's shorter side. */
+/** The globe's framing is the number of radii covered by half the viewport's shorter side. 6.20: the canvas makes its eye for
+ *  the globe it first draws, so a globe that grows past it (a bigger library arriving) would lose its near side to the near
+ *  plane; the eye then backs away along its view, which moves nothing on an orthographic screen, and the far plane follows. */
 export function applyPlanetFraming(camera: OrthographicCamera, radius: number, framing: number, size: FramingViewport): void {
   camera.zoom = orthographicZoomFor(radius * framing, Math.min(size.width, size.height));
+  const distance = camera.position.length();
+  if (distance > 0 && distance < 2 * radius) camera.position.multiplyScalar(4 * radius / distance);
+  camera.far = Math.max(camera.far, camera.position.length() + 2 * radius);
   camera.updateProjectionMatrix();
 }
 

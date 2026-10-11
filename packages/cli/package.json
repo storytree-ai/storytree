@@ -22,6 +22,7 @@
     "@storytree/guardrails": "workspace:*",
     "@storytree/identity": "workspace:*",
     "@storytree/journey-events": "workspace:*",
+    "@storytree/lag-in-use": "workspace:*",
     "@storytree/keys": "workspace:*",
     "@storytree/librarian": "workspace:*",
     "@storytree/library": "workspace:*",

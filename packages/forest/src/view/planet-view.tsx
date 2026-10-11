@@ -16,14 +16,14 @@ import { fileCircles, islandTerritories } from "../territories/territories.js";
 import { NameplateCrowd, Nameplates, Overlay, reducedMotion, SelectionRing } from "./island-overlays.js";
 import { dragTurn, focusRotation, globeHover, hiddenMarkers, isGlobeDrag, markerSpot, movingSpots, MOVE_SECONDS, oncePerFrame, pickGlobe, planetLayout, type ForestMode } from "./planet-navigation.js";
 import { claimsOn } from "./planet-update.js";
-import { createGlobeGuide, type GlobeControls, type GlobePose } from "./globe-guide.js";
+import { createGlobeGuide, type GlobePose, type PlacedGlobeControls } from "./globe-guide.js";
 import { createGlobeAside } from "./globe-aside.js";
 import { asksForHome, miniGlobe } from "./mini-globe.js";
 import { growLand, pastIslands, presentTerritories, shownSurfaces as surfacesFor, type GlobeSurfaces } from "./globe-surfaces.js";
 
 export type PlanetViewProps = {
   /** Receives the app-owned controls while the globe is mounted. */
-  onControls?: ((controls: GlobeControls | undefined) => void) | undefined;
+  onControls?: ((controls: PlacedGlobeControls | undefined) => void) | undefined;
   /** Every surface is shown by default, with territories coloured by health. */
   surfaces?: Partial<GlobeSurfaces> | undefined;
   /** Move the globe right by this many CSS pixels, leaving its turn unchanged. */
@@ -277,7 +277,7 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
   opening: { framing: number; sideOffset: number };
   /** Told when the eye zooms in past the islands, and back out (ADR-0919 D3). */
   onPast: (past: boolean) => void;
-  onControls: ((controls: GlobeControls | undefined) => void) | undefined;
+  onControls: ((controls: PlacedGlobeControls | undefined) => void) | undefined;
   showFailures: boolean;
   mode: ForestMode;
   /** The globe's radius as laid out, which grows with its islands. */
@@ -317,14 +317,16 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
     write: pose => { opened.current = true; host.current.turnTo(pose.turn); host.current.onPose(pose); },
     invalidate: () => host.current.invalidate(),
   });
-  const controls = useRef<GlobeControls>(undefined);
+  const controls = useRef<PlacedGlobeControls>(undefined);
   const guideFrameAt = useRef(0);
+  const placedAside = useRef(aside);
   if (controls.current === undefined) controls.current = {
     stop: stop => { const started = guide.current!.stop(stop); if (started) { opened.current = true; guideFrameAt.current = performance.now(); } return started; },
     position: target => guide.current!.position(target),
     cancel: () => guide.current!.cancel(),
     moving: () => guide.current!.moving(),
     notes: () => guide.current!.notes(),
+    aside: () => placedAside.current,
   };
   // The turn the globe opened on, kept as home even when a guide took the first turn (3.37).
   const [home, setHome] = useState<GlobeTurn>();
@@ -339,6 +341,7 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
   besideAside.current ??= createGlobeAside(() => host.current.opening);
   useEffect(() => {
     const moved = besideAside.current!.place(size, aside, read());
+    placedAside.current = aside;
     if (moved === undefined || !guide.current!.slide(moved.to, moved.glide && !reducedMotion() ? 600 : 0)) return;
     guideFrameAt.current = performance.now();
   }, [aside, size.width, size.height]);

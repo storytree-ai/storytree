@@ -357,6 +357,37 @@ test("5.4 checking a story also runs a dependant's test titled with the story's 
   });
 });
 
+test("5.9 a dependant's test titled with the story's package and a number the story lacks is named with the story it points at, and credits nothing", async (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "own-health-stray-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  mkdirSync(path.join(root, "packages/cli/src"), { recursive: true });
+  mkdirSync(path.join(root, "packages/app-setup/src"), { recursive: true });
+  const dependant = path.join(root, "packages/app-setup/src/setup.test.ts");
+  const stray = ["cli", "8.4 the setup check names what is missing"].join(" ");
+  const proving = ["cli", "1.3 the tool does what the command does"].join(" ");
+  writeFileSync(dependant, `test(${JSON.stringify(stray)}, () => {});\ntest(${JSON.stringify(proving)}, () => {});\n`);
+  await withLibrary(async (lib) => {
+    const story = await kettle(lib);
+    const { contractIds } = contractsOf(story);
+    const run = async () => ({
+      code: 0,
+      results: [
+        { name: stray, suites: [], file: dependant, status: "passed" },
+        { name: proving, suites: [], file: dependant, status: "passed" },
+      ],
+    });
+    const lines = [];
+    assert.equal(await checkStory(lib, story, { by: "storytree test run" }, { root, runTests: run, log: (line) => lines.push(line), error: () => {} }), true);
+    const output = lines.join("\n");
+    assert.match(output, /8\.4/, "the stray number is named");
+    assert.ok(output.includes(stray), "the stray title is named");
+    assert.ok(output.includes("The command line"), "the story it points at is named");
+    assert.ok(output.includes("packages/app-setup/src/setup.test.ts"), "its file is named");
+    assert.ok(!output.includes(proving), "a title the story has is not named");
+    assert.equal((await lib.health(contractIds.get("1.3"))).verified.state, "passing");
+  });
+});
+
 test("5.4 checking the app story also runs the desktop app's tests as its own, crediting their numbered titles", async (t) => {
   const root = mkdtempSync(path.join(tmpdir(), "own-health-frame-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));

@@ -78,6 +78,8 @@ function aUser(world: World): User {
   for (const folder of [bin, claude, codex]) mkdirSync(folder, { recursive: true });
   agentCli(bin, "claude", ["--version", "auth status"]);
   agentCli(bin, "codex", ["--version", "login status"]);
+  // No Cursor here: without this, a machine's own cursor-agent is asked, and a ~/.cursor appeared in this home after it was (2026-10-12).
+  agentCli(bin, "cursor-agent", []);
   const env = {
     HOME: home,
     USERPROFILE: home,

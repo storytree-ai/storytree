@@ -1,8 +1,10 @@
 /**
  * Capability 8 · Setup check. What a first run needs on the machine (ADR-0716, ported from 0.2's doctor): Claude Code or Codex
- * installed and signed in, git, and a Node of at least {@link NODE_FLOOR}. Each is asked of the
+ * installed and signed in, or Cursor installed, git, and a Node of at least {@link NODE_FLOOR}. Each is asked of the
  * user's own command by name, as their shell would find it (Codex also where its desktop app keeps it), and only its exit code is read for a
- * sign-in: nothing a tool prints about the account is kept.
+ * sign-in: nothing a tool prints about the account is kept. Cursor is asked only whether it is there: its
+ * `cursor-agent status` said "Logged in" and exited 0 on the owner's laptop (2026-10-12) while every real
+ * call answered "Authentication required", so no answer of it says Cursor is signed in.
  *
  * A tool that does not answer within `waitMs` is reported as not answering and left behind, so the
  * check never hangs on one (a sign-in prompt, a stuck update, a network wait).
@@ -25,6 +27,8 @@ export type ToolState = "present" | "missing" | "not answering";
 export interface MachineState {
   readonly claude: AgentCliState;
   readonly codex: AgentCliState;
+  /** Cursor's command line, there or not: never whether it is signed in, which it does not tell truly. Absent where the machine was not asked. */
+  readonly cursor?: ToolState;
   readonly git: ToolState;
   /** The Node on the path, with the version it gave. */
   readonly node: { readonly state: "ok" | "old" | "missing" | "not answering"; readonly version?: string };
@@ -119,8 +123,9 @@ function macApplications(): string[] {
   return process.platform === "darwin" ? ["/Applications", path.join(homedir(), "Applications")] : [];
 }
 
-async function git(env: NodeJS.ProcessEnv, waitMs: number): Promise<ToolState> {
-  const answer = await ask("git", ["--version"], env, waitMs);
+/** Whether the tool `command` names is there, by its `--version`. */
+async function tool(command: string, env: NodeJS.ProcessEnv, waitMs: number): Promise<ToolState> {
+  const answer = await ask(command, ["--version"], env, waitMs);
   return !answer.answered ? "not answering" : answer.code === 0 ? "present" : "missing";
 }
 
@@ -137,14 +142,15 @@ async function node(env: NodeJS.ProcessEnv, waitMs: number): Promise<MachineStat
 export async function machineState(options: MachineOptions = {}): Promise<MachineState> {
   const waitMs = options.waitMs ?? 5_000;
   const env = pathEnv(options.path);
-  const [claude, codex, gitState, nodeState, elevatedState] = await Promise.all([
+  const [claude, codex, cursor, gitState, nodeState, elevatedState] = await Promise.all([
     agentCli("claude", ["auth", "status"], env, waitMs),
     codexCli(env, waitMs, options),
-    git(env, waitMs),
+    tool("cursor-agent", env, waitMs),
+    tool("git", env, waitMs),
     node(env, waitMs),
     elevated(env, waitMs),
   ]);
-  return { claude, codex, git: gitState, node: nodeState, waitMs, elevated: elevatedState };
+  return { claude, codex, cursor, git: gitState, node: nodeState, waitMs, elevated: elevatedState };
 }
 
 /**

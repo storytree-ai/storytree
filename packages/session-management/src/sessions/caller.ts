@@ -43,9 +43,9 @@ export function agentOf(lines: readonly Line[], meta: CallMeta): Agent {
  * The lines a call is read from (contract 2.7): the line the hook before it left, found by the call's
  * id, and the start of the subagent that line or the call names. Nothing else of the log is sent.
  */
-export async function callLines(log: ActivityLog, project: string, meta: CallMeta): Promise<Line[]> {
+export async function callLines(log: ActivityLog, project: string, meta: CallMeta, called?: { readonly harness?: string | undefined; readonly tool: string }): Promise<Line[]> {
   const call = callOf(meta);
-  const requested = call === undefined ? [] : await log.lines(project, { kinds: ["tool-requested"], where: { call }, newest: 1, omit: ["transcript"] });
+  const requested = call === undefined ? await cursorRequest(log, project, called) : await log.lines(project, { kinds: ["tool-requested"], where: { call }, newest: 1, omit: ["transcript"] });
   const agent = requestOf(requested, meta)?.agent ?? threadAgent(meta);
   if (typeof agent !== "object") return requested;
   const started = await log.lines(project, { kinds: ["subagent-started"], where: { subagent: agent.subagent }, newest: 1, omit: ["transcript"] });
@@ -62,10 +62,29 @@ export function seenCaller(lines: readonly Line[], caller: Caller, meta: CallMet
   return requested === undefined ? caller : { ...caller, session: requested.session };
 }
 
-/** The line the hook before a call left, found by the call's id: Claude Code's `_meta["claudecode/toolUseId"]`, Codex's `_meta.callId`. */
+/**
+ * The line the hook before a call left, found by the call's id: Claude Code's `_meta["claudecode/toolUseId"]`,
+ * Codex's `_meta.callId`. A call with no id is Cursor's, whose line callLines found by its tool (cursorRequest).
+ */
 export function requestOf(lines: readonly Line[], meta: CallMeta): Extract<Line, { kind: "tool-requested" }> | undefined {
   const call = callOf(meta);
-  return call === undefined ? undefined : lines.findLast((line): line is Extract<Line, { kind: "tool-requested" }> => line.kind === "tool-requested" && line.call === call);
+  return lines.findLast((line): line is Extract<Line, { kind: "tool-requested" }> => line.kind === "tool-requested" && (call === undefined ? line.harness === "cursor" : line.call === call));
+}
+
+/** How long before a call Cursor's hook may have announced it. */
+const ANNOUNCED_WITHIN_MS = 30_000;
+
+/**
+ * The line Cursor's hook left just before a call to `called.tool` (6.66). Cursor sends the tool server no
+ * session and no call id (read from its installed code, 2026-10-12), so this one harness's line is found
+ * by its tool and its time: the newest it announced for that tool in the last half minute. Two Cursor
+ * sessions calling the same tool in the same moment may be taken for each other; every other harness is
+ * joined by the call's id, never by time.
+ */
+async function cursorRequest(log: ActivityLog, project: string, called: { readonly harness?: string | undefined; readonly tool: string } | undefined): Promise<Line[]> {
+  if (called?.harness !== "cursor") return [];
+  const since = new Date(Date.now() - ANNOUNCED_WITHIN_MS).toISOString();
+  return log.lines(project, { kinds: ["tool-requested"], where: { harness: "cursor", tool: called.tool }, since, newest: 1, omit: ["transcript"] });
 }
 
 /** The call's id, as the harness gave it. */

@@ -157,7 +157,7 @@ test("9.15 `storytree context` reads the session STORYTREE_SESSION_ID names and 
     const named = JSON.parse((await contextCommand({ folder, env: { STORYTREE_SESSION_ID: "C" }, json: true, locate })).text) as Record<string, unknown>;
     assert.equal(named.session, "C", "the session STORYTREE_SESSION_ID names is read");
     assert.equal(named.tokens, undefined);
-    assert.equal(named.absent, "storytree reads no transcript of cursor");
+    assert.equal(named.absent, "storytree reads no transcript of Cursor");
 
     const none = await contextCommand({ folder, env: {}, locate });
     assert.equal(none.code, 0);

@@ -65,7 +65,7 @@ const CLAUDE_SETTINGS = {
 const CODEX_CONFIG = 'model = "gpt-5"\n\n[mcp_servers.storytree]\ncommand = "node"\nargs = ["storytree-mcp.mjs"]\n';
 
 interface Home {
-  homes: Required<Homes>;
+  homes: Required<Pick<Homes, "claude" | "codex">>;
   claudeSettings: string;
   codexConfig: string;
   codexHooks: string;
@@ -136,7 +136,7 @@ test("8.1 in a throwaway home with only the tool server installed, the first ses
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
     const report = await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome });
-    assert.deepEqual(report.hooks, { "claude-code": "registered", codex: "registered", statusLine: "installed" });
+    assert.deepEqual(report.hooks, { "claude-code": "registered", codex: "registered", cursor: "not here", statusLine: "installed" });
 
     const claude = readJson(home.claudeSettings);
     assert.deepEqual({ ...claude, hooks: undefined, statusLine: undefined }, { ...CLAUDE_SETTINGS, hooks: undefined, statusLine: undefined }, "Claude Code's other settings are as they were");
@@ -190,14 +190,14 @@ test("8.2 a second start changes nothing, and removing storytree takes out exact
     const first = { claude: readFileSync(home.claudeSettings, "utf8"), codex: readFileSync(home.codexHooks, "utf8") };
 
     const again = await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome });
-    assert.deepEqual(again.hooks, { "claude-code": "already registered", codex: "already registered", statusLine: "already installed" });
+    assert.deepEqual(again.hooks, { "claude-code": "already registered", codex: "already registered", cursor: "not here", statusLine: "already installed" });
     assert.deepEqual({ claude: readFileSync(home.claudeSettings, "utf8"), codex: readFileSync(home.codexHooks, "utf8") }, first, "not a byte changed");
 
-    assert.deepEqual(removeHooks(home.homes), { "claude-code": "removed", codex: "removed", statusLine: "removed" });
+    assert.deepEqual(removeHooks(home.homes), { "claude-code": "removed", codex: "removed", cursor: "none", statusLine: "removed" });
     assert.deepEqual(readJson(home.claudeSettings), CLAUDE_SETTINGS, "Claude Code's settings are as they were before storytree");
     assert.equal(existsSync(home.codexHooks), false, "the hooks file storytree made is gone");
     assert.equal(readFileSync(home.codexConfig, "utf8"), CODEX_CONFIG);
-    assert.deepEqual(removeHooks(home.homes), { "claude-code": "none", codex: "none", statusLine: "none" }, "and removing again finds nothing");
+    assert.deepEqual(removeHooks(home.homes), { "claude-code": "none", codex: "none", cursor: "none", statusLine: "none" }, "and removing again finds nothing");
 
     // An install from before the PowerShell tool was matched gets the new matchers at its next setup check.
     registerHooks(home.homes, HOOK);
@@ -725,6 +725,51 @@ test("8.11 the check says whether Claude Code or Codex is installed and signed i
     for (const name of ["agent-cli", "git", "node"]) {
       assert.equal(ready.lines.find((each) => each.check === name)?.state, "ok", `${name}: ${JSON.stringify(ready.lines)}`);
     }
+  });
+});
+
+test("8.28 the setup check registers storytree's hooks for Cursor where Cursor's home is, without touching any other setting, and says whether Cursor is installed; it never says Cursor is signed in, since Cursor's command line reports a lapsed sign-in as logged in", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const cursor = path.join(dir, ".cursor");
+    const bin = path.join(dir, "bin");
+    for (const folder of [cursor, bin]) mkdirSync(folder);
+    const servers = '{"mcpServers":{"other":{"command":"npx"}}}';
+    const own = { version: 1, hooks: { stop: [{ command: "./mine.sh" }] } };
+    writeFileSync(path.join(cursor, "mcp.json"), servers);
+    writeFileSync(path.join(cursor, "hooks.json"), JSON.stringify(own));
+    // Cursor's command line, as measured on the owner's laptop (2026-10-12): it says it is logged in whether or not it is.
+    fakeTool(bin, "cursor-agent", { "--version": { out: "2026.07.09", code: 0 }, status: { out: "Logged in", code: 0 } });
+    const check = () => runSetupCheck({
+      folder: dir, hook: HOOK, homes: { ...home.homes, cursor }, storytreeHome: home.storytreeHome, gh: async () => "signed in" as const,
+      machine: () => machineState({ path: bin, waitMs: 15_000, codexHome: home.homes.codex, localAppData: dir, applications: [] }),
+    });
+
+    const report = await check();
+    assert.equal(report.hooks?.cursor, "registered");
+    const registered = readJson(path.join(cursor, "hooks.json")) as { version: number; hooks: Record<string, { command: string; matcher?: string }[]> };
+    assert.equal(registered.version, 1);
+    assert.deepEqual(registered.hooks.stop?.[0], own.hooks.stop[0], "the user's own hook is kept, still first");
+    assert.equal(readFileSync(path.join(cursor, "mcp.json"), "utf8"), servers, "Cursor's tool servers are untouched");
+    const ours = (event: string) => (registered.hooks[event] ?? []).filter((entry) => entry.command.includes(HOOK.script) && entry.command.split(" ").includes("cursor"));
+    for (const event of ["sessionStart", "sessionEnd", "beforeSubmitPrompt", "beforeMCPExecution", "preToolUse", "postToolUse", "postToolUseFailure", "afterFileEdit", "subagentStart", "stop"]) {
+      assert.ok(ours(event).length > 0, `Cursor: at ${event}`);
+    }
+    // Cursor waits for every hook: the one before a shell command hands its work on, the one before a file edit answers.
+    const [shell, edit] = ours("preToolUse");
+    assert.ok(new RegExp(shell!.matcher!).test("Shell") && shell!.command.endsWith(" --background"), "in the background before a shell command");
+    assert.ok(new RegExp(edit!.matcher!).test("Write") && !new RegExp(edit!.matcher!).test("Shell") && !edit!.command.includes("--background"), "in the foreground before a file edit, and no other");
+
+    const said = report.lines.find((each) => each.check === "agent-cli");
+    assert.equal(said?.state, "ok", "Cursor alone is a harness storytree watches");
+    assert.match(said?.message ?? "", /Cursor is installed/);
+    assert.doesNotMatch(said?.message ?? "", /Cursor is (installed and )?(not )?signed in/);
+    assert.match(report.lines.find((each) => each.check === "hooks")?.message ?? "", /Cursor/);
+
+    rmSync(path.join(bin, process.platform === "win32" ? "cursor-agent.cmd" : "cursor-agent"));
+    const without = await check();
+    assert.equal(without.hooks?.cursor, "already registered", "its hooks stay where its home is");
+    assert.match(without.lines.find((each) => each.check === "agent-cli")?.message ?? "", /Cursor is not installed/);
   });
 });
 

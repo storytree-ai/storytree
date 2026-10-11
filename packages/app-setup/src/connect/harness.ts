@@ -19,7 +19,7 @@ export function installedToolServerCommand(node: string, server: string): Instal
   return { command: node, args: [server] };
 }
 
-export type RunHarness = (executable: "claude" | "codex", args: readonly string[], options: { cwd: string; env: NodeJS.ProcessEnv }) => Promise<string>;
+export type RunHarness = (executable: "claude" | "codex" | "cursor-agent", args: readonly string[], options: { cwd: string; env: NodeJS.ProcessEnv }) => Promise<string>;
 export const runHarness: RunHarness = (executable, args, options) => new Promise((resolve, reject) => {
   // Every word is fixed by this module. On Windows the installed CLI may be an npm .cmd shim.
   // Installed paths never enter this shell: they are written as JSON/TOML data below.
@@ -68,6 +68,7 @@ export interface Settings {
   close(): void;
 }
 
+/** A JSON settings file holding its servers under `mcpServers`: Claude Code's ~/.claude.json, and Cursor's ~/.cursor/mcp.json, which takes the same entry. */
 export function claudeSettings(file: string): Settings {
   const before = read(file);
   const config: unknown = before === undefined ? {} : JSON.parse(before);

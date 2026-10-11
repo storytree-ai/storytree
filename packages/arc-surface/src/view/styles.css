@@ -12,7 +12,7 @@
 .arc-overlay[hidden], .arc-handle[hidden] { display: none; }
 .arc-overlay button:not(.arc-handle) { font: inherit; color: inherit; cursor: pointer; }
 /* The size control sits at the drawer's top right, on the row the scopes start. */
-.arc-overlay button.arc-size { position: absolute; top: 4px; right: 18px; z-index: 1; border: 0; border-radius: 4px; padding: 2px 10px; background: transparent; font-size: .75rem; color: var(--muted, #adb8b2); }
+.arc-overlay button.arc-size { position: absolute; top: 5px; right: 18px; z-index: 1; border: 0; border-radius: 4px; padding: 2px 10px; background: transparent; color: var(--muted, #adb8b2); }
 .arc-overlay button.arc-size:hover { background: var(--row-hover, #2c3630); color: inherit; }
 .arc-surface-mount button:focus-visible, .arc-overlay summary:focus-visible { outline: 2px solid #7dbdab; outline-offset: -2px; }
 .arc-status:not(:empty) { padding: 6px 96px 6px 18px; font-size: .8rem; color: #b57719; background: #c5922420; }

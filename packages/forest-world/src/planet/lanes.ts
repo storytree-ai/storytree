@@ -21,7 +21,7 @@ export interface LaneRoute extends LitLink {
   /** The narrowest of `widths`. */
   width: number;
   colour: string;
-  /** Only the code's types join the two capabilities (ADR-0991 D1): the lane is dashed, as its road is. */
+  /** Only the code's types join the two capabilities (ADR-0991 D1); it is carried, not drawn: every lane is solid. */
   typeOnly?: true;
 }
 

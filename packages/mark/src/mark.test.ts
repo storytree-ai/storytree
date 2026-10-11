@@ -3,7 +3,9 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { test } from "node:test";
 
+import { SHAPES, SMALL_SHAPES } from "./drawing.js";
 import { COLOURWAYS, ICNS_TYPES, ICO_SIZES, PNG_SIZES, iconPath, markSvg, readIcns, readIco, readPng, renderMark } from "./index.js";
+import { renderShapes } from "./raster.js";
 
 const roles = { ocean: "var(--o)", land: "var(--l)", tree: "var(--t)", leaf: "var(--f)" };
 
@@ -55,7 +57,7 @@ test("1.2 · given a canvas or a named colourway, the SVG draws the tile in the 
   assert.throws(() => markSvg("dusk"), /day.*night/);
 });
 
-test("2.1 · each committed PNG holds the master drawing rendered at its size in its colourway", () => {
+test("2.1 · each committed PNG holds the mark rendered at its size in its colourway: the small-size drawing at 16, the master at every other size", () => {
   assert.deepEqual(PNG_SIZES, [16, 32, 48, 64, 128, 256, 512, 1024]);
   for (const name of Object.keys(COLOURWAYS)) {
     const way = COLOURWAYS[name]!;
@@ -66,8 +68,13 @@ test("2.1 · each committed PNG holds the master drawing rendered at its size in
       assert.equal(png.width, size, file);
       assert.equal(png.height, size, file);
       const fresh = renderMark(name, size);
-      assert.ok(Buffer.from(png.pixels).equals(Buffer.from(fresh)), `${file} is not the master's render: run pnpm --filter @storytree/mark icons`);
+      assert.ok(Buffer.from(png.pixels).equals(Buffer.from(fresh)), `${file} is not the mark's render: run pnpm --filter @storytree/mark icons`);
     }
+    // 16 is the small-size drawing (ADR-0999), 32 and up the master.
+    const same = (a: Uint8Array, b: Uint8Array) => Buffer.from(a).equals(Buffer.from(b));
+    assert.ok(same(renderMark(name, 16), renderShapes(SMALL_SHAPES, name, 16)), `${name}: 16 is the small-size drawing`);
+    assert.ok(!same(renderMark(name, 16), renderShapes(SHAPES, name, 16)), `${name}: 16 is not the master`);
+    for (const size of [32, 48]) assert.ok(same(renderMark(name, size), renderShapes(SHAPES, name, size)), `${name}: ${size} is the master`);
     // What the render shows: transparent beyond the tile's rounded corner, canvas inside the tile, ocean inside the globe.
     const big = renderMark(name, 1024);
     const at = (x: number, y: number) => [...big.subarray((y * 1024 + x) * 4, (y * 1024 + x) * 4 + 4)];
@@ -77,7 +84,7 @@ test("2.1 · each committed PNG holds the master drawing rendered at its size in
   }
 });
 
-test("2.2 · each colourway's .ico and .icns hold the master's PNGs at the sizes Windows and macOS read", () => {
+test("2.2 · each colourway's .ico and .icns hold the committed PNGs at the sizes Windows and macOS read", () => {
   assert.deepEqual(ICO_SIZES, [16, 32, 48, 64, 128, 256]);
   assert.deepEqual({ ...ICNS_TYPES }, { icp4: 16, icp5: 32, icp6: 64, ic07: 128, ic08: 256, ic09: 512, ic10: 1024 });
   for (const name of Object.keys(COLOURWAYS)) {
@@ -91,6 +98,27 @@ test("2.2 · each colourway's .ico and .icns hold the master's PNGs at the sizes
       assert.ok(entry.png.equals(readFileSync(iconPath(name, `${ICNS_TYPES[entry.type]}.png`))), `${name} .icns ${entry.type}`);
     }
   }
+});
+
+test("2.1 · the small-size drawing is the master's own shapes: the globe fills the tile, the islets go, the island and tree grow 1.75 times and the tree is bolder", () => {
+  const globe = (shapes: readonly (typeof SHAPES)[number][]) => shapes.find((s) => s.role === "ocean")!;
+  assert.deepEqual(globe(SMALL_SHAPES), { kind: "circle", role: "ocean", cx: 52, cy: 52, r: 50 }, "the globe fills the 104 tile");
+  assert.equal(SMALL_SHAPES.filter((s) => s.kind === "ellipse").length, 0, "no islets");
+  const island = (shapes: readonly (typeof SHAPES)[number][]) => shapes.find((s) => s.kind === "blob")!;
+  const [master, small] = [island(SHAPES), island(SMALL_SHAPES)];
+  assert.ok(master.kind === "blob" && small.kind === "blob");
+  assert.equal(small.curves, master.curves, "the island is the master's own outline");
+  assert.equal(small.frame.s, 1.75 * master.frame.s);
+  const roles = (shapes: readonly (typeof SHAPES)[number][]) => shapes.map((s) => `${s.kind}:${s.role}`);
+  assert.deepEqual(roles(SMALL_SHAPES), roles(SHAPES).filter((r) => r !== "ellipse:land"), "the master's shapes and roles in the master's order");
+  const leaf = (shapes: readonly (typeof SHAPES)[number][]) => shapes.find((s) => s.role === "leaf")!;
+  const line = (shapes: readonly (typeof SHAPES)[number][]) => shapes.find((s) => s.kind === "line")!;
+  const [ml, sl] = [leaf(SHAPES), leaf(SMALL_SHAPES)];
+  assert.ok(ml.kind === "circle" && sl.kind === "circle");
+  assert.ok(sl.r > 1.75 * ml.r, "the leaf dots are bolder than the plain 1.75 times");
+  const [mw, sw] = [line(SHAPES), line(SMALL_SHAPES)];
+  assert.ok(mw.kind === "line" && sw.kind === "line");
+  assert.ok(sw.width * sw.frame.s > 1.75 * mw.width * mw.frame.s, "the tree's lines are bolder than the plain 1.75 times");
 });
 
 function hex(colour: string): number[] {

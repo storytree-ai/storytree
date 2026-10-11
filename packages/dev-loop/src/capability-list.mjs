@@ -1,3 +1,4 @@
+// PROBE for increment_904d32dde5ee: never merge.
 // Capability 7 · The gate. Whether a branch changes only the capabilities its increment lists (ADR-0949 D3): each
 // changed file is mapped to its capability by the lookup edit claims share (ADR-0925 D4,
 // @storytree/map/code-survey's capabilitiesOfFiles): a file's own declaration (a source file's

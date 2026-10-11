@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { CATALOGUE, chooseIsland, DEFAULT_BUDGET, isSettled, type PageState } from "./catalogue.js";
 
-test("3.41 the lag catalogue names each action by what it opens, picks its island by name or size, and knows settled from what the page shows", () => {
+test("3.42 the lag catalogue names each action by what it opens, picks its island by name or size, and knows settled from what the page shows", () => {
   // ADR-1001 D2's budget is every entry's unless it carries its own.
   assert.deepEqual(DEFAULT_BUDGET, { responseMs: 100, frameMs: 50, settledMs: 1000 });
   const islands = [{ story: "story_a", title: "The library", capabilities: 9 }, { story: "story_b", title: "The forest", capabilities: 2 },
@@ -26,8 +26,14 @@ test("3.41 the lag catalogue names each action by what it opens, picks its islan
   assert.equal(isSettled({ session: "selected" }, { ...page, sessionSelected: true }), true);
   assert.equal(isSettled({}, page), true, "an action with no settled condition is settled once performed");
 
-  // The first entries, by name; each performs something and has a time limit.
-  assert.deepEqual(CATALOGUE.map(action => action.name), ["open-fewest-island", "open-most-island", "open-named-island", "close-panel",
+  // The first entries, by name: an island is opened by its size or its story's name, never a point, and settles on that island's panel.
+  const by = new Map(CATALOGUE.map(action => [action.name, action]));
+  assert.deepEqual([...by.keys()], ["open-fewest-island", "open-most-island", "open-named-island", "close-panel",
     "library-and-back", "open-library-note", "open-session-row", "hover-sweep", "idle"]);
-  for (const action of CATALOGUE) assert.ok(action.perform.length > 0 && action.limitMs > 0, action.name);
+  assert.deepEqual(["open-fewest-island", "open-most-island", "open-named-island"].map(name => by.get(name)!.perform),
+    [[{ kind: "island", island: "fewest" }], [{ kind: "island", island: "most" }], [{ kind: "island", island: { story: "The library" } }]]);
+  assert.deepEqual(by.get("open-named-island")!.settled, { selected: "island", panel: "open", still: true });
+  assert.deepEqual(by.get("close-panel")!.settled, { selected: "none", panel: "closed" });
+  assert.deepEqual(by.get("library-and-back")!.settled, { mode: "forest", still: true });
+  assert.deepEqual(by.get("open-library-note")!.perform, [{ kind: "note" }]);
 });

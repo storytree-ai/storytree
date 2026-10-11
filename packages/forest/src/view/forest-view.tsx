@@ -43,7 +43,7 @@ interface Drawn {
  * Open the globe in `container`. `onSelect` hears the story or artifact picked, or empty space.
  * The app's existing core supplies the faint points; its inspection page stays deferred.
  * With `library` off (ADR-0750) the globe stays solid and has no Forest and Library buttons;
- * `opening` is how close it opens. The page offers `window.storytreeGlobe`, the locator the lag instrument clicks islands by (3.40).
+ * `opening` is how close it opens. The page offers `window.storytreeGlobe`, the locator the lag instrument clicks islands by (3.41).
  */
 export async function openForestView(container: HTMLElement, onSelect: (selection: Selection) => void, core: KnowledgeCore,
   { library = true, opening = "whole-planet" }: { library?: boolean; opening?: GlobeOpening | undefined } = {}): Promise<ForestView> {

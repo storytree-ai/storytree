@@ -1,5 +1,5 @@
 /**
- * Capability 3 · Story node render. The page's locator (3.40, ADR-1001 D1): where each drawn island and note is on screen, so the
+ * Capability 3 · Story node render. The page's locator (3.41, ADR-1001 D1): where each drawn island and note is on screen, so the
  * lag instrument can click one by name with a real mouse. It only reads places and turns the globe; every click still goes through
  * the globe's own pointer handlers.
  */

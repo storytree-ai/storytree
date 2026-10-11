@@ -111,7 +111,7 @@ test("3.37 home eases the globe back to the turn and zoom it opened on, the shor
   assert.ok(Math.abs(Math.sin(back.turn.yaw - 0.4)) < 1e-9 && Math.cos(back.turn.yaw - 0.4) > 0, "facing the way it opened");
 });
 
-test("3.40 the page's locator gives each drawn island's capability count and client point, each note's point, turns to face one at once, and says when the glide is over", () => {
+test("3.41 the page's locator gives each drawn island's capability count and client point, each note's point, turns to face one at once, and says when the glide is over", () => {
   const f = fixture();
   const note = new Group(); note.name = "knowledge-point:note_1"; note.position.set(0, 5, 0); f.globe.add(note);
   const island = (story: string, capabilities: (string | undefined)[]) => ({ story, title: story, x: 0, z: 0, key: story,

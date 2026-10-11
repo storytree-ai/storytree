@@ -15,6 +15,7 @@ import { findProject, MARKER_FILE, requireApproval, type ProjectLookup } from "@
 import { git, withTempDir } from "@storytree/session-management/testing/folders";
 import { dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/session-management/testing/pg";
 import { connect, ProjectNameError, type Storytree } from "@storytree/library";
+import { openReviews } from "@storytree/quality-assurance";
 
 import { setUpProject, suggestProjectName } from "./making.js";
 
@@ -189,7 +190,10 @@ test("6.6 a moved trunk is never adopted on sight: it reaches its project only o
   });
 });
 
-test("6.7 setting a new project up seeds its library with the starter roles, an orchestrator and a librarian, and the principles they stand on; joining it from another machine adds no second copy", async () => {
+/** The six test-quality checks the starter pack seeds, by title. */
+const STARTER_CHECKS = ["Hidden skip", "Module mock", "Proxy assertion", "Tautological expected value", "Test title without a contract number", "Wall-clock duration"];
+
+test("6.7 setting a new project up seeds its library with the starter roles (an orchestrator, a librarian and a change-reviewer), the six test-quality checks a review's brief lists, and the notes they stand on; joining it from another machine adds no second copy", async () => {
   const project = uniqueProjectName();
   await withTempDir(async (dir) => {
     const { laptop, box } = machines(dir);
@@ -197,31 +201,43 @@ test("6.7 setting a new project up seeds its library with the starter roles, an 
     mkdirSync(onLaptop, { recursive: true });
     mkdirSync(onBox, { recursive: true });
     await withStorytree([project], async (storytree) => {
-      const roles = async () => {
+      // The pack as the library holds it: each role and check by title, every note each stands on or enforces live.
+      const pack = async () => {
         const library = await storytree.openProject(project);
         try {
-          const found = [];
-          for (const title of ["orchestrator", "librarian"]) {
-            const agents = (await library.search(title)).map((note) => ({ type: note.type, ...(note.fields as { title?: string; context?: string[] }) })).filter((note) => note.type === "agent" && note.title === title);
-            for (const agent of agents) {
-              for (const id of agent.context ?? []) assert.equal((await library.get(id))?.type, "principle", `${title} stands on a live principle`);
-            }
-            found.push(...agents.map((agent) => agent.title));
+          const roles = await library.list("agent");
+          const checks = await library.list("check");
+          for (const id of [...roles.flatMap((role) => role.fields.context), ...checks.flatMap((check) => check.fields.enforces)]) {
+            assert.ok(["principle", "guardrail"].includes((await library.get(id))?.type ?? "none"), `${id} is a live principle or guardrail`);
           }
-          return found;
+          return { roles: roles.map((role) => role.fields.title).sort(), checks: checks.map((check) => check.fields.title).sort() };
         } finally {
           await library.close();
         }
       };
+      const seeded = { roles: ["change-reviewer", "librarian", "orchestrator"], checks: STARTER_CHECKS };
       // A first try that fails at its last step (the choice cannot be saved), then the retry.
       const choice = path.join(laptop, "project-choice.json");
       mkdirSync(choice, { recursive: true });
       await assert.rejects(setUpProject({ folder: onLaptop, project, storytree, storytreeHome: laptop }));
       rmSync(choice, { recursive: true });
       await setUpProject({ folder: onLaptop, project, storytree, storytreeHome: laptop });
-      assert.deepEqual(await roles(), ["orchestrator", "librarian"], "the retry adds no second copy");
+      assert.deepEqual(await pack(), seeded, "the retry adds no second copy");
       await setUpProject({ folder: onBox, project, storytree, storytreeHome: box, join: true });
-      assert.deepEqual(await roles(), ["orchestrator", "librarian"], "joining adds no second copy");
+      assert.deepEqual(await pack(), seeded, "joining adds no second copy");
+
+      // A review of a change in this project is briefed with the seeded checks.
+      const library = await storytree.openProject(project);
+      try {
+        const story = await library.addStory({ title: "Visitor can sign up" });
+        const capability = await library.addCapability({ title: "1 · Email form", story: story.id });
+        const arc = await library.createArc({ title: "Launch sign-up", intent: "Ship sign-up", endState: "Visitors sign up", stories: [story.id] });
+        const increment = await library.addIncrement({ arc: arc.id, title: "Email form", objective: "Build the email form", body: "Build the form.", capabilities: [capability.id] });
+        const brief = await (await openReviews(storytree)).brief(library, increment.id, "diff --git a/src/form.ts b/src/form.ts\n+export const form = 1;\n");
+        assert.deepEqual(brief.checks.map((check) => check.title).sort(), STARTER_CHECKS);
+      } finally {
+        await library.close();
+      }
     });
   });
 });

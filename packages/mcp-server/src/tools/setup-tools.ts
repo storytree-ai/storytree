@@ -71,7 +71,7 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
         const starterPack = await starterPackStatus(library);
         if (starterPack.offered) said.push(newerPackSentence(starterPack));
         // The session as the hook before this call named it: after Claude Code's /clear, the new one.
-        const caller = seenCaller(await callLines(log, report.project.name, metaOf(context)), heard, metaOf(context));
+        const caller = seenCaller(await callLines(log, report.project.name, metaOf(context), { harness: heard.harness, tool: "check_setup" }), heard, metaOf(context));
         await log.append(report.project.name, { ...lineOf(caller), source: "tool", folder, kind: "tool-called", tool: "check_setup" });
         if (connected) {
           said.push(connectedSentence(caller));

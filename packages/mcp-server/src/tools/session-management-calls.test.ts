@@ -98,17 +98,32 @@ test("session-management 10.10 / 9.7 a running MCP server rereads idle-after wit
 test("6.65 a client that names no session keeps one session id for the tool server's life, or the one STORYTREE_SESSION_ID names in its environment, so its claims and its shell's commands are one session", async () => {
   await withProject(async ({ folder, project, log }) => {
     const sessionsOf = async () => [...new Set((await log.lines(project, { kinds: ["tool-called"] })).map((line) => `${line.session} ${line.harness}`))];
-    await withAgent(folder, { client: "cursor" }, async (agent) => {
+    await withAgent(folder, { client: "zed" }, async (agent) => {
       await agent.call("show_plan");
       await agent.call("show_plan");
     });
     const own = await sessionsOf();
     assert.equal(own.length, 1, `one session for both calls: ${own.join(", ")}`);
-    assert.match(own[0]!, /^storytree-mcp-\S+ cursor$/);
+    assert.match(own[0]!, /^storytree-mcp-\S+ zed$/);
 
-    await withAgent(folder, { client: "cursor", env: { STORYTREE_SESSION_ID: "cursor-chat-7" } }, async (agent) => {
+    await withAgent(folder, { client: "zed", env: { STORYTREE_SESSION_ID: "zed-chat-7" } }, async (agent) => {
       await agent.call("show_plan");
     });
-    assert.ok((await sessionsOf()).includes("cursor-chat-7 cursor"), "the named session is the caller");
+    assert.ok((await sessionsOf()).includes("zed-chat-7 zed"), "the named session is the caller");
+  });
+});
+
+test("6.66 a tool call from Cursor, which sends the tool server neither a session nor a call id, is recorded on the session Cursor's hook named just before it; a call no hook announced keeps the server's own session", async () => {
+  await withProject(async ({ folder, project, log }) => {
+    const calledBy = async (tool: string) => (await log.lines(project, { kinds: ["tool-called"], where: { tool } })).map((line) => `${line.session} ${line.harness}`);
+    // Cursor's MCP client names itself "Cursor"; its hook before the call names the conversation.
+    await withAgent(folder, { client: "Cursor" }, async (agent) => {
+      await log.append(project, { session: "cursor-conversation-1", harness: "cursor", source: "hook", folder, kind: "tool-requested", tool: "show_plan", call: "gen-1:show_plan", agent: "orchestrator" });
+      await agent.call("show_plan");
+      await agent.call("stale_claims");
+    });
+    assert.deepEqual(await calledBy("show_plan"), ["cursor-conversation-1 cursor"]);
+    const [unannounced] = await calledBy("stale_claims");
+    assert.match(unannounced ?? "", /^storytree-mcp-\S+ cursor$/, "no hook announced this tool's call");
   });
 });

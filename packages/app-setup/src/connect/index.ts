@@ -2,7 +2,7 @@
 import { mkdirSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
-import { codexHookTrust } from "@storytree/session-management";
+import { codexHookTrust, HARNESS_IDS, watchedHarness } from "@storytree/session-management";
 
 import { CODEX_TRUST_STEP, launcherFiles, launcherRuns, markDisconnected, registerHooks, removeHooks, removeLauncher, runsElevated } from "../setup/index.js";
 import { removeCodexInstructions, writeCodexInstructions } from "./codex-agents.js";
@@ -49,17 +49,25 @@ function locations(options: ConnectionOptions) {
   const codex = env.CODEX_HOME || path.join(home, ".codex");
   // Where storytree keeps what the user disconnected, which the setup check honours.
   const storytree = env.STORYTREE_HOME || path.join(home, ".storytree", "0.3");
-  return { home, env, claude, codex, storytree, files: {
+  // Cursor's home is ~/.cursor on every machine: no variable moves it (its documentation; not measured in a live session).
+  const cursor = path.join(home, ".cursor");
+  return { home, env, claude, codex, cursor, storytree, files: {
     "claude-code": env.CLAUDE_CONFIG_DIR ? path.join(claude, ".claude.json") : path.join(home, ".claude.json"),
     codex: path.join(codex, "config.toml"),
+    cursor: path.join(cursor, "mcp.json"),
   } };
 }
 /** The hook the installation carries: its bundled Node and the hook script beside its tool server. */
 const hookCommand = (installed: InstalledToolServerCommand) => ({ node: installed.command, script: path.join(path.dirname(installed.args[0]), "storytree-hook.mjs") });
-const executable = (harness: Harness) => harness === "claude-code" ? "claude" : "codex";
+const executable = (harness: Harness) => harness === "claude-code" ? "claude" : harness === "codex" ? "codex" : "cursor-agent";
+const label = (harness: Harness) => watchedHarness(harness)?.label ?? harness;
+/** The file a harness keeps its hooks in: Claude Code's settings.json, Codex's and Cursor's hooks.json. */
+const hooksFileOf = (where: ReturnType<typeof locations>, harness: Harness) => harness === "claude-code" ? path.join(where.claude, "settings.json") : path.join(where[harness], "hooks.json");
+const homesOf = (where: ReturnType<typeof locations>) => ({ claude: where.claude, codex: where.codex, cursor: where.cursor });
 async function openSettings(harness: Harness, options: ConnectionOptions): Promise<Settings> {
   const where = locations(options);
-  return harness === "claude-code" ? claudeSettings(where.files[harness]) : codexSettings(where.files[harness], options.run ?? runHarness, where.env, where.codex === path.join(where.home, ".codex") ? undefined : where.codex);
+  // Cursor's mcp.json names its servers under mcpServers, as Claude Code's file does.
+  return harness !== "codex" ? claudeSettings(where.files[harness]) : codexSettings(where.files[harness], options.run ?? runHarness, where.env, where.codex === path.join(where.home, ".codex") ? undefined : where.codex);
 }
 const ELEVATED = "This terminal runs as administrator, and Codex cannot run commands when started from one (its Windows sandbox times out on each): open Codex from a normal terminal, not \"Run as administrator\".";
 const conflict = (file: string) => `The existing storytree entry in ${file} is incompatible and was kept (including any 0.2 entry). Review or move that entry yourself before retrying. The name storytree is required by the existing hooks.`;
@@ -89,12 +97,12 @@ export async function connectAgents(options: ConnectionOptions): Promise<Connect
     try {
       await (options.run ?? runHarness)(executable(harness), ["--version"], { cwd: where.home, env: where.env });
     } catch {
-      result("not connected", `Install ${harness === "claude-code" ? "Claude Code" : "Codex"}, sign in, and check that ${executable(harness)} --version works in a fresh terminal; reopen storytree and retry Connect.`);
+      result("not connected", `Install ${label(harness)}, sign in, and check that ${executable(harness)} --version works in a fresh terminal; reopen storytree and retry Connect.`);
       continue;
     }
     let settings: Settings | undefined;
-    const harnessHome = harness === "claude-code" ? where.claude : where.codex;
-    const hooksFile = path.join(harnessHome, harness === "claude-code" ? "settings.json" : "hooks.json");
+    const hooksFile = hooksFileOf(where, harness);
+    const harnessHome = path.dirname(hooksFile);
     let checkingFile = hooksFile;
     try {
       // A harness that has never started a session has no home yet (its --version makes none): make it, so its hooks go in now.
@@ -116,7 +124,7 @@ export async function connectAgents(options: ConnectionOptions): Promise<Connect
       else if (settings.current === undefined) await settings.add(options.installed);
       markDisconnected(where.storytree, harness, false);
       checkingFile = hooksFile;
-      const registration = registerHooks(harness === "claude-code" ? { claude: where.claude } : { codex: where.codex }, hook)[harness];
+      const registration = registerHooks(harness === "claude-code" ? { claude: where.claude } : { [harness]: where[harness] }, hook)[harness];
       if (registration !== "registered" && registration !== "already registered") throw new Error(`Hooks ${registration}`);
       // Codex shows the agent neither the tool server's instructions nor its tools until it searches, and
       // runs no hook until the user trusts it: its home's AGENTS.md is what sends its first session to check_setup.
@@ -124,10 +132,12 @@ export async function connectAgents(options: ConnectionOptions): Promise<Connect
       const trust = harness === "codex" ? codexHookTrust({ storytreeHome: where.storytree, codexHome: where.codex }) : "not registered";
       if (trust === "running") result(tools, "Tools connected in user settings; Codex has run storytree's hooks. Start a new Codex session in the folder of your project.", "running");
       else if (trust === "waiting") result(tools, `Tools connected in user settings. One step is yours: Codex runs storytree's hooks only once you have trusted them, and until then storytree cannot see Codex's work. ${CODEX_TRUST_STEP}`, "waiting for you to trust them in Codex");
+      // Cursor's hooks are known from its documentation and code, not from a session: nothing here says they run.
+      else if (harness === "cursor") result(tools, "Tools connected in user settings; hooks not verified. Start a new Cursor agent session in the folder of your project and call check_setup.");
       else result(tools, "Tools connected in user settings; hooks not verified. Start a new agent session in the folder of your project and call check_setup; it names each missing hook until its event is received. Project or managed settings can override this user registration.");
     } catch {
       // Do not copy a CLI's stdout/stderr (which can include settings or credentials) into the result.
-      const reason = harness === "claude-code" ? " Check that the file contains a valid JSON object." : " Check that codex mcp list --json succeeds and hooks.json contains a valid JSON object.";
+      const reason = harness === "codex" ? " Check that codex mcp list --json succeeds and hooks.json contains a valid JSON object." : " Check that the file contains a valid JSON object.";
       result("not connected", `Repair ${checkingFile} or its write permissions, then retry Connect.${reason}`);
     } finally { settings?.close(); }
   }
@@ -148,20 +158,20 @@ export async function disconnectAgents(options: ConnectionOptions): Promise<Disc
         continue;
       }
       // Validate/remove only this harness's hooks; never call the unscoped `setup remove` command.
-      removeHooks({ claude: where.claude, codex: where.codex }, { harness, hook });
+      removeHooks(homesOf(where), { harness, hook });
       if (harness === "codex") removeCodexInstructions(where.codex);
       if (settings.current !== undefined) await settings.remove();
       // So the setup check, run from another harness's session, does not register its hooks again.
       markDisconnected(where.storytree, harness, true);
       harnesses.push({ harness, tools: settings.current === undefined ? "not connected" : "disconnected", next: "Restart this agent to finish disconnecting. Project libraries and unrelated settings were kept." });
     } catch {
-      harnesses.push({ harness, tools: "kept", next: `Repair ${where.files[harness]} and ${path.join(harness === "claude-code" ? where.claude : where.codex, harness === "claude-code" ? "settings.json" : "hooks.json")}; for Codex, check codex mcp list --json. Retry Disconnect to finish cleanup.` });
+      harnesses.push({ harness, tools: "kept", next: `Repair ${where.files[harness]} and ${hooksFileOf(where, harness)}; for Codex, check codex mcp list --json. Retry Disconnect to finish cleanup.` });
     } finally { settings?.close(); }
   }
   let command: DisconnectReport["command"] = "kept";
   if (harnesses.length > 0 && harnesses.every((result) => result.tools !== "kept")) {
     let remaining = false;
-    for (const harness of ["claude-code", "codex"] as const) {
+    for (const harness of HARNESS_IDS) {
       let settings: Settings | undefined;
       try {
         settings = await openSettings(harness, options);
@@ -173,7 +183,7 @@ export async function disconnectAgents(options: ConnectionOptions): Promise<Disc
     if (!remaining) {
       try {
         // The existing setup check registers hooks for every detected home, even an unchosen harness.
-        for (const harness of ["claude-code", "codex"] as const) removeHooks({ claude: where.claude, codex: where.codex }, { harness, hook });
+        for (const harness of HARNESS_IDS) removeHooks(homesOf(where), { harness, hook });
         removeCodexInstructions(where.codex);
         command = removeInstalledCommand(where.home, where.env, options.installed);
       } catch { command = "kept"; }
@@ -189,7 +199,7 @@ export interface RemovalResult {
 }
 
 /**
- * Uninstalling: take out this installation's registration, hooks and status line from both agents,
+ * Uninstalling: take out this installation's registration, hooks and status line from every agent,
  * whichever were chosen. Anything that does not run this installation's tools (another build's, 0.2's,
  * the user's own) is not ours and stays, silently. Records no disconnection, since the home goes too.
  */
@@ -197,10 +207,10 @@ export async function removeConnections(options: Omit<ConnectionOptions, "harnes
   const where = locations({ ...options, harnesses: [] });
   const hook = hookCommand(options.installed);
   const results: RemovalResult[] = [];
-  for (const harness of ["claude-code", "codex"] as const) {
+  for (const harness of HARNESS_IDS) {
     let settings: Settings | undefined;
     try {
-      removeHooks({ claude: where.claude, codex: where.codex }, { harness, hook });
+      removeHooks(homesOf(where), { harness, hook });
       if (harness === "codex") removeCodexInstructions(where.codex);
       // Codex's own command line reads its TOML; without a storytree table there is nothing to ask it.
       if (harness === "codex" && !/mcp_servers\.["']?storytree\b/.test(read(where.files.codex) ?? "")) { results.push({ harness, tools: "none" }); continue; }
@@ -211,7 +221,9 @@ export async function removeConnections(options: Omit<ConnectionOptions, "harnes
     } catch {
       const next = harness === "claude-code"
         ? `remove the storytree entry under mcpServers in ${where.files[harness]}, and storytree's hooks and status line in ${path.join(where.claude, "settings.json")}.`
-        : `run codex mcp remove storytree, or delete the [mcp_servers.storytree] table in ${where.files[harness]}; storytree's hooks are in ${path.join(where.codex, "hooks.json")}.`;
+        : harness === "cursor"
+          ? `remove the storytree entry under mcpServers in ${where.files[harness]}, and storytree's hooks in ${hooksFileOf(where, harness)}.`
+          : `run codex mcp remove storytree, or delete the [mcp_servers.storytree] table in ${where.files[harness]}; storytree's hooks are in ${path.join(where.codex, "hooks.json")}.`;
       results.push({ harness, tools: "kept", next: `storytree could not remove its connection; ${next}` });
     } finally { settings?.close(); }
   }

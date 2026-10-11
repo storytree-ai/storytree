@@ -19,7 +19,13 @@
  *   A second end-of-turn hook runs in the foreground, since Codex reads a Stop hook's block as
  *   Claude Code does: it may ask the agent to close out (ADR-0758 D4).
  *   Codex runs a newly added hook only after the user approves it once (ADR-0626 D4).
- * - In both, the hook before each file-edit tool runs in the foreground, since its answer may refuse
+ * - Cursor: `~/.cursor/hooks.json`, which no variable moves. From Cursor's documentation and installed code,
+ *   not a live session (hooks/cursor.ts in Session management says which). Its file names a `version`, and
+ *   lists each event's hooks flat: an entry is itself one command line, which Cursor runs through a shell
+ *   from ~/.cursor (on Windows after PowerShell's `&`), so each path is absolute and quoted. Cursor waits
+ *   for every hook, so the ones before each shell command and at the end of each turn pass `--background`.
+ *   Anything a hook before a tool prints that is not JSON blocks the tool: the hook script prints JSON or nothing.
+ * - In all three, the hook before each file-edit tool runs in the foreground, since its answer may refuse
  *   the edit (ADR-0949 D3).
  */
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
@@ -55,6 +61,7 @@ export type StatusLineInstall = "installed" | "already installed" | "the user's 
 export interface HooksReport {
   readonly "claude-code": HookRegistration;
   readonly codex: HookRegistration;
+  readonly cursor: HookRegistration;
   readonly statusLine: StatusLineInstall;
   /** The hook scripts of another build that registering replaced, by harness: present only when it replaced one. */
   readonly replaced?: { readonly [harness in Harness]?: readonly string[] };
@@ -63,6 +70,7 @@ export interface HooksReport {
 export interface RemovalReport {
   readonly "claude-code": "removed" | "none";
   readonly codex: "removed" | "none";
+  readonly cursor: "removed" | "none";
   /** Whether storytree's status line was taken out: a status line of the user's own is never touched. */
   readonly statusLine: "removed" | "none";
 }
@@ -70,9 +78,12 @@ export interface RemovalReport {
 /** The hook script's file name: what marks a hook entry as storytree's. */
 const SCRIPT_NAME = "storytree-hook.mjs";
 
+/** One entry under an event: Claude Code's and Codex's hold their hooks in `hooks`; Cursor's is itself the hook, with its `command`. */
 interface HookEntry {
   matcher?: string;
   hooks?: Record<string, unknown>[];
+  command?: unknown;
+  timeout?: number;
 }
 
 type Settings = Record<string, unknown> & { hooks?: Record<string, HookEntry[]> };
@@ -84,10 +95,13 @@ type Settings = Record<string, unknown> & { hooks?: Record<string, HookEntry[]> 
 export function registerHooks(homes: Homes, hook: HookCommand, disconnected: ReadonlySet<Harness> = new Set()): HooksReport {
   const claude = disconnected.has("claude-code") ? { registration: "disconnected" as const, replaced: [] } : register(homes.claude, "settings.json", claudeEntries(hook), hook.script);
   const codex = disconnected.has("codex") ? { registration: "disconnected" as const, replaced: [] } : register(homes.codex, "hooks.json", codexEntries(hook), hook.script);
-  const replaced = { ...(claude.replaced.length > 0 ? { "claude-code": claude.replaced } : {}), ...(codex.replaced.length > 0 ? { codex: codex.replaced } : {}) };
+  // Cursor's hooks file must name its version: a new file gets 1, and one the user wrote keeps its own.
+  const cursor = disconnected.has("cursor") ? { registration: "disconnected" as const, replaced: [] } : register(homes.cursor, "hooks.json", cursorEntries(hook), hook.script, { version: 1 });
+  const replaced = { ...(claude.replaced.length > 0 ? { "claude-code": claude.replaced } : {}), ...(codex.replaced.length > 0 ? { codex: codex.replaced } : {}), ...(cursor.replaced.length > 0 ? { cursor: cursor.replaced } : {}) };
   return {
     "claude-code": claude.registration,
     codex: codex.registration,
+    cursor: cursor.registration,
     statusLine: disconnected.has("claude-code") ? "not here" : installStatusLine(homes.claude, hook),
     ...(Object.keys(replaced).length > 0 ? { replaced } : {}),
   };
@@ -130,6 +144,7 @@ export function removeHooks(homes: Homes, scope?: { readonly harness: Harness; r
   return {
     "claude-code": remove(homes.claude, "settings.json"),
     codex: remove(homes.codex, "hooks.json"),
+    cursor: remove(homes.cursor, "hooks.json", true),
     statusLine,
   };
 }
@@ -215,8 +230,32 @@ function codexEntries({ node, script }: HookCommand): Record<string, HookEntry[]
   };
 }
 
-/** Register `entries` in `home`'s `file`, saying which other builds' hook scripts it replaced there. */
-function register(home: string | undefined, file: string, entries: Record<string, HookEntry[]>, script: string): { registration: HookRegistration; replaced: string[] } {
+/**
+ * Cursor's entries: one command line for the shell Cursor runs it through. On Windows each path is in
+ * double quotes, which read as one word after the `&` Cursor's PowerShell puts before it, and in cmd.
+ */
+function cursorEntries({ node, script }: HookCommand): Record<string, HookEntry[]> {
+  const quoted = process.platform === "win32" ? (text: string) => `"${text}"` : shQuoted;
+  const line = `${quoted(node)} ${quoted(script)} cursor`;
+  const run = (timeout: number, flag?: string, matcher?: string) => ({ command: flag === undefined ? line : `${line} ${flag}`, ...(matcher === undefined ? {} : { matcher }), timeout });
+  return {
+    sessionStart: [run(10)],
+    sessionEnd: [run(3)],
+    beforeSubmitPrompt: [run(10)],
+    // Every tool server's calls: the hook script keeps only those to storytree's own.
+    beforeMCPExecution: [run(10)],
+    // Before each file edit, in the foreground: an edit to a capability the session may not write is refused (ADR-0949 D3).
+    preToolUse: [run(10, BACKGROUND, "^Shell$"), run(10, EDIT_GATE, "^(Write|StrReplace|ApplyPatch|Delete|MultiEdit|Edit)$")],
+    postToolUse: [run(10, undefined, "^Shell$")],
+    postToolUseFailure: [run(10, undefined, "^Shell$")],
+    afterFileEdit: [run(10)],
+    subagentStart: [run(10)],
+    stop: [run(10, BACKGROUND)],
+  };
+}
+
+/** Register `entries` in `home`'s `file`, saying which other builds' hook scripts it replaced there; `born` is what a new file holds besides its hooks. */
+function register(home: string | undefined, file: string, entries: Record<string, HookEntry[]>, script: string, born: Settings = {}): { registration: HookRegistration; replaced: string[] } {
   if (home === undefined || !isFolder(home)) return { registration: "not here", replaced: [] };
   const settingsFile = path.join(home, file);
   const settings = readSettings(settingsFile);
@@ -226,18 +265,16 @@ function register(home: string | undefined, file: string, entries: Record<string
   for (const [event, wanted] of Object.entries(entries)) {
     const current = hooks[event] ?? [];
     if (isDeepStrictEqual(current.filter(isStorytrees), wanted)) continue;
-    for (const entry of current.filter(isStorytrees)) {
-      for (const each of entry.hooks ?? []) for (const found of scriptsIn([each.command, ...(Array.isArray(each.args) ? each.args : [])])) if (found !== script) replaced.add(found);
-    }
+    for (const entry of current.filter(isStorytrees)) for (const found of scriptsIn(commandWords(entry))) if (found !== script) replaced.add(found);
     hooks[event] = [...current.filter((entry) => !isStorytrees(entry)), ...wanted];
     changed = true;
   }
   if (!changed) return { registration: "already registered", replaced: [] };
-  writeSettings(settingsFile, { ...settings, hooks });
+  writeSettings(settingsFile, { ...born, ...settings, hooks });
   return { registration: "registered", replaced: [...replaced] };
 }
 
-function remove(home: string | undefined, file: string): "removed" | "none" {
+function remove(home: string | undefined, file: string, cursor = false): "removed" | "none" {
   if (home === undefined) return "none";
   const settingsFile = path.join(home, file);
   if (!existsSync(settingsFile)) return "none";
@@ -251,18 +288,22 @@ function remove(home: string | undefined, file: string): "removed" | "none" {
   }
   if (!removed) return "none";
   const { hooks: _hooks, ...rest } = settings;
-  const left: Settings = Object.keys(hooks).length === 0 ? rest : { ...settings, hooks };
-  // A hooks file with nothing left in it was storytree's alone: it goes with them.
-  if (file === "hooks.json" && Object.keys(hooks).length === 0 && Object.keys(rest).length === 0) rmSync(settingsFile);
+  // Cursor's file keeps its `hooks` key, empty or not, beside its version.
+  const left: Settings = Object.keys(hooks).length === 0 && !cursor ? rest : { ...settings, hooks };
+  // A hooks file with nothing left in it (in Cursor's, nothing but its version) was storytree's alone: it goes with them.
+  if (file === "hooks.json" && Object.keys(hooks).length === 0 && (cursor ? isDeepStrictEqual(rest, { version: 1 }) : Object.keys(rest).length === 0)) rmSync(settingsFile);
   else writeSettings(settingsFile, left);
   return "removed";
 }
 
 /** Whether a hook entry runs storytree's hook script. */
 function isStorytrees(entry: HookEntry): boolean {
-  return (entry.hooks ?? []).some((hook) =>
-    [hook.command, ...(Array.isArray(hook.args) ? hook.args : [])].some((part) => typeof part === "string" && part.includes(SCRIPT_NAME)),
-  );
+  return commandWords(entry).some((part) => typeof part === "string" && part.includes(SCRIPT_NAME));
+}
+
+/** The command, and any arguments, of each hook an entry runs: its own in Cursor's flat shape, its `hooks`' in the others'. */
+function commandWords(entry: HookEntry): unknown[] {
+  return [entry.command, ...(entry.hooks ?? []).flatMap((hook) => [hook.command, ...(Array.isArray(hook.args) ? hook.args : [])])];
 }
 
 function readSettings(file: string): Settings {
@@ -294,16 +335,17 @@ function shQuoted(text: string): string {
 
 /** Remove one installation's hooks from one harness, preserving other commands in mixed groups. */
 function removeHarnessHooks(homes: Homes, harness: Harness, hook: HookCommand): RemovalReport {
-  const report: RemovalReport = { "claude-code": "none", codex: "none", statusLine: "none" };
-  const home = harness === "claude-code" ? homes.claude : homes.codex;
+  const report: RemovalReport = { "claude-code": "none", codex: "none", cursor: "none", statusLine: "none" };
+  const home = harness === "claude-code" ? homes.claude : homes[harness];
   if (home === undefined) return report;
   const file = path.join(home, harness === "claude-code" ? "settings.json" : "hooks.json");
   if (!existsSync(file)) return report;
   const settings = readSettings(file);
   if (settings === null || Array.isArray(settings) || typeof settings !== "object" ||
       (settings.hooks !== undefined && (settings.hooks === null || Array.isArray(settings.hooks) || typeof settings.hooks !== "object"))) throw new Error(`Repair ${file} before removing hooks.`);
-  const entries = harness === "claude-code" ? claudeEntries(hook) : codexEntries(hook);
-  const wanted = Object.values(entries).flatMap((groups) => groups.flatMap((group) => group.hooks ?? []));
+  const entries = harness === "claude-code" ? claudeEntries(hook) : harness === "codex" ? codexEntries(hook) : cursorEntries(hook);
+  // Cursor's entries are themselves the hooks.
+  const wanted: Record<string, unknown>[] = Object.values(entries).flatMap((groups) => groups.flatMap((group) => harness === "cursor" ? [{ command: group.command }] : group.hooks ?? []));
   // The asking start hook an install before ADR-0752 registered goes too.
   if (harness === "claude-code") wanted.push({ type: "command", command: hook.node, args: [hook.script, "claude-code", ASK_SETUP] });
   let removed = false;
@@ -311,6 +353,11 @@ function removeHarnessHooks(homes: Homes, harness: Harness, hook: HookCommand): 
   for (const [event, groups] of Object.entries(settings.hooks ?? {})) {
     if (!Array.isArray(groups)) throw new Error(`Repair ${file} before removing hooks.`);
     hooks[event] = groups.flatMap((group) => {
+      if (harness === "cursor" && group !== null && typeof group === "object") {
+        if (!wanted.some((own) => group.command === own.command)) return [group];
+        removed = true;
+        return [];
+      }
       if (group === null || typeof group !== "object" || !Array.isArray(group.hooks)) throw new Error(`Repair ${file} before removing hooks.`);
       const kept = group.hooks.filter((entry) => !wanted.some((own) => entry !== null && typeof entry === "object" && entry.command === own.command && isDeepStrictEqual(entry.args, own.args)));
       if (kept.length === group.hooks.length) return [group];
@@ -322,9 +369,10 @@ function removeHarnessHooks(homes: Homes, harness: Harness, hook: HookCommand): 
   const statusLine = harness === "claude-code" && isDeepStrictEqual(settings.statusLine, { type: "command", command: statusLineCommand(hook) });
   if (!removed && !statusLine) return report;
   const next = { ...settings };
-  if (removed) { if (Object.keys(hooks).length > 0) next.hooks = hooks; else delete next.hooks; }
+  if (removed) { if (Object.keys(hooks).length > 0 || harness === "cursor") next.hooks = hooks; else delete next.hooks; }
   if (statusLine) delete next.statusLine;
-  if (harness === "codex" && Object.keys(next).length === 0) rmSync(file);
+  // Cursor's file with no hook left and nothing but its version was storytree's alone, as Codex's empty one is.
+  if (harness === "codex" ? Object.keys(next).length === 0 : harness === "cursor" && isDeepStrictEqual(next, { version: 1, hooks: {} })) rmSync(file);
   else writeSettings(file, next);
   return { ...report, [harness]: removed ? "removed" : "none", statusLine: statusLine ? "removed" : "none" };
 }

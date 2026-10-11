@@ -170,7 +170,7 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
         let quietMs = options.quietMs;
         const { library, log, storytree } = await connections.reach(where.library, where.project, where.identity, { folder: where.folder, home });
         // What the hooks wrote of this very call, the one run just before it (ADR-0629 D2): only those lines (contract 2.7).
-        const lines = await callLines(log, where.project, meta);
+        const lines = await callLines(log, where.project, meta, { harness: callerOf(context).harness, tool: name });
         const caller = seenCaller(lines, callerOf(context), meta);
         // The hook's line for this very call, joined by the id the harness gave it: never a guess by time.
         const requested = requestOf(lines, meta);

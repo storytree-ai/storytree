@@ -1,5 +1,5 @@
 /**
- * Capability 3 · Hooks (the Session management story): the commands Claude Code and Codex run by
+ * Capability 3 · Hooks (the Session management story): the commands Claude Code, Codex and Cursor run by
  * themselves when a session starts, after every file edit and shell command, and when it ends, each
  * adding one line about that session to the agent activity log, so an agent that never calls
  * storytree still shows up. They always exit cleanly and never print, so they can never break the
@@ -54,6 +54,7 @@ import { openNamedProject, ProjectFolderError, requireApproval, route, storytree
 import { claudeCodeLines } from "./claude-code.js";
 import { CLOSE_OUT_REMINDER, closeOutReminder } from "./close-out-reminder.js";
 import { codexLines } from "./codex.js";
+import { cursorLines, cursorSession } from "./cursor.js";
 import { EDIT_GATE, editGate } from "./edit-gate.js";
 import { UPKEEP_DEADLINE_MS, withDeadline } from "./deadlines.js";
 import { noteCodexHookRan } from "./codex-trust.js";
@@ -104,15 +105,33 @@ export function hookLines(harness: string, input: unknown): HookLines | undefine
   if (typeof input !== "object" || input === null || Array.isArray(input)) return undefined;
   switch (harness) {
     case "claude-code":
-      return claudeCodeLines(input as Record<string, unknown>);
+      // Cursor runs Claude Code's hooks too: its own entry reports the session, so this one stands down (3.28).
+      return inCursor(input) ? undefined : claudeCodeLines(input as Record<string, unknown>);
     case "codex":
       return codexLines(input as Record<string, unknown>);
+    case "cursor":
+      return cursorLines(input as Record<string, unknown>);
     default:
       return undefined;
   }
 }
 
-/** A prompt the user sent, as both harnesses' prompt hook gives it (UserPromptSubmit). */
+/** Whether a hook input is Cursor's, which names its version on every one: also on the Claude Code hooks it loads and runs. */
+export function inCursor(input: unknown): boolean {
+  return typeof input === "object" && input !== null && typeof (input as Record<string, unknown>).cursor_version === "string";
+}
+
+/**
+ * What a prompt hook prints to add `context` for the agent, in the shape `harness` reads; undefined for
+ * nothing to add. Cursor reads `additional_context`, and `continue` lets the prompt through.
+ */
+export function promptAnswer(harness: string, context: readonly string[] | undefined, input: unknown): string | undefined {
+  if (context === undefined || context.length === 0 || (harness !== "cursor" && inCursor(input))) return undefined;
+  const added = context.join("\n\n");
+  return JSON.stringify(harness === "cursor" ? { continue: true, additional_context: added } : { hookSpecificOutput: { hookEventName: "UserPromptSubmit", additionalContext: added } });
+}
+
+/** A prompt the user sent, as each harness's prompt hook gives it (UserPromptSubmit; Cursor's beforeSubmitPrompt). */
 interface Prompted {
   readonly harness: Harness;
   readonly session: string;
@@ -146,7 +165,7 @@ export async function runHook({ argv, input, handOff, merges, locate, declaredCa
     // A prompt's line is written while its context is looked up: the harness waits for both.
     if (asked !== undefined) {
       const [context] = await Promise.all([withinTime(contextForPrompt(asked)), made === undefined ? undefined : writeLines(harness, input, flags, made, handOff, merges, locate, failed)]);
-      return context === undefined || context.length === 0 ? undefined : JSON.stringify({ hookSpecificOutput: { hookEventName: "UserPromptSubmit", additionalContext: context.join("\n\n") } });
+      return promptAnswer(harness, context, parsed);
     }
     if (made === undefined) return;
     await writeLines(harness, input, flags, made, handOff, merges, locate, failed);
@@ -298,7 +317,13 @@ async function lookAround(watcher: MergeContext, watch: MergeWatch | undefined):
 
 /** The prompt in a prompt hook's input from `harness`, or undefined for any other input. */
 function promptIn(harness: string, input: unknown): Prompted | undefined {
-  if ((harness !== "claude-code" && harness !== "codex") || typeof input !== "object" || input === null) return undefined;
+  if (typeof input !== "object" || input === null) return undefined;
+  if (harness === "cursor") {
+    const { hook_event_name: event, prompt } = input as Record<string, unknown>;
+    const about = cursorSession(input as Record<string, unknown>);
+    return event !== "beforeSubmitPrompt" || about === undefined || typeof prompt !== "string" ? undefined : { harness, ...about, prompt };
+  }
+  if ((harness !== "claude-code" && harness !== "codex") || inCursor(input)) return undefined;
   const { hook_event_name: event, session_id: session, cwd: folder, prompt } = input as Record<string, unknown>;
   if (event !== "UserPromptSubmit" || typeof session !== "string" || typeof folder !== "string" || folder === "" || typeof prompt !== "string") return undefined;
   return { harness, session, folder, prompt };

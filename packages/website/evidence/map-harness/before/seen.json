@@ -1,0 +1,69 @@
+{
+  "errors": [],
+  "seen": [
+    {
+      "name": "1440-map-arcs",
+      "arcs": {
+        "x": 0,
+        "y": 48,
+        "width": 1440,
+        "height": 450
+      },
+      "drawing": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 900
+      },
+      "tags": []
+    },
+    {
+      "name": "1440-map-claims-line-2",
+      "arcs": {
+        "x": 0,
+        "y": 48,
+        "width": 1440,
+        "height": 450
+      },
+      "drawing": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 900
+      },
+      "tags": []
+    },
+    {
+      "name": "390-map-arcs",
+      "arcs": {
+        "x": 0,
+        "y": 48,
+        "width": 390,
+        "height": 90
+      },
+      "drawing": {
+        "x": 0,
+        "y": 104,
+        "width": 390,
+        "height": 309
+      },
+      "tags": []
+    },
+    {
+      "name": "390-map-claims-line-2",
+      "arcs": {
+        "x": 0,
+        "y": 48,
+        "width": 390,
+        "height": 100
+      },
+      "drawing": {
+        "x": 0,
+        "y": 104,
+        "width": 390,
+        "height": 309
+      },
+      "tags": []
+    }
+  ]
+}

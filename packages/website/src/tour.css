@@ -149,6 +149,14 @@ html:has(> body.immersive-home) { scroll-padding-top:0; }
 #chapter2 .tour-tag-text { position:absolute; left:24px; top:-13px; padding:3px 9px; border-radius:7px; background:#f5f5ee; color:#141a17; font:650 12.5px/1.45 system-ui, sans-serif; white-space:nowrap; box-shadow:0 8px 20px -10px #000e; }
 /* The sessions list, pointed out while the line that names it is said: a brief outline that fades. */
 #chapter2 .tour-session-surface[data-pointed] .sessions-list { animation:tour-point 2.4s ease-out both; }
+/* The arcs list's first arc, pointed out and named while its line is said: an outline round its row, its words beside it. */
+#chapter2 .tour-arc-pointer { position:absolute; left:0; top:0; z-index:62; border:2px solid var(--green); border-radius:8px; box-shadow:0 0 0 4px #bdd6a629; pointer-events:none; transition:opacity .3s ease; }
+#chapter2 .tour-arc-pointer.away { opacity:0; }
+/* The harnesses storytree works with: each company's own mark, unaltered, beside its name. */
+#chapter2 .tour-marks { display:flex; flex-wrap:wrap; gap:14px 30px; margin:6px 0 18px; padding:0; list-style:none; }
+#chapter2 .tour-marks[hidden] { display:none; }
+#chapter2 .tour-mark { display:flex; align-items:center; gap:12px; color:#eceee6; font:600 17px/1.3 system-ui, sans-serif; animation:tour-beat-in .8s ease both; }
+#chapter2 .tour-mark img { flex:none; width:44px; height:44px; }
 @keyframes tour-point { 0%, 45% { outline:2px solid var(--green); outline-offset:3px; } 100% { outline:2px solid transparent; outline-offset:3px; } }
 
 /* The bar, always there: play, speed, where you are, Next, free play, replay, show everything (ADR-0879 D2). */
@@ -203,6 +211,8 @@ html:has(> body.immersive-home) { scroll-padding-top:0; }
   #chapter2 .lbl-short { display:inline; }
 }
 @media (max-width:600px) {
+  #chapter2 .tour-mark { font-size:15px; gap:10px; }
+  #chapter2 .tour-mark img { width:36px; height:36px; }
   #chapter2 { --bar-h:110px; min-height:620px; }
   /* A phone's controls are thumb-sized (contract 1.6): every standalone control is at least 44px high. */
   #chapter2 :is(.tb-btn, .tb-switch, .tb-speed-cycle) { min-height:44px; }
@@ -287,7 +297,7 @@ html:has(> body.immersive-home) { scroll-padding-top:0; }
   #chapter2[data-tour-mode="tour"][data-tour-step="map-claims"] .tour-line { line-height:1.22; }
 }
 @media (prefers-reduced-motion:reduce) {
-  #chapter2 .tour-card.is-in, #chapter2 .tour-line, #chapter2 .tour-tag, #chapter2 .tb-play[data-state="waiting"], #chapter2 .chip-recording::before { animation:none !important; transition:none !important; }
+  #chapter2 .tour-card.is-in, #chapter2 .tour-line, #chapter2 .tour-tag, #chapter2 .tour-arc-pointer, #chapter2 .tour-mark, #chapter2 .tb-play[data-state="waiting"], #chapter2 .chip-recording::before { animation:none !important; transition:none !important; }
   #chapter2[data-tour-kind="beats"] .tour-line.on { animation:none; }
   /* Reduced motion outlines the pointed-out sessions list without a fade, until its line passes. */
   #chapter2 .tour-session-surface[data-pointed] .sessions-list { animation:none; outline:2px solid var(--green); outline-offset:3px; }

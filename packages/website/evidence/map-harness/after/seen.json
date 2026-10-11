@@ -1,0 +1,93 @@
+{
+  "errors": [],
+  "seen": [
+    {
+      "name": "1440-map-harness",
+      "drawing": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 900
+      },
+      "tags": []
+    },
+    {
+      "name": "1440-map-arcs",
+      "arcs": {
+        "x": 58,
+        "y": 140,
+        "width": 400,
+        "height": 92
+      },
+      "drawing": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 900
+      },
+      "tags": [
+        "a plan of work: an arc"
+      ]
+    },
+    {
+      "name": "1440-map-claims-line-2",
+      "arcs": {
+        "x": 58,
+        "y": 140,
+        "width": 400,
+        "height": 102
+      },
+      "drawing": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 900
+      },
+      "tags": []
+    },
+    {
+      "name": "390-map-harness",
+      "drawing": {
+        "x": 0,
+        "y": 72,
+        "width": 390,
+        "height": 333
+      },
+      "tags": []
+    },
+    {
+      "name": "390-map-arcs",
+      "arcs": {
+        "x": 0,
+        "y": 48,
+        "width": 390,
+        "height": 89
+      },
+      "drawing": {
+        "x": 0,
+        "y": 104,
+        "width": 390,
+        "height": 309
+      },
+      "tags": [
+        "a plan of work: an arc"
+      ]
+    },
+    {
+      "name": "390-map-claims-line-2",
+      "arcs": {
+        "x": 0,
+        "y": 48,
+        "width": 390,
+        "height": 99
+      },
+      "drawing": {
+        "x": 0,
+        "y": 104,
+        "width": 390,
+        "height": 309
+      },
+      "tags": []
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 /** Capability 2 · The forest on the site. */
 import type { GlobeSurfaces, GlobeTarget } from "@storytree/forest/view";
-import type { Chip, Decision, Explainer, Group, TourStep } from "./tour.js";
+import type { Chip, Decision, Explainer, Group, Mark, TourStep } from "./tour.js";
 
 /** When the comparisons were checked against each tool's own documentation (definition_b0b80acc7330). */
 export const researchDate = "3 October 2026";
@@ -78,6 +78,9 @@ const graphiti = { name: "Graphiti docs", url: "https://help.getzep.com/graphiti
 const cursorAgents = { name: "Cursor docs", url: "https://cursor.com/docs/agent/agents-window" };
 const langsmith = { name: "LangSmith docs", url: "https://docs.langchain.com/langsmith/studio" };
 const linear = { name: "Linear docs", url: "https://linear.app/docs/initiatives" };
+// The harnesses storytree's first-run probe looks for (each its company's own published mark, evidence/map-harness/README.md).
+// Another harness is one more entry here.
+const harnesses: Mark[] = [{ name: "Claude Code", src: "/harness/claude-code.png" }, { name: "Codex", src: "/harness/codex.png" }];
 
 /**
  * The tour, one thought per line (ADR-0879 D4). Each explainer opens on the owner's own line (ADR-0857 D3);
@@ -111,7 +114,7 @@ export const steps: TourStep[] = [
   ], why: "Storytree answers to four principles. Signals must be real: everything you see comes from the real code and the real work, and says where it came from. Show what matters now and hide the rest: nothing asks for your attention unless it needs it. Your attention goes where you send it: you choose what to look into, and how deep to go. Nothing is out of reach: whatever storytree hides, you can always bring back.",
   decisions: [], surfaces: complete, framing: 1.1, drift: true },
 
-  // The map (ADR-0891, amended 2026-10-11): six steps in the owner's order. ★ the owner's words; the rest is DRAFT, approved as a
+  // The map (ADR-0891, amended 2026-10-11): seven steps in the owner's order. ★ the owner's words; the rest is DRAFT, approved as a
   // table and reworded to fit, as is every How and Why. The whole chapter plays forward in the shop's recorded time. The camera
   // moves twice, each as a step begins: into signing in as capabilities are named, and back out to the four stories for the
   // claims. Every claim is a flag in its capability's share (ADR-0968).
@@ -121,14 +124,22 @@ export const steps: TourStep[] = [
   ], how: "The shop starts as an empty globe. Its agents plan the work before they write any code, and each story they plan will be an island here.",
   why: "Watching a project grow from nothing shows you how to read the map of one that is already big.",
   decisions: [], surfaces: land, ...shop },
-  // The record just before the first claim (01:53:08): the shop's first arc and its four parts, none held yet.
+  // The bare globe step 1 leaves, with the harnesses storytree works with beneath the owner's line.
+  { id: "map-harness", explainer: "map", map: "shop", growth: { seconds: 1, stage: "plans", until: "plans" }, title: "Works with your harness.", lines: [
+    // ★
+    "Storytree works with your existing coding harness.",
+  ], how: "Storytree doesn't replace the agent you code with. When you set up a project it looks for Claude Code and Codex, and joins their sessions through hooks and an MCP server: the hooks tell storytree what each session reads and changes, and the MCP server gives the agent storytree's tools for the plan and the library.",
+  why: "You keep the agents, prompts and habits you already have; storytree adds the map beside them.",
+  decisions: [], surfaces: land, ...shop, marks: harnesses },
+  // The record just before the first claim (01:53:08): the shop's first arc and its four parts, none held yet. The arcs list is
+  // small while the tour plays, and its first arc is pointed out and named.
   { id: "map-arcs", explainer: "map", map: "shop", sessionsAt: "2026-10-05T01:53:00.000Z", growth: { seconds: 1, stage: "plans", until: "plans" },
     title: "Plans of work are arcs.", lines: [
-    "Before any code, your agents plan the work. Storytree lists those plans here; it calls them arcs.",
-    "The shop's first arc has four parts, each an increment of work.",
-  ], how: "An arc has an end state and a list of increments. A session claims an increment before it starts, lands it through a pull request, and closes it.",
+    // ✎
+    "Tell your agents what you want to build and they will set up a plan of work.",
+  ], how: "Storytree calls a plan of work an arc: an end state and a list of increments, each a piece of the work. The shop's first arc had four parts. A session claims an increment before it starts, lands it through a pull request, and closes it.",
   why: "A plan that lives beside the work lets the next agent pick up the next piece without asking you.",
-  decisions: [], surfaces: land, ...shop, panel: "arcs" },
+  decisions: [], surfaces: land, ...shop, panel: "arcs", labels: { 1: [{ point: "arc", text: "a plan of work: an arc" }] } },
   // Each island rises as it is named, in the order the agents started on them (first claims 01:53, 01:58, 02:28); the pathways
   // draw on with the second line, those to signing in first, then those to browsing.
   { id: "map-stories", explainer: "map", map: "shop", growth: { seconds: 16, stage: "plans", until: `land-${shopServer}`, beats: [{ line: 2, stage: "pathways" }] },

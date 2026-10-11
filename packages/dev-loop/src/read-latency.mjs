@@ -1,11 +1,11 @@
 // Capability 8 · Lag instruments. `pnpm lag:reads`: what the page's reads cost against a slow library (ADR-0836), measured the same
-// way by every lane (capability 8, Lag instruments). It seeds one fixed project into a throwaway
+// way by every lane (capability 8, Lag instruments). It seeds the lag seed (lag-seed.mjs, the one lag:desktop seeds) into a throwaway
 // Postgres, adds a fixed delay to every pg query to stand in for Cloud SQL's round trip, and prints
 // the query count and median time over the rounds of each library and activity-log read the page's
 // reads are made of (the app's pageReads asks these, plus one listProjects check each; the dev loop
 // does not depend on the frame, ADR-0847). A report to read at an increment boundary, never a gate (ADR-0623).
 //
-//   pnpm lag:reads [--delay 20] [--rounds 5] [--reads arcViews,holds,...]
+//   pnpm lag:reads [--size standard|large] [--delay 20] [--rounds 5] [--reads arcViews,holds,...]
 //
 // The server is STORYTREE_TEST_PG_URL's when set, otherwise its own, started in a temporary folder
 // under the machine's heavy-run lock so no test run shares the box with the measurement. Compare a
@@ -22,11 +22,9 @@ import { start } from "@storytree/local-postgres";
 import pg from "pg";
 
 import { acquireHeavyLock } from "./heavy-lock.mjs";
+import { describeSize, seedLagProject, seedSize } from "./lag-seed.mjs";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
-
-/** The one seed: the size #391 measured, with a question on every arc. */
-export const SEED = { arcs: 25, incrementsPerArc: 8, stories: 5, capabilitiesPerStory: 3, contractsPerCapability: 2, logLines: 40 };
 
 /** Each read the instrument knows, as the page's reads ask it of the library or the log; `ids` are the seed's. */
 const READS = {
@@ -58,42 +56,6 @@ pg.Client.prototype.query = function query(...args) {
   }
   return new Promise((resolve) => setTimeout(resolve, added.delayMs)).then(() => realQuery.apply(this, args));
 };
-
-/**
- * Seed `project` in `storytree`'s library and the activity log on `url`: arcs with increments and a
- * question each, stories with capabilities, contracts and a front cover each, and agent log lines.
- * Nothing here is counted or delayed. `size` overrides parts of SEED.
- */
-export async function seedLagProject(storytree, url, project, size = {}) {
-  const seed = { ...SEED, ...size };
-  const library = await storytree.openProject(project);
-  for (let s = 0; s < seed.stories; s++) {
-    const story = await library.addStory({ title: `Story ${s + 1}` });
-    for (let c = 0; c < seed.capabilitiesPerStory; c++) {
-      const capability = await library.addCapability({ title: `Capability ${s + 1}.${c + 1}`, story: story.id });
-      await library.recordDecision({ status: "accepted", title: `Founding ${s + 1}.${c + 1}`, text: "Why it is shaped so", frontCoverOf: capability.id });
-      for (let k = 0; k < seed.contractsPerCapability; k++) {
-        await library.addContract({ title: `Promise ${s + 1}.${c + 1}.${k + 1}`, capability: capability.id });
-      }
-    }
-  }
-  for (let a = 0; a < seed.arcs; a++) {
-    const arc = await library.createArc({ title: `Arc ${a + 1}`, intent: "Ship it", endState: "It shipped" });
-    for (let i = 0; i < seed.incrementsPerArc; i++) {
-      await library.addIncrement({ arc: arc.id, title: `Increment ${a + 1}.${i + 1}`, objective: "Build it", body: "One piece, then the next." });
-    }
-    await library.raiseQuestion({ arc: arc.id, title: "Which way?", stakes: "Blocks the arc", statement: "Short or long?", context: "None yet", options: "Short or long" });
-  }
-  const log = await openActivityLog(url);
-  try {
-    for (let n = 0; n < seed.logLines; n++) {
-      const line = n < 4 ? { kind: "session-started" } : { kind: "file-edited", files: [`packages/p${n % 5}/src/file.ts`] };
-      await log.append(project, { session: `lag-${n % 4}`, source: "hook", ...line });
-    }
-  } finally {
-    await log.close();
-  }
-}
 
 /**
  * Each of `reads` (names from ALL_READS) asked of `project`'s library and the activity log over
@@ -159,6 +121,8 @@ async function main(args) {
   const delayMs = Number(option(args, "delay", "20"));
   const rounds = Number(option(args, "rounds", "5"));
   const reads = option(args, "reads", ALL_READS.join(",")).split(",");
+  const size = option(args, "size", "standard");
+  seedSize(size);
   const release = await acquireHeavyLock({ root, what: "pnpm lag:reads" });
   let server;
   let folder;
@@ -172,8 +136,8 @@ async function main(args) {
     const project = `t-${Math.random().toString(16).slice(2, 10).padEnd(8, "0")}`;
     const storytree = await connect({ url });
     try {
-      await seedLagProject(storytree, url, project);
-      console.log(`lag:reads: ${SEED.arcs} arcs x ${SEED.incrementsPerArc} increments, a question each; ${SEED.stories} stories x ${SEED.capabilitiesPerStory} capabilities x ${SEED.contractsPerCapability} contracts; ${SEED.logLines} log lines`);
+      await seedLagProject(storytree, url, project, size);
+      console.log(`lag:reads: the ${size} seed: ${describeSize(size)}`);
       console.log(`lag:reads: ${delayMs} ms added per query, median of ${rounds}\n`);
       console.log(`${"read".padEnd(32)} ${"queries".padStart(8)} ${"ms".padStart(8)}`);
       for (const { read, queries, ms } of await measureReads({ storytree, project, delayMs, rounds, reads })) {

@@ -61,6 +61,8 @@ export interface CapabilityLine {
   why?: WhyLine;
   /** Built, in a project nothing verifies (ADR-0630): it leads with the agent's report instead of its word. */
   reportOnly?: true;
+  /** The arcs that park it, when it is not proven and parked on purpose (ADR-0992 D6): its card names them. */
+  parkedOn?: { arc: string; title: string }[];
 }
 
 /** An arrow of the diagram: a capability pointing at one it builds on. */
@@ -120,6 +122,7 @@ export function drillDown(tree: AnnotatedTree, story: string, states: WorkStates
         contracts,
         ...(capability.why === undefined ? {} : { why: whyLine(capability.why, capability.contracts) }),
         ...(capability.reportOnly ? { reportOnly: true as const } : {}),
+        ...(capability.parkedOn === undefined ? {} : { parkedOn: capability.parkedOn.map(({ arc, title }) => ({ arc, title })) }),
       },
     ];
   });

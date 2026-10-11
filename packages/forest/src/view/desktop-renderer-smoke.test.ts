@@ -21,14 +21,15 @@ const run = (file: string, args: string[], options: ExecFileOptions) => {
   return result;
 };
 
-test("3.20 · 3.11 · in a real browser, each territory is filled by its word and never grey, claims plant their flags, and failing islands behind the globe get rim markers", { timeout: 200_000 }, async () => {
+test("3.20 · 3.11 · in a real browser, each territory is filled by its word, grey only when parked, claims plant their flags, and failing islands behind the globe get rim markers", { timeout: 200_000 }, async () => {
   await run(process.execPath, [path.join(territoryFolder, "build.mjs"), "smoke"], { cwd: checkout, timeout: 60_000 });
   // Chrome is installed on CI's three runner images, so the smoke downloads no browser.
   const { stdout } = await run(process.execPath, ["--import", "tsx", path.join(territoryFolder, "capture.mjs"), "--smoke"],
     { cwd: checkout, timeout: 180_000, env: { ...process.env, CAPTURE_CHANNEL: process.env.CAPTURE_CHANNEL ?? "chrome" } });
   const summary = JSON.parse(stdout.trim().split("\n").at(-1)!);
-  assert.deepEqual(summary.fills, ["healthy #97c459 0.8", "proposed #f2d16b 0.8", "unhealthy #e24b4a 0.85", "untested #f2d16b 0.8"]);
+  assert.deepEqual(summary.fills, ["healthy #97c459 0.8", "proposed #f2d16b 0.8", "proposed parked #86939d 0.8", "unhealthy #e24b4a 0.85", "untested #f2d16b 0.8", "untested parked #86939d 0.8"]);
   assert.equal(summary.greyFills, 0);
+  assert.deepEqual(summary.parked, ["capability_60a15402b053", "capability_b59e959e0da8"]);
   // Three sessions claim four capabilities, each with a pennant; the quiet one's is furled.
   assert.deepEqual(summary.flags.map(([story, capability, , faded, triangles]: [string, string, string, boolean, number]) => [story, capability, faded, triangles > 0]).sort((a: unknown[], b: unknown[]) => `${a[0]}${a[1]}`.localeCompare(`${b[0]}${b[1]}`)), [
     ["story_05e45963ca9f", "capability_05ff7e9f0f99", false, true],

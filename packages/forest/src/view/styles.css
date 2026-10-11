@@ -285,6 +285,15 @@
   font-size: 0.9rem;
 }
 
+/* A parked capability's line (ADR-0992 D6), edged in the grey its territory is filled with. */
+.panel-detail p.panel-parked {
+  margin: 0 0 0.5rem;
+  padding: 0.25rem 0 0.25rem 0.6rem;
+  border-left: 3px solid #86939d;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
 .panel-why .panel-mover {
   color: var(--muted);
 }

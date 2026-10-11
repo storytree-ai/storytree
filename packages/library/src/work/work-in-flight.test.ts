@@ -509,6 +509,36 @@ for (const backend of [memory, postgres]) {
     assert.equal((await view())?.state, "active", "an open question keeps it active");
   });
 
+  contract("10.18", "a capability is parked when open increments name it and every one sits on a parked arc and asks nothing of the owner, with those arcs; an open increment on an active arc, an owner wait or an open held-on question leaves it out", async ({ work, flight }) => {
+    const story = await work.addStory({ title: "Visitor can sign up" });
+    const [form, mail, lone] = await Promise.all(["Email form", "Mail", "Lone"].map((title) => work.addCapability({ title, story: story.id })));
+    const shelved = await work.createArc({ ...ARC, title: "Shelved" });
+    const later = await work.createArc({ ...ARC, title: "Later" });
+    const live = await work.createArc({ ...ARC, title: "Live" });
+    await flight.parkArc(shelved.id);
+    await flight.addIncrement({ arc: shelved.id, ...WORK, capabilities: [form!.id, mail!.id] });
+    const dated = await flight.addIncrement({ arc: later.id, ...WORK, capabilities: [form!.id] });
+    await flight.addWaitFor(dated.id, { releaser: "event", note: "deletion finishes", checkBack: new Date(Date.now() + 4 * 86_400_000).toISOString().slice(0, 10) });
+    const parked = async () => Object.fromEntries([...(await flight.parkedCapabilities()).entries()].map(([id, arcs]) => [id, arcs.map(({ title }) => title).sort()]));
+    assert.deepEqual(await parked(), { [form!.id]: ["Later", "Shelved"], [mail!.id]: ["Shelved"] }, "parked by the owner, or asleep on a dated event; one no open increment names is not parked");
+
+    const now = await flight.addIncrement({ arc: live.id, ...WORK, capabilities: [mail!.id] });
+    assert.deepEqual(Object.keys(await parked()), [form!.id], "an open increment on an active arc keeps it out");
+    await flight.closeIncrement(now.id, { note: "Not needed", disposition: "withdrawn" });
+    assert.deepEqual(Object.keys(await parked()).sort(), [form!.id, mail!.id].sort(), "a closed one names nothing");
+
+    await flight.addWaitFor(dated.id, { releaser: "owner", note: "sign in on the staging build" });
+    assert.deepEqual(Object.keys(await parked()), [mail!.id], "an owner wait keeps it out");
+    await flight.removeWaitFor(dated.id, "owner");
+    const shelf = (await flight.arcView(shelved.id))!.increments[0]!;
+    const question = await flight.raiseQuestion({ arc: live.id, title: "Archive?", stakes: "Deletes data", statement: "Which?", context: "None", options: "A or B" });
+    await flight.editIncrement(shelf.id, { heldOn: [question.id] });
+    assert.deepEqual(Object.keys(await parked()), [], "an open held-on question keeps both out");
+    await flight.settleQuestion(question.id, { answer: "A" });
+    assert.deepEqual(Object.keys(await parked()).sort(), [form!.id, mail!.id].sort(), "once settled it asks nothing");
+    assert.equal(lone!.id in (await parked()), false);
+  });
+
   contract("7.8", "arcViews() answers every live arc's view as arcView does, in a bounded number of reads whatever the number of arcs", async ({ work, flight, records }) => {
     const arcs = [];
     for (let i = 0; i < 4; i++) {

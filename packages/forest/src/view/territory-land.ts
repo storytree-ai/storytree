@@ -10,9 +10,8 @@ import type { CapabilityWord } from "@storytree/forest-world/scene";
 import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, Group, LineBasicMaterial, LineSegments, Mesh, MeshBasicMaterial, ShapeUtils, Vector2, type Vector3 } from "three";
 
 /**
- * Each word's fill, in three colours only (ADR-0825 D3): healthy green, unhealthy red, and yellow while not
- * proven yet. Grey is kept for mapped, when that state comes across from 0.2. Strong enough that the grey
- * island ground beneath does not turn yellow to tan.
+ * Each word's fill (ADR-0825 D3, ADR-0992): healthy green, unhealthy red, and yellow while not proven yet, which
+ * asks for attention. Strong enough that the grey island ground beneath does not turn yellow to tan.
  */
 const WORD_FILL: Readonly<Record<CapabilityWord, { colour: string; opacity: number }>> = {
   healthy: { colour: "#97C459", opacity: 0.8 },
@@ -21,9 +20,14 @@ const WORD_FILL: Readonly<Record<CapabilityWord, { colour: string; opacity: numb
   untested: { colour: "#F2D16B", opacity: 0.8 },
 };
 /**
+ * A capability not proven and parked on purpose, asking nothing of anyone (ADR-0992 D1, D4): mid slate grey, cool so it
+ * stays apart from mapped's brown when that comes, and dark enough to read as a territory on the island's near-white ground.
+ */
+const PARKED_FILL = { colour: "#86939D", opacity: 0.8 };
+/**
  * Unclaimed code, land no contract has surveyed, is drawn as uncharted land: the cartographic no-data convention.
- * A region with no data gets no hue and is hatched, since green, yellow and red are health words and grey is kept
- * for mapped (ADR-0825 D3). The fill is the globe's own background (`PlanetWorldCanvas`), dense enough that the
+ * A region with no data gets no hue and is hatched, since green, yellow and red are health words and grey means
+ * parked (ADR-0825 D3, ADR-0992). The fill is the globe's own background (`PlanetWorldCanvas`), dense enough that the
  * island's grey ground does not read through, and the hatch a faint cool light, far below the white borders.
  */
 const UNCHARTED_FILL = { colour: "#101418", opacity: 0.92 };
@@ -37,7 +41,7 @@ type Point = { readonly x: number; readonly z: number };
 
 /** Land cut into territories: each territory's capability, title and description, its cells, and the borders between. */
 export type DrawnLand = {
-  readonly territories: readonly { readonly capability?: string; readonly title?: string; readonly description?: string; readonly status?: CapabilityWord }[];
+  readonly territories: readonly { readonly capability?: string; readonly title?: string; readonly description?: string; readonly status?: CapabilityWord; readonly parked?: true }[];
   readonly cells: readonly { readonly polygon: readonly Point[]; readonly territory: number }[];
   readonly borders: readonly { readonly from: Point; readonly to: Point }[];
 };
@@ -59,7 +63,7 @@ export function territoryLand(land: DrawnLand, onSurface: (point: Point) => Vect
     // A capability a running session claims keeps its fill and its borders; the flag says who holds it (ADR-0968 D1).
     const claimant = territory.capability === undefined ? undefined : claimed.get(territory.capability);
     mesh.userData = territory.capability === undefined ? { territory: true }
-      : { territory: true, capability: territory.capability, title: territory.title ?? territory.capability, ...(territory.description === undefined ? {} : { description: territory.description }), word: territory.status ?? "untested", ...(claimant === undefined ? {} : { claimedBy: claimant.colour }) };
+      : { territory: true, capability: territory.capability, title: territory.title ?? territory.capability, ...(territory.description === undefined ? {} : { description: territory.description }), word: territory.status ?? "untested", ...(territory.parked === true ? { parked: true } : {}), ...(claimant === undefined ? {} : { claimedBy: claimant.colour }) };
     mesh.renderOrder = 1;
     group.add(mesh);
     if (territory.capability === undefined) group.add(hatch(pieces, onSurface));
@@ -76,9 +80,9 @@ export function territoryLand(land: DrawnLand, onSurface: (point: Point) => Vect
   return group;
 }
 
-/** A territory's fill: its word's colour, or the uncharted-land ink for Unclaimed code. */
+/** A territory's fill: its word's colour, parked's grey, or the uncharted-land ink for Unclaimed code. */
 function territoryFill(territory: DrawnLand["territories"][number]): MeshBasicMaterial {
-  const fill = territory.capability === undefined ? UNCHARTED_FILL : WORD_FILL[territory.status ?? "untested"];
+  const fill = territory.capability === undefined ? UNCHARTED_FILL : territory.parked === true ? PARKED_FILL : WORD_FILL[territory.status ?? "untested"];
   // One pass, as every flat mark on the globe: two would re-derive its shader program twice a frame (ADR-0836 D1).
   return new MeshBasicMaterial({ color: new Color(fill.colour), transparent: true, opacity: fill.opacity, side: DoubleSide, forceSinglePass: true, depthWrite: false });
 }

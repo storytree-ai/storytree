@@ -393,14 +393,16 @@ test("3.14, 3.20 an unsurveyed user project's land shows verified health, update
   assert.equal(surveyed.land!.files.length, 1);
 });
 
-test("3.20 each territory is filled by its capability's word, green, red or yellow, never grey, and a claim leaves the fill alone", () => {
+test("3.20 each territory is filled by its capability's word, green, red or yellow, or slate grey when it is not proven and parked, and a claim leaves the fill alone", () => {
   const words = ["healthy", "unhealthy", "proposed", "untested"] as const;
   const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
-  const tree: AnnotatedTree = { arcs: [], stories: [{ id: "story", title: "The shop", health, capabilities: words.map((status, at) =>
-    ({ id: `cap-${status}`, title: `${at + 1} · ${status}`, dependsOn: [], proposed: status === "proposed", status, contracts: [], health })) }] };
-  const survey = { story: { files: [...words.map((status) => ({ path: `src/${status}.ts`, lines: 10, capability: `cap-${status}` })), { path: "src/loose.ts", lines: 10 }], imports: [] } };
+  const tree: AnnotatedTree = { arcs: [], stories: [{ id: "story", title: "The shop", health, capabilities: [...words.map((status, at) =>
+    ({ id: `cap-${status}`, title: `${at + 1} · ${status}`, dependsOn: [], proposed: status === "proposed", status, contracts: [], health })),
+    { id: "cap-parked", title: "5 · parked", dependsOn: [], proposed: true, status: "proposed" as const, contracts: [], health, parkedOn: [{ arc: "arc-1", title: "Identity" }] }] }] };
+  const survey = { story: { files: [...[...words, "parked"].map((status) => ({ path: `src/${status}.ts`, lines: 10, capability: `cap-${status}` })), { path: "src/loose.ts", lines: 10 }], imports: [] } };
   const land = forestScene(tree, [], workStates([]), survey).islands[0]!.land!;
-  assert.deepEqual(land.territories.map(({ status }) => status), [...words, undefined], "the scene carries each capability's word to its territory");
+  assert.deepEqual(land.territories.map(({ status }) => status), [...words, "proposed", undefined], "the scene carries each capability's word to its territory");
+  assert.deepEqual(land.territories.map(({ parked }) => parked), [undefined, undefined, undefined, undefined, true, undefined], "and whether it is parked");
 
   const cells = land.territories.map((_, territory) => ({ polygon: [{ x: 2 * territory, z: 0 }, { x: 2 * territory + 2, z: 0 }, { x: 2 * territory + 2, z: 2 }, { x: 2 * territory, z: 2 }], territory }));
   const flat = (p: { x: number; z: number }) => new Vector3(p.x, 0, p.z);
@@ -411,9 +413,18 @@ test("3.20 each territory is filled by its capability's word, green, red or yell
     assert.equal(`#${fill(drawn, `territory:cap-${word}`).color.getHexString()}`, expected[word], `${word} fills its territory`);
     assert.equal(drawn.getObjectByName(`territory:cap-${word}`)!.userData.word, word);
   }
+  // ADR-0992 D4: parked is mid slate grey, at the other fills' opacity, and keeps its word.
+  const parked = fill(drawn, "territory:cap-parked");
+  assert.equal(`#${parked.color.getHexString()}`, "#86939d", "a parked capability is filled slate grey, not yellow");
+  assert.equal(parked.opacity, fill(drawn, "territory:cap-proposed").opacity);
+  assert.equal(drawn.getObjectByName("territory:cap-parked")!.userData.word, "proposed", "its word is unchanged");
+  assert.equal(drawn.getObjectByName("territory:cap-parked")!.userData.parked, true, "and it says it is parked");
+  assert.equal("parked" in drawn.getObjectByName("territory:cap-proposed")!.userData, false);
+  const ground = new Color("#edf3f5");
+  assert.ok(ground.getHSL({ h: 0, s: 0, l: 0 }).l - parked.color.getHSL({ h: 0, s: 0, l: 0 }).l > 0.3, "dark enough to read as a territory on the island's ground");
   drawn.traverse((object) => {
     const material = (object as Mesh).material as MeshBasicMaterial | undefined;
-    if (!(object instanceof Mesh) || material === undefined || object.name === "territory:unclaimed") return;
+    if (!(object instanceof Mesh) || material === undefined || object.name === "territory:unclaimed" || object.name === "territory:cap-parked") return;
     const hsl = material.color.getHSL({ h: 0, s: 0, l: 0 });
     assert.ok(hsl.s > 0.3, `${object.name} is drawn in a colour, not grey`);
   });
@@ -421,14 +432,15 @@ test("3.20 each territory is filled by its capability's word, green, red or yell
   const uncharted = fill(drawn, "territory:unclaimed");
   const unchartedHsl = uncharted.color.getHSL({ h: 0, s: 0, l: 0 });
   assert.ok(uncharted.opacity > 0.5, "Unclaimed code's land is drawn, so the island's grey ground does not show through");
-  assert.ok(!(unchartedHsl.s < 0.1 && unchartedHsl.l > 0.3 && unchartedHsl.l < 0.75), "and its fill is not a mid grey, which is kept for mapped");
+  assert.ok(!(unchartedHsl.s < 0.1 && unchartedHsl.l > 0.3 && unchartedHsl.l < 0.75), "and its fill is not a mid grey");
+  assert.ok(unchartedHsl.l < parked.color.getHSL({ h: 0, s: 0, l: 0 }).l - 0.2, "uncharted land stays far darker than parked grey");
   for (const word of words) assert.ok(!uncharted.color.equals(fill(drawn, `territory:cap-${word}`).color), `nor ${word}'s colour`);
   assert.deepEqual(drawn.getObjectByName("territory:unclaimed")!.userData, { territory: true }, "it stays pickable as land");
   const hatch = drawn.getObjectByName("territory-hatch:unclaimed") as LineSegments;
   const at = hatch.geometry.attributes.position!;
   const ends = Array.from({ length: at.count }, (_, i) => ({ x: at.getX(i), z: at.getZ(i) }));
   assert.ok(ends.length >= 4, "a hatch lies across Unclaimed code's land");
-  assert.ok(ends.every(({ x, z }) => x >= 8 - 1e-6 && x <= 10 + 1e-6 && z >= -1e-6 && z <= 2 + 1e-6), "every hatch line stays inside that territory's cell");
+  assert.ok(ends.every(({ x, z }) => x >= 10 - 1e-6 && x <= 12 + 1e-6 && z >= -1e-6 && z <= 2 + 1e-6), "every hatch line stays inside that territory's cell");
   assert.ok(ends.some((p, i) => i % 2 === 0 && Math.abs((ends[i + 1]!.x - p.x) * (ends[i + 1]!.z - p.z)) > 1e-6), "the hatch runs diagonally");
   assert.equal((hatch.material as LineBasicMaterial).opacity < 0.85 && hatch.renderOrder > 1 && hatch.renderOrder < 2, true, "fainter than the white borders, between fill and borders");
   assert.equal(drawn.getObjectByName("territory-hatch:cap-healthy"), undefined, "only land no contract has surveyed is hatched");

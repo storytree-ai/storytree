@@ -44,8 +44,11 @@ export interface Island {
 
 /** An island's territories and surveyed files (ADR-0804 D2, D3), for the page to lay on its land. */
 export interface IslandLand {
-  /** Each territory's capability, title, description, word and lines (equal weights of 1 before survey); no capability or word for Unclaimed code. */
-  territories: readonly { capability?: string; title?: string; description?: string; status?: CapabilityWord; lines: number }[];
+  /**
+   * Each territory's capability, title, description, word and lines (equal weights of 1 before survey); no capability or word for Unclaimed code.
+   * `parked` when its capability is not proven and parked on purpose (ADR-0992), so it is filled grey.
+   */
+  territories: readonly { capability?: string; title?: string; description?: string; status?: CapabilityWord; parked?: true; lines: number }[];
   files: readonly { path: string; lines: number; capability?: string }[];
   /** The package its story's code lives in, so a file's path in the package can be named from the repository's root (ADR-0804 D5). */
   package?: string;

@@ -7,7 +7,6 @@ import { trailFillWidth } from '../core/routing.js';
 import { RIBBON_GROUND_SCALE } from '../trail-ribbon-width.js';
 import { advanceLaneClock, entranceShown, laneEntrances, laneHead, laneHeads, LANE_GLOW, LANE_SPEED, onIsland, type InlandWay, type LaneRoute, type LitLink } from './lanes.js';
 import type { PlanetPathways } from './pathways.js';
-import { dashedRoadMaterial, laneMaterial, ribbon, roadInk } from './PlanetTrailRibbons.js';
 
 const R = 218;
 const island = (story: string, capabilities: string[]): Island => ({
@@ -88,26 +87,15 @@ test('6.8 a way inland lies on its island where the globe draws it, from the doc
   }
 });
 
-test('6.8 a type-only link\'s road and its lane are dashed; a road a link by value shares keeps a solid core as wide as its links by value', () => {
+test('6.8 a type-only link stays marked on its road and its lane, which are drawn like any other', () => {
   const typed: ForestScene = { ...scene, links: [{ from: 'b1', to: 'a1' }, { from: 'b2', to: 'a2', typeOnly: true }, { from: 'b2', to: 'a1', typeOnly: true }] };
   const plan = buildPlanetPathways(typed, spots, R);
   assert.deepEqual(plan.edges.map(e => [e.from, e.to, e.typeOnly === true]), [['b1', 'a1', false], ['b2', 'a2', true], ['b2', 'a1', true]]);
   for (const segment of plan.segments) {
     assert.equal(segment.typeOnlyLinks ?? 0, segment.links.filter(link => link !== 'b1->a1').length, `${segment.id} counts its type-only links`);
   }
-  assert.deepEqual(roadInk({ links: ['x', 'y'] }), { dashed: false }, 'a road of links by value is solid');
-  assert.deepEqual(roadInk({ links: ['x', 'y'], typeOnlyLinks: 2 }), { dashed: true }, 'a road of type-only links is dashed');
-  assert.deepEqual(roadInk({ links: ['x', 'y', 'z'], typeOnlyLinks: 1 }), { dashed: true, core: trailFillWidth(2) * RIBBON_GROUND_SCALE },
-    'a shared road is dashed, with a solid core as wide as its two links by value');
   const lanes = laneRoutes(plan, [{ from: 'b1', to: 'a1', dir: 'up' }, { from: 'b2', to: 'a2', dir: 'up' }]);
   assert.deepEqual(lanes.map(lane => lane.typeOnly === true), [false, true]);
-  assert.equal(laneMaterial(LANE_COLOUR.up, false, 1, true).uniforms.uDashed!.value, 1, 'a type-only lane is dashed');
-  assert.equal(laneMaterial(LANE_COLOUR.up, false, 1).uniforms.uDashed!.value, 0, 'a lane by value is not');
-  assert.equal(dashedRoadMaterial('#c7bba1').uniforms.uDashed!.value, 1);
-  // The dashes are measured along the road, so they keep their length wherever the road runs.
-  const strip = ribbon(plan.segments[0]!), along = strip.getAttribute('along');
-  const points = plan.segments[0]!.points;
-  assert.ok(Math.abs(along.getX(along.count - 1) - points.slice(1).reduce((sum, p, i) => sum + p.distanceTo(points[i]!), 0)) < 1e-3);
 });
 
 test('6.8 a lane marks each dock it uses in its colour, both colours side by side where an up and a down lane share one, shown once its front leaves or reaches it', () => {

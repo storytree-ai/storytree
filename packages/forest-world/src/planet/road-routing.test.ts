@@ -88,12 +88,14 @@ test('6.21 a road worker routes the roads off the page; a page whose worker cann
   const page: RoadRouter = () => assert.fail('the page routes nothing while its worker answers');
   const network = await routeInWorker(() => answering, page)(pending.routing, new AbortController().signal);
   assert.deepEqual(posted, pending.routing, 'the worker is posted the routing');
-  assert.ok(network.segments.length > 0, 'and answers its roads');
+  const onThePage = (answerRouting(pending.routing) as { network: TrailNetwork }).network;
+  assert.ok(onThePage.segments.length > 0);
+  assert.deepEqual(network, onThePage, 'and answers the roads routing on the page would');
 
   const missing: RoadWorker = { onmessage: null, onerror: null, terminate: () => {}, postMessage() { queueMicrotask(() => missing.onerror!({})); } };
   let routedOnThePage = 0;
   const fallback: RoadRouter = async routing => { routedOnThePage++; return (answerRouting(routing) as { network: TrailNetwork }).network; };
-  assert.ok((await routeInWorker(() => missing, fallback)(pending.routing, new AbortController().signal)).segments.length > 0);
+  assert.deepEqual(await routeInWorker(() => missing, fallback)(pending.routing, new AbortController().signal), onThePage);
   await routeInWorker(() => { throw new Error('no workers here'); }, fallback)(pending.routing, new AbortController().signal);
   assert.equal(routedOnThePage, 2, 'a worker that fails to load, or to start, leaves the routing to the page');
 });

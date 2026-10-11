@@ -5,7 +5,7 @@ import type { ForestScene, Island } from '../scene.js';
 import { buildPlanetPathways, laneDrawSeconds, laneProgress, laneRoutes, LANE_COLOUR } from '../geometry.js';
 import { trailFillWidth } from '../core/routing.js';
 import { RIBBON_GROUND_SCALE } from '../trail-ribbon-width.js';
-import { advanceLaneClock, entranceShown, laneDelays, laneEntrances, laneHead, LANE_GLOW, onIsland, type InlandWay } from './lanes.js';
+import { advanceLaneClock, entranceShown, laneEntrances, laneHead, laneHeads, LANE_GLOW, LANE_SPEED, onIsland, type InlandWay, type LaneRoute, type LitLink } from './lanes.js';
 import type { PlanetPathways } from './pathways.js';
 import { dashedRoadMaterial, laneMaterial, ribbon, roadInk } from './PlanetTrailRibbons.js';
 
@@ -175,39 +175,74 @@ test('6.8 opposite colours share a trunk side by side, each just under half of i
   assert.ok(alone.points.every(p => Math.abs(p.x) >= 10 || p.y === 0), 'a single colour uses the centre of its road');
 });
 
-test('6.9 a lane draws on in 0.8 to 1.8 seconds by its length, easing out to a stop, and whole at once under reduced motion', () => {
-  assert.equal(laneDrawSeconds(0), 0.8);
-  assert.equal(laneDrawSeconds(100_000), 1.8);
-  const a = laneDrawSeconds(150), b = laneDrawSeconds(250);
-  assert.ok(a > 0.8 && b < 1.8 && b > a, 'a longer lane takes longer');
-  assert.equal(laneProgress(0, 1, false), 0);
-  assert.equal(laneProgress(1, 1, false), 1);
-  assert.equal(laneProgress(9, 1, false), 1);
-  const early = laneProgress(0.25, 1, false) - laneProgress(0, 1, false), late = laneProgress(1, 1, false) - laneProgress(0.75, 1, false);
-  assert.ok(laneProgress(0.5, 1, false) > 0.5 && early > 2 * late, 'quick away from the dock, slowing as it arrives');
-  assert.equal(laneProgress(0.3, 1, false, 0.3), 0, 'nothing drawn before its own start');
-  assert.equal(laneProgress(1.3, 1, false, 0.3), 1);
-  assert.equal(laneProgress(0, 1, true, 0.3), 1);
+test('6.9 lit lanes start together and their fronts keep one steady pace, so the selection settles in its longest lane\'s time; whole at once under reduced motion', () => {
+  assert.ok(LANE_SPEED > 0);
+  assert.ok(Math.abs(laneDrawSeconds(300) - 300 / LANE_SPEED) < 1e-9, 'a lane\'s time is its length over the pace');
+  assert.equal(laneProgress(0, laneDrawSeconds(100), false), 0, 'nothing drawn when the selection is made');
+  for (const t of [0.1, 0.25, 0.5]) {
+    const short = laneProgress(t, laneDrawSeconds(100), false) * 100, long = laneProgress(t, laneDrawSeconds(300), false) * 300;
+    assert.ok(Math.abs(short - long) < 1e-9, `at ${t} s both fronts are the same distance out`);
+    assert.ok(Math.abs(short - t * LANE_SPEED) < 1e-9, 'at the steady pace');
+  }
+  assert.equal(laneProgress(laneDrawSeconds(100), laneDrawSeconds(100), false), 1);
+  assert.equal(laneProgress(99, laneDrawSeconds(100), false), 1);
+  assert.equal(laneProgress(0, laneDrawSeconds(100), true), 1);
+  assert.equal(laneProgress(0, laneDrawSeconds(0), false), 1, 'a lane with no length is whole');
 });
 
-test('6.9 lit lanes start apart, up lanes then down lanes, each shortest first, the spread bounded', () => {
-  const lanes = [{ dir: 'down', length: 50 }, { dir: 'up', length: 90 }, { dir: 'down', length: 20 }, { dir: 'up', length: 40 }] as const;
-  const delays = laneDelays(lanes);
-  assert.deepEqual(delays.map(d => Math.round(d * 1000)), [300, 100, 200, 0]);
-  assert.deepEqual(laneDelays(lanes), delays, 'the same lanes start in the same order');
-  const many = laneDelays(Array.from({ length: 40 }, (_, i) => ({ dir: 'down' as const, length: i })));
-  assert.ok(Math.max(...many) <= 1.2 + 1e-9 && new Set(many).size === 40, 'never all in one frame, never a long queue');
+/** One island's dock at (-20, 0) sends lanes up a trunk to a fork at (0, 0), where an arm runs on to each of two islands. */
+function fork(links: { from: string; arm: 'east' | 'west'; dir: LitLink['dir'] }[]): LaneRoute[] {
+  const point = (x: number, y: number) => new Vector3(x, y, R);
+  const line = (id: string, from: [number, number], to: [number, number], with_: string[]) => ({
+    id, width: 2, links: with_, points: Array.from({ length: 21 }, (_, i) => point(from[0], from[1]).lerp(point(to[0], to[1]), i / 20)),
+  });
+  const on = (arm: 'east' | 'west') => links.filter(link => link.arm === arm).map(link => `${link.from}->a1`);
+  const plan: PlanetPathways = {
+    plates: new Map(), docks: [],
+    segments: [line('trunk', [-20, 0], [0, 0], links.map(link => `${link.from}->a1`)),
+      line('east', [0, 0], [10, 10], on('east')), line('west', [0, 0], [10, -10], on('west'))],
+    // A chain runs from the building capability back to the one built on; the lane walks it the other way.
+    edges: links.map(link => ({ from: link.from, to: 'a1', segments: [{ id: link.arm, reversed: true }, { id: 'trunk', reversed: true }] })),
+  };
+  return laneRoutes(plan, links.map(link => ({ from: link.from, to: 'a1', dir: link.dir })));
+}
+const headsAt = (lanes: readonly LaneRoute[], distance: number) => {
+  const heads = laneHeads(lanes);
+  return lanes.filter((lane, i) => laneHead(distance / LANE_SPEED, lane.length, heads[i]!, false) > 0).length;
+};
+
+test('6.9 one head per shared stretch of one colour: links over one road show one head on it and one each where their routes part, however many links ride it', () => {
+  const two = fork([{ from: 'e1', arm: 'east', dir: 'down' }, { from: 'w1', arm: 'west', dir: 'down' }]);
+  assert.equal(two[0]!.length, two[1]!.length);
+  for (const distance of [1, 10, 19]) assert.equal(headsAt(two, distance), 1, `one head on the shared trunk ${distance} units out`);
+  for (const distance of [24, 30, 34]) assert.equal(headsAt(two, distance), 2, `two heads once their routes part, ${distance} units out`);
+  const twenty = fork([...Array.from({ length: 19 }, (_, i) => ({ from: `e${i}`, arm: 'east' as const, dir: 'down' as const })),
+    { from: 'w1', arm: 'west', dir: 'down' }]);
+  assert.equal(twenty.length, 20);
+  for (const distance of [1, 10, 19]) assert.equal(headsAt(twenty, distance), 1, `a twentieth link adds no head on the trunk, ${distance} units out`);
+  for (const distance of [24, 30, 34]) assert.equal(headsAt(twenty, distance), 2, `nor on an arm others share, ${distance} units out`);
+  const settle = (lanes: readonly LaneRoute[]) => Math.max(...lanes.map(lane => laneDrawSeconds(lane.length)));
+  assert.equal(settle(twenty), settle(two), 'nor any time to settle');
+  assert.deepEqual(laneHeads(twenty), laneHeads(twenty), 'who leads is the same every time');
+  const both = fork([{ from: 'e1', arm: 'east', dir: 'down' }, { from: 'w1', arm: 'west', dir: 'up' }]);
+  assert.equal(headsAt(both, 10), 2, 'an up and a down lane sharing a road each keep their own head');
+  assert.equal(laneHead(0, two[0]!.length, laneHeads(two)[0]!, false), 0, 'no head before it sets out');
+  assert.equal(headsAt(two, 10) + laneHeads(two).reduce((n, heads, i) => n + laneHead(10 / LANE_SPEED, two[i]!.length, heads, true), 0), 1,
+    'never a head under reduced motion');
 });
 
-test('6.9 a lane\'s head shows while it draws and fades once the lane is whole, never under reduced motion', () => {
-  assert.equal(laneHead(0, 1, false), 0, 'no head before it sets out');
-  assert.equal(laneHead(0.5, 1, false), 1);
-  assert.equal(laneHead(1, 1, false), 1);
-  assert.ok(laneHead(1.2, 1, false) > 0 && laneHead(1.2, 1, false) < 1, 'fading once whole');
-  assert.equal(laneHead(1.5, 1, false), 0);
-  assert.equal(laneHead(0.2, 1, false, 0.3), 0, 'not before its own start');
-  assert.equal(laneHead(0.5, 1, true), 0);
+test('6.9 a lane\'s head fades once the lane is whole, and grows in over a short distance where it turns off alone rather than popping on', () => {
+  const [alone] = fork([{ from: 'e1', arm: 'east', dir: 'down' }]), heads = laneHeads([alone!])[0]!, whole = laneDrawSeconds(alone!.length);
+  assert.equal(laneHead(whole, alone!.length, heads, false), 1);
+  assert.ok(laneHead(whole + 0.2, alone!.length, heads, false) > 0 && laneHead(whole + 0.2, alone!.length, heads, false) < 1, 'fading once whole');
+  assert.equal(laneHead(whole + 0.5, alone!.length, heads, false), 0);
+  const two = fork([{ from: 'e1', arm: 'east', dir: 'down' }, { from: 'w1', arm: 'west', dir: 'down' }]), led = laneHeads(two);
+  const follower = led.findIndex(ranges => ranges[0]![0] > 0);
+  const at = (distance: number) => laneHead(distance / LANE_SPEED, two[follower]!.length, led[follower]!, false);
+  assert.ok(at(20.2) > 0 && at(20.2) < at(30), 'a follower\'s head grows in where it turns off alone');
+  assert.equal(at(30), 1);
 });
+
 test('6.9 slow rendered frames leave visible intermediate lane growth, while normal frame steps keep their real time', () => {
   let elapsed = 0;
   for (let i = 0; i < 4; i++) {
@@ -216,6 +251,6 @@ test('6.9 slow rendered frames leave visible intermediate lane growth, while nor
     elapsed = next;
   }
   assert.equal(advanceLaneClock(0, 0.6), 0.08, 'a slow frame cannot complete a short route at once');
-  assert.ok(laneProgress(advanceLaneClock(0, 1.5), laneDrawSeconds(10), false) < 0.3, 'the first slow frame leaves most of the route still to grow');
+  assert.ok(laneProgress(advanceLaneClock(0, 1.5), laneDrawSeconds(100), false) < 0.3, 'the first slow frame leaves most of the route still to grow');
   assert.equal(advanceLaneClock(0.1, -1), 0.1, 'a negative frame delta cannot wind growth backwards');
 });

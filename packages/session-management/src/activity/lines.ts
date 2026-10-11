@@ -102,6 +102,16 @@ export const NEW_LINE = z.discriminatedUnion("kind", [
   /** A hook saw an agent ask for one of storytree's tools, before the call reached the tool server: the call's id, as the harness names it, and the agent asking. */
   z.object({ ...common, kind: z.literal("tool-requested"), tool: z.string().min(1), call: z.string().min(1), agent: AGENT }).strict(),
   z.object({ ...common, kind: z.literal("tool-called"), tool: z.string().min(1) }).strict(),
+  /**
+   * A front door's answer (ADR-0983 D1, in force through ADR-0998): which door, the verb as that door
+   * names it (a command, `storytree arc show`, or a tool, `show_plan`), how it went, and the next steps
+   * it offered, each as that door names it. `unknown` is a command the door does not have: the `word`
+   * typed and the command the refusal `named`, when it named one. `refused` is a guard's or the
+   * library's "no", `failed` anything else, each with the error's `class` when one was thrown.
+   */
+  z.object({ ...common, kind: z.literal("door-answered"), door: z.enum(["command", "tool"]), verb: z.string().min(1),
+    outcome: z.enum(["answered", "unknown", "refused", "failed"]), word: z.string().optional(), named: z.string().min(1).optional(),
+    class: z.string().min(1).optional(), next: z.array(z.string().min(1)) }).strict(),
   z.object({ ...common, kind: z.literal("note-read"), ...noteRead }).strict(),
   /**
    * A claim taken, on the git branch its session's folder was on, when it was on one (ADR-0643 D3).

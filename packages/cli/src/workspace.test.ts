@@ -11,7 +11,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 
-import { claim, openActivityLog, readClaims } from "@storytree/session-management";
+import { claim, openActivityLog, readClaims, type ActivityLog, type Line } from "@storytree/session-management";
 
 import { workspaceRefusalText } from "./families/workspace.js";
 import { BuiltCommand, inWorld, storytree, testServerUrl, type World } from "./testing/cli.js";
@@ -228,7 +228,7 @@ test("11.5 `workspace release` ends the calling session's increment or capabilit
         assert.ok(ran.stdout.includes(id), ran.stdout);
         assert.deepEqual(await readClaims(log, world.project), []);
         if (id === capability.id) assert.deepEqual(await library.history({ id }), history, "releasing a capability changes no library record");
-        const line = (await log.since(world.project, 0)).lines.at(-1);
+        const line = (await logged(log, world.project)).lines.at(-1);
         assert.equal(line?.kind, "released");
         if (line?.kind === "released") assert.deepEqual([line.increment ?? line.capability, line.session], [id, session]);
       }
@@ -267,7 +267,7 @@ test("11.6 `workspace release` refuses another session's claim, an unheld target
     const log = await openActivityLog(testServerUrl());
     try {
       assert.equal((await claim({ log, library, project: world.project, session: "holder", harness: "codex" }, capability.id, "building the form")).ok, true);
-      const before = await log.since(world.project, 0);
+      const before = await logged(log, world.project);
       const other = await world.run(["workspace", "release", capability.id], { CLAUDE_CODE_SESSION_ID: "other" });
       assert.equal(other.code, 1);
       assert.match(other.stderr, /holder/);
@@ -277,7 +277,7 @@ test("11.6 `workspace release` refuses another session's claim, an unheld target
       const person = await world.run(["workspace", "release", capability.id]);
       assert.equal(person.code, 1);
       assert.match(person.stderr, /agent/);
-      assert.deepEqual(await log.since(world.project, 0), before, "refusals append no claim events");
+      assert.deepEqual(await logged(log, world.project), before, "refusals append no claim events");
       assert.equal((await readClaims(log, world.project))[0]?.session, "holder");
     } finally {
       await log.close();
@@ -294,11 +294,11 @@ test("11.12 `workspace release --holder <session> --reason` is the session manag
     try {
       assert.equal((await world.run(["settings", "set", "idle-after", "10m"])).code, 0); // far longer than any process start
       assert.equal((await claim({ log, library, project: world.project, session: "quiet", harness: "claude-code", quietMs: 1_000 }, increment.id, "building the form")).ok, true);
-      const before = await log.since(world.project, 0);
+      const before = await logged(log, world.project);
       const live = await world.run(["workspace", "release", increment.id, "--holder", "quiet", "--reason", "quiet, messaged"], { CLAUDE_CODE_SESSION_ID: "manager" });
       assert.equal(live.code, 1);
       assert.match(live.stderr, /quiet.*live/);
-      assert.deepEqual(await log.since(world.project, 0), before, "a refusal writes nothing");
+      assert.deepEqual(await logged(log, world.project), before, "a refusal writes nothing");
 
       assert.equal((await world.run(["settings", "set", "idle-after", "1s"])).code, 0);
       await new Promise((done) => setTimeout(done, 1_300)); // the holder says nothing for longer than idle-after
@@ -328,13 +328,13 @@ test("11.15 `workspace stale` lists each claimed increment whose holder is quiet
 
       assert.equal((await claim({ log, library, project: world.project, session: "quiet", harness: "claude-code", quietMs: 1_000 }, increment.id, "building the form")).ok, true);
       await new Promise((done) => setTimeout(done, 1_300)); // the holder says nothing for longer than idle-after
-      const before = await log.since(world.project, 0);
+      const before = await logged(log, world.project);
       const ran = await world.run(["workspace", "stale"]);
       assert.equal(ran.code, 0, ran.stderr);
       assert.match(ran.stdout, new RegExp(`${increment.id}.*quiet.*building the form`));
       assert.match(ran.stdout, /last seen \d{4}-/);
       assert.match(ran.stdout, /ask its holder/);
-      assert.deepEqual(await log.since(world.project, 0), before, "reading the worklist writes nothing");
+      assert.deepEqual(await logged(log, world.project), before, "reading the worklist writes nothing");
       assert.equal((await readClaims(log, world.project)).length, 1, "and ends no claim");
     } finally {
       await log.close();
@@ -396,7 +396,7 @@ test("11.9 `workspace claim` claims the work for the calling agent session witho
     assert.equal(git(world.folder, "branch", "--list"), branches, "no branch was made");
     const log = await openActivityLog(testServerUrl());
     try {
-      const before = await log.since(world.project, 0);
+      const before = await logged(log, world.project);
       const held = await world.run(["workspace", "claim", capability.id, "--reason", "me too"], { CODEX_THREAD_ID: "other" });
       assert.equal(held.code, 1);
       assert.match(held.stderr, /held by .* claude-9/);
@@ -407,7 +407,7 @@ test("11.9 `workspace claim` claims the work for the calling agent session witho
       const person = await world.run(["workspace", "claim", capability.id, "--reason", "x"]);
       assert.equal(person.code, 1);
       assert.match(person.stderr, /agent/);
-      assert.deepEqual((await log.since(world.project, 0)).lines.filter((line) => line.kind === "claimed"), before.lines.filter((line) => line.kind === "claimed"), "refusals claim nothing");
+      assert.deepEqual((await logged(log, world.project)).lines.filter((line) => line.kind === "claimed"), before.lines.filter((line) => line.kind === "claimed"), "refusals claim nothing");
       assert.deepEqual((await readClaims(log, world.project)).map(({ session }) => session), ["claude-9", "claude-9"]);
     } finally {
       await log.close();
@@ -458,7 +458,7 @@ test("11.14 `workspace claim` from the main checkout, then `workspace <increment
     assert.equal(claimed.code, 0, claimed.stderr);
     const log = await openActivityLog(testServerUrl());
     try {
-      const lines = (await log.since(world.project, 0)).lines.length;
+      const lines = (await logged(log, world.project)).lines.length;
 
       const ran = await world.run(["workspace", increment, "--reason", "building the email form"], { CLAUDE_CODE_SESSION_ID: "claude-9" });
 
@@ -470,7 +470,7 @@ test("11.14 `workspace claim` from the main checkout, then `workspace <increment
       const workspace = path.join(world.folder, ".claude", "worktrees", path.basename(held!.branch!));
       assert.ok(ran.stdout.includes(workspace), ran.stdout);
       assert.equal(git(workspace, "rev-parse", "--abbrev-ref", "HEAD").trim(), held?.branch);
-      assert.deepEqual((await log.since(world.project, 0)).lines.slice(lines).filter((line) => line.kind === "released"), [], "no moment releases it");
+      assert.deepEqual((await logged(log, world.project)).lines.slice(lines).filter((line) => line.kind === "released"), [], "no moment releases it");
     } finally {
       await log.close();
     }
@@ -485,7 +485,7 @@ test("11.14 `workspace claim` from the main checkout, then `workspace <increment
     assert.equal(claimed.code, 0, claimed.stderr);
     const log = await openActivityLog(testServerUrl());
     try {
-      const lines = (await log.since(world.project, 0)).lines.length;
+      const lines = (await logged(log, world.project)).lines.length;
 
       const prepared = await world.run(["workspace", increment, "--reason", "building the email form"], env);
       assert.equal(prepared.code, 0, prepared.stderr);
@@ -502,9 +502,14 @@ test("11.14 `workspace claim` from the main checkout, then `workspace <increment
       assert.equal(held?.session, "codex-app");
       assert.equal(held?.branch, `codex/${name}`);
       assert.equal(git(folder, "symbolic-ref", "--short", "HEAD").trim(), `codex/${name}`);
-      assert.deepEqual((await log.since(world.project, 0)).lines.slice(lines).filter((line) => line.kind === "released"), [], "no moment releases it");
+      assert.deepEqual((await logged(log, world.project)).lines.slice(lines).filter((line) => line.kind === "released"), [], "no moment releases it");
     } finally {
       await log.close();
     }
   });
 });
+
+/** The project's log as its claims and closes wrote it: without the door's own record of each command's answer (ADR-0983 D1). */
+async function logged(log: ActivityLog, project: string): Promise<{ lines: Line[] }> {
+  return { lines: (await log.since(project, 0)).lines.filter((line) => line.kind !== "door-answered") };
+}

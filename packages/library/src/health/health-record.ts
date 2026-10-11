@@ -145,6 +145,11 @@ export interface HealthWorkItem {
    * when its story's code changed on main after every one was last verified, within MERGE_WAITS_FOR.
    */
   waits?: PendingRun;
+  /**
+   * Present on a proposed one with at least one contract and every contract verified passing: its
+   * tests already pass and only its proposed flag is left (friction_fd6154bff0be). Its reason stays `not built`.
+   */
+  contractsPass?: true;
 }
 
 /** A test run in progress that will record a contract's verified column: when it said so, who, and its note. */
@@ -314,7 +319,8 @@ export class HealthRecord {
         const verified = new Map(contracts.map((contract) => [contract.id, contract.health.verified]));
         const carrying = why.contracts.map((id) => verified.get(id));
         const waits = waitingOn(why.contracts.map((id) => ({ mark: marks.get(id), verified: verified.get(id) })), now) ?? waitingOnMerge(changed.get(story.id), carrying, now);
-        return [{ capability: id, title, story: story.id, status, why, since: why.since ?? recorded.get(id) ?? "", ...(waits === undefined ? {} : { waits }) }];
+        const contractsPass = status === "proposed" && contracts.length > 0 && contracts.every((contract) => contract.health.verified.state === "passing");
+        return [{ capability: id, title, story: story.id, status, why, since: why.since ?? recorded.get(id) ?? "", ...(waits === undefined ? {} : { waits }), ...(contractsPass ? { contractsPass } : {}) }];
       }))
       .sort((a, b) => (a.since < b.since ? -1 : a.since > b.since ? 1 : 0));
   }

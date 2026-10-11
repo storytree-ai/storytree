@@ -157,3 +157,24 @@ test("10.5 `storytree health worklist` prints the oldest three capabilities on t
     assert.doesNotMatch(held.stdout, /more wait/);
   });
 });
+
+test("10.7 `storytree health worklist` says on a proposed capability's line when its tests already pass and only its proposed flag is left, and then offers `storytree capability built <capability>` as the next step", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const story = await library.addStory({ title: "Visitor can sign up" });
+    const form = await library.addCapability({ title: "Email form", story: story.id });
+    const check = await library.addContract({ title: "1.1 · Rejects an email with no @", capability: form.id });
+
+    const unbuilt = await world.run(["health", "worklist"]);
+    assert.equal(unbuilt.code, 0, unbuilt.stderr);
+    assert.doesNotMatch(unbuilt.stdout, /already pass|capability built/);
+    assert.match(unbuilt.stdout, /storytree arc increment new/);
+
+    await library.recordVerified(check.id, "passing");
+    const ran = await world.run(["health", "worklist"]);
+    assert.equal(ran.code, 0, ran.stderr);
+    const line = ran.stdout.split(/\r?\n/).find((one) => one.includes("Email form"))!;
+    assert.match(line, /proposed — not built, the agent's to move.*its tests already pass on main; only its proposed flag is left/);
+    assert.match(ran.stdout, new RegExp(`storytree capability built ${form.id}`));
+  });
+});

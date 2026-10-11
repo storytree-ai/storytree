@@ -72,3 +72,22 @@ dry run. They supersede the hashes above for `host.mjs` and `transition.mjs`:
 10e700f33c71ddadb3032a750e92bfe5eaefa44700d06f1b607e05c2efe6806d  host.mjs
 7e2a4bb5cce511f062f5e19e00e6c1017cfe99c06b58731e09b531fdb5549ed5  transition.mjs
 ```
+
+## Addendum — 2026-10-12: storytree-lag joins the backups
+
+increment_35a3540e35b2. `backup` also dumps, scratch-restores and uploads
+`storytree-lag`, the lag runner's history (made by `pnpm lag:box` on Mint, owned by
+`storytree_library`, unmarked, so only the three marked databases keep the mark
+check; `dump` still refuses a database it may not act as). A manifest naming the
+three, or the three and `storytree-lag`, restores; anything else is refused. The
+Cloud copy, cutover and rollback still name the three. Reviewed by the
+change-reviewer with no findings. Real runs, each after its dry run: one verified
+backup (`backups/20261011T202510219Z-c1c443e3`, four dumps), a bucket restore of
+it and of the pre-change `backups/20261011T180047712Z-56cc40d1`, then the timer
+re-installed by the README's path (the replaced units kept under
+`~/storytree-lanes/library-backups/replaced-units-increment_35a3540e35b2/`), now
+running `runtime-20261011T205304635Z-3c67f849`:
+
+```text
+cf16714fe59d2fc0e168b2cce67b3329cece039e4ee88700e9919fe535c7a0f7  host.mjs
+```

@@ -16,7 +16,7 @@ export interface FakeBridge {
   readonly defaulted: readonly string[];
   /** Rejects, naming the method, at the first call the fake cannot answer; never resolves. */
   readonly unanswered: Promise<never>;
-  /** Put the fake on `page` as window.storytree, before the page's own scripts run. */
+  /** Put the fake on `page` as window.storytree, and the first-run guide's memory, before the page's own scripts run. */
   install(page: Page): Promise<void>;
   /** Wait until `page`'s body reads data-state=ready, failing at once on an unanswered call. */
   ready(page: Page, timeoutMs?: number): Promise<void>;
@@ -30,6 +30,17 @@ export interface FakeBridge {
  * itself is not mistaken for a call.
  */
 const PAGE_BRIDGE = `window.storytree = new Proxy({}, { get: (_, method) => method === "then" ? undefined : (...args) => typeof window.storytreeAnswers?.[method] === "function" ? window.storytreeAnswers[method](...args) : window.storytreeFakeBridge(String(method), args) });`;
+
+/**
+ * The first-run guide remembered as seen, as app-setup's guideOffered reads it, so a capture opens on
+ * the globe rather than behind the guide. Text for the same reason as PAGE_BRIDGE.
+ */
+const GUIDE_SEEN = `try { localStorage.setItem("storytree:setup:guide-seen:v1", "yes"); } catch { /* about:blank has no storage */ }`;
+
+export interface FakeBridgeOptions {
+  /** "unseen" for a capture of the first-run guide itself: the page then opens as a first launch. */
+  guide?: "seen" | "unseen" | undefined;
+}
 
 const PROJECT = "storytree";
 /** A session's reading, context or window, that the stand-in cannot make: no transcript is read. */
@@ -80,7 +91,7 @@ const QUIET: StorytreeBridge = {
 };
 
 /** A fake bridge answering with `answers`, and with the quiet answers for the rest, typed against the desktop app's own bridge. */
-export function fakeBridge(answers: Partial<StorytreeBridge>): FakeBridge {
+export function fakeBridge(answers: Partial<StorytreeBridge>, { guide = "seen" }: FakeBridgeOptions = {}): FakeBridge {
   let refuse!: (error: Error) => void;
   const unanswered = new Promise<never>((_, reject) => (refuse = reject));
   unanswered.catch(() => {});
@@ -108,6 +119,7 @@ export function fakeBridge(answers: Partial<StorytreeBridge>): FakeBridge {
     async install(page) {
       await page.exposeFunction("storytreeFakeBridge", call);
       await page.addInitScript(PAGE_BRIDGE);
+      if (guide === "seen") await page.addInitScript(GUIDE_SEEN);
     },
     async ready(page, timeoutMs = 60_000) {
       await Promise.race([page.waitForFunction(() => document.body.dataset.state === "ready", undefined, { timeout: timeoutMs }), unanswered]);

@@ -179,6 +179,20 @@ function measure(page) {
   phase('wait for territory and claim meshes');
   // Territories arrive with the survey, and the claim flags with the first read of the log: wait until both are drawn.
   await page.waitForFunction(() => { let outlines = 0, files = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('territory-claim:')) outlines++; if (o.name.startsWith('file:')) files++; }); return outlines > 0 && files > 0; }, undefined, { timeout: 30000, polling: 100 }).catch(error => failedWait('claim flags and file circles', error));
+  phase('wait for the land to finish drawing on');
+  // Territories that arrive after the globe opens draw on (3.46): borders trace, then fills ease in. Measure them whole:
+  // every border drawn in full and every territory's opacity unchanged across three polls.
+  await page.waitForFunction(() => {
+    let full = true; const opacities = [];
+    window.__globe.scene.traverse(o => {
+      if (o.name === 'territory-borders' && o.geometry.drawRange.count !== Infinity) full = false;
+      if (o.name.startsWith('territory:')) opacities.push(o.material.opacity);
+    });
+    const key = full ? opacities.join() : '';
+    window.__territoryDrawn = key !== '' && key === window.__territoryDrawnKey ? (window.__territoryDrawn ?? 0) + 1 : 0;
+    window.__territoryDrawnKey = key;
+    return window.__territoryDrawn >= 2;
+  }, undefined, { timeout: 30000, polling: 200 }).catch(error => failedWait('territories drawn on', error));
   await page.evaluate(() => { for (const menu of document.querySelectorAll('[popover]')) if (menu.matches(':popover-open')) menu.hidePopover(); });
   await settleView(page);
   const results = { now: new Date(NOW).toISOString(), sessions: SESSIONS, capabilities: CAP, logLines: lines.length };

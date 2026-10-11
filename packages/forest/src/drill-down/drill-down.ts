@@ -16,6 +16,8 @@
 import type { PartState, WorkStates } from "@storytree/arc-surface";
 import type { AnnotatedContract, AnnotatedTree, CapabilityStatus, CapabilityWhy, Change, EarlierVerdict, HealthColumn, HealthState } from "@storytree/library";
 
+import type { StorySurvey } from "@storytree/map";
+
 import { grove } from "../capability-tree/capability-tree.js";
 
 /** One contract, as the panel lists it on request. */
@@ -89,6 +91,8 @@ export interface StoryPanel {
   /** In build order. */
   capabilities: CapabilityLine[];
   arrows: Arrow[];
+  /** Present for a mapped story (ADR-0993 D3), which shows no health: its file and line counts once its survey has read them. */
+  mapped?: { files?: number; lines?: number };
 }
 
 /** What stands in for a description nobody has written. */
@@ -97,8 +101,11 @@ export const NO_DESCRIPTION = "no description yet";
 /** The words for each reported state in a trail. */
 const WORD: Readonly<Record<HealthState, string>> = { passing: "green", failing: "red", "not-checked": "not checked" };
 
-/** The panel for story `story` of `tree`, or undefined if the tree has no such story. `history` is the project's changes from the start. */
-export function drillDown(tree: AnnotatedTree, story: string, states: WorkStates, history: readonly Change[]): StoryPanel | undefined {
+/**
+ * The panel for story `story` of `tree`, or undefined if the tree has no such story. `history` is the project's changes from the start,
+ * and `survey` its code's survey by story, which counts a mapped story's files and lines.
+ */
+export function drillDown(tree: AnnotatedTree, story: string, states: WorkStates, history: readonly Change[], survey: Readonly<Record<string, Pick<StorySurvey, "files">>> = {}): StoryPanel | undefined {
   const found = tree.stories.find(({ id }) => id === story);
   if (found === undefined) return undefined;
   const everywhere = new Map(tree.stories.flatMap((owner) => owner.capabilities.map((capability) => [capability.id, { capability, owner }] as const)));
@@ -142,7 +149,9 @@ export function drillDown(tree: AnnotatedTree, story: string, states: WorkStates
     }),
   );
 
-  return { story: found.id, title: found.title, description: sentences(found.description), capabilities, arrows };
+  const files = survey[found.id]?.files ?? [];
+  const mapped = found.mapped === undefined ? undefined : files.length === 0 ? {} : { files: files.length, lines: files.reduce((sum, file) => sum + file.lines, 0) };
+  return { story: found.id, title: found.title, description: sentences(found.description), capabilities, arrows, ...(mapped === undefined ? {} : { mapped }) };
 }
 
 function contractLine(contract: AnnotatedContract, trail: readonly HealthState[]): ContractLine {

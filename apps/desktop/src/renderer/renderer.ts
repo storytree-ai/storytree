@@ -134,6 +134,8 @@ async function showForest(name: string): Promise<void> {
   const states = keptWorkStates();
   if (surfaceOn(surfaces, "arcs")) mine.arcs = mountArcSurface(content, { project: name, reads, reading: page });
   let tree: AnnotatedTree | undefined;
+  /** The code survey last read, which counts a mapped story's files and lines for its panel. */
+  let surveyed: Parameters<typeof forestScene>[3] = {};
   /**
    * The capability shown below the open story's diagram (ADR-0659 D2): the one clicked, or the one
    * the panel opened on, so it holds while the live reading redraws. Cleared when another story opens.
@@ -155,7 +157,7 @@ async function showForest(name: string): Promise<void> {
     mine.card?.();
     mine.card = undefined;
     const story = document.body.dataset.selected;
-    const drilled = story === undefined || tree === undefined ? undefined : drillDown(tree, story, states, history());
+    const drilled = story === undefined || tree === undefined ? undefined : drillDown(tree, story, states, history(), surveyed);
     panel.hidden = drilled === undefined;
     if (story === undefined || drilled === undefined) {
       mine.tree?.close();
@@ -243,6 +245,7 @@ async function showForest(name: string): Promise<void> {
     onTree: (read, news, survey) => {
       if (showing !== mine) return;
       tree = read;
+      surveyed = survey;
       states.add(news.lines);
       const scene = forestScene(tree, history(), states, survey);
       view.show(scene, new Map(storyNodes(tree, history(), survey).map(node => [node.id, node.place])));

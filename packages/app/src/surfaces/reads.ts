@@ -11,7 +11,7 @@
  */
 import path from "node:path";
 
-import { idleAfterMs, leaveAfterMs, lookAsApp, projectFolder, openActivityLog, pruneTranscripts, standingDelegations, storedContextReading, storedSessionWindow, TranscriptCache, type ActivityLog } from "@storytree/session-management";
+import { idleAfterMs, importsOf, leaveAfterMs, lookAsApp, machineOf, projectFolder, storytreeHome, openActivityLog, pruneTranscripts, standingDelegations, storedContextReading, storedSessionWindow, TranscriptCache, type ActivityLog } from "@storytree/session-management";
 import type { Library, Storytree } from "@storytree/library";
 
 import type { PageReadsBridge } from "./bridge.js";
@@ -25,6 +25,8 @@ export interface PageReads extends Answers<PageReadsBridge> {
   listProjects(): Promise<string[]>;
   /** The latest folder a session of the project worked in on this machine, still there: where its code can be read. */
   projectFolder(project: unknown): Promise<string | undefined>;
+  /** The folders this machine imports for the project (ADR-0993 D2), where the code survey reads its mapped stories. */
+  projectImports(project: unknown): Promise<{ folder: string; repository?: string }[]>;
   /** The app's own look at every project's branches (Session management 4.21), so the sessions list never waits on a hook's. Never throws, never blocks the process, and never runs twice at once. */
   lookAround(): Promise<void>;
   /** Close the libraries and the log opened here. The connection to the library stays the caller's. */
@@ -39,6 +41,8 @@ export interface PageReadsOptions {
    * one folder inside it per project's database; without it they are kept only while the app runs.
    */
   readonly transcriptCacheHome?: string;
+  /** This machine's storytree home, which names the machine its imports are recorded for; the user's own when not given. */
+  readonly home?: string;
 }
 
 /**
@@ -46,7 +50,7 @@ export interface PageReadsOptions {
  * opened the first time they are asked for, and kept open until close(). A cursor is passed on as
  * the page gave it: the library and the log each refuse one that is not a whole number, 0 or more.
  */
-export function pageReads({ storytree, transcriptCacheHome }: PageReadsOptions): PageReads {
+export function pageReads({ storytree, transcriptCacheHome, home }: PageReadsOptions): PageReads {
   const libraries = new Map<string, Promise<Library>>();
   /** What the page's reads already fetched of each session's stored transcript: each ask fetches only what was stored since. */
   const caches = new Map<string, Promise<TranscriptCache>>();
@@ -140,6 +144,8 @@ export function pageReads({ storytree, transcriptCacheHome }: PageReadsOptions):
       return Promise.all(sessions.map((session: string) => storedSessionWindow(opened, known, lines, session, { cache })));
     },
     projectFolder: async (name) => projectFolder(await activityLog(), await project(name)),
+    projectImports: async (name) => (await importsOf(storytree, await project(name), machineOf(home ?? storytreeHome()).id))
+      .map(({ folder, repository }) => ({ folder, ...(repository === undefined ? {} : { repository }) })),
     lookAround: () => {
       looking ??= (async () => {
         try {

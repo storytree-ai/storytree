@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { execFileSync, spawn } from "node:child_process";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { actionTable, exitCode, judge, lagHome, seededHome, summary } from "./desktop-lag.mjs";
+import { actionTable, alternate, compareAction, compareTable, exitCode, judge, lagHome, NotRun, seededHome, summary, withAgainst } from "./desktop-lag.mjs";
 
 test("8.3 pnpm lag:desktop --home starts cold on a new home and warm on one an earlier run left", () => {
   const from = mkdtempSync(path.join(tmpdir(), "lag-home-from-"));
@@ -116,5 +116,120 @@ test("8.6 pnpm lag:desktop starts the app on a home naming the seeded library, i
   } finally {
     rmSync(home, { recursive: true, force: true });
     rmSync(out, { recursive: true, force: true });
+  }
+});
+
+test("8.7 pnpm lag:desktop --against judges each action slower, the same or faster on both builds' medians, and prints a count that differs as its own finding", () => {
+  const budget = { responseMs: 100, frameMs: 50, settledMs: 1000 };
+  const round = (settled, ipc = { "storytree:projectTree": 1 }) => ({ inputs: 1, response: 40, frames: [], settled, ipc });
+  const rounds = (values, ipc) => values.map((settled) => round(settled, ipc));
+  const action = (name, values, ipc) => ({ name, size: "large", budget, rounds: rounds(values, ipc) });
+  // Opening the largest island at 420 ms, measured under uneven load: one round of each build caught the box busy.
+  const against = action("open-most-island", [412, 431, 1290, 405, 420]);
+  // The same build again, its own busy round elsewhere: the medians agree within the margin.
+  assert.deepEqual(compareAction(action("open-most-island", [425, 980, 418, 433, 409]), against),
+    { name: "open-most-island", size: "large", rounds: 5, measure: "settled", against: 420, this: 425, difference: 5, verdict: "same", counts: [] });
+  // 100 ms of main-thread work more per round: past 20% and past a frame, so slower.
+  assert.equal(compareAction(action("open-most-island", [512, 531, 1390, 505, 520]), against).verdict, "slower");
+  assert.equal(compareAction(against, action("open-most-island", [512, 531, 1390, 505, 520])).verdict, "faster");
+  // Short actions a frame or two apart on every round (settled is read once a frame) are the same, though 160% and 70% worse;
+  // 400 ms to 460 ms is past three frames but under 20%, so the same too; 36 ms to 135 ms is past both, so slower.
+  assert.equal(compareAction(action("open-library-note", [31, 30, 120, 28, 32]), action("open-library-note", [12, 10, 123, 27, 11])).verdict, "same");
+  assert.equal(compareAction(action("library-and-back", [74, 75, 73]), action("library-and-back", [43, 44, 42])).verdict, "same");
+  assert.equal(compareAction(action("close-panel", [460, 462, 458]), action("close-panel", [400, 401, 399])).verdict, "same");
+  assert.equal(compareAction(action("close-panel", [135, 136, 134]), action("close-panel", [36, 35, 37])).verdict, "slower");
+  // An action with nothing to settle is compared on its response; one with no input either, on its frames over 50 ms.
+  const hover = (response) => ({ name: "hover-sweep", budget, rounds: [{ inputs: 9, response, frames: [], settled: null, ipc: {} }] });
+  assert.deepEqual([compareAction(hover(90), hover(30)).measure, compareAction(hover(90), hover(30)).verdict], ["response", "slower"]);
+  const idle = (duration) => ({ name: "idle", budget, rounds: [{ inputs: 0, response: null, frames: [{ duration, scripts: [] }], settled: null, ipc: {} }] });
+  assert.deepEqual([compareAction(idle(60), idle(160)).measure, compareAction(idle(60), idle(160)).verdict], ["frames", "faster"]);
+
+  // A read the action asks for more often is a finding of its own, whatever the times say; the page's background poll is not.
+  const more = action("open-named-island", [300, 301, 299], { "storytree:projectTree": 1, "storytree:arcViews": 3, "storytree:changesSince": 2, "storytree:projectSelection": 1 });
+  const fewer = action("open-named-island", [300, 302, 298], { "storytree:projectTree": 1, "storytree:arcViews": 1, "storytree:linesSince": 1 });
+  assert.deepEqual(compareAction(more, fewer).counts, [{ channel: "arcViews", against: 1, this: 3 }]);
+  // A side that could not perform the action makes its row NOT RUN, saying which build.
+  assert.deepEqual(compareAction({ ...fewer, rounds: [], notRun: "no island \"x\" on the globe" }, fewer), { name: "open-named-island", size: "large", rounds: 0, notRun: "this build: no island \"x\" on the globe" });
+
+  const rows = [compareAction(more, fewer), compareAction(action("open-most-island", [512, 531, 1390, 505, 520]), against)];
+  const table = compareTable(rows).split("\n");
+  assert.match(table[0], /^action\s+size\s+rounds\s+measure\s+against p50\s+this p50\s+difference\s+verdict$/);
+  assert.match(table[1], /^open-named-island\s+large\s+3\s+settled\s+300 ms\s+300 ms\s+\+0 ms \(\+0%\)\s+same$/);
+  assert.match(table[2], /^open-most-island\s+large\s+5\s+settled\s+420 ms\s+520 ms\s+\+100 ms \(\+24%\)\s+slower$/);
+  assert.match(table.at(-1), /^count: open-named-island \(large\) arcViews 1 -> 3 per round$/);
+});
+
+test("8.8 pnpm lag:desktop --against performs each action's rounds on the two builds in turn, A, B, A, B, and one build's NOT RUN ends the action on both", async () => {
+  const order = [];
+  const side = (label, failOn) => ({
+    mark: async () => {},
+    perform: async (action) => {
+      order.push(`${label}:${action.name}`);
+      if (action.name === failOn) throw new NotRun(`${label} cannot`);
+      return { label };
+    },
+  });
+  const actions = [{ name: "one", budget: {} }, { name: "two", budget: {} }];
+  const [ours, theirs] = await alternate(actions, 3, [side("A", undefined), side("B", "two")]);
+  assert.deepEqual(order, ["A:one", "B:one", "A:one", "B:one", "A:one", "B:one", "A:two", "B:two"]);
+  assert.deepEqual(ours.map((done) => [done.name, done.rounds.length, done.notRun]), [["one", 3, undefined], ["two", 1, undefined]]);
+  assert.deepEqual(theirs.map((done) => [done.name, done.rounds.length, done.notRun]), [["one", 3, undefined], ["two", 0, "B cannot"]]);
+});
+
+test("8.9 pnpm lag:desktop --against <ref> measures that ref in a throwaway worktree it installs and removes afterwards; --against <dir> uses the built app there", async () => {
+  const repo = mkdtempSync(path.join(tmpdir(), "lag-ref-repo-"));
+  const git = (...args) => execFileSync("git", args, { cwd: repo, encoding: "utf8" }).trim();
+  try {
+    git("init", "-q", "-b", "main");
+    mkdirSync(path.join(repo, "apps", "desktop"), { recursive: true });
+    writeFileSync(path.join(repo, "apps", "desktop", "marker"), "first");
+    git("add", ".");
+    git("-c", "user.name=lag", "-c", "user.email=lag@example.invalid", "commit", "-q", "-m", "first");
+    const first = git("rev-parse", "HEAD");
+    writeFileSync(path.join(repo, "apps", "desktop", "marker"), "second");
+    git("-c", "user.name=lag", "-c", "user.email=lag@example.invalid", "commit", "-q", "-am", "second");
+
+    const installed = [];
+    const seen = await withAgainst(first, { root: repo, install: (tree) => (installed.push(tree), { ok: true }) }, async (appDir) => {
+      assert.equal(readFileSync(path.join(appDir, "marker"), "utf8"), "first", "the ref's own files");
+      assert.deepEqual(installed, [path.resolve(appDir, "..", "..")], "installed with the repo's provisioning before use");
+      return appDir;
+    });
+    assert.equal(existsSync(seen), false, "the throwaway worktree is removed afterwards");
+    assert.doesNotMatch(git("worktree", "list"), /lag-against/);
+    // A failed install still removes the worktree, and says so.
+    await assert.rejects(withAgainst(first, { root: repo, install: () => ({ ok: false, code: 1 }) }, async () => {}), /could not install/);
+    assert.doesNotMatch(git("worktree", "list"), /lag-against/);
+
+    // A built app folder is used where it is, nothing made or removed.
+    const dir = path.join(repo, "apps", "desktop");
+    assert.equal(await withAgainst(dir, { root: repo, install: () => assert.fail("no install for a folder") }, async (appDir) => appDir), dir);
+    assert.equal(existsSync(dir), true);
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test("8.10 pnpm lag:desktop queues the whole run behind the machine's heavy-run lock", async () => {
+  const home = mkdtempSync(path.join(tmpdir(), "lag-lock-home-"));
+  // A live holder: this test's own process.
+  writeFileSync(path.join(home, "heavy-run.lock"), JSON.stringify({ id: "held-by-test", pid: process.pid, branch: "a-test-run", since: new Date().toISOString() }));
+  const child = spawn(process.execPath, ["--import", "tsx", fileURLToPath(new URL("./desktop-lag.mjs", import.meta.url)), "--chromium", "--sizes", "standard", "--against", home],
+    { env: { ...process.env, STORYTREE_HOME: home, STORYTREE_HEAVY_LOCK_HOLDER: "" }, stdio: ["ignore", "pipe", "pipe"] });
+  try {
+    let output = "";
+    await new Promise((resolve, reject) => {
+      const read = (data) => {
+        output += data;
+        if (/heavy-run lock: waiting for a-test-run/.test(output)) resolve();
+        if (/seed|lag-against/.test(output)) reject(new Error(`measured before taking the lock:\n${output}`));
+      };
+      child.stdout.on("data", read);
+      child.stderr.on("data", read);
+      child.once("exit", (code) => reject(new Error(`exited ${code} without waiting:\n${output}`)));
+    });
+  } finally {
+    child.kill("SIGKILL");
+    rmSync(home, { recursive: true, force: true });
   }
 });

@@ -35,3 +35,19 @@ test("2.2 the same edit with a harness session id shows as that session", async 
     }
   });
 });
+
+test("2.7 a shell with STORYTREE_SESSION_ID acts as that session; a shell naming no session is told by storytree processes to set it", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const arc = await library.createArc({ title: "Email", intent: "Reach readers", endState: "Mail delivered" });
+    const ran = await world.run(["arc", "edit", arc.id, "--title", "Connected"], { STORYTREE_SESSION_ID: "cursor-chat-1" });
+    assert.equal(ran.code, 0, ran.stderr);
+    assert.equal((await library.history({ id: arc.id })).at(-1)?.actor, "session:cursor-chat-1");
+
+    for (const words of [["processes"], ["processes", "stop", "run-1"]]) {
+      const refused = await world.run(words);
+      assert.notEqual(refused.code, 0);
+      assert.match(refused.stderr + refused.stdout, /STORYTREE_SESSION_ID/);
+    }
+  });
+});

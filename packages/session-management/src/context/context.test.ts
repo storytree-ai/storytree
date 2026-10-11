@@ -142,6 +142,29 @@ test("9.6 `storytree context` prints this session's tokens used, worked out at t
   });
 });
 
+test("9.15 `storytree context` reads the session STORYTREE_SESSION_ID names and tells a shell naming none how to name one; a transcript of a harness storytree has no reader for is never read as Claude Code's", async () => {
+  await withProject(async (log, project, dir) => {
+    const folder = path.join(dir, "site");
+    mkdirSync(folder);
+    writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
+    await approveCheckout(folder, project, dir);
+    // A Claude-shaped transcript, named by a harness storytree does not know: it has no figure.
+    const transcript = path.join(dir, "cursor.jsonl");
+    writeFileSync(transcript, jsonl(claudeLine("req_1", { input: 2_000, read: 0, created: 0 })));
+    await log.append(project, { session: "C", harness: "cursor", source: "hook", folder, kind: "session-started", transcript });
+    const locate = { dataDir: testServerDataDir(), home: dir };
+
+    const named = JSON.parse((await contextCommand({ folder, env: { STORYTREE_SESSION_ID: "C" }, json: true, locate })).text) as Record<string, unknown>;
+    assert.equal(named.session, "C", "the session STORYTREE_SESSION_ID names is read");
+    assert.equal(named.tokens, undefined);
+    assert.equal(named.absent, "storytree reads no transcript of cursor");
+
+    const none = await contextCommand({ folder, env: {}, locate });
+    assert.equal(none.code, 0);
+    assert.match(none.text, /STORYTREE_SESSION_ID/);
+  });
+});
+
 test("9.7 a reading states fresh default or set guidance, including under, at and past it; unusable settings keep the tokens and explain the missing guidance", async () => {
   await withTempDir(async (home) => {
     const transcript = path.join(home, "S.jsonl");

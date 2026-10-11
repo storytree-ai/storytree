@@ -6,7 +6,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 
-export type Harness = "claude-code" | "codex";
+export type { Harness } from "@storytree/session-management";
 export interface InstalledToolServerCommand {
   readonly command: string;
   readonly args: readonly [string];

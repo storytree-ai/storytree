@@ -41,6 +41,7 @@
  * inside one try: a failure anywhere means nothing is written, never an error the agent sees, and
  * a trace of why left on this machine (failures.ts, contract 3.23).
  */
+import type { Harness } from "../harnesses.js";
 import { homedir } from "node:os";
 import path from "node:path";
 
@@ -113,7 +114,7 @@ export function hookLines(harness: string, input: unknown): HookLines | undefine
 
 /** A prompt the user sent, as both harnesses' prompt hook gives it (UserPromptSubmit). */
 interface Prompted {
-  readonly harness: "claude-code" | "codex";
+  readonly harness: Harness;
   readonly session: string;
   readonly folder: string;
   readonly prompt: string;

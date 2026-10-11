@@ -58,6 +58,8 @@ export interface SetupOptions {
   readonly appPlaces?: AppPlaces;
   /** How to ask for the latest release, to compare the hooks' with (contract 8.18). By default, `gh release view`. */
   readonly latestRelease?: LatestRelease;
+  /** The harness of the session asking, when it is an MCP client storytree has no hooks for (6.64). */
+  readonly connected?: string;
 }
 
 export interface SetupReport {
@@ -85,6 +87,19 @@ export interface SetupReport {
   readonly archives: readonly AppReading[];
   /** Which release the registered hooks run, against the latest release. */
   readonly hooksRelease: HooksRelease;
+  /**
+   * storytree's stdio tool server, built beside the hook script, as any MCP client takes it by hand (8.27):
+   * undefined when this check has no installed hook command to find it by.
+   */
+  readonly serverEntry: ServerEntry | undefined;
+  /** The harness of the session asking, when it is a connected one: an MCP client storytree has no hooks for (6.64). */
+  readonly connected?: string;
+}
+
+/** A stdio server entry: the command and arguments an MCP client starts storytree's tool server with. */
+export interface ServerEntry {
+  readonly command: string;
+  readonly args: readonly string[];
 }
 
 /** Check `options.folder`, inside or outside a session, and fix what needs no user decision. Never creates a project. */
@@ -109,7 +124,9 @@ export async function runSetupCheck(options: SetupOptions): Promise<SetupReport>
     readAppRecords(options.appPlaces),
     hooksRelease(registeredHookScripts(homes), options.latestRelease),
   ]);
-  const report = { storytree, hooks, codexServer, codexHooks, project, command, gh, machine, archives, hooksRelease: released };
+  // The tool server is built beside the hook script, as the `storytree` command is.
+  const serverEntry = options.hook === undefined ? undefined : { command: options.hook.node, args: [path.join(path.dirname(options.hook.script), "storytree-mcp.mjs")] };
+  const report = { storytree, hooks, codexServer, codexHooks, project, command, gh, machine, archives, hooksRelease: released, serverEntry, ...(options.connected === undefined ? {} : { connected: options.connected }) };
   return { ...report, lines: setupLines(report) };
 }
 

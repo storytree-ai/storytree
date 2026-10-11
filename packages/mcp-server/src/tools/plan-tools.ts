@@ -318,7 +318,7 @@ async function showPlan({ library, log, project, quietMs }: Call): Promise<Answe
   out.push(
     sessions.length === 0
       ? "No sessions yet."
-      : `Sessions: ${sessions.map((session) => `${session.label} ${session.session}, ${session.state}${session.hooksRunning ? "" : ", hooks not running"}`).join("; ")}`,
+      : `Sessions: ${sessions.map((session) => `${session.label} ${session.session}, ${session.state}${session.tier === "connected" ? ", connected" : session.hooksRunning ? "" : ", hooks not running"}`).join("; ")}`,
   );
   return {
     text: out.join("\n"),

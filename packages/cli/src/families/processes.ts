@@ -2,7 +2,7 @@
 import { locateStorytree } from '@storytree/session-management/routing';
 import { Refusal } from '../answer.js';
 import type { Family } from '../door.js';
-import { commandSession } from '../writer.js';
+import { commandSession, NAME_A_SESSION } from '../writer.js';
 
 export const processes: Family = {
   name: 'processes', aliases: ['own'], summary: 'see recorded work on this computer and stop your own runs',
@@ -13,6 +13,7 @@ export const processes: Family = {
         throw new Refusal('usage: storytree processes [--all]', { code: 2 });
       }
       const owner = caller();
+      if (!owner && !args.has('all')) throw new Refusal(`storytree processes needs a session identity: ${NAME_A_SESSION}; use storytree processes --all to inspect work.`);
       const { listRuns, renderInventory } = await import('@storytree/processes/listing');
       const inventory = await listRuns({ scope: args.has('all') ? 'all' : 'self', ...(owner ? { owner } : {}),
         stopAction: run => ({ command: `storytree processes stop ${run}` }),
@@ -26,7 +27,7 @@ export const processes: Family = {
     async act(args) {
       if (!args.words.length || args.names.length) throw new Refusal('usage: storytree processes stop <run…>', { code: 2 });
       const owner = caller();
-      if (!owner) throw new Refusal('storytree processes stop needs a session identity from the calling harness; use storytree processes --all to inspect work.');
+      if (!owner) throw new Refusal(`storytree processes stop needs a session identity: ${NAME_A_SESSION}; use storytree processes --all to inspect work.`);
       const { stopOwned } = await import('@storytree/processes/stopping');
       const stopped = await stopOwned({ owner, targets: args.words });
       const text = JSON.stringify(stopped, null, 2);
@@ -38,7 +39,7 @@ export const processes: Family = {
     async act(args) {
       if (args.words.length || args.names.length) throw new Refusal('usage: storytree processes clear', { code: 2 });
       const owner = caller();
-      if (!owner) throw new Refusal('storytree processes clear needs a session identity from the calling harness; use storytree processes --all to inspect work.');
+      if (!owner) throw new Refusal(`storytree processes clear needs a session identity: ${NAME_A_SESSION}; use storytree processes --all to inspect work.`);
       const { clearOwned, readClosing } = await import('@storytree/processes/closing');
       const clear = await clearOwned({ owner });
       const closing = await readClosing({ owner, knownGaps: clear.gaps, shared: await sharedWork() });

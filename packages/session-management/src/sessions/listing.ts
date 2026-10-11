@@ -50,7 +50,9 @@ function block(session: Session, names?: ReadonlyMap<string, string>): string {
     lines.push(`  closed out ${closeOut.at}: ${closeOut.safe ? "safe" : "not safe"} (${closeOut.why}), ${closeOut.verified ? "verified" : "not verified"}`);
     if (closeOut.needsYou !== undefined) lines.push(`  needs you: ${closeOut.needsYou}`);
   }
-  if (!session.hooksRunning) lines.push("  hooks not running");
+  // A connected session has no hooks to run: its quiet is not a fault (contract 4.32).
+  if (session.tier === "connected") lines.push("  connected, not watched: storytree sees only its tool calls and commands");
+  else if (!session.hooksRunning) lines.push("  hooks not running");
   lines.push(`  last seen ${session.lastSeenAt}`);
   return lines.join("\n");
 }

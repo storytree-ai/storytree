@@ -26,7 +26,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } 
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 
-import { ASK_SETUP, BACKGROUND, CLOSE_OUT_REMINDER, defaultHomes, EDIT_GATE, registeredHookScripts, scriptsIn, STORYTREE_TOOLS, type Homes } from "@storytree/session-management";
+import { ASK_SETUP, BACKGROUND, CLOSE_OUT_REMINDER, defaultHomes, EDIT_GATE, HARNESS_IDS, registeredHookScripts, scriptsIn, STORYTREE_TOOLS, type Homes } from "@storytree/session-management";
 
 export { defaultHomes, registeredHookScripts, type Homes };
 
@@ -42,8 +42,9 @@ export interface HookCommand {
  */
 export type HookRegistration = "registered" | "already registered" | "not here" | "disconnected";
 
-/** A harness storytree connects to. */
-export type Harness = "claude-code" | "codex";
+/** A harness storytree connects to: one Session management describes (decision_057bc7ad0a8c D1). */
+import type { Harness } from "@storytree/session-management";
+export type { Harness };
 
 /**
  * What installing Claude Code's status line found (ADR-0636 D1, b3): storytree's installed now or
@@ -102,7 +103,7 @@ const DISCONNECTED_FILE = "disconnected-harnesses.json";
 export function disconnectedHarnesses(storytreeHome: string): Set<Harness> {
   try {
     const named: unknown = JSON.parse(readFileSync(path.join(storytreeHome, DISCONNECTED_FILE), "utf8"));
-    return new Set((Array.isArray(named) ? named : []).filter((harness): harness is Harness => harness === "claude-code" || harness === "codex"));
+    return new Set((Array.isArray(named) ? named : []).filter((harness): harness is Harness => HARNESS_IDS.includes(harness)));
   } catch {
     return new Set();
   }

@@ -94,3 +94,21 @@ test("session-management 10.10 / 9.7 a running MCP server rereads idle-after wit
     }
   });
 });
+
+test("6.65 a client that names no session keeps one session id for the tool server's life, or the one STORYTREE_SESSION_ID names in its environment, so its claims and its shell's commands are one session", async () => {
+  await withProject(async ({ folder, project, log }) => {
+    const sessionsOf = async () => [...new Set((await log.lines(project, { kinds: ["tool-called"] })).map((line) => `${line.session} ${line.harness}`))];
+    await withAgent(folder, { client: "cursor" }, async (agent) => {
+      await agent.call("show_plan");
+      await agent.call("show_plan");
+    });
+    const own = await sessionsOf();
+    assert.equal(own.length, 1, `one session for both calls: ${own.join(", ")}`);
+    assert.match(own[0]!, /^storytree-mcp-\S+ cursor$/);
+
+    await withAgent(folder, { client: "cursor", env: { STORYTREE_SESSION_ID: "cursor-chat-7" } }, async (agent) => {
+      await agent.call("show_plan");
+    });
+    assert.ok((await sessionsOf()).includes("cursor-chat-7 cursor"), "the named session is the caller");
+  });
+});

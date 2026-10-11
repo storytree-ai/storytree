@@ -1,7 +1,7 @@
 /** Capability 3 · Story node render. */
 import type { ForestScene } from "./forest-scene.js";
 
-/** A link lit by a story selection: `from` builds on `to`, both capabilities; "up" when the selected story is the one building. */
+/** A link lit by a story selection: `from` builds on `to`, each a capability or an island as a whole; "up" when the selected story is the one building. */
 export type SelectionLane = { from: string; to: string; dir: "up" | "down" };
 
 /**
@@ -11,7 +11,8 @@ export type SelectionLane = { from: string; to: string; dir: "up" | "down" };
  */
 export function selectionLanes(scene: ForestScene, selected: string | undefined): SelectionLane[] {
   if (selected === undefined) return [];
-  const own = new Set(scene.islands.find(island => island.story === selected)?.trees.flatMap(({ capability }) => capability ?? []) ?? []);
+  const island = scene.islands.find(({ story }) => story === selected);
+  const own = new Set(island === undefined ? [] : [island.story, ...island.trees.flatMap(({ capability }) => capability ?? [])]);
   return (scene.links ?? []).flatMap(({ from, to }): SelectionLane[] =>
     own.has(from) === own.has(to) ? [] : [{ from, to, dir: own.has(from) ? "up" : "down" }]);
 }

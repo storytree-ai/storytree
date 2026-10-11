@@ -236,6 +236,7 @@ export function buildPlanetPathways(scene: ForestScene, spots: ReadonlyMap<strin
     g.chartRings = g.rings.map(ring => ring.map(local => ({ ...chart(onGround(g, local)), local })));
     g.r = Math.max(...g.chartRings.flat().map(p => Math.hypot(p.x - g.centre.x, p.y - g.centre.y)));
     grounds.set(g.id, g);
+    owners.set(island.story, g.id);
     for (const tree of island.trees) if (tree.capability !== undefined) owners.set(tree.capability, g.id);
   }
   const links: Link[] = [...new Map((scene.links ?? []).map(edge => [keyOf(edge), edge])).values()].map(edge => {
@@ -345,8 +346,8 @@ export function planetPathwayDrawing(scene: ForestScene, spots: ReadonlyMap<stri
   plan: PlanetPathways; issue: string | undefined;
 } {
   // A link naming a capability on no island (one depending on a retired capability, say) is left out on its own,
-  // rather than costing every road; the notice names it.
-  const drawn = new Set(scene.islands.flatMap(island => island.trees.flatMap(tree => tree.capability === undefined ? [] : [tree.capability])));
+  // rather than costing every road; the notice names it. A link end may name an island as a whole, by its story.
+  const drawn = new Set(scene.islands.flatMap(island => [island.story, ...island.trees.flatMap(tree => tree.capability === undefined ? [] : [tree.capability])]));
   const links = scene.links ?? [];
   const kept = links.filter(link => drawn.has(link.from) && drawn.has(link.to));
   const left = links.filter(link => !kept.includes(link)).map(link => `${link.from}->${link.to}`);

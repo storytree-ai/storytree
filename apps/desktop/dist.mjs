@@ -14,7 +14,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { stageTools } from "./tools.mjs";
 import { deliveryAssets, macDeliveryAssets } from "./delivery-assets.mjs";
-import { macSigning } from "./mac-signing.mjs";
+import { builderEnv, macSigning } from "./mac-signing.mjs";
 
 process.env.ELECTRON_BUILDER_7Z_FILTER ??= "BCJ";
 const version = process.env.STORYTREE_RELEASE_VERSION;
@@ -27,6 +27,10 @@ await stageTools();
 const signing = mac ? macSigning(process.env) : undefined;
 const identity = signing?.mode === "ad-hoc" ? { mac: { identity: signing.identity, notarize: signing.notarize } } : {};
 if (identity.mac) process.env.CSC_FOR_PULL_REQUEST = "true";
+if (mac) {
+  const env = builderEnv(process.env);
+  for (const name of ["CSC_LINK", "CSC_KEY_PASSWORD"]) if (!(name in env)) delete process.env[name];
+}
 // The packaged package.json records the Mac signing mode: only a Developer ID build follows releases (updates 4.21),
 // because Squirrel.Mac refuses an update to an app that is not Developer ID signed.
 const extraMetadata = { ...(version === undefined ? {} : { version }), ...(signing ? { storytree: { macSigning: signing.mode } } : {}) };

@@ -23,6 +23,14 @@ export function macSigning(env) {
   return { mode: "developer-id", keychain: true, notarize: true };
 }
 
+/** The environment electron-builder builds in: an ad-hoc build drops CSC_LINK and CSC_KEY_PASSWORD, since the
+ * release passes an absent secret as "" and electron-builder would read an empty CSC_LINK as a certificate path. */
+export function builderEnv(env) {
+  if (macSigning(env).mode === "developer-id") return env;
+  const { CSC_LINK, CSC_KEY_PASSWORD, ...rest } = env;
+  return rest;
+}
+
 /** The Developer ID Application identity `security find-identity -v -p codesigning` lists, by its SHA-1. */
 export function identityFrom(listing) {
   const match = /^\s*\d+\)\s+([0-9A-F]{40})\s+"Developer ID Application: [^"]+"/m.exec(listing);

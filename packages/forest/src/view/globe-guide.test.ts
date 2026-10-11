@@ -109,3 +109,21 @@ test("3.37 home eases the globe back to the turn and zoom it opened on, the shor
   assert.equal(back.framing, 1.18); assert.equal(back.sideOffset, 0); assert.equal(back.turn.pitch, 0);
   assert.ok(Math.abs(Math.sin(back.turn.yaw - 0.4)) < 1e-9 && Math.cos(back.turn.yaw - 0.4) > 0, "facing the way it opened");
 });
+
+test("3.40 a slide eases the zoom and side offset only, never the turn; a drag or wheel cutting it short still lands the offset", () => {
+  const f = fixture();
+  const turn = { ...f.pose().turn };
+  assert.equal(f.guide.slide({ framing: 2, sideOffset: -246 }, 1000), true);
+  f.guide.frame(500);
+  assert.equal(f.pose().sideOffset, -123, "a glide, not a jump"); assert.equal(f.pose().framing, 2.5);
+  f.guide.frame(500);
+  assert.deepEqual(f.pose(), { turn, framing: 2, sideOffset: -246 });
+  f.guide.slide({ framing: 3, sideOffset: 0 }, 1000);
+  f.guide.frame(500);
+  f.guide.cancel();
+  assert.equal(f.pose().sideOffset, 0, "the globe still ends centred in the free space");
+  assert.equal(f.pose().framing, 2.5, "the zoom is left to the wheel");
+  assert.equal(f.guide.frame(16), false);
+  f.guide.slide({ framing: 1, sideOffset: 40 }, 0);
+  assert.deepEqual(f.pose(), { turn, framing: 1, sideOffset: 40 }, "reduced motion: at once");
+});

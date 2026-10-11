@@ -16,6 +16,9 @@ The text above that marker is written by hand, and it counts toward the file's 4
   throwaway local Postgres; `pnpm run test --full` runs everything, `pnpm run test --rerun-failed` only
   what failed. Give flags in that `pnpm run <script> --flag` form: Windows PowerShell 5.1 drops a bare `--`.
   `pnpm typecheck` checks types.
+- In Windows PowerShell 5.1, never cut a command's output with `| Select-Object -First N`: it kills the
+  command at line N, so work after that line is lost, and leaves `$LASTEXITCODE` at -1, which a tool
+  reports as exit 255 under output that reads as success. Capture, then slice: `$o = pnpm -s storytree …`.
 - `pnpm test` and `pnpm gate` queue behind the machine's heavy-run lock themselves (a waiting run says
   whose run it waits for), so run them plain, in the background: no flock wrapper. A session whose engine
   exits when its turn ends (a Mint lane) runs them in the foreground instead, until the table prints.

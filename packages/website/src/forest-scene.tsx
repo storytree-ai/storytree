@@ -190,6 +190,10 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   const [browserOpen, setBrowserOpen] = useState(false);
   const [width, setWidth] = useState(window.innerWidth);
   const [arrived, setArrived] = useState(false);
+  // No globe draws without WebGL, or once the drawing broke; then no camera puts a step's globe on show (2.16).
+  const [broken, setBroken] = useState(false);
+  const drawing = webgl && !broken;
+  const globeFailed = useCallback(() => { setBroken(true); failed(); }, [failed]);
   // Each growth's own knowledge core, its notes appearing as the time-lapse reaches their dates (knowledge core 1.9). A public
   // recording holds no transcript windows, so a session the core follows is drawn by its recorded reading path (ADR-0756).
   const growthCores = useMemo(() => Object.fromEntries((Object.keys(growths) as Grown[]).map(map => {
@@ -349,6 +353,12 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
       shownOverview: overviews[shownMapNow.current], driftOrder: driftOrders[map], next: driftOrders[map].indexOf(ownerOf(target) ?? "") + 1,
       reduced: reduced(), place: stop => controls.stop({ ...stop, sideOffset }), show: () => setShownMap(map) });
   }, [controls, tour, sideOffset, openingActive, globe.map]);
+  // With no globe drawn, each step's panels read the step's own project directly, as the camera would have shown it (2.16).
+  useEffect(() => {
+    if (!tour || drawing || free || !step) return;
+    const map = everything ? "storytree" : globe.map;
+    if (shownMapNow.current !== map) setShownMap(map);
+  }, [tour, drawing, free, everything, globe.map]);
   // Once a swapped globe is drawn, the camera dives into it.
   useEffect(() => {
     if (!camera.diving) return;
@@ -417,7 +427,7 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
     return heard.reading.subscribe({ onNews: news => growthCores.shop.take(shop.changes ?? [], news.lines) });
   }, [onShop, shopView, shopAt, growthCores]);
   return <>
-    {webgl && tour && <GlobeBoundary failed={failed}>
+    {webgl && tour && <GlobeBoundary failed={globeFailed}>
       <div className="forest-drawing" role="group" aria-label={onStorytree ? "Storytree’s saved project globe" : shownMap === "own" ? "Storytree’s own globe, growing as its agents built it" : "An online shop’s globe, as its agents built it"}
         data-globe={shownMap} data-arrived={arrived} data-growth={grown ? moment === undefined ? "whole" : moment.toFixed(2) : undefined} data-focus={focus?.join(" ")}
         data-islands={drawn.islands.length} data-risen={growth ? [...growth.plan.islands.values()].filter(window => window.start <= growth.at).length : undefined} onPointerDown={explore} onWheel={explore}>

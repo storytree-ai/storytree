@@ -14,6 +14,10 @@ test('a restore accepts only a complete manifest with safe dump names and hashes
   const databases = ['storytree_storytree', 'storytree-activity', 'storytree-trunks'];
   const good = { format: 1, databases: databases.map(name => ({ name, file: `${name}.dump`, sha256: 'a'.repeat(64), bytes: 123, rows: { 'public.record': '1' } })) };
   assert.doesNotThrow(() => checkedManifest(good));
+  // The lag runner's history (storytree-lag) is backed up beside them; a backup from before it joined still restores.
+  const lag = { ...good.databases[0], name: 'storytree-lag', file: 'storytree-lag.dump' };
+  assert.doesNotThrow(() => checkedManifest({ ...good, databases: [...good.databases, lag] }));
+  assert.throws(() => checkedManifest({ ...good, databases: [...good.databases.slice(1), lag] }), /manifest/);
   assert.throws(() => checkedManifest({ ...good, databases: good.databases.slice(1) }), /manifest/);
   // 0.2's frozen store stays on Cloud SQL and is archived there, never backed up from Mint.
   assert.throws(() => checkedManifest({ ...good, databases: [...good.databases, { ...good.databases[0], name: 'storytree', file: 'storytree.dump' }] }), /manifest/);

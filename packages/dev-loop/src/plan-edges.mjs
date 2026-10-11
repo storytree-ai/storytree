@@ -17,7 +17,7 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-const NAMED_OTHERWISE = { "command-line": "cli", world: "forest-world", "local-database": "local-postgres", "process-ledger": "processes" };
+const NAMED_OTHERWISE = { "command-line": "cli", world: "forest-world", "local-database": "local-postgres", "process-ledger": "processes", "lag-in-real-use": "lag-in-use" };
 const FIELDS = ["dependencies", "devDependencies", "optionalDependencies", "peerDependencies"];
 
 /** The repo-relative folders holding a story's code, by its title. */

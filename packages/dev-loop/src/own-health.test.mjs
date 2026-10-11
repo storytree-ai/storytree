@@ -243,6 +243,7 @@ test("own health reads a story's contracts from the library, each number from it
   assert.equal(packageOf("The world"), "forest-world");
   assert.equal(packageOf("The local database"), "local-postgres");
   assert.equal(packageOf("Process ledger"), "processes");
+  assert.equal(packageOf("Lag in real use"), "lag-in-use");
 });
 
 test("5.4 checking a story runs its own package's tests and records each contract's verified health from them; a run with no report, or a story with no package, records nothing", async (t) => {

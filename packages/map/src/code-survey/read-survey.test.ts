@@ -23,7 +23,7 @@ const tree = { arcs: [], stories: [{ id: "story-shop", title: "Shop", capabiliti
 
 test("8.1, 8.5 Constructor stories survey alongside ordinary stories and package aliases", async () => {
   const folder = await mkdtemp(path.join(tmpdir(), "code-survey-titles-"));
-  const fixtures = [["Shop", "shop"], ["The command line", "cli"], ["The world", "forest-world"], ["Constructor", "constructor"]] as const;
+  const fixtures = [["Shop", "shop"], ["The command line", "cli"], ["The world", "forest-world"], ["Lag in real use", "lag-in-use"], ["Constructor", "constructor"]] as const;
   const stories = fixtures.map(([title, name]) => ({ id: `story-${name}`, title, capabilities: [{ id: `cap-${name}`, title: "1 · Value" }] }));
   const ordinary = { arcs: [], stories: stories.slice(0, -1) } as unknown as AnnotatedTree;
   const reader = codeSurveyReader();

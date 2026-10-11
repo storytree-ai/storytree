@@ -444,6 +444,7 @@ const PACKAGE_NAMED_OTHERWISE = {
   world: "forest-world",
   "local-database": "local-postgres",
   "process-ledger": "processes",
+  "lag-in-real-use": "lag-in-use",
 };
 
 // --- writing to the library -------------------------------------------------------------------

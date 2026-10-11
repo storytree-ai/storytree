@@ -15,12 +15,26 @@ export type RoadRouter = (routing: CrossRouting, signal: AbortSignal) => Promise
 export const ROAD_WORKER_META = 'storytree-road-worker';
 
 /** What a layout draws at once, and the routing its roads still wait on, if any. A layout whose routes are kept from
- * the last routing (an island's health changed, say, and nothing moved) draws its roads at once. */
-export function drawnAtOnce(scene: ForestScene, spots: ReadonlyMap<string, PlanetSpot>, radius: number): {
+ * the last routing (an island's health changed, say, and nothing moved) draws its roads at once. One whose islands
+ * stand where `before` drew them (a dependency was added, say) keeps `before`'s roads on show until its own are routed,
+ * so a road already drawn is not drawn on again. */
+export function drawnAtOnce(scene: ForestScene, spots: ReadonlyMap<string, PlanetSpot>, radius: number,
+  before?: { spots: ReadonlyMap<string, PlanetSpot>; radius: number; drawing: PathwayDrawing }): {
   drawing: PathwayDrawing; routing: { key: string; routing: CrossRouting } | undefined;
 } {
   const routing = pathwayRouting(scene, spots, radius);
-  return { drawing: routing === undefined ? planetPathwayDrawing(scene, spots, radius) : islandsOnly(scene), routing };
+  if (routing === undefined) return { drawing: planetPathwayDrawing(scene, spots, radius), routing };
+  const islands = islandsOnly(scene);
+  if (before === undefined || before.radius !== radius || !samePlaces(before.spots, spots)) return { drawing: islands, routing };
+  const { segments, edges, docks } = before.drawing.plan;
+  return { drawing: { plan: { ...islands.plan, segments, edges, docks }, issue: before.drawing.issue }, routing };
+}
+
+function samePlaces(a: ReadonlyMap<string, PlanetSpot>, b: ReadonlyMap<string, PlanetSpot>): boolean {
+  return a === b || (a.size === b.size && [...b].every(([story, spot]) => {
+    const old = a.get(story);
+    return old !== undefined && old.x === spot.x && old.y === spot.y && old.z === spot.z;
+  }));
 }
 
 /** The drawing with its roads, once `router` has routed them; undefined when `signal` aborts first, so an overtaken

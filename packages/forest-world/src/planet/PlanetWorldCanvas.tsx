@@ -146,9 +146,10 @@ function PaintWhileSeen({ watch }: { watch: ViewportWatch | undefined }) {
 
 /** World 6.21: the islands are drawn at once and the roads when routed, off the page's main thread where the page
  * offers a road worker; a routing its layout has overtaken draws nothing. */
-function useRoadsWhenRouted(scene: ForestScene, spots: ReadonlyMap<string, PlanetSpot>, radius: number): PathwayDrawing {
+function useRoadsWhenRouted(scene: ForestScene, spots: ReadonlyMap<string, PlanetSpot>, radius: number): PathwayDrawing & { routing: boolean } {
   const router = useMemo(() => pageRoadRouter(), []);
-  const now = useMemo(() => drawnAtOnce(scene, spots, radius), [scene, spots, radius]);
+  const shown = useRef<{ spots: ReadonlyMap<string, PlanetSpot>; radius: number; drawing: PathwayDrawing }>(undefined);
+  const now = useMemo(() => drawnAtOnce(scene, spots, radius, shown.current), [scene, spots, radius]);
   const [routed, setRouted] = useState<{ now: typeof now; drawing: PathwayDrawing }>();
   useEffect(() => {
     if (now.routing === undefined) return;
@@ -156,7 +157,9 @@ function useRoadsWhenRouted(scene: ForestScene, spots: ReadonlyMap<string, Plane
     void routedDrawing(scene, spots, radius, now.routing, router, layout.signal).then(drawing => { if (drawing) setRouted({ now, drawing }); });
     return () => layout.abort();
   }, [now, router]);
-  return routed?.now === now ? routed.drawing : now.drawing;
+  const drawing = routed?.now === now ? routed.drawing : now.drawing;
+  shown.current = { spots, radius, drawing };
+  return { ...drawing, routing: routed?.now !== now && now.routing !== undefined };
 }
 
 /** The one dev-only seam an evidence capture observes the globe through: a capture build sets this global
@@ -195,7 +198,7 @@ export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1
         return <Plate key={island.story} island={island} spot={spot} radius={radius} plate={pathways.plates.get(island.story)!}
           visible={exterior.plates} grounds={exterior.grounds} children={plateChildren} />;
       })}
-      <group name="globe-roads" visible={exterior.roads}><Pathways plan={pathways} reveal={reveal} live={liveRoads && growth === undefined} visible={exterior.roads} /><SelectionLanes plan={pathways} lit={lanes} inland={inland} /></group>
+      <group name="globe-roads" visible={exterior.roads}><Pathways plan={pathways} reveal={reveal} live={liveRoads && growth === undefined} visible={exterior.roads} routing={drawing.routing} /><SelectionLanes plan={pathways} lit={lanes} inland={inland} /></group>
       {inside}
     </group>
     <Wheel radius={radius} framing={framing} orbit={orbit} />

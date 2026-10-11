@@ -5,6 +5,7 @@ import { routeTrails, type TrailNetwork } from '../core/routing.js';
 import { planetPathwayDrawing, type CrossRouting } from './pathways.js';
 import { drawnAtOnce, routedDrawing, routeInWorker, type RoadRouter, type RoadWorker } from './road-routing.js';
 import { answerRouting } from './road-worker.js';
+import { nextLiveRoads } from './live-roads.js';
 
 const R = 218;
 const island = (story: string, capabilities: string[]): Island => ({
@@ -109,4 +110,38 @@ test('6.21 a routing that fails leaves the islands on show with the notice that 
   assert.deepEqual([...drawing.plan.plates.keys()], ['a', 'b']);
   assert.equal(drawing.plan.segments.length, 0);
   assert.match(drawing.issue ?? '', /the router gave up/);
+});
+
+test('6.21 a dependency added with no island moved keeps every road on show while the new one is routed', async () => {
+  const spots = layout(0.73);
+  const one: ForestScene = { ...scene, links: [{ from: 'b1', to: 'a1' }] };
+  const { router, asked } = heldRouter();
+  const first = routedDrawing(one, spots, R, drawnAtOnce(one, spots, R).routing!, router, new AbortController().signal);
+  asked[0]!.answer();
+  const drawn = (await first)!;
+  const added = drawnAtOnce(scene, layout(0.73), R, { spots, radius: R, drawing: drawn });
+  assert.ok(added.routing, 'the added dependency waits on a routing');
+  assert.equal(roads(added.drawing), roads(drawn), 'the roads already drawn stay on show meanwhile');
+  const moved = drawnAtOnce(scene, layout(0.75), R, { spots, radius: R, drawing: drawn });
+  assert.equal(moved.drawing.plan.segments.length, 0, 'roads drawn for islands that have since moved are not');
+});
+
+test('6.21 while a moved layout\'s roads are routed, a live globe forgets no road it drew, and draws on only the new one', async () => {
+  const one: ForestScene = { ...scene, links: [{ from: 'b1', to: 'a1' }] };
+  const { router, asked } = heldRouter();
+  const before = drawnAtOnce(one, layout(0.77), R);
+  const routedBefore = routedDrawing(one, layout(0.77), R, before.routing!, router, new AbortController().signal);
+  asked[0]!.answer();
+  const drawn = (await routedBefore)!;
+  const arrived = nextLiveRoads(new Map(), drawn.plan, 0);
+  // A dependency is added and the globe is laid out again: its islands move, so nothing can be kept on show.
+  const moved = drawnAtOnce(scene, layout(0.79), R, { spots: layout(0.77), radius: R, drawing: drawn });
+  assert.equal(moved.drawing.plan.edges.length, 0);
+  const waiting = nextLiveRoads(arrived, moved.drawing.plan, 5, true);
+  assert.equal(waiting, arrived, 'the arrivals are kept while the roads are routed');
+  const routing = routedDrawing(scene, layout(0.79), R, moved.routing!, router, new AbortController().signal);
+  asked[1]!.answer();
+  const after = nextLiveRoads(waiting, (await routing)!.plan, 5);
+  assert.equal(after.get('b1->a1'), arrived.get('b1->a1'), 'the road drawn before keeps its arrival');
+  assert.equal(after.get('b2->a2')?.start, 5, 'only the added road arrives now');
 });

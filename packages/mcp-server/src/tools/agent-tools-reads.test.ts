@@ -667,10 +667,10 @@ test("6.30 health_worklist gives the oldest three capabilities on the health wor
       assert.equal(held.data.more, 0);
       assert.match(held.text, /1 held back.*a test run at commit abc123 is recording it/);
 
-      await library.recordVerified(check, "failing");
+      const recorded = await library.recordVerified(check, "failing");
       assert.deepEqual((await agent.call("health_worklist")).data.held, [], "the run recorded it");
-      await delay(1100);
-      const git = (...args: string[]) => execFileSync("git", ["-c", "user.name=Tool test", "-c", "user.email=tool@example.test", "-c", "commit.gpgsign=false", ...args], { cwd: folder, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+      const after = new Date(Date.parse(recorded.at) + 1000).toISOString();
+      const git = (...args: string[]) => execFileSync("git", ["-c", "user.name=Tool test", "-c", "user.email=tool@example.test", "-c", "commit.gpgsign=false", ...args], { cwd: folder, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, GIT_COMMITTER_DATE: after, GIT_AUTHOR_DATE: after } }).trim();
       writeFileSync(path.join(folder, "notes.md"), "notes\n");
       git("init", "-q"); git("add", "-A"); git("commit", "-qm", "outside every package");
       git("update-ref", "refs/remotes/origin/main", "HEAD");

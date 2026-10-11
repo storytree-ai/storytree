@@ -9,6 +9,13 @@ export type Hold = "paused" | "reading" | "everything" | "exploring";
 export type Decision = { number: number; title: string };
 export type Source = { name: string; url: string };
 export type Chip = { kind: "principle" | "partial" | "recording"; text: string };
+/**
+ * A label on the thing a line talks about (ADR-0891, amended 2026-10-10): fixed words, or words read from the record the globe
+ * shows at that moment: a file's name and lines, the name of the session whose flag stands in a capability, or a story's health.
+ * `narrowest` is the narrowest screen, in CSS pixels, it shows on: below that it would crowd the island or another name, and a
+ * phone shows at most one in a step. A `point` names a panel to point out instead.
+ */
+export type Label = { target: GlobeTarget; text?: string; read?: "file" | "holder" | "health"; narrowest?: number } | { point: "sessions" };
 export type TourStep = {
   id: string; explainer: Group; title: string;
   /** beats replace one another; lines accumulate; a comparison's lines each carry a source; a statement is a headline and
@@ -54,6 +61,8 @@ export type TourStep = {
   panelRoom?: boolean;
   /** Open the panel when this line is told, after the map has shown its preceding ideas. */
   panelFromLine?: number;
+  /** The labels each line (1-based) puts on what it talks about, shown only while it is the current line. */
+  labels?: Record<number, readonly Label[]>;
 };
 /** The replay reaches `stage` as line `line` (1-based) begins. */
 export type Beat = { line: number; stage: string };
@@ -225,4 +234,114 @@ export function globeOf(step: TourStep, state: TourState, elapsed = 0): GlobeOn 
   const focus = step.focus ? { focus: step.focus } : {};
   if (step.growth === "seed") return { map: step.map, at: 0, ...focus };
   return step.growth ? { map: step.map, at: Math.min(step.growth.seconds, elapsed / 1000), ...focus } : { map: step.map, ...focus };
+}
+
+/** The labels on show once `lines` lines are told: the current line's own, none once it has passed (2.21). */
+export function labelsAt(step: TourStep, lines: number, { width = Infinity }: { width?: number } = {}): readonly Label[] {
+  return (step.labels?.[lines] ?? []).filter(label => "point" in label || width >= (label.narrowest ?? 0));
+}
+
+/** The part of a recorded frame a label reads. */
+export type LabelFrame = {
+  scene: { islands: readonly { story: string; trees: readonly { capability?: string | undefined }[]; land?: { files: readonly { path: string; lines: number }[]; territories: readonly { capability?: string | undefined; status?: string | undefined }[] } | undefined }[]; links?: readonly { from: string; to: string }[] | undefined };
+  wisps: readonly { session: string; capabilities: readonly string[] }[];
+};
+/**
+ * What a label says on `frame`, or nothing when the frame does not hold what it names (2.21): a story or link not drawn,
+ * a file not surveyed, a capability no named session holds, a story neither all yellow nor all green.
+ */
+export function labelWords(label: Label, frame: LabelFrame, named: (session: string) => string | undefined): string | undefined {
+  if ("point" in label) return undefined;
+  const { target } = label, island = (story: string) => frame.scene.islands.find(island => island.story === story);
+  if (target.kind === "pathway") return frame.scene.links?.some(link => `${link.from}->${link.to}` === target.link) ? label.text : undefined;
+  if (target.kind === "story" && !island(target.story)) return undefined;
+  if (label.read === "file" && target.kind === "file") {
+    const file = island(target.story)?.land?.files.find(file => file.path === target.path);
+    return file && `${file.path.split("/").at(-1)} · ${file.lines} lines`;
+  }
+  if (label.read === "holder" && target.kind === "capability") {
+    const holder = frame.wisps.find(wisp => wisp.capabilities.includes(target.capability));
+    return holder && named(holder.session);
+  }
+  if (label.read === "health" && target.kind === "story") {
+    const statuses = island(target.story)?.land?.territories.map(part => part.status) ?? [];
+    if (!statuses.length) return undefined;
+    if (statuses.every(status => status === "healthy")) return "tests passed";
+    if (statuses.every(status => status === "proposed" || status === "untested")) return "not proved yet";
+    return undefined;
+  }
+  return label.text;
+}
+
+export type Box = { x: number; y: number; width: number; height: number };
+export type TagSide = "right" | "left" | "below" | "above";
+const ring = 17, gap = 24, margin = 8;
+const meet = (a: Box, b: Box) => Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
+/**
+ * Where each tag's name sits, as its box's top-left from its ring's middle: `tags` are the rings' middles with their names'
+ * sizes. A name takes the first of `sides` (its `previous` side first, so it does not flit) where it stays inside the room,
+ * clear of the names already placed, the other rings and `keepOut`; where none is clear, the side that covers least, a
+ * `soft` box (an island's name) counting a fifth as much as a ring, a name or a panel. With `share` (a laptop), a side is
+ * clear allowing for rounding, and when taking sides first come, first served leaves a name over a ring, a name, a panel or
+ * the room's edge, up to four names share the room instead: every choice of sides, a name above or below also flush with
+ * its ring's left or right edge, is weighed and the one that covers least wins, the hard boxes first. A phone keeps the
+ * first-come placement it was given, a name beside its ring also trying a little higher or lower once the four sides are
+ * not clear (2.18; per line since 2.21).
+ */
+export function placeTags(tags: readonly Box[], room: { width: number; height: number }, { keepOut = [], sides = ["right", "left"], previous = [], share = false }: { keepOut?: readonly (Box & { soft?: boolean })[]; sides?: readonly TagSide[]; previous?: readonly (TagSide | undefined)[]; share?: boolean } = {}): { side: TagSide; x: number; y: number }[] {
+  const rings = tags.map(tag => ({ x: tag.x - ring, y: tag.y - ring, width: ring * 2, height: ring * 2 }));
+  // Each name's sides in the order it tries them, each with what it covers apart from the other names: `hard` counts the
+  // rings, the panels and four times what falls outside the room; `cost` adds a fifth of the islands' names it covers.
+  const options = tags.map((tag, index) => {
+    const across = Math.min(Math.max(margin, tag.x - tag.width / 2), room.width - margin - tag.width) - tag.x;
+    const offsets: Record<TagSide, { x: number; y: number }> = {
+      right: { x: gap, y: -tag.height / 2 }, left: { x: -gap - tag.width, y: -tag.height / 2 },
+      below: { x: across, y: gap }, above: { x: across, y: -gap - tag.height },
+    };
+    const order = [...new Set([previous[index], ...sides].filter((side): side is TagSide => !!side && sides.includes(side)))];
+    // After the four sides, a name above or below may also sit flush with its ring's left or right edge rather than centred.
+    const flush = !share ? [] : order.filter(side => side === "below" || side === "above").flatMap(side => [ring - tag.width, -ring].map(x => ({ side, x, y: offsets[side].y })));
+    // On a phone, a name beside its ring may also slide up or down by up to half the ring, to clear an island's name.
+    const slid = share ? [] : order.filter(side => side === "right" || side === "left").flatMap(side => [-ring / 4, ring / 4, -ring / 2, ring / 2].map(y => ({ side, x: offsets[side].x, y: offsets[side].y + y })));
+    // A taller progress label can close the vertical gap. Move beside its edge, still within the screen, before covering it.
+    const beside = share ? [] : order.filter(side => side === "right" || side === "left").flatMap(side => keepOut.map(other => ({ side,
+      x: side === "right" ? Math.min(room.width - margin - tag.width - tag.x, Math.max(gap, other.x + other.width + margin - tag.x))
+        : Math.max(margin - tag.x, Math.min(-gap - tag.width, other.x - margin - tag.width - tag.x)), y: offsets[side].y })))
+      .filter(option => option.side === "right" ? option.x >= gap : option.x <= -gap - tag.width);
+    return [...order.map(side => ({ side, ...offsets[side] })), ...flush, ...slid, ...beside].map(({ side, ...at }) => {
+      const box = { x: tag.x + at.x, y: tag.y + at.y, width: tag.width, height: tag.height };
+      const inside = tag.width * tag.height - meet(box, { x: margin, y: margin, width: room.width - margin * 2, height: room.height - margin * 2 });
+      const outside = share ? Math.max(0, inside) : inside;
+      const others = [...rings.filter((_, other) => other !== index), ...keepOut];
+      const hard = outside * 4 + others.reduce((sum, other) => sum + ("soft" in other && other.soft ? 0 : meet(box, other)), 0);
+      return { side, ...at, box, hard, cost: hard + others.reduce((sum, other) => sum + ("soft" in other && other.soft ? meet(box, other) * .2 : 0), 0) };
+    });
+  });
+  // Sharing allows for rounding: fractional boxes can leave a side a hair above or below zero.
+  const clear = (value: number) => share ? Math.abs(value) < 1e-6 : value === 0;
+  const placed: Box[] = [];
+  const first = options.map(sided => {
+    const scored = sided.map(option => { const names = placed.reduce((sum, other) => sum + meet(option.box, other), 0); return { option, hard: option.hard + names, cost: option.cost + names }; });
+    const best = scored.find(choice => clear(choice.cost)) ?? scored.reduce((a, b) => b.cost < a.cost ? b : a);
+    placed.push(best.option.box);
+    return best;
+  });
+  const weigh = (choice: readonly (typeof options)[number][number][]) => {
+    const names = choice.reduce((sum, option, index) => sum + choice.slice(index + 1).reduce((more, other) => more + meet(option.box, other.box), 0), 0);
+    return { hard: choice.reduce((sum, option) => sum + option.hard, 0) + names, cost: choice.reduce((sum, option) => sum + option.cost, 0) + names };
+  };
+  let chosen = first.map(({ option }) => option);
+  if (share && !clear(first.reduce((sum, { hard }) => sum + hard, 0)) && tags.length <= 4) {
+    let best = weigh(chosen);
+    const choose = (index: number, choice: (typeof options)[number][number][]): void => {
+      if (index === options.length) {
+        const weighed = weigh(choice);
+        if (weighed.hard < best.hard - 1e-6 || (clear(weighed.hard - best.hard) && weighed.cost < best.cost - 1e-6)) { best = weighed; chosen = [...choice]; }
+        return;
+      }
+      for (const option of options[index]!) choose(index + 1, [...choice, option]);
+    };
+    choose(0, []);
+  }
+  return chosen.map(option => ({ side: option.side, x: option.x, y: option.y }));
 }

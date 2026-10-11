@@ -483,9 +483,22 @@ export async function verifyImmersive(browser, url, output) {
     await page.locator(".panel-close").click();
     await page.getByRole("button", { name: "storytree", exact: true }).click();
     await page.waitForFunction(() => document.querySelector(".forest-drawing")?.dataset.globe === "storytree");
-    await page.getByRole("button", { name: "Library", exact: true }).click();
-    assert.equal(await page.getByRole("button", { name: "Library", exact: true }).getAttribute("aria-pressed"), "true");
-    await page.getByRole("button", { name: "Forest", exact: true }).click();
+    // ADR-1002 D1: free play carries the app's two switches, Stories and Library, opening with both on; each of the four
+    // combinations is captured, and both off still shows the switches.
+    const switches = () => page.locator("[data-globe-switch]").evaluateAll(buttons => Object.fromEntries(buttons.map(button => [button.textContent.trim(), button.getAttribute("aria-pressed")])));
+    assert.deepEqual(await switches(), { Stories: "true", Library: "true" }, "free play opens with both switches on");
+    const find = await page.locator(".tour-browse-toggle").boundingBox(), group = await page.locator(".forest-views").boundingBox();
+    assert.ok(group.x + group.width <= find.x, `the switches clear the Find toggle at ${width}px`);
+    const shown = () => page.locator(".forest-drawing").evaluate(node => getComputedStyle(node).visibility !== "hidden");
+    for (const [name, flips, visible] of [["both", [], true], ["no-library", ["library"], true], ["no-stories", ["library", "stories"], true], ["none", ["library"], false]]) {
+      for (const which of flips) await page.locator(`[data-globe-switch="${which}"]`).click();
+      await page.waitForTimeout(600);
+      assert.equal(await shown(), visible, `the globe is ${visible ? "shown" : "hidden"} with ${name}`);
+      assert.equal(await page.locator(".forest-views").isVisible(), true, "the switches stay on show");
+      await page.screenshot({ path: path.join(output, `freeplay-switches-${name}-${width}.png`) });
+    }
+    await page.locator('[data-globe-switch="stories"]').click();
+    await page.locator('[data-globe-switch="library"]').click();
     await page.getByRole("button", { name: "Find a story or note in the saved project", exact: true }).click();
     await page.locator("#tour-story-choice").selectOption({ index: 1 });
     await page.locator(".story-panel .panel-head").waitFor();

@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { mapRecording, mapGrowthPlan, recordedFrame } from "./map-recording.js";
 import type { GrowthSnapshot } from "./forest-data.js";
 import shop from "./shop-snapshot.json" with { type: "json" };
-import { aim, createTour, flight, globeOf, groups, labelsAt, labelWords, lineStarts, momentStarts, placeTags, readingTime, replayMoment, settle, stepAt, viewOf, type TourStep } from "./tour.js";
+import { aim, createTour, flight, globeOf, groups, labelsAt, labelWords, lineStarts, momentStarts, placeTags, readingTime, replayMoment, settle, stepAt, switchesFor, viewOf, type TourStep } from "./tour.js";
 import { steps as tourSteps } from "./tour-copy.js";
 import { fill, growthCounts } from "./tour-counts.js";
 
@@ -174,6 +174,15 @@ test("2.13 · free play opens on the shop's whole globe, and the selector switch
   assert.deepEqual(globeOf(steps[0]!, tour.state), { map: "storytree" }, "the tour itself is not the selector's");
   tour.skip();
   assert.deepEqual(globeOf(steps[0]!, tour.state), { map: "storytree" }, "the choice lasts as long as the page");
+});
+
+test("2.13 · free play opens with both of the globe's switches on, even after a skip from a step that showed the Library alone", () => {
+  const tour = createTour(steps);
+  assert.deepEqual(switchesFor("knowledge", tour.state.freePlay), { stories: false, library: true }, "a Library step shows the core alone");
+  assert.deepEqual(switchesFor("story", tour.state.freePlay), { stories: true, library: true });
+  assert.deepEqual(switchesFor(undefined, tour.state.freePlay), { stories: true, library: true });
+  tour.skip();
+  assert.deepEqual(switchesFor("knowledge", tour.state.freePlay), { stories: true, library: true }, "free play starts as a launch does");
 });
 
 test("2.15 · between two close steps the camera stays in and turns the globe; it pulls back only when the next step is the wide view", () => {

@@ -24,6 +24,8 @@ name: Own health
 # connects by that address as CI's health role, its password the secret HEALTH_PG_PASSWORD. The job
 # runs in the environment own-health, deployable only from main, so that environment's copy of the
 # password is available only to main (ADR-0939).
+# The address trusts the box's certificate from this checkout's infra/library-host/mint-library.crt:
+# the run step adds it as sslrootcert, so the variable itself names no file (ADR-0997 D1).
 # Otherwise it signs in to Google keylessly: GitHub's OIDC token, exchanged through workload identity
 # federation for CI's own service account (infra/ci-health), which may connect to the Cloud SQL
 # instance as its database user and nothing more. Three repository variables name that identity;
@@ -203,8 +205,14 @@ jobs:
         with:
           workload_identity_provider: ${{ vars.HEALTH_WIF_PROVIDER }}
           service_account: ${{ vars.HEALTH_SERVICE_ACCOUNT }}
-      - run: pnpm check:own-health
+      - name: Record own health
         if: steps.evidence.outputs.current == 'true'
+        run: |
+          if [ -n "$HEALTH_PG_ADDRESS" ]; then
+            case "$HEALTH_PG_ADDRESS" in *\?*) sep='&' ;; *) sep='?' ;; esac
+            export HEALTH_PG_ADDRESS="${HEALTH_PG_ADDRESS}${sep}sslrootcert=$GITHUB_WORKSPACE/infra/library-host/mint-library.crt"
+          fi
+          pnpm check:own-health
         env:
           STORYTREE_WINDOWS_EVIDENCE: ${{ steps.windows.outcome == 'success' && '.pgtest/windows-evidence' || '' }}
           STORYTREE_WINDOWS_RUN: ${{ steps.windows.outcome == 'success' && steps.evidence.outputs.run-url || '' }}

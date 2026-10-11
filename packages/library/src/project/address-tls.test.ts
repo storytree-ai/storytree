@@ -232,9 +232,11 @@ function electronBinary(): string | Error {
 
 const electron = process.env[UNDER_ELECTRON] === undefined ? electronBinary() : undefined;
 // A checkout whose install skipped Electron's download skips this, saying so; CI never does.
-const missing = electron instanceof Error && process.env.CI === undefined ? `Electron is not installed here (${electron.message.split("\n")[0]})` : false;
+const skip = process.env[UNDER_ELECTRON] !== undefined
+  ? "other: this run is the one under Electron, which does not start another"
+  : electron instanceof Error && process.env.CI === undefined ? `other: Electron is not installed here (${electron.message.split("\n")[0]})` : false;
 
-test("15.4 every check in this file holds under the desktop app's runtime, Electron, whose TLS is not Node's", { skip: process.env[UNDER_ELECTRON] !== undefined || missing }, () => {
+test("15.4 every check in this file holds under the desktop app's runtime, Electron, whose TLS is not Node's", { skip }, () => {
   assert.ok(typeof electron === "string", `Electron is not installed: ${String(electron)}`);
   // NODE_TEST_CONTEXT would make the child report to this runner's protocol instead of running its own.
   const { NODE_TEST_CONTEXT: _parent, ...env } = process.env;

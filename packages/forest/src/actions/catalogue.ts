@@ -62,6 +62,11 @@ export interface LagAction {
   budget: Budget;
   /** How long to wait for settled before the round reads NOT RUN. */
   limitMs: number;
+  /**
+   * The name the app's own recorder (Lag in real use) files this action under when its user takes it, or none when the field cannot
+   * tell it from what the page shows. The lab's sizes of one action share it: the field records the size beside it.
+   */
+  field?: string;
 }
 
 /** Nothing selected, the panel closed and both globe switches on (the islands on show), still. */
@@ -69,7 +74,7 @@ const RESET: Step[] = [{ kind: "key", key: "Escape" }, { kind: "click", selector
   { kind: "click", selector: "[data-globe-switch=library][aria-pressed=false]", optional: true },
   { kind: "wait", until: { mode: "forest", panel: "closed", still: true } }];
 const openIsland = (name: string, island: IslandChoice): LagAction => ({ name, setup: RESET, perform: [{ kind: "island", island }],
-  settled: { selected: "island", panel: "open", still: true }, budget: DEFAULT_BUDGET, limitMs: 10_000 });
+  settled: { selected: "island", panel: "open", still: true }, budget: DEFAULT_BUDGET, limitMs: 10_000, field: "open-island" });
 
 /** The library's island is the owner's case (ADR-1001's context); `lag:desktop --story` names another. */
 export const NAMED_STORY = "The library";
@@ -79,15 +84,15 @@ export const CATALOGUE: readonly LagAction[] = [
   openIsland("open-most-island", "most"),
   openIsland("open-named-island", { story: NAMED_STORY }),
   { name: "close-panel", setup: [...RESET, { kind: "island", island: "most" }, { kind: "wait", until: { selected: "island", panel: "open", still: true } }],
-    perform: [{ kind: "click", selector: ".story-panel .panel-close" }], settled: { selected: "none", panel: "closed" }, budget: DEFAULT_BUDGET, limitMs: 10_000 },
+    perform: [{ kind: "click", selector: ".story-panel .panel-close" }], settled: { selected: "none", panel: "closed" }, budget: DEFAULT_BUDGET, limitMs: 10_000, field: "close-panel" },
   { name: "library-and-back", setup: RESET,
     perform: [{ kind: "click", selector: "[data-globe-switch=stories]" }, { kind: "wait", until: { mode: "library" } }, { kind: "click", selector: "[data-globe-switch=stories]" }],
     settled: { mode: "forest", still: true }, budget: DEFAULT_BUDGET, limitMs: 10_000 },
   { name: "open-library-note", setup: [...RESET, { kind: "click", selector: "[data-globe-switch=stories]" }, { kind: "wait", until: { mode: "library", still: true } }],
-    perform: [{ kind: "note" }], settled: { note: "any", panel: "open" }, budget: DEFAULT_BUDGET, limitMs: 10_000 },
+    perform: [{ kind: "note" }], settled: { note: "any", panel: "open" }, budget: DEFAULT_BUDGET, limitMs: 10_000, field: "open-library-note" },
   { name: "open-session-row", setup: [...RESET, { kind: "click", selector: ".sessions-handle[aria-expanded=false]", optional: true },
     { kind: "click", selector: ".session-row[data-selected]", optional: true }],
-    perform: [{ kind: "click", selector: ".session-row" }], settled: { session: "selected" }, budget: DEFAULT_BUDGET, limitMs: 10_000 },
+    perform: [{ kind: "click", selector: ".session-row" }], settled: { session: "selected" }, budget: DEFAULT_BUDGET, limitMs: 10_000, field: "open-session-row" },
   { name: "hover-sweep", setup: RESET, perform: [{ kind: "hover-sweep" }], settled: {}, budget: DEFAULT_BUDGET, limitMs: 10_000 },
   { name: "idle", setup: RESET, perform: [{ kind: "idle", ms: 10_000 }], settled: {}, budget: DEFAULT_BUDGET, limitMs: 10_000 },
 ];

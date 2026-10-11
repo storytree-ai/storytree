@@ -13,7 +13,7 @@ import { PanelSelection, type Selection } from "./panel-selection.js";
 import { panelAside } from "./globe-aside.js";
 import { globeFraming } from "./planet-navigation.js";
 import { flipSwitch, globeLayers, LAUNCH_SWITCHES, type GlobeSwitch, type GlobeSwitches } from "./globe-switches.js";
-import type { GlobeControls } from "./globe-guide.js";
+import type { PlacedGlobeControls } from "./globe-guide.js";
 import { globeLocator, type GlobeLocator } from "./globe-locator.js";
 import type { GlobeOpening } from "../surfaces/surfaces.js";
 
@@ -93,19 +93,20 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
   const pick = (story: string | undefined, capability?: string): void => selection.story(story, capability);
   const pickNote = (note: string): void => selection.note(note);
   const onKey = (event: KeyboardEvent): void => selection.key(event.key);
-  let controls: GlobeControls | undefined;
-  const onControls = (next: GlobeControls | undefined): void => { controls = next; };
+  let controls: PlacedGlobeControls | undefined;
+  const onControls = (next: PlacedGlobeControls | undefined): void => { controls = next; };
   const page = window as { storytreeGlobe?: GlobeLocator };
   page.storytreeGlobe = globeLocator({ controls: () => controls, scene: () => drawn.scene,
-    box: () => (container.querySelector("canvas") ?? container).getBoundingClientRect() });
+    box: () => (container.querySelector("canvas") ?? container).getBoundingClientRect(), aside: () => measuredAside() });
   window.addEventListener("keydown", onKey);
 
   // The right-hand slot (the story panel or the Library's note card) is the globe's sibling; the globe moves aside for
   // the width it measures, so a panel's own width (narrowed while the tree has its space) reaches it as drawn.
   const panel = container.parentElement?.querySelector<HTMLElement>(":scope > .story-panel") ?? undefined;
+  const measuredAside = (): number => panel === undefined ? 0 : panelAside(container.getBoundingClientRect(), [...panel.getClientRects()]);
   const measure = (): void => {
     const { clientWidth: width, clientHeight: height } = container;
-    const aside = panel === undefined ? 0 : panelAside(container.getBoundingClientRect(), [...panel.getClientRects()]);
+    const aside = measuredAside();
     if (width > 0 && height > 0 && (width !== drawn.viewport?.width || height !== drawn.viewport.height || aside !== drawn.aside)) render({ viewport: { width, height }, aside });
   };
   const observer = new ResizeObserver(measure);

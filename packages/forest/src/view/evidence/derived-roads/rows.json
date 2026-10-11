@@ -1,0 +1,81 @@
+{
+ "seed": {
+  "stories": 23,
+  "capabilities": 126,
+  "taken": "2026-10-11T03:10:56.842Z",
+  "changesFolded": "stories only: each its created change and its last later change; cursor kept"
+ },
+ "derivedEdges": {
+  "total": 316,
+  "typeOnly": 127,
+  "noCapabilityEnd": 0
+ },
+ "before": {
+  "rows": {
+   "The library": 1,
+   "Session management": 2,
+   "The app": 6,
+   "The forest": 4,
+   "The arc surface": 3,
+   "The command line": 7,
+   "The librarian": 2,
+   "The knowledge core": 3,
+   "The app setup": 5,
+   "Process ledger": 0,
+   "The website": 6,
+   "The world": 0,
+   "The local database": 0,
+   "The dev loop": 4,
+   "Keys": 0,
+   "The map": 2,
+   "Identity": 0,
+   "Journey events": 0,
+   "CI health": 3,
+   "Guardrails": 3,
+   "Quality assurance": 4,
+   "The MCP server": 6,
+   "The mark": 0
+  },
+  "rowCount": 8,
+  "roads": 54,
+  "typeOnlyRoads": 0
+ },
+ "after": {
+  "rows": {
+   "The library": 1,
+   "Session management": 2,
+   "The app": 6,
+   "The forest": 4,
+   "The arc surface": 3,
+   "The command line": 7,
+   "The librarian": 2,
+   "The knowledge core": 3,
+   "The app setup": 5,
+   "Process ledger": 0,
+   "The website": 5,
+   "The world": 0,
+   "The local database": 0,
+   "The dev loop": 4,
+   "Keys": 0,
+   "The map": 2,
+   "Identity": 0,
+   "Journey events": 0,
+   "CI health": 3,
+   "Guardrails": 3,
+   "Quality assurance": 4,
+   "The MCP server": 6,
+   "The mark": 0
+  },
+  "rowCount": 8,
+  "roads": 330,
+  "typeOnlyRoads": 116
+ },
+ "moved": [
+  {
+   "story": "The website",
+   "before": 6,
+   "after": 5
+  }
+ ],
+ "roadless": []
+}

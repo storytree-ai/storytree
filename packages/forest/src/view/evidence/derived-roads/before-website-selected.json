@@ -1,0 +1,49 @@
+{
+  "label": "before",
+  "errors": [],
+  "rings": 7,
+  "lanes": [
+    {
+      "dir": "up",
+      "from": "The website",
+      "to": "The arc surface",
+      "behind": 0
+    },
+    {
+      "dir": "up",
+      "from": "The website",
+      "to": "CI health",
+      "behind": 0.33
+    },
+    {
+      "dir": "up",
+      "from": "The website",
+      "to": "The forest",
+      "behind": 0
+    },
+    {
+      "dir": "up",
+      "from": "The website",
+      "to": "The knowledge core",
+      "behind": 0
+    },
+    {
+      "dir": "up",
+      "from": "The website",
+      "to": "The mark",
+      "behind": 0.32
+    },
+    {
+      "dir": "up",
+      "from": "The website",
+      "to": "The world",
+      "behind": 0
+    },
+    {
+      "dir": "up",
+      "from": "The website",
+      "to": "The app setup",
+      "behind": 0
+    }
+  ]
+}

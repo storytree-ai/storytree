@@ -52,27 +52,29 @@ test("1.5 adding a dependency moves an island up a row", () => {
   assert.ok(near(latitude(after.get("b")!), latitude(after.get("c")!)), "in the row above, with c");
 });
 
-test("1.9 where the code survey names stories' package dependencies, rows are by those, not by the plan's; without them the plan's roll-up stands", async (t) => {
-  // The plan says c depends on a; the code says b depends on c and a on nothing, and c on nothing.
-  const tree = project({ a: [], b: [], c: ["a"] });
+test("1.9 a story's row is ranked by its capabilities' edges, derived from its code's imports with the recorded dependsOn, and its code's story edges; package.json fields rank nothing; without a survey the plan's roll-up stands", async (t) => {
+  // The plan records c on a. b's code imports c's; d's package.json names c, but no code of d's imports it.
+  const tree = project({ a: [], b: [], c: ["a"], d: [] });
   const folder = await mkdtemp(path.join(tmpdir(), "forest-rows-"));
   t.after(() => rm(folder, { recursive: true, force: true }));
-  for (const id of ["a", "b", "c"]) {
+  for (const id of ["a", "b", "c", "d"]) {
     const root = path.join(folder, "packages", id);
     await mkdir(path.join(root, "src"), { recursive: true });
-    await writeFile(path.join(root, "src", "index.ts"), "export const value = 1;\n");
+    await writeFile(path.join(root, "src", "index.ts"), id === "b" ? 'import { value as c } from "@example/c";\nexport const value = c;\n' : "export const value = 1;\n");
     await writeFile(path.join(root, "package.json"), JSON.stringify({
-      name: `@example/${id}`, dependencies: id === "b" ? { "@example/c": "*" } : {},
+      name: `@example/${id}`, exports: { ".": "./src/index.ts" }, dependencies: id === "b" || id === "d" ? { "@example/c": "*" } : {},
     }));
   }
   const survey = await readCodeSurvey(folder, tree);
   const spots = new Map(growPlanet(storyNodes(tree, [], survey)
     .map(({ id, place }) => ({ story: id, place, reach: REACH }))).spots);
   const at = (id: string) => latitude(spots.get(id)!);
-  assert.ok(at("b") > at("c"), "b's package depends on c's: b is north of c");
-  assert.ok(near(at("c"), at("a")), "c's package depends on nothing: the plan's c → a no longer lifts it");
+  assert.ok(at("b") > at("c"), "b's code imports c's: b is north of c, though no capability owns either file");
+  assert.ok(at("c") > at("a"), "the recorded c → a, which no import shows, still lifts c");
+  assert.ok(near(at("d"), at("a")), "d's package.json dependency alone ranks nothing: d stays in the bottom row");
   const rolled = globe(tree);
   assert.ok(latitude(rolled.get("c")!) > latitude(rolled.get("a")!), "with no survey, the plan's c → a places c");
+  assert.ok(near(latitude(rolled.get("b")!), latitude(rolled.get("a")!)), "and b sits in the bottom row");
 });
 
 test("1.3 the bottom row puts the most depended-on story at the front and the rest outward, packed round the front with the sea between neighbours", () => {

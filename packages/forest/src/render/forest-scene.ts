@@ -67,10 +67,21 @@ export function forestScene(tree: AnnotatedTree, history: readonly Change[], sta
     const key = JSON.stringify([story.title, x, z, placed.map(({ capability, form, status, contracts }) => [capability, form, status, contracts]), land?.territories, area]);
     return { story: story.id, title: story.title, x, z, trees: placed, ...(land === undefined ? {} : { land }), area, key };
   });
-  const links = tree.stories.flatMap(story => story.capabilities.flatMap(capability =>
-    capability.dependsOn.map(to => ({ from: capability.id, to }))));
-  const rowLinks = [...nodes.values()].flatMap(({ id, dependsOn }) => dependsOn.map(to => ({ from: id, to })));
-  return { islands, links, rowLinks };
+  return { islands, links: capabilityLinks(tree, survey) };
+}
+
+/**
+ * The roads (ADR-0991 D1, D3): each recorded capability dependsOn, drawn by value, then each edge the code survey
+ * derives with a capability at both ends that no recorded one already joins, marked type-only when only types join them.
+ * A derived edge with no capability at an end is a story edge with no road.
+ */
+function capabilityLinks(tree: AnnotatedTree, survey: Readonly<Record<string, StorySurvey>>): { from: string; to: string; typeOnly?: true }[] {
+  const links = new Map<string, { from: string; to: string; typeOnly?: true }>(tree.stories.flatMap(story => story.capabilities.flatMap(capability =>
+    capability.dependsOn.map(to => [`${capability.id}->${to}`, { from: capability.id, to }] as const))));
+  for (const story of tree.stories) for (const { from, to, typeOnly } of survey[story.id]?.edges ?? []) {
+    if (from !== undefined && to !== undefined && !links.has(`${from}->${to}`)) links.set(`${from}->${to}`, { from, to, ...(typeOnly ? { typeOnly } : {}) });
+  }
+  return [...links.values()];
 }
 
 /** The stories whose islands differ between two scenes: redrawn, added or gone, in `after`'s order then `before`'s. */

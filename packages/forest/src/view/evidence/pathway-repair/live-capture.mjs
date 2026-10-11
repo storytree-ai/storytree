@@ -217,8 +217,11 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
                 const centre = pair => new V().fromBufferAttribute(p, pair * 2).add(new V().fromBufferAttribute(p, pair * 2 + 1)).multiplyScalar(0.5).applyMatrix4(object.matrixWorld);
                 const first = Math.floor(draw.start / 6), last = first + Math.floor(Math.min(count - draw.start, draw.count) / 6);
                 const anchor = centre(reveal?.fromEnd ? last : first), front = centre(reveal?.fromEnd ? first : last);
+                // The end it draws from against the end it draws to: a segment arcing over the globe can bring its
+                // middle nearer the dependency island than either end, so the front alone says nothing about direction.
+                const far = centre(reveal?.fromEnd ? 0 : Math.floor(count / 6) - 1);
                 item.anchor = anchor.toArray(); item.front = front.toArray();
-                item.anchorNearerDependency = anchor.distanceTo(dependency) <= front.distanceTo(dependency) + 1e-4;
+                item.anchorNearerDependency = anchor.distanceTo(dependency) <= far.distanceTo(dependency) + 1e-4;
               }
               roads.push(item);
             });

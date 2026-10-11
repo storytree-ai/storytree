@@ -3,7 +3,7 @@
 From the checkout root, refresh the public reading with an explicit recording window:
 
 ```sh
-node --import tsx packages/website/src/refresh-forest.ts --from 2026-10-02T00:00:00.000Z --to 2026-10-02T04:15:00.000Z
+node --import tsx packages/website/src/refresh-forest.ts --from 2026-10-02T17:30:00.000Z --to 2026-10-02T21:45:00.000Z
 ```
 
 The website owns the publication policy. It reads the marker's selected project
@@ -16,7 +16,10 @@ check succeeds; a failure keeps the old snapshot.
 
 Under ADR-0852 D4, the committed reading now carries surveyed territories, files
 and imports, story places, plan descriptions and health, selected knowledge-change
-fields, open arc views with complete question text, and dated activity. The
+fields, open arc views with only what the arcs drawer shows (an open question's
+full text, a settled question's title and answer, never an increment's body), and
+dated activity. The window is one whose sessions read notes whole, so a picked
+session draws its reading path. The
 recording window includes `from` and excludes `to`; every line retains its project.
 Only session start/end/name, subagent start, note reads, claims/releases, landings,
 closures, merges and close-outs are kept. Folder, machine, transcript, branch and
@@ -26,7 +29,7 @@ No raw transcript or command event is exported. Library, history, activity and
 code are read separately: this is a dated reading, not an atomic backup.
 
 `forest-data.ts` carries browser-safe types. The refresh tests pin the retained
-records, complete question text, half-open recording boundaries, project identity,
+records, the arc fields the drawer shows, half-open recording boundaries, project identity,
 recursive scrubbing and preservation of the previous file when a secret is found.
 
 The browser entry waits for the text page to paint and for the map to enter the
@@ -38,17 +41,13 @@ the still, installation command or contact links. The map renders on demand;
 keyboard and touch buttons turn it while scrolling over the drawing continues
 to scroll the page.
 
-Refresh the two stills whenever the JSON or shared renderer changes. From the
-checkout root, after refreshing the snapshot above:
+Refresh the two stills (`public/forest-*.png`) whenever the JSON or shared renderer changes. They are captured, as the shop's
+are, from the website's own live drawing of free play, switched to storytree's project. From the checkout root, after refreshing
+the snapshot above:
 
 ```sh
 pnpm --filter @storytree/website build
-node packages/website/evidence/forest/build-observed.mjs
-node packages/website/evidence/forest/capture.mjs --stills
-pnpm --filter @storytree/website build
-node packages/website/evidence/forest/verify.mjs
-node packages/website/evidence/forest/build-observed.mjs
-node packages/website/evidence/forest/capture.mjs
+node packages/website/evidence/forest/shop-stills.mjs storytree
 ```
 
 The shop's two stills (`public/shop-*.png`, shown in free play on the shop without WebGL) are captured from the website's own

@@ -57,18 +57,20 @@ function optionsIn(text: string): Option[] {
   }).filter((option) => option.summary || option.for || option.against);
 }
 
+/** A settled question may be published with only its title and answer (website 3.14): it reads as what it carries, with no empty headings. */
 export function questionReading({ id, fields: q }: Question): QuestionReading {
   const hasDiagram = Boolean(q.diagram?.trim());
+  const status = q.lifecycle === "settled" ? "settled" : "open";
   return {
     id, title: q.title,
     words: [q.statement, q.stakes, q.diagram, q.options, q.recommendation, q.analogy, q.context].reduce<number>((total, text) => total + wordsIn(text), 0),
     hasDiagram,
-    lead: [{ label: "Statement", text: q.statement }, { label: "Stakes", text: q.stakes }],
-    diagram: hasDiagram ? q.diagram! : "No diagram stored",
-    options: optionsIn(q.options),
+    lead: [{ label: "Statement", text: q.statement ?? "" }, { label: "Stakes", text: q.stakes ?? "" }].filter(({ text }) => status === "open" || text.trim()),
+    diagram: hasDiagram ? q.diagram! : status === "open" ? "No diagram stored" : "",
+    options: optionsIn(q.options ?? ""),
     ...(q.recommendation ? { recommendation: { label: "Recommendation (not binding)", text: q.recommendation } } : {}),
-    folds: [{ label: "Analogy", text: q.analogy ?? "" }, { label: "Context", text: q.context }].filter(({ text }) => text.trim()).map((field) => ({ ...field, words: wordsIn(field.text) })),
-    status: q.lifecycle === "settled" ? "settled" : "open",
+    folds: [{ label: "Analogy", text: q.analogy ?? "" }, { label: "Context", text: q.context ?? "" }].filter(({ text }) => text.trim()).map((field) => ({ ...field, words: wordsIn(field.text) })),
+    status,
     ...(q.answer === undefined ? {} : { answer: q.answer }),
   };
 }

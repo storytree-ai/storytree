@@ -341,6 +341,10 @@ const list: Verb = {
   summary: "every live record of a kind, optionally filtered by fields",
   async act(args, context) {
     const kind = args.word(0, "the kind of record", this.usage);
+    const unsupported = args.names.filter((name) => name !== "where");
+    if (unsupported.length > 0) {
+      throw new Refusal(`unsupported option${unsupported.length === 1 ? "" : "s"}: ${unsupported.map((name) => `--${name}`).join(", ")}; filter with --where <field>=<value>\nusage: storytree ${this.usage}`, { code: 2 });
+    }
     const filters = args.texts("where").map((where) => {
       const equals = where.indexOf("=");
       if (equals < 1) throw new Refusal(`--where needs <field>=<value>, not ${JSON.stringify(where)}`, { code: 2 });

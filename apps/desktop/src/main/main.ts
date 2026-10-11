@@ -50,6 +50,7 @@ import {
   buildLabel,
   electronIn,
   launchToRecord,
+  loginItemsFor,
   openAppLibrary,
   pageReads,
   PAGE_READS_CHANNELS,
@@ -338,7 +339,11 @@ async function run(): Promise<void> {
     log: line => console.log(line),
   });
   // The installed app opens at sign-in, in the tray, unless the user turned that off (lifecycle 1.12).
-  const signingIn = signIn({ installed: !args.smoke && installedApp(), file: path.join(home.dir, "sign-in.json"), loginItems: { set: (item) => app.setLoginItemSettings(item) } });
+  const signingIn = signIn({ installed: !args.smoke && installedApp(), file: path.join(home.dir, "sign-in.json"), loginItems: loginItemsFor(process.platform, {
+    electron: { set: (item) => app.setLoginItemSettings(item) },
+    execPath: process.execPath,
+    launchAgents: path.join(app.getPath("home"), "Library", "LaunchAgents"),
+  }) });
   answerPage(ipcMain, LIFECYCLE_CHANNELS, { readSignIn: () => signingIn.read(), setSignIn: (on: unknown) => signingIn.set(on) });
   // When a downloaded release may install itself (updates 4.13): meaningful only where releases install.
   const installing = installChoice({ available: !args.smoke && installedApp(), file: path.join(home.dir, "install-choice.json") });

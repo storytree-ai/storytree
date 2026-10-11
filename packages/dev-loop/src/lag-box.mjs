@@ -12,6 +12,9 @@
 // - A slowdown that reproduced is halved down to the merge between its baseline and where it was seen, naming the pull request.
 // - The history is kept in the library's server, in a database of its own (storytree-lag), so `pnpm lag:box` reads it from any
 //   machine whose library setting names the box.
+// - Each catalogue entry names the budget contract its action answers to on the capability that owns it; after each measuring
+//   run the runner writes that contract's VERIFIED verdict as a lag run (ADR-1001 D5, the shape of an acceptance run's,
+//   ADR-0825 D5), so a slowdown that reproduced makes the capability read not healthy and reaches the health worklist.
 // - A run is bounded (--limit-minutes, default 30, the heavy-run lock's queue included): one that passes it is stopped and recorded
 //   NOT RUN, its heavy-run lock released.
 // It is no GitHub workflow, nothing of it runs in CI, and no pull request's check reads it.
@@ -32,6 +35,7 @@ import { locateLibrary, storytreeHome } from "@storytree/session-management";
 
 import { comparedRows } from "./desktop-lag.mjs";
 import { clearAbandonedHeavyLock } from "./heavy-lock.mjs";
+import { recordHealth } from "./own-health.mjs";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 const PROJECT = "storytree";
@@ -147,6 +151,57 @@ export function decide({ history, main, actions, log: mainLog }) {
   if (measured?.head === main.commit) return { why: `main (${short(main.commit)}) is measured`, comparisons: [] };
   const asked = actions.map((action) => ({ purpose: "measure", head: main.commit, against: states[action].baseline ?? main.parent, action }));
   return { why: `main moved to ${short(main.commit)}`, comparisons: grouped(asked, actions) };
+}
+
+/** Who writes a budget contract's verified health: the box's lag run, from what it measured. */
+export const LAG_RUN = "lag run";
+
+/**
+ * Each budget contract's verdict after the runs `ran` (their seqs), from the history (oldest first) they are now part of; `owners`
+ * maps an action to its contract. Only a measuring run (measure or confirm) mints, and only for the contracts of the actions it asked:
+ * failing for a slowdown that reproduced, which a run that did not happen leaves standing; NOT RUN for an action it asked and did not
+ * measure; passing for an action within the margin of its baseline. A contract fails if any of its actions does; one with an action whose slower verdict waits for its second run, or
+ * that was never measured, gets nothing, so its standing verdict holds; one with an action not run is not checked.
+ * @returns {Map<string, { number: string, state: "passing" | "failing" | "not-checked", note?: string, reason?: string, skip?: "other" }>}
+ */
+export function lagVerdicts({ history, actions, log: mainLog, owners, ran }) {
+  const runs = history.filter((run) => ran.includes(run.seq) && (run.purpose === "measure" || run.purpose === "confirm"));
+  const states = actionStates({ history, actions, log: mainLog });
+  const standing = (action) => {
+    const { baseline, suspect, slowdown } = states[action];
+    if (slowdown !== undefined) {
+      const named = slowdown.culprit === undefined ? "" : `, ${slowdown.pr === undefined ? `commit ${short(slowdown.culprit)}` : `pull request #${slowdown.pr}`}`;
+      return { state: "failing", why: `${action} slower since ${short(slowdown.at)} against its baseline ${short(slowdown.baseline)}${named}` };
+    }
+    const run = runs.filter((one) => asks(one, action)).at(-1);
+    if (run !== undefined && (run.state !== "done" || verdictOf(run, action) === undefined)) {
+      return { state: "not-run", why: run.state === "done" ? `${action} could not be performed` : run.reason ?? "the run did not finish" };
+    }
+    if (suspect !== undefined || baseline === undefined) return { state: "waiting" };
+    return { state: "passing", why: `${action} within the margin of its baseline ${short(baseline)}` };
+  };
+  const verdicts = new Map();
+  for (const contract of new Set(actions.map((action) => owners[action]).filter(Boolean))) {
+    const own = actions.filter((action) => owners[action] === contract);
+    if (!own.some((action) => runs.some((run) => asks(run, action)))) continue;
+    const each = own.map(standing);
+    const said = (state) => each.filter((one) => one.state === state).map(({ why }) => why).join("; ");
+    if (each.some(({ state }) => state === "failing")) verdicts.set(contract, { number: contract, state: "failing", note: said("failing") });
+    else if (each.some(({ state }) => state === "waiting")) continue;
+    else if (each.some(({ state }) => state === "not-run")) verdicts.set(contract, { number: contract, state: "not-checked", skip: "other", reason: `NOT RUN: ${said("not-run")}` });
+    else verdicts.set(contract, { number: contract, state: "passing", note: said("passing") });
+  }
+  return verdicts;
+}
+
+/**
+ * Write each of `verdicts` (by contract id) to its contract's verified column as a lag run, with the commit measured and the evidence
+ * in the note; a not-checked one is written as not re-run over the verdict it did not reproduce (own-health's recordHealth).
+ * @param {import("@storytree/library").Library} library
+ */
+export function recordLagVerdicts(library, verdicts, { commit, evidence }) {
+  const withEvidence = new Map([...verdicts].map(([contract, verdict]) => [contract, verdict.note === undefined ? verdict : { ...verdict, note: `${verdict.note}, evidence ${evidence}` }]));
+  return recordHealth(library, new Map([...verdicts.keys()].map((contract) => [contract, contract])), withEvidence, { by: LAG_RUN, commit });
 }
 
 /** The printed reading: per action, its baseline and standing, then its last runs. */
@@ -315,13 +370,14 @@ async function withHistory(use) {
   if (!library.found) throw new Error(library.message);
   const storytree = await connect(library.connect);
   try {
-    return await use(await openHistory(storytree));
+    return await use(await openHistory(storytree), storytree);
   } finally {
     await storytree.close();
   }
 }
 
 const ACTIONS = CATALOGUE.map((action) => action.name);
+const OWNERS = Object.fromEntries(CATALOGUE.map((action) => [action.name, action.owner.contract]));
 
 function option(args, name, fallback) {
   const at = args.indexOf(`--${name}`);
@@ -335,13 +391,15 @@ async function tick(args) {
     const checkout = path.join(BOX, "measure");
     if (!existsSync(checkout)) throw new Error(`no measuring checkout at ${checkout}: run pnpm lag:box install`);
     const limitMs = Number(option(args, "limit-minutes", LIMIT_MINUTES)) * 60_000;
-    await withHistory(async (history) => {
+    await withHistory(async (history, storytree) => {
       await history.abandon();
       const { main, log: mainLog } = readMain(checkout);
       const next = decide({ history: await history.read(), main, actions: ACTIONS, log: mainLog });
       log(`lag:box: ${next.why}`);
+      const ran = [];
       for (const comparison of next.comparisons) {
         const seq = await history.start(comparison);
+        ran.push(seq);
         log(`lag:box: ${comparison.purpose} ${short(comparison.head)} against ${short(comparison.against)}${comparison.actions === null ? "" : ` (${comparison.actions.join(", ")})`}`);
         let result;
         try {
@@ -352,7 +410,18 @@ async function tick(args) {
         await history.finish(seq, result);
         log(`lag:box: ${result.state}${result.reason === undefined ? "" : `: ${result.reason}`}`);
       }
-      if (next.comparisons.length > 0) console.log(statusText({ history: await history.read(), actions: ACTIONS, log: mainLog }));
+      if (next.comparisons.length === 0) return;
+      const runs = await history.read();
+      console.log(statusText({ history: runs, actions: ACTIONS, log: mainLog }));
+      const verdicts = lagVerdicts({ history: runs, actions: ACTIONS, log: mainLog, owners: OWNERS, ran });
+      if (verdicts.size === 0) return;
+      const library = await storytree.openProject(PROJECT);
+      try {
+        const written = await recordLagVerdicts(library, verdicts, { commit: main.commit, evidence: `pnpm lag:box, run ${ran.join(", ")}` });
+        log(`lag:box: recorded as a lag run: ${written.passing} passing, ${written.failing} failing, ${written.marked} not re-run`);
+      } finally {
+        await library.close();
+      }
     });
   } finally {
     release();

@@ -11,8 +11,9 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { connect } from "@storytree/library";
+import { dropTestDatabases } from "@storytree/local-postgres/testing";
 
-import { actionStates, decide, openHistory, runBounded, statusText } from "./lag-box.mjs";
+import { actionStates, decide, lagVerdicts, openHistory, recordLagVerdicts, runBounded, statusText } from "./lag-box.mjs";
 
 const ACTIONS = ["open-smallest-island", "open-largest-island", "close-panel"];
 // main's first-parent history, oldest first: m0, then merges m1..m20, each of pull request 100 + n.
@@ -145,5 +146,79 @@ test("8.15 pnpm lag:box stops a run that passes its limit, records why, and leav
     assert.deepEqual({ timedOut: quick.timedOut, code: quick.code }, { timedOut: false, code: 3 });
   } finally {
     rmSync(home, { recursive: true, force: true });
+  }
+});
+
+// Two islands share one budget contract; closing the panel has its own.
+const OWNERS = { "open-smallest-island": "contract-open", "open-largest-island": "contract-open", "close-panel": "contract-close" };
+const states = (verdictsOf) => Object.fromEntries([...verdictsOf].map(([contract, { state }]) => [contract, state]));
+
+test("8.16 after each measuring run the box mints each budget contract's verdict: passing within the margin, nothing while a slower run waits for its second, failing once it agrees, not re-run when the action was NOT RUN; over a history with one noisy run no failing verdict is minted", () => {
+  seq = 0;
+  const history = [];
+  const tick = (...runs) => {
+    history.push(...runs);
+    return lagVerdicts({ history, actions: ACTIONS, log: LOG, owners: OWNERS, ran: runs.map((run) => run.seq) });
+  };
+  const minted = [];
+  const mint = (...runs) => {
+    const verdictsOf = tick(...runs);
+    minted.push(...verdictsOf.values());
+    return verdictsOf;
+  };
+  assert.deepEqual(states(mint(done("measure", "m1", "m0"))), { "contract-open": "passing", "contract-close": "passing" });
+  assert.deepEqual(states(mint(done("measure", "m4", "m1", ["close-panel"]))), { "contract-open": "passing" }, "one slower run: nothing minted for its contract until a second run says");
+  assert.deepEqual(states(mint(done("confirm", "m4", "m1", [], ["close-panel"]))), { "contract-close": "passing" }, "the second run disagrees: the noisy run passes");
+  assert.equal(minted.some(({ state }) => state === "failing"), false, "a history with one noisy run mints no failing verdict");
+
+  const slower = mint(done("measure", "m6", "m4", ["open-largest-island"]));
+  assert.deepEqual(states(slower), { "contract-close": "passing" }, "one island slower once: the shared contract waits");
+  const failing = mint(done("confirm", "m6", "m4", ["open-largest-island"], ["open-largest-island"]));
+  assert.deepEqual(states(failing), { "contract-open": "failing" }, "the second run agrees: the contract fails, though the other island is within");
+  assert.match(failing.get("contract-open").note, /open-largest-island slower since m6 against its baseline m4/);
+
+  const notRun = mint({ seq: ++seq, purpose: "measure", head: "m8", against: "m4", actions: null, state: "not-run", reason: "passed its limit of 30 min" });
+  assert.deepEqual(states(notRun), { "contract-open": "failing", "contract-close": "not-checked" }, "a slowdown stands over a run that did not happen; a contract it did not measure is not re-run, never passed");
+  assert.deepEqual({ skip: notRun.get("contract-close").skip, reason: notRun.get("contract-close").reason }, { skip: "other", reason: "NOT RUN: passed its limit of 30 min" });
+
+  const bisect = tick(done("bisect", "m5", "m4", ["open-largest-island"], ["open-largest-island"]));
+  assert.equal(bisect.size, 0, "halving names the pull request; it mints nothing");
+  assert.deepEqual(states(tick(done("measure", "m9", "m4", [], ["open-smallest-island", "open-largest-island"]), done("measure", "m9", "m6", [], ["close-panel"]))), { "contract-open": "passing", "contract-close": "passing" }, "the fix: within the margin of the baseline again, it passes");
+});
+
+test("8.16 pnpm lag:box writes each verdict to its contract's verified column as a lag run, with the commit and the evidence; a failing one makes its capability read unhealthy, failing, and a NOT RUN after it reads not re-run", async () => {
+  const url = process.env.STORYTREE_TEST_PG_URL;
+  if (!url) throw new Error("STORYTREE_TEST_PG_URL is not set; run through pnpm test");
+  const name = `t-${randomBytes(4).toString("hex")}`;
+  const storytree = await connect({ url, connectTimeoutMs: 10_000 });
+  try {
+    const lib = await storytree.openProject(name);
+    try {
+      const story = await lib.addStory({ title: "The forest" });
+      const capability = await lib.addCapability({ story: story.id, title: "4 · Drill-down" });
+      await lib.setProposed(capability.id, false);
+      const contract = await lib.addContract({ capability: capability.id, title: "4.16 · Opening an island answers within 100 ms" });
+      const why = async () => (await lib.projectTree()).stories[0].capabilities[0].why?.reason;
+
+      await recordLagVerdicts(lib, new Map([[contract.id, { state: "passing", note: "open-largest-island within the margin of its baseline m1" }]]), { commit: "m4", evidence: "pnpm lag:box, run 2" });
+      const passing = (await lib.health(contract.id)).verified;
+      assert.deepEqual({ state: passing.state, by: passing.by, note: passing.note }, { state: "passing", by: "lag run", note: "open-largest-island within the margin of its baseline m1, evidence pnpm lag:box, run 2, at commit m4" });
+      assert.equal(await why(), undefined, "healthy");
+
+      await recordLagVerdicts(lib, new Map([[contract.id, { state: "failing", note: "open-largest-island slower since m6 against its baseline m4" }]]), { commit: "m6", evidence: "pnpm lag:box, run 4" });
+      assert.equal((await lib.health(contract.id)).verified.state, "failing");
+      assert.equal(await why(), "failing", "the capability reads unhealthy, failing, so the health worklist offers it");
+      assert.deepEqual((await lib.healthWorklist()).map((item) => item.capability), [capability.id]);
+
+      await recordLagVerdicts(lib, new Map([[contract.id, { state: "not-checked", skip: "other", reason: "NOT RUN: passed its limit of 30 min" }]]), { commit: "m8", evidence: "pnpm lag:box, run 5" });
+      const notRun = (await lib.health(contract.id)).verified;
+      assert.deepEqual({ state: notRun.state, by: notRun.by, was: notRun.was?.state }, { state: "not-checked", by: "lag run", was: "failing" });
+      assert.equal(await why(), "not re-run");
+    } finally {
+      await lib.close();
+    }
+  } finally {
+    await storytree.close();
+    await dropTestDatabases([`storytree_${name}`]);
   }
 });

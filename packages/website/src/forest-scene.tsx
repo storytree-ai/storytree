@@ -14,7 +14,7 @@ import ownSaved from "./own-snapshot.json" with { type: "json" };
 import { crossingLength, growthPlan, type GrowthPlan } from "@storytree/forest-world/planet";
 import { buildPlanetPathways } from "@storytree/forest-world/geometry";
 import type { GrowthSnapshot, TourSnapshot } from "./forest-data.js";
-import { globeOf, labelsAt, labelWords, lineStarts, placeTags, replayMoment, stepAt, type Box, type GlobeOn, type Hold, type TagSide, type TourDetail, type TourGrowth, type TourStep } from "./tour.js";
+import { globeOf, labelsAt, labelWords, momentStarts, placeTags, replayMoment, stepAt, type Box, type GlobeOn, type Hold, type TagSide, type TourDetail, type TourGrowth, type TourStep } from "./tour.js";
 import { createCameraPlayer } from "./tour-camera.js";
 import { mapRecording, mapGrowthPlan, recordedFrame } from "./map-recording.js";
 import { growthReading, recordedView, savedReading } from "./tour-reading.js";
@@ -162,11 +162,12 @@ function Labels({ labels, controls, arrived }: { labels: readonly ShownLabel[]; 
 }
 
 /**
- * The arcs list's first arc pointed out while the line that names it is said (2.21): an outline round its row and its words
- * beside it, or below the list where a phone's full-width list leaves no room beside it. It reads the list's own rows, so it
- * stands with or without the globe.
+ * A part of a panel pointed out while the line or moment that names it is current (2.21): the arcs list's first arc, or the
+ * story panel's diagram. An outline round it (`row`, inside the panel `within`) and its words beside it, or below the panel
+ * where a phone's full-width list leaves no room beside it; `under` puts them just beneath the outline, inside the panel. It
+ * reads the panel's own elements, so it stands with or without the globe.
  */
-function ArcPointer({ text }: { text: string }) {
+function PanelPointer({ text, row: rowAt, within, label: name, under = false }: { text: string; row: string; within: string; label: string; under?: boolean }) {
   const outline = useRef<HTMLDivElement>(null), words = useRef<HTMLSpanElement>(null);
   useEffect(() => {
     let frame = 0;
@@ -174,24 +175,24 @@ function ArcPointer({ text }: { text: string }) {
       const ring = outline.current, label = words.current;
       if (!ring || !label) return;
       const stage = (ring.offsetParent ?? document.body).getBoundingClientRect();
-      const row = document.querySelector("#chapter2 .tour-arc-surface:not([hidden]) .arc-overlay:not([hidden]) .arc-lane");
-      const list = row?.closest(".arc-overlay")?.getBoundingClientRect(), box = row?.getBoundingClientRect();
+      const row = document.querySelector(rowAt);
+      const list = row?.closest(within)?.getBoundingClientRect(), box = row?.getBoundingClientRect();
       const shown = !!box?.width && !!list && box.bottom <= list.bottom + 1;
       ring.classList.toggle("away", !shown);
       if (shown) {
         ring.style.transform = `translate(${Math.round(box.left - stage.left - 3)}px, ${Math.round(box.top - stage.top - 3)}px)`;
         ring.style.width = `${Math.round(box.width + 6)}px`; ring.style.height = `${Math.round(box.height + 6)}px`;
-        const size = label.getBoundingClientRect(), beside = box.right + 14 + size.width <= stage.right - 12;
+        const size = label.getBoundingClientRect(), beside = !under && box.right + 14 + size.width <= stage.right - 12;
         label.style.left = `${Math.round(beside ? box.width + 20 : 12)}px`;
-        label.style.top = `${Math.round(beside ? (box.height + 6 - size.height) / 2 : list.bottom - box.top + 14)}px`;
-        label.dataset.side = beside ? "beside" : "below";
+        label.style.top = `${Math.round(beside ? (box.height + 6 - size.height) / 2 : under ? box.height + 18 : list.bottom - box.top + 14)}px`;
+        label.dataset.side = beside ? "beside" : under ? "under" : "below";
       }
       frame = requestAnimationFrame(place);
     };
     frame = requestAnimationFrame(place);
     return () => cancelAnimationFrame(frame);
-  }, [text]);
-  return <div ref={outline} className="tour-arc-pointer away" data-label="arc" aria-hidden="true">
+  }, [text, rowAt, within]);
+  return <div ref={outline} className="tour-arc-pointer away" data-label={name} aria-hidden="true">
     <span ref={words} className="tour-tag-text">{text}</span>
   </div>;
 }
@@ -272,12 +273,12 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   const surfaces = useMemo((): Partial<GlobeSurfaces> => {
     if (!step || free || everything) return complete;
     let shown = step.surfaces;
-    for (const [from, next] of Object.entries(step.lineSurfaces ?? {})) if ((state?.lines ?? 1) >= Number(from)) shown = next;
+    for (const [from, next] of Object.entries(step.lineSurfaces ?? {})) if ((state?.moments ?? 1) >= Number(from)) shown = next;
     return shown;
-  }, [step, state?.lines, free, everything]);
-  // The step as its told lines leave it: a line can move the camera, or give its panel way to another (ADR-0891, amended 2026-10-11).
-  const shownStep = step && stepAt(step, state?.lines ?? 1);
-  const requestedPanel = touring && !everything && (state?.lines ?? 1) >= (step?.panelFromLine ?? 1) ? shownStep?.panel : undefined;
+  }, [step, state?.moments, free, everything]);
+  // The step as its told lines and moments leave it: one can move the camera, or give its panel way to another (ADR-0891, amended 2026-10-11).
+  const shownStep = step && stepAt(step, state?.moments ?? 1);
+  const requestedPanel = touring && !everything && (state?.moments ?? 1) >= (step?.panelFromLine ?? 1) ? shownStep?.panel : undefined;
   const sideOffset = offsetFor(touring && !everything ? shownStep : undefined, width);
   const globe: GlobeOn = step && state ? globeOf(step, state, tour!.elapsed) : { map: "storytree" };
 
@@ -427,7 +428,7 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   let moment: number | undefined;
   if (grown && globe.map === shownMap && "at" in globe && globe.at !== undefined) {
     const told = growthAt && growthAt.index === state?.index && growthAt.generation === state?.generation ? growthAt.at : globe.at;
-    moment = typeof step?.growth === "object" ? replayMoment(grown.plan(), step.growth, told, lineStarts(step)) : 0;
+    moment = typeof step?.growth === "object" ? replayMoment(grown.plan(), step.growth, told, momentStarts(step)) : 0;
   }
   const growth = grown ? { plan: grown.plan(), at: moment ?? Infinity } : undefined;
   // A step narrowed to a few stories dims the rest (ADR-0890's three teaching stories).
@@ -440,20 +441,25 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   const sessionsAt = touring && !everything && shownMap === "shop" ? step?.sessionsAt : undefined;
   const shopAt = useMemo(() => sessionsAt && shopSnapshot ? { recording: savedReading(shopSnapshot, { until: sessionsAt }) } : undefined, [sessionsAt]);
   useEffect(() => () => shopAt?.recording.reading.stop(), [shopAt]);
-  // The current line's label, its words read from the frame on show: a session is named as it had named itself by then (2.21).
-  const lineLabels = inMapChapter && mapFrame && step && state ? labelsAt(step, state.lines, { width }) : [];
+  // The current line's or moment's labels, their words read from the frame on show: a session is named as it had named itself by
+  // then (2.21). A waiting step shows every label its last line brings.
+  const still = (state?.holds.length ?? 0) > 0;
+  const lineLabels = inMapChapter && mapFrame && step && state ? labelsAt(step, state.moments, { width, still }) : [];
   const named = (session: string) => shop.reading?.recording.lines.filter(line => line.kind === "session-named" && line.session === session && line.at <= mapFrame!.at).flatMap(line => "title" in line ? [String(line.title)] : []).at(-1);
   const labelKey = JSON.stringify(lineLabels.flatMap(label => {
     if ("point" in label) return [];
     const text = labelWords(label, mapFrame!, named);
-    return text ? [{ key: `${step!.id}:${state!.lines}:${JSON.stringify(label.target)}`, target: label.target, text }] : [];
+    return text ? [{ key: `${step!.id}:${JSON.stringify(label.target)}:${text}`, target: label.target, text }] : [];
   }));
   const shownLabels = useMemo((): ShownLabel[] => JSON.parse(labelKey), [labelKey]);
   // The sessions list is pointed out while the line that names it is said, not labelled on the globe.
   const pointed = lineLabels.some(label => "point" in label && label.point === "sessions");
   // The arcs list's first arc is pointed out and named while the line that names it is said, with or without the globe.
-  const arcPoint = touring && !everything && step && state && requestedPanel === "arcs"
-    ? labelsAt(step, state.lines, { width }).flatMap(label => "point" in label && label.point === "arc" ? [label.text] : [])[0] : undefined;
+  const pointAt = (point: "arc" | "panel") => touring && !everything && step && state
+    ? labelsAt(step, state.moments, { width, still }).flatMap(label => "point" in label && label.point === point ? [label.text] : [])[0] : undefined;
+  const arcPoint = requestedPanel === "arcs" ? pointAt("arc") : undefined;
+  // The story panel's diagram is pointed out and named as the moment that opens it arrives.
+  const panelPoint = requestedPanel === "story" ? pointAt("panel") : undefined;
   // The knowledge chapter's flags are the claims its sessions list reads at its moment, past the map chapter's first round.
   const heldClaims = inMapChapter && step?.explainer === "knowledge" && shopAt !== undefined;
   const panelReading = onStorytree ? snapshot : shownMap === "shop" ? shopSnapshot : undefined;
@@ -527,7 +533,8 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
           ? <Arcs key="shop" project={shop.project} recording={shopView.recording} open={false} />
           : <Arcs key="storytree" project={snapshot.project} recording={recording} open={requestedPanel === "arcs"} />}
       </div>
-      {arcPoint && <ArcPointer key={arcPoint} text={arcPoint} />}
+      {arcPoint && <PanelPointer key={arcPoint} text={arcPoint} row="#chapter2 .tour-arc-surface:not([hidden]) .arc-overlay:not([hidden]) .arc-lane" within=".arc-overlay" label="arc" />}
+      {panelPoint && <PanelPointer key={panelPoint} text={panelPoint} row="#chapter2 .tour-story-panel .panel-tree-frame" within=".tour-story-panel" label="panel" under />}
     </>, panelHost)}
   </>;
 }

@@ -216,11 +216,11 @@ const runs = {
     const before = process.argv.includes("--before");
     const folder = path.join(pictures, "../map-labels");
     await mkdir(folder, { recursive: true });
-    // [step, line, seconds into the line, what the label says (undefined: none on the globe), the narrowest screen it shows on
+    // [step, line (or moment within one, data-tour-moment), seconds into it, what the label says (undefined: none on the globe), the narrowest screen it shows on
     // (tour-copy.ts)]. A labelled picture waits for its label, as SwiftShader's frames can lag the tour's clock. The health
     // step's green is pictured held near the step's end.
-    const moments = [["map-stories", 1, 9.2, "a story", 601], ["map-stories", 2, 5, "the cart needs signing in", 390],
-      ["map-capabilities", 1, 3.6, "a capability", 601], ["map-capabilities", 2, 1.8, "server.js · 110 lines", 390],
+    const moments = [["map-stories", 2, 1.5, "a story", 601], ["map-stories", 5, 5, "a pathway: the cart needs signing in", 390],
+      ["map-capabilities", 1, 3.6, "a capability", 601], ["map-capabilities", 2, 1.8, "each dot is a file: server.js · 110 lines", 390],
       ["map-claims", 1, 6, "Part 2: product page, sorting, cart", 601], ["map-claims", 3, 1.2, undefined, 0],
       ["map-health", 2, 3, "not proved yet", 0], ["map-health", 2, 0, "tests passed", 0, "held"]];
     const report = [];
@@ -229,13 +229,13 @@ const runs = {
       if (before) await page.addStyleTag({ content: "#tour-tags { display:none !important; } .tour-session-surface[data-pointed] .sessions-list { animation:none !important; outline:none !important; }" });
       for (const [id, line, into, words, narrowest, held] of moments) {
         await play(page);
-        if (held || await stepOf(page) !== id || await page.locator("#tour-lines .tour-line.on").count() > line) await go(page, id);
-        await page.waitForFunction(line => document.querySelectorAll("#tour-lines .tour-line.on").length === line, line, { timeout: 60_000 });
+        if (held || await stepOf(page) !== id || Number(await page.locator("#chapter2").getAttribute("data-tour-moment")) > line) await go(page, id);
+        await page.waitForFunction(line => Number(document.querySelector("#chapter2").dataset.tourMoment) === line, line, { timeout: 60_000 });
         if (held) {
           await page.waitForFunction(() => Number(document.querySelector('#tour-pips [aria-current="step"]').style.getPropertyValue("--fill")) >= .92, null, { timeout: 60_000 });
           await pause(page); await page.waitForTimeout(700);
         } else if (!before && words && width >= narrowest) {
-          await page.waitForFunction(({ words, line }) => document.querySelectorAll("#tour-lines .tour-line.on").length === line
+          await page.waitForFunction(({ words, line }) => Number(document.querySelector("#chapter2").dataset.tourMoment) === line
             && [...document.querySelectorAll("#tour-tags .tour-tag:not(.away) .tour-tag-text")].some(node => node.textContent === words), { words, line }, { timeout: into * 1000 + 6000 })
             .then(() => page.waitForTimeout(450), () => {});
         } else await page.waitForTimeout(into * 1000);
@@ -320,7 +320,7 @@ async function chapterSteps({ chapter, folder, lines, frames, phoneFrames, known
           await go(page, id);
           // A line's picture is taken while the step plays: a paused step shows all its lines.
           for (const line of lines[id] ?? []) {
-            await page.waitForFunction(line => document.querySelectorAll("#tour-lines .tour-line.on").length === line, line, { timeout: 60_000 });
+            await page.waitForFunction(line => Number(document.querySelector("#chapter2").dataset.tourMoment) === line, line, { timeout: 60_000 });
             await page.waitForTimeout(line === 1 ? 3500 : 1800);
             settled.set(`${id}-line-${line}`, { picture: await page.screenshot(), seen: await measure(page) });
           }

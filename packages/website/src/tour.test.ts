@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { mapRecording, mapGrowthPlan, recordedFrame } from "./map-recording.js";
 import type { GrowthSnapshot } from "./forest-data.js";
 import shop from "./shop-snapshot.json" with { type: "json" };
-import { aim, createTour, flight, globeOf, groups, labelsAt, labelWords, lineStarts, placeTags, readingTime, replayMoment, settle, stepAt, viewOf, type TourStep } from "./tour.js";
+import { aim, createTour, flight, globeOf, groups, labelsAt, labelWords, lineStarts, momentStarts, placeTags, readingTime, replayMoment, settle, stepAt, viewOf, type TourStep } from "./tour.js";
 import { steps as tourSteps } from "./tour-copy.js";
 import { fill, growthCounts } from "./tour-counts.js";
 
@@ -210,8 +210,8 @@ test("2.16 · the map chapter plays seven steps in the owner's order: the beginn
   assert.ok(chapter.every(item => item.map === "shop" && typeof item.growth === "object"), "every step replays the shop's record");
   for (const item of chapter) assert.ok(item.how && item.why && item.decisions.length === 0);
   const [empty, harness, arcs, stories, capabilities, claims, health] = chapter;
-  const tinted = (item: TourStep, line: number) => { let shown = item.surfaces; for (const [from, next] of Object.entries(item.lineSurfaces ?? {})) if (line >= Number(from)) shown = next; return shown; };
-  const panels = (item: TourStep) => item.lines.map((_, index) => index + 1 >= (item.panelFromLine ?? 1) ? stepAt(item, index + 1).panel : undefined);
+  const tinted = (item: TourStep, moment: number) => { let shown = item.surfaces; for (const [from, next] of Object.entries(item.lineSurfaces ?? {})) if (moment >= Number(from)) shown = next; return shown; };
+  const panels = (item: TourStep) => momentStarts(item).map((_, index) => index + 1 >= (item.panelFromLine ?? 1) ? stepAt(item, index + 1).panel : undefined);
   // Steps 1 to 3: the bare globe; the harnesses storytree works with, each by its own mark and name, over it; then the arcs
   // panel over it, read before the first claim (01:53:08), the arc pointed out as its one line is said.
   assert.deepEqual(panels(empty!), [undefined]);
@@ -222,12 +222,14 @@ test("2.16 · the map chapter plays seven steps in the owner's order: the beginn
   assert.deepEqual(labelsAt(arcs!, 1), [{ point: "arc", text: "a plan of work: an arc" }]);
   assert.ok(arcs!.sessionsAt! < "2026-10-05T01:53:08", "the arcs read the record before anything is held");
   assert.deepEqual([(empty!.growth as { until: string }).until, (arcs!.growth as { stage: string; until: string }).stage, (arcs!.growth as { until: string }).until], ["plans", "plans", "plans"], "the globe stays bare");
-  // Step 3: each island rises as it is named; the pathways come on with the second line.
+  // Step 4: one line, the owner's; each island rises as a moment within it, then the pathways come on with the last.
+  assert.deepEqual(stories!.lines, ["In storytree, projects are made from stories. As your agents build, stories show up on the map as islands."]);
   assert.deepEqual((stories!.growth as { stage: string }).stage, "plans");
-  assert.deepEqual((stories!.growth as { beats: unknown }).beats, [{ line: 2, stage: "pathways" }]);
-  assert.deepEqual([tinted(stories!, 1).roads, tinted(stories!, 2).roads], [false, true]);
-  assert.ok(!tinted(stories!, 1).territories, "nothing is drawn inside an island");
-  // Step 4: the capabilities, then the dots, then the panel.
+  assert.deepEqual((stories!.growth as { beats: unknown }).beats, [{ line: 2, stage: "planned" }, { line: 3, stage: "risen-browsing" }, { line: 4, stage: "risen-round" }, { line: 5, stage: "pathways" }]);
+  assert.deepEqual([1, 2, 3, 4, 5].map(moment => tinted(stories!, moment).roads), [false, false, false, false, true]);
+  assert.ok(!tinted(stories!, 5).territories, "nothing is drawn inside an island");
+  // Step 5: one line, the owner's; the capabilities, then the dots, then the panel, each a moment within it.
+  assert.deepEqual(capabilities!.lines, ["Each story shows the parts that make it work."]);
   assert.deepEqual([tinted(capabilities!, 1).territories, tinted(capabilities!, 1).fileCircles, tinted(capabilities!, 2).fileCircles], ["plain", false, true]);
   assert.deepEqual(panels(capabilities!), [undefined, undefined, "story"]);
   // Step 5: the flags, then the arcs panel, then the sessions list, read as the flags stand (after 02:28:27, before 02:29:25).
@@ -352,9 +354,9 @@ test("2.21 · each map line labels the one thing it talks about, in words true t
   const recording = mapRecording(original);
   const plan = mapGrowthPlan(recording);
   const names = (original.reading?.recording.lines ?? []).filter(line => line.kind === "session-named");
-  /** What each label on line `line` of step `id` says `into` seconds after the line begins, read from the frame on show then. */
+  /** What each label at moment `line` of step `id` (a line, or a moment within one) says `into` seconds after it begins, read from the frame on show then. */
   const said = (id: string, line: number, into = .5) => {
-    const step = tourSteps.find(step => step.id === id)!, starts = lineStarts(step);
+    const step = tourSteps.find(step => step.id === id)!, starts = momentStarts(step);
     if (typeof step.growth !== "object") throw new Error(id);
     const frame = recordedFrame(recording, plan, replayMoment(plan, step.growth, starts[line - 1]! + into, starts));
     const named = (session: string) => names.filter(name => name.session === session && name.at <= frame.at).flatMap(name => "title" in name ? [String(name.title)] : []).at(-1);
@@ -362,13 +364,18 @@ test("2.21 · each map line labels the one thing it talks about, in words true t
   };
   const story = (id: string) => JSON.stringify({ kind: "story", story: id });
   const signIn = "story_d263ef0f3f72", checkout = "story_66f80ffaaa4d";
-  // Stories and pathways: the island, then the one pathway the line names.
-  assert.deepEqual(said("map-stories", 1, 7), [`${story(signIn)} a story`]);
-  assert.deepEqual(said("map-stories", 2), [`${JSON.stringify({ kind: "pathway", link: "capability_ed214990be99->capability_ae20917d7a32", along: .2 })} the cart needs signing in`]);
-  // Capabilities: the first territory as it arrives, then the largest of signing in's files with its recorded size; the panel line has none.
+  const cart = "story_2de9e8f4db21";
+  // Stories and pathways: each island named a story as it rises (the cart and checkout together), then a pathway explained.
+  assert.deepEqual(said("map-stories", 1), []);
+  assert.deepEqual(said("map-stories", 2), [`${story(signIn)} a story`]);
+  assert.deepEqual(said("map-stories", 3), [`${story("story_0c07d0047754")} a story`]);
+  assert.deepEqual(said("map-stories", 4), [`${story(cart)} a story`, `${story(checkout)} a story`]);
+  assert.deepEqual(said("map-stories", 5), [`${JSON.stringify({ kind: "pathway", link: "capability_ed214990be99->capability_ae20917d7a32", along: .2 })} a pathway: the cart needs signing in`]);
+  // Capabilities: the first territory as it arrives, then the largest of signing in's files, saying each dot is a file; then the
+  // story panel, pointed out as it opens.
   assert.deepEqual(said("map-capabilities", 1), [`${JSON.stringify({ kind: "capability", capability: "capability_323895c5a414" })} a capability`]);
-  assert.deepEqual(said("map-capabilities", 2), [`${JSON.stringify({ kind: "file", story: signIn, path: "src/server/server.js" })} server.js · 110 lines`]);
-  assert.deepEqual(said("map-capabilities", 3), []);
+  assert.deepEqual(said("map-capabilities", 2), [`${JSON.stringify({ kind: "file", story: signIn, path: "src/server/server.js" })} each dot is a file: server.js · 110 lines`]);
+  assert.deepEqual(said("map-capabilities", 3), ["point:panel"]);
   // Claims: the first flag, named by the session that planted it; the arcs line has none; the sessions list is pointed out, not labelled.
   assert.deepEqual(said("map-claims", 1, 2), [`${JSON.stringify({ kind: "capability", capability: "capability_f29c62742cce" })} Part 2: product page, sorting, cart`]);
   assert.deepEqual(said("map-claims", 2), []);
@@ -379,17 +386,38 @@ test("2.21 · each map line labels the one thing it talks about, in words true t
   assert.deepEqual(said("map-health", 1), [`${story(checkout)} not proved yet`]);
   assert.deepEqual(said("map-health", 2), [`${story(checkout)} not proved yet`]);
   assert.deepEqual(said("map-health", 2, 8.6), [`${story(checkout)} tests passed`]);
-  // A label shows only while its line is the current one, and no other chapter's lines carry one.
-  for (const step of tourSteps) for (let line = 1; line <= step.lines.length; line++) {
+  // A label shows only while its line or moment is the current one, and no other chapter's lines carry one.
+  for (const step of tourSteps) for (let line = 1; line <= momentStarts(step).length; line++) {
     const now = labelsAt(step, line), next = labelsAt(step, line + 1);
-    assert.ok(now.length <= 1, `${step.id} ${line}: one at a time`);
+    assert.ok(now.length <= 1 || now.every(label => !("point" in label) && label.target.kind === "story"), `${step.id} ${line}: one at a time, but for islands rising together`);
     assert.ok(next.every(label => !now.includes(label)), `${step.id} ${line}: gone when the line passes`);
     if (step.explainer !== "map") assert.deepEqual(now, [], step.id);
   }
   // On a phone, at most one label on the globe in a step; the narrowest keeps fewer still.
-  const onPhone = (width: number) => tourSteps.map(step => new Set(step.lines.flatMap((_, line) => labelsAt(step, line + 1, { width }).flatMap(label => "point" in label ? [] : [label.target.kind]))).size);
+  const onPhone = (width: number) => tourSteps.map(step => new Set(momentStarts(step).flatMap((_, line) => labelsAt(step, line + 1, { width }).flatMap(label => "point" in label ? [] : [label.target.kind]))).size);
   assert.ok(onPhone(390).every(count => count <= 1));
   assert.deepEqual([onPhone(1440), onPhone(390), onPhone(320)].map(counts => counts.reduce((sum, count) => sum + count, 0)), [6, 3, 1]);
+});
+
+test("2.21 · a moment within a line brings its own labels, surfaces and panel, and a waiting step shows every label its last line brings", () => {
+  const cued: TourStep = { ...step("cued", "map", ["One line"]), cues: [3, 6], growth: { seconds: 4 }, panel: "story", panelFromLine: 3,
+    lineSurfaces: { 2: { roads: true } },
+    labels: { 1: [{ target: { kind: "story", story: "a" }, text: "first" }], 2: [{ target: { kind: "story", story: "b" }, text: "second" }], 3: [{ point: "panel", text: "third" }] } };
+  assert.deepEqual(momentStarts(cued), [0, 3, 6], "the line begins the first moment; each cue begins another");
+  const tour = atOne([cued, step("after", "map")]);
+  assert.deepEqual([tour.state.lines, tour.state.moments], [1, 1]);
+  tour.tick(3000 - 1); assert.equal(tour.state.moments, 1);
+  tour.tick(1); assert.deepEqual([tour.state.lines, tour.state.moments], [1, 2], "a moment arrives within the one line");
+  tour.tick(3000); assert.equal(tour.state.moments, 3);
+  tour.tick(readingTime("x") - 1); assert.equal(tour.state.index, 0, "the step lasts until its last moment has been read");
+  tour.tick(settle + 1); assert.equal(tour.state.index, 1);
+  const held = atOne([cued]); held.hold("paused");
+  assert.equal(held.state.moments, 3, "a waiting step shows its every moment");
+  const texts = (labels: readonly unknown[]) => labels.map(label => (label as { text: string }).text);
+  assert.deepEqual([1, 2, 3].map(moment => texts(labelsAt(cued, moment))), [["first"], ["second"], ["third"]]);
+  assert.deepEqual(texts(labelsAt(cued, 3, { still: true })), ["first", "second", "third"], "still, every label the line brought");
+  const lined = { ...step("lined", "map", ["One", "Two"]), labels: { 1: [{ point: "sessions" as const }], 2: [{ point: "arc" as const, text: "two" }] } };
+  assert.deepEqual(labelsAt(lined, 2, { still: true }), [{ point: "arc", text: "two" }], "a step without cues keeps only its last line's");
 });
 
 test("2.21 · a line's label sits inside the screen, clear of its ring, the card and the panels, and off an island's name where it has room", () => {

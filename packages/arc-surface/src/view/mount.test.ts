@@ -78,3 +78,67 @@ test("3.1 clicking Arcs opens a reading drawer; Escape and Close return focus to
   surface.stop();
   assert.equal(page.document.body.childElementCount, 0);
 });
+
+// The drawer's height at each size is the stylesheet's, measured in Chromium (evidence/drawer-expand).
+test("3.10 · Expand fills the window and reads Restore, which returns the drawer; the size is kept when it is closed, opened and mounted again", async (t) => {
+  const page = new Window({ url: "https://storytree.test" });
+  const document = page.document as unknown as Document;
+  let surface: ReturnType<typeof mountArcSurface> | undefined;
+  const globals = { document: page.document, HTMLElement: page.HTMLElement, localStorage: page.localStorage };
+  const previous = new Map(Object.keys(globals).map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+  for (const [key, value] of Object.entries(globals)) Object.defineProperty(globalThis, key, { configurable: true, value });
+  t.after(async () => {
+    surface?.stop();
+    for (const [key, descriptor] of previous) {
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+      else Reflect.deleteProperty(globalThis, key);
+    }
+    await page.happyDOM.abort();
+  });
+  const reads: BoardReads = {
+    changesSince: async () => ({ changes: [], cursor: 0 }),
+    linesSince: async () => ({ lines: [], cursor: 0 }),
+    arcViews: async () => [],
+    holds: async () => ({ waits: {}, heldOn: {} }),
+  };
+  const mount = (project: string) => mountArcSurface(document.body, { project, reads, timers: { now: () => Date.parse("2026-10-11T00:00:00Z"), every: () => () => {} } });
+  const drawer = () => document.querySelector<HTMLElement>("#arc-drawer")!;
+  const size = () => drawer().querySelector<HTMLButtonElement>("[data-expand-arcs]")!;
+  const launch = () => document.querySelector<HTMLButtonElement>("[data-open-arcs]")!;
+
+  surface = mount("p");
+  launch().click();
+  assert.equal(drawer().dataset.expanded, "false", "a drawer opens at half height until it is expanded");
+  assert.equal(size().textContent, "Expand");
+  size().focus();
+  size().click();
+  assert.equal(drawer().dataset.expanded, "true");
+  assert.equal(size().textContent, "Restore", "the control names what a press gives");
+  assert.equal(page.document.activeElement, size(), "the control keeps the focus");
+
+  page.document.dispatchEvent(new page.KeyboardEvent("keydown", { key: "Escape" }));
+  assert.equal(drawer().hidden, true, "Escape closes an expanded drawer");
+  assert.equal(page.document.activeElement, launch());
+  launch().click();
+  assert.equal(drawer().dataset.expanded, "true", "closed and opened again, it is still expanded");
+
+  surface.stop();
+  surface = mount("p");
+  assert.equal(drawer().hidden, false);
+  assert.equal(drawer().dataset.expanded, "true", "a new launch opens at the kept size");
+  assert.equal(size().textContent, "Restore");
+  size().click();
+  assert.equal(drawer().dataset.expanded, "false");
+  assert.equal(size().textContent, "Expand");
+
+  surface.stop();
+  surface = mount("p");
+  assert.equal(drawer().dataset.expanded, "false", "the restored size is kept too");
+  surface.stop();
+  surface = mount("other");
+  launch().click();
+  size().click();
+  surface.stop();
+  surface = mount("p");
+  assert.equal(drawer().dataset.expanded, "false", "another project's choice leaves this one's alone");
+});

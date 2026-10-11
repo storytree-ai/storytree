@@ -1,0 +1,292 @@
+{
+ "build": "9f5277ec313a6f1b6d1921c05c3b6b6bbcd85107",
+ "renderer": "SwiftShader",
+ "sizes": {
+  "1440 x 900": {
+   "pathways": [
+    {
+     "title": "Checkout",
+     "x": 915,
+     "y": 149
+    },
+    {
+     "title": "Cart",
+     "x": 867,
+     "y": 278
+    },
+    {
+     "title": "Browsing",
+     "x": 949,
+     "y": 450
+    },
+    {
+     "title": "Signing in",
+     "x": 1007,
+     "y": 627
+    }
+   ],
+   "health": [
+    {
+     "title": "Checkout",
+     "x": 915,
+     "y": 149
+    },
+    {
+     "title": "Cart",
+     "x": 867,
+     "y": 278
+    },
+    {
+     "title": "Browsing",
+     "x": 949,
+     "y": 450
+    },
+    {
+     "title": "Signing in",
+     "x": 1007,
+     "y": 627
+    }
+   ],
+   "freePlay": [
+    {
+     "title": "Checkout",
+     "x": 703,
+     "y": 88
+    },
+    {
+     "title": "Reviews",
+     "x": 869,
+     "y": 99
+    },
+    {
+     "title": "Cart",
+     "x": 629,
+     "y": 242
+    },
+    {
+     "title": "Orders",
+     "x": 815,
+     "y": 243
+    },
+    {
+     "title": "Admin",
+     "x": 982,
+     "y": 266
+    },
+    {
+     "title": "Browsing",
+     "x": 720,
+     "y": 450
+    },
+    {
+     "title": "Accounts",
+     "x": 907,
+     "y": 462
+    },
+    {
+     "title": "Signing in",
+     "x": 789,
+     "y": 663
+    }
+   ],
+   "move": {
+    "framesMoving": 1,
+    "from": 222,
+    "to": 222,
+    "first": {
+     "Signing in": [
+      0,
+      -0.719,
+      0.695
+     ],
+     "Browsing": [
+      -0.233,
+      -0.264,
+      0.936
+     ],
+     "Cart": [
+      -0.458,
+      0.264,
+      0.849
+     ],
+     "Checkout": [
+      -0.262,
+      0.718,
+      0.645
+     ]
+    },
+    "last": {
+     "Signing in": [
+      0,
+      -0.719,
+      0.695
+     ],
+     "Browsing": [
+      -0.233,
+      -0.264,
+      0.936
+     ],
+     "Cart": [
+      -0.44,
+      0.264,
+      0.858
+     ],
+     "Checkout": [
+      -0.207,
+      0.719,
+      0.663
+     ]
+    }
+   },
+   "frames": {
+    "count": 76,
+    "medianMs": 16.7,
+    "worstMs": 183.4,
+    "over50ms": 14
+   }
+  },
+  "390 x 844": {
+   "pathways": [
+    {
+     "title": "Checkout",
+     "x": 184,
+     "y": 141
+    },
+    {
+     "title": "Cart",
+     "x": 168,
+     "y": 182
+    },
+    {
+     "title": "Browsing",
+     "x": 195,
+     "y": 239
+    },
+    {
+     "title": "Signing in",
+     "x": 214,
+     "y": 296
+    }
+   ],
+   "health": [
+    {
+     "title": "Checkout",
+     "x": 184,
+     "y": 141
+    },
+    {
+     "title": "Cart",
+     "x": 168,
+     "y": 182
+    },
+    {
+     "title": "Browsing",
+     "x": 195,
+     "y": 239
+    },
+    {
+     "title": "Signing in",
+     "x": 214,
+     "y": 296
+    }
+   ],
+   "freePlay": [
+    {
+     "title": "Checkout",
+     "x": 188,
+     "y": 265
+    },
+    {
+     "title": "Reviews",
+     "x": 260,
+     "y": 270
+    },
+    {
+     "title": "Cart",
+     "x": 156,
+     "y": 332
+    },
+    {
+     "title": "Orders",
+     "x": 236,
+     "y": 332
+    },
+    {
+     "title": "Admin",
+     "x": 308,
+     "y": 342
+    },
+    {
+     "title": "Browsing",
+     "x": 195,
+     "y": 422
+    },
+    {
+     "title": "Accounts",
+     "x": 276,
+     "y": 427
+    },
+    {
+     "title": "Signing in",
+     "x": 225,
+     "y": 514
+    }
+   ],
+   "move": {
+    "framesMoving": 1,
+    "from": 719,
+    "to": 719,
+    "first": {
+     "Signing in": [
+      0,
+      -0.719,
+      0.695
+     ],
+     "Browsing": [
+      -0.233,
+      -0.264,
+      0.936
+     ],
+     "Cart": [
+      -0.458,
+      0.264,
+      0.849
+     ],
+     "Checkout": [
+      -0.262,
+      0.718,
+      0.645
+     ]
+    },
+    "last": {
+     "Signing in": [
+      0,
+      -0.719,
+      0.695
+     ],
+     "Browsing": [
+      -0.233,
+      -0.264,
+      0.936
+     ],
+     "Cart": [
+      -0.44,
+      0.264,
+      0.858
+     ],
+     "Checkout": [
+      -0.207,
+      0.719,
+      0.663
+     ]
+    }
+   },
+   "frames": {
+    "count": 40,
+    "medianMs": 16.7,
+    "worstMs": 616.7,
+    "over50ms": 11
+   }
+  }
+ }
+}

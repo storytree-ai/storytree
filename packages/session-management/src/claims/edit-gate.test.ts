@@ -57,7 +57,7 @@ test("5.31 an edit tool aimed at a capability its session's claimed increment do
       assert.match(refusalMessage(held!), /session B holds it on the capabilities list/);
       assert.equal((await gate("C", "reset.ts"))?.refused, "held", "a session holding no increment is still refused what another holds");
       const refusals = await log.lines(project, { kinds: ["claim-refused"] });
-      assert.deepEqual(refusals.map((line) => line.kind === "claim-refused" && [line.session, line.capability]), [["A", reset], ["C", reset]], "each refusal is in the activity log");
+      assert.deepEqual(refusals.map((line) => line.kind === "claim-refused" && [line.session, line.capability, line.under]), [["A", reset, mine], ["C", reset, undefined]], "each refusal is in the activity log, under the increment its session drives (5.38)");
 
       assert.equal((await claim(as("B"), form, "a quick fix to the form")).ok, true);
       assert.equal((await gate("A", "form.ts"))?.refused, "held", "a capability another session claimed itself");

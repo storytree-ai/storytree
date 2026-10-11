@@ -9,6 +9,18 @@ test("2.5: the empty page explains adding a project from the gear menu or the co
   assert.match(html, /<code>storytree doctor --set-up &lt;name&gt;<\/code> in the folder/);
 });
 
+test("2.11 · the empty page shows storytree's mark in the page theme's colours, with no tile and no file", () => {
+  const html = renderNoProjects();
+  const mark = html.match(/<svg class="app-mark"[\s\S]*?<\/svg>/)?.[0];
+  assert.ok(mark, "the mark is drawn inline, above the heading");
+  assert.ok(html.indexOf(mark) < html.indexOf("<h1>"));
+  assert.match(mark, /aria-hidden="true"/);
+  assert.match(mark, /viewBox="0 0 104 104"/, "the mark's own drawing");
+  const colours = [...mark.matchAll(/(?:fill|stroke)="([^"]+)"/g)].map((m) => m[1]);
+  assert.deepEqual(new Set(colours), new Set(["var(--mark-ocean)", "var(--mark-land)", "var(--mark-tree)", "var(--mark-leaf)"]), "every role from the theme, no colour of its own");
+  assert.doesNotMatch(mark, /<rect/, "the page is the canvas");
+});
+
 // App capability 2: the gear and project switcher (pending contracts in evidence/top-bars/library-update).
 test("2.6–2.8 the app bar holds only the gear and opens a sectioned overlay", () => {
   const html = renderAppMenu();

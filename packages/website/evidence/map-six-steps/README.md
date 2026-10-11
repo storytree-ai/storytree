@@ -35,8 +35,11 @@ Made with `node packages/website/evidence/arrival/capture.mjs --only mapSteps` a
 - Removing the agents chapter took the close-to-close camera clip (`../act2-polish/close-flight`) with it: the map now has only one
   close view. The camera's close-to-close rule is still pinned by its unit test (2.15).
 
-**Framing.** Every framed island's name is clear at every width but one: at 320, on the stories step, the four two-line names crowd
-on the small globe and Checkout's hides rather than stray from its island (forest 3.31); the island stands in frame.
+**Framing.** Re-taken 2026-10-11 with the first round in its own plan's rows (Signing in, Browsing above it, the cart and
+checkout side by side above Browsing; increment_64de8f753567, `../first-round-rows`). Every framed island's name is clear at
+1920, 1440 and 1280. On phones the cart's and checkout's two-line names meet side by side, and Checkout's hides rather than
+stray from its island (forest 3.31) on the stories, claims (first line) and health steps at 390 and 320; the island stands in
+frame.
 
 **Measured only here.** Frame rates and motion smoothness on a hardware GPU (the laptop) were not measured; the box draws with
 SwiftShader.

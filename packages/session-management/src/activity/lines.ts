@@ -122,8 +122,11 @@ export const NEW_LINE = z.discriminatedUnion("kind", [
    */
   z.object({ ...common, kind: z.literal("claimed"), ...part, reason: z.string().min(1), takenOverFrom: z.string().min(1).optional(),
     quietSince: z.string().datetime({ offset: true }).optional(), takenBecause: z.enum(QUIET_BECAUSE).optional(), file: z.string().min(1).optional(), under: z.string().min(1).optional() }).strict().refine(onePart, ONE_PART),
-  /** A claim turned away because another live session (`holder`) held the work: the reason the refused session gave, and the `file` whose edit asked for it (ADR-0924 D2). */
-  z.object({ ...common, kind: z.literal("claim-refused"), ...part, holder: z.string().min(1), reason: z.string().min(1), file: z.string().min(1).optional() }).strict().refine(onePart, ONE_PART),
+  /**
+   * A claim turned away because another live session (`holder`) held the work: the reason the refused session gave, and the `file` whose edit asked for it (ADR-0924 D2).
+   * A refused capability names the increment the refused session held, `under`, so the pool leaves that increment out while the holder keeps it.
+   */
+  z.object({ ...common, kind: z.literal("claim-refused"), ...part, holder: z.string().min(1), reason: z.string().min(1), file: z.string().min(1).optional(), under: z.string().min(1).optional() }).strict().refine(onePart, ONE_PART),
   /**
    * A claim let go. Written by its holder, it names no `holder`; written by the session manager for a quiet
    * session after messaging it (ADR-0944 D7), it names the `holder` whose claim it ends and the `reason`.

@@ -152,11 +152,16 @@ test("7.16 an expanded row's Running block, between its worktrees and its files,
   assert.equal(isSessionRows([{ ...row, children: [], running: undefined }]), false, "rows kept by an older build are not drawn");
 });
 
-test("7.10 the quiet sessions stay folded into one N idle row by default, opening on its button", () => {
+test("7.10 the Live tab lists only the sessions at work, with no idle row; the header still counts them; with only idle ones it says where they are", () => {
   const idle: SessionRow = { ...row, id: "quiet", label: "Quiet one", children: [], idle: true };
   const html = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, children: [] }, idle], onHighlight() {} }));
-  assert.doesNotMatch(html, /data-session-id="quiet"/);
-  assert.match(html, /class="session-idle-fold" aria-expanded="false"[^>]*>1 idle</);
+  assert.match(html, /data-session-id="parent"/);
+  assert.doesNotMatch(html, /data-session-id="quiet"|session-idle-fold|\d idle</);
+  assert.match(html, /class="sessions-count"[^>]*>1</, "the header counts the one at work");
+  const only = renderToStaticMarkup(createElement(SessionsList, { rows: [idle, { ...idle, id: "quiet2" }], onHighlight() {} }));
+  assert.match(only, /No sessions at work/);
+  assert.match(only, /<button type="button" class="sessions-idle-elsewhere"[^>]*>2 idle in History<\/button>/);
+  assert.doesNotMatch(only, /No running sessions|data-session-id="quiet"/);
 });
 
 test("7.17 the list is a bottom strip whose header toggles it, like the arcs bar's: it starts expanded; collapsed it leaves only the header (name, count, legend and a caret pointing up), drawing no rows; the choice is kept per project and a missing or foreign value means expanded", () => {
@@ -281,4 +286,39 @@ test("7.23 the selected history row is marked as a selected live row is", () => 
     now: new Date(2026, 9, 4, 12), selected: "holder", onHighlight() {} }));
   assert.match(html, /class="history-row" data-session-id="holder" data-selected="true"/);
   assert.doesNotMatch(html, /data-session-id="lander" data-selected/);
+});
+
+const quiet: SessionRow = { ...row, id: "idler", label: "Waiting on review", agent: "Claude Code", state: "waiting", idle: true, stories: ["signup"], children: [
+  { ...row.children[0]!, id: "idle-child" }] };
+
+test("7.21 History lists every idle session still listed first, whatever the range, each led by idle and keeping its live row's labels and expander; then the sessions that left in the range", () => {
+  const html = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, children: [] }, quiet], history: past, tab: "history", range: { preset: "today" },
+    now: new Date(2026, 9, 4, 12), expanded: new Set(["idler"]), onHighlight() {} }));
+  assert.doesNotMatch(html, /data-session-id="parent"/, "a session at work stays on Live");
+  assert.match(html, /<span class="history-outcome" data-outcome="idle"[^>]*>idle<\/span>/);
+  assert.match(html, /class="session-children-toggle" aria-expanded="true" aria-label="Hide detail and 1 children of Waiting on review"/, "its expander comes with it");
+  assert.match(html, /data-session-id="idle-child"/, "expanded, its children show");
+  assert.match(html, /class="session-detail"/);
+  assert.match(html, /120K<\/span>/, "its context total comes with it");
+  assert.match(html, /No sessions ended in this range/, "today holds no ended session, yet the idle one is listed");
+  const week = renderToStaticMarkup(createElement(SessionsList, { rows: [quiet], history: past, tab: "history", range: { preset: "week" },
+    now: new Date(2026, 9, 4, 12), onHighlight() {} }));
+  assert.deepEqual([...week.matchAll(/data-session-id="(\w+)"/g)].map(m => m[1]), ["idler", "lander", "holder", "quiet"], "idle first, then the ended ones");
+});
+
+test("7.28 History's search keeps the rows, idle and ended, whose name, agent, outcome line and stories hold every word typed, whatever the case; emptied every row returns; none left says so", () => {
+  const props = { rows: [quiet], history: past, tab: "history" as const, range: { preset: "week" } as const, now: new Date(2026, 9, 4, 12),
+    storyTitles: new Map([["signup", "Sign up"]]), onHighlight() {} };
+  const ids = (search: string): string[] => [...renderToStaticMarkup(createElement(SessionsList, { ...props, search }))
+    .matchAll(/data-session-id="(\w+)"/g)].map(m => m[1]!);
+  assert.match(renderToStaticMarkup(createElement(SessionsList, { ...props, search: "" })), /<input type="search"[^>]*aria-label="Search sessions"/);
+  assert.deepEqual(ids(""), ["idler", "lander", "holder", "quiet"]);
+  assert.deepEqual(ids("#13"), ["lander"], "the outcome line's pull requests");
+  assert.deepEqual(ids("TAB which"), ["holder"], "every word, in any order and case, the question included");
+  assert.deepEqual(ids("idle claude"), ["idler"], "an idle row's word and agent");
+  assert.deepEqual(ids("sign up"), ["idler", "lander"], "stories by their titles");
+  assert.deepEqual(ids("codex docs"), ["quiet"]);
+  const none = renderToStaticMarkup(createElement(SessionsList, { ...props, search: "nothing like it" }));
+  assert.match(none, /No sessions match the search/);
+  assert.doesNotMatch(none, /history-row|No sessions ended in this range/);
 });

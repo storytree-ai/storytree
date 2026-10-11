@@ -25,12 +25,12 @@ const rank = (one) => one.priority ?? Infinity;
 /**
  * The pool's next `max` increments from one survey (ADR-0955 D2), and why each other was skipped. A candidate is
  * not closed, sits on an active arc, has no live claim on it or on a capability its list names (directly, or on the list of an
- * increment a live session holds), no wait or held-on
+ * increment a live session holds), no capability its lane was refused while the session that refused it still holds it, no wait or held-on
  * question (only those say it needs the owner; its body's wording never does), and its needs clause names no other
  * machine; no fence or track is read. By arc priority, then oldest parked first, and within one priority
  * those on an arc no live session (nor a pick already made) is on before the rest (ADR-0963 D2). `running` names the increments this dispatcher is running, never started
  * twice; `attempts` maps each increment this dispatcher has started to when it started it: a live claim older than that start
- * (on it or on a listed capability) refused it, and it is retried only once that claim clears (it records the refusal in `attempts`). Work whose session has
+ * (on it, on a listed capability or on one its lane was refused) refused it, and it is retried only once that claim clears (it records the refusal in `attempts`). Work whose session has
  * ended and is back in the pool (it bounced on a capability claim, say) is offered again `backoffMs` after the first
  * survey that found the session gone (it records that in `attempts` as `ended`), so a bounce needs no restart and a
  * session that bounces every time starts at most once a back-off.
@@ -42,6 +42,8 @@ export function pickPool(survey, { attempts = new Map(), running = [], max = 1, 
   const listOf = new Map(survey.increments.map((one) => [one.id, one.capabilities ?? []]));
   const liveCapabilities = new Map([...live.values()].flatMap((claim) => (listOf.get(claim.increment) ?? []).map((capability) => [capability, { ...claim, capability, on: claim.increment }])));
   for (const claim of survey.claims) if (claim.holder === "live" && claim.capability) liveCapabilities.set(claim.capability, claim);
+  // A lane refused a capability before it was on the list is held off by that refusal while its holder keeps the capability.
+  const refusedUnder = Map.groupBy((survey.refusals ?? []).filter((refusal) => liveCapabilities.get(refusal.capability)?.session === refusal.holder), (refusal) => refusal.under);
   const arcOf = new Map(survey.increments.map((one) => [one.id, one.arc]));
   const busy = new Set([...live.keys(), ...running].map((id) => arcOf.get(id)).filter(Boolean));
   const ready = [];
@@ -60,6 +62,11 @@ export function pickPool(survey, { attempts = new Map(), running = [], max = 1, 
       if (held.length) {
         if (attempt && !attempt.refusedBy && held.some((hold) => Date.parse(hold.since) < attempt.at)) attempt.refusedBy = held[0].session;
         return held.map((hold) => `${hold.capability} held by live session ${hold.session}${hold.on ? ` on the list of ${hold.on}` : ""}`).join("; ");
+      }
+      const refused = (refusedUnder.get(one.id) ?? []).map((refusal) => liveCapabilities.get(refusal.capability));
+      if (refused.length) {
+        if (attempt && !attempt.refusedBy && refused.some((hold) => Date.parse(hold.since) < attempt.at)) attempt.refusedBy = refused[0].session;
+        return [...new Set(refused.map((hold) => `${hold.capability} refused its lane, held by live session ${hold.session}`))].join("; ");
       }
       if (attempt && !attempt.refusedBy) {
         attempt.ended ??= now;
@@ -105,9 +112,13 @@ export function pickPlan(survey, { planned = new Set() } = {}) {
     .sort((a, b) => String(a.created).localeCompare(String(b.created)))[0];
 }
 
-/** One survey of the library: every arc with its open questions counted, its increments with their holds (one `arcViews` and one `holds` read), and the standing claims. */
-export async function readSurvey({ library, claims }) {
+/**
+ * One survey of the library: every arc with its open questions counted, its increments with their holds (one `arcViews` and one `holds` read), the standing claims,
+ * and the capability refusals their live holders gave, each under the increment its refused session held (`refusals`, given the live holders' sessions).
+ */
+export async function readSurvey({ library, claims, refusals = async () => [] }) {
   const [views, holds, held] = await Promise.all([library.arcViews(), library.holds(), claims()]);
+  const holders = [...new Set(held.filter((claim) => claim.holder === "live").map((claim) => claim.session))];
   const increments = views.flatMap((view) => view.increments.map((record) => ({
     id: record.id, arc: view.arc.id, arcState: view.state, title: record.fields.title, body: record.fields.body ?? "",
     status: record.fields.status, capabilities: record.fields.capabilities ?? [], parked: record.fields.parked ?? record.createdAt?.toISOString?.(), priority: view.arc.fields?.priority,
@@ -116,7 +127,7 @@ export async function readSurvey({ library, claims }) {
     id: view.arc.id, state: view.state, title: view.arc.fields?.title ?? view.arc.id, created: view.arc.createdAt?.toISOString?.(),
     openQuestions: (view.questions ?? []).filter((question) => question.fields.lifecycle === "open").length,
   }));
-  return { arcs, increments, holds, claims: held };
+  return { arcs, increments, holds, claims: held, refusals: holders.length ? await refusals(holders) : [] };
 }
 
 async function withLibrary(project, use) {
@@ -137,6 +148,8 @@ export async function surveyLibrary(project = "storytree") {
   const { openActivityLog, readClaims } = await import("@storytree/session-management");
   return withLibrary(project, async (library, storytree) => {
     const log = await openActivityLog(storytree);
-    return readSurvey({ library, claims: () => readClaims(log, project) });
+    const refusals = async (holders) => (await log.lines(project, { kinds: ["claim-refused"], has: ["capability", "under"], where: { holder: holders }, omit: ["reason", "file"] }))
+      .map((line) => ({ capability: line.capability, under: line.under, holder: line.holder }));
+    return readSurvey({ library, claims: () => readClaims(log, project), refusals });
   });
 }

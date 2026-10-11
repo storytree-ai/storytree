@@ -1,0 +1,33 @@
+tsc exit: 0
+Reddit report
+Source: C:\Users\mickh\st-import\viewer-for-reddit\fixtures\reddit\things
+
+Records            found  accepted  rejected
+Account                1         1         0
+Comment               24        24         0
+LabeledMulti           7         7         0
+Link                  36        36         0
+Me                     1         1         0
+MediaMetadataItem     20         -         -
+More                  15        15         0
+Subreddit             23        23         0
+
+Posts: 36, with 750.7k points and 25.2k comments
+Communities: 23
+
+Top posts by score
+1.  60.3k  r/mildlyinteresting  In an effort to stop using AI images, my kid's school started using...
+2.  46.9k  r/SipsTea  AMC butter isn't butter, and we're the reason
+3.  41.4k  r/comics  Secret Ingredient - Gator Days
+4.  37.3k  r/mildlyinteresting  Anti ai ads in a subway
+5.  36.8k  r/WeirdSideHustles  Trash Pizza Paid My Bills
+
+Top communities by subscribers
+1.  33.5m  r/pics
+2.  24.6m  r/food
+3.   6.9m  r/programming
+4.   4.8m  r/ProgrammerHumor
+5.   4.4m  r/learnprogramming
+report exit: 0
+No captured records: C:\nope is not a folder.
+missing exit: 1

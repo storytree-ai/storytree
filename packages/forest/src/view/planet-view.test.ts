@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Color, DoubleSide, Euler, Group, LineBasicMaterial, LineSegments, Mesh, MeshBasicMaterial, OrthographicCamera, PlaneGeometry, Quaternion, Raycaster, SphereGeometry, SRGBColorSpace, Vector2, Vector3 } from "three";
 import { workStates } from "@storytree/arc-surface";
-import { forestDrawn, forestScene, islandArea, MAPPED_ISLAND_CAP, MIN_ISLAND_AREA, openingTurn, storyNodes, type FacingIsland } from "@storytree/forest";
+import { forestDrawn, forestScene, MAPPED_ISLAND_CAP, MIN_ISLAND_AREA, openingTurn, storyNodes, type FacingIsland } from "@storytree/forest";
 import type { AnnotatedTree, Change } from "@storytree/library";
 import { dragTurn, focusRotation, globeFraming, globeHover, hiddenMarkers, isGlobeDrag, pickGlobe, pickIsland, planetLayout, pointedFile } from "./planet-navigation.js";
 import { codePathKey } from "@storytree/knowledge-core";
@@ -461,10 +461,10 @@ test("3.39 a mapped story is one brown island, whole: no territories, file circl
   const scene = (lines?: number, read: AnnotatedTree = tree) => forestScene(read, [], workStates([]), lines === undefined ? {} : survey(lines));
   const cart = scene(2_000).islands[0]!;
   assert.deepEqual(cart.land, { territories: [{ mapped: true, lines: 2_000 }], files: [] }, "one mapped territory, and no file circles");
-  assert.equal(cart.area, islandArea(2_000), "a small mapped island's land follows its lines as a built island's does");
+  assert.equal(cart.area, 3_000, "a small mapped island's land follows its lines as a built island's does: 1.5 ground units² a line");
   const huge = scene(200_000).islands;
   assert.equal(huge[0]!.area, MAPPED_ISLAND_CAP, "a very large one is capped");
-  assert.ok(MAPPED_ISLAND_CAP < islandArea(200_000));
+  assert.ok(MAPPED_ISLAND_CAP < 300_000, "below the 300,000 ground units² 200,000 lines would have uncapped");
   assert.equal(huge[1]!.area, scene(2_000).islands[1]!.area, "and its built neighbour keeps its own land");
   assert.notEqual(huge[0]!.key, cart.key, "a mapped island redraws when its code grows");
   // A project whose only stories are mapped, before any survey or verification, opens on brown land.
@@ -475,7 +475,13 @@ test("3.39 a mapped story is one brown island, whole: no territories, file circl
   const map = territories(cart.land!.territories, 20);
   const drawn = territoryLand(map, (p) => new Vector3(p.x, 0, p.z));
   const mesh = drawn.getObjectByName("territory:mapped") as Mesh;
-  assert.ok(mesh.geometry.attributes.position!.count > 0, "the whole island is brown land");
+  const at = mesh.geometry.attributes.position!;
+  const brownArea = Array.from({ length: at.count / 3 }, (_, t) => {
+    const [a, b, c] = [0, 1, 2].map(k => ({ x: at.getX(3 * t + k), z: at.getZ(3 * t + k) }));
+    return Math.abs((b!.x - a!.x) * (c!.z - a!.z) - (c!.x - a!.x) * (b!.z - a!.z)) / 2;
+  }).reduce((sum, area) => sum + area, 0);
+  const landArea = map.cells.reduce((sum, { polygon }) => sum + Math.abs(polygon.reduce((twice, p, i) => { const q = polygon[(i + 1) % polygon.length]!; return twice + p.x * q.z - q.x * p.z; }, 0)) / 2, 0);
+  assert.ok(landArea > 0 && Math.abs(brownArea - landArea) < landArea * 1e-6, "the whole island is brown land: the brown covers every cell");
   assert.deepEqual(mesh.userData, { territory: true, mapped: true }, "picked as land, with no capability and no word");
   assert.equal(drawn.getObjectByName("territory:unclaimed"), undefined, "never the uncharted look");
   assert.equal(drawn.getObjectByName("territory-hatch:unclaimed"), undefined, "and never hatched");

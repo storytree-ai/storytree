@@ -535,12 +535,16 @@ export const exitCode = (rows) => (rows.some((row) => row.notRun !== undefined) 
 
 /**
  * How far apart two builds' medians must be before one is called slower or faster (ADR-1001 D3): by more than this share of the
- * build compared against, and by more than one frame.
+ * quicker build, and by more than two frames. A round's settled time is read once a frame, so two builds in their own browsers can sit
+ * a frame apart on every round with nothing between them: main against itself read a Library note 12 ms against 31 ms.
  */
-export const MARGIN = { ratio: 0.2, ms: 16 };
+export const MARGIN = { ratio: 0.2, ms: 33 };
 
-/** The page's background poll, made on a timer, not asked for by an action: its count per round varies by wall time. */
-const POLL = new Set(["changesSince", "linesSince", "recordLag"]);
+/**
+ * The page's background polls, made on timers, not asked for by an action: the library's changes and the log's lines, the project
+ * list (every 3 s) and the lag recorder's flush. Their count per round varies by wall time.
+ */
+const POLL = new Set(["changesSince", "linesSince", "projectSelection", "recordLag"]);
 
 /**
  * What a comparison measures an action by, from its rounds on both builds: its settled time when it has something to settle, else
@@ -566,7 +570,7 @@ function readsPerRound(rounds) {
 /**
  * One action compared on two builds measured together: `ours` (this checkout's rounds) against `theirs` (the build it is compared
  * against). Both medians of its measure, the difference, and a verdict: slower when this build's median is worse by more than
- * MARGIN's share of the other's and by more than a frame, faster when better by more than MARGIN's share of its own and a frame,
+ * MARGIN's share of the other's and by more than its milliseconds, faster when better by more than MARGIN's share of its own and its milliseconds,
  * otherwise the same. A read the action asks for a different
  * number of times per round is listed in `counts`. A side that could not perform it makes the row NOT RUN, naming that side.
  */

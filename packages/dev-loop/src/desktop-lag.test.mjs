@@ -132,9 +132,11 @@ test("8.7 pnpm lag:desktop --against judges each action slower, the same or fast
   // 100 ms of main-thread work more per round: past 20% and past a frame, so slower.
   assert.equal(compareAction(action("open-most-island", [512, 531, 1390, 505, 520]), against).verdict, "slower");
   assert.equal(compareAction(against, action("open-most-island", [512, 531, 1390, 505, 520])).verdict, "faster");
-  // A short action: 40 ms to 52 ms is 30% worse but under a frame, so the same; 150 ms to 175 ms is past a frame but under 20%.
-  assert.equal(compareAction(action("close-panel", [52, 50, 54]), action("close-panel", [40, 38, 41])).verdict, "same");
-  assert.equal(compareAction(action("close-panel", [175, 176, 174]), action("close-panel", [150, 151, 149])).verdict, "same");
+  // A short action a frame apart on every round (settled is read once a frame) is the same, though it is 160% worse; 300 ms to
+  // 350 ms is past two frames but under 20%, so the same too; 40 ms to 80 ms is past both, so slower.
+  assert.equal(compareAction(action("open-library-note", [31, 30, 120, 28, 32]), action("open-library-note", [12, 10, 123, 27, 11])).verdict, "same");
+  assert.equal(compareAction(action("close-panel", [350, 352, 348]), action("close-panel", [300, 301, 299])).verdict, "same");
+  assert.equal(compareAction(action("close-panel", [80, 81, 79]), action("close-panel", [40, 38, 41])).verdict, "slower");
   // An action with nothing to settle is compared on its response; one with no input either, on its frames over 50 ms.
   const hover = (response) => ({ name: "hover-sweep", budget, rounds: [{ inputs: 9, response, frames: [], settled: null, ipc: {} }] });
   assert.deepEqual([compareAction(hover(90), hover(30)).measure, compareAction(hover(90), hover(30)).verdict], ["response", "slower"]);
@@ -142,7 +144,7 @@ test("8.7 pnpm lag:desktop --against judges each action slower, the same or fast
   assert.deepEqual([compareAction(idle(60), idle(160)).measure, compareAction(idle(60), idle(160)).verdict], ["frames", "faster"]);
 
   // A read the action asks for more often is a finding of its own, whatever the times say; the page's background poll is not.
-  const more = action("open-named-island", [300, 301, 299], { "storytree:projectTree": 1, "storytree:arcViews": 3, "storytree:changesSince": 2 });
+  const more = action("open-named-island", [300, 301, 299], { "storytree:projectTree": 1, "storytree:arcViews": 3, "storytree:changesSince": 2, "storytree:projectSelection": 1 });
   const fewer = action("open-named-island", [300, 302, 298], { "storytree:projectTree": 1, "storytree:arcViews": 1, "storytree:linesSince": 1 });
   assert.deepEqual(compareAction(more, fewer).counts, [{ channel: "arcViews", against: 1, this: 3 }]);
   // A side that could not perform the action makes its row NOT RUN, saying which build.

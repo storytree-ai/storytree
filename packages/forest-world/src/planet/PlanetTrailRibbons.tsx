@@ -2,11 +2,13 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { BufferGeometry, CircleGeometry, Color, DoubleSide, Float32BufferAttribute, type Mesh, Quaternion, ShaderMaterial, Vector3 } from 'three';
-import type { PlanetPathways } from './pathways.js';
+import type { PlanetPathways, PlanetPathwaySegment } from './pathways.js';
 import { growthProgress, linkKey, roadSegmentWindows, segmentDrawRange, type GrowthWindow } from './growth.js';
 import { usePlanetGrowth } from './PlanetGrowth.js';
-import { advanceLaneClock, entranceShown, laneDelays, laneDrawSeconds, laneEntrances, laneHead, LANE_GLOW, laneProgress, laneRoutes, type LitLink } from './lanes.js';
+import { advanceLaneClock, entranceShown, laneDelays, laneDrawSeconds, laneEntrances, laneHead, LANE_GLOW, laneProgress, laneRoutes, type InlandWay, type LitLink } from './lanes.js';
 import { liveRoadProgress, liveRoadsGrowing, nextLiveRoads } from './live-roads.js';
+import { trailFillWidth } from '../core/routing.js';
+import { RIBBON_GROUND_SCALE } from '../trail-ribbon-width.js';
 
 const ribbonShapes = new WeakMap<BufferGeometry, {
   position: Float32Array; distances: number[]; movedPair: number | undefined;
@@ -32,6 +34,8 @@ export function ribbon(route: { points: Vector3[]; width: number }, halo = false
   geometry.setIndex(index);
   const distances = route.points.map(() => 0);
   for (let i = 1; i < route.points.length; i++) distances[i] = distances[i - 1]! + route.points[i]!.distanceTo(route.points[i - 1]!);
+  // How far along the road each vertex lies, for a type-only road's dashes.
+  geometry.setAttribute('along', new Float32BufferAttribute(distances.flatMap(d => [d, d]), 1));
   ribbonShapes.set(geometry, { position: new Float32Array(position), distances, movedPair: undefined });
   // Culling uses the complete strip even while its front is between two stations.
   geometry.computeBoundingSphere();
@@ -103,13 +107,39 @@ export function laneRibbon(route: { points: Vector3[]; widths: readonly number[]
 /** The head: how far behind the front its brightness fades, and how much wider than the body it runs. */
 const HEAD_TAIL = 14, HEAD_WIDEN = 0.45;
 
+/** A type-only road or lane is dashed (ADR-0991 D1): this long drawn, then this long left out, in ground units, so
+ * it reads apart from a link by value at a glance, lit or not. */
+export const TYPE_ONLY_DASH = { on: 2.2, off: 1.6 } as const;
+const DASH_GLSL = `if (uDashed > 0.5 && mod(vAlong, ${(TYPE_ONLY_DASH.on + TYPE_ONLY_DASH.off).toFixed(2)}) > ${TYPE_ONLY_DASH.on.toFixed(2)}) discard;`;
+
+/** How a road is inked: dashed when it carries a type-only link, and where links by value share it, the width of the
+ * solid core they alone would make down its middle. */
+export function roadInk(segment: Pick<PlanetPathwaySegment, 'links' | 'typeOnlyLinks'>): { dashed: boolean; core?: number } {
+  const typed = segment.typeOnlyLinks ?? 0;
+  if (typed === 0) return { dashed: false };
+  return typed < segment.links.length ? { dashed: true, core: trailFillWidth(segment.links.length - typed) * RIBBON_GROUND_SCALE } : { dashed: true };
+}
+
+/** A type-only road's ink: the road's own colour, dashed along its length. */
+export function dashedRoadMaterial(colour: string): ShaderMaterial {
+  return new ShaderMaterial({
+    uniforms: { uColour: { value: new Color(colour) }, uDashed: { value: 1 } },
+    vertexShader: `attribute float along; varying float vAlong;
+void main() { vAlong = along; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+    fragmentShader: `uniform vec3 uColour; uniform float uDashed; varying float vAlong;
+void main() { ${DASH_GLSL} gl_FragColor = vec4(uColour, 1.0); }`,
+    side: DoubleSide,
+  });
+}
+
 /** Drawn where a fragment's distance along the route is at most `uDrawn`: the front lies at its exact physical
  * distance wherever it falls between samples. Near the front the strip brightens and widens (the head); a glow
- * strip fades out towards its edges. Colours are written as authored (the globe's exact-colour mode). */
-export function laneMaterial(colour: string, glow: boolean, opacity: number): ShaderMaterial {
+ * strip fades out towards its edges; a type-only lane is dashed. Colours are written as authored (the globe's
+ * exact-colour mode). */
+export function laneMaterial(colour: string, glow: boolean, opacity: number, dashed = false): ShaderMaterial {
   return new ShaderMaterial({
     uniforms: { uColour: { value: new Color(colour) }, uOpacity: { value: opacity }, uDrawn: { value: -1 }, uHead: { value: 0 },
-      uTail: { value: HEAD_TAIL }, uWiden: { value: HEAD_WIDEN }, uGlow: { value: glow ? 1 : 0 } },
+      uTail: { value: HEAD_TAIL }, uWiden: { value: HEAD_WIDEN }, uGlow: { value: glow ? 1 : 0 }, uDashed: { value: dashed ? 1 : 0 } },
     vertexShader: `attribute float along; attribute float across; attribute vec3 sideways;
 uniform float uDrawn; uniform float uHead; uniform float uTail; uniform float uWiden;
 varying float vAlong; varying float vAcross;
@@ -118,11 +148,12 @@ void main() {
   vAlong = along; vAcross = across;
   gl_Position = projectionMatrix * modelViewMatrix * vec4(position + sideways * uWiden * head, 1.0);
 }`,
-    fragmentShader: `uniform vec3 uColour; uniform float uOpacity; uniform float uDrawn; uniform float uHead; uniform float uTail; uniform float uGlow;
+    fragmentShader: `uniform vec3 uColour; uniform float uOpacity; uniform float uDrawn; uniform float uHead; uniform float uTail; uniform float uGlow; uniform float uDashed;
 varying float vAlong; varying float vAcross;
 void main() {
   float behind = uDrawn - vAlong;
   if (behind < 0.0) discard;
+  ${DASH_GLSL}
   float head = uHead * (1.0 - smoothstep(0.0, uTail, behind));
   float edge = uGlow > 0.5 ? pow(1.0 - abs(vAcross), 1.2) : 1.0;
   gl_FragColor = vec4(mix(uColour, vec3(1.0), 0.6 * head), min(1.0, uOpacity * edge * (1.0 + 1.5 * head * uGlow)));
@@ -136,6 +167,8 @@ export function drawLane(material: ShaderMaterial, progress: number, head: numbe
   material.uniforms.uDrawn!.value = progress > 0 ? progress * length : -1;
   material.uniforms.uHead!.value = head;
 }
+
+const ROAD_COLOUR = '#c7bba1';
 
 // Neither the road nor its light can occlude a name, claim marker or island selection ray.
 const ignoreRay = () => {};
@@ -163,15 +196,16 @@ export function Pathways({ plan, reveal, live = false, visible = true }: { plan:
   const windows = useMemo(() => live ? roadSegmentWindows(plan, state.roads) : reveal, [plan, live, state.roads, reveal]);
   const meshes = useMemo(() => plan.segments
     .map(route => {
-      const geometry = ribbon(route), halo = ribbon(route, true);
+      const ink = roadInk(route), geometry = ribbon(route), halo = ribbon(route, true);
+      const dashed = ink.dashed ? dashedRoadMaterial(ROAD_COLOUR) : undefined;
+      const core = ink.core === undefined ? undefined : ribbon({ points: route.points, width: ink.core });
       if (live) {
         const window = windows?.get(route.id), drawn = liveRoadProgress(window, state.elapsed, state.reduced);
-        revealRibbon(geometry, drawn, window?.fromEnd);
-        revealRibbon(halo, drawn, window?.fromEnd);
+        for (const strip of [geometry, halo, core]) if (strip) revealRibbon(strip, drawn, window?.fromEnd);
       }
-      return { route, geometry, halo };
+      return { route, geometry, halo, dashed, core };
     }), [plan, live]);
-  useEffect(() => () => meshes.forEach(mesh => { mesh.geometry.dispose(); mesh.halo.dispose(); }), [meshes]);
+  useEffect(() => () => meshes.forEach(mesh => { mesh.geometry.dispose(); mesh.halo.dispose(); mesh.dashed?.dispose(); mesh.core?.dispose(); }), [meshes]);
   const growth = usePlanetGrowth();
   const { invalidate } = useThree();
   useEffect(() => { if (live || visible) invalidate(); }, [meshes, live, visible, invalidate]);
@@ -188,7 +222,7 @@ export function Pathways({ plan, reveal, live = false, visible = true }: { plan:
     }
     const now = live ? state.elapsed : growth.now();
     let drawing = false;
-    for (const { route, geometry, halo } of meshes) {
+    for (const { route, geometry, halo, core } of meshes) {
       const window = windows?.get(route.id);
       // A segment no road schedules keeps painting whole.
       const arrived = live ? liveRoadProgress(window, now, state.reduced) : growthProgress(window, now, false);
@@ -197,13 +231,11 @@ export function Pathways({ plan, reveal, live = false, visible = true }: { plan:
       const drawn = Math.min(arrived, shown);
       if (live || show.elapsed !== undefined) {
         const fromEnd = window?.fromEnd ?? shownWindow?.fromEnd;
-        revealRibbon(geometry, drawn, fromEnd);
-        revealRibbon(halo, drawn, fromEnd);
+        for (const strip of [geometry, halo, core]) if (strip) revealRibbon(strip, drawn, fromEnd);
         drawing ||= shown < 1 || (live && arrived < 1);
       } else {
         const range = segmentDrawRange((geometry.index?.count ?? 0) / 6, drawn, window?.fromEnd ?? false);
-        geometry.setDrawRange(range.start, range.count);
-        halo.setDrawRange(range.start, range.count);
+        for (const strip of [geometry, halo, core]) strip?.setDrawRange(range.start, range.count);
       }
     }
     // Run the clock until every arrival's own time ends, not only until its spans draw whole (6.16).
@@ -213,11 +245,14 @@ export function Pathways({ plan, reveal, live = false, visible = true }: { plan:
   return <group name="pathways:cross-island" userData={{
     links: plan.edges.map(edge => ({ from: edge.from, to: edge.to })),
     segmentCount: plan.segments.length,
-  }}>{meshes.map(({ route, geometry, halo }) => <group key={route.id}>
-    <mesh name={`pathway:${route.id}`} geometry={geometry} raycast={ignoreRay}
-      userData={{ links: route.links, widthGround: route.width, unrouted: route.unrouted }}>
-      <meshBasicMaterial color="#c7bba1" side={DoubleSide} />
+  }}>{meshes.map(({ route, geometry, halo, dashed, core }) => <group key={route.id}>
+    <mesh name={`pathway:${route.id}`} geometry={geometry} raycast={ignoreRay} {...dashed ? { material: dashed } : {}}
+      userData={{ links: route.links, widthGround: route.width, unrouted: route.unrouted, ...route.typeOnlyLinks ? { typeOnlyLinks: route.typeOnlyLinks } : {} }}>
+      {!dashed && <meshBasicMaterial color={ROAD_COLOUR} side={DoubleSide} />}
     </mesh>
+    {core && <mesh name={`pathway-core:${route.id}`} geometry={core} raycast={ignoreRay}>
+      <meshBasicMaterial color={ROAD_COLOUR} side={DoubleSide} polygonOffset polygonOffsetFactor={-1} polygonOffsetUnits={-1} />
+    </mesh>}
     <mesh name={`pathway-halo:${route.id}`} geometry={halo} raycast={ignoreRay}>
       <meshBasicMaterial color="#dacaaa" transparent opacity={0.10} depthWrite={false} side={DoubleSide} forceSinglePass />
     </mesh>
@@ -229,19 +264,20 @@ const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(pre
 /** A mark's disc faces out from the globe, like the ground it lies on. */
 const pip = new CircleGeometry(1, 24), up = new Vector3(0, 0, 1);
 
-/** A selected story's lit links (world 6.8–6.9): each lane fills its road between islands, dock to dock, with a glow in
- * its colour, and draws on from the island built on with a bright head at its front, the lanes starting a little apart.
- * It marks each dock it uses as its front leaves or reaches it. A new selection draws its lanes again. */
-export function SelectionLanes({ plan, lit }: { plan: PlanetPathways; lit: readonly LitLink[] }) {
+/** A selected story's lit links (world 6.8–6.9): each lane fills its road between islands with a glow in its colour,
+ * runs on inland along `inland`'s way to its capability's territory at each end, and draws on from the island built on
+ * with a bright head at its front, the lanes starting a little apart; a type-only lane is dashed. It marks each end as
+ * its front leaves or reaches it. A new selection draws its lanes again. */
+export function SelectionLanes({ plan, lit, inland }: { plan: PlanetPathways; lit: readonly LitLink[]; inland?: InlandWay | undefined }) {
   const key = lit.map(link => `${link.dir}:${link.from}->${link.to}`).sort().join('\n');
   const animation = useRef({ key, elapsed: 0, started: false, reduced: reducedMotion() });
   if (animation.current.key !== key) animation.current = { key, elapsed: 0, started: false, reduced: reducedMotion() };
   const lanes = useMemo(() => {
-    const routes = laneRoutes(plan, lit), delays = laneDelays(routes);
+    const routes = laneRoutes(plan, lit, inland), delays = laneDelays(routes);
     return routes.map((lane, i) => ({ lane, seconds: laneDrawSeconds(lane.length), delay: delays[i]!,
-      strip: { geometry: laneRibbon(lane, 1, 0.12), material: laneMaterial(lane.colour, false, 0.95) },
-      glow: { geometry: laneRibbon(lane, LANE_GLOW, 0.1), material: laneMaterial(lane.colour, true, 0.45) } }));
-  }, [plan, lit]);
+      strip: { geometry: laneRibbon(lane, 1, 0.12), material: laneMaterial(lane.colour, false, 0.95, lane.typeOnly) },
+      glow: { geometry: laneRibbon(lane, LANE_GLOW, 0.1), material: laneMaterial(lane.colour, true, 0.45, lane.typeOnly) } }));
+  }, [plan, lit, inland]);
   const entrances = useMemo(() => laneEntrances(lanes.map(({ lane }) => lane)).map(mark => {
     const radial = mark.point.clone().normalize();
     return { mark, position: mark.point.clone().addScaledVector(radial, 0.14), quaternion: new Quaternion().setFromUnitVectors(up, radial),
@@ -281,7 +317,7 @@ export function SelectionLanes({ plan, lit }: { plan: PlanetPathways; lit: reado
     {lanes.map(({ lane, strip, glow }) => <group key={`${lane.from}->${lane.to}`}>
       <mesh name={`lane-glow:${lane.dir}:${lane.from}->${lane.to}`} geometry={glow.geometry} material={glow.material} raycast={ignoreRay} renderOrder={1} />
       <mesh name={`lane:${lane.dir}:${lane.from}->${lane.to}`} geometry={strip.geometry} material={strip.material}
-        raycast={ignoreRay} renderOrder={2} userData={{ from: lane.from, to: lane.to, dir: lane.dir, length: lane.length }} />
+        raycast={ignoreRay} renderOrder={2} userData={{ from: lane.from, to: lane.to, dir: lane.dir, length: lane.length, ...lane.typeOnly ? { typeOnly: true } : {} }} />
     </group>)}
     {entrances.map(({ mark, position, quaternion }, i) => <mesh key={`${mark.dir}:${i}`} name={`lane-entrance:${mark.dir}:${i}`}
       ref={mesh => { marks.current[i] = mesh; }} geometry={pip} position={position} quaternion={quaternion}

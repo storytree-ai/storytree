@@ -1,15 +1,19 @@
 /** Capability 6 · The planet. Selection lanes over the globe's roads (world contracts 6.8–6.9), ported from 0.2's laneLayout and lane draw-on. */
-import type { Vector3 } from 'three';
+import { Vector3 } from 'three';
+import type { CoastPoint } from '../coast-clip.js';
 import { trailFillWidth } from '../core/routing.js';
 import { RIBBON_GROUND_SCALE } from '../trail-ribbon-width.js';
+import { onIslandSurface } from './island-surface.js';
 import type { PlanetPathways, PlanetPathwaySegment } from './pathways.js';
+import { plateTransform, type PlanetSpot } from './planet.js';
 
 /** 0.2's lane inks: what the selection builds on, and what builds on it. */
 export const LANE_COLOUR = { up: '#0d8fb0', down: '#6a5fee' } as const;
 
 export interface LitLink { from: string; to: string; dir: 'up' | 'down' }
 export interface LaneRoute extends LitLink {
-  /** From the dock of the island built on (`to`'s) to the dock of the island building on it (`from`'s): dependency order. */
+  /** From `to`'s territory on the island built on, through its dock, along the road to the dock of the island building
+   * on it and on to `from`'s territory: dependency order. */
   points: Vector3[];
   length: number;
   /** Across the lane at each point: its road's width, or just under half where an up and a down lane share the road. */
@@ -17,6 +21,30 @@ export interface LaneRoute extends LitLink {
   /** The narrowest of `widths`. */
   width: number;
   colour: string;
+  /** Only the code's types join the two capabilities (ADR-0991 D1): the lane is dashed, as its road is. */
+  typeOnly?: true;
+}
+
+/** A dock a lane uses, as the host's way inland starts from it. */
+export interface LaneDock { story: string; local: CoastPoint; point: Vector3 }
+/** The way inland from `dock` to `capability`'s territory, on the globe, starting on the dock; none where it ends there. */
+export type InlandWay = (dock: LaneDock, capability: string) => readonly Vector3[] | undefined;
+
+/** A lane inland is as wide as a road one link uses, so it reads as a thread along the borders rather than a road. */
+const INLAND_WIDTH = trailFillWidth(1) * RIBBON_GROUND_SCALE;
+/** The farthest apart two points of a way inland are, in ground units, so its straight pieces stay on the land. */
+const INLAND_STEP = 1;
+
+/** A way inland given in an island's own ground coordinates (`local`, starting on its dock), laid on the island as
+ * the globe draws it at `spot`, every step at most a unit long. */
+export function onIsland(local: readonly CoastPoint[], spot: PlanetSpot, radius: number): Vector3[] {
+  const transform = plateTransform(spot, radius), at = new Vector3(...transform.position), surface = onIslandSurface(radius);
+  const fine = local.flatMap((p, i) => {
+    if (i === 0) return [p];
+    const a = local[i - 1]!, steps = Math.max(1, Math.ceil(Math.hypot(p.x - a.x, p.z - a.z) / INLAND_STEP));
+    return Array.from({ length: steps }, (_, j) => ({ x: a.x + (p.x - a.x) * (j + 1) / steps, z: a.z + (p.z - a.z) * (j + 1) / steps }));
+  });
+  return fine.map(p => surface(p).applyQuaternion(transform.quaternion).add(at));
 }
 
 /** Each of two colours sharing a road takes just under half of it, so a hairline of road parts them. */
@@ -43,20 +71,24 @@ function sharedStrip(segment: PlanetPathwaySegment, dir: LitLink['dir']): Vector
   });
 }
 
-/** Each lit link's road between islands as one strip, dock to dock in dependency order; a link with no trail (one
- * within an island) lights nothing. */
-export function laneRoutes(plan: PlanetPathways, lit: readonly LitLink[]): LaneRoute[] {
+/** Each lit link's road between islands as one strip in dependency order, continued at each end along `inland`'s way
+ * to its capability's territory (ADR-0991 D4); a link with no trail (one within an island) lights nothing. */
+export function laneRoutes(plan: PlanetPathways, lit: readonly LitLink[], inland?: InlandWay): LaneRoute[] {
   const segments = new Map(plan.segments.map(segment => [segment.id, segment]));
   const selected = lit.flatMap(link => {
     const edge = plan.edges.find(e => e.from === link.from && e.to === link.to);
     const chain = edge?.segments ?? [];
-    return chain.length === 0 ? [] : [{ link, chain }];
+    return chain.length === 0 ? [] : [{ link, chain, typeOnly: edge?.typeOnly }];
   });
   const colours = new Map<string, number>();
   for (const { link, chain } of selected) for (const ref of chain) {
     colours.set(ref.id, (colours.get(ref.id) ?? 0) | (link.dir === 'up' ? 1 : 2));
   }
-  return selected.map(({ link, chain }): LaneRoute => {
+  const way = (end: Vector3, capability: string): Vector3[] => {
+    const dock = inland && plan.docks.find(d => d.point.distanceTo(end) < 1e-6);
+    return dock ? [...inland!(dock, capability) ?? []].slice(1) : [];
+  };
+  return selected.map(({ link, chain, typeOnly }): LaneRoute => {
     const points: Vector3[] = [], widths: number[] = [];
     // The chain runs from the building capability to the one built on; the lane runs back along it.
     for (const ref of [...chain].reverse()) {
@@ -69,8 +101,11 @@ export function laneRoutes(plan: PlanetPathways, lit: readonly LitLink[]): LaneR
         }
       }
     }
+    const [into, outOf] = [way(points[0]!, link.to).reverse(), way(points.at(-1)!, link.from)];
+    points.unshift(...into); widths.unshift(...into.map(() => INLAND_WIDTH));
+    points.push(...outOf); widths.push(...outOf.map(() => INLAND_WIDTH));
     const length = points.slice(1).reduce((sum, point, i) => sum + point.distanceTo(points[i]!), 0);
-    return { ...link, points, length, widths, width: Math.min(...widths), colour: LANE_COLOUR[link.dir] };
+    return { ...link, points, length, widths, width: Math.min(...widths), colour: LANE_COLOUR[link.dir], ...typeOnly ? { typeOnly } : {} };
   });
 }
 

@@ -240,7 +240,7 @@ function onLand(p: Point, coast: readonly (readonly Point[])[]): boolean {
 }
 
 /** The pieces of the segment from `from` to `to` that lie on the land. */
-function insideOf(from: Point, to: Point, coast: readonly (readonly Point[])[]): { from: Point; to: Point }[] {
+export function insideOf(from: Point, to: Point, coast: readonly (readonly Point[])[]): { from: Point; to: Point }[] {
   const cuts = [0, 1];
   const d = { x: to.x - from.x, z: to.z - from.z };
   for (const ring of coast) {

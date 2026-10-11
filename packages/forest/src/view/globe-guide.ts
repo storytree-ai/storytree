@@ -10,7 +10,7 @@ export type CameraStop = { target: GlobeTarget; framing?: number; sideOffset?: n
 export type ScreenPosition = { x: number; y: number; visible: boolean };
 /** `moving` says a stop's glide is still under way; `notes` lists the Library's notes drawn on the globe, by id. */
 export type GlobeControls = { stop(stop: CameraStop): boolean; position(target: GlobeTarget): ScreenPosition | undefined; cancel(): void; moving(): boolean; notes(): string[] };
-/** The controls a globe view hands over, with the panel width (CSS pixels) it last placed itself beside (3.40, 3.43). */
+/** The controls a globe view hands over, with the panel width (CSS pixels) it last placed itself beside (3.40, 3.45). */
 export type PlacedGlobeControls = GlobeControls & { aside(): number };
 /** The short way round from `from` to face the way `to` does, as a yaw to ease toward. */
 const nearestYaw = (from: number, to: number) => from + Math.atan2(Math.sin(to - from), Math.cos(to - from));

@@ -17,7 +17,7 @@ export interface GlobeLocator {
   /** Turn the globe at once, with no glide, to face `target`; false when it is not drawn. */
   face(target: GlobeTarget): boolean;
   /** Whether the globe has handed over its controls, no glide is under way and the globe sits beside the panel as the page
-   * measures it now: a panel that has just opened or closed starts its slide only after the next paint (3.43). */
+   * measures it now: a panel that has just opened or closed starts its slide only after the next paint (3.45). */
   still(): boolean;
 }
 

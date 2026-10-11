@@ -159,7 +159,7 @@ test("3.41 the page's locator gives each drawn island's capability count and cli
   assert.equal(locator.face({ kind: "story", story: "missing" }), false);
 });
 
-test("3.43 the locator reads still only once the globe has placed itself beside the panel as the page measures it now", () => {
+test("3.45 the locator reads still only once the globe has placed itself beside the panel as the page measures it now", () => {
   const f = fixture();
   let placed = 0, measured = 0;
   const controls = { ...f.guide, aside: () => placed };

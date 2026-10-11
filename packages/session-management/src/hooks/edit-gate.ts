@@ -4,7 +4,9 @@
  * and when it may not, answers the harness with a refusal the agent reads, so the edit never happens.
  * Claude Code's Write, Edit, MultiEdit and NotebookEdit name their file; Write gives the file's whole new
  * text, read for its declaration since a new file has none on disk. Codex's apply_patch names its files
- * in the patch, and gives an added file's text there.
+ * in the patch, and gives an added file's text there. Cursor's Write, StrReplace and Delete name their file
+ * (`file_path` from its command line, `path` in its editor's transcripts) and its ApplyPatch is the patch text;
+ * a Claude Code hook that Cursor runs gates nothing, since Cursor's own entry does (3.28).
  *
  * Which capability a file declares is the map's rule, given by the hook command that runs this (the app
  * setup's, ADR-0969); a hook given none refuses nothing.
@@ -18,6 +20,7 @@ import path from "node:path";
 import type { DeclaredCapabilities } from "../claims/edit-gate.js";
 import type { LocateOptions } from "../routing/index.js";
 import { patchEdits } from "./codex.js";
+import { cursorSession } from "./cursor.js";
 import { withDeadline } from "./deadlines.js";
 import type { HookFailure } from "./failures.js";
 
@@ -30,6 +33,8 @@ const GATE_MS = 3_000;
 /** The edit a pre-tool hook's input from `harness` is about to make, or undefined when it is not a file edit. */
 export function editIn(harness: string, input: unknown): { session: string; folder: string; files: { path: string; text?: string }[] } | undefined {
   if (typeof input !== "object" || input === null) return undefined;
+  if (harness === "cursor") return cursorEditIn(input as Record<string, unknown>);
+  if (typeof (input as Record<string, unknown>).cursor_version === "string") return undefined;
   const { hook_event_name: event, session_id: session, cwd: folder, tool_name: tool, tool_input: toolInput } = input as Record<string, unknown>;
   if (event !== "PreToolUse" || !isText(session) || !isText(folder) || typeof toolInput !== "object" || toolInput === null) return undefined;
   const given = toolInput as Record<string, unknown>;
@@ -44,6 +49,34 @@ export function editIn(harness: string, input: unknown): { session: string; fold
   return files.length === 0 ? undefined : { session, folder, files };
 }
 
+/** Cursor's tools that write one named file. */
+const CURSOR_EDITS = new Set(["Write", "StrReplace", "Delete", "MultiEdit", "Edit"]);
+
+/** The file edit a Cursor pre-tool input is about to make. */
+function cursorEditIn(input: Record<string, unknown>): ReturnType<typeof editIn> {
+  const about = cursorSession(input);
+  const { hook_event_name: event, tool_name: tool, tool_input: toolInput } = input;
+  if (event !== "preToolUse" || about === undefined || !isText(tool)) return undefined;
+  if (tool === "ApplyPatch") {
+    const files = typeof toolInput === "string" ? patchEdits(toolInput) : [];
+    return files.length === 0 ? undefined : { ...about, files };
+  }
+  if (!CURSOR_EDITS.has(tool) || typeof toolInput !== "object" || toolInput === null) return undefined;
+  const given = toolInput as Record<string, unknown>;
+  const file = isText(given.file_path) ? given.file_path : given.path;
+  const text = typeof given.content === "string" ? given.content : given.contents;
+  return !isText(file) ? undefined : { ...about, files: [{ path: file, ...(tool === "Write" && typeof text === "string" ? { text } : {}) }] };
+}
+
+/**
+ * A refusal in the shape `harness` reads. Claude Code reads the pre-tool decision and Codex the block it reads
+ * from a Stop hook; Cursor reads a denied permission, and blocks the tool on any answer it cannot parse.
+ */
+export function refusalAnswer(harness: string, reason: string): string {
+  if (harness === "cursor") return JSON.stringify({ permission: "deny", user_message: reason, agent_message: reason });
+  return JSON.stringify({ decision: "block", reason, hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: reason } });
+}
+
 /** The gate's answer for the harness: a refusal when the edit may not happen, else undefined. Never throws; `failed` keeps why it gave up. */
 export async function editGate(harness: string, input: unknown, declared: DeclaredCapabilities | undefined, locate: LocateOptions | undefined, home: string, failed: (stage: HookFailure["stage"], error: unknown) => void): Promise<string | undefined> {
   const edit = editIn(harness, input);
@@ -53,8 +86,7 @@ export async function editGate(harness: string, input: unknown, declared: Declar
   try {
     const reason = await Promise.race([refusalFor(harness, edit, declared, locate, home), late]);
     if (reason === undefined) return undefined;
-    // Claude Code reads the pre-tool decision; Codex reads the block it reads from a Stop hook.
-    return JSON.stringify({ decision: "block", reason, hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: reason } });
+    return refusalAnswer(harness, reason);
   } catch (error) {
     failed("hook", error);
     return undefined;

@@ -13,12 +13,12 @@ import { test } from "node:test";
 import { Client } from "@modelcontextprotocol/client";
 import { InMemoryTransport } from "@modelcontextprotocol/server";
 import { connect } from "@storytree/library";
-import { briefText, checks, checksText, ledgerText, openLedger, openReviews, qualityTools, standingText } from "@storytree/quality-assurance";
+import { briefText, checks, checksText, ledgerText, openLedger, openReviews, standingText } from "@storytree/quality-assurance";
 
 import { approveCheckout, dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/session-management/testing/pg";
 import { createAgentTools } from "./index.js";
 
-test("quality-assurance 1.2 · the shared server's quality_checks answers the package's checks reading, and the installed server serves it for storytree's own library", async () => {
+test("quality-assurance 1.2 · the shared server's quality_checks answers the package's checks reading, and the installed server serves it and the review loop's tools for every project's library, storytree's own or a user's", async () => {
   const project = uniqueProjectName();
   const storytree = await connect({ url: testServerUrl() });
   const library = await storytree.openProject(project);
@@ -28,7 +28,7 @@ test("quality-assurance 1.2 · the shared server's quality_checks answers the pa
     await library.writeKnowledge("check", { title: "Tautological expected value", description: "Expected values computed as the code computes them.", question: "Is any expected value computed the way the code computes it?", enforces: [principle.id] });
     writeFileSync(path.join(folder, ".storytree.json"), JSON.stringify({ project }));
     await approveCheckout(folder, project);
-    const tools = createAgentTools({ folder, dataDir: process.env.STORYTREE_TEST_PG_DATA!, env: {}, extensions: [qualityTools()], merges: { mergedPulls: async () => [] } });
+    const tools = createAgentTools({ folder, dataDir: process.env.STORYTREE_TEST_PG_DATA!, env: {}, merges: { mergedPulls: async () => [] } });
     const client = new Client({ name: "claude-code", version: "test" });
     const [serverSide, clientSide] = InMemoryTransport.createLinkedPair();
     try {
@@ -53,7 +53,7 @@ test("quality-assurance 1.2 · the shared server's quality_checks answers the pa
         await installed.server.connect(serverEnd);
         await lister.connect(clientEnd);
         const names = (await lister.listTools()).tools.map((tool) => tool.name);
-        assert.equal(names.includes("quality_checks"), named === "storytree", named);
+        for (const tool of ["quality_checks", "quality_brief", "quality_take", "quality_answer", "quality_standing"]) assert.ok(names.includes(tool), `${named} serves ${tool}`);
       } finally {
         await lister.close();
         await installed.close();
@@ -79,7 +79,7 @@ test("quality-assurance 3.4 · the shared server's quality_ledger answers the pa
     assert.equal(reading.length, 1);
     writeFileSync(path.join(folder, ".storytree.json"), JSON.stringify({ project }));
     await approveCheckout(folder, project);
-    const tools = createAgentTools({ folder, dataDir: process.env.STORYTREE_TEST_PG_DATA!, env: {}, extensions: [qualityTools()], merges: { mergedPulls: async () => [] } });
+    const tools = createAgentTools({ folder, dataDir: process.env.STORYTREE_TEST_PG_DATA!, env: {}, merges: { mergedPulls: async () => [] } });
     const client = new Client({ name: "claude-code", version: "test" });
     const [serverSide, clientSide] = InMemoryTransport.createLinkedPair();
     try {
@@ -101,7 +101,7 @@ test("quality-assurance 3.4 · the shared server's quality_ledger answers the pa
 
 /** A served client on `folder`'s project with this package's tools, handed to `use`. */
 async function withClient(folder: string, use: (client: Client) => Promise<void>): Promise<void> {
-  const tools = createAgentTools({ folder, dataDir: process.env.STORYTREE_TEST_PG_DATA!, env: {}, extensions: [qualityTools()], merges: { mergedPulls: async () => [] } });
+  const tools = createAgentTools({ folder, dataDir: process.env.STORYTREE_TEST_PG_DATA!, env: {}, merges: { mergedPulls: async () => [] } });
   const client = new Client({ name: "claude-code", version: "test" });
   const [serverSide, clientSide] = InMemoryTransport.createLinkedPair();
   try {

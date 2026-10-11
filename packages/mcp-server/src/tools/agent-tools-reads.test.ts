@@ -206,6 +206,13 @@ test('6.4 a bad call gets a readable refusal rather than a crash, and with story
         ["close_out", { safe: true, why: "all merged" }],
         ["name_session", { title: "Building signup" }],
         ["wire_pipeline", { test: "npm test" }],
+        ["quality_checks", {}],
+        ["quality_ledger", {}],
+        ["quality_brief", { increment: "increment_000000000000", diff: "diff --git a/src/a.ts b/src/a.ts\n+export const a = 1;\n" }],
+        ["quality_take", { increment: "increment_000000000000", return: { checks: [], contracts: [] } }],
+        ["quality_answer", { hit: 1, answer: "fixed" }],
+        ["quality_standing", { increment: "increment_000000000000" }],
+        ["graduate_check", { check: "check_000000000000", part: "a constant asserted equal to itself", enforced_by: "self-equal-assertion" }],
       ];
       // Own's offline tools and the setup check's two do not depend on the library.
       const offlineTools = ["check_setup", "set_up_project", "list_all_runs", "list_own_runs", "stop_own_run", "clear_own_runs"];

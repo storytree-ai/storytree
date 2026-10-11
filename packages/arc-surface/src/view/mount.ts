@@ -6,7 +6,7 @@ import type { BoardScope } from "../board/board.js";
 import type { ArcDrawn } from "../board/smoke.js";
 import type { Timers } from "../live-reading/live-reading.js";
 import type { PageReading } from "../live-reading/page-reading.js";
-import { renderBoard, renderHandle } from "./render.js";
+import { renderBoard, renderHandle, renderSizeControl, sizeControl } from "./render.js";
 import { readPreferences, restorePick, writePreferences } from "./preferences.js";
 
 export interface ArcSurface { open(): void; close(): void; stop(): void }
@@ -14,13 +14,16 @@ export interface ArcSurface { open(): void; close(): void; stop(): void }
 export function mountArcSurface(host: HTMLElement, options: { project: string; reads: BoardReads; timers?: Timers; reading?: PageReading }): ArcSurface {
   const root = document.createElement("div");
   root.className = "arc-surface-mount";
-  root.innerHTML = `${renderHandle(options.project, false)}<section id="arc-drawer" class="arc-overlay" aria-label="Arc surface" hidden>${renderHandle(options.project, true)}<div class="arc-status" role="status"></div><div class="arc-body"></div></section>`;
+  const saved = readPreferences(options.project);
+  // 3.10: expanded, the drawer fills the window below the two bars; the stylesheet reads it from the drawer.
+  let expanded = saved.expanded === true;
+  root.innerHTML = `${renderHandle(options.project, false)}<section id="arc-drawer" class="arc-overlay" aria-label="Arc surface" data-expanded="${expanded}" hidden>${renderHandle(options.project, true)}${renderSizeControl(expanded)}<div class="arc-status" role="status"></div><div class="arc-body"></div></section>`;
   host.append(root);
   const launch = root.querySelector<HTMLButtonElement>("[data-open-arcs]")!;
   const drawer = root.querySelector<HTMLElement>(".arc-overlay")!;
+  const size = root.querySelector<HTMLButtonElement>("[data-expand-arcs]")!;
   const body = root.querySelector<HTMLElement>(".arc-body")!;
   const status = root.querySelector<HTMLElement>(".arc-status")!;
-  const saved = readPreferences(options.project);
   let scope = saved.scope;
   let picked = saved.picked;
   let question: string | undefined;
@@ -28,7 +31,7 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
   let state: BoardState | undefined;
   const folds = new Set<string>();
   const queues = new Set<string>();
-  const remember = () => writePreferences(options.project, { open: !drawer.hidden, scope, ...(picked ? { picked } : {}) });
+  const remember = () => writePreferences(options.project, { open: !drawer.hidden, scope, ...(picked ? { picked } : {}), ...(expanded ? { expanded } : {}) });
   const sayDrawn = (drawn?: ArcDrawn) => {
     const current = JSON.parse(document.body.dataset.drew ?? "{}");
     if (drawn) current.arcSurface = drawn; else delete current.arcSurface;
@@ -86,6 +89,13 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
   document.addEventListener("keydown", onKey);
   launch.addEventListener("click", surface.open);
   drawer.querySelector("[data-close-arcs]")!.addEventListener("click", surface.close);
+  size.addEventListener("click", () => {
+    expanded = !expanded;
+    drawer.dataset.expanded = String(expanded);
+    const { label, title } = sizeControl(expanded);
+    size.textContent = label; size.title = title;
+    remember();
+  });
   body.addEventListener("click", (event) => {
     const button = (event.target as Element).closest<HTMLButtonElement>("button");
     if (!button) return;

@@ -1,0 +1,6 @@
+Red check: the rule `.arc-overlay[data-expanded=true]` with its height removed (z-index only), then
+`node apps/desktop/build.mjs` and `node --import tsx packages/arc-surface/evidence/drawer-expand/capture.mjs`.
+The capture fails on the expanded-height assertion (exit 1); the rule was restored afterwards and the capture passes.
+
+AssertionError [ERR_ASSERTION]: expanded, the drawer reaches the window's bottom edge (576 of 960)
+    at expandedAt (packages/arc-surface/evidence/drawer-expand/capture.mjs:142:12)

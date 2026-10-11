@@ -59,6 +59,7 @@ export type {
   CapabilityWhy,
   HealthWorkItem,
   ChangedOnMain,
+  NamedOnMain,
   PendingRun,
   EarlierVerdict,
   HealthColumn,

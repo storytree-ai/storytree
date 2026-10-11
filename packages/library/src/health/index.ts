@@ -17,6 +17,7 @@ export type {
   HealthState,
   NodeHealth,
   ChangedOnMain,
+  NamedOnMain,
   PendingRun,
   SkipKind,
 } from "./health-record.js";

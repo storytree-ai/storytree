@@ -6,6 +6,7 @@
     ".": "./src/index.ts",
     "./code-survey": "./src/code-survey/read-survey.ts",
     "./code-survey/worker": "./src/code-survey/survey-worker.ts",
+    "./package-of": "./src/code-survey/package-of.ts",
     "./read": "./src/read.ts"
   },
   "scripts": {

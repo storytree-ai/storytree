@@ -3,8 +3,8 @@
 // workspace dependencies (every field of package.json counts, as in package-boundaries.mjs). The
 // library holds the plan and CI cannot read it, so `pnpm gate` runs this as check:plan-edges.
 //
-// A story's package is named after its title, as the forest's code survey names it (packageOf in
-// packages/forest/src/code-survey/code-survey.ts); the app story's code is the frame, packages/app and
+// A story's package is named after its title, as the map's code survey names it (packageOf in
+// packages/map/src/code-survey/package-of.ts); the app story's code is the frame, packages/app and
 // apps/desktop. A story with no package has no code edges, so nothing it plans is checked.
 //
 // The plan is shared by every lane, so the gate holds a branch only to the edges between stories whose
@@ -17,13 +17,13 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-const NAMED_OTHERWISE = { "command-line": "cli", world: "forest-world", "local-database": "local-postgres", "process-ledger": "processes", "lag-in-real-use": "lag-in-use" };
+import { packageOf } from "@storytree/map/package-of";
+
 const FIELDS = ["dependencies", "devDependencies", "optionalDependencies", "peerDependencies"];
 
 /** The repo-relative folders holding a story's code, by its title. */
 function packagesOf(title) {
-  const name = title.replace(/^the\s+/i, "").toLowerCase().replace(/['’]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-  const id = NAMED_OTHERWISE[name] ?? name;
+  const id = packageOf(title);
   return id === "app" ? ["packages/app", "apps/desktop"] : [`packages/${id}`];
 }
 

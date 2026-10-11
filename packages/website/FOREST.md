@@ -34,21 +34,15 @@ viewport before importing React, the committed JSON and the public
 `@storytree/forest-world/planet` canvas. The still stays visible until a frame has
 drawn. Missing WebGL, download or initialization failures, a 15-second startup
 timeout, and context loss leave the still in place. No JavaScript is needed for
-the still, installation command or contact links. The map renders on demand;
-keyboard and touch buttons turn it while scrolling over the drawing continues
-to scroll the page.
+the still. The map renders on demand and is turned by dragging it.
 
-Refresh the two stills whenever the JSON or shared renderer changes. From the
-checkout root, after refreshing the snapshot above:
+Refresh the two stills (`public/forest-*.png`) whenever the JSON or shared renderer changes. They are captured, as the shop's
+are, from the website's own live drawing of free play, switched to storytree's project. From the checkout root, after refreshing
+the snapshot above:
 
 ```sh
 pnpm --filter @storytree/website build
-node packages/website/evidence/forest/build-observed.mjs
-node packages/website/evidence/forest/capture.mjs --stills
-pnpm --filter @storytree/website build
-node packages/website/evidence/forest/verify.mjs
-node packages/website/evidence/forest/build-observed.mjs
-node packages/website/evidence/forest/capture.mjs
+node packages/website/evidence/forest/shop-stills.mjs storytree
 ```
 
 The shop's two stills (`public/shop-*.png`, shown in free play on the shop without WebGL) are captured from the website's own

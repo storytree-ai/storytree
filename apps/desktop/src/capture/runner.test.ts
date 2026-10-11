@@ -37,7 +37,7 @@ test("2.9 · capture settling awaits each requested frame after invalidating the
     "a page without a globe hook still awaits its frames");
 });
 
-test("2.11 · a capture's stand-in bridge opens the page with the first-run guide already seen, unless the capture pictures the guide", async t => {
+test("2.12 · a capture's stand-in bridge opens the page with the first-run guide already seen, unless the capture pictures the guide", async t => {
   const browser = await chromium.launch({ channel: "chrome", headless: true });
   t.after(() => browser.close());
   const guideSeen = async (options?: { guide: "unseen" }) => {

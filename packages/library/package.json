@@ -20,6 +20,7 @@
     "@storytree/local-postgres": "workspace:*",
     "@types/node": "^24.13.6",
     "@types/pg": "^8.23.1",
+    "electron": "44.4.5",
     "tsx": "^4.23.15",
     "typescript": "~7.0.2"
   }

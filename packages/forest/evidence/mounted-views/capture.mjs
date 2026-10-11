@@ -60,7 +60,7 @@ try {
       await opened(page);
       const host = page.locator('#globe');
       assert.equal(await host.getAttribute('data-view'), 'globe');
-      assert.deepEqual(await switches(page), { stories: 'true', library: 'true' }, '3.10 a new launch opens with both switches on');
+      assert.deepEqual(await switches(page), { stories: 'true', library: 'false' }, '3.10 a new launch opens with Stories on and Library off');
       assert.equal(await host.getAttribute('data-forest-mode'), 'forest');
       const canvas = await page.evaluateHandle(() => window.proof.canvas());
       // 3.4: each near-side story node carries its story's name.
@@ -102,6 +102,8 @@ try {
         assert.deepEqual(await pose(), opening, `3.10 ${which} keeps the camera, turn and zoom`);
         return drawn();
       };
+      const libraryOn = await press('library', 'forest', stories.length);
+      assert.deepEqual(libraryOn, { mode: 'forest', plates: stories.length, core: true, seen: true, switches: ['Stories', 'Library'] }, '3.9 Library on: the islands over the core');
       const libraryOff = await press('library', 'forest', stories.length);
       assert.deepEqual(libraryOff, { mode: 'forest', plates: stories.length, core: false, seen: true, switches: ['Stories', 'Library'] }, '3.9 Library off: the islands on a solid globe');
       assert.deepEqual(await switches(page), { stories: 'true', library: 'false' }, '3.10 a press flips only its own switch');

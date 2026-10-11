@@ -6,10 +6,14 @@
  * which is not a local address, and the socket is pointed at the peer on this machine; the
  * certificate is still checked against `library.test`. The certificates in ../testing/tls are
  * synthetic, made for these tests alone (trusted-ca.crt signed library.crt and elsewhere.crt;
- * impostor.crt is signed by a CA nobody trusts).
+ * impostor.crt is signed by a CA nobody trusts; self-signed-library.crt and self-signed-elsewhere.crt
+ * signed themselves and are not authorities, as the Mint library's is). The whole file runs again
+ * under the desktop app's own runtime, Electron, whose TLS is not Node's.
  */
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { createServer, type Server, type Socket } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -26,7 +30,7 @@ const TLS = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "testi
 const SECRET = "synthetic-remote-secret";
 const SSL_REQUEST = 80877103;
 
-type Certificate = "library" | "elsewhere" | "impostor";
+type Certificate = "library" | "elsewhere" | "impostor" | "self-signed-library" | "self-signed-elsewhere";
 
 /** How the peer answers: with no TLS at all, or over TLS with `certificate`, then asking for the password in plain text or letting the client in. */
 interface Peer {
@@ -102,7 +106,11 @@ function home(): string {
   return made;
 }
 
-const PINNED = `sslrootcert=${encodeURIComponent(path.join(TLS, "trusted-ca.crt"))}`;
+const PINNED = pinning(path.join(TLS, "trusted-ca.crt"));
+
+function pinning(file: string): string {
+  return `sslrootcert=${encodeURIComponent(file)}`;
+}
 
 /** Connect the admin pool, then a project's, to the peer behaving as `behaviour`, at an address naming library.test. */
 async function connectBoth(behaviour: Peer, query = PINNED): Promise<{ admin: unknown; project: unknown; received: string }> {
@@ -164,6 +172,27 @@ test("15.4 a remote address presenting the pinned certificate for its name conne
   assert.equal(project, "connected");
 });
 
+test("15.4 a remote address presenting exactly a certificate its sslrootcert holds, though no authority signed it, connects, on the admin and project pools", async () => {
+  // The file holds an authority first and the server's own certificate after it, as one of several.
+  const folder = mkdtempSync(path.join(tmpdir(), "storytree-address-tls-pins-"));
+  const pins = path.join(folder, "pins.crt");
+  writeFileSync(pins, [readFileSync(path.join(TLS, "trusted-ca.crt"), "utf8"), readFileSync(path.join(TLS, "self-signed-library.crt"), "utf8")].join(""));
+  try {
+    const { admin, project } = await connectBoth({ tls: "self-signed-library", then: "let-in" }, pinning(pins));
+    assert.equal(admin, "connected");
+    assert.equal(project, "connected");
+  } finally {
+    rmSync(folder, { recursive: true, force: true });
+  }
+});
+
+test("15.4 a remote address presenting exactly the certificate its sslrootcert holds, but naming another host, is refused before the password is sent", async () => {
+  const { admin, project, received } = await connectBoth({ tls: "self-signed-elsewhere", then: "cleartext" }, pinning(path.join(TLS, "self-signed-elsewhere.crt")));
+  assert.ok(!received.includes(SECRET), "the peer received the password");
+  assertRefused(admin, "untrusted-server", /library\.test/);
+  assertRefused(project, "untrusted-server", /library\.test/);
+});
+
 test("15.4 a remote address that proves itself but asks for the password in plain text is refused before the password is sent", async () => {
   const { admin, project, received } = await connectBoth({ tls: "library", then: "cleartext" });
   assert.ok(!received.includes(SECRET), "the peer received the password");
@@ -188,4 +217,35 @@ test("15.4 an address asking for a weaker check, or overriding the host it dials
   } finally {
     rmSync(keys, { recursive: true, force: true });
   }
+});
+
+const UNDER_ELECTRON = "STORYTREE_TLS_TEST_UNDER_ELECTRON";
+
+/** Electron's binary, at the version the desktop app ships (package.json pins the same), or why there is none here. */
+function electronBinary(): string | Error {
+  try {
+    return createRequire(import.meta.url)("electron") as string;
+  } catch (error) {
+    return error instanceof Error ? error : new Error(String(error));
+  }
+}
+
+const electron = process.env[UNDER_ELECTRON] === undefined ? electronBinary() : undefined;
+// A checkout whose install skipped Electron's download skips this, saying so; CI never does.
+const skip = process.env[UNDER_ELECTRON] !== undefined
+  ? "other: this run is the one under Electron, which does not start another"
+  : electron instanceof Error && process.env.CI === undefined ? `other: Electron is not installed here (${electron.message.split("\n")[0]})` : false;
+
+test("15.4 every check in this file holds under the desktop app's runtime, Electron, whose TLS is not Node's", { skip }, () => {
+  assert.ok(typeof electron === "string", `Electron is not installed: ${String(electron)}`);
+  // NODE_TEST_CONTEXT would make the child report to this runner's protocol instead of running its own.
+  const { NODE_TEST_CONTEXT: _parent, ...env } = process.env;
+  const run = spawnSync(electron, ["--import", "tsx", "--test", "--test-reporter=spec", fileURLToPath(import.meta.url)], {
+    cwd: fileURLToPath(new URL("../..", import.meta.url)),
+    encoding: "utf8",
+    timeout: 120_000,
+    env: { ...env, ELECTRON_RUN_AS_NODE: "1", [UNDER_ELECTRON]: "1" },
+  });
+  assert.equal(run.status, 0, `under Electron:\n${run.stdout}\n${run.stderr}`);
+  assert.match(run.stdout, /pass [1-9]/);
 });

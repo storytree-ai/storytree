@@ -62,7 +62,6 @@ export function savedReading(snapshot: TourSnapshot, { replay = false, until }: 
   };
 }
 
-
 /**
  * A saved reading with its own knowledge core hearing it; a replay gets a fresh one, so its prior traversal never leaks into its start.
  * The core reads a picked session's window from the recording, which answers it absent, so the session's reading path is drawn (ADR-0756).

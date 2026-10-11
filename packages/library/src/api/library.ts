@@ -75,7 +75,7 @@ export interface Storytree {
  */
 const FROM_RECORDS = ["get", "history"] as const satisfies readonly (keyof Project["records"])[];
 const FROM_WORK = [
-  "addStory", "editStory", "createArc", "editArc", "addCapability", "editCapability", "setProposed", "addContract", "editContract", "arcsFor",
+  "addStory", "editStory", "mapStories", "createArc", "editArc", "addCapability", "editCapability", "setProposed", "addContract", "editContract", "arcsFor",
 ] as const satisfies readonly (keyof Project["work"])[];
 const FROM_FLIGHT = [
   "addIncrement", "advanceIncrement", "returnIncrement", "closeIncrement", "correctIncrementClosure", "moveIncrement", "editIncrement", "pendChange", "stalePending", "applyPending", "settleClosedPending",

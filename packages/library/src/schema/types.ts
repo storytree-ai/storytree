@@ -167,6 +167,12 @@ export const RECORD_SCHEMAS = {
     .object({
       title: nonEmpty,
       description: z.string().optional(),
+      /**
+       * A mapped story (ADR-0993 D2): a package of an imported folder, written only by the work model's
+       * mapStories. `from` is the import's key, `package` the package's folder relative to the imported
+       * folder ("." for the folder itself), and `folders` the folders that hold its code. Optional, so no version bump.
+       */
+      mapped: z.object({ from: nonEmpty, package: nonEmpty, folders: z.array(nonEmpty) }).strict().optional(),
     })
     .strict(),
   /**

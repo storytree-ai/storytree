@@ -1,6 +1,6 @@
 /** Removing a project from a terminal: a thin front door onto the app setup's own removal. */
 import assert from "node:assert/strict";
-import { existsSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { after, before, test } from "node:test";
 
@@ -81,5 +81,23 @@ test("a folder whose project was deleted (from another computer) is refused by a
     } finally {
       await after.close();
     }
+  });
+});
+
+test("3.17 storytree import <folder> imports it into the folder's project, saying the mapped stories it added; a refused folder is said with why", async () => {
+  await inWorld(command, async ({ elsewhere, run, library }) => {
+    const shop = path.join(elsewhere, "shop");
+    mkdirSync(shop);
+    writeFileSync(path.join(shop, "package.json"), JSON.stringify({ name: "shop" }));
+    const imported = await run(["import", shop]);
+    assert.equal(imported.code, 0, imported.stderr);
+    assert.match(imported.stdout, /1 mapped story added/);
+    const stories = (await (await library()).list("story")).filter((story) => story.fields.mapped !== undefined);
+    assert.deepEqual(stories.map((story) => story.fields), [{ title: "shop", mapped: { from: shop, package: ".", folders: ["."] } }]);
+    assert.match(imported.stdout, new RegExp(stories[0]!.id));
+
+    const refused = await run(["import", path.join(elsewhere, "missing")]);
+    assert.notEqual(refused.code, 0);
+    assert.match(refused.stderr, /does not exist/);
   });
 });

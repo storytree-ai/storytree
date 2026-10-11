@@ -1058,3 +1058,26 @@ test("6.56 edit_plan and retire_from_plan, under an increment's claim, hold a ch
     });
   });
 });
+
+test("6.58 import_project imports a folder into the project as mapped stories, one per package, naming them; a folder inside the project gets a readable refusal and nothing is written", async () => {
+  await withProject(async ({ folder, library }) => {
+    const shop = path.join(folder, "..", "shop");
+    mkdirSync(path.join(shop, "packages", "cart"), { recursive: true });
+    writeFileSync(path.join(shop, "package.json"), JSON.stringify({ workspaces: ["packages/*"] }));
+    writeFileSync(path.join(shop, "packages", "cart", "package.json"), JSON.stringify({ name: "@shop/cart" }));
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const imported = await agent.call("import_project", { folder: "../shop" });
+      assert.equal(imported.isError, false, imported.text);
+      const stories = (await library.list("story")).filter((story) => story.fields.mapped !== undefined);
+      assert.deepEqual(stories.map((story) => story.fields.title), ["@shop/cart"]);
+      assert.ok(imported.text.includes(stories[0]!.id), imported.text);
+
+      mkdirSync(path.join(folder, "vendor"));
+      writeFileSync(path.join(folder, "vendor", "package.json"), JSON.stringify({ name: "vendor" }));
+      const inside = await agent.call("import_project", { folder: "vendor" });
+      assert.equal(inside.isError, true);
+      assert.match(inside.text, /inside storytree project/);
+      assert.equal((await library.list("story")).length, stories.length, "nothing was written");
+    });
+  });
+});

@@ -62,7 +62,7 @@ export function Nameplates({ island, spot, coast, radius, selected, dimmed = fal
         <div ref={label} className={`forest-label planet-nameplate${chosen ? " selected" : ""}${progress !== undefined ? " with-progress" : ""}`} data-story-id={island.story} data-dimmed={dimmed ? "" : undefined} style={plateStyle}>
           <span className="planet-nameplate-title">{island.title}</span>
           {progress !== undefined && <span className="planet-progress">
-            {progress.landed} / {progress.total} landed
+            {progress.landed} / {progress.total}<span className="planet-progress-word"> landed</span>
             <span className="planet-progress-meter" aria-hidden="true"><span style={{ width: `${progress.landed / progress.total * 100}%` }} /></span>
           </span>}
         </div>

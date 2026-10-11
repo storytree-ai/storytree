@@ -15,7 +15,7 @@ import { InMemoryTransport } from "@modelcontextprotocol/server";
 
 import { createAgentTools } from "../index.js";
 import { decisionRights } from "@storytree/session-management";
-import { CONTRACT_DEFINITION, habitsCard, MAPPED_CODE_GUIDANCE } from "./habits.js";
+import { CONTRACT_DEFINITION, habitsCard } from "./habits.js";
 
 /** A client connected in memory to a fresh tool server, as a harness is at session start. */
 async function sessionStart(harness = "claude-code"): Promise<{ client: Client; close(): Promise<void> }> {
@@ -92,7 +92,16 @@ test("7.8 the card handed at session start says what one contract is: a behaviou
 test("7.9 the card handed at session start says how to build beside mapped code", async () => {
   const session = await sessionStart();
   try {
-    assert.ok((session.client.getInstructions() ?? "").includes(MAPPED_CODE_GUIDANCE));
+    const served = session.client.getInstructions() ?? "";
+    // One phrase for each thing ADR-0993 D4 and D8 to D11 has the agent do beside mapped code.
+    for (const said of [
+      "change it only when the increment names it",
+      "depending on the mapped package by a link:",
+      "Old code never imports new code",
+      "Test the interface your package has with the old code",
+      "bring in whatever serves its UI and import the rest",
+      "`focus` on what calls it and shape the work with the user",
+    ]) assert.ok(served.includes(said), `the served card lacks: ${said}`);
   } finally {
     await session.close();
   }

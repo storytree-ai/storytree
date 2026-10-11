@@ -67,7 +67,7 @@ export interface Context {
   /** Who holds what in the project right now: Session management's reading of its activity log. */
   claims(): Promise<Claim[]>;
   /** The caller and activity log, including a person closing an increment from their terminal. */
-  activityContext(): Promise<ClaimContext & { readonly folder: string }>;
+  activityContext(): Promise<ClaimContext & { readonly folder: string; readonly server?: Storytree }>;
   /** The calling agent and the resources its claims use; refuses a shell with no agent session. */
   claimContext(): Promise<ClaimContext & { readonly folder: string }>;
   /** The journey story's shared consent controls, opened only when a command acts. */
@@ -322,7 +322,7 @@ class Opened {
     return this.activityContext();
   }
 
-  async activityContext(): Promise<ClaimContext & { readonly folder: string }> {
+  async activityContext(): Promise<ClaimContext & { readonly folder: string; readonly server: Storytree }> {
     const caller = commandSession() ?? { session: `person:${person()}` };
     const where = this.#routed();
     const library = await this.library();
@@ -330,7 +330,7 @@ class Opened {
     const machine = thisMachine();
     // Lines written from a terminal name its machine and its folder's branch, as a hook's do (ADR-0754 D4).
     const log = await (this.#log ??= this.#server().then((storytree) => openActivityLog(storytree, { branchOf: currentBranch, ...(machine === undefined ? {} : { machine }) })));
-    return { log, library, project: where.project, folder: this.#cwd, ...caller };
+    return { log, library, server: await this.#server(), project: where.project, folder: this.#cwd, ...caller };
   }
 
   async #open(): Promise<Library> {

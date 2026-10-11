@@ -65,6 +65,33 @@ test("3.1 `read` returns the whole body", async () => {
   });
 });
 
+test("3.18 `library read <id> <id>…` prints every record named, whole, in one start; `--linked` adds each record their id lists name once; an id with no record refuses the read, naming each, and prints none", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const rule = await library.writeKnowledge("principle", { title: "Rule", description: "A rule", statement: "Rule statement", why: "Why", howToApply: "How" });
+    const shared = await library.defineTerm({ term: "Shared", meaning: "Shared meaning" });
+    const linked = await library.defineTerm({ term: "Linked", meaning: "Linked meaning", links: [shared.id] });
+    const role = await library.writeKnowledge("agent", { title: "Mailer", description: "Sends mail", oneLine: "Sends mail", role: "Mailer", outcome: "Mail sent", rules: [rule.id], context: [shared.id, linked.id], tools: "Mailgun", workflow: "Send" });
+    const other = await library.defineTerm({ term: "Other", meaning: "Other meaning", links: [shared.id] });
+
+    const both = await world.run(["library", "read", role.id, other.id]);
+    assert.equal(both.code, 0, both.stderr);
+    for (const text of ["workflow: Send", "meaning: Other meaning"]) assert.ok(both.stdout.includes(text), both.stdout);
+    assert.ok(both.stdout.indexOf(role.id) < both.stdout.indexOf(other.id), both.stdout);
+    assert.ok(!both.stdout.includes("Shared meaning"), both.stdout);
+
+    const sweep = await world.run(["library", "read", role.id, other.id, "--linked"]);
+    assert.equal(sweep.code, 0, sweep.stderr);
+    for (const text of ["workflow: Send", "meaning: Other meaning", "statement: Rule statement", "meaning: Linked meaning"]) assert.ok(sweep.stdout.includes(text), sweep.stdout);
+    assert.equal(sweep.stdout.split("meaning: Shared meaning").length - 1, 1, sweep.stdout);
+
+    const missing = await world.run(["library", "read", role.id, "definition_missing", "principle_missing"]);
+    assert.equal(missing.code, 1);
+    assert.equal(missing.stdout, "");
+    for (const id of ["definition_missing", "principle_missing"]) assert.ok(missing.stderr.includes(id), missing.stderr);
+  });
+});
+
 test("3.10 `read --field` prints one field exactly as stored, and refuses a field the record does not have", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();

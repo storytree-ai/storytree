@@ -4,7 +4,7 @@
  */
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -177,7 +177,9 @@ test("8.24 work done at source in an imported checkout counts before it is commi
       { path: "packages/cart/src/index.ts", lines: 1 },
       { path: "packages/cart/src/pages/new.tsx", lines: 2 },
     ], "an edit and a new file count from disk, an ignored file does not, a deleted one leaves");
-    assert.deepEqual(read.sort(), [path.join(shop, "packages/cart/src/index.ts"), path.join(shop, "packages/cart/src/pages/new.tsx")], "only the changed files are read");
+    // Git names the checkout by its real path (macOS's temporary folder sits behind a link).
+    const real = await realpath(shop);
+    assert.deepEqual(read.sort(), [path.join(real, "packages/cart/src/index.ts"), path.join(real, "packages/cart/src/pages/new.tsx")], "only the changed files are read");
     assert.equal(second["story-pay"], first["story-pay"], "an island with no local work keeps its survey");
 
     read.length = 0;

@@ -41,8 +41,8 @@ the travel: the roads are left out, and territories, names and the core are draw
 | 390, before | 40 | 11 | 617 ms | (a jump) |
 | 390, after | 89 | 3 | 300 ms | 69, from 256 to 1839 ms |
 
-**Known on phones.** With the Cart and Checkout side by side, their two-line names meet at 390 and 320 on the stories, claims
-(first line) and health steps, and Checkout's hides rather than stray from its island (forest 3.31); the island stands in
-frame. A closer phone view (1.2) did not part them at 390 and put Signing in under the card at 320, so the view is unchanged;
-the map chapter's capture lists these as known (`../arrival/capture.mjs`), and giving side-by-side names room on a phone is
-its own increment on the arc.
+**On phones.** With the Cart and Checkout side by side, their names met at 390 and 320 and Checkout's hid (forest 3.31).
+On a screen 600px wide or less a story's name is now set smaller (0.7rem, slimmer padding) and its landed count reads
+"0 / 2" over its meter (the word "landed" kept for screen readers), and the shop's phone view is closer (framing 1.3, was
+1.5): both names show on every map step at 390 and 320, and the map chapter's capture lists no known misses
+(`../map-six-steps/framing.json`).

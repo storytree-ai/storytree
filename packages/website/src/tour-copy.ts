@@ -59,7 +59,7 @@ const signingIn = story(signingInId);
 // A view of the four teaching stories together, centred on Browsing so the preceding close-up cannot leave Checkout at the rim.
 const whole = 1.32;
 // The map chapter's two views: the four stories, and close on signing in.
-const shop = { target: browsing, framing: whole, phone: { target: browsing, framing: 1.5, side: 0 } };
+const shop = { target: browsing, framing: whole, phone: { target: browsing, framing: 1.3, side: 0 } };
 const near = { target: signingIn, framing: .8, phone: { target: signingIn, framing: 1.05, side: 0 } };
 // The knowledge chapter's globe: the map chapter's, held where it ends (the 03:08:57 survey), with its notes beneath the land. Its
 // records are read at 03:06, once the session building orders has read checkout's shelf (03:04) and claimed its parts (03:05).

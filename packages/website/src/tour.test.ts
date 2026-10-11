@@ -432,9 +432,9 @@ test("2.20 · the knowledge chapter plays three steps on the globe the map chapt
   assert.deepEqual(reads.lines.map((_, index) => tinted(reads, index + 1).sessionTints === true), [false, false, true, true]);
   // The camera: it arrives on health's view of the four stories, then goes in to checkout.
   for (const wide of [true, false]) {
-    // The four stories' view, centred on browsing: 1.32 globe radii on a laptop, 1.5 on a phone.
+    // The four stories' view, centred on browsing: 1.32 globe radii on a laptop, 1.3 on a phone, so side-by-side names have room.
     const browsing = { kind: "story", story: "story_0c07d0047754" };
-    assert.deepEqual(viewOf(inside, 1, wide), wide ? { target: browsing, framing: 1.32 } : { target: browsing, framing: 1.5, side: 0 }, "the chapter picks up on the four stories");
+    assert.deepEqual(viewOf(inside, 1, wide), wide ? { target: browsing, framing: 1.32 } : { target: browsing, framing: 1.3, side: 0 }, "the chapter picks up on the four stories");
     assert.deepEqual(viewOf(inside, 1, wide), viewOf(health, 2, wide), "where health leaves the camera");
     for (const item of [shelf, reads]) assert.deepEqual(viewOf(item, 1, wide).target, { kind: "story", story: "story_66f80ffaaa4d" });
   }

@@ -258,12 +258,23 @@ function incrementOf(args: Args, usage: string): Record<string, unknown> {
 
 const INCREMENT_USAGE = "--arc <arc> --title <t> --objective <o> --body <text|@file> [--capabilities a,b] [--links a,b] [--remedies a,b] [--held-on q]";
 
+/** `--waits-on a,b --wait-reason <why>`: the increments a new one is born waiting on, all for the one reason; neither given, none. */
+function waitsOf(args: Args, usage: string): { waits?: { on: string; reason: string }[] } {
+  const on = listOf(args, "waits-on");
+  const reason = args.text("wait-reason");
+  if (on === undefined && reason === undefined) return {};
+  if (on === undefined || on.length === 0 || reason === undefined || reason.trim() === "") {
+    throw new Refusal(`--waits-on and --wait-reason go together: the increments it waits on, and why\nusage: storytree ${usage}`, { code: 2 });
+  }
+  return { waits: on.map((id) => ({ on: id, reason })) };
+}
+
 const incrementNew: Verb = {
   name: "new",
-  usage: `arc increment new ${INCREMENT_USAGE}`,
+  usage: `arc increment new ${INCREMENT_USAGE} [--waits-on a,b --wait-reason <why>]`,
   summary: "park an increment on an arc, as a proposal",
   async act(args, context) {
-    const increment = await (await context.library()).addIncrement(incrementOf(args, this.usage) as never, context.writer());
+    const increment = await (await context.library()).addIncrement({ ...incrementOf(args, this.usage), ...waitsOf(args, this.usage) } as never, context.writer());
     return { text: `Parked increment ${increment.id} on ${increment.fields.arc}.`, next: [{ command: `storytree arc show ${increment.fields.arc}`, why: "see the arc whole" }] };
   },
 };

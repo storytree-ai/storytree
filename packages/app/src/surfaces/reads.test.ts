@@ -10,7 +10,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
-import { ACTIVITY_DATABASE, openActivityLog, pruneTranscripts, RETAIN_MS, shipTranscript, type ActivityLog } from "@storytree/session-management";
+import { ACTIVITY_DATABASE, machineOf, openActivityLog, recordImport, pruneTranscripts, RETAIN_MS, shipTranscript, type ActivityLog } from "@storytree/session-management";
 import { countingStore, longHistory } from "@storytree/session-management/testing/egress";
 import { connect, type Storytree } from "@storytree/library";
 import pg from "pg";
@@ -365,6 +365,30 @@ interface App {
 }
 
 /** Run `body` with the app's reads over a connection to the test server, then close it all and drop `projects`' libraries. */
+test("3.11 the page's survey reads the folders this machine imports for the project on show, and no other machine's or project's; a name that is not a project is refused", async () => {
+  const [shown, other, missing] = [uniqueProjectName(), uniqueProjectName(), uniqueProjectName()];
+  const home = mkdtempSync(path.join(tmpdir(), "app-imports-"));
+  const url = testServerUrl();
+  const storytree = await connect({ url });
+  const reads = pageReads({ storytree, home });
+  try {
+    await storytree.openProject(shown);
+    await storytree.openProject(other);
+    const here = machineOf(home);
+    const shop = { project: shown, machine: here.id, machineName: here.name, folder: path.join(home, "shop"), repository: "https://github.com/shop/shop.git" };
+    await recordImport(storytree, shop);
+    await recordImport(storytree, { ...shop, machine: "another-machine", machineName: "box", folder: path.join(home, "elsewhere") });
+    await recordImport(storytree, { ...shop, project: other, folder: path.join(home, "other") });
+    assert.deepEqual(await reads.projectImports(shown), [{ folder: path.join(home, "shop"), repository: "https://github.com/shop/shop.git" }]);
+    await assert.rejects(reads.projectImports(missing), new RegExp(`there is no project called "${missing}"`));
+  } finally {
+    await reads.close();
+    await storytree.close();
+    await dropLibraries([shown, other, missing]);
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
 async function withApp(projects: readonly string[], body: (app: App) => Promise<void>): Promise<void> {
   const url = testServerUrl();
   const storytree = await connect({ url });

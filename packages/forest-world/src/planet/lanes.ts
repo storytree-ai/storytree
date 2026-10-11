@@ -150,9 +150,13 @@ export function entranceShown(at: 'start' | 'end', progress: number): boolean {
   return at === 'start' ? progress > 0 : progress >= 1;
 }
 
-/** Longer lanes take longer, between 0.8 and 1.8 seconds: slow enough to follow, never dragging. */
+/** Every front of a selection moves at this ground speed (ADR-1000 D1), so fronts sharing a road travel as one and The
+ * library's lanes on storytree's own plan settle in about three seconds. */
+export const LANE_SPEED = 250;
+
+/** A lane's time: its length at the one pace, so the selection settles in its longest lane's time however many light. */
 export function laneDrawSeconds(length: number): number {
-  return Math.min(1.8, Math.max(0.8, 0.6 + length / 300));
+  return length / LANE_SPEED;
 }
 
 /** Rendered time keeps slow frames from swallowing a lane's whole growth in one jump. */
@@ -160,28 +164,63 @@ export function advanceLaneClock(elapsed: number, delta: number): number {
   return elapsed + Math.max(0, Math.min(0.08, delta));
 }
 
-/** Seconds after selection each lane starts, in the order given: up lanes, then down lanes, each shortest first,
- * 0.1 s apart, the whole spread kept within 1.2 s however many lanes light. */
-export function laneDelays(lanes: readonly { dir: LitLink['dir']; length: number }[]): number[] {
-  const order = lanes.map((lane, i) => ({ lane, i }))
-    .sort((a, b) => (a.lane.dir === b.lane.dir ? 0 : a.lane.dir === 'up' ? -1 : 1) || a.lane.length - b.lane.length || a.i - b.i);
-  const step = Math.min(0.1, 1.2 / Math.max(1, lanes.length - 1));
-  const delays = lanes.map(() => 0);
-  order.forEach(({ i }, rank) => { delays[i] = rank * step; });
-  return delays;
+/** The physical fraction drawn `elapsed` rendered seconds after selection, every lane starting then and keeping the one
+ * pace; all at once under reduced motion. */
+export function laneProgress(elapsed: number, seconds: number, reducedMotion: boolean): number {
+  if (reducedMotion || seconds <= 0) return 1;
+  return Math.min(1, Math.max(0, elapsed / seconds));
 }
 
-/** The physical fraction drawn `elapsed` rendered seconds after selection, easing out to a stop; all at once under reduced motion. */
-export function laneProgress(elapsed: number, seconds: number, reducedMotion: boolean, delay = 0): number {
-  if (reducedMotion) return 1;
-  const t = Math.min(1, Math.max(0, (elapsed - delay) / seconds));
-  return 1 - (1 - t) ** 2;
+/** Where along a lane (from, to, in ground units) its head shows. */
+export type HeadRange = readonly [number, number];
+
+/** A stretch of route, the same whichever way a lane walks it, kept apart by colour. */
+const stretchKey = (colour: string, a: Vector3, b: Vector3) => {
+  const at = (p: Vector3) => `${p.x.toFixed(4)},${p.y.toFixed(4)},${p.z.toFixed(4)}`;
+  return [colour, ...[at(a), at(b)].sort()].join('|');
+};
+
+/** One head per shared stretch (ADR-1000 D1): each stretch of route of one colour is led by the lane whose front reaches it
+ * first (lanes start together and keep one pace, so the nearest along its own route), ties going to the lowest
+ * `from->to`; each lane's head shows only along the stretches it leads, so a wave splits at a fork and merges at a join. */
+export function laneHeads(lanes: readonly Pick<LaneRoute, 'from' | 'to' | 'colour' | 'points'>[]): HeadRange[][] {
+  const walks = lanes.map(lane => {
+    const distances = [0];
+    for (let i = 1; i < lane.points.length; i++) distances.push(distances[i - 1]! + lane.points[i]!.distanceTo(lane.points[i - 1]!));
+    return distances;
+  });
+  const name = (i: number) => `${lanes[i]!.from}->${lanes[i]!.to}`;
+  const leaders = new Map<string, { lane: number; reaches: number }>();
+  lanes.forEach((lane, l) => lane.points.slice(1).forEach((point, i) => {
+    const key = stretchKey(lane.colour, lane.points[i]!, point), reaches = walks[l]![i]!, leader = leaders.get(key);
+    if (!leader || reaches < leader.reaches - 1e-9 || (Math.abs(reaches - leader.reaches) <= 1e-9 && name(l) < name(leader.lane))) {
+      leaders.set(key, { lane: l, reaches });
+    }
+  }));
+  return lanes.map((lane, l) => {
+    const ranges: [number, number][] = [];
+    lane.points.slice(1).forEach((point, i) => {
+      if (leaders.get(stretchKey(lane.colour, lane.points[i]!, point))!.lane !== l) return;
+      const [from, to] = [walks[l]![i]!, walks[l]![i + 1]!], last = ranges.at(-1);
+      if (last && Math.abs(last[1] - from) < 1e-9) last[1] = to;
+      else ranges.push([from, to]);
+    });
+    return ranges;
+  });
 }
 
-/** How bright the lane's head shows: whole while the lane draws, fading over 0.4 s once it is whole; never under reduced motion. */
-export function laneHead(elapsed: number, seconds: number, reducedMotion: boolean, delay = 0): number {
-  if (reducedMotion || elapsed <= delay) return 0;
-  return Math.min(1, Math.max(0, 1 - (elapsed - delay - seconds) / 0.4));
+/** Ground units over which a head grows in as its front enters a stretch it leads, and dims as it leaves one. */
+const HEAD_FADE = 3;
+
+/** How bright a lane's head shows `elapsed` rendered seconds after selection: along the stretches it leads (`heads`),
+ * growing in and dimming over a few ground units at their ends, then fading over 0.4 s once the lane is whole; never
+ * under reduced motion. */
+export function laneHead(elapsed: number, length: number, heads: readonly HeadRange[], reducedMotion: boolean): number {
+  if (reducedMotion || elapsed <= 0) return 0;
+  const front = Math.min(length, elapsed * LANE_SPEED);
+  const led = Math.max(0, ...heads.map(([from, to]) => from > 0 && front < from ? 0
+    : Math.min(from > 0 ? (front - from) / HEAD_FADE : 1, 1 - (front - to) / HEAD_FADE, 1)));
+  return led * Math.min(1, Math.max(0, 1 - (elapsed - laneDrawSeconds(length)) / 0.4));
 }
 
 /** A road's own draw-on (6.16, 6.17, 7.4): constant speed between 0.2's bounds, so a short road still reads as motion

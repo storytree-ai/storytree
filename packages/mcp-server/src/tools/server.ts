@@ -137,12 +137,13 @@ export interface ToolExtension {
 }
 
 export function createAgentTools(options: AgentToolOptions): AgentTools {
-  // ADR-0644 U1: enable the librarian for storytree's own library first, and quality assurance's checks
-  // reading with it (ADR-0956). Their behaviour stays in their packages; this is the shared registration
-  // point for other stories (ADR-0643 D6).
+  // ADR-0644 U1: enable the librarian for storytree's own library first. Quality assurance's checks and review
+  // loop (ADR-0956) serve every project, whose starter pack seeds the checks and the change-reviewer (ADR-0996).
+  // Their behaviour stays in their packages; this is the shared registration point for other stories (ADR-0643 D6).
   const servedTools = ["check_setup", "set_up_project", ...OWN_TOOLS];
   const extensions = [
-    ...(findProject(options.folder).project === "storytree" ? [librarianTools({ tools: () => servedTools }), qualityTools()] : []),
+    ...(findProject(options.folder).project === "storytree" ? [librarianTools({ tools: () => servedTools })] : []),
+    qualityTools(),
     ...options.extensions ?? [],
   ];
   const instructions = [habitsCard(), ...extensions.flatMap((extension) => extension.instructions === undefined ? [] : [extension.instructions])].join("\n");

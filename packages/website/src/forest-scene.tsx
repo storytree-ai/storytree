@@ -14,7 +14,7 @@ import ownSaved from "./own-snapshot.json" with { type: "json" };
 import { crossingLength, growthPlan, type GrowthPlan } from "@storytree/forest-world/planet";
 import { buildPlanetPathways } from "@storytree/forest-world/geometry";
 import type { GrowthSnapshot, TourSnapshot } from "./forest-data.js";
-import { globeOf, lineStarts, replayMoment, stepAt, type GlobeOn, type Hold, type TourDetail, type TourGrowth, type TourStep } from "./tour.js";
+import { globeOf, labelsAt, labelWords, lineStarts, placeTags, replayMoment, stepAt, type Box, type GlobeOn, type Hold, type TagSide, type TourDetail, type TourGrowth, type TourStep } from "./tour.js";
 import { createCameraPlayer } from "./tour-camera.js";
 import { mapRecording, mapGrowthPlan, recordedFrame } from "./map-recording.js";
 import { growthReading, savedReading } from "./tour-reading.js";
@@ -104,6 +104,61 @@ function Arcs({ project, recording, open }: { project: string; recording: Record
   }, [project, recording]);
   useEffect(() => { if (open) mounted.current?.open(); else mounted.current?.close(); }, [open]);
   return <div ref={ref} className="tour-arcs" />;
+}
+
+/** A label on show: what it points at, its words, and whether it is fading out as its line passes. */
+type ShownLabel = { key: string; target: GlobeTarget; text: string };
+/** How long a label takes to fade, in milliseconds; tour.css's transition matches it. */
+const fade = 300;
+/**
+ * The current line's label on the thing it talks about (2.21), placed on the drawing every frame once the camera has arrived:
+ * a ring on a story, capability, file or pathway with its words beside it, clear of the island names, the card and the panels. A label that leaves fades out as its line passes.
+ */
+function Labels({ labels, controls, arrived }: { labels: readonly ShownLabel[]; controls: GlobeControls | undefined; arrived: boolean }) {
+  const host = document.getElementById("tour-tags");
+  const [shown, setShown] = useState<(ShownLabel & { leaving?: boolean })[]>([]);
+  useEffect(() => {
+    const keys = new Set(labels.map(label => label.key));
+    setShown(before => [...before.filter(label => !keys.has(label.key)).map(label => ({ ...label, leaving: true })), ...labels]);
+    const timer = window.setTimeout(() => setShown(before => before.filter(label => keys.has(label.key))), reduced() ? 0 : fade);
+    return () => clearTimeout(timer);
+  }, [labels]);
+  const refs = useRef(new Map<string, HTMLDivElement>());
+  useEffect(() => {
+    if (!controls || !host || !shown.length) return;
+    let frame = 0, previous: TagSide | undefined;
+    const place = () => {
+      const canvas = document.querySelector("#website-forest canvas")?.getBoundingClientRect(), stage = host.getBoundingClientRect();
+      const phone = stage.width <= 600;
+      const keepOut = [...document.querySelectorAll("#chapter2 :is(.tour-card, .sessions-list, .arc-overlay, .arc-handle, .story-panel), #website-forest .planet-nameplate:not(.crowded)")]
+        .filter(node => getComputedStyle(node).visibility === "visible").map(node => ({ box: node.getBoundingClientRect(), soft: node.classList.contains("planet-nameplate") }))
+        .filter(({ box }) => box.width && box.height)
+        .map(({ box, soft }) => ({ x: box.left - stage.left, y: box.top - stage.top, width: box.width, height: box.height, soft }));
+      for (const label of shown) {
+        const node = refs.current.get(label.key);
+        if (!node) continue;
+        const at = canvas && arrived && !label.leaving ? controls.position(label.target) : undefined;
+        if (!at || !canvas || !at.visible) { node.classList.add("away"); continue; }
+        const x = Math.round(at.x + canvas.left - stage.left), y = Math.round(at.y + canvas.top - stage.top);
+        node.style.transform = `translate(${x}px, ${y}px)`;
+        const words = node.lastElementChild as HTMLElement, size = words.getBoundingClientRect();
+        const box: Box = { x, y, width: Math.ceil(size.width), height: Math.ceil(size.height) };
+        const [side] = placeTags([box], { width: stage.width, height: stage.height }, { keepOut, sides: ["right", "left", "below", "above"], previous: phone ? [previous] : [], share: !phone });
+        previous = side!.side;
+        words.style.left = `${Math.round(side!.x)}px`;
+        words.style.top = `${Math.round(side!.y)}px`;
+        node.classList.remove("away");
+      }
+      frame = requestAnimationFrame(place);
+    };
+    frame = requestAnimationFrame(place);
+    return () => cancelAnimationFrame(frame);
+  }, [shown, controls, host, arrived]);
+  if (!host) return null;
+  return createPortal(<>{shown.map(label => <div key={label.key} ref={node => { if (node) refs.current.set(label.key, node); else refs.current.delete(label.key); }}
+    className="tour-tag away" data-label={label.key} data-target={label.target.kind}>
+    <span className="tour-tag-ring" /><span className="tour-tag-text">{label.text}</span>
+  </div>)}</>, host);
 }
 
 /** Where the globe's middle sits: in the room the card (left) and any side panel (right) leave it. */
@@ -340,6 +395,17 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   const sessionsAt = touring && !everything && shownMap === "shop" ? step?.sessionsAt : undefined;
   const shopAt = useMemo(() => sessionsAt && shopSnapshot ? { recording: savedReading(shopSnapshot, { until: sessionsAt }) } : undefined, [sessionsAt]);
   useEffect(() => () => shopAt?.recording.reading.stop(), [shopAt]);
+  // The current line's label, its words read from the frame on show: a session is named as it had named itself by then (2.21).
+  const lineLabels = inMapChapter && mapFrame && step && state ? labelsAt(step, state.lines, { width }) : [];
+  const named = (session: string) => shop.reading?.recording.lines.filter(line => line.kind === "session-named" && line.session === session && line.at <= mapFrame!.at).flatMap(line => "title" in line ? [String(line.title)] : []).at(-1);
+  const labelKey = JSON.stringify(lineLabels.flatMap(label => {
+    if ("point" in label) return [];
+    const text = labelWords(label, mapFrame!, named);
+    return text ? [{ key: `${step!.id}:${state!.lines}:${JSON.stringify(label.target)}`, target: label.target, text }] : [];
+  }));
+  const shownLabels = useMemo((): ShownLabel[] => JSON.parse(labelKey), [labelKey]);
+  // The sessions list is pointed out while the line that names it is said, not labelled on the globe.
+  const pointed = lineLabels.some(label => "point" in label && label.point === "sessions");
   // The knowledge chapter's flags are the claims its sessions list reads at its moment, past the map chapter's first round.
   const heldClaims = inMapChapter && step?.explainer === "knowledge" && shopAt !== undefined;
   const panelReading = onStorytree ? snapshot : shownMap === "shop" ? shopSnapshot : undefined;
@@ -363,6 +429,7 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
           onControls={onControls} surfaces={surfaces} framing={restingFraming} sideOffset={offsetFor(undefined, width)} mode={mode} />
       </div>
     </GlobeBoundary>}
+    {webgl && <Labels labels={shownLabels} controls={controls} arrived={arrived} />}
     {panelHost && createPortal(<>
       <div className="forest-views" role="group" aria-label="Project view" hidden={!free}>
         <button type="button" aria-pressed={mode === "forest"} onClick={() => setMode("forest")}>Forest</button>
@@ -395,7 +462,7 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
       {story && panelReading?.tree.stories.some(item => item.id === story) && <StoryDetails saved={panelReading} story={story} capability={capability} choose={pickCapability} close={closeStory} />}
       {note && <div className="story-panel" onKeyDown={event => { if (event.key === "Escape") { event.preventDefault(); closeNote(); } }}><KnowledgeNoteCard core={activeCore} onClose={closeNote} /></div>}
       {/* The recorded sessions and the arcs of the project on show: the shop's in free play on it, storytree's otherwise. */}
-      <div className="tour-session-surface" hidden={free ? !onStorytree && !onShop : requestedPanel !== "sessions"}>
+      <div className="tour-session-surface" data-pointed={pointed || undefined} hidden={free ? !onStorytree && !onShop : requestedPanel !== "sessions"}>
         {shopAt
           ? <Sessions key={`shop@${sessionsAt}`} project={shop.project} recording={shopAt.recording} core={growthCores.shop} onWisps={setWisps} onHighlight={onHighlight} onPick={explore} />
           : onShop

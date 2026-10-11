@@ -5,7 +5,7 @@
  * folder that leaves the committed evidence alone unless the run is named to re-take it.
  */
 export { fakeBridge } from "./fake-bridge.js";
-export type { FakeBridge } from "./fake-bridge.js";
+export type { FakeBridge, FakeBridgeOptions } from "./fake-bridge.js";
 export { launch, launchPlan, loadPlaywright } from "./launch.js";
 export type { LaunchPlan, Machine } from "./launch.js";
 export { captureOutput, outputFolder } from "./output.js";

@@ -1,0 +1,26 @@
+{
+  "story": "The website",
+  "commit": "unpublished local build",
+  "evidence": "packages/website/evidence/shop-fallback/red",
+  "note": "Locally built website served from packages/website/dist",
+  "checks": [
+    {
+      "contract": "2.3",
+      "name": "before the 3D scene's code arrives, the explanation and waitlist entry are available",
+      "observed": "pass",
+      "detail": "scene code requested yet: false; separate form validation available true"
+    },
+    {
+      "contract": "2.1",
+      "name": "with WebGL, the live scene takes over from the still and draws on its canvas",
+      "observed": "pass",
+      "detail": "state live, canvas shown true, still shown false, 39 distinct colours where the scene is"
+    },
+    {
+      "contract": "2.2",
+      "name": "at 1440px, when WebGL is unavailable, every view shows a saved picture of its own project or says why it cannot, and the page stays usable",
+      "observed": "fail",
+      "detail": "shop step: note shown false, says \"\"; shop free play: shop still shown false, 0 colours; storytree free play: still shown false, 0 colours"
+    }
+  ]
+}

@@ -36,6 +36,17 @@ export function islandArea(lines: number): number {
   return Math.max(MIN_ISLAND_AREA, lines * LAND_PER_LINE);
 }
 
+/**
+ * The most land a mapped island has (ADR-0993 D3, D13), in ground units²: a mapped island follows its lines as a built
+ * one does up to here, so a very large inherited codebase does not crowd out the islands built beside it.
+ */
+export const MAPPED_ISLAND_CAP = 12_000;
+
+/** A mapped story's land: a surveyed island's for its lines, never above {@link MAPPED_ISLAND_CAP}. */
+export function mappedArea(lines: number): number {
+  return Math.min(MAPPED_ISLAND_CAP, islandArea(lines));
+}
+
 /** An unsurveyed story's land: one {@link MIN_ISLAND_AREA} per capability, at least one's worth, so it grows in step with the surveyed islands. */
 export function unsurveyedArea(capabilities: number): number {
   return Math.max(1, capabilities) * MIN_ISLAND_AREA;

@@ -487,7 +487,7 @@ test("4.15 `arc increment new` and `edit` take --capabilities and --links, edit 
   });
 });
 
-test("4.18 `arc increment edit --held-on \"\"` clears a hold put on by mistake: the increment reads held on nothing", async () => {
+test("4.22 `arc increment edit --held-on \"\"` clears a hold put on by mistake: the increment reads held on nothing", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();
     const arc = await anArc(world);
@@ -499,6 +499,43 @@ test("4.18 `arc increment edit --held-on \"\"` clears a hold put on by mistake: 
 
     assert.equal(cleared.code, 0, cleared.stderr);
     assert.equal(((await library.get(held.id))?.fields as { heldOn?: string[] }).heldOn, undefined);
+  });
+});
+
+test("4.22 `arc increment edit --held-on none` clears a hold, for a shell that drops an empty argument (Windows PowerShell 5.1): the increment reads held on nothing", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const arc = await anArc(world);
+    const held = await library.addIncrement({ arc, title: "Mailer", objective: "Mail", body: "…" });
+    const question = await library.raiseQuestion({ arc, title: "Which mailer?", stakes: "s", statement: "q", context: "c", options: "o" });
+    await library.editIncrement(held.id, { heldOn: [question.id] });
+
+    const cleared = await world.run(["arc", "increment", "edit", held.id, "--held-on", "none"]);
+
+    assert.equal(cleared.code, 0, cleared.stderr);
+    assert.equal(((await library.get(held.id))?.fields as { heldOn?: string[] }).heldOn, undefined);
+  });
+});
+
+test("4.21 `arc increment new --waits-on --wait-reason` parks an increment born waiting on each named increment; one flag without the other, or a blocker that is not an increment, is refused with nothing written", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const arc = await anArc(world);
+    const [mailer, domain] = await Promise.all(["Mailer", "Domain"].map((title) => library.addIncrement({ arc, title, objective: "Mail", body: "…" })));
+    const parked = await world.run(["arc", "increment", "new", "--arc", arc, "--title", "Welcome", "--objective", "Greet", "--body", "Build it", "--waits-on", `${mailer!.id},${domain!.id}`, "--wait-reason", "sends through them"]);
+    assert.equal(parked.code, 0, parked.stderr);
+    const id = /increment_[0-9a-f]+/.exec(parked.stdout)![0];
+    assert.deepEqual(await library.waitHolds(id), [
+      { on: mailer!.id, reason: "sends through them", forGood: false },
+      { on: domain!.id, reason: "sends through them", forGood: false },
+    ]);
+
+    const before = (await library.changesSince(0)).cursor;
+    for (const flags of [["--waits-on", mailer!.id], ["--wait-reason", "why"], ["--waits-on", arc, "--wait-reason", "why"]]) {
+      const refused = await world.run(["arc", "increment", "new", "--arc", arc, "--title", "Bounces", "--objective", "Handle", "--body", "Build it", ...flags]);
+      assert.notEqual(refused.code, 0, refused.stdout);
+    }
+    assert.deepEqual((await library.changesSince(before)).changes, [], "nothing was written");
   });
 });
 

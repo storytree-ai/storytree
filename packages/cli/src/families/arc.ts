@@ -251,19 +251,32 @@ function incrementOf(args: Args, usage: string): Record<string, unknown> {
     const list = listOf(args, flag);
     if (list !== undefined) fields[field] = list;
   }
-  // An empty --held-on clears the hold, as settling or retiring its last question does.
-  if ((fields.heldOn as string[] | undefined)?.length === 0) fields.heldOn = undefined;
+  // `--held-on none`, or an empty value where the shell delivers one (Windows PowerShell 5.1 drops it),
+  // clears the hold, as settling or retiring its last question does.
+  const heldOn = fields.heldOn as string[] | undefined;
+  if (heldOn?.length === 0 || (heldOn?.length === 1 && heldOn[0] === "none")) fields.heldOn = undefined;
   return fields;
 }
 
 const INCREMENT_USAGE = "--arc <arc> --title <t> --objective <o> --body <text|@file> [--capabilities a,b] [--links a,b] [--remedies a,b] [--held-on q]";
 
+/** `--waits-on a,b --wait-reason <why>`: the increments a new one is born waiting on, all for the one reason; neither given, none. */
+function waitsOf(args: Args, usage: string): { waits?: { on: string; reason: string }[] } {
+  const on = listOf(args, "waits-on");
+  const reason = args.text("wait-reason");
+  if (on === undefined && reason === undefined) return {};
+  if (on === undefined || on.length === 0 || reason === undefined || reason.trim() === "") {
+    throw new Refusal(`--waits-on and --wait-reason go together: the increments it waits on, and why\nusage: storytree ${usage}`, { code: 2 });
+  }
+  return { waits: on.map((id) => ({ on: id, reason })) };
+}
+
 const incrementNew: Verb = {
   name: "new",
-  usage: `arc increment new ${INCREMENT_USAGE}`,
+  usage: `arc increment new ${INCREMENT_USAGE} [--waits-on a,b --wait-reason <why>]`,
   summary: "park an increment on an arc, as a proposal",
   async act(args, context) {
-    const increment = await (await context.library()).addIncrement(incrementOf(args, this.usage) as never, context.writer());
+    const increment = await (await context.library()).addIncrement({ ...incrementOf(args, this.usage), ...waitsOf(args, this.usage) } as never, context.writer());
     return { text: `Parked increment ${increment.id} on ${increment.fields.arc}.`, next: [{ command: `storytree arc show ${increment.fields.arc}`, why: "see the arc whole" }] };
   },
 };
@@ -315,7 +328,7 @@ const incrementUnstart: Verb = {
 
 const incrementEdit: Verb = {
   name: "edit",
-  usage: "arc increment edit <increment> [--title …] [--objective …] [--body …] [--capabilities a,b] [--links a,b] [--remedies f,g] [--held-on q, or empty to clear]",
+  usage: "arc increment edit <increment> [--title …] [--objective …] [--body …] [--capabilities a,b] [--links a,b] [--remedies f,g] [--held-on q, or none to clear]",
   summary: "change only the named fields; --capabilities and --links replace the lists, --remedies adds friction to those it already remedies",
   async act(args, context): Promise<Answer> {
     const id = args.word(0, "the increment's id", this.usage);

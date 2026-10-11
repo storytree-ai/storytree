@@ -17,7 +17,7 @@ const dist = process.argv.includes("--dist") ? path.resolve(process.argv[process
 // --check asserts without rewriting the committed pictures: every picture, clip and observation goes to a fresh temporary
 // folder instead (named at the end). A lane that only needs the check runs it this way.
 const pictures = process.argv.includes("--check") ? path.join(await mkdtemp(path.join(tmpdir(), "arrival-check-")), "arrival") : here;
-for (const folder of ["", "../map-chapter", "../act2-polish"]) await mkdir(path.join(pictures, folder), { recursive: true });
+for (const folder of ["", "../map-chapter", "../act2-polish", "../map-labels"]) await mkdir(path.join(pictures, folder), { recursive: true });
 const only = process.argv.includes("--only") ? process.argv[process.argv.indexOf("--only") + 1] : undefined;
 const types = { ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".png": "image/png", ".json": "application/json" };
 const server = createServer(async (req, res) => {
@@ -129,7 +129,7 @@ const runs = {
     });
     await still.goto(url); await still.locator("#tour-play").waitFor();
     assert.equal(await stepOf(still), "pain");
-    assert.equal(await still.locator(".forest-still img").evaluate(node => node.checkVisibility({ visibilityProperty: true })), false, "no WebGL: storytree's saved still never stands in under the pain");
+    assert.equal(await still.locator(".storytree-still img").evaluate(node => node.checkVisibility({ visibilityProperty: true })), false, "no WebGL: storytree's saved still never stands in under the pain");
     await go(still, "fixes"); await pause(still); await still.waitForTimeout(300);
     await still.screenshot({ path: path.join(pictures, "390-no-webgl-4-fixes.png") });
     await still.close();
@@ -140,7 +140,7 @@ const runs = {
     await loading.route(/forest-scene-[^/]*\.js$/, () => {});
     await loading.goto(url); await loading.locator("#tour-play").waitFor();
     await loading.waitForFunction(() => document.querySelector("#website-forest").dataset.forestState === "loading");
-    assert.equal(await loading.locator(".forest-still img").evaluate(node => node.checkVisibility({ visibilityProperty: true })), false, "loading: no still of storytree's globe under the pain");
+    assert.equal(await loading.locator(".storytree-still img").evaluate(node => node.checkVisibility({ visibilityProperty: true })), false, "loading: no still of storytree's globe under the pain");
     await loading.close();
     observed.push("2.11 reduced motion, no WebGL and a loading globe keep the arrival dark under the pain: pass");
   },
@@ -214,6 +214,59 @@ const runs = {
         // hides rather than stray from its island (forest 3.31) until a phone gives side-by-side names room.
         "390 map-stories Checkout: not drawn", "390 map-claims-line-1 Checkout: not drawn", "390 map-health Checkout: not drawn",
         "320 map-claims-line-1 Checkout: not drawn", "320 map-health Checkout: not drawn"], extra: { "map-capabilities": "1440-story-panel.png" } });
+  },
+  // Each map line's label (2.21), on every labelled line at 1440, 1280, 390 and 320, at the tour's own 0.75×: the picture as the
+  // line is said, and where its label stands against the screen's edges, the card, the bar, the panels and the islands' names.
+  // --before pictures the same moments with the labels hidden, for the before-and-after. They go to map-labels.
+  async mapLabels() {
+    const before = process.argv.includes("--before");
+    const folder = path.join(pictures, "../map-labels");
+    await mkdir(folder, { recursive: true });
+    // [step, line, seconds into the line, what the label says (undefined: none on the globe), the narrowest screen it shows on
+    // (tour-copy.ts)]. A labelled picture waits for its label, as SwiftShader's frames can lag the tour's clock. The health
+    // step's green is pictured held near the step's end.
+    const moments = [["map-stories", 1, 9.2, "a story", 601], ["map-stories", 2, 5, "the cart needs signing in", 390],
+      ["map-capabilities", 1, 3.6, "a capability", 601], ["map-capabilities", 2, 1.8, "server.js · 110 lines", 390],
+      ["map-claims", 1, 6, "Part 2: product page, sorting, cart", 601], ["map-claims", 3, 1.2, undefined, 0],
+      ["map-health", 2, 3, "not proved yet", 0], ["map-health", 2, 0, "tests passed", 0, "held"]];
+    const report = [];
+    for (const [width, height] of [[1440, 900], [1280, 800], [390, 844], [320, 700]]) {
+      const page = await open({ width, height });
+      if (before) await page.addStyleTag({ content: "#tour-tags { display:none !important; } .tour-session-surface[data-pointed] .sessions-list { animation:none !important; outline:none !important; }" });
+      for (const [id, line, into, words, narrowest, held] of moments) {
+        await play(page);
+        if (held || await stepOf(page) !== id || await page.locator("#tour-lines .tour-line.on").count() > line) await go(page, id);
+        await page.waitForFunction(line => document.querySelectorAll("#tour-lines .tour-line.on").length === line, line, { timeout: 60_000 });
+        if (held) {
+          await page.waitForFunction(() => Number(document.querySelector('#tour-pips [aria-current="step"]').style.getPropertyValue("--fill")) >= .92, null, { timeout: 60_000 });
+          await pause(page); await page.waitForTimeout(700);
+        } else if (!before && words && width >= narrowest) {
+          await page.waitForFunction(({ words, line }) => document.querySelectorAll("#tour-lines .tour-line.on").length === line
+            && [...document.querySelectorAll("#tour-tags .tour-tag:not(.away) .tour-tag-text")].some(node => node.textContent === words), { words, line }, { timeout: into * 1000 + 6000 })
+            .then(() => page.waitForTimeout(450), () => {});
+        } else await page.waitForTimeout(into * 1000);
+        const seen = await page.evaluate(() => {
+          const box = node => { const r = node?.getBoundingClientRect(); return r && r.width ? { x: r.x, y: r.y, width: r.width, height: r.height } : undefined; };
+          const shown = [...document.querySelectorAll("#tour-tags .tour-tag:not(.away)")].filter(node => getComputedStyle(node).opacity !== "0");
+          return { labels: shown.map(node => ({ text: node.querySelector(".tour-tag-text")?.textContent, box: box(node.querySelector(".tour-tag-text")) })).filter(label => label.box),
+            pointed: document.querySelector(".tour-session-surface")?.hasAttribute("data-pointed") ?? false,
+            room: { width: innerWidth, height: innerHeight },
+            others: [["card", "#tour-card"], ["bar", "#tour-bar"], ["panel", ".story-panel"], ["sessions", ".tour-session-surface:not([hidden]) .sessions-list"], ["arcs", ".arc-overlay"]]
+              .map(([name, selector]) => [name, box(document.querySelector(selector))]).filter(([, found]) => found),
+            names: [...document.querySelectorAll(".planet-nameplate[data-story-id]")].filter(node => getComputedStyle(node).opacity !== "0").map(node => [node.querySelector(".planet-nameplate-title")?.textContent, box(node.querySelector(".planet-nameplate-title"))]).filter(([, found]) => found) };
+        });
+        const name = `${width}-${id}-line-${line}${held ? "-green" : ""}${before ? "-before" : ""}`;
+        await page.screenshot({ path: path.join(folder, `${name}.png`) });
+        const meet = (a, b) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+        const crowds = seen.labels.flatMap(label => [
+          ...(label.box.x >= 0 && label.box.y >= 0 && label.box.x + label.box.width <= seen.room.width && label.box.y + label.box.height <= seen.room.height ? [] : ["off screen"]),
+          ...[...seen.others, ...seen.names].filter(([, other]) => meet(label.box, other)).map(([what]) => `over ${what}`)]);
+        report.push({ name, expected: words && width >= narrowest ? words : null, labels: seen.labels.map(label => label.text), pointed: seen.pointed, crowds });
+      }
+      await page.close();
+    }
+    await writeFile(path.join(folder, `labels${before ? "-before" : ""}.json`), JSON.stringify(report, null, 2) + "\n");
+    observed.push(`Map labels${before ? " (hidden, before)" : ""}: ${JSON.stringify(report.map(item => [item.name, item.labels, item.pointed, item.crowds]))}`);
   },
   // The knowledge chapter in three steps (2.20, ADR-0990), pictured the same way: each step as it settles and on the lines that
   // change what it shows (the notes, the note's card, the flags), and a clip of the whole chapter at 1440.

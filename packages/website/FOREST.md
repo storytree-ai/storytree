@@ -51,6 +51,14 @@ node packages/website/evidence/forest/build-observed.mjs
 node packages/website/evidence/forest/capture.mjs
 ```
 
+The shop's two stills (`public/shop-*.png`, shown in free play on the shop without WebGL) are captured from the website's own
+live drawing of that free play; refresh them when `shop-snapshot.json` or the renderer changes:
+
+```sh
+pnpm --filter @storytree/website build
+node packages/website/evidence/forest/shop-stills.mjs
+```
+
 This needs Playwright's Chromium installed. The evidence harness runs an isolated
 desktop drawing; it does not access the running app or a database. Commit the
 snapshot, `public/forest-*.png` and renewed evidence together. The square stills

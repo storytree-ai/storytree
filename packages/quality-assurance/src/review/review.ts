@@ -242,9 +242,21 @@ function refusals(brief: Brief, review: ReviewReturn): string[] {
   return problems;
 }
 
-/** The diff of the branch checked out in `cwd` against `base` (from where they parted), as `git diff` gives it. */
-export function branchDiff(cwd: string, base = "origin/main"): string {
+/**
+ * The diff of the branch checked out in `cwd` against `base` (from where they parted), as `git diff` gives it:
+ * by default the branch origin names as its default (a user's project may call it master), else origin/main.
+ */
+export function branchDiff(cwd: string, base = originDefault(cwd)): string {
   return execFileSync("git", ["diff", `${base}...HEAD`], { cwd, encoding: "utf8", maxBuffer: 256 * 1024 * 1024 });
+}
+
+/** The branch origin names as its default, as the checkout in `cwd` last heard; origin/main when it never said. */
+function originDefault(cwd: string): string {
+  try {
+    return execFileSync("git", ["symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD"], { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim() || "origin/main";
+  } catch {
+    return "origin/main";
+  }
 }
 
 /** The brief as the plain text the change-reviewer reads. */

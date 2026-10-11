@@ -183,3 +183,12 @@ test("4.12 a contract whose last verdict was not re-run carries what it last saw
   assert.deepEqual(first?.lastSeen, was);
   assert.equal(second?.lastSeen, undefined);
 });
+
+test("4.15 a mapped story's panel says it is mapped, with its files and lines from the survey; a built story's says nothing of it", () => {
+  const mapped: AnnotatedStory = { ...story("old"), mapped: { from: "/code/shop", package: "packages/cart", folders: ["packages/cart"] } };
+  const tree: AnnotatedTree = { stories: [mapped, story("new", capability("a", []))], arcs: [] };
+  const survey = { old: { files: [{ path: "packages/cart/src/a.ts", lines: 120 }, { path: "packages/cart/src/b.ts", lines: 80 }], imports: [], mapped: { folder: "/code/shop" } } };
+  assert.deepEqual(drillDown(tree, "old", workStates([]), [], survey)?.mapped, { files: 2, lines: 200 });
+  assert.deepEqual(drillDown(tree, "old", workStates([]), [])?.mapped, {}, "before its survey it is still mapped, with no counts invented");
+  assert.equal("mapped" in (drillDown(tree, "new", workStates([]), [], survey) ?? {}), false);
+});

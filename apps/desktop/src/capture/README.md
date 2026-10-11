@@ -10,7 +10,7 @@ await buildCapture({ dist });
 await runCapture({
   folder, dist, seed, survey,
   prepare: async ({ page }) => {
-    // Wait for this look's scene or dismiss its guide through normal controls.
+    // Wait for this look's scene.
   },
   views: [
     { name: 'opening' },
@@ -26,7 +26,9 @@ await runCapture({
 
 Run scripts with `node --import tsx`. The seed holds `projects`, `tree`, `changes`,
 `lines` and `covers`; `survey` is optional. A typed `answers` object can override
-bridge reads. Unseeded known reads receive the bridge's quiet defaults; an unknown
+bridge reads. The page opens with the first-run guide already seen, on the globe;
+a capture of the guide itself passes `guide: 'unseen'` (also `fakeBridge(answers,
+{ guide: 'unseen' })`). Unseeded known reads receive the bridge's quiet defaults; an unknown
 method fails with its name. A view writes `<name>.png` and, when measured,
 `<name>.json`; `picture: false` omits the picture and `measurement` changes the JSON
 filename. The return value is the array of measured values.

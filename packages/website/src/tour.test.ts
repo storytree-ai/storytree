@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { mapRecording, mapGrowthPlan, recordedFrame } from "./map-recording.js";
 import type { GrowthSnapshot } from "./forest-data.js";
 import shop from "./shop-snapshot.json" with { type: "json" };
-import { aim, createTour, flight, globeOf, groups, lineStarts, readingTime, replayMoment, settle, stepAt, viewOf, type TourStep } from "./tour.js";
+import { aim, createTour, flight, globeOf, groups, labelsAt, labelWords, lineStarts, placeTags, readingTime, replayMoment, settle, stepAt, viewOf, type TourStep } from "./tour.js";
 import { steps as tourSteps } from "./tour-copy.js";
 import { fill, growthCounts } from "./tour-counts.js";
 
@@ -340,6 +340,68 @@ test("3.4 · the map chapter lays the shop's first four stories out by their own
   assert.ok(Math.abs(c.y - k.y) < 1e-9 && c.x < k.x, "the cart and checkout side by side, the cart to the west");
   assert.ok(c.y > b.y && b.y > s.y, "the cart and checkout above browsing, browsing above signing in");
   assert.deepEqual(original.places.find(node => node.id === checkout)!.place, 3001, "free play keeps the finished shop's places");
+});
+
+test("2.21 · each map line labels the one thing it talks about, in words true to the shop's record as it is said, and the label goes when the line passes", () => {
+  const original = shop as unknown as GrowthSnapshot;
+  const recording = mapRecording(original);
+  const plan = mapGrowthPlan(recording);
+  const names = (original.reading?.recording.lines ?? []).filter(line => line.kind === "session-named");
+  /** What each label on line `line` of step `id` says `into` seconds after the line begins, read from the frame on show then. */
+  const said = (id: string, line: number, into = .5) => {
+    const step = tourSteps.find(step => step.id === id)!, starts = lineStarts(step);
+    if (typeof step.growth !== "object") throw new Error(id);
+    const frame = recordedFrame(recording, plan, replayMoment(plan, step.growth, starts[line - 1]! + into, starts));
+    const named = (session: string) => names.filter(name => name.session === session && name.at <= frame.at).flatMap(name => "title" in name ? [String(name.title)] : []).at(-1);
+    return labelsAt(step, line).map(label => "point" in label ? `point:${label.point}` : `${JSON.stringify(label.target)} ${labelWords(label, frame, named)}`);
+  };
+  const story = (id: string) => JSON.stringify({ kind: "story", story: id });
+  const signIn = "story_d263ef0f3f72", checkout = "story_66f80ffaaa4d";
+  // Stories and pathways: the island, then the one pathway the line names.
+  assert.deepEqual(said("map-stories", 1, 7), [`${story(signIn)} a story`]);
+  assert.deepEqual(said("map-stories", 2), [`${JSON.stringify({ kind: "pathway", link: "capability_ed214990be99->capability_ae20917d7a32", along: .2 })} the cart needs signing in`]);
+  // Capabilities: the first territory as it arrives, then the largest of signing in's files with its recorded size; the panel line has none.
+  assert.deepEqual(said("map-capabilities", 1), [`${JSON.stringify({ kind: "capability", capability: "capability_323895c5a414" })} a capability`]);
+  assert.deepEqual(said("map-capabilities", 2), [`${JSON.stringify({ kind: "file", story: signIn, path: "src/server/server.js" })} server.js · 110 lines`]);
+  assert.deepEqual(said("map-capabilities", 3), []);
+  // Claims: the first flag, named by the session that planted it; the arcs line has none; the sessions list is pointed out, not labelled.
+  assert.deepEqual(said("map-claims", 1, 2), [`${JSON.stringify({ kind: "capability", capability: "capability_f29c62742cce" })} Part 2: product page, sorting, cart`]);
+  assert.deepEqual(said("map-claims", 2), []);
+  assert.deepEqual(said("map-claims", 3), ["point:sessions"]);
+  // Health: checkout reads "not proved yet" while it is yellow, and "tests passed" once the survey turns it green.
+  assert.deepEqual(said("map-health", 1), [`${story(checkout)} not proved yet`]);
+  assert.deepEqual(said("map-health", 2), [`${story(checkout)} not proved yet`]);
+  assert.deepEqual(said("map-health", 2, 8.6), [`${story(checkout)} tests passed`]);
+  // A label shows only while its line is the current one, and no other chapter's lines carry one.
+  for (const step of tourSteps) for (let line = 1; line <= step.lines.length; line++) {
+    const now = labelsAt(step, line), next = labelsAt(step, line + 1);
+    assert.ok(now.length <= 1, `${step.id} ${line}: one at a time`);
+    assert.ok(next.every(label => !now.includes(label)), `${step.id} ${line}: gone when the line passes`);
+    if (step.explainer !== "map") assert.deepEqual(now, [], step.id);
+  }
+  // On a phone, at most one label on the globe in a step; the narrowest keeps fewer still.
+  const onPhone = (width: number) => tourSteps.map(step => new Set(step.lines.flatMap((_, line) => labelsAt(step, line + 1, { width }).flatMap(label => "point" in label ? [] : [label.target.kind]))).size);
+  assert.ok(onPhone(390).every(count => count <= 1));
+  assert.deepEqual([onPhone(1440), onPhone(390), onPhone(320)].map(counts => counts.reduce((sum, count) => sum + count, 0)), [6, 3, 1]);
+});
+
+test("2.21 · a line's label sits inside the screen, clear of its ring, the card and the panels, and off an island's name where it has room", () => {
+  // A phone at 320: the label's ring near the right edge, the sessions list above it, the card below, an island's name to its left.
+  const room = { width: 320, height: 560 };
+  const tag = { x: 250, y: 262, width: 150, height: 25 };
+  const panels = [{ x: 10, y: 84, width: 300, height: 86 }, { x: 10, y: 340, width: 300, height: 200 }];
+  const name = { x: 60, y: 250, width: 160, height: 22, soft: true };
+  const [at] = placeTags([tag], room, { keepOut: [...panels, name], sides: ["right", "left", "below", "above"] });
+  const box = { x: tag.x + at!.x, y: tag.y + at!.y, width: tag.width, height: tag.height };
+  const meets = (a: typeof box, b: typeof box) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+  assert.ok(box.x >= 8 && box.y >= 8 && box.x + box.width <= room.width - 8 && box.y + box.height <= room.height - 8, `inside the screen: ${JSON.stringify(box)}`);
+  assert.ok(!meets(box, { x: tag.x - 17, y: tag.y - 17, width: 34, height: 34 }), "clear of its ring");
+  for (const panel of panels) assert.ok(!meets(box, panel), `clear of ${JSON.stringify(panel)}`);
+  assert.ok(!meets(box, name), "off the island's name");
+  // A laptop: to the right of its ring, or to the left where the right has no room.
+  const wide = { width: 1440, height: 900 };
+  assert.equal(placeTags([{ x: 900, y: 400, width: 160, height: 25 }], wide, { share: true })[0]!.side, "right");
+  assert.equal(placeTags([{ x: 1350, y: 400, width: 160, height: 25 }], wide, { share: true })[0]!.side, "left");
 });
 
 test("2.20 · the knowledge chapter plays three steps on the globe the map chapter leaves: decisions inside it, checkout's shelf, and the orders session reading it before it claims", () => {

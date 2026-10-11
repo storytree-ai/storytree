@@ -11,7 +11,7 @@ export function iconPath(colourway: string, file: string): string {
   return fileURLToPath(new URL(`../icons/${colourway}/${file}`, import.meta.url));
 }
 
-/** Writes every colourway's SVG, PNGs, .ico and .icns from the master drawing. */
+/** Writes every colourway's SVG, PNGs, .ico and .icns from the master drawing (its small-size variant at 16 pixels). */
 export function writeIcons(): string[] {
   const written: string[] = [];
   const put = (path: string, data: string | Buffer) => { writeFileSync(path, data); written.push(path); };

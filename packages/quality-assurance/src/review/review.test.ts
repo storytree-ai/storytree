@@ -15,7 +15,7 @@ import { test } from "node:test";
 import type { Library } from "@storytree/library";
 
 import { withLibrary } from "../testing/pg.js";
-import { briefText, openLedger, openReviews, qualityTools, REVIEW_LIMIT, standingText, type ReviewReturn } from "../index.js";
+import { branchDiff, briefText, openLedger, openReviews, qualityTools, REVIEW_LIMIT, standingText, type ReviewReturn } from "../index.js";
 
 const DIFF = [
   "diff --git a/packages/forest-world/src/camera.test.ts b/packages/forest-world/src/camera.test.ts",
@@ -67,6 +67,16 @@ test("2.1 · the first brief holds the branch's diff, every contract of the capa
     assert.deepEqual(brief.earlier, []);
     assert.doesNotMatch(JSON.stringify(brief), /SECRET BREAKDOWN|Build the email form|reset link/);
   });
+});
+
+test("2.1 · the branch's diff is read against the default branch origin names, as in a user's project whose origin calls it master", () => {
+  const dir = branchCheckout("master");
+  try {
+    const changed = branchDiff(dir).split("\n").filter((line) => /^[+-](?![+-])/.test(line));
+    assert.deepEqual(changed, ["+export const b = 2;"]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test("2.4 · a contract the increment rewords pending its merge is briefed in its pending text, and one it retires pending its merge is listed as retired and not answered", async () => {
@@ -125,8 +135,8 @@ function registeredTools() {
   return tools;
 }
 
-/** A git checkout whose branch adds one line to a library file on top of its origin/main. */
-function branchCheckout(): string {
+/** A git checkout whose branch adds one line to a library file on top of its origin/main, or of the default branch `trunk` origin names. */
+function branchCheckout(trunk?: string): string {
   const dir = mkdtempSync(join(tmpdir(), "qa-review-"));
   const git = (...args: string[]) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { cwd: dir });
   git("init", "-q");
@@ -134,7 +144,8 @@ function branchCheckout(): string {
   writeFileSync(join(dir, "packages/library/src/a.ts"), "export const a = 1;\n");
   git("add", ".");
   git("commit", "-qm", "base");
-  git("update-ref", "refs/remotes/origin/main", "HEAD");
+  git("update-ref", `refs/remotes/origin/${trunk ?? "main"}`, "HEAD");
+  if (trunk !== undefined) git("symbolic-ref", "refs/remotes/origin/HEAD", `refs/remotes/origin/${trunk}`);
   writeFileSync(join(dir, "packages/library/src/a.ts"), "export const a = 1;\nexport const b = 2;\n");
   git("commit", "-qam", "change");
   return dir;

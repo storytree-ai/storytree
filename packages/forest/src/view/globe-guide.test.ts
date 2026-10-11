@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { BoxGeometry, Group, Mesh, MeshBasicMaterial, OrthographicCamera, Quaternion, Vector3 } from "three";
+import { BoxGeometry, BufferGeometry, Float32BufferAttribute, Group, Mesh, MeshBasicMaterial, OrthographicCamera, Quaternion, Vector3 } from "three";
 import { createGlobeGuide, type GlobePose, type ScreenPosition } from "./globe-guide.js";
 import { focusRotation, pickGlobe, pointedFile } from "./planet-navigation.js";
 
@@ -65,6 +65,18 @@ test("3.23 screen positions follow actual transforms, zoom, viewport and camera 
   f.core.visible = true; f.camera.clearViewOffset();
   f.resize({ width: 400, height: 300 });
   assert.deepEqual(f.guide.position({ kind: "core" }), { x: 200, y: 150, visible: true });
+  // A link's pathway is its own stretch of road where roads merge, and its point is on the ribbon, the given share of the way along
+  // it (its middle by default), not its bounding box's centre.
+  const road = (name: string, links: string[], points: number[]) => {
+    const ribbon = new BufferGeometry(); ribbon.setAttribute("position", new Float32BufferAttribute(points, 3));
+    const mesh = new Mesh(ribbon, new MeshBasicMaterial()); mesh.name = name; mesh.userData.links = links; f.globe.add(mesh);
+  };
+  road("pathway:trunk", ["cart->shop", "orders->shop"], [-8, 0, 0, -8, 2, 0, -8, 4, 0, -8, 6, 0, -8, 8, 0, -8, 10, 0]);
+  road("pathway:branch", ["cart->shop"], [0, 0, 0, 0, 2, 0, 8, 0, 0, 8, 2, 0, 8, 8, 0, 8, 10, 0]);
+  at(f.guide.position({ kind: "pathway", link: "cart->shop" }), 200 + 8 * 10, 150 - 1 * 10);
+  at(f.guide.position({ kind: "pathway", link: "cart->shop", along: 0 }), 200, 150 - 1 * 10);
+  at(f.guide.position({ kind: "pathway", link: "orders->shop" }), 200 - 8 * 10, 150 - 5 * 10);
+  assert.equal(f.guide.position({ kind: "pathway", link: "missing" }), undefined);
   for (const child of f.story.children) child.visible = false;
   assert.equal(f.guide.position({ kind: "story", story: "shop" })?.visible, false, "an island with no shown marks is hidden");
 });

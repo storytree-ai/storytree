@@ -232,7 +232,8 @@ export async function verifyTour(browser, url, output) {
   // 2.13: free play opens on the whole shop; the selector switches it to storytree's own saved project.
   assert.equal(await page.locator("#chapter2").getAttribute("data-globe-map"), "shop");
   assert.match(await page.locator("#tour-label").textContent(), /online shop .* recorded \d+ \w+ \d{4} · read only/);
-  assert.equal(await page.locator(".forest-still img").evaluate(node => node.checkVisibility({ visibilityProperty: true })), false, "storytree's still never stands in for the shop");
+  assert.equal(await page.locator(".storytree-still img").evaluate(node => node.checkVisibility({ visibilityProperty: true })), false, "storytree's still never stands in for the shop");
+  assert.equal(await page.locator(".shop-still img").evaluate(node => node.checkVisibility({ visibilityProperty: true })), true, "the shop's own still stands in for its globe");
   await page.clock.runFor(500);
   // 2.14: on the shop, free play opens the shop's own recorded sessions, story panels and arcs.
   assert.equal(await page.locator(".tour-session-surface").evaluate(node => node.hidden), false, "the shop's recorded sessions are shown");
@@ -571,7 +572,7 @@ export async function reviewChapters(browser, url, output) {
   assert.deepEqual(observations.flatMap(row => row.errors ?? []), [], 'The reviewed chapters have no console errors');
 }
 
-// Inspect 2.2's still and the separately tracked missing shop fallback, without claiming the missing picture passes.
+// Inspect 2.2's stills without WebGL: the knowledge chapter's step, free play on the shop and on storytree.
 export async function reviewFallbacks(browser, url, output) {
   const observations = [];
   for (const [width, height] of [[1440, 900], [1280, 800], [390, 844], [320, 844]]) {
@@ -590,7 +591,7 @@ export async function reviewFallbacks(browser, url, output) {
       await page.locator('#tour-skip').click();
       await page.locator('.forest-views').waitFor();
       await page.screenshot({ path: path.join(output, `${width}-no-webgl-shop.png`) });
-      observations.push({ width, shopStillVisible: await page.locator('.forest-still img').evaluate(node => node.checkVisibility({ visibilityProperty: true })) });
+      observations.push({ width, shopStillVisible: await page.locator('.shop-still img').evaluate(node => node.checkVisibility({ visibilityProperty: true })) });
       await page.getByRole('button', { name: 'storytree', exact: true }).click();
       await page.screenshot({ path: path.join(output, `${width}-no-webgl-storytree.png`) });
     } finally { await page.close(); }

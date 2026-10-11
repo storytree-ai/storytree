@@ -1,0 +1,137 @@
+{
+  "cap": "shipped",
+  "browser": "148.0.7778.96",
+  "beside": [
+    {
+      "story": "shell",
+      "mapped": false,
+      "fill": null,
+      "reach": null,
+      "files": 0,
+      "hatch": false
+    },
+    {
+      "story": "story_05e45963ca9f",
+      "mapped": false,
+      "fill": null,
+      "reach": 93.6,
+      "files": 89,
+      "hatch": true
+    },
+    {
+      "story": "story_16ac26dfa5d6",
+      "mapped": false,
+      "fill": null,
+      "reach": 45,
+      "files": 26,
+      "hatch": true
+    },
+    {
+      "story": "story_78b33d16d0b6",
+      "mapped": false,
+      "fill": null,
+      "reach": 32.4,
+      "files": 19,
+      "hatch": true
+    },
+    {
+      "story": "story_20549f1d48af",
+      "mapped": false,
+      "fill": null,
+      "reach": 51.6,
+      "files": 26,
+      "hatch": true
+    },
+    {
+      "story": "story_be32e99ed54f",
+      "mapped": false,
+      "fill": null,
+      "reach": 44.2,
+      "files": 30,
+      "hatch": true
+    },
+    {
+      "story": "story_4c04d95d52a8",
+      "mapped": false,
+      "fill": null,
+      "reach": 51.6,
+      "files": 14,
+      "hatch": true
+    },
+    {
+      "story": "story_69d0ee10bbe7",
+      "mapped": false,
+      "fill": null,
+      "reach": 25.7,
+      "files": 17,
+      "hatch": true
+    },
+    {
+      "story": "story_eb7d623fb9c8",
+      "mapped": false,
+      "fill": null,
+      "reach": 75.1,
+      "files": 37,
+      "hatch": true
+    },
+    {
+      "story": "story_mapped_shop",
+      "mapped": true,
+      "fill": "#a9794e",
+      "reach": 35.3,
+      "files": 0,
+      "hatch": false
+    },
+    {
+      "story": "story_mapped_api",
+      "mapped": true,
+      "fill": "#a9794e",
+      "reach": 67.3,
+      "files": 0,
+      "hatch": false
+    },
+    {
+      "story": "story_mapped_core",
+      "mapped": true,
+      "fill": "#a9794e",
+      "reach": 67.2,
+      "files": 0,
+      "hatch": false
+    }
+  ],
+  "panel": "Mapped: here before storytree, and assumed to be working. 20 files, 20,000 lines.",
+  "only-mapped": [
+    {
+      "story": "shell",
+      "mapped": false,
+      "fill": null,
+      "reach": null,
+      "files": 0,
+      "hatch": false
+    },
+    {
+      "story": "story_mapped_shop",
+      "mapped": true,
+      "fill": "#a9794e",
+      "reach": 19.8,
+      "files": 0,
+      "hatch": false
+    },
+    {
+      "story": "story_mapped_api",
+      "mapped": true,
+      "fill": "#a9794e",
+      "reach": 19.9,
+      "files": 0,
+      "hatch": false
+    },
+    {
+      "story": "story_mapped_core",
+      "mapped": true,
+      "fill": "#a9794e",
+      "reach": 19.8,
+      "files": 0,
+      "hatch": false
+    }
+  ]
+}

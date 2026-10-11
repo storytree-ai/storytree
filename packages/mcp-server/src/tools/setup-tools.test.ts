@@ -399,6 +399,8 @@ test("session-management 8.26 in a project an earlier starter pack seeded, the c
         await approveCheckout(folder, project, home.storytreeHome);
         return folder;
       };
+      // The check's own answer, before the habits card that follows it and names every tool.
+      const answered = (text: string) => text.split("\n\nHow to work with storytree")[0]!;
       // Version 1 of the pack seeded this one: a principle whose statement the pack has since changed.
       const library = await storytree.openProject(earlier);
       await library.writeKnowledge("principle", { title: "Minimum to green", description: "Build only what the next failing test needs.", statement: "Write the least code that passes.", why: "Less to fix.", howToApply: "Name the behaviour first." }, { actor: "storytree setup (starter pack v1)" });
@@ -409,18 +411,18 @@ test("session-management 8.26 in a project an earlier starter pack seeded, the c
         const offered = await agent.call("check_setup");
         assert.deepEqual(offered.data.starterPack, { seeded: 1, current: STARTER_PACK_VERSION, offered: true });
         assert.match(offered.text, new RegExp(`starter pack v1\\b.*v${STARTER_PACK_VERSION}\\b`));
-        assert.match(offered.text, /take_starter_pack/);
+        assert.match(answered(offered.text), /take_starter_pack/);
         const took = await agent.call("take_starter_pack");
         assert.equal(took.isError, false, took.text);
         assert.deepEqual((took.data.replaced as { title: string }[]).map(({ title }) => title), ["Minimum to green"]);
         const taken = await agent.call("check_setup");
         assert.deepEqual(taken.data.starterPack, { seeded: STARTER_PACK_VERSION, current: STARTER_PACK_VERSION, offered: false });
-        assert.doesNotMatch(taken.text, /take_starter_pack/);
+        assert.doesNotMatch(answered(taken.text), /take_starter_pack/);
       });
       await withAgent(await projectFolder(never), agentIn(path.join(dir, never)), async (agent) => {
         const checked = await agent.call("check_setup");
         assert.deepEqual(checked.data.starterPack, { seeded: null, current: STARTER_PACK_VERSION, offered: false });
-        assert.doesNotMatch(checked.text, /take_starter_pack/);
+        assert.doesNotMatch(answered(checked.text), /take_starter_pack/);
       });
     } finally {
       await storytree.close();

@@ -732,7 +732,6 @@
 .session-detail-worktrees li { color:#d9dedb; }
 .session-detail-files li[data-resident="no"] { opacity:.5; }
 .sessions-list .session-detail-note { margin:2px 0; font-size:11px; }
-.session-row[data-idle] { opacity:.6; }
 .sessions-tabs { display:inline-flex; gap:2px; }
 .sessions-list .sessions-tabs button { font-size:11px; letter-spacing:.04em; color:#abb4b1; padding:3px 8px; border-radius:3px; }
 .sessions-list .sessions-tabs button[aria-selected="true"] { color:#eceae3; background:#ffffff17; }
@@ -750,9 +749,9 @@
 .history-outcome[data-outcome="held"] { color:#f2c46b; border-color:#9a7a34; background:#f2c46b1a; }
 .history-agent,.history-ran { font-size:11px; color:#b3bdb9; white-space:nowrap; }
 .history-stories { flex:0 1 16rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11px; color:#b3bdb9; text-align:right; }
-.session-idle-fold { font:inherit; font-size:11px; color:#b3bdb9; background:none; border:0; padding:2px 0 2px 16px; cursor:pointer; }
-.session-idle-fold::before { content:"▸ "; }
-.session-idle-fold[aria-expanded="true"]::before { content:"▾ "; }
+.history-search { display:block; width:min(100%, 22rem); margin:0 4px 6px; font:inherit; font-size:11px; color:#d9dedb; background:#12181b99; border:1px solid #4a5654; border-radius:3px; padding:2px 6px; color-scheme:dark; }
+.sessions-idle-note { font-size:11px; color:#b3bdb9; }
+.sessions-list button.sessions-idle-elsewhere { font:inherit; color:#d9dedb; background:none; border:0; padding:0; text-decoration:underline; cursor:pointer; }
 .session-worktrees,.session-children { font-size:11px; color:#b3bdb9; white-space:nowrap; }
 .session-machine { font-size:10px; color:#b3bdb9; white-space:nowrap; border:1px solid #4a5654; border-radius:3px; padding:0 4px; }
 .session-on-main { font-size:10px; color:#b3bdb9; white-space:nowrap; flex-shrink:0; border:1px solid #4a5654; border-radius:3px; padding:0 4px; }

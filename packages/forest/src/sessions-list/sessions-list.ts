@@ -44,7 +44,7 @@ export interface SessionRow {
   /** A subagent start alone does not tell us whether the subagent is still running. */
   state: SessionState | "observed";
   /**
-   * Folded into the list's "N idle" row, and not counted (ADR-0758 D1, D5): neither working, nor
+   * Listed under History rather than Live, and not counted (ADR-0758 D1, ADR-1002 D4): neither working, nor
    * waiting for you (a turn ended within the idle-after time). By its state alone; who is listed at all is Session management's reading.
    */
   idle: boolean;
@@ -185,7 +185,7 @@ function pullLabel(pr: PullState): string {
   return waiting === undefined ? `PR #${pr.number}` : `PR #${pr.number} · ${waiting}`;
 }
 
-/** How many listed sessions are at work, as the list's header counts them (ADR-0758 D1): every row not folded as idle. */
+/** How many listed sessions are at work, as the list's header counts them (ADR-0758 D1): every row not idle. */
 export function atWork(rows: readonly SessionRow[]): number {
   return rows.filter(row => !row.idle).length;
 }
@@ -358,6 +358,12 @@ export function globeRoster(live: readonly SessionRow[], history: readonly Histo
   const roster = sessionRoster(live);
   const past = roster.some(entry => entry.members.includes(selected ?? "")) ? undefined : history.find(row => row.id === selected);
   return past === undefined ? roster : [...roster, { session: past.id, label: past.label, colour: sessionColour(past.id), members: [past.id] }];
+}
+
+/** Whether a row's words hold every word of a search, whatever the case (7.28); an empty search keeps every row. */
+export function matchesSearch(words: readonly string[], search: string): boolean {
+  const text = words.join("\n").toLocaleLowerCase();
+  return search.toLocaleLowerCase().split(/\s+/).filter(Boolean).every(word => text.includes(word));
 }
 
 /** The selection a click on a history row leaves (7.23): its session, or none when it was the one selected. */

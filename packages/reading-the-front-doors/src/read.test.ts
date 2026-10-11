@@ -5,7 +5,7 @@ import { test } from "node:test";
 import { openActivityLog } from "@storytree/session-management";
 import { testServerUrl, uniqueProjectName } from "@storytree/session-management/testing/pg";
 
-import { readDoors } from "./read.js";
+import { readDoors } from "./index.js";
 
 test("1.6 · each window counts only its own door-answered lines, and a session's prompts decide whether it was briefed", async () => {
   const log = await openActivityLog(testServerUrl());

@@ -502,6 +502,21 @@ test("4.18 `arc increment edit --held-on \"\"` clears a hold put on by mistake: 
   });
 });
 
+test("4.21 `arc increment edit --held-on none` clears a hold, for a shell that drops an empty argument (Windows PowerShell 5.1): the increment reads held on nothing", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const arc = await anArc(world);
+    const held = await library.addIncrement({ arc, title: "Mailer", objective: "Mail", body: "…" });
+    const question = await library.raiseQuestion({ arc, title: "Which mailer?", stakes: "s", statement: "q", context: "c", options: "o" });
+    await library.editIncrement(held.id, { heldOn: [question.id] });
+
+    const cleared = await world.run(["arc", "increment", "edit", held.id, "--held-on", "none"]);
+
+    assert.equal(cleared.code, 0, cleared.stderr);
+    assert.equal(((await library.get(held.id))?.fields as { heldOn?: string[] }).heldOn, undefined);
+  });
+});
+
 test("4.16 `arc increment edit --capabilities` refuses a capability already on the list of another live session's claimed increment, naming that increment and its holder, with nothing written; the caller's own lists, and a released increment's, are not refused (ADR-0949 D2)", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();

@@ -4,7 +4,8 @@ import { Canvas, useFrame, useThree, type RootState } from '@react-three/fiber';
 import { Html, OrbitControls } from '@react-three/drei';
 import { Vector3, type Group, type OrthographicCamera } from 'three';
 import type { ForestScene, Island } from '../scene.js';
-import { planetPathwayDrawing, type PlanetPathwayPlate } from './pathways.js';
+import type { PathwayDrawing, PlanetPathwayPlate } from './pathways.js';
+import { drawnAtOnce, pageRoadRouter, routedDrawing } from './road-routing.js';
 import { Pathways, SelectionLanes } from './PlanetTrailRibbons.js';
 import { onIsland, type InlandWay, type LitLink } from './lanes.js';
 import type { CoastPoint } from '../coast-clip.js';
@@ -143,6 +144,21 @@ function PaintWhileSeen({ watch }: { watch: ViewportWatch | undefined }) {
   return null;
 }
 
+/** World 6.21: the islands are drawn at once and the roads when routed, off the page's main thread where the page
+ * offers a road worker; a routing its layout has overtaken draws nothing. */
+function useRoadsWhenRouted(scene: ForestScene, spots: ReadonlyMap<string, PlanetSpot>, radius: number): PathwayDrawing {
+  const router = useMemo(() => pageRoadRouter(), []);
+  const now = useMemo(() => drawnAtOnce(scene, spots, radius), [scene, spots, radius]);
+  const [routed, setRouted] = useState<{ now: typeof now; drawing: PathwayDrawing }>();
+  useEffect(() => {
+    if (now.routing === undefined) return;
+    const layout = new AbortController();
+    void routedDrawing(scene, spots, radius, now.routing, router, layout.signal).then(drawing => { if (drawing) setRouted({ now, drawing }); });
+    return () => layout.abort();
+  }, [now, router]);
+  return routed?.now === now ? routed.drawing : now.drawing;
+}
+
 /** The one dev-only seam an evidence capture observes the globe through: a capture build sets this global
  * before the page runs and is handed the canvas's live state getter. Nothing in the product sets it. */
 const CAPTURE_SEAM = '__storytreeCaptureGlobe';
@@ -150,7 +166,7 @@ const CAPTURE_SEAM = '__storytreeCaptureGlobe';
 /** The globe: one Canvas, the see-through sea, and each story's island as a flat surface with a coast
  * (ADR-0804 D1). Nothing on it is lit, so there is no sun to calibrate. */
 export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1], plateChildren, children, surface = true, surfaces, inside, framing = 1.18, sideOffset = 0, orbit = true, lanes = NO_LANES, laneWays, growth, liveRoads = false }: PlanetWorldCanvasProps) {
-  const drawing = useMemo(() => planetPathwayDrawing(scene, spots, radius), [scene, spots, radius]);
+  const drawing = useRoadsWhenRouted(scene, spots, radius);
   const inland = useMemo((): InlandWay | undefined => laneWays && ((dock, capability) => {
     const way = laneWays(dock.story, capability, dock.local), spot = spots.get(dock.story);
     return way && spot && way.length > 1 ? onIsland(way, spot, radius) : undefined;

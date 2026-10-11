@@ -65,6 +65,18 @@ await build({
   target: "node22",
 });
 
+// The globe's road worker (world 6.21), named by the page's storytree-road-worker meta tag, so the roads between islands
+// are routed off the page's main thread.
+const roadWorker = createRequire(fileURLToPath(import.meta.resolve("@storytree/forest/view"))).resolve("@storytree/forest-world/road-worker");
+await build({
+  ...common,
+  entryPoints: [roadWorker],
+  outfile: path.join(dist, "renderer", "road-worker.js"),
+  platform: "browser",
+  format: "iife",
+  target: "es2023",
+});
+
 await build({
   ...common,
   entryPoints: [path.join(src, "preload", "preload.ts")],

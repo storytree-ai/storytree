@@ -3,7 +3,7 @@
 import type { ForestScene, Island } from '../scene.js';
 import { Quaternion, Vector3 } from 'three';
 import { clipToCoast, rimLoops, SHIPPED_COAST, type CoastPoint } from '../coast-clip.js';
-import { routeTrails, trailFillWidth, type TrailEdgeIn, type TrailEdgeOut, type TrailNetwork, type TrailSegment } from '../core/routing.js';
+import { routeTrails, trailFillWidth, type TrailEdgeIn, type TrailEdgeOut, type TrailIsland, type TrailNetwork, type TrailSegment, type TrailTuning } from '../core/routing.js';
 import { forestDescriptors } from '../forest-ground/forest-ground.js';
 import { RIBBON_GROUND_SCALE } from '../trail-ribbon-width.js';
 import type { Descriptor3D, InstanceDescriptor } from '../descriptors.js';
@@ -56,6 +56,14 @@ interface Ground extends PreparedGround {
   r: number;
 }
 interface Link extends TrailEdgeIn { source: string; target: string; typeOnly?: true }
+
+/** The routes between islands a drawing asks the router for: plain data, so a worker can route them. */
+export interface CrossRouting {
+  islands: TrailIsland[];
+  edges: TrailEdgeIn[];
+  seed: string;
+  tuning: Partial<TrailTuning>;
+}
 interface Dock { story: string; local: CoastPoint; point: Vector3; links: Set<string> }
 
 // Polls preserve unchanged island objects; retain their ground input and relief through routing.
@@ -201,11 +209,8 @@ function chartPole(islands: readonly { at: Vector3; reach: number }[]): Vector3 
   return best;
 }
 
-/** One ordered chain per recorded capability edge between islands, from dock to dock; a link within an island has
- * none, since nothing draws it (ADR-0951 D3). Routes are planned on an azimuthal chart about the islands' own middle
- * (`chartPole`). */
-export function buildPlanetPathways(scene: ForestScene, spots: ReadonlyMap<string, PlanetSpot>, radius: number, route: typeof routeTrails = routeTrails): PlanetPathways {
-  const plan: PlanetPathways = { plates: new Map(), segments: [], edges: [], docks: [] };
+/** Everything a drawing's roads are laid out from, before and apart from routing them. */
+function chartPathways(scene: ForestScene, spots: ReadonlyMap<string, PlanetSpot>, radius: number) {
   const pole = chartPole(scene.islands.flatMap(island => {
     const spot = spots.get(island.story);
     return spot ? [{ at: new Vector3(spot.x, spot.y, spot.z), reach: islandCoastReach(island) / radius }] : [];
@@ -252,10 +257,21 @@ export function buildPlanetPathways(scene: ForestScene, spots: ReadonlyMap<strin
   })).values()];
   const maxWidth = trailFillWidth(cross.length) * RIBBON_GROUND_SCALE;
   const nodes = [...grounds.values()].map(g => ({ id: g.id, ...g.centre, r: g.r, outline: g.chartRings.map(ring => ring.map(({ x, y }) => ({ x, y }))) }));
-  const crossKey = JSON.stringify([nodes, pairs, maxWidth]);
+  const routing: CrossRouting = { islands: nodes, edges: pairs, seed: 'globe-pathways-real-seed',
+    tuning: { cellSize: 2, clearance: maxWidth / 2 + 1, falloff: maxWidth, meanderAmp: 0.4 } };
+  return { grounds, cross, chart, sphere, routing, key: JSON.stringify([nodes, pairs, maxWidth]) };
+}
+
+/** One ordered chain per recorded capability edge between islands, from dock to dock; a link within an island has
+ * none, since nothing draws it (ADR-0951 D3). Routes are planned on an azimuthal chart about the islands' own middle
+ * (`chartPole`). */
+export function buildPlanetPathways(scene: ForestScene, spots: ReadonlyMap<string, PlanetSpot>, radius: number, route: typeof routeTrails = routeTrails): PlanetPathways {
+  const plan: PlanetPathways = { plates: new Map(), segments: [], edges: [], docks: [] };
+  const { grounds, cross, chart, sphere, routing, key: crossKey } = chartPathways(scene, spots, radius);
   const network = crossRoutes?.key === crossKey ? crossRoutes.network
-    : route(nodes, pairs, 'globe-pathways-real-seed', { cellSize: 2, clearance: maxWidth / 2 + 1, falloff: maxWidth, meanderAmp: 0.4 });
-  crossRoutes = { key: crossKey, network };
+    : route(routing.islands, routing.edges, routing.seed, routing.tuning);
+  // A drawing with no roads between islands leaves the last routing kept.
+  if (routing.edges.length > 0) crossRoutes = { key: crossKey, network };
   requireNetwork(network);
   const crossSegments = new Map(network.segments.map(segment => [segment.id, segment]));
   const crossEdges = new Map(network.edges.map(edge => [keyOf(edge), edge]));
@@ -342,22 +358,50 @@ export function buildPlanetPathways(scene: ForestScene, spots: ReadonlyMap<strin
 }
 
 /** A routing failure is visible without taking any island (especially a failing one) off the page. */
-export function planetPathwayDrawing(scene: ForestScene, spots: ReadonlyMap<string, PlanetSpot>, radius: number): {
-  plan: PlanetPathways; issue: string | undefined;
-} {
-  // A link naming a capability on no island (one depending on a retired capability, say) is left out on its own,
-  // rather than costing every road; the notice names it. A link end may name an island as a whole, by its story.
-  const drawn = new Set(scene.islands.flatMap(island => [island.story, ...island.trees.flatMap(tree => tree.capability === undefined ? [] : [tree.capability])]));
-  const links = scene.links ?? [];
-  const kept = links.filter(link => drawn.has(link.from) && drawn.has(link.to));
-  const left = links.filter(link => !kept.includes(link)).map(link => `${link.from}->${link.to}`);
-  const leftOut = left.length === 0 ? undefined : `Left out ${left.length === 1 ? 'a link' : `${left.length} links`} naming a capability on no island: ${left.join(', ')}`;
+export function planetPathwayDrawing(scene: ForestScene, spots: ReadonlyMap<string, PlanetSpot>, radius: number, route: typeof routeTrails = routeTrails): PathwayDrawing {
+  const { kept, leftOut } = drawnLinks(scene);
   try {
-    return { plan: buildPlanetPathways({ ...scene, links: kept }, spots, radius), issue: leftOut };
+    return { plan: buildPlanetPathways({ ...scene, links: kept }, spots, radius, route), issue: leftOut };
   } catch (error) {
     return {
       plan: buildPlanetPathways({ ...scene, links: [] }, spots, radius),
       issue: [error instanceof Error ? error.message : String(error), leftOut].filter(Boolean).join('; '),
     };
   }
+}
+
+export interface PathwayDrawing { plan: PlanetPathways; issue: string | undefined }
+
+/** The links a drawing routes, and the notice naming those it leaves out. A link naming a capability on no island
+ * (one depending on a retired capability, say) is left out on its own, rather than costing every road. A link end
+ * may name an island as a whole, by its story. */
+function drawnLinks(scene: ForestScene) {
+  const drawn = new Set(scene.islands.flatMap(island => [island.story, ...island.trees.flatMap(tree => tree.capability === undefined ? [] : [tree.capability])]));
+  const links = scene.links ?? [];
+  const kept = links.filter(link => drawn.has(link.from) && drawn.has(link.to));
+  const left = links.filter(link => !kept.includes(link)).map(link => `${link.from}->${link.to}`);
+  const leftOut = left.length === 0 ? undefined : `Left out ${left.length === 1 ? 'a link' : `${left.length} links`} naming a capability on no island: ${left.join(', ')}`;
+  return { kept, leftOut };
+}
+
+/** The routing a drawing still waits on: undefined when it routes nothing between islands, its routes are kept from
+ * the last routing, or a link it cannot draw leaves it to say so without routing. */
+export function pathwayRouting(scene: ForestScene, spots: ReadonlyMap<string, PlanetSpot>, radius: number): { key: string; routing: CrossRouting } | undefined {
+  let charted: ReturnType<typeof chartPathways>;
+  try {
+    charted = chartPathways({ ...scene, links: drawnLinks(scene).kept }, spots, radius);
+  } catch {
+    return undefined;
+  }
+  return charted.routing.edges.length === 0 || crossRoutes?.key === charted.key ? undefined : { key: charted.key, routing: charted.routing };
+}
+
+/** Keeps a network routed elsewhere (in a worker) as this page's last routing, so its drawing routes nothing. */
+export function keepRoutes(key: string, network: TrailNetwork): void {
+  crossRoutes = { key, network };
+}
+
+/** Every island's plate and no roads: what is on show while the roads are routed. */
+export function islandsOnly(scene: ForestScene): PathwayDrawing {
+  return { plan: { plates: new Map(scene.islands.map(island => [island.story, prepareGround(island).plate])), segments: [], edges: [], docks: [] }, issue: undefined };
 }

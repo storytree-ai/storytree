@@ -24,10 +24,20 @@ const docks = coast[0]!.flatMap((a, i) => {
   const b = coast[0]![(i + 1) % coast[0]!.length]!;
   return Array.from({ length: 10 }, (_, k): Point => ({ x: a.x + (b.x - a.x) * k / 10, z: a.z + (b.z - a.z) * k / 10 }));
 });
+/** The territory whose drawn cell outline holds the land a hair inland of `p`. */
 const territoryOf = (p: Point) => {
-  let [best, far] = [map.cells[0]!, Infinity];
-  for (const cell of map.cells) { const d = Math.hypot(cell.site.x - p.x, cell.site.z - p.z); if (d < far) [best, far] = [cell, d]; }
-  return map.territories[best.territory]!.capability;
+  const at = [[0.02, 0.02], [-0.02, 0.02], [0.02, -0.02], [-0.02, -0.02]].map(([dx, dz]) => ({ x: p.x + dx!, z: p.z + dz! }))
+    .find((q) => territoryAt(map, q.x, q.z) !== undefined)!;
+  const inside = (polygon: readonly Point[]) => {
+    let odd = false;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+      const [a, b] = [polygon[i]!, polygon[j]!];
+      if ((a.z > at.z) !== (b.z > at.z) && at.x < ((b.x - a.x) * (at.z - a.z)) / (b.z - a.z) + a.x) odd = !odd;
+    }
+    return odd;
+  };
+  const cell = map.cells.find((one) => inside(one.polygon));
+  return cell === undefined ? undefined : map.territories[cell.territory]!.capability;
 };
 
 test("3.7 a lit link's way inland runs from its dock only along drawn lines, the territories' borders and the coast between them, and enters its capability's territory along that territory's own border", () => {

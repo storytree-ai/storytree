@@ -80,7 +80,8 @@ export function territoryLand(land: DrawnLand, onSurface: (point: Point) => Vect
   borders.setAttribute("position", new Float32BufferAttribute(segments, 3));
   const lines = new LineSegments(borders, new LineBasicMaterial({ color: BORDER_COLOUR, transparent: true, opacity: BORDER_OPACITY, depthWrite: false }));
   lines.name = "territory-borders";
-  lines.userData = { borders: kept.length };
+  // Each segment's ends on the ground, so a rebuilt island knows which borders it already drew (3.46).
+  lines.userData = { borders: kept.length, ground: kept.flatMap(({ from, to }) => [from.x, from.z, to.x, to.z]) };
   lines.renderOrder = 2;
   group.add(lines);
   return group;

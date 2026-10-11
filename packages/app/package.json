@@ -16,6 +16,7 @@
     "typecheck": "tsc -p ."
   },
   "dependencies": {
+    "@storytree/mark": "workspace:*",
     "@storytree/session-management": "workspace:*",
     "@storytree/library": "workspace:*",
     "electron-updater": "6.8.9",

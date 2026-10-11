@@ -6,7 +6,16 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
-import { capturePath } from "../../../../../website/evidence/capture-path.mjs";
+
+// A request's file under the build, kept inside it.
+function capturePath(dist, url) {
+  let pathname;
+  try { pathname = decodeURIComponent(new URL(url, "http://localhost").pathname); } catch { return { status: 400 }; }
+  const root = path.resolve(dist), file = path.resolve(root, `.${pathname === "/" ? "/index.html" : pathname}`);
+  const relative = path.relative(root, file);
+  if (pathname.includes("\0") || !relative || relative.startsWith("..") || path.isAbsolute(relative)) return { status: 403 };
+  return { file };
+}
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 // The website's own browser driver: this package has none.

@@ -121,6 +121,19 @@ export function hiddenMarkers(islands: readonly FacingIsland[], rotation: Quater
   return edgeMarkers(viewed, { x: 0, y: 0, z: 1 }).map(marker => ({ ...marker, turn: turns.get(marker.story)! }));
 }
 
+type PaneRect = { left: number; right: number; top: number; bottom: number };
+
+/**
+ * 3.11: where a rim marker sits in a canvas `size`, in its pixels: at its rim spot, kept 20px inside the canvas and
+ * 20px above anything docked over the canvas's bottom edge under it (the Sessions strip), so nothing covers it.
+ */
+export function markerSpot(at: { left: number; top: number }, size: { width: number; height: number }, docked: readonly PaneRect[]): { left: number; top: number } {
+  const left = Math.max(20, Math.min(size.width - 20, at.left));
+  const lowest = docked.reduce((limit, rect) =>
+    rect.bottom >= size.height && rect.left < left + 20 && rect.right > left - 20 ? Math.min(limit, rect.top - 20) : limit, size.height - 20);
+  return { left, top: Math.max(20, Math.min(lowest, at.top)) };
+}
+
 /** Pick the actual rotated land. The see-through shell retains the near-side interaction rule. */
 export function pickIsland(ray: Raycaster, world: Object3D): string | undefined {
   return pickLand(ray, world)?.story;

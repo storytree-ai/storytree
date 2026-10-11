@@ -263,8 +263,9 @@ function moduleFile(target) {
  * after the story's `prefix` when it starts with it (a title like cli 1.3: …). A test in a dependant's file
  * (`dependant(file)`) counts only through that prefix, and is otherwise none of the story's business.
  * `coverage(file)` gives the contract numbers a test file holds, for a file that produced no
- * results. Returns each contract's verdict, the results that name no contract of the story, and
- * the files that produced no results with the contracts they leave not checked.
+ * results. Returns each contract's verdict, the results that name no contract of the story, the
+ * dependant's results titled with the prefix and a number the story lacks (`stray`, with those
+ * numbers), and the files that produced no results with the contracts they leave not checked.
  * @param {{ contracts: string[], results: TestResult[], coverage: (file: string) => Set<string>, show?: (file: string) => string, prefix?: string, dependant?: (file: string) => boolean }} input
  */
 export function judge({ contracts, results, coverage, show = (file) => file, prefix, dependant = () => false }) {
@@ -273,6 +274,8 @@ export function judge({ contracts, results, coverage, show = (file) => file, pre
   const tests = new Map(contracts.map((number) => [number, []]));
   /** @type {TestResult[]} */
   const unmapped = [];
+  /** @type {{ result: TestResult, numbers: string[] }[]} */
+  const stray = [];
   /** @type {{ file: string, contracts: string[] }[]} */
   const crashedFiles = [];
   /** @type {Map<string, string>} */
@@ -287,7 +290,10 @@ export function judge({ contracts, results, coverage, show = (file) => file, pre
       continue;
     }
     const prefixedOnly = dependant(result.file);
-    const numbers = contractsOfResult(result, prefix, prefixedOnly).filter((number) => known.has(number));
+    const named = contractsOfResult(result, prefix, prefixedOnly);
+    const numbers = named.filter((number) => known.has(number));
+    const lacking = named.filter((number) => !known.has(number));
+    if (prefixedOnly && lacking.length > 0) stray.push({ result, numbers: lacking });
     if (numbers.length === 0 && prefixedOnly) continue;
     if (numbers.length === 0) unmapped.push(result);
     else for (const number of numbers) tests.get(number).push(result);
@@ -319,7 +325,7 @@ export function judge({ contracts, results, coverage, show = (file) => file, pre
     } else verdict = { number, state: "passing", ...counts, note: tally };
     verdicts.set(number, verdict);
   }
-  return { verdicts, unmapped, crashedFiles };
+  return { verdicts, unmapped, stray, crashedFiles };
 }
 
 /**

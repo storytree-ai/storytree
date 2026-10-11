@@ -14,7 +14,7 @@ import { laneWays } from "./border-route.js";
 import { ClaimMarks } from "./claim-flag.js";
 import { fileCircles, islandTerritories } from "../territories/territories.js";
 import { NameplateCrowd, Nameplates, Overlay, reducedMotion, SelectionRing } from "./island-overlays.js";
-import { dragTurn, focusRotation, globeHover, hiddenMarkers, isGlobeDrag, movingSpots, MOVE_SECONDS, oncePerFrame, pickGlobe, planetLayout, type ForestMode } from "./planet-navigation.js";
+import { dragTurn, focusRotation, globeHover, hiddenMarkers, isGlobeDrag, markerSpot, movingSpots, MOVE_SECONDS, oncePerFrame, pickGlobe, planetLayout, type ForestMode } from "./planet-navigation.js";
 import { claimsOn } from "./planet-update.js";
 import { createGlobeGuide, type GlobeControls, type GlobePose } from "./globe-guide.js";
 import { createGlobeAside } from "./globe-aside.js";
@@ -366,11 +366,17 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
     if (zoomedPast !== past.current) onPast(past.current = zoomedPast);
     const centre = new Vector3().project(camera);
     const rim = radius * camera.zoom + 16;
-    const next = (showFailures ? hiddenMarkers(islands, rotation, camera.quaternion, mode) : []).map(marker => ({
-      ...marker,
-      left: Math.round(Math.max(20, Math.min(size.width - 20, (centre.x + 1) * size.width / 2 + marker.at.x * rim))),
-      top: Math.round(Math.max(20, Math.min(size.height - 20, (1 - centre.y) * size.height / 2 - marker.at.y * rim))),
-    }));
+    const hidden = showFailures ? hiddenMarkers(islands, rotation, camera.quaternion, mode) : [];
+    // The Sessions strip is docked over the pane's bottom edge; a marker sits clear above it (3.11).
+    const box = gl.domElement.getBoundingClientRect();
+    const docked = hidden.length === 0 ? [] : [...gl.domElement.ownerDocument.querySelectorAll(".sessions-list")].map(strip => {
+      const rect = strip.getBoundingClientRect();
+      return { left: rect.left - box.left, right: rect.right - box.left, top: rect.top - box.top, bottom: rect.bottom - box.top };
+    });
+    const next = hidden.map(marker => {
+      const spot = markerSpot({ left: (centre.x + 1) * size.width / 2 + marker.at.x * rim, top: (1 - centre.y) * size.height / 2 - marker.at.y * rim }, size, docked);
+      return { ...marker, left: Math.round(spot.left), top: Math.round(spot.top) };
+    });
     const key = JSON.stringify(next);
     if (key !== lastMarkers.current) {
       lastMarkers.current = key;

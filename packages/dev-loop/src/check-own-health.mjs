@@ -144,7 +144,7 @@ export async function checkStory(library, story, writer, { root, evidence = [], 
   const count = (status) => run.results.filter((result) => result.status === status).length;
   log(`tests: ${run.results.length} results: ${count("passed")} passed, ${count("failed")} failed, ${count("skipped")} skipped`);
 
-  const { verdicts, unmapped, crashedFiles } = judge({
+  const { verdicts, unmapped, stray, crashedFiles } = judge({
     contracts: numbers,
     results: creditPlatforms(run.results, evidence, { root, commit: writer.commit }),
     coverage: (test) => (dependant(test) ? contractsCoveredBy(test, { root: path.join(root, "packages"), prefix: name }) : contractsCoveredBy(test, { root: sourceOf(test) })),
@@ -157,6 +157,11 @@ export async function checkStory(library, story, writer, { root, evidence = [], 
       `\n${path.relative(root, crashed)} produced no results: its process died before running any test (a known flake).\n` +
         `  Its contracts are left not checked, not failed: ${held.join(", ") || "(none found)"}. Run the check again to check them.`,
     );
+  }
+  if (stray.length > 0) {
+    // A capability moved to another story leaves dependants' titles with the old package first: they pass but prove nothing (friction_2f5f177c7e09).
+    log(`\n${stray.length} test(s) titled with "${name}" name a number "${story.title}" does not have, so that number counts for none; retitle each with its story's package:`);
+    for (const { result, numbers } of stray) log(`  ${numbers.join(", ").padEnd(7)} ${path.relative(root, result.file).replaceAll("\\", "/")}: ${result.name}`);
   }
   if (unmapped.length > 0) {
     log(`\n${unmapped.length} test(s) name no contract of the story, so they count for none:`);

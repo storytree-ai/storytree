@@ -92,7 +92,7 @@ function readJson(file: string): Record<string, unknown> {
   return JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown>;
 }
 
-test("session-management 8.4 setup records the chosen project only after a successful yes, never on an existing-project check", async () => {
+test("app-setup 8.4 setup records the chosen project only after a successful yes, never on an existing-project check", async () => {
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
     const name = uniqueProjectName();
@@ -143,7 +143,7 @@ test("session-management 8.4 setup records the chosen project only after a succe
   });
 });
 
-test("session-management 8.5 the agent fires a test of each hook, and the connection shows as verified only when storytree has received every one; until then it names the missing hook and the fix", async () => {
+test("app-setup 8.5 the agent fires a test of each hook, and the connection shows as verified only when storytree has received every one; until then it names the missing hook and the fix", async () => {
   const project = uniqueProjectName();
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
@@ -270,7 +270,7 @@ test("journey-events 1.5: the hooks-verified milestone is reported only once che
   });
 });
 
-test("session-management 8.21 a Codex session that set its project up during the session, while Codex's hooks are known to run, is told what Claude Code is told: start a new session here and check again; never the trust step, which stays for a Codex whose hooks have never run (regression: Conduit 1 on the reset laptop, 2026-10-01)", async () => {
+test("app-setup 8.21 a Codex session that set its project up during the session, while Codex's hooks are known to run, is told what Claude Code is told: start a new session here and check again; never the trust step, which stays for a Codex whose hooks have never run (regression: Conduit 1 on the reset laptop, 2026-10-01)", async () => {
   const project = uniqueProjectName();
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
@@ -317,7 +317,7 @@ test("7.7 set_up_project's answer and check_setup's in a project carry the whole
   });
 });
 
-test("session-management 8.22 a session that sets its project up finishes the setup in that answer: the starter roles and a new session to verify its hooks, or Codex's trust step, never a second check_setup in this session (regression: Codex's approval review refused the second check, 2026-10-01)", async () => {
+test("app-setup 8.22 a session that sets its project up finishes the setup in that answer: the starter roles and a new session to verify its hooks, or Codex's trust step, never a second check_setup in this session (regression: Codex's approval review refused the second check, 2026-10-01)", async () => {
   const [claudes, codexes, waiting] = [uniqueProjectName(), uniqueProjectName(), uniqueProjectName()];
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
@@ -366,7 +366,7 @@ function fireHook(storytreeHome: string, harness: string, fixture: string, folde
   });
 }
 
-test("session-management 8.8 with gh missing, signed out or signed in, the agent is never asked to install or sign in to it, in check_setup's text or its data", async () => {
+test("app-setup 8.8 with gh missing, signed out or signed in, the agent is never asked to install or sign in to it, in check_setup's text or its data", async () => {
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
     const said = async (gh: GhState): Promise<string> => {
@@ -387,7 +387,7 @@ test("session-management 8.8 with gh missing, signed out or signed in, the agent
   });
 });
 
-test("session-management 8.19 in a project whose library holds the starter roles, the check names them for the agent to open; a project without them is told of none", async () => {
+test("app-setup 8.19 in a project whose library holds the starter roles, the check names them for the agent to open; a project without them is told of none", async () => {
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
     const [seeded, older] = [uniqueProjectName(), uniqueProjectName()];
@@ -422,7 +422,7 @@ test("session-management 8.19 in a project whose library holds the starter roles
   });
 });
 
-test("session-management 8.26 in a project an earlier starter pack seeded, the check names the seeded and current versions and offers take_starter_pack while it would add or replace something; once taken, or in a project never seeded, it offers nothing", async () => {
+test("app-setup 8.26 in a project an earlier starter pack seeded, the check names the seeded and current versions and offers take_starter_pack while it would add or replace something; once taken, or in a project never seeded, it offers nothing", async () => {
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
     const [earlier, never] = [uniqueProjectName(), uniqueProjectName()];
@@ -468,7 +468,7 @@ test("session-management 8.26 in a project an earlier starter pack seeded, the c
   });
 });
 
-test("session-management 8.20 once storytree has received the session's edit of the check file, the check deletes the file where the agent wrote it, in a worktree whose tool server runs in the project's folder and while the other hooks are still missing (regression: the laptop's worktree sessions, 2026-10-02)", async () => {
+test("app-setup 8.20 once storytree has received the session's edit of the check file, the check deletes the file where the agent wrote it, in a worktree whose tool server runs in the project's folder and while the other hooks are still missing (regression: the laptop's worktree sessions, 2026-10-02)", async () => {
   const project = uniqueProjectName();
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
@@ -496,7 +496,7 @@ test("session-management 8.20 once storytree has received the session's edit of 
   });
 });
 
-test("session-management 8.24 the check tells a session the hook failures this machine traced for it (how many, and the latest's event, stage and error), so a session whose lines went missing can capture why; a session with none is told nothing of them", async () => {
+test("app-setup 8.24 the check tells a session the hook failures this machine traced for it (how many, and the latest's event, stage and error), so a session whose lines went missing can capture why; a session with none is told nothing of them", async () => {
   const project = uniqueProjectName();
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);

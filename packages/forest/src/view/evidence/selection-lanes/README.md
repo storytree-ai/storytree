@@ -19,7 +19,7 @@ rotation setter, so the story and its neighbours face the viewer, a little left 
 | [deselected.png](deselected.png) | After a click on open sea: no lane mesh again. |
 
 [measurements.json](measurements.json) holds, per lane at the final frame, its name, direction, colour, vertex count,
-draw range against full index count (all full), length and draw seconds, and whether its first vertices sit at the
+drawn fraction (the lane shader's drawn length over the lane's length; all 1), length and draw seconds, and whether its first vertices sit at the
 dependency end; plus zero lane meshes unselected, deselected and in Library mode (selecting there is closed by the
 mode switch). The `summary` block is asserted by the capture.
 

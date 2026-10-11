@@ -37,9 +37,7 @@ viewport before importing React, the committed JSON and the public
 `@storytree/forest-world/planet` canvas. The still stays visible until a frame has
 drawn. Missing WebGL, download or initialization failures, a 15-second startup
 timeout, and context loss leave the still in place. No JavaScript is needed for
-the still, installation command or contact links. The map renders on demand;
-keyboard and touch buttons turn it while scrolling over the drawing continues
-to scroll the page.
+the still. The map renders on demand and is turned by dragging it.
 
 Refresh the two stills (`public/forest-*.png`) whenever the JSON or shared renderer changes. They are captured, as the shop's
 are, from the website's own live drawing of free play, switched to storytree's project. From the checkout root, after refreshing
@@ -58,17 +56,15 @@ pnpm --filter @storytree/website build
 node packages/website/evidence/forest/shop-stills.mjs
 ```
 
-This needs Playwright's Chromium installed. The evidence harness runs an isolated
-desktop drawing; it does not access the running app or a database. Commit the
-snapshot, `public/forest-*.png` and renewed evidence together. The square stills
-are central crops of the actual rendered canvas, preserving its short-side
-framing at other viewport sizes. They are not separately drawn illustrations.
+This needs Playwright's Chromium installed. The capture serves the built site; it does not
+access the running app or a database. Commit the snapshot, `public/forest-*.png` and renewed
+evidence together. The square stills are central crops of the actual rendered canvas,
+preserving its short-side framing at other viewport sizes. They are not separately drawn
+illustrations. Do not present the saved health as independently verified health.
 
-The saved scene uses the shared renderer's base islands and pathways; the saved data includes a source-code survey for the later tour, but today's
-canvas does not mount the desktop's territory colouring and file-circle overlays, and the public canvas does not add the desktop's story-name labels.
-The picture shows geography and connections, not a readable health report.
-Do not present the saved health as independently verified health.
-The desktop comparison adapts its layout and opening rotation to the saved
-inputs, while leaving its drawing code intact. Reproduction instructions,
-measurements, screenshots and the precise comparison limits are in
-[the forest evidence](evidence/forest/README.md).
+The still and loading behaviour (contracts 2.1 to 2.3: text and waitlist before the scene's
+code, the live scene replacing the still, a saved picture of each view's own project when
+WebGL is missing or the scene fails to load) is proven by the website's browser journey,
+`node packages/website/evidence/capture.mjs --verify-forest`. The 2026-10-02 harness that
+compared the website's drawing with the desktop's on the same saved scene is retired; its
+record and what replaced it are in [the forest evidence](evidence/forest/README.md).

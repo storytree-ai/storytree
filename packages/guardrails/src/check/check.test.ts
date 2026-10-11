@@ -75,3 +75,23 @@ test("3.3 · run from storytree's source on a folder, as a user's CI runs it, it
   assert.equal(left.status, 1, left.stderr);
   assert.match(left.stdout, /packages\/checkout\/src\/refund\.js/);
 });
+
+test("3.4 · a project whose package imports an existing app from outside it, by link: and deep paths, passes; a rule broken inside it still fails", async (t: TestContext) => {
+  const at = plant(t, {
+    // The imported app, outside the project, with code no numbered test reaches and its own loop (ADR-0993 D1).
+    "app/package.json": JSON.stringify({ name: "shop-app", dependencies: { "shop-app-lib": "link:./lib" } }),
+    "app/lib/package.json": JSON.stringify({ name: "shop-app-lib", dependencies: { "shop-app": "link:.." } }),
+    "app/src/prices.js": "export const price = () => 1;\n",
+    ...Object.fromEntries(Object.entries(KEPT).map(([file, text]) => [`project/${file}`, text])),
+    "project/packages/checkout/package.json": JSON.stringify({ name: "checkout", dependencies: { cart: "*", "shop-app": "link:../../../app" } }),
+    "project/packages/checkout/src/pay.js": 'import { price } from "shop-app/src/prices.js";\nexport const pay = () => price();\n',
+  });
+  const project = path.join(at, "project");
+  const report = await check(project);
+  assert.equal(report.passed, true, report.text);
+
+  writeFileSync(path.join(project, "packages/checkout/src/refund.js"), "export const refund = () => 0;\n");
+  const broken = await check(project);
+  assert.equal(broken.passed, false);
+  assert.deepEqual(broken.allocationRule.length, 1, broken.text);
+});

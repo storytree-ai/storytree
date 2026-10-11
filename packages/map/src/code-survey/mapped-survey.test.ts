@@ -153,3 +153,22 @@ test("8.22 an imported folder that is no checkout is read again only where a fil
     await rm(trunk, { recursive: true, force: true });
   }
 });
+
+test("8.23 a built story's package dependency on a mapped story's package is a road from it to the mapped story; no road ever runs from a mapped story to a built one", async () => {
+  const shop = await mkdtemp(path.join(tmpdir(), "mapped-built-"));
+  const trunk = await mkdtemp(path.join(tmpdir(), "mapped-trunk-"));
+  try {
+    // The old code names the new package too (ADR-0993 D9): still no road that way.
+    await write(shop, { ...SHOP, "packages/pay/package.json": JSON.stringify({ name: "@shop/pay", dependencies: { "@x/built": "1.0.0" } }) });
+    await write(trunk, {
+      "packages/built/package.json": JSON.stringify({ name: "@x/built", dependencies: { "@shop/cart": `link:${path.join(shop, "packages/cart")}` } }),
+      "packages/built/src/index.ts": "import { cart } from \"@shop/cart/src/index\";\nexport const built = () => cart();\n",
+    });
+    const survey = await codeSurveyReader({ checkout: "current" }).read(trunk, tree, [{ folder: shop, repository: REPOSITORY }]);
+    assert.deepEqual(survey["story-built"]?.dependsOn, ["story-cart"]);
+    assert.deepEqual(survey["story-pay"]?.dependsOn, []);
+  } finally {
+    await rm(shop, { recursive: true, force: true });
+    await rm(trunk, { recursive: true, force: true });
+  }
+});

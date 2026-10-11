@@ -19,7 +19,8 @@
  *   last read (or the same Git blob) is not read again, an unchanged story keeps its survey, the checkout is
  *   found once per folder without blocking, and one survey of a folder runs at a time.
  * - A mapped story is read from the folder this machine imports it from, as mapped-survey.ts reads it
- *   (ADR-0993 D2), never from the checkout's packages.
+ *   (ADR-0993 D2), never from the checkout's packages. A story's package dependency on a mapped story's
+ *   package is a road to it, as one on another story's package is (ADR-0993 D8).
  */
 import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
@@ -250,8 +251,10 @@ export function codeSurveyReader({ readFile: readText = (file: string) => readFi
       surveyed.set(story.id, { files, capabilities, packages, survey: fresh });
       return [[story.id, fresh, read, sources.map(inRepository), base] as const];
     }));
-    // Each story's package dependencies on other stories' packages, by package name.
-    const storyOf = new Map(surveys.flat().flatMap(([id, , read]) => read.map(({ name }) => [name, id] as const)));
+    // Each story's package dependencies on other stories' packages, by package name: a mapped story's too, so a
+    // built package that imports one has a road to it (ADR-0993 D8).
+    const mappedRead = await mapped;
+    const storyOf = new Map([...mappedRead.storyOf, ...surveys.flat().flatMap(([id, , read]) => read.map(({ name }) => [name, id] as const))]);
     // And the edges its imports of them derive, between capabilities (ADR-0991 D1, D2), each path from its own package.
     const baseOf = new Map(surveys.flat().map(([id, , , , base]) => [id, base] as const));
     const derived = storyEdges(surveys.flat().map(([id, survey, read, files, base]) => ({
@@ -272,7 +275,7 @@ export function codeSurveyReader({ readFile: readText = (file: string) => readFi
     });
     for (const full of kept.keys()) if (full.startsWith(checkout + path.sep) && !seen.has(full)) kept.delete(full);
     for (const [full, now] of seen) kept.set(full, now);
-    return { ...Object.fromEntries(withEdges), ...Object.fromEntries(await mapped) };
+    return { ...Object.fromEntries(withEdges), ...Object.fromEntries(mappedRead.surveys) };
   }
 
   return {

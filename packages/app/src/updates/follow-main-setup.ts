@@ -33,7 +33,7 @@ export interface FollowMainOptions {
   home: string;
   /** Where to clone from: a URL or a folder (default: the GitHub repository). */
   origin?: string;
-  /** Where Windows keeps a user's apps, where an installed app would be (default: LOCALAPPDATA). */
+  /** Where Windows keeps a user's apps, where an installed Windows app would be (default: LOCALAPPDATA). */
   localAppData?: string;
   /** Open the window as well, rather than starting in the background. */
   show?: boolean;
@@ -47,10 +47,10 @@ export interface FollowMainOptions {
 /** Set up the app that follows main and start it, unless the app is running. */
 export async function followMain({ home, origin = ORIGIN, localAppData, show = false, setUp = (options) => setUpRuntime({ ...options, build: buildApp }), start = startApp, say = console.log }: FollowMainOptions): Promise<{ refused: number | string } | { started: number | undefined; build: RunningBuild }> {
   // One storytree app per machine (ADR-0940 D1, contract 4.18).
-  const installed = installedAppPresent(localAppData);
+  const installed = installedAppPresent(home, localAppData);
   if (installed !== undefined) {
     say(`follow-main: ${installed}`);
-    return { refused: installedAppDir(localAppData)! };
+    return { refused: installedAppDir(home, localAppData)! };
   }
   const running = runningApp(path.join(home, "pgdata"));
   if (running !== undefined) {

@@ -92,6 +92,8 @@ export interface JourneyMilestones {
 /** A tool server, and how to close it with every connection it opened. */
 export interface AgentTools {
   readonly server: McpServer;
+  /** The name of every tool it serves, as its client lists them. */
+  readonly tools: readonly string[];
   close(): Promise<void>;
 }
 
@@ -259,11 +261,26 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
 
   return {
     server,
+    tools: servedTools,
     async close() {
       await server.close();
       await connections.close();
     },
   };
+}
+
+/**
+ * The name of every tool a server in `folder` serves (6.63), read from the server itself rather than
+ * listed by hand: a reading of the front doors counts the tools with no call against it (ADR-0998 D1).
+ * Making the server connects to nothing; only a call does.
+ */
+export async function servedTools(folder: string, options: Omit<AgentToolOptions, "folder"> = {}): Promise<string[]> {
+  const tools = createAgentTools({ ...options, folder });
+  try {
+    return [...tools.tools];
+  } finally {
+    await tools.close();
+  }
 }
 
 /**

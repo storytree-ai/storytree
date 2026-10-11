@@ -4,8 +4,8 @@ import type { ForestMode } from "./planet-navigation.js";
 export type GlobeSwitch = "stories" | "library";
 export type GlobeSwitches = Record<GlobeSwitch, boolean>;
 
-/** A launch opens with both on: the islands, and the core through the glass. */
-export const LAUNCH_SWITCHES: GlobeSwitches = { stories: true, library: true };
+/** A launch opens with Stories on and Library off: the islands on a solid globe, the core one press away. */
+export const LAUNCH_SWITCHES: GlobeSwitches = { stories: true, library: false };
 
 export function flipSwitch(switches: GlobeSwitches, which: GlobeSwitch): GlobeSwitches {
   return { ...switches, [which]: !switches[which] };

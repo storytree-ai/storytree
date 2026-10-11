@@ -55,9 +55,7 @@ export interface IslandLand {
 
 export interface ForestScene {
   islands: Island[];
-  /** Recorded capability dependencies; optional for callers drawing land alone. */
-  links?: readonly { from: string; to: string }[];
-  /** The story dependencies the islands' rows are ranked by, by story id: `from` sits above `to`. Never drawn as roads;
-   * a selection lights them as plain lanes where no capability link joins the two stories. */
-  rowLinks?: readonly { from: string; to: string }[];
+  /** Capability dependencies, `from` building on `to`: derived from the code's imports or recorded (ADR-0991 D1, D3),
+   * type-only when only the code's types join them; optional for callers drawing land alone. */
+  links?: readonly { from: string; to: string; typeOnly?: true }[];
 }

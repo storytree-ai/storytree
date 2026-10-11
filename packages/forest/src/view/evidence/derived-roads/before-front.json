@@ -1,0 +1,30 @@
+{
+  "label": "before",
+  "errors": [],
+  "roads": 54,
+  "latitudes": {
+    "The library": -38.1,
+    "Session management": -21.4,
+    "The app": 37.6,
+    "The forest": 9.3,
+    "The arc surface": -11.6,
+    "The command line": 51.3,
+    "The librarian": -25,
+    "The knowledge core": -1.3,
+    "The app setup": 24.1,
+    "Process ledger": -51.3,
+    "The website": 38.1,
+    "The world": -51.3,
+    "The local database": -46,
+    "The dev loop": 11.4,
+    "Keys": -44.5,
+    "The map": -25,
+    "Identity": -40.7,
+    "Journey events": -46.9,
+    "CI health": -11.8,
+    "Guardrails": -11.8,
+    "Quality assurance": 8.4,
+    "The MCP server": 37.5,
+    "The mark": -44.5
+  }
+}

@@ -2,7 +2,7 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Group, Quaternion, Vector3 } from "three";
-import { claimTints, openingTurn, reachedNeighbour, replayWisps, selectionLanes, selectionNeighbours, type ClaimTint, type EdgeMarker, type FacingIsland, type ForestScene, type GlobeTurn, type Island, type SessionWisp } from "@storytree/forest";
+import { claimTints, openingTurn, replayWisps, selectionLanes, type ClaimTint, type EdgeMarker, type FacingIsland, type ForestScene, type GlobeTurn, type Island, type SessionWisp } from "@storytree/forest";
 import type { Descriptor3D } from "@storytree/forest-world";
 import { islandNormal, onIslandSurface, PlanetWorldCanvas, plateTransform, usePlanetGrowth, type PlanetGrowth } from "@storytree/forest-world/planet";
 import { codePathKey, type CodePlaces } from "@storytree/knowledge-core";
@@ -12,7 +12,7 @@ import { circleStops, fileCircleMarks, lightFileCircles } from "./file-circles.j
 import { lightTerritories, territoryLand } from "./territory-land.js";
 import { ClaimMarks } from "./claim-flag.js";
 import { fileCircles, territories } from "../territories/territories.js";
-import { NameplateCrowd, Nameplates, NeighbourRing, Overlay, reducedMotion, SelectionRing } from "./island-overlays.js";
+import { NameplateCrowd, Nameplates, Overlay, reducedMotion, SelectionRing } from "./island-overlays.js";
 import { dragTurn, focusRotation, globeHover, hiddenMarkers, isGlobeDrag, oncePerFrame, pickGlobe, planetLayout, type ForestMode } from "./planet-navigation.js";
 import { claimsOn } from "./planet-update.js";
 import { createGlobeGuide, type GlobeControls, type GlobePose } from "./globe-guide.js";
@@ -100,15 +100,6 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
   const lighting = useCodeLighting(core, codePlaces);
   // Contract 3.26: the selected story's links to other stories light as lanes; the Library shows none.
   const lanes = useKept(useMemo(() => mode === "forest" ? selectionLanes(scene, selected) : [], [scene, selected, mode]), JSON.stringify);
-  // Contract 3.27: the islands those lanes reach are ringed by relation.
-  const neighbours = useKept(useMemo(() => mode === "forest" ? selectionNeighbours(scene, selected) : new Map<string, "up" | "down">(), [scene, selected, mode]),
-    neighbours => JSON.stringify([...neighbours]));
-  // Each neighbour's ring pulses in when a lane's front reaches its dock; a new selection starts afresh.
-  const reached = useMemo(() => new Set<string>(), [lanes]);
-  const onLaneReach = useCallback((lane: { from: string; to: string; dir: "up" | "down" }, at: "start" | "end") => {
-    const story = reachedNeighbour(scene, lane, at);
-    if (story !== undefined) reached.add(story);
-  }, [scene, reached]);
   const overlays = useCallback((island: Island, descriptors: readonly Descriptor3D[], coast: readonly (readonly { x: number; z: number }[])[]) => {
     // Lane B has already centred the descriptors in the plate's own ground coordinates.
     const local = { ...island, x: 0, z: 0 };
@@ -120,14 +111,12 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
       {emphasis === "held" && <SelectionRing island={local} descriptors={descriptors} onGlobe emphasis />}
       {shownSurfaces.nameplates && <Nameplates island={island} spot={layout.spots.get(island.story)!} coast={coast} radius={layout.radius} selected={selected} dimmed={emphasis === "dimmed"} claimed={claimed} />}
       {mode === "forest" && <SelectionRing island={island.story === selected ? local : undefined} descriptors={descriptors} onGlobe />}
-      {mode === "forest" && neighbours.has(island.story) && <NeighbourRing key={`${selected}:${neighbours.get(island.story)}`}
-        island={local} descriptors={descriptors} relation={neighbours.get(island.story)!} reached={reached} />}
     </>;
-  }, [wisps, claimed, selected, neighbours, reached, highlighted, layout.spots, layout.radius, lighting, reportStops, shownSurfaces, mode]);
+  }, [wisps, claimed, selected, highlighted, layout.spots, layout.radius, lighting, reportStops, shownSurfaces, mode]);
   return <PlanetWorldCanvas scene={layout.scene} spots={layout.spots} radius={layout.radius}
     surface surfaces={shownSurfaces} framing={cameraFraming} sideOffset={cameraOffset} orbit={false}
     inside={<group name="globe-core" visible={library && shownSurfaces.knowledgeCore}><GrowingCore core={core} spots={layout.spots} radius={layout.radius} places={codePlaces} growing={growth !== undefined} /></group>}
-    rotation={rotation.toArray()} plateChildren={overlays} lanes={lanes} onLaneReach={onLaneReach} growth={growth} liveRoads={liveRoads}>
+    rotation={rotation.toArray()} plateChildren={overlays} lanes={lanes} growth={growth} liveRoads={liveRoads}>
     <Navigation islands={layout.islands} radius={layout.radius} titles={new Map(scene.islands.map(i => [i.story, i.title]))}
       rotation={rotation} onRotate={setRotation} onPose={setPose} onControls={onControls} onPick={onPick} onNote={onNote} mode={mode} onPast={setPast}
       opening={{ framing: framing ?? 1.18, sideOffset: sideOffset ?? 0 }}

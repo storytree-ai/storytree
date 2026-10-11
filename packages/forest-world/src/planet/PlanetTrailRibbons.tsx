@@ -231,19 +231,17 @@ const pip = new CircleGeometry(1, 24), up = new Vector3(0, 0, 1);
 
 /** A selected story's lit links (world 6.8–6.9): each lane fills its road between islands, dock to dock, with a glow in
  * its colour, and draws on from the island built on with a bright head at its front, the lanes starting a little apart.
- * It marks each dock it uses as its front leaves or reaches it, and says so (`onReach`); a lit link with no lane
- * reaches both its ends at once. A new selection draws its lanes again. */
-export function SelectionLanes({ plan, lit, onReach }: { plan: PlanetPathways; lit: readonly LitLink[]; onReach?: ((link: LitLink, at: 'start' | 'end') => void) | undefined }) {
+ * It marks each dock it uses as its front leaves or reaches it. A new selection draws its lanes again. */
+export function SelectionLanes({ plan, lit }: { plan: PlanetPathways; lit: readonly LitLink[] }) {
   const key = lit.map(link => `${link.dir}:${link.from}->${link.to}`).sort().join('\n');
-  const animation = useRef({ key, elapsed: 0, started: false, reduced: reducedMotion(), reached: new Set<string>() });
-  if (animation.current.key !== key) animation.current = { key, elapsed: 0, started: false, reduced: reducedMotion(), reached: new Set() };
+  const animation = useRef({ key, elapsed: 0, started: false, reduced: reducedMotion() });
+  if (animation.current.key !== key) animation.current = { key, elapsed: 0, started: false, reduced: reducedMotion() };
   const lanes = useMemo(() => {
     const routes = laneRoutes(plan, lit), delays = laneDelays(routes);
     return routes.map((lane, i) => ({ lane, seconds: laneDrawSeconds(lane.length), delay: delays[i]!,
       strip: { geometry: laneRibbon(lane, 1, 0.12), material: laneMaterial(lane.colour, false, 0.95) },
       glow: { geometry: laneRibbon(lane, LANE_GLOW, 0.1), material: laneMaterial(lane.colour, true, 0.45) } }));
   }, [plan, lit]);
-  const unrouted = useMemo(() => lit.filter(link => !lanes.some(({ lane }) => lane.from === link.from && lane.to === link.to)), [lit, lanes]);
   const entrances = useMemo(() => laneEntrances(lanes.map(({ lane }) => lane)).map(mark => {
     const radial = mark.point.clone().normalize();
     return { mark, position: mark.point.clone().addScaledVector(radial, 0.14), quaternion: new Quaternion().setFromUnitVectors(up, radial),
@@ -269,22 +267,10 @@ export function SelectionLanes({ plan, lit, onReach }: { plan: PlanetPathways; l
     if (state.started) state.elapsed = advanceLaneClock(state.elapsed, delta);
     state.started = true;
     draw(state.elapsed, state.reduced);
-    const reach = (link: LitLink, at: 'start' | 'end') => {
-      const id = `${at}:${link.from}->${link.to}`;
-      if (state.reached.has(id)) return;
-      state.reached.add(id);
-      onReach?.(link, at);
-      // Whatever answers a reach draws on the next frame.
-      drawing = true;
-    };
     let drawing = false;
-    for (const { lane, seconds, delay } of lanes) {
-      const progress = laneProgress(state.elapsed, seconds, state.reduced, delay);
-      if (entranceShown('start', progress)) reach(lane, 'start');
-      if (entranceShown('end', progress)) reach(lane, 'end');
-      drawing ||= progress < 1 || laneHead(state.elapsed, seconds, state.reduced, delay) > 0;
+    for (const { seconds, delay } of lanes) {
+      drawing ||= laneProgress(state.elapsed, seconds, state.reduced, delay) < 1 || laneHead(state.elapsed, seconds, state.reduced, delay) > 0;
     }
-    for (const link of unrouted) { reach(link, 'start'); reach(link, 'end'); }
     shown(state.elapsed, state.reduced).forEach((visible, i) => { if (marks.current[i]) marks.current[i]!.visible = visible; });
     // The canvas draws on demand: keep asking for frames only while a lane is still drawing or its head fading.
     if (drawing) invalidate();

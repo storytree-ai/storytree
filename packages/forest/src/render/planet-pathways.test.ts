@@ -118,9 +118,9 @@ test('3.6 the roads are the survey\'s derived capability edges with the recorded
   ] };
   const derived = forestScene(small, [], workStates([]), survey);
   assert.deepEqual([...derived.links!].sort((m, n) => `${m.from}${m.to}`.localeCompare(`${n.from}${n.to}`)), [
-    { from: 'b1', to: 'a1', typeOnly: false },
+    { from: 'b1', to: 'a1' },
     { from: 'b1', to: 'a2', typeOnly: true },
   ], 'a recorded link is drawn by value; the code\'s types alone are type-only; an edge with no capability end has no road');
   assert.equal('rowLinks' in derived, false, 'nothing else is handed on to draw');
-  assert.deepEqual(forestScene(small, [], workStates([])).links, [{ from: 'b1', to: 'a1', typeOnly: false }], 'with no survey the recorded links stand');
+  assert.deepEqual(forestScene(small, [], workStates([])).links, [{ from: 'b1', to: 'a1' }], 'with no survey the recorded links stand');
 });

@@ -11,9 +11,11 @@
  * ordered with the story most depended on (directly or not) in the middle and the rest outward; a
  * higher row by where the stories it depends on sit in theirs. Ties go by the order the stories were
  * created in, and a loop in the dependencies is broken where it is found, so it never stops the layout.
- * Where the code survey says which other stories' packages a story's package depends on, those are
- * its dependencies instead of its capabilities' (ADR-0840 D2): the code is the source of truth for
- * the direction, so a code edge the plan never recorded still places the island.
+ * Where the code survey derives a story's edges from its source files' imports of other stories'
+ * packages, the stories they reach are its dependencies too, with or without a capability at either
+ * end (ADR-0991 D2): a code edge the plan never recorded still places the island, and a dependency
+ * only its package.json or its tests name ranks nothing. A recorded dependsOn stays, for what no
+ * import shows (ADR-0991 D3).
  *
  * Everything here is a pure function of what the library hands the forest, so it is tested
  * without a database.
@@ -43,7 +45,7 @@ export interface StoryNode {
   place: number;
   /** Where its place is on flat ground: its slot across the row from the row's middle, and its row northward (−y). */
   at: Point;
-  /** The stories its row is ranked above: by its package's dependencies where surveyed, else its capabilities'. */
+  /** The stories its row is ranked above: those its code's edges reach, and those its capabilities record depending on. */
   dependsOn: string[];
 }
 
@@ -52,9 +54,9 @@ export interface StoryNode {
  * tree's order. `history` is the project's changes from the start, as changesSince(0) hands them
  * out; the order the stories were created in, which breaks ties in a row, is read from it. A story
  * the history does not show being created comes after every story it does show. `survey` is the
- * project's code survey: a story it names package dependencies for is placed by those.
+ * project's code survey: the stories a story's derived edges reach rank it as well.
  */
-export function storyNodes(tree: AnnotatedTree, history: readonly Change[], survey: Readonly<Record<string, Pick<StorySurvey, "dependsOn">>> = {}): StoryNode[] {
+export function storyNodes(tree: AnnotatedTree, history: readonly Change[], survey: Readonly<Record<string, Pick<StorySurvey, "edges">>> = {}): StoryNode[] {
   const created = history.filter(({ type, action }) => type === "story" && action === "created").map(({ recordId }) => recordId);
   const order = [...new Set([...created, ...tree.stories.map(({ id }) => id)])].filter((id) => tree.stories.some((story) => story.id === id));
   const rows = storyRows(tree, order, survey);
@@ -65,12 +67,13 @@ export function storyNodes(tree: AnnotatedTree, history: readonly Change[], surv
 }
 
 /** Each story's row, its slot in the row from the west, how many the row holds, and the stories it was ranked above; `order` is the stories in creation order. */
-function storyRows(tree: AnnotatedTree, order: readonly string[], survey: Readonly<Record<string, Pick<StorySurvey, "dependsOn">>>): Map<string, { row: number; slot: number; width: number; dependsOn: string[] }> {
+function storyRows(tree: AnnotatedTree, order: readonly string[], survey: Readonly<Record<string, Pick<StorySurvey, "edges">>>): Map<string, { row: number; slot: number; width: number; dependsOn: string[] }> {
   const owner = new Map(tree.stories.flatMap((story) => story.capabilities.map(({ id }) => [id, story.id] as const)));
   const known = new Set(order);
-  const dependsOn = new Map(tree.stories.map((story) => [story.id, survey[story.id]?.dependsOn?.filter((other) => known.has(other) && other !== story.id)
-    ?? [...new Set(story.capabilities.flatMap(({ dependsOn: on }) =>
-      on.flatMap((capability) => { const other = owner.get(capability); return other === undefined || other === story.id ? [] : [other]; })))]]));
+  const dependsOn = new Map(tree.stories.map((story) => [story.id, [...new Set([
+    ...(survey[story.id]?.edges ?? []).map((edge) => edge.story),
+    ...story.capabilities.flatMap(({ dependsOn: on }) => on.flatMap((capability) => owner.get(capability) ?? [])),
+  ])].filter((other) => known.has(other) && other !== story.id)]));
   const dependents = new Map(order.map((id) => [id, order.filter((other) => dependsOn.get(other)!.includes(id))]));
 
   // Longest path from the bottom: one above the deepest dependency; a dependency still being visited closes a loop and counts as none.

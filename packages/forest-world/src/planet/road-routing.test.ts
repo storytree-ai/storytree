@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { ForestScene, Island } from '../scene.js';
-import type { TrailNetwork } from '../core/routing.js';
+import { routeTrails, type TrailNetwork } from '../core/routing.js';
 import { planetPathwayDrawing, type CrossRouting } from './pathways.js';
 import { drawnAtOnce, routedDrawing, routeInWorker, type RoadRouter, type RoadWorker } from './road-routing.js';
 import { answerRouting } from './road-worker.js';
@@ -88,7 +88,8 @@ test('6.21 a road worker routes the roads off the page; a page whose worker cann
   const page: RoadRouter = () => assert.fail('the page routes nothing while its worker answers');
   const network = await routeInWorker(() => answering, page)(pending.routing, new AbortController().signal);
   assert.deepEqual(posted, pending.routing, 'the worker is posted the routing');
-  const onThePage = (answerRouting(pending.routing) as { network: TrailNetwork }).network;
+  const { islands, edges, seed, tuning } = pending.routing;
+  const onThePage = routeTrails(islands, edges, seed, tuning);
   assert.ok(onThePage.segments.length > 0);
   assert.deepEqual(network, onThePage, 'and answers the roads routing on the page would');
 

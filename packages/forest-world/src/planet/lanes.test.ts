@@ -176,11 +176,10 @@ test('6.8 opposite colours share a trunk side by side, each just under half of i
 });
 
 test('6.9 lit lanes start together and their fronts keep one steady pace, so the selection settles in its longest lane\'s time; whole at once under reduced motion', () => {
-  assert.ok(LANE_SPEED > 0);
-  assert.ok(Math.abs(laneDrawSeconds(300) - 300 / LANE_SPEED) < 1e-9, 'a lane\'s time is its length over the pace');
+  assert.ok(Math.abs(laneDrawSeconds(600) - 2 * laneDrawSeconds(300)) < 1e-9, 'a lane twice as long takes twice as long');
   assert.equal(laneProgress(0, laneDrawSeconds(100), false), 0, 'nothing drawn when the selection is made');
   for (const t of [0.1, 0.25, 0.5]) {
-    const short = laneProgress(t, laneDrawSeconds(100), false) * 100, long = laneProgress(t, laneDrawSeconds(300), false) * 300;
+    const short = laneProgress(t, laneDrawSeconds(300), false) * 300, long = laneProgress(t, laneDrawSeconds(900), false) * 900;
     assert.ok(Math.abs(short - long) < 1e-9, `at ${t} s both fronts are the same distance out`);
     assert.ok(Math.abs(short - t * LANE_SPEED) < 1e-9, 'at the steady pace');
   }
@@ -223,7 +222,7 @@ test('6.9 one head per shared stretch of one colour: links over one road show on
   for (const distance of [24, 30, 34]) assert.equal(headsAt(twenty, distance), 2, `nor on an arm others share, ${distance} units out`);
   const settle = (lanes: readonly LaneRoute[]) => Math.max(...lanes.map(lane => laneDrawSeconds(lane.length)));
   assert.equal(settle(twenty), settle(two), 'nor any time to settle');
-  assert.deepEqual(laneHeads(twenty), laneHeads(twenty), 'who leads is the same every time');
+  assert.deepEqual(laneHeads([...twenty].reverse()).reverse(), laneHeads(twenty), 'who leads does not depend on the order the links come in');
   const both = fork([{ from: 'e1', arm: 'east', dir: 'down' }, { from: 'w1', arm: 'west', dir: 'up' }]);
   assert.equal(headsAt(both, 10), 2, 'an up and a down lane sharing a road each keep their own head');
   assert.equal(laneHead(0, two[0]!.length, laneHeads(two)[0]!, false), 0, 'no head before it sets out');

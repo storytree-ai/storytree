@@ -41,7 +41,8 @@ test("3.40 the user's own wheel zoom is never fought: only the fit is applied, a
   const aside = createGlobeAside(() => opening);
   const wheeledIn = { framing: 0.6, sideOffset: 0 };
   const open = aside.place(wide, panel, wheeledIn);
-  assert.equal(open?.to.framing, Math.min(wide.width, wide.height) / (wide.width - panel - 24), "zoomed out only to the fit");
+  // 900 px of short side over the 1084 px left once the panel and a 12 px margin each side are taken.
+  assert.ok(Math.abs(open!.to.framing - 0.8303) < 1e-4, `zoomed out only to the fit (${open?.to.framing})`);
   const wheeledAgain = { framing: 3, sideOffset: open!.to.sideOffset };
   assert.deepEqual(aside.place(wide, 0, wheeledAgain)?.to, { framing: 3, sideOffset: 0 }, "the wheel moved it since: its zoom stays");
 });
@@ -50,7 +51,8 @@ test("3.40 a resize keeps the globe centred in the free space, at once; Home ret
   const aside = createGlobeAside(() => opening);
   const open = aside.place(wide, panel, opening)!;
   const resized = aside.place({ width: 1200, height: 900 }, panel, open.to);
-  assert.deepEqual(resized, { to: { framing: 900 / (1200 - panel - 24), sideOffset: -246 }, glide: false });
+  assert.ok(resized !== undefined && !resized.glide && resized.to.sideOffset === -246);
+  assert.ok(Math.abs(resized.to.framing - 1.3158) < 1e-4, `the narrower window's 684 px free width fits the globe (${resized.to.framing})`);
   assert.deepEqual(aside.home({ width: 1200, height: 900 }), resized!.to, "Home: the opening view, beside the panel");
   aside.place({ width: 1200, height: 900 }, 0, resized!.to);
   assert.deepEqual(aside.home({ width: 1200, height: 900 }), opening, "Home with the panel closed: the opening view");

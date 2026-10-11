@@ -19,6 +19,8 @@
 //     install: the lockfile can match and every package still has a node_modules, yet the first
 //     import of the new package fails, naming it, not the cause.
 // Anything else is left alone at no cost, so the hook is safe to run at every session start.
+// Once installed, an Electron package with no binary has it fetched (contract 2.5): Electron has no
+// postinstall since 44, so pnpm install alone leaves tests run under Electron's runtime skipping.
 //
 // With --serve it is how 0.3's own sessions start the MCP server (.mcp.json and
 // .codex/config.toml, ADR-0793 D2): the harness starts the server beside the session-start hook,
@@ -158,6 +160,52 @@ export function pnpmInstall(root) {
   return { ok: !result.error && result.status === 0, code: result.status ?? 1 };
 }
 
+/** Each Electron package in root's virtual store, as its folder. */
+function electronPackages(root) {
+  const store = path.join(root, "node_modules", ".pnpm");
+  let entries;
+  try {
+    entries = readdirSync(store);
+  } catch {
+    return [];
+  }
+  return entries
+    .filter((entry) => entry.startsWith("electron@"))
+    .map((entry) => path.join(store, entry, "node_modules", "electron"))
+    .filter((dir) => existsSync(path.join(dir, "install.js")));
+}
+
+/** True when an Electron package holds its binary: path.txt names a file under dist/. */
+function hasBinary(dir) {
+  try {
+    return existsSync(path.join(dir, "dist", readFileSync(path.join(dir, "path.txt"), "utf8").trim()));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Fetch each installed Electron's binary that is missing, with the package's own install.js (which
+ * reads ~/.cache/electron before the network). Electron has no postinstall since 44, so pnpm install
+ * leaves it without one, and tests run under Electron's runtime would skip. A failed fetch is only
+ * logged: Electron still fetches on first require, so it must never fail the session.
+ */
+function fetchElectron(root, log) {
+  for (const dir of electronPackages(root)) {
+    if (hasBinary(dir)) continue;
+    log(`provision-worktree: fetching Electron's binary into ${dir}`);
+    const result = spawnSync(process.execPath, [path.join(dir, "install.js")], {
+      cwd: dir,
+      stdio: ["ignore", 2, 2],
+      timeout: 120_000,
+      windowsHide: true,
+    });
+    if (result.error || result.status !== 0 || !hasBinary(dir)) {
+      log(`provision-worktree: Electron's binary could not be fetched into ${dir} (${result.error?.message ?? `exit ${result.status}`}); it is fetched on first require instead`);
+    }
+  }
+}
+
 /**
  * Install root's dependencies if it is fresh, stale, unlinked or behind, trying `retries` more times after a
  * failure (a failed install leaves the store warm, so the retry is quick).
@@ -170,13 +218,19 @@ export function provision({ root = repoRoot, install = pnpmInstall, retries = 1,
     return { ok: false, condition: "checkout", message, code: 1 };
   }
   const condition = conditionOf(root);
-  if (condition === undefined) return { ok: true, code: 0 };
+  if (condition === undefined) {
+    fetchElectron(root, log);
+    return { ok: true, code: 0 };
+  }
   const attempts = retries + 1;
   let last = { ok: false, code: 1 };
   for (let attempt = 1; attempt <= attempts; attempt++) {
     log(`provision-worktree: ${condition} worktree at ${root}; pnpm install (attempt ${attempt} of ${attempts})`);
     last = install(root);
-    if (last.ok) return { ok: true, condition, code: 0 };
+    if (last.ok) {
+      fetchElectron(root, log);
+      return { ok: true, condition, code: 0 };
+    }
   }
   log(`provision-worktree: pnpm install failed ${attempts} times (exit ${last.code})`);
   return { ok: false, condition, code: last.code || 1 };

@@ -10,7 +10,8 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const [before, after] = process.argv.slice(2).map(checkout => path.resolve(checkout));
 if (before === undefined || after === undefined) throw new Error('pass <main checkout> <this checkout>');
 const seed = JSON.parse(gunzipSync(readFileSync(path.join(here, 'seed.json.gz'))).toString('utf8'));
-const survey = JSON.parse(readFileSync(path.join(here, 'survey.json'), 'utf8'));
+type Edge = { story: string; from?: string; to?: string; typeOnly: boolean; files: { from: string; to?: string }[] };
+const survey: Record<string, { edges?: Edge[] }> = JSON.parse(readFileSync(path.join(here, 'survey.json'), 'utf8'));
 const titles = new Map<string, string>(seed.tree.stories.map((s: { id: string; title: string }) => [s.id, s.title]));
 const owner = new Map<string, string>(seed.tree.stories.flatMap((s: { id: string; capabilities: { id: string; title: string }[] }) => s.capabilities.map(c => [c.id, s.id])));
 const capabilityTitle = new Map<string, string>(seed.tree.stories.flatMap((s: { capabilities: { id: string; title: string }[] }) => s.capabilities.map(c => [c.id, c.title])));
@@ -33,7 +34,7 @@ async function read(checkout: string) {
 const was = await read(before), now = await read(after);
 const moved = Object.keys(now.rows).filter(story => was.rows[story] !== now.rows[story])
   .map(story => ({ story, before: was.rows[story], after: now.rows[story] }));
-const edges = Object.entries(survey).flatMap(([story, { edges = [] }]: [string, { edges?: { story: string; from?: string; to?: string; typeOnly: boolean; files: { from: string; to?: string }[] }[] }]) =>
+const edges = Object.entries(survey).flatMap(([story, { edges = [] }]) =>
   edges.map(edge => ({ ...edge, by: story })));
 const roadless = edges.filter(edge => edge.from === undefined || edge.to === undefined).map(edge => ({
   from: `${titles.get(edge.by)}${edge.from === undefined ? '' : ` · ${capabilityTitle.get(edge.from)}`}`,

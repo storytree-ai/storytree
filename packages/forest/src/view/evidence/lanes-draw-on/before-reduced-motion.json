@@ -1,7 +1,7 @@
 {
   "label": "before",
   "reducedMotion": true,
-  "secondsSinceClick": 0.02,
+  "secondsSinceClick": 0.07,
   "lanes": [
     {
       "name": "lane:up:capability_a6d2887aed63->capability_88a6aaa1fa93",

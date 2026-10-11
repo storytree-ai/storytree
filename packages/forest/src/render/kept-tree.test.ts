@@ -18,7 +18,7 @@ test("the forest keeps each project's last tree for the next start, and draws no
   assert.equal(keptTree("site", storage).read(), undefined);
 });
 
-test("3.47 a start on an unchanged project draws once: the forest drawn from what was kept equals the one drawn after the fresh read and the survey land", async () => {
+test("3.48 a start on an unchanged project draws once: the forest drawn from what was kept equals the one drawn after the fresh read and the survey land", async () => {
   const { forestScene, changedIslands } = await import("./forest-scene.js");
   const { storyNodes } = await import("../story-nodes/story-nodes.js");
   const { nextScene } = await import("../view/planet-update.js");

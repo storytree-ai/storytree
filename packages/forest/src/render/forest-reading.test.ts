@@ -367,7 +367,7 @@ test("7.24 the sessions list and the forest re-read the plan only when their new
   reading.stop();
 });
 
-test("7.29 a reading started with the survey kept from the last start draws the tree with it at once, and a fresh survey equal to it draws nothing again", async () => {
+test("7.30 a reading started with the survey kept from the last start draws the tree with it at once, and a fresh survey equal to it draws nothing again", async () => {
   let land: (value: typeof survey) => void = () => {};
   const reads: ForestReads = {
     changesSince: async () => ({ changes: [], cursor: 0 }),

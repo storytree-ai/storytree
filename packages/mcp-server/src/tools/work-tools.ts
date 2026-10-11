@@ -27,7 +27,7 @@ const releasedBy = (releaser: "owner" | "event"): string => (releaser === "owner
 export function registerWorkTools(define: Define): void {
   define(
     "park_increment",
-    "Park an increment of work on an arc, as a proposal: what it is, its objective, and its breakdown in the body. Leave its capabilities empty unless you know them: the session that claims it fills them in as it plans (ADR-0949 D2); cite its stories, notes or decisions as links. To park work that must wait on the owner, raise the question first (raise_question, with no holds) and park the increment held_on it, so it is held from the moment it exists: parking first and holding it after leaves it open to be claimed in between. To record work that landed without ever being parked, give its outcome, and it is born closed. Parking work on a closed arc re-opens it.",
+    "Park an increment of work on an arc, as a proposal: what it is, its objective, and its breakdown in the body. Leave its capabilities empty unless you know them: the session that claims it fills them in as it plans (ADR-0949 D2); cite its stories, notes or decisions as links. To park work that must wait on the owner, raise the question first (raise_question, with no holds) and park the increment held_on it, so it is held from the moment it exists: parking first and holding it after leaves it open to be claimed in between. Likewise, park a later step of a chain waits_on the step before it, so it is never ready for a moment before a wait is set. To record work that landed without ever being parked, give its outcome, and it is born closed. Parking work on a closed arc re-opens it.",
     z.object({
       arc: id("arc"),
       title: z.string().min(1).describe("What it is called: a short name"),
@@ -36,9 +36,10 @@ export function registerWorkTools(define: Define): void {
       capabilities: z.array(z.string().min(1)).optional().describe("The ids of the capabilities it changes, and nothing else: its lock list"),
       links: z.array(z.string().min(1)).optional().describe("The ids of anything else it cites: its stories, notes or decisions"),
       held_on: z.array(z.string().min(1)).optional().describe("The ids of open questions it is born held on: it waits on the owner's answer until each is settled"),
+      waits_on: z.array(z.object({ increment: id("increment"), reason: z.string().min(1).describe("Why it waits") })).optional().describe("The increments it is born waiting on: it is not ready until each closes as landed"),
       outcome: z.object({ disposition, pr, note }).optional().describe("Only for work that already landed without being parked: how it closed"),
     }),
-    async ({ arc, title, objective, body, capabilities, links, held_on, outcome }, { library, writer }) => {
+    async ({ arc, title, objective, body, capabilities, links, held_on, waits_on, outcome }, { library, writer }) => {
       const before = (await library.arcView(arc))?.state;
       const increment = await library.addIncrement({
         arc,
@@ -48,6 +49,7 @@ export function registerWorkTools(define: Define): void {
         ...(capabilities === undefined ? {} : { capabilities }),
         ...(links === undefined ? {} : { links }),
         ...(held_on === undefined ? {} : { heldOn: held_on }),
+        ...(waits_on === undefined ? {} : { waits: waits_on.map(({ increment: on, reason }) => ({ on, reason })) }),
         ...(outcome === undefined ? {} : { outcome: defined(outcome) }),
       }, writer);
       const said = outcome === undefined ? `Parked ${quoted(title)} (${increment.id}) as a proposal. Claim it to start it.` : `Recorded ${quoted(title)} (${increment.id}), ${outcome.disposition}.`;

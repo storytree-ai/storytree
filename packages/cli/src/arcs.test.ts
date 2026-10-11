@@ -517,6 +517,28 @@ test("4.22 `arc increment edit --held-on none` clears a hold, for a shell that d
   });
 });
 
+test("4.21 `arc increment new --waits-on --wait-reason` parks an increment born waiting on each named increment; one flag without the other, or a blocker that is not an increment, is refused with nothing written", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const arc = await anArc(world);
+    const [mailer, domain] = await Promise.all(["Mailer", "Domain"].map((title) => library.addIncrement({ arc, title, objective: "Mail", body: "…" })));
+    const parked = await world.run(["arc", "increment", "new", "--arc", arc, "--title", "Welcome", "--objective", "Greet", "--body", "Build it", "--waits-on", `${mailer!.id},${domain!.id}`, "--wait-reason", "sends through them"]);
+    assert.equal(parked.code, 0, parked.stderr);
+    const id = /increment_[0-9a-f]+/.exec(parked.stdout)![0];
+    assert.deepEqual(await library.waitHolds(id), [
+      { on: mailer!.id, reason: "sends through them", forGood: false },
+      { on: domain!.id, reason: "sends through them", forGood: false },
+    ]);
+
+    const before = (await library.changesSince(0)).cursor;
+    for (const flags of [["--waits-on", mailer!.id], ["--wait-reason", "why"], ["--waits-on", arc, "--wait-reason", "why"]]) {
+      const refused = await world.run(["arc", "increment", "new", "--arc", arc, "--title", "Bounces", "--objective", "Handle", "--body", "Build it", ...flags]);
+      assert.notEqual(refused.code, 0, refused.stdout);
+    }
+    assert.deepEqual((await library.changesSince(before)).changes, [], "nothing was written");
+  });
+});
+
 test("4.16 `arc increment edit --capabilities` refuses a capability already on the list of another live session's claimed increment, naming that increment and its holder, with nothing written; the caller's own lists, and a released increment's, are not refused (ADR-0949 D2)", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();

@@ -1,7 +1,8 @@
 /**
  * Capability 1 · Master drawing and colour roles. The owner's chosen mark (2026-10-11): a globe, three islets and a main island,
  * and inside the main island a tree of five dots. The geometry is held once here, as shapes in a 104 x 104 box; the SVG is
- * written from them and the fixed-colour files are rendered from them. No role has a colour of its own.
+ * written from them and the fixed-colour files are rendered from them; the 16-pixel files use a small-size variant generated
+ * from the same shapes (ADR-0999). No role has a colour of its own.
  */
 
 /** The four roles every surface supplies, as any CSS colour (a CSS variable included). */
@@ -37,47 +38,73 @@ export type Shape =
   /** A straight line with round caps, in its own frame. */
   | { kind: "line"; role: Role; frame: Frame; from: Point; to: Point; width: number };
 
-const ISLAND: Frame = { dx: 56 - 0.8 * 52, dy: 57 - 0.8 * 53, s: 0.8 };
-const TREE: Frame = { dx: 56, dy: 57, s: 0.75 };
-
 const islets: Shape[] = [
   { kind: "ellipse", role: "land", cx: 30, cy: 36, rx: 7, ry: 4.5 },
   { kind: "ellipse", role: "land", cx: 26, cy: 62, rx: 5, ry: 4 },
   { kind: "ellipse", role: "land", cx: 72, cy: 30, rx: 5, ry: 3.5 },
 ];
 
-const island: Shape = {
-  kind: "blob", role: "land", frame: ISLAND, svgTransform: "translate(56 57) scale(0.8) translate(-52 -53)",
-  start: [26, 54],
-  curves: [
-    [[24, 36], [42, 26], [58, 28]],
-    [[74, 30], [82, 44], [78, 60]],
-    [[74, 76], [56, 80], [42, 76]],
-    [[32, 73], [27, 66], [26, 54]],
-  ],
-};
+const ISLAND_CURVES: readonly (readonly [Point, Point, Point])[] = [
+  [[24, 36], [42, 26], [58, 28]],
+  [[74, 30], [82, 44], [78, 60]],
+  [[74, 76], [56, 80], [42, 76]],
+  [[32, 73], [27, 66], [26, 54]],
+];
 
 const fork: Point = [0, 3];
-const lines: Shape[] = ([[[0, 17], fork], [fork, [-14, -7]], [fork, [14, -7]], [fork, [0, -17]]] as const)
-  .map(([from, to]) => ({ kind: "line", role: "tree", frame: TREE, from, to, width: 2.5 }));
+const LIMBS = [[[0, 17], fork], [fork, [-14, -7]], [fork, [14, -7]], [fork, [0, -17]]] as const;
 
-/** The dots, in the tree's frame: the root and the fork in tree, the three leaves in leaf. */
-const dots: readonly { role: Role; at: Point; r: number }[] = [
-  { role: "tree", at: [0, 17], r: 3.5 },
-  { role: "tree", at: fork, r: 3.5 },
-  { role: "leaf", at: [-14, -7], r: 5 },
-  { role: "leaf", at: [14, -7], r: 5 },
-  { role: "leaf", at: [0, -17], r: 5 },
-];
+/** How bold the tree is drawn, in its own frame: its lines' width, and the radii of its root and fork dots and its leaf dots. */
+interface Boldness { line: number; root: number; leaf: number }
+const MASTER_BOLDNESS: Boldness = { line: 2.5, root: 3.5, leaf: 5 };
+
+/**
+ * The main island and its tree, grown k times about the point where the tree stands, (56, 57) in the master, and moved so
+ * that point sits at (cx, cy): the island blob first, then the tree's four lines in tree, its root and fork dots in tree and
+ * its three leaf dots in leaf.
+ */
+function islandAndTree(k: number, cx: number, cy: number, bold: Boldness): Shape[] {
+  const s = 0.8 * k;
+  const island: Shape = {
+    kind: "blob", role: "land", frame: { dx: cx - s * 52, dy: cy - s * 53, s },
+    svgTransform: `translate(${cx} ${cy}) scale(${s}) translate(-52 -53)`, start: [26, 54], curves: ISLAND_CURVES,
+  };
+  const tree: Frame = { dx: cx, dy: cy, s: 0.75 * k };
+  const lines = LIMBS.map(([from, to]): Shape => ({ kind: "line", role: "tree", frame: tree, from, to, width: bold.line }));
+  const dots: readonly { role: Role; at: Point; r: number }[] = [
+    { role: "tree", at: [0, 17], r: bold.root },
+    { role: "tree", at: fork, r: bold.root },
+    { role: "leaf", at: [-14, -7], r: bold.leaf },
+    { role: "leaf", at: [14, -7], r: bold.leaf },
+    { role: "leaf", at: [0, -17], r: bold.leaf },
+  ];
+  return [island, ...lines, ...dots.map(({ role, at: [x, y], r }): Shape => ({ kind: "circle", role, cx: tree.dx + tree.s * x, cy: tree.dy + tree.s * y, r: tree.s * r }))];
+}
 
 /** Every shape of the mark, back to front, in the box's coordinates (blobs and lines carry their frame). */
 export const SHAPES: readonly Shape[] = [
   { kind: "circle", role: "ocean", cx: 52, cy: 52, r: 36 },
   ...islets,
-  island,
-  ...lines,
-  ...dots.map(({ role, at: [x, y], r }): Shape => ({ kind: "circle", role, cx: TREE.dx + TREE.s * x, cy: TREE.dy + TREE.s * y, r: TREE.s * r })),
+  ...islandAndTree(1, 56, 57, MASTER_BOLDNESS),
 ];
+
+/**
+ * ADR-0999 · The small-size drawing, A, the owner's pick for 16 pixels (2026-10-11): the master's own shapes and roles with
+ * the globe grown to fill the tile, the three islets dropped, and the main island and its tree grown 1.75 times with the
+ * tree's lines and dots bolder.
+ */
+export const SMALL_SHAPES: readonly Shape[] = [
+  { kind: "circle", role: "ocean", cx: 52, cy: 52, r: 50 },
+  ...islandAndTree(1.75, 52, 54, { line: 3.2, root: 4, leaf: 5.5 }),
+];
+
+/** The sizes, in pixels, whose fixed-colour files use the small-size drawing; every other size uses the master. */
+export const SMALL_SIZES: readonly number[] = [16];
+
+/** The shapes a fixed-colour file of this size is rendered from. */
+export function shapesAt(size: number): readonly Shape[] {
+  return SMALL_SIZES.includes(size) ? SMALL_SHAPES : SHAPES;
+}
 
 /** The colours for a colourway's name, or the given colours with every role checked. */
 export function resolveColours(colours: MarkColours | string): MarkColours {

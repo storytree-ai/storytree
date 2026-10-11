@@ -1,8 +1,8 @@
 /**
- * Capability 2 · Fixed-colour icon files: the mark rendered to pixels from the master's shapes, by supersampled coverage over
- * the canvas tile. Only + - * / and square roots, so the pixels are the same on every platform.
+ * Capability 2 · Fixed-colour icon files: the mark rendered to pixels from the master's shapes (the small-size drawing's at
+ * 16 pixels, ADR-0999), by supersampled coverage over the canvas tile. Only + - * / and square roots, so the pixels are the same on every platform.
  */
-import { BOX, SHAPES, TILE_RADIUS, resolveColours, type MarkColours, type Shape } from "./drawing.js";
+import { BOX, TILE_RADIUS, shapesAt, resolveColours, type MarkColours, type Shape } from "./drawing.js";
 
 type Rgb = readonly [number, number, number];
 type Test = (x: number, y: number) => boolean;
@@ -101,12 +101,20 @@ function inTile(x: number, y: number): boolean {
   return x >= 0 && y >= 0 && x <= BOX && y <= BOX && (x - cx) * (x - cx) + (y - cy) * (y - cy) <= r * r;
 }
 
-/** The mark in a colourway (or #rrggbb colours with a canvas) as size x size straight RGBA pixels, row by row. */
+/**
+ * The mark in a colourway (or #rrggbb colours with a canvas) as size x size straight RGBA pixels, row by row: the
+ * small-size drawing at the sizes that use it, the master at every other.
+ */
 export function renderMark(colours: MarkColours | string, size: number): Uint8Array {
+  return renderShapes(shapesAt(size), colours, size);
+}
+
+/** The given shapes on the tile, in a colourway (or #rrggbb colours with a canvas), as size x size straight RGBA pixels. */
+function renderShapes(shapes: readonly Shape[], colours: MarkColours | string, size: number): Uint8Array {
   const c = resolveColours(colours);
   if (c.canvas === undefined) throw new Error("A fixed-colour file needs a canvas colour.");
   const canvas = rgb(c.canvas);
-  const layers = SHAPES.map((shape) => {
+  const layers = shapes.map((shape) => {
     const [left, top, right, bottom] = bounds(shape);
     return { left, top, right, bottom, test: inside(shape), colour: rgb(c[shape.role]) };
   });

@@ -258,7 +258,23 @@ function incrementOf(args: Args, usage: string): Record<string, unknown> {
   return fields;
 }
 
-const INCREMENT_USAGE = "--arc <arc> --title <t> --objective <o> --body <text|@file> [--capabilities a,b] [--links a,b] [--remedies a,b] [--held-on q]";
+/**
+ * `--machine <name|none>`: the one machine that can take the increment, checked by Session management's
+ * Machines (`incrementMachine`): a named machine's name, or `none`, which clears it; not given, nothing.
+ */
+async function machineGiven(args: Args, context: Context): Promise<{ machine?: string | undefined }> {
+  const name = args.text("machine");
+  if (name === undefined) return {};
+  const { incrementMachine, MachineNameError } = await import("@storytree/session-management/machines");
+  try {
+    return { machine: await incrementMachine(await context.server(), name) };
+  } catch (error) {
+    if (error instanceof MachineNameError) throw new Refusal(`--machine: ${error.message}`);
+    throw error;
+  }
+}
+
+const INCREMENT_USAGE = "--arc <arc> --title <t> --objective <o> --body <text|@file> [--capabilities a,b] [--links a,b] [--remedies a,b] [--held-on q] [--machine <name>]";
 
 /** `--waits-on a,b --wait-reason <why>`: the increments a new one is born waiting on, all for the one reason; neither given, none. */
 function waitsOf(args: Args, usage: string): { waits?: { on: string; reason: string }[] } {
@@ -276,7 +292,7 @@ const incrementNew: Verb = {
   usage: `arc increment new ${INCREMENT_USAGE} [--waits-on a,b --wait-reason <why>]`,
   summary: "park an increment on an arc, as a proposal",
   async act(args, context) {
-    const increment = await (await context.library()).addIncrement({ ...incrementOf(args, this.usage), ...waitsOf(args, this.usage) } as never, context.writer());
+    const increment = await (await context.library()).addIncrement({ ...incrementOf(args, this.usage), ...waitsOf(args, this.usage), ...(await machineGiven(args, context)) } as never, context.writer());
     return { text: `Parked increment ${increment.id} on ${increment.fields.arc}.`, next: [{ command: `storytree arc show ${increment.fields.arc}`, why: "see the arc whole" }] };
   },
 };
@@ -286,7 +302,7 @@ const incrementAdd: Verb = {
   usage: `arc increment add ${INCREMENT_USAGE} --disposition <landed|failed|withdrawn> [--pr <ref>] [--note <why>]`,
   summary: "record a landing that was never parked: an increment born closed",
   async act(args, context) {
-    const increment = await (await context.library()).addIncrement({ ...incrementOf(args, this.usage), outcome: closeOf(args) } as never, context.writer());
+    const increment = await (await context.library()).addIncrement({ ...incrementOf(args, this.usage), ...(await machineGiven(args, context)), outcome: closeOf(args) } as never, context.writer());
     return { text: `Recorded increment ${increment.id} on ${increment.fields.arc}, closed.`, next: [{ command: `storytree arc show ${increment.fields.arc}`, why: "see its log" }] };
   },
 };
@@ -328,12 +344,12 @@ const incrementUnstart: Verb = {
 
 const incrementEdit: Verb = {
   name: "edit",
-  usage: "arc increment edit <increment> [--title …] [--objective …] [--body …] [--capabilities a,b] [--links a,b] [--remedies f,g] [--held-on q, or none to clear]",
-  summary: "change only the named fields; --capabilities and --links replace the lists, --remedies adds friction to those it already remedies",
+  usage: "arc increment edit <increment> [--title …] [--objective …] [--body …] [--capabilities a,b] [--links a,b] [--remedies f,g] [--held-on q, or none to clear] [--machine <name>, or none to clear]",
+  summary: "change only the named fields; --capabilities and --links replace the lists, --remedies adds friction to those it already remedies, --machine names the one machine that can take it",
   async act(args, context): Promise<Answer> {
     const id = args.word(0, "the increment's id", this.usage);
     const library = await context.library();
-    const fields = incrementOf(args, this.usage);
+    const fields: Record<string, unknown> = { ...incrementOf(args, this.usage), ...(await machineGiven(args, context)) };
     if (fields.remedies !== undefined) {
       const had = ((await library.get(id))?.fields as { remedies?: string[] } | undefined)?.remedies ?? [];
       fields.remedies = [...new Set([...had, ...(fields.remedies as string[])])];

@@ -417,6 +417,11 @@ export const RECORD_SCHEMAS = {
        */
       heldOn: ids.optional(),
       /**
+       * The one machine that can take it (a machine's short name, as Machines names it); absent, any
+       * machine can. Which names exist is Machines' to check. Optional, so no version bump.
+       */
+      machine: nonEmpty.optional(),
+      /**
        * Its pending plan changes (ADR-0966 D1): edits and retirements of stories, capabilities and
        * contracts it did not plan, waiting for its branch to merge, each with the history entry
        * (`base`) it was read at. An edit keeps the changed fields' live values (`before`) and new ones

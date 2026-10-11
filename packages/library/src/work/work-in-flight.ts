@@ -62,6 +62,8 @@ export interface NewIncrement {
   readonly remedies?: string[];
   /** The open questions it is held on (capability 12): each must be a live question. */
   readonly heldOn?: string[];
+  /** The one machine that can take it, by its short name; absent, any machine can. */
+  readonly machine?: string;
   /** The increments it is born waiting on, each with why (11): each must be a live increment. */
   readonly waits?: Wait[];
   readonly outcome?: CloseInput;
@@ -76,6 +78,8 @@ export interface IncrementEdit {
   readonly links?: string[] | undefined;
   readonly remedies?: string[] | undefined;
   readonly heldOn?: string[] | undefined;
+  /** Undefined clears it, so any machine can take it. */
+  readonly machine?: string | undefined;
 }
 
 /** A pending plan change, as its increment keeps it (ADR-0966 D1). */
@@ -168,7 +172,7 @@ export class LifecycleError extends Error {
   }
 }
 
-const EDITABLE: ReadonlySet<string> = new Set(["title", "objective", "body", "capabilities", "links", "remedies", "heldOn"]);
+const EDITABLE: ReadonlySet<string> = new Set(["title", "objective", "body", "capabilities", "links", "remedies", "heldOn", "machine"]);
 
 export class WorkInFlight {
   readonly #records: SchemaRecords;
@@ -303,7 +307,7 @@ export class WorkInFlight {
   }
 
   /**
-   * Change what an increment is: its title, objective, body, capabilities, links or remedies, each
+   * Change what an increment is: its title, objective, body, capabilities, links, remedies, held-on questions or machine, each
    * checked as addIncrement checks it. Null, with nothing written, if `id` is not a live increment.
    */
   editIncrement(id: string, fields: IncrementEdit, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {

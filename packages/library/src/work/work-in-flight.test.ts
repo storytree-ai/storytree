@@ -539,6 +539,20 @@ for (const backend of [memory, postgres]) {
     assert.equal(lone!.id in (await parked()), false);
   });
 
+  contract("10.19", "an increment may name the one machine that can take it: parked with it, edited to another, and cleared by an edit that removes the field; an empty name is refused with nothing written", async ({ work, flight, records, transactions }) => {
+    const arc = await work.createArc(ARC);
+    const increment = await flight.addIncrement({ arc: arc.id, ...WORK, machine: "laptop" });
+    assert.equal(increment.fields.machine, "laptop");
+    assert.equal((await flight.addIncrement({ arc: arc.id, ...WORK })).fields.machine, undefined, "none named, any machine");
+    assert.equal((await flight.editIncrement(increment.id, { machine: "mint" }))?.fields.machine, "mint");
+    const history = await transactions.history();
+    await assert.rejects(flight.editIncrement(increment.id, { machine: "" }), SchemaError);
+    assert.deepEqual(await transactions.history(), history, "nothing was written");
+    const cleared = await flight.editIncrement(increment.id, { machine: undefined });
+    assert.equal("machine" in (cleared?.fields ?? {}), false, "cleared, it names no machine");
+    assert.deepEqual((await records.get(increment.id))?.fields, cleared?.fields);
+  });
+
   contract("7.8", "arcViews() answers every live arc's view as arcView does, in a bounded number of reads whatever the number of arcs", async ({ work, flight, records }) => {
     const arcs = [];
     for (let i = 0; i < 4; i++) {

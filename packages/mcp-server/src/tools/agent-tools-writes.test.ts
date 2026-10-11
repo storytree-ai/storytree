@@ -12,21 +12,24 @@
  */
 import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync } from "node:fs";
+import { randomBytes } from "node:crypto";
 import { hostname } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
+import { connect } from "@storytree/library";
 import { roundDue, route, worklist } from "@storytree/librarian";
 import { z } from "zod";
 
+import { nameThisMachine } from "@storytree/session-management/machines";
 import { recordFriction, reinforceFriction } from "@storytree/session-management";
 import type { ToolExtension } from "./index.js";
 import { readClaims } from "@storytree/session-management";
 import { MARKER_FILE } from "@storytree/session-management";
 import { claudeCode, codex, idOf, withAgent } from "../testing/agent.js";
 import { countingStore, longHistory } from "@storytree/session-management/testing/egress";
-import { git } from "@storytree/session-management/testing/folders";
-import { approveCheckout, placeTestServer, uniqueProjectName } from "@storytree/session-management/testing/pg";
+import { git, withTempDir } from "@storytree/session-management/testing/folders";
+import { approveCheckout, placeTestServer, testServerUrl, uniqueProjectName } from "@storytree/session-management/testing/pg";
 import { FOUNDED, planned, TOOLS, withProject } from "../testing/tool-world.js";
 
 test("6.4 a held claim refusal explains the running command and dirty-main close-out disagreement", async () => {
@@ -1113,6 +1116,40 @@ test("map 3.8 focus answers for a mapped story from the folder this machine impo
       assert.equal(focused.isError, false, focused.text);
       assert.match(focused.text, /Mapped: 2/);
       assert.match(focused.text, /story\s+story_\w+\s+shop\s+\[mapped\]/);
+    });
+  });
+});
+
+test("6.62 park_increment and edit_plan set an increment's machine to a machine Machines knows, edit_plan's \"none\" clears it, and an unknown name is refused with nothing written", async () => {
+  await withProject(async ({ folder, library }) => {
+    const mint = `m-${randomBytes(4).toString("hex")}`;
+    const storytree = await connect({ url: testServerUrl() });
+    try {
+      await withTempDir((home) => nameThisMachine(storytree, mint, { home, host: `host-${randomBytes(4).toString("hex")}` }));
+    } finally {
+      await storytree.close();
+    }
+    const unknown = `m-${randomBytes(4).toString("hex")}`;
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const { arc } = await planned(agent);
+      const machineOf = async (id: string) => ((await library.get(id))?.fields as { machine?: string }).machine;
+      const installer = idOf(await agent.call("park_increment", { arc, title: "Installer", objective: "Install", body: "Red then green", machine: mint }));
+      assert.equal(await machineOf(installer), mint);
+
+      const before = (await library.arcView(arc))?.increments.length;
+      const refusedPark = await agent.call("park_increment", { arc, title: "Elsewhere", objective: "Install", body: "Red then green", machine: unknown });
+      assert.equal(refusedPark.isError, true);
+      assert.match(refusedPark.text, new RegExp(`no machine is called "${unknown}"`));
+      assert.equal((await library.arcView(arc))?.increments.length, before, "nothing parked");
+
+      const refusedEdit = await agent.call("edit_plan", { id: installer, machine: unknown });
+      assert.equal(refusedEdit.isError, true);
+      assert.equal(await machineOf(installer), mint, "nothing written");
+
+      assert.equal(idOf(await agent.call("edit_plan", { id: installer, machine: "none" })), installer);
+      assert.equal(await machineOf(installer), undefined);
+      assert.equal(idOf(await agent.call("edit_plan", { id: installer, machine: mint })), installer);
+      assert.equal(await machineOf(installer), mint);
     });
   });
 });

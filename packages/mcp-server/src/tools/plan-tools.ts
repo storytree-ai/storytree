@@ -16,6 +16,7 @@ import { readSessions } from "@storytree/session-management";
 import { testedNumbers } from "./claim-tools.js";
 import type { Answer, Call, Define } from "./server.js";
 import { quoted } from "./text.js";
+import { machineChecked } from "./work-tools.js";
 
 const title = z.string().min(1).describe("What it is called: a short name");
 const description = z.string().min(1).optional().describe("A sentence or two on what it is for");
@@ -115,6 +116,7 @@ export function registerPlanTools(define: Define): void {
         .describe("An arc's priority: a whole number, 1 first, or \"none\" to clear it; an arc with none comes after every arc that has one (ADR-0963)"),
       capabilities: z.array(z.string().min(1)).optional().describe("An increment's capabilities, replacing them: the ones it changes, and nothing else"),
       links: z.array(z.string().min(1)).optional().describe("An increment's links, replacing them: its stories, notes or decisions"),
+      machine: z.string().min(1).optional().describe("The one machine that can take an increment, by the short name Machines knows it by, or \"none\" to clear it, so any machine can"),
     }),
     async ({ id: target, ...changes }, call) => editPlan(target, changes, call),
   );
@@ -204,6 +206,7 @@ interface Changes {
   priority?: number | "none" | undefined;
   capabilities?: string[] | undefined;
   links?: string[] | undefined;
+  machine?: string | undefined;
 }
 
 /** The fields each kind of plan record can have corrected, as the tool names them. */
@@ -212,11 +215,11 @@ const EDITABLE = {
   capability: ["title", "description", "story", "depends_on"],
   contract: ["title", "description", "capability"],
   arc: ["title", "description", "stories", "intent", "end_state", "priority"],
-  increment: ["title", "capabilities", "links"],
+  increment: ["title", "capabilities", "links", "machine"],
 } as const;
 
 async function editPlan(target: string, changes: Changes, call: Call): Promise<Answer> {
-  const { library, writer } = call;
+  const { library, storytree, writer } = call;
   const kind = kindOf(await library.projectTree(), target) ?? ((await library.get(target))?.type === "increment" ? "increment" : undefined);
   if (kind === undefined) return { text: `Nothing in the plan has the id ${target}; show_plan lists every id.`, refused: true };
   const given = Object.entries(changes).filter(([, value]) => value !== undefined);
@@ -228,9 +231,11 @@ async function editPlan(target: string, changes: Changes, call: Call): Promise<A
     const shared = await sharedCapability(target, changes.capabilities, call);
     if (shared !== undefined) return { text: shared, refused: true };
   }
-  const { depends_on: dependsOn, end_state: endState, priority, ...rest } = changes;
-  // "none" clears an arc's priority: the library removes a field given as undefined (ADR-0963 D3).
-  const fields = { ...optional({ ...rest, dependsOn, endState }), ...(priority === undefined ? {} : { priority: priority === "none" ? undefined : priority }) };
+  const { depends_on: dependsOn, end_state: endState, priority, machine, ...rest } = changes;
+  const named = machine === undefined ? undefined : await machineChecked(storytree, machine);
+  if (named !== undefined && "refused" in named) return named.refused;
+  // "none" clears an arc's priority, and an increment's machine: the library removes a field given as undefined (ADR-0963 D3).
+  const fields = { ...optional({ ...rest, dependsOn, endState }), ...(priority === undefined ? {} : { priority: priority === "none" ? undefined : priority }), ...(named ?? {}) };
   if (kind === "story" || kind === "capability" || kind === "contract") {
     const held = await heldOnIncrement(call, { record: target, fields });
     if (held !== undefined) return { text: `Your change to ${kind} ${quoted(String(((await library.get(target))?.fields as { title?: string } | undefined)?.title))} (${target}) is ${held}`, data: { id: target } };

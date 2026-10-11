@@ -55,26 +55,66 @@ export async function verifyForest(browser, url, out, step, picture) {
   });
   await live.close();
 
-  // 2.2: with no WebGL, or a scene that fails to start, every view the globe would draw shows a saved picture of that same
-  // project, or says plainly why one cannot stand for it, and the narration, panels and waitlist stay usable. Seen, not loaded:
-  // each check reads computed visibility and the pixels on screen, so a loaded but hidden picture fails it.
+  // 2.2: with JavaScript off, nothing ever starts the scene, so chapter 2 shows storytree's saved still from the page itself.
+  const scriptless = await browser.newPage({ viewport: { width: 1440, height: 900 }, javaScriptEnabled: false });
+  await scriptless.goto(url, { waitUntil: "load" });
+  await scriptless.locator("#website-forest").scrollIntoViewIfNeeded();
+  await scriptless.waitForFunction(() => { const image = document.querySelector("#website-forest .storytree-still img"); return image.complete && image.naturalWidth > 0; }, null, { timeout: 5_000 }).catch(() => {});
+  await step("2.2", "with JavaScript off, chapter 2 shows storytree's saved still", async () => {
+    const own = await seen(scriptless, "#website-forest .storytree-still img", true);
+    const shop = await seen(scriptless, "#website-forest .shop-still img");
+    await picture(scriptless, "forest-no-script-1440.png");
+    return [own.shown && own.colours > 8 && !shop.shown, `storytree still shown ${own.shown}, ${own.colours} colours; shop still shown ${shop.shown}`];
+  });
+  await scriptless.close();
+
+  // 2.2: with no WebGL, a scene that fails to start, or a live globe that loses its WebGL context, every view the globe would
+  // draw shows a saved picture of that same project, or says plainly why one cannot stand for it, and the narration, panels and
+  // waitlist stay usable. Seen, not loaded: each check reads computed visibility and the pixels on screen, so a loaded but hidden
+  // picture fails it. The last two setups leave a mark in the page (window.forestFault) only once they have done their harm, so a
+  // run that never reached that point fails rather than passing on the page's first still.
   const noWebGL = (page) => page.addInitScript(() => { const original = HTMLCanvasElement.prototype.getContext; HTMLCanvasElement.prototype.getContext = function (kind, ...rest) { return /webgl/.test(kind) ? null : original.call(this, kind, ...rest); }; });
   const sceneFails = (page) => page.route(/forest-scene-[^/]*\.js$/, (route) => route.fulfill({ status: 500, body: "" }));
-  for (const [how, setup, width, height] of [
-    ["WebGL is unavailable", noWebGL, 1440, 900], ["WebGL is unavailable", noWebGL, 1280, 800],
-    ["WebGL is unavailable", noWebGL, 390, 844], ["WebGL is unavailable", noWebGL, 320, 844],
-    ["the scene's code fails to load", sceneFails, 1440, 900],
-  ]) {
+  // The renderer asks for its context with attributes, the page's WebGL probe without: only the renderer's request throws.
+  const rendererThrows = (page) => page.addInitScript(() => {
+    const original = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function (kind, ...rest) {
+      if (/webgl/.test(kind) && rest.length > 0) { window.forestFault = "the renderer threw"; throw new Error("the renderer failed to start"); }
+      return original.call(this, kind, ...rest);
+    };
+  });
+  const contextLost = (page) => page.addInitScript(() => {
+    addEventListener("DOMContentLoaded", () => {
+      const host = document.querySelector("#website-forest");
+      new MutationObserver((changes, observer) => {
+        if (host.dataset.forestState !== "live") return;
+        observer.disconnect();
+        const canvas = host.querySelector(".forest-canvas canvas");
+        const context = canvas?.getContext("webgl2") ?? canvas?.getContext("webgl");
+        context?.getExtension("WEBGL_lose_context")?.loseContext();
+        if (context) window.forestFault = "the live globe lost its context";
+      }).observe(host, { attributes: true, attributeFilter: ["data-forest-state"] });
+    });
+  });
+  for (const [how, name, setup, width, height] of [
+    ["WebGL is unavailable", "no-webgl", noWebGL, 1440, 900], ["WebGL is unavailable", "no-webgl", noWebGL, 1280, 800],
+    ["WebGL is unavailable", "no-webgl", noWebGL, 390, 844], ["WebGL is unavailable", "no-webgl", noWebGL, 320, 844],
+    ["the scene's code fails to load", "scene-fails", sceneFails, 1440, 900],
+    ["the renderer throws while starting", "renderer-throws", rendererThrows, 1440, 900],
+    ["the live globe loses its WebGL context", "context-lost", contextLost, 1440, 900],
+  ].map(([how, slug, ...rest]) => [how, `${slug}-${rest[1]}`, ...rest])) {
     const page = await browser.newPage({ viewport: { width, height }, reducedMotion: "reduce" });
     await page.addInitScript(() => localStorage.setItem("storytree-opening-seen", "yes"));
     await setup(page);
     await page.goto(url, { waitUntil: "load" });
     await page.locator("#website-forest").scrollIntoViewIfNeeded();
+    const faulted = setup === rendererThrows || setup === contextLost;
+    if (faulted) await page.waitForFunction(() => window.forestFault !== undefined, null, { timeout: 30_000 }).catch(() => {});
     await page.waitForFunction(() => document.querySelector("#website-forest").dataset.forestState === "still", null, { timeout: 30_000 }).catch(() => {});
-    const name = `${how.startsWith("WebGL") ? "no-webgl" : "scene-fails"}-${width}`;
     await step("2.2", `at ${width}px, when ${how}, every view shows a saved picture of its own project or says why it cannot, and the page stays usable`, async () => {
       const state = await page.locator("#website-forest").getAttribute("data-forest-state");
       const failures = [];
+      if (faulted && !(await page.evaluate(() => window.forestFault))) failures.push(`${how}: never happened`);
       // A shop step replaying a recorded moment: no picture stands in for it; a plain note says so, and the words play on.
       await page.locator('#tour-pips [data-step="map-stories"]').click();
       await settled(page, "tour", "shop");
@@ -99,7 +139,7 @@ export async function verifyForest(browser, url, out, step, picture) {
       if ((await seen(page, "#website-forest .shop-still img")).shown) failures.push("storytree free play: the shop's still stands in for storytree");
       await picture(page, `forest-${name}-storytree.png`);
       // Its read-only panels (which arrive with the scene's code, so only when that code loads) and the waitlist still work.
-      if (setup === noWebGL) {
+      if (setup !== sceneFails) {
         await page.locator("[data-open-arcs]").click();
         const arcs = await page.locator(".arc-lanes").isVisible();
         await page.locator("[data-close-arcs]").click();
@@ -110,7 +150,7 @@ export async function verifyForest(browser, url, out, step, picture) {
       const usable = (await page.locator("#waitlist-email").isVisible()) && (await page.locator("#waitlist-submit").isVisible());
       if (!usable) failures.push("the waitlist is not usable");
       if (state !== "still") failures.push(`state ${state}`);
-      return [failures.length === 0, failures.length ? failures.join("; ") : `state ${state}; shop step note "${replay.text}"; shop still ${shop.colours} colours; storytree still ${own.colours} colours; ${setup === noWebGL ? "arcs panel and " : ""}waitlist usable`];
+      return [failures.length === 0, failures.length ? failures.join("; ") : `state ${state}; shop step note "${replay.text}"; shop still ${shop.colours} colours; storytree still ${own.colours} colours; ${setup !== sceneFails ? "arcs panel and " : ""}waitlist usable`];
     });
     await page.close();
   }

@@ -1,0 +1,1 @@
+Next I want a new page inside the Reddit viewer app itself: a "Stats" page at /stats that shows the same kind of summary in the app, with a link to it from the app's navigation. Build it, and tell me how to see it.

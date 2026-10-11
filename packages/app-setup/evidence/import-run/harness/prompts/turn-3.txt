@@ -1,0 +1,1 @@
+Now build me something new that uses my Reddit viewer: a small report that reads its data and prints a summary I can run from the command line. I don't have Reddit API credentials set up, so work with whatever data the viewer has without signing in. Show me how to run it, and run it once.

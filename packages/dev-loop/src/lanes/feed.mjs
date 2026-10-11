@@ -1,9 +1,6 @@
 // Capability 11 · The Mint pool keeps its lanes fed (ADR-0955 D2): one survey of the library names every active
 // arc's ready increments, under the manager's skip rules, and claims are the only conflict guard.
 
-/** The website arc: its work is the laptop's (the manager's skip rule). */
-export const WEBSITE_ARC = "arc_e42da2528db8";
-
 /** Work whose needs line says read-only: it writes no package, whatever packages it reads. */
 export function readOnly(body) {
   return (body.match(/\bneeds:[^\n]*/gi) ?? []).some((line) => /\bread-only\b/i.test(line));
@@ -69,7 +66,6 @@ export function pickPool(survey, { attempts = new Map(), running = [], max = 1, 
       if (notes.length) return notes.map((hold) => `waits for ${hold.releaser === "owner" ? "the owner" : "an event"}: ${hold.note}`).join("; ");
       const questions = survey.holds.heldOn[one.id] ?? [];
       if (questions.length) return `held on ${questions.join(", ")}`;
-      if (one.arc === WEBSITE_ARC) return "on the website arc";
       if ((one.body.match(/\bneeds:[^\n]*/gi) ?? []).some((line) => /\b(?:laptop|another machine)\b/i.test(line))) return "needs another machine";
       return undefined;
     })();
@@ -88,8 +84,7 @@ export function pickPool(survey, { attempts = new Map(), running = [], max = 1, 
 }
 
 /**
- * The arc a planning session should take when nothing is ready (ADR-0955 D4): an active arc, not the website arc,
- * with no open question and no open increment that is unwaited (every one waits on work, an event or a question),
+ * The arc a planning session should take when nothing is ready (ADR-0955 D4): an active arc with no open question and no open increment that is unwaited (every one waits on work, an event or a question),
  * oldest first, skipping the arcs in `planned` (those this dispatcher has planned already). Undefined when none qualifies.
  * Work handed to the watcher, or waiting on work that is (at any depth), is in flight like claimed work, not stalled.
  */
@@ -100,7 +95,7 @@ export function pickPlan(survey, { planned = new Set() } = {}) {
   const waited = (id) => !live.has(id) && !handed(id) && ((survey.holds.waits[id] ?? []).length > 0 || (survey.holds.heldOn[id] ?? []).length > 0
     || (survey.holds.waitsFor?.[id] ?? []).some((hold) => hold.holds));
   const open = Map.groupBy(survey.increments.filter((one) => one.status !== "closed"), (one) => one.arc);
-  return (survey.arcs ?? []).filter((arc) => arc.state === "active" && arc.id !== WEBSITE_ARC && !planned.has(arc.id) && !arc.openQuestions
+  return (survey.arcs ?? []).filter((arc) => arc.state === "active" && !planned.has(arc.id) && !arc.openQuestions
     && (open.get(arc.id) ?? []).every((one) => waited(one.id)))
     .sort((a, b) => String(a.created).localeCompare(String(b.created)))[0];
 }

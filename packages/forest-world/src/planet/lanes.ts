@@ -16,7 +16,8 @@ export interface LaneRoute extends LitLink {
    * on it and on to `from`'s territory: dependency order. */
   points: Vector3[];
   length: number;
-  /** Across the lane at each point: its road's width, or just under half where an up and a down lane share the road. */
+  /** Across the lane at each point: the thread's width, or just under half its road where an up and a down lane share
+   * one narrower than two threads. */
   widths: number[];
   /** The narrowest of `widths`. */
   width: number;

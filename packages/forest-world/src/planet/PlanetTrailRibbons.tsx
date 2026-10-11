@@ -235,7 +235,8 @@ const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(pre
 /** A mark's disc faces out from the globe, like the ground it lies on. */
 const pip = new CircleGeometry(1, 24), up = new Vector3(0, 0, 1);
 
-/** A selected story's lit links (world 6.8–6.9): each lane fills its road between islands with a glow in its colour,
+/** A selected story's lit links (world 6.8–6.9): each lane is a thread down the middle of its road between islands, with a glow
+ * in its colour that lanes sharing a stretch lay once between them,
  * runs on inland along `inland`'s way to its capability's territory at each end, and draws on from the island built on,
  * every lane starting together at one pace, with a warm head at the front of each stretch it leads. It marks each end as
  * its front leaves or reaches it. A new selection draws its lanes again. */

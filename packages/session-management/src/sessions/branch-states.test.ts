@@ -6,7 +6,7 @@
 import assert from "node:assert/strict";
 import { writeFileSync } from "node:fs";
 import path from "node:path";
-import { test } from "node:test";
+import { mock, test } from "node:test";
 
 import { openActivityLog, type Line } from "../activity/index.js";
 import { git, withTempDir } from "../testing/folders.js";
@@ -138,10 +138,7 @@ test("4.10 a branch another machine took for deleted while it was only on its ow
       }
       git(laptop, "switch", "-q", "--detach", "origin/main");
 
-      const work = async (branch: string) => {
-        await new Promise((resolve) => setTimeout(resolve, 5));
-        await log.append(project, { session: "lane", harness: "claude-code", source: "hook", machine: "laptop", folder: laptop, branch, kind: "file-edited", files: ["x.ts"] });
-      };
+      const work = (branch: string) => log.append(project, { session: "lane", harness: "claude-code", source: "hook", machine: "laptop", folder: laptop, branch, kind: "file-edited", files: ["x.ts"] });
       for (const branch of ["claude/handed", "claude/unpushed"]) await work(branch);
 
       const watcher = (folder: string) => ({ log, project, folder, session: "observer", harness: "claude-code", source: "hook" }) as const;
@@ -160,11 +157,16 @@ test("4.10 a branch another machine took for deleted while it was only on its ow
       assert.deepEqual(await openWork(), [["lane", ["claude/handed"]]], "an open pull request from a branch taken for deleted opens it again");
 
       // The laptop looks, with GitHub slower than the whole look's budget: its git is still asked.
-      const slow = async () => {
-        await new Promise((resolve) => setTimeout(resolve, 200));
-        return new Map();
-      };
-      await resolveBranches(watcher(laptop), { ...noPulls, allMergedPulls: slow, allOpenPulls: opened, budgetMs: 100, machine: "laptop" });
+      mock.timers.enable({ apis: ["Date"], now: Date.now() });
+      try {
+        const slow = async () => {
+          mock.timers.tick(200);
+          return new Map();
+        };
+        await resolveBranches(watcher(laptop), { ...noPulls, allMergedPulls: slow, allOpenPulls: opened, budgetMs: 100, machine: "laptop" });
+      } finally {
+        mock.timers.reset();
+      }
       assert.deepEqual(await openWork(), [["lane", ["claude/handed", "claude/unpushed"]]], "its own machine finds the unpushed branch ahead");
     });
   } finally {

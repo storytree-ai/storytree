@@ -1,4 +1,9 @@
 /** Capability 3 · Surfaces. The app story's controls; the desktop frame only mounts them. */
+import { markSvg, type MarkRoles } from "@storytree/mark/drawing";
+
+/** The mark's roles on the page (its drawing only: the page cannot load the package's file writers): the page's stylesheet sets these from its own light or dark colours (contract 2.11). */
+const PAGE_MARK: MarkRoles = { ocean: "var(--mark-ocean)", land: "var(--mark-land)", tree: "var(--mark-tree)", leaf: "var(--mark-leaf)" };
+
 export function renderAppMenu(): string {
   return `<header class="app-bar"><button type="button" class="app-gear" aria-label="App menu" popovertarget="app-menu" aria-controls="app-menu" aria-expanded="false" title="App menu">
     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -31,6 +36,7 @@ export function renderAppMenu(): string {
 export function renderNoProjects(): string {
   return [
     `<div class="empty">`,
+    markSvg(PAGE_MARK).trim().replace("<svg ", `<svg class="app-mark" aria-hidden="true" `),
     `<h1>No projects yet</h1>`,
     `<p>This app shows the projects in storytree 0.3's local library, and it has none yet.</p>`,
     `<p>Add a folder as a project from the gear menu: Projects → Add project…, or run <code>storytree doctor --set-up &lt;name&gt;</code> in the folder.</p>`,

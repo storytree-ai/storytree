@@ -1,7 +1,8 @@
 /** Capability 3 · Arc surface. */
 import type { BoardScope } from "../board/board.js";
 
-export interface DrawerPreferences { open: boolean; scope: BoardScope; picked?: string }
+/** `expanded` is kept only while the drawer fills the window (3.10); absent, it is half the window's height. */
+export interface DrawerPreferences { open: boolean; scope: BoardScope; picked?: string; expanded?: true }
 const key = (project: string) => `storytree.arc-surface.v1:${project}`;
 /** Browser-local viewer state; no library write, and a denied or old value cannot stop a reading. */
 export function readPreferences(project: string): DrawerPreferences {
@@ -10,7 +11,7 @@ export function readPreferences(project: string): DrawerPreferences {
     if (value && typeof value === "object") {
       const saved = value as Record<string, unknown>;
       return { open: saved.open === true, scope: saved.scope === "parked" || saved.scope === "closed" ? saved.scope : "active",
-        ...(typeof saved.picked === "string" ? { picked: saved.picked } : {}) };
+        ...(typeof saved.picked === "string" ? { picked: saved.picked } : {}), ...(saved.expanded === true ? { expanded: true } : {}) };
     }
   } catch { /* Storage is optional; the surface remains usable without it. */ }
   return { open: false, scope: "active" };

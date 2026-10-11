@@ -209,7 +209,11 @@ const runs = {
     // Known, and said in the README: on the 320px globe the stories step's four two-line names crowd, and Checkout's hides
     // rather than stray from its island (forest 3.31); the island stands in frame.
     await chapterSteps({ chapter: "map", folder: "map-six-steps", lines: { "map-capabilities": [2], "map-claims": [1, 2] }, frames,
-      phoneFrames: { ...frames, "map-claims": [] }, known: ["320 map-stories Checkout: not drawn"], extra: { "map-capabilities": "1440-story-panel.png" } });
+      phoneFrames: { ...frames, "map-claims": [] }, known: ["320 map-stories Checkout: not drawn",
+        // The first round's rows put the cart and checkout side by side: on a phone their two-line names meet, and checkout's
+        // hides rather than stray from its island (forest 3.31) until a phone gives side-by-side names room.
+        "390 map-stories Checkout: not drawn", "390 map-claims-line-1 Checkout: not drawn", "390 map-health Checkout: not drawn",
+        "320 map-claims-line-1 Checkout: not drawn", "320 map-health Checkout: not drawn"], extra: { "map-capabilities": "1440-story-panel.png" } });
   },
   // Each map line's label (2.21), on every labelled line at 1440, 1280, 390 and 320, at the tour's own 0.75×: the picture as the
   // line is said, and where its label stands against the screen's edges, the card, the bar, the panels and the islands' names.

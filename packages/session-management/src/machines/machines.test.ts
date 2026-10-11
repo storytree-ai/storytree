@@ -18,7 +18,7 @@ import { machineOf, registerTrunk } from "../routing/trunks.js";
 import { MACHINE_VERBS, SESSION_VERBS, VerbRefusal, type DoorWords, type Verb, type VerbContext } from "../sessions/verbs.js";
 import { removeTempDir } from "../testing/folders.js";
 import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { machineNames, nameThisMachine } from "./machines.js";
+import { incrementMachine, MachineNameError, machineNames, nameThisMachine, NO_MACHINE } from "./machines.js";
 
 const WORDS: DoorWords = { door: "command", say: (step) => step.command === undefined ? step.tool! : `storytree ${step.command}` };
 
@@ -135,5 +135,16 @@ test("11.3 · The sessions list shows each session's machine by its short name, 
 
     const json = JSON.parse((await list.act({ all: true, json: true }, context, WORDS)).text) as { session: string; machine?: string }[];
     assert.equal(json.find((one) => one.session === "on-mint")?.machine, namedHost);
+  });
+});
+
+test("11.4 · An increment's machine is checked against Machines: a named machine is kept, \"none\" clears it, and any other name is refused naming the known ones", async () => {
+  await withMachines(async ({ storytree, homes: [here] }) => {
+    const mint = uniqueName();
+    await nameThisMachine(storytree, mint, { home: here, host: `host-${randomBytes(4).toString("hex")}` });
+    assert.equal(await incrementMachine(storytree, mint), mint);
+    assert.equal(await incrementMachine(storytree, NO_MACHINE), undefined, "none clears it");
+    const unknown = uniqueName();
+    await assert.rejects(incrementMachine(storytree, unknown), (error: unknown) => error instanceof MachineNameError && error.message.includes(`"${unknown}"`) && error.message.includes(mint));
   });
 });

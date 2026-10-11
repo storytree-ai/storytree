@@ -12,7 +12,7 @@ function survey(increments, extra = {}) {
   return { increments, holds: { waits: {}, heldOn: {} }, claims: [], ...extra };
 }
 
-test("11.2 · the survey reads arcs and holds once, with every increment's arc, capabilities list, the arc's state and the standing claims", async () => {
+test("11.2 · the survey reads arcs and holds once, with every increment's arc, capabilities list, the arc's state, the standing claims and the refusals their live holders gave", async () => {
   let reads = 0;
   const record = (id, arc, body, extra = {}) => ({ id, createdAt: new Date(now), fields: { arc, title: id, body, status: "proposal", parked: "2026-10-06T00:00:00Z", waits: [], ...extra } });
   const library = {
@@ -27,8 +27,12 @@ test("11.2 · the survey reads arcs and holds once, with every increment's arc, 
     },
     holds: async () => ({ waits: { i1: [{ on: "z", reason: "r" }] }, heldOn: {} }),
   };
-  const claims = [{ increment: "i1", session: "laptop", holder: "live", since: "2026-10-07T02:30:00Z" }];
-  const read = await readSurvey({ library, claims: async () => claims });
+  const claims = [{ increment: "i1", session: "laptop", holder: "live", since: "2026-10-07T02:30:00Z" }, { capability: "capability_y", session: "quiet", holder: "gone", since: "2026-10-07T02:30:00Z" }];
+  const asked = [];
+  const refused = [{ capability: "capability_x", under: "i2", holder: "laptop" }];
+  const read = await readSurvey({ library, claims: async () => claims, refusals: async (holders) => (asked.push(holders), refused) });
+  assert.deepEqual(asked, [["laptop"]], "refusals are read once, for the live holders only");
+  assert.equal(read.refusals, refused);
   assert.equal(reads, 1);
   assert.deepEqual(read.increments.map((one) => [one.id, one.arc, one.arcState, one.body]), [
     ["i1", "arc_laptop", "active", "a"], ["i2", "arc_laptop", "active", "b"], ["i3", "arc_cap", "active", "c"], ["i4", "arc_box", "parked", "d"], ["i5", "arc_stale", "active", "e"]]);
@@ -36,6 +40,7 @@ test("11.2 · the survey reads arcs and holds once, with every increment's arc, 
   assert.deepEqual(read.holds.waits.i1, [{ on: "z", reason: "r" }]);
   assert.deepEqual(read.arcs.map((arc) => [arc.id, arc.state, arc.openQuestions]), [["arc_laptop", "active", 1], ["arc_cap", "active", 0], ["arc_box", "parked", 0], ["arc_stale", "active", 0]]);
   assert.equal(read.claims, claims);
+  assert.deepEqual((await readSurvey({ library, claims: async () => [claims[1]], refusals: async () => assert.fail("no live holder, no read") })).refusals, []);
 });
 
 test("11.8 · the pool picks ready work from every package by claims alone, oldest first, an arc nobody is on before a busy one", () => {
@@ -183,6 +188,20 @@ test("11.12 · work whose listed capability a live session holds is left out, an
   assert.equal(attempts.get("bounced").refusedBy, "s7", "a capability claim older than the start refused it");
   assert.deepEqual(pickPool(work([]), { attempts, max: 4, now: ran + 2 * 60_000 }).picks.map((one) => one.id), ["listed", "bounced", "gone-holder", "unlisted"],
     "offered again as soon as the claim clears, with no back-off");
+});
+
+test("11.18 · work whose lane was refused a capability not yet on its list is left out while that same holder keeps it (increment_8a3301a85e42, dispatched three times on 2026-10-11)", () => {
+  const work = (claims, refusals) => survey([
+    increment("bounced", "x", { parked: "2026-10-01T00:00:00Z" }),
+    increment("split", "x", { parked: "2026-10-02T00:00:00Z" }),
+  ], { claims, refusals });
+  const holding = [{ capability: "capability_tools", session: "s0f2", holder: "live", since: "2026-10-11T06:34:01Z" }];
+  const refusals = [{ capability: "capability_tools", under: "bounced", holder: "s0f2" }, { capability: "capability_tools", under: "split", holder: "s1b7" }];
+  const { picks, skipped } = pickPool(work(holding, refusals), { max: 2, now });
+  assert.deepEqual(picks.map((one) => one.id), ["split"], "a refusal by a holder that no longer holds it leaves the work ready");
+  assert.match(Object.fromEntries(skipped.map((skip) => [skip.id, skip.why])).bounced, /capability_tools refused its lane, held by live session s0f2/);
+  assert.deepEqual(pickPool(work([{ ...holding[0], holder: "gone" }], refusals), { max: 2, now }).picks.map((one) => one.id), ["bounced", "split"],
+    "offered again once that holder's claim clears");
 });
 
 test("11.16 · work is left out while a capability on its list is on the list of an increment another live session holds", () => {

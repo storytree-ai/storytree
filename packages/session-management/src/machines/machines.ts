@@ -113,3 +113,16 @@ export async function machineNames(server: Server): Promise<Map<string, string>>
   const { rows } = await db.query<{ hostname: string; name: string }>("SELECT hostname, name FROM machines ORDER BY at");
   return new Map(rows.map((row) => [row.hostname, row.name]));
 }
+
+/**
+ * What an increment's machine field is set to when `name` is given (ADR-0982): a named machine's name is kept,
+ * NO_MACHINE clears it (undefined, so any machine can take it), and any other name is refused naming the known ones.
+ * Both front doors check here before they set the field.
+ */
+export async function incrementMachine(server: Server, name: string): Promise<string | undefined> {
+  if (name === NO_MACHINE) return undefined;
+  const known = [...new Set((await machineNames(server)).values())].sort();
+  if (known.includes(name)) return name;
+  const said = known.length === 0 ? "no machine is named yet (storytree machine name <name> names one)" : `the named machines are ${known.join(", ")}`;
+  throw new MachineNameError(`no machine is called "${name}": ${said}, and "${NO_MACHINE}" clears it`, false);
+}

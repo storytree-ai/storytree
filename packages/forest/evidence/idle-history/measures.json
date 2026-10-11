@@ -1,0 +1,32 @@
+{
+  "live": {
+    "rows": [
+      "ih-builder",
+      "ih-waiting"
+    ],
+    "count": "2",
+    "idleFold": 0
+  },
+  "history": {
+    "rows": [
+      "ih-idle-1",
+      "ih-idle-2",
+      "ih-idle-3",
+      "ih-lander",
+      "ih-ender"
+    ],
+    "leads": [
+      "idle",
+      "idle",
+      "idle",
+      "Landed #1181",
+      "Ended without a close-out"
+    ]
+  },
+  "searchWisps": [
+    "ih-idle-1"
+  ],
+  "searchLanded": [
+    "ih-lander"
+  ]
+}

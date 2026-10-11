@@ -1,0 +1,209 @@
+{
+  "browser": "148.0.7778.96",
+  "records": 71,
+  "arcs": 16,
+  "wide": {
+    "viewport": {
+      "width": 1440,
+      "height": 960
+    },
+    "appBarBox": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 48
+    },
+    "barBox": {
+      "x": 0,
+      "y": 48,
+      "width": 1440,
+      "height": 48
+    },
+    "strip": {
+      "x": 0,
+      "y": 885.609375,
+      "width": 1440,
+      "height": 74.390625
+    },
+    "half": {
+      "drawerBox": {
+        "x": 0,
+        "y": 96,
+        "width": 1440,
+        "height": 480
+      },
+      "sizeBox": {
+        "x": 1353.75,
+        "y": 101,
+        "width": 68.25,
+        "height": 26.5
+      },
+      "scopes": [
+        {
+          "scope": "active",
+          "box": {
+            "x": 18,
+            "y": 101,
+            "width": 60.359375,
+            "height": 26.5
+          }
+        },
+        {
+          "scope": "parked",
+          "box": {
+            "x": 82.359375,
+            "y": 101,
+            "width": 64.875,
+            "height": 26.5
+          }
+        },
+        {
+          "scope": "closed",
+          "box": {
+            "x": 151.234375,
+            "y": 101,
+            "width": 64.765625,
+            "height": 26.5
+          }
+        }
+      ],
+      "lanes": {
+        "clientHeight": 442,
+        "scrollHeight": 859
+      }
+    },
+    "expanded": {
+      "inner": {
+        "width": 1440,
+        "height": 960
+      },
+      "drawerBox": {
+        "x": 0,
+        "y": 96,
+        "width": 1440,
+        "height": 864
+      },
+      "sizeBox": {
+        "x": 1352.3125,
+        "y": 101,
+        "width": 69.6875,
+        "height": 26.5
+      },
+      "panes": {
+        "x": 0,
+        "y": 133.5,
+        "width": 1440,
+        "height": 825.5
+      },
+      "lanes": {
+        "clientHeight": 826,
+        "scrollHeight": 859,
+        "overflowY": "auto",
+        "scrolled": 33
+      },
+      "briefing": {
+        "overflowY": "auto",
+        "clientHeight": 826,
+        "bottom": 959
+      },
+      "page": {
+        "scrollHeight": 960,
+        "innerHeight": 960,
+        "scrollY": 0
+      },
+      "covered": [
+        {
+          "x": 720,
+          "y": 923
+        },
+        {
+          "x": 720,
+          "y": 956
+        },
+        {
+          "x": 40,
+          "y": 894
+        }
+      ]
+    }
+  },
+  "narrow": {
+    "viewport": {
+      "width": 360,
+      "height": 640
+    },
+    "half": {
+      "drawerBox": {
+        "x": 0,
+        "y": 96,
+        "width": 360,
+        "height": 320
+      },
+      "sizeBox": {
+        "x": 273.75,
+        "y": 101,
+        "width": 68.25,
+        "height": 26.5
+      },
+      "scopes": [
+        {
+          "x": 18,
+          "y": 101,
+          "width": 60.359375,
+          "height": 26.5
+        },
+        {
+          "x": 82.359375,
+          "y": 101,
+          "width": 64.875,
+          "height": 26.5
+        },
+        {
+          "x": 151.234375,
+          "y": 101,
+          "width": 64.765625,
+          "height": 26.5
+        }
+      ]
+    },
+    "expanded": {
+      "drawerBox": {
+        "x": 0,
+        "y": 96,
+        "width": 360,
+        "height": 544
+      },
+      "sizeBox": {
+        "x": 272.3125,
+        "y": 101,
+        "width": 69.6875,
+        "height": 26.5
+      },
+      "gear": {
+        "x": 312,
+        "y": 5.5,
+        "width": 36,
+        "height": 36
+      },
+      "page": {
+        "scrollHeight": 640,
+        "innerHeight": 640,
+        "scrollY": 0
+      }
+    }
+  },
+  "errors": [],
+  "passed": [
+    "half height, control reads Expand, top right, clear of scopes and bar",
+    "bar closes at its right end, opens at its left",
+    "Expand from the keyboard keeps focus and reads Restore",
+    "expanded drawer spans bar bottom to window bottom, full width",
+    "Sessions strip and forest canvas covered, no pointer input to the forest",
+    "gear reachable",
+    "panes fill the height and scroll inside; page does not scroll",
+    "Escape closes and returns focus to the bar",
+    "expanded and half sizes survive a reload",
+    "narrow 360 x 640 half and expanded",
+    "read-only, no page errors"
+  ]
+}

@@ -13,7 +13,7 @@
 // run at once against the one Postgres (unit-pool.mjs: --jobs=<n>, else STORYTREE_TEST_JOBS, else 2 with a core left free),
 // slowest first; each unit's output is held and printed whole under its name when it ends, and
 // `--jobs=1` runs them one after another with their output live. A file named to run alone
-// (test-scope.mjs ALONE: forest's browser proof) is a unit of its own, run once every other unit has
+// (test-scope.mjs ALONE: forest's and the world's browser proofs) is a unit of its own, run once every other unit has
 // ended, with nothing beside it. A failure never stops the rest:
 // the run ends with a PASS / FAIL / NOT RUN table, and exits non-zero if any unit did not pass.
 //

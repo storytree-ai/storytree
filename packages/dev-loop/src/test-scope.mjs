@@ -226,9 +226,11 @@ export function parseTestArgs(argv) {
  * beside them, whenever their package runs; their package's unit runs its other files. Forest's
  * browser proof: its software-GL frames starve when other units and files share a 3-CPU macOS
  * runner (load average 42 in run 38038938459; arc_2a8dbc47a5f9, increment_ba747f54277d), and its
- * 15 s no-new-frame wait is not widened instead.
+ * 15 s no-new-frame wait is not widened instead. The world's road-reveal proof likewise: on macOS it
+ * took 12-15 s in most merge queue runs, but 76 s in one and past its 80 s bound in another (runs 38092380077 and
+ * 38032277103; increment_58dcb2d5c9a5).
  */
-export const ALONE = ["packages/forest/src/view/desktop-renderer-smoke.test.ts"];
+export const ALONE = ["packages/forest/src/view/desktop-renderer-smoke.test.ts", "packages/forest-world/src/planet/road-reveal.test.ts"];
 
 /** The units with each file to run alone whose package is among them added after them as its own. */
 function withAlone(root, units, alone) {

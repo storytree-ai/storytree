@@ -12,7 +12,7 @@ function survey(increments, extra = {}) {
   return { increments, holds: { waits: {}, heldOn: {} }, claims: [], ...extra };
 }
 
-test("11.2 · the survey reads arcs and holds once, with every increment's arc, capabilities list, the arc's state, the standing claims and the refusals their live holders gave", async () => {
+test("11.2 · the survey reads arcs and holds once, with every increment's arc, capabilities list, machine field, the arc's state, this machine's name, the standing claims and the refusals their live holders gave", async () => {
   let reads = 0;
   const record = (id, arc, body, extra = {}) => ({ id, createdAt: new Date(now), fields: { arc, title: id, body, status: "proposal", parked: "2026-10-06T00:00:00Z", waits: [], ...extra } });
   const library = {
@@ -22,7 +22,7 @@ test("11.2 · the survey reads arcs and holds once, with every increment's arc, 
         { arc: { id: "arc_laptop", createdAt: new Date(now) }, state: "active", questions: [{ fields: { lifecycle: "open" } }, { fields: { lifecycle: "settled" } }], increments: [record("i1", "arc_laptop", "a"), record("i2", "arc_laptop", "b", { capabilities: ["capability_x"] })] },
         { arc: { id: "arc_cap" }, state: "active", increments: [record("i3", "arc_cap", "c", { capabilities: ["capability_x"] })] },
         { arc: { id: "arc_box" }, state: "parked", increments: [record("i4", "arc_box", "d")] },
-        { arc: { id: "arc_stale" }, state: "active", increments: [record("i5", "arc_stale", "e")] },
+        { arc: { id: "arc_stale" }, state: "active", increments: [record("i5", "arc_stale", "e", { machine: "laptop" })] },
       ];
     },
     holds: async () => ({ waits: { i1: [{ on: "z", reason: "r" }] }, heldOn: {} }),
@@ -30,13 +30,15 @@ test("11.2 · the survey reads arcs and holds once, with every increment's arc, 
   const claims = [{ increment: "i1", session: "laptop", holder: "live", since: "2026-10-07T02:30:00Z" }, { capability: "capability_y", session: "quiet", holder: "gone", since: "2026-10-07T02:30:00Z" }];
   const asked = [];
   const refused = [{ capability: "capability_x", under: "i2", holder: "laptop" }];
-  const read = await readSurvey({ library, claims: async () => claims, refusals: async (holders) => (asked.push(holders), refused) });
+  const read = await readSurvey({ library, claims: async () => claims, refusals: async (holders) => (asked.push(holders), refused), here: async () => "mint" });
   assert.deepEqual(asked, [["laptop"]], "refusals are read once, for the live holders only");
   assert.equal(read.refusals, refused);
   assert.equal(reads, 1);
   assert.deepEqual(read.increments.map((one) => [one.id, one.arc, one.arcState, one.body]), [
     ["i1", "arc_laptop", "active", "a"], ["i2", "arc_laptop", "active", "b"], ["i3", "arc_cap", "active", "c"], ["i4", "arc_box", "parked", "d"], ["i5", "arc_stale", "active", "e"]]);
   assert.deepEqual(read.increments.map((one) => one.capabilities), [[], ["capability_x"], ["capability_x"], [], []], "with each one's capabilities list");
+  assert.deepEqual(read.increments.map((one) => one.machine), [undefined, undefined, undefined, undefined, "laptop"], "with each one's machine field");
+  assert.equal(read.here, "mint", "and this machine's name");
   assert.deepEqual(read.holds.waits.i1, [{ on: "z", reason: "r" }]);
   assert.deepEqual(read.arcs.map((arc) => [arc.id, arc.state, arc.openQuestions]), [["arc_laptop", "active", 1], ["arc_cap", "active", 0], ["arc_box", "parked", 0], ["arc_stale", "active", 0]]);
   assert.equal(read.claims, claims);
@@ -53,12 +55,13 @@ test("11.8 · the pool picks ready work from every package by claims alone, olde
     increment("waits", "packages/app", { parked: "2026-09-02T00:00:00Z" }),
     increment("owner-wait", "packages/app", { parked: "2026-09-02T00:00:00Z" }),
     increment("question", "packages/app", { parked: "2026-09-03T00:00:00Z" }),
-    increment("laptop", "needs: the laptop", { parked: "2026-09-04T00:00:00Z" }),
+    increment("laptop", "packages/app", { parked: "2026-09-04T00:00:00Z", machine: "laptop" }),
     increment("closed", "packages/app", { parked: "2026-09-04T00:00:00Z", status: "closed" }),
     increment("parked-arc", "packages/app", { parked: "2026-09-04T00:00:00Z", arcState: "parked" }),
   ], {
     holds: { waits: { waits: [{ on: "x" }] }, waitsFor: { "owner-wait": [{ releaser: "owner", note: "his call", holds: true }] }, heldOn: { question: ["question_1"] } },
     claims: [{ increment: "claimed", session: "s1", holder: "live", since: "2026-10-07T00:00:00Z" }],
+    here: "mint",
   });
   const { picks, skipped } = pickPool(work, { max: 3 });
   assert.deepEqual(picks.map((one) => one.id), ["app-work", "unplaced", "library-work"], "arc_busy has a live session, so its older work comes after the idle arcs'; one pick per idle arc first");
@@ -68,7 +71,7 @@ test("11.8 · the pool picks ready work from every package by claims alone, olde
   assert.match(why.waits, /waits on x/);
   assert.match(why["owner-wait"], /waits for the owner/);
   assert.match(why.question, /held on question_1/);
-  assert.match(why.laptop, /another machine/);
+  assert.equal(why.laptop, "needs laptop");
   assert.equal(why.closed, undefined);
   assert.equal(why["parked-arc"], undefined);
   assert.deepEqual(pickPool(work, { max: 9, running: ["app-work"] }).picks.map((one) => one.id).includes("app-work"), false, "never started twice");
@@ -232,4 +235,16 @@ test("11.17 · only the body's leading needs clause routes work: read-only, blin
   const { picks, skipped } = pickPool(survey([increment("build", quoted), increment("laptop", "needs: the laptop. Then build.")]), { now });
   assert.deepEqual(picks.map((one) => one.id), ["build"]);
   assert.deepEqual(skipped, [{ id: "laptop", why: "needs another machine" }]);
+});
+
+test("11.19 · work whose machine field names another machine is left out, with that machine's name; work naming this one, or none, is picked", () => {
+  const work = survey([
+    increment("laptop", "Build it in packages/app.", { machine: "laptop" }),
+    increment("mint", "Build it in packages/app.", { machine: "mint" }),
+    increment("any", "Build it in packages/app.", { parked: "2026-10-06T00:00:01Z" }),
+  ], { here: "mint" });
+  const { picks, skipped } = pickPool(work, { max: 3, now });
+  assert.deepEqual(picks.map((one) => one.id), ["mint", "any"]);
+  assert.deepEqual(skipped, [{ id: "laptop", why: "needs laptop" }]);
+  assert.deepEqual(pickPool({ ...work, here: undefined }, { max: 3, now }).skipped.map((skip) => skip.id), ["laptop", "mint"], "an unnamed machine takes no work that names one");
 });
